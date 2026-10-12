@@ -201,3 +201,7 @@ When a run you just saved set one or more of them, the summary screen shows a **
 ## Correcting a treadmill distance
 
 A run recorded on the watch indoors has no route, so its distance is the watch's estimate from your arm and step motion, which can be off. On the summary screen (tap the "Run from your watch saved" message) a **Treadmill distance** card lets you enter what the machine showed. The distance, pace and lap distances update, and heart rate and calories are kept. Runs with a GPS route get their distance from the route and cannot be changed this way.
+
+## Following a watch run on the phone
+
+While you record a walk or run on the watch alone, the phone shows a bar above the tab bar (like a strength workout) with the clock, distance and pace. Tap it for a full view with heart rate, calories, laps and, if you follow a plan, the current step and what is next. It is a view only: pause and finish on the watch. It appears while the watch and phone are in range, goes away if the watch has been out of range for about 20 seconds, and the finished run is added to your diary as before.
