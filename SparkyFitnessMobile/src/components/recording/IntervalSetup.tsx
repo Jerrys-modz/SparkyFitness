@@ -24,7 +24,7 @@ export const DEFAULT_CUSTOM_INTERVALS: IntervalOptions = {
 };
 
 // Translated names, one static key each (the i18n audit reads keys as text).
-function presetName(t: TFunction, id: string): string {
+export function presetName(t: TFunction, id: string): string {
   switch (id) {
     case 'beginnerRunWalk':
       return t('recordActivity.intervals.preset.beginnerRunWalk', {

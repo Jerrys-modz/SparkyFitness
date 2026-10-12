@@ -1,4 +1,5 @@
 import {
+  indoorLapWindows,
   parseWatchRunPayload,
   watchRunPoints,
   WATCH_NO_ALTITUDE,
@@ -35,6 +36,35 @@ describe('parseWatchRunPayload', () => {
     expect(parseWatchRunPayload(base)?.laps).toEqual([]);
   });
 
+  test('reads the plan the run followed', () => {
+    expect(
+      parseWatchRunPayload({
+        ...base,
+        planId: 'beginner5k',
+        programId: 'beginner5k',
+        programIndex: 2,
+        planCompleted: true,
+      })
+    ).toMatchObject({
+      planId: 'beginner5k',
+      program: { id: 'beginner5k', index: 2 },
+      planCompleted: true,
+    });
+    // The phone module sends -1 and "" for "none".
+    expect(
+      parseWatchRunPayload({
+        ...base,
+        planId: 'runWalk2',
+        programId: '',
+        programIndex: -1,
+      })
+    ).toMatchObject({
+      planId: 'runWalk2',
+      program: null,
+      planCompleted: false,
+    });
+  });
+
   test.each([
     [null],
     [{ ...base, clientId: '' }],
@@ -66,5 +96,56 @@ describe('watchRunPoints', () => {
     expect(points[0].hacc).toBeNull();
     expect(points[1].alt).toBeNull();
     expect(points[1].hacc).toBe(5);
+  });
+});
+
+describe('indoorLapWindows', () => {
+  const run = (overrides = {}) => ({
+    ...(parseWatchRunPayload({ ...base, route: [] }) as NonNullable<
+      ReturnType<typeof parseWatchRunPayload>
+    >),
+    startedAt: 0,
+    endedAt: 600_000,
+    distanceMeters: 2000,
+    heartRate: [
+      [100_000, 140],
+      [200_000, 150],
+      [400_000, 170],
+    ],
+    ...overrides,
+  });
+
+  test('cuts the run at the marks, taking distance and heart rate from the watch', () => {
+    const laps = indoorLapWindows(
+      run({ laps: [300_000], lapDistances: [900] })
+    );
+    expect(laps).toEqual([
+      {
+        lap_index: 1,
+        start_time: new Date(0).toISOString(),
+        end_time: new Date(300_000).toISOString(),
+        distance_meters: 900,
+        avg_heart_rate: 145,
+      },
+      {
+        lap_index: 2,
+        start_time: new Date(300_000).toISOString(),
+        end_time: new Date(600_000).toISOString(),
+        distance_meters: 1100,
+        avg_heart_rate: 170,
+      },
+    ]);
+  });
+
+  test('has no laps without marks, and leaves distance out when it was not sent per mark', () => {
+    expect(indoorLapWindows(run())).toEqual([]);
+    const [first] = indoorLapWindows(run({ laps: [300_000] }));
+    expect(first.distance_meters).toBeUndefined();
+  });
+
+  test('ignores a mark outside the run', () => {
+    expect(
+      indoorLapWindows(run({ laps: [900_000], lapDistances: [1] }))
+    ).toEqual([]);
   });
 });

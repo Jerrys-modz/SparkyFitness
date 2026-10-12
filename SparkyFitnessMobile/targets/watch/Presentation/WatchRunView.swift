@@ -44,6 +44,12 @@ struct WatchRunView: View {
             }
             .font(.caption2)
             .foregroundStyle(run.phase == .running ? Color.green : Color.secondary)
+            // The system clock sits in the top-right corner: keep this row clear
+            // of it, shrinking before it would run into it.
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .padding(.trailing, WatchStyle.s(54))
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             // Re-evaluated every second; the workout builder keeps the count.
             TimelineView(.periodic(from: .now, by: 1)) { _ in
@@ -53,6 +59,9 @@ struct WatchRunView: View {
                         .font(.system(size: 34, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                         .minimumScaleFactor(0.7)
+                    if let plan = run.plan, let position = plan.position(at: elapsed) {
+                        planStep(position)
+                    }
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
                         stat(
                             value: WatchRunMetrics.distanceText(run.metrics.distanceMeters, usesMiles: usesMiles),
@@ -149,6 +158,28 @@ struct WatchRunView: View {
         } else {
             Color.clear.onAppear { run.dismissSummary() }
         }
+    }
+
+    /// The step the plan is on: its name and time left, then what comes next.
+    private func planStep(_ position: WatchRunPlan.Position) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 6) {
+                Text(position.label)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.orange)
+                if !position.finished {
+                    Text(RecordingState.clock(position.remaining))
+                        .font(.caption.weight(.semibold))
+                        .monospacedDigit()
+                }
+            }
+            if let next = position.next {
+                Text("Next: \(next)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func stat(value: String, unit: String) -> some View {

@@ -697,8 +697,46 @@ export const attachExerciseEntryGpsTrackRequestSchema = z
   })
   .strict();
 
+// Laps for an entry that has no GPS track, such as a treadmill run recorded on
+// the watch: the windows the wearer marked, with the distance the watch
+// estimated for each. With a track the server derives all of this from the
+// points instead (see the gps-track request above).
+export const attachExerciseEntryLapsRequestSchema = z
+  .object({
+    laps: z
+      .array(
+        z.object({
+          lap_index: z.number().int().positive().max(1000),
+          // ISO instants with an offset, so a lap never shifts with the
+          // server's own timezone.
+          start_time: z.string().datetime({ offset: true }),
+          end_time: z.string().datetime({ offset: true }),
+          distance_meters: z.number().nonnegative().max(1_000_000).optional(),
+          avg_heart_rate: z.number().positive().max(300).optional(),
+        }),
+      )
+      .min(1)
+      .max(1000)
+      .refine(
+        (laps) =>
+          new Set(laps.map((lap) => lap.lap_index)).size === laps.length,
+        { message: "Each lap needs its own lap_index." },
+      )
+      .refine(
+        (laps) =>
+          laps.every(
+            (lap) => Date.parse(lap.end_time) > Date.parse(lap.start_time),
+          ),
+        { message: "Every lap must end after it starts." },
+      ),
+  })
+  .strict();
+
 export type ExerciseEntrySetRequest = z.infer<
   typeof exerciseEntrySetRequestSchema
+>;
+export type AttachExerciseEntryLapsRequest = z.infer<
+  typeof attachExerciseEntryLapsRequestSchema
 >;
 export type AttachExerciseEntryGpsTrackRequest = z.infer<
   typeof attachExerciseEntryGpsTrackRequestSchema
