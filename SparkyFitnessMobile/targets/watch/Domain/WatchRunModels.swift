@@ -98,6 +98,8 @@ struct WatchRunResult {
     let route: [[Double]]
     /// `[t (epoch ms), bpm]`
     let heartRate: [[Double]]
+    /// Epoch ms of each Lap press. The phone cuts the route at these.
+    var laps: [Double] = []
 
     /// Keeps at most `limit` rows, evenly spread and always including the
     /// last, so a long run stays inside the connection's size limit.

@@ -8,6 +8,7 @@ import { addLog } from './LogService';
 import { buildActivitySetsPayload } from '../utils/workoutSession';
 import { toLocalDateString } from '../utils/dateUtils';
 import {
+  computeLaps,
   computeSplits,
   METERS_PER_KM,
   METERS_PER_MILE,
@@ -78,7 +79,12 @@ export async function saveWatchRun(
       distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
     await attachExerciseEntryGpsTrack(entryId, {
       points: toWorkoutGpsPoints(points),
-      laps: splitsToLapWindows(computeSplits(points, unitMeters)),
+      // Laps the wearer marked cut the route; otherwise each km or mile does.
+      laps: splitsToLapWindows(
+        payload.laps.length > 0
+          ? computeLaps(points, payload.laps)
+          : computeSplits(points, unitMeters)
+      ),
     });
   }
   await attachTelemetry(entryId, payload);
