@@ -16,6 +16,8 @@ import {
   type RecordingSession,
   type RecordingSnapshot,
 } from '../../src/services/gpsRecordingService';
+import { useWatchConnectivity } from '../../src/hooks/useWatchConnectivity';
+import { startRunOnWatch } from '../../src/services/watchRunControl';
 import { useRunProgram } from '../../src/services/runProgramService';
 import { programStatus } from '@workspace/shared';
 import { saveRecordedActivity } from '../../src/services/gpsRecordingSave';
@@ -56,6 +58,16 @@ jest.mock('../../src/services/gpsRecordingService', () => {
     COUNTDOWN_CHOICES: [0, 3, 5, 10],
   };
 });
+jest.mock('../../src/hooks/useWatchConnectivity', () => ({
+  useWatchConnectivity: jest.fn(() => ({
+    isSupported: false,
+    isPaired: false,
+    isReachable: false,
+  })),
+}));
+jest.mock('../../src/services/watchRunControl', () => ({
+  startRunOnWatch: jest.fn(() => Promise.resolve('q1')),
+}));
 jest.mock('../../src/services/runProgramService', () => ({
   useRunProgram: jest.fn(),
   completeProgramWorkout: jest.fn(() => Promise.resolve()),
@@ -124,7 +136,11 @@ const track: RecordedPoint[] = Array.from({ length: 11 }, (_, i) => ({
 const state = (s: RecordingSession | null, points: RecordedPoint[] = []) =>
   mockedState.mockReturnValue({ session: s, points } as RecordingSnapshot);
 
-const navigation = { goBack: jest.fn(), replace: jest.fn() };
+const navigation = {
+  goBack: jest.fn(),
+  replace: jest.fn(),
+  navigate: jest.fn(),
+};
 const props = {
   navigation,
   route: { key: 'RecordActivity', name: 'RecordActivity' },
@@ -204,6 +220,57 @@ describe('RecordActivityScreen', () => {
       await waitFor(() =>
         expect(screen.getByText('Using this workout')).toBeTruthy()
       );
+    });
+  });
+
+  describe('with a paired watch', () => {
+    beforeEach(() =>
+      jest.mocked(useWatchConnectivity).mockReturnValue({
+        isSupported: true,
+        isPaired: true,
+        isReachable: true,
+      })
+    );
+    afterEach(() =>
+      jest.mocked(useWatchConnectivity).mockReturnValue({
+        isSupported: false,
+        isPaired: false,
+        isReachable: false,
+      })
+    );
+
+    it('records with the phone unless the watch is chosen', async () => {
+      state(null);
+      const screen = await renderScreen();
+      fireEvent.press(screen.getByText('Start'));
+      await waitFor(() => expect(startRecording).toHaveBeenCalled());
+      expect(startRunOnWatch).not.toHaveBeenCalled();
+    });
+
+    it('starts a treadmill run on the watch and opens the live screen', async () => {
+      state(null);
+      const screen = await renderScreen();
+      fireEvent.press(screen.getByText('Treadmill'));
+      expect(screen.queryByTestId('auto-pause-switch')).toBeNull();
+      fireEvent.press(screen.getByText('Start'));
+      await waitFor(() =>
+        expect(startRunOnWatch).toHaveBeenCalledWith({
+          kind: 'run',
+          place: 'indoor',
+          plan: undefined,
+        })
+      );
+      expect(startRecording).not.toHaveBeenCalled();
+      expect(navigation.navigate).toHaveBeenCalledWith('WatchRunLive');
+    });
+
+    it('offers the watch for a walk but not a ride', async () => {
+      state(null);
+      const screen = await renderScreen();
+      fireEvent.press(screen.getByText('Ride'));
+      expect(screen.queryByText('Treadmill')).toBeNull();
+      fireEvent.press(screen.getByText('Walk'));
+      expect(screen.getByText('Treadmill')).toBeTruthy();
     });
   });
 

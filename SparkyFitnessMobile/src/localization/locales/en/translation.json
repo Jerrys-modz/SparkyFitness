@@ -6614,6 +6614,16 @@
       "switchTitle": "Switch to {{name}}?",
       "switchMessage": "You will start the new program at week 1. Your place in the current one is not kept.",
       "switchConfirm": "Switch"
+    },
+    "watch": {
+      "title": "Record with",
+      "phone": "Phone GPS",
+      "outdoor": "Watch",
+      "indoor": "Treadmill",
+      "phoneHint": "Your phone’s GPS records the route and distance.",
+      "indoorHint": "Your watch counts steps and estimates the distance. Correct it to the treadmill’s figure afterwards.",
+      "outdoorHint": "Your watch records the run with its own GPS and heart rate sensor. Your phone can stay behind.",
+      "planName": "Intervals"
     }
   },
   "runSummary": {
@@ -6766,6 +6776,9 @@
     "calories": "Calories",
     "kcal": "kcal",
     "ended": "The run on your watch has ended or is out of range. A finished run is added to your diary.",
-    "indoorNote": "Indoors the distance is the watch’s estimate. You can correct it to the treadmill’s figure after the run."
+    "indoorNote": "Indoors the distance is the watch’s estimate. You can correct it to the treadmill’s figure after the run.",
+    "starting": "Starting on your watch…",
+    "startingHint": "Raise your wrist and open SparkyFitness if it does not start on its own. The run starts as soon as the watch gets the request.",
+    "controlFailed": "Could not reach your watch"
   }
 }

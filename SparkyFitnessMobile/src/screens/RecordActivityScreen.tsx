@@ -25,7 +25,10 @@ import Switch from '../components/ui/Switch';
 import SegmentedControl from '../components/SegmentedControl';
 import { SplitRow, Stat } from '../components/recording/SplitRow';
 import RunProgramSelect from '../components/recording/RunProgramSelect';
-import { programWorkoutLabel } from '../components/recording/RunProgramCard';
+import {
+  programName,
+  programWorkoutLabel,
+} from '../components/recording/RunProgramCard';
 import IntervalCard from '../components/recording/IntervalCard';
 import IntervalSetup, {
   DEFAULT_CUSTOM_INTERVALS,
@@ -35,6 +38,9 @@ import RouteMap from '../components/exerciseStats/RouteMap';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { invalidateExerciseCache } from '../hooks/invalidateExerciseCache';
 import { usePreferences } from '../hooks/usePreferences';
+import { useWatchConnectivity } from '../hooks/useWatchConnectivity';
+import { startRunOnWatch } from '../services/watchRunControl';
+import { buildWatchStartPlan } from '../utils/watchRunPlans';
 import { useRecordingHeartRate } from '../stores/liveHeartRateStore';
 import { notificationText } from '../utils/recordingNotification';
 import { formatLocalizedNumber, getAppLocale } from '../localization';
@@ -121,6 +127,15 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const heartRate = useRecordingHeartRate(session?.id ?? null);
   const [activity, setActivity] = useState<RecordingActivity>('run');
   const [busy, setBusy] = useState(false);
+  const { isSupported: watchSupported, isPaired: watchPaired } =
+    useWatchConnectivity();
+  // Where a walk or run is recorded: this phone's GPS (the default), or the
+  // watch, outdoors or on a treadmill. A ride is phone-only.
+  const [recordWith, setRecordWith] = useState<
+    'phone' | 'watchOutdoor' | 'watchIndoor'
+  >('phone');
+  const watchAvailable = watchSupported && watchPaired && activity !== 'ride';
+  const onWatch = watchAvailable && recordWith !== 'phone';
   const [autoPause, setAutoPause] = useState(true);
   const [audioCues, setAudioCues] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState(0);
@@ -278,6 +293,34 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       run(
         async () => {
           setPermissionProblem(null);
+          if (onWatch) {
+            const meta =
+              intervalChoice === 'program' && programStatus
+                ? {
+                    id: programStatus.program.id,
+                    name: programName(t, programStatus.program.id),
+                    program: {
+                      id: programStatus.program.id,
+                      index: programStatus.done,
+                      activity: programStatus.program.activity,
+                    },
+                  }
+                : {
+                    id: intervalChoice,
+                    name: t('recordActivity.watch.planName', {
+                      defaultValue: 'Intervals',
+                    }),
+                  };
+            await startRunOnWatch({
+              kind: activity,
+              place: recordWith === 'watchIndoor' ? 'indoor' : 'outdoor',
+              plan: intervalPlan
+                ? buildWatchStartPlan(t, intervalPlan, meta)
+                : undefined,
+            });
+            navigation.navigate('WatchRunLive');
+            return;
+          }
           // Before the await: the session publishes inside startRecording, and
           // the "already recording" notice must not flash for one render.
           setStartedHere(true);
@@ -308,7 +351,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       distanceUnit,
       intervalChoice,
       intervalPlan,
+      navigation,
+      onWatch,
       programStatus,
+      recordWith,
       run,
       t,
     ]
@@ -555,59 +601,112 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             activeKey={activity}
             onSelect={setActivity}
           />
-          <View className="flex-row items-center justify-between bg-surface rounded-xl p-4 mt-4">
-            <View className="flex-1 mr-3">
-              <Text className="text-text-primary text-sm font-semibold">
-                {t('recordActivity.autoPause.title', {
-                  defaultValue: 'Auto-pause',
+          {watchAvailable ? (
+            <View className="bg-surface rounded-xl p-4 mt-4">
+              <Text className="text-text-primary text-sm font-semibold mb-1">
+                {t('recordActivity.watch.title', {
+                  defaultValue: 'Record with',
                 })}
               </Text>
-              <Text className="text-text-secondary text-xs mt-0.5">
-                {t('recordActivity.autoPause.description', {
-                  defaultValue:
-                    'Pauses the clock when you stop and carries on when you move.',
-                })}
+              <Text className="text-text-secondary text-xs mb-2">
+                {recordWith === 'phone'
+                  ? t('recordActivity.watch.phoneHint', {
+                      defaultValue:
+                        'Your phone’s GPS records the route and distance.',
+                    })
+                  : recordWith === 'watchIndoor'
+                    ? t('recordActivity.watch.indoorHint', {
+                        defaultValue:
+                          'Your watch counts steps and estimates the distance. Correct it to the treadmill’s figure afterwards.',
+                      })
+                    : t('recordActivity.watch.outdoorHint', {
+                        defaultValue:
+                          'Your watch records the run with its own GPS and heart rate sensor. Your phone can stay behind.',
+                      })}
               </Text>
+              <SegmentedControl<'phone' | 'watchOutdoor' | 'watchIndoor'>
+                segments={[
+                  {
+                    key: 'phone',
+                    label: t('recordActivity.watch.phone', {
+                      defaultValue: 'Phone GPS',
+                    }),
+                  },
+                  {
+                    key: 'watchOutdoor',
+                    label: t('recordActivity.watch.outdoor', {
+                      defaultValue: 'Watch',
+                    }),
+                  },
+                  {
+                    key: 'watchIndoor',
+                    label: t('recordActivity.watch.indoor', {
+                      defaultValue: 'Treadmill',
+                    }),
+                  },
+                ]}
+                activeKey={recordWith}
+                onSelect={setRecordWith}
+              />
             </View>
-            <Switch
-              testID="auto-pause-switch"
-              accessibilityLabel={t('recordActivity.autoPause.title', {
-                defaultValue: 'Auto-pause',
-              })}
-              value={autoPause}
-              onValueChange={(value) => {
-                setAutoPause(value);
-                void setRecordingPreference('autoPause', value);
-              }}
-            />
-          </View>
-          <View className="flex-row items-center justify-between bg-surface rounded-xl p-4 mt-4">
-            <View className="flex-1 mr-3">
-              <Text className="text-text-primary text-sm font-semibold">
-                {t('recordActivity.audioCues.title', {
-                  defaultValue: 'Voice cues',
-                })}
-              </Text>
-              <Text className="text-text-secondary text-xs mt-0.5">
-                {t('recordActivity.audioCues.description', {
-                  defaultValue:
-                    'Speaks your time at each kilometer or mile, and when you pause or resume.',
-                })}
-              </Text>
-            </View>
-            <Switch
-              testID="audio-cues-switch"
-              accessibilityLabel={t('recordActivity.audioCues.title', {
-                defaultValue: 'Voice cues',
-              })}
-              value={audioCues}
-              onValueChange={(value) => {
-                setAudioCues(value);
-                void setRecordingPreference('audioCues', value);
-              }}
-            />
-          </View>
-          {audioCues && <RecordingVoiceCard />}
+          ) : null}
+          {onWatch ? null : (
+            <>
+              <View className="flex-row items-center justify-between bg-surface rounded-xl p-4 mt-4">
+                <View className="flex-1 mr-3">
+                  <Text className="text-text-primary text-sm font-semibold">
+                    {t('recordActivity.autoPause.title', {
+                      defaultValue: 'Auto-pause',
+                    })}
+                  </Text>
+                  <Text className="text-text-secondary text-xs mt-0.5">
+                    {t('recordActivity.autoPause.description', {
+                      defaultValue:
+                        'Pauses the clock when you stop and carries on when you move.',
+                    })}
+                  </Text>
+                </View>
+                <Switch
+                  testID="auto-pause-switch"
+                  accessibilityLabel={t('recordActivity.autoPause.title', {
+                    defaultValue: 'Auto-pause',
+                  })}
+                  value={autoPause}
+                  onValueChange={(value) => {
+                    setAutoPause(value);
+                    void setRecordingPreference('autoPause', value);
+                  }}
+                />
+              </View>
+              <View className="flex-row items-center justify-between bg-surface rounded-xl p-4 mt-4">
+                <View className="flex-1 mr-3">
+                  <Text className="text-text-primary text-sm font-semibold">
+                    {t('recordActivity.audioCues.title', {
+                      defaultValue: 'Voice cues',
+                    })}
+                  </Text>
+                  <Text className="text-text-secondary text-xs mt-0.5">
+                    {t('recordActivity.audioCues.description', {
+                      defaultValue:
+                        'Speaks your time at each kilometer or mile, and when you pause or resume.',
+                    })}
+                  </Text>
+                </View>
+                <Switch
+                  testID="audio-cues-switch"
+                  accessibilityLabel={t('recordActivity.audioCues.title', {
+                    defaultValue: 'Voice cues',
+                  })}
+                  value={audioCues}
+                  onValueChange={(value) => {
+                    setAudioCues(value);
+                    void setRecordingPreference('audioCues', value);
+                  }}
+                />
+              </View>
+              {audioCues && <RecordingVoiceCard />}
+            </>
+          )}
           <View className="bg-surface rounded-xl p-4 mt-4">
             <Text className="text-text-primary text-sm font-semibold mb-2">
               {t('recordActivity.countdown.title', {

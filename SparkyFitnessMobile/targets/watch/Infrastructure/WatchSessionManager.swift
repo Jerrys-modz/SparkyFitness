@@ -660,6 +660,16 @@ final class WatchSessionManager: NSObject, ObservableObject {
             if let update = ContextPayloadMapper.recordingUpdate(from: payload) {
                 RecordingStore.shared.apply(update)
             }
+        case "runStart":
+            if let request = ContextPayloadMapper.runStartRequest(from: payload) {
+                WatchRunStore.shared.startRequested(request)
+            }
+        case "runControl":
+            if let control = ContextPayloadMapper.runControl(from: payload) {
+                WatchRunStore.shared.applyRemote(
+                    runId: control.runId, action: control.action, controlId: control.controlId
+                )
+            }
         default: break
         }
     }

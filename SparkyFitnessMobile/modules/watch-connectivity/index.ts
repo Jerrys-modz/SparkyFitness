@@ -711,6 +711,41 @@ export interface WatchRunLivePayload {
   nextLabel?: string;
   /** Epoch ms on the watch when it was sent. */
   sentAt: number;
+  /** The phone's `runStart` request this run began from; absent for a run started on the wrist. */
+  requestId?: string;
+}
+
+/** One step of a guided walk or run the phone hands the watch. */
+export interface WatchRunStartPlanStep {
+  label: string;
+  seconds: number;
+}
+
+/** Asks the watch to start recording a walk or run itself. */
+export interface WatchRunStartPayload {
+  requestId: string;
+  kind: 'run' | 'walk';
+  place: 'indoor' | 'outdoor';
+  /** Epoch ms; the watch ignores a request older than two minutes. */
+  requestedAt: number;
+  plan?: {
+    id: string;
+    name: string;
+    programId?: string;
+    programIndex?: number;
+    activity?: string;
+    steps: WatchRunStartPlanStep[];
+  };
+}
+
+export type WatchRunControlAction =
+  'pause' | 'resume' | 'lap' | 'finish' | 'discard';
+
+export interface WatchRunControlPayload {
+  runId: string;
+  action: WatchRunControlAction;
+  /** Unique per tap, so a queued copy delivered twice acts once. */
+  controlId: string;
 }
 
 export type WatchConnectivityEvents = {
@@ -753,6 +788,10 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
     durable: boolean
   ): Promise<void>;
   startWorkout(plan: WatchWorkoutStartPayload): Promise<void>;
+  /** Starts a walk or run on the watch and opens its app. */
+  startRun(request: WatchRunStartPayload): Promise<void>;
+  /** Pause, resume, lap, finish or discard for the run on the watch. */
+  sendRunControl(control: WatchRunControlPayload): Promise<void>;
   /**
    * The live workout's plan again after exercises, supersets or sets changed
    * on the phone mid-workout. The watch swaps it in without restarting,
