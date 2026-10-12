@@ -449,6 +449,25 @@ const LibraryScreen: React.FC<LibraryScreenProps> = ({ navigation }) => {
         </Pressable>
         <Pressable
           className="px-4 py-4 flex-row items-center justify-between border-b border-border-subtle"
+          onPress={() => navigation.navigate('PersonalRecords')}
+          style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+        >
+          <View className="flex-1 mr-3">
+            <Text className="text-base font-semibold text-text-primary">
+              {t('screens.library.personalRecords', {
+                defaultValue: 'Personal records',
+              })}
+            </Text>
+            <Text className="text-sm text-text-secondary mt-0.5">
+              {t('screens.library.personalRecordsSubtitle', {
+                defaultValue: 'Your best 1 km, 5 km, 10 km and more',
+              })}
+            </Text>
+          </View>
+          <Icon name="chevron-forward" size={20} color="#999" />
+        </Pressable>
+        <Pressable
+          className="px-4 py-4 flex-row items-center justify-between border-b border-border-subtle"
           onPress={() => navigation.navigate('ExercisesLibrary')}
           style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
         >

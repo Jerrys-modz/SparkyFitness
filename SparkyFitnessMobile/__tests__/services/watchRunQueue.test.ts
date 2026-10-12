@@ -202,6 +202,8 @@ test('a tick-off that fails for a reason that may pass keeps the run queued, the
   expect(await processWatchRunQueue('km', listener)).toEqual(['2026-10-10']);
   expect(completeProgramWorkout).toHaveBeenCalledTimes(2);
   expect(listener).toHaveBeenCalledTimes(1);
+  // The listener is told which diary entry the run was filed as.
+  expect(listener).toHaveBeenCalledWith(expect.anything(), 'entry-1');
 });
 
 test('a tick-off the server will never accept does not hold the run back', async () => {

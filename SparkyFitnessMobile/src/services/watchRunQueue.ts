@@ -181,7 +181,7 @@ function scheduleRetry(): void {
  */
 export function processWatchRunQueue(
   distanceUnit: 'km' | 'miles',
-  onFiled?: (payload: WatchRunPayload) => void
+  onFiled?: (payload: WatchRunPayload, entryId: string) => void
 ): Promise<string[]> {
   if (processing) {
     // A run queued just as the pass was finishing would otherwise wait for the
@@ -208,7 +208,7 @@ export function processWatchRunQueue(
 
 async function drainOnce(
   distanceUnit: 'km' | 'miles',
-  onFiled?: (payload: WatchRunPayload) => void
+  onFiled?: (payload: WatchRunPayload, entryId: string) => void
 ): Promise<{ filed: string[]; needsRetry: boolean }> {
   const filed: string[] = [];
   let needsRetry = false;
@@ -242,7 +242,7 @@ async function drainOnce(
       filed.push(toLocalDateString(new Date(item.payload.startedAt)));
       // A listener failing (a toast, a navigation) never undoes a filed run.
       try {
-        onFiled?.(item.payload);
+        onFiled?.(item.payload, entryId);
       } catch (error) {
         addLog(
           `[Watch Run] Filed-run listener failed: ${String(error)}`,
