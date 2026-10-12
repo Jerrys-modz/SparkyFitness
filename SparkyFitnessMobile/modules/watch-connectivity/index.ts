@@ -174,6 +174,8 @@ export interface WatchContextPayload {
    * speaks each completed km or mile while this is on. Missing reads as off.
    */
   runVoiceCues?: boolean | null;
+  /** The phone's Auto-pause switch: the default for a run begun on the wrist. */
+  runAutoPause?: boolean | null;
   /**
    * Plans a wrist-only run can follow: the training-program workout due now
    * (carrying `programId`/`programIndex`) then the built-in interval plans,
@@ -764,6 +766,9 @@ export interface WatchRunLivePayload {
   sentAt: number;
   /** The phone's `runStart` request this run began from; absent for a run started on the wrist. */
   requestId?: string;
+  /** This run's switches; absent from an older watch build. */
+  autoPause?: boolean;
+  voiceCues?: boolean;
 }
 
 /** One step of a guided walk or run the phone hands the watch. */
@@ -779,6 +784,9 @@ export interface WatchRunStartPayload {
   place: 'indoor' | 'outdoor';
   /** Epoch ms; the watch ignores a request older than two minutes. */
   requestedAt: number;
+  /** The Record screen's switches for this run (both or neither). */
+  autoPause?: boolean;
+  voiceCues?: boolean;
   plan?: {
     id: string;
     name: string;
@@ -790,7 +798,15 @@ export interface WatchRunStartPayload {
 }
 
 export type WatchRunControlAction =
-  'pause' | 'resume' | 'lap' | 'finish' | 'discard';
+  | 'pause'
+  | 'resume'
+  | 'lap'
+  | 'finish'
+  | 'discard'
+  | 'autoPauseOn'
+  | 'autoPauseOff'
+  | 'voiceCuesOn'
+  | 'voiceCuesOff';
 
 export interface WatchRunControlPayload {
   runId: string;
@@ -843,7 +859,7 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
   startWorkout(plan: WatchWorkoutStartPayload): Promise<void>;
   /** Starts a walk or run on the watch and opens its app. */
   startRun(request: WatchRunStartPayload): Promise<void>;
-  /** Pause, resume, lap, finish or discard for the run on the watch. */
+  /** Pause, resume, lap, finish or discard for the run on the watch, or a switch change (`autoPauseOn`/`Off`, `voiceCuesOn`/`Off`). */
   sendRunControl(control: WatchRunControlPayload): Promise<void>;
   /**
    * The live workout's plan again after exercises, supersets or sets changed

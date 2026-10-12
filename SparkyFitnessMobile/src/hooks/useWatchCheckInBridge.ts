@@ -711,6 +711,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       const figures =
         summaryDate === today ? figuresForSummaryDate : NO_FIGURES_FOR_TODAY;
 
+      const recording = await getRecordingPreferences();
       const context: WatchContextPayload = {
         // Keeps consecutive pushes distinct — see the field's own comment.
         // Without it an unchanged day pushes an identical dictionary, which
@@ -737,7 +738,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         restAlertsEnabled,
         doubleTapEnabled: watchDoubleTapEnabled,
         rpeEnabled: watchRpeEnabled,
-        runVoiceCues: (await getRecordingPreferences()).audioCues,
+        runVoiceCues: recording.audioCues,
+        runAutoPause: recording.autoPause,
         runPlans,
         ...(indoorDistanceScale ? { indoorDistanceScale } : {}),
         startableWorkouts,

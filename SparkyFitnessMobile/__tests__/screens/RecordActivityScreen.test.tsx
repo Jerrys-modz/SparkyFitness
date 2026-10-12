@@ -12,6 +12,8 @@ import {
   pauseRecording,
   startRecording,
   markLap,
+  setRecordingAudioCues,
+  setRecordingAutoPause,
   useGpsRecording,
   type RecordingSession,
   type RecordingSnapshot,
@@ -43,6 +45,8 @@ jest.mock('../../src/services/gpsRecordingService', () => {
     startRecording: jest.fn(() => Promise.resolve()),
     pauseRecording: jest.fn(() => Promise.resolve()),
     resumeRecording: jest.fn(() => Promise.resolve()),
+    setRecordingAutoPause: jest.fn(() => Promise.resolve()),
+    setRecordingAudioCues: jest.fn(() => Promise.resolve()),
     finishRecording: jest.fn(() => Promise.resolve()),
     discardRecording: jest.fn(() => Promise.resolve()),
     getHeartRateSamples: jest.fn(() => Promise.resolve([])),
@@ -256,13 +260,17 @@ describe('RecordActivityScreen', () => {
       state(null);
       const screen = await renderScreen();
       fireEvent.press(screen.getByText('Watch GPS'));
-      expect(screen.queryByTestId('auto-pause-switch')).toBeNull();
+      // The watch has auto-pause and voice cues of its own, set from here.
+      fireEvent(screen.getByTestId('auto-pause-switch'), 'valueChange', false);
+      fireEvent(screen.getByTestId('audio-cues-switch'), 'valueChange', true);
       fireEvent.press(screen.getByText('Start'));
       await waitFor(() =>
         expect(startRunOnWatch).toHaveBeenCalledWith({
           kind: 'run',
           place: 'outdoor',
           plan: undefined,
+          autoPause: false,
+          voiceCues: true,
         })
       );
       expect(startRecording).not.toHaveBeenCalled();
@@ -273,13 +281,16 @@ describe('RecordActivityScreen', () => {
       const screen = await renderScreen();
       fireEvent.press(screen.getByText('Indoor'));
       fireEvent.press(screen.getByText('Watch'));
-      expect(screen.queryByTestId('auto-pause-switch')).toBeNull();
+      // The watch judges indoor stops by its step counter.
+      expect(screen.getByTestId('auto-pause-switch')).toBeTruthy();
       fireEvent.press(screen.getByText('Start'));
       await waitFor(() =>
         expect(startRunOnWatch).toHaveBeenCalledWith({
           kind: 'run',
           place: 'indoor',
           plan: undefined,
+          autoPause: true,
+          voiceCues: false,
         })
       );
       expect(startRecording).not.toHaveBeenCalled();
@@ -373,6 +384,38 @@ describe('RecordActivityScreen', () => {
     state(session({ status: 'paused', pausedAt: Date.now() }), track);
     screen.rerender(renderUi());
     expect(screen.queryByText('Lap')).toBeNull();
+  });
+
+  it('changes auto-pause and voice cues for the recording while it runs', async () => {
+    state(session({ autoPause: true }), track);
+    const screen = await renderScreen();
+
+    fireEvent(
+      screen.getByTestId('live-auto-pause-switch'),
+      'valueChange',
+      false
+    );
+    await waitFor(() =>
+      expect(setRecordingAutoPause).toHaveBeenCalledWith(
+        false,
+        expect.anything()
+      )
+    );
+    fireEvent(
+      screen.getByTestId('live-audio-cues-switch'),
+      'valueChange',
+      true
+    );
+    expect(setRecordingAudioCues).toHaveBeenCalledWith(
+      expect.stringMatching(/^(km|miles)$/)
+    );
+  });
+
+  it('offers no auto-pause switch during an indoor recording', async () => {
+    state(session({ indoor: true }));
+    const screen = await renderScreen();
+    expect(screen.queryByTestId('live-auto-pause-switch')).toBeNull();
+    expect(screen.getByTestId('live-audio-cues-switch')).toBeTruthy();
   });
 
   it('lists marked laps and flags the fastest after finishing', async () => {

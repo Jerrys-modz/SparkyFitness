@@ -85,6 +85,7 @@ enum ContextPayloadMapper {
             steps: steps(from: payload["steps"]),
             stepGoal: (payload["stepGoal"] as? NSNumber)?.intValue ?? previous.stepGoal,
             runVoiceCues: payload["runVoiceCues"] as? Bool ?? previous.runVoiceCues,
+            runAutoPause: payload["runAutoPause"] as? Bool ?? previous.runAutoPause,
             runPlans: runPlans(from: payload) ?? previous.runPlans,
             indoorDistanceScale: indoorDistanceScale(from: payload) ?? previous.indoorDistanceScale
         )
@@ -197,11 +198,21 @@ enum ContextPayloadMapper {
             kind: kind,
             place: place,
             requestedAt: Date(timeIntervalSince1970: at / 1000),
-            plan: (payload["plan"] as? [String: Any]).flatMap { runPlan(from: $0) }
+            plan: (payload["plan"] as? [String: Any]).flatMap { runPlan(from: $0) },
+            settings: runSettings(from: payload)
         )
     }
 
-    /// A pause, resume, lap, finish or discard sent from the phone's live view.
+    /// The switches a start request carries; nil unless both are there.
+    static func runSettings(from payload: [String: Any]) -> WatchRunSettings? {
+        guard let autoPause = payload["autoPause"] as? Bool,
+              let voiceCues = payload["voiceCues"] as? Bool
+        else { return nil }
+        return WatchRunSettings(autoPause: autoPause, voiceCues: voiceCues)
+    }
+
+    /// A pause, resume, lap, finish or discard sent from the phone's live view,
+    /// or a switch change (`autoPauseOn`/`Off`, `voiceCuesOn`/`Off`).
     static func runControl(from payload: [String: Any]) -> (runId: String, action: String, controlId: String)? {
         guard
             let runId = payload["runId"] as? String, !runId.isEmpty,

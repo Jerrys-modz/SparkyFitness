@@ -2,7 +2,7 @@ import AVFoundation
 
 /// Speaks a wrist-only run's split cues ("Kilometer 3, 5 minutes 24 seconds").
 /// Audio comes out of the watch speaker or paired Bluetooth headphones; the
-/// wearer turns it on with the phone's Voice cues switch (`runVoiceCues`).
+/// run's Voice cues switch (`WatchRunSettings.voiceCues`) turns it on.
 final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
     static let shared = WatchRunCues()
 
@@ -28,6 +28,11 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: Locale.current.identifier.replacingOccurrences(of: "_", with: "-"))
         synthesizer.speak(utterance)
+    }
+
+    /// Stops whatever is being said, for when the wearer turns cues off.
+    func stop() {
+        synthesizer.stopSpeaking(at: .immediate)
     }
 
     /// Hands the audio back once the last cue is done, so music or a podcast

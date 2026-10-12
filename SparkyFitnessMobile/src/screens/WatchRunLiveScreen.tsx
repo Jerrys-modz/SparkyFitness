@@ -1,9 +1,10 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/ui/Button';
+import RecordingSwitchRow from '../components/recording/RecordingSwitchRow';
 import { Stat } from '../components/recording/SplitRow';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { usePreferences } from '../hooks/usePreferences';
@@ -58,20 +59,49 @@ const WatchRunLiveScreen: React.FC<Props> = ({ navigation }) => {
     });
 
   const control = useCallback(
-    (action: WatchRunControlAction) => {
+    (action: WatchRunControlAction, onFailure?: () => void) => {
       if (!run) return;
-      sendRunControl(run.runId, action).catch(() =>
+      sendRunControl(run.runId, action).catch(() => {
+        onFailure?.();
         Toast.show({
           type: 'error',
           text1: t('watchRunLive.controlFailed', {
             defaultValue: 'Could not reach your watch',
           }),
           text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
-        })
-      );
+        });
+      });
     },
     [run, t]
   );
+
+  // A switch shows the tap at once; the watch's next live message (sent as
+  // soon as it acts) then says what it actually holds, and replaces it.
+  const [switchTaps, setSwitchTaps] = useState<{
+    sentAt: number;
+    autoPause?: boolean;
+    voiceCues?: boolean;
+  }>({ sentAt: 0 });
+  const answered = run != null && run.sentAt > switchTaps.sentAt;
+  const shownAutoPause = answered
+    ? run?.autoPause
+    : (switchTaps.autoPause ?? run?.autoPause);
+  const shownVoiceCues = answered
+    ? run?.voiceCues
+    : (switchTaps.voiceCues ?? run?.voiceCues);
+  const toggle = (setting: 'autoPause' | 'voiceCues', value: boolean) => {
+    if (!run) return;
+    setSwitchTaps({ sentAt: run.sentAt, [setting]: value });
+    const action: WatchRunControlAction =
+      setting === 'autoPause'
+        ? value
+          ? 'autoPauseOn'
+          : 'autoPauseOff'
+        : value
+          ? 'voiceCuesOn'
+          : 'voiceCuesOff';
+    control(action, () => setSwitchTaps({ sentAt: 0 }));
+  };
 
   const confirmDiscard = () =>
     Alert.alert(
@@ -266,6 +296,29 @@ const WatchRunLiveScreen: React.FC<Props> = ({ navigation }) => {
                 {t('recordActivity.finish', { defaultValue: 'Finish' })}
               </Button>
             </View>
+
+            {/* An older watch build reports neither, and ignores the change. */}
+            {shownAutoPause != null ? (
+              <RecordingSwitchRow
+                testID="watch-auto-pause-switch"
+                title={t('recordActivity.autoPause.title', {
+                  defaultValue: 'Auto-pause',
+                })}
+                value={shownAutoPause}
+                onValueChange={(value) => toggle('autoPause', value)}
+              />
+            ) : null}
+            {shownVoiceCues != null ? (
+              <RecordingSwitchRow
+                testID="watch-voice-cues-switch"
+                title={t('recordActivity.audioCues.title', {
+                  defaultValue: 'Voice cues',
+                })}
+                value={shownVoiceCues}
+                onValueChange={(value) => toggle('voiceCues', value)}
+              />
+            ) : null}
+            <View className="mb-4" />
 
             {run.place === 'indoor' ? (
               <Text className="text-text-muted text-xs text-center">

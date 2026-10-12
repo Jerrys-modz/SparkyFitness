@@ -525,6 +525,8 @@ public class WatchConnectivityModule: Module {
                 if let left = (payload["stepRemaining"] as? NSNumber)?.doubleValue { event["stepRemaining"] = left }
                 if let next = payload["nextLabel"] as? String { event["nextLabel"] = next }
                 if let requestId = payload["requestId"] as? String { event["requestId"] = requestId }
+                if let autoPause = payload["autoPause"] as? Bool { event["autoPause"] = autoPause }
+                if let voiceCues = payload["voiceCues"] as? Bool { event["voiceCues"] = voiceCues }
                 self?.sendEvent("onRunLive", event)
             }
             self.delegateHandler.onRunFinished = { [weak self] payload in

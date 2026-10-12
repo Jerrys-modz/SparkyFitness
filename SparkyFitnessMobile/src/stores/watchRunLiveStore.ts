@@ -16,6 +16,9 @@ export interface WatchRunLive {
   place: 'indoor' | 'outdoor';
   status: 'running' | 'paused';
   autoPaused: boolean;
+  /** The run's switches; null when the watch build does not report them. */
+  autoPause: boolean | null;
+  voiceCues: boolean | null;
   /** Active seconds when the watch sent it. */
   elapsed: number;
   distanceMeters: number;
@@ -100,6 +103,10 @@ export const useWatchRunLiveStore = create<WatchRunLiveState>((set) => ({
           place: payload.place,
           status: payload.status,
           autoPaused: Boolean(payload.autoPaused),
+          autoPause:
+            typeof payload.autoPause === 'boolean' ? payload.autoPause : null,
+          voiceCues:
+            typeof payload.voiceCues === 'boolean' ? payload.voiceCues : null,
           elapsed: Math.max(0, payload.elapsed),
           distanceMeters: Math.max(0, payload.distanceMeters),
           heartRate:

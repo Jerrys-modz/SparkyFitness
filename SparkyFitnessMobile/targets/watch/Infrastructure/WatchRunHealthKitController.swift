@@ -84,6 +84,19 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     var lapCount: Int { lapMarks.count }
     /// The plan this run follows, if any. The store reads it for the live step.
     private(set) var plan: WatchRunPlan?
+    /// Auto-pause and voice cues for this run, kept in the snapshot so a
+    /// relaunch keeps what the wearer chose.
+    private(set) var settings = WatchRunSettings(autoPause: true, voiceCues: false)
+
+    /// Changes the run's switches. The movement detectors start over, so
+    /// turning auto-pause back on never acts on stillness from before.
+    func updateSettings(_ newSettings: WatchRunSettings) {
+        guard session != nil else { return }
+        settings = newSettings
+        autoPause.reset()
+        indoorAutoPause.reset()
+        persistSnapshot(force: true)
+    }
 
     /// Marks a lap now. A press within 3 s of the last is a double tap and is
     /// ignored; returns whether one was added.
@@ -140,7 +153,12 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     /// Starts the session. Returns false, leaving nothing running, when
     /// HealthKit is unavailable or a session is already live.
     @discardableResult
-    func start(_ kind: WatchRunKind, place: WatchRunPlace, plan: WatchRunPlan? = nil) -> Bool {
+    func start(
+        _ kind: WatchRunKind,
+        place: WatchRunPlace,
+        plan: WatchRunPlan? = nil,
+        settings: WatchRunSettings
+    ) -> Bool {
         guard HKHealthStore.isHealthDataAvailable(), session == nil else { return false }
 
         let configuration = HKWorkoutConfiguration()
@@ -163,6 +181,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             runKind = kind
             runPlace = place
             self.plan = plan
+            self.settings = settings
             autoPause.reset()
             indoorAutoPause.reset()
             pausedByAutoPause = false
@@ -317,7 +336,8 @@ extension WatchRunHealthKitController {
             savedAt: now,
             lapMarks: lapMarks,
             lapDistances: lapDistances,
-            plan: plan
+            plan: plan,
+            settings: settings
         ))
     }
 
@@ -369,6 +389,9 @@ extension WatchRunHealthKitController {
                 self.lapMarks = laps.marks
                 self.lapDistances = laps.distances
                 self.plan = snapshot.plan
+                // A snapshot from before the switches existed: what runs had then.
+                self.settings = snapshot.settings
+                    ?? WatchRunSettings(autoPause: true, voiceCues: false)
                 // The jump across the gap while the app was gone is never distance.
                 self.routeSegment = snapshot.routeSegment + 1
                 self.autoPause.reset()

@@ -133,3 +133,53 @@ it('offers resume while the run is paused', () => {
   fireEvent.press(screen.getByText('Resume'));
   expect(sendRunControl).toHaveBeenCalledWith('r1', 'resume');
 });
+
+it('turns the run’s auto-pause and voice cues on and off on the watch', () => {
+  jest
+    .mocked(useWatchRunLive)
+    .mockReturnValue(
+      run({ autoPause: true, voiceCues: false, sentAt: 1000 }) as never
+    );
+  renderScreen();
+  fireEvent(
+    screen.getByTestId('watch-auto-pause-switch'),
+    'valueChange',
+    false
+  );
+  expect(sendRunControl).toHaveBeenCalledWith('r1', 'autoPauseOff');
+  // Shown at once, before the watch answers.
+  expect(screen.getByTestId('watch-auto-pause-switch').props.value).toBe(false);
+  fireEvent(screen.getByTestId('watch-voice-cues-switch'), 'valueChange', true);
+  expect(sendRunControl).toHaveBeenCalledWith('r1', 'voiceCuesOn');
+});
+
+it('follows what the watch reports once it answers', () => {
+  jest
+    .mocked(useWatchRunLive)
+    .mockReturnValue(
+      run({ autoPause: true, voiceCues: false, sentAt: 1000 }) as never
+    );
+  renderScreen();
+  fireEvent(
+    screen.getByTestId('watch-auto-pause-switch'),
+    'valueChange',
+    false
+  );
+  // The watch did not take it (an older build, say): its next message wins.
+  jest
+    .mocked(useWatchRunLive)
+    .mockReturnValue(
+      run({ autoPause: true, voiceCues: false, sentAt: 1003 }) as never
+    );
+  screen.rerender(<WatchRunLiveScreen {...({ navigation } as never)} />);
+  expect(screen.getByTestId('watch-auto-pause-switch').props.value).toBe(true);
+});
+
+it('hides the switches for a watch build that does not report them', () => {
+  jest
+    .mocked(useWatchRunLive)
+    .mockReturnValue(run({ autoPause: null, voiceCues: null }) as never);
+  renderScreen();
+  expect(screen.queryByTestId('watch-auto-pause-switch')).toBeNull();
+  expect(screen.queryByTestId('watch-voice-cues-switch')).toBeNull();
+});

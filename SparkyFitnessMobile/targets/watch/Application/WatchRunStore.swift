@@ -43,6 +43,8 @@ final class WatchRunStore: ObservableObject {
     /// The learned indoor factor this run applies to the watch's own distance
     /// (1 outdoors); see `IndoorDistanceScale`.
     private(set) var distanceScale: Double = 1
+    /// This run's switches; see `WatchRunSettings`.
+    @Published private(set) var settings = WatchRunSettings(autoPause: true, voiceCues: false)
     /// The plan this run follows, if any. The page works out the live step
     /// from it each second; the store only cues the changes.
     @Published private(set) var plan: WatchRunPlan?
@@ -113,7 +115,7 @@ final class WatchRunStore: ObservableObject {
         handledRequests = Array((handledRequests + [request.requestId]).suffix(20))
         guard abs(Date().timeIntervalSince(request.requestedAt)) <= 120 else { return }
         guard canStart else { return }
-        start(request.kind, place: request.place, plan: request.plan)
+        start(request.kind, place: request.place, plan: request.plan, settings: request.settings)
         // After `start`, which clears it for a run begun on the wrist.
         if phase == .running { requestId = request.requestId }
     }
@@ -130,13 +132,35 @@ final class WatchRunStore: ObservableObject {
         case "lap": lap()
         case "finish": finish()
         case "discard": discard()
+        case "autoPauseOn": setAutoPause(true)
+        case "autoPauseOff": setAutoPause(false)
+        case "voiceCuesOn": setVoiceCues(true)
+        case "voiceCuesOff": setVoiceCues(false)
         default: break
         }
     }
 
-    func start(_ kind: WatchRunKind, place: WatchRunPlace, plan: WatchRunPlan? = nil) {
+    /// What a run begun on the wrist starts with: the phone's saved switches,
+    /// which reach the watch in the context. Auto-pause is on unless the
+    /// phone said otherwise; voice cues are off unless it said on.
+    private var defaultSettings: WatchRunSettings {
+        let context = CheckInStore.shared.context
+        return WatchRunSettings(
+            autoPause: context.runAutoPause ?? true,
+            voiceCues: context.runVoiceCues == true
+        )
+    }
+
+    func start(
+        _ kind: WatchRunKind,
+        place: WatchRunPlace,
+        plan: WatchRunPlan? = nil,
+        settings: WatchRunSettings? = nil
+    ) {
         guard canStart else { return }
+        let chosen = settings ?? defaultSettings
         requestId = nil
+        self.settings = chosen
         self.kind = kind
         self.place = place
         self.plan = plan
@@ -151,7 +175,7 @@ final class WatchRunStore: ObservableObject {
         healthKit.requestAuthorization { [weak self] in
             Task { @MainActor in
                 guard let self, self.phase == .running else { return }
-                if self.healthKit.start(kind, place: place, plan: plan) {
+                if self.healthKit.start(kind, place: place, plan: plan, settings: chosen) {
                     self.startStepTimer()
                     self.startLiveTimer()
                 } else {
@@ -189,6 +213,7 @@ final class WatchRunStore: ObservableObject {
                     self.autoPaused = recovery.autoPaused
                     self.lapCount = recovery.lapCount
                     self.plan = self.healthKit.plan
+                    self.settings = self.healthKit.settings
                     // The recovered builder may still read 0 for a moment, so the
                     // snapshot's time is the floor: the step the run is in now is
                     // not announced again.
@@ -246,6 +271,29 @@ final class WatchRunStore: ObservableObject {
         pushLive(force: true)
     }
 
+    /// Turns auto-pause on or off mid-run. Turning it off while it holds the
+    /// run paused resumes the run: nothing else would.
+    func setAutoPause(_ on: Bool) {
+        guard phase == .running || phase == .paused, settings.autoPause != on else { return }
+        settings.autoPause = on
+        healthKit.updateSettings(settings)
+        if !on && phase == .paused && autoPaused {
+            resume()
+        } else {
+            pushLive(force: true)
+        }
+    }
+
+    /// Turns voice cues on or off mid-run. Splits already passed are not
+    /// spoken late: the split count keeps moving while cues are off.
+    func setVoiceCues(_ on: Bool) {
+        guard phase == .running || phase == .paused, settings.voiceCues != on else { return }
+        settings.voiceCues = on
+        healthKit.updateSettings(settings)
+        if !on { WatchRunCues.shared.stop() }
+        pushLive(force: true)
+    }
+
     /// Marks a lap at this moment; the phone cuts the saved route there.
     func lap() {
         guard phase == .running else { return }
@@ -285,6 +333,7 @@ final class WatchRunStore: ObservableObject {
                 place: place.rawValue,
                 status: ended ? "ended" : (phase == .paused ? "paused" : "running"),
                 autoPaused: autoPaused,
+                settings: settings,
                 elapsed: elapsed,
                 distanceMeters: metrics.distanceMeters,
                 heartRate: metrics.heartRate,
@@ -328,7 +377,7 @@ final class WatchRunStore: ObservableObject {
         if !first && !position.finished, healthKit.markLap(force: true) {
             lapCount = healthKit.lapCount
         }
-        guard CheckInStore.shared.context.runVoiceCues == true else { return }
+        guard settings.voiceCues else { return }
         if position.finished {
             WatchRunCues.shared.speak("Plan complete.", interrupt: true)
         } else {
@@ -343,7 +392,7 @@ final class WatchRunStore: ObservableObject {
         CheckInStore.shared.context.distanceUnit == "miles"
     }
 
-    /// Buzzes at each whole km or mile, and speaks it when the phone's Voice
+    /// Buzzes at each whole km or mile, and speaks it when this run's Voice
     /// cues switch is on. Only the latest of several passed at once is spoken.
     private func cueSplitIfDue(_ metrics: WatchRunMetrics) {
         guard phase == .running else { return }
@@ -355,7 +404,7 @@ final class WatchRunStore: ObservableObject {
         cuedSplits = done
         lastSplitElapsed = now
         Haptics.step()
-        if CheckInStore.shared.context.runVoiceCues == true {
+        if settings.voiceCues {
             WatchRunCues.shared.speak(
                 WatchRunCues.splitText(number: done, seconds: perSplit, usesMiles: usesMiles)
             )
@@ -365,7 +414,7 @@ final class WatchRunStore: ObservableObject {
     private func applyAutoPause(_ action: WatchAutoPause.Action) {
         switch action {
         case .pause:
-            guard phase == .running else { return }
+            guard phase == .running, settings.autoPause else { return }
             phase = .paused
             autoPaused = true
             healthKit.pause(automatic: true)
