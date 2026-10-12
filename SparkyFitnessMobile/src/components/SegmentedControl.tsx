@@ -24,9 +24,9 @@ const SegmentedControl = <T extends string>({
         <TouchableOpacity
           key={segment.key}
           onPress={() => onSelect(segment.key)}
-          className={`flex-1 py-2 rounded-md items-center ${
+          className={`flex-1 flex-row py-2 rounded-md items-center ${
             activeKey === segment.key ? 'bg-surface' : ''
-          }`}
+          } justify-center gap-1.5`}
           style={
             activeKey === segment.key && segment.color
               ? { borderWidth: 1.5, borderColor: segment.color }
@@ -36,28 +36,26 @@ const SegmentedControl = <T extends string>({
           accessibilityRole="tab"
           accessibilityState={{ selected: activeKey === segment.key }}
         >
-          <View className="flex-row items-center gap-1.5">
-            {segment.color && (
-              <View
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: segment.color,
-                  opacity: activeKey === segment.key ? 1 : 0.5,
-                }}
-              />
-            )}
-            <Text
-              className={`text-sm font-medium ${
-                activeKey === segment.key
-                  ? 'text-text-primary'
-                  : 'text-text-muted'
-              }`}
-            >
-              {segment.label}
-            </Text>
-          </View>
+          {segment.color && (
+            <View
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: segment.color,
+                opacity: activeKey === segment.key ? 1 : 0.5,
+              }}
+            />
+          )}
+          <Text
+            className={`text-sm font-medium ${
+              activeKey === segment.key
+                ? 'text-text-primary'
+                : 'text-text-muted'
+            }`}
+          >
+            {segment.label}
+          </Text>
         </TouchableOpacity>
       ))}
     </View>
