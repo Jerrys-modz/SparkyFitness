@@ -586,7 +586,9 @@
       "noRecentItems": "No recent items yet",
       "recentItemsHint": "Foods, meals, and exercises you log will appear here for quick access.",
       "exerciseStatistics": "Exercise statistics",
-      "exerciseStatisticsSubtitle": "Sets per muscle and a body heat map"
+      "exerciseStatisticsSubtitle": "Sets per muscle and a body heat map",
+      "personalRecords": "Personal records",
+      "personalRecordsSubtitle": "Your best 1 km, 5 km, 10 km and more"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -600,7 +602,8 @@
     "recordActivity": "Record Activity",
     "runSummary": "Activity saved",
     "runPrograms": "Training programs",
-    "warmupSettings": "Warm-up Calculator"
+    "warmupSettings": "Warm-up Calculator",
+    "personalRecords": "Personal records"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -6228,7 +6231,10 @@
     "effortHigh": "10 = all out",
     "rateFailed": "Could not save how hard that was.",
     "easeSuggestion": "Two hard workouts in a row. Repeating this one is a good way to build up safely.",
-    "advanceSuggestion": "Two easy workouts in a row. You could skip the next one and move on."
+    "advanceSuggestion": "Two easy workouts in a row. You could skip the next one and move on.",
+    "newRecords_one": "New personal record",
+    "newRecords_other": "New personal records",
+    "viewRecords": "View all records"
   },
   "runPrograms": {
     "startWhenTitle": "Start {{name}}",
@@ -6444,5 +6450,26 @@
       "resume": "Resume",
       "finishAndSave": "Finish & Save"
     }
+  },
+  "personalRecords": {
+    "group": {
+      "run": "Running",
+      "walk": "Walking",
+      "ride": "Cycling",
+      "swim": "Swimming",
+      "other": "Other"
+    },
+    "standard": {
+      "1k": "1 km",
+      "1mi": "1 mile",
+      "5k": "5 km",
+      "10k": "10 km",
+      "15k": "15 km",
+      "halfMarathon": "Half marathon",
+      "marathon": "Marathon"
+    },
+    "loadFailed": "Could not load your records.",
+    "empty": "No records yet. Record or import a run of at least 1 km and your best efforts show up here.",
+    "rowA11y": "{{distance}}, {{time}}, {{pace}}, {{date}}"
   }
 }
