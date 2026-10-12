@@ -271,6 +271,22 @@ final class WatchSessionManager: NSObject, ObservableObject {
         ))
     }
 
+    /// The live view's figures for a wrist-only run: a message while the phone
+    /// is reachable, at most every couple of seconds unless `force`d (a status
+    /// change), and dropped otherwise. Never queued.
+    func sendRunLive(_ payload: [String: Any], force: Bool = false) {
+        guard WCSession.isSupported(), isActivated, WCSession.default.isReachable else { return }
+        let now = Date()
+        if !force, let last = lastRunLiveAt, now.timeIntervalSince(last) < Self.runLiveInterval {
+            return
+        }
+        lastRunLiveAt = now
+        WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+    }
+
+    private static let runLiveInterval: TimeInterval = 2
+    private var lastRunLiveAt: Date?
+
     /// Hands a finished wrist-only walk or run to the phone to file in the
     /// diary. Returns true once the message is durably queued: `transferUserInfo`
     /// accepted it, or it is on disk until activation can hand it over. False

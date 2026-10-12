@@ -39,6 +39,7 @@ enum OutboundPayloads {
         static let fastStart = "fastStart"
         static let fastEnd = "fastEnd"
         static let runFinished = "runFinished"
+        static let runLive = "runLive"
     }
 
     /// A morning check-in awaiting a server write.
@@ -267,6 +268,45 @@ enum OutboundPayloads {
             "clientId": clientId,
             "samples": samples.map { ["t": $0.t, "bpm": $0.bpm] },
         ]
+    }
+
+    /// What a wrist-only walk or run looks like right now, for the phone's live
+    /// view. Sent only while the phone is reachable and never queued: the
+    /// finished run (`runFinished`) is what reaches the diary, and a figure
+    /// that arrives minutes late describes nothing.
+    static func runLive(
+        runId: String,
+        kind: String,
+        place: String,
+        status: String,
+        autoPaused: Bool,
+        elapsed: TimeInterval,
+        distanceMeters: Double,
+        heartRate: Double?,
+        energyKcal: Double,
+        lapCount: Int,
+        stepLabel: String?,
+        stepRemaining: TimeInterval?,
+        nextLabel: String?
+    ) -> [String: Any] {
+        var payload: [String: Any] = [
+            "type": Kind.runLive,
+            "runId": runId,
+            "kind": kind,
+            "place": place,
+            "status": status,
+            "autoPaused": autoPaused,
+            "elapsed": elapsed,
+            "distanceMeters": distanceMeters,
+            "energyKcal": energyKcal,
+            "lapCount": lapCount,
+            "sentAt": Date().timeIntervalSince1970 * 1000,
+        ]
+        if let heartRate { payload["heartRate"] = heartRate }
+        if let stepLabel { payload["stepLabel"] = stepLabel }
+        if let stepRemaining { payload["stepRemaining"] = stepRemaining }
+        if let nextLabel { payload["nextLabel"] = nextLabel }
+        return payload
     }
 
     /// A walk or run recorded on the wrist alone, sent once when it finishes.

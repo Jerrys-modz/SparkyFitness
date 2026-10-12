@@ -68,6 +68,8 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     /// and one in `healthkit/dataTransformation.ts`; rename both or neither.
     private static let sessionMetadataKey = "SparkyFitnessSessionId"
     private var clientId = UUID().uuidString
+    /// The id of the run in progress, shared with the phone's live view.
+    var runId: String { clientId }
     private var startedAt = Date()
     private var runPlace: WatchRunPlace = .indoor
     /// What goes to the phone: the accepted route and the heart-rate readings.
