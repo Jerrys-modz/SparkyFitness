@@ -43,6 +43,12 @@ final class WorkoutSessionStore: ObservableObject {
     /// folds these in. Replaced by each newer snapshot, so a set the phone
     /// has since dropped is not completed later.
     private var pendingUnknownCompletions: Set<String> = []
+    /// Sets the phone has listed as logged, so a set it stops listing is known
+    /// to have been un-logged there. Without this a set the phone has not
+    /// listed yet (just logged here) looks the same as one it dropped. Kept
+    /// in the snapshot so an un-log made while the watch app was closed is
+    /// still noticed afterwards.
+    private var phoneConfirmedIds: Set<String> = []
     /// The phone's rest as last taken from it, so an update that repeats it
     /// leaves a rest adjusted here alone. See `applyTargets`. Kept in the
     /// snapshot with the rest itself, so a relaunch does not let a repeated
@@ -231,6 +237,27 @@ final class WorkoutSessionStore: ObservableObject {
         celebrate(prSetIds)
         let knownIds = Set(steps.map(\.plannedSet.setId))
         pendingUnknownCompletions = phoneCompleted.subtracting(knownIds)
+        // A set the phone listed before and no longer lists was un-logged
+        // there. Only sets it still has targets for count: one it deleted is
+        // not an un-log, and the plan update removes it.
+        let unlogged = phoneConfirmedIds
+            .subtracting(phoneCompleted)
+            .filter { completedSetIds.contains($0) && targets[$0] != nil }
+        phoneConfirmedIds = phoneConfirmedIds
+            .union(phoneCompleted.intersection(knownIds))
+            .subtracting(unlogged)
+            .filter { targets[$0] != nil }
+        if !unlogged.isEmpty {
+            completedSetIds.subtract(unlogged)
+            wristLoggedSetIds.subtract(unlogged)
+            for id in unlogged { loggedValues[id] = nil }
+            // A workout that had every set logged parked the cursor past the
+            // last one: bring it back to the set that is open again.
+            if currentStepIndex >= steps.count,
+               let reopened = steps.firstIndex(where: { unlogged.contains($0.plannedSet.setId) }) {
+                currentStepIndex = reopened
+            }
+        }
         let newlyCompleted = phoneCompleted
             .subtracting(completedSetIds)
             .filter { knownIds.contains($0) }
@@ -415,6 +442,7 @@ final class WorkoutSessionStore: ObservableObject {
         targetRevision = 0
         planRevision = startingRevision
         pendingUnknownCompletions = []
+        phoneConfirmedIds = []
         lastPhoneRest = nil
         latestBpm = nil
         activeEnergyKcal = nil
@@ -548,6 +576,7 @@ final class WorkoutSessionStore: ObservableObject {
         targetRevision = 0
         planRevision = 0
         pendingUnknownCompletions = []
+        phoneConfirmedIds = []
         pendingSetCompletion = nil
         lastPhoneRest = nil
         latestBpm = nil
@@ -1072,6 +1101,8 @@ final class WorkoutSessionStore: ObservableObject {
         var planRevision: Double?
         /// See `pendingUnknownCompletions`. Optional so older snapshots still decode.
         var pendingUnknownCompletions: [String]?
+        /// See `phoneConfirmedIds`. Optional so older snapshots still decode.
+        var phoneConfirmedIds: [String]?
         /// The running (or just-logged) set timer, so a relaunch resumes the
         /// clock instead of showing Start again. Optional so older snapshots
         /// still decode.
@@ -1289,6 +1320,7 @@ final class WorkoutSessionStore: ObservableObject {
             targetRevision: targetRevision,
             planRevision: planRevision,
             pendingUnknownCompletions: Array(pendingUnknownCompletions),
+            phoneConfirmedIds: Array(phoneConfirmedIds),
             hold: holdState,
             loggedValues: loggedValues,
             heartRateSum: heartRateSum,
@@ -1336,6 +1368,7 @@ final class WorkoutSessionStore: ObservableObject {
         targetRevision = snapshot.targetRevision ?? 0
         planRevision = snapshot.planRevision ?? 0
         pendingUnknownCompletions = Set(snapshot.pendingUnknownCompletions ?? [])
+        phoneConfirmedIds = Set(snapshot.phoneConfirmedIds ?? [])
         restoreHold(snapshot.hold)
         startedAt = snapshot.startedAt
         elapsedSeconds = max(0, Int(Date().timeIntervalSince(snapshot.startedAt)))
