@@ -1,13 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   enqueueWatchRun,
+  hasQueuedWatchRuns,
   processWatchRunQueue,
 } from '../../src/services/watchRunQueue';
 import { saveWatchRun } from '../../src/services/watchRunSave';
+import { completeProgramWorkout } from '../../src/services/runProgramService';
 import { ApiError } from '../../src/services/api/errors';
 import type { WatchRunPayload } from '../../src/utils/watchRun';
 
 jest.mock('../../src/services/watchRunSave');
+jest.mock('../../src/services/runProgramService', () => ({
+  completeProgramWorkout: jest.fn(() => Promise.resolve()),
+}));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 
 const mockedSave = jest.mocked(saveWatchRun);
@@ -23,9 +28,15 @@ const run = (clientId: string): WatchRunPayload => ({
   activeEnergyKcal: 100,
   route: [],
   heartRate: [],
+  laps: [],
+  lapDistances: [],
+  planId: null,
+  program: null,
+  planCompleted: false,
 });
 
 beforeEach(async () => {
+  jest.mocked(completeProgramWorkout).mockClear();
   await AsyncStorage.clear();
   mockedSave.mockReset();
 });
@@ -77,4 +88,96 @@ test('files a run that arrives while another is being filed', async () => {
   expect(await processWatchRunQueue('km')).toEqual(await filed);
   expect(mockedSave).toHaveBeenCalledTimes(2);
   expect(await filed).toHaveLength(2);
+});
+
+test('ticks off the program workout a completed plan run followed', async () => {
+  mockedSave.mockResolvedValue('entry-1');
+  await enqueueWatchRun({
+    ...run('p1'),
+    program: { id: 'beginner5k', index: 3 },
+    planCompleted: true,
+  });
+  await processWatchRunQueue('km');
+  expect(completeProgramWorkout).toHaveBeenCalledWith(
+    'beginner5k',
+    3,
+    '2026-10-10'
+  );
+});
+
+test('does not tick off a program run cut short', async () => {
+  mockedSave.mockResolvedValue('entry-1');
+  await enqueueWatchRun({
+    ...run('p2'),
+    program: { id: 'beginner5k', index: 3 },
+    planCompleted: false,
+  });
+  expect(await processWatchRunQueue('km')).toEqual(['2026-10-10']);
+  expect(completeProgramWorkout).not.toHaveBeenCalled();
+});
+
+test('a tick-off that fails for a reason that may pass keeps the run queued, then ticks it off', async () => {
+  mockedSave.mockResolvedValue('entry-1');
+  await enqueueWatchRun({
+    ...run('p3'),
+    program: { id: 'beginner5k', index: 4 },
+    planCompleted: true,
+  });
+  jest.mocked(completeProgramWorkout).mockRejectedValueOnce(new Error('off'));
+  const listener = jest.fn();
+  expect(await processWatchRunQueue('km', listener)).toEqual([]);
+  // Not announced or marked done: the workout is still to be ticked off.
+  expect(listener).not.toHaveBeenCalled();
+
+  expect(await processWatchRunQueue('km', listener)).toEqual(['2026-10-10']);
+  expect(completeProgramWorkout).toHaveBeenCalledTimes(2);
+  expect(listener).toHaveBeenCalledTimes(1);
+});
+
+test('a tick-off the server will never accept does not hold the run back', async () => {
+  mockedSave.mockResolvedValue('entry-1');
+  await enqueueWatchRun({
+    ...run('p4'),
+    program: { id: 'beginner5k', index: 4 },
+    planCompleted: true,
+  });
+  jest
+    .mocked(completeProgramWorkout)
+    .mockRejectedValueOnce(new ApiError('bad index', 400));
+  expect(await processWatchRunQueue('km')).toEqual(['2026-10-10']);
+});
+
+test('a run queued as a pass is finishing is still filed by that pass', async () => {
+  mockedSave.mockResolvedValue('entry-1');
+  await enqueueWatchRun(run('r1'));
+  let release: () => void = () => {};
+  mockedSave.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = () => resolve('entry-1');
+      })
+  );
+  const first = processWatchRunQueue('km');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await enqueueWatchRun(run('r2'));
+  // Joins the running pass, which must look again before it ends.
+  const joined = processWatchRunQueue('km');
+  release();
+  await Promise.all([first, joined]);
+  expect(mockedSave).toHaveBeenCalledTimes(2);
+  expect(await hasQueuedWatchRuns()).toBe(false);
+});
+
+test('tells a listener about each run it files, and survives the listener failing', async () => {
+  mockedSave.mockResolvedValue('entry-1');
+  await enqueueWatchRun(run('l1'));
+  await enqueueWatchRun(run('l2'));
+  const seen: string[] = [];
+  const days = await processWatchRunQueue('km', (payload) => {
+    seen.push(payload.clientId);
+    throw new Error('toast broke');
+  });
+  expect(seen).toEqual(['l1', 'l2']);
+  expect(days).toEqual(['2026-10-10', '2026-10-10']);
+  expect(await processWatchRunQueue('km')).toEqual([]);
 });

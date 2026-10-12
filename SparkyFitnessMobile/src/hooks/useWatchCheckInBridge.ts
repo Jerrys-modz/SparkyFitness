@@ -61,7 +61,14 @@ import { useActiveWorkoutPlans } from './useActiveWorkoutPlan';
 import { scheduledWorkoutsForWatch } from '../utils/workoutPlanSchedule';
 import { useCurrentFast } from './useFasting';
 import { toWatchFast } from '../utils/watchFast';
-import { getRecordingPreferences } from '../services/gpsRecordingService';
+import {
+  getRecordingPreferences,
+  onRecordingPreferenceChange,
+} from '../services/gpsRecordingService';
+import { useRunProgram } from '../services/runProgramService';
+import { buildWatchRunPlans } from '../utils/watchRunPlans';
+import { presetName } from '../components/recording/IntervalSetup';
+import { programWorkoutLabel } from '../components/recording/RunProgramCard';
 
 /** Saved workouts the watch may start. Presets with no exercises are omitted:
  * the server rejects a session that has none. */
@@ -255,6 +262,19 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // A weighted carry's distance follows the phone's distance unit: the watch
   // shows metres, or yards when the phone is set to miles.
   const distanceUnit = watchDistanceUnit(preferences?.default_distance_unit);
+  const { status: programStatus, enabled: programEnabled } = useRunProgram();
+  const runPlans = useMemo(
+    () =>
+      buildWatchRunPlans(
+        t,
+        { status: programStatus, enabled: programEnabled },
+        {
+          program: (status) => programWorkoutLabel(t, status),
+          preset: (id) => presetName(t, id),
+        }
+      ),
+    [t, programStatus, programEnabled]
+  );
   const { presets } = useWorkoutPresets({ enabled });
   const fastQuery = useCurrentFast({ enabled });
   const fast = fastQuery.data;
@@ -654,6 +674,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         doubleTapEnabled: watchDoubleTapEnabled,
         rpeEnabled: watchRpeEnabled,
         runVoiceCues: (await getRecordingPreferences()).audioCues,
+        runPlans,
         startableWorkouts,
         // Built for `summaryDate`; a push that has crossed midnight before the
         // hook re-rendered must not carry yesterday's plan.
@@ -698,6 +719,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     restAlertsEnabled,
     watchDoubleTapEnabled,
     watchRpeEnabled,
+    runPlans,
     startableWorkouts,
     scheduledWorkouts,
     waterGoalMl,
@@ -723,6 +745,15 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   useEffect(() => {
     pushContextRef.current = pushContext;
   });
+  // The Voice cues switch lives on the Record screen, outside this hook's
+  // dependencies, so tell the watch when it flips.
+  useEffect(
+    () =>
+      onRecordingPreferenceChange(() => {
+        if (enabled) void pushContextRef.current();
+      }),
+    [enabled]
+  );
 
   /**
    * Writes the ack bookkeeping to disk, and is awaited by every caller.

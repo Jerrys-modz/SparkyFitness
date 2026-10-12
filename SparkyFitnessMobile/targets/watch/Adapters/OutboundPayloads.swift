@@ -226,7 +226,7 @@ enum OutboundPayloads {
     /// A walk or run recorded on the wrist alone, sent once when it finishes.
     /// The route and heart rate are thinned to what the connection can carry.
     static func runFinished(_ result: WatchRunResult) -> [String: Any] {
-        [
+        var payload: [String: Any] = [
             "type": Kind.runFinished,
             "clientId": result.clientId,
             "kind": result.kind.rawValue,
@@ -239,7 +239,17 @@ enum OutboundPayloads {
             "route": WatchRunResult.thin(result.route, to: 1500),
             "heartRate": WatchRunResult.thin(result.heartRate, to: 600),
             "laps": result.laps,
+            "lapDistances": result.lapDistances,
+            "planCompleted": result.planCompleted,
         ]
+        if let plan = result.plan {
+            payload["planId"] = plan.id
+            if let programId = plan.programId, let index = plan.programIndex {
+                payload["programId"] = programId
+                payload["programIndex"] = index
+            }
+        }
+        return payload
     }
 
     /// The reading the wrist is showing right now. Only ever sent as a live

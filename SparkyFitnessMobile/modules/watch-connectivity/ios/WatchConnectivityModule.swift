@@ -476,6 +476,12 @@ public class WatchConnectivityModule: Module {
                     "activeEnergyKcal": (payload["activeEnergyKcal"] as? NSNumber)?.doubleValue ?? 0,
                     "route": payload["route"] as? [[Double]] ?? [],
                     "heartRate": payload["heartRate"] as? [[Double]] ?? [],
+                    "laps": payload["laps"] as? [Double] ?? [],
+                    "lapDistances": payload["lapDistances"] as? [Double] ?? [],
+                    "planId": payload["planId"] as? String ?? "",
+                    "programId": payload["programId"] as? String ?? "",
+                    "programIndex": (payload["programIndex"] as? NSNumber)?.intValue ?? -1,
+                    "planCompleted": payload["planCompleted"] as? Bool ?? false,
                 ])
             }
             self.delegateHandler.activate()
