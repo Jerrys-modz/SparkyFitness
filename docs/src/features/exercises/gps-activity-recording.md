@@ -29,6 +29,40 @@ Points are saved on the phone as they arrive. Nothing is sent to your server unt
 
 ---
 
+## Start countdown
+
+Pick **3 s**, **5 s** or **10 s** under **Start countdown** and tapping **Start** counts down before the recording begins, so you can put the phone away and get moving. Each number is felt as a tap and, with voice cues on, spoken. **Cancel** stops the countdown without recording anything. It's off by default and remembered. The first time you record, the location permission prompt appears after the countdown.
+
+---
+
+## Laps and the run summary
+
+While recording, tap **Lap** to mark a lap, for example at the end of a hard interval or at each lap of a track. It's available while the recording is running, not while paused, and a second tap within three seconds is ignored. With voice cues on, the phone says the lap number, distance and time.
+
+When you finish, the summary lists your laps and your splits per kilometer or mile. Each row has a bar, longer for a faster one, and the fastest is labelled, so a fading last kilometer or a strong negative split is easy to see. A short final stretch is shown but never counted as your fastest.
+
+After saving, opening the activity from Exercise Statistics shows a **Pace** chart next to the route and heart rate: pace against distance, with faster stretches higher, and your best pace above it. It works for any activity with a GPS route, including imported ones, and leaves out the time you stood still.
+
+If you marked laps, those are what's saved with the activity, because they're the intervals you meant to compare. If you didn't, your per-kilometer or per-mile splits are saved as before.
+
+---
+
+## Auto-pause
+
+Turn on **Auto-pause** before you start and the recording pauses itself when you stop (a red light, tying a shoe) and carries on when you move again. It judges speed from the GPS, so it works with the screen locked. The clock stops from the moment you actually stopped, not from when the pause was noticed, and restarts from when you began moving. A rolling start is needed to resume, so a shuffle in place won't restart it. It waits about 10 seconds when walking, 8 running and 6 riding before pausing.
+
+A pause you make yourself is never undone automatically; only an auto-pause resumes on its own. You can resume an auto-pause by hand at any time. The choice is remembered for next time.
+
+---
+
+## Voice cues
+
+Turn on **Voice cues** before you start and the phone speaks as you go: your total time and the time of the last kilometer or mile each time you complete one, and "Paused", "Auto paused" or "Resumed" when that happens. It also says your distance and time when you finish. Cues use the distance unit from your settings and the app language, and they're spoken with the screen locked and the phone's silent switch on. If you're playing music it keeps playing, and it dips while a cue is spoken when **Lower music during cues** is on.
+
+The setting is off by default and is remembered for next time. Cues are spoken by the phone, so use earphones or a watch speaker if you don't want them out loud.
+
+---
+
 ## Recording with the screen locked
 
 - **iOS:** recording keeps running in the background and the status bar shows the blue location indicator. Only "while using the app" location access is needed.
@@ -44,6 +78,7 @@ If you have a paired Apple Watch with the SparkyFitness app, it follows a record
 
 - The watch opens on a recording page showing the clock, distance and pace, with your current heart rate beside the status.
 - Pause, resume and finish work from your wrist. Finishing stops the recording and the page tells you to save it on your iPhone.
+- A **Lap** button (flag) marks a lap while the recording is running, and the page shows how many you have marked. A lap is marked at the moment you press it, even if the phone is out of range and only hears about it later.
 - The watch measures your heart rate during the activity. It shows live on the watch and on the phone's recording screen (the phone shows it while the watch is in range). After you save, the average, maximum and time in each heart-rate zone appear on the activity.
 
 Nothing is written to Apple Health from the watch until you decide. Saving the activity on your iPhone adds the workout to Apple Health; discarding it doesn't.

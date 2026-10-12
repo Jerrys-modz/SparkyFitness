@@ -615,6 +615,8 @@ export interface WatchRecordingStatePayload {
   /** Seconds per km or mile, in the phone's distance unit; omitted when unknown. */
   paceSeconds?: number;
   distanceUnit: 'km' | 'mi';
+  /** Laps marked so far, shown on the watch; omitted by older phone builds. */
+  lapCount?: number;
   /** Phone clock (epoch ms) at send time, so the watch drops out-of-order copies. */
   sentAt: number;
   /**
@@ -628,7 +630,9 @@ export interface WatchRecordingStatePayload {
 
 export interface WatchRecordingControlPayload {
   sessionId: string;
-  action: 'pause' | 'resume' | 'finish';
+  action: 'pause' | 'resume' | 'finish' | 'lap';
+  /** Epoch ms the control was pressed on the watch; only sent with `lap`. */
+  at?: number;
 }
 
 export interface WatchRecordingHeartRatePayload {

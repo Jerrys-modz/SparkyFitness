@@ -18,6 +18,7 @@ jest.mock('../../src/services/gpsRecordingService', () => ({
   pauseRecording: jest.fn(() => Promise.resolve()),
   resumeRecording: jest.fn(() => Promise.resolve()),
   finishRecording: jest.fn(() => Promise.resolve()),
+  markLap: jest.fn(() => Promise.resolve(1)),
   addHeartRateSamples: jest.fn(() => Promise.resolve()),
 }));
 
@@ -216,6 +217,31 @@ describe('useWatchRecordingBridge', () => {
       expect.objectContaining({ title: expect.any(String) })
     );
     expect(mockedService.finishRecording).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks a lap at the moment it was pressed on the watch', () => {
+    setSnapshot(baseSession);
+    renderHook(() => useWatchRecordingBridge(true));
+
+    handlers.onRecordingControl({
+      sessionId: 'rec-1',
+      action: 'lap',
+      at: 1_700_000_000_000,
+    });
+    handlers.onRecordingControl({ sessionId: 'rec-old', action: 'lap' });
+
+    expect(mockedService.markLap).toHaveBeenCalledTimes(1);
+    expect(mockedService.markLap).toHaveBeenCalledWith(1_700_000_000_000);
+  });
+
+  it('tells the watch how many laps are marked', () => {
+    setSnapshot({ ...baseSession, laps: [1, 2, 3] } as typeof baseSession);
+    renderHook(() => useWatchRecordingBridge(true));
+
+    expect(watch.updateRecordingState).toHaveBeenCalledWith(
+      expect.objectContaining({ lapCount: 3 }),
+      expect.any(Boolean)
+    );
   });
 
   it('shows the live reading for the recording in progress', () => {
