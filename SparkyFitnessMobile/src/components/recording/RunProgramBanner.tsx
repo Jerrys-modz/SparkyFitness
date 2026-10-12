@@ -69,10 +69,15 @@ const RunProgramBanner: React.FC<{
     ? findLoggedRun(exerciseEntries, minutes, status.program.activity)
     : null;
 
-  const countLoggedRun = async () => {
+  const countLoggedRun = async (entryId: string) => {
     setCounting(true);
     try {
-      await completeProgramWorkout(status.program.id, run.index);
+      await completeProgramWorkout(
+        status.program.id,
+        run.index,
+        undefined,
+        entryId
+      );
     } catch (error) {
       addLog(`[Run Program] Could not count the run: ${error}`, 'WARNING');
       Toast.show({
@@ -137,7 +142,7 @@ const RunProgramBanner: React.FC<{
           </Text>
           <Button
             variant="outline"
-            onPress={() => void countLoggedRun()}
+            onPress={() => void countLoggedRun(logged.id)}
             disabled={counting}
           >
             {t('runPrograms.banner.countIt', { defaultValue: 'Count it' })}

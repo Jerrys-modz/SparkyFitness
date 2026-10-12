@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   storedProgramStatus,
@@ -7,6 +8,7 @@ import {
 } from '@workspace/shared';
 import { queryClient } from '../hooks/queryClient';
 import { toLocalDateString } from '../utils/dateUtils';
+import { programWorkoutForEntry } from '../utils/runProgramSummary';
 import { runProgramQueryKey } from '../hooks/queryKeys';
 import {
   fetchRunProgram,
@@ -168,11 +170,15 @@ export async function skipProgramWorkout(): Promise<void> {
   if (current) await setProgramPosition(current.next_index + 1);
 }
 
-/** Records workout `index` as done, if it is the one that was due. */
+/**
+ * Records workout `index` as done, if it is the one that was due. `entryId` is
+ * the diary entry it was done as, so that entry shows as part of the program.
+ */
 export async function completeProgramWorkout(
   programId: string,
   index: number,
-  day: string = toLocalDateString(new Date())
+  day: string = toLocalDateString(new Date()),
+  entryId?: string
 ): Promise<void> {
   // The local day is sent so the Diary stops offering the next workout for the
   // rest of that day, on every device.
@@ -182,6 +188,7 @@ export async function completeProgramWorkout(
         index,
         program_id: programId,
         day,
+        entry_id: entryId,
       })
     ).program
   );
@@ -241,4 +248,23 @@ export function useRunProgram(): {
     loaded: isSuccess,
     refetch,
   };
+}
+
+/**
+ * The program workout a diary entry was done as (its `workout` is that one),
+ * or null when the entry is not part of the person's program.
+ */
+export function useProgramWorkoutForEntry(
+  entryId: string | undefined
+): ProgramStatus | null {
+  const { data } = useQuery({
+    queryKey: runProgramQueryKey,
+    queryFn: load,
+    staleTime: 60_000,
+    enabled: entryId != null,
+  });
+  return useMemo(
+    () => (data && entryId ? programWorkoutForEntry(data, entryId) : null),
+    [data, entryId]
+  );
 }

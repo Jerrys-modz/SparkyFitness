@@ -112,6 +112,7 @@ test('shows what is scheduled on a later run day, without a Start button', () =>
 test('offers to count a run logged some other way', () => {
   const run = {
     type: 'individual',
+    id: 'entry-3',
     name: 'Running',
     duration_minutes: 40,
   } as unknown as ExerciseSessionResponse;
@@ -123,5 +124,11 @@ test('offers to count a run logged some other way', () => {
     />
   );
   fireEvent.press(screen.getByText('Count it'));
-  expect(completeProgramWorkout).toHaveBeenCalledWith('beginner5k', 4);
+  // The entry is passed along so it shows as part of the program.
+  expect(completeProgramWorkout).toHaveBeenCalledWith(
+    'beginner5k',
+    4,
+    undefined,
+    'entry-3'
+  );
 });

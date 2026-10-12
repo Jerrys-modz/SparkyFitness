@@ -1,5 +1,8 @@
 import { findProgram, type RunProgramResponse } from '@workspace/shared';
-import { nextProgramLine } from '../../src/utils/runProgramSummary';
+import {
+  nextProgramLine,
+  programWorkoutForEntry,
+} from '../../src/utils/runProgramSummary';
 
 const t = ((_key: string, options: Record<string, unknown>) =>
   String(options.defaultValue)
@@ -14,6 +17,8 @@ const stored = (overrides: Partial<RunProgramResponse> = {}) =>
     next_index: 3,
     workouts: findProgram('beginner5k')!.workouts,
     adjustment_log: [],
+    effort_log: [],
+    completion_log: [],
     run_days: [],
     start_date: null,
     end_date: null,
@@ -45,4 +50,29 @@ test('congratulates at the end of the program', () => {
   expect(
     nextProgramLine(t, stored({ next_index: 999 }), '2026-10-12', label)
   ).toBe('Program complete. Well done!');
+});
+
+test('finds the program workout a diary entry was done as', () => {
+  const program = stored({
+    completion_log: [
+      { index: 0, entry_id: 'a', at: '' },
+      { index: 2, entry_id: 'b', at: '' },
+      // Done again after a restart: the newest record wins.
+      { index: 0, entry_id: 'b', at: '' },
+    ],
+  });
+  expect(programWorkoutForEntry(program, 'a')?.workout).toEqual(
+    program.workouts[0]
+  );
+  expect(programWorkoutForEntry(program, 'b')?.workout).toEqual(
+    program.workouts[0]
+  );
+  expect(programWorkoutForEntry(program, 'c')).toBeNull();
+  // A record past the end of the (since shortened) workouts is ignored.
+  expect(
+    programWorkoutForEntry(
+      stored({ completion_log: [{ index: 999, entry_id: 'x', at: '' }] }),
+      'x'
+    )
+  ).toBeNull();
 });

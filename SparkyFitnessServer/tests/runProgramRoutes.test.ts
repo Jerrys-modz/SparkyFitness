@@ -49,6 +49,7 @@ const program = {
   workouts: [],
   adjustment_log: [],
   effort_log: [],
+  completion_log: [],
   run_days: [],
   start_date: null,
   end_date: null,
@@ -108,8 +109,7 @@ describe('run program routes', () => {
       'test-user-id',
       0,
       'test-user-id',
-      undefined,
-      undefined
+      { programId: undefined, day: undefined, entryId: undefined }
     );
     expect(res.body.program.id).toBe('p1');
   });
@@ -124,8 +124,21 @@ describe('run program routes', () => {
       'test-user-id',
       2,
       'test-user-id',
-      'beginner5k',
-      undefined
+      { programId: 'beginner5k', day: undefined, entryId: undefined }
+    );
+  });
+
+  it('records which diary entry a workout was done as', async () => {
+    vi.mocked(completeRunProgramWorkout).mockResolvedValue(program);
+    vi.mocked(getRunProgram).mockResolvedValue(program);
+    await request(app)
+      .post('/api/v2/run-program/complete')
+      .send({ index: 1, day: '2026-10-12', entry_id: 'entry-9' });
+    expect(completeRunProgramWorkout).toHaveBeenLastCalledWith(
+      'test-user-id',
+      1,
+      'test-user-id',
+      { programId: undefined, day: '2026-10-12', entryId: 'entry-9' }
     );
   });
 
@@ -174,8 +187,7 @@ describe('run program routes', () => {
       'test-user-id',
       1,
       'test-user-id',
-      undefined,
-      '2026-10-12'
+      { programId: undefined, day: '2026-10-12', entryId: undefined }
     );
   });
 

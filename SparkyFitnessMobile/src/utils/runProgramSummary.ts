@@ -80,3 +80,19 @@ export function programSummary(
         : { programId: stored.program_id, index: finishedIndex },
   };
 }
+
+/**
+ * The program workout diary entry `entryId` was done as, with `workout` set to
+ * that workout, or null when the program has no record of it.
+ */
+export function programWorkoutForEntry(
+  stored: RunProgramResponse,
+  entryId: string
+): ProgramStatus | null {
+  const done = stored.completion_log
+    .filter((entry) => entry.entry_id === entryId)
+    .at(-1);
+  const workout = done ? stored.workouts[done.index] : undefined;
+  if (!workout) return null;
+  return { ...storedProgramStatus(stored), workout };
+}
