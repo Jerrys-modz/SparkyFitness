@@ -20,6 +20,7 @@ import RouteMap from '../components/exerciseStats/RouteMap';
 import HeartRateChart from '../components/exerciseStats/HeartRateChart';
 import PaceChart from '../components/exerciseStats/PaceChart';
 import HeartRateZones from '../components/exerciseStats/HeartRateZones';
+import ProgramWorkoutBadge from '../components/recording/ProgramWorkoutBadge';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type CardioSessionScreenProps = RootStackScreenProps<'CardioSession'>;
@@ -221,6 +222,8 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({ route }) => {
         showsVerticalScrollIndicator={false}
       >
         <Text className="text-text-secondary text-sm mb-3">{dateText}</Text>
+
+        <ProgramWorkoutBadge entryId={session.id} />
 
         {stats.length > 0 ? (
           <View className="bg-surface rounded-xl p-4 mb-4 shadow-sm flex-row flex-wrap">

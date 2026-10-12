@@ -29,6 +29,7 @@ const program = (overrides: Partial<RunProgramResponse> = {}) =>
     workouts: findProgram('beginner5k')!.workouts,
     adjustment_log: [],
     effort_log: [],
+    completion_log: [],
     run_days: [],
     start_date: null,
     end_date: null,

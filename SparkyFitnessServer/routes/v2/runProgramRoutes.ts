@@ -79,7 +79,7 @@ router.put('/', async (req, res, next) => {
  * /v2/run-program/complete:
  *   post:
  *     summary: Mark a run program workout done
- *     description: Moves on only if `index` is the workout that was due, so a repeated request changes nothing.
+ *     description: Moves on only if `index` is the workout that was due, so a repeated request changes nothing. An optional `entry_id` records which diary entry the workout was done as.
  *     tags: [Exercise]
  *     responses:
  *       200:
@@ -98,8 +98,11 @@ router.post('/complete', async (req, res, next) => {
       req.userId,
       parsed.data.index,
       req.authenticatedUserId,
-      parsed.data.program_id,
-      parsed.data.day
+      {
+        programId: parsed.data.program_id,
+        day: parsed.data.day,
+        entryId: parsed.data.entry_id,
+      }
     );
     const program = await getRunProgram(req.userId, req.authenticatedUserId);
     res.json({ program });

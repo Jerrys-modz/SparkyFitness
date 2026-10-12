@@ -473,7 +473,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
           await completeProgramWorkout(
             session.program.id,
             session.program.index,
-            toLocalDateString(new Date(session.startedAt))
+            toLocalDateString(new Date(session.startedAt)),
+            saved.entryId
           );
           program = programSummary(
             t,

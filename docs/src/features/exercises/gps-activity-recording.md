@@ -133,6 +133,8 @@ On the program card you choose when the workouts show up in your Diary. **Days i
 
 **Runs logged some other way.** If you logged a run today that was not recorded as the program workout (from your watch, an import or typed in), the Diary card offers **Count it**, which counts that run as today's workout. It is only a suggestion based on the activity's name and length, and nothing is counted until you tap it.
 
+**Seeing it later.** A run or walk that counted as a program workout says so when you open it from the Diary: a card under the date reads **Part of your training program** with the program and workout, such as "Couch to 5K · Week 3, run 2".
+
 Your place in the program is saved to your SparkyFitness server (only you can see it), so it follows you between devices.
 
 **Ask Sparky to adjust it.** The AI assistant can see your program and your recent runs. Ask "How am I doing on my 5K program?" or tell it things like "my knee hurt this week" or "that last run was too hard", and it can suggest a change: repeat a week, move you to a different workout, or ease the running time in your next workouts by up to 30% (or lengthen it by at most 10% at a time). However many times it adjusts, running time in a workout never ends up more than 30% below or 10% above the original plan. It can also change your schedule: "run Monday, Wednesday and Saturday", "start the program next Monday" or "my race is on December 6". It only changes workouts you have not done yet, always asks you to confirm first, and keeps a short log of what it changed. For two weeks after a change, the program card on the Record screen says what changed and when.
