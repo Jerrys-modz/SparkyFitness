@@ -8,6 +8,7 @@ import WatchConnectivity, {
 } from '../../modules/watch-connectivity';
 import {
   addHeartRateSamples,
+  elapsedSeconds,
   finishRecording,
   hydrate,
   markLap,
@@ -19,12 +20,15 @@ import {
 import { addLog } from '../services/LogService';
 import { useLiveHeartRateStore } from '../stores/liveHeartRateStore';
 import { notificationText } from '../utils/recordingNotification';
+import { intervalStepName } from '../utils/recordingCues';
 import {
   currentPaceSecondsPerUnit,
+  formatClock,
   METERS_PER_KM,
   METERS_PER_MILE,
   summarizeRecording,
 } from '../utils/gpsRecording';
+import { intervalPosition } from '@workspace/shared';
 import { usePreferences } from './usePreferences';
 
 /** How often the watch's distance and pace are refreshed while recording. */
@@ -100,6 +104,35 @@ export function useWatchRecordingBridge(enabled: boolean): void {
       state.pausedAt = session.finishedAt ?? Date.now();
     }
     if (pace != null) state.paceSeconds = Math.round(pace);
+    if (session.intervals && status !== 'finished') {
+      const position = intervalPosition(
+        session.intervals.plan,
+        elapsedSeconds(session)
+      );
+      if (position) {
+        const translate = tRef.current;
+        state.intervalIndex = position.done
+          ? session.intervals.plan.steps.length
+          : position.index;
+        state.intervalLabel = position.done
+          ? translate('recordActivity.intervals.complete', {
+              defaultValue: 'Intervals complete',
+            })
+          : intervalStepName(
+              translate,
+              position.step.kind,
+              session.intervals.plan.style
+            );
+        state.intervalRemaining = Math.ceil(position.remaining);
+        if (position.next && !position.done) {
+          state.intervalNext = `${intervalStepName(
+            translate,
+            position.next.kind,
+            session.intervals.plan.style
+          )} ${formatClock(position.next.seconds)}`;
+        }
+      }
+    }
     return state;
   };
 
@@ -107,6 +140,7 @@ export function useWatchRecordingBridge(enabled: boolean): void {
   // discarded, so the session leaves the store) tells the watch to close.
   const sessionId = snapshot.session?.id ?? null;
   const status = snapshot.session?.status ?? null;
+  const intervalStep = snapshot.session?.intervals?.cued ?? null;
   useEffect(() => {
     if (!enabled || !WatchConnectivity) return;
     const snap = latest.current;
@@ -127,6 +161,19 @@ export function useWatchRecordingBridge(enabled: boolean): void {
       lastSession.current = null;
     }
   }, [enabled, sessionId, status]);
+
+  // A new interval step goes out at once so its buzz is on time. Live only: a
+  // durable send also relaunches the watch app, and the 3 s refresh covers a
+  // watch that is out of reach for the moment.
+  useEffect(() => {
+    if (!enabled || !WatchConnectivity || status !== 'recording') return;
+    if (intervalStep === null || !WatchConnectivity.isReachable()) return;
+    const state = buildState('recording', latest.current);
+    if (!state) return;
+    void WatchConnectivity.updateRecordingState(state, false).catch(
+      (error: unknown) => logError('send interval step', error)
+    );
+  }, [enabled, status, intervalStep]);
 
   // Live distance and pace, only while recording and only to a reachable watch.
   useEffect(() => {

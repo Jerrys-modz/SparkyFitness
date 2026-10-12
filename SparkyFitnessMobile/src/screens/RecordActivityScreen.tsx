@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -14,8 +20,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 
 import Button from '../components/ui/Button';
+import RecordingVoiceCard from '../components/recording/RecordingVoiceCard';
 import Switch from '../components/ui/Switch';
 import SegmentedControl from '../components/SegmentedControl';
+import { SplitRow, Stat } from '../components/recording/SplitRow';
+import RunProgramSelect from '../components/recording/RunProgramSelect';
+import { programWorkoutLabel } from '../components/recording/RunProgramCard';
 import IntervalCard from '../components/recording/IntervalCard';
 import IntervalSetup, {
   DEFAULT_CUSTOM_INTERVALS,
@@ -34,6 +44,7 @@ import {
   elapsedSeconds,
   finishRecording,
   COUNTDOWN_CHOICES,
+  getHeartRateSamples,
   getRecordingPreferences,
   hydrate,
   markLap,
@@ -49,9 +60,23 @@ import {
   buildIntervalPlan,
   INTERVAL_PRESETS,
   intervalPosition,
+  lastStepStarted,
   type IntervalOptions,
   type IntervalPlan,
-} from '../utils/intervals';
+  type RunProgramResponse,
+} from '@workspace/shared';
+import {
+  completeProgramWorkout,
+  useRunProgram,
+} from '../services/runProgramService';
+import { runProgramQueryKey } from '../hooks/queryKeys';
+import { programSummary } from '../utils/runProgramSummary';
+import {
+  averageHeartRate,
+  buildRunSummary,
+  type RunSummaryParams,
+} from '../utils/runSummary';
+import { toLocalDateString } from '../utils/dateUtils';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
 import { fireSelectionHaptic } from '../services/haptics';
 import { addLog } from '../services/LogService';
@@ -79,50 +104,7 @@ type Props = RootStackScreenProps<'RecordActivity'>;
 
 const FEET_PER_METER = 3.28084;
 
-/** One split or lap: label, pace, and a bar that is longer the faster it was. */
-const SplitRow: React.FC<{
-  label: string;
-  detail?: string;
-  pace: string;
-  fraction: number;
-  fastest: boolean;
-  fastestLabel: string;
-}> = ({ label, detail, pace, fraction, fastest, fastestLabel }) => (
-  <View className="py-1">
-    <View className="flex-row justify-between">
-      <Text className="text-text-secondary text-sm">
-        {label}
-        {detail ? ` · ${detail}` : ''}
-      </Text>
-      <Text className="text-text-primary text-sm font-semibold">
-        {fastest ? `${fastestLabel} · ` : ''}
-        {pace}
-      </Text>
-    </View>
-    <View className="h-1.5 rounded-full bg-form-disabled mt-1">
-      <View
-        className={`h-1.5 rounded-full ${
-          fastest ? 'bg-accent-primary' : 'bg-text-muted'
-        }`}
-        style={{ width: `${Math.round(fraction * 100)}%` }}
-      />
-    </View>
-  </View>
-);
-
-const Stat: React.FC<{ label: string; value: string; unit?: string }> = ({
-  label,
-  value,
-  unit,
-}) => (
-  <View className="flex-1 bg-surface rounded-xl p-3 mx-1 items-center">
-    <Text className="text-text-muted text-xs mb-1">{label}</Text>
-    <Text className="text-text-primary text-xl font-bold">{value}</Text>
-    {unit ? <Text className="text-text-muted text-xs">{unit}</Text> : null}
-  </View>
-);
-
-const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
+const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -146,12 +128,41 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   const [customIntervals, setCustomIntervals] = useState<IntervalOptions>(
     DEFAULT_CUSTOM_INTERVALS
   );
+  const {
+    status: storedProgram,
+    enabled: programEnabled,
+    loaded: programLoaded,
+  } = useRunProgram();
+  // The program only drives the screen while the person has it switched on.
+  const programStatus = programEnabled ? storedProgram : null;
+  const programWorkout = programStatus?.workout ?? null;
+  // Today's program workout is chosen only when the person came here to do it
+  // (the Diary card's Start, or Start today's workout); otherwise it is just
+  // offered on its own card, because most recordings are a plain walk or run.
+  const wantsProgramWorkout = route.params?.programWorkout === true;
+  const programApplied = useRef(false);
+  useEffect(() => {
+    if (!wantsProgramWorkout || programApplied.current || !programLoaded)
+      return;
+    programApplied.current = true;
+    if (programWorkout && programStatus) {
+      setActivity(programStatus.program.activity);
+      setIntervalChoice('program');
+    }
+  }, [wantsProgramWorkout, programLoaded, programWorkout, programStatus]);
+  // A program that ended or was left while it was chosen.
+  useEffect(() => {
+    if (intervalChoice === 'program' && programLoaded && !programWorkout) {
+      setIntervalChoice('off');
+    }
+  }, [intervalChoice, programLoaded, programWorkout]);
   const intervalPlan = useMemo<IntervalPlan | undefined>(() => {
     if (intervalChoice === 'off') return undefined;
+    if (intervalChoice === 'program') return programWorkout?.plan;
     if (intervalChoice === 'custom') return buildIntervalPlan(customIntervals);
     const preset = INTERVAL_PRESETS.find((p) => p.id === intervalChoice);
     return preset ? buildIntervalPlan(preset.options) : undefined;
-  }, [intervalChoice, customIntervals]);
+  }, [intervalChoice, customIntervals, programWorkout]);
   // Seconds left before recording begins, or null when no countdown is running.
   const [countdownLeft, setCountdownLeft] = useState<number | null>(null);
   const [permissionProblem, setPermissionProblem] = useState<
@@ -279,6 +290,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
                 : 'km'
               : undefined,
             intervals: intervalPlan,
+            program:
+              intervalChoice === 'program' && programStatus && intervalPlan
+                ? { id: programStatus.program.id, index: programStatus.done }
+                : undefined,
             notification: notificationText(t, activity),
           });
         },
@@ -286,7 +301,17 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
           defaultValue: 'Could not start recording',
         })
       ),
-    [activity, audioCues, autoPause, distanceUnit, intervalPlan, run, t]
+    [
+      activity,
+      audioCues,
+      autoPause,
+      distanceUnit,
+      intervalChoice,
+      intervalPlan,
+      programStatus,
+      run,
+      t,
+    ]
   );
   // Counts down once a second, then starts. Each number is felt and, with
   // voice cues on, spoken.
@@ -376,13 +401,73 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
     setBusy(true);
     try {
       const saved = await saveRecordedActivity(session, points, distanceUnit);
-      await discardRecording();
+      // Ticks a program workout off only if the plan was followed to its last
+      // step; a run cut short can be tried again. The day is the one the run
+      // started on, so a run saved after midnight still counts for its own day.
+      let program: RunSummaryParams['program'] = null;
+      if (session.program && lastStepStarted(session.intervals)) {
+        // The activity is already saved, so a failure here only costs the
+        // tick: say so and carry on rather than failing the save.
+        try {
+          await completeProgramWorkout(
+            session.program.id,
+            session.program.index,
+            toLocalDateString(new Date(session.startedAt))
+          );
+          program = programSummary(
+            t,
+            queryClient.getQueryData<RunProgramResponse>(runProgramQueryKey),
+            toLocalDateString(new Date()),
+            (workoutStatus) => programWorkoutLabel(t, workoutStatus),
+            session.program.index
+          );
+        } catch (error) {
+          addLog(
+            `[Run Program] Could not tick off the workout: ${error}`,
+            'WARNING'
+          );
+          Toast.show({
+            type: 'info',
+            text1: t('recordActivity.program.tickFailed', {
+              defaultValue: 'Activity saved, program not updated',
+            }),
+            text2: t('recordActivity.program.tickFailedHint', {
+              defaultValue:
+                'Use "Count it" on the Diary card to tick the workout off.',
+            }),
+          });
+        }
+      }
       invalidateExerciseCache(queryClient, saved.entryDate);
-      Toast.show({
-        type: 'success',
-        text1: t('recordActivity.saved', { defaultValue: 'Activity saved' }),
-      });
-      navigation.goBack();
+      // The activity is filed. Nothing after this may report the save as
+      // failed, or the person would be told to try again for no reason.
+      let summaryParams: RunSummaryParams | null = null;
+      try {
+        summaryParams = buildRunSummary({
+          activity: session.activity,
+          entryDate: saved.entryDate,
+          distanceUnit,
+          points,
+          lapMarks: session.laps,
+          avgHeartRate: averageHeartRate(
+            await getHeartRateSamples().catch(() => [])
+          ),
+          program,
+        });
+      } catch (error) {
+        addLog(
+          `[GPS Recording] Could not build the summary: ${error}`,
+          'WARNING'
+        );
+      }
+      await discardRecording().catch((error: unknown) =>
+        addLog(
+          `[GPS Recording] Could not clear the recording: ${error}`,
+          'WARNING'
+        )
+      );
+      if (summaryParams) navigation.replace('RunSummary', summaryParams);
+      else navigation.goBack();
     } catch (error) {
       addLog(`[GPS Recording] Save failed: ${error}`, 'ERROR');
       Toast.show({
@@ -521,6 +606,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               }}
             />
           </View>
+          {audioCues && <RecordingVoiceCard />}
           <View className="bg-surface rounded-xl p-4 mt-4">
             <Text className="text-text-primary text-sm font-semibold mb-2">
               {t('recordActivity.countdown.title', {
@@ -548,7 +634,22 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               }}
             />
           </View>
+          <RunProgramSelect
+            status={programStatus}
+            loaded={programLoaded}
+            selected={intervalChoice === 'program'}
+            onSelect={() => {
+              setActivity(programStatus?.program.activity ?? 'run');
+              setIntervalChoice('program');
+            }}
+            onManage={() => navigation.navigate('RunPrograms')}
+          />
           <IntervalSetup
+            programLabel={
+              programStatus?.workout
+                ? programWorkoutLabel(t, programStatus)
+                : undefined
+            }
             choice={intervalChoice}
             onChoice={setIntervalChoice}
             custom={customIntervals}
