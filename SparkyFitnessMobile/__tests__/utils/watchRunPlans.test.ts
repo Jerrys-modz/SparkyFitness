@@ -1,5 +1,8 @@
 import { programStatus, INTERVAL_PRESETS } from '@workspace/shared';
-import { buildWatchRunPlans } from '../../src/utils/watchRunPlans';
+import {
+  buildWatchRunPlans,
+  buildWatchStartPlan,
+} from '../../src/utils/watchRunPlans';
 
 const t = ((_key: string, options?: { defaultValue?: string }) =>
   options?.defaultValue ?? _key) as never;
@@ -51,4 +54,24 @@ test('leaves the program out while it is off or finished', () => {
   expect(
     buildWatchRunPlans(t, { status: finished, enabled: true }, names)
   ).toHaveLength(INTERVAL_PRESETS.length);
+});
+
+test('builds the single plan chosen on the phone, tagged as a program workout when it is one', () => {
+  const status = programStatus({ programId: 'walkFit', next: 1 })!;
+  const plan = buildWatchStartPlan(t, status.workout!.plan, {
+    id: 'walkFit',
+    name: 'Walk for fitness',
+    program: { id: 'walkFit', index: status.done, activity: 'walk' },
+  });
+  expect(plan).toMatchObject({
+    id: 'walkFit',
+    programId: 'walkFit',
+    programIndex: status.done,
+    activity: 'walk',
+  });
+  expect(plan.steps.length).toBeGreaterThan(0);
+  expect(
+    buildWatchStartPlan(t, status.workout!.plan, { id: 'x', name: 'X' })
+      .programId
+  ).toBeUndefined();
 });

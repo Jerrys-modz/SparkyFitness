@@ -103,6 +103,17 @@ struct IndoorDistanceScale: Equatable {
     }
 }
 
+/// The phone asked the watch to record a walk or run (the phone's Record
+/// screen, with the watch as the source). `requestId` ties the live view the
+/// phone shows to this run, and lets a redelivered copy be ignored.
+struct WatchRunStartRequest: Equatable {
+    let requestId: String
+    let kind: WatchRunKind
+    let place: WatchRunPlace
+    let requestedAt: Date
+    let plan: WatchRunPlan?
+}
+
 /// A timed plan a wrist-only run can follow: a list of steps the phone has
 /// already named in its language. A training-program workout carries the
 /// program id and the index of the workout so the phone can tick it off.

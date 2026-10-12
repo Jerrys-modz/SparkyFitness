@@ -3,7 +3,9 @@ import type { WatchRunLivePayload } from '../../modules/watch-connectivity';
 import {
   useWatchRunLive,
   useWatchRunLiveStore,
+  useWatchRunPending,
   WATCH_RUN_LIVE_MAX_AGE_MS,
+  WATCH_RUN_PENDING_MAX_AGE_MS,
 } from '../../src/stores/watchRunLiveStore';
 
 const live = (
@@ -140,4 +142,44 @@ describe('useWatchRunLive', () => {
       expect(result.current).toBeNull();
     })
   );
+});
+
+describe('pending start request', () => {
+  const pending = {
+    requestId: 'q1',
+    kind: 'run',
+    place: 'indoor',
+    at: 1,
+  } as const;
+
+  it('is settled by the live run that carries its request id', () => {
+    useWatchRunLiveStore.getState().setPending(pending);
+    receive(live({ requestId: 'other' }));
+    expect(useWatchRunLiveStore.getState().pending).not.toBeNull();
+    receive(live({ requestId: 'q1', sentAt: 2000 }));
+    expect(useWatchRunLiveStore.getState().pending).toBeNull();
+    expect(current()?.runId).toBe('r1');
+  });
+
+  it('survives the live run being swept', () => {
+    useWatchRunLiveStore.getState().setPending(pending);
+    useWatchRunLiveStore.setState({ run: null });
+    expect(useWatchRunLiveStore.getState().pending).toEqual(pending);
+  });
+
+  it('stops showing after waiting too long', () => {
+    useWatchRunLiveStore.getState().setPending({ ...pending, at: Date.now() });
+    jest.useFakeTimers();
+    try {
+      const { result } = renderHook(() => useWatchRunPending());
+      expect(result.current).not.toBeNull();
+      act(() => {
+        jest.setSystemTime(Date.now() + WATCH_RUN_PENDING_MAX_AGE_MS + 2000);
+        jest.advanceTimersByTime(2000);
+      });
+      expect(result.current).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

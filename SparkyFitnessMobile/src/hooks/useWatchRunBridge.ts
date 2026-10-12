@@ -69,7 +69,8 @@ export function useWatchRunBridge(
     const sweep = setInterval(() => {
       const run = useWatchRunLiveStore.getState().run;
       if (run && Date.now() - run.receivedAt > WATCH_RUN_LIVE_MAX_AGE_MS) {
-        useWatchRunLiveStore.getState().clear();
+        // Only the run: a start request still waiting on the watch stays.
+        useWatchRunLiveStore.setState({ run: null });
       }
     }, 5000);
     return () => {
@@ -84,7 +85,7 @@ export function useWatchRunBridge(
     const sub = WatchConnectivity.addListener(
       'onRunFinished',
       (raw: WatchRunFinishedPayload) => {
-        useWatchRunLiveStore.getState().clear();
+        useWatchRunLiveStore.setState({ run: null });
         const payload = parseWatchRunPayload(raw);
         if (!payload) {
           addLog(

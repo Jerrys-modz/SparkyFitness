@@ -287,7 +287,8 @@ enum OutboundPayloads {
         lapCount: Int,
         stepLabel: String?,
         stepRemaining: TimeInterval?,
-        nextLabel: String?
+        nextLabel: String?,
+        requestId: String?
     ) -> [String: Any] {
         var payload: [String: Any] = [
             "type": Kind.runLive,
@@ -306,6 +307,7 @@ enum OutboundPayloads {
         if let stepLabel { payload["stepLabel"] = stepLabel }
         if let stepRemaining { payload["stepRemaining"] = stepRemaining }
         if let nextLabel { payload["nextLabel"] = nextLabel }
+        if let requestId { payload["requestId"] = requestId }
         return payload
     }
 
