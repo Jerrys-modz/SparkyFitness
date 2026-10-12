@@ -176,6 +176,9 @@ final class WatchRunStore: ObservableObject {
             Task { @MainActor in
                 guard let self, self.phase == .running else { return }
                 if self.healthKit.start(kind, place: place, plan: plan, settings: chosen) {
+                    // With a plan, its first step is the start cue; saying
+                    // both would cut one off.
+                    if plan == nil { self.cue("\(kind.title(place)) started.") }
                     self.startStepTimer()
                     self.startLiveTimer()
                 } else {
@@ -260,6 +263,7 @@ final class WatchRunStore: ObservableObject {
         phase = .paused
         autoPaused = false
         healthKit.pause()
+        cue("Paused.")
         pushLive(force: true)
     }
 
@@ -268,7 +272,15 @@ final class WatchRunStore: ObservableObject {
         phase = .running
         autoPaused = false
         healthKit.resume()
+        cue("Resumed.")
         pushLive(force: true)
+    }
+
+    /// Says `text` when this run's voice cues are on, cutting off anything
+    /// older: a pause or resume is about now.
+    private func cue(_ text: String) {
+        guard settings.voiceCues else { return }
+        WatchRunCues.shared.speak(text, interrupt: true)
     }
 
     /// Turns auto-pause on or off mid-run. Turning it off while it holds the
@@ -290,7 +302,12 @@ final class WatchRunStore: ObservableObject {
         guard phase == .running || phase == .paused, settings.voiceCues != on else { return }
         settings.voiceCues = on
         healthKit.updateSettings(settings)
-        if !on { WatchRunCues.shared.stop() }
+        if on {
+            // Heard at once, so the wearer knows the speaker works.
+            cue("Voice cues on.")
+        } else {
+            WatchRunCues.shared.stop()
+        }
         pushLive(force: true)
     }
 
@@ -419,6 +436,7 @@ final class WatchRunStore: ObservableObject {
             autoPaused = true
             healthKit.pause(automatic: true)
             WKInterfaceDevice.current().play(.stop)
+            cue("Auto-paused.")
             pushLive(force: true)
         case .resume:
             guard phase == .paused, autoPaused else { return }
@@ -426,6 +444,7 @@ final class WatchRunStore: ObservableObject {
             autoPaused = false
             healthKit.resume()
             WKInterfaceDevice.current().play(.start)
+            cue("Resumed.")
             pushLive(force: true)
         case .none:
             break
@@ -494,6 +513,12 @@ final class WatchRunStore: ObservableObject {
                     WatchRunSnapshotStore.clear()
                 }
                 if save {
+                    self.cue(WatchRunCues.finishText(
+                        title: ending.title(endingPlace),
+                        distanceMeters: metrics.distanceMeters,
+                        seconds: elapsed,
+                        usesMiles: self.usesMiles
+                    ))
                     self.summary = Summary(kind: ending, place: endingPlace, elapsed: elapsed, metrics: metrics, saved: true)
                     self.phase = .finished
                 } else {
