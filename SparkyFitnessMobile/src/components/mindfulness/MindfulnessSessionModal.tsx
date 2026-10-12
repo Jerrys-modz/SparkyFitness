@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  SafeAreaView,
-} from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import FormInput from '../FormInput';
 import Icon from '../Icon';
@@ -46,6 +40,7 @@ export const MindfulnessSessionModal: React.FC<
   MindfulnessSessionModalProps
 > = ({ visible, onClose, onSave, onUpdate, initialSession, selectedDate }) => {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const [durationMinutes, setDurationMinutes] = useState('15');
   const [durationSeconds, setDurationSeconds] = useState('0');
   const [sessionType, setSessionType] = useState('meditation');
@@ -219,7 +214,7 @@ export const MindfulnessSessionModal: React.FC<
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View className="flex-1 bg-black/80 justify-end">
-        <SafeAreaView className="bg-surface rounded-t-3xl max-h-[85%] border-t border-border-subtle">
+        <View className="bg-surface rounded-t-3xl max-h-[85%] border-t border-border-subtle">
           <View className="flex-row justify-between items-center px-5 py-4 border-b border-border-subtle">
             <Text className="text-text-primary text-lg font-bold">
               {initialSession
@@ -469,7 +464,10 @@ export const MindfulnessSessionModal: React.FC<
             <View className="h-6" />
           </ScrollView>
 
-          <View className="p-4 border-t border-border-subtle flex-row gap-3">
+          <View
+            className="px-4 pt-4 border-t border-border-subtle flex-row gap-3"
+            style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+          >
             <TouchableOpacity
               onPress={onClose}
               className="flex-1 py-3.5 rounded-xl border border-border-subtle items-center"
@@ -491,7 +489,7 @@ export const MindfulnessSessionModal: React.FC<
               </Text>
             </TouchableOpacity>
           </View>
-        </SafeAreaView>
+        </View>
       </View>
 
       <BreathworkModal
