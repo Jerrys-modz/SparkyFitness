@@ -24,6 +24,16 @@ export const runProgramAdjustmentSchema = z.object({
 });
 export type RunProgramAdjustment = z.infer<typeof runProgramAdjustmentSchema>;
 
+export const runProgramEffortSchema = z.object({
+  /** Index of the workout in `workouts`. */
+  index: z.number().int().min(0).max(1000),
+  /** How hard it felt, 1 (very easy) to 10 (all out). */
+  rating: z.number().int().min(1).max(10),
+  /** ISO timestamp. */
+  at: z.string(),
+});
+export type RunProgramEffort = z.infer<typeof runProgramEffortSchema>;
+
 /** A real calendar day: 2026-02-31 matches the shape but is not a date. */
 const isRealDay = (value: string): boolean => {
   const [y, m, d] = value.split("-").map(Number);
@@ -50,6 +60,8 @@ export const runProgramResponseSchema = z.object({
   workouts: z.array(runProgramWorkoutSchema),
   /** Most recent last, capped by the server. */
   adjustment_log: z.array(runProgramAdjustmentSchema),
+  /** How hard finished workouts felt, most recent last, capped by the server. */
+  effort_log: z.array(runProgramEffortSchema),
   /** Weekdays (0 = Sunday) the person plans to run; empty means every day. */
   run_days: z.array(weekday).max(7),
   /** First day (YYYY-MM-DD) the Diary offers the workout, or null for any. */
@@ -102,4 +114,15 @@ export const completeRunProgramWorkoutBodySchema = z.object({
 });
 export type CompleteRunProgramWorkoutBody = z.infer<
   typeof completeRunProgramWorkoutBodySchema
+>;
+
+/** Records how hard finished workout `index` felt. */
+export const rateRunProgramWorkoutBodySchema = z.object({
+  index: z.number().int().min(0).max(1000),
+  rating: z.number().int().min(1).max(10),
+  /** The program the workout belonged to; ignored if the person has switched since. */
+  program_id: z.string().min(1).max(40).optional(),
+});
+export type RateRunProgramWorkoutBody = z.infer<
+  typeof rateRunProgramWorkoutBodySchema
 >;

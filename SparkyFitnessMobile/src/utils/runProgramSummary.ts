@@ -58,12 +58,14 @@ export function programSummary(
   t: TFunction,
   stored: RunProgramResponse | undefined,
   today: string,
-  workoutLabel: (status: ProgramStatus) => string
+  workoutLabel: (status: ProgramStatus) => string,
+  finishedIndex?: number
 ): {
   nextLine: string;
   done: number;
   total: number;
   finished: boolean;
+  rate: { programId: string; index: number } | null;
 } | null {
   if (!stored) return null;
   const status = storedProgramStatus(stored);
@@ -72,5 +74,9 @@ export function programSummary(
     done: status.done,
     total: status.total,
     finished: status.finished,
+    rate:
+      finishedIndex === undefined
+        ? null
+        : { programId: stored.program_id, index: finishedIndex },
   };
 }
