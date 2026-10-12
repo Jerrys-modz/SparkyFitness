@@ -455,6 +455,8 @@ struct WatchContext: Codable, Equatable {
     var steps: StepsSnapshot? = nil
     /// Daily step goal from the phone. Nil reads as 10,000.
     var stepGoal: Int? = nil
+    /// The phone's "Voice cues" switch: a wrist-only run speaks each completed km or mile.
+    var runVoiceCues: Bool? = nil
 
     static let empty = WatchContext(
         today: nil,
