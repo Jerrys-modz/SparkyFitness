@@ -25,7 +25,8 @@ import { watchRunSummary } from '../utils/watchRunSummary';
 export function announceWatchRun(
   payload: WatchRunPayload,
   distanceUnit: 'km' | 'miles',
-  t: TFunction
+  t: TFunction,
+  entryId?: string
 ): void {
   const stored =
     queryClient.getQueryData<RunProgramResponse>(runProgramQueryKey);
@@ -40,7 +41,8 @@ export function announceWatchRun(
           (status) => programWorkoutLabel(t, status),
           payload.program.index
         )
-      : null
+      : null,
+    entryId
   );
   const unitMeters = distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
   const unit =
