@@ -283,6 +283,17 @@ final class WatchSessionManager: NSObject, ObservableObject {
         return .queued
     }
 
+    /// Asks the phone to start a fast. Queued, so a phone out of reach gets it
+    /// when it comes back.
+    func requestStartFast(presetId: String) {
+        transfer(OutboundPayloads.fastStart(presetId: presetId, clientId: UUID().uuidString))
+    }
+
+    /// Asks the phone to end the running fast.
+    func requestEndFast() {
+        transfer(OutboundPayloads.fastEnd(clientId: UUID().uuidString))
+    }
+
     /// Asks the phone to start one saved workout. Queued like a check-in: the
     /// phone is often in a bag, and a tap that vanishes is the bug.
     func requestWorkoutStart(presetId: String, serverId: String?) {
@@ -388,6 +399,55 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
     }
 
+    /// Asks the phone to log one dose as taken, or to remove that log when `undo`. Acknowledged like a
+    /// water tap: the phone reports the `clientId` immediately when reachable
+    /// and again in every context push.
+    func sendMedicationTap(_ dose: MedicationDose, clientId: String, undo: Bool = false) {
+        guard WCSession.isSupported() else { return }
+        transfer(OutboundPayloads.medicationTaken(
+            MedicationTap(
+                id: clientId,
+                entryDate: CheckInDate.today(),
+                medicationId: dose.medicationId,
+                scheduleId: dose.scheduleId,
+                taken: !undo
+            )
+        ))
+    }
+
+    /// Re-sends every tick still waiting on the phone, under its original id.
+    /// The phone reads the day's entries before writing, so a tick that did
+    /// land is recognised and re-acknowledged rather than logged twice.
+    func resendQueuedMedicationTaps() {
+        guard isActivated else { return }
+        for tap in store.queuedMedicationTaps {
+            resend(tap)
+        }
+    }
+
+    /// Re-sends every tick the phone reported as failed, under its original id.
+    func retryFailedMedicationTaps() {
+        for tap in store.retryableMedicationTaps {
+            store.markMedicationTap(tap.id, .queued)
+            resend(tap)
+        }
+    }
+
+    /// Sent under the day the wearer ticked it, not today's: a tick queued at
+    /// 23:58 and resent after midnight still belongs to the earlier day.
+    private func resend(_ tap: PendingMedicationTap) {
+        guard WCSession.isSupported() else { return }
+        transfer(OutboundPayloads.medicationTaken(
+            MedicationTap(
+                id: tap.id,
+                entryDate: tap.day,
+                medicationId: tap.medicationId,
+                scheduleId: tap.scheduleId,
+                taken: !tap.isUndo
+            )
+        ))
+    }
+
     /// Re-publishes both complications' shared-storage snapshots from the
     /// context the watch already holds.
     ///
@@ -421,10 +481,18 @@ final class WatchSessionManager: NSObject, ObservableObject {
                     calories: nutrition.calorieProgress,
                     protein: nutrition.protein.progress,
                     carbs: nutrition.carbs.progress,
-                    fat: nutrition.fat.progress
+                    fat: nutrition.fat.progress,
+                    proteinGrams: MacroGrams(consumed: nutrition.protein.consumed, goal: nutrition.protein.goal),
+                    carbsGrams: MacroGrams(consumed: nutrition.carbs.consumed, goal: nutrition.carbs.goal),
+                    fatGrams: MacroGrams(consumed: nutrition.fat.consumed, goal: nutrition.fat.goal)
                 ),
                 for: nutrition.day
             )
+        }
+
+        if context.fastSynced == true { ComplicationPublisher.publish(fast: context.fast) }
+        if let steps = context.steps, steps.isToday {
+            ComplicationPublisher.publish(steps: steps.count, goal: context.stepGoal ?? 10_000, for: steps.day)
         }
 
         if let water = context.water, water.isToday {
@@ -518,6 +586,13 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // field: the two water figures already travel for the Water page's
         // bottle, and a third field carrying their ratio would be a second
         // version of the same truth to keep in step.
+        if incoming.fastSynced == true { ComplicationPublisher.publish(fast: incoming.fast) }
+        if let steps = incoming.steps {
+            ComplicationPublisher.publish(steps: steps.count, goal: incoming.stepGoal ?? 10_000, for: steps.day)
+        } else if payload["steps"] != nil {
+            // The phone said it has no steps; an earlier count must not outlive that.
+            ComplicationPublisher.clearSteps()
+        }
         if let water = incoming.water {
             ComplicationPublisher.publish(
                 waterProgress: incoming.waterProgress(ml: water.consumedMl) ?? 0,
@@ -543,6 +618,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         let state: SyncState = ack.ok ? .saved : .failed
         store.markWaterTap(ack.clientId, state)
         store.markWaterDelete(ack.clientId, state)
+        store.markMedicationTap(ack.clientId, state)
     }
 
     /// The single entry point for everything inbound, whichever transport
@@ -1445,6 +1521,7 @@ extension WatchSessionManager: WCSessionDelegate {
             self.retryPendingSetCompletion()
             self.resendQueuedWaterTaps()
             self.resendQueuedWaterDeletes()
+            self.resendQueuedMedicationTaps()
             self.requestContext()
         }
     }
@@ -1457,6 +1534,7 @@ extension WatchSessionManager: WCSessionDelegate {
                 self.retryPending()
                 self.resendQueuedWaterTaps()
                 self.resendQueuedWaterDeletes()
+                self.resendQueuedMedicationTaps()
                 self.requestContext()
             }
         }

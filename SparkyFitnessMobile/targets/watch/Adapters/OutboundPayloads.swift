@@ -20,6 +20,7 @@ enum OutboundPayloads {
         static let checkIn = "checkIn"
         static let waterIntake = "waterIntake"
         static let waterDelete = "waterDelete"
+        static let medicationTaken = "medicationTaken"
         static let contextRequest = "requestContext"
         static let setCompleted = "setCompleted"
         static let heartRateBatch = "heartRateBatch"
@@ -33,6 +34,8 @@ enum OutboundPayloads {
         static let presetUpdateAnswer = "presetUpdateAnswer"
         static let recordingControl = "recordingControl"
         static let recordingHeartRate = "recordingHeartRate"
+        static let fastStart = "fastStart"
+        static let fastEnd = "fastEnd"
     }
 
     /// A morning check-in awaiting a server write.
@@ -71,6 +74,31 @@ enum OutboundPayloads {
             "clientId": request.id,
             "entryId": request.entryId,
         ]
+    }
+
+    /// One dose ticked as taken — the phone logs it the way its own dose row
+    /// does — or, with `taken` false, un-ticked, which deletes that entry.
+    static func medicationTaken(_ tap: MedicationTap) -> [String: Any] {
+        [
+            "type": Kind.medicationTaken,
+            "clientId": tap.id,
+            "entryDate": tap.entryDate,
+            "medicationId": tap.medicationId,
+            "scheduleId": tap.scheduleId,
+            "taken": tap.taken,
+        ]
+    }
+
+    /// The wearer started a fast from a preset (`presetId` is the phone's id,
+    /// such as "16-8"). The phone starts it and sends the running fast back in
+    /// the next context.
+    static func fastStart(presetId: String, clientId: String) -> [String: Any] {
+        ["type": Kind.fastStart, "presetId": presetId, "clientId": clientId]
+    }
+
+    /// The wearer ended the fast that is running.
+    static func fastEnd(clientId: String) -> [String: Any] {
+        ["type": Kind.fastEnd, "clientId": clientId]
     }
 
     /// Asks the phone to push a fresh context. Carries no data of its own.

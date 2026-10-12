@@ -17,6 +17,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWaterIntake: (([String: Any]) -> Void)?
     /// A request from the watch to delete one logged drink.
     var onWaterDelete: (([String: Any]) -> Void)?
+    /// A scheduled dose marked taken on the watch, awaiting a server write.
+    var onMedicationTaken: (([String: Any]) -> Void)?
     /// One set logged during an active workout on the watch.
     var onSetCompleted: (([String: Any]) -> Void)?
     var onRestChanged: (([String: Any]) -> Void)?
@@ -36,6 +38,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onPresetUpdateAnswer: (([String: Any]) -> Void)?
     var onRecordingControl: (([String: Any]) -> Void)?
     var onRecordingHeartRate: (([String: Any]) -> Void)?
+    var onFastStartRequested: (([String: Any]) -> Void)?
+    var onFastEndRequested: (([String: Any]) -> Void)?
 
     /// The newest `setTargets` update sent before the session finished
     /// activating. Apple only queues `transferUserInfo` on an activated
@@ -94,6 +98,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onWaterIntake?(payload)
         case "waterDelete":
             onWaterDelete?(payload)
+        case "medicationTaken":
+            onMedicationTaken?(payload)
         case "setCompleted":
             onSetCompleted?(payload)
         case "restChanged":
@@ -118,6 +124,10 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onRecordingControl?(payload)
         case "recordingHeartRate":
             onRecordingHeartRate?(payload)
+        case "fastStart":
+            onFastStartRequested?(payload)
+        case "fastEnd":
+            onFastEndRequested?(payload)
         default:
             break
         }
@@ -254,6 +264,7 @@ public class WatchConnectivityModule: Module {
             "onContextRequest",
             "onWaterIntake",
             "onWaterDelete",
+            "onMedicationTaken",
             "onSetCompleted",
             "onRestChanged",
             "onSetTimerStarted",
@@ -265,7 +276,9 @@ public class WatchConnectivityModule: Module {
             "onWorkoutStartRequested",
             "onPresetUpdateAnswer",
             "onRecordingControl",
-            "onRecordingHeartRate"
+            "onRecordingHeartRate",
+            "onFastStartRequested",
+            "onFastEndRequested"
         )
 
         OnCreate {
@@ -302,6 +315,15 @@ public class WatchConnectivityModule: Module {
                 self?.sendEvent("onWaterDelete", [
                     "clientId": payload["clientId"] as? String ?? "",
                     "entryId": payload["entryId"] as? String ?? "",
+                ])
+            }
+            self.delegateHandler.onMedicationTaken = { [weak self] payload in
+                self?.sendEvent("onMedicationTaken", [
+                    "clientId": payload["clientId"] as? String ?? "",
+                    "entryDate": payload["entryDate"] as? String ?? "",
+                    "medicationId": payload["medicationId"] as? String ?? "",
+                    "scheduleId": payload["scheduleId"] as? String ?? "",
+                    "taken": payload["taken"] as? Bool ?? true,
                 ])
             }
             self.delegateHandler.onSetCompleted = { [weak self] payload in
@@ -345,6 +367,17 @@ public class WatchConnectivityModule: Module {
                     "setId": payload["setId"] as? String ?? "",
                     "seconds": seconds,
                     "startedAt": startedAt,
+                ])
+            }
+            self.delegateHandler.onFastStartRequested = { [weak self] payload in
+                self?.sendEvent("onFastStartRequested", [
+                    "presetId": payload["presetId"] as? String ?? "",
+                    "clientId": payload["clientId"] as? String ?? "",
+                ])
+            }
+            self.delegateHandler.onFastEndRequested = { [weak self] payload in
+                self?.sendEvent("onFastEndRequested", [
+                    "clientId": payload["clientId"] as? String ?? "",
                 ])
             }
             self.delegateHandler.onRestChanged = { [weak self] payload in

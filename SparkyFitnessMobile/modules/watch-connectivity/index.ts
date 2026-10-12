@@ -56,6 +56,32 @@ export interface WatchWaterDeletePayload {
   entryId: string;
 }
 
+/** A dose ticked, or un-ticked after a mistaken tap, on the Apple Watch. */
+export interface WatchMedicationTakenPayload {
+  /** Stable id generated on the watch, to dedupe a re-delivered transfer. */
+  clientId: string;
+  /** Calendar day (`yyyy-MM-dd`) in the wearer's local timezone. */
+  entryDate: string;
+  medicationId: string;
+  scheduleId: string;
+  /** False when the wearer un-ticked the dose; absent from older watch builds, which only ever tick. */
+  taken?: boolean;
+}
+
+/** One of today's scheduled dose slots, relayed to the watch's Medications page. */
+export interface WatchMedicationDosePayload {
+  /** `medicationId:scheduleId` — unique per dose slot. */
+  id: string;
+  medicationId: string;
+  scheduleId: string;
+  name: string;
+  /** Pre-formatted dose ("10 mg"), empty when the medication has none. */
+  detail: string;
+  /** Pre-formatted time of day in the account's 12/24-hour convention, empty when untimed. */
+  time: string;
+  status: 'pending' | 'taken' | 'skipped';
+}
+
 /**
  * One logged drink relayed to the watch's water log view. Manual entries
  * only — synced records (Apple Health and friends) carry no container and
@@ -229,6 +255,13 @@ export interface WatchContextPayload {
    */
   waterLog?: WatchWaterLogPayload[] | null;
   /**
+   * Today's scheduled medication doses, soonest first, for the watch's
+   * Medications page. Day-scoped like the water figures: blanked (null) when
+   * the push crosses midnight, so the watch shows "not synced" rather than
+   * yesterday's ticks. An empty array means nothing is scheduled today.
+   */
+  medications?: WatchMedicationDosePayload[] | null;
+  /**
    * Saved workouts the wearer can start from the wrist. Names and ids only;
    * the phone still builds and arms the session. Absent on an older phone.
    */
@@ -247,6 +280,25 @@ export interface WatchContextPayload {
    * the phone has switched accounts.
    */
   workoutServerId?: string | null;
+  /**
+   * The fast running now, or null for none. Left out until the phone has
+   * heard from the server, so a watch keeps what it had.
+   */
+  fastKnown?: boolean;
+  fast?: {
+    /** Epoch ms. */
+    startedAt: number;
+    /** Epoch ms, or null for an open-ended fast. */
+    targetEndAt: number | null;
+    label: string | null;
+  } | null;
+  /**
+   * Today's step count, with the day it belongs to. Left out when the phone
+   * has no step figure for today; the watch drops a count from another day.
+   */
+  steps?: { day: string; count: number } | null;
+  /** Daily step goal the Steps page and complication measure against. */
+  stepGoal?: number | null;
 }
 
 /** One target set the watch shows for a planned exercise. */
@@ -561,12 +613,25 @@ export interface WatchRecordingHeartRatePayload {
   samples: WatchHeartRateSamplePayload[];
 }
 
+/** The wearer asked to start a fast from the watch's Fasting page. */
+export interface WatchFastStartRequestPayload {
+  /** `FASTING_PRESETS` id, e.g. "16-8". */
+  presetId: string;
+  clientId: string;
+}
+
+/** The wearer asked to end the running fast from the watch. */
+export interface WatchFastEndRequestPayload {
+  clientId: string;
+}
+
 export type WatchConnectivityEvents = {
   onReachabilityChange: (payload: { isReachable: boolean }) => void;
   onCheckIn: (payload: WatchCheckInPayload) => void;
   onContextRequest: () => void;
   onWaterIntake: (payload: WatchWaterIntakePayload) => void;
   onWaterDelete: (payload: WatchWaterDeletePayload) => void;
+  onMedicationTaken: (payload: WatchMedicationTakenPayload) => void;
   onSetCompleted: (payload: WatchSetCompletedPayload) => void;
   onRestChanged: (payload: WatchRestChangedPayload) => void;
   onSetTimerStarted: (payload: WatchSetTimerStartedPayload) => void;
@@ -579,6 +644,8 @@ export type WatchConnectivityEvents = {
   onPresetUpdateAnswer: (payload: WatchPresetUpdateAnswerPayload) => void;
   onRecordingControl: (payload: WatchRecordingControlPayload) => void;
   onRecordingHeartRate: (payload: WatchRecordingHeartRatePayload) => void;
+  onFastStartRequested: (payload: WatchFastStartRequestPayload) => void;
+  onFastEndRequested: (payload: WatchFastEndRequestPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {
