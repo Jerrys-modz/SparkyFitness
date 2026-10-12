@@ -1,12 +1,14 @@
 import express from 'express';
 import {
   completeRunProgramWorkoutBodySchema,
+  rateRunProgramWorkoutBodySchema,
   upsertRunProgramBodySchema,
 } from '@workspace/shared';
 import requireSelfActor from '../../middleware/requireSelfMiddleware.js';
 import {
   completeRunProgramWorkout,
   getRunProgram,
+  rateRunProgramWorkout,
   UnknownRunProgramError,
   upsertRunProgram,
 } from '../../models/runProgramRepository.js';
@@ -98,6 +100,40 @@ router.post('/complete', async (req, res, next) => {
       req.authenticatedUserId,
       parsed.data.program_id,
       parsed.data.day
+    );
+    const program = await getRunProgram(req.userId, req.authenticatedUserId);
+    res.json({ program });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /v2/run-program/effort:
+ *   post:
+ *     summary: Rate how hard a finished run program workout felt
+ *     description: Records a 1 to 10 rating for a workout that is already done, replacing an earlier rating of the same workout. A workout not yet done, or from another program, changes nothing.
+ *     tags: [Exercise]
+ *     responses:
+ *       200:
+ *         description: The program, unchanged if the workout could not be rated.
+ */
+router.post('/effort', async (req, res, next) => {
+  try {
+    const parsed = rateRunProgramWorkoutBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Invalid request body',
+        details: parsed.error.format(),
+      });
+    }
+    await rateRunProgramWorkout(
+      req.userId,
+      parsed.data.index,
+      parsed.data.rating,
+      req.authenticatedUserId,
+      parsed.data.program_id
     );
     const program = await getRunProgram(req.userId, req.authenticatedUserId);
     res.json({ program });

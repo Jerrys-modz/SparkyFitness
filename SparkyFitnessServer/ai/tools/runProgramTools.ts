@@ -7,6 +7,7 @@ import {
   planMinutes,
   ProgramAdjustError,
   repeatWeek,
+  suggestFromEffort,
   type RunProgramResponse,
 } from '@workspace/shared';
 import { log } from '../../config/logging.js';
@@ -63,6 +64,28 @@ function summarise(program: RunProgramResponse): string {
     upcoming.forEach((workout, i) =>
       lines.push(`${i + 1}. ${describeWorkout(workout)}`)
     );
+  }
+  const efforts = program.effort_log.slice(-5);
+  if (efforts.length > 0) {
+    lines.push('', 'How recent workouts felt (1 easy to 10 all out):');
+    for (const entry of efforts) {
+      lines.push(
+        `- workout ${entry.index + 1}: ${entry.rating}/10 (${entry.at.slice(0, 10)})`
+      );
+    }
+    const suggestion = suggestFromEffort(
+      program.effort_log,
+      program.next_index
+    );
+    if (suggestion === 'ease') {
+      lines.push(
+        'The last two workouts felt hard. Consider suggesting an easier next workout or repeating one, and ask before changing anything.'
+      );
+    } else if (suggestion === 'advance') {
+      lines.push(
+        'The last two workouts felt easy. The person may be ready to move on; suggest it only if they want more, and ask before changing anything.'
+      );
+    }
   }
   const recent = program.adjustment_log.slice(-5);
   if (recent.length > 0) {

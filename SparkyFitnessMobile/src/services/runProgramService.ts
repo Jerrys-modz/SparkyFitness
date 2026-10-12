@@ -11,6 +11,7 @@ import { runProgramQueryKey } from '../hooks/queryKeys';
 import {
   fetchRunProgram,
   markRunProgramWorkoutDone,
+  rateRunProgramWorkout,
   saveRunProgram,
 } from './api/runProgramApi';
 
@@ -184,6 +185,22 @@ export async function completeProgramWorkout(
       })
     ).program
   );
+}
+
+/**
+ * Saves how hard finished workout `index` felt and returns the program as the
+ * server now holds it (unchanged if that workout cannot be rated).
+ */
+export async function rateProgramWorkout(
+  programId: string,
+  index: number,
+  rating: number
+): Promise<RunProgramResponse | null> {
+  const program = (
+    await rateRunProgramWorkout({ index, rating, program_id: programId })
+  ).program;
+  setCache(program);
+  return program;
 }
 
 /** The current program status, or null when none is active. */

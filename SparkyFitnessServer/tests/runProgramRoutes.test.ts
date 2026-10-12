@@ -7,6 +7,7 @@ import runProgramRoutes from '../routes/v2/runProgramRoutes.js';
 import {
   completeRunProgramWorkout,
   getRunProgram,
+  rateRunProgramWorkout,
   UnknownRunProgramError,
   upsertRunProgram,
 } from '../models/runProgramRepository.js';
@@ -17,6 +18,7 @@ vi.mock('../models/runProgramRepository.js', () => {
     getRunProgram: vi.fn(),
     upsertRunProgram: vi.fn(),
     completeRunProgramWorkout: vi.fn(),
+    rateRunProgramWorkout: vi.fn(),
     UnknownRunProgramError,
   };
 });
@@ -46,6 +48,7 @@ const program = {
   next_index: 0,
   workouts: [],
   adjustment_log: [],
+  effort_log: [],
   run_days: [],
   start_date: null,
   end_date: null,
@@ -124,6 +127,41 @@ describe('run program routes', () => {
       'beginner5k',
       undefined
     );
+  });
+
+  it('records how hard a finished workout felt', async () => {
+    vi.mocked(rateRunProgramWorkout).mockResolvedValue(program);
+    vi.mocked(getRunProgram).mockResolvedValue(program);
+    const res = await request(app)
+      .post('/api/v2/run-program/effort')
+      .send({ index: 3, rating: 8, program_id: 'beginner5k' });
+    expect(res.status).toBe(200);
+    expect(rateRunProgramWorkout).toHaveBeenCalledWith(
+      'test-user-id',
+      3,
+      8,
+      'test-user-id',
+      'beginner5k'
+    );
+  });
+
+  it('rejects a rating outside 1 to 10', async () => {
+    for (const rating of [0, 11, 5.5]) {
+      const res = await request(app)
+        .post('/api/v2/run-program/effort')
+        .send({ index: 3, rating });
+      expect(res.status).toBe(400);
+    }
+    expect(rateRunProgramWorkout).not.toHaveBeenCalled();
+  });
+
+  it('refuses to rate on behalf of someone else', async () => {
+    actingAs = 'someone-else';
+    const res = await request(app)
+      .post('/api/v2/run-program/effort')
+      .send({ index: 3, rating: 8 });
+    expect(res.status).toBe(403);
+    expect(rateRunProgramWorkout).not.toHaveBeenCalled();
   });
 
   it('records the day a workout was done', async () => {
