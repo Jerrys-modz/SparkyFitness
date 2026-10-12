@@ -7136,7 +7136,14 @@
     "tapForSummary": "Tap to see the summary",
     "newRecords_one": "New personal record",
     "newRecords_other": "New personal records",
-    "viewRecords": "View all records"
+    "viewRecords": "View all records",
+    "treadmillDistance": "Treadmill distance",
+    "treadmillHint": "The watch estimated this distance. Enter what the machine showed to correct it.",
+    "distanceUpdated": "Distance updated.",
+    "treadmillDistanceA11y": "Distance from the treadmill in {{unit}}",
+    "saveDistance": "Update",
+    "distanceInvalid": "Enter the distance from the machine.",
+    "distanceFailed": "Could not save the distance."
   },
   "runPrograms": {
     "startWhenTitle": "Start {{name}}",
