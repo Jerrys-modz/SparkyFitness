@@ -170,6 +170,11 @@ export interface WatchContextPayload {
   /** Whether the watch asks for an RPE after each logged set. */
   rpeEnabled?: boolean | null;
   /**
+   * The Record screen's Voice cues switch. A run recorded from the wrist alone
+   * speaks each completed km or mile while this is on. Missing reads as off.
+   */
+  runVoiceCues?: boolean | null;
+  /**
    * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
    * turned off (`WATCH_PAGE_KEYS` names). Missing reads as the factory order
    * with nothing hidden; the watch carries the last values forward.
@@ -659,6 +664,26 @@ export interface WatchFastEndRequestPayload {
   clientId: string;
 }
 
+/**
+ * A walk or run recorded on the watch alone, sent once when it finishes. The
+ * shape is `WatchRunPayload` in `src/utils/watchRun.ts`; this is the loose
+ * wire type and the phone validates it before use.
+ */
+export interface WatchRunFinishedPayload {
+  clientId: string;
+  kind: string;
+  place: string;
+  startedAt: number;
+  endedAt: number;
+  activeSeconds: number;
+  distanceMeters: number;
+  activeEnergyKcal: number;
+  route: number[][];
+  heartRate: number[][];
+  /** Epoch ms of each Lap press. Missing on a payload from an older watch build. */
+  laps?: number[];
+}
+
 export type WatchConnectivityEvents = {
   onReachabilityChange: (payload: { isReachable: boolean }) => void;
   onCheckIn: (payload: WatchCheckInPayload) => void;
@@ -681,6 +706,7 @@ export type WatchConnectivityEvents = {
   onRecordingHeartRate: (payload: WatchRecordingHeartRatePayload) => void;
   onFastStartRequested: (payload: WatchFastStartRequestPayload) => void;
   onFastEndRequested: (payload: WatchFastEndRequestPayload) => void;
+  onRunFinished: (payload: WatchRunFinishedPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {
@@ -781,6 +807,12 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    */
   pendingHeartRateBatches(): Promise<WatchHeartRateBatchPayload[]>;
   ackHeartRateBatches(clientIds: string[]): Promise<void>;
+  /**
+   * Wrist-only runs received before JavaScript was listening. Kept until
+   * `ackWatchRuns` says the phone has stored them.
+   */
+  pendingWatchRuns(): Promise<WatchRunFinishedPayload[]>;
+  ackWatchRuns(clientIds: string[]): Promise<void>;
   /**
    * Server config that owns batches received after this call. Persisted
    * natively, so a batch that arrives on a cold start is stamped before

@@ -62,6 +62,7 @@ import { useActiveWorkoutPlans } from './useActiveWorkoutPlan';
 import { scheduledWorkoutsForWatch } from '../utils/workoutPlanSchedule';
 import { useCurrentFast } from './useFasting';
 import { toWatchFast } from '../utils/watchFast';
+import { getRecordingPreferences } from '../services/gpsRecordingService';
 
 /** Saved workouts the watch may start. Presets with no exercises are omitted:
  * the server rejects a session that has none. */
@@ -680,6 +681,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         restAlertsEnabled,
         doubleTapEnabled: watchDoubleTapEnabled,
         rpeEnabled: watchRpeEnabled,
+        runVoiceCues: (await getRecordingPreferences()).audioCues,
         startableWorkouts,
         suggestedExercises,
         // Built for `summaryDate`; a push that has crossed midnight before the
