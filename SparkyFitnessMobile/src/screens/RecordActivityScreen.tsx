@@ -22,6 +22,11 @@ import Toast from 'react-native-toast-message';
 import Button from '../components/ui/Button';
 import Switch from '../components/ui/Switch';
 import SegmentedControl from '../components/SegmentedControl';
+import IntervalCard from '../components/recording/IntervalCard';
+import IntervalSetup, {
+  DEFAULT_CUSTOM_INTERVALS,
+  type IntervalChoice,
+} from '../components/recording/IntervalSetup';
 import RouteMap from '../components/exerciseStats/RouteMap';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { invalidateExerciseCache } from '../hooks/invalidateExerciseCache';
@@ -43,8 +48,16 @@ import {
   setCountdownPreference,
   setRecordingPreference,
   startRecording,
+  tickIntervals,
   useGpsRecording,
 } from '../services/gpsRecordingService';
+import {
+  buildIntervalPlan,
+  INTERVAL_PRESETS,
+  intervalPosition,
+  type IntervalOptions,
+  type IntervalPlan,
+} from '../utils/intervals';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
 import { fireSelectionHaptic } from '../services/haptics';
 import { addLog } from '../services/LogService';
@@ -135,6 +148,16 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   const [autoPause, setAutoPause] = useState(true);
   const [audioCues, setAudioCues] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState(0);
+  const [intervalChoice, setIntervalChoice] = useState<IntervalChoice>('off');
+  const [customIntervals, setCustomIntervals] = useState<IntervalOptions>(
+    DEFAULT_CUSTOM_INTERVALS
+  );
+  const intervalPlan = useMemo<IntervalPlan | undefined>(() => {
+    if (intervalChoice === 'off') return undefined;
+    if (intervalChoice === 'custom') return buildIntervalPlan(customIntervals);
+    const preset = INTERVAL_PRESETS.find((p) => p.id === intervalChoice);
+    return preset ? buildIntervalPlan(preset.options) : undefined;
+  }, [intervalChoice, customIntervals]);
   // Seconds left before recording begins, or null when no countdown is running.
   const [countdownLeft, setCountdownLeft] = useState<number | null>(null);
   const [permissionProblem, setPermissionProblem] = useState<
@@ -200,6 +223,13 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [isLive]);
+
+  // Each second, let a timed plan move on to its next step.
+  const hasIntervals = Boolean(session?.intervals);
+  useEffect(() => {
+    if (!isLive || !hasIntervals) return;
+    void tickIntervals();
+  }, [isLive, hasIntervals, now]);
 
   const summary = useMemo(() => summarizeRecording(points), [points]);
   const mapPoints = useMemo(
@@ -272,6 +302,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
                 ? 'miles'
                 : 'km'
               : undefined,
+            intervals: intervalPlan,
             notification: notificationText(t, activity),
           });
         },
@@ -279,7 +310,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
           defaultValue: 'Could not start recording',
         })
       ),
-    [activity, audioCues, autoPause, distanceUnit, run, t]
+    [activity, audioCues, autoPause, distanceUnit, intervalPlan, run, t]
   );
   // Counts down once a second, then starts. Each number is felt and, with
   // voice cues on, spoken.
@@ -544,6 +575,12 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               }}
             />
           </View>
+          <IntervalSetup
+            choice={intervalChoice}
+            onChoice={setIntervalChoice}
+            custom={customIntervals}
+            onCustom={setCustomIntervals}
+          />
           {permissionProblem ? (
             <View className="bg-surface rounded-xl p-4 mt-4">
               <Text className="text-text-primary text-sm mb-3">
@@ -620,6 +657,9 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
       unit: unitLabel,
     });
     const finished = session.status === 'finished';
+    const intervalPos = session.intervals
+      ? intervalPosition(session.intervals.plan, active)
+      : null;
     // Still running from before this visit (or from earlier in it): say when it
     // began so a leftover recording is never mistaken for a new one.
     const carriedOver = !startedHere && !finished;
@@ -680,6 +720,9 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
             {formatClock(active)}
           </Text>
         </View>
+        {session.intervals && intervalPos && !finished ? (
+          <IntervalCard plan={session.intervals.plan} position={intervalPos} />
+        ) : null}
         <View className="flex-row mb-3">
           <Stat
             label={t('recordActivity.distance', { defaultValue: 'Distance' })}

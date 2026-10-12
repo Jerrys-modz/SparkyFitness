@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 import { METERS_PER_KM, METERS_PER_MILE } from './gpsRecording';
+import type { IntervalStep, IntervalStyle } from './intervals';
 
 /**
  * The words spoken during a GPS recording. Pure and given `t`, so it runs under
@@ -164,5 +165,48 @@ export function finishCue(
     distance,
     time: spokenDuration(t, options.totalSeconds),
     defaultValue: 'Recording finished. {{distance}}. Time {{time}}.',
+  });
+}
+
+/** The word for a step: "Run" and "Walk", or "Fast" and "Easy". */
+export function intervalStepName(
+  t: TFunction,
+  kind: IntervalStep['kind'],
+  style: IntervalStyle
+): string {
+  switch (kind) {
+    case 'warmup':
+      return t('recordActivity.intervals.warmup', { defaultValue: 'Warm up' });
+    case 'cooldown':
+      return t('recordActivity.intervals.cooldown', {
+        defaultValue: 'Cool down',
+      });
+    case 'work':
+      return style === 'runWalk'
+        ? t('recordActivity.intervals.run', { defaultValue: 'Run' })
+        : t('recordActivity.intervals.fast', { defaultValue: 'Fast' });
+    case 'recovery':
+      return style === 'runWalk'
+        ? t('recordActivity.intervals.walk', { defaultValue: 'Walk' })
+        : t('recordActivity.intervals.easy', { defaultValue: 'Easy' });
+  }
+}
+
+/** Said when an interval step begins: what to do and for how long. */
+export function intervalCue(
+  t: TFunction,
+  options: { step: IntervalStep; style: IntervalStyle }
+): string {
+  return t('recordActivity.cues.interval', {
+    name: intervalStepName(t, options.step.kind, options.style),
+    time: spokenDuration(t, options.step.seconds),
+    defaultValue: '{{name}}. {{time}}.',
+  });
+}
+
+/** Said when the last step is over. */
+export function intervalsDoneCue(t: TFunction): string {
+  return t('recordActivity.cues.intervalsDone', {
+    defaultValue: 'Intervals complete.',
   });
 }
