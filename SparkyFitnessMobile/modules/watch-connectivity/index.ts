@@ -606,6 +606,11 @@ export interface WatchWorkoutStartRequestedPayload {
 export interface WatchRecordingStatePayload {
   sessionId: string;
   activity: 'walk' | 'run' | 'ride';
+  /**
+   * True for a treadmill or other indoor session. Absent from an older phone
+   * build, which the watch treats as outdoor.
+   */
+  indoor?: boolean;
   status: 'recording' | 'paused' | 'finished' | 'ended';
   startedAt: number;
   pausedMs: number;

@@ -17,6 +17,7 @@ import {
   type RecordingSnapshot,
 } from '../../src/services/gpsRecordingService';
 import { saveRecordedActivity } from '../../src/services/gpsRecordingSave';
+import { useIndoorDistanceEstimate } from '../../src/hooks/useIndoorDistanceEstimate';
 import { useLiveHeartRateStore } from '../../src/stores/liveHeartRateStore';
 import { initializeI18n } from '../../src/localization/i18n';
 import type { RecordedPoint } from '../../src/utils/gpsRecording';
@@ -63,6 +64,9 @@ jest.mock('../../src/services/haptics', () => ({
 }));
 jest.mock('../../src/services/gpsRecordingSave', () => ({
   saveRecordedActivity: jest.fn(),
+}));
+jest.mock('../../src/hooks/useIndoorDistanceEstimate', () => ({
+  useIndoorDistanceEstimate: jest.fn(() => null),
 }));
 jest.mock('../../src/hooks/usePreferences', () => ({
   usePreferences: () => ({ preferences: { default_distance_unit: 'km' } }),
@@ -143,6 +147,7 @@ describe('RecordActivityScreen', () => {
   });
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(useIndoorDistanceEstimate).mockReturnValue(null);
     useLiveHeartRateStore.setState({ reading: null });
   });
 
@@ -301,7 +306,10 @@ describe('RecordActivityScreen', () => {
       expect(saveRecordedActivity).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'finished' }),
         track,
-        'km'
+        'km',
+        null,
+        null,
+        false
       )
     );
     await waitFor(() => expect(discardRecording).toHaveBeenCalled());
@@ -381,6 +389,250 @@ describe('RecordActivityScreen', () => {
     const screen = await renderScreen();
 
     expect(screen.queryByText('Heart rate')).toBeNull();
+  });
+
+  it('starts an indoor recording when Indoor is chosen', async () => {
+    state(null);
+    const screen = await renderScreen();
+
+    fireEvent.press(screen.getByText('Indoor'));
+    expect(screen.getByText(/No GPS is used/)).toBeTruthy();
+    fireEvent.press(screen.getByText('Start'));
+
+    await waitFor(() =>
+      expect(startRecording).toHaveBeenCalledWith(
+        expect.objectContaining({ activity: 'run', indoor: true })
+      )
+    );
+  });
+
+  it('starts outdoors by default', async () => {
+    state(null);
+    const screen = await renderScreen();
+
+    fireEvent.press(screen.getByText('Start'));
+
+    await waitFor(() =>
+      expect(startRecording).toHaveBeenCalledWith(
+        expect.objectContaining({ indoor: false })
+      )
+    );
+  });
+
+  it('shows just the clock for a live indoor session, with no map or GPS wait', async () => {
+    state(session({ indoor: true }));
+    const screen = await renderScreen();
+
+    expect(screen.getByText('12:34')).toBeTruthy();
+    expect(screen.queryByText('Waiting for a GPS fix…')).toBeNull();
+    expect(screen.queryByText('Distance')).toBeNull();
+    expect(screen.queryByText('Avg pace')).toBeNull();
+    expect(screen.getByText('Pause')).toBeTruthy();
+  });
+
+  it('saves a finished indoor session with the distance typed in, converted to km', async () => {
+    state(
+      session({ indoor: true, status: 'finished', finishedAt: Date.now() })
+    );
+    jest
+      .mocked(saveRecordedActivity)
+      .mockResolvedValue({ entryId: 'entry-1', entryDate: '2026-10-08' });
+    const screen = await renderScreen();
+
+    expect(screen.queryByText('Splits')).toBeNull();
+    fireEvent.changeText(screen.getByLabelText('Distance'), '5,2');
+    fireEvent.press(screen.getByText('Save activity'));
+
+    await waitFor(() =>
+      expect(saveRecordedActivity).toHaveBeenCalledWith(
+        expect.objectContaining({ indoor: true }),
+        [],
+        'km',
+        5.2,
+        null,
+        false
+      )
+    );
+  });
+
+  it('saves an indoor session with no distance when the field is left empty', async () => {
+    state(
+      session({ indoor: true, status: 'finished', finishedAt: Date.now() })
+    );
+    jest
+      .mocked(saveRecordedActivity)
+      .mockResolvedValue({ entryId: 'entry-1', entryDate: '2026-10-08' });
+    const screen = await renderScreen();
+
+    fireEvent.press(screen.getByText('Save activity'));
+
+    await waitFor(() =>
+      expect(saveRecordedActivity).toHaveBeenCalledWith(
+        expect.objectContaining({ indoor: true }),
+        [],
+        'km',
+        null,
+        null,
+        true
+      )
+    );
+  });
+
+  describe('with a step-based estimate', () => {
+    const finishedIndoor = () =>
+      state(
+        session({ indoor: true, status: 'finished', finishedAt: Date.now() })
+      );
+    const rough = { steps: 3900, distanceKm: 3.12, calibrated: false };
+
+    it('fills the distance in and says it is only a rough estimate', async () => {
+      finishedIndoor();
+      jest.mocked(useIndoorDistanceEstimate).mockReturnValue(rough);
+      const screen = await renderScreen();
+
+      expect(screen.getByLabelText('Distance').props.value).toBe('3.12');
+      expect(
+        screen.getByText(
+          /rough estimate from 3,900 steps with a typical stride/
+        )
+      ).toBeTruthy();
+    });
+
+    it('says the estimate uses their stride once it has been learned', async () => {
+      finishedIndoor();
+      jest
+        .mocked(useIndoorDistanceEstimate)
+        .mockReturnValue({ ...rough, calibrated: true });
+      const screen = await renderScreen();
+
+      expect(screen.getByText(/using your stride/)).toBeTruthy();
+    });
+
+    it('uses the singular for a single step', async () => {
+      finishedIndoor();
+      jest
+        .mocked(useIndoorDistanceEstimate)
+        .mockReturnValue({ steps: 1, distanceKm: 0.0008, calibrated: true });
+      const screen = await renderScreen();
+
+      expect(screen.getByText(/from 1 step using your stride/)).toBeTruthy();
+    });
+
+    it('saves the estimate as it is when it is left alone', async () => {
+      finishedIndoor();
+      jest.mocked(useIndoorDistanceEstimate).mockReturnValue(rough);
+      jest
+        .mocked(saveRecordedActivity)
+        .mockResolvedValue({ entryId: 'entry-1', entryDate: '2026-10-08' });
+      const screen = await renderScreen();
+
+      fireEvent.press(screen.getByText('Save activity'));
+
+      await waitFor(() =>
+        expect(saveRecordedActivity).toHaveBeenCalledWith(
+          expect.objectContaining({ indoor: true }),
+          [],
+          'km',
+          3.12,
+          rough,
+          true
+        )
+      );
+    });
+
+    it('saves what the person typed over it, and passes the estimate so it can learn', async () => {
+      finishedIndoor();
+      jest.mocked(useIndoorDistanceEstimate).mockReturnValue(rough);
+      jest
+        .mocked(saveRecordedActivity)
+        .mockResolvedValue({ entryId: 'entry-1', entryDate: '2026-10-08' });
+      const screen = await renderScreen();
+
+      fireEvent.changeText(screen.getByLabelText('Distance'), '3.5');
+      fireEvent.press(screen.getByText('Save activity'));
+
+      await waitFor(() =>
+        expect(saveRecordedActivity).toHaveBeenCalledWith(
+          expect.objectContaining({ indoor: true }),
+          [],
+          'km',
+          3.5,
+          rough,
+          false
+        )
+      );
+    });
+
+    it('lets them clear it to log no distance', async () => {
+      finishedIndoor();
+      jest.mocked(useIndoorDistanceEstimate).mockReturnValue(rough);
+      jest
+        .mocked(saveRecordedActivity)
+        .mockResolvedValue({ entryId: 'entry-1', entryDate: '2026-10-08' });
+      const screen = await renderScreen();
+
+      fireEvent.changeText(screen.getByLabelText('Distance'), '');
+      expect(screen.getByLabelText('Distance').props.value).toBe('');
+      fireEvent.press(screen.getByText('Save activity'));
+
+      await waitFor(() =>
+        expect(saveRecordedActivity).toHaveBeenCalledWith(
+          expect.objectContaining({ indoor: true }),
+          [],
+          'km',
+          null,
+          rough,
+          false
+        )
+      );
+    });
+
+    it('forgets a typed distance after discard so the next session uses its own estimate', async () => {
+      const first = session({
+        id: 'rec-1',
+        indoor: true,
+        status: 'finished',
+        finishedAt: Date.now(),
+      });
+      const second = session({
+        id: 'rec-2',
+        indoor: true,
+        status: 'finished',
+        finishedAt: Date.now(),
+      });
+      state(first);
+      jest.mocked(useIndoorDistanceEstimate).mockImplementation((current) => {
+        if (current?.id === 'rec-2') {
+          return { steps: 2000, distanceKm: 1.6, calibrated: true };
+        }
+        return rough;
+      });
+      jest.mocked(discardRecording).mockImplementation(async () => {
+        state(null);
+      });
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      const screen = await renderScreen();
+
+      fireEvent.changeText(screen.getByLabelText('Distance'), '4.00');
+      fireEvent.press(screen.getByText('Discard'));
+      const confirm = alert.mock.calls[0][2]?.find(
+        (button) => button.style === 'destructive'
+      );
+      confirm?.onPress?.();
+
+      await waitFor(() => expect(discardRecording).toHaveBeenCalled());
+      state(second);
+      screen.rerender(renderUi());
+
+      expect(screen.getByLabelText('Distance').props.value).toBe('1.60');
+    });
+  });
+
+  it('does not offer a distance field for an outdoor recording', async () => {
+    state(session({ status: 'finished', finishedAt: Date.now() }), track);
+    const screen = await renderScreen();
+
+    expect(screen.queryByLabelText('Distance')).toBeNull();
   });
 
   it('does not offer the notice for a finished recording', async () => {

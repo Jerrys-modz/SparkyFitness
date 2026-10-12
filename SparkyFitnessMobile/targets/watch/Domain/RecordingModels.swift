@@ -34,6 +34,8 @@ enum RecordingStatus: String {
 struct RecordingState: Equatable {
     let sessionId: String
     let activity: RecordingActivity
+    /// A treadmill or other indoor session. False from an older phone, which recorded outdoors.
+    var indoor: Bool = false
     let status: RecordingStatus
     let startedAt: Date
     /// Time spent paused before the current pause, in milliseconds.

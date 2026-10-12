@@ -84,6 +84,7 @@ export function useWatchRecordingBridge(enabled: boolean): void {
     const state: WatchRecordingStatePayload = {
       sessionId: session.id,
       activity: session.activity,
+      indoor: session.indoor === true,
       status,
       startedAt: session.startedAt,
       pausedMs: session.pausedMs,

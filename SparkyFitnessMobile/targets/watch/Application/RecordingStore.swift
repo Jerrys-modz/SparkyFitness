@@ -101,7 +101,11 @@ final class RecordingStore: ObservableObject {
                         // The recording may have finished while the prompt was up.
                         guard let self, self.state?.sessionId == current.sessionId,
                               self.state?.status != .finished else { return }
-                        self.healthKit.start(sessionId: current.sessionId, activity: current.activity)
+                        self.healthKit.start(
+                            sessionId: current.sessionId,
+                            activity: current.activity,
+                            indoor: current.indoor
+                        )
                     }
                 }
             } else if previous?.status == .paused {

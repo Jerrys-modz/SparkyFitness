@@ -110,6 +110,12 @@ describe('useRecordingBarContent', () => {
     expect(content.secondaryLine).toBe('Waiting for a GPS fix…');
   });
 
+  it('labels an indoor session as indoor, not as waiting for GPS', () => {
+    const content = build(session({ indoor: true }), [])!;
+
+    expect(content.secondaryLine).toBe('Indoor');
+  });
+
   it('pauses a running recording from the bar', async () => {
     const content = build(session({ status: 'recording', pausedAt: null }))!;
     await act(async () => {});
