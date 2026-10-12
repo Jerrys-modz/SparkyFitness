@@ -2,7 +2,12 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import WatchConnectivity, {
   type WatchRunFinishedPayload,
+  type WatchRunLivePayload,
 } from '../../modules/watch-connectivity';
+import {
+  useWatchRunLiveStore,
+  WATCH_RUN_LIVE_MAX_AGE_MS,
+} from '../stores/watchRunLiveStore';
 import { queryClient } from './queryClient';
 import { invalidateExerciseCache } from './invalidateExerciseCache';
 import { usePreferences } from './usePreferences';
@@ -71,11 +76,34 @@ export function useWatchRunBridge(
     []
   );
 
+  // What the watch says about a run in progress, for the phone's live view.
+  // The run is over for the view once the watch finishes it, or goes quiet.
+  useEffect(() => {
+    if (!enabled || !WatchConnectivity) return;
+    const live = WatchConnectivity.addListener(
+      'onRunLive',
+      (payload: WatchRunLivePayload) =>
+        useWatchRunLiveStore.getState().receive(payload)
+    );
+    const sweep = setInterval(() => {
+      const run = useWatchRunLiveStore.getState().run;
+      if (run && Date.now() - run.receivedAt > WATCH_RUN_LIVE_MAX_AGE_MS) {
+        useWatchRunLiveStore.getState().clear();
+      }
+    }, 5000);
+    return () => {
+      live.remove();
+      clearInterval(sweep);
+      useWatchRunLiveStore.getState().clear();
+    };
+  }, [enabled]);
+
   useEffect(() => {
     if (!enabled || !WatchConnectivity) return;
     const sub = WatchConnectivity.addListener(
       'onRunFinished',
       (raw: WatchRunFinishedPayload) => {
+        useWatchRunLiveStore.getState().clear();
         const payload = parseWatchRunPayload(raw);
         if (!payload) {
           addLog(

@@ -41,6 +41,7 @@ import {
   SafeMealsLibrary,
   SafeMealPlans,
   SafePersonalRecords,
+  SafeWatchRunLive,
   SafeRunPrograms,
   SafeMealPlanForm,
   SafeWorkoutPlans,
@@ -560,6 +561,11 @@ function AppContent() {
             name="PersonalRecords"
             component={SafePersonalRecords}
             options={createStackScreenOptions(t('screens.personalRecords', { defaultValue: 'Personal records' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="WatchRunLive"
+            component={SafeWatchRunLive}
+            options={createStackScreenOptions(t('screens.watchRunLive', { defaultValue: 'Run on your watch' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
             name="MealPlanForm"

@@ -617,7 +617,8 @@
     "recordActivity": "Record Activity",
     "runSummary": "Activity saved",
     "runPrograms": "Training programs",
-    "personalRecords": "Personal records"
+    "personalRecords": "Personal records",
+    "watchRunLive": "Run on your watch"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -6651,7 +6652,8 @@
     "treadmillDistanceA11y": "Distance from the treadmill in {{unit}}",
     "saveDistance": "Update",
     "distanceInvalid": "Enter the distance from the machine.",
-    "distanceFailed": "Could not save the distance."
+    "distanceFailed": "Could not save the distance.",
+    "heartRate": "Heart rate"
   },
   "runPrograms": {
     "startWhenTitle": "Start {{name}}",
@@ -6753,5 +6755,17 @@
     "loadFailed": "Could not load your records.",
     "empty": "No records yet. Record or import a run of at least 1 km and your best efforts show up here.",
     "rowA11y": "{{distance}}, {{time}}, {{pace}}, {{date}}"
+  },
+  "watchRunLive": {
+    "open": "Open the run on your watch",
+    "onWatch": "On your watch",
+    "autoPaused": "Auto-paused",
+    "walking": "Walking on your watch",
+    "running": "Running on your watch",
+    "next": "Next: {{step}}",
+    "calories": "Calories",
+    "kcal": "kcal",
+    "ended": "The run on your watch has ended or is out of range. A finished run is added to your diary.",
+    "indoorNote": "Indoors the distance is the watch’s estimate. You can correct it to the treadmill’s figure after the run."
   }
 }
