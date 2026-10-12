@@ -1431,6 +1431,9 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         // checkmarks. Priors the server doesn't know about are stamped now,
         // and only those make the session dirty.
         const completedSetIds = seedCompletionFromSession(session);
+        // Backfilled priors are stamped at the start, so only the saved
+        // completions mark an entry as resumed.
+        const savedCompletedSetIds = { ...completedSetIds };
         let addedPriors = false;
         for (let i = 0; i < targetIndex; i++) {
           const id = steps[i].setId;
@@ -1449,7 +1452,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           completedSetIds,
           resumedDurationMinutes: captureResumedDurations(
             session,
-            completedSetIds,
+            savedCompletedSetIds,
             startedMs
           ),
           activeSetId: setId,
