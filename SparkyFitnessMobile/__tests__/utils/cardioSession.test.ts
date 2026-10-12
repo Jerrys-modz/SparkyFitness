@@ -255,6 +255,28 @@ describe('cardioSessionFromDiaryEntry', () => {
     }
   });
 
+  it('maps an in-app entry when the caller has found a route for it', () => {
+    const item = cardioSessionFromDiaryEntry(
+      entry({ source: 'Manual', name: 'Walking' }),
+      'km',
+      { allowInApp: true }
+    );
+    expect(item).toMatchObject({ id: 'e1', exerciseName: 'Walking' });
+  });
+
+  it('still refuses a strength session, even when in-app entries are allowed', () => {
+    expect(
+      cardioSessionFromDiaryEntry(
+        entry({
+          source: 'Manual',
+          sets: [{ weight: 50, reps: 5 }] as IndividualSessionResponse['sets'],
+        }),
+        'km',
+        { allowInApp: true }
+      )
+    ).toBeNull();
+  });
+
   it('titles a nameless synced workout', () => {
     const item = cardioSessionFromDiaryEntry(
       entry({ name: null, category: null, exercise_snapshot: null }),

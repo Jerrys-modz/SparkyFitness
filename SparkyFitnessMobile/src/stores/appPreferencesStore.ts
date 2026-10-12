@@ -5,6 +5,13 @@ import {
   clampGuidedCountdownSec,
   clampGuidedSpeechRate,
 } from '@workspace/shared';
+import {
+  DEFAULT_WARMUP_DUMBBELL_ROUNDING,
+  DEFAULT_WARMUP_METHOD,
+  DEFAULT_WARMUP_PLATE_ROUNDING,
+  normalizeWarmupMethod,
+  type WarmupMethodStep,
+} from '@workspace/shared';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import {
@@ -73,9 +80,11 @@ export const PREFERENCE_DEFAULTS = {
   askSparkyVisible: true,
   medicationsCardVisible: true,
   symptomsCardVisible: true,
+  moodCardVisible: true,
   progressPhotosCardVisible: true,
   onDeviceLabelScanEnabled: true,
   healthTrendsCardVisible: true,
+  mindfulnessCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
   medicationRemindersEnabled: true,
   medicationReminderRepeats: true,
@@ -94,6 +103,10 @@ export const PREFERENCE_DEFAULTS = {
   restChimeThroughSilent: false,
   duckMusicDuringCues: false,
   workoutKeepAwakeEnabled: false,
+  warmupCalculatorEnabled: true,
+  warmupMethod: DEFAULT_WARMUP_METHOD.map((step) => ({ ...step })),
+  warmupPlateRounding: { ...DEFAULT_WARMUP_PLATE_ROUNDING },
+  warmupDumbbellRounding: { ...DEFAULT_WARMUP_DUMBBELL_ROUNDING },
   guidedWorkoutEnabled: false,
   guidedVoiceId: null as string | null,
   guidedSpeechRate: DEFAULT_GUIDED_SPEECH_RATE as number,
@@ -104,6 +117,7 @@ export const PREFERENCE_DEFAULTS = {
   watchPageOrder: [...WATCH_PAGE_KEYS] as WatchPageKey[],
   hiddenWatchPages: [] as WatchPageKey[],
   watchDoubleTapEnabled: true,
+  watchRpeEnabled: false,
   watchNutrientOrder: [] as string[],
   shownWatchNutrients: [...DEFAULT_WATCH_NUTRIENTS] as string[],
   watchSetInputStyle: 'keypad' as WatchSetInputStyle,
@@ -132,9 +146,11 @@ export type AppPreferencesData = {
   askSparkyVisible: boolean;
   medicationsCardVisible: boolean;
   symptomsCardVisible: boolean;
+  moodCardVisible: boolean;
   progressPhotosCardVisible: boolean;
   onDeviceLabelScanEnabled: boolean;
   healthTrendsCardVisible: boolean;
+  mindfulnessCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
   medicationRemindersEnabled: boolean;
   medicationReminderRepeats: boolean;
@@ -162,6 +178,14 @@ export type AppPreferencesData = {
    */
   duckMusicDuringCues: boolean;
   workoutKeepAwakeEnabled: boolean;
+  /** Offer "Add warm-ups" on an exercise's menu. */
+  warmupCalculatorEnabled: boolean;
+  /** The warm-up ramp: percent of the working weight x reps, ascending. */
+  warmupMethod: WarmupMethodStep[];
+  /** Step warm-up weights round to on a bar, per display unit. */
+  warmupPlateRounding: { kg: number; lbs: number };
+  /** Step warm-up weights round to for dumbbell exercises, per display unit. */
+  warmupDumbbellRounding: { kg: number; lbs: number };
   /** Guided workout mode (#1507): spoken cues + guided card. Off by default. */
   guidedWorkoutEnabled: boolean;
   /** expo-speech voice identifier; null uses the device default for the app language. */
@@ -177,6 +201,8 @@ export type AppPreferencesData = {
   hiddenWatchPages: WatchPageKey[];
   /** Whether the watch's double-tap gesture logs the current set. */
   watchDoubleTapEnabled: boolean;
+  /** Whether the watch asks for an effort (RPE) after each logged set. */
+  watchRpeEnabled: boolean;
   /**
    * Order of the nutrients the watch's Goals page can list (standard keys and
    * custom nutrient names). Empty until the wearer drags one.
@@ -211,9 +237,11 @@ export interface AppPreferencesState extends AppPreferencesData {
   setAskSparkyVisible: (value: boolean) => void;
   setMedicationsCardVisible: (value: boolean) => void;
   setSymptomsCardVisible: (value: boolean) => void;
+  setMoodCardVisible: (value: boolean) => void;
   setProgressPhotosCardVisible: (value: boolean) => void;
   setOnDeviceLabelScanEnabled: (value: boolean) => void;
   setHealthTrendsCardVisible: (value: boolean) => void;
+  setMindfulnessCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
   setMedicationRemindersEnabled: (value: boolean) => void;
   setMedicationReminderRepeats: (value: boolean) => void;
@@ -231,6 +259,10 @@ export interface AppPreferencesState extends AppPreferencesData {
   setRestChimeThroughSilent: (value: boolean) => void;
   setDuckMusicDuringCues: (value: boolean) => void;
   setWorkoutKeepAwakeEnabled: (value: boolean) => void;
+  setWarmupCalculatorEnabled: (value: boolean) => void;
+  setWarmupMethod: (steps: readonly WarmupMethodStep[]) => void;
+  setWarmupPlateRounding: (unit: 'kg' | 'lbs', value: number) => void;
+  setWarmupDumbbellRounding: (unit: 'kg' | 'lbs', value: number) => void;
   setGuidedWorkoutEnabled: (value: boolean) => void;
   setGuidedVoiceId: (value: string | null) => void;
   setGuidedSpeechRate: (value: number) => void;
@@ -241,6 +273,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setWatchPageOrder: (order: WatchPageKey[]) => void;
   setWatchPageHidden: (key: WatchPageKey, isHidden: boolean) => void;
   setWatchDoubleTapEnabled: (value: boolean) => void;
+  setWatchRpeEnabled: (value: boolean) => void;
   setWatchNutrientOrder: (order: string[]) => void;
   setWatchNutrientShown: (key: string, isShown: boolean) => void;
   setWatchSetInputStyle: (value: WatchSetInputStyle) => void;
@@ -326,12 +359,15 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setMedicationsCardVisible: (value) =>
         set({ medicationsCardVisible: value }),
       setSymptomsCardVisible: (value) => set({ symptomsCardVisible: value }),
+      setMoodCardVisible: (value) => set({ moodCardVisible: value }),
       setProgressPhotosCardVisible: (value) =>
         set({ progressPhotosCardVisible: value }),
       setOnDeviceLabelScanEnabled: (value) =>
         set({ onDeviceLabelScanEnabled: value }),
       setHealthTrendsCardVisible: (value) =>
         set({ healthTrendsCardVisible: value }),
+      setMindfulnessCardVisible: (value) =>
+        set({ mindfulnessCardVisible: value }),
       setDashboardCardOrder: (order) => set({ dashboardCardOrder: order }),
       setMedicationRemindersEnabled: (value) =>
         set({ medicationRemindersEnabled: value }),
@@ -360,6 +396,21 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setDuckMusicDuringCues: (value) => set({ duckMusicDuringCues: value }),
       setWorkoutKeepAwakeEnabled: (value) =>
         set({ workoutKeepAwakeEnabled: value }),
+      setWarmupCalculatorEnabled: (value) =>
+        set({ warmupCalculatorEnabled: value }),
+      setWarmupMethod: (steps) =>
+        set({ warmupMethod: normalizeWarmupMethod(steps) }),
+      setWarmupPlateRounding: (unit, value) =>
+        set((state) => ({
+          warmupPlateRounding: { ...state.warmupPlateRounding, [unit]: value },
+        })),
+      setWarmupDumbbellRounding: (unit, value) =>
+        set((state) => ({
+          warmupDumbbellRounding: {
+            ...state.warmupDumbbellRounding,
+            [unit]: value,
+          },
+        })),
       setGuidedWorkoutEnabled: (value) => set({ guidedWorkoutEnabled: value }),
       setGuidedVoiceId: (value) => set({ guidedVoiceId: value }),
       setGuidedSpeechRate: (value) =>
@@ -389,6 +440,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         })),
       setWatchDoubleTapEnabled: (value) =>
         set({ watchDoubleTapEnabled: value }),
+      setWatchRpeEnabled: (value) => set({ watchRpeEnabled: value }),
       setWatchPageHidden: (key, isHidden) =>
         set((state) => ({
           hiddenWatchPages: withMembership(
@@ -432,9 +484,11 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         askSparkyVisible: state.askSparkyVisible,
         medicationsCardVisible: state.medicationsCardVisible,
         symptomsCardVisible: state.symptomsCardVisible,
+        moodCardVisible: state.moodCardVisible,
         progressPhotosCardVisible: state.progressPhotosCardVisible,
         onDeviceLabelScanEnabled: state.onDeviceLabelScanEnabled,
         healthTrendsCardVisible: state.healthTrendsCardVisible,
+        mindfulnessCardVisible: state.mindfulnessCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
         medicationRemindersEnabled: state.medicationRemindersEnabled,
         medicationReminderRepeats: state.medicationReminderRepeats,
@@ -455,6 +509,10 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         restChimeThroughSilent: state.restChimeThroughSilent,
         duckMusicDuringCues: state.duckMusicDuringCues,
         workoutKeepAwakeEnabled: state.workoutKeepAwakeEnabled,
+        warmupCalculatorEnabled: state.warmupCalculatorEnabled,
+        warmupMethod: state.warmupMethod,
+        warmupPlateRounding: state.warmupPlateRounding,
+        warmupDumbbellRounding: state.warmupDumbbellRounding,
         guidedWorkoutEnabled: state.guidedWorkoutEnabled,
         guidedVoiceId: state.guidedVoiceId,
         guidedSpeechRate: state.guidedSpeechRate,
@@ -465,6 +523,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         watchPageOrder: state.watchPageOrder,
         hiddenWatchPages: state.hiddenWatchPages,
         watchDoubleTapEnabled: state.watchDoubleTapEnabled,
+        watchRpeEnabled: state.watchRpeEnabled,
         watchNutrientOrder: state.watchNutrientOrder,
         shownWatchNutrients: state.shownWatchNutrients,
         watchSetInputStyle: state.watchSetInputStyle,

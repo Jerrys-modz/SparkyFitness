@@ -37,10 +37,13 @@ import HydrationReminderReconciler from '../components/HydrationReminderReconcil
 import HealthTrendsPager from '../components/HealthTrendsPager';
 import HydrationGauge from '../components/HydrationGauge';
 import CaffeineCard from '../components/CaffeineCard';
+import { useBackgroundWaterSync } from '../hooks/useBackgroundWaterSync';
 import Icon from '../components/Icon';
 import MacroCard from '../components/MacroCard';
 import MedicationsCard from '../components/MedicationsCard';
+import { MindfulnessCard } from '../components/mindfulness/MindfulnessCard';
 import SymptomsCard from '../components/SymptomsCard';
+import MoodCard from '../components/mood/MoodCard';
 import ProgressPhotosCard from '../components/ProgressPhotosCard';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
 import StatusView from '../components/StatusView';
@@ -62,7 +65,12 @@ import {
   useWidgetSync,
 } from '../hooks';
 import { useCheckInPhotoDates } from '../hooks/useCheckInPhotos';
+import { moodEntriesRootQueryKey } from '../hooks/queryKeys';
 import { useHeaderActionColors } from '../hooks/useHeaderActionColors';
+import {
+  useMindfulnessDay,
+  useMindfulnessMutations,
+} from '../hooks/useMindfulness';
 import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
@@ -288,11 +296,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const { summaryNutrients, refetch: refetchNutrientPrefs } =
     useNutrientDisplayPreferences({ enabled: isConnected });
 
-  useWidgetSync(summary);
-
+  useBackgroundWaterSync(activeWaterContainer);
   // The hydration card and the hydration trend must agree on the unit, so both read it
   // from here rather than each resolving the fallback chain themselves.
   const waterDisplayUnit = waterUnit || preferences?.water_display_unit || 'ml';
+  useWidgetSync(summary, {
+    drinkMl: servingVolume ?? null,
+    unit: waterDisplayUnit,
+    canLog: true,
+  });
 
   // The chart is a single-axis line graph; if the user picked stones+lbs, plot lbs.
   const weightUnit: 'kg' | 'lbs' =
@@ -359,6 +371,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const medicationsCardVisible = useAppPreferencesStore(
     (s) => s.medicationsCardVisible
   );
+  const moodCardVisible = useAppPreferencesStore((s) => s.moodCardVisible);
   const symptomsCardVisible = useAppPreferencesStore(
     (s) => s.symptomsCardVisible
   );
@@ -368,6 +381,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const healthTrendsCardVisible = useAppPreferencesStore(
     (s) => s.healthTrendsCardVisible
   );
+  const mindfulnessCardVisible = useAppPreferencesStore(
+    (s) => s.mindfulnessCardVisible
+  );
+
+  const { sessions: mindfulSessions, totalMindfulMinutes } =
+    useMindfulnessDay(selectedDate);
+  const {
+    saveSession: saveMindfulSession,
+    updateSession: updateMindfulSession,
+    deleteSession: deleteMindfulSession,
+  } = useMindfulnessMutations(selectedDate);
 
   const orderedDashboardCards = useMemo(
     () => resolveDashboardCardOrder(dashboardCardOrder),
@@ -399,6 +423,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       queryClient.invalidateQueries({ queryKey: fastingRootQueryKey }),
       // MedicationsCard owns its own queries.
       queryClient.invalidateQueries({ queryKey: medicationsRootQueryKey }),
+      queryClient.invalidateQueries({ queryKey: ['mindfulness'] }),
+      // MoodCard owns its own query.
+      queryClient.invalidateQueries({ queryKey: moodEntriesRootQueryKey }),
     ]);
     setRefreshing(false);
   }, [
@@ -785,6 +812,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   date={selectedDate}
                 />
               ) : null;
+            case 'mood':
+              return moodCardVisible ? (
+                <MoodCard
+                  key="mood"
+                  navigation={navigation}
+                  date={selectedDate}
+                />
+              ) : null;
             case 'progressPhotos':
               return progressPhotosCardVisible ? (
                 <ProgressPhotosCard
@@ -825,6 +860,21 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     onPageSelected={setChartPage}
                   />
                 </View>
+              ) : null;
+            case 'mindfulness':
+              return mindfulnessCardVisible ? (
+                <MindfulnessCard
+                  key="mindfulness"
+                  sessions={mindfulSessions}
+                  totalMindfulMinutes={totalMindfulMinutes}
+                  selectedDate={selectedDate}
+                  onSaveSession={saveMindfulSession}
+                  onUpdateSession={updateMindfulSession}
+                  onDeleteSession={deleteMindfulSession}
+                  onPressDetails={() =>
+                    navigation.navigate('MindfulnessDetail', { selectedDate })
+                  }
+                />
               ) : null;
             default:
               return null;

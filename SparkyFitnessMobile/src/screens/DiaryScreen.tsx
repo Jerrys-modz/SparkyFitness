@@ -1,6 +1,6 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
-import { useFocusEffect } from '@react-navigation/native';
+import { StackActions, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   hasSupplementNutrition,
@@ -76,6 +76,7 @@ import type {
 } from '../types/workoutPlans';
 import { isManualSource } from '../utils/customMeasurementsForm';
 import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
+import { cardioSessionForDiaryEntry } from '../services/cardioSessionForDiaryEntry';
 import { cardioSessionFromDiaryEntry } from '../utils/cardioSession';
 import {
   getHistoricalMealTypeLabel,
@@ -679,18 +680,72 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                   }
                   navigation.navigate('WorkoutDetail', { session });
                 } else {
-                  const cardioSession = cardioSessionFromDiaryEntry(
+                  const synced = cardioSessionFromDiaryEntry(
                     session,
                     distanceUnit
                   );
-                  if (cardioSession) {
+                  if (synced) {
                     navigation.navigate('CardioSession', {
-                      session: cardioSession,
+                      session: synced,
                       distanceUnit,
                     });
                     return;
                   }
-                  navigation.navigate('ActivityDetail', { session });
+                  const recorded = cardioSessionFromDiaryEntry(
+                    session,
+                    distanceUnit,
+                    { allowInApp: true }
+                  );
+                  if (!recorded) {
+                    navigation.navigate('ActivityDetail', { session });
+                    return;
+                  }
+                  // A manual entry has no route flag, so the route is a
+                  // network lookup. Open the basic screen on a short bound
+                  // instead of waiting for that lookup, and replace it only
+                  // if a route arrives while this entry is still showing.
+                  const openedId = session.id;
+                  let openedBasic = false;
+                  const openBasic = () => {
+                    if (openedBasic) return;
+                    openedBasic = true;
+                    navigation.navigate('ActivityDetail', { session });
+                  };
+                  const timer = setTimeout(openBasic, 250);
+                  void cardioSessionForDiaryEntry(session, distanceUnit).then(
+                    (cardioSession) => {
+                      clearTimeout(timer);
+                      if (!cardioSession) {
+                        openBasic();
+                        return;
+                      }
+                      if (!openedBasic) {
+                        navigation.navigate('CardioSession', {
+                          session: cardioSession,
+                          distanceUnit,
+                        });
+                        return;
+                      }
+                      const parent = navigation.getParent();
+                      const state = parent?.getState();
+                      const current = state?.routes[state.index];
+                      const params = current?.params as
+                        { session?: { id?: string } } | undefined;
+                      if (
+                        !parent ||
+                        current?.name !== 'ActivityDetail' ||
+                        params?.session?.id !== openedId
+                      ) {
+                        return;
+                      }
+                      parent.dispatch(
+                        StackActions.replace('CardioSession', {
+                          session: cardioSession,
+                          distanceUnit,
+                        })
+                      );
+                    }
+                  );
                 }
               }}
             />
@@ -710,6 +765,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                 navigation.navigate('MeasurementsAdd', { date: selectedDate })
               }
             />
+
             {/* Below the measurements: both are the same check-in, keyed on
                 (user_id, entry_date) server-side. */}
             <CheckInPhotosSummary

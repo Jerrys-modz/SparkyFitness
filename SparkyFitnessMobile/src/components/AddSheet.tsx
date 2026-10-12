@@ -32,6 +32,9 @@ interface AddSheetProps {
   onAddProgressPhotos: () => void;
   onAskSparky: () => void;
   onAddSymptoms?: () => void;
+  onAddMood?: () => void;
+  onAddMindfulness?: () => void;
+  onRecordActivity?: () => void;
   onOpenCycle?: () => void;
   showCycleCard?: boolean;
   cycleLabel?: string;
@@ -58,6 +61,9 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       onAddProgressPhotos,
       onAskSparky,
       onAddSymptoms,
+      onAddMood,
+      onAddMindfulness,
+      onRecordActivity,
       onOpenCycle,
       showCycleCard,
       cycleLabel,
@@ -353,6 +359,20 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
                   onLogWorkout
                 )}
               </View>
+              {onRecordActivity && (
+                <View className="flex-row mt-3">
+                  {renderExerciseOption(
+                    t('addSheet.recordActivity', {
+                      defaultValue: 'Record Activity',
+                    }),
+                    t('addSheet.recordActivityHint', {
+                      defaultValue: 'Track a walk, run or ride with GPS',
+                    }),
+                    'location',
+                    onRecordActivity
+                  )}
+                </View>
+              )}
             </>
           ) : (
             <>
@@ -384,6 +404,20 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
                     t('addSheet.symptoms', { defaultValue: 'Symptoms' }),
                     'symptoms',
                     onAddSymptoms
+                  )
+                : null}
+              {onAddMood
+                ? renderSecondaryRow(
+                    t('addSheet.mood', { defaultValue: 'Mood' }),
+                    'mood',
+                    onAddMood
+                  )
+                : null}
+              {onAddMindfulness
+                ? renderSecondaryRow(
+                    t('addSheet.mindfulness', { defaultValue: 'Mindfulness' }),
+                    'exercise-yoga',
+                    onAddMindfulness
                   )
                 : null}
               {renderSecondaryRow(

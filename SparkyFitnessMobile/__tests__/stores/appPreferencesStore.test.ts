@@ -179,8 +179,10 @@ describe('appPreferencesStore', () => {
         'cycle',
         'medications',
         'symptoms',
+        'mood',
         'progressPhotos',
         'healthTrends',
+        'mindfulness',
       ]);
     });
 

@@ -23,9 +23,15 @@ export { useMeasurements } from './useMeasurements';
 export { useWatchCheckInBridge } from './useWatchCheckInBridge';
 export { useWatchWorkoutBridge } from './useWatchWorkoutBridge';
 export { useWatchSetTargetsSync } from './useWatchSetTargetsSync';
+export { useWatchRecordingBridge } from './useWatchRecordingBridge';
 export { useWatchPlanSync } from './useWatchPlanSync';
 export { useWatchWorkoutEdit } from './useWatchWorkoutEdit';
-export { drainQuickActionNavigation, useQuickActions } from './useQuickActions';
+export { useWatchFastingBridge } from './useWatchFastingBridge';
+export {
+  drainQuickActionNavigation,
+  useControlRouteHandoff,
+  useQuickActions,
+} from './useQuickActions';
 
 export { usePreferences } from './usePreferences';
 export { useRefetchOnFocus } from './useRefetchOnFocus';
@@ -53,6 +59,12 @@ export {
   useDeleteMealPlan,
 } from './useMealPlans';
 export { useMealPlanNutrition } from './useMealPlanNutrition';
+export {
+  useWorkoutPlans,
+  useCreateWorkoutPlan,
+  useUpdateWorkoutPlan,
+  useDeleteWorkoutPlan,
+} from './useWorkoutPlans';
 export { useMealSearch } from './useMealSearch';
 export {
   useWaterContainersQuery,
