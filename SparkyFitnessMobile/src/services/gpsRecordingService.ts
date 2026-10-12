@@ -169,6 +169,23 @@ let hydrated: Promise<void> | null = null;
 // Detector memory for auto-pause. Not persisted: after a relaunch it just
 // starts watching again.
 let autoPauseState: AutoPauseState = INITIAL_AUTO_PAUSE_STATE;
+// What the fixes auto-pause looked at carried, logged once at Finish so a
+// recording that never paused can be explained from the app log.
+let autoPauseFixStats = { withSpeed: 0, withoutSpeed: 0, inaccurate: 0 };
+
+function countAutoPauseFix(fix: RawFix): void {
+  if (typeof fix.hacc === 'number' && fix.hacc > 30) {
+    autoPauseFixStats.inaccurate++;
+  } else if (
+    typeof fix.speed === 'number' &&
+    Number.isFinite(fix.speed) &&
+    fix.speed >= 0
+  ) {
+    autoPauseFixStats.withSpeed++;
+  } else {
+    autoPauseFixStats.withoutSpeed++;
+  }
+}
 const listeners = new Set<() => void>();
 // The task callback and the screen's own writes share one session, so every
 // read-modify-write runs on this chain instead of overlapping.
@@ -291,6 +308,7 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
     let pointsRewritten = false;
     for (const fix of fixes) {
       if (session.autoPause && isWatchingForAutoPause(session)) {
+        countAutoPauseFix(fix);
         const step = stepAutoPause(
           autoPauseState,
           fix,
@@ -684,6 +702,7 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
       ...(stepCounterAtStart != null && { stepCounterAtStart }),
     };
     autoPauseState = INITIAL_AUTO_PAUSE_STATE;
+    autoPauseFixStats = { withSpeed: 0, withoutSpeed: 0, inaccurate: 0 };
     points = [];
     await persistSession();
     if (!indoor) {
@@ -963,6 +982,14 @@ export function finishRecording(): Promise<void> {
     await persistSession();
     await stopUpdates();
     publish();
+    if (session.autoPause) {
+      const stats = autoPauseFixStats;
+      addLog(
+        `[GPS Recording] Auto-pause looked at ${stats.withSpeed} fixes with a speed, ${stats.withoutSpeed} without one and ${stats.inaccurate} too inaccurate`,
+        'INFO'
+      );
+    }
+    autoPauseFixStats = { withSpeed: 0, withoutSpeed: 0, inaccurate: 0 };
     // An indoor session has no GPS distance yet. Stop the cue session without
     // announcing zero before the person enters what the machine showed.
     if (session.audioCues && session.indoor) {
@@ -1063,6 +1090,7 @@ export function resetRecordingStateForTests(): void {
   points = [];
   heartRate = { samples: [], batchIds: [] };
   autoPauseState = INITIAL_AUTO_PAUSE_STATE;
+  autoPauseFixStats = { withSpeed: 0, withoutSpeed: 0, inaccurate: 0 };
   hydrated = null;
   queue = Promise.resolve();
   publish();
