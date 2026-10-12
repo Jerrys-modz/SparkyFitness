@@ -239,6 +239,9 @@ router.get('/by-date', authenticate, async (req, res, next) => {
  *               exercise_id:
  *                 type: string
  *                 format: uuid
+ *               exercise_name:
+ *                 type: string
+ *                 description: Optional name stored on this entry. When omitted, the library exercise name is used.
  *               duration_minutes:
  *                 type: number
  *               calories_burned:
@@ -308,6 +311,7 @@ router.post(
       }
       const {
         exercise_id,
+        exercise_name,
         duration_minutes,
         calories_burned,
         entry_date,
@@ -376,6 +380,7 @@ router.post(
         req.originalUserId || req.userId,
         {
           exercise_id,
+          exercise_name,
           duration_minutes,
           calories_burned,
           entry_date,

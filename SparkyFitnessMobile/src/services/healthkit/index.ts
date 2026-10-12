@@ -1309,6 +1309,24 @@ const handleWorkout: RecordHandler = async (
         };
       }
 
+      // Tell a walk or run recorded on the watch alone (source bundle
+      // `<phone-bundle>.watchkitapp`) from other apps' workouts, and whether
+      // it was indoors, so the transformer can title it.
+      const workoutExtras = w as unknown as {
+        sourceRevision?: { source?: { bundleIdentifier?: string } };
+        metadata?: Record<string, unknown>;
+      };
+      const workoutBundleId =
+        workoutExtras.sourceRevision?.source?.bundleIdentifier;
+      if (workoutBundleId) record.sourceBundleId = workoutBundleId;
+      const indoorFlag = workoutExtras.metadata?.HKIndoorWorkout;
+      if (indoorFlag !== undefined) {
+        record.metadata = {
+          ...(record.metadata as Record<string, unknown> | undefined),
+          HKIndoorWorkout: indoorFlag,
+        };
+      }
+
       // Elevation is not a totals field on the workout; it arrives as metadata.
       const elevation = w as unknown as {
         metadataElevationAscended?: { quantity?: number };

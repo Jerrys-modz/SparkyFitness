@@ -19,6 +19,8 @@ import {
   type RecordedPoint,
   type RecordingActivity,
 } from '../utils/gpsRecording';
+import { isStepActivity } from '../utils/stride';
+import { captureStepCounterBaseline } from './stepCounter';
 import {
   INITIAL_AUTO_PAUSE_STATE,
   stepAutoPause,
@@ -82,6 +84,12 @@ export interface RecordingSession {
   pausedAt: number | null;
   /** Total time spent paused before the current pause, in ms. */
   pausedMs: number;
+  /**
+   * Set when the session paused at least once, including a finish while
+   * paused. The final pause is not added to `pausedMs`, so that field alone
+   * cannot say whether a finished session ever stopped.
+   */
+  hadPause?: boolean;
   /** Current stretch; goes up on every resume. */
   seg: number;
   /** Whether the recording pauses itself when the person stops moving. */
@@ -106,6 +114,18 @@ export interface RecordingSession {
   intervals?: { plan: IntervalPlan; cued: number };
   /** Set once the diary entry exists, so a retried save never duplicates it. */
   savedEntryId: string | null;
+  /**
+   * A treadmill or other indoor session: no location task and no route, just
+   * the clock (and a paired watch's heart rate). Absent on sessions saved by
+   * an earlier build, which were all outdoors.
+   */
+  indoor?: boolean;
+  /**
+   * Android hardware step counter (steps since boot) when this walk or run
+   * started. Finish subtracts a new reading. Absent on iOS, on a ride, and
+   * when the counter could not be read. A reboot resets it.
+   */
+  stepCounterAtStart?: number;
 }
 
 /** One heart-rate reading from a paired watch during the recording. */
@@ -293,6 +313,7 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
             status: 'paused',
             pausedAt: pauseAt,
             autoPaused: true,
+            hadPause: true,
           };
           sessionChanged = true;
           addLog('[GPS Recording] Auto-paused', 'INFO');
@@ -552,6 +573,8 @@ export interface StartRecordingOptions {
   audioCues?: CueUnit;
   /** Timed steps to follow (run/walk, speed repeats). */
   intervals?: IntervalPlan;
+  /** Record without GPS: no permission is asked and no location task runs. */
+  indoor?: boolean;
   /** Text for the Android foreground-service notification. */
   notification: { title: string; body: string };
 }
@@ -601,20 +624,30 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
   return enqueue(async () => {
     await hydrate();
     if (session) throw new Error('A recording is already in progress.');
-    if (!(await Location.hasServicesEnabledAsync())) {
-      throw new RecordingPermissionError(
-        'services-disabled',
-        'Location services are turned off.'
-      );
-    }
-    const permission = await Location.requestForegroundPermissionsAsync();
-    if (!permission.granted) {
-      throw new RecordingPermissionError(
-        'denied',
-        'Location permission was not granted.'
-      );
+    const indoor = options.indoor === true;
+    if (!indoor) {
+      if (!(await Location.hasServicesEnabledAsync())) {
+        throw new RecordingPermissionError(
+          'services-disabled',
+          'Location services are turned off.'
+        );
+      }
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) {
+        throw new RecordingPermissionError(
+          'denied',
+          'Location permission was not granted.'
+        );
+      }
     }
     const now = Date.now();
+    // Android cannot ask later how many steps fell inside this session, so
+    // the counter is read now and stored. iOS returns null here and queries
+    // the window at the end. A ride has no step estimate. Failure leaves the
+    // distance field empty; it must not stop the recording.
+    const stepCounterAtStart = isStepActivity(options.activity)
+      ? await captureStepCounterBaseline(indoor)
+      : null;
     session = {
       id: `rec-${now}`,
       activity: options.activity,
@@ -632,14 +665,20 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
         ? { intervals: { plan: options.intervals, cued: -1 } }
         : {}),
       savedEntryId: null,
+      ...(indoor && { indoor: true }),
+      ...(stepCounterAtStart != null && { stepCounterAtStart }),
     };
     autoPauseState = INITIAL_AUTO_PAUSE_STATE;
     points = [];
-    try {
-      await startUpdates(options.notification, options.autoPause === true);
-    } catch (error) {
-      session = null;
-      throw error;
+    await persistSession();
+    if (!indoor) {
+      try {
+        await startUpdates(options.notification, options.autoPause === true);
+      } catch (error) {
+        session = null;
+        await persistSession();
+        throw error;
+      }
     }
     await persistSession();
     publish();
@@ -653,7 +692,10 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
       await persistSession();
       publish();
     }
-    addLog(`[GPS Recording] Started ${options.activity} recording`, 'INFO');
+    addLog(
+      `[GPS Recording] Started ${indoor ? 'indoor ' : ''}${options.activity} recording`,
+      'INFO'
+    );
   });
 }
 
@@ -689,6 +731,7 @@ export function pauseRecording(): Promise<void> {
       status: 'paused',
       pausedAt: now,
       autoPaused: false,
+      hadPause: true,
     };
     autoPauseState = INITIAL_AUTO_PAUSE_STATE;
     await persistSession();
@@ -718,7 +761,8 @@ export function resumeRecording(
     try {
       // The task normally survived the pause. It only needs starting again
       // when the OS or a relaunch dropped it in the meantime.
-      if (!(await updatesRunning())) {
+      // An indoor session never had a task to restart.
+      if (!paused.indoor && !(await updatesRunning())) {
         await startUpdates(notification, paused.autoPause === true);
       }
     } catch (error) {
@@ -815,6 +859,12 @@ export function finishRecording(): Promise<void> {
     const now = Date.now();
     // A paused finish ends the clock at `pausedAt`, so the final pause is
     // already excluded: adding it to `pausedMs` would remove it twice.
+    // `hadPause` still has to remember it. A stride learned from GPS would
+    // otherwise treat steps that never happened during the pause as movement.
+    const hadPause =
+      session.hadPause === true ||
+      session.status === 'paused' ||
+      session.pausedMs > 0;
     const pausedMs = session.pausedMs;
     session = {
       ...session,
@@ -823,11 +873,16 @@ export function finishRecording(): Promise<void> {
       pausedAt: null,
       autoPaused: false,
       pausedMs,
+      ...(hadPause && { hadPause: true }),
     };
     await persistSession();
     await stopUpdates();
     publish();
-    if (session.audioCues) {
+    // An indoor session has no GPS distance yet. Stop the cue session without
+    // announcing zero before the person enters what the machine showed.
+    if (session.audioCues && session.indoor) {
+      endRecordingCues();
+    } else if (session.audioCues) {
       const summary = summarizeRecording(points);
       speakRecordingCue(
         finishCue(i18n.t.bind(i18n), {

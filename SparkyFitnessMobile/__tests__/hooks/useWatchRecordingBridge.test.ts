@@ -62,7 +62,7 @@ type Handlers = Record<string, (payload: unknown) => void>;
 let handlers: Handlers;
 
 function setSnapshot(
-  session: typeof baseSession | null,
+  session: (typeof baseSession & { indoor?: boolean }) | null,
   points: ReturnType<typeof point>[] = []
 ) {
   (mockedService.useGpsRecording as jest.Mock).mockReturnValue({
@@ -103,7 +103,18 @@ describe('useWatchRecordingBridge', () => {
         status: 'recording',
         startedAt: 1_000,
         distanceUnit: 'km',
+        indoor: false,
       }),
+      true
+    );
+  });
+
+  it('tells the watch an indoor recording is indoor', () => {
+    setSnapshot({ ...baseSession, indoor: true });
+    renderHook(() => useWatchRecordingBridge(true));
+
+    expect(watch.updateRecordingState).toHaveBeenCalledWith(
+      expect.objectContaining({ indoor: true, status: 'recording' }),
       true
     );
   });

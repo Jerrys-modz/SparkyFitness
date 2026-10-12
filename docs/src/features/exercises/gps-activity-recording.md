@@ -23,6 +23,28 @@ Distance, pace and splits follow your distance unit (kilometres or miles).
 
 ---
 
+## Indoor and treadmill sessions
+
+For a treadmill or any session without GPS, choose **Indoor** under the activity before you tap **Start**. No location access is asked for and no route is recorded. You get the clock and pause and resume, and a paired Apple Watch still adds your heart rate.
+
+When you tap **Finish**, you can enter the distance your treadmill or machine shows. It's optional: leave it empty to log just the time. The distance is used as you typed it, in your distance unit.
+
+### Estimated distance and learning your stride
+
+On an iPhone or Android, the distance field is filled in for you from your phone's step count and your stride length. The first time, iOS asks for Motion & Fitness access when you finish, and Android asks for physical activity access when you start. Paused time is left out.
+
+A phone can't measure treadmill distance exactly, so treat the estimate as a starting point:
+
+- **At first it's rough.** Until the app has learned your stride it uses a typical one, and the screen says so.
+- **Change it to match your treadmill.** When you correct the distance, the app works out your stride from it and uses that next time. It learns walking and running separately, and the estimate gets closer over a few sessions. If you leave the estimate as it is, nothing is learned.
+- **Outdoor recordings help too.** A saved outdoor walk or run, whose GPS distance is known, also teaches the app your stride if you've already allowed Motion & Fitness access. It never asks for access just to learn.
+
+Your stride is kept on your phone only. If you don't allow access, or an Android phone restarts during the session, the field starts empty and you type the distance. There's no step estimate for a ride.
+
+The saved activity is logged as **Indoor Walking**, **Indoor Running** or **Indoor Cycling**, and has no route or splits.
+
+---
+
 ## Nothing is lost if the connection drops
 
 Points are saved on the phone as they arrive. Nothing is sent to your server until you tap **Save activity**, so a dropped connection or a closed app doesn't lose the activity. If the app is closed mid-recording, reopen **Record Activity** to pick it back up. If saving fails, the recording stays on the phone so you can try again; retrying never logs the activity twice.
@@ -71,7 +93,7 @@ While you record, a card shows the current step, the time left, the round and wh
 
 Each step also becomes a lap, so the saved activity is split into your work and recovery stretches and the pace bars show the difference. When the last step ends you hear "Intervals complete" and can carry on or finish.
 
-Intervals work with phone recording only for now. The watch does not show the steps yet.
+Intervals work with phone recording only for now. The watch does not show the steps yet. On an indoor session there is no GPS feed, so the steps move on while the Record screen is open and catch up when you open it again.
 
 ---
 
@@ -98,6 +120,23 @@ Nothing is written to Apple Health from the watch until you decide. Saving the a
 The phone still records the route with its own GPS, so keep it with you. Heart rate is attached after the activity is saved. If the watch was out of range for part of it, the readings it held are sent when it reconnects, and the activity can be saved before that. Readings that arrive after saving are not added.
 
 The watch's own GPS is not used, and the activity is saved to Apple Health once, from the watch, without being imported back into SparkyFitness a second time.
+
+---
+
+## Recording a walk or run on the watch alone
+
+On the watch's **Workout** page, above your saved workouts, tap **Cardio** and choose **Run** or **Walk** under **Outdoor** or **Indoor**. The watch then records on its own, with no phone needed:
+
+- The page shows the clock, distance, pace and heart rate, with pause, resume and finish.
+- **Outdoors** the watch uses its own GPS for the distance and records the route. The first time, it asks for location access ("while using the app" is enough). If you say no, you still get the workout, just without a route.
+- **Indoors** there is no GPS, so the distance is the watch's own estimate from its motion sensors. It gets better the more you use the watch outdoors, since Apple calibrates it from outdoor workouts.
+- **Auto-pause:** when you stop, the watch pauses itself ("Auto-paused", with a tap on the wrist) and resumes when you move again. Outdoors it uses GPS speed with the same thresholds as the phone. Indoors it counts your steps: no new steps for about 8 seconds (10 walking) pauses, and about five steps resume. A pause you make yourself is never undone automatically. Pausing is not backdated, so the first few seconds of standing still count. Indoor auto-pause asks for Motion & Fitness access the first time; without it, use the pause button.
+- **If the watch app closes mid-run:** open it again and the run carries on where it was. If watchOS had already ended the workout, the run is still sent to your iPhone as far as it got (provided it was at least a minute long with some distance), so the effort isn't lost. After a restart the route in Apple Health begins at that point; the activity in SparkyFitness keeps the whole route.
+- Finishing saves the workout (and route) to Apple Health and sends the run to your iPhone, which logs it in your diary as a normal SparkyFitness activity with distance, heart rate, calories and the route. If the phone is out of range or offline, the run waits and is logged when they meet again.
+
+The watch can only run one workout at a time. The page tells you if your iPhone is recording an activity or a strength workout is running, and it won't start in that case.
+
+A watch-only recording buzzes at every completed kilometre or mile, and speaks it ("Kilometer 3. 5 minutes 24 seconds.") when Voice cues is on in the Record screen; the sound comes from the watch speaker or paired headphones. The flag button marks a lap (a second press within 3 seconds is ignored); when you save, an outdoor run is cut at your laps instead of at each kilometre or mile. Indoor runs have no route, so laps are not kept. The Voice cues setting reaches the watch with the phone's next update, so open the app once after changing it. Intervals and training programs are not followed on the wrist alone.
 
 ---
 

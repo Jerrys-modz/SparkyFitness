@@ -12,6 +12,9 @@ jest.mock('expo-location', () => ({
   hasStartedLocationUpdatesAsync: jest.fn(),
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
+jest.mock('../../src/services/stepCounter', () => ({
+  captureStepCounterBaseline: jest.fn(async () => null),
+}));
 jest.mock('../../src/services/recordingCues', () => ({
   beginRecordingCues: jest.fn(),
   endRecordingCues: jest.fn(),
@@ -19,8 +22,10 @@ jest.mock('../../src/services/recordingCues', () => ({
   speakRecordingCue: jest.fn(),
 }));
 
+import { captureStepCounterBaseline } from '../../src/services/stepCounter';
 import {
   beginRecordingCues,
+  endRecordingCues,
   speakRecordingCue,
 } from '../../src/services/recordingCues';
 import {
@@ -41,6 +46,7 @@ import {
   type RecordingSession,
 } from '../../src/services/gpsRecordingService';
 
+const mockedBaseline = jest.mocked(captureStepCounterBaseline);
 const mockedLocation = Location as jest.Mocked<typeof Location>;
 const notification = { title: 'Recording', body: 'Tracking' };
 const DEG_PER_METER = 1 / 111_194.9;
@@ -65,6 +71,7 @@ async function storedSession(): Promise<RecordingSession | null> {
 
 beforeEach(async () => {
   jest.clearAllMocks();
+  mockedBaseline.mockResolvedValue(null);
   await AsyncStorage.clear();
   resetRecordingStateForTests();
   mockedLocation.hasServicesEnabledAsync.mockResolvedValue(true);
@@ -257,10 +264,30 @@ describe('finishing and discarding', () => {
     const session = await storedSession();
     expect(session?.status).toBe('finished');
     expect(session?.finishedAt).not.toBeNull();
+    expect(session?.hadPause).toBeUndefined();
     const raw = await AsyncStorage.getItem(
       '@SparkyFitness/gpsRecording/chunk/0'
     );
     expect(JSON.parse(raw as string)).toHaveLength(2);
+  });
+
+  it('remembers a pause that ended the recording even though it is not added to pausedMs', async () => {
+    await startRecording({ activity: 'walk', notification });
+    await pauseRecording();
+    await finishRecording();
+
+    const stored = await storedSession();
+    expect(stored?.pausedMs).toBe(0);
+    expect(stored?.hadPause).toBe(true);
+  });
+
+  it('remembers a pause that was resumed before the finish', async () => {
+    await startRecording({ activity: 'walk', notification });
+    await pauseRecording();
+    await resumeRecording(notification);
+    await finishRecording();
+
+    expect((await storedSession())?.hadPause).toBe(true);
   });
 
   it('remembers the saved entry id so a retry does not duplicate it', async () => {
@@ -445,6 +472,62 @@ describe('pause edge cases', () => {
   });
 });
 
+describe('indoor recording', () => {
+  it('starts without asking for location or running a location task', async () => {
+    await startRecording({ activity: 'walk', indoor: true, notification });
+
+    expect(mockedLocation.hasServicesEnabledAsync).not.toHaveBeenCalled();
+    expect(
+      mockedLocation.requestForegroundPermissionsAsync
+    ).not.toHaveBeenCalled();
+    expect(mockedLocation.startLocationUpdatesAsync).not.toHaveBeenCalled();
+    const stored = await storedSession();
+    expect(stored?.status).toBe('recording');
+    expect(stored?.indoor).toBe(true);
+    expect(mockedBaseline).toHaveBeenCalledWith(true);
+  });
+
+  it('keeps the step counter taken at the start', async () => {
+    mockedBaseline.mockResolvedValueOnce(1200);
+
+    await startRecording({ activity: 'walk', indoor: true, notification });
+
+    expect((await storedSession())?.stepCounterAtStart).toBe(1200);
+  });
+
+  it('does not read the step counter for a ride', async () => {
+    await startRecording({ activity: 'ride', indoor: true, notification });
+
+    expect(mockedBaseline).not.toHaveBeenCalled();
+  });
+
+  it('starts even when location services are off or permission is denied', async () => {
+    mockedLocation.hasServicesEnabledAsync.mockResolvedValue(false);
+    mockedLocation.requestForegroundPermissionsAsync.mockResolvedValue({
+      granted: false,
+    } as Location.LocationPermissionResponse);
+
+    await startRecording({ activity: 'run', indoor: true, notification });
+
+    expect((await storedSession())?.status).toBe('recording');
+  });
+
+  it('pauses and resumes without starting a location task', async () => {
+    await startRecording({ activity: 'run', indoor: true, notification });
+    await pauseRecording();
+    mockedLocation.hasStartedLocationUpdatesAsync.mockResolvedValue(false);
+    await resumeRecording(notification);
+
+    expect(mockedLocation.startLocationUpdatesAsync).not.toHaveBeenCalled();
+    expect((await storedSession())?.status).toBe('recording');
+  });
+
+  it('keeps an outdoor session outdoor', async () => {
+    await startRecording({ activity: 'run', notification });
+    expect((await storedSession())?.indoor).toBeUndefined();
+  });
+});
+
 describe('auto-pause', () => {
   const moving = (seconds: number, metersNorth: number) => ({
     ...fix(seconds, metersNorth),
@@ -569,6 +652,32 @@ describe('voice cues', () => {
     await pauseRecording();
     await resumeRecording(notification);
     expect(spoken()).toEqual(['Paused', 'Resumed']);
+  });
+
+  it('does not announce a zero GPS distance when an indoor recording finishes', async () => {
+    await startRecording({
+      activity: 'run',
+      indoor: true,
+      audioCues: 'km',
+      notification,
+    });
+    (speakRecordingCue as jest.Mock).mockClear();
+    (endRecordingCues as jest.Mock).mockClear();
+
+    await finishRecording();
+
+    expect(speakRecordingCue).not.toHaveBeenCalled();
+    expect(endRecordingCues).toHaveBeenCalledTimes(1);
+  });
+
+  it('announces the distance when an outdoor recording finishes', async () => {
+    await startRecording({ activity: 'run', audioCues: 'km', notification });
+    await ingestFixes([stepNorth(0, 0), stepNorth(10, 20)]);
+    (speakRecordingCue as jest.Mock).mockClear();
+
+    await finishRecording();
+
+    expect(spoken()[0]).toMatch(/^Recording finished\./);
   });
 });
 

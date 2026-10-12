@@ -83,7 +83,8 @@ enum ContextPayloadMapper {
             fast: fastKnown(in: payload) ? fast(from: payload["fast"]) : previous.fast,
             fastSynced: fastKnown(in: payload) ? true : previous.fastSynced,
             steps: steps(from: payload["steps"]),
-            stepGoal: (payload["stepGoal"] as? NSNumber)?.intValue ?? previous.stepGoal
+            stepGoal: (payload["stepGoal"] as? NSNumber)?.intValue ?? previous.stepGoal,
+            runVoiceCues: payload["runVoiceCues"] as? Bool ?? previous.runVoiceCues
         )
     }
 
@@ -387,6 +388,7 @@ enum ContextPayloadMapper {
         return .state(RecordingState(
             sessionId: sessionId,
             activity: activity,
+            indoor: payload["indoor"] as? Bool ?? false,
             status: status,
             startedAt: Date(timeIntervalSince1970: startedAtMs / 1000),
             pausedMs: doubleValue(payload["pausedMs"]) ?? 0,

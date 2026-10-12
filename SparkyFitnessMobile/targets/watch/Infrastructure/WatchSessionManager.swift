@@ -271,6 +271,32 @@ final class WatchSessionManager: NSObject, ObservableObject {
         ))
     }
 
+    /// Hands a finished wrist-only walk or run to the phone to file in the
+    /// diary. Returns true once the message is durably queued: `transferUserInfo`
+    /// accepted it, or it is on disk until activation can hand it over. False
+    /// when it could not be kept, so the caller leaves the recovery snapshot.
+    @discardableResult
+    func sendRunFinished(_ result: WatchRunResult) -> Bool {
+        let payload = OutboundPayloads.runFinished(result)
+        guard WCSession.isSupported() else { return false }
+        if isActivated {
+            transfer(payload)
+            return true
+        }
+        return WatchRunOutbox.append(payload)
+    }
+
+    /// Sends runs that were finished before the session had activated.
+    private func flushRunOutbox() {
+        guard isActivated else { return }
+        let queued = WatchRunOutbox.load()
+        guard !queued.isEmpty else { return }
+        for payload in queued {
+            transfer(payload)
+        }
+        WatchRunOutbox.clear()
+    }
+
     /// Hands a check-in to the system for delivery. Returns the state to show:
     /// `.queued` always, because even a reachable phone hasn't written to the
     /// server yet — the ack flips it to `.saved`.
@@ -668,6 +694,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // A redelivered `workoutStart` for the session already running must
         // not stop HealthKit and restart the plan from set 1.
         if workoutStore.plan?.sessionId == plan.sessionId { return }
+        // A wrist-only run already holds the watch's one workout session; a
+        // second would end one of them. The workout carries on on the phone.
+        if WatchRunStore.shared.isActive { return }
 
         // Recovery may still be reattaching the previous HealthKit session.
         // Queue the plan and let that finish (and stop the old session)
@@ -820,6 +849,25 @@ final class WatchSessionManager: NSObject, ObservableObject {
     private func recoverLiveWorkoutIfNeeded() {
         retryPendingTails()
         hkRecovery = .running
+        // A wrist-only run left going is claimed first: only it has a
+        // snapshot to say the Health session is its own. Otherwise the
+        // strength-workout path below would end it as a leftover.
+        WatchRunStore.shared.recoverIfNeeded { [weak self] claimed in
+            guard let self else { return }
+            if claimed {
+                self.hkRecovery = .finished
+                // A workout start that arrived during recovery cannot run
+                // beside the recovered run; drop it so later starts are not
+                // held back waiting for it.
+                self.pendingPlan = nil
+                self.collectionInFlight = false
+            } else {
+                self.recoverStrengthWorkoutIfNeeded()
+            }
+        }
+    }
+
+    private func recoverStrengthWorkoutIfNeeded() {
         // A finish that was cut off is completed before anything else. It is
         // older than any queued plan, and resuming it would restart a workout
         // the wearer already ended.
@@ -1524,6 +1572,7 @@ extension WatchSessionManager: WCSessionDelegate {
             self.isReachable = reachable
             // First: anything the wearer did before the session was usable.
             self.flushDeferredTransfers()
+            self.flushRunOutbox()
             // Before asking the phone for anything: whatever it last sent is
             // already available locally, and unlike `requestContext()` this
             // works with the phone nowhere in sight.
