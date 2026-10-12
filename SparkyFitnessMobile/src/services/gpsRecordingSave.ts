@@ -99,13 +99,17 @@ export interface SavedRecording {
  * the machine (`indoorDistanceKm`, null to leave it out), and there is no
  * track to send. `indoorEstimate` is the step-based distance it was prefilled
  * with: a distance the person changed teaches the app their stride.
+ * `acceptedIndoorEstimate` means they left that prefilled distance as shown.
+ * Learning then uses the raw estimate, not the value rounded for the field,
+ * which can sit more than 1% away on a short session.
  */
 export async function saveRecordedActivity(
   session: RecordingSession,
   points: readonly RecordedPoint[],
   distanceUnit: 'km' | 'miles',
   indoorDistanceKm: number | null = null,
-  indoorEstimate: IndoorDistanceEstimate | null = null
+  indoorEstimate: IndoorDistanceEstimate | null = null,
+  acceptedIndoorEstimate = false
 ): Promise<SavedRecording> {
   const indoor = session.indoor === true;
   const started = new Date(session.startedAt);
@@ -143,7 +147,9 @@ export async function saveRecordedActivity(
         await learnFromIndoorEntry(
           session.activity,
           indoorEstimate,
-          indoorDistanceKm
+          acceptedIndoorEstimate && indoorEstimate
+            ? indoorEstimate.distanceKm
+            : indoorDistanceKm
         );
       } else if (session.finishedAt != null) {
         await learnFromOutdoorRecording(
@@ -155,6 +161,7 @@ export async function saveRecordedActivity(
             ...(session.stepCounterAtStart != null && {
               stepCounterAtStart: session.stepCounterAtStart,
             }),
+            ...(session.hadPause === true && { paused: true }),
           },
           (distanceKm ?? 0) * METERS_PER_KM
         );

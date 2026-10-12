@@ -365,6 +365,10 @@ export const attachExerciseEntryWatchTelemetryRequestSchema = z
 export const createExerciseEntryRequestSchema = z
   .object({
     exercise_id: z.string().uuid(),
+    // Display name for this entry. Indoor recordings log "Indoor Walking"
+    // against the Walking exercise. Omitted names still snapshot the library
+    // exercise.
+    exercise_name: z.string().optional(),
     duration_minutes: z.coerce.number().min(0).default(0),
     calories_burned: z.coerce.number().min(0).default(0),
     entry_date: dateStringSchema,

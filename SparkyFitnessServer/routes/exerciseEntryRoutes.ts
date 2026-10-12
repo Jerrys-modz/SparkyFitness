@@ -308,6 +308,7 @@ router.post(
       }
       const {
         exercise_id,
+        exercise_name,
         duration_minutes,
         calories_burned,
         entry_date,
@@ -376,6 +377,7 @@ router.post(
         req.originalUserId || req.userId,
         {
           exercise_id,
+          exercise_name,
           duration_minutes,
           calories_burned,
           entry_date,

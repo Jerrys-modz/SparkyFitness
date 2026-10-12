@@ -408,7 +408,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
         points,
         distanceUnit,
         session.indoor ? indoorDistanceKm : null,
-        session.indoor ? indoorEstimate : null
+        session.indoor ? indoorEstimate : null,
+        session.indoor && indoorDistanceText === null
       );
       await discardRecording();
       invalidateExerciseCache(queryClient, saved.entryDate);
@@ -434,6 +435,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   }, [
     distanceUnit,
     indoorDistanceKm,
+    indoorDistanceText,
     indoorEstimate,
     navigation,
     points,

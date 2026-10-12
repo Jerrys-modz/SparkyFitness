@@ -19,6 +19,11 @@ export interface StepWindow {
    * which queries the window instead.
    */
   stepCounterAtStart?: number;
+  /**
+   * The session paused. Steps across the whole window, scaled by the moving
+   * share, do not match a GPS distance that already dropped the pause.
+   */
+  paused?: boolean;
 }
 
 export interface IndoorDistanceEstimate {
@@ -99,6 +104,7 @@ export async function learnFromOutdoorRecording(
   window: StepWindow,
   distanceMeters: number
 ): Promise<void> {
+  if (window.paused === true) return;
   const steps = await activeSteps(window, false);
   if (steps == null || !isStepActivity(window.activity)) return;
   await learnStride(window.activity, steps, distanceMeters);

@@ -263,10 +263,30 @@ describe('finishing and discarding', () => {
     const session = await storedSession();
     expect(session?.status).toBe('finished');
     expect(session?.finishedAt).not.toBeNull();
+    expect(session?.hadPause).toBeUndefined();
     const raw = await AsyncStorage.getItem(
       '@SparkyFitness/gpsRecording/chunk/0'
     );
     expect(JSON.parse(raw as string)).toHaveLength(2);
+  });
+
+  it('remembers a pause that ended the recording even though it is not added to pausedMs', async () => {
+    await startRecording({ activity: 'walk', notification });
+    await pauseRecording();
+    await finishRecording();
+
+    const stored = await storedSession();
+    expect(stored?.pausedMs).toBe(0);
+    expect(stored?.hadPause).toBe(true);
+  });
+
+  it('remembers a pause that was resumed before the finish', async () => {
+    await startRecording({ activity: 'walk', notification });
+    await pauseRecording();
+    await resumeRecording(notification);
+    await finishRecording();
+
+    expect((await storedSession())?.hadPause).toBe(true);
   });
 
   it('remembers the saved entry id so a retry does not duplicate it', async () => {
@@ -631,6 +651,30 @@ describe('voice cues', () => {
     await pauseRecording();
     await resumeRecording(notification);
     expect(spoken()).toEqual(['Paused', 'Resumed']);
+  });
+
+  it('does not announce a zero GPS distance when an indoor recording finishes', async () => {
+    await startRecording({
+      activity: 'run',
+      indoor: true,
+      audioCues: 'km',
+      notification,
+    });
+    (speakRecordingCue as jest.Mock).mockClear();
+
+    await finishRecording();
+
+    expect(speakRecordingCue).not.toHaveBeenCalled();
+  });
+
+  it('announces the distance when an outdoor recording finishes', async () => {
+    await startRecording({ activity: 'run', audioCues: 'km', notification });
+    await ingestFixes([stepNorth(0, 0), stepNorth(10, 20)]);
+    (speakRecordingCue as jest.Mock).mockClear();
+
+    await finishRecording();
+
+    expect(spoken()[0]).toMatch(/^Recording finished\./);
   });
 });
 

@@ -75,6 +75,12 @@ export interface RecordingSession {
   pausedAt: number | null;
   /** Total time spent paused before the current pause, in ms. */
   pausedMs: number;
+  /**
+   * Set when the session paused at least once, including a finish while
+   * paused. The final pause is not added to `pausedMs`, so that field alone
+   * cannot say whether a finished session ever stopped.
+   */
+  hadPause?: boolean;
   /** Current stretch; goes up on every resume. */
   seg: number;
   /** Whether the recording pauses itself when the person stops moving. */
@@ -290,6 +296,7 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
             status: 'paused',
             pausedAt: pauseAt,
             autoPaused: true,
+            hadPause: true,
           };
           sessionChanged = true;
           addLog('[GPS Recording] Auto-paused', 'INFO');
@@ -627,6 +634,7 @@ export function pauseRecording(): Promise<void> {
       status: 'paused',
       pausedAt: Date.now(),
       autoPaused: false,
+      hadPause: true,
     };
     autoPauseState = INITIAL_AUTO_PAUSE_STATE;
     await persistSession();
@@ -754,6 +762,12 @@ export function finishRecording(): Promise<void> {
     const now = Date.now();
     // A paused finish ends the clock at `pausedAt`, so the final pause is
     // already excluded: adding it to `pausedMs` would remove it twice.
+    // `hadPause` still has to remember it. A stride learned from GPS would
+    // otherwise treat steps that never happened during the pause as movement.
+    const hadPause =
+      session.hadPause === true ||
+      session.status === 'paused' ||
+      session.pausedMs > 0;
     const pausedMs = session.pausedMs;
     session = {
       ...session,
@@ -762,11 +776,14 @@ export function finishRecording(): Promise<void> {
       pausedAt: null,
       autoPaused: false,
       pausedMs,
+      ...(hadPause && { hadPause: true }),
     };
     await persistSession();
     await stopUpdates();
     publish();
-    if (session.audioCues) {
+    // An indoor session has no GPS distance yet. Announcing it would say zero
+    // before the person enters what the machine showed.
+    if (session.audioCues && !session.indoor) {
       const summary = summarizeRecording(points);
       speakRecordingCue(
         finishCue(i18n.t.bind(i18n), {

@@ -141,4 +141,11 @@ describe('learnFromOutdoorRecording', () => {
 
     expect(mockedLearn).not.toHaveBeenCalled();
   });
+
+  it('learns nothing from a session that paused', async () => {
+    await learnFromOutdoorRecording(window({ paused: true }), 3200);
+
+    expect(mockedSteps).not.toHaveBeenCalled();
+    expect(mockedLearn).not.toHaveBeenCalled();
+  });
 });

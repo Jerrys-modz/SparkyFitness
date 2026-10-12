@@ -277,6 +277,35 @@ describe('learning a stride while saving', () => {
     expect(mockedLearnOutdoor).not.toHaveBeenCalled();
   });
 
+  it('teaches from the raw estimate when the prefilled distance was left as shown', async () => {
+    const shown = { steps: 3900, distanceKm: 3.126, calibrated: false };
+
+    await saveRecordedActivity(
+      { ...session, indoor: true, activity: 'walk' },
+      [],
+      'km',
+      3.12,
+      shown,
+      true
+    );
+
+    expect(mockedLearnIndoor).toHaveBeenCalledWith('walk', shown, 3.126);
+    expect(mockedCreateEntry.mock.calls[0][0].distance).toBe(3.12);
+  });
+
+  it('does not learn a stride from a recording that paused', async () => {
+    await saveRecordedActivity(
+      { ...session, activity: 'run', hadPause: true },
+      points,
+      'km'
+    );
+
+    expect(mockedLearnOutdoor).toHaveBeenCalledWith(
+      expect.objectContaining({ paused: true }),
+      expect.closeTo(2500, -1)
+    );
+  });
+
   it('teaches the app from the GPS distance of an outdoor recording', async () => {
     await saveRecordedActivity({ ...session, activity: 'run' }, points, 'km');
 
