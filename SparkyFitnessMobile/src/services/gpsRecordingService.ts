@@ -798,6 +798,11 @@ export function resumeRecording(
  * so turning it back on never acts on stillness from before. Turning it off
  * while it holds the session paused resumes the session, since nothing else
  * would. An indoor session has no fixes to judge by and stays off.
+ *
+ * The running location task is started again with the distance filter that
+ * goes with the new setting: with the 2 m filter left on, a person standing
+ * still gets no fixes and auto-pause would never trigger. This is only called
+ * from the Record screen, so the app is in the foreground and may do that.
  */
 export async function setRecordingAutoPause(
   enabled: boolean,
@@ -813,6 +818,19 @@ export async function setRecordingAutoPause(
     autoPauseState = INITIAL_AUTO_PAUSE_STATE;
     await persistSession();
     publish();
+    if (!session.indoor && (await updatesRunning())) {
+      try {
+        await startUpdates(notification, enabled);
+      } catch (error) {
+        // The setting still holds; auto-pause only misses a stop that
+        // brings no fixes until the task is next started.
+        const message = error instanceof Error ? error.message : String(error);
+        addLog(
+          `[GPS Recording] Could not change the distance filter: ${message}`,
+          'WARNING'
+        );
+      }
+    }
     return held === true;
   });
   if (heldByIt) await resumeRecording(notification);

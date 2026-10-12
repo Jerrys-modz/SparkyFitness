@@ -632,6 +632,38 @@ describe('auto-pause', () => {
     await startRecording({ activity: 'run', indoor: true, notification });
     await setRecordingAutoPause(true, notification);
     expect((await storedSession())?.autoPause).toBe(false);
+    expect(mockedLocation.startLocationUpdatesAsync).not.toHaveBeenCalled();
+  });
+
+  it('switches the distance filter with it mid-recording', async () => {
+    await startRecording({ activity: 'run', notification });
+    expect(mockedLocation.startLocationUpdatesAsync).toHaveBeenLastCalledWith(
+      GPS_RECORDING_TASK_NAME,
+      expect.objectContaining({ distanceInterval: 2 })
+    );
+
+    // On: fixes must keep coming while the person stands still.
+    await setRecordingAutoPause(true, notification);
+    expect(mockedLocation.startLocationUpdatesAsync).toHaveBeenLastCalledWith(
+      GPS_RECORDING_TASK_NAME,
+      expect.objectContaining({ distanceInterval: 0 })
+    );
+
+    await setRecordingAutoPause(false, notification);
+    expect(mockedLocation.startLocationUpdatesAsync).toHaveBeenLastCalledWith(
+      GPS_RECORDING_TASK_NAME,
+      expect.objectContaining({ distanceInterval: 2 })
+    );
+    expect(mockedLocation.startLocationUpdatesAsync).toHaveBeenCalledTimes(3);
+  });
+
+  it('keeps the setting when the task cannot be restarted', async () => {
+    await startRecording({ activity: 'run', notification });
+    mockedLocation.startLocationUpdatesAsync.mockRejectedValueOnce(
+      new Error('not allowed')
+    );
+    await setRecordingAutoPause(true, notification);
+    expect((await storedSession())?.autoPause).toBe(true);
   });
 
   it('lets the person resume an auto-pause by hand', async () => {
