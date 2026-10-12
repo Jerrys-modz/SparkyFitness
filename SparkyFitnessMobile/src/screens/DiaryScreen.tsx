@@ -53,6 +53,7 @@ import {
 } from '../hooks';
 import { useWorkoutPresets } from '../hooks/useWorkoutPresets';
 import { getWorkoutPresetById } from '../services/api/workoutPresetsApi';
+import RunProgramBanner from '../components/recording/RunProgramBanner';
 import { useActiveWorkoutPlans } from '../hooks/useActiveWorkoutPlan';
 import { useStartLiveWorkout } from '../hooks/useStartLiveWorkout';
 import {
@@ -666,6 +667,17 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
               distanceUnit={distanceUnit}
               onAddExercise={() =>
                 addSheetRef.current?.present({ initialMenu: 'exercise' })
+              }
+              programBanner={
+                <RunProgramBanner
+                  date={selectedDate}
+                  exerciseEntries={summary.exerciseEntries}
+                  onStart={() =>
+                    navigation.navigate('RecordActivity', {
+                      programWorkout: true,
+                    })
+                  }
+                />
               }
               onPressPlanAssignment={handleStartPlanAssignment}
               onPressWorkout={(session) => {
