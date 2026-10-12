@@ -34,6 +34,7 @@ interface AddSheetProps {
   onAddSymptoms?: () => void;
   onAddMood?: () => void;
   onAddMindfulness?: () => void;
+  onRecordActivity?: () => void;
   onOpenCycle?: () => void;
   showCycleCard?: boolean;
   cycleLabel?: string;
@@ -62,6 +63,7 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       onAddSymptoms,
       onAddMood,
       onAddMindfulness,
+      onRecordActivity,
       onOpenCycle,
       showCycleCard,
       cycleLabel,
@@ -357,6 +359,20 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
                   onLogWorkout
                 )}
               </View>
+              {onRecordActivity && (
+                <View className="flex-row mt-3">
+                  {renderExerciseOption(
+                    t('addSheet.recordActivity', {
+                      defaultValue: 'Record Activity',
+                    }),
+                    t('addSheet.recordActivityHint', {
+                      defaultValue: 'Track a walk, run or ride with GPS',
+                    }),
+                    'location',
+                    onRecordActivity
+                  )}
+                </View>
+              )}
             </>
           ) : (
             <>

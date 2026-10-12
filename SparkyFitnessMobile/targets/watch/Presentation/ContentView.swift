@@ -9,6 +9,7 @@ struct ContentView: View {
     @EnvironmentObject private var store: CheckInStore
     @EnvironmentObject private var session: WatchSessionManager
     @EnvironmentObject private var workout: WorkoutSessionStore
+    @EnvironmentObject private var recording: RecordingStore
 
     /// Watched so the app can notice a day has ended while it was away. The
     /// watch app commonly stays resident overnight, in which case nothing
@@ -25,7 +26,10 @@ struct ContentView: View {
 
     /// The pages in swipe order, as the phone last arranged them.
     private var pages: [WatchPage] {
-        store.context.visiblePages(workoutActive: workout.isActive)
+        let arranged = store.context.visiblePages(workoutActive: workout.isActive)
+        // The phone's GPS recording goes first while it runs, whatever the
+        // wearer arranged: it is the thing they are doing right now.
+        return recording.isActive ? [.recording] + arranged : arranged
     }
 
     var body: some View {
@@ -110,6 +114,11 @@ struct ContentView: View {
         .onChange(of: workout.plan?.sessionId) { _, sessionId in
             if sessionId != nil { page = .workout }
         }
+        // A recording that starts (or is picked up after the app was away)
+        // opens on its page, once per recording; swiping away is respected.
+        .onChange(of: recording.state?.sessionId) { _, sessionId in
+            if sessionId != nil { page = .recording }
+        }
         .onOpenURL { url in
             guard let link = WatchDeepLink(url: url),
                   let requested = shown(destination(for: link))
@@ -159,6 +168,8 @@ struct ContentView: View {
                 .environment(\.workoutPageActive, selectedPage == .workout)
         case .nowPlaying:
             NowPlayingPage()
+        case .recording:
+            RecordingView()
         }
     }
 
@@ -182,6 +193,7 @@ struct ContentView: View {
     /// page in the wearer's order, so the page they put first is the one the
     /// app opens on.
     private var initialPage: WatchPage {
+        if recording.isActive { return .recording }
         if workout.isActive { return .workout }
         return pages.first ?? .goals
     }
