@@ -84,6 +84,16 @@ struct WatchRunView: View {
 
                 Button {
                     Haptics.tap()
+                    run.lap()
+                } label: {
+                    Image(systemName: "flag.fill")
+                }
+                .tint(.blue)
+                .disabled(run.phase != .running)
+                .accessibilityLabel(run.lapCount > 0 ? "Lap, \(run.lapCount) so far" : "Lap")
+
+                Button {
+                    Haptics.tap()
                     run.finish()
                 } label: {
                     Image(systemName: "stop.fill")
