@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/ui/Button';
+import FormInput from '../components/FormInput';
 import Icon from '../components/Icon';
 import RouteMap from '../components/exerciseStats/RouteMap';
 import { SplitRow, Stat } from '../components/recording/SplitRow';
@@ -13,14 +14,18 @@ import {
   suggestFromEffort,
   type EffortSuggestion,
 } from '@workspace/shared';
+import { setExerciseEntryDistance } from '../services/api/exerciseApi';
 import {
   rateProgramWorkout,
   setProgramPosition,
 } from '../services/runProgramService';
+import { invalidateExerciseCache } from '../hooks/invalidateExerciseCache';
+import { queryClient } from '../hooks/queryClient';
 import { usePersonalRecords } from '../hooks/usePersonalRecords';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { formatLocalizedNumber } from '../localization';
 import { formatDayLabel } from '../utils/dayLabel';
+import { parseDecimalInput } from '../utils/numericInput';
 import { distanceStandardLabel, recordsHeldBy } from '../utils/personalRecords';
 import {
   formatClock,
@@ -67,6 +72,7 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
     : [];
 
   const done = () => navigation.goBack();
+
   const [rating, setRating] = useState<number | null>(null);
   const [suggestion, setSuggestion] = useState<EffortSuggestion | null>(null);
   const [moved, setMoved] = useState<'repeat' | 'skip' | null>(null);
@@ -76,6 +82,43 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
       text1: message,
       text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
     });
+
+  // A treadmill run's distance can be corrected to what the machine showed.
+  // The laps are scaled by the same factor, as the server does.
+  const [distanceMeters, setDistanceMeters] = useState(summary.distanceMeters);
+  const [distanceText, setDistanceText] = useState('');
+  const [savingDistance, setSavingDistance] = useState(false);
+  const [distanceSaved, setDistanceSaved] = useState(false);
+  const distanceScale =
+    summary.distanceMeters > 0 ? distanceMeters / summary.distanceMeters : 1;
+  const saveDistance = async () => {
+    const entered = parseDecimalInput(distanceText);
+    const km = miles ? (entered * METERS_PER_MILE) / METERS_PER_KM : entered;
+    if (!summary.entryId || !(km > 0) || km > 1000) {
+      showFailure(
+        t('runSummary.distanceInvalid', {
+          defaultValue: 'Enter the distance from the machine.',
+        })
+      );
+      return;
+    }
+    setSavingDistance(true);
+    try {
+      await setExerciseEntryDistance(summary.entryId, km);
+      setDistanceMeters(km * METERS_PER_KM);
+      setDistanceSaved(true);
+      invalidateExerciseCache(queryClient, summary.entryDate);
+      void queryClient.invalidateQueries({ queryKey: ['personalRecords'] });
+    } catch {
+      showFailure(
+        t('runSummary.distanceFailed', {
+          defaultValue: 'Could not save the distance.',
+        })
+      );
+    } finally {
+      setSavingDistance(false);
+    }
+  };
   // Saves the rating, then reads what the last two say. A failure is shown,
   // but the buttons below still work off this rating alone.
   const rate = async (value: number) => {
@@ -144,7 +187,7 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
         : t('runSummary.runSaved', { defaultValue: 'Run saved' });
 
   const avgPace = paceSecondsPerUnit(
-    summary.distanceMeters,
+    distanceMeters,
     summary.activeSeconds,
     unitMeters
   );
@@ -152,7 +195,9 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
     ? summary.elevationGainMeters * FEET_PER_METER
     : summary.elevationGainMeters;
   // Marked laps replace the per-unit splits, as they do in the diary entry.
-  const rows = summary.laps.length > 0 ? summary.laps : summary.splits;
+  const rows = (summary.laps.length > 0 ? summary.laps : summary.splits).map(
+    (row) => ({ ...row, distanceMeters: row.distanceMeters * distanceScale })
+  );
   const usesLaps = summary.laps.length > 0;
   const bars = splitBars(rows, unitMeters);
   const fastestLabel = t('recordActivity.fastest', { defaultValue: 'Fastest' });
@@ -182,7 +227,7 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
         <View className="flex-row mb-3">
           <Stat
             label={t('recordActivity.distance', { defaultValue: 'Distance' })}
-            value={number(summary.distanceMeters / unitMeters)}
+            value={number(distanceMeters / unitMeters)}
             unit={unitLabel}
           />
           <Stat
@@ -219,6 +264,47 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
                 unit={t('recordActivity.unitBpm', { defaultValue: 'bpm' })}
               />
             ) : null}
+          </View>
+        ) : null}
+
+        {summary.editableDistance && summary.entryId ? (
+          <View className="bg-surface rounded-xl p-4 mb-4">
+            <Text className="text-text-primary text-base font-bold">
+              {t('runSummary.treadmillDistance', {
+                defaultValue: 'Treadmill distance',
+              })}
+            </Text>
+            <Text className="text-text-secondary text-sm mt-1">
+              {distanceSaved
+                ? t('runSummary.distanceUpdated', {
+                    defaultValue: 'Distance updated.',
+                  })
+                : t('runSummary.treadmillHint', {
+                    defaultValue:
+                      'The watch estimated this distance. Enter what the machine showed to correct it.',
+                  })}
+            </Text>
+            <View className="flex-row items-center mt-3" style={{ gap: 8 }}>
+              <FormInput
+                className="flex-1 bg-raised rounded-lg px-3 text-text-primary"
+                value={distanceText}
+                onChangeText={setDistanceText}
+                keyboardType="decimal-pad"
+                placeholder={number(distanceMeters / unitMeters)}
+                accessibilityLabel={t('runSummary.treadmillDistanceA11y', {
+                  defaultValue: 'Distance from the treadmill in {{unit}}',
+                  unit: unitLabel,
+                })}
+              />
+              <Text className="text-text-secondary text-base">{unitLabel}</Text>
+              <Button
+                variant="secondary"
+                disabled={savingDistance || distanceText.trim() === ''}
+                onPress={() => void saveDistance()}
+              >
+                {t('runSummary.saveDistance', { defaultValue: 'Update' })}
+              </Button>
+            </View>
           </View>
         ) : null}
 

@@ -739,6 +739,17 @@ export const attachExerciseEntryLapsRequestSchema = z
 export type ExerciseEntrySetRequest = z.infer<
   typeof exerciseEntrySetRequestSchema
 >;
+// Corrects the distance of an entry that has no GPS track (a treadmill run
+// where the belt's display is more accurate than the watch's estimate).
+export const setExerciseEntryDistanceRequestSchema = z
+  .object({
+    distance_km: z.number().positive().max(1000),
+  })
+  .strict();
+export type SetExerciseEntryDistanceRequest = z.infer<
+  typeof setExerciseEntryDistanceRequestSchema
+>;
+
 export type AttachExerciseEntryLapsRequest = z.infer<
   typeof attachExerciseEntryLapsRequestSchema
 >;

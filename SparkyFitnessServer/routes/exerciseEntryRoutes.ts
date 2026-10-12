@@ -24,6 +24,7 @@ import { fileURLToPath } from 'url';
 import {
   attachExerciseEntryGpsTrackRequestSchema,
   attachExerciseEntryLapsRequestSchema,
+  setExerciseEntryDistanceRequestSchema,
   isEntryTimeString,
 } from '@workspace/shared';
 const __filename = fileURLToPath(import.meta.url);
@@ -1101,6 +1102,77 @@ router.post('/:id/laps', authenticate, demoGuard, async (req, res, next) => {
     next(error);
   }
 });
+/**
+ * @swagger
+ * /exercise-entries/{id}/distance:
+ *   post:
+ *     summary: Set the distance of an entry that has no GPS track
+ *     tags: [Fitness & Workouts]
+ *     description: >
+ *       Corrects the distance of a treadmill run to what the machine showed.
+ *       Only the distance changes (the entry, its set and any laps, which are
+ *       scaled to match); heart rate and measured energy are kept. An entry
+ *       with a GPS track gets its distance from the route and is refused.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [distance_km]
+ *             properties:
+ *               distance_km: { type: number, exclusiveMinimum: 0, maximum: 1000 }
+ *     responses:
+ *       204:
+ *         description: Distance updated.
+ *       400:
+ *         description: Invalid request body or exercise entry ID.
+ *       404:
+ *         description: Exercise entry not found.
+ *       409:
+ *         description: The entry has a GPS track, which provides its distance.
+ */
+router.post(
+  '/:id/distance',
+  authenticate,
+  demoGuard,
+  async (req, res, next) => {
+    const { id } = req.params;
+    if (!id || typeof id !== 'string' || !isValidUuid(id)) {
+      return res.status(400).json({
+        error: 'Exercise Entry ID is required and must be a valid UUID.',
+      });
+    }
+    const parsed = setExerciseEntryDistanceRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.message });
+    }
+    try {
+      await exerciseEntryService.setExerciseEntryDistance(
+        req.userId,
+        req.originalUserId || req.userId,
+        id,
+        parsed.data
+      );
+      res.status(204).send();
+    } catch (error) {
+      const status = (error as { status?: number }).status;
+      const message = error instanceof Error ? error.message : '';
+      if (status === 404 || message.startsWith('Exercise entry not found')) {
+        return res.status(404).json({ error: message });
+      }
+      if (status === 400 || status === 409) {
+        return res.status(status).json({ error: message });
+      }
+      next(error);
+    }
+  }
+);
 /**
  * @swagger
  * /exercise-entries/progress/{exerciseId}:

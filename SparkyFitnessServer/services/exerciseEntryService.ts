@@ -15,6 +15,7 @@ import {
   type AttachExerciseEntryGpsTrackRequest,
   type AttachExerciseEntryLapsRequest,
   type HeartRateSampleRequest,
+  type SetExerciseEntryDistanceRequest,
 } from '@workspace/shared';
 import { getClient } from '../db/poolManager.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
@@ -633,15 +634,91 @@ async function attachLapsToExerciseEntry(
   }
 }
 
+/**
+ * Sets the distance of an entry that has no GPS track (a treadmill run) to
+ * what the person read off the machine. Nothing else about the entry changes,
+ * so the measured heart rate and energy stay. Its set distance follows, and
+ * any laps are scaled by the same factor so they still add up to the entry.
+ */
+async function setExerciseEntryDistance(
+  userId: string,
+  actingUserId: string,
+  exerciseEntryId: string,
+  body: SetExerciseEntryDistanceRequest
+): Promise<void> {
+  const ownerId = await exerciseEntryRepository.getExerciseEntryOwnerId(
+    exerciseEntryId,
+    userId
+  );
+  const entry =
+    ownerId === userId
+      ? await exerciseEntryRepository.getExerciseEntryById(
+          exerciseEntryId,
+          userId
+        )
+      : null;
+  if (!entry) {
+    const error = new Error('Exercise entry not found.');
+    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+    error.status = 404;
+    throw error;
+  }
+  const client = await getClient(userId, actingUserId);
+  try {
+    await client.query('BEGIN');
+    // A route gives the distance; overriding it would leave the track, the
+    // splits and the entry disagreeing.
+    const track = (await client.query(
+      'SELECT 1 FROM exercise_entry_gps_points WHERE exercise_entry_id = $1 LIMIT 1',
+      [exerciseEntryId]
+    )) as { rows: unknown[] };
+    if (track.rows.length > 0) {
+      const error = new Error(
+        'This entry has a GPS track, which provides its distance.'
+      );
+      // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+      error.status = 409;
+      throw error;
+    }
+    const previousKm = Number(entry.distance) || 0;
+    await client.query(
+      'UPDATE exercise_entries SET distance = $2, updated_at = NOW() WHERE id = $1',
+      [exerciseEntryId, body.distance_km]
+    );
+    await client.query(
+      'UPDATE exercise_entry_sets SET distance = $2 WHERE exercise_entry_id = $1 AND distance IS NOT NULL',
+      [exerciseEntryId, body.distance_km]
+    );
+    if (previousKm > 0) {
+      await client.query(
+        `UPDATE exercise_entry_laps SET
+           distance_meters = ROUND(distance_meters * $2::numeric, 2),
+           avg_speed_mps = CASE WHEN duration_seconds > 0
+             THEN ROUND(distance_meters * $2::numeric / duration_seconds, 2) END
+         WHERE exercise_entry_id = $1 AND distance_meters IS NOT NULL`,
+        [exerciseEntryId, body.distance_km / previousKm]
+      );
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export {
   importExerciseEntriesFromCsv,
   attachWatchTelemetryToExerciseEntry,
   attachGpsTrackToExerciseEntry,
   attachLapsToExerciseEntry,
+  setExerciseEntryDistance,
 };
 export default {
   importExerciseEntriesFromCsv,
   attachWatchTelemetryToExerciseEntry,
   attachGpsTrackToExerciseEntry,
   attachLapsToExerciseEntry,
+  setExerciseEntryDistance,
 };
