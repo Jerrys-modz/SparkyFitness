@@ -34,6 +34,8 @@ export interface RunSummaryParams {
   splits: RecordedSplit[];
   /** The laps the person marked, when any. */
   laps: RecordedSplit[];
+  /** The saved diary entry, so the screen can look up the records it set. */
+  entryId?: string | null;
   /** For a program workout: where the person is now and what comes next. */
   program: {
     nextLine: string;
@@ -53,6 +55,7 @@ export function buildRunSummary({
   lapMarks,
   avgHeartRate,
   program,
+  entryId,
 }: {
   activity: RecordingActivity;
   entryDate: string;
@@ -61,6 +64,7 @@ export function buildRunSummary({
   lapMarks: readonly number[] | undefined;
   avgHeartRate: number | null;
   program: RunSummaryParams['program'];
+  entryId?: string | null;
 }): RunSummaryParams {
   const unitMeters = distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
   const summary = summarizeRecording(points);
@@ -81,6 +85,7 @@ export function buildRunSummary({
     splits: computeSplits(points, unitMeters),
     laps: lapMarks && lapMarks.length > 0 ? computeLaps(points, lapMarks) : [],
     program,
+    entryId: entryId ?? null,
   };
 }
 

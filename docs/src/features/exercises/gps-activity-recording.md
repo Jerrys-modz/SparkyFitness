@@ -191,3 +191,9 @@ If your Apple Watch or Health Connect source records **VO2 max**, turn on VO2 ma
 - Wear OS controls and heart rate.
 
 After a program workout is saved, the summary asks how hard it was, from 1 (very easy) to 10 (all out), and keeps your answer with the program. A rating of 8 or more offers to repeat the workout, and 3 or less offers to skip the next one. Two hard or two easy workouts in a row get a note, and Sparky can see your recent ratings when you ask how your program is going. Nothing in the program changes unless you tap the button or agree to something Sparky suggests.
+
+## Personal records
+
+**Library → Personal records** lists your best efforts at 1 km, 1 mile, 5 km, 10 km, 15 km, the half marathon and the marathon, grouped by sport (running, walking, cycling and so on). Records come from your recorded and imported cardio activities, are only compared within one sport, and are the same ones the web Reports page shows.
+
+When a run you just saved set one or more of them, the summary screen shows a **New personal record** card with the distance and time, and a link to the full list. A run recorded on the watch shows it too.
