@@ -64,6 +64,7 @@ struct ContentView: View {
             session.retryPending()
             session.resendQueuedWaterTaps()
             session.resendQueuedWaterDeletes()
+            session.resendQueuedMedicationTaps()
             // Publish what the watch already knows before waiting on the
             // phone: `requestContext()` above only reaches a phone that's
             // reachable right now, and until it answers the complications
@@ -143,6 +144,8 @@ struct ContentView: View {
             GoalSummaryView()
         case .water:
             WaterIntakeView()
+        case .medications:
+            MedicationsView()
         case .fasting:
             FastingView()
         case .steps:
