@@ -181,13 +181,20 @@ async function persistChunk(index: number): Promise<void> {
 }
 
 async function clearStoredPoints(): Promise<void> {
+  await removeChunksAfter(-1);
+}
+
+/** Drops chunk files after `lastKept`. `-1` drops every chunk. */
+async function removeChunksAfter(lastKept: number): Promise<void> {
   // Chunk count cannot come from `points.length`. A failed hydrate leaves
   // that array short of what is still on disk, and the next recording would
   // then read the leftover chunks onto its own track.
   const prefix = chunkKey(0).slice(0, -1);
-  const keys = (await AsyncStorage.getAllKeys()).filter((key) =>
-    key.startsWith(prefix)
-  );
+  const keys = (await AsyncStorage.getAllKeys()).filter((key) => {
+    if (!key.startsWith(prefix)) return false;
+    const index = Number(key.slice(prefix.length));
+    return Number.isInteger(index) && index > lastKept;
+  });
   if (keys.length > 0) await AsyncStorage.multiRemove(keys);
 }
 
@@ -305,12 +312,19 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
       if (sessionChanged) publish();
       return;
     }
-    if (pointsRewritten) await clearStoredPoints();
-    const rewriteFrom = pointsRewritten ? 0 : firstTouched;
     const lastTouched =
       points.length === 0 ? -1 : Math.floor((points.length - 1) / CHUNK_SIZE);
-    for (let index = rewriteFrom; index <= lastTouched; index++) {
-      await persistChunk(index);
+    if (pointsRewritten) {
+      // Write the kept route before dropping the old tail. Clearing first
+      // would leave a killed app with the session and no track.
+      for (let index = 0; index <= lastTouched; index++) {
+        await persistChunk(index);
+      }
+      await removeChunksAfter(lastTouched);
+    } else {
+      for (let index = firstTouched; index <= lastTouched; index++) {
+        await persistChunk(index);
+      }
     }
     publish();
   });
