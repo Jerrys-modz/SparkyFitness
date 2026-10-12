@@ -242,6 +242,43 @@ describe('cardioSessionFromDiaryEntry', () => {
     expect(item!.distanceFormatted).toBeCloseTo(1.243, 2);
   });
 
+  it('carries floors climbed and elevation gain so a stair workout shows them from the diary', () => {
+    const item = cardioSessionFromDiaryEntry(
+      entry({ floors_climbed: 56, elevation_gain_meters: 181.9 }),
+      'km'
+    );
+    expect(item).toMatchObject({
+      floorsClimbed: 56,
+      elevationGainMeters: 181.9,
+    });
+  });
+
+  it('reads floors and elevation that arrive as numeric strings', () => {
+    // The diary entry is a raw database row; numeric columns come back as text.
+    const item = cardioSessionFromDiaryEntry(
+      entry({
+        floors_climbed: '56' as unknown as number,
+        elevation_gain_meters: '181.9056' as unknown as number,
+      }),
+      'km'
+    );
+    expect(item?.floorsClimbed).toBe(56);
+    expect(item?.elevationGainMeters).toBeCloseTo(181.9056, 4);
+  });
+
+  it('leaves floors and elevation null when none were measured', () => {
+    for (const overrides of [
+      {},
+      { floors_climbed: null, elevation_gain_meters: null },
+      { floors_climbed: 0, elevation_gain_meters: 0 },
+      { floors_climbed: 'n/a' as unknown as number },
+    ]) {
+      const item = cardioSessionFromDiaryEntry(entry(overrides), 'km');
+      expect(item?.floorsClimbed).toBeNull();
+      expect(item?.elevationGainMeters).toBeNull();
+    }
+  });
+
   it('leaves in-app entries on the basic screen', () => {
     for (const source of [
       'manual',

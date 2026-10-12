@@ -17,6 +17,8 @@ import type { RootStackScreenProps } from '../types/navigation';
 
 type CardioSessionScreenProps = RootStackScreenProps<'CardioSession'>;
 
+const FEET_PER_METER = 3.28084;
+
 interface Stat {
   key: string;
   label: string;
@@ -73,6 +75,45 @@ function sessionStats(
       key: 'pace',
       label: t('exerciseStatistics.cardio.pace', { defaultValue: 'Pace' }),
       value: session.formattedPace,
+    });
+  }
+  if (session.floorsClimbed != null && session.floorsClimbed > 0) {
+    const floors = Math.round(session.floorsClimbed);
+    stats.push({
+      key: 'floors',
+      label: t('exerciseStatistics.cardio.floors', {
+        defaultValue: 'Floors climbed',
+      }),
+      value: t('exerciseStatistics.cardio.floorsCount', {
+        count: floors,
+        formattedCount: formatLocalizedNumber(floors),
+        defaultValue: '{{formattedCount}} floors',
+        defaultValue_one: '{{formattedCount}} floor',
+        defaultValue_other: '{{formattedCount}} floors',
+      }),
+    });
+  }
+  if (session.elevationGainMeters != null && session.elevationGainMeters > 0) {
+    // Stored in metres; shown in feet with the miles setting, as distance is.
+    const feet = distanceUnit === 'miles';
+    const gain = feet
+      ? session.elevationGainMeters * FEET_PER_METER
+      : session.elevationGainMeters;
+    const value = formatLocalizedNumber(Math.round(gain));
+    stats.push({
+      key: 'elevation',
+      label: t('exerciseStatistics.cardio.elevationGain', {
+        defaultValue: 'Elevation gain',
+      }),
+      value: feet
+        ? t('exerciseStatistics.cardio.feet', {
+            defaultValue: '{{value}} ft',
+            value,
+          })
+        : t('exerciseStatistics.cardio.meters', {
+            defaultValue: '{{value}} m',
+            value,
+          }),
     });
   }
   if (session.avgHeartRate != null && session.avgHeartRate > 0) {
