@@ -61,6 +61,7 @@ private enum SupersetPalette {
 struct WorkoutView: View {
     @EnvironmentObject private var store: WorkoutSessionStore
     @EnvironmentObject private var run: WatchRunStore
+    @EnvironmentObject private var recording: RecordingStore
 
     var body: some View {
         Group {
@@ -78,6 +79,11 @@ struct WorkoutView: View {
                 // A walk or run recorded on the wrist alone, started from the
                 // Cardio row below.
                 WatchRunView()
+            } else if recording.isActive {
+                // A walk, run or ride the phone is recording with its GPS.
+                // It is the workout going on, so it shows here rather than on
+                // a page of its own.
+                RecordingView()
             } else if let summary = store.lastSummary {
                 WorkoutSummaryView(summary: summary)
             } else {
