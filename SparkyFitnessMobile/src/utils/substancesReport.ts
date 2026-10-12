@@ -12,6 +12,8 @@ export interface SubstanceDay {
   alcoholG: number;
   /** Whether anything at all was logged that day, so an empty day is not read as alcohol-free. */
   logged: boolean;
+  /** That day's caffeine ceiling: its goal when set, otherwise the default. */
+  limitMg: number;
 }
 
 export interface SubstanceWeek {
@@ -58,7 +60,9 @@ const num = (point: NutritionTrendPoint, key: string): number => {
   return Number.isFinite(value) ? value : 0;
 };
 
-const toDays = (points: NutritionTrendPoint[]): SubstanceDay[] =>
+const toDays = (
+  points: NutritionTrendPoint[]
+): Omit<SubstanceDay, 'limitMg'>[] =>
   points.map((point) => ({
     day: point.date,
     caffeineMg: num(point, 'caffeine_mg'),
@@ -85,21 +89,21 @@ export function buildSubstancesReport(
   previous: NutritionTrendPoint[],
   goals: (DailyGoals | null | undefined)[]
 ): SubstancesReport {
-  const days = toDays(current);
+  const days = toDays(current).map((day, index) => {
+    const goal = goals[index]?.caffeine_mg;
+    return {
+      ...day,
+      limitMg: goal != null && goal > 0 ? goal : CAFFEINE_DAILY_LIMIT_MG,
+    };
+  });
   const previousDays = toDays(previous);
 
   const caffeineDays = days.filter((d) => d.caffeineMg > 0);
   const previousCaffeine = previousDays.filter((d) => d.caffeineMg > 0);
   const drinkingDays = days.filter((d) => d.alcoholG > 0);
 
-  let daysOverLimit = 0;
-  const limits: number[] = [];
-  days.forEach((d, index) => {
-    const goal = goals[index]?.caffeine_mg;
-    const limit = goal != null && goal > 0 ? goal : CAFFEINE_DAILY_LIMIT_MG;
-    limits.push(limit);
-    if (d.caffeineMg > limit) daysOverLimit += 1;
-  });
+  const limits = days.map((d) => d.limitMg);
+  const daysOverLimit = days.filter((d) => d.caffeineMg > d.limitMg).length;
   const limitCounts = new Map<number, number>();
   for (const limit of limits) {
     limitCounts.set(limit, (limitCounts.get(limit) ?? 0) + 1);

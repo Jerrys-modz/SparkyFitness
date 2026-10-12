@@ -65,6 +65,7 @@ describe('buildSubstancesReport', () => {
     expect(mixed.caffeine.daysOverLimit).toBe(2);
     expect(mixed.caffeine.limitVaries).toBe(true);
     expect(mixed.caffeine.limitMg).toBe(400);
+    expect(mixed.days.map((day) => day.limitMg)).toEqual([400, 400, 150]);
   });
 
   it('totals alcohol and counts alcohol-free days only on days something was logged', () => {

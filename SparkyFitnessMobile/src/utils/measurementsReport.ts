@@ -88,8 +88,8 @@ export function buildMeasurementsReport(
         daysWithData.add(row.entry_date);
       }
     }
-    if (!stepsByDay.has(row.entry_date)) {
-      stepsByDay.set(row.entry_date, row.steps ?? 0);
+    if (row.steps != null && !stepsByDay.has(row.entry_date)) {
+      stepsByDay.set(row.entry_date, row.steps);
     }
   }
 

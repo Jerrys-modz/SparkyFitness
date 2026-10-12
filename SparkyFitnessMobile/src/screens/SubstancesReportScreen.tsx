@@ -348,7 +348,7 @@ const SubstancesReportScreen: React.FC<SubstancesReportScreenProps> = () => {
               date: formatTooltipDate(point.day),
             })
           }
-          goalValues={report.days.map(() => caffeine.limitMg)}
+          goalValues={report.days.map((day) => day.limitMg)}
           errorText=""
           emptyText=""
           testIDPrefix="substances-caffeine-chart"

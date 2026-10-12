@@ -51,6 +51,26 @@ describe('buildMeasurementsReport', () => {
     expect(report.metrics.weight.latest).toBe(81);
   });
 
+  it('keeps recorded steps when a newer row for that day has none', () => {
+    const report = buildMeasurementsReport(
+      [
+        row('2026-10-01', {
+          steps: 8000,
+          updated_at: '2026-10-01T08:00:00Z',
+        }),
+        row('2026-10-01', {
+          weight: 80,
+          steps: null,
+          updated_at: '2026-10-01T20:00:00Z',
+        }),
+      ],
+      '2026-10-01',
+      1
+    );
+    expect(report.steps[0].steps).toBe(8000);
+    expect(report.metrics.weight.latest).toBe(80);
+  });
+
   it('averages steps over days that recorded any', () => {
     const report = buildMeasurementsReport(
       [
