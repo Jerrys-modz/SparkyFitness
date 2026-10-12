@@ -109,8 +109,11 @@ const Card: React.FC<{ title: string; children: React.ReactNode }> = ({
   </View>
 );
 
-const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({ route }) => {
-  const { session, distanceUnit } = route.params;
+const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
+  navigation,
+  route,
+}) => {
+  const { session, distanceUnit, diaryEntry } = route.params;
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
@@ -122,6 +125,21 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({ route }) => {
     // it the route's static "Cardio Session" shows instead.
     nativeTitle: session.exerciseName,
     left: { kind: 'back' },
+    // A run or walk made in the app opens here from the diary; its editor is
+    // the activity screen, which this hands over to.
+    right: diaryEntry
+      ? {
+          kind: 'text',
+          label: t('common.edit', { defaultValue: 'Edit' }),
+          role: 'secondary',
+          onPress: () =>
+            navigation.replace('ActivityDetail', { session: diaryEntry }),
+          accessibilityLabel: t('activityDetail.accessibility.edit', {
+            defaultValue: 'Edit activity',
+          }),
+          identifier: 'cardio-session-edit',
+        }
+      : null,
   });
 
   const detail = useCardioSessionDetail(session.id, session.entryDate);

@@ -188,6 +188,8 @@ export type RootStackParamList = {
   CardioSession: {
     session: ExerciseActivityQueryItem;
     distanceUnit: 'km' | 'miles';
+    /** The diary entry this was opened from, when it can be edited in the app. */
+    diaryEntry?: IndividualSessionResponse;
   };
   FoodForm:
     | {

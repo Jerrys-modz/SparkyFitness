@@ -76,9 +76,7 @@ import type {
 } from '../types/workoutPlans';
 import { isManualSource } from '../utils/customMeasurementsForm';
 import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
-import { cardioSessionForDiaryEntry } from '../services/cardioSessionForDiaryEntry';
 import { cardioSessionFromDiaryEntry } from '../utils/cardioSession';
-import { replaceOpenedActivityDetail } from '../utils/replaceOpenedActivityDetail';
 import {
   getHistoricalMealTypeLabel,
   getMealTypeDisplayLabel,
@@ -692,47 +690,27 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                     });
                     return;
                   }
-                  const recorded = cardioSessionFromDiaryEntry(
-                    session,
-                    distanceUnit,
-                    { allowInApp: true }
-                  );
-                  if (!recorded) {
+                  // A run, walk or ride logged in the app (a GPS recording
+                  // or a watch run is saved as an in-app entry) opens the
+                  // stats screen too, with an Edit button that hands over to
+                  // the activity editor. Anything without a distance or heart
+                  // rate has nothing for that screen to show.
+                  const inApp =
+                    (session.distance ?? 0) > 0 ||
+                    session.avg_heart_rate != null
+                      ? cardioSessionFromDiaryEntry(session, distanceUnit, {
+                          allowInApp: true,
+                        })
+                      : null;
+                  if (!inApp) {
                     navigation.navigate('ActivityDetail', { session });
                     return;
                   }
-                  // A manual entry has no route flag, so the route is a
-                  // network lookup. Open the basic screen on a short bound
-                  // instead of waiting for that lookup, and replace it only
-                  // if a route arrives while this entry is still showing.
-                  const openedId = session.id;
-                  let openedBasic = false;
-                  const openBasic = () => {
-                    if (openedBasic) return;
-                    openedBasic = true;
-                    navigation.navigate('ActivityDetail', { session });
-                  };
-                  const timer = setTimeout(openBasic, 250);
-                  void cardioSessionForDiaryEntry(session, distanceUnit).then(
-                    (cardioSession) => {
-                      clearTimeout(timer);
-                      if (!cardioSession) {
-                        openBasic();
-                        return;
-                      }
-                      if (!openedBasic) {
-                        navigation.navigate('CardioSession', {
-                          session: cardioSession,
-                          distanceUnit,
-                        });
-                        return;
-                      }
-                      replaceOpenedActivityDetail(navigation, openedId, {
-                        session: cardioSession,
-                        distanceUnit,
-                      });
-                    }
-                  );
+                  navigation.navigate('CardioSession', {
+                    session: inApp,
+                    distanceUnit,
+                    diaryEntry: session,
+                  });
                 }
               }}
             />
