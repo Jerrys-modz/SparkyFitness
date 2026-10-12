@@ -729,6 +729,44 @@ describe('dispatchAiRequest — text-only structured request shapes', () => {
     expect(messages[0].content).toBe('Do the thing.');
   });
 
+  it('DeepSeek OpenAI-compatible endpoints use json_object with schema in prompt', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'openai_compatible',
+          custom_url: 'https://api.deepseek.com/v1',
+        }),
+        images: [IMG],
+      })
+    );
+    const { url, body } = captured(m);
+    expect(url).toBe('https://api.deepseek.com/v1/chat/completions');
+    expect(body.response_format).toEqual({ type: 'json_object' });
+    const content = (
+      body.messages as Array<{ content: Array<Record<string, unknown>> }>
+    )[0].content;
+    const textPart = content.find((part) => part.type === 'text') as {
+      text: string;
+    };
+    expect(textPart.text).toContain(JSON.stringify(toStrictJsonSchema(SCHEMA)));
+    expect(content.some((part) => part.type === 'image_url')).toBe(true);
+  });
+
+  it('does not treat lookalike domains as DeepSeek', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'openai_compatible',
+          custom_url: 'https://api.deepseek.com.evil.example/v1',
+        }),
+      })
+    );
+    const { body } = captured(m);
+    expect((body.response_format as { type: string }).type).toBe('json_schema');
+  });
+
   it('custom uses the user-supplied URL as-is and strict json_schema', async () => {
     const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
     await dispatchAiRequest(

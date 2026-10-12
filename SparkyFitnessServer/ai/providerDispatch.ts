@@ -510,9 +510,16 @@ function buildGoogleRequest(
 }
 
 function buildOpenAiFamilyRequest(ctx: BuildContext): BuiltRequest {
+  // DeepSeek's OpenAI-compatible endpoint supports JSON mode, not strict JSON Schema.
+  const isDeepSeek =
+    ctx.provider.service_type === 'openai_compatible' &&
+    /^https:\/\/(?:[^/]+\.)?deepseek\.com(?:[:/]|$)/i.test(
+      ctx.provider.custom_url ?? ''
+    );
   const useStrictSchema =
     ctx.jsonSchema !== undefined &&
-    STRICT_SCHEMA_PROVIDERS.has(ctx.provider.service_type);
+    STRICT_SCHEMA_PROVIDERS.has(ctx.provider.service_type) &&
+    !isDeepSeek;
   // `json_object` mode only guarantees syntactically valid JSON; the model
   // never sees the schema unless it is in the prompt, so embed it there.
   const prompt =
