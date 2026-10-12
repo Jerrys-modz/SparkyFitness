@@ -48,7 +48,10 @@ const service = {
 let saved: UserPreferences;
 const update = jest.mocked(preferencesApi.updatePreferences);
 
-function renderScreen(prefs: Partial<UserPreferences> = {}) {
+function renderScreen(
+  prefs: Partial<UserPreferences> = {},
+  cachePreferences = true
+) {
   saved = {
     voice_input_enabled: true,
     active_voice_ai_service_id: null,
@@ -57,7 +60,7 @@ function renderScreen(prefs: Partial<UserPreferences> = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
-  queryClient.setQueryData(preferencesQueryKey, saved);
+  if (cachePreferences) queryClient.setQueryData(preferencesQueryKey, saved);
   jest
     .mocked(preferencesApi.fetchPreferences)
     .mockImplementation(async () => saved);
@@ -145,6 +148,51 @@ it('saves visibility on the server without erasing the voice model', async () =>
   );
   await waitFor(() => expect(screen.queryByText('Recognition')).toBeNull());
   expect(saved.active_voice_ai_service_id).toBe('chat-model');
+});
+
+it('keeps cached settings editable after a failed background refetch', async () => {
+  const screen = renderScreen({ active_voice_ai_service_id: 'chat-model' });
+  await waitFor(() => expect(mockPicker?.value).toBe('chat-model'));
+  jest
+    .mocked(preferencesApi.fetchPreferences)
+    .mockRejectedValueOnce(new Error('Offline'));
+  await act(async () => {
+    await screen.queryClient.invalidateQueries({
+      queryKey: preferencesQueryKey,
+    });
+    // Query observers notify React on the next timer turn, after the cache changes.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  });
+  await waitFor(() =>
+    expect(screen.queryClient.getQueryState(preferencesQueryKey)?.status).toBe(
+      'error'
+    )
+  );
+  expect(screen.queryByText('Could not load voice settings.')).toBeNull();
+  expect(mockPicker?.value).toBe('chat-model');
+  fireEvent(screen.getByLabelText('Voice input'), 'valueChange', false);
+  await waitFor(() =>
+    expect(update).toHaveBeenCalledWith({ voice_input_enabled: false })
+  );
+  expect(saved.active_voice_ai_service_id).toBe('chat-model');
+});
+
+it('shows a retryable error when the initial preferences load fails', async () => {
+  jest
+    .mocked(preferencesApi.fetchPreferences)
+    .mockRejectedValueOnce(new Error('Offline'));
+  const screen = renderScreen({}, false);
+  await waitFor(() =>
+    expect(screen.getByText('Could not load voice settings.')).toBeTruthy()
+  );
+  expect(screen.queryByLabelText('Voice input')).toBeNull();
+  expect(update).not.toHaveBeenCalled();
+  fireEvent.press(screen.getByText('Retry'));
+  await waitFor(() =>
+    expect(screen.getByLabelText('Voice input')).toBeTruthy()
+  );
+  expect(screen.queryByText('Could not load voice settings.')).toBeNull();
+  expect(update).not.toHaveBeenCalled();
 });
 
 it('persists null when switching back to System', async () => {

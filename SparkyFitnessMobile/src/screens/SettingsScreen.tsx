@@ -291,6 +291,14 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
               )}
               {isConnected && (
                 <SettingsRow
+                  icon="sparkles"
+                  title={t('settings.rows.ai', { defaultValue: 'AI' })}
+                  onPress={() => navigation.navigate('AiSettings')}
+                  iconColor={catTeal}
+                />
+              )}
+              {isConnected && (
+                <SettingsRow
                   icon="dashboard-settings"
                   title={t('settings.rows.dashboard', {
                     defaultValue: 'Dashboard',
@@ -321,6 +329,16 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
                   }
                   onPress={() => navigation.navigate('CycleSettings')}
                   iconColor={catPink}
+                />
+              )}
+              {isConnected && (
+                <SettingsRow
+                  icon="timer"
+                  title={t('settings.rows.fasting', {
+                    defaultValue: 'Fasting',
+                  })}
+                  onPress={() => navigation.navigate('FastingSettings')}
+                  iconColor={catOrange}
                 />
               )}
               <SettingsRow

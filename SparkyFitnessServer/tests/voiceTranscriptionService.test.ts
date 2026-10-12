@@ -231,6 +231,42 @@ describe('transcribeVoiceAudio', () => {
     }
   );
 
+  it.each([false, true])(
+    'keeps provider failures sanitized as 502 when concurrently aborted: %s',
+    async (abort) => {
+      const controller = new AbortController();
+      fetchMock.mockImplementation(async () => {
+        if (abort) controller.abort();
+        throw new TypeError(
+          'TLS failure at https://secret.example/?key=private'
+        );
+      });
+      await expect(
+        transcribeVoiceAudio({ ...params, signal: controller.signal })
+      ).rejects.toMatchObject({
+        statusCode: 502,
+        message: 'Unable to reach the voice transcription provider.',
+      });
+    }
+  );
+
+  it.each([
+    new DOMException('Timed out', 'TimeoutError'),
+    new Error('Custom cancellation reason'),
+  ])('recognizes the actual abort reason: %s', async (reason) => {
+    const controller = new AbortController();
+    fetchMock.mockImplementation(async () => {
+      controller.abort(reason);
+      throw controller.signal.reason;
+    });
+    await expect(
+      transcribeVoiceAudio({ ...params, signal: controller.signal })
+    ).rejects.toMatchObject({
+      statusCode: 504,
+      message: 'Voice transcription was cancelled or timed out.',
+    });
+  });
+
   it('propagates cancellation to the upstream request', async () => {
     const controller = new AbortController();
     controller.abort();

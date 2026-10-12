@@ -76,10 +76,25 @@ describe('WatchSettingsScreen', () => {
       'workout',
       'goals',
       'water',
+      'medications',
       'entry',
       'trend',
+      'fasting',
+      'steps',
     ]);
     expect(orderedRowKeys()).toHaveLength(WATCH_PAGE_KEYS.length);
+  });
+
+  test('double-tap to log a set is on by default and can be turned off', () => {
+    renderScreen();
+
+    expect(useAppPreferencesStore.getState().watchDoubleTapEnabled).toBe(true);
+    const row = screen.getByText('Double-tap to log a set');
+    expect(row).toBeTruthy();
+
+    const toggle = screen.getByTestId('watch-double-tap-switch');
+    fireEvent(toggle, 'valueChange', false);
+    expect(useAppPreferencesStore.getState().watchDoubleTapEnabled).toBe(false);
   });
 
   test('toggling a page hides and shows it', () => {
@@ -107,15 +122,26 @@ describe('WatchSettingsScreen', () => {
     expect(useAppPreferencesStore.getState().watchPageOrder).toEqual([
       'water',
       'goals',
+      'medications',
       'entry',
       'trend',
       'workout',
+      'fasting',
+      'steps',
     ]);
   });
 
   test('the last page still shown cannot be turned off', () => {
     useAppPreferencesStore.setState({
-      hiddenWatchPages: ['goals', 'water', 'entry', 'trend'],
+      hiddenWatchPages: [
+        'goals',
+        'water',
+        'medications',
+        'entry',
+        'trend',
+        'fasting',
+        'steps',
+      ],
     });
 
     renderScreen();

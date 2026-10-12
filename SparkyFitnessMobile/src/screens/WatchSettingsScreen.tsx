@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import { ReorderSwitchList } from '../components/ReorderSwitchList';
 import SegmentedControl from '../components/SegmentedControl';
+import SettingsRow from '../components/SettingsRow';
+import Switch from '../components/ui/Switch';
 import { getNutrientLabel } from '../constants/nutrients';
 import {
   WATCH_PAGE_KEYS,
@@ -40,6 +42,16 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
 
   const watchPageOrder = useAppPreferencesStore((s) => s.watchPageOrder);
   const hiddenWatchPages = useAppPreferencesStore((s) => s.hiddenWatchPages);
+  const watchDoubleTapEnabled = useAppPreferencesStore(
+    (s) => s.watchDoubleTapEnabled
+  );
+  const watchRpeEnabled = useAppPreferencesStore((s) => s.watchRpeEnabled);
+  const setWatchRpeEnabled = useAppPreferencesStore(
+    (s) => s.setWatchRpeEnabled
+  );
+  const setWatchDoubleTapEnabled = useAppPreferencesStore(
+    (s) => s.setWatchDoubleTapEnabled
+  );
   const setWatchPageOrder = useAppPreferencesStore((s) => s.setWatchPageOrder);
   const setWatchPageHidden = useAppPreferencesStore(
     (s) => s.setWatchPageHidden
@@ -109,6 +121,44 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
         }
       >
         <Text className="text-text-primary text-base font-semibold mb-1">
+          {t('watchSettings.gesturesTitle', { defaultValue: 'Gestures' })}
+        </Text>
+        <SettingsRow
+          title={t('watchSettings.doubleTapTitle', {
+            defaultValue: 'Double-tap to log a set',
+          })}
+          subtitle={t('watchSettings.doubleTapSubtitle', {
+            defaultValue:
+              'Double-tap on a supported watch (Series 9, Ultra 2 or later, watchOS 11) logs the set on screen during a workout.',
+          })}
+          subtitleNumberOfLines={0}
+          rightAccessory={
+            <Switch
+              testID="watch-double-tap-switch"
+              value={watchDoubleTapEnabled}
+              onValueChange={setWatchDoubleTapEnabled}
+            />
+          }
+        />
+        <SettingsRow
+          title={t('watchSettings.rpeTitle', {
+            defaultValue: 'Ask for effort (RPE) after each set',
+          })}
+          subtitle={t('watchSettings.rpeSubtitle', {
+            defaultValue:
+              'After you log a set on the watch, turn the Digital Crown to pick how hard it was, from 1 to 10, then tap Save, or tap Skip.',
+          })}
+          subtitleNumberOfLines={0}
+          rightAccessory={
+            <Switch
+              testID="watch-rpe-switch"
+              value={watchRpeEnabled}
+              onValueChange={setWatchRpeEnabled}
+            />
+          }
+        />
+
+        <Text className="text-text-primary text-base font-semibold mt-6 mb-1">
           {t('watchSettings.setInputTitle', { defaultValue: 'Set input' })}
         </Text>
         <Text className="text-text-secondary text-sm mb-4">

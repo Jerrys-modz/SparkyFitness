@@ -180,7 +180,11 @@ export async function transcribeVoiceAudio(params: {
   } catch (error) {
     const blocked = getOutboundUrlBlockedError(error);
     if (blocked) throw blocked;
-    if (requestSignal.aborted) {
+    if (
+      (error instanceof Error &&
+        (error.name === 'AbortError' || error.name === 'TimeoutError')) ||
+      (requestSignal.aborted && error === requestSignal.reason)
+    ) {
       throw new VoiceTranscriptionError(
         'Voice transcription was cancelled or timed out.',
         504

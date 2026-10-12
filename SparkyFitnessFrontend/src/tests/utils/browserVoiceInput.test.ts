@@ -214,6 +214,39 @@ it('stops oversized recordings without uploading', async () => {
   expect(callbacks.transcribe).not.toHaveBeenCalled();
 });
 
+it('rejects a final Stop chunk that takes the recording over the size limit', async () => {
+  await engine.start('voice-service', 'en');
+  const recorder = Recorder.current;
+  const queuedStop = recorder.onstop;
+  recorder.ondataavailable?.({
+    data: new Blob([new Uint8Array(MAX_VOICE_UPLOAD_BYTES - 4)]),
+  });
+  expect(callbacks.onError).not.toHaveBeenCalled();
+  engine.stop(); // The final five-byte chunk crosses the limit.
+  await queuedStop?.(); // Even an already-queued callback must not upload.
+  expect(callbacks.onError).toHaveBeenCalledTimes(1);
+  expect(callbacks.onError).toHaveBeenCalledWith('tooLarge');
+  expect(callbacks.onPhase).toHaveBeenLastCalledWith('idle');
+  expect(stopTrack).toHaveBeenCalled();
+  expect(callbacks.transcribe).not.toHaveBeenCalled();
+  expect(callbacks.onTranscript).not.toHaveBeenCalled();
+});
+
+it('accepts a final Stop chunk that lands exactly on the size limit', async () => {
+  await engine.start('voice-service', 'en');
+  Recorder.current.ondataavailable?.({
+    data: new Blob([new Uint8Array(MAX_VOICE_UPLOAD_BYTES - 5)]),
+  });
+  engine.stop();
+  await Promise.resolve();
+  expect(callbacks.transcribe).toHaveBeenCalledTimes(1);
+  expect(callbacks.transcribe.mock.calls[0]?.[0].size).toBe(
+    MAX_VOICE_UPLOAD_BYTES
+  );
+  expect(callbacks.onError).not.toHaveBeenCalled();
+  expect(callbacks.onTranscript).toHaveBeenCalledWith('Log an apple');
+});
+
 it('releases tracks when no supported recording format is available', async () => {
   Recorder.isTypeSupported.mockReturnValue(false);
   await engine.start('voice-service', 'en');

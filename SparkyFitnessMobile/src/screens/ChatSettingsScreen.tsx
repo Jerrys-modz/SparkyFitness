@@ -34,7 +34,7 @@ export default function ChatSettingsScreen(
   const insets = useSafeAreaInsets();
   const nativeHeader = useNativeIOSHeadersActive();
   const queryClient = useQueryClient();
-  const { preferences, isLoading, isError, refetch } = usePreferences();
+  const { preferences, isLoading, refetch } = usePreferences();
   const services = useQuery({
     queryKey: voiceServiceOptionsQueryKey,
     queryFn: fetchVoiceServiceOptions,
@@ -105,7 +105,7 @@ export default function ChatSettingsScreen(
       >
         {isLoading ? (
           <StatusView inline loading />
-        ) : isError || !preferences ? (
+        ) : !preferences ? (
           <View className="gap-4">
             <Text className="text-text-secondary">
               {t('voiceSettings.loadFailed', {
