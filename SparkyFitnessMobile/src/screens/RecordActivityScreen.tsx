@@ -233,7 +233,12 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
           style: 'destructive',
           onPress: () =>
             void run(
-              discardRecording,
+              async () => {
+                await discardRecording();
+                // The screen stays mounted. A distance typed for this session
+                // must not be offered as the next one's estimate.
+                setIndoorDistanceText(null);
+              },
               t('recordActivity.errors.discard', {
                 defaultValue: 'Could not discard recording',
               })

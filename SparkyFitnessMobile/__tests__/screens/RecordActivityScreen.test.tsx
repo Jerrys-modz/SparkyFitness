@@ -469,6 +469,46 @@ describe('RecordActivityScreen', () => {
         )
       );
     });
+
+    it('forgets a typed distance after discard so the next session uses its own estimate', async () => {
+      const first = session({
+        id: 'rec-1',
+        indoor: true,
+        status: 'finished',
+        finishedAt: Date.now(),
+      });
+      const second = session({
+        id: 'rec-2',
+        indoor: true,
+        status: 'finished',
+        finishedAt: Date.now(),
+      });
+      state(first);
+      jest.mocked(useIndoorDistanceEstimate).mockImplementation((current) => {
+        if (current?.id === 'rec-2') {
+          return { steps: 2000, distanceKm: 1.6, calibrated: true };
+        }
+        return rough;
+      });
+      jest.mocked(discardRecording).mockImplementation(async () => {
+        state(null);
+      });
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      const screen = await renderScreen();
+
+      fireEvent.changeText(screen.getByLabelText('Distance'), '4.00');
+      fireEvent.press(screen.getByText('Discard'));
+      const confirm = alert.mock.calls[0][2]?.find(
+        (button) => button.style === 'destructive'
+      );
+      confirm?.onPress?.();
+
+      await waitFor(() => expect(discardRecording).toHaveBeenCalled());
+      state(second);
+      screen.rerender(renderUi());
+
+      expect(screen.getByLabelText('Distance').props.value).toBe('1.60');
+    });
   });
 
   it('does not offer a distance field for an outdoor recording', async () => {
