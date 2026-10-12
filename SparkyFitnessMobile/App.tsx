@@ -576,7 +576,7 @@ function AppContent() {
           <Stack.Screen
             name="WatchRunLive"
             component={SafeWatchRunLive}
-            options={createStackScreenOptions(t('screens.watchRunLive', { defaultValue: 'Run on your watch' }), { headerBackButtonDisplayMode: 'minimal' })}
+            options={createStackScreenOptions(t('screens.watchRunLive', { defaultValue: 'On your watch' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
             name="MealPlanForm"

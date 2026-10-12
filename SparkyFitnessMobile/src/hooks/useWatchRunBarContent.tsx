@@ -62,7 +62,7 @@ export function useWatchRunBarContent({
         hitSlop={HIT_SLOP}
         accessibilityRole="button"
         accessibilityLabel={t('watchRunLive.open', {
-          defaultValue: 'Open the run on your watch',
+          defaultValue: 'Open the workout on your watch',
         })}
         className="p-2"
       >
@@ -82,7 +82,7 @@ export function useWatchRunBarContent({
     secondaryLine: `${distance} · ${pace} ${paceUnit}`,
     countdownLabel: formatClock(run.elapsedNow),
     openLabel: t('watchRunLive.open', {
-      defaultValue: 'Open the run on your watch',
+      defaultValue: 'Open the workout on your watch',
     }),
     onCenterPress: onOpen,
   };

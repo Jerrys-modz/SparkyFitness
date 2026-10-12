@@ -58,7 +58,7 @@ const PersonalRecordsScreen: React.FC<Props> = () => {
           <Text className="text-text-secondary text-base text-center py-8">
             {t('personalRecords.empty', {
               defaultValue:
-                'No records yet. Record or import a run of at least 1 km and your best efforts show up here.',
+                'No records yet. Record or import a run, walk or ride of at least 1 km and your best efforts show up here.',
             })}
           </Text>
         ) : (

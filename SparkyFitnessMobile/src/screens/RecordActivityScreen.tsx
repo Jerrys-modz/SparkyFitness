@@ -176,13 +176,31 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       setIntervalChoice('off');
     }
   }, [intervalChoice, programLoaded, programWorkout]);
+  // The run/walk presets are not offered for a walk or ride, so switching to
+  // one drops a run/walk preset rather than leaving a choice the picker lacks.
+  useEffect(() => {
+    if (activity === 'run') return;
+    const preset = INTERVAL_PRESETS.find((p) => p.id === intervalChoice);
+    if (preset?.options.style === 'runWalk') setIntervalChoice('off');
+  }, [activity, intervalChoice]);
   const intervalPlan = useMemo<IntervalPlan | undefined>(() => {
     if (intervalChoice === 'off') return undefined;
     if (intervalChoice === 'program') return programWorkout?.plan;
-    if (intervalChoice === 'custom') return buildIntervalPlan(customIntervals);
-    const preset = INTERVAL_PRESETS.find((p) => p.id === intervalChoice);
-    return preset ? buildIntervalPlan(preset.options) : undefined;
-  }, [intervalChoice, customIntervals, programWorkout]);
+    const plan =
+      intervalChoice === 'custom'
+        ? buildIntervalPlan(customIntervals)
+        : (() => {
+            const preset = INTERVAL_PRESETS.find(
+              (p) => p.id === intervalChoice
+            );
+            return preset ? buildIntervalPlan(preset.options) : undefined;
+          })();
+    // A walk or ride has no running in it: its steps are Fast and Easy, so
+    // the card, the spoken cues and the watch never say "Run" during one.
+    return plan && activity !== 'run' && plan.style === 'runWalk'
+      ? { ...plan, style: 'fastEasy' }
+      : plan;
+  }, [intervalChoice, customIntervals, programWorkout, activity]);
   // Seconds left before recording begins, or null when no countdown is running.
   const [countdownLeft, setCountdownLeft] = useState<number | null>(null);
   const [permissionProblem, setPermissionProblem] = useState<
@@ -723,7 +741,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
                       })
                     : t('recordActivity.watch.outdoorHint', {
                         defaultValue:
-                          'Your watch records the run with its own GPS and heart rate sensor. Your phone can stay behind.',
+                          'Your watch records it with its own GPS and heart rate sensor. Your phone can stay behind.',
                       })}
               </Text>
               <SegmentedControl<'phone' | 'watch'>
@@ -840,6 +858,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             onChoice={setIntervalChoice}
             custom={customIntervals}
             onCustom={setCustomIntervals}
+            activity={activity}
           />
           {permissionProblem ? (
             <View className="bg-surface rounded-xl p-4 mt-4">

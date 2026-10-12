@@ -787,16 +787,19 @@ enum WatchStyle {
     }
 }
 
-private struct SquircleButton: View {
+struct SquircleButton: View {
     let systemImage: String
     var prominent = false
     /// A round button for the header.
     var circular = false
+    /// The glyph's colour on a dark box, for a control that needs telling
+    /// apart at a glance (a red finish). Ignored when `prominent`.
+    var tint: Color?
     let action: () -> Void
 
     var body: some View {
         Button(action: Haptics.tapping(action)) {
-            SquircleLabel(systemImage: systemImage, prominent: prominent, circular: circular)
+            SquircleLabel(systemImage: systemImage, prominent: prominent, circular: circular, tint: tint)
         }
         .buttonStyle(.plain)
     }
@@ -806,6 +809,7 @@ private struct SquircleLabel: View {
     let systemImage: String
     let prominent: Bool
     let circular: Bool
+    var tint: Color?
 
     @Environment(\.isEnabled) private var isEnabled
 
@@ -816,7 +820,7 @@ private struct SquircleLabel: View {
         )
         Image(systemName: systemImage)
             .font(.system(size: WatchStyle.s(circular ? 14 : 20), weight: .semibold))
-            .foregroundStyle(prominent ? Color.black : Color.white.opacity(0.6))
+            .foregroundStyle(prominent ? Color.black : (tint ?? Color.white.opacity(0.6)))
             .frame(maxWidth: circular ? WatchStyle.s(28) : CGFloat.infinity)
             .frame(height: WatchStyle.s(circular ? 28 : 44))
             .background(prominent ? Color.white : WatchStyle.fill, in: shape)
@@ -2067,72 +2071,123 @@ private extension View {
     }
 }
 
-/// The walks and runs the watch can record on its own, under Outdoor and
-/// Indoor. Outdoors uses the watch's GPS and records a route; indoors there is
-/// no route and the distance is the watch's own estimate.
+/// The walks and runs the watch can record on its own: Run and Walk side by
+/// side under Outdoor and Indoor, then any plans, in the same flat squircles
+/// as the workout list. Outdoors uses the watch's GPS and records a route;
+/// indoors there is no route and the distance is the watch's own estimate.
 private struct CardioChoicesView: View {
     /// Plans from the phone: the training-program workout due, then the
     /// built-in interval plans. Empty until the phone has said.
     let plans: [WatchRunPlan]
     let onChoose: (WatchRunKind, WatchRunPlace, WatchRunPlan?) -> Void
 
-    /// The plan whose place (outdoor or indoor) is being chosen.
-    @State private var planning: WatchRunPlan?
-
     var body: some View {
-        if let planning {
-            List {
-                Section(planning.name) {
-                    placeRow(planning, .outdoor)
-                    placeRow(planning, .indoor)
-                    Button("Back") {
-                        Haptics.tap()
-                        self.planning = nil
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: WatchStyle.s(6)) {
+                    ForEach([WatchRunPlace.outdoor, .indoor], id: \.self) { place in
+                        sectionTitle(place.label)
+                        HStack(spacing: WatchStyle.s(6)) {
+                            tile(.run, place)
+                            tile(.walk, place)
+                        }
                     }
-                }
-            }
-        } else {
-            List {
-                Section("Outdoor") {
-                    row(.run, .outdoor)
-                    row(.walk, .outdoor)
-                }
-                Section("Indoor") {
-                    row(.run, .indoor)
-                    row(.walk, .indoor)
-                }
-                if !plans.isEmpty {
-                    Section("Follow a plan") {
+                    if !plans.isEmpty {
+                        sectionTitle("Follow a plan")
                         ForEach(plans) { plan in
-                            Button {
-                                Haptics.tap()
-                                planning = plan
+                            NavigationLink {
+                                PlanPlaceView(plan: plan, onChoose: onChoose)
                             } label: {
-                                Label(plan.name, systemImage: plan.programId == nil ? "timer" : "calendar")
+                                planRow(plan)
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
+                .padding(.horizontal, WatchStyle.s(2))
             }
+            .navigationTitle("Cardio")
         }
     }
 
-    private func row(_ kind: WatchRunKind, _ place: WatchRunPlace) -> some View {
+    private func sectionTitle(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: WatchStyle.s(13), weight: .semibold))
+            .foregroundStyle(.secondary)
+            .padding(.top, WatchStyle.s(4))
+            .padding(.leading, WatchStyle.s(4))
+    }
+
+    /// Glyph over the word, as a square tile, so "Run" and "Walk" sit side by
+    /// side without either being cut short.
+    private func tile(_ kind: WatchRunKind, _ place: WatchRunPlace) -> some View {
         Button {
             Haptics.tap()
             onChoose(kind, place, nil)
         } label: {
-            Label(kind == .run ? "Run" : "Walk", systemImage: kind.symbol)
+            VStack(spacing: WatchStyle.s(4)) {
+                Image(systemName: kind.symbol)
+                    .font(.system(size: WatchStyle.s(22), weight: .semibold))
+                    .foregroundStyle(.green)
+                Text(kind == .run ? "Run" : "Walk")
+                    .font(.system(size: WatchStyle.s(15), weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: WatchStyle.s(64))
+            .background(WatchStyle.fill, in: WatchStyle.shape)
+            .contentShape(WatchStyle.shape)
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(kind.title(place))
     }
 
-    /// A plan is a run unless the phone says it is a walk (the walking program); the steps say when to ease off.
-    private func placeRow(_ plan: WatchRunPlan, _ place: WatchRunPlace) -> some View {
-        Button {
-            Haptics.tap()
-            onChoose(plan.kind, place, plan)
-        } label: {
-            Label(place.label, systemImage: plan.kind.symbol)
+    private func planRow(_ plan: WatchRunPlan) -> some View {
+        HStack(spacing: WatchStyle.s(8)) {
+            Image(systemName: plan.programId == nil ? "timer" : "calendar")
+                .font(.system(size: WatchStyle.s(15), weight: .semibold))
+                .foregroundStyle(plan.programId == nil ? Color.orange : Color.blue)
+            Text(plan.name)
+                .font(.system(size: WatchStyle.s(15), weight: .semibold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(.horizontal, WatchStyle.s(12))
+        .padding(.vertical, WatchStyle.s(12))
+        .background(WatchStyle.fill, in: WatchStyle.shape)
+        .contentShape(WatchStyle.shape)
+    }
+}
+
+/// Where to do a plan: outdoors with the watch's GPS, or indoors. A plan is a
+/// run unless the phone says it is a walk (the walking program).
+private struct PlanPlaceView: View {
+    let plan: WatchRunPlan
+    let onChoose: (WatchRunKind, WatchRunPlace, WatchRunPlan?) -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: WatchStyle.s(6)) {
+                ForEach([WatchRunPlace.outdoor, .indoor], id: \.self) { place in
+                    Button {
+                        Haptics.tap()
+                        onChoose(plan.kind, place, plan)
+                    } label: {
+                        Label(plan.kind.title(place), systemImage: plan.kind.symbol)
+                            .font(.system(size: WatchStyle.s(16), weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, WatchStyle.s(12))
+                            .padding(.vertical, WatchStyle.s(14))
+                            .background(Color.green.opacity(0.25), in: WatchStyle.shape)
+                            .contentShape(WatchStyle.shape)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, WatchStyle.s(2))
+        }
+        .navigationTitle(plan.name)
     }
 }
