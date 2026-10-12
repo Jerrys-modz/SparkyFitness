@@ -33,8 +33,12 @@ export function announceWatchRun(
     payload,
     distanceUnit,
     payload.program && payload.planCompleted
-      ? programSummary(t, stored, toLocalDateString(new Date()), (status) =>
-          programWorkoutLabel(t, status)
+      ? programSummary(
+          t,
+          stored,
+          toLocalDateString(new Date()),
+          (status) => programWorkoutLabel(t, status),
+          payload.program.index
         )
       : null
   );
