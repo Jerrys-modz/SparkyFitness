@@ -34,7 +34,7 @@ struct RecordingView: View {
                         CardioPlanStep(
                             label: step.label,
                             remaining: step.remaining > 0
-                                ? step.remaining(in: state, at: date).rounded(.up)
+                                ? RecordingState.clock(step.remaining(in: state, at: date).rounded(.up))
                                 : nil,
                             next: step.next,
                             tint: .yellow
