@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import WatchConnectivity, {
   type WatchRunFinishedPayload,
 } from '../../modules/watch-connectivity';
@@ -12,6 +13,7 @@ import {
   processWatchRunQueue,
   onWatchRunRetry,
 } from '../services/watchRunQueue';
+import { announceWatchRun } from '../services/watchRunToast';
 import { parseWatchRunPayload } from '../utils/watchRun';
 
 /**
@@ -28,15 +30,23 @@ export function useWatchRunBridge(
   const unit: 'km' | 'miles' =
     preferences?.default_distance_unit === 'miles' ? 'miles' : 'km';
   const unitRef = useRef(unit);
-  const connectedRef = useRef(isServerConnected);
+  // Not until the preferences are in: a miles user's run must not be filed in
+  // km because the app started draining before it knew the unit.
+  const preferencesLoaded = preferences != null;
+  const connectedRef = useRef(isServerConnected && preferencesLoaded);
+  const { t } = useTranslation();
+  const tRef = useRef(t);
   useEffect(() => {
+    tRef.current = t;
     unitRef.current = unit;
-    connectedRef.current = isServerConnected;
-  }, [unit, isServerConnected]);
+    connectedRef.current = isServerConnected && preferencesLoaded;
+  }, [t, unit, isServerConnected, preferencesLoaded]);
 
   const drain = useRef(async () => {
     if (!connectedRef.current) return;
-    const days = await processWatchRunQueue(unitRef.current);
+    const days = await processWatchRunQueue(unitRef.current, (payload) =>
+      announceWatchRun(payload, unitRef.current, tRef.current)
+    );
     for (const day of new Set(days)) invalidateExerciseCache(queryClient, day);
   });
 
@@ -97,7 +107,7 @@ export function useWatchRunBridge(
   useEffect(() => {
     if (!enabled || !isServerConnected) return;
     void drain.current().catch(() => undefined);
-  }, [enabled, isServerConnected]);
+  }, [enabled, isServerConnected, preferencesLoaded]);
 
   // A diary request can fail while the identity check still says the server
   // is up. Try that run again once; the drain itself waits if it is not.

@@ -77,6 +77,70 @@ struct WatchRunMetrics: Equatable {
     }
 }
 
+/// A timed plan a wrist-only run can follow: a list of steps the phone has
+/// already named in its language. A training-program workout carries the
+/// program id and the index of the workout so the phone can tick it off.
+struct WatchRunPlan: Codable, Equatable, Identifiable {
+    struct Step: Codable, Equatable {
+        let label: String
+        let seconds: Double
+    }
+
+    let id: String
+    let name: String
+    let programId: String?
+    let programIndex: Int?
+    let steps: [Step]
+    /// "walk" for a walking program, otherwise nil (a run).
+    var activity: String? = nil
+
+    var kind: WatchRunKind { activity == "walk" ? .walk : .run }
+
+    var totalSeconds: Double { steps.reduce(0) { $0 + $1.seconds } }
+
+    /// Where the plan stands after `elapsed` active seconds. `index` is
+    /// `steps.count` once the plan is over (the cool-down is the last step,
+    /// the run itself carries on).
+    struct Position: Equatable {
+        let index: Int
+        let label: String
+        let remaining: TimeInterval
+        let next: String?
+        let finished: Bool
+    }
+
+    func position(at elapsed: TimeInterval) -> Position? {
+        guard !steps.isEmpty else { return nil }
+        var start = 0.0
+        for (index, step) in steps.enumerated() {
+            let end = start + step.seconds
+            if elapsed < end {
+                let next = index + 1 < steps.count ? steps[index + 1] : nil
+                return Position(
+                    index: index,
+                    label: step.label,
+                    remaining: end - elapsed,
+                    next: next.map { "\($0.label) \(Self.clock($0.seconds))" },
+                    finished: false
+                )
+            }
+            start = end
+        }
+        return Position(index: steps.count, label: "Plan complete", remaining: 0, next: nil, finished: true)
+    }
+
+    /// Whether the last step has begun: the rule the phone uses to tick off a program workout.
+    func lastStepStarted(at elapsed: TimeInterval) -> Bool {
+        guard let last = steps.last else { return false }
+        return elapsed >= totalSeconds - last.seconds
+    }
+
+    static func clock(_ seconds: Double) -> String {
+        let total = Int(seconds.rounded())
+        return String(format: "%d:%02d", total / 60, total % 60)
+    }
+}
+
 /// Stands in for "no altitude" in a route row: a property list cannot carry nil.
 /// The phone reads the same literal (`WATCH_NO_ALTITUDE` in `src/utils/watchRun.ts`).
 let watchRunNoAltitude: Double = -9999
@@ -100,6 +164,12 @@ struct WatchRunResult {
     let heartRate: [[Double]]
     /// Epoch ms of each Lap press. The phone cuts the route at these.
     var laps: [Double] = []
+    /// The distance covered (metres, cumulative) at each lap mark, same order.
+    /// Indoors there is no route to measure laps from, so the phone uses these.
+    var lapDistances: [Double] = []
+    /// The plan followed, if any; `planCompleted` is whether its last step began.
+    var plan: WatchRunPlan?
+    var planCompleted = false
 
     /// Keeps at most `limit` rows, evenly spread and always including the
     /// last, so a long run stays inside the connection's size limit.

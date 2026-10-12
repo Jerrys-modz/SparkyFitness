@@ -20,6 +20,7 @@ import type {
   PresetSessionResponse,
   ExerciseEntryResponse,
   AttachExerciseEntryGpsTrackRequest,
+  AttachExerciseEntryLapsRequest,
   Pagination,
 } from '@workspace/shared';
 
@@ -503,6 +504,24 @@ export const attachExerciseEntryGpsTrack = async (
     operation: 'attach exercise entry GPS track',
     method: 'POST',
     body: track,
+  });
+};
+
+/**
+ * Laps for an entry that has no GPS track (an indoor run from the watch). With
+ * a track the laps go with it in {@link attachExerciseEntryGpsTrack}. Sending
+ * the same laps twice replaces them, so a retry is safe.
+ */
+export const attachExerciseEntryLaps = async (
+  exerciseEntryId: string,
+  laps: AttachExerciseEntryLapsRequest['laps']
+): Promise<void> => {
+  return apiFetch<void>({
+    endpoint: `/api/exercise-entries/${exerciseEntryId}/laps`,
+    serviceName: 'Exercise API',
+    operation: 'attach exercise entry laps',
+    method: 'POST',
+    body: { laps },
   });
 };
 

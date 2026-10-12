@@ -993,6 +993,11 @@ public class WatchConnectivityModule: Module {
             "route": payload["route"] as? [[Double]] ?? [],
             "heartRate": payload["heartRate"] as? [[Double]] ?? [],
             "laps": numberList(payload["laps"]),
+            "lapDistances": numberList(payload["lapDistances"]),
+            "planId": payload["planId"] as? String ?? "",
+            "programId": payload["programId"] as? String ?? "",
+            "programIndex": (payload["programIndex"] as? NSNumber)?.intValue ?? -1,
+            "planCompleted": payload["planCompleted"] as? Bool ?? false,
         ]
     }
 

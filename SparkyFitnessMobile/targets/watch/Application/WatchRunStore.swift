@@ -34,6 +34,12 @@ final class WatchRunStore: ObservableObject {
     /// True while paused by the movement detector rather than by the wearer.
     @Published private(set) var autoPaused = false
     @Published private(set) var lapCount = 0
+    /// The plan this run follows, if any. The page works out the live step
+    /// from it each second; the store only cues the changes.
+    @Published private(set) var plan: WatchRunPlan?
+    /// Index of the plan step already announced (-1 before the first).
+    private var cuedStep = -1
+    private var stepTimer: Timer?
     /// Whole km or miles already announced, so a split is cued once.
     private var cuedSplits = 0
     private var lastSplitElapsed: TimeInterval = 0
@@ -58,6 +64,7 @@ final class WatchRunStore: ObservableObject {
     /// A run left going by a killed app is still to be picked up at launch;
     /// starting a new one before that would collide with its Health session.
     private var recoveryPending = WatchRunSnapshotStore.exists
+    private var recovering = false
 
     private init() {
         healthKit.onMetrics = { [weak self] metrics in
@@ -78,10 +85,12 @@ final class WatchRunStore: ObservableObject {
     /// the count, so it stays right across pauses.
     var elapsed: TimeInterval { healthKit.elapsed }
 
-    func start(_ kind: WatchRunKind, place: WatchRunPlace) {
+    func start(_ kind: WatchRunKind, place: WatchRunPlace, plan: WatchRunPlan? = nil) {
         guard canStart else { return }
         self.kind = kind
         self.place = place
+        self.plan = plan
+        cuedStep = -1
         summary = nil
         metrics = WatchRunMetrics()
         lapCount = 0
@@ -91,7 +100,12 @@ final class WatchRunStore: ObservableObject {
         healthKit.requestAuthorization { [weak self] in
             Task { @MainActor in
                 guard let self, self.phase == .running else { return }
-                if !self.healthKit.start(kind, place: place) { self.phase = .idle }
+                if self.healthKit.start(kind, place: place, plan: plan) {
+                    self.startStepTimer()
+                } else {
+                    self.phase = .idle
+                    self.plan = nil
+                }
             }
         }
     }
@@ -102,10 +116,14 @@ final class WatchRunStore: ObservableObject {
     /// should treat a leftover session as its own.
     func recoverIfNeeded(completion: @escaping (Bool) -> Void) {
         guard phase == .idle else { completion(true); return }
+        // Two overlapping calls would both reach the Health session.
+        guard !recovering else { completion(true); return }
+        recovering = true
         healthKit.recoverIfNeeded { [weak self] outcome in
             Task { @MainActor in
                 guard let self else { completion(false); return }
                 self.recoveryPending = false
+                self.recovering = false
                 switch outcome {
                 case .none:
                     completion(false)
@@ -116,12 +134,19 @@ final class WatchRunStore: ObservableObject {
                     self.summary = nil
                     self.autoPaused = recovery.autoPaused
                     self.lapCount = recovery.lapCount
+                    self.plan = self.healthKit.plan
+                    // The recovered builder may still read 0 for a moment, so the
+                    // snapshot's time is the floor: the step the run is in now is
+                    // not announced again.
+                    let resumedAt = max(self.healthKit.elapsed, recovery.elapsed)
+                    self.cuedStep = self.plan?.position(at: resumedAt)?.index ?? -1
+                    self.startStepTimer()
                     // Splits passed while the app was gone are not replayed.
                     self.cuedSplits = WatchRunCues.completedSplits(
                         distanceMeters: recovery.metrics.distanceMeters,
                         usesMiles: self.usesMiles
                     )
-                    self.lastSplitElapsed = self.healthKit.elapsed
+                    self.lastSplitElapsed = resumedAt
                     self.phase = recovery.paused ? .paused : .running
                     completion(true)
                 case .salvaged(let result):
@@ -167,6 +192,46 @@ final class WatchRunStore: ObservableObject {
         if healthKit.markLap() {
             lapCount = healthKit.lapCount
             Haptics.step()
+        }
+    }
+
+    private func startStepTimer() {
+        stopStepTimer()
+        guard plan != nil else { return }
+        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.cueStepIfDue() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        stepTimer = timer
+        cueStepIfDue()
+    }
+
+    private func stopStepTimer() {
+        stepTimer?.invalidate()
+        stepTimer = nil
+    }
+
+    /// Announces a plan step when it begins: a tap, the words if Voice cues
+    /// is on, and a lap mark so the saved run is cut at the step. Time is the
+    /// builder's active clock, so a pause never eats into a step.
+    private func cueStepIfDue() {
+        guard phase == .running, let plan,
+              let position = plan.position(at: healthKit.elapsed),
+              position.index != cuedStep else { return }
+        let first = cuedStep < 0
+        cuedStep = position.index
+        Haptics.step()
+        if !first && !position.finished, healthKit.markLap(force: true) {
+            lapCount = healthKit.lapCount
+        }
+        guard CheckInStore.shared.context.runVoiceCues == true else { return }
+        if position.finished {
+            WatchRunCues.shared.speak("Plan complete.", interrupt: true)
+        } else {
+            WatchRunCues.shared.speak(
+                WatchRunCues.stepText(label: position.label, seconds: plan.steps[position.index].seconds),
+                interrupt: true
+            )
         }
     }
 
@@ -219,6 +284,8 @@ final class WatchRunStore: ObservableObject {
     func discard() { end(save: false) }
 
     func dismissSummary() {
+        stopStepTimer()
+        plan = nil
         lapCount = 0
         autoPaused = false
         summary = nil
@@ -227,10 +294,12 @@ final class WatchRunStore: ObservableObject {
 
     private func end(save: Bool) {
         guard phase == .running || phase == .paused else { return }
+        stopStepTimer()
         // Finish tapped while the Health prompts were still up: nothing was
         // ever recorded, so there is nothing to save.
         guard healthKit.hasLiveSession else {
             autoPaused = false
+            plan = nil
             phase = .idle
             return
         }
@@ -255,6 +324,7 @@ final class WatchRunStore: ObservableObject {
                     self.summary = Summary(kind: ending, place: endingPlace, elapsed: elapsed, metrics: metrics, saved: true)
                     self.phase = .finished
                 } else {
+                    self.plan = nil
                     self.phase = .idle
                 }
             }
@@ -263,8 +333,10 @@ final class WatchRunStore: ObservableObject {
 
     private func sessionFailed(_ result: WatchRunResult?) {
         guard phase == .running || phase == .paused else { return }
+        stopStepTimer()
         autoPaused = false
         guard let result else {
+            plan = nil
             phase = .idle
             return
         }
