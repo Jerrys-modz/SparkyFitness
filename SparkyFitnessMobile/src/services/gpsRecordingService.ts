@@ -494,10 +494,9 @@ function advanceIntervals(now: number): boolean {
     index++
   ) {
     const at = clockStart + stepStartSeconds(plan, index) * 1000;
-    if (
-      at <= now &&
-      !marks.some((mark) => Math.abs(mark - at) < MIN_LAP_GAP_MS)
-    ) {
+    // A manual lap nearby must not swallow the step boundary. The debounce
+    // lives in markLap, for double taps.
+    if (at <= now && !marks.includes(at)) {
       marks.push(at);
     }
   }

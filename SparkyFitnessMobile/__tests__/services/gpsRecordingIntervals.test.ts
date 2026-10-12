@@ -24,6 +24,7 @@ jest.mock('../../src/services/recordingCues', () => ({
 import { fireImpactHaptic } from '../../src/services/haptics';
 import { speakRecordingCue } from '../../src/services/recordingCues';
 import {
+  markLap,
   pauseRecording,
   resetRecordingStateForTests,
   resumeRecording,
@@ -123,6 +124,15 @@ describe('interval plans', () => {
     expect(speakRecordingCue).toHaveBeenCalledWith(
       expect.stringContaining('complete')
     );
+  });
+
+  test('a manual lap does not swallow the next step boundary', async () => {
+    await startRecording({ activity: 'run', intervals: plan, notification });
+    at(58);
+    await markLap();
+    at(62);
+    await tickIntervals();
+    expect((await stored())?.laps).toEqual([T0 + 58_000, T0 + 60_000]);
   });
 
   test('a pause after a missed boundary does not shift that lap', async () => {

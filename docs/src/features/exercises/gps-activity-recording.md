@@ -87,7 +87,7 @@ The setting is off by default and is remembered for next time. Cues are spoken b
 
 ## Intervals
 
-Under **Intervals** on the Record screen, pick a timed plan before you start: a beginner run/walk (a 5 minute warm-up, 8 rounds of 1 minute running and 1 minute 30 seconds walking, a 5 minute cool-down), longer run/walk blocks, or speed repeats such as 3 minutes fast with 2 minutes easy. **Custom** lets you set the warm-up, the work and recovery times, the number of rounds and the cool-down, and choose whether the steps are called "Run" and "Walk" or "Fast" and "Easy".
+Under **Intervals** on the Record screen, pick a timed plan before you start: a beginner run/walk (a 5-minute warm-up, 8 rounds of 1 minute of running and 1 minute 30 seconds of walking, a 5-minute cool-down), longer run/walk blocks, or speed repeats such as 3 minutes fast with 2 minutes easy. **Custom** lets you set the warm-up, the work and recovery times, the number of rounds and the cool-down, and choose whether the steps are called "Run" and "Walk" or "Fast" and "Easy".
 
 While you record, a card shows the current step, the time left, the round and what comes next. At each change the phone buzzes, and with **Voice cues** on it tells you what to do ("Run. 1 minute."). The steps run on the recording clock, so a pause (by hand or auto-pause) holds the step where it was and a long stop does not use up the interval.
 
