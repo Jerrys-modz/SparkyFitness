@@ -145,8 +145,9 @@ struct CardioLiveLayout<Banner: View>: View {
 /// under the clock, so it reads as part of the timing rather than another tile.
 struct CardioPlanStep: View {
     let label: String
-    /// Seconds left in the step; nil once the plan is complete.
-    let remaining: TimeInterval?
+    /// What is left of the step, already worded ("1:30", "400 m"); nil once
+    /// the plan is complete.
+    let remaining: String?
     let next: String?
     var tint: Color = .orange
 
@@ -158,7 +159,7 @@ struct CardioPlanStep: View {
                     .minimumScaleFactor(0.7)
                 Spacer(minLength: 4)
                 if let remaining {
-                    Text(RecordingState.clock(remaining))
+                    Text(remaining)
                         .monospacedDigit()
                 }
             }
