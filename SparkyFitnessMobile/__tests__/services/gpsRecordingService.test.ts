@@ -88,6 +88,9 @@ describe('starting', () => {
     expect(mockedLocation.startLocationUpdatesAsync).toHaveBeenCalledWith(
       GPS_RECORDING_TASK_NAME,
       expect.objectContaining({
+        // Fixes must keep coming while the person stands still, or auto-pause
+        // never sees the stillness it waits for.
+        distanceInterval: 0,
         showsBackgroundLocationIndicator: true,
         foregroundService: expect.objectContaining({
           notificationTitle: 'Recording',

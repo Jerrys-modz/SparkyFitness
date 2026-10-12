@@ -471,7 +471,11 @@ async function startUpdates(
 ): Promise<void> {
   await Location.startLocationUpdatesAsync(GPS_RECORDING_TASK_NAME, {
     accuracy: Location.Accuracy.BestForNavigation,
-    distanceInterval: 2,
+    // No distance filter: with one, iOS stops delivering fixes once the person
+    // stands still, and auto-pause (which only looks at fixes as they arrive)
+    // would never see the 6 to 10 s of stillness it waits for. The noise
+    // filter in `acceptFix` keeps the standing-still jitter out of the track.
+    distanceInterval: 0,
     timeInterval: 2000,
     activityType: Location.ActivityType.Fitness,
     pausesUpdatesAutomatically: false,
