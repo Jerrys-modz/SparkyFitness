@@ -781,9 +781,11 @@ export function finishRecording(): Promise<void> {
     await persistSession();
     await stopUpdates();
     publish();
-    // An indoor session has no GPS distance yet. Announcing it would say zero
-    // before the person enters what the machine showed.
-    if (session.audioCues && !session.indoor) {
+    // An indoor session has no GPS distance yet. Stop the cue session without
+    // announcing zero before the person enters what the machine showed.
+    if (session.audioCues && session.indoor) {
+      endRecordingCues();
+    } else if (session.audioCues) {
       const summary = summarizeRecording(points);
       speakRecordingCue(
         finishCue(i18n.t.bind(i18n), {

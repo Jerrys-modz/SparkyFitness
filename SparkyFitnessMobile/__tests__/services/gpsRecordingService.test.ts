@@ -25,6 +25,7 @@ jest.mock('../../src/services/recordingCues', () => ({
 import { captureStepCounterBaseline } from '../../src/services/stepCounter';
 import {
   beginRecordingCues,
+  endRecordingCues,
   speakRecordingCue,
 } from '../../src/services/recordingCues';
 import {
@@ -661,10 +662,12 @@ describe('voice cues', () => {
       notification,
     });
     (speakRecordingCue as jest.Mock).mockClear();
+    (endRecordingCues as jest.Mock).mockClear();
 
     await finishRecording();
 
     expect(speakRecordingCue).not.toHaveBeenCalled();
+    expect(endRecordingCues).toHaveBeenCalledTimes(1);
   });
 
   it('announces the distance when an outdoor recording finishes', async () => {

@@ -239,6 +239,9 @@ router.get('/by-date', authenticate, async (req, res, next) => {
  *               exercise_id:
  *                 type: string
  *                 format: uuid
+ *               exercise_name:
+ *                 type: string
+ *                 description: Optional name stored on this entry. When omitted, the library exercise name is used.
  *               duration_minutes:
  *                 type: number
  *               calories_burned:
