@@ -4777,7 +4777,13 @@
     "weight": {
       "title": "Weight",
       "loadFailed": "Failed to load weight data",
-      "empty": "No weight data for this period"
+      "empty": "No weight data for this period",
+      "trend": "Trend",
+      "perWeek": "Per week",
+      "goalDate": "Goal date",
+      "steady": "Holding steady",
+      "awayFromGoal": "Moving away",
+      "tooFar": "Over 2 years"
     },
     "steps": {
       "title": "Steps",
@@ -6142,6 +6148,12 @@
       "olderSessions": "Older sessions",
       "unitKm": "km",
       "unitMi": "mi",
+      "meters": "{{value}} m",
+      "feet": "{{value}} ft",
+      "floors": "Floors climbed",
+      "floorsCount_one": "{{formattedCount}} floor",
+      "floorsCount_other": "{{formattedCount}} floors",
+      "elevationGain": "Elevation gain",
       "calories": "{{value}} Cal",
       "minutes_one": "{{formattedCount}} min",
       "minutes_other": "{{formattedCount}} min",
@@ -6163,6 +6175,12 @@
       "zone": "Zone {{zone}}",
       "zoneFrom": "from {{bpm}} bpm",
       "minutesAxis": "Minutes from start",
+      "kilometersAxis": "Kilometers from start",
+      "milesAxis": "Miles from start",
+      "pace": "Pace",
+      "bestPace": "Best {{value}}",
+      "perKm": "/km",
+      "perMile": "/mi",
       "underOneMinute": "<1 min"
     },
     "consistency": {
@@ -6456,8 +6474,44 @@
     "perUnit": "/{{unit}}",
     "routeA11y": "Map of your route so far",
     "waitingForGps": "Waiting for a GPS fix…",
+    "countdown": {
+      "title": "Start countdown",
+      "off": "Off",
+      "seconds": "{{seconds}} s",
+      "getReady": "Get ready",
+      "cancel": "Cancel"
+    },
+    "audioCues": {
+      "title": "Voice cues",
+      "description": "Speaks your time at each kilometer or mile, and when you pause or resume."
+    },
+    "cues": {
+      "started": "Recording started",
+      "paused": "Paused",
+      "autoPaused": "Auto paused",
+      "resumed": "Resumed",
+      "lap": "Lap {{number}}. {{distance}}. {{time}}.",
+      "splitKm": "{{distance}}. Time {{time}}. Last kilometer {{split}}.",
+      "splitMiles": "{{distance}}. Time {{time}}. Last mile {{split}}.",
+      "finished": "Recording finished. {{distance}}. Time {{time}}.",
+      "hours_one": "{{count}} hour",
+      "hours_other": "{{count}} hours",
+      "minutes_one": "{{count}} minute",
+      "minutes_other": "{{count}} minutes",
+      "seconds_one": "{{count}} second",
+      "seconds_other": "{{count}} seconds",
+      "kilometers_one": "{{count}} kilometer",
+      "kilometers_other": "{{count}} kilometers",
+      "miles_one": "{{count}} mile",
+      "miles_other": "{{count}} miles"
+    },
+    "autoPause": {
+      "title": "Auto-pause",
+      "description": "Pauses the clock when you stop and carries on when you move."
+    },
     "status": {
       "paused": "Paused",
+      "autoPaused": "Auto-paused",
       "finished": "Finished"
     },
     "time": "Time",
@@ -6467,6 +6521,10 @@
     "currentPace": "Pace",
     "elevationGain": "Elevation gain",
     "splits": "Splits",
+    "laps": "Laps",
+    "lap": "Lap",
+    "lapLabel": "Lap {{number}}",
+    "fastest": "Fastest",
     "save": "Save activity",
     "pause": "Pause",
     "resume": "Resume",
