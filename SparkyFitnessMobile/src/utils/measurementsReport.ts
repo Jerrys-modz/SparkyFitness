@@ -59,9 +59,10 @@ const trendOf = (points: MeasurementPoint[]): MeasurementTrend => {
 };
 
 /**
- * Check-in measurements for a window ending `startDate + days - 1`. The range endpoint
- * returns newest edit first, so the first row per day and field is the one that counts.
- * Readings are kept in their stored units (kg / cm); the screen converts for display.
+ * Check-in measurements for a window ending `startDate + days - 1`. Rows are
+ * sorted by `updated_at` so the newest edit per day and field counts, whatever
+ * order the range endpoint returns. Readings stay in stored units (kg / cm);
+ * the screen converts for display.
  */
 export function buildMeasurementsReport(
   rows: CheckInMeasurementRange[],
@@ -74,7 +75,11 @@ export function buildMeasurementsReport(
   const stepsByDay = new Map<string, number>();
   const daysWithData = new Set<string>();
 
-  for (const row of rows) {
+  const newestFirst = [...rows].sort((a, b) =>
+    b.updated_at.localeCompare(a.updated_at)
+  );
+
+  for (const row of newestFirst) {
     for (const metric of MEASUREMENT_METRICS) {
       const value = row[metric];
       const bucket = seen.get(metric);

@@ -21,7 +21,7 @@ const ReportInsights: React.FC<{ lines: string[]; testIDPrefix: string }> = ({
         {t('reports.insights', { defaultValue: 'What stood out' })}
       </Text>
       {lines.slice(0, MAX_INSIGHTS).map((line, index) => (
-        <View key={line} className="flex-row py-1">
+        <View key={`${index}-${line}`} className="flex-row py-1">
           <Text className="text-text-muted text-sm mr-2">•</Text>
           <Text
             testID={`${testIDPrefix}-insight-${index}`}

@@ -31,6 +31,11 @@ describe('ReportRangeControl', () => {
     await initializeI18n('en');
   });
 
+  afterEach(() => {
+    mockPickedFrom = '2026-09-01';
+    mockPickedTo = '2026-09-20';
+  });
+
   it('offers the three presets and switches between them', () => {
     const onRangeChange = jest.fn();
     const { getByText, queryByText } = render(
@@ -81,8 +86,6 @@ describe('ReportRangeControl', () => {
     const { startDate, endDate } = onCustomRangeChange.mock.calls[0][0];
     expect(endDate < '2099-01-01').toBe(true);
     expect(startDate < endDate).toBe(true);
-    mockPickedFrom = '2026-09-01';
-    mockPickedTo = '2026-09-20';
   });
 
   it('shows the days picked under the control while Custom is active', () => {

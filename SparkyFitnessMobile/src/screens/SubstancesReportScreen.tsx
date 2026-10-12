@@ -175,16 +175,30 @@ const SubstancesReportScreen: React.FC<SubstancesReportScreenProps> = () => {
   if (caffeine.daysWithCaffeine > 0) {
     insightLines.push(
       caffeine.daysOverLimit > 0
-        ? t('substancesReport.insightOver', {
-            defaultValue:
-              'You went over {{limit}} of caffeine on {{count}} days.',
-            limit: mg(caffeine.limitMg),
-            count: caffeine.daysOverLimit,
-          })
-        : t('substancesReport.insightUnder', {
-            defaultValue: 'You stayed under {{limit}} of caffeine every day.',
-            limit: mg(caffeine.limitMg),
-          })
+        ? caffeine.limitVaries
+          ? t('substancesReport.insightOverVaries', {
+              defaultValue:
+                'You went over your caffeine limit on {{count}} days.',
+              defaultValue_one:
+                'You went over your caffeine limit on {{count}} day.',
+              defaultValue_other:
+                'You went over your caffeine limit on {{count}} days.',
+              count: caffeine.daysOverLimit,
+            })
+          : t('substancesReport.insightOver', {
+              defaultValue:
+                'You went over {{limit}} of caffeine on {{count}} days.',
+              limit: mg(caffeine.limitMg),
+              count: caffeine.daysOverLimit,
+            })
+        : caffeine.limitVaries
+          ? t('substancesReport.insightUnderVaries', {
+              defaultValue: 'You stayed under your caffeine limit every day.',
+            })
+          : t('substancesReport.insightUnder', {
+              defaultValue: 'You stayed under {{limit}} of caffeine every day.',
+              limit: mg(caffeine.limitMg),
+            })
     );
   }
   if (alcohol.drinkingDays > 0 && alcohol.alcoholFreeDays > 0) {

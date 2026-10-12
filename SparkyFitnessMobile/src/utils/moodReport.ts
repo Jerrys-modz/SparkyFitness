@@ -1,6 +1,6 @@
 import { moodByName, moodValueToTag } from '@workspace/shared';
 import { average } from './mathUtils';
-import { addDays } from './dateUtils';
+import { addDays, weekdayOfDay } from './dateUtils';
 import type { MoodEntry } from '../types/mood';
 
 export type MoodDayPoint = {
@@ -23,11 +23,6 @@ export interface MoodReport {
   /** Mean daily mood per weekday (0 = Sunday), only weekdays that have data. */
   weekdayAverages: { weekday: number; value: number }[];
 }
-
-const weekdayOf = (day: string): number => {
-  const [year, month, d] = day.split('-').map(Number);
-  return new Date(year, month - 1, d).getDay();
-};
 
 /** The emoji and display name a 0-100 mood value stands for, per the shared band model. */
 export const moodForValue = (
@@ -85,7 +80,7 @@ export function buildMoodReport(
   const ranked = [...logged].sort((a, b) => a.value - b.value);
   const byWeekday = new Map<number, number[]>();
   for (const point of logged) {
-    const weekday = weekdayOf(point.day);
+    const weekday = weekdayOfDay(point.day);
     const list = byWeekday.get(weekday) ?? [];
     list.push(point.value);
     byWeekday.set(weekday, list);

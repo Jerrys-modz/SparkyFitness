@@ -39,11 +39,11 @@ describe('buildMeasurementsReport', () => {
     expect(report.checkInDays).toBe(3);
   });
 
-  it('keeps the newest edit of a day when the endpoint lists several', () => {
+  it('keeps the newest edit of a day even when an older row is listed first', () => {
     const report = buildMeasurementsReport(
       [
-        row('2026-10-01', { weight: 81, updated_at: '2026-10-01T20:00:00Z' }),
         row('2026-10-01', { weight: 99, updated_at: '2026-10-01T08:00:00Z' }),
+        row('2026-10-01', { weight: 81, updated_at: '2026-10-01T20:00:00Z' }),
       ],
       '2026-10-01',
       1

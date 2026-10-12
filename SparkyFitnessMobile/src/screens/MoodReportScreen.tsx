@@ -186,6 +186,10 @@ const MoodReportScreen: React.FC<MoodReportScreenProps> = () => {
       insightLines.push(
         t('moodReport.insightTopMood', {
           defaultValue: 'Your most logged mood was {{mood}}, {{count}} times.',
+          defaultValue_one:
+            'Your most logged mood was {{mood}}, {{count}} time.',
+          defaultValue_other:
+            'Your most logged mood was {{mood}}, {{count}} times.',
           mood: moodTagLabel(report.topTags[0].tag),
           count: report.topTags[0].count,
         })

@@ -28,9 +28,12 @@ export interface SubstancesReport {
     averageMg: number | null;
     previousAverageMg: number | null;
     daysWithCaffeine: number;
-    /** Days above the limit (the day's goal when set, else `CAFFEINE_DAILY_LIMIT_MG`). */
+    /** Days above that day's own limit (its goal when set, else `CAFFEINE_DAILY_LIMIT_MG`). */
     daysOverLimit: number;
+    /** The only limit when every day shares one, otherwise the most common (later days win a tie). */
     limitMg: number;
+    /** True when the days were not all held to `limitMg`. */
+    limitVaries: boolean;
     peak: { day: string; mg: number } | null;
   };
   alcohol: {
@@ -90,13 +93,27 @@ export function buildSubstancesReport(
   const drinkingDays = days.filter((d) => d.alcoholG > 0);
 
   let daysOverLimit = 0;
-  let limitMg = CAFFEINE_DAILY_LIMIT_MG;
+  const limits: number[] = [];
   days.forEach((d, index) => {
     const goal = goals[index]?.caffeine_mg;
     const limit = goal != null && goal > 0 ? goal : CAFFEINE_DAILY_LIMIT_MG;
-    limitMg = limit;
+    limits.push(limit);
     if (d.caffeineMg > limit) daysOverLimit += 1;
   });
+  const limitCounts = new Map<number, number>();
+  for (const limit of limits) {
+    limitCounts.set(limit, (limitCounts.get(limit) ?? 0) + 1);
+  }
+  let limitMg = CAFFEINE_DAILY_LIMIT_MG;
+  let bestCount = -1;
+  for (const limit of limits) {
+    const count = limitCounts.get(limit) ?? 0;
+    if (count >= bestCount) {
+      bestCount = count;
+      limitMg = limit;
+    }
+  }
+  const limitVaries = limitCounts.size > 1;
 
   const weeks: SubstanceWeek[] = [];
   for (let end = days.length; end > 0; end -= 7) {
@@ -121,6 +138,7 @@ export function buildSubstancesReport(
       daysWithCaffeine: caffeineDays.length,
       daysOverLimit,
       limitMg,
+      limitVaries,
       peak: caffeinePeak
         ? { day: caffeinePeak.day, mg: caffeinePeak.caffeineMg }
         : null,

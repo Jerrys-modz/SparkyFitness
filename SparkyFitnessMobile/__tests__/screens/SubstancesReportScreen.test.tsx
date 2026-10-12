@@ -15,7 +15,9 @@ jest.mock('../../src/components/DateRangeSheet', () => {
   const { View } = require('react-native');
   return {
     __esModule: true,
-    default: React.forwardRef(() => <View testID="date-range-sheet" />),
+    default: React.forwardRef(function MockDateRangeSheet() {
+      return <View testID="date-range-sheet" />;
+    }),
   };
 });
 const mockUseSubstancesReport = jest.fn();

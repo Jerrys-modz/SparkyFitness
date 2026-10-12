@@ -36,6 +36,7 @@ describe('buildSubstancesReport', () => {
     expect(report.caffeine.averageMg).toBe(275);
     expect(report.caffeine.daysWithCaffeine).toBe(4);
     expect(report.caffeine.limitMg).toBe(CAFFEINE_DAILY_LIMIT_MG);
+    expect(report.caffeine.limitVaries).toBe(false);
     expect(report.caffeine.daysOverLimit).toBe(1);
     expect(report.caffeine.peak).toEqual({ day: '2026-10-02', mg: 500 });
   });
@@ -47,7 +48,23 @@ describe('buildSubstancesReport', () => {
       Array(8).fill({ caffeine_mg: 150 })
     );
     expect(withGoal.caffeine.limitMg).toBe(150);
+    expect(withGoal.caffeine.limitVaries).toBe(false);
     expect(withGoal.caffeine.daysOverLimit).toBe(3);
+  });
+
+  it('counts each day against its own caffeine limit when the goal changes', () => {
+    const mixed = buildSubstancesReport(
+      [
+        point('2026-10-01', 500, 0),
+        point('2026-10-02', 100, 0),
+        point('2026-10-03', 200, 0),
+      ],
+      [],
+      [{ caffeine_mg: 400 }, { caffeine_mg: 400 }, { caffeine_mg: 150 }]
+    );
+    expect(mixed.caffeine.daysOverLimit).toBe(2);
+    expect(mixed.caffeine.limitVaries).toBe(true);
+    expect(mixed.caffeine.limitMg).toBe(400);
   });
 
   it('totals alcohol and counts alcohol-free days only on days something was logged', () => {
