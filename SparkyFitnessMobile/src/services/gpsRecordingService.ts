@@ -253,7 +253,8 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
         if (step.action.type === 'pause') {
           // The pause is dated to when they stopped, which can be several
           // fixes ago. Drift accepted after that is not part of the route.
-          const retained = points.filter((point) => point.t <= step.action.at);
+          const pauseAt = step.action.at;
+          const retained = points.filter((point) => point.t <= pauseAt);
           if (retained.length !== points.length) {
             points = retained;
             pointsRewritten = true;
@@ -261,7 +262,7 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
           session = {
             ...session,
             status: 'paused',
-            pausedAt: step.action.at,
+            pausedAt: pauseAt,
             autoPaused: true,
           };
           sessionChanged = true;
