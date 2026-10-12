@@ -135,6 +135,14 @@ test('completing a workout sends its index and caches the result', async () => {
     program_id: 'beginner5k',
     day: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
   });
+
+  await completeProgramWorkout('beginner5k', 1, '2026-10-12', 'entry-7');
+  expect(mockedDone).toHaveBeenLastCalledWith({
+    index: 1,
+    program_id: 'beginner5k',
+    day: '2026-10-12',
+    entry_id: 'entry-7',
+  });
   expect(
     queryClient.getQueryData<RunProgramResponse>(runProgramQueryKey)?.next_index
   ).toBe(1);

@@ -7,6 +7,11 @@ import { useCardioSessionDetail } from '../../src/hooks/useCardioSessionDetail';
 import { initializeI18n } from '../../src/localization/i18n';
 import type { RootStackScreenProps } from '../../src/types/navigation';
 
+// The program badge reads the run program query; it has its own tests.
+jest.mock('../../src/components/recording/ProgramWorkoutBadge', () => ({
+  __esModule: true,
+  default: () => null,
+}));
 jest.mock('../../src/hooks/useCardioSessionDetail', () => ({
   useCardioSessionDetail: jest.fn(),
 }));

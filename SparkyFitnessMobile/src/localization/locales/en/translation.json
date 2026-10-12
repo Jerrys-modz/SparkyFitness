@@ -7196,7 +7196,8 @@
       "manage": "Manage",
       "none": "Training program",
       "setUp": "Set up a program"
-    }
+    },
+    "partOfProgram": "Part of your training program"
   },
   "speechVoice": {
     "automatic": "Automatic (best installed)",
