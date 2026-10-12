@@ -108,16 +108,40 @@ async function markDone(clientId: string): Promise<void> {
 }
 
 let processing: Promise<string[]> | null = null;
+/** One delayed retry. A second failure while this is waiting does not add another. */
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+/** The bridge supplies this so the retry can wait until the server is reachable. */
+let retry: (() => void) | null = null;
+const RETRY_DELAY_MS = 30_000;
+
+/** Registers the drain a retryable failure should call. Null clears a pending one. */
+export function onWatchRunRetry(handler: (() => void) | null): void {
+  retry = handler;
+  if (!handler && retryTimer != null) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+}
+
+function scheduleRetry(): void {
+  if (retryTimer != null || retry == null) return;
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    retry?.();
+  }, RETRY_DELAY_MS);
+}
 
 /**
  * Files every queued run it can. A failure that may pass (offline, 5xx, auth)
- * leaves the run queued for the next call; one the server will never accept is
- * dropped and logged. Returns the diary day of each run it filed.
+ * leaves the run queued and tries it again after a delay; one the server
+ * will never accept is dropped and logged. Returns the diary day of each run
+ * it filed.
  */
 export function processWatchRunQueue(
   distanceUnit: 'km' | 'miles'
 ): Promise<string[]> {
   if (processing) return processing;
+  let needsRetry = false;
   processing = (async () => {
     const filed: string[] = [];
     // A run queued while this drain was going is picked up by the next pass of
@@ -161,12 +185,14 @@ export function processWatchRunQueue(
             `[Watch Run] Will retry watch run ${clientId}: ${message}`,
             'WARNING'
           );
+          needsRetry = true;
         }
       }
     }
     return filed;
   })().finally(() => {
     processing = null;
+    if (needsRetry) scheduleRetry();
   });
   return processing;
 }

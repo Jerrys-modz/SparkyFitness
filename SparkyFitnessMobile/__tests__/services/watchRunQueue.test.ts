@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   acceptPendingWatchRuns,
   enqueueWatchRun,
+  onWatchRunRetry,
   processWatchRunQueue,
 } from '../../src/services/watchRunQueue';
 import { saveWatchRun } from '../../src/services/watchRunSave';
@@ -30,6 +31,7 @@ const run = (clientId: string): WatchRunPayload => ({
 beforeEach(async () => {
   await AsyncStorage.clear();
   mockedSave.mockReset();
+  onWatchRunRetry(null);
 });
 
 test('files a queued run once and ignores a re-delivered copy', async () => {
@@ -60,11 +62,43 @@ test('keeps a run for a retry after a network failure, reusing the entry', async
 });
 
 test('drops a run the server will never accept', async () => {
-  await enqueueWatchRun(run('c'));
-  mockedSave.mockRejectedValueOnce(new ApiError('bad', 400));
-  expect(await processWatchRunQueue('km')).toEqual([]);
-  expect(await processWatchRunQueue('km')).toEqual([]);
-  expect(mockedSave).toHaveBeenCalledTimes(1);
+  jest.useFakeTimers();
+  try {
+    await enqueueWatchRun(run('c'));
+    mockedSave.mockRejectedValueOnce(new ApiError('bad', 400));
+    const again = jest.fn();
+    onWatchRunRetry(again);
+    expect(await processWatchRunQueue('km')).toEqual([]);
+    await jest.advanceTimersByTimeAsync(30_000);
+    expect(await processWatchRunQueue('km')).toEqual([]);
+    expect(mockedSave).toHaveBeenCalledTimes(1);
+    expect(again).not.toHaveBeenCalled();
+  } finally {
+    onWatchRunRetry(null);
+    jest.useRealTimers();
+  }
+});
+
+test('tries a retryable failure again after a delay, once', async () => {
+  jest.useFakeTimers();
+  try {
+    const again = jest.fn();
+    onWatchRunRetry(again);
+    await enqueueWatchRun(run('retry-1'));
+    await enqueueWatchRun(run('retry-2'));
+    mockedSave.mockRejectedValue(new Error('offline'));
+    await processWatchRunQueue('km');
+    expect(again).not.toHaveBeenCalled();
+
+    await jest.advanceTimersByTimeAsync(30_000);
+    expect(again).toHaveBeenCalledTimes(1);
+
+    await jest.advanceTimersByTimeAsync(30_000);
+    expect(again).toHaveBeenCalledTimes(1);
+  } finally {
+    onWatchRunRetry(null);
+    jest.useRealTimers();
+  }
 });
 
 test('files a run that arrives while another is being filed', async () => {

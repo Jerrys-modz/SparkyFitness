@@ -10,6 +10,7 @@ import {
   acceptPendingWatchRuns,
   enqueueWatchRun,
   processWatchRunQueue,
+  onWatchRunRetry,
 } from '../services/watchRunQueue';
 import { parseWatchRunPayload } from '../utils/watchRun';
 
@@ -97,4 +98,14 @@ export function useWatchRunBridge(
     if (!enabled || !isServerConnected) return;
     void drain.current().catch(() => undefined);
   }, [enabled, isServerConnected]);
+
+  // A diary request can fail while the identity check still says the server
+  // is up. Try that run again once; the drain itself waits if it is not.
+  useEffect(() => {
+    if (!enabled) return;
+    onWatchRunRetry(() => {
+      void drain.current().catch(() => undefined);
+    });
+    return () => onWatchRunRetry(null);
+  }, [enabled]);
 }
