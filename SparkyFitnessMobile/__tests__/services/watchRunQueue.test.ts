@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  acceptPendingWatchRuns,
   enqueueWatchRun,
   processWatchRunQueue,
 } from '../../src/services/watchRunQueue';
@@ -23,6 +24,7 @@ const run = (clientId: string): WatchRunPayload => ({
   activeEnergyKcal: 100,
   route: [],
   heartRate: [],
+  laps: [],
 });
 
 beforeEach(async () => {
@@ -77,4 +79,38 @@ test('files a run that arrives while another is being filed', async () => {
   expect(await processWatchRunQueue('km')).toEqual(await filed);
   expect(mockedSave).toHaveBeenCalledTimes(2);
   expect(await filed).toHaveLength(2);
+});
+
+describe('acceptPendingWatchRuns', () => {
+  const ack = jest.fn(async () => undefined);
+
+  beforeEach(() => ack.mockClear());
+
+  test('stores a run that arrived before the app was listening, including its laps', async () => {
+    const enqueue = jest.fn(async () => true);
+    await acceptPendingWatchRuns(
+      [{ ...run('cold'), laps: [1_000, 2_000] }],
+      enqueue,
+      ack
+    );
+    expect(enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ clientId: 'cold', laps: [1_000, 2_000] })
+    );
+    expect(ack).toHaveBeenCalledWith(['cold']);
+  });
+
+  test('acks a re-delivered run so the native queue can drop it', async () => {
+    const enqueue = jest.fn(async () => false);
+    await acceptPendingWatchRuns([run('again')], enqueue, ack);
+    expect(ack).toHaveBeenCalledWith(['again']);
+  });
+
+  test('leaves a run pending when storing it fails', async () => {
+    const enqueue = jest.fn(async (payload: WatchRunPayload) => {
+      if (payload.clientId === 'fail') throw new Error('disk full');
+      return true;
+    });
+    await acceptPendingWatchRuns([run('fail'), run('ok')], enqueue, ack);
+    expect(ack).toHaveBeenCalledWith(['ok']);
+  });
 });

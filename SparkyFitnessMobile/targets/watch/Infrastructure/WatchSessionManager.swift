@@ -272,10 +272,29 @@ final class WatchSessionManager: NSObject, ObservableObject {
     }
 
     /// Hands a finished wrist-only walk or run to the phone to file in the
-    /// diary. Queued like every message that must not be lost: the Health
-    /// workout is already marked as handled, so this is the only copy.
-    func sendRunFinished(_ result: WatchRunResult) {
-        transfer(OutboundPayloads.runFinished(result))
+    /// diary. Returns true once the message is durably queued: `transferUserInfo`
+    /// accepted it, or it is on disk until activation can hand it over. False
+    /// when it could not be kept, so the caller leaves the recovery snapshot.
+    @discardableResult
+    func sendRunFinished(_ result: WatchRunResult) -> Bool {
+        let payload = OutboundPayloads.runFinished(result)
+        guard WCSession.isSupported() else { return false }
+        if isActivated {
+            transfer(payload)
+            return true
+        }
+        return WatchRunOutbox.append(payload)
+    }
+
+    /// Sends runs that were finished before the session had activated.
+    private func flushRunOutbox() {
+        guard isActivated else { return }
+        let queued = WatchRunOutbox.load()
+        guard !queued.isEmpty else { return }
+        for payload in queued {
+            transfer(payload)
+        }
+        WatchRunOutbox.clear()
     }
 
     /// Hands a check-in to the system for delivery. Returns the state to show:
@@ -1553,6 +1572,7 @@ extension WatchSessionManager: WCSessionDelegate {
             self.isReachable = reachable
             // First: anything the wearer did before the session was usable.
             self.flushDeferredTransfers()
+            self.flushRunOutbox()
             // Before asking the phone for anything: whatever it last sent is
             // already available locally, and unlike `requestContext()` this
             // works with the phone nowhere in sight.

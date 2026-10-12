@@ -3,7 +3,7 @@ import { ApiError } from './api/errors';
 import { addLog } from './LogService';
 import { saveWatchRun } from './watchRunSave';
 import { toLocalDateString } from '../utils/dateUtils';
-import type { WatchRunPayload } from '../utils/watchRun';
+import { parseWatchRunPayload, type WatchRunPayload } from '../utils/watchRun';
 
 /**
  * Walks and runs the watch sent that are not in the diary yet. A payload is
@@ -60,6 +60,30 @@ export function enqueueWatchRun(payload: WatchRunPayload): Promise<boolean> {
     );
     return true;
   });
+}
+
+/**
+ * Moves runs the native side kept (they arrived before JavaScript was
+ * listening) into this queue. Each one is acknowledged only after it is
+ * stored here, or was already stored. A failed write leaves it pending.
+ */
+export async function acceptPendingWatchRuns(
+  pending: readonly unknown[],
+  enqueue: (payload: WatchRunPayload) => Promise<boolean>,
+  ack: (clientIds: string[]) => Promise<void>
+): Promise<void> {
+  const stored: string[] = [];
+  for (const raw of pending) {
+    const payload = parseWatchRunPayload(raw);
+    if (!payload) continue;
+    try {
+      await enqueue(payload);
+      stored.push(payload.clientId);
+    } catch {
+      // The native copy stays until a later launch can store it.
+    }
+  }
+  if (stored.length > 0) await ack(stored);
 }
 
 async function update(

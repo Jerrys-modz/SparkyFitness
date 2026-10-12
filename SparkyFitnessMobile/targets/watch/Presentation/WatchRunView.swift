@@ -134,7 +134,7 @@ struct WatchRunView: View {
                             unit: usesMiles ? "/mi" : "/km"
                         )
                     }
-                    Text("It's in Apple Health and shows up in SparkyFitness after the next sync.")
+                    Text("Sent to your iPhone. It shows up in SparkyFitness once the phone can reach the server.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

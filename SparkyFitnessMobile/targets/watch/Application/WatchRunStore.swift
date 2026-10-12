@@ -126,8 +126,10 @@ final class WatchRunStore: ObservableObject {
                     completion(true)
                 case .salvaged(let result):
                     // The Health session was lost; the run itself was not.
-                    WatchSessionManager.shared.sendRunFinished(result)
-                    WatchRunSnapshotStore.clear()
+                    // The snapshot stays until the message is durably queued.
+                    if WatchSessionManager.shared.sendRunFinished(result) {
+                        WatchRunSnapshotStore.clear()
+                    }
                     self.kind = result.kind
                     self.place = result.place
                     self.metrics = result.metrics
@@ -241,10 +243,14 @@ final class WatchRunStore: ObservableObject {
                 self.metrics = metrics
                 // The Health workout is stamped so the phone's import skips
                 // it; this message is how the run reaches the diary.
-                if let result { WatchSessionManager.shared.sendRunFinished(result) }
-                // Only now that the phone's message is queued is the snapshot
-                // no longer needed.
-                WatchRunSnapshotStore.clear()
+                if let result, WatchSessionManager.shared.sendRunFinished(result) {
+                    // Only once the message is durably queued (handed to the system,
+                    // or written until the session activates) is the snapshot
+                    // no longer needed.
+                    WatchRunSnapshotStore.clear()
+                } else if result == nil {
+                    WatchRunSnapshotStore.clear()
+                }
                 if save {
                     self.summary = Summary(kind: ending, place: endingPlace, elapsed: elapsed, metrics: metrics, saved: true)
                     self.phase = .finished
@@ -263,8 +269,10 @@ final class WatchRunStore: ObservableObject {
             return
         }
         // The Health session failed, but the run was recorded: send it on.
-        WatchSessionManager.shared.sendRunFinished(result)
-        WatchRunSnapshotStore.clear()
+        // Keep the snapshot when the message could not be queued yet.
+        if WatchSessionManager.shared.sendRunFinished(result) {
+            WatchRunSnapshotStore.clear()
+        }
         metrics = result.metrics
         summary = Summary(
             kind: result.kind,

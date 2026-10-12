@@ -56,3 +56,51 @@ enum WatchRunSnapshotStore {
 
     static var exists: Bool { load() != nil }
 }
+
+/// A finished run the watch could not hand to `transferUserInfo` yet, because
+/// `WCSession` was not activated. The file is the durable queue: the Health
+/// workout is already stamped, so this message is the only copy that reaches
+/// the diary. The recovery snapshot can be removed once this write succeeds.
+enum WatchRunOutbox {
+    private static var url: URL? {
+        try? FileManager.default
+            .url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            .appendingPathComponent("watch-run-outbox.json")
+    }
+
+    static func load() -> [[String: Any]] {
+        guard let url, let data = try? Data(contentsOf: url),
+              let raw = try? JSONSerialization.jsonObject(with: data) as? [Any]
+        else { return [] }
+        return raw.compactMap { $0 as? [String: Any] }
+    }
+
+    /// False when the file could not be written. A client id already queued
+    /// counts as kept.
+    static func append(_ payload: [String: Any]) -> Bool {
+        var rows = load()
+        if let id = payload["clientId"] as? String, !id.isEmpty,
+           rows.contains(where: { ($0["clientId"] as? String) == id }) {
+            return true
+        }
+        rows.append(payload)
+        return save(rows)
+    }
+
+    static func save(_ rows: [[String: Any]]) -> Bool {
+        guard let url, JSONSerialization.isValidJSONObject(rows),
+              let data = try? JSONSerialization.data(withJSONObject: rows)
+        else { return false }
+        do {
+            try data.write(to: url, options: .atomic)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    static func clear() {
+        guard let url else { return }
+        try? FileManager.default.removeItem(at: url)
+    }
+}

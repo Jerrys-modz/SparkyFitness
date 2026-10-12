@@ -7,6 +7,7 @@ import { invalidateExerciseCache } from './invalidateExerciseCache';
 import { usePreferences } from './usePreferences';
 import { addLog } from '../services/LogService';
 import {
+  acceptPendingWatchRuns,
   enqueueWatchRun,
   processWatchRunQueue,
 } from '../services/watchRunQueue';
@@ -62,6 +63,29 @@ export function useWatchRunBridge(
       }
     );
     return () => sub.remove();
+  }, [enabled]);
+
+  // A run can arrive while the app is not running. The native queue kept it;
+  // store it before anything tries to file it, and only then tell native it
+  // can drop its copy.
+  useEffect(() => {
+    if (
+      !enabled ||
+      !WatchConnectivity?.pendingWatchRuns ||
+      !WatchConnectivity.ackWatchRuns
+    ) {
+      return;
+    }
+    const pending = WatchConnectivity.pendingWatchRuns.bind(WatchConnectivity);
+    const ack = WatchConnectivity.ackWatchRuns.bind(WatchConnectivity);
+    void pending()
+      .then((runs) => acceptPendingWatchRuns(runs, enqueueWatchRun, ack))
+      .catch((error: unknown) =>
+        addLog(
+          `[Watch Run] Could not read runs queued on the phone: ${error instanceof Error ? error.message : String(error)}`,
+          'ERROR'
+        )
+      );
   }, [enabled]);
 
   // Anything left from an earlier launch or an offline stretch.

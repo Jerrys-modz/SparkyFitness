@@ -480,38 +480,41 @@ describe('transformHealthRecords', () => {
 
     test('titles a walk recorded on the watch alone by place', () => {
       setOwnBundleId('com.sparky.app');
-      const records = [
-        {
-          startTime: '2024-01-15T08:00:00Z',
-          endTime: '2024-01-15T08:30:00Z',
-          activityType: 52,
-          duration: 1800,
-          sourceBundleId: 'com.sparky.app.watchkitapp',
-          metadata: {},
-        },
-        {
-          startTime: '2024-01-16T08:00:00Z',
-          endTime: '2024-01-16T08:30:00Z',
-          activityType: 37,
-          duration: 1800,
-          sourceBundleId: 'com.sparky.app.watchkitapp',
-          metadata: { HKIndoorWorkout: 1 },
-        },
-      ];
-      const result = transformHealthRecords(records, {
-        recordType: 'Workout',
-        unit: '',
-        type: 'workout',
-      }) as TransformedExerciseSession[];
+      try {
+        const records = [
+          {
+            startTime: '2024-01-15T08:00:00Z',
+            endTime: '2024-01-15T08:30:00Z',
+            activityType: 52,
+            duration: 1800,
+            sourceBundleId: 'com.sparky.app.watchkitapp',
+            metadata: {},
+          },
+          {
+            startTime: '2024-01-16T08:00:00Z',
+            endTime: '2024-01-16T08:30:00Z',
+            activityType: 37,
+            duration: 1800,
+            sourceBundleId: 'com.sparky.app.watchkitapp',
+            metadata: { HKIndoorWorkout: 1 },
+          },
+        ];
+        const result = transformHealthRecords(records, {
+          recordType: 'Workout',
+          unit: '',
+          type: 'workout',
+        }) as TransformedExerciseSession[];
 
-      expect(result.map((r) => r.title)).toEqual([
-        'Outdoor walk',
-        'Indoor run',
-      ]);
-      expect(result[0].notes).toBe(
-        'Recorded on Apple Watch with SparkyFitness'
-      );
-      setOwnBundleId(null);
+        expect(result.map((r) => r.title)).toEqual([
+          'Outdoor walk',
+          'Indoor run',
+        ]);
+        expect(result[0].notes).toBe(
+          'Recorded on Apple Watch with SparkyFitness'
+        );
+      } finally {
+        setOwnBundleId(null);
+      }
     });
 
     test('still imports a workout from another app that carries metadata', () => {

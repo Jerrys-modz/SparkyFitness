@@ -675,6 +675,8 @@ export interface WatchRunFinishedPayload {
   activeEnergyKcal: number;
   route: number[][];
   heartRate: number[][];
+  /** Epoch ms of each Lap press. Missing on a payload from an older watch build. */
+  laps?: number[];
 }
 
 export type WatchConnectivityEvents = {
@@ -800,6 +802,12 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    */
   pendingHeartRateBatches(): Promise<WatchHeartRateBatchPayload[]>;
   ackHeartRateBatches(clientIds: string[]): Promise<void>;
+  /**
+   * Wrist-only runs received before JavaScript was listening. Kept until
+   * `ackWatchRuns` says the phone has stored them.
+   */
+  pendingWatchRuns(): Promise<WatchRunFinishedPayload[]>;
+  ackWatchRuns(clientIds: string[]): Promise<void>;
   /**
    * Server config that owns batches received after this call. Persisted
    * natively, so a batch that arrives on a cold start is stamped before
