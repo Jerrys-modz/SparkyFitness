@@ -252,10 +252,27 @@ describe('RecordActivityScreen', () => {
       expect(startRunOnWatch).not.toHaveBeenCalled();
     });
 
+    it('starts an outdoor run on the watch', async () => {
+      state(null);
+      const screen = await renderScreen();
+      fireEvent.press(screen.getByText('Watch GPS'));
+      expect(screen.queryByTestId('auto-pause-switch')).toBeNull();
+      fireEvent.press(screen.getByText('Start'));
+      await waitFor(() =>
+        expect(startRunOnWatch).toHaveBeenCalledWith({
+          kind: 'run',
+          place: 'outdoor',
+          plan: undefined,
+        })
+      );
+      expect(startRecording).not.toHaveBeenCalled();
+    });
+
     it('starts a treadmill run on the watch and opens the live screen', async () => {
       state(null);
       const screen = await renderScreen();
-      fireEvent.press(screen.getByText('Treadmill'));
+      fireEvent.press(screen.getByText('Indoor'));
+      fireEvent.press(screen.getByText('Watch'));
       expect(screen.queryByTestId('auto-pause-switch')).toBeNull();
       fireEvent.press(screen.getByText('Start'));
       await waitFor(() =>
@@ -269,13 +286,37 @@ describe('RecordActivityScreen', () => {
       expect(navigation.navigate).toHaveBeenCalledWith('WatchRunLive');
     });
 
+    it('names the choice after the place: GPS outdoors, the device indoors', async () => {
+      state(null);
+      const screen = await renderScreen();
+      expect(screen.getByText('Phone GPS')).toBeTruthy();
+      expect(screen.getByText('Watch GPS')).toBeTruthy();
+      fireEvent.press(screen.getByText('Indoor'));
+      expect(screen.queryByText('Phone GPS')).toBeNull();
+      expect(screen.getByText('Phone')).toBeTruthy();
+      expect(screen.getByText('Watch')).toBeTruthy();
+    });
+
+    it('records indoors on the phone by default', async () => {
+      state(null);
+      const screen = await renderScreen();
+      fireEvent.press(screen.getByText('Indoor'));
+      fireEvent.press(screen.getByText('Start'));
+      await waitFor(() =>
+        expect(startRecording).toHaveBeenCalledWith(
+          expect.objectContaining({ indoor: true })
+        )
+      );
+      expect(startRunOnWatch).not.toHaveBeenCalled();
+    });
+
     it('offers the watch for a walk but not a ride', async () => {
       state(null);
       const screen = await renderScreen();
       fireEvent.press(screen.getByText('Ride'));
-      expect(screen.queryByText('Treadmill')).toBeNull();
+      expect(screen.queryByText('Watch GPS')).toBeNull();
       fireEvent.press(screen.getByText('Walk'));
-      expect(screen.getByText('Treadmill')).toBeTruthy();
+      expect(screen.getByText('Watch GPS')).toBeTruthy();
     });
   });
 
@@ -552,11 +593,17 @@ describe('RecordActivityScreen', () => {
 
     fireEvent.press(screen.getByText('Indoor'));
     expect(screen.getByText(/No GPS is used/)).toBeTruthy();
+    // No location fixes indoors, so auto-pause is neither offered nor sent.
+    expect(screen.queryByTestId('auto-pause-switch')).toBeNull();
     fireEvent.press(screen.getByText('Start'));
 
     await waitFor(() =>
       expect(startRecording).toHaveBeenCalledWith(
-        expect.objectContaining({ activity: 'run', indoor: true })
+        expect.objectContaining({
+          activity: 'run',
+          indoor: true,
+          autoPause: false,
+        })
       )
     );
   });

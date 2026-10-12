@@ -132,13 +132,13 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const [busy, setBusy] = useState(false);
   const { isSupported: watchSupported, isPaired: watchPaired } =
     useWatchConnectivity();
-  // Where a walk or run is recorded: this phone's GPS (the default), or the
-  // watch, outdoors or on a treadmill. A ride is phone-only.
-  const [recordWith, setRecordWith] = useState<
-    'phone' | 'watchOutdoor' | 'watchIndoor'
-  >('phone');
+  // Outdoors or indoors (a treadmill: no GPS), chosen first; then, for a walk
+  // or run with a paired watch, which device records it. A ride is
+  // phone-only.
+  const [indoor, setIndoor] = useState(false);
+  const [recordWith, setRecordWith] = useState<'phone' | 'watch'>('phone');
   const watchAvailable = watchSupported && watchPaired && activity !== 'ride';
-  const onWatch = watchAvailable && recordWith !== 'phone';
+  const onWatch = watchAvailable && recordWith === 'watch';
   const [autoPause, setAutoPause] = useState(true);
   const [audioCues, setAudioCues] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState(0);
@@ -194,9 +194,6 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   // Set when the person taps Start here, so a session that is already there
   // when the screen opens can be told apart from one started on this visit.
   const [startedHere, setStartedHere] = useState(false);
-  // Indoor (treadmill) recording: no GPS, and the distance is typed in at the
-  // end from whatever the machine shows.
-  const [indoor, setIndoor] = useState(false);
   // Null until the person types: the field then shows the step-based estimate,
   // and clearing it leaves it empty rather than bringing the estimate back.
   const [indoorDistanceText, setIndoorDistanceText] = useState<string | null>(
@@ -342,7 +339,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
                   };
             await startRunOnWatch({
               kind: activity,
-              place: recordWith === 'watchIndoor' ? 'indoor' : 'outdoor',
+              place: indoor ? 'indoor' : 'outdoor',
               plan: intervalPlan
                 ? buildWatchStartPlan(t, intervalPlan, meta)
                 : undefined,
@@ -386,7 +383,6 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       navigation,
       onWatch,
       programStatus,
-      recordWith,
       run,
       t,
     ]
@@ -707,11 +703,16 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               </Text>
               <Text className="text-text-secondary text-xs mb-2">
                 {recordWith === 'phone'
-                  ? t('recordActivity.watch.phoneHint', {
-                      defaultValue:
-                        'Your phone’s GPS records the route and distance.',
-                    })
-                  : recordWith === 'watchIndoor'
+                  ? indoor
+                    ? t('recordActivity.watch.phoneIndoorHint', {
+                        defaultValue:
+                          'Your phone counts your steps to estimate the distance. Correct it to the treadmill’s figure afterwards.',
+                      })
+                    : t('recordActivity.watch.phoneHint', {
+                        defaultValue:
+                          'Your phone’s GPS records the route and distance.',
+                      })
+                  : indoor
                     ? t('recordActivity.watch.indoorHint', {
                         defaultValue:
                           'Your watch counts steps and estimates the distance. Correct it to the treadmill’s figure afterwards.',
@@ -721,25 +722,27 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
                           'Your watch records the run with its own GPS and heart rate sensor. Your phone can stay behind.',
                       })}
               </Text>
-              <SegmentedControl<'phone' | 'watchOutdoor' | 'watchIndoor'>
+              <SegmentedControl<'phone' | 'watch'>
                 segments={[
                   {
                     key: 'phone',
-                    label: t('recordActivity.watch.phone', {
-                      defaultValue: 'Phone GPS',
-                    }),
+                    label: indoor
+                      ? t('recordActivity.watch.phoneIndoor', {
+                          defaultValue: 'Phone',
+                        })
+                      : t('recordActivity.watch.phone', {
+                          defaultValue: 'Phone GPS',
+                        }),
                   },
                   {
-                    key: 'watchOutdoor',
-                    label: t('recordActivity.watch.outdoor', {
-                      defaultValue: 'Watch',
-                    }),
-                  },
-                  {
-                    key: 'watchIndoor',
-                    label: t('recordActivity.watch.indoor', {
-                      defaultValue: 'Treadmill',
-                    }),
+                    key: 'watch',
+                    label: indoor
+                      ? t('recordActivity.watch.watchIndoor', {
+                          defaultValue: 'Watch',
+                        })
+                      : t('recordActivity.watch.outdoor', {
+                          defaultValue: 'Watch GPS',
+                        }),
                   },
                 ]}
                 activeKey={recordWith}
@@ -749,33 +752,35 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
           ) : null}
           {onWatch ? null : (
             <>
-              <View className="flex-row items-center justify-between bg-surface rounded-xl p-4 mt-4">
-                <View className="flex-1 mr-3">
-                  <Text className="text-text-primary text-sm font-semibold">
-                    {t('recordActivity.autoPause.title', {
+              {indoor ? null : (
+                <View className="flex-row items-center justify-between bg-surface rounded-xl p-4 mt-4">
+                  <View className="flex-1 mr-3">
+                    <Text className="text-text-primary text-sm font-semibold">
+                      {t('recordActivity.autoPause.title', {
+                        defaultValue: 'Auto-pause',
+                      })}
+                    </Text>
+                    <Text className="text-text-secondary text-xs mt-0.5">
+                      {t('recordActivity.autoPause.description', {
+                        defaultValue:
+                          'Pauses the clock when you stop and carries on when you move.',
+                      })}
+                    </Text>
+                  </View>
+                  <Switch
+                    testID="auto-pause-switch"
+                    accessibilityLabel={t('recordActivity.autoPause.title', {
                       defaultValue: 'Auto-pause',
                     })}
-                  </Text>
-                  <Text className="text-text-secondary text-xs mt-0.5">
-                    {t('recordActivity.autoPause.description', {
-                      defaultValue:
-                        'Pauses the clock when you stop and carries on when you move.',
-                    })}
-                  </Text>
+                    value={autoPause}
+                    onValueChange={(value) => {
+                      preferenceEdits.current.autoPause = true;
+                      setAutoPause(value);
+                      void setRecordingPreference('autoPause', value);
+                    }}
+                  />
                 </View>
-                <Switch
-                  testID="auto-pause-switch"
-                  accessibilityLabel={t('recordActivity.autoPause.title', {
-                    defaultValue: 'Auto-pause',
-                  })}
-                  value={autoPause}
-                  onValueChange={(value) => {
-                    preferenceEdits.current.autoPause = true;
-                    setAutoPause(value);
-                    void setRecordingPreference('autoPause', value);
-                  }}
-                />
-              </View>
+              )}
               <View className="flex-row items-center justify-between bg-surface rounded-xl p-4 mt-4">
                 <View className="flex-1 mr-3">
                   <Text className="text-text-primary text-sm font-semibold">
