@@ -65,3 +65,33 @@ export function buildWatchRunPlans(
   }
   return plans;
 }
+
+/**
+ * The plan chosen on the phone's Record screen, in the shape the watch takes
+ * when the phone starts a run there. `program` marks it as the due program
+ * workout so the finished run ticks it off.
+ */
+export function buildWatchStartPlan(
+  t: TFunction,
+  plan: IntervalPlan,
+  meta: {
+    id: string;
+    name: string;
+    program?: { id: string; index: number; activity: 'run' | 'walk' | 'ride' };
+  }
+): WatchRunPlanPayload {
+  return {
+    id: meta.id,
+    name: meta.name,
+    ...(meta.program
+      ? {
+          programId: meta.program.id,
+          programIndex: meta.program.index,
+          ...(meta.program.activity === 'walk'
+            ? { activity: 'walk' as const }
+            : {}),
+        }
+      : {}),
+    steps: toSteps(t, plan),
+  };
+}

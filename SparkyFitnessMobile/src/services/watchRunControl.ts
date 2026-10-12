@@ -1,0 +1,56 @@
+import WatchConnectivity, {
+  type WatchRunControlAction,
+} from '../../modules/watch-connectivity';
+import type { WatchRunPlanPayload } from '../utils/watchRunPlans';
+import { useWatchRunLiveStore } from '../stores/watchRunLiveStore';
+import { addLog } from './LogService';
+
+const newId = (): string =>
+  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
+/**
+ * Asks the watch to record a walk or run and opens its app. The watch reports
+ * back with live figures carrying `requestId`; until then the live screen
+ * shows the request as pending. Resolves to the request id.
+ */
+export async function startRunOnWatch(options: {
+  kind: 'run' | 'walk';
+  place: 'indoor' | 'outdoor';
+  plan?: WatchRunPlanPayload;
+}): Promise<string> {
+  if (!WatchConnectivity) throw new Error('Apple Watch is not available');
+  const requestId = newId();
+  const requestedAt = Date.now();
+  await WatchConnectivity.startRun({
+    requestId,
+    kind: options.kind,
+    place: options.place,
+    requestedAt,
+    ...(options.plan ? { plan: options.plan } : {}),
+  });
+  useWatchRunLiveStore.getState().setPending({
+    requestId,
+    kind: options.kind,
+    place: options.place,
+    at: requestedAt,
+  });
+  return requestId;
+}
+
+/** Pause, resume, lap, finish or discard the run going on the watch. */
+export async function sendRunControl(
+  runId: string,
+  action: WatchRunControlAction
+): Promise<void> {
+  if (!WatchConnectivity) return;
+  try {
+    await WatchConnectivity.sendRunControl({
+      runId,
+      action,
+      controlId: newId(),
+    });
+  } catch (error) {
+    addLog(`[Watch Run] Could not send ${action}: ${error}`, 'ERROR');
+    throw error;
+  }
+}

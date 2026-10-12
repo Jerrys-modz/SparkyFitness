@@ -132,28 +132,60 @@ enum ContextPayloadMapper {
     static func runPlans(from payload: [String: Any]) -> [WatchRunPlan]? {
         guard let raw = payload["runPlans"] else { return nil }
         let rows = dictionaryArray(raw) ?? []
-        return rows.compactMap { row in
+        return rows.compactMap { runPlan(from: $0) }
+    }
+
+    /// One plan from the phone, as a row of `runPlans` or the `plan` of a start
+    /// request. Nil when it has no name or no readable step.
+    static func runPlan(from row: [String: Any]) -> WatchRunPlan? {
+        guard
+            let id = row["id"] as? String, !id.isEmpty,
+            let name = row["name"] as? String, !name.isEmpty
+        else { return nil }
+        let steps: [WatchRunPlan.Step] = (dictionaryArray(row["steps"]) ?? []).compactMap { step in
             guard
-                let id = row["id"] as? String, !id.isEmpty,
-                let name = row["name"] as? String, !name.isEmpty
+                let label = step["label"] as? String,
+                let seconds = (step["seconds"] as? NSNumber)?.doubleValue, seconds > 0
             else { return nil }
-            let steps: [WatchRunPlan.Step] = (dictionaryArray(row["steps"]) ?? []).compactMap { step in
-                guard
-                    let label = step["label"] as? String,
-                    let seconds = (step["seconds"] as? NSNumber)?.doubleValue, seconds > 0
-                else { return nil }
-                return WatchRunPlan.Step(label: label, seconds: seconds)
-            }
-            guard !steps.isEmpty else { return nil }
-            return WatchRunPlan(
-                id: id,
-                name: name,
-                programId: row["programId"] as? String,
-                programIndex: (row["programIndex"] as? NSNumber)?.intValue,
-                steps: steps,
-                activity: row["activity"] as? String
-            )
+            return WatchRunPlan.Step(label: label, seconds: seconds)
         }
+        guard !steps.isEmpty else { return nil }
+        return WatchRunPlan(
+            id: id,
+            name: name,
+            programId: row["programId"] as? String,
+            programIndex: (row["programIndex"] as? NSNumber)?.intValue,
+            steps: steps,
+            activity: row["activity"] as? String
+        )
+    }
+
+    /// The phone asking the watch to record a walk or run. Nil when it cannot
+    /// be understood; a plan that cannot be read just means no plan.
+    static func runStartRequest(from payload: [String: Any]) -> WatchRunStartRequest? {
+        guard
+            let requestId = payload["requestId"] as? String, !requestId.isEmpty,
+            let kindRaw = payload["kind"] as? String, let kind = WatchRunKind(rawValue: kindRaw),
+            let placeRaw = payload["place"] as? String, let place = WatchRunPlace(rawValue: placeRaw)
+        else { return nil }
+        let at = (payload["requestedAt"] as? NSNumber)?.doubleValue ?? 0
+        return WatchRunStartRequest(
+            requestId: requestId,
+            kind: kind,
+            place: place,
+            requestedAt: Date(timeIntervalSince1970: at / 1000),
+            plan: (payload["plan"] as? [String: Any]).flatMap { runPlan(from: $0) }
+        )
+    }
+
+    /// A pause, resume, lap, finish or discard sent from the phone's live view.
+    static func runControl(from payload: [String: Any]) -> (runId: String, action: String, controlId: String)? {
+        guard
+            let runId = payload["runId"] as? String, !runId.isEmpty,
+            let action = payload["action"] as? String, !action.isEmpty,
+            let controlId = payload["controlId"] as? String, !controlId.isEmpty
+        else { return nil }
+        return (runId, action, controlId)
     }
 
     /// Same rule as `startableWorkouts`: nil when the key is absent, so an
