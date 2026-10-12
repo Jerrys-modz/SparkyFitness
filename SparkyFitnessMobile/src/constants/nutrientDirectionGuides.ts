@@ -1,5 +1,12 @@
 import type { NutrientGoalType } from '../services/api/nutrientGoalPreferencesApi';
 
+/** Dot/accent color per goal direction, shared by the guide legend and the Min/Max/Range selectors. */
+export const DIRECTION_COLORS: Record<NutrientGoalType, string> = {
+  minimum: '#9ca3af',
+  maximum: '#f59e0b',
+  target: '#3b82f6',
+};
+
 export type NutrientDirectionGuideKey =
   'loseWeight' | 'gainWeight' | 'maintain' | 'diabetes' | 'heart' | 'lowCarb';
 

@@ -48,6 +48,7 @@ import {
 } from '@workspace/shared';
 import type { DailyGoals, GoalPreset } from '../types/goals';
 import {
+  DIRECTION_COLORS,
   NUTRIENT_DIRECTION_GUIDES,
   buildGuideDirections,
   type NutrientDirectionGuideKey,
@@ -614,14 +615,17 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
   const directionSegments: Segment<NutrientGoalType>[] = [
     {
       key: 'minimum',
+      color: DIRECTION_COLORS.minimum,
       label: t('goals.directions.minimum', { defaultValue: 'Min' }),
     },
     {
       key: 'maximum',
+      color: DIRECTION_COLORS.maximum,
       label: t('goals.directions.maximum', { defaultValue: 'Max' }),
     },
     {
       key: 'target',
+      color: DIRECTION_COLORS.target,
       label: t('goals.directions.range', { defaultValue: 'Range' }),
     },
   ];
