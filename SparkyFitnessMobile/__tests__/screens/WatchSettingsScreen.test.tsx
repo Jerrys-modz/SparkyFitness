@@ -133,7 +133,7 @@ describe('WatchSettingsScreen', () => {
 
   test('the last page still shown cannot be turned off', () => {
     useAppPreferencesStore.setState({
-hiddenWatchPages: [
+      hiddenWatchPages: [
         'goals',
         'water',
         'medications',
