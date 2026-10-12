@@ -10,12 +10,21 @@ import { useCardioSessionDetail } from '../hooks/useCardioSessionDetail';
 import { formatLocalizedNumber, getAppLocale } from '../localization';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
+import {
+  METERS_PER_KM,
+  METERS_PER_MILE,
+  formatPace,
+} from '../utils/gpsRecording';
+import { paceSeriesFromTrack } from '../utils/cardioSession';
 import RouteMap from '../components/exerciseStats/RouteMap';
 import HeartRateChart from '../components/exerciseStats/HeartRateChart';
+import PaceChart from '../components/exerciseStats/PaceChart';
 import HeartRateZones from '../components/exerciseStats/HeartRateZones';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type CardioSessionScreenProps = RootStackScreenProps<'CardioSession'>;
+
+const FEET_PER_METER = 3.28084;
 
 interface Stat {
   key: string;
@@ -73,6 +82,45 @@ function sessionStats(
       key: 'pace',
       label: t('exerciseStatistics.cardio.pace', { defaultValue: 'Pace' }),
       value: session.formattedPace,
+    });
+  }
+  if (session.floorsClimbed != null && session.floorsClimbed > 0) {
+    const floors = Math.round(session.floorsClimbed);
+    stats.push({
+      key: 'floors',
+      label: t('exerciseStatistics.cardio.floors', {
+        defaultValue: 'Floors climbed',
+      }),
+      value: t('exerciseStatistics.cardio.floorsCount', {
+        count: floors,
+        formattedCount: formatLocalizedNumber(floors),
+        defaultValue: '{{formattedCount}} floors',
+        defaultValue_one: '{{formattedCount}} floor',
+        defaultValue_other: '{{formattedCount}} floors',
+      }),
+    });
+  }
+  if (session.elevationGainMeters != null && session.elevationGainMeters > 0) {
+    // Stored in metres; shown in feet with the miles setting, as distance is.
+    const feet = distanceUnit === 'miles';
+    const gain = feet
+      ? session.elevationGainMeters * FEET_PER_METER
+      : session.elevationGainMeters;
+    const value = formatLocalizedNumber(Math.round(gain));
+    stats.push({
+      key: 'elevation',
+      label: t('exerciseStatistics.cardio.elevationGain', {
+        defaultValue: 'Elevation gain',
+      }),
+      value: feet
+        ? t('exerciseStatistics.cardio.feet', {
+            defaultValue: '{{value}} ft',
+            value,
+          })
+        : t('exerciseStatistics.cardio.meters', {
+            defaultValue: '{{value}} m',
+            value,
+          }),
     });
   }
   if (session.avgHeartRate != null && session.avgHeartRate > 0) {
@@ -159,6 +207,16 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
     year: 'numeric',
   });
 
+  const unitMeters = distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
+  const paceSeries = React.useMemo(
+    () => paceSeriesFromTrack(detail.route, unitMeters),
+    [detail.route, unitMeters]
+  );
+  const paceUnitLabel =
+    distanceUnit === 'miles'
+      ? t('exerciseStatistics.cardio.perMile', { defaultValue: '/mi' })
+      : t('exerciseStatistics.cardio.perKm', { defaultValue: '/km' });
+
   const peak = detail.heartRate.reduce((max, p) => Math.max(max, p.bpm), 0);
   const average =
     detail.heartRate.length > 0
@@ -221,6 +279,37 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
             </Text>
           )}
         </Card>
+
+        {paceSeries.length >= 2 ? (
+          <Card
+            title={t('exerciseStatistics.cardio.pace', {
+              defaultValue: 'Pace',
+            })}
+          >
+            <View className="flex-row mb-2">
+              <Text className="text-text-secondary text-sm mr-4">
+                {t('exerciseStatistics.cardio.bestPace', {
+                  defaultValue: 'Best {{value}}',
+                  value: `${formatPace(
+                    Math.min(...paceSeries.map((p) => p.paceSeconds))
+                  )} ${paceUnitLabel}`,
+                })}
+              </Text>
+            </View>
+            <PaceChart
+              data={paceSeries}
+              xAxisCaption={
+                distanceUnit === 'miles'
+                  ? t('exerciseStatistics.cardio.milesAxis', {
+                      defaultValue: 'Miles from start',
+                    })
+                  : t('exerciseStatistics.cardio.kilometersAxis', {
+                      defaultValue: 'Kilometers from start',
+                    })
+              }
+            />
+          </Card>
+        ) : null}
 
         <Card
           title={t('exerciseStatistics.cardio.heartRate', {

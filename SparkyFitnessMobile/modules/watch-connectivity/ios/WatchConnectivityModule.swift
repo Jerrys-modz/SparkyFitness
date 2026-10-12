@@ -34,6 +34,9 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWorkoutDiscard: (([String: Any]) -> Void)?
     /// The wearer picked a saved workout on the watch. The phone starts it.
     var onWorkoutStartRequested: (([String: Any]) -> Void)?
+    /// The wearer added or removed a set or exercise on the watch, or changed a
+    /// set's type. The phone applies it to the live workout.
+    var onWorkoutEdit: (([String: Any]) -> Void)?
     /// The wearer answered the update-this-workout question on the summary.
     var onPresetUpdateAnswer: (([String: Any]) -> Void)?
     var onRecordingControl: (([String: Any]) -> Void)?
@@ -118,6 +121,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onWorkoutDiscard?(payload)
         case "workoutStartRequested":
             onWorkoutStartRequested?(payload)
+        case "workoutEdit":
+            onWorkoutEdit?(payload)
         case "presetUpdateAnswer":
             onPresetUpdateAnswer?(payload)
         case "recordingControl":
@@ -274,6 +279,7 @@ public class WatchConnectivityModule: Module {
             "onWorkoutStop",
             "onWorkoutDiscard",
             "onWorkoutStartRequested",
+            "onWorkoutEdit",
             "onPresetUpdateAnswer",
             "onRecordingControl",
             "onRecordingHeartRate",
@@ -436,6 +442,17 @@ public class WatchConnectivityModule: Module {
                     "serverId": payload["serverId"] as? String ?? "",
                 ])
             }
+            self.delegateHandler.onWorkoutEdit = { [weak self] payload in
+                var event: [String: Any] = [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "clientId": payload["clientId"] as? String ?? "",
+                    "action": payload["action"] as? String ?? "",
+                ]
+                for key in ["exerciseEntryId", "setId", "exerciseId", "setType"] {
+                    if let value = payload[key] as? String { event[key] = value }
+                }
+                self?.sendEvent("onWorkoutEdit", event)
+            }
             self.delegateHandler.onPresetUpdateAnswer = { [weak self] payload in
                 self?.sendEvent("onPresetUpdateAnswer", [
                     "sessionId": payload["sessionId"] as? String ?? "",
@@ -443,10 +460,14 @@ public class WatchConnectivityModule: Module {
                 ])
             }
             self.delegateHandler.onRecordingControl = { [weak self] payload in
-                self?.sendEvent("onRecordingControl", [
+                var event: [String: Any] = [
                     "sessionId": payload["sessionId"] as? String ?? "",
                     "action": payload["action"] as? String ?? "",
-                ])
+                ]
+                // When the wearer pressed it (epoch ms); a queued control can
+                // arrive long after, and a lap belongs to the press.
+                if let at = (payload["at"] as? NSNumber)?.doubleValue { event["at"] = at }
+                self?.sendEvent("onRecordingControl", event)
             }
             self.delegateHandler.onRecordingHeartRate = { [weak self] payload in
                 self?.sendEvent("onRecordingHeartRate", [

@@ -1,0 +1,72 @@
+import * as Speech from 'expo-speech';
+import { getAppLocale } from '../localization';
+import { addLog } from './LogService';
+import {
+  beginCueDucking,
+  endCueDucking,
+  startRecordingCueSession,
+  stopRecordingCueSession,
+} from './sounds';
+
+/**
+ * Spoken cues for a GPS recording (split times, pauses). Separate from the
+ * guided-workout narration in `speech.ts`, which is foreground-only and gated
+ * on its own setting: a run is spoken with the screen locked.
+ *
+ * Fire-and-forget like the other cue services: a failure is logged and never
+ * reaches the recording.
+ */
+
+/** Gets the audio session ready; call when a recording that speaks begins. */
+export function beginRecordingCues(): void {
+  void startRecordingCueSession();
+}
+
+/** Lets the audio session go; call when the recording ends. */
+export function endRecordingCues(): void {
+  void stopRecordingCueSession();
+}
+
+/** Cuts off anything being said and lets the audio session go. */
+export function stopRecordingCues(): void {
+  try {
+    void Speech.stop();
+  } catch (error) {
+    addLog(`stopRecordingCues failed: ${(error as Error).message}`, 'WARNING');
+  }
+  endRecordingCues();
+}
+
+/**
+ * Says `text`, replacing anything still being read: a split announced behind a
+ * stale "Paused" would be wrong by the time it was heard.
+ */
+export function speakRecordingCue(text: string, onFinished?: () => void): void {
+  if (!text) return;
+  try {
+    void Speech.stop();
+    let ducked = false;
+    const settle = () => {
+      onFinished?.();
+      if (ducked) {
+        ducked = false;
+        endCueDucking();
+      }
+    };
+    Speech.speak(text, {
+      language: getAppLocale(),
+      useApplicationAudioSession: true,
+      onStart: () => {
+        ducked = beginCueDucking();
+      },
+      onDone: settle,
+      onStopped: settle,
+      onError: (error) => {
+        settle();
+        addLog(`recording cue failed: ${error.message}`, 'WARNING');
+      },
+    });
+  } catch (error) {
+    addLog(`speakRecordingCue failed: ${(error as Error).message}`, 'ERROR');
+  }
+}
