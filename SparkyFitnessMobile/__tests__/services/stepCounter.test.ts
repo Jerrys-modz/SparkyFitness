@@ -1,7 +1,11 @@
 import { Platform } from 'react-native';
 import { Pedometer } from 'expo-sensors';
 
-import { getStepsBetween } from '../../src/services/stepCounter';
+import { readStepCounterSinceBoot } from '../../modules/step-counter';
+import {
+  captureStepCounterBaseline,
+  getStepsBetween,
+} from '../../src/services/stepCounter';
 
 jest.mock('expo-sensors', () => ({
   Pedometer: {
@@ -11,8 +15,12 @@ jest.mock('expo-sensors', () => ({
     getStepCountAsync: jest.fn(),
   },
 }));
+jest.mock('../../modules/step-counter', () => ({
+  readStepCounterSinceBoot: jest.fn(),
+}));
 
 const pedometer = jest.mocked(Pedometer);
+const readCounter = jest.mocked(readStepCounterSinceBoot);
 const permission = (granted: boolean, canAskAgain = true) =>
   ({ granted, canAskAgain }) as Awaited<
     ReturnType<typeof Pedometer.getPermissionsAsync>
@@ -27,6 +35,7 @@ beforeEach(() => {
   pedometer.isAvailableAsync.mockResolvedValue(true);
   pedometer.getPermissionsAsync.mockResolvedValue(permission(true));
   pedometer.getStepCountAsync.mockResolvedValue({ steps: 3900 });
+  readCounter.mockResolvedValue(5000);
 });
 
 afterEach(() => jest.restoreAllMocks());
@@ -42,13 +51,34 @@ describe('getStepsBetween', () => {
     );
   });
 
-  it('says nothing on Android, where the history cannot be queried', async () => {
+  it('on Android subtracts the counter taken at the start', async () => {
+    jest.replaceProperty(Platform, 'OS', 'android');
+
+    expect(
+      await getStepsBetween(START, END, {
+        askForPermission: false,
+        stepCounterAtStart: 1100,
+      })
+    ).toBe(3900);
+    expect(pedometer.getStepCountAsync).not.toHaveBeenCalled();
+    expect(readCounter).toHaveBeenCalledTimes(1);
+  });
+
+  it('on Android says nothing without a start reading, or after a reboot', async () => {
     jest.replaceProperty(Platform, 'OS', 'android');
 
     expect(
       await getStepsBetween(START, END, { askForPermission: true })
     ).toBeNull();
-    expect(pedometer.getStepCountAsync).not.toHaveBeenCalled();
+    expect(readCounter).not.toHaveBeenCalled();
+
+    readCounter.mockResolvedValue(40);
+    expect(
+      await getStepsBetween(START, END, {
+        askForPermission: true,
+        stepCounterAtStart: 1100,
+      })
+    ).toBeNull();
   });
 
   it('says nothing without a pedometer or for an empty window', async () => {
@@ -103,5 +133,26 @@ describe('getStepsBetween', () => {
     expect(
       await getStepsBetween(START, END, { askForPermission: false })
     ).toBeNull();
+  });
+});
+
+describe('captureStepCounterBaseline', () => {
+  it('does nothing on iOS, which queries the window later', async () => {
+    expect(await captureStepCounterBaseline(true)).toBeNull();
+    expect(readCounter).not.toHaveBeenCalled();
+  });
+
+  it('reads the counter on Android, asking only when told to', async () => {
+    jest.replaceProperty(Platform, 'OS', 'android');
+    pedometer.getPermissionsAsync.mockResolvedValue(permission(false));
+    pedometer.requestPermissionsAsync.mockResolvedValue(permission(true));
+
+    expect(await captureStepCounterBaseline(true)).toBe(5000);
+    expect(pedometer.requestPermissionsAsync).toHaveBeenCalledTimes(1);
+
+    pedometer.requestPermissionsAsync.mockClear();
+    pedometer.getPermissionsAsync.mockResolvedValue(permission(false));
+    expect(await captureStepCounterBaseline(false)).toBeNull();
+    expect(pedometer.requestPermissionsAsync).not.toHaveBeenCalled();
   });
 });

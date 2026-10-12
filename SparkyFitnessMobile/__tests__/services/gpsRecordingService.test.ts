@@ -18,7 +18,11 @@ jest.mock('../../src/services/recordingCues', () => ({
   stopRecordingCues: jest.fn(),
   speakRecordingCue: jest.fn(),
 }));
+jest.mock('../../src/services/stepCounter', () => ({
+  captureStepCounterBaseline: jest.fn(async () => null),
+}));
 
+import { captureStepCounterBaseline } from '../../src/services/stepCounter';
 import {
   beginRecordingCues,
   speakRecordingCue,
@@ -41,6 +45,7 @@ import {
   type RecordingSession,
 } from '../../src/services/gpsRecordingService';
 
+const mockedBaseline = jest.mocked(captureStepCounterBaseline);
 const mockedLocation = Location as jest.Mocked<typeof Location>;
 const notification = { title: 'Recording', body: 'Tracking' };
 const DEG_PER_METER = 1 / 111_194.9;
@@ -65,6 +70,7 @@ async function storedSession(): Promise<RecordingSession | null> {
 
 beforeEach(async () => {
   jest.clearAllMocks();
+  mockedBaseline.mockResolvedValue(null);
   await AsyncStorage.clear();
   resetRecordingStateForTests();
   mockedLocation.hasServicesEnabledAsync.mockResolvedValue(true);
@@ -427,6 +433,21 @@ describe('indoor recording', () => {
     const stored = await storedSession();
     expect(stored?.status).toBe('recording');
     expect(stored?.indoor).toBe(true);
+    expect(mockedBaseline).toHaveBeenCalledWith(true);
+  });
+
+  it('keeps the step counter taken at the start', async () => {
+    mockedBaseline.mockResolvedValueOnce(1200);
+
+    await startRecording({ activity: 'walk', indoor: true, notification });
+
+    expect((await storedSession())?.stepCounterAtStart).toBe(1200);
+  });
+
+  it('does not read the step counter for a ride', async () => {
+    await startRecording({ activity: 'ride', indoor: true, notification });
+
+    expect(mockedBaseline).not.toHaveBeenCalled();
   });
 
   it('starts even when location services are off or permission is denied', async () => {

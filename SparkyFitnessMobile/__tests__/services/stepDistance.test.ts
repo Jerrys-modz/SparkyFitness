@@ -68,6 +68,15 @@ describe('estimateIndoorDistance', () => {
     expect(await estimateIndoorDistance(window())).toBeNull();
   });
 
+  it('passes an Android counter baseline through', async () => {
+    await estimateIndoorDistance(window({ stepCounterAtStart: 1100 }));
+
+    expect(mockedSteps).toHaveBeenCalledWith(START, START + 30 * 60_000, {
+      askForPermission: true,
+      stepCounterAtStart: 1100,
+    });
+  });
+
   it('has no estimate from a handful of steps', async () => {
     mockedSteps.mockResolvedValue(8);
 
@@ -107,10 +116,14 @@ describe('learnFromIndoorEntry', () => {
 
 describe('learnFromOutdoorRecording', () => {
   it('learns from the GPS distance, without asking for access', async () => {
-    await learnFromOutdoorRecording(window({ activity: 'run' }), 3200);
+    await learnFromOutdoorRecording(
+      window({ activity: 'run', stepCounterAtStart: 800 }),
+      3200
+    );
 
     expect(mockedSteps).toHaveBeenCalledWith(START, START + 30 * 60_000, {
       askForPermission: false,
+      stepCounterAtStart: 800,
     });
     expect(mockedLearn).toHaveBeenCalledWith('run', 3900, 3200);
   });

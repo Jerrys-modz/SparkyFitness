@@ -42,6 +42,8 @@ import {
   type CueEvent,
   type CueUnit,
 } from '../utils/recordingCues';
+import { isStepActivity } from '../utils/stride';
+import { captureStepCounterBaseline } from './stepCounter';
 
 /**
  * Records a walk, run or ride from the phone's GPS.
@@ -109,6 +111,12 @@ export interface RecordingSession {
    * an earlier build, which were all outdoors.
    */
   indoor?: boolean;
+  /**
+   * Android hardware step counter (steps since boot) when this walk or run
+   * started. Finish subtracts a new reading. Absent on iOS, on a ride, and
+   * when the counter could not be read. A reboot resets it.
+   */
+  stepCounterAtStart?: number;
 }
 
 /** One heart-rate reading from a paired watch during the recording. */
@@ -599,6 +607,13 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
       }
     }
     const now = Date.now();
+    // Android cannot ask later how many steps fell inside this session, so
+    // the counter is read now and stored. iOS returns null here and queries
+    // the window at the end. A ride has no step estimate. Failure leaves the
+    // distance field empty; it must not stop the recording.
+    const stepCounterAtStart = isStepActivity(options.activity)
+      ? await captureStepCounterBaseline(indoor)
+      : null;
     session = {
       id: `rec-${now}`,
       activity: options.activity,
@@ -620,6 +635,7 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
         : {}),
       savedEntryId: null,
       ...(indoor && { indoor: true }),
+      ...(stepCounterAtStart != null && { stepCounterAtStart }),
     };
     autoPauseState = INITIAL_AUTO_PAUSE_STATE;
     points = [];

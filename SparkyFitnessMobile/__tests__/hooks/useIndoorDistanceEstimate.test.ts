@@ -43,6 +43,21 @@ describe('useIndoorDistanceEstimate', () => {
     });
   });
 
+  it('passes the Android counter taken at the start', async () => {
+    const { result } = renderHook(() =>
+      useIndoorDistanceEstimate({ ...finished, stepCounterAtStart: 1100 })
+    );
+
+    await waitFor(() => expect(result.current).toEqual(estimate));
+    expect(mockedEstimate).toHaveBeenCalledWith({
+      activity: 'walk',
+      startedAt: 1_000_000,
+      finishedAt: 2_800_000,
+      activeSeconds: 1500,
+      stepCounterAtStart: 1100,
+    });
+  });
+
   it('does nothing for a session that is outdoor, running, or not there', async () => {
     const cases: (RecordingSession | null)[] = [
       null,
