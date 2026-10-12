@@ -66,7 +66,7 @@ final class RecordingHealthKitController: NSObject {
     /// Starts sampling. A no-op when a session is already running (for
     /// example a strength workout) or HealthKit is unavailable: the recording
     /// still works, just without heart rate.
-    func start(sessionId: String, activity: RecordingActivity) {
+    func start(sessionId: String, activity: RecordingActivity, indoor: Bool) {
         guard HKHealthStore.isHealthDataAvailable(), session == nil else { return }
 
         // A new recording while an earlier one is still undecided: keep the
@@ -79,7 +79,7 @@ final class RecordingHealthKitController: NSObject {
         case .run: configuration.activityType = .running
         case .ride: configuration.activityType = .cycling
         }
-        configuration.locationType = .outdoor
+        configuration.locationType = indoor ? .indoor : .outdoor
 
         do {
             let newSession = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)

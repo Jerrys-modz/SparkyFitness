@@ -387,6 +387,7 @@ enum ContextPayloadMapper {
         return .state(RecordingState(
             sessionId: sessionId,
             activity: activity,
+            indoor: payload["indoor"] as? Bool ?? false,
             status: status,
             startedAt: Date(timeIntervalSince1970: startedAtMs / 1000),
             pausedMs: doubleValue(payload["pausedMs"]) ?? 0,
