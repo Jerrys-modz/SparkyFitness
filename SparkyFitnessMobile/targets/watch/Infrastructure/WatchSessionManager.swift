@@ -271,6 +271,13 @@ final class WatchSessionManager: NSObject, ObservableObject {
         ))
     }
 
+    /// Hands a finished wrist-only walk or run to the phone to file in the
+    /// diary. Queued like every message that must not be lost: the Health
+    /// workout is already marked as handled, so this is the only copy.
+    func sendRunFinished(_ result: WatchRunResult) {
+        transfer(OutboundPayloads.runFinished(result))
+    }
+
     /// Hands a check-in to the system for delivery. Returns the state to show:
     /// `.queued` always, because even a reachable phone hasn't written to the
     /// server yet — the ack flips it to `.saved`.
