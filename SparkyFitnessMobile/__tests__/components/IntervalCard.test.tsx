@@ -4,7 +4,7 @@ import IntervalCard from '../../src/components/recording/IntervalCard';
 import IntervalSetup, {
   DEFAULT_CUSTOM_INTERVALS,
 } from '../../src/components/recording/IntervalSetup';
-import { buildIntervalPlan, intervalPosition } from '../../src/utils/intervals';
+import { buildIntervalPlan, intervalPosition } from '@workspace/shared';
 
 const plan = buildIntervalPlan({
   style: 'runWalk',

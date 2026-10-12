@@ -63,6 +63,8 @@ While recording, tap **Lap** to mark a lap, for example at the end of a hard int
 
 When you finish, the summary lists your laps and your splits per kilometer or mile. Each row has a bar, longer for a faster one, and the fastest is labelled, so a fading last kilometer or a strong negative split is easy to see. A short final stretch is shown but never counted as your fastest.
 
+**After you save**, a summary screen shows what the activity came to: distance, time, average pace, elevation gain and average heart rate (when you have them), the route on a map, and each split (or your laps) with its bar. For a training-program workout it also shows how far through the program you are and when the next workout falls, with a link to the program. Tap **Done** to close it. (Runs recorded on the watch alone have no summary screen.)
+
 After saving, opening the activity from Exercise Statistics shows a **Pace** chart next to the route and heart rate: pace against distance, with faster stretches higher, and your best pace above it. It works for any activity with a GPS route, including imported ones, and leaves out the time you stood still.
 
 If you marked laps, those are what's saved with the activity, because they're the intervals you meant to compare. If you didn't, your per-kilometer or per-mile splits are saved as before.
@@ -81,6 +83,8 @@ A pause you make yourself is never undone automatically; only an auto-pause resu
 
 Turn on **Voice cues** before you start and the phone speaks as you go: your total time and the time of the last kilometer or mile each time you complete one, and "Paused", "Auto paused" or "Resumed" when that happens. It also says your distance and time when you finish. Cues use the distance unit from your settings and the app language, and they're spoken with the screen locked and the phone's silent switch on. If you're playing music it keeps playing, and it dips while a cue is spoken when **Lower music during cues** is on.
 
+**Voice.** With voice cues on, a **Voice** card lets you choose the voice and hear it with **Test voice**. The default, **Automatic**, uses the best Premium or Enhanced voice installed on your phone for the app language, and the phone's standard voice if there is none. Better voices are a free download: on an iPhone go to Settings → Accessibility → Read & Speak → Voices (Spoken Content → Voices before iOS 18) and download a Premium or Enhanced voice for your language, then reopen the card. The same choice is used for guided workouts. Siri's own voices and Apple Fitness's coaching voices aren't available to apps, so those can't be chosen.
+
 The setting is off by default and is remembered for next time. Cues are spoken by the phone, so use earphones or a watch speaker if you don't want them out loud.
 
 ---
@@ -93,7 +97,47 @@ While you record, a card shows the current step, the time left, the round and wh
 
 Each step also becomes a lap, so the saved activity is split into your work and recovery stretches and the pace bars show the difference. When the last step ends you hear "Intervals complete" and can carry on or finish.
 
-Intervals work with phone recording only for now. The watch does not show the steps yet. On an indoor session there is no GPS feed, so the steps move on while the Record screen is open and catch up when you open it again.
+With an Apple Watch connected to a phone recording, the watch shows the current step, a countdown and what comes next, and buzzes when the step changes. Watch-only recordings do not follow a plan yet. On an indoor session there is no GPS feed, so the steps move on while the Record screen is open and catch up when you open it again.
+
+---
+
+## Training programs
+
+Training programs are optional and off by default. Open **Library → Training programs**, read the programs and tap **Start program** on the one you want:
+
+| Program | For | Length |
+| --- | --- | --- |
+| **Walk for fitness** | Not running yet. Brisk walks alternating with easy ones, building to 30 minutes of brisk walking. Recorded as a walk. | 8 weeks, 3 walks a week |
+| **Beginner 5K** | Starting to run. Alternating running and walking, building to 30 minutes of running. | 9 weeks, 3 runs a week |
+| **5K to 10K** | You can run 30 minutes. Steady runs and a long run building to 65 minutes, with an easier week every fourth. | 8 weeks, 3 runs a week |
+| **Faster 5K** | You already run 5K. Interval sessions, easy runs and tempo runs. | 6 weeks, 3 runs a week |
+| **Half marathon** | You run 30 minutes comfortably. Long runs building to about 2 hours, with a taper. | 12 weeks, 3 runs a week |
+| **Marathon** | You already run regularly. Long runs building to about 2¾ hours, an easier week every fourth and a taper. | 16 weeks, 3 to 4 runs a week |
+
+Each workout is a timed plan (a warm-up, the run, a cool-down) that follows the same steps, cues and laps as an interval plan. Runs in the longer programs are timed by minutes, not distance, and the easy runs are meant to be at a pace you could chat at. **Change program** (on the Training programs screen) switches to another one and starts it at week 1.
+
+**How the plans work.** The Training programs screen has a **How the plans work** card that explains this in the app. In short:
+
+- **Each workout** is a warm-up walk (a gentle jog before speed sessions), the run and walk steps in order, then a cool-down walk. Weeks are not tied to the calendar: if you miss a run, the same workout stays due.
+- **How hard to run:** go by effort, not pace. Run slowly enough to talk in short sentences. Beginner runs should feel easy to moderate (about 4 to 5 out of 10), easy runs stay conversational, tempo runs feel comfortably hard (6 to 7), and the fast pieces in speed sessions feel hard but controlled (7 to 8) with a relaxed jog between them.
+- **How fast to walk:** briskly but comfortably, about 5 to 6 km/h (3 to 3.5 mph), roughly 10 to 12 minutes per kilometer or 16 to 19 minutes per mile. Keep moving rather than stopping: the walks are for getting your breath back, and you should be able to talk normally by the end of each one. Warm-up and cool-down walks can be a little easier.
+- **Listening to your body:** aches that settle after a day are normal, sharp or lasting pain is not. If a week was too hard, repeat it or ask Sparky to ease the next workouts, and leave a rest day between runs while you are starting out.
+
+With a program on, **Start today's workout** on the Training programs screen opens Record Activity with the workout already selected (week 1, run 1 first), (the Diary card's **Start** does the same). If you open Record Activity any other way, nothing is chosen for you: you get a plain recording, and the "Today's program workout" card is there with **Do this workout** if you want it (and **Manage** to get back to the program). The Diary also shows today's workout in a card like a scheduled workout plan, with a **Start** button, until you have done one today. Record it like any run: you are told when to run and when to walk. Switch the program off whenever you like on the Training programs screen: the Record screen goes back to a plain recording (you can still pick any interval plan), the Diary card stops, and your place is kept for when you switch it back on.
+
+A workout is ticked off when you get through to its last step and save the activity. If you stop early, the same workout comes up again next time. **Choose a different workout** opens the whole program, week by week, with finished runs ticked: use it to start further in if you already run, to repeat a week, or to go back. **Skip** moves past a workout you cannot do, and **Start over** goes back to week 1. When you finish week 9 the card says so and offers to start again.
+
+On the program card you choose when the workouts show up in your Diary. **Days in your Diary** are the weekdays you plan to run. The workouts are laid out in order on those days, one a day, starting today, so the Diary shows "Scheduled Today" on a run day and "Scheduled" with the workout on the days still to come. With no days picked the Diary shows the next workout every day as "Up next", so you can run whenever you like. **First workout** sets the first day it shows: it starts today unless you pick a date on the calendar. Tapping **Start program** asks the same thing, **Start today** or **Pick a date**, so you can set it up before your first run.  A run you miss is not skipped: the same workout stays due, and the dates after it move along. Everything is saved with your program on the SparkyFitness server, like a workout plan's schedule, so it follows you between devices.
+
+**Schedule and goal date.** Under the program card a **Schedule** list shows the date of each remaining workout, the day you finish, and, if you set a **Goal date** (for example a race day), whether the program fits before it. If it does not, add a run day or move the date. Nothing is scheduled after the goal date. The Diary card stops when you switch the program off or finish it.
+
+**Runs logged some other way.** If you logged a run today that was not recorded as the program workout (from your watch, an import or typed in), the Diary card offers **Count it**, which counts that run as today's workout. It is only a suggestion based on the activity's name and length, and nothing is counted until you tap it.
+
+Your place in the program is saved to your SparkyFitness server (only you can see it), so it follows you between devices.
+
+**Ask Sparky to adjust it.** The AI assistant can see your program and your recent runs. Ask "How am I doing on my 5K program?" or tell it things like "my knee hurt this week" or "that last run was too hard", and it can suggest a change: repeat a week, move you to a different workout, or ease the running time in your next workouts by up to 30% (or lengthen it by at most 10% at a time). However many times it adjusts, running time in a workout never ends up more than 30% below or 10% above the original plan. It can also change your schedule: "run Monday, Wednesday and Saturday", "start the program next Monday" or "my race is on December 6". It only changes workouts you have not done yet, always asks you to confirm first, and keeps a short log of what it changed. For two weeks after a change, the program card on the Record screen says what changed and when.
+
+This is a common beginner structure, not medical advice: if you are unsure about starting to run, check with your doctor first.
 
 ---
 
@@ -152,6 +196,10 @@ A watch-only recording buzzes at every completed kilometre or mile, and speaks i
 
 The route map uses Apple Maps on iOS. On Android it uses Google Maps when the build was made with a Google Maps API key; without one, Android shows the route as a plain line instead. See [Environment Variables](/install/environment-variables) for `GOOGLE_MAPS_ANDROID_API_KEY`.
 
+## VO2 max trend
+
+If your Apple Watch or Health Connect source records **VO2 max**, turn on VO2 max sync and a **VO2 max** graph joins the Dashboard's Health Trends (7, 30 or 90 days, one reading per day). Garmin and other providers that store VO2 max with your daily metrics show up too. It is a good way to see whether your training is working. The graph only appears once a reading has synced; hide it or move it in Dashboard Settings → Health Trends.
+
 ---
 
 ## Not included yet
@@ -159,3 +207,5 @@ The route map uses Apple Maps on iOS. On Android it uses Google Maps when the bu
 - Live Activity and lock-screen stats.
 - Tracking with the watch's own GPS, on Apple Watch or Wear OS, so the phone can stay behind.
 - Wear OS controls and heart rate.
+
+After a program workout is saved, the summary asks how hard it was, from 1 (very easy) to 10 (all out), and keeps your answer with the program. A rating of 8 or more offers to repeat the workout, and 3 or less offers to skip the next one. Two hard or two easy workouts in a row get a note, and Sparky can see your recent ratings when you ask how your program is going. Nothing in the program changes unless you tap the button or agree to something Sparky suggests.

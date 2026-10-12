@@ -16,6 +16,8 @@ import {
   type RecordingSession,
   type RecordingSnapshot,
 } from '../../src/services/gpsRecordingService';
+import { useRunProgram } from '../../src/services/runProgramService';
+import { programStatus } from '@workspace/shared';
 import { saveRecordedActivity } from '../../src/services/gpsRecordingSave';
 import { useIndoorDistanceEstimate } from '../../src/hooks/useIndoorDistanceEstimate';
 import { useLiveHeartRateStore } from '../../src/stores/liveHeartRateStore';
@@ -41,6 +43,7 @@ jest.mock('../../src/services/gpsRecordingService', () => {
     resumeRecording: jest.fn(() => Promise.resolve()),
     finishRecording: jest.fn(() => Promise.resolve()),
     discardRecording: jest.fn(() => Promise.resolve()),
+    getHeartRateSamples: jest.fn(() => Promise.resolve([])),
     elapsedSeconds: jest.fn(() => 754),
     getRecordingPreferences: jest.fn(() =>
       Promise.resolve({
@@ -54,6 +57,10 @@ jest.mock('../../src/services/gpsRecordingService', () => {
     COUNTDOWN_CHOICES: [0, 3, 5, 10],
   };
 });
+jest.mock('../../src/services/runProgramService', () => ({
+  useRunProgram: jest.fn(),
+  completeProgramWorkout: jest.fn(() => Promise.resolve()),
+}));
 jest.mock('../../src/services/recordingCues', () => ({
   beginRecordingCues: jest.fn(),
   speakRecordingCue: jest.fn(),
@@ -87,6 +94,7 @@ jest.mock('uniwind', () => ({
 }));
 
 const mockedState = jest.mocked(useGpsRecording);
+const mockedProgram = jest.mocked(useRunProgram);
 const DEG_PER_METER = 1 / 111_194.9;
 
 const session = (
@@ -120,7 +128,7 @@ const track: RecordedPoint[] = Array.from({ length: 11 }, (_, i) => ({
 const state = (s: RecordingSession | null, points: RecordedPoint[] = []) =>
   mockedState.mockReturnValue({ session: s, points } as RecordingSnapshot);
 
-const navigation = { goBack: jest.fn() };
+const navigation = { goBack: jest.fn(), replace: jest.fn() };
 const props = {
   navigation,
   route: { key: 'RecordActivity', name: 'RecordActivity' },
@@ -149,6 +157,59 @@ describe('RecordActivityScreen', () => {
     jest.clearAllMocks();
     jest.mocked(useIndoorDistanceEstimate).mockReturnValue(null);
     useLiveHeartRateStore.setState({ reading: null });
+    mockedProgram.mockReturnValue({
+      status: null,
+      enabled: false,
+      lastAdjustment: null,
+      schedule: { days: [], startDay: null, endDay: null },
+      doneDay: null,
+      loaded: true,
+      refetch: jest.fn(() => Promise.resolve()),
+    });
+  });
+
+  describe('with a training program on', () => {
+    const onProgram = () =>
+      mockedProgram.mockReturnValue({
+        status: programStatus({ programId: 'beginner5k', next: 0 })!,
+        enabled: true,
+        lastAdjustment: null,
+        schedule: { days: [], startDay: null, endDay: null },
+        doneDay: null,
+        loaded: true,
+        refetch: jest.fn(() => Promise.resolve()),
+      });
+
+    it('does not choose the workout for someone who just wants to record', async () => {
+      state(null);
+      onProgram();
+      const screen = await renderScreen();
+      // Offered on its own card, but no plan is chosen.
+      expect(screen.getByText('Do this workout')).toBeTruthy();
+      expect(screen.queryByText('Using this workout')).toBeNull();
+    });
+
+    it('chooses it when opened to do the workout', async () => {
+      state(null);
+      onProgram();
+      const screen = render(
+        <QueryClientProvider client={new QueryClient()}>
+          <RecordActivityScreen
+            {...props}
+            route={
+              {
+                key: 'RecordActivity',
+                name: 'RecordActivity',
+                params: { programWorkout: true },
+              } as never
+            }
+          />
+        </QueryClientProvider>
+      );
+      await waitFor(() =>
+        expect(screen.getByText('Using this workout')).toBeTruthy()
+      );
+    });
   });
 
   it('starts a recording of the chosen activity', async () => {
@@ -313,7 +374,15 @@ describe('RecordActivityScreen', () => {
       )
     );
     await waitFor(() => expect(discardRecording).toHaveBeenCalled());
-    expect(navigation.goBack).toHaveBeenCalled();
+    expect(navigation.replace).toHaveBeenCalledWith(
+      'RunSummary',
+      expect.objectContaining({
+        activity: 'run',
+        distanceUnit: 'km',
+        distanceMeters: expect.any(Number),
+        program: null,
+      })
+    );
   });
 
   it('keeps the recording when the save fails', async () => {
@@ -325,7 +394,26 @@ describe('RecordActivityScreen', () => {
 
     await waitFor(() => expect(saveRecordedActivity).toHaveBeenCalled());
     expect(discardRecording).not.toHaveBeenCalled();
-    expect(navigation.goBack).not.toHaveBeenCalled();
+    expect(navigation.replace).not.toHaveBeenCalled();
+  });
+
+  it('still opens the summary when clearing the saved recording fails', async () => {
+    state(session({ status: 'finished', finishedAt: Date.now() }), track);
+    jest
+      .mocked(saveRecordedActivity)
+      .mockResolvedValue({ entryId: 'entry-1', entryDate: '2026-10-06' });
+    jest.mocked(discardRecording).mockRejectedValueOnce(new Error('disk'));
+    const screen = await renderScreen();
+
+    fireEvent.press(screen.getByText('Save activity'));
+
+    // The activity is filed, so the person is not told the save failed.
+    await waitFor(() =>
+      expect(navigation.replace).toHaveBeenCalledWith(
+        'RunSummary',
+        expect.anything()
+      )
+    );
   });
 
   it('shows a spinner, not Start, until the saved-session check finishes', async () => {
