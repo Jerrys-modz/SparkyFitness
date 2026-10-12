@@ -2,7 +2,8 @@ import SwiftUI
 
 /// A walk or run recorded from the wrist alone, shown on the Workout page once
 /// started from its Cardio row: the clock, distance, pace and heart rate with
-/// pause and finish, then a short summary.
+/// pause, lap and finish, then a short summary. Drawn with the strength
+/// workout's tiles and buttons (`CardioLiveLayout`).
 struct WatchRunView: View {
     @EnvironmentObject private var run: WatchRunStore
     @EnvironmentObject private var store: CheckInStore
@@ -23,111 +24,97 @@ struct WatchRunView: View {
         }
     }
 
-    private var headline: String {
-        guard run.phase == .paused else { return run.kind.title(run.place) }
-        return run.autoPaused ? "Auto-paused" : "\(run.kind.title(run.place)) paused"
+    private var status: String? {
+        guard run.phase == .paused else { return nil }
+        return run.autoPaused ? "Auto-paused" : "Paused"
     }
 
     // MARK: - Running
 
     private var live: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 4) {
-                Image(systemName: run.kind.symbol)
-                Text(headline)
-                if let bpm = run.metrics.heartRate {
-                    Image(systemName: "heart.fill")
-                        .foregroundStyle(.red)
-                    Text("\(Int(bpm.rounded()))")
-                        .font(.caption.weight(.semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(.primary)
-                        .accessibilityLabel("Heart rate \(Int(bpm.rounded())) beats per minute")
+        CardioLiveLayout(
+            systemImage: run.kind.symbol,
+            title: run.kind.title(run.place),
+            status: status,
+            elapsed: { _ in run.elapsed },
+            stats: stats(elapsed: run.elapsed, metrics: run.metrics),
+            controls: controls,
+            onSettings: { showingSettings = true },
+            banner: { _ in
+                if let plan = run.plan, let position = plan.position(at: run.elapsed) {
+                    CardioPlanStep(
+                        label: position.label,
+                        remaining: position.finished ? nil : position.remaining,
+                        next: position.next
+                    )
                 }
             }
-            .font(.caption2)
-            .foregroundStyle(run.phase == .running ? Color.green : Color.secondary)
-            // The system clock sits in the top-right corner: keep this row clear
-            // of it, shrinking before it would run into it.
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .padding(.trailing, WatchStyle.s(54))
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            // Re-evaluated every second; the workout builder keeps the count.
-            TimelineView(.periodic(from: .now, by: 1)) { _ in
-                let elapsed = run.elapsed
-                VStack(spacing: 4) {
-                    Text(RecordingState.clock(elapsed))
-                        .font(.system(size: 34, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-                        .minimumScaleFactor(0.7)
-                    if let plan = run.plan, let position = plan.position(at: elapsed) {
-                        planStep(position)
-                    }
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        stat(
-                            value: WatchRunMetrics.distanceText(run.metrics.distanceMeters, usesMiles: usesMiles),
-                            unit: usesMiles ? "mi" : "km"
-                        )
-                        stat(
-                            value: WatchRunMetrics.paceText(
-                                WatchRunMetrics.paceSeconds(
-                                    elapsed: elapsed,
-                                    distanceMeters: run.metrics.distanceMeters,
-                                    usesMiles: usesMiles
-                                )
-                            ),
-                            unit: usesMiles ? "/mi" : "/km"
-                        )
-                    }
-                }
-            }
-
-            HStack(spacing: 8) {
-                Button {
-                    Haptics.tap()
-                    if run.phase == .running { run.pause() } else { run.resume() }
-                } label: {
-                    Image(systemName: run.phase == .running ? "pause.fill" : "play.fill")
-                }
-                .tint(.orange)
-                .accessibilityLabel(run.phase == .running ? "Pause" : "Resume")
-
-                Button {
-                    Haptics.tap()
-                    run.lap()
-                } label: {
-                    Image(systemName: "flag.fill")
-                }
-                .tint(.blue)
-                .disabled(run.phase != .running)
-                .accessibilityLabel(run.lapCount > 0 ? "Lap, \(run.lapCount) so far" : "Lap")
-
-                Button {
-                    Haptics.tap()
-                    run.finish()
-                } label: {
-                    Image(systemName: "stop.fill")
-                }
-                .tint(.red)
-                .accessibilityLabel("Finish")
-
-                Button {
-                    Haptics.tap()
-                    showingSettings = true
-                } label: {
-                    Image(systemName: "gearshape.fill")
-                }
-                .accessibilityLabel("Auto-pause and voice cues")
-            }
-        }
-        .padding(.horizontal, 4)
+        )
         .sheet(isPresented: $showingSettings) { settingsSheet }
     }
 
-    /// This run's switches, changeable while it goes. The phone's live view
-    /// changes the same two.
+    private func stats(elapsed: TimeInterval, metrics: WatchRunMetrics) -> [CardioStat] {
+        var stats = [
+            CardioStat(
+                id: "distance",
+                value: WatchRunMetrics.distanceText(metrics.distanceMeters, usesMiles: usesMiles),
+                unit: usesMiles ? "mi" : "km"
+            ),
+            CardioStat(
+                id: "pace",
+                value: WatchRunMetrics.paceText(
+                    WatchRunMetrics.paceSeconds(
+                        elapsed: elapsed,
+                        distanceMeters: metrics.distanceMeters,
+                        usesMiles: usesMiles
+                    )
+                ),
+                unit: usesMiles ? "/mi" : "/km"
+            ),
+        ]
+        stats.append(
+            CardioStat(
+                id: "heart",
+                value: metrics.heartRate.map { "\(Int($0.rounded()))" } ?? "--",
+                unit: "bpm",
+                systemImage: "heart.fill",
+                tint: metrics.heartRate == nil ? .secondary : .red
+            )
+        )
+        return stats
+    }
+
+    /// Pause or resume is the main action, so it is the white one; finish is
+    /// red so it is never taken for it.
+    private var controls: [CardioControl] {
+        let running = run.phase == .running
+        return [
+            CardioControl(
+                id: "lap",
+                systemImage: "flag.fill",
+                accessibilityLabel: run.lapCount > 0 ? "Lap, \(run.lapCount) so far" : "Lap",
+                disabled: !running,
+                action: { run.lap() }
+            ),
+            CardioControl(
+                id: "pause",
+                systemImage: running ? "pause.fill" : "play.fill",
+                accessibilityLabel: running ? "Pause" : "Resume",
+                prominent: true,
+                action: { if running { run.pause() } else { run.resume() } }
+            ),
+            CardioControl(
+                id: "finish",
+                systemImage: "stop.fill",
+                accessibilityLabel: "Finish",
+                tint: .red,
+                action: { run.finish() }
+            ),
+        ]
+    }
+
+    /// This walk's or run's switches, changeable while it goes. The phone's
+    /// live view changes the same two.
     private var settingsSheet: some View {
         NavigationStack {
             List {
@@ -142,89 +129,67 @@ struct WatchRunView: View {
                 // Plays whatever the switch says, so a silent speaker can be
                 // told apart from cues that are off.
                 Button("Test voice") {
-                    WatchRunCues.shared.speak("This is how your run cues sound.", interrupt: true)
+                    WatchRunCues.shared.speak("This is how your voice cues sound.", interrupt: true)
                 }
             }
-            .navigationTitle("This run")
+            .navigationTitle(run.kind.title(run.place))
         }
     }
 
     // MARK: - Finished
 
+    /// The totals in the strength summary's rows, so both endings look alike.
     @ViewBuilder
     private var finished: some View {
         if let summary = run.summary {
             ScrollView {
                 VStack(spacing: 6) {
-                    Text("\(summary.kind.title(summary.place)) saved")
-                        .font(.caption)
-                        .foregroundStyle(.green)
-                    Text(RecordingState.clock(summary.elapsed))
-                        .font(.system(size: 30, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        stat(
-                            value: WatchRunMetrics.distanceText(summary.metrics.distanceMeters, usesMiles: usesMiles),
-                            unit: usesMiles ? "mi" : "km"
-                        )
-                        stat(
-                            value: WatchRunMetrics.paceText(
-                                WatchRunMetrics.paceSeconds(
-                                    elapsed: summary.elapsed,
-                                    distanceMeters: summary.metrics.distanceMeters,
-                                    usesMiles: usesMiles
-                                )
-                            ),
-                            unit: usesMiles ? "/mi" : "/km"
-                        )
+                    Label(
+                        summary.saved ? "\(summary.kind.title(summary.place)) saved" : "\(summary.kind.title(summary.place)) done",
+                        systemImage: summary.saved ? "checkmark.circle.fill" : summary.kind.symbol
+                    )
+                    .font(.headline)
+                    .foregroundStyle(.green)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    row("Time", RecordingState.clock(summary.elapsed))
+                    row(
+                        "Distance",
+                        "\(WatchRunMetrics.distanceText(summary.metrics.distanceMeters, usesMiles: usesMiles)) \(usesMiles ? "mi" : "km")"
+                    )
+                    row(
+                        "Pace",
+                        "\(WatchRunMetrics.paceText(WatchRunMetrics.paceSeconds(elapsed: summary.elapsed, distanceMeters: summary.metrics.distanceMeters, usesMiles: usesMiles))) \(usesMiles ? "/mi" : "/km")"
+                    )
+                    if summary.metrics.activeEnergyKcal > 0 {
+                        row("Active", "\(Int(summary.metrics.activeEnergyKcal.rounded())) kcal")
                     }
                     Text("Sent to your iPhone. It shows up in SparkyFitness once the phone can reach the server.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
+                        .padding(.top, 2)
                     Button("Done") {
                         Haptics.tap()
                         run.dismissSummary()
                     }
-                    .buttonStyle(.borderedProminent)
+                    .padding(.top, 4)
                 }
                 .padding(.horizontal, 4)
+                // The clock sits over the top of a scrolling page, so the
+                // title starts below it.
+                .padding(.top, 22)
             }
         } else {
             Color.clear.onAppear { run.dismissSummary() }
         }
     }
 
-    /// The step the plan is on: its name and time left, then what comes next.
-    private func planStep(_ position: WatchRunPlan.Position) -> some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 6) {
-                Text(position.label)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.orange)
-                if !position.finished {
-                    Text(RecordingState.clock(position.remaining))
-                        .font(.caption.weight(.semibold))
-                        .monospacedDigit()
-                }
-            }
-            if let next = position.next {
-                Text("Next: \(next)")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    private func stat(value: String, unit: String) -> some View {
-        VStack(spacing: 0) {
-            Text(value)
-                .font(.system(.title3, design: .rounded).weight(.semibold))
-                .monospacedDigit()
-            Text(unit)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+    private func row(_ title: String, _ value: String) -> some View {
+        HStack {
+            Text(title).font(.caption).foregroundStyle(.secondary)
+            Spacer()
+            Text(value).font(.caption.weight(.semibold)).monospacedDigit()
         }
     }
 }

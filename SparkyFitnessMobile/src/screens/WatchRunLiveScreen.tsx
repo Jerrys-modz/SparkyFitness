@@ -49,7 +49,7 @@ const WatchRunLiveScreen: React.FC<Props> = ({ navigation }) => {
     unit: unitLabel,
   });
   const header = useScreenHeader({
-    title: t('screens.watchRunLive', { defaultValue: 'Run on your watch' }),
+    title: t('screens.watchRunLive', { defaultValue: 'On your watch' }),
     left: { kind: 'back' },
   });
   const number = (value: number, digits = 2) =>
@@ -146,7 +146,7 @@ const WatchRunLiveScreen: React.FC<Props> = ({ navigation }) => {
             <Text className="text-text-secondary text-base text-center mb-4">
               {t('watchRunLive.startingHint', {
                 defaultValue:
-                  'Raise your wrist and open SparkyFitness if it does not start on its own. The run starts as soon as the watch gets the request.',
+                  'Raise your wrist and open SparkyFitness if it does not start on its own. The workout starts as soon as the watch gets the request.',
               })}
             </Text>
             <Button
@@ -161,7 +161,7 @@ const WatchRunLiveScreen: React.FC<Props> = ({ navigation }) => {
             <Text className="text-text-secondary text-base text-center mb-4">
               {t('watchRunLive.ended', {
                 defaultValue:
-                  'The run on your watch has ended or is out of range. A finished run is added to your diary.',
+                  'The workout on your watch has ended or is out of range. A finished workout is added to your diary.',
               })}
             </Text>
             <Button onPress={() => navigation.goBack()}>
@@ -324,7 +324,7 @@ const WatchRunLiveScreen: React.FC<Props> = ({ navigation }) => {
               <Text className="text-text-muted text-xs text-center">
                 {t('watchRunLive.indoorNote', {
                   defaultValue:
-                    'Indoors the distance is the watch’s estimate. You can correct it to the treadmill’s figure after the run.',
+                    'Indoors the distance is the watch’s estimate. You can correct it to the treadmill’s figure when you finish.',
                 })}
               </Text>
             ) : null}
