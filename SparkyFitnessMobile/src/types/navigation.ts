@@ -1,3 +1,4 @@
+import type { RunSummaryParams } from '../utils/runSummary';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
@@ -82,6 +83,7 @@ export type RootStackParamList = {
   MealPlans: undefined;
   WorkoutPlans: undefined;
   WorkoutPlanForm: { template?: WorkoutPlanTemplate } | undefined;
+  RunPrograms: undefined;
   MealPlanForm: { template?: MealPlanTemplate; initialMeal?: Meal } | undefined;
   // #2115, Phase 12: mobile-only water-container CRUD.
   WaterContainers: undefined;
@@ -184,7 +186,9 @@ export type RootStackParamList = {
     goal?: number;
   };
   ExerciseStatistics: undefined;
-  RecordActivity: undefined;
+  /** `programWorkout` opens it with today's training-program workout chosen. */
+  RecordActivity: { programWorkout?: boolean } | undefined;
+  RunSummary: RunSummaryParams;
   Reports: undefined;
   HydrationReport: undefined;
   SubstancesReport: undefined;

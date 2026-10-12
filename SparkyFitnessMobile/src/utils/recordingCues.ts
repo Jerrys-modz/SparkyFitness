@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import { METERS_PER_KM, METERS_PER_MILE } from './gpsRecording';
-import type { IntervalStep, IntervalStyle } from './intervals';
+import type { IntervalStep, IntervalStyle } from '@workspace/shared';
 
 /**
  * The words spoken during a GPS recording. Pure and given `t`, so it runs under

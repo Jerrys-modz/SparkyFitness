@@ -12,6 +12,10 @@ import {
   stopGuidedSpeech,
 } from '../../src/services/speech';
 import {
+  __resetSpeechVoicesForTests,
+  loadSpeechVoices,
+} from '../../src/services/speechVoice';
+import {
   __resetAppPreferencesStoreForTests,
   useAppPreferencesStore,
 } from '../../src/stores/appPreferencesStore';
@@ -37,6 +41,7 @@ describe('speech service', () => {
   beforeEach(() => {
     __resetAppPreferencesStoreForTests();
     __resetSpeechForTests();
+    __resetSpeechVoicesForTests();
     mockSpeak.mockClear();
     mockStop.mockClear();
     mockVoices.mockReset();
@@ -48,7 +53,16 @@ describe('speech service', () => {
     expect(mockSpeak).not.toHaveBeenCalled();
   });
 
-  it('speaks each line with the chosen voice and rate on the app audio session', () => {
+  it('speaks each line with the chosen voice and rate on the app audio session', async () => {
+    mockVoices.mockResolvedValue([
+      {
+        identifier: 'voice-1',
+        name: 'One',
+        language: 'en-US',
+        quality: 'Default',
+      },
+    ] as Awaited<ReturnType<typeof Speech.getAvailableVoicesAsync>>);
+    await loadSpeechVoices(true);
     useAppPreferencesStore.setState({
       guidedWorkoutEnabled: true,
       guidedVoiceId: 'voice-1',
