@@ -17,9 +17,11 @@ import {
   rateProgramWorkout,
   setProgramPosition,
 } from '../services/runProgramService';
+import { usePersonalRecords } from '../hooks/usePersonalRecords';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { formatLocalizedNumber } from '../localization';
 import { formatDayLabel } from '../utils/dayLabel';
+import { distanceStandardLabel, recordsHeldBy } from '../utils/personalRecords';
 import {
   formatClock,
   formatPace,
@@ -57,6 +59,12 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
       minimumFractionDigits: digits,
       maximumFractionDigits: digits,
     });
+
+  // Records this run now holds: it was just saved, so any record it holds is new.
+  const { records } = usePersonalRecords(Boolean(summary.entryId));
+  const newRecords = summary.entryId
+    ? recordsHeldBy(records, summary.entryId)
+    : [];
 
   const done = () => navigation.goBack();
   const [rating, setRating] = useState<number | null>(null);
@@ -211,6 +219,43 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
                 unit={t('recordActivity.unitBpm', { defaultValue: 'bpm' })}
               />
             ) : null}
+          </View>
+        ) : null}
+
+        {newRecords.length > 0 ? (
+          <View
+            className="bg-surface rounded-xl p-4 mb-4"
+            accessibilityRole="summary"
+          >
+            <Text className="text-text-primary text-base font-bold">
+              {t('runSummary.newRecords', {
+                count: newRecords.length,
+                defaultValue: 'New personal records',
+                defaultValue_one: 'New personal record',
+                defaultValue_other: 'New personal records',
+              })}
+            </Text>
+            {newRecords.map((record) => (
+              <View
+                key={record.distanceStandard}
+                className="flex-row justify-between mt-2"
+              >
+                <Text className="text-text-secondary text-base">
+                  {distanceStandardLabel(t, record)}
+                </Text>
+                <Text className="text-text-primary text-base font-semibold">
+                  {record.formattedTime}
+                </Text>
+              </View>
+            ))}
+            <Button
+              variant="link"
+              onPress={() => navigation.navigate('PersonalRecords')}
+            >
+              {t('runSummary.viewRecords', {
+                defaultValue: 'View all records',
+              })}
+            </Button>
           </View>
         ) : null}
 

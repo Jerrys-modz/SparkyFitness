@@ -44,8 +44,10 @@ export function useWatchRunBridge(
 
   const drain = useRef(async () => {
     if (!connectedRef.current) return;
-    const days = await processWatchRunQueue(unitRef.current, (payload) =>
-      announceWatchRun(payload, unitRef.current, tRef.current)
+    const days = await processWatchRunQueue(
+      unitRef.current,
+      (payload, entryId) =>
+        announceWatchRun(payload, unitRef.current, tRef.current, entryId)
     );
     for (const day of new Set(days)) invalidateExerciseCache(queryClient, day);
   });
