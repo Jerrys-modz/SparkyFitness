@@ -157,23 +157,19 @@ export function useMeasurementChartWidgets({
 
   const displayWeightUnit = weightUnit === 'st_lbs' ? 'lbs' : weightUnit;
 
+  // Kept in kg: the summary line passes these to `formatWeight`, which takes
+  // kg and converts to the user's unit itself. Converting here as well made
+  // an lbs user see the trend and rate times 2.2.
   const weightTrendSummary = React.useMemo(() => {
     const summary = summarizeWeightTrend(trendPoints);
     if (!summary) return null;
     const forecast = forecastGoalDate(trendPoints, targetWeightKg);
     return {
-      currentTrend: convertWeight(
-        summary.currentTrend,
-        'kg',
-        displayWeightUnit
-      ),
-      weeklyRate:
-        summary.weeklyRate === null
-          ? null
-          : convertWeight(summary.weeklyRate, 'kg', displayWeightUnit),
+      currentTrend: summary.currentTrend,
+      weeklyRate: summary.weeklyRate,
       forecastDate: forecast?.date ?? null,
     };
-  }, [trendPoints, targetWeightKg, convertWeight, displayWeightUnit]);
+  }, [trendPoints, targetWeightKg]);
 
   const chartData = React.useMemo(() => {
     const rows = measurementData.map((d) => ({
