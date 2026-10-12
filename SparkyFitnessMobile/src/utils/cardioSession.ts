@@ -261,14 +261,19 @@ export function combinedHeartRateZoneRows(
  * Maps a diary workout to the shape the cardio detail screen takes, or null
  * when that screen has nothing to add. Only synced workouts qualify: in-app
  * entries (manual, sparky, workout plan, or no source) carry no route, heart
- * rate, or zones, and strength sessions are logged as weight and reps.
+ * rate, or zones, and strength sessions are logged as weight and reps. Pass
+ * `allowInApp` for an in-app entry known to have a route (see
+ * `cardioSessionForDiaryEntry`).
  */
 export function cardioSessionFromDiaryEntry(
   session: IndividualSessionResponse,
-  distanceUnit: 'km' | 'miles'
+  distanceUnit: 'km' | 'miles',
+  options: { allowInApp?: boolean } = {}
 ): ExerciseActivityQueryItem | null {
   if (!session.entry_date) return null;
-  if (canEditGroupedWorkout(session.source)) return null;
+  // In-app entries are skipped unless the caller has found a stored route for
+  // one (a GPS recording is saved as an in-app entry).
+  if (!options.allowInApp && canEditGroupedWorkout(session.source)) return null;
   if (session.exercise_snapshot?.modality === 'weight_reps') return null;
   if (session.sets.some((set) => set.weight != null || set.reps != null)) {
     return null;

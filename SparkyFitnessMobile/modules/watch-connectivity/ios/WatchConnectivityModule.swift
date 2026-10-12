@@ -17,6 +17,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWaterIntake: (([String: Any]) -> Void)?
     /// A request from the watch to delete one logged drink.
     var onWaterDelete: (([String: Any]) -> Void)?
+    /// A scheduled dose marked taken on the watch, awaiting a server write.
+    var onMedicationTaken: (([String: Any]) -> Void)?
     /// One set logged during an active workout on the watch.
     var onSetCompleted: (([String: Any]) -> Void)?
     var onRestChanged: (([String: Any]) -> Void)?
@@ -34,6 +36,10 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWorkoutStartRequested: (([String: Any]) -> Void)?
     /// The wearer answered the update-this-workout question on the summary.
     var onPresetUpdateAnswer: (([String: Any]) -> Void)?
+    var onRecordingControl: (([String: Any]) -> Void)?
+    var onRecordingHeartRate: (([String: Any]) -> Void)?
+    var onFastStartRequested: (([String: Any]) -> Void)?
+    var onFastEndRequested: (([String: Any]) -> Void)?
 
     /// The newest `setTargets` update sent before the session finished
     /// activating. Apple only queues `transferUserInfo` on an activated
@@ -92,6 +98,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onWaterIntake?(payload)
         case "waterDelete":
             onWaterDelete?(payload)
+        case "medicationTaken":
+            onMedicationTaken?(payload)
         case "setCompleted":
             onSetCompleted?(payload)
         case "restChanged":
@@ -112,6 +120,14 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onWorkoutStartRequested?(payload)
         case "presetUpdateAnswer":
             onPresetUpdateAnswer?(payload)
+        case "recordingControl":
+            onRecordingControl?(payload)
+        case "recordingHeartRate":
+            onRecordingHeartRate?(payload)
+        case "fastStart":
+            onFastStartRequested?(payload)
+        case "fastEnd":
+            onFastEndRequested?(payload)
         default:
             break
         }
@@ -215,15 +231,27 @@ public class WatchConnectivityModule: Module {
     /// until the wearer opens the watch app by hand. watchOS only launches it
     /// while the watch is on the wrist, unlocked and paired; otherwise this
     /// quietly does nothing and the plan still arrives on the next open.
-    private static func launchWatchApp() {
+    private static func launchWatchApp(activity: String? = nil) {
         guard HKHealthStore.isHealthDataAvailable(),
               WCSession.isSupported(),
               WCSession.default.isPaired,
               WCSession.default.isWatchAppInstalled
         else { return }
         let configuration = HKWorkoutConfiguration()
-        configuration.activityType = .traditionalStrengthTraining
-        configuration.locationType = .indoor
+        switch activity {
+        case "walk", "walking":
+            configuration.activityType = .walking
+            configuration.locationType = .outdoor
+        case "run", "running":
+            configuration.activityType = .running
+            configuration.locationType = .outdoor
+        case "ride", "cycling":
+            configuration.activityType = .cycling
+            configuration.locationType = .outdoor
+        default:
+            configuration.activityType = .traditionalStrengthTraining
+            configuration.locationType = .indoor
+        }
         HKHealthStore().startWatchApp(with: configuration) { _, _ in }
     }
 
@@ -236,6 +264,7 @@ public class WatchConnectivityModule: Module {
             "onContextRequest",
             "onWaterIntake",
             "onWaterDelete",
+            "onMedicationTaken",
             "onSetCompleted",
             "onRestChanged",
             "onSetTimerStarted",
@@ -245,7 +274,11 @@ public class WatchConnectivityModule: Module {
             "onWorkoutStop",
             "onWorkoutDiscard",
             "onWorkoutStartRequested",
-            "onPresetUpdateAnswer"
+            "onPresetUpdateAnswer",
+            "onRecordingControl",
+            "onRecordingHeartRate",
+            "onFastStartRequested",
+            "onFastEndRequested"
         )
 
         OnCreate {
@@ -284,6 +317,15 @@ public class WatchConnectivityModule: Module {
                     "entryId": payload["entryId"] as? String ?? "",
                 ])
             }
+            self.delegateHandler.onMedicationTaken = { [weak self] payload in
+                self?.sendEvent("onMedicationTaken", [
+                    "clientId": payload["clientId"] as? String ?? "",
+                    "entryDate": payload["entryDate"] as? String ?? "",
+                    "medicationId": payload["medicationId"] as? String ?? "",
+                    "scheduleId": payload["scheduleId"] as? String ?? "",
+                    "taken": payload["taken"] as? Bool ?? true,
+                ])
+            }
             self.delegateHandler.onSetCompleted = { [weak self] payload in
                 self?.sendEvent("onSetCompleted", [
                     "clientId": payload["clientId"] as? String ?? "",
@@ -294,6 +336,7 @@ public class WatchConnectivityModule: Module {
                     // clearing a planned one — same rule as body fat above.
                     "weightKg": payload["weightKg"] as? Double,
                     "reps": payload["reps"] as? Double,
+                    "rpe": (payload["rpe"] as? NSNumber)?.doubleValue,
                     "duration": (payload["duration"] as? NSNumber)?.intValue,
                     "distanceKm": payload["distanceKm"] as? Double,
                     "completedAt": payload["completedAt"] as? String,
@@ -324,6 +367,17 @@ public class WatchConnectivityModule: Module {
                     "setId": payload["setId"] as? String ?? "",
                     "seconds": seconds,
                     "startedAt": startedAt,
+                ])
+            }
+            self.delegateHandler.onFastStartRequested = { [weak self] payload in
+                self?.sendEvent("onFastStartRequested", [
+                    "presetId": payload["presetId"] as? String ?? "",
+                    "clientId": payload["clientId"] as? String ?? "",
+                ])
+            }
+            self.delegateHandler.onFastEndRequested = { [weak self] payload in
+                self?.sendEvent("onFastEndRequested", [
+                    "clientId": payload["clientId"] as? String ?? "",
                 ])
             }
             self.delegateHandler.onRestChanged = { [weak self] payload in
@@ -386,6 +440,19 @@ public class WatchConnectivityModule: Module {
                 self?.sendEvent("onPresetUpdateAnswer", [
                     "sessionId": payload["sessionId"] as? String ?? "",
                     "update": payload["update"] as? Bool ?? false,
+                ])
+            }
+            self.delegateHandler.onRecordingControl = { [weak self] payload in
+                self?.sendEvent("onRecordingControl", [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "action": payload["action"] as? String ?? "",
+                ])
+            }
+            self.delegateHandler.onRecordingHeartRate = { [weak self] payload in
+                self?.sendEvent("onRecordingHeartRate", [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "clientId": payload["clientId"] as? String ?? "",
+                    "samples": dictionaryArray(payload["samples"]),
                 ])
             }
             self.delegateHandler.activate()
@@ -459,6 +526,28 @@ public class WatchConnectivityModule: Module {
             var payload = plan.compactMapValues(withoutNulls)
             payload["type"] = "workoutPlanUpdate"
             self.delegateHandler.transferPlanUpdate(payload)
+        }
+
+        /// Live stats for a GPS recording the phone is making, so the watch can
+        /// show time, distance and pace and offer pause/finish. `durable` is
+        /// set for a status change (start, pause, resume, finish) and also
+        /// queues the message, so a watch out of range still learns of it; the
+        /// ~3s distance refreshes are sent only while reachable, because a
+        /// queued backlog of stale distances is worthless. Never uses
+        /// application context: that single slot belongs to the check-in data.
+        AsyncFunction("updateRecordingState") { (state: [String: Any], durable: Bool) -> Void in
+            guard WCSession.isSupported() else { return }
+            var payload = state.compactMapValues(withoutNulls)
+            payload["type"] = "recordingState"
+            if durable {
+                WCSession.default.transferUserInfo(payload)
+            }
+            if WCSession.default.isReachable {
+                WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+            }
+            if durable, payload["status"] as? String == "recording" {
+                Self.launchWatchApp(activity: payload["activity"] as? String)
+            }
         }
 
         /// Tells the watch the workout it was armed with is over, because it

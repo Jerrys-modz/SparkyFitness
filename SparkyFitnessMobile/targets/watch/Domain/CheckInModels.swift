@@ -170,6 +170,90 @@ struct WaterSnapshot: Codable, Equatable {
     var isToday: Bool { day == CheckInDate.today() }
 }
 
+/// One scheduled dose slot for today, as the phone built it for the
+/// Medications page.
+struct MedicationDose: Codable, Equatable, Identifiable {
+    /// `medicationId:scheduleId` — one per slot, so a medication taken twice a
+    /// day has two rows.
+    let id: String
+    let medicationId: String
+    let scheduleId: String
+    let name: String
+    /// Already formatted by the phone ("10 mg"); empty when the medication has
+    /// no dose set.
+    let detail: String
+    /// Already formatted in the account's 12/24-hour convention; empty when the
+    /// slot has no time.
+    let time: String
+    let status: MedicationDoseStatus
+}
+
+/// Where a dose slot stands, as the phone's own dose rows read it.
+enum MedicationDoseStatus: String, Codable {
+    case pending, taken, skipped
+}
+
+/// Today's scheduled doses. Empty is a real state (nothing scheduled), distinct
+/// from the whole snapshot being nil ("the phone hasn't said yet").
+struct MedicationSnapshot: Codable, Equatable {
+    let day: String
+    let doses: [MedicationDose]
+
+    var isToday: Bool { day == CheckInDate.today() }
+}
+
+/// A fast as the Fasting page and complication draw it.
+struct WatchFast: Codable, Equatable {
+    let startedAt: Date
+    /// When the fast reaches its goal. Nil for an open-ended fast.
+    let targetEndAt: Date?
+    /// The preset's name, such as "16:8".
+    let label: String?
+}
+
+/// Today's steps as the phone reports them.
+struct StepsSnapshot: Codable, Equatable {
+    let day: String
+    let count: Int
+
+    var isToday: Bool { day == CheckInDate.today() }
+}
+
+/// A dose the wearer ticked but the phone hasn't confirmed.
+///
+/// Lives in `CheckInStore` for the same reason `PendingWaterTap` does: the tap
+/// is realistically made with the phone out of reach, and until its
+/// confirmation arrives this is the only record that it happened.
+struct PendingMedicationTap: Codable, Equatable, Identifiable {
+    /// Also the `clientId` sent to the phone, which the acknowledgement names.
+    let id: String
+    /// The slot's `MedicationDose.id`, so a row can find its own tap.
+    let doseId: String
+    let medicationId: String
+    let scheduleId: String
+    let createdAt: Date
+    let day: String
+    /// `.queued` draws an orange tick, `.saved` a green one, `.failed` a red
+    /// retry mark.
+    var state: SyncState = .queued
+    /// True when this un-ticks the dose after a mistaken tap. Optional so taps
+    /// persisted before undo existed still decode.
+    var undo: Bool? = nil
+
+    var isToday: Bool { day == CheckInDate.today() }
+    var isUndo: Bool { undo ?? false }
+}
+
+/// One dose tick, sent straight to the phone, which owns the API call.
+struct MedicationTap: Codable, Equatable {
+    let id: String
+    let entryDate: String
+    let medicationId: String
+    let scheduleId: String
+    /// False when the wearer un-ticked the dose.
+    var taken: Bool = true
+}
+
 /// A container tap the wearer has made but the phone hasn't confirmed.
 ///
 /// Lives in `CheckInStore` rather than the Water page's own `@State` so it
@@ -356,6 +440,21 @@ struct WatchContext: Codable, Equatable {
     /// The phone's Settings → Apple Watch → Double-tap switch. Defaulted so the
     /// existing initializer calls need not pass it; nil reads as on.
     var doubleTapEnabled: Bool? = nil
+    /// Phone's Settings → Apple Watch → effort (RPE) switch. Nil reads as off.
+    var rpeEnabled: Bool? = nil
+    /// Today's scheduled medication doses. Nil until the phone has said, which
+    /// the page renders as "not synced yet" rather than an empty list. Expires
+    /// at midnight like `water`.
+    var medications: MedicationSnapshot? = nil
+    /// The fast running now. Nil with `fastSynced` true means "not fasting".
+    var fast: WatchFast? = nil
+    /// True once the phone has said anything about fasting, so "not fasting"
+    /// is not confused with "never heard".
+    var fastSynced: Bool? = nil
+    /// Today's step count from the phone. Nil when it has none for today.
+    var steps: StepsSnapshot? = nil
+    /// Daily step goal from the phone. Nil reads as 10,000.
+    var stepGoal: Int? = nil
 
     static let empty = WatchContext(
         today: nil,
@@ -436,6 +535,8 @@ struct WatchContext: Codable, Equatable {
     /// Whether the double-tap gesture logs a set. On until the phone says
     /// otherwise.
     var effectiveDoubleTapEnabled: Bool { doubleTapEnabled ?? true }
+
+    var effectiveRpeEnabled: Bool { rpeEnabled ?? false }
 
     /// Stale seeds are worse than no seed: every morning would start from a lie
     /// and the delta line would reassure falsely.
