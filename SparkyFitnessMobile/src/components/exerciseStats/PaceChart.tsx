@@ -13,6 +13,20 @@ import {
 import LineSeriesMark from '../charts/LineSeriesMark';
 
 const font = makeChartFont(CHART_LABEL_FONT_SIZE);
+const X_TICK_COUNT = 5;
+
+/**
+ * Decimal places for distance ticks. One place is enough on a long route;
+ * a short one needs more, or ticks under 0.1 apart all read as "0.0".
+ */
+export function distanceTickDigits(
+  span: number,
+  tickCount = X_TICK_COUNT
+): number {
+  const step = span / Math.max(1, tickCount - 1);
+  if (!(step > 0) || !Number.isFinite(step)) return 1;
+  return Math.min(3, Math.max(1, Math.ceil(-Math.log10(step))));
+}
 
 interface PaceChartProps {
   data: readonly PacePoint[];
@@ -46,6 +60,12 @@ const PaceChart: React.FC<PaceChartProps> = ({ data, xAxisCaption }) => {
       : undefined;
   }, [points]);
 
+  const distanceDigits = useMemo(() => {
+    if (data.length < 2) return 1;
+    const distances = data.map((point) => point.distance);
+    return distanceTickDigits(Math.max(...distances) - Math.min(...distances));
+  }, [data]);
+
   return (
     <View>
       <View style={{ height: 180 }}>
@@ -59,11 +79,11 @@ const PaceChart: React.FC<PaceChartProps> = ({ data, xAxisCaption }) => {
           domainPadding={{ top: 8, bottom: 8 }}
           xAxis={{
             font,
-            tickCount: 5,
+            tickCount: X_TICK_COUNT,
             labelColor: textMuted,
             formatXLabel: (value) =>
               formatLocalizedNumber(Number(value), {
-                maximumFractionDigits: 1,
+                maximumFractionDigits: distanceDigits,
               }),
           }}
           yAxis={[

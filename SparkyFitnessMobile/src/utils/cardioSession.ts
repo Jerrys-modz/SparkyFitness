@@ -340,13 +340,14 @@ export function paceSeriesFromTrack(
   for (const point of points) {
     const t = Date.parse(point.t);
     if (!Number.isFinite(t)) continue;
+    // Out of order: leave the running distance and the previous fix alone.
+    if (samples.length > 0 && t <= samples[samples.length - 1].t) continue;
     if (typeof point.dist === 'number' && Number.isFinite(point.dist)) {
       running = point.dist;
     } else if (previous) {
       running += haversineMeters(previous, point);
     }
     previous = point;
-    if (samples.length > 0 && t <= samples[samples.length - 1].t) continue;
     samples.push({ t, meters: running });
   }
 
@@ -371,5 +372,19 @@ export function paceSeriesFromTrack(
 
   if (series.length <= MAX_PACE_POINTS) return series;
   const step = Math.ceil(series.length / MAX_PACE_POINTS);
-  return series.filter((_, i) => i % step === 0 || i === series.length - 1);
+  const kept = series.filter(
+    (_, i) => i % step === 0 || i === series.length - 1
+  );
+  let fastest = 0;
+  for (let i = 1; i < series.length; i++) {
+    if (series[i].paceSeconds < series[fastest].paceSeconds) fastest = i;
+  }
+  if (kept.includes(series[fastest])) return kept;
+  const fastestPoint = series[fastest];
+  const insertAt = kept.findIndex(
+    (sample) => sample.distance > fastestPoint.distance
+  );
+  if (insertAt === -1) kept.push(fastestPoint);
+  else kept.splice(insertAt, 0, fastestPoint);
+  return kept;
 }

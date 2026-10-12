@@ -356,8 +356,32 @@ describe('paceSeriesFromTrack', () => {
     expect(paceSeriesFromTrack([at(0, 0), at(5, 10)], KM)).toEqual([]);
   });
 
+  it('ignores an out-of-order point instead of adding its distance', () => {
+    const track = [
+      at(0, 0),
+      at(40, 100),
+      // Earlier, and a long way off. It must not move the distance along.
+      at(10, 5000),
+      at(80, 200),
+    ];
+    const series = paceSeriesFromTrack(track, KM);
+
+    expect(series.length).toBeGreaterThan(0);
+    expect(series[series.length - 1].distance).toBeLessThan(0.3);
+  });
+
   it('thins a very long track', () => {
     const track = Array.from({ length: 5000 }, (_, i) => at(i * 31, i * 100));
-    expect(paceSeriesFromTrack(track, KM).length).toBeLessThanOrEqual(401);
+    expect(paceSeriesFromTrack(track, KM).length).toBeLessThanOrEqual(402);
+  });
+
+  it('keeps the fastest reading when a long track is thinned', () => {
+    const track = Array.from({ length: 800 }, (_, i) =>
+      at(i * 31, i === 2 ? 800 : i * 80)
+    );
+    const series = paceSeriesFromTrack(track, KM);
+    const best = Math.min(...series.map((point) => point.paceSeconds));
+
+    expect(best).toBeLessThan(100);
   });
 });

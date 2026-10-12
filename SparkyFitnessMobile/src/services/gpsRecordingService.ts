@@ -240,6 +240,7 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
     const firstTouched = Math.floor(points.length / CHUNK_SIZE);
     let added = 0;
     let sessionChanged = false;
+    let pointsRewritten = false;
     for (const fix of fixes) {
       if (session.autoPause && isWatchingForAutoPause(session)) {
         const step = stepAutoPause(
@@ -250,6 +251,13 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
         );
         autoPauseState = step.state;
         if (step.action.type === 'pause') {
+          // The pause is dated to when they stopped, which can be several
+          // fixes ago. Drift accepted after that is not part of the route.
+          const retained = points.filter((point) => point.t <= step.action.at);
+          if (retained.length !== points.length) {
+            points = retained;
+            pointsRewritten = true;
+          }
           session = {
             ...session,
             status: 'paused',
@@ -292,12 +300,15 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
     }
     if (added > 0 && cueSplit()) sessionChanged = true;
     if (sessionChanged) await persistSession();
-    if (added === 0) {
+    if (added === 0 && !pointsRewritten) {
       if (sessionChanged) publish();
       return;
     }
-    const lastTouched = Math.floor((points.length - 1) / CHUNK_SIZE);
-    for (let index = firstTouched; index <= lastTouched; index++) {
+    if (pointsRewritten) await clearStoredPoints();
+    const rewriteFrom = pointsRewritten ? 0 : firstTouched;
+    const lastTouched =
+      points.length === 0 ? -1 : Math.floor((points.length - 1) / CHUNK_SIZE);
+    for (let index = rewriteFrom; index <= lastTouched; index++) {
       await persistChunk(index);
     }
     publish();
@@ -632,7 +643,19 @@ export function markLap(pressedAt?: number): Promise<number | null> {
     publish();
     if (session.audioCues) {
       const marked = computeLaps(points, session.laps ?? []);
-      const lap = marked.find((l) => l.endT === at);
+      const lastPointT = points[points.length - 1]?.t;
+      // A mark after the newest fix is not a boundary of its own. Only the
+      // first such mark owns the partial lap; a later one has nothing new,
+      // and an earlier mark out of order must not steal it.
+      const firstUnrepresentedMark =
+        lastPointT === undefined
+          ? undefined
+          : marks.find((mark) => mark >= lastPointT);
+      const lap =
+        marked.find((item) => item.endT === at) ??
+        (firstUnrepresentedMark === at
+          ? marked.find((item) => item.partial)
+          : undefined);
       if (lap) {
         speakRecordingCue(
           lapCue(i18n.t.bind(i18n), {

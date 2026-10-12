@@ -457,6 +457,30 @@ describe('auto-pause', () => {
     expect(stored?.autoPaused).toBe(false);
   });
 
+  it('drops fixes accepted after the moment an auto-pause is backdated to', async () => {
+    await startRecording({ activity: 'run', autoPause: true, notification });
+    await ingestFixes([
+      { ...fix(0, 0), speed: 3 },
+      { ...fix(2, 10), speed: 3 },
+    ]);
+    // Reported speed is a stop, but the fixes still drift far enough to be
+    // kept. The pause dates back to the first of them.
+    await ingestFixes([
+      { ...fix(4, 20), speed: 0.2 },
+      { ...fix(6, 40), speed: 0.2 },
+      { ...fix(8, 60), speed: 0.2 },
+      { ...fix(10, 80), speed: 0.2 },
+      { ...fix(12, 100), speed: 0.2 },
+    ]);
+
+    expect((await storedSession())?.pausedAt).toBe(T0 + 4000);
+    const raw = await AsyncStorage.getItem(
+      '@SparkyFitness/gpsRecording/chunk/0'
+    );
+    const kept = JSON.parse(raw ?? '[]') as { t: number }[];
+    expect(kept.map((point) => point.t)).toEqual([T0, T0 + 2000, T0 + 4000]);
+  });
+
   it('lets the person resume an auto-pause by hand', async () => {
     await startRecording({ activity: 'run', autoPause: true, notification });
     await ingestFixes([standing(0), standing(10), standing(12)]);

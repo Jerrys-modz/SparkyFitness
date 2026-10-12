@@ -400,20 +400,26 @@ export function computeSplits(
  * `partial`, like a trailing split. Distance and active time at a mark are
  * interpolated between the fixes around it; a mark inside a pause takes the
  * fix before it, so a pause is never counted into a lap.
+ *
+ * `recordingEndT` is when the recording finished, which can be after the last
+ * fix. A mark in that gap is kept. Distance and time are still clamped to the
+ * last fix, so the gap is never invented as movement.
  */
 export function computeLaps(
   points: readonly RecordedPoint[],
-  marks: readonly number[]
+  marks: readonly number[],
+  recordingEndT?: number
 ): RecordedSplit[] {
   if (points.length < 2) return [];
   const distances = cumulativeDistances(points);
   const active = cumulativeActiveSeconds(points);
   const first = points[0].t;
-  const last = points[points.length - 1].t;
+  const lastPointT = points[points.length - 1].t;
+  const last = Math.max(lastPointT, recordingEndT ?? lastPointT);
 
   const at = (t: number): { distance: number; active: number } => {
     if (t <= first) return { distance: distances[0], active: active[0] };
-    if (t >= last) {
+    if (t >= lastPointT) {
       return {
         distance: distances[distances.length - 1],
         active: active[active.length - 1],

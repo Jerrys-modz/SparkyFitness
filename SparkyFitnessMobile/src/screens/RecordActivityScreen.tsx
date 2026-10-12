@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -142,6 +148,13 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   // Set when the person taps Start here, so a session that is already there
   // when the screen opens can be told apart from one started on this visit.
   const [startedHere, setStartedHere] = useState(false);
+  // A change made before the stored preferences load must not be overwritten
+  // by that read. Each flag is set in the control that changes it.
+  const preferenceEdits = useRef({
+    autoPause: false,
+    audioCues: false,
+    countdownSeconds: false,
+  });
 
   useScreenHeader({
     title: t('screens.recordActivity', { defaultValue: 'Record Activity' }),
@@ -153,11 +166,22 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
 
   // Pick up a recording an earlier run left behind (app killed mid-activity).
   useEffect(() => {
+    let active = true;
     void getRecordingPreferences().then((preferences) => {
-      setAutoPause(preferences.autoPause);
-      setAudioCues(preferences.audioCues);
-      setCountdownSeconds(preferences.countdownSeconds);
+      if (!active) return;
+      if (!preferenceEdits.current.autoPause) {
+        setAutoPause(preferences.autoPause);
+      }
+      if (!preferenceEdits.current.audioCues) {
+        setAudioCues(preferences.audioCues);
+      }
+      if (!preferenceEdits.current.countdownSeconds) {
+        setCountdownSeconds(preferences.countdownSeconds);
+      }
     });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -196,9 +220,9 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
   const laps = useMemo(
     () =>
       session?.status === 'finished' && lapMarks && lapMarks.length > 0
-        ? computeLaps(points, lapMarks)
+        ? computeLaps(points, lapMarks, session.finishedAt ?? undefined)
         : [],
-    [points, session?.status, lapMarks]
+    [points, session?.status, session?.finishedAt, lapMarks]
   );
   const splitBarsFor = useMemo(
     () => splitBars(splits, unitMeters),
@@ -459,6 +483,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               })}
               value={autoPause}
               onValueChange={(value) => {
+                preferenceEdits.current.autoPause = true;
                 setAutoPause(value);
                 void setRecordingPreference('autoPause', value);
               }}
@@ -485,6 +510,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               })}
               value={audioCues}
               onValueChange={(value) => {
+                preferenceEdits.current.audioCues = true;
                 setAudioCues(value);
                 void setRecordingPreference('audioCues', value);
               }}
@@ -512,6 +538,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation }) => {
               activeKey={String(countdownSeconds)}
               onSelect={(key) => {
                 const seconds = Number(key);
+                preferenceEdits.current.countdownSeconds = true;
                 setCountdownSeconds(seconds);
                 void setCountdownPreference(seconds);
               }}

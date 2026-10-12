@@ -116,7 +116,7 @@ export async function saveRecordedActivity(
     // intervals they meant to compare.
     laps: splitsToLapWindows(
       session.laps && session.laps.length > 0
-        ? computeLaps(points, session.laps)
+        ? computeLaps(points, session.laps, session.finishedAt ?? undefined)
         : computeSplits(points, unitMeters)
     ),
   });

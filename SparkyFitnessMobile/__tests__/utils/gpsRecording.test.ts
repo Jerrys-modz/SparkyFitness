@@ -337,6 +337,18 @@ describe('computeLaps', () => {
     expect(second.durationSeconds).toBeCloseTo(10, 5);
   });
 
+  it('keeps a mark after the last fix up to the finish, without extra distance', () => {
+    const track = steadyTrack(60, 4, 5);
+    const end = track[track.length - 1].t;
+    const mark = end + 10_000;
+    const [lap] = computeLaps(track, [mark], mark + 5_000);
+
+    expect(lap.endT).toBe(mark);
+    expect(lap.distanceMeters).toBeCloseTo(240, 0);
+    expect(lap.durationSeconds).toBeCloseTo(60, 0);
+    expect(lap.partial).toBe(false);
+  });
+
   it('ignores marks outside the recording and gives nothing for too few fixes', () => {
     expect(computeLaps([point(0, 0)], [T0 + 1000])).toEqual([]);
     const laps = computeLaps(steadyTrack(60, 4, 5), [T0 - 5000, T0 + 999_000]);
