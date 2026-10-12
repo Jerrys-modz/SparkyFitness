@@ -280,6 +280,9 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
           // The pause is dated to when they stopped, which can be several
           // fixes ago. Drift accepted after that is not part of the route.
           const pauseAt = step.action.at;
+          // Close any step that became due before they stopped. Doing it
+          // after the pause would date the lap with the pause included.
+          if (advanceIntervals(pauseAt)) sessionChanged = true;
           const retained = points.filter((point) => point.t <= pauseAt);
           if (retained.length !== points.length) {
             points = retained;
@@ -678,10 +681,13 @@ export function pauseRecording(): Promise<void> {
   return enqueue(async () => {
     await hydrate();
     if (!session || session.status !== 'recording') return;
+    const now = Date.now();
+    // Mark steps that already came due, while pausedMs still excludes this pause.
+    advanceIntervals(now);
     session = {
       ...session,
       status: 'paused',
-      pausedAt: Date.now(),
+      pausedAt: now,
       autoPaused: false,
     };
     autoPauseState = INITIAL_AUTO_PAUSE_STATE;

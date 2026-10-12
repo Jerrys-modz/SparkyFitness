@@ -125,6 +125,17 @@ describe('interval plans', () => {
     );
   });
 
+  test('a pause after a missed boundary does not shift that lap', async () => {
+    await startRecording({ activity: 'run', intervals: plan, notification });
+    at(70); // the 60 s step ended, and nothing ticked
+    await pauseRecording();
+    at(90);
+    await resumeRecording({ title: 'Recording', body: 'Tracking' });
+    at(95);
+    await tickIntervals();
+    expect((await stored())?.laps).toEqual([T0 + 60_000]);
+  });
+
   test('stop counting while paused', async () => {
     await startRecording({ activity: 'run', intervals: plan, notification });
     at(30);
