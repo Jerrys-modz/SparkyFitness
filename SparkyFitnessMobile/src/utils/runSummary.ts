@@ -36,6 +36,8 @@ export interface RunSummaryParams {
   laps: RecordedSplit[];
   /** The saved diary entry, so the screen can look up the records it set. */
   entryId?: string | null;
+  /** True for a treadmill run, whose distance the person can correct. */
+  editableDistance?: boolean;
   /** For a program workout: where the person is now and what comes next. */
   program: {
     nextLine: string;

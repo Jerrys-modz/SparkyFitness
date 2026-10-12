@@ -197,3 +197,7 @@ After a program workout is saved, the summary asks how hard it was, from 1 (very
 **Library → Personal records** lists your best efforts at 1 km, 1 mile, 5 km, 10 km, 15 km, the half marathon and the marathon, grouped by sport (running, walking, cycling and so on). Records come from your recorded and imported cardio activities, are only compared within one sport, and are the same ones the web Reports page shows.
 
 When a run you just saved set one or more of them, the summary screen shows a **New personal record** card with the distance and time, and a link to the full list. A run recorded on the watch shows it too.
+
+## Correcting a treadmill distance
+
+A run recorded on the watch indoors has no route, so its distance is the watch's estimate from your arm and step motion, which can be off. On the summary screen (tap the "Run from your watch saved" message) a **Treadmill distance** card lets you enter what the machine showed. The distance, pace and lap distances update, and heart rate and calories are kept. Runs with a GPS route get their distance from the route and cannot be changed this way.
