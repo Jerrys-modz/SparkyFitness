@@ -1,6 +1,6 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
-import { StackActions, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   hasSupplementNutrition,
@@ -79,6 +79,7 @@ import { isManualSource } from '../utils/customMeasurementsForm';
 import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
 import { cardioSessionForDiaryEntry } from '../services/cardioSessionForDiaryEntry';
 import { cardioSessionFromDiaryEntry } from '../utils/cardioSession';
+import { replaceOpenedActivityDetail } from '../utils/replaceOpenedActivityDetail';
 import {
   getHistoricalMealTypeLabel,
   getMealTypeDisplayLabel,
@@ -738,24 +739,10 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                         });
                         return;
                       }
-                      const parent = navigation.getParent();
-                      const state = parent?.getState();
-                      const current = state?.routes[state.index];
-                      const params = current?.params as
-                        { session?: { id?: string } } | undefined;
-                      if (
-                        !parent ||
-                        current?.name !== 'ActivityDetail' ||
-                        params?.session?.id !== openedId
-                      ) {
-                        return;
-                      }
-                      parent.dispatch(
-                        StackActions.replace('CardioSession', {
-                          session: cardioSession,
-                          distanceUnit,
-                        })
-                      );
+                      replaceOpenedActivityDetail(navigation, openedId, {
+                        session: cardioSession,
+                        distanceUnit,
+                      });
                     }
                   );
                 }
