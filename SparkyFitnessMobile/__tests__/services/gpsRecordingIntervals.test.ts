@@ -31,7 +31,7 @@ import {
   tickIntervals,
   type RecordingSession,
 } from '../../src/services/gpsRecordingService';
-import { buildIntervalPlan } from '../../src/utils/intervals';
+import { buildIntervalPlan } from '@workspace/shared';
 
 const notification = { title: 'Recording', body: 'Tracking' };
 const T0 = new Date(2026, 9, 10, 8, 0, 0).getTime();

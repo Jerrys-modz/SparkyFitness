@@ -849,6 +849,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     sleep={trends.sleep}
                     hydration={trends.hydration}
                     calories={trends.calories}
+                    vo2max={trends.vo2max}
                     range={trendsRange}
                     weightUnit={weightUnit}
                     waterUnit={waterDisplayUnit}
