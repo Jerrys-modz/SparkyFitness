@@ -308,7 +308,8 @@ describe('RecordActivityScreen', () => {
         track,
         'km',
         null,
-        null
+        null,
+        false
       )
     );
     await waitFor(() => expect(discardRecording).toHaveBeenCalled());
@@ -448,7 +449,8 @@ describe('RecordActivityScreen', () => {
         [],
         'km',
         5.2,
-        null
+        null,
+        false
       )
     );
   });
@@ -470,7 +472,8 @@ describe('RecordActivityScreen', () => {
         [],
         'km',
         null,
-        null
+        null,
+        true
       )
     );
   });
@@ -531,7 +534,8 @@ describe('RecordActivityScreen', () => {
           [],
           'km',
           3.12,
-          rough
+          rough,
+          true
         )
       );
     });
@@ -553,7 +557,8 @@ describe('RecordActivityScreen', () => {
           [],
           'km',
           3.5,
-          rough
+          rough,
+          false
         )
       );
     });
@@ -576,7 +581,8 @@ describe('RecordActivityScreen', () => {
           [],
           'km',
           null,
-          rough
+          rough,
+          false
         )
       );
     });
