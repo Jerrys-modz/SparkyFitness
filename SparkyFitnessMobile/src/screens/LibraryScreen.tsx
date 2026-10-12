@@ -447,18 +447,16 @@ const LibraryScreen: React.FC<LibraryScreenProps> = ({ navigation }) => {
         </Pressable>
         <Pressable
           className="px-4 py-4 flex-row items-center justify-between border-b border-border-subtle"
-          onPress={() => navigation.navigate('ExerciseStatistics')}
+          onPress={() => navigation.navigate('Reports')}
           style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
         >
           <View className="flex-1 mr-3">
             <Text className="text-base font-semibold text-text-primary">
-              {t('screens.library.exerciseStatistics', {
-                defaultValue: 'Exercise statistics',
-              })}
+              {t('screens.library.reports', { defaultValue: 'Reports' })}
             </Text>
             <Text className="text-sm text-text-secondary mt-0.5">
-              {t('screens.library.exerciseStatisticsSubtitle', {
-                defaultValue: 'Sets per muscle and a body heat map',
+              {t('screens.library.reportsSubtitle', {
+                defaultValue: 'Nutrition, sleep, mood and exercise trends',
               })}
             </Text>
           </View>
