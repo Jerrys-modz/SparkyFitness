@@ -343,6 +343,7 @@ extension WatchRunHealthKitController {
             savedAt: now,
             lapMarks: lapMarks,
             lapDistances: lapDistances,
+            distanceSeries: distanceSeries,
             plan: plan,
             settings: settings
         ))
@@ -395,6 +396,7 @@ extension WatchRunHealthKitController {
                 let laps = Self.pairedLaps(snapshot.lapMarks, snapshot.lapDistances)
                 self.lapMarks = laps.marks
                 self.lapDistances = laps.distances
+                self.distanceSeries = snapshot.distanceSeries ?? []
                 self.plan = snapshot.plan
                 // A snapshot from before the switches existed: what runs had then.
                 self.settings = snapshot.settings
@@ -473,6 +475,7 @@ extension WatchRunHealthKitController {
             heartRate: snapshot.heartRateRows,
             laps: Self.pairedLaps(snapshot.lapMarks, snapshot.lapDistances).marks,
             lapDistances: Self.pairedLaps(snapshot.lapMarks, snapshot.lapDistances).distances,
+            distanceSeries: snapshot.distanceSeries ?? [],
             plan: snapshot.plan,
             planCompleted: snapshot.plan?.lastStepStarted(at: snapshot.elapsed) ?? false
         ))

@@ -52,6 +52,7 @@ export * from "./schemas/database/ExerciseEntries.zod.ts";
 export * from "./schemas/database/ExerciseEntryActivityDetails.zod.ts";
 export * from "./schemas/database/ExerciseEntryLaps.zod.ts";
 export * from "./schemas/database/ExerciseEntryGpsPoints.zod.ts";
+export * from "./schemas/database/ExerciseEntryDistanceSeries.zod.ts";
 export * from "./schemas/database/ExerciseEntryHrZones.zod.ts";
 export * from "./schemas/database/ExerciseEntrySets.zod.ts";
 export * from "./schemas/database/HealthMetricSamples.zod.ts";

@@ -750,6 +750,25 @@ export type SetExerciseEntryDistanceRequest = z.infer<
   typeof setExerciseEntryDistanceRequestSchema
 >;
 
+// Distance against active time for an entry with no route, for its pace chart.
+// Rows are `[active seconds, cumulative metres]`, oldest first.
+export const attachExerciseEntryDistanceSeriesRequestSchema = z
+  .object({
+    points: z
+      .array(
+        z.tuple([
+          z.number().min(0).max(86400),
+          z.number().min(0).max(1_000_000),
+        ]),
+      )
+      .min(2)
+      .max(1000),
+  })
+  .strict();
+export type AttachExerciseEntryDistanceSeriesRequest = z.infer<
+  typeof attachExerciseEntryDistanceSeriesRequestSchema
+>;
+
 export type AttachExerciseEntryLapsRequest = z.infer<
   typeof attachExerciseEntryLapsRequestSchema
 >;

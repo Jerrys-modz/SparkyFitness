@@ -543,6 +543,24 @@ export const attachExerciseEntryLaps = async (
   });
 };
 
+/**
+ * Stores the distance against active time of a session with no route (an
+ * indoor run from the watch) so its pace can be charted. Posting again
+ * replaces it, so a retry is safe.
+ */
+export const attachExerciseEntryDistanceSeries = async (
+  exerciseEntryId: string,
+  points: number[][]
+): Promise<void> => {
+  return apiFetch<void>({
+    endpoint: `/api/exercise-entries/${exerciseEntryId}/distance-series`,
+    serviceName: 'Exercise API',
+    operation: 'attach exercise entry distance series',
+    method: 'POST',
+    body: { points },
+  });
+};
+
 export const deleteExerciseEntry = async (id: string): Promise<void> => {
   return apiFetch<void>({
     endpoint: `/api/exercise-entries/${id}`,

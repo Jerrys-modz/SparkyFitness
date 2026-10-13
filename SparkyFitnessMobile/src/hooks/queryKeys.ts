@@ -326,7 +326,7 @@ export const personalRecordsQueryKey = (unitSystem: 'metric' | 'imperial') =>
   ['personalRecords', unitSystem] as const;
 
 export const cardioSessionDetailQueryKey = (
-  part: 'entry' | 'gps' | 'hrZones',
+  part: 'entry' | 'gps' | 'hrZones' | 'distanceSeries',
   exerciseEntryId: string
 ) => ['cardioSessionDetail', part, exerciseEntryId] as const;
 

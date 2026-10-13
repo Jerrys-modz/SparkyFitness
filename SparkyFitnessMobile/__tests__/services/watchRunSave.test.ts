@@ -1,4 +1,5 @@
 import {
+  attachExerciseEntryDistanceSeries,
   attachExerciseEntryGpsTrack,
   attachExerciseEntryLaps,
   attachExerciseEntryWatchTelemetry,
@@ -141,4 +142,36 @@ test('an indoor run with no laps attaches none', async () => {
   const indoor = { ...outdoor, place: 'indoor' as const, route: [] };
   await saveWatchRun(indoor, 'km', 'e7', jest.fn());
   expect(attachExerciseEntryLaps).not.toHaveBeenCalled();
+});
+
+test('an indoor run files its distance series for the pace chart', async () => {
+  const series = [
+    [0, 0],
+    [10, 28],
+    [20, 57],
+  ];
+  const indoor = {
+    ...outdoor,
+    place: 'indoor' as const,
+    route: [],
+    distanceSeries: series,
+  };
+  await saveWatchRun(indoor, 'km', 'e7', jest.fn());
+  expect(attachExerciseEntryDistanceSeries).toHaveBeenCalledWith('e7', series);
+});
+
+test('a failed series upload does not fail the save', async () => {
+  jest
+    .mocked(attachExerciseEntryDistanceSeries)
+    .mockRejectedValueOnce(new Error('boom'));
+  const indoor = {
+    ...outdoor,
+    place: 'indoor' as const,
+    route: [],
+    distanceSeries: [
+      [0, 0],
+      [10, 28],
+    ],
+  };
+  await expect(saveWatchRun(indoor, 'km', 'e7', jest.fn())).resolves.toBe('e7');
 });

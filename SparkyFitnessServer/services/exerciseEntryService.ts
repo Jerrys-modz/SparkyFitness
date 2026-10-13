@@ -14,6 +14,7 @@ import {
   setsDurationMinutes,
   type AttachExerciseEntryGpsTrackRequest,
   type AttachExerciseEntryLapsRequest,
+  type AttachExerciseEntryDistanceSeriesRequest,
   type HeartRateSampleRequest,
   type SetExerciseEntryDistanceRequest,
 } from '@workspace/shared';
@@ -640,6 +641,69 @@ async function attachLapsToExerciseEntry(
  * so the measured heart rate and energy stay. Its set distance follows, and
  * any laps are scaled by the same factor so they still add up to the entry.
  */
+/**
+ * Stores the distance-against-time series of an entry with no route. The
+ * posted series is the whole thing: re-posting replaces it.
+ */
+async function attachDistanceSeriesToExerciseEntry(
+  userId: string,
+  actingUserId: string,
+  exerciseEntryId: string,
+  body: AttachExerciseEntryDistanceSeriesRequest
+): Promise<void> {
+  const ownerId = await exerciseEntryRepository.getExerciseEntryOwnerId(
+    exerciseEntryId,
+    userId
+  );
+  const entry =
+    ownerId === userId
+      ? await exerciseEntryRepository.getExerciseEntryById(
+          exerciseEntryId,
+          userId
+        )
+      : null;
+  const entryDate: string | undefined = entry?.entry_date;
+  if (!entryDate) {
+    const error = new Error('Exercise entry not found.');
+    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+    error.status = 404;
+    throw error;
+  }
+  const points = [...body.points].sort((a, b) => a[0] - b[0]);
+  const client = await getClient(userId, actingUserId);
+  try {
+    await client.query(
+      `INSERT INTO exercise_entry_distance_series
+         (user_id, exercise_entry_id, entry_date, points)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (exercise_entry_id) DO UPDATE SET
+         entry_date = EXCLUDED.entry_date,
+         points = EXCLUDED.points,
+         updated_at = NOW()`,
+      [userId, exerciseEntryId, entryDate, JSON.stringify(points)]
+    );
+  } finally {
+    client.release();
+  }
+}
+
+/** The stored series for an entry, or null when it has none. */
+async function getExerciseEntryDistanceSeries(
+  actingUserId: string,
+  exerciseEntryId: string
+): Promise<[number, number][] | null> {
+  const client = await getClient(actingUserId);
+  try {
+    const res = (await client.query(
+      'SELECT points FROM exercise_entry_distance_series WHERE exercise_entry_id = $1',
+      [exerciseEntryId]
+    )) as { rows: { points: [number, number][] }[] };
+    return res.rows[0]?.points ?? null;
+  } finally {
+    client.release();
+  }
+}
+
 async function setExerciseEntryDistance(
   userId: string,
   actingUserId: string,
@@ -699,6 +763,21 @@ async function setExerciseEntryDistance(
         [exerciseEntryId, body.distance_km / previousKm]
       );
     }
+    if (previousKm > 0) {
+      // The pace chart moves with the corrected distance, as the laps do.
+      await client.query(
+        `UPDATE exercise_entry_distance_series SET
+           points = COALESCE((
+             SELECT jsonb_agg(
+               jsonb_build_array(p->0, ROUND(((p->>1)::numeric) * $2::numeric, 2))
+               ORDER BY ord)
+             FROM jsonb_array_elements(points) WITH ORDINALITY AS t(p, ord)
+           ), '[]'::jsonb),
+           updated_at = NOW()
+         WHERE exercise_entry_id = $1`,
+        [exerciseEntryId, body.distance_km / previousKm]
+      );
+    }
     await client.query('COMMIT');
   } catch (error) {
     await client.query('ROLLBACK');
@@ -713,6 +792,8 @@ export {
   attachWatchTelemetryToExerciseEntry,
   attachGpsTrackToExerciseEntry,
   attachLapsToExerciseEntry,
+  attachDistanceSeriesToExerciseEntry,
+  getExerciseEntryDistanceSeries,
   setExerciseEntryDistance,
 };
 export default {
@@ -720,5 +801,7 @@ export default {
   attachWatchTelemetryToExerciseEntry,
   attachGpsTrackToExerciseEntry,
   attachLapsToExerciseEntry,
+  attachDistanceSeriesToExerciseEntry,
+  getExerciseEntryDistanceSeries,
   setExerciseEntryDistance,
 };

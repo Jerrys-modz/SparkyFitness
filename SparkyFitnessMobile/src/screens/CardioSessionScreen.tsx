@@ -15,7 +15,10 @@ import {
   METERS_PER_MILE,
   formatPace,
 } from '../utils/gpsRecording';
-import { paceSeriesFromTrack } from '../utils/cardioSession';
+import {
+  paceSeriesFromDistance,
+  paceSeriesFromTrack,
+} from '../utils/cardioSession';
 import RouteMap from '../components/exerciseStats/RouteMap';
 import HeartRateChart from '../components/exerciseStats/HeartRateChart';
 import PaceChart from '../components/exerciseStats/PaceChart';
@@ -210,8 +213,11 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
 
   const unitMeters = distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
   const paceSeries = React.useMemo(
-    () => paceSeriesFromTrack(detail.route, unitMeters),
-    [detail.route, unitMeters]
+    () =>
+      detail.route.length > 0
+        ? paceSeriesFromTrack(detail.route, unitMeters)
+        : paceSeriesFromDistance(detail.distanceSeries ?? [], unitMeters),
+    [detail.route, detail.distanceSeries, unitMeters]
   );
   const paceUnitLabel =
     distanceUnit === 'miles'
