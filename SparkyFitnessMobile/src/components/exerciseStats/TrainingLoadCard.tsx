@@ -23,7 +23,7 @@ const STATUS_COLOR: Record<LoadStatus, string> = {
 };
 
 /**
- * This week's cardio load against the last four weeks, with a plain-language
+ * This week's workout load against the last four weeks, with a plain-language
  * verdict and a nudge to rest after a hard stretch. The score is minutes
  * weighted by heart-rate intensity, so it is a guide, not a measurement.
  */
@@ -62,7 +62,7 @@ const TrainingLoadCard: React.FC<TrainingLoadCardProps> = ({
         });
       default:
         return t('exerciseStatistics.load.status.noData', {
-          defaultValue: 'No cardio logged in the last four weeks.',
+          defaultValue: 'No workouts logged in the last four weeks.',
         });
     }
   };
@@ -160,7 +160,7 @@ const TrainingLoadCard: React.FC<TrainingLoadCardProps> = ({
       <Text className="text-text-secondary text-xs mt-0.5 mb-3">
         {t('exerciseStatistics.load.subtitle', {
           defaultValue:
-            'Cardio minutes weighted by heart rate, this week against the last four.',
+            'Workout minutes weighted by heart rate, this week against the last four.',
         })}
       </Text>
       {renderBody()}
