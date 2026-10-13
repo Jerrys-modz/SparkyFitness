@@ -61,8 +61,8 @@ import {
   COUNTDOWN_CHOICES,
   getHeartRateSamples,
   getRecordingPreferences,
-  setHeartRateAlertPreference,
-  setPaceAlertPreference,
+  setHeartRateBandPreference,
+  setPaceBandPreference,
   setRecordingHeartRateBand,
   setRecordingPaceBand,
   hydrate,
@@ -425,12 +425,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       if (!preferenceEdits.current.countdownSeconds) {
         setCountdownSeconds(preferences.countdownSeconds);
       }
+      // Only the ranges come back: an alert is switched on per run.
       if (!preferenceEdits.current.heartRateAlert) {
-        setHeartRateAlert(preferences.heartRateAlert === true);
         setHeartRateBand(preferences.heartRateBand ?? null);
       }
       if (!preferenceEdits.current.paceAlert) {
-        setPaceAlert(preferences.paceAlert === true);
         setSavedPaceBand(preferences.paceBand ?? null);
       }
     });
@@ -1019,19 +1018,17 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               onEnabledChange={(value) => {
                 preferenceEdits.current.paceAlert = true;
                 setPaceAlert(value);
-                void setPaceAlertPreference(
-                  value,
-                  paceBandPerKm(currentPaceBand, distanceUnit)
-                );
+                if (value) {
+                  void setPaceBandPreference(
+                    paceBandPerKm(currentPaceBand, distanceUnit)
+                  );
+                }
               }}
               band={currentPaceBand}
               onBandChange={(next) => {
                 preferenceEdits.current.paceAlert = true;
                 setPaceBand(next);
-                void setPaceAlertPreference(
-                  paceAlert,
-                  paceBandPerKm(next, distanceUnit)
-                );
+                void setPaceBandPreference(paceBandPerKm(next, distanceUnit));
               }}
               unit={distanceUnit}
             />
@@ -1043,13 +1040,14 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               onEnabledChange={(value) => {
                 preferenceEdits.current.heartRateAlert = true;
                 setHeartRateAlert(value);
-                void setHeartRateAlertPreference(value, currentHeartRateBand);
+                if (value)
+                  void setHeartRateBandPreference(currentHeartRateBand);
               }}
               band={currentHeartRateBand}
               onBandChange={(next) => {
                 preferenceEdits.current.heartRateAlert = true;
                 setHeartRateBand(next);
-                void setHeartRateAlertPreference(heartRateAlert, next);
+                void setHeartRateBandPreference(next);
               }}
             />
           ) : null}

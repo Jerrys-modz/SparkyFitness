@@ -177,15 +177,13 @@ export interface WatchContextPayload {
   /** The phone's Auto-pause switch: the default for a run begun on the wrist. */
   runAutoPause?: boolean | null;
   /**
-   * The Record screen's pace alert: whether it is on, and the range (seconds
-   * per km) a run begun on the wrist stays inside. The range is sent even
-   * while the alert is off, so the watch can turn it on mid-run.
+   * The pace range last used on the Record screen (seconds per km). The
+   * watch's start screen offers it as the starting point of a pace alert; an
+   * alert is only on for the run it was chosen for.
    */
-  runPaceAlert?: boolean | null;
   runPaceMinSecondsPerKm?: number | null;
   runPaceMaxSecondsPerKm?: number | null;
-  /** The heart-rate alert: whether it is on, and its range (bpm). */
-  runHeartRateAlert?: boolean | null;
+  /** The heart-rate range (bpm) last used, offered the same way. */
   runHeartRateMinBpm?: number | null;
   runHeartRateMaxBpm?: number | null;
   /**

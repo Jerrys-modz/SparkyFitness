@@ -167,8 +167,8 @@ final class WatchRunStore: ObservableObject {
         return WatchRunSettings(
             autoPause: context.runAutoPause ?? true,
             voiceCues: context.runVoiceCues == true,
-            paceBand: context.runPaceAlert == true ? context.runPaceBand : nil,
-            heartRateBand: context.runHeartRateAlert == true ? context.runHeartRateBand : nil
+            paceBand: nil,
+            heartRateBand: nil
         )
     }
 
@@ -176,10 +176,17 @@ final class WatchRunStore: ObservableObject {
         _ kind: WatchRunKind,
         place: WatchRunPlace,
         plan: WatchRunPlan? = nil,
-        settings: WatchRunSettings? = nil
+        settings: WatchRunSettings? = nil,
+        alerts: WatchRunAlertSetup = .off
     ) {
         guard canStart else { return }
-        let chosen = settings ?? defaultSettings
+        var chosen = settings ?? defaultSettings
+        // A run begun on the wrist takes its alerts from the start screen; one
+        // the phone asked for carries its own.
+        if settings == nil {
+            chosen.paceBand = alerts.pace
+            chosen.heartRateBand = alerts.heartRate
+        }
         requestId = nil
         self.settings = chosen
         self.kind = kind
@@ -344,8 +351,10 @@ final class WatchRunStore: ObservableObject {
     /// It cannot be turned on without a range, which is set on the phone.
     func setPaceAlert(_ on: Bool) {
         guard phase == .running || phase == .paused else { return }
-        let band = on ? (CheckInStore.shared.context.runPaceBand ?? settings.paceBand) : nil
-        guard settings.paceBand != band, !(on && band == nil) else { return }
+        let band = on
+            ? (settings.paceBand ?? CheckInStore.shared.context.runPaceBand ?? WatchPaceBand.standard)
+            : nil
+        guard settings.paceBand != band else { return }
         settings.paceBand = band
         healthKit.updateSettings(settings)
         paceAlertState = .initial
@@ -356,8 +365,10 @@ final class WatchRunStore: ObservableObject {
     /// Turns the heart-rate alert on (with the phone's range) or off mid-run.
     func setHeartRateAlert(_ on: Bool) {
         guard phase == .running || phase == .paused else { return }
-        let band = on ? (CheckInStore.shared.context.runHeartRateBand ?? settings.heartRateBand) : nil
-        guard settings.heartRateBand != band, !(on && band == nil) else { return }
+        let band = on
+            ? (settings.heartRateBand ?? CheckInStore.shared.context.runHeartRateBand ?? WatchHeartRateBand.standard)
+            : nil
+        guard settings.heartRateBand != band else { return }
         settings.heartRateBand = band
         healthKit.updateSettings(settings)
         heartRateAlertState = .initial

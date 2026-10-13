@@ -204,9 +204,14 @@ private struct WaitingForWorkoutView: View {
             workoutPicker
         }
         .sheet(isPresented: $choosingCardio) {
-            CardioChoicesView(plans: checkIn.context.runPlans ?? []) { kind, place, plan in
+            CardioChoicesView(
+                plans: checkIn.context.runPlans ?? [],
+                usesMiles: checkIn.context.distanceUnit == "miles",
+                suggestedPace: checkIn.context.runPaceBand ?? .standard,
+                suggestedHeartRate: checkIn.context.runHeartRateBand ?? .standard
+            ) { kind, place, plan, alerts in
                 choosingCardio = false
-                run.start(kind, place: place, plan: plan)
+                run.start(kind, place: place, plan: plan, alerts: alerts)
             }
         }
     }
@@ -2079,12 +2084,25 @@ private struct CardioChoicesView: View {
     /// Plans from the phone: the training-program workout due, then the
     /// built-in interval plans. Empty until the phone has said.
     let plans: [WatchRunPlan]
-    let onChoose: (WatchRunKind, WatchRunPlace, WatchRunPlan?) -> Void
+    let usesMiles: Bool
+    /// Where the alert ranges start when turned on: what was last used on the
+    /// phone, or a plain default.
+    let suggestedPace: WatchPaceBand
+    let suggestedHeartRate: WatchHeartRateBand
+    let onChoose: (WatchRunKind, WatchRunPlace, WatchRunPlan?, WatchRunAlertSetup) -> Void
+    /// This run's alerts. Fresh each time the sheet opens, so an alert never
+    /// carries over to the next run.
+    @State private var alerts = WatchRunAlertSetup.off
+
+    private func choose(_ kind: WatchRunKind, _ place: WatchRunPlace, _ plan: WatchRunPlan?) {
+        onChoose(kind, place, plan, alerts)
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: WatchStyle.s(6)) {
+                    alertsRow
                     ForEach([WatchRunPlace.outdoor, .indoor], id: \.self) { place in
                         sectionTitle(place.label)
                         HStack(spacing: WatchStyle.s(6)) {
@@ -2096,7 +2114,7 @@ private struct CardioChoicesView: View {
                         sectionTitle("Follow a plan")
                         ForEach(plans) { plan in
                             NavigationLink {
-                                PlanPlaceView(plan: plan, onChoose: onChoose)
+                                PlanPlaceView(plan: plan, onChoose: choose)
                             } label: {
                                 planRow(plan)
                             }
@@ -2108,6 +2126,51 @@ private struct CardioChoicesView: View {
             }
             .navigationTitle("Cardio")
         }
+    }
+
+    /// "Alerts: Off", or what is on for this run. Opens the setup.
+    private var alertsRow: some View {
+        NavigationLink {
+            RunAlertsView(
+                alerts: $alerts,
+                usesMiles: usesMiles,
+                suggestedPace: suggestedPace,
+                suggestedHeartRate: suggestedHeartRate
+            )
+        } label: {
+            HStack(spacing: WatchStyle.s(8)) {
+                Image(systemName: "bell.badge")
+                    .font(.system(size: WatchStyle.s(15), weight: .semibold))
+                    .foregroundStyle(alerts == .off ? Color.secondary : Color.orange)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Alerts")
+                        .font(.system(size: WatchStyle.s(15), weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text(alertsSummary)
+                        .font(.system(size: WatchStyle.s(11)))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, WatchStyle.s(12))
+            .padding(.vertical, WatchStyle.s(10))
+            .background(WatchStyle.fill, in: WatchStyle.shape)
+            .contentShape(WatchStyle.shape)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var alertsSummary: String {
+        var parts: [String] = []
+        if let pace = alerts.pace {
+            parts.append("Pace \(RunAlertsView.paceText(pace, usesMiles: usesMiles))")
+        }
+        if let hr = alerts.heartRate {
+            parts.append("Heart rate \(Int(hr.minBpm))–\(Int(hr.maxBpm))")
+        }
+        return parts.isEmpty ? "Off" : parts.joined(separator: " · ")
     }
 
     private func sectionTitle(_ text: String) -> some View {
@@ -2123,7 +2186,7 @@ private struct CardioChoicesView: View {
     private func tile(_ kind: WatchRunKind, _ place: WatchRunPlace) -> some View {
         Button {
             Haptics.tap()
-            onChoose(kind, place, nil)
+            choose(kind, place, nil)
         } label: {
             VStack(spacing: WatchStyle.s(4)) {
                 Image(systemName: kind.symbol)
@@ -2189,5 +2252,118 @@ private struct PlanPlaceView: View {
             .padding(.horizontal, WatchStyle.s(2))
         }
         .navigationTitle(plan.name)
+    }
+}
+
+/// Pace and heart-rate alerts for the run about to start. Each is off until
+/// turned on here, and only lasts for this run, as in the Workout app. A range
+/// is moved with the Digital Crown or the plus and minus buttons.
+private struct RunAlertsView: View {
+    @Binding var alerts: WatchRunAlertSetup
+    let usesMiles: Bool
+    let suggestedPace: WatchPaceBand
+    let suggestedHeartRate: WatchHeartRateBand
+
+    /// Seconds per kilometre to the phone's unit, and back.
+    private var perUnit: Double { usesMiles ? 1.609344 : 1 }
+    private var unitLabel: String { usesMiles ? "/mi" : "/km" }
+
+    /// "5:00–5:30 /km", in the phone's unit.
+    static func paceText(_ band: WatchPaceBand, usesMiles: Bool) -> String {
+        let perUnit = usesMiles ? 1.609344 : 1
+        let fast = WatchRunMetrics.paceText(band.minSecondsPerKm * perUnit)
+        let slow = WatchRunMetrics.paceText(band.maxSecondsPerKm * perUnit)
+        return "\(fast)–\(slow) \(usesMiles ? "/mi" : "/km")"
+    }
+
+    var body: some View {
+        List {
+            Toggle("Pace alert", isOn: Binding(
+                get: { alerts.pace != nil },
+                set: { alerts.pace = $0 ? suggestedPace : nil }
+            ))
+            if let pace = alerts.pace {
+                Stepper(
+                    value: paceEdge(\.minSecondsPerKm, of: pace),
+                    in: paceRange(for: pace, fastest: true),
+                    step: 5
+                ) {
+                    edgeLabel("Fastest", WatchRunMetrics.paceText(pace.minSecondsPerKm * perUnit) + " " + unitLabel)
+                }
+                Stepper(
+                    value: paceEdge(\.maxSecondsPerKm, of: pace),
+                    in: paceRange(for: pace, fastest: false),
+                    step: 5
+                ) {
+                    edgeLabel("Slowest", WatchRunMetrics.paceText(pace.maxSecondsPerKm * perUnit) + " " + unitLabel)
+                }
+            }
+            Toggle("Heart rate alert", isOn: Binding(
+                get: { alerts.heartRate != nil },
+                set: { alerts.heartRate = $0 ? suggestedHeartRate : nil }
+            ))
+            if let hr = alerts.heartRate {
+                Stepper(
+                    value: heartRateEdge(lowest: true),
+                    in: WatchHeartRateBand.lowest...(hr.maxBpm - WatchHeartRateBand.minWidth),
+                    step: 5
+                ) {
+                    edgeLabel("Lowest", "\(Int(hr.minBpm)) bpm")
+                }
+                Stepper(
+                    value: heartRateEdge(lowest: false),
+                    in: (hr.minBpm + WatchHeartRateBand.minWidth)...WatchHeartRateBand.highest,
+                    step: 5
+                ) {
+                    edgeLabel("Highest", "\(Int(hr.maxBpm)) bpm")
+                }
+            }
+        }
+        .navigationTitle("Alerts")
+    }
+
+    private func edgeLabel(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title).font(.caption2).foregroundStyle(.secondary)
+            Text(value).font(.system(size: WatchStyle.s(16), weight: .semibold)).monospacedDigit()
+        }
+    }
+
+    /// The edge in the phone's unit (seconds per km or mile), written back as
+    /// seconds per km.
+    private func paceEdge(
+        _ keyPath: WritableKeyPath<WatchPaceBand, Double>,
+        of band: WatchPaceBand
+    ) -> Binding<Double> {
+        Binding(
+            get: { band[keyPath: keyPath] * perUnit },
+            set: { newValue in
+                guard var current = alerts.pace else { return }
+                current[keyPath: keyPath] = (newValue / perUnit).rounded()
+                alerts.pace = current
+            }
+        )
+    }
+
+    /// Keeps the two edges at least the minimum width apart.
+    private func paceRange(for band: WatchPaceBand, fastest: Bool) -> ClosedRange<Double> {
+        let gap = WatchPaceBand.minWidth * perUnit
+        if fastest {
+            let upper = max(WatchPaceBand.fastest * perUnit, band.maxSecondsPerKm * perUnit - gap)
+            return (WatchPaceBand.fastest * perUnit)...upper
+        }
+        let lower = min(WatchPaceBand.slowest * perUnit, band.minSecondsPerKm * perUnit + gap)
+        return lower...(WatchPaceBand.slowest * perUnit)
+    }
+
+    private func heartRateEdge(lowest: Bool) -> Binding<Double> {
+        Binding(
+            get: { (lowest ? alerts.heartRate?.minBpm : alerts.heartRate?.maxBpm) ?? 0 },
+            set: { newValue in
+                guard var current = alerts.heartRate else { return }
+                if lowest { current.minBpm = newValue } else { current.maxBpm = newValue }
+                alerts.heartRate = current
+            }
+        )
     }
 }

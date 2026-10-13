@@ -8,13 +8,14 @@ import {
   RecordingPermissionError,
   discardRecording,
   finishRecording,
+  getRecordingPreferences,
   hydrate,
   pauseRecording,
   startRecording,
   markLap,
   setRecordingAudioCues,
-  setHeartRateAlertPreference,
-  setPaceAlertPreference,
+  setHeartRateBandPreference,
+  setPaceBandPreference,
   setRecordingPaceBand,
   setRecordingAutoPause,
   useGpsRecording,
@@ -59,16 +60,16 @@ jest.mock('../../src/services/gpsRecordingService', () => {
       Promise.resolve({
         autoPause: true,
         audioCues: false,
-        paceAlert: false,
         paceBand: null,
+        heartRateBand: null,
         countdownSeconds: 0,
       })
     ),
     setRecordingPreference: jest.fn(() => Promise.resolve()),
     setCountdownPreference: jest.fn(() => Promise.resolve()),
-    setPaceAlertPreference: jest.fn(() => Promise.resolve()),
+    setPaceBandPreference: jest.fn(() => Promise.resolve()),
     setRecordingPaceBand: jest.fn(() => Promise.resolve()),
-    setHeartRateAlertPreference: jest.fn(() => Promise.resolve()),
+    setHeartRateBandPreference: jest.fn(() => Promise.resolve()),
     setRecordingHeartRateBand: jest.fn(() => Promise.resolve()),
     COUNTDOWN_CHOICES: [0, 3, 5, 10],
   };
@@ -423,20 +424,18 @@ describe('RecordActivityScreen', () => {
     );
   });
 
-  it('keeps the chosen pace range for the next run', async () => {
+  it("keeps the chosen pace range as the next run's starting point", async () => {
     state(null);
     const screen = await renderScreen();
     fireEvent(screen.getByTestId('pace-alert-switch'), 'valueChange', true);
-    expect(setPaceAlertPreference).toHaveBeenCalledWith(
-      true,
+    expect(setPaceBandPreference).toHaveBeenCalledWith(
       expect.objectContaining({
         minSecondsPerKm: expect.any(Number),
         maxSecondsPerKm: expect.any(Number),
       })
     );
     fireEvent.press(screen.getByTestId('pace-slowest-up'));
-    expect(setPaceAlertPreference).toHaveBeenLastCalledWith(
-      true,
+    expect(setPaceBandPreference).toHaveBeenLastCalledWith(
       expect.objectContaining({ maxSecondsPerKm: expect.any(Number) })
     );
   });
@@ -450,8 +449,7 @@ describe('RecordActivityScreen', () => {
     state(null);
     const screen = await renderScreen();
     fireEvent(screen.getByTestId('hr-alert-switch'), 'valueChange', true);
-    expect(setHeartRateAlertPreference).toHaveBeenCalledWith(
-      true,
+    expect(setHeartRateBandPreference).toHaveBeenCalledWith(
       expect.objectContaining({ minBpm: expect.any(Number) })
     );
     fireEvent.press(screen.getByText('Start'));
@@ -464,6 +462,24 @@ describe('RecordActivityScreen', () => {
           },
         })
       )
+    );
+  });
+
+  it('starts with the alerts off even after a range was saved', async () => {
+    jest.mocked(getRecordingPreferences).mockResolvedValueOnce({
+      autoPause: true,
+      audioCues: false,
+      paceBand: { minSecondsPerKm: 280, maxSecondsPerKm: 300 },
+      heartRateBand: { minBpm: 150, maxBpm: 170 },
+      countdownSeconds: 0,
+    });
+    state(null);
+    const screen = await renderScreen();
+    expect(screen.getByTestId('pace-alert-switch').props.value).toBe(false);
+    fireEvent(screen.getByTestId('pace-alert-switch'), 'valueChange', true);
+    // The saved range is the starting point.
+    expect(screen.getByTestId('pace-fastest-value').props.children).toContain(
+      '4:40'
     );
   });
 

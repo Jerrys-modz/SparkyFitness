@@ -162,6 +162,16 @@ struct WatchRunSettings: Codable, Equatable {
     var heartRateBand: WatchHeartRateBand? = nil
 }
 
+/// The alerts chosen for one run when it is started on the wrist. Each alert
+/// is off (nil) unless the wearer turned it on for this run; the phone only
+/// supplies the range last used as a starting point.
+struct WatchRunAlertSetup: Equatable {
+    var pace: WatchPaceBand?
+    var heartRate: WatchHeartRateBand?
+
+    static let off = WatchRunAlertSetup(pace: nil, heartRate: nil)
+}
+
 /// A timed plan a wrist-only run can follow: a list of steps the phone has
 /// already named in its language. A training-program workout carries the
 /// program id and the index of the workout so the phone can tick it off.

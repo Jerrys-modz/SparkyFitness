@@ -462,12 +462,8 @@ function isWatchingForAutoPause(current: RecordingSession): boolean {
 export interface RecordingPreferences {
   autoPause: boolean;
   audioCues: boolean;
-  /** Whether the pace alert is on for the next run, on the phone or the watch. */
-  paceAlert: boolean;
-  /** The pace range last chosen, in seconds per km; null before one was. */
+  /** The pace range last chosen, in seconds per km; null before one was. An alert is per run, so only the range is kept. */
   paceBand: PaceBand | null;
-  /** Whether the heart-rate alert is on for the next run. */
-  heartRateAlert: boolean;
   /** The heart-rate range last chosen; null before one was. */
   heartRateBand: HeartRateBand | null;
   /** Seconds counted down before Start begins recording; 0 is no countdown. */
@@ -498,15 +494,11 @@ export async function getRecordingPreferences(): Promise<RecordingPreferences> {
         AsyncStorage.getItem(HEART_RATE_ALERT_PREF_KEY),
       ]);
     const seconds = Number(countdown);
-    const paceAlert = parsePaceAlertPreference(paceAlertRaw);
-    const heartRateAlert = parseHeartRateAlertPreference(heartRateAlertRaw);
     return {
       autoPause: autoPause !== 'off',
       audioCues: audioCues === 'on',
-      paceAlert: paceAlert.enabled,
-      paceBand: paceAlert.band,
-      heartRateAlert: heartRateAlert.enabled,
-      heartRateBand: heartRateAlert.band,
+      paceBand: parsePaceBandPreference(paceAlertRaw),
+      heartRateBand: parseHeartRateBandPreference(heartRateAlertRaw),
       countdownSeconds: (COUNTDOWN_CHOICES as readonly number[]).includes(
         seconds
       )
@@ -517,74 +509,54 @@ export async function getRecordingPreferences(): Promise<RecordingPreferences> {
     return {
       autoPause: true,
       audioCues: false,
-      paceAlert: false,
       paceBand: null,
-      heartRateAlert: false,
       heartRateBand: null,
       countdownSeconds: 0,
     };
   }
 }
 
-function parseHeartRateAlertPreference(raw: string | null): {
-  enabled: boolean;
-  band: HeartRateBand | null;
-} {
+function parseHeartRateBandPreference(
+  raw: string | null
+): HeartRateBand | null {
   try {
-    const stored = raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
-    return {
-      enabled: stored?.enabled === true,
-      band: normalizeHeartRateBand(stored as Partial<HeartRateBand> | null),
-    };
+    return normalizeHeartRateBand(
+      raw ? (JSON.parse(raw) as Partial<HeartRateBand>) : null
+    );
   } catch {
-    return { enabled: false, band: null };
+    return null;
   }
 }
 
-/** Remembers the heart-rate alert switch and range for the next run, on the phone or the watch. */
-export async function setHeartRateAlertPreference(
-  enabled: boolean,
-  band: HeartRateBand | null
+/** Remembers the heart-rate range last used, as the starting point for the next run's alert (on the phone or the watch). */
+export async function setHeartRateBandPreference(
+  band: HeartRateBand
 ): Promise<void> {
   try {
-    await AsyncStorage.setItem(
-      HEART_RATE_ALERT_PREF_KEY,
-      JSON.stringify({ enabled, ...(band ?? {}) })
-    );
+    await AsyncStorage.setItem(HEART_RATE_ALERT_PREF_KEY, JSON.stringify(band));
   } catch {
     // The choice just won't be remembered.
   }
   preferenceListeners.forEach((listener) => listener());
 }
 
-function parsePaceAlertPreference(raw: string | null): {
-  enabled: boolean;
-  band: PaceBand | null;
-} {
+function parsePaceBandPreference(raw: string | null): PaceBand | null {
   try {
-    const stored = raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
-    return {
-      enabled: stored?.enabled === true,
-      band: normalizePaceBand(stored as Partial<PaceBand> | null),
-    };
+    return normalizePaceBand(
+      raw ? (JSON.parse(raw) as Partial<PaceBand>) : null
+    );
   } catch {
-    return { enabled: false, band: null };
+    return null;
   }
 }
 
 /**
- * Remembers the pace alert switch and its range (seconds per km) for the next
- * run, so a run begun on the watch can use them too.
+ * Remembers the pace range last used (seconds per km) as the starting point for
+ * the next run's alert, on the phone or the watch. The alert itself is per run.
  */
-export async function setPaceAlertPreference(
-  enabled: boolean,
-  band: PaceBand | null
-): Promise<void> {
+export async function setPaceBandPreference(band: PaceBand): Promise<void> {
   try {
-    await AsyncStorage.setItem(
-      PACE_ALERT_PREF_KEY,
-      JSON.stringify({ enabled, ...(band ?? {}) })
-    );
+    await AsyncStorage.setItem(PACE_ALERT_PREF_KEY, JSON.stringify(band));
   } catch {
     // The choice just won't be remembered.
   }
