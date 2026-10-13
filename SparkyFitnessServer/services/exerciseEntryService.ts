@@ -348,12 +348,7 @@ async function attachWatchTelemetryToExerciseEntry(
       fields,
       zones,
       () =>
-        storeHeartRateSeries(
-          userId,
-          actingUserId,
-          exerciseEntryId,
-          accepted
-        )
+        storeHeartRateSeries(userId, actingUserId, exerciseEntryId, accepted)
     );
   } else {
     await exerciseEntryRepository.applyWatchTelemetryAtomically(
