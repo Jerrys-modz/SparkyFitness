@@ -323,7 +323,9 @@ async function attachWatchTelemetryToExerciseEntry(
   // Zones need the series; a calories-only post has nothing to bucket.
   // Stale-snapshot rejection (and the zone write) happens under FOR UPDATE
   // inside applyWatchTelemetryAtomically so two in-flight flushes cannot
-  // both pass the check against the same pre-lock row.
+  // both pass the check against the same pre-lock row. The series write is
+  // the same hook: it runs only when that snapshot was accepted, and before
+  // the lock is released, so an older flush cannot store samples afterwards.
   let zones: WatchTelemetryZoneSpec[] | null = null;
   if (hrSamples && hrSamples.length > 0) {
     const samples: HrSample[] = hrSamples;
@@ -337,20 +339,29 @@ async function attachWatchTelemetryToExerciseEntry(
     zones = computeHrZones(samples, maxHr);
   }
 
-  await exerciseEntryRepository.applyWatchTelemetryAtomically(
-    exerciseEntryId,
-    userId,
-    actingUserId,
-    fields,
-    zones
-  );
-
   if (hrSamples && hrSamples.length > 0) {
-    await storeHeartRateSeries(
+    const accepted = hrSamples;
+    await exerciseEntryRepository.applyWatchTelemetryAtomically(
+      exerciseEntryId,
       userId,
       actingUserId,
+      fields,
+      zones,
+      () =>
+        storeHeartRateSeries(
+          userId,
+          actingUserId,
+          exerciseEntryId,
+          accepted
+        )
+    );
+  } else {
+    await exerciseEntryRepository.applyWatchTelemetryAtomically(
       exerciseEntryId,
-      hrSamples
+      userId,
+      actingUserId,
+      fields,
+      zones
     );
   }
 }
@@ -358,8 +369,10 @@ async function attachWatchTelemetryToExerciseEntry(
 /**
  * Keeps the beat-by-beat series, tagged with the entry, so the workout's heart
  * rate chart works without waiting for (or depending on) a later Health sync.
- * Only the span the workout covers is replaced: the day's other readings stay.
- * Best effort, because the summary and zones are already saved.
+ * Only the span the workout covers is replaced, and only samples tagged with
+ * this entry: another workout overlapping that span keeps its own readings.
+ * Best effort: a failure is logged and the telemetry post still succeeds. A
+ * snapshot the row lock rejected never reaches here.
  */
 async function storeHeartRateSeries(
   userId: string,
@@ -389,6 +402,7 @@ async function storeHeartRateSeries(
           startMs: times.reduce((a, b) => (b < a ? b : a)),
           endMs: times.reduce((a, b) => (b > a ? b : a)),
         },
+        ex: exerciseEntryId,
       }
     );
   } catch (error) {

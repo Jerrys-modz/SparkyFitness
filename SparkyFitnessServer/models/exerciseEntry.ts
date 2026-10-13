@@ -538,7 +538,14 @@ async function applyWatchTelemetryAtomically(
   userId: string,
   actingUserId: string,
   proposed: WatchTelemetryFields,
-  zones: WatchTelemetryZoneSpec[] | null
+  zones: WatchTelemetryZoneSpec[] | null,
+  /**
+   * Runs before COMMIT, while this entry's row lock is still held, and only
+   * when the heart-rate snapshot was accepted. The series write belongs here:
+   * doing it after COMMIT let an older flush store samples the lock had
+   * already rejected, or land them after a newer flush.
+   */
+  onHrAccepted?: () => Promise<void>
 ): Promise<void> {
   const client = await getClient(userId, actingUserId);
   try {
@@ -587,6 +594,9 @@ async function applyWatchTelemetryAtomically(
             seconds_in_zone: zone.seconds_in_zone,
           }))
         );
+      }
+      if (!skipHr && onHrAccepted) {
+        await onHrAccepted();
       }
       await client.query('COMMIT');
     } catch (error) {

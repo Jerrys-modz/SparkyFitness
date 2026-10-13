@@ -52,8 +52,11 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
     // @ts-expect-error TS(2339): mock method not on typed function.
     exerciseEntryRepository.getExerciseEntryOwnerId.mockResolvedValue(userId);
     // @ts-expect-error TS(2339): mock method not on typed function.
-    exerciseEntryRepository.applyWatchTelemetryAtomically.mockResolvedValue(
-      undefined
+    exerciseEntryRepository.applyWatchTelemetryAtomically.mockImplementation(
+      async (...args: unknown[]) => {
+        const onAccepted = args[5];
+        if (typeof onAccepted === 'function') await onAccepted();
+      }
     );
     // @ts-expect-error TS(2339): mock method not on typed function.
     userRepository.getUserProfile.mockResolvedValue({ date_of_birth: null });
@@ -161,7 +164,8 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
         calories_burned: 200,
         active_calories: 200,
       }),
-      expect.any(Array)
+      expect.any(Array),
+      expect.any(Function)
     );
   });
 });
@@ -355,7 +359,20 @@ describe('attachWatchTelemetryToExerciseEntry heart rate series', () => {
     expect(metric).toBe('heart_rate');
     expect(samples).toHaveLength(10);
     expect(samples[0]).toMatchObject({ ex: entryId, bpm: 150 });
-    expect(options).toMatchObject({ mode: 'merge' });
+    expect(options).toMatchObject({ mode: 'merge', ex: entryId });
+  });
+
+  it('writes no series when the snapshot was rejected', async () => {
+    vi.mocked(
+      exerciseEntryRepository.applyWatchTelemetryAtomically
+    ).mockResolvedValue(undefined);
+    await attachWatchTelemetryToExerciseEntry(
+      userId,
+      userId,
+      entryId,
+      series(150)
+    );
+    expect(upsertSamplesByDay).not.toHaveBeenCalled();
   });
 
   it('writes no series for a calories-only post', async () => {
