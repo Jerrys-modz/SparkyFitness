@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import type { ExerciseActivityQueryItem } from '@workspace/shared';
 
 import { useScreenHeader } from '../hooks/useScreenHeader';
@@ -19,6 +20,8 @@ import {
   paceSeriesFromDistance,
   paceSeriesFromTrack,
 } from '../utils/cardioSession';
+import Button from '../components/ui/Button';
+import { shareRouteAsGpx } from '../services/gpxExport';
 import RouteMap from '../components/exerciseStats/RouteMap';
 import HeartRateChart from '../components/exerciseStats/HeartRateChart';
 import PaceChart from '../components/exerciseStats/PaceChart';
@@ -196,6 +199,22 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
 
   const detail = useCardioSessionDetail(session.id, session.entryDate);
   const stats = sessionStats(t, session, distanceUnit);
+  const exportGpx = async () => {
+    try {
+      await shareRouteAsGpx({
+        name: session.exerciseName,
+        day: session.entryDate.slice(0, 10),
+        points: detail.route,
+      });
+    } catch {
+      Toast.show({
+        type: 'error',
+        text1: t('exerciseStatistics.cardio.exportGpxFailed', {
+          defaultValue: 'Could not export the route',
+        }),
+      });
+    }
+  };
   const [year, month, day] = session.entryDate
     .slice(0, 10)
     .split('-')
@@ -272,13 +291,24 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
           {detail.isRouteLoading ? (
             <ActivityIndicator />
           ) : detail.route.length > 1 ? (
-            <RouteMap
-              points={detail.route}
-              accessibilityLabel={t('exerciseStatistics.cardio.routeA11y', {
-                defaultValue:
-                  'Route of this workout, from the green dot to the red ring',
-              })}
-            />
+            <>
+              <RouteMap
+                points={detail.route}
+                accessibilityLabel={t('exerciseStatistics.cardio.routeA11y', {
+                  defaultValue:
+                    'Route of this workout, from the green dot to the red ring',
+                })}
+              />
+              <Button
+                variant="link"
+                testID="export-gpx"
+                onPress={() => void exportGpx()}
+              >
+                {t('exerciseStatistics.cardio.exportGpx', {
+                  defaultValue: 'Export GPX',
+                })}
+              </Button>
+            </>
           ) : (
             <Text className="text-text-secondary text-sm">
               {t('exerciseStatistics.cardio.noRoute', {

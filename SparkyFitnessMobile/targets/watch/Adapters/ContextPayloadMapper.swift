@@ -86,6 +86,14 @@ enum ContextPayloadMapper {
             stepGoal: (payload["stepGoal"] as? NSNumber)?.intValue ?? previous.stepGoal,
             runVoiceCues: payload["runVoiceCues"] as? Bool ?? previous.runVoiceCues,
             runAutoPause: payload["runAutoPause"] as? Bool ?? previous.runAutoPause,
+            runPaceBand: WatchPaceBand.normalized(
+                min: (payload["runPaceMinSecondsPerKm"] as? NSNumber)?.doubleValue,
+                max: (payload["runPaceMaxSecondsPerKm"] as? NSNumber)?.doubleValue
+            ) ?? previous.runPaceBand,
+            runHeartRateBand: WatchHeartRateBand.normalized(
+                min: (payload["runHeartRateMinBpm"] as? NSNumber)?.doubleValue,
+                max: (payload["runHeartRateMaxBpm"] as? NSNumber)?.doubleValue
+            ) ?? previous.runHeartRateBand,
             runPlans: runPlans(from: payload) ?? previous.runPlans,
             indoorDistanceScale: indoorDistanceScale(from: payload) ?? previous.indoorDistanceScale
         )
@@ -171,7 +179,18 @@ enum ContextPayloadMapper {
                 let label = step["label"] as? String,
                 let seconds = (step["seconds"] as? NSNumber)?.doubleValue, seconds > 0
             else { return nil }
-            return WatchRunPlan.Step(label: label, seconds: seconds)
+            return WatchRunPlan.Step(
+                label: label,
+                seconds: seconds,
+                pace: WatchPaceBand.normalized(
+                    min: (step["paceMin"] as? NSNumber)?.doubleValue,
+                    max: (step["paceMax"] as? NSNumber)?.doubleValue
+                ),
+                heartRate: WatchHeartRateBand.normalized(
+                    min: (step["hrMin"] as? NSNumber)?.doubleValue,
+                    max: (step["hrMax"] as? NSNumber)?.doubleValue
+                )
+            )
         }
         guard !steps.isEmpty else { return nil }
         return WatchRunPlan(
@@ -208,11 +227,22 @@ enum ContextPayloadMapper {
         guard let autoPause = payload["autoPause"] as? Bool,
               let voiceCues = payload["voiceCues"] as? Bool
         else { return nil }
-        return WatchRunSettings(autoPause: autoPause, voiceCues: voiceCues)
+        return WatchRunSettings(
+            autoPause: autoPause,
+            voiceCues: voiceCues,
+            paceBand: WatchPaceBand.normalized(
+                min: (payload["paceMin"] as? NSNumber)?.doubleValue,
+                max: (payload["paceMax"] as? NSNumber)?.doubleValue
+            ),
+            heartRateBand: WatchHeartRateBand.normalized(
+                min: (payload["hrMin"] as? NSNumber)?.doubleValue,
+                max: (payload["hrMax"] as? NSNumber)?.doubleValue
+            )
+        )
     }
 
     /// A pause, resume, lap, finish or discard sent from the phone's live view,
-    /// or a switch change (`autoPauseOn`/`Off`, `voiceCuesOn`/`Off`).
+    /// or a switch change (`autoPauseOn`/`Off`, `voiceCuesOn`/`Off`, `paceAlertOn`/`Off`, `heartRateAlertOn`/`Off`).
     static func runControl(from payload: [String: Any]) -> (runId: String, action: String, controlId: String)? {
         guard
             let runId = payload["runId"] as? String, !runId.isEmpty,

@@ -177,6 +177,16 @@ export interface WatchContextPayload {
   /** The phone's Auto-pause switch: the default for a run begun on the wrist. */
   runAutoPause?: boolean | null;
   /**
+   * The pace range last used on the Record screen (seconds per km). The
+   * watch's start screen offers it as the starting point of a pace alert; an
+   * alert is only on for the run it was chosen for.
+   */
+  runPaceMinSecondsPerKm?: number | null;
+  runPaceMaxSecondsPerKm?: number | null;
+  /** The heart-rate range (bpm) last used, offered the same way. */
+  runHeartRateMinBpm?: number | null;
+  runHeartRateMaxBpm?: number | null;
+  /**
    * Plans a wrist-only run can follow: the training-program workout due now
    * (carrying `programId`/`programIndex`) then the built-in interval plans,
    * with step names already translated. Missing keeps the watch's last list.
@@ -194,7 +204,14 @@ export interface WatchContextPayload {
     programIndex?: number;
     /** 'walk' for a walking program; missing is a run. */
     activity?: 'walk';
-    steps: { label: string; seconds: number }[];
+    steps: {
+      label: string;
+      seconds: number;
+      paceMin?: number;
+      paceMax?: number;
+      hrMin?: number;
+      hrMax?: number;
+    }[];
   }[];
   /**
    * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
@@ -779,12 +796,21 @@ export interface WatchRunLivePayload {
   /** This run's switches; absent from an older watch build. */
   autoPause?: boolean;
   voiceCues?: boolean;
+  /** Whether a pace or heart-rate range is being watched; absent from an older watch build. */
+  paceAlert?: boolean;
+  heartRateAlert?: boolean;
 }
 
 /** One step of a guided walk or run the phone hands the watch. */
 export interface WatchRunStartPlanStep {
   label: string;
   seconds: number;
+  /** Pace range to hold in this step, seconds per km; both or neither. */
+  paceMin?: number;
+  paceMax?: number;
+  /** Heart-rate range (bpm) to hold in this step; both or neither. */
+  hrMin?: number;
+  hrMax?: number;
 }
 
 /** Asks the watch to start recording a walk or run itself. */
@@ -797,6 +823,12 @@ export interface WatchRunStartPayload {
   /** The Record screen's switches for this run (both or neither). */
   autoPause?: boolean;
   voiceCues?: boolean;
+  /** Pace range (seconds per km) to stay inside; both or neither. */
+  paceMin?: number;
+  paceMax?: number;
+  /** Heart-rate range (bpm) to stay inside; both or neither. */
+  hrMin?: number;
+  hrMax?: number;
   plan?: {
     id: string;
     name: string;
@@ -816,7 +848,11 @@ export type WatchRunControlAction =
   | 'autoPauseOn'
   | 'autoPauseOff'
   | 'voiceCuesOn'
-  | 'voiceCuesOff';
+  | 'voiceCuesOff'
+  | 'paceAlertOn'
+  | 'paceAlertOff'
+  | 'heartRateAlertOn'
+  | 'heartRateAlertOff';
 
 export interface WatchRunControlPayload {
   runId: string;
@@ -870,7 +906,7 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
   startWorkout(plan: WatchWorkoutStartPayload): Promise<void>;
   /** Starts a walk or run on the watch and opens its app. */
   startRun(request: WatchRunStartPayload): Promise<void>;
-  /** Pause, resume, lap, finish or discard for the run on the watch, or a switch change (`autoPauseOn`/`Off`, `voiceCuesOn`/`Off`). */
+  /** Pause, resume, lap, finish or discard for the run on the watch, or a switch change (`autoPauseOn`/`Off`, `voiceCuesOn`/`Off`, `paceAlertOn`/`Off`, `heartRateAlertOn`/`Off`). */
   sendRunControl(control: WatchRunControlPayload): Promise<void>;
   /** Tells the watch the phone is saying cue `id`, so it stays quiet. */
   sendRunCueAck(id: string): Promise<void>;

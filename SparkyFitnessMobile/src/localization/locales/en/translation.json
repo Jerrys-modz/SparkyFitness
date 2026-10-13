@@ -6210,7 +6210,9 @@
       "bestPace": "Best {{value}}",
       "perKm": "/km",
       "perMile": "/mi",
-      "underOneMinute": "<1 min"
+      "underOneMinute": "<1 min",
+      "exportGpx": "Export GPX",
+      "exportGpxFailed": "Could not export the route"
     },
     "load": {
       "title": "Training Load",
@@ -6452,6 +6454,9 @@
     }
   },
   "recordActivity": {
+    "liveActivity": {
+      "step": "{{name}} · {{current}} of {{total}}"
+    },
     "notification": {
       "title": "Recording your activity",
       "bodyWalk": "Tracking your walk with GPS",
@@ -6553,7 +6558,11 @@
       "miles_one": "{{count}} mile",
       "miles_other": "{{count}} miles",
       "interval": "{{name}}. {{time}}.",
-      "intervalsDone": "Intervals complete."
+      "intervalsDone": "Intervals complete.",
+      "paceTooFast": "Too fast. Ease off.",
+      "paceTooSlow": "Too slow. Pick it up.",
+      "heartRateTooHigh": "Heart rate high. Ease off.",
+      "heartRateTooLow": "Heart rate low. Pick it up."
     },
     "autoPause": {
       "title": "Auto-pause",
@@ -6703,6 +6712,31 @@
       "fair": "GPS fair",
       "weak": "GPS weak",
       "none": "No GPS"
+    },
+    "paceBand": {
+      "title": "Pace alert",
+      "description": "Buzzes, and speaks with voice cues on, when you stay outside your pace range.",
+      "fastest": "Fastest",
+      "slowest": "Slowest",
+      "faster": "{{edge}} 5 seconds faster",
+      "slower": "{{edge}} 5 seconds slower",
+      "workTitle": "Fast stretch pace",
+      "workDescription": "Alerts you when a fast stretch is outside this range.",
+      "easyTitle": "Easy stretch pace",
+      "easyDescription": "Alerts you when an easy stretch is outside this range."
+    },
+    "heartRateBand": {
+      "title": "Heart rate alert",
+      "description": "Needs your Apple Watch. Buzzes, and speaks with voice cues on, when your heart rate stays outside this range.",
+      "lowest": "Lowest",
+      "highest": "Highest",
+      "value": "{{value}} bpm",
+      "lower": "{{edge}} 5 bpm lower",
+      "higher": "{{edge}} 5 bpm higher",
+      "workTitle": "Fast stretch heart rate",
+      "workDescription": "Alerts you when your heart rate in a fast stretch is outside this range.",
+      "easyTitle": "Easy stretch heart rate",
+      "easyDescription": "Alerts you when your heart rate in an easy stretch is outside this range."
     }
   },
   "goals": {
@@ -7311,6 +7345,8 @@
     "rowA11y": "{{distance}}, {{time}}, {{pace}}, {{date}}"
   },
   "watchRunLive": {
+    "paceAlert": "Pace alert",
+    "heartRateAlert": "Heart rate alert",
     "open": "Open the workout on your watch",
     "onWatch": "On your watch",
     "autoPaused": "Auto-paused",

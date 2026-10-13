@@ -532,6 +532,8 @@ public class WatchConnectivityModule: Module {
                 if let requestId = payload["requestId"] as? String { event["requestId"] = requestId }
                 if let autoPause = payload["autoPause"] as? Bool { event["autoPause"] = autoPause }
                 if let voiceCues = payload["voiceCues"] as? Bool { event["voiceCues"] = voiceCues }
+                if let paceAlert = payload["paceAlert"] as? Bool { event["paceAlert"] = paceAlert }
+                if let heartRateAlert = payload["heartRateAlert"] as? Bool { event["heartRateAlert"] = heartRateAlert }
                 self?.sendEvent("onRunLive", event)
             }
             self.delegateHandler.onRunCue = { [weak self] payload in

@@ -9,7 +9,7 @@ export function parseSearchTerms(searchTerm: string): string[] {
     .map((t) => {
       // If it contains letters or numbers, strip leading/trailing punctuation/symbols
       if (/[\p{L}\p{N}]/u.test(t)) {
-        return t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+        return t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
       }
       // Otherwise, leave it as is (handles emojis, math symbols, etc.)
       return t;
@@ -24,7 +24,7 @@ export function parseSearchTerms(searchTerm: string): string[] {
 export function filterAndSortByTerms<T>(
   items: T[],
   getSearchableString: (item: T) => string,
-  searchTerm: string
+  searchTerm: string,
 ): T[] {
   if (!searchTerm) return items;
 

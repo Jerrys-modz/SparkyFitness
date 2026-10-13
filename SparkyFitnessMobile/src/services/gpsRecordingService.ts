@@ -14,6 +14,7 @@ import {
   acceptFix,
   computeLaps,
   computeSplits,
+  currentPaceSecondsPerUnit,
   summarizeRecording,
   type RawFix,
   type RecordedPoint,
@@ -27,10 +28,20 @@ import {
   type AutoPauseState,
 } from '../utils/autoPause';
 import {
+  INITIAL_HEART_RATE_ALERT_STATE,
+  INITIAL_PACE_ALERT_STATE,
   intervalPosition,
   isValidIntervalPlan,
+  normalizeHeartRateBand,
+  normalizePaceBand,
+  stepHeartRateAlert,
+  stepPaceAlert,
   stepStartSeconds,
+  type HeartRateAlertState,
+  type HeartRateBand,
   type IntervalPlan,
+  type PaceAlertState,
+  type PaceBand,
 } from '@workspace/shared';
 import { fireImpactHaptic } from './haptics';
 import {
@@ -39,7 +50,9 @@ import {
   finishCue,
   intervalCue,
   intervalsDoneCue,
+  heartRateAlertCue,
   lapCue,
+  paceAlertCue,
   splitCue,
   type CueEvent,
   type CueUnit,
@@ -114,6 +127,13 @@ export interface RecordingSession {
   intervals?: { plan: IntervalPlan; cued: number };
   /** The program workout this recording is, so finishing it can tick it off. */
   program?: { id: string; index: number };
+  /**
+   * A pace band to stay inside: the phone buzzes, and speaks when voice cues
+   * are on, after the pace has been outside it for a few seconds.
+   */
+  paceBand?: PaceBand;
+  /** A heart-rate range to stay inside, read from a paired watch. */
+  heartRateBand?: HeartRateBand;
   /** Set once the diary entry exists, so a retried save never duplicates it. */
   savedEntryId: string | null;
   /**
@@ -243,6 +263,10 @@ function subscribe(listener: () => void): () => void {
 }
 
 const getSnapshot = (): RecordingSnapshot => snapshot;
+
+/** The live recording outside React, for the Lock Screen Live Activity. */
+export const subscribeGpsRecording = subscribe;
+export const getGpsRecordingSnapshot = getSnapshot;
 
 /** Live recording state for the screen. */
 export function useGpsRecording(): RecordingSnapshot {
@@ -407,6 +431,7 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
     }
     if (added > 0 && cueSplit()) sessionChanged = true;
     if (advanceIntervals(Date.now())) sessionChanged = true;
+    if (added > 0) checkPaceBand(Date.now());
     if (sessionChanged) await persistSession();
     if (added === 0 && !pointsRewritten) {
       if (sessionChanged) publish();
@@ -441,6 +466,10 @@ function isWatchingForAutoPause(current: RecordingSession): boolean {
 export interface RecordingPreferences {
   autoPause: boolean;
   audioCues: boolean;
+  /** The pace range last chosen, in seconds per km; null before one was. An alert is per run, so only the range is kept. */
+  paceBand: PaceBand | null;
+  /** The heart-rate range last chosen; null before one was. */
+  heartRateBand: HeartRateBand | null;
   /** Seconds counted down before Start begins recording; 0 is no countdown. */
   countdownSeconds: number;
 }
@@ -449,6 +478,8 @@ export interface RecordingPreferences {
 export const COUNTDOWN_CHOICES = [0, 3, 5, 10] as const;
 
 const COUNTDOWN_PREF_KEY = '@SparkyFitness/gpsRecording/countdown';
+const PACE_ALERT_PREF_KEY = '@SparkyFitness/gpsRecording/paceAlert';
+const HEART_RATE_ALERT_PREF_KEY = '@SparkyFitness/gpsRecording/heartRateAlert';
 
 const PREFERENCE_KEYS = {
   autoPause: AUTO_PAUSE_PREF_KEY,
@@ -458,15 +489,20 @@ const PREFERENCE_KEYS = {
 /** Auto-pause is on unless turned off; voice cues are off unless turned on. */
 export async function getRecordingPreferences(): Promise<RecordingPreferences> {
   try {
-    const [autoPause, audioCues, countdown] = await Promise.all([
-      AsyncStorage.getItem(PREFERENCE_KEYS.autoPause),
-      AsyncStorage.getItem(PREFERENCE_KEYS.audioCues),
-      AsyncStorage.getItem(COUNTDOWN_PREF_KEY),
-    ]);
+    const [autoPause, audioCues, countdown, paceAlertRaw, heartRateAlertRaw] =
+      await Promise.all([
+        AsyncStorage.getItem(PREFERENCE_KEYS.autoPause),
+        AsyncStorage.getItem(PREFERENCE_KEYS.audioCues),
+        AsyncStorage.getItem(COUNTDOWN_PREF_KEY),
+        AsyncStorage.getItem(PACE_ALERT_PREF_KEY),
+        AsyncStorage.getItem(HEART_RATE_ALERT_PREF_KEY),
+      ]);
     const seconds = Number(countdown);
     return {
       autoPause: autoPause !== 'off',
       audioCues: audioCues === 'on',
+      paceBand: parsePaceBandPreference(paceAlertRaw),
+      heartRateBand: parseHeartRateBandPreference(heartRateAlertRaw),
       countdownSeconds: (COUNTDOWN_CHOICES as readonly number[]).includes(
         seconds
       )
@@ -474,8 +510,61 @@ export async function getRecordingPreferences(): Promise<RecordingPreferences> {
         : 0,
     };
   } catch {
-    return { autoPause: true, audioCues: false, countdownSeconds: 0 };
+    return {
+      autoPause: true,
+      audioCues: false,
+      paceBand: null,
+      heartRateBand: null,
+      countdownSeconds: 0,
+    };
   }
+}
+
+function parseHeartRateBandPreference(
+  raw: string | null
+): HeartRateBand | null {
+  try {
+    return normalizeHeartRateBand(
+      raw ? (JSON.parse(raw) as Partial<HeartRateBand>) : null
+    );
+  } catch {
+    return null;
+  }
+}
+
+/** Remembers the heart-rate range last used, as the starting point for the next run's alert (on the phone or the watch). */
+export async function setHeartRateBandPreference(
+  band: HeartRateBand
+): Promise<void> {
+  try {
+    await AsyncStorage.setItem(HEART_RATE_ALERT_PREF_KEY, JSON.stringify(band));
+  } catch {
+    // The choice just won't be remembered.
+  }
+  preferenceListeners.forEach((listener) => listener());
+}
+
+function parsePaceBandPreference(raw: string | null): PaceBand | null {
+  try {
+    return normalizePaceBand(
+      raw ? (JSON.parse(raw) as Partial<PaceBand>) : null
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Remembers the pace range last used (seconds per km) as the starting point for
+ * the next run's alert, on the phone or the watch. The alert itself is per run.
+ */
+export async function setPaceBandPreference(band: PaceBand): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PACE_ALERT_PREF_KEY, JSON.stringify(band));
+  } catch {
+    // The choice just won't be remembered.
+  }
+  preferenceListeners.forEach((listener) => listener());
 }
 
 export async function setCountdownPreference(seconds: number): Promise<void> {
@@ -533,6 +622,111 @@ function cueSplit(): boolean {
     })
   );
   return true;
+}
+
+/** Where the pace stands against the band; not saved, a restore starts fresh. */
+let paceAlertState: PaceAlertState = INITIAL_PACE_ALERT_STATE;
+
+let heartRateAlertState: HeartRateAlertState = INITIAL_HEART_RATE_ALERT_STATE;
+let heartRateAlertStep: number | null = null;
+
+/**
+ * A reading from the paired watch for the live recording. When the heart rate
+ * has been outside the range for a while the phone buzzes and, with voice
+ * cues on, says so. A plan step's own range beats the run's.
+ */
+export function noteLiveHeartRate(
+  sessionId: string,
+  bpm: number
+): Promise<void> {
+  return enqueue(async () => {
+    await hydrate();
+    if (!session || session.id !== sessionId) return;
+    if (session.status !== 'recording' || !(bpm > 0)) return;
+    const now = Date.now();
+    let band: HeartRateBand | undefined = session.heartRateBand;
+    let stepIndex: number | null = null;
+    if (session.intervals) {
+      const position = intervalPosition(
+        session.intervals.plan,
+        elapsedSeconds(session, now)
+      );
+      if (position && !position.done) {
+        stepIndex = position.index;
+        band = position.step.heartRate ?? band;
+      }
+    }
+    if (stepIndex !== heartRateAlertStep) {
+      heartRateAlertStep = stepIndex;
+      heartRateAlertState = INITIAL_HEART_RATE_ALERT_STATE;
+    }
+    if (!band) return;
+    const next = stepHeartRateAlert(heartRateAlertState, bpm, band, now);
+    heartRateAlertState = next.state;
+    if (!next.alert) return;
+    fireImpactHaptic();
+    if (session.audioCues) {
+      speakRecordingCue(heartRateAlertCue(i18n.t.bind(i18n), next.alert));
+    }
+  });
+}
+
+/** Sets or clears the heart-rate range while a recording runs. */
+export function setRecordingHeartRateBand(
+  band: HeartRateBand | undefined
+): Promise<void> {
+  return enqueue(async () => {
+    await hydrate();
+    if (!session || session.status === 'finished') return;
+    const normalized = normalizeHeartRateBand(band);
+    heartRateAlertState = INITIAL_HEART_RATE_ALERT_STATE;
+    const { heartRateBand: _previous, ...rest } = session;
+    void _previous;
+    session = normalized ? { ...rest, heartRateBand: normalized } : rest;
+    await persistSession();
+    publish();
+  });
+}
+
+/** The plan step the pace alert was last judging; a new one starts it afresh. */
+let paceAlertStep: number | null = null;
+
+/**
+ * Tells the runner when the pace has been outside their band for a while:
+ * a buzz always, and a spoken "ease off" / "pick it up" with voice cues on.
+ * Reads the pace over the last 100 m, as the live screen does.
+ */
+function checkPaceBand(now: number): void {
+  if (!session || session.status !== 'recording') return;
+  // A plan step's own target beats the run's range; a step with none keeps
+  // the run's range, if there is one.
+  let band: PaceBand | undefined = session.paceBand;
+  let stepIndex: number | null = null;
+  if (session.intervals) {
+    const position = intervalPosition(
+      session.intervals.plan,
+      elapsedSeconds(session, now)
+    );
+    if (position && !position.done) {
+      stepIndex = position.index;
+      band = position.step.pace ?? band;
+    }
+  }
+  // A new step starts the wait again, so a run that was too slow in the easy
+  // stretch is not told off the moment the fast one begins.
+  if (stepIndex !== paceAlertStep) {
+    paceAlertStep = stepIndex;
+    paceAlertState = INITIAL_PACE_ALERT_STATE;
+  }
+  if (!band) return;
+  const pace = currentPaceSecondsPerUnit(points, 1000, 100);
+  const next = stepPaceAlert(paceAlertState, pace, band, now);
+  paceAlertState = next.state;
+  if (!next.alert) return;
+  fireImpactHaptic();
+  if (session.audioCues) {
+    speakRecordingCue(paceAlertCue(i18n.t.bind(i18n), next.alert));
+  }
 }
 
 /**
@@ -637,6 +831,14 @@ export interface StartRecordingOptions {
   audioCues?: CueUnit;
   /** Timed steps to follow (run/walk, speed repeats). */
   intervals?: IntervalPlan;
+  /** A pace band to stay inside, with an alert when outside it. */
+  paceBand?: PaceBand;
+  /**
+   * A heart-rate range to stay inside: the phone buzzes, and speaks when
+   * voice cues are on, once a paired watch's reading has been outside it for
+   * a while. Without a watch there is no reading and so no alert.
+   */
+  heartRateBand?: HeartRateBand;
   /** Record without GPS: no permission is asked and no location task runs. */
   indoor?: boolean;
   /** The program workout the plan came from, if any. */
@@ -732,6 +934,12 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
         : {}),
       ...(options.program && options.intervals
         ? { program: options.program }
+        : {}),
+      ...(normalizePaceBand(options.paceBand)
+        ? { paceBand: normalizePaceBand(options.paceBand)! }
+        : {}),
+      ...(normalizeHeartRateBand(options.heartRateBand)
+        ? { heartRateBand: normalizeHeartRateBand(options.heartRateBand)! }
         : {}),
       savedEntryId: null,
       ...(indoor && { indoor: true }),
@@ -917,6 +1125,23 @@ export function setRecordingAudioCues(
     publish();
     if (unit && !wasOn) beginRecordingCues();
     if (!unit && wasOn) stopRecordingCues();
+  });
+}
+
+/** Sets or clears the pace band while a recording runs. */
+export function setRecordingPaceBand(
+  band: PaceBand | undefined
+): Promise<void> {
+  return enqueue(async () => {
+    await hydrate();
+    if (!session || session.status === 'finished') return;
+    const normalized = normalizePaceBand(band);
+    paceAlertState = INITIAL_PACE_ALERT_STATE;
+    const { paceBand: _previous, ...rest } = session;
+    void _previous;
+    session = normalized ? { ...rest, paceBand: normalized } : rest;
+    await persistSession();
+    publish();
   });
 }
 

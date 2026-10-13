@@ -19,6 +19,9 @@ export interface WatchRunLive {
   /** The run's switches; null when the watch build does not report them. */
   autoPause: boolean | null;
   voiceCues: boolean | null;
+  /** Whether a pace or heart-rate range is being watched; null from an older watch build. */
+  paceAlert: boolean | null;
+  heartRateAlert: boolean | null;
   /** Active seconds when the watch sent it. */
   elapsed: number;
   distanceMeters: number;
@@ -107,6 +110,12 @@ export const useWatchRunLiveStore = create<WatchRunLiveState>((set) => ({
             typeof payload.autoPause === 'boolean' ? payload.autoPause : null,
           voiceCues:
             typeof payload.voiceCues === 'boolean' ? payload.voiceCues : null,
+          paceAlert:
+            typeof payload.paceAlert === 'boolean' ? payload.paceAlert : null,
+          heartRateAlert:
+            typeof payload.heartRateAlert === 'boolean'
+              ? payload.heartRateAlert
+              : null,
           elapsed: Math.max(0, payload.elapsed),
           distanceMeters: Math.max(0, payload.distanceMeters),
           heartRate:

@@ -740,6 +740,18 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         rpeEnabled: watchRpeEnabled,
         runVoiceCues: recording.audioCues,
         runAutoPause: recording.autoPause,
+        ...(recording.heartRateBand
+          ? {
+              runHeartRateMinBpm: recording.heartRateBand.minBpm,
+              runHeartRateMaxBpm: recording.heartRateBand.maxBpm,
+            }
+          : {}),
+        ...(recording.paceBand
+          ? {
+              runPaceMinSecondsPerKm: recording.paceBand.minSecondsPerKm,
+              runPaceMaxSecondsPerKm: recording.paceBand.maxSecondsPerKm,
+            }
+          : {}),
         runPlans,
         ...(indoorDistanceScale ? { indoorDistanceScale } : {}),
         startableWorkouts,

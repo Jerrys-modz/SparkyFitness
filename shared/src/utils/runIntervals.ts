@@ -5,6 +5,12 @@
  * stops while paused, so a pause never eats into an interval.
  */
 
+import { normalizePaceBand, type PaceBand } from "./paceTargets.ts";
+import {
+  normalizeHeartRateBand,
+  type HeartRateBand,
+} from "./heartRateTargets.ts";
+
 export type IntervalStepKind = "warmup" | "work" | "recovery" | "cooldown";
 
 /**
@@ -16,6 +22,10 @@ export type IntervalStyle = "runWalk" | "fastEasy";
 export interface IntervalStep {
   kind: IntervalStepKind;
   seconds: number;
+  /** Pace range to hold during this step; absent means no target. */
+  pace?: PaceBand;
+  /** Heart-rate range to hold during this step; absent means no target. */
+  heartRate?: HeartRateBand;
 }
 
 export interface IntervalPlan {
@@ -167,7 +177,7 @@ export interface IntervalPosition {
 /** Where the plan stands after `activeSeconds` of recorded (unpaused) time. */
 export function intervalPosition(
   plan: IntervalPlan,
-  activeSeconds: number
+  activeSeconds: number,
 ): IntervalPosition | null {
   if (plan.steps.length === 0) return null;
   const at = Math.max(0, activeSeconds);
@@ -231,12 +241,58 @@ export function isValidIntervalPlan(value: unknown): value is IntervalPlan {
         ["warmup", "work", "recovery", "cooldown"].includes(step.kind) &&
         Number.isFinite(step.seconds) &&
         step.seconds > 0 &&
-        step.seconds <= MAX_PROGRAM_STEP_SECONDS
+        step.seconds <= MAX_PROGRAM_STEP_SECONDS &&
+        (step.pace === undefined || normalizePaceBand(step.pace) !== null) &&
+        (step.heartRate === undefined ||
+          normalizeHeartRateBand(step.heartRate) !== null),
     )
   );
 }
 
 /** Whether the last step has begun, i.e. the person got through the plan. */
 export const lastStepStarted = (
-  intervals: { plan: IntervalPlan; cued: number } | undefined
+  intervals: { plan: IntervalPlan; cued: number } | undefined,
 ): boolean => !!intervals && intervals.cued >= intervals.plan.steps.length - 1;
+
+/**
+ * The plan with a pace range on its fast and easy stretches: `work` goes on
+ * every work step and `easy` on every recovery step. Warm-up and cool-down
+ * stay free. A band that is not usable is ignored.
+ */
+export function applyPaceTargets(
+  plan: IntervalPlan,
+  targets: { work?: PaceBand | null; easy?: PaceBand | null },
+): IntervalPlan {
+  const work = normalizePaceBand(targets.work);
+  const easy = normalizePaceBand(targets.easy);
+  if (!work && !easy) return plan;
+  return {
+    ...plan,
+    steps: plan.steps.map((step) => {
+      const pace =
+        step.kind === "work" ? work : step.kind === "recovery" ? easy : null;
+      return pace ? { ...step, pace } : step;
+    }),
+  };
+}
+
+/**
+ * The same for heart rate: `work` goes on every work step and `easy` on every
+ * recovery step.
+ */
+export function applyHeartRateTargets(
+  plan: IntervalPlan,
+  targets: { work?: HeartRateBand | null; easy?: HeartRateBand | null },
+): IntervalPlan {
+  const work = normalizeHeartRateBand(targets.work);
+  const easy = normalizeHeartRateBand(targets.easy);
+  if (!work && !easy) return plan;
+  return {
+    ...plan,
+    steps: plan.steps.map((step) => {
+      const heartRate =
+        step.kind === "work" ? work : step.kind === "recovery" ? easy : null;
+      return heartRate ? { ...step, heartRate } : step;
+    }),
+  };
+}

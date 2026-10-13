@@ -4,7 +4,13 @@
 // unit-tested from the server package.
 
 import { addDays, compareDays, daysBetween } from "../utils/timezone.ts";
-import { isPeriodEvidenceFlow, isHormonalBc, CYCLE_DEFAULTS, DAILY_INSIGHTS, PRODUCT_CAPACITY_ML } from "./constants.ts";
+import {
+  isPeriodEvidenceFlow,
+  isHormonalBc,
+  CYCLE_DEFAULTS,
+  DAILY_INSIGHTS,
+  PRODUCT_CAPACITY_ML,
+} from "./constants.ts";
 import type {
   CyclePhase,
   CyclePrediction,
@@ -18,7 +24,6 @@ import type {
   SharedCycleDailyLog,
   FlowLevel,
 } from "./types.ts";
-
 
 /** True if a day is period evidence: any bleed flow OR any product used. */
 export function isPeriodDay(ev: DayEvidence): boolean {
@@ -132,7 +137,9 @@ export function computeCycleStats(cycles: DerivedCycle[]): CycleStats {
       medianCycleLength: CYCLE_DEFAULTS.cycleLength,
       cycleLengthSd: 0,
       avgPeriodLength: periodLengths.length
-        ? Math.round(periodLengths.reduce((a, b) => a + b, 0) / periodLengths.length)
+        ? Math.round(
+            periodLengths.reduce((a, b) => a + b, 0) / periodLengths.length,
+          )
         : CYCLE_DEFAULTS.periodLength,
       regularity: "unknown",
       sampleSize: 0,
@@ -146,7 +153,9 @@ export function computeCycleStats(cycles: DerivedCycle[]): CycleStats {
     medianCycleLength: Math.round(median(cycleLengths)),
     cycleLengthSd: Math.round(sd * 10) / 10,
     avgPeriodLength: periodLengths.length
-      ? Math.round(periodLengths.reduce((a, b) => a + b, 0) / periodLengths.length)
+      ? Math.round(
+          periodLengths.reduce((a, b) => a + b, 0) / periodLengths.length,
+        )
       : CYCLE_DEFAULTS.periodLength,
     regularity: regularityFromSd(sd, cycleLengths.length),
     sampleSize: cycleLengths.length,
@@ -155,7 +164,8 @@ export function computeCycleStats(cycles: DerivedCycle[]): CycleStats {
 
 function confidenceFrom(stats: CycleStats): PredictionConfidence {
   if (stats.sampleSize >= 3 && stats.regularity === "regular") return "high";
-  if (stats.sampleSize >= 2 && stats.regularity !== "irregular") return "medium";
+  if (stats.sampleSize >= 2 && stats.regularity !== "irregular")
+    return "medium";
   return "low";
 }
 
@@ -178,9 +188,13 @@ export function predictNextCycles(
   count = 3,
 ): CyclePrediction {
   const cycleLength =
-    settings.avg_cycle_length_override ?? stats.avgCycleLength ?? CYCLE_DEFAULTS.cycleLength;
+    settings.avg_cycle_length_override ??
+    stats.avgCycleLength ??
+    CYCLE_DEFAULTS.cycleLength;
   const periodLength =
-    settings.avg_period_length_override ?? stats.avgPeriodLength ?? CYCLE_DEFAULTS.periodLength;
+    settings.avg_period_length_override ??
+    stats.avgPeriodLength ??
+    CYCLE_DEFAULTS.periodLength;
   const luteal = settings.luteal_phase_length ?? CYCLE_DEFAULTS.lutealLength;
 
   // Fertile-window UI is suppressed on hormonal BC, when the user hides it, and
@@ -281,12 +295,10 @@ export function phaseForDay(
     prediction.cycles[0]?.ovulation ??
     (nextStart
       ? addDays(nextStart, -luteal)
-      : addDays(
-          current.start_date,
-          CYCLE_DEFAULTS.cycleLength - luteal,
-        ));
+      : addDays(current.start_date, CYCLE_DEFAULTS.cycleLength - luteal));
 
-  if (compareDays(day, ovulation) === 0) return { phase: "ovulation", cycleDay };
+  if (compareDays(day, ovulation) === 0)
+    return { phase: "ovulation", cycleDay };
   if (
     compareDays(day, addDays(ovulation, -CYCLE_DEFAULTS.fertileBefore)) >= 0 &&
     compareDays(day, addDays(ovulation, CYCLE_DEFAULTS.fertileAfter)) <= 0
@@ -359,12 +371,20 @@ export function buildCalendarMonth(
   const daysInMonth = new Date(Date.UTC(year, mIndex + 1, 0)).getUTCDate();
 
   const days: DecoratedDay[] = [];
-  const logMap = new Map<string, SharedCycleDailyLog>(logs.map((l) => [l.entry_date, l]));
+  const logMap = new Map<string, SharedCycleDailyLog>(
+    logs.map((l) => [l.entry_date, l]),
+  );
 
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${year}-${String(mIndex + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const log = logMap.get(dateStr);
-    const isPeriod = log ? isPeriodDay({ date: dateStr, flow_level: log.flow_level, product_usage: log.product_usage }) : false;
+    const isPeriod = log
+      ? isPeriodDay({
+          date: dateStr,
+          flow_level: log.flow_level,
+          product_usage: log.product_usage,
+        })
+      : false;
 
     let type: DecoratedDay["type"] = "none";
     if (isPeriod) {
@@ -372,7 +392,10 @@ export function buildCalendarMonth(
     } else {
       // Check prediction cycles
       for (const p of prediction.cycles) {
-        if (compareDays(dateStr, p.periodStart) >= 0 && compareDays(dateStr, p.periodEnd) <= 0) {
+        if (
+          compareDays(dateStr, p.periodStart) >= 0 &&
+          compareDays(dateStr, p.periodEnd) <= 0
+        ) {
           type = "predicted-period";
           break;
         }
@@ -380,7 +403,12 @@ export function buildCalendarMonth(
           type = "ovulation";
           break;
         }
-        if (p.fertileStart && p.fertileEnd && compareDays(dateStr, p.fertileStart) >= 0 && compareDays(dateStr, p.fertileEnd) <= 0) {
+        if (
+          p.fertileStart &&
+          p.fertileEnd &&
+          compareDays(dateStr, p.fertileStart) >= 0 &&
+          compareDays(dateStr, p.fertileEnd) <= 0
+        ) {
           type = "fertile";
           break;
         }
@@ -410,9 +438,10 @@ export interface AccuracyDetail {
   deltaDays: number;
 }
 
-export function predictionAccuracy(
-  cycles: DerivedCycle[],
-): { avgError: number; details: AccuracyDetail[] } {
+export function predictionAccuracy(cycles: DerivedCycle[]): {
+  avgError: number;
+  details: AccuracyDetail[];
+} {
   const completed = cycles.filter(
     (c) => typeof c.cycle_length === "number" && c.cycle_length! > 0,
   );
@@ -449,16 +478,29 @@ export function predictionAccuracy(
   }
 
   return {
-    avgError: details.length > 0 ? Math.round((sumError / details.length) * 10) / 10 : 0,
+    avgError:
+      details.length > 0
+        ? Math.round((sumError / details.length) * 10) / 10
+        : 0,
     details,
   };
 }
 
 export function symptomPhaseMatrix(
-  symptomEntries: Array<{ entry_date: string; symptom_name_snapshot: string; severity: number }>,
+  symptomEntries: Array<{
+    entry_date: string;
+    symptom_name_snapshot: string;
+    severity: number;
+  }>,
   cycles: DerivedCycle[],
-): Record<string, Record<CyclePhase, { count: number; totalSeverity: number }>> {
-  const matrix: Record<string, Record<CyclePhase, { count: number; totalSeverity: number }>> = {};
+): Record<
+  string,
+  Record<CyclePhase, { count: number; totalSeverity: number }>
+> {
+  const matrix: Record<
+    string,
+    Record<CyclePhase, { count: number; totalSeverity: number }>
+  > = {};
 
   const stats = computeCycleStats(cycles);
   const lastCycle = cycles[cycles.length - 1];
@@ -499,7 +541,10 @@ export function symptomPhaseMatrix(
 }
 
 export function forecastSymptoms(
-  matrix: Record<string, Record<CyclePhase, { count: number; totalSeverity: number }>>,
+  matrix: Record<
+    string,
+    Record<CyclePhase, { count: number; totalSeverity: number }>
+  >,
   prediction: CyclePrediction,
 ): Record<string, string[]> {
   const forecasts: Record<string, string[]> = {};
@@ -521,17 +566,27 @@ export function forecastSymptoms(
     for (let offset = 0; offset < projectionDays; offset++) {
       const dayStr = addDays(pc.periodStart, offset);
       let phase: CyclePhase = "follicular";
-      if (compareDays(dayStr, pc.periodStart) >= 0 && compareDays(dayStr, pc.periodEnd) <= 0) {
+      if (
+        compareDays(dayStr, pc.periodStart) >= 0 &&
+        compareDays(dayStr, pc.periodEnd) <= 0
+      ) {
         phase = "menstrual";
       } else if (pc.ovulation && compareDays(dayStr, pc.ovulation) === 0) {
         phase = "ovulation";
-      } else if (pc.fertileStart && pc.fertileEnd && compareDays(dayStr, pc.fertileStart) >= 0 && compareDays(dayStr, pc.fertileEnd) <= 0) {
+      } else if (
+        pc.fertileStart &&
+        pc.fertileEnd &&
+        compareDays(dayStr, pc.fertileStart) >= 0 &&
+        compareDays(dayStr, pc.fertileEnd) <= 0
+      ) {
         phase = "fertile";
       } else if (pc.ovulation && compareDays(dayStr, pc.ovulation) > 0) {
         phase = "luteal";
       }
 
-      const match = activeSymptoms.filter((s) => s.phase === phase).map((s) => s.name);
+      const match = activeSymptoms
+        .filter((s) => s.phase === phase)
+        .map((s) => s.name);
       if (match.length > 0) {
         forecasts[dayStr] = match;
       }
@@ -610,7 +665,9 @@ export function productStats(
   const tamponsCount = productCounts["tampon"] ?? 0;
   const avgPads = padsCount / numPeriods;
   const avgTampons = tamponsCount / numPeriods;
-  const costWasteYearlySpend = Math.round((avgPads * 0.25 + avgTampons * 0.25) * 13);
+  const costWasteYearlySpend = Math.round(
+    (avgPads * 0.25 + avgTampons * 0.25) * 13,
+  );
 
   return {
     avgVolumeMl,
@@ -637,7 +694,9 @@ export function detectAnomalies(
   _settings?: Pick<SharedCycleSettings, "birth_control_method">,
 ): AnomalyAlert[] {
   const anomalies: AnomalyAlert[] = [];
-  const completed = cycles.filter((c) => c.period_length != null && c.cycle_length != null);
+  const completed = cycles.filter(
+    (c) => c.period_length != null && c.cycle_length != null,
+  );
 
   if (completed.length >= 3) {
     const cycleLengths = completed.map((c) => c.cycle_length!);
@@ -647,7 +706,8 @@ export function detectAnomalies(
       anomalies.push({
         key: "irregular_cycles",
         severity: "attention",
-        message: "Your cycle lengths have varied by more than a few days recently. If this is new for you, it may be worth mentioning to a clinician.",
+        message:
+          "Your cycle lengths have varied by more than a few days recently. If this is new for you, it may be worth mentioning to a clinician.",
       });
     }
   }
@@ -678,7 +738,8 @@ export function detectAnomalies(
     anomalies.push({
       key: "heavy_bleeding",
       severity: "attention",
-      message: "Your recent logs show heavier flow than usual or periods lasting longer than 7 days. If this continues, consider mentioning it to a clinician.",
+      message:
+        "Your recent logs show heavier flow than usual or periods lasting longer than 7 days. If this continues, consider mentioning it to a clinician.",
     });
   }
 
@@ -693,7 +754,8 @@ export function detectAnomalies(
     anomalies.push({
       key: "unusual_discharge",
       severity: "info",
-      message: "You have logged unusual discharge. Consider noting color, odor, or texture changes.",
+      message:
+        "You have logged unusual discharge. Consider noting color, odor, or texture changes.",
     });
   }
 

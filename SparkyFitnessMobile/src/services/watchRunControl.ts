@@ -20,6 +20,10 @@ export async function startRunOnWatch(options: {
   /** The Record screen's switches for this run. */
   autoPause: boolean;
   voiceCues: boolean;
+  /** A pace range to stay inside, in seconds per km. */
+  paceBand?: { minSecondsPerKm: number; maxSecondsPerKm: number };
+  /** A heart-rate range to stay inside. */
+  heartRateBand?: { minBpm: number; maxBpm: number };
 }): Promise<string> {
   if (!WatchConnectivity) throw new Error('Apple Watch is not available');
   const requestId = newId();
@@ -31,6 +35,18 @@ export async function startRunOnWatch(options: {
     requestedAt,
     autoPause: options.autoPause,
     voiceCues: options.voiceCues,
+    ...(options.paceBand
+      ? {
+          paceMin: options.paceBand.minSecondsPerKm,
+          paceMax: options.paceBand.maxSecondsPerKm,
+        }
+      : {}),
+    ...(options.heartRateBand
+      ? {
+          hrMin: options.heartRateBand.minBpm,
+          hrMax: options.heartRateBand.maxBpm,
+        }
+      : {}),
     ...(options.plan ? { plan: options.plan } : {}),
   });
   useWatchRunLiveStore.getState().setPending({

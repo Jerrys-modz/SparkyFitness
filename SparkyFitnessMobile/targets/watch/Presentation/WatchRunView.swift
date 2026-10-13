@@ -136,6 +136,8 @@ struct WatchRunView: View {
                     get: { run.settings.voiceCues },
                     set: { run.setVoiceCues($0) }
                 ))
+                paceAlertRow
+                heartRateAlertRow
                 // Plays whatever the switch says, so a silent speaker can be
                 // told apart from cues that are off.
                 Button("Test voice") {
@@ -144,6 +146,60 @@ struct WatchRunView: View {
             }
             .navigationTitle(run.kind.title(run.place))
         }
+    }
+
+    /// The pace range comes from the phone (set on its Record screen), so the
+    /// switch is only live once the watch has one.
+    @ViewBuilder
+    private var paceAlertRow: some View {
+        let band = run.settings.paceBand ?? store.context.runPaceBand
+        if let band {
+            Toggle(isOn: Binding(
+                get: { run.settings.paceBand != nil },
+                set: { run.setPaceAlert($0) }
+            )) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Pace alert")
+                    Text(bandText(band))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Pace alert")
+                Text("Set a pace range on your iPhone")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    /// Like the pace alert: the range is set on the phone.
+    @ViewBuilder
+    private var heartRateAlertRow: some View {
+        let band = run.settings.heartRateBand ?? store.context.runHeartRateBand
+        if let band {
+            Toggle(isOn: Binding(
+                get: { run.settings.heartRateBand != nil },
+                set: { run.setHeartRateAlert($0) }
+            )) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Heart rate alert")
+                    Text("\(Int(band.minBpm))–\(Int(band.maxBpm)) bpm")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    /// "5:00–5:30 /km", in the phone's unit.
+    private func bandText(_ band: WatchPaceBand) -> String {
+        let perUnit = usesMiles ? 1.609344 : 1
+        let fast = WatchRunMetrics.paceText(band.minSecondsPerKm * perUnit)
+        let slow = WatchRunMetrics.paceText(band.maxSecondsPerKm * perUnit)
+        return "\(fast)–\(slow) \(usesMiles ? "/mi" : "/km")"
     }
 
     // MARK: - Finished

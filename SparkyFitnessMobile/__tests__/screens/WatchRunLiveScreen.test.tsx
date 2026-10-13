@@ -183,3 +183,29 @@ it('hides the switches for a watch build that does not report them', () => {
   expect(screen.queryByTestId('watch-auto-pause-switch')).toBeNull();
   expect(screen.queryByTestId('watch-voice-cues-switch')).toBeNull();
 });
+
+it('turns the pace and heart rate alerts on and off on the watch', () => {
+  jest
+    .mocked(useWatchRunLive)
+    .mockReturnValue(
+      run({ paceAlert: false, heartRateAlert: true, sentAt: 1000 }) as never
+    );
+  renderScreen();
+  fireEvent(screen.getByTestId('watch-pace-alert-switch'), 'valueChange', true);
+  expect(sendRunControl).toHaveBeenCalledWith('r1', 'paceAlertOn');
+  fireEvent(
+    screen.getByTestId('watch-heart-rate-alert-switch'),
+    'valueChange',
+    false
+  );
+  expect(sendRunControl).toHaveBeenCalledWith('r1', 'heartRateAlertOff');
+});
+
+it('hides the alert switches for a watch build that does not report them', () => {
+  jest
+    .mocked(useWatchRunLive)
+    .mockReturnValue(run({ paceAlert: null, heartRateAlert: null }) as never);
+  renderScreen();
+  expect(screen.queryByTestId('watch-pace-alert-switch')).toBeNull();
+  expect(screen.queryByTestId('watch-heart-rate-alert-switch')).toBeNull();
+});

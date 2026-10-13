@@ -20,13 +20,31 @@ export interface WatchRunPlanPayload {
   programIndex?: number;
   /** 'walk' for a walking program; missing is a run. */
   activity?: 'walk';
-  steps: { label: string; seconds: number }[];
+  steps: {
+    label: string;
+    seconds: number;
+    /** Pace range to hold in this step, seconds per km. */
+    paceMin?: number;
+    paceMax?: number;
+    /** Heart-rate range to hold in this step, bpm. */
+    hrMin?: number;
+    hrMax?: number;
+  }[];
 }
 
 const toSteps = (t: TFunction, plan: IntervalPlan) =>
   plan.steps.map((step) => ({
     label: intervalStepName(t, step.kind, plan.style),
     seconds: step.seconds,
+    ...(step.pace
+      ? {
+          paceMin: step.pace.minSecondsPerKm,
+          paceMax: step.pace.maxSecondsPerKm,
+        }
+      : {}),
+    ...(step.heartRate
+      ? { hrMin: step.heartRate.minBpm, hrMax: step.heartRate.maxBpm }
+      : {}),
   }));
 
 /**

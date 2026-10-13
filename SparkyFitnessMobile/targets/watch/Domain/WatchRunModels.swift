@@ -155,6 +155,21 @@ struct WatchRunStartRequest: Equatable {
 struct WatchRunSettings: Codable, Equatable {
     var autoPause: Bool
     var voiceCues: Bool
+    /// A pace range to stay inside; nil is no pace alert. Optional so a
+    /// snapshot written before it existed still decodes.
+    var paceBand: WatchPaceBand? = nil
+    /// A heart-rate range to stay inside; nil is no heart-rate alert.
+    var heartRateBand: WatchHeartRateBand? = nil
+}
+
+/// The alerts chosen for one run when it is started on the wrist. Each alert
+/// is off (nil) unless the wearer turned it on for this run; the phone only
+/// supplies the range last used as a starting point.
+struct WatchRunAlertSetup: Equatable {
+    var pace: WatchPaceBand?
+    var heartRate: WatchHeartRateBand?
+
+    static let off = WatchRunAlertSetup(pace: nil, heartRate: nil)
 }
 
 /// A timed plan a wrist-only run can follow: a list of steps the phone has
@@ -164,6 +179,11 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
     struct Step: Codable, Equatable {
         let label: String
         let seconds: Double
+        /// Pace range to hold in this step; nil is free. Optional so a plan
+        /// kept in an older snapshot still decodes.
+        var pace: WatchPaceBand? = nil
+        /// Heart-rate range to hold in this step; nil is free.
+        var heartRate: WatchHeartRateBand? = nil
     }
 
     let id: String
