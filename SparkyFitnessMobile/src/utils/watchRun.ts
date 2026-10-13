@@ -30,6 +30,13 @@ export interface WatchRunPayload {
   /** A training-program workout the run was (program id and 0-based index). */
   program: { id: string; index: number } | null;
   planCompleted: boolean;
+  /** The learned indoor factor the watch applied to its distance (1 when none). */
+  distanceScale?: number;
+  /**
+   * What the watch showed before the wearer entered the treadmill's distance
+   * on the wrist; absent when they kept the watch's figure.
+   */
+  estimatedDistanceMeters?: number;
 }
 
 /** Stands in for "no altitude": a property list cannot carry null. */
@@ -91,6 +98,12 @@ export function parseWatchRunPayload(raw: unknown): WatchRunPayload | null {
     laps: Array.isArray(p.laps)
       ? p.laps.filter(finite).sort((a, b) => a - b)
       : [],
+    ...(finite(p.distanceScale) && p.distanceScale > 0
+      ? { distanceScale: p.distanceScale }
+      : {}),
+    ...(finite(p.estimatedDistanceMeters) && p.estimatedDistanceMeters > 0
+      ? { estimatedDistanceMeters: p.estimatedDistanceMeters }
+      : {}),
   };
 }
 

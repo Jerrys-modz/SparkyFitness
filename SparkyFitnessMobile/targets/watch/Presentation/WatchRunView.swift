@@ -15,6 +15,8 @@ struct WatchRunView: View {
             Color.clear
         case .running, .paused:
             live
+        case .confirmingDistance:
+            TreadmillDistanceView()
         case .finished:
             finished
         }
@@ -190,6 +192,57 @@ struct WatchRunView: View {
             Text(unit)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Asked when an indoor walk or run ends, before it is sent to the phone: the
+/// treadmill's distance. The diary gets the machine's figure, and the phone
+/// learns from the difference so the next indoor session reads closer.
+private struct TreadmillDistanceView: View {
+    @EnvironmentObject private var run: WatchRunStore
+    @EnvironmentObject private var store: CheckInStore
+    @State private var entering = false
+
+    private var usesMiles: Bool { store.context.distanceUnit == "miles" }
+    private var unitMeters: Double { usesMiles ? 1609.344 : 1000 }
+    private var unit: String { usesMiles ? "mi" : "km" }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 8) {
+                Label("Treadmill distance?", systemImage: run.kind.symbol)
+                    .font(.headline)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text("The watch measured \(WatchRunMetrics.distanceText(run.metrics.distanceMeters, usesMiles: usesMiles)) \(unit). Enter what the machine showed, and the next \(run.kind == .walk ? "walk" : "run") will read closer.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                Button {
+                    Haptics.tap()
+                    entering = true
+                } label: {
+                    Label("Enter distance", systemImage: "number")
+                }
+                .buttonStyle(.borderedProminent)
+                Button("Keep watch distance") {
+                    Haptics.tap()
+                    run.confirmDistance(nil)
+                }
+            }
+            .padding(.horizontal, 4)
+            // The clock sits over the top of a scrolling page.
+            .padding(.top, 22)
+        }
+        .sheet(isPresented: $entering) {
+            NumericKeypadView(
+                title: unit,
+                initial: (run.metrics.distanceMeters / unitMeters * 100).rounded() / 100,
+                allowsDecimal: true
+            ) { value in
+                run.confirmDistance(value * unitMeters)
+            }
         }
     }
 }

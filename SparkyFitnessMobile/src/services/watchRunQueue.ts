@@ -1,3 +1,4 @@
+import { learnWatchIndoorScale } from './watchIndoorScale';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ApiError } from './api/errors';
 import { addLog } from './LogService';
@@ -232,6 +233,19 @@ async function drainOnce(
           )
       );
       await tickOffProgram(item.payload, entryId);
+      // A treadmill distance entered on the wrist teaches the indoor factor.
+      // Before marking done, so a run that stops here is learned on retry.
+      if (
+        item.payload.place === 'indoor' &&
+        item.payload.estimatedDistanceMeters != null
+      ) {
+        await learnWatchIndoorScale(
+          item.payload.kind,
+          item.payload.distanceScale ?? 1,
+          item.payload.estimatedDistanceMeters,
+          item.payload.distanceMeters
+        );
+      }
       // Marked done first: a stop between the two steps leaves a queued run
       // that is refiled onto its stored entry, never a run in neither place
       // that a re-delivery would file a second time.

@@ -10,8 +10,12 @@ import { saveWatchRun } from '../../src/services/watchRunSave';
 import { completeProgramWorkout } from '../../src/services/runProgramService';
 import { ApiError } from '../../src/services/api/errors';
 import type { WatchRunPayload } from '../../src/utils/watchRun';
+import { learnWatchIndoorScale } from '../../src/services/watchIndoorScale';
 
 jest.mock('../../src/services/watchRunSave');
+jest.mock('../../src/services/watchIndoorScale', () => ({
+  learnWatchIndoorScale: jest.fn(() => Promise.resolve()),
+}));
 jest.mock('../../src/services/runProgramService', () => ({
   completeProgramWorkout: jest.fn(() => Promise.resolve()),
 }));
@@ -252,4 +256,25 @@ test('tells a listener about each run it files, and survives the listener failin
   expect(seen).toEqual(['l1', 'l2']);
   expect(days).toEqual(['2026-10-10', '2026-10-10']);
   expect(await processWatchRunQueue('km')).toEqual([]);
+});
+
+test('learns the indoor factor from a treadmill distance entered on the wrist', async () => {
+  mockedSave.mockResolvedValue('entry-1');
+  await enqueueWatchRun({
+    ...run('t1'),
+    place: 'indoor',
+    distanceMeters: 5000,
+    distanceScale: 1.1,
+    estimatedDistanceMeters: 4400,
+  });
+  await processWatchRunQueue('km');
+  expect(learnWatchIndoorScale).toHaveBeenCalledWith('walk', 1.1, 4400, 5000);
+});
+
+test('learns nothing when the watch figure was kept', async () => {
+  jest.mocked(learnWatchIndoorScale).mockClear();
+  mockedSave.mockResolvedValue('entry-1');
+  await enqueueWatchRun({ ...run('t2'), place: 'indoor' });
+  await processWatchRunQueue('km');
+  expect(learnWatchIndoorScale).not.toHaveBeenCalled();
 });

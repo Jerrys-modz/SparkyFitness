@@ -23,6 +23,19 @@ const base = {
 };
 
 describe('parseWatchRunPayload', () => {
+  test('reads the indoor factor and the pre-correction distance', () => {
+    const parsed = parseWatchRunPayload({
+      ...base,
+      distanceScale: 1.1,
+      estimatedDistanceMeters: 2200,
+    });
+    expect(parsed?.distanceScale).toBe(1.1);
+    expect(parsed?.estimatedDistanceMeters).toBe(2200);
+    const plain = parseWatchRunPayload({ ...base, distanceScale: 'x' });
+    expect(plain?.distanceScale).toBeUndefined();
+    expect(plain?.estimatedDistanceMeters).toBeUndefined();
+  });
+
   test('keeps good rows and drops malformed ones', () => {
     const parsed = parseWatchRunPayload(base);
     expect(parsed?.route).toHaveLength(2);

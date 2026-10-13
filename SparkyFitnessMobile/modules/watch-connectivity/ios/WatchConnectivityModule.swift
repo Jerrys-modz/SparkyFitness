@@ -981,7 +981,7 @@ public class WatchConnectivityModule: Module {
     /// The event JS and the native queue both store, so a cold start and a
     /// live event carry the same laps.
     private func normalizedRunEvent(_ payload: [String: Any]) -> [String: Any] {
-        [
+        var event: [String: Any] = [
             "clientId": payload["clientId"] as? String ?? "",
             "kind": payload["kind"] as? String ?? "",
             "place": payload["place"] as? String ?? "",
@@ -999,6 +999,15 @@ public class WatchConnectivityModule: Module {
             "programIndex": (payload["programIndex"] as? NSNumber)?.intValue ?? -1,
             "planCompleted": payload["planCompleted"] as? Bool ?? false,
         ]
+        // Indoor distance learning: the factor the watch applied, and what it
+        // showed before a treadmill distance was entered on the wrist.
+        if let scale = (payload["distanceScale"] as? NSNumber)?.doubleValue {
+            event["distanceScale"] = scale
+        }
+        if let estimated = (payload["estimatedDistanceMeters"] as? NSNumber)?.doubleValue {
+            event["estimatedDistanceMeters"] = estimated
+        }
+        return event
     }
 
     /// Caller holds `runAccess` only through `rememberFinishedRun`.

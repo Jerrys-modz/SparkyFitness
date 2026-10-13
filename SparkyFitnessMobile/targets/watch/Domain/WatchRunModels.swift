@@ -75,6 +75,32 @@ struct WatchRunMetrics: Equatable {
         let total = Int(pace.rounded())
         return String(format: "%d:%02d", total / 60, total % 60)
     }
+
+    /// The same figures with the distance multiplied by `factor`.
+    func scaled(_ factor: Double) -> WatchRunMetrics {
+        var copy = self
+        copy.distanceMeters *= factor
+        return copy
+    }
+}
+
+/// How far off the watch's indoor distance has been, learned on the phone from
+/// the treadmill distances the wearer entered, one factor for walks and one for
+/// runs. The watch multiplies its own indoor estimate by it, so the live
+/// distance gets closer each time. Kept between 0.5 and 2 so one bad entry
+/// cannot make the next session absurd.
+struct IndoorDistanceScale: Equatable {
+    var walk: Double
+    var run: Double
+
+    func factor(for kind: WatchRunKind) -> Double {
+        Self.clamp(kind == .walk ? walk : run)
+    }
+
+    static func clamp(_ value: Double) -> Double {
+        guard value.isFinite, value > 0 else { return 1 }
+        return min(2, max(0.5, value))
+    }
 }
 
 /// A timed plan a wrist-only run can follow: a list of steps the phone has
@@ -157,7 +183,7 @@ struct WatchRunResult {
     let startedAt: Date
     let endedAt: Date
     let activeSeconds: TimeInterval
-    let metrics: WatchRunMetrics
+    var metrics: WatchRunMetrics
     /// `[t (epoch ms), lat, lon, alt, hacc, seg]`
     let route: [[Double]]
     /// `[t (epoch ms), bpm]`
@@ -170,6 +196,20 @@ struct WatchRunResult {
     /// The plan followed, if any; `planCompleted` is whether its last step began.
     var plan: WatchRunPlan?
     var planCompleted = false
+    /// The indoor factor applied to the watch's own distance (1 outdoors).
+    var distanceScale: Double = 1
+    /// What the watch showed before the wearer entered the treadmill's
+    /// distance; nil when nothing was entered. The phone learns from the pair.
+    var estimatedDistanceMeters: Double?
+
+    /// The run with its distance (and the lap marks along it) multiplied by
+    /// `factor`.
+    func scalingDistance(by factor: Double) -> WatchRunResult {
+        var copy = self
+        copy.metrics = metrics.scaled(factor)
+        copy.lapDistances = lapDistances.map { $0 * factor }
+        return copy
+    }
 
     /// Keeps at most `limit` rows, evenly spread and always including the
     /// last, so a long run stays inside the connection's size limit.
