@@ -121,7 +121,7 @@ struct WatchRunMetrics: Equatable {
 /// runs. The watch multiplies its own indoor estimate by it, so the live
 /// distance gets closer each time. Kept between 0.5 and 2 so one bad entry
 /// cannot make the next session absurd.
-struct IndoorDistanceScale: Equatable {
+struct IndoorDistanceScale: Codable, Equatable {
     var walk: Double
     var run: Double
 
