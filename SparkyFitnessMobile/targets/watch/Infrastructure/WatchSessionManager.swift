@@ -1325,6 +1325,19 @@ final class WatchSessionManager: NSObject, ObservableObject {
         return isActivated
     }
 
+    /// Tells the phone the wearer un-logged a set here. Queued like
+    /// `sendSetCompleted`, so one made out of range still arrives.
+    @discardableResult
+    func sendSetUncompleted(_ step: WorkoutStep) -> Bool {
+        guard let sessionId = workoutStore.plan?.sessionId else { return false }
+        transfer(OutboundPayloads.setUncompleted(
+            clientId: UUID().uuidString,
+            sessionId: sessionId,
+            setId: step.plannedSet.setId
+        ))
+        return isActivated
+    }
+
     /// Sends a Save or Skip that was stored because the session was not
     /// active yet. No-op until activation, and until the wearer has chosen.
     func retryPendingSetCompletion() {

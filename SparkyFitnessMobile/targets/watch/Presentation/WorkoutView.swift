@@ -1022,6 +1022,11 @@ private struct CurrentSetView: View {
             StepControls(isCompleted: store.isCompleted(step)) {
                 endCrownEditing()
                 store.goToPreviousStep()
+            } onUncomplete: {
+                endCrownEditing()
+                if store.uncompleteStep(step) {
+                    session.sendSetUncompleted(step)
+                }
             } onComplete: {
                 // The value on screen is what gets logged, settled or not.
                 endCrownEditing()
@@ -1498,6 +1503,7 @@ private struct ValueBox: View {
 private struct StepControls: View {
     let isCompleted: Bool
     let onPrevious: () -> Void
+    let onUncomplete: () -> Void
     let onComplete: () -> Void
     let onNext: () -> Void
 
@@ -1521,28 +1527,32 @@ private struct StepControls: View {
             SquircleButton(systemImage: "chevron.right", action: onNext)
                 .disabled(store.currentStepIndex >= store.steps.count - 1)
             // The main action, white like the rest of the controls are not.
-            // Once the set is logged it turns into a green tick so a second
-            // tap reads as already done rather than inviting a double entry.
+            // Once the set is logged it turns into an undo, a different glyph
+            // so a second tap does not read as logging it again.
             Button {
-                Haptics.setLogged()
-                onComplete()
+                if isCompleted {
+                    Haptics.tap()
+                    onUncomplete()
+                } else {
+                    Haptics.setLogged()
+                    onComplete()
+                }
             } label: {
-                Image(systemName: isCompleted ? "checkmark.circle.fill" : "checkmark")
+                Image(systemName: isCompleted ? "arrow.uturn.backward" : "checkmark")
                     .font(.system(size: WatchStyle.s(20), weight: .semibold))
                     // Spelled `Color.x` rather than `.x`: the parameter is an
                     // opaque `some ShapeStyle`, which gives a ternary's two
                     // branches nothing to infer a shared type from.
-                    .foregroundStyle(isCompleted ? Color.green : Color.black)
+                    .foregroundStyle(isCompleted ? Color.orange : Color.black)
                     .frame(maxWidth: .infinity)
                     .frame(height: WatchStyle.s(44))
                     .background(
-                        isCompleted ? Color.green.opacity(0.2) : Color.white,
+                        isCompleted ? Color.orange.opacity(0.2) : Color.white,
                         in: WatchStyle.shape
                     )
                     .contentShape(WatchStyle.shape)
             }
             .buttonStyle(.plain)
-            .disabled(isCompleted)
             // Double-tap logs the set, but only while this page is showing and
             // there is a set left to log. A running stopwatch owns the gesture
             // (it stops the timer first) so a hold is not logged mid-count.

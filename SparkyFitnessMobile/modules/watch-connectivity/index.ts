@@ -429,6 +429,14 @@ export interface WatchWorkoutStartPayload {
   fromPreset?: boolean;
 }
 
+/** A set the wearer un-logged on the watch during an active workout. */
+export interface WatchSetUncompletedPayload {
+  /** Stable id generated on the watch, to dedupe a re-delivered transfer. */
+  clientId: string;
+  sessionId: string;
+  setId: string;
+}
+
 /** One set logged on the watch during an active workout. */
 export interface WatchSetCompletedPayload {
   /** Stable id generated on the watch, to dedupe a re-delivered transfer. */
@@ -694,6 +702,7 @@ export type WatchConnectivityEvents = {
   onWaterDelete: (payload: WatchWaterDeletePayload) => void;
   onMedicationTaken: (payload: WatchMedicationTakenPayload) => void;
   onSetCompleted: (payload: WatchSetCompletedPayload) => void;
+  onSetUncompleted: (payload: WatchSetUncompletedPayload) => void;
   onRestChanged: (payload: WatchRestChangedPayload) => void;
   onSetTimerStarted: (payload: WatchSetTimerStartedPayload) => void;
   onSetTimerStopped: (payload: WatchSetTimerStoppedPayload) => void;
