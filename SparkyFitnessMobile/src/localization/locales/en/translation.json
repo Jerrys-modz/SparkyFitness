@@ -6433,6 +6433,9 @@
     }
   },
   "recordActivity": {
+    "liveActivity": {
+      "step": "{{name}} · {{current}} of {{total}}"
+    },
     "notification": {
       "title": "Recording your activity",
       "bodyWalk": "Tracking your walk with GPS",

@@ -244,6 +244,10 @@ function subscribe(listener: () => void): () => void {
 
 const getSnapshot = (): RecordingSnapshot => snapshot;
 
+/** The live recording outside React, for the Lock Screen Live Activity. */
+export const subscribeGpsRecording = subscribe;
+export const getGpsRecordingSnapshot = getSnapshot;
+
 /** Live recording state for the screen. */
 export function useGpsRecording(): RecordingSnapshot {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
