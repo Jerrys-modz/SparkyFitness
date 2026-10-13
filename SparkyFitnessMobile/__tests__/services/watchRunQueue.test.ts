@@ -36,6 +36,7 @@ const run = (clientId: string): WatchRunPayload => ({
   heartRate: [],
   laps: [],
   lapDistances: [],
+  distanceSeries: [],
   planId: null,
   program: null,
   planCompleted: false,

@@ -38,6 +38,7 @@ const outdoor: WatchRunPayload = {
   ],
   laps: [],
   lapDistances: [],
+  distanceSeries: [],
   planId: null,
   program: null,
   planCompleted: false,
@@ -113,6 +114,7 @@ test('an indoor run files the laps the wearer marked, with their distances', asy
     distanceMeters: 3000,
     laps: [T0 + 300_000, T0 + 600_000],
     lapDistances: [900, 1900],
+    distanceSeries: [],
   };
   await saveWatchRun(indoor, 'km', 'e7', jest.fn());
   expect(attachExerciseEntryGpsTrack).not.toHaveBeenCalled();
@@ -129,6 +131,7 @@ test('a failed laps upload does not fail the save', async () => {
     route: [],
     laps: [T0 + 300_000],
     lapDistances: [900],
+    distanceSeries: [],
   };
   await expect(saveWatchRun(indoor, 'km', 'e7', jest.fn())).resolves.toBe('e7');
   expect(attachExerciseEntryWatchTelemetry).toHaveBeenCalled();

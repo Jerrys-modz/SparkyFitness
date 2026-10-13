@@ -33,6 +33,7 @@ const run: WatchRunPayload = {
   heartRate: [],
   laps: [],
   lapDistances: [],
+  distanceSeries: [],
   planId: null,
   program: null,
   planCompleted: false,

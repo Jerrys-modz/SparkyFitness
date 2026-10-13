@@ -162,3 +162,14 @@ describe('indoorLapWindows', () => {
     ).toEqual([]);
   });
 });
+
+test('reads the distance series and drops malformed rows', () => {
+  const parsed = parseWatchRunPayload({
+    ...base,
+    distanceSeries: [[0, 0], [10, 25], ['x', 1], [20]],
+  });
+  expect(parsed?.distanceSeries).toEqual([
+    [0, 0],
+    [10, 25],
+  ]);
+});

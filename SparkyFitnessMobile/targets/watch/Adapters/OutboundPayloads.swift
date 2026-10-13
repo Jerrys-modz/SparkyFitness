@@ -344,6 +344,7 @@ enum OutboundPayloads {
             "heartRate": WatchRunResult.thin(result.heartRate, to: 600),
             "laps": result.laps,
             "lapDistances": result.lapDistances,
+            "distanceSeries": WatchRunResult.thin(result.distanceSeries, to: 300),
             "planCompleted": result.planCompleted,
             "distanceScale": result.distanceScale,
         ]

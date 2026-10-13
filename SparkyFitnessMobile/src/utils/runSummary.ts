@@ -34,6 +34,8 @@ export interface RunSummaryParams {
   splits: RecordedSplit[];
   /** The laps the person marked, when any. */
   laps: RecordedSplit[];
+  /** An indoor session's `[active seconds, metres]` rows, for the pace chart. */
+  distanceSeries?: number[][];
   /** The saved diary entry, so the screen can look up the records it set. */
   entryId?: string | null;
   /** True for a treadmill run, whose distance the person can correct. */
