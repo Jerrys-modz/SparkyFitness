@@ -27,6 +27,8 @@ import { getAppLocale } from '../localization';
 const MAX_QUEUED_UTTERANCES = 20;
 
 let pending = 0;
+// Bumped by every stop, so a cue still waiting for the voices is dropped.
+let generation = 0;
 
 // Per-workout session state shared by the guided card and the interval HUD:
 // the voice mute (not a saved setting) and the caption of the line being
@@ -94,8 +96,9 @@ export function speakGuided(
   // over as it starts speaking.
   if (options.interrupt || pending === 0 || muted) setCaption(lines[0] ?? null);
   if (muted) return;
+  const requested = generation;
   const dispatch = () => {
-    if (muted) return;
+    if (muted || requested !== generation) return;
     const { guidedSpeechRate } = useAppPreferencesStore.getState();
     const voice = resolveSpeechVoice(options.language ?? getAppLocale());
     try {
@@ -144,6 +147,7 @@ export function speakGuided(
 /** Cancels current and queued narration. Safe to call when nothing is speaking. */
 export function stopGuidedSpeech(): void {
   pending = 0;
+  generation += 1;
   try {
     void Speech.stop();
   } catch (err) {
@@ -180,6 +184,7 @@ export async function listGuidedVoices(): Promise<GuidedVoiceOption[]> {
 /** Test-only helper — clears the queue counter. */
 export function __resetSpeechForTests(): void {
   pending = 0;
+  generation = 0;
   muted = false;
   caption = null;
 }
