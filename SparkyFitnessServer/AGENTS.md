@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-10_
+_Last updated: 2026-10-13_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -266,6 +266,7 @@ When searching, ignore noisy/generated directories unless you explicitly need th
   inspect `POST /exercise-entries/:id/gps-track` in `routes/exerciseEntryRoutes.ts` and `services/exerciseEntryService.ts`'s `attachGpsTrackToExerciseEntry`, with the request schema `attachExerciseEntryGpsTrackRequestSchema` in `shared/src/schemas/api/ExerciseEntries.api.zod.ts`. It stores the route and laps (laps arrive as bare windows and are derived by `deriveLaps`) and backfills speed/elevation/moving-time with `deriveWorkoutTelemetry`, all in one transaction. Both inserts upsert per entry, so a retried post replaces the track. Use this rather than `/api/health-data` for app-recorded activities: the health-data path range-deletes a source's entries for the affected days.
 - Attaching laps to an entry with no GPS track (an indoor run recorded on the watch):
   inspect `POST /exercise-entries/:id/laps` in `routes/exerciseEntryRoutes.ts` and `services/exerciseEntryService.ts`'s `attachLapsToExerciseEntry`, with `attachExerciseEntryLapsRequestSchema` in `shared/src/schemas/api/ExerciseEntries.api.zod.ts`. The client sends the marked windows with the distance and average heart rate it worked out; the server derives duration and speed and upserts by lap index into `exercise_entry_laps`, so a retry replaces them. Entries with a track get their laps from `/gps-track` instead.
+  For an indoor run's pace chart, `POST`/`GET /exercise-entries/:id/distance-series` (`attachDistanceSeriesToExerciseEntry`, `getExerciseEntryDistanceSeries`, table `exercise_entry_distance_series`, rows of `[active seconds, metres]`; `setExerciseEntryDistance` rescales them with the laps).
 - Correcting the distance of an entry with no GPS track (a treadmill run, from the summary screen):
   inspect `POST /exercise-entries/:id/distance` in `routes/exerciseEntryRoutes.ts`, `services/exerciseEntryService.ts`'s `setExerciseEntryDistance` and `setExerciseEntryDistanceRequestSchema` in `shared/src/schemas/api/ExerciseEntries.api.zod.ts`. It changes only the entry's `distance`, its sets' distance and any laps (`distance_meters` and speed scaled by new over old distance), in one transaction, so measured heart rate and energy are kept; an entry with a GPS track is refused with 409.
 - Water, hydration, caffeine, or alcohol issue:

@@ -24,6 +24,8 @@ struct WatchRunSnapshot: Codable {
     /// Lap presses (epoch ms). Optional so a snapshot written before laps existed still decodes.
     var lapMarks: [Double]?
     var lapDistances: [Double]?
+    /// `[active seconds, metres]` rows for the pace chart. Optional for older snapshots.
+    var distanceSeries: [[Double]]?
     /// The plan being followed, so a relaunch keeps following it. Optional for older snapshots.
     var plan: WatchRunPlan?
     /// Auto-pause and voice cues as last set. Optional for older snapshots.

@@ -1,4 +1,5 @@
 import {
+  attachExerciseEntryDistanceSeries,
   attachExerciseEntryGpsTrack,
   attachExerciseEntryLaps,
   attachExerciseEntryWatchTelemetry,
@@ -98,6 +99,20 @@ export async function saveWatchRun(
       } catch (error) {
         addLog(
           `[Watch Run] Could not attach laps: ${String(error)}`,
+          'WARNING'
+        );
+      }
+    }
+    // The pace chart's data, so the diary's session screen can draw it too.
+    if (payload.distanceSeries.length >= 2) {
+      try {
+        await attachExerciseEntryDistanceSeries(
+          entryId,
+          payload.distanceSeries
+        );
+      } catch (error) {
+        addLog(
+          `[Watch Run] Could not attach distance series: ${String(error)}`,
           'WARNING'
         );
       }
