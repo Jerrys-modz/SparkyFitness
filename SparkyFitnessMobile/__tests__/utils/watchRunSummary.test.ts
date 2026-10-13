@@ -27,6 +27,7 @@ const outdoor: WatchRunPayload = {
   ],
   laps: [],
   lapDistances: [],
+  distanceSeries: [],
   planId: null,
   program: null,
   planCompleted: false,
@@ -62,6 +63,7 @@ test('an indoor run has no route; its laps come from the watch marks and distanc
       distanceMeters: 2000,
       laps: [T0 + 300_000],
       lapDistances: [900],
+      distanceSeries: [],
     },
     'km',
     null
@@ -93,4 +95,22 @@ test('lets the person correct the distance of a treadmill run once it is filed',
   expect(watchRunSummary(outdoor, 'km', null, 'entry-1').editableDistance).toBe(
     false
   );
+});
+
+test('an indoor run carries its distance series for the pace chart', () => {
+  const series = [
+    [0, 0],
+    [30, 80],
+    [60, 160],
+  ];
+  const summary = watchRunSummary(
+    { ...outdoor, place: 'indoor', route: [], distanceSeries: series },
+    'km',
+    null
+  );
+  expect(summary.distanceSeries).toEqual(series);
+  expect(
+    watchRunSummary({ ...outdoor, distanceSeries: series }, 'km', null)
+      .distanceSeries
+  ).toBeUndefined();
 });

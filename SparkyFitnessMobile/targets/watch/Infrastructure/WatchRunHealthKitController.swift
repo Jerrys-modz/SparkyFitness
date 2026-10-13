@@ -82,6 +82,9 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     private var lapMarks: [Double] = []
     /// Metres covered when each lap was marked, parallel to `lapMarks`.
     private var lapDistances: [Double] = []
+    /// `[active seconds, metres]` rows a few seconds apart, for the pace chart.
+    private var distanceSeries: [[Double]] = []
+    private static let distanceSeriesInterval: TimeInterval = 10
 
     var lapCount: Int { lapMarks.count }
     /// The plan this run follows, if any. The store reads it for the live step.
@@ -193,6 +196,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             heartRateRows = []
             lapMarks = []
             lapDistances = []
+            distanceSeries = []
 
             let now = Date()
             startedAt = now
@@ -282,6 +286,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                     heartRate: rows.heartRate,
                     laps: rows.laps,
                     lapDistances: rows.lapDistances,
+                    distanceSeries: self.distanceSeries,
                     plan: self.plan,
                     planCompleted: self.plan?.lastStepStarted(at: finalElapsed) ?? false
                 ) : nil
@@ -660,6 +665,7 @@ extension WatchRunHealthKitController: HKWorkoutSessionDelegate {
                 heartRate: self.heartRateRows,
                 laps: self.lapMarks,
                 lapDistances: self.lapDistances,
+                distanceSeries: self.distanceSeries,
                 plan: self.plan,
                 planCompleted: self.plan?.lastStepStarted(at: elapsed) ?? false
             ) : nil
@@ -690,6 +696,7 @@ extension WatchRunHealthKitController: HKLiveWorkoutBuilderDelegate {
             .mostRecentQuantity()?
             .doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
         let heartRateCollected = collectedTypes.contains(Self.heartRateType)
+        let activeElapsed = workoutBuilder.elapsedTime
         let readAt = Date().timeIntervalSince1970 * 1000
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
@@ -699,6 +706,10 @@ extension WatchRunHealthKitController: HKLiveWorkoutBuilderDelegate {
             if let bpm, bpm > 0 { updated.heartRate = bpm }
             let reading = heartRateCollected ? updated.heartRate : nil
             self.metrics = updated
+            if distance != nil, updated.distanceMeters > 0,
+               activeElapsed - (self.distanceSeries.last?.first ?? -Self.distanceSeriesInterval) >= Self.distanceSeriesInterval {
+                self.distanceSeries.append([activeElapsed.rounded(), updated.distanceMeters])
+            }
             if let reading, self.session != nil {
                 self.heartRateRows.append([readAt, reading])
                 self.persistSnapshot()

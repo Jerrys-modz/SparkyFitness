@@ -729,6 +729,8 @@ export interface WatchRunFinishedPayload {
   laps?: number[];
   /** Metres covered at each lap mark, same order (an indoor run's laps use these). */
   lapDistances: number[];
+  /** `[active seconds, cumulative metres]` about every 10 s; empty when not recorded. */
+  distanceSeries?: number[][];
   /** The plan the run followed, if any. */
   planId: string;
   /** Set when the plan was a training-program workout. */

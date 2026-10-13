@@ -25,6 +25,8 @@ export interface WatchRunPayload {
   laps: number[];
   /** Cumulative metres at each lap mark, same order; empty when not sent. */
   lapDistances: number[];
+  /** `[active seconds, cumulative metres]` about every 10 s, for the pace chart. */
+  distanceSeries: number[][];
   /** The plan the run followed, if any, and whether it reached the last step. */
   planId: string | null;
   /** A training-program workout the run was (program id and 0-based index). */
@@ -92,6 +94,7 @@ export function parseWatchRunPayload(raw: unknown): WatchRunPayload | null {
         ? { id: p.programId, index: Math.floor(p.programIndex) }
         : null,
     planCompleted: p.planCompleted === true,
+    distanceSeries: rows(p.distanceSeries, 2),
     lapDistances: Array.isArray(p.lapDistances)
       ? p.lapDistances.filter(finite)
       : [],

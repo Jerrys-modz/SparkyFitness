@@ -1070,6 +1070,7 @@ public class WatchConnectivityModule: Module {
             "heartRate": payload["heartRate"] as? [[Double]] ?? [],
             "laps": numberList(payload["laps"]),
             "lapDistances": numberList(payload["lapDistances"]),
+            "distanceSeries": payload["distanceSeries"] as? [[Double]] ?? [],
             "planId": payload["planId"] as? String ?? "",
             "programId": payload["programId"] as? String ?? "",
             "programIndex": (payload["programIndex"] as? NSNumber)?.intValue ?? -1,

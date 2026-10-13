@@ -71,5 +71,8 @@ export function watchRunSummary(
     activeSeconds:
       payload.activeSeconds > 0 ? payload.activeSeconds : base.activeSeconds,
     laps,
+    ...(payload.place === 'indoor' && payload.distanceSeries.length >= 2
+      ? { distanceSeries: payload.distanceSeries }
+      : {}),
   };
 }

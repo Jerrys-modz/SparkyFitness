@@ -7,6 +7,8 @@ import Button from '../components/ui/Button';
 import FormInput from '../components/FormInput';
 import Icon from '../components/Icon';
 import RouteMap from '../components/exerciseStats/RouteMap';
+import PaceChart from '../components/exerciseStats/PaceChart';
+import { paceSeriesFromDistance } from '../utils/cardioSession';
 import { SplitRow, Stat } from '../components/recording/SplitRow';
 import {
   EASY_RATING,
@@ -209,6 +211,15 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
     (row) => ({ ...row, distanceMeters: row.distanceMeters * distanceScale })
   );
   const usesLaps = summary.laps.length > 0;
+  // A treadmill run has no route; its pace comes from the distance the watch
+  // logged against time, moved by the same correction as the totals.
+  const paceSeries = paceSeriesFromDistance(
+    (summary.distanceSeries ?? []).map(([sec, meters]) => [
+      sec,
+      meters * distanceScale,
+    ]),
+    unitMeters
+  );
   const bars = splitBars(rows, unitMeters);
   const fastestLabel = t('recordActivity.fastest', { defaultValue: 'Fastest' });
 
@@ -505,6 +516,26 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
               accessibilityLabel={t('runSummary.routeA11y', {
                 defaultValue: 'Map of your route',
               })}
+            />
+          </View>
+        ) : null}
+
+        {paceSeries.length >= 2 ? (
+          <View className="bg-surface rounded-xl p-4 mb-4">
+            <Text className="text-text-primary text-base font-bold mb-2">
+              {t('exerciseStatistics.cardio.pace', { defaultValue: 'Pace' })}
+            </Text>
+            <PaceChart
+              data={paceSeries}
+              xAxisCaption={
+                miles
+                  ? t('exerciseStatistics.cardio.milesAxis', {
+                      defaultValue: 'Miles from start',
+                    })
+                  : t('exerciseStatistics.cardio.kilometersAxis', {
+                      defaultValue: 'Kilometers from start',
+                    })
+              }
             />
           </View>
         ) : null}

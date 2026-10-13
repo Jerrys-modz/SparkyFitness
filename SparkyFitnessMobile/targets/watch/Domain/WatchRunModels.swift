@@ -247,6 +247,9 @@ struct WatchRunResult {
     /// The distance covered (metres, cumulative) at each lap mark, same order.
     /// Indoors there is no route to measure laps from, so the phone uses these.
     var lapDistances: [Double] = []
+    /// `[active seconds, cumulative metres]` every ~10 s while going, for the
+    /// phone's pace chart. Empty after a relaunch mid-run.
+    var distanceSeries: [[Double]] = []
     /// The plan followed, if any; `planCompleted` is whether its last step began.
     var plan: WatchRunPlan?
     var planCompleted = false
@@ -262,6 +265,9 @@ struct WatchRunResult {
         var copy = self
         copy.metrics = metrics.scaled(factor)
         copy.lapDistances = lapDistances.map { $0 * factor }
+        copy.distanceSeries = distanceSeries.map { row in
+            row.count == 2 ? [row[0], row[1] * factor] : row
+        }
         return copy
     }
 
