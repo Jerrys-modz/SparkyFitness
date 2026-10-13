@@ -13,6 +13,9 @@ final class WatchRunStore: ObservableObject {
         case idle
         case running
         case paused
+        /// Ended indoors: asking for the treadmill's distance before the run
+        /// is sent to the phone (`confirmDistance`).
+        case confirmingDistance
         /// Ended and saved; the summary is up until the wearer dismisses it.
         case finished
     }
@@ -34,6 +37,12 @@ final class WatchRunStore: ObservableObject {
     /// True while paused by the movement detector rather than by the wearer.
     @Published private(set) var autoPaused = false
     @Published private(set) var lapCount = 0
+    /// The indoor run waiting on the treadmill question, already scaled.
+    private var pendingResult: WatchRunResult?
+    private var pendingElapsed: TimeInterval = 0
+    /// The learned indoor factor this run applies to the watch's own distance
+    /// (1 outdoors); see `IndoorDistanceScale`.
+    private(set) var distanceScale: Double = 1
     /// The plan this run follows, if any. The page works out the live step
     /// from it each second; the store only cues the changes.
     @Published private(set) var plan: WatchRunPlan?
@@ -69,8 +78,10 @@ final class WatchRunStore: ObservableObject {
     private init() {
         healthKit.onMetrics = { [weak self] metrics in
             Task { @MainActor in
-                self?.metrics = metrics
-                self?.cueSplitIfDue(metrics)
+                guard let self else { return }
+                let shown = metrics.scaled(self.distanceScale)
+                self.metrics = shown
+                self.cueSplitIfDue(shown)
             }
         }
         healthKit.onFailure = { [weak self] result in
@@ -90,6 +101,7 @@ final class WatchRunStore: ObservableObject {
         self.kind = kind
         self.place = place
         self.plan = plan
+        distanceScale = Self.scale(for: kind, place: place)
         cuedStep = -1
         summary = nil
         metrics = WatchRunMetrics()
@@ -130,7 +142,8 @@ final class WatchRunStore: ObservableObject {
                 case .resumed(let recovery):
                     self.kind = recovery.kind
                     self.place = recovery.place
-                    self.metrics = recovery.metrics
+                    self.distanceScale = Self.scale(for: recovery.kind, place: recovery.place)
+                    self.metrics = recovery.metrics.scaled(self.distanceScale)
                     self.summary = nil
                     self.autoPaused = recovery.autoPaused
                     self.lapCount = recovery.lapCount
@@ -149,8 +162,11 @@ final class WatchRunStore: ObservableObject {
                     self.lastSplitElapsed = resumedAt
                     self.phase = recovery.paused ? .paused : .running
                     completion(true)
-                case .salvaged(let result):
+                case .salvaged(let unscaled):
                     // The Health session was lost; the run itself was not.
+                    let scale = Self.scale(for: unscaled.kind, place: unscaled.place)
+                    var result = unscaled.scalingDistance(by: scale)
+                    result.distanceScale = scale
                     // The snapshot stays until the message is durably queued.
                     if WatchSessionManager.shared.sendRunFinished(result) {
                         WatchRunSnapshotStore.clear()
@@ -306,18 +322,30 @@ final class WatchRunStore: ObservableObject {
         let ending = kind
         let endingPlace = place
         autoPaused = false
+        let scale = distanceScale
         healthKit.end(save: save) { [weak self] metrics, elapsed, result in
             Task { @MainActor in
                 guard let self else { return }
-                self.metrics = metrics
+                self.metrics = metrics.scaled(scale)
+                var scaled = result?.scalingDistance(by: scale)
+                scaled?.distanceScale = scale
+                // Indoors the wearer is asked for the treadmill's distance
+                // first; the snapshot stays until the answer is sent, so a
+                // relaunch in between still delivers the run.
+                if save, endingPlace == .indoor, let scaled {
+                    self.pendingResult = scaled
+                    self.pendingElapsed = elapsed
+                    self.phase = .confirmingDistance
+                    return
+                }
                 // The Health workout is stamped so the phone's import skips
                 // it; this message is how the run reaches the diary.
-                if let result, WatchSessionManager.shared.sendRunFinished(result) {
+                if let scaled, WatchSessionManager.shared.sendRunFinished(scaled) {
                     // Only once the message is durably queued (handed to the system,
                     // or written until the session activates) is the snapshot
                     // no longer needed.
                     WatchRunSnapshotStore.clear()
-                } else if result == nil {
+                } else if scaled == nil {
                     WatchRunSnapshotStore.clear()
                 }
                 if save {
@@ -331,6 +359,34 @@ final class WatchRunStore: ObservableObject {
         }
     }
 
+    /// Answers the treadmill question: `meters` is what the machine showed,
+    /// or nil to keep the watch's figure. Sends the run to the phone either
+    /// way, then shows the summary.
+    func confirmDistance(_ meters: Double?) {
+        guard phase == .confirmingDistance, var result = pendingResult else { return }
+        let shown = result.metrics.distanceMeters
+        if let meters, meters > 0 {
+            result.estimatedDistanceMeters = shown
+            result = result.scalingDistance(by: shown > 0 ? meters / shown : 1)
+            // A watch that measured nothing still takes the machine's figure.
+            result.metrics.distanceMeters = meters
+        }
+        pendingResult = nil
+        // The snapshot stays until the message is durably queued.
+        if WatchSessionManager.shared.sendRunFinished(result) {
+            WatchRunSnapshotStore.clear()
+        }
+        metrics = result.metrics
+        summary = Summary(kind: result.kind, place: result.place, elapsed: pendingElapsed, metrics: result.metrics, saved: true)
+        phase = .finished
+    }
+
+    /// The learned indoor factor for a new run; outdoors the GPS needs none.
+    private static func scale(for kind: WatchRunKind, place: WatchRunPlace) -> Double {
+        guard place == .indoor else { return 1 }
+        return CheckInStore.shared.context.indoorDistanceScale?.factor(for: kind) ?? 1
+    }
+
     private func sessionFailed(_ result: WatchRunResult?) {
         guard phase == .running || phase == .paused else { return }
         stopStepTimer()
@@ -341,16 +397,18 @@ final class WatchRunStore: ObservableObject {
             return
         }
         // The Health session failed, but the run was recorded: send it on.
+        var scaled = result.scalingDistance(by: distanceScale)
+        scaled.distanceScale = distanceScale
         // Keep the snapshot when the message could not be queued yet.
-        if WatchSessionManager.shared.sendRunFinished(result) {
+        if WatchSessionManager.shared.sendRunFinished(scaled) {
             WatchRunSnapshotStore.clear()
         }
-        metrics = result.metrics
+        metrics = scaled.metrics
         summary = Summary(
             kind: result.kind,
             place: result.place,
             elapsed: result.activeSeconds,
-            metrics: result.metrics,
+            metrics: scaled.metrics,
             saved: true
         )
         phase = .finished

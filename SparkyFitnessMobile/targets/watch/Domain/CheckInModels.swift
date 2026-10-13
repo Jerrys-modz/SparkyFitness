@@ -474,6 +474,9 @@ struct WatchContext: Codable, Equatable {
     var runVoiceCues: Bool? = nil
     /// Plans a wrist-only run can follow. Nil until the phone has said.
     var runPlans: [WatchRunPlan]? = nil
+    /// Learned correction for the watch's indoor distance. Nil until the
+    /// phone has learned one, which reads as no correction.
+    var indoorDistanceScale: IndoorDistanceScale? = nil
 
     static let empty = WatchContext(
         today: nil,

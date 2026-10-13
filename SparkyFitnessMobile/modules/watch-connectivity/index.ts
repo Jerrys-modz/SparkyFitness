@@ -179,6 +179,12 @@ export interface WatchContextPayload {
    * (carrying `programId`/`programIndex`) then the built-in interval plans,
    * with step names already translated. Missing keeps the watch's last list.
    */
+  /**
+   * Learned correction for the watch's indoor distance, from treadmill
+   * distances entered after earlier sessions (`services/watchIndoorScale.ts`).
+   * Missing keeps the watch's last value.
+   */
+  indoorDistanceScale?: { walk: number; run: number };
   runPlans?: {
     id: string;
     name: string;
@@ -728,6 +734,10 @@ export interface WatchRunFinishedPayload {
   programIndex: number;
   /** Whether the run reached the plan's last step. */
   planCompleted: boolean;
+  /** The learned indoor factor the watch applied to its own distance. */
+  distanceScale?: number;
+  /** What the watch showed before a treadmill distance was entered on the wrist. */
+  estimatedDistanceMeters?: number;
 }
 
 export type WatchConnectivityEvents = {

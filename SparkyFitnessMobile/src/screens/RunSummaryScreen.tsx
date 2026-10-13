@@ -36,6 +36,7 @@ import {
   splitBars,
 } from '../utils/gpsRecording';
 import type { RootStackScreenProps } from '../types/navigation';
+import { learnWatchIndoorScale } from '../services/watchIndoorScale';
 
 type Props = RootStackScreenProps<'RunSummary'>;
 
@@ -106,6 +107,15 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       await setExerciseEntryDistance(summary.entryId, km);
       setDistanceMeters(km * METERS_PER_KM);
+      // The watch's indoor estimate learns from the machine's figure.
+      if (summary.watchIndoor) {
+        void learnWatchIndoorScale(
+          summary.activity,
+          summary.watchIndoor.scale,
+          summary.watchIndoor.estimatedMeters,
+          km * METERS_PER_KM
+        );
+      }
       setDistanceSaved(true);
       invalidateExerciseCache(queryClient, summary.entryDate);
       void queryClient.invalidateQueries({ queryKey: ['personalRecords'] });

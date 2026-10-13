@@ -69,6 +69,10 @@ import {
 } from '../services/gpsRecordingService';
 import { useRunProgram } from '../services/runProgramService';
 import { buildWatchRunPlans } from '../utils/watchRunPlans';
+import {
+  getWatchIndoorScale,
+  onWatchIndoorScaleChange,
+} from '../services/watchIndoorScale';
 import { presetName } from '../components/recording/IntervalSetup';
 import { programWorkoutLabel } from '../components/recording/RunProgramCard';
 
@@ -288,6 +292,27 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // shows metres, or yards when the phone is set to miles.
   const distanceUnit = watchDistanceUnit(preferences?.default_distance_unit);
   const { status: programStatus, enabled: programEnabled } = useRunProgram();
+  // The learned indoor distance factor, re-read whenever a correction
+  // changes it, so the next context push carries the new value.
+  const [indoorDistanceScale, setIndoorDistanceScale] = useState<{
+    walk: number;
+    run: number;
+  } | null>(null);
+  useEffect(() => {
+    let active = true;
+    const load = () => {
+      void getWatchIndoorScale().then((scale) => {
+        if (active) setIndoorDistanceScale(scale);
+      });
+    };
+    load();
+    const unsubscribe = onWatchIndoorScaleChange(load);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
+
   const runPlans = useMemo(
     () =>
       buildWatchRunPlans(
@@ -714,6 +739,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         rpeEnabled: watchRpeEnabled,
         runVoiceCues: (await getRecordingPreferences()).audioCues,
         runPlans,
+        ...(indoorDistanceScale ? { indoorDistanceScale } : {}),
         startableWorkouts,
         suggestedExercises,
         // Built for `summaryDate`; a push that has crossed midnight before the
@@ -760,6 +786,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     watchDoubleTapEnabled,
     watchRpeEnabled,
     runPlans,
+    indoorDistanceScale,
     startableWorkouts,
     suggestedExercises,
     scheduledWorkouts,

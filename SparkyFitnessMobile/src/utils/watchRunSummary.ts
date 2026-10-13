@@ -56,6 +56,15 @@ export function watchRunSummary(
     // A treadmill has no route, so the person can correct the distance to what
     // the machine showed.
     editableDistance: payload.place === 'indoor' && Boolean(entryId),
+    ...(payload.place === 'indoor'
+      ? {
+          watchIndoor: {
+            scale: payload.distanceScale ?? 1,
+            estimatedMeters:
+              payload.estimatedDistanceMeters ?? payload.distanceMeters,
+          },
+        }
+      : {}),
     // The watch's own figures, not re-derived from a thinned route.
     distanceMeters:
       payload.distanceMeters > 0 ? payload.distanceMeters : base.distanceMeters,

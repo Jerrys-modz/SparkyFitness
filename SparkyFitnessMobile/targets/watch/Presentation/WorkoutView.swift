@@ -1713,7 +1713,7 @@ private struct RestView: View {
 /// Digit pad for one value. watchOS has no usable inline number field, and
 /// the Digital Crown alone makes a 60 → 82.5 change a long scroll, so a
 /// tapped value opens this instead.
-private struct NumericKeypadView: View {
+struct NumericKeypadView: View {
     let title: String
     let initial: Double?
     let allowsDecimal: Bool

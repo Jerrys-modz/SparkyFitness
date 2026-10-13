@@ -38,6 +38,12 @@ export interface RunSummaryParams {
   entryId?: string | null;
   /** True for a treadmill run, whose distance the person can correct. */
   editableDistance?: boolean;
+  /**
+   * For a watch indoor session: the learned factor the watch applied and the
+   * distance it showed before any correction, so a treadmill distance entered
+   * here teaches the factor (`learnWatchIndoorScale`).
+   */
+  watchIndoor?: { scale: number; estimatedMeters: number };
   /** For a program workout: where the person is now and what comes next. */
   program: {
     nextLine: string;

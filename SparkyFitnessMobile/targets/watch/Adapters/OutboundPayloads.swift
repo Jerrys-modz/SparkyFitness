@@ -287,7 +287,11 @@ enum OutboundPayloads {
             "laps": result.laps,
             "lapDistances": result.lapDistances,
             "planCompleted": result.planCompleted,
+            "distanceScale": result.distanceScale,
         ]
+        if let estimated = result.estimatedDistanceMeters {
+            payload["estimatedDistanceMeters"] = estimated
+        }
         if let plan = result.plan {
             payload["planId"] = plan.id
             if let programId = plan.programId, let index = plan.programIndex {

@@ -85,7 +85,8 @@ enum ContextPayloadMapper {
             steps: steps(from: payload["steps"]),
             stepGoal: (payload["stepGoal"] as? NSNumber)?.intValue ?? previous.stepGoal,
             runVoiceCues: payload["runVoiceCues"] as? Bool ?? previous.runVoiceCues,
-            runPlans: runPlans(from: payload) ?? previous.runPlans
+            runPlans: runPlans(from: payload) ?? previous.runPlans,
+            indoorDistanceScale: indoorDistanceScale(from: payload) ?? previous.indoorDistanceScale
         )
     }
 
@@ -143,6 +144,14 @@ enum ContextPayloadMapper {
     }
 
     /// Nil when the key is absent so an older push keeps the list; empty is a real answer.
+    /// `{walk, run}` factors; nil when the phone sent none.
+    static func indoorDistanceScale(from payload: [String: Any]) -> IndoorDistanceScale? {
+        guard let raw = payload["indoorDistanceScale"] as? [String: Any] else { return nil }
+        let walk = (raw["walk"] as? NSNumber)?.doubleValue ?? 1
+        let run = (raw["run"] as? NSNumber)?.doubleValue ?? 1
+        return IndoorDistanceScale(walk: walk, run: run)
+    }
+
     static func runPlans(from payload: [String: Any]) -> [WatchRunPlan]? {
         guard let raw = payload["runPlans"] else { return nil }
         let rows = dictionaryArray(raw) ?? []
