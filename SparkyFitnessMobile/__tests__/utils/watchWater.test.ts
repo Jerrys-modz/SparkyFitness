@@ -11,9 +11,10 @@ describe('watchWaterFromFoodMl', () => {
     expect(watchWaterFromFoodMl(true, 400)).toBe(400);
   });
 
-  it('sends 0 when the setting is on but no food water is logged yet', () => {
-    expect(watchWaterFromFoodMl(true, 0)).toBe(0);
-    expect(watchWaterFromFoodMl(true, undefined)).toBe(0);
-    expect(watchWaterFromFoodMl(true, NaN)).toBe(0);
+  it('sends nothing when the setting is on but there is no food water to show', () => {
+    expect(watchWaterFromFoodMl(true, 0)).toBeNull();
+    expect(watchWaterFromFoodMl(true, undefined)).toBeNull();
+    expect(watchWaterFromFoodMl(true, NaN)).toBeNull();
+    expect(watchWaterFromFoodMl(true, -1)).toBeNull();
   });
 });
