@@ -313,6 +313,8 @@ enum OutboundPayloads {
             "autoPaused": autoPaused,
             "autoPause": settings.autoPause,
             "voiceCues": settings.voiceCues,
+            "paceAlert": settings.paceBand != nil,
+            "heartRateAlert": settings.heartRateBand != nil,
             "elapsed": elapsed,
             "distanceMeters": distanceMeters,
             "energyKcal": energyKcal,

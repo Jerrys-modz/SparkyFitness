@@ -242,7 +242,7 @@ enum ContextPayloadMapper {
     }
 
     /// A pause, resume, lap, finish or discard sent from the phone's live view,
-    /// or a switch change (`autoPauseOn`/`Off`, `voiceCuesOn`/`Off`).
+    /// or a switch change (`autoPauseOn`/`Off`, `voiceCuesOn`/`Off`, `paceAlertOn`/`Off`, `heartRateAlertOn`/`Off`).
     static func runControl(from payload: [String: Any]) -> (runId: String, action: String, controlId: String)? {
         guard
             let runId = payload["runId"] as? String, !runId.isEmpty,

@@ -155,6 +155,10 @@ final class WatchRunStore: ObservableObject {
         case "autoPauseOff": setAutoPause(false)
         case "voiceCuesOn": setVoiceCues(true)
         case "voiceCuesOff": setVoiceCues(false)
+        case "paceAlertOn": setPaceAlert(true)
+        case "paceAlertOff": setPaceAlert(false)
+        case "heartRateAlertOn": setHeartRateAlert(true)
+        case "heartRateAlertOff": setHeartRateAlert(false)
         default: break
         }
     }

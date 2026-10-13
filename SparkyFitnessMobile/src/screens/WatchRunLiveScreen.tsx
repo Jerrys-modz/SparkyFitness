@@ -33,6 +33,17 @@ type Props = RootStackScreenProps<'WatchRunLive'>;
  * the finished run is filed in the diary by the usual hand-off. Pause, lap,
  * finish and discard here are sent to the watch, which acts on them.
  */
+/** The control sent for each switch turned on or off. */
+const SWITCH_ACTIONS: Record<
+  'autoPause' | 'voiceCues' | 'paceAlert' | 'heartRateAlert',
+  { on: WatchRunControlAction; off: WatchRunControlAction }
+> = {
+  autoPause: { on: 'autoPauseOn', off: 'autoPauseOff' },
+  voiceCues: { on: 'voiceCuesOn', off: 'voiceCuesOff' },
+  paceAlert: { on: 'paceAlertOn', off: 'paceAlertOff' },
+  heartRateAlert: { on: 'heartRateAlertOn', off: 'heartRateAlertOff' },
+};
+
 const WatchRunLiveScreen: React.FC<Props> = ({ navigation }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -88,6 +99,8 @@ const WatchRunLiveScreen: React.FC<Props> = ({ navigation }) => {
     sentAt: number;
     autoPause?: boolean;
     voiceCues?: boolean;
+    paceAlert?: boolean;
+    heartRateAlert?: boolean;
   }>({ sentAt: 0 });
   const answered = run != null && run.sentAt > switchTaps.sentAt;
   const shownAutoPause = answered
@@ -96,18 +109,21 @@ const WatchRunLiveScreen: React.FC<Props> = ({ navigation }) => {
   const shownVoiceCues = answered
     ? run?.voiceCues
     : (switchTaps.voiceCues ?? run?.voiceCues);
-  const toggle = (setting: 'autoPause' | 'voiceCues', value: boolean) => {
+  const shownPaceAlert = answered
+    ? run?.paceAlert
+    : (switchTaps.paceAlert ?? run?.paceAlert);
+  const shownHeartRateAlert = answered
+    ? run?.heartRateAlert
+    : (switchTaps.heartRateAlert ?? run?.heartRateAlert);
+  const toggle = (
+    setting: 'autoPause' | 'voiceCues' | 'paceAlert' | 'heartRateAlert',
+    value: boolean
+  ) => {
     if (!run) return;
     setSwitchTaps({ sentAt: run.sentAt, [setting]: value });
-    const action: WatchRunControlAction =
-      setting === 'autoPause'
-        ? value
-          ? 'autoPauseOn'
-          : 'autoPauseOff'
-        : value
-          ? 'voiceCuesOn'
-          : 'voiceCuesOff';
-    control(action, () => setSwitchTaps({ sentAt: 0 }));
+    control(SWITCH_ACTIONS[setting][value ? 'on' : 'off'], () =>
+      setSwitchTaps({ sentAt: 0 })
+    );
   };
 
   const confirmDiscard = () =>
@@ -323,6 +339,27 @@ const WatchRunLiveScreen: React.FC<Props> = ({ navigation }) => {
                 })}
                 value={shownVoiceCues}
                 onValueChange={(value) => toggle('voiceCues', value)}
+              />
+            ) : null}
+            {/* The range is the one chosen at the start, or the last one used. */}
+            {shownPaceAlert != null ? (
+              <RecordingSwitchRow
+                testID="watch-pace-alert-switch"
+                title={t('watchRunLive.paceAlert', {
+                  defaultValue: 'Pace alert',
+                })}
+                value={shownPaceAlert}
+                onValueChange={(value) => toggle('paceAlert', value)}
+              />
+            ) : null}
+            {shownHeartRateAlert != null ? (
+              <RecordingSwitchRow
+                testID="watch-heart-rate-alert-switch"
+                title={t('watchRunLive.heartRateAlert', {
+                  defaultValue: 'Heart rate alert',
+                })}
+                value={shownHeartRateAlert}
+                onValueChange={(value) => toggle('heartRateAlert', value)}
               />
             ) : null}
             <View className="mb-4" />
