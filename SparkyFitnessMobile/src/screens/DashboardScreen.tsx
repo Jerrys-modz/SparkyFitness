@@ -45,6 +45,7 @@ import { MindfulnessCard } from '../components/mindfulness/MindfulnessCard';
 import SymptomsCard from '../components/SymptomsCard';
 import MoodCard from '../components/mood/MoodCard';
 import ProgressPhotosCard from '../components/ProgressPhotosCard';
+import TrainingLoadDashboardCard from '../components/TrainingLoadDashboardCard';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
 import StatusView from '../components/StatusView';
 import { NUTRIENT_META, getNutrientLabel } from '../constants/nutrients';
@@ -383,6 +384,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   );
   const mindfulnessCardVisible = useAppPreferencesStore(
     (s) => s.mindfulnessCardVisible
+  );
+  const trainingLoadCardVisible = useAppPreferencesStore(
+    (s) => s.trainingLoadCardVisible
   );
 
   const { sessions: mindfulSessions, totalMindfulMinutes } =
@@ -883,6 +887,13 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     onPageSelected={setChartPage}
                   />
                 </View>
+              ) : null;
+            case 'trainingLoad':
+              return trainingLoadCardVisible ? (
+                <TrainingLoadDashboardCard
+                  key="trainingLoad"
+                  navigation={navigation}
+                />
               ) : null;
             case 'mindfulness':
               return mindfulnessCardVisible ? (
