@@ -6210,7 +6210,9 @@
       "bestPace": "Best {{value}}",
       "perKm": "/km",
       "perMile": "/mi",
-      "underOneMinute": "<1 min"
+      "underOneMinute": "<1 min",
+      "exportGpx": "Export GPX",
+      "exportGpxFailed": "Could not export the route"
     },
     "consistency": {
       "title": "Training Consistency",
