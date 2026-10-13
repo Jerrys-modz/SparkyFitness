@@ -6,6 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import {
   Alert,
   ActivityIndicator,
@@ -30,6 +31,7 @@ import {
   programName,
   programWorkoutLabel,
 } from '../components/recording/RunProgramCard';
+import GpsSignalBadge from '../components/recording/GpsSignalBadge';
 import IntervalCard from '../components/recording/IntervalCard';
 import IntervalSetup, {
   DEFAULT_CUSTOM_INTERVALS,
@@ -114,6 +116,32 @@ import type { RootStackScreenProps } from '../types/navigation';
 type Props = RootStackScreenProps<'RecordActivity'>;
 
 const FEET_PER_METER = 3.28084;
+
+/** "Outdoor run", "Indoor walk", "Ride": what a recording is, for its header. */
+function recordingTitle(
+  t: TFunction,
+  activity: RecordingActivity,
+  indoor: boolean
+): string {
+  switch (activity) {
+    case 'walk':
+      return indoor
+        ? t('recordActivity.title.indoorWalk', { defaultValue: 'Indoor walk' })
+        : t('recordActivity.title.outdoorWalk', {
+            defaultValue: 'Outdoor walk',
+          });
+    case 'ride':
+      return indoor
+        ? t('recordActivity.title.indoorRide', { defaultValue: 'Indoor ride' })
+        : t('recordActivity.title.outdoorRide', {
+            defaultValue: 'Outdoor ride',
+          });
+    default:
+      return indoor
+        ? t('recordActivity.title.indoorRun', { defaultValue: 'Indoor run' })
+        : t('recordActivity.title.outdoorRun', { defaultValue: 'Outdoor run' });
+  }
+}
 
 const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const { t } = useTranslation();
@@ -227,11 +255,14 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     countdownSeconds: false,
   });
 
+  // While a recording is going, the header names it ("Outdoor run"), so the
+  // screen always says what is being recorded.
+  const liveTitle = session
+    ? recordingTitle(t, session.activity, session.indoor === true)
+    : t('screens.recordActivity', { defaultValue: 'Record Activity' });
   useScreenHeader({
-    title: t('screens.recordActivity', { defaultValue: 'Record Activity' }),
-    nativeTitle: t('screens.recordActivity', {
-      defaultValue: 'Record Activity',
-    }),
+    title: liveTitle,
+    nativeTitle: liveTitle,
     left: { kind: 'back' },
   });
 
@@ -977,6 +1008,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
                 defaultValue: 'Waiting for a GPS fix…',
               })}
             </Text>
+          </View>
+        )}
+        {indoorSession || finished ? null : (
+          <View className="items-center mb-2">
+            <GpsSignalBadge />
           </View>
         )}
         <View className="items-center mb-4">

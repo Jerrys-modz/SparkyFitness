@@ -22,6 +22,38 @@ enum WatchRunPlace: String {
     }
 }
 
+/// How good the GPS is right now, from the latest fix's accuracy radius, shown
+/// as signal bars on an outdoor recording. A fix older than `staleAfter` reads
+/// as no signal, since the GPS has gone quiet.
+enum GpsSignal: Int {
+    case none, weak, fair, good
+
+    static let staleAfter: TimeInterval = 15
+
+    /// `accuracy` is the radius in metres (negative when the fix has none).
+    init(accuracy: Double?, at time: Date?, now: Date = Date()) {
+        guard let accuracy, let time, accuracy >= 0,
+              now.timeIntervalSince(time) <= GpsSignal.staleAfter else {
+            self = .none
+            return
+        }
+        switch accuracy {
+        case ...10: self = .good
+        case ...25: self = .fair
+        default: self = .weak
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .none: return "No GPS signal"
+        case .weak: return "Weak GPS signal"
+        case .fair: return "Fair GPS signal"
+        case .good: return "Good GPS signal"
+        }
+    }
+}
+
 /// What the wearer is recording from the wrist alone. Raw values are for
 /// logging, not the wire.
 enum WatchRunKind: String {

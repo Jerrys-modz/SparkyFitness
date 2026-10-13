@@ -40,6 +40,7 @@ jest.mock('../../src/services/gpsRecordingService', () => {
   return {
     RecordingPermissionError,
     useGpsRecording: jest.fn(),
+    useLatestGpsFix: jest.fn(() => ({ hacc: 6, t: Date.now() })),
     hydrate: jest.fn(() => Promise.resolve()),
     markLap: jest.fn(() => Promise.resolve(1)),
     startRecording: jest.fn(() => Promise.resolve()),
@@ -491,6 +492,21 @@ describe('RecordActivityScreen', () => {
 
     fireEvent.press(screen.getByText('Pause'));
     await waitFor(() => expect(pauseRecording).toHaveBeenCalled());
+  });
+
+  it('names the activity in the header and shows the GPS signal', async () => {
+    state(session(), track);
+    const screen = await renderScreen();
+    const { useScreenHeader } = jest.requireMock(
+      '../../src/hooks/useScreenHeader'
+    );
+    expect(useScreenHeader).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        title: 'Outdoor run',
+        nativeTitle: 'Outdoor run',
+      })
+    );
+    expect(screen.getByLabelText('GPS good')).toBeTruthy();
   });
 
   it('finishes from the live screen', async () => {

@@ -43,6 +43,10 @@ final class WatchRunStore: ObservableObject {
     /// The learned indoor factor this run applies to the watch's own distance
     /// (1 outdoors); see `IndoorDistanceScale`.
     private(set) var distanceScale: Double = 1
+    /// The latest GPS fix's accuracy radius and when it came, for the signal
+    /// bars on an outdoor run. Nil indoors and before the first fix.
+    @Published private(set) var gpsAccuracy: Double?
+    @Published private(set) var gpsAccuracyAt: Date?
     /// This run's switches; see `WatchRunSettings`.
     @Published private(set) var settings = WatchRunSettings(autoPause: true, voiceCues: false)
     /// The plan this run follows, if any. The page works out the live step
@@ -99,6 +103,12 @@ final class WatchRunStore: ObservableObject {
         }
         healthKit.onAutoPause = { [weak self] action in
             Task { @MainActor in self?.applyAutoPause(action) }
+        }
+        healthKit.onGpsAccuracy = { [weak self] accuracy in
+            Task { @MainActor in
+                self?.gpsAccuracy = accuracy
+                self?.gpsAccuracyAt = Date()
+            }
         }
     }
 
@@ -168,6 +178,8 @@ final class WatchRunStore: ObservableObject {
         cuedStep = -1
         summary = nil
         metrics = WatchRunMetrics()
+        gpsAccuracy = nil
+        gpsAccuracyAt = nil
         lapCount = 0
         cuedSplits = 0
         lastSplitElapsed = 0

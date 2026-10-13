@@ -24,9 +24,9 @@ struct CardioControl: Identifiable {
 
 /// The live screen of a walk, run or ride, shared by the wrist-only recording
 /// and the phone's GPS recording. Laid out like the strength workout: a quiet
-/// header with the activity and its state, the clock large, the readings in
-/// the same dark tiles as the set values, and squircle buttons along the
-/// bottom with the main one (pause or resume) in white.
+/// header with the activity, its state and the GPS signal, the clock large,
+/// the readings in the same dark tiles as the set values, and squircle buttons
+/// along the bottom with the main one (pause or resume) in white.
 struct CardioLiveLayout<Banner: View>: View {
     let systemImage: String
     /// "Indoor walk", "Outdoor run", "Ride".
@@ -37,8 +37,10 @@ struct CardioLiveLayout<Banner: View>: View {
     let elapsed: (Date) -> TimeInterval
     let stats: [CardioStat]
     let controls: [CardioControl]
-    /// Opens the recording's settings from a round button in the header.
-    var onSettings: (() -> Void)?
+    /// GPS signal bars beside the title, worked out at a moment so they go
+    /// grey when fixes stop coming; nil hides them (indoors, or a recording
+    /// whose GPS is on the phone).
+    var signal: ((Date) -> GpsSignal)?
     /// A plan's current step, under the clock. Gets the same moment as the clock.
     @ViewBuilder let banner: (Date) -> Banner
 
@@ -100,17 +102,14 @@ struct CardioLiveLayout<Banner: View>: View {
                 .minimumScaleFactor(0.7)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityLabel(status.map { "\(title), \($0)" } ?? title)
-            if let onSettings {
-                SquircleButton(systemImage: "gearshape.fill", circular: true, action: onSettings)
-                    .accessibilityLabel("Settings")
-                    // Lower than the title, as on the strength header, so it
-                    // clears the system clock in the top right.
-                    .offset(y: WatchStyle.s(12))
-            } else {
-                // The system clock sits over the top right; keep the title
-                // out from under it.
-                Color.clear.frame(width: WatchStyle.s(48), height: 1)
+            if let signal {
+                TimelineView(.periodic(from: .now, by: 5)) { context in
+                    GpsSignalBars(signal: signal(context.date))
+                }
             }
+            // The system clock sits over the top right; keep the title out
+            // from under it.
+            Color.clear.frame(width: WatchStyle.s(48), height: 1)
         }
     }
 
@@ -178,5 +177,32 @@ struct CardioPlanStep: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(tint.opacity(0.18), in: RoundedRectangle(cornerRadius: WatchStyle.s(10), style: .continuous))
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Three bars, lit by how good the GPS fix is: green when good, yellow when
+/// fair, red when weak, grey with none.
+struct GpsSignalBars: View {
+    let signal: GpsSignal
+
+    private var tint: Color {
+        switch signal {
+        case .good: return .green
+        case .fair: return .yellow
+        case .weak: return .red
+        case .none: return .gray
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: WatchStyle.s(2)) {
+            ForEach(1...3, id: \.self) { bar in
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(bar <= signal.rawValue ? tint : Color.white.opacity(0.25))
+                    .frame(width: WatchStyle.s(3), height: WatchStyle.s(CGFloat(3 + bar * 3)))
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel(signal.label)
     }
 }

@@ -48,8 +48,15 @@ const WatchRunLiveScreen: React.FC<Props> = ({ navigation }) => {
     defaultValue: '/{{unit}}',
     unit: unitLabel,
   });
+  const title =
+    run?.kind === 'walk'
+      ? t('screens.watchWalkLive', { defaultValue: 'Walk on your watch' })
+      : run?.kind === 'run'
+        ? t('screens.watchRunLiveRun', { defaultValue: 'Run on your watch' })
+        : t('screens.watchRunLive', { defaultValue: 'On your watch' });
   const header = useScreenHeader({
-    title: t('screens.watchRunLive', { defaultValue: 'On your watch' }),
+    title,
+    nativeTitle: title,
     left: { kind: 'back' },
   });
   const number = (value: number, digits = 2) =>

@@ -39,7 +39,9 @@ struct WatchRunView: View {
             elapsed: { _ in run.elapsed },
             stats: stats(elapsed: run.elapsed, metrics: run.metrics),
             controls: controls,
-            onSettings: { showingSettings = true },
+            signal: run.place == .outdoor
+                ? { (now: Date) -> GpsSignal in GpsSignal(accuracy: run.gpsAccuracy, at: run.gpsAccuracyAt, now: now) }
+                : nil,
             banner: { _ in
                 if let plan = run.plan, let position = plan.position(at: run.elapsed) {
                     CardioPlanStep(
@@ -85,7 +87,7 @@ struct WatchRunView: View {
     }
 
     /// Pause or resume is the main action, so it is the white one; finish is
-    /// red so it is never taken for it.
+    /// red so it is never taken for it; the gear opens this run's switches.
     private var controls: [CardioControl] {
         let running = run.phase == .running
         return [
@@ -109,6 +111,14 @@ struct WatchRunView: View {
                 accessibilityLabel: "Finish",
                 tint: .red,
                 action: { run.finish() }
+            ),
+            // Auto-pause, voice cues and Test voice. In the row, not the
+            // header, where it sat beside the system clock and was missed.
+            CardioControl(
+                id: "settings",
+                systemImage: "gearshape.fill",
+                accessibilityLabel: "Auto-pause and voice cues",
+                action: { showingSettings = true }
             ),
         ]
     }

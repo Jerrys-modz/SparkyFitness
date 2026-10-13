@@ -39,6 +39,8 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     /// outdoors: `.pause` or `.resume`. Never called indoors, where there is
     /// no speed to judge by.
     var onAutoPause: ((WatchAutoPause.Action) -> Void)?
+    /// The accuracy radius (metres) of each GPS fix as it arrives, outdoors only.
+    var onGpsAccuracy: ((Double) -> Void)?
 
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
@@ -583,6 +585,10 @@ extension WatchRunHealthKitController {
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        if let latest = locations.last {
+            let accuracy = latest.horizontalAccuracy
+            DispatchQueue.main.async { [weak self] in self?.onGpsAccuracy?(accuracy) }
+        }
         judgeMovement(locations)
         guard collectingRoute, let routeBuilder else { return }
         // Apple's guidance: drop fixes with no usable accuracy, and ones too
