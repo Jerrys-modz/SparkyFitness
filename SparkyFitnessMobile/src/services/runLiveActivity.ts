@@ -11,5 +11,3 @@ export function configureRunLiveActivity(_context: {
   t: TFunction;
   distanceUnit: 'km' | 'miles';
 }): void {}
-
-export function __resetRunLiveActivityForTests(): void {}

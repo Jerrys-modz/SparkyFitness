@@ -1,6 +1,5 @@
 import type { TFunction } from 'i18next';
-import { initializeI18n } from '../../src/localization/i18n';
-import i18n from '../../src/localization/i18n';
+import i18n, { initializeI18n } from '../../src/localization/i18n';
 import type { RecordingSession } from '../../src/services/gpsRecordingService';
 import type { WatchRunLive } from '../../src/stores/watchRunLiveStore';
 // On macOS Jest resolves the `.ios.ts` variant, which is the module under test.
