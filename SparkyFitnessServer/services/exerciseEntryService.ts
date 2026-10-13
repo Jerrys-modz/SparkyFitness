@@ -10,11 +10,15 @@ import preferenceRepository from '../models/preferenceRepository.js';
 import userRepository from '../models/userRepository.js';
 import { parseISO, isValid } from 'date-fns';
 import {
+  instantToDay,
   setsDurationMinutes,
   type AttachExerciseEntryGpsTrackRequest,
   type HeartRateSampleRequest,
 } from '@workspace/shared';
 import { getClient } from '../db/poolManager.js';
+import { loadUserTimezone } from '../utils/timezoneLoader.js';
+import { describeError } from '../utils/errors.js';
+import { upsertSamplesByDay } from './healthMetricSampleWriter.js';
 import * as workoutTelemetryRepo from '../models/workoutTelemetryRepository.js';
 import {
   deriveLaps,
@@ -319,7 +323,9 @@ async function attachWatchTelemetryToExerciseEntry(
   // Zones need the series; a calories-only post has nothing to bucket.
   // Stale-snapshot rejection (and the zone write) happens under FOR UPDATE
   // inside applyWatchTelemetryAtomically so two in-flight flushes cannot
-  // both pass the check against the same pre-lock row.
+  // both pass the check against the same pre-lock row. The series write is
+  // the same hook: it runs only when that snapshot was accepted, and before
+  // the lock is released, so an older flush cannot store samples afterwards.
   let zones: WatchTelemetryZoneSpec[] | null = null;
   if (hrSamples && hrSamples.length > 0) {
     const samples: HrSample[] = hrSamples;
@@ -333,13 +339,73 @@ async function attachWatchTelemetryToExerciseEntry(
     zones = computeHrZones(samples, maxHr);
   }
 
-  await exerciseEntryRepository.applyWatchTelemetryAtomically(
-    exerciseEntryId,
-    userId,
-    actingUserId,
-    fields,
-    zones
-  );
+  if (hrSamples && hrSamples.length > 0) {
+    const accepted = hrSamples;
+    await exerciseEntryRepository.applyWatchTelemetryAtomically(
+      exerciseEntryId,
+      userId,
+      actingUserId,
+      fields,
+      zones,
+      () =>
+        storeHeartRateSeries(userId, actingUserId, exerciseEntryId, accepted)
+    );
+  } else {
+    await exerciseEntryRepository.applyWatchTelemetryAtomically(
+      exerciseEntryId,
+      userId,
+      actingUserId,
+      fields,
+      zones
+    );
+  }
+}
+
+/**
+ * Keeps the beat-by-beat series, tagged with the entry, so the workout's heart
+ * rate chart works without waiting for (or depending on) a later Health sync.
+ * Only the span the workout covers is replaced, and only samples tagged with
+ * this entry: another workout overlapping that span keeps its own readings.
+ * Best effort: a failure is logged and the telemetry post still succeeds. A
+ * snapshot the row lock rejected never reaches here.
+ */
+async function storeHeartRateSeries(
+  userId: string,
+  actingUserId: string,
+  exerciseEntryId: string,
+  hrSamples: HeartRateSampleRequest[]
+): Promise<void> {
+  try {
+    const tz = await loadUserTimezone(userId);
+    const valid = hrSamples.filter((s) => Number.isFinite(Date.parse(s.t)));
+    if (valid.length === 0) return;
+    const times = valid.map((s) => Date.parse(s.t));
+    await upsertSamplesByDay(
+      userId,
+      actingUserId,
+      'heart_rate',
+      'SparkyFitness Watch',
+      valid.map((s) => ({
+        entry_date: instantToDay(s.t, tz),
+        timestamp: new Date(s.t),
+        ex: exerciseEntryId,
+        bpm: Math.round(s.bpm),
+      })),
+      {
+        mode: 'merge',
+        window: {
+          startMs: times.reduce((a, b) => (b < a ? b : a)),
+          endMs: times.reduce((a, b) => (b > a ? b : a)),
+        },
+        ex: exerciseEntryId,
+      }
+    );
+  } catch (error) {
+    log(
+      'warn',
+      `Could not store the heart rate series for exercise entry ${exerciseEntryId}: ${describeError(error)}`
+    );
+  }
 }
 
 /**

@@ -67,6 +67,13 @@ final class RecordingStore: ObservableObject {
             }
             let previous = state
             state = incoming
+            // Buzz when the plan moves on, but not when a recording first
+            // appears or a step is only re-sent with a new countdown.
+            if let before = previous?.interval, let after = incoming.interval,
+               previous?.sessionId == incoming.sessionId,
+               incoming.status == .recording, after.index != before.index {
+                Haptics.step()
+            }
             if incoming.status != .recording { clearLiveHeartRate() }
             updateCollection(previous: previous, current: incoming)
         }
@@ -77,6 +84,7 @@ final class RecordingStore: ObservableObject {
     func pause() { sendControl("pause") }
     func resume() { sendControl("resume") }
     func finish() { sendControl("finish") }
+    func lap() { sendControl("lap") }
 
     private func sendControl(_ action: String) {
         guard let state else { return }
@@ -91,7 +99,8 @@ final class RecordingStore: ObservableObject {
             if collectingFor != current.sessionId {
                 // A strength workout owns the HealthKit session; the
                 // recording then runs without heart rate.
-                guard !WorkoutSessionStore.shared.isActive else { return }
+                guard !WorkoutSessionStore.shared.isActive,
+                      !WatchRunStore.shared.isActive else { return }
                 collectingFor = current.sessionId
                 // Starting a recording settles any workout still held.
                 heldFor = nil
@@ -100,7 +109,11 @@ final class RecordingStore: ObservableObject {
                         // The recording may have finished while the prompt was up.
                         guard let self, self.state?.sessionId == current.sessionId,
                               self.state?.status != .finished else { return }
-                        self.healthKit.start(sessionId: current.sessionId, activity: current.activity)
+                        self.healthKit.start(
+                            sessionId: current.sessionId,
+                            activity: current.activity,
+                            indoor: current.indoor
+                        )
                     }
                 }
             } else if previous?.status == .paused {

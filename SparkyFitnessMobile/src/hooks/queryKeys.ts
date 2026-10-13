@@ -101,6 +101,10 @@ export const mealTypesQueryKey = ['mealTypes'] as const;
 
 export const goalsQueryKey = (date: string) => ['goals', date] as const;
 
+export const goalPresetsQueryKey = ['goalPresets'] as const;
+
+export const weeklyGoalPlansQueryKey = ['weeklyGoalPlans'] as const;
+
 export const goalsRangeQueryKey = (
   startDate: string,
   endDate: string,
@@ -112,6 +116,11 @@ export const foodVariantsQueryKey = (foodId: string) =>
 
 export const measurementsRangeQueryKey = (startDate: string, endDate: string) =>
   ['measurementsRange', startDate, endDate] as const;
+
+export const vo2MaxRangeQueryKeyRoot = ['vo2MaxRange'] as const;
+
+export const vo2MaxRangeQueryKey = (startDate: string, endDate: string) =>
+  [...vo2MaxRangeQueryKeyRoot, startDate, endDate] as const;
 
 export const waterIntakeRangeQueryKey = (startDate: string, endDate: string) =>
   ['waterIntakeRange', startDate, endDate] as const;
@@ -386,3 +395,6 @@ export const glp1SiteSuggestionQueryKey = (medicationId: string) =>
 
 /** Autocomplete source for the live workout's gym / location prompt. */
 export const workoutLocationsQueryKey = ['workoutLocations'] as const;
+
+/** The person's run program and place in it (server-backed). */
+export const runProgramQueryKey = ['runProgram'] as const;
