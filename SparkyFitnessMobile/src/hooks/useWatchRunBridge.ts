@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import WatchConnectivity, {
+  type WatchRunCuePayload,
   type WatchRunFinishedPayload,
   type WatchRunLivePayload,
 } from '../../modules/watch-connectivity';
@@ -19,6 +20,10 @@ import {
   onWatchRunRetry,
 } from '../services/watchRunQueue';
 import { announceWatchRun } from '../services/watchRunToast';
+import {
+  resetWatchCueRelay,
+  speakWatchCue,
+} from '../services/watchRunCueRelay';
 import { parseWatchRunPayload } from '../utils/watchRun';
 
 /**
@@ -77,6 +82,25 @@ export function useWatchRunBridge(
       live.remove();
       clearInterval(sweep);
       useWatchRunLiveStore.getState().clear();
+    };
+  }, [enabled]);
+
+  // Cues the watch wants spoken on the phone (its headphones). Confirm first,
+  // so the watch stays quiet; no confirmation (bridge off, phone asleep) and
+  // the watch says it itself.
+  useEffect(() => {
+    if (!enabled || !WatchConnectivity) return;
+    const cue = WatchConnectivity.addListener(
+      'onRunCue',
+      (payload: WatchRunCuePayload) => {
+        if (!payload.text) return;
+        void WatchConnectivity?.sendRunCueAck(payload.id);
+        speakWatchCue(payload.text, payload.interrupt);
+      }
+    );
+    return () => {
+      cue.remove();
+      resetWatchCueRelay();
     };
   }, [enabled]);
 

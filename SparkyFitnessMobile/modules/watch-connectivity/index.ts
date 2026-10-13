@@ -747,6 +747,14 @@ export interface WatchRunFinishedPayload {
  * seconds while the phone is reachable (never queued), so the phone can show
  * its stats. `status: 'ended'` is the last one.
  */
+/** A cue the watch wants the phone to say; answer with `sendRunCueAck(id)`. */
+export interface WatchRunCuePayload {
+  id: string;
+  text: string;
+  /** Say it now rather than after the cue being spoken. */
+  interrupt: boolean;
+}
+
 export interface WatchRunLivePayload {
   runId: string;
   kind: string;
@@ -839,6 +847,7 @@ export type WatchConnectivityEvents = {
   onFastStartRequested: (payload: WatchFastStartRequestPayload) => void;
   onFastEndRequested: (payload: WatchFastEndRequestPayload) => void;
   onRunLive: (payload: WatchRunLivePayload) => void;
+  onRunCue: (payload: WatchRunCuePayload) => void;
   onRunFinished: (payload: WatchRunFinishedPayload) => void;
 };
 
@@ -861,6 +870,8 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
   startRun(request: WatchRunStartPayload): Promise<void>;
   /** Pause, resume, lap, finish or discard for the run on the watch, or a switch change (`autoPauseOn`/`Off`, `voiceCuesOn`/`Off`). */
   sendRunControl(control: WatchRunControlPayload): Promise<void>;
+  /** Tells the watch the phone is saying cue `id`, so it stays quiet. */
+  sendRunCueAck(id: string): Promise<void>;
   /**
    * The live workout's plan again after exercises, supersets or sets changed
    * on the phone mid-workout. The watch swaps it in without restarting,

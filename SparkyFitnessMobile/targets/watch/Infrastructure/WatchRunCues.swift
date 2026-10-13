@@ -17,7 +17,28 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
     /// Queues `text` after whatever is being said. A step change passes
     /// `interrupt` so it is heard at once, but a split spoken in the same
     /// second waits its turn instead of cutting it off.
+    @MainActor
     func speak(_ text: String, interrupt: Bool = false) {
+        // The wearer's headphones are usually on the phone, so a cue goes there
+        // when it can be reached. Headphones already connected to the watch
+        // are respected, and anything the phone does not confirm is said here.
+        if !outputsToHeadphones(),
+           WatchSessionManager.shared.relayRunCue(text, interrupt: interrupt, fallback: { [weak self] in
+               self?.speakHere(text, interrupt: interrupt)
+           }) {
+            return
+        }
+        speakHere(text, interrupt: interrupt)
+    }
+
+    /// Whether the watch's audio is going to Bluetooth headphones now.
+    private func outputsToHeadphones() -> Bool {
+        AVAudioSession.sharedInstance().currentRoute.outputs.contains {
+            [.bluetoothA2DP, .bluetoothHFP, .bluetoothLE].contains($0.portType)
+        }
+    }
+
+    private func speakHere(_ text: String, interrupt: Bool) {
         // Plain spoken-prompt playback, ducking music under the cue. A failure
         // is printed (it shows in the device console) rather than silently
         // swallowed, and the cue is still spoken on whatever session there is.
