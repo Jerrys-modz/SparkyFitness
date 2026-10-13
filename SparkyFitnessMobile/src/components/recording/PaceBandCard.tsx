@@ -1,9 +1,9 @@
 import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { PACE_BAND_MIN_WIDTH_SECONDS } from '@workspace/shared';
-import Icon from '../Icon';
 import { formatClock } from '../../utils/gpsRecording';
+import RangeStepperRow from './RangeStepperRow';
 import RecordingSwitchRow from './RecordingSwitchRow';
 
 /** A pace band in seconds per display unit (km or mile). */
@@ -60,42 +60,21 @@ const PaceBandCard: React.FC<Props> = ({
   };
 
   const row = (edge: 'fastest' | 'slowest', label: string) => (
-    <View className="flex-row items-center justify-between mt-3">
-      <Text className="text-text-secondary text-sm">{label}</Text>
-      <View className="flex-row items-center">
-        <TouchableOpacity
-          testID={`${testIDPrefix}-${edge}-down`}
-          accessibilityRole="button"
-          accessibilityLabel={t('recordActivity.paceBand.faster', {
-            defaultValue: '{{edge}} 5 seconds faster',
-            edge: label,
-          })}
-          className="w-9 h-9 items-center justify-center rounded-full bg-raised"
-          onPress={() => move(edge, -STEP_SECONDS)}
-        >
-          <Icon name="remove" size={18} />
-        </TouchableOpacity>
-        <Text
-          testID={`${testIDPrefix}-${edge}-value`}
-          className="text-text-primary text-base font-semibold w-24 text-center"
-        >
-          {formatClock(band[edge])}
-          {unitLabel}
-        </Text>
-        <TouchableOpacity
-          testID={`${testIDPrefix}-${edge}-up`}
-          accessibilityRole="button"
-          accessibilityLabel={t('recordActivity.paceBand.slower', {
-            defaultValue: '{{edge}} 5 seconds slower',
-            edge: label,
-          })}
-          className="w-9 h-9 items-center justify-center rounded-full bg-raised"
-          onPress={() => move(edge, STEP_SECONDS)}
-        >
-          <Icon name="add" size={18} />
-        </TouchableOpacity>
-      </View>
-    </View>
+    <RangeStepperRow
+      label={label}
+      testIDPrefix={`${testIDPrefix}-${edge}`}
+      valueText={`${formatClock(band[edge])}${unitLabel}`}
+      decreaseLabel={t('recordActivity.paceBand.faster', {
+        defaultValue: '{{edge}} 5 seconds faster',
+        edge: label,
+      })}
+      increaseLabel={t('recordActivity.paceBand.slower', {
+        defaultValue: '{{edge}} 5 seconds slower',
+        edge: label,
+      })}
+      onDecrease={() => move(edge, -STEP_SECONDS)}
+      onIncrease={() => move(edge, STEP_SECONDS)}
+    />
   );
 
   return (

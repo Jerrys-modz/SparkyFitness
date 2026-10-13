@@ -33,6 +33,12 @@ enum Haptics {
         play(tooFast ? .directionDown : .directionUp)
     }
 
+    /// The heart rate has left the wearer's range. Down means ease off, up
+    /// means speed up, the same as the pace alert's taps.
+    static func heartRate(tooHigh: Bool) {
+        play(tooHigh ? .directionDown : .directionUp)
+    }
+
     /// Called from button actions and the recording store, which run on the main actor.
     private static func play(_ type: WKHapticType) {
         MainActor.assumeIsolated {

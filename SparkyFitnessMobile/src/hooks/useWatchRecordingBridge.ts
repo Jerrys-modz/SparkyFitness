@@ -12,6 +12,7 @@ import {
   finishRecording,
   hydrate,
   markLap,
+  noteLiveHeartRate,
   pauseRecording,
   resumeRecording,
   useGpsRecording,
@@ -241,6 +242,8 @@ export function useWatchRecordingBridge(enabled: boolean): void {
           bpm: Math.round(payload.bpm),
           at: payload.at,
         });
+        // The range the runner set, if any, is judged on the same reading.
+        void noteLiveHeartRate(payload.sessionId, payload.bpm);
       }
     );
     return () => {

@@ -2,6 +2,7 @@ import { createInstance } from 'i18next';
 import {
   eventCue,
   finishCue,
+  heartRateAlertCue,
   paceAlertCue,
   spokenDuration,
   splitCue,
@@ -74,5 +75,12 @@ describe('paceAlertCue', () => {
   it('tells the runner which way to go', () => {
     expect(paceAlertCue(tt, 'tooFast')).toBe('Too fast. Ease off.');
     expect(paceAlertCue(tt, 'tooSlow')).toBe('Too slow. Pick it up.');
+  });
+});
+
+describe('heartRateAlertCue', () => {
+  it('tells the runner which way to go', () => {
+    expect(heartRateAlertCue(tt, 'tooHigh')).toBe('Heart rate high. Ease off.');
+    expect(heartRateAlertCue(tt, 'tooLow')).toBe('Heart rate low. Pick it up.');
   });
 });

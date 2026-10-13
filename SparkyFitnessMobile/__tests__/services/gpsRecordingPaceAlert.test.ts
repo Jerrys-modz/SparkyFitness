@@ -25,7 +25,9 @@ import { fireImpactHaptic } from '../../src/services/haptics';
 import { speakRecordingCue } from '../../src/services/recordingCues';
 import {
   ingestFixes,
+  noteLiveHeartRate,
   resetRecordingStateForTests,
+  setRecordingHeartRateBand,
   setRecordingPaceBand,
   startRecording,
 } from '../../src/services/gpsRecordingService';
@@ -156,5 +158,83 @@ describe('pace alert', () => {
     jest.mocked(fireImpactHaptic).mockClear();
     await runAt(5, 60);
     expect(fireImpactHaptic).toHaveBeenCalled();
+  });
+});
+
+describe('heart-rate alert', () => {
+  const hrBand = { minBpm: 140, maxBpm: 160 };
+
+  /** A reading every 3 s, as the watch sends them, for `seconds`. */
+  async function readings(bpm: number, seconds: number, from = 0) {
+    for (let s = from; s <= from + seconds; s += 3) {
+      jest.setSystemTime(T0 + s * 1000);
+      await noteLiveHeartRate('rec-' + T0, bpm);
+    }
+  }
+
+  test('buzzes and speaks when the heart rate stays too high', async () => {
+    await startRecording({
+      activity: 'run',
+      audioCues: 'km',
+      heartRateBand: hrBand,
+      notification,
+    });
+    jest.mocked(fireImpactHaptic).mockClear();
+    jest.mocked(speakRecordingCue).mockClear();
+    await readings(178, 30);
+    expect(fireImpactHaptic).toHaveBeenCalledTimes(1);
+    expect(speakRecordingCue).toHaveBeenCalledWith(
+      'Heart rate high. Ease off.'
+    );
+  });
+
+  test('says nothing inside the range, or for another recording', async () => {
+    await startRecording({
+      activity: 'run',
+      audioCues: 'km',
+      heartRateBand: hrBand,
+      notification,
+    });
+    jest.mocked(fireImpactHaptic).mockClear();
+    await readings(150, 60);
+    await noteLiveHeartRate('someone-else', 200);
+    expect(fireImpactHaptic).not.toHaveBeenCalled();
+  });
+
+  test('a plan step range beats the run range', async () => {
+    await startRecording({
+      activity: 'run',
+      audioCues: 'km',
+      heartRateBand: hrBand,
+      intervals: {
+        style: 'fastEasy',
+        steps: [
+          {
+            kind: 'work',
+            seconds: 600,
+            heartRate: { minBpm: 165, maxBpm: 185 },
+          },
+        ],
+      },
+      notification,
+    });
+    jest.mocked(fireImpactHaptic).mockClear();
+    // 178 is outside the run's range but inside the step's.
+    await readings(178, 60);
+    expect(fireImpactHaptic).not.toHaveBeenCalled();
+  });
+
+  test('a range set mid-run applies, and clearing it stops the alerts', async () => {
+    await startRecording({ activity: 'run', notification });
+    await readings(178, 30);
+    expect(fireImpactHaptic).not.toHaveBeenCalled();
+    await setRecordingHeartRateBand(hrBand);
+    await readings(178, 30, 33);
+    expect(fireImpactHaptic).toHaveBeenCalled();
+
+    jest.mocked(fireImpactHaptic).mockClear();
+    await setRecordingHeartRateBand(undefined);
+    await readings(178, 60, 66);
+    expect(fireImpactHaptic).not.toHaveBeenCalled();
   });
 });

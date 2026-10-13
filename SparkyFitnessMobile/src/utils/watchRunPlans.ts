@@ -26,6 +26,9 @@ export interface WatchRunPlanPayload {
     /** Pace range to hold in this step, seconds per km. */
     paceMin?: number;
     paceMax?: number;
+    /** Heart-rate range to hold in this step, bpm. */
+    hrMin?: number;
+    hrMax?: number;
   }[];
 }
 
@@ -38,6 +41,9 @@ const toSteps = (t: TFunction, plan: IntervalPlan) =>
           paceMin: step.pace.minSecondsPerKm,
           paceMax: step.pace.maxSecondsPerKm,
         }
+      : {}),
+    ...(step.heartRate
+      ? { hrMin: step.heartRate.minBpm, hrMax: step.heartRate.maxBpm }
       : {}),
   }));
 

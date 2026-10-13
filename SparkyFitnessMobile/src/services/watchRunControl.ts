@@ -22,6 +22,8 @@ export async function startRunOnWatch(options: {
   voiceCues: boolean;
   /** A pace range to stay inside, in seconds per km. */
   paceBand?: { minSecondsPerKm: number; maxSecondsPerKm: number };
+  /** A heart-rate range to stay inside. */
+  heartRateBand?: { minBpm: number; maxBpm: number };
 }): Promise<string> {
   if (!WatchConnectivity) throw new Error('Apple Watch is not available');
   const requestId = newId();
@@ -37,6 +39,12 @@ export async function startRunOnWatch(options: {
       ? {
           paceMin: options.paceBand.minSecondsPerKm,
           paceMax: options.paceBand.maxSecondsPerKm,
+        }
+      : {}),
+    ...(options.heartRateBand
+      ? {
+          hrMin: options.heartRateBand.minBpm,
+          hrMax: options.heartRateBand.maxBpm,
         }
       : {}),
     ...(options.plan ? { plan: options.plan } : {}),

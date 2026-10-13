@@ -137,6 +137,7 @@ struct WatchRunView: View {
                     set: { run.setVoiceCues($0) }
                 ))
                 paceAlertRow
+                heartRateAlertRow
                 // Plays whatever the switch says, so a silent speaker can be
                 // told apart from cues that are off.
                 Button("Test voice") {
@@ -170,6 +171,25 @@ struct WatchRunView: View {
                 Text("Set a pace range on your iPhone")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    /// Like the pace alert: the range is set on the phone.
+    @ViewBuilder
+    private var heartRateAlertRow: some View {
+        let band = run.settings.heartRateBand ?? store.context.runHeartRateBand
+        if let band {
+            Toggle(isOn: Binding(
+                get: { run.settings.heartRateBand != nil },
+                set: { run.setHeartRateAlert($0) }
+            )) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Heart rate alert")
+                    Text("\(Int(band.minBpm))–\(Int(band.maxBpm)) bpm")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }

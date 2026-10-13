@@ -184,6 +184,10 @@ export interface WatchContextPayload {
   runPaceAlert?: boolean | null;
   runPaceMinSecondsPerKm?: number | null;
   runPaceMaxSecondsPerKm?: number | null;
+  /** The heart-rate alert: whether it is on, and its range (bpm). */
+  runHeartRateAlert?: boolean | null;
+  runHeartRateMinBpm?: number | null;
+  runHeartRateMaxBpm?: number | null;
   /**
    * Plans a wrist-only run can follow: the training-program workout due now
    * (carrying `programId`/`programIndex`) then the built-in interval plans,
@@ -207,6 +211,8 @@ export interface WatchContextPayload {
       seconds: number;
       paceMin?: number;
       paceMax?: number;
+      hrMin?: number;
+      hrMax?: number;
     }[];
   }[];
   /**
@@ -801,6 +807,9 @@ export interface WatchRunStartPlanStep {
   /** Pace range to hold in this step, seconds per km; both or neither. */
   paceMin?: number;
   paceMax?: number;
+  /** Heart-rate range (bpm) to hold in this step; both or neither. */
+  hrMin?: number;
+  hrMax?: number;
 }
 
 /** Asks the watch to start recording a walk or run itself. */
@@ -816,6 +825,9 @@ export interface WatchRunStartPayload {
   /** Pace range (seconds per km) to stay inside; both or neither. */
   paceMin?: number;
   paceMax?: number;
+  /** Heart-rate range (bpm) to stay inside; both or neither. */
+  hrMin?: number;
+  hrMax?: number;
   plan?: {
     id: string;
     name: string;

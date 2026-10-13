@@ -92,6 +92,8 @@ final class WatchRunStore: ObservableObject {
     private var paceAlertState = WatchPaceAlertState.initial
     private var recentPace = WatchRecentPace()
     private var paceAlertStep: Int?
+    private var heartRateAlertState = WatchHeartRateAlertState.initial
+    private var heartRateAlertStep: Int?
     private var recovering = false
 
     private init() {
@@ -102,6 +104,7 @@ final class WatchRunStore: ObservableObject {
                 self.metrics = shown
                 self.cueSplitIfDue(shown)
                 self.checkPaceBand(shown)
+                self.checkHeartRate(shown)
             }
         }
         healthKit.onFailure = { [weak self] result in
@@ -164,7 +167,8 @@ final class WatchRunStore: ObservableObject {
         return WatchRunSettings(
             autoPause: context.runAutoPause ?? true,
             voiceCues: context.runVoiceCues == true,
-            paceBand: context.runPaceAlert == true ? context.runPaceBand : nil
+            paceBand: context.runPaceAlert == true ? context.runPaceBand : nil,
+            heartRateBand: context.runHeartRateAlert == true ? context.runHeartRateBand : nil
         )
     }
 
@@ -185,6 +189,8 @@ final class WatchRunStore: ObservableObject {
         cuedStep = -1
         paceAlertState = .initial
         paceAlertStep = nil
+        heartRateAlertState = .initial
+        heartRateAlertStep = nil
         recentPace.reset()
         summary = nil
         metrics = WatchRunMetrics()
@@ -345,6 +351,38 @@ final class WatchRunStore: ObservableObject {
         paceAlertState = .initial
         recentPace.reset()
         pushLive(force: true)
+    }
+
+    /// Turns the heart-rate alert on (with the phone's range) or off mid-run.
+    func setHeartRateAlert(_ on: Bool) {
+        guard phase == .running || phase == .paused else { return }
+        let band = on ? (CheckInStore.shared.context.runHeartRateBand ?? settings.heartRateBand) : nil
+        guard settings.heartRateBand != band, !(on && band == nil) else { return }
+        settings.heartRateBand = band
+        healthKit.updateSettings(settings)
+        heartRateAlertState = .initial
+        pushLive(force: true)
+    }
+
+    /// Tells the wearer when the heart rate has stayed outside their range,
+    /// the same way as the pace alert. A plan step's own range beats the run's.
+    private func checkHeartRate(_ metrics: WatchRunMetrics) {
+        guard phase == .running else { return }
+        let elapsed = healthKit.elapsed
+        var band = settings.heartRateBand
+        var stepIndex: Int?
+        if let plan, let position = plan.position(at: elapsed), !position.finished {
+            stepIndex = position.index
+            band = plan.steps[position.index].heartRate ?? band
+        }
+        if stepIndex != heartRateAlertStep {
+            heartRateAlertStep = stepIndex
+            heartRateAlertState = .initial
+        }
+        guard let band else { return }
+        guard let alert = heartRateAlertState.step(bpm: metrics.heartRate, band: band, now: elapsed) else { return }
+        Haptics.heartRate(tooHigh: alert == .tooHigh)
+        cue(alert == .tooHigh ? "Heart rate high. Ease off." : "Heart rate low. Pick it up.")
     }
 
     /// Tells the wearer when the pace has stayed outside their range: a tap
