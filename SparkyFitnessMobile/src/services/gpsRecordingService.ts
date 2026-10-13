@@ -27,9 +27,18 @@ import {
   type AutoPauseState,
 } from '../utils/autoPause';
 import {
+  intervalPosition,
+  isValidIntervalPlan,
+  stepStartSeconds,
+  type IntervalPlan,
+} from '../utils/intervals';
+import { fireImpactHaptic } from './haptics';
+import {
   cueUnitMeters,
   eventCue,
   finishCue,
+  intervalCue,
+  intervalsDoneCue,
   lapCue,
   splitCue,
   type CueEvent,
@@ -98,6 +107,11 @@ export interface RecordingSession {
    * still at or beyond the newest fix, another late press must not say it again.
    */
   cuedPartialLapMark?: number;
+  /**
+   * A timed interval plan. `cued` is the index of the last step started (-1
+   * before the first), so a restored session never repeats a cue.
+   */
+  intervals?: { plan: IntervalPlan; cued: number };
   /** Set once the diary entry exists, so a retried save never duplicates it. */
   savedEntryId: string | null;
   /**
@@ -286,6 +300,9 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
           // The pause is dated to when they stopped, which can be several
           // fixes ago. Drift accepted after that is not part of the route.
           const pauseAt = step.action.at;
+          // Close any step that became due before they stopped. Doing it
+          // after the pause would date the lap with the pause included.
+          if (advanceIntervals(pauseAt)) sessionChanged = true;
           const retained = points.filter((point) => point.t <= pauseAt);
           if (retained.length !== points.length) {
             points = retained;
@@ -333,6 +350,7 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
       }
     }
     if (added > 0 && cueSplit()) sessionChanged = true;
+    if (advanceIntervals(Date.now())) sessionChanged = true;
     if (sessionChanged) await persistSession();
     if (added === 0 && !pointsRewritten) {
       if (sessionChanged) publish();
@@ -452,6 +470,70 @@ function cueSplit(): boolean {
   return true;
 }
 
+/**
+ * Starts any interval step whose time has come: speaks it, buzzes, and marks
+ * a lap at the exact moment it began, so the saved activity is cut into the
+ * work and recovery stretches. Steps passed over together (a long gap in the
+ * app running) are marked but only the latest is spoken. Runs on the recording
+ * clock, which stops while paused. Returns whether the session changed.
+ */
+function advanceIntervals(now: number): boolean {
+  if (!session?.intervals || session.status !== 'recording') return false;
+  const { plan, cued } = session.intervals;
+  const position = intervalPosition(plan, elapsedSeconds(session, now));
+  if (!position) return false;
+  // Once finished, the last step stays "current"; announce the end once.
+  const target = position.done ? plan.steps.length : position.index;
+  if (target <= cued) return false;
+
+  const marks = [...(session.laps ?? [])];
+  const clockStart = session.startedAt + session.pausedMs;
+  for (
+    let index = Math.max(cued + 1, 1);
+    index <= Math.min(target, plan.steps.length - 1);
+    index++
+  ) {
+    const at = clockStart + stepStartSeconds(plan, index) * 1000;
+    // A manual lap nearby must not swallow the step boundary. The debounce
+    // lives in markLap, for double taps.
+    if (at <= now && !marks.includes(at)) {
+      marks.push(at);
+    }
+  }
+  session = {
+    ...session,
+    laps: marks.sort((a, b) => a - b),
+    intervals: { plan, cued: target },
+  };
+  fireImpactHaptic();
+  if (session.audioCues) {
+    speakRecordingCue(
+      position.done
+        ? intervalsDoneCue(i18n.t.bind(i18n))
+        : intervalCue(i18n.t.bind(i18n), {
+            step: position.step,
+            style: plan.style,
+          })
+    );
+  }
+  return true;
+}
+
+/**
+ * Re-checks the interval clock. The screen calls it every second while open;
+ * in the background the location task does it with each fix.
+ */
+export function tickIntervals(): Promise<void> {
+  return enqueue(async () => {
+    await hydrate();
+    if (!session?.intervals) return;
+    if (advanceIntervals(Date.now())) {
+      await persistSession();
+      publish();
+    }
+  });
+}
+
 function toRawFix(location: Location.LocationObject): RawFix {
   const { coords } = location;
   return {
@@ -488,6 +570,8 @@ export interface StartRecordingOptions {
   autoPause?: boolean;
   /** Speak split times and pauses, in this unit. */
   audioCues?: CueUnit;
+  /** Timed steps to follow (run/walk, speed repeats). */
+  intervals?: IntervalPlan;
   /** Record without GPS: no permission is asked and no location task runs. */
   indoor?: boolean;
   /** Text for the Android foreground-service notification. */
@@ -576,6 +660,9 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
       autoPaused: false,
       audioCues: options.audioCues,
       cuedSplits: 0,
+      ...(options.intervals && isValidIntervalPlan(options.intervals)
+        ? { intervals: { plan: options.intervals, cued: -1 } }
+        : {}),
       savedEntryId: null,
       ...(indoor && { indoor: true }),
       ...(stepCounterAtStart != null && { stepCounterAtStart }),
@@ -596,7 +683,13 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
     publish();
     if (options.audioCues) {
       beginRecordingCues();
-      cueEvent(session, 'started');
+      // With a plan, the first step's cue is the start; saying both would cut
+      // one off.
+      if (!session.intervals) cueEvent(session, 'started');
+    }
+    if (session.intervals && advanceIntervals(Date.now())) {
+      await persistSession();
+      publish();
     }
     addLog(
       `[GPS Recording] Started ${indoor ? 'indoor ' : ''}${options.activity} recording`,
@@ -629,10 +722,13 @@ export function pauseRecording(): Promise<void> {
   return enqueue(async () => {
     await hydrate();
     if (!session || session.status !== 'recording') return;
+    const now = Date.now();
+    // Mark steps that already came due, while pausedMs still excludes this pause.
+    advanceIntervals(now);
     session = {
       ...session,
       status: 'paused',
-      pausedAt: Date.now(),
+      pausedAt: now,
       autoPaused: false,
       hadPause: true,
     };
