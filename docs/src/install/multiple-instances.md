@@ -30,7 +30,7 @@ Scheduled jobs (nightly cleanup, hourly integration syncs, automatic backups, Op
 
 With Kubernetes, the Helm chart does this for you when `server.replicas` is above 1; change it in your values, not with `kubectl scale`. Without the chart, run the jobs instance as its own Deployment with `replicas: 1` and the `Recreate` strategy, sharing the same ConfigMap and Secrets, and set the variable on the Deployment you scale. With Docker Compose, keep scaling `sparkyfitness-server`, the service the frontend sends requests to, and add `SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS: "true"` under its `environment:`. Then add a copy of that service under a new name, such as `sparkyfitness-jobs`, without the variable, to run the jobs. Do not put it in the shared `.env` file, or no instance will run the jobs.
 
-After changing the backup schedule in the admin settings, restart the jobs instance so it picks up the new schedule.
+A backup schedule saved in the admin settings reaches the jobs instance within 5 minutes.
 
 ## What to expect during a rolling update
 

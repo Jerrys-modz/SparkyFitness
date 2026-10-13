@@ -1,6 +1,6 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
-import { useFocusEffect } from '@react-navigation/native';
+import { StackActions, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   hasSupplementNutrition,
@@ -75,7 +75,8 @@ import type {
   WorkoutPlanTemplate,
 } from '../types/workoutPlans';
 import { isManualSource } from '../utils/customMeasurementsForm';
-import { formatDateLabel } from '../utils/dateUtils';
+import { formatDateLabel, getDateRelationToToday } from '../utils/dateUtils';
+import { cardioSessionForDiaryEntry } from '../services/cardioSessionForDiaryEntry';
 import { cardioSessionFromDiaryEntry } from '../utils/cardioSession';
 import {
   getHistoricalMealTypeLabel,
@@ -157,11 +158,23 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
     defaultValue: 'Open family diaries',
   });
   const accentColor = useCSSVariable('--color-accent-primary') as string;
+  const datePastColor =
+    (useCSSVariable('--color-date-past') as string) || '#f97316';
+  const dateFutureColor =
+    (useCSSVariable('--color-date-future') as string) || '#0ea5e9';
   const usesNativeTabs = useNativeIOSTabsActive();
   const { defaultColor: nativeHeaderActionColor } = useHeaderActionColors();
 
   const syncNativeHeaderDatePicker = useCallback(() => {
     if (!usesNativeTabs) return;
+
+    const relation = getDateRelationToToday(selectedDate);
+    const dateTintColor =
+      relation === 'past'
+        ? datePastColor
+        : relation === 'future'
+          ? dateFutureColor
+          : nativeHeaderActionColor;
 
     setNativeHeaderDatePickerOptions(
       navigation as unknown as NativeHeaderDatePickerNavigation,
@@ -171,6 +184,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
         onDatePress: openCalendar,
         onNextDate: goToNextDay,
         tintColor: nativeHeaderActionColor,
+        dateTintColor,
         accessibilityLabel: t('diary.chooseDate', {
           defaultValue: 'Choose diary date',
         }),
@@ -192,18 +206,20 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
       }
     );
   }, [
+    dateFutureColor,
+    dateLocale,
+    datePastColor,
+    familyDiariesAccessibilityLabel,
     goToNextDay,
     goToPreviousDay,
+    hasFamilyDiaries,
     nativeHeaderActionColor,
     navigation,
-    openFamilyDiaries,
     openCalendar,
+    openFamilyDiaries,
     selectedDate,
-    familyDiariesAccessibilityLabel,
-    hasFamilyDiaries,
-    usesNativeTabs,
     t,
-    dateLocale,
+    usesNativeTabs,
   ]);
 
   useLayoutEffect(() => {
@@ -664,18 +680,72 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                   }
                   navigation.navigate('WorkoutDetail', { session });
                 } else {
-                  const cardioSession = cardioSessionFromDiaryEntry(
+                  const synced = cardioSessionFromDiaryEntry(
                     session,
                     distanceUnit
                   );
-                  if (cardioSession) {
+                  if (synced) {
                     navigation.navigate('CardioSession', {
-                      session: cardioSession,
+                      session: synced,
                       distanceUnit,
                     });
                     return;
                   }
-                  navigation.navigate('ActivityDetail', { session });
+                  const recorded = cardioSessionFromDiaryEntry(
+                    session,
+                    distanceUnit,
+                    { allowInApp: true }
+                  );
+                  if (!recorded) {
+                    navigation.navigate('ActivityDetail', { session });
+                    return;
+                  }
+                  // A manual entry has no route flag, so the route is a
+                  // network lookup. Open the basic screen on a short bound
+                  // instead of waiting for that lookup, and replace it only
+                  // if a route arrives while this entry is still showing.
+                  const openedId = session.id;
+                  let openedBasic = false;
+                  const openBasic = () => {
+                    if (openedBasic) return;
+                    openedBasic = true;
+                    navigation.navigate('ActivityDetail', { session });
+                  };
+                  const timer = setTimeout(openBasic, 250);
+                  void cardioSessionForDiaryEntry(session, distanceUnit).then(
+                    (cardioSession) => {
+                      clearTimeout(timer);
+                      if (!cardioSession) {
+                        openBasic();
+                        return;
+                      }
+                      if (!openedBasic) {
+                        navigation.navigate('CardioSession', {
+                          session: cardioSession,
+                          distanceUnit,
+                        });
+                        return;
+                      }
+                      const parent = navigation.getParent();
+                      const state = parent?.getState();
+                      const current = state?.routes[state.index];
+                      const params = current?.params as
+                        { session?: { id?: string } } | undefined;
+                      if (
+                        !parent ||
+                        current?.name !== 'ActivityDetail' ||
+                        params?.session?.id !== openedId
+                      ) {
+                        return;
+                      }
+                      parent.dispatch(
+                        StackActions.replace('CardioSession', {
+                          session: cardioSession,
+                          distanceUnit,
+                        })
+                      );
+                    }
+                  );
                 }
               }}
             />
@@ -695,6 +765,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                 navigation.navigate('MeasurementsAdd', { date: selectedDate })
               }
             />
+
             {/* Below the measurements: both are the same check-in, keyed on
                 (user_id, entry_date) server-side. */}
             <CheckInPhotosSummary
@@ -746,7 +817,6 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
           onNextDay={goToNextDay}
           onToday={goToToday}
           onDatePress={openCalendar}
-          showDateAlways
           action={
             hasFamilyDiaries
               ? {

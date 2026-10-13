@@ -32,6 +32,7 @@ import type {
 import type { Meal, MealIngredientDraft } from './meals';
 import type { MealPlanPickerTarget, MealPlanTemplate } from './mealPlans';
 import type { WorkoutPreset } from './workoutPresets';
+import type { WorkoutPlanTemplate } from './workoutPlans';
 import type { ExerciseReplaceContext } from '../utils/exerciseReplace';
 
 export type FoodPickerMode =
@@ -79,6 +80,8 @@ export type RootStackParamList = {
   FoodsLibrary: undefined;
   MealsLibrary: undefined;
   MealPlans: undefined;
+  WorkoutPlans: undefined;
+  WorkoutPlanForm: { template?: WorkoutPlanTemplate } | undefined;
   MealPlanForm: { template?: MealPlanTemplate; initialMeal?: Meal } | undefined;
   // #2115, Phase 12: mobile-only water-container CRUD.
   WaterContainers: undefined;
@@ -181,6 +184,15 @@ export type RootStackParamList = {
     goal?: number;
   };
   ExerciseStatistics: undefined;
+  RecordActivity: undefined;
+  Reports: undefined;
+  HydrationReport: undefined;
+  SubstancesReport: undefined;
+  MeasurementsReport: undefined;
+  ReportsSettings: undefined;
+  NutritionReport: undefined;
+  SleepAnalytics: undefined;
+  MoodReport: undefined;
   CardioSession: {
     session: ExerciseActivityQueryItem;
     distanceUnit: 'km' | 'miles';
@@ -310,6 +322,9 @@ export type RootStackParamList = {
     sourcePresetId: number | null;
     sourceServerConfigId: string | null;
     plannedSetValues: Record<string, AssumedSetValues>;
+    // Set when the workout was finished on the watch: the app-level prompt
+    // asks "Update preset?" (on the watch first), so this screen does not.
+    presetCheckHandledElsewhere?: boolean;
     // The rest of the live placeholder inputs, so the prompt can ignore
     // values the ramp or progression filled in. Optional: older snapshots.
     previousSessionSets?: Record<string, ExerciseRecentSessionSet[]>;
@@ -324,6 +339,8 @@ export type RootStackParamList = {
   };
   ActivityDetail: { session: IndividualSessionResponse };
   FastingDetail: undefined;
+  FastingSettings: undefined;
+  MindfulnessDetail: { selectedDate?: string } | undefined;
   SleepDetail: { entryId: string; day: string };
   Chat: undefined;
   Logs: undefined;
@@ -341,6 +358,12 @@ export type RootStackParamList = {
   /** Cross-fading time-lapse of every photo for one angle, oldest to newest. */
   ProgressPhotoTimelapse: { angle?: PhotoType } | undefined;
   CalorieSettings: undefined;
+  /**
+   * Without params this edits today's goals. `presetId` edits that goal
+   * preset; `newPreset` starts a new one from today's goals.
+   */
+  Goals: { presetId?: string; newPreset?: boolean } | undefined;
+  WeeklyGoalPlanEdit: { planId?: string } | undefined;
   MealTypeSettings: undefined;
   FoodSettings: undefined;
   CustomNutrients: undefined;
@@ -351,6 +374,7 @@ export type RootStackParamList = {
   WatchSettings: undefined;
   DiarySettings: undefined;
   WorkoutSettings: undefined;
+  WarmupSettings: undefined;
   ServerSettings: undefined;
   PasskeySettings: undefined;
   AppSettings: undefined;
@@ -359,8 +383,17 @@ export type RootStackParamList = {
   WhatsNew: undefined;
   MedicationsList: undefined;
   MedicationDetail: { medicationId: string };
-  MedicationForm: { medicationId?: string };
+  MedicationForm: {
+    medicationId?: string;
+    isSupplement?: boolean;
+    /** Set by the barcode scanner when it returns a code. */
+    pendingScannedBarcode?: string;
+    scannedBarcodeNonce?: number;
+  };
   MedicationScheduleForm: { medicationId: string; scheduleId?: string };
+  Glp1Tracker: { medicationId: string };
+  Glp1PenForm: { medicationId: string; penId?: string };
+  Glp1TitrationForm: { medicationId: string; stepId?: string };
   SymptomLog:
     | {
         entryId?: string;
@@ -369,6 +402,7 @@ export type RootStackParamList = {
         date?: string;
       }
     | undefined;
+  MoodLog: { date?: string } | undefined;
   SymptomHistory: { symptomId?: string } | undefined;
   ManageSymptoms: undefined;
   SymptomDefinitionEditor: { definitionId?: string } | undefined;
