@@ -494,6 +494,44 @@ describe('useWatchWorkoutBridge', () => {
     expect(getStore().completedSetIds['101']).toBeDefined();
   });
 
+  it('applies an un-log that arrived before the set was logged', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    await act(async () => {
+      fire('onSetUncompleted', {
+        clientId: 'client-9',
+        sessionId: 'session-1',
+        setId: '101',
+      });
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'client-1',
+        sessionId: 'session-1',
+        setId: '101',
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(getStore().completedSetIds['101']).toBeDefined();
+
+    await act(async () => {
+      fire('onSetUncompleted', {
+        clientId: 'client-9',
+        sessionId: 'session-1',
+        setId: '101',
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(getStore().completedSetIds['101']).toBeUndefined();
+  });
+
   it('ignores an un-log for a session that is not live', async () => {
     renderHook(() => useWatchWorkoutBridge(true));
     act(() => {

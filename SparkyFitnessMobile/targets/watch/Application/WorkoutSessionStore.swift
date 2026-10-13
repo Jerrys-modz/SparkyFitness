@@ -51,8 +51,10 @@ final class WorkoutSessionStore: ObservableObject {
     private var phoneConfirmedIds: Set<String> = []
     /// Sets un-logged here that the phone still lists as logged, because it
     /// has not processed the un-log yet. Held out of the phone's list so the
-    /// next update does not log them again; each leaves once the phone stops
-    /// listing it.
+    /// next update does not log them again. Each leaves once the phone stops
+    /// listing it, or once the set is logged here again. Kept in the snapshot
+    /// so a relaunch does not treat a phone update that still lists the set
+    /// as logging it again.
     private var pendingUnlogs: Set<String> = []
     /// The phone's rest as last taken from it, so an update that repeats it
     /// leaves a rest adjusted here alone. See `applyTargets`. Not in the
@@ -887,6 +889,10 @@ final class WorkoutSessionStore: ObservableObject {
         rememberLoggedValues(for: [step.plannedSet.setId])
         completedSetIds.insert(step.plannedSet.setId)
         wristLoggedSetIds.insert(step.plannedSet.setId)
+        // A re-log is a new completion. Leaving the old un-log hold would
+        // make the next phone update that still lists the set look like the
+        // phone had dropped it, and undo this log.
+        pendingUnlogs.remove(step.plannedSet.setId)
 
         // The next set still to do, not simply the next one: a set further on
         // may already have been logged on the phone, and landing on it would
@@ -1100,6 +1106,8 @@ final class WorkoutSessionStore: ObservableObject {
         var pendingUnknownCompletions: [String]?
         /// See `phoneConfirmedIds`. Optional so older snapshots still decode.
         var phoneConfirmedIds: [String]?
+        /// See `pendingUnlogs`. Optional so older snapshots still decode.
+        var pendingUnlogs: [String]?
         /// The running (or just-logged) set timer, so a relaunch resumes the
         /// clock instead of showing Start again. Optional so older snapshots
         /// still decode.
@@ -1305,6 +1313,7 @@ final class WorkoutSessionStore: ObservableObject {
             planRevision: planRevision,
             pendingUnknownCompletions: Array(pendingUnknownCompletions),
             phoneConfirmedIds: Array(phoneConfirmedIds),
+            pendingUnlogs: Array(pendingUnlogs),
             hold: holdState,
             loggedValues: loggedValues,
             heartRateSum: heartRateSum,
@@ -1345,6 +1354,7 @@ final class WorkoutSessionStore: ObservableObject {
         planRevision = snapshot.planRevision ?? 0
         pendingUnknownCompletions = Set(snapshot.pendingUnknownCompletions ?? [])
         phoneConfirmedIds = Set(snapshot.phoneConfirmedIds ?? [])
+        pendingUnlogs = Set(snapshot.pendingUnlogs ?? [])
         restoreHold(snapshot.hold)
         startedAt = snapshot.startedAt
         elapsedSeconds = max(0, Int(Date().timeIntervalSince(snapshot.startedAt)))
