@@ -185,7 +185,8 @@ export interface CsvImportOutcome<T = unknown> {
 
 // ── Header-mapping suggestion, shared by every importer's mapping dialog ───
 
-const normalizeHeader = (h: string): string => h.toLowerCase().replace(/[_ ]/g, "");
+const normalizeHeader = (h: string): string =>
+  h.toLowerCase().replace(/[_ ]/g, "");
 
 /**
  * Best-effort initial guess at which file column corresponds to each

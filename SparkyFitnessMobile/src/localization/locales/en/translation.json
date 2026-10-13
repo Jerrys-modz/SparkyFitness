@@ -6534,7 +6534,9 @@
       "miles_one": "{{count}} mile",
       "miles_other": "{{count}} miles",
       "interval": "{{name}}. {{time}}.",
-      "intervalsDone": "Intervals complete."
+      "intervalsDone": "Intervals complete.",
+      "paceTooFast": "Too fast. Ease off.",
+      "paceTooSlow": "Too slow. Pick it up."
     },
     "autoPause": {
       "title": "Auto-pause",
@@ -6684,6 +6686,14 @@
       "fair": "GPS fair",
       "weak": "GPS weak",
       "none": "No GPS"
+    },
+    "paceBand": {
+      "title": "Pace alert",
+      "description": "Buzzes, and speaks with voice cues on, when you stay outside your pace range.",
+      "fastest": "Fastest",
+      "slowest": "Slowest",
+      "faster": "{{edge}} 5 seconds faster",
+      "slower": "{{edge}} 5 seconds slower"
     }
   },
   "goals": {

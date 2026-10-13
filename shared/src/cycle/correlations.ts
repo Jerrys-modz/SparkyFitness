@@ -78,7 +78,9 @@ export function correlateMetricWithPhase(
 
   const byPhase: PhaseMean[] = PHASE_ORDER.map((phase) => ({
     phase,
-    mean: buckets[phase].length ? Math.round(mean(buckets[phase]) * 100) / 100 : 0,
+    mean: buckets[phase].length
+      ? Math.round(mean(buckets[phase]) * 100) / 100
+      : 0,
     count: buckets[phase].length,
   }));
 

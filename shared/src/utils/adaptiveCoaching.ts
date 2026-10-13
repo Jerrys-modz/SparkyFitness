@@ -123,7 +123,11 @@ export function decideAdaptiveAdjustment(
   }
   // 4. Too hard last time: don't add load yet.
   if (signal.last_difficulty === "too_hard") {
-    return adjustment({ kind: "hold", blockIncrease: true, reason: "too_hard" });
+    return adjustment({
+      kind: "hold",
+      blockIncrease: true,
+      reason: "too_hard",
+    });
   }
   // 5. No feedback, but logged effort says it was a grind.
   if (

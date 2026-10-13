@@ -21,8 +21,7 @@ export const isBlank = (value: string | undefined | null): boolean =>
  * the cell as absent or default it to some other value.
  */
 export type CellResult<T> =
-  | { ok: true; value?: T }
-  | { ok: false; raw: string };
+  { ok: true; value?: T } | { ok: false; raw: string };
 
 /**
  * Which convention a *repeated* thousands separator follows, and — for a
@@ -133,7 +132,9 @@ export function readNumberCell(
 ): CellResult<number> {
   if (isBlank(raw)) return { ok: true };
   const value = toNumber(raw, format);
-  return value === undefined ? { ok: false, raw: raw ?? "" } : { ok: true, value };
+  return value === undefined
+    ? { ok: false, raw: raw ?? "" }
+    : { ok: true, value };
 }
 
 export function round(value: number, digits = 2): number {

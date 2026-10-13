@@ -12,15 +12,15 @@
  * stays stable.
  */
 export const CHAT_TOOL_CATEGORY_SLUGS = [
-  'food',
-  'exercise',
-  'checkin',
-  'goals',
-  'reports',
-  'coaching',
-  'vision',
-  'profile',
-  'medications',
+  "food",
+  "exercise",
+  "checkin",
+  "goals",
+  "reports",
+  "coaching",
+  "vision",
+  "profile",
+  "medications",
 ] as const;
 
 export type ChatToolCategorySlug = (typeof CHAT_TOOL_CATEGORY_SLUGS)[number];
@@ -30,17 +30,17 @@ export type ChatToolCategorySlug = (typeof CHAT_TOOL_CATEGORY_SLUGS)[number];
  * with the server's `core` tool composition (exercise, food, checkin, goals).
  */
 export const CORE_CHAT_TOOL_CATEGORY_SLUGS: readonly ChatToolCategorySlug[] = [
-  'food',
-  'exercise',
-  'checkin',
-  'goals',
+  "food",
+  "exercise",
+  "checkin",
+  "goals",
 ];
 
 export function isChatToolCategorySlug(
-  value: unknown
+  value: unknown,
 ): value is ChatToolCategorySlug {
   return (
-    typeof value === 'string' &&
+    typeof value === "string" &&
     (CHAT_TOOL_CATEGORY_SLUGS as readonly string[]).includes(value)
   );
 }
@@ -51,7 +51,7 @@ export function isChatToolCategorySlug(
  * callers fall back to the profile default instead of loading zero tools.
  */
 export function normalizeChatToolCategories(
-  value: unknown
+  value: unknown,
 ): ChatToolCategorySlug[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const seen = new Set<ChatToolCategorySlug>();

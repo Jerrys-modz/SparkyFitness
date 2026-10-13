@@ -23,6 +23,9 @@ import Toast from 'react-native-toast-message';
 import Button from '../components/ui/Button';
 import FormInput from '../components/FormInput';
 import RecordingSwitchRow from '../components/recording/RecordingSwitchRow';
+import PaceBandCard, {
+  type PaceBandChoice,
+} from '../components/recording/PaceBandCard';
 import RecordingVoiceCard from '../components/recording/RecordingVoiceCard';
 import SegmentedControl from '../components/SegmentedControl';
 import { SplitRow, Stat } from '../components/recording/SplitRow';
@@ -113,6 +116,21 @@ import {
 } from '../utils/gpsRecording';
 import type { RootStackScreenProps } from '../types/navigation';
 
+/** A starting band: 5:00 to 5:30 per km, 8:00 to 8:50 per mile. */
+const defaultPaceBand = (unit: 'km' | 'miles'): PaceBandChoice =>
+  unit === 'miles'
+    ? { fastest: 480, slowest: 530 }
+    : { fastest: 300, slowest: 330 };
+
+/** The band the service takes: seconds per kilometre. */
+const paceBandPerKm = (band: PaceBandChoice, unit: 'km' | 'miles') => {
+  const perKm = unit === 'miles' ? 1 / 1.609344 : 1;
+  return {
+    minSecondsPerKm: band.fastest * perKm,
+    maxSecondsPerKm: band.slowest * perKm,
+  };
+};
+
 type Props = RootStackScreenProps<'RecordActivity'>;
 
 const FEET_PER_METER = 3.28084;
@@ -172,6 +190,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const [autoPause, setAutoPause] = useState(true);
   const [audioCues, setAudioCues] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState(0);
+  const [paceAlert, setPaceAlert] = useState(false);
+  const [paceBand, setPaceBand] = useState<PaceBandChoice | null>(null);
   const [intervalChoice, setIntervalChoice] = useState<IntervalChoice>('off');
   const [customIntervals, setCustomIntervals] = useState<IntervalOptions>(
     DEFAULT_CUSTOM_INTERVALS
@@ -414,6 +434,13 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               : undefined,
             intervals: intervalPlan,
             indoor,
+            paceBand:
+              paceAlert && !indoor && activity !== 'ride'
+                ? paceBandPerKm(
+                    paceBand ?? defaultPaceBand(distanceUnit),
+                    distanceUnit
+                  )
+                : undefined,
             program:
               intervalChoice === 'program' && programStatus && intervalPlan
                 ? { id: programStatus.program.id, index: programStatus.done }
@@ -429,6 +456,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       activity,
       audioCues,
       autoPause,
+      paceAlert,
+      paceBand,
       distanceUnit,
       indoor,
       intervalChoice,
@@ -841,6 +870,16 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
           />
           {/* The watch speaks with its own voice. */}
           {audioCues && !onWatch ? <RecordingVoiceCard /> : null}
+          {/* Alerts come from the phone's GPS pace, so outdoors on the phone. */}
+          {!indoor && !onWatch && activity !== 'ride' ? (
+            <PaceBandCard
+              enabled={paceAlert}
+              onEnabledChange={setPaceAlert}
+              band={paceBand ?? defaultPaceBand(distanceUnit)}
+              onBandChange={setPaceBand}
+              unit={distanceUnit}
+            />
+          ) : null}
           <View className="bg-surface rounded-xl p-4 mt-4">
             <Text className="text-text-primary text-sm font-semibold mb-2">
               {t('recordActivity.countdown.title', {

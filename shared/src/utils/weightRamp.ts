@@ -29,7 +29,9 @@ export function isWeightRampActive(
  * step down from the last working set. Accepts web ("Warm-up", "Drop Set")
  * and mobile ("warmup", "drop") vocabularies.
  */
-export function isWeightRampSetType(setType: string | null | undefined): boolean {
+export function isWeightRampSetType(
+  setType: string | null | undefined,
+): boolean {
   return !isWarmupOrDropSetType(setType);
 }
 
@@ -41,9 +43,7 @@ export function weightRampStepIndexes(
   sets: readonly { set_type?: string | null }[],
 ): (number | null)[] {
   let step = 0;
-  return sets.map((set) =>
-    isWeightRampSetType(set.set_type) ? step++ : null,
-  );
+  return sets.map((set) => (isWeightRampSetType(set.set_type) ? step++ : null));
 }
 
 /**
@@ -64,7 +64,5 @@ export function calculateRampedWeightKg(
   const raw = (baseWeightKg + stepIndex * rampIncrementKg) * toUnit;
   const rounded = Math.round(raw / roundIncrement) * roundIncrement;
   const clean = Math.max(roundIncrement, Math.round(rounded * 100) / 100);
-  return unit === "kg"
-    ? clean
-    : Math.round(clean * KG_PER_LB * 10000) / 10000;
+  return unit === "kg" ? clean : Math.round(clean * KG_PER_LB * 10000) / 10000;
 }

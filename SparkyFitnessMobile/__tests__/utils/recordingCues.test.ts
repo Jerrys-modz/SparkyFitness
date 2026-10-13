@@ -2,6 +2,7 @@ import { createInstance } from 'i18next';
 import {
   eventCue,
   finishCue,
+  paceAlertCue,
   spokenDuration,
   splitCue,
 } from '../../src/utils/recordingCues';
@@ -66,5 +67,12 @@ describe('eventCue and finishCue', () => {
     expect(
       finishCue(tt, { distanceMeters: 5234, totalSeconds: 1800, unit: 'km' })
     ).toBe('Recording finished. 5.2 kilometers. Time 30 minutes.');
+  });
+});
+
+describe('paceAlertCue', () => {
+  it('tells the runner which way to go', () => {
+    expect(paceAlertCue(tt, 'tooFast')).toBe('Too fast. Ease off.');
+    expect(paceAlertCue(tt, 'tooSlow')).toBe('Too slow. Pick it up.');
   });
 });

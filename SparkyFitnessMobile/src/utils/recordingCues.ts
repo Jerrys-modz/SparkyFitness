@@ -1,6 +1,10 @@
 import type { TFunction } from 'i18next';
 import { METERS_PER_KM, METERS_PER_MILE } from './gpsRecording';
-import type { IntervalStep, IntervalStyle } from '@workspace/shared';
+import type {
+  IntervalStep,
+  IntervalStyle,
+  PaceAlertKind,
+} from '@workspace/shared';
 
 /**
  * The words spoken during a GPS recording. Pure and given `t`, so it runs under
@@ -209,4 +213,15 @@ export function intervalsDoneCue(t: TFunction): string {
   return t('recordActivity.cues.intervalsDone', {
     defaultValue: 'Intervals complete.',
   });
+}
+
+/** Said when the pace has stayed outside the runner's band. */
+export function paceAlertCue(t: TFunction, kind: PaceAlertKind): string {
+  return kind === 'tooFast'
+    ? t('recordActivity.cues.paceTooFast', {
+        defaultValue: 'Too fast. Ease off.',
+      })
+    : t('recordActivity.cues.paceTooSlow', {
+        defaultValue: 'Too slow. Pick it up.',
+      });
 }

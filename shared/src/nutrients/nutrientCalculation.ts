@@ -4,18 +4,18 @@ import {
   VitaminCalculationAlgorithm,
   SugarCalculationAlgorithm,
   AddedSugarAlgorithm,
-} from './nutrientAlgorithms.ts';
+} from "./nutrientAlgorithms.ts";
 
 /**
  * User data interface for nutrient calculations
  */
 export interface UserNutrientData {
   age: number;
-  sex: 'male' | 'female';
+  sex: "male" | "female";
   weightKg: number;
   calories: number; // Daily calorie target
   totalFatGrams: number; // Total fat allocation from macros
-  activityLevel?: 'not_much' | 'light' | 'moderate' | 'heavy';
+  activityLevel?: "not_much" | "light" | "moderate" | "heavy";
 }
 
 /**
@@ -59,7 +59,7 @@ export interface SugarTarget {
  */
 export function calculateFatBreakdown(
   userData: UserNutrientData,
-  algorithm: FatBreakdownAlgorithm
+  algorithm: FatBreakdownAlgorithm,
 ): FatBreakdown {
   const { calories, totalFatGrams } = userData;
 
@@ -94,7 +94,7 @@ export function calculateFatBreakdown(
       const ketoTrans = 0;
       const ketoMono = Math.max(
         0,
-        totalFatGrams - ketoSaturated - ketoPoly - ketoTrans
+        totalFatGrams - ketoSaturated - ketoPoly - ketoTrans,
       );
 
       return {
@@ -116,7 +116,7 @@ export function calculateFatBreakdown(
       const medTrans = 0;
       const medMono = Math.max(
         0,
-        totalFatGrams - medSaturated - medPoly - medTrans
+        totalFatGrams - medSaturated - medPoly - medTrans,
       );
 
       return {
@@ -130,7 +130,7 @@ export function calculateFatBreakdown(
     default:
       return calculateFatBreakdown(
         userData,
-        FatBreakdownAlgorithm.AHA_GUIDELINES
+        FatBreakdownAlgorithm.AHA_GUIDELINES,
       );
   }
 }
@@ -140,7 +140,7 @@ export function calculateFatBreakdown(
  */
 export function calculateMineralTargets(
   userData: UserNutrientData,
-  algorithm: MineralCalculationAlgorithm
+  algorithm: MineralCalculationAlgorithm,
 ): MineralTargets {
   const { age, sex, activityLevel } = userData;
 
@@ -152,16 +152,16 @@ export function calculateMineralTargets(
       const sodium = 2300;
 
       // Potassium: Sex-based
-      const potassium = sex === 'male' ? 3400 : 2600;
+      const potassium = sex === "male" ? 3400 : 2600;
 
       // Calcium: Age-based
       let calcium = 1000;
-      if (age >= 51 && sex === 'female') calcium = 1200;
+      if (age >= 51 && sex === "female") calcium = 1200;
       if (age >= 71) calcium = 1200;
 
       // Iron: Sex and age-based
       let iron = 8;
-      if (sex === 'female' && age >= 19 && age <= 50) iron = 18;
+      if (sex === "female" && age >= 19 && age <= 50) iron = 18;
 
       // Cholesterol: Standard limit
       const cholesterol = 300;
@@ -171,10 +171,10 @@ export function calculateMineralTargets(
 
     case MineralCalculationAlgorithm.ATHLETIC_PERFORMANCE: {
       // Higher targets for athletes
-      const athleteSodium = activityLevel === 'heavy' ? 3500 : 3000;
+      const athleteSodium = activityLevel === "heavy" ? 3500 : 3000;
       const athletePotassium = 4500;
       const athleteCalcium = 1300;
-      const athleteIron = sex === 'male' ? 10 : 20;
+      const athleteIron = sex === "male" ? 10 : 20;
       const athleteCholesterol = 300;
 
       return {
@@ -191,7 +191,7 @@ export function calculateMineralTargets(
       const heartSodium = 1500; // Strict limit
       const heartPotassium = 4700; // Higher to balance sodium
       const heartCalcium = age >= 51 ? 1200 : 1000;
-      const heartIron = sex === 'male' ? 8 : age >= 19 && age <= 50 ? 18 : 8;
+      const heartIron = sex === "male" ? 8 : age >= 19 && age <= 50 ? 18 : 8;
       const heartCholesterol = 200; // Stricter limit
 
       return {
@@ -206,7 +206,7 @@ export function calculateMineralTargets(
     default:
       return calculateMineralTargets(
         userData,
-        MineralCalculationAlgorithm.RDA_STANDARD
+        MineralCalculationAlgorithm.RDA_STANDARD,
       );
   }
 }
@@ -216,23 +216,23 @@ export function calculateMineralTargets(
  */
 export function calculateVitaminTargets(
   userData: UserNutrientData,
-  algorithm: VitaminCalculationAlgorithm
+  algorithm: VitaminCalculationAlgorithm,
 ): VitaminTargets {
   const { sex, activityLevel } = userData;
 
   switch (algorithm) {
     case VitaminCalculationAlgorithm.RDA_STANDARD: {
       // USDA RDA
-      const vitaminA = sex === 'male' ? 900 : 700;
-      const vitaminC = sex === 'male' ? 90 : 75;
+      const vitaminA = sex === "male" ? 900 : 700;
+      const vitaminC = sex === "male" ? 90 : 75;
 
       return { vitamin_a: vitaminA, vitamin_c: vitaminC };
     }
 
     case VitaminCalculationAlgorithm.IMMUNE_SUPPORT: {
       // Higher for immune function
-      const immuneVitaminA = sex === 'male' ? 1000 : 850;
-      const immuneVitaminC = activityLevel === 'heavy' ? 500 : 300;
+      const immuneVitaminA = sex === "male" ? 1000 : 850;
+      const immuneVitaminC = activityLevel === "heavy" ? 500 : 300;
 
       return { vitamin_a: immuneVitaminA, vitamin_c: immuneVitaminC };
     }
@@ -248,7 +248,7 @@ export function calculateVitaminTargets(
     default:
       return calculateVitaminTargets(
         userData,
-        VitaminCalculationAlgorithm.RDA_STANDARD
+        VitaminCalculationAlgorithm.RDA_STANDARD,
       );
   }
 }
@@ -258,7 +258,7 @@ export function calculateVitaminTargets(
  */
 export function calculateSugarTarget(
   userData: UserNutrientData,
-  algorithm: SugarCalculationAlgorithm
+  algorithm: SugarCalculationAlgorithm,
 ): SugarTarget {
   const { calories } = userData;
 
@@ -284,7 +284,7 @@ export function calculateSugarTarget(
     default:
       return calculateSugarTarget(
         userData,
-        SugarCalculationAlgorithm.WHO_GUIDELINES
+        SugarCalculationAlgorithm.WHO_GUIDELINES,
       );
   }
 }
@@ -302,7 +302,7 @@ export interface AddedSugarLimit {
 
 export function calculateAddedSugarLimit(
   userData: UserNutrientData,
-  algorithm: AddedSugarAlgorithm
+  algorithm: AddedSugarAlgorithm,
 ): AddedSugarLimit {
   const { calories, sex } = userData;
 
@@ -319,7 +319,7 @@ export function calculateAddedSugarLimit(
 
     case AddedSugarAlgorithm.AHA_FIXED: {
       // AHA: fixed grams regardless of calorie intake.
-      return { sugars: sex === 'male' ? 36 : 25 };
+      return { sugars: sex === "male" ? 36 : 25 };
     }
 
     default:
@@ -345,7 +345,7 @@ export type AlgorithmBundle = {
  */
 export function calculateAllAdvancedNutrients(
   userData: UserNutrientData,
-  algorithms: AlgorithmBundle
+  algorithms: AlgorithmBundle,
 ) {
   return {
     ...calculateFatBreakdown(userData, algorithms.fatBreakdown),
@@ -361,25 +361,25 @@ export function calculateAllAdvancedNutrients(
 // separately via calculateAddedSugarLimit/AddedSugarAlgorithm.
 const NUTRIENT_FAMILY_MAP: Record<
   string,
-  keyof Omit<AlgorithmBundle, 'addedSugar'>
+  keyof Omit<AlgorithmBundle, "addedSugar">
 > = {
-  saturated_fat: 'fatBreakdown',
-  trans_fat: 'fatBreakdown',
-  polyunsaturated_fat: 'fatBreakdown',
-  monounsaturated_fat: 'fatBreakdown',
-  cholesterol: 'minerals',
-  sodium: 'minerals',
-  potassium: 'minerals',
-  calcium: 'minerals',
-  iron: 'minerals',
-  vitamin_a: 'vitamins',
-  vitamin_c: 'vitamins',
-  sugars: 'sugar',
+  saturated_fat: "fatBreakdown",
+  trans_fat: "fatBreakdown",
+  polyunsaturated_fat: "fatBreakdown",
+  monounsaturated_fat: "fatBreakdown",
+  cholesterol: "minerals",
+  sodium: "minerals",
+  potassium: "minerals",
+  calcium: "minerals",
+  iron: "minerals",
+  vitamin_a: "vitamins",
+  vitamin_c: "vitamins",
+  sugars: "sugar",
 };
 
 export function getAutoCalculateFamily(
-  nutrientId: string
-): keyof Omit<AlgorithmBundle, 'addedSugar'> | null {
+  nutrientId: string,
+): keyof Omit<AlgorithmBundle, "addedSugar"> | null {
   return NUTRIENT_FAMILY_MAP[nutrientId] ?? null;
 }
 
@@ -393,24 +393,24 @@ export function getAutoCalculateFamily(
 export function calculateSingleNutrientAutoValue(
   nutrientId: string,
   userData: UserNutrientData,
-  algorithms: AlgorithmBundle
+  algorithms: AlgorithmBundle,
 ): number | null {
   const family = getAutoCalculateFamily(nutrientId);
   if (!family) return null;
   switch (family) {
-    case 'fatBreakdown':
+    case "fatBreakdown":
       return calculateFatBreakdown(userData, algorithms.fatBreakdown)[
         nutrientId as keyof FatBreakdown
       ];
-    case 'minerals':
+    case "minerals":
       return calculateMineralTargets(userData, algorithms.minerals)[
         nutrientId as keyof MineralTargets
       ];
-    case 'vitamins':
+    case "vitamins":
       return calculateVitaminTargets(userData, algorithms.vitamins)[
         nutrientId as keyof VitaminTargets
       ];
-    case 'sugar':
+    case "sugar":
       return calculateSugarTarget(userData, algorithms.sugar).sugars;
     default:
       // 'addedSugar' has no NUTRIENT_FAMILY_MAP entry (see
@@ -431,7 +431,7 @@ export function computeAutoCalculatedValue(
   nutrientId: string,
   userData: UserNutrientData,
   algorithms: AlgorithmBundle,
-  isAddedSugarLike: boolean
+  isAddedSugarLike: boolean,
 ): number | null {
   const family = getAutoCalculateFamily(nutrientId);
   if (family)

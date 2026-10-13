@@ -1,10 +1,17 @@
 import { z } from "zod";
 
-export const progressionModeSchema = z.enum(["rep_goal", "fixed", "step_load", "manual"]);
+export const progressionModeSchema = z.enum([
+  "rep_goal",
+  "fixed",
+  "step_load",
+  "manual",
+]);
 export type ProgressionMode = z.infer<typeof progressionModeSchema>;
 
 export const progressionIncrementTypeSchema = z.enum(["weight", "reps"]);
-export type ProgressionIncrementType = z.infer<typeof progressionIncrementTypeSchema>;
+export type ProgressionIncrementType = z.infer<
+  typeof progressionIncrementTypeSchema
+>;
 
 export const exerciseProgressionConfigSchema = z.object({
   progressionMode: progressionModeSchema.default("rep_goal").optional(),
@@ -15,7 +22,9 @@ export const exerciseProgressionConfigSchema = z.object({
   equipmentBrand: z.string().nullable().optional(),
 });
 
-export type ExerciseProgressionConfig = z.infer<typeof exerciseProgressionConfigSchema>;
+export type ExerciseProgressionConfig = z.infer<
+  typeof exerciseProgressionConfigSchema
+>;
 
 export interface CompletedSetHistory {
   setNumber: number;
@@ -32,7 +41,12 @@ export interface LastExercisePerformance {
 
 export interface ProgressionEvaluationResult {
   goalAchieved: boolean;
-  status: "PROGRESSION_WEIGHT_INCREASE" | "PROGRESSION_REPS_INCREASE" | "MAINTAIN_TARGET" | "FIRST_SESSION" | "MANUAL";
+  status:
+    | "PROGRESSION_WEIGHT_INCREASE"
+    | "PROGRESSION_REPS_INCREASE"
+    | "MAINTAIN_TARGET"
+    | "FIRST_SESSION"
+    | "MANUAL";
   suggestedWeight: number;
   suggestedRepGoal: number;
   totalRepsAchieved: number;

@@ -34,7 +34,7 @@ const round = (value: number) => Math.round(value * 10) / 10;
 /** Per-press water for a container linked to a food, or null if unknowable. */
 export function linkedHydrationExample(
   factor: number,
-  input: LinkedInput
+  input: LinkedInput,
 ): HydrationExample | null {
   const water = Number(input.waterMl);
   const quantity = Number(input.quantity);
@@ -47,13 +47,13 @@ export function linkedHydrationExample(
       ? (water * quantity) / servingSize
       : water;
   if (!Number.isFinite(factor) || factor < 0) return null;
-  return { credited: round(total * factor), total: round(total), unit: 'ml' };
+  return { credited: round(total * factor), total: round(total), unit: "ml" };
 }
 
 /** Per-press water for a plain container, in the unit the user typed. */
 export function plainHydrationExample(
   factor: number,
-  input: PlainInput
+  input: PlainInput,
 ): HydrationExample | null {
   const volume = Number(input.volume);
   if (!Number.isFinite(volume) || volume <= 0) return null;
@@ -64,6 +64,6 @@ export function plainHydrationExample(
   return {
     credited: round(perPress * factor),
     total: round(perPress),
-    unit: input.unit || 'ml',
+    unit: input.unit || "ml",
   };
 }

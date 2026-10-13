@@ -167,7 +167,7 @@ export interface IntervalPosition {
 /** Where the plan stands after `activeSeconds` of recorded (unpaused) time. */
 export function intervalPosition(
   plan: IntervalPlan,
-  activeSeconds: number
+  activeSeconds: number,
 ): IntervalPosition | null {
   if (plan.steps.length === 0) return null;
   const at = Math.max(0, activeSeconds);
@@ -231,12 +231,12 @@ export function isValidIntervalPlan(value: unknown): value is IntervalPlan {
         ["warmup", "work", "recovery", "cooldown"].includes(step.kind) &&
         Number.isFinite(step.seconds) &&
         step.seconds > 0 &&
-        step.seconds <= MAX_PROGRAM_STEP_SECONDS
+        step.seconds <= MAX_PROGRAM_STEP_SECONDS,
     )
   );
 }
 
 /** Whether the last step has begun, i.e. the person got through the plan. */
 export const lastStepStarted = (
-  intervals: { plan: IntervalPlan; cued: number } | undefined
+  intervals: { plan: IntervalPlan; cued: number } | undefined,
 ): boolean => !!intervals && intervals.cued >= intervals.plan.steps.length - 1;
