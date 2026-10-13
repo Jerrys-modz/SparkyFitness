@@ -47,6 +47,13 @@ jest.mock('../../src/hooks/useTrainingConsistency', () => ({
   }),
 }));
 
+jest.mock('../../src/hooks/useTrainingLoad', () => ({
+  useTrainingLoad: () => ({
+    load: undefined,
+    isLoading: false,
+    isError: false,
+  }),
+}));
 jest.mock('../../src/hooks/useCardioSessions', () => ({
   useCardioSessions: jest.fn(),
 }));

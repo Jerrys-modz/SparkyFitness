@@ -28,6 +28,8 @@ import StatusView from '../components/StatusView';
 import CollapsibleSection from '../components/CollapsibleSection';
 import CardioSessionList from '../components/exerciseStats/CardioSessionList';
 import TrainingConsistencyCard from '../components/exerciseStats/TrainingConsistencyCard';
+import TrainingLoadCard from '../components/exerciseStats/TrainingLoadCard';
+import { useTrainingLoad } from '../hooks/useTrainingLoad';
 import MuscleFigure, {
   MUSCLE_HEAT_COLORS,
 } from '../components/exerciseStats/MuscleFigure';
@@ -131,6 +133,7 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
 
   const { data, isLoading } = useExerciseDashboard(range, customRange);
   const consistency = useTrainingConsistency();
+  const trainingLoad = useTrainingLoad();
   const cardio = useCardioSessions(range, view === 'cardio', customRange);
   const { preferences } = usePreferences();
   const weightUnit: 'kg' | 'lbs' =
@@ -463,6 +466,14 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
               </View>
             ) : null}
           </View>
+        ) : null}
+
+        {isSectionShown('exercise.load') ? (
+          <TrainingLoadCard
+            data={trainingLoad.load}
+            isLoading={trainingLoad.isLoading}
+            isError={trainingLoad.isError}
+          />
         ) : null}
 
         {isSectionShown('exercise.consistency') ? (

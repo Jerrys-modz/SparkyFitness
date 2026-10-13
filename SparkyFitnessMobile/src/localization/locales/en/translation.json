@@ -6212,6 +6212,25 @@
       "perMile": "/mi",
       "underOneMinute": "<1 min"
     },
+    "load": {
+      "title": "Training Load",
+      "subtitle": "Cardio minutes weighted by heart rate, this week against the last four.",
+      "thisWeek": "this week · usual {{average}}",
+      "weekA11y": "Week load {{load}}",
+      "fourWeeksAgo": "4 weeks ago",
+      "last7": "Last 7 days",
+      "loadFailed": "Could not load your training load.",
+      "takeRest": "Take a rest day or an easy session before your next hard one.",
+      "ready": "You are rested and ready for a good session.",
+      "status": {
+        "noData": "No cardio logged in the last four weeks.",
+        "learning": "Still learning your normal. Keep logging and this will start to compare your weeks.",
+        "low": "Lighter than your usual. A good time to add a little, or enjoy the rest.",
+        "steady": "In line with your usual training. A steady build.",
+        "high": "Higher than your usual. Fine for a week, but keep the next few easy.",
+        "spike": "A big jump from your usual. Ramping up this fast raises the risk of injury, so ease off."
+      }
+    },
     "consistency": {
       "title": "Training Consistency",
       "subtitle_one": "Last {{formattedCount}} week, {{first}} to {{last}}",
@@ -7032,6 +7051,7 @@
       "setsPerMuscle": "Sets per muscle",
       "heatMap": "Muscle heat map",
       "trainingConsistency": "Training consistency",
+      "trainingLoad": "Training load",
       "moreAnalysis": "More analysis",
       "caffeineChart": "Caffeine chart",
       "caffeineSummary": "Caffeine summary",
