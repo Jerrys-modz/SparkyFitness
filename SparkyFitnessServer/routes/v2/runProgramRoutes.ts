@@ -8,6 +8,7 @@ import requireSelfActor from '../../middleware/requireSelfMiddleware.js';
 import {
   completeRunProgramWorkout,
   getRunProgram,
+  InvalidRunProgramScheduleError,
   rateRunProgramWorkout,
   UnknownRunProgramError,
   upsertRunProgram,
@@ -69,6 +70,9 @@ router.put('/', async (req, res, next) => {
   } catch (error) {
     if (error instanceof UnknownRunProgramError) {
       return res.status(400).json({ error: 'Unknown run program' });
+    }
+    if (error instanceof InvalidRunProgramScheduleError) {
+      return res.status(400).json({ error: error.message });
     }
     next(error);
   }

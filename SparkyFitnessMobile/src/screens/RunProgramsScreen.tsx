@@ -106,11 +106,12 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const chooseProgram = (id: string) => {
-    if (!enabled || id === storedId) {
+    if (id === storedId) {
       setChosenId(id);
       return;
     }
-    // Switching a running program starts the new one from week 1.
+    // Switching a stored program, running or paused, starts the new one from
+    // week 1 (and switches it on), so it is always confirmed.
     Alert.alert(
       t('recordActivity.program.switchTitle', {
         name: programName(t, id),

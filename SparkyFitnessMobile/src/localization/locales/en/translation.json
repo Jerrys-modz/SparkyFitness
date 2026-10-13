@@ -4857,6 +4857,7 @@
       "empty": "Log daily temperature logs to view your BBT chart."
     },
     "allTrendsHidden": "All graphs are hidden. Choose which to show in Dashboard Settings.",
+    "noTrendData": "No data to graph yet.",
     "vo2max": {
       "title": "VO2 max",
       "loadFailed": "Failed to load VO2 max data",

@@ -80,12 +80,41 @@ export async function getRunProgram(
 /** Thrown for a program id the server does not know. */
 export class UnknownRunProgramError extends Error {}
 
+/** Thrown when the goal day would fall before the first day. */
+export class InvalidRunProgramScheduleError extends Error {}
+
+const SCHEDULE_CHECK = 'chk_run_programs_end_after_start';
+
+function isScheduleCheckViolation(error: unknown): boolean {
+  const { code, constraint } = error as { code?: string; constraint?: string };
+  return code === '23514' && constraint === SCHEDULE_CHECK;
+}
+
 /**
  * Creates the person's program from the built-in one, or changes the switch
  * and place of the one they have. Choosing a different program replaces the
  * workouts (and the place restarts unless one is given).
  */
 export async function upsertRunProgram(
+  userId: string,
+  body: UpsertRunProgramBody,
+  authenticatedUserId?: string
+): Promise<RunProgramResponse> {
+  try {
+    return await saveRunProgram(userId, body, authenticatedUserId);
+  } catch (error) {
+    // The request body only checks a pair sent together; the table checks the
+    // new value against the stored one (e.g. a goal day set before the start).
+    if (isScheduleCheckViolation(error)) {
+      throw new InvalidRunProgramScheduleError(
+        'The goal day cannot be before the first day.'
+      );
+    }
+    throw error;
+  }
+}
+
+async function saveRunProgram(
   userId: string,
   body: UpsertRunProgramBody,
   authenticatedUserId?: string

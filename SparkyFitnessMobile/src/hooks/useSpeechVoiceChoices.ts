@@ -51,8 +51,9 @@ export function useSpeechVoiceChoices(enabled = true) {
       }
       return t('speechVoice.standard', { defaultValue: 'Standard' });
     };
-    const listed = voicesForLocale(voices, locale);
-    const shown = listed.length > 0 ? listed : voices;
+    // Only voices the resolver will accept; none for the locale leaves just
+    // the automatic choice.
+    const shown = voicesForLocale(voices, locale);
     return [
       {
         label: t('speechVoice.automatic', {

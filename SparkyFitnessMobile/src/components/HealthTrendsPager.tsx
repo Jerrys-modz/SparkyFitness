@@ -140,8 +140,11 @@ const HealthTrendsPager: React.FC<HealthTrendsPagerProps> = ({
 
   // A trend the user configured to show but that has no data for in this window still hides itself
   const keysWithData = visibleTrends.filter((key) => hasTrendData[key]());
+  // VO2 max waits for a reading, so an empty one is never the fallback page.
   const keysToRender =
-    keysWithData.length > 0 ? keysWithData : visibleTrends.slice(0, 1);
+    keysWithData.length > 0
+      ? keysWithData
+      : visibleTrends.filter((key) => key !== 'vo2max').slice(0, 1);
 
   const pages: HealthTrendPage[] = keysToRender.map((key) => ({
     key,
@@ -208,10 +211,14 @@ const HealthTrendsPager: React.FC<HealthTrendsPagerProps> = ({
     return (
       <View className="bg-surface rounded-xl p-6 my-2 shadow-sm">
         <Text className="text-text-muted text-sm text-center">
-          {t('charts.allTrendsHidden', {
-            defaultValue:
-              'All graphs are hidden. Choose which to show in Dashboard Settings.',
-          })}
+          {visibleTrends.length > 0
+            ? t('charts.noTrendData', {
+                defaultValue: 'No data to graph yet.',
+              })
+            : t('charts.allTrendsHidden', {
+                defaultValue:
+                  'All graphs are hidden. Choose which to show in Dashboard Settings.',
+              })}
         </Text>
       </View>
     );
