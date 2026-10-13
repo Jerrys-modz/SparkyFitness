@@ -2,6 +2,11 @@ import * as Speech from 'expo-speech';
 import { getAppLocale } from '../localization';
 import { addLog } from './LogService';
 import {
+  loadSpeechVoices,
+  resolveSpeechVoice,
+  speechVoicesReady,
+} from './speechVoice';
+import {
   beginCueDucking,
   endCueDucking,
   startRecordingCueSession,
@@ -17,13 +22,19 @@ import {
  * reaches the recording.
  */
 
+// Bumped when a session ends, so a cue still waiting for the voices is dropped.
+let sessionGeneration = 0;
+
 /** Gets the audio session ready; call when a recording that speaks begins. */
 export function beginRecordingCues(): void {
   void startRecordingCueSession();
+  // Read the installed voices now so the first cue already uses the best one.
+  void loadSpeechVoices(true);
 }
 
 /** Lets the audio session go; call when the recording ends. */
 export function endRecordingCues(): void {
+  sessionGeneration += 1;
   void stopRecordingCueSession();
 }
 
@@ -43,6 +54,19 @@ export function stopRecordingCues(): void {
  */
 export function speakRecordingCue(text: string, onFinished?: () => void): void {
   if (!text) return;
+  // The first cue waits for the voices (the load beginRecordingCues started),
+  // so it never falls back to the system voice while the pick is loading.
+  if (speechVoicesReady()) {
+    sayRecordingCue(text, onFinished);
+    return;
+  }
+  const requested = sessionGeneration;
+  void loadSpeechVoices().then(() => {
+    if (requested === sessionGeneration) sayRecordingCue(text, onFinished);
+  });
+}
+
+function sayRecordingCue(text: string, onFinished?: () => void): void {
   try {
     void Speech.stop();
     let ducked = false;
@@ -53,8 +77,10 @@ export function speakRecordingCue(text: string, onFinished?: () => void): void {
         endCueDucking();
       }
     };
+    const locale = getAppLocale();
     Speech.speak(text, {
-      language: getAppLocale(),
+      language: locale,
+      voice: resolveSpeechVoice(locale),
       useApplicationAudioSession: true,
       onStart: () => {
         ducked = beginCueDucking();
