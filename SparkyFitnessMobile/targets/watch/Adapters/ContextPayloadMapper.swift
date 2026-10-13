@@ -91,6 +91,11 @@ enum ContextPayloadMapper {
                 max: (payload["runPaceMaxSecondsPerKm"] as? NSNumber)?.doubleValue
             ) ?? previous.runPaceBand,
             runPaceAlert: payload["runPaceAlert"] as? Bool ?? previous.runPaceAlert,
+            runHeartRateBand: WatchHeartRateBand.normalized(
+                min: (payload["runHeartRateMinBpm"] as? NSNumber)?.doubleValue,
+                max: (payload["runHeartRateMaxBpm"] as? NSNumber)?.doubleValue
+            ) ?? previous.runHeartRateBand,
+            runHeartRateAlert: payload["runHeartRateAlert"] as? Bool ?? previous.runHeartRateAlert,
             runPlans: runPlans(from: payload) ?? previous.runPlans,
             indoorDistanceScale: indoorDistanceScale(from: payload) ?? previous.indoorDistanceScale
         )
@@ -182,6 +187,10 @@ enum ContextPayloadMapper {
                 pace: WatchPaceBand.normalized(
                     min: (step["paceMin"] as? NSNumber)?.doubleValue,
                     max: (step["paceMax"] as? NSNumber)?.doubleValue
+                ),
+                heartRate: WatchHeartRateBand.normalized(
+                    min: (step["hrMin"] as? NSNumber)?.doubleValue,
+                    max: (step["hrMax"] as? NSNumber)?.doubleValue
                 )
             )
         }
@@ -226,6 +235,10 @@ enum ContextPayloadMapper {
             paceBand: WatchPaceBand.normalized(
                 min: (payload["paceMin"] as? NSNumber)?.doubleValue,
                 max: (payload["paceMax"] as? NSNumber)?.doubleValue
+            ),
+            heartRateBand: WatchHeartRateBand.normalized(
+                min: (payload["hrMin"] as? NSNumber)?.doubleValue,
+                max: (payload["hrMax"] as? NSNumber)?.doubleValue
             )
         )
     }

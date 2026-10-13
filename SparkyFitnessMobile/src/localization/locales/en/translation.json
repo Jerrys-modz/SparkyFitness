@@ -6536,7 +6536,9 @@
       "interval": "{{name}}. {{time}}.",
       "intervalsDone": "Intervals complete.",
       "paceTooFast": "Too fast. Ease off.",
-      "paceTooSlow": "Too slow. Pick it up."
+      "paceTooSlow": "Too slow. Pick it up.",
+      "heartRateTooHigh": "Heart rate high. Ease off.",
+      "heartRateTooLow": "Heart rate low. Pick it up."
     },
     "autoPause": {
       "title": "Auto-pause",
@@ -6698,6 +6700,19 @@
       "workDescription": "Alerts you when a fast stretch is outside this range.",
       "easyTitle": "Easy stretch pace",
       "easyDescription": "Alerts you when an easy stretch is outside this range."
+    },
+    "heartRateBand": {
+      "title": "Heart rate alert",
+      "description": "Needs your Apple Watch. Buzzes, and speaks with voice cues on, when your heart rate stays outside this range.",
+      "lowest": "Lowest",
+      "highest": "Highest",
+      "value": "{{value}} bpm",
+      "lower": "{{edge}} 5 bpm lower",
+      "higher": "{{edge}} 5 bpm higher",
+      "workTitle": "Fast stretch heart rate",
+      "workDescription": "Alerts you when your heart rate in a fast stretch is outside this range.",
+      "easyTitle": "Easy stretch heart rate",
+      "easyDescription": "Alerts you when your heart rate in an easy stretch is outside this range."
     }
   },
   "goals": {

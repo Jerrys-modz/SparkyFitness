@@ -158,6 +158,8 @@ struct WatchRunSettings: Codable, Equatable {
     /// A pace range to stay inside; nil is no pace alert. Optional so a
     /// snapshot written before it existed still decodes.
     var paceBand: WatchPaceBand? = nil
+    /// A heart-rate range to stay inside; nil is no heart-rate alert.
+    var heartRateBand: WatchHeartRateBand? = nil
 }
 
 /// A timed plan a wrist-only run can follow: a list of steps the phone has
@@ -170,6 +172,8 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
         /// Pace range to hold in this step; nil is free. Optional so a plan
         /// kept in an older snapshot still decodes.
         var pace: WatchPaceBand? = nil
+        /// Heart-rate range to hold in this step; nil is free.
+        var heartRate: WatchHeartRateBand? = nil
     }
 
     let id: String

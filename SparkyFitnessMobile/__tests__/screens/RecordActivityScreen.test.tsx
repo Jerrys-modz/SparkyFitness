@@ -13,6 +13,7 @@ import {
   startRecording,
   markLap,
   setRecordingAudioCues,
+  setHeartRateAlertPreference,
   setPaceAlertPreference,
   setRecordingPaceBand,
   setRecordingAutoPause,
@@ -67,6 +68,8 @@ jest.mock('../../src/services/gpsRecordingService', () => {
     setCountdownPreference: jest.fn(() => Promise.resolve()),
     setPaceAlertPreference: jest.fn(() => Promise.resolve()),
     setRecordingPaceBand: jest.fn(() => Promise.resolve()),
+    setHeartRateAlertPreference: jest.fn(() => Promise.resolve()),
+    setRecordingHeartRateBand: jest.fn(() => Promise.resolve()),
     COUNTDOWN_CHOICES: [0, 3, 5, 10],
   };
 });
@@ -435,6 +438,32 @@ describe('RecordActivityScreen', () => {
     expect(setPaceAlertPreference).toHaveBeenLastCalledWith(
       true,
       expect.objectContaining({ maxSecondsPerKm: expect.any(Number) })
+    );
+  });
+
+  it('keeps the heart-rate range for the next run and passes it on', async () => {
+    jest.mocked(useWatchConnectivity).mockReturnValue({
+      isSupported: true,
+      isPaired: true,
+      isReachable: true,
+    } as ReturnType<typeof useWatchConnectivity>);
+    state(null);
+    const screen = await renderScreen();
+    fireEvent(screen.getByTestId('hr-alert-switch'), 'valueChange', true);
+    expect(setHeartRateAlertPreference).toHaveBeenCalledWith(
+      true,
+      expect.objectContaining({ minBpm: expect.any(Number) })
+    );
+    fireEvent.press(screen.getByText('Start'));
+    await waitFor(() =>
+      expect(startRecording).toHaveBeenCalledWith(
+        expect.objectContaining({
+          heartRateBand: {
+            minBpm: expect.any(Number),
+            maxBpm: expect.any(Number),
+          },
+        })
+      )
     );
   });
 

@@ -479,6 +479,10 @@ struct WatchContext: Codable, Equatable {
     /// and whether the pace alert is on. Nil band (older phone) reads as off.
     var runPaceBand: WatchPaceBand? = nil
     var runPaceAlert: Bool? = nil
+    /// The phone's heart-rate range for a run begun on the wrist, and whether
+    /// the heart-rate alert is on.
+    var runHeartRateBand: WatchHeartRateBand? = nil
+    var runHeartRateAlert: Bool? = nil
     /// Plans a wrist-only run can follow. Nil until the phone has said.
     var runPlans: [WatchRunPlan]? = nil
     /// Learned correction for the watch's indoor distance. Nil until the
