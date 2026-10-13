@@ -263,8 +263,8 @@ export function combinedHeartRateZoneRows(
  * when that screen has nothing to add. Only synced workouts qualify: in-app
  * entries (manual, sparky, workout plan, or no source) carry no route, heart
  * rate, or zones, and strength sessions are logged as weight and reps. Pass
- * `allowInApp` for an in-app entry known to have a route (see
- * `cardioSessionForDiaryEntry`).
+ * `allowInApp` for an in-app entry that is a run, walk or ride (a GPS
+ * recording or watch run is saved as one).
  */
 export function cardioSessionFromDiaryEntry(
   session: IndividualSessionResponse,
@@ -272,8 +272,7 @@ export function cardioSessionFromDiaryEntry(
   options: { allowInApp?: boolean } = {}
 ): ExerciseActivityQueryItem | null {
   if (!session.entry_date) return null;
-  // In-app entries are skipped unless the caller has found a stored route for
-  // one (a GPS recording is saved as an in-app entry).
+  // In-app entries are skipped unless the caller asks for them.
   if (!options.allowInApp && canEditGroupedWorkout(session.source)) return null;
   if (session.exercise_snapshot?.modality === 'weight_reps') return null;
   if (session.sets.some((set) => set.weight != null || set.reps != null)) {
