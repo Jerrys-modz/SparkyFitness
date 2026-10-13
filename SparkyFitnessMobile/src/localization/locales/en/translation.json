@@ -6434,6 +6434,8 @@
     "addShoe": "Add shoe",
     "editShoe": "Edit shoe",
     "loadFailed": "Could not load your shoes.",
+    "notFound": "Shoe not found.",
+    "assignFailed": "Failed to assign shoe",
     "empty": "No shoes yet",
     "emptyHint": "Add a pair, then pick it on a run to start counting its mileage.",
     "name": "Name",

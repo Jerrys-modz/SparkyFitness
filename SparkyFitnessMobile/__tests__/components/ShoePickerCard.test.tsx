@@ -1,11 +1,21 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ShoeResponse } from '@workspace/shared';
 
 import ShoePickerCard from '../../src/components/ShoePickerCard';
 import { fetchExerciseEntry } from '../../src/services/api/exerciseStatsApi';
-import { fetchShoes } from '../../src/services/api/shoesApi';
+import Toast from 'react-native-toast-message';
+import { addLog } from '../../src/services/LogService';
+import {
+  assignShoeToExerciseEntry,
+  fetchShoes,
+} from '../../src/services/api/shoesApi';
 import { initializeI18n } from '../../src/localization/i18n';
 
 jest.mock('../../src/services/api/exerciseStatsApi');
@@ -21,11 +31,13 @@ jest.mock('../../src/components/BottomSheetPicker', () => {
     default: ({
       value,
       options,
+      onSelect,
     }: {
+      onSelect: (value: string) => void;
       value: string;
       options: { label: string; value: string }[];
     }) => (
-      <Text testID="picker">
+      <Text testID="picker" onPress={() => onSelect('shoe-1')}>
         {options.find((option) => option.value === value)?.label}
       </Text>
     ),
@@ -64,6 +76,28 @@ beforeEach(() => {
 });
 
 describe('ShoePickerCard', () => {
+  it('shows an error toast and keeps the error log when assignment fails', async () => {
+    mockedFetchEntry.mockResolvedValue({ shoe_id: null } as never);
+    mockedFetchShoes.mockResolvedValue([shoe({})]);
+    jest
+      .mocked(assignShoeToExerciseEntry)
+      .mockRejectedValueOnce(new Error('Offline'));
+    renderCard();
+    await waitFor(() => expect(screen.getByTestId('picker')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('picker'));
+    await waitFor(() =>
+      expect(Toast.show).toHaveBeenCalledWith({
+        type: 'error',
+        text1: 'Failed to assign shoe',
+        text2: 'Please try again.',
+      })
+    );
+    expect(addLog).toHaveBeenCalledWith(
+      'Failed to assign shoe: Error: Offline',
+      'ERROR'
+    );
+  });
+
   it('shows the linked shoe by its nickname', async () => {
     mockedFetchEntry.mockResolvedValue({ shoe_id: 'shoe-1' } as never);
     mockedFetchShoes.mockResolvedValue([shoe({ nickname: 'Daily trainer' })]);

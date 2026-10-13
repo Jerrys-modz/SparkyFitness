@@ -86,6 +86,15 @@ async function clearDefaultWithClient(
   );
 }
 
+async function lockShoesWithClient(
+  client: PoolClient,
+  userId: string
+): Promise<void> {
+  await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+    `shoes:${userId}`,
+  ]);
+}
+
 export async function getShoes(
   userId: string,
   authenticatedUserId?: string,
@@ -128,6 +137,7 @@ export async function createShoe(
   try {
     await client.query('BEGIN');
     if (data.is_default) {
+      await lockShoesWithClient(client, userId);
       await clearDefaultWithClient(client, userId, null);
     }
     const inserted = await client.query(
@@ -174,6 +184,8 @@ export async function updateShoe(
   const client = await getClient(userId, authenticatedUserId);
   try {
     await client.query('BEGIN');
+    // Read the current default only after any other update has committed.
+    await lockShoesWithClient(client, userId);
     const current = await fetchShoeWithClient(client, userId, shoeId);
     if (!current) {
       await client.query('ROLLBACK');

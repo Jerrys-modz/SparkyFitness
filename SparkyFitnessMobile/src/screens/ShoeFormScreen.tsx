@@ -15,6 +15,7 @@ import CalendarSheet, {
 } from '../components/CalendarSheet';
 import FormInput from '../components/FormInput';
 import Icon from '../components/Icon';
+import StatusView from '../components/StatusView';
 import SettingsRow, { SettingsRowGroup } from '../components/SettingsRow';
 import Button from '../components/ui/Button';
 import Switch from '../components/ui/Switch';
@@ -404,7 +405,7 @@ const ShoeFormScreen: React.FC<Props> = ({ navigation, route }) => {
   const distanceUnit =
     (preferences?.default_distance_unit as 'km' | 'miles') ?? 'km';
   const shoeId = route.params?.shoeId;
-  const { shoes, isLoading } = useShoes();
+  const { shoes, isLoading, isError, refetch } = useShoes();
   const shoe = shoeId ? (shoes.find((s) => s.id === shoeId) ?? null) : null;
 
   const header = useScreenHeader({
@@ -416,7 +417,7 @@ const ShoeFormScreen: React.FC<Props> = ({ navigation, route }) => {
 
   // Wait for the list before mounting the form so its fields start from the
   // saved values instead of a blank pair.
-  const ready = !shoeId || (!isLoading && shoe !== null);
+  const ready = !shoeId || (!isLoading && !isError && shoe !== null);
 
   return (
     <View
@@ -424,12 +425,30 @@ const ShoeFormScreen: React.FC<Props> = ({ navigation, route }) => {
       style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
     >
       {header}
-      {ready && (
+      {ready ? (
         <ShoeForm
           key={shoe?.id ?? 'new-shoe'}
           shoe={shoe}
           distanceUnit={distanceUnit}
           onDone={() => navigation.goBack()}
+        />
+      ) : isLoading ? (
+        <StatusView loading />
+      ) : (
+        <StatusView
+          icon="alert-circle"
+          iconTone="danger"
+          title={
+            isError
+              ? t('shoes.loadFailed', {
+                  defaultValue: 'Could not load your shoes.',
+                })
+              : t('shoes.notFound', { defaultValue: 'Shoe not found.' })
+          }
+          action={{
+            label: t('common.retry', { defaultValue: 'Retry' }),
+            onPress: () => void refetch(),
+          }}
         />
       )}
     </View>

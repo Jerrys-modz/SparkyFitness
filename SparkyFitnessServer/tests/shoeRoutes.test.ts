@@ -111,6 +111,14 @@ describe('Shoe Routes (v2)', () => {
     expect(res.statusCode).toBe(404);
   });
 
+  it('rejects an explicitly null name before calling the repository', async () => {
+    const res = await request(app)
+      .put(`/api/v2/shoes/${SHOE_ID}`)
+      .send({ name: null });
+    expect(res.statusCode).toBe(400);
+    expect(shoeRepo.updateShoe).not.toHaveBeenCalled();
+  });
+
   it('updates a shoe (retire)', async () => {
     vi.mocked(shoeRepo.updateShoe).mockResolvedValue({
       id: SHOE_ID,

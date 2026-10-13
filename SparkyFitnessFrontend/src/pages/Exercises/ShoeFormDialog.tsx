@@ -98,12 +98,14 @@ export const ShoeFormDialog: React.FC<ShoeFormDialogProps> = ({
       nickname: optionalText(nickname),
       purchase_date: purchaseDate || null,
       purchase_price: optionalNumber(purchasePrice),
-      starting_distance_km: convertDistance(startingValue, distanceUnit, 'km'),
-      retirement_distance_km: convertDistance(
-        retirementValue,
-        distanceUnit,
-        'km'
-      ),
+      starting_distance_km:
+        shoe && startingDistance === toDisplay(shoe.starting_distance_km)
+          ? shoe.starting_distance_km
+          : convertDistance(startingValue, distanceUnit, 'km'),
+      retirement_distance_km:
+        shoe && retirementDistance === toDisplay(shoe.retirement_distance_km)
+          ? shoe.retirement_distance_km
+          : convertDistance(retirementValue, distanceUnit, 'km'),
       is_default: isDefault,
     });
     onOpenChange(false);

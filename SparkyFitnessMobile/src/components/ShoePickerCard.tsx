@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+import Toast from 'react-native-toast-message';
 
 import BottomSheetPicker from './BottomSheetPicker';
 import { cardioSessionDetailQueryKey } from '../hooks/queryKeys';
@@ -64,8 +65,18 @@ const ShoePickerCard: React.FC<ShoePickerCardProps> = ({ exerciseEntryId }) => {
               shoeId: value === NO_SHOE ? null : value,
             },
             {
-              onError: (error) =>
-                addLog(`Failed to assign shoe: ${error}`, 'ERROR'),
+              onError: (error) => {
+                addLog(`Failed to assign shoe: ${error}`, 'ERROR');
+                Toast.show({
+                  type: 'error',
+                  text1: t('shoes.assignFailed', {
+                    defaultValue: 'Failed to assign shoe',
+                  }),
+                  text2: t('common.tryAgain', {
+                    defaultValue: 'Please try again.',
+                  }),
+                });
+              },
             }
           )
         }
