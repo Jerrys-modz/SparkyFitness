@@ -1602,7 +1602,6 @@ async function getExerciseEntriesByDate(userId: any, selectedDate: any) {
         preset.exercises.sort(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (a: any, b: any) =>
-            compareByEntryTime(a.entry_time, b.entry_time) ||
             (a.sort_order || 0) - (b.sort_order || 0) ||
             // @ts-expect-error TS(2362): The left-hand side of an arithmetic operation must... Remove this comment to see the full error message
             new Date(a.created_at) - new Date(b.created_at)

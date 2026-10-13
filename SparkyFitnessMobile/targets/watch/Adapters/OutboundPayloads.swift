@@ -20,6 +20,7 @@ enum OutboundPayloads {
         static let checkIn = "checkIn"
         static let waterIntake = "waterIntake"
         static let waterDelete = "waterDelete"
+        static let medicationTaken = "medicationTaken"
         static let contextRequest = "requestContext"
         static let setCompleted = "setCompleted"
         static let heartRateBatch = "heartRateBatch"
@@ -30,7 +31,13 @@ enum OutboundPayloads {
         static let setTimerStarted = "setTimerStarted"
         static let setTimerStopped = "setTimerStopped"
         static let workoutStartRequested = "workoutStartRequested"
+        static let workoutEdit = "workoutEdit"
         static let presetUpdateAnswer = "presetUpdateAnswer"
+        static let recordingControl = "recordingControl"
+        static let recordingHeartRate = "recordingHeartRate"
+        static let fastStart = "fastStart"
+        static let fastEnd = "fastEnd"
+        static let runFinished = "runFinished"
     }
 
     /// A morning check-in awaiting a server write.
@@ -71,6 +78,31 @@ enum OutboundPayloads {
         ]
     }
 
+    /// One dose ticked as taken — the phone logs it the way its own dose row
+    /// does — or, with `taken` false, un-ticked, which deletes that entry.
+    static func medicationTaken(_ tap: MedicationTap) -> [String: Any] {
+        [
+            "type": Kind.medicationTaken,
+            "clientId": tap.id,
+            "entryDate": tap.entryDate,
+            "medicationId": tap.medicationId,
+            "scheduleId": tap.scheduleId,
+            "taken": tap.taken,
+        ]
+    }
+
+    /// The wearer started a fast from a preset (`presetId` is the phone's id,
+    /// such as "16-8"). The phone starts it and sends the running fast back in
+    /// the next context.
+    static func fastStart(presetId: String, clientId: String) -> [String: Any] {
+        ["type": Kind.fastStart, "presetId": presetId, "clientId": clientId]
+    }
+
+    /// The wearer ended the fast that is running.
+    static func fastEnd(clientId: String) -> [String: Any] {
+        ["type": Kind.fastEnd, "clientId": clientId]
+    }
+
     /// Asks the phone to push a fresh context. Carries no data of its own.
     static let contextRequest: [String: Any] = ["type": Kind.contextRequest]
 
@@ -85,6 +117,39 @@ enum OutboundPayloads {
         ]
         if let serverId, !serverId.isEmpty {
             payload["serverId"] = serverId
+        }
+        return payload
+    }
+
+    /// An add, delete or set-type change in the running workout. `clientId`
+    /// lets the phone drop a copy delivered twice (live, then queued).
+    static func workoutEdit(
+        sessionId: String,
+        clientId: String,
+        action: WorkoutEditAction
+    ) -> [String: Any] {
+        var payload: [String: Any] = [
+            "type": Kind.workoutEdit,
+            "sessionId": sessionId,
+            "clientId": clientId,
+        ]
+        switch action {
+        case .addSet(let exerciseEntryId):
+            payload["action"] = "addSet"
+            payload["exerciseEntryId"] = exerciseEntryId
+        case .deleteSet(let setId):
+            payload["action"] = "deleteSet"
+            payload["setId"] = setId
+        case .setSetType(let setId, let type):
+            payload["action"] = "setSetType"
+            payload["setId"] = setId
+            payload["setType"] = type
+        case .addExercise(let exerciseId):
+            payload["action"] = "addExercise"
+            payload["exerciseId"] = exerciseId
+        case .deleteExercise(let exerciseEntryId):
+            payload["action"] = "deleteExercise"
+            payload["exerciseEntryId"] = exerciseEntryId
         }
         return payload
     }
@@ -129,6 +194,9 @@ enum OutboundPayloads {
         if let distanceKm = completedSet.distanceKm {
             payload["distanceKm"] = distanceKm
         }
+        if let rpe = completedSet.rpe {
+            payload["rpe"] = rpe
+        }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         payload["completedAt"] = formatter.string(from: completedSet.completedAt)
@@ -160,9 +228,59 @@ enum OutboundPayloads {
         return payload
     }
 
+    /// Pause, resume, finish or lap for the phone's GPS recording. `action` is
+    /// one of "pause", "resume", "finish", "lap" (`WatchRecordingControlPayload`).
+    /// `at` is when the wearer pressed it, in epoch ms: controls travel over the
+    /// queued transport and can arrive late, and a lap belongs to the moment it
+    /// was pressed, not the moment it was delivered.
+    static func recordingControl(sessionId: String, action: String, at: Date = Date()) -> [String: Any] {
+        [
+            "type": Kind.recordingControl,
+            "sessionId": sessionId,
+            "action": action,
+            "at": at.timeIntervalSince1970 * 1000,
+        ]
+    }
+
+    /// Heart-rate readings taken during a phone GPS recording. `clientId`
+    /// lets the phone drop a re-delivered copy of a queued batch.
+    static func recordingHeartRate(
+        sessionId: String,
+        clientId: String,
+        samples: [HeartRateSample]
+    ) -> [String: Any] {
+        [
+            "type": Kind.recordingHeartRate,
+            "sessionId": sessionId,
+            "clientId": clientId,
+            "samples": samples.map { ["t": $0.t, "bpm": $0.bpm] },
+        ]
+    }
+
+    /// A walk or run recorded on the wrist alone, sent once when it finishes.
+    /// The route and heart rate are thinned to what the connection can carry.
+    static func runFinished(_ result: WatchRunResult) -> [String: Any] {
+        [
+            "type": Kind.runFinished,
+            "clientId": result.clientId,
+            "kind": result.kind.rawValue,
+            "place": result.place.rawValue,
+            "startedAt": result.startedAt.timeIntervalSince1970 * 1000,
+            "endedAt": result.endedAt.timeIntervalSince1970 * 1000,
+            "activeSeconds": result.activeSeconds,
+            "distanceMeters": result.metrics.distanceMeters,
+            "activeEnergyKcal": result.metrics.activeEnergyKcal,
+            "route": WatchRunResult.thin(result.route, to: 1500),
+            "heartRate": WatchRunResult.thin(result.heartRate, to: 600),
+            "laps": result.laps,
+        ]
+    }
+
     /// The reading the wrist is showing right now. Only ever sent as a live
     /// message, never queued: a reading that arrives minutes late describes
-    /// nothing, and the batch carries the same samples for the diary.
+    /// nothing, and the batch carries the same samples for the diary. For a
+    /// phone GPS recording `sessionId` is the recording's id and
+    /// `exerciseEntryId` is empty.
     static func liveHeartRate(
         sessionId: String,
         exerciseEntryId: String,

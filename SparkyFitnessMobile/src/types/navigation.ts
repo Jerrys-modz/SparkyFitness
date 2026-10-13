@@ -32,6 +32,7 @@ import type {
 import type { Meal, MealIngredientDraft } from './meals';
 import type { MealPlanPickerTarget, MealPlanTemplate } from './mealPlans';
 import type { WorkoutPreset } from './workoutPresets';
+import type { WorkoutPlanTemplate } from './workoutPlans';
 import type { ExerciseReplaceContext } from '../utils/exerciseReplace';
 
 export type FoodPickerMode =
@@ -79,6 +80,8 @@ export type RootStackParamList = {
   FoodsLibrary: undefined;
   MealsLibrary: undefined;
   MealPlans: undefined;
+  WorkoutPlans: undefined;
+  WorkoutPlanForm: { template?: WorkoutPlanTemplate } | undefined;
   MealPlanForm: { template?: MealPlanTemplate; initialMeal?: Meal } | undefined;
   // #2115, Phase 12: mobile-only water-container CRUD.
   WaterContainers: undefined;
@@ -181,6 +184,15 @@ export type RootStackParamList = {
     goal?: number;
   };
   ExerciseStatistics: undefined;
+  RecordActivity: undefined;
+  Reports: undefined;
+  HydrationReport: undefined;
+  SubstancesReport: undefined;
+  MeasurementsReport: undefined;
+  ReportsSettings: undefined;
+  NutritionReport: undefined;
+  SleepAnalytics: undefined;
+  MoodReport: undefined;
   CardioSession: {
     session: ExerciseActivityQueryItem;
     distanceUnit: 'km' | 'miles';
@@ -327,6 +339,7 @@ export type RootStackParamList = {
   };
   ActivityDetail: { session: IndividualSessionResponse };
   FastingDetail: undefined;
+  FastingSettings: undefined;
   MindfulnessDetail: { selectedDate?: string } | undefined;
   SleepDetail: { entryId: string; day: string };
   Chat: undefined;
@@ -345,6 +358,12 @@ export type RootStackParamList = {
   /** Cross-fading time-lapse of every photo for one angle, oldest to newest. */
   ProgressPhotoTimelapse: { angle?: PhotoType } | undefined;
   CalorieSettings: undefined;
+  /**
+   * Without params this edits today's goals. `presetId` edits that goal
+   * preset; `newPreset` starts a new one from today's goals.
+   */
+  Goals: { presetId?: string; newPreset?: boolean } | undefined;
+  WeeklyGoalPlanEdit: { planId?: string } | undefined;
   MealTypeSettings: undefined;
   FoodSettings: undefined;
   DashboardSettings: undefined;
@@ -352,6 +371,7 @@ export type RootStackParamList = {
   WatchSettings: undefined;
   DiarySettings: undefined;
   WorkoutSettings: undefined;
+  WarmupSettings: undefined;
   ServerSettings: undefined;
   PasskeySettings: undefined;
   AppSettings: undefined;
@@ -368,6 +388,9 @@ export type RootStackParamList = {
     scannedBarcodeNonce?: number;
   };
   MedicationScheduleForm: { medicationId: string; scheduleId?: string };
+  Glp1Tracker: { medicationId: string };
+  Glp1PenForm: { medicationId: string; penId?: string };
+  Glp1TitrationForm: { medicationId: string; stepId?: string };
   SymptomLog:
     | {
         entryId?: string;
@@ -376,6 +399,7 @@ export type RootStackParamList = {
         date?: string;
       }
     | undefined;
+  MoodLog: { date?: string } | undefined;
   SymptomHistory: { symptomId?: string } | undefined;
   ManageSymptoms: undefined;
   SymptomDefinitionEditor: { definitionId?: string } | undefined;
