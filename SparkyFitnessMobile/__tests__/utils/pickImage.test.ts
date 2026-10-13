@@ -60,7 +60,7 @@ describe('downscaleFoodPhoto', () => {
     );
   });
 
-  test('falls back to default width resize when width/height are undefined', async () => {
+  test('falls back to no resize action when width or height is undefined', async () => {
     const result = await downscaleFoodPhoto({
       uri: 'file:///photo-nodims.jpg',
     });
@@ -68,7 +68,25 @@ describe('downscaleFoodPhoto', () => {
     expect(result.uri).toContain('-manipulated.jpg');
     expect(ImageManipulator.manipulateAsync).toHaveBeenCalledWith(
       'file:///photo-nodims.jpg',
-      [{ resize: { width: 1600 } }],
+      [],
+      expect.objectContaining({
+        compress: 0.85,
+        format: ImageManipulator.SaveFormat.JPEG,
+      })
+    );
+  });
+
+  test('falls back to no resize action when dimensions are zero', async () => {
+    const result = await downscaleFoodPhoto({
+      uri: 'file:///photo-zero-dim.jpg',
+      width: 0,
+      height: 0,
+    });
+
+    expect(result.uri).toContain('-manipulated.jpg');
+    expect(ImageManipulator.manipulateAsync).toHaveBeenCalledWith(
+      'file:///photo-zero-dim.jpg',
+      [],
       expect.objectContaining({
         compress: 0.85,
         format: ImageManipulator.SaveFormat.JPEG,
