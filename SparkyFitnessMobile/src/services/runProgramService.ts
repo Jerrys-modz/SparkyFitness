@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
+  pendingEffortRating,
   storedProgramStatus,
   type ProgramStatus,
   type RunProgramAdjustment,
@@ -219,6 +220,9 @@ export async function rateProgramWorkout(
   return program;
 }
 
+/** The current time; read when the Diary renders, as the card ages out over two days. */
+const clockNow = (): number => Date.now();
+
 /** The current program status, or null when none is active. */
 export function useRunProgram(): {
   /** The place in the program, even while it is switched off. */
@@ -235,6 +239,8 @@ export function useRunProgram(): {
   };
   /** The local day a program workout was last completed, or null. */
   doneDay: string | null;
+  /** The latest program workout still waiting to be rated, if recent. */
+  pendingEffort: { programId: string; index: number } | null;
   loaded: boolean;
   refetch: () => Promise<unknown>;
 } {
@@ -244,6 +250,9 @@ export function useRunProgram(): {
     // Always re-read on opening a screen: the assistant may have changed it.
     staleTime: 0,
   });
+  const pending = data
+    ? pendingEffortRating(data.completion_log, data.effort_log, clockNow())
+    : null;
   return {
     status: data ? storedProgramStatus(data) : null,
     enabled: data?.enabled ?? false,
@@ -254,6 +263,10 @@ export function useRunProgram(): {
       endDay: data?.end_date ?? null,
     },
     doneDay: data?.last_done_date ?? null,
+    pendingEffort:
+      pending && data
+        ? { programId: data.program_id, index: pending.index }
+        : null,
     loaded: isSuccess,
     refetch,
   };

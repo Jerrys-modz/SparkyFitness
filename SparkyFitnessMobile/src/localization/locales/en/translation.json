@@ -7213,6 +7213,10 @@
     },
     "start": "Start program",
     "startWorkout": "Start today's workout",
+    "effortPrompt": {
+      "title": "Your last program workout",
+      "skip": "Skip"
+    },
     "banner": {
       "easeBack": "It's been {{days}} days since your last workout. Ease the running in the next {{workouts}} workouts by {{percent}}% to build back safely?",
       "easeBackAction": "Ease back in",
