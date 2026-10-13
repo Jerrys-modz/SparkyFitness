@@ -186,6 +186,41 @@ function countAutoPauseFix(fix: RawFix): void {
     autoPauseFixStats.withoutSpeed++;
   }
 }
+/**
+ * The newest fix's accuracy radius and time, for the GPS signal bars. Kept
+ * apart from the session with its own listeners so the bars can follow every
+ * fix without re-rendering the whole recording screen.
+ */
+export interface GpsFixQuality {
+  hacc: number;
+  t: number;
+}
+let latestFix: GpsFixQuality | null = null;
+const fixListeners = new Set<() => void>();
+
+function noteLatestFix(fixes: readonly RawFix[]): void {
+  const last = fixes[fixes.length - 1];
+  if (!last || last.hacc == null) return;
+  latestFix = { hacc: last.hacc, t: last.t };
+  fixListeners.forEach((listener) => listener());
+}
+
+function clearLatestFix(): void {
+  latestFix = null;
+  fixListeners.forEach((listener) => listener());
+}
+
+const subscribeFix = (listener: () => void): (() => void) => {
+  fixListeners.add(listener);
+  return () => fixListeners.delete(listener);
+};
+const getLatestFix = (): GpsFixQuality | null => latestFix;
+
+/** The newest GPS fix's accuracy and time, or null before the first one. */
+export function useLatestGpsFix(): GpsFixQuality | null {
+  return useSyncExternalStore(subscribeFix, getLatestFix, getLatestFix);
+}
+
 const listeners = new Set<() => void>();
 // The task callback and the screen's own writes share one session, so every
 // read-modify-write runs on this chain instead of overlapping.
@@ -302,6 +337,7 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
   return enqueue(async () => {
     await hydrate();
     if (!session) return;
+    noteLatestFix(fixes);
     const firstTouched = Math.floor(points.length / CHUNK_SIZE);
     let added = 0;
     let sessionChanged = false;
@@ -703,6 +739,8 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
     };
     autoPauseState = INITIAL_AUTO_PAUSE_STATE;
     autoPauseFixStats = { withSpeed: 0, withoutSpeed: 0, inaccurate: 0 };
+    latestFix = null;
+    clearLatestFix();
     points = [];
     await persistSession();
     if (!indoor) {
@@ -990,6 +1028,7 @@ export function finishRecording(): Promise<void> {
       );
     }
     autoPauseFixStats = { withSpeed: 0, withoutSpeed: 0, inaccurate: 0 };
+    clearLatestFix();
     // An indoor session has no GPS distance yet. Stop the cue session without
     // announcing zero before the person enters what the machine showed.
     if (session.audioCues && session.indoor) {

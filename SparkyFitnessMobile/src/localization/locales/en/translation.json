@@ -628,7 +628,9 @@
     "runSummary": "Activity saved",
     "runPrograms": "Training programs",
     "personalRecords": "Personal records",
-    "watchRunLive": "On your watch"
+    "watchRunLive": "On your watch",
+    "watchRunLiveRun": "Run on your watch",
+    "watchWalkLive": "Walk on your watch"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -6668,6 +6670,20 @@
       "indoorHint": "Your watch counts steps and estimates the distance. Correct it to the treadmill’s figure afterwards.",
       "outdoorHint": "Your watch records it with its own GPS and heart rate sensor. Your phone can stay behind.",
       "planName": "Intervals"
+    },
+    "title": {
+      "outdoorRun": "Outdoor run",
+      "indoorRun": "Indoor run",
+      "outdoorWalk": "Outdoor walk",
+      "indoorWalk": "Indoor walk",
+      "outdoorRide": "Outdoor ride",
+      "indoorRide": "Indoor ride"
+    },
+    "gps": {
+      "good": "GPS good",
+      "fair": "GPS fair",
+      "weak": "GPS weak",
+      "none": "No GPS"
     }
   },
   "goals": {
