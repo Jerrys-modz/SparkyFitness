@@ -7312,6 +7312,8 @@
     "rowA11y": "{{distance}}, {{time}}, {{pace}}, {{date}}"
   },
   "watchRunLive": {
+    "paceAlert": "Pace alert",
+    "heartRateAlert": "Heart rate alert",
     "open": "Open the workout on your watch",
     "onWatch": "On your watch",
     "autoPaused": "Auto-paused",

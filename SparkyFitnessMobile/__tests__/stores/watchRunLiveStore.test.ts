@@ -47,6 +47,10 @@ describe('receive', () => {
     expect(current()).toMatchObject({ autoPause: false, voiceCues: true });
     receive(live({ sentAt: 2000 }));
     expect(current()).toMatchObject({ autoPause: null, voiceCues: null });
+    receive(live({ paceAlert: true, heartRateAlert: false, sentAt: 3000 }));
+    expect(current()).toMatchObject({ paceAlert: true, heartRateAlert: false });
+    receive(live({ sentAt: 4000 }));
+    expect(current()).toMatchObject({ paceAlert: null, heartRateAlert: null });
   });
 
   test('keeps a run the watch is recording, with its optional parts', () => {

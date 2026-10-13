@@ -796,6 +796,9 @@ export interface WatchRunLivePayload {
   /** This run's switches; absent from an older watch build. */
   autoPause?: boolean;
   voiceCues?: boolean;
+  /** Whether a pace or heart-rate range is being watched; absent from an older watch build. */
+  paceAlert?: boolean;
+  heartRateAlert?: boolean;
 }
 
 /** One step of a guided walk or run the phone hands the watch. */
@@ -845,7 +848,11 @@ export type WatchRunControlAction =
   | 'autoPauseOn'
   | 'autoPauseOff'
   | 'voiceCuesOn'
-  | 'voiceCuesOff';
+  | 'voiceCuesOff'
+  | 'paceAlertOn'
+  | 'paceAlertOff'
+  | 'heartRateAlertOn'
+  | 'heartRateAlertOff';
 
 export interface WatchRunControlPayload {
   runId: string;
@@ -899,7 +906,7 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
   startWorkout(plan: WatchWorkoutStartPayload): Promise<void>;
   /** Starts a walk or run on the watch and opens its app. */
   startRun(request: WatchRunStartPayload): Promise<void>;
-  /** Pause, resume, lap, finish or discard for the run on the watch, or a switch change (`autoPauseOn`/`Off`, `voiceCuesOn`/`Off`). */
+  /** Pause, resume, lap, finish or discard for the run on the watch, or a switch change (`autoPauseOn`/`Off`, `voiceCuesOn`/`Off`, `paceAlertOn`/`Off`, `heartRateAlertOn`/`Off`). */
   sendRunControl(control: WatchRunControlPayload): Promise<void>;
   /** Tells the watch the phone is saying cue `id`, so it stays quiet. */
   sendRunCueAck(id: string): Promise<void>;
