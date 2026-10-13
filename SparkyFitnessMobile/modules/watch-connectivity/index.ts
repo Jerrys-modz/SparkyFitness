@@ -238,6 +238,8 @@ export interface WatchContextPayload {
   containers?: WatchContainerPayload[] | null;
   /** Today's water totals in ml, for the same page's bottle fill. */
   waterConsumedMl?: number | null;
+  /** Part of `waterConsumedMl` from food; null unless that amount is positive. */
+  waterFromFoodMl?: number | null;
   waterGoalMl?: number | null;
   /**
    * The app's globally configured water display unit (Settings → water
