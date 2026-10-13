@@ -14,6 +14,7 @@ import {
   acceptFix,
   computeLaps,
   computeSplits,
+  currentPaceSecondsPerUnit,
   summarizeRecording,
   type RawFix,
   type RecordedPoint,
@@ -27,10 +28,15 @@ import {
   type AutoPauseState,
 } from '../utils/autoPause';
 import {
+  INITIAL_PACE_ALERT_STATE,
   intervalPosition,
   isValidIntervalPlan,
+  normalizePaceBand,
+  stepPaceAlert,
   stepStartSeconds,
   type IntervalPlan,
+  type PaceAlertState,
+  type PaceBand,
 } from '@workspace/shared';
 import { fireImpactHaptic } from './haptics';
 import {
@@ -40,6 +46,7 @@ import {
   intervalCue,
   intervalsDoneCue,
   lapCue,
+  paceAlertCue,
   splitCue,
   type CueEvent,
   type CueUnit,
@@ -114,6 +121,11 @@ export interface RecordingSession {
   intervals?: { plan: IntervalPlan; cued: number };
   /** The program workout this recording is, so finishing it can tick it off. */
   program?: { id: string; index: number };
+  /**
+   * A pace band to stay inside: the phone buzzes, and speaks when voice cues
+   * are on, after the pace has been outside it for a few seconds.
+   */
+  paceBand?: PaceBand;
   /** Set once the diary entry exists, so a retried save never duplicates it. */
   savedEntryId: string | null;
   /**
@@ -407,6 +419,7 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
     }
     if (added > 0 && cueSplit()) sessionChanged = true;
     if (advanceIntervals(Date.now())) sessionChanged = true;
+    if (added > 0) checkPaceBand(Date.now());
     if (sessionChanged) await persistSession();
     if (added === 0 && !pointsRewritten) {
       if (sessionChanged) publish();
@@ -535,6 +548,27 @@ function cueSplit(): boolean {
   return true;
 }
 
+/** Where the pace stands against the band; not saved, a restore starts fresh. */
+let paceAlertState: PaceAlertState = INITIAL_PACE_ALERT_STATE;
+
+/**
+ * Tells the runner when the pace has been outside their band for a while:
+ * a buzz always, and a spoken "ease off" / "pick it up" with voice cues on.
+ * Reads the pace over the last 100 m, as the live screen does.
+ */
+function checkPaceBand(now: number): void {
+  const band = session?.paceBand;
+  if (!session || !band || session.status !== 'recording') return;
+  const pace = currentPaceSecondsPerUnit(points, 1000, 100);
+  const next = stepPaceAlert(paceAlertState, pace, band, now);
+  paceAlertState = next.state;
+  if (!next.alert) return;
+  fireImpactHaptic();
+  if (session.audioCues) {
+    speakRecordingCue(paceAlertCue(i18n.t.bind(i18n), next.alert));
+  }
+}
+
 /**
  * Starts any interval step whose time has come: speaks it, buzzes, and marks
  * a lap at the exact moment it began, so the saved activity is cut into the
@@ -637,6 +671,8 @@ export interface StartRecordingOptions {
   audioCues?: CueUnit;
   /** Timed steps to follow (run/walk, speed repeats). */
   intervals?: IntervalPlan;
+  /** A pace band to stay inside, with an alert when outside it. */
+  paceBand?: PaceBand;
   /** Record without GPS: no permission is asked and no location task runs. */
   indoor?: boolean;
   /** The program workout the plan came from, if any. */
@@ -732,6 +768,9 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
         : {}),
       ...(options.program && options.intervals
         ? { program: options.program }
+        : {}),
+      ...(normalizePaceBand(options.paceBand)
+        ? { paceBand: normalizePaceBand(options.paceBand)! }
         : {}),
       savedEntryId: null,
       ...(indoor && { indoor: true }),
@@ -917,6 +956,23 @@ export function setRecordingAudioCues(
     publish();
     if (unit && !wasOn) beginRecordingCues();
     if (!unit && wasOn) stopRecordingCues();
+  });
+}
+
+/** Sets or clears the pace band while a recording runs. */
+export function setRecordingPaceBand(
+  band: PaceBand | undefined
+): Promise<void> {
+  return enqueue(async () => {
+    await hydrate();
+    if (!session || session.status === 'finished') return;
+    const normalized = normalizePaceBand(band);
+    paceAlertState = INITIAL_PACE_ALERT_STATE;
+    const { paceBand: _previous, ...rest } = session;
+    void _previous;
+    session = normalized ? { ...rest, paceBand: normalized } : rest;
+    await persistSession();
+    publish();
   });
 }
 

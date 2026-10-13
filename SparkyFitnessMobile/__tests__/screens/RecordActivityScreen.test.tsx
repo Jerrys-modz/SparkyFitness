@@ -376,6 +376,36 @@ describe('RecordActivityScreen', () => {
     );
   });
 
+  it('starts with a pace band in seconds per kilometre when the alert is on', async () => {
+    state(null);
+    const screen = await renderScreen();
+
+    fireEvent(screen.getByTestId('pace-alert-switch'), 'valueChange', true);
+    fireEvent.press(screen.getByTestId('pace-fastest-down'));
+    fireEvent.press(screen.getByText('Start'));
+
+    await waitFor(() =>
+      expect(startRecording).toHaveBeenCalledWith(
+        expect.objectContaining({
+          paceBand: {
+            minSecondsPerKm: expect.any(Number),
+            maxSecondsPerKm: expect.any(Number),
+          },
+        })
+      )
+    );
+  });
+
+  it('sends no pace band unless the alert is switched on', async () => {
+    state(null);
+    const screen = await renderScreen();
+    fireEvent.press(screen.getByText('Start'));
+    await waitFor(() => expect(startRecording).toHaveBeenCalled());
+    expect(startRecording).toHaveBeenCalledWith(
+      expect.objectContaining({ paceBand: undefined })
+    );
+  });
+
   it('marks a lap while recording, but not while paused', async () => {
     state(session(), track);
     const screen = await renderScreen();

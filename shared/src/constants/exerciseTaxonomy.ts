@@ -143,9 +143,7 @@ const EQUIPMENT_SYNONYMS: Record<string, CanonicalEquipment> = {
 const IGNORED_EQUIPMENT = new Set(["bench", "incline bench", "decline bench"]);
 
 /** A bench says nothing about the load, so modality derivation skips it. */
-export function isIgnoredEquipment(
-  value: string | null | undefined,
-): boolean {
+export function isIgnoredEquipment(value: string | null | undefined): boolean {
   if (!value) return false;
   return IGNORED_EQUIPMENT.has(clean(value));
 }
@@ -273,4 +271,3 @@ export function resolveCanonicalOrCustomEquipment(input: string): string {
   if (normalized) return normalized;
   return input.trim();
 }
-

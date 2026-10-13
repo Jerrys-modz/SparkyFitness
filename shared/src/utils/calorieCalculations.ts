@@ -23,12 +23,7 @@ export function convertEnergyValue(
 }
 
 export type CalorieGoalAdjustmentMode =
-  | "dynamic"
-  | "fixed"
-  | "percentage"
-  | "tdee"
-  | "smart"
-  | "adaptive";
+  "dynamic" | "fixed" | "percentage" | "tdee" | "smart" | "adaptive";
 
 /**
  * Collapses `smart` onto `tdee` for anything that branches on the mode.
@@ -352,13 +347,7 @@ export function setsDistanceKm(
 }
 
 export type GoalMode =
-  | "maintain"
-  | "recomp"
-  | "cut"
-  | "high_cut"
-  | "lean_bulk"
-  | "bulk"
-  | "manual";
+  "maintain" | "recomp" | "cut" | "high_cut" | "lean_bulk" | "bulk" | "manual";
 export type GoalModeCalculationMethod = "adaptive" | "manual";
 
 /** Largest magnitude, in percent, that a manual goal-mode adjustment may take in either direction. */
@@ -543,7 +532,8 @@ export function calculateMinimumMetabolism(
     bodyFatPercentage > 0
   ) {
     const lbm = weightKg * (1 - bodyFatPercentage / 100);
-    formulaBmr = bmrAlgorithm === "Cunningham" ? 500 + 22 * lbm : 370 + 21.6 * lbm;
+    formulaBmr =
+      bmrAlgorithm === "Cunningham" ? 500 + 22 * lbm : 370 + 21.6 * lbm;
   } else {
     formulaBmr = activeBmrFn(
       bmrAlgorithm,
