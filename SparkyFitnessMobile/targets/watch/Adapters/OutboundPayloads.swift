@@ -40,6 +40,7 @@ enum OutboundPayloads {
         static let fastEnd = "fastEnd"
         static let runFinished = "runFinished"
         static let runLive = "runLive"
+        static let runCue = "runCue"
     }
 
     /// A morning check-in awaiting a server write.
@@ -267,6 +268,18 @@ enum OutboundPayloads {
             "sessionId": sessionId,
             "clientId": clientId,
             "samples": samples.map { ["t": $0.t, "bpm": $0.bpm] },
+        ]
+    }
+
+    /// A spoken cue for the phone to say instead of the watch, so it comes out
+    /// of the headphones paired to the phone. `id` comes back in the phone's
+    /// `runCueAck`; without it the watch says the cue itself.
+    static func runCue(id: String, text: String, interrupt: Bool) -> [String: Any] {
+        [
+            "type": Kind.runCue,
+            "id": id,
+            "text": text,
+            "interrupt": interrupt,
         ]
     }
 

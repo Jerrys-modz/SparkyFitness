@@ -1,5 +1,7 @@
 import { act, renderHook } from '@testing-library/react-native';
 import { useWatchRunBridge } from '../../src/hooks/useWatchRunBridge';
+import WatchConnectivity from '../../modules/watch-connectivity';
+import { speakWatchCue } from '../../src/services/watchRunCueRelay';
 import { usePreferences } from '../../src/hooks/usePreferences';
 import {
   hasQueuedWatchRuns,
@@ -8,7 +10,14 @@ import {
 
 jest.mock('../../modules/watch-connectivity', () => ({
   __esModule: true,
-  default: { addListener: jest.fn(() => ({ remove: jest.fn() })) },
+  default: {
+    addListener: jest.fn(() => ({ remove: jest.fn() })),
+    sendRunCueAck: jest.fn(() => Promise.resolve()),
+  },
+}));
+jest.mock('../../src/services/watchRunCueRelay', () => ({
+  speakWatchCue: jest.fn(),
+  resetWatchCueRelay: jest.fn(),
 }));
 jest.mock('../../src/hooks/usePreferences', () => ({
   usePreferences: jest.fn(),
@@ -56,4 +65,21 @@ test('waits for the preferences, so a miles user is not filed in km', async () =
   rerender({});
   await flush();
   expect(process).toHaveBeenCalledWith('miles', expect.any(Function));
+});
+
+test('confirms a cue from the watch and says it on the phone', () => {
+  prefs.mockReturnValue({ preferences: {} } as never);
+  renderHook(() => useWatchRunBridge(true, true));
+  const call = jest
+    .mocked(WatchConnectivity!.addListener)
+    .mock.calls.find(([name]) => name === 'onRunCue');
+  expect(call).toBeDefined();
+  const handler = call![1] as (p: {
+    id: string;
+    text: string;
+    interrupt: boolean;
+  }) => void;
+  handler({ id: 'c1', text: 'Paused.', interrupt: true });
+  expect(WatchConnectivity!.sendRunCueAck).toHaveBeenCalledWith('c1');
+  expect(speakWatchCue).toHaveBeenCalledWith('Paused.', true);
 });

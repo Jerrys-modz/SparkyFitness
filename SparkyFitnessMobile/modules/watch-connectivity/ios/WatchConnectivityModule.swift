@@ -47,6 +47,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onFastEndRequested: (([String: Any]) -> Void)?
     /// What a wrist-only run looks like right now. Live messages only.
     var onRunLive: (([String: Any]) -> Void)?
+    /// A cue the watch wants said out loud by the phone (its headphones).
+    var onRunCue: (([String: Any]) -> Void)?
     /// A walk or run recorded on the watch alone, sent when it finished.
     var onRunFinished: (([String: Any]) -> Void)?
 
@@ -143,6 +145,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onFastEndRequested?(payload)
         case "runLive":
             onRunLive?(payload)
+        case "runCue":
+            onRunCue?(payload)
         case "runFinished":
             onRunFinished?(payload)
         default:
@@ -308,6 +312,7 @@ public class WatchConnectivityModule: Module {
             "onFastStartRequested",
             "onFastEndRequested",
             "onRunLive",
+            "onRunCue",
             "onRunFinished"
         )
 
@@ -529,6 +534,13 @@ public class WatchConnectivityModule: Module {
                 if let voiceCues = payload["voiceCues"] as? Bool { event["voiceCues"] = voiceCues }
                 self?.sendEvent("onRunLive", event)
             }
+            self.delegateHandler.onRunCue = { [weak self] payload in
+                self?.sendEvent("onRunCue", [
+                    "id": payload["id"] as? String ?? "",
+                    "text": payload["text"] as? String ?? "",
+                    "interrupt": payload["interrupt"] as? Bool ?? false,
+                ])
+            }
             self.delegateHandler.onRunFinished = { [weak self] payload in
                 guard let self else { return }
                 let event = self.normalizedRunEvent(payload)
@@ -658,6 +670,13 @@ public class WatchConnectivityModule: Module {
             if WCSession.default.isReachable {
                 WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
             }
+        }
+
+        /// Confirms a cue the watch asked the phone to say, so the watch does
+        /// not say it too. Live only: an ack that arrives late is useless.
+        AsyncFunction("sendRunCueAck") { (id: String) -> Void in
+            guard WCSession.isSupported(), WCSession.default.isReachable else { return }
+            WCSession.default.sendMessage(["type": "runCueAck", "id": id], replyHandler: nil, errorHandler: nil)
         }
 
         /// Tells the watch the workout it was armed with is over, because it
