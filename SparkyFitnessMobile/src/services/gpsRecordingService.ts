@@ -600,14 +600,37 @@ function cueSplit(): boolean {
 /** Where the pace stands against the band; not saved, a restore starts fresh. */
 let paceAlertState: PaceAlertState = INITIAL_PACE_ALERT_STATE;
 
+/** The plan step the pace alert was last judging; a new one starts it afresh. */
+let paceAlertStep: number | null = null;
+
 /**
  * Tells the runner when the pace has been outside their band for a while:
  * a buzz always, and a spoken "ease off" / "pick it up" with voice cues on.
  * Reads the pace over the last 100 m, as the live screen does.
  */
 function checkPaceBand(now: number): void {
-  const band = session?.paceBand;
-  if (!session || !band || session.status !== 'recording') return;
+  if (!session || session.status !== 'recording') return;
+  // A plan step's own target beats the run's range; a step with none keeps
+  // the run's range, if there is one.
+  let band: PaceBand | undefined = session.paceBand;
+  let stepIndex: number | null = null;
+  if (session.intervals) {
+    const position = intervalPosition(
+      session.intervals.plan,
+      elapsedSeconds(session, now)
+    );
+    if (position && !position.done) {
+      stepIndex = position.index;
+      band = position.step.pace ?? band;
+    }
+  }
+  // A new step starts the wait again, so a run that was too slow in the easy
+  // stretch is not told off the moment the fast one begins.
+  if (stepIndex !== paceAlertStep) {
+    paceAlertStep = stepIndex;
+    paceAlertState = INITIAL_PACE_ALERT_STATE;
+  }
+  if (!band) return;
   const pace = currentPaceSecondsPerUnit(points, 1000, 100);
   const next = stepPaceAlert(paceAlertState, pace, band, now);
   paceAlertState = next.state;

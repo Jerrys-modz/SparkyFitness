@@ -91,6 +91,7 @@ final class WatchRunStore: ObservableObject {
     /// snapshot: a relaunch starts the wait again.
     private var paceAlertState = WatchPaceAlertState.initial
     private var recentPace = WatchRecentPace()
+    private var paceAlertStep: Int?
     private var recovering = false
 
     private init() {
@@ -183,6 +184,7 @@ final class WatchRunStore: ObservableObject {
         distanceScale = Self.scale(for: kind, place: place)
         cuedStep = -1
         paceAlertState = .initial
+        paceAlertStep = nil
         recentPace.reset()
         summary = nil
         metrics = WatchRunMetrics()
@@ -349,9 +351,24 @@ final class WatchRunStore: ObservableObject {
     /// on the wrist, and the words when voice cues are on. A tap that points
     /// down means ease off, one that points up means speed up.
     private func checkPaceBand(_ metrics: WatchRunMetrics) {
-        guard phase == .running, let band = settings.paceBand else { return }
-        let pace = recentPace.add(elapsed: healthKit.elapsed, meters: metrics.distanceMeters)
-        guard let alert = paceAlertState.step(pace: pace, band: band, now: healthKit.elapsed) else { return }
+        guard phase == .running else { return }
+        let elapsed = healthKit.elapsed
+        // A plan step's own range beats the run's; a step with none keeps the
+        // run's range, if there is one.
+        var band = settings.paceBand
+        var stepIndex: Int?
+        if let plan, let position = plan.position(at: elapsed), !position.finished {
+            stepIndex = position.index
+            band = plan.steps[position.index].pace ?? band
+        }
+        // A new step starts the wait again.
+        if stepIndex != paceAlertStep {
+            paceAlertStep = stepIndex
+            paceAlertState = .initial
+        }
+        let pace = recentPace.add(elapsed: elapsed, meters: metrics.distanceMeters)
+        guard let band else { return }
+        guard let alert = paceAlertState.step(pace: pace, band: band, now: elapsed) else { return }
         Haptics.pace(tooFast: alert == .tooFast)
         cue(alert == .tooFast ? "Too fast. Ease off." : "Too slow. Pick it up.")
     }

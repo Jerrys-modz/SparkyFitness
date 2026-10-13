@@ -5,6 +5,8 @@
  * stops while paused, so a pause never eats into an interval.
  */
 
+import { normalizePaceBand, type PaceBand } from "./paceTargets.ts";
+
 export type IntervalStepKind = "warmup" | "work" | "recovery" | "cooldown";
 
 /**
@@ -16,6 +18,8 @@ export type IntervalStyle = "runWalk" | "fastEasy";
 export interface IntervalStep {
   kind: IntervalStepKind;
   seconds: number;
+  /** Pace range to hold during this step; absent means no target. */
+  pace?: PaceBand;
 }
 
 export interface IntervalPlan {
@@ -231,7 +235,8 @@ export function isValidIntervalPlan(value: unknown): value is IntervalPlan {
         ["warmup", "work", "recovery", "cooldown"].includes(step.kind) &&
         Number.isFinite(step.seconds) &&
         step.seconds > 0 &&
-        step.seconds <= MAX_PROGRAM_STEP_SECONDS,
+        step.seconds <= MAX_PROGRAM_STEP_SECONDS &&
+        (step.pace === undefined || normalizePaceBand(step.pace) !== null),
     )
   );
 }
@@ -240,3 +245,25 @@ export function isValidIntervalPlan(value: unknown): value is IntervalPlan {
 export const lastStepStarted = (
   intervals: { plan: IntervalPlan; cued: number } | undefined,
 ): boolean => !!intervals && intervals.cued >= intervals.plan.steps.length - 1;
+
+/**
+ * The plan with a pace range on its fast and easy stretches: `work` goes on
+ * every work step and `easy` on every recovery step. Warm-up and cool-down
+ * stay free. A band that is not usable is ignored.
+ */
+export function applyPaceTargets(
+  plan: IntervalPlan,
+  targets: { work?: PaceBand | null; easy?: PaceBand | null },
+): IntervalPlan {
+  const work = normalizePaceBand(targets.work);
+  const easy = normalizePaceBand(targets.easy);
+  if (!work && !easy) return plan;
+  return {
+    ...plan,
+    steps: plan.steps.map((step) => {
+      const pace =
+        step.kind === "work" ? work : step.kind === "recovery" ? easy : null;
+      return pace ? { ...step, pace } : step;
+    }),
+  };
+}

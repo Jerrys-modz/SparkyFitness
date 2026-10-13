@@ -202,7 +202,12 @@ export interface WatchContextPayload {
     programIndex?: number;
     /** 'walk' for a walking program; missing is a run. */
     activity?: 'walk';
-    steps: { label: string; seconds: number }[];
+    steps: {
+      label: string;
+      seconds: number;
+      paceMin?: number;
+      paceMax?: number;
+    }[];
   }[];
   /**
    * Settings → Apple Watch: the watch app's pages in swipe order, and the ones
@@ -793,6 +798,9 @@ export interface WatchRunLivePayload {
 export interface WatchRunStartPlanStep {
   label: string;
   seconds: number;
+  /** Pace range to hold in this step, seconds per km; both or neither. */
+  paceMin?: number;
+  paceMax?: number;
 }
 
 /** Asks the watch to start recording a walk or run itself. */

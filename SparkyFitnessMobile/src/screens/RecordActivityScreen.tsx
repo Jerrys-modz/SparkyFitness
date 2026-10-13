@@ -61,6 +61,7 @@ import {
   getHeartRateSamples,
   getRecordingPreferences,
   setPaceAlertPreference,
+  setRecordingPaceBand,
   hydrate,
   markLap,
   pauseRecording,
@@ -74,6 +75,7 @@ import {
   useGpsRecording,
 } from '../services/gpsRecordingService';
 import {
+  applyPaceTargets,
   buildIntervalPlan,
   INTERVAL_PRESETS,
   intervalPosition,
@@ -122,6 +124,25 @@ const defaultPaceBand = (unit: 'km' | 'miles'): PaceBandChoice =>
   unit === 'miles'
     ? { fastest: 480, slowest: 530 }
     : { fastest: 300, slowest: 330 };
+
+/** One of a plan's pace ranges as chosen on this screen. */
+interface PaceTargetChoice {
+  enabled: boolean;
+  /** In the display unit; null until the person moves it. */
+  band: PaceBandChoice | null;
+}
+
+/** Starting ranges for a plan's fast stretches: 4:30-5:00/km, 7:15-8:00/mi. */
+const defaultWorkPaceBand = (unit: 'km' | 'miles'): PaceBandChoice =>
+  unit === 'miles'
+    ? { fastest: 435, slowest: 480 }
+    : { fastest: 270, slowest: 300 };
+
+/** And for its easy stretches: 6:00-7:00/km, 9:40-11:15/mi. */
+const defaultEasyPaceBand = (unit: 'km' | 'miles'): PaceBandChoice =>
+  unit === 'miles'
+    ? { fastest: 580, slowest: 675 }
+    : { fastest: 360, slowest: 420 };
 
 /** The band the service takes: seconds per kilometre. */
 const paceBandPerKm = (band: PaceBandChoice, unit: 'km' | 'miles') => {
@@ -254,7 +275,18 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     const preset = INTERVAL_PRESETS.find((p) => p.id === intervalChoice);
     if (preset?.options.style === 'runWalk') setIntervalChoice('off');
   }, [activity, intervalChoice]);
-  const intervalPlan = useMemo<IntervalPlan | undefined>(() => {
+  // Optional pace ranges for a plan's fast and easy stretches, this run only.
+  const [workPace, setWorkPace] = useState<PaceTargetChoice>({
+    enabled: false,
+    band: null,
+  });
+  const [easyPace, setEasyPace] = useState<PaceTargetChoice>({
+    enabled: false,
+    band: null,
+  });
+  const workBand = workPace.band ?? defaultWorkPaceBand(distanceUnit);
+  const easyBand = easyPace.band ?? defaultEasyPaceBand(distanceUnit);
+  const basePlan = useMemo<IntervalPlan | undefined>(() => {
     if (intervalChoice === 'off') return undefined;
     if (intervalChoice === 'program') return programWorkout?.plan;
     const plan =
@@ -272,6 +304,27 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       ? { ...plan, style: 'fastEasy' }
       : plan;
   }, [intervalChoice, customIntervals, programWorkout, activity]);
+  const intervalPlan = useMemo<IntervalPlan | undefined>(
+    () =>
+      basePlan
+        ? applyPaceTargets(basePlan, {
+            work: workPace.enabled
+              ? paceBandPerKm(workBand, distanceUnit)
+              : null,
+            easy: easyPace.enabled
+              ? paceBandPerKm(easyBand, distanceUnit)
+              : null,
+          })
+        : undefined,
+    [
+      basePlan,
+      workPace.enabled,
+      easyPace.enabled,
+      workBand,
+      easyBand,
+      distanceUnit,
+    ]
+  );
   // Seconds left before recording begins, or null when no countdown is running.
   const [countdownLeft, setCountdownLeft] = useState<number | null>(null);
   const [permissionProblem, setPermissionProblem] = useState<
@@ -972,6 +1025,49 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             onCustom={setCustomIntervals}
             activity={activity}
           />
+          {/* A plan can hold a pace in its fast and easy stretches. */}
+          {intervalChoice !== 'off' && (!indoor || onWatch) ? (
+            <>
+              <PaceBandCard
+                testIDPrefix="work-pace"
+                title={t('recordActivity.paceBand.workTitle', {
+                  defaultValue: 'Fast stretch pace',
+                })}
+                description={t('recordActivity.paceBand.workDescription', {
+                  defaultValue:
+                    'Alerts you when a fast stretch is outside this range.',
+                })}
+                enabled={workPace.enabled}
+                onEnabledChange={(enabled) =>
+                  setWorkPace((current) => ({ ...current, enabled }))
+                }
+                band={workBand}
+                onBandChange={(band) =>
+                  setWorkPace((current) => ({ ...current, band }))
+                }
+                unit={distanceUnit}
+              />
+              <PaceBandCard
+                testIDPrefix="easy-pace"
+                title={t('recordActivity.paceBand.easyTitle', {
+                  defaultValue: 'Easy stretch pace',
+                })}
+                description={t('recordActivity.paceBand.easyDescription', {
+                  defaultValue:
+                    'Alerts you when an easy stretch is outside this range.',
+                })}
+                enabled={easyPace.enabled}
+                onEnabledChange={(enabled) =>
+                  setEasyPace((current) => ({ ...current, enabled }))
+                }
+                band={easyBand}
+                onBandChange={(band) =>
+                  setEasyPace((current) => ({ ...current, band }))
+                }
+                unit={distanceUnit}
+              />
+            </>
+          ) : null}
           {permissionProblem ? (
             <View className="bg-surface rounded-xl p-4 mt-4">
               <Text className="text-text-primary text-sm mb-3">
@@ -1416,6 +1512,27 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
                 value ? (distanceUnit === 'miles' ? 'miles' : 'km') : undefined
               )
             }
+          />
+        )}
+        {/* Change the range without stopping: a new range starts the wait again. */}
+        {finished || session.indoor || session.activity === 'ride' ? null : (
+          <PaceBandCard
+            testIDPrefix="live-pace"
+            enabled={session.paceBand != null}
+            onEnabledChange={(on) =>
+              void setRecordingPaceBand(
+                on ? paceBandPerKm(currentPaceBand, distanceUnit) : undefined
+              )
+            }
+            band={
+              session.paceBand
+                ? paceBandInUnit(session.paceBand, distanceUnit)
+                : currentPaceBand
+            }
+            onBandChange={(next) =>
+              void setRecordingPaceBand(paceBandPerKm(next, distanceUnit))
+            }
+            unit={distanceUnit}
           />
         )}
       </>

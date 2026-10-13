@@ -24,6 +24,10 @@ interface Props {
   band: PaceBandChoice;
   onBandChange: (band: PaceBandChoice) => void;
   unit: 'km' | 'miles';
+  /** Wording and test ids for a second use (a plan's fast or easy stretch). */
+  title?: string;
+  description?: string;
+  testIDPrefix?: string;
 }
 
 /**
@@ -36,6 +40,9 @@ const PaceBandCard: React.FC<Props> = ({
   band,
   onBandChange,
   unit,
+  title,
+  description,
+  testIDPrefix = 'pace',
 }) => {
   const { t } = useTranslation();
   const unitLabel = unit === 'miles' ? '/mi' : '/km';
@@ -57,7 +64,7 @@ const PaceBandCard: React.FC<Props> = ({
       <Text className="text-text-secondary text-sm">{label}</Text>
       <View className="flex-row items-center">
         <TouchableOpacity
-          testID={`pace-${edge}-down`}
+          testID={`${testIDPrefix}-${edge}-down`}
           accessibilityRole="button"
           accessibilityLabel={t('recordActivity.paceBand.faster', {
             defaultValue: '{{edge}} 5 seconds faster',
@@ -69,14 +76,14 @@ const PaceBandCard: React.FC<Props> = ({
           <Icon name="remove" size={18} />
         </TouchableOpacity>
         <Text
-          testID={`pace-${edge}-value`}
+          testID={`${testIDPrefix}-${edge}-value`}
           className="text-text-primary text-base font-semibold w-24 text-center"
         >
           {formatClock(band[edge])}
           {unitLabel}
         </Text>
         <TouchableOpacity
-          testID={`pace-${edge}-up`}
+          testID={`${testIDPrefix}-${edge}-up`}
           accessibilityRole="button"
           accessibilityLabel={t('recordActivity.paceBand.slower', {
             defaultValue: '{{edge}} 5 seconds slower',
@@ -94,14 +101,20 @@ const PaceBandCard: React.FC<Props> = ({
   return (
     <View>
       <RecordingSwitchRow
-        testID="pace-alert-switch"
-        title={t('recordActivity.paceBand.title', {
-          defaultValue: 'Pace alert',
-        })}
-        description={t('recordActivity.paceBand.description', {
-          defaultValue:
-            'Buzzes, and speaks with voice cues on, when you stay outside your pace range.',
-        })}
+        testID={`${testIDPrefix}-alert-switch`}
+        title={
+          title ??
+          t('recordActivity.paceBand.title', {
+            defaultValue: 'Pace alert',
+          })
+        }
+        description={
+          description ??
+          t('recordActivity.paceBand.description', {
+            defaultValue:
+              'Buzzes, and speaks with voice cues on, when you stay outside your pace range.',
+          })
+        }
         value={enabled}
         onValueChange={onEnabledChange}
       />
