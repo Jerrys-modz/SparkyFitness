@@ -177,6 +177,14 @@ export interface WatchContextPayload {
   /** The phone's Auto-pause switch: the default for a run begun on the wrist. */
   runAutoPause?: boolean | null;
   /**
+   * The Record screen's pace alert: whether it is on, and the range (seconds
+   * per km) a run begun on the wrist stays inside. The range is sent even
+   * while the alert is off, so the watch can turn it on mid-run.
+   */
+  runPaceAlert?: boolean | null;
+  runPaceMinSecondsPerKm?: number | null;
+  runPaceMaxSecondsPerKm?: number | null;
+  /**
    * Plans a wrist-only run can follow: the training-program workout due now
    * (carrying `programId`/`programIndex`) then the built-in interval plans,
    * with step names already translated. Missing keeps the watch's last list.
@@ -797,6 +805,9 @@ export interface WatchRunStartPayload {
   /** The Record screen's switches for this run (both or neither). */
   autoPause?: boolean;
   voiceCues?: boolean;
+  /** Pace range (seconds per km) to stay inside; both or neither. */
+  paceMin?: number;
+  paceMax?: number;
   plan?: {
     id: string;
     name: string;

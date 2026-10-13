@@ -155,6 +155,9 @@ struct WatchRunStartRequest: Equatable {
 struct WatchRunSettings: Codable, Equatable {
     var autoPause: Bool
     var voiceCues: Bool
+    /// A pace range to stay inside; nil is no pace alert. Optional so a
+    /// snapshot written before it existed still decodes.
+    var paceBand: WatchPaceBand? = nil
 }
 
 /// A timed plan a wrist-only run can follow: a list of steps the phone has

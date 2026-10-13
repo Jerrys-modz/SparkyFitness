@@ -454,6 +454,10 @@ function isWatchingForAutoPause(current: RecordingSession): boolean {
 export interface RecordingPreferences {
   autoPause: boolean;
   audioCues: boolean;
+  /** Whether the pace alert is on for the next run, on the phone or the watch. */
+  paceAlert: boolean;
+  /** The pace range last chosen, in seconds per km; null before one was. */
+  paceBand: PaceBand | null;
   /** Seconds counted down before Start begins recording; 0 is no countdown. */
   countdownSeconds: number;
 }
@@ -462,6 +466,7 @@ export interface RecordingPreferences {
 export const COUNTDOWN_CHOICES = [0, 3, 5, 10] as const;
 
 const COUNTDOWN_PREF_KEY = '@SparkyFitness/gpsRecording/countdown';
+const PACE_ALERT_PREF_KEY = '@SparkyFitness/gpsRecording/paceAlert';
 
 const PREFERENCE_KEYS = {
   autoPause: AUTO_PAUSE_PREF_KEY,
@@ -471,15 +476,19 @@ const PREFERENCE_KEYS = {
 /** Auto-pause is on unless turned off; voice cues are off unless turned on. */
 export async function getRecordingPreferences(): Promise<RecordingPreferences> {
   try {
-    const [autoPause, audioCues, countdown] = await Promise.all([
+    const [autoPause, audioCues, countdown, paceAlertRaw] = await Promise.all([
       AsyncStorage.getItem(PREFERENCE_KEYS.autoPause),
       AsyncStorage.getItem(PREFERENCE_KEYS.audioCues),
       AsyncStorage.getItem(COUNTDOWN_PREF_KEY),
+      AsyncStorage.getItem(PACE_ALERT_PREF_KEY),
     ]);
     const seconds = Number(countdown);
+    const paceAlert = parsePaceAlertPreference(paceAlertRaw);
     return {
       autoPause: autoPause !== 'off',
       audioCues: audioCues === 'on',
+      paceAlert: paceAlert.enabled,
+      paceBand: paceAlert.band,
       countdownSeconds: (COUNTDOWN_CHOICES as readonly number[]).includes(
         seconds
       )
@@ -487,8 +496,48 @@ export async function getRecordingPreferences(): Promise<RecordingPreferences> {
         : 0,
     };
   } catch {
-    return { autoPause: true, audioCues: false, countdownSeconds: 0 };
+    return {
+      autoPause: true,
+      audioCues: false,
+      paceAlert: false,
+      paceBand: null,
+      countdownSeconds: 0,
+    };
   }
+}
+
+function parsePaceAlertPreference(raw: string | null): {
+  enabled: boolean;
+  band: PaceBand | null;
+} {
+  try {
+    const stored = raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
+    return {
+      enabled: stored?.enabled === true,
+      band: normalizePaceBand(stored as Partial<PaceBand> | null),
+    };
+  } catch {
+    return { enabled: false, band: null };
+  }
+}
+
+/**
+ * Remembers the pace alert switch and its range (seconds per km) for the next
+ * run, so a run begun on the watch can use them too.
+ */
+export async function setPaceAlertPreference(
+  enabled: boolean,
+  band: PaceBand | null
+): Promise<void> {
+  try {
+    await AsyncStorage.setItem(
+      PACE_ALERT_PREF_KEY,
+      JSON.stringify({ enabled, ...(band ?? {}) })
+    );
+  } catch {
+    // The choice just won't be remembered.
+  }
+  preferenceListeners.forEach((listener) => listener());
 }
 
 export async function setCountdownPreference(seconds: number): Promise<void> {

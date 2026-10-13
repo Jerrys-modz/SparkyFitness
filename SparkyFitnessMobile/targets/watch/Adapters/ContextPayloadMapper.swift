@@ -86,6 +86,11 @@ enum ContextPayloadMapper {
             stepGoal: (payload["stepGoal"] as? NSNumber)?.intValue ?? previous.stepGoal,
             runVoiceCues: payload["runVoiceCues"] as? Bool ?? previous.runVoiceCues,
             runAutoPause: payload["runAutoPause"] as? Bool ?? previous.runAutoPause,
+            runPaceBand: WatchPaceBand.normalized(
+                min: (payload["runPaceMinSecondsPerKm"] as? NSNumber)?.doubleValue,
+                max: (payload["runPaceMaxSecondsPerKm"] as? NSNumber)?.doubleValue
+            ) ?? previous.runPaceBand,
+            runPaceAlert: payload["runPaceAlert"] as? Bool ?? previous.runPaceAlert,
             runPlans: runPlans(from: payload) ?? previous.runPlans,
             indoorDistanceScale: indoorDistanceScale(from: payload) ?? previous.indoorDistanceScale
         )
@@ -208,7 +213,14 @@ enum ContextPayloadMapper {
         guard let autoPause = payload["autoPause"] as? Bool,
               let voiceCues = payload["voiceCues"] as? Bool
         else { return nil }
-        return WatchRunSettings(autoPause: autoPause, voiceCues: voiceCues)
+        return WatchRunSettings(
+            autoPause: autoPause,
+            voiceCues: voiceCues,
+            paceBand: WatchPaceBand.normalized(
+                min: (payload["paceMin"] as? NSNumber)?.doubleValue,
+                max: (payload["paceMax"] as? NSNumber)?.doubleValue
+            )
+        )
     }
 
     /// A pause, resume, lap, finish or discard sent from the phone's live view,

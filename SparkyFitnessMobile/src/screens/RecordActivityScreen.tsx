@@ -60,6 +60,7 @@ import {
   COUNTDOWN_CHOICES,
   getHeartRateSamples,
   getRecordingPreferences,
+  setPaceAlertPreference,
   hydrate,
   markLap,
   pauseRecording,
@@ -131,6 +132,18 @@ const paceBandPerKm = (band: PaceBandChoice, unit: 'km' | 'miles') => {
   };
 };
 
+/** A saved band (seconds per km) as the card shows it, in the display unit. */
+const paceBandInUnit = (
+  band: { minSecondsPerKm: number; maxSecondsPerKm: number },
+  unit: 'km' | 'miles'
+): PaceBandChoice => {
+  const perUnit = unit === 'miles' ? 1.609344 : 1;
+  return {
+    fastest: Math.round((band.minSecondsPerKm * perUnit) / 5) * 5,
+    slowest: Math.round((band.maxSecondsPerKm * perUnit) / 5) * 5,
+  };
+};
+
 type Props = RootStackScreenProps<'RecordActivity'>;
 
 const FEET_PER_METER = 3.28084;
@@ -192,6 +205,16 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const [countdownSeconds, setCountdownSeconds] = useState(0);
   const [paceAlert, setPaceAlert] = useState(false);
   const [paceBand, setPaceBand] = useState<PaceBandChoice | null>(null);
+  // The range last saved (seconds per km), shown until the person changes it.
+  const [savedPaceBand, setSavedPaceBand] = useState<{
+    minSecondsPerKm: number;
+    maxSecondsPerKm: number;
+  } | null>(null);
+  const currentPaceBand =
+    paceBand ??
+    (savedPaceBand
+      ? paceBandInUnit(savedPaceBand, distanceUnit)
+      : defaultPaceBand(distanceUnit));
   const [intervalChoice, setIntervalChoice] = useState<IntervalChoice>('off');
   const [customIntervals, setCustomIntervals] = useState<IntervalOptions>(
     DEFAULT_CUSTOM_INTERVALS
@@ -273,6 +296,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     autoPause: false,
     audioCues: false,
     countdownSeconds: false,
+    paceAlert: false,
   });
 
   // While a recording is going, the header names it ("Outdoor run"), so the
@@ -299,6 +323,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       }
       if (!preferenceEdits.current.countdownSeconds) {
         setCountdownSeconds(preferences.countdownSeconds);
+      }
+      if (!preferenceEdits.current.paceAlert) {
+        setPaceAlert(preferences.paceAlert === true);
+        setSavedPaceBand(preferences.paceBand ?? null);
       }
     });
     return () => {
@@ -413,6 +441,9 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               place: indoor ? 'indoor' : 'outdoor',
               autoPause,
               voiceCues: audioCues,
+              ...(paceAlert
+                ? { paceBand: paceBandPerKm(currentPaceBand, distanceUnit) }
+                : {}),
               plan: intervalPlan
                 ? buildWatchStartPlan(t, intervalPlan, meta)
                 : undefined,
@@ -436,10 +467,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             indoor,
             paceBand:
               paceAlert && !indoor && activity !== 'ride'
-                ? paceBandPerKm(
-                    paceBand ?? defaultPaceBand(distanceUnit),
-                    distanceUnit
-                  )
+                ? paceBandPerKm(currentPaceBand, distanceUnit)
                 : undefined,
             program:
               intervalChoice === 'program' && programStatus && intervalPlan
@@ -457,7 +485,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       audioCues,
       autoPause,
       paceAlert,
-      paceBand,
+      currentPaceBand,
       distanceUnit,
       indoor,
       intervalChoice,
@@ -870,13 +898,27 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
           />
           {/* The watch speaks with its own voice. */}
           {audioCues && !onWatch ? <RecordingVoiceCard /> : null}
-          {/* Alerts come from the phone's GPS pace, so outdoors on the phone. */}
-          {!indoor && !onWatch && activity !== 'ride' ? (
+          {/* A phone indoors has no GPS pace to judge by; the watch has its own. */}
+          {(!indoor || onWatch) && activity !== 'ride' ? (
             <PaceBandCard
               enabled={paceAlert}
-              onEnabledChange={setPaceAlert}
-              band={paceBand ?? defaultPaceBand(distanceUnit)}
-              onBandChange={setPaceBand}
+              onEnabledChange={(value) => {
+                preferenceEdits.current.paceAlert = true;
+                setPaceAlert(value);
+                void setPaceAlertPreference(
+                  value,
+                  paceBandPerKm(currentPaceBand, distanceUnit)
+                );
+              }}
+              band={currentPaceBand}
+              onBandChange={(next) => {
+                preferenceEdits.current.paceAlert = true;
+                setPaceBand(next);
+                void setPaceAlertPreference(
+                  paceAlert,
+                  paceBandPerKm(next, distanceUnit)
+                );
+              }}
               unit={distanceUnit}
             />
           ) : null}
