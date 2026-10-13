@@ -8,6 +8,10 @@ struct WatchPaceBand: Codable, Equatable {
     var minSecondsPerKm: Double
     var maxSecondsPerKm: Double
 
+    /// What the setup screen offers before the wearer moves anything: 5:00 to
+    /// 5:30 per kilometre.
+    static let standard = WatchPaceBand(minSecondsPerKm: 300, maxSecondsPerKm: 330)
+
     static let fastest = 120.0
     static let slowest = 1200.0
     static let minWidth = 10.0

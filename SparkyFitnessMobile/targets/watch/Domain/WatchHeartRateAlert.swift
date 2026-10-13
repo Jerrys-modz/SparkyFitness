@@ -9,6 +9,9 @@ struct WatchHeartRateBand: Codable, Equatable {
     var minBpm: Double
     var maxBpm: Double
 
+    /// What the setup screen offers before the wearer moves anything.
+    static let standard = WatchHeartRateBand(minBpm: 130, maxBpm: 150)
+
     static let lowest = 40.0
     static let highest = 220.0
     static let minWidth = 10.0
