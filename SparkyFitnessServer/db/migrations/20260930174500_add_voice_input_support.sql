@@ -10,8 +10,22 @@ BEGIN;
 -- NULL keeps the free platform speech recognizer. A selected service routes
 -- recorded audio to that configured model without exposing its API key to the client.
 ALTER TABLE public.user_preferences
-  ADD COLUMN IF NOT EXISTS active_voice_ai_service_id UUID
-  REFERENCES public.ai_service_settings(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS active_voice_ai_service_id UUID;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'user_preferences_active_voice_ai_service_id_fkey'
+  ) THEN
+    ALTER TABLE public.user_preferences
+      ADD CONSTRAINT user_preferences_active_voice_ai_service_id_fkey
+      FOREIGN KEY (active_voice_ai_service_id)
+      REFERENCES public.ai_service_settings(id)
+      ON DELETE SET NULL
+      NOT VALID;
+  END IF;
+END $$;
 
 -- 2. Voice input visibility toggle in user_preferences
 ALTER TABLE public.user_preferences
@@ -34,5 +48,23 @@ WHERE service_type = 'google'
 
 COMMENT ON COLUMN public.ai_service_settings.supports_audio_input IS
   'User/admin assertion that this configured model accepts audio input for voice transcription.';
+
+COMMIT;
+
+-- Validate foreign key constraint in a separate transaction to avoid
+-- holding write-blocking locks during the table scan.
+BEGIN;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'user_preferences_active_voice_ai_service_id_fkey'
+      AND NOT convalidated
+  ) THEN
+    ALTER TABLE public.user_preferences
+      VALIDATE CONSTRAINT user_preferences_active_voice_ai_service_id_fkey;
+  END IF;
+END $$;
 
 COMMIT;
