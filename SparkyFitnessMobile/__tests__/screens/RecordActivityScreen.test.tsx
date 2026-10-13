@@ -13,6 +13,7 @@ import {
   startRecording,
   markLap,
   setRecordingAudioCues,
+  setPaceAlertPreference,
   setRecordingAutoPause,
   useGpsRecording,
   type RecordingSession,
@@ -56,11 +57,14 @@ jest.mock('../../src/services/gpsRecordingService', () => {
       Promise.resolve({
         autoPause: true,
         audioCues: false,
+        paceAlert: false,
+        paceBand: null,
         countdownSeconds: 0,
       })
     ),
     setRecordingPreference: jest.fn(() => Promise.resolve()),
     setCountdownPreference: jest.fn(() => Promise.resolve()),
+    setPaceAlertPreference: jest.fn(() => Promise.resolve()),
     COUNTDOWN_CHOICES: [0, 3, 5, 10],
   };
 });
@@ -277,6 +281,24 @@ describe('RecordActivityScreen', () => {
       expect(startRecording).not.toHaveBeenCalled();
     });
 
+    it('sends the pace range with a watch run when the alert is on', async () => {
+      state(null);
+      const screen = await renderScreen();
+      fireEvent.press(screen.getByText('Watch GPS'));
+      fireEvent(screen.getByTestId('pace-alert-switch'), 'valueChange', true);
+      fireEvent.press(screen.getByText('Start'));
+      await waitFor(() =>
+        expect(startRunOnWatch).toHaveBeenCalledWith(
+          expect.objectContaining({
+            paceBand: {
+              minSecondsPerKm: expect.any(Number),
+              maxSecondsPerKm: expect.any(Number),
+            },
+          })
+        )
+      );
+    });
+
     it('starts a treadmill run on the watch and opens the live screen', async () => {
       state(null);
       const screen = await renderScreen();
@@ -393,6 +415,24 @@ describe('RecordActivityScreen', () => {
           },
         })
       )
+    );
+  });
+
+  it('keeps the chosen pace range for the next run', async () => {
+    state(null);
+    const screen = await renderScreen();
+    fireEvent(screen.getByTestId('pace-alert-switch'), 'valueChange', true);
+    expect(setPaceAlertPreference).toHaveBeenCalledWith(
+      true,
+      expect.objectContaining({
+        minSecondsPerKm: expect.any(Number),
+        maxSecondsPerKm: expect.any(Number),
+      })
+    );
+    fireEvent.press(screen.getByTestId('pace-slowest-up'));
+    expect(setPaceAlertPreference).toHaveBeenLastCalledWith(
+      true,
+      expect.objectContaining({ maxSecondsPerKm: expect.any(Number) })
     );
   });
 

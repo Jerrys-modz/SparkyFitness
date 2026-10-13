@@ -27,6 +27,12 @@ enum Haptics {
         play(.notification)
     }
 
+    /// The pace has left the wearer's range. Down means ease off, up means
+    /// speed up, so it can be read without looking.
+    static func pace(tooFast: Bool) {
+        play(tooFast ? .directionDown : .directionUp)
+    }
+
     /// Called from button actions and the recording store, which run on the main actor.
     private static func play(_ type: WKHapticType) {
         MainActor.assumeIsolated {

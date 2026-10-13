@@ -44,6 +44,27 @@ it('sends the Record screen’s switches with the start request', async () => {
   expect(useWatchRunLiveStore.getState().pending?.requestId).toBe(requestId);
 });
 
+it('sends the pace range with the start request when one is set', async () => {
+  await startRunOnWatch({
+    kind: 'run',
+    place: 'outdoor',
+    autoPause: true,
+    voiceCues: false,
+    paceBand: { minSecondsPerKm: 300, maxSecondsPerKm: 330 },
+  });
+  expect(module.startRun).toHaveBeenCalledWith(
+    expect.objectContaining({ paceMin: 300, paceMax: 330 })
+  );
+  await startRunOnWatch({
+    kind: 'run',
+    place: 'outdoor',
+    autoPause: true,
+    voiceCues: false,
+  });
+  const [, second] = module.startRun.mock.calls.map(([r]) => r);
+  expect(second).not.toHaveProperty('paceMin');
+});
+
 it('sends a switch change for the run with a fresh control id', async () => {
   await sendRunControl('r1', 'autoPauseOff');
   await sendRunControl('r1', 'autoPauseOff');

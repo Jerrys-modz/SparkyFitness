@@ -475,6 +475,10 @@ struct WatchContext: Codable, Equatable {
     /// The phone's "Auto-pause" switch, the default for a run begun on the
     /// wrist. Nil (an older phone build) reads as on.
     var runAutoPause: Bool? = nil
+    /// The phone's pace range for a run begun on the wrist, in seconds per km,
+    /// and whether the pace alert is on. Nil band (older phone) reads as off.
+    var runPaceBand: WatchPaceBand? = nil
+    var runPaceAlert: Bool? = nil
     /// Plans a wrist-only run can follow. Nil until the phone has said.
     var runPlans: [WatchRunPlan]? = nil
     /// Learned correction for the watch's indoor distance. Nil until the
