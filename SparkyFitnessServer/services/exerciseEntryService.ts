@@ -10,11 +10,15 @@ import preferenceRepository from '../models/preferenceRepository.js';
 import userRepository from '../models/userRepository.js';
 import { parseISO, isValid } from 'date-fns';
 import {
+  instantToDay,
   setsDurationMinutes,
   type AttachExerciseEntryGpsTrackRequest,
   type HeartRateSampleRequest,
 } from '@workspace/shared';
 import { getClient } from '../db/poolManager.js';
+import { loadUserTimezone } from '../utils/timezoneLoader.js';
+import { describeError } from '../utils/errors.js';
+import { upsertSamplesByDay } from './healthMetricSampleWriter.js';
 import * as workoutTelemetryRepo from '../models/workoutTelemetryRepository.js';
 import {
   deriveLaps,
@@ -340,6 +344,59 @@ async function attachWatchTelemetryToExerciseEntry(
     fields,
     zones
   );
+
+  if (hrSamples && hrSamples.length > 0) {
+    await storeHeartRateSeries(
+      userId,
+      actingUserId,
+      exerciseEntryId,
+      hrSamples
+    );
+  }
+}
+
+/**
+ * Keeps the beat-by-beat series, tagged with the entry, so the workout's heart
+ * rate chart works without waiting for (or depending on) a later Health sync.
+ * Only the span the workout covers is replaced: the day's other readings stay.
+ * Best effort, because the summary and zones are already saved.
+ */
+async function storeHeartRateSeries(
+  userId: string,
+  actingUserId: string,
+  exerciseEntryId: string,
+  hrSamples: HeartRateSampleRequest[]
+): Promise<void> {
+  try {
+    const tz = await loadUserTimezone(userId);
+    const valid = hrSamples.filter((s) => Number.isFinite(Date.parse(s.t)));
+    if (valid.length === 0) return;
+    const times = valid.map((s) => Date.parse(s.t));
+    await upsertSamplesByDay(
+      userId,
+      actingUserId,
+      'heart_rate',
+      'SparkyFitness Watch',
+      valid.map((s) => ({
+        entry_date: instantToDay(s.t, tz),
+        timestamp: new Date(s.t),
+        ex: exerciseEntryId,
+        bpm: Math.round(s.bpm),
+      })),
+      {
+        mode: 'merge',
+        window: {
+          startMs: times.reduce((a, b) => (b < a ? b : a)),
+          endMs: times.reduce((a, b) => (b > a ? b : a)),
+        },
+      }
+    );
+  } catch (error) {
+    log(
+      'warn',
+      `Could not store the heart rate series for exercise entry ${exerciseEntryId}: ${describeError(error)}`
+    );
+  }
 }
 
 /**
