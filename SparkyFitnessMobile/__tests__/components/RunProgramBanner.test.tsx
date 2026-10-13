@@ -1,8 +1,9 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { programStatus, type ExerciseSessionResponse } from '@workspace/shared';
 import RunProgramBanner from '../../src/components/recording/RunProgramBanner';
 import {
+  adjustProgramRunning,
   completeProgramWorkout,
   useRunProgram,
 } from '../../src/services/runProgramService';
@@ -11,6 +12,7 @@ import { toLocalDateString } from '../../src/utils/dateUtils';
 jest.mock('../../src/services/runProgramService', () => ({
   useRunProgram: jest.fn(),
   completeProgramWorkout: jest.fn(() => Promise.resolve()),
+  adjustProgramRunning: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('../../src/hooks/useRefetchOnFocus', () => ({
   useRefetchOnFocus: jest.fn(),
@@ -131,4 +133,36 @@ test('offers to count a run logged some other way', () => {
     undefined,
     'entry-3'
   );
+});
+
+const daysAgo = (n: number) =>
+  toLocalDateString(new Date(Date.now() - n * 86_400_000));
+
+test('offers to ease back in after two weeks away, and applies it', async () => {
+  mockedProgram.mockReturnValue(program({ doneDay: daysAgo(15) }));
+  render(
+    <RunProgramBanner date={today} exerciseEntries={[]} onStart={jest.fn()} />
+  );
+  expect(screen.getByText(/15 days since your last workout/)).toBeTruthy();
+  await act(async () => {
+    fireEvent.press(screen.getByText('Ease back in'));
+  });
+  expect(adjustProgramRunning).toHaveBeenCalledWith(-15, 2);
+});
+
+test('lets the person dismiss the ease-back offer', () => {
+  mockedProgram.mockReturnValue(program({ doneDay: daysAgo(30) }));
+  render(
+    <RunProgramBanner date={today} exerciseEntries={[]} onStart={jest.fn()} />
+  );
+  fireEvent.press(screen.getByText('Not now'));
+  expect(screen.queryByText('Ease back in')).toBeNull();
+});
+
+test('does not offer to ease back in after a short break', () => {
+  mockedProgram.mockReturnValue(program({ doneDay: daysAgo(5) }));
+  render(
+    <RunProgramBanner date={today} exerciseEntries={[]} onStart={jest.fn()} />
+  );
+  expect(screen.queryByText('Ease back in')).toBeNull();
 });

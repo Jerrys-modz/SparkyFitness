@@ -139,6 +139,8 @@ On the program card you choose when the workouts show up in your Diary. **Days i
 
 Your place in the program is saved to your SparkyFitness server (only you can see it), so it follows you between devices.
 
+**Coming back after a break.** If it has been two weeks since your last program workout, the Diary card offers to ease the running in your next two workouts by 15%; after four weeks, the next three by 25%. Tap **Ease back in** to apply it (it follows the same limits as above) or **Not now** to leave the plan as it is. It is only offered once per break, and not for walking programs.
+
 **Ask Sparky to adjust it.** The AI assistant can see your program and your recent runs. Ask "How am I doing on my 5K program?" or tell it things like "my knee hurt this week" or "that last run was too hard", and it can suggest a change: repeat a week, move you to a different workout, or ease the running time in your next workouts by up to 30% (or lengthen it by at most 10% at a time). However many times it adjusts, running time in a workout never ends up more than 30% below or 10% above the original plan. It can also change your schedule: "run Monday, Wednesday and Saturday", "start the program next Monday" or "my race is on December 6". It only changes workouts you have not done yet, always asks you to confirm first, and keeps a short log of what it changed. For two weeks after a change, the program card on the Record screen says what changed and when.
 
 This is a common beginner structure, not medical advice: if you are unsure about starting to run, check with your doctor first.

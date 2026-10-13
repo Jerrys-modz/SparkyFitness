@@ -11,6 +11,7 @@ import { toLocalDateString } from '../utils/dateUtils';
 import { programWorkoutForEntry } from '../utils/runProgramSummary';
 import { runProgramQueryKey } from '../hooks/queryKeys';
 import {
+  adjustRunProgramRunning,
   fetchRunProgram,
   markRunProgramWorkoutDone,
   rateRunProgramWorkout,
@@ -192,6 +193,14 @@ export async function completeProgramWorkout(
       })
     ).program
   );
+}
+
+/** Eases (negative) or lengthens the running in the next `count` workouts. */
+export async function adjustProgramRunning(
+  percent: number,
+  count: number
+): Promise<void> {
+  setCache((await adjustRunProgramRunning({ percent, count })).program);
 }
 
 /**
