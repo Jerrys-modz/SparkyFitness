@@ -146,6 +146,16 @@ describe('speech service', () => {
     expect(mockSpeak.mock.calls[0]?.[1]).toMatchObject({ voice: 'voice-1' });
   });
 
+  it('drops a cue still waiting for the voices when narration is stopped', async () => {
+    useAppPreferencesStore.setState({ guidedWorkoutEnabled: true });
+    mockVoices.mockResolvedValue([]);
+    speakGuided(['Push-up. 12 reps.']);
+    stopGuidedSpeech();
+    await loadSpeechVoices();
+    await Promise.resolve();
+    expect(mockSpeak).not.toHaveBeenCalled();
+  });
+
   it('lists voices sorted by language, then name', async () => {
     mockVoices.mockResolvedValue([
       { identifier: 'b', name: 'Zed', language: 'en-US', quality: 'Default' },

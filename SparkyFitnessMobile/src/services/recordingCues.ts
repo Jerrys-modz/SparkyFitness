@@ -22,6 +22,9 @@ import {
  * reaches the recording.
  */
 
+// Bumped when a session ends, so a cue still waiting for the voices is dropped.
+let sessionGeneration = 0;
+
 /** Gets the audio session ready; call when a recording that speaks begins. */
 export function beginRecordingCues(): void {
   void startRecordingCueSession();
@@ -31,6 +34,7 @@ export function beginRecordingCues(): void {
 
 /** Lets the audio session go; call when the recording ends. */
 export function endRecordingCues(): void {
+  sessionGeneration += 1;
   void stopRecordingCueSession();
 }
 
@@ -52,8 +56,14 @@ export function speakRecordingCue(text: string, onFinished?: () => void): void {
   if (!text) return;
   // The first cue waits for the voices (the load beginRecordingCues started),
   // so it never falls back to the system voice while the pick is loading.
-  if (speechVoicesReady()) sayRecordingCue(text, onFinished);
-  else void loadSpeechVoices().then(() => sayRecordingCue(text, onFinished));
+  if (speechVoicesReady()) {
+    sayRecordingCue(text, onFinished);
+    return;
+  }
+  const requested = sessionGeneration;
+  void loadSpeechVoices().then(() => {
+    if (requested === sessionGeneration) sayRecordingCue(text, onFinished);
+  });
 }
 
 function sayRecordingCue(text: string, onFinished?: () => void): void {
