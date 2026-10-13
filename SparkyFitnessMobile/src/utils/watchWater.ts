@@ -9,6 +9,7 @@ export function watchWaterFromFoodMl(
   fromFoodMl: number | null | undefined
 ): number | null {
   if (!foodWaterCounts) return null;
-  if (fromFoodMl == null || !Number.isFinite(fromFoodMl) || fromFoodMl <= 0) return null;
+  if (fromFoodMl == null || !Number.isFinite(fromFoodMl) || fromFoodMl <= 0)
+    return null;
   return fromFoodMl;
 }
