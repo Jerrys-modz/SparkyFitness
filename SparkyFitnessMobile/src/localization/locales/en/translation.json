@@ -6693,7 +6693,11 @@
       "fastest": "Fastest",
       "slowest": "Slowest",
       "faster": "{{edge}} 5 seconds faster",
-      "slower": "{{edge}} 5 seconds slower"
+      "slower": "{{edge}} 5 seconds slower",
+      "workTitle": "Fast stretch pace",
+      "workDescription": "Alerts you when a fast stretch is outside this range.",
+      "easyTitle": "Easy stretch pace",
+      "easyDescription": "Alerts you when an easy stretch is outside this range."
     }
   },
   "goals": {

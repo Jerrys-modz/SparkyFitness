@@ -167,6 +167,9 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
     struct Step: Codable, Equatable {
         let label: String
         let seconds: Double
+        /// Pace range to hold in this step; nil is free. Optional so a plan
+        /// kept in an older snapshot still decodes.
+        var pace: WatchPaceBand? = nil
     }
 
     let id: String

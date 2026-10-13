@@ -14,6 +14,7 @@ import {
   markLap,
   setRecordingAudioCues,
   setPaceAlertPreference,
+  setRecordingPaceBand,
   setRecordingAutoPause,
   useGpsRecording,
   type RecordingSession,
@@ -65,6 +66,7 @@ jest.mock('../../src/services/gpsRecordingService', () => {
     setRecordingPreference: jest.fn(() => Promise.resolve()),
     setCountdownPreference: jest.fn(() => Promise.resolve()),
     setPaceAlertPreference: jest.fn(() => Promise.resolve()),
+    setRecordingPaceBand: jest.fn(() => Promise.resolve()),
     COUNTDOWN_CHOICES: [0, 3, 5, 10],
   };
 });
@@ -455,6 +457,25 @@ describe('RecordActivityScreen', () => {
     state(session({ status: 'paused', pausedAt: Date.now() }), track);
     screen.rerender(renderUi());
     expect(screen.queryByText('Lap')).toBeNull();
+  });
+
+  it('changes the pace range for the recording while it runs', async () => {
+    state(
+      session({ paceBand: { minSecondsPerKm: 300, maxSecondsPerKm: 330 } }),
+      track
+    );
+    const screen = await renderScreen();
+    fireEvent.press(screen.getByTestId('live-pace-slowest-up'));
+    expect(setRecordingPaceBand).toHaveBeenCalledWith({
+      minSecondsPerKm: 300,
+      maxSecondsPerKm: 335,
+    });
+    fireEvent(
+      screen.getByTestId('live-pace-alert-switch'),
+      'valueChange',
+      false
+    );
+    expect(setRecordingPaceBand).toHaveBeenLastCalledWith(undefined);
   });
 
   it('changes auto-pause and voice cues for the recording while it runs', async () => {

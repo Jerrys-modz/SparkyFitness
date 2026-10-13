@@ -1,4 +1,6 @@
 import {
+  applyPaceTargets,
+  isValidIntervalPlan,
   INITIAL_PACE_ALERT_STATE,
   normalizePaceBand,
   PACE_ALERT_REPEAT_MS,
@@ -100,5 +102,49 @@ describe('stepPaceAlert', () => {
     };
     const next = stepPaceAlert(start, null, band, 20_000);
     expect(next).toEqual({ state: start, alert: null });
+  });
+});
+
+describe('applyPaceTargets', () => {
+  const plan = {
+    style: 'fastEasy' as const,
+    steps: [
+      { kind: 'warmup' as const, seconds: 300 },
+      { kind: 'work' as const, seconds: 180 },
+      { kind: 'recovery' as const, seconds: 120 },
+      { kind: 'cooldown' as const, seconds: 300 },
+    ],
+  };
+  const fast = { minSecondsPerKm: 270, maxSecondsPerKm: 300 };
+  const easy = { minSecondsPerKm: 360, maxSecondsPerKm: 420 };
+
+  it('sets the ranges on work and recovery steps only', () => {
+    const result = applyPaceTargets(plan, { work: fast, easy });
+    expect(result.steps.map((step) => step.pace)).toEqual([
+      undefined,
+      fast,
+      easy,
+      undefined,
+    ]);
+    expect(isValidIntervalPlan(result)).toBe(true);
+  });
+
+  it('leaves the plan as it was when nothing usable is given', () => {
+    expect(applyPaceTargets(plan, {})).toBe(plan);
+    expect(
+      applyPaceTargets(plan, {
+        work: { minSecondsPerKm: 300, maxSecondsPerKm: 301 },
+      })
+    ).toBe(plan);
+  });
+
+  it('refuses a plan whose step carries an unusable range', () => {
+    const bad = {
+      ...plan,
+      steps: [
+        { ...plan.steps[0], pace: { minSecondsPerKm: 5, maxSecondsPerKm: 6 } },
+      ],
+    };
+    expect(isValidIntervalPlan(bad)).toBe(false);
   });
 });
