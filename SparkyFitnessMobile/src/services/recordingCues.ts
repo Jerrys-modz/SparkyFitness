@@ -1,7 +1,11 @@
 import * as Speech from 'expo-speech';
 import { getAppLocale } from '../localization';
 import { addLog } from './LogService';
-import { loadSpeechVoices, resolveSpeechVoice } from './speechVoice';
+import {
+  loadSpeechVoices,
+  resolveSpeechVoice,
+  speechVoicesReady,
+} from './speechVoice';
 import {
   beginCueDucking,
   endCueDucking,
@@ -46,6 +50,13 @@ export function stopRecordingCues(): void {
  */
 export function speakRecordingCue(text: string, onFinished?: () => void): void {
   if (!text) return;
+  // The first cue waits for the voices (the load beginRecordingCues started),
+  // so it never falls back to the system voice while the pick is loading.
+  if (speechVoicesReady()) sayRecordingCue(text, onFinished);
+  else void loadSpeechVoices().then(() => sayRecordingCue(text, onFinished));
+}
+
+function sayRecordingCue(text: string, onFinished?: () => void): void {
   try {
     void Speech.stop();
     let ducked = false;

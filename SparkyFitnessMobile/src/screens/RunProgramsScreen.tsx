@@ -106,11 +106,12 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const chooseProgram = (id: string) => {
-    if (!enabled || id === storedId) {
+    if (id === storedId) {
       setChosenId(id);
       return;
     }
-    // Switching a running program starts the new one from week 1.
+    // Switching a stored program, running or paused, starts the new one from
+    // week 1 (and switches it on), so it is always confirmed.
     Alert.alert(
       t('recordActivity.program.switchTitle', {
         name: programName(t, id),
@@ -198,11 +199,17 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
                 {programName(t, program.id)}
               </Text>
               <Text className="text-text-muted text-xs mt-0.5">
-                {t('runPrograms.weeksRuns', {
-                  weeks: program.weeks,
-                  runs: program.workoutsPerWeek,
-                  defaultValue: '{{weeks}} weeks, {{runs}} runs a week',
-                })}
+                {program.activity === 'walk'
+                  ? t('runPrograms.weeksWalks', {
+                      weeks: program.weeks,
+                      runs: program.workoutsPerWeek,
+                      defaultValue: '{{weeks}} weeks, {{runs}} walks a week',
+                    })
+                  : t('runPrograms.weeksRuns', {
+                      weeks: program.weeks,
+                      runs: program.workoutsPerWeek,
+                      defaultValue: '{{weeks}} weeks, {{runs}} runs a week',
+                    })}
               </Text>
               <Text className="text-text-secondary text-sm mt-2">
                 {programDescription(t, program.id)}

@@ -14,26 +14,39 @@ import { addLog } from './LogService';
  */
 
 let installed: SpeechVoice[] | null = null;
+let loading: Promise<SpeechVoice[]> | null = null;
 
-/** Reads the installed voices; empty on failure. Cached until `refresh`. */
-export async function loadSpeechVoices(
-  refresh = false
-): Promise<SpeechVoice[]> {
-  if (installed && !refresh) return installed;
-  try {
-    const voices = await Speech.getAvailableVoicesAsync();
-    installed = voices.map((v) => ({
-      identifier: v.identifier,
-      name: v.name,
-      language: v.language,
-      quality: v.quality,
-    }));
-  } catch (err) {
-    // Not cached, so the next call tries again.
-    addLog(`loadSpeechVoices failed: ${(err as Error).message}`, 'WARNING');
-    return [];
-  }
-  return installed;
+/** True when the installed voices are read and no refresh is under way. */
+export function speechVoicesReady(): boolean {
+  return installed !== null && loading === null;
+}
+
+/**
+ * Reads the installed voices; empty on failure. Cached until `refresh`, and a
+ * read already under way is shared, so callers can wait for it.
+ */
+export function loadSpeechVoices(refresh = false): Promise<SpeechVoice[]> {
+  if (loading) return loading;
+  if (installed && !refresh) return Promise.resolve(installed);
+  loading = (async () => {
+    try {
+      const voices = await Speech.getAvailableVoicesAsync();
+      installed = voices.map((v) => ({
+        identifier: v.identifier,
+        name: v.name,
+        language: v.language,
+        quality: v.quality,
+      }));
+      return installed;
+    } catch (err) {
+      // Not cached, so the next call tries again.
+      addLog(`loadSpeechVoices failed: ${(err as Error).message}`, 'WARNING');
+      return [];
+    } finally {
+      loading = null;
+    }
+  })();
+  return loading;
 }
 
 /**
@@ -61,4 +74,5 @@ export function resolveSpeechVoice(locale: string): string | undefined {
 /** Test-only helper. */
 export function __resetSpeechVoicesForTests(): void {
   installed = null;
+  loading = null;
 }

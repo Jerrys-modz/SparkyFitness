@@ -205,12 +205,20 @@ const RunProgramCard: React.FC<Props> = ({
   );
 
   const programOptions: PickerOption<string>[] = RUN_PROGRAMS.map((p) => ({
-    label: t('recordActivity.program.optionLabel', {
-      name: programName(t, p.id),
-      weeks: p.weeks,
-      runs: p.workoutsPerWeek,
-      defaultValue: '{{name}} · {{weeks}} weeks, {{runs}} runs a week',
-    }),
+    label:
+      p.activity === 'walk'
+        ? t('recordActivity.program.optionLabelWalk', {
+            name: programName(t, p.id),
+            weeks: p.weeks,
+            runs: p.workoutsPerWeek,
+            defaultValue: '{{name}} · {{weeks}} weeks, {{runs}} walks a week',
+          })
+        : t('recordActivity.program.optionLabel', {
+            name: programName(t, p.id),
+            weeks: p.weeks,
+            runs: p.workoutsPerWeek,
+            defaultValue: '{{name}} · {{weeks}} weeks, {{runs}} runs a week',
+          }),
     value: p.id,
   }));
 
@@ -270,12 +278,20 @@ const RunProgramCard: React.FC<Props> = ({
         .map((workout, index) => ({ workout, index }))
         .filter(({ workout }) => workout.week === week)
         .map(({ workout, index }) => ({
-          label: t('recordActivity.program.pickOption', {
-            run: workout.day + 1,
-            minutes: planMinutes(workout.plan),
-            mark: index < status.done ? '✓ ' : '',
-            defaultValue: '{{mark}}Run {{run}} · {{minutes}} min',
-          }),
+          label:
+            status.program.activity === 'walk'
+              ? t('recordActivity.program.pickOptionWalk', {
+                  run: workout.day + 1,
+                  minutes: planMinutes(workout.plan),
+                  mark: index < status.done ? '✓ ' : '',
+                  defaultValue: '{{mark}}Walk {{run}} · {{minutes}} min',
+                })
+              : t('recordActivity.program.pickOption', {
+                  run: workout.day + 1,
+                  minutes: planMinutes(workout.plan),
+                  mark: index < status.done ? '✓ ' : '',
+                  defaultValue: '{{mark}}Run {{run}} · {{minutes}} min',
+                }),
           value: index,
         })),
     })

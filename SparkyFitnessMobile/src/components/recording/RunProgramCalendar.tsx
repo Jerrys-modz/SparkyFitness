@@ -135,13 +135,21 @@ const RunProgramCalendar: React.FC<{
                       : ''}
                   </Text>
                   <Text className="text-text-secondary text-sm">
-                    {t('runPrograms.calendar.row', {
-                      week: workout.week + 1,
-                      run: workout.day + 1,
-                      minutes: planMinutes(workout.plan),
-                      defaultValue:
-                        'Week {{week}}, run {{run}} · {{minutes}} min',
-                    })}
+                    {status.program.activity === 'walk'
+                      ? t('runPrograms.calendar.rowWalk', {
+                          week: workout.week + 1,
+                          run: workout.day + 1,
+                          minutes: planMinutes(workout.plan),
+                          defaultValue:
+                            'Week {{week}}, walk {{run}} · {{minutes}} min',
+                        })
+                      : t('runPrograms.calendar.row', {
+                          week: workout.week + 1,
+                          run: workout.day + 1,
+                          minutes: planMinutes(workout.plan),
+                          defaultValue:
+                            'Week {{week}}, run {{run}} · {{minutes}} min',
+                        })}
                   </Text>
                 </View>
               );

@@ -14,6 +14,7 @@ import { log } from '../../config/logging.js';
 import {
   adjustRunProgram,
   getRunProgram,
+  InvalidRunProgramScheduleError,
   upsertRunProgram,
 } from '../../models/runProgramRepository.js';
 import { ERRORS, formatZodError } from './errors.js';
@@ -276,7 +277,10 @@ Every change needs confirmed=true after the user has agreed.`,
             program.adjustment_log[program.adjustment_log.length - 1];
           return `${formatConfirmation(last?.summary ?? 'Run program updated.')}\n\n${summarise(program)}`;
         } catch (error) {
-          if (error instanceof ProgramAdjustError) {
+          if (
+            error instanceof ProgramAdjustError ||
+            error instanceof InvalidRunProgramScheduleError
+          ) {
             return ERRORS.VALIDATION(error.message);
           }
           log('error', '[Run Program Tool] Error:', error);

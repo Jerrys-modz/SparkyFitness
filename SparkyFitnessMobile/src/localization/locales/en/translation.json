@@ -4851,6 +4851,7 @@
       "empty": "Log daily temperature logs to view your BBT chart."
     },
     "allTrendsHidden": "All graphs are hidden. Choose which to show in Dashboard Settings.",
+    "noTrendData": "No data to graph yet.",
     "vo2max": {
       "title": "VO2 max",
       "loadFailed": "Failed to load VO2 max data",
@@ -6626,6 +6627,7 @@
       "pickTitle": "Choose a workout",
       "weekTitle": "Week {{week}}",
       "pickOption": "{{mark}}Run {{run}} · {{minutes}} min",
+"pickOptionWalk": "{{mark}}Walk {{run}} · {{minutes}} min",
       "doThis": "Do this workout",
       "switchHint": "Follow a plan that builds up week by week. Off by default.",
       "paused": "{{name}} is paused at {{done}} of {{total}} workouts. Switch it on to carry on.",
@@ -6645,6 +6647,7 @@
       "minutes": "{{minutes}} min",
       "workoutsDone": "{{done}} of {{total}} workouts",
       "optionLabel": "{{name}} · {{weeks}} weeks, {{runs}} runs a week",
+"optionLabelWalk": "{{name}} · {{weeks}} weeks, {{runs}} walks a week",
       "chooseTitle": "Choose a program",
       "change": "Change program",
       "switchTitle": "Switch to {{name}}?",
@@ -7136,6 +7139,7 @@
     "startToday": "Start today",
     "intro": "Follow a plan that builds up week by week. Pick a program to see what it involves, then start it when you are ready.",
     "weeksRuns": "{{weeks}} weeks, {{runs}} runs a week",
+"weeksWalks": "{{weeks}} weeks, {{runs}} walks a week",
     "guide": {
       "structure": {
         "beginner5k": "Weeks 1 to 4 alternate short runs with walks, starting at 1 minute of running and building to 5-minute runs. Weeks 5 and 6 mix run and walk intervals with one continuous run. Weeks 7 to 9 are continuous runs of 25, 28 and then 30 minutes.",
@@ -7172,7 +7176,8 @@
       "loggedRun": "You logged a run today. Count it as this workout?",
       "countIt": "Count it",
       "start": "Start",
-      "title": "Week {{week}}, run {{run}} · {{minutes}} min"
+      "title": "Week {{week}}, run {{run}} · {{minutes}} min",
+"titleWalk": "Week {{week}}, walk {{run}} · {{minutes}} min"
     },
     "calendar": {
       "title": "Schedule",
@@ -7185,6 +7190,7 @@
       "fitsAfter_other": "At this pace you finish on {{date}}, {{count}} days after your goal date. Add a run day or move the date.",
       "moves": "A run you miss is not skipped: the dates after it move along.",
       "row": "Week {{week}}, run {{run}} · {{minutes}} min",
+"rowWalk": "Week {{week}}, walk {{run}} · {{minutes}} min",
       "showAll_one": "Show {{count}}",
       "showAll_other": "Show all {{count}}",
       "showLess": "Show fewer",

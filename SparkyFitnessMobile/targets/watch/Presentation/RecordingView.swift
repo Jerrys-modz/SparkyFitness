@@ -122,7 +122,7 @@ struct RecordingView: View {
                 .foregroundStyle(.yellow)
             }
             if let next = step.next {
-                Text("Next: \(next)")
+                Text(String(localized: "watch.recording.next", defaultValue: "Next: \(next)"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

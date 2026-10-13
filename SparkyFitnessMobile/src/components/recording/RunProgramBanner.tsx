@@ -120,12 +120,19 @@ const RunProgramBanner: React.FC<{
           className="text-base font-semibold text-text-primary flex-1 mr-3"
           numberOfLines={2}
         >
-          {t('runPrograms.banner.title', {
-            week: workout.week + 1,
-            run: workout.day + 1,
-            minutes,
-            defaultValue: 'Week {{week}}, run {{run}} · {{minutes}} min',
-          })}
+          {status.program.activity === 'walk'
+            ? t('runPrograms.banner.titleWalk', {
+                week: workout.week + 1,
+                run: workout.day + 1,
+                minutes,
+                defaultValue: 'Week {{week}}, walk {{run}} · {{minutes}} min',
+              })
+            : t('runPrograms.banner.title', {
+                week: workout.week + 1,
+                run: workout.day + 1,
+                minutes,
+                defaultValue: 'Week {{week}}, run {{run}} · {{minutes}} min',
+              })}
         </Text>
         {isToday ? (
           <Button variant="primary" onPress={onStart}>

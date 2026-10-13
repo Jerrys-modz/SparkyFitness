@@ -6,7 +6,7 @@ import {
   completeProgramWorkout,
   useRunProgram,
 } from '../../src/services/runProgramService';
-import { toLocalDateString } from '../../src/utils/dateUtils';
+import { addDays, toLocalDateString } from '../../src/utils/dateUtils';
 
 jest.mock('../../src/services/runProgramService', () => ({
   useRunProgram: jest.fn(),
@@ -97,7 +97,7 @@ test('shows what is scheduled on a later run day, without a Start button', () =>
       schedule: { days: [0, 1, 2, 3, 4, 5, 6], startDay: null, endDay: null },
     })
   );
-  const tomorrow = toLocalDateString(new Date(Date.now() + 86_400_000));
+  const tomorrow = addDays(today, 1);
   render(
     <RunProgramBanner
       date={tomorrow}
