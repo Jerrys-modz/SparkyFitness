@@ -61,9 +61,32 @@ export const EXTRA_NUTRIENT_FIELDS = [
 
 type ExtraNutrientKey = (typeof EXTRA_NUTRIENT_FIELDS)[number]['key'];
 
+/**
+ * The key each extra nutrient goes by in the nutrient display preferences
+ * (`/api/preferences/nutrient-display`), which use the server's column names.
+ */
+const EXTRA_NUTRIENT_PREFERENCE_KEYS: Record<ExtraNutrientKey, string> = {
+  fiber: 'dietary_fiber',
+  sugars: 'sugars',
+  saturatedFat: 'saturated_fat',
+  transFat: 'trans_fat',
+  cholesterol: 'cholesterol',
+  sodium: 'sodium',
+  potassium: 'potassium',
+  calcium: 'calcium',
+  iron: 'iron',
+  vitaminA: 'vitamin_a',
+  vitaminC: 'vitamin_c',
+  caffeineMg: 'caffeine_mg',
+  waterMl: 'water_ml',
+  alcoholG: 'alcohol_g',
+};
+
 export interface NutrientDisplayItem {
   /** Application-owned key; custom nutrient names may remain literal. */
   label: string;
+  /** Key in the nutrient display preferences; absent for derived rows. */
+  preferenceKey?: string;
   value: number;
   unit: string;
 }
@@ -93,6 +116,7 @@ export function buildNutrientDisplayList(
         : field.label,
       value,
       unit: field.unit,
+      preferenceKey: EXTRA_NUTRIENT_PREFERENCE_KEYS[field.key],
     };
     if ('additional' in field && field.additional) {
       additional.push(item);

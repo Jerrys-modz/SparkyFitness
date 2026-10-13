@@ -4,7 +4,6 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
-import { NON_GOAL_NUTRIENT_KEYS } from '@workspace/shared';
 import { useCSSVariable } from 'uniwind';
 
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
@@ -32,16 +31,14 @@ type NutrientDisplaySettingsScreenProps =
 const MOBILE_PLATFORM = 'mobile';
 
 /**
- * View groups shared with web. `summary` (Dashboard) and `diary` have their own
- * screens, so they are not repeated here.
+ * View groups shared with web that this app reads: `food_database` drives the
+ * nutrient list on food, meal and entry detail screens (`FoodNutrientBreakdown`)
+ * and `report_tabular` drives Nutrition Details. `summary` (Dashboard) and
+ * `diary` have their own screens. `quick_info`, `goal` and `report_chart` have
+ * no mobile surface yet, so they are not offered; add one here only together
+ * with the screen that reads it.
  */
-const VIEW_GROUP_IDS = [
-  'quick_info',
-  'food_database',
-  'goal',
-  'report_tabular',
-  'report_chart',
-] as const;
+const VIEW_GROUP_IDS = ['food_database', 'report_tabular'] as const;
 
 /** Built-in nutrients offerable in a view group, in default order. Mirrors web. */
 const BASE_NUTRIENTS = [
@@ -92,18 +89,11 @@ const NutrientDisplaySettingsScreen: React.FC<
   const [viewGroup, setViewGroup] = useState<string>(VIEW_GROUP_IDS[0]);
 
   const groupLabels: Record<(typeof VIEW_GROUP_IDS)[number], string> = {
-    quick_info: t('nutrientDisplay.groups.quickInfo', {
-      defaultValue: 'Quick Info',
-    }),
     food_database: t('nutrientDisplay.groups.foodDatabase', {
       defaultValue: 'Food Database',
     }),
-    goal: t('nutrientDisplay.groups.goal', { defaultValue: 'Goal' }),
     report_tabular: t('nutrientDisplay.groups.reportTabular', {
       defaultValue: 'Report (Tabular)',
-    }),
-    report_chart: t('nutrientDisplay.groups.reportChart', {
-      defaultValue: 'Report (Chart)',
     }),
   };
   const groupOptions = VIEW_GROUP_IDS.map((id) => ({
@@ -112,14 +102,8 @@ const NutrientDisplaySettingsScreen: React.FC<
   }));
 
   const allNutrients = useMemo(() => {
-    const base =
-      viewGroup === 'goal'
-        ? BASE_NUTRIENTS.filter(
-            (n) => !(NON_GOAL_NUTRIENT_KEYS as readonly string[]).includes(n)
-          )
-        : BASE_NUTRIENTS;
-    return [...base, ...customNutrients.map((n) => n.name)];
-  }, [viewGroup, customNutrients]);
+    return [...BASE_NUTRIENTS, ...customNutrients.map((n) => n.name)];
+  }, [customNutrients]);
 
   const savedRow = preferences.find(
     (p) => p.view_group === viewGroup && p.platform === MOBILE_PLATFORM

@@ -139,7 +139,7 @@ describe('NutrientDisplaySettingsScreen', () => {
   beforeEach(() => {
     (fetchNutrientDisplayPreferences as jest.Mock).mockResolvedValue([
       {
-        view_group: 'quick_info',
+        view_group: 'food_database',
         platform: 'mobile',
         visible_nutrients: ['protein', 'carbs'],
       },
@@ -157,7 +157,7 @@ describe('NutrientDisplaySettingsScreen', () => {
 
     await waitFor(() =>
       expect(updateNutrientDisplayPreference).toHaveBeenCalledWith(
-        'quick_info',
+        'food_database',
         'mobile',
         ['protein', 'carbs', 'fat']
       )
@@ -173,7 +173,7 @@ describe('NutrientDisplaySettingsScreen', () => {
 
     await waitFor(() =>
       expect(updateNutrientDisplayPreference).toHaveBeenCalledWith(
-        'quick_info',
+        'food_database',
         'mobile',
         ['carbs', 'protein']
       )
@@ -189,7 +189,7 @@ describe('NutrientDisplaySettingsScreen', () => {
 
     await waitFor(() =>
       expect(resetNutrientDisplayPreference).toHaveBeenCalledWith(
-        'quick_info',
+        'food_database',
         'mobile'
       )
     );

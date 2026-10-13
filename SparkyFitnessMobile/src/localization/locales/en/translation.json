@@ -6282,11 +6282,8 @@
     "show": "Show {{name}}",
     "reset": "Reset to default",
     "groups": {
-      "quickInfo": "Quick Info",
       "foodDatabase": "Food Database",
-      "goal": "Goal",
-      "reportTabular": "Report (Tabular)",
-      "reportChart": "Report (Chart)"
+      "reportTabular": "Report (Tabular)"
     }
   },
   "fastingSettings": {
