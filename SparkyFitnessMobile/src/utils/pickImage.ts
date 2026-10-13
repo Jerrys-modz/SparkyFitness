@@ -40,16 +40,18 @@ async function downscale(asset: {
   const longEdge = Math.max(width ?? 0, height ?? 0);
 
   const actions: ImageManipulator.Action[] =
-    longEdge > MAX_DIMENSION && width && height
-      ? [
-          {
-            resize:
-              width >= height
-                ? { width: MAX_DIMENSION }
-                : { height: MAX_DIMENSION },
-          },
-        ]
-      : [];
+    width && height
+      ? longEdge > MAX_DIMENSION
+        ? [
+            {
+              resize:
+                width >= height
+                  ? { width: MAX_DIMENSION }
+                  : { height: MAX_DIMENSION },
+            },
+          ]
+        : []
+      : [{ resize: { width: MAX_DIMENSION } }];
 
   // Re-encode even when no resize is needed: it normalizes HEIC (the iOS
   // default) to JPEG, which is on the server's mime allowlist. HEIC is not.
@@ -60,6 +62,8 @@ async function downscale(asset: {
 
   return { uri: processed.uri };
 }
+
+export { downscale as downscaleFoodPhoto };
 
 /** Takes a photo with the system camera. */
 export async function pickImageFromCamera(): Promise<CameraPickResult> {

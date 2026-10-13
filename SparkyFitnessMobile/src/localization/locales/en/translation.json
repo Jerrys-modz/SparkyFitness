@@ -2801,7 +2801,7 @@
     "aiNotConfiguredTitle": "AI not configured",
     "aiNotConfiguredMessage": "Configure an AI provider in the web app to use photo estimates.",
     "photoTooLargeTitle": "Photo too large",
-    "photoTooLargeMessage": "Retake the photo at lower quality.",
+    "photoTooLargeMessage": "The image is too large for AI analysis. Please try another photo.",
     "unexpectedImageFormatTitle": "Unexpected image format",
     "unexpectedImageFormatMessage": "Retake the photo.",
     "couldNotProcessPhotoTitle": "Could not process photo",
