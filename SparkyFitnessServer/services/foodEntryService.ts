@@ -2530,11 +2530,11 @@ async function updateFoodEntryMeal(
           (typeof value !== 'number' && typeof value !== 'string') ||
           (typeof value === 'string' && value.trim() === '') ||
           !Number.isFinite(Number(value)) ||
-          ((field === 'quantity' || field === 'serving_size') &&
-            Number(value) < 0)
+          (field === 'quantity' && Number(value) < 0) ||
+          (field === 'serving_size' && Number(value) <= 0)
         ) {
           const error: Error & { statusCode?: number } = new Error(
-            `Food item ${field} must be a finite number${field === 'quantity' || field === 'serving_size' ? ' greater than or equal to zero' : ''}.`
+            `Food item ${field} must be a finite ${field === 'serving_size' ? 'positive number' : field === 'quantity' ? 'nonnegative number' : 'number'}.`
           );
           error.statusCode = 400;
           throw error;
@@ -2595,7 +2595,7 @@ async function updateFoodEntryMeal(
         foodItem.serving_size !== undefined &&
         foodItem.serving_size !== null &&
         Number.isFinite(Number(foodItem.serving_size)) &&
-        Number(foodItem.serving_size) >= 0 &&
+        Number(foodItem.serving_size) > 0 &&
         foodItem.calories !== undefined &&
         foodItem.calories !== null
       ) {

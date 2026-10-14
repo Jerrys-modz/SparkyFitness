@@ -437,7 +437,17 @@ describe('foodEntryMealService', () => {
       'alcohol_g',
       'quantity',
     ])('rejects invalid %s before any writes', async (field) => {
-      for (const value of ['invalid', '', Infinity, NaN]) {
+      for (const value of [
+        'invalid',
+        '',
+        Infinity,
+        NaN,
+        ...(field === 'serving_size'
+          ? [0, '0', -1]
+          : field === 'quantity'
+            ? [-1]
+            : []),
+      ]) {
         await expect(
           updateFoodEntryMeal('user-1', 'user-1', 'meal-entry-1', {
             name: 'Edited name',
@@ -508,6 +518,16 @@ describe('foodEntryMealService', () => {
               polyunsaturated_fat: 2,
               custom_nutrients: { choline: 90 },
             },
+            {
+              food_id: null,
+              variant_id: null,
+              food_name: 'Optional seasoning',
+              quantity: 0,
+              unit: 'g',
+              serving_size: 100,
+              serving_unit: 'g',
+              calories: 0,
+            },
           ],
         });
 
@@ -526,6 +546,14 @@ describe('foodEntryMealService', () => {
               polyunsaturated_fat: 2,
               custom_nutrients: { choline: 90 },
               entry_date: '2026-06-19',
+            }),
+            expect.objectContaining({
+              food_id: null,
+              variant_id: null,
+              food_name: 'Optional seasoning',
+              quantity: 0,
+              serving_size: 100,
+              calories: 0,
             }),
           ],
           'user-1'
