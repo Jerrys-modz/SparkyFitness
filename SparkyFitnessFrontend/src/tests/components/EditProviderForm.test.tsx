@@ -6,7 +6,7 @@ import type { ExternalDataProvider } from '@/pages/Settings/ExternalProviderSett
 import { renderWithClient } from '../test-utils';
 
 jest.mock('react-i18next', () => ({
-  ...jest.requireActual('@/tests/i18nMock').reactI18nextMock,
+  ...jest.requireActual('@/tests/mocks/reactI18next'),
   useTranslation: () => ({
     t: (key: string, defaultValue?: string) =>
       ({

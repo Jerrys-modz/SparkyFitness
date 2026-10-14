@@ -575,12 +575,18 @@ export const ProviderSpecificFields = ({
               <Clipboard className="h-4 w-4" />
             </Button>
           </strong>
+          <span className="block">
+            {t(
+              'settings.providerSpecificFields.ensureLocalUrl',
+              'Also ensure your local URL is correct if testing locally.'
+            )}
+          </span>
           <Trans
-            i18nKey="settings.providerSpecificFields.andEnsureYourLocalURL2"
+            i18nKey="settings.providerSpecificFields.stravaCallbackNote"
             defaults={
-              'and ensure your local URL is correct if testing locally. Note: Strava callback URL on the server is configured to:<strong>{{value}}</strong>'
+              'Note: Strava callback URL on the server is configured to: <strong>{{value}}</strong>'
             }
-            values={{ value: ` ${window.location.origin}/strava/callback` }}
+            values={{ value: `${window.location.origin}/strava/callback` }}
             components={{ strong: <strong /> }}
           />
         </p>
