@@ -119,6 +119,24 @@ describe('RunProgramEditScreen', () => {
     expect(input.workouts[0].plan.steps[1].seconds).toBe(660);
   });
 
+  it('saves a pace and heart-rate target on a step', async () => {
+    renderFor();
+    fireEvent.changeText(screen.getByTestId('plan-name'), 'Mine');
+    fireEvent.changeText(screen.getByTestId('plan-step-0-1-pace-fast'), '5:00');
+    fireEvent.changeText(screen.getByTestId('plan-step-0-1-pace-slow'), '6:00');
+    fireEvent.changeText(screen.getByTestId('plan-step-0-1-hr-low'), '130');
+    fireEvent.changeText(screen.getByTestId('plan-step-0-1-hr-high'), '150');
+    // Warm up takes no target.
+    expect(screen.queryByTestId('plan-step-0-0-pace-fast')).toBeNull();
+    fireEvent.press(screen.getByTestId('plan-save'));
+    await waitFor(() => expect(saveCustomProgram).toHaveBeenCalled());
+    const [input] = jest.mocked(saveCustomProgram).mock.calls[0];
+    expect(input.workouts[0].plan.steps[1]).toMatchObject({
+      pace: { minSecondsPerKm: 300, maxSecondsPerKm: 360 },
+      heartRate: { minBpm: 130, maxBpm: 150 },
+    });
+  });
+
   it('deletes a plan after asking', async () => {
     const spy = jest.spyOn(Alert, 'alert');
     renderFor(plan.id);

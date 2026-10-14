@@ -7,10 +7,14 @@ import {
   draftToInput,
   duplicateWorkout,
   emptyDraft,
+  heartRateBandFrom,
   moveWorkout,
   nudgeStep,
+  paceBandFrom,
+  parseClock,
   removeStep,
   removeWorkout,
+  setStepTarget,
   setWorkoutTitle,
   workoutSeconds,
 } from '../../src/utils/customProgramDraft';
@@ -99,5 +103,49 @@ describe('customProgramDraft', () => {
     });
     expect(back.workouts[0].title).toBe('Easy');
     expect(back.workouts[0].steps).toHaveLength(3);
+  });
+
+  it('reads paces and heart-rate ranges, refusing impossible ones', () => {
+    expect(parseClock('5:30')).toBe(330);
+    expect(parseClock('5:75')).toBeNull();
+    expect(parseClock('fast')).toBeNull();
+    expect(paceBandFrom('5:00', '6:00')).toEqual({
+      minSecondsPerKm: 300,
+      maxSecondsPerKm: 360,
+    });
+    expect(paceBandFrom('6:00', '5:00')).toBeNull();
+    expect(paceBandFrom('5:00', '5:05')).toBeNull();
+    expect(paceBandFrom('1:00', '5:00')).toBeNull();
+    expect(heartRateBandFrom('120', '150')).toEqual({
+      minBpm: 120,
+      maxBpm: 150,
+    });
+    expect(heartRateBandFrom('150', '120')).toBeNull();
+    expect(heartRateBandFrom('20', '150')).toBeNull();
+  });
+
+  it('keeps step targets through edits and drops them off work steps', () => {
+    let draft = { ...emptyDraft(), name: 'x' };
+    draft = setStepTarget(draft, 0, 1, {
+      pace: { minSecondsPerKm: 300, maxSecondsPerKm: 360 },
+    });
+    draft = setStepTarget(draft, 0, 1, {
+      heartRate: { minBpm: 130, maxBpm: 150 },
+    });
+    draft = nudgeStep(draft, 0, 1, 1);
+    expect(draftToInput(draft).workouts[0].plan.steps[1]).toMatchObject({
+      pace: { minSecondsPerKm: 300, maxSecondsPerKm: 360 },
+      heartRate: { minBpm: 130, maxBpm: 150 },
+    });
+    expect(duplicateWorkout(draft, 0).workouts[1].steps[1].pace).toBeDefined();
+    const cleared = setStepTarget(draft, 0, 1, { pace: null });
+    expect(cleared.workouts[0].steps[1].pace).toBeUndefined();
+    // work -> recovery keeps them, recovery -> cooldown drops them.
+    let cycled = cycleStepKind(draft, 0, 1);
+    expect(cycled.workouts[0].steps[1].pace).toBeDefined();
+    cycled = cycleStepKind(cycled, 0, 1);
+    expect(cycled.workouts[0].steps[1].kind).toBe('cooldown');
+    expect(cycled.workouts[0].steps[1].pace).toBeUndefined();
+    expect(cycled.workouts[0].steps[1].heartRate).toBeUndefined();
   });
 });

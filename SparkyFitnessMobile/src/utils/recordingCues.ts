@@ -430,6 +430,37 @@ export function programStartCue(
     : base;
 }
 
+/** "Workout 4. 30 minutes." for a workout of the person's own plan. */
+export function customProgramStartCue(
+  t: TFunction,
+  options: { number: number; title?: string; totalSeconds: number }
+): string {
+  return t('recordActivity.cues.customProgramStart', {
+    workout: options.title || `${options.number}`,
+    time: spokenDuration(t, options.totalSeconds),
+    defaultValue: 'Workout {{workout}}. {{time}}.',
+  });
+}
+
+/** Said at the end of a workout of the person's own plan. */
+export function customProgramDoneCue(
+  t: TFunction,
+  options: { done: number; total: number }
+): string {
+  if (options.done >= options.total) {
+    return t('recordActivity.cues.programComplete', {
+      defaultValue: 'Program complete. Well done.',
+    });
+  }
+  return t('recordActivity.cues.customProgramDone', {
+    done: options.done,
+    total: options.total,
+    next: options.done + 1,
+    defaultValue:
+      'Workout {{done}} of {{total}} done. Next up, workout {{next}}.',
+  });
+}
+
 /**
  * Said at the end of a program workout that reached its last step: how far
  * through the program that is, and what comes next.

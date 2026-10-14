@@ -31,13 +31,17 @@ import {
   draftToInput,
   duplicateWorkout,
   emptyDraft,
+  heartRateBandFrom,
   moveWorkout,
   nudgeStep,
+  paceBandFrom,
   removeStep,
   removeWorkout,
+  setStepTarget,
   setWorkoutTitle,
   workoutSeconds,
   type DraftActivity,
+  type DraftStep,
   type ProgramDraft,
   type StepKind,
 } from '../utils/customProgramDraft';
@@ -68,6 +72,132 @@ const kindLabel = (
         ? t('runPrograms.custom.kind.workWalk', { defaultValue: 'Brisk walk' })
         : t('runPrograms.custom.kind.workRun', { defaultValue: 'Run' });
   }
+};
+
+const clockText = (seconds: number | undefined): string =>
+  seconds === undefined ? '' : clock(seconds);
+
+const TargetInput: React.FC<{
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder: string;
+  label: string;
+  muted: string;
+  testID: string;
+}> = ({ value, onChangeText, placeholder, label, muted, testID }) => (
+  <TextInput
+    className="flex-1 bg-background rounded-lg px-2 py-1 text-text-primary text-center mx-1"
+    style={{ fontSize: 14 }}
+    value={value}
+    onChangeText={onChangeText}
+    placeholder={placeholder}
+    placeholderTextColor={muted}
+    accessibilityLabel={label}
+    keyboardType="numbers-and-punctuation"
+    maxLength={5}
+    testID={testID}
+  />
+);
+
+/** Optional pace and heart-rate ranges for one step. */
+const StepTargets: React.FC<{
+  step: DraftStep;
+  muted: string;
+  testIDPrefix: string;
+  onPace: (pace: DraftStep['pace'] | null) => void;
+  onHeartRate: (band: DraftStep['heartRate'] | null) => void;
+}> = ({ step, muted, testIDPrefix, onPace, onHeartRate }) => {
+  const { t } = useTranslation();
+  const [fast, setFast] = useState(clockText(step.pace?.minSecondsPerKm));
+  const [slow, setSlow] = useState(clockText(step.pace?.maxSecondsPerKm));
+  const [low, setLow] = useState(step.heartRate?.minBpm.toString() ?? '');
+  const [high, setHigh] = useState(step.heartRate?.maxBpm.toString() ?? '');
+
+  const changePace = (nextFast: string, nextSlow: string) => {
+    setFast(nextFast);
+    setSlow(nextSlow);
+    if (!nextFast.trim() && !nextSlow.trim()) return onPace(null);
+    const band = paceBandFrom(nextFast, nextSlow);
+    if (band) onPace(band);
+  };
+  const changeHeartRate = (nextLow: string, nextHigh: string) => {
+    setLow(nextLow);
+    setHigh(nextHigh);
+    if (!nextLow.trim() && !nextHigh.trim()) return onHeartRate(null);
+    const band = heartRateBandFrom(nextLow, nextHigh);
+    if (band) onHeartRate(band);
+  };
+  const paceInvalid =
+    (fast.trim() !== '' || slow.trim() !== '') && !paceBandFrom(fast, slow);
+  const hrInvalid =
+    (low.trim() !== '' || high.trim() !== '') && !heartRateBandFrom(low, high);
+
+  return (
+    <View className="mt-1 ml-1" testID={`${testIDPrefix}-targets`}>
+      <View className="flex-row items-center">
+        <Text className="text-text-muted text-xs w-20">
+          {t('runPrograms.custom.paceTarget', { defaultValue: 'Pace /km' })}
+        </Text>
+        <TargetInput
+          value={fast}
+          onChangeText={(text) => changePace(text, slow)}
+          placeholder="5:00"
+          label={t('runPrograms.custom.paceFast', {
+            defaultValue: 'Fastest pace per kilometre',
+          })}
+          muted={muted}
+          testID={`${testIDPrefix}-pace-fast`}
+        />
+        <Text className="text-text-muted">–</Text>
+        <TargetInput
+          value={slow}
+          onChangeText={(text) => changePace(fast, text)}
+          placeholder="6:00"
+          label={t('runPrograms.custom.paceSlow', {
+            defaultValue: 'Slowest pace per kilometre',
+          })}
+          muted={muted}
+          testID={`${testIDPrefix}-pace-slow`}
+        />
+      </View>
+      <View className="flex-row items-center mt-1">
+        <Text className="text-text-muted text-xs w-20">
+          {t('runPrograms.custom.heartRateTarget', {
+            defaultValue: 'Heart rate',
+          })}
+        </Text>
+        <TargetInput
+          value={low}
+          onChangeText={(text) => changeHeartRate(text, high)}
+          placeholder="120"
+          label={t('runPrograms.custom.heartRateLow', {
+            defaultValue: 'Lowest heart rate',
+          })}
+          muted={muted}
+          testID={`${testIDPrefix}-hr-low`}
+        />
+        <Text className="text-text-muted">–</Text>
+        <TargetInput
+          value={high}
+          onChangeText={(text) => changeHeartRate(low, text)}
+          placeholder="150"
+          label={t('runPrograms.custom.heartRateHigh', {
+            defaultValue: 'Highest heart rate',
+          })}
+          muted={muted}
+          testID={`${testIDPrefix}-hr-high`}
+        />
+      </View>
+      {paceInvalid || hrInvalid ? (
+        <Text className="text-text-muted text-xs mt-1">
+          {t('runPrograms.custom.targetHint', {
+            defaultValue:
+              'Use m:ss for pace and bpm for heart rate, with the two ends at least 10 apart. Empty means no target.',
+          })}
+        </Text>
+      ) : null}
+    </View>
+  );
 };
 
 const IconButton: React.FC<{
@@ -110,6 +240,9 @@ const RunProgramEditScreen: React.FC<Props> = ({ navigation, route }) => {
     id ? null : emptyDraft()
   );
   const [saving, setSaving] = useState(false);
+  // Bumped when steps or workouts move or go, so the target boxes (which hold
+  // their own text while typing) start over from the step now at that place.
+  const [revision, setRevision] = useState(0);
   // An existing program fills the form once, when it arrives.
   if (id && !draft && existing) setDraft(draftFromProgram(existing));
 
@@ -154,6 +287,10 @@ const RunProgramEditScreen: React.FC<Props> = ({ navigation, route }) => {
           : null;
 
   const update = (next: ProgramDraft) => setDraft(next);
+  const restructure = (next: ProgramDraft) => {
+    setRevision((r) => r + 1);
+    setDraft(next);
+  };
 
   const save = async () => {
     if (problem || saving) return;
@@ -290,7 +427,7 @@ const RunProgramEditScreen: React.FC<Props> = ({ navigation, route }) => {
                     defaultValue: 'Move earlier',
                   })}
                   disabled={index === 0}
-                  onPress={() => update(moveWorkout(draft, index, -1))}
+                  onPress={() => restructure(moveWorkout(draft, index, -1))}
                   color={muted}
                   testID={`plan-workout-up-${index}`}
                 />
@@ -300,7 +437,7 @@ const RunProgramEditScreen: React.FC<Props> = ({ navigation, route }) => {
                     defaultValue: 'Move later',
                   })}
                   disabled={index === draft.workouts.length - 1}
-                  onPress={() => update(moveWorkout(draft, index, 1))}
+                  onPress={() => restructure(moveWorkout(draft, index, 1))}
                   color={muted}
                   testID={`plan-workout-down-${index}`}
                 />
@@ -310,7 +447,7 @@ const RunProgramEditScreen: React.FC<Props> = ({ navigation, route }) => {
                     defaultValue: 'Duplicate workout',
                   })}
                   disabled={!canAddWorkout(draft)}
-                  onPress={() => update(duplicateWorkout(draft, index))}
+                  onPress={() => restructure(duplicateWorkout(draft, index))}
                   color={muted}
                   testID={`plan-workout-copy-${index}`}
                 />
@@ -319,7 +456,7 @@ const RunProgramEditScreen: React.FC<Props> = ({ navigation, route }) => {
                   label={t('runPrograms.custom.removeWorkout', {
                     defaultValue: 'Remove workout',
                   })}
-                  onPress={() => update(removeWorkout(draft, index))}
+                  onPress={() => restructure(removeWorkout(draft, index))}
                   color={muted}
                   testID={`plan-workout-remove-${index}`}
                 />
@@ -346,54 +483,79 @@ const RunProgramEditScreen: React.FC<Props> = ({ navigation, route }) => {
             </Text>
 
             {workout.steps.map((step, stepIndex) => (
-              <View
-                key={stepIndex}
-                className="flex-row items-center mt-2"
-                testID={`plan-step-${index}-${stepIndex}`}
-              >
-                <Pressable
-                  onPress={() => update(cycleStepKind(draft, index, stepIndex))}
-                  accessibilityRole="button"
-                  accessibilityHint={t('runPrograms.custom.kindHint', {
-                    defaultValue: 'Changes the kind of step',
-                  })}
-                  className="flex-1 bg-background rounded-lg px-3 py-2"
-                  testID={`plan-step-kind-${index}-${stepIndex}`}
+              <View key={stepIndex} className="mt-2">
+                <View
+                  className="flex-row items-center"
+                  testID={`plan-step-${index}-${stepIndex}`}
                 >
-                  <Text className="text-text-primary text-sm">
-                    {kindLabel(t, step.kind, draft.activity)}
+                  <Pressable
+                    onPress={() =>
+                      update(cycleStepKind(draft, index, stepIndex))
+                    }
+                    accessibilityRole="button"
+                    accessibilityHint={t('runPrograms.custom.kindHint', {
+                      defaultValue: 'Changes the kind of step',
+                    })}
+                    className="flex-1 bg-background rounded-lg px-3 py-2"
+                    testID={`plan-step-kind-${index}-${stepIndex}`}
+                  >
+                    <Text className="text-text-primary text-sm">
+                      {kindLabel(t, step.kind, draft.activity)}
+                    </Text>
+                  </Pressable>
+                  <IconButton
+                    icon="remove-circle"
+                    label={t('runPrograms.custom.shorter', {
+                      defaultValue: 'Shorter',
+                    })}
+                    onPress={() =>
+                      update(nudgeStep(draft, index, stepIndex, -1))
+                    }
+                    color={accent}
+                    testID={`plan-step-less-${index}-${stepIndex}`}
+                  />
+                  <Text className="text-text-primary text-sm w-12 text-center">
+                    {clock(step.seconds)}
                   </Text>
-                </Pressable>
-                <IconButton
-                  icon="remove-circle"
-                  label={t('runPrograms.custom.shorter', {
-                    defaultValue: 'Shorter',
-                  })}
-                  onPress={() => update(nudgeStep(draft, index, stepIndex, -1))}
-                  color={accent}
-                  testID={`plan-step-less-${index}-${stepIndex}`}
-                />
-                <Text className="text-text-primary text-sm w-12 text-center">
-                  {clock(step.seconds)}
-                </Text>
-                <IconButton
-                  icon="add-circle"
-                  label={t('runPrograms.custom.longer', {
-                    defaultValue: 'Longer',
-                  })}
-                  onPress={() => update(nudgeStep(draft, index, stepIndex, 1))}
-                  color={accent}
-                  testID={`plan-step-more-${index}-${stepIndex}`}
-                />
-                <IconButton
-                  icon="close"
-                  label={t('runPrograms.custom.removeStep', {
-                    defaultValue: 'Remove step',
-                  })}
-                  onPress={() => update(removeStep(draft, index, stepIndex))}
-                  color={muted}
-                  testID={`plan-step-remove-${index}-${stepIndex}`}
-                />
+                  <IconButton
+                    icon="add-circle"
+                    label={t('runPrograms.custom.longer', {
+                      defaultValue: 'Longer',
+                    })}
+                    onPress={() =>
+                      update(nudgeStep(draft, index, stepIndex, 1))
+                    }
+                    color={accent}
+                    testID={`plan-step-more-${index}-${stepIndex}`}
+                  />
+                  <IconButton
+                    icon="close"
+                    label={t('runPrograms.custom.removeStep', {
+                      defaultValue: 'Remove step',
+                    })}
+                    onPress={() =>
+                      restructure(removeStep(draft, index, stepIndex))
+                    }
+                    color={muted}
+                    testID={`plan-step-remove-${index}-${stepIndex}`}
+                  />
+                </View>
+                {step.kind === 'warmup' || step.kind === 'cooldown' ? null : (
+                  <StepTargets
+                    key={`${revision}-${step.kind}`}
+                    step={step}
+                    muted={muted}
+                    testIDPrefix={`plan-step-${index}-${stepIndex}`}
+                    onPace={(pace) =>
+                      update(setStepTarget(draft, index, stepIndex, { pace }))
+                    }
+                    onHeartRate={(heartRate) =>
+                      update(
+                        setStepTarget(draft, index, stepIndex, { heartRate })
+                      )
+                    }
+                  />
+                )}
               </View>
             ))}
             <View className="mt-3">

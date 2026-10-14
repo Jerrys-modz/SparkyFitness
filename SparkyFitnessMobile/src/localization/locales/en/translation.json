@@ -6607,7 +6607,9 @@
       "milestone5k": "5K done. Nice work.",
       "milestone10k": "10K done. Strong effort.",
       "milestoneHalfMarathon": "Half marathon distance. Amazing.",
-      "milestoneMarathon": "Marathon distance. Incredible."
+      "milestoneMarathon": "Marathon distance. Incredible.",
+      "customProgramStart": "Workout {{workout}}. {{time}}.",
+      "customProgramDone": "Workout {{done}} of {{total}} done. Next up, workout {{next}}."
     },
     "autoPause": {
       "title": "Auto-pause",
@@ -7455,7 +7457,14 @@
       "intro": "Write your own plan as a list of workouts, each made of timed steps, and follow it like any program.",
       "restart": "Start again",
       "edit": "Edit",
-      "create": "Create a plan"
+      "create": "Create a plan",
+      "paceTarget": "Pace /km",
+      "paceFast": "Fastest pace per kilometre",
+      "paceSlow": "Slowest pace per kilometre",
+      "heartRateTarget": "Heart rate",
+      "heartRateLow": "Lowest heart rate",
+      "heartRateHigh": "Highest heart rate",
+      "targetHint": "Use m:ss for pace and bpm for heart rate, with the two ends at least 10 apart. Empty means no target."
     }
   },
   "speechVoice": {

@@ -358,6 +358,58 @@ describe('run program routes', () => {
       expect(over.status).toBe(400);
     });
 
+    it('accepts a pace and heart-rate target on a step, and refuses bad ones', async () => {
+      vi.mocked(createCustomRunProgram).mockResolvedValue(saved as never);
+      const withTargets = (step: Record<string, unknown>) => ({
+        ...body,
+        workouts: [
+          {
+            plan: {
+              style: 'runWalk',
+              steps: [{ kind: 'work', seconds: 600, ...step }],
+            },
+          },
+        ],
+      });
+      const ok = await request(app)
+        .post('/api/v2/run-program/custom')
+        .send(
+          withTargets({
+            pace: { minSecondsPerKm: 300, maxSecondsPerKm: 360 },
+            heartRate: { minBpm: 130, maxBpm: 150 },
+          })
+        );
+      expect(ok.status).toBe(200);
+      expect(createCustomRunProgram).toHaveBeenCalledWith(
+        'test-user-id',
+        expect.objectContaining({
+          workouts: [
+            expect.objectContaining({
+              plan: expect.objectContaining({
+                steps: [
+                  expect.objectContaining({
+                    pace: { minSecondsPerKm: 300, maxSecondsPerKm: 360 },
+                  }),
+                ],
+              }),
+            }),
+          ],
+        }),
+        'test-user-id'
+      );
+      for (const bad of [
+        { pace: { minSecondsPerKm: 360, maxSecondsPerKm: 300 } },
+        { pace: { minSecondsPerKm: 60, maxSecondsPerKm: 300 } },
+        { heartRate: { minBpm: 150, maxBpm: 130 } },
+        { heartRate: { minBpm: 20, maxBpm: 130 } },
+      ]) {
+        const res = await request(app)
+          .post('/api/v2/run-program/custom')
+          .send(withTargets(bad));
+        expect(res.status).toBe(400);
+      }
+    });
+
     it('answers 404 for an unknown or malformed id', async () => {
       vi.mocked(updateCustomRunProgram).mockResolvedValue(null);
       vi.mocked(deleteCustomRunProgram).mockResolvedValue(false);

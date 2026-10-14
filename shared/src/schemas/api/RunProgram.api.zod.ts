@@ -1,8 +1,27 @@
 import { z } from "zod";
 
+/** Seconds per kilometre; `min` is the fastest pace allowed. */
+export const runProgramPaceSchema = z
+  .object({
+    minSecondsPerKm: z.number().int().min(120).max(1200),
+    maxSecondsPerKm: z.number().int().min(120).max(1200),
+  })
+  .refine((band) => band.maxSecondsPerKm - band.minSecondsPerKm >= 10);
+
+export const runProgramHeartRateSchema = z
+  .object({
+    minBpm: z.number().int().min(40).max(220),
+    maxBpm: z.number().int().min(40).max(220),
+  })
+  .refine((band) => band.maxBpm - band.minBpm >= 10);
+
 export const runProgramStepSchema = z.object({
   kind: z.enum(["warmup", "work", "recovery", "cooldown"]),
   seconds: z.number().int().min(1).max(14400),
+  /** A pace to hold in this step; only the person's own programs set one. */
+  pace: runProgramPaceSchema.optional(),
+  /** A heart-rate range to hold in this step; only the person's own programs set one. */
+  heartRate: runProgramHeartRateSchema.optional(),
 });
 
 export const runProgramPlanSchema = z.object({

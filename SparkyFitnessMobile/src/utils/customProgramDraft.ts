@@ -10,6 +10,10 @@ export type DraftActivity = 'run' | 'walk';
 export interface DraftStep {
   kind: StepKind;
   seconds: number;
+  /** Pace to hold in the step, seconds per km (fast edge first). */
+  pace?: { minSecondsPerKm: number; maxSecondsPerKm: number };
+  /** Heart-rate range to hold in the step. */
+  heartRate?: { minBpm: number; maxBpm: number };
 }
 
 export interface DraftWorkout {
@@ -186,9 +190,17 @@ export const cycleStepKind = (
     const current = workout.steps[step];
     if (!current) return workout;
     const next = STEP_KINDS[(STEP_KINDS.indexOf(current.kind) + 1) % 4];
+    // Warm up and cool down take no target, so a step moved onto them loses it.
+    const { pace, heartRate, ...plain } = current;
+    const keepTargets = next === 'work' || next === 'recovery';
     return {
       ...workout,
-      steps: replaceAt(workout.steps, step, { ...current, kind: next }),
+      steps: replaceAt(workout.steps, step, {
+        ...plain,
+        kind: next,
+        ...(keepTargets && pace ? { pace } : {}),
+        ...(keepTargets && heartRate ? { heartRate } : {}),
+      }),
     };
   });
 
@@ -221,3 +233,61 @@ export function nudgeStep(
 
 export const workoutSeconds = (workout: DraftWorkout): number =>
   workout.steps.reduce((sum, step) => sum + step.seconds, 0);
+
+/** "5:30" (or "5.30") as seconds, or null when it is not a pace. */
+export function parseClock(text: string): number | null {
+  const match = /^\s*(\d{1,2})[:.](\d{2})\s*$/.exec(text);
+  if (!match) return null;
+  const seconds = Number(match[1]) * 60 + Number(match[2]);
+  return Number(match[2]) < 60 ? seconds : null;
+}
+
+/** A pace band when both edges are valid paces at least 10 s apart, else null. */
+export function paceBandFrom(
+  fast: string,
+  slow: string
+): DraftStep['pace'] | null {
+  const min = parseClock(fast);
+  const max = parseClock(slow);
+  if (min === null || max === null) return null;
+  if (min < 120 || max > 1200 || max - min < 10) return null;
+  return { minSecondsPerKm: min, maxSecondsPerKm: max };
+}
+
+/** A heart-rate band when both are bpm in range and at least 10 apart, else null. */
+export function heartRateBandFrom(
+  low: string,
+  high: string
+): DraftStep['heartRate'] | null {
+  if (!/^\d{2,3}$/.test(low.trim()) || !/^\d{2,3}$/.test(high.trim())) {
+    return null;
+  }
+  const min = Number(low);
+  const max = Number(high);
+  if (min < 40 || max > 220 || max - min < 10) return null;
+  return { minBpm: min, maxBpm: max };
+}
+
+/** Sets or clears (null) a step's pace or heart-rate target. */
+export const setStepTarget = (
+  draft: ProgramDraft,
+  index: number,
+  step: number,
+  target:
+    | { pace: DraftStep['pace'] | null }
+    | { heartRate: DraftStep['heartRate'] | null }
+): ProgramDraft =>
+  setWorkout(draft, index, (workout) => {
+    const current = workout.steps[step];
+    if (!current) return workout;
+    const next: DraftStep = { ...current };
+    if ('pace' in target) {
+      if (target.pace) next.pace = target.pace;
+      else delete next.pace;
+    } else if (target.heartRate) {
+      next.heartRate = target.heartRate;
+    } else {
+      delete next.heartRate;
+    }
+    return { ...workout, steps: replaceAt(workout.steps, step, next) };
+  });
