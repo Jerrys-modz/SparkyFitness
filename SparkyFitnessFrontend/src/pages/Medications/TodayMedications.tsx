@@ -342,7 +342,9 @@ export default function TodayMedications({
                       )}
                       {isLogged && entry?.notes && (
                         <p className="text-xs text-muted-foreground italic mt-1.5">
-                          {t('medications.today.note', 'Note:')} {entry.notes}
+                          {t('medications.today.note2', 'Note: {{notes}}', {
+                            notes: entry.notes,
+                          })}
                         </p>
                       )}
                     </div>
@@ -1275,7 +1277,9 @@ export default function TodayMedications({
                         </div>
                         {entry.notes && (
                           <p className="text-[11px] text-muted-foreground italic mt-1">
-                            {t('medications.today.note', 'Note:')} {entry.notes}
+                            {t('medications.today.note2', 'Note: {{notes}}', {
+                              notes: entry.notes,
+                            })}
                           </p>
                         )}
                       </div>

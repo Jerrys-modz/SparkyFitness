@@ -38,22 +38,10 @@ const mockContainers: WaterContainer[] = [
   },
 ];
 
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, second?: unknown) =>
-      typeof second === 'string'
-        ? second
-        : ((second as { defaultValue?: string })?.defaultValue ?? key),
-    i18n: {
-      language: 'en',
-      changeLanguage: jest.fn(),
-    },
-  }),
-  initReactI18next: {
-    type: '3rdParty',
-    init: jest.fn(),
-  },
-}));
+jest.mock(
+  'react-i18next',
+  () => jest.requireActual('@/tests/i18nMock').reactI18nextMock
+);
 
 jest.mock('@/hooks/Foods/useFoods', () => ({
   foodViewOptions: (id: string) => ({

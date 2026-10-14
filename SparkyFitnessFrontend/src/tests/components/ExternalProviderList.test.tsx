@@ -32,11 +32,10 @@ jest.mock('@/contexts/PreferencesContext', () => ({
   }),
 }));
 
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, fallback?: string) => fallback ?? key,
-  }),
-}));
+jest.mock(
+  'react-i18next',
+  () => jest.requireActual('@/tests/i18nMock').reactI18nextMock
+);
 
 const globalOpenFoodFactsProvider = {
   id: 'global-off-1',

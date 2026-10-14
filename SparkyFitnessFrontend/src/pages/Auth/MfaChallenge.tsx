@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import {
   Card,
   CardContent,
@@ -230,8 +230,12 @@ const MfaChallenge: React.FC<MfaChallengeProps> = ({
               )}
         </CardDescription>
         <p className="text-sm text-muted-foreground mt-2">
-          {t('mfaChallenge.loggedInAs', 'Logged in as:')}{' '}
-          <strong>{email}</strong>
+          <Trans
+            i18nKey="mfaChallenge.loggedInAs2"
+            defaults={'Logged in as: <strong>{{email}}</strong>'}
+            values={{ email }}
+            components={{ strong: <strong /> }}
+          />
         </p>
       </CardHeader>
       <CardContent className="space-y-4">

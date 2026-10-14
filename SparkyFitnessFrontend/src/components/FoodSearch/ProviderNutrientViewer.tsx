@@ -179,7 +179,7 @@ export const ProviderNutrientViewer = ({
             <span className="text-sm font-medium">
               {t(
                 'foodSearch.providerNutrientViewer.nutrientFieldsReportedBy',
-                'Nutrient fields reported by {{providerLabel}}( {{length}})',
+                'Nutrient fields reported by {{providerLabel}} ( {{length}})',
                 { providerLabel, length: providerNutrients.length }
               )}
             </span>
@@ -192,7 +192,7 @@ export const ProviderNutrientViewer = ({
           <p className="text-xs text-muted-foreground">
             {t(
               'foodSearch.providerNutrientViewer.theseAreTheExactField',
-              'These are the exact field names {{providerLabel}}uses. Add one as an alias so it imports into your custom nutrient. Matching ignores case and punctuation.',
+              'These are the exact field names {{providerLabel}} uses. Add one as an alias so it imports into your custom nutrient. Matching ignores case and punctuation.',
               { providerLabel }
             )}
           </p>

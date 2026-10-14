@@ -316,8 +316,13 @@ export default function CycleInsights() {
                     {productStats.avgVolumeMl} ml
                   </span>
                   <span className="block text-[9px] text-muted-foreground mt-0.5">
-                    {productStats.avgProductsPerPeriod}{' '}
-                    {t('cycle.insights.productsPerPeriod', 'products average')}
+                    {t(
+                      'cycle.insights.productsAverage',
+                      '{{avgProductsPerPeriod}} products average',
+                      {
+                        avgProductsPerPeriod: productStats.avgProductsPerPeriod,
+                      }
+                    )}
                   </span>
                 </div>
 
@@ -360,7 +365,9 @@ export default function CycleInsights() {
                           {prod}:
                         </span>
                         <span className="font-bold text-primary">
-                          {count} {t('cycle.insights.needed', 'needed')}
+                          {t('cycle.insights.needed2', '{{count}} needed', {
+                            count,
+                          })}
                         </span>
                       </div>
                     )
@@ -403,7 +410,7 @@ export default function CycleInsights() {
                         <div className="flex justify-between text-xs font-semibold">
                           <span className="capitalize">{symptom}</span>
                           <span className="text-[10px] text-muted-foreground">
-                            {t('cycle.cycleInsights.total', '{{total}}total', {
+                            {t('cycle.cycleInsights.total', '{{total}} total', {
                               total,
                             })}
                           </span>

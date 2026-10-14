@@ -1334,8 +1334,11 @@ const MedicationReports = ({
             {t('medications.print.header', 'Prescriber Medication Report')}
           </h1>
           <p className="text-sm text-slate-500">
-            {t('medications.print.dates', 'Reporting Period:')} {startDate}{' '}
-            {t('medications.print.dateRangeSeparator', 'to')} {endDate}
+            {t(
+              'medications.reports.reportingPeriodTo',
+              'Reporting Period: {{startDate}} to {{endDate}}',
+              { startDate, endDate }
+            )}
           </p>
         </div>
 

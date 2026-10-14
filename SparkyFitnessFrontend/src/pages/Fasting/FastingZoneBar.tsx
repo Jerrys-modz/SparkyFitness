@@ -139,12 +139,9 @@ const FastingZoneBar: React.FC<FastingZoneBarProps> = ({
                   <div className="font-bold">{zone.name}</div>
                   <div className="text-xs">
                     {t(
-                      'fasting.fastingZoneBar.hoursRange',
+                      'fasting.fastingZoneBar.hours',
                       '{{start}}-{{end}} hours',
-                      {
-                        start: zone.start,
-                        end: zone.end,
-                      }
+                      { start: zone.start, end: zone.end }
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground">

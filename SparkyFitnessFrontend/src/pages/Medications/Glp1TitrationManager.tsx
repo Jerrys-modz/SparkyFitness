@@ -259,7 +259,7 @@ export default function Glp1TitrationManager({
                           {' '}
                           {t(
                             'medications.glp1TitrationManager.wks',
-                            '· {{planned_weeks}}wks',
+                            '· {{planned_weeks}} wks',
                             { planned_weeks: step.planned_weeks }
                           )}
                         </span>

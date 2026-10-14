@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import {
   FLOW_LEVELS,
   PERIOD_PRODUCTS,
@@ -368,8 +368,17 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                           <span className="flex items-center gap-2">
                             <span className="inline-block h-2 w-2 rounded-full bg-rose-400 dark:bg-rose-500" />
                             <span>
-                              {cp.displayName} (<span>{cp.capacityMl}</span>
-                              {t('cycle.dailyLogPanel.ml', 'ml)')}
+                              <Trans
+                                i18nKey="cycle.dailyLogPanel.displayNameCapacityMlml"
+                                defaults={
+                                  '{{displayName}} (<span>{{capacityMl}}</span>ml)'
+                                }
+                                values={{
+                                  displayName: cp.displayName,
+                                  capacityMl: cp.capacityMl,
+                                }}
+                                components={{ span: <span /> }}
+                              />
                             </span>
                           </span>
                           <span className="flex items-center gap-1">
@@ -591,7 +600,9 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
         {/* Energy */}
         <section>
           <p className="mb-2 text-sm font-medium">
-            {t('cycle.log.energy', 'Energy')}: {draft.energy ?? '—'}
+            {t('cycle.dailyLogPanel.energy', 'Energy: {{energy}}', {
+              energy: draft.energy ?? '—',
+            })}
           </p>
           <Slider
             min={1}

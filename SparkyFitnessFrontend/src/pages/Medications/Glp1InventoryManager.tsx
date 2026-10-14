@@ -219,7 +219,7 @@ export default function Glp1InventoryManager({
                       <span className="text-muted-foreground">
                         {t(
                           'medications.glp1InventoryManager.mgML',
-                          '· {{concentration_mg_ml}}mg/mL',
+                          '· {{concentration_mg_ml}} mg/mL',
                           { concentration_mg_ml: p.concentration_mg_ml }
                         )}
                       </span>

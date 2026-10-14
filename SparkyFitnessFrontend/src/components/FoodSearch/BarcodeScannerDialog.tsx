@@ -72,7 +72,7 @@ export const BarcodeScannerDialog = ({
             <div className="flex items-center gap-2">
               <Database className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">
-                {t('enhancedFoodSearch.provider', 'Data Provider')}:
+                {t('enhancedFoodSearch.dataProvider', 'Data Provider:')}
               </span>
             </div>
             <Select

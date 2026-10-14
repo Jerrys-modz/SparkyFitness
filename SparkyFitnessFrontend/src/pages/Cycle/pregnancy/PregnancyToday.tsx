@@ -143,10 +143,15 @@ export default function PregnancyToday() {
                   </p>
                   {baby.lengthCm != null ? (
                     <p className="text-xs text-muted-foreground">
-                      {t('pregnancy.pregnancyToday.cm', '≈ {{lengthCm}}cm', {
-                        lengthCm: baby.lengthCm,
-                      })}
-                      {baby.weightG != null ? ` · ${baby.weightG} g` : ''}
+                      {t(
+                        'pregnancy.pregnancyToday.lengthCmCmweightG',
+                        '≈ {{lengthCm}} cm{{weightG}}',
+                        {
+                          lengthCm: baby.lengthCm,
+                          weightG:
+                            baby.weightG != null ? ` · ${baby.weightG} g` : '',
+                        }
+                      )}
                     </p>
                   ) : null}
                 </div>

@@ -283,37 +283,30 @@ export const ProviderSpecificFields = ({
             )}
           </p>
           <p className="text-sm text-muted-foreground col-span-2">
-            {t(
-              'settings.providerSpecificFields.openFoodFactsIsA',
-              'Open Food Facts is a community-driven database that supports localization. Sparky automatically queries products in your active language setting in SparkyFitness. For more information, visit the'
-            )}{' '}
-            <a
-              href="https://world.openfoodfacts.org/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              {t(
-                'settings.providerSpecificFields.openFoodFactsPortal',
-                'Open Food Facts Portal'
-              )}
-            </a>{' '}
-            {t(
-              'settings.providerSpecificFields.orLearnAboutLanguageSupport',
-              'or learn about language support in the'
-            )}{' '}
-            <a
-              href="https://en.wiki.openfoodfacts.org/Translations"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              {t(
-                'settings.providerSpecificFields.openFoodFactsTranslationsWiki',
-                'Open Food Facts Translations Wiki'
-              )}
-            </a>
-            .
+            <Trans
+              i18nKey="settings.providerSpecificFields.openFoodFactsIsA2"
+              defaults={
+                'Open Food Facts is a community-driven database that supports localization. Sparky automatically queries products in your active language setting in SparkyFitness. For more information, visit the <link>Open Food Facts Portal</link> or learn about language support in the <link2>Open Food Facts Translations Wiki</link2>.'
+              }
+              components={{
+                link: (
+                  <a
+                    href="https://world.openfoodfacts.org/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+                link2: (
+                  <a
+                    href="https://en.wiki.openfoodfacts.org/Translations"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+              }}
+            />
           </p>
         </>
       )}
@@ -509,12 +502,13 @@ export const ProviderSpecificFields = ({
         provider.provider_type || ''
       ) && (
         <p className="text-sm text-muted-foreground col-span-2">
-          {t(
-            'settings.providerSpecificFields.thisIntegrationUsesOAuth2You',
-            'This integration uses OAuth2. You will be redirected to the provider to authorize access after adding or updating the provider.'
-          )}
-          <br />
-          {t('settings.providerSpecificFields.inYour', 'In your')}{' '}
+          <Trans
+            i18nKey="settings.providerSpecificFields.thisIntegrationUsesOAuth2You2"
+            defaults={
+              'This integration uses OAuth2. You will be redirected to the provider to authorize access after adding or updating the provider.<br/>In your'
+            }
+            components={{ br: <br /> }}
+          />{' '}
           {providerDashboard ? (
             <a
               href={providerDashboard.url}
@@ -550,27 +544,23 @@ export const ProviderSpecificFields = ({
 
       {provider.provider_type === 'strava' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          {t(
-            'settings.providerSpecificFields.stravaIntegrationUsesOAuth2You',
-            'Strava integration uses OAuth2. You will be redirected to Strava to authorize access after adding or updating the provider.'
-          )}
-          <br />
-          {t('settings.providerSpecificFields.inYour', 'In your')}{' '}
-          <a
-            href="https://www.strava.com/settings/api"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 underline"
-          >
-            {t(
-              'settings.providerSpecificFields.stravaAPIDashboard',
-              'Strava API Dashboard'
-            )}
-          </a>
-          {t(
-            'settings.providerSpecificFields.youMustSetYourAuthorization',
-            ', you must set your "Authorization Callback Domain" to:'
-          )}
+          <Trans
+            i18nKey="settings.providerSpecificFields.stravaIntegrationUsesOAuth2You2"
+            defaults={
+              'Strava integration uses OAuth2. You will be redirected to Strava to authorize access after adding or updating the provider.<br/>In your <link>Strava API Dashboard</link>, you must set your "Authorization Callback Domain" to:'
+            }
+            components={{
+              br: <br />,
+              link: (
+                <a
+                  href="https://www.strava.com/settings/api"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 underline"
+                />
+              ),
+            }}
+          />
           <strong className="flex items-center mt-1">
             {window.location.hostname}
             <Button
@@ -585,25 +575,26 @@ export const ProviderSpecificFields = ({
               <Clipboard className="h-4 w-4" />
             </Button>
           </strong>
-          {t(
-            'settings.providerSpecificFields.andEnsureYourLocalURL',
-            'and ensure your local URL is correct if testing locally. Note: Strava callback URL on the server is configured to:'
-          )}
-          <strong>{` ${window.location.origin}/strava/callback`}</strong>
+          <Trans
+            i18nKey="settings.providerSpecificFields.andEnsureYourLocalURL2"
+            defaults={
+              'and ensure your local URL is correct if testing locally. Note: Strava callback URL on the server is configured to:<strong>{{value}}</strong>'
+            }
+            values={{ value: ` ${window.location.origin}/strava/callback` }}
+            components={{ strong: <strong /> }}
+          />
         </p>
       )}
 
       {provider.provider_type === 'garmin' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          {t(
-            'settings.providerSpecificFields.noteGarminConnectIntegrationIs',
-            'Note: Garmin Connect integration is tested with few metrics only. Ensure your Docker Compose is updated to include Garmin section.'
-          )}
-          <br />
-          {t(
-            'settings.providerSpecificFields.sparkyFitnessDoesNotStore',
-            'Sparky Fitness does not store your Garmin email or password. They are used only during login to obtain secure tokens.'
-          )}
+          <Trans
+            i18nKey="settings.providerSpecificFields.noteGarminConnectIntegrationIs2"
+            defaults={
+              'Note: Garmin Connect integration is tested with few metrics only. Ensure your Docker Compose is updated to include Garmin section.<br/>Sparky Fitness does not store your Garmin email or password. They are used only during login to obtain secure tokens.'
+            }
+            components={{ br: <br /> }}
+          />
         </p>
       )}
 
@@ -618,103 +609,79 @@ export const ProviderSpecificFields = ({
 
       {provider.provider_type === 'liftosaur' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          {t(
-            'settings.providerSpecificFields.generateAnAPIKeyIn',
-            'Generate an API key in the Liftosaur app: Settings > API Keys (starts with'
-          )}{' '}
-          <span className="font-mono">lftsk_</span>
-          {t(
-            'settings.providerSpecificFields.aLiftosaurProSubscriptionIs',
-            '). A Liftosaur Pro subscription is required to use the Liftosaur API.'
-          )}
+          <Trans
+            i18nKey="settings.providerSpecificFields.generateAnAPIKeyIn2"
+            defaults={
+              'Generate an API key in the Liftosaur app: Settings > API Keys (starts with <span>lftsk_</span>). A Liftosaur Pro subscription is required to use the Liftosaur API.'
+            }
+            components={{ span: <span className="font-mono" /> }}
+          />
         </p>
       )}
 
       {provider.provider_type === 'nutritionix' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          {t(
-            'settings.providerSpecificFields.getYourAppIDAnd',
-            'Get your App ID and App Key from the'
-          )}{' '}
-          <a
-            href="https://developer.nutritionix.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 underline"
-          >
-            {t(
-              'settings.providerSpecificFields.nutritionixDeveloperPortal',
-              'Nutritionix Developer Portal'
-            )}
-          </a>
-          .
+          <Trans
+            i18nKey="settings.providerSpecificFields.getYourAppIDAnd2"
+            defaults={
+              'Get your App ID and App Key from the <link>Nutritionix Developer Portal</link>.'
+            }
+            components={{
+              link: (
+                <a
+                  href="https://developer.nutritionix.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 underline"
+                />
+              ),
+            }}
+          />
         </p>
       )}
 
       {provider.provider_type === 'fatsecret' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          {t(
-            'settings.providerSpecificFields.noteForFatsecretYouNeed',
-            'Note: For Fatsecret, you need to set up'
-          )}{' '}
-          <strong>
-            {t(
-              'settings.providerSpecificFields.yourPublicIP',
-              'your public IP'
-            )}
-          </strong>{' '}
-          {t(
-            'settings.providerSpecificFields.whitelistingInYourFatsecretDeveloper',
-            'whitelisting in your Fatsecret developer account. This process can take up to 24 hours.'
-          )}
-          <br />
-          {t(
-            'settings.providerSpecificFields.getYourClientIDAnd',
-            'Get your Client ID and Client Secret from the'
-          )}{' '}
-          <a
-            href="https://platform.fatsecret.com/my-account/dashboard"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 underline"
-          >
-            {t(
-              'settings.providerSpecificFields.fatsecretPlatformDashboard',
-              'Fatsecret Platform Dashboard'
-            )}
-          </a>
-          {t('settings.providerSpecificFields.under', ', under')}{' '}
-          <strong>
-            {t(
-              'settings.providerSpecificFields.restAPIOAuth20',
-              'REST API OAuth 2.0 Credentials'
-            )}
-          </strong>{' '}
-          {t(
-            'settings.providerSpecificFields.notTheOAuth10',
-            '(not the OAuth 1.0 Consumer Key/Secret).'
-          )}
+          <Trans
+            i18nKey="settings.providerSpecificFields.noteForFatsecretYouNeed2"
+            defaults={
+              'Note: For Fatsecret, you need to set up <strong>your public IP</strong> whitelisting in your Fatsecret developer account. This process can take up to 24 hours.<br/>Get your Client ID and Client Secret from the <link>Fatsecret Platform Dashboard</link>, under <strong2>REST API OAuth 2.0 Credentials</strong2> (not the OAuth 1.0 Consumer Key/Secret).'
+            }
+            components={{
+              strong: <strong />,
+              br: <br />,
+              link: (
+                <a
+                  href="https://platform.fatsecret.com/my-account/dashboard"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 underline"
+                />
+              ),
+              strong2: <strong />,
+            }}
+          />
         </p>
       )}
 
       {provider.provider_type === 'usda' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          {t(
-            'settings.providerSpecificFields.getYourAPIKeyFrom2',
-            'Get your API Key from the'
-          )}{' '}
-          <a
-            href="https://fdc.nal.usda.gov/api-guide.html"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 underline"
-          >
-            {t(
-              'settings.providerSpecificFields.usdaFoodDataCentralAPIGuide',
-              'USDA FoodData Central API Guide'
-            )}
-          </a>
-          .
+          <Trans
+            i18nKey="settings.providerSpecificFields.getYourAPIKeyFrom3"
+            defaults={
+              'Get your API Key from the <link>USDA FoodData Central API Guide</link>.'
+            }
+            components={{
+              link: (
+                <a
+                  href="https://fdc.nal.usda.gov/api-guide.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 underline"
+                />
+              ),
+            }}
+          />
         </p>
       )}
 
@@ -739,44 +706,36 @@ export const ProviderSpecificFields = ({
       {provider.provider_type === 'swissfood' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">
-            {t(
-              'settings.providerSpecificFields.theSwissFoodCompositionDatabase',
-              'The Swiss Food Composition Database API is free, public, and requires no credentials. Supported languages for searches and nutritional value labels are'
-            )}{' '}
-            <strong>
-              {t('settings.providerSpecificFields.englishEn', 'English (en)')}
-            </strong>
-            ,{' '}
-            <strong>
-              {t('settings.providerSpecificFields.germanDe', 'German (de)')}
-            </strong>
-            ,{' '}
-            <strong>
-              {t('settings.providerSpecificFields.frenchFr', 'French (fr)')}
-            </strong>
-            {t('settings.providerSpecificFields.and', ', and')}{' '}
-            <strong>
-              {t('settings.providerSpecificFields.italianIt', 'Italian (it)')}
-            </strong>
-            .
+            <Trans
+              i18nKey="settings.providerSpecificFields.theSwissFoodCompositionDatabase2"
+              defaults={
+                'The Swiss Food Composition Database API is free, public, and requires no credentials. Supported languages for searches and nutritional value labels are <strong>English (en)</strong>, <strong2>German (de)</strong2>, <strong3>French (fr)</strong3>, and <strong4>Italian (it)</strong4>.'
+              }
+              components={{
+                strong: <strong />,
+                strong2: <strong />,
+                strong3: <strong />,
+                strong4: <strong />,
+              }}
+            />
           </p>
           <p className="text-sm text-muted-foreground">
-            {t(
-              'settings.providerSpecificFields.ifYourActiveLanguageIn',
-              'If your active language in SparkyFitness is not supported, the API queries will default to English. For more details, see the official portal at'
-            )}{' '}
-            <a
-              href="https://naehrwertdaten.ch/en/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              {t(
-                'settings.providerSpecificFields.swissFoodCompositionDatabase',
-                'Swiss Food Composition Database'
-              )}
-            </a>
-            .
+            <Trans
+              i18nKey="settings.providerSpecificFields.ifYourActiveLanguageIn2"
+              defaults={
+                'If your active language in SparkyFitness is not supported, the API queries will default to English. For more details, see the official portal at <link>Swiss Food Composition Database</link>.'
+              }
+              components={{
+                link: (
+                  <a
+                    href="https://naehrwertdaten.ch/en/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+              }}
+            />
           </p>
         </div>
       )}
@@ -823,22 +782,22 @@ export const ProviderSpecificFields = ({
       {provider.provider_type === 'free-exercise-db' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">
-            {t(
-              'settings.providerSpecificFields.theFreeExerciseDBProvider',
-              'The Free Exercise DB provider is public, free, and requires no credentials. It fetches exercise data directly from the community repository at'
-            )}{' '}
-            <a
-              href="https://github.com/yuhonas/free-exercise-db"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              {t(
-                'settings.providerSpecificFields.yuhonasFreeExerciseDbOn',
-                'yuhonas/free-exercise-db on GitHub'
-              )}
-            </a>
-            .
+            <Trans
+              i18nKey="settings.providerSpecificFields.theFreeExerciseDBProvider2"
+              defaults={
+                'The Free Exercise DB provider is public, free, and requires no credentials. It fetches exercise data directly from the community repository at <link>yuhonas/free-exercise-db on GitHub</link>.'
+              }
+              components={{
+                link: (
+                  <a
+                    href="https://github.com/yuhonas/free-exercise-db"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+              }}
+            />
           </p>
         </div>
       )}
@@ -846,22 +805,22 @@ export const ProviderSpecificFields = ({
       {provider.provider_type === 'wger' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">
-            {t(
-              'settings.providerSpecificFields.theWgerProviderIsPublic',
-              'The wger provider is public, free, and requires no credentials. It fetches workout and exercise data directly from the official'
-            )}{' '}
-            <a
-              href="https://wger.de/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              {t(
-                'settings.providerSpecificFields.wgerProjectWebsite',
-                'wger Project Website'
-              )}
-            </a>
-            .
+            <Trans
+              i18nKey="settings.providerSpecificFields.theWgerProviderIsPublic2"
+              defaults={
+                'The wger provider is public, free, and requires no credentials. It fetches workout and exercise data directly from the official <link>wger Project Website</link>.'
+              }
+              components={{
+                link: (
+                  <a
+                    href="https://wger.de/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+              }}
+            />
           </p>
         </div>
       )}
@@ -897,32 +856,26 @@ export const ProviderSpecificFields = ({
                   )}
                 </SelectItem>
                 <SelectItem value="https://mcpeu.coros.com/mcp">
-                  {t(
-                    'settings.foodExerciseDataProviders.coros.regionEu',
-                    'Europe (mcpeu.coros.com)'
-                  )}{' '}
-                  <span className="text-xs text-muted-foreground">
-                    (
-                    {t(
-                      'settings.foodExerciseDataProviders.coros.notTested',
-                      'not yet tested'
-                    )}
-                    )
-                  </span>
+                  <Trans
+                    i18nKey="settings.providerSpecificFields.europeMcpeuCorosComNot"
+                    defaults={
+                      'Europe (mcpeu.coros.com) <span>(not yet tested)</span>'
+                    }
+                    components={{
+                      span: <span className="text-xs text-muted-foreground" />,
+                    }}
+                  />
                 </SelectItem>
                 <SelectItem value="https://mcpcn.coros.com/mcp">
-                  {t(
-                    'settings.foodExerciseDataProviders.coros.regionCn',
-                    'Mainland China (mcpcn.coros.com)'
-                  )}{' '}
-                  <span className="text-xs text-muted-foreground">
-                    (
-                    {t(
-                      'settings.foodExerciseDataProviders.coros.notTested',
-                      'not yet tested'
-                    )}
-                    )
-                  </span>
+                  <Trans
+                    i18nKey="settings.providerSpecificFields.mainlandChinaMcpcnCorosCom"
+                    defaults={
+                      'Mainland China (mcpcn.coros.com) <span>(not yet tested)</span>'
+                    }
+                    components={{
+                      span: <span className="text-xs text-muted-foreground" />,
+                    }}
+                  />
                 </SelectItem>
               </SelectContent>
             </Select>

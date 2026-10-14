@@ -105,7 +105,8 @@
     "chronic": "Chronic: {{val}}",
     "empty": "No wearable data synced for this day.",
     "skinTemp": "Skin Temperature",
-    "weekly": "weekly"
+    "weekly": "weekly",
+    "low2": "(low: {{val}})"
   },
   "foodCsvImport": {
     "title": "Import Food Data",
@@ -164,8 +165,7 @@
       "eGMgGIU": "e.g., mg, µg, IU",
       "providerAliases": "Provider aliases",
       "typeANamePressEnter": "Type a name, press Enter",
-      "adding": "Adding…",
-      "nutrientAdded": "\"{{name}}\" was added."
+      "adding": "Adding…"
     },
     "deleteFoodDialog": {
       "view": "View",
@@ -175,19 +175,16 @@
     "mealManagement": {
       "openMenu": "Open menu"
     },
-    "mealPlanTemplateForm": {
-      "kcal": "kcal |"
-    },
     "mealUnitSelector": {
       "selectTheQuantityForThis": "Select the quantity for this meal in your meal plan.",
       "quantity": "Quantity",
       "unit": "Unit",
-      "nutritionFor": "Nutrition for {{quantity}}{{displayUnit}}:",
-      "gProtein": "g protein",
-      "gCarbs": "g carbs",
-      "gFat": "g fat",
+      "nutritionFor": "Nutrition for {{quantity}} {{displayUnit}}:",
       "updateMeal": "Update Meal",
-      "addToMealPlan": "Add to Meal Plan"
+      "addToMealPlan": "Add to Meal Plan",
+      "gProtein2": "{{protein}}g protein",
+      "gCarbs2": "{{carbs}}g carbs",
+      "gFat2": "{{fat}}g fat"
     }
   },
   "medications": {
@@ -296,7 +293,8 @@
       "taken": "Taken",
       "prnTaken": "PRN Taken",
       "editEntryTime": "Edit entry time",
-      "removeEntry": "Remove entry"
+      "removeEntry": "Remove entry",
+      "note2": "Note: {{notes}}"
     },
     "insights": {
       "title": "Side-Effect Insights & Hints",
@@ -381,7 +379,10 @@
       "sleepInsufficient": "Insufficient sleep or fatigue logs to compute correlation in this range.",
       "doseDependentNausea": "<strong>Dose-Dependent Nausea:</strong> Higher medication doses correlate with increased nausea severity. Consider discussing titration steps or split schedules.",
       "adaptationBenefit": "<strong>Adaptation Benefit:</strong> No positive correlation. The body has adapted well to the dose levels without side effects.",
-      "doseInsufficient": "Requires active GLP-1 dose records and logged nausea logs in this date range."
+      "doseInsufficient": "Requires active GLP-1 dose records and logged nausea logs in this date range.",
+      "dosesLogged2": "{{display_name}} — {{count}} doses logged",
+      "inj": "({{injections}} inj)",
+      "reportingPeriodTo": "Reporting Period: {{startDate}} to {{endDate}}"
     },
     "locations": {
       "general": "General",
@@ -453,7 +454,11 @@
       "clear": "Clear",
       "trendingUp": "Trending up vs earlier this period",
       "trendingDown": "Trending down vs earlier this period",
-      "dayTooltip": "{{date}}: {{count}} logged, max severity {{severity}}"
+      "dayTooltip": "{{date}}: {{count}} logged, max severity {{severity}}",
+      "clear2": "<span></span> Clear",
+      "mild13": "<span></span> Mild (1-3)",
+      "moderate46": "<span></span> Moderate (4-6)",
+      "severe710": "<span></span> Severe (7-10)"
     },
     "fasting": {
       "title": "Oral GLP-1 fasting timer",
@@ -534,7 +539,11 @@
       "notesPlaceholder": "e.g. Mild stinging, felt fine",
       "quickLogHint": "{{name}} — the dose is deducted from your active pen automatically. Green = suggested rotation site.",
       "quickLogTitle": "Where did you inject?",
-      "skipSite": "Skip site"
+      "skipSite": "Skip site",
+      "pkSerumLevel": "PK serum level — {{drugName}}",
+      "now": "~{{currentLevelFraction}}% now",
+      "injectionSiteGreenSuggestedAmber": "Injection site · <span>green = suggested</span>, <span2>amber = resting <{{days}}d</span2>",
+      "left": "{{kind}}{{dose_mg}} · {{doses_total}} left"
     },
     "types": {
       "pill": "pill",
@@ -640,7 +649,9 @@
       "effectivenessDetail": "Effectiveness",
       "adherenceDescriptionBefore": "Schedules and daily checklists for non-GLP-1 medications are fully active. Manage schedule rules below, and log daily intake from the",
       "todayTab": "Today",
-      "adherenceDescriptionAfter": "tab."
+      "adherenceDescriptionAfter": "tab.",
+      "drPrescriber": "Dr. {{prescriber}}",
+      "schedulesAndDailyChecklistsFor": "Schedules and daily checklists for non-GLP-1 medications are fully active. Manage schedule rules below, and log daily intake from the <strong>Today</strong> tab."
     },
     "subtype": {
       "all": "All",
@@ -768,11 +779,8 @@
       "weekly": "Weekly",
       "daily": "Daily"
     },
-    "glp1Coach": {
-      "now": "% now"
-    },
     "glp1InventoryManager": {
-      "mgML": "· {{concentration_mg_ml}}mg/mL",
+      "mgML": "· {{concentration_mg_ml}} mg/mL",
       "inUse": "in use",
       "reorder": "Reorder",
       "doses": "doses",
@@ -807,9 +815,6 @@
       "batchNumberBrandPharmacyInfo": "Batch number, brand, pharmacy info...",
       "addInventory": "Add Inventory"
     },
-    "glp1LogInjection": {
-      "left": "left"
-    },
     "glp1RecentInjections": {
       "mg": "{{dose_mg}} mg · ",
       "note": "Note: {{notes}}",
@@ -823,7 +828,7 @@
       "weeksAtThisDose": "Weeks at this dose",
       "status": "Status",
       "taperDoseReduction": "Taper (dose reduction)",
-      "wks": "· {{planned_weeks}}wks",
+      "wks": "· {{planned_weeks}} wks",
       "taper": "taper",
       "editTitrationStep": "Edit titration step",
       "deleteTitrationStep": "Delete titration step"
@@ -862,7 +867,8 @@
     "medications": "Medications",
     "foodLog": "Food Log",
     "wellness": "Wellness",
-    "symptoms": "Symptoms"
+    "symptoms": "Symptoms",
+    "sparkyFitnessV": "SparkyFitness v{{version}}"
   },
   "nutrition": {
     "calories": "Calories",
@@ -957,13 +963,15 @@
     "swissFoodApi": "Swiss Food Composition Database API",
     "usdaApi": "USDA Food Database API",
     "canadianNutrientFileApi": "Canadian Nutrient File (Health Canada)",
-    "discordGgVcnMT5cPEA": "discord.gg/vcnMT5cPEA",
     "react": "React",
     "typeScript": "TypeScript",
     "tailwindCSS": "Tailwind CSS",
     "nodeJs": "Node.js",
     "express": "Express",
-    "postgreSQL": "PostgreSQL"
+    "postgreSQL": "PostgreSQL",
+    "applicationVersion2": "Application Version: <strong>{{version}}</strong>",
+    "joinOurCommunityOnDiscord": "Join our community on Discord: <link>discord.gg/vcnMT5cPEA</link>",
+    "forMoreInformationVisitThe": "For more information, visit the <link>GitHub repository</link>."
   },
   "exercise": {
     "title": "Exercises",
@@ -1099,7 +1107,13 @@
       "summaryUnavailableDesc": "Could not load your daily energy summary. Try refreshing the page.",
       "summaryUnavailableTitle": "Daily summary unavailable",
       "updateProfile": "Update Profile",
-      "weightTrend": "Weight Trend"
+      "weightTrend": "Weight Trend",
+      "eaten2": "{{energyUnitString}} eaten",
+      "burned2": "{{energyUnitString}} burned",
+      "bmr": "BMR: {{bmr}} {{energyUnit}}{{bmrSource}}",
+      "goal2": "{{energyUnitString}} goal",
+      "days2": "{{daysOfData}} days",
+      "remaining2": "remaining {{energyUnitString}}"
     },
     "editExerciseEntryDialog": {
       "setLabel": "Set",
@@ -1406,7 +1420,8 @@
       "restTimer": "Rest",
       "volume": "Volume",
       "replaceExercise": "Replace exercise",
-      "replaceExerciseNamed": "Replace {{name}}"
+      "replaceExerciseNamed": "Replace {{name}}",
+      "sets": "{{completedSets}}/{{totalSets}} sets"
     },
     "workoutFinishSummary": {
       "title": "Workout complete",
@@ -1506,7 +1521,8 @@
     "scheduledTodayBadge": "Scheduled Today",
     "scheduledWorkout": "Workout Session",
     "activePlanLabel": "Active plan: {{name}}",
-    "failedToLoadActivePlan": "Failed to load active workout plan."
+    "failedToLoadActivePlan": "Failed to load active workout plan.",
+    "currentOfTotal": "({{current}} of {{total}})"
   },
   "exerciseCard": {
     "workoutLocation": "Gym / Location",
@@ -1615,7 +1631,11 @@
       "static": "Static",
       "isolation": "Isolation",
       "compound": "Compound"
-    }
+    },
+    "exerciseTotal2": "Exercise Total:",
+    "primaryMuscles2": "Primary Muscles:",
+    "secondaryMuscles2": "Secondary Muscles:",
+    "equipment2": "Equipment:"
   },
   "foodSearchDialog": {
     "title": "Search and Add Food",
@@ -1677,7 +1697,10 @@
     "failedToLoadFavorites": "Failed to load favorites.",
     "failedToUpdateFavorite": "Failed to update favorite.",
     "provider": "Data Provider",
-    "selectBarcodeProvider": "Select Provider"
+    "selectBarcodeProvider": "Select Provider",
+    "dataProvider": "Data Provider:",
+    "aiEstimate": "AI {{ai_confidence}} estimate",
+    "per": "Per {{default_variant}}"
   },
   "sync": {
     "syncAll": "Sync all active providers",
@@ -1864,9 +1887,7 @@
     },
     "calculationSettings": {
       "title": "Calculation Settings",
-      "description": "Manage BMR formulas, body fat algorithms, daily energy adjustments, goal deficit modes, and safety floors.",
-      "kcal": "kcal (",
-      "kJ": "kJ ("
+      "description": "Manage BMR formulas, body fat algorithms, daily energy adjustments, goal deficit modes, and safety floors."
     },
     "familyAccess": {
       "title": "Family Access",
@@ -2022,7 +2043,9 @@
       "licenceNotice": "Contains information published by Health Canada licensed under the <1>Open Government Licence – Canada</1>.",
       "providerCardLicence": "Contains information published by Health Canada licensed under the <1>Open Government Licence – Canada</1>. Supported languages: <3>English (en)</3> and <5>French (fr)</5>. <7>Canadian Nutrient File</7>",
       "providerSpecificDescription": "The Canadian Nutrient File (CNF) contains information published by Health Canada under the <1>Open Government Licence – Canada</1>. It is free, public, and requires no credentials. Supported languages are <3>English (en)</3> and <5>French (fr)</5>.",
-      "providerSpecificPortal": "For more details, see the official portal at <1>Canadian Nutrient File</1>."
+      "providerSpecificPortal": "For more details, see the official portal at <1>Canadian Nutrient File</1>.",
+      "processed2": "Processed: <span>{{processed}}</span> / <span2>{{total}}</span2>",
+      "importedUpdated": "Imported: <span>{{imported}}</span> | Updated: <span2>{{updated}}</span2>"
     },
     "foodExerciseDataProviders": {
       "title": "Food & Exercise Data Providers",
@@ -2054,7 +2077,8 @@
         "saveError": "Please check the server setting and account connection, then try again.",
         "adminTitle": "Open Food Facts contributions",
         "serverGateLabel": "Allow Open Food Facts contributions on this server",
-        "serverGateHelp": "This server switch makes manual contributions available. Each user must preview and confirm one product and their own photo before publishing. Global credentials are an optional fallback for users without a personal account."
+        "serverGateHelp": "This server switch makes manual contributions available. Each user must preview and confirm one product and their own photo before publishing. Global credentials are an optional fallback for users without a personal account.",
+        "onlyDataYouEnteredFrom": "Only data you entered from physical packaging is eligible. Open Food Facts publishes structured data under the ODbL and Database Contents License and your own photos under CC BY-SA. Each contribution requires separate data and photo rights confirmations. <link>Contributor terms</link>"
       },
       "yazio": {
         "unofficialApiTitle": "⚠️ Unofficial API — Use at your own risk",
@@ -2330,7 +2354,10 @@
       "newKeyGenerated": "New API Key Generated!",
       "placeholder": "Description (e.g., 'iPhone Health Shortcut')",
       "updateError": "Failed to update API key",
-      "updateSuccess": "API key status updated successfully!"
+      "updateSuccess": "API key status updated successfully!",
+      "created2": "Created: {{createdAt}}",
+      "expires2": "Expires: {{value}}",
+      "lastUsed2": "Last Used: {{value}}"
     },
     "accountSecurity": {
       "title": "Account Security",
@@ -2528,7 +2555,20 @@
       "calibrationDescription": "Sparky's Adaptive TDEE engine requires at least {{required}} days of consistent tracking to calculate your metabolism accurately (currently using fallback estimates). To speed up calibration:",
       "calibrationWeightTip": "Log weight at least 3-4 times per week.",
       "calibrationFoodTip": "Log food intake daily (>200 kcal/day).",
-      "livePreviewSavedNote": "BMR and body fat update as you change settings. Expenditure is calculated on the server from your saved settings, so it and the final target only change after you save."
+      "livePreviewSavedNote": "BMR and body fat update as you change settings. Expenditure is calculated on the server from your saved settings, so it and the final target only change after you save.",
+      "kcalCalories": "kcal (Calories)",
+      "kJJoules": "kJ (Joules)",
+      "adaptiveGoalTheGoldStandard": "<span>Adaptive Goal:</span> The 'Gold Standard'. SparkyFitness calculates your TDEE by correlating your actual weight changes with your calorie intake over the last 35 days. It 'learns' your unique metabolism.",
+      "dynamicGoalYourCalorieGoal": "<span>Dynamic Goal:</span> Your calorie goal will dynamically adjust based on your daily activity level (e.g., exercise, steps). This is ideal for active individuals or those whose activity levels vary daily.",
+      "fixedGoalYourCalorieGoal": "<span>Fixed Goal:</span> Your calorie goal will remain fixed, regardless of your daily activity. This is suitable for individuals with consistent activity levels or those who prefer a stable target.",
+      "percentageEarnBackOnlyEarn": "<span>Percentage Earn-Back:</span> Only earn back a set percentage of your exercise calories. For example, 50% creates a safety buffer to avoid overeating from over-estimated burns.",
+      "deviceProjectionUsesHealthConnect": "<span>Device Projection:</span> Uses Health Connect total calories when available, projects the current burn to midnight, and applies Goal Mode directly to that TDEE. Falls back to BMR plus active calories when no device total is available.",
+      "inAdaptiveModeThisIs": "💡 In Adaptive mode this is the fallback estimate until you have enough tracking data — and it keeps setting the plausibility limits afterwards. Your measured TDEE is capped to within ±500 kcal of BMR × this multiplier, so a level set too low can hold a genuinely higher expenditure down.",
+      "bodyRecomposition10": "Body Recomposition (-10%){{goalModeSuffix}}",
+      "cut15": "Cut (-15%){{goalModeSuffix}}",
+      "highCut20": "High Cut (-20%){{goalModeSuffix}}",
+      "customMinimum": "Custom minimum ({{energyUnitString}})",
+      "measuredAdaptiveTDEEDoesNot": "Measured Adaptive TDEE: <span>{{energy}} {{energyUnitString}}</span> (does not change with Goal Mode)"
     },
     "mfa": {
       "confirmPassword": "Confirm Password to Continue",
@@ -2562,7 +2602,8 @@
       "noPasskeys": "No passkeys registered yet.",
       "title": "Passkeys",
       "unnamed": "Unnamed Passkey",
-      "yourPasskeys": "Your Registered Passkeys"
+      "yourPasskeys": "Your Registered Passkeys",
+      "addedOn2": "Added on {{format}}"
     },
     "tabs": {
       "developerIntegrations": "Developer & Integrations",
@@ -2709,10 +2750,6 @@
       "leaveBlankToKeepExisting": "(leave blank to keep existing)",
       "openFoodFactsPasswordOptional": "Open Food Facts Password (Optional)",
       "leaveBlankToKeepExisting2": "•••••••• (leave blank to keep existing)",
-      "openFoodFactsIsA": "Open Food Facts is a community-driven database that supports localization. Sparky automatically queries products in your active language setting in SparkyFitness. For more information, visit the",
-      "orLearnAboutLanguageSupport": "or learn about language support in the",
-      "openFoodFactsPortal": "Open Food Facts Portal",
-      "openFoodFactsTranslationsWiki": "Open Food Facts Translations Wiki",
       "appURL": "App URL",
       "eGHttpsNorishYour": "e.g., https://norish.your-domain.com",
       "eGHttpYourTandoor": "e.g., http://your-tandoor-instance.com",
@@ -2729,19 +2766,7 @@
       "appKey": "App Key",
       "enterClientSecret": "Enter Client Secret",
       "enterAppKey": "Enter App Key",
-      "noteForFatsecretYouNeed": "Note: For Fatsecret, you need to set up",
-      "whitelistingInYourFatsecretDeveloper": "whitelisting in your Fatsecret developer account. This process can take up to 24 hours.",
-      "yourPublicIP": "your public IP",
       "unofficialAPIUseAtYour": "⚠️ Unofficial API — Use at your own risk",
-      "yazioIntegrationUsesAn": "YAZIO integration uses an",
-      "thatIsNotProvidedOr": "that is not provided or endorsed by YAZIO. Using it may",
-      "theAPICouldAlso": ". The API could also",
-      "withoutNoticeIfYAZIOChanges": "without notice if YAZIO changes their backend.",
-      "unofficialUndocumentedAPI": "unofficial, undocumented API",
-      "riskGettingYourYAZIOAccount": "risk getting your YAZIO account banned",
-      "stopWorkingAtAnyTime": "stop working at any time",
-      "forMoreInformationClientCredentials": "For more information & client credentials, see",
-      "saganosYazioPublicApi": "saganos/yazio_public_api",
       "yazioEmailUsernameOptional": "YAZIO Email / Username (Optional)",
       "enterYAZIOEmailOrUsername": "Enter YAZIO email or username",
       "yazioPasswordOptional": "YAZIO Password (Optional)",
@@ -2751,22 +2776,9 @@
       "enterYAZIOClientID": "Enter YAZIO Client ID",
       "yazioClientSecret": "YAZIO Client Secret",
       "leaveBlankToKeepExisting4": "Leave blank to keep existing client secret",
-      "getYourAppIDAnd": "Get your App ID and App Key from the",
-      "nutritionixDeveloperPortal": "Nutritionix Developer Portal",
-      "getYourClientIDAnd": "Get your Client ID and Client Secret from the",
-      "under": ", under",
-      "notTheOAuth10": "(not the OAuth 1.0 Consumer Key/Secret).",
-      "fatsecretPlatformDashboard": "Fatsecret Platform Dashboard",
-      "restAPIOAuth20": "REST API OAuth 2.0 Credentials",
       "enterUSDAAPIKey": "Enter USDA API Key",
-      "getYourAPIKeyFrom": "Get your API Key from the",
-      "usdaFoodDataCentralAPIGuide": "USDA FoodData Central API Guide",
       "enterWithingsClientID": "Enter Withings Client ID",
       "enterWithingsClientSecret": "Enter Withings Client Secret",
-      "withingsIntegrationUsesOAuth2You": "Withings integration uses OAuth2. You will be redirected to Withings to authorize access after adding the provider.",
-      "inYour": "In your",
-      "youMustSetYourCallback": ", you must set your callback URL to:",
-      "withingsDeveloperDashboard": "Withings Developer Dashboard",
       "callbackURLCopiedToClipboard": "Callback URL copied to clipboard.",
       "connectedToGarmin": "Connected to Garmin",
       "yourGarminAccountIsConnected": "Your Garmin account is connected. To reconnect with different credentials, disconnect first and add a new provider.",
@@ -2774,30 +2786,15 @@
       "enterGarminEmail": "Enter Garmin Email",
       "garminPassword": "Garmin Password",
       "enterGarminPassword": "Enter Garmin Password",
-      "noteGarminConnectIntegrationIs": "Note: Garmin Connect integration is tested with few metrics only. Ensure your Docker Compose is updated to include Garmin section.",
-      "sparkyFitnessDoesNotStore": "Sparky Fitness does not store your Garmin email or password. They are used only during login to obtain secure tokens.",
       "enterFitbitClientID": "Enter Fitbit Client ID",
       "enterFitbitClientSecret": "Enter Fitbit Client Secret",
-      "fitbitIntegrationUsesOAuth2You": "Fitbit integration uses OAuth2. You will be redirected to Fitbit to authorize access after adding the provider.",
-      "fitbitDeveloperDashboard": "Fitbit Developer Dashboard",
       "enterOuraClientID": "Enter Oura Client ID",
       "enterOuraClientSecret": "Enter Oura Client Secret",
-      "ouraIntegrationUsesOAuth2You": "Oura integration uses OAuth2. You will be redirected to Oura to authorize access after adding the provider.",
-      "ouraDeveloperPortal": "Oura Developer Portal",
       "enterStravaClientID": "Enter Strava Client ID",
       "enterStravaClientSecret": "Enter Strava Client Secret",
-      "stravaIntegrationUsesOAuth2You": "Strava integration uses OAuth2. You will be redirected to Strava to authorize access after adding or updating the provider.",
-      "youMustSetYourAuthorization": ", you must set your \"Authorization Callback Domain\" to:",
-      "andEnsuringYourLocalURL": "and ensuring your local URL is correct if testing locally. Note: Strava callback URL on the server is configured to:",
-      "stravaAPIDashboard": "Strava API Dashboard",
       "domainCopiedToClipboard": "Domain copied to clipboard.",
       "enterGoogleCloudClientID": "Enter Google Cloud Client ID",
       "enterGoogleCloudClientSecret": "Enter Google Cloud Client Secret",
-      "googleHealthIntegrationUsesOAuth2": "Google Health integration uses OAuth2. After saving, click",
-      "onTheProviderCardTo": "on the provider card to authorize access.",
-      "yourOAuth20Web": ", your OAuth 2.0 Web Application client must have this callback URL:",
-      "connect": "Connect",
-      "googleCloudConsole": "Google Cloud Console",
       "copyFailed": "Copy Failed",
       "clipboardAccessRequiresASecure": "Clipboard access requires a secure context (HTTPS).",
       "hevyAPIKey": "Hevy API Key",
@@ -2805,33 +2802,36 @@
       "getYourAPIKeyFrom2": "Get your API Key from Hevy Settings > API Key.",
       "liftosaurAPIKey": "Liftosaur API Key",
       "enterLiftosaurAPIKeyLftsk": "Enter Liftosaur API Key (lftsk_...)",
-      "generateAnAPIKeyIn": "Generate an API key in the Liftosaur app: Settings > API Keys (starts with",
-      "aLiftosaurProSubscriptionIs": "). A Liftosaur Pro subscription is required to use the Liftosaur API.",
       "syncFrequency": "Sync Frequency",
       "selectSyncFrequency": "Select sync frequency",
       "manual": "Manual",
       "hourly": "Hourly",
       "daily": "Daily",
-      "theSwissFoodCompositionDatabase": "The Swiss Food Composition Database API is free, public, and requires no credentials. Supported languages for searches and nutritional value labels are",
-      "and": ", and",
-      "englishEn": "English (en)",
-      "germanDe": "German (de)",
-      "frenchFr": "French (fr)",
-      "italianIt": "Italian (it)",
-      "ifYourActiveLanguageIn": "If your active language in SparkyFitness is not supported, the API queries will default to English. For more details, see the official portal at",
-      "swissFoodCompositionDatabase": "Swiss Food Composition Database",
-      "theCanadianNutrientFileCNF": "The Canadian Nutrient File (CNF) contains information published by Health Canada under the",
-      "itIsFreePublicAnd": ". It is free, public, and requires no credentials. Supported languages are",
-      "and2": "and",
-      "openGovernmentLicenceCanada": "Open Government Licence – Canada",
-      "forMoreDetailsSeeThe": "For more details, see the official portal at",
-      "canadianNutrientFileHealthCanada": "Canadian Nutrient File (Health Canada)",
-      "theFreeExerciseDBProvider": "The Free Exercise DB provider is public, free, and requires no credentials. It fetches exercise data directly from the community repository at",
-      "yuhonasFreeExerciseDbOn": "yuhonas/free-exercise-db on GitHub",
-      "theWgerProviderIsPublic": "The wger provider is public, free, and requires no credentials. It fetches workout and exercise data directly from the official",
-      "wgerProjectWebsite": "wger Project Website",
       "selectRegion": "Select region",
-      "activateThisProvider": "Activate this provider"
+      "activateThisProvider": "Activate this provider",
+      "openFoodFactsIsA2": "Open Food Facts is a community-driven database that supports localization. Sparky automatically queries products in your active language setting in SparkyFitness. For more information, visit the <link>Open Food Facts Portal</link> or learn about language support in the <link2>Open Food Facts Translations Wiki</link2>.",
+      "noteForFatsecretYouNeed2": "Note: For Fatsecret, you need to set up <strong>your public IP</strong> whitelisting in your Fatsecret developer account. This process can take up to 24 hours.",
+      "yazioIntegrationUsesAnUnofficial": "YAZIO integration uses an <strong>unofficial, undocumented API</strong> that is not provided or endorsed by YAZIO. Using it may <strong2>risk getting your YAZIO account banned</strong2>. The API could also <strong3>stop working at any time</strong3> without notice if YAZIO changes their backend.",
+      "forMoreInformationClientCredentials2": "For more information & client credentials, see <link>saganos/yazio_public_api</link>.",
+      "getYourAppIDAnd2": "Get your App ID and App Key from the <link>Nutritionix Developer Portal</link>.",
+      "getYourClientIDAnd2": "Get your Client ID and Client Secret from the <link>Fatsecret Platform Dashboard</link>, under <strong>REST API OAuth 2.0 Credentials</strong> (not the OAuth 1.0 Consumer Key/Secret).",
+      "getYourAPIKeyFrom3": "Get your API Key from the <link>USDA FoodData Central API Guide</link>.",
+      "withingsIntegrationUsesOAuth2You2": "Withings integration uses OAuth2. You will be redirected to Withings to authorize access after adding the provider.<br/>In your <link>Withings Developer Dashboard</link>, you must set your callback URL to:",
+      "noteGarminConnectIntegrationIs2": "Note: Garmin Connect integration is tested with few metrics only. Ensure your Docker Compose is updated to include Garmin section.<br/>Sparky Fitness does not store your Garmin email or password. They are used only during login to obtain secure tokens.",
+      "fitbitIntegrationUsesOAuth2You2": "Fitbit integration uses OAuth2. You will be redirected to Fitbit to authorize access after adding the provider.<br/>In your <link>Fitbit Developer Dashboard</link>, you must set your callback URL to:",
+      "ouraIntegrationUsesOAuth2You2": "Oura integration uses OAuth2. You will be redirected to Oura to authorize access after adding the provider.<br/>In your <link>Oura Developer Portal</link>, you must set your callback URL to:",
+      "stravaIntegrationUsesOAuth2You2": "Strava integration uses OAuth2. You will be redirected to Strava to authorize access after adding or updating the provider.<br/>In your <link>Strava API Dashboard</link>, you must set your \"Authorization Callback Domain\" to:",
+      "andEnsuringYourLocalURL2": "and ensuring your local URL is correct if testing locally. Note: Strava callback URL on the server is configured to:<strong>{{value}}</strong>",
+      "googleHealthIntegrationUsesOAuth22": "Google Health integration uses OAuth2. After saving, click <strong>Connect</strong> on the provider card to authorize access.<br/>In your <link>Google Cloud Console</link>, your OAuth 2.0 Web Application client must have this callback URL:",
+      "generateAnAPIKeyIn2": "Generate an API key in the Liftosaur app: Settings > API Keys (starts with <span>lftsk_</span>). A Liftosaur Pro subscription is required to use the Liftosaur API.",
+      "theSwissFoodCompositionDatabase2": "The Swiss Food Composition Database API is free, public, and requires no credentials. Supported languages for searches and nutritional value labels are <strong>English (en)</strong>, <strong2>German (de)</strong2>, <strong3>French (fr)</strong3>, and <strong4>Italian (it)</strong4>.",
+      "ifYourActiveLanguageIn2": "If your active language in SparkyFitness is not supported, the API queries will default to English. For more details, see the official portal at <link>Swiss Food Composition Database</link>.",
+      "theCanadianNutrientFileCNF2": "The Canadian Nutrient File (CNF) contains information published by Health Canada under the <link>Open Government Licence – Canada</link>. It is free, public, and requires no credentials. Supported languages are <strong>English (en)</strong> and <strong2>French (fr)</strong2>.",
+      "forMoreDetailsSeeThe2": "For more details, see the official portal at <link>Canadian Nutrient File (Health Canada)</link>.",
+      "theFreeExerciseDBProvider2": "The Free Exercise DB provider is public, free, and requires no credentials. It fetches exercise data directly from the community repository at <link>yuhonas/free-exercise-db on GitHub</link>.",
+      "theWgerProviderIsPublic2": "The wger provider is public, free, and requires no credentials. It fetches workout and exercise data directly from the official <link>wger Project Website</link>.",
+      "europeMcpeuCorosComNot": "Europe (mcpeu.coros.com) <span>(not yet tested)</span>",
+      "mainlandChinaMcpcnCorosCom": "Mainland China (mcpcn.coros.com) <span>(not yet tested)</span>"
     },
     "externalProviderList": {
       "dragToReorderProvider": "Drag to reorder provider",
@@ -2848,7 +2848,7 @@
       "openFoodFactsFallback": "Open Food Facts Fallback"
     },
     "fastingSettings": {
-      "hFastHEating": "{{name}}({{fastingHours}}h fast / {{eatingHours}}h eating)"
+      "hFastHEating": "{{name}} ({{fastingHours}}h fast / {{eatingHours}}h eating)"
     },
     "garminConnectSettings": {
       "userNotAuthenticatedPleaseLog": "User not authenticated. Please log in.",
@@ -2883,8 +2883,7 @@
     },
     "nutrientDisplaySettings": {
       "failedToSavePreferences": "Failed to save {{view_group}} ({{platform}}) preferences: {{message}}",
-      "failedToResetPreferences": "Failed to reset {{viewGroup}} ({{pform}}) preferences: {{message}}",
-      "preferencesReset": "Preferences for {{viewGroup}} ({{platforms}}) have been reset to default."
+      "failedToResetPreferences": "Failed to reset {{viewGroup}} ({{pform}}) preferences: {{message}}"
     },
     "preferenceSettings": {
       "mmDdYyyy1225": "MM/dd/yyyy (12/25/2024)",
@@ -2892,7 +2891,7 @@
       "ddMMMYyyy25Dec": "dd-MMM-yyyy (25-Dec-2024)",
       "yyyyMMDd202412": "yyyy-MM-dd (2024-12-25)",
       "mmmDdYyyyDec25": "MMM dd, yyyy (Dec 25, 2024)",
-      "gPureAlcohol": "{{label}}({{grams}}g pure alcohol)"
+      "gPureAlcohol": "{{label}} ({{grams}}g pure alcohol)"
     },
     "providerCard": {
       "global": "Global",
@@ -2904,39 +2903,10 @@
       "connect": "Connect",
       "disconnect": "Disconnect",
       "readOnly": "Read-only",
-      "supportedLanguages": "Supported languages:",
-      "and": ", and",
-      "defaultsToEnglishIfYour": ". Defaults to English if your active language is not supported.",
-      "englishEn": "English (en)",
-      "germanDe": "German (de)",
-      "frenchFr": "French (fr)",
-      "italianIt": "Italian (it)",
-      "swissFoodCompositionDatabase": "Swiss Food Composition Database",
-      "importingCatalog": "Importing catalog: {{processed}}/ {{total}}",
-      "foods": "foods",
-      "imported": "{{imported}}imported",
-      "updated": "{{updated}}updated",
-      "fetchesExerciseDataDirectlyFrom": "Fetches exercise data directly from the community repository at",
-      "yuhonasFreeExerciseDbOn": "yuhonas/free-exercise-db on GitHub",
-      "theWgerProviderIsPublic": "The wger provider is public, free, and requires no credentials. It fetches workout and exercise data directly from the official",
-      "wgerProjectWebsite": "wger Project Website",
-      "forMoreDetailsOrTo": "For more details or to manage your integration, visit the",
-      "lastSync": "Last Sync:",
-      "tokenExpires": "Token Expires:",
-      "iDonTOwn": "I don't own",
-      "deviceSubscription": "{{provider_name}}device/subscription.",
-      "noteFromCodewithCJ": "Note from CodewithCJ:",
+      "imported": "{{imported}} imported",
+      "updated": "{{updated}} updated",
       "howToImproveThis": "How to improve this?",
       "helpImproveThisIntegrationBy": "Help improve this integration by sharing anonymized mock data!",
-      "enable": "Enable",
-      "thenCheck": ", then check",
-      "inTheSyncRangeDialog": "in the Sync Range dialog.",
-      "allowLocalProviderResponseCapture": "Allow Local Provider Response Capture",
-      "adminGlobalProviderSettings": "Admin > Global Provider Settings",
-      "captureRawProviderResponse": "Capture raw provider response",
-      "shareTheExportedDiagnosticBundle": "Share the exported diagnostic bundle with",
-      "onDiscord": "on Discord.",
-      "codewithCJ": "CodewithCJ",
       "stravaAPISettings": "Strava API Settings",
       "fitbitDeveloperPortal": "Fitbit Developer Portal",
       "ouraDeveloperPortal": "Oura Developer Portal",
@@ -2950,7 +2920,16 @@
       "openFoodFactsPortal": "Open Food Facts Portal",
       "corosTrainingHub": "COROS Training Hub",
       "healthCanadaCNFOpenData": "Health Canada CNF Open Data Portal",
-      "inLocation": "in"
+      "supportedLanguagesEnglishEnGerman": "Supported languages: <strong>English (en)</strong>, <strong2>German (de)</strong2>, <strong3>French (fr)</strong3>, and <strong4>Italian (it)</strong4>. Defaults to English if your active language is not supported. <link>Swiss Food Composition Database</link>",
+      "importingCatalogFoods": "Importing catalog: {{processed}} / {{total}} foods",
+      "fetchesExerciseDataDirectlyFrom2": "Fetches exercise data directly from the community repository at <link>yuhonas/free-exercise-db on GitHub</link>.",
+      "theWgerProviderIsPublic2": "The wger provider is public, free, and requires no credentials. It fetches workout and exercise data directly from the official <link>wger Project Website</link>.",
+      "forMoreDetailsOrTo2": "For more details or to manage your integration, visit the <link>{{label}}</link>.",
+      "lastSync2": "Last Sync: {{value}}",
+      "tokenExpires2": "Token Expires: {{value}}",
+      "noteFromCodewithCJIDon": "<strong>Note from CodewithCJ:</strong> I don't own {{provider_name}} device/subscription.",
+      "enableAllowLocalProviderResponse": "Enable <strong>Allow Local Provider Response Capture</strong> in <strong2>Admin > Global Provider Settings</strong2>, then check <strong3>Capture raw provider response</strong3> in the Sync Range dialog.",
+      "shareTheExportedDiagnosticBundle2": "Share the exported diagnostic bundle with <strong>CodewithCJ</strong> on Discord."
     },
     "providerSpecificFields": {
       "appURL": "App URL",
@@ -2969,58 +2948,34 @@
       "enterOpenFoodFactsUsername": "Enter Open Food Facts username",
       "openFoodFactsPasswordOptional": "Open Food Facts Password (Optional)",
       "enterOpenFoodFactsPassword": "Enter Open Food Facts password",
-      "openFoodFactsIsA": "Open Food Facts is a community-driven database that supports localization. Sparky automatically queries products in your active language setting in SparkyFitness. For more information, visit the",
-      "orLearnAboutLanguageSupport": "or learn about language support in the",
-      "openFoodFactsPortal": "Open Food Facts Portal",
-      "openFoodFactsTranslationsWiki": "Open Food Facts Translations Wiki",
       "garminEmail": "Garmin Email",
       "enterGarminEmail": "Enter Garmin Email",
       "garminPassword": "Garmin Password",
       "enterGarminPassword": "Enter Garmin Password",
-      "thisIntegrationUsesOAuth2You": "This integration uses OAuth2. You will be redirected to the provider to authorize access after adding or updating the provider.",
-      "inYour": "In your",
       "youMustSetYourCallback": ", you must set your callback URL to:",
-      "stravaIntegrationUsesOAuth2You": "Strava integration uses OAuth2. You will be redirected to Strava to authorize access after adding or updating the provider.",
-      "youMustSetYourAuthorization": ", you must set your \"Authorization Callback Domain\" to:",
-      "andEnsureYourLocalURL": "and ensure your local URL is correct if testing locally. Note: Strava callback URL on the server is configured to:",
-      "stravaAPIDashboard": "Strava API Dashboard",
-      "noteGarminConnectIntegrationIs": "Note: Garmin Connect integration is tested with few metrics only. Ensure your Docker Compose is updated to include Garmin section.",
-      "sparkyFitnessDoesNotStore": "Sparky Fitness does not store your Garmin email or password. They are used only during login to obtain secure tokens.",
       "getYourAPIKeyFrom": "Get your API Key from Hevy Settings > API Key.",
-      "generateAnAPIKeyIn": "Generate an API key in the Liftosaur app: Settings > API Keys (starts with",
-      "aLiftosaurProSubscriptionIs": "). A Liftosaur Pro subscription is required to use the Liftosaur API.",
-      "getYourAppIDAnd": "Get your App ID and App Key from the",
-      "nutritionixDeveloperPortal": "Nutritionix Developer Portal",
-      "noteForFatsecretYouNeed": "Note: For Fatsecret, you need to set up",
-      "whitelistingInYourFatsecretDeveloper": "whitelisting in your Fatsecret developer account. This process can take up to 24 hours.",
-      "getYourClientIDAnd": "Get your Client ID and Client Secret from the",
-      "under": ", under",
-      "notTheOAuth10": "(not the OAuth 1.0 Consumer Key/Secret).",
-      "yourPublicIP": "your public IP",
-      "fatsecretPlatformDashboard": "Fatsecret Platform Dashboard",
-      "restAPIOAuth20": "REST API OAuth 2.0 Credentials",
-      "getYourAPIKeyFrom2": "Get your API Key from the",
-      "usdaFoodDataCentralAPIGuide": "USDA FoodData Central API Guide",
       "syncEntireHistoryOnConnect": "Sync entire history on connect",
-      "theSwissFoodCompositionDatabase": "The Swiss Food Composition Database API is free, public, and requires no credentials. Supported languages for searches and nutritional value labels are",
-      "and": ", and",
-      "englishEn": "English (en)",
-      "germanDe": "German (de)",
-      "frenchFr": "French (fr)",
-      "italianIt": "Italian (it)",
-      "ifYourActiveLanguageIn": "If your active language in SparkyFitness is not supported, the API queries will default to English. For more details, see the official portal at",
-      "swissFoodCompositionDatabase": "Swiss Food Composition Database",
-      "theFreeExerciseDBProvider": "The Free Exercise DB provider is public, free, and requires no credentials. It fetches exercise data directly from the community repository at",
-      "yuhonasFreeExerciseDbOn": "yuhonas/free-exercise-db on GitHub",
-      "theWgerProviderIsPublic": "The wger provider is public, free, and requires no credentials. It fetches workout and exercise data directly from the official",
-      "wgerProjectWebsite": "wger Project Website",
-      "selectRegion": "Select region"
+      "selectRegion": "Select region",
+      "openFoodFactsIsA2": "Open Food Facts is a community-driven database that supports localization. Sparky automatically queries products in your active language setting in SparkyFitness. For more information, visit the <link>Open Food Facts Portal</link> or learn about language support in the <link2>Open Food Facts Translations Wiki</link2>.",
+      "thisIntegrationUsesOAuth2You2": "This integration uses OAuth2. You will be redirected to the provider to authorize access after adding or updating the provider.<br/>In your",
+      "stravaIntegrationUsesOAuth2You2": "Strava integration uses OAuth2. You will be redirected to Strava to authorize access after adding or updating the provider.<br/>In your <link>Strava API Dashboard</link>, you must set your \"Authorization Callback Domain\" to:",
+      "andEnsureYourLocalURL2": "and ensure your local URL is correct if testing locally. Note: Strava callback URL on the server is configured to:<strong>{{value}}</strong>",
+      "noteGarminConnectIntegrationIs2": "Note: Garmin Connect integration is tested with few metrics only. Ensure your Docker Compose is updated to include Garmin section.<br/>Sparky Fitness does not store your Garmin email or password. They are used only during login to obtain secure tokens.",
+      "generateAnAPIKeyIn2": "Generate an API key in the Liftosaur app: Settings > API Keys (starts with <span>lftsk_</span>). A Liftosaur Pro subscription is required to use the Liftosaur API.",
+      "getYourAppIDAnd2": "Get your App ID and App Key from the <link>Nutritionix Developer Portal</link>.",
+      "noteForFatsecretYouNeed2": "Note: For Fatsecret, you need to set up <strong>your public IP</strong> whitelisting in your Fatsecret developer account. This process can take up to 24 hours.<br/>Get your Client ID and Client Secret from the <link>Fatsecret Platform Dashboard</link>, under <strong2>REST API OAuth 2.0 Credentials</strong2> (not the OAuth 1.0 Consumer Key/Secret).",
+      "getYourAPIKeyFrom3": "Get your API Key from the <link>USDA FoodData Central API Guide</link>.",
+      "theSwissFoodCompositionDatabase2": "The Swiss Food Composition Database API is free, public, and requires no credentials. Supported languages for searches and nutritional value labels are <strong>English (en)</strong>, <strong2>German (de)</strong2>, <strong3>French (fr)</strong3>, and <strong4>Italian (it)</strong4>.",
+      "ifYourActiveLanguageIn2": "If your active language in SparkyFitness is not supported, the API queries will default to English. For more details, see the official portal at <link>Swiss Food Composition Database</link>.",
+      "theFreeExerciseDBProvider2": "The Free Exercise DB provider is public, free, and requires no credentials. It fetches exercise data directly from the community repository at <link>yuhonas/free-exercise-db on GitHub</link>.",
+      "theWgerProviderIsPublic2": "The wger provider is public, free, and requires no credentials. It fetches workout and exercise data directly from the official <link>wger Project Website</link>.",
+      "europeMcpeuCorosComNot": "Europe (mcpeu.coros.com) <span>(not yet tested)</span>",
+      "mainlandChinaMcpcnCorosCom": "Mainland China (mcpcn.coros.com) <span>(not yet tested)</span>"
     },
     "waterContainerManager": {
       "food": "Food",
-      "mgCaffeine": "{{caffeineMg}}mg caffeine",
-      "abv": "{{abvPercent}}% ABV",
-      "water": "% water"
+      "mgCaffeine": "{{caffeineMg}} mg caffeine",
+      "abv": "{{abvPercent}}% ABV"
     }
   },
   "admin": {
@@ -3041,7 +2996,8 @@
         "emergencyFailSafeDescription": "If you are ever locked out of your account, you can force email/password login to be enabled by setting the following environment variable on your server and restarting it:",
         "emergencyFailSafePasskeyDescription": "If passkey login was turned off and you can no longer sign in, force it back on with:",
         "envVarCopied": "Environment variable copied to clipboard.",
-        "enforceMfaForAllUsers": "Enforce MFA for all users"
+        "enforceMfaForAllUsers": "Enforce MFA for all users",
+        "emergencyFailSafeIfYou": "<strong>Emergency Fail-Safe:</strong> If you are ever locked out of your account, you can force email/password login to be enabled by setting the following environment variable on your server and restarting it:"
       },
       "oidcProviderManagement": {
         "title": "OIDC Provider Management",
@@ -3102,7 +3058,9 @@
       "invalidTimeDescription": "Please enter a valid time in HH:MM format before saving.",
       "invalidTimeTitle": "Invalid backup time",
       "saveWarningSchedulerFailed": "Settings saved, but the live scheduler could not be updated. Changes will take effect on next server restart.",
-      "failedToLoadSettings": "Failed to load settings."
+      "failedToLoadSettings": "Failed to load settings.",
+      "importantNoteThisBackupFunctionality": "<strong>Important Note:</strong> This backup functionality is new and should be used with caution. While it creates a backup, it's highly recommended to create additional backups independently of this application. Always follow the 3-2-1 backup strategy (3 copies of your data, on 2 different media, with 1 copy offsite) to ensure data safety. The functionality of restore may not work properly in all scenarios, so do not rely solely on this in-app backup.",
+      "warningRestoringABackupWill": "WARNING: Restoring a backup will wipe all current data and replace it with the backup content. Proceed with extreme caution. Restart the server manually after restoring."
     },
     "oidcSettings": {
       "title": "OIDC Authentication Providers",
@@ -3159,7 +3117,8 @@
       "envManagedSecret": "Secret is managed by env",
       "error": "Error",
       "logoUploadFailed": "Provider created, but logo upload failed.",
-      "logo2": "{{display_name}} logo"
+      "logo2": "{{display_name}} logo",
+      "error2": "Error: {{error}}"
     },
     "userManagement": {
       "title": "User Management",
@@ -3340,7 +3299,16 @@
       "selectGoalPreset": "Select a goal preset to apply",
       "errorLoading": "Failed to load nutrition goals. Please try again later.",
       "saveForDate": "Save for this Date",
-      "loadingDailyGoals": "Loading daily goals..."
+      "loadingDailyGoals": "Loading daily goals...",
+      "total": "Total: {{currentMacroTotal}}%",
+      "proteinG": "Protein: {{grams}}g",
+      "carbsG": "Carbs: {{grams}}g",
+      "fatG": "Fat: {{grams}}g",
+      "calories2": "Calories ({{energyUnitString}})",
+      "protein2": "Protein:",
+      "carbs": "Carbs:",
+      "fat2": "Fat:",
+      "startDateToEndDate": "{{start_date}} to {{end_date}}"
     },
     "mealDistribution": {
       "selectTemplate": "Select a Distribution Template",
@@ -3361,10 +3329,7 @@
     "saveAndStart": "Save & Start Plan",
     "saveAsPreset": "Save Preset & Start 6-Month Cascading Goal",
     "savePresetDescription": "Give your goal preset a name. This will save your current configuration for future use and apply it as your plan starting today.",
-    "startCascadingPlan": "Start 6-Month Cascading Plan",
-    "weeklyGoalPlansSection": {
-      "to": "to"
-    }
+    "startCascadingPlan": "Start 6-Month Cascading Plan"
   },
   "common": {
     "add": "Add",
@@ -3489,7 +3454,8 @@
       "legendDose": "Logged dose",
       "legendEstimated": "Assumed time",
       "legendCutoff": "Last {{dose}}mg dose {{time}}",
-      "empty": "No caffeine logged for this day."
+      "empty": "No caffeine logged for this day.",
+      "atBedtime2": "At Bedtime ({{target_bedtime}})"
     },
     "exercise": "Exercise",
     "widgets": {
@@ -3604,7 +3570,14 @@
       "modeDynamic": "Dynamic Goal",
       "modeFixed": "Fixed Goal",
       "modePercentage": "Percentage Earn-Back",
-      "modeDevice": "Device Projection"
+      "modeDevice": "Device Projection",
+      "averageDailyCalorieIntake": "Average daily calorie intake: {{displayAdaptiveIntake}} {{energyUnitString}}",
+      "calculatedExpenditureTDEE": "Calculated Expenditure (TDEE): {{energy}} {{energyUnitString}}",
+      "adaptiveTDEEExpenditure": "Adaptive TDEE (Expenditure) = {{energy}} {{energyUnitString}}",
+      "adaptiveManualCalorieGoal": "Adaptive Manual Calorie Goal = {{energy}} {{energyUnitString}}",
+      "manualDailyCalorieGoal": "Manual Daily Calorie Goal = {{energy}} {{energyUnitString}}",
+      "rmrFloor2": "RMR Floor: {{displayBmrVal}} {{energyUnitString}}",
+      "clinicalAbsoluteFloor": "Clinical Absolute Floor: {{energy}} {{energyUnitString}}"
     },
     "copyAllError": "Failed to copy entire day.",
     "copyAllFromYesterday": "Copy all from yesterday",
@@ -3732,14 +3705,14 @@
       "exercise": "Exercise"
     },
     "editMealFoodEntryDialog": {
-      "editLoggedMeal": "Edit Logged Meal:",
       "modifyTheFoodsAndQuantities": "Modify the foods and quantities for this specific logged meal entry.",
-      "noteChangesMadeHereWill": "Note: Changes made here will only affect this specific entry in your food diary, not the master meal template."
+      "noteChangesMadeHereWill": "Note: Changes made here will only affect this specific entry in your food diary, not the master meal template.",
+      "editLoggedMeal2": "Edit Logged Meal: {{name}}"
     },
     "exerciseCard": {
       "session": "{{plan_name}} session",
       "loadingExercises": "Loading exercises...",
-      "of": "({{sessionIndex}}of {{totalSessions}})"
+      "of": "({{sessionIndex}} of {{totalSessions}})"
     },
     "logExerciseEntryDialog": {
       "startTimeOptional": "Start Time (optional)",
@@ -3761,11 +3734,11 @@
       "n14DayNutritionTrends": "14-Day Nutrition Trends"
     },
     "nutrientsGrid": {
-      "calories": "Calories (",
-      "baseValuesPer": "Base Values (per",
-      "gProtein": "g protein",
-      "gCarbs": "g carbs",
-      "gFat": "g fat"
+      "calories2": "Calories ({{energyUnitString}})",
+      "baseValuesPer2": "Base Values (per {{baseVariant}}):",
+      "gProtein2": "{{protein}}g protein",
+      "gCarbs2": "{{carbs}}g carbs",
+      "gFat2": "{{fat}}g fat"
     },
     "workoutPlaybackExercisesList": {
       "addSetFor": "Add set for {{exercise_name}}"
@@ -3896,7 +3869,8 @@
       "linkedDrink": "Linked to a food entry",
       "noWaterCredit": "no water",
       "noWaterCreditHint": "This drink is set to count as no water",
-      "zeroPercentWater": "0% water"
+      "zeroPercentWater": "0% water",
+      "todaySDrinks": "Today's drinks ({{logEntriesCount}})"
     },
     "copyFoodEntryDialog": {
       "title": "Copy Food Entries",
@@ -4029,9 +4003,8 @@
       "unit": "unit"
     },
     "mindfulnessSection": {
-      "hrvMs": "HRV {{hrv_rmssd}}ms"
-    },
-    "failedToCalculateBodyFatWithError": "Failed to calculate body fat: {{error}}"
+      "hrvMs": "HRV {{hrv_rmssd}} ms"
+    }
   },
   "mindfulness": {
     "title": "Mindfulness",
@@ -4058,7 +4031,8 @@
       "rest": "Rest",
       "ready": "Ready",
       "begin": "Begin Breathing",
-      "complete": "Complete"
+      "complete": "Complete",
+      "complete2": "Complete ({{breathElapsed}})"
     },
     "timer": {
       "title": "Meditation Timer",
@@ -4132,7 +4106,21 @@
     "sleepScore": "Sleep Score",
     "source": "Source",
     "timeAsleep": "Time Asleep",
-    "stageTimeRange": "{{stage}}: {{start}}–{{end}}"
+    "stageTimeRange": "{{stage}}: {{start}}–{{end}}",
+    "bedtime2": "Bedtime:",
+    "wakeTime2": "Wake Time:",
+    "duration2": "Duration:",
+    "timeAsleep2": "Time Asleep:",
+    "sleepScore2": "Sleep Score:",
+    "source2": "Source:",
+    "deep2": "Deep:",
+    "light2": "Light:",
+    "rem2": "REM:",
+    "awake2": "Awake:",
+    "avgSpO2": "Avg SpO2:",
+    "avgHRV": "Avg HRV:",
+    "avgStress": "Avg Stress:",
+    "restingHR": "Resting HR:"
   },
   "moodMeter": {
     "howAreYouFeelingToday": "How are you feeling today?",
@@ -4439,7 +4427,11 @@
     "mealNotes": "Notes (Optional)",
     "mealNotesPlaceholder": "e.g., the recipe, or how you prepare this",
     "templateNotes": "About this meal",
-    "unit": "Unit"
+    "unit": "Unit",
+    "totalAmount2": "Total Amount ({{servingUnit}})",
+    "defaultServingSize2": "Default Serving Size ({{servingUnit}})",
+    "totalDishAmount2": "Total Dish Amount ({{servingUnit}})",
+    "quantityConsumed": "Quantity Consumed ({{servingUnit}})"
   },
   "mealPlanCalendar": {
     "title": "Meal Plan",
@@ -4499,7 +4491,14 @@
     "serving": "serving",
     "proteinShort": "P:",
     "carbsShort": "C:",
-    "fatShort": "F:"
+    "fatShort": "F:",
+    "pProteing": "P: {{protein}}g",
+    "cCarbsg": "C: {{carbs}}g",
+    "fFatg": "F: {{fat}}g",
+    "totalKcalPGC": "<strong>Total:</strong> {{totalCalories}} kcal | P: {{totalProtein}}g | C: {{totalCarbs}}g | F: {{totalFat}}g",
+    "pTotalProteing": "P: {{totalProtein}}g",
+    "cTotalCarbsg": "C: {{totalCarbs}}g",
+    "fTotalFatg": "F: {{totalFat}}g"
   },
   "workoutPresetForm": {
     "createTitle": "Create New Workout Preset",
@@ -4622,10 +4621,14 @@
       "drinksRemaining_other": "{{count}} drinks remaining",
       "drinksOver_one": "{{count}} drink over",
       "drinksOver_other": "{{count}} drinks over",
-      "upcomingDay": "Not yet"
+      "upcomingDay": "Not yet",
+      "stdDrinksG": "std drinks ({{total_g}}g)",
+      "limitG": "Limit: {{limit_standard_drinks}} (<span>{{limit_g}}</span>g)"
     },
     "hydration": {
-      "title": "Hydration"
+      "title": "Hydration",
+      "hydration": "Hydration ({{water_display_unit}})",
+      "avg": "Avg: {{average}} {{water_display_unit}}"
     },
     "failedToLoadAlcoholWeek": "Failed to load weekly alcohol data.",
     "failedToLoadHydrationTrend": "Failed to load hydration trend data.",
@@ -4737,7 +4740,15 @@
       "minPerMi": "min/mi",
       "bpm": "bpm",
       "spm": "spm",
-      "min": "min"
+      "min": "min",
+      "distance2": "Distance ({{distanceUnit}})",
+      "cumulativeDistance2": "Cumulative Distance ({{distanceUnit}})",
+      "avgPace2": "Avg Pace ({{distanceUnit}})",
+      "avgMovingPace2": "Avg Moving Pace ({{distanceUnit}})",
+      "avgHRBpm": "Avg HR (bpm)",
+      "maxHRBpm": "Max HR (bpm)",
+      "avgCadenceSpm": "Avg Cadence (spm)",
+      "maxCadenceSpm": "Max Cadence (spm)"
     },
     "noMapDataAvailable": "No map data available.",
     "activityReport": {
@@ -4947,7 +4958,7 @@
     "nutrientBalance": "{{nutrient}} Balance",
     "symptomsTab": "Symptoms",
     "medicationLogTable": {
-      "prn": "({{prn}}PRN)"
+      "prn": "({{prn}} PRN)"
     },
     "medicationReports": {
       "glp1": "GLP-1"
@@ -4960,8 +4971,7 @@
       "belowNormalBreathingRateAt": "Below normal breathing rate at rest.",
       "healthyBreathingRateForAdults": "Healthy breathing rate for adults at rest.",
       "aboveNormalRestingBreathingRate": "Above normal resting breathing rate.",
-      "brpm": "brpm",
-      "n1220Brpm": ": 12-20 brpm"
+      "brpm": "brpm"
     },
     "sleepRespirationCard": {
       "brpm": "brpm"
@@ -4973,7 +4983,14 @@
     "workoutHeatmap": {
       "tu": "Tu",
       "th": "Th"
-    }
+    },
+    "trend2": "Trend {{weight}}{{weeklyRate}}{{forecastDate}}",
+    "avg": "Avg: {{formattedAverage}} {{unit}}",
+    "primary2": "(Primary)",
+    "totalEaten2": "Total Eaten: {{displayTotalEaten}} {{unitStr}}",
+    "totalGoal2": "Total Goal: {{displayTotalGoal}} {{unitStr}}",
+    "avg2": "Avg: {{formattedAverageEaten}} {{unitStr}}",
+    "normalAdultRestingRange12": "Normal adult resting range: 12-20 brpm"
   },
   "sleepHealth": {
     "hrvStatus": "HRV Status",
@@ -5008,7 +5025,10 @@
     "dailyTrend": "Trend",
     "overnightSeries": "Night Series",
     "overnightHrvSeriesDesc": "5-minute interval overnight HRV series",
-    "spotTests": "Spot Tests"
+    "spotTests": "Spot Tests",
+    "avg": "Avg: {{avg}} {{unit}}",
+    "min": "Min: {{min}}",
+    "max": "Max: {{max}}"
   },
   "sleepSummary": {
     "title": "Last Night's Sleep",
@@ -5125,7 +5145,11 @@
     "bodyWaterPercentage": "Body Water %",
     "bmr": "BMR",
     "dailySteps": "Daily Steps",
-    "failedToLoadComparisonData": "Failed to load comparison data."
+    "failedToLoadComparisonData": "Failed to load comparison data.",
+    "repsOn": "({{reps}} reps @ {{weight}} on {{date}})",
+    "repsOn2": "({{reps}} reps on {{date}})",
+    "reps2": "{{reps}} reps",
+    "weightOnDate": "({{weight}} on {{date}})"
   },
   "reportsTables": {
     "foodDiaryTable": "Food Diary Table",
@@ -5159,7 +5183,16 @@
     "quantity": "Quantity",
     "total": "Total",
     "allTables": "All tables",
-    "showTable": "Show table"
+    "showTable": "Show table",
+    "weight2": "Weight ({{weightUnit}})",
+    "neck2": "Neck ({{measurementUnit}})",
+    "waist2": "Waist ({{measurementUnit}})",
+    "hips2": "Hips ({{measurementUnit}})",
+    "height2": "Height ({{measurementUnit}})",
+    "muscleMass2": "Muscle Mass ({{weightUnit}})",
+    "boneMass2": "Bone Mass ({{weightUnit}})",
+    "bmr2": "BMR ({{energyUnitString}})",
+    "value": "Value ({{value}})"
   },
   "moodReports": {
     "title": "Mood Reports",
@@ -5290,7 +5323,8 @@
     "sleepTrends": "Sleep Trends",
     "total": "Total",
     "showAll": "Show All ({{count}})",
-    "sleepDebtDisclaimerPersonalized": "*Sleep Debt is calculated based on your personalized sleep need of {{time}}."
+    "sleepDebtDisclaimerPersonalized": "*Sleep Debt is calculated based on your personalized sleep need of {{time}}.",
+    "total2": "Total:"
   },
   "sleepAnalyticsTable": {
     "exportToCSV": "Export to CSV",
@@ -5340,7 +5374,8 @@
     "csvHeadersDuration": "Duration",
     "csvHeadersTimeAsleep": "Time Asleep",
     "sleepHistoryTableTitle": "Sleep History & Analytics",
-    "sessionCount": "{{count}} Sessions"
+    "sessionCount": "{{count}} Sessions",
+    "sleepHypnogram2": "Sleep Hypnogram - {{date}}"
   },
   "workoutReport": {
     "workoutStats": "Workout Stats",
@@ -5369,7 +5404,12 @@
     "sets": "Sets",
     "time": "Time",
     "totalTime": "Time",
-    "volume": "Volume"
+    "volume": "Volume",
+    "sets2": "Sets ({{setListCount}})",
+    "exercises2": "Exercises ({{groupedExercisesCount}})",
+    "weight2": "Weight ({{weightUnit}})",
+    "pRs": "PRs - {{exerciseName}}",
+    "reps2": "{{reps}} reps"
   },
   "exerciseHistoryDisplay": {
     "loadingHistory": "Loading history...",
@@ -5528,7 +5568,8 @@
     "displayNameLabel": "Display Name (optional, max 100 characters)",
     "displayNamePlaceholder": "e.g., Morning Blood Sugar Level",
     "nameHelp": "Internal identifier used for syncing",
-    "unitPrecisionNote": "Using standard units (like kcal, mmHg, BPM) automatically optimizes chart precision."
+    "unitPrecisionNote": "Using standard units (like kcal, mmHg, BPM) automatically optimizes chart precision.",
+    "usingStandardUnitsLikeKcal": "💡 Using standard units (like kcal, mmHg, BPM) automatically optimizes chart precision."
   },
   "customFoodForm": {
     "foodNameLabel": "Food Name *",
@@ -5734,7 +5775,10 @@
     "noData": "No sleep data available",
     "noDataDesc": "Start tracking your sleep to unlock advanced insights.",
     "baselineCalculated": "Sleep need baseline calculated successfully",
-    "baselineError": "Failed to calculate sleep need baseline"
+    "baselineError": "Failed to calculate sleep need baseline",
+    "method2": "Method: {{method}}",
+    "workdays2": "Workdays: {{workdaysAvailable}}/{{workdaysNeeded}}",
+    "freeDays": "Free days: {{freedaysAvailable}}/{{freedaysNeeded}}"
   },
   "onboarding": {
     "completeSetup": "Complete Setup",
@@ -5766,11 +5810,11 @@
       "chooseAPresetDietOr": "Choose a preset diet or customize your macro split",
       "carbsProteinFat": "{{carbsPercentage}}% Carbs / {{proteinPercentage}}% Protein / {{fatPercentage}}% Fat",
       "customMacroSplit": "Custom Macro Split",
-      "total": "Total:",
       "carbohydrates": "Carbohydrates",
       "protein": "Protein",
       "fat": "Fat",
-      "adjustOrTypeInA": "Adjust or type in a value. Unlocked macros will auto-adjust to maintain 100% total."
+      "adjustOrTypeInA": "Adjust or type in a value. Unlocked macros will auto-adjust to maintain 100% total.",
+      "total2": "Total: {{carbs}}%"
     },
     "foodSourcesStep": {
       "missingFatSecretField": "Missing FatSecret field",
@@ -5785,10 +5829,8 @@
       "getAPICredentials": "Get API credentials",
       "fatSecretClientID": "FatSecret Client ID",
       "fatSecretClientSecret": "FatSecret Client Secret",
-      "useThe": "Use the",
-      "credentialsFromTheDashboardNot": "credentials from the dashboard, not the OAuth 1.0 Consumer Key/Secret. FatSecret also requires you to whitelist your public IP in its developer dashboard. This can take up to 24 hours to take effect.",
-      "restAPIOAuth20": "REST API OAuth 2.0",
-      "continue": "Continue"
+      "continue": "Continue",
+      "useTheRESTAPIOAuth": "Use the <strong>REST API OAuth 2.0</strong> credentials from the dashboard, not the OAuth 1.0 Consumer Key/Secret. FatSecret also requires you to whitelist your public IP in its developer dashboard. This can take up to 24 hours to take effect."
     },
     "nutrientGoals": {
       "dailyMacroTargets": "Daily Macro Targets",
@@ -5852,18 +5894,16 @@
     },
     "personalPlan": {
       "yourPersonalPlan": "Your Personal Plan",
-      "readyToReachYourGoal": "Ready to reach your goal of",
-      "thisPlanIsForInformational": "This plan is for informational purposes only and should not replace professional medical advice. Please consult with your doctor or a certified nutritionist before making significant changes to your diet or exercise routine.",
-      "medicalDisclaimer": "Medical Disclaimer:",
-      "nutrientGoals": "Nutrient Goals"
+      "nutrientGoals": "Nutrient Goals",
+      "readyToReachYourGoal2": "Ready to reach your goal of {{primaryGoal}}.",
+      "medicalDisclaimerThisPlanIs": "<strong>Medical Disclaimer:</strong> This plan is for informational purposes only and should not replace professional medical advice. Please consult with your doctor or a certified nutritionist before making significant changes to your diet or exercise routine."
     },
     "personalPlanHeader": {
       "dailyCalorieBudget": "Daily Calorie Budget",
       "baseBMR": "Base BMR:",
-      "calorieBuyback": "Calorie Buyback:",
       "on": "ON",
       "off": "OFF",
-      "perDay": "{{unit}} / day"
+      "calorieBuyback2": "Calorie Buyback: <span>{{addBurnedCalories}}</span>"
     }
   },
   "cycle": {
@@ -5953,7 +5993,11 @@
         "periodDesc": "Last Period Start + Typical Cycle Length (e.g., June 12 + 30 days = July 12).",
         "periodDescDynamic": "Calculated as:",
         "periodTitle": "Next Period Start",
-        "title": "How are predictions calculated?"
+        "title": "How are predictions calculated?",
+        "calculatedAsDays": "Calculated as: <span>{{lastStartFormatted}} + {{cycleLength}} days = {{nextStartFormatted}}</span>",
+        "calculatedAsDays2": "Calculated as: <span>{{nextStartFormatted}} - {{lutealPhase}} days = {{ovulationFormatted}}</span>",
+        "calculatedAsDaysDaysDays": "Calculated as: <span>{{cycleLength}} days - {{lutealPhase}} days = {{follicularLength}} days</span> (from {{lastStartFormatted}} to {{ovulationFormatted}}).",
+        "calculatedAs5DaysTo": "Calculated as: <span>{{ovulationFormatted}} - 5 days to {{ovulationFormatted}} + 1 day</span> (from {{fertileStartFormatted}} to {{fertileEndFormatted}} )."
       },
       "ttcModeActive": "TTC Mode Active"
     },
@@ -6043,7 +6087,10 @@
       "sun": "Sun",
       "thu": "Thu",
       "tue": "Tue",
-      "wed": "Wed"
+      "wed": "Wed",
+      "flow": "Flow: {{flow_level}}",
+      "mucus": "Mucus:",
+      "energy": "Energy:"
     },
     "care": {
       "add": "Add",
@@ -6073,7 +6120,8 @@
       "emptyTitle": "Correlations unlock with more data",
       "higher": "higher",
       "insight": "{{metric}} tends to be {{dir}} in your {{phase}} phase ({{delta}}{{unit}} vs your average).",
-      "lower": "lower"
+      "lower": "lower",
+      "byCyclePhase": "{{label}} by cycle phase"
     },
     "history": {
       "addSuccess": "Cycle added",
@@ -6131,7 +6179,9 @@
       "supplyDesc": "Averages and estimations for your next period.",
       "symptoms": "Symptom Frequencies by Phase",
       "symptomsDesc": "Occurrence counts aggregated across your tracked cycles.",
-      "yearlySpend": "Yearly Spend (Est.)"
+      "yearlySpend": "Yearly Spend (Est.)",
+      "productsAverage": "{{avgProductsPerPeriod}} products average",
+      "needed2": "{{count}} needed"
     },
     "ttc": {
       "chartLegend": "Higher bars indicate days closer to ovulation with higher pregnancy probability.",
@@ -6164,14 +6214,15 @@
       "testLoggingTitle": "Ovulation & Pregnancy Tests",
       "testLogsHistory": "This Cycle's Test Logs",
       "testReady": "You have reached {{dpo}} DPO! A pregnancy test logged now is highly accurate. Use first morning urine for the best concentration.",
-      "twoWeekWaitTitle": "Two-Week Wait (TWW)"
+      "twoWeekWaitTitle": "Two-Week Wait (TWW)",
+      "ovulationIsEstimatedOnBased": "Ovulation is estimated on <strong>{{ovulationDate}}</strong> based on <span>{{basis}}</span>."
     },
     "cycleHistoryList": {
       "dCycle": "{{cycle_length}}d cycle",
       "dPeriod": "{{period_length}}d period"
     },
     "cycleInsights": {
-      "total": "{{total}}total",
+      "total": "{{total}} total",
       "logs": "{{phase}}: {{val}} logs",
       "menstrual": "Menstrual",
       "fertile": "Fertile",
@@ -6184,23 +6235,21 @@
     },
     "cycleToday": {
       "editCycleSettings": "Edit cycle settings",
-      "fromTo": "(from {{lastStartFormatted}}to {{ovulationFormatted}}).",
-      "fromTo2": "(from {{fertileStartFormatted}}to {{fertileEndFormatted}}).",
-      "to": "to",
       "dismissInsight": "Dismiss insight"
     },
     "dailyLogPanel": {
       "kg": "-- kg",
       "hideProduct": "Hide product",
       "showProduct": "Show product",
-      "ml": "ml)",
       "deleteProduct": "Delete product",
       "productName": "Product Name",
       "eGOrganicTampon": "e.g. Organic tampon",
       "capacityMl": "Capacity (ml)",
       "decrease": "Decrease {{displayName}}",
       "increase": "Increase {{displayName}}",
-      "energyLevel": "Energy level"
+      "energyLevel": "Energy level",
+      "displayNameCapacityMlml": "{{displayName}} (<span>{{capacityMl}}</span>ml)",
+      "energy": "Energy: {{energy}}"
     }
   },
   "healthDataImport": {
@@ -6309,7 +6358,10 @@
     "selectHeader": "Select header",
     "none": "None",
     "confirmMapping": "Confirm",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "imported": "Imported: {{processedCount}}",
+    "skipped": "Skipped: {{skippedCount}}",
+    "failed": "Failed: {{errorsCount}}"
   },
   "auth": {
     "agreeAndEnter": "I Agree & Enter Demo",
@@ -6531,18 +6583,18 @@
     },
     "endFastDialog": {
       "fastCompleted": "Fast Completed! 🎉",
-      "youFastedFor": "You fasted for",
       "greatJobYouCanEdit": "Great job! You can edit the start/end times below if you missed pressing the buttons.",
       "startTime": "Start Time",
       "endTime": "End Time",
-      "endFast": "End Fast"
+      "endFast": "End Fast",
+      "youFastedFor2": "You fasted for <span>{{durationFormatted}}</span>."
     },
     "fastingTimerRing": {
       "goalReached": "Goal Reached"
     },
     "fastingZoneBar": {
       "metabolicState": "Metabolic State",
-      "hoursRange": "{{start}}-{{end}} hours"
+      "hours": "{{start}}-{{end}} hours"
     }
   },
   "i18n": {
@@ -6693,7 +6745,8 @@
     "totpTab": "App Code",
     "verify": "Verify",
     "verifyLogin": "Please verify your login using one of your Multi-Factor Authentication methods.",
-    "verifyRecovery": "Verify Recovery Code"
+    "verifyRecovery": "Verify Recovery Code",
+    "loggedInAs2": "Logged in as: <strong>{{email}}</strong>"
   },
   "mood": {
     "dailyMood": "Daily Mood",
@@ -6741,7 +6794,8 @@
       "long": "long",
       "start": "Start contraction",
       "stop": "Stop",
-      "title": "Contraction timer"
+      "title": "Contraction timer",
+      "duration": "Duration: {{started_at}}{{prev}}"
     },
     "disclaimer": "Pregnancy information is educational and not a substitute for medical care.",
     "growth": {
@@ -6762,7 +6816,8 @@
       "start": "Start counting",
       "stop": "End session",
       "tap": "Tap to count a kick",
-      "title": "Kick counter"
+      "title": "Kick counter",
+      "movements2": "{{kick_count}} movements"
     },
     "photos": {
       "add": "Add week {{n}}",
@@ -6824,22 +6879,23 @@
         "sinceStart": "since start",
         "title": "Maternal Weight",
         "withinRange": "Within typical range"
-      }
+      },
+      "kgSinceStart": "{{weightDelta}} kg since start",
+      "iomRangeWkKg": "IOM Range (Wk {{wk}}): <strong>{{lowKg}} – {{highKg}} kg</strong>"
     },
     "pregnancyToday": {
-      "cm": "≈ {{lengthCm}}cm",
       "babyGrowth": "Baby growth",
       "kickCounter": "Kick counter",
       "contractions": "Contractions",
       "bumpPhoto": "Bump photo",
       "foodMeds": "Food & meds",
       "vitals": "Vitals",
-      "checklist": "Checklist"
+      "checklist": "Checklist",
+      "lengthCmCmweightG": "≈ {{lengthCm}} cm{{weightG}}"
     },
     "vitalsCard": {
       "weightInKg": "Weight in kg",
       "kg": "-- kg",
-      "kg2": "{{lowKg}}– {{highKg}}kg",
       "mmHg": "--/-- mmHg"
     },
     "wombScene": {
@@ -6907,7 +6963,8 @@
     "startTimer": "Start timer",
     "stopTimer": "Stop timer",
     "type": "Type",
-    "weight": "weight"
+    "weight": "weight",
+    "distance2": "Distance ({{distanceUnit}})"
   },
   "food": {
     "imagesLabel": "Images",
@@ -7002,7 +7059,8 @@
     "analyzingHint": "Detecting ingredients, gram portions, and macros",
     "editInMealBuilder": "Edit in Meal Builder",
     "loggedSuccess": "Meal successfully logged to your diary.",
-    "openInMealBuilder": "Open in Meal Builder"
+    "openInMealBuilder": "Open in Meal Builder",
+    "kcalPGCG": "{{calories_kcal}} kcal · P: {{protein_g}}g · C: {{carbs_g}}g · F: {{fat_g}}g"
   },
   "waterContainerManager": {
     "title": "Manage Water Containers",
@@ -7043,7 +7101,13 @@
     "linkFoodRequiredHint": "A drink container logs a food, so pick the one this container holds.",
     "perPress": "One press logs",
     "changeQuantity": "Change quantity/unit",
-    "hydrationFactorExample": "At {{factor}}, one press adds {{credited}} {{unit}} to your water ring out of the drink’s {{total}} {{unit}}. Calories, caffeine and alcohol always count in full."
+    "hydrationFactorExample": "At {{factor}}, one press adds {{credited}} {{unit}} to your water ring out of the drink’s {{total}} {{unit}}. Calories, caffeine and alcohol always count in full.",
+    "linkedFood2": "Linked Food: {{linked_food_name}}",
+    "hydration": "Hydration: {{hydration_factor}}%",
+    "onePressLogs": "One press logs <span>{{describeLink}}</span>",
+    "linkedFood3": "Linked Food: {{linked_food_name}}{{linked_variant_serving_size}}{{linked_meal_type_name}}",
+    "hydrationFactorX": "Hydration Factor: {{hydration_factor}}x",
+    "water": "{{hydrationFactor}}% water"
   },
   "homeFasting": {
     "startNew": "Start a New Fast",
@@ -7135,13 +7199,13 @@
     "entryNotesPlaceholder": "Anything specific about this time you ate it",
     "aiEstimateSection": {
       "convertWithAI": "Convert with AI",
-      "estimatingIn": "Estimating {{fromAmount}}{{fromUnit}}in {{toUnit}}...",
+      "estimatingIn": "Estimating {{fromAmount}} {{fromUnit}} in {{toUnit}}...",
       "tryAgain": "Try again",
       "dismiss": "Dismiss",
-      "estimatedAbout": "Estimated - about {{estimatedAmount}}{{toUnit}}",
-      "estimate": "estimate",
+      "estimatedAbout": "Estimated - about {{estimatedAmount}} {{toUnit}}",
       "genericEstimateVerifyIfAccuracy": "Generic estimate - verify if accuracy matters.",
-      "useThis": "Use this"
+      "useThis": "Use this",
+      "estimate2": "- {{confidence}} estimate"
     }
   },
   "healthMetrics": {
@@ -7290,7 +7354,8 @@
       "searching": "Searching activity database...",
       "avgPace": "Avg Pace",
       "avgHeartRate": "Avg HR",
-      "noMatches": "No activities matched the query filters."
+      "noMatches": "No activities matched the query filters.",
+      "min": "{{durationMinutes}} min"
     },
     "cardio": {
       "sessionsTitle": "Sessions",
@@ -7307,7 +7372,10 @@
       "runs_one": "{{count}} run",
       "runs_other": "{{count}} runs",
       "average": "Avg:",
-      "bestPace": "Best Pace:"
+      "bestPace": "Best Pace:",
+      "avg": "Avg: {{avgDistanceFormatted}} {{isMiles}}",
+      "bestPace2": "Best Pace: {{bestPaceFormatted}}",
+      "min": "{{durationMinutes}} min"
     },
     "volume": {
       "emptyTitle": "Exercise Volume & Time Totals",
@@ -7337,7 +7405,9 @@
         "walk": "Walk",
         "swim": "Swim",
         "other": "Other"
-      }
+      },
+      "pace2": "Pace: {{formattedPace}}",
+      "bestSetReps": "Best set: {{weightKg}} × {{reps}} reps"
     },
     "views": {
       "all": "All Workouts",
@@ -7452,7 +7522,8 @@
     "scaled": "Scaled",
     "timeCapLabel": "Cap: {{cap}}",
     "wodScoring": "WOD Scoring",
-    "work": "Work"
+    "work": "Work",
+    "additionalReps": "Additional Reps:"
   },
   "guidedWorkout": {
     "cue": {
@@ -7672,7 +7743,8 @@
       "medication": "Possible side effect of",
       "details": "More details",
       "notes": "Notes",
-      "photos": "Photos"
+      "photos": "Photos",
+      "severity": "Severity <strong>{{severity}}</strong>"
     },
     "photos": {
       "saved": "Saved photo",
@@ -7692,7 +7764,8 @@
       "endHint": "Set when it ended, and mark what helped.",
       "endedWhen": "It ended",
       "didAnythingHelp": "Did anything help?",
-      "startedAt": "started {{time}}"
+      "startedAt": "started {{time}}",
+      "ongoing2": "· ongoing"
     },
     "history": {
       "title": "Recent symptoms",
@@ -7825,7 +7898,145 @@
         "alcohol": "Alcohol in the food names",
         "caffeine": "Caffeine in the food names",
         "menstrual_phase": "During the menstrual phase"
-      }
+      },
+      "symptomReport": "Symptom report · {{startDate}} – {{endDate}}"
+    },
+    "builtIn": {
+      "head": "Head",
+      "neck": "Neck",
+      "shoulders": "Shoulders",
+      "upperBack": "Upper back",
+      "lowerBack": "Lower back",
+      "chest": "Chest",
+      "abdomen": "Abdomen",
+      "pelvis": "Pelvis",
+      "hips": "Hips",
+      "arms": "Arms",
+      "handsWrists": "Hands / wrists",
+      "legs": "Legs",
+      "knees": "Knees",
+      "feetAnkles": "Feet / ankles",
+      "wholeBody": "Whole body",
+      "forehead": "Forehead",
+      "behindBothEyes": "Behind both eyes",
+      "behindLeftEye": "Behind left eye",
+      "behindRightEye": "Behind right eye",
+      "leftTemple": "Left temple",
+      "rightTemple": "Right temple",
+      "topOfHead": "Top of head",
+      "backOfHead": "Back of head",
+      "jaw": "Jaw",
+      "sinuses": "Sinuses",
+      "face": "Face",
+      "wholeHead": "Whole head",
+      "throbbing": "Throbbing",
+      "pulsing": "Pulsing",
+      "sharp": "Sharp",
+      "dullAche": "Dull / ache",
+      "burning": "Burning",
+      "stiffness": "Stiffness",
+      "shooting": "Shooting",
+      "stabbing": "Stabbing",
+      "pressure": "Pressure",
+      "cramping": "Cramping",
+      "itchy": "Itchy",
+      "aura": "Aura",
+      "nausea": "Nausea",
+      "vomiting": "Vomiting",
+      "neckPain": "Neck pain",
+      "stuffyNose": "Stuffy nose",
+      "dizziness": "Dizziness",
+      "lightSensitivity": "Light sensitivity",
+      "soundSensitivity": "Sound sensitivity",
+      "touchSensitivity": "Touch sensitivity",
+      "smellSensitivity": "Smell sensitivity",
+      "fatigue": "Fatigue",
+      "irritability": "Irritability",
+      "confusion": "Confusion",
+      "sweating": "Sweating",
+      "bodyTemperatureChange": "Body temperature change",
+      "stomachAche": "Stomach ache",
+      "visionProblems": "Vision problems",
+      "numbnessTingling": "Numbness / tingling",
+      "difficultySpeaking": "Difficulty speaking",
+      "ringingInEars": "Ringing in ears",
+      "poorSleep": "Poor sleep",
+      "tooMuchSleep": "Too much sleep",
+      "irregularSleepSchedule": "Irregular sleep schedule",
+      "skippedMeal": "Skipped meal",
+      "dehydration": "Dehydration",
+      "caffeine": "Caffeine",
+      "alcohol": "Alcohol",
+      "redWine": "Red wine",
+      "chocolate": "Chocolate",
+      "agedCheese": "Aged cheese",
+      "curedMeats": "Cured meats",
+      "mSG": "MSG",
+      "artificialSweeteners": "Artificial sweeteners",
+      "histamineRichFood": "Histamine-rich food",
+      "stress": "Stress",
+      "overexertion": "Overexertion",
+      "screenTime": "Screen time",
+      "travel": "Travel",
+      "weatherChange": "Weather change",
+      "brightLight": "Bright light",
+      "loudNoise": "Loud noise",
+      "strongSmell": "Strong smell",
+      "pollen": "Pollen",
+      "dust": "Dust",
+      "menstruation": "Menstruation",
+      "hormonalChange": "Hormonal change",
+      "medicationOveruse": "Medication overuse",
+      "illness": "Illness",
+      "rest": "Rest",
+      "darkQuietRoom": "Dark, quiet room",
+      "coldCompress": "Cold compress",
+      "warmCompress": "Warm compress",
+      "heatPack": "Heat pack",
+      "scalpMassage": "Scalp massage",
+      "templePressure": "Temple pressure",
+      "stretching": "Stretching",
+      "meditation": "Meditation",
+      "hydration": "Hydration",
+      "sleep": "Sleep",
+      "moodChange": "Mood change",
+      "poorConcentration": "Poor concentration",
+      "yawning": "Yawning",
+      "foodCravings": "Food cravings",
+      "neckStiffness": "Neck stiffness",
+      "frequentUrination": "Frequent urination",
+      "visual": "Visual",
+      "sensory": "Sensory",
+      "motor": "Motor",
+      "speech": "Speech",
+      "drained": "Drained",
+      "stiffNeck": "Stiff neck",
+      "foodDrink": "Food & drink",
+      "lifestyle": "Lifestyle",
+      "environment": "Environment",
+      "hormonal": "Hormonal",
+      "other": "Other",
+      "headache": "Headache",
+      "constipation": "Constipation",
+      "diarrhea": "Diarrhea",
+      "acidRefluxGERD": "Acid Reflux / GERD",
+      "stomachPainCramping": "Stomach Pain / Cramping",
+      "migraine": "Migraine",
+      "backPain": "Back pain",
+      "jointPain": "Joint pain",
+      "musclePain": "Muscle pain",
+      "bloating": "Bloating",
+      "anxiety": "Anxiety",
+      "panicAttack": "Panic attack",
+      "brainFog": "Brain fog",
+      "hayFever": "Hay fever",
+      "cough": "Cough",
+      "wheezing": "Wheezing",
+      "soreThroat": "Sore throat",
+      "rash": "Rash",
+      "eczemaFlare": "Eczema flare",
+      "itching": "Itching",
+      "fever": "Fever"
     }
   },
   "trainingConsistency": {
@@ -8097,12 +8308,12 @@
     }
   },
   "allergenBadges": {
-    "trace": "trace: {{t}}"
+    "trace": "trace: {{trace}}"
   },
   "announcementDialog": {
     "announcement": "Announcement",
-    "published": "Published:",
-    "gotItDonTShow": "Got it, don't show again"
+    "gotItDonTShow": "Got it, don't show again",
+    "published2": "Published: {{value}}"
   },
   "dayNavigator": {
     "today": "Today"
@@ -8132,13 +8343,11 @@
     "workoutGpsMap": {
       "loadingWorkoutGPSRoute": "Loading workout GPS route...",
       "workoutGPSRouteMap": "Workout GPS Route Map",
-      "avgBpm": "{{avgHr}}avg bpm",
       "max": "({{maxHr}} max)",
-      "brpm": "{{avgResp}}brpm",
-      "lat": "Lat:",
-      "lon": ", Lon:",
-      "startPoint": "Start Point",
-      "finishPoint": "Finish Point"
+      "brpm": "{{avgResp}} brpm",
+      "avgBpm2": "{{avgHr}} avg bpm {{maxHr}}",
+      "startPointLatLon": "<strong>Start Point</strong><br/>Lat: {{startPos}}, Lon: {{startPos2}}",
+      "finishPointLatLon": "<strong>Finish Point</strong><br/>Lat: {{endPos}}, Lon: {{endPos2}}"
     },
     "addCustomExerciseForm": {
       "calculated300": "Calculated: 300",
@@ -8165,8 +8374,7 @@
       "equipment": "Equipment:",
       "readInstructionsAloud": "Read instructions aloud",
       "wger": "Wger",
-      "freeDB": "Free DB",
-      "perHour": "{{unit}}/hr"
+      "freeDB": "Free DB"
     },
     "muscles": "Muscles:",
     "equipment": "Equipment:",
@@ -8229,8 +8437,7 @@
       "supersetD": "SUPERSET D"
     },
     "workoutPlansManager": {
-      "openMenu": "Open menu",
-      "of": "({{current}}of"
+      "openMenu": "Open menu"
     },
     "workoutPresetSelector": {
       "all": "All",
@@ -8239,7 +8446,7 @@
       "preset": "Preset"
     },
     "workoutPresetsManager": {
-      "sets": "{{totalSets}}sets",
+      "sets": "{{totalSets}} sets",
       "openMenu": "Open menu"
     },
     "level": "Level:",
@@ -8259,10 +8466,7 @@
       "loadingCameraModule": "Loading camera module..."
     },
     "foodResultCard": {
-      "estimate": "estimate",
-      "gi": "GI: {{glycemic_index}}",
-      "per": "Per",
-      "ai": "AI"
+      "gi": "GI: {{glycemic_index}}"
     },
     "searchingBarcode": "Searching barcode",
     "lookingUp": "Looking up: {{barcode}}...",
@@ -8313,8 +8517,8 @@
       "aliasAdded": "Alias added",
       "willNowImportInto": "\"{{label}}\" will now import into {{name}}.",
       "failedToAddAliasPlease": "Failed to add alias. Please try again.",
-      "nutrientFieldsReportedBy": "Nutrient fields reported by {{providerLabel}}( {{length}})",
-      "theseAreTheExactField": "These are the exact field names {{providerLabel}}uses. Add one as an alias so it imports into your custom nutrient. Matching ignores case and punctuation.",
+      "nutrientFieldsReportedBy": "Nutrient fields reported by {{providerLabel}} ( {{length}})",
+      "theseAreTheExactField": "These are the exact field names {{providerLabel}} uses. Add one as an alias so it imports into your custom nutrient. Matching ignores case and punctuation.",
       "viewThisFoodOn": "View this food on {{providerLabel}}",
       "standard": "Standard: {{standardLabel}}",
       "addAsAlias": "Add as alias",
@@ -8331,11 +8535,10 @@
       "removeUnit": "Remove Unit",
       "equivalentSize": "Equivalent Size",
       "removeEquivalent": "Remove Equivalent",
-      "nutritionPer": "Nutrition per",
-      "estimate": "estimate",
       "allergens": "Allergens",
       "customAllergen": "Custom allergen…",
-      "custom": "Custom"
+      "nutritionPer2": "Nutrition per {{variant}}",
+      "estimate2": "{{ai_confidence}} estimate"
     }
   },
   "gitHubSponsorButton": {
@@ -8345,21 +8548,17 @@
     "criticalWARNINGTHISRELEASECONTAINS": "CRITICAL WARNING: THIS RELEASE CONTAINS BREAKING CHANGES!",
     "newVersionAvailable": "New Version Available: {{version}}",
     "aNewVersionOfSparkyFitness": "A new version of SparkyFitness is available!",
-    "published": "Published:",
     "releaseNotes": "Release Notes:",
     "pleaseScrollToTheBottom": "⚠️ Please scroll to the bottom of the release notes to finish reading.",
     "iHaveReadAndUnderstood": "I have read and understood the release notes.",
-    "iAcknowledgeThatThisRelease": "I acknowledge that this release contains a",
-    "andIHaveReadThe": "and I have read the changes.",
-    "breakingCHANGE": "BREAKING CHANGE",
     "pleaseContactThePlatformAdministrator": "Please contact the platform administrator to coordinate updates before proceeding.",
     "checkingThisBoxConfirmsYou": "Checking this box confirms you are up-to-date with the latest changes.",
-    "toConfirmYouUnderstandPlease": "To confirm you understand, please type",
-    "below": "below:",
-    "breaking": "BREAKING",
     "typeBREAKINGHere": "Type 'BREAKING' here",
-    "viewOnGitHub": "View on GitHub:",
-    "donTShowAgainFor": "Don't show again for this version"
+    "donTShowAgainFor": "Don't show again for this version",
+    "published2": "Published: {{value}}",
+    "iAcknowledgeThatThisRelease2": "I acknowledge that this release contains a <span>BREAKING CHANGE</span> and I have read the changes.",
+    "toConfirmYouUnderstandPlease2": "To confirm you understand, please type <strong>BREAKING</strong> below:",
+    "viewOnGitHub2": "View on GitHub: <link>{{htmlUrl}}</link>"
   },
   "oidcCallback": {
     "completingSecureLogin": "Completing Secure Login...",
@@ -8383,8 +8582,7 @@
   "ai": {
     "foodPhotoEstimateToolUI": {
       "eGChickenPennePasta": "e.g. Chicken Penne Pasta",
-      "matched": "✓ Matched",
-      "kcalP": "kcal · P:"
+      "matched": "✓ Matched"
     },
     "userServiceListItem": {
       "editService": "Edit Service",
@@ -8444,8 +8642,7 @@
     }
   },
   "mainLayout": {
-    "sparkyFitnessLogo": "SparkyFitness Logo",
-    "sparkyFitnessV": "SparkyFitness v"
+    "sparkyFitnessLogo": "SparkyFitness Logo"
   },
   "ttc": {
     "testQuickLog": {

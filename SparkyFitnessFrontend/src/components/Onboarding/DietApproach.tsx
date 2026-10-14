@@ -134,11 +134,12 @@ export const DietApproach = ({
                       : 'text-yellow-500'
                   }`}
                 >
-                  {t('onboarding.dietApproach.total', 'Total:')}{' '}
-                  {Math.round(customPercentages.carbs) +
-                    Math.round(customPercentages.protein) +
-                    Math.round(customPercentages.fat)}
-                  %
+                  {t('onboarding.dietApproach.total2', 'Total: {{carbs}}%', {
+                    carbs:
+                      Math.round(customPercentages.carbs) +
+                      Math.round(customPercentages.protein) +
+                      Math.round(customPercentages.fat),
+                  })}
                 </span>
               </div>
 

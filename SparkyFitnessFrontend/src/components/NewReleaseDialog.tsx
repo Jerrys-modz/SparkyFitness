@@ -16,7 +16,7 @@ import {
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 export interface ReleaseInfo {
   version: string;
   releaseNotes: string;
@@ -203,8 +203,9 @@ const NewReleaseDialog: React.FC<NewReleaseDialogProps> = ({
               )}
             </p>
             <p className="text-xs text-muted-foreground">
-              {t('newReleaseDialog.published', 'Published:')}{' '}
-              {new Date(releaseInfo.publishedAt).toLocaleDateString()}
+              {t('newReleaseDialog.published2', 'Published: {{value}}', {
+                value: new Date(releaseInfo.publishedAt).toLocaleDateString(),
+              })}
             </p>
 
             <div
@@ -360,20 +361,17 @@ const NewReleaseDialog: React.FC<NewReleaseDialogProps> = ({
                   >
                     {hasBreakingChange ? (
                       <>
-                        {t(
-                          'newReleaseDialog.iAcknowledgeThatThisRelease',
-                          'I acknowledge that this release contains a'
-                        )}{' '}
-                        <span className="underline decoration-wavy decoration-red-500">
-                          {t(
-                            'newReleaseDialog.breakingCHANGE',
-                            'BREAKING CHANGE'
-                          )}
-                        </span>{' '}
-                        {t(
-                          'newReleaseDialog.andIHaveReadThe',
-                          'and I have read the changes.'
-                        )}
+                        <Trans
+                          i18nKey="newReleaseDialog.iAcknowledgeThatThisRelease2"
+                          defaults={
+                            'I acknowledge that this release contains a <span>BREAKING CHANGE</span> and I have read the changes.'
+                          }
+                          components={{
+                            span: (
+                              <span className="underline decoration-wavy decoration-red-500" />
+                            ),
+                          }}
+                        />
                       </>
                     ) : (
                       t(
@@ -407,14 +405,17 @@ const NewReleaseDialog: React.FC<NewReleaseDialogProps> = ({
                         htmlFor="confirm-text-input"
                         className="text-xs font-semibold text-red-800 dark:text-red-300"
                       >
-                        {t(
-                          'newReleaseDialog.toConfirmYouUnderstandPlease',
-                          'To confirm you understand, please type'
-                        )}{' '}
-                        <strong className="font-mono text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950/40 px-1 py-0.5 rounded border border-red-200 dark:border-red-900/40">
-                          {t('newReleaseDialog.breaking', 'BREAKING')}
-                        </strong>{' '}
-                        {t('newReleaseDialog.below', 'below:')}
+                        <Trans
+                          i18nKey="newReleaseDialog.toConfirmYouUnderstandPlease2"
+                          defaults={
+                            'To confirm you understand, please type <strong>BREAKING</strong> below:'
+                          }
+                          components={{
+                            strong: (
+                              <strong className="font-mono text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950/40 px-1 py-0.5 rounded border border-red-200 dark:border-red-900/40" />
+                            ),
+                          }}
+                        />
                       </label>
                       <Input
                         id="confirm-text-input"
@@ -435,15 +436,21 @@ const NewReleaseDialog: React.FC<NewReleaseDialogProps> = ({
             )}
 
             <p className="mt-4 text-xs">
-              {t('newReleaseDialog.viewOnGitHub', 'View on GitHub:')}{' '}
-              <a
-                href={releaseInfo.htmlUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:underline"
-              >
-                {releaseInfo.htmlUrl}
-              </a>
+              <Trans
+                i18nKey="newReleaseDialog.viewOnGitHub2"
+                defaults={'View on GitHub: <link>{{htmlUrl}}</link>'}
+                values={{ htmlUrl: releaseInfo.htmlUrl }}
+                components={{
+                  link: (
+                    <a
+                      href={releaseInfo.htmlUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline"
+                    />
+                  ),
+                }}
+              />
             </p>
           </AlertDialogDescription>
         </AlertDialogHeader>

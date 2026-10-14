@@ -1,5 +1,5 @@
 import { useMemo, useState, ReactNode } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { todayInZone, daysBetween } from '@workspace/shared';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import {
@@ -323,15 +323,22 @@ export default function CycleToday() {
                     <p>
                       {lastStartFormatted && nextStartFormatted ? (
                         <>
-                          {t(
-                            'cycle.today.guide.periodDescDynamic',
-                            'Calculated as:'
-                          )}{' '}
-                          <span className="font-medium text-foreground">
-                            {lastStartFormatted} + {cycleLength}{' '}
-                            {t('cycle.today.guide.days', 'days')} ={' '}
-                            {nextStartFormatted}
-                          </span>
+                          <Trans
+                            i18nKey="cycle.today.guide.calculatedAsDays"
+                            defaults={
+                              'Calculated as: <span>{{lastStartFormatted}} + {{cycleLength}} days = {{nextStartFormatted}}</span>'
+                            }
+                            values={{
+                              lastStartFormatted,
+                              cycleLength,
+                              nextStartFormatted,
+                            }}
+                            components={{
+                              span: (
+                                <span className="font-medium text-foreground" />
+                              ),
+                            }}
+                          />
                         </>
                       ) : (
                         t(
@@ -348,15 +355,22 @@ export default function CycleToday() {
                     <p>
                       {nextStartFormatted && ovulationFormatted ? (
                         <>
-                          {t(
-                            'cycle.today.guide.ovulationDescDynamic',
-                            'Calculated as:'
-                          )}{' '}
-                          <span className="font-medium text-foreground">
-                            {nextStartFormatted} - {lutealPhase}{' '}
-                            {t('cycle.today.guide.days', 'days')} ={' '}
-                            {ovulationFormatted}
-                          </span>
+                          <Trans
+                            i18nKey="cycle.today.guide.calculatedAsDays2"
+                            defaults={
+                              'Calculated as: <span>{{nextStartFormatted}} - {{lutealPhase}} days = {{ovulationFormatted}}</span>'
+                            }
+                            values={{
+                              nextStartFormatted,
+                              lutealPhase,
+                              ovulationFormatted,
+                            }}
+                            components={{
+                              span: (
+                                <span className="font-medium text-foreground" />
+                              ),
+                            }}
+                          />
                         </>
                       ) : (
                         t(
@@ -378,22 +392,24 @@ export default function CycleToday() {
                       lastStartFormatted &&
                       ovulationFormatted ? (
                         <>
-                          {t(
-                            'cycle.today.guide.follicularDescDynamic',
-                            'Calculated as:'
-                          )}{' '}
-                          <span className="font-medium text-foreground">
-                            {cycleLength} {t('cycle.today.guide.days', 'days')}{' '}
-                            - {lutealPhase}{' '}
-                            {t('cycle.today.guide.days', 'days')} ={' '}
-                            {follicularLength}{' '}
-                            {t('cycle.today.guide.days', 'days')}
-                          </span>{' '}
-                          {t(
-                            'cycle.cycleToday.fromTo',
-                            '(from {{lastStartFormatted}}to {{ovulationFormatted}}).',
-                            { lastStartFormatted, ovulationFormatted }
-                          )}
+                          <Trans
+                            i18nKey="cycle.today.guide.calculatedAsDaysDaysDays"
+                            defaults={
+                              'Calculated as: <span>{{cycleLength}} days - {{lutealPhase}} days = {{follicularLength}} days</span> (from {{lastStartFormatted}} to {{ovulationFormatted}}).'
+                            }
+                            values={{
+                              cycleLength,
+                              lutealPhase,
+                              follicularLength,
+                              lastStartFormatted,
+                              ovulationFormatted,
+                            }}
+                            components={{
+                              span: (
+                                <span className="font-medium text-foreground" />
+                              ),
+                            }}
+                          />
                         </>
                       ) : (
                         t(
@@ -412,22 +428,22 @@ export default function CycleToday() {
                       fertileStartFormatted &&
                       fertileEndFormatted ? (
                         <>
-                          {t(
-                            'cycle.today.guide.fertileDescDynamic',
-                            'Calculated as:'
-                          )}{' '}
-                          <span className="font-medium text-foreground">
-                            {ovulationFormatted} - 5{' '}
-                            {t('cycle.today.guide.days', 'days')}{' '}
-                            {t('cycle.cycleToday.to', 'to')}{' '}
-                            {ovulationFormatted} + 1{' '}
-                            {t('cycle.today.guide.day', 'day')}
-                          </span>{' '}
-                          {t(
-                            'cycle.cycleToday.fromTo2',
-                            '(from {{fertileStartFormatted}}to {{fertileEndFormatted}}).',
-                            { fertileStartFormatted, fertileEndFormatted }
-                          )}
+                          <Trans
+                            i18nKey="cycle.today.guide.calculatedAs5DaysTo"
+                            defaults={
+                              'Calculated as: <span>{{ovulationFormatted}} - 5 days to {{ovulationFormatted}} + 1 day</span> (from {{fertileStartFormatted}} to {{fertileEndFormatted}} ).'
+                            }
+                            values={{
+                              ovulationFormatted,
+                              fertileStartFormatted,
+                              fertileEndFormatted,
+                            }}
+                            components={{
+                              span: (
+                                <span className="font-medium text-foreground" />
+                              ),
+                            }}
+                          />
                         </>
                       ) : (
                         t(

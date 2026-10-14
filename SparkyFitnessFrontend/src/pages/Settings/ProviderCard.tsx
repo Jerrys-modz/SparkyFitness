@@ -739,40 +739,26 @@ export const ProviderCard = ({
 
         {provider.provider_type === 'swissfood' && (
           <p className="text-xs text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">
-            {t(
-              'settings.providerCard.supportedLanguages',
-              'Supported languages:'
-            )}{' '}
-            <strong>
-              {t('settings.providerCard.englishEn', 'English (en)')}
-            </strong>
-            ,{' '}
-            <strong>
-              {t('settings.providerCard.germanDe', 'German (de)')}
-            </strong>
-            ,{' '}
-            <strong>
-              {t('settings.providerCard.frenchFr', 'French (fr)')}
-            </strong>
-            {t('settings.providerCard.and', ', and')}{' '}
-            <strong>
-              {t('settings.providerCard.italianIt', 'Italian (it)')}
-            </strong>
-            {t(
-              'settings.providerCard.defaultsToEnglishIfYour',
-              '. Defaults to English if your active language is not supported.'
-            )}{' '}
-            <a
-              href="https://naehrwertdaten.ch/en/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium ml-1"
-            >
-              {t(
-                'settings.providerCard.swissFoodCompositionDatabase',
-                'Swiss Food Composition Database'
-              )}
-            </a>
+            <Trans
+              i18nKey="settings.providerCard.supportedLanguagesEnglishEnGerman"
+              defaults={
+                'Supported languages: <strong>English (en)</strong>, <strong2>German (de)</strong2>, <strong3>French (fr)</strong3>, and <strong4>Italian (it)</strong4>. Defaults to English if your active language is not supported. <link>Swiss Food Composition Database</link>'
+              }
+              components={{
+                strong: <strong />,
+                strong2: <strong />,
+                strong3: <strong />,
+                strong4: <strong />,
+                link: (
+                  <a
+                    href="https://naehrwertdaten.ch/en/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium ml-1"
+                  />
+                ),
+              }}
+            />
           </p>
         )}
 
@@ -811,11 +797,10 @@ export const ProviderCard = ({
                   <span className="flex items-center gap-1.5">
                     <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
                     {t(
-                      'settings.providerCard.importingCatalog',
-                      'Importing catalog: {{processed}}/ {{total}}',
+                      'settings.providerCard.importingCatalogFoods',
+                      'Importing catalog: {{processed}} / {{total}} foods',
                       { processed: cnfStatus.processed, total: cnfStatus.total }
-                    )}{' '}
-                    {t('settings.providerCard.foods', 'foods')}
+                    )}
                   </span>
                   <span className="font-mono text-xs font-semibold">
                     {cnfStatus.progress}%
@@ -826,12 +811,12 @@ export const ProviderCard = ({
                   <span>
                     {t(
                       'settings.providerCard.imported',
-                      '{{imported}}imported',
+                      '{{imported}} imported',
                       { imported: cnfStatus.imported }
                     )}
                   </span>
                   <span>
-                    {t('settings.providerCard.updated', '{{updated}}updated', {
+                    {t('settings.providerCard.updated', '{{updated}} updated', {
                       updated: cnfStatus.updated,
                     })}
                   </span>
@@ -843,43 +828,43 @@ export const ProviderCard = ({
 
         {provider.provider_type === 'free-exercise-db' && (
           <p className="text-xs text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">
-            {t(
-              'settings.providerCard.fetchesExerciseDataDirectlyFrom',
-              'Fetches exercise data directly from the community repository at'
-            )}{' '}
-            <a
-              href="https://github.com/yuhonas/free-exercise-db"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              {t(
-                'settings.providerCard.yuhonasFreeExerciseDbOn',
-                'yuhonas/free-exercise-db on GitHub'
-              )}
-            </a>
-            .
+            <Trans
+              i18nKey="settings.providerCard.fetchesExerciseDataDirectlyFrom2"
+              defaults={
+                'Fetches exercise data directly from the community repository at <link>yuhonas/free-exercise-db on GitHub</link>.'
+              }
+              components={{
+                link: (
+                  <a
+                    href="https://github.com/yuhonas/free-exercise-db"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+              }}
+            />
           </p>
         )}
 
         {provider.provider_type === 'wger' && (
           <p className="text-xs text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">
-            {t(
-              'settings.providerCard.theWgerProviderIsPublic',
-              'The wger provider is public, free, and requires no credentials. It fetches workout and exercise data directly from the official'
-            )}{' '}
-            <a
-              href="https://wger.de/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              {t(
-                'settings.providerCard.wgerProjectWebsite',
-                'wger Project Website'
-              )}
-            </a>
-            .
+            <Trans
+              i18nKey="settings.providerCard.theWgerProviderIsPublic2"
+              defaults={
+                'The wger provider is public, free, and requires no credentials. It fetches workout and exercise data directly from the official <link>wger Project Website</link>.'
+              }
+              components={{
+                link: (
+                  <a
+                    href="https://wger.de/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+              }}
+            />
           </p>
         )}
 
@@ -888,19 +873,23 @@ export const ProviderCard = ({
           if (!portal) return null;
           return (
             <p className="text-xs text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">
-              {t(
-                'settings.providerCard.forMoreDetailsOrTo',
-                'For more details or to manage your integration, visit the'
-              )}{' '}
-              <a
-                href={portal.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline font-medium"
-              >
-                {portal.label}
-              </a>
-              .
+              <Trans
+                i18nKey="settings.providerCard.forMoreDetailsOrTo2"
+                defaults={
+                  'For more details or to manage your integration, visit the <link>{{label}}</link>.'
+                }
+                values={{ label: portal.label }}
+                components={{
+                  link: (
+                    <a
+                      href={portal.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline font-medium"
+                    />
+                  ),
+                }}
+              />
             </p>
           );
         })()}
@@ -909,15 +898,19 @@ export const ProviderCard = ({
           <div className="text-sm text-muted-foreground">
             {config.lastSync && (
               <span>
-                {t('settings.providerCard.lastSync', 'Last Sync:')}{' '}
-                {new Date(config.lastSync).toLocaleString()}
+                {t('settings.providerCard.lastSync2', 'Last Sync: {{value}}', {
+                  value: new Date(config.lastSync).toLocaleString(),
+                })}
               </span>
             )}
             {config.lastSync && config.tokenExpires && <span> | </span>}
             {config.tokenExpires && (
               <span>
-                {t('settings.providerCard.tokenExpires', 'Token Expires:')}{' '}
-                {new Date(config.tokenExpires).toLocaleString()}
+                {t(
+                  'settings.providerCard.tokenExpires2',
+                  'Token Expires: {{value}}',
+                  { value: new Date(config.tokenExpires).toLocaleString() }
+                )}
               </span>
             )}
           </div>
@@ -943,18 +936,14 @@ export const ProviderCard = ({
         'coros_mcp',
       ].includes(provider.provider_type) && (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-2 text-xs text-yellow-800 dark:text-yellow-200 mt-2 flex items-center gap-1">
-          <strong>
-            {t(
-              'settings.providerCard.noteFromCodewithCJ',
-              'Note from CodewithCJ:'
-            )}
-          </strong>{' '}
-          {t('settings.providerCard.iDonTOwn', "I don't own")}{' '}
-          {t(
-            'settings.providerCard.deviceSubscription',
-            '{{provider_name}}device/subscription.',
-            { provider_name: provider.provider_name }
-          )}
+          <Trans
+            i18nKey="settings.providerCard.noteFromCodewithCJIDon"
+            defaults={
+              "<strong>Note from CodewithCJ:</strong> I don't own {{provider_name}} device/subscription."
+            }
+            values={{ provider_name: provider.provider_name }}
+            components={{ strong: <strong /> }}
+          />
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -973,41 +962,26 @@ export const ProviderCard = ({
                   )}
                 </p>
                 <p className="mt-2 text-xs">
-                  {t('settings.providerCard.enable', 'Enable')}{' '}
-                  <strong>
-                    {t(
-                      'settings.providerCard.allowLocalProviderResponseCapture',
-                      'Allow Local Provider Response Capture'
-                    )}
-                  </strong>{' '}
-                  in{' '}
-                  <strong>
-                    {t(
-                      'settings.providerCard.adminGlobalProviderSettings',
-                      'Admin > Global Provider Settings'
-                    )}
-                  </strong>
-                  {t('settings.providerCard.thenCheck', ', then check')}{' '}
-                  <strong>
-                    {t(
-                      'settings.providerCard.captureRawProviderResponse',
-                      'Capture raw provider response'
-                    )}
-                  </strong>{' '}
-                  {t(
-                    'settings.providerCard.inTheSyncRangeDialog',
-                    'in the Sync Range dialog.'
-                  )}
+                  <Trans
+                    i18nKey="settings.providerCard.enableAllowLocalProviderResponse"
+                    defaults={
+                      'Enable <strong>Allow Local Provider Response Capture</strong> in <strong2>Admin > Global Provider Settings</strong2>, then check <strong3>Capture raw provider response</strong3> in the Sync Range dialog.'
+                    }
+                    components={{
+                      strong: <strong />,
+                      strong2: <strong />,
+                      strong3: <strong />,
+                    }}
+                  />
                 </p>
                 <p className="mt-2 text-xs">
-                  {t(
-                    'settings.providerCard.shareTheExportedDiagnosticBundle',
-                    'Share the exported diagnostic bundle with'
-                  )}{' '}
-                  <strong>
-                    {t('settings.providerCard.codewithCJ', 'CodewithCJ')}
-                  </strong>{' '}
-                  {t('settings.providerCard.onDiscord', 'on Discord.')}
+                  <Trans
+                    i18nKey="settings.providerCard.shareTheExportedDiagnosticBundle2"
+                    defaults={
+                      'Share the exported diagnostic bundle with <strong>CodewithCJ</strong> on Discord.'
+                    }
+                    components={{ strong: <strong /> }}
+                  />
                 </p>
               </TooltipContent>
             </Tooltip>

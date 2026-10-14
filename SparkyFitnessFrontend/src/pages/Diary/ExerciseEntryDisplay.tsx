@@ -348,7 +348,7 @@ const ExerciseEntryDisplay: React.FC<ExerciseEntryDisplayProps> = ({
         {snapshot?.primary_muscles && snapshot.primary_muscles.length > 0 && (
           <div className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug">
             <span className="font-medium text-gray-500 dark:text-gray-400">
-              {t('exerciseCard.primaryMusclesLabel', 'Primary Muscles')}:{' '}
+              {t('exerciseCard.primaryMuscles2', 'Primary Muscles:')}{' '}
             </span>
             {snapshot.primary_muscles
               .map((m) => localizeMuscle(t, m))
@@ -359,8 +359,7 @@ const ExerciseEntryDisplay: React.FC<ExerciseEntryDisplayProps> = ({
           snapshot.secondary_muscles.length > 0 && (
             <div className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug">
               <span className="font-medium text-gray-500 dark:text-gray-400">
-                {t('exerciseCard.secondaryMusclesLabel', 'Secondary Muscles')}
-                :{' '}
+                {t('exerciseCard.secondaryMuscles2', 'Secondary Muscles:')}{' '}
               </span>
               {snapshot.secondary_muscles
                 .map((m) => localizeMuscle(t, m))
@@ -370,7 +369,7 @@ const ExerciseEntryDisplay: React.FC<ExerciseEntryDisplayProps> = ({
         {snapshot?.equipment && snapshot.equipment.length > 0 && (
           <div className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug">
             <span className="font-medium text-gray-500 dark:text-gray-400">
-              {t('exerciseCard.equipmentLabel', 'Equipment')}:{' '}
+              {t('exerciseCard.equipment2', 'Equipment:')}{' '}
             </span>
             {snapshot.equipment
               .map((eq) => localizeEquipment(t, eq))

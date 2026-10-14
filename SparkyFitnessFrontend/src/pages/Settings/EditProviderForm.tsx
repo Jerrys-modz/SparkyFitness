@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Clipboard } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import type { ExternalDataProvider } from './ExternalProviderSettings';
 import { toast } from '@/hooks/use-toast';
 import { useExternalProviderTypesQuery } from '@/hooks/Settings/useExternalProviderSettings';
@@ -195,37 +195,30 @@ export const EditProviderForm = ({
             )}
           </p>
           <p className="text-sm text-muted-foreground col-span-2">
-            {t(
-              'settings.editProviderForm.openFoodFactsIsA',
-              'Open Food Facts is a community-driven database that supports localization. Sparky automatically queries products in your active language setting in SparkyFitness. For more information, visit the'
-            )}{' '}
-            <a
-              href="https://world.openfoodfacts.org/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              {t(
-                'settings.editProviderForm.openFoodFactsPortal',
-                'Open Food Facts Portal'
-              )}
-            </a>{' '}
-            {t(
-              'settings.editProviderForm.orLearnAboutLanguageSupport',
-              'or learn about language support in the'
-            )}{' '}
-            <a
-              href="https://en.wiki.openfoodfacts.org/Translations"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              {t(
-                'settings.editProviderForm.openFoodFactsTranslationsWiki',
-                'Open Food Facts Translations Wiki'
-              )}
-            </a>
-            .
+            <Trans
+              i18nKey="settings.editProviderForm.openFoodFactsIsA2"
+              defaults={
+                'Open Food Facts is a community-driven database that supports localization. Sparky automatically queries products in your active language setting in SparkyFitness. For more information, visit the <link>Open Food Facts Portal</link> or learn about language support in the <link2>Open Food Facts Translations Wiki</link2>.'
+              }
+              components={{
+                link: (
+                  <a
+                    href="https://world.openfoodfacts.org/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+                link2: (
+                  <a
+                    href="https://en.wiki.openfoodfacts.org/Translations"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+              }}
+            />
           </p>
         </>
       )}
@@ -352,17 +345,13 @@ export const EditProviderForm = ({
           </div>
           {editData.provider_type === 'fatsecret' && (
             <p className="text-sm text-muted-foreground col-span-2">
-              {t(
-                'settings.editProviderForm.noteForFatsecretYouNeed',
-                'Note: For Fatsecret, you need to set up'
-              )}{' '}
-              <strong>
-                {t('settings.editProviderForm.yourPublicIP', 'your public IP')}
-              </strong>{' '}
-              {t(
-                'settings.editProviderForm.whitelistingInYourFatsecretDeveloper',
-                'whitelisting in your Fatsecret developer account. This process can take up to 24 hours.'
-              )}
+              <Trans
+                i18nKey="settings.editProviderForm.noteForFatsecretYouNeed2"
+                defaults={
+                  'Note: For Fatsecret, you need to set up <strong>your public IP</strong> whitelisting in your Fatsecret developer account. This process can take up to 24 hours.'
+                }
+                components={{ strong: <strong /> }}
+              />
             </p>
           )}
         </>
@@ -378,58 +367,35 @@ export const EditProviderForm = ({
                 )}
               </p>
               <p className="text-sm text-red-700 dark:text-red-300">
-                {t(
-                  'settings.editProviderForm.yazioIntegrationUsesAn',
-                  'YAZIO integration uses an'
-                )}{' '}
-                <strong>
-                  {t(
-                    'settings.editProviderForm.unofficialUndocumentedAPI',
-                    'unofficial, undocumented API'
-                  )}
-                </strong>{' '}
-                {t(
-                  'settings.editProviderForm.thatIsNotProvidedOr',
-                  'that is not provided or endorsed by YAZIO. Using it may'
-                )}{' '}
-                <strong>
-                  {t(
-                    'settings.editProviderForm.riskGettingYourYAZIOAccount',
-                    'risk getting your YAZIO account banned'
-                  )}
-                </strong>
-                {t(
-                  'settings.editProviderForm.theAPICouldAlso',
-                  '. The API could also'
-                )}{' '}
-                <strong>
-                  {t(
-                    'settings.editProviderForm.stopWorkingAtAnyTime',
-                    'stop working at any time'
-                  )}
-                </strong>{' '}
-                {t(
-                  'settings.editProviderForm.withoutNoticeIfYAZIOChanges',
-                  'without notice if YAZIO changes their backend.'
-                )}
+                <Trans
+                  i18nKey="settings.editProviderForm.yazioIntegrationUsesAnUnofficial"
+                  defaults={
+                    'YAZIO integration uses an <strong>unofficial, undocumented API</strong> that is not provided or endorsed by YAZIO. Using it may <strong2>risk getting your YAZIO account banned</strong2>. The API could also <strong3>stop working at any time</strong3> without notice if YAZIO changes their backend.'
+                  }
+                  components={{
+                    strong: <strong />,
+                    strong2: <strong />,
+                    strong3: <strong />,
+                  }}
+                />
               </p>
               <p className="text-sm text-red-700 dark:text-red-300">
-                {t(
-                  'settings.editProviderForm.forMoreInformationClientCredentials',
-                  'For more information & client credentials, see'
-                )}{' '}
-                <a
-                  href="https://github.com/saganos/yazio_public_api"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-red-800 dark:text-red-200 underline font-medium"
-                >
-                  {t(
-                    'settings.editProviderForm.saganosYazioPublicApi',
-                    'saganos/yazio_public_api'
-                  )}
-                </a>
-                .
+                <Trans
+                  i18nKey="settings.editProviderForm.forMoreInformationClientCredentials2"
+                  defaults={
+                    'For more information & client credentials, see <link>saganos/yazio_public_api</link>.'
+                  }
+                  components={{
+                    link: (
+                      <a
+                        href="https://github.com/saganos/yazio_public_api"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-red-800 dark:text-red-200 underline font-medium"
+                      />
+                    ),
+                  }}
+                />
               </p>
             </div>
           </div>
@@ -532,52 +498,43 @@ export const EditProviderForm = ({
       )}
       {editData.provider_type === 'nutritionix' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          {t(
-            'settings.editProviderForm.getYourAppIDAnd',
-            'Get your App ID and App Key from the'
-          )}{' '}
-          <a
-            href="https://developer.nutritionix.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 underline"
-          >
-            {t(
-              'settings.editProviderForm.nutritionixDeveloperPortal',
-              'Nutritionix Developer Portal'
-            )}
-          </a>
-          .
+          <Trans
+            i18nKey="settings.editProviderForm.getYourAppIDAnd2"
+            defaults={
+              'Get your App ID and App Key from the <link>Nutritionix Developer Portal</link>.'
+            }
+            components={{
+              link: (
+                <a
+                  href="https://developer.nutritionix.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 underline"
+                />
+              ),
+            }}
+          />
         </p>
       )}
       {editData.provider_type === 'fatsecret' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          {t(
-            'settings.editProviderForm.getYourClientIDAnd',
-            'Get your Client ID and Client Secret from the'
-          )}{' '}
-          <a
-            href="https://platform.fatsecret.com/my-account/dashboard"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 underline"
-          >
-            {t(
-              'settings.editProviderForm.fatsecretPlatformDashboard',
-              'Fatsecret Platform Dashboard'
-            )}
-          </a>
-          {t('settings.editProviderForm.under', ', under')}{' '}
-          <strong>
-            {t(
-              'settings.editProviderForm.restAPIOAuth20',
-              'REST API OAuth 2.0 Credentials'
-            )}
-          </strong>{' '}
-          {t(
-            'settings.editProviderForm.notTheOAuth10',
-            '(not the OAuth 1.0 Consumer Key/Secret).'
-          )}
+          <Trans
+            i18nKey="settings.editProviderForm.getYourClientIDAnd2"
+            defaults={
+              'Get your Client ID and Client Secret from the <link>Fatsecret Platform Dashboard</link>, under <strong>REST API OAuth 2.0 Credentials</strong> (not the OAuth 1.0 Consumer Key/Secret).'
+            }
+            components={{
+              link: (
+                <a
+                  href="https://platform.fatsecret.com/my-account/dashboard"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 underline"
+                />
+              ),
+              strong: <strong />,
+            }}
+          />
         </p>
       )}
       {editData.provider_type === 'usda' && (
@@ -601,22 +558,22 @@ export const EditProviderForm = ({
             />
           </div>
           <p className="text-sm text-muted-foreground col-span-2">
-            {t(
-              'settings.editProviderForm.getYourAPIKeyFrom',
-              'Get your API Key from the'
-            )}{' '}
-            <a
-              href="https://fdc.nal.usda.gov/api-guide.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 underline"
-            >
-              {t(
-                'settings.editProviderForm.usdaFoodDataCentralAPIGuide',
-                'USDA FoodData Central API Guide'
-              )}
-            </a>
-            .
+            <Trans
+              i18nKey="settings.editProviderForm.getYourAPIKeyFrom3"
+              defaults={
+                'Get your API Key from the <link>USDA FoodData Central API Guide</link>.'
+              }
+              components={{
+                link: (
+                  <a
+                    href="https://fdc.nal.usda.gov/api-guide.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 underline"
+                  />
+                ),
+              }}
+            />
           </p>
         </>
       )}
@@ -663,27 +620,23 @@ export const EditProviderForm = ({
             />
           </div>
           <p className="text-sm text-muted-foreground col-span-2">
-            {t(
-              'settings.editProviderForm.withingsIntegrationUsesOAuth2You',
-              'Withings integration uses OAuth2. You will be redirected to Withings to authorize access after adding the provider.'
-            )}
-            <br />
-            {t('settings.editProviderForm.inYour', 'In your')}{' '}
-            <a
-              href="https://developer.withings.com/dashboard/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 underline"
-            >
-              {t(
-                'settings.editProviderForm.withingsDeveloperDashboard',
-                'Withings Developer Dashboard'
-              )}
-            </a>
-            {t(
-              'settings.editProviderForm.youMustSetYourCallback',
-              ', you must set your callback URL to:'
-            )}
+            <Trans
+              i18nKey="settings.editProviderForm.withingsIntegrationUsesOAuth2You2"
+              defaults={
+                'Withings integration uses OAuth2. You will be redirected to Withings to authorize access after adding the provider.<br/>In your <link>Withings Developer Dashboard</link>, you must set your callback URL to:'
+              }
+              components={{
+                br: <br />,
+                link: (
+                  <a
+                    href="https://developer.withings.com/dashboard/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 underline"
+                  />
+                ),
+              }}
+            />
             <strong className="flex items-center">
               {`${window.location.origin}/withings/callback`}
               <Button
@@ -778,15 +731,13 @@ export const EditProviderForm = ({
                 />
               </div>
               <p className="text-sm text-muted-foreground col-span-2">
-                {t(
-                  'settings.editProviderForm.noteGarminConnectIntegrationIs',
-                  'Note: Garmin Connect integration is tested with few metrics only. Ensure your Docker Compose is updated to include Garmin section.'
-                )}
-                <br />
-                {t(
-                  'settings.editProviderForm.sparkyFitnessDoesNotStore',
-                  'Sparky Fitness does not store your Garmin email or password. They are used only during login to obtain secure tokens.'
-                )}
+                <Trans
+                  i18nKey="settings.editProviderForm.noteGarminConnectIntegrationIs2"
+                  defaults={
+                    'Note: Garmin Connect integration is tested with few metrics only. Ensure your Docker Compose is updated to include Garmin section.<br/>Sparky Fitness does not store your Garmin email or password. They are used only during login to obtain secure tokens.'
+                  }
+                  components={{ br: <br /> }}
+                />
               </p>
             </>
           )}
@@ -835,27 +786,23 @@ export const EditProviderForm = ({
             />
           </div>
           <p className="text-sm text-muted-foreground col-span-2">
-            {t(
-              'settings.editProviderForm.fitbitIntegrationUsesOAuth2You',
-              'Fitbit integration uses OAuth2. You will be redirected to Fitbit to authorize access after adding the provider.'
-            )}
-            <br />
-            {t('settings.editProviderForm.inYour', 'In your')}{' '}
-            <a
-              href="https://dev.fitbit.com/apps"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 underline"
-            >
-              {t(
-                'settings.editProviderForm.fitbitDeveloperDashboard',
-                'Fitbit Developer Dashboard'
-              )}
-            </a>
-            {t(
-              'settings.editProviderForm.youMustSetYourCallback',
-              ', you must set your callback URL to:'
-            )}
+            <Trans
+              i18nKey="settings.editProviderForm.fitbitIntegrationUsesOAuth2You2"
+              defaults={
+                'Fitbit integration uses OAuth2. You will be redirected to Fitbit to authorize access after adding the provider.<br/>In your <link>Fitbit Developer Dashboard</link>, you must set your callback URL to:'
+              }
+              components={{
+                br: <br />,
+                link: (
+                  <a
+                    href="https://dev.fitbit.com/apps"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 underline"
+                  />
+                ),
+              }}
+            />
             <strong className="flex items-center">
               {`${window.location.origin}/fitbit/callback`}
               <Button
@@ -925,27 +872,23 @@ export const EditProviderForm = ({
             />
           </div>
           <p className="text-sm text-muted-foreground col-span-2">
-            {t(
-              'settings.editProviderForm.ouraIntegrationUsesOAuth2You',
-              'Oura integration uses OAuth2. You will be redirected to Oura to authorize access after adding the provider.'
-            )}
-            <br />
-            {t('settings.editProviderForm.inYour', 'In your')}{' '}
-            <a
-              href="https://developer.ouraring.com/applications"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 underline"
-            >
-              {t(
-                'settings.editProviderForm.ouraDeveloperPortal',
-                'Oura Developer Portal'
-              )}
-            </a>
-            {t(
-              'settings.editProviderForm.youMustSetYourCallback',
-              ', you must set your callback URL to:'
-            )}
+            <Trans
+              i18nKey="settings.editProviderForm.ouraIntegrationUsesOAuth2You2"
+              defaults={
+                'Oura integration uses OAuth2. You will be redirected to Oura to authorize access after adding the provider.<br/>In your <link>Oura Developer Portal</link>, you must set your callback URL to:'
+              }
+              components={{
+                br: <br />,
+                link: (
+                  <a
+                    href="https://developer.ouraring.com/applications"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 underline"
+                  />
+                ),
+              }}
+            />
             <strong className="flex items-center">
               {`${window.location.origin}/oura/callback`}
               <Button
@@ -1015,27 +958,23 @@ export const EditProviderForm = ({
             />
           </div>
           <p className="text-sm text-muted-foreground col-span-2">
-            {t(
-              'settings.editProviderForm.stravaIntegrationUsesOAuth2You',
-              'Strava integration uses OAuth2. You will be redirected to Strava to authorize access after adding or updating the provider.'
-            )}
-            <br />
-            {t('settings.editProviderForm.inYour', 'In your')}{' '}
-            <a
-              href="https://www.strava.com/settings/api"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 underline"
-            >
-              {t(
-                'settings.editProviderForm.stravaAPIDashboard',
-                'Strava API Dashboard'
-              )}
-            </a>
-            {t(
-              'settings.editProviderForm.youMustSetYourAuthorization',
-              ', you must set your "Authorization Callback Domain" to:'
-            )}
+            <Trans
+              i18nKey="settings.editProviderForm.stravaIntegrationUsesOAuth2You2"
+              defaults={
+                'Strava integration uses OAuth2. You will be redirected to Strava to authorize access after adding or updating the provider.<br/>In your <link>Strava API Dashboard</link>, you must set your "Authorization Callback Domain" to:'
+              }
+              components={{
+                br: <br />,
+                link: (
+                  <a
+                    href="https://www.strava.com/settings/api"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 underline"
+                  />
+                ),
+              }}
+            />
             <strong className="flex items-center">
               {window.location.hostname}
               <Button
@@ -1057,11 +996,14 @@ export const EditProviderForm = ({
                 <Clipboard className="h-4 w-4" />
               </Button>
             </strong>
-            {t(
-              'settings.editProviderForm.andEnsuringYourLocalURL',
-              'and ensuring your local URL is correct if testing locally. Note: Strava callback URL on the server is configured to:'
-            )}
-            <strong>{`${window.location.origin}/strava/callback`}</strong>
+            <Trans
+              i18nKey="settings.editProviderForm.andEnsuringYourLocalURL2"
+              defaults={
+                'and ensuring your local URL is correct if testing locally. Note: Strava callback URL on the server is configured to:<strong>{{value}}</strong>'
+              }
+              values={{ value: `${window.location.origin}/strava/callback` }}
+              components={{ strong: <strong /> }}
+            />
           </p>
         </>
       )}
@@ -1108,32 +1050,24 @@ export const EditProviderForm = ({
             />
           </div>
           <p className="text-sm text-muted-foreground col-span-2">
-            {t(
-              'settings.editProviderForm.googleHealthIntegrationUsesOAuth2',
-              'Google Health integration uses OAuth2. After saving, click'
-            )}{' '}
-            <strong>{t('settings.editProviderForm.connect', 'Connect')}</strong>{' '}
-            {t(
-              'settings.editProviderForm.onTheProviderCardTo',
-              'on the provider card to authorize access.'
-            )}
-            <br />
-            {t('settings.editProviderForm.inYour', 'In your')}{' '}
-            <a
-              href="https://console.cloud.google.com/apis/credentials"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 underline"
-            >
-              {t(
-                'settings.editProviderForm.googleCloudConsole',
-                'Google Cloud Console'
-              )}
-            </a>
-            {t(
-              'settings.editProviderForm.yourOAuth20Web',
-              ', your OAuth 2.0 Web Application client must have this callback URL:'
-            )}
+            <Trans
+              i18nKey="settings.editProviderForm.googleHealthIntegrationUsesOAuth22"
+              defaults={
+                'Google Health integration uses OAuth2. After saving, click <strong>Connect</strong> on the provider card to authorize access.<br/>In your <link>Google Cloud Console</link>, your OAuth 2.0 Web Application client must have this callback URL:'
+              }
+              components={{
+                strong: <strong />,
+                br: <br />,
+                link: (
+                  <a
+                    href="https://console.cloud.google.com/apis/credentials"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 underline"
+                  />
+                ),
+              }}
+            />
             <strong className="flex items-center mt-1">
               {`${window.location.origin}/googlehealth/callback`}
               <Button
@@ -1230,15 +1164,13 @@ export const EditProviderForm = ({
             />
           </div>
           <p className="text-sm text-muted-foreground col-span-2">
-            {t(
-              'settings.editProviderForm.generateAnAPIKeyIn',
-              'Generate an API key in the Liftosaur app: Settings > API Keys (starts with'
-            )}{' '}
-            <span className="font-mono">lftsk_</span>
-            {t(
-              'settings.editProviderForm.aLiftosaurProSubscriptionIs',
-              '). A Liftosaur Pro subscription is required to use the Liftosaur API.'
-            )}
+            <Trans
+              i18nKey="settings.editProviderForm.generateAnAPIKeyIn2"
+              defaults={
+                'Generate an API key in the Liftosaur app: Settings > API Keys (starts with <span>lftsk_</span>). A Liftosaur Pro subscription is required to use the Liftosaur API.'
+              }
+              components={{ span: <span className="font-mono" /> }}
+            />
           </p>
         </>
       )}
@@ -1290,44 +1222,36 @@ export const EditProviderForm = ({
       {editData.provider_type === 'swissfood' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">
-            {t(
-              'settings.editProviderForm.theSwissFoodCompositionDatabase',
-              'The Swiss Food Composition Database API is free, public, and requires no credentials. Supported languages for searches and nutritional value labels are'
-            )}{' '}
-            <strong>
-              {t('settings.editProviderForm.englishEn', 'English (en)')}
-            </strong>
-            ,{' '}
-            <strong>
-              {t('settings.editProviderForm.germanDe', 'German (de)')}
-            </strong>
-            ,{' '}
-            <strong>
-              {t('settings.editProviderForm.frenchFr', 'French (fr)')}
-            </strong>
-            {t('settings.editProviderForm.and', ', and')}{' '}
-            <strong>
-              {t('settings.editProviderForm.italianIt', 'Italian (it)')}
-            </strong>
-            .
+            <Trans
+              i18nKey="settings.editProviderForm.theSwissFoodCompositionDatabase2"
+              defaults={
+                'The Swiss Food Composition Database API is free, public, and requires no credentials. Supported languages for searches and nutritional value labels are <strong>English (en)</strong>, <strong2>German (de)</strong2>, <strong3>French (fr)</strong3>, and <strong4>Italian (it)</strong4>.'
+              }
+              components={{
+                strong: <strong />,
+                strong2: <strong />,
+                strong3: <strong />,
+                strong4: <strong />,
+              }}
+            />
           </p>
           <p className="text-sm text-muted-foreground">
-            {t(
-              'settings.editProviderForm.ifYourActiveLanguageIn',
-              'If your active language in SparkyFitness is not supported, the API queries will default to English. For more details, see the official portal at'
-            )}{' '}
-            <a
-              href="https://naehrwertdaten.ch/en/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              {t(
-                'settings.editProviderForm.swissFoodCompositionDatabase',
-                'Swiss Food Composition Database'
-              )}
-            </a>
-            .
+            <Trans
+              i18nKey="settings.editProviderForm.ifYourActiveLanguageIn2"
+              defaults={
+                'If your active language in SparkyFitness is not supported, the API queries will default to English. For more details, see the official portal at <link>Swiss Food Composition Database</link>.'
+              }
+              components={{
+                link: (
+                  <a
+                    href="https://naehrwertdaten.ch/en/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+              }}
+            />
           </p>
         </div>
       )}
@@ -1335,51 +1259,42 @@ export const EditProviderForm = ({
       {editData.provider_type === 'canadian-nutrient-file' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">
-            {t(
-              'settings.editProviderForm.theCanadianNutrientFileCNF',
-              'The Canadian Nutrient File (CNF) contains information published by Health Canada under the'
-            )}{' '}
-            <a
-              href="https://open.canada.ca/en/open-government-licence-canada"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              {t(
-                'settings.editProviderForm.openGovernmentLicenceCanada',
-                'Open Government Licence – Canada'
-              )}
-            </a>
-            {t(
-              'settings.editProviderForm.itIsFreePublicAnd',
-              '. It is free, public, and requires no credentials. Supported languages are'
-            )}{' '}
-            <strong>
-              {t('settings.editProviderForm.englishEn', 'English (en)')}
-            </strong>{' '}
-            {t('settings.editProviderForm.and2', 'and')}{' '}
-            <strong>
-              {t('settings.editProviderForm.frenchFr', 'French (fr)')}
-            </strong>
-            .
+            <Trans
+              i18nKey="settings.editProviderForm.theCanadianNutrientFileCNF2"
+              defaults={
+                'The Canadian Nutrient File (CNF) contains information published by Health Canada under the <link>Open Government Licence – Canada</link>. It is free, public, and requires no credentials. Supported languages are <strong>English (en)</strong> and <strong2>French (fr)</strong2>.'
+              }
+              components={{
+                link: (
+                  <a
+                    href="https://open.canada.ca/en/open-government-licence-canada"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+                strong: <strong />,
+                strong2: <strong />,
+              }}
+            />
           </p>
           <p className="text-sm text-muted-foreground">
-            {t(
-              'settings.editProviderForm.forMoreDetailsSeeThe',
-              'For more details, see the official portal at'
-            )}{' '}
-            <a
-              href="https://open.canada.ca/data/en/dataset/1b6139bd-ed7e-4043-bc28-ff00e10f3109"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              {t(
-                'settings.editProviderForm.canadianNutrientFileHealthCanada',
-                'Canadian Nutrient File (Health Canada)'
-              )}
-            </a>
-            .
+            <Trans
+              i18nKey="settings.editProviderForm.forMoreDetailsSeeThe2"
+              defaults={
+                'For more details, see the official portal at <link>Canadian Nutrient File (Health Canada)</link>.'
+              }
+              components={{
+                link: (
+                  <a
+                    href="https://open.canada.ca/data/en/dataset/1b6139bd-ed7e-4043-bc28-ff00e10f3109"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+              }}
+            />
           </p>
         </div>
       )}
@@ -1387,22 +1302,22 @@ export const EditProviderForm = ({
       {editData.provider_type === 'free-exercise-db' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">
-            {t(
-              'settings.editProviderForm.theFreeExerciseDBProvider',
-              'The Free Exercise DB provider is public, free, and requires no credentials. It fetches exercise data directly from the community repository at'
-            )}{' '}
-            <a
-              href="https://github.com/yuhonas/free-exercise-db"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              {t(
-                'settings.editProviderForm.yuhonasFreeExerciseDbOn',
-                'yuhonas/free-exercise-db on GitHub'
-              )}
-            </a>
-            .
+            <Trans
+              i18nKey="settings.editProviderForm.theFreeExerciseDBProvider2"
+              defaults={
+                'The Free Exercise DB provider is public, free, and requires no credentials. It fetches exercise data directly from the community repository at <link>yuhonas/free-exercise-db on GitHub</link>.'
+              }
+              components={{
+                link: (
+                  <a
+                    href="https://github.com/yuhonas/free-exercise-db"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+              }}
+            />
           </p>
         </div>
       )}
@@ -1410,22 +1325,22 @@ export const EditProviderForm = ({
       {editData.provider_type === 'wger' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">
-            {t(
-              'settings.editProviderForm.theWgerProviderIsPublic',
-              'The wger provider is public, free, and requires no credentials. It fetches workout and exercise data directly from the official'
-            )}{' '}
-            <a
-              href="https://wger.de/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              {t(
-                'settings.editProviderForm.wgerProjectWebsite',
-                'wger Project Website'
-              )}
-            </a>
-            .
+            <Trans
+              i18nKey="settings.editProviderForm.theWgerProviderIsPublic2"
+              defaults={
+                'The wger provider is public, free, and requires no credentials. It fetches workout and exercise data directly from the official <link>wger Project Website</link>.'
+              }
+              components={{
+                link: (
+                  <a
+                    href="https://wger.de/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium"
+                  />
+                ),
+              }}
+            />
           </p>
         </div>
       )}
@@ -1461,32 +1376,26 @@ export const EditProviderForm = ({
                   )}
                 </SelectItem>
                 <SelectItem value="https://mcpeu.coros.com/mcp">
-                  {t(
-                    'settings.foodExerciseDataProviders.coros.regionEu',
-                    'Europe (mcpeu.coros.com)'
-                  )}{' '}
-                  <span className="text-xs text-muted-foreground">
-                    (
-                    {t(
-                      'settings.foodExerciseDataProviders.coros.notTested',
-                      'not yet tested'
-                    )}
-                    )
-                  </span>
+                  <Trans
+                    i18nKey="settings.editProviderForm.europeMcpeuCorosComNot"
+                    defaults={
+                      'Europe (mcpeu.coros.com) <span>(not yet tested)</span>'
+                    }
+                    components={{
+                      span: <span className="text-xs text-muted-foreground" />,
+                    }}
+                  />
                 </SelectItem>
                 <SelectItem value="https://mcpcn.coros.com/mcp">
-                  {t(
-                    'settings.foodExerciseDataProviders.coros.regionCn',
-                    'Mainland China (mcpcn.coros.com)'
-                  )}{' '}
-                  <span className="text-xs text-muted-foreground">
-                    (
-                    {t(
-                      'settings.foodExerciseDataProviders.coros.notTested',
-                      'not yet tested'
-                    )}
-                    )
-                  </span>
+                  <Trans
+                    i18nKey="settings.editProviderForm.mainlandChinaMcpcnCorosCom"
+                    defaults={
+                      'Mainland China (mcpcn.coros.com) <span>(not yet tested)</span>'
+                    }
+                    components={{
+                      span: <span className="text-xs text-muted-foreground" />,
+                    }}
+                  />
                 </SelectItem>
               </SelectContent>
             </Select>

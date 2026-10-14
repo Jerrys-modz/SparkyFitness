@@ -517,30 +517,40 @@ export function useMeasurementChartWidgets({
                     className="text-xs text-muted-foreground"
                     data-testid="weight-trend-summary"
                   >
-                    {t('reports.weightTrendSummary', 'Trend {{weight}}', {
-                      weight: formatWeight(
-                        weightTrendSummary.currentTrend,
-                        weightUnit
-                      ),
-                    })}
-                    {weightTrendSummary.weeklyRate !== null &&
-                      ` · ${t('reports.weightTrendRate', '{{rate}} per week', {
-                        rate: `${weightTrendSummary.weeklyRate > 0 ? '+' : ''}${formatWeight(
-                          weightTrendSummary.weeklyRate,
+                    {t(
+                      'reports.trend2',
+                      'Trend {{weight}}{{weeklyRate}}{{forecastDate}}',
+                      {
+                        weight: formatWeight(
+                          weightTrendSummary.currentTrend,
                           weightUnit
-                        )}`,
-                      })}`}
-                    {weightTrendSummary.forecastDate &&
-                      ` · ${t(
-                        'reports.weightGoalForecast',
-                        'Goal projected {{date}}',
-                        {
-                          date: formatDateInUserTimezone(
-                            weightTrendSummary.forecastDate,
-                            'PP'
-                          ),
-                        }
-                      )}`}
+                        ),
+                        weeklyRate:
+                          weightTrendSummary.weeklyRate !== null &&
+                          ` · ${t(
+                            'reports.weightTrendRate',
+                            '{{rate}} per week',
+                            {
+                              rate: `${weightTrendSummary.weeklyRate > 0 ? '+' : ''}${formatWeight(
+                                weightTrendSummary.weeklyRate,
+                                weightUnit
+                              )}`,
+                            }
+                          )}`,
+                        forecastDate:
+                          weightTrendSummary.forecastDate &&
+                          ` · ${t(
+                            'reports.weightGoalForecast',
+                            'Goal projected {{date}}',
+                            {
+                              date: formatDateInUserTimezone(
+                                weightTrendSummary.forecastDate,
+                                'PP'
+                              ),
+                            }
+                          )}`,
+                      }
+                    )}
                   </p>
                 )}
               </CardHeader>

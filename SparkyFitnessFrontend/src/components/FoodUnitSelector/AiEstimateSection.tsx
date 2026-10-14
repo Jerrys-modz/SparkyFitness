@@ -140,7 +140,7 @@ export function AiEstimateSection({
         <span>
           {t(
             'foodUnitSelector.aiEstimateSection.estimatingIn',
-            'Estimating {{fromAmount}}{{fromUnit}}in {{toUnit}}...',
+            'Estimating {{fromAmount}} {{fromUnit}} in {{toUnit}}...',
             { fromAmount, fromUnit, toUnit }
           )}
         </span>
@@ -187,13 +187,16 @@ export function AiEstimateSection({
         <span className="text-sm font-medium">
           {t(
             'foodUnitSelector.aiEstimateSection.estimatedAbout',
-            'Estimated - about {{estimatedAmount}}{{toUnit}}',
+            'Estimated - about {{estimatedAmount}} {{toUnit}}',
             { estimatedAmount: data.estimatedAmount, toUnit }
           )}
         </span>
         <span className="text-xs text-muted-foreground">
-          - {OVERALL_CONFIDENCE_LABELS[data.confidence]}{' '}
-          {t('foodUnitSelector.aiEstimateSection.estimate', 'estimate')}
+          {t(
+            'foodUnitSelector.aiEstimateSection.estimate2',
+            '- {{confidence}} estimate',
+            { confidence: OVERALL_CONFIDENCE_LABELS[data.confidence] }
+          )}
         </span>
       </div>
       {isLow && (

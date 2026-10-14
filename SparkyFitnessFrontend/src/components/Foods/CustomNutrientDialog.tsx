@@ -86,11 +86,7 @@ export const CustomNutrientDialog = ({
           'foods.customNutrientDialog.customNutrientCreated',
           'Custom nutrient created'
         ),
-        description: t(
-          'foods.customNutrientDialog.nutrientAdded',
-          '"{{name}}" was added.',
-          { name: name.trim() }
-        ),
+        description: `"${name.trim()}" was added.`,
       });
       onOpenChange(false);
     } catch {

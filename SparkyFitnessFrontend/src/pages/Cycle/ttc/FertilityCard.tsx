@@ -1,4 +1,4 @@
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, AlertTriangle } from 'lucide-react';
 import type { FertilityDetails } from '@/hooks/useCycle';
@@ -83,18 +83,22 @@ export default function FertilityCard({
         <p className="text-sm text-foreground/90">
           {ovulationDate ? (
             <>
-              {t(
-                'cycle.ttc.ovulationEstimateDetail',
-                'Ovulation is estimated on '
-              )}
-              <strong className="font-semibold">
-                {formatDate(ovulationDate)}
-              </strong>
-              {t('cycle.ttc.ovulationEstimateBasis', ' based on ')}
-              <span className="font-medium underline decoration-emerald-500/40 decoration-2">
-                {BASIS_LABELS[basis]}
-              </span>
-              .
+              <Trans
+                i18nKey="cycle.ttc.ovulationIsEstimatedOnBased"
+                defaults={
+                  'Ovulation is estimated on <strong>{{ovulationDate}}</strong> based on <span>{{basis}}</span>.'
+                }
+                values={{
+                  ovulationDate: formatDate(ovulationDate),
+                  basis: BASIS_LABELS[basis],
+                }}
+                components={{
+                  strong: <strong className="font-semibold" />,
+                  span: (
+                    <span className="font-medium underline decoration-emerald-500/40 decoration-2" />
+                  ),
+                }}
+              />
             </>
           ) : (
             t(

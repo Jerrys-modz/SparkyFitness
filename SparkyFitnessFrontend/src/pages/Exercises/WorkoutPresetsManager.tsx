@@ -351,7 +351,7 @@ const WorkoutPresetsManager = () => {
                 <span>
                   {t(
                     'exercises.workoutPresetsManager.sets',
-                    '{{totalSets}}sets',
+                    '{{totalSets}} sets',
                     { totalSets }
                   )}
                 </span>

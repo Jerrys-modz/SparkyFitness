@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 interface EndFastDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -82,8 +82,12 @@ const EndFastDialog: React.FC<EndFastDialogProps> = ({
             {t('fasting.endFastDialog.fastCompleted', 'Fast Completed! 🎉')}
           </DialogTitle>
           <DialogDescription>
-            {t('fasting.endFastDialog.youFastedFor', 'You fasted for')}{' '}
-            <span className="font-bold text-primary">{durationFormatted}</span>.
+            <Trans
+              i18nKey="fasting.endFastDialog.youFastedFor2"
+              defaults={'You fasted for <span>{{durationFormatted}}</span>.'}
+              values={{ durationFormatted }}
+              components={{ span: <span className="font-bold text-primary" /> }}
+            />
           </DialogDescription>
         </DialogHeader>
 

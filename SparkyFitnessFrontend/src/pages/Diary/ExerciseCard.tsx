@@ -853,7 +853,7 @@ const ExerciseCard = ({
                     <span className="text-xs text-muted-foreground font-medium">
                       {t(
                         'diary.exerciseCard.of',
-                        '({{sessionIndex}}of {{totalSessions}})',
+                        '({{sessionIndex}} of {{totalSessions}})',
                         { sessionIndex, totalSessions }
                       )}
                     </span>
@@ -934,7 +934,7 @@ const ExerciseCard = ({
             })}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pt-2 gap-4">
               <span className="font-semibold">
-                {t('exerciseCard.exerciseTotal', 'Exercise Total')}:
+                {t('exerciseCard.exerciseTotal2', 'Exercise Total:')}
               </span>
               <div className="grid grid-cols-4 gap-2 sm:gap-4 text-xs sm:text-sm">
                 <div className="text-center">

@@ -791,11 +791,7 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
       if (errorMessage) {
         toast({
           title: t('common.error', 'Error'),
-          description: t(
-            'checkIn.failedToCalculateBodyFatWithError',
-            'Failed to calculate body fat: {{error}}',
-            { error: errorMessage }
-          ),
+          description: `${t('checkIn.failedToCalculateBodyFat', 'Failed to calculate body fat:')} ${errorMessage}`,
           variant: 'destructive',
         });
       } else {
@@ -812,11 +808,7 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       toast({
         title: t('common.error', 'Error'),
-        description: t(
-          'checkIn.failedToCalculateBodyFatWithError',
-          'Failed to calculate body fat: {{error}}',
-          { error: errorMsg }
-        ),
+        description: `${t('checkIn.failedToCalculateBodyFat', 'Failed to calculate body fat:')} ${errorMsg}`,
         variant: 'destructive',
       });
     }

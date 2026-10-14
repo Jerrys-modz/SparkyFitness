@@ -127,15 +127,30 @@ export function CnfBulkImportDialog({
               <Progress value={status?.progress ?? 0} />
               <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                 <div>
-                  {t('settings.cnf.processed', 'Processed')}:{' '}
-                  <span>{status?.processed}</span> /{' '}
-                  <span>{status?.total}</span>
+                  <Trans
+                    i18nKey="settings.cnf.processed2"
+                    defaults={
+                      'Processed: <span>{{processed}}</span> / <span2>{{total}}</span2>'
+                    }
+                    values={{
+                      processed: status?.processed,
+                      total: status?.total,
+                    }}
+                    components={{ span: <span />, span2: <span /> }}
+                  />
                 </div>
                 <div className="text-right">
-                  {t('settings.cnf.imported', 'Imported')}:{' '}
-                  <span>{status?.imported}</span> |{' '}
-                  {t('settings.cnf.updated', 'Updated')}:{' '}
-                  <span>{status?.updated}</span>
+                  <Trans
+                    i18nKey="settings.cnf.importedUpdated"
+                    defaults={
+                      'Imported: <span>{{imported}}</span> | Updated: <span2>{{updated}}</span2>'
+                    }
+                    values={{
+                      imported: status?.imported,
+                      updated: status?.updated,
+                    }}
+                    components={{ span: <span />, span2: <span /> }}
+                  />
                 </div>
               </div>
             </div>

@@ -11,7 +11,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Navigation, Mountain, Heart, Wind } from 'lucide-react';
 
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 interface WorkoutGpsMapProps {
   // The workout's trackpoint array (ExerciseEntryGpsPoints.points), not the
   // wrapping row -- callers pass `gpsData?.points`.
@@ -111,18 +111,24 @@ export const WorkoutGpsMap: React.FC<WorkoutGpsMapProps> = ({
           {!!avgHr && (
             <span className="text-rose-400">
               <Heart className="inline h-3.5 w-3.5 mr-1" />
-              {t('exercises.workoutGpsMap.avgBpm', '{{avgHr}}avg bpm', {
-                avgHr,
-              })}{' '}
-              {maxHr
-                ? t('exercises.workoutGpsMap.max', '({{maxHr}} max)', { maxHr })
-                : ''}
+              {t(
+                'exercises.workoutGpsMap.avgBpm2',
+                '{{avgHr}} avg bpm {{maxHr}}',
+                {
+                  avgHr,
+                  maxHr: maxHr
+                    ? t('exercises.workoutGpsMap.max', '({{maxHr}} max)', {
+                        maxHr,
+                      })
+                    : '',
+                }
+              )}
             </span>
           )}
           {avgResp && (
             <span className="text-teal-400">
               <Wind className="inline h-3.5 w-3.5 mr-1" />
-              {t('exercises.workoutGpsMap.brpm', '{{avgResp}}brpm', {
+              {t('exercises.workoutGpsMap.brpm', '{{avgResp}} brpm', {
                 avgResp,
               })}
             </span>
@@ -154,28 +160,34 @@ export const WorkoutGpsMap: React.FC<WorkoutGpsMapProps> = ({
           <Marker position={startPos} icon={startIcon}>
             <Popup>
               <div className="text-xs font-sans">
-                <strong>
-                  {t('exercises.workoutGpsMap.startPoint', 'Start Point')}
-                </strong>
-                <br />
-                {t('exercises.workoutGpsMap.lat', 'Lat:')}{' '}
-                {startPos[0].toFixed(5)}
-                {t('exercises.workoutGpsMap.lon', ', Lon:')}{' '}
-                {startPos[1].toFixed(5)}
+                <Trans
+                  i18nKey="exercises.workoutGpsMap.startPointLatLon"
+                  defaults={
+                    '<strong>Start Point</strong><br/>Lat: {{startPos}}, Lon: {{startPos2}}'
+                  }
+                  values={{
+                    startPos: startPos[0].toFixed(5),
+                    startPos2: startPos[1].toFixed(5),
+                  }}
+                  components={{ strong: <strong />, br: <br /> }}
+                />
               </div>
             </Popup>
           </Marker>
           <Marker position={endPos} icon={endIcon}>
             <Popup>
               <div className="text-xs font-sans">
-                <strong>
-                  {t('exercises.workoutGpsMap.finishPoint', 'Finish Point')}
-                </strong>
-                <br />
-                {t('exercises.workoutGpsMap.lat', 'Lat:')}{' '}
-                {endPos[0].toFixed(5)}
-                {t('exercises.workoutGpsMap.lon', ', Lon:')}{' '}
-                {endPos[1].toFixed(5)}
+                <Trans
+                  i18nKey="exercises.workoutGpsMap.finishPointLatLon"
+                  defaults={
+                    '<strong>Finish Point</strong><br/>Lat: {{endPos}}, Lon: {{endPos2}}'
+                  }
+                  values={{
+                    endPos: endPos[0].toFixed(5),
+                    endPos2: endPos[1].toFixed(5),
+                  }}
+                  components={{ strong: <strong />, br: <br /> }}
+                />
               </div>
             </Popup>
           </Marker>

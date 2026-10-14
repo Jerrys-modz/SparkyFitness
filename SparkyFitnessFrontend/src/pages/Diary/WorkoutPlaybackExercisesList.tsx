@@ -131,8 +131,11 @@ const WorkoutPlaybackExercisesList = ({
                     {exercise.exercise_name}
                   </h3>
                   <p className="text-[11px] text-muted-foreground">
-                    {completedSets}/{totalSets}{' '}
-                    {t('exercise.workoutPlaybackDialog.sets', 'sets')}
+                    {t(
+                      'exercise.workoutPlaybackPage.sets',
+                      '{{completedSets}}/{{totalSets}} sets',
+                      { completedSets, totalSets }
+                    )}
                   </p>
                 </div>
                 {onReplaceExercise && (

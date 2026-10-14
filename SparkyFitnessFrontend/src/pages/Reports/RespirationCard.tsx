@@ -453,8 +453,10 @@ const RespirationCard: React.FC<RespirationCardProps> = ({
         {/* Normal range indicator */}
         <div className="flex justify-center mt-4 text-xs text-muted-foreground">
           <span>
-            {t('reports.normalRange', 'Normal adult resting range')}
-            {t('reports.respirationCard.n1220Brpm', ': 12-20 brpm')}
+            {t(
+              'reports.normalAdultRestingRange12',
+              'Normal adult resting range: 12-20 brpm'
+            )}
           </span>
         </div>
       </CardContent>

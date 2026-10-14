@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCreateExternalProviderMutation } from '@/hooks/Settings/useExternalProviderSettings';
 import { useToast } from '@/hooks/use-toast';
 
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 interface FoodSourcesStepProps {
   onContinue: () => void;
 }
@@ -190,17 +190,13 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
             autoComplete="off"
           />
           <p className="text-xs text-muted-foreground">
-            {t('onboarding.foodSourcesStep.useThe', 'Use the')}{' '}
-            <strong>
-              {t(
-                'onboarding.foodSourcesStep.restAPIOAuth20',
-                'REST API OAuth 2.0'
-              )}
-            </strong>{' '}
-            {t(
-              'onboarding.foodSourcesStep.credentialsFromTheDashboardNot',
-              'credentials from the dashboard, not the OAuth 1.0 Consumer Key/Secret. FatSecret also requires you to whitelist your public IP in its developer dashboard. This can take up to 24 hours to take effect.'
-            )}
+            <Trans
+              i18nKey="onboarding.foodSourcesStep.useTheRESTAPIOAuth"
+              defaults={
+                'Use the <strong>REST API OAuth 2.0</strong> credentials from the dashboard, not the OAuth 1.0 Consumer Key/Secret. FatSecret also requires you to whitelist your public IP in its developer dashboard. This can take up to 24 hours to take effect.'
+              }
+              components={{ strong: <strong /> }}
+            />
           </p>
         </div>
       </div>

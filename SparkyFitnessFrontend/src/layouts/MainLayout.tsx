@@ -670,8 +670,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
                 className="cursor-pointer underline bg-transparent border-0 p-0 text-inherit font-normal text-sm"
                 onClick={onShowAboutDialog}
               >
-                {t('mainLayout.sparkyFitnessV', 'SparkyFitness v')}
-                {appVersion?.version ?? ''}
+                {t('nav.sparkyFitnessV', 'SparkyFitness v{{version}}', {
+                  version: appVersion?.version ?? '',
+                })}
               </button>
               <span>•</span>
               <button
@@ -690,8 +691,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
               className="cursor-pointer underline bg-transparent border-0 p-0 text-inherit font-normal text-sm"
               onClick={onShowAboutDialog}
             >
-              {t('mainLayout.sparkyFitnessV', 'SparkyFitness v')}
-              {appVersion?.version ?? ''}
+              {t('nav.sparkyFitnessV', 'SparkyFitness v{{version}}', {
+                version: appVersion?.version ?? '',
+              })}
             </button>
             <span>•</span>
             <button

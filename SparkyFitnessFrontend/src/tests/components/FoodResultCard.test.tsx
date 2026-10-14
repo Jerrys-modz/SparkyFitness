@@ -17,11 +17,10 @@ jest.mock('@/contexts/ActiveUserContext', () => ({
   }),
 }));
 
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (_key: string, fallback: string) => fallback,
-  }),
-}));
+jest.mock(
+  'react-i18next',
+  () => jest.requireActual('@/tests/i18nMock').reactI18nextMock
+);
 
 const nutrientConfig = {
   visibleNutrients: ['calories'],

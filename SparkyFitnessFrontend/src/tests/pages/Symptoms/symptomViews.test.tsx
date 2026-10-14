@@ -17,18 +17,10 @@ import {
   resetSymptomHooks,
 } from './symptomTestKit';
 
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (
-      key: string,
-      fallback?: string,
-      options?: Record<string, string | number>
-    ) =>
-      (fallback ?? key).replace(/\{\{(\w+)\}\}/g, (_m, name: string) =>
-        String(options?.[name] ?? '')
-      ),
-  }),
-}));
+jest.mock(
+  'react-i18next',
+  () => jest.requireActual('@/tests/i18nMock').reactI18nextMock
+);
 
 jest.mock('@/hooks/useSymptoms', () =>
   jest.requireActual('./symptomTestKit').buildHooksMock()

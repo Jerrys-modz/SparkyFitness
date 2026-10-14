@@ -37,7 +37,7 @@ import { useMealTypes } from '@/hooks/Diary/useMealTypes';
 import { foodViewOptions } from '@/hooks/Foods/useFoods';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import FoodSearchDialog from '@/components/FoodSearch/FoodSearchDialog';
 import FoodUnitSelector from '@/components/FoodUnitSelector';
 import {
@@ -502,22 +502,31 @@ const WaterContainerManager: React.FC = () => {
                           <Utensils className="w-3 h-3" />
                           <span>
                             {t(
-                              'waterContainerManager.linkedFood',
-                              'Linked Food'
+                              'waterContainerManager.linkedFood2',
+                              'Linked Food: {{linked_food_name}}',
+                              {
+                                linked_food_name:
+                                  c.linked_food_name ||
+                                  t(
+                                    'settings.waterContainerManager.food',
+                                    'Food'
+                                  ),
+                              }
                             )}
-                            :{' '}
-                            {c.linked_food_name ||
-                              t('settings.waterContainerManager.food', 'Food')}
                           </span>
                         </Badge>
                       )}
                       {c.hydration_factor !== undefined && (
                         <Badge variant="outline" className="font-normal">
                           {t(
-                            'waterContainerManager.hydrationFactor',
-                            'Hydration'
+                            'waterContainerManager.hydration',
+                            'Hydration: {{hydration_factor}}%',
+                            {
+                              hydration_factor: Math.round(
+                                (c.hydration_factor ?? 1) * 100
+                              ),
+                            }
                           )}
-                          : {Math.round((c.hydration_factor ?? 1) * 100)}%
                         </Badge>
                       )}
                     </div>
@@ -744,17 +753,24 @@ const WaterContainerManager: React.FC = () => {
                       </div>
                       <div className="flex items-center justify-between gap-2 text-xs">
                         <span className="text-muted-foreground">
-                          {t(
-                            'waterContainerManager.perPress',
-                            'One press logs'
-                          )}{' '}
-                          <span className="font-medium text-foreground">
-                            {describeLink(
-                              foodVariants,
-                              linkedVariantId,
-                              linkedQuantity
-                            )}
-                          </span>
+                          <Trans
+                            i18nKey="waterContainerManager.onePressLogs"
+                            defaults={
+                              'One press logs <span>{{describeLink}}</span>'
+                            }
+                            values={{
+                              describeLink: describeLink(
+                                foodVariants,
+                                linkedVariantId,
+                                linkedQuantity
+                              ),
+                            }}
+                            components={{
+                              span: (
+                                <span className="font-medium text-foreground" />
+                              ),
+                            }}
+                          />
                         </span>
                         <Button
                           type="button"
@@ -876,16 +892,25 @@ const WaterContainerManager: React.FC = () => {
                       >
                         <Utensils className="w-3 h-3" />
                         <span>
-                          {t('waterContainerManager.linkedFood', 'Linked Food')}
-                          :{' '}
-                          {c.linked_food_name ||
-                            t('settings.waterContainerManager.food', 'Food')}
-                          {c.linked_variant_serving_size
-                            ? ` (${c.linked_variant_serving_size} ${c.linked_variant_serving_unit || ''})`
-                            : ''}
-                          {c.linked_meal_type_name
-                            ? ` • ${c.linked_meal_type_name}`
-                            : ''}
+                          {t(
+                            'waterContainerManager.linkedFood3',
+                            'Linked Food: {{linked_food_name}}{{linked_variant_serving_size}}{{linked_meal_type_name}}',
+                            {
+                              linked_food_name:
+                                c.linked_food_name ||
+                                t(
+                                  'settings.waterContainerManager.food',
+                                  'Food'
+                                ),
+                              linked_variant_serving_size:
+                                c.linked_variant_serving_size
+                                  ? ` (${c.linked_variant_serving_size} ${c.linked_variant_serving_unit || ''})`
+                                  : '',
+                              linked_meal_type_name: c.linked_meal_type_name
+                                ? ` • ${c.linked_meal_type_name}`
+                                : '',
+                            }
+                          )}
                         </span>
                       </Badge>
                     )}
@@ -893,10 +918,10 @@ const WaterContainerManager: React.FC = () => {
                       c.hydration_factor !== 1.0 && (
                         <Badge variant="outline" className="font-normal">
                           {t(
-                            'waterContainerManager.hydrationFactor',
-                            'Hydration Factor'
+                            'waterContainerManager.hydrationFactorX',
+                            'Hydration Factor: {{hydration_factor}}x',
+                            { hydration_factor: c.hydration_factor }
                           )}
-                          : {c.hydration_factor}x
                         </Badge>
                       )}
                   </div>
@@ -1005,7 +1030,7 @@ const WaterContainerManager: React.FC = () => {
                         >
                           {t(
                             'settings.waterContainerManager.mgCaffeine',
-                            '{{caffeineMg}}mg caffeine',
+                            '{{caffeineMg}} mg caffeine',
                             { caffeineMg: item.caffeineMg }
                           )}
                         </Badge>
@@ -1026,8 +1051,15 @@ const WaterContainerManager: React.FC = () => {
                         variant="outline"
                         className="text-[10px] px-1.5 py-0 font-normal"
                       >
-                        {Math.round(item.hydrationFactor * 100)}
-                        {t('settings.waterContainerManager.water', '% water')}
+                        {t(
+                          'waterContainerManager.water',
+                          '{{hydrationFactor}}% water',
+                          {
+                            hydrationFactor: Math.round(
+                              item.hydrationFactor * 100
+                            ),
+                          }
+                        )}
                       </Badge>
                     </div>
                   </div>
@@ -1210,14 +1242,24 @@ const WaterContainerManager: React.FC = () => {
                   </div>
                   <div className="flex items-center justify-between gap-2 text-xs">
                     <span className="text-muted-foreground">
-                      {t('waterContainerManager.perPress', 'One press logs')}{' '}
-                      <span className="font-medium text-foreground">
-                        {describeLink(
-                          editFoodVariants,
-                          editLinkedVariantId,
-                          editLinkedQuantity
-                        )}
-                      </span>
+                      <Trans
+                        i18nKey="waterContainerManager.onePressLogs"
+                        defaults={
+                          'One press logs <span>{{describeLink}}</span>'
+                        }
+                        values={{
+                          describeLink: describeLink(
+                            editFoodVariants,
+                            editLinkedVariantId,
+                            editLinkedQuantity
+                          ),
+                        }}
+                        components={{
+                          span: (
+                            <span className="font-medium text-foreground" />
+                          ),
+                        }}
+                      />
                     </span>
                     <Button
                       type="button"

@@ -224,7 +224,7 @@ const OidcSettings: React.FC = () => {
   if (error)
     return (
       <div className="text-red-500">
-        {t('admin.oidcSettings.error', 'Error')}: {error}
+        {t('admin.oidcSettings.error2', 'Error: {{error}}', { error })}
       </div>
     );
 

@@ -344,7 +344,7 @@ export const PreferenceSettings = () => {
                   <SelectItem key={preset.code} value={String(preset.grams)}>
                     {t(
                       'settings.preferenceSettings.gPureAlcohol',
-                      '{{label}}({{grams}}g pure alcohol)',
+                      '{{label}} ({{grams}}g pure alcohol)',
                       { label: preset.label, grams: preset.grams }
                     )}
                   </SelectItem>

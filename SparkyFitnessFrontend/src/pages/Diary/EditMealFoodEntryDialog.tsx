@@ -70,10 +70,10 @@ const EditMealFoodEntryDialog = ({
         <DialogHeader>
           <DialogTitle>
             {t(
-              'diary.editMealFoodEntryDialog.editLoggedMeal',
-              'Edit Logged Meal:'
-            )}{' '}
-            {foodEntry?.name}
+              'diary.editMealFoodEntryDialog.editLoggedMeal2',
+              'Edit Logged Meal: {{name}}',
+              { name: foodEntry?.name }
+            )}
           </DialogTitle>{' '}
           <DialogDescription>
             {t(

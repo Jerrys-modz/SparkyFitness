@@ -394,10 +394,14 @@ const WorkoutPlansManager = () => {
               </span>
               {activePlan.sequence_position && (
                 <span className="text-xs text-muted-foreground font-medium">
-                  {t('exercises.workoutPlansManager.of', '({{current}}of', {
-                    current: activePlan.sequence_position.current,
-                  })}{' '}
-                  {activePlan.sequence_position.total})
+                  {t(
+                    'workoutPlansManager.currentOfTotal',
+                    '({{current}} of {{total}})',
+                    {
+                      current: activePlan.sequence_position.current,
+                      total: activePlan.sequence_position.total,
+                    }
+                  )}
                 </span>
               )}
             </div>

@@ -58,15 +58,15 @@ const AnnouncementDialog: React.FC<AnnouncementDialogProps> = ({
               </AlertDialogTitle>
               {announcement.publishedAt && (
                 <AlertDialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  {t('announcementDialog.published', 'Published:')}{' '}
-                  {new Date(announcement.publishedAt).toLocaleDateString(
-                    undefined,
-                    {
+                  {t('announcementDialog.published2', 'Published: {{value}}', {
+                    value: new Date(
+                      announcement.publishedAt
+                    ).toLocaleDateString(undefined, {
                       year: 'numeric',
                       month: 'short',
                       day: 'numeric',
-                    }
-                  )}
+                    }),
+                  })}
                 </AlertDialogDescription>
               )}
             </div>

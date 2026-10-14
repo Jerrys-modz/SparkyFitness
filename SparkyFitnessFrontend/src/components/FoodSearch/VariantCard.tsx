@@ -327,9 +327,7 @@ export function VariantCard({
                   ))}
                   {customUnitsForDropdown.length > 0 && (
                     <SelectGroup key="custom-units">
-                      <SelectLabel>
-                        {t('foodSearch.variantCard.custom', 'Custom')}
-                      </SelectLabel>
+                      <SelectLabel>Custom</SelectLabel>
                       {customUnitsForDropdown.map((unit) => {
                         const compatible =
                           showCompatibleUnitIndicators &&
@@ -491,9 +489,7 @@ export function VariantCard({
                   ))}
                   {customUnitsForDropdown.length > 0 && (
                     <SelectGroup key="custom-units">
-                      <SelectLabel>
-                        {t('foodSearch.variantCard.custom', 'Custom')}
-                      </SelectLabel>
+                      <SelectLabel>Custom</SelectLabel>
                       {customUnitsForDropdown.map((unit) => (
                         <SelectItem key={unit} value={unit}>
                           {unit}
@@ -536,16 +532,27 @@ export function VariantCard({
 
       <h4 className="text-md font-medium mb-2 flex items-center gap-2">
         <span>
-          {t('foodSearch.variantCard.nutritionPer', 'Nutrition per')}{' '}
-          {formatServingLabel(variant)}
+          {t(
+            'foodSearch.variantCard.nutritionPer2',
+            'Nutrition per {{variant}}',
+            { variant: formatServingLabel(variant) }
+          )}
         </span>
         {showAiEstimateBadge && (
           <span
             className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold ${AI_BADGE_TONE_CLASSES[CONFIDENCE_TONES[variant.ai_confidence as AiConfidence]]}`}
             aria-label={`AI estimate (${OVERALL_CONFIDENCE_LABELS[variant.ai_confidence as AiConfidence]} confidence)`}
           >
-            {OVERALL_CONFIDENCE_LABELS[variant.ai_confidence as AiConfidence]}{' '}
-            {t('foodSearch.variantCard.estimate', 'estimate')}
+            {t(
+              'foodSearch.variantCard.estimate2',
+              '{{ai_confidence}} estimate',
+              {
+                ai_confidence:
+                  OVERALL_CONFIDENCE_LABELS[
+                    variant.ai_confidence as AiConfidence
+                  ],
+              }
+            )}
           </span>
         )}
       </h4>

@@ -180,7 +180,7 @@ const MealUnitSelector = ({
                 <h4 className="font-medium mb-2">
                   {t(
                     'foods.mealUnitSelector.nutritionFor',
-                    'Nutrition for {{quantity}}{{displayUnit}}:',
+                    'Nutrition for {{quantity}} {{displayUnit}}:',
                     { quantity, displayUnit }
                   )}
                 </h4>
@@ -192,16 +192,21 @@ const MealUnitSelector = ({
                     {getEnergyUnitString(energyUnit)}
                   </div>
                   <div>
-                    {nutrition.protein.toFixed(1)}
-                    {t('foods.mealUnitSelector.gProtein', 'g protein')}
+                    {t(
+                      'foods.mealUnitSelector.gProtein2',
+                      '{{protein}}g protein',
+                      { protein: nutrition.protein.toFixed(1) }
+                    )}
                   </div>
                   <div>
-                    {nutrition.carbs.toFixed(1)}
-                    {t('foods.mealUnitSelector.gCarbs', 'g carbs')}
+                    {t('foods.mealUnitSelector.gCarbs2', '{{carbs}}g carbs', {
+                      carbs: nutrition.carbs.toFixed(1),
+                    })}
                   </div>
                   <div>
-                    {nutrition.fat.toFixed(1)}
-                    {t('foods.mealUnitSelector.gFat', 'g fat')}
+                    {t('foods.mealUnitSelector.gFat2', '{{fat}}g fat', {
+                      fat: nutrition.fat.toFixed(1),
+                    })}
                   </div>
                 </div>
               </div>

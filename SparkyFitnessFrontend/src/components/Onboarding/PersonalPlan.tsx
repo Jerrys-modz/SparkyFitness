@@ -14,7 +14,7 @@ import { useSaveGoalsMutation } from '@/hooks/Goals/useGoals';
 import { calculateBasePlan } from '@/utils/nutritionCalculations';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import type { ActivityLevel } from '@/contexts/PreferencesContext';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { useSubmitOnboarding } from '@/hooks/Onboarding/useOnboarding';
 import { format } from 'date-fns';
 import { useSaveCheckInMeasurementsMutation } from '@/hooks/CheckIn/useCheckIn';
@@ -414,26 +414,23 @@ const PersonalPlan = ({
         </h1>
         <p className="text-muted-foreground mt-2">
           {t(
-            'onboarding.personalPlan.readyToReachYourGoal',
-            'Ready to reach your goal of'
-          )}{' '}
-          {formData.primaryGoal.replace('_', ' ')}.
+            'onboarding.personalPlan.readyToReachYourGoal2',
+            'Ready to reach your goal of {{primaryGoal}}.',
+            { primaryGoal: formData.primaryGoal.replace('_', ' ') }
+          )}
         </p>
       </div>
 
       <Alert className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400 dark:border-yellow-600/50 text-yellow-900 dark:text-yellow-200">
         <AlertTriangle className="h-4 w-4 stroke-yellow-600 dark:stroke-yellow-500" />
         <AlertDescription className="text-sm">
-          <strong>
-            {t(
-              'onboarding.personalPlan.medicalDisclaimer',
-              'Medical Disclaimer:'
-            )}
-          </strong>{' '}
-          {t(
-            'onboarding.personalPlan.thisPlanIsForInformational',
-            'This plan is for informational purposes only and should not replace professional medical advice. Please consult with your doctor or a certified nutritionist before making significant changes to your diet or exercise routine.'
-          )}
+          <Trans
+            i18nKey="onboarding.personalPlan.medicalDisclaimerThisPlanIs"
+            defaults={
+              '<strong>Medical Disclaimer:</strong> This plan is for informational purposes only and should not replace professional medical advice. Please consult with your doctor or a certified nutritionist before making significant changes to your diet or exercise routine.'
+            }
+            components={{ strong: <strong /> }}
+          />
         </AlertDescription>
       </Alert>
 

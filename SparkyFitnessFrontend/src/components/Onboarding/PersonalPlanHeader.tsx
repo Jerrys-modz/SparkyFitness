@@ -2,7 +2,7 @@ import { Input } from '@/components/ui/input';
 import { ExpandedGoals } from '@/types/goals';
 import { OnboardingData } from '@/types/onboarding';
 import { BasePlan } from '@/utils/nutritionCalculations';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 
 export interface PersonalPlanHeaderProps {
   formData: OnboardingData;
@@ -95,9 +95,7 @@ export const PersonalPlanHeader = ({
           />
         </div>
         <p className="text-xl text-foreground font-medium mt-1">
-          {t('onboarding.personalPlanHeader.perDay', '{{unit}} / day', {
-            unit: getEnergyUnitString(localEnergyUnit),
-          })}
+          {getEnergyUnitString(localEnergyUnit)} / day
         </p>
 
         <div className="mt-6 pt-6 border-t border-border flex justify-between text-sm text-muted-foreground">
@@ -112,21 +110,26 @@ export const PersonalPlanHeader = ({
           </span>
 
           <span>
-            {t(
-              'onboarding.personalPlanHeader.calorieBuyback',
-              'Calorie Buyback:'
-            )}{' '}
-            <span
-              className={
-                formData.addBurnedCalories
-                  ? 'text-green-500'
-                  : 'text-muted-foreground'
-              }
-            >
-              {formData.addBurnedCalories
-                ? t('onboarding.personalPlanHeader.on', 'ON')
-                : t('onboarding.personalPlanHeader.off', 'OFF')}
-            </span>
+            <Trans
+              i18nKey="onboarding.personalPlanHeader.calorieBuyback2"
+              defaults={'Calorie Buyback: <span>{{addBurnedCalories}}</span>'}
+              values={{
+                addBurnedCalories: formData.addBurnedCalories
+                  ? t('onboarding.personalPlanHeader.on', 'ON')
+                  : t('onboarding.personalPlanHeader.off', 'OFF'),
+              }}
+              components={{
+                span: (
+                  <span
+                    className={
+                      formData.addBurnedCalories
+                        ? 'text-green-500'
+                        : 'text-muted-foreground'
+                    }
+                  />
+                ),
+              }}
+            />
           </span>
         </div>
       </div>

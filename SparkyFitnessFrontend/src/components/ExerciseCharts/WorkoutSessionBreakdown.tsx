@@ -284,7 +284,9 @@ export const WorkoutSessionBreakdown = ({
           }`}
           onClick={() => setActiveTab('sets')}
         >
-          {t('workoutReport.sets', 'Sets')} ({setList.length})
+          {t('workoutReport.sets2', 'Sets ({{setListCount}})', {
+            setListCount: setList.length,
+          })}
         </button>
         <button
           className={`pb-3 px-4 text-sm font-semibold transition-colors border-b-2 ${
@@ -294,8 +296,11 @@ export const WorkoutSessionBreakdown = ({
           }`}
           onClick={() => setActiveTab('exercises')}
         >
-          {t('workoutReport.exercises', 'Exercises')} ({groupedExercises.length}
-          )
+          {t(
+            'workoutReport.exercises2',
+            'Exercises ({{groupedExercisesCount}})',
+            { groupedExercisesCount: groupedExercises.length }
+          )}
         </button>
         {hasTargetedMuscles && (
           <button
