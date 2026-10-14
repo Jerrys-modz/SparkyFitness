@@ -131,6 +131,12 @@ const TrainingLoadDashboardCard: React.FC<TrainingLoadDashboardCardProps> = ({
               })}
             </Text>
           ) : null}
+          <Text className="text-text-muted text-xs mt-2">
+            {t('trainingLoadCard.explain', {
+              defaultValue:
+                'Adds up how long and how hard your workouts were. Usual is your 4-week average. Bars show the last 4 weeks; green is this week.',
+            })}
+          </Text>
         </View>
         <View
           className="flex-row items-end"
