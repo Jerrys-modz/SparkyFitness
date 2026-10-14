@@ -38,6 +38,7 @@ import { foodViewOptions } from '@/hooks/Foods/useFoods';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { Trans, useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import FoodSearchDialog from '@/components/FoodSearch/FoodSearchDialog';
 import FoodUnitSelector from '@/components/FoodUnitSelector';
 import {
@@ -49,6 +50,36 @@ import type { Meal } from '@/types/meal';
 import type { WaterContainer } from '@/types/settings';
 import type { DrinkPresetCatalogEntry } from '@workspace/shared';
 import { Utensils, X, Edit2, Link2, Plus, Coffee, Beer } from 'lucide-react';
+
+const getLinkedFoodLabel = (t: TFunction, c: WaterContainer): string => {
+  const food =
+    c.linked_food_name || t('settings.waterContainerManager.food', 'Food');
+  const serving = c.linked_variant_serving_size
+    ? `${c.linked_variant_serving_size} ${c.linked_variant_serving_unit || ''}`.trim()
+    : null;
+  const meal = c.linked_meal_type_name || null;
+  if (serving && meal)
+    return t(
+      'waterContainerManager.linkedFoodServingMeal',
+      'Linked Food: {{food}} ({{serving}}) • {{meal}}',
+      { food, serving, meal }
+    );
+  if (serving)
+    return t(
+      'waterContainerManager.linkedFoodServing',
+      'Linked Food: {{food}} ({{serving}})',
+      { food, serving }
+    );
+  if (meal)
+    return t(
+      'waterContainerManager.linkedFoodMeal',
+      'Linked Food: {{food}} • {{meal}}',
+      { food, meal }
+    );
+  return t('waterContainerManager.linkedFoodOnly', 'Linked Food: {{food}}', {
+    food,
+  });
+};
 
 const WaterContainerManager: React.FC = () => {
   const { user } = useAuth();
@@ -891,40 +922,7 @@ const WaterContainerManager: React.FC = () => {
                         className="flex items-center gap-1 font-normal text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800"
                       >
                         <Utensils className="w-3 h-3" />
-                        <span>
-                          {(() => {
-                            const food =
-                              c.linked_food_name ||
-                              t('settings.waterContainerManager.food', 'Food');
-                            const serving = c.linked_variant_serving_size
-                              ? `${c.linked_variant_serving_size} ${c.linked_variant_serving_unit || ''}`.trim()
-                              : null;
-                            const meal = c.linked_meal_type_name || null;
-                            if (serving && meal)
-                              return t(
-                                'waterContainerManager.linkedFoodServingMeal',
-                                'Linked Food: {{food}} ({{serving}}) • {{meal}}',
-                                { food, serving, meal }
-                              );
-                            if (serving)
-                              return t(
-                                'waterContainerManager.linkedFoodServing',
-                                'Linked Food: {{food}} ({{serving}})',
-                                { food, serving }
-                              );
-                            if (meal)
-                              return t(
-                                'waterContainerManager.linkedFoodMeal',
-                                'Linked Food: {{food}} • {{meal}}',
-                                { food, meal }
-                              );
-                            return t(
-                              'waterContainerManager.linkedFoodOnly',
-                              'Linked Food: {{food}}',
-                              { food }
-                            );
-                          })()}
-                        </span>
+                        <span>{getLinkedFoodLabel(t, c)}</span>
                       </Badge>
                     )}
                     {c.hydration_factor !== undefined &&
