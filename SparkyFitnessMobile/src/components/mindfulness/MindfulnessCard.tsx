@@ -3,6 +3,10 @@ import { View, Text, TouchableOpacity, Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useCSSVariable } from 'uniwind';
 import Icon from '../Icon';
+import {
+  mindfulnessSessionTypeEmoji,
+  mindfulnessSessionTypeLabel,
+} from '../../utils/mindfulnessSessionTypes';
 import { BreathworkModal } from './BreathworkModal';
 import { MeditationTimerModal } from './MeditationTimerModal';
 import type {
@@ -112,66 +116,6 @@ export const MindfulnessCard: React.FC<MindfulnessCardProps> = ({
   });
   const latestSession = sortedSessions[0];
   const latestTimeStr = formatSessionTime(latestSession?.start_time);
-
-  const getSessionEmoji = (type?: string | null) => {
-    switch (type) {
-      case 'meditation':
-        return '🧘';
-      case 'breathwork':
-        return '🌊';
-      case 'reflection':
-        return '🪞';
-      case 'walking':
-        return '🚶';
-      case 'yoga':
-        return '🤸';
-      case 'guided':
-        return '🎧';
-      case 'unguided':
-        return '🕯️';
-      case 'other':
-      default:
-        return '✨';
-    }
-  };
-
-  const getSessionTypeLabel = (type?: string | null) => {
-    switch (type) {
-      case 'meditation':
-        return t('mindfulness.types.meditation', {
-          defaultValue: 'Meditation',
-        });
-      case 'breathwork':
-        return t('mindfulness.types.breathwork', {
-          defaultValue: 'Breathwork',
-        });
-      case 'reflection':
-        return t('mindfulness.types.reflection', {
-          defaultValue: 'Reflection',
-        });
-      case 'walking':
-        return t('mindfulness.types.walking', {
-          defaultValue: 'Mindful Walking',
-        });
-      case 'yoga':
-        return t('mindfulness.types.yoga', {
-          defaultValue: 'Yoga',
-        });
-      case 'guided':
-        return t('mindfulness.types.guided', {
-          defaultValue: 'Guided',
-        });
-      case 'unguided':
-        return t('mindfulness.types.unguided', {
-          defaultValue: 'Unguided',
-        });
-      case 'other':
-      default:
-        return t('mindfulness.types.other', {
-          defaultValue: 'Other',
-        });
-    }
-  };
 
   // When used on the Dashboard with onPressDetails, render an insights-only card
   // (Interactive practice and logging are housed inside MindfulnessDetailScreen).
@@ -293,7 +237,7 @@ export const MindfulnessCard: React.FC<MindfulnessCardProps> = ({
                   className="px-3 py-1.5 rounded-xl bg-surface-elevated flex-row items-center gap-1.5 shadow-xs"
                 >
                   <Text className="text-base">
-                    {getSessionEmoji(s.session_type)}
+                    {mindfulnessSessionTypeEmoji(s.session_type)}
                   </Text>
                   <Text className="text-sm text-text-primary font-bold">
                     {formatDurationDisplay(s.duration_seconds)}
@@ -418,7 +362,7 @@ export const MindfulnessCard: React.FC<MindfulnessCardProps> = ({
                 <View className="flex-1 mr-2">
                   <View className="flex-row items-center gap-1.5">
                     <Text className="text-text-primary text-sm font-semibold capitalize">
-                      {getSessionTypeLabel(session.session_type)}
+                      {mindfulnessSessionTypeLabel(session.session_type, t)}
                     </Text>
                     {session.provider && session.provider !== 'manual' && (
                       <View className="bg-white/10 px-1.5 py-0.5 rounded-md">
