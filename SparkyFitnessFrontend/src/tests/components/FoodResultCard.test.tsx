@@ -17,9 +17,8 @@ jest.mock('@/contexts/ActiveUserContext', () => ({
   }),
 }));
 
-jest.mock(
-  'react-i18next',
-  () => jest.requireActual('@/tests/i18nMock').reactI18nextMock
+jest.mock('react-i18next', () =>
+  jest.requireActual('@/tests/mocks/reactI18next')
 );
 
 const nutrientConfig = {

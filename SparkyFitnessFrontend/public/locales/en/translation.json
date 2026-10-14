@@ -2821,7 +2821,6 @@
       "fitbitIntegrationUsesOAuth2You2": "Fitbit integration uses OAuth2. You will be redirected to Fitbit to authorize access after adding the provider.<br/>In your <link>Fitbit Developer Dashboard</link>, you must set your callback URL to:",
       "ouraIntegrationUsesOAuth2You2": "Oura integration uses OAuth2. You will be redirected to Oura to authorize access after adding the provider.<br/>In your <link>Oura Developer Portal</link>, you must set your callback URL to:",
       "stravaIntegrationUsesOAuth2You2": "Strava integration uses OAuth2. You will be redirected to Strava to authorize access after adding or updating the provider.<br/>In your <link>Strava API Dashboard</link>, you must set your \"Authorization Callback Domain\" to:",
-      "andEnsuringYourLocalURL2": "and ensuring your local URL is correct if testing locally. Note: Strava callback URL on the server is configured to:<strong>{{value}}</strong>",
       "googleHealthIntegrationUsesOAuth22": "Google Health integration uses OAuth2. After saving, click <strong>Connect</strong> on the provider card to authorize access.<br/>In your <link>Google Cloud Console</link>, your OAuth 2.0 Web Application client must have this callback URL:",
       "generateAnAPIKeyIn2": "Generate an API key in the Liftosaur app: Settings > API Keys (starts with <span>lftsk_</span>). A Liftosaur Pro subscription is required to use the Liftosaur API.",
       "theSwissFoodCompositionDatabase2": "The Swiss Food Composition Database API is free, public, and requires no credentials. Supported languages for searches and nutritional value labels are <strong>English (en)</strong>, <strong2>German (de)</strong2>, <strong3>French (fr)</strong3>, and <strong4>Italian (it)</strong4>.",
@@ -2831,7 +2830,9 @@
       "theFreeExerciseDBProvider2": "The Free Exercise DB provider is public, free, and requires no credentials. It fetches exercise data directly from the community repository at <link>yuhonas/free-exercise-db on GitHub</link>.",
       "theWgerProviderIsPublic2": "The wger provider is public, free, and requires no credentials. It fetches workout and exercise data directly from the official <link>wger Project Website</link>.",
       "europeMcpeuCorosComNot": "Europe (mcpeu.coros.com) <span>(not yet tested)</span>",
-      "mainlandChinaMcpcnCorosCom": "Mainland China (mcpcn.coros.com) <span>(not yet tested)</span>"
+      "mainlandChinaMcpcnCorosCom": "Mainland China (mcpcn.coros.com) <span>(not yet tested)</span>",
+      "ensureLocalUrl": "Also ensure your local URL is correct if testing locally.",
+      "stravaCallbackNote": "Note: Strava callback URL on the server is configured to: <strong>{{value}}</strong>"
     },
     "externalProviderList": {
       "dragToReorderProvider": "Drag to reorder provider",
@@ -2959,7 +2960,6 @@
       "openFoodFactsIsA2": "Open Food Facts is a community-driven database that supports localization. Sparky automatically queries products in your active language setting in SparkyFitness. For more information, visit the <link>Open Food Facts Portal</link> or learn about language support in the <link2>Open Food Facts Translations Wiki</link2>.",
       "thisIntegrationUsesOAuth2You2": "This integration uses OAuth2. You will be redirected to the provider to authorize access after adding or updating the provider.<br/>In your",
       "stravaIntegrationUsesOAuth2You2": "Strava integration uses OAuth2. You will be redirected to Strava to authorize access after adding or updating the provider.<br/>In your <link>Strava API Dashboard</link>, you must set your \"Authorization Callback Domain\" to:",
-      "andEnsureYourLocalURL2": "and ensure your local URL is correct if testing locally. Note: Strava callback URL on the server is configured to:<strong>{{value}}</strong>",
       "noteGarminConnectIntegrationIs2": "Note: Garmin Connect integration is tested with few metrics only. Ensure your Docker Compose is updated to include Garmin section.<br/>Sparky Fitness does not store your Garmin email or password. They are used only during login to obtain secure tokens.",
       "generateAnAPIKeyIn2": "Generate an API key in the Liftosaur app: Settings > API Keys (starts with <span>lftsk_</span>). A Liftosaur Pro subscription is required to use the Liftosaur API.",
       "getYourAppIDAnd2": "Get your App ID and App Key from the <link>Nutritionix Developer Portal</link>.",
@@ -2970,7 +2970,9 @@
       "theFreeExerciseDBProvider2": "The Free Exercise DB provider is public, free, and requires no credentials. It fetches exercise data directly from the community repository at <link>yuhonas/free-exercise-db on GitHub</link>.",
       "theWgerProviderIsPublic2": "The wger provider is public, free, and requires no credentials. It fetches workout and exercise data directly from the official <link>wger Project Website</link>.",
       "europeMcpeuCorosComNot": "Europe (mcpeu.coros.com) <span>(not yet tested)</span>",
-      "mainlandChinaMcpcnCorosCom": "Mainland China (mcpcn.coros.com) <span>(not yet tested)</span>"
+      "mainlandChinaMcpcnCorosCom": "Mainland China (mcpcn.coros.com) <span>(not yet tested)</span>",
+      "ensureLocalUrl": "Also ensure your local URL is correct if testing locally.",
+      "stravaCallbackNote": "Note: Strava callback URL on the server is configured to: <strong>{{value}}</strong>"
     },
     "waterContainerManager": {
       "food": "Food",
