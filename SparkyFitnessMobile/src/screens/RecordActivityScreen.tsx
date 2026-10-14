@@ -28,6 +28,7 @@ import PaceBandCard, {
   type PaceBandChoice,
 } from '../components/recording/PaceBandCard';
 import RecordingVoiceCard from '../components/recording/RecordingVoiceCard';
+import CheckInCard from '../components/recording/CheckInCard';
 import SegmentedControl from '../components/SegmentedControl';
 import { SplitRow, Stat } from '../components/recording/SplitRow';
 import RunProgramSelect from '../components/recording/RunProgramSelect';
@@ -71,7 +72,9 @@ import {
   resumeRecording,
   setRecordingAudioCues,
   setRecordingAutoPause,
+  setCheckInPreference,
   setCountdownPreference,
+  setRecordingCheckIn,
   setRecordingPreference,
   startRecording,
   tickIntervals,
@@ -246,6 +249,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const [autoPause, setAutoPause] = useState(true);
   const [audioCues, setAudioCues] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState(0);
+  const [checkInMinutes, setCheckInMinutes] = useState(0);
   const [heartRateAlert, setHeartRateAlert] = useState(false);
   const [heartRateBand, setHeartRateBand] = useState<HeartRateBand | null>(
     null
@@ -396,6 +400,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     autoPause: false,
     audioCues: false,
     countdownSeconds: false,
+    checkInMinutes: false,
     paceAlert: false,
     heartRateAlert: false,
   });
@@ -421,6 +426,9 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       }
       if (!preferenceEdits.current.audioCues) {
         setAudioCues(preferences.audioCues);
+      }
+      if (!preferenceEdits.current.checkInMinutes) {
+        setCheckInMinutes(preferences.checkInMinutes);
       }
       if (!preferenceEdits.current.countdownSeconds) {
         setCountdownSeconds(preferences.countdownSeconds);
@@ -456,7 +464,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [isLive]);
 
   // Each second, let a timed plan move on to its next step.
-  const hasIntervals = Boolean(session?.intervals);
+  const hasIntervals =
+    Boolean(session?.intervals) || Boolean(session?.checkInMinutes);
   useEffect(() => {
     if (!isLive || !hasIntervals) return;
     void tickIntervals();
@@ -571,6 +580,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
                 : 'km'
               : undefined,
             intervals: intervalPlan,
+            checkInMinutes: audioCues ? checkInMinutes : 0,
             indoor,
             paceBand:
               paceAlert && !indoor && activity !== 'ride'
@@ -594,6 +604,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     [
       activity,
       audioCues,
+      checkInMinutes,
       autoPause,
       paceAlert,
       currentPaceBand,
@@ -1011,6 +1022,16 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
           />
           {/* The watch speaks with its own voice. */}
           {audioCues && !onWatch ? <RecordingVoiceCard /> : null}
+          {audioCues && !onWatch ? (
+            <CheckInCard
+              minutes={checkInMinutes}
+              onChange={(minutes) => {
+                preferenceEdits.current.checkInMinutes = true;
+                setCheckInMinutes(minutes);
+                void setCheckInPreference(minutes);
+              }}
+            />
+          ) : null}
           {/* A phone indoors has no GPS pace to judge by; the watch has its own. */}
           {(!indoor || onWatch) && activity !== 'ride' ? (
             <PaceBandCard
@@ -1634,6 +1655,16 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
                 value ? (distanceUnit === 'miles' ? 'miles' : 'km') : undefined
               )
             }
+          />
+        )}
+        {finished || session.audioCues == null ? null : (
+          <CheckInCard
+            testID="live-check-in"
+            minutes={session.checkInMinutes ?? 0}
+            onChange={(minutes) => {
+              void setCheckInPreference(minutes);
+              void setRecordingCheckIn(minutes);
+            }}
           />
         )}
         {/* Change the range without stopping: a new range starts the wait again. */}

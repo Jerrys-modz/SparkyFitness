@@ -240,3 +240,83 @@ export function heartRateAlertCue(
         defaultValue: 'Heart rate low. Pick it up.',
       });
 }
+
+/** Said ten seconds before a step ends: how long is left and what comes next. */
+export function stepWarningCue(
+  t: TFunction,
+  options: { next: IntervalStep | null; style: IntervalStyle }
+): string {
+  return options.next
+    ? t('recordActivity.cues.stepWarning', {
+        name: intervalStepName(t, options.next.kind, options.style),
+        defaultValue: 'Ten seconds. Next, {{name}}.',
+      })
+    : t('recordActivity.cues.stepWarningLast', {
+        defaultValue: 'Ten seconds to go.',
+      });
+}
+
+/** Said when a plan workout is half over. */
+export function halfwayCue(t: TFunction): string {
+  return t('recordActivity.cues.halfway', {
+    defaultValue: 'Halfway there. Keep it up.',
+  });
+}
+
+/** Said when a minute is left in a plan workout. */
+export function lastMinuteCue(t: TFunction): string {
+  return t('recordActivity.cues.lastMinute', {
+    defaultValue: 'One minute left. Finish strong.',
+  });
+}
+
+/**
+ * The periodic update: the time on the clock and, outdoors, how far and the
+ * average pace. `secondsPerUnit` is null before there is enough to average.
+ */
+export function checkInCue(
+  t: TFunction,
+  options: {
+    totalSeconds: number;
+    /** Null for an indoor session, which has no measured distance. */
+    distanceMeters: number | null;
+    secondsPerUnit: number | null;
+    unit: CueUnit;
+  }
+): string {
+  const time = spokenDuration(t, options.totalSeconds);
+  if (options.distanceMeters === null || options.distanceMeters < 10) {
+    return t('recordActivity.cues.checkInTime', {
+      time,
+      defaultValue: '{{time}} done.',
+    });
+  }
+  const distance = spokenDistance(
+    t,
+    Math.round((options.distanceMeters / cueUnitMeters(options.unit)) * 10) /
+      10,
+    options.unit
+  );
+  if (options.secondsPerUnit === null) {
+    return t('recordActivity.cues.checkInDistance', {
+      time,
+      distance,
+      defaultValue: '{{time}}. {{distance}}.',
+    });
+  }
+  const pace = spokenDuration(t, Math.round(options.secondsPerUnit));
+  return options.unit === 'miles'
+    ? t('recordActivity.cues.checkInMiles', {
+        time,
+        distance,
+        pace,
+        defaultValue: '{{time}}. {{distance}}. Average pace {{pace}} per mile.',
+      })
+    : t('recordActivity.cues.checkInKm', {
+        time,
+        distance,
+        pace,
+        defaultValue:
+          '{{time}}. {{distance}}. Average pace {{pace}} per kilometer.',
+      });
+}

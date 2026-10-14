@@ -6468,6 +6468,12 @@
     }
   },
   "recordActivity": {
+    "checkIn": {
+      "title": "Spoken updates",
+      "description": "Hear your time, distance and average pace every few minutes.",
+      "off": "Off",
+      "minutes": "{{minutes}} min"
+    },
     "liveActivity": {
       "step": "{{name}} · {{current}} of {{total}}"
     },
@@ -6573,6 +6579,14 @@
       "miles_other": "{{count}} miles",
       "interval": "{{name}}. {{time}}.",
       "intervalsDone": "Intervals complete.",
+      "stepWarning": "Ten seconds. Next, {{name}}.",
+      "stepWarningLast": "Ten seconds to go.",
+      "halfway": "Halfway there. Keep it up.",
+      "lastMinute": "One minute left. Finish strong.",
+      "checkInTime": "{{time}} done.",
+      "checkInDistance": "{{time}}. {{distance}}.",
+      "checkInKm": "{{time}}. {{distance}}. Average pace {{pace}} per kilometer.",
+      "checkInMiles": "{{time}}. {{distance}}. Average pace {{pace}} per mile.",
       "paceTooFast": "Too fast. Ease off.",
       "paceTooSlow": "Too slow. Pick it up.",
       "heartRateTooHigh": "Heart rate high. Ease off.",

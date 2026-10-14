@@ -28,6 +28,7 @@ import {
   pauseRecording,
   resetRecordingStateForTests,
   resumeRecording,
+  setRecordingCheckIn,
   startRecording,
   tickIntervals,
   type RecordingSession,
@@ -169,5 +170,77 @@ describe('interval plans', () => {
       notification,
     });
     expect((await stored())?.intervals).toBeUndefined();
+  });
+});
+
+describe('coaching audio', () => {
+  const spoken = () =>
+    (speakRecordingCue as jest.Mock).mock.calls.map(([text]) => text as string);
+
+  test('speaks a time check-in at each interval, indoors too', async () => {
+    await startRecording({
+      activity: 'run',
+      indoor: true,
+      audioCues: 'km',
+      checkInMinutes: 5,
+      notification,
+    });
+    (speakRecordingCue as jest.Mock).mockClear();
+    at(299);
+    await tickIntervals();
+    expect(spoken()).toEqual([]);
+    at(300);
+    await tickIntervals();
+    expect(spoken()).toEqual(['5 minutes done.']);
+    at(301);
+    await tickIntervals();
+    expect(spoken()).toHaveLength(1);
+  });
+
+  test('stays quiet without voice cues', async () => {
+    await startRecording({
+      activity: 'run',
+      indoor: true,
+      checkInMinutes: 5,
+      notification,
+    });
+    at(305);
+    await tickIntervals();
+    expect(speakRecordingCue).not.toHaveBeenCalled();
+  });
+
+  test('warns ten seconds before a step ends', async () => {
+    await startRecording({
+      activity: 'run',
+      indoor: true,
+      audioCues: 'km',
+      intervals: plan,
+      notification,
+    });
+    (speakRecordingCue as jest.Mock).mockClear();
+    at(50);
+    await tickIntervals();
+    expect(spoken()).toEqual(['Ten seconds. Next, Walk.']);
+    at(52);
+    await tickIntervals();
+    expect(spoken()).toHaveLength(1);
+  });
+
+  test('changing the interval mid-run counts the time already run as said', async () => {
+    await startRecording({
+      activity: 'run',
+      indoor: true,
+      audioCues: 'km',
+      notification,
+    });
+    at(330);
+    await setRecordingCheckIn(5);
+    (speakRecordingCue as jest.Mock).mockClear();
+    at(331);
+    await tickIntervals();
+    expect(spoken()).toEqual([]);
+    at(600);
+    await tickIntervals();
+    expect(spoken()).toEqual(['10 minutes done.']);
   });
 });

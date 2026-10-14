@@ -1,0 +1,103 @@
+import {
+  intervalPosition,
+  planTotalSeconds,
+  type IntervalPlan,
+  type IntervalStep,
+} from '@workspace/shared';
+
+/** What has already been said, kept with the session so a restore never repeats it. */
+export interface CoachingState {
+  /** Check-ins already given (the one due at `n * minutes`). */
+  checkIns: number;
+  /** Index of the last step whose "ten seconds" warning was given; -1 for none. */
+  warnedStep: number;
+  halfway: boolean;
+  lastMinute: boolean;
+}
+
+export const INITIAL_COACHING_STATE: CoachingState = {
+  checkIns: 0,
+  warnedStep: -1,
+  halfway: false,
+  lastMinute: false,
+};
+
+/** The spoken check-in intervals offered, in minutes; 0 is off. */
+export const CHECK_IN_CHOICES = [0, 5, 10, 15] as const;
+
+/** Seconds before a step ends at which the warning is given. */
+export const STEP_WARNING_SECONDS = 10;
+/** Steps shorter than this get no warning: it would land right after their start cue. */
+export const MIN_WARNED_STEP_SECONDS = 30;
+/** Plans shorter than this get no halfway call. */
+export const MIN_HALFWAY_PLAN_SECONDS = 5 * 60;
+/** Plans shorter than this get no last-minute call. */
+export const MIN_LAST_MINUTE_PLAN_SECONDS = 3 * 60;
+
+export type CoachingCue =
+  | { kind: 'stepWarning'; next: IntervalStep | null }
+  | { kind: 'lastMinute' }
+  | { kind: 'halfway' }
+  | { kind: 'checkIn'; minutes: number };
+
+/**
+ * Works out which coaching cues are due at `elapsedSeconds` of recorded time
+ * and the state after them. Returns the cues most important first; the caller
+ * speaks the first and drops the rest, which are marked said here so a late
+ * one never plays a minute out of date. Pure.
+ */
+export function nextCoachingCues(input: {
+  elapsedSeconds: number;
+  plan: IntervalPlan | null;
+  /** Minutes between spoken check-ins; 0 or null for none. */
+  checkInMinutes: number | null;
+  state: CoachingState;
+}): { cues: CoachingCue[]; state: CoachingState } {
+  const { elapsedSeconds, plan, checkInMinutes } = input;
+  let state = input.state;
+  const cues: CoachingCue[] = [];
+
+  if (plan) {
+    const position = intervalPosition(plan, elapsedSeconds);
+    if (
+      position &&
+      !position.done &&
+      position.step.seconds >= MIN_WARNED_STEP_SECONDS &&
+      position.remaining <= STEP_WARNING_SECONDS &&
+      position.index > state.warnedStep
+    ) {
+      cues.push({ kind: 'stepWarning', next: position.next });
+      state = { ...state, warnedStep: position.index };
+    }
+
+    const total = planTotalSeconds(plan);
+    if (
+      !state.lastMinute &&
+      total >= MIN_LAST_MINUTE_PLAN_SECONDS &&
+      elapsedSeconds < total &&
+      total - elapsedSeconds <= 60
+    ) {
+      cues.push({ kind: 'lastMinute' });
+      state = { ...state, lastMinute: true };
+    }
+    if (
+      !state.halfway &&
+      total >= MIN_HALFWAY_PLAN_SECONDS &&
+      elapsedSeconds >= total / 2 &&
+      elapsedSeconds < total
+    ) {
+      cues.push({ kind: 'halfway' });
+      state = { ...state, halfway: true };
+    }
+  }
+
+  if (checkInMinutes && checkInMinutes > 0) {
+    const due = Math.floor(elapsedSeconds / (checkInMinutes * 60));
+    if (due > state.checkIns) {
+      cues.push({ kind: 'checkIn', minutes: due * checkInMinutes });
+      state = { ...state, checkIns: due };
+    }
+  }
+
+  return { cues, state };
+}
