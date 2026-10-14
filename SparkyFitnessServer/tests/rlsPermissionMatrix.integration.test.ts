@@ -347,10 +347,10 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     });
 
     it.each([
-      ['owner', () => OWNER, true],
-      ['diary delegate', () => D.diary, true],
-      ['read-only reports delegate', () => D.reports, false],
-      ['unpermitted delegate', () => D.none, false],
+      ['owner', (): string => OWNER, true],
+      ['diary delegate', (): string => D.diary, true],
+      ['read-only reports delegate', (): string => D.reports, false],
+      ['unpermitted delegate', (): string => D.none, false],
     ] as const)(
       'allows snapshot inserts only with diary write access: %s',
       async (_label, actorId, allowed) => {
