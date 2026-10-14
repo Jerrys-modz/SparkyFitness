@@ -125,8 +125,8 @@ function goalProgress(consumed: number, goal: number): number {
   return Math.max(0, Math.min(1, consumed / goal));
 }
 
-/** Daily step goal sent to the watch (no per-user step goal exists yet). */
-const WATCH_STEP_GOAL = 10000;
+/** Step goal sent to the watch when the user has not set one. */
+const DEFAULT_WATCH_STEP_GOAL = 10000;
 
 /** Days of history relayed to the watch — matches the watch's 14-day chart. */
 const HISTORY_DAYS = 14;
@@ -450,6 +450,10 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // two never disagree.
   const waterConsumedMl = dailySummary?.waterConsumed ?? null;
   const waterGoalMl = dailySummary?.waterGoal ?? null;
+  const stepGoal =
+    dailySummary?.stepsGoal && dailySummary.stepsGoal > 0
+      ? dailySummary.stepsGoal
+      : DEFAULT_WATCH_STEP_GOAL;
   // The part of the total that came from logged food's water. Sent only when
   // food water counts toward intake (the same setting the phone's gauge
   // follows), so the watch shows the line only for people who opted in.
@@ -769,7 +773,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
           todayRow?.steps != null && todayRow.steps >= 0
             ? { day: today, count: Math.round(todayRow.steps) }
             : null,
-        stepGoal: WATCH_STEP_GOAL,
+        stepGoal,
         pageOrder: resolveKeyOrder(watchPageOrder, WATCH_PAGE_KEYS),
         hiddenPages: hiddenWatchPages,
         setInputStyle: watchSetInputStyle,
@@ -805,6 +809,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     suggestedExercises,
     scheduledWorkouts,
     waterGoalMl,
+    stepGoal,
     waterDisplayUnit,
     watchPageOrder,
     hiddenWatchPages,

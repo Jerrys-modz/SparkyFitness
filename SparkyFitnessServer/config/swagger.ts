@@ -1167,6 +1167,7 @@ const options = {
               type: 'integer',
               nullable: true,
             },
+            target_steps: { type: 'integer', nullable: true },
           },
         },
         GoalPreset: {
