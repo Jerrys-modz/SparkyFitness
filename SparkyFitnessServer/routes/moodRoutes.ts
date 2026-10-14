@@ -127,11 +127,12 @@ router.post('/', async (req, res, next) => {
     if (mood_value === null || mood_value === undefined) {
       return res.status(400).json({ message: 'Mood value is required.' });
     }
-    // The column is `integer NOT NULL` on a 10-100 scale, and this route was
-    // the one path to it that checked neither. That is how values below the
-    // scale reached the table: before #2495 the check-in picker wrote the raw
-    // band midpoint, 8 for Sad. Anything unparseable is rejected here rather
-    // than left to fail on the column, which would leak its name in the error.
+    // The column is `integer NOT NULL` on a 10-100 scale, and this route
+    // checked neither. That is how values below the scale reach the table: a
+    // check-in picker that sends the raw band midpoint stores 8 for Sad. The
+    // web one did until #2495; the mobile one added in #2820 still does.
+    // Anything unparseable is rejected here rather than left to fail on the
+    // column, which would leak its name in the error.
     const storedMoodValue = clampStoredMoodValue(mood_value);
     if (storedMoodValue === null) {
       return res.status(400).json({ message: 'Mood value must be a number.' });
