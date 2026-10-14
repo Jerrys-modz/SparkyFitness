@@ -6,6 +6,7 @@ import type {
   FoodPhotoEstimateResponse,
   FoodPhotoLogItem,
   IndividualSessionResponse,
+  MindfulnessSessionResponse,
   PresetSessionResponse,
   SharedPregnancy,
   WorkoutFormat,
@@ -333,6 +334,9 @@ export type RootStackParamList = {
   FastingDetail: undefined;
   FastingSettings: undefined;
   MindfulnessDetail: { selectedDate?: string } | undefined;
+  /** Logs a mindful session for `date`, or edits `session` when one is passed. */
+  MindfulnessLog:
+    { date?: string; session?: MindfulnessSessionResponse } | undefined;
   SleepDetail: { entryId: string; day: string };
   Chat: undefined;
   Logs: undefined;

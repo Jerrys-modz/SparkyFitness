@@ -24,7 +24,6 @@ import {
 } from '../hooks/useMindfulness';
 import { BreathworkModal } from '../components/mindfulness/BreathworkModal';
 import { MeditationTimerModal } from '../components/mindfulness/MeditationTimerModal';
-import { MindfulnessSessionModal } from '../components/mindfulness/MindfulnessSessionModal';
 import { toLocalDateString } from '../utils/dateUtils';
 import type { RootStackScreenProps } from '../types/navigation';
 import type {
@@ -64,9 +63,6 @@ const MindfulnessDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   // Modals state
   const [breathworkVisible, setBreathworkVisible] = useState(false);
   const [timerVisible, setTimerVisible] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [editingSession, setEditingSession] =
-    useState<MindfulnessSessionResponse | null>(null);
 
   // Manual Log Form State
   const [durationMinutes, setDurationMinutes] = useState('15');
@@ -83,8 +79,7 @@ const MindfulnessDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   // Data queries & mutations
   const { sessions, totalMindfulMinutes, isLoading } =
     useMindfulnessDay(selectedDate);
-  const { saveSession, updateSession, deleteSession } =
-    useMindfulnessMutations(selectedDate);
+  const { saveSession, deleteSession } = useMindfulnessMutations(selectedDate);
 
   const getSessionTypeLabel = (type?: string | null) => {
     switch (type) {
@@ -681,10 +676,12 @@ const MindfulnessDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                           {formatDurationDisplay(session.duration_seconds)}
                         </Text>
                         <TouchableOpacity
-                          onPress={() => {
-                            setEditingSession(session);
-                            setEditModalVisible(true);
-                          }}
+                          onPress={() =>
+                            navigation.navigate('MindfulnessLog', {
+                              date: selectedDate,
+                              session,
+                            })
+                          }
                           hitSlop={8}
                           className="p-1.5 rounded-lg bg-surface-elevated border border-border-subtle"
                           accessibilityRole="button"
@@ -726,25 +723,6 @@ const MindfulnessDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         visible={timerVisible}
         onClose={() => setTimerVisible(false)}
         onSave={handleTimerSave}
-      />
-
-      <MindfulnessSessionModal
-        visible={editModalVisible}
-        onClose={() => {
-          setEditModalVisible(false);
-          setEditingSession(null);
-        }}
-        onSave={async (data) => {
-          await saveSession(data);
-          setEditModalVisible(false);
-        }}
-        onUpdate={async (id, data) => {
-          await updateSession(id, data);
-          setEditModalVisible(false);
-          setEditingSession(null);
-        }}
-        initialSession={editingSession}
-        selectedDate={selectedDate}
       />
     </View>
   );

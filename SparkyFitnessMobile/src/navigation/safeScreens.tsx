@@ -58,6 +58,7 @@ import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import AboutScreen from '../screens/AboutScreen';
 import WhatsNewScreen from '../screens/WhatsNewScreen';
 import MeasurementsAddScreen from '../screens/MeasurementsAddScreen';
+import MindfulnessLogScreen from '../screens/MindfulnessLogScreen';
 import ProgressPhotosScreen from '../screens/ProgressPhotosScreen';
 import ProgressPhotoCompareScreen from '../screens/ProgressPhotoCompareScreen';
 import ProgressPhotoTimelapseScreen from '../screens/ProgressPhotoTimelapseScreen';
@@ -146,6 +147,7 @@ export const SafeLogs = withErrorBoundary(LogScreen, 'Logs', { canGoBack: true }
 export const SafeSync = withErrorBoundary(SyncScreen, 'Sync', { canGoBack: true });
 export const SafeImportHistory = withErrorBoundary(ImportHistoryScreen, 'ImportHistory', { canGoBack: true });
 export const SafeMeasurementsAdd = withErrorBoundary(MeasurementsAddScreen, 'MeasurementsAdd', { canGoBack: true });
+export const SafeMindfulnessLog = withErrorBoundary(MindfulnessLogScreen, 'MindfulnessLog', { canGoBack: true });
 export const SafeProgressPhotos = withErrorBoundary(ProgressPhotosScreen, 'ProgressPhotos', { canGoBack: true });
 export const SafeProgressPhotoCompare = withErrorBoundary(ProgressPhotoCompareScreen, 'ProgressPhotoCompare', { canGoBack: true });
 export const SafeProgressPhotoTimelapse = withErrorBoundary(ProgressPhotoTimelapseScreen, 'ProgressPhotoTimelapse', { canGoBack: true });

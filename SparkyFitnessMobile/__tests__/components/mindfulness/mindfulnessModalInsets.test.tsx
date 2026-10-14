@@ -3,7 +3,6 @@ import { render, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BreathworkModal } from '../../../src/components/mindfulness/BreathworkModal';
 import { MeditationTimerModal } from '../../../src/components/mindfulness/MeditationTimerModal';
-import { MindfulnessSessionModal } from '../../../src/components/mindfulness/MindfulnessSessionModal';
 import { initializeI18n } from '../../../src/localization/i18n';
 
 jest.mock('../../../src/components/Icon', () => {
@@ -73,19 +72,5 @@ describe('mindfulness modals under Android edge-to-edge', () => {
     expect(paddingAbove('Start Breathing', 'paddingBottom')).toBe(
       ANDROID_INSETS.bottom
     );
-  });
-
-  test('the Log Mindful Session sheet keeps Cancel and Save above the navigation bar', () => {
-    withAndroidInsets(
-      <MindfulnessSessionModal
-        visible
-        onClose={jest.fn()}
-        onSave={jest.fn()}
-        selectedDate="2026-10-12"
-      />
-    );
-
-    expect(paddingAbove('Save', 'paddingBottom')).toBe(ANDROID_INSETS.bottom);
-    expect(paddingAbove('Cancel', 'paddingBottom')).toBe(ANDROID_INSETS.bottom);
   });
 });
