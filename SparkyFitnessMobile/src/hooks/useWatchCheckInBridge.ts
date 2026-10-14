@@ -740,6 +740,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         rpeEnabled: watchRpeEnabled,
         runVoiceCues: recording.audioCues,
         runAutoPause: recording.autoPause,
+        runCheckInMinutes: recording.checkInMinutes,
         ...(recording.heartRateBand
           ? {
               runHeartRateMinBpm: recording.heartRateBand.minBpm,

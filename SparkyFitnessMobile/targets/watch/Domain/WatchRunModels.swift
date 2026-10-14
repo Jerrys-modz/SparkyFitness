@@ -162,6 +162,9 @@ struct WatchRunSettings: Codable, Equatable {
     var paceBand: WatchPaceBand? = nil
     /// A heart-rate range to stay inside; nil is no heart-rate alert.
     var heartRateBand: WatchHeartRateBand? = nil
+    /// Minutes between spoken check-ins (time, distance, pace); nil or 0 is off.
+    /// Optional so a snapshot written before it existed still decodes.
+    var checkInMinutes: Int? = nil
     /// The wearer turned the pace alert off, which also silences the ranges
     /// of a plan's own steps. Optional so an older snapshot still decodes.
     var paceStepsOff: Bool? = nil

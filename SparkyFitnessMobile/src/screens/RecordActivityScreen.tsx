@@ -554,6 +554,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               place: indoor ? 'indoor' : 'outdoor',
               autoPause,
               voiceCues: audioCues,
+              checkInMinutes,
               ...(paceAlert
                 ? { paceBand: paceBandPerKm(currentPaceBand, distanceUnit) }
                 : {}),
@@ -1022,7 +1023,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
           />
           {/* The watch speaks with its own voice. */}
           {audioCues && !onWatch ? <RecordingVoiceCard /> : null}
-          {audioCues && !onWatch ? (
+          {audioCues ? (
             <CheckInCard
               minutes={checkInMinutes}
               onChange={(minutes) => {

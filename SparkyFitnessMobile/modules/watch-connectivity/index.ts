@@ -176,6 +176,8 @@ export interface WatchContextPayload {
   runVoiceCues?: boolean | null;
   /** The phone's Auto-pause switch: the default for a run begun on the wrist. */
   runAutoPause?: boolean | null;
+  /** Minutes between spoken check-ins: the default for a run begun on the wrist; 0 is off. */
+  runCheckInMinutes?: number | null;
   /**
    * The pace range last used on the Record screen (seconds per km). The
    * watch's start screen offers it as the starting point of a pace alert; an
@@ -823,6 +825,8 @@ export interface WatchRunStartPayload {
   /** The Record screen's switches for this run (both or neither). */
   autoPause?: boolean;
   voiceCues?: boolean;
+  /** Minutes between spoken check-ins (needs voiceCues); 0 or absent for none. */
+  checkInMinutes?: number;
   /** Pace range (seconds per km) to stay inside; both or neither. */
   paceMin?: number;
   paceMax?: number;

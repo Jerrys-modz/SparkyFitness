@@ -54,6 +54,8 @@ final class WatchRunStore: ObservableObject {
     @Published private(set) var plan: WatchRunPlan?
     /// Index of the plan step already announced (-1 before the first).
     private var cuedStep = -1
+    /// Which coaching cues (step warnings, halfway, check-ins) were said.
+    private var coaching = WatchCoachingState()
     private var stepTimer: Timer?
     /// The phone's request this run answers, when it was started from there.
     /// Sent with every live message so the phone can tell it is this run.
@@ -172,7 +174,8 @@ final class WatchRunStore: ObservableObject {
             autoPause: context.runAutoPause ?? true,
             voiceCues: context.runVoiceCues == true,
             paceBand: nil,
-            heartRateBand: nil
+            heartRateBand: nil,
+            checkInMinutes: context.runCheckInMinutes
         )
     }
 
@@ -198,6 +201,7 @@ final class WatchRunStore: ObservableObject {
         self.plan = plan
         distanceScale = Self.scale(for: kind, place: place)
         cuedStep = -1
+        coaching = WatchCoachingState()
         paceAlertState = .initial
         paceAlertStep = nil
         heartRateAlertState = .initial
@@ -261,6 +265,11 @@ final class WatchRunStore: ObservableObject {
                     // not announced again.
                     let resumedAt = max(self.healthKit.elapsed, recovery.elapsed)
                     self.cuedStep = self.plan?.position(at: resumedAt)?.index ?? -1
+                    self.coaching = WatchCoachingState.resumed(
+                        at: resumedAt,
+                        plan: self.plan,
+                        checkInMinutes: self.settings.checkInMinutes ?? 0
+                    )
                     self.startStepTimer()
                     self.startLiveTimer()
                     // Splits passed while the app was gone are not replayed.
@@ -508,9 +517,12 @@ final class WatchRunStore: ObservableObject {
 
     private func startStepTimer() {
         stopStepTimer()
-        guard plan != nil else { return }
+        guard plan != nil || (settings.checkInMinutes ?? 0) > 0 else { return }
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.cueStepIfDue() }
+            Task { @MainActor in
+                self?.cueStepIfDue()
+                self?.cueCoachingIfDue()
+            }
         }
         RunLoop.main.add(timer, forMode: .common)
         stepTimer = timer
@@ -542,6 +554,40 @@ final class WatchRunStore: ObservableObject {
             WatchRunCues.shared.speak(
                 WatchRunCues.stepText(label: position.label, seconds: plan.steps[position.index].seconds),
                 interrupt: true
+            )
+        }
+    }
+
+    /// Speaks the coaching cue that is due, if Voice cues is on: a ten-second
+    /// warning before a step ends, halfway and the last minute of a plan, and
+    /// the periodic check-in. At most one a tick; the rest are marked said.
+    private func cueCoachingIfDue() {
+        guard phase == .running else { return }
+        let checkInMinutes = settings.checkInMinutes ?? 0
+        guard plan != nil || checkInMinutes > 0 else { return }
+        let elapsed = healthKit.elapsed
+        let result = WatchCoaching.next(
+            elapsed: elapsed,
+            plan: plan,
+            checkInMinutes: checkInMinutes,
+            state: coaching
+        )
+        coaching = result.state
+        guard settings.voiceCues, let cue = result.cues.first else { return }
+        switch cue {
+        case .stepWarning(let next):
+            WatchRunCues.shared.speak(WatchRunCues.stepWarningText(next: next))
+        case .lastMinute:
+            WatchRunCues.shared.speak(WatchRunCues.lastMinuteText)
+        case .halfway:
+            WatchRunCues.shared.speak(WatchRunCues.halfwayText)
+        case .checkIn:
+            WatchRunCues.shared.speak(
+                WatchRunCues.checkInText(
+                    seconds: elapsed,
+                    distanceMeters: place == .indoor ? nil : metrics.distanceMeters,
+                    usesMiles: usesMiles
+                )
             )
         }
     }
