@@ -106,7 +106,9 @@ export const ProviderSpecificFields = ({
     <>
       {needsBaseUrl && (
         <div>
-          <Label htmlFor="new_base_url">App URL</Label>
+          <Label htmlFor="new_base_url">
+            {t('settings.providerSpecificFields.appURL', 'App URL')}
+          </Label>
           <Input
             id="new_base_url"
             type="text"
@@ -114,7 +116,11 @@ export const ProviderSpecificFields = ({
             onChange={(e) =>
               setProvider((prev) => ({ ...prev, base_url: e.target.value }))
             }
-            placeholder={`e.g., http://your-${provider.provider_type}-instance.com`}
+            placeholder={t(
+              'settings.providerSpecificFields.eGHttpYourInstance',
+              'e.g., http://your-{{provider_type}}-instance.com',
+              { provider_type: provider.provider_type }
+            )}
             autoComplete="off"
           />
         </div>
@@ -132,10 +138,13 @@ export const ProviderSpecificFields = ({
               'polar',
               'fatsecret',
             ].includes(provider.provider_type || '')
-              ? 'Client ID'
+              ? t('settings.providerSpecificFields.clientID', 'Client ID')
               : provider.provider_type === 'yazio'
-                ? 'YAZIO Email / Username'
-                : 'App ID'}
+                ? t(
+                    'settings.providerSpecificFields.yazioEmailUsername',
+                    'YAZIO Email / Username'
+                  )
+                : t('settings.providerSpecificFields.appID', 'App ID')}
           </Label>
           <Input
             id="new_app_id"
@@ -144,7 +153,10 @@ export const ProviderSpecificFields = ({
             onChange={(e) =>
               setProvider((prev) => ({ ...prev, app_id: e.target.value }))
             }
-            placeholder="Enter ID"
+            placeholder={t(
+              'settings.providerSpecificFields.enterID',
+              'Enter ID'
+            )}
             autoComplete="off"
           />
         </div>
@@ -162,12 +174,24 @@ export const ProviderSpecificFields = ({
               'polar',
               'fatsecret',
             ].includes(provider.provider_type || '')
-              ? 'Client Secret'
+              ? t(
+                  'settings.providerSpecificFields.clientSecret',
+                  'Client Secret'
+                )
               : provider.provider_type === 'yazio'
-                ? 'YAZIO Password'
+                ? t(
+                    'settings.providerSpecificFields.yazioPassword',
+                    'YAZIO Password'
+                  )
                 : provider.provider_type === 'liftosaur'
-                  ? 'Liftosaur API Key'
-                  : 'API Key / App Key'}
+                  ? t(
+                      'settings.providerSpecificFields.liftosaurAPIKey',
+                      'Liftosaur API Key'
+                    )
+                  : t(
+                      'settings.providerSpecificFields.apiKeyAppKey',
+                      'API Key / App Key'
+                    )}
           </Label>
           <Input
             id="new_app_key"
@@ -178,8 +202,11 @@ export const ProviderSpecificFields = ({
             }
             placeholder={
               provider.provider_type === 'liftosaur'
-                ? 'Enter Liftosaur API Key (lftsk_...)'
-                : 'Enter Key'
+                ? t(
+                    'settings.providerSpecificFields.enterLiftosaurAPIKeyLftsk',
+                    'Enter Liftosaur API Key (lftsk_...)'
+                  )
+                : t('settings.providerSpecificFields.enterKey', 'Enter Key')
             }
             autoComplete="off"
           />
@@ -210,7 +237,10 @@ export const ProviderSpecificFields = ({
           </p>
           <div>
             <Label htmlFor="add-openfoodfacts-username">
-              Open Food Facts Username (Optional)
+              {t(
+                'settings.providerSpecificFields.openFoodFactsUsernameOptional',
+                'Open Food Facts Username (Optional)'
+              )}
             </Label>
             <Input
               id="add-openfoodfacts-username"
@@ -219,13 +249,19 @@ export const ProviderSpecificFields = ({
               onChange={(e) =>
                 setProvider((prev) => ({ ...prev, app_id: e.target.value }))
               }
-              placeholder="Enter Open Food Facts username"
+              placeholder={t(
+                'settings.providerSpecificFields.enterOpenFoodFactsUsername',
+                'Enter Open Food Facts username'
+              )}
               autoComplete="username"
             />
           </div>
           <div>
             <Label htmlFor="add-openfoodfacts-password">
-              Open Food Facts Password (Optional)
+              {t(
+                'settings.providerSpecificFields.openFoodFactsPasswordOptional',
+                'Open Food Facts Password (Optional)'
+              )}
             </Label>
             <Input
               id="add-openfoodfacts-password"
@@ -234,7 +270,10 @@ export const ProviderSpecificFields = ({
               onChange={(e) =>
                 setProvider((prev) => ({ ...prev, app_key: e.target.value }))
               }
-              placeholder="Enter Open Food Facts password"
+              placeholder={t(
+                'settings.providerSpecificFields.enterOpenFoodFactsPassword',
+                'Enter Open Food Facts password'
+              )}
               autoComplete="current-password"
             />
           </div>
@@ -244,25 +283,35 @@ export const ProviderSpecificFields = ({
             )}
           </p>
           <p className="text-sm text-muted-foreground col-span-2">
-            Open Food Facts is a community-driven database that supports
-            localization. Sparky automatically queries products in your active
-            language setting in SparkyFitness. For more information, visit the{' '}
+            {t(
+              'settings.providerSpecificFields.openFoodFactsIsA',
+              'Open Food Facts is a community-driven database that supports localization. Sparky automatically queries products in your active language setting in SparkyFitness. For more information, visit the'
+            )}{' '}
             <a
               href="https://world.openfoodfacts.org/"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline font-medium"
             >
-              Open Food Facts Portal
+              {t(
+                'settings.providerSpecificFields.openFoodFactsPortal',
+                'Open Food Facts Portal'
+              )}
             </a>{' '}
-            or learn about language support in the{' '}
+            {t(
+              'settings.providerSpecificFields.orLearnAboutLanguageSupport',
+              'or learn about language support in the'
+            )}{' '}
             <a
               href="https://en.wiki.openfoodfacts.org/Translations"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline font-medium"
             >
-              Open Food Facts Translations Wiki
+              {t(
+                'settings.providerSpecificFields.openFoodFactsTranslationsWiki',
+                'Open Food Facts Translations Wiki'
+              )}
             </a>
             .
           </p>
@@ -415,7 +464,9 @@ export const ProviderSpecificFields = ({
       {provider.provider_type === 'garmin' && (
         <>
           <div>
-            <Label htmlFor="add-garmin-email">Garmin Email</Label>
+            <Label htmlFor="add-garmin-email">
+              {t('settings.providerSpecificFields.garminEmail', 'Garmin Email')}
+            </Label>
             <Input
               id="add-garmin-email"
               type="email"
@@ -423,12 +474,20 @@ export const ProviderSpecificFields = ({
               onChange={(e) =>
                 setProvider((prev) => ({ ...prev, app_id: e.target.value }))
               }
-              placeholder="Enter Garmin Email"
+              placeholder={t(
+                'settings.providerSpecificFields.enterGarminEmail',
+                'Enter Garmin Email'
+              )}
               autoComplete="username"
             />
           </div>
           <div>
-            <Label htmlFor="add-garmin-password">Garmin Password</Label>
+            <Label htmlFor="add-garmin-password">
+              {t(
+                'settings.providerSpecificFields.garminPassword',
+                'Garmin Password'
+              )}
+            </Label>
             <Input
               id="add-garmin-password"
               type="password"
@@ -436,7 +495,10 @@ export const ProviderSpecificFields = ({
               onChange={(e) =>
                 setProvider((prev) => ({ ...prev, app_key: e.target.value }))
               }
-              placeholder="Enter Garmin Password"
+              placeholder={t(
+                'settings.providerSpecificFields.enterGarminPassword',
+                'Enter Garmin Password'
+              )}
               autoComplete="current-password"
             />
           </div>
@@ -447,10 +509,12 @@ export const ProviderSpecificFields = ({
         provider.provider_type || ''
       ) && (
         <p className="text-sm text-muted-foreground col-span-2">
-          This integration uses OAuth2. You will be redirected to the provider
-          to authorize access after adding or updating the provider.
+          {t(
+            'settings.providerSpecificFields.thisIntegrationUsesOAuth2You',
+            'This integration uses OAuth2. You will be redirected to the provider to authorize access after adding or updating the provider.'
+          )}
           <br />
-          In your{' '}
+          {t('settings.providerSpecificFields.inYour', 'In your')}{' '}
           {providerDashboard ? (
             <a
               href={providerDashboard.url}
@@ -463,7 +527,10 @@ export const ProviderSpecificFields = ({
           ) : (
             <span>{t(`${OAUTH_DASHBOARD_LABELS}.fallback`)}</span>
           )}
-          , you must set your callback URL to:
+          {t(
+            'settings.providerSpecificFields.youMustSetYourCallback',
+            ', you must set your callback URL to:'
+          )}
           <strong className="flex items-center mt-1">
             {getCallbackUrl()}
             <Button
@@ -483,19 +550,27 @@ export const ProviderSpecificFields = ({
 
       {provider.provider_type === 'strava' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          Strava integration uses OAuth2. You will be redirected to Strava to
-          authorize access after adding or updating the provider.
+          {t(
+            'settings.providerSpecificFields.stravaIntegrationUsesOAuth2You',
+            'Strava integration uses OAuth2. You will be redirected to Strava to authorize access after adding or updating the provider.'
+          )}
           <br />
-          In your{' '}
+          {t('settings.providerSpecificFields.inYour', 'In your')}{' '}
           <a
             href="https://www.strava.com/settings/api"
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-500 underline"
           >
-            Strava API Dashboard
+            {t(
+              'settings.providerSpecificFields.stravaAPIDashboard',
+              'Strava API Dashboard'
+            )}
           </a>
-          , you must set your "Authorization Callback Domain" to:
+          {t(
+            'settings.providerSpecificFields.youMustSetYourAuthorization',
+            ', you must set your "Authorization Callback Domain" to:'
+          )}
           <strong className="flex items-center mt-1">
             {window.location.hostname}
             <Button
@@ -510,46 +585,67 @@ export const ProviderSpecificFields = ({
               <Clipboard className="h-4 w-4" />
             </Button>
           </strong>
-          and ensure your local URL is correct if testing locally. Note: Strava
-          callback URL on the server is configured to:
+          {t(
+            'settings.providerSpecificFields.andEnsureYourLocalURL',
+            'and ensure your local URL is correct if testing locally. Note: Strava callback URL on the server is configured to:'
+          )}
           <strong>{` ${window.location.origin}/strava/callback`}</strong>
         </p>
       )}
 
       {provider.provider_type === 'garmin' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          Note: Garmin Connect integration is tested with few metrics only.
-          Ensure your Docker Compose is updated to include Garmin section.
+          {t(
+            'settings.providerSpecificFields.noteGarminConnectIntegrationIs',
+            'Note: Garmin Connect integration is tested with few metrics only. Ensure your Docker Compose is updated to include Garmin section.'
+          )}
           <br />
-          Sparky Fitness does not store your Garmin email or password. They are
-          used only during login to obtain secure tokens.
+          {t(
+            'settings.providerSpecificFields.sparkyFitnessDoesNotStore',
+            'Sparky Fitness does not store your Garmin email or password. They are used only during login to obtain secure tokens.'
+          )}
         </p>
       )}
 
       {provider.provider_type === 'hevy' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          Get your API Key from Hevy Settings &#62; API Key.
+          {t(
+            'settings.providerSpecificFields.getYourAPIKeyFrom',
+            'Get your API Key from Hevy Settings > API Key.'
+          )}
         </p>
       )}
 
       {provider.provider_type === 'liftosaur' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          Generate an API key in the Liftosaur app: Settings &#62; API Keys
-          (starts with <span className="font-mono">lftsk_</span>). A Liftosaur
-          Pro subscription is required to use the Liftosaur API.
+          {t(
+            'settings.providerSpecificFields.generateAnAPIKeyIn',
+            'Generate an API key in the Liftosaur app: Settings > API Keys (starts with'
+          )}{' '}
+          <span className="font-mono">lftsk_</span>
+          {t(
+            'settings.providerSpecificFields.aLiftosaurProSubscriptionIs',
+            '). A Liftosaur Pro subscription is required to use the Liftosaur API.'
+          )}
         </p>
       )}
 
       {provider.provider_type === 'nutritionix' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          Get your App ID and App Key from the{' '}
+          {t(
+            'settings.providerSpecificFields.getYourAppIDAnd',
+            'Get your App ID and App Key from the'
+          )}{' '}
           <a
             href="https://developer.nutritionix.com/"
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-500 underline"
           >
-            Nutritionix Developer Portal
+            {t(
+              'settings.providerSpecificFields.nutritionixDeveloperPortal',
+              'Nutritionix Developer Portal'
+            )}
           </a>
           .
         </p>
@@ -557,34 +653,66 @@ export const ProviderSpecificFields = ({
 
       {provider.provider_type === 'fatsecret' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          Note: For Fatsecret, you need to set up{' '}
-          <strong>your public IP</strong> whitelisting in your Fatsecret
-          developer account. This process can take up to 24 hours.
+          {t(
+            'settings.providerSpecificFields.noteForFatsecretYouNeed',
+            'Note: For Fatsecret, you need to set up'
+          )}{' '}
+          <strong>
+            {t(
+              'settings.providerSpecificFields.yourPublicIP',
+              'your public IP'
+            )}
+          </strong>{' '}
+          {t(
+            'settings.providerSpecificFields.whitelistingInYourFatsecretDeveloper',
+            'whitelisting in your Fatsecret developer account. This process can take up to 24 hours.'
+          )}
           <br />
-          Get your Client ID and Client Secret from the{' '}
+          {t(
+            'settings.providerSpecificFields.getYourClientIDAnd',
+            'Get your Client ID and Client Secret from the'
+          )}{' '}
           <a
             href="https://platform.fatsecret.com/my-account/dashboard"
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-500 underline"
           >
-            Fatsecret Platform Dashboard
+            {t(
+              'settings.providerSpecificFields.fatsecretPlatformDashboard',
+              'Fatsecret Platform Dashboard'
+            )}
           </a>
-          , under <strong>REST API OAuth 2.0 Credentials</strong> (not the OAuth
-          1.0 Consumer Key/Secret).
+          {t('settings.providerSpecificFields.under', ', under')}{' '}
+          <strong>
+            {t(
+              'settings.providerSpecificFields.restAPIOAuth20',
+              'REST API OAuth 2.0 Credentials'
+            )}
+          </strong>{' '}
+          {t(
+            'settings.providerSpecificFields.notTheOAuth10',
+            '(not the OAuth 1.0 Consumer Key/Secret).'
+          )}
         </p>
       )}
 
       {provider.provider_type === 'usda' && (
         <p className="text-sm text-muted-foreground col-span-2">
-          Get your API Key from the{' '}
+          {t(
+            'settings.providerSpecificFields.getYourAPIKeyFrom2',
+            'Get your API Key from the'
+          )}{' '}
           <a
             href="https://fdc.nal.usda.gov/api-guide.html"
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-500 underline"
           >
-            USDA FoodData Central API Guide
+            {t(
+              'settings.providerSpecificFields.usdaFoodDataCentralAPIGuide',
+              'USDA FoodData Central API Guide'
+            )}
           </a>
           .
         </p>
@@ -600,7 +728,10 @@ export const ProviderSpecificFields = ({
             onCheckedChange={setFullSyncOnConnect}
           />
           <Label htmlFor="full_sync_on_connect">
-            Sync entire history on connect
+            {t(
+              'settings.providerSpecificFields.syncEntireHistoryOnConnect',
+              'Sync entire history on connect'
+            )}
           </Label>
         </div>
       )}
@@ -608,23 +739,42 @@ export const ProviderSpecificFields = ({
       {provider.provider_type === 'swissfood' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">
-            The Swiss Food Composition Database API is free, public, and
-            requires no credentials. Supported languages for searches and
-            nutritional value labels are <strong>English (en)</strong>,{' '}
-            <strong>German (de)</strong>, <strong>French (fr)</strong>, and{' '}
-            <strong>Italian (it)</strong>.
+            {t(
+              'settings.providerSpecificFields.theSwissFoodCompositionDatabase',
+              'The Swiss Food Composition Database API is free, public, and requires no credentials. Supported languages for searches and nutritional value labels are'
+            )}{' '}
+            <strong>
+              {t('settings.providerSpecificFields.englishEn', 'English (en)')}
+            </strong>
+            ,{' '}
+            <strong>
+              {t('settings.providerSpecificFields.germanDe', 'German (de)')}
+            </strong>
+            ,{' '}
+            <strong>
+              {t('settings.providerSpecificFields.frenchFr', 'French (fr)')}
+            </strong>
+            {t('settings.providerSpecificFields.and', ', and')}{' '}
+            <strong>
+              {t('settings.providerSpecificFields.italianIt', 'Italian (it)')}
+            </strong>
+            .
           </p>
           <p className="text-sm text-muted-foreground">
-            If your active language in SparkyFitness is not supported, the API
-            queries will default to English. For more details, see the official
-            portal at{' '}
+            {t(
+              'settings.providerSpecificFields.ifYourActiveLanguageIn',
+              'If your active language in SparkyFitness is not supported, the API queries will default to English. For more details, see the official portal at'
+            )}{' '}
             <a
               href="https://naehrwertdaten.ch/en/"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline font-medium"
             >
-              Swiss Food Composition Database
+              {t(
+                'settings.providerSpecificFields.swissFoodCompositionDatabase',
+                'Swiss Food Composition Database'
+              )}
             </a>
             .
           </p>
@@ -673,16 +823,20 @@ export const ProviderSpecificFields = ({
       {provider.provider_type === 'free-exercise-db' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">
-            The Free Exercise DB provider is public, free, and requires no
-            credentials. It fetches exercise data directly from the community
-            repository at{' '}
+            {t(
+              'settings.providerSpecificFields.theFreeExerciseDBProvider',
+              'The Free Exercise DB provider is public, free, and requires no credentials. It fetches exercise data directly from the community repository at'
+            )}{' '}
             <a
               href="https://github.com/yuhonas/free-exercise-db"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline font-medium"
             >
-              yuhonas/free-exercise-db on GitHub
+              {t(
+                'settings.providerSpecificFields.yuhonasFreeExerciseDbOn',
+                'yuhonas/free-exercise-db on GitHub'
+              )}
             </a>
             .
           </p>
@@ -692,15 +846,20 @@ export const ProviderSpecificFields = ({
       {provider.provider_type === 'wger' && (
         <div className="col-span-2 space-y-2">
           <p className="text-sm text-muted-foreground">
-            The wger provider is public, free, and requires no credentials. It
-            fetches workout and exercise data directly from the official{' '}
+            {t(
+              'settings.providerSpecificFields.theWgerProviderIsPublic',
+              'The wger provider is public, free, and requires no credentials. It fetches workout and exercise data directly from the official'
+            )}{' '}
             <a
               href="https://wger.de/"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline font-medium"
             >
-              wger Project Website
+              {t(
+                'settings.providerSpecificFields.wgerProjectWebsite',
+                'wger Project Website'
+              )}
             </a>
             .
           </p>
@@ -723,7 +882,12 @@ export const ProviderSpecificFields = ({
               }
             >
               <SelectTrigger id="coros_region" className="w-full">
-                <SelectValue placeholder="Select region" />
+                <SelectValue
+                  placeholder={t(
+                    'settings.providerSpecificFields.selectRegion',
+                    'Select region'
+                  )}
+                />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="https://mcpus.coros.com/mcp">

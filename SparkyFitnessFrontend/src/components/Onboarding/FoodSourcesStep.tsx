@@ -7,11 +7,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCreateExternalProviderMutation } from '@/hooks/Settings/useExternalProviderSettings';
 import { useToast } from '@/hooks/use-toast';
 
+import { useTranslation } from 'react-i18next';
 interface FoodSourcesStepProps {
   onContinue: () => void;
 }
 
 export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { toast } = useToast();
   const { mutateAsync: createExternalProvider, isPending } =
@@ -31,9 +33,14 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
 
     if ((trimmedFsId && !trimmedFsKey) || (!trimmedFsId && trimmedFsKey)) {
       toast({
-        title: 'Missing FatSecret field',
-        description:
-          'Enter both the FatSecret Client ID and Client Secret, or leave both blank to skip.',
+        title: t(
+          'onboarding.foodSourcesStep.missingFatSecretField',
+          'Missing FatSecret field'
+        ),
+        description: t(
+          'onboarding.foodSourcesStep.enterBothTheFatSecretClient',
+          'Enter both the FatSecret Client ID and Client Secret, or leave both blank to skip.'
+        ),
         variant: 'destructive',
       });
       return;
@@ -46,8 +53,11 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
 
     if (!user) {
       toast({
-        title: 'Not signed in',
-        description: 'Please sign in again to save food sources.',
+        title: t('onboarding.foodSourcesStep.notSignedIn', 'Not signed in'),
+        description: t(
+          'onboarding.foodSourcesStep.pleaseSignInAgainTo',
+          'Please sign in again to save food sources.'
+        ),
         variant: 'destructive',
       });
       return;
@@ -91,12 +101,16 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
   return (
     <>
       <h1 className="text-3xl font-bold text-foreground mb-2">
-        Connect food databases
+        {t(
+          'onboarding.foodSourcesStep.connectFoodDatabases',
+          'Connect food databases'
+        )}
       </h1>
       <p className="text-muted-foreground mb-8">
-        Optional, but adding USDA and FatSecret to your searches gives
-        dramatically better results than the default Open Food Facts. You can
-        always add or change these later in Settings.
+        {t(
+          'onboarding.foodSourcesStep.optionalButAddingUSDAAnd',
+          'Optional, but adding USDA and FatSecret to your searches gives dramatically better results than the default Open Food Facts. You can always add or change these later in Settings.'
+        )}
       </p>
 
       <div className="space-y-4">
@@ -106,7 +120,10 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
               htmlFor="onboarding-usda-key"
               className="text-base font-semibold"
             >
-              USDA FoodData Central
+              {t(
+                'onboarding.foodSourcesStep.usdaFoodDataCentral',
+                'USDA FoodData Central'
+              )}
             </Label>
             <a
               href="https://fdc.nal.usda.gov/api-key-signup.html"
@@ -114,7 +131,10 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
               rel="noopener noreferrer"
               className="text-sm text-green-600 hover:text-green-700 inline-flex items-center gap-1"
             >
-              Get a free API key
+              {t(
+                'onboarding.foodSourcesStep.getAFreeAPIKey',
+                'Get a free API key'
+              )}
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
           </div>
@@ -123,7 +143,10 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
             type="password"
             value={usdaKey}
             onChange={(e) => setUsdaKey(e.target.value)}
-            placeholder="USDA API Key"
+            placeholder={t(
+              'onboarding.foodSourcesStep.usdaAPIKey',
+              'USDA API Key'
+            )}
             autoComplete="off"
           />
         </div>
@@ -137,7 +160,10 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
               rel="noopener noreferrer"
               className="text-sm text-green-600 hover:text-green-700 inline-flex items-center gap-1"
             >
-              Get API credentials
+              {t(
+                'onboarding.foodSourcesStep.getAPICredentials',
+                'Get API credentials'
+              )}
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
           </div>
@@ -146,7 +172,10 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
             type="text"
             value={fatsecretClientId}
             onChange={(e) => setFatsecretClientId(e.target.value)}
-            placeholder="FatSecret Client ID"
+            placeholder={t(
+              'onboarding.foodSourcesStep.fatSecretClientID',
+              'FatSecret Client ID'
+            )}
             autoComplete="off"
           />
           <Input
@@ -154,14 +183,24 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
             type="password"
             value={fatsecretClientSecret}
             onChange={(e) => setFatsecretClientSecret(e.target.value)}
-            placeholder="FatSecret Client Secret"
+            placeholder={t(
+              'onboarding.foodSourcesStep.fatSecretClientSecret',
+              'FatSecret Client Secret'
+            )}
             autoComplete="off"
           />
           <p className="text-xs text-muted-foreground">
-            Use the <strong>REST API OAuth 2.0</strong> credentials from the
-            dashboard, not the OAuth 1.0 Consumer Key/Secret. FatSecret also
-            requires you to whitelist your public IP in its developer dashboard.
-            This can take up to 24 hours to take effect.
+            {t('onboarding.foodSourcesStep.useThe', 'Use the')}{' '}
+            <strong>
+              {t(
+                'onboarding.foodSourcesStep.restAPIOAuth20',
+                'REST API OAuth 2.0'
+              )}
+            </strong>{' '}
+            {t(
+              'onboarding.foodSourcesStep.credentialsFromTheDashboardNot',
+              'credentials from the dashboard, not the OAuth 1.0 Consumer Key/Secret. FatSecret also requires you to whitelist your public IP in its developer dashboard. This can take up to 24 hours to take effect.'
+            )}
           </p>
         </div>
       </div>
@@ -171,7 +210,9 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
         disabled={isPending}
         className="w-full mt-12 h-14 text-lg rounded-full"
       >
-        {isPending ? 'Saving...' : 'Continue'}
+        {isPending
+          ? t('common.saving', 'Saving...')
+          : t('onboarding.foodSourcesStep.continue', 'Continue')}
       </Button>
     </>
   );

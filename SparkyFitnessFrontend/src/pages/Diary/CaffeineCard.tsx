@@ -566,7 +566,9 @@ export const CaffeineCard = ({ date, userId }: CaffeineCardProps) => {
                 key={`${dose.at}-${idx}`}
                 className="text-xs px-2 py-1 rounded bg-muted flex items-center gap-1.5"
               >
-                <span className="font-medium">{dose.name || 'Dose'}:</span>
+                <span className="font-medium">
+                  {dose.name || t('diary.caffeineCard.dose', 'Dose')}:
+                </span>
                 <span>{dose.mg}mg</span>
                 <span className="text-[10px] text-muted-foreground">
                   (

@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
+import { useTranslation } from 'react-i18next';
 interface EndFastDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -32,6 +33,7 @@ const EndFastDialog: React.FC<EndFastDialogProps> = ({
   initialStartISO = null,
   initialEndISO = null,
 }) => {
+  const { t } = useTranslation();
   const formatForLocalInput = (d: Date) => {
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -76,27 +78,35 @@ const EndFastDialog: React.FC<EndFastDialogProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Fast Completed! 🎉</DialogTitle>
+          <DialogTitle>
+            {t('fasting.endFastDialog.fastCompleted', 'Fast Completed! 🎉')}
+          </DialogTitle>
           <DialogDescription>
-            You fasted for{' '}
+            {t('fasting.endFastDialog.youFastedFor', 'You fasted for')}{' '}
             <span className="font-bold text-primary">{durationFormatted}</span>.
           </DialogDescription>
         </DialogHeader>
 
         <div className="py-4 space-y-4">
           <p className="text-muted-foreground text-center">
-            Great job! You can edit the start/end times below if you missed
-            pressing the buttons.
+            {t(
+              'fasting.endFastDialog.greatJobYouCanEdit',
+              'Great job! You can edit the start/end times below if you missed pressing the buttons.'
+            )}
           </p>
           <div className="grid grid-cols-1 gap-2">
-            <label className="text-sm">Start Time</label>
+            <label className="text-sm">
+              {t('fasting.endFastDialog.startTime', 'Start Time')}
+            </label>
             <input
               type="datetime-local"
               value={startLocal}
               onChange={(e) => setStartLocal(e.target.value)}
               className="w-full p-2 border rounded"
             />
-            <label className="text-sm">End Time</label>
+            <label className="text-sm">
+              {t('fasting.endFastDialog.endTime', 'End Time')}
+            </label>
             <input
               type="datetime-local"
               value={endLocal}
@@ -108,9 +118,11 @@ const EndFastDialog: React.FC<EndFastDialogProps> = ({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel', 'Cancel')}
           </Button>
-          <Button onClick={handleConfirm}>End Fast</Button>
+          <Button onClick={handleConfirm}>
+            {t('fasting.endFastDialog.endFast', 'End Fast')}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

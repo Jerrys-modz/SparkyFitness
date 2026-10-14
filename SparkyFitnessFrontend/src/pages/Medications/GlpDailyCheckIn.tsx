@@ -17,6 +17,7 @@ import {
 } from '@/hooks/CheckIn/useCheckIn';
 import { useAddCategoryMutation } from '@/hooks/Settings/useCustomCategories';
 
+import i18n from 'i18next';
 // GLP-1 daily check-in metrics, stored as standard daily custom-measurement categories so they
 // also flow into the Check-in page and Reports. `name` is the stable identifier we match on;
 // `label` is the friendly display name.
@@ -31,7 +32,9 @@ const GLP_METRICS: {
   {
     key: 'hunger',
     name: 'GLP Hunger',
-    label: 'Hunger',
+    get label() {
+      return i18n.t('medications.glpDailyCheckIn.hunger', 'Hunger');
+    },
     Icon: Utensils,
     color: 'text-orange-500',
     chip: 'bg-orange-100 dark:bg-orange-900/50',
@@ -39,7 +42,9 @@ const GLP_METRICS: {
   {
     key: 'food_noise',
     name: 'GLP Food Noise',
-    label: 'Food noise',
+    get label() {
+      return i18n.t('medications.glpDailyCheckIn.foodNoise', 'Food noise');
+    },
     Icon: Brain,
     color: 'text-violet-500',
     chip: 'bg-violet-100 dark:bg-violet-900/50',
@@ -47,7 +52,9 @@ const GLP_METRICS: {
   {
     key: 'fullness',
     name: 'GLP Fullness',
-    label: 'Fullness',
+    get label() {
+      return i18n.t('medications.glpDailyCheckIn.fullness', 'Fullness');
+    },
     Icon: Soup,
     color: 'text-emerald-500',
     chip: 'bg-emerald-100 dark:bg-emerald-900/50',
@@ -55,7 +62,9 @@ const GLP_METRICS: {
   {
     key: 'energy',
     name: 'GLP Energy',
-    label: 'Energy',
+    get label() {
+      return i18n.t('medications.glpDailyCheckIn.energy', 'Energy');
+    },
     Icon: Zap,
     color: 'text-amber-500',
     chip: 'bg-amber-100 dark:bg-amber-900/50',

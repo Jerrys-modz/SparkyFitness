@@ -80,7 +80,10 @@ const AboutDialog: React.FC<AboutDialogProps> = ({
                   rel="noopener noreferrer"
                   className="text-blue-500 hover:underline"
                 >
-                  discord.gg/vcnMT5cPEA
+                  {t(
+                    'aboutDialog.discordGgVcnMT5cPEA',
+                    'discord.gg/vcnMT5cPEA'
+                  )}
                 </a>
               </div>
               <div>
@@ -106,17 +109,17 @@ const AboutDialog: React.FC<AboutDialogProps> = ({
                   {t('aboutDialog.frontend', 'Frontend:')}
                 </h4>
                 <ul className="list-disc list-inside text-sm ml-4">
-                  <li>React</li>
-                  <li>TypeScript</li>
-                  <li>Tailwind CSS</li>
+                  <li>{t('aboutDialog.react', 'React')}</li>
+                  <li>{t('aboutDialog.typeScript', 'TypeScript')}</li>
+                  <li>{t('aboutDialog.tailwindCSS', 'Tailwind CSS')}</li>
                 </ul>
                 <h4 className="font-medium mt-2">
                   {t('aboutDialog.backend', 'Backend:')}
                 </h4>
                 <ul className="list-disc list-inside text-sm ml-4">
-                  <li>Node.js</li>
-                  <li>Express</li>
-                  <li>PostgreSQL</li>
+                  <li>{t('aboutDialog.nodeJs', 'Node.js')}</li>
+                  <li>{t('aboutDialog.express', 'Express')}</li>
+                  <li>{t('aboutDialog.postgreSQL', 'PostgreSQL')}</li>
                 </ul>
                 <h4 className="font-medium mt-2">
                   {t('aboutDialog.externalApis', 'External APIs:')}

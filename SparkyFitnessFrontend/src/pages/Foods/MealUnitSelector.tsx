@@ -13,6 +13,7 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import { debug, info, warn } from '@/utils/logging';
 import type { Meal } from '@/types/meal';
 
+import { useTranslation } from 'react-i18next';
 interface MealUnitSelectorProps {
   meal: Meal;
   open: boolean;
@@ -36,6 +37,7 @@ const MealUnitSelector = ({
   description,
   confirmLabel,
 }: MealUnitSelectorProps) => {
+  const { t } = useTranslation();
   const { loggingLevel, energyUnit, convertEnergy } = usePreferences();
   debug(loggingLevel, 'MealUnitSelector component rendered.', { meal, open });
 
@@ -131,7 +133,10 @@ const MealUnitSelector = ({
             {description ??
               (initialQuantity
                 ? `Edit the quantity for ${meal?.name}.`
-                : `Select the quantity for this meal in your meal plan.`)}
+                : t(
+                    'foods.mealUnitSelector.selectTheQuantityForThis',
+                    'Select the quantity for this meal in your meal plan.'
+                  ))}
           </DialogDescription>
         </DialogHeader>
 
@@ -139,7 +144,9 @@ const MealUnitSelector = ({
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="quantity">Quantity</Label>
+                <Label htmlFor="quantity">
+                  {t('foods.mealUnitSelector.quantity', 'Quantity')}
+                </Label>
                 <Input
                   id="quantity"
                   type="number"
@@ -155,7 +162,9 @@ const MealUnitSelector = ({
                 />
               </div>
               <div>
-                <Label htmlFor="unit">Unit</Label>
+                <Label htmlFor="unit">
+                  {t('foods.mealUnitSelector.unit', 'Unit')}
+                </Label>
                 <Input
                   id="unit"
                   type="text"
@@ -169,7 +178,11 @@ const MealUnitSelector = ({
             {nutrition && (
               <div className="bg-muted p-3 rounded-lg">
                 <h4 className="font-medium mb-2">
-                  Nutrition for {quantity} {displayUnit}:
+                  {t(
+                    'foods.mealUnitSelector.nutritionFor',
+                    'Nutrition for {{quantity}}{{displayUnit}}:',
+                    { quantity, displayUnit }
+                  )}
                 </h4>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
@@ -178,9 +191,18 @@ const MealUnitSelector = ({
                     )}{' '}
                     {getEnergyUnitString(energyUnit)}
                   </div>
-                  <div>{nutrition.protein.toFixed(1)}g protein</div>
-                  <div>{nutrition.carbs.toFixed(1)}g carbs</div>
-                  <div>{nutrition.fat.toFixed(1)}g fat</div>
+                  <div>
+                    {nutrition.protein.toFixed(1)}
+                    {t('foods.mealUnitSelector.gProtein', 'g protein')}
+                  </div>
+                  <div>
+                    {nutrition.carbs.toFixed(1)}
+                    {t('foods.mealUnitSelector.gCarbs', 'g carbs')}
+                  </div>
+                  <div>
+                    {nutrition.fat.toFixed(1)}
+                    {t('foods.mealUnitSelector.gFat', 'g fat')}
+                  </div>
                 </div>
               </div>
             )}
@@ -191,11 +213,16 @@ const MealUnitSelector = ({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
               >
-                Cancel
+                {t('common.cancel', 'Cancel')}
               </Button>
               <Button type="submit">
                 {confirmLabel ??
-                  (initialQuantity ? 'Update Meal' : 'Add to Meal Plan')}
+                  (initialQuantity
+                    ? t('foods.mealUnitSelector.updateMeal', 'Update Meal')
+                    : t(
+                        'foods.mealUnitSelector.addToMealPlan',
+                        'Add to Meal Plan'
+                      ))}
               </Button>
             </div>
           </div>

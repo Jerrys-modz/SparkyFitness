@@ -666,7 +666,8 @@ const MealPlanTemplateForm: React.FC<MealPlanTemplateFormProps> = ({
                                     'Total:'
                                   )}
                                 </strong>{' '}
-                                {mealTypeTotals.totalCalories.toFixed(0)} kcal |{' '}
+                                {mealTypeTotals.totalCalories.toFixed(0)}{' '}
+                                {t('foods.mealPlanTemplateForm.kcal', 'kcal |')}{' '}
                                 {t('mealPlanTemplateForm.proteinShort', 'P:')}{' '}
                                 {mealTypeTotals.totalProtein.toFixed(1)}g |{' '}
                                 {t('mealPlanTemplateForm.carbsShort', 'C:')}{' '}

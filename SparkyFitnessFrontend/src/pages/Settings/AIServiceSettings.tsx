@@ -135,7 +135,10 @@ const AIServiceSettings = () => {
     if (settingsLoading) {
       toast({
         title: t('settings.aiService.userSettings.error'),
-        description: 'Please wait while settings are being loaded...',
+        description: t(
+          'settings.aiServiceSettings.pleaseWaitWhileSettingsAre',
+          'Please wait while settings are being loaded...'
+        ),
         variant: 'destructive',
       });
       return;
@@ -184,7 +187,10 @@ const AIServiceSettings = () => {
     if (settingsLoading) {
       toast({
         title: t('settings.aiService.userSettings.error'),
-        description: 'Please wait while settings are being loaded...',
+        description: t(
+          'settings.aiServiceSettings.pleaseWaitWhileSettingsAre',
+          'Please wait while settings are being loaded...'
+        ),
         variant: 'destructive',
       });
       return;
@@ -226,7 +232,10 @@ const AIServiceSettings = () => {
     if (settingsLoading) {
       toast({
         title: t('settings.aiService.userSettings.error'),
-        description: 'Please wait while settings are being loaded...',
+        description: t(
+          'settings.aiServiceSettings.pleaseWaitWhileSettingsAre',
+          'Please wait while settings are being loaded...'
+        ),
         variant: 'destructive',
       });
       return;
@@ -301,7 +310,10 @@ const AIServiceSettings = () => {
     if (settingsLoading) {
       toast({
         title: t('settings.aiService.userSettings.error'),
-        description: 'Please wait while settings are being loaded...',
+        description: t(
+          'settings.aiServiceSettings.pleaseWaitWhileSettingsAre',
+          'Please wait while settings are being loaded...'
+        ),
         variant: 'destructive',
       });
       return;
@@ -384,7 +396,10 @@ const AIServiceSettings = () => {
     if (settingsLoading) {
       toast({
         title: t('settings.aiService.userSettings.error'),
-        description: 'Please wait while settings are being loaded...',
+        description: t(
+          'settings.aiServiceSettings.pleaseWaitWhileSettingsAre',
+          'Please wait while settings are being loaded...'
+        ),
         variant: 'destructive',
       });
       return;
@@ -442,7 +457,10 @@ const AIServiceSettings = () => {
     if (settingsLoading) {
       toast({
         title: t('settings.aiService.userSettings.error'),
-        description: 'Please wait while settings are being loaded...',
+        description: t(
+          'settings.aiServiceSettings.pleaseWaitWhileSettingsAre',
+          'Please wait while settings are being loaded...'
+        ),
         variant: 'destructive',
       });
       return;

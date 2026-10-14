@@ -10,6 +10,7 @@ import {
 import { Slider } from '@/components/ui/slider';
 import { DIET_TEMPLATES, getDietTemplate } from '@/constants/dietTemplates';
 
+import { useTranslation } from 'react-i18next';
 export interface DietApproachProps {
   customPercentages: { carbs: number; protein: number; fat: number };
   handleMacroValueChange: (
@@ -40,6 +41,7 @@ export const DietApproach = ({
   setShowDietApproach,
   showDietApproach,
 }: DietApproachProps) => {
+  const { t } = useTranslation();
   return (
     <div className="bg-card rounded-2xl border border-border mb-6">
       <button
@@ -48,7 +50,9 @@ export const DietApproach = ({
       >
         <div className="flex items-center gap-2">
           <Utensils className="h-5 w-5 text-green-500" />
-          <span className="text-foreground font-semibold">Diet Approach</span>
+          <span className="text-foreground font-semibold">
+            {t('onboarding.dietApproach.dietApproach', 'Diet Approach')}
+          </span>
         </div>
         <ChevronLeft
           className={`h-5 w-5 text-muted-foreground transition-transform ${showDietApproach ? '-rotate-90' : 'rotate-180'}`}
@@ -58,7 +62,10 @@ export const DietApproach = ({
       {showDietApproach && (
         <div className="px-4 pb-4 space-y-4 border-t border-border pt-4">
           <p className="text-muted-foreground text-sm mb-4">
-            Choose a preset diet or customize your macro split
+            {t(
+              'onboarding.dietApproach.chooseAPresetDietOr',
+              'Choose a preset diet or customize your macro split'
+            )}
           </p>
 
           <Select
@@ -86,8 +93,15 @@ export const DietApproach = ({
                   <div>
                     <div className="font-semibold">{diet.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      {diet.carbsPercentage}% Carbs / {diet.proteinPercentage}%
-                      Protein / {diet.fatPercentage}% Fat
+                      {t(
+                        'onboarding.dietApproach.carbsProteinFat',
+                        '{{carbsPercentage}}% Carbs / {{proteinPercentage}}% Protein / {{fatPercentage}}% Fat',
+                        {
+                          carbsPercentage: diet.carbsPercentage,
+                          proteinPercentage: diet.proteinPercentage,
+                          fatPercentage: diet.fatPercentage,
+                        }
+                      )}
                     </div>
                   </div>
                 </SelectItem>
@@ -105,7 +119,10 @@ export const DietApproach = ({
             <div className="mt-6 space-y-6 p-4 bg-muted rounded-lg border border-border">
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-sm font-semibold text-foreground">
-                  Custom Macro Split
+                  {t(
+                    'onboarding.dietApproach.customMacroSplit',
+                    'Custom Macro Split'
+                  )}
                 </h4>
                 <span
                   className={`text-sm font-mono ${
@@ -117,7 +134,7 @@ export const DietApproach = ({
                       : 'text-yellow-500'
                   }`}
                 >
-                  Total:{' '}
+                  {t('onboarding.dietApproach.total', 'Total:')}{' '}
                   {Math.round(customPercentages.carbs) +
                     Math.round(customPercentages.protein) +
                     Math.round(customPercentages.fat)}
@@ -142,7 +159,10 @@ export const DietApproach = ({
                       )}
                     </button>
                     <label className="text-sm font-medium text-foreground">
-                      Carbohydrates
+                      {t(
+                        'onboarding.dietApproach.carbohydrates',
+                        'Carbohydrates'
+                      )}
                     </label>
                   </div>
                   <div className="flex items-center gap-2">
@@ -195,7 +215,7 @@ export const DietApproach = ({
                       )}
                     </button>
                     <label className="text-sm font-medium text-foreground">
-                      Protein
+                      {t('onboarding.dietApproach.protein', 'Protein')}
                     </label>
                   </div>
                   <div className="flex items-center gap-2">
@@ -245,7 +265,7 @@ export const DietApproach = ({
                       )}
                     </button>
                     <label className="text-sm font-medium text-foreground">
-                      Fat
+                      {t('onboarding.dietApproach.fat', 'Fat')}
                     </label>
                   </div>
                   <div className="flex items-center gap-2">
@@ -279,8 +299,10 @@ export const DietApproach = ({
               </div>
 
               <p className="text-xs text-muted-foreground mt-2">
-                Adjust or type in a value. Unlocked macros will auto-adjust to
-                maintain 100% total.
+                {t(
+                  'onboarding.dietApproach.adjustOrTypeInA',
+                  'Adjust or type in a value. Unlocked macros will auto-adjust to maintain 100% total.'
+                )}
               </p>
             </div>
           )}

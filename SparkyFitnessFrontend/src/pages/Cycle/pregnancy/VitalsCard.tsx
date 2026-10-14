@@ -276,7 +276,10 @@ export default function VitalsCard({
               <Input
                 type="number"
                 step="0.1"
-                placeholder="Weight in kg"
+                placeholder={t(
+                  'pregnancy.vitalsCard.weightInKg',
+                  'Weight in kg'
+                )}
                 value={weightInput}
                 onChange={(e) => setWeightInput(e.target.value)}
                 className="h-8 text-xs max-w-[120px]"
@@ -301,7 +304,9 @@ export default function VitalsCard({
             <div className="flex flex-col gap-1.5">
               <div className="flex items-baseline gap-2">
                 <span className="text-xl font-bold">
-                  {vitals.latestWeight ? `${vitals.latestWeight} kg` : '-- kg'}
+                  {vitals.latestWeight
+                    ? `${vitals.latestWeight} kg`
+                    : t('pregnancy.vitalsCard.kg', '-- kg')}
                 </span>
                 {vitals.weightDelta != null && (
                   <span className="text-xs font-semibold text-muted-foreground">
@@ -326,7 +331,14 @@ export default function VitalsCard({
                       }
                     )}{' '}
                     <strong className="text-foreground">
-                      {vitals.gainRange.lowKg} – {vitals.gainRange.highKg} kg
+                      {t(
+                        'pregnancy.vitalsCard.kg2',
+                        '{{lowKg}}– {{highKg}}kg',
+                        {
+                          lowKg: vitals.gainRange.lowKg,
+                          highKg: vitals.gainRange.highKg,
+                        }
+                      )}
                     </strong>
                   </span>
                   {getWeightGainBadge(vitals.weightGainStatus)}
@@ -389,7 +401,9 @@ export default function VitalsCard({
           ) : (
             <div className="flex items-baseline gap-2">
               <span className="text-xl font-bold">
-                {vitals.bpValue ? `${vitals.bpValue} mmHg` : '--/-- mmHg'}
+                {vitals.bpValue
+                  ? `${vitals.bpValue} mmHg`
+                  : t('pregnancy.vitalsCard.mmHg', '--/-- mmHg')}
               </span>
             </div>
           )}

@@ -206,7 +206,10 @@ export default function CycleToday() {
                   size="icon"
                   className="h-4 w-4 p-0 text-muted-foreground hover:text-foreground"
                   onClick={openSettings}
-                  aria-label="Edit cycle settings"
+                  aria-label={t(
+                    'cycle.cycleToday.editCycleSettings',
+                    'Edit cycle settings'
+                  )}
                 >
                   <Pencil className="h-3 w-3" />
                 </Button>
@@ -386,7 +389,11 @@ export default function CycleToday() {
                             {follicularLength}{' '}
                             {t('cycle.today.guide.days', 'days')}
                           </span>{' '}
-                          (from {lastStartFormatted} to {ovulationFormatted}).
+                          {t(
+                            'cycle.cycleToday.fromTo',
+                            '(from {{lastStartFormatted}}to {{ovulationFormatted}}).',
+                            { lastStartFormatted, ovulationFormatted }
+                          )}
                         </>
                       ) : (
                         t(
@@ -411,12 +418,16 @@ export default function CycleToday() {
                           )}{' '}
                           <span className="font-medium text-foreground">
                             {ovulationFormatted} - 5{' '}
-                            {t('cycle.today.guide.days', 'days')} to{' '}
+                            {t('cycle.today.guide.days', 'days')}{' '}
+                            {t('cycle.cycleToday.to', 'to')}{' '}
                             {ovulationFormatted} + 1{' '}
                             {t('cycle.today.guide.day', 'day')}
                           </span>{' '}
-                          (from {fertileStartFormatted} to {fertileEndFormatted}
-                          ).
+                          {t(
+                            'cycle.cycleToday.fromTo2',
+                            '(from {{fertileStartFormatted}}to {{fertileEndFormatted}}).',
+                            { fertileStartFormatted, fertileEndFormatted }
+                          )}
                         </>
                       ) : (
                         t(
@@ -506,7 +517,10 @@ export default function CycleToday() {
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
-                aria-label="Dismiss insight"
+                aria-label={t(
+                  'cycle.cycleToday.dismissInsight',
+                  'Dismiss insight'
+                )}
                 onClick={() => dismiss.mutate(`insight:${overview.insightKey}`)}
               >
                 <X className="h-3.5 w-3.5" />

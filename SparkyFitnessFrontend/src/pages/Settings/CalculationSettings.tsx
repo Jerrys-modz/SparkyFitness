@@ -833,10 +833,12 @@ const CalculationSettings = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="kcal">
-              kcal ({t('calculationSettings.calories', 'Calories')})
+              {t('settings.calculationSettings.kcal', 'kcal (')}
+              {t('calculationSettings.calories', 'Calories')})
             </SelectItem>
             <SelectItem value="kJ">
-              kJ ({t('calculationSettings.joules', 'Joules')})
+              {t('settings.calculationSettings.kJ', 'kJ (')}
+              {t('calculationSettings.joules', 'Joules')})
             </SelectItem>
           </SelectContent>
         </Select>

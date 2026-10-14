@@ -267,7 +267,11 @@ const ExerciseCard = ({
       id: `plan-${targetPlan.id}-session-${assignment.session_index ?? assignment.day_of_week ?? 1}`,
       user_id: currentUserId || '',
       name: sessionName,
-      description: targetPlan.description || `${targetPlan.plan_name} session`,
+      description:
+        targetPlan.description ||
+        t('diary.exerciseCard.session', '{{plan_name}} session', {
+          plan_name: targetPlan.plan_name,
+        }),
       exercises: combinedExercises,
     };
 
@@ -684,7 +688,11 @@ const ExerciseCard = ({
   };
 
   if (loading) {
-    return <div>Loading exercises...</div>;
+    return (
+      <div>
+        {t('diary.exerciseCard.loadingExercises', 'Loading exercises...')}
+      </div>
+    );
   }
 
   return (
@@ -843,7 +851,11 @@ const ExerciseCard = ({
                   )}
                   {plan.schedule_type === 'sequential' && (
                     <span className="text-xs text-muted-foreground font-medium">
-                      ({sessionIndex} of {totalSessions})
+                      {t(
+                        'diary.exerciseCard.of',
+                        '({{sessionIndex}}of {{totalSessions}})',
+                        { sessionIndex, totalSessions }
+                      )}
                     </span>
                   )}
                 </div>

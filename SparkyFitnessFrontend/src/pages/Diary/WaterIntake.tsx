@@ -427,7 +427,10 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
                       </span>
                       {preset.hydration_factor === 0 && (
                         <span className="text-[9px] text-amber-600 dark:text-amber-400 font-mono">
-                          0% water
+                          {t(
+                            'foodDiary.waterIntake.zeroPercentWater',
+                            '0% water'
+                          )}
                         </span>
                       )}
                     </div>

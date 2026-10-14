@@ -7,7 +7,7 @@ import { renderWithClient } from '../test-utils';
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) =>
+    t: (key: string, defaultValue?: string) =>
       ({
         'settings.foodExerciseDataProviders.openFoodFacts.baseUrlLabel':
           'Base URL',
@@ -17,7 +17,9 @@ jest.mock('react-i18next', () => ({
           'Credentials enable contributions.',
         'settings.foodExerciseDataProviders.openFoodFacts.credentialKeepExistingHelp':
           'Leave blank to keep existing credentials.',
-      })[key] ?? key,
+      })[key] ??
+      defaultValue ??
+      key,
   }),
 }));
 

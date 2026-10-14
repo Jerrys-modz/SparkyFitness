@@ -293,7 +293,11 @@ const OidcSettings: React.FC = () => {
                       <TableCell>
                         <img
                           src={provider.logo_url || '/oidc-logo.png'}
-                          alt={`${provider.display_name} logo`}
+                          alt={t(
+                            'admin.oidcSettings.logo2',
+                            '{{display_name}} logo',
+                            { display_name: provider.display_name }
+                          )}
                           className="h-8 w-8 object-contain"
                         />
                       </TableCell>

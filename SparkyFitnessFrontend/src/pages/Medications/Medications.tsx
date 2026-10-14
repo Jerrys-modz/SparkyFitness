@@ -507,7 +507,7 @@ export default function Medications() {
                           </CardTitle>
                           {selected.is_glp1 && (
                             <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] px-1.5 py-0">
-                              GLP-1
+                              {t('medications.glp12', 'GLP-1')}
                             </Badge>
                           )}
                           {selected.is_supplement &&

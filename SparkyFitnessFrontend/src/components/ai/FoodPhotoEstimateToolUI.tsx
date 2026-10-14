@@ -464,7 +464,10 @@ export const FoodPhotoEstimateToolUI: ToolCallMessagePartComponent<
                 value={mealName}
                 onChange={(e) => setCustomMealName(e.target.value)}
                 disabled={logged}
-                placeholder="e.g. Chicken Penne Pasta"
+                placeholder={t(
+                  'ai.foodPhotoEstimateToolUI.eGChickenPennePasta',
+                  'e.g. Chicken Penne Pasta'
+                )}
                 className="h-9 font-medium"
               />
             </div>
@@ -589,12 +592,16 @@ export const FoodPhotoEstimateToolUI: ToolCallMessagePartComponent<
                             variant="secondary"
                             className="text-[10px] px-1 py-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0"
                           >
-                            ✓ Matched
+                            {t(
+                              'ai.foodPhotoEstimateToolUI.matched',
+                              '✓ Matched'
+                            )}
                           </Badge>
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground mt-0.5">
-                        {Math.round(row.macros.calories_kcal)} kcal · P:{' '}
+                        {Math.round(row.macros.calories_kcal)}{' '}
+                        {t('ai.foodPhotoEstimateToolUI.kcalP', 'kcal · P:')}{' '}
                         {Math.round(row.macros.protein_g * 10) / 10}g · C:{' '}
                         {Math.round(row.macros.carbs_g * 10) / 10}g · F:{' '}
                         {Math.round(row.macros.fat_g * 10) / 10}g

@@ -249,8 +249,18 @@ export function CnfBulkImportDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="en">English (default)</SelectItem>
-                    <SelectItem value="fr">Français (French)</SelectItem>
+                    <SelectItem value="en">
+                      {t(
+                        'settings.cnfBulkImportDialog.englishDefault',
+                        'English (default)'
+                      )}
+                    </SelectItem>
+                    <SelectItem value="fr">
+                      {t(
+                        'settings.cnfBulkImportDialog.franAisFrench',
+                        'Français (French)'
+                      )}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -96,7 +96,10 @@ export const BarcodeScannerDialog = ({
                   ))
                 ) : (
                   <SelectItem value="none" disabled>
-                    No active providers found
+                    {t(
+                      'foodSearch.barcodeScannerDialog.noActiveProvidersFound',
+                      'No active providers found'
+                    )}
                   </SelectItem>
                 )}
               </SelectContent>
@@ -104,7 +107,16 @@ export const BarcodeScannerDialog = ({
           </div>
         )}
 
-        <Suspense fallback={<div>Loading camera module...</div>}>
+        <Suspense
+          fallback={
+            <div>
+              {t(
+                'foodSearch.barcodeScannerDialog.loadingCameraModule',
+                'Loading camera module...'
+              )}
+            </div>
+          }
+        >
           <BarcodeScanner
             onBarcodeDetected={onBarcodeDetected}
             onClose={() => onOpenChange(false)}

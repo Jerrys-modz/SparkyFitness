@@ -120,7 +120,11 @@ export default function InjectionSiteSettings() {
                     onClick={() => move(idx, -1)}
                     disabled={idx === 0}
                     className="disabled:opacity-30"
-                    aria-label={`Move ${row.label} up`}
+                    aria-label={t(
+                      'medications.injectionSiteSettings.moveUp',
+                      'Move {{label}} up',
+                      { label: row.label }
+                    )}
                   >
                     <ChevronUp className="h-3 w-3" />
                   </button>
@@ -129,7 +133,11 @@ export default function InjectionSiteSettings() {
                     onClick={() => move(idx, 1)}
                     disabled={idx === rows.length - 1}
                     className="disabled:opacity-30"
-                    aria-label={`Move ${row.label} down`}
+                    aria-label={t(
+                      'medications.injectionSiteSettings.moveDown',
+                      'Move {{label}} down',
+                      { label: row.label }
+                    )}
                   >
                     <ChevronDown className="h-3 w-3" />
                   </button>
@@ -145,7 +153,11 @@ export default function InjectionSiteSettings() {
               <Switch
                 checked={row.active}
                 onCheckedChange={() => toggle(row.id)}
-                aria-label={`Toggle ${row.label}`}
+                aria-label={t(
+                  'medications.injectionSiteSettings.toggle',
+                  'Toggle {{label}}',
+                  { label: row.label }
+                )}
               />
             </div>
           ))}

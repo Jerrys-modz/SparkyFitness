@@ -233,7 +233,7 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                 ? '…'
                 : checkInQuery.data?.weight
                   ? `${checkInQuery.data.weight} kg`
-                  : '-- kg'}
+                  : t('cycle.dailyLogPanel.kg', '-- kg')}
             </span>
           </div>
         </div>
@@ -334,7 +334,15 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                               handleToggleProductVisibility(p.value, !isVisible)
                             }
                             aria-label={
-                              isVisible ? 'Hide product' : 'Show product'
+                              isVisible
+                                ? t(
+                                    'cycle.dailyLogPanel.hideProduct',
+                                    'Hide product'
+                                  )
+                                : t(
+                                    'cycle.dailyLogPanel.showProduct',
+                                    'Show product'
+                                  )
                             }
                           >
                             {isVisible ? (
@@ -360,7 +368,8 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                           <span className="flex items-center gap-2">
                             <span className="inline-block h-2 w-2 rounded-full bg-rose-400 dark:bg-rose-500" />
                             <span>
-                              {cp.displayName} (<span>{cp.capacityMl}</span>ml)
+                              {cp.displayName} (<span>{cp.capacityMl}</span>
+                              {t('cycle.dailyLogPanel.ml', 'ml)')}
                             </span>
                           </span>
                           <span className="flex items-center gap-1">
@@ -376,7 +385,15 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                                 )
                               }
                               aria-label={
-                                isVisible ? 'Hide product' : 'Show product'
+                                isVisible
+                                  ? t(
+                                      'cycle.dailyLogPanel.hideProduct',
+                                      'Hide product'
+                                    )
+                                  : t(
+                                      'cycle.dailyLogPanel.showProduct',
+                                      'Show product'
+                                    )
                               }
                             >
                               {isVisible ? (
@@ -393,7 +410,10 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                                 e.stopPropagation();
                                 handleDeleteCustomProduct(cp.value);
                               }}
-                              aria-label="Delete product"
+                              aria-label={t(
+                                'cycle.dailyLogPanel.deleteProduct',
+                                'Delete product'
+                              )}
                             >
                               <Trash className="h-3.5 w-3.5" />
                             </Button>
@@ -410,11 +430,14 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                         htmlFor="custom-prod-name"
                         className="text-[10px] uppercase font-bold text-muted-foreground"
                       >
-                        Product Name
+                        {t('cycle.dailyLogPanel.productName', 'Product Name')}
                       </Label>
                       <Input
                         id="custom-prod-name"
-                        placeholder="e.g. Organic tampon"
+                        placeholder={t(
+                          'cycle.dailyLogPanel.eGOrganicTampon',
+                          'e.g. Organic tampon'
+                        )}
                         value={newProductName}
                         onChange={(e) => setNewProductName(e.target.value)}
                         className="h-8 text-xs w-full"
@@ -425,7 +448,7 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                         htmlFor="custom-prod-cap"
                         className="text-[10px] uppercase font-bold text-muted-foreground"
                       >
-                        Capacity (ml)
+                        {t('cycle.dailyLogPanel.capacityMl', 'Capacity (ml)')}
                       </Label>
                       <Input
                         id="custom-prod-cap"
@@ -444,7 +467,7 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                       className="h-8 text-xs"
                       onClick={handleAddCustomProduct}
                     >
-                      Add
+                      {t('common.add', 'Add')}
                     </Button>
                   </div>
                 </div>
@@ -475,7 +498,11 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                       size="icon"
                       variant="ghost"
                       className="h-7 w-7"
-                      aria-label={`Decrease ${def.displayName}`}
+                      aria-label={t(
+                        'cycle.dailyLogPanel.decrease',
+                        'Decrease {{displayName}}',
+                        { displayName: def.displayName }
+                      )}
                       onClick={() => setProduct(value, count - 1)}
                     >
                       <Minus className="h-4 w-4" />
@@ -488,7 +515,11 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                       size="icon"
                       variant="ghost"
                       className="h-7 w-7"
-                      aria-label={`Increase ${def.displayName}`}
+                      aria-label={t(
+                        'cycle.dailyLogPanel.increase',
+                        'Increase {{displayName}}',
+                        { displayName: def.displayName }
+                      )}
                       onClick={() => setProduct(value, count + 1)}
                     >
                       <Plus className="h-4 w-4" />
@@ -568,7 +599,7 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
             step={1}
             value={[draft.energy ?? 3]}
             onValueChange={(v) => save({ energy: v[0] ?? null })}
-            aria-label="Energy level"
+            aria-label={t('cycle.dailyLogPanel.energyLevel', 'Energy level')}
           />
         </section>
 

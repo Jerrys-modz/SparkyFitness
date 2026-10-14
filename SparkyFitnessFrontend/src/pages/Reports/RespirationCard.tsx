@@ -26,6 +26,7 @@ import {
   CustomMeasurementsResponse,
 } from '@workspace/shared';
 
+import i18n from 'i18next';
 // Respiration metric names as they come from Garmin sync
 interface RespirationCardProps {
   categories: CustomCategoriesResponse[];
@@ -48,19 +49,28 @@ const getRespirationStatusInfo = (
     return {
       status: 'Low',
       color: '#f97316',
-      description: 'Below normal breathing rate at rest.',
+      description: i18n.t(
+        'reports.respirationCard.belowNormalBreathingRateAt',
+        'Below normal breathing rate at rest.'
+      ),
     };
   } else if (value <= 20) {
     return {
       status: 'Normal',
       color: '#22c55e',
-      description: 'Healthy breathing rate for adults at rest.',
+      description: i18n.t(
+        'reports.respirationCard.healthyBreathingRateForAdults',
+        'Healthy breathing rate for adults at rest.'
+      ),
     };
   } else {
     return {
       status: 'Elevated',
       color: '#f97316',
-      description: 'Above normal resting breathing rate.',
+      description: i18n.t(
+        'reports.respirationCard.aboveNormalRestingBreathingRate',
+        'Above normal resting breathing rate.'
+      ),
     };
   }
 };
@@ -265,7 +275,9 @@ const RespirationCard: React.FC<RespirationCardProps> = ({
                       latestData?.sleepAvg?.toFixed(0) ??
                       '--'}
                   </p>
-                  <p className="text-sm text-muted-foreground">brpm</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t('reports.respirationCard.brpm', 'brpm')}
+                  </p>
                   <p className="text-sm font-medium text-blue-500">
                     {t('reports.sleepAvg', 'Sleep Avg')}
                   </p>
@@ -278,7 +290,9 @@ const RespirationCard: React.FC<RespirationCardProps> = ({
                       latestData?.awakeAvg?.toFixed(0) ??
                       '--'}
                   </p>
-                  <p className="text-sm text-muted-foreground">brpm</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t('reports.respirationCard.brpm', 'brpm')}
+                  </p>
                   <p className="text-sm font-medium text-cyan-500">
                     {t('reports.awakeAvg', 'Awake Avg')}
                   </p>
@@ -439,7 +453,8 @@ const RespirationCard: React.FC<RespirationCardProps> = ({
         {/* Normal range indicator */}
         <div className="flex justify-center mt-4 text-xs text-muted-foreground">
           <span>
-            {t('reports.normalRange', 'Normal adult resting range')}: 12-20 brpm
+            {t('reports.normalRange', 'Normal adult resting range')}
+            {t('reports.respirationCard.n1220Brpm', ': 12-20 brpm')}
           </span>
         </div>
       </CardContent>

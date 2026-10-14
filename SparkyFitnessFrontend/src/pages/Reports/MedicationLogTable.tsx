@@ -233,7 +233,11 @@ export default function MedicationLogTable({
                         {row.taken + row.prn + row.injections}
                         {row.prn > 0 && (
                           <span className="text-xs text-muted-foreground ml-1">
-                            ({row.prn} PRN)
+                            {t(
+                              'reports.medicationLogTable.prn',
+                              '({{prn}}PRN)',
+                              { prn: row.prn }
+                            )}
                           </span>
                         )}
                         {row.injections > 0 && (

@@ -1288,7 +1288,7 @@ const MealBuilder: React.FC<MealBuilderProps> = ({
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Unit" />
+              <SelectValue placeholder={t('mealBuilder.unit', 'Unit')} />
             </SelectTrigger>
             <SelectContent>
               {MEAL_SERVING_UNITS.map((unit) => (
@@ -1574,7 +1574,7 @@ const MealBuilder: React.FC<MealBuilderProps> = ({
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Unit" />
+                    <SelectValue placeholder={t('mealBuilder.unit', 'Unit')} />
                   </SelectTrigger>
                   <SelectContent>
                     {MEAL_SERVING_UNITS.map((unit) => (

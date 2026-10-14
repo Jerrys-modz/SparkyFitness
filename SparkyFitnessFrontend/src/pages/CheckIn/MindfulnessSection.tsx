@@ -692,7 +692,11 @@ export const MindfulnessSection: React.FC<MindfulnessSectionProps> = ({
                       {session.hrv_rmssd != null && (
                         <span className="flex items-center gap-1 text-indigo-400 font-medium">
                           <Activity className="w-3 h-3" />
-                          HRV {session.hrv_rmssd} ms
+                          {t(
+                            'checkIn.mindfulnessSection.hrvMs',
+                            'HRV {{hrv_rmssd}}ms',
+                            { hrv_rmssd: session.hrv_rmssd }
+                          )}
                         </span>
                       )}
 

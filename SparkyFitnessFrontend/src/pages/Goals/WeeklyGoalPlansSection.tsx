@@ -56,7 +56,8 @@ export const WeeklyGoalPlansSection = ({
                     )}
                   </h4>
                   <p className="text-sm text-gray-600">
-                    {formatDateInUserTimezone(plan.start_date)} to{' '}
+                    {formatDateInUserTimezone(plan.start_date)}{' '}
+                    {t('goals.weeklyGoalPlansSection.to', 'to')}{' '}
                     {plan.end_date
                       ? formatDateInUserTimezone(plan.end_date)
                       : t('common.indefinite', 'Indefinite')}

@@ -403,7 +403,9 @@ export default function CycleInsights() {
                         <div className="flex justify-between text-xs font-semibold">
                           <span className="capitalize">{symptom}</span>
                           <span className="text-[10px] text-muted-foreground">
-                            {total} total
+                            {t('cycle.cycleInsights.total', '{{total}}total', {
+                              total,
+                            })}
                           </span>
                         </div>
                         <div className="flex h-3 w-full rounded bg-muted overflow-hidden gap-0.5">
@@ -426,7 +428,11 @@ export default function CycleInsights() {
                                 key={phase}
                                 className={bg}
                                 style={{ width: `${pct}%` }}
-                                title={`${phase}: ${val} logs`}
+                                title={t(
+                                  'cycle.cycleInsights.logs',
+                                  '{{phase}}: {{val}} logs',
+                                  { phase, val }
+                                )}
                               />
                             );
                           })}
@@ -437,19 +443,19 @@ export default function CycleInsights() {
                   <div className="flex gap-2 text-[9px] text-muted-foreground justify-center pt-2 select-none border-t">
                     <span className="flex items-center gap-1">
                       <span className="h-2 w-2 rounded-full bg-red-500" />{' '}
-                      Menstrual
+                      {t('cycle.cycleInsights.menstrual', 'Menstrual')}
                     </span>
                     <span className="flex items-center gap-1">
                       <span className="h-2 w-2 rounded-full bg-green-500" />{' '}
-                      Fertile
+                      {t('cycle.cycleInsights.fertile', 'Fertile')}
                     </span>
                     <span className="flex items-center gap-1">
                       <span className="h-2 w-2 rounded-full bg-green-700" />{' '}
-                      Ovulation
+                      {t('cycle.cycleInsights.ovulation', 'Ovulation')}
                     </span>
                     <span className="flex items-center gap-1">
                       <span className="h-2 w-2 rounded-full bg-amber-500" />{' '}
-                      Luteal
+                      {t('cycle.cycleInsights.luteal', 'Luteal')}
                     </span>
                   </div>
                 </div>

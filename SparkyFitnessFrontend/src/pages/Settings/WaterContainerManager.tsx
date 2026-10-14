@@ -505,7 +505,9 @@ const WaterContainerManager: React.FC = () => {
                               'waterContainerManager.linkedFood',
                               'Linked Food'
                             )}
-                            : {c.linked_food_name || 'Food'}
+                            :{' '}
+                            {c.linked_food_name ||
+                              t('settings.waterContainerManager.food', 'Food')}
                           </span>
                         </Badge>
                       )}
@@ -875,7 +877,9 @@ const WaterContainerManager: React.FC = () => {
                         <Utensils className="w-3 h-3" />
                         <span>
                           {t('waterContainerManager.linkedFood', 'Linked Food')}
-                          : {c.linked_food_name || 'Food'}
+                          :{' '}
+                          {c.linked_food_name ||
+                            t('settings.waterContainerManager.food', 'Food')}
                           {c.linked_variant_serving_size
                             ? ` (${c.linked_variant_serving_size} ${c.linked_variant_serving_unit || ''})`
                             : ''}
@@ -999,7 +1003,11 @@ const WaterContainerManager: React.FC = () => {
                           variant="secondary"
                           className="text-[10px] px-1.5 py-0 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-normal"
                         >
-                          {item.caffeineMg} mg caffeine
+                          {t(
+                            'settings.waterContainerManager.mgCaffeine',
+                            '{{caffeineMg}}mg caffeine',
+                            { caffeineMg: item.caffeineMg }
+                          )}
                         </Badge>
                       )}
                       {item.abvPercent !== undefined && (
@@ -1007,14 +1015,19 @@ const WaterContainerManager: React.FC = () => {
                           variant="secondary"
                           className="text-[10px] px-1.5 py-0 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-normal"
                         >
-                          {item.abvPercent}% ABV
+                          {t(
+                            'settings.waterContainerManager.abv',
+                            '{{abvPercent}}% ABV',
+                            { abvPercent: item.abvPercent }
+                          )}
                         </Badge>
                       )}
                       <Badge
                         variant="outline"
                         className="text-[10px] px-1.5 py-0 font-normal"
                       >
-                        {Math.round(item.hydrationFactor * 100)}% water
+                        {Math.round(item.hydrationFactor * 100)}
+                        {t('settings.waterContainerManager.water', '% water')}
                       </Badge>
                     </div>
                   </div>

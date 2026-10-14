@@ -38,6 +38,7 @@ import { formatTimeOfDayString } from '@/utils/timeFormatters';
 import { exerciseDisplayLabel } from '@/utils/exerciseDisplayLabels';
 import { localizeMuscle, localizeEquipment } from '@/utils/exerciseTaxonomy';
 
+import i18n from 'i18next';
 interface ExerciseEntryDisplayProps {
   exerciseEntry: ExerciseEntry;
   currentUserId: string | undefined;
@@ -58,12 +59,16 @@ interface ExerciseEntryDisplayProps {
 // Source badge config
 const SOURCE_BADGES: Record<string, { label: string; className: string }> = {
   wger: {
-    label: 'Wger',
+    get label() {
+      return i18n.t('diary.exerciseEntryDisplay.wger', 'Wger');
+    },
     className:
       'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
   },
   'free-exercise-db': {
-    label: 'Free DB',
+    get label() {
+      return i18n.t('diary.exerciseEntryDisplay.freeDB', 'Free DB');
+    },
     className:
       'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300',
   },

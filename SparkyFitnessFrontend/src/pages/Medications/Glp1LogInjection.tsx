@@ -153,7 +153,8 @@ export default function Glp1LogInjection({ med }: Glp1LogInjectionProps) {
                   <SelectItem key={p.id} value={p.id}>
                     {p.kind}
                     {p.dose_mg ? ` ${p.dose_mg}mg` : ''} ·{' '}
-                    {(p.doses_total ?? 0) - p.doses_used} left
+                    {(p.doses_total ?? 0) - p.doses_used}{' '}
+                    {t('medications.glp1LogInjection.left', 'left')}
                   </SelectItem>
                 ))}
             </SelectContent>

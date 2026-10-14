@@ -18,6 +18,7 @@ import {
   SugarCalculationAlgorithmLabels,
 } from '@workspace/shared';
 
+import { useTranslation } from 'react-i18next';
 export interface CalculationSettingsProps {
   localFatBreakdownAlgorithm: FatBreakdownAlgorithm;
   localMineralAlgorithm: MineralCalculationAlgorithm;
@@ -50,6 +51,7 @@ export const CalculationSettings = ({
   setShowAdvancedSettings,
   showAdvancedSettings,
 }: CalculationSettingsProps) => {
+  const { t } = useTranslation();
   return (
     <div className="bg-card rounded-2xl border border-border mb-6">
       <button
@@ -59,7 +61,10 @@ export const CalculationSettings = ({
         <div className="flex items-center gap-2">
           <Settings className="h-5 w-5 text-muted-foreground" />
           <span className="text-foreground font-semibold">
-            Calculation Settings
+            {t(
+              'onboarding.calculationSettings.calculationSettings',
+              'Calculation Settings'
+            )}
           </span>
         </div>
         <ChevronLeft
@@ -72,7 +77,10 @@ export const CalculationSettings = ({
           {/* Fat Breakdown Algorithm */}
           <div>
             <Label className="text-foreground text-sm mb-2 block">
-              Fat Breakdown Method
+              {t(
+                'onboarding.calculationSettings.fatBreakdownMethod',
+                'Fat Breakdown Method'
+              )}
             </Label>
             <Select
               value={localFatBreakdownAlgorithm}
@@ -96,7 +104,10 @@ export const CalculationSettings = ({
           {/* Mineral Calculation Algorithm */}
           <div>
             <Label className="text-foreground text-sm mb-2 block">
-              Mineral Calculation
+              {t(
+                'onboarding.calculationSettings.mineralCalculation',
+                'Mineral Calculation'
+              )}
             </Label>
             <Select
               value={localMineralAlgorithm}
@@ -120,7 +131,10 @@ export const CalculationSettings = ({
           {/* Vitamin Calculation Algorithm */}
           <div>
             <Label className="text-foreground text-sm mb-2 block">
-              Vitamin Calculation
+              {t(
+                'onboarding.calculationSettings.vitaminCalculation',
+                'Vitamin Calculation'
+              )}
             </Label>
             <Select
               value={localVitaminAlgorithm}
@@ -144,7 +158,10 @@ export const CalculationSettings = ({
           {/* Sugar Calculation Algorithm */}
           <div>
             <Label className="text-foreground text-sm mb-2 block">
-              Sugar Recommendation
+              {t(
+                'onboarding.calculationSettings.sugarRecommendation',
+                'Sugar Recommendation'
+              )}
             </Label>
             <Select
               value={localSugarAlgorithm}
@@ -166,8 +183,10 @@ export const CalculationSettings = ({
           </div>
 
           <p className="text-xs text-muted-foreground mt-2">
-            These settings control how your nutrient goals are calculated. You
-            can change them later in Settings.
+            {t(
+              'onboarding.calculationSettings.theseSettingsControlHowYour',
+              'These settings control how your nutrient goals are calculated. You can change them later in Settings.'
+            )}
           </p>
         </div>
       )}

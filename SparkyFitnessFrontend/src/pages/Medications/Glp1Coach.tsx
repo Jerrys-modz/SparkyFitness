@@ -129,7 +129,8 @@ export default function Glp1Coach({ med }: Glp1CoachProps) {
               )}
               {curveQ.data?.currentLevelFraction != null && (
                 <Badge variant="secondary">
-                  ~{Math.round(curveQ.data.currentLevelFraction * 100)}% now
+                  ~{Math.round(curveQ.data.currentLevelFraction * 100)}
+                  {t('medications.glp1Coach.now', '% now')}
                 </Badge>
               )}
             </span>
