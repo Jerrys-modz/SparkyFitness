@@ -180,7 +180,9 @@ export const ExerciseSearchListItem = ({
                 {Math.round(
                   convertEnergy(exercise.calories_per_hour, 'kcal', energyUnit)
                 )}{' '}
-                {getEnergyUnitString(energyUnit)}/hr
+                {t('exercises.exerciseSearchListItem.perHour', '{{unit}}/hr', {
+                  unit: getEnergyUnitString(energyUnit),
+                })}
               </span>
             </>
           ) : null}

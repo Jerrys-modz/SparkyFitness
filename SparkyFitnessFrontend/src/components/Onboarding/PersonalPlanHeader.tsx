@@ -95,7 +95,9 @@ export const PersonalPlanHeader = ({
           />
         </div>
         <p className="text-xl text-foreground font-medium mt-1">
-          {getEnergyUnitString(localEnergyUnit)} / day
+          {t('onboarding.personalPlanHeader.perDay', '{{unit}} / day', {
+            unit: getEnergyUnitString(localEnergyUnit),
+          })}
         </p>
 
         <div className="mt-6 pt-6 border-t border-border flex justify-between text-sm text-muted-foreground">

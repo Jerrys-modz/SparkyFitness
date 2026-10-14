@@ -165,7 +165,8 @@
       "eGMgGIU": "e.g., mg, µg, IU",
       "providerAliases": "Provider aliases",
       "typeANamePressEnter": "Type a name, press Enter",
-      "adding": "Adding…"
+      "adding": "Adding…",
+      "nutrientAdded": "\"{{name}}\" was added."
     },
     "deleteFoodDialog": {
       "view": "View",
@@ -2884,7 +2885,8 @@
     },
     "nutrientDisplaySettings": {
       "failedToSavePreferences": "Failed to save {{view_group}} ({{platform}}) preferences: {{message}}",
-      "failedToResetPreferences": "Failed to reset {{viewGroup}} ({{pform}}) preferences: {{message}}"
+      "failedToResetPreferences": "Failed to reset {{viewGroup}} ({{pform}}) preferences: {{message}}",
+      "preferencesReset": "Preferences for {{viewGroup}} ({{platforms}}) have been reset to default."
     },
     "preferenceSettings": {
       "mmDdYyyy1225": "MM/dd/yyyy (12/25/2024)",
@@ -4006,7 +4008,8 @@
     },
     "mindfulnessSection": {
       "hrvMs": "HRV {{hrv_rmssd}} ms"
-    }
+    },
+    "failedToCalculateBodyFatWithError": "Failed to calculate body fat: {{error}}"
   },
   "mindfulness": {
     "title": "Mindfulness",
@@ -5905,7 +5908,8 @@
       "baseBMR": "Base BMR:",
       "on": "ON",
       "off": "OFF",
-      "calorieBuyback2": "Calorie Buyback: <span>{{addBurnedCalories}}</span>"
+      "calorieBuyback2": "Calorie Buyback: <span>{{addBurnedCalories}}</span>",
+      "perDay": "{{unit}} / day"
     }
   },
   "cycle": {
@@ -8376,7 +8380,8 @@
       "equipment": "Equipment:",
       "readInstructionsAloud": "Read instructions aloud",
       "wger": "Wger",
-      "freeDB": "Free DB"
+      "freeDB": "Free DB",
+      "perHour": "{{unit}}/hr"
     },
     "muscles": "Muscles:",
     "equipment": "Equipment:",
@@ -8540,7 +8545,8 @@
       "allergens": "Allergens",
       "customAllergen": "Custom allergen…",
       "nutritionPer2": "Nutrition per {{variant}}",
-      "estimate2": "{{ai_confidence}} estimate"
+      "estimate2": "{{ai_confidence}} estimate",
+      "custom": "Custom"
     }
   },
   "gitHubSponsorButton": {
