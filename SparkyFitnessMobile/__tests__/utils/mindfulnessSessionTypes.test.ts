@@ -3,6 +3,7 @@ import {
   MINDFULNESS_SESSION_TYPES,
   mindfulnessSessionTypeEmoji,
   mindfulnessSessionTypeLabel,
+  offeredMindfulnessSessionType,
 } from '../../src/utils/mindfulnessSessionTypes';
 
 // Echoes the English fallback, which is what an untranslated key shows.
@@ -34,5 +35,13 @@ describe('mindfulness session types', () => {
     expect(mindfulnessSessionTypeEmoji('sound_bath')).toBe('✨');
     expect(mindfulnessSessionTypeLabel(null, t)).toBe('Other');
     expect(mindfulnessSessionTypeEmoji(undefined)).toBe('✨');
+  });
+
+  it('picks the chip a stored type shows as, Other when it is not offered', () => {
+    for (const type of MINDFULNESS_SESSION_TYPES) {
+      expect(offeredMindfulnessSessionType(type)).toBe(type);
+    }
+    expect(offeredMindfulnessSessionType('sound_bath')).toBe('other');
+    expect(offeredMindfulnessSessionType(null)).toBe('other');
   });
 });

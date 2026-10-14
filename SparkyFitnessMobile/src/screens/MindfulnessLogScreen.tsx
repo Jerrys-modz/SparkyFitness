@@ -22,6 +22,7 @@ import {
   MINDFULNESS_SESSION_TYPES,
   mindfulnessSessionTypeEmoji,
   mindfulnessSessionTypeLabel,
+  offeredMindfulnessSessionType,
 } from '../utils/mindfulnessSessionTypes';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MindfulnessLog'>;
@@ -53,9 +54,12 @@ export default function MindfulnessLogScreen({ navigation, route }: Props) {
   const [durationSeconds, setDurationSeconds] = useState(
     String(initialSeconds % 60)
   );
+  // Saved as is unless another type is picked, so editing a session whose
+  // type the app does not offer keeps that type; its chip reads as Other.
   const [sessionType, setSessionType] = useState(
-    session?.session_type || 'meditation'
+    session ? session.session_type : 'meditation'
   );
+  const selectedType = offeredMindfulnessSessionType(sessionType);
   const [notes, setNotes] = useState(session?.notes ?? '');
   const [heartRateAvg, setHeartRateAvg] = useState(
     optionalNumber(session?.heart_rate_avg)
@@ -266,11 +270,14 @@ export default function MindfulnessLogScreen({ navigation, route }: Props) {
         </Text>
         <View className="flex-row flex-wrap gap-2 mb-4">
           {MINDFULNESS_SESSION_TYPES.map((typeKey) => {
-            const isSelected = sessionType === typeKey;
+            const isSelected = selectedType === typeKey;
             return (
               <TouchableOpacity
                 key={typeKey}
-                onPress={() => setSessionType(typeKey)}
+                onPress={() => {
+                  // Other already shown for an unoffered type keeps that type.
+                  if (typeKey !== selectedType) setSessionType(typeKey);
+                }}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
                 className={`px-3 py-1.5 rounded-xl border ${

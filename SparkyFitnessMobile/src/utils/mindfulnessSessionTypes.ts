@@ -1,16 +1,23 @@
 import type { TFunction } from 'i18next';
+import {
+  mindfulnessSessionTypeSchema,
+  type MindfulnessSessionType,
+} from '@workspace/shared';
 
 /** The session types the log form offers, in the order its chips show them. */
-export const MINDFULNESS_SESSION_TYPES = [
-  'meditation',
-  'breathwork',
-  'reflection',
-  'walking',
-  'yoga',
-  'guided',
-  'unguided',
-  'other',
-] as const;
+export const MINDFULNESS_SESSION_TYPES = mindfulnessSessionTypeSchema.options;
+
+/**
+ * The chip a stored `session_type` shows as: its own, or Other for a type the
+ * app does not offer, matching how the label and emoji read it.
+ */
+export function offeredMindfulnessSessionType(
+  type: string | null | undefined
+): MindfulnessSessionType {
+  return (
+    MINDFULNESS_SESSION_TYPES.find((offered) => offered === type) ?? 'other'
+  );
+}
 
 /**
  * Display name for a stored `session_type`. Anything the app does not offer

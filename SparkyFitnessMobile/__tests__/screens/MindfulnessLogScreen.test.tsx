@@ -203,6 +203,30 @@ describe('MindfulnessLogScreen', () => {
     );
   });
 
+  it.each(['sound_bath', ''])(
+    'shows the stored type %p as Other and keeps it on save',
+    async (storedType) => {
+      // Another client or an import can store a type the chips do not have.
+      renderScreen({
+        date: DATE,
+        session: { ...session, session_type: storedType },
+      });
+
+      expect(
+        screen.getByRole('button', { name: '✨ Other', selected: true })
+      ).toBeTruthy();
+      // Pressing the Other chip already shown is not picking another type.
+      fireEvent.press(screen.getByText('✨ Other'));
+      fireEvent.press(screen.getByText('Save'));
+
+      await screen.findByText('Save');
+      expect(mockUpdateSession).toHaveBeenCalledWith(
+        'session-1',
+        expect.objectContaining({ session_type: storedType })
+      );
+    }
+  );
+
   it.each([
     ['breathwork', 'Paced Breathing'],
     ['timer', 'Meditation Timer'],
