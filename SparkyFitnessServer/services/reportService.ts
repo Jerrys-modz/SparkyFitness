@@ -30,6 +30,10 @@ import {
   buildTrainingConsistency,
   computeTrainingLoad,
   computeFitnessFatigue,
+  computeRunningEstimates,
+  classifyActivitySport,
+  VO2_WINDOW_DAYS,
+  type RunningEstimates,
   computeReadiness,
   CURVE_DAYS,
   type FitnessFatigue,
@@ -1072,9 +1076,73 @@ async function getFitnessFatigue(
   }
 }
 
+/**
+ * VO2 max and average running power estimated from recent runs: the runs are
+ * the cardio entries sport detection calls running, the resting heart rate is
+ * the person's recent average from sleep (60 without one), the maximum comes
+ * from the profile's age and the weight is the latest check-in on or before
+ * today. Both figures are estimates from a model, not measurements.
+ */
+async function getRunningEstimates(
+  authenticatedUserId: string,
+  targetUserId: string
+): Promise<RunningEstimates> {
+  try {
+    const timezone = await loadUserTimezone(targetUserId);
+    const today = todayInZone(timezone);
+    const yesterday = addDays(today, -1);
+    const [candidates, profile, vitals, weights] = await Promise.all([
+      reportRepository.getRunCandidates(
+        targetUserId,
+        addDays(today, -(VO2_WINDOW_DAYS - 1)),
+        today
+      ),
+      userRepository.getUserProfile(targetUserId),
+      reportRepository.getReadinessVitals(
+        targetUserId,
+        today,
+        yesterday,
+        addDays(yesterday, -READINESS_BASELINE_DAYS)
+      ),
+      reportRepository.getBodyWeightReadings(
+        targetUserId,
+        addDays(today, -365),
+        today
+      ),
+    ]);
+    const runs = candidates.filter(
+      (candidate) =>
+        classifyActivitySport({
+          exerciseName: candidate.exerciseName,
+          category: candidate.category,
+          notes: candidate.notes,
+          providerName: candidate.providerName,
+          detailData: candidate.detailData,
+          exerciseSourceId: candidate.exerciseSourceId,
+        }).sport === 'running'
+    );
+    const age = profile?.date_of_birth
+      ? userAge(profile.date_of_birth, timezone)
+      : null;
+    return computeRunningEstimates(runs, today, {
+      restingHeartRate: vitals.restingHeartRateBaseline,
+      maxHeartRate: estimateMaxHeartRate(age),
+      bodyWeightKg: bodyWeightOnDay(weights, today),
+    });
+  } catch (error) {
+    log(
+      'error',
+      `Error building running estimates for user ${targetUserId} by ${authenticatedUserId}:`,
+      error
+    );
+    throw error;
+  }
+}
+
 export { getTrainingConsistency };
 export { getTrainingLoad };
 export { getFitnessFatigue };
+export { getRunningEstimates };
 export default {
   getReportsData,
   getMiniNutritionTrends,
@@ -1083,4 +1151,5 @@ export default {
   getTrainingConsistency,
   getTrainingLoad,
   getFitnessFatigue,
+  getRunningEstimates,
 };
