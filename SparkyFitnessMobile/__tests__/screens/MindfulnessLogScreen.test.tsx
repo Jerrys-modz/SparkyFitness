@@ -152,6 +152,31 @@ describe('MindfulnessLogScreen', () => {
     expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
   });
 
+  it('offers each session type with its icon and saves the one picked', async () => {
+    renderScreen({ date: DATE });
+
+    for (const label of [
+      '🧘 Meditation',
+      '🌊 Breathwork',
+      '🪞 Reflection',
+      '🚶 Mindful Walking',
+      '🧘‍♀️ Yoga',
+      '🎧 Guided',
+      '🕯️ Unguided',
+      '✨ Other',
+    ]) {
+      expect(screen.getByText(label)).toBeTruthy();
+    }
+
+    fireEvent.press(screen.getByText('🧘‍♀️ Yoga'));
+    fireEvent.press(screen.getByText('Save'));
+
+    await screen.findByText('Save');
+    expect(mockSaveSession).toHaveBeenCalledWith(
+      expect.objectContaining({ session_type: 'yoga' })
+    );
+  });
+
   it('closes from the header without saving', () => {
     renderScreen({ date: DATE });
 

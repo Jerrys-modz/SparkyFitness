@@ -18,19 +18,13 @@ import FormInput from '../components/FormInput';
 import { BreathworkModal } from '../components/mindfulness/BreathworkModal';
 import { MeditationTimerModal } from '../components/mindfulness/MeditationTimerModal';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
+import {
+  MINDFULNESS_SESSION_TYPES,
+  mindfulnessSessionTypeEmoji,
+  mindfulnessSessionTypeLabel,
+} from '../utils/mindfulnessSessionTypes';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MindfulnessLog'>;
-
-const SESSION_TYPES = [
-  'meditation',
-  'breathwork',
-  'reflection',
-  'walking',
-  'yoga',
-  'guided',
-  'unguided',
-  'other',
-] as const;
 
 const optionalNumber = (value: number | null | undefined): string =>
   value != null ? String(value) : '';
@@ -76,43 +70,6 @@ export default function MindfulnessLogScreen({ navigation, route }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [breathworkVisible, setBreathworkVisible] = useState(false);
   const [timerVisible, setTimerVisible] = useState(false);
-
-  const getSessionTypeLabel = (type: (typeof SESSION_TYPES)[number]) => {
-    switch (type) {
-      case 'meditation':
-        return t('mindfulness.types.meditation', {
-          defaultValue: 'Meditation',
-        });
-      case 'breathwork':
-        return t('mindfulness.types.breathwork', {
-          defaultValue: 'Breathwork',
-        });
-      case 'reflection':
-        return t('mindfulness.types.reflection', {
-          defaultValue: 'Reflection',
-        });
-      case 'walking':
-        return t('mindfulness.types.walking', {
-          defaultValue: 'Mindful Walking',
-        });
-      case 'yoga':
-        return t('mindfulness.types.yoga', {
-          defaultValue: 'Yoga',
-        });
-      case 'guided':
-        return t('mindfulness.types.guided', {
-          defaultValue: 'Guided',
-        });
-      case 'unguided':
-        return t('mindfulness.types.unguided', {
-          defaultValue: 'Unguided',
-        });
-      case 'other':
-        return t('mindfulness.types.other', {
-          defaultValue: 'Other',
-        });
-    }
-  };
 
   // A save can finish after the user already left (Cancel, Back or a swipe
   // while it was pending). Going back then would close the screen this one
@@ -305,7 +262,7 @@ export default function MindfulnessLogScreen({ navigation, route }: Props) {
           {t('mindfulness.modal.type', { defaultValue: 'Session Type' })}
         </Text>
         <View className="flex-row flex-wrap gap-2 mb-4">
-          {SESSION_TYPES.map((typeKey) => {
+          {MINDFULNESS_SESSION_TYPES.map((typeKey) => {
             const isSelected = sessionType === typeKey;
             return (
               <TouchableOpacity
@@ -313,20 +270,21 @@ export default function MindfulnessLogScreen({ navigation, route }: Props) {
                 onPress={() => setSessionType(typeKey)}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
-                className={`px-3.5 py-2 rounded-xl border ${
+                className={`px-3 py-1.5 rounded-xl border ${
                   isSelected
                     ? 'bg-accent-primary/20 border-accent-primary'
                     : 'bg-surface-elevated border-border-subtle'
                 }`}
               >
                 <Text
-                  className={`text-sm font-medium ${
+                  className={`text-xs font-medium ${
                     isSelected
-                      ? 'text-accent-primary font-semibold'
+                      ? 'text-accent-primary font-bold'
                       : 'text-text-secondary'
                   }`}
                 >
-                  {getSessionTypeLabel(typeKey)}
+                  {mindfulnessSessionTypeEmoji(typeKey)}{' '}
+                  {mindfulnessSessionTypeLabel(typeKey, t)}
                 </Text>
               </TouchableOpacity>
             );
