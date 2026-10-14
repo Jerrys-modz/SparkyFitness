@@ -99,11 +99,14 @@ export default function MindfulnessLogScreen({ navigation, route }: Props) {
         session_type: sType,
         provider: 'manual',
       });
-      closePractice();
-      closeIfStillOpen();
-    } catch {
+    } catch (error) {
       showSaveError();
+      // Rejecting is how the practice learns the save failed: it then stays
+      // open with the session instead of resetting it, so Finish can retry.
+      throw error;
     }
+    closePractice();
+    closeIfStillOpen();
   };
 
   const handleSubmit = async () => {

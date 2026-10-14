@@ -1,6 +1,6 @@
 import React from 'react';
 import { Platform } from 'react-native';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { MindfulnessSessionResponse } from '@workspace/shared';
 import MindfulnessLogScreen from '../../src/screens/MindfulnessLogScreen';
@@ -31,6 +31,32 @@ jest.mock('../../src/components/Icon', () => {
     default: ({ name }: { name: string }) => <View testID={`icon-${name}`} />,
   };
 });
+
+// Paced Breathing and the Meditation Timer, reduced to what the screen hands
+// them: whether they are open, and the save they call when finished.
+type PracticeSave = (seconds: number, sessionType: string) => Promise<void>;
+const mockPractice: Record<'breathwork' | 'timer', PracticeSave | null> = {
+  breathwork: null,
+  timer: null,
+};
+// A function declaration, so the hoisted jest.mock factories below can call
+// it when the screen renders a practice.
+function mockPracticeModal(
+  kind: 'breathwork' | 'timer',
+  { visible, onSave }: { visible: boolean; onSave: PracticeSave }
+) {
+  const { View } = require('react-native');
+  mockPractice[kind] = onSave;
+  return visible ? <View testID={`${kind}-modal`} /> : null;
+}
+jest.mock('../../src/components/mindfulness/BreathworkModal', () => ({
+  BreathworkModal: (props: { visible: boolean; onSave: PracticeSave }) =>
+    mockPracticeModal('breathwork', props),
+}));
+jest.mock('../../src/components/mindfulness/MeditationTimerModal', () => ({
+  MeditationTimerModal: (props: { visible: boolean; onSave: PracticeSave }) =>
+    mockPracticeModal('timer', props),
+}));
 
 const mockIsFocused = jest.fn(() => true);
 const mockNavigation = {
@@ -175,6 +201,45 @@ describe('MindfulnessLogScreen', () => {
     expect(mockSaveSession).toHaveBeenCalledWith(
       expect.objectContaining({ session_type: 'yoga' })
     );
+  });
+
+  it.each([
+    ['breathwork', 'Paced Breathing'],
+    ['timer', 'Meditation Timer'],
+  ] as const)(
+    'keeps the %s practice open with its session when the save fails',
+    async (kind, launch) => {
+      // The practice resets and closes only when its save resolves, so a
+      // failure must reach it as a rejection, not just as a toast.
+      mockSaveSession.mockRejectedValue(new Error('offline'));
+      renderScreen({ date: DATE });
+      fireEvent.press(screen.getByText(launch));
+
+      await act(async () => {
+        await expect(mockPractice[kind]!(300, kind)).rejects.toThrow('offline');
+      });
+
+      expect(screen.getByTestId(`${kind}-modal`)).toBeTruthy();
+      expect(mockNavigation.goBack).not.toHaveBeenCalled();
+    }
+  );
+
+  it('closes the practice and the screen once a practice session is saved', async () => {
+    renderScreen({ date: DATE });
+    fireEvent.press(screen.getByText('Paced Breathing'));
+
+    await act(async () => {
+      await mockPractice.breathwork!(300, 'breathwork');
+    });
+
+    expect(mockSaveSession).toHaveBeenCalledWith({
+      entry_date: DATE,
+      duration_seconds: 300,
+      session_type: 'breathwork',
+      provider: 'manual',
+    });
+    expect(screen.queryByTestId('breathwork-modal')).toBeNull();
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
   });
 
   it('closes from the header without saving', () => {
