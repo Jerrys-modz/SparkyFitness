@@ -34,6 +34,8 @@ enum RecordingStatus: String {
 struct RecordingState: Equatable {
     let sessionId: String
     let activity: RecordingActivity
+    /// A treadmill or other indoor session. False from an older phone, which recorded outdoors.
+    var indoor: Bool = false
     let status: RecordingStatus
     let startedAt: Date
     /// Time spent paused before the current pause, in milliseconds.
@@ -48,6 +50,12 @@ struct RecordingState: Equatable {
     /// Phone clock (epoch ms) when this was sent, so a queued message that
     /// arrives after a newer live one is ignored.
     let sentAt: Double
+    /// Laps marked so far. Zero from an older phone build that does not say.
+    var lapCount: Int = 0
+    /// The interval plan's current step, when the recording follows a plan.
+    /// Nil without a plan or from an older phone build. `index` is the
+    /// plan's step count once every step is done.
+    var interval: IntervalStep?
 
     /// The clock the wearer sees, with pauses removed. Runs on the watch
     /// between phone updates.
@@ -79,6 +87,26 @@ struct RecordingState: Equatable {
         return hours > 0
             ? String(format: "%d:%02d:%02d", hours, minutes, secs)
             : String(format: "%d:%02d", minutes, secs)
+    }
+}
+
+/// Where an interval plan stands, as the phone last said. The step changes
+/// are the phone's call; the watch counts down locally between updates.
+struct IntervalStep: Equatable {
+    let index: Int
+    /// Already worded for the wearer, e.g. "Run" or "Walk".
+    let label: String
+    /// Seconds left in the step when the phone sent it.
+    let remaining: TimeInterval
+    /// "Walk 1:30", or nil on the last step.
+    let next: String?
+
+    /// Seconds left now. Frozen while paused or finished, since the plan
+    /// follows the recording's clock rather than the wall clock.
+    func remaining(in state: RecordingState, at now: Date) -> TimeInterval {
+        guard state.status == .recording else { return remaining }
+        let sent = Date(timeIntervalSince1970: state.sentAt / 1000)
+        return max(0, remaining - max(0, now.timeIntervalSince(sent)))
     }
 }
 

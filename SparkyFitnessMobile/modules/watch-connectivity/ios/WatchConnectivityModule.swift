@@ -21,6 +21,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onMedicationTaken: (([String: Any]) -> Void)?
     /// One set logged during an active workout on the watch.
     var onSetCompleted: (([String: Any]) -> Void)?
+    /// The wearer un-logged a set on the watch.
+    var onSetUncompleted: (([String: Any]) -> Void)?
     var onRestChanged: (([String: Any]) -> Void)?
     /// The wearer started a set's hold countdown or stopwatch on the watch.
     var onSetTimerStarted: (([String: Any]) -> Void)?
@@ -34,12 +36,17 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onWorkoutDiscard: (([String: Any]) -> Void)?
     /// The wearer picked a saved workout on the watch. The phone starts it.
     var onWorkoutStartRequested: (([String: Any]) -> Void)?
+    /// The wearer added or removed a set or exercise on the watch, or changed a
+    /// set's type. The phone applies it to the live workout.
+    var onWorkoutEdit: (([String: Any]) -> Void)?
     /// The wearer answered the update-this-workout question on the summary.
     var onPresetUpdateAnswer: (([String: Any]) -> Void)?
     var onRecordingControl: (([String: Any]) -> Void)?
     var onRecordingHeartRate: (([String: Any]) -> Void)?
     var onFastStartRequested: (([String: Any]) -> Void)?
     var onFastEndRequested: (([String: Any]) -> Void)?
+    /// A walk or run recorded on the watch alone, sent when it finished.
+    var onRunFinished: (([String: Any]) -> Void)?
 
     /// The newest `setTargets` update sent before the session finished
     /// activating. Apple only queues `transferUserInfo` on an activated
@@ -102,6 +109,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onMedicationTaken?(payload)
         case "setCompleted":
             onSetCompleted?(payload)
+        case "setUncompleted":
+            onSetUncompleted?(payload)
         case "restChanged":
             onRestChanged?(payload)
         case "setTimerStarted":
@@ -118,6 +127,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onWorkoutDiscard?(payload)
         case "workoutStartRequested":
             onWorkoutStartRequested?(payload)
+        case "workoutEdit":
+            onWorkoutEdit?(payload)
         case "presetUpdateAnswer":
             onPresetUpdateAnswer?(payload)
         case "recordingControl":
@@ -128,6 +139,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onFastStartRequested?(payload)
         case "fastEnd":
             onFastEndRequested?(payload)
+        case "runFinished":
+            onRunFinished?(payload)
         default:
             break
         }
@@ -225,6 +238,15 @@ public class WatchConnectivityModule: Module {
     /// The watch callback and this module's queue both touch `heartRateQueue`.
     /// One serial queue so a drain and an ack can't interleave.
     private let heartRateAccess = DispatchQueue(label: "sparky.watch.heartRateQueue")
+    /// Wrist-only runs that arrived before JavaScript was listening. One file:
+    /// a run is rare, unlike a heart-rate batch a minute.
+    private var runQueue: [[String: Any]] = []
+    /// False until the current `runQueue` has been written. A failed write is
+    /// retried the next time JS asks for the queue.
+    private var runQueueStored = true
+    private var runQueueLoaded = false
+    private let runQueueLimit = 50
+    private let runAccess = DispatchQueue(label: "sparky.watch.runQueue")
 
     /// Opens the watch app for the workout the phone just started, the same
     /// way the system Workout app does. Without it the queued plan waits
@@ -266,6 +288,7 @@ public class WatchConnectivityModule: Module {
             "onWaterDelete",
             "onMedicationTaken",
             "onSetCompleted",
+            "onSetUncompleted",
             "onRestChanged",
             "onSetTimerStarted",
             "onSetTimerStopped",
@@ -274,11 +297,13 @@ public class WatchConnectivityModule: Module {
             "onWorkoutStop",
             "onWorkoutDiscard",
             "onWorkoutStartRequested",
+            "onWorkoutEdit",
             "onPresetUpdateAnswer",
             "onRecordingControl",
             "onRecordingHeartRate",
             "onFastStartRequested",
-            "onFastEndRequested"
+            "onFastEndRequested",
+            "onRunFinished"
         )
 
         OnCreate {
@@ -340,6 +365,13 @@ public class WatchConnectivityModule: Module {
                     "duration": (payload["duration"] as? NSNumber)?.intValue,
                     "distanceKm": payload["distanceKm"] as? Double,
                     "completedAt": payload["completedAt"] as? String,
+                ])
+            }
+            self.delegateHandler.onSetUncompleted = { [weak self] payload in
+                self?.sendEvent("onSetUncompleted", [
+                    "clientId": payload["clientId"] as? String ?? "",
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "setId": payload["setId"] as? String ?? "",
                 ])
             }
             self.delegateHandler.onSetTimerStarted = { [weak self] payload in
@@ -436,6 +468,17 @@ public class WatchConnectivityModule: Module {
                     "serverId": payload["serverId"] as? String ?? "",
                 ])
             }
+            self.delegateHandler.onWorkoutEdit = { [weak self] payload in
+                var event: [String: Any] = [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "clientId": payload["clientId"] as? String ?? "",
+                    "action": payload["action"] as? String ?? "",
+                ]
+                for key in ["exerciseEntryId", "setId", "exerciseId", "setType"] {
+                    if let value = payload[key] as? String { event[key] = value }
+                }
+                self?.sendEvent("onWorkoutEdit", event)
+            }
             self.delegateHandler.onPresetUpdateAnswer = { [weak self] payload in
                 self?.sendEvent("onPresetUpdateAnswer", [
                     "sessionId": payload["sessionId"] as? String ?? "",
@@ -443,10 +486,14 @@ public class WatchConnectivityModule: Module {
                 ])
             }
             self.delegateHandler.onRecordingControl = { [weak self] payload in
-                self?.sendEvent("onRecordingControl", [
+                var event: [String: Any] = [
                     "sessionId": payload["sessionId"] as? String ?? "",
                     "action": payload["action"] as? String ?? "",
-                ])
+                ]
+                // When the wearer pressed it (epoch ms); a queued control can
+                // arrive long after, and a lap belongs to the press.
+                if let at = (payload["at"] as? NSNumber)?.doubleValue { event["at"] = at }
+                self?.sendEvent("onRecordingControl", event)
             }
             self.delegateHandler.onRecordingHeartRate = { [weak self] payload in
                 self?.sendEvent("onRecordingHeartRate", [
@@ -454,6 +501,12 @@ public class WatchConnectivityModule: Module {
                     "clientId": payload["clientId"] as? String ?? "",
                     "samples": dictionaryArray(payload["samples"]),
                 ])
+            }
+            self.delegateHandler.onRunFinished = { [weak self] payload in
+                guard let self else { return }
+                let event = self.normalizedRunEvent(payload)
+                self.rememberFinishedRun(event)
+                self.sendEvent("onRunFinished", event)
             }
             self.delegateHandler.activate()
         }
@@ -629,6 +682,35 @@ public class WatchConnectivityModule: Module {
                         return false
                     }
                     return self.deleteHeartRateBatchFile(batch.fileName)
+                }
+            }
+        }
+
+        /// Runs that arrived before JavaScript was listening. JS drains these
+        /// on startup and acks the ones it has stored.
+        AsyncFunction("pendingWatchRuns") { () -> [[String: Any]] in
+            self.runAccess.sync { () -> [[String: Any]] in
+                self.loadRunQueue()
+                if !self.runQueueStored {
+                    self.runQueueStored = self.writeRunQueue()
+                }
+                return self.runQueue
+            }
+        }
+
+        AsyncFunction("ackWatchRuns") { (clientIds: [String]) in
+            let ids = Set(clientIds)
+            self.runAccess.sync {
+                self.loadRunQueue()
+                let next = self.runQueue.filter { event in
+                    guard let id = event["clientId"] as? String else { return true }
+                    return !ids.contains(id)
+                }
+                // A failed rewrite leaves the old file, so the next launch
+                // replays the run and JS acks it again once it is stored.
+                if self.writeRunQueue(next) {
+                    self.runQueue = next
+                    self.runQueueStored = true
                 }
             }
         }
@@ -895,6 +977,97 @@ public class WatchConnectivityModule: Module {
         heartRateQueue.append(batch)
         trimHeartRateQueue()
     }
+
+    /// The event JS and the native queue both store, so a cold start and a
+    /// live event carry the same laps.
+    private func normalizedRunEvent(_ payload: [String: Any]) -> [String: Any] {
+        [
+            "clientId": payload["clientId"] as? String ?? "",
+            "kind": payload["kind"] as? String ?? "",
+            "place": payload["place"] as? String ?? "",
+            "startedAt": (payload["startedAt"] as? NSNumber)?.doubleValue ?? 0,
+            "endedAt": (payload["endedAt"] as? NSNumber)?.doubleValue ?? 0,
+            "activeSeconds": (payload["activeSeconds"] as? NSNumber)?.doubleValue ?? 0,
+            "distanceMeters": (payload["distanceMeters"] as? NSNumber)?.doubleValue ?? 0,
+            "activeEnergyKcal": (payload["activeEnergyKcal"] as? NSNumber)?.doubleValue ?? 0,
+            "route": payload["route"] as? [[Double]] ?? [],
+            "heartRate": payload["heartRate"] as? [[Double]] ?? [],
+            "laps": numberList(payload["laps"]),
+        ]
+    }
+
+    /// Caller holds `runAccess` only through `rememberFinishedRun`.
+    private func rememberFinishedRun(_ event: [String: Any]) {
+        let clientId = event["clientId"] as? String ?? ""
+        guard !clientId.isEmpty else { return }
+        runAccess.sync {
+            loadRunQueue()
+            if runQueue.contains(where: { ($0["clientId"] as? String) == clientId }) {
+                return
+            }
+            runQueue.append(event)
+            while runQueue.count > runQueueLimit {
+                runQueue.removeFirst()
+            }
+            runQueueStored = writeRunQueue()
+        }
+    }
+
+    /// Caller holds `runAccess`.
+    private func loadRunQueue() {
+        guard !runQueueLoaded else { return }
+        runQueueLoaded = true
+        guard let url = runQueueFile(),
+              let data = try? Data(contentsOf: url),
+              let raw = try? JSONSerialization.jsonObject(with: data)
+        else { return }
+        let known = Set(runQueue.compactMap { $0["clientId"] as? String })
+        for row in dictionaryArray(raw) {
+            let id = row["clientId"] as? String ?? ""
+            if id.isEmpty || known.contains(id) { continue }
+            runQueue.append(row)
+        }
+    }
+
+    /// Caller holds `runAccess`.
+    @discardableResult
+    private func writeRunQueue(_ rows: [[String: Any]]? = nil) -> Bool {
+        let payload = rows ?? runQueue
+        guard let url = runQueueFile(),
+              JSONSerialization.isValidJSONObject(payload),
+              let data = try? JSONSerialization.data(withJSONObject: payload)
+        else { return false }
+        do {
+            try data.write(to: url, options: .atomic)
+            return true
+        } catch {
+            NSLog("Watch run queue write failed: %@", error.localizedDescription)
+            return false
+        }
+    }
+
+    private func runQueueFile() -> URL? {
+        let fileManager = FileManager.default
+        guard let base = fileManager.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first else { return nil }
+        let directory = base.appendingPathComponent("WatchRunQueue", isDirectory: true)
+        if !fileManager.fileExists(atPath: directory.path) {
+            do {
+                try fileManager.createDirectory(
+                    at: directory,
+                    withIntermediateDirectories: true,
+                    attributes: [
+                        .protectionKey: FileProtectionType.completeUntilFirstUserAuthentication,
+                    ]
+                )
+            } catch {
+                return nil
+            }
+        }
+        return directory.appendingPathComponent("pending.json")
+    }
 }
 
 /// Strips JS `null`s out of a payload bound for `updateApplicationContext`.
@@ -930,4 +1103,10 @@ private func dictionaryArray(_ value: Any?) -> [[String: Any]] {
     if let typed = value as? [[String: Any]] { return typed }
     guard let any = value as? [Any] else { return [] }
     return any.compactMap { $0 as? [String: Any] }
+}
+
+private func numberList(_ value: Any?) -> [Double] {
+    if let numbers = value as? [NSNumber] { return numbers.map { $0.doubleValue } }
+    if let numbers = value as? [Double] { return numbers }
+    return []
 }
