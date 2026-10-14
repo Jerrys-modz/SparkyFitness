@@ -597,7 +597,10 @@
       "noRecentItems": "No recent items yet",
       "recentItemsHint": "Foods, meals, and exercises you log will appear here for quick access.",
       "reports": "Reports",
-      "reportsSubtitle": "Nutrition, sleep, mood and exercise trends"
+      "reportsSubtitle": "Nutrition, sleep, mood and exercise trends",
+      "runPrograms": "Training programs",
+      "runProgramsSubtitle": "Run and walk plans from Beginner 5K to marathon",
+      "runProgramsActive": "{{name}} · {{progress}}"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -619,7 +622,9 @@
     "reportsSettings": "Customize Reports",
     "hydrationReport": "Hydration",
     "measurementsReport": "Measurements",
-    "substancesReport": "Caffeine and alcohol"
+    "substancesReport": "Caffeine and alcohol",
+    "runSummary": "Activity saved",
+    "runPrograms": "Training programs"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -2960,7 +2965,7 @@
     "aiNotConfiguredTitle": "AI not configured",
     "aiNotConfiguredMessage": "Configure an AI provider in the web app to use photo estimates.",
     "photoTooLargeTitle": "Photo too large",
-    "photoTooLargeMessage": "Retake the photo at lower quality.",
+    "photoTooLargeMessage": "The image is too large for AI analysis. Please try another photo.",
     "unexpectedImageFormatTitle": "Unexpected image format",
     "unexpectedImageFormatMessage": "Retake the photo.",
     "couldNotProcessPhotoTitle": "Could not process photo",
@@ -4284,7 +4289,8 @@
       "exercise": "Exercise",
       "checkin": "Check-in",
       "goals": "Goals",
-      "lookedUp": "Looked up {{name}}"
+      "lookedUp": "Looked up {{name}}",
+      "runProgram": "Run program"
     },
     "typing": "Sparky is typing"
   },
@@ -4851,7 +4857,13 @@
       "tooltip": "Press the line for details",
       "empty": "Log daily temperature logs to view your BBT chart."
     },
-    "allTrendsHidden": "All graphs are hidden. Choose which to show in Dashboard Settings."
+    "allTrendsHidden": "All graphs are hidden. Choose which to show in Dashboard Settings.",
+    "noTrendData": "No data to graph yet.",
+    "vo2max": {
+      "title": "VO2 max",
+      "loadFailed": "Failed to load VO2 max data",
+      "empty": "No VO2 max data for this period"
+    }
   },
   "exerciseLibrary": {
     "title": "Exercises",
@@ -6069,7 +6081,6 @@
       "enabled": "Guided mode",
       "enabledSubtitle": "Speaks each exercise and its target, counts you in, runs timed sets on their own, and moves to the next set. Cues play with the phone on silent, and the screen stays on during the workout.",
       "voice": "Voice",
-      "voiceDefault": "Device default",
       "rate": "Speech rate",
       "rateValue": "{{rate}}×",
       "countdown": "Get-ready countdown",
@@ -6621,6 +6632,77 @@
       "complete": "Intervals complete",
       "round": "Round {{round}} of {{rounds}}",
       "next": "Next: {{name}} {{time}}"
+    },
+    "program": {
+      "title": "Training program",
+      "name": {
+        "beginner5k": "Beginner 5K",
+        "fiveToTenK": "5K to 10K",
+        "faster5k": "Faster 5K",
+        "walkFit": "Walk for fitness",
+        "halfMarathon": "Half marathon",
+        "marathon": "Marathon"
+      },
+      "beginner5kDescription": "Beginner 5K: nine weeks, three runs a week. You alternate running and walking, and build up to 30 minutes of running.",
+      "workoutLabel": "{{name}} · Week {{week}}, run {{run}}",
+      "workoutLabelWalk": "{{name}} · Week {{week}}, walk {{walk}}",
+      "progress": "Workout {{done}} of {{total}} done · {{minutes}} min today",
+      "finished": "{{name}} complete",
+      "finishedHint": "Well done. You can start it again or move on.",
+      "restart": "Start again",
+      "use": "Use a training program",
+      "using": "Using this workout",
+      "skip": "Skip",
+      "diaryDays": "Days in your Diary",
+      "diaryDaysSet": "The Diary shows the workout on these days. A run you miss stays due.",
+      "diaryDaysHint": "Pick the days you plan to run, or leave them empty to see the workout every day.",
+      "startDay": "First workout",
+      "startPick": "Pick a start date",
+      "startChange": "Change start date",
+      "startClear": "Start today",
+      "tickFailed": "Activity saved, program not updated",
+      "tickFailedHint": "Use \"Count it\" on the Diary card to tick the workout off.",
+      "savedNext": "Next: {{label}}",
+      "savedNextOn": "Next: {{label}} on {{date}}",
+      "savedFinished": "Program complete. Well done!",
+      "startDaySet": "Starts {{date}}. Nothing shows in the Diary before then.",
+      "startDayToday": "Starts today. Pick a later date if you want to begin then.",
+      "goalDay": "Goal date",
+      "goalDaySet": "Nothing is scheduled after {{date}}. The schedule below says whether the program fits.",
+      "goalDayHint": "Optional, for example a race day. The schedule below says whether the program fits before it.",
+      "goalChange": "Change goal date",
+      "goalPick": "Set a goal date",
+      "goalClear": "Clear",
+      "pick": "Choose a different workout",
+      "pickTitle": "Choose a workout",
+      "weekTitle": "Week {{week}}",
+      "pickOption": "{{mark}}Run {{run}} · {{minutes}} min",
+"pickOptionWalk": "{{mark}}Walk {{run}} · {{minutes}} min",
+      "doThis": "Do this workout",
+      "switchHint": "Follow a plan that builds up week by week. Off by default.",
+      "paused": "{{name}} is paused at {{done}} of {{total}} workouts. Switch it on to carry on.",
+      "startOver": "Start over",
+      "errors": {
+        "update": "Could not update your program"
+      },
+      "changedBySparky": "Sparky changed your plan on {{date}}: {{summary}}",
+      "changed": "Plan changed on {{date}}: {{summary}}",
+      "fiveToTenKDescription": "5K to 10K: eight weeks, three runs a week, for when you can run 30 minutes. It builds to a 65 minute long run.",
+      "faster5kDescription": "Faster 5K: six weeks of speed sessions, easy runs and tempo runs, for when you already run 5K.",
+      "walkFitDescription": "Walk for fitness: eight weeks, three walks a week, with no running. You alternate brisk and easy walking and build up to 30 minutes of brisk walking.",
+      "halfMarathonDescription": "Half marathon: twelve weeks, three runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably.",
+      "marathonDescription": "Marathon: sixteen weeks, four runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly.",
+      "outlineWalk": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of brisk walking.",
+      "outline": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.",
+      "minutes": "{{minutes}} min",
+      "workoutsDone": "{{done}} of {{total}} workouts",
+      "optionLabel": "{{name}} · {{weeks}} weeks, {{runs}} runs a week",
+"optionLabelWalk": "{{name}} · {{weeks}} weeks, {{runs}} walks a week",
+      "chooseTitle": "Choose a program",
+      "change": "Change program",
+      "switchTitle": "Switch to {{name}}?",
+      "switchMessage": "You will start the new program at week 1. Your place in the current one is not kept.",
+      "switchConfirm": "Switch"
     }
   },
   "goals": {
@@ -6638,9 +6720,13 @@
     },
     "adaptiveNoteToday": "Adaptive mode is on, so your calorie goal changes daily. Today it is {{calories}} kcal. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.",
     "adaptiveNote": "Adaptive mode is on, so your calorie goal changes daily. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.",
+    "customNutrients": {
+      "notSet": "No goal"
+    },
     "sections": {
       "macros": "Calories & macros",
       "nutrients": "Other nutrients",
+      "customNutrients": "Custom nutrients",
       "activity": "Water & exercise",
       "meals": "Meal calorie distribution",
       "presets": "Goal presets",
@@ -7074,5 +7160,114 @@
     "weekly": "Week by week",
     "weekCaffeineAlcohol": "caffeine a day · {{alcohol}} alcohol",
     "weekAlcohol": "alcohol"
+  },
+  "runSummary": {
+    "done": "Done",
+    "runSaved": "Run saved",
+    "walkSaved": "Walk saved",
+    "rideSaved": "Ride saved",
+    "avgHeartRate": "Avg heart rate",
+    "programDone": "Program complete",
+    "programProgress": "Workout {{done}} of {{total}} done",
+    "viewProgram": "View program",
+    "routeA11y": "Map of your route",
+    "moveFailed": "Could not change the program.",
+    "repeating": "Done. You will do this workout again.",
+    "skipping": "Done. The next workout is skipped.",
+    "hardHint": "Repeating a workout that felt hard is a good way to build up safely.",
+    "repeat": "Repeat this workout",
+    "easyHint": "Felt easy? You can skip the next workout and move on.",
+    "skipNext": "Skip the next workout",
+    "effortQuestion": "How hard was that?",
+    "effortA11y": "Effort {{rating}} of 10",
+    "effortLow": "1 = very easy",
+    "effortHigh": "10 = all out",
+    "rateFailed": "Could not save how hard that was.",
+    "easeSuggestion": "Two hard workouts in a row. Repeating this one is a good way to build up safely.",
+    "advanceSuggestion": "Two easy workouts in a row. You could skip the next one and move on."
+  },
+  "runPrograms": {
+    "startWhenTitle": "Start {{name}}",
+    "startWhenMessage": "When is your first workout?",
+    "startPickDate": "Pick a date",
+    "startToday": "Start today",
+    "intro": "Follow a plan that builds up week by week. Pick a program to see what it involves, then start it when you are ready.",
+    "weeksRuns": "{{weeks}} weeks, {{runs}} runs a week",
+"weeksWalks": "{{weeks}} weeks, {{runs}} walks a week",
+    "guide": {
+      "structure": {
+        "beginner5k": "Weeks 1 to 4 alternate short runs with walks, starting at 1 minute of running and building to 5-minute runs. Weeks 5 and 6 mix run and walk intervals with one continuous run. Weeks 7 to 9 are continuous runs of 25, 28 and then 30 minutes.",
+        "fiveToTenK": "Each week has two steady runs and a long run. The long run grows from 40 to 65 minutes. Every fourth week is lighter so you can recover, and the last week eases off.",
+        "faster5k": "Each week has a speed session (fast and easy repeats), an easy run and a longer run. In weeks 1 to 3 the longer run is easy; in weeks 4 to 6 it becomes a tempo run of 15, 20 and then 25 minutes.",
+        "walkFit": "Weeks 1 to 4 alternate stretches of brisk walking (3 to 8 minutes) with 2 minutes of easy walking. Weeks 5 and 6 use two longer brisk stretches of 12 and 15 minutes. Weeks 7 and 8 are continuous brisk walks of 20 to 30 minutes.",
+        "halfMarathon": "Each week has an easy run, a middle run and a long run. The long run builds from 50 to 115 minutes, every fourth week is lighter, and the last week is short before race day.",
+        "marathon": "Most weeks have two easy runs, a middle run and a long run. The long run builds from 70 minutes to 2¾ hours, every fourth week is lighter, and the last two weeks taper before race day."
+      },
+      "title": "How the plans work",
+      "workout": {
+        "title": "Each workout",
+        "body": "A workout starts with a warm-up walk (a gentle jog before speed sessions), then the run and walk steps in order, then a cool-down walk. The app tells you when to switch, so you can put your phone away. Weeks are not tied to the calendar: if you miss a run, the same workout stays due."
+      },
+      "run": {
+        "title": "How hard to run",
+        "body": "Go by effort, not pace. Run slowly enough that you could talk in short sentences. If you cannot, slow down or take a walk break early. Beginner runs should feel easy to moderate, around 4 to 5 out of 10. Easy runs stay conversational, tempo runs feel comfortably hard (about 6 to 7 out of 10), and the fast pieces in speed sessions feel hard but controlled (7 to 8 out of 10), with the easy pieces between them a relaxed jog."
+      },
+      "walk": {
+        "title": "How fast to walk",
+        "body": "Walk briskly but comfortably, about 5 to 6 km/h (3 to 3.5 mph), which is roughly 10 to 12 minutes per kilometer or 16 to 19 minutes per mile. Keep moving rather than stopping: the walks are for getting your breath back, so you should be able to talk normally by the end of each one. The warm-up and cool-down walks can be a little easier."
+      },
+      "listen": {
+        "title": "Listening to your body",
+        "body": "Aches that settle after a day are normal; sharp or lasting pain is not, so stop and rest. If a week was too hard, repeat it or ask Sparky to ease the next workouts. Leave a rest day between runs while you are starting out. This is general guidance, not medical advice: if you are unsure about starting to run, check with your doctor first."
+      }
+    },
+    "start": "Start program",
+    "startWorkout": "Start today's workout",
+    "banner": {
+      "scheduledToday": "Scheduled Today",
+      "scheduled": "Scheduled",
+      "upNext": "Up next",
+      "loggedRun": "You logged a run today. Count it as this workout?",
+      "countIt": "Count it",
+      "start": "Start",
+      "title": "Week {{week}}, run {{run}} · {{minutes}} min",
+"titleWalk": "Week {{week}}, walk {{run}} · {{minutes}} min"
+    },
+    "calendar": {
+      "title": "Schedule",
+      "noDays_one": "{{count}} workout left. Pick your run days to see when each one falls; until then the Diary offers the next one every day.",
+      "noDays_other": "{{count}} workouts left. Pick your run days to see when each one falls; until then the Diary offers the next one every day.",
+      "finish": "Finishes on {{date}}.",
+      "fitsBefore_one": "On track: you finish on {{date}}, {{count}} day before your goal date.",
+      "fitsBefore_other": "On track: you finish on {{date}}, {{count}} days before your goal date.",
+      "fitsAfter_one": "At this pace you finish on {{date}}, {{count}} day after your goal date. Add a run day or move the date.",
+      "fitsAfter_other": "At this pace you finish on {{date}}, {{count}} days after your goal date. Add a run day or move the date.",
+      "moves": "A run you miss is not skipped: the dates after it move along.",
+      "row": "Week {{week}}, run {{run}} · {{minutes}} min",
+"rowWalk": "Week {{week}}, walk {{run}} · {{minutes}} min",
+      "showAll_one": "Show {{count}}",
+      "showAll_other": "Show all {{count}}",
+      "showLess": "Show fewer",
+      "cutOff_one": "{{count}} workout does not fit before your goal date.",
+      "cutOff_other": "{{count}} workouts do not fit before your goal date."
+    },
+    "select": {
+      "today": "Today's program workout",
+      "manage": "Manage",
+      "none": "Training program",
+      "setUp": "Set up a program"
+    },
+    "partOfProgram": "Part of your training program"
+  },
+  "speechVoice": {
+    "automatic": "Automatic (best installed)",
+    "premium": "Premium",
+    "enhanced": "Enhanced",
+    "standard": "Standard",
+    "hintIos": "For a more natural voice, download a Premium or Enhanced one in Settings → Accessibility → Read & Speak → Voices, then come back here.",
+    "hintAndroid": "For a more natural voice, install a higher-quality one in your phone’s text-to-speech settings, then come back here.",
+    "title": "Voice",
+    "test": "Test voice",
+    "sample": "This is how your recording cues will sound."
   }
 }
