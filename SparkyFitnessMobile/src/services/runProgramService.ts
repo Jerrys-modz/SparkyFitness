@@ -212,6 +212,8 @@ export async function rateProgramWorkout(
 
 /** The current program status, or null when none is active. */
 export function useRunProgram(): {
+  /** The program as the server holds it, including its logs, or null. */
+  program: RunProgramResponse | null;
   /** The place in the program, even while it is switched off. */
   status: ProgramStatus | null;
   /** Whether the person is using it. */
@@ -236,6 +238,7 @@ export function useRunProgram(): {
     staleTime: 0,
   });
   return {
+    program: data ?? null,
     status: data ? storedProgramStatus(data) : null,
     enabled: data?.enabled ?? false,
     lastAdjustment: data?.adjustment_log.at(-1) ?? null,

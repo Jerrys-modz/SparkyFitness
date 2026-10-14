@@ -20,6 +20,8 @@ import {
   programOutline,
   RUN_PROGRAMS,
   type ProgramStatus,
+  type ProgramWorkout,
+  type RunProgram,
   type RunProgramAdjustment,
 } from '@workspace/shared';
 
@@ -90,6 +92,26 @@ export function programDescription(t: TFunction, id: string): string {
     default:
       return id;
   }
+}
+
+/** "Week 3, run 2" for a workout of `program`, without the program's name. */
+export function workoutTitle(
+  t: TFunction,
+  program: RunProgram,
+  workout: ProgramWorkout
+): string {
+  if (program.activity === 'walk') {
+    return t('runPrograms.detail.workoutTitleWalk', {
+      week: workout.week + 1,
+      walk: workout.day + 1,
+      defaultValue: 'Week {{week}}, walk {{walk}}',
+    });
+  }
+  return t('runPrograms.detail.workoutTitle', {
+    week: workout.week + 1,
+    run: workout.day + 1,
+    defaultValue: 'Week {{week}}, run {{run}}',
+  });
 }
 
 /** "Week 3, run 2" for a program workout. */

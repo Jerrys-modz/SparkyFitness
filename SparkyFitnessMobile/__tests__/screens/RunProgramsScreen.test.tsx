@@ -164,4 +164,20 @@ describe('RunProgramsScreen', () => {
     );
     expect(setProgramEnabled).toHaveBeenCalledWith(true, 'beginner5k');
   });
+  it('opens the program calendar', () => {
+    mockedUse.mockReturnValue({
+      status: programStatus({ programId: 'beginner5k', next: 2 })!,
+      enabled: true,
+      lastAdjustment: null,
+      schedule: { days: [], startDay: null, endDay: null },
+      doneDay: null,
+      loaded: true,
+    });
+    const props = RunProgramsProps();
+    renderScreen(props);
+    fireEvent.press(screen.getByText('Open the program calendar'));
+    expect(props.navigation.navigate).toHaveBeenCalledWith(
+      'RunProgramCalendar'
+    );
+  });
 });

@@ -168,6 +168,16 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           onRestart={() => change(restartProgram)}
           onSkip={() => change(skipProgramWorkout)}
         />
+        <View className="mt-4">
+          <Button
+            variant="outline"
+            onPress={() => navigation.navigate('RunProgramCalendar')}
+          >
+            {t('runPrograms.openCalendar', {
+              defaultValue: 'Open the program calendar',
+            })}
+          </Button>
+        </View>
         <RunProgramCalendar
           status={status}
           schedule={schedule}

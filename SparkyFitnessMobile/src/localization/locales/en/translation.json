@@ -630,7 +630,9 @@
     "personalRecords": "Personal records",
     "watchRunLive": "On your watch",
     "watchRunLiveRun": "Run on your watch",
-    "watchWalkLive": "Walk on your watch"
+    "watchWalkLive": "Walk on your watch",
+    "runProgramCalendar": "Program calendar",
+    "runProgramWorkout": "Workout"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -7351,7 +7353,61 @@
       "none": "Training program",
       "setUp": "Set up a program"
     },
-    "partOfProgram": "Part of your training program"
+    "partOfProgram": "Part of your training program",
+    "openCalendar": "Open the program calendar",
+    "monthGrid": {
+      "previous": "Previous month",
+      "next": "Next month",
+      "dayA11yNone": "{{date}}, no workouts",
+      "dayA11y_one": "{{date}}, {{formattedCount}} workout",
+      "dayA11y_other": "{{date}}, {{formattedCount}} workouts"
+    },
+    "calendarScreen": {
+      "noProgram": "Start a training program to see its calendar.",
+      "progress": "{{done}} of {{total}} workouts done",
+      "doneOn": "Done {{date}}",
+      "done": "Done",
+      "dueOn": "Next · {{date}}",
+      "notScheduled": "Not scheduled",
+      "minutes": "{{minutes}} min",
+      "legendDone": "Done",
+      "legendAhead": "Due or to come",
+      "noWorkoutsDay": "No program workout on this day.",
+      "pickDays_one": "{{count}} more workout is not on the calendar yet. Pick your workout days on the program screen to see when each one falls.",
+      "pickDays_other": "{{count}} more workouts are not on the calendar yet. Pick your workout days on the program screen to see when each one falls.",
+      "pastGoal_one": "{{count}} workout does not fit before your goal date.",
+      "pastGoal_other": "{{count}} workouts do not fit before your goal date.",
+      "allWorkouts": "All workouts",
+      "today": "Today",
+      "due": "Next"
+    },
+    "detail": {
+      "workoutTitle": "Week {{week}}, run {{run}}",
+      "workoutTitleWalk": "Week {{week}}, walk {{walk}}",
+      "notFound": "This workout is not in your program any more.",
+      "openFailed": "Could not open that run",
+      "openFailedHint": "It may have been deleted from your diary.",
+      "repeatTitle": "Repeat this workout?",
+      "repeatMessage": "Your place moves back to this workout. The ones after it come round again.",
+      "jumpTitle": "Make this the next workout?",
+      "jumpMessage": "Your place moves forward to this workout, skipping the ones before it.",
+      "stateDone": "Done",
+      "stateNext": "Next workout",
+      "stateUpcoming": "Coming up",
+      "doneOn": "Done on {{date}}",
+      "scheduledOn": "Scheduled for {{date}}",
+      "notScheduled": "No date yet. Pick your workout days on the program screen.",
+      "totalTime": "Total time",
+      "briskTime": "Brisk walking",
+      "runTime": "Running",
+      "howHard": "How hard it felt",
+      "rating": "{{rating}} out of 10",
+      "steps": "Steps",
+      "viewRun": "View your run",
+      "start": "Start this workout",
+      "repeat": "Repeat this workout",
+      "jump": "Make this the next workout"
+    }
   },
   "speechVoice": {
     "automatic": "Automatic (best installed)",
