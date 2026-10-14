@@ -789,8 +789,66 @@ async function getTrainingLoadSessions(
   }
 }
 
+/** What the readiness score reads besides training: last night and a baseline. */
+interface ReadinessVitals {
+  sleepHours: number | null;
+  restingHeartRate: number | null;
+  restingHeartRateBaseline: number | null;
+  hrv: number | null;
+  hrvBaseline: number | null;
+}
+
+const toNumberOrNull = (value: string | number | null | undefined) =>
+  value === null || value === undefined ? null : Number(value);
+
+/**
+ * The latest night's sleep, resting heart rate and HRV (nights ending `today`
+ * or the day before) and the average of the 14 nights before that, which the
+ * readiness score compares them with. Any of them can be null.
+ */
+async function getReadinessVitals(
+  userId: string,
+  today: string,
+  yesterday: string,
+  baselineStart: string
+): Promise<ReadinessVitals> {
+  const client = await getClient(userId);
+  try {
+    const latest = await client.query(
+      `SELECT COALESCE(time_asleep_in_seconds, duration_in_seconds) / 3600.0 AS sleep_hours,
+              resting_heart_rate,
+              avg_overnight_hrv
+       FROM sleep_entries
+       WHERE user_id = $1 AND entry_date BETWEEN $2 AND $3
+       ORDER BY entry_date DESC, wake_time DESC
+       LIMIT 1`,
+      [userId, yesterday, today]
+    );
+    const baseline = await client.query(
+      `SELECT AVG(resting_heart_rate) AS resting_heart_rate,
+              AVG(avg_overnight_hrv) AS hrv
+       FROM sleep_entries
+       WHERE user_id = $1 AND entry_date >= $2 AND entry_date < $3`,
+      [userId, baselineStart, yesterday]
+    );
+    const row = latest.rows[0];
+    const base = baseline.rows[0];
+    return {
+      sleepHours: toNumberOrNull(row?.sleep_hours),
+      restingHeartRate: toNumberOrNull(row?.resting_heart_rate),
+      restingHeartRateBaseline: toNumberOrNull(base?.resting_heart_rate),
+      hrv: toNumberOrNull(row?.avg_overnight_hrv),
+      hrvBaseline: toNumberOrNull(base?.hrv),
+    };
+  } finally {
+    client.release();
+  }
+}
+
 export { getNutritionData };
 export { getTrainingLoadSessions };
+export { getReadinessVitals };
+export type { ReadinessVitals };
 export { getTabularFoodData };
 export { getMeasurementData };
 export { getCustomMeasurementsData };
@@ -807,6 +865,7 @@ export default {
   getMiniNutritionTrends,
   getExerciseEntries,
   getTrainingLoadSessions,
+  getReadinessVitals,
   getBodyWeightReadings,
   getExerciseNames,
   getDailyNutritionTotalsRange,
