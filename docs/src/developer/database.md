@@ -97,6 +97,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `exercise_entry_activity_details` | Heart rate, distance, activity data |
 | `exercise_entry_laps` | Lap split intervals for workouts |
 | `exercise_entry_hr_zones` | Heart-rate time-in-zone splits per workout |
+| `exercise_entry_distance_series` | Distance-against-time rows for an indoor entry with no route, behind its pace chart. One row per workout (`points` is JSONB) |
 | `exercise_entry_gps_points` | GPS trackpoints & second-by-second telemetry. One row per workout (the `points` column holds the whole track as JSONB), not one row per trackpoint |
 | `workout_presets` | Custom workout/preset templates |
 | `workout_preset_exercises` | Exercises assigned to presets |

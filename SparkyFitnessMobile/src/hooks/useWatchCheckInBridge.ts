@@ -63,7 +63,18 @@ import { useActiveWorkoutPlans } from './useActiveWorkoutPlan';
 import { scheduledWorkoutsForWatch } from '../utils/workoutPlanSchedule';
 import { useCurrentFast } from './useFasting';
 import { toWatchFast } from '../utils/watchFast';
-import { getRecordingPreferences } from '../services/gpsRecordingService';
+import {
+  getRecordingPreferences,
+  onRecordingPreferenceChange,
+} from '../services/gpsRecordingService';
+import { useRunProgram } from '../services/runProgramService';
+import { buildWatchRunPlans } from '../utils/watchRunPlans';
+import {
+  getWatchIndoorScale,
+  onWatchIndoorScaleChange,
+} from '../services/watchIndoorScale';
+import { presetName } from '../components/recording/IntervalSetup';
+import { programWorkoutLabel } from '../components/recording/RunProgramCard';
 
 /** Saved workouts the watch may start. Presets with no exercises are omitted:
  * the server rejects a session that has none. */
@@ -280,6 +291,40 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // A weighted carry's distance follows the phone's distance unit: the watch
   // shows metres, or yards when the phone is set to miles.
   const distanceUnit = watchDistanceUnit(preferences?.default_distance_unit);
+  const { status: programStatus, enabled: programEnabled } = useRunProgram();
+  // The learned indoor distance factor, re-read whenever a correction
+  // changes it, so the next context push carries the new value.
+  const [indoorDistanceScale, setIndoorDistanceScale] = useState<{
+    walk: number;
+    run: number;
+  } | null>(null);
+  useEffect(() => {
+    let active = true;
+    const load = () => {
+      void getWatchIndoorScale().then((scale) => {
+        if (active) setIndoorDistanceScale(scale);
+      });
+    };
+    load();
+    const unsubscribe = onWatchIndoorScaleChange(load);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
+
+  const runPlans = useMemo(
+    () =>
+      buildWatchRunPlans(
+        t,
+        { status: programStatus, enabled: programEnabled },
+        {
+          program: (status) => programWorkoutLabel(t, status),
+          preset: (id) => presetName(t, id),
+        }
+      ),
+    [t, programStatus, programEnabled]
+  );
   const { presets } = useWorkoutPresets({ enabled });
   const fastQuery = useCurrentFast({ enabled });
   const fast = fastQuery.data;
@@ -666,6 +711,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       const figures =
         summaryDate === today ? figuresForSummaryDate : NO_FIGURES_FOR_TODAY;
 
+      const recording = await getRecordingPreferences();
       const context: WatchContextPayload = {
         // Keeps consecutive pushes distinct — see the field's own comment.
         // Without it an unchanged day pushes an identical dictionary, which
@@ -692,7 +738,22 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         restAlertsEnabled,
         doubleTapEnabled: watchDoubleTapEnabled,
         rpeEnabled: watchRpeEnabled,
-        runVoiceCues: (await getRecordingPreferences()).audioCues,
+        runVoiceCues: recording.audioCues,
+        runAutoPause: recording.autoPause,
+        ...(recording.heartRateBand
+          ? {
+              runHeartRateMinBpm: recording.heartRateBand.minBpm,
+              runHeartRateMaxBpm: recording.heartRateBand.maxBpm,
+            }
+          : {}),
+        ...(recording.paceBand
+          ? {
+              runPaceMinSecondsPerKm: recording.paceBand.minSecondsPerKm,
+              runPaceMaxSecondsPerKm: recording.paceBand.maxSecondsPerKm,
+            }
+          : {}),
+        runPlans,
+        ...(indoorDistanceScale ? { indoorDistanceScale } : {}),
         startableWorkouts,
         suggestedExercises,
         // Built for `summaryDate`; a push that has crossed midnight before the
@@ -738,6 +799,8 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     restAlertsEnabled,
     watchDoubleTapEnabled,
     watchRpeEnabled,
+    runPlans,
+    indoorDistanceScale,
     startableWorkouts,
     suggestedExercises,
     scheduledWorkouts,
@@ -764,6 +827,15 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   useEffect(() => {
     pushContextRef.current = pushContext;
   });
+  // The Voice cues switch lives on the Record screen, outside this hook's
+  // dependencies, so tell the watch when it flips.
+  useEffect(
+    () =>
+      onRecordingPreferenceChange(() => {
+        if (enabled) void pushContextRef.current();
+      }),
+    [enabled]
+  );
 
   /**
    * Writes the ack bookkeeping to disk, and is awaited by every caller.

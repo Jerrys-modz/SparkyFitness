@@ -50,3 +50,40 @@ describe('IntervalSetup custom builder', () => {
     });
   });
 });
+
+describe('IntervalSetup for a walk or ride', () => {
+  it('calls the steps Fast and Easy and hides the run/walk style', () => {
+    render(
+      <IntervalSetup
+        choice="custom"
+        onChoice={jest.fn()}
+        custom={DEFAULT_CUSTOM_INTERVALS}
+        onCustom={jest.fn()}
+        activity="walk"
+      />
+    );
+    expect(screen.getByText('Fast')).toBeTruthy();
+    expect(screen.getByText('Easy')).toBeTruthy();
+    expect(screen.queryByText('Run')).toBeNull();
+    expect(screen.queryByText('Run / walk')).toBeNull();
+    expect(
+      screen.getByText(
+        'Follow timed steps of fast and easy effort. You are told when to switch.'
+      )
+    ).toBeTruthy();
+  });
+
+  it('keeps the run/walk wording for a run', () => {
+    render(
+      <IntervalSetup
+        choice="custom"
+        onChoice={jest.fn()}
+        custom={DEFAULT_CUSTOM_INTERVALS}
+        onCustom={jest.fn()}
+        activity="run"
+      />
+    );
+    expect(screen.getByText('Run / walk')).toBeTruthy();
+    expect(screen.getByText('Run')).toBeTruthy();
+  });
+});
