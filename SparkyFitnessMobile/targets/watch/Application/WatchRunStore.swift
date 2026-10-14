@@ -327,6 +327,13 @@ final class WatchRunStore: ObservableObject {
 
     /// Says `text` when this run's voice cues are on, cutting off anything
     /// older: a pause or resume is about now.
+    /// What follows a program workout that reached its last step, from the
+    /// phone; nil for any other run or one stopped early.
+    private func programDoneText(elapsed: TimeInterval) -> String? {
+        guard let plan, plan.programId != nil, plan.lastStepStarted(at: elapsed) else { return nil }
+        return plan.doneText
+    }
+
     private func cue(_ text: String) {
         guard settings.voiceCues else { return }
         WatchRunCues.shared.speak(text, interrupt: true)
@@ -551,10 +558,11 @@ final class WatchRunStore: ObservableObject {
         if position.finished {
             WatchRunCues.shared.speak(String(localized: "watch.run.cue.planComplete", defaultValue: "Plan complete."), interrupt: true)
         } else {
-            WatchRunCues.shared.speak(
-                WatchRunCues.stepText(label: position.label, seconds: plan.steps[position.index].seconds),
-                interrupt: true
-            )
+            // The first step of a program workout comes with its place in the
+            // program, in one cue: a second would cut the first off.
+            let step = WatchRunCues.stepText(label: position.label, seconds: plan.steps[position.index].seconds)
+            let intro = first ? plan.startText : nil
+            WatchRunCues.shared.speak(intro.map { "\($0) \(step)" } ?? step, interrupt: true)
         }
     }
 
@@ -684,6 +692,7 @@ final class WatchRunStore: ObservableObject {
                 // first; the snapshot stays until the answer is sent, so a
                 // relaunch in between still delivers the run.
                 if save, endingPlace == .indoor, let scaled {
+                    if let done = self.programDoneText(elapsed: elapsed) { self.cue(done) }
                     self.pendingResult = scaled
                     self.pendingElapsed = elapsed
                     self.phase = .confirmingDistance
@@ -694,12 +703,13 @@ final class WatchRunStore: ObservableObject {
                 // cue that reaches it behind that work is confirmed late, so the
                 // watch gave up waiting and said the cue too (heard twice).
                 if save {
-                    self.cue(WatchRunCues.finishText(
+                    let finished = WatchRunCues.finishText(
                         title: ending.title(endingPlace),
                         distanceMeters: metrics.distanceMeters,
                         seconds: elapsed,
                         usesMiles: self.usesMiles
-                    ))
+                    )
+                    self.cue(self.programDoneText(elapsed: elapsed).map { "\(finished) \($0)" } ?? finished)
                 }
                 // The Health workout is stamped so the phone's import skips
                 // it; this message is how the run reaches the diary.
@@ -739,12 +749,13 @@ final class WatchRunStore: ObservableObject {
         // Say the finish once the distance is settled (the machine's figure, if
         // given), and before the run is handed to the phone, as on the other
         // finish path: a cue confirmed behind the phone's filing is heard twice.
-        cue(WatchRunCues.finishText(
+        let finished = WatchRunCues.finishText(
             title: result.kind.title(result.place),
             distanceMeters: result.metrics.distanceMeters,
             seconds: pendingElapsed,
             usesMiles: usesMiles
-        ))
+        )
+        cue(programDoneText(elapsed: pendingElapsed).map { "\(finished) \($0)" } ?? finished)
         // The snapshot stays until the message is durably queued.
         if WatchSessionManager.shared.sendRunFinished(result) {
             WatchRunSnapshotStore.clear()

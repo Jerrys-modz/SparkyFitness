@@ -206,6 +206,9 @@ export interface WatchContextPayload {
     programIndex?: number;
     /** 'walk' for a walking program; missing is a run. */
     activity?: 'walk';
+    /** Spoken before a program workout's first step, and when it ends; already in the app language. */
+    startText?: string;
+    doneText?: string;
     steps: {
       label: string;
       seconds: number;
@@ -839,6 +842,8 @@ export interface WatchRunStartPayload {
     programId?: string;
     programIndex?: number;
     activity?: string;
+    startText?: string;
+    doneText?: string;
     steps: WatchRunStartPlanStep[];
   };
 }

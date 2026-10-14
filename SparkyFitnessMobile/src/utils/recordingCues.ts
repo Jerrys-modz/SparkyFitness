@@ -94,24 +94,58 @@ export function splitCue(
     totalSeconds: number;
     /** How long this one split took, which is its pace. */
     splitSeconds: number;
+    /** How long the split before took; adds a faster or slower note when it differs enough. */
+    previousSplitSeconds?: number;
     unit: CueUnit;
   }
 ): string {
   const time = spokenDuration(t, options.totalSeconds);
   const distance = spokenDistance(t, options.completed, options.unit);
   const split = spokenDuration(t, options.splitSeconds);
-  return options.unit === 'miles'
-    ? t('recordActivity.cues.splitMiles', {
-        distance,
-        time,
-        split,
-        defaultValue: '{{distance}}. Time {{time}}. Last mile {{split}}.',
+  const base =
+    options.unit === 'miles'
+      ? t('recordActivity.cues.splitMiles', {
+          distance,
+          time,
+          split,
+          defaultValue: '{{distance}}. Time {{time}}. Last mile {{split}}.',
+        })
+      : t('recordActivity.cues.splitKm', {
+          distance,
+          time,
+          split,
+          defaultValue:
+            '{{distance}}. Time {{time}}. Last kilometer {{split}}.',
+        });
+  const trend = splitTrendNote(
+    t,
+    options.splitSeconds,
+    options.previousSplitSeconds
+  );
+  return trend ? `${base} ${trend}` : base;
+}
+
+/** Splits closer than this are not worth a remark. */
+export const SPLIT_TREND_MIN_SECONDS = 5;
+
+/** "12 seconds faster than the one before.", or null when about the same. */
+export function splitTrendNote(
+  t: TFunction,
+  splitSeconds: number,
+  previousSplitSeconds: number | undefined
+): string | null {
+  if (previousSplitSeconds === undefined) return null;
+  const diff = Math.round(previousSplitSeconds - splitSeconds);
+  if (Math.abs(diff) < SPLIT_TREND_MIN_SECONDS) return null;
+  const amount = spokenDuration(t, Math.abs(diff));
+  return diff > 0
+    ? t('recordActivity.cues.splitFaster', {
+        amount,
+        defaultValue: '{{amount}} faster than the one before.',
       })
-    : t('recordActivity.cues.splitKm', {
-        distance,
-        time,
-        split,
-        defaultValue: '{{distance}}. Time {{time}}. Last kilometer {{split}}.',
+    : t('recordActivity.cues.splitSlower', {
+        amount,
+        defaultValue: '{{amount}} slower than the one before.',
       });
 }
 
@@ -319,4 +353,80 @@ export function checkInCue(
         defaultValue:
           '{{time}}. {{distance}}. Average pace {{pace}} per kilometer.',
       });
+}
+
+/** "Week 2, run 3" or "Week 2, walk 3", spoken. */
+function spokenProgramPlace(
+  t: TFunction,
+  options: { activity: 'run' | 'walk'; week: number; day: number }
+): string {
+  return options.activity === 'walk'
+    ? t('recordActivity.cues.programPlaceWalk', {
+        week: options.week,
+        day: options.day,
+        defaultValue: 'Week {{week}}, walk {{day}}',
+      })
+    : t('recordActivity.cues.programPlaceRun', {
+        week: options.week,
+        day: options.day,
+        defaultValue: 'Week {{week}}, run {{day}}',
+      });
+}
+
+/**
+ * Said as a program workout begins, ahead of its first step: where it sits in
+ * the program, how long it is, and a note when it was eased from the original.
+ */
+export function programStartCue(
+  t: TFunction,
+  options: {
+    activity: 'run' | 'walk';
+    week: number;
+    day: number;
+    totalSeconds: number;
+    eased: boolean;
+  }
+): string {
+  const place = spokenProgramPlace(t, options);
+  const time = spokenDuration(t, options.totalSeconds);
+  const base = t('recordActivity.cues.programStart', {
+    place,
+    time,
+    defaultValue: '{{place}}. {{time}}.',
+  });
+  return options.eased
+    ? `${base} ${t('recordActivity.cues.programEased', {
+        defaultValue: 'Eased for today.',
+      })}`
+    : base;
+}
+
+/**
+ * Said at the end of a program workout that reached its last step: how far
+ * through the program that is, and what comes next.
+ */
+export function programDoneCue(
+  t: TFunction,
+  options: {
+    activity: 'run' | 'walk';
+    done: number;
+    total: number;
+    next: { week: number; day: number } | null;
+  }
+): string {
+  if (!options.next || options.done >= options.total) {
+    return t('recordActivity.cues.programComplete', {
+      defaultValue: 'Program complete. Well done.',
+    });
+  }
+  return t('recordActivity.cues.programDone', {
+    done: options.done,
+    total: options.total,
+    next: spokenProgramPlace(t, {
+      activity: options.activity,
+      week: options.next.week,
+      day: options.next.day,
+    }),
+    defaultValue: 'Workout {{done}} of {{total}} done. Next up, {{next}}.',
+  });
 }

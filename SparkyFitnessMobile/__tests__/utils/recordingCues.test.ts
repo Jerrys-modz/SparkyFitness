@@ -7,6 +7,9 @@ import {
   paceAlertCue,
   halfwayCue,
   lastMinuteCue,
+  programDoneCue,
+  programStartCue,
+  splitTrendNote,
   spokenDuration,
   splitCue,
   stepWarningCue,
@@ -139,5 +142,78 @@ describe('coaching cues', () => {
         unit: 'km',
       })
     ).toBe('20 minutes done.');
+  });
+});
+
+describe('split trend', () => {
+  it('says how much faster or slower than the split before', () => {
+    expect(splitTrendNote(tt, 300, 312)).toBe(
+      '12 seconds faster than the one before.'
+    );
+    expect(splitTrendNote(tt, 330, 300)).toBe(
+      '30 seconds slower than the one before.'
+    );
+  });
+
+  it('stays quiet for about the same, or for the first split', () => {
+    expect(splitTrendNote(tt, 300, 303)).toBeNull();
+    expect(splitTrendNote(tt, 300, undefined)).toBeNull();
+  });
+
+  it('is added to the split cue', () => {
+    expect(
+      splitCue(tt, {
+        completed: 2,
+        totalSeconds: 600,
+        splitSeconds: 290,
+        previousSplitSeconds: 310,
+        unit: 'km',
+      })
+    ).toBe(
+      '2 kilometers. Time 10 minutes. Last kilometer 4 minutes 50 seconds. 20 seconds faster than the one before.'
+    );
+  });
+});
+
+describe('program cues', () => {
+  it('opens a workout with its place and length', () => {
+    expect(
+      programStartCue(tt, {
+        activity: 'run',
+        week: 2,
+        day: 3,
+        totalSeconds: 1500,
+        eased: false,
+      })
+    ).toBe('Week 2, run 3. 25 minutes.');
+  });
+
+  it('says when it was eased, and uses walk for a walking program', () => {
+    expect(
+      programStartCue(tt, {
+        activity: 'walk',
+        week: 1,
+        day: 2,
+        totalSeconds: 1200,
+        eased: true,
+      })
+    ).toBe('Week 1, walk 2. 20 minutes. Eased for today.');
+  });
+
+  it('closes a workout with progress and what is next', () => {
+    expect(
+      programDoneCue(tt, {
+        activity: 'run',
+        done: 4,
+        total: 27,
+        next: { week: 2, day: 2 },
+      })
+    ).toBe('Workout 4 of 27 done. Next up, Week 2, run 2.');
+  });
+
+  it('congratulates on the last workout', () => {
+    expect(
+      programDoneCue(tt, { activity: 'run', done: 27, total: 27, next: null })
+    ).toBe('Program complete. Well done.');
   });
 });

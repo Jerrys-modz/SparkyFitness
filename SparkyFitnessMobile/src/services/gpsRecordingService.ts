@@ -21,6 +21,7 @@ import {
   type RecordedPoint,
   type RecordingActivity,
 } from '../utils/gpsRecording';
+import { programSpokenCues } from '../utils/programCues';
 import { isStepActivity } from '../utils/stride';
 import { captureStepCounterBaseline } from './stepCounter';
 import {
@@ -33,6 +34,7 @@ import {
   INITIAL_PACE_ALERT_STATE,
   intervalPosition,
   isValidIntervalPlan,
+  lastStepStarted,
   normalizeHeartRateBand,
   normalizePaceBand,
   stepHeartRateAlert,
@@ -662,12 +664,14 @@ function cueSplit(): boolean {
   // Several can complete in one batch after a gap; say only the latest.
   const latest = splits[splits.length - 1];
   const totalSeconds = splits.reduce((sum, s) => sum + s.durationSeconds, 0);
+  const previous = splits.length > 1 ? splits[splits.length - 2] : undefined;
   session = { ...session, cuedSplits: splits.length };
   speakRecordingCue(
     splitCue(i18n.t.bind(i18n), {
       completed: splits.length,
       totalSeconds,
       splitSeconds: latest.durationSeconds,
+      previousSplitSeconds: previous?.durationSeconds,
       unit,
     })
   );
@@ -825,14 +829,14 @@ function advanceIntervals(now: number): boolean {
   };
   fireImpactHaptic();
   if (session.audioCues) {
-    speakRecordingCue(
-      position.done
-        ? intervalsDoneCue(i18n.t.bind(i18n))
-        : intervalCue(i18n.t.bind(i18n), {
-            step: position.step,
-            style: plan.style,
-          })
-    );
+    const t = i18n.t.bind(i18n);
+    const stepText = position.done
+      ? intervalsDoneCue(t)
+      : intervalCue(t, { step: position.step, style: plan.style });
+    // The first step of a program workout is introduced with its place in the
+    // program, in the same breath: a second cue would cut the first off.
+    const intro = cued < 0 ? (programCues(session)?.start ?? null) : null;
+    speakRecordingCue(intro ? `${intro} ${stepText}` : stepText);
   }
   return true;
 }
@@ -884,6 +888,16 @@ function advanceCoaching(now: number): boolean {
     );
   }
   return true;
+}
+
+/** What a program workout adds to the coach, or null for any other recording. */
+function programCues(current: RecordingSession) {
+  if (!current.program || !current.intervals) return null;
+  return programSpokenCues(
+    i18n.t.bind(i18n),
+    current.program,
+    current.intervals.plan
+  );
 }
 
 /**
@@ -1408,16 +1422,22 @@ export function finishRecording(): Promise<void> {
     clearLatestFix();
     // An indoor session has no GPS distance yet. Stop the cue session without
     // announcing zero before the person enters what the machine showed.
+    const programDone =
+      session.audioCues && lastStepStarted(session.intervals)
+        ? (programCues(session)?.done ?? null)
+        : null;
     if (session.audioCues && session.indoor) {
-      endRecordingCues();
+      if (programDone) speakRecordingCue(programDone, endRecordingCues);
+      else endRecordingCues();
     } else if (session.audioCues) {
       const summary = summarizeRecording(points);
+      const finished = finishCue(i18n.t.bind(i18n), {
+        distanceMeters: summary.distanceMeters,
+        totalSeconds: elapsedSeconds(session),
+        unit: session.audioCues,
+      });
       speakRecordingCue(
-        finishCue(i18n.t.bind(i18n), {
-          distanceMeters: summary.distanceMeters,
-          totalSeconds: elapsedSeconds(session),
-          unit: session.audioCues,
-        }),
+        programDone ? `${finished} ${programDone}` : finished,
         endRecordingCues
       );
     }

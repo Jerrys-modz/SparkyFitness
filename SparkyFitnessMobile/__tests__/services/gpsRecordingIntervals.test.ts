@@ -24,6 +24,7 @@ jest.mock('../../src/services/recordingCues', () => ({
 import { fireImpactHaptic } from '../../src/services/haptics';
 import { speakRecordingCue } from '../../src/services/recordingCues';
 import {
+  finishRecording,
   markLap,
   pauseRecording,
   resetRecordingStateForTests,
@@ -33,7 +34,11 @@ import {
   tickIntervals,
   type RecordingSession,
 } from '../../src/services/gpsRecordingService';
-import { buildIntervalPlan } from '@workspace/shared';
+import {
+  buildIntervalPlan,
+  findProgram,
+  planTotalSeconds,
+} from '@workspace/shared';
 
 const notification = { title: 'Recording', body: 'Tracking' };
 const T0 = new Date(2026, 9, 10, 8, 0, 0).getTime();
@@ -242,5 +247,96 @@ describe('coaching audio', () => {
     at(600);
     await tickIntervals();
     expect(spoken()).toEqual(['10 minutes done.']);
+  });
+});
+
+describe('program workout cues', () => {
+  const program = findProgram('beginner5k')!;
+  const index = 4;
+  const workout = program.workouts[index]!;
+  const spoken = () =>
+    (speakRecordingCue as jest.Mock).mock.calls.map(([text]) => text as string);
+
+  test('the first cue gives the place in the program, then the step', async () => {
+    await startRecording({
+      activity: 'run',
+      indoor: true,
+      audioCues: 'km',
+      intervals: workout.plan,
+      program: { id: 'beginner5k', index },
+      notification,
+    });
+    const minutes = Math.round(planTotalSeconds(workout.plan) / 60);
+    expect(spoken()[0]).toMatch(
+      new RegExp(
+        `^Week ${workout.week + 1}, run ${workout.day + 1}\\. ${minutes} minutes?\\. `
+      )
+    );
+    expect(spoken()[0]).not.toContain('Eased');
+  });
+
+  test('says when today was eased from the original', async () => {
+    const eased = {
+      ...workout.plan,
+      steps: workout.plan.steps.map((step) =>
+        step.kind === 'work'
+          ? { ...step, seconds: Math.round(step.seconds * 0.7) }
+          : step
+      ),
+    };
+    await startRecording({
+      activity: 'run',
+      indoor: true,
+      audioCues: 'km',
+      intervals: eased,
+      program: { id: 'beginner5k', index },
+      notification,
+    });
+    expect(spoken()[0]).toContain('Eased for today.');
+  });
+
+  test('a plain recording gets no program line', async () => {
+    await startRecording({
+      activity: 'run',
+      indoor: true,
+      audioCues: 'km',
+      intervals: plan,
+      notification,
+    });
+    expect(spoken()[0]).not.toContain('Week');
+  });
+
+  test('finishing the last step says what is next', async () => {
+    await startRecording({
+      activity: 'run',
+      indoor: true,
+      audioCues: 'km',
+      intervals: workout.plan,
+      program: { id: 'beginner5k', index },
+      notification,
+    });
+    at(planTotalSeconds(workout.plan) - 5);
+    await tickIntervals();
+    (speakRecordingCue as jest.Mock).mockClear();
+    await finishRecording();
+    const next = program.workouts[index + 1]!;
+    expect(spoken()).toEqual([
+      `Workout ${index + 1} of ${program.workouts.length} done. Next up, Week ${next.week + 1}, run ${next.day + 1}.`,
+    ]);
+  });
+
+  test('stopping early does not claim the workout', async () => {
+    await startRecording({
+      activity: 'run',
+      indoor: true,
+      audioCues: 'km',
+      intervals: workout.plan,
+      program: { id: 'beginner5k', index },
+      notification,
+    });
+    at(30);
+    (speakRecordingCue as jest.Mock).mockClear();
+    await finishRecording();
+    expect(spoken().join(' ')).not.toContain('done. Next up');
   });
 });

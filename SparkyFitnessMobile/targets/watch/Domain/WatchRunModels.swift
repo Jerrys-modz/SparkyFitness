@@ -203,6 +203,11 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
     let steps: [Step]
     /// "walk" for a walking program, otherwise nil (a run).
     var activity: String? = nil
+    /// What the voice coach says ahead of a program workout's first step and
+    /// when it ends, already in the phone's language. Optional so a plan kept
+    /// in an older snapshot still decodes.
+    var startText: String? = nil
+    var doneText: String? = nil
 
     var kind: WatchRunKind { activity == "walk" ? .walk : .run }
 
