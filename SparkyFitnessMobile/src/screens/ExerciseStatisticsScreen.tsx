@@ -29,8 +29,10 @@ import CollapsibleSection from '../components/CollapsibleSection';
 import CardioSessionList from '../components/exerciseStats/CardioSessionList';
 import TrainingConsistencyCard from '../components/exerciseStats/TrainingConsistencyCard';
 import TrainingLoadCard from '../components/exerciseStats/TrainingLoadCard';
+import RunEstimatesCard from '../components/exerciseStats/RunEstimatesCard';
 import FitnessFatigueCard from '../components/exerciseStats/FitnessFatigueCard';
 import { useTrainingLoad } from '../hooks/useTrainingLoad';
+import { useRunEstimates } from '../hooks/useRunEstimates';
 import { useFitnessFatigue } from '../hooks/useFitnessFatigue';
 import MuscleFigure, {
   MUSCLE_HEAT_COLORS,
@@ -136,6 +138,7 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
   const { data, isLoading } = useExerciseDashboard(range, customRange);
   const consistency = useTrainingConsistency();
   const trainingLoad = useTrainingLoad();
+  const runEstimates = useRunEstimates();
   const fitnessFatigue = useFitnessFatigue();
   const cardio = useCardioSessions(range, view === 'cardio', customRange);
   const { preferences } = usePreferences();
@@ -480,11 +483,18 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
         ) : null}
 
         {isSectionShown('exercise.load') ? (
-          <FitnessFatigueCard
-            data={fitnessFatigue.data}
-            isLoading={fitnessFatigue.isLoading}
-            isError={fitnessFatigue.isError}
-          />
+          <>
+            <FitnessFatigueCard
+              data={fitnessFatigue.data}
+              isLoading={fitnessFatigue.isLoading}
+              isError={fitnessFatigue.isError}
+            />
+            <RunEstimatesCard
+              data={runEstimates.data}
+              isLoading={runEstimates.isLoading}
+              isError={runEstimates.isError}
+            />
+          </>
         ) : null}
 
         {isSectionShown('exercise.consistency') ? (

@@ -6,6 +6,7 @@ import {
   getExerciseDashboardData,
   getTrainingConsistency,
   getFitnessFatigue,
+  getRunEstimates,
   getAlcoholWeekReport,
   getHydrationNutritionRange,
   getWorkoutDays,
@@ -165,6 +166,21 @@ export const useFitnessFatigue = (userId?: string | null) => {
       errorMessage: t(
         'fitnessFatigue.loadFailed',
         'Failed to load readiness and form.'
+      ),
+    },
+  });
+};
+
+export const useRunEstimates = (userId?: string | null) => {
+  const { t } = useTranslation();
+  return useQuery({
+    queryKey: reportKeys.runEstimates(userId ?? undefined),
+    queryFn: () => getRunEstimates(userId ?? undefined),
+    enabled: !!userId,
+    meta: {
+      errorMessage: t(
+        'runEstimates.loadFailed',
+        'Failed to load running estimates.'
       ),
     },
   });
