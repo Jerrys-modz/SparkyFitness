@@ -6778,6 +6778,15 @@
       "workDescription": "Alerts you when your heart rate in a fast stretch is outside this range.",
       "easyTitle": "Easy stretch heart rate",
       "easyDescription": "Alerts you when your heart rate in an easy stretch is outside this range."
+    },
+    "suggestedRanges": {
+      "title": "Suggested ranges",
+      "pace": "Pace: fast {{fast}}, easy {{easy}}",
+      "paceSource_one": "Based on your last {{formattedCount}} session.",
+      "paceSource_other": "Based on your last {{formattedCount}} sessions.",
+      "heartRate": "Heart rate: fast {{fast}}, easy {{easy}}",
+      "heartRateSource": "From an estimated maximum of {{max}} bpm for your age.",
+      "use": "Use these"
     }
   },
   "goals": {

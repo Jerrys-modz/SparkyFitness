@@ -1,0 +1,106 @@
+import React from 'react';
+import { Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import type { HeartRateBand } from '@workspace/shared';
+import { formatLocalizedNumber } from '../../localization';
+import { formatClock } from '../../utils/gpsRecording';
+import type { PaceBandChoice } from './PaceBandCard';
+
+export interface SuggestedRangesCardProps {
+  unit: 'km' | 'miles';
+  /** Pace ranges in the display unit; null when there is no history to base them on. */
+  pace: { work: PaceBandChoice; easy: PaceBandChoice; sessions: number } | null;
+  /** Heart-rate ranges; null without a birth date, or without a watch to read them. */
+  heartRate: {
+    work: HeartRateBand;
+    easy: HeartRateBand;
+    maxHeartRate: number;
+  } | null;
+  onUse: () => void;
+}
+
+/**
+ * Starting ranges for a plan's fast and easy stretches, with where they came
+ * from. Nothing is switched on until the person taps Use.
+ */
+const SuggestedRangesCard: React.FC<SuggestedRangesCardProps> = ({
+  unit,
+  pace,
+  heartRate,
+  onUse,
+}) => {
+  const { t } = useTranslation();
+  if (!pace && !heartRate) return null;
+  const unitLabel = unit === 'miles' ? '/mi' : '/km';
+  const paceText = (band: PaceBandChoice) =>
+    `${formatClock(band.fastest)}–${formatClock(band.slowest)}${unitLabel}`;
+  const bpmText = (band: HeartRateBand) => `${band.minBpm}–${band.maxBpm} bpm`;
+
+  return (
+    <View
+      testID="suggested-ranges-card"
+      className="bg-surface rounded-xl p-4 mt-4"
+    >
+      <Text className="text-text-primary text-base font-semibold">
+        {t('recordActivity.suggestedRanges.title', {
+          defaultValue: 'Suggested ranges',
+        })}
+      </Text>
+      {pace ? (
+        <View className="mt-2">
+          <Text className="text-text-primary text-sm">
+            {t('recordActivity.suggestedRanges.pace', {
+              fast: paceText(pace.work),
+              easy: paceText(pace.easy),
+              defaultValue: 'Pace: fast {{fast}}, easy {{easy}}',
+            })}
+          </Text>
+          <Text className="text-text-secondary text-xs mt-0.5">
+            {t('recordActivity.suggestedRanges.paceSource', {
+              count: pace.sessions,
+              formattedCount: formatLocalizedNumber(pace.sessions),
+              defaultValue_one:
+                'Based on your last {{formattedCount}} session.',
+              defaultValue_other:
+                'Based on your last {{formattedCount}} sessions.',
+              defaultValue: 'Based on your last {{formattedCount}} sessions.',
+            })}
+          </Text>
+        </View>
+      ) : null}
+      {heartRate ? (
+        <View className="mt-2">
+          <Text className="text-text-primary text-sm">
+            {t('recordActivity.suggestedRanges.heartRate', {
+              fast: bpmText(heartRate.work),
+              easy: bpmText(heartRate.easy),
+              defaultValue: 'Heart rate: fast {{fast}}, easy {{easy}}',
+            })}
+          </Text>
+          <Text className="text-text-secondary text-xs mt-0.5">
+            {t('recordActivity.suggestedRanges.heartRateSource', {
+              max: heartRate.maxHeartRate,
+              defaultValue:
+                'From an estimated maximum of {{max}} bpm for your age.',
+            })}
+          </Text>
+        </View>
+      ) : null}
+      <TouchableOpacity
+        testID="suggested-ranges-use"
+        accessibilityRole="button"
+        onPress={onUse}
+        activeOpacity={0.7}
+        className="self-start mt-3 bg-accent-primary rounded-lg px-4 py-2"
+      >
+        <Text className="text-white font-semibold">
+          {t('recordActivity.suggestedRanges.use', {
+            defaultValue: 'Use these',
+          })}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+export default SuggestedRangesCard;

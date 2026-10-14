@@ -24,6 +24,7 @@ import Button from '../components/ui/Button';
 import FormInput from '../components/FormInput';
 import RecordingSwitchRow from '../components/recording/RecordingSwitchRow';
 import HeartRateBandCard from '../components/recording/HeartRateBandCard';
+import SuggestedRangesCard from '../components/recording/SuggestedRangesCard';
 import PaceBandCard, {
   type PaceBandChoice,
 } from '../components/recording/PaceBandCard';
@@ -47,6 +48,7 @@ import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useIndoorDistanceEstimate } from '../hooks/useIndoorDistanceEstimate';
 import { invalidateExerciseCache } from '../hooks/invalidateExerciseCache';
 import { usePreferences } from '../hooks/usePreferences';
+import { useSuggestedRanges } from '../hooks/useSuggestedRanges';
 import { useWatchConnectivity } from '../hooks/useWatchConnectivity';
 import { startRunOnWatch } from '../services/watchRunControl';
 import { buildWatchStartPlan } from '../utils/watchRunPlans';
@@ -376,6 +378,36 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       easyHeartRateBand,
     ]
   );
+  // Starting ranges for the plan's fast and easy stretches, offered with a tap.
+  const showPlanTargets = intervalChoice !== 'off' && (!indoor || onWatch);
+  const suggested = useSuggestedRanges(activity, showPlanTargets);
+  const suggestedPaceChoice = useMemo(() => {
+    if (!suggested.pace) return null;
+    const perUnit = distanceUnit === 'miles' ? 1.609344 : 1;
+    const choice = (band: {
+      minSecondsPerKm: number;
+      maxSecondsPerKm: number;
+    }) => ({
+      fastest: Math.round((band.minSecondsPerKm * perUnit) / 5) * 5,
+      slowest: Math.round((band.maxSecondsPerKm * perUnit) / 5) * 5,
+    });
+    return {
+      work: choice(suggested.pace.work),
+      easy: choice(suggested.pace.easy),
+      sessions: suggested.pace.sessions,
+    };
+  }, [suggested.pace, distanceUnit]);
+  const suggestedHeartRate = watchAvailable ? suggested.heartRate : null;
+  const useSuggestedRangesNow = () => {
+    if (suggestedPaceChoice) {
+      setWorkPace({ enabled: true, band: suggestedPaceChoice.work });
+      setEasyPace({ enabled: true, band: suggestedPaceChoice.easy });
+    }
+    if (suggestedHeartRate) {
+      setWorkHeartRate({ enabled: true, band: suggestedHeartRate.work });
+      setEasyHeartRate({ enabled: true, band: suggestedHeartRate.easy });
+    }
+  };
   // Seconds left before recording begins, or null when no countdown is running.
   const [countdownLeft, setCountdownLeft] = useState<number | null>(null);
   const [permissionProblem, setPermissionProblem] = useState<
@@ -1124,8 +1156,14 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             activity={activity}
           />
           {/* A plan can hold a pace in its fast and easy stretches. */}
-          {intervalChoice !== 'off' && (!indoor || onWatch) ? (
+          {showPlanTargets ? (
             <>
+              <SuggestedRangesCard
+                unit={distanceUnit}
+                pace={suggestedPaceChoice}
+                heartRate={suggestedHeartRate}
+                onUse={useSuggestedRangesNow}
+              />
               <PaceBandCard
                 testIDPrefix="work-pace"
                 title={t('recordActivity.paceBand.workTitle', {
