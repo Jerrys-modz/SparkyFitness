@@ -9,8 +9,8 @@ import {
 } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { DIET_TEMPLATES, getDietTemplate } from '@/constants/dietTemplates';
-
 import { useTranslation } from 'react-i18next';
+
 export interface DietApproachProps {
   customPercentages: { carbs: number; protein: number; fat: number };
   handleMacroValueChange: (
@@ -51,7 +51,7 @@ export const DietApproach = ({
         <div className="flex items-center gap-2">
           <Utensils className="h-5 w-5 text-green-500" />
           <span className="text-foreground font-semibold">
-            {t('onboarding.dietApproach.dietApproach', 'Diet Approach')}
+            {t('onboarding.diet.title', 'Diet Approach')}
           </span>
         </div>
         <ChevronLeft
@@ -63,7 +63,7 @@ export const DietApproach = ({
         <div className="px-4 pb-4 space-y-4 border-t border-border pt-4">
           <p className="text-muted-foreground text-sm mb-4">
             {t(
-              'onboarding.dietApproach.chooseAPresetDietOr',
+              'onboarding.diet.description',
               'Choose a preset diet or customize your macro split'
             )}
           </p>
@@ -91,15 +91,20 @@ export const DietApproach = ({
               {DIET_TEMPLATES.map((diet) => (
                 <SelectItem key={diet.id} value={diet.id}>
                   <div>
-                    <div className="font-semibold">{diet.name}</div>
+                    <div className="font-semibold">
+                      {t(
+                        `onboarding.diet.templates.${diet.id}.name`,
+                        diet.name
+                      )}
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       {t(
-                        'onboarding.dietApproach.carbsProteinFat',
-                        '{{carbsPercentage}}% Carbs / {{proteinPercentage}}% Protein / {{fatPercentage}}% Fat',
+                        'onboarding.diet.macroSplit',
+                        '{{carbs}}% Carbs / {{protein}}% Protein / {{fat}}% Fat',
                         {
-                          carbsPercentage: diet.carbsPercentage,
-                          proteinPercentage: diet.proteinPercentage,
-                          fatPercentage: diet.fatPercentage,
+                          carbs: diet.carbsPercentage,
+                          protein: diet.proteinPercentage,
+                          fat: diet.fatPercentage,
                         }
                       )}
                     </div>
@@ -111,7 +116,15 @@ export const DietApproach = ({
 
           <div className="mt-3 p-3 bg-muted rounded-lg">
             <p className="text-sm text-foreground">
-              {getDietTemplate(localSelectedDiet)?.description}
+              {(() => {
+                const selectedDiet = getDietTemplate(localSelectedDiet);
+                return selectedDiet
+                  ? t(
+                      `onboarding.diet.templates.${selectedDiet.id}.description`,
+                      selectedDiet.description
+                    )
+                  : null;
+              })()}
             </p>
           </div>
 
@@ -119,10 +132,7 @@ export const DietApproach = ({
             <div className="mt-6 space-y-6 p-4 bg-muted rounded-lg border border-border">
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-sm font-semibold text-foreground">
-                  {t(
-                    'onboarding.dietApproach.customMacroSplit',
-                    'Custom Macro Split'
-                  )}
+                  {t('onboarding.diet.customMacroSplit', 'Custom Macro Split')}
                 </h4>
                 <span
                   className={`text-sm font-mono ${
@@ -134,12 +144,11 @@ export const DietApproach = ({
                       : 'text-yellow-500'
                   }`}
                 >
-                  {t('onboarding.dietApproach.total2', 'Total: {{carbs}}%', {
-                    carbs:
-                      Math.round(customPercentages.carbs) +
-                      Math.round(customPercentages.protein) +
-                      Math.round(customPercentages.fat),
-                  })}
+                  {t('onboarding.diet.total', 'Total:')}{' '}
+                  {Math.round(customPercentages.carbs) +
+                    Math.round(customPercentages.protein) +
+                    Math.round(customPercentages.fat)}
+                  %
                 </span>
               </div>
 
@@ -160,10 +169,7 @@ export const DietApproach = ({
                       )}
                     </button>
                     <label className="text-sm font-medium text-foreground">
-                      {t(
-                        'onboarding.dietApproach.carbohydrates',
-                        'Carbohydrates'
-                      )}
+                      {t('onboarding.diet.carbohydrates', 'Carbohydrates')}
                     </label>
                   </div>
                   <div className="flex items-center gap-2">
@@ -216,7 +222,7 @@ export const DietApproach = ({
                       )}
                     </button>
                     <label className="text-sm font-medium text-foreground">
-                      {t('onboarding.dietApproach.protein', 'Protein')}
+                      {t('onboarding.diet.protein', 'Protein')}
                     </label>
                   </div>
                   <div className="flex items-center gap-2">
@@ -266,7 +272,7 @@ export const DietApproach = ({
                       )}
                     </button>
                     <label className="text-sm font-medium text-foreground">
-                      {t('onboarding.dietApproach.fat', 'Fat')}
+                      {t('onboarding.diet.fat', 'Fat')}
                     </label>
                   </div>
                   <div className="flex items-center gap-2">
@@ -301,7 +307,7 @@ export const DietApproach = ({
 
               <p className="text-xs text-muted-foreground mt-2">
                 {t(
-                  'onboarding.dietApproach.adjustOrTypeInA',
+                  'onboarding.diet.adjustHint',
                   'Adjust or type in a value. Unlocked macros will auto-adjust to maintain 100% total.'
                 )}
               </p>
