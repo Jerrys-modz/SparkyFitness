@@ -162,16 +162,16 @@ struct WatchRunView: View {
                 set: { run.setPaceAlert($0) }
             )) {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Pace alert")
-                    Text(band.map(bandText) ?? "Each step has its own")
+                    Text(String(localized: "watch.run.paceAlert", defaultValue: "Pace alert"))
+                    Text(band.map(bandText) ?? String(localized: "watch.run.alertPerStep", defaultValue: "Each step has its own"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
             }
         } else {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Pace alert")
-                Text("Set a pace range on your iPhone")
+                Text(String(localized: "watch.run.paceAlert", defaultValue: "Pace alert"))
+                Text(String(localized: "watch.run.paceAlertSetup", defaultValue: "Set a pace range on your iPhone"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -189,16 +189,16 @@ struct WatchRunView: View {
                 set: { run.setHeartRateAlert($0) }
             )) {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Heart rate alert")
-                    Text(band.map { "\(Int($0.minBpm))–\(Int($0.maxBpm)) bpm" } ?? "Each step has its own")
+                    Text(String(localized: "watch.run.heartRateAlert", defaultValue: "Heart rate alert"))
+                    Text(band.map { "\(Int($0.minBpm))–\(Int($0.maxBpm)) bpm" } ?? String(localized: "watch.run.alertPerStep", defaultValue: "Each step has its own"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
             }
         } else {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Heart rate alert")
-                Text("Set a heart rate range on your iPhone")
+                Text(String(localized: "watch.run.heartRateAlert", defaultValue: "Heart rate alert"))
+                Text(String(localized: "watch.run.heartRateAlertSetup", defaultValue: "Set a heart rate range on your iPhone"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

@@ -24,3 +24,8 @@
 "watch.fasting.notFasting" = "Not fasting";
 "watch.fasting.waiting" = "Waiting for your iPhone";
 "watch.recording.next" = "Next: %@";
+"watch.run.paceAlert" = "Pace alert";
+"watch.run.paceAlertSetup" = "Set a pace range on your iPhone";
+"watch.run.heartRateAlert" = "Heart rate alert";
+"watch.run.heartRateAlertSetup" = "Set a heart rate range on your iPhone";
+"watch.run.alertPerStep" = "Each step has its own";
