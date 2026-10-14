@@ -71,11 +71,11 @@ const RunProgramCalendar: React.FC<{
             count: -gap,
             date: dayText(finish, 'long'),
             defaultValue:
-              'At this pace you finish on {{date}}, {{count}} days after your goal date. Add a run day or move the date.',
+              'At this pace you finish on {{date}}, {{count}} days after your goal date. Add a workout day or move the date.',
             defaultValue_one:
-              'At this pace you finish on {{date}}, {{count}} day after your goal date. Add a run day or move the date.',
+              'At this pace you finish on {{date}}, {{count}} day after your goal date. Add a workout day or move the date.',
             defaultValue_other:
-              'At this pace you finish on {{date}}, {{count}} days after your goal date. Add a run day or move the date.',
+              'At this pace you finish on {{date}}, {{count}} days after your goal date. Add a workout day or move the date.',
           });
   }
 
@@ -93,11 +93,11 @@ const RunProgramCalendar: React.FC<{
           {t('runPrograms.calendar.noDays', {
             count: left,
             defaultValue:
-              '{{count}} workouts left. Pick your run days to see when each one falls; until then the Diary offers the next one every day.',
+              '{{count}} workouts left. Pick your workout days to see when each one falls; until then the Diary offers the next one every day.',
             defaultValue_one:
-              '{{count}} workout left. Pick your run days to see when each one falls; until then the Diary offers the next one every day.',
+              '{{count}} workout left. Pick your workout days to see when each one falls; until then the Diary offers the next one every day.',
             defaultValue_other:
-              '{{count}} workouts left. Pick your run days to see when each one falls; until then the Diary offers the next one every day.',
+              '{{count}} workouts left. Pick your workout days to see when each one falls; until then the Diary offers the next one every day.',
           })}
         </Text>
       ) : (
@@ -116,7 +116,7 @@ const RunProgramCalendar: React.FC<{
           <Text className="text-text-muted text-xs mt-1">
             {t('runPrograms.calendar.moves', {
               defaultValue:
-                'A run you miss is not skipped: the dates after it move along.',
+                'A workout you miss is not skipped: the dates after it move along.',
             })}
           </Text>
           <View className="mt-3">
@@ -138,10 +138,10 @@ const RunProgramCalendar: React.FC<{
                     {status.program.activity === 'walk'
                       ? t('runPrograms.calendar.rowWalk', {
                           week: workout.week + 1,
-                          run: workout.day + 1,
+                          walk: workout.day + 1,
                           minutes: planMinutes(workout.plan),
                           defaultValue:
-                            'Week {{week}}, walk {{run}} · {{minutes}} min',
+                            'Week {{week}}, walk {{walk}} · {{minutes}} min',
                         })
                       : t('runPrograms.calendar.row', {
                           week: workout.week + 1,

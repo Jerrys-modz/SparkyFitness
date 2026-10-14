@@ -63,7 +63,7 @@ While recording, tap **Lap** to mark a lap, for example at the end of a hard int
 
 When you finish, the summary lists your laps and your splits per kilometer or mile. Each row has a bar, longer for a faster one, and the fastest is labelled, so a fading last kilometer or a strong negative split is easy to see. A short final stretch is shown but never counted as your fastest.
 
-**After you save**, a summary screen shows what the activity came to: distance, time, average pace, elevation gain and average heart rate (when you have them), the route on a map, and each split (or your laps) with its bar. For a training-program workout it also shows how far through the program you are and when the next workout falls, with a link to the program. Tap **Done** to close it. (Runs recorded on the watch alone have no summary screen.)
+**After you save**, a summary screen shows what the activity came to: distance, time, average pace, elevation gain and average heart rate (when you have them), the route on a map, and each split (or your laps) with its bar. For a training-program workout it also shows how far through the program you are and when the next workout falls, with a link to the program. Tap **Done** to close it.
 
 After saving, opening the activity from Exercise Statistics shows a **Pace** chart next to the route and heart rate: pace against distance, with faster stretches higher, and your best pace above it. It works for any activity with a GPS route, including imported ones, and leaves out the time you stood still.
 
@@ -182,7 +182,9 @@ On the watch's **Workout** page, above your saved workouts, tap **Cardio** and c
 
 The watch can only run one workout at a time. The page tells you if your iPhone is recording an activity or a strength workout is running, and it won't start in that case.
 
-A watch-only recording buzzes at every completed kilometre or mile, and speaks it ("Kilometer 3. 5 minutes 24 seconds.") when Voice cues is on in the Record screen; the sound comes from the watch speaker or paired headphones. The flag button marks a lap (a second press within 3 seconds is ignored); when you save, an outdoor run is cut at your laps instead of at each kilometre or mile. Indoor runs have no route, so laps are not kept. The Voice cues setting reaches the watch with the phone's next update, so open the app once after changing it. Intervals and training programs are not followed on the wrist alone.
+A watch-only recording buzzes at every completed kilometre or mile, and speaks it ("Kilometer 3. 5 minutes 24 seconds.") when Voice cues is on in the Record screen; the sound comes from the watch speaker or paired headphones. The flag button marks a lap (a second press within 3 seconds is ignored); when you save, an outdoor run is cut at your laps instead of at each kilometre or mile. Indoor runs have no route, so the watch uses the distance it estimated at each flag press: the saved activity gets those laps with their distance and heart rate (a lap's time includes any pause inside it). The Voice cues setting is sent to the watch as soon as you change it. **On your phone:** when the run reaches the phone and is saved to your diary, a message says so with its distance and time; tap it for the same summary screen a phone recording gets (route, splits or laps, heart rate, and your program progress for a plan workout). It appears whenever the phone app is open at that moment, which may be later than the run if the phone was away.
+
+**Follow a plan:** the Cardio list on the watch has a **Follow a plan** section: today's training-program workout (when a program is on) and the built-in interval plans, with the step names in your phone's language. Pick one, then Outdoor or Indoor. The watch shows the step, the time left and what is next, taps your wrist when a step changes, says it when Voice cues is on, and marks a lap at each step so the saved run is cut into the steps. Pauses never eat into a step. A program workout is ticked off once the run is saved and it reached the plan's last step. The plans come from the phone's last update, so open the app once after changing your program.
 
 ---
 
@@ -211,3 +213,17 @@ If your Apple Watch or Health Connect source records **VO2 max**, turn on VO2 ma
 - Wear OS controls and heart rate.
 
 After a program workout is saved, the summary asks how hard it was, from 1 (very easy) to 10 (all out), and keeps your answer with the program. A rating of 8 or more offers to repeat the workout, and 3 or less offers to skip the next one. Two hard or two easy workouts in a row get a note, and Sparky can see your recent ratings when you ask how your program is going. Nothing in the program changes unless you tap the button or agree to something Sparky suggests.
+
+## Personal records
+
+**Library → Personal records** lists your best efforts at 1 km, 1 mile, 5 km, 10 km, 15 km, the half marathon and the marathon, grouped by sport (running, walking, cycling and so on). Records come from your recorded and imported cardio activities, are only compared within one sport, and are the same ones the web Reports page shows.
+
+When a run you just saved set one or more of them, the summary screen shows a **New personal record** card with the distance and time, and a link to the full list. A run recorded on the watch shows it too.
+
+## Correcting a treadmill distance
+
+A run recorded on the watch indoors has no route, so its distance is the watch's estimate from your arm and step motion, which can be off. On the summary screen (tap the "Run from your watch saved" message) a **Treadmill distance** card lets you enter what the machine showed. The distance, pace and lap distances update, and heart rate and calories are kept. Runs with a GPS route get their distance from the route and cannot be changed this way.
+
+## Following a watch run on the phone
+
+While you record a walk or run on the watch alone, the phone shows a bar above the tab bar (like a strength workout) with the clock, distance and pace. Tap it for a full view with heart rate, calories, laps and, if you follow a plan, the current step and what is next. It is a view only: pause and finish on the watch. It appears while the watch and phone are in range, goes away if the watch has been out of range for about 20 seconds, and the finished run is added to your diary as before.

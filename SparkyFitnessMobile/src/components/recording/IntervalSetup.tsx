@@ -24,7 +24,7 @@ export const DEFAULT_CUSTOM_INTERVALS: IntervalOptions = {
 };
 
 // Translated names, one static key each (the i18n audit reads keys as text).
-function presetName(t: TFunction, id: string): string {
+export function presetName(t: TFunction, id: string): string {
   switch (id) {
     case 'beginnerRunWalk':
       return t('recordActivity.intervals.preset.beginnerRunWalk', {
@@ -110,6 +110,11 @@ interface Props {
   onCustom: (options: IntervalOptions) => void;
   /** When set, today's program workout is offered as a choice. */
   programLabel?: string;
+  /**
+   * What is being recorded. A walk or ride has no running in it, so the
+   * run/walk presets and style are left out and its steps are Fast and Easy.
+   */
+  activity?: 'run' | 'walk' | 'ride';
 }
 
 /** Pick a timed plan for a recording, or build one. */
@@ -119,8 +124,14 @@ const IntervalSetup: React.FC<Props> = ({
   custom,
   onCustom,
   programLabel,
+  activity = 'run',
 }) => {
   const { t } = useTranslation();
+  const running = activity === 'run';
+  const presets = running
+    ? INTERVAL_PRESETS
+    : INTERVAL_PRESETS.filter((preset) => preset.options.style !== 'runWalk');
+  const customStyle: IntervalStyle = running ? custom.style : 'fastEasy';
   const options: PickerOption<IntervalChoice>[] = [
     {
       label: t('recordActivity.intervals.off', { defaultValue: 'Off' }),
@@ -129,7 +140,7 @@ const IntervalSetup: React.FC<Props> = ({
     ...(programLabel
       ? [{ label: programLabel, value: 'program' as IntervalChoice }]
       : []),
-    ...INTERVAL_PRESETS.map((preset) => ({
+    ...presets.map((preset) => ({
       label: `${presetName(t, preset.id)} · ${intervalSummary(preset.options)}`,
       value: preset.id,
     })),
@@ -149,10 +160,15 @@ const IntervalSetup: React.FC<Props> = ({
         {t('recordActivity.intervals.title', { defaultValue: 'Intervals' })}
       </Text>
       <Text className="text-text-secondary text-xs mt-1 mb-2">
-        {t('recordActivity.intervals.description', {
-          defaultValue:
-            'Follow timed steps, like run/walk or speed repeats. You are told when to switch.',
-        })}
+        {running
+          ? t('recordActivity.intervals.description', {
+              defaultValue:
+                'Follow timed steps, like run/walk or speed repeats. You are told when to switch.',
+            })
+          : t('recordActivity.intervals.descriptionNoRun', {
+              defaultValue:
+                'Follow timed steps of fast and easy effort. You are told when to switch.',
+            })}
       </Text>
       <BottomSheetPicker<IntervalChoice>
         value={choice}
@@ -164,24 +180,26 @@ const IntervalSetup: React.FC<Props> = ({
       />
       {choice === 'custom' ? (
         <View className="mt-3">
-          <SegmentedControl<IntervalStyle>
-            segments={[
-              {
-                key: 'runWalk',
-                label: t('recordActivity.intervals.styleRunWalk', {
-                  defaultValue: 'Run / walk',
-                }),
-              },
-              {
-                key: 'fastEasy',
-                label: t('recordActivity.intervals.styleFastEasy', {
-                  defaultValue: 'Fast / easy',
-                }),
-              },
-            ]}
-            activeKey={custom.style}
-            onSelect={(style) => change({ style })}
-          />
+          {running ? (
+            <SegmentedControl<IntervalStyle>
+              segments={[
+                {
+                  key: 'runWalk',
+                  label: t('recordActivity.intervals.styleRunWalk', {
+                    defaultValue: 'Run / walk',
+                  }),
+                },
+                {
+                  key: 'fastEasy',
+                  label: t('recordActivity.intervals.styleFastEasy', {
+                    defaultValue: 'Fast / easy',
+                  }),
+                },
+              ]}
+              activeKey={custom.style}
+              onSelect={(style) => change({ style })}
+            />
+          ) : null}
           <Row
             label={t('recordActivity.intervals.warmup', {
               defaultValue: 'Warm up',
@@ -198,7 +216,7 @@ const IntervalSetup: React.FC<Props> = ({
           />
           <Row
             label={
-              custom.style === 'runWalk'
+              customStyle === 'runWalk'
                 ? t('recordActivity.intervals.run', { defaultValue: 'Run' })
                 : t('recordActivity.intervals.fast', { defaultValue: 'Fast' })
             }
@@ -212,7 +230,7 @@ const IntervalSetup: React.FC<Props> = ({
           />
           <Row
             label={
-              custom.style === 'runWalk'
+              customStyle === 'runWalk'
                 ? t('recordActivity.intervals.walk', { defaultValue: 'Walk' })
                 : t('recordActivity.intervals.easy', { defaultValue: 'Easy' })
             }

@@ -248,6 +248,7 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     exercise_entry_activity_details: 'custom',
     exercise_entry_gps_points: 'custom',
     exercise_entry_hr_zones: 'custom',
+    exercise_entry_distance_series: 'custom',
     exercise_entry_laps: 'custom',
     exercise_entry_sets: 'custom',
     external_data_providers: 'custom',

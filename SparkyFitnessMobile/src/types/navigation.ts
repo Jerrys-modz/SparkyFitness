@@ -85,6 +85,8 @@ export type RootStackParamList = {
   WorkoutPlans: undefined;
   WorkoutPlanForm: { template?: WorkoutPlanTemplate } | undefined;
   RunPrograms: undefined;
+  PersonalRecords: undefined;
+  WatchRunLive: undefined;
   MealPlanForm: { template?: MealPlanTemplate; initialMeal?: Meal } | undefined;
   // #2115, Phase 12: mobile-only water-container CRUD.
   WaterContainers: undefined;
@@ -353,6 +355,7 @@ export type RootStackParamList = {
     { date?: string; session?: MindfulnessSessionResponse } | undefined;
   SleepDetail: { entryId: string; day: string };
   Chat: undefined;
+  ChatSettings: undefined;
   Logs: undefined;
   Sync: undefined;
   ImportHistory: undefined;

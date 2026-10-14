@@ -123,9 +123,9 @@ const RunProgramBanner: React.FC<{
           {status.program.activity === 'walk'
             ? t('runPrograms.banner.titleWalk', {
                 week: workout.week + 1,
-                run: workout.day + 1,
+                walk: workout.day + 1,
                 minutes,
-                defaultValue: 'Week {{week}}, walk {{run}} · {{minutes}} min',
+                defaultValue: 'Week {{week}}, walk {{walk}} · {{minutes}} min',
               })
             : t('runPrograms.banner.title', {
                 week: workout.week + 1,
@@ -143,9 +143,15 @@ const RunProgramBanner: React.FC<{
       {logged ? (
         <View className="mt-3 pt-3 border-t border-border-subtle flex-row items-center justify-between">
           <Text className="text-text-secondary text-sm flex-1 mr-3">
-            {t('runPrograms.banner.loggedRun', {
-              defaultValue: 'You logged a run today. Count it as this workout?',
-            })}
+            {status.program.activity === 'walk'
+              ? t('runPrograms.banner.loggedWalk', {
+                  defaultValue:
+                    'You logged a walk today. Count it as this workout?',
+                })
+              : t('runPrograms.banner.loggedRun', {
+                  defaultValue:
+                    'You logged a run today. Count it as this workout?',
+                })}
           </Text>
           <Button
             variant="outline"

@@ -20,7 +20,8 @@ import { FoodImageSourceProvider } from './src/components/FoodImageSourceProvide
 import { LightboxProvider } from './src/components/LightboxProvider';
 import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 
-import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchFastingBridge, useWatchPlanSync, useWatchRecordingBridge, useWatchSetTargetsSync, useWatchWorkoutBridge, useWatchWorkoutEdit, useWatchRunBridge } from './src/hooks';
+import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchFastingBridge, useWatchPlanSync, useWatchRecordingBridge, useWatchSetTargetsSync, useWatchWorkoutBridge, useWatchWorkoutEdit, useWatchRunBridge, usePreferences } from './src/hooks';
+import { configureRunLiveActivity } from './src/services/runLiveActivity';
 import { useWatchWorkoutStart } from './src/hooks/useWatchWorkoutStart';
 import {
   useStartLiveWorkout,
@@ -40,6 +41,8 @@ import {
   SafeFoodsLibrary,
   SafeMealsLibrary,
   SafeMealPlans,
+  SafePersonalRecords,
+  SafeWatchRunLive,
   SafeRunPrograms,
   SafeMealPlanForm,
   SafeWorkoutPlans,
@@ -86,6 +89,7 @@ import {
   SafeProgressPhotoCompare,
   SafeProgressPhotoTimelapse,
   SafeChat,
+  SafeChatSettings,
   SafeCalorieSettings,
   SafeGoals,
   SafeWeeklyGoalPlanEdit,
@@ -245,6 +249,13 @@ function handleWatchFinishedWorkout(
 }
 
 function WatchWorkoutGate() {
+  const { t } = useTranslation();
+  const { preferences } = usePreferences();
+  const distanceUnit =
+    preferences?.default_distance_unit === 'miles' ? 'miles' : 'km';
+  useEffect(() => {
+    configureRunLiveActivity({ t, distanceUnit });
+  }, [t, distanceUnit]);
   const watchSupported = WatchConnectivity?.isSupported() === true;
   const [telemetryPending, setTelemetryPending] = useState(false);
   const { isConnected: isServerConnected } = useServerConnection({
@@ -425,8 +436,11 @@ function AppContent() {
         },
         FoodScan: 'scan',
         FoodSearch: 'search',
+        ChatSettings: 'settings/voice',
         // Tapping the workout Live Activity opens its associated URL.
         ActiveWorkout: 'active-workout',
+        // The run Live Activity opens the recording screen.
+        RecordActivity: 'record-activity',
       },
     },
   }), []);
@@ -555,6 +569,16 @@ function AppContent() {
             name="RunPrograms"
             component={SafeRunPrograms}
             options={createStackScreenOptions(t('screens.runPrograms', { defaultValue: 'Training programs' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="PersonalRecords"
+            component={SafePersonalRecords}
+            options={createStackScreenOptions(t('screens.personalRecords', { defaultValue: 'Personal records' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="WatchRunLive"
+            component={SafeWatchRunLive}
+            options={createStackScreenOptions(t('screens.watchRunLive', { defaultValue: 'On your watch' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
             name="MealPlanForm"
@@ -956,6 +980,11 @@ function AppContent() {
             name="CalorieSettings"
             component={SafeCalorieSettings}
             options={createStackScreenOptions(t('screens.calorieSettings', { defaultValue: 'Calorie Settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="ChatSettings"
+            component={SafeChatSettings}
+            options={createStackScreenOptions(t('voiceSettings.open', { defaultValue: 'Voice settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
           />
           <Stack.Screen
             name="FoodSettings"

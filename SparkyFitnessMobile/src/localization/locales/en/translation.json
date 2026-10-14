@@ -600,7 +600,9 @@
       "reportsSubtitle": "Nutrition, sleep, mood and exercise trends",
       "runPrograms": "Training programs",
       "runProgramsSubtitle": "Run and walk plans from Beginner 5K to marathon",
-      "runProgramsActive": "{{name}} · {{progress}}"
+      "runProgramsActive": "{{name}} · {{progress}}",
+      "personalRecords": "Personal records",
+      "personalRecordsSubtitle": "Your best 1 km, 5 km, 10 km and more"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -624,7 +626,11 @@
     "measurementsReport": "Measurements",
     "substancesReport": "Caffeine and alcohol",
     "runSummary": "Activity saved",
-    "runPrograms": "Training programs"
+    "runPrograms": "Training programs",
+    "personalRecords": "Personal records",
+    "watchRunLive": "On your watch",
+    "watchRunLiveRun": "Run on your watch",
+    "watchWalkLive": "Walk on your watch"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -4256,6 +4262,25 @@
     "uploadFailed": "Could not upload photo",
     "removeFailed": "Could not remove photo"
   },
+  "voiceSettings": {
+    "title": "Voice input",
+    "open": "Voice settings",
+    "recognition": "Recognition",
+    "system": "System (default)",
+    "ai": "AI transcription",
+    "model": "Voice model",
+    "chooseModel": "Choose a model",
+    "chatModel": "Used for chat",
+    "syncHint": "These settings apply to web and mobile. Turning voice input off hides the microphone without changing your model selection.",
+    "systemHint": "Uses your device or browser speech recognizer without a Sparky AI transcription charge. Availability and online processing depend on your device or browser.",
+    "aiHint": "Audio is sent to the selected AI provider through your server. Provider charges may apply. Choose a model to enable AI transcription.",
+    "noModels": "No compatible voice models are enabled. Configure an audio-capable model in AI Service Settings in the web app, then refresh.",
+    "unavailable": "The selected voice model is unavailable. Choose another model or switch to System.",
+    "manualSend": "Dictation fills your draft. Review or edit it, then send it yourself.",
+    "saveFailed": "Could not save voice settings. Please try again.",
+    "loadFailed": "Could not load voice settings.",
+    "modelsFailed": "Could not load voice models."
+  },
   "chat": {
     "title": "Sparky",
     "error": "Chat error",
@@ -4285,7 +4310,20 @@
       "lookedUp": "Looked up {{name}}",
       "runProgram": "Run program"
     },
-    "typing": "Sparky is typing"
+    "typing": "Sparky is typing",
+    "voice": {
+      "label": "Dictate message",
+      "aiLabel": "Dictate with AI",
+      "stop": "Stop dictation",
+      "listening": "Listening",
+      "permissionTitle": "Voice input needs the microphone",
+      "permissionMessage": "Allow microphone and speech recognition in system settings to dictate messages.",
+      "errorTitle": "Voice input failed",
+      "aiErrorTitle": "AI voice transcription failed",
+      "aiErrorMessage": "Check the selected Voice provider and try again.",
+      "noSpeechTitle": "No speech detected",
+      "noSpeechMessage": "Try again and speak closer to the microphone."
+    }
   },
   "foodImagePicker": {
     "photos": "Photos",
@@ -6342,7 +6380,9 @@
       "bestPace": "Best {{value}}",
       "perKm": "/km",
       "perMile": "/mi",
-      "underOneMinute": "<1 min"
+      "underOneMinute": "<1 min",
+      "exportGpx": "Export GPX",
+      "exportGpxFailed": "Could not export the route"
     },
     "consistency": {
       "title": "Training Consistency",
@@ -6565,6 +6605,9 @@
     }
   },
   "recordActivity": {
+    "liveActivity": {
+      "step": "{{name}} · {{current}} of {{total}}"
+    },
     "notification": {
       "title": "Recording your activity",
       "bodyWalk": "Tracking your walk with GPS",
@@ -6666,7 +6709,11 @@
       "miles_one": "{{count}} mile",
       "miles_other": "{{count}} miles",
       "interval": "{{name}}. {{time}}.",
-      "intervalsDone": "Intervals complete."
+      "intervalsDone": "Intervals complete.",
+      "paceTooFast": "Too fast. Ease off.",
+      "paceTooSlow": "Too slow. Pick it up.",
+      "heartRateTooHigh": "Heart rate high. Ease off.",
+      "heartRateTooLow": "Heart rate low. Pick it up."
     },
     "autoPause": {
       "title": "Auto-pause",
@@ -6695,6 +6742,7 @@
     "intervals": {
       "title": "Intervals",
       "description": "Follow timed steps, like run/walk or speed repeats. You are told when to switch.",
+      "descriptionNoRun": "Follow timed steps of fast and easy effort. You are told when to switch.",
       "off": "Off",
       "custom": "Custom",
       "preset": {
@@ -6741,10 +6789,9 @@
       "using": "Using this workout",
       "skip": "Skip",
       "diaryDays": "Days in your Diary",
-      "diaryDaysSet": "The Diary shows the workout on these days. A run you miss stays due.",
-      "diaryDaysHint": "Pick the days you plan to run, or leave them empty to see the workout every day.",
+      "diaryDaysSet": "The Diary shows the workout on these days. A workout you miss stays due.",
+      "diaryDaysHint": "Pick the days you plan to train, or leave them empty to see the workout every day.",
       "startDay": "First workout",
-      "startPick": "Pick a start date",
       "startChange": "Change start date",
       "startClear": "Start today",
       "tickFailed": "Activity saved, program not updated",
@@ -6753,7 +6800,7 @@
       "savedNextOn": "Next: {{label}} on {{date}}",
       "savedFinished": "Program complete. Well done!",
       "startDaySet": "Starts {{date}}. Nothing shows in the Diary before then.",
-      "startDayToday": "Starts today. Pick a later date if you want to begin then.",
+      "startDayToday": "Starts today, {{date}}. Pick a later date if you want to begin then.",
       "goalDay": "Goal date",
       "goalDaySet": "Nothing is scheduled after {{date}}. The schedule below says whether the program fits.",
       "goalDayHint": "Optional, for example a race day. The schedule below says whether the program fits before it.",
@@ -6764,7 +6811,7 @@
       "pickTitle": "Choose a workout",
       "weekTitle": "Week {{week}}",
       "pickOption": "{{mark}}Run {{run}} · {{minutes}} min",
-"pickOptionWalk": "{{mark}}Walk {{run}} · {{minutes}} min",
+      "pickOptionWalk": "{{mark}}Walk {{walk}} · {{minutes}} min",
       "doThis": "Do this workout",
       "switchHint": "Follow a plan that builds up week by week. Off by default.",
       "paused": "{{name}} is paused at {{done}} of {{total}} workouts. Switch it on to carry on.",
@@ -6783,13 +6830,64 @@
       "outline": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.",
       "minutes": "{{minutes}} min",
       "workoutsDone": "{{done}} of {{total}} workouts",
-      "optionLabel": "{{name}} · {{weeks}} weeks, {{runs}} runs a week",
-"optionLabelWalk": "{{name}} · {{weeks}} weeks, {{runs}} walks a week",
+      "optionLabel": "{{name}} · {{weeks}} weeks, {{runs}} workouts a week",
       "chooseTitle": "Choose a program",
       "change": "Change program",
       "switchTitle": "Switch to {{name}}?",
       "switchMessage": "You will start the new program at week 1. Your place in the current one is not kept.",
-      "switchConfirm": "Switch"
+      "switchConfirm": "Switch",
+      "startDayPast": "Started {{date}}. Your next workout is scheduled from today."
+    },
+    "watch": {
+      "title": "Record with",
+      "phone": "Phone GPS",
+      "outdoor": "Watch GPS",
+      "phoneIndoor": "Phone",
+      "watchIndoor": "Watch",
+      "phoneIndoorHint": "Your phone counts your steps to estimate the distance. Correct it to the treadmill’s figure afterwards.",
+      "phoneHint": "Your phone’s GPS records the route and distance.",
+      "indoorHint": "Your watch counts steps and estimates the distance. Correct it to the treadmill’s figure afterwards.",
+      "outdoorHint": "Your watch records it with its own GPS and heart rate sensor. Your phone can stay behind.",
+      "planName": "Intervals"
+    },
+    "title": {
+      "outdoorRun": "Outdoor run",
+      "indoorRun": "Indoor run",
+      "outdoorWalk": "Outdoor walk",
+      "indoorWalk": "Indoor walk",
+      "outdoorRide": "Outdoor ride",
+      "indoorRide": "Indoor ride"
+    },
+    "gps": {
+      "good": "GPS good",
+      "fair": "GPS fair",
+      "weak": "GPS weak",
+      "none": "No GPS"
+    },
+    "paceBand": {
+      "title": "Pace alert",
+      "description": "Buzzes, and speaks with voice cues on, when you stay outside your pace range.",
+      "fastest": "Fastest",
+      "slowest": "Slowest",
+      "faster": "{{edge}} 5 seconds faster",
+      "slower": "{{edge}} 5 seconds slower",
+      "workTitle": "Fast stretch pace",
+      "workDescription": "Alerts you when a fast stretch is outside this range.",
+      "easyTitle": "Easy stretch pace",
+      "easyDescription": "Alerts you when an easy stretch is outside this range."
+    },
+    "heartRateBand": {
+      "title": "Heart rate alert",
+      "description": "Needs your Apple Watch. Buzzes, and speaks with voice cues on, when your heart rate stays outside this range.",
+      "lowest": "Lowest",
+      "highest": "Highest",
+      "value": "{{value}} bpm",
+      "lower": "{{edge}} 5 bpm lower",
+      "higher": "{{edge}} 5 bpm higher",
+      "workTitle": "Fast stretch heart rate",
+      "workDescription": "Alerts you when your heart rate in a fast stretch is outside this range.",
+      "easyTitle": "Easy stretch heart rate",
+      "easyDescription": "Alerts you when your heart rate in an easy stretch is outside this range."
     }
   },
   "goals": {
@@ -7267,7 +7365,21 @@
     "effortHigh": "10 = all out",
     "rateFailed": "Could not save how hard that was.",
     "easeSuggestion": "Two hard workouts in a row. Repeating this one is a good way to build up safely.",
-    "advanceSuggestion": "Two easy workouts in a row. You could skip the next one and move on."
+    "advanceSuggestion": "Two easy workouts in a row. You could skip the next one and move on.",
+    "watchRunSaved": "Run from your watch saved",
+    "watchWalkSaved": "Walk from your watch saved",
+    "tapForSummary": "Tap to see the summary",
+    "newRecords_one": "New personal record",
+    "newRecords_other": "New personal records",
+    "viewRecords": "View all records",
+    "treadmillDistance": "Treadmill distance",
+    "treadmillHint": "The watch estimated this distance. Enter what the machine showed to correct it.",
+    "distanceUpdated": "Distance updated.",
+    "treadmillDistanceA11y": "Distance from the treadmill in {{unit}}",
+    "saveDistance": "Update",
+    "distanceInvalid": "Enter the distance from the machine.",
+    "distanceFailed": "Could not save the distance.",
+    "heartRate": "Heart rate"
   },
   "runPrograms": {
     "startWhenTitle": "Start {{name}}",
@@ -7275,8 +7387,7 @@
     "startPickDate": "Pick a date",
     "startToday": "Start today",
     "intro": "Follow a plan that builds up week by week. Pick a program to see what it involves, then start it when you are ready.",
-    "weeksRuns": "{{weeks}} weeks, {{runs}} runs a week",
-"weeksWalks": "{{weeks}} weeks, {{runs}} walks a week",
+    "weeksRuns": "{{weeks}} weeks, {{runs}} workouts a week",
     "guide": {
       "structure": {
         "beginner5k": "Weeks 1 to 4 alternate short runs with walks, starting at 1 minute of running and building to 5-minute runs. Weeks 5 and 6 mix run and walk intervals with one continuous run. Weeks 7 to 9 are continuous runs of 25, 28 and then 30 minutes.",
@@ -7289,7 +7400,7 @@
       "title": "How the plans work",
       "workout": {
         "title": "Each workout",
-        "body": "A workout starts with a warm-up walk (a gentle jog before speed sessions), then the run and walk steps in order, then a cool-down walk. The app tells you when to switch, so you can put your phone away. Weeks are not tied to the calendar: if you miss a run, the same workout stays due."
+        "body": "A workout starts with a warm-up walk (a gentle jog before speed sessions), then its steps in order, then a cool-down walk. The app tells you when to switch, so you can put your phone away. Weeks are not tied to the calendar: if you miss a workout, the same one stays due."
       },
       "run": {
         "title": "How hard to run",
@@ -7301,7 +7412,7 @@
       },
       "listen": {
         "title": "Listening to your body",
-        "body": "Aches that settle after a day are normal; sharp or lasting pain is not, so stop and rest. If a week was too hard, repeat it or ask Sparky to ease the next workouts. Leave a rest day between runs while you are starting out. This is general guidance, not medical advice: if you are unsure about starting to run, check with your doctor first."
+        "body": "Aches that settle after a day are normal; sharp or lasting pain is not, so stop and rest. If a week was too hard, repeat it or ask Sparky to ease the next workouts. Leave a rest day between workouts while you are starting out. This is general guidance, not medical advice: if you are unsure about starting a new exercise plan, check with your doctor first."
       }
     },
     "start": "Start program",
@@ -7311,23 +7422,24 @@
       "scheduled": "Scheduled",
       "upNext": "Up next",
       "loggedRun": "You logged a run today. Count it as this workout?",
+      "loggedWalk": "You logged a walk today. Count it as this workout?",
       "countIt": "Count it",
       "start": "Start",
       "title": "Week {{week}}, run {{run}} · {{minutes}} min",
-"titleWalk": "Week {{week}}, walk {{run}} · {{minutes}} min"
+      "titleWalk": "Week {{week}}, walk {{walk}} · {{minutes}} min"
     },
     "calendar": {
       "title": "Schedule",
-      "noDays_one": "{{count}} workout left. Pick your run days to see when each one falls; until then the Diary offers the next one every day.",
-      "noDays_other": "{{count}} workouts left. Pick your run days to see when each one falls; until then the Diary offers the next one every day.",
+      "noDays_one": "{{count}} workout left. Pick your workout days to see when each one falls; until then the Diary offers the next one every day.",
+      "noDays_other": "{{count}} workouts left. Pick your workout days to see when each one falls; until then the Diary offers the next one every day.",
       "finish": "Finishes on {{date}}.",
       "fitsBefore_one": "On track: you finish on {{date}}, {{count}} day before your goal date.",
       "fitsBefore_other": "On track: you finish on {{date}}, {{count}} days before your goal date.",
-      "fitsAfter_one": "At this pace you finish on {{date}}, {{count}} day after your goal date. Add a run day or move the date.",
-      "fitsAfter_other": "At this pace you finish on {{date}}, {{count}} days after your goal date. Add a run day or move the date.",
-      "moves": "A run you miss is not skipped: the dates after it move along.",
+      "fitsAfter_one": "At this pace you finish on {{date}}, {{count}} day after your goal date. Add a workout day or move the date.",
+      "fitsAfter_other": "At this pace you finish on {{date}}, {{count}} days after your goal date. Add a workout day or move the date.",
+      "moves": "A workout you miss is not skipped: the dates after it move along.",
       "row": "Week {{week}}, run {{run}} · {{minutes}} min",
-"rowWalk": "Week {{week}}, walk {{run}} · {{minutes}} min",
+      "rowWalk": "Week {{week}}, walk {{walk}} · {{minutes}} min",
       "showAll_one": "Show {{count}}",
       "showAll_other": "Show all {{count}}",
       "showLess": "Show fewer",
@@ -7352,5 +7464,43 @@
     "title": "Voice",
     "test": "Test voice",
     "sample": "This is how your recording cues will sound."
+  },
+  "personalRecords": {
+    "group": {
+      "run": "Running",
+      "walk": "Walking",
+      "ride": "Cycling",
+      "swim": "Swimming",
+      "other": "Other"
+    },
+    "standard": {
+      "1k": "1 km",
+      "1mi": "1 mile",
+      "5k": "5 km",
+      "10k": "10 km",
+      "15k": "15 km",
+      "halfMarathon": "Half marathon",
+      "marathon": "Marathon"
+    },
+    "loadFailed": "Could not load your records.",
+    "empty": "No records yet. Record or import a run, walk or ride of at least 1 km and your best efforts show up here.",
+    "rowA11y": "{{distance}}, {{time}}, {{pace}}, {{date}}"
+  },
+  "watchRunLive": {
+    "paceAlert": "Pace alert",
+    "heartRateAlert": "Heart rate alert",
+    "open": "Open the workout on your watch",
+    "onWatch": "On your watch",
+    "autoPaused": "Auto-paused",
+    "walking": "Walking on your watch",
+    "running": "Running on your watch",
+    "next": "Next: {{step}}",
+    "calories": "Calories",
+    "kcal": "kcal",
+    "ended": "The workout on your watch has ended or is out of range. A finished workout is added to your diary.",
+    "indoorNote": "Indoors the distance is the watch’s estimate. You can correct it to the treadmill’s figure when you finish.",
+    "starting": "Starting on your watch…",
+    "startingHint": "Raise your wrist and open SparkyFitness if it does not start on its own. The workout starts as soon as the watch gets the request.",
+    "controlFailed": "Could not reach your watch"
   }
 }

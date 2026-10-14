@@ -199,17 +199,11 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
                 {programName(t, program.id)}
               </Text>
               <Text className="text-text-muted text-xs mt-0.5">
-                {program.activity === 'walk'
-                  ? t('runPrograms.weeksWalks', {
-                      weeks: program.weeks,
-                      runs: program.workoutsPerWeek,
-                      defaultValue: '{{weeks}} weeks, {{runs}} walks a week',
-                    })
-                  : t('runPrograms.weeksRuns', {
-                      weeks: program.weeks,
-                      runs: program.workoutsPerWeek,
-                      defaultValue: '{{weeks}} weeks, {{runs}} runs a week',
-                    })}
+                {t('runPrograms.weeksRuns', {
+                  weeks: program.weeks,
+                  runs: program.workoutsPerWeek,
+                  defaultValue: '{{weeks}} weeks, {{runs}} workouts a week',
+                })}
               </Text>
               <Text className="text-text-secondary text-sm mt-2">
                 {programDescription(t, program.id)}

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-10_
+_Last updated: 2026-10-13_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -25,7 +25,7 @@ If a task also touches `shared/`, the frontend, or the mobile app, read the rele
 - Dev boot path: `pnpm start` -> `nodemon` -> `tsx index.ts`
 - `index.ts` loads `../.env`, applies file-backed secrets, runs preflight checks, calls `initializeDatabase()` for migrations and RLS policies, then imports `SparkyFitnessServer.ts`
 - Main app shell: `SparkyFitnessServer.ts`
-- Stack: Express 5, PostgreSQL via `pg`, Better Auth, Zod, TypeScript 5, Vitest 4, ESLint 10
+- Stack: Express 5, PostgreSQL via `pg`, Better Auth, Zod, TypeScript 6, Vitest 5, ESLint 10
 - Module system: ESM with `type: "module"` and `moduleResolution: "NodeNext"`
 - The package is now effectively TypeScript-first; almost all source files are `.ts`
 - Main domains: food and meal tracking, exercise logging, health and sleep data, sleep science, fasting, medications, symptom and episode tracking, mood, menstrual cycle and pregnancy, reporting, AI chat, onboarding, identity, admin tooling, and external provider integrations
@@ -226,9 +226,10 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 
 ### AI Services
 
-- AI calls go through the Vercel `ai` SDK (v6) with provider adapters for OpenAI, Anthropic, and Google, plus OpenAI-compatible, Mistral, Groq, OpenRouter, and Ollama service types
+- AI calls go through the Vercel `ai` SDK (v7) with provider adapters for OpenAI, Anthropic, and Google, plus OpenAI-compatible, Mistral, Groq, OpenRouter, and Ollama service types
 - `ai/config.ts` holds default model and vision-model selection per provider; `ai/providerDispatch.ts` is the unified dispatch helper used by chat, food-photo analysis, nutrition-label scan, and unit conversion
 - Prefer routing new AI features through `providerDispatch.ts` instead of calling provider SDKs directly
+- Web and mobile voice transcription use `POST /api/chat/transcribe` in `routes/chatRoutes.ts` and `services/voiceTranscriptionService.ts`; its multipart fields, response, MIME types, and 10 MB limit come from `shared/src/schemas/api/VoiceTranscription.api.zod.ts`. Audio stays in memory, uses actor-scoped AI settings with `supports_audio_input`, and all outbound calls use `createGuardedFetch`. Voice and chat providers are selected independently; transcription never executes chatbot tools or writes diary entries. `voice_input_enabled` and `active_voice_ai_service_id` in user preferences synchronize voice UI across clients; null selects System recognition, and disabling voice preserves the selection. Preference writes validate these fields using the shared voice-preferences schema.
 - Chatbot tool calls run in-process through the registry in `ai/tools/`
 - `ai/tools/index.ts` exposes `buildChatbotTools(userId, tz)`, composing the per-domain builders (`build<Domain>Tools` in `ai/tools/<domain>Tools.ts`); handlers close over the authenticated user — so two-actor services receive `(userId, userId, ...)` — and the user's IANA timezone, used for "today" defaults and day bucketing
 - Tool handlers follow a fixed contract: publish a flat Zod schema, validate with a strict union `safeParse` inside `execute`, orchestrate through existing services and repositories, and never throw - errors come back as `ERRORS.*` strings from `ai/tools/errors.ts`
@@ -264,6 +265,11 @@ When searching, ignore noisy/generated directories unless you explicitly need th
   inspect `POST /exercise-entries/:id/watch-telemetry` in `routes/exerciseEntryRoutes.ts`, `services/exerciseEntryService.ts`'s `attachWatchTelemetryToExerciseEntry`, and `models/exerciseEntry.ts`'s `applyWatchTelemetryAtomically`. Distinct from `services/healthDataHandlers.ts`'s `persistWorkoutTelemetry`, which creates a new entry as part of importing a whole synced workout (HealthKit/Health Connect/Garmin) — this route only fills in avg/max HR, `exercise_entry_hr_zones` and `calories_burned` on an entry that already exists, and it also stores the posted series as `heart_rate` samples tagged with the entry (`storeHeartRateSeries`, source `SparkyFitness Watch`, `merge` over the workout's own span but only this entry's samples, and only after that snapshot was accepted under the row lock, best effort) because the heart rate chart of an entry with no GPS track reads those samples and would otherwise wait on a Health sync. `activeEnergyKcal` is a real measurement from the watch and is written to BOTH `calories_burned` (the figure the diary totals) and `active_calories` (a telemetry column the ordinary entry update preserves). That second write is what makes the measurement survive a later edit: `resolveEditedCaloriesBurned` in `services/exerciseService.ts` prefers a stored `active_calories` over the recomputed duration-and-sets estimate, so editing a note or a weight no longer replaces what a watch measured with a formula. A client-sent `calories_burned` still overrides both. Both body fields are individually optional (HealthKit permissions are per type) and the model does a partial UPDATE, so a calories-only post must not blank heart rate an earlier post attached.
 - Attaching a phone-recorded GPS track to an existing exercise entry (mobile `RecordActivityScreen`):
   inspect `POST /exercise-entries/:id/gps-track` in `routes/exerciseEntryRoutes.ts` and `services/exerciseEntryService.ts`'s `attachGpsTrackToExerciseEntry`, with the request schema `attachExerciseEntryGpsTrackRequestSchema` in `shared/src/schemas/api/ExerciseEntries.api.zod.ts`. It stores the route and laps (laps arrive as bare windows and are derived by `deriveLaps`) and backfills speed/elevation/moving-time with `deriveWorkoutTelemetry`, all in one transaction. Both inserts upsert per entry, so a retried post replaces the track. Use this rather than `/api/health-data` for app-recorded activities: the health-data path range-deletes a source's entries for the affected days.
+- Attaching laps to an entry with no GPS track (an indoor run recorded on the watch):
+  inspect `POST /exercise-entries/:id/laps` in `routes/exerciseEntryRoutes.ts` and `services/exerciseEntryService.ts`'s `attachLapsToExerciseEntry`, with `attachExerciseEntryLapsRequestSchema` in `shared/src/schemas/api/ExerciseEntries.api.zod.ts`. The client sends the marked windows with the distance and average heart rate it worked out; the server derives duration and speed and upserts by lap index into `exercise_entry_laps`, so a retry replaces them. Entries with a track get their laps from `/gps-track` instead.
+  For an indoor run's pace chart, `POST`/`GET /exercise-entries/:id/distance-series` (`attachDistanceSeriesToExerciseEntry`, `getExerciseEntryDistanceSeries`, table `exercise_entry_distance_series`, rows of `[active seconds, metres]`; `setExerciseEntryDistance` rescales them with the laps).
+- Correcting the distance of an entry with no GPS track (a treadmill run, from the summary screen):
+  inspect `POST /exercise-entries/:id/distance` in `routes/exerciseEntryRoutes.ts`, `services/exerciseEntryService.ts`'s `setExerciseEntryDistance` and `setExerciseEntryDistanceRequestSchema` in `shared/src/schemas/api/ExerciseEntries.api.zod.ts`. It changes only the entry's `distance`, its sets' distance and any laps (`distance_meters` and speed scaled by new over old distance), in one transaction, so measured heart rate and energy are kept; an entry with a GPS track is refused with 409.
 - Water, hydration, caffeine, or alcohol issue:
   inspect `services/hydrationTotalsService.ts` (the single owner of the daily water formula), `services/measurementService.ts` (the container "+/-" path and the container->food link), `services/caffeineKineticsService.ts` / `services/alcoholWeekService.ts`, `models/waterContainerRepository.ts`, and the shared maths in `../shared/src/nutrients/`
 - Self-service "delete synced data by source" issue:

@@ -205,20 +205,12 @@ const RunProgramCard: React.FC<Props> = ({
   );
 
   const programOptions: PickerOption<string>[] = RUN_PROGRAMS.map((p) => ({
-    label:
-      p.activity === 'walk'
-        ? t('recordActivity.program.optionLabelWalk', {
-            name: programName(t, p.id),
-            weeks: p.weeks,
-            runs: p.workoutsPerWeek,
-            defaultValue: '{{name}} · {{weeks}} weeks, {{runs}} walks a week',
-          })
-        : t('recordActivity.program.optionLabel', {
-            name: programName(t, p.id),
-            weeks: p.weeks,
-            runs: p.workoutsPerWeek,
-            defaultValue: '{{name}} · {{weeks}} weeks, {{runs}} runs a week',
-          }),
+    label: t('recordActivity.program.optionLabel', {
+      name: programName(t, p.id),
+      weeks: p.weeks,
+      runs: p.workoutsPerWeek,
+      defaultValue: '{{name}} · {{weeks}} weeks, {{runs}} workouts a week',
+    }),
     value: p.id,
   }));
 
@@ -254,12 +246,19 @@ const RunProgramCard: React.FC<Props> = ({
             const outline = programOutline(program);
             return (
               <Text className="text-text-secondary text-xs mt-2">
-                {t('recordActivity.program.outline', {
-                  weekOne: outline.firstWeek.join(', '),
-                  peak: outline.peakRunMinutes,
-                  defaultValue:
-                    'Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.',
-                })}
+                {program.activity === 'walk'
+                  ? t('recordActivity.program.outlineWalk', {
+                      weekOne: outline.firstWeek.join(', '),
+                      peak: outline.peakRunMinutes,
+                      defaultValue:
+                        'Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of brisk walking.',
+                    })
+                  : t('recordActivity.program.outline', {
+                      weekOne: outline.firstWeek.join(', '),
+                      peak: outline.peakRunMinutes,
+                      defaultValue:
+                        'Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.',
+                    })}
               </Text>
             );
           })()}
@@ -281,10 +280,10 @@ const RunProgramCard: React.FC<Props> = ({
           label:
             status.program.activity === 'walk'
               ? t('recordActivity.program.pickOptionWalk', {
-                  run: workout.day + 1,
+                  walk: workout.day + 1,
                   minutes: planMinutes(workout.plan),
                   mark: index < status.done ? '✓ ' : '',
-                  defaultValue: '{{mark}}Walk {{run}} · {{minutes}} min',
+                  defaultValue: '{{mark}}Walk {{walk}} · {{minutes}} min',
                 })
               : t('recordActivity.program.pickOption', {
                   run: workout.day + 1,
@@ -309,7 +308,8 @@ const RunProgramCard: React.FC<Props> = ({
       })
     : '';
   const today = toLocalDateString(new Date(now));
-  const futureStart = !!schedule.startDay && schedule.startDay > today;
+  const hasStart = !!schedule.startDay;
+  const futureStart = hasStart && (schedule.startDay as string) > today;
   const dayLabel = (day: string): string => formatDayLabel(day);
   const fraction = status.total > 0 ? status.done / status.total : 0;
   return (
@@ -421,11 +421,11 @@ const RunProgramCard: React.FC<Props> = ({
             {schedule.days.length > 0
               ? t('recordActivity.program.diaryDaysSet', {
                   defaultValue:
-                    'The Diary shows the workout on these days. A run you miss stays due.',
+                    'The Diary shows the workout on these days. A workout you miss stays due.',
                 })
               : t('recordActivity.program.diaryDaysHint', {
                   defaultValue:
-                    'Pick the days you plan to run, or leave them empty to see the workout every day.',
+                    'Pick the days you plan to train, or leave them empty to see the workout every day.',
                 })}
           </Text>
           <Text className="text-text-primary text-sm font-semibold mt-3">
@@ -440,25 +440,28 @@ const RunProgramCard: React.FC<Props> = ({
                   defaultValue:
                     'Starts {{date}}. Nothing shows in the Diary before then.',
                 })
-              : t('recordActivity.program.startDayToday', {
-                  defaultValue:
-                    'Starts today. Pick a later date if you want to begin then.',
-                })}
+              : hasStart
+                ? t('recordActivity.program.startDayPast', {
+                    date: dayLabel(schedule.startDay as string),
+                    defaultValue:
+                      'Started {{date}}. Your next workout is scheduled from today.',
+                  })
+                : t('recordActivity.program.startDayToday', {
+                    date: dayLabel(today),
+                    defaultValue:
+                      'Starts today, {{date}}. Pick a later date if you want to begin then.',
+                  })}
           </Text>
           <View className="flex-row">
             <Button
               variant="link"
               onPress={() => calendarRef.current?.present()}
             >
-              {futureStart
-                ? t('recordActivity.program.startChange', {
-                    defaultValue: 'Change start date',
-                  })
-                : t('recordActivity.program.startPick', {
-                    defaultValue: 'Pick a start date',
-                  })}
+              {t('recordActivity.program.startChange', {
+                defaultValue: 'Change start date',
+              })}
             </Button>
-            {futureStart ? (
+            {hasStart ? (
               <Button
                 variant="link"
                 onPress={() => onSchedule({ startDay: null })}
@@ -566,9 +569,7 @@ const RunProgramCard: React.FC<Props> = ({
       <CalendarSheet
         ref={calendarRef}
         selectedDate={schedule.startDay ?? today}
-        onSelectDate={(day) =>
-          onSchedule({ startDay: day <= today ? null : day })
-        }
+        onSelectDate={(day) => onSchedule({ startDay: day })}
       />
     </View>
   );
