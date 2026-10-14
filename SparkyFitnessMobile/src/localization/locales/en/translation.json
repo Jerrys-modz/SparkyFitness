@@ -4560,7 +4560,8 @@
       "clearDay": "Show whole period",
       "empty": "No {{nutrient}} logged for this selection",
       "loadFailed": "Failed to load food sources",
-      "share": "{{percent}}%"
+      "share": "{{percent}}%",
+      "servingAmount": "{{quantity}} {{unit}}"
     }
   },
   "workoutPresetDetail": {

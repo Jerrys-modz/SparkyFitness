@@ -25,6 +25,7 @@ type NutrientTrendsScreenProps = RootStackScreenProps<'NutrientTrends'>;
 
 const NutrientTrendsScreen: React.FC<NutrientTrendsScreenProps> = ({
   route,
+  navigation,
 }) => {
   const { t } = useTranslation();
   const { nutrientKey, nutrientLabel, unit, goal } = route.params;
@@ -239,6 +240,9 @@ const NutrientTrendsScreen: React.FC<NutrientTrendsScreenProps> = ({
           selectedDay={selectedDay}
           selectedDayLabel={selectedDay ? formatTooltipDate(selectedDay) : ''}
           onClearDay={() => setSelectedDay(null)}
+          onViewEntry={(entry) =>
+            navigation.navigate('FoodEntryView', { entry })
+          }
         />
       </ScrollView>
     </View>

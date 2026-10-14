@@ -41,6 +41,7 @@ const renderCard = (
       selectedDay={null}
       selectedDayLabel=""
       onClearDay={jest.fn()}
+      onViewEntry={jest.fn()}
       {...props}
     />
   );
@@ -74,5 +75,16 @@ describe('NutrientTopSourcesCard', () => {
   it('shows an empty state when nothing matches', () => {
     const { getByText } = renderCard({ nutrientKey: 'iron' });
     expect(getByText('No Calcium logged for this selection')).toBeTruthy();
+  });
+
+  it('expands a source to its entries and opens one', () => {
+    const onViewEntry = jest.fn();
+    const { getByTestId, queryByTestId } = renderCard({ onViewEntry });
+    expect(queryByTestId('top-source-entry-1')).toBeNull();
+    fireEvent.press(getByTestId('top-source-toggle-0'));
+    fireEvent.press(getByTestId('top-source-entry-1'));
+    expect(onViewEntry).toHaveBeenCalledWith(entries[0]);
+    fireEvent.press(getByTestId('top-source-toggle-0'));
+    expect(queryByTestId('top-source-entry-1')).toBeNull();
   });
 });
