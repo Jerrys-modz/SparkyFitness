@@ -152,8 +152,10 @@ struct WatchRunView: View {
     /// switch is only live once the watch has one.
     @ViewBuilder
     private var paceAlertRow: some View {
-        let band = run.settings.paceBand ?? store.context.runPaceBand
         let perStep = run.plan?.steps.contains { $0.pace != nil } ?? false
+        // Describe what the alert will judge by: the run's own range, else the
+        // steps' ranges, else the phone's saved one (not shown over a plan's).
+        let band = run.settings.paceBand ?? (perStep ? nil : store.context.runPaceBand)
         if band != nil || perStep {
             Toggle(isOn: Binding(
                 get: { run.paceAlertOn },
@@ -179,8 +181,8 @@ struct WatchRunView: View {
     /// Like the pace alert: the range is set on the phone.
     @ViewBuilder
     private var heartRateAlertRow: some View {
-        let band = run.settings.heartRateBand ?? store.context.runHeartRateBand
         let perStep = run.plan?.steps.contains { $0.heartRate != nil } ?? false
+        let band = run.settings.heartRateBand ?? (perStep ? nil : store.context.runHeartRateBand)
         if band != nil || perStep {
             Toggle(isOn: Binding(
                 get: { run.heartRateAlertOn },
