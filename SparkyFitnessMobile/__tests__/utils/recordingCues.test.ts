@@ -7,11 +7,13 @@ import {
   paceAlertCue,
   halfwayCue,
   lastMinuteCue,
+  milestoneCue,
   programDoneCue,
   programStartCue,
   splitTrendNote,
   spokenDuration,
   splitCue,
+  stepCountdownCue,
   stepWarningCue,
 } from '../../src/utils/recordingCues';
 
@@ -215,5 +217,18 @@ describe('program cues', () => {
     expect(
       programDoneCue(tt, { activity: 'run', done: 27, total: 27, next: null })
     ).toBe('Program complete. Well done.');
+  });
+});
+
+describe('countdown and milestone cues', () => {
+  it('counts down in one breath', () => {
+    expect(stepCountdownCue(tt)).toBe('Three. Two. One.');
+  });
+
+  it('names each milestone distance', () => {
+    expect(milestoneCue(tt, 5000)).toBe('5K done. Nice work.');
+    expect(milestoneCue(tt, 10000)).toBe('10K done. Strong effort.');
+    expect(milestoneCue(tt, 21097.5)).toBe('Half marathon distance. Amazing.');
+    expect(milestoneCue(tt, 42195)).toBe('Marathon distance. Incredible.');
   });
 });

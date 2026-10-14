@@ -103,6 +103,16 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
         next.map { "Ten seconds. Next, \($0)." } ?? "Ten seconds to go."
     }
 
+    static let stepCountdownText = "Three. Two. One."
+
+    /// Said when the distance passes 5K, 10K, a half marathon or a marathon.
+    static func milestoneText(meters: Double) -> String {
+        if meters >= 42195 { return "Marathon distance. Incredible." }
+        if meters >= 21097.5 { return "Half marathon distance. Amazing." }
+        if meters >= 10000 { return "10K done. Strong effort." }
+        return "5K done. Nice work."
+    }
+
     static let halfwayText = "Halfway there. Keep it up."
     static let lastMinuteText = "One minute left. Finish strong."
 

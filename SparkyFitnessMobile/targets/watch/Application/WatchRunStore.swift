@@ -268,7 +268,8 @@ final class WatchRunStore: ObservableObject {
                     self.coaching = WatchCoachingState.resumed(
                         at: resumedAt,
                         plan: self.plan,
-                        checkInMinutes: self.settings.checkInMinutes ?? 0
+                        checkInMinutes: self.settings.checkInMinutes ?? 0,
+                        distanceMeters: self.place == .indoor ? nil : self.metrics.distanceMeters
                     )
                     self.startStepTimer()
                     self.startLiveTimer()
@@ -524,7 +525,7 @@ final class WatchRunStore: ObservableObject {
 
     private func startStepTimer() {
         stopStepTimer()
-        guard plan != nil || (settings.checkInMinutes ?? 0) > 0 else { return }
+        guard plan != nil || (settings.checkInMinutes ?? 0) > 0 || place == .outdoor else { return }
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.cueStepIfDue()
@@ -572,17 +573,24 @@ final class WatchRunStore: ObservableObject {
     private func cueCoachingIfDue() {
         guard phase == .running else { return }
         let checkInMinutes = settings.checkInMinutes ?? 0
-        guard plan != nil || checkInMinutes > 0 else { return }
+        guard plan != nil || checkInMinutes > 0 || place == .outdoor else { return }
         let elapsed = healthKit.elapsed
+        // Indoors the distance is only an estimate, so no milestones there.
         let result = WatchCoaching.next(
             elapsed: elapsed,
             plan: plan,
             checkInMinutes: checkInMinutes,
+            distanceMeters: place == .indoor ? nil : metrics.distanceMeters,
             state: coaching
         )
         coaching = result.state
         guard settings.voiceCues, let cue = result.cues.first else { return }
         switch cue {
+        case .stepCountdown:
+            // For this second only: it must not wait behind another cue.
+            WatchRunCues.shared.speak(WatchRunCues.stepCountdownText, interrupt: true)
+        case .milestone(let meters):
+            WatchRunCues.shared.speak(WatchRunCues.milestoneText(meters: meters))
         case .stepWarning(let next):
             WatchRunCues.shared.speak(WatchRunCues.stepWarningText(next: next))
         case .lastMinute:

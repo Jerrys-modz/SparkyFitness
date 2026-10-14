@@ -55,6 +55,8 @@ import {
   halfwayCue,
   intervalCue,
   lastMinuteCue,
+  milestoneCue,
+  stepCountdownCue,
   stepWarningCue,
   intervalsDoneCue,
   heartRateAlertCue,
@@ -67,6 +69,7 @@ import {
 import {
   CHECK_IN_CHOICES,
   INITIAL_COACHING_STATE,
+  RACE_MILESTONES_METERS,
   nextCoachingCues,
   type CoachingState,
 } from '../utils/coachingCues';
@@ -456,9 +459,12 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
         added++;
       }
     }
-    if (added > 0 && cueSplit()) sessionChanged = true;
+    const splitText = added > 0 ? cueSplit() : null;
+    if (splitText) sessionChanged = true;
     if (advanceIntervals(Date.now())) sessionChanged = true;
-    if (advanceCoaching(Date.now())) sessionChanged = true;
+    // Spoken with the split, so a milestone or check-in due at the same fix
+    // does not cut the split off.
+    if (advanceCoaching(Date.now(), splitText)) sessionChanged = true;
     if (added > 0) checkPaceBand(Date.now());
     if (sessionChanged) await persistSession();
     if (added === 0 && !pointsRewritten) {
@@ -653,29 +659,29 @@ function cueEvent(current: RecordingSession | null, event: CueEvent): void {
   speakRecordingCue(eventCue(i18n.t.bind(i18n), event));
 }
 
-/** Announces a newly completed kilometer or mile, if there is one. */
-function cueSplit(): boolean {
+/**
+ * Marks a newly completed kilometer or mile as said and returns the words for
+ * it, or null when there is none. The caller speaks them.
+ */
+function cueSplit(): string | null {
   const unit = session?.audioCues;
-  if (!session || !unit) return false;
+  if (!session || !unit) return null;
   const unitMeters = cueUnitMeters(unit);
   const cued = session.cuedSplits ?? 0;
   const splits = computeSplits(points, unitMeters).filter((s) => !s.partial);
-  if (splits.length <= cued) return false;
+  if (splits.length <= cued) return null;
   // Several can complete in one batch after a gap; say only the latest.
   const latest = splits[splits.length - 1];
   const totalSeconds = splits.reduce((sum, s) => sum + s.durationSeconds, 0);
   const previous = splits.length > 1 ? splits[splits.length - 2] : undefined;
   session = { ...session, cuedSplits: splits.length };
-  speakRecordingCue(
-    splitCue(i18n.t.bind(i18n), {
-      completed: splits.length,
-      totalSeconds,
-      splitSeconds: latest.durationSeconds,
-      previousSplitSeconds: previous?.durationSeconds,
-      unit,
-    })
-  );
-  return true;
+  return splitCue(i18n.t.bind(i18n), {
+    completed: splits.length,
+    totalSeconds,
+    splitSeconds: latest.durationSeconds,
+    previousSplitSeconds: previous?.durationSeconds,
+    unit,
+  });
 }
 
 /** Where the pace stands against the band; not saved, a restore starts fresh. */
@@ -842,51 +848,85 @@ function advanceIntervals(now: number): boolean {
 }
 
 /**
- * Speaks the next coaching cue that is due: a ten-second warning before a step
- * ends, halfway and the last minute of a plan workout, and the periodic
- * check-in. At most one is spoken a tick; the rest are marked said.
+ * Speaks the next coaching cue that is due: "three, two, one" and a
+ * ten-second warning around a step end, halfway and the last minute of a plan
+ * workout, a 5K / 10K / half / marathon milestone, and the periodic check-in.
+ * At most one coaching cue is spoken a tick; the rest are marked said. A split
+ * announced at the same fix (`splitText`) is spoken first, in the same breath,
+ * because a second utterance would cut it off.
  */
-function advanceCoaching(now: number): boolean {
-  if (!session || session.status !== 'recording') return false;
-  if (!session.audioCues) return false;
+function advanceCoaching(
+  now: number,
+  splitText: string | null = null
+): boolean {
+  if (!session) return false;
+  const speakSplit = () => {
+    if (splitText) speakRecordingCue(splitText);
+  };
+  const unit = session.audioCues;
+  if (!unit) return false;
+  if (session.status !== 'recording') {
+    // Paused by the same batch of fixes: the split was still completed.
+    speakSplit();
+    return false;
+  }
   const checkInMinutes = session.checkInMinutes ?? 0;
   const plan = session.intervals?.plan ?? null;
-  if (!plan && checkInMinutes <= 0) return false;
+  const outdoors = !session.indoor;
+  if (!plan && checkInMinutes <= 0 && !outdoors) {
+    speakSplit();
+    return false;
+  }
   const elapsed = elapsedSeconds(session, now);
-  const { cues, state } = nextCoachingCues({
+  const state = { ...INITIAL_COACHING_STATE, ...session.coaching };
+  // Only worth working out while a milestone is still ahead.
+  const distance =
+    outdoors && state.milestones < RACE_MILESTONES_METERS.length
+      ? summarizeRecording(points).distanceMeters
+      : null;
+  const { cues, state: nextState } = nextCoachingCues({
     elapsedSeconds: elapsed,
     plan,
     checkInMinutes,
-    state: session.coaching ?? INITIAL_COACHING_STATE,
+    distanceMeters: distance,
+    state,
   });
-  if (cues.length === 0) return false;
-  session = { ...session, coaching: state };
+  if (cues.length === 0) {
+    speakSplit();
+    return false;
+  }
+  session = { ...session, coaching: nextState };
   const t = i18n.t.bind(i18n);
   const cue = cues[0];
-  if (cue.kind === 'stepWarning' && plan) {
-    speakRecordingCue(stepWarningCue(t, { next: cue.next, style: plan.style }));
+  let text: string | null = null;
+  if (cue.kind === 'stepCountdown') {
+    text = stepCountdownCue(t);
+  } else if (cue.kind === 'stepWarning' && plan) {
+    text = stepWarningCue(t, { next: cue.next, style: plan.style });
   } else if (cue.kind === 'lastMinute') {
-    speakRecordingCue(lastMinuteCue(t));
+    text = lastMinuteCue(t);
+  } else if (cue.kind === 'milestone') {
+    text = milestoneCue(t, cue.meters);
   } else if (cue.kind === 'halfway') {
-    speakRecordingCue(halfwayCue(t));
+    text = halfwayCue(t);
   } else if (cue.kind === 'checkIn') {
-    const unit = session.audioCues;
-    if (!unit) return true;
-    const distance = session.indoor
-      ? null
-      : summarizeRecording(points).distanceMeters;
-    speakRecordingCue(
-      checkInCue(t, {
-        totalSeconds: elapsed,
-        distanceMeters: distance,
-        secondsPerUnit:
-          distance === null
-            ? null
-            : paceSecondsPerUnit(distance, elapsed, cueUnitMeters(unit)),
-        unit,
-      })
-    );
+    const checkInDistance = outdoors
+      ? summarizeRecording(points).distanceMeters
+      : null;
+    text = checkInCue(t, {
+      totalSeconds: elapsed,
+      distanceMeters: checkInDistance,
+      secondsPerUnit:
+        checkInDistance === null
+          ? null
+          : paceSecondsPerUnit(checkInDistance, elapsed, cueUnitMeters(unit)),
+      unit,
+    });
   }
+  // A countdown is for this second only: it must not wait behind a split.
+  const parts = cue.kind === 'stepCountdown' ? [text] : [splitText, text];
+  const spoken = parts.filter((part): part is string => !!part).join(' ');
+  if (spoken) speakRecordingCue(spoken);
   return true;
 }
 

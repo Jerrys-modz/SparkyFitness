@@ -8,18 +8,24 @@ struct WatchCoachingState: Equatable {
     var warnedStep = -1
     var halfway = false
     var lastMinute = false
+    var countdownStep = -1
+    var milestones = 0
 
     /// The state for a run picked up again at `elapsed`: whatever has already
     /// passed is treated as said.
-    static func resumed(at elapsed: TimeInterval, plan: WatchRunPlan?, checkInMinutes: Int) -> WatchCoachingState {
+    static func resumed(at elapsed: TimeInterval, plan: WatchRunPlan?, checkInMinutes: Int, distanceMeters: Double? = nil) -> WatchCoachingState {
         var state = WatchCoachingState()
         if checkInMinutes > 0 {
             state.checkIns = Int(elapsed / Double(checkInMinutes * 60))
+        }
+        if let distanceMeters {
+            state.milestones = WatchCoaching.raceMilestonesMeters.filter { distanceMeters >= $0 }.count
         }
         if let plan {
             let total = plan.totalSeconds
             if let position = plan.position(at: elapsed) {
                 state.warnedStep = position.finished ? plan.steps.count : position.index - 1
+                state.countdownStep = state.warnedStep
                 if !position.finished, position.remaining <= WatchCoaching.stepWarningSeconds,
                    plan.steps[position.index].seconds >= WatchCoaching.minWarnedStepSeconds {
                     state.warnedStep = position.index
@@ -33,7 +39,9 @@ struct WatchCoachingState: Equatable {
 }
 
 enum WatchCoachingCue: Equatable {
+    case stepCountdown
     case stepWarning(next: String?)
+    case milestone(meters: Double)
     case lastMinute
     case halfway
     case checkIn(minutes: Int)
@@ -43,7 +51,10 @@ enum WatchCoachingCue: Equatable {
 /// constants and the order of the cues must stay in step with it.
 enum WatchCoaching {
     static let stepWarningSeconds = 10.0
+    static let stepCountdownSeconds = 3.0
     static let minWarnedStepSeconds = 30.0
+    /// 5K, 10K, a half marathon and a marathon, whatever the unit.
+    static let raceMilestonesMeters: [Double] = [5000, 10000, 21097.5, 42195]
     static let minHalfwayPlanSeconds = 5.0 * 60
     static let minLastMinutePlanSeconds = 3.0 * 60
 
@@ -53,12 +64,22 @@ enum WatchCoaching {
         elapsed: TimeInterval,
         plan: WatchRunPlan?,
         checkInMinutes: Int,
+        distanceMeters: Double? = nil,
         state: WatchCoachingState
     ) -> (cues: [WatchCoachingCue], state: WatchCoachingState) {
         var state = state
         var cues: [WatchCoachingCue] = []
 
         if let plan {
+            if let position = plan.position(at: elapsed), !position.finished,
+               plan.steps[position.index].seconds >= minWarnedStepSeconds,
+               position.remaining <= stepCountdownSeconds,
+               position.index > state.countdownStep {
+                cues.append(.stepCountdown)
+                // The countdown is the more urgent: the ten-second warning is stale.
+                state.countdownStep = position.index
+                state.warnedStep = max(state.warnedStep, position.index)
+            }
             if let position = plan.position(at: elapsed), !position.finished,
                plan.steps[position.index].seconds >= minWarnedStepSeconds,
                position.remaining <= stepWarningSeconds,
@@ -75,6 +96,15 @@ enum WatchCoaching {
             if !state.halfway, total >= minHalfwayPlanSeconds, elapsed >= total / 2, elapsed < total {
                 cues.append(.halfway)
                 state.halfway = true
+            }
+        }
+
+        if let distanceMeters, distanceMeters > 0 {
+            let passed = raceMilestonesMeters.filter { distanceMeters >= $0 }.count
+            if passed > state.milestones {
+                // Several at once (a gap in the fixes): say only the furthest.
+                cues.append(.milestone(meters: raceMilestonesMeters[passed - 1]))
+                state.milestones = passed
             }
         }
 

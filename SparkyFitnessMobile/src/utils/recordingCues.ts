@@ -290,6 +290,35 @@ export function stepWarningCue(
       });
 }
 
+/** Said as a timed step is about to end: the last three seconds in one breath. */
+export function stepCountdownCue(t: TFunction): string {
+  return t('recordActivity.cues.stepCountdown', {
+    defaultValue: 'Three. Two. One.',
+  });
+}
+
+/** Said when the distance passes 5K, 10K, a half marathon or a marathon. */
+export function milestoneCue(t: TFunction, meters: number): string {
+  if (meters >= 42195) {
+    return t('recordActivity.cues.milestoneMarathon', {
+      defaultValue: 'Marathon distance. Incredible.',
+    });
+  }
+  if (meters >= 21097.5) {
+    return t('recordActivity.cues.milestoneHalfMarathon', {
+      defaultValue: 'Half marathon distance. Amazing.',
+    });
+  }
+  if (meters >= 10000) {
+    return t('recordActivity.cues.milestone10k', {
+      defaultValue: '10K done. Strong effort.',
+    });
+  }
+  return t('recordActivity.cues.milestone5k', {
+    defaultValue: '5K done. Nice work.',
+  });
+}
+
 /** Said when a plan workout is half over. */
 export function halfwayCue(t: TFunction): string {
   return t('recordActivity.cues.halfway', {

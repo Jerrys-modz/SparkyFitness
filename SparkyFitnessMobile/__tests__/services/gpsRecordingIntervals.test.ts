@@ -214,6 +214,33 @@ describe('coaching audio', () => {
     expect(speakRecordingCue).not.toHaveBeenCalled();
   });
 
+  test('counts down the last three seconds of a step in one cue', async () => {
+    await startRecording({
+      activity: 'run',
+      indoor: true,
+      audioCues: 'km',
+      intervals: buildIntervalPlan({
+        style: 'fastEasy',
+        warmupSeconds: 0,
+        workSeconds: 60,
+        recoverySeconds: 60,
+        rounds: 1,
+        cooldownSeconds: 0,
+      }),
+      notification,
+    });
+    jest.mocked(speakRecordingCue).mockClear();
+    at(56);
+    await tickIntervals();
+    expect(spoken()).toEqual(['Ten seconds. Next, Easy.']);
+    at(57);
+    await tickIntervals();
+    expect(spoken()).toEqual(['Ten seconds. Next, Easy.', 'Three. Two. One.']);
+    at(58);
+    await tickIntervals();
+    expect(spoken()).toHaveLength(2);
+  });
+
   test('warns ten seconds before a step ends', async () => {
     await startRecording({
       activity: 'run',

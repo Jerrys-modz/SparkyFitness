@@ -6598,7 +6598,12 @@
       "paceTooFast": "Too fast. Ease off.",
       "paceTooSlow": "Too slow. Pick it up.",
       "heartRateTooHigh": "Heart rate high. Ease off.",
-      "heartRateTooLow": "Heart rate low. Pick it up."
+      "heartRateTooLow": "Heart rate low. Pick it up.",
+      "stepCountdown": "Three. Two. One.",
+      "milestone5k": "5K done. Nice work.",
+      "milestone10k": "10K done. Strong effort.",
+      "milestoneHalfMarathon": "Half marathon distance. Amazing.",
+      "milestoneMarathon": "Marathon distance. Incredible."
     },
     "autoPause": {
       "title": "Auto-pause",

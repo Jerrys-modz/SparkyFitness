@@ -13,6 +13,10 @@ export interface CoachingState {
   warnedStep: number;
   halfway: boolean;
   lastMinute: boolean;
+  /** Index of the last step whose "three, two, one" was said; -1 for none. */
+  countdownStep: number;
+  /** How many of `RACE_MILESTONES_METERS` have been passed and said. */
+  milestones: number;
 }
 
 export const INITIAL_COACHING_STATE: CoachingState = {
@@ -20,7 +24,18 @@ export const INITIAL_COACHING_STATE: CoachingState = {
   warnedStep: -1,
   halfway: false,
   lastMinute: false,
+  countdownStep: -1,
+  milestones: 0,
 };
+
+/** Seconds before a step ends at which "three, two, one" is said. */
+export const STEP_COUNTDOWN_SECONDS = 3;
+
+/**
+ * Distances worth a word when passed, whatever the unit: 5K, 10K, a half
+ * marathon and a marathon. Split cues already mark every kilometer or mile.
+ */
+export const RACE_MILESTONES_METERS = [5000, 10000, 21097.5, 42195] as const;
 
 /** The spoken check-in intervals offered, in minutes; 0 is off. */
 export const CHECK_IN_CHOICES = [0, 5, 10, 15] as const;
@@ -35,7 +50,9 @@ export const MIN_HALFWAY_PLAN_SECONDS = 5 * 60;
 export const MIN_LAST_MINUTE_PLAN_SECONDS = 3 * 60;
 
 export type CoachingCue =
+  | { kind: 'stepCountdown' }
   | { kind: 'stepWarning'; next: IntervalStep | null }
+  | { kind: 'milestone'; meters: number }
   | { kind: 'lastMinute' }
   | { kind: 'halfway' }
   | { kind: 'checkIn'; minutes: number };
@@ -51,14 +68,32 @@ export function nextCoachingCues(input: {
   plan: IntervalPlan | null;
   /** Minutes between spoken check-ins; 0 or null for none. */
   checkInMinutes: number | null;
+  /** Metres recorded so far; null indoors, where the distance is only an estimate. */
+  distanceMeters?: number | null;
   state: CoachingState;
 }): { cues: CoachingCue[]; state: CoachingState } {
-  const { elapsedSeconds, plan, checkInMinutes } = input;
-  let state = input.state;
+  const { elapsedSeconds, plan, checkInMinutes, distanceMeters } = input;
+  // A state saved before the countdown and milestones existed lacks them.
+  let state: CoachingState = { ...INITIAL_COACHING_STATE, ...input.state };
   const cues: CoachingCue[] = [];
 
   if (plan) {
     const position = intervalPosition(plan, elapsedSeconds);
+    if (
+      position &&
+      !position.done &&
+      position.step.seconds >= MIN_WARNED_STEP_SECONDS &&
+      position.remaining <= STEP_COUNTDOWN_SECONDS &&
+      position.index > state.countdownStep
+    ) {
+      cues.push({ kind: 'stepCountdown' });
+      // The countdown is the more urgent: the ten-second warning is stale.
+      state = {
+        ...state,
+        countdownStep: position.index,
+        warnedStep: Math.max(state.warnedStep, position.index),
+      };
+    }
     if (
       position &&
       !position.done &&
@@ -88,6 +123,20 @@ export function nextCoachingCues(input: {
     ) {
       cues.push({ kind: 'halfway' });
       state = { ...state, halfway: true };
+    }
+  }
+
+  if (distanceMeters != null && distanceMeters > 0) {
+    const passed = RACE_MILESTONES_METERS.filter(
+      (meters) => distanceMeters >= meters
+    ).length;
+    if (passed > state.milestones) {
+      // Several at once (a gap in the fixes): say only the furthest.
+      cues.push({
+        kind: 'milestone',
+        meters: RACE_MILESTONES_METERS[passed - 1],
+      });
+      state = { ...state, milestones: passed };
     }
   }
 

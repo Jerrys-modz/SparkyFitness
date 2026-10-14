@@ -121,3 +121,80 @@ describe('check-ins', () => {
     expect(run(3000, { plan: null, checkInMinutes: 0 }).cues).toEqual([]);
   });
 });
+
+describe('step countdown', () => {
+  it('counts down the last three seconds of a step', () => {
+    const { cues, state } = run(117);
+    expect(cues).toEqual([{ kind: 'stepCountdown' }]);
+    expect(state.countdownStep).toBe(0);
+  });
+
+  it('counts down once per step and says nothing earlier', () => {
+    expect(run(112).cues.map((c) => c.kind)).toEqual(['stepWarning']);
+    const first = run(117);
+    expect(run(118, { state: first.state }).cues).toEqual([]);
+  });
+
+  it('drops the ten-second warning it makes stale', () => {
+    // First tick of the app after a gap: both are due, only the countdown speaks.
+    const { cues, state } = run(118);
+    expect(cues.map((c) => c.kind)).toEqual(['stepCountdown']);
+    expect(state.warnedStep).toBe(0);
+  });
+
+  it('leaves out steps too short to count down', () => {
+    const short = buildIntervalPlan({
+      style: 'runWalk',
+      warmupSeconds: 0,
+      workSeconds: 20,
+      recoverySeconds: 20,
+      rounds: 2,
+      cooldownSeconds: 0,
+    });
+    expect(run(18, { plan: short }).cues).toEqual([]);
+  });
+
+  it('counts down the end of the last step too', () => {
+    const total = 120 + 180 + 120 + 180 + 180;
+    expect(run(total - 2).cues.map((c) => c.kind)).toContain('stepCountdown');
+  });
+
+  it('reads a state saved before the countdown existed', () => {
+    const old = {
+      checkIns: 0,
+      warnedStep: -1,
+      halfway: false,
+      lastMinute: false,
+    };
+    expect(run(117, { state: old as never }).cues.map((c) => c.kind)).toEqual([
+      'stepCountdown',
+    ]);
+  });
+});
+
+describe('distance milestones', () => {
+  const at = (meters: number | null, state = INITIAL_COACHING_STATE) =>
+    run(1500, { plan: null, distanceMeters: meters, state });
+
+  it('says 5K, 10K, a half marathon and a marathon once each', () => {
+    const first = at(5003);
+    expect(first.cues).toEqual([{ kind: 'milestone', meters: 5000 }]);
+    expect(at(5600, first.state).cues).toEqual([]);
+    expect(at(10002, first.state).cues).toEqual([
+      { kind: 'milestone', meters: 10000 },
+    ]);
+    expect(at(21100).cues).toEqual([{ kind: 'milestone', meters: 21097.5 }]);
+    expect(at(42200).cues).toEqual([{ kind: 'milestone', meters: 42195 }]);
+  });
+
+  it('says only the furthest after a gap and marks the rest said', () => {
+    const { cues, state } = at(10500);
+    expect(cues).toEqual([{ kind: 'milestone', meters: 10000 }]);
+    expect(state.milestones).toBe(2);
+  });
+
+  it('is silent with no distance (indoors) or before 5K', () => {
+    expect(at(null).cues).toEqual([]);
+    expect(at(4999).cues).toEqual([]);
+  });
+});
