@@ -88,7 +88,8 @@ type NutrientGoalField =
 type OtherGoalField =
   | 'water_goal_ml'
   | 'target_exercise_calories_burned'
-  | 'target_exercise_duration_minutes';
+  | 'target_exercise_duration_minutes'
+  | 'target_steps';
 
 type GoalField = NutrientGoalField | OtherGoalField;
 
@@ -121,6 +122,7 @@ const OTHER_FIELDS: OtherGoalField[] = [
   'water_goal_ml',
   'target_exercise_calories_burned',
   'target_exercise_duration_minutes',
+  'target_steps',
 ];
 
 const ALL_FIELDS: GoalField[] = [
@@ -386,6 +388,9 @@ const GoalsForm: React.FC<GoalsFormProps> = ({
     }),
     target_exercise_duration_minutes: t('goals.fields.exerciseMinutes', {
       defaultValue: 'Exercise duration (min)',
+    }),
+    target_steps: t('goals.fields.steps', {
+      defaultValue: 'Daily steps',
     }),
   };
 
