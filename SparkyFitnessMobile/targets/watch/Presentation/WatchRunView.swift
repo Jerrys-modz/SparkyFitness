@@ -46,7 +46,7 @@ struct WatchRunView: View {
                 if run.plan != nil, let position = run.currentPlanPosition() {
                     CardioPlanStep(
                         label: position.label,
-                        remaining: position.finished ? nil : (position.remainingMeters.map { WatchRunPlan.meters($0) } ?? RecordingState.clock(position.remaining)),
+                        remaining: position.finished ? nil : (position.remainingMeters.map { WatchRunPlan.distance($0, inMiles: position.inMiles) } ?? RecordingState.clock(position.remaining)),
                         next: position.next
                     )
                 }

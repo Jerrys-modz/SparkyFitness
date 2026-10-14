@@ -191,7 +191,8 @@ enum ContextPayloadMapper {
                     min: (step["hrMin"] as? NSNumber)?.doubleValue,
                     max: (step["hrMax"] as? NSNumber)?.doubleValue
                 ),
-                meters: meters.flatMap { $0 > 0 ? $0 : nil }
+                meters: meters.flatMap { $0 > 0 ? $0 : nil },
+                unit: (step["unit"] as? String) == "mi" ? "mi" : nil
             )
         }
         guard !steps.isEmpty else { return nil }

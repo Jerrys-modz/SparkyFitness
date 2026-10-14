@@ -135,7 +135,7 @@ export function useWatchRecordingBridge(enabled: boolean): void {
         // (refreshed with every update) and the countdown is left off.
         state.intervalLabel =
           position.remainingMeters !== null && !position.done
-            ? `${name} · ${stepDistanceText(translate, position.remainingMeters)}`
+            ? `${name} · ${stepDistanceText(translate, position.remainingMeters, position.step.unit)}`
             : name;
         state.intervalRemaining = Math.ceil(position.remaining);
         if (position.next && !position.done) {

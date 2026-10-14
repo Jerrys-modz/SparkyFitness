@@ -21,7 +21,7 @@ const IntervalCard: React.FC<Props> = ({ plan, position }) => {
   const fraction = position.done ? 1 : position.fraction;
   const left =
     position.remainingMeters !== null
-      ? stepDistanceText(t, position.remainingMeters)
+      ? stepDistanceText(t, position.remainingMeters, step.unit)
       : formatClock(Math.ceil(position.remaining));
   const name = position.done
     ? t('recordActivity.intervals.complete', {

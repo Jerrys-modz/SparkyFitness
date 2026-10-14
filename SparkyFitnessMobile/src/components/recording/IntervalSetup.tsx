@@ -9,8 +9,10 @@ import { stepDistanceText } from '../../utils/recordingCues';
 import {
   INTERVAL_PRESETS,
   MAX_INTERVAL_ROUNDS,
+  STEP_METERS_PER_MILE,
   type IntervalOptions,
   type IntervalStyle,
+  type StepDistanceUnit,
 } from '@workspace/shared';
 
 export type IntervalChoice = 'off' | 'custom' | string;
@@ -73,6 +75,18 @@ const DEFAULT_WORK_METERS = 400;
 const MIN_WORK_METERS = 100;
 const MAX_WORK_METERS = 10_000;
 
+/** Quarter-mile steps from a quarter mile to six miles. */
+const MILE_STEP = 0.25;
+const MAX_WORK_MILES = 6;
+const milesToMeters = (miles: number): number =>
+  Math.round(miles * STEP_METERS_PER_MILE);
+
+const nextWorkMiles = (meters: number, up: boolean): number => {
+  const quarters = Math.round(meters / STEP_METERS_PER_MILE / MILE_STEP);
+  const miles = (quarters + (up ? 1 : -1)) * MILE_STEP;
+  return milesToMeters(Math.min(MAX_WORK_MILES, Math.max(MILE_STEP, miles)));
+};
+
 /** 100 m steps up to a kilometer, then 250 m. */
 const nextWorkMeters = (meters: number, up: boolean): number => {
   const step = up ? (meters >= 1000 ? 250 : 100) : meters > 1000 ? 250 : 100;
@@ -88,7 +102,7 @@ export function intervalSummary(
   options: IntervalOptions
 ): string {
   const work = usesWorkDistance(options)
-    ? stepDistanceText(t, options.workMeters ?? 0)
+    ? stepDistanceText(t, options.workMeters ?? 0, options.workUnit)
     : formatClock(options.workSeconds);
   const recovery = formatClock(options.recoverySeconds);
   return options.recoverySeconds > 0
@@ -152,6 +166,11 @@ interface Props {
    * the distance option are left out.
    */
   distanceAllowed?: boolean;
+  /**
+   * The account's distance unit is miles: Custom distance work can be set in
+   * metres (track repeats) or miles.
+   */
+  milesAvailable?: boolean;
 }
 
 /** Pick a timed plan for a recording, or build one. */
@@ -163,6 +182,7 @@ const IntervalSetup: React.FC<Props> = ({
   programLabel,
   activity = 'run',
   distanceAllowed = true,
+  milesAvailable = false,
 }) => {
   const { t } = useTranslation();
   const running = activity === 'run';
@@ -284,7 +304,36 @@ const IntervalSetup: React.FC<Props> = ({
                   change({
                     workMeters:
                       key === 'distance' ? DEFAULT_WORK_METERS : undefined,
+                    workUnit: undefined,
                   })
+                }
+              />
+            </View>
+          ) : null}
+          {usesWorkDistance(custom) && distanceAllowed && milesAvailable ? (
+            <View className="mt-3">
+              <SegmentedControl<StepDistanceUnit>
+                segments={[
+                  {
+                    key: 'm',
+                    label: t('recordActivity.intervals.unitMeters', {
+                      defaultValue: 'Meters',
+                    }),
+                  },
+                  {
+                    key: 'mi',
+                    label: t('recordActivity.intervals.unitMiles', {
+                      defaultValue: 'Miles',
+                    }),
+                  },
+                ]}
+                activeKey={custom.workUnit === 'mi' ? 'mi' : 'm'}
+                onSelect={(unit) =>
+                  change(
+                    unit === 'mi'
+                      ? { workMeters: milesToMeters(MILE_STEP), workUnit: 'mi' }
+                      : { workMeters: DEFAULT_WORK_METERS, workUnit: undefined }
+                  )
                 }
               />
             </View>
@@ -296,15 +345,23 @@ const IntervalSetup: React.FC<Props> = ({
                   ? t('recordActivity.intervals.run', { defaultValue: 'Run' })
                   : t('recordActivity.intervals.fast', { defaultValue: 'Fast' })
               }
-              value={stepDistanceText(t, custom.workMeters ?? 0)}
+              value={stepDistanceText(
+                t,
+                custom.workMeters ?? 0,
+                custom.workUnit
+              )}
               onMinus={() =>
                 change({
-                  workMeters: nextWorkMeters(custom.workMeters ?? 0, false),
+                  workMeters: (custom.workUnit === 'mi'
+                    ? nextWorkMiles
+                    : nextWorkMeters)(custom.workMeters ?? 0, false),
                 })
               }
               onPlus={() =>
                 change({
-                  workMeters: nextWorkMeters(custom.workMeters ?? 0, true),
+                  workMeters: (custom.workUnit === 'mi'
+                    ? nextWorkMiles
+                    : nextWorkMeters)(custom.workMeters ?? 0, true),
                 })
               }
             />

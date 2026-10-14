@@ -56,8 +56,8 @@ import {
   intervalsDoneCue,
   heartRateAlertCue,
   intervalToGoCue,
-  STEP_TO_GO_METERS,
   STEP_TO_GO_MIN_METERS,
+  stepToGoMeters,
   lapCue,
   paceAlertCue,
   splitCue,
@@ -852,8 +852,8 @@ function cueStepToGo(cursor: IntervalCursor, meters: number): boolean {
   const step = intervals.plan.steps[cursor.index];
   if (!step?.meters || step.meters < STEP_TO_GO_MIN_METERS) return false;
   const left = cursor.startMeters + step.meters - meters;
-  if (left > STEP_TO_GO_METERS || left <= 0) return false;
-  speakRecordingCue(intervalToGoCue(i18n.t.bind(i18n), STEP_TO_GO_METERS));
+  if (left > stepToGoMeters(step.unit) || left <= 0) return false;
+  speakRecordingCue(intervalToGoCue(i18n.t.bind(i18n), step.unit));
   return true;
 }
 

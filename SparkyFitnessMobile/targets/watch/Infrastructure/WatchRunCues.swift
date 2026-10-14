@@ -98,35 +98,36 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
         String(localized: "watch.run.cue.step", defaultValue: "\(label), \(duration(seconds)).")
     }
 
-    /// Words for a distance step beginning: "Fast, 400 meters."
-    static func stepText(label: String, meters: Double) -> String {
-        "\(label), \(distance(meters))."
+    /// Words for a distance step beginning: "Fast, 400 meters." or "Fast, 0.25 miles."
+    static func stepText(label: String, meters: Double, inMiles: Bool = false) -> String {
+        "\(label), \(distance(meters, inMiles: inMiles))."
     }
 
-    /// Said near the end of a distance step: "100 meters to go."
-    static func toGoText(meters: Double) -> String {
-        "\(distance(meters)) to go."
+    /// Said near the end of a distance step: "100 meters to go." or "0.1 miles to go."
+    static func toGoText(inMiles: Bool) -> String {
+        "\(distance(toGoMeters(inMiles: inMiles), inMiles: inMiles)) to go."
     }
 
-    /// How close to the end of a distance step the "to go" cue is said, and
-    /// the shortest step that gets one. The phone uses the same figures
-    /// (`STEP_TO_GO_METERS`, `STEP_TO_GO_MIN_METERS`).
-    static let toGoMeters: Double = 100
+    /// How close to the end of a distance step the "to go" cue is said (100 m,
+    /// or a tenth of a mile), and the shortest step that gets one. The phone
+    /// uses the same figures (`stepToGoMeters`, `STEP_TO_GO_MIN_METERS`).
+    static func toGoMeters(inMiles: Bool) -> Double { inMiles ? 160.9344 : 100 }
     static let toGoMinimumStep: Double = 300
 
-    /// "400 meters", or "1.5 kilometers" from a kilometre up.
-    private static func distance(_ meters: Double) -> String {
+    /// "400 meters", "1.5 kilometers" from a kilometre up, or "0.25 miles".
+    private static func distance(_ meters: Double, inMiles: Bool) -> String {
+        if inMiles {
+            let miles = (meters / 1609.344 * 100).rounded() / 100
+            return miles == 1 ? "1 mile" : "\(WatchRunPlan.trimmed(miles, digits: 2)) miles"
+        }
         if meters >= 1000 {
             let km = (meters / 100).rounded() / 10
-            let text = km == km.rounded() ? "\(Int(km))" : String(format: "%.1f", km)
-            return km == 1 ? "1 kilometer" : "\(text) kilometers"
+            return km == 1 ? "1 kilometer" : "\(WatchRunPlan.trimmed(km, digits: 1)) kilometers"
         }
         let whole = Int(meters.rounded())
         return whole == 1 ? "1 meter" : "\(whole) meters"
     }
 
-    /// Words for a completed split. Durations are spelled out because a speech
-    /// engine reads "5:24" as a time of day.
     static func splitText(number: Int, seconds: TimeInterval, usesMiles: Bool) -> String {
         let time = duration(seconds)
         return usesMiles

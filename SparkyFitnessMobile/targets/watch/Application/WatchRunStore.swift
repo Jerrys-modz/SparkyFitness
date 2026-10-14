@@ -505,7 +505,9 @@ final class WatchRunStore: ObservableObject {
                 // A distance step has nothing for the phone to count down, so
                 // its metres left ride in the label, refreshed with each update.
                 stepLabel: step.map { step in
-                    step.remainingMeters.map { "\(step.label) · \(WatchRunPlan.meters($0))" } ?? step.label
+                    step.remainingMeters.map {
+                        "\(step.label) · \(WatchRunPlan.distance($0, inMiles: step.inMiles))"
+                    } ?? step.label
                 },
                 stepRemaining: step?.remainingMeters == nil ? step?.remaining : nil,
                 nextLabel: step?.next,
@@ -554,23 +556,23 @@ final class WatchRunStore: ObservableObject {
             let step = plan.steps[position.index]
             WatchRunCues.shared.speak(
                 step.isDistance
-                    ? WatchRunCues.stepText(label: position.label, meters: step.meters ?? 0)
+                    ? WatchRunCues.stepText(label: position.label, meters: step.meters ?? 0, inMiles: step.inMiles)
                     : WatchRunCues.stepText(label: position.label, seconds: step.seconds),
                 interrupt: true
             )
         }
     }
 
-    /// "100 meters to go", once per distance step long enough for it.
+    /// "100 meters to go" (or "0.1 miles to go"), once per distance step long enough for it.
     private func cueToGoIfDue(_ plan: WatchRunPlan, _ position: WatchRunPlan.Position) {
         guard settings.voiceCues, !position.finished,
               position.index != toGoCuedStep,
               let left = position.remainingMeters, left > 0,
-              left <= WatchRunCues.toGoMeters,
+              left <= WatchRunCues.toGoMeters(inMiles: position.inMiles),
               (plan.steps[position.index].meters ?? 0) >= WatchRunCues.toGoMinimumStep
         else { return }
         toGoCuedStep = position.index
-        WatchRunCues.shared.speak(WatchRunCues.toGoText(meters: WatchRunCues.toGoMeters), interrupt: true)
+        WatchRunCues.shared.speak(WatchRunCues.toGoText(inMiles: position.inMiles), interrupt: true)
     }
 
     /// Where the plan stands now, for the run screen.

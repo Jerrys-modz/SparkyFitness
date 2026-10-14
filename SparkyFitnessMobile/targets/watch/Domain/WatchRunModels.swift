@@ -197,8 +197,11 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
         /// A distance step ends once this many metres are recorded in it.
         /// Optional so plans and snapshots from before distance steps decode.
         var meters: Double? = nil
+        /// "mi" when the distance step was set in miles; metres otherwise.
+        var unit: String? = nil
 
         var isDistance: Bool { (meters ?? 0) > 0 }
+        var inMiles: Bool { unit == "mi" }
     }
 
     /// Where the current step began, on the builder's active clock and in
@@ -235,6 +238,8 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
         let remaining: TimeInterval
         /// Metres left in a distance step; nil on a timed step.
         let remainingMeters: Double?
+        /// Whether that distance step was set in miles, for showing what is left.
+        var inMiles: Bool = false
         let next: String?
         let finished: Bool
     }
@@ -277,6 +282,7 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
             label: step.label,
             remaining: step.isDistance ? 0 : max(0, cursor.startElapsed + step.seconds - elapsed),
             remainingMeters: remainingMeters,
+            inMiles: step.inMiles,
             next: next.map { "\($0.label) \(Self.length($0))" },
             finished: false
         )
@@ -292,18 +298,29 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
         return String(format: "%d:%02d", total / 60, total % 60)
     }
 
-    /// "400 m", or "1.5 km" from a kilometre up. Metres whatever the
-    /// distance unit, as on a track and on the phone.
-    static func meters(_ value: Double) -> String {
-        value >= 1000
-            ? String(format: "%.1f km", (value / 100).rounded() / 10)
-                .replacingOccurrences(of: ".0 km", with: " km")
+    /// A step distance in the unit it was set in: "400 m", "1.5 km" from a
+    /// kilometre up, or "0.25 mi". The same rule as `stepDistanceText` on the phone.
+    static func distance(_ value: Double, inMiles: Bool = false) -> String {
+        if inMiles {
+            let miles = (value / 1609.344 * 100).rounded() / 100
+            return "\(trimmed(miles, digits: 2)) mi"
+        }
+        return value >= 1000
+            ? "\(trimmed((value / 100).rounded() / 10, digits: 1)) km"
             : "\(Int(value.rounded())) m"
+    }
+
+    /// "1", "1.5", "0.25": no trailing zeros.
+    static func trimmed(_ value: Double, digits: Int) -> String {
+        var text = String(format: "%.\(digits)f", value)
+        while text.contains("."), text.hasSuffix("0") { text.removeLast() }
+        if text.hasSuffix(".") { text.removeLast() }
+        return text
     }
 
     /// A step's length as shown: its distance, or its time as m:ss.
     static func length(_ step: Step) -> String {
-        step.isDistance ? meters(step.meters ?? 0) : clock(step.seconds)
+        step.isDistance ? distance(step.meters ?? 0, inMiles: step.inMiles) : clock(step.seconds)
     }
 }
 

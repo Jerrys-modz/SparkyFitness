@@ -35,6 +35,8 @@ export interface WatchRunPlanPayload {
     /** Heart-rate range to hold in this step, bpm. */
     hrMin?: number;
     hrMax?: number;
+    /** 'mi' when the distance step was set in miles; metres otherwise. */
+    unit?: 'mi';
   }[];
 }
 
@@ -54,6 +56,7 @@ const toSteps = (t: TFunction, plan: IntervalPlan) =>
     ...(step.heartRate
       ? { hrMin: step.heartRate.minBpm, hrMax: step.heartRate.maxBpm }
       : {}),
+    ...(step.unit === 'mi' ? { unit: 'mi' as const } : {}),
   }));
 
 /**

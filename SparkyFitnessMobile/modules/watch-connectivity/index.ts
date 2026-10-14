@@ -213,6 +213,7 @@ export interface WatchContextPayload {
       paceMax?: number;
       hrMin?: number;
       hrMax?: number;
+      unit?: 'mi';
     }[];
   }[];
   /**

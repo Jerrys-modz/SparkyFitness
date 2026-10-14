@@ -170,3 +170,71 @@ describe('IntervalSetup distance', () => {
     ).toBeTruthy();
   });
 });
+
+describe('IntervalSetup miles', () => {
+  const distanceCustom = { ...DEFAULT_CUSTOM_INTERVALS, workMeters: 400 };
+
+  it('offers Meters / Miles only when the distance unit is miles', () => {
+    const { rerender } = render(
+      <IntervalSetup
+        choice="custom"
+        onChoice={jest.fn()}
+        custom={distanceCustom}
+        onCustom={jest.fn()}
+      />
+    );
+    expect(screen.queryByText('Miles')).toBeNull();
+    rerender(
+      <IntervalSetup
+        choice="custom"
+        onChoice={jest.fn()}
+        custom={distanceCustom}
+        onCustom={jest.fn()}
+        milesAvailable
+      />
+    );
+    expect(screen.getByText('Miles')).toBeTruthy();
+  });
+
+  it('switches to a quarter mile and steps by quarter miles', () => {
+    const onCustom = jest.fn();
+    const { rerender } = render(
+      <IntervalSetup
+        choice="custom"
+        onChoice={jest.fn()}
+        custom={distanceCustom}
+        onCustom={onCustom}
+        milesAvailable
+      />
+    );
+    fireEvent.press(screen.getByText('Miles'));
+    expect(onCustom).toHaveBeenLastCalledWith({
+      ...DEFAULT_CUSTOM_INTERVALS,
+      workMeters: 402,
+      workUnit: 'mi',
+    });
+    rerender(
+      <IntervalSetup
+        choice="custom"
+        onChoice={jest.fn()}
+        custom={{ ...distanceCustom, workMeters: 402, workUnit: 'mi' }}
+        onCustom={onCustom}
+        milesAvailable
+      />
+    );
+    expect(screen.getByText('0.25 mi')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Increase Run'));
+    expect(onCustom).toHaveBeenLastCalledWith({
+      ...DEFAULT_CUSTOM_INTERVALS,
+      workMeters: 805,
+      workUnit: 'mi',
+    });
+    fireEvent.press(screen.getByLabelText('Decrease Run'));
+    // Never below a quarter mile.
+    expect(onCustom).toHaveBeenLastCalledWith({
+      ...DEFAULT_CUSTOM_INTERVALS,
+      workMeters: 402,
+      workUnit: 'mi',
+    });
+  });
+});

@@ -6632,6 +6632,8 @@
       "easy": "Easy",
       "byTime": "By time",
       "byDistance": "By distance",
+      "unitMeters": "Meters",
+      "unitMiles": "Miles",
       "rounds": "Rounds",
       "decrease": "Decrease {{label}}",
       "increase": "Increase {{label}}",

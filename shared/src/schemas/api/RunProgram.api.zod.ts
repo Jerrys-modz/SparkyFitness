@@ -4,6 +4,7 @@ export const runProgramStepSchema = z.object({
   kind: z.enum(["warmup", "work", "recovery", "cooldown"]),
   seconds: z.number().int().min(1).max(14400),
   meters: z.number().int().min(50).max(50000).optional(),
+  unit: z.enum(["m", "mi"]).optional(),
 });
 
 export const runProgramPlanSchema = z.object({

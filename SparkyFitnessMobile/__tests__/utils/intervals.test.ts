@@ -225,3 +225,45 @@ describe('distance steps', () => {
     }
   });
 });
+
+describe('distance steps set in miles', () => {
+  it('keeps metres for the step and marks it as miles', () => {
+    const built = buildIntervalPlan({
+      style: 'fastEasy',
+      warmupSeconds: 0,
+      workSeconds: 90,
+      workMeters: 1609,
+      workUnit: 'mi',
+      recoverySeconds: 60,
+      rounds: 1,
+      cooldownSeconds: 0,
+    });
+    expect(built.steps[0]).toEqual({
+      kind: 'work',
+      meters: 1609,
+      seconds: 579,
+      unit: 'mi',
+    });
+    expect(isValidIntervalPlan(built)).toBe(true);
+    expect(
+      isValidIntervalPlan({
+        style: 'fastEasy',
+        steps: [{ kind: 'work', seconds: 10, meters: 400, unit: 'yd' }],
+      })
+    ).toBe(false);
+  });
+
+  it('a metre step carries no unit', () => {
+    const built = buildIntervalPlan({
+      style: 'fastEasy',
+      warmupSeconds: 0,
+      workSeconds: 90,
+      workMeters: 400,
+      workUnit: 'm',
+      recoverySeconds: 0,
+      rounds: 1,
+      cooldownSeconds: 0,
+    });
+    expect(built.steps[0].unit).toBeUndefined();
+  });
+});

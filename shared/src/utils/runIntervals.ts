@@ -14,6 +14,14 @@ import {
 export type IntervalStepKind = "warmup" | "work" | "recovery" | "cooldown";
 
 /**
+ * The unit a distance step was set in, which is how it is shown and spoken:
+ * metres (short track repeats, the default) or miles.
+ */
+export type StepDistanceUnit = "m" | "mi";
+
+export const STEP_METERS_PER_MILE = 1609.344;
+
+/**
  * How the steps are spoken: a run/walk plan says "Run" and "Walk", a speed
  * session says "Fast" and "Easy".
  */
@@ -33,6 +41,8 @@ export interface IntervalStep {
   pace?: PaceBand;
   /** Heart-rate range to hold during this step; absent means no target. */
   heartRate?: HeartRateBand;
+  /** How a distance step is shown and spoken; metres when absent. */
+  unit?: StepDistanceUnit;
 }
 
 export interface IntervalPlan {
@@ -46,6 +56,8 @@ export interface IntervalOptions {
   workSeconds: number;
   /** When set, each work step is this distance instead of `workSeconds`. */
   workMeters?: number;
+  /** The unit `workMeters` was set in; metres when absent. */
+  workUnit?: StepDistanceUnit;
   recoverySeconds: number;
   rounds: number;
   cooldownSeconds: number;
@@ -75,13 +87,18 @@ export const isDistanceStep = (step: IntervalStep): boolean =>
 export const planHasDistanceSteps = (plan: IntervalPlan): boolean =>
   plan.steps.some(isDistanceStep);
 
-/** A work step of `meters`, with its expected time. */
-export function distanceStep(kind: IntervalStepKind, meters: number): IntervalStep {
+/** A step of `meters`, with its expected time, set in `unit`. */
+export function distanceStep(
+  kind: IntervalStepKind,
+  meters: number,
+  unit?: StepDistanceUnit
+): IntervalStep {
   const m = clamp(meters, MIN_STEP_METERS, MAX_STEP_METERS);
   return {
     kind,
     meters: m,
     seconds: clamp(m * EXPECTED_SECONDS_PER_METER, 5, MAX_PROGRAM_STEP_SECONDS),
+    ...(unit === "mi" ? { unit } : {}),
   };
 }
 
@@ -95,7 +112,7 @@ export function buildIntervalPlan(options: IntervalOptions): IntervalPlan {
   const work = clamp(options.workSeconds, 5, MAX_STEP_SECONDS);
   const workStep: IntervalStep =
     options.workMeters !== undefined && options.workMeters > 0
-      ? distanceStep("work", options.workMeters)
+      ? distanceStep("work", options.workMeters, options.workUnit)
       : { kind: "work", seconds: work };
   const recovery = clamp(options.recoverySeconds, 0, MAX_STEP_SECONDS);
   const warmup = clamp(options.warmupSeconds, 0, MAX_STEP_SECONDS);
@@ -392,6 +409,7 @@ export function isValidIntervalPlan(value: unknown): value is IntervalPlan {
           (Number.isFinite(step.meters) &&
             step.meters >= MIN_STEP_METERS &&
             step.meters <= MAX_STEP_METERS)) &&
+        (step.unit === undefined || step.unit === "m" || step.unit === "mi") &&
         (step.pace === undefined || normalizePaceBand(step.pace) !== null) &&
         (step.heartRate === undefined ||
           normalizeHeartRateBand(step.heartRate) !== null)

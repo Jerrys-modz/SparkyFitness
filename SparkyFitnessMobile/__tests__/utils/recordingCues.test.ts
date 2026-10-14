@@ -4,8 +4,12 @@ import {
   finishCue,
   heartRateAlertCue,
   paceAlertCue,
+  intervalCue,
+  intervalToGoCue,
   spokenDuration,
   splitCue,
+  stepDistanceText,
+  stepToGoMeters,
 } from '../../src/utils/recordingCues';
 
 // Falls back to the English defaults, which is what the cues are written in.
@@ -82,5 +86,32 @@ describe('heartRateAlertCue', () => {
   it('tells the runner which way to go', () => {
     expect(heartRateAlertCue(tt, 'tooHigh')).toBe('Heart rate high. Ease off.');
     expect(heartRateAlertCue(tt, 'tooLow')).toBe('Heart rate low. Pick it up.');
+  });
+});
+
+describe('distance steps', () => {
+  it('shows and says a step in the unit it was set in', () => {
+    expect(stepDistanceText(tt, 400)).toBe('400 m');
+    expect(stepDistanceText(tt, 1500)).toBe('1.5 km');
+    expect(stepDistanceText(tt, 402, 'mi')).toBe('0.25 mi');
+    expect(stepDistanceText(tt, 1609, 'mi')).toBe('1 mi');
+    expect(
+      intervalCue(tt, {
+        step: { kind: 'work', seconds: 145, meters: 402, unit: 'mi' },
+        style: 'fastEasy',
+      })
+    ).toBe('Fast. 0.25 miles.');
+    expect(
+      intervalCue(tt, {
+        step: { kind: 'work', seconds: 144, meters: 400 },
+        style: 'fastEasy',
+      })
+    ).toBe('Fast. 400 meters.');
+  });
+
+  it('says the last tenth of a mile on a step set in miles', () => {
+    expect(intervalToGoCue(tt)).toBe('100 meters to go.');
+    expect(intervalToGoCue(tt, 'mi')).toBe('0.1 miles to go.');
+    expect(stepToGoMeters('mi')).toBeCloseTo(160.9, 1);
   });
 });

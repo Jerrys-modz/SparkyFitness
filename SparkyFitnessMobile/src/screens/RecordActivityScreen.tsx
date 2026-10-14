@@ -327,7 +327,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     if (!indoor) return;
     if (intervalChoice === 'custom') {
       if (usesWorkDistance(customIntervals)) {
-        setCustomIntervals({ ...customIntervals, workMeters: undefined });
+        setCustomIntervals({
+          ...customIntervals,
+          workMeters: undefined,
+          workUnit: undefined,
+        });
       }
       return;
     }
@@ -1115,6 +1119,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             onCustom={setCustomIntervals}
             activity={activity}
             distanceAllowed={!indoor}
+            milesAvailable={distanceUnit === 'miles'}
           />
           {/* A plan can hold a pace in its fast and easy stretches. */}
           {intervalChoice !== 'off' && (!indoor || onWatch) ? (

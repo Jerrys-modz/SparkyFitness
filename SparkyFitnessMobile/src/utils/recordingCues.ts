@@ -1,12 +1,18 @@
 import type { TFunction } from 'i18next';
 import { formatClock, METERS_PER_KM, METERS_PER_MILE } from './gpsRecording';
 import { formatLocalizedNumber } from '../localization';
-import type {
-  IntervalStep,
-  HeartRateAlertKind,
-  IntervalStyle,
-  PaceAlertKind,
+import {
+  STEP_METERS_PER_MILE,
+  type HeartRateAlertKind,
+  type IntervalStep,
+  type IntervalStyle,
+  type PaceAlertKind,
+  type StepDistanceUnit,
 } from '@workspace/shared';
+
+/** Miles to two decimals at most: 0.25, 0.5, 1, 1.5. */
+const stepMiles = (meters: number): number =>
+  Math.round((meters / STEP_METERS_PER_MILE) * 100) / 100;
 
 /**
  * The words spoken during a GPS recording. Pure and given `t`, so it runs under
@@ -83,11 +89,15 @@ export function spokenDistance(
 }
 
 /**
- * An interval step's distance, said aloud: "400 meters", or "1.5 kilometers"
- * from a kilometer up. Steps are set in metres whatever the distance unit,
- * as on a track.
+ * An interval step's distance, said aloud in the unit it was set in:
+ * "400 meters", "1.5 kilometers" from a kilometer up, or "0.25 miles".
  */
-export function spokenStepDistance(t: TFunction, meters: number): string {
+export function spokenStepDistance(
+  t: TFunction,
+  meters: number,
+  unit?: StepDistanceUnit
+): string {
+  if (unit === 'mi') return spokenDistance(t, stepMiles(meters), 'miles');
   if (meters >= 1000) {
     return spokenDistance(t, Math.round(meters / 100) / 10, 'km');
   }
@@ -225,17 +235,26 @@ export function intervalCue(
     name: intervalStepName(t, step.kind, options.style),
     time:
       step.meters !== undefined && step.meters > 0
-        ? spokenStepDistance(t, step.meters)
+        ? spokenStepDistance(t, step.meters, step.unit)
         : spokenDuration(t, step.seconds),
     defaultValue: '{{name}}. {{time}}.',
   });
 }
 
 /**
- * An interval step's distance on screen: "400 m", or "1.5 km" from a
- * kilometer up. Metres whatever the distance unit, like the spoken cue.
+ * An interval step's distance on screen, in the unit it was set in: "400 m",
+ * "1.5 km" from a kilometer up, or "0.25 mi".
  */
-export function stepDistanceText(t: TFunction, meters: number): string {
+export function stepDistanceText(
+  t: TFunction,
+  meters: number,
+  unit?: StepDistanceUnit
+): string {
+  if (unit === 'mi') {
+    return `${formatLocalizedNumber(stepMiles(meters), {
+      maximumFractionDigits: 2,
+    })} ${t('recordActivity.unitMi', { defaultValue: 'mi' })}`;
+  }
   if (meters >= 1000) {
     return `${formatLocalizedNumber(Math.round(meters / 100) / 10, {
       maximumFractionDigits: 1,
@@ -250,19 +269,23 @@ export function stepDistanceText(t: TFunction, meters: number): string {
 /** A step's length as shown: its distance, or its time as m:ss. */
 export function stepLengthText(t: TFunction, step: IntervalStep): string {
   return step.meters !== undefined && step.meters > 0
-    ? stepDistanceText(t, step.meters)
+    ? stepDistanceText(t, step.meters, step.unit)
     : formatClock(step.seconds);
 }
 
-/** How close to the end of a distance step the "to go" cue is said. */
-export const STEP_TO_GO_METERS = 100;
+/**
+ * How close to the end of a distance step the "to go" cue is said: 100 m,
+ * or a tenth of a mile on a step set in miles.
+ */
+export const stepToGoMeters = (unit?: StepDistanceUnit): number =>
+  unit === 'mi' ? STEP_METERS_PER_MILE / 10 : 100;
 /** Steps shorter than this get no "to go" cue: it would follow the start too soon. */
 export const STEP_TO_GO_MIN_METERS = 300;
 
-/** Said near the end of a distance step: "100 meters to go." */
-export function intervalToGoCue(t: TFunction, meters: number): string {
+/** Said near the end of a distance step: "100 meters to go." or "0.1 miles to go." */
+export function intervalToGoCue(t: TFunction, unit?: StepDistanceUnit): string {
   return t('recordActivity.cues.intervalToGo', {
-    distance: spokenStepDistance(t, meters),
+    distance: spokenStepDistance(t, stepToGoMeters(unit), unit),
     defaultValue: '{{distance}} to go.',
   });
 }
