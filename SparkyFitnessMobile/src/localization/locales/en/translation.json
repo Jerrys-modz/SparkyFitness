@@ -4553,6 +4553,14 @@
       "targetGoal": "Target Daily Goal",
       "averageVsTarget": "Average vs. Target",
       "percentOfGoal": "{{percent}}% of goal"
+    },
+    "topSources": {
+      "title": "Top Sources",
+      "allMeals": "All meals",
+      "clearDay": "Show whole period",
+      "empty": "No {{nutrient}} logged for this selection",
+      "loadFailed": "Failed to load food sources",
+      "share": "{{percent}}%"
     }
   },
   "workoutPresetDetail": {

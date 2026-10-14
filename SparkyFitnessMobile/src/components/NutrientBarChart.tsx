@@ -33,6 +33,8 @@ type NutrientBarChartProps = {
   nutrientLabel: string;
   unit: string;
   goal?: number;
+  /** Fired when a bar is touched; the selection outlives the touch, unlike the tooltip. */
+  onSelectDay?: (day: string) => void;
 };
 
 const INNER_PADDING: Record<TrendRange, number> = {
@@ -98,6 +100,7 @@ const NutrientBarChart: React.FC<NutrientBarChartProps> = ({
   nutrientLabel,
   unit,
   goal,
+  onSelectDay,
 }) => {
   const { t } = useTranslation();
   const [accentColor, textMuted] = useCSSVariable([
@@ -157,8 +160,9 @@ const NutrientBarChart: React.FC<NutrientBarChartProps> = ({
       }
 
       setSelectedIndex(index);
+      onSelectDay?.(point.day);
     },
-    [data]
+    [data, onSelectDay]
   );
 
   const handleClearSelection = useCallback(() => {
