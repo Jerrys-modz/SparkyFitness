@@ -2568,76 +2568,9 @@ async function updateFoodEntryMeal(
         throw error;
       }
     }
-    // 2. Update the parent food_entry_meals record's metadata
-    const updatedFoodEntryMeal =
-      await foodEntryMealRepository.updateFoodEntryMeal(
-        foodEntryMealId,
-        {
-          name: updatedMealData.name,
-          description: updatedMealData.description,
-          notes: updatedMealData.notes, // undefined preserves, null clears
-          meal_type: updatedMealData.meal_type, // Also allow updating meal type
-          meal_type_id: updatedMealData.meal_type_id, // Update meal type id so component entries inherit it
-          entry_date: updatedMealData.entry_date, // And entry date
-          entry_time: updatedMealData.entry_time, // undefined preserves, null clears
-          meal_template_id: updatedMealData.meal_template_id, // Pass meal_template_id
-          quantity: updatedMealData.quantity as number | null | undefined, // Update quantity
-          unit: updatedMealData.unit, // Update unit
-          entry_total_servings: updatedMealData.entry_total_servings,
-        },
-        authenticatedUserId
-      );
-    if (!updatedFoodEntryMeal) {
-      throw new Error('Food entry meal not found or not authorized to update.');
-    }
-    const resolvedMealTypeId = updatedFoodEntryMeal.meal_type_id;
-    // 3. Rebuild the component food_entries — but only when the caller sent
-    // them. `foods` is optional, and a metadata-only update (a note, say)
-    // would otherwise delete every component and recreate none, silently
-    // emptying the logged meal.
-    if (!updatedMealData.foods) {
-      log(
-        'debug',
-        `updateFoodEntryMeal: metadata-only update for ${foodEntryMealId}; leaving components untouched.`
-      );
-      return updatedFoodEntryMeal;
-    }
-    await foodRepository.deleteFoodEntryComponentsByFoodEntryMealId(
-      foodEntryMealId,
-      authenticatedUserId
-    );
-    log(
-      'debug',
-      `Deleted existing component food entries for food_entry_meal ${foodEntryMealId}.`
-    );
-    log('info', '[DEBUG] updateFoodEntryMeal Service Data:', updatedMealData); // DEBUG LOG
-    // Calculate portion multiplier snapshot-first.
-    const portion = await resolveLoggedMealPortion(
-      {
-        meal_template_id:
-          updatedFoodEntryMeal.meal_template_id ??
-          updatedMealData.meal_template_id,
-        quantity:
-          updatedMealData.quantity !== undefined
-            ? Number(updatedMealData.quantity) || 1.0
-            : updatedFoodEntryMeal.quantity,
-        unit: updatedMealData.unit ?? updatedFoodEntryMeal.unit,
-        legacy_serving_unit_math:
-          updatedFoodEntryMeal.legacy_serving_unit_math === true,
-        entry_total_servings:
-          updatedMealData.entry_total_servings !== undefined
-            ? updatedMealData.entry_total_servings
-            : updatedFoodEntryMeal.entry_total_servings,
-      },
-      authenticatedUserId
-    );
-    const multiplier = portion.multiplier;
-    log(
-      'info',
-      `Update portion scaling: multiplier ${multiplier} (consumed: ${updatedMealData.quantity ?? updatedFoodEntryMeal.quantity}, total_servings: ${portion.totalServings}, legacy: ${updatedFoodEntryMeal.legacy_serving_unit_math === true})`
-    );
-    // 3. Create new component food_entries records
-    const entriesToCreate = [];
+    // Resolve every ingredient before any writes; never silently drop a row
+    // that cannot be rebuilt from its snapshot or an accessible variant.
+    const preparedFoods = [];
     for (const foodItem of validatedFoods ?? []) {
       const food = foodItem.food_id
         ? await foodRepository.getFoodById(
@@ -2679,24 +2612,94 @@ async function updateFoodEntryMeal(
         );
       } else {
         if (!food || !variant) {
-          log(
-            'warn',
-            `No nutrition snapshot or accessible food variant for food ${foodItem.food_id} when updating food entry meal. Skipping.`
+          const error: Error & { statusCode?: number } = new Error(
+            'A food item needs a stored serving size and calories or an accessible food variant.'
           );
-          continue;
+          error.statusCode = 400;
+          throw error;
         }
         snapshot = buildFoodEntrySnapshot(food, variant);
       }
+      preparedFoods.push({
+        foodItem,
+        food_id: food ? foodItem.food_id : null,
+        variant_id: food && variant ? variantId : null,
+        snapshot,
+      });
+    }
+    // 2. Update the parent food_entry_meals record's metadata
+    const updatedFoodEntryMeal =
+      await foodEntryMealRepository.updateFoodEntryMeal(
+        foodEntryMealId,
+        {
+          name: updatedMealData.name,
+          description: updatedMealData.description,
+          notes: updatedMealData.notes, // undefined preserves, null clears
+          meal_type: updatedMealData.meal_type, // Also allow updating meal type
+          meal_type_id: updatedMealData.meal_type_id, // Update meal type id so component entries inherit it
+          entry_date: updatedMealData.entry_date, // And entry date
+          entry_time: updatedMealData.entry_time, // undefined preserves, null clears
+          meal_template_id: updatedMealData.meal_template_id, // Pass meal_template_id
+          quantity: updatedMealData.quantity as number | null | undefined, // Update quantity
+          unit: updatedMealData.unit, // Update unit
+          entry_total_servings: updatedMealData.entry_total_servings,
+        },
+        authenticatedUserId
+      );
+    if (!updatedFoodEntryMeal) {
+      throw new Error('Food entry meal not found or not authorized to update.');
+    }
+    const resolvedMealTypeId = updatedFoodEntryMeal.meal_type_id;
+    // 3. Rebuild the component food_entries — but only when the caller sent
+    // them. `foods` is optional, and a metadata-only update (a note, say)
+    // would otherwise delete every component and recreate none, silently
+    // emptying the logged meal.
+    if (!updatedMealData.foods) {
+      log(
+        'debug',
+        `updateFoodEntryMeal: metadata-only update for ${foodEntryMealId}; leaving components untouched.`
+      );
+      return updatedFoodEntryMeal;
+    }
+    log('info', '[DEBUG] updateFoodEntryMeal Service Data:', updatedMealData); // DEBUG LOG
+    // Calculate portion multiplier snapshot-first.
+    const portion = await resolveLoggedMealPortion(
+      {
+        meal_template_id:
+          updatedFoodEntryMeal.meal_template_id ??
+          updatedMealData.meal_template_id,
+        quantity:
+          updatedMealData.quantity !== undefined
+            ? Number(updatedMealData.quantity) || 1.0
+            : updatedFoodEntryMeal.quantity,
+        unit: updatedMealData.unit ?? updatedFoodEntryMeal.unit,
+        legacy_serving_unit_math:
+          updatedFoodEntryMeal.legacy_serving_unit_math === true,
+        entry_total_servings:
+          updatedMealData.entry_total_servings !== undefined
+            ? updatedMealData.entry_total_servings
+            : updatedFoodEntryMeal.entry_total_servings,
+      },
+      authenticatedUserId
+    );
+    const multiplier = portion.multiplier;
+    log(
+      'info',
+      `Update portion scaling: multiplier ${multiplier} (consumed: ${updatedMealData.quantity ?? updatedFoodEntryMeal.quantity}, total_servings: ${portion.totalServings}, legacy: ${updatedFoodEntryMeal.legacy_serving_unit_math === true})`
+    );
+    // 3. Create new component food_entries records
+    const entriesToCreate = [];
+    for (const { foodItem, food_id, variant_id, snapshot } of preparedFoods) {
       // Scale the food quantity
       const scaledQuantity = Number(foodItem.quantity ?? 0) * multiplier;
       entriesToCreate.push({
         user_id: authenticatedUserId,
         created_by_user_id: actingUserId,
-        food_id: food ? foodItem.food_id : null,
+        food_id,
         meal_type_id: resolvedMealTypeId,
         quantity: scaledQuantity, // SCALED quantity
         unit: foodItem.unit,
-        variant_id: food && variant ? variantId : null,
+        variant_id,
         // Fall back to the stored date like every other inherited field. An
         // omitted entry_date would otherwise reach the NOT NULL column and
         // fail the insert — after the delete has already run, leaving the
@@ -2708,6 +2711,14 @@ async function updateFoodEntryMeal(
         ...snapshot,
       });
     }
+    await foodRepository.deleteFoodEntryComponentsByFoodEntryMealId(
+      foodEntryMealId,
+      authenticatedUserId
+    );
+    log(
+      'debug',
+      `Deleted existing component food entries for food_entry_meal ${foodEntryMealId}.`
+    );
     if (entriesToCreate.length > 0) {
       await foodRepository.bulkCreateFoodEntries(
         entriesToCreate,

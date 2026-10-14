@@ -378,6 +378,42 @@ describe('foodEntryMealService', () => {
 
   describe('updateFoodEntryMeal component dates', () => {
     it.each([
+      [false, 'serving_size'],
+      [false, 'calories'],
+      [true, 'serving_size'],
+      [true, 'calories'],
+    ] as const)(
+      'rejects an incomplete snapshot with inaccessible links=%s and missing %s before writes',
+      async (linked, missingField) => {
+        vi.mocked(foodRepository.getFoodById).mockResolvedValue(null);
+        vi.mocked(foodRepository.getFoodVariantById).mockResolvedValue(null);
+        await expect(
+          updateFoodEntryMeal('user-1', 'user-1', 'meal-entry-1', {
+            name: 'Edited name',
+            foods: [
+              {
+                food_id: linked ? 'deleted-food' : null,
+                variant_id: linked ? 'deleted-variant' : null,
+                food_name: 'Stored food',
+                quantity: 100,
+                serving_size: 100,
+                calories: 165,
+                [missingField]: null,
+              },
+            ],
+          })
+        ).rejects.toMatchObject({ statusCode: 400 });
+        expect(
+          foodEntryMealRepository.updateFoodEntryMeal
+        ).not.toHaveBeenCalled();
+        expect(
+          foodRepository.deleteFoodEntryComponentsByFoodEntryMealId
+        ).not.toHaveBeenCalled();
+        expect(foodRepository.bulkCreateFoodEntries).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each([
       'serving_size',
       'calories',
       'protein',
