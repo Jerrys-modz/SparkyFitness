@@ -1,7 +1,6 @@
 import type {
   ExerciseDashboardSummary,
-  FitnessFatigue,
-  Readiness,
+  FitnessFatigueResponse,
   TrainingConsistency,
   TrainingLoad,
 } from '@workspace/shared';
@@ -69,11 +68,6 @@ export const fetchTrainingLoad = (): Promise<TrainingLoad> =>
     serviceName: 'Reports API',
     operation: 'fetch training load',
   });
-
-export interface FitnessFatigueResponse {
-  fitnessFatigue: FitnessFatigue;
-  readiness: Readiness;
-}
 
 export const fetchFitnessFatigue = (): Promise<FitnessFatigueResponse> =>
   apiFetch<FitnessFatigueResponse>({

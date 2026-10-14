@@ -1,12 +1,37 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import type { TrainingLoad } from '@workspace/shared';
+import type { TrainingLoad, FitnessFatigueResponse } from '@workspace/shared';
 import TrainingLoadDashboardCard from '../../src/components/TrainingLoadDashboardCard';
 import { useTrainingLoad } from '../../src/hooks/useTrainingLoad';
+import { useFitnessFatigue } from '../../src/hooks/useFitnessFatigue';
 
 jest.mock('../../src/hooks/useTrainingLoad', () => ({
   useTrainingLoad: jest.fn(),
 }));
+
+jest.mock('../../src/hooks/useFitnessFatigue', () => ({
+  useFitnessFatigue: jest.fn(),
+}));
+
+const mockFitness = (data: FitnessFatigueResponse | undefined) =>
+  jest.mocked(useFitnessFatigue).mockReturnValue({
+    data,
+    isLoading: false,
+    isError: false,
+  });
+
+const readiness = (
+  overrides: Partial<FitnessFatigueResponse['readiness']> = {}
+): FitnessFatigueResponse => ({
+  fitnessFatigue: { points: [], today: null, status: 'noData' },
+  readiness: {
+    score: 78,
+    level: 'high',
+    factors: { form: 80, sleep: 75 },
+    weakest: null,
+    ...overrides,
+  },
+});
 
 const load = (overrides: Partial<TrainingLoad> = {}): TrainingLoad => ({
   weeks: [
@@ -34,7 +59,10 @@ const mockLoad = (data: TrainingLoad | undefined) =>
   });
 
 describe('TrainingLoadDashboardCard', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFitness(undefined);
+  });
 
   it('shows the week, the verdict and a rest nudge, and opens the statistics', () => {
     mockLoad(load());
@@ -65,5 +93,30 @@ describe('TrainingLoadDashboardCard', () => {
     mockLoad(undefined);
     render(<TrainingLoadDashboardCard navigation={navigation} />);
     expect(screen.queryByTestId('training-load-dashboard-card')).toBeNull();
+  });
+
+  it('adds readiness to the card once it is known', () => {
+    mockLoad(load());
+    mockFitness(readiness());
+    render(<TrainingLoadDashboardCard navigation={navigation} />);
+    expect(
+      screen.getByText('Readiness 78 · ready for a hard session')
+    ).toBeTruthy();
+  });
+
+  it('tells the person to go easy when readiness is low', () => {
+    mockLoad(load());
+    mockFitness(readiness({ score: 30, level: 'low' }));
+    render(<TrainingLoadDashboardCard navigation={navigation} />);
+    expect(screen.getByText('Readiness 30 · go easy today')).toBeTruthy();
+  });
+
+  it('leaves readiness out when there is no score', () => {
+    mockLoad(load());
+    mockFitness(readiness({ score: null, level: 'noData', factors: {} }));
+    render(<TrainingLoadDashboardCard navigation={navigation} />);
+    expect(
+      screen.queryByTestId('training-load-dashboard-readiness')
+    ).toBeNull();
   });
 });

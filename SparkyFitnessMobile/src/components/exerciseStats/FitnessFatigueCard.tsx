@@ -5,10 +5,10 @@ import type {
   FormStatus,
   ReadinessFactor,
   ReadinessLevel,
+  FitnessFatigueResponse,
 } from '@workspace/shared';
 import StatusView from '../StatusView';
 import { formatLocalizedNumber } from '../../localization';
-import type { FitnessFatigueResponse } from '../../services/api/reportsApi';
 
 interface FitnessFatigueCardProps {
   data: FitnessFatigueResponse | undefined;

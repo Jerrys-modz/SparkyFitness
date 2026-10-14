@@ -1,8 +1,11 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
-import type { FitnessFatigue, Readiness } from '@workspace/shared';
+import type {
+  FitnessFatigue,
+  Readiness,
+  FitnessFatigueResponse,
+} from '@workspace/shared';
 import FitnessFatigueCard from '../../src/components/exerciseStats/FitnessFatigueCard';
-import type { FitnessFatigueResponse } from '../../src/services/api/reportsApi';
 import { initializeI18n } from '../../src/localization/i18n';
 
 const points = Array.from({ length: 40 }, (_, i) => ({
