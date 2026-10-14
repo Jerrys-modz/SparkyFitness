@@ -2815,7 +2815,8 @@ CREATE TABLE public.goal_presets (
     custom_nutrients jsonb DEFAULT '{}'::jsonb,
     custom_meal_percentages jsonb DEFAULT '{}'::jsonb,
     caffeine_mg numeric,
-    alcohol_g numeric
+    alcohol_g numeric,
+    target_steps integer
 );
 
 
@@ -4229,7 +4230,8 @@ CREATE TABLE public.user_goals (
     custom_nutrients jsonb DEFAULT '{}'::jsonb,
     custom_meal_percentages jsonb DEFAULT '{}'::jsonb,
     caffeine_mg numeric,
-    alcohol_g numeric
+    alcohol_g numeric,
+    target_steps integer
 );
 
 
