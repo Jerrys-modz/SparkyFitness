@@ -2109,6 +2109,21 @@ CREATE TABLE public.exercise_entry_activity_details (
 
 
 --
+-- Name: exercise_entry_distance_series; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.exercise_entry_distance_series (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    exercise_entry_id uuid NOT NULL,
+    entry_date date NOT NULL,
+    points jsonb DEFAULT '[]'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+--
 -- Name: exercise_entry_gps_points; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -5482,6 +5497,14 @@ ALTER TABLE ONLY public.exercise_entry_activity_details
 
 
 --
+-- Name: exercise_entry_distance_series exercise_entry_distance_series_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.exercise_entry_distance_series
+    ADD CONSTRAINT exercise_entry_distance_series_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: exercise_entry_gps_points exercise_entry_gps_points_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6146,6 +6169,14 @@ ALTER TABLE ONLY public.daily_health_metrics
 
 
 --
+-- Name: exercise_entry_distance_series uq_exercise_entry_distance_series; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.exercise_entry_distance_series
+    ADD CONSTRAINT uq_exercise_entry_distance_series UNIQUE (exercise_entry_id);
+
+
+--
 -- Name: exercise_entry_gps_points uq_exercise_entry_gps_points; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6707,6 +6738,13 @@ CREATE INDEX idx_exercise_entry_activity_details_entry_id ON public.exercise_ent
 --
 
 CREATE INDEX idx_exercise_entry_activity_details_provider_type ON public.exercise_entry_activity_details USING btree (provider_name, detail_type);
+
+
+--
+-- Name: idx_exercise_entry_distance_series_user_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_exercise_entry_distance_series_user_date ON public.exercise_entry_distance_series USING btree (user_id, entry_date DESC);
 
 
 --
@@ -8111,6 +8149,22 @@ ALTER TABLE ONLY public.exercise_entry_activity_details
 
 ALTER TABLE ONLY public.exercise_entry_activity_details
     ADD CONSTRAINT exercise_entry_activity_details_updated_by_user_id_fkey FOREIGN KEY (updated_by_user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: exercise_entry_distance_series exercise_entry_distance_series_exercise_entry_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.exercise_entry_distance_series
+    ADD CONSTRAINT exercise_entry_distance_series_exercise_entry_id_fkey FOREIGN KEY (exercise_entry_id) REFERENCES public.exercise_entries(id) ON DELETE CASCADE;
+
+
+--
+-- Name: exercise_entry_distance_series exercise_entry_distance_series_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.exercise_entry_distance_series
+    ADD CONSTRAINT exercise_entry_distance_series_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --
@@ -9711,6 +9765,12 @@ ALTER TABLE public.exercise_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.exercise_entry_activity_details ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: exercise_entry_distance_series; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.exercise_entry_distance_series ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: exercise_entry_gps_points; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -9984,6 +10044,13 @@ CREATE POLICY modify_policy ON public.exercise_entry_activity_details USING ((((
   WHERE ((ee.id = exercise_entry_activity_details.exercise_entry_id) AND public.has_diary_access(ee.user_id))))) OR ((exercise_preset_entry_id IS NOT NULL) AND (EXISTS ( SELECT 1
    FROM public.exercise_preset_entries epe
   WHERE ((epe.id = exercise_entry_activity_details.exercise_preset_entry_id) AND public.has_diary_access(epe.user_id)))))));
+
+
+--
+-- Name: exercise_entry_distance_series modify_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY modify_policy ON public.exercise_entry_distance_series USING (public.has_diary_access(user_id)) WITH CHECK (public.has_diary_access(user_id));
 
 
 --
@@ -10768,6 +10835,13 @@ CREATE POLICY select_policy ON public.exercise_entry_activity_details FOR SELECT
   WHERE ((ee.id = exercise_entry_activity_details.exercise_entry_id) AND public.has_diary_read_access(ee.user_id))))) OR ((exercise_preset_entry_id IS NOT NULL) AND (EXISTS ( SELECT 1
    FROM public.exercise_preset_entries epe
   WHERE ((epe.id = exercise_entry_activity_details.exercise_preset_entry_id) AND public.has_diary_read_access(epe.user_id)))))));
+
+
+--
+-- Name: exercise_entry_distance_series select_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY select_policy ON public.exercise_entry_distance_series FOR SELECT USING (public.has_diary_read_access(user_id));
 
 
 --
@@ -12038,6 +12112,13 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.exercise_entries TO sparky_app
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.exercise_entry_activity_details TO sparky_app;
+
+
+--
+-- Name: TABLE exercise_entry_distance_series; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.exercise_entry_distance_series TO sparky_app;
 
 
 --
