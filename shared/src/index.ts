@@ -234,6 +234,7 @@ export * from "./utils/runPrograms.ts";
 export * from "./utils/runProgramSchedule.ts";
 export * from "./constants/corosSportTypes.ts";
 export * from "./utils/runProgramAdjust.ts";
+export * from "./utils/runProgramBreak.ts";
 export * from "./utils/runProgramEffort.ts";
 export * from "./nutrients/nutrientAlgorithms.ts";
 export * from "./nutrients/nutrientCalculation.ts";

@@ -140,3 +140,15 @@ export const rateRunProgramWorkoutBodySchema = z.object({
 export type RateRunProgramWorkoutBody = z.infer<
   typeof rateRunProgramWorkoutBodySchema
 >;
+
+/** Makes the running in the next few workouts shorter (negative) or a little longer. */
+export const adjustRunProgramBodySchema = z.object({
+  percent: z
+    .number()
+    .int()
+    .min(-30)
+    .max(10)
+    .refine((value) => value !== 0, { message: "Give a non-zero percent." }),
+  count: z.number().int().min(1).max(9),
+});
+export type AdjustRunProgramBody = z.infer<typeof adjustRunProgramBodySchema>;

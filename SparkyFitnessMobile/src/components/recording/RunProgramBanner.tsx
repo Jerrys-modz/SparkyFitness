@@ -6,11 +6,13 @@ import Toast from 'react-native-toast-message';
 import {
   planMinutes,
   programRunForDate,
+  suggestFromBreak,
   type ExerciseSessionResponse,
 } from '@workspace/shared';
 import Icon from '../Icon';
 import Button from '../ui/Button';
 import {
+  adjustProgramRunning,
   completeProgramWorkout,
   useRunProgram,
 } from '../../services/runProgramService';
@@ -39,8 +41,17 @@ const RunProgramBanner: React.FC<{
   // Read each render: this card stays mounted on the Diary tab overnight.
   const today = toLocalDateString(new Date());
   const [counting, setCounting] = useState(false);
-  const { status, enabled, schedule, doneDay, loaded, refetch } =
-    useRunProgram();
+  const [easing, setEasing] = useState(false);
+  const [easeDismissed, setEaseDismissed] = useState(false);
+  const {
+    status,
+    enabled,
+    schedule,
+    doneDay,
+    lastAdjustment,
+    loaded,
+    refetch,
+  } = useRunProgram();
   // The program may have changed on another device or through Sparky.
   useRefetchOnFocus(refetch, true);
 
@@ -68,6 +79,35 @@ const RunProgramBanner: React.FC<{
   const logged = isToday
     ? findLoggedRun(exerciseEntries, minutes, status.program.activity)
     : null;
+
+  const ease =
+    isToday && status.program.activity !== 'walk' && !easeDismissed
+      ? suggestFromBreak({
+          lastDoneDay: doneDay,
+          today,
+          next: status.done,
+          total: status.total,
+          lastAdjustedAt: lastAdjustment?.at ?? null,
+        })
+      : null;
+
+  const easeBackIn = async (percent: number, count: number) => {
+    setEasing(true);
+    try {
+      await adjustProgramRunning(percent, count);
+    } catch (error) {
+      addLog(`[Run Program] Could not ease back in: ${error}`, 'WARNING');
+      Toast.show({
+        type: 'error',
+        text1: t('recordActivity.program.errors.update', {
+          defaultValue: 'Could not update your program',
+        }),
+        text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
+      });
+    } finally {
+      setEasing(false);
+    }
+  };
 
   const countLoggedRun = async (entryId: string) => {
     setCounting(true);
@@ -140,6 +180,35 @@ const RunProgramBanner: React.FC<{
           </Button>
         ) : null}
       </View>
+      {ease ? (
+        <View className="mt-3 pt-3 border-t border-border-subtle">
+          <Text className="text-text-secondary text-sm mb-2">
+            {t('runPrograms.banner.easeBack', {
+              workouts: ease.count,
+              days: ease.daysAway,
+              percent: Math.abs(ease.percent),
+              defaultValue:
+                "It's been {{days}} days since your last workout. Ease the running in the next {{workouts}} workouts by {{percent}}% to build back safely?",
+            })}
+          </Text>
+          <View className="flex-row gap-2">
+            <Button
+              variant="outline"
+              onPress={() => void easeBackIn(ease.percent, ease.count)}
+              disabled={easing}
+            >
+              {t('runPrograms.banner.easeBackAction', {
+                defaultValue: 'Ease back in',
+              })}
+            </Button>
+            <Button variant="ghost" onPress={() => setEaseDismissed(true)}>
+              {t('runPrograms.banner.easeBackDismiss', {
+                defaultValue: 'Not now',
+              })}
+            </Button>
+          </View>
+        </View>
+      ) : null}
       {logged ? (
         <View className="mt-3 pt-3 border-t border-border-subtle flex-row items-center justify-between">
           <Text className="text-text-secondary text-sm flex-1 mr-3">

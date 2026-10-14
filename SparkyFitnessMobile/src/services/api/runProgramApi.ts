@@ -1,4 +1,5 @@
 import type {
+  AdjustRunProgramBody,
   CompleteRunProgramWorkoutBody,
   RateRunProgramWorkoutBody,
   GetRunProgramResponse,
@@ -48,6 +49,18 @@ export const rateRunProgramWorkout = (
     endpoint: '/api/v2/run-program/effort',
     serviceName: SERVICE,
     operation: 'rate run program workout',
+    method: 'POST',
+    body,
+  });
+
+/** Eases or lengthens the running in the next few workouts. */
+export const adjustRunProgramRunning = (
+  body: AdjustRunProgramBody
+): Promise<GetRunProgramResponse> =>
+  apiFetch<GetRunProgramResponse>({
+    endpoint: '/api/v2/run-program/adjust',
+    serviceName: SERVICE,
+    operation: 'adjust run program',
     method: 'POST',
     body,
   });
