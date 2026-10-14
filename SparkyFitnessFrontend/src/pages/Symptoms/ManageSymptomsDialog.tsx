@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { translateSymptomLabel } from './symptomLabels';
+import { translateSymptomChoice, translateSymptomLabel } from './symptomLabels';
 import { Eye, EyeOff, Pencil, Pin, PinOff, Plus, Trash2 } from 'lucide-react';
 import {
   BUILT_IN_OPTIONS,
@@ -238,7 +238,7 @@ export default function ManageSymptomsDialog({
                   >
                     <span className="min-w-0">
                       <span className="font-medium">
-                        {translateSymptomLabel(t, c.displayName)}
+                        {translateSymptomChoice(t, c)}
                       </span>
                       <span className="ml-2 text-xs text-muted-foreground">
                         {t(`symptoms.templates.${c.template}`, c.template)}

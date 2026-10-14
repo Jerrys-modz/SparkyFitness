@@ -224,7 +224,7 @@ const OidcSettings: React.FC = () => {
   if (error)
     return (
       <div className="text-red-500">
-        {t('admin.oidcSettings.error2', 'Error: {{error}}', { error })}
+        {t('admin.oidcSettings.loadFailed', 'Failed to load OIDC providers.')}
       </div>
     );
 

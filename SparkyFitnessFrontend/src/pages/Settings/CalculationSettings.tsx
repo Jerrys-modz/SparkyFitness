@@ -487,10 +487,6 @@ const CalculationSettings = () => {
     deficitCeilingPercent != null &&
     getGoalModeAdjustment(mode, goalModeCustomPercentage) * 100 >
       deficitCeilingPercent + 1e-9;
-  const goalModeSuffix = (mode: GoalMode) =>
-    isGoalModeUnreachable(mode)
-      ? ` — ${t('settings.goalMode.modeUnreachableSuffix', 'not reachable')}`
-      : '';
 
   const deficitPct = getGoalModeAdjustment(goalMode, goalModeCustomPercentage);
 
@@ -1225,23 +1221,32 @@ const CalculationSettings = () => {
                 </SelectItem>
                 <SelectItem value="recomp">
                   {t(
-                    'settings.goalMode.bodyRecomposition10',
-                    'Body Recomposition (-10%){{goalModeSuffix}}',
-                    { goalModeSuffix: goalModeSuffix('recomp') }
+                    isGoalModeUnreachable('recomp')
+                      ? 'settings.goalMode.bodyRecomposition10Unreachable'
+                      : 'settings.goalMode.bodyRecomposition10',
+                    isGoalModeUnreachable('recomp')
+                      ? 'Body Recomposition (-10%) — not reachable'
+                      : 'Body Recomposition (-10%)'
                   )}
                 </SelectItem>
                 <SelectItem value="cut">
                   {t(
-                    'settings.goalMode.cut15',
-                    'Cut (-15%){{goalModeSuffix}}',
-                    { goalModeSuffix: goalModeSuffix('cut') }
+                    isGoalModeUnreachable('cut')
+                      ? 'settings.goalMode.cut15Unreachable'
+                      : 'settings.goalMode.cut15',
+                    isGoalModeUnreachable('cut')
+                      ? 'Cut (-15%) — not reachable'
+                      : 'Cut (-15%)'
                   )}
                 </SelectItem>
                 <SelectItem value="high_cut">
                   {t(
-                    'settings.goalMode.highCut20',
-                    'High Cut (-20%){{goalModeSuffix}}',
-                    { goalModeSuffix: goalModeSuffix('high_cut') }
+                    isGoalModeUnreachable('high_cut')
+                      ? 'settings.goalMode.highCut20Unreachable'
+                      : 'settings.goalMode.highCut20',
+                    isGoalModeUnreachable('high_cut')
+                      ? 'High Cut (-20%) — not reachable'
+                      : 'High Cut (-20%)'
                   )}
                 </SelectItem>
                 <SelectItem value="lean_bulk">

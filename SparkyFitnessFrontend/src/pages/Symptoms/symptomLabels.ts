@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import { BUILT_IN_SYMPTOM_DEFINITIONS } from '@workspace/shared';
 
 const labelKey = (label: string): string => {
   const words = label
@@ -24,4 +25,18 @@ const labelKey = (label: string): string => {
 export function translateSymptomLabel(t: TFunction, label: string): string {
   const key = labelKey(label);
   return key ? t(`symptoms.builtIn.${key}`, label) : label;
+}
+
+const BUILT_IN_SYMPTOM_NAMES = new Set(
+  BUILT_IN_SYMPTOM_DEFINITIONS.map((definition) => definition.name)
+);
+
+/** Translates a symptom choice only when it is one of the built-in symptoms. */
+export function translateSymptomChoice(
+  t: TFunction,
+  choice: { name: string; displayName: string }
+): string {
+  return BUILT_IN_SYMPTOM_NAMES.has(choice.name)
+    ? translateSymptomLabel(t, choice.displayName)
+    : choice.displayName;
 }

@@ -64,7 +64,6 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import { ExternalDataProvider } from './ExternalProviderSettings';
 
 import { useTranslation } from 'react-i18next';
-import i18n from 'i18next';
 interface ProviderCardProps {
   provider: ExternalDataProvider;
   isLoading: boolean;
@@ -74,111 +73,55 @@ interface ProviderCardProps {
 
 const PROVIDER_PORTALS: Record<string, { label: string; url: string }> = {
   strava: {
-    get label() {
-      return i18n.t(
-        'settings.providerCard.stravaAPISettings',
-        'Strava API Settings'
-      );
-    },
+    label: 'Strava API Settings',
     url: 'https://www.strava.com/settings/api',
   },
   fitbit: {
-    get label() {
-      return i18n.t(
-        'settings.providerCard.fitbitDeveloperPortal',
-        'Fitbit Developer Portal'
-      );
-    },
+    label: 'Fitbit Developer Portal',
     url: 'https://dev.fitbit.com/apps',
   },
   oura: {
-    get label() {
-      return i18n.t(
-        'settings.providerCard.ouraDeveloperPortal',
-        'Oura Developer Portal'
-      );
-    },
+    label: 'Oura Developer Portal',
     url: 'https://developer.ouraring.com/applications',
   },
   withings: {
-    get label() {
-      return i18n.t(
-        'settings.providerCard.withingsDeveloperDashboard',
-        'Withings Developer Dashboard'
-      );
-    },
+    label: 'Withings Developer Dashboard',
     url: 'https://developer.withings.com/dashboard/',
   },
   polar: {
-    get label() {
-      return i18n.t(
-        'settings.providerCard.polarFlowApplications',
-        'Polar Flow Applications'
-      );
-    },
+    label: 'Polar Flow Applications',
     url: 'https://flow.polar.com/settings/applications',
   },
   garmin: {
-    get label() {
-      return i18n.t('settings.providerCard.garminConnect', 'Garmin Connect');
-    },
+    label: 'Garmin Connect',
     url: 'https://connect.garmin.com/',
   },
   nutritionix: {
-    get label() {
-      return i18n.t(
-        'settings.providerCard.nutritionixConsole',
-        'Nutritionix Console'
-      );
-    },
+    label: 'Nutritionix Console',
     url: 'https://developer.nutritionix.com/',
   },
   fatsecret: {
-    get label() {
-      return i18n.t(
-        'settings.providerCard.fatSecretPlatformDashboard',
-        'FatSecret Platform Dashboard'
-      );
-    },
+    label: 'FatSecret Platform Dashboard',
     url: 'https://platform.fatsecret.com/my-account/dashboard',
   },
   usda: {
-    get label() {
-      return i18n.t('settings.providerCard.usdaAPIGuide', 'USDA API Guide');
-    },
+    label: 'USDA API Guide',
     url: 'https://fdc.nal.usda.gov/api-guide.html',
   },
   yazio: {
-    get label() {
-      return i18n.t('settings.providerCard.yazioAPIDocs', 'Yazio API Docs');
-    },
+    label: 'Yazio API Docs',
     url: 'https://github.com/saganos/yazio_public_api',
   },
   openfoodfacts: {
-    get label() {
-      return i18n.t(
-        'settings.providerCard.openFoodFactsPortal',
-        'Open Food Facts Portal'
-      );
-    },
+    label: 'Open Food Facts Portal',
     url: 'https://world.openfoodfacts.org/',
   },
   coros_mcp: {
-    get label() {
-      return i18n.t(
-        'settings.providerCard.corosTrainingHub',
-        'COROS Training Hub'
-      );
-    },
+    label: 'COROS Training Hub',
     url: 'https://t.coros.com',
   },
   'canadian-nutrient-file': {
-    get label() {
-      return i18n.t(
-        'settings.providerCard.healthCanadaCNFOpenData',
-        'Health Canada CNF Open Data Portal'
-      );
-    },
+    label: 'Health Canada CNF Open Data Portal',
     url: 'https://open.canada.ca/data/en/dataset/1b6139bd-ed7e-4043-bc28-ff00e10f3109',
   },
 };

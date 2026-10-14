@@ -74,8 +74,8 @@ export const useSaveFoodMutation = () => {
     },
     meta: {
       errorMessage: i18n.t(
-        'hooks.useFoodVariants.failedToSaveCustomNutrient',
-        'Failed to save custom nutrient.'
+        'hooks.useFoodVariants.failedToSaveFood',
+        'Failed to save food.'
       ),
       successMessage: i18n.t(
         'hooks.useFoodVariants.foodSavedSuccessfully',

@@ -10,6 +10,29 @@ import { ExpandedGoals } from '@/types/goals';
 import { MealPercentages } from '@/types/meal';
 import MealPercentageManager from '../MealPercentageManager';
 
+type EnergyUnitName = 'kcal' | 'kJ';
+
+/** Share of the plan's calories (after fibre) that a macro's grams provide. */
+const macroPercent = (
+  plan: { calories?: number | null; dietary_fiber?: number | null } | null,
+  convertEnergy: (
+    value: number,
+    from: EnergyUnitName,
+    to: EnergyUnitName
+  ) => number,
+  energyUnit: EnergyUnitName,
+  grams: number,
+  kcalPerGram: number
+): number => {
+  if (!plan?.calories) return 0;
+  const adjusted =
+    convertEnergy(plan.calories, energyUnit, 'kcal') -
+    (plan.dietary_fiber || 0) * 2;
+  return adjusted > 0
+    ? Math.round(((grams * kcalPerGram) / adjusted) * 100)
+    : 0;
+};
+
 export interface NutrientGoalsProps {
   convertEnergy: (
     value: number,
@@ -60,22 +83,19 @@ export const NutrientGoals = ({
           <TableBody>
             <TableRow className="border-border hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t('onboarding.nutrientGoals.carbohydrates', 'Carbohydrates (')}
-                {editedPlan?.calories
-                  ? (() => {
-                      const adjusted =
-                        convertEnergy(
-                          editedPlan.calories,
-                          localEnergyUnit,
-                          'kcal'
-                        ) -
-                        (editedPlan.dietary_fiber || 0) * 2;
-                      return adjusted > 0
-                        ? Math.round(((editedPlan.carbs * 4) / adjusted) * 100)
-                        : 0;
-                    })()
-                  : 0}
-                %)
+                {t(
+                  'onboarding.nutrientGoals.carbohydratesShare',
+                  'Carbohydrates ({{percent}}%)',
+                  {
+                    percent: macroPercent(
+                      editedPlan,
+                      convertEnergy,
+                      localEnergyUnit,
+                      editedPlan?.carbs ?? 0,
+                      4
+                    ),
+                  }
+                )}
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -96,24 +116,19 @@ export const NutrientGoals = ({
             </TableRow>
             <TableRow className="border-border hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t('onboarding.nutrientGoals.protein', 'Protein (')}
-                {editedPlan?.calories
-                  ? (() => {
-                      const adjusted =
-                        convertEnergy(
-                          editedPlan.calories,
-                          localEnergyUnit,
-                          'kcal'
-                        ) -
-                        (editedPlan.dietary_fiber || 0) * 2;
-                      return adjusted > 0
-                        ? Math.round(
-                            ((editedPlan.protein * 4) / adjusted) * 100
-                          )
-                        : 0;
-                    })()
-                  : 0}
-                %)
+                {t(
+                  'onboarding.nutrientGoals.proteinShare',
+                  'Protein ({{percent}}%)',
+                  {
+                    percent: macroPercent(
+                      editedPlan,
+                      convertEnergy,
+                      localEnergyUnit,
+                      editedPlan?.protein ?? 0,
+                      4
+                    ),
+                  }
+                )}
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -136,22 +151,19 @@ export const NutrientGoals = ({
             </TableRow>
             <TableRow className="border-border hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t('onboarding.nutrientGoals.fats', 'Fats (')}
-                {editedPlan?.calories
-                  ? (() => {
-                      const adjusted =
-                        convertEnergy(
-                          editedPlan.calories,
-                          localEnergyUnit,
-                          'kcal'
-                        ) -
-                        (editedPlan.dietary_fiber || 0) * 2;
-                      return adjusted > 0
-                        ? Math.round(((editedPlan.fat * 9) / adjusted) * 100)
-                        : 0;
-                    })()
-                  : 0}
-                %)
+                {t(
+                  'onboarding.nutrientGoals.fatsShare',
+                  'Fats ({{percent}}%)',
+                  {
+                    percent: macroPercent(
+                      editedPlan,
+                      convertEnergy,
+                      localEnergyUnit,
+                      editedPlan?.fat ?? 0,
+                      9
+                    ),
+                  }
+                )}
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">

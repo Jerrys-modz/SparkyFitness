@@ -29,13 +29,13 @@ export const DeveloperResources = () => {
           <div className="flex flex-col space-y-2">
             <h4 className="font-medium">
               {t(
-                'settings.devloperResources.apiDocumentation',
+                'settings.developerResources.apiDocumentation',
                 'API Documentation'
               )}
             </h4>
             <p className="text-sm text-muted-foreground">
               {t(
-                'settings.devloperResources.exploreTheSparkyFitnessAPIDocumentation',
+                'settings.developerResources.exploreTheSparkyFitnessAPIDocumentation',
                 'Explore the SparkyFitness API documentation to build integrations or understand the platform better.'
               )}
             </p>
@@ -47,7 +47,7 @@ export const DeveloperResources = () => {
                   rel="noopener noreferrer"
                 >
                   {t(
-                    'settings.devloperResources.swaggerUIInteractive',
+                    'settings.developerResources.swaggerUIInteractive',
                     'Swagger UI (Interactive)'
                   )}
                 </a>
@@ -59,7 +59,7 @@ export const DeveloperResources = () => {
                   rel="noopener noreferrer"
                 >
                   {t(
-                    'settings.devloperResources.redocReadOnly',
+                    'settings.developerResources.redocReadOnly',
                     'Redoc (Read-only)'
                   )}
                 </a>

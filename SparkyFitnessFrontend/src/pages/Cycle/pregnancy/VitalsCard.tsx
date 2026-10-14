@@ -23,12 +23,15 @@ interface VitalsCardProps {
   pregnancyId: string;
   vitals: PregnancyVitals | null;
   date: string;
+  /** Current gestational week, shown beside the recommended weight gain range. */
+  week?: number;
 }
 
 export default function VitalsCard({
   pregnancyId: _pregnancyId,
   vitals,
   date,
+  week,
 }: VitalsCardProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -328,14 +331,18 @@ export default function VitalsCard({
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-muted/30 pt-2 text-xs">
                   <span className="text-muted-foreground">
                     <Trans
-                      i18nKey="pregnancy.vitals.iomRangeWkKg"
+                      i18nKey={
+                        week != null
+                          ? 'pregnancy.vitals.iomRangeWkKg'
+                          : 'pregnancy.vitals.iomRangeKg'
+                      }
                       defaults={
-                        'IOM Range (Wk {{wk}}): <strong>{{lowKg}} – {{highKg}} kg</strong>'
+                        week != null
+                          ? 'IOM Range (Wk {{wk}}): <strong>{{lowKg}} – {{highKg}} kg</strong>'
+                          : 'IOM Range: <strong>{{lowKg}} – {{highKg}} kg</strong>'
                       }
                       values={{
-                        wk: vitals.gainRange.lowKg
-                          ? Math.round(vitals.gainRange.lowKg)
-                          : 0,
+                        wk: week,
                         lowKg: vitals.gainRange.lowKg,
                         highKg: vitals.gainRange.highKg,
                       }}
