@@ -355,6 +355,7 @@ export type RootStackParamList = {
     { date?: string; session?: MindfulnessSessionResponse } | undefined;
   SleepDetail: { entryId: string; day: string };
   Chat: undefined;
+  ChatSettings: undefined;
   Logs: undefined;
   Sync: undefined;
   ImportHistory: undefined;

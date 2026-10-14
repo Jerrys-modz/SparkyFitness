@@ -89,6 +89,7 @@ import {
   SafeProgressPhotoCompare,
   SafeProgressPhotoTimelapse,
   SafeChat,
+  SafeChatSettings,
   SafeCalorieSettings,
   SafeGoals,
   SafeWeeklyGoalPlanEdit,
@@ -435,6 +436,7 @@ function AppContent() {
         },
         FoodScan: 'scan',
         FoodSearch: 'search',
+        ChatSettings: 'settings/voice',
         // Tapping the workout Live Activity opens its associated URL.
         ActiveWorkout: 'active-workout',
         // The run Live Activity opens the recording screen.
@@ -978,6 +980,11 @@ function AppContent() {
             name="CalorieSettings"
             component={SafeCalorieSettings}
             options={createStackScreenOptions(t('screens.calorieSettings', { defaultValue: 'Calorie Settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="ChatSettings"
+            component={SafeChatSettings}
+            options={createStackScreenOptions(t('voiceSettings.open', { defaultValue: 'Voice settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
           />
           <Stack.Screen
             name="FoodSettings"

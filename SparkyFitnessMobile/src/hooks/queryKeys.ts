@@ -286,6 +286,10 @@ export const activeAiServiceSettingQueryKey = [
   'ai-service-settings',
   'active',
 ] as const;
+export const voiceServiceOptionsQueryKey = [
+  'ai-service-settings',
+  'voice-options',
+] as const;
 export const userAiConfigAllowedQueryKey = [
   'ai-service-settings',
   'allow-user-ai-config',
