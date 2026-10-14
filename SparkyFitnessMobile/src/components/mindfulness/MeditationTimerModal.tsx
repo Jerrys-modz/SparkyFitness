@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useCSSVariable } from 'uniwind';
 import FullScreenModalBody from '../FullScreenModalBody';
 import Icon from '../Icon';
+import { useSaveOncePerRun } from '../../hooks/useSaveOncePerRun';
 
 interface MeditationTimerModalProps {
   visible: boolean;
@@ -92,23 +93,23 @@ export const MeditationTimerModal: React.FC<MeditationTimerModalProps> = ({
     }
   };
 
-  const handleFinish = async () => {
-    let finalSeconds = 0;
-    if (mode === 'countdown') {
-      finalSeconds = selectedMinutes * 60 - secondsRemaining;
-    } else {
-      finalSeconds = stopwatchSeconds;
-    }
-
-    if (finalSeconds > 0) {
-      try {
-        await onSave(finalSeconds, 'meditation');
-      } catch {
-        return;
+  const canFinish =
+    (mode === 'countdown' && secondsRemaining < selectedMinutes * 60) ||
+    (mode === 'stopwatch' && stopwatchSeconds > 0);
+  // Finish stays on screen while the save runs: one run is logged once.
+  const saveRunOnce = useSaveOncePerRun(canFinish);
+  const handleFinish = () => {
+    const finalSeconds =
+      mode === 'countdown'
+        ? selectedMinutes * 60 - secondsRemaining
+        : stopwatchSeconds;
+    return saveRunOnce(
+      () => onSave(finalSeconds, 'meditation'),
+      () => {
+        resetState();
+        onClose();
       }
-    }
-    resetState();
-    onClose();
+    );
   };
 
   const formatTime = (totalSeconds: number) => {
@@ -268,8 +269,7 @@ export const MeditationTimerModal: React.FC<MeditationTimerModalProps> = ({
             </Text>
           </TouchableOpacity>
 
-          {((mode === 'countdown' && secondsRemaining < selectedMinutes * 60) ||
-            (mode === 'stopwatch' && stopwatchSeconds > 0)) && (
+          {canFinish && (
             <TouchableOpacity
               onPress={handleFinish}
               className="flex-1 bg-emerald-600 py-4 rounded-2xl items-center"
