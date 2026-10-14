@@ -1,5 +1,14 @@
 import { vi, beforeEach, describe, expect, it } from 'vitest';
 
+const transactionClient = vi.hoisted(() => ({
+  query: vi.fn().mockResolvedValue({ rows: [] }),
+  release: vi.fn(),
+}));
+vi.mock('../db/poolManager.js', () => ({
+  getClient: vi.fn().mockResolvedValue(transactionClient),
+  getSystemClient: vi.fn(),
+}));
+
 // Mock all dependencies
 vi.mock('../models/foodRepository.js', () => ({
   default: {
@@ -230,7 +239,7 @@ describe('foodEntryMealService', () => {
       // Verify delete is called first
       expect(
         foodRepository.deleteFoodEntryComponentsByFoodEntryMealId
-      ).toHaveBeenCalledWith('meal-entry-1', 'user-1');
+      ).toHaveBeenCalledWith('meal-entry-1', 'user-1', transactionClient);
 
       // Verify that component foods are scaled correctly.
       // consumedQuantity (2.0) / (serving_size (1.0) * total_servings (1.0)) = 2.0 portion multiplier.
@@ -243,7 +252,8 @@ describe('foodEntryMealService', () => {
             quantity: 300,
           }),
         ],
-        'user-1'
+        'user-1',
+        { client: transactionClient }
       );
     });
 
@@ -377,6 +387,77 @@ describe('foodEntryMealService', () => {
   });
 
   describe('updateFoodEntryMeal component dates', () => {
+    it.each(['parent', 'template', 'replacement'])(
+      'rolls back the whole save when %s fails',
+      async (failure) => {
+        const error = new Error('Injected write failure');
+        vi.mocked(
+          foodEntryMealRepository.updateFoodEntryMeal
+        ).mockResolvedValue({
+          id: 'meal-entry-1',
+          meal_type_id: 'dinner-id',
+          entry_date: '2026-10-14',
+          quantity: 1,
+          unit: 'serving',
+          entry_total_servings: 1,
+        });
+        if (failure === 'parent') {
+          vi.mocked(
+            foodEntryMealRepository.updateFoodEntryMeal
+          ).mockRejectedValueOnce(error);
+        } else if (failure === 'template') {
+          vi.mocked(
+            foodEntryMealRepository.updateFoodEntryMeal
+          ).mockResolvedValue({
+            id: 'meal-entry-1',
+            meal_type_id: 'dinner-id',
+            entry_date: '2026-10-14',
+            meal_template_id: 'template-1',
+            quantity: 1,
+            unit: 'serving',
+            entry_total_servings: null,
+          });
+          vi.mocked(mealRepository.getMealById).mockRejectedValueOnce(error);
+        } else {
+          vi.mocked(foodRepository.bulkCreateFoodEntries).mockRejectedValueOnce(
+            error
+          );
+        }
+        await expect(
+          updateFoodEntryMeal('user-1', 'user-1', 'meal-entry-1', {
+            name: 'Edited name',
+            foods: [
+              {
+                food_id: null,
+                variant_id: null,
+                food_name: 'Stored food',
+                quantity: 100,
+                serving_size: 100,
+                calories: 165,
+              },
+            ],
+          })
+        ).rejects.toThrow('Injected write failure');
+        expect(
+          transactionClient.query.mock.calls.map((call) => call[0])
+        ).toEqual(['BEGIN', 'ROLLBACK']);
+        expect(transactionClient.release).toHaveBeenCalledTimes(1);
+        expect(
+          vi.mocked(foodEntryMealRepository.updateFoodEntryMeal).mock
+            .calls[0][3]
+        ).toBe(transactionClient);
+        if (failure === 'replacement') {
+          expect(
+            vi.mocked(foodRepository.deleteFoodEntryComponentsByFoodEntryMealId)
+              .mock.calls[0][2]
+          ).toBe(transactionClient);
+          expect(
+            vi.mocked(foodRepository.bulkCreateFoodEntries).mock.calls[0][2]
+          ).toEqual({ client: transactionClient });
+        }
+      }
+    );
+
     it.each([
       [false, 'serving_size'],
       [false, 'calories'],
@@ -556,7 +637,8 @@ describe('foodEntryMealService', () => {
               calories: 0,
             }),
           ],
-          'user-1'
+          'user-1',
+          { client: transactionClient }
         );
       }
     );
@@ -601,7 +683,8 @@ describe('foodEntryMealService', () => {
 
       expect(foodRepository.bulkCreateFoodEntries).toHaveBeenCalledWith(
         [expect.objectContaining({ entry_date: '2026-06-19' })],
-        'user-1'
+        'user-1',
+        { client: transactionClient }
       );
     });
   });
