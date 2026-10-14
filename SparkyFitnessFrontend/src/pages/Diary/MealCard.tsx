@@ -65,7 +65,7 @@ import { cn } from '@/lib/utils';
 import AllergenBadges from '@/components/AllergenBadges';
 import { diaryEntryImages, usableFoodImages } from '@/utils/foodImages';
 import { useImageLightbox } from '@/hooks/Foods/useImageLightbox';
-import ImageLightbox from '@/components/FoodSearch/ImageLightbox';
+import ImageLightbox from '@/components/ImageLightbox';
 
 const MOBILE_ENTRY_NUTRIENT_LIMIT = 4;
 
@@ -247,10 +247,11 @@ const MealCard = ({
               </CardTitle>
               <span className="text-xs sm:text-sm text-gray-500">
                 {Math.round(convertEnergy(totals.calories, 'kcal', energyUnit))}
-                {!!meal.targetCalories &&
-                  ` / ${Math.round(
+                {!!meal.targetCalories && (
+                  <span>{` / ${Math.round(
                     convertEnergy(meal.targetCalories, 'kcal', energyUnit)
-                  )}`}
+                  )}`}</span>
+                )}
                 {getEnergyUnitString(energyUnit)}
               </span>
             </div>

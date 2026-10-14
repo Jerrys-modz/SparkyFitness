@@ -9,13 +9,20 @@ import {
 } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import measurementService from '../../services/measurementService.js';
+import { CustomCategoryExistsError } from '../../utils/errors.js';
 import preferenceService from '../../services/preferenceService.js';
 import moodRepository from '../../models/moodRepository.js';
 import fastingRepository from '../../models/fastingRepository.js';
+import fastingAutoCalculationService from '../../services/fastingAutoCalculationService.js';
 import sleepRepository from '../../models/sleepRepository.js';
 import { ERRORS, formatZodError } from './errors.js';
 import { normalizeActionArgs } from './dates.js';
-import { formatConfirmation, formatList, formatSuccess } from './formatting.js';
+import {
+  formatConfirmation,
+  formatJsonResult,
+  formatList,
+  formatSuccess,
+} from './formatting.js';
 import { convertWeight, convertMeasurement } from './unitConversion.js';
 import {
   manageCheckinSchema,
@@ -85,6 +92,7 @@ const VALID_ACTIONS = [
   'list_checkin_diary',
   'get_fasting_status',
   'get_biometrics_history',
+  'get_custom_metrics_history',
 ];
 
 // Optional inputs and nullable DB columns are treated alike: absent.
@@ -161,7 +169,8 @@ Actions:
 - list_categories()
 - list_checkin_diary(entry_date?)
 - get_fasting_status() — returns the currently active fasting session if any
-- get_biometrics_history(start_date?, end_date?) — returns weight and measurements history`,
+- get_biometrics_history(start_date?, end_date?) — returns standard measurement history
+- get_custom_metrics_history(start_date?, end_date?) — returns custom measurement history with category metadata and source dates`,
       inputSchema: manageCheckinInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -509,11 +518,17 @@ Actions:
               const date = args.entry_date || todayInZone(tz);
               const dateLabel = args.entry_date || 'today';
 
-              const bioRow = await measurementService.getCheckInMeasurements(
-                userId,
-                userId,
-                date
-              );
+              // A daily diary must show only values measured on that day.
+              // getCheckInMeasurements carries older values forward for web/mobile
+              // editors, which would otherwise mislabel their source date here.
+              const exactBiometricRows =
+                await measurementService.getCheckInMeasurementsByDateRange(
+                  userId,
+                  userId,
+                  date,
+                  date
+                );
+              const bioRow = exactBiometricRows[0] ?? null;
               const moodEntry = await moodRepository.getMoodEntryByDate(
                 userId,
                 date
@@ -717,7 +732,40 @@ Actions:
             }
 
             case 'get_fasting_status': {
-              const fast = await fastingRepository.getCurrentFast(userId);
+              let fast = await fastingRepository.getCurrentFast(userId);
+              let isAuto = false;
+              let isEatingWindow = false;
+              let eatingWindowRemainingMinutes: number | undefined;
+              let startMealName: string | undefined;
+
+              if (!fast) {
+                try {
+                  const autoFast =
+                    await fastingAutoCalculationService.getCurrentAutoFast(
+                      userId,
+                      tz
+                    );
+                  if (autoFast) {
+                    isAuto = true;
+                    startMealName = autoFast.start_meal_name;
+                    isEatingWindow = Boolean(autoFast.is_eating_window);
+                    eatingWindowRemainingMinutes =
+                      autoFast.eating_window_remaining_minutes;
+                    fast = {
+                      id: autoFast.id,
+                      user_id: autoFast.user_id,
+                      start_time: autoFast.start_time,
+                      end_time: autoFast.end_time,
+                      status: autoFast.status,
+                      fasting_type: autoFast.fasting_type,
+                      created_at: new Date(autoFast.start_time),
+                    } as unknown as typeof fast;
+                  }
+                } catch {
+                  // Fall back gracefully if auto-calculation cannot query
+                }
+              }
+
               if (!fast) {
                 return 'No active fasting session.';
               }
@@ -727,33 +775,63 @@ Actions:
                   user_id: fast.user_id,
                   start_time: fast.start_time,
                   end_time: fast.end_time,
-                  fasting_status: fast.status,
+                  fasting_status: isEatingWindow
+                    ? 'EATING_WINDOW'
+                    : fast.status,
                   fasting_type: fast.fasting_type,
                   created_at: fast.created_at,
+                  ...(isAuto ? { is_auto_calculated: true } : {}),
+                  ...(startMealName ? { start_meal_name: startMealName } : {}),
+                  ...(isEatingWindow
+                    ? {
+                        is_eating_window: true,
+                        eating_window_remaining_minutes:
+                          eatingWindowRemainingMinutes,
+                      }
+                    : {}),
                 },
                 'Fasting Status'
               );
             }
 
             case 'get_biometrics_history': {
-              const history = await getBiometricsHistoryRows(
-                userId,
-                args.start_date,
-                args.end_date
-              );
-              return formatList(
-                history,
-                'Biometrics History',
-                (h: BiometricsRow) => {
-                  const hw = h.weight_unit || 'kg';
-                  let text = `**${h.entry_date}**: `;
-                  if (h.weight) text += `Weight: ${h.weight}${hw} `;
-                  if (h.body_fat_percentage)
-                    text += `| BF: ${h.body_fat_percentage}% `;
-                  if (h.steps) text += `| Steps: ${h.steps}`;
-                  return text;
-                }
-              );
+              const startDate = args.start_date || '1970-01-01';
+              const endDate = args.end_date || '9999-12-31';
+              const [history, customMeasurements] = await Promise.all([
+                getBiometricsHistoryRows(userId, startDate, endDate),
+                measurementService.getCustomMeasurementEntriesByDateRange(
+                  userId,
+                  userId,
+                  startDate,
+                  endDate
+                ),
+              ]);
+              return formatJsonResult({
+                start_date: startDate,
+                end_date: endDate,
+                standard_measurements: history.map((measurement) => ({
+                  ...measurement,
+                  measurement_type: 'standard',
+                  value_date: measurement.entry_date,
+                })),
+                custom_measurements: customMeasurements.map(
+                  (measurement: Record<string, unknown>) => ({
+                    ...measurement,
+                    value_date: measurement.entry_date,
+                  })
+                ),
+              });
+            }
+
+            case 'get_custom_metrics_history': {
+              const history =
+                await measurementService.getCustomMeasurementEntriesByDateRange(
+                  userId,
+                  userId,
+                  args.start_date || '1970-01-01',
+                  args.end_date || '9999-12-31'
+                );
+              return formatSuccess(history, 'Custom Metrics History');
             }
 
             default: {
@@ -765,7 +843,10 @@ Actions:
           }
         } catch (error) {
           log('error', '[Checkin Tool] Error:', error);
-          if (error instanceof Error && error.message.includes('not found')) {
+          if (
+            error instanceof CustomCategoryExistsError ||
+            (error instanceof Error && error.message.includes('not found'))
+          ) {
             return ERRORS.VALIDATION(error.message);
           }
           return ERRORS.DB_ERROR(error);

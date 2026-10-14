@@ -17,6 +17,7 @@ import {
 import { Edit, Trash2, Settings, Play } from 'lucide-react';
 import { formatWeight } from '@/utils/numberFormatting';
 import { usePreferences } from '@/contexts/PreferencesContext';
+import { carryDistanceFromKm, carryDistanceUnitLabel } from '@workspace/shared';
 import { formatMinutesToHHMM } from '@/utils/timeFormatters';
 import { ExerciseEntry, Exercise } from '@/types/exercises';
 import {
@@ -35,6 +36,7 @@ import {
 } from '@workspace/shared';
 import { formatTimeOfDayString } from '@/utils/timeFormatters';
 import { exerciseDisplayLabel } from '@/utils/exerciseDisplayLabels';
+import { localizeMuscle, localizeEquipment } from '@/utils/exerciseTaxonomy';
 
 interface ExerciseEntryDisplayProps {
   exerciseEntry: ExerciseEntry;
@@ -105,9 +107,18 @@ const ExerciseEntryDisplay: React.FC<ExerciseEntryDisplayProps> = ({
       : null;
 
   const isActiveCalories = snapshot?.name === 'Active Calories';
-  const isTimed =
-    resolveExerciseModality(snapshot?.modality, snapshot?.category) ===
-    'duration';
+  const entryModality = resolveExerciseModality(
+    snapshot?.modality,
+    snapshot?.category
+  );
+  const isTimed = entryModality === 'duration';
+
+  const formatSetDistance = (km: number) =>
+    entryModality === 'weight_distance'
+      ? `${Number(carryDistanceFromKm(km, distanceUnit).toFixed(1))} ${carryDistanceUnitLabel(distanceUnit)}`
+      : formatDistance(km);
+  // A bodyweight set's weight is added (+) or assisting (−).
+  const isBodyweight = entryModality === 'bodyweight_reps';
 
   const setsDuration = setsDurationMinutes(exerciseEntry.sets);
   // Sets carry their own timers (planks, holds, rest). When those sum to 0
@@ -285,7 +296,11 @@ const ExerciseEntryDisplay: React.FC<ExerciseEntryDisplayProps> = ({
                       })
                 );
               if (set.weight && Number.isFinite(set.weight))
-                parts.push(formatWeight(set.weight, weightUnit));
+                parts.push(
+                  isBodyweight && set.weight > 0
+                    ? `+${formatWeight(set.weight, weightUnit)}`
+                    : formatWeight(set.weight, weightUnit)
+                );
               if (set.duration != null)
                 parts.push(
                   t('exerciseCard.secondsShort', {
@@ -294,8 +309,9 @@ const ExerciseEntryDisplay: React.FC<ExerciseEntryDisplayProps> = ({
                   })
                 );
               if (set.distance != null)
-                parts.push(formatDistance(set.distance));
+                parts.push(formatSetDistance(set.distance));
               if (Number.isFinite(set.rpe)) parts.push(`RPE ${set.rpe}`);
+              if (Number.isFinite(set.rir)) parts.push(`RIR ${set.rir}`);
               if (parts.length === 0) return null;
               return (
                 <span
@@ -329,7 +345,9 @@ const ExerciseEntryDisplay: React.FC<ExerciseEntryDisplayProps> = ({
             <span className="font-medium text-gray-500 dark:text-gray-400">
               {t('exerciseCard.primaryMusclesLabel', 'Primary Muscles')}:{' '}
             </span>
-            {snapshot.primary_muscles.join(', ')}
+            {snapshot.primary_muscles
+              .map((m) => localizeMuscle(t, m))
+              .join(', ')}
           </div>
         )}
         {snapshot?.secondary_muscles &&
@@ -339,7 +357,9 @@ const ExerciseEntryDisplay: React.FC<ExerciseEntryDisplayProps> = ({
                 {t('exerciseCard.secondaryMusclesLabel', 'Secondary Muscles')}
                 :{' '}
               </span>
-              {snapshot.secondary_muscles.join(', ')}
+              {snapshot.secondary_muscles
+                .map((m) => localizeMuscle(t, m))
+                .join(', ')}
             </div>
           )}
         {snapshot?.equipment && snapshot.equipment.length > 0 && (
@@ -347,7 +367,9 @@ const ExerciseEntryDisplay: React.FC<ExerciseEntryDisplayProps> = ({
             <span className="font-medium text-gray-500 dark:text-gray-400">
               {t('exerciseCard.equipmentLabel', 'Equipment')}:{' '}
             </span>
-            {snapshot.equipment.join(', ')}
+            {snapshot.equipment
+              .map((eq) => localizeEquipment(t, eq))
+              .join(', ')}
           </div>
         )}
         {exerciseEntry.notes && (

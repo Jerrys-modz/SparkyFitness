@@ -9,6 +9,7 @@ import {
   suppressSessionExpired,
 } from '../../src/services/api/authService';
 import { clearServerConfigCache } from '../../src/services/storage';
+import { clearBackgroundWater } from '../../src/services/backgroundWater';
 import { addLog } from '../../src/services/LogService';
 import type { ServerConfig } from '../../src/services/storage';
 import { createTestQueryClient, createQueryWrapper } from './queryTestUtils';
@@ -24,6 +25,8 @@ jest.mock('../../src/services/api/authService', () => ({
 
 jest.mock('../../src/services/storage', () => ({
   clearServerConfigCache: jest.fn(),
+  setOnServerConfigDeleted: jest.fn(),
+  takeIdentityChangeServerConfigIds: jest.fn(async () => []),
 }));
 
 jest.mock('expo-image', () => ({
@@ -31,6 +34,10 @@ jest.mock('expo-image', () => ({
     clearMemoryCache: jest.fn().mockResolvedValue(true),
     clearDiskCache: jest.fn().mockResolvedValue(true),
   },
+}));
+
+jest.mock('../../src/services/backgroundWater', () => ({
+  clearBackgroundWater: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../../src/services/LogService', () => ({
@@ -117,6 +124,18 @@ describe('useAuth', () => {
     expect(
       queryClient.getQueryData(['measurements', '2026-01-01'])
     ).toBeUndefined();
+  });
+
+  test('identity changed callback erases the shortcut login copy', async () => {
+    renderUseAuth();
+    await act(async () => {});
+
+    const identityChangedCb = mockSetOnIdentityChanged.mock.calls[0][0];
+    await act(async () => {
+      await identityChangedCb();
+    });
+
+    expect(clearBackgroundWater).toHaveBeenCalledTimes(1);
   });
 
   test('identity changed callback drops the image caches', async () => {

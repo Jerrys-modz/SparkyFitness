@@ -80,6 +80,9 @@ const options = {
               enum: [
                 'weight_reps',
                 'reps_only',
+                'bodyweight_reps',
+                'weight_duration',
+                'weight_distance',
                 'duration',
                 'duration_distance',
               ],
@@ -585,6 +588,11 @@ const options = {
               format: 'uuid',
               description: 'The ID of the exercise performed.',
             },
+            exercise_name: {
+              type: 'string',
+              description:
+                'Name stored on this entry. Optional on create; when omitted the library exercise name is used.',
+            },
             duration_minutes: {
               type: 'number',
               description: 'The duration of the exercise in minutes.',
@@ -791,6 +799,19 @@ const options = {
             name: { type: 'string' },
             description: { type: 'string' },
             is_public: { type: 'boolean' },
+            workout_format: {
+              type: 'string',
+              enum: [
+                'standard',
+                'interval',
+                'tabata',
+                'amrap',
+                'emom',
+                'for_time',
+              ],
+              default: 'standard',
+            },
+            time_cap_seconds: { type: 'integer', nullable: true },
             exercises: {
               type: 'array',
               items: {
@@ -801,6 +822,14 @@ const options = {
                   exercise_name: { type: 'string' },
                   image_url: { type: 'string', nullable: true },
                   superset_group: { type: 'integer', nullable: true },
+                  ramp_increment: {
+                    type: 'number',
+                    nullable: true,
+                    minimum: -9999.99,
+                    maximum: 9999.99,
+                    description:
+                      'Kg added to each successive working set within one session (negative ramps down; warm-up and drop sets skipped). Null = off. Separate from the between-session progression increment.',
+                  },
                   sets: {
                     type: 'array',
                     items: { $ref: '#/components/schemas/WorkoutSet' },
@@ -1249,6 +1278,7 @@ const options = {
           type: 'object',
           properties: {
             enable_email_password_login: { type: 'boolean' },
+            enable_passkey_login: { type: 'boolean' },
             is_oidc_active: { type: 'boolean' },
             is_mfa_mandatory: { type: 'boolean' },
             default_vision_ai_service_id: {

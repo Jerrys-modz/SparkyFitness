@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-09-14_
+_Last updated: 2026-10-10_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -28,7 +28,7 @@ If a task also touches `shared/`, the frontend, or the mobile app, read the rele
 - Stack: Express 5, PostgreSQL via `pg`, Better Auth, Zod, TypeScript 5, Vitest 4, ESLint 10
 - Module system: ESM with `type: "module"` and `moduleResolution: "NodeNext"`
 - The package is now effectively TypeScript-first; almost all source files are `.ts`
-- Main domains: food and meal tracking, exercise logging, health and sleep data, sleep science, fasting, medications, mood, menstrual cycle and pregnancy, reporting, AI chat, onboarding, identity, admin tooling, and external provider integrations
+- Main domains: food and meal tracking, exercise logging, health and sleep data, sleep science, fasting, medications, symptom and episode tracking, mood, menstrual cycle and pregnancy, reporting, AI chat, onboarding, identity, admin tooling, and external provider integrations
 
 ## Verified Commands
 
@@ -57,19 +57,27 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 ## Source Map
 
 - `index.ts` - real dev entrypoint; loads env, secrets, and preflight checks before booting the app
-- `SparkyFitnessServer.ts` - Express app shell, route mounting, Swagger/ReDoc, cron setup, graceful shutdown
+- `SparkyFitnessServer.ts` - Express app shell, route mounting, Swagger/ReDoc, startup, graceful shutdown
+- `services/backgroundJobScheduler.ts` - starts every scheduled background job at startup, including the demo reset; provider syncs are listed in `services/providerSyncScheduler.ts`; `SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS=true` skips them all
 - `auth.ts` - Better Auth configuration, plugins, session behavior, SSO provider syncing
 - `routes/` - primary HTTP route surface
 - `routes/v2/` - newer typed route surface; pair these changes with `schemas/`
 - `routes/v2/openFoodFactsContributionRoutes.ts` - owner-only single-food preview and explicit photo-backed publication; background contributions are disabled for this release
+- `routes/v2/symptomRoutes.ts` - generic symptom tracking (`symptoms` permission): definitions (`/custom`), the pick-list library (`/options`), entries and episodes (`/entries`, `/entries/ongoing`, `/entries/:id/end`, `/entries/:id/severity`), photos, and symptom-free days. Logic lives in `services/symptomService.ts` over `models/symptomRepository.ts` and `models/symptomOptionRepository.ts`; the request/response contract is `../shared/src/schemas/api/Symptoms.api.zod.ts`
+- `routes/reportRoutes.ts` `GET /reports/training-consistency` - the consistency view (#59): `reportService.getTrainingConsistency` reads a fixed 26 weeks of exercise entries and hands them to the shared `buildTrainingConsistency`, so web and mobile show the same streak and weekly sets (`reports` permission)
 - `routes/v2/reportRoutes.ts` - weekly alcohol rollup and the zero-padded hydration/caffeine/alcohol range used by the Trends charts (`reports` permission)
 - `routes/v2/nutritionKineticsRoutes.ts` - active-caffeine estimate and bedtime cutoff (`diary` permission)
+- `routes/v2/workoutCoachingRoutes.ts` - adaptive coaching (#1560): session feedback (`workout_feedback`), the per-user `adaptive_workout_suggestions` setting (owner-only write), and recent-history signals (`diary` permission). `GET /v2/exercises/:id/alternatives` (ranked substitutes) lives in `routes/v2/exerciseRoutes.ts`
+- `routes/v2/runProgramRoutes.ts` - the person's run program and place in it (`/api/v2/run-program`: `GET`, `PUT` to start, switch on or off, move, or set the Diary schedule (`run_days`, `start_date`, `end_date`), `POST /complete` which also records the person's local `day` as `last_done_date` and, given `entry_id`, appends `{index, entry_id, at}` to `completion_log` (newest 200 kept; cleared on a program switch) so the app can show a diary run as part of the program, `POST /effort` which saves a 1 to 10 rating for a workout already done (`rateRunProgramWorkout`: under the row lock, replaces an earlier rating of the same index, keeps the last 40 in `effort_log`, refused for a workout not yet done or another program; a program switch clears it); the tool's `get_run_program` lists recent ratings and, through shared `suggestFromEffort`, notes two hard or two easy in a row); owner-only (`requireSelfActor`, `run_programs` owner policy). `models/runProgramRepository.ts` seeds the stored `workouts` from the built-in program in `../shared/src/utils/runPrograms.ts`, completes the due workout in one statement so a repeat cannot skip one, and `adjustRunProgram` applies a change under a row lock with a log entry. The change rules (only upcoming workouts, running eased up to 30% or raised at most 10%) are `../shared/src/utils/runProgramAdjust.ts`, shared by the AI tool `ai/tools/runProgramTools.ts` (`sparky_manage_run_program`; every change needs `confirmed=true`; `set_run_program_schedule` changes the Diary days (names or 0 to 6), first day and goal day through the same upsert; only `get_run_program` is read-only for MCP keys) and the contract is `../shared/src/schemas/api/RunProgram.api.zod.ts`
+- `routes/v2/mindfulnessRoutes.ts` - mindfulness & meditation sessions tracking (`checkin` permission): day summaries (`/day-summary`), session logs and telemetry (`/entries`, `/entries/:id`). Logic lives in `models/mindfulnessRepository.ts`; the request/response contract is `../shared/src/schemas/api/Mindfulness.api.zod.ts`
 - `routes/auth/` - auth-specific route fragments mounted through `routes/authRoutes.ts`
 - `services/` - business logic and orchestration
 - `models/` - PostgreSQL repositories and persistence helpers
 - `middleware/` - auth, permissions, uploads, and shared Express middleware
 - `utils/uploadsPath.ts` - the uploads root plus the resolver and containment guard for stored `file_path` values; use it instead of re-deriving `SPARKY_FITNESS_CUSTOM_UPLOADS_DIRECTORY`
 - `utils/oauthState.ts` - server-issued single-use OAuth `state` nonces for provider linking (`issueOAuthState`, `persistOAuthState`, `claimOAuthState`); use it instead of hand-rolling a state value
+- `utils/outboundHttp.ts` - process-wide outbound HTTP defaults, applied from `index.ts`: the axios request timeout and the per-address-family connect attempt timeout (`net.setDefaultAutoSelectFamilyAttemptTimeout`). Both are fixed constants on purpose - do not add env overrides, and read the sizing note there before changing either, because the two values interact
+- `utils/errors.ts` - `ValidationError` plus `describeError(error)`; prefer it over `error.message` when logging any caught value, because an `AggregateError` or a non-Error throw renders as an empty string
 - `middleware/requireSelfMiddleware.ts` - `requireSelfActor`, which rejects a switched/delegated context outright; attach per-route to account-linking routes
 - `integrations/` - provider adapters and ingest pipelines
 - `schemas/` - Zod route schemas
@@ -98,7 +106,7 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 ### Boot and App Shell
 
 - `index.ts` is the true local boot path used by `pnpm start`; do not bypass it for normal development because it performs env loading and preflight work
-- `SparkyFitnessServer.ts` creates the Express app, configures static upload serving, mounts auth interception, registers routes, exposes API docs, schedules cron jobs, and handles graceful shutdown
+- `SparkyFitnessServer.ts` creates the Express app, configures static upload serving, mounts auth interception, registers routes, exposes API docs, starts background jobs through `services/backgroundJobScheduler.ts`, and handles graceful shutdown
 - Startup order matters:
   - `index.ts`: await `initializeDatabase()`, which applies pending migrations and then reapplies `db/rls_policies.sql` under a PostgreSQL advisory lock, **before** importing `SparkyFitnessServer.ts` (and therefore `auth.ts`)
   - upsert env-configured OIDC provider
@@ -118,19 +126,21 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 - Runtime `.env` is expected at `../.env`
 - The tracked template lives at `../docker/.env.example`
 - `utils/secretLoader.ts` loads `*_FILE` secrets before preflight validation
-- Current hard startup requirements enforced by `utils/preflightChecks.ts` include:
-  - `SPARKY_FITNESS_DB_HOST`
-  - `SPARKY_FITNESS_DB_NAME`
-  - `SPARKY_FITNESS_DB_USER`
-  - `SPARKY_FITNESS_DB_PASSWORD`
-  - `SPARKY_FITNESS_APP_DB_USER`
-  - `SPARKY_FITNESS_APP_DB_PASSWORD`
-  - `SPARKY_FITNESS_FRONTEND_URL`
-  - `SPARKY_FITNESS_API_ENCRYPTION_KEY`
-- `BETTER_AUTH_SECRET` is currently soft-required: startup will generate a temporary value if it is missing, but that is only appropriate for throwaway local runs because sessions will not survive restarts
+- Three layers decide whether a variable has to be set, and they are easy to confuse:
+  1. **`utils/preflightChecks.ts` refuses to start** without these four, because none has a safe default:
+     - `SPARKY_FITNESS_DB_PASSWORD`
+     - `SPARKY_FITNESS_FRONTEND_URL`
+     - `SPARKY_FITNESS_API_ENCRYPTION_KEY`
+     - `BETTER_AUTH_SECRET`
+  2. **`preflightChecks.ts` fills in a default** for `SPARKY_FITNESS_DB_HOST` (`sparkyfitness-db`), `SPARKY_FITNESS_DB_NAME` (`sparkyfitness_db`), `SPARKY_FITNESS_DB_USER` (`sparky`) and the two app-role variables, logging which one it defaulted. These matter only outside Compose, which supplies them itself.
+  3. **`docker/docker-compose.prod.yml` supplies a value** for almost everything via `${VAR:-default}`, so a Compose deployment only ever has to set the four in (1). Keep the defaults in (2) identical to Compose's: a value that differs between them silently points the server at a database other than the one Compose created.
+- `SPARKY_FITNESS_APP_DB_USER` and `SPARKY_FITNESS_APP_DB_PASSWORD` are soft-required: preflight defaults the user to `sparky_app` and mints a password when absent, and `utils/dbMigrations.ts` creates the role or re-syncs its password so the two always match. It probes a connection as that role first, so an externally pre-created role is left alone and the owner does not need `CREATEROLE` — but only while `SPARKY_FITNESS_APP_DB_PASSWORD` still authenticates. If it is absent, preflight mints a new one, the probe fails, and the `ALTER ROLE` does need `CREATEROLE`; an externally managed database should therefore set both app variables explicitly. The probe only reports failure for an authentication rejection (`28P01`/`28000`); any other connection error propagates rather than being misread as a stale password. Both assignments must stay in `preflightChecks.ts`, because `db/poolManager.ts` freezes its credentials at module load
+- `BETTER_AUTH_SECRET` is mandatory. It signs session cookies and encrypts stored 2FA/TOTP secrets, so a value that changes between restarts logs every user out and permanently locks out anyone with 2FA enabled. Startup used to mint a throwaway one when it was missing, which made exactly that happen silently; it now fails preflight instead
+- Preflight also refuses to start when `BETTER_AUTH_SECRET` or `SPARKY_FITNESS_API_ENCRYPTION_KEY` still holds a template placeholder (a value starting with `changeme` or `replace_with`, as shipped in `docker/.env.example` and `docker/.env.simple.example`), and only warns for `SPARKY_FITNESS_DB_PASSWORD` because Compose initialises Postgres with it. Keep new template secrets on one of those prefixes so the check covers them. It also fails when `BETTER_AUTH_SECRET` base64-decodes to an empty key (Better Auth accepts an empty Buffer) and warns under 32 decoded bytes
 - Common operational toggles include `SPARKY_FITNESS_SERVER_PORT`, `SPARKY_FITNESS_ADMIN_EMAIL`, `ALLOW_PRIVATE_NETWORK_CORS`, `ALLOW_PRIVATE_NETWORK_AI`, `ALLOW_PRIVATE_NETWORK_FOOD_PROVIDERS`, `SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS`, and `BETTER_AUTH_URL`
-- User-configured self-hosted food providers (Mealie/Tandoor/Norish) can point `base_url` at a private/internal address only for admins by default; a non-admin on a multi-user server is blocked unless `ALLOW_PRIVATE_NETWORK_FOOD_PROVIDERS=true`. This mirrors the AI policy (a single-user self-host is an admin, so their LAN recipe server works with no config). Enforced by `utils/outboundUrlPolicy.ts` (`deriveFoodProviderNetworkPolicy(isAdmin)`) at provider save time in `services/externalProviderService.ts`. Separate from `ALLOW_PRIVATE_NETWORK_AI` by design
-- `ALLOW_PRIVATE_NETWORK_AI=true` lets non-admin users use custom AI service URLs (`custom`/`ollama`/`openai_compatible`) that resolve to private/internal addresses; default off is an SSRF guard enforced by `utils/outboundUrlPolicy.ts` at save/test time and again in the runtime guarded fetch path. Current admins and global admin-created AI settings can use private URLs for self-hosted providers like Ollama
+- User-configured self-hosted food providers (Mealie/Tandoor/Norish) can point `base_url` at a private/internal address only for admins by default; a non-admin on a multi-user server is blocked unless the operator opts in, either with the admin `allow_private_network_food_providers` toggle (Admin > Global Provider Settings) or `ALLOW_PRIVATE_NETWORK_FOOD_PROVIDERS=true`. This mirrors the AI policy (a single-user self-host is an admin, so their LAN recipe server works with no config). Enforced by `utils/outboundUrlPolicy.ts` at provider save time in `services/externalProviderService.ts`. Separate from the AI toggle by design
+- The admin `allow_private_network_ai` toggle (Admin > Global AI Settings), or `ALLOW_PRIVATE_NETWORK_AI=true`, lets non-admin users use custom AI service URLs (`custom`/`ollama`/`openai_compatible`) that resolve to private/internal addresses; default off is an SSRF guard enforced by `utils/outboundUrlPolicy.ts` at save/test time and again in the runtime guarded fetch path. Current admins and global admin-created AI settings can use private URLs for self-hosted providers like Ollama
+- **Call `resolveAiNetworkPolicy` / `resolveFoodProviderNetworkPolicy`, not the `derive*` forms.** The sync `derive*` functions only see the env var; the async `resolve*` wrappers also consult the admin toggle (and only hit the database when the sync answer would be a denial). The `derive*` exports stay for unit tests and for the resolvers themselves
 
 ### TypeScript and Module Conventions
 
@@ -146,6 +156,7 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 
 - Use `log(level, message, ...args)` from `config/logging.ts`; levels are `'debug'`, `'info'`, `'warn'`, and `'error'`
 - Never use `console.error` (or other `console.*`) in application code
+- Exception: fatal boot diagnostics in `index.ts` and `utils/preflightChecks.ts` print with `console.error` (alongside `log('error', ...)`), because `log()` is suppressed at `SILENT` and the operator must still see why the server refused to start
 - `SPARKY_FITNESS_LOG_LEVEL` controls verbosity (`DEBUG`, `INFO`, `WARN`, `ERROR`, `SILENT`)
 
 ### Database and RLS
@@ -159,8 +170,8 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 - **Never manually edit `../db_schema_backup.sql`** — after merge, CI regenerates it from the migrations and opens an automated sync PR (`.github/workflows/schema-backup.yml`). Do not commit copies generated from a local database.
 - If you add a new table or change user-visible access behavior, follow `../agent-docs/new-migration-checklist.md`. In short, you MUST:
   1. Add/modify the RLS policies in `db/rls_policies.sql`.
-  2. Update the user-facing documentation in `../docs/content/2.features/9.family-friends-sharing.md`.
-  3. Update the developer-facing documentation in `../docs/content/8.developer/11.database-security-tiers.md` to define its security tier (Tier 1, Tier 2, or Tier 3).
+  2. Update the user-facing documentation in `../docs/src/features/family-friends-sharing.md`.
+  3. Update the developer-facing documentation in `../docs/src/developer/database-security-tiers.md` to define its security tier (Tier 1, Tier 2, or Tier 3).
   4. Add or update the matching Zod schema in `../shared/src/schemas/database/`.
 - Keep future schema-startup steps in `utils/initializeDatabase.ts` and pass its shared client through all database work. The lock and schema work must use the same connection so initialization cannot continue on another connection after the lock-owning session is lost. Do not create alternate migration mechanisms.
 - Migrations run from `index.ts`, **before any application module is imported**, and via dynamic `await import()`. Both details are load-bearing: Better Auth validates the schema eagerly at `auth.ts` module scope and caches a mismatch for the life of the process (issues #2469 / #2470), and `db/poolManager.ts` builds its pools at module load, so a static import would be hoisted above the env/secret loading. `tests/bootOrder.test.ts` guards this
@@ -168,9 +179,10 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 ### Uploads: Public vs Sensitive
 
 - `SparkyFitnessServer.ts` serves the uploads root publicly at `/uploads` and `/api/uploads`; both are in `publicRoutes`, so `authenticate` never runs on them
-- Sensitive subtrees are **denied on the static mount** and served instead by an authenticated, owner-checked per-id route. Two exist today:
+- Sensitive subtrees are **denied on the static mount** and served instead by an authenticated, owner-checked per-id route. Three exist today:
   - `check-in` -> `GET /api/measurements/check-in-photos/file/:id` (delegatable via the `checkin` permission)
   - `pregnancy` -> `GET /api/v2/pregnancy/photos/file/:id` (owner-only; deliberately **no** `checkPermissionMiddleware`, because reproductive-health data is never delegated)
+  - `symptoms` -> `GET /api/v2/symptoms/photos/file/:id` (delegatable via the `symptoms` permission)
 - Adding a sensitive upload subtree means adding its directory name to `SENSITIVE_UPLOAD_SUBTREES` in `SparkyFitnessServer.ts` **and** adding an authenticated file route; the deny rule matches the decoded, normalized path, because a prefix match on the raw URL is bypassable with `..%2f`
 - Responses for these domains omit `file_path`: the on-disk layout is a server detail and clients address photos by id
 - `tests/uploadsStaticMount.test.ts` guards both the deny behavior and the fact that the deny rule is registered before `express.static`
@@ -187,8 +199,9 @@ When searching, ignore noisy/generated directories unless you explicitly need th
   - `req.user`
 - `req.userId` is the active RLS target; `req.authenticatedUserId` is the logged-in actor
 - Family and delegated access flow through `middleware/checkPermissionMiddleware.ts`, `middleware/onBehalfOfMiddleware.ts`, and the auth middleware’s active-user switching
-- `checkPermissionMiddleware(permissionType)` guards routes; permission types are `'diary'`, `'reports'`, and `'checkin'`
+- `checkPermissionMiddleware(permissionType)` guards routes; permission types are `'diary'`, `'reports'`, `'checkin'`, `'medications'`, and `'symptoms'` (GET resolves to the read-only `*_read` variant)
 - If you change auth behavior, check both cookie-backed sessions and API key flows
+- API keys carry a scope in `api_key.permissions` (Better Auth format, `@workspace/shared` `ApiKeys.api.zod.ts`): `{ sparky: ["read"] }` is read-only, `{ sparky: ["read", "write"] }` or no permissions is full access. The scope is set only by `POST /api/identity/user/generate-api-key`, because Better Auth refuses `permissions` from a client. `authenticate` sets `req.apiKeyReadOnly` and answers 403 for anything but GET/HEAD/OPTIONS plus the POST allowlist in `utils/apiKeyScope.ts`; the `/api/auth` interceptor refuses mutations from read-only keys via `middleware/readOnlyApiKeyGuard.ts`; `/mcp` filters tools and actions with `ai/mcp/toolAccess.ts`. A new MCP tool or action is unavailable to read-only keys until it is classified there
 
 ### Dates, Day Strings, and Timezones
 
@@ -206,8 +219,8 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 ### Integrations and Background Work
 
 - Provider-specific adapters live under `integrations/`; coordinating logic usually lives in `services/` and persistence in `models/`
-- Current adapters span food/nutrition (OpenFoodFacts, FatSecret, Nutritionix, USDA, Mealie, Tandoor, Norish, SwissFood, Yazio), fitness devices (Garmin Connect sync plus FIT file import via `integrations/garminfit/` + `services/fitImportService.ts`, Withings, Fitbit, Oura, Polar, Strava, Hevy), exercise databases (Wger, FreeExerciseDB), and health-data import (Google Health, generic/mobile health data)
-- Scheduled jobs currently include backups, session cleanup, and hourly sync loops for Withings, Garmin, Fitbit, Oura, Polar, and Strava
+- Current adapters span food/nutrition (OpenFoodFacts, FatSecret, Nutritionix, USDA, Mealie, Tandoor, Norish, SwissFood, Yazio), fitness devices (Garmin Connect sync plus FIT file import via `integrations/garminfit/` + `services/fitImportService.ts`, Withings, Fitbit, Oura, Polar, Strava, COROS, Hevy), exercise databases (Wger, FreeExerciseDB), and health-data import (Google Health, generic/mobile health data)
+- Scheduled jobs currently include backups, session cleanup, and hourly sync loops for Withings, Garmin, Fitbit, Oura, Polar, Strava, and COROS
 - Integration work often spans route, service, repository, cron, and external-provider settings code; inspect the whole path before calling the work complete
 - **OAuth linking (`/authorize`, `/callback`) is self-only, and `state` is a server-issued single-use nonce.** Never derive a user id from a callback request body, and never gate an authorize route with `checkPermissionMiddleware('diary')` — on GET that resolves to `diary_read`, which would hand a read-only delegate the owner's decrypted OAuth client id. Use `requireSelfActor` plus `utils/oauthState.ts`. Withings and Polar follow this pattern; Oura, Fitbit and Strava are self-only but still send `state = userId` and ignore it on callback (tracked follow-up)
 
@@ -247,6 +260,10 @@ When searching, ignore noisy/generated directories unless you explicitly need th
   inspect `services/openFoodFactsManualContributionService.ts`, `integrations/openfoodfacts/openFoodFactsContribution.ts`, and `constants/openFoodFacts.ts`; retained automatic queue code is dormant and needs a new migration before a future release can activate its triggers
 - Health data or date bucketing issue:
   inspect `integrations/healthData/healthDataRoutes.ts`, `services/measurementService.ts`, and `utils/timezoneLoader.ts`
+- Attaching heart rate to an already-existing exercise entry (e.g. from a paired Apple Watch's live workout tracking, `SparkyFitnessMobile/src/hooks/useWatchWorkoutBridge.ts`):
+  inspect `POST /exercise-entries/:id/watch-telemetry` in `routes/exerciseEntryRoutes.ts`, `services/exerciseEntryService.ts`'s `attachWatchTelemetryToExerciseEntry`, and `models/exerciseEntry.ts`'s `applyWatchTelemetryAtomically`. Distinct from `services/healthDataHandlers.ts`'s `persistWorkoutTelemetry`, which creates a new entry as part of importing a whole synced workout (HealthKit/Health Connect/Garmin) — this route only fills in avg/max HR, `exercise_entry_hr_zones` and `calories_burned` on an entry that already exists, and it also stores the posted series as `heart_rate` samples tagged with the entry (`storeHeartRateSeries`, source `SparkyFitness Watch`, `merge` over the workout's own span but only this entry's samples, and only after that snapshot was accepted under the row lock, best effort) because the heart rate chart of an entry with no GPS track reads those samples and would otherwise wait on a Health sync. `activeEnergyKcal` is a real measurement from the watch and is written to BOTH `calories_burned` (the figure the diary totals) and `active_calories` (a telemetry column the ordinary entry update preserves). That second write is what makes the measurement survive a later edit: `resolveEditedCaloriesBurned` in `services/exerciseService.ts` prefers a stored `active_calories` over the recomputed duration-and-sets estimate, so editing a note or a weight no longer replaces what a watch measured with a formula. A client-sent `calories_burned` still overrides both. Both body fields are individually optional (HealthKit permissions are per type) and the model does a partial UPDATE, so a calories-only post must not blank heart rate an earlier post attached.
+- Attaching a phone-recorded GPS track to an existing exercise entry (mobile `RecordActivityScreen`):
+  inspect `POST /exercise-entries/:id/gps-track` in `routes/exerciseEntryRoutes.ts` and `services/exerciseEntryService.ts`'s `attachGpsTrackToExerciseEntry`, with the request schema `attachExerciseEntryGpsTrackRequestSchema` in `shared/src/schemas/api/ExerciseEntries.api.zod.ts`. It stores the route and laps (laps arrive as bare windows and are derived by `deriveLaps`) and backfills speed/elevation/moving-time with `deriveWorkoutTelemetry`, all in one transaction. Both inserts upsert per entry, so a retried post replaces the track. Use this rather than `/api/health-data` for app-recorded activities: the health-data path range-deletes a source's entries for the affected days.
 - Water, hydration, caffeine, or alcohol issue:
   inspect `services/hydrationTotalsService.ts` (the single owner of the daily water formula), `services/measurementService.ts` (the container "+/-" path and the container->food link), `services/caffeineKineticsService.ts` / `services/alcoholWeekService.ts`, `models/waterContainerRepository.ts`, and the shared maths in `../shared/src/nutrients/`
 - Self-service "delete synced data by source" issue:
@@ -255,8 +272,17 @@ When searching, ignore noisy/generated directories unless you explicitly need th
   inspect `services/chatService.ts`, `ai/tools/`, and the matching domain service and repository
 - Fasting or mood issue:
   inspect `routes/fastingRoutes.ts` / `routes/moodRoutes.ts` and `models/fastingRepository.ts` / `models/moodRepository.ts`
+- Symptom or episode tracking issue (#1882):
+  inspect `routes/v2/symptomRoutes.ts`, `services/symptomService.ts`, `models/symptomRepository.ts`, `models/symptomOptionRepository.ts`, and the shared contract and built-ins in `../shared/src/schemas/api/Symptoms.api.zod.ts` and `../shared/src/symptoms/`. `symptom_entries` also holds cycle-hub symptoms (`source = 'cycle'`), which RLS keeps owner-only
 - Medications, cycle, or pregnancy issue:
   inspect the matching v2 route (`routes/v2/medicationRoutes.ts`, `routes/v2/cycleRoutes.ts`, `routes/v2/pregnancyRoutes.ts`), its Zod schema in `schemas/`, then `services/cycleService.ts` / `services/pregnancyService.ts` and the `models/medication*Repository.ts` / `models/cycleRepository.ts` / `models/pregnancyRepository.ts` files
+- Supplement barcode lookup:
+  `GET /api/v2/medications/supplement-lookup?upc=` (registered before `/:id`) runs only while the user can see an active `dsld` or `openfoodfacts` external provider (`getActiveProvidersByTypes`; neither is a 404; the NIH database answers first and `services/supplementOpenFoodFactsService.ts` asks Open Food Facts, per-serving nutrients only, when it has no match or `dsld` is off; migration `20261006200000_add_dsld_provider_type.sql`, constant `SUPPLEMENT_LOOKUP_PROVIDER_TYPE`) and calls `services/supplementLookupService.ts`. Two more routes read a Supplement Facts photo: `POST /supplement-label/scan` runs the user's vision AI (`services/supplementLabelScanService.ts`, same provider and error map as `/foods/scan-label`) and `POST /supplement-label/map` takes ingredients the phone read on device; both end in `mapScannedLabel`, so name matching and unit conversion are shared with the barcode lookup, which searches the NIH Dietary Supplement Label Database for the code, opens the hits to check the label's own UPC, and maps the label to one serving's nutrients in the app's units (IU for vitamins A, D and E converted, compounds and unplaceable ingredients returned as `unmatched`). The response contract is `shared/src/schemas/api/SupplementLookup.api.zod.ts`; an unreachable database is a 502, no match is `{ product: null }`.
+- Exercise alternatives, workout feedback, or adaptive suggestions issue (#1560):
+  inspect `services/exerciseAlternativesService.ts` (library + Free Exercise DB candidates, dedupe) with the pure ranking in `utils/exerciseAlternativesRanking.ts` and the muscle/equipment vocabulary in `../shared/src/constants/exerciseTaxonomy.ts`; feedback in `services/workoutCoachingService.ts` + `models/workoutFeedbackRepository.ts`; signals in `services/adaptiveWorkoutService.ts`. The rules that turn signals into weight changes are client-side and shared (`../shared/src/utils/adaptiveCoaching.ts`) so web, mobile and the AI tools agree; the server only reports what happened. AI actions: `suggest_alternatives`, `rate_workout`, `get_workout_coaching` in `ai/tools/exerciseTools.ts`
+- Bodyweight exercise load, volume or 1RM issue (#56):
+  a `bodyweight_reps` set's weight is signed added/assisting load, and its load is body weight plus that weight (`effectiveLoadKg` in `../shared/src/utils/exerciseLoad.ts`). SQL mirrors the rule in `utils/exerciseLoadSql.ts` (`bodyWeightJoinSql`, `setLoadSql`), used by `services/exerciseStatsService.ts` and `models/exerciseEntry.ts`'s progress query; `services/reportService.ts` applies the shared helper with readings from `reportRepository.getBodyWeightReadings`. Keep the two copies identical. A negative set weight is rejected unless that exercise's modality is `bodyweight_reps`. `models/exercise.ts`'s `createExercise` defaults the modality from equipment through `resolveExerciseModality`
+  `weight_distance` (weighted carries) and `weight_duration` (loaded holds) store weight plus distance (km) or duration (s); stats treat them as weight-based, not cardio, and best-set ordering falls back to distance then duration.
 - Sleep or sleep-science issue:
   inspect `routes/sleepRoutes.ts`, `routes/sleepScienceRoutes.ts`, `services/sleepAnalyticsService.ts`, `services/sleepScienceService.ts`, and the sleep repositories
 
@@ -264,8 +290,8 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 
 Before adding a feature or changing auth/permission behavior, read:
 
-- `../docs/content/8.developer/4.database.md` — Quick table index (all ~120 tables with purpose) + migration best practices
-- `../docs/content/8.developer/11.database-security-tiers.md` — Security tier, permission type, and RLS rules for every table (authoritative)
+- `../docs/src/developer/database.md` — Quick table index (all ~120 tables with purpose) + migration best practices
+- `../docs/src/developer/database-security-tiers.md` — Security tier, permission type, and RLS rules for every table (authoritative)
 - `../agent-docs/architecture-permissions.md` — Permission types, links to tier classification doc
 - `../agent-docs/data-flow-patterns.md` — Data flow from frontend through server to database, safe RLS patterns
 - `../agent-docs/new-domain-template.md` — Checklist for adding a major feature domain

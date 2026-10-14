@@ -2,7 +2,11 @@ import chatRepository from '../models/chatRepository.js';
 import measurementRepository from '../models/measurementRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import { log } from '../config/logging.js';
-import { getDefaultModel, getOpenAiCompatibleBaseUrl } from '../ai/config.js';
+import {
+  getDefaultModel,
+  getOpenAiCompatibleBaseUrl,
+  getPerplexityPreset,
+} from '../ai/config.js';
 import {
   dispatchAiRequest,
   requiresApiKey,
@@ -19,10 +23,11 @@ import { TtlCache } from '../utils/ttlCache.js';
 import {
   assertOutboundUrlShapeAndLiteralAllowed,
   createGuardedFetch,
-  deriveAiNetworkPolicy,
+  resolveAiNetworkPolicy,
   OutboundUrlBlockedError,
   requiresUserSuppliedAiUrl,
 } from '../utils/outboundUrlPolicy.js';
+import type { AiNetworkPolicy } from '../utils/outboundUrlPolicy.js';
 import {
   todayInZone,
   DatabaseCustomCategories,
@@ -937,13 +942,452 @@ interface ChatAiServiceConfig {
   custom_url?: string | null;
 }
 
+function extractTextFromAgentOutput(output: unknown): string | null {
+  if (!Array.isArray(output)) return null;
+  const texts: string[] = [];
+
+  for (const item of output) {
+    if (!item || typeof item !== 'object') continue;
+    const obj = item as {
+      type?: string;
+      text?: unknown;
+      output_text?: unknown;
+      content?: unknown;
+    };
+    if (typeof obj.text === 'string') {
+      texts.push(obj.text);
+    } else if (typeof obj.output_text === 'string') {
+      texts.push(obj.output_text);
+    } else if (typeof obj.content === 'string') {
+      texts.push(obj.content);
+    } else if (Array.isArray(obj.content)) {
+      for (const block of obj.content) {
+        if (!block || typeof block !== 'object') continue;
+        const b = block as {
+          type?: string;
+          text?: unknown;
+          output_text?: unknown;
+        };
+        if (typeof b.text === 'string') {
+          texts.push(b.text);
+        } else if (typeof b.output_text === 'string') {
+          texts.push(b.output_text);
+        }
+      }
+    }
+  }
+
+  return texts.length > 0 ? texts.join('\n\n') : null;
+}
+
+function createPerplexityFetch(baseFetch: typeof fetch = fetch): typeof fetch {
+  return async (
+    input: RequestInfo | URL,
+    init?: RequestInit
+  ): Promise<Response> => {
+    let url =
+      typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+
+    if (url.includes('api.perplexity.ai')) {
+      url = url.replace(/\/chat\/completions$/, '/responses');
+    }
+
+    let modifiedInit = init;
+    if (init?.body && typeof init.body === 'string') {
+      try {
+        const bodyObj = JSON.parse(init.body) as {
+          messages?: Array<{ role?: string; content?: unknown }>;
+          input?: unknown;
+          [k: string]: unknown;
+        };
+        // Perplexity Agent API requires `input` (array of messages or text) and rejects `messages`
+        if (!bodyObj.input && Array.isArray(bodyObj.messages)) {
+          bodyObj.input = bodyObj.messages.map((msg) => {
+            if (!Array.isArray(msg.content)) return msg;
+            return {
+              ...msg,
+              content: msg.content.map((part) => {
+                if (typeof part === 'object' && part !== null) {
+                  const p = part as {
+                    type?: string;
+                    text?: string;
+                    image_url?: { url?: string } | string;
+                  };
+                  if (p.type === 'text' && typeof p.text === 'string') {
+                    return { type: 'input_text', text: p.text };
+                  }
+                  if (p.type === 'image_url') {
+                    const url =
+                      typeof p.image_url === 'object' && p.image_url !== null
+                        ? p.image_url.url
+                        : p.image_url;
+                    return { type: 'input_image', image_url: url };
+                  }
+                }
+                return part;
+              }),
+            };
+          });
+          delete bodyObj.messages;
+          delete bodyObj.temperature; // Agent API presets reject temperature
+          // Convert Chat Completions tool-call history to Agent API input items
+          if (Array.isArray(bodyObj.input)) {
+            const converted: unknown[] = [];
+            for (const item of bodyObj.input as Array<
+              Record<string, unknown>
+            >) {
+              const emptyContent =
+                item.content === null ||
+                item.content === undefined ||
+                item.content === '' ||
+                (Array.isArray(item.content) && item.content.length === 0);
+              if (item.role === 'assistant' && Array.isArray(item.tool_calls)) {
+                if (!emptyContent) {
+                  converted.push({ role: 'assistant', content: item.content });
+                }
+                for (const call of item.tool_calls as Array<{
+                  id?: string;
+                  function?: { name?: string; arguments?: string };
+                }>) {
+                  converted.push({
+                    type: 'function_call',
+                    call_id: call.id,
+                    name: call.function?.name,
+                    arguments: call.function?.arguments ?? '{}',
+                  });
+                }
+              } else if (item.role === 'tool') {
+                const out =
+                  typeof item.content === 'string'
+                    ? item.content
+                    : JSON.stringify(item.content ?? '');
+                converted.push({
+                  type: 'function_call_output',
+                  call_id: item.tool_call_id,
+                  output: out.length > 0 ? out : '{}',
+                });
+              } else if (item.role === 'assistant' && emptyContent) {
+                continue;
+              } else {
+                converted.push(item);
+              }
+            }
+            bodyObj.input = converted;
+          }
+          // Agent API expects flat function tools, not the nested Chat Completions shape
+          if (Array.isArray(bodyObj.tools)) {
+            bodyObj.tools = (
+              bodyObj.tools as Array<Record<string, unknown>>
+            ).map((tool) => {
+              const fn = tool.function as
+                | {
+                    name?: string;
+                    description?: string;
+                    parameters?: unknown;
+                    strict?: boolean;
+                  }
+                | undefined;
+              if (tool.type === 'function' && fn) {
+                return {
+                  type: 'function',
+                  name: fn.name,
+                  description: fn.description ?? '',
+                  parameters: fn.parameters ?? {
+                    type: 'object',
+                    properties: {},
+                  },
+                  ...(fn.strict !== undefined ? { strict: fn.strict } : {}),
+                };
+              }
+              return tool;
+            });
+          }
+          const toolChoice = bodyObj.tool_choice as
+            | { type?: string; function?: { name?: string } }
+            | string
+            | undefined;
+          if (
+            toolChoice &&
+            typeof toolChoice === 'object' &&
+            toolChoice.type === 'function' &&
+            toolChoice.function?.name
+          ) {
+            bodyObj.tool_choice = {
+              type: 'function',
+              name: toolChoice.function.name,
+            };
+          }
+
+          const rawModel =
+            typeof bodyObj.model === 'string' ? bodyObj.model : 'fast';
+          const preset = getPerplexityPreset(rawModel);
+          if (preset) {
+            bodyObj.preset = preset;
+            delete bodyObj.model;
+          } else {
+            const modelLower = rawModel.toLowerCase();
+            if (
+              modelLower.startsWith('anthropic/') ||
+              modelLower.includes('claude')
+            ) {
+              bodyObj.max_output_tokens = bodyObj.max_output_tokens ?? 4096;
+            }
+          }
+
+          modifiedInit = {
+            ...init,
+            body: JSON.stringify(bodyObj),
+          };
+        }
+      } catch {
+        // Keep original init if body is not JSON
+      }
+    }
+
+    const response = await baseFetch(url, modifiedInit);
+    if (!response.ok) {
+      return response;
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('text/event-stream') && response.body) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      const encoder = new TextEncoder();
+      let buffer = '';
+      let hasError = false;
+      let hasToolCalls = false;
+      const toolCallIndices = new Map<string, number>();
+
+      const transformedStream = new ReadableStream<Uint8Array>({
+        async pull(controller) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              if (!hasError) {
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+              }
+              controller.close();
+              break;
+            }
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed.startsWith('data:')) continue;
+              const dataStr = trimmed.slice(5).trim();
+              if (dataStr === '[DONE]') {
+                if (!hasError) {
+                  controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                }
+                continue;
+              }
+              try {
+                const parsed = JSON.parse(dataStr) as {
+                  type?: string;
+                  delta?: string;
+                  call_id?: string;
+                  id?: string;
+                  name?: string;
+                  arguments?: string;
+                  item?: {
+                    type?: string;
+                    id?: string;
+                    name?: string;
+                    arguments?: string;
+                    call_id?: string;
+                  };
+                  error?: { message?: string };
+                  choices?: unknown;
+                };
+
+                // Upstream stream failure / error events
+                if (
+                  parsed.type === 'response.failed' ||
+                  parsed.type === 'error' ||
+                  parsed.error
+                ) {
+                  hasError = true;
+                  const errorMsg =
+                    parsed.error?.message ??
+                    'Perplexity Agent API stream failed.';
+                  controller.error(new Error(errorMsg));
+                  return;
+                }
+
+                // Text deltas
+                if (
+                  parsed.type === 'response.output_text.delta' &&
+                  typeof parsed.delta === 'string'
+                ) {
+                  const chunk = {
+                    choices: [
+                      {
+                        index: 0,
+                        delta: { content: parsed.delta },
+                        finish_reason: null,
+                      },
+                    ],
+                  };
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
+                  );
+                }
+                // Function / Tool call deltas (only for function items, not plain messages)
+                else if (
+                  parsed.type === 'response.function_call_arguments.delta' ||
+                  (parsed.type === 'response.output_item.added' &&
+                    (parsed.item?.type === 'function_call' ||
+                      parsed.item?.type === 'custom_tool_call' ||
+                      (typeof parsed.item?.name === 'string' &&
+                        parsed.item.name.length > 0)))
+                ) {
+                  hasToolCalls = true;
+                  const toolId =
+                    parsed.call_id ??
+                    parsed.id ??
+                    parsed.item?.call_id ??
+                    parsed.item?.id ??
+                    'call_0';
+                  let toolCallIndex = toolCallIndices.get(toolId);
+                  if (toolCallIndex === undefined) {
+                    toolCallIndex = toolCallIndices.size;
+                    toolCallIndices.set(toolId, toolCallIndex);
+                  }
+                  const toolName = parsed.name ?? parsed.item?.name ?? '';
+                  const argsDelta =
+                    parsed.delta ??
+                    parsed.arguments ??
+                    parsed.item?.arguments ??
+                    '';
+
+                  const chunk = {
+                    choices: [
+                      {
+                        index: 0,
+                        delta: {
+                          tool_calls: [
+                            {
+                              index: toolCallIndex,
+                              id: toolId,
+                              type: 'function',
+                              function: {
+                                name: toolName,
+                                arguments: argsDelta,
+                              },
+                            },
+                          ],
+                        },
+                        finish_reason: null,
+                      },
+                    ],
+                  };
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
+                  );
+                }
+                // Completion event
+                else if (parsed.type === 'response.completed') {
+                  const chunk = {
+                    choices: [
+                      {
+                        index: 0,
+                        delta: {},
+                        finish_reason: hasToolCalls ? 'tool_calls' : 'stop',
+                      },
+                    ],
+                  };
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
+                  );
+                } else if (parsed.choices) {
+                  controller.enqueue(encoder.encode(`${line}\n\n`));
+                }
+              } catch {
+                // Skip unparseable lines
+              }
+            }
+          }
+        },
+        cancel(reason) {
+          return reader.cancel(reason);
+        },
+      });
+
+      return new Response(transformedStream, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
+    }
+
+    if (contentType.includes('application/json')) {
+      try {
+        const data = (await response.json()) as {
+          id?: string;
+          model?: string;
+          output_text?: string;
+          output?: unknown;
+          choices?: unknown;
+          usage?: unknown;
+        };
+        const resolvedText =
+          typeof data?.output_text === 'string'
+            ? data.output_text
+            : extractTextFromAgentOutput(data?.output);
+
+        if (resolvedText !== null && !data.choices) {
+          const adapted = {
+            id: data.id || `pplx-${Date.now()}`,
+            object: 'chat.completion',
+            created: Math.floor(Date.now() / 1000),
+            model: data.model || 'sonar',
+            choices: [
+              {
+                index: 0,
+                message: {
+                  role: 'assistant',
+                  content: resolvedText,
+                },
+                finish_reason: 'stop',
+              },
+            ],
+            usage: data.usage || null,
+          };
+          return new Response(JSON.stringify(adapted), {
+            status: response.status,
+            statusText: response.statusText,
+            headers: response.headers,
+          });
+        }
+        return new Response(JSON.stringify(data), {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+        });
+      } catch {
+        // Return original on error
+      }
+    }
+
+    return response;
+  };
+}
+
 // Resolves the AI SDK model instance for a chat service: native adapters for
 // openai/anthropic/google, and the OpenAI-compatible base-URL ladder for
 // everything else. Self-hosted types get the SSRF-guarded fetch.
 function createChatModelInstance(
   aiService: ChatAiServiceConfig,
   modelName: string,
-  networkPolicy: ReturnType<typeof deriveAiNetworkPolicy>
+  networkPolicy: AiNetworkPolicy
 ): Parameters<typeof generateText>[0]['model'] {
   const apiKey = aiService.api_key ?? undefined;
 
@@ -964,6 +1408,7 @@ function createChatModelInstance(
     aiService.service_type === 'groq' ||
     aiService.service_type === 'openrouter' ||
     aiService.service_type === 'xai' ||
+    aiService.service_type === 'perplexity' ||
     aiService.service_type === 'meta'
   ) {
     if (
@@ -983,7 +1428,12 @@ function createChatModelInstance(
       baseURL,
       apiKey: apiKey || 'no-key',
     };
-    if (requiresUserSuppliedAiUrl(aiService.service_type)) {
+    if (aiService.service_type === 'perplexity') {
+      const baseFetch = requiresUserSuppliedAiUrl(aiService.service_type)
+        ? createGuardedFetch(networkPolicy)
+        : fetch;
+      providerOptions.fetch = createPerplexityFetch(baseFetch);
+    } else if (requiresUserSuppliedAiUrl(aiService.service_type)) {
       providerOptions.fetch = createGuardedFetch(networkPolicy);
     }
     return createOpenAI(providerOptions).chat(modelName);
@@ -1348,7 +1798,7 @@ const KEYWORD_RULES: { category: ChatToolCategorySlug; keywords: RegExp }[] = [
   {
     category: 'profile',
     keywords:
-      /\b(profile|habit|habits|preference|preferences|settings|timezone|unit|units|integration\w*|connected\s+(app|service|device|provider)\w*|external\s+provider\w*|wearable\w*|garmin|withings|fitbit|oura|polar|strava|hevy|synced\s+data|delete\s+synced|imported\s+data)\b/i,
+      /\b(profile|habit|habits|preference|preferences|settings|timezone|unit|units|integration\w*|connected\s+(app|service|device|provider)\w*|external\s+provider\w*|wearable\w*|garmin|withings|fitbit|oura|polar|coros|strava|hevy|synced\s+data|delete\s+synced|imported\s+data)\b/i,
   },
 ];
 
@@ -1457,7 +1907,7 @@ async function classifyUserIntent(
     const classificationPrompt = `Analyze the conversation history (especially the user's latest reply) and determine which of the following health tracking domains are relevant. Choose all that apply.
 
 Available domains:
-- exercise: tracking workouts, logging sets/reps, running, cardio, strength, steps, exercise stats, and workout plan templates.
+- exercise: tracking workouts, logging sets/reps, running, cardio, strength, steps, exercise stats, creating and managing workout plans, and checking next scheduled/sequential workouts.
 - food: logging meals, lookup foods/nutrition, tracking water intake, favorites, meal plans, custom nutrients, water containers, allergens, and barcode lookup.
 - checkin: logging daily check-ins, weight, height, body fat, other body measurements, progress photos, and sleep-science analytics.
 - goals: viewing or changing goals/targets.
@@ -1556,7 +2006,7 @@ async function processChatMessage(
 
     const modelName =
       aiService.model_name || getDefaultModel(aiService.service_type);
-    const networkPolicy = deriveAiNetworkPolicy(aiService, actorIsAdmin);
+    const networkPolicy = await resolveAiNetworkPolicy(aiService, actorIsAdmin);
 
     const modelInstance = createChatModelInstance(
       aiService,
@@ -1861,7 +2311,7 @@ async function processFoodOptionsRequest(
 
   const result = await dispatchAiRequest({
     provider,
-    networkPolicy: deriveAiNetworkPolicy(aiService, actorIsAdmin),
+    networkPolicy: await resolveAiNetworkPolicy(aiService, actorIsAdmin),
     prompt,
     parseJson: true,
     temperature: FOOD_OPTIONS_TEMPERATURE,
@@ -1954,10 +2404,14 @@ async function testAiServiceConnection(
   // Gate #4 (SSRF): a test fires an outbound POST to the effective custom URL, so
   // a non-admin must not aim it at a private/internal address (localhost, RFC1918,
   // link-local, cloud metadata). The URL is validated post-fallback so a stored
-  // value is checked too. Admins (trusted operator) and the ALLOW_PRIVATE_NETWORK_AI
-  // opt-in bypass this, keeping self-hosted setups like local Ollama working.
+  // value is checked too. Admins (trusted operator) and the private-network opt-in
+  // (admin toggle or ALLOW_PRIVATE_NETWORK_AI) bypass this, keeping self-hosted
+  // setups like local Ollama working.
   if (customUrl) {
-    const networkPolicy = deriveAiNetworkPolicy({ source: 'user' }, isAdmin);
+    const networkPolicy = await resolveAiNetworkPolicy(
+      { source: 'user' },
+      isAdmin
+    );
     try {
       assertOutboundUrlShapeAndLiteralAllowed(customUrl, networkPolicy);
     } catch (error) {
@@ -1987,7 +2441,7 @@ async function testAiServiceConnection(
 
   const result = await dispatchAiRequest({
     provider,
-    networkPolicy: deriveAiNetworkPolicy(
+    networkPolicy: await resolveAiNetworkPolicy(
       { is_public: false, source: 'user' },
       isAdmin
     ),
@@ -2090,7 +2544,7 @@ async function processChatMessageStream(
 
     const modelName =
       aiService.model_name || getDefaultModel(aiService.service_type);
-    const networkPolicy = deriveAiNetworkPolicy(aiService, actorIsAdmin);
+    const networkPolicy = await resolveAiNetworkPolicy(aiService, actorIsAdmin);
 
     log(
       'info',
@@ -2349,6 +2803,7 @@ export { processChatMessage };
 export { processFoodOptionsRequest };
 export { testAiServiceConnection };
 export { processChatMessageStream };
+export { createPerplexityFetch };
 export default {
   handleAiServiceSettings,
   getAiServiceSettings,
@@ -2365,4 +2820,5 @@ export default {
   processFoodOptionsRequest,
   testAiServiceConnection,
   processChatMessageStream,
+  createPerplexityFetch,
 };

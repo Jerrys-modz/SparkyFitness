@@ -10,6 +10,8 @@ import type {
 } from '../../types/exercise';
 import { isExerciseModality } from '@workspace/shared';
 import type {
+  ExerciseAlternativeMode,
+  ExerciseAlternativesResponse,
   ExerciseHistoryResponse,
   ExerciseModality,
   ExerciseStatsResponse,
@@ -17,8 +19,19 @@ import type {
   UpdatePresetSessionRequest,
   PresetSessionResponse,
   ExerciseEntryResponse,
+  AttachExerciseEntryGpsTrackRequest,
   Pagination,
 } from '@workspace/shared';
+
+/** The user's own previously logged workout locations, most recent first. */
+export const fetchWorkoutLocations = async (): Promise<string[]> => {
+  const data = await apiFetch<string[]>({
+    endpoint: '/api/exercise-preset-entries/locations',
+    serviceName: 'Exercise API',
+    operation: 'fetch workout locations',
+  });
+  return Array.isArray(data) ? data : [];
+};
 
 export const fetchExerciseHistory = async (
   page: number = 1,
@@ -54,6 +67,24 @@ export const fetchExerciseStats = async (
     endpoint: `/api/v2/exercises/${encodeURIComponent(exerciseId)}/stats${query}`,
     serviceName: 'Exercise API',
     operation: 'fetch exercise stats',
+  });
+};
+
+/**
+ * Ranked substitutes for an exercise (issue #1560). `excludeIds` keeps
+ * exercises already in the workout out of the list.
+ */
+export const fetchExerciseAlternatives = async (
+  exerciseId: string,
+  mode: ExerciseAlternativeMode,
+  excludeIds: readonly string[] = []
+): Promise<ExerciseAlternativesResponse> => {
+  const params = new URLSearchParams({ mode });
+  if (excludeIds.length > 0) params.set('excludeIds', excludeIds.join(','));
+  return apiFetch<ExerciseAlternativesResponse>({
+    endpoint: `/api/v2/exercises/${encodeURIComponent(exerciseId)}/alternatives?${params.toString()}`,
+    serviceName: 'Exercise API',
+    operation: 'fetch exercise alternatives',
   });
 };
 
@@ -150,6 +181,8 @@ export interface CreateExercisePayload {
   level?: string;
   force?: string;
   mechanic?: string;
+  /** Image references carried over when duplicating an exercise. */
+  images?: string[];
 }
 
 export interface UpdateExercisePayload {
@@ -339,8 +372,11 @@ export interface CreateExerciseEntryPayload {
   exercise_id: string;
   exercise_name?: string | null;
   duration_minutes: number;
-  calories_burned: number;
+  /** Omit to let the server estimate from the exercise and duration. */
+  calories_burned?: number;
   entry_date: string;
+  /** Local start time, `HH:MM` (24h). */
+  entry_time?: string;
   distance?: number | null;
   avg_heart_rate?: number | null;
   notes?: string | null;
@@ -414,6 +450,59 @@ export const deleteWorkout = async (id: string): Promise<void> => {
     serviceName: 'Exercise API',
     operation: 'delete workout',
     method: 'DELETE',
+  });
+};
+
+/** One heart-rate reading, as captured on a paired Apple Watch. */
+export interface HeartRateSamplePayload {
+  /** ISO 8601 instant. */
+  t: string;
+  bpm: number;
+}
+
+/**
+ * Fills in what a paired Apple Watch measured during a live workout on an
+ * exercise entry that already exists: avg/max heart rate, the HR-zone
+ * breakdown, and active energy. See `useWatchWorkoutBridge`.
+ *
+ * `activeEnergyKcal` replaces the server's duration-and-sets calorie
+ * estimate for that entry. Both fields are optional individually, but the
+ * server rejects a body carrying neither.
+ */
+export const attachExerciseEntryWatchTelemetry = async (
+  exerciseEntryId: string,
+  telemetry: {
+    hrSamples?: HeartRateSamplePayload[];
+    activeEnergyKcal?: number;
+    /** Minutes the watch spent on this exercise. Replaces a zero duration. */
+    durationMinutes?: number;
+  }
+): Promise<void> => {
+  return apiFetch<void>({
+    endpoint: `/api/exercise-entries/${exerciseEntryId}/watch-telemetry`,
+    serviceName: 'Exercise API',
+    operation: 'attach exercise entry watch telemetry',
+    method: 'POST',
+    body: telemetry,
+  });
+};
+
+/**
+ * Stores a GPS track recorded on the phone (and its per-km or per-mile
+ * splits) against an exercise entry that already exists. The server derives
+ * lap stats and the speed/elevation summary from the points; sending the same
+ * track twice replaces it, so a retry is safe.
+ */
+export const attachExerciseEntryGpsTrack = async (
+  exerciseEntryId: string,
+  track: AttachExerciseEntryGpsTrackRequest
+): Promise<void> => {
+  return apiFetch<void>({
+    endpoint: `/api/exercise-entries/${exerciseEntryId}/gps-track`,
+    serviceName: 'Exercise API',
+    operation: 'attach exercise entry GPS track',
+    method: 'POST',
+    body: track,
   });
 };
 

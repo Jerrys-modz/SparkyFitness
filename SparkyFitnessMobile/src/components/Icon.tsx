@@ -55,10 +55,14 @@ const ICON_MAP = {
   'photo-library': { sf: 'photo.on.rectangle', ion: 'images-outline' },
   pencil: { sf: 'pencil', ion: 'create-outline' },
   pause: { sf: 'pause.fill', ion: 'pause' },
+  replay: { sf: 'arrow.counterclockwise', ion: 'refresh' },
+  'volume-on': { sf: 'speaker.wave.2.fill', ion: 'volume-high' },
+  'volume-off': { sf: 'speaker.slash.fill', ion: 'volume-mute' },
   play: { sf: 'play.fill', ion: 'play' },
   stop: { sf: 'stop.fill', ion: 'stop' },
   forward: { sf: 'forward.fill', ion: 'play-skip-forward' },
   'skip-forward': { sf: 'forward.end.fill', ion: 'play-skip-forward' },
+  repeat: { sf: 'repeat', ion: 'repeat' },
   measurements: { sf: 'ruler', ion: 'analytics-outline' },
   scale: { sf: 'scalemass', ion: 'scale-outline' },
   // Android uses -outline variants for stroke-weight consistency with the set.
@@ -80,6 +84,7 @@ const ICON_MAP = {
   globe: { sf: 'globe', ion: 'globe-outline' },
   people: { sf: 'person.2.fill', ion: 'people' },
   wifi: { sf: 'wifi', ion: 'wifi-outline' },
+  location: { sf: 'mappin.and.ellipse', ion: 'location-outline' },
 
   // Food
   food: { sf: 'fork.knife', ion: 'restaurant' },
@@ -142,6 +147,7 @@ const ICON_MAP = {
   'dashboard-settings': { sf: 'square.grid.2x2', ion: 'grid-outline' },
   'diary-settings': { sf: 'book', ion: 'book-outline' },
   'workout-settings': { sf: 'dumbbell', ion: 'barbell-outline' },
+  'watch-settings': { sf: 'applewatch', ion: 'watch-outline' },
   'app-settings': { sf: 'slider.horizontal.3', ion: 'options-outline' },
   logs: { sf: 'doc.plaintext', ion: 'document-text-outline' },
   about: { sf: 'info.circle', ion: 'information-circle-outline' },
@@ -153,6 +159,7 @@ const ICON_MAP = {
   // Biometrics/Security
   fingerprint: { sf: 'touchid', ion: 'finger-print-outline' },
   'lock-closed': { sf: 'lock.fill', ion: 'lock-closed-outline' },
+  'lock-open': { sf: 'lock.open', ion: 'lock-open-outline' },
   'share-public': {
     sf: 'square.and.arrow.up',
     ion: 'share-social-outline',
@@ -168,6 +175,8 @@ const ICON_MAP = {
   'wellness-filled': { sf: 'leaf.fill', ion: 'leaf' },
   medication: { sf: 'pills', ion: 'medkit-outline' },
   calendar: { sf: 'calendar', ion: 'calendar-outline' },
+  symptoms: { sf: 'cross.case', ion: 'medkit-outline' },
+  mood: { sf: 'face.smiling', ion: 'happy-outline' },
 
   // Sleep
   'sleep-wake-up': { sf: 'alarm.fill', ion: 'alarm' },

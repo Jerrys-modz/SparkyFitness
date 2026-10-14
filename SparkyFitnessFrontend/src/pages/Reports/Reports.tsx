@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FastingReport } from '@/pages/Reports/FastingReport';
 import MedicationReports from '@/pages/Reports/MedicationReports';
+import SymptomsReport from '@/pages/Symptoms/SymptomsReport';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
+import { useProfileQuery } from '@/hooks/Settings/useProfile';
 import ZoomableChart from '@/components/ZoomableChart';
 import ReportsControls from '@/pages/Reports/ReportsControls';
 import NutritionPeriodSummary from '@/pages/Reports/NutritionPeriodSummary';
@@ -51,6 +53,7 @@ import { useSearchParams } from 'react-router-dom';
 const Reports = () => {
   const { t } = useTranslation();
   const { activeUserId } = useActiveUser();
+  const { data: profile } = useProfileQuery(activeUserId ?? undefined);
   const {
     formatDateInUserTimezone,
     loggingLevel,
@@ -170,6 +173,9 @@ const Reports = () => {
     // `measurementData` above defaults to a fresh `[]` each render, which
     // would defeat that and re-compute every widget.
     measurementData: reportsData?.measurementData,
+    targetWeightKg: profile?.target_weight
+      ? Number(profile.target_weight)
+      : null,
   });
 
   const handleStartDateChange = (date: string) => {
@@ -403,6 +409,12 @@ const Reports = () => {
               injections={injections}
               titrationSteps={titrationSteps}
             />
+          </ChartErrorBoundary>
+        );
+      case 'symptoms-reports':
+        return (
+          <ChartErrorBoundary>
+            <SymptomsReport startDate={startDate} endDate={endDate} />
           </ChartErrorBoundary>
         );
       default:

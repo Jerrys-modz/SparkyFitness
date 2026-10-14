@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
+import { AppState, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 
@@ -8,7 +8,9 @@ import Icon from './Icon';
 import LiquidGlassSurface, {
   createLiquidGlassPillStyle,
 } from './LiquidGlassSurface';
+import { fireSelectionHaptic } from '../services/haptics';
 import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
+import { playIntervalCue } from '../services/sounds';
 import { formatRestCountdown } from '../utils/workoutSession';
 
 const HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 };
@@ -88,6 +90,31 @@ function ActiveWorkoutRestBar({
     '--color-progress-track',
     '--color-chrome-border',
   ]) as [string, string, string, string];
+
+  const lastCountdownSecRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (state !== 'resting') {
+      lastCountdownSecRef.current = null;
+      return;
+    }
+
+    const remainingSec = Math.ceil(remainingMs / 1000);
+    if (
+      remainingSec >= 1 &&
+      remainingSec <= 3 &&
+      lastCountdownSecRef.current !== remainingSec
+    ) {
+      lastCountdownSecRef.current = remainingSec;
+      // Lead-in beeps are for someone watching the bar. Off screen (the
+      // background rest chime keeps JS running) the single rest-complete
+      // chime is the whole cue, not three beeps and then the chime.
+      if (AppState.currentState === 'active') {
+        playIntervalCue('countdown');
+        fireSelectionHaptic();
+      }
+    }
+  }, [remainingMs, state]);
 
   const paused = state === 'paused';
   const timerColor = paused ? textMuted : accentPrimary;

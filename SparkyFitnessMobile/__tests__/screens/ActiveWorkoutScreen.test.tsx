@@ -52,6 +52,10 @@ jest.mock('../../src/hooks/useSelectedExercise', () => ({
   useSelectedExercise: jest.fn(),
 }));
 
+jest.mock('../../src/hooks/useLiveCoachingSignals', () => ({
+  useLiveCoachingSignals: jest.fn(),
+}));
+
 jest.mock('../../src/hooks/useNavigationActionGuard', () => ({
   useNavigationActionGuard: jest.fn(() => ({
     runNavigationAction: jest.fn((action: () => void) => action()),
@@ -285,10 +289,22 @@ function makeSession(): PresetSessionResponse {
   };
 }
 
+// Real navigation stops reporting the screen focused once it has navigated
+// away, which is how the screen tells its own Finish/Discard apart from a
+// workout cleared elsewhere (e.g. ended on the watch).
+let screenFocused = true;
+beforeEach(() => {
+  screenFocused = true;
+});
 const navigation = {
-  goBack: jest.fn(),
+  goBack: jest.fn(() => {
+    screenFocused = false;
+  }),
   navigate: jest.fn(),
-  replace: jest.fn(),
+  replace: jest.fn(() => {
+    screenFocused = false;
+  }),
+  isFocused: jest.fn(() => screenFocused),
   canGoBack: jest.fn(() => true),
   addListener: jest.fn(() => jest.fn()),
 } as any;
@@ -351,6 +367,7 @@ describe('ActiveWorkoutScreen overflow menu wiring', () => {
       'view',
       'notes',
       'superset-with',
+      'warmups',
       'replace',
       'clear',
       'remove',
@@ -413,6 +430,58 @@ describe('ActiveWorkoutScreen overflow menu wiring', () => {
 
     expect(mockSheet.props?.title).toBe('Running');
     expect(sheetItemKeys()).not.toContain('clear');
+  });
+
+  it('adds a warm-up ramp from the first working set, and hides the item once one is logged', () => {
+    const { getByTestId } = renderScreen();
+    fireEvent.press(getByTestId('card-ex-b-overflow'));
+    expect(sheetItemKeys()).toContain('warmups');
+
+    pressSheetItem('warmups');
+
+    const sets = useActiveWorkoutStore.getState().session!.exercises[1].sets;
+    // 60 kg first working set: 40%, 60% and 80% rounded to 2.5.
+    expect(
+      sets.filter((s) => s.set_type === 'warmup').map((s) => s.weight)
+    ).toEqual([25, 35, 47.5]);
+    expect(sets[sets.length - 1]!.set_type).toBe('normal');
+
+    const first = sets[0]!;
+    act(() => useActiveWorkoutStore.getState().completeSet(String(first.id)));
+    fireEvent.press(getByTestId('card-ex-b-overflow'));
+    expect(sheetItemKeys()).not.toContain('warmups');
+  });
+
+  it('offers no warm-ups for a timed exercise or a set without a weight', () => {
+    __resetActiveWorkoutStoreForTests();
+    const session = makeSession();
+    const plank = makeExercise('ex-d', 'Plank', [
+      makeSet(401, { reps: null, weight: null, duration: 45 }),
+    ]);
+    plank.exercise_snapshot.modality = 'duration';
+    session.exercises.push(
+      plank,
+      makeExercise('ex-e', 'Curl', [makeSet(501, { weight: null })])
+    );
+    useActiveWorkoutStore.getState().startWorkout(session);
+    const { getByTestId } = renderScreen();
+
+    fireEvent.press(getByTestId('card-ex-d-overflow'));
+    expect(sheetItemKeys()).not.toContain('warmups');
+    fireEvent.press(getByTestId('card-ex-e-overflow'));
+    expect(sheetItemKeys()).not.toContain('warmups');
+  });
+
+  it('hides warm-ups when the working weight cannot build a loadable ramp', () => {
+    __resetActiveWorkoutStoreForTests();
+    const session = makeSession();
+    // 2 kg against the default 2.5 kg plate step rounds to nothing under it.
+    session.exercises[1].sets[0].weight = 2;
+    useActiveWorkoutStore.getState().startWorkout(session);
+    const { getByTestId } = renderScreen();
+
+    fireEvent.press(getByTestId('card-ex-b-overflow'));
+    expect(sheetItemKeys()).not.toContain('warmups');
   });
 
   it('swaps to the candidate pick list in place and back', () => {
@@ -1107,5 +1176,58 @@ describe('ActiveWorkoutScreen source preset server-config guard', () => {
     expect(getByTestId('card-ex-a').props.accessibilityLabel).toBe(
       'sourcePresetId:undefined'
     );
+  });
+});
+
+describe('ActiveWorkoutScreen session cleared from outside the screen', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+    mockUseIsFocused.mockReturnValue(true);
+    __resetActiveWorkoutStoreForTests();
+    __resetAppPreferencesStoreForTests();
+    useActiveWorkoutStore.getState().startWorkout(makeSession());
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('leaves the screen when the workout is ended elsewhere (e.g. on the watch) while it is showing', () => {
+    renderScreen();
+    expect(navigation.goBack).not.toHaveBeenCalled();
+
+    act(() => {
+      useActiveWorkoutStore.getState().clearWorkout();
+    });
+
+    expect(navigation.goBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits until the screen is focused again when it was cleared while further down the stack', () => {
+    mockUseIsFocused.mockReturnValue(false);
+    screenFocused = false;
+    const { rerender } = renderScreen();
+
+    act(() => {
+      useActiveWorkoutStore.getState().clearWorkout();
+    });
+    expect(navigation.goBack).not.toHaveBeenCalled();
+
+    mockUseIsFocused.mockReturnValue(true);
+    screenFocused = true;
+    rerender(
+      <SafeAreaProvider initialMetrics={{ insets, frame }}>
+        <QueryClientProvider
+          client={
+            new QueryClient({ defaultOptions: { queries: { retry: false } } })
+          }
+        >
+          <ActiveWorkoutScreen navigation={navigation} route={route} />
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    );
+
+    expect(navigation.goBack).toHaveBeenCalledTimes(1);
   });
 });

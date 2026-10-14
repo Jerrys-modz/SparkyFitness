@@ -15,6 +15,7 @@ const mockModal: {
   dismiss: jest.Mock;
   props: {
     onAnimate?: (from: number, to: number) => void;
+    onChange?: (index: number) => void;
     onDismiss?: () => void;
   } | null;
 } = { present: jest.fn(), dismiss: jest.fn(), props: null };
@@ -247,5 +248,83 @@ describe('ActionSheet', () => {
     fireDismissed();
     expect(remove).toHaveBeenCalled();
     osSpy.restore();
+  });
+
+  it('takes Android hardware back when the open reports only onChange', () => {
+    // With Android's "Remove animations" the open finishes before onAnimate
+    // reaches JS and the library drops it; onChange still arrives.
+    const osSpy = jest.replaceProperty(Platform, 'OS', 'android');
+    const listeners: (() => boolean)[] = [];
+    const addEventListenerSpy = jest
+      .spyOn(BackHandler, 'addEventListener')
+      .mockImplementation(((_event: string, handler: () => boolean) => {
+        listeners.push(handler);
+        return { remove: jest.fn() };
+      }) as typeof BackHandler.addEventListener);
+
+    const { ref } = renderSheet();
+    act(() => ref.current?.present());
+    act(() => mockModal.props?.onChange?.(0));
+    expect(listeners).toHaveLength(1);
+
+    expect(listeners[0]()).toBe(true);
+    expect(mockModal.dismiss).toHaveBeenCalledTimes(1);
+
+    addEventListenerSpy.mockRestore();
+    osSpy.restore();
+  });
+});
+
+// A description lets two actions differ by more than a short label can carry —
+// the sync choice needs "keeps the map it has" vs "re-reads the map", which no
+// button title states on its own.
+describe('ActionSheet item descriptions', () => {
+  const renderWithDescriptions = () => {
+    const onQuick = jest.fn();
+    const ref = React.createRef<ActionSheetRef>();
+    const utils = render(
+      <ActionSheet
+        ref={ref}
+        title="Sync 19 Aug – 18 Sep"
+        items={[
+          {
+            key: 'quick',
+            label: 'Quick Sync',
+            description: 'Workouts already synced keep the map they have.',
+            onPress: onQuick,
+          },
+          { key: 'all', label: 'All Sync', onPress: jest.fn() },
+        ]}
+      />
+    );
+    return { ...utils, onQuick };
+  };
+
+  it('renders the description under the label', () => {
+    const { getByText } = renderWithDescriptions();
+    expect(getByText('Quick Sync')).toBeTruthy();
+    expect(
+      getByText('Workouts already synced keep the map they have.')
+    ).toBeTruthy();
+  });
+
+  it('announces label and description together to screen readers', () => {
+    const { getByTestId } = renderWithDescriptions();
+    expect(
+      getByTestId('action-sheet-item-quick').props.accessibilityLabel
+    ).toBe('Quick Sync. Workouts already synced keep the map they have.');
+  });
+
+  it('leaves an item without a description unchanged', () => {
+    const { getByTestId } = renderWithDescriptions();
+    expect(getByTestId('action-sheet-item-all').props.accessibilityLabel).toBe(
+      'All Sync'
+    );
+  });
+
+  it('still fires onPress when a description is present', () => {
+    const { getByTestId, onQuick } = renderWithDescriptions();
+    fireEvent.press(getByTestId('action-sheet-item-quick'));
+    expect(onQuick).toHaveBeenCalledTimes(1);
   });
 });

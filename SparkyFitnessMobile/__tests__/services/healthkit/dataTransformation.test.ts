@@ -12,6 +12,7 @@ import type {
   AggregatedSleepSession,
   TransformedNutritionEntry,
 } from '../../../src/types/healthRecords';
+import { atLocalTime } from '../../helpers/localTime';
 
 jest.mock('../../../src/services/LogService', () => ({
   addLog: jest.fn(),
@@ -74,7 +75,10 @@ describe('transformHealthRecords', () => {
   describe('Weight records', () => {
     test('extracts value from record.weight.inKilograms', () => {
       const records = [
-        { time: '2024-01-15T08:00:00Z', weight: { inKilograms: 75.5 } },
+        {
+          time: atLocalTime('2024-01-15', '08:00'),
+          weight: { inKilograms: 75.5 },
+        },
       ];
       const result = transformHealthRecords(records, {
         recordType: 'Weight',
@@ -125,7 +129,7 @@ describe('transformHealthRecords', () => {
     test('splits into separate systolic and diastolic records', () => {
       const records = [
         {
-          time: '2024-01-15T08:00:00Z',
+          time: atLocalTime('2024-01-15', '08:00'),
           systolic: { inMillimetersOfMercury: 120.5 },
           diastolic: { inMillimetersOfMercury: 80.3 },
         },
@@ -309,7 +313,7 @@ describe('transformHealthRecords', () => {
 
   describe('HeartRateVariabilitySDNN records', () => {
     test('extracts SDNN value from record.value with record.time date', () => {
-      const records = [{ time: '2024-01-15T08:00:00Z', value: 42 }];
+      const records = [{ time: atLocalTime('2024-01-15', '08:00'), value: 42 }];
       const result = transformHealthRecords(records, {
         recordType: 'HeartRateVariabilitySDNN',
         unit: 'ms',
@@ -448,6 +452,109 @@ describe('transformHealthRecords', () => {
       const workoutResult = result[0] as TransformedExerciseSession;
       expect(workoutResult.activityType).toBe('Running');
       expect(workoutResult.title).toBe('Running');
+      expect(workoutResult.exercise_source_id).toBe('37');
+    });
+
+    test('skips a workout our own watch app wrote', () => {
+      // The live-workout flow already logged these sets in the diary as they
+      // happened. Importing the HealthKit copy the watch saved would file the
+      // same session a second time — and the bundle-id guard cannot catch it,
+      // because the watch app's bundle is not the phone's.
+      const records = [
+        {
+          startTime: '2024-01-15T08:00:00Z',
+          endTime: '2024-01-15T09:00:00Z',
+          activityType: 37,
+          duration: 3600,
+          metadata: { SparkyFitnessSessionId: 'session-abc' },
+        },
+      ];
+      const result = transformHealthRecords(records, {
+        recordType: 'Workout',
+        unit: '',
+        type: 'workout',
+      });
+
+      expect(result).toHaveLength(0);
+    });
+
+    test('titles a walk recorded on the watch alone by place', () => {
+      setOwnBundleId('com.sparky.app');
+      try {
+        const records = [
+          {
+            startTime: '2024-01-15T08:00:00Z',
+            endTime: '2024-01-15T08:30:00Z',
+            activityType: 52,
+            duration: 1800,
+            sourceBundleId: 'com.sparky.app.watchkitapp',
+            metadata: {},
+          },
+          {
+            startTime: '2024-01-16T08:00:00Z',
+            endTime: '2024-01-16T08:30:00Z',
+            activityType: 37,
+            duration: 1800,
+            sourceBundleId: 'com.sparky.app.watchkitapp',
+            metadata: { HKIndoorWorkout: 1 },
+          },
+        ];
+        const result = transformHealthRecords(records, {
+          recordType: 'Workout',
+          unit: '',
+          type: 'workout',
+        }) as TransformedExerciseSession[];
+
+        expect(result.map((r) => r.title)).toEqual([
+          'Outdoor walk',
+          'Indoor run',
+        ]);
+        expect(result[0].notes).toBe(
+          'Recorded on Apple Watch with SparkyFitness'
+        );
+      } finally {
+        setOwnBundleId(null);
+      }
+    });
+
+    test('still imports a workout from another app that carries metadata', () => {
+      const records = [
+        {
+          startTime: '2024-01-15T08:00:00Z',
+          endTime: '2024-01-15T09:00:00Z',
+          activityType: 37,
+          duration: 3600,
+          metadata: { HKTimeZone: 'Europe/London' },
+        },
+      ];
+      const result = transformHealthRecords(records, {
+        recordType: 'Workout',
+        unit: '',
+        type: 'workout',
+      });
+
+      expect(result).toHaveLength(1);
+    });
+
+    test('maps HKWorkoutActivityType other (3000) to "Other"', () => {
+      const records = [
+        {
+          startTime: '2024-01-15T08:00:00Z',
+          endTime: '2024-01-15T09:00:00Z',
+          activityType: 3000,
+          duration: 3600,
+        },
+      ];
+      const result = transformHealthRecords(records, {
+        recordType: 'Workout',
+        unit: '',
+        type: 'workout',
+      });
+
+      expect((result[0] as TransformedExerciseSession).activityType).toBe(
+        'Other'
+      );
+      expect((result[0] as TransformedExerciseSession).title).toBe('Other');
     });
 
     test('falls back to "Workout type {code}" for unknown codes', () => {
@@ -614,7 +721,10 @@ describe('transformHealthRecords', () => {
   describe('date extraction', () => {
     test('uses record.time for raw quantity samples (Weight)', () => {
       const records = [
-        { time: '2024-01-15T08:00:00Z', weight: { inKilograms: 75 } },
+        {
+          time: atLocalTime('2024-01-15', '08:00'),
+          weight: { inKilograms: 75 },
+        },
       ];
       const result = transformHealthRecords(records, {
         recordType: 'Weight',
@@ -629,7 +739,10 @@ describe('transformHealthRecords', () => {
 
     test('uses record.startTime for session-type records (Distance)', () => {
       const records = [
-        { startTime: '2024-01-15T08:00:00Z', distance: { inMeters: 1000 } },
+        {
+          startTime: atLocalTime('2024-01-15', '08:00'),
+          distance: { inMeters: 1000 },
+        },
       ];
       const result = transformHealthRecords(records, {
         recordType: 'Distance',

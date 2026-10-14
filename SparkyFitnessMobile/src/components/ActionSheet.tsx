@@ -7,8 +7,6 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  BackHandler,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -18,11 +16,21 @@ import {
 import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useCSSVariable } from 'uniwind';
 import Icon from './Icon';
-import { sheetContainer, useSheetBackdrop } from './ui/sheetChrome';
+import {
+  sheetContainer,
+  useSheetBackdrop,
+  useSheetHardwareBack,
+} from './ui/sheetChrome';
 
 export interface ActionSheetItem {
   key: string;
   label: string;
+  /**
+   * Secondary line under the label, for actions whose difference cannot be
+   * carried by a short label alone. Optional: an item without one renders
+   * exactly as before.
+   */
+  description?: string;
   /**
    * Consecutive items sharing a group render as one block, separated from
    * adjacent blocks by a spacer band. Ungrouped items chunk together.
@@ -132,19 +140,20 @@ const ActionSheet = React.forwardRef<ActionSheetRef, ActionSheetProps>(
       };
     }, [clearScheduledPresent]);
 
-    useEffect(() => {
-      if (!isOpen || Platform.OS !== 'android') return;
-      // Registered while open (after any screen handlers), so the sheet wins
-      // Back and the press can't fall through and pop the screen.
-      const subscription = BackHandler.addEventListener(
-        'hardwareBackPress',
-        () => {
-          dismissSheet();
-          return true;
-        }
-      );
-      return () => subscription.remove();
-    }, [isOpen, dismissSheet]);
+    useSheetHardwareBack(isOpen, dismissSheet);
+
+    // The sheet is opening or open. Called from onAnimate and from onChange:
+    // when the open finishes before onAnimate reaches JS (Android's "Remove
+    // animations", or a busy JS thread), the library drops onAnimate, and
+    // onChange is the only signal that arrives.
+    const markOpen = useCallback(() => {
+      isDismissingRef.current = false;
+      isOpenRef.current = true;
+      isPresentingRef.current = false;
+      pendingPresentRef.current = false;
+      clearScheduledPresent();
+      setIsOpen(true);
+    }, [clearScheduledPresent]);
 
     const handleAnimate = useCallback(
       (fromIndex: number, toIndex: number) => {
@@ -156,15 +165,19 @@ const ActionSheet = React.forwardRef<ActionSheetRef, ActionSheetProps>(
         }
 
         if (toIndex >= 0) {
-          isDismissingRef.current = false;
-          isOpenRef.current = true;
-          isPresentingRef.current = false;
-          pendingPresentRef.current = false;
-          clearScheduledPresent();
-          setIsOpen(true);
+          markOpen();
         }
       },
-      [clearScheduledPresent]
+      [markOpen]
+    );
+
+    const handleChange = useCallback(
+      (index: number) => {
+        if (index >= 0) {
+          markOpen();
+        }
+      },
+      [markOpen]
     );
 
     const handleDismiss = useCallback(() => {
@@ -213,6 +226,7 @@ const ActionSheet = React.forwardRef<ActionSheetRef, ActionSheetProps>(
         backgroundStyle={{ backgroundColor: surfaceBg }}
         handleIndicatorStyle={{ backgroundColor: textMuted }}
         onAnimate={handleAnimate}
+        onChange={handleChange}
         onDismiss={handleDismiss}
       >
         <BottomSheetScrollView contentContainerClassName="pb-safe-or-5">
@@ -248,10 +262,16 @@ const ActionSheet = React.forwardRef<ActionSheetRef, ActionSheetProps>(
                   key={item.key}
                   testID={`action-sheet-item-${item.key}`}
                   onPress={() => handleItemPress(item)}
-                  className="flex-row items-center px-4 py-3.5 border-b border-border-subtle"
+                  className="px-4 py-3.5 border-b border-border-subtle"
                   style={{ borderBottomWidth: StyleSheet.hairlineWidth }}
                   accessibilityRole="button"
-                  accessibilityLabel={item.label}
+                  // Screen readers announce the description with the label, so
+                  // the distinction is not sighted-only.
+                  accessibilityLabel={
+                    item.description
+                      ? `${item.label}. ${item.description}`
+                      : item.label
+                  }
                 >
                   <Text
                     className={`text-base font-medium ${
@@ -262,6 +282,11 @@ const ActionSheet = React.forwardRef<ActionSheetRef, ActionSheetProps>(
                   >
                     {item.label}
                   </Text>
+                  {item.description ? (
+                    <Text className="text-sm text-text-muted mt-0.5">
+                      {item.description}
+                    </Text>
+                  ) : null}
                 </Pressable>
               ))}
             </React.Fragment>

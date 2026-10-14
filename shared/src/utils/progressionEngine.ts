@@ -4,6 +4,15 @@ import {
   ProgressionEvaluationResult,
 } from "../types/progression.ts";
 
+/**
+ * Two decimals: enough for any plate step in kg or lb, and it keeps float
+ * noise from adding a weight and an increment (92.8 + 2.5) out of the
+ * suggestion and the message it is quoted in.
+ */
+function roundSuggestedWeight(weight: number): number {
+  return Math.round(weight * 100) / 100;
+}
+
 export function evaluateProgression(
   config: ExerciseProgressionConfig,
   lastPerformance?: LastExercisePerformance | null
@@ -58,7 +67,9 @@ export function evaluateProgression(
 
     if (goalAchieved) {
       if (config.incrementType === "weight") {
-        const newWeight = lastPerformance.baseWeight + config.incrementValue;
+        const newWeight = roundSuggestedWeight(
+          lastPerformance.baseWeight + config.incrementValue
+        );
         return {
           goalAchieved: true,
           status: "PROGRESSION_WEIGHT_INCREASE",
@@ -114,7 +125,9 @@ export function evaluateProgression(
 
     // Mode: rep_goal with weight increment
     if (config.incrementType === "weight") {
-      const newWeight = lastPerformance.baseWeight + config.incrementValue;
+      const newWeight = roundSuggestedWeight(
+        lastPerformance.baseWeight + config.incrementValue
+      );
       return {
         goalAchieved: true,
         status: "PROGRESSION_WEIGHT_INCREASE",
@@ -148,4 +161,34 @@ export function evaluateProgression(
     repDifference,
     message: `Goal not reached (${totalRepsAchieved}/${effectiveRepGoal} reps). Hold weight.`,
   };
+}
+
+/**
+ * Per-working-set rep targets after a rep progression, or null when the
+ * evaluation didn't raise reps. Fixed mode's suggested goal is already per
+ * set; rep_goal and step_load suggest a session total, split evenly across the
+ * working sets with earlier sets taking the remainder.
+ */
+export function distributeProgressionReps(
+  result: ProgressionEvaluationResult | null,
+  progressionMode: ExerciseProgressionConfig["progressionMode"],
+  workingSetCount: number
+): number[] | null {
+  if (
+    result == null ||
+    !result.goalAchieved ||
+    result.status !== "PROGRESSION_REPS_INCREASE" ||
+    workingSetCount <= 0
+  ) {
+    return null;
+  }
+  if (progressionMode === "fixed") {
+    return Array.from({ length: workingSetCount }, () => result.suggestedRepGoal);
+  }
+  const base = Math.floor(result.suggestedRepGoal / workingSetCount);
+  const remainder = result.suggestedRepGoal % workingSetCount;
+  return Array.from(
+    { length: workingSetCount },
+    (_, i) => base + (i < remainder ? 1 : 0)
+  );
 }

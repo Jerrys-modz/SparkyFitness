@@ -15,6 +15,11 @@ import {
   resetDatabaseInaccessibleCount,
   getDatabaseInaccessibleCount,
 } from '../../../src/services/healthkit/index';
+import { createTelemetryRunContext } from '../../../src/services/shared/telemetryBudget';
+import {
+  _resetEnrichedSessionCacheForTests,
+  markEnrichedSessions,
+} from '../../../src/services/shared/enrichedSessionCache';
 
 import {
   isHealthDataAvailable,
@@ -1004,6 +1009,113 @@ describe('readHealthRecords', () => {
       ).toBe(600);
       expect((result[0] as { totalDistance: number }).totalDistance).toBe(6000);
       expect((result[0] as { totalSteps: number }).totalSteps).toBe(6543);
+    });
+
+    test('reads floors climbed from the workout statistics (a stair stepper over GymKit)', async () => {
+      await initHealthConnect();
+
+      const mockGetStatistic = jest
+        .fn()
+        .mockImplementation((identifier: string) =>
+          identifier === 'HKQuantityTypeIdentifierFlightsClimbed'
+            ? Promise.resolve({ sumQuantity: { quantity: 56 } })
+            : Promise.resolve(undefined)
+        );
+      mockQueryWorkoutSamples.mockResolvedValue([
+        {
+          startDate: '2026-10-08T10:49:00Z',
+          endDate: '2026-10-08T11:06:00Z',
+          workoutActivityType: 44,
+          duration: 1018,
+          totalEnergyBurned: 219,
+          getStatistic: mockGetStatistic,
+        },
+      ]);
+
+      const result = await readHealthRecords(
+        'Workout',
+        new Date('2026-10-08T00:00:00Z'),
+        new Date('2026-10-08T23:59:59Z')
+      );
+
+      expect(mockGetStatistic).toHaveBeenCalledWith(
+        'HKQuantityTypeIdentifierFlightsClimbed',
+        'count'
+      );
+      expect(
+        (result[0] as { telemetry?: { floors_climbed?: number } }).telemetry
+          ?.floors_climbed
+      ).toBe(56);
+    });
+
+    test('prefers the workout sample floors when it has them', async () => {
+      await initHealthConnect();
+
+      const mockGetStatistic = jest
+        .fn()
+        .mockImplementation((identifier: string) =>
+          identifier === 'HKQuantityTypeIdentifierFlightsClimbed'
+            ? Promise.resolve({ sumQuantity: { quantity: 99 } })
+            : Promise.resolve(undefined)
+        );
+      mockQueryWorkoutSamples.mockResolvedValue([
+        {
+          startDate: '2026-10-08T10:49:00Z',
+          endDate: '2026-10-08T11:06:00Z',
+          workoutActivityType: 44,
+          duration: 1018,
+          totalEnergyBurned: 219,
+          totalFlightsClimbed: { quantity: 12 },
+          getStatistic: mockGetStatistic,
+        },
+      ]);
+
+      const result = await readHealthRecords(
+        'Workout',
+        new Date('2026-10-08T00:00:00Z'),
+        new Date('2026-10-08T23:59:59Z')
+      );
+
+      expect(
+        (result[0] as { telemetry?: { floors_climbed?: number } }).telemetry
+          ?.floors_climbed
+      ).toBe(12);
+    });
+
+    test('reports no floors when none were recorded, and survives the read being refused', async () => {
+      await initHealthConnect();
+
+      const refused = jest
+        .fn()
+        .mockImplementation((identifier: string) =>
+          identifier === 'HKQuantityTypeIdentifierFlightsClimbed'
+            ? Promise.reject(new Error('not authorized'))
+            : Promise.resolve({ sumQuantity: { quantity: 321 } })
+        );
+      mockQueryWorkoutSamples.mockResolvedValue([
+        {
+          startDate: '2026-10-08T10:49:00Z',
+          endDate: '2026-10-08T11:06:00Z',
+          workoutActivityType: 37,
+          duration: 1018,
+          totalEnergyBurned: 219,
+          totalFlightsClimbed: { quantity: 0 },
+          getStatistic: refused,
+        },
+      ]);
+
+      const result = await readHealthRecords(
+        'Workout',
+        new Date('2026-10-08T00:00:00Z'),
+        new Date('2026-10-08T23:59:59Z')
+      );
+
+      const telemetry = (
+        result[0] as { telemetry?: { floors_climbed?: number } }
+      ).telemetry;
+      expect(telemetry?.floors_climbed).toBeUndefined();
+      // The other statistic reads still happened.
+      expect((result[0] as { totalSteps: number }).totalSteps).toBe(321);
     });
 
     test('does not invent workout steps when HealthKit has no associated step statistic', async () => {
@@ -2695,5 +2807,119 @@ describe('readEarliestSampleDetailed', () => {
     expect(result.records).toEqual([]);
     expect(result.error).toContain('Protected health data');
     expect(getDatabaseInaccessibleCount()).toBe(1);
+  });
+});
+
+// The Workout tests above go through readHealthRecords, which pins a ZERO
+// budget — so ctx.claim() fails immediately and handleWorkout's telemetry
+// branch never runs. Everything below therefore calls readHealthRecordsDetailed
+// with a real budgeted context, which is the only way to reach the reuse-cache
+// handoff and the budget allocation on this platform.
+//
+// Note the deliberate asymmetry with Health Connect: there is no grace window
+// here. HealthKit reads a workout's series with `filter: { workout }`, so a
+// sample another app wrote without associating it is invisible no matter how
+// often the workout is re-read, and the late cases that CAN arrive are already
+// covered by the cache key moving with endDate and by `incomplete`.
+describe('handleWorkout telemetry cache handoff and budget allocation', () => {
+  const HR_ID = 'HKQuantityTypeIdentifierHeartRate';
+
+  const hoursAgo = (h: number) =>
+    new Date(Date.now() - h * 60 * 60 * 1000).toISOString();
+
+  const workout = (
+    uuid: string,
+    endDate: string,
+    startDate = hoursAgo(25)
+  ) => ({
+    uuid,
+    startDate,
+    endDate,
+    workoutActivityType: 52,
+    duration: 3600,
+    totalEnergyBurned: { unit: 'kcal', quantity: 300 },
+    totalDistance: { unit: 'm', quantity: 4000 },
+    getStatistic: jest.fn().mockResolvedValue(undefined),
+    getWorkoutRoutes: jest.fn().mockResolvedValue([]),
+  });
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    _resetEnrichedSessionCacheForTests();
+    await initHealthConnect();
+    mockQueryQuantitySamples.mockResolvedValue([]);
+  });
+
+  const readWorkouts = async (budget: number) => {
+    const ctx = createTelemetryRunContext({ budget, interactive: true });
+    await readHealthRecordsDetailed(
+      'Workout',
+      new Date(hoursAgo(48)),
+      new Date(),
+      ctx
+    );
+    return ctx.drainCollected();
+  };
+
+  test('a workout whose telemetry was collected is staged for the reuse cache', async () => {
+    const end = hoursAgo(2);
+    mockQueryWorkoutSamples.mockResolvedValue([workout('w-hr', end)]);
+    mockQueryQuantitySamples.mockImplementation(async (identifier: string) =>
+      identifier === HR_ID ? [{ startDate: hoursAgo(2), quantity: 132 }] : []
+    );
+
+    expect(await readWorkouts(3)).toEqual([`w-hr:${end}:v2`]);
+  });
+
+  test('a workout with nothing beyond its summary is staged too — the reads that proved it must not repeat (#2191)', async () => {
+    // Deliberately unlike Health Connect: an empty result here is a final
+    // answer, because an unassociated sample could never have been returned.
+    const end = hoursAgo(2);
+    mockQueryWorkoutSamples.mockResolvedValue([workout('w-empty', end)]);
+
+    expect(await readWorkouts(3)).toEqual([`w-empty:${end}:v2`]);
+  });
+
+  test('a failed series read is NOT cached as an empty result', async () => {
+    // The locked-device case: HealthKit throws rather than returning [], the
+    // bundle comes back `incomplete`, and the workout stays uncached so the
+    // next sync retries it. This is what makes a grace window unnecessary for
+    // the one late-arrival case HealthKit can actually produce.
+    mockQueryWorkoutSamples.mockResolvedValue([
+      workout('w-locked', hoursAgo(2)),
+    ]);
+    mockQueryQuantitySamples.mockRejectedValue(
+      new Error('Protected health data is inaccessible')
+    );
+
+    expect(await readWorkouts(3)).toEqual([]);
+  });
+
+  test('budget is spent newest-first, and workouts beyond it are left for a later run', async () => {
+    const r1 = hoursAgo(2);
+    const r2 = hoursAgo(3);
+    const r3 = hoursAgo(4);
+    mockQueryWorkoutSamples.mockResolvedValue([
+      workout('newest', r1),
+      workout('middle', r2),
+      workout('oldest', r3),
+    ]);
+
+    const staged = await readWorkouts(2);
+
+    expect(staged).toEqual([`newest:${r1}:v2`, `middle:${r2}:v2`]);
+    expect(staged).not.toContain(`oldest:${r3}:v2`);
+  });
+
+  test('an already-collected workout neither consumes a slot nor gets re-read', async () => {
+    const r1 = hoursAgo(2);
+    const r2 = hoursAgo(3);
+    mockQueryWorkoutSamples.mockResolvedValue([
+      workout('already', r1),
+      workout('fresh', r2),
+    ]);
+    await markEnrichedSessions([`already:${r1}:v2`]);
+
+    expect(await readWorkouts(1)).toEqual([`fresh:${r2}:v2`]);
   });
 });

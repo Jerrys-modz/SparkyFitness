@@ -16,6 +16,8 @@ function getDefaultModel(serviceType: any) {
       return 'google/gemini-2.5-flash';
     case 'xai':
       return 'grok-4.3';
+    case 'perplexity':
+      return 'fast';
     case 'meta':
       return 'muse-spark-1.1';
     case 'ollama':
@@ -42,6 +44,8 @@ function getDefaultVisionModel(serviceType: any) {
       return 'google/gemini-2.5-flash';
     case 'xai':
       return 'grok-4.3';
+    case 'perplexity':
+      return 'fast';
     case 'meta':
       return 'muse-spark-1.1';
     case 'ollama':
@@ -73,6 +77,8 @@ function getOpenAiCompatibleBaseUrl(
       return 'https://openrouter.ai/api/v1';
     case 'xai':
       return 'https://api.x.ai/v1';
+    case 'perplexity':
+      return 'https://api.perplexity.ai/v1';
     case 'meta':
       // Muse Spark's OpenAI-compatible endpoint (auth is Bearer api_key).
       return 'https://api.meta.ai/v1';
@@ -80,11 +86,30 @@ function getOpenAiCompatibleBaseUrl(
       return customUrl ?? undefined;
   }
 }
+const PERPLEXITY_PRESET_MAP = new Map<string, string>([
+  ['sonar', 'fast'],
+  ['sonar-pro', 'low'],
+  ['sonar-reasoning', 'medium'],
+  ['sonar-reasoning-pro', 'high'],
+  ['fast', 'fast'],
+  ['low', 'low'],
+  ['medium', 'medium'],
+  ['high', 'high'],
+  ['xhigh', 'xhigh'],
+]);
+
+function getPerplexityPreset(modelName?: string | null): string | undefined {
+  if (!modelName) return 'fast';
+  return PERPLEXITY_PRESET_MAP.get(modelName.toLowerCase());
+}
+
 export { getDefaultModel };
 export { getDefaultVisionModel };
 export { getOpenAiCompatibleBaseUrl };
+export { getPerplexityPreset };
 export default {
   getDefaultModel,
   getDefaultVisionModel,
   getOpenAiCompatibleBaseUrl,
+  getPerplexityPreset,
 };

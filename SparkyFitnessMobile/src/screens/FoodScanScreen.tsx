@@ -29,7 +29,6 @@ import {
   type BarcodeScanningResult,
 } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
 import {
   lookupBarcodeV2,
   scanNutritionLabel,
@@ -38,8 +37,18 @@ import { selectDisplayVariant } from '../utils/foodDetails';
 import { getApiErrorMessage } from '../services/api/errors';
 import { TimeoutError } from '../utils/concurrency';
 import { fireSuccessHaptic } from '../services/haptics';
+import {
+  isOnDeviceLabelScanAvailable,
+  scanLabelOnDevice,
+} from '../services/onDeviceLabelScan';
+import { prepareLabelPhoto } from '../utils/labelPhoto';
+import { downscaleFoodPhoto } from '../utils/pickImage';
+import {
+  rememberLabelScan,
+  type LabelScanSource,
+} from '../services/labelScanSession';
+import { labelScanToInitialFood } from '../utils/labelScanFood';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
-import { toFormString } from '../types/foodInfo';
 import { useActiveAiServiceSetting } from '../hooks/useActiveAiServiceSetting';
 import { isFoodPhotoAvailable } from '../services/api/aiSettingsApi';
 import {
@@ -57,9 +66,6 @@ const GUIDE_WIDTH = 280;
 const GUIDE_HEIGHT = 160;
 
 const GUIDE_BOTTOM_MARGIN = 120;
-// Longest edge sent for analysis. A label-filling crop reads correctly well
-// below this; capping bounds upload size without costing accuracy.
-const LABEL_MAX_DIMENSION = 1600;
 
 const CORNER_SIZE = 24;
 const CORNER_BORDER = 3;
@@ -134,7 +140,10 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
 
   // Photo estimation always logs to the diary; hide it for meal-builder
   // scans so we don't drop the user into a flow that ignores pickerMode.
-  // capture-barcode mode is barcode-only.
+  // Same for basket-origin scans: the photo flow's success pop goes to the
+  // diary root, which would unmount FoodSearchScreen and silently drop the
+  // in-progress multi-select basket. capture-barcode mode is barcode-only.
+  const isBasketOriginScan = pickerMode === 'log-entry' && returnDepth != null;
   const scanSegments = useMemo(() => {
     if (isCaptureBarcodeMode) {
       return SCAN_SEGMENTS.filter((key) => key === 'barcode').map((key) => ({
@@ -143,7 +152,7 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
       }));
     }
     return (
-      isSelectionMode
+      isSelectionMode || isBasketOriginScan
         ? SCAN_SEGMENTS.filter((key) => key !== 'photo')
         : SCAN_SEGMENTS
     ).map((key) => ({
@@ -155,7 +164,7 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
             ? t('foodScan.segment.label', { defaultValue: 'Label' })
             : t('foodScan.segment.photo', { defaultValue: 'Photo' }),
     }));
-  }, [isCaptureBarcodeMode, isSelectionMode, t]);
+  }, [isCaptureBarcodeMode, isSelectionMode, isBasketOriginScan, t]);
 
   const aiSettingQuery = useActiveAiServiceSetting({
     // Skip the AI gating fetch in capture-barcode mode — Photo segment is
@@ -395,43 +404,9 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
 
   // Both label paths share one shape: get an image (system camera or library),
   // let the user crop it to the label with the system editor's adjustable
-  // handles, downscale, scan. Vision models misread labels that occupy a small
-  // share of the frame, so the crop step is what makes results reliable.
-  const prepareLabelPhoto = async (asset: {
-    uri: string;
-    base64?: string | null;
-    width?: number;
-    height?: number;
-  }) => {
-    const longEdge = Math.max(asset.width ?? 0, asset.height ?? 0);
-    if (longEdge > LABEL_MAX_DIMENSION && asset.width && asset.height) {
-      const scaleTo =
-        asset.width >= asset.height
-          ? { width: LABEL_MAX_DIMENSION }
-          : { height: LABEL_MAX_DIMENSION };
-      const processed = await ImageManipulator.manipulateAsync(
-        asset.uri,
-        [{ resize: scaleTo }],
-        {
-          compress: 0.85,
-          format: ImageManipulator.SaveFormat.JPEG,
-          base64: true,
-        }
-      );
-      if (processed.base64)
-        return { base64: processed.base64, uri: processed.uri };
-    }
-    if (asset.base64) return { base64: asset.base64, uri: asset.uri };
-    const reencoded = await ImageManipulator.manipulateAsync(asset.uri, [], {
-      compress: 0.85,
-      format: ImageManipulator.SaveFormat.JPEG,
-      base64: true,
-    });
-    return reencoded.base64
-      ? { base64: reencoded.base64, uri: reencoded.uri }
-      : null;
-  };
-
+  // handles, downscale (`prepareLabelPhoto`), scan. Vision models misread labels
+  // that occupy a small share of the frame, so the crop step is what makes
+  // results reliable.
   const handleLabelCapture = async () => {
     if (pickerLock.current) return;
     pickerLock.current = true;
@@ -534,39 +509,37 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
     if (!capturedPhoto) return;
     setLabelProcessing(true);
     try {
-      const result = await scanNutritionLabel(
-        capturedPhoto.base64,
-        'image/jpeg'
-      );
+      const onDeviceResult = await scanLabelOnDevice(capturedPhoto.base64);
+      const result =
+        onDeviceResult ??
+        (await scanNutritionLabel(capturedPhoto.base64, 'image/jpeg'));
+      const source: LabelScanSource = onDeviceResult ? 'device' : 'server';
+      rememberLabelScan(capturedPhoto.base64, source);
+      // The toast survives the navigation below, so it shows on the form. The
+      // server reading is only news when the on-device scan was tried first;
+      // otherwise it is the normal path and the form's banner says enough.
+      const triedOnDevice =
+        useAppPreferencesStore.getState().onDeviceLabelScanEnabled &&
+        isOnDeviceLabelScanAvailable();
+      if (onDeviceResult || triedOnDevice) {
+        Toast.show({
+          type: 'info',
+          text1: onDeviceResult
+            ? t('foodScan.labelReadOnDevice', {
+                defaultValue: 'Label read on this iPhone',
+              })
+            : t('foodScan.labelReadByServer', {
+                defaultValue: 'Label read by the server AI',
+              }),
+        });
+      }
       navigation.replace(
         'FoodForm',
         buildFoodFormParams({
-          initialFood: {
-            name: result.name || '',
-            brand: result.brand || '',
-            servingSize: String(result.serving_size ?? ''),
-            servingUnit: result.serving_unit || 'g',
-            calories: String(result.calories ?? ''),
-            protein: String(result.protein ?? ''),
-            carbs: String(result.carbs ?? ''),
-            fat: String(result.fat ?? ''),
-            fiber: toFormString(result.fiber),
-            saturatedFat: toFormString(result.saturated_fat),
-            transFat: toFormString(result.trans_fat),
-            sodium: toFormString(result.sodium),
-            sugars: toFormString(result.sugars),
-            cholesterol: toFormString(result.cholesterol),
-            potassium: toFormString(result.potassium),
-            calcium: toFormString(result.calcium),
-            iron: toFormString(result.iron),
-            caffeineMg: toFormString(result.caffeine_mg),
-            waterMl: toFormString(result.water_ml),
-            alcoholG: toFormString(result.alcohol_g),
-            vitaminA: toFormString(result.vitamin_a),
-            vitaminC: toFormString(result.vitamin_c),
-          },
+          initialFood: labelScanToInitialFood(result),
           barcode: lookupError?.barcode ?? notFoundBarcode ?? undefined,
           providerType: 'label_scan',
+          labelScanSource: source,
         })
       );
     } catch {
@@ -613,6 +586,15 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
   // with `initialMode: 'photo'` still hit the gate.
   useEffect(() => {
     if (isCaptureBarcodeMode) return;
+    if (isBasketOriginScan) {
+      // Basket-origin scans cannot use photo mode at all (its flow pops to
+      // the diary root and would drop the basket): hide the gate, snap the
+      // segment back to barcode, and never reach the availability fetch —
+      // including deep-link photo entries the filtered segments can't stop.
+      setPhotoGateVisible(false);
+      setScanMode('barcode');
+      return;
+    }
     if (scanMode !== 'photo') return;
     if (aiSettingQuery.isLoading) return;
 
@@ -638,6 +620,7 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
     scanMode,
     aiSettingQuery.isLoading,
     photoModeAvailable,
+    isBasketOriginScan,
     navigation,
     date,
     mealTypeId,
@@ -661,13 +644,14 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
         });
         return;
       }
+      const prepared = await downscaleFoodPhoto(photo).catch(() => photo);
       // Mark seen even if user retakes — the intro shouldn't reappear later.
       await markFoodPhotoIntroSeen();
       navigation.replace('FoodPhotoFlow', {
         screen: 'Improve',
         params: {
           date,
-          photo: { uri: photo.uri },
+          photo: { uri: prepared.uri },
           mealTypeId: mealTypeId ?? undefined,
         },
       });
@@ -704,12 +688,13 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
         });
         return;
       }
+      const prepared = await downscaleFoodPhoto(asset).catch(() => asset);
       await markFoodPhotoIntroSeen();
       navigation.replace('FoodPhotoFlow', {
         screen: 'Improve',
         params: {
           date,
-          photo: { uri: asset.uri },
+          photo: { uri: prepared.uri },
           mealTypeId: mealTypeId ?? undefined,
         },
       });

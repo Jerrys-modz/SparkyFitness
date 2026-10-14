@@ -1,3 +1,4 @@
+import { resolveMockDataOptions } from '../utils/mockDataOptions.js';
 import express from 'express';
 import ouraIntegrationService from '../integrations/oura/ouraService.js';
 import ouraService from '../services/ouraService.js';
@@ -6,6 +7,10 @@ import requireSelfActor from '../middleware/requireSelfMiddleware.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 import checkPermissionMiddleware from '../middleware/checkPermissionMiddleware.js';
 import { CallbackBodySchema, SyncBodySchema } from '../schemas/ouraSchemas.js';
+import {
+  SYNC_ALREADY_RUNNING_RESPONSE,
+  startProviderSync,
+} from '../services/providerSyncClaim.js';
 const router = express.Router();
 /**
  * @swagger
@@ -112,12 +117,32 @@ router.post(
         return res.status(400).json({ message: 'Invalid request body.' });
       }
       const { startDate, endDate } = bodyResult.data;
+      const { dataSource, saveMockData } = await resolveMockDataOptions(
+        bodyResult.data,
+        req.authenticatedUserId
+      );
       const userId = req.userId;
       log(
         'info',
-        `[ouraRoutes] Manual sync triggered for user ${userId}${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}`
+        `[ouraRoutes] Manual sync triggered for user ${userId}${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}${dataSource ? ` (Source: ${dataSource})` : ''}`
       );
-      await ouraService.syncOuraData(userId, 'manual', startDate, endDate);
+      const started = await startProviderSync(
+        { userId, providerType: 'oura' },
+        () =>
+          ouraService.syncOuraData(
+            userId,
+            'manual',
+            startDate,
+            endDate,
+            dataSource,
+            saveMockData
+          )
+      );
+      if (!started) {
+        res.status(409).json(SYNC_ALREADY_RUNNING_RESPONSE);
+        return;
+      }
+      await started.running;
       res
         .status(200)
         .json({ message: 'Oura data sync completed successfully.' });

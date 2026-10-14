@@ -1,10 +1,12 @@
 import undici from 'undici';
 import convert from 'heic-convert';
+import sharp from 'sharp';
 import { log } from '../config/logging.js';
 import {
   getDefaultModel,
   getDefaultVisionModel,
   getOpenAiCompatibleBaseUrl,
+  getPerplexityPreset,
 } from './config.js';
 import {
   createGuardedDispatcher,
@@ -66,13 +68,13 @@ export interface DispatchRequest {
   images?: DispatchImage[];
   /** Presence => structured output requested. */
   jsonSchema?: JsonSchemaNode;
-  /** OpenAI `json_schema` name / Anthropic tool name. */
+  /** OpenAI `json_schema` name. */
   schemaName?: string;
   /** Unstructured-but-JSON callers (label scan): populate `json` without a schema. */
   parseJson?: boolean;
   /** Forwarded to every provider family; omitted from the request body when unset. */
   temperature?: number;
-  /** Default 90_000; Ollama default 300_000. */
+  /** Default 90_000; 300_000 for custom-URL services (ollama, openai_compatible, custom). */
   timeoutMs?: number;
 }
 
@@ -82,6 +84,7 @@ export type DispatchErrorCategory =
   | 'custom_url_missing' // ollama/openai_compatible/custom require custom_url but it's absent/blank
   | 'private_network_forbidden' // custom URL resolved to a blocked internal/private address
   | 'unsupported_media' // e.g. HEIC sent to a provider that rejects it
+  | 'image_too_large' // image resolution/patches/dimensions exceeded provider limits
   | 'timeout'
   | 'upstream_error' // non-2xx, network failure, non-JSON body
   | 'refused' // explicit provider refusal / safety block
@@ -99,20 +102,20 @@ export type DispatchResult =
     };
 
 const DEFAULT_TIMEOUT_MS = 90_000;
-// Ollama is nearly always a local server, where the first request after an idle
-// period pays a cold start: loading a multi-billion-parameter model into VRAM
+// Ollama and models using a custom URL are nearly always local, where the first
+// request often triggers a cold start: loading a multi-billion-parameter model
 // can take minutes on modest hardware, before inference begins. 120s was short
 // enough to fail that load outright. Matches CHAT_REQUEST_TIMEOUT_MS in
 // chatService.ts, so the dispatch path is no longer the stricter of the two.
-const OLLAMA_DEFAULT_TIMEOUT_MS = 5 * 60_000;
+const LOCAL_MODEL_TIMEOUT_MS = 5 * 60_000;
 // Ask Ollama to hold the model in memory well past its 5-minute default, so
 // only the first request in a session pays the cold start rather than every
 // request that follows a short pause.
 const OLLAMA_KEEP_ALIVE = '30m';
-// On Claude Opus 5 and Sonnet 5, omitting the `thinking` parameter runs
-// adaptive thinking by default, and max_tokens caps thinking *and* the visible
-// response together. At 2048 with a forced tool call, reasoning could consume
-// the budget and truncate the tool response, surfacing as stop_reason
+// On Claude Opus 5+, Sonnet 5+ and Haiku 5.5, omitting the `thinking`
+// parameter runs adaptive thinking by default, and max_tokens caps thinking
+// *and* the visible response together. At 2048, reasoning could consume the
+// budget and truncate the structured response, surfacing as stop_reason
 // 'max_tokens'. 2048 was also tight for a structured nutrition payload even
 // without thinking. Every Claude model in the catalog supports 8192 output
 // tokens, so it is a safe floor across the board.
@@ -161,6 +164,7 @@ const STRICT_SCHEMA_PROVIDERS = new Set([
   'groq',
   'openrouter',
   'xai',
+  'perplexity',
 ]);
 
 function providerFamily(serviceType: string): ProviderFamily | null {
@@ -173,6 +177,7 @@ function providerFamily(serviceType: string): ProviderFamily | null {
     case 'groq':
     case 'openrouter':
     case 'xai':
+    case 'perplexity':
     case 'meta': // Muse Spark's OpenAI-compatible endpoint; see openAiFamilyUrl.
     case 'custom':
       return 'openai';
@@ -285,6 +290,67 @@ function sniffImageMime(head: Buffer): string | null {
   return null;
 }
 
+// Maximum pixel dimension (width or height) allowed for images dispatched to
+// AI vision services. OpenAI, Anthropic, and Gemini all recommend or enforce
+// images under 2048px (e.g. OpenAI's 30,000-patch limit and Claude's 1568px/8000px
+// bounds). Oversized camera shots (12-108 MP) are automatically downscaled while
+// preserving aspect ratio and EXIF orientation.
+const MAX_VISION_IMAGE_DIMENSION = 2048;
+
+async function downscaleImageForDispatch(
+  img: DispatchImage
+): Promise<DispatchImage> {
+  if (
+    !img.base64 ||
+    img.base64.length < 1024 ||
+    HEIC_MIME_TYPES.has(img.mimeType)
+  ) {
+    return img;
+  }
+
+  const maxDimension =
+    Number(process.env.TEST_MAX_VISION_IMAGE_DIMENSION) ||
+    MAX_VISION_IMAGE_DIMENSION;
+
+  try {
+    const inputBuf = Buffer.from(img.base64, 'base64');
+    const image = sharp(inputBuf);
+    const meta = await image.metadata();
+    const longEdge = Math.max(meta.width ?? 0, meta.height ?? 0);
+
+    if (longEdge > maxDimension && meta.width && meta.height) {
+      const startedAt = Date.now();
+      const resizedBuf = await sharp(inputBuf)
+        .rotate()
+        .resize({
+          width: maxDimension,
+          height: maxDimension,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .toBuffer();
+
+      log(
+        'info',
+        `providerDispatch: image downscaled (${meta.width}x${meta.height} -> long edge capped at ${maxDimension}) in ${Date.now() - startedAt}ms (${inputBuf.length}B -> ${resizedBuf.length}B)`
+      );
+
+      return {
+        base64: resizedBuf.toString('base64'),
+        mimeType: img.mimeType,
+      };
+    }
+  } catch (error) {
+    // If sharp cannot parse the buffer (e.g. test stub bytes), leave unchanged.
+    log(
+      'debug',
+      `providerDispatch: image downscale skipped: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+
+  return img;
+}
+
 /**
  * Normalize each image for dispatch, trusting the actual bytes over the
  * client-declared mime type. Client mimes are unreliable — Android's photo
@@ -294,11 +360,12 @@ function sniffImageMime(head: Buffer): string | null {
  * every provider accepts) and pass everything else through with a corrected
  * mime. Only genuine HEIC that fails to decode is left as HEIC, so the caller
  * detects the leftover mime and fails loud with `unsupported_media`.
+ * Oversized images are subsequently downscaled to fit within vision provider limits.
  */
 async function normalizeImagesForDispatch(
   images: DispatchImage[]
 ): Promise<DispatchImage[]> {
-  return Promise.all(
+  const normalized = await Promise.all(
     images.map(async (img) => {
       // 48 bytes (64 base64 chars, a whole-quantum slice) covers every magic
       // number we check, including the HEIF `ftyp` brand at offset 8.
@@ -354,6 +421,8 @@ async function normalizeImagesForDispatch(
       }
     })
   );
+
+  return Promise.all(normalized.map(downscaleImageForDispatch));
 }
 
 function isBlank(value: string | undefined | null): boolean {
@@ -387,8 +456,8 @@ function stripCodeFences(content: string): string {
 
 /**
  * Convert a Gemini-shaped schema into a strict-mode JSON Schema accepted by
- * both OpenAI `response_format.json_schema` (strict: true) and Anthropic tool
- * `input_schema` (strict: true). Deep clones, recursively strips
+ * both OpenAI `response_format.json_schema` (strict: true) and Anthropic
+ * `output_config.format` (JSON outputs). Deep clones, recursively strips
  * `propertyOrdering` (non-standard, rejected in strict mode) and adds
  * `additionalProperties: false` to every object node.
  */
@@ -454,6 +523,9 @@ function openAiFamilyUrl(provider: ProviderConfig): string {
   if (provider.service_type === 'custom') {
     return provider.custom_url as string;
   }
+  if (provider.service_type === 'perplexity') {
+    return 'https://api.perplexity.ai/v1/responses';
+  }
   const baseUrl = getOpenAiCompatibleBaseUrl(
     provider.service_type,
     provider.custom_url
@@ -504,9 +576,16 @@ function buildGoogleRequest(
 }
 
 function buildOpenAiFamilyRequest(ctx: BuildContext): BuiltRequest {
+  // DeepSeek's OpenAI-compatible endpoint supports JSON mode, not strict JSON Schema.
+  const isDeepSeek =
+    ctx.provider.service_type === 'openai_compatible' &&
+    /^https:\/\/(?:[^/]+\.)?deepseek\.com(?:[:/]|$)/i.test(
+      ctx.provider.custom_url ?? ''
+    );
   const useStrictSchema =
     ctx.jsonSchema !== undefined &&
-    STRICT_SCHEMA_PROVIDERS.has(ctx.provider.service_type);
+    STRICT_SCHEMA_PROVIDERS.has(ctx.provider.service_type) &&
+    !isDeepSeek;
   // `json_object` mode only guarantees syntactically valid JSON; the model
   // never sees the schema unless it is in the prompt, so embed it there.
   const prompt =
@@ -523,11 +602,50 @@ function buildOpenAiFamilyRequest(ctx: BuildContext): BuiltRequest {
           { type: 'text', text: prompt },
         ]
       : prompt;
+  const perplexityInput =
+    ctx.images.length > 0
+      ? [
+          {
+            role: 'user',
+            content: [
+              ...ctx.images.map((img) => ({
+                type: 'input_image',
+                image_url: `data:${img.mimeType};base64,${img.base64}`,
+              })),
+              { type: 'input_text', text: prompt },
+            ],
+          },
+        ]
+      : prompt;
+
   const body: Record<string, unknown> = {
     model: ctx.model,
     messages: [{ role: 'user', content }],
   };
-  if (ctx.temperature !== undefined) {
+
+  if (ctx.provider.service_type === 'perplexity') {
+    delete body.messages;
+    body.input = perplexityInput;
+
+    const preset = getPerplexityPreset(ctx.model);
+    if (preset) {
+      body.preset = preset;
+      delete body.model;
+    } else {
+      body.model = ctx.model;
+      const modelLower = (ctx.model ?? '').toLowerCase();
+      if (
+        modelLower.startsWith('anthropic/') ||
+        modelLower.includes('claude')
+      ) {
+        body.max_output_tokens = 4096;
+      }
+    }
+  }
+  if (
+    ctx.temperature !== undefined &&
+    ctx.provider.service_type !== 'perplexity'
+  ) {
     body.temperature = ctx.temperature;
   }
   if (ctx.jsonSchema) {
@@ -588,15 +706,16 @@ function buildAnthropicRequest(ctx: BuildContext): BuiltRequest {
     body.temperature = ctx.temperature;
   }
   if (ctx.jsonSchema) {
-    body.tools = [
-      {
-        name: ctx.toolName,
-        description: 'Return the structured result via this tool.',
-        input_schema: toStrictJsonSchema(ctx.jsonSchema),
-        strict: true,
+    // JSON outputs rather than a forced tool call: Claude Opus 5.5, Sonnet 5.5
+    // and Fable 5.1 reject `tool_choice` `tool`/`any` with a 400, while
+    // `output_config.format` is supported by every model that supported the
+    // strict tool it replaces.
+    body.output_config = {
+      format: {
+        type: 'json_schema',
+        schema: toStrictJsonSchema(ctx.jsonSchema),
       },
-    ];
-    body.tool_choice = { type: 'tool', name: ctx.toolName };
+    };
   }
   return {
     url: 'https://api.anthropic.com/v1/messages',
@@ -685,13 +804,63 @@ function extractGoogle(data: unknown): ExtractResult {
   return { kind: 'text', text };
 }
 
+function extractTextFromAgentOutput(output: unknown): string | null {
+  if (!Array.isArray(output)) return null;
+  const texts: string[] = [];
+
+  for (const item of output) {
+    if (!item || typeof item !== 'object') continue;
+    const obj = item as {
+      type?: string;
+      text?: unknown;
+      output_text?: unknown;
+      content?: unknown;
+    };
+    if (typeof obj.text === 'string') {
+      texts.push(obj.text);
+    } else if (typeof obj.output_text === 'string') {
+      texts.push(obj.output_text);
+    } else if (typeof obj.content === 'string') {
+      texts.push(obj.content);
+    } else if (Array.isArray(obj.content)) {
+      for (const block of obj.content) {
+        if (!block || typeof block !== 'object') continue;
+        const b = block as {
+          type?: string;
+          text?: unknown;
+          output_text?: unknown;
+        };
+        if (typeof b.text === 'string') {
+          texts.push(b.text);
+        } else if (typeof b.output_text === 'string') {
+          texts.push(b.output_text);
+        }
+      }
+    }
+  }
+
+  const combined = texts.join('\n').trim();
+  return combined.length > 0 ? combined : null;
+}
+
 function extractOpenAiFamily(data: unknown): ExtractResult {
   const d = data as {
     choices?: Array<{
       finish_reason?: string;
       message?: { content?: unknown; refusal?: unknown };
     }>;
+    output_text?: unknown;
+    output?: unknown;
   };
+  // Perplexity Agent API responses (/v1/responses) return `output_text` or `output`
+  if (typeof d?.output_text === 'string' && d.output_text.trim() !== '') {
+    return { kind: 'text', text: d.output_text };
+  }
+  const agentText = extractTextFromAgentOutput(d?.output);
+  if (agentText) {
+    return { kind: 'text', text: agentText };
+  }
+
   const choice = d?.choices?.[0];
   const message = choice?.message;
   if (message?.refusal) {
@@ -727,17 +896,11 @@ function extractOpenAiFamily(data: unknown): ExtractResult {
   return { kind: 'text', text: content };
 }
 
-function extractAnthropic(
-  data: unknown,
-  hasSchema: boolean,
-  toolName: string
-): ExtractResult {
+function extractAnthropic(data: unknown, hasSchema: boolean): ExtractResult {
   const d = data as {
     stop_reason?: string;
     content?: Array<{
       type?: string;
-      name?: string;
-      input?: unknown;
       text?: string;
     }>;
   };
@@ -756,48 +919,32 @@ function extractAnthropic(
       detail: 'AI service truncated the response (stop_reason: max_tokens).',
     };
   }
-  if (hasSchema) {
-    const toolUseBlock = d?.content?.find(
-      (block) => block?.type === 'tool_use' && block?.name === toolName
-    );
-    if (stopReason === 'tool_use') {
-      if (
-        !toolUseBlock ||
-        typeof toolUseBlock.input !== 'object' ||
-        toolUseBlock.input === null
-      ) {
-        return {
-          kind: 'error',
-          category: 'upstream_error',
-          detail: 'AI service returned a malformed tool_use block.',
-        };
-      }
-      // tool_use input arrives already parsed as an object; pass it through
-      // verbatim rather than re-stringifying then re-parsing.
-      return { kind: 'object', value: toolUseBlock.input };
-    }
-    if (stopReason === 'end_turn') {
-      return {
-        kind: 'error',
-        category: 'no_content',
-        detail: 'AI service returned no tool call (likely safety-blocked).',
-      };
-    }
-    return {
-      kind: 'error',
-      category: 'upstream_error',
-      detail: `AI service returned unexpected stop_reason '${stopReason ?? '<missing>'}'.`,
-    };
-  }
-  const text = d?.content?.find(
-    (block) => typeof block?.text === 'string'
-  )?.text;
-  if (typeof text !== 'string' || text.trim() === '') {
+  // Models that think by default (Claude Opus 5+, Sonnet 5+, Haiku 5.5) can
+  // open the response with `thinking` blocks, so read the answer by block type
+  // rather than position.
+  const text = (d?.content ?? [])
+    .filter((block) => block?.type === 'text' && typeof block.text === 'string')
+    .map((block) => block.text)
+    .join('');
+  if (text.trim() === '') {
     return {
       kind: 'error',
       category: 'no_content',
       detail: 'AI service returned no content.',
     };
+  }
+  if (hasSchema) {
+    // `output_config.format` constrains decoding to the schema, so the text is
+    // the JSON document itself.
+    try {
+      return { kind: 'object', value: JSON.parse(text) };
+    } catch {
+      return {
+        kind: 'error',
+        category: 'parse_error',
+        detail: 'AI service returned invalid JSON.',
+      };
+    }
   }
   return { kind: 'text', text };
 }
@@ -818,8 +965,7 @@ function extractOllama(data: unknown): ExtractResult {
 function extractResponse(
   family: ProviderFamily,
   data: unknown,
-  hasSchema: boolean,
-  toolName: string
+  hasSchema: boolean
 ): ExtractResult {
   switch (family) {
     case 'google':
@@ -827,7 +973,7 @@ function extractResponse(
     case 'openai':
       return extractOpenAiFamily(data);
     case 'anthropic':
-      return extractAnthropic(data, hasSchema, toolName);
+      return extractAnthropic(data, hasSchema);
     case 'ollama':
       return extractOllama(data);
   }
@@ -848,6 +994,24 @@ function timeoutError(): DispatchFailure {
   };
 }
 
+function isImageSizeOrPatchLimitError(status: number, body: string): boolean {
+  if (status !== 400 && status !== 413) return false;
+  const lower = body.toLowerCase();
+  return (
+    lower.includes('patches after processing') ||
+    lower.includes('patch limit') ||
+    /exceeding the limit of \d+ patches/i.test(body) ||
+    /limit of \d+.*resize the image/i.test(body) ||
+    (lower.includes('resize the image') &&
+      (lower.includes('image') ||
+        lower.includes('patch') ||
+        lower.includes('resolution'))) ||
+    /image (?:dimensions?|resolution|size) exceeds?/i.test(body) ||
+    /image is too large/i.test(body) ||
+    /maximum image size exceeded/i.test(body)
+  );
+}
+
 async function readResponse(response: Response): Promise<HttpOutcome> {
   if (!response.ok) {
     let body = '';
@@ -859,15 +1023,30 @@ async function readResponse(response: Response): Promise<HttpOutcome> {
     // A 400 naming a request parameter is otherwise surfaced as raw JSON the
     // user has to decode; say it in a sentence instead.
     const rejected = describeRejectedParam(response.status, body);
-    const detail = rejected
-      ? `The AI service rejected the '${rejected}' parameter for this model. ${truncateBody(body)}`
-      : `AI service returned status ${response.status}${
-          body ? `: ${truncateBody(body)}` : ''
-        }`;
+    let detail: string;
+    let category: DispatchErrorCategory = 'upstream_error';
+    if (rejected) {
+      detail = `The AI service rejected the '${rejected}' parameter for this model. ${truncateBody(body)}`;
+    } else if (
+      response.status === 403 &&
+      (body.includes('chat_completions_not_available') ||
+        body.includes('Sonar is now the Agent API'))
+    ) {
+      detail =
+        'Perplexity has retired the OpenAI-compatible Chat Completions API (/chat/completions) in favor of the Agent API (/v1/responses). Direct connections via OpenAI-compatible endpoints are not supported. Use OpenRouter with a Perplexity model (e.g., perplexity/sonar or perplexity/sonar-pro) instead.';
+    } else if (isImageSizeOrPatchLimitError(response.status, body)) {
+      category = 'image_too_large';
+      detail =
+        'The image is too large for AI analysis. Please try another photo.';
+    } else {
+      detail = `AI service returned status ${response.status}${
+        body ? `: ${truncateBody(body)}` : ''
+      }`;
+    }
     return {
       error: {
         ok: false,
-        category: 'upstream_error',
+        category,
         status: response.status,
         detail,
       },
@@ -1008,8 +1187,8 @@ async function performOllama(
 
 function resolveTimeout(req: DispatchRequest, family: ProviderFamily): number {
   if (typeof req.timeoutMs === 'number') return req.timeoutMs;
-  if (family === 'ollama') {
-    return OLLAMA_DEFAULT_TIMEOUT_MS;
+  if (family === 'ollama' || requiresCustomUrl(req.provider.service_type)) {
+    return LOCAL_MODEL_TIMEOUT_MS;
   }
   return DEFAULT_TIMEOUT_MS;
 }
@@ -1233,12 +1412,7 @@ export async function dispatchAiRequest(
     return outcome.error;
   }
 
-  const extracted = extractResponse(
-    family,
-    outcome.data,
-    Boolean(jsonSchema),
-    toolName
-  );
+  const extracted = extractResponse(family, outcome.data, Boolean(jsonSchema));
 
   if (extracted.kind === 'error') {
     return {

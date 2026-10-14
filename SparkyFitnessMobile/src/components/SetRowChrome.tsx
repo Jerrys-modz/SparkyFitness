@@ -76,7 +76,9 @@ export interface SetCellInputProps {
   onChangeText: (text: string) => void;
   onFocus?: () => void;
   onBlur?: () => void;
-  keyboardType: 'decimal-pad' | 'number-pad';
+  /** `numbers-and-punctuation` / `numeric` are for a signed (bodyweight) weight. */
+  keyboardType:
+    'decimal-pad' | 'number-pad' | 'numbers-and-punctuation' | 'numeric';
   accessibilityLabel: string;
   inputRef: Ref<TextInput>;
   className?: string;
@@ -92,6 +94,8 @@ export interface SetCellInputProps {
   flat?: boolean;
   /** Tint for the input text (e.g. the RPE effort tone). */
   textColor?: string;
+  /** False shows the value read-only (e.g. while a set stopwatch runs). */
+  editable?: boolean;
 }
 
 export function SetCellInput({
@@ -106,6 +110,7 @@ export function SetCellInput({
   placeholder = '–',
   flat = false,
   textColor,
+  editable = true,
 }: SetCellInputProps) {
   const [focused, setFocused] = useState(false);
   const [raisedBg, borderSubtle, accentPrimary] = useCSSVariable([
@@ -136,6 +141,7 @@ export function SetCellInput({
         onBlur?.();
       }}
       keyboardType={keyboardType}
+      editable={editable}
       selectTextOnFocus
       placeholder={placeholder}
       accessibilityLabel={accessibilityLabel}

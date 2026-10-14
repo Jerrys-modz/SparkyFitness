@@ -38,6 +38,8 @@ import { DeveloperResources } from './DevloperResources';
 import { AccountSecurity } from './AccountSecurity';
 import { ApiSettings } from './ApiSettings';
 import { WaterTrackingSettings } from './WaterTrackingSettings';
+import { FastingSettings } from './FastingSettings';
+import { GuidedWorkoutSettings } from './GuidedWorkoutSettings';
 import CycleSettings from './CycleSettings';
 import { PreferenceSettings } from './PreferenceSettings';
 import { ProfileInformation } from './ProfileInformation';
@@ -62,7 +64,9 @@ const SECTION_TO_TAB_MAP: Record<string, string> = {
   'custom-meals': 'nutrition-diet',
   'calculation-settings': 'nutrition-diet',
   'water-tracking': 'nutrition-diet',
+  'fasting-settings': 'nutrition-diet',
   'cycle-settings': 'wellness',
+  'guided-workouts': 'wellness',
   'custom-categories': 'wellness',
   'food-and-exercise-data-providers': 'developer-integrations',
   'ai-service': 'developer-integrations',
@@ -342,6 +346,12 @@ const Settings = () => {
             >
               <WaterTrackingSettings />
             </AccordionItem>
+            <AccordionItem
+              value="fasting-settings"
+              className="border rounded-lg mb-4"
+            >
+              <FastingSettings />
+            </AccordionItem>
           </Accordion>
         </TabsContent>
 
@@ -356,6 +366,12 @@ const Settings = () => {
               className="border rounded-lg mb-4"
             >
               <CycleSettings />
+            </AccordionItem>
+            <AccordionItem
+              value="guided-workouts"
+              className="border rounded-lg mb-4"
+            >
+              <GuidedWorkoutSettings />
             </AccordionItem>
             <AccordionItem
               value="custom-categories"

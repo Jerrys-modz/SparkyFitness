@@ -15,12 +15,32 @@ export const AUTOSAVE_DEBOUNCE_MS = 1500;
 
 export type ActiveWorkoutSaveOutcome = 'clean' | 'saved' | 'failed';
 
+/** The latest save; each save waits for it so two never overlap. */
+let saveQueue: Promise<unknown> = Promise.resolve();
+
 /**
  * One-shot save of the live session's unsaved edits. Shared by the autosave
  * hook and by callers that must flush without the hook mounted (the HUD's
- * workout-complete dismiss paths after a cold start).
+ * workout-complete dismiss paths after a cold start, the watch bridge's
+ * per-set flush).
+ *
+ * Saves run one at a time across all callers. Two in flight would each send
+ * the same new sets without ids; the later request replaces the rows the
+ * earlier one inserted, and if the earlier response lands last it hands the
+ * store set ids that no longer exist, so every later save is rejected with
+ * "Set does not belong to this exercise entry". A queued save re-reads the
+ * store when its turn comes, so it sends the ids the previous response
+ * assigned (or finds nothing left to save).
  */
-export async function saveActiveWorkoutSession(
+export function saveActiveWorkoutSession(
+  queryClient: QueryClient
+): Promise<ActiveWorkoutSaveOutcome> {
+  const run = saveQueue.then(() => saveNow(queryClient));
+  saveQueue = run.catch(() => undefined);
+  return run;
+}
+
+async function saveNow(
   queryClient: QueryClient
 ): Promise<ActiveWorkoutSaveOutcome> {
   const state = useActiveWorkoutStore.getState();
@@ -46,6 +66,11 @@ export async function saveActiveWorkoutSession(
   // Entry-id order at send time: applyServerSession compares it against the
   // local session so a mid-flight reorder/delete can't be grafted positionally.
   const sentEntryIds = state.session.exercises.map((e) => e.id);
+  // Set-id order at send time. A warm-up insert changes both the count and
+  // the order, which a positional id graft would assign to the wrong sets.
+  const sentSetIds = state.session.exercises.map((e) =>
+    e.sets.map((s) => String(s.id))
+  );
   // Captured before the request: the user may end or swap the session while
   // it is in flight, so the failure log must describe the session that was
   // being saved, not whatever the store holds at catch time.
@@ -53,20 +78,46 @@ export async function saveActiveWorkoutSession(
   const sessionSource = state.session.source ?? 'unknown';
   try {
     const trimmedName = state.session.name.trim();
+    const activityDetails =
+      state.workoutFormat !== 'standard'
+        ? [
+            {
+              detail_type: 'wod_score' as const,
+              detail_data: {
+                // Shared-schema key (read by web and the AI), plus the legacy
+                // `format` key older mobile builds read.
+                workout_format: state.workoutFormat,
+                format: state.workoutFormat,
+                rounds_completed: state.intervalRoundsCompleted,
+                reps_completed: state.intervalRepsCompleted,
+                time_cap_seconds: state.timeCapSeconds ?? undefined,
+                elapsed_seconds: state.startedAt
+                  ? Math.floor((Date.now() - state.startedAt) / 1000)
+                  : undefined,
+                status: state.intervalStatus,
+                scaling_notes: state.intervalScalingNotes || undefined,
+              },
+            },
+          ]
+        : undefined;
+
     const result = await updateWorkout(sessionId, {
       // Persist the (possibly renamed) session name; skip an empty string so
       // the server's min(1) name validation isn't tripped.
       ...(trimmedName.length > 0 ? { name: trimmedName } : {}),
+      location: state.session.location ?? null,
       exercises: buildSessionExercisesPayload(
         state.session,
         state.completedSetIds,
         state.prSetIds,
-        state.startedAt
+        state.startedAt,
+        state.resumedDurationMinutes
       ),
+      activity_details: activityDetails,
     });
     useActiveWorkoutStore
       .getState()
-      .applyServerSession(result, sentRevision, sentEntryIds);
+      .applyServerSession(result, sentRevision, sentEntryIds, sentSetIds);
     syncExerciseSessionInCache(queryClient, result);
     return 'saved';
   } catch (error) {

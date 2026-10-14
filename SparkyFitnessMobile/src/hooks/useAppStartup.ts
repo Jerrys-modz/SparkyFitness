@@ -21,8 +21,11 @@ import {
   registerLocalizedNotificationPresentation,
 } from '../services/notifications';
 import { initMedicationNotificationActions } from '../services/medicationNotificationHandler';
+import { ensureSymptomNotificationCategory } from '../services/symptomReminderService';
 import { initWorkoutLiveActivity } from '../services/workoutLiveActivity';
 import { ensureTimezoneBootstrapped } from '../services/api/preferencesApi';
+import { loadSpeechVoices } from '../services/speechVoice';
+import { cancelLegacyRunReminders } from '../services/legacyRunReminders';
 
 interface AppStartupArgs {
   /**
@@ -59,6 +62,9 @@ export function useAppStartup({ shouldYieldObserverSync }: AppStartupArgs) {
       // Remove the flag so the dashboard will auto-open on first SyncScreen visit
       await AsyncStorage.removeItem('@HealthConnect:hasAutoOpenedDashboard');
       await initNotifications();
+      void cancelLegacyRunReminders();
+      // So the first spoken cue already uses the chosen voice.
+      void loadSpeechVoices();
     };
 
     initializeApp().catch((error) => {
@@ -71,8 +77,9 @@ export function useAppStartup({ shouldYieldObserverSync }: AppStartupArgs) {
 
     initWorkoutNotificationActions();
     initMedicationNotificationActions();
+    void ensureSymptomNotificationCategory();
 
-    // iOS-only (no-op on Android): keeps the workout Live Activity in sync
+    // Keeps the iOS Live Activity or Android ongoing notification in sync
     // with the active-workout store.
     initWorkoutLiveActivity().catch((error) => {
       const message = error instanceof Error ? error.message : String(error);

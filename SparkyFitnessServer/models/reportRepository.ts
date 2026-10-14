@@ -575,6 +575,8 @@ async function getExerciseEntries(
          ee.level AS exercise_level,
          ee.force AS exercise_force,
          ee.mechanic AS exercise_mechanic,
+         ee.modality AS exercise_modality,
+         COALESCE(epe.workout_format, 'standard') AS workout_format,
          COALESCE(
            (SELECT json_agg(set_data ORDER BY set_data.set_number)
             FROM (
@@ -585,6 +587,7 @@ async function getExerciseEntries(
            ), '[]'::json
          ) AS sets
        FROM exercise_entries ee
+       LEFT JOIN exercise_preset_entries epe ON ee.exercise_preset_entry_id = epe.id
        WHERE ee.user_id = $1 AND ee.entry_date BETWEEN $2 AND $3`;
     const params: (string | number)[] = [userId, startDate, endDate];
     let paramIndex = 4;
@@ -606,6 +609,46 @@ async function getExerciseEntries(
     query += ' ORDER BY ee.entry_date DESC, ee.created_at DESC';
     const result = await client.query(query, params);
     return result.rows;
+  } finally {
+    client.release();
+  }
+}
+/**
+ * Check-in body weights for bodyweight-exercise volume (`bodyWeightOnDay` in
+ * @workspace/shared): every reading in the range, plus the last one before it
+ * and the first one after it, so a day with no reading of its own still
+ * resolves. Under RLS a delegate without check-in access gets none back, and
+ * bodyweight sets then count their added weight only.
+ */
+async function getBodyWeightReadings(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<{ date: string; weightKg: number }[]> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `(SELECT TO_CHAR(entry_date, 'YYYY-MM-DD') AS date, weight
+          FROM check_in_measurements
+         WHERE user_id = $1 AND weight > 0 AND entry_date BETWEEN $2 AND $3)
+       UNION ALL
+       (SELECT TO_CHAR(entry_date, 'YYYY-MM-DD') AS date, weight
+          FROM check_in_measurements
+         WHERE user_id = $1 AND weight > 0 AND entry_date < $2
+         ORDER BY entry_date DESC LIMIT 1)
+       UNION ALL
+       (SELECT TO_CHAR(entry_date, 'YYYY-MM-DD') AS date, weight
+          FROM check_in_measurements
+         WHERE user_id = $1 AND weight > 0 AND entry_date > $3
+         ORDER BY entry_date ASC LIMIT 1)`,
+      [userId, startDate, endDate]
+    );
+    return result.rows.map(
+      (row: { date: string; weight: string | number }) => ({
+        date: row.date,
+        weightKg: Number(row.weight),
+      })
+    );
   } finally {
     client.release();
   }
@@ -672,10 +715,12 @@ async function getDailyNutritionTotalsRange(
     // trends include supplements too. The date set is the UNION of food and taken-supplement
     // dates, so a day with only supplements logged still yields a row rather than
     // disappearing from the range.
-    const rangeSelects = RANGE_COLS.map(
+    let rangeSelects = RANGE_COLS.map(
       ([col, alias]) =>
         `COALESCE(SUM(fe.${col} * fe.quantity / NULLIF(fe.serving_size, 0)), 0) + ${supplementFixedSubquery(col, '$1', 'd.entry_date')} as ${alias}`
     ).join(',\n              ');
+    const legacyAmbiguousEntryCount = String.raw`COUNT(fe.id) FILTER (WHERE fe.unit ~ '^\s*[0-9]+(?:\.[0-9]+)?\s+\S') AS legacy_ambiguous_entry_count`;
+    rangeSelects += `,\n              ${legacyAmbiguousEntryCount}`;
     const result = await client.query(
       `SELECT d.entry_date,
               ${rangeSelects}
@@ -707,6 +752,7 @@ export { getMeasurementData };
 export { getCustomMeasurementsData };
 export { getMiniNutritionTrends };
 export { getExerciseEntries };
+export { getBodyWeightReadings };
 export { getExerciseNames };
 export { getDailyNutritionTotalsRange };
 export default {
@@ -716,6 +762,7 @@ export default {
   getCustomMeasurementsData,
   getMiniNutritionTrends,
   getExerciseEntries,
+  getBodyWeightReadings,
   getExerciseNames,
   getDailyNutritionTotalsRange,
 };

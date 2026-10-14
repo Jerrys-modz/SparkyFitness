@@ -227,6 +227,7 @@ describe('useActiveWorkoutAutosave', () => {
       expect(mockUpdateWorkout).toHaveBeenCalledTimes(1);
       expect(mockUpdateWorkout).toHaveBeenCalledWith('session-1', {
         name: 'Push Day',
+        location: null,
         exercises: expect.any(Array),
       });
     });
@@ -622,6 +623,43 @@ describe('useActiveWorkoutAutosave', () => {
       );
     });
 
+    it('never overlaps two saves, even from different callers', async () => {
+      startAndEdit(80);
+      let resolveFirst!: (session: PresetSessionResponse) => void;
+      mockUpdateWorkout.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          })
+      );
+
+      // e.g. the autosave hook and the watch bridge's per-set flush.
+      const first = saveActiveWorkoutSession(queryClient);
+      const second = saveActiveWorkoutSession(queryClient);
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(0);
+      });
+      expect(mockUpdateWorkout).toHaveBeenCalledTimes(1);
+      const echo = getStore().session!;
+
+      // An edit lands while the first request is in flight.
+      act(() => {
+        getStore().updateSetField('101', { weight: 90 });
+      });
+
+      await act(async () => {
+        resolveFirst(echo);
+        await jest.advanceTimersByTimeAsync(0);
+      });
+      await expect(first).resolves.toBe('saved');
+      await expect(second).resolves.toBe('saved');
+
+      // The queued save ran after the first response and sent the fresh state.
+      expect(mockUpdateWorkout).toHaveBeenCalledTimes(2);
+      const sent = mockUpdateWorkout.mock.calls[1]![1].exercises![0]!;
+      expect(sent.sets![0]!.weight).toBe(90);
+    });
+
     it('captures the revision and entry-id order at send time and hands them to applyServerSession', async () => {
       startAndEdit();
       const revisionAtSend = getStore().sessionRevision;
@@ -633,7 +671,8 @@ describe('useActiveWorkoutAutosave', () => {
         expect(spy).toHaveBeenCalledWith(
           expect.objectContaining({ id: 'session-1' }),
           revisionAtSend,
-          ['ex-uuid-1']
+          ['ex-uuid-1'],
+          [['101', '102']]
         );
       } finally {
         useActiveWorkoutStore.setState({ applyServerSession: original });

@@ -24,6 +24,8 @@
  * exists to prevent.
  */
 
+import { COROS_SPORT_TYPES } from '../constants/corosSportTypes.ts';
+
 /** Canonical sports, named after the ANT+/FIT SDK `sport` enum. */
 export const ACTIVITY_SPORTS = [
   "running",
@@ -187,7 +189,19 @@ const SPORT_TOKENS: ReadonlyArray<readonly [ActivitySport, readonly string[]]> =
     ],
     [
       "fitness_equipment",
-      ["elliptical", "stairstepper", "stepper", "stairmaster"],
+      [
+        "elliptical",
+        "stairstepper",
+        "stepper",
+        // Apple Health names this workout "Stair Climbing" (shown as "Stair
+        // Stepper" in Fitness) and a second type "Stairs"; camel-cased
+        // "StairMaster" splits into stair + master. "stair" alone is safe
+        // because only whole tokens match.
+        "stair",
+        "stairs",
+        "stairclimber",
+        "stairmaster",
+      ],
     ],
     [
       "strength",
@@ -301,8 +315,29 @@ function extractProviderSport(
 
   switch (providerName.toLowerCase()) {
     case "garmin":
-    case "garmin_fit": {
-      // garmin_fit nests the same shape one level down under `activity`.
+    case "garmin_fit":
+      {
+        const activity = asRecord(data["activity"]) ?? data;
+        const activityType = asRecord(activity["activityType"]);
+        return (
+          asString(activityType?.["typeKey"]) ?? asString(activity["sport"])
+        );
+      }
+    case "coros":
+    case "coros_mcp": {
+      if (
+        typeof data["sportType"] === "number" ||
+        typeof data["sportType"] === "string"
+      ) {
+        const num =
+          typeof data["sportType"] === "number"
+            ? data["sportType"]
+            : parseInt(data["sportType"], 10);
+        const match = COROS_SPORT_TYPES[num];
+        if (match) {
+          return match.sport;
+        }
+      }
       const activity = asRecord(data["activity"]) ?? data;
       const activityType = asRecord(activity["activityType"]);
       return (
@@ -330,7 +365,8 @@ function extractProviderSport(
       );
     }
     case "hevy":
-      // Hevy is a strength-training app; it has no cardio sport enum.
+    case "liftosaur":
+      // Hevy and Liftosaur are strength-training apps; they have no cardio sport enum.
       return "strength";
     case "healthkit":
     case "health connect":
@@ -383,6 +419,7 @@ function sportFromWithingsSourceId(
 const NOTES_SPORT_PATTERNS: readonly RegExp[] = [
   /^garmin activity:.*\(([^)]+)\)\s*$/i,
   /^garmin fit import:.*\(([^)]+)\)\s*$/i,
+  /logged from coros(?: \(summary only\))?:\s*([^.(]+)/i,
   /synced from strava\.\s*type:\s*([^.]+)\./i,
   /logged from polar flow:\s*([^.]+)\./i,
   /logged from oura workout:\s*([^.]+)\./i,
@@ -429,6 +466,9 @@ export function classifyActivitySport(
   if (input.providerName) {
     const raw = extractProviderSport(input.providerName, input.detailData);
     if (raw) {
+      if ((ACTIVITY_SPORTS as readonly string[]).includes(raw)) {
+        return { sport: raw as ActivitySport, confidence: "declared" };
+      }
       const sport = mapRawSportValue(raw);
       if (sport !== "other") return { sport, confidence: "declared" };
     }

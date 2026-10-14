@@ -7,10 +7,23 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Trash2, Edit, Lock, RefreshCw, Link2Off } from 'lucide-react';
+import {
+  Trash2,
+  Edit,
+  Lock,
+  RefreshCw,
+  Link2Off,
+  Download,
+  Loader2,
+} from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { useCnfStatusQuery } from '@/hooks/Foods/useCanadianNutrientFile';
 import { decodeYazioAppId } from '@/utils/settings';
 import { useExternalProviderTypesQuery } from '@/hooks/Settings/useExternalProviderSettings';
 import SyncRangeDialog from './SyncRangeDialog';
+import type { SyncMockOptions } from './SyncRangeDialog';
+import { CnfBulkImportDialog } from './CnfBulkImportDialog';
+import { Trans } from 'react-i18next';
 
 import {
   useConnectFitbitMutation,
@@ -34,6 +47,11 @@ import {
   useManualSyncPolarMutation,
   useManualSyncStravaMutation,
   useSyncHevyMutation,
+  useSyncLiftosaurMutation,
+  useDisconnectLiftosaurMutation,
+  useConnectCorosMutation,
+  useDisconnectCorosMutation,
+  useManualSyncCorosMutation,
 } from '@/hooks/Integrations/useIntegrations';
 import {
   useDeleteExternalProviderMutation,
@@ -94,6 +112,14 @@ const PROVIDER_PORTALS: Record<string, { label: string; url: string }> = {
     label: 'Open Food Facts Portal',
     url: 'https://world.openfoodfacts.org/',
   },
+  coros_mcp: {
+    label: 'COROS Training Hub',
+    url: 'https://t.coros.com',
+  },
+  'canadian-nutrient-file': {
+    label: 'Health Canada CNF Open Data Portal',
+    url: 'https://open.canada.ca/data/en/dataset/1b6139bd-ed7e-4043-bc28-ff00e10f3109',
+  },
 };
 
 export const ProviderCard = ({
@@ -103,6 +129,11 @@ export const ProviderCard = ({
   isAdminMode = false,
 }: ProviderCardProps) => {
   const { user } = useAuth();
+  const [isCnfDialogOpen, setIsCnfDialogOpen] = useState(false);
+  const isCnf = provider.provider_type === 'canadian-nutrient-file';
+  const { data: cnfStatus } = useCnfStatusQuery({
+    enabled: isCnf && isAdminMode,
+  });
   const { data: providerTypes } = useExternalProviderTypesQuery();
   const yazioDisplay = decodeYazioAppId(provider.app_id);
   const {
@@ -127,6 +158,8 @@ export const ProviderCard = ({
     useConnectStravaMutation();
   const { mutate: handleConnectWithings, isPending: isConnectWithingsPending } =
     useConnectWithingsMutation();
+  const { mutate: handleConnectCoros, isPending: isConnectCorosPending } =
+    useConnectCorosMutation();
 
   const {
     mutate: handleDisconnectFitbit,
@@ -152,6 +185,8 @@ export const ProviderCard = ({
     mutate: handleDisconnectWithings,
     isPending: isDisconnectWithingsPending,
   } = useDisconnectWithingsMutation();
+  const { mutate: handleDisconnectCoros, isPending: isDisconnectCorosPending } =
+    useDisconnectCorosMutation();
 
   const { mutate: handleManualSync, isPending: isSyncWithingsPending } =
     useManualSyncWithingsMutation();
@@ -169,8 +204,16 @@ export const ProviderCard = ({
     mutate: handleManualSyncGoogleHealth,
     isPending: isSyncGoogleHealthPending,
   } = useManualSyncGoogleHealthMutation();
+  const { mutate: handleManualSyncCoros, isPending: isSyncCorosPending } =
+    useManualSyncCorosMutation();
   const { mutate: syncHevyData, isPending: isSyncHevyPending } =
     useSyncHevyMutation();
+  const { mutate: syncLiftosaurData, isPending: isSyncLiftosaurPending } =
+    useSyncLiftosaurMutation();
+  const {
+    mutate: handleDisconnectLiftosaur,
+    isPending: isDisconnectLiftosaurPending,
+  } = useDisconnectLiftosaurMutation();
 
   const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
 
@@ -183,31 +226,60 @@ export const ProviderCard = ({
   const { mutateAsync: deleteGlobalProvider, isPending: globalDeletePending } =
     useDeleteGlobalProvider();
 
-  const executeSync = (startDate: string, endDate: string) => {
+  const executeSync = (
+    startDate: string,
+    endDate: string,
+    // Present only while an admin has enabled the mock-data options; the server
+    // ignores them otherwise.
+    mockOptions?: SyncMockOptions
+  ) => {
+    const mock = mockOptions ?? {};
     switch (provider.provider_type) {
       case 'withings':
-        handleManualSync({ startDate, endDate });
+        handleManualSync({ startDate, endDate, ...mock });
         break;
       case 'fitbit':
-        handleManualSyncFitbit({ startDate, endDate });
+        handleManualSyncFitbit({ startDate, endDate, ...mock });
         break;
       case 'oura':
-        handleManualSyncOura({ startDate, endDate });
+        handleManualSyncOura({ startDate, endDate, ...mock });
         break;
       case 'polar':
-        handleManualSyncPolar({ providerId: provider.id, startDate, endDate });
+        handleManualSyncPolar({
+          providerId: provider.id,
+          startDate,
+          endDate,
+          ...mock,
+        });
         break;
       case 'strava':
-        handleManualSyncStrava({ startDate, endDate });
+        handleManualSyncStrava({ startDate, endDate, ...mock });
         break;
       case 'garmin':
-        handleManualSyncGarmin({ startDate, endDate });
+        handleManualSyncGarmin({ startDate, endDate, ...mock });
         break;
       case 'googlehealth':
-        handleManualSyncGoogleHealth({ startDate, endDate });
+        handleManualSyncGoogleHealth({ startDate, endDate, ...mock });
+        break;
+      case 'coros_mcp':
+        handleManualSyncCoros({
+          providerId: provider.id,
+          startDate,
+          endDate,
+          ...mock,
+        });
         break;
       case 'hevy':
         syncHevyData({
+          fullSync: false,
+          providerId: provider.id,
+          startDate,
+          endDate,
+          ...mock,
+        });
+        break;
+      case 'liftosaur':
+        syncLiftosaurData({
           fullSync: false,
           providerId: provider.id,
           startDate,
@@ -229,6 +301,7 @@ export const ProviderCard = ({
     isConnectPolarPending ||
     isConnectStravaPending ||
     isConnectWithingsPending ||
+    isConnectCorosPending ||
     isDisconnectFitbitPending ||
     isDisconnectOuraPending ||
     isDisconnectGoogleHealthPending ||
@@ -236,6 +309,7 @@ export const ProviderCard = ({
     isDisconnectPolarPending ||
     isDisconnectStravaPending ||
     isDisconnectWithingsPending ||
+    isDisconnectCorosPending ||
     isSyncWithingsPending ||
     isSyncFitbitPending ||
     isSyncOuraPending ||
@@ -243,7 +317,10 @@ export const ProviderCard = ({
     isSyncGoogleHealthPending ||
     isSyncPolarPending ||
     isSyncStravaPending ||
-    isSyncHevyPending;
+    isSyncCorosPending ||
+    isSyncHevyPending ||
+    isSyncLiftosaurPending ||
+    isDisconnectLiftosaurPending;
 
   const handleToggleActive = async (providerId: string, isActive: boolean) => {
     try {
@@ -319,7 +396,8 @@ export const ProviderCard = ({
       provider.has_token ||
       provider.garmin_connect_status === 'linked' ||
       provider.garmin_connect_status === 'connected' ||
-      provider.hevy_connect_status === 'connected';
+      provider.hevy_connect_status === 'connected' ||
+      provider.liftosaur_connect_status === 'connected';
 
     switch (provider.provider_type) {
       case 'withings':
@@ -376,6 +454,15 @@ export const ProviderCard = ({
           tokenExpires: provider.strava_token_expires,
           hasToken: isLinked && provider.is_active,
         };
+      case 'coros_mcp':
+        return {
+          connect: () => handleConnectCoros(provider.id),
+          disconnect: () => handleDisconnectCoros(provider.id),
+          sync: () => setIsSyncDialogOpen(true),
+          lastSync: provider.coros_last_sync_at,
+          tokenExpires: provider.coros_token_expires,
+          hasToken: isLinked && provider.is_active,
+        };
       case 'garmin':
         return {
           connect: null,
@@ -391,6 +478,15 @@ export const ProviderCard = ({
           disconnect: null,
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.hevy_last_sync_at,
+          tokenExpires: null,
+          hasToken: isLinked && provider.is_active,
+        };
+      case 'liftosaur':
+        return {
+          connect: null,
+          disconnect: () => handleDisconnectLiftosaur(provider.id),
+          sync: () => setIsSyncDialogOpen(true),
+          lastSync: provider.liftosaur_last_sync_at,
           tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
@@ -420,6 +516,29 @@ export const ProviderCard = ({
             )}
         </div>
         <div className="flex items-center gap-2">
+          {isAdminMode && isCnf && (
+            <Button
+              variant={cnfStatus?.isRunning ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => setIsCnfDialogOpen(true)}
+              disabled={loading}
+              title="Bulk Import / Re-Sync"
+              className="flex items-center gap-1.5"
+            >
+              {cnfStatus?.isRunning ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span>Importing ({cnfStatus.progress}%)...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  <span>Bulk Import / Sync</span>
+                </>
+              )}
+            </Button>
+          )}
+
           {config?.hasToken ? (
             <Button
               variant="outline"
@@ -516,15 +635,16 @@ export const ProviderCard = ({
               'norish',
               'free-exercise-db',
               'wger',
-            ].includes(provider.provider_type) &&
-            ` - App ID: ${
-              provider.provider_type === 'yazio'
-                ? (yazioDisplay.username || yazioDisplay.clientId).substring(
-                    0,
-                    4
-                  )
-                : provider.app_id.substring(0, 4)
-            }...`}
+            ].includes(provider.provider_type) && (
+              <span>{` - App ID: ${
+                provider.provider_type === 'yazio'
+                  ? (yazioDisplay.username || yazioDisplay.clientId).substring(
+                      0,
+                      4
+                    )
+                  : provider.app_id.substring(0, 4)
+              }...`}</span>
+            )}
           {provider.app_key &&
             [
               'mealie',
@@ -533,9 +653,12 @@ export const ProviderCard = ({
               'nutritionix',
               'fatsecret',
               'withings',
-            ].includes(provider.provider_type) &&
-            ` - App Key: ${provider.app_key.substring(0, 4)}...`}
-          {provider.sync_frequency && ` - Sync: ${provider.sync_frequency}`}
+            ].includes(provider.provider_type) && (
+              <span>{` - App Key: ${provider.app_key.substring(0, 4)}...`}</span>
+            )}
+          {provider.sync_frequency && (
+            <span>{` - Sync: ${provider.sync_frequency}`}</span>
+          )}
         </p>
 
         {provider.provider_type === 'swissfood' && (
@@ -553,6 +676,57 @@ export const ProviderCard = ({
               Swiss Food Composition Database
             </a>
           </p>
+        )}
+
+        {isCnf && (
+          <>
+            <p className="text-xs text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">
+              <Trans
+                i18nKey="settings.cnf.providerCardLicence"
+                defaults="Contains information published by Health Canada licensed under the <1>Open Government Licence – Canada</1>. Supported languages: <3>English (en)</3> and <5>French (fr)</5>. <7>Canadian Nutrient File</7>"
+                components={{
+                  1: (
+                    <a
+                      href="https://open.canada.ca/en/open-government-licence-canada"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline font-medium"
+                    />
+                  ),
+                  3: <strong />,
+                  5: <strong />,
+                  7: (
+                    <a
+                      href="https://open.canada.ca/data/en/dataset/1b6139bd-ed7e-4043-bc28-ff00e10f3109"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline font-medium ml-1"
+                    />
+                  ),
+                }}
+              />
+            </p>
+
+            {cnfStatus?.isRunning && (
+              <div className="mt-3 space-y-2 rounded-lg border bg-muted/40 p-3 max-w-2xl">
+                <div className="flex items-center justify-between text-xs font-medium">
+                  <span className="flex items-center gap-1.5">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                    Importing catalog: {cnfStatus.processed} / {cnfStatus.total}{' '}
+                    foods
+                  </span>
+                  <span className="font-mono text-xs font-semibold">
+                    {cnfStatus.progress}%
+                  </span>
+                </div>
+                <Progress value={cnfStatus.progress} className="h-2" />
+                <div className="flex justify-between text-[11px] text-muted-foreground">
+                  <span>{cnfStatus.imported} imported</span>
+                  <span>{cnfStatus.updated} updated</span>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {provider.provider_type === 'free-exercise-db' && (
@@ -636,7 +810,9 @@ export const ProviderCard = ({
         'polar',
         'garmin',
         'hevy',
+        'liftosaur',
         'strava',
+        'coros_mcp',
       ].includes(provider.provider_type) && (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-2 text-xs text-yellow-800 dark:text-yellow-200 mt-2 flex items-center gap-1">
           <strong>Note from CodewithCJ:</strong> I don't own{' '}
@@ -652,28 +828,15 @@ export const ProviderCard = ({
                 <p>
                   Help improve this integration by sharing anonymized mock data!
                 </p>
-                <p className="mt-2 font-mono text-xs bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 p-2 rounded border border-gray-200 dark:border-gray-700">
-                  SPARKY_FITNESS_SAVE_MOCK_DATA=true
+                <p className="mt-2 text-xs">
+                  Enable <strong>Allow Local Provider Response Capture</strong>{' '}
+                  in <strong>Admin &gt; Global Provider Settings</strong>, then
+                  check <strong>Capture raw provider response</strong> in the
+                  Sync Range dialog.
                 </p>
                 <p className="mt-2 text-xs">
-                  Add this variable to the{' '}
-                  <strong>
-                    {provider.provider_type === 'garmin'
-                      ? 'SparkyFitnessGarmin'
-                      : 'SparkyFitnessServer'}
-                  </strong>{' '}
-                  container & restart the container. Syncing after setup will
-                  generate JSON files in{' '}
-                  <code>
-                    {provider.provider_type === 'garmin'
-                      ? '/app/mock_data'
-                      : '/app/SparkyFitnessServer/mock_data'}
-                  </code>
-                  .
-                </p>
-                <p className="mt-2 text-xs">
-                  Share files with <strong>CodewithCJ</strong> on Discord.
-                  Ensure data is anonymized.
+                  Share the exported diagnostic bundle with{' '}
+                  <strong>CodewithCJ</strong> on Discord.
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -687,6 +850,13 @@ export const ProviderCard = ({
         onSync={executeSync}
         providerType={provider.provider_type}
       />
+
+      {isCnf && isAdminMode && (
+        <CnfBulkImportDialog
+          open={isCnfDialogOpen}
+          onOpenChange={setIsCnfDialogOpen}
+        />
+      )}
     </div>
   );
 };

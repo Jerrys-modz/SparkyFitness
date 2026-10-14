@@ -6,7 +6,7 @@ import {
   type JsonSchemaNode,
   type ProviderConfig,
 } from '../ai/providerDispatch.js';
-import { deriveAiNetworkPolicy } from '../utils/outboundUrlPolicy.js';
+import { resolveAiNetworkPolicy } from '../utils/outboundUrlPolicy.js';
 import { attachFoodMatches } from './foodPhotoMatchService.js';
 import {
   foodPhotoEstimateResponseSchema,
@@ -291,6 +291,7 @@ const DISPATCH_ERROR_TO_CODE = {
   api_key_missing: 'API_KEY_MISSING',
   custom_url_missing: 'NO_AI_CONFIGURED',
   unsupported_media: 'UNSUPPORTED_MIME_TYPE',
+  image_too_large: 'IMAGE_TOO_LARGE',
   timeout: 'TIMEOUT',
   upstream_error: 'UPSTREAM_ERROR',
   private_network_forbidden: 'PRIVATE_NETWORK_FORBIDDEN',
@@ -688,7 +689,7 @@ async function estimateFoodPhotoNutrition(
 
   const result = await dispatchAiRequest({
     provider,
-    networkPolicy: deriveAiNetworkPolicy(
+    networkPolicy: await resolveAiNetworkPolicy(
       aiService,
       Boolean(input.actorIsAdmin)
     ),
