@@ -6670,9 +6670,13 @@
     },
     "adaptiveNoteToday": "Adaptive mode is on, so your calorie goal changes daily. Today it is {{calories}} kcal. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.",
     "adaptiveNote": "Adaptive mode is on, so your calorie goal changes daily. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.",
+    "customNutrients": {
+      "notSet": "No goal"
+    },
     "sections": {
       "macros": "Calories & macros",
       "nutrients": "Other nutrients",
+      "customNutrients": "Custom nutrients",
       "activity": "Water & exercise",
       "meals": "Meal calorie distribution",
       "presets": "Goal presets",
