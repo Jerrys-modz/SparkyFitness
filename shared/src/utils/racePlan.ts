@@ -261,7 +261,7 @@ export function buildRacePlan(input: RacePlanInput): RacePlan {
   // Which week of the plan each workout falls in, counted once.
   const blockOf = offsets.map((o) => Math.floor(o / 7));
   for (let i = 0; i < dates.length; i++) {
-    const block = blockOf[i];
+    const block = blockOf[i] ?? 0;
     const first = blockOf.indexOf(block);
     const n = blockOf.lastIndexOf(block) - first + 1;
     const position = i - first;
