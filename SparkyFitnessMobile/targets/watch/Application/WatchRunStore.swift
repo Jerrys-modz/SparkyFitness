@@ -643,6 +643,18 @@ final class WatchRunStore: ObservableObject {
                     self.phase = .confirmingDistance
                     return
                 }
+                // The finish cue goes out before the run is handed to the phone:
+                // the phone starts filing the run the moment it arrives, and a
+                // cue that reaches it behind that work is confirmed late, so the
+                // watch gave up waiting and said the cue too (heard twice).
+                if save {
+                    self.cue(WatchRunCues.finishText(
+                        title: ending.title(endingPlace),
+                        distanceMeters: metrics.distanceMeters,
+                        seconds: elapsed,
+                        usesMiles: self.usesMiles
+                    ))
+                }
                 // The Health workout is stamped so the phone's import skips
                 // it; this message is how the run reaches the diary.
                 if let scaled, WatchSessionManager.shared.sendRunFinished(scaled) {
@@ -654,12 +666,6 @@ final class WatchRunStore: ObservableObject {
                     WatchRunSnapshotStore.clear()
                 }
                 if save {
-                    self.cue(WatchRunCues.finishText(
-                        title: ending.title(endingPlace),
-                        distanceMeters: metrics.distanceMeters,
-                        seconds: elapsed,
-                        usesMiles: self.usesMiles
-                    ))
                     self.summary = Summary(kind: ending, place: endingPlace, elapsed: elapsed, metrics: metrics, saved: true)
                     self.phase = .finished
                 } else {
