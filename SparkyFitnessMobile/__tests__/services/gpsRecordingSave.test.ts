@@ -16,6 +16,7 @@ import {
 import {
   learnFromIndoorEntry,
   learnFromOutdoorRecording,
+  measureOutdoorForm,
 } from '../../src/services/stepDistance';
 import type { RecordedPoint } from '../../src/utils/gpsRecording';
 import type { RecordingSession } from '../../src/services/gpsRecordingService';
@@ -38,6 +39,7 @@ const mockedTelemetry = jest.mocked(attachExerciseEntryWatchTelemetry);
 const mockedHeartRate = jest.mocked(getHeartRateSamples);
 const mockedLearnIndoor = jest.mocked(learnFromIndoorEntry);
 const mockedLearnOutdoor = jest.mocked(learnFromOutdoorRecording);
+const mockedMeasureForm = jest.mocked(measureOutdoorForm);
 
 const DEG_PER_METER = 1 / 111_194.9;
 const T0 = new Date(2026, 9, 6, 7, 5, 0).getTime();
@@ -304,6 +306,29 @@ describe('learning a stride while saving', () => {
       expect.objectContaining({ paused: true }),
       expect.closeTo(2500, -1)
     );
+  });
+
+  it('logs cadence and stride measured from the step count', async () => {
+    mockedMeasureForm.mockResolvedValueOnce({
+      avgCadence: 168,
+      strideLengthCm: 104.2,
+    });
+
+    await saveRecordedActivity({ ...session, activity: 'run' }, points, 'km');
+
+    expect(mockedCreateEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ avg_cadence: 168, stride_length_cm: 104.2 })
+    );
+  });
+
+  it('logs the run without form metrics when the phone cannot measure them', async () => {
+    mockedMeasureForm.mockRejectedValueOnce(new Error('no pedometer'));
+
+    await saveRecordedActivity({ ...session, activity: 'run' }, points, 'km');
+
+    const payload = mockedCreateEntry.mock.calls[0][0];
+    expect(payload).not.toHaveProperty('avg_cadence');
+    expect(payload).not.toHaveProperty('stride_length_cm');
   });
 
   it('teaches the app from the GPS distance of an outdoor recording', async () => {
