@@ -469,7 +469,11 @@ const NutrientDisplaySettingsInner: React.FC<
     }
     toast({
       title: t('common.success', 'Success'),
-      description: `Preferences for ${viewGroup} (${platformsToReset.join(' & ')}) have been reset to default.`,
+      description: t(
+        'settings.nutrientDisplaySettings.preferencesReset',
+        'Preferences for {{viewGroup}} ({{platforms}}) have been reset to default.',
+        { viewGroup, platforms: platformsToReset.join(' & ') }
+      ),
     });
   };
 

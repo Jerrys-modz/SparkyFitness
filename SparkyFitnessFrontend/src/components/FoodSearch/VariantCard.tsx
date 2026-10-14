@@ -327,7 +327,9 @@ export function VariantCard({
                   ))}
                   {customUnitsForDropdown.length > 0 && (
                     <SelectGroup key="custom-units">
-                      <SelectLabel>Custom</SelectLabel>
+                      <SelectLabel>
+                        {t('foodSearch.variantCard.custom', 'Custom')}
+                      </SelectLabel>
                       {customUnitsForDropdown.map((unit) => {
                         const compatible =
                           showCompatibleUnitIndicators &&
@@ -489,7 +491,9 @@ export function VariantCard({
                   ))}
                   {customUnitsForDropdown.length > 0 && (
                     <SelectGroup key="custom-units">
-                      <SelectLabel>Custom</SelectLabel>
+                      <SelectLabel>
+                        {t('foodSearch.variantCard.custom', 'Custom')}
+                      </SelectLabel>
                       {customUnitsForDropdown.map((unit) => (
                         <SelectItem key={unit} value={unit}>
                           {unit}
