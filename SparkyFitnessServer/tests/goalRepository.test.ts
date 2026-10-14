@@ -64,6 +64,7 @@ describe('goalRepository', () => {
         custom_nutrients: {},
         caffeine_mg: 300,
         alcohol_g: 14,
+        target_steps: 10000,
       };
 
       const result = await goalRepository.upsertGoal(goalData);
@@ -71,13 +72,14 @@ describe('goalRepository', () => {
       expect(mockClient.query).toHaveBeenCalledTimes(1);
       const [sql, params] = mockClient.query.mock.calls[0];
 
-      // Check positional params count ($1 through $35)
-      expect(params).toHaveLength(35);
+      // Check positional params count ($1 through $36)
+      expect(params).toHaveLength(36);
       expect(params[0]).toBe('user-1'); // $1 user_id
       expect(params[1]).toBe('2026-09-05'); // $2 goal_date
       expect(params[2]).toBe(2000); // $3 calories
       expect(params[33]).toBe(300); // $34 caffeine_mg
       expect(params[34]).toBe(14); // $35 alcohol_g
+      expect(params[35]).toBe(10000); // $36 target_steps
 
       // Check SQL includes caffeine_mg and alcohol_g in INSERT and DO UPDATE
       expect(sql).toContain('caffeine_mg');

@@ -2723,6 +2723,7 @@
       "waterGoal": "Water Goal ({{unit}})",
       "targetExerciseCaloriesBurned": "Target Exercise Calories Burned",
       "targetExerciseDurationMinutes": "Target Exercise Duration (minutes)",
+      "targetSteps": "Daily Steps Goal",
       "mealCalorieDistribution": "Meal Calorie Distribution",
       "saveGoals": "Save Goals",
       "saving": "Saving...",
