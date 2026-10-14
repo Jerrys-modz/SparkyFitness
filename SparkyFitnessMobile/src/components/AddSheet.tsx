@@ -193,6 +193,20 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       }
     }, [onDismissWithoutAction, schedulePresent]);
 
+    // The sheet is opening or open. Called from onAnimate and from onChange:
+    // when the open finishes before onAnimate reaches JS (Android's "Remove
+    // animations", or a busy JS thread), the library drops onAnimate, and
+    // onChange is the only signal that arrives.
+    const markOpen = useCallback(() => {
+      isDismissingRef.current = false;
+      isOpenRef.current = true;
+      isPresentingRef.current = false;
+      pendingPresentRef.current = false;
+      pendingInitialMenuRef.current = null;
+      clearScheduledPresent();
+      setIsOpen(true);
+    }, [clearScheduledPresent]);
+
     const handleAnimate = useCallback(
       (fromIndex: number, toIndex: number) => {
         if (fromIndex >= 0 && toIndex === -1) {
@@ -203,16 +217,19 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
         }
 
         if (toIndex >= 0) {
-          isDismissingRef.current = false;
-          isOpenRef.current = true;
-          isPresentingRef.current = false;
-          pendingPresentRef.current = false;
-          pendingInitialMenuRef.current = null;
-          clearScheduledPresent();
-          setIsOpen(true);
+          markOpen();
         }
       },
-      [clearScheduledPresent]
+      [markOpen]
+    );
+
+    const handleChange = useCallback(
+      (index: number) => {
+        if (index >= 0) {
+          markOpen();
+        }
+      },
+      [markOpen]
     );
 
     const showMainMenu = useCallback(() => {
@@ -341,6 +358,7 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
         backgroundStyle={{ backgroundColor: surfaceBg }}
         handleIndicatorStyle={{ backgroundColor: textMuted }}
         onAnimate={handleAnimate}
+        onChange={handleChange}
         onDismiss={handleDismiss}
       >
         <BottomSheetView className="pb-safe-or-5 px-2.5">

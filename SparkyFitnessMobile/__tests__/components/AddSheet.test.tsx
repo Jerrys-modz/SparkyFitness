@@ -16,6 +16,7 @@ const mockBottomSheetControls = {
   onDismiss: undefined as (() => void) | undefined,
   onAnimate: undefined as
     ((fromIndex: number, toIndex: number) => void) | undefined,
+  onChange: undefined as ((index: number) => void) | undefined,
 };
 
 jest.mock('@gorhom/bottom-sheet', () => {
@@ -24,12 +25,13 @@ jest.mock('@gorhom/bottom-sheet', () => {
 
   return {
     BottomSheetModal: React.forwardRef(
-      ({ children, onDismiss, onAnimate }: any, ref) => {
+      ({ children, onDismiss, onAnimate, onChange }: any, ref) => {
         // Test mock stashes the latest handlers for assertions; writing to the
         // module-scoped controls during the mock's render is intentional.
         /* eslint-disable react-hooks/immutability */
         mockBottomSheetControls.onDismiss = onDismiss;
         mockBottomSheetControls.onAnimate = onAnimate;
+        mockBottomSheetControls.onChange = onChange;
         /* eslint-enable react-hooks/immutability */
 
         React.useImperativeHandle(ref, () => ({
@@ -84,6 +86,7 @@ describe('AddSheet', () => {
     mockBottomSheetControls.isPresentBlocked = false;
     mockBottomSheetControls.onDismiss = undefined;
     mockBottomSheetControls.onAnimate = undefined;
+    mockBottomSheetControls.onChange = undefined;
     requestAnimationFrameSpy = jest
       .spyOn(global, 'requestAnimationFrame')
       .mockImplementation((callback: FrameRequestCallback) => {
@@ -318,6 +321,20 @@ describe('AddSheet', () => {
       act(() => mockBottomSheetControls.onDismiss?.());
       expect(onDismissWithoutAction).toHaveBeenCalledTimes(1);
       expect(remove).toHaveBeenCalled();
+    });
+
+    it('takes Back when the open reports only onChange', () => {
+      // With Android's "Remove animations" the open finishes before onAnimate
+      // reaches JS and the library drops it; onChange still arrives.
+      const { ref, getByText, queryByText } = renderAddSheet();
+
+      act(() => ref.current?.present({ initialMenu: 'exercise' }));
+      act(() => mockBottomSheetControls.onChange?.(0));
+      expect(listeners).toHaveLength(1);
+
+      expect(pressBack()).toBe(true);
+      expect(queryByText('Live sets & reps')).toBeNull();
+      expect(getByText('Food')).toBeTruthy();
     });
 
     it('only listens while the sheet is open', () => {

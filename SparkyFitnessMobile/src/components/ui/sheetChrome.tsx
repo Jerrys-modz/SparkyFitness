@@ -39,9 +39,14 @@ export function useSheetBackdrop() {
 
 /**
  * Gives an open sheet Android's hardware Back. `BottomSheetModal` does not
- * handle it, so without this the press falls through to navigation: it pops
- * the screen under the sheet, or exits the app from a root tab. `onBack`
- * decides what Back does inside the sheet.
+ * handle it, so without this the press falls through to navigation with the
+ * sheet still up: it pops the screen under the sheet, switches another tab to
+ * the Dashboard, or exits the app from the Dashboard. `onBack` decides what
+ * Back does inside the sheet.
+ *
+ * Owners set `isOpen` when the sheet opens, from both `onAnimate` and
+ * `onChange` (the library drops `onAnimate` when the open finishes before it
+ * reaches JS), and clear it in `onDismiss`.
  */
 export function useSheetHardwareBack(isOpen: boolean, onBack: () => void) {
   useEffect(() => {
