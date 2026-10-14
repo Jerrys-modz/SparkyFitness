@@ -7,6 +7,11 @@ import { useCardioSessionDetail } from '../../src/hooks/useCardioSessionDetail';
 import { initializeI18n } from '../../src/localization/i18n';
 import type { RootStackScreenProps } from '../../src/types/navigation';
 
+// The program badge reads the run program query; it has its own tests.
+jest.mock('../../src/components/recording/ProgramWorkoutBadge', () => ({
+  __esModule: true,
+  default: () => null,
+}));
 jest.mock('../../src/hooks/useCardioSessionDetail', () => ({
   useCardioSessionDetail: jest.fn(),
 }));
@@ -211,6 +216,38 @@ describe('CardioSessionScreen', () => {
         nativeTitle: 'Morning Run',
       })
     );
+  });
+
+  it('offers Edit only for a diary entry made in the app', () => {
+    mockDetail.mockReturnValue(detail());
+    render(<CardioSessionScreen {...props()} />);
+    expect(mockUseScreenHeader).toHaveBeenLastCalledWith(
+      expect.objectContaining({ right: null })
+    );
+
+    const replace = jest.fn();
+    const diaryEntry = { id: 'run-1', source: 'sparky' };
+    const base = props();
+    render(
+      <CardioSessionScreen
+        {...({
+          ...base,
+          navigation: { replace },
+          route: {
+            ...base.route,
+            params: { ...base.route.params, diaryEntry },
+          },
+        } as unknown as RootStackScreenProps<'CardioSession'>)}
+      />
+    );
+    const config = mockUseScreenHeader.mock.lastCall?.[0] as {
+      right: { label: string; onPress: () => void };
+    };
+    expect(config.right.label).toBe('Edit');
+    config.right.onPress();
+    expect(replace).toHaveBeenCalledWith('ActivityDetail', {
+      session: diaryEntry,
+    });
   });
 
   it('shows a brief zone as under a minute, not zero', () => {

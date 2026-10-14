@@ -23,3 +23,4 @@
 "watch.fasting.cancel" = "Cancel";
 "watch.fasting.notFasting" = "Not fasting";
 "watch.fasting.waiting" = "Waiting for your iPhone";
+"watch.recording.next" = "Next: %@";

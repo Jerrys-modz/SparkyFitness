@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { formatClock } from '../../utils/gpsRecording';
 import { intervalStepName } from '../../utils/recordingCues';
-import type { IntervalPlan, IntervalPosition } from '../../utils/intervals';
+import type { IntervalPlan, IntervalPosition } from '@workspace/shared';
 
 interface Props {
   plan: IntervalPlan;

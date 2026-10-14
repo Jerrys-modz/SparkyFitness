@@ -20,6 +20,7 @@ import RouteMap from '../components/exerciseStats/RouteMap';
 import HeartRateChart from '../components/exerciseStats/HeartRateChart';
 import PaceChart from '../components/exerciseStats/PaceChart';
 import HeartRateZones from '../components/exerciseStats/HeartRateZones';
+import ProgramWorkoutBadge from '../components/recording/ProgramWorkoutBadge';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type CardioSessionScreenProps = RootStackScreenProps<'CardioSession'>;
@@ -157,8 +158,11 @@ const Card: React.FC<{ title: string; children: React.ReactNode }> = ({
   </View>
 );
 
-const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({ route }) => {
-  const { session, distanceUnit } = route.params;
+const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
+  navigation,
+  route,
+}) => {
+  const { session, distanceUnit, diaryEntry } = route.params;
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
@@ -170,6 +174,21 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({ route }) => {
     // it the route's static "Cardio Session" shows instead.
     nativeTitle: session.exerciseName,
     left: { kind: 'back' },
+    // A run or walk made in the app opens here from the diary; its editor is
+    // the activity screen, which this hands over to.
+    right: diaryEntry
+      ? {
+          kind: 'text',
+          label: t('common.edit', { defaultValue: 'Edit' }),
+          role: 'secondary',
+          onPress: () =>
+            navigation.replace('ActivityDetail', { session: diaryEntry }),
+          accessibilityLabel: t('activityDetail.accessibility.edit', {
+            defaultValue: 'Edit activity',
+          }),
+          identifier: 'cardio-session-edit',
+        }
+      : null,
   });
 
   const detail = useCardioSessionDetail(session.id, session.entryDate);
@@ -221,6 +240,8 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({ route }) => {
         showsVerticalScrollIndicator={false}
       >
         <Text className="text-text-secondary text-sm mb-3">{dateText}</Text>
+
+        <ProgramWorkoutBadge entryId={session.id} />
 
         {stats.length > 0 ? (
           <View className="bg-surface rounded-xl p-4 mb-4 shadow-sm flex-row flex-wrap">
