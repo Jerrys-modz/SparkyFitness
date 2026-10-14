@@ -373,10 +373,11 @@ const EditLoggedMealScreen: React.FC<EditLoggedMealScreenProps> = ({
     !!meal &&
     ingredients.length > 0 &&
     // Diary snapshots remain editable after their library food/variant is
-    // deleted. Library IDs are optional; the stored amounts must be valid.
+    // deleted. Zero amounts are retained for unmeasured recipe ingredients.
     ingredients.every(
-      (food) => Number.isFinite(food.quantity) && food.quantity > 0
+      (food) => Number.isFinite(food.quantity) && food.quantity >= 0
     ) &&
+    ingredients.some((food) => food.quantity > 0) &&
     !!effectiveDate;
 
   const handleSave = () => {

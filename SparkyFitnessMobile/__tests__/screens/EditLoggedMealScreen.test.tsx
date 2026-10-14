@@ -554,6 +554,29 @@ describe('EditLoggedMealScreen', () => {
     });
   });
 
+  it('saves a changed meal while preserving a zero-quantity recipe ingredient', () => {
+    mockMeal({ ...baseMeal, foods: [chicken, { ...rice, quantity: 0 }] });
+    const screen = renderScreen();
+    fireEvent.changeText(screen.getByTestId('meal-name-input'), 'Updated Meal');
+    pressAction(screen, navigation, 'Save');
+    expect(mockUpdateMeal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        foods: [
+          expect.objectContaining({ quantity: 100 }),
+          expect.objectContaining({ food_id: 'food-2', quantity: 0 }),
+        ],
+      })
+    );
+  });
+
+  it('keeps Save disabled when all ingredient amounts are zero', () => {
+    mockMeal({ ...baseMeal, foods: [{ ...chicken, quantity: 0 }] });
+    const screen = renderScreen();
+    fireEvent.changeText(screen.getByTestId('meal-name-input'), 'Updated Meal');
+    pressAction(screen, navigation, 'Save');
+    expect(mockUpdateMeal).not.toHaveBeenCalled();
+  });
+
   it('appends a food picked via the meal builder to the saved payload', () => {
     // Non-template so displayScale is 1 and the picked 50 g is stored as-is.
     mockMeal({ ...baseMeal, meal_template_id: null });
