@@ -149,6 +149,7 @@ const NutrientTrendsScreen: React.FC<NutrientTrendsScreenProps> = ({
           unit={unit}
           goal={goal}
           onSelectDay={setSelectedDay}
+          selectedDay={selectedDay}
         />
 
         {/* Statistics Summary Card */}
