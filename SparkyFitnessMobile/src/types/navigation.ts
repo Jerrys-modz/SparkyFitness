@@ -1,3 +1,4 @@
+import type { RunSummaryParams } from '../utils/runSummary';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
@@ -82,6 +83,7 @@ export type RootStackParamList = {
   MealPlans: undefined;
   WorkoutPlans: undefined;
   WorkoutPlanForm: { template?: WorkoutPlanTemplate } | undefined;
+  RunPrograms: undefined;
   MealPlanForm: { template?: MealPlanTemplate; initialMeal?: Meal } | undefined;
   // #2115, Phase 12: mobile-only water-container CRUD.
   WaterContainers: undefined;
@@ -184,9 +186,22 @@ export type RootStackParamList = {
     goal?: number;
   };
   ExerciseStatistics: undefined;
+  /** `programWorkout` opens it with today's training-program workout chosen. */
+  RecordActivity: { programWorkout?: boolean } | undefined;
+  RunSummary: RunSummaryParams;
+  Reports: undefined;
+  HydrationReport: undefined;
+  SubstancesReport: undefined;
+  MeasurementsReport: undefined;
+  ReportsSettings: undefined;
+  NutritionReport: undefined;
+  SleepAnalytics: undefined;
+  MoodReport: undefined;
   CardioSession: {
     session: ExerciseActivityQueryItem;
     distanceUnit: 'km' | 'miles';
+    /** The diary entry this was opened from, when it can be edited in the app. */
+    diaryEntry?: IndividualSessionResponse;
   };
   FoodForm:
     | {
@@ -349,6 +364,12 @@ export type RootStackParamList = {
   /** Cross-fading time-lapse of every photo for one angle, oldest to newest. */
   ProgressPhotoTimelapse: { angle?: PhotoType } | undefined;
   CalorieSettings: undefined;
+  /**
+   * Without params this edits today's goals. `presetId` edits that goal
+   * preset; `newPreset` starts a new one from today's goals.
+   */
+  Goals: { presetId?: string; newPreset?: boolean } | undefined;
+  WeeklyGoalPlanEdit: { planId?: string } | undefined;
   MealTypeSettings: undefined;
   FoodSettings: undefined;
   DashboardSettings: undefined;
@@ -373,6 +394,9 @@ export type RootStackParamList = {
     scannedBarcodeNonce?: number;
   };
   MedicationScheduleForm: { medicationId: string; scheduleId?: string };
+  Glp1Tracker: { medicationId: string };
+  Glp1PenForm: { medicationId: string; penId?: string };
+  Glp1TitrationForm: { medicationId: string; stepId?: string };
   SymptomLog:
     | {
         entryId?: string;

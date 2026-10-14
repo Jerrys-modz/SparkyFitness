@@ -101,6 +101,10 @@ export const mealTypesQueryKey = ['mealTypes'] as const;
 
 export const goalsQueryKey = (date: string) => ['goals', date] as const;
 
+export const goalPresetsQueryKey = ['goalPresets'] as const;
+
+export const weeklyGoalPlansQueryKey = ['weeklyGoalPlans'] as const;
+
 export const goalsRangeQueryKey = (
   startDate: string,
   endDate: string,
@@ -112,6 +116,11 @@ export const foodVariantsQueryKey = (foodId: string) =>
 
 export const measurementsRangeQueryKey = (startDate: string, endDate: string) =>
   ['measurementsRange', startDate, endDate] as const;
+
+export const vo2MaxRangeQueryKeyRoot = ['vo2MaxRange'] as const;
+
+export const vo2MaxRangeQueryKey = (startDate: string, endDate: string) =>
+  [...vo2MaxRangeQueryKeyRoot, startDate, endDate] as const;
 
 export const waterIntakeRangeQueryKey = (startDate: string, endDate: string) =>
   ['waterIntakeRange', startDate, endDate] as const;
@@ -367,6 +376,21 @@ export const medicationEntriesQueryKey = (opts?: {
   toDate?: string;
   medicationId?: string;
 }) => ['medications', 'entries', opts ?? {}] as const;
+// GLP-1 keys live under the medications root so invalidateMedicationEntryCaches
+// (a dose or injection changes the merged entries feed) refreshes them too.
+export const glp1PensQueryKey = (medicationId: string) =>
+  ['medications', 'glp1', 'pens', medicationId] as const;
+export const glp1InjectionsQueryKey = (medicationId: string) =>
+  ['medications', 'glp1', 'injections', medicationId] as const;
+export const glp1TitrationQueryKey = (medicationId: string) =>
+  ['medications', 'glp1', 'titration', medicationId] as const;
+export const glp1SerumCurveQueryKey = (medicationId: string) =>
+  ['medications', 'glp1', 'serumCurve', medicationId] as const;
+export const glp1SiteSuggestionQueryKey = (medicationId: string) =>
+  ['medications', 'glp1', 'siteSuggestion', medicationId] as const;
 
 /** Autocomplete source for the live workout's gym / location prompt. */
 export const workoutLocationsQueryKey = ['workoutLocations'] as const;
+
+/** The person's run program and place in it (server-backed). */
+export const runProgramQueryKey = ['runProgram'] as const;

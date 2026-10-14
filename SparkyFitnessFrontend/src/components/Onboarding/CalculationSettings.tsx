@@ -16,7 +16,7 @@ import {
   VitaminCalculationAlgorithmLabels,
   SugarCalculationAlgorithm,
   SugarCalculationAlgorithmLabels,
-} from '@/types/nutrientAlgorithms';
+} from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 
 export interface CalculationSettingsProps {
