@@ -13,6 +13,7 @@ import { useScreenHeader } from '../hooks/useScreenHeader';
 import {
   useAllergenPreferenceMutations,
   useAllergenPreferences,
+  useSyncAllergens,
 } from '../hooks/useAllergenPreferences';
 import {
   COMMON_ALLERGENS,
@@ -31,6 +32,7 @@ const AllergenSettingsScreen: React.FC<AllergenSettingsScreenProps> = () => {
   const [mutedColor] = useCSSVariable(['--color-text-muted']) as [string];
   const { preferences } = useAllergenPreferences();
   const { add, remove } = useAllergenPreferenceMutations();
+  const syncAllergens = useSyncAllergens();
   const [customAllergen, setCustomAllergen] = useState('');
 
   const tracked = new Set(
@@ -175,6 +177,29 @@ const AllergenSettingsScreen: React.FC<AllergenSettingsScreenProps> = () => {
               </View>
             ))
           )}
+        </View>
+        <View className="bg-surface rounded-xl p-3 mb-4 shadow-sm">
+          <Text className="text-base font-semibold text-text-primary mb-1">
+            {t('allergenSettings.sync.title', {
+              defaultValue: 'Sync from OpenFoodFacts',
+            })}
+          </Text>
+          <Text className="text-sm text-text-secondary mb-3">
+            {t('allergenSettings.sync.description', {
+              defaultValue:
+                'Fetch allergen data for your saved OpenFoodFacts foods. Only needs to be done once.',
+            })}
+          </Text>
+          <Button
+            variant="outline"
+            onPress={() => syncAllergens.mutate()}
+            disabled={syncAllergens.isPending}
+            loading={syncAllergens.isPending}
+          >
+            {t('allergenSettings.sync.button', {
+              defaultValue: 'Sync allergens',
+            })}
+          </Button>
         </View>
       </ScrollView>
     </View>

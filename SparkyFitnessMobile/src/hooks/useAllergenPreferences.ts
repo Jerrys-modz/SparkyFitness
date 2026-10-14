@@ -5,8 +5,13 @@ import {
   addAllergenPreference,
   fetchAllergenPreferences,
   removeAllergenPreference,
+  syncOpenFoodFactsAllergens,
 } from '../services/api/allergenPreferencesApi';
-import { allergenPreferencesQueryKey } from './queryKeys';
+import {
+  allergenPreferencesQueryKey,
+  dailySummaryRootQueryKey,
+  foodsQueryKey,
+} from './queryKeys';
 
 export function useAllergenPreferences(options?: { enabled?: boolean }) {
   const { enabled = true } = options ?? {};
@@ -53,4 +58,49 @@ export function useAllergenPreferenceMutations() {
   });
 
   return { add, remove };
+}
+
+export function useSyncAllergens() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: syncOpenFoodFactsAllergens,
+    onSuccess: ({ updated, total }) => {
+      Toast.show({
+        type: 'success',
+        text1: t('allergenSettings.sync.complete', {
+          defaultValue: 'Allergen sync complete',
+        }),
+        text2:
+          total === 0
+            ? t('allergenSettings.sync.upToDate', {
+                defaultValue:
+                  'All your OpenFoodFacts foods already have allergen data.',
+              })
+            : t('allergenSettings.sync.result', {
+                defaultValue: 'Updated {{updated}} of {{total}} food(s).',
+                updated,
+                total,
+              }),
+      });
+    },
+    onError: () => {
+      Toast.show({
+        type: 'error',
+        text1: t('allergenSettings.sync.failed', {
+          defaultValue: 'Sync failed',
+        }),
+        text2: t('allergenSettings.sync.failedDescription', {
+          defaultValue: 'Could not sync allergens. Please try again.',
+        }),
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: foodsQueryKey });
+      queryClient.invalidateQueries({ queryKey: ['foodsLibrary'] });
+      queryClient.invalidateQueries({ queryKey: ['foodSearch'] });
+      queryClient.invalidateQueries({ queryKey: dailySummaryRootQueryKey });
+    },
+  });
 }

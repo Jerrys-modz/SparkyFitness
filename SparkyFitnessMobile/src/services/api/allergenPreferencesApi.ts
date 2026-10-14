@@ -31,3 +31,20 @@ export const removeAllergenPreference = async (id: string): Promise<void> => {
     operation: 'remove allergen preference',
   });
 };
+
+export interface SyncAllergensResult {
+  updated: number;
+  total: number;
+}
+
+export const syncOpenFoodFactsAllergens =
+  async (): Promise<SyncAllergensResult> => {
+    return apiFetch<SyncAllergensResult>({
+      endpoint: '/api/foods/sync-allergens',
+      method: 'POST',
+      serviceName: 'Allergen Preferences API',
+      operation: 'sync allergens from OpenFoodFacts',
+      // Looks up each saved OpenFoodFacts food, so it can outlast the default timeout.
+      timeoutMs: 120_000,
+    });
+  };

@@ -5884,6 +5884,16 @@
       "error": "Error",
       "updateFailed": "Failed to update allergens."
     },
+    "sync": {
+      "title": "Sync from OpenFoodFacts",
+      "description": "Fetch allergen data for your saved OpenFoodFacts foods. Only needs to be done once.",
+      "button": "Sync allergens",
+      "complete": "Allergen sync complete",
+      "upToDate": "All your OpenFoodFacts foods already have allergen data.",
+      "result": "Updated {{updated}} of {{total}} food(s).",
+      "failed": "Sync failed",
+      "failedDescription": "Could not sync allergens. Please try again."
+    },
     "names": {
       "gluten": "gluten",
       "wheat": "wheat",
