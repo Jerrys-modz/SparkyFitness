@@ -2495,6 +2495,54 @@ async function updateFoodEntryMeal(
     `updateFoodEntryMeal in foodEntryService: foodEntryMealId: ${foodEntryMealId}, updatedMealData: ${JSON.stringify(updatedMealData)}, authenticatedUserId: ${authenticatedUserId}, actingUserId: ${actingUserId}`
   );
   try {
+    // Validate and normalize every numeric field before updating the parent or
+    // deleting components. Request bodies can contain malformed snapshot data.
+    const numericFoodFields = [
+      'quantity',
+      'serving_size',
+      'calories',
+      'protein',
+      'carbs',
+      'fat',
+      'saturated_fat',
+      'polyunsaturated_fat',
+      'monounsaturated_fat',
+      'trans_fat',
+      'cholesterol',
+      'sodium',
+      'potassium',
+      'dietary_fiber',
+      'sugars',
+      'vitamin_a',
+      'vitamin_c',
+      'calcium',
+      'iron',
+      'caffeine_mg',
+      'water_ml',
+      'alcohol_g',
+    ] as const;
+    const validatedFoods = updatedMealData.foods?.map((foodItem) => {
+      const validatedFood = { ...foodItem };
+      for (const field of numericFoodFields) {
+        const value = foodItem[field];
+        if (value === undefined || value === null) continue;
+        if (
+          (typeof value !== 'number' && typeof value !== 'string') ||
+          (typeof value === 'string' && value.trim() === '') ||
+          !Number.isFinite(Number(value)) ||
+          ((field === 'quantity' || field === 'serving_size') &&
+            Number(value) < 0)
+        ) {
+          const error: Error & { statusCode?: number } = new Error(
+            `Food item ${field} must be a finite number${field === 'quantity' || field === 'serving_size' ? ' greater than or equal to zero' : ''}.`
+          );
+          error.statusCode = 400;
+          throw error;
+        }
+        validatedFood[field] = Number(value);
+      }
+      return validatedFood;
+    });
     // 1. Reject a component-affecting update that cannot rebuild its
     // components BEFORE touching the parent row. The component rows carry the
     // meal's date, meal type, and scaled nutrition, so anything that changes
@@ -2590,7 +2638,7 @@ async function updateFoodEntryMeal(
     );
     // 3. Create new component food_entries records
     const entriesToCreate = [];
-    for (const foodItem of updatedMealData.foods ?? []) {
+    for (const foodItem of validatedFoods ?? []) {
       const food = foodItem.food_id
         ? await foodRepository.getFoodById(
             foodItem.food_id,

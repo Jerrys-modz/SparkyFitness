@@ -377,6 +377,55 @@ describe('foodEntryMealService', () => {
   });
 
   describe('updateFoodEntryMeal component dates', () => {
+    it.each([
+      'serving_size',
+      'calories',
+      'protein',
+      'carbs',
+      'fat',
+      'saturated_fat',
+      'polyunsaturated_fat',
+      'monounsaturated_fat',
+      'trans_fat',
+      'cholesterol',
+      'sodium',
+      'potassium',
+      'dietary_fiber',
+      'sugars',
+      'vitamin_a',
+      'vitamin_c',
+      'calcium',
+      'iron',
+      'caffeine_mg',
+      'water_ml',
+      'alcohol_g',
+      'quantity',
+    ])('rejects invalid %s before any writes', async (field) => {
+      for (const value of ['invalid', '', Infinity, NaN]) {
+        await expect(
+          updateFoodEntryMeal('user-1', 'user-1', 'meal-entry-1', {
+            name: 'Edited name',
+            foods: [
+              {
+                food_name: 'Stored food',
+                quantity: 100,
+                serving_size: 100,
+                calories: 165,
+                [field]: value,
+              },
+            ],
+          })
+        ).rejects.toMatchObject({ statusCode: 400 });
+        expect(
+          foodEntryMealRepository.updateFoodEntryMeal
+        ).not.toHaveBeenCalled();
+        expect(
+          foodRepository.deleteFoodEntryComponentsByFoodEntryMealId
+        ).not.toHaveBeenCalled();
+        expect(foodRepository.bulkCreateFoodEntries).not.toHaveBeenCalled();
+      }
+    });
+
     it.each([false, true])(
       'preserves edited ingredient snapshots when library links are available: %s',
       async (linked) => {
@@ -413,12 +462,12 @@ describe('foodEntryMealService', () => {
               food_id: linked ? 'food-1' : null,
               variant_id: linked ? 'variant-1' : null,
               food_name: 'Logged chicken',
-              quantity: 300,
+              quantity: linked ? 300 : '300',
               unit: 'g',
-              serving_size: 100,
+              serving_size: linked ? 100 : '100',
               serving_unit: 'g',
-              calories: 165,
-              protein: 31,
+              calories: linked ? 165 : '165',
+              protein: linked ? 31 : '31',
               sodium: 75,
               polyunsaturated_fat: 2,
               custom_nutrients: { choline: 90 },
