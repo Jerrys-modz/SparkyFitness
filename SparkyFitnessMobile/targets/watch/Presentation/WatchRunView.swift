@@ -195,6 +195,13 @@ struct WatchRunView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Heart rate alert")
+                Text("Set a heart rate range on your iPhone")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
