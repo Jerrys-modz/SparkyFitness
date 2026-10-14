@@ -1579,9 +1579,17 @@ CREATE TABLE public.ai_service_settings (
     api_key_tag text,
     is_public boolean DEFAULT false CONSTRAINT ai_service_settings_is_global_not_null NOT NULL,
     chat_tool_profile text DEFAULT 'full'::text NOT NULL,
+    supports_audio_input boolean DEFAULT false NOT NULL,
     CONSTRAINT ai_service_settings_chat_tool_profile_check CHECK ((chat_tool_profile = ANY (ARRAY['full'::text, 'core'::text]))),
     CONSTRAINT check_public_settings_user_id_null CHECK ((((is_public = true) AND (user_id IS NULL)) OR ((is_public = false) AND (user_id IS NOT NULL))))
 );
+
+
+--
+-- Name: COLUMN ai_service_settings.supports_audio_input; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.ai_service_settings.supports_audio_input IS 'User/admin assertion that this configured model accepts audio input for voice transcription.';
 
 
 --
@@ -4449,6 +4457,8 @@ CREATE TABLE public.user_preferences (
     caffeine_half_life_hours numeric(3,1) DEFAULT 5.0 NOT NULL,
     target_bedtime time without time zone DEFAULT '22:30:00'::time without time zone NOT NULL,
     adaptive_workout_suggestions boolean DEFAULT true NOT NULL,
+    active_voice_ai_service_id uuid,
+    voice_input_enabled boolean DEFAULT true NOT NULL,
     CONSTRAINT check_energy_unit CHECK (((energy_unit)::text = ANY ((ARRAY['kcal'::character varying, 'kJ'::character varying])::text[]))),
     CONSTRAINT logging_level_check CHECK ((logging_level = ANY (ARRAY['DEBUG'::text, 'INFO'::text, 'WARN'::text, 'ERROR'::text, 'SILENT'::text]))),
     CONSTRAINT user_preferences_caffeine_half_life_range CHECK (((caffeine_half_life_hours >= 2.0) AND (caffeine_half_life_hours <= 8.0))),
@@ -4566,6 +4576,13 @@ COMMENT ON COLUMN public.user_preferences.target_bedtime IS 'The user''s intende
 --
 
 COMMENT ON COLUMN public.user_preferences.adaptive_workout_suggestions IS 'When true, workout suggestions adapt to session feedback (difficulty, pain). When false, progression behaves exactly as before feedback existed.';
+
+
+--
+-- Name: COLUMN user_preferences.voice_input_enabled; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.user_preferences.voice_input_enabled IS 'Shows voice input in web and mobile chat. Disabling preserves the selected Voice configuration.';
 
 
 --
@@ -9301,6 +9318,14 @@ ALTER TABLE ONLY public.user_preferences
 
 ALTER TABLE ONLY public.user_preferences
     ADD CONSTRAINT user_preferences_active_vision_ai_service_id_fkey FOREIGN KEY (active_vision_ai_service_id) REFERENCES public.ai_service_settings(id) ON DELETE SET NULL;
+
+
+--
+-- Name: user_preferences user_preferences_active_voice_ai_service_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_preferences
+    ADD CONSTRAINT user_preferences_active_voice_ai_service_id_fkey FOREIGN KEY (active_voice_ai_service_id) REFERENCES public.ai_service_settings(id) ON DELETE SET NULL;
 
 
 --
