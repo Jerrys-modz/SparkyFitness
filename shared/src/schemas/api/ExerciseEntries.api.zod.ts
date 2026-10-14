@@ -762,7 +762,19 @@ export const attachExerciseEntryDistanceSeriesRequestSchema = z
         ])
       )
       .min(2)
-      .max(1000),
+      .max(1000)
+      .refine(
+        (points) =>
+          points.every(
+            (point, i) =>
+              i === 0 ||
+              (point[0] >= points[i - 1][0] && point[1] >= points[i - 1][1])
+          ),
+        {
+          message:
+            "Active seconds and cumulative metres must not decrease from one row to the next.",
+        }
+      ),
   })
   .strict();
 export type AttachExerciseEntryDistanceSeriesRequest = z.infer<

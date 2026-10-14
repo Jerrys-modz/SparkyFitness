@@ -79,6 +79,47 @@ describe('POST /exercise-entries/:id/distance-series', () => {
     expect(res.status).toBe(400);
   });
 
+  it.each([
+    [
+      'active seconds',
+      [
+        [0, 0],
+        [60, 100],
+        [30, 150],
+      ],
+    ],
+    [
+      'cumulative metres',
+      [
+        [0, 0],
+        [30, 100],
+        [60, 50],
+        [90, 75],
+      ],
+    ],
+  ])('rejects a series where %s decrease', async (_name, rows) => {
+    const res = await request(app)
+      .post(`/exercise-entries/${ENTRY_ID}/distance-series`)
+      .send({ points: rows });
+    expect(res.status).toBe(400);
+    expect(
+      exerciseEntryService.attachDistanceSeriesToExerciseEntry
+    ).not.toHaveBeenCalled();
+  });
+
+  it('accepts a series that stands still between rows', async () => {
+    const res = await request(app)
+      .post(`/exercise-entries/${ENTRY_ID}/distance-series`)
+      .send({
+        points: [
+          [0, 0],
+          [30, 100],
+          [60, 100],
+        ],
+      });
+    expect(res.status).toBe(204);
+  });
+
   it('rejects an id that is not a uuid', async () => {
     const res = await request(app)
       .post('/exercise-entries/not-a-uuid/distance-series')
