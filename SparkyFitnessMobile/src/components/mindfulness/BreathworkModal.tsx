@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { useCSSVariable } from 'uniwind';
 import FullScreenModalBody from '../FullScreenModalBody';
 import Icon from '../Icon';
+import { useSaveOncePerRun } from '../../hooks/useSaveOncePerRun';
 
 type ProtocolKey = 'box' | 'relax' | 'coherence';
 
@@ -200,18 +201,17 @@ export const BreathworkModal: React.FC<BreathworkModalProps> = ({
     setIsActive(false);
   };
 
-  const handleFinish = async () => {
-    const finalSeconds = elapsedSeconds;
-    if (finalSeconds > 0) {
-      try {
-        await onSave(finalSeconds, 'breathwork');
-      } catch {
-        return;
+  const canFinish = elapsedSeconds > 0;
+  // Finish stays on screen while the save runs: one run is logged once.
+  const saveRunOnce = useSaveOncePerRun(canFinish);
+  const handleFinish = () =>
+    saveRunOnce(
+      () => onSave(elapsedSeconds, 'breathwork'),
+      () => {
+        resetState();
+        onClose();
       }
-    }
-    resetState();
-    onClose();
-  };
+    );
 
   const handleClose = () => {
     resetState();
@@ -390,7 +390,7 @@ export const BreathworkModal: React.FC<BreathworkModalProps> = ({
             </TouchableOpacity>
           )}
 
-          {elapsedSeconds > 0 && (
+          {canFinish && (
             <TouchableOpacity
               onPress={handleFinish}
               className="flex-1 bg-emerald-600 py-4 rounded-2xl items-center"

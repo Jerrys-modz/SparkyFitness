@@ -178,6 +178,55 @@ describe('MindfulnessLogScreen', () => {
     expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
   });
 
+  it('offers each session type with its icon and saves the one picked', async () => {
+    renderScreen({ date: DATE });
+
+    for (const label of [
+      '🧘 Meditation',
+      '🌊 Breathwork',
+      '🪞 Reflection',
+      '🚶 Mindful Walking',
+      '🧘‍♀️ Yoga',
+      '🎧 Guided',
+      '🕯️ Unguided',
+      '✨ Other',
+    ]) {
+      expect(screen.getByText(label)).toBeTruthy();
+    }
+
+    fireEvent.press(screen.getByText('🧘‍♀️ Yoga'));
+    fireEvent.press(screen.getByText('Save'));
+
+    await screen.findByText('Save');
+    expect(mockSaveSession).toHaveBeenCalledWith(
+      expect.objectContaining({ session_type: 'yoga' })
+    );
+  });
+
+  it.each(['sound_bath', ''])(
+    'shows the stored type %p as Other and keeps it on save',
+    async (storedType) => {
+      // Another client or an import can store a type the chips do not have.
+      renderScreen({
+        date: DATE,
+        session: { ...session, session_type: storedType },
+      });
+
+      expect(
+        screen.getByRole('button', { name: '✨ Other', selected: true })
+      ).toBeTruthy();
+      // Pressing the Other chip already shown is not picking another type.
+      fireEvent.press(screen.getByText('✨ Other'));
+      fireEvent.press(screen.getByText('Save'));
+
+      await screen.findByText('Save');
+      expect(mockUpdateSession).toHaveBeenCalledWith(
+        'session-1',
+        expect.objectContaining({ session_type: storedType })
+      );
+    }
+  );
+
   it.each([
     ['breathwork', 'Paced Breathing'],
     ['timer', 'Meditation Timer'],
