@@ -179,18 +179,38 @@ struct WatchRunAlertSetup: Equatable {
     static let off = WatchRunAlertSetup(pace: nil, heartRate: nil)
 }
 
-/// A timed plan a wrist-only run can follow: a list of steps the phone has
-/// already named in its language. A training-program workout carries the
-/// program id and the index of the workout so the phone can tick it off.
+/// A plan a wrist-only run can follow: a list of steps the phone has already
+/// named in its language, each ending on time or, for a distance step, on the
+/// distance recorded in it. A training-program workout carries the program id
+/// and the index of the workout so the phone can tick it off.
 struct WatchRunPlan: Codable, Equatable, Identifiable {
     struct Step: Codable, Equatable {
         let label: String
+        /// The step's length; on a distance step only its expected time.
         let seconds: Double
         /// Pace range to hold in this step; nil is free. Optional so a plan
         /// kept in an older snapshot still decodes.
         var pace: WatchPaceBand? = nil
         /// Heart-rate range to hold in this step; nil is free.
         var heartRate: WatchHeartRateBand? = nil
+
+        /// A distance step ends once this many metres are recorded in it.
+        /// Optional so plans and snapshots from before distance steps decode.
+        var meters: Double? = nil
+
+        var isDistance: Bool { (meters ?? 0) > 0 }
+    }
+
+    /// Where the current step began, on the builder's active clock and in
+    /// recorded metres. `index` is `steps.count` once the plan is over. A
+    /// distance step's end cannot be worked out from the clock alone, so the
+    /// run keeps this (and its snapshot does) and moves it on with `advance`.
+    struct Cursor: Codable, Equatable {
+        var index: Int
+        var startElapsed: Double
+        var startMeters: Double
+
+        static let start = Cursor(index: 0, startElapsed: 0, startMeters: 0)
     }
 
     let id: String
@@ -203,48 +223,87 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
 
     var kind: WatchRunKind { activity == "walk" ? .walk : .run }
 
-    var totalSeconds: Double { steps.reduce(0) { $0 + $1.seconds } }
+    /// Distance steps need GPS, so such a plan is only offered outdoors.
+    var hasDistanceSteps: Bool { steps.contains { $0.isDistance } }
 
-    /// Where the plan stands after `elapsed` active seconds. `index` is
-    /// `steps.count` once the plan is over (the cool-down is the last step,
-    /// the run itself carries on).
+    /// Where the plan stands. `index` is `steps.count` once the plan is over
+    /// (the cool-down is the last step, the run itself carries on).
     struct Position: Equatable {
         let index: Int
         let label: String
+        /// Seconds left in a timed step; 0 on a distance step.
         let remaining: TimeInterval
+        /// Metres left in a distance step; nil on a timed step.
+        let remainingMeters: Double?
         let next: String?
         let finished: Bool
     }
 
-    func position(at elapsed: TimeInterval) -> Position? {
-        guard !steps.isEmpty else { return nil }
-        var start = 0.0
-        for (index, step) in steps.enumerated() {
-            let end = start + step.seconds
-            if elapsed < end {
-                let next = index + 1 < steps.count ? steps[index + 1] : nil
-                return Position(
-                    index: index,
-                    label: step.label,
-                    remaining: end - elapsed,
-                    next: next.map { "\($0.label) \(Self.clock($0.seconds))" },
-                    finished: false
-                )
+    /// Moves `cursor` past every step that has ended by `elapsed` active
+    /// seconds and `meters` recorded. The same rule as `advanceIntervalCursor`
+    /// on the phone (`shared/src/utils/runIntervals.ts`); keep them in step.
+    func advance(_ cursor: Cursor, elapsed: TimeInterval, meters: Double) -> Cursor {
+        var current = cursor
+        while current.index < steps.count {
+            let step = steps[current.index]
+            if step.isDistance {
+                let end = current.startMeters + (step.meters ?? 0)
+                guard meters >= end else { break }
+                current = Cursor(index: current.index + 1, startElapsed: elapsed, startMeters: end)
+            } else {
+                let end = current.startElapsed + step.seconds
+                guard elapsed >= end else { break }
+                current = Cursor(index: current.index + 1, startElapsed: end, startMeters: meters)
             }
-            start = end
         }
-        return Position(index: steps.count, label: String(localized: "watch.run.planComplete", defaultValue: "Plan complete"), remaining: 0, next: nil, finished: true)
+        return current
+    }
+
+    func position(cursor: Cursor, elapsed: TimeInterval, meters: Double) -> Position? {
+        guard !steps.isEmpty else { return nil }
+        guard cursor.index < steps.count else {
+            return Position(
+                index: steps.count, label: String(localized: "watch.run.planComplete", defaultValue: "Plan complete"), remaining: 0,
+                remainingMeters: nil, next: nil, finished: true
+            )
+        }
+        let step = steps[cursor.index]
+        let next = cursor.index + 1 < steps.count ? steps[cursor.index + 1] : nil
+        let remainingMeters = step.isDistance
+            ? max(0, cursor.startMeters + (step.meters ?? 0) - meters)
+            : nil
+        return Position(
+            index: cursor.index,
+            label: step.label,
+            remaining: step.isDistance ? 0 : max(0, cursor.startElapsed + step.seconds - elapsed),
+            remainingMeters: remainingMeters,
+            next: next.map { "\($0.label) \(Self.length($0))" },
+            finished: false
+        )
     }
 
     /// Whether the last step has begun: the rule the phone uses to tick off a program workout.
-    func lastStepStarted(at elapsed: TimeInterval) -> Bool {
-        guard let last = steps.last else { return false }
-        return elapsed >= totalSeconds - last.seconds
+    func lastStepStarted(cursor: Cursor) -> Bool {
+        !steps.isEmpty && cursor.index >= steps.count - 1
     }
 
     static func clock(_ seconds: Double) -> String {
         let total = Int(seconds.rounded())
         return String(format: "%d:%02d", total / 60, total % 60)
+    }
+
+    /// "400 m", or "1.5 km" from a kilometre up. Metres whatever the
+    /// distance unit, as on a track and on the phone.
+    static func meters(_ value: Double) -> String {
+        value >= 1000
+            ? String(format: "%.1f km", (value / 100).rounded() / 10)
+                .replacingOccurrences(of: ".0 km", with: " km")
+            : "\(Int(value.rounded())) m"
+    }
+
+    /// A step's length as shown: its distance, or its time as m:ss.
+    static func length(_ step: Step) -> String {
+        step.isDistance ? meters(step.meters ?? 0) : clock(step.seconds)
     }
 }
 

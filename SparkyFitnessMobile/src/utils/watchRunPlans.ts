@@ -20,9 +20,15 @@ export interface WatchRunPlanPayload {
   programIndex?: number;
   /** 'walk' for a walking program; missing is a run. */
   activity?: 'walk';
+  /**
+   * `meters` marks a distance step: the watch ends it on the distance it
+   * records, and `seconds` is only the expected time (what a watch build
+   * that predates distance steps follows instead).
+   */
   steps: {
     label: string;
     seconds: number;
+    meters?: number;
     /** Pace range to hold in this step, seconds per km. */
     paceMin?: number;
     paceMax?: number;
@@ -36,6 +42,9 @@ const toSteps = (t: TFunction, plan: IntervalPlan) =>
   plan.steps.map((step) => ({
     label: intervalStepName(t, step.kind, plan.style),
     seconds: step.seconds,
+    ...(step.meters !== undefined && step.meters > 0
+      ? { meters: step.meters }
+      : {}),
     ...(step.pace
       ? {
           paceMin: step.pace.minSecondsPerKm,

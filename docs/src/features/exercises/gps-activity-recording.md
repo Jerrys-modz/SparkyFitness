@@ -97,6 +97,14 @@ While you record, a card shows the current step, the time left, the round and wh
 
 Each step also becomes a lap, so the saved activity is split into your work and recovery stretches and the pace bars show the difference. When the last step ends you hear "Intervals complete" and can carry on or finish.
 
+### Distance repeats
+
+Some speed sessions are set by distance rather than time: **6 × 400 m** (a 10 minute warm-up, six 400 m repeats with 1 minute 30 seconds easy between them, a 10 minute cool-down) and **5 × 1 km** (2 minutes easy between). In **Custom**, switch the work steps from **By time** to **By distance** and set the distance in 100 m steps (250 m steps above 1 km).
+
+A distance step ends when the recording has covered that distance since the step began, however long it takes. The card shows the metres left instead of a countdown, the voice cue says the distance ("Fast. 400 meters."), and on steps of 300 m or more you hear "100 meters to go" near the end. Easy and warm-up steps stay timed, and they count from the moment the distance step ended. Repeat distances are always shown in metres and kilometres, as on a track, whatever your distance unit.
+
+Distance repeats need GPS, so they are offered outdoors only: on an indoor session they are left out of the list, and switching to Indoor drops a distance plan you had picked. The Apple Watch follows them on a wrist-only outdoor run using its own GPS distance, and shows the metres left in place of the countdown.
+
 With an Apple Watch connected to a phone recording, the watch shows the current step, a countdown and what comes next, and buzzes when the step changes. Watch-only recordings do not follow a plan yet. On an indoor session there is no GPS feed, so the steps move on while the Record screen is open and catch up when you open it again.
 
 ---
@@ -184,7 +192,7 @@ The watch can only run one workout at a time. The page tells you if your iPhone 
 
 A watch-only recording buzzes at every completed kilometre or mile, and speaks it ("Kilometer 3. 5 minutes 24 seconds.") when Voice cues is on in the Record screen; the sound comes from the watch speaker or paired headphones. The flag button marks a lap (a second press within 3 seconds is ignored); when you save, an outdoor run is cut at your laps instead of at each kilometre or mile. Indoor runs have no route, so the watch uses the distance it estimated at each flag press: the saved activity gets those laps with their distance and heart rate (a lap's time includes any pause inside it). The Voice cues setting is sent to the watch as soon as you change it. **On your phone:** when the run reaches the phone and is saved to your diary, a message says so with its distance and time; tap it for the same summary screen a phone recording gets (route, splits or laps, heart rate, and your program progress for a plan workout). It appears whenever the phone app is open at that moment, which may be later than the run if the phone was away.
 
-**Follow a plan:** the Cardio list on the watch has a **Follow a plan** section: today's training-program workout (when a program is on) and the built-in interval plans, with the step names in your phone's language. Pick one, then Outdoor or Indoor. The watch shows the step, the time left and what is next, taps your wrist when a step changes, says it when Voice cues is on, and marks a lap at each step so the saved run is cut into the steps. Pauses never eat into a step. A program workout is ticked off once the run is saved and it reached the plan's last step. The plans come from the phone's last update, so open the app once after changing your program.
+**Follow a plan:** the Cardio list on the watch has a **Follow a plan** section: today's training-program workout (when a program is on) and the built-in interval plans, with the step names in your phone's language. Pick one, then Outdoor or Indoor. The watch shows the step, the time left (or, on a distance repeat, the metres left) and what is next, taps your wrist when a step changes, says it when Voice cues is on, and marks a lap at each step so the saved run is cut into the steps. Pauses never eat into a step. A program workout is ticked off once the run is saved and it reached the plan's last step. The plans come from the phone's last update, so open the app once after changing your program.
 
 ---
 

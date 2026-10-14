@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next';
 import BottomSheetPicker, { type PickerOption } from '../BottomSheetPicker';
 import SegmentedControl from '../SegmentedControl';
 import { formatClock } from '../../utils/gpsRecording';
+import { stepDistanceText } from '../../utils/recordingCues';
 import {
   INTERVAL_PRESETS,
   MAX_INTERVAL_ROUNDS,
@@ -50,14 +51,45 @@ export function presetName(t: TFunction, id: string): string {
       return t('recordActivity.intervals.preset.fourByFour', {
         defaultValue: '4 × 4 minutes',
       });
+    case 'sixBy400m':
+      return t('recordActivity.intervals.preset.sixBy400m', {
+        defaultValue: '6 × 400 m',
+      });
+    case 'fiveBy1k':
+      return t('recordActivity.intervals.preset.fiveBy1k', {
+        defaultValue: '5 × 1 km',
+      });
     default:
       return id;
   }
 }
 
-/** "8 × 1:00 / 1:30": rounds, work, recovery. Numbers only, so no wording. */
-export function intervalSummary(options: IntervalOptions): string {
-  const work = formatClock(options.workSeconds);
+/** Whether the work steps are set by distance rather than time. */
+export const usesWorkDistance = (options: IntervalOptions): boolean =>
+  options.workMeters !== undefined && options.workMeters > 0;
+
+/** Default work distance when Custom is switched to distance. */
+const DEFAULT_WORK_METERS = 400;
+const MIN_WORK_METERS = 100;
+const MAX_WORK_METERS = 10_000;
+
+/** 100 m steps up to a kilometer, then 250 m. */
+const nextWorkMeters = (meters: number, up: boolean): number => {
+  const step = up ? (meters >= 1000 ? 250 : 100) : meters > 1000 ? 250 : 100;
+  return Math.min(
+    MAX_WORK_METERS,
+    Math.max(MIN_WORK_METERS, meters + (up ? step : -step))
+  );
+};
+
+/** "8 × 1:00 / 1:30" or "6 × 400 m / 1:30": rounds, work, recovery. */
+export function intervalSummary(
+  t: TFunction,
+  options: IntervalOptions
+): string {
+  const work = usesWorkDistance(options)
+    ? stepDistanceText(t, options.workMeters ?? 0)
+    : formatClock(options.workSeconds);
   const recovery = formatClock(options.recoverySeconds);
   return options.recoverySeconds > 0
     ? `${options.rounds} × ${work} / ${recovery}`
@@ -115,6 +147,11 @@ interface Props {
    * run/walk presets and style are left out and its steps are Fast and Easy.
    */
   activity?: 'run' | 'walk' | 'ride';
+  /**
+   * False indoors: distance steps follow GPS distance, so distance plans and
+   * the distance option are left out.
+   */
+  distanceAllowed?: boolean;
 }
 
 /** Pick a timed plan for a recording, or build one. */
@@ -125,6 +162,7 @@ const IntervalSetup: React.FC<Props> = ({
   onCustom,
   programLabel,
   activity = 'run',
+  distanceAllowed = true,
 }) => {
   const { t } = useTranslation();
   const running = activity === 'run';
@@ -140,10 +178,12 @@ const IntervalSetup: React.FC<Props> = ({
     ...(programLabel
       ? [{ label: programLabel, value: 'program' as IntervalChoice }]
       : []),
-    ...presets.map((preset) => ({
-      label: `${presetName(t, preset.id)} · ${intervalSummary(preset.options)}`,
-      value: preset.id,
-    })),
+    ...presets
+      .filter((preset) => distanceAllowed || !usesWorkDistance(preset.options))
+      .map((preset) => ({
+        label: `${presetName(t, preset.id)} · ${intervalSummary(t, preset.options)}`,
+        value: preset.id,
+      })),
     {
       label: t('recordActivity.intervals.custom', { defaultValue: 'Custom' }),
       value: 'custom',
@@ -170,6 +210,14 @@ const IntervalSetup: React.FC<Props> = ({
                 'Follow timed steps of fast and easy effort. You are told when to switch.',
             })}
       </Text>
+      {distanceAllowed ? null : (
+        <Text className="text-text-muted text-xs mb-2">
+          {t('recordActivity.intervals.distanceOutdoorOnly', {
+            defaultValue:
+              'Distance repeats need GPS, so they are only offered outdoors.',
+          })}
+        </Text>
+      )}
       <BottomSheetPicker<IntervalChoice>
         value={choice}
         options={options}
@@ -214,20 +262,70 @@ const IntervalSetup: React.FC<Props> = ({
               })
             }
           />
-          <Row
-            label={
-              customStyle === 'runWalk'
-                ? t('recordActivity.intervals.run', { defaultValue: 'Run' })
-                : t('recordActivity.intervals.fast', { defaultValue: 'Fast' })
-            }
-            value={formatClock(custom.workSeconds)}
-            onMinus={() =>
-              change({ workSeconds: Math.max(10, custom.workSeconds - 15) })
-            }
-            onPlus={() =>
-              change({ workSeconds: Math.min(3600, custom.workSeconds + 15) })
-            }
-          />
+          {distanceAllowed ? (
+            <View className="mt-3">
+              <SegmentedControl<'time' | 'distance'>
+                segments={[
+                  {
+                    key: 'time',
+                    label: t('recordActivity.intervals.byTime', {
+                      defaultValue: 'By time',
+                    }),
+                  },
+                  {
+                    key: 'distance',
+                    label: t('recordActivity.intervals.byDistance', {
+                      defaultValue: 'By distance',
+                    }),
+                  },
+                ]}
+                activeKey={usesWorkDistance(custom) ? 'distance' : 'time'}
+                onSelect={(key) =>
+                  change({
+                    workMeters:
+                      key === 'distance' ? DEFAULT_WORK_METERS : undefined,
+                  })
+                }
+              />
+            </View>
+          ) : null}
+          {usesWorkDistance(custom) && distanceAllowed ? (
+            <Row
+              label={
+                customStyle === 'runWalk'
+                  ? t('recordActivity.intervals.run', { defaultValue: 'Run' })
+                  : t('recordActivity.intervals.fast', { defaultValue: 'Fast' })
+              }
+              value={stepDistanceText(t, custom.workMeters ?? 0)}
+              onMinus={() =>
+                change({
+                  workMeters: nextWorkMeters(custom.workMeters ?? 0, false),
+                })
+              }
+              onPlus={() =>
+                change({
+                  workMeters: nextWorkMeters(custom.workMeters ?? 0, true),
+                })
+              }
+            />
+          ) : (
+            <Row
+              label={
+                customStyle === 'runWalk'
+                  ? t('recordActivity.intervals.run', { defaultValue: 'Run' })
+                  : t('recordActivity.intervals.fast', { defaultValue: 'Fast' })
+              }
+              value={formatClock(custom.workSeconds)}
+              onMinus={() =>
+                change({ workSeconds: Math.max(10, custom.workSeconds - 15) })
+              }
+              onPlus={() =>
+                change({
+                  workSeconds: Math.min(3600, custom.workSeconds + 15),
+                })
+              }
+            />
+          )}
           <Row
             label={
               customStyle === 'runWalk'

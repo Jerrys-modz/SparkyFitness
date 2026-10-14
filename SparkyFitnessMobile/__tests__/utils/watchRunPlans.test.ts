@@ -75,3 +75,12 @@ test('builds the single plan chosen on the phone, tagged as a program workout wh
       .programId
   ).toBeUndefined();
 });
+
+test('sends a distance step with its metres and expected time', () => {
+  const plans = buildWatchRunPlans(t, { status: null, enabled: false }, names);
+  const reps = plans.find((p) => p.id === 'sixBy400m');
+  expect(reps?.steps.filter((s) => s.meters === 400)).toHaveLength(6);
+  expect(reps?.steps.find((s) => s.meters)?.seconds).toBe(144);
+  // Timed steps carry no `meters` key at all.
+  expect(Object.keys(reps!.steps[0])).toEqual(['label', 'seconds']);
+});

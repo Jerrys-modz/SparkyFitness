@@ -54,6 +54,8 @@ final class WatchRunStore: ObservableObject {
     @Published private(set) var plan: WatchRunPlan?
     /// Index of the plan step already announced (-1 before the first).
     private var cuedStep = -1
+    /// The distance step whose "to go" cue was said, so it is said once.
+    private var toGoCuedStep = -1
     private var stepTimer: Timer?
     /// The phone's request this run answers, when it was started from there.
     /// Sent with every live message so the phone can tell it is this run.
@@ -184,6 +186,9 @@ final class WatchRunStore: ObservableObject {
         alerts: WatchRunAlertSetup = .off
     ) {
         guard canStart else { return }
+        // Distance steps follow the watch's GPS distance; indoors there is
+        // only a motion estimate, so the phone does not offer them there.
+        let plan = place == .indoor && plan?.hasDistanceSteps == true ? nil : plan
         var chosen = settings ?? defaultSettings
         // A run begun on the wrist takes its alerts from the start screen; one
         // the phone asked for carries its own.
@@ -203,6 +208,7 @@ final class WatchRunStore: ObservableObject {
         heartRateAlertState = .initial
         heartRateAlertStep = nil
         recentPace.reset()
+        toGoCuedStep = -1
         summary = nil
         metrics = WatchRunMetrics()
         gpsAccuracy = nil
@@ -256,11 +262,10 @@ final class WatchRunStore: ObservableObject {
                     self.lapCount = recovery.lapCount
                     self.plan = self.healthKit.plan
                     self.settings = self.healthKit.settings
-                    // The recovered builder may still read 0 for a moment, so the
-                    // snapshot's time is the floor: the step the run is in now is
-                    // not announced again.
-                    let resumedAt = max(self.healthKit.elapsed, recovery.elapsed)
-                    self.cuedStep = self.plan?.position(at: resumedAt)?.index ?? -1
+                    // The plan's place comes back from the snapshot, so the step
+                    // the run is in now is not announced again.
+                    self.cuedStep = self.healthKit.planPosition()?.index ?? -1
+                    self.toGoCuedStep = self.cuedStep
                     self.startStepTimer()
                     self.startLiveTimer()
                     // Splits passed while the app was gone are not replayed.
@@ -392,7 +397,7 @@ final class WatchRunStore: ObservableObject {
         let elapsed = healthKit.elapsed
         var band = settings.heartRateBand
         var stepIndex: Int?
-        if let plan, let position = plan.position(at: elapsed), !position.finished {
+        if let plan, let position = currentPlanPosition(), !position.finished {
             stepIndex = position.index
             // Switching the alert off silences a step's own range too.
             if settings.heartRateStepsOff != true {
@@ -419,7 +424,7 @@ final class WatchRunStore: ObservableObject {
         // run's range, if there is one.
         var band = settings.paceBand
         var stepIndex: Int?
-        if let plan, let position = plan.position(at: elapsed), !position.finished {
+        if let plan, let position = currentPlanPosition(), !position.finished {
             stepIndex = position.index
             if settings.paceStepsOff != true {
                 band = plan.steps[position.index].pace ?? band
@@ -480,7 +485,7 @@ final class WatchRunStore: ObservableObject {
     private func pushLive(force: Bool = false, ended: Bool = false) {
         guard ended || phase == .running || phase == .paused else { return }
         let elapsed = healthKit.elapsed
-        let position = plan?.position(at: elapsed)
+        let position = healthKit.planPosition()
         let step = (position?.finished ?? true) ? nil : position
         WatchSessionManager.shared.sendRunLive(
             OutboundPayloads.runLive(
@@ -497,8 +502,12 @@ final class WatchRunStore: ObservableObject {
                 heartRate: metrics.heartRate,
                 energyKcal: metrics.activeEnergyKcal,
                 lapCount: lapCount,
-                stepLabel: step?.label,
-                stepRemaining: step?.remaining,
+                // A distance step has nothing for the phone to count down, so
+                // its metres left ride in the label, refreshed with each update.
+                stepLabel: step.map { step in
+                    step.remainingMeters.map { "\(step.label) · \(WatchRunPlan.meters($0))" } ?? step.label
+                },
+                stepRemaining: step?.remainingMeters == nil ? step?.remaining : nil,
                 nextLabel: step?.next,
                 requestId: requestId
             ),
@@ -523,12 +532,15 @@ final class WatchRunStore: ObservableObject {
     }
 
     /// Announces a plan step when it begins: a tap, the words if Voice cues
-    /// is on, and a lap mark so the saved run is cut at the step. Time is the
-    /// builder's active clock, so a pause never eats into a step.
+    /// is on, and a lap mark so the saved run is cut at the step. Steps follow
+    /// the builder's active clock and recorded distance, so a pause never eats
+    /// into a step.
     private func cueStepIfDue() {
-        guard phase == .running, let plan,
-              let position = plan.position(at: healthKit.elapsed),
-              position.index != cuedStep else { return }
+        guard phase == .running, let plan, let position = healthKit.planPosition() else { return }
+        guard position.index != cuedStep else {
+            cueToGoIfDue(plan, position)
+            return
+        }
         let first = cuedStep < 0
         cuedStep = position.index
         Haptics.step()
@@ -539,11 +551,31 @@ final class WatchRunStore: ObservableObject {
         if position.finished {
             WatchRunCues.shared.speak(String(localized: "watch.run.cue.planComplete", defaultValue: "Plan complete."), interrupt: true)
         } else {
+            let step = plan.steps[position.index]
             WatchRunCues.shared.speak(
-                WatchRunCues.stepText(label: position.label, seconds: plan.steps[position.index].seconds),
+                step.isDistance
+                    ? WatchRunCues.stepText(label: position.label, meters: step.meters ?? 0)
+                    : WatchRunCues.stepText(label: position.label, seconds: step.seconds),
                 interrupt: true
             )
         }
+    }
+
+    /// "100 meters to go", once per distance step long enough for it.
+    private func cueToGoIfDue(_ plan: WatchRunPlan, _ position: WatchRunPlan.Position) {
+        guard settings.voiceCues, !position.finished,
+              position.index != toGoCuedStep,
+              let left = position.remainingMeters, left > 0,
+              left <= WatchRunCues.toGoMeters,
+              (plan.steps[position.index].meters ?? 0) >= WatchRunCues.toGoMinimumStep
+        else { return }
+        toGoCuedStep = position.index
+        WatchRunCues.shared.speak(WatchRunCues.toGoText(meters: WatchRunCues.toGoMeters), interrupt: true)
+    }
+
+    /// Where the plan stands now, for the run screen.
+    func currentPlanPosition() -> WatchRunPlan.Position? {
+        healthKit.planPosition()
     }
 
     private var usesMiles: Bool {

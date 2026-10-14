@@ -204,9 +204,11 @@ export interface WatchContextPayload {
     programIndex?: number;
     /** 'walk' for a walking program; missing is a run. */
     activity?: 'walk';
+    /** `meters` marks a distance step; `seconds` is then its expected time. */
     steps: {
       label: string;
       seconds: number;
+      meters?: number;
       paceMin?: number;
       paceMax?: number;
       hrMin?: number;

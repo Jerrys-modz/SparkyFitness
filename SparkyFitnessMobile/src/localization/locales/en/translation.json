@@ -6576,7 +6576,10 @@
       "paceTooFast": "Too fast. Ease off.",
       "paceTooSlow": "Too slow. Pick it up.",
       "heartRateTooHigh": "Heart rate high. Ease off.",
-      "heartRateTooLow": "Heart rate low. Pick it up."
+      "heartRateTooLow": "Heart rate low. Pick it up.",
+      "meters_one": "{{count}} meter",
+      "meters_other": "{{count}} meters",
+      "intervalToGo": "{{distance}} to go."
     },
     "autoPause": {
       "title": "Auto-pause",
@@ -6606,6 +6609,7 @@
       "title": "Intervals",
       "description": "Follow timed steps, like run/walk or speed repeats. You are told when to switch.",
       "descriptionNoRun": "Follow timed steps of fast and easy effort. You are told when to switch.",
+      "distanceOutdoorOnly": "Distance repeats need GPS, so they are only offered outdoors.",
       "off": "Off",
       "custom": "Custom",
       "preset": {
@@ -6614,7 +6618,9 @@
         "runWalk5": "Run/walk, 5 minutes",
         "short": "Short repeats",
         "threeMinutes": "3-minute repeats",
-        "fourByFour": "4 × 4 minutes"
+        "fourByFour": "4 × 4 minutes",
+        "sixBy400m": "6 × 400 m",
+        "fiveBy1k": "5 × 1 km"
       },
       "styleRunWalk": "Run / walk",
       "styleFastEasy": "Fast / easy",
@@ -6624,6 +6630,8 @@
       "walk": "Walk",
       "fast": "Fast",
       "easy": "Easy",
+      "byTime": "By time",
+      "byDistance": "By distance",
       "rounds": "Rounds",
       "decrease": "Decrease {{label}}",
       "increase": "Increase {{label}}",

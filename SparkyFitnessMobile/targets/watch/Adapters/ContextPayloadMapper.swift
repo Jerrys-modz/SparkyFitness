@@ -179,6 +179,7 @@ enum ContextPayloadMapper {
                 let label = step["label"] as? String,
                 let seconds = (step["seconds"] as? NSNumber)?.doubleValue, seconds > 0
             else { return nil }
+            let meters = (step["meters"] as? NSNumber)?.doubleValue
             return WatchRunPlan.Step(
                 label: label,
                 seconds: seconds,
@@ -189,7 +190,8 @@ enum ContextPayloadMapper {
                 heartRate: WatchHeartRateBand.normalized(
                     min: (step["hrMin"] as? NSNumber)?.doubleValue,
                     max: (step["hrMax"] as? NSNumber)?.doubleValue
-                )
+                ),
+                meters: meters.flatMap { $0 > 0 ? $0 : nil }
             )
         }
         guard !steps.isEmpty else { return nil }

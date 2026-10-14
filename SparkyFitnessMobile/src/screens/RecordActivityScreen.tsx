@@ -39,6 +39,7 @@ import GpsSignalBadge from '../components/recording/GpsSignalBadge';
 import IntervalCard from '../components/recording/IntervalCard';
 import IntervalSetup, {
   DEFAULT_CUSTOM_INTERVALS,
+  usesWorkDistance,
   type IntervalChoice,
 } from '../components/recording/IntervalSetup';
 import RouteMap from '../components/exerciseStats/RouteMap';
@@ -320,6 +321,19 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   });
   const workBand = workPace.band ?? defaultWorkPaceBand(distanceUnit);
   const easyBand = easyPace.band ?? defaultEasyPaceBand(distanceUnit);
+  // Distance steps follow GPS distance, so going indoors drops a distance
+  // plan: Custom goes back to timed work, a distance preset to no plan.
+  useEffect(() => {
+    if (!indoor) return;
+    if (intervalChoice === 'custom') {
+      if (usesWorkDistance(customIntervals)) {
+        setCustomIntervals({ ...customIntervals, workMeters: undefined });
+      }
+      return;
+    }
+    const preset = INTERVAL_PRESETS.find((p) => p.id === intervalChoice);
+    if (preset && usesWorkDistance(preset.options)) setIntervalChoice('off');
+  }, [indoor, intervalChoice, customIntervals]);
   const basePlan = useMemo<IntervalPlan | undefined>(() => {
     if (intervalChoice === 'off') return undefined;
     if (intervalChoice === 'program') return programWorkout?.plan;
@@ -1100,6 +1114,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             custom={customIntervals}
             onCustom={setCustomIntervals}
             activity={activity}
+            distanceAllowed={!indoor}
           />
           {/* A plan can hold a pace in its fast and easy stretches. */}
           {intervalChoice !== 'off' && (!indoor || onWatch) ? (
@@ -1267,7 +1282,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     });
     const finished = session.status === 'finished';
     const intervalPos = session.intervals
-      ? intervalPosition(session.intervals.plan, active)
+      ? intervalPosition(session.intervals.plan, active, {
+          cursor: session.intervals.cursor,
+          meters: distance,
+        })
       : null;
     const indoorSession = session.indoor === true;
     // Still running from before this visit (or from earlier in it): say when it

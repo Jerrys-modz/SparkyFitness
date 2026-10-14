@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
-import { METERS_PER_KM, METERS_PER_MILE } from './gpsRecording';
+import { formatClock, METERS_PER_KM, METERS_PER_MILE } from './gpsRecording';
+import { formatLocalizedNumber } from '../localization';
 import type {
   IntervalStep,
   HeartRateAlertKind,
@@ -79,6 +80,23 @@ export function spokenDistance(
         defaultValue_one: '{{count}} kilometer',
         defaultValue_other: '{{count}} kilometers',
       });
+}
+
+/**
+ * An interval step's distance, said aloud: "400 meters", or "1.5 kilometers"
+ * from a kilometer up. Steps are set in metres whatever the distance unit,
+ * as on a track.
+ */
+export function spokenStepDistance(t: TFunction, meters: number): string {
+  if (meters >= 1000) {
+    return spokenDistance(t, Math.round(meters / 100) / 10, 'km');
+  }
+  return t('recordActivity.cues.meters', {
+    count: Math.round(meters),
+    defaultValue: '{{count}} meters',
+    defaultValue_one: '{{count}} meter',
+    defaultValue_other: '{{count}} meters',
+  });
 }
 
 /**
@@ -197,15 +215,55 @@ export function intervalStepName(
   }
 }
 
-/** Said when an interval step begins: what to do and for how long. */
+/** Said when an interval step begins: what to do and for how long or how far. */
 export function intervalCue(
   t: TFunction,
   options: { step: IntervalStep; style: IntervalStyle }
 ): string {
+  const { step } = options;
   return t('recordActivity.cues.interval', {
-    name: intervalStepName(t, options.step.kind, options.style),
-    time: spokenDuration(t, options.step.seconds),
+    name: intervalStepName(t, step.kind, options.style),
+    time:
+      step.meters !== undefined && step.meters > 0
+        ? spokenStepDistance(t, step.meters)
+        : spokenDuration(t, step.seconds),
     defaultValue: '{{name}}. {{time}}.',
+  });
+}
+
+/**
+ * An interval step's distance on screen: "400 m", or "1.5 km" from a
+ * kilometer up. Metres whatever the distance unit, like the spoken cue.
+ */
+export function stepDistanceText(t: TFunction, meters: number): string {
+  if (meters >= 1000) {
+    return `${formatLocalizedNumber(Math.round(meters / 100) / 10, {
+      maximumFractionDigits: 1,
+    })} ${t('recordActivity.unitKm', { defaultValue: 'km' })}`;
+  }
+  return `${formatLocalizedNumber(Math.round(meters))} ${t(
+    'recordActivity.unitM',
+    { defaultValue: 'm' }
+  )}`;
+}
+
+/** A step's length as shown: its distance, or its time as m:ss. */
+export function stepLengthText(t: TFunction, step: IntervalStep): string {
+  return step.meters !== undefined && step.meters > 0
+    ? stepDistanceText(t, step.meters)
+    : formatClock(step.seconds);
+}
+
+/** How close to the end of a distance step the "to go" cue is said. */
+export const STEP_TO_GO_METERS = 100;
+/** Steps shorter than this get no "to go" cue: it would follow the start too soon. */
+export const STEP_TO_GO_MIN_METERS = 300;
+
+/** Said near the end of a distance step: "100 meters to go." */
+export function intervalToGoCue(t: TFunction, meters: number): string {
+  return t('recordActivity.cues.intervalToGo', {
+    distance: spokenStepDistance(t, meters),
+    defaultValue: '{{distance}} to go.',
   });
 }
 

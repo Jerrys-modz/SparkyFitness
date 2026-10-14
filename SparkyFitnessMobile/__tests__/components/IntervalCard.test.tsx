@@ -24,6 +24,38 @@ describe('IntervalCard', () => {
     expect(screen.getByText('Next: Walk 1:30')).toBeTruthy();
   });
 
+  it('shows metres left on a distance step and a distance as what is next', () => {
+    const reps = buildIntervalPlan({
+      style: 'fastEasy',
+      warmupSeconds: 60,
+      workSeconds: 90,
+      workMeters: 400,
+      recoverySeconds: 60,
+      rounds: 2,
+      cooldownSeconds: 0,
+    });
+    render(
+      <IntervalCard
+        plan={reps}
+        position={intervalPosition(reps, 30, {
+          cursor: { index: 0, startSeconds: 0, startMeters: 0 },
+          meters: 90,
+        })!}
+      />
+    );
+    expect(screen.getByText('Next: Fast 400 m')).toBeTruthy();
+    render(
+      <IntervalCard
+        plan={reps}
+        position={intervalPosition(reps, 120, {
+          cursor: { index: 1, startSeconds: 60, startMeters: 200 },
+          meters: 450,
+        })!}
+      />
+    );
+    expect(screen.getByText('150 m')).toBeTruthy();
+  });
+
   it('says so when the plan is finished', () => {
     render(
       <IntervalCard plan={plan} position={intervalPosition(plan, 9999)!} />
@@ -85,5 +117,56 @@ describe('IntervalSetup for a walk or ride', () => {
     );
     expect(screen.getByText('Run / walk')).toBeTruthy();
     expect(screen.getByText('Run')).toBeTruthy();
+  });
+});
+
+describe('IntervalSetup distance', () => {
+  it('switches Custom work to a distance and steps it by 100 m', () => {
+    const onCustom = jest.fn();
+    const { rerender } = render(
+      <IntervalSetup
+        choice="custom"
+        onChoice={jest.fn()}
+        custom={DEFAULT_CUSTOM_INTERVALS}
+        onCustom={onCustom}
+      />
+    );
+    fireEvent.press(screen.getByText('By distance'));
+    expect(onCustom).toHaveBeenLastCalledWith({
+      ...DEFAULT_CUSTOM_INTERVALS,
+      workMeters: 400,
+    });
+    rerender(
+      <IntervalSetup
+        choice="custom"
+        onChoice={jest.fn()}
+        custom={{ ...DEFAULT_CUSTOM_INTERVALS, workMeters: 400 }}
+        onCustom={onCustom}
+      />
+    );
+    expect(screen.getByText('400 m')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Increase Run'));
+    expect(onCustom).toHaveBeenLastCalledWith({
+      ...DEFAULT_CUSTOM_INTERVALS,
+      workMeters: 500,
+    });
+  });
+
+  it('leaves distance out indoors', () => {
+    render(
+      <IntervalSetup
+        choice="custom"
+        onChoice={jest.fn()}
+        custom={DEFAULT_CUSTOM_INTERVALS}
+        onCustom={jest.fn()}
+        distanceAllowed={false}
+      />
+    );
+    expect(screen.queryByText('By distance')).toBeNull();
+    expect(
+      screen.getByText(
+        'Distance repeats need GPS, so they are only offered outdoors.'
+      )
+    ).toBeTruthy();
   });
 });

@@ -89,6 +89,26 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     var lapCount: Int { lapMarks.count }
     /// The plan this run follows, if any. The store reads it for the live step.
     private(set) var plan: WatchRunPlan?
+    /// Where the plan's current step began, kept in the snapshot.
+    private var planCursor = WatchRunPlan.Cursor.start
+
+    /// Moves the plan on to the step the run is in now and says where it
+    /// stands. Steps end on the builder's active clock or, for a distance
+    /// step, on the distance it has recorded, so a pause holds either.
+    func planPosition() -> WatchRunPlan.Position? {
+        guard let plan else { return nil }
+        let now = elapsed
+        planCursor = plan.advance(planCursor, elapsed: now, meters: metrics.distanceMeters)
+        return plan.position(cursor: planCursor, elapsed: now, meters: metrics.distanceMeters)
+    }
+
+    /// Whether the plan's last step has begun by `elapsed`, for `planCompleted`.
+    private func planCompleted(at elapsed: TimeInterval) -> Bool {
+        guard let plan else { return false }
+        return plan.lastStepStarted(
+            cursor: plan.advance(planCursor, elapsed: elapsed, meters: metrics.distanceMeters)
+        )
+    }
     /// Auto-pause and voice cues for this run, kept in the snapshot so a
     /// relaunch keeps what the wearer chose.
     private(set) var settings = WatchRunSettings(autoPause: true, voiceCues: false)
@@ -186,6 +206,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             runKind = kind
             runPlace = place
             self.plan = plan
+            planCursor = .start
             self.settings = settings
             autoPause.reset()
             indoorAutoPause.reset()
@@ -288,7 +309,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                     lapDistances: rows.lapDistances,
                     distanceSeries: self.distanceSeries,
                     plan: self.plan,
-                    planCompleted: self.plan?.lastStepStarted(at: finalElapsed) ?? false
+                    planCompleted: self.planCompleted(at: finalElapsed)
                 ) : nil
                 completion(self.metrics, finalElapsed, result)
             }
@@ -345,6 +366,7 @@ extension WatchRunHealthKitController {
             lapDistances: lapDistances,
             distanceSeries: distanceSeries,
             plan: plan,
+            planCursor: plan == nil ? nil : planCursor,
             settings: settings
         ))
     }
@@ -398,6 +420,11 @@ extension WatchRunHealthKitController {
                 self.lapDistances = laps.distances
                 self.distanceSeries = snapshot.distanceSeries ?? []
                 self.plan = snapshot.plan
+                // An older snapshot has no cursor; its plan was timed, so the
+                // clock alone places it again.
+                self.planCursor = snapshot.planCursor
+                    ?? snapshot.plan?.advance(.start, elapsed: snapshot.elapsed, meters: 0)
+                    ?? .start
                 // A snapshot from before the switches existed: what runs had then.
                 self.settings = snapshot.settings
                     ?? WatchRunSettings(autoPause: true, voiceCues: false)
@@ -477,7 +504,15 @@ extension WatchRunHealthKitController {
             lapDistances: Self.pairedLaps(snapshot.lapMarks, snapshot.lapDistances).distances,
             distanceSeries: snapshot.distanceSeries ?? [],
             plan: snapshot.plan,
-            planCompleted: snapshot.plan?.lastStepStarted(at: snapshot.elapsed) ?? false
+            planCompleted: snapshot.plan.map { plan in
+                plan.lastStepStarted(
+                    cursor: plan.advance(
+                        snapshot.planCursor ?? .start,
+                        elapsed: snapshot.elapsed,
+                        meters: snapshot.distanceMeters
+                    )
+                )
+            } ?? false
         ))
     }
 }
@@ -672,7 +707,7 @@ extension WatchRunHealthKitController: HKWorkoutSessionDelegate {
                 lapDistances: self.lapDistances,
                 distanceSeries: self.distanceSeries,
                 plan: self.plan,
-                planCompleted: self.plan?.lastStepStarted(at: elapsed) ?? false
+                planCompleted: self.planCompleted(at: elapsed)
             ) : nil
             self.session = nil
             self.builder = nil
