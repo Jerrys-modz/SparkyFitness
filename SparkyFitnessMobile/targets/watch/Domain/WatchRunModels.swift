@@ -264,6 +264,33 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
         return current
     }
 
+    /// The plan's length if every step ran for its expected time (a distance
+    /// step counts for its expected seconds).
+    var totalSeconds: TimeInterval { steps.reduce(0) { $0 + $1.seconds } }
+
+    /// Where the plan stands judged by the clock alone, every step taken as
+    /// its expected time. For features that only know the clock (the voice
+    /// coach); a distance step is approximate there. The run itself follows
+    /// `position(cursor:elapsed:meters:)`.
+    func position(at elapsed: TimeInterval) -> Position? {
+        position(cursor: clockCursor(at: elapsed), elapsed: elapsed, meters: 0)
+    }
+
+    /// Whether the last step has begun by `elapsed`, judged by the clock alone.
+    func lastStepStarted(at elapsed: TimeInterval) -> Bool {
+        lastStepStarted(cursor: clockCursor(at: elapsed))
+    }
+
+    private func clockCursor(at elapsed: TimeInterval) -> Cursor {
+        var cursor = Cursor.start
+        for (index, step) in steps.enumerated() {
+            let end = cursor.startElapsed + step.seconds
+            guard elapsed >= end else { break }
+            cursor = Cursor(index: index + 1, startElapsed: end, startMeters: 0)
+        }
+        return cursor
+    }
+
     func position(cursor: Cursor, elapsed: TimeInterval, meters: Double) -> Position? {
         guard !steps.isEmpty else { return nil }
         guard cursor.index < steps.count else {
