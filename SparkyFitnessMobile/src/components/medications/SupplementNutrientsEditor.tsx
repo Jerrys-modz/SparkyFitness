@@ -13,6 +13,7 @@ import {
   rowsForCatalogId,
   type NutrientRow,
 } from '../../utils/supplements';
+import { getSharedTexts, sharedText } from '../../utils/sharedText';
 
 interface SupplementNutrientsEditorProps {
   rows: NutrientRow[];
@@ -33,12 +34,13 @@ const SupplementNutrientsEditor: React.FC<SupplementNutrientsEditorProps> = ({
     '--color-text-muted',
   ]) as [string, string];
 
+  const sharedTexts = useMemo(() => getSharedTexts(t), [t]);
   const sections = useMemo<PickerSection<string>[]>(() => {
     const taken = new Set(rows.map((row) => row.id));
     const macros = MACRO_PICKER_FIELDS.filter(
       (field) => !taken.has(`fixed:${field.fieldKey}`)
     ).map((field) => ({
-      label: `${field.displayName} (${field.unit})`,
+      label: `${sharedText(sharedTexts, field.displayName)} (${field.unit})`,
       value: `macro:${field.fieldKey}`,
     }));
     const catalog = pickerCatalogEntries()
@@ -47,7 +49,7 @@ const SupplementNutrientsEditor: React.FC<SupplementNutrientsEditorProps> = ({
         return parts.some((part) => !taken.has(part.id));
       })
       .map((entry) => ({
-        label: `${entry.displayName} (${entry.unit})`,
+        label: `${sharedText(sharedTexts, entry.displayName)} (${entry.unit})`,
         value: `catalog:${entry.id}`,
       }));
     return [
@@ -64,7 +66,7 @@ const SupplementNutrientsEditor: React.FC<SupplementNutrientsEditorProps> = ({
         options: catalog,
       },
     ].filter((section) => section.options.length > 0);
-  }, [rows, t]);
+  }, [rows, sharedTexts, t]);
 
   const handlePick = (value: string) => {
     const [kind, key] = value.split(':');
@@ -106,7 +108,7 @@ const SupplementNutrientsEditor: React.FC<SupplementNutrientsEditorProps> = ({
             className="text-text-primary text-base flex-1"
             numberOfLines={2}
           >
-            {row.label}
+            {sharedText(sharedTexts, row.label)}
           </Text>
           <FormInput
             className="w-24 bg-raised border border-border-subtle px-3 py-2 text-right"

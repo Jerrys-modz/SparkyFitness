@@ -15,6 +15,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import WombScene from './WombScene';
+import { sharedText } from '@/utils/sharedText';
 
 interface BabyGrowthViewProps {
   currentWeek: number;
@@ -112,7 +113,9 @@ export default function BabyGrowthView({ currentWeek }: BabyGrowthViewProps) {
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             {t('pregnancy.growth.sizeThisWeek', 'Baby size this week')}
           </p>
-          <p className="mt-1 text-xl font-semibold">{info.comparison}</p>
+          <p className="mt-1 text-xl font-semibold">
+            {sharedText(t, info.comparison)}
+          </p>
           <div className="mt-3 flex gap-3">
             {info.lengthCm != null ? (
               <span className="flex items-center gap-1.5 rounded-lg bg-muted/50 px-3 py-1.5 text-sm">
@@ -137,13 +140,17 @@ export default function BabyGrowthView({ currentWeek }: BabyGrowthViewProps) {
             <p className="font-medium">
               {t('pregnancy.growth.baby', 'Your baby')}
             </p>
-            <p className="text-muted-foreground">{info.babyBlurb}</p>
+            <p className="text-muted-foreground">
+              {sharedText(t, info.babyBlurb)}
+            </p>
           </div>
           <div>
             <p className="font-medium">
               {t('pregnancy.growth.you', 'Your body')}
             </p>
-            <p className="text-muted-foreground">{info.momBlurb}</p>
+            <p className="text-muted-foreground">
+              {sharedText(t, info.momBlurb)}
+            </p>
           </div>
         </CardContent>
       </Card>

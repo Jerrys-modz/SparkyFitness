@@ -106,9 +106,13 @@ export default function Glp1RecentInjections({
           >
             <div className="flex flex-col min-w-0">
               <span className="font-medium truncate">
-                {INJECTION_SITES.find((s) => s.id === inj.site)?.label ??
-                  inj.site ??
-                  '—'}
+                {inj.site
+                  ? t(
+                      'medications.sites.label.' + inj.site,
+                      INJECTION_SITES.find((s) => s.id === inj.site)?.label ??
+                        inj.site
+                    )
+                  : '—'}
               </span>
               <span className="text-xs text-muted-foreground">
                 {inj.dose_mg

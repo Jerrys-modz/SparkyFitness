@@ -28,6 +28,7 @@ import { Separator } from '@/components/ui/separator';
 import { Heart, Save, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { sharedText } from '@/utils/sharedText';
 
 export default function CycleSettings() {
   const { t } = useTranslation();
@@ -284,7 +285,7 @@ export default function CycleSettings() {
                   <SelectContent>
                     {BIRTH_CONTROL_METHODS.map((m) => (
                       <SelectItem key={m.value} value={m.value}>
-                        {m.displayName}
+                        {sharedText(t, m.displayName)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -453,7 +454,7 @@ export default function CycleSettings() {
                       onCheckedChange={() => toggleCondition(cond.value)}
                       className="pointer-events-none"
                     />
-                    <span>{cond.displayName}</span>
+                    <span>{sharedText(t, cond.displayName)}</span>
                   </div>
                 ))}
               </div>

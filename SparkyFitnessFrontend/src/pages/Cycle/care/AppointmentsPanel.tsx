@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { CalendarClock, Plus, Trash2 } from 'lucide-react';
+import { sharedText } from '@/utils/sharedText';
 
 interface Appointment {
   id: string;
@@ -87,7 +88,7 @@ export default function AppointmentsPanel() {
               <SelectContent>
                 {APPOINTMENT_TYPES.map((at) => (
                   <SelectItem key={at.value} value={at.value}>
-                    {at.displayName}
+                    {sharedText(t, at.displayName)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -124,9 +125,12 @@ export default function AppointmentsPanel() {
               <div className="min-w-0">
                 <p className="text-sm font-medium">
                   {a.title ||
-                    APPOINTMENT_TYPES.find(
-                      (x) => x.value === a.appointment_type
-                    )?.displayName ||
+                    sharedText(
+                      t,
+                      APPOINTMENT_TYPES.find(
+                        (x) => x.value === a.appointment_type
+                      )?.displayName ?? ''
+                    ) ||
                     t('cycle.care.appointment', 'Appointment')}
                 </p>
                 <p className="text-xs text-muted-foreground">

@@ -67,6 +67,7 @@ import {
   useEnsureCatalogNutrientsMutation,
 } from '@/hooks/Foods/useCustomNutrients';
 import type { UserCustomNutrient } from '@/types/customNutrient';
+import { sharedText } from '@/utils/sharedText';
 
 export function MedTypeIcon({
   typeId,
@@ -812,7 +813,7 @@ export default function AddMedicationDialog({
                   <SelectContent>
                     {Object.values(GLP1_DRUG_PROFILES).map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {p.displayName}
+                        {sharedText(t, p.displayName)}
                         {p.brands.length > 0 ? ` (${p.brands.join(', ')})` : ''}
                       </SelectItem>
                     ))}

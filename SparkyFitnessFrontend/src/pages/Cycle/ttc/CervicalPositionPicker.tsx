@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { CERVICAL_POSITION_OPTIONS } from '@workspace/shared';
 import { cn } from '@/lib/utils';
+import { sharedText } from '@/utils/sharedText';
 
 interface CervicalPositionPickerProps {
   value: string | null;
@@ -70,7 +71,7 @@ export default function CervicalPositionPicker({
                     : 'border-transparent bg-muted/60 text-muted-foreground hover:bg-muted'
                 )}
               >
-                {opt.displayName}
+                {sharedText(t, opt.displayName)}
               </button>
             ))}
           </div>
@@ -94,7 +95,7 @@ export default function CervicalPositionPicker({
                     : 'border-transparent bg-muted/60 text-muted-foreground hover:bg-muted'
                 )}
               >
-                {opt.displayName}
+                {sharedText(t, opt.displayName)}
               </button>
             ))}
           </div>
@@ -118,7 +119,7 @@ export default function CervicalPositionPicker({
                     : 'border-transparent bg-muted/60 text-muted-foreground hover:bg-muted'
                 )}
               >
-                {opt.displayName}
+                {sharedText(t, opt.displayName)}
               </button>
             ))}
           </div>

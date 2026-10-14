@@ -21,6 +21,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import type { UserCustomNutrient } from '@/types/customNutrient';
+import { sharedText } from '@/utils/sharedText';
 
 type OptionGroup = 'catalog' | 'custom';
 
@@ -173,6 +174,8 @@ export function NutrientPicker({
       // Match label OR any catalog alias, so searching a label spelling like "Vitamin D3"
       // or "Cholecalciferol" surfaces the canonical "Vitamin D" entry instead of nothing.
       if (normalizeNutrientName(option.label).includes(query)) return true;
+      if (normalizeNutrientName(sharedText(t, option.label)).includes(query))
+        return true;
       return (option.aliases ?? []).some((alias) =>
         normalizeNutrientName(alias).includes(query)
       );
@@ -397,7 +400,9 @@ export function NutrientPicker({
                         className="flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
                       >
                         <Plus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        <span className="flex-1">{option.label}</span>
+                        <span className="flex-1">
+                          {sharedText(t, option.label)}
+                        </span>
                         <span className="text-xs text-muted-foreground">
                           {option.unit}
                         </span>

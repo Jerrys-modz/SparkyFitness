@@ -21,6 +21,7 @@ import {
   type AiConfidence,
   type ConfidenceTone,
 } from '@workspace/shared';
+import { sharedText } from '@/utils/sharedText';
 
 const AI_BADGE_TONE_CLASSES: Record<ConfidenceTone, string> = {
   success:
@@ -200,11 +201,13 @@ const FoodResultCard = ({
                       'enhancedFoodSearch.aiEstimate',
                       'AI {{ai_confidence}} estimate',
                       {
-                        ai_confidence:
+                        ai_confidence: sharedText(
+                          t,
                           OVERALL_CONFIDENCE_LABELS[
                             foodItem.default_variant
                               .ai_confidence as AiConfidence
-                          ],
+                          ]
+                        ),
                       }
                     )}
                   </Badge>

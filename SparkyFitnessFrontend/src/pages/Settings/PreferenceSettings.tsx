@@ -28,6 +28,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { DayOfWeek } from '@/types/settings';
 import { TimezoneSelect } from './TimezoneSelect';
+import { sharedText } from '@/utils/sharedText';
 
 export const PreferenceSettings = () => {
   const { t } = useTranslation();
@@ -345,7 +346,10 @@ export const PreferenceSettings = () => {
                     {t(
                       'settings.preferenceSettings.gPureAlcohol',
                       '{{label}} ({{grams}}g pure alcohol)',
-                      { label: preset.label, grams: preset.grams }
+                      {
+                        label: sharedText(t, preset.label),
+                        grams: preset.grams,
+                      }
                     )}
                   </SelectItem>
                 ))}

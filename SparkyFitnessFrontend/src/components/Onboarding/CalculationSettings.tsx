@@ -19,6 +19,7 @@ import {
 } from '@workspace/shared';
 
 import { useTranslation } from 'react-i18next';
+import { sharedText } from '@/utils/sharedText';
 export interface CalculationSettingsProps {
   localFatBreakdownAlgorithm: FatBreakdownAlgorithm;
   localMineralAlgorithm: MineralCalculationAlgorithm;
@@ -94,7 +95,7 @@ export const CalculationSettings = ({
               <SelectContent>
                 {Object.values(FatBreakdownAlgorithm).map((algo) => (
                   <SelectItem key={algo} value={algo}>
-                    {FatBreakdownAlgorithmLabels[algo]}
+                    {sharedText(t, FatBreakdownAlgorithmLabels[algo])}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -121,7 +122,7 @@ export const CalculationSettings = ({
               <SelectContent>
                 {Object.values(MineralCalculationAlgorithm).map((algo) => (
                   <SelectItem key={algo} value={algo}>
-                    {MineralCalculationAlgorithmLabels[algo]}
+                    {sharedText(t, MineralCalculationAlgorithmLabels[algo])}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -148,7 +149,7 @@ export const CalculationSettings = ({
               <SelectContent>
                 {Object.values(VitaminCalculationAlgorithm).map((algo) => (
                   <SelectItem key={algo} value={algo}>
-                    {VitaminCalculationAlgorithmLabels[algo]}
+                    {sharedText(t, VitaminCalculationAlgorithmLabels[algo])}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -175,7 +176,7 @@ export const CalculationSettings = ({
               <SelectContent>
                 {Object.values(SugarCalculationAlgorithm).map((algo) => (
                   <SelectItem key={algo} value={algo}>
-                    {SugarCalculationAlgorithmLabels[algo]}
+                    {sharedText(t, SugarCalculationAlgorithmLabels[algo])}
                   </SelectItem>
                 ))}
               </SelectContent>

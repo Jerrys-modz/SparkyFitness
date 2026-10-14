@@ -32,6 +32,7 @@ import { NumericInput } from '../NumericInput';
 import { formatServingLabel } from '@/utils/foodServing';
 
 import { useTranslation } from 'react-i18next';
+import { sharedText } from '@/utils/sharedText';
 // Tone classes for the AI provenance badge ("Good/Fair/Rough estimate").
 // `green` (true grass-green, hue ~142°) replaces `emerald` (~160°,
 // teal-leaning) so "Good" reads as a standard success color, not mint.
@@ -318,10 +319,12 @@ export function VariantCard({
                                     'foodSearch.variantCard.aiEstimateConfidence',
                                     'AI estimate ({{confidence}} confidence)',
                                     {
-                                      confidence:
+                                      confidence: sharedText(
+                                        t,
                                         OVERALL_CONFIDENCE_LABELS[
                                           matchedAi.confidence
-                                        ],
+                                        ]
+                                      ),
                                     }
                                   )}
                                   fill="currentColor"
@@ -365,10 +368,12 @@ export function VariantCard({
                                     'foodSearch.variantCard.aiEstimateConfidence',
                                     'AI estimate ({{confidence}} confidence)',
                                     {
-                                      confidence:
+                                      confidence: sharedText(
+                                        t,
                                         OVERALL_CONFIDENCE_LABELS[
                                           matchedAi.confidence
-                                        ],
+                                        ]
+                                      ),
                                     }
                                   )}
                                   fill="currentColor"
@@ -567,10 +572,12 @@ export function VariantCard({
               'foodSearch.variantCard.aiEstimateConfidence',
               'AI estimate ({{confidence}} confidence)',
               {
-                confidence:
+                confidence: sharedText(
+                  t,
                   OVERALL_CONFIDENCE_LABELS[
                     variant.ai_confidence as AiConfidence
-                  ],
+                  ]
+                ),
               }
             )}
           >
@@ -578,10 +585,12 @@ export function VariantCard({
               'foodSearch.variantCard.estimate2',
               '{{ai_confidence}} estimate',
               {
-                ai_confidence:
+                ai_confidence: sharedText(
+                  t,
                   OVERALL_CONFIDENCE_LABELS[
                     variant.ai_confidence as AiConfidence
-                  ],
+                  ]
+                ),
               }
             )}
           </span>

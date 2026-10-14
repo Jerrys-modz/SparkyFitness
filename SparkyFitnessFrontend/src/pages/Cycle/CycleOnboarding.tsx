@@ -33,6 +33,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Heart, Calendar, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { sharedText } from '@/utils/sharedText';
 
 export default function CycleOnboarding() {
   const { t } = useTranslation();
@@ -392,7 +393,7 @@ export default function CycleOnboarding() {
                   <SelectContent>
                     {BIRTH_CONTROL_METHODS.map((m) => (
                       <SelectItem key={m.value} value={m.value}>
-                        {m.displayName}
+                        {sharedText(t, m.displayName)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -429,7 +430,7 @@ export default function CycleOnboarding() {
                         onCheckedChange={() => toggleCondition(cond.value)}
                         className="pointer-events-none"
                       />
-                      <span>{cond.displayName}</span>
+                      <span>{sharedText(t, cond.displayName)}</span>
                     </div>
                   ))}
                 </div>

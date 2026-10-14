@@ -1,6 +1,6 @@
 # AGENTS.md
 
-*Last updated: 2026-10-05*
+*Last updated: 2026-10-14*
 
 `@workspace/shared` is a source-first TypeScript workspace library package for schemas, constants, and timezone/day helpers consumed by SparkyFitnessServer, SparkyFitnessFrontend, and SparkyFitnessMobile.
 
@@ -19,6 +19,10 @@
 - `src/nutrients/` - nutrient catalogs and the goal calculator used by web onboarding, the web Goals editor and mobile Goals (`nutrientCalculation.ts`: per-nutrient recommended values from age, sex, weight, calories and the saved algorithm choices; `nutrientAlgorithms.ts`: the algorithm enums and labels).
 - `src/ai/`, `src/cycle/`, `src/medications/`, `src/mood/` - domain-specific helpers.
 - `src/symptoms/` - generic symptom tracking: constants and enums (scales, templates, sections, option kinds), template section resolution (`resolveSections`), built-in symptoms and pick-lists, head/body region ids for the location maps, and custom-field validation. The API contract is `src/schemas/api/Symptoms.api.zod.ts`.
+
+## Display text
+
+- Strings in this package that people read (flow levels, vitamin names, article titles, ...) stay English and are what apps store and compare. Apps translate them for display under `sharedText.<sharedTextKey(text)>` in their English catalog (`sharedTextKey` is exported from here), so a new display string needs an entry in `SparkyFitnessFrontend/public/locales/en/translation.json`, and in the mobile catalog when mobile shows it. `SparkyFitnessFrontend/src/tests/i18n/sharedText.test.ts` fails when one is missing.
 
 ## Naming Convention
 

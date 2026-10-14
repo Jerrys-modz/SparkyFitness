@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Check, Circle, ClipboardList, Luggage, Printer } from 'lucide-react';
+import { sharedText } from '@/utils/sharedText';
 
 // Birth plan & hospital bag are personal, low-stakes prep — stored locally to
 // avoid extra tables. (A future migration could persist these server-side.)
@@ -56,7 +57,9 @@ export default function BirthPrep() {
         {BIRTH_PLAN_QUESTIONS.map((q) => (
           <Card key={q.key}>
             <CardContent className="py-3">
-              <p className="mb-2 text-sm font-medium">{q.question}</p>
+              <p className="mb-2 text-sm font-medium">
+                {sharedText(t, q.question)}
+              </p>
               <div className="flex flex-wrap gap-2">
                 {q.options.map((opt) => (
                   <button
@@ -76,7 +79,7 @@ export default function BirthPrep() {
                         : 'border-transparent bg-muted/40 hover:bg-muted'
                     )}
                   >
-                    {opt}
+                    {sharedText(t, opt)}
                   </button>
                 ))}
               </div>
@@ -115,7 +118,7 @@ export default function BirthPrep() {
                     bag[item.key] && 'text-muted-foreground line-through'
                   )}
                 >
-                  {item.title}
+                  {sharedText(t, item.title)}
                 </span>
               </button>
             ))}

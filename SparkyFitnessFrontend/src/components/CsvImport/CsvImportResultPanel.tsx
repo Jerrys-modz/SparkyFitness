@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { CsvImportOutcome, CsvParseWarning } from '@workspace/shared';
+import { sharedText } from '@/utils/sharedText';
 
 interface CsvImportResultPanelProps {
   result: CsvImportOutcome | null | undefined;
@@ -29,7 +30,7 @@ const CsvImportResultPanel = ({ result }: CsvImportResultPanelProps) => {
               key={i}
               className="p-2 rounded bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 text-sm"
             >
-              {w.message}
+              {sharedText(t, w.message)}
             </div>
           ))}
         </div>

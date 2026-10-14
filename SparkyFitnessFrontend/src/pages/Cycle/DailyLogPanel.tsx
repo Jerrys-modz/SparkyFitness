@@ -36,6 +36,7 @@ import CervicalPositionPicker from './ttc/CervicalPositionPicker';
 import { useLatestCheckInMeasurements } from '@/hooks/CheckIn/useCheckIn';
 import { useSleepEntriesQuery } from '@/hooks/CheckIn/useSleep';
 import { useWaterIntakeQuery } from '@/hooks/Diary/useWaterIntake';
+import { sharedText } from '@/utils/sharedText';
 
 interface DailyLogPanelProps {
   date: string;
@@ -261,8 +262,12 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                     : 'border-transparent bg-muted/40 hover:bg-muted'
                 )}
               >
-                <CycleIcon id={f.icon} size={26} title={f.displayName} />
-                {f.displayName}
+                <CycleIcon
+                  id={f.icon}
+                  size={26}
+                  title={sharedText(t, f.displayName)}
+                />
+                {sharedText(t, f.displayName)}
               </button>
             ))}
           </div>
@@ -323,7 +328,7 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                         >
                           <span className="flex items-center gap-2">
                             <span className="inline-block h-2 w-2 rounded-full bg-rose-400 dark:bg-rose-500" />
-                            <span>{p.displayName}</span>
+                            <span>{sharedText(t, p.displayName)}</span>
                           </span>
                           <Button
                             type="button"
@@ -497,9 +502,9 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                     <CycleIcon
                       id={def.icon}
                       size={24}
-                      title={def.displayName}
+                      title={sharedText(t, def.displayName)}
                     />
-                    {def.displayName}
+                    {sharedText(t, def.displayName)}
                   </span>
                   <span className="flex items-center gap-3">
                     <Button
@@ -510,7 +515,7 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                       aria-label={t(
                         'cycle.dailyLogPanel.decrease',
                         'Decrease {{displayName}}',
-                        { displayName: def.displayName }
+                        { displayName: sharedText(t, def.displayName) }
                       )}
                       onClick={() => setProduct(value, count - 1)}
                     >
@@ -527,7 +532,7 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                       aria-label={t(
                         'cycle.dailyLogPanel.increase',
                         'Increase {{displayName}}',
-                        { displayName: def.displayName }
+                        { displayName: sharedText(t, def.displayName) }
                       )}
                       onClick={() => setProduct(value, count + 1)}
                     >
@@ -571,7 +576,7 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                   })
                 }
                 aria-pressed={draft.cervical_mucus === m.value}
-                title={m.description}
+                title={sharedText(t, m.description)}
                 className={cn(
                   'flex flex-col items-center gap-1 rounded-xl border p-2 text-[11px] transition',
                   draft.cervical_mucus === m.value
@@ -579,8 +584,12 @@ export default function DailyLogPanel(props: DailyLogPanelProps) {
                     : 'border-transparent bg-muted/40 hover:bg-muted'
                 )}
               >
-                <CycleIcon id={m.icon} size={22} title={m.displayName} />
-                {m.displayName}
+                <CycleIcon
+                  id={m.icon}
+                  size={22}
+                  title={sharedText(t, m.displayName)}
+                />
+                {sharedText(t, m.displayName)}
               </button>
             ))}
           </div>

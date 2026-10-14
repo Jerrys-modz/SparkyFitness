@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { Check, AlertTriangle, XCircle } from 'lucide-react';
 
 import i18n from 'i18next';
+import { sharedText } from '@/utils/sharedText';
 const STATUS_META: Record<
   SafetyStatus,
   { label: string; className: string; icon: typeof Check }
@@ -104,7 +105,9 @@ export default function FoodMedSafetySearch() {
               return (
                 <div key={item.name} className="rounded-lg border p-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{item.name}</span>
+                    <span className="text-sm font-medium">
+                      {sharedText(t, item.name)}
+                    </span>
                     <span
                       className={cn(
                         'flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
@@ -116,7 +119,7 @@ export default function FoodMedSafetySearch() {
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {item.note}
+                    {sharedText(t, item.note)}
                   </p>
                 </div>
               );

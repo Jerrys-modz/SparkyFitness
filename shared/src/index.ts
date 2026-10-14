@@ -140,6 +140,7 @@ export * from "./nutrients/caffeineKinetics.ts";
 export * from "./utils/bodyComposition.ts";
 export * from "./utils/timezone.ts";
 export * from "./utils/calendar.ts";
+export * from "./utils/sharedTextKey.ts";
 export * from "./utils/entryTime.ts";
 export * from "./utils/hydrationExample.ts";
 export * from "./utils/calorieCalculations.ts";

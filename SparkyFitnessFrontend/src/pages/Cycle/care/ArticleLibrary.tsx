@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { BookOpen, Clock, ChevronRight } from 'lucide-react';
+import { sharedText } from '@/utils/sharedText';
 
 /** Minimal, safe markdown renderer for our own curated article bodies. */
 function renderMarkdown(md: string) {
@@ -100,9 +101,11 @@ export default function ArticleLibrary({ mode }: ArticleLibraryProps) {
           >
             <CardContent className="flex items-center justify-between py-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{a.title}</p>
+                <p className="truncate text-sm font-medium">
+                  {sharedText(t, a.title)}
+                </p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {a.summary}
+                  {sharedText(t, a.summary)}
                 </p>
                 <span className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
                   <Clock className="h-3 w-3" /> {a.minutes} min
@@ -119,9 +122,9 @@ export default function ArticleLibrary({ mode }: ArticleLibraryProps) {
           {open ? (
             <>
               <DialogHeader>
-                <DialogTitle>{open.title}</DialogTitle>
+                <DialogTitle>{sharedText(t, open.title)}</DialogTitle>
               </DialogHeader>
-              <div>{renderMarkdown(open.body)}</div>
+              <div>{renderMarkdown(sharedText(t, open.body))}</div>
             </>
           ) : null}
         </DialogContent>

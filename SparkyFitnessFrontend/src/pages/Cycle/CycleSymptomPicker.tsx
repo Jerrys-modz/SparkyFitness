@@ -33,6 +33,7 @@ import { Settings, Trash } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import CycleIcon from './CycleIcon';
+import { sharedText } from '@/utils/sharedText';
 
 interface CycleSymptomPickerProps {
   date: string;
@@ -233,7 +234,7 @@ export default function CycleSymptomPicker({ date }: CycleSymptomPickerProps) {
                           }
                           className="pointer-events-none"
                         />
-                        <span>{s.displayName}</span>
+                        <span>{sharedText(t, s.displayName)}</span>
                       </div>
                     );
                   })}
@@ -337,8 +338,12 @@ export default function CycleSymptomPicker({ date }: CycleSymptomPickerProps) {
                   : 'border-transparent bg-muted/40 hover:bg-muted'
               )}
             >
-              <CycleIcon id={s.icon} size={20} title={s.displayName} />
-              {s.displayName}
+              <CycleIcon
+                id={s.icon}
+                size={20}
+                title={sharedText(t, s.displayName)}
+              />
+              {sharedText(t, s.displayName)}
             </button>
           );
         })}

@@ -57,6 +57,7 @@ import {
   symptomPhotoUrl,
   toDatetimeLocal,
 } from './symptomHelpers';
+import { sharedText } from '@/utils/sharedText';
 
 type EntryMode = 'quick' | 'episode';
 
@@ -865,7 +866,7 @@ export default function SymptomLogForm({
               return (
                 <div key={def.key} className="flex flex-col gap-1.5">
                   <Label htmlFor={`cf-${def.key}`}>
-                    {def.label}
+                    {sharedText(t, def.label)}
                     {def.unit ? ` (${def.unit})` : ''}
                   </Label>
                   {def.type === 'number' && (
@@ -907,7 +908,7 @@ export default function SymptomLogForm({
                       <SelectContent>
                         {(def.options ?? []).map((o) => (
                           <SelectItem key={o} value={o}>
-                            {o}
+                            {sharedText(t, o)}
                           </SelectItem>
                         ))}
                       </SelectContent>

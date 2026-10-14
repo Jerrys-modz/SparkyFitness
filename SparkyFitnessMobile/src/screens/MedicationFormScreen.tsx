@@ -60,6 +60,7 @@ import {
   unmatchedSummary,
   type NutrientRow,
 } from '../utils/supplements';
+import { getSharedTexts, sharedText } from '../utils/sharedText';
 
 type MedicationFormScreenProps = RootStackScreenProps<'MedicationForm'>;
 
@@ -820,13 +821,14 @@ const MedicationFormScreen: React.FC<MedicationFormScreenProps> = ({
     [isSupplement, t]
   );
 
+  const sharedTexts = useMemo(() => getSharedTexts(t), [t]);
   const glp1DrugOptions = useMemo(
     () =>
       Object.values(GLP1_DRUG_PROFILES).map((profile) => ({
-        label: profile.displayName,
+        label: sharedText(sharedTexts, profile.displayName),
         value: profile.id,
       })),
-    []
+    [sharedTexts]
   );
 
   return (

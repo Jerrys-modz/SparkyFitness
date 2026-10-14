@@ -8,6 +8,7 @@ import { error as logError } from '@/utils/logging';
 import { OVERALL_CONFIDENCE_LABELS } from '@workspace/shared';
 
 import { useTranslation } from 'react-i18next';
+import { sharedText } from '@/utils/sharedText';
 interface AiEstimateSectionProps {
   food: { id: string; name: string; brand?: string | null };
   /** The unit the user picked in the dropdown (the new, incompatible unit). */
@@ -195,7 +196,12 @@ export function AiEstimateSection({
           {t(
             'foodUnitSelector.aiEstimateSection.estimate2',
             '- {{confidence}} estimate',
-            { confidence: OVERALL_CONFIDENCE_LABELS[data.confidence] }
+            {
+              confidence: sharedText(
+                t,
+                OVERALL_CONFIDENCE_LABELS[data.confidence]
+              ),
+            }
           )}
         </span>
       </div>

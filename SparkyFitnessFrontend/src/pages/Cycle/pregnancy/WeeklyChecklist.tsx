@@ -4,6 +4,7 @@ import type { ChecklistItem } from './pregnancyTypes';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Check, Circle } from 'lucide-react';
+import { sharedText } from '@/utils/sharedText';
 
 interface WeeklyChecklistProps {
   pregnancyId: string;
@@ -64,7 +65,7 @@ export default function WeeklyChecklist({
                 item.completed && 'text-muted-foreground line-through'
               )}
             >
-              {item.title}
+              {sharedText(t, item.title)}
             </span>
           </button>
         ))}

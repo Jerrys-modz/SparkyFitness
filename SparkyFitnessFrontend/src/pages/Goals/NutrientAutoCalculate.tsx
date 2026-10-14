@@ -26,6 +26,7 @@ import {
   VitaminCalculationAlgorithmLabels,
   SugarCalculationAlgorithmLabels,
 } from '@workspace/shared';
+import { sharedText } from '@/utils/sharedText';
 
 const FAMILY_ALGORITHM_LABELS: Record<
   keyof Omit<AlgorithmBundle, 'addedSugar'>,
@@ -75,9 +76,12 @@ export const NutrientAutoCalculate = ({
   }
 
   const family = getAutoCalculateFamily(nutrientId);
-  const algorithmLabel = family
-    ? FAMILY_ALGORITHM_LABELS[family][algorithms[family]]
-    : AddedSugarAlgorithmLabels[algorithms.addedSugar];
+  const algorithmLabel = sharedText(
+    t,
+    (family
+      ? FAMILY_ALGORITHM_LABELS[family][algorithms[family]]
+      : AddedSugarAlgorithmLabels[algorithms.addedSugar]) ?? ''
+  );
 
   const disabled = !userData;
   const handleClick = () => {

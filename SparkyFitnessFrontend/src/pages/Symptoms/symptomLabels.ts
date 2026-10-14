@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import { sharedText } from '@/utils/sharedText';
 
 const labelKey = (label: string): string => {
   const words = label
@@ -23,5 +24,5 @@ const labelKey = (label: string): string => {
  */
 export function translateSymptomLabel(t: TFunction, label: string): string {
   const key = labelKey(label);
-  return key ? t(`symptoms.builtIn.${key}`, label) : label;
+  return key ? t(`symptoms.builtIn.${key}`, sharedText(t, label)) : label;
 }
