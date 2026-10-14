@@ -268,6 +268,7 @@ final class WatchRunStore: ObservableObject {
                     self.toGoCuedStep = self.cuedStep
                     self.startStepTimer()
                     self.startLiveTimer()
+                    let resumedAt = max(self.healthKit.elapsed, recovery.elapsed)
                     // Splits passed while the app was gone are not replayed.
                     self.cuedSplits = WatchRunCues.completedSplits(
                         distanceMeters: recovery.metrics.distanceMeters,
