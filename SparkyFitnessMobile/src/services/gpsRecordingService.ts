@@ -134,6 +134,13 @@ export interface RecordingSession {
   paceBand?: PaceBand;
   /** A heart-rate range to stay inside, read from a paired watch. */
   heartRateBand?: HeartRateBand;
+  /**
+   * The runner turned the pace alert off mid-run, which also silences the
+   * ranges on a plan's own steps. Absent means on.
+   */
+  paceStepsOff?: boolean;
+  /** Likewise for the heart-rate alert. */
+  heartRateStepsOff?: boolean;
   /** Set once the diary entry exists, so a retried save never duplicates it. */
   savedEntryId: string | null;
   /**
@@ -653,7 +660,7 @@ export function noteLiveHeartRate(
       );
       if (position && !position.done) {
         stepIndex = position.index;
-        band = position.step.heartRate ?? band;
+        if (!session.heartRateStepsOff) band = position.step.heartRate ?? band;
       }
     }
     if (stepIndex !== heartRateAlertStep) {
@@ -680,9 +687,18 @@ export function setRecordingHeartRateBand(
     if (!session || session.status === 'finished') return;
     const normalized = normalizeHeartRateBand(band);
     heartRateAlertState = INITIAL_HEART_RATE_ALERT_STATE;
-    const { heartRateBand: _previous, ...rest } = session;
+    const {
+      heartRateBand: _previous,
+      heartRateStepsOff: _stepsOff,
+      ...rest
+    } = session;
     void _previous;
-    session = normalized ? { ...rest, heartRateBand: normalized } : rest;
+    void _stepsOff;
+    // Clearing the range is the switch going off, which also mutes the ranges
+    // of a plan's steps; setting one turns it back on.
+    session = normalized
+      ? { ...rest, heartRateBand: normalized }
+      : { ...rest, heartRateStepsOff: true };
     await persistSession();
     publish();
   });
@@ -709,7 +725,7 @@ function checkPaceBand(now: number): void {
     );
     if (position && !position.done) {
       stepIndex = position.index;
-      band = position.step.pace ?? band;
+      if (!session.paceStepsOff) band = position.step.pace ?? band;
     }
   }
   // A new step starts the wait again, so a run that was too slow in the easy
@@ -1143,9 +1159,12 @@ export function setRecordingPaceBand(
     if (!session || session.status === 'finished') return;
     const normalized = normalizePaceBand(band);
     paceAlertState = INITIAL_PACE_ALERT_STATE;
-    const { paceBand: _previous, ...rest } = session;
+    const { paceBand: _previous, paceStepsOff: _stepsOff, ...rest } = session;
     void _previous;
-    session = normalized ? { ...rest, paceBand: normalized } : rest;
+    void _stepsOff;
+    session = normalized
+      ? { ...rest, paceBand: normalized }
+      : { ...rest, paceStepsOff: true };
     await persistSession();
     publish();
   });

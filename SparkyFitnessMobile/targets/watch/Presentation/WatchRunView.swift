@@ -153,14 +153,15 @@ struct WatchRunView: View {
     @ViewBuilder
     private var paceAlertRow: some View {
         let band = run.settings.paceBand ?? store.context.runPaceBand
-        if let band {
+        let perStep = run.plan?.steps.contains { $0.pace != nil } ?? false
+        if band != nil || perStep {
             Toggle(isOn: Binding(
-                get: { run.settings.paceBand != nil },
+                get: { run.paceAlertOn },
                 set: { run.setPaceAlert($0) }
             )) {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Pace alert")
-                    Text(bandText(band))
+                    Text(band.map(bandText) ?? "Each step has its own")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -179,14 +180,15 @@ struct WatchRunView: View {
     @ViewBuilder
     private var heartRateAlertRow: some View {
         let band = run.settings.heartRateBand ?? store.context.runHeartRateBand
-        if let band {
+        let perStep = run.plan?.steps.contains { $0.heartRate != nil } ?? false
+        if band != nil || perStep {
             Toggle(isOn: Binding(
-                get: { run.settings.heartRateBand != nil },
+                get: { run.heartRateAlertOn },
                 set: { run.setHeartRateAlert($0) }
             )) {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Heart rate alert")
-                    Text("\(Int(band.minBpm))–\(Int(band.maxBpm)) bpm")
+                    Text(band.map { "\(Int($0.minBpm))–\(Int($0.maxBpm)) bpm" } ?? "Each step has its own")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

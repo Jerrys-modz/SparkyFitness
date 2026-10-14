@@ -800,11 +800,14 @@ struct SquircleButton: View {
     /// The glyph's colour on a dark box, for a control that needs telling
     /// apart at a glance (a red finish). Ignored when `prominent`.
     var tint: Color?
+    /// The height of a box in a row, drawn for the reference watch; a compact
+    /// screen such as the run's passes a smaller one.
+    var height: CGFloat = 44
     let action: () -> Void
 
     var body: some View {
         Button(action: Haptics.tapping(action)) {
-            SquircleLabel(systemImage: systemImage, prominent: prominent, circular: circular, tint: tint)
+            SquircleLabel(systemImage: systemImage, prominent: prominent, circular: circular, tint: tint, height: height)
         }
         .buttonStyle(.plain)
     }
@@ -815,6 +818,7 @@ private struct SquircleLabel: View {
     let prominent: Bool
     let circular: Bool
     var tint: Color?
+    var height: CGFloat = 44
 
     @Environment(\.isEnabled) private var isEnabled
 
@@ -827,7 +831,7 @@ private struct SquircleLabel: View {
             .font(.system(size: WatchStyle.s(circular ? 14 : 20), weight: .semibold))
             .foregroundStyle(prominent ? Color.black : (tint ?? Color.white.opacity(0.6)))
             .frame(maxWidth: circular ? WatchStyle.s(28) : CGFloat.infinity)
-            .frame(height: WatchStyle.s(circular ? 28 : 44))
+            .frame(height: WatchStyle.s(circular ? 28 : height))
             .background(prominent ? Color.white : WatchStyle.fill, in: shape)
             .opacity(isEnabled ? 1 : 0.35)
             // The whole box takes the tap, not only the glyph's pixels.

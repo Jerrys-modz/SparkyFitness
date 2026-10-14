@@ -160,6 +160,11 @@ struct WatchRunSettings: Codable, Equatable {
     var paceBand: WatchPaceBand? = nil
     /// A heart-rate range to stay inside; nil is no heart-rate alert.
     var heartRateBand: WatchHeartRateBand? = nil
+    /// The wearer turned the pace alert off, which also silences the ranges
+    /// of a plan's own steps. Optional so an older snapshot still decodes.
+    var paceStepsOff: Bool? = nil
+    /// Likewise for the heart-rate alert.
+    var heartRateStepsOff: Bool? = nil
 }
 
 /// The alerts chosen for one run when it is started on the wrist. Each alert

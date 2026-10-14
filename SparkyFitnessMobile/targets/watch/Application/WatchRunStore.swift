@@ -356,10 +356,13 @@ final class WatchRunStore: ObservableObject {
     func setPaceAlert(_ on: Bool) {
         guard phase == .running || phase == .paused else { return }
         let band = on
-            ? (settings.paceBand ?? CheckInStore.shared.context.runPaceBand ?? WatchPaceBand.standard)
+            ? (settings.paceBand ?? CheckInStore.shared.context.runPaceBand
+                ?? ((plan?.steps.contains { $0.pace != nil } ?? false) ? nil : WatchPaceBand.standard))
             : nil
-        guard settings.paceBand != band else { return }
+        let stepsOff: Bool? = on ? nil : true
+        guard settings.paceBand != band || settings.paceStepsOff != stepsOff else { return }
         settings.paceBand = band
+        settings.paceStepsOff = stepsOff
         healthKit.updateSettings(settings)
         paceAlertState = .initial
         recentPace.reset()
@@ -370,10 +373,13 @@ final class WatchRunStore: ObservableObject {
     func setHeartRateAlert(_ on: Bool) {
         guard phase == .running || phase == .paused else { return }
         let band = on
-            ? (settings.heartRateBand ?? CheckInStore.shared.context.runHeartRateBand ?? WatchHeartRateBand.standard)
+            ? (settings.heartRateBand ?? CheckInStore.shared.context.runHeartRateBand
+                ?? ((plan?.steps.contains { $0.heartRate != nil } ?? false) ? nil : WatchHeartRateBand.standard))
             : nil
-        guard settings.heartRateBand != band else { return }
+        let stepsOff: Bool? = on ? nil : true
+        guard settings.heartRateBand != band || settings.heartRateStepsOff != stepsOff else { return }
         settings.heartRateBand = band
+        settings.heartRateStepsOff = stepsOff
         healthKit.updateSettings(settings)
         heartRateAlertState = .initial
         pushLive(force: true)
@@ -388,7 +394,10 @@ final class WatchRunStore: ObservableObject {
         var stepIndex: Int?
         if let plan, let position = plan.position(at: elapsed), !position.finished {
             stepIndex = position.index
-            band = plan.steps[position.index].heartRate ?? band
+            // Switching the alert off silences a step's own range too.
+            if settings.heartRateStepsOff != true {
+                band = plan.steps[position.index].heartRate ?? band
+            }
         }
         if stepIndex != heartRateAlertStep {
             heartRateAlertStep = stepIndex
@@ -412,7 +421,9 @@ final class WatchRunStore: ObservableObject {
         var stepIndex: Int?
         if let plan, let position = plan.position(at: elapsed), !position.finished {
             stepIndex = position.index
-            band = plan.steps[position.index].pace ?? band
+            if settings.paceStepsOff != true {
+                band = plan.steps[position.index].pace ?? band
+            }
         }
         // A new step starts the wait again.
         if stepIndex != paceAlertStep {
@@ -453,6 +464,19 @@ final class WatchRunStore: ObservableObject {
         liveTimer = nil
     }
 
+    /// Whether the pace alert is on: a range for the run, or ranges on the
+    /// plan's steps, unless the wearer switched it off.
+    var paceAlertOn: Bool {
+        guard settings.paceStepsOff != true else { return false }
+        return settings.paceBand != nil || (plan?.steps.contains { $0.pace != nil } ?? false)
+    }
+
+    /// Likewise for the heart-rate alert.
+    var heartRateAlertOn: Bool {
+        guard settings.heartRateStepsOff != true else { return false }
+        return settings.heartRateBand != nil || (plan?.steps.contains { $0.heartRate != nil } ?? false)
+    }
+
     private func pushLive(force: Bool = false, ended: Bool = false) {
         guard ended || phase == .running || phase == .paused else { return }
         let elapsed = healthKit.elapsed
@@ -466,6 +490,8 @@ final class WatchRunStore: ObservableObject {
                 status: ended ? "ended" : (phase == .paused ? "paused" : "running"),
                 autoPaused: autoPaused,
                 settings: settings,
+                paceAlert: paceAlertOn,
+                heartRateAlert: heartRateAlertOn,
                 elapsed: elapsed,
                 distanceMeters: metrics.distanceMeters,
                 heartRate: metrics.heartRate,

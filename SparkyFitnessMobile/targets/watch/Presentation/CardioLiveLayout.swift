@@ -45,15 +45,16 @@ struct CardioLiveLayout<Banner: View>: View {
     @ViewBuilder let banner: (Date) -> Banner
 
     var body: some View {
-        // Fits a 40 mm screen with a plan step showing; the scroll is only a
-        // fallback for larger text sizes.
+        // Fits a 41 mm screen with a plan step showing, buttons included: the
+        // sizes below leave the bottom row clear of the rounded corners. The
+        // scroll is only a fallback for larger text sizes.
         ScrollView {
             VStack(spacing: WatchStyle.s(4)) {
                 header
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     VStack(spacing: WatchStyle.s(4)) {
                         Text(RecordingState.clock(elapsed(context.date)))
-                            .font(.system(size: WatchStyle.s(34), weight: .semibold, design: .rounded))
+                            .font(.system(size: WatchStyle.s(28), weight: .semibold, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(status == nil ? Color.white : Color.secondary)
                             .lineLimit(1)
@@ -73,6 +74,7 @@ struct CardioLiveLayout<Banner: View>: View {
                             systemImage: control.systemImage,
                             prominent: control.prominent,
                             tint: control.tint,
+                            height: 36,
                             action: control.action
                         )
                         .disabled(control.disabled)
@@ -82,6 +84,8 @@ struct CardioLiveLayout<Banner: View>: View {
                 .padding(.top, WatchStyle.s(2))
             }
             .padding(.horizontal, WatchStyle.s(4))
+            // Room under the buttons for the screen's rounded corners.
+            .padding(.bottom, WatchStyle.s(6))
         }
         .scrollBounceBehavior(.basedOnSize)
         .scrollIndicators(.hidden)
@@ -121,7 +125,7 @@ struct CardioLiveLayout<Banner: View>: View {
                         .font(.system(size: WatchStyle.s(11), weight: .bold))
                 }
                 Text(stat.value)
-                    .font(.system(size: WatchStyle.s(18), weight: .bold, design: .rounded))
+                    .font(.system(size: WatchStyle.s(17), weight: .bold, design: .rounded))
                     .monospacedDigit()
             }
             .foregroundStyle(stat.tint)
@@ -134,7 +138,7 @@ struct CardioLiveLayout<Banner: View>: View {
         }
         .padding(.horizontal, 2)
         .frame(maxWidth: .infinity)
-        .frame(height: WatchStyle.s(42))
+        .frame(height: WatchStyle.s(36))
         .background(WatchStyle.fill, in: RoundedRectangle(cornerRadius: WatchStyle.s(12), style: .continuous))
         .accessibilityElement(children: .combine)
     }
@@ -173,7 +177,7 @@ struct CardioPlanStep: View {
             }
         }
         .padding(.horizontal, WatchStyle.s(8))
-        .padding(.vertical, WatchStyle.s(4))
+        .padding(.vertical, WatchStyle.s(3))
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(tint.opacity(0.18), in: RoundedRectangle(cornerRadius: WatchStyle.s(10), style: .continuous))
         .accessibilityElement(children: .combine)

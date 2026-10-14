@@ -237,4 +237,32 @@ describe('heart-rate alert', () => {
     await readings(178, 60, 66);
     expect(fireImpactHaptic).not.toHaveBeenCalled();
   });
+
+  test("switching the alert off also silences a plan step's own range", async () => {
+    await startRecording({
+      activity: 'run',
+      audioCues: 'km',
+      heartRateBand: hrBand,
+      intervals: {
+        style: 'fastEasy',
+        steps: [
+          {
+            kind: 'work',
+            seconds: 600,
+            heartRate: { minBpm: 100, maxBpm: 120 },
+          },
+        ],
+      },
+      notification,
+    });
+    jest.mocked(fireImpactHaptic).mockClear();
+    // 150 is above the step's range, so it alerts while the alert is on.
+    await readings(150, 60);
+    expect(fireImpactHaptic).toHaveBeenCalled();
+
+    jest.mocked(fireImpactHaptic).mockClear();
+    await setRecordingHeartRateBand(undefined);
+    await readings(150, 90, 66);
+    expect(fireImpactHaptic).not.toHaveBeenCalled();
+  });
 });
