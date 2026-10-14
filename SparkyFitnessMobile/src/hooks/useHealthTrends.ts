@@ -81,6 +81,7 @@ export function useHealthTrends({
     weightData,
     isLoading: isMeasurementsLoading,
     isError: isMeasurementsError,
+    isStepsGoalsError,
     refetch: refetchMeasurements,
   } = useMeasurementsRange({ range, enabled: isMeasurementsEnabled });
 
@@ -142,7 +143,8 @@ export function useHealthTrends({
       data: stepsData,
       stepsGoals,
       isLoading: isMeasurementsLoading,
-      isError: isMeasurementsError,
+      // A failed goals request must not read as "no goal set"; weight is unaffected.
+      isError: isMeasurementsError || isStepsGoalsError,
     },
     weight: {
       data: weightData,

@@ -73,7 +73,11 @@ export function useMeasurementsRange({
 
   // Raw (unadjusted) goal for each day; a day without a steps goal is null so the
   // chart draws no line for it.
-  const { data: stepsGoals, refetch: refetchGoals } = useQuery({
+  const {
+    data: stepsGoals,
+    isError: isGoalsError,
+    refetch: refetchGoals,
+  } = useQuery({
     queryKey: goalsRangeQueryKey(startDate, today, false),
     queryFn: () => fetchGoalsRange(startDate, today, false),
     enabled,
@@ -101,6 +105,7 @@ export function useMeasurementsRange({
     weightData: query.data?.weightData ?? [],
     isLoading: query.isLoading,
     isError: query.isError,
+    isStepsGoalsError: isGoalsError,
     refetch,
   };
 }

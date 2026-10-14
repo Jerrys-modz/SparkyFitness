@@ -1,5 +1,6 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import {
@@ -32,6 +33,7 @@ export const WaterAndExerciseFields = <T extends WaterExerciseBase>({
   setState: (newState: T) => void;
 }) => {
   const { t } = useTranslation();
+  const stepsGoalId = useId();
   const {
     water_display_unit,
     setWaterDisplayUnit,
@@ -130,10 +132,11 @@ export const WaterAndExerciseFields = <T extends WaterExerciseBase>({
         />
       </div>
       <div className="space-y-1.5">
-        <Label className="text-xs">
+        <Label htmlFor={stepsGoalId} className="text-xs">
           {t('goals.goalsSettings.targetSteps', 'Daily Steps Goal')}
         </Label>
         <Input
+          id={stepsGoalId}
           type="number"
           min={0}
           value={state.target_steps ?? ''}

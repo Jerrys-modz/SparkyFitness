@@ -117,7 +117,7 @@ async function upsertGoal(goalData: any) {
         saturated_fat, polyunsaturated_fat, monounsaturated_fat, trans_fat,
         cholesterol, sodium, potassium, dietary_fiber, sugars,
         vitamin_a, vitamin_c, calcium, iron,
-        target_exercise_calories_burned, target_exercise_duration_minutes, target_steps,
+        target_exercise_calories_burned, target_exercise_duration_minutes,
         protein_percentage, carbs_percentage, fat_percentage,
         breakfast_percentage, lunch_percentage, dinner_percentage, snacks_percentage,
         custom_meal_percentages, custom_nutrients, created_at, updated_at,
@@ -157,7 +157,8 @@ async function upsertGoal(goalData: any) {
         custom_nutrients = EXCLUDED.custom_nutrients,
         caffeine_mg = EXCLUDED.caffeine_mg,
         alcohol_g = EXCLUDED.alcohol_g,
-        target_steps = EXCLUDED.target_steps,
+        -- A client that predates the steps goal omits it; keep the stored value.
+        target_steps = CASE WHEN $37::boolean THEN EXCLUDED.target_steps ELSE user_goals.target_steps END,
         updated_at = now()
       RETURNING *`,
       [
@@ -196,7 +197,8 @@ async function upsertGoal(goalData: any) {
         new Date(), // for updated_at
         goalData.caffeine_mg,
         goalData.alcohol_g,
-        goalData.target_steps,
+        goalData.target_steps ?? null,
+        goalData.target_steps !== undefined,
       ]
     );
     return result.rows[0];
