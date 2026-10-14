@@ -183,7 +183,7 @@ Jest (`SparkyFitnessFrontend/src/tests/i18n/`) fails the build when a change wou
 
 - `hardcodedStrings.test.ts` — literal UI text in JSX, `placeholder`/`aria-label`/`title`-style attributes, toasts and query `meta` messages.
 - `catalog.test.ts` — a `t('key', 'Default')` call whose key is missing from `public/locales/en/translation.json`, or whose default uses different `{{placeholders}}` than the catalog text.
-- `sharedLabels.test.ts` and `sharedStrings.test.ts` — labels owned by `shared/` (symptom options, body regions, default symptoms) must have English catalog entries in both apps, and display strings in `shared/src` may not grow past a recorded baseline.
+- `sharedLabels.test.ts` and `sharedText.test.ts` — English text owned by `shared/` (symptom options, body regions, cycle and pregnancy content, GLP-1 and nutrient names, ...) must have English catalog entries. Shared text is keyed by `sharedTextKey(text)` and rendered with `sharedText(t, text)`; the English text stays the stored value.
 
 The mobile package adds `pnpm run swift-i18n:audit`, which does the same for the Apple Watch, watch complication and iOS widget Swift code.
 
