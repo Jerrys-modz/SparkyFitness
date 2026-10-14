@@ -167,6 +167,10 @@ export const exerciseActivityQueryItemSchema = z.object({
   floorsClimbed: z.number().nullable().optional(),
   /** Total ascent in metres, whatever the unit system of the request. */
   elevationGainMeters: z.number().nullable().optional(),
+  /** Average running cadence in steps per minute. */
+  avgCadence: z.number().nullable().optional(),
+  /** Average stride length in centimetres. */
+  strideLengthCm: z.number().nullable().optional(),
   source: z.string().nullable(),
   notes: z.string().nullable(),
   hasGpsTrack: z.boolean(),
