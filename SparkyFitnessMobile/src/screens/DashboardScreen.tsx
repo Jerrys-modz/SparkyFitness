@@ -389,7 +389,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     useMindfulnessDay(selectedDate);
   const {
     saveSession: saveMindfulSession,
-    updateSession: updateMindfulSession,
     deleteSession: deleteMindfulSession,
   } = useMindfulnessMutations(selectedDate);
 
@@ -892,7 +891,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   totalMindfulMinutes={totalMindfulMinutes}
                   selectedDate={selectedDate}
                   onSaveSession={saveMindfulSession}
-                  onUpdateSession={updateMindfulSession}
                   onDeleteSession={deleteMindfulSession}
                   onPressDetails={() =>
                     navigation.navigate('MindfulnessDetail', { selectedDate })

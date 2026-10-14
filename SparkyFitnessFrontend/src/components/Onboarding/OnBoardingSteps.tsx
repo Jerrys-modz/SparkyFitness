@@ -19,6 +19,7 @@ import { FoodSourcesStep } from './FoodSourcesStep';
 import { useTranslation } from 'react-i18next';
 import { OnboardingData } from '@/types/onboarding';
 import { UnitInput } from '@/components/ui/UnitInput';
+import { getDateLocale } from '@/utils/languageUtils';
 
 interface OnboardingStepsProps {
   step: number;
@@ -45,7 +46,8 @@ export const OnboardingSteps = ({
   localDateFormat,
   setLocalDateFormat,
 }: OnboardingStepsProps) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const dateLocale = getDateLocale(i18n.resolvedLanguage ?? i18n.language);
 
   const handleSelect = (
     field: keyof OnboardingData,
@@ -69,21 +71,21 @@ export const OnboardingSteps = ({
       return (
         <>
           <h1 className="text-3xl font-bold text-foreground mb-2">
-            {t('onboarding.onBoardingSteps.whatIsYourSex', 'What is your sex?')}
+            {t('onboarding.sexQuestion', 'What is your sex?')}
           </h1>
           <p className="text-muted-foreground mb-8">
             {t(
-              'onboarding.onBoardingSteps.usedToCalculateYourBase',
+              'onboarding.sexDescription',
               'Used to calculate your base metabolic rate.'
             )}
           </p>
           <OptionButton
-            label={t('onboarding.onBoardingSteps.male', 'Male')}
+            label={t('onboarding.male', 'Male')}
             isSelected={formData.sex === 'male'}
             onClick={() => handleSelect('sex', 'male')}
           />
           <OptionButton
-            label={t('onboarding.onBoardingSteps.female', 'Female')}
+            label={t('onboarding.female', 'Female')}
             isSelected={formData.sex === 'female'}
             onClick={() => handleSelect('sex', 'female')}
           />
@@ -93,26 +95,20 @@ export const OnboardingSteps = ({
       return (
         <>
           <h1 className="text-3xl font-bold text-foreground mb-8">
-            {t(
-              'onboarding.onBoardingSteps.whatIsYourPrimaryGoal',
-              'What is your primary goal?'
-            )}
+            {t('onboarding.goalQuestion', 'What is your primary goal?')}
           </h1>
           <OptionButton
-            label={t('onboarding.onBoardingSteps.loseWeight', 'Lose weight')}
+            label={t('onboarding.loseWeight', 'Lose weight')}
             isSelected={formData.primaryGoal === 'lose_weight'}
             onClick={() => handleSelect('primaryGoal', 'lose_weight')}
           />
           <OptionButton
-            label={t(
-              'onboarding.onBoardingSteps.maintainWeight',
-              'Maintain weight'
-            )}
+            label={t('onboarding.maintainWeight', 'Maintain weight')}
             isSelected={formData.primaryGoal === 'maintain_weight'}
             onClick={() => handleSelect('primaryGoal', 'maintain_weight')}
           />
           <OptionButton
-            label={t('onboarding.onBoardingSteps.gainWeight', 'Gain weight')}
+            label={t('onboarding.gainWeight', 'Gain weight')}
             isSelected={formData.primaryGoal === 'gain_weight'}
             onClick={() => handleSelect('primaryGoal', 'gain_weight')}
           />
@@ -123,16 +119,14 @@ export const OnboardingSteps = ({
         <>
           <h1 className="text-3xl font-bold text-foreground mb-2">
             {t(
-              'onboarding.onBoardingSteps.whatIsYourCurrentWeight',
+              'onboarding.currentWeightQuestion',
               'What is your current weight?'
             )}
           </h1>
           <p className="text-muted-foreground mb-8">
-            {t(
-              'onboarding.onBoardingSteps.enterIn',
-              'Enter in {{weightUnit}}.',
-              { weightUnit }
-            )}
+            {t('onboarding.enterInUnit', 'Enter in {{unit}}.', {
+              unit: weightUnit,
+            })}
           </p>
 
           <div className="flex justify-center mb-6 bg-muted p-1 rounded-lg w-fit mx-auto">
@@ -152,7 +146,7 @@ export const OnboardingSteps = ({
               onClick={() => setLocalWeightUnit('st_lbs')}
               className={`px-4 py-2 rounded-md transition-all ${weightUnit === 'st_lbs' ? 'bg-green-600 text-white shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
             >
-              {t('onboarding.onBoardingSteps.stLb', 'st/lb')}
+              st/lb
             </button>
           </div>
 
@@ -176,7 +170,7 @@ export const OnboardingSteps = ({
             disabled={!formData.currentWeight}
             className="w-full mt-12 h-14 text-lg rounded-full"
           >
-            {t('onboarding.onBoardingSteps.continue', 'Continue')}
+            {t('onboarding.continue', 'Continue')}
           </Button>
         </>
       );
@@ -184,17 +178,12 @@ export const OnboardingSteps = ({
       return (
         <>
           <h1 className="text-3xl font-bold text-foreground mb-2">
-            {t(
-              'onboarding.onBoardingSteps.whatIsYourHeight',
-              'What is your height?'
-            )}
+            {t('onboarding.heightQuestion', 'What is your height?')}
           </h1>
           <p className="text-muted-foreground mb-8">
-            {t(
-              'onboarding.onBoardingSteps.enterIn2',
-              'Enter in {{heightUnit}}.',
-              { heightUnit }
-            )}
+            {t('onboarding.enterInUnit', 'Enter in {{unit}}.', {
+              unit: heightUnit,
+            })}
           </p>
 
           <div className="flex justify-center mb-6 bg-muted p-1 rounded-lg w-fit mx-auto">
@@ -214,7 +203,7 @@ export const OnboardingSteps = ({
               onClick={() => setLocalHeightUnit('ft_in')}
               className={`px-4 py-2 rounded-md transition-all ${heightUnit === 'ft_in' ? 'bg-green-600 text-white shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
             >
-              {t('onboarding.onBoardingSteps.ftIn', 'ft/in')}
+              ft/in
             </button>
           </div>
 
@@ -235,7 +224,7 @@ export const OnboardingSteps = ({
             disabled={!formData.height}
             className="w-full mt-12 h-14 text-lg rounded-full"
           >
-            {t('onboarding.onBoardingSteps.continue', 'Continue')}
+            {t('onboarding.continue', 'Continue')}
           </Button>
         </>
       );
@@ -243,14 +232,11 @@ export const OnboardingSteps = ({
       return (
         <>
           <h1 className="text-3xl font-bold text-foreground mb-2">
-            {t(
-              'onboarding.onBoardingSteps.whenWereYouBorn',
-              'When were you born?'
-            )}
+            {t('onboarding.birthDateQuestion', 'When were you born?')}
           </h1>
           <p className="text-muted-foreground mb-8">
             {t(
-              'onboarding.onBoardingSteps.ageIsAKeyFactor',
+              'onboarding.birthDateDescription',
               'Age is a key factor in your metabolism.'
             )}
           </p>
@@ -259,42 +245,27 @@ export const OnboardingSteps = ({
               <SelectTrigger className="w-[180px] bg-card border-none rounded-md">
                 <SelectValue
                   placeholder={t(
-                    'onboarding.onBoardingSteps.selectFormat',
+                    'onboarding.selectDateFormat',
                     'Select format'
                   )}
                 />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="MM/dd/yyyy">
-                  {t(
-                    'onboarding.onBoardingSteps.mmDdYyyy1225',
-                    'MM/dd/yyyy (12/25/2024)'
-                  )}
-                </SelectItem>
-                <SelectItem value="dd/MM/yyyy">
-                  {t(
-                    'onboarding.onBoardingSteps.ddMMYyyy2512',
-                    'dd/MM/yyyy (25/12/2024)'
-                  )}
-                </SelectItem>
-                <SelectItem value="dd-MMM-yyyy">
-                  {t(
-                    'onboarding.onBoardingSteps.ddMMMYyyy25Dec',
-                    'dd-MMM-yyyy (25-Dec-2024)'
-                  )}
-                </SelectItem>
-                <SelectItem value="yyyy-MM-dd">
-                  {t(
-                    'onboarding.onBoardingSteps.yyyyMMDd202412',
-                    'yyyy-MM-dd (2024-12-25)'
-                  )}
-                </SelectItem>
-                <SelectItem value="MMM dd, yyyy">
-                  {t(
-                    'onboarding.onBoardingSteps.mmmDdYyyyDec25',
-                    'MMM dd, yyyy (Dec 25, 2024)'
-                  )}
-                </SelectItem>
+                {[
+                  'MM/dd/yyyy',
+                  'dd/MM/yyyy',
+                  'dd-MMM-yyyy',
+                  'yyyy-MM-dd',
+                  'MMM dd, yyyy',
+                ].map((dateFormat) => (
+                  <SelectItem key={dateFormat} value={dateFormat}>
+                    {dateFormat} (
+                    {format(new Date(2024, 11, 25), dateFormat, {
+                      locale: dateLocale,
+                    })}
+                    )
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -308,11 +279,13 @@ export const OnboardingSteps = ({
                 >
                   {formData.birthDate ? (
                     <span>
-                      {format(parseISO(formData.birthDate), localDateFormat)}
+                      {format(parseISO(formData.birthDate), localDateFormat, {
+                        locale: dateLocale,
+                      })}
                     </span>
                   ) : (
                     <span className="text-muted-foreground">
-                      {t('common.pickADate', 'Pick a date')}
+                      {t('onboarding.pickDate', 'Pick a date')}
                     </span>
                   )}
                   <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
@@ -320,6 +293,7 @@ export const OnboardingSteps = ({
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="center">
                 <Calendar
+                  locale={dateLocale}
                   captionLayout="dropdown"
                   mode="single"
                   selected={
@@ -348,7 +322,7 @@ export const OnboardingSteps = ({
             disabled={!formData.birthDate}
             className="w-full mt-12 h-14 text-lg rounded-full"
           >
-            {t('onboarding.onBoardingSteps.continue', 'Continue')}
+            {t('onboarding.continue', 'Continue')}
           </Button>
         </>
       );
@@ -356,24 +330,23 @@ export const OnboardingSteps = ({
       return (
         <>
           <h1 className="text-3xl font-bold text-foreground mb-2">
-            {t(
-              'onboarding.onBoardingSteps.estimateYourBodyFat',
-              'Estimate your body fat'
-            )}
+            {t('onboarding.bodyFatQuestion', 'Estimate your body fat')}
           </h1>
           <p className="text-muted-foreground mb-8">
             {t(
-              'onboarding.onBoardingSteps.aVisualEstimateIsSufficient',
+              'onboarding.bodyFatDescription',
               'A visual estimate is sufficient.'
             )}
           </p>
           <div className="grid grid-cols-2 gap-4">
-            {[
-              'Low (<15%)',
-              'Medium (15-25%)',
-              'High (25-35%)',
-              'Very High (>35%)',
-            ].map((range) => (
+            {(
+              [
+                ['Low (<15%)', 'bodyFatLow'],
+                ['Medium (15-25%)', 'bodyFatMedium'],
+                ['High (25-35%)', 'bodyFatHigh'],
+                ['Very High (>35%)', 'bodyFatVeryHigh'],
+              ] as const
+            ).map(([range, key]) => (
               <button
                 key={range}
                 onClick={() => handleSelect('bodyFatRange', range)}
@@ -384,7 +357,7 @@ export const OnboardingSteps = ({
                          : 'border-border hover:border-green-500/50 hover:shadow-sm'
                      }`}
               >
-                {range}
+                {t(`onboarding.${key}`, range)}
               </button>
             ))}
           </div>
@@ -395,15 +368,12 @@ export const OnboardingSteps = ({
         <>
           <h1 className="text-3xl font-bold text-foreground mb-2">
             {t(
-              'onboarding.onBoardingSteps.whatIsYourTargetWeight',
+              'onboarding.targetWeightQuestion',
               'What is your target weight?'
             )}
           </h1>
           <p className="text-muted-foreground mb-8">
-            {t(
-              'onboarding.onBoardingSteps.yourUltimateGoal',
-              'Your ultimate goal.'
-            )}
+            {t('onboarding.targetWeightDescription', 'Your ultimate goal.')}
           </p>
           <div className="flex items-center justify-center">
             <UnitInput
@@ -425,7 +395,7 @@ export const OnboardingSteps = ({
             disabled={!formData.targetWeight}
             className="w-full mt-12 h-14 text-lg rounded-full"
           >
-            {t('onboarding.onBoardingSteps.continue', 'Continue')}
+            {t('onboarding.continue', 'Continue')}
           </Button>
         </>
       );
@@ -434,18 +404,16 @@ export const OnboardingSteps = ({
         <>
           <h1 className="text-3xl font-bold text-foreground mb-8">
             {t(
-              'onboarding.onBoardingSteps.howManyMealsDoYou',
+              'onboarding.mealsQuestion',
               'How many meals do you eat in a typical day?'
             )}
           </h1>
           {[3, 4, 5, 6].map((num) => (
             <OptionButton
               key={num}
-              label={t(
-                'onboarding.onBoardingSteps.mealsPerDay',
-                '{{num}} meals per day',
-                { num }
-              )}
+              label={t('onboarding.mealsPerDay', '{{number}} meals per day', {
+                number: num,
+              })}
               isSelected={formData.mealsPerDay === num}
               onClick={() => handleSelect('mealsPerDay', num)}
             />
@@ -552,13 +520,13 @@ export const OnboardingSteps = ({
           </div>
           <h2 className="text-2xl font-bold text-foreground text-center">
             {t(
-              'onboarding.onBoardingSteps.preparingYourPersonalizedPlan',
+              'onboarding.preparingPlan',
               'Preparing your personalized plan...'
             )}
           </h2>
           <p className="text-muted-foreground mt-4">
             {t(
-              'onboarding.onBoardingSteps.crunchingTheNumbersBasedOn',
+              'onboarding.preparingPlanDescription',
               'Crunching the numbers based on your unique profile.'
             )}
           </p>

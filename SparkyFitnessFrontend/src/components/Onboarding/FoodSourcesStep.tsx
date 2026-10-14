@@ -6,8 +6,8 @@ import { ExternalLink } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCreateExternalProviderMutation } from '@/hooks/Settings/useExternalProviderSettings';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from 'react-i18next';
 
-import { Trans, useTranslation } from 'react-i18next';
 interface FoodSourcesStepProps {
   onContinue: () => void;
 }
@@ -34,11 +34,11 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
     if ((trimmedFsId && !trimmedFsKey) || (!trimmedFsId && trimmedFsKey)) {
       toast({
         title: t(
-          'onboarding.foodSourcesStep.missingFatSecretField',
+          'onboarding.foodSources.missingField',
           'Missing FatSecret field'
         ),
         description: t(
-          'onboarding.foodSourcesStep.enterBothTheFatSecretClient',
+          'onboarding.foodSources.missingFieldDescription',
           'Enter both the FatSecret Client ID and Client Secret, or leave both blank to skip.'
         ),
         variant: 'destructive',
@@ -53,9 +53,9 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
 
     if (!user) {
       toast({
-        title: t('onboarding.foodSourcesStep.notSignedIn', 'Not signed in'),
+        title: t('onboarding.foodSources.notSignedIn', 'Not signed in'),
         description: t(
-          'onboarding.foodSourcesStep.pleaseSignInAgainTo',
+          'onboarding.foodSources.notSignedInDescription',
           'Please sign in again to save food sources.'
         ),
         variant: 'destructive',
@@ -101,14 +101,11 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
   return (
     <>
       <h1 className="text-3xl font-bold text-foreground mb-2">
-        {t(
-          'onboarding.foodSourcesStep.connectFoodDatabases',
-          'Connect food databases'
-        )}
+        {t('onboarding.foodSources.title', 'Connect food databases')}
       </h1>
       <p className="text-muted-foreground mb-8">
         {t(
-          'onboarding.foodSourcesStep.optionalButAddingUSDAAnd',
+          'onboarding.foodSources.description',
           'Optional, but adding USDA and FatSecret to your searches gives dramatically better results than the default Open Food Facts. You can always add or change these later in Settings.'
         )}
       </p>
@@ -120,10 +117,7 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
               htmlFor="onboarding-usda-key"
               className="text-base font-semibold"
             >
-              {t(
-                'onboarding.foodSourcesStep.usdaFoodDataCentral',
-                'USDA FoodData Central'
-              )}
+              USDA FoodData Central
             </Label>
             <a
               href="https://fdc.nal.usda.gov/api-key-signup.html"
@@ -131,10 +125,7 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
               rel="noopener noreferrer"
               className="text-sm text-green-600 hover:text-green-700 inline-flex items-center gap-1"
             >
-              {t(
-                'onboarding.foodSourcesStep.getAFreeAPIKey',
-                'Get a free API key'
-              )}
+              {t('onboarding.foodSources.getUsdaKey', 'Get a free API key')}
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
           </div>
@@ -143,10 +134,7 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
             type="password"
             value={usdaKey}
             onChange={(e) => setUsdaKey(e.target.value)}
-            placeholder={t(
-              'onboarding.foodSourcesStep.usdaAPIKey',
-              'USDA API Key'
-            )}
+            placeholder={t('onboarding.foodSources.usdaKey', 'USDA API Key')}
             autoComplete="off"
           />
         </div>
@@ -161,7 +149,7 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
               className="text-sm text-green-600 hover:text-green-700 inline-flex items-center gap-1"
             >
               {t(
-                'onboarding.foodSourcesStep.getAPICredentials',
+                'onboarding.foodSources.getFatsecretCredentials',
                 'Get API credentials'
               )}
               <ExternalLink className="h-3.5 w-3.5" />
@@ -173,7 +161,7 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
             value={fatsecretClientId}
             onChange={(e) => setFatsecretClientId(e.target.value)}
             placeholder={t(
-              'onboarding.foodSourcesStep.fatSecretClientID',
+              'onboarding.foodSources.fatsecretClientId',
               'FatSecret Client ID'
             )}
             autoComplete="off"
@@ -184,19 +172,16 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
             value={fatsecretClientSecret}
             onChange={(e) => setFatsecretClientSecret(e.target.value)}
             placeholder={t(
-              'onboarding.foodSourcesStep.fatSecretClientSecret',
+              'onboarding.foodSources.fatsecretClientSecret',
               'FatSecret Client Secret'
             )}
             autoComplete="off"
           />
           <p className="text-xs text-muted-foreground">
-            <Trans
-              i18nKey="onboarding.foodSourcesStep.useTheRESTAPIOAuth"
-              defaults={
-                'Use the <strong>REST API OAuth 2.0</strong> credentials from the dashboard, not the OAuth 1.0 Consumer Key/Secret. FatSecret also requires you to whitelist your public IP in its developer dashboard. This can take up to 24 hours to take effect.'
-              }
-              components={{ strong: <strong /> }}
-            />
+            {t(
+              'onboarding.foodSources.fatsecretHelp',
+              'Use the REST API OAuth 2.0 credentials from the dashboard, not the OAuth 1.0 Consumer Key/Secret. FatSecret also requires you to whitelist your public IP in its developer dashboard. This can take up to 24 hours to take effect.'
+            )}
           </p>
         </div>
       </div>
@@ -208,7 +193,7 @@ export const FoodSourcesStep = ({ onContinue }: FoodSourcesStepProps) => {
       >
         {isPending
           ? t('common.saving', 'Saving...')
-          : t('onboarding.foodSourcesStep.continue', 'Continue')}
+          : t('onboarding.continue', 'Continue')}
       </Button>
     </>
   );

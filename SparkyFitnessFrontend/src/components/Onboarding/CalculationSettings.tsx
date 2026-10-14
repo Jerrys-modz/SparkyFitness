@@ -17,9 +17,8 @@ import {
   SugarCalculationAlgorithm,
   SugarCalculationAlgorithmLabels,
 } from '@workspace/shared';
-
 import { useTranslation } from 'react-i18next';
-import { sharedText } from '@/utils/sharedText';
+
 export interface CalculationSettingsProps {
   localFatBreakdownAlgorithm: FatBreakdownAlgorithm;
   localMineralAlgorithm: MineralCalculationAlgorithm;
@@ -62,10 +61,7 @@ export const CalculationSettings = ({
         <div className="flex items-center gap-2">
           <Settings className="h-5 w-5 text-muted-foreground" />
           <span className="text-foreground font-semibold">
-            {t(
-              'onboarding.calculationSettings.calculationSettings',
-              'Calculation Settings'
-            )}
+            {t('onboarding.calculation.title', 'Calculation Settings')}
           </span>
         </div>
         <ChevronLeft
@@ -79,7 +75,7 @@ export const CalculationSettings = ({
           <div>
             <Label className="text-foreground text-sm mb-2 block">
               {t(
-                'onboarding.calculationSettings.fatBreakdownMethod',
+                'onboarding.calculation.fatBreakdownMethod',
                 'Fat Breakdown Method'
               )}
             </Label>
@@ -95,7 +91,10 @@ export const CalculationSettings = ({
               <SelectContent>
                 {Object.values(FatBreakdownAlgorithm).map((algo) => (
                   <SelectItem key={algo} value={algo}>
-                    {sharedText(t, FatBreakdownAlgorithmLabels[algo])}
+                    {t(
+                      `onboarding.calculation.fatAlgorithms.${algo}`,
+                      FatBreakdownAlgorithmLabels[algo]
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -106,7 +105,7 @@ export const CalculationSettings = ({
           <div>
             <Label className="text-foreground text-sm mb-2 block">
               {t(
-                'onboarding.calculationSettings.mineralCalculation',
+                'onboarding.calculation.mineralCalculation',
                 'Mineral Calculation'
               )}
             </Label>
@@ -122,7 +121,10 @@ export const CalculationSettings = ({
               <SelectContent>
                 {Object.values(MineralCalculationAlgorithm).map((algo) => (
                   <SelectItem key={algo} value={algo}>
-                    {sharedText(t, MineralCalculationAlgorithmLabels[algo])}
+                    {t(
+                      `onboarding.calculation.mineralAlgorithms.${algo}`,
+                      MineralCalculationAlgorithmLabels[algo]
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -133,7 +135,7 @@ export const CalculationSettings = ({
           <div>
             <Label className="text-foreground text-sm mb-2 block">
               {t(
-                'onboarding.calculationSettings.vitaminCalculation',
+                'onboarding.calculation.vitaminCalculation',
                 'Vitamin Calculation'
               )}
             </Label>
@@ -149,7 +151,10 @@ export const CalculationSettings = ({
               <SelectContent>
                 {Object.values(VitaminCalculationAlgorithm).map((algo) => (
                   <SelectItem key={algo} value={algo}>
-                    {sharedText(t, VitaminCalculationAlgorithmLabels[algo])}
+                    {t(
+                      `onboarding.calculation.vitaminAlgorithms.${algo}`,
+                      VitaminCalculationAlgorithmLabels[algo]
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -160,7 +165,7 @@ export const CalculationSettings = ({
           <div>
             <Label className="text-foreground text-sm mb-2 block">
               {t(
-                'onboarding.calculationSettings.sugarRecommendation',
+                'onboarding.calculation.sugarRecommendation',
                 'Sugar Recommendation'
               )}
             </Label>
@@ -176,7 +181,10 @@ export const CalculationSettings = ({
               <SelectContent>
                 {Object.values(SugarCalculationAlgorithm).map((algo) => (
                   <SelectItem key={algo} value={algo}>
-                    {sharedText(t, SugarCalculationAlgorithmLabels[algo])}
+                    {t(
+                      `onboarding.calculation.sugarAlgorithms.${algo}`,
+                      SugarCalculationAlgorithmLabels[algo]
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -185,7 +193,7 @@ export const CalculationSettings = ({
 
           <p className="text-xs text-muted-foreground mt-2">
             {t(
-              'onboarding.calculationSettings.theseSettingsControlHowYour',
+              'onboarding.calculation.description',
               'These settings control how your nutrient goals are calculated. You can change them later in Settings.'
             )}
           </p>

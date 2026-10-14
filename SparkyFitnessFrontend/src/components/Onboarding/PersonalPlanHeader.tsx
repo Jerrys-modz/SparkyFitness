@@ -2,7 +2,7 @@ import { Input } from '@/components/ui/input';
 import { ExpandedGoals } from '@/types/goals';
 import { OnboardingData } from '@/types/onboarding';
 import { BasePlan } from '@/utils/nutritionCalculations';
-import { Trans, useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 
 export interface PersonalPlanHeaderProps {
   formData: OnboardingData;
@@ -76,10 +76,7 @@ export const PersonalPlanHeader = ({
         </div>
 
         <p className="text-muted-foreground uppercase text-sm font-bold tracking-wider mb-2">
-          {t(
-            'onboarding.personalPlanHeader.dailyCalorieBudget',
-            'Daily Calorie Budget'
-          )}
+          {t('onboarding.plan.dailyCalorieBudget', 'Daily Calorie Budget')}
         </p>
         <div className="text-6xl font-extrabold text-green-500 flex justify-center">
           <Input
@@ -95,43 +92,35 @@ export const PersonalPlanHeader = ({
           />
         </div>
         <p className="text-xl text-foreground font-medium mt-1">
-          {t('onboarding.personalPlanHeader.perDay', '{{unit}} / day', {
+          {t('onboarding.plan.perDay', '{{unit}} / day', {
             unit: getEnergyUnitString(localEnergyUnit),
           })}
         </p>
 
         <div className="mt-6 pt-6 border-t border-border flex justify-between text-sm text-muted-foreground">
           <span>
-            {t('onboarding.personalPlanHeader.baseBMR', 'Base BMR:')}{' '}
+            {t('onboarding.plan.baseBmr', 'Base BMR:')}{' '}
             {!!plan?.bmr && (
               <span>
                 {Math.round(convertEnergy(plan.bmr, 'kcal', localEnergyUnit))}
               </span>
             )}
-            ) {getEnergyUnitString(localEnergyUnit)}
+            {getEnergyUnitString(localEnergyUnit)}
           </span>
 
           <span>
-            <Trans
-              i18nKey="onboarding.personalPlanHeader.calorieBuyback2"
-              defaults={'Calorie Buyback: <span>{{addBurnedCalories}}</span>'}
-              values={{
-                addBurnedCalories: formData.addBurnedCalories
-                  ? t('onboarding.personalPlanHeader.on', 'ON')
-                  : t('onboarding.personalPlanHeader.off', 'OFF'),
-              }}
-              components={{
-                span: (
-                  <span
-                    className={
-                      formData.addBurnedCalories
-                        ? 'text-green-500'
-                        : 'text-muted-foreground'
-                    }
-                  />
-                ),
-              }}
-            />
+            {t('onboarding.plan.calorieBuyback', 'Calorie Buyback:')}{' '}
+            <span
+              className={
+                formData.addBurnedCalories
+                  ? 'text-green-500'
+                  : 'text-muted-foreground'
+              }
+            >
+              {formData.addBurnedCalories
+                ? t('onboarding.plan.on', 'ON')
+                : t('onboarding.plan.off', 'OFF')}
+            </span>
           </span>
         </div>
       </div>

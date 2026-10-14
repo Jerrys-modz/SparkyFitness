@@ -10,29 +10,6 @@ import { ExpandedGoals } from '@/types/goals';
 import { MealPercentages } from '@/types/meal';
 import MealPercentageManager from '../MealPercentageManager';
 
-type EnergyUnitName = 'kcal' | 'kJ';
-
-/** Share of the plan's calories (after fibre) that a macro's grams provide. */
-const macroPercent = (
-  plan: { calories?: number | null; dietary_fiber?: number | null } | null,
-  convertEnergy: (
-    value: number,
-    from: EnergyUnitName,
-    to: EnergyUnitName
-  ) => number,
-  energyUnit: EnergyUnitName,
-  grams: number,
-  kcalPerGram: number
-): number => {
-  if (!plan?.calories) return 0;
-  const adjusted =
-    convertEnergy(plan.calories, energyUnit, 'kcal') -
-    (plan.dietary_fiber || 0) * 2;
-  return adjusted > 0
-    ? Math.round(((grams * kcalPerGram) / adjusted) * 100)
-    : 0;
-};
-
 export interface NutrientGoalsProps {
   convertEnergy: (
     value: number,
@@ -73,29 +50,29 @@ export const NutrientGoals = ({
       <div className="bg-card rounded-2xl overflow-hidden border border-border">
         <div className="bg-muted px-4 py-3 border-b border-border">
           <h3 className="text-foreground font-bold text-sm">
-            {t(
-              'onboarding.nutrientGoals.dailyMacroTargets',
-              'Daily Macro Targets'
-            )}
+            {t('onboarding.nutrients.dailyMacroTargets', 'Daily Macro Targets')}
           </h3>
         </div>
         <Table>
           <TableBody>
             <TableRow className="border-border hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t(
-                  'onboarding.nutrientGoals.carbohydratesShare',
-                  'Carbohydrates ({{percent}}%)',
-                  {
-                    percent: macroPercent(
-                      editedPlan,
-                      convertEnergy,
-                      localEnergyUnit,
-                      editedPlan?.carbs ?? 0,
-                      4
-                    ),
-                  }
-                )}
+                {t('onboarding.nutrients.carbohydrates', 'Carbohydrates')} (
+                {editedPlan?.calories
+                  ? (() => {
+                      const adjusted =
+                        convertEnergy(
+                          editedPlan.calories,
+                          localEnergyUnit,
+                          'kcal'
+                        ) -
+                        (editedPlan.dietary_fiber || 0) * 2;
+                      return adjusted > 0
+                        ? Math.round(((editedPlan.carbs * 4) / adjusted) * 100)
+                        : 0;
+                    })()
+                  : 0}
+                %)
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -116,19 +93,24 @@ export const NutrientGoals = ({
             </TableRow>
             <TableRow className="border-border hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t(
-                  'onboarding.nutrientGoals.proteinShare',
-                  'Protein ({{percent}}%)',
-                  {
-                    percent: macroPercent(
-                      editedPlan,
-                      convertEnergy,
-                      localEnergyUnit,
-                      editedPlan?.protein ?? 0,
-                      4
-                    ),
-                  }
-                )}
+                {t('onboarding.nutrients.protein', 'Protein')} (
+                {editedPlan?.calories
+                  ? (() => {
+                      const adjusted =
+                        convertEnergy(
+                          editedPlan.calories,
+                          localEnergyUnit,
+                          'kcal'
+                        ) -
+                        (editedPlan.dietary_fiber || 0) * 2;
+                      return adjusted > 0
+                        ? Math.round(
+                            ((editedPlan.protein * 4) / adjusted) * 100
+                          )
+                        : 0;
+                    })()
+                  : 0}
+                %)
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -151,19 +133,22 @@ export const NutrientGoals = ({
             </TableRow>
             <TableRow className="border-border hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t(
-                  'onboarding.nutrientGoals.fatsShare',
-                  'Fats ({{percent}}%)',
-                  {
-                    percent: macroPercent(
-                      editedPlan,
-                      convertEnergy,
-                      localEnergyUnit,
-                      editedPlan?.fat ?? 0,
-                      9
-                    ),
-                  }
-                )}
+                {t('onboarding.nutrients.fats', 'Fats')} (
+                {editedPlan?.calories
+                  ? (() => {
+                      const adjusted =
+                        convertEnergy(
+                          editedPlan.calories,
+                          localEnergyUnit,
+                          'kcal'
+                        ) -
+                        (editedPlan.dietary_fiber || 0) * 2;
+                      return adjusted > 0
+                        ? Math.round(((editedPlan.fat * 9) / adjusted) * 100)
+                        : 0;
+                    })()
+                  : 0}
+                %)
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -184,7 +169,7 @@ export const NutrientGoals = ({
             </TableRow>
             <TableRow className="border-none hover:bg-transparent bg-muted/40">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t('onboarding.nutrientGoals.fiber', 'Fiber')}
+                {t('onboarding.nutrients.fiber', 'Fiber')}
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -213,14 +198,14 @@ export const NutrientGoals = ({
       <div className="bg-card rounded-2xl overflow-hidden border border-border">
         <div className="bg-muted px-4 py-3 border-b border-border">
           <h3 className="text-foreground font-bold text-sm">
-            {t('onboarding.nutrientGoals.fatBreakdown', 'Fat Breakdown')}
+            {t('onboarding.nutrients.fatBreakdown', 'Fat Breakdown')}
           </h3>
         </div>
         <Table>
           <TableBody>
             <TableRow className="border-border hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t('onboarding.nutrientGoals.saturatedFat', 'Saturated Fat')}
+                {t('onboarding.nutrients.saturatedFat', 'Saturated Fat')}
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -243,7 +228,7 @@ export const NutrientGoals = ({
             </TableRow>
             <TableRow className="border-border hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t('onboarding.nutrientGoals.transFat', 'Trans Fat')}
+                {t('onboarding.nutrients.transFat', 'Trans Fat')}
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -266,10 +251,7 @@ export const NutrientGoals = ({
             </TableRow>
             <TableRow className="border-border hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t(
-                  'onboarding.nutrientGoals.polyunsaturated',
-                  'Polyunsaturated'
-                )}
+                {t('onboarding.nutrients.polyunsaturated', 'Polyunsaturated')}
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -295,10 +277,7 @@ export const NutrientGoals = ({
             </TableRow>
             <TableRow className="border-none hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t(
-                  'onboarding.nutrientGoals.monounsaturated',
-                  'Monounsaturated'
-                )}
+                {t('onboarding.nutrients.monounsaturated', 'Monounsaturated')}
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -330,14 +309,14 @@ export const NutrientGoals = ({
       <div className="bg-card rounded-2xl overflow-hidden border border-border">
         <div className="bg-muted px-4 py-3 border-b border-border">
           <h3 className="text-foreground font-bold text-sm">
-            {t('onboarding.nutrientGoals.mineralsOther', 'Minerals & Other')}
+            {t('onboarding.nutrients.mineralsOther', 'Minerals & Other')}
           </h3>
         </div>
         <Table>
           <TableBody>
             <TableRow className="border-border hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t('onboarding.nutrientGoals.cholesterol', 'Cholesterol')}
+                {t('onboarding.nutrients.cholesterol', 'Cholesterol')}
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -360,7 +339,7 @@ export const NutrientGoals = ({
             </TableRow>
             <TableRow className="border-border hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t('onboarding.nutrientGoals.sodium', 'Sodium')}
+                {t('onboarding.nutrients.sodium', 'Sodium')}
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -383,7 +362,7 @@ export const NutrientGoals = ({
             </TableRow>
             <TableRow className="border-border hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t('onboarding.nutrientGoals.potassium', 'Potassium')}
+                {t('onboarding.nutrients.potassium', 'Potassium')}
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -406,7 +385,7 @@ export const NutrientGoals = ({
             </TableRow>
             <TableRow className="border-border hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t('onboarding.nutrientGoals.calcium', 'Calcium')}
+                {t('onboarding.nutrients.calcium', 'Calcium')}
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -429,7 +408,7 @@ export const NutrientGoals = ({
             </TableRow>
             <TableRow className="border-none hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t('onboarding.nutrientGoals.iron', 'Iron')}
+                {t('onboarding.nutrients.iron', 'Iron')}
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -456,14 +435,14 @@ export const NutrientGoals = ({
       <div className="bg-card rounded-2xl overflow-hidden border border-border">
         <div className="bg-muted px-4 py-3 border-b border-border">
           <h3 className="text-foreground font-bold text-sm">
-            {t('onboarding.nutrientGoals.sugarsVitamins', 'Sugars & Vitamins')}
+            {t('onboarding.nutrients.sugarsVitamins', 'Sugars & Vitamins')}
           </h3>
         </div>
         <Table>
           <TableBody>
             <TableRow className="border-border hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t('onboarding.nutrientGoals.sugar', 'Sugar')}
+                {t('onboarding.nutrients.sugar', 'Sugar')}
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -486,7 +465,7 @@ export const NutrientGoals = ({
             </TableRow>
             <TableRow className="border-border hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t('onboarding.nutrientGoals.vitaminA', 'Vitamin A')}
+                {t('onboarding.nutrients.vitaminA', 'Vitamin A')}
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -509,7 +488,7 @@ export const NutrientGoals = ({
             </TableRow>
             <TableRow className="border-none hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t('onboarding.nutrientGoals.vitaminC', 'Vitamin C')}
+                {t('onboarding.nutrients.vitaminC', 'Vitamin C')}
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -539,10 +518,7 @@ export const NutrientGoals = ({
         <div className="bg-card rounded-2xl overflow-hidden border border-border">
           <div className="bg-muted px-4 py-3 border-b border-border">
             <h3 className="text-foreground font-bold text-sm">
-              {t(
-                'onboarding.nutrientGoals.customNutrients',
-                'Custom Nutrients'
-              )}
+              {t('onboarding.nutrients.customNutrients', 'Custom Nutrients')}
             </h3>
           </div>
           <Table>
@@ -585,7 +561,7 @@ export const NutrientGoals = ({
         <div className="bg-muted px-4 py-3 border-b border-border">
           <h3 className="text-foreground font-bold text-sm">
             {t(
-              'onboarding.nutrientGoals.hydrationExercise',
+              'onboarding.nutrients.hydrationExercise',
               'Hydration & Exercise'
             )}
           </h3>
@@ -605,7 +581,7 @@ export const NutrientGoals = ({
           <TableBody>
             <TableRow className="border-border hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
-                {t('onboarding.nutrientGoals.waterGoal', 'Water Goal')}
+                {t('onboarding.nutrients.waterGoal', 'Water Goal')}
               </TableCell>
               <TableCell className="text-right text-foreground font-bold">
                 <div className="flex items-center justify-end gap-1">
@@ -636,7 +612,7 @@ export const NutrientGoals = ({
             <TableRow className="border-border hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
                 {t(
-                  'onboarding.nutrientGoals.exerciseDuration',
+                  'onboarding.nutrients.exerciseDuration',
                   'Exercise Duration'
                 )}
               </TableCell>
@@ -666,7 +642,7 @@ export const NutrientGoals = ({
             <TableRow className="border-none hover:bg-transparent">
               <TableCell className="font-medium text-muted-foreground text-sm">
                 {t(
-                  'onboarding.nutrientGoals.exerciseCalories',
+                  'onboarding.nutrients.exerciseCalories',
                   'Exercise Calories'
                 )}
               </TableCell>

@@ -10,8 +10,8 @@ import { OnboardingData, Sex } from '@/types/onboarding';
 import { RecentCheckInMeasurementsResponse } from '@workspace/shared';
 import { useExternalProvidersQuery } from '@/hooks/Settings/useExternalProviderSettings';
 import { useSkipOnboarding } from '@/hooks/Onboarding/useOnboarding';
-
 import { useTranslation } from 'react-i18next';
+
 interface OnBoardingProps {
   onOnboardingComplete: () => void;
 }
@@ -206,7 +206,7 @@ export const OnBoardingForm = ({
             className="text-muted-foreground hover:text-foreground font-semibold ml-2 w-16"
             disabled={skipOnboardingMutation.isPending}
           >
-            {t('common.skip', 'Skip')}
+            {t('onboarding.skip', 'Skip')}
           </Button>
         )}
 

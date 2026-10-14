@@ -81,6 +81,7 @@ import {
   SafeSync,
   SafeImportHistory,
   SafeMeasurementsAdd,
+  SafeMindfulnessLog,
   SafeProgressPhotos,
   SafeProgressPhotoCompare,
   SafeProgressPhotoTimelapse,
@@ -149,9 +150,6 @@ import { FullWindowOverlay } from 'react-native-screens';
 import type { RootStackParamList } from './src/types/navigation';
 import type { WorkoutCelebration } from './src/utils/workoutCelebration';
 import AddSheet, { addSheetRef } from './src/components/AddSheet';
-import { MindfulnessSessionModal } from './src/components/mindfulness/MindfulnessSessionModal';
-import { useMindfulnessMutations } from './src/hooks/useMindfulness';
-import { useDiaryDateStore } from './src/stores/diaryDateStore';
 import { toastConfig } from './src/components/ui/toastConfig';
 import { TabsLayout } from './src/components/TabsLayout';
 import { createIOSSmallNativeHeaderOptions } from './src/utils/nativeHeaderItems';
@@ -327,21 +325,13 @@ function AppContent() {
     handleAddProgressPhotos,
     handleAddSymptoms,
     handleAddMood,
+    handleAddMindfulness,
     handleRecordActivity,
     handleAskSparky,
     handleOpenCycle,
     handleSyncHealthData,
     handleAddSheetDismissWithoutAction,
   } = useAddSheetActions({ syncMutation });
-
-  const [mindfulnessLogModalVisible, setMindfulnessLogModalVisible] =
-    useState(false);
-  const selectedDiaryDate = useDiaryDateStore((s) => s.selectedDate);
-  const { saveSession: saveMindfulSession } =
-    useMindfulnessMutations(selectedDiaryDate);
-  const handleAddMindfulness = useCallback(() => {
-    setMindfulnessLogModalVisible(true);
-  }, []);
 
   const { enabled: cycleEnabled, mode: cycleMode, discreetMode: cycleDiscreet } = useCycleMode();
   const cycleSheetLabel = cycleDiscreet
@@ -929,6 +919,15 @@ function AppContent() {
             })}
           />
           <Stack.Screen
+            name="MindfulnessLog"
+            component={SafeMindfulnessLog}
+            options={createStackScreenOptions(t('mindfulness.modal.addTitle', { defaultValue: 'Log Mindful Session' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
+          <Stack.Screen
             name="ProgressPhotos"
             component={SafeProgressPhotos}
             options={createStackScreenOptions(t('screens.progressPhotos', { defaultValue: 'Progress Photos' }), { headerBackButtonDisplayMode: 'minimal' })}
@@ -1182,12 +1181,6 @@ function AppContent() {
           showCycleCard={cycleEnabled}
           cycleLabel={cycleSheetLabel}
           onDismissWithoutAction={handleAddSheetDismissWithoutAction}
-        />
-        <MindfulnessSessionModal
-          visible={mindfulnessLogModalVisible}
-          onClose={() => setMindfulnessLogModalVisible(false)}
-          onSave={saveMindfulSession}
-          selectedDate={selectedDiaryDate}
         />
         <ReauthModal
           visible={showReauthModal}
