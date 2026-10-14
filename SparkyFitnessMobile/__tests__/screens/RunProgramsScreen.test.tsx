@@ -194,6 +194,39 @@ describe('RunProgramsScreen', () => {
     );
   });
 
+  it('offers to customize each program and the one being followed', () => {
+    mockedUse.mockReturnValue({
+      status: null,
+      enabled: false,
+      lastAdjustment: null,
+      schedule: { days: [], startDay: null, endDay: null },
+      doneDay: null,
+      loaded: true,
+    });
+    const props = RunProgramsProps();
+    const first = renderScreen(props);
+    fireEvent.press(screen.getByTestId('customize-halfMarathon'));
+    expect(props.navigation.navigate).toHaveBeenCalledWith('RunProgramEdit', {
+      fromProgramId: 'halfMarathon',
+    });
+    first.unmount();
+
+    mockedUse.mockReturnValue({
+      status: programStatus({ programId: 'beginner5k', next: 2 })!,
+      enabled: true,
+      lastAdjustment: null,
+      schedule: { days: [], startDay: null, endDay: null },
+      doneDay: null,
+      loaded: true,
+    });
+    const next = RunProgramsProps();
+    renderScreen(next);
+    fireEvent.press(screen.getByTestId('customize-current'));
+    expect(next.navigation.navigate).toHaveBeenCalledWith('RunProgramEdit', {
+      fromProgramId: 'beginner5k',
+    });
+  });
+
   describe('your own plans', () => {
     const plan = {
       id: '0b6f1c1e-6a52-4a8e-9a3b-2f1d4f5a9c10',

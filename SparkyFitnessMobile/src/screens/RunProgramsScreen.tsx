@@ -269,6 +269,23 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
         <RunProgramGuide
           programId={status.program.custom ? undefined : storedId}
         />
+        {status.program.custom ? null : (
+          <View className="mt-4">
+            <Button
+              variant="outline"
+              onPress={() =>
+                navigation.navigate('RunProgramEdit', {
+                  fromProgramId: status.program.id,
+                })
+              }
+              testID="customize-current"
+            >
+              {t('runPrograms.custom.customize', {
+                defaultValue: 'Customize this program',
+              })}
+            </Button>
+          </View>
+        )}
         {yourPlans}
       </>
     );
@@ -324,6 +341,21 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
               <View className="mt-3">
                 <Button variant="outline" onPress={() => askStart(program.id)}>
                   {t('runPrograms.start', { defaultValue: 'Start program' })}
+                </Button>
+              </View>
+              <View className="mt-2">
+                <Button
+                  variant="ghost"
+                  onPress={() =>
+                    navigation.navigate('RunProgramEdit', {
+                      fromProgramId: program.id,
+                    })
+                  }
+                  testID={`customize-${program.id}`}
+                >
+                  {t('runPrograms.custom.customize', {
+                    defaultValue: 'Customize this program',
+                  })}
                 </Button>
               </View>
             </View>

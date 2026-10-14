@@ -7464,7 +7464,9 @@
       "heartRateTarget": "Heart rate",
       "heartRateLow": "Lowest heart rate",
       "heartRateHigh": "Highest heart rate",
-      "targetHint": "Use m:ss for pace and bpm for heart rate, with the two ends at least 10 apart. Empty means no target."
+      "targetHint": "Use m:ss for pace and bpm for heart rate, with the two ends at least 10 apart. Empty means no target.",
+      "customize": "Customize this program",
+      "copyName": "{{name}} (my copy)"
     }
   },
   "speechVoice": {

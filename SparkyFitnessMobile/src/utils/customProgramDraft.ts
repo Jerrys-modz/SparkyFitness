@@ -1,5 +1,6 @@
 import {
   MAX_CUSTOM_PROGRAM_WORKOUTS,
+  type RunProgram,
   type CustomRunProgramInput,
   type CustomRunProgramResponse,
 } from '@workspace/shared';
@@ -62,6 +63,31 @@ export function draftFromProgram(
     workouts: program.workouts.map((workout) => ({
       title: workout.title ?? '',
       steps: workout.plan.steps.map((step) => ({ ...step })),
+    })),
+  };
+}
+
+/**
+ * A copy of a built-in program to edit as one's own. Each workout keeps its
+ * plan and gets a title (the built-in's own "Week 3, run 2" from `titleOf`),
+ * since a custom plan has no weeks to say where a workout came from.
+ */
+export function draftFromBuiltIn(
+  program: RunProgram,
+  name: string,
+  titleOf: (workout: RunProgram['workouts'][number]) => string
+): ProgramDraft {
+  return {
+    name: name.slice(0, 60),
+    activity: program.activity,
+    workouts: program.workouts.map((workout) => ({
+      title: titleOf(workout).slice(0, 40),
+      steps: workout.plan.steps.map((step) => ({
+        kind: step.kind,
+        seconds: step.seconds,
+        ...(step.pace ? { pace: { ...step.pace } } : {}),
+        ...(step.heartRate ? { heartRate: { ...step.heartRate } } : {}),
+      })),
     })),
   };
 }

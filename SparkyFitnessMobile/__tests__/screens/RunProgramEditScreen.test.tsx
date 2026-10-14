@@ -37,12 +37,16 @@ jest.mock('uniwind', () => ({
 }));
 
 const goBack = jest.fn();
-const renderFor = (id?: string) =>
+const renderFor = (id?: string, fromProgramId?: string) =>
   render(
     <RunProgramEditScreen
       {...({
         navigation: { goBack, navigate: jest.fn() },
-        route: { key: 'e', name: 'RunProgramEdit', params: id ? { id } : {} },
+        route: {
+          key: 'e',
+          name: 'RunProgramEdit',
+          params: id ? { id } : fromProgramId ? { fromProgramId } : {},
+        },
       } as never)}
     />
   );
@@ -135,6 +139,22 @@ describe('RunProgramEditScreen', () => {
       pace: { minSecondsPerKm: 300, maxSecondsPerKm: 360 },
       heartRate: { minBpm: 130, maxBpm: 150 },
     });
+  });
+
+  it('starts from a copy of a built-in program', async () => {
+    renderFor(undefined, 'beginner5k');
+    expect(screen.getByTestId('plan-name').props.value).toBe(
+      'Beginner 5K (my copy)'
+    );
+    // Beginner 5K has 27 workouts, named by their week and run.
+    expect(screen.getByTestId('plan-workout-26')).toBeTruthy();
+    expect(screen.queryByTestId('plan-workout-27')).toBeNull();
+    fireEvent.press(screen.getByTestId('plan-save'));
+    await waitFor(() => expect(saveCustomProgram).toHaveBeenCalled());
+    const [input, id] = jest.mocked(saveCustomProgram).mock.calls[0];
+    expect(id).toBeUndefined();
+    expect(input.workouts).toHaveLength(27);
+    expect(input.workouts[0].title).toBe('Week 1, run 1');
   });
 
   it('deletes a plan after asking', async () => {

@@ -11,7 +11,12 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { useCSSVariable } from 'uniwind';
+import { findProgram } from '@workspace/shared';
 import Button from '../components/ui/Button';
+import {
+  programName,
+  workoutTitle,
+} from '../components/recording/RunProgramCard';
 import Icon from '../components/Icon';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import {
@@ -26,6 +31,7 @@ import {
   addWorkout,
   canAddWorkout,
   cycleStepKind,
+  draftFromBuiltIn,
   draftFromProgram,
   draftProblem,
   draftToInput,
@@ -236,9 +242,23 @@ const RunProgramEditScreen: React.FC<Props> = ({ navigation, route }) => {
     '--color-text-muted',
     '--color-accent-primary',
   ]) as [string, string];
-  const [draft, setDraft] = useState<ProgramDraft | null>(() =>
-    id ? null : emptyDraft()
-  );
+  const fromProgramId = route.params?.fromProgramId;
+  const [draft, setDraft] = useState<ProgramDraft | null>(() => {
+    if (id) return null;
+    // A built-in program opened to be customised starts as a copy of it.
+    const source = fromProgramId ? findProgram(fromProgramId) : undefined;
+    if (source) {
+      return draftFromBuiltIn(
+        source,
+        t('runPrograms.custom.copyName', {
+          name: programName(t, source.id),
+          defaultValue: '{{name}} (my copy)',
+        }),
+        (workout) => workoutTitle(t, source, workout)
+      );
+    }
+    return emptyDraft();
+  });
   const [saving, setSaving] = useState(false);
   // Bumped when steps or workouts move or go, so the target boxes (which hold
   // their own text while typing) start over from the step now at that place.

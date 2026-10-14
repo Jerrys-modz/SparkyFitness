@@ -1,7 +1,9 @@
+import { findProgram } from '@workspace/shared';
 import {
   addStep,
   addWorkout,
   cycleStepKind,
+  draftFromBuiltIn,
   draftFromProgram,
   draftProblem,
   draftToInput,
@@ -147,5 +149,47 @@ describe('customProgramDraft', () => {
     expect(cycled.workouts[0].steps[1].kind).toBe('cooldown');
     expect(cycled.workouts[0].steps[1].pace).toBeUndefined();
     expect(cycled.workouts[0].steps[1].heartRate).toBeUndefined();
+  });
+
+  it('copies a built-in program so it can be edited as one own', () => {
+    const program = findProgram('beginner5k')!;
+    const draft = draftFromBuiltIn(
+      program,
+      'Beginner 5K (my copy)',
+      (w) => `Week ${w.week + 1}, run ${w.day + 1}`
+    );
+    expect(draft.name).toBe('Beginner 5K (my copy)');
+    expect(draft.activity).toBe('run');
+    expect(draft.workouts).toHaveLength(program.workouts.length);
+    expect(draft.workouts[0].title).toBe('Week 1, run 1');
+    expect(draft.workouts[0].steps).toEqual(
+      program.workouts[0].plan.steps.map((s) => ({
+        kind: s.kind,
+        seconds: s.seconds,
+      }))
+    );
+    // Changing the copy leaves the built-in program alone.
+    const before = program.workouts[0].plan.steps[0].seconds;
+    nudgeStep(draft, 0, 0, 1);
+    expect(program.workouts[0].plan.steps[0].seconds).toBe(before);
+    // It is saveable as it stands.
+    expect(draftProblem(draft)).toBeNull();
+    expect(draftToInput(draft).workouts).toHaveLength(program.workouts.length);
+  });
+
+  it('copies every built-in program within the limits of a custom plan', () => {
+    for (const id of [
+      'walkFit',
+      'beginner5k',
+      'fiveToTenK',
+      'faster5k',
+      'halfMarathon',
+      'marathon',
+    ]) {
+      const program = findProgram(id)!;
+      const draft = draftFromBuiltIn(program, id, (w) => `W${w.week}${w.day}`);
+      expect(draftProblem(draft)).toBeNull();
+      expect(draft.workouts.length).toBeLessThanOrEqual(364);
+    }
   });
 });
