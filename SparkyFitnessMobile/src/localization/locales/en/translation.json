@@ -6235,6 +6235,19 @@
         "spike": "A big jump from your usual. Ramping up this fast raises the risk of injury, so ease off."
       }
     },
+    "runEstimates": {
+      "title": "Running Estimates",
+      "subtitle": "Estimated from your pace, heart rate, weight and climb. Not a measurement, so expect it to be off by several percent.",
+      "loadFailed": "Could not load your running estimates.",
+      "about": "≈ {{value}}",
+      "vo2Unit": "VO₂ max (ml/kg/min)",
+      "vo2Basis_one": "From {{count}} run in the last 6 weeks",
+      "vo2Basis_other": "From {{count}} runs in the last 6 weeks",
+      "watts": "≈ {{value}} W",
+      "powerUnit": "Running power ({{perKg}} W/kg)",
+      "powerBasis_one": "Average of {{count}} run in the last 4 weeks",
+      "powerBasis_other": "Average of {{count}} runs in the last 4 weeks"
+    },
     "consistency": {
       "title": "Training Consistency",
       "subtitle_one": "Last {{formattedCount}} week, {{first}} to {{last}}",

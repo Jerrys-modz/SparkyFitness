@@ -1,5 +1,6 @@
 import type {
   ExerciseDashboardSummary,
+  RunningEstimatesResponse,
   TrainingConsistency,
   TrainingLoad,
 } from '@workspace/shared';
@@ -66,4 +67,11 @@ export const fetchTrainingLoad = (): Promise<TrainingLoad> =>
     endpoint: '/api/reports/training-load',
     serviceName: 'Reports API',
     operation: 'fetch training load',
+  });
+
+export const fetchRunEstimates = (): Promise<RunningEstimatesResponse> =>
+  apiFetch<RunningEstimatesResponse>({
+    endpoint: '/api/reports/run-estimates',
+    serviceName: 'Reports API',
+    operation: 'fetch running estimates',
   });

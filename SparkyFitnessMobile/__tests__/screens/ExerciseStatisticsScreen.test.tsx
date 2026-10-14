@@ -54,6 +54,13 @@ jest.mock('../../src/hooks/useTrainingLoad', () => ({
     isError: false,
   }),
 }));
+jest.mock('../../src/hooks/useRunEstimates', () => ({
+  useRunEstimates: () => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+  }),
+}));
 jest.mock('../../src/hooks/useCardioSessions', () => ({
   useCardioSessions: jest.fn(),
 }));

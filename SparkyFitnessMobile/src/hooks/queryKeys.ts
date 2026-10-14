@@ -319,6 +319,9 @@ export const trainingConsistencyQueryKey = () =>
 export const trainingLoadQueryKey = (today: string) =>
   ['trainingLoad', today] as const;
 
+export const runEstimatesQueryKey = (today: string) =>
+  ['runEstimates', today] as const;
+
 export const cardioSessionsQueryKey = (
   startDate: string,
   endDate: string,
