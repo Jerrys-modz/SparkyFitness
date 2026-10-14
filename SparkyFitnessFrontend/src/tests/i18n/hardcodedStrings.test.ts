@@ -56,6 +56,10 @@ const ALLOWED = new Set([
   'pages/Admin/OidcProviderDialog.tsx:proxy_set_header X-Forwarded-Proto $scheme;',
   'pages/Admin/OidcProviderDialog.tsx:add_header X-Content-Type-Options "nosniff";',
   'pages/Admin/OidcProviderDialog.tsx:proxy_set_header X-Forwarded-Ssl on;',
+  // Unit-system toggles and a data-source brand name in onboarding.
+  'components/Onboarding/OnBoardingSteps.tsx:st/lb',
+  'components/Onboarding/OnBoardingSteps.tsx:ft/in',
+  'components/Onboarding/FoodSourcesStep.tsx:USDA FoodData Central',
   // Third-party library names in the barcode scanner engine picker.
   'components/FoodSearch/BarcodeScanner.tsx:@zxing/library',
   'components/FoodSearch/BarcodeScanner.tsx:html5-qrcode',
