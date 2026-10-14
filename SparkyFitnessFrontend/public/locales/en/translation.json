@@ -7060,5 +7060,33 @@
     "setsTitle": "Sets per muscle",
     "noSets": "No sets logged this week or last.",
     "loadFailed": "Failed to load training consistency."
+  },
+  "fitnessFatigue": {
+    "title": "Readiness and Form",
+    "subtitle": "How ready you are today, from training form, sleep and resting heart rate.",
+    "loadFailed": "Failed to load readiness and form.",
+    "outOf": "readiness out of 100",
+    "fitness": "Fitness",
+    "fatigue": "Fatigue",
+    "form": "Form",
+    "chartLabel": "Form over the last four weeks",
+    "level": {
+      "high": "Ready for a hard session.",
+      "moderate": "Fine for a normal session, but not your hardest.",
+      "low": "Not recovered. An easy day or rest is the better call.",
+      "noData": "Not enough to go on yet. Log workouts and sleep to see your readiness."
+    },
+    "status": {
+      "fresh": "Fresh: recent training is light against what you have built.",
+      "tired": "Tired: recent training is heavy against what you have built.",
+      "neutral": "Balanced: recent training matches what you have built.",
+      "learning": "Still learning your normal. Keep logging."
+    },
+    "factor": {
+      "form": "Training form",
+      "sleep": "Sleep",
+      "restingHeartRate": "Resting heart rate",
+      "hrv": "HRV"
+    }
   }
 }
