@@ -1,7 +1,10 @@
+import { useCSSVariable } from 'uniwind';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 
+import Icon from './Icon';
+import { formatTooltipDate } from './charts/chartFormatting';
 import { formatLocalizedNumber } from '../localization';
 import { MEAL_CONFIG, getLocalizedMealLabel } from '../constants/meals';
 import { buildTopSources, mealTypesInEntries } from '../utils/nutrientSources';
@@ -19,6 +22,8 @@ type NutrientTopSourcesCardProps = {
   /** Localized label for `selectedDay`. */
   selectedDayLabel: string;
   onClearDay: () => void;
+  /** Opens one contributing diary entry. */
+  onViewEntry: (entry: FoodEntry) => void;
 };
 
 const formatAmount = (value: number) =>
@@ -36,9 +41,12 @@ const NutrientTopSourcesCard: React.FC<NutrientTopSourcesCardProps> = ({
   selectedDay,
   selectedDayLabel,
   onClearDay,
+  onViewEntry,
 }) => {
   const { t } = useTranslation();
+  const chevronColor = useCSSVariable('--color-progress-track') as string;
   const [mealType, setMealType] = useState<string | null>(null);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
   const mealTypes = useMemo(() => mealTypesInEntries(entries), [entries]);
   // A meal type that has dropped out of the range (e.g. after a range switch) is no filter.
@@ -137,48 +145,111 @@ const NutrientTopSourcesCard: React.FC<NutrientTopSourcesCardProps> = ({
           })}
         </Text>
       ) : (
-        sources.map((source, index) => (
-          <View
-            key={source.key}
-            className={`py-2 ${
-              index < sources.length - 1 ? 'border-b border-border-subtle' : ''
-            }`}
-            testID={`top-source-${index}`}
-          >
-            <View className="flex-row justify-between items-baseline">
-              <View className="flex-1 mr-3">
-                <Text
-                  className="text-text-primary text-sm font-semibold"
-                  numberOfLines={1}
-                >
-                  {source.name}
-                </Text>
-                {source.brand ? (
-                  <Text className="text-text-muted text-xs" numberOfLines={1}>
-                    {source.brand}
+        sources.map((source, index) => {
+          const expanded = source.key === expandedKey;
+          return (
+            <View
+              key={source.key}
+              className={
+                index < sources.length - 1
+                  ? 'border-b border-border-subtle'
+                  : ''
+              }
+              testID={`top-source-${index}`}
+            >
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setExpandedKey(expanded ? null : source.key)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded }}
+                testID={`top-source-toggle-${index}`}
+                className="py-2"
+              >
+                <View className="flex-row justify-between items-baseline">
+                  <View className="flex-1 mr-3">
+                    <Text
+                      className="text-text-primary text-sm font-semibold"
+                      numberOfLines={1}
+                    >
+                      {source.name}
+                    </Text>
+                    {source.brand ? (
+                      <Text
+                        className="text-text-muted text-xs"
+                        numberOfLines={1}
+                      >
+                        {source.brand}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <View className="flex-row items-center gap-1">
+                    <Text className="text-text-primary text-sm font-semibold">
+                      {formatAmount(source.amount)} {unit}
+                    </Text>
+                    <Icon
+                      name={expanded ? 'chevron-down' : 'chevron-forward'}
+                      size={14}
+                      color={chevronColor}
+                    />
+                  </View>
+                </View>
+                <View className="flex-row items-center mt-1.5">
+                  <View className="flex-1 h-1.5 rounded-full bg-background overflow-hidden">
+                    <View
+                      className="h-1.5 rounded-full bg-accent-primary"
+                      style={{ width: `${Math.round(source.share * 100)}%` }}
+                    />
+                  </View>
+                  <Text className="text-text-muted text-xs ml-2 w-10 text-right">
+                    {t('nutrientTrends.topSources.share', {
+                      defaultValue: '{{percent}}%',
+                      percent: Math.round(source.share * 100),
+                    })}
                   </Text>
-                ) : null}
-              </View>
-              <Text className="text-text-primary text-sm font-semibold">
-                {formatAmount(source.amount)} {unit}
-              </Text>
+                </View>
+              </TouchableOpacity>
+
+              {expanded ? (
+                <View className="pb-2">
+                  {source.entries.map(({ entry, amount }) => (
+                    <TouchableOpacity
+                      key={entry.id}
+                      activeOpacity={0.7}
+                      onPress={() => onViewEntry(entry)}
+                      accessibilityRole="button"
+                      testID={`top-source-entry-${entry.id}`}
+                      className="flex-row justify-between items-center py-1.5 pl-3"
+                    >
+                      <View className="flex-1 mr-3">
+                        <Text className="text-text-secondary text-xs">
+                          {formatTooltipDate(entry.entry_date)}
+                        </Text>
+                        <Text className="text-text-muted text-xs">
+                          {mealLabel(entry.meal_type)} ·{' '}
+                          {t('nutrientTrends.topSources.servingAmount', {
+                            defaultValue: '{{quantity}} {{unit}}',
+                            quantity: formatAmount(entry.quantity),
+                            unit: entry.unit,
+                          })}
+                        </Text>
+                      </View>
+                      <View className="flex-row items-center gap-1">
+                        <Text className="text-text-secondary text-xs font-semibold">
+                          {formatAmount(amount)} {unit}
+                        </Text>
+                        <Icon
+                          name="chevron-forward"
+                          size={12}
+                          color={chevronColor}
+                        />
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : null}
             </View>
-            <View className="flex-row items-center mt-1.5">
-              <View className="flex-1 h-1.5 rounded-full bg-background overflow-hidden">
-                <View
-                  className="h-1.5 rounded-full bg-accent-primary"
-                  style={{ width: `${Math.round(source.share * 100)}%` }}
-                />
-              </View>
-              <Text className="text-text-muted text-xs ml-2 w-10 text-right">
-                {t('nutrientTrends.topSources.share', {
-                  defaultValue: '{{percent}}%',
-                  percent: Math.round(source.share * 100),
-                })}
-              </Text>
-            </View>
-          </View>
-        ))
+          );
+        })
       )}
     </View>
   );

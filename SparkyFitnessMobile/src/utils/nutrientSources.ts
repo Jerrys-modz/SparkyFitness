@@ -1,5 +1,11 @@
 import type { FoodEntry } from '../types/foodEntries';
 
+export interface NutrientSourceEntry {
+  entry: FoodEntry;
+  /** This entry's contribution, in the nutrient's own unit. */
+  amount: number;
+}
+
 export interface NutrientSource {
   /** Stable grouping key: the library food id, else the snapshot name + brand. */
   key: string;
@@ -10,6 +16,8 @@ export interface NutrientSource {
   /** Fraction (0-1) of the filtered selection's total for this nutrient. */
   share: number;
   entryCount: number;
+  /** The entries behind the total, newest day first. */
+  entries: NutrientSourceEntry[];
 }
 
 export interface TopSources {
@@ -83,6 +91,7 @@ export function buildTopSources(
     if (group) {
       group.amount += amount;
       group.entryCount += 1;
+      group.entries.push({ entry, amount });
     } else {
       groups.set(key, {
         key,
@@ -90,6 +99,7 @@ export function buildTopSources(
         brand: entry.brand_name || undefined,
         amount,
         entryCount: 1,
+        entries: [{ entry, amount }],
       });
     }
   }
@@ -99,6 +109,11 @@ export function buildTopSources(
     .slice(0, limit)
     .map((group) => ({
       ...group,
+      entries: [...group.entries].sort(
+        (a, b) =>
+          b.entry.entry_date.localeCompare(a.entry.entry_date) ||
+          b.amount - a.amount
+      ),
       share: total > 0 ? group.amount / total : 0,
     }));
 

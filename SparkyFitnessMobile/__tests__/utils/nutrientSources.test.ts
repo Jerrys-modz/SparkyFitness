@@ -69,6 +69,11 @@ describe('buildTopSources', () => {
     expect(sources[0].share).toBeCloseTo(600 / 960);
   });
 
+  it('lists a source entries newest day first', () => {
+    const { sources } = buildTopSources(entries, 'calcium');
+    expect(sources[0].entries.map((e) => e.entry.id)).toEqual(['2', '1']);
+  });
+
   it('filters by day', () => {
     const { sources } = buildTopSources(entries, 'calcium', {
       day: '2026-10-02',
