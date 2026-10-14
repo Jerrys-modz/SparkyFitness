@@ -440,8 +440,9 @@ const RunProgramCard: React.FC<Props> = ({
                     'Starts {{date}}. Nothing shows in the Diary before then.',
                 })
               : t('recordActivity.program.startDayToday', {
+                  date: dayLabel(today),
                   defaultValue:
-                    'Starts today. Pick a later date if you want to begin then.',
+                    'Starts today, {{date}}. Pick a later date if you want to begin then.',
                 })}
           </Text>
           <View className="flex-row">
@@ -449,13 +450,9 @@ const RunProgramCard: React.FC<Props> = ({
               variant="link"
               onPress={() => calendarRef.current?.present()}
             >
-              {futureStart
-                ? t('recordActivity.program.startChange', {
-                    defaultValue: 'Change start date',
-                  })
-                : t('recordActivity.program.startPick', {
-                    defaultValue: 'Pick a start date',
-                  })}
+              {t('recordActivity.program.startChange', {
+                defaultValue: 'Change start date',
+              })}
             </Button>
             {futureStart ? (
               <Button

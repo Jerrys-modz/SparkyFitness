@@ -164,7 +164,7 @@ describe('diary days and start day', () => {
   it('starts today until a start date is picked', () => {
     render(<RunProgramCard {...props()} now={now} />);
     expect(screen.getByText(/Starts today/)).toBeTruthy();
-    expect(screen.getByText('Pick a start date')).toBeTruthy();
+    expect(screen.getByText('Change start date')).toBeTruthy();
     expect(screen.queryByText('Tomorrow')).toBeNull();
     expect(screen.queryByText('Start today')).toBeNull();
   });
