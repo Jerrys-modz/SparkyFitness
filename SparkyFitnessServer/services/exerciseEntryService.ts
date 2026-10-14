@@ -636,12 +636,6 @@ async function attachLapsToExerciseEntry(
 }
 
 /**
- * Sets the distance of an entry that has no GPS track (a treadmill run) to
- * what the person read off the machine. Nothing else about the entry changes,
- * so the measured heart rate and energy stay. Its set distance follows, and
- * any laps are scaled by the same factor so they still add up to the entry.
- */
-/**
  * Stores the distance-against-time series of an entry with no route. The
  * posted series is the whole thing: re-posting replaces it.
  */
@@ -704,6 +698,12 @@ async function getExerciseEntryDistanceSeries(
   }
 }
 
+/**
+ * Sets the distance of an entry that has no GPS track (a treadmill run) to
+ * what the person read off the machine. Nothing else about the entry changes,
+ * so the measured heart rate and energy stay. Its set distance follows, and
+ * any laps are scaled by the same factor so they still add up to the entry.
+ */
 async function setExerciseEntryDistance(
   userId: string,
   actingUserId: string,

@@ -165,7 +165,7 @@ struct CardioPlanStep: View {
             .font(.system(size: WatchStyle.s(14), weight: .bold))
             .foregroundStyle(tint)
             if let next {
-                Text("Next: \(next)")
+                Text(String(localized: "watch.recording.next", defaultValue: "Next: \(next)"))
                     .font(.system(size: WatchStyle.s(11)))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

@@ -502,9 +502,11 @@ extension WatchRunHealthKitController {
         pedometer = counter
         pedometerSteps = 0
         pedometerLive = false
-        counter.startUpdates(from: Date()) { [weak self] data, error in
+        counter.startUpdates(from: Date()) { [weak self, weak counter] data, error in
             DispatchQueue.main.async {
-                guard let self else { return }
+                // A restart replaces the counter; a late callback from the old
+                // one must not tear down the new one or feed it its steps.
+                guard let self, let counter, self.pedometer === counter else { return }
                 // A failure (permission refused at the prompt, sensor trouble)
                 // switches the detector off rather than leaving it to guess.
                 if error != nil { self.stopMotion(); return }

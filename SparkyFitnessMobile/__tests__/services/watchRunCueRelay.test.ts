@@ -56,3 +56,15 @@ test('ignores an empty cue', () => {
   speakWatchCue('', true);
   expect(speak).not.toHaveBeenCalled();
 });
+
+test('the stopped cue an interrupt cuts off does not end the cue session', () => {
+  speakWatchCue('Kilometer 1.', false);
+  speakWatchCue('Paused.', true);
+  // Stopping the first cue fires its callback while the interrupting cue is
+  // already being said.
+  finish(0);
+  expect(endRecordingCues).not.toHaveBeenCalled();
+  expect(speak).toHaveBeenCalledTimes(2);
+  finish(1);
+  expect(endRecordingCues).toHaveBeenCalledTimes(1);
+});

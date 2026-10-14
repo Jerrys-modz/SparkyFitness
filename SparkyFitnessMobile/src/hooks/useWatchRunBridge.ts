@@ -94,7 +94,14 @@ export function useWatchRunBridge(
       'onRunCue',
       (payload: WatchRunCuePayload) => {
         if (!payload.text) return;
-        void WatchConnectivity?.sendRunCueAck(payload.id);
+        void WatchConnectivity?.sendRunCueAck(payload.id).catch(
+          (error: unknown) => {
+            addLog(
+              `[Watch Run] Could not acknowledge a run cue: ${error}`,
+              'WARNING'
+            );
+          }
+        );
         speakWatchCue(payload.text, payload.interrupt);
       }
     );

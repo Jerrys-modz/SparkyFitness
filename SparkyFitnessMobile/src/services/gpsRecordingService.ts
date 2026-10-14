@@ -909,6 +909,12 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
       }
     }
     const now = Date.now();
+    // A new recording starts the alerts afresh: the state (and its epoch-ms
+    // waits) belongs to the run that ended, not this one.
+    paceAlertState = INITIAL_PACE_ALERT_STATE;
+    paceAlertStep = null;
+    heartRateAlertState = INITIAL_HEART_RATE_ALERT_STATE;
+    heartRateAlertStep = null;
     // Android cannot ask later how many steps fell inside this session, so
     // the counter is read now and stored. iOS returns null here and queries
     // the window at the end. A ride has no step estimate. Failure leaves the
@@ -1355,6 +1361,10 @@ export function resetRecordingStateForTests(): void {
   heartRate = { samples: [], batchIds: [] };
   autoPauseState = INITIAL_AUTO_PAUSE_STATE;
   autoPauseFixStats = { withSpeed: 0, withoutSpeed: 0, inaccurate: 0 };
+  paceAlertState = INITIAL_PACE_ALERT_STATE;
+  paceAlertStep = null;
+  heartRateAlertState = INITIAL_HEART_RATE_ALERT_STATE;
+  heartRateAlertStep = null;
   hydrated = null;
   queue = Promise.resolve();
   publish();

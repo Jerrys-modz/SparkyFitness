@@ -12,6 +12,17 @@ import {
  */
 const queue: string[] = [];
 let speaking = false;
+// Bumped when a cue interrupts: stopping the cue being said fires its callback
+// while the new one is already starting, and that must not run `next`.
+let generation = 0;
+
+function say(text: string): void {
+  const mine = generation;
+  speaking = true;
+  speakRecordingCue(text, () => {
+    if (mine === generation) next();
+  });
+}
 
 function next(): void {
   const text = queue.shift();
@@ -20,8 +31,7 @@ function next(): void {
     endRecordingCues();
     return;
   }
-  speaking = true;
-  speakRecordingCue(text, next);
+  say(text);
 }
 
 export function speakWatchCue(text: string, interrupt: boolean): void {
@@ -29,8 +39,8 @@ export function speakWatchCue(text: string, interrupt: boolean): void {
   if (!speaking) beginRecordingCues();
   if (interrupt) {
     queue.length = 0;
-    speaking = true;
-    speakRecordingCue(text, next);
+    generation += 1;
+    say(text);
     return;
   }
   queue.push(text);
@@ -40,5 +50,6 @@ export function speakWatchCue(text: string, interrupt: boolean): void {
 /** Forgets anything waiting, for tests and for when the bridge is unmounted. */
 export function resetWatchCueRelay(): void {
   queue.length = 0;
+  generation += 1;
   speaking = false;
 }
