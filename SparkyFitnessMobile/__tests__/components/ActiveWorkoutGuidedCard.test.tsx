@@ -217,6 +217,50 @@ describe('ActiveWorkoutGuidedCard', () => {
     ).toBeTruthy();
   });
 
+  it('does not start the next timed set until the rest has run out', () => {
+    const session = makeSession();
+    session.exercises = [
+      exercise('e1', 'Plank', 'duration', [
+        { id: 1, duration: 5 },
+        { id: 2, duration: 5 },
+      ]),
+    ];
+    __resetActiveWorkoutStoreForTests();
+    useActiveWorkoutStore.getState().startWorkout(session);
+    renderCard();
+
+    // Session start: get ready, then set 1's timer runs out and logs itself.
+    act(() => jest.advanceTimersByTime(250));
+    act(() => jest.advanceTimersByTime(3000));
+    expect(
+      useActiveWorkoutStore.getState().setTimerStartedAt['1']
+    ).toBeDefined();
+    act(() => jest.advanceTimersByTime(5250));
+    expect(useActiveWorkoutStore.getState().completedSetIds['1']).toBeDefined();
+    expect(useActiveWorkoutStore.getState().rest.state).toBe('resting');
+
+    // Throughout the 30s rest: no get-ready, no stopwatch for set 2.
+    for (let i = 0; i < 28; i++) {
+      act(() => jest.advanceTimersByTime(1000));
+      const s = useActiveWorkoutStore.getState();
+      expect(s.rest.state).toBe('resting');
+      expect(s.setTimerStartedAt['2']).toBeUndefined();
+      expect(screen.queryByText('Get ready')).toBeNull();
+    }
+
+    // Rest expires on its own, and only then does set 2 get ready and run.
+    act(() => jest.advanceTimersByTime(2500));
+    expect(useActiveWorkoutStore.getState().rest.state).toBe('ready');
+    expect(
+      useActiveWorkoutStore.getState().setTimerStartedAt['2']
+    ).toBeUndefined();
+    expect(screen.getByText('Get ready')).toBeTruthy();
+    act(() => jest.advanceTimersByTime(3250));
+    expect(
+      useActiveWorkoutStore.getState().setTimerStartedAt['2']
+    ).toBeDefined();
+  });
+
   it('resumes a running timed set silently after a remount', () => {
     const store = useActiveWorkoutStore.getState();
     store.completeSet('1');
