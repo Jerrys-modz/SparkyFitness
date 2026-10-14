@@ -7407,6 +7407,7 @@
     "high": "Higher than usual: keep the next few easy",
     "spike": "A big jump: ease off",
     "takeRest": "Take a rest day or an easy session.",
-    "ready": "You are rested and ready."
+    "ready": "You are rested and ready.",
+    "explain": "Adds up how long and how hard your workouts were. Usual is your 4-week average. Bars show the last 4 weeks; green is this week."
   }
 }
