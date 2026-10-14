@@ -39,6 +39,7 @@ export * from "./schemas/api/HydrationNutritionRange.api.zod.ts";
 export * from "./schemas/api/WorkoutDays.api.zod.ts";
 export * from "./schemas/api/Mindfulness.api.zod.ts";
 export * from "./schemas/api/RunProgram.api.zod.ts";
+export * from "./schemas/api/FitnessFatigue.api.zod.ts";
 export * from "./schemas/database/Account.zod.ts";
 export * from "./schemas/database/AdminActivityLogs.zod.ts";
 export * from "./schemas/database/AiServiceSettings.zod.ts";
