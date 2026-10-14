@@ -690,6 +690,15 @@ final class WatchRunStore: ObservableObject {
             result.metrics.distanceMeters = meters
         }
         pendingResult = nil
+        // Say the finish once the distance is settled (the machine's figure, if
+        // given), and before the run is handed to the phone, as on the other
+        // finish path: a cue confirmed behind the phone's filing is heard twice.
+        cue(WatchRunCues.finishText(
+            title: result.kind.title(result.place),
+            distanceMeters: result.metrics.distanceMeters,
+            seconds: pendingElapsed,
+            usesMiles: usesMiles
+        ))
         // The snapshot stays until the message is durably queued.
         if WatchSessionManager.shared.sendRunFinished(result) {
             WatchRunSnapshotStore.clear()
