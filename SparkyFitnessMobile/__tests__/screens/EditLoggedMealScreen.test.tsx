@@ -1,4 +1,5 @@
 import React from 'react';
+import { Platform } from 'react-native';
 import { act, fireEvent, render } from '@testing-library/react-native';
 import { pressAction } from './helpers/nativeHeaderTestUtils';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -493,6 +494,57 @@ describe('EditLoggedMealScreen', () => {
       expect.objectContaining({ notes: 'reheated at work' })
     );
   });
+
+  it.each(['name', 'amount', 'add', 'remove'] as const)(
+    'enables Android Save after a %s edit when an ingredient has no library links',
+    (edit) => {
+      const os = jest.replaceProperty(Platform, 'OS', 'android');
+      try {
+        mockMeal({
+          ...baseMeal,
+          meal_template_id: null,
+          foods: [{ ...chicken, food_id: null, variant_id: null }, rice],
+        });
+        const screen = renderScreen();
+        expect(
+          screen.getByRole('button', { name: 'Save meal' })
+        ).toBeDisabled();
+
+        if (edit === 'name') {
+          fireEvent.changeText(screen.getByTestId('meal-name-input'), 'Lunch');
+        } else if (edit === 'remove') {
+          fireEvent.press(screen.getByTestId('remove-Rice'));
+        } else {
+          mockConsume.mockReturnValueOnce({
+            ingredient: buildIngredient(
+              edit === 'amount'
+                ? { food_id: 'food-2', variant_id: 'var-2', quantity: 250 }
+                : {}
+            ),
+            ...(edit === 'amount' ? { ingredientIndex: 1 } : {}),
+          });
+          act(() => focusCallback?.());
+        }
+
+        expect(screen.getByRole('button', { name: 'Save meal' })).toBeEnabled();
+        fireEvent.press(screen.getByRole('button', { name: 'Save meal' }));
+        expect(mockUpdateMeal).toHaveBeenCalledWith(
+          expect.objectContaining({
+            foods: expect.arrayContaining([
+              expect.objectContaining({
+                food_name: 'Chicken',
+                quantity: 100,
+                calories: 165,
+                serving_size: 100,
+              }),
+            ]),
+          })
+        );
+      } finally {
+        os.restore();
+      }
+    }
+  );
 
   it('opens the meal-builder picker when Add Food is pressed', () => {
     const screen = renderScreen();

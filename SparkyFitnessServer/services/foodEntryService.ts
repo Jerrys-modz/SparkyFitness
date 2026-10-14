@@ -2591,74 +2591,64 @@ async function updateFoodEntryMeal(
     // 3. Create new component food_entries records
     const entriesToCreate = [];
     for (const foodItem of updatedMealData.foods ?? []) {
-      const food = await foodRepository.getFoodById(
-        String(foodItem.food_id),
-        authenticatedUserId
-      );
-      if (!food) {
-        log(
-          'warn',
-          `Food with ID ${foodItem.food_id} not found when updating food entry meal. Skipping.`
+      const food = foodItem.food_id
+        ? await foodRepository.getFoodById(
+            foodItem.food_id,
+            authenticatedUserId
+          )
+        : null;
+      const variantId = foodItem.variant_id || food?.default_variant?.id;
+      const variant = variantId
+        ? await foodRepository.getFoodVariantById(
+            variantId,
+            authenticatedUserId
+          )
+        : null;
+
+      // Diary editors send the stored per-serving nutrition along with the
+      // edited amount. Keep that snapshot even if the library links were
+      // deleted or the current variant's nutrition has changed. Older clients
+      // that send only IDs still resolve their nutrition from the variant.
+      let snapshot;
+      if (
+        foodItem.serving_size !== undefined &&
+        foodItem.serving_size !== null &&
+        Number.isFinite(Number(foodItem.serving_size)) &&
+        Number(foodItem.serving_size) >= 0 &&
+        foodItem.calories !== undefined &&
+        foodItem.calories !== null
+      ) {
+        snapshot = buildFoodEntrySnapshot(
+          {
+            name: foodItem.food_name ?? food?.name ?? '',
+            brand: food?.brand ?? null,
+          },
+          {
+            ...foodItem,
+            serving_size: foodItem.serving_size ?? null,
+            serving_unit: foodItem.serving_unit ?? foodItem.unit ?? null,
+          }
         );
-        continue;
+      } else {
+        if (!food || !variant) {
+          log(
+            'warn',
+            `No nutrition snapshot or accessible food variant for food ${foodItem.food_id} when updating food entry meal. Skipping.`
+          );
+          continue;
+        }
+        snapshot = buildFoodEntrySnapshot(food, variant);
       }
-      const variantId = foodItem.variant_id || food.default_variant?.id;
-      if (!variantId) {
-        log(
-          'warn',
-          `No variant ID found for food ${foodItem.food_id} when updating food entry meal. Skipping.`
-        );
-        continue;
-      }
-      const variant = await foodRepository.getFoodVariantById(
-        variantId,
-        authenticatedUserId
-      );
-      if (!variant) {
-        log(
-          'warn',
-          `Food variant with ID ${variantId} not found for food ${foodItem.food_id} when updating food entry meal. Skipping.`
-        );
-        continue;
-      }
-      const snapshot = {
-        food_name: food.name,
-        brand_name: food.brand,
-        serving_size: variant.serving_size,
-        serving_unit: variant.serving_unit,
-        calories: variant.calories,
-        protein: variant.protein,
-        carbs: variant.carbs,
-        fat: variant.fat,
-        saturated_fat: variant.saturated_fat,
-        polyunsaturated_fat: variant.polyunsaturated_fat,
-        monounsaturated_fat: variant.monounsaturated_fat,
-        trans_fat: variant.trans_fat,
-        cholesterol: variant.cholesterol,
-        sodium: variant.sodium,
-        potassium: variant.potassium,
-        dietary_fiber: variant.dietary_fiber,
-        sugars: variant.sugars,
-        vitamin_a: variant.vitamin_a,
-        vitamin_c: variant.vitamin_c,
-        calcium: variant.calcium,
-        iron: variant.iron,
-        caffeine_mg: variant.caffeine_mg,
-        water_ml: variant.water_ml,
-        alcohol_g: variant.alcohol_g,
-        glycemic_index: variant.glycemic_index,
-        custom_nutrients: sanitizeCustomNutrients(variant.custom_nutrients),
-      };
       // Scale the food quantity
       const scaledQuantity = Number(foodItem.quantity ?? 0) * multiplier;
       entriesToCreate.push({
         user_id: authenticatedUserId,
         created_by_user_id: actingUserId,
-        food_id: foodItem.food_id,
+        food_id: food ? foodItem.food_id : null,
         meal_type_id: resolvedMealTypeId,
         quantity: scaledQuantity, // SCALED quantity
         unit: foodItem.unit,
-        variant_id: variantId,
+        variant_id: food && variant ? variantId : null,
         // Fall back to the stored date like every other inherited field. An
         // omitted entry_date would otherwise reach the NOT NULL column and
         // fail the insert — after the delete has already run, leaving the

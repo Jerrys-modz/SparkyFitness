@@ -377,6 +377,77 @@ describe('foodEntryMealService', () => {
   });
 
   describe('updateFoodEntryMeal component dates', () => {
+    it.each([false, true])(
+      'preserves edited ingredient snapshots when library links are available: %s',
+      async (linked) => {
+        vi.mocked(
+          foodEntryMealRepository.updateFoodEntryMeal
+        ).mockResolvedValue({
+          id: 'meal-entry-1',
+          meal_type_id: 'breakfast-id',
+          entry_date: '2026-06-19',
+          quantity: 2,
+          unit: 'serving',
+          entry_total_servings: 4,
+          legacy_serving_unit_math: false,
+        });
+        vi.mocked(foodRepository.getFoodById).mockResolvedValue(
+          linked ? { id: 'food-1', name: 'Current food', brand: 'Brand' } : null
+        );
+        vi.mocked(foodRepository.getFoodVariantById).mockResolvedValue(
+          linked
+            ? {
+                id: 'variant-1',
+                serving_size: 50,
+                serving_unit: 'g',
+                calories: 999,
+              }
+            : null
+        );
+
+        await updateFoodEntryMeal('user-1', 'user-1', 'meal-entry-1', {
+          quantity: 2,
+          entry_total_servings: 4,
+          foods: [
+            {
+              food_id: linked ? 'food-1' : null,
+              variant_id: linked ? 'variant-1' : null,
+              food_name: 'Logged chicken',
+              quantity: 300,
+              unit: 'g',
+              serving_size: 100,
+              serving_unit: 'g',
+              calories: 165,
+              protein: 31,
+              sodium: 75,
+              polyunsaturated_fat: 2,
+              custom_nutrients: { choline: 90 },
+            },
+          ],
+        });
+
+        expect(foodRepository.bulkCreateFoodEntries).toHaveBeenCalledWith(
+          [
+            expect.objectContaining({
+              food_id: linked ? 'food-1' : null,
+              variant_id: linked ? 'variant-1' : null,
+              food_name: 'Logged chicken',
+              quantity: 150,
+              serving_size: 100,
+              serving_unit: 'g',
+              calories: 165,
+              protein: 31,
+              sodium: 75,
+              polyunsaturated_fat: 2,
+              custom_nutrients: { choline: 90 },
+              entry_date: '2026-06-19',
+            }),
+          ],
+          'user-1'
+        );
+      }
+    );
+
     // entry_date was the one inherited field with no fallback to the stored
     // row. Omitting it sent undefined into the NOT NULL column, and because the
     // delete had already run the entry was left with no components at all.
