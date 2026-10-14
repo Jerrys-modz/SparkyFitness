@@ -20,11 +20,11 @@ export const CAFFEINE_LOOKBACK_HOURS = 48;
 export function activeCaffeineAt(
   doses: CaffeineDose[],
   atInstant: string | number | Date,
-  halfLifeHours: number = DEFAULT_CAFFEINE_HALF_LIFE_HOURS,
+  halfLifeHours: number = DEFAULT_CAFFEINE_HALF_LIFE_HOURS
 ): number {
   if (!doses || doses.length === 0) return 0;
   const targetMs =
-    typeof atInstant === "number" ? atInstant : new Date(atInstant).getTime();
+    typeof atInstant === 'number' ? atInstant : new Date(atInstant).getTime();
   if (isNaN(targetMs) || halfLifeHours <= 0) return 0;
 
   let total = 0;
@@ -46,7 +46,7 @@ export function activeCaffeineAt(
 export function caffeineAtBedtime(
   doses: CaffeineDose[],
   bedtimeInstant: string | number | Date,
-  halfLifeHours: number = DEFAULT_CAFFEINE_HALF_LIFE_HOURS,
+  halfLifeHours: number = DEFAULT_CAFFEINE_HALF_LIFE_HOURS
 ): number {
   return activeCaffeineAt(doses, bedtimeInstant, halfLifeHours);
 }
@@ -67,13 +67,13 @@ export function latestSafeDoseTime(
   doseMg: number,
   bedtimeInstant: string | number | Date,
   halfLifeHours: number = DEFAULT_CAFFEINE_HALF_LIFE_HOURS,
-  thresholdMg: number = CAFFEINE_BEDTIME_THRESHOLD_MG,
+  thresholdMg: number = CAFFEINE_BEDTIME_THRESHOLD_MG
 ): string | null {
   if (doseMg <= thresholdMg || halfLifeHours <= 0 || thresholdMg <= 0) {
     return null;
   }
   const bedtimeMs =
-    typeof bedtimeInstant === "number"
+    typeof bedtimeInstant === 'number'
       ? bedtimeInstant
       : new Date(bedtimeInstant).getTime();
   if (isNaN(bedtimeMs)) return null;
@@ -89,13 +89,13 @@ export function latestSafeDoseTime(
  * "you have room all evening" with "you are already over".
  */
 export type CaffeineCutoff =
-  | { kind: "anytime" }
-  | { kind: "by"; at: string }
-  | { kind: "passed"; at: string }
-  | { kind: "over" };
+  | { kind: 'anytime' }
+  | { kind: 'by'; at: string }
+  | { kind: 'passed'; at: string }
+  | { kind: 'over' };
 
 function toMs(instant: string | number | Date): number {
-  return typeof instant === "number" ? instant : new Date(instant).getTime();
+  return typeof instant === 'number' ? instant : new Date(instant).getTime();
 }
 
 /**
@@ -136,19 +136,19 @@ export function caffeineCutoff(opts: {
     thresholdMg <= 0 ||
     !(doseMg > 0)
   ) {
-    return { kind: "anytime" };
+    return { kind: 'anytime' };
   }
 
   const residualMg = activeCaffeineAt(doses, bedtimeMs, halfLifeHours);
   const headroomMg = thresholdMg - residualMg;
-  if (headroomMg <= 0) return { kind: "over" };
+  if (headroomMg <= 0) return { kind: 'over' };
   // The dose fits under the threshold even taken at bedtime itself.
-  if (doseMg <= headroomMg) return { kind: "anytime" };
+  if (doseMg <= headroomMg) return { kind: 'anytime' };
 
   const deltaHours = halfLifeHours * Math.log2(doseMg / headroomMg);
   const cutoffMs = bedtimeMs - deltaHours * 3600 * 1000;
   const at = new Date(cutoffMs).toISOString();
-  return cutoffMs < nowMs ? { kind: "passed", at } : { kind: "by", at };
+  return cutoffMs < nowMs ? { kind: 'passed', at } : { kind: 'by', at };
 }
 
 /** Room left under the threshold at bedtime; negative once already over it. */
@@ -156,7 +156,7 @@ export function bedtimeHeadroomMg(
   doses: CaffeineDose[],
   bedtimeInstant: string | number | Date,
   halfLifeHours: number = DEFAULT_CAFFEINE_HALF_LIFE_HOURS,
-  thresholdMg: number = CAFFEINE_BEDTIME_THRESHOLD_MG,
+  thresholdMg: number = CAFFEINE_BEDTIME_THRESHOLD_MG
 ): number {
   const residual = activeCaffeineAt(doses, bedtimeInstant, halfLifeHours);
   return Number((thresholdMg - residual).toFixed(2));
@@ -185,7 +185,7 @@ export function caffeineCurve(
   fromInstant: string | number | Date,
   toInstant: string | number | Date,
   halfLifeHours: number = DEFAULT_CAFFEINE_HALF_LIFE_HOURS,
-  stepMinutes: number = 10,
+  stepMinutes: number = 10
 ): Array<{ t: number; mg: number }> {
   const fromMs = toMs(fromInstant);
   const toMsValue = toMs(toInstant);
@@ -240,7 +240,7 @@ export function caffeineCurve(
 export function thresholdCrossingTime(
   doses: CaffeineDose[],
   halfLifeHours: number = DEFAULT_CAFFEINE_HALF_LIFE_HOURS,
-  thresholdMg: number = CAFFEINE_BEDTIME_THRESHOLD_MG,
+  thresholdMg: number = CAFFEINE_BEDTIME_THRESHOLD_MG
 ): string | null {
   if (!doses || doses.length === 0) return null;
   if (halfLifeHours <= 0 || thresholdMg <= 0) return null;

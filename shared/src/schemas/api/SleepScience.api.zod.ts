@@ -25,11 +25,11 @@ export type SleepDebtDailyEntry = z.infer<typeof sleepDebtDailyEntrySchema>;
 // SleepDebtData
 export const sleepDebtDataSchema = z.object({
   currentDebt: z.number(),
-  debtCategory: z.enum(["low", "moderate", "high", "critical"]),
+  debtCategory: z.enum(['low', 'moderate', 'high', 'critical']),
   sleepNeed: z.number(),
   last14Days: z.array(sleepDebtDailyEntrySchema),
   trend: z.object({
-    direction: z.enum(["improving", "stable", "worsening"]),
+    direction: z.enum(['improving', 'stable', 'worsening']),
     change7d: z.number(),
   }),
   paybackTime: z.number(),
@@ -46,18 +46,16 @@ export const mctqStatsDayClassificationSchema = z.object({
 });
 
 export const mctqStatsDataSchema = z.object({
-  profile: z
-    .object({
-      baselineSleepNeed: z.number(),
-      method: z.string(),
-      confidence: z.string(),
-      basedOnDays: z.number(),
-      lastCalculated: z.string().nullable(),
-      sdWorkday: z.number().nullable(),
-      sdFreeday: z.number().nullable(),
-      socialJetlag: z.number().nullable(),
-    })
-    .nullable(),
+  profile: z.object({
+    baselineSleepNeed: z.number(),
+    method: z.string(),
+    confidence: z.string(),
+    basedOnDays: z.number(),
+    lastCalculated: z.string().nullable(),
+    sdWorkday: z.number().nullable(),
+    sdFreeday: z.number().nullable(),
+    socialJetlag: z.number().nullable(),
+  }).nullable(),
   latestCalculation: z.record(z.string(), z.unknown()).nullable(),
   dayClassifications: z.array(mctqStatsDayClassificationSchema),
 });
@@ -86,7 +84,7 @@ export const energyCurvePointSchema = z.object({
   hour: z.number(),
   time: z.string(),
   energy: z.number(),
-  zone: z.enum(["peak", "rising", "dip", "wind-down", "sleep"]),
+  zone: z.enum(['peak', 'rising', 'dip', 'wind-down', 'sleep']),
   processS: z.number(),
   processC: z.number(),
 });
@@ -98,14 +96,8 @@ export const energyCurveDataSchema = z.object({
   points: z.array(energyCurvePointSchema).optional(),
   currentEnergy: z.number().optional(),
   currentZone: z.string().optional(),
-  nextPeak: z
-    .object({ hour: z.number(), energy: z.number() })
-    .nullable()
-    .optional(),
-  nextDip: z
-    .object({ hour: z.number(), energy: z.number() })
-    .nullable()
-    .optional(),
+  nextPeak: z.object({ hour: z.number(), energy: z.number() }).nullable().optional(),
+  nextDip: z.object({ hour: z.number(), energy: z.number() }).nullable().optional(),
   melatoninWindow: z.object({ start: z.number(), end: z.number() }).optional(),
   wakeTime: z.number().optional(),
   sleepDebtPenalty: z.number().optional(),
@@ -117,7 +109,7 @@ export type EnergyCurveData = z.infer<typeof energyCurveDataSchema>;
 // ChronotypeData
 export const chronotypeDataSchema = z.object({
   success: z.boolean(),
-  chronotype: z.enum(["early", "intermediate", "late"]).optional(),
+  chronotype: z.enum(['early', 'intermediate', 'late']).optional(),
   averageWakeTime: z.string().optional(),
   averageSleepTime: z.string().nullable().optional(),
   circadianNadir: z.string().optional(),

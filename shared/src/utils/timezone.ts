@@ -246,7 +246,8 @@ const MAX_UTC_OFFSET_MINUTES = 14 * 60;
  * 1h skew on one endpoint — accepted trade-off.
  */
 export type RecordZone =
-  { kind: "tz"; tz: string } | { kind: "offset"; minutes: number };
+  | { kind: "tz"; tz: string }
+  | { kind: "offset"; minutes: number };
 
 /**
  * Resolves per-record timezone metadata with the standard precedence:

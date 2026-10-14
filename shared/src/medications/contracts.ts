@@ -1,17 +1,15 @@
-import type { SerumPoint } from "./glp1.ts";
-import type { FoodVariantNutrientField } from "../constants/foodVariantNutrients.ts";
-import type { SharedScheduleRule } from "./schedules.ts";
+import type { SerumPoint } from './glp1.ts';
+import type { FoodVariantNutrientField } from '../constants/foodVariantNutrients.ts';
+import type { SharedScheduleRule } from './schedules.ts';
 
 // Contract types for the v2 medications API (/api/v2/medications). Field
 // names mirror the server's medicationSchemas.ts and repository columns —
 // snake_case, straight from the database.
 
-export type MedicationEntryStatus =
-  "taken" | "skipped" | "snoozed" | "prn_taken";
+export type MedicationEntryStatus = 'taken' | 'skipped' | 'snoozed' | 'prn_taken';
 
 /** Meal timing for a scheduled dose, relative to the nearest meal. */
-export type MedicationWithMeal =
-  "before" | "with" | "after" | "away_from_meals";
+export type MedicationWithMeal = 'before' | 'with' | 'after' | 'away_from_meals';
 
 /**
  * A supplement's per-serving nutrition: the fixed food-variant nutrient columns
@@ -120,7 +118,7 @@ export interface CreateScheduleInput {
 }
 
 /** source is set at creation and never updateable — the server ignores it on update. */
-export type UpdateScheduleInput = Partial<Omit<CreateScheduleInput, "source">>;
+export type UpdateScheduleInput = Partial<Omit<CreateScheduleInput, 'source'>>;
 
 export interface CreateMedicationInput {
   name: string;
@@ -175,7 +173,7 @@ export interface MedicationEntry {
    * the server; their id is an injection id, so deletes must go through the
    * injection endpoint.
    */
-  entry_type?: "entry" | "injection";
+  entry_type?: 'entry' | 'injection';
   /** Injection site — only populated on entry_type='injection' rows. */
   site?: string | null;
 }
@@ -221,14 +219,14 @@ export interface ListMedicationEntriesOptions {
 export interface MedicationPen {
   id: string;
   medication_id: string;
-  kind: "pen" | "vial";
+  kind: 'pen' | 'vial';
   label: string | null;
   dose_mg: number | null;
   concentration_mg_ml: number | null;
   volume_ml: number | null;
   doses_total: number | null;
   doses_used: number;
-  status: "sealed" | "in_use" | "finished";
+  status: 'sealed' | 'in_use' | 'finished';
   opened_at: string | null;
   expiry_date: string | null;
   bud_date: string | null;
@@ -256,7 +254,7 @@ export interface TitrationStep {
   start_date: string | null;
   planned_weeks: number | null;
   step_order: number;
-  status: "done" | "active" | "planned";
+  status: 'done' | 'active' | 'planned';
   is_taper: boolean;
   note: string | null;
 }
@@ -309,5 +307,5 @@ export interface UpdateInjectionInput {
 }
 
 export type UpdateTitrationStepInput = Partial<
-  Omit<TitrationStep, "id" | "medication_id">
+  Omit<TitrationStep, 'id' | 'medication_id'>
 >;

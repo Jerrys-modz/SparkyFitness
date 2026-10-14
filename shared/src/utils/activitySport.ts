@@ -24,7 +24,7 @@
  * exists to prevent.
  */
 
-import { COROS_SPORT_TYPES } from "../constants/corosSportTypes.ts";
+import { COROS_SPORT_TYPES } from '../constants/corosSportTypes.ts';
 
 /** Canonical sports, named after the ANT+/FIT SDK `sport` enum. */
 export const ACTIVITY_SPORTS = [
@@ -315,11 +315,14 @@ function extractProviderSport(
 
   switch (providerName.toLowerCase()) {
     case "garmin":
-    case "garmin_fit": {
-      const activity = asRecord(data["activity"]) ?? data;
-      const activityType = asRecord(activity["activityType"]);
-      return asString(activityType?.["typeKey"]) ?? asString(activity["sport"]);
-    }
+    case "garmin_fit":
+      {
+        const activity = asRecord(data["activity"]) ?? data;
+        const activityType = asRecord(activity["activityType"]);
+        return (
+          asString(activityType?.["typeKey"]) ?? asString(activity["sport"])
+        );
+      }
     case "coros":
     case "coros_mcp": {
       if (
@@ -337,7 +340,9 @@ function extractProviderSport(
       }
       const activity = asRecord(data["activity"]) ?? data;
       const activityType = asRecord(activity["activityType"]);
-      return asString(activityType?.["typeKey"]) ?? asString(activity["sport"]);
+      return (
+        asString(activityType?.["typeKey"]) ?? asString(activity["sport"])
+      );
     }
     case "strava":
       return asString(data["sport_type"]) ?? asString(data["type"]);

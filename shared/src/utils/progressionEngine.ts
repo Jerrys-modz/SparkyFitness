@@ -15,7 +15,7 @@ function roundSuggestedWeight(weight: number): number {
 
 export function evaluateProgression(
   config: ExerciseProgressionConfig,
-  lastPerformance?: LastExercisePerformance | null,
+  lastPerformance?: LastExercisePerformance | null
 ): ProgressionEvaluationResult {
   if (config.progressionMode === "manual") {
     return {
@@ -48,7 +48,7 @@ export function evaluateProgression(
   }
 
   const validSets = lastPerformance.sets.filter(
-    (s) => s.completed !== false && s.reps > 0,
+    (s) => s.completed !== false && s.reps > 0
   );
   const totalRepsAchieved = validSets.reduce((sum, s) => sum + s.reps, 0);
 
@@ -58,7 +58,7 @@ export function evaluateProgression(
   if (config.progressionMode === "fixed") {
     const targetPerSet = config.repGoal ?? 8;
     const successfulSets = validSets.filter(
-      (s) => s.reps >= targetPerSet,
+      (s) => s.reps >= targetPerSet
     ).length;
     goalAchieved =
       validSets.length >= config.targetSets &&
@@ -68,7 +68,7 @@ export function evaluateProgression(
     if (goalAchieved) {
       if (config.incrementType === "weight") {
         const newWeight = roundSuggestedWeight(
-          lastPerformance.baseWeight + config.incrementValue,
+          lastPerformance.baseWeight + config.incrementValue
         );
         return {
           goalAchieved: true,
@@ -126,7 +126,7 @@ export function evaluateProgression(
     // Mode: rep_goal with weight increment
     if (config.incrementType === "weight") {
       const newWeight = roundSuggestedWeight(
-        lastPerformance.baseWeight + config.incrementValue,
+        lastPerformance.baseWeight + config.incrementValue
       );
       return {
         goalAchieved: true,
@@ -172,7 +172,7 @@ export function evaluateProgression(
 export function distributeProgressionReps(
   result: ProgressionEvaluationResult | null,
   progressionMode: ExerciseProgressionConfig["progressionMode"],
-  workingSetCount: number,
+  workingSetCount: number
 ): number[] | null {
   if (
     result == null ||
@@ -183,15 +183,12 @@ export function distributeProgressionReps(
     return null;
   }
   if (progressionMode === "fixed") {
-    return Array.from(
-      { length: workingSetCount },
-      () => result.suggestedRepGoal,
-    );
+    return Array.from({ length: workingSetCount }, () => result.suggestedRepGoal);
   }
   const base = Math.floor(result.suggestedRepGoal / workingSetCount);
   const remainder = result.suggestedRepGoal % workingSetCount;
   return Array.from(
     { length: workingSetCount },
-    (_, i) => base + (i < remainder ? 1 : 0),
+    (_, i) => base + (i < remainder ? 1 : 0)
   );
 }

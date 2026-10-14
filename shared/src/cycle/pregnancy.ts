@@ -112,12 +112,7 @@ export function contractionStats(
     );
 
   if (recent.length === 0) {
-    return {
-      count: 0,
-      avgDurationSec: null,
-      avgIntervalMin: null,
-      isFiveOneOne: false,
-    };
+    return { count: 0, avgDurationSec: null, avgIntervalMin: null, isFiveOneOne: false };
   }
 
   const durations = recent.map(
@@ -156,8 +151,7 @@ export function contractionStats(
   return {
     count: recent.length,
     avgDurationSec: Math.round(avgDurationSec),
-    avgIntervalMin:
-      avgIntervalMin != null ? Math.round(avgIntervalMin * 10) / 10 : null,
+    avgIntervalMin: avgIntervalMin != null ? Math.round(avgIntervalMin * 10) / 10 : null,
     isFiveOneOne,
   };
 }
@@ -237,76 +231,16 @@ export function isWithinTerm(dueDate: string, day: string): boolean {
 }
 
 export const PREGNANCY_SYMPTOMS = [
-  {
-    name: "nausea",
-    displayName: "Nausea",
-    category: "digestion",
-    icon: "symptom-nausea",
-    color: "green",
-  },
-  {
-    name: "heartburn",
-    displayName: "Heartburn",
-    category: "digestion",
-    icon: "symptom-nausea",
-    color: "green",
-  },
-  {
-    name: "swelling",
-    displayName: "Swelling",
-    category: "pain",
-    icon: "symptom-cramps",
-    color: "period",
-  },
-  {
-    name: "back_pain",
-    displayName: "Back pain",
-    category: "pain",
-    icon: "symptom-cramps",
-    color: "period",
-  },
-  {
-    name: "braxton_hicks",
-    displayName: "Braxton-Hicks",
-    category: "pain",
-    icon: "symptom-cramps",
-    color: "period",
-  },
-  {
-    name: "fatigue",
-    displayName: "Fatigue",
-    category: "mental",
-    icon: "symptom-fatigue",
-    color: "amber",
-  },
-  {
-    name: "headache",
-    displayName: "Headache",
-    category: "mental",
-    icon: "symptom-headache",
-    color: "lavender",
-  },
-  {
-    name: "cravings",
-    displayName: "Cravings",
-    category: "digestion",
-    icon: "symptom-nausea",
-    color: "green",
-  },
-  {
-    name: "insomnia",
-    displayName: "Insomnia",
-    category: "mental",
-    icon: "symptom-fatigue",
-    color: "amber",
-  },
-  {
-    name: "constipation",
-    displayName: "Constipation",
-    category: "digestion",
-    icon: "symptom-nausea",
-    color: "green",
-  },
+  { name: "nausea", displayName: "Nausea", category: "digestion", icon: "symptom-nausea", color: "green" },
+  { name: "heartburn", displayName: "Heartburn", category: "digestion", icon: "symptom-nausea", color: "green" },
+  { name: "swelling", displayName: "Swelling", category: "pain", icon: "symptom-cramps", color: "period" },
+  { name: "back_pain", displayName: "Back pain", category: "pain", icon: "symptom-cramps", color: "period" },
+  { name: "braxton_hicks", displayName: "Braxton-Hicks", category: "pain", icon: "symptom-cramps", color: "period" },
+  { name: "fatigue", displayName: "Fatigue", category: "mental", icon: "symptom-fatigue", color: "amber" },
+  { name: "headache", displayName: "Headache", category: "mental", icon: "symptom-headache", color: "lavender" },
+  { name: "cravings", displayName: "Cravings", category: "digestion", icon: "symptom-nausea", color: "green" },
+  { name: "insomnia", displayName: "Insomnia", category: "mental", icon: "symptom-fatigue", color: "amber" },
+  { name: "constipation", displayName: "Constipation", category: "digestion", icon: "symptom-nausea", color: "green" },
 ] as const;
 
 export const APPOINTMENT_TYPES = [

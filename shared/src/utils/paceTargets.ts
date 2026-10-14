@@ -11,7 +11,7 @@ export interface PaceBand {
   maxSecondsPerKm: number;
 }
 
-export type PaceAlertKind = "tooFast" | "tooSlow";
+export type PaceAlertKind = 'tooFast' | 'tooSlow';
 
 /** Fastest and slowest band a person can set: 2:00 and 20:00 per kilometre. */
 export const PACE_BAND_FASTEST_SECONDS_PER_KM = 120;
@@ -28,11 +28,11 @@ export const PACE_ALERT_REPEAT_MS = 30_000;
 
 /** The band when it is usable, else null. */
 export function normalizePaceBand(
-  band: Partial<PaceBand> | null | undefined,
+  band: Partial<PaceBand> | null | undefined
 ): PaceBand | null {
   if (!band) return null;
   const { minSecondsPerKm: min, maxSecondsPerKm: max } = band;
-  if (typeof min !== "number" || typeof max !== "number") return null;
+  if (typeof min !== 'number' || typeof max !== 'number') return null;
   if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
   if (min < PACE_BAND_FASTEST_SECONDS_PER_KM) return null;
   if (max > PACE_BAND_SLOWEST_SECONDS_PER_KM) return null;
@@ -64,19 +64,19 @@ export function stepPaceAlert(
   state: PaceAlertState,
   paceSecondsPerKm: number | null,
   band: PaceBand,
-  nowMs: number,
+  nowMs: number
 ): { state: PaceAlertState; alert: PaceAlertKind | null } {
   if (paceSecondsPerKm === null || !(paceSecondsPerKm > 0)) {
     return { state, alert: null };
   }
   let side: PaceAlertKind | null = null;
   if (paceSecondsPerKm < band.minSecondsPerKm * (1 - PACE_ALERT_MARGIN)) {
-    side = "tooFast";
+    side = 'tooFast';
   } else if (
     paceSecondsPerKm >
     band.maxSecondsPerKm * (1 + PACE_ALERT_MARGIN)
   ) {
-    side = "tooSlow";
+    side = 'tooSlow';
   }
   if (side === null) {
     return {

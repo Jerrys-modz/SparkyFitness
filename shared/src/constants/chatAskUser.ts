@@ -13,7 +13,7 @@
  * services/chatService.ts) — so the model cannot reliably perform the fix it
  * would be offering. Get the value right before writing to the diary.
  */
-export const ASK_USER_TOOL_NAME = "sparky_ask_user";
+export const ASK_USER_TOOL_NAME = 'sparky_ask_user';
 
 /**
  * - `choose`: a lookup returned several genuinely different candidates, so the
@@ -26,7 +26,7 @@ export const ASK_USER_TOOL_NAME = "sparky_ask_user";
  * from the time of day, today's date, a single clear food match) are never
  * asked about — they are just logged.
  */
-export const ASK_USER_MODES = ["choose", "ask"] as const;
+export const ASK_USER_MODES = ['choose', 'ask'] as const;
 
 export type AskUserMode = (typeof ASK_USER_MODES)[number];
 

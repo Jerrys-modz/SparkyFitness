@@ -106,9 +106,7 @@ export function adjustRunning(
         MAX_RUN_SECONDS,
         Math.max(MIN_RUN_SECONDS, roundTo5(step.seconds * factor)),
       );
-      const was = comparable
-        ? (original.plan.steps[stepIndex]?.seconds ?? null)
-        : null;
+      const was = comparable ? (original.plan.steps[stepIndex]?.seconds ?? null) : null;
       if (was !== null && was > 0) {
         seconds = Math.min(
           roundTo5(was * (1 + MAX_PUSH_PERCENT / 100)),

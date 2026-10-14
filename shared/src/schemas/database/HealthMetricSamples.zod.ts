@@ -77,7 +77,9 @@ export type RespirationSample = z.infer<typeof respirationSampleSchema>;
 export type Spo2Sample = z.infer<typeof spo2SampleSchema>;
 export type StressSample = z.infer<typeof stressSampleSchema>;
 export type BodyBatterySample = z.infer<typeof bodyBatterySampleSchema>;
-export type SkinTemperatureSample = z.infer<typeof skinTemperatureSampleSchema>;
+export type SkinTemperatureSample = z.infer<
+  typeof skinTemperatureSampleSchema
+>;
 
 const rowBase = {
   id: healthMetricSamplesIdSchema,

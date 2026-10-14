@@ -2,12 +2,21 @@
 // server and the web (and, later, mobile) can depend on them.
 
 export type CycleMode =
-  "standard" | "ttc" | "pregnant" | "postpartum" | "menopause";
+  | "standard"
+  | "ttc"
+  | "pregnant"
+  | "postpartum"
+  | "menopause";
 
 export type FlowLevel = "none" | "spotting" | "light" | "medium" | "heavy";
 
 export type CyclePhase =
-  "menstrual" | "follicular" | "fertile" | "ovulation" | "luteal" | "unknown";
+  | "menstrual"
+  | "follicular"
+  | "fertile"
+  | "ovulation"
+  | "luteal"
+  | "unknown";
 
 export type PredictionConfidence = "high" | "medium" | "low";
 
@@ -55,7 +64,7 @@ export interface SharedCycleTestEntry {
   user_id: string;
   entry_date: string; // YYYY-MM-DD
   tested_at: string; // ISO timestamp
-  test_type: "opk" | "hpt";
+  test_type: 'opk' | 'hpt';
   result: string; // opk: negative|low|high|peak, hpt: negative|faint|positive
   notes?: string | null;
   created_at?: string;

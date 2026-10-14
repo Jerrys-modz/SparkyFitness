@@ -35,10 +35,7 @@ export const workoutPresetExerciseResponseSchema = z.object({
   modality: exerciseModalitySchema.optional(),
   superset_group: z.number().int().nullable(),
   // Progression & Equipment Fields
-  progression_mode: z
-    .enum(["rep_goal", "fixed", "step_load", "manual"])
-    .nullable()
-    .optional(),
+  progression_mode: z.enum(["rep_goal", "fixed", "step_load", "manual"]).nullable().optional(),
   rep_goal: z.number().int().nullable().optional(),
   increment_type: z.enum(["weight", "reps"]).nullable().optional(),
   increment_value: z.number().nullable().optional(),

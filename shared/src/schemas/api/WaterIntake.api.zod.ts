@@ -11,7 +11,9 @@ export const upsertWaterIntakeBodySchema = z.object({
   change_drinks: z.number(),
   container_id: z.number().nullable(),
 });
-export type UpsertWaterIntakeBody = z.infer<typeof upsertWaterIntakeBodySchema>;
+export type UpsertWaterIntakeBody = z.infer<
+  typeof upsertWaterIntakeBodySchema
+>;
 
 // The day-totals endpoint returns a single aggregated object. `manual_ml`,
 // `ledger_ml` and `food_ml` are the breakdown added in Phase 4; they are

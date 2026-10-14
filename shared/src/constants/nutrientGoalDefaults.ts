@@ -25,3 +25,4 @@ export type BuiltinMaximumGoalNutrient =
 export const NON_GOAL_NUTRIENT_KEYS = ["water_ml"] as const;
 
 export type NonGoalNutrientKey = (typeof NON_GOAL_NUTRIENT_KEYS)[number];
+

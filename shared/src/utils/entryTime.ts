@@ -20,7 +20,9 @@ export function isEntryTimeString(value: unknown): value is string {
  * Normalizes 'HH:MM:SS' (or 'HH:MM') to 'HH:MM' for display and
  * `<input type="time">` values. Returns null for null/undefined/invalid input.
  */
-export function toHourMinute(time: string | null | undefined): string | null {
+export function toHourMinute(
+  time: string | null | undefined,
+): string | null {
   if (!isEntryTimeString(time)) return null;
   return time.slice(0, 5);
 }
@@ -107,7 +109,8 @@ export function defaultMealTypeForTime(
   const configuredWithTime = mealTypes
     .filter((mt) => isEntryTimeString(mt.default_time))
     .sort(
-      (a, b) => timeToMinutes(a.default_time!) - timeToMinutes(b.default_time!),
+      (a, b) =>
+        timeToMinutes(a.default_time!) - timeToMinutes(b.default_time!),
     );
 
   if (configuredWithTime.length > 0) {

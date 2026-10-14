@@ -1,21 +1,17 @@
 import { addDays, compareDays, daysBetween } from "../utils/timezone.ts";
-import type {
-  DerivedCycle,
-  SharedCycleDailyLog,
-  SharedCycleSettings,
-} from "./types.ts";
+import type { DerivedCycle, SharedCycleDailyLog, SharedCycleSettings } from "./types.ts";
 
 export const CONCEPTION_PROBABILITY_BY_OFFSET: Record<
   number,
   { probability: number; band: "low" | "medium" | "high" | "peak" }
 > = {
-  [-5]: { probability: 0.1, band: "medium" },
+  [-5]: { probability: 0.10, band: "medium" },
   [-4]: { probability: 0.15, band: "high" },
-  [-3]: { probability: 0.2, band: "high" },
+  [-3]: { probability: 0.20, band: "high" },
   [-2]: { probability: 0.25, band: "peak" },
   [-1]: { probability: 0.28, band: "peak" },
   [0]: { probability: 0.33, band: "peak" },
-  [1]: { probability: 0.1, band: "medium" },
+  [1]: { probability: 0.10, band: "medium" },
 };
 
 export interface BbtShiftResult {
@@ -30,9 +26,7 @@ export interface BbtShiftResult {
  * Confirmed when 3 consecutive temps are above coverline.
  * Discards outliers (deviating ±1.0 °C from local 5-day median).
  */
-export function detectBiphasicShift(
-  bbtSeries: Array<{ date: string; bbt: number }>,
-): BbtShiftResult {
+export function detectBiphasicShift(bbtSeries: Array<{ date: string; bbt: number }>): BbtShiftResult {
   // Sort chronologically
   const sorted = [...bbtSeries].sort((a, b) => a.date.localeCompare(b.date));
 
@@ -50,11 +44,7 @@ export function detectBiphasicShift(
   }
 
   if (validTemps.length < 9) {
-    return {
-      coverline: null,
-      confirmedOvulationDate: null,
-      isConfirmed: false,
-    };
+    return { coverline: null, confirmedOvulationDate: null, isConfirmed: false };
   }
 
   // 2. Scan for 3-over-6 shift
@@ -91,19 +81,14 @@ export function estimateOvulation(
   cycle: DerivedCycle,
   logs: SharedCycleDailyLog[],
   tests: Array<{ entry_date: string; test_type: string; result: string }>,
-  settings: Pick<
-    SharedCycleSettings,
-    "luteal_phase_length" | "avg_cycle_length_override"
-  >,
+  settings: Pick<SharedCycleSettings, "luteal_phase_length" | "avg_cycle_length_override">,
 ): OvulationEstimate {
   const nextStart = cycle.end_date ? addDays(cycle.end_date, 1) : null;
 
   // Filter logs belonging to this cycle
   const cycleLogs = logs.filter((l) => {
     const afterStart = compareDays(l.entry_date, cycle.start_date) >= 0;
-    const beforeEnd = nextStart
-      ? compareDays(l.entry_date, nextStart) < 0
-      : true;
+    const beforeEnd = nextStart ? compareDays(l.entry_date, nextStart) < 0 : true;
     return afterStart && beforeEnd;
   });
 
@@ -123,15 +108,11 @@ export function estimateOvulation(
   // 2. OPK Peak Overrides
   const cycleTests = tests.filter((t) => {
     const afterStart = compareDays(t.entry_date, cycle.start_date) >= 0;
-    const beforeEnd = nextStart
-      ? compareDays(t.entry_date, nextStart) < 0
-      : true;
+    const beforeEnd = nextStart ? compareDays(t.entry_date, nextStart) < 0 : true;
     return t.test_type === "opk" && afterStart && beforeEnd;
   });
 
-  const peakTest =
-    cycleTests.find((t) => t.result === "peak") ||
-    cycleTests.find((t) => t.result === "high");
+  const peakTest = cycleTests.find((t) => t.result === "peak") || cycleTests.find((t) => t.result === "high");
   if (peakTest) {
     // Ovulation typically occurs 24 hours after LH peak surge.
     return {
@@ -144,7 +125,7 @@ export function estimateOvulation(
   // 3. Fallback: Calendar Method
   const luteal = settings.luteal_phase_length ?? 14;
   const cycleLength = settings.avg_cycle_length_override ?? 28;
-  const date = nextStart
+  const date = nextStart 
     ? addDays(nextStart, -luteal)
     : addDays(cycle.start_date, cycleLength - luteal);
 

@@ -177,7 +177,7 @@ export interface IntervalPosition {
 /** Where the plan stands after `activeSeconds` of recorded (unpaused) time. */
 export function intervalPosition(
   plan: IntervalPlan,
-  activeSeconds: number,
+  activeSeconds: number
 ): IntervalPosition | null {
   if (plan.steps.length === 0) return null;
   const at = Math.max(0, activeSeconds);
@@ -244,14 +244,14 @@ export function isValidIntervalPlan(value: unknown): value is IntervalPlan {
         step.seconds <= MAX_PROGRAM_STEP_SECONDS &&
         (step.pace === undefined || normalizePaceBand(step.pace) !== null) &&
         (step.heartRate === undefined ||
-          normalizeHeartRateBand(step.heartRate) !== null),
+          normalizeHeartRateBand(step.heartRate) !== null)
     )
   );
 }
 
 /** Whether the last step has begun, i.e. the person got through the plan. */
 export const lastStepStarted = (
-  intervals: { plan: IntervalPlan; cued: number } | undefined,
+  intervals: { plan: IntervalPlan; cued: number } | undefined
 ): boolean => !!intervals && intervals.cued >= intervals.plan.steps.length - 1;
 
 /**
@@ -261,7 +261,7 @@ export const lastStepStarted = (
  */
 export function applyPaceTargets(
   plan: IntervalPlan,
-  targets: { work?: PaceBand | null; easy?: PaceBand | null },
+  targets: { work?: PaceBand | null; easy?: PaceBand | null }
 ): IntervalPlan {
   const work = normalizePaceBand(targets.work);
   const easy = normalizePaceBand(targets.easy);
@@ -282,7 +282,7 @@ export function applyPaceTargets(
  */
 export function applyHeartRateTargets(
   plan: IntervalPlan,
-  targets: { work?: HeartRateBand | null; easy?: HeartRateBand | null },
+  targets: { work?: HeartRateBand | null; easy?: HeartRateBand | null }
 ): IntervalPlan {
   const work = normalizeHeartRateBand(targets.work);
   const easy = normalizeHeartRateBand(targets.easy);

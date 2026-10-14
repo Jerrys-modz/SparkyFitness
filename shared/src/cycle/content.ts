@@ -209,81 +209,21 @@ export function detectConditionFlags(
 // --- Postpartum / menopause catalogs (5.8) ---------------------------------
 
 export const POSTPARTUM_SYMPTOMS = [
-  {
-    name: "bleeding",
-    displayName: "Bleeding (lochia)",
-    icon: "flow-medium",
-    color: "period",
-  },
-  {
-    name: "cramping",
-    displayName: "Cramping",
-    icon: "symptom-cramps",
-    color: "period",
-  },
-  {
-    name: "breast_pain",
-    displayName: "Breast pain / engorgement",
-    icon: "symptom-cramps",
-    color: "period",
-  },
-  {
-    name: "mood_changes",
-    displayName: "Mood changes",
-    icon: "mood-irritable",
-    color: "lavender",
-  },
-  {
-    name: "fatigue",
-    displayName: "Exhaustion",
-    icon: "symptom-fatigue",
-    color: "amber",
-  },
-  {
-    name: "night_sweats",
-    displayName: "Night sweats",
-    icon: "symptom-fatigue",
-    color: "amber",
-  },
+  { name: "bleeding", displayName: "Bleeding (lochia)", icon: "flow-medium", color: "period" },
+  { name: "cramping", displayName: "Cramping", icon: "symptom-cramps", color: "period" },
+  { name: "breast_pain", displayName: "Breast pain / engorgement", icon: "symptom-cramps", color: "period" },
+  { name: "mood_changes", displayName: "Mood changes", icon: "mood-irritable", color: "lavender" },
+  { name: "fatigue", displayName: "Exhaustion", icon: "symptom-fatigue", color: "amber" },
+  { name: "night_sweats", displayName: "Night sweats", icon: "symptom-fatigue", color: "amber" },
 ] as const;
 
 export const MENOPAUSE_SYMPTOMS = [
-  {
-    name: "hot_flashes",
-    displayName: "Hot flashes",
-    icon: "symptom-fatigue",
-    color: "amber",
-  },
-  {
-    name: "night_sweats",
-    displayName: "Night sweats",
-    icon: "symptom-fatigue",
-    color: "amber",
-  },
-  {
-    name: "sleep_trouble",
-    displayName: "Sleep trouble",
-    icon: "symptom-fatigue",
-    color: "amber",
-  },
-  {
-    name: "mood_changes",
-    displayName: "Mood changes",
-    icon: "mood-irritable",
-    color: "lavender",
-  },
-  {
-    name: "irregular_bleeding",
-    displayName: "Irregular bleeding",
-    icon: "flow-light",
-    color: "period",
-  },
-  {
-    name: "brain_fog",
-    displayName: "Brain fog",
-    icon: "symptom-headache",
-    color: "lavender",
-  },
+  { name: "hot_flashes", displayName: "Hot flashes", icon: "symptom-fatigue", color: "amber" },
+  { name: "night_sweats", displayName: "Night sweats", icon: "symptom-fatigue", color: "amber" },
+  { name: "sleep_trouble", displayName: "Sleep trouble", icon: "symptom-fatigue", color: "amber" },
+  { name: "mood_changes", displayName: "Mood changes", icon: "mood-irritable", color: "lavender" },
+  { name: "irregular_bleeding", displayName: "Irregular bleeding", icon: "flow-light", color: "period" },
+  { name: "brain_fog", displayName: "Brain fog", icon: "symptom-headache", color: "lavender" },
 ] as const;
 
 // --- Birth plan & hospital bag (5.13) --------------------------------------
@@ -295,79 +235,22 @@ export interface BirthPlanQuestion {
 }
 
 export const BIRTH_PLAN_QUESTIONS: readonly BirthPlanQuestion[] = [
-  {
-    key: "environment",
-    question: "Preferred environment",
-    options: ["Dim lights", "Music", "Quiet", "My own clothes"],
-  },
-  {
-    key: "pain_relief",
-    question: "Pain relief preference",
-    options: [
-      "Epidural",
-      "Natural / breathing",
-      "Water / bath",
-      "Decide during labor",
-    ],
-  },
-  {
-    key: "support",
-    question: "Who will be with you",
-    options: ["Partner", "Doula", "Family member", "Just staff"],
-  },
-  {
-    key: "monitoring",
-    question: "Fetal monitoring",
-    options: [
-      "Intermittent if possible",
-      "Continuous",
-      "Follow provider advice",
-    ],
-  },
-  {
-    key: "delivery",
-    question: "Delivery preferences",
-    options: ["Vaginal", "Water birth", "Flexible", "Planned C-section"],
-  },
-  {
-    key: "after_birth",
-    question: "Right after birth",
-    options: ["Skin-to-skin", "Delayed cord clamping", "Partner cuts cord"],
-  },
-  {
-    key: "feeding",
-    question: "Feeding intention",
-    options: ["Breastfeed", "Formula", "Combination", "Decide later"],
-  },
+  { key: "environment", question: "Preferred environment", options: ["Dim lights", "Music", "Quiet", "My own clothes"] },
+  { key: "pain_relief", question: "Pain relief preference", options: ["Epidural", "Natural / breathing", "Water / bath", "Decide during labor"] },
+  { key: "support", question: "Who will be with you", options: ["Partner", "Doula", "Family member", "Just staff"] },
+  { key: "monitoring", question: "Fetal monitoring", options: ["Intermittent if possible", "Continuous", "Follow provider advice"] },
+  { key: "delivery", question: "Delivery preferences", options: ["Vaginal", "Water birth", "Flexible", "Planned C-section"] },
+  { key: "after_birth", question: "Right after birth", options: ["Skin-to-skin", "Delayed cord clamping", "Partner cuts cord"] },
+  { key: "feeding", question: "Feeding intention", options: ["Breastfeed", "Formula", "Combination", "Decide later"] },
 ];
 
-export const HOSPITAL_BAG_ITEMS: readonly {
-  key: string;
-  title: string;
-  category: string;
-}[] = [
-  {
-    key: "id_docs",
-    title: "ID and hospital documents",
-    category: "essentials",
-  },
-  {
-    key: "birth_plan",
-    title: "Copy of your birth plan",
-    category: "essentials",
-  },
-  {
-    key: "phone_charger",
-    title: "Phone and long charger",
-    category: "essentials",
-  },
+export const HOSPITAL_BAG_ITEMS: readonly { key: string; title: string; category: string }[] = [
+  { key: "id_docs", title: "ID and hospital documents", category: "essentials" },
+  { key: "birth_plan", title: "Copy of your birth plan", category: "essentials" },
+  { key: "phone_charger", title: "Phone and long charger", category: "essentials" },
   { key: "toiletries", title: "Toiletries", category: "comfort" },
   { key: "robe_slippers", title: "Robe and slippers", category: "comfort" },
-  {
-    key: "going_home_mom",
-    title: "Going-home outfit (loose)",
-    category: "clothing",
-  },
+  { key: "going_home_mom", title: "Going-home outfit (loose)", category: "clothing" },
   { key: "nursing_bras", title: "Nursing bras / pads", category: "clothing" },
   { key: "baby_outfit", title: "Baby going-home outfit", category: "baby" },
   { key: "baby_blanket", title: "Baby blanket", category: "baby" },

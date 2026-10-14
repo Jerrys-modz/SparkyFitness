@@ -82,12 +82,9 @@ export function resolveMacroFieldKey(
   const query = normalizeNutrientName(name);
   if (!query) return null;
   const match = MACRO_PICKER_FIELDS.find((field) =>
-    [
-      field.displayName,
-      field.fieldKey,
-      field.shortLabel,
-      ...field.aliases,
-    ].some((candidate) => normalizeNutrientName(candidate) === query),
+    [field.displayName, field.fieldKey, field.shortLabel, ...field.aliases].some(
+      (candidate) => normalizeNutrientName(candidate) === query,
+    ),
   );
   return match?.fieldKey ?? null;
 }

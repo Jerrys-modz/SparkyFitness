@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 // One row per entry. `points` rows are `[active seconds, cumulative metres]`.
 export const exerciseEntryDistanceSeriesSchema = z.object({

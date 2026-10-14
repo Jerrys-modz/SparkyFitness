@@ -12,7 +12,7 @@ export interface HeartRateBand {
   maxBpm: number;
 }
 
-export type HeartRateAlertKind = "tooHigh" | "tooLow";
+export type HeartRateAlertKind = 'tooHigh' | 'tooLow';
 
 /** Lowest and highest range a person can set. */
 export const HEART_RATE_BAND_LOWEST_BPM = 40;
@@ -29,11 +29,11 @@ export const HEART_RATE_ALERT_REPEAT_MS = 45_000;
 
 /** The band when it is usable, else null. */
 export function normalizeHeartRateBand(
-  band: Partial<HeartRateBand> | null | undefined,
+  band: Partial<HeartRateBand> | null | undefined
 ): HeartRateBand | null {
   if (!band) return null;
   const { minBpm: min, maxBpm: max } = band;
-  if (typeof min !== "number" || typeof max !== "number") return null;
+  if (typeof min !== 'number' || typeof max !== 'number') return null;
   if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
   if (min < HEART_RATE_BAND_LOWEST_BPM) return null;
   if (max > HEART_RATE_BAND_HIGHEST_BPM) return null;
@@ -63,12 +63,12 @@ export function stepHeartRateAlert(
   state: HeartRateAlertState,
   bpm: number | null,
   band: HeartRateBand,
-  nowMs: number,
+  nowMs: number
 ): { state: HeartRateAlertState; alert: HeartRateAlertKind | null } {
   if (bpm === null || !(bpm > 0)) return { state, alert: null };
   let side: HeartRateAlertKind | null = null;
-  if (bpm > band.maxBpm + HEART_RATE_ALERT_MARGIN_BPM) side = "tooHigh";
-  else if (bpm < band.minBpm - HEART_RATE_ALERT_MARGIN_BPM) side = "tooLow";
+  if (bpm > band.maxBpm + HEART_RATE_ALERT_MARGIN_BPM) side = 'tooHigh';
+  else if (bpm < band.minBpm - HEART_RATE_ALERT_MARGIN_BPM) side = 'tooLow';
   if (side === null) {
     return {
       state: { side: null, outsideSince: null, lastAlertAt: state.lastAlertAt },

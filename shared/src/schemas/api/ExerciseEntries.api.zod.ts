@@ -717,21 +717,21 @@ export const attachExerciseEntryLapsRequestSchema = z
           end_time: z.string().datetime({ offset: true }),
           distance_meters: z.number().nonnegative().max(1_000_000).optional(),
           avg_heart_rate: z.number().positive().max(300).optional(),
-        }),
+        })
       )
       .min(1)
       .max(1000)
       .refine(
         (laps) =>
           new Set(laps.map((lap) => lap.lap_index)).size === laps.length,
-        { message: "Each lap needs its own lap_index." },
+        { message: "Each lap needs its own lap_index." }
       )
       .refine(
         (laps) =>
           laps.every(
-            (lap) => Date.parse(lap.end_time) > Date.parse(lap.start_time),
+            (lap) => Date.parse(lap.end_time) > Date.parse(lap.start_time)
           ),
-        { message: "Every lap must end after it starts." },
+        { message: "Every lap must end after it starts." }
       ),
   })
   .strict();
@@ -759,7 +759,7 @@ export const attachExerciseEntryDistanceSeriesRequestSchema = z
         z.tuple([
           z.number().min(0).max(86400),
           z.number().min(0).max(1_000_000),
-        ]),
+        ])
       )
       .min(2)
       .max(1000),

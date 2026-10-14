@@ -234,7 +234,7 @@ export function scaleVariantToGrams(
 
   return scaleBy(
     pickMacros(variantMacros),
-    targetGrams / servingGrams,
+    targetGrams / servingGrams
   ) as PortionMacros;
 }
 

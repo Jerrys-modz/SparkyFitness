@@ -10,15 +10,15 @@
 // Legacy `nutritionix` is excluded: it still appears on older food rows but
 // has no active backend import/search path.
 export const FOOD_PROVIDER_TYPES = [
-  "openfoodfacts",
-  "usda",
-  "fatsecret",
-  "mealie",
-  "tandoor",
-  "yazio",
-  "norish",
-  "swissfood",
-  "canadian-nutrient-file",
+  'openfoodfacts',
+  'usda',
+  'fatsecret',
+  'mealie',
+  'tandoor',
+  'yazio',
+  'norish',
+  'swissfood',
+  'canadian-nutrient-file',
 ] as const;
 
 export type FoodProviderType = (typeof FOOD_PROVIDER_TYPES)[number];

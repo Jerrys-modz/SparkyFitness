@@ -40,9 +40,7 @@ const exerciseStringArrayFieldSchema = z
   .union([z.array(z.string()), z.string()])
   .nullable()
   .optional()
-  .transform((value) =>
-    value == null || Array.isArray(value) ? value : [value],
-  );
+  .transform((value) => (value == null || Array.isArray(value) ? value : [value]));
 
 /**
  * The subset of the create/update exercise payload (`POST /exercises`,
