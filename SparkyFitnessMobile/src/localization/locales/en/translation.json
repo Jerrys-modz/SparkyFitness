@@ -6666,7 +6666,8 @@
       "change": "Change program",
       "switchTitle": "Switch to {{name}}?",
       "switchMessage": "You will start the new program at week 1. Your place in the current one is not kept.",
-      "switchConfirm": "Switch"
+      "switchConfirm": "Switch",
+      "startDayPast": "Started {{date}}. Your next workout is scheduled from today."
     },
     "watch": {
       "title": "Record with",

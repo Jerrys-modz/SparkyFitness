@@ -184,6 +184,22 @@ describe('diary days and start day', () => {
     expect(onSchedule).toHaveBeenCalledWith({ startDay: null });
   });
 
+  it('keeps a start date picked on or before today and shows it', () => {
+    const onSchedule = jest.fn();
+    render(
+      <RunProgramCard
+        {...props()}
+        now={now}
+        schedule={{ days: [], startDay: '2026-10-10', endDay: null }}
+        onSchedule={onSchedule}
+      />
+    );
+    expect(screen.getByText(/Started .*Oct 10/)).toBeTruthy();
+    expect(screen.queryByText(/Starts today/)).toBeNull();
+    fireEvent.press(screen.getByText('Start today'));
+    expect(onSchedule).toHaveBeenCalledWith({ startDay: null });
+  });
+
   it('shows the goal date and can clear it', () => {
     const onSchedule = jest.fn();
     render(

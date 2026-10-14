@@ -308,7 +308,8 @@ const RunProgramCard: React.FC<Props> = ({
       })
     : '';
   const today = toLocalDateString(new Date(now));
-  const futureStart = !!schedule.startDay && schedule.startDay > today;
+  const hasStart = !!schedule.startDay;
+  const futureStart = hasStart && (schedule.startDay as string) > today;
   const dayLabel = (day: string): string => formatDayLabel(day);
   const fraction = status.total > 0 ? status.done / status.total : 0;
   return (
@@ -439,11 +440,17 @@ const RunProgramCard: React.FC<Props> = ({
                   defaultValue:
                     'Starts {{date}}. Nothing shows in the Diary before then.',
                 })
-              : t('recordActivity.program.startDayToday', {
-                  date: dayLabel(today),
-                  defaultValue:
-                    'Starts today, {{date}}. Pick a later date if you want to begin then.',
-                })}
+              : hasStart
+                ? t('recordActivity.program.startDayPast', {
+                    date: dayLabel(schedule.startDay as string),
+                    defaultValue:
+                      'Started {{date}}. Your next workout is scheduled from today.',
+                  })
+                : t('recordActivity.program.startDayToday', {
+                    date: dayLabel(today),
+                    defaultValue:
+                      'Starts today, {{date}}. Pick a later date if you want to begin then.',
+                  })}
           </Text>
           <View className="flex-row">
             <Button
@@ -454,7 +461,7 @@ const RunProgramCard: React.FC<Props> = ({
                 defaultValue: 'Change start date',
               })}
             </Button>
-            {futureStart ? (
+            {hasStart ? (
               <Button
                 variant="link"
                 onPress={() => onSchedule({ startDay: null })}
@@ -562,9 +569,7 @@ const RunProgramCard: React.FC<Props> = ({
       <CalendarSheet
         ref={calendarRef}
         selectedDate={schedule.startDay ?? today}
-        onSelectDate={(day) =>
-          onSchedule({ startDay: day <= today ? null : day })
-        }
+        onSelectDate={(day) => onSchedule({ startDay: day })}
       />
     </View>
   );
