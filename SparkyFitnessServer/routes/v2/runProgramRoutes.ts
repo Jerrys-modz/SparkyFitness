@@ -1,14 +1,20 @@
 import express from 'express';
 import {
   completeRunProgramWorkoutBodySchema,
+  customRunProgramInputSchema,
   rateRunProgramWorkoutBodySchema,
   upsertRunProgramBodySchema,
 } from '@workspace/shared';
 import requireSelfActor from '../../middleware/requireSelfMiddleware.js';
 import {
   completeRunProgramWorkout,
+  createCustomRunProgram,
+  CustomRunProgramLimitError,
+  deleteCustomRunProgram,
   getRunProgram,
   InvalidRunProgramScheduleError,
+  listCustomRunPrograms,
+  updateCustomRunProgram,
   rateRunProgramWorkout,
   UnknownRunProgramError,
   upsertRunProgram,
@@ -144,6 +150,129 @@ router.post('/effort', async (req, res, next) => {
     );
     const program = await getRunProgram(req.userId, req.authenticatedUserId);
     res.json({ program });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /v2/run-program/custom:
+ *   get:
+ *     summary: List the person's own run programs
+ *     description: Programs the person built themselves, a free list of workouts each. Start one with `PUT /v2/run-program` and `program_id` `custom:<id>`.
+ *     tags: [Exercise]
+ *     responses:
+ *       200:
+ *         description: `{ programs: [...] }`, newest first.
+ *   post:
+ *     summary: Create one of the person's own run programs
+ *     tags: [Exercise]
+ *     responses:
+ *       200:
+ *         description: The new program.
+ *       400:
+ *         description: Invalid body, or the most programs a person can keep.
+ */
+router.get('/custom', async (req, res, next) => {
+  try {
+    const programs = await listCustomRunPrograms(
+      req.userId,
+      req.authenticatedUserId
+    );
+    res.json({ programs });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/custom', async (req, res, next) => {
+  try {
+    const parsed = customRunProgramInputSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Invalid request body',
+        details: parsed.error.format(),
+      });
+    }
+    const program = await createCustomRunProgram(
+      req.userId,
+      parsed.data,
+      req.authenticatedUserId
+    );
+    res.json({ program });
+  } catch (error) {
+    if (error instanceof CustomRunProgramLimitError) {
+      return res
+        .status(400)
+        .json({ error: 'You have the most programs you can keep' });
+    }
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /v2/run-program/custom/{id}:
+ *   put:
+ *     summary: Change one of the person's own run programs
+ *     description: Replaces its name, activity and workouts. If it is the program being run, that copy changes too and the place is kept.
+ *     tags: [Exercise]
+ *     responses:
+ *       200:
+ *         description: The program.
+ *       404:
+ *         description: No such program.
+ *   delete:
+ *     summary: Delete one of the person's own run programs
+ *     description: A copy being run is kept.
+ *     tags: [Exercise]
+ *     responses:
+ *       204:
+ *         description: Deleted.
+ *       404:
+ *         description: No such program.
+ */
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+router.put('/custom/:id', async (req, res, next) => {
+  try {
+    if (!UUID_PATTERN.test(req.params.id)) {
+      return res.status(404).json({ error: 'Program not found' });
+    }
+    const parsed = customRunProgramInputSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Invalid request body',
+        details: parsed.error.format(),
+      });
+    }
+    const program = await updateCustomRunProgram(
+      req.userId,
+      req.params.id,
+      parsed.data,
+      req.authenticatedUserId
+    );
+    if (!program) return res.status(404).json({ error: 'Program not found' });
+    res.json({ program });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/custom/:id', async (req, res, next) => {
+  try {
+    if (!UUID_PATTERN.test(req.params.id)) {
+      return res.status(404).json({ error: 'Program not found' });
+    }
+    const deleted = await deleteCustomRunProgram(
+      req.userId,
+      req.params.id,
+      req.authenticatedUserId
+    );
+    if (!deleted) return res.status(404).json({ error: 'Program not found' });
+    res.status(204).end();
   } catch (error) {
     next(error);
   }

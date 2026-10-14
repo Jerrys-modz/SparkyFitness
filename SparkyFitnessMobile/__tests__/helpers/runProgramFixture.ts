@@ -11,6 +11,8 @@ export function storedBeginnerProgram(
   return {
     id: 'rp1',
     program_id: 'beginner5k',
+    name: null,
+    activity: null,
     enabled: true,
     next_index: 3,
     workouts: findProgram('beginner5k')!.workouts,

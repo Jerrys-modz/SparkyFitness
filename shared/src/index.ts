@@ -210,6 +210,7 @@ export * from "./schemas/database/UserMoodDisplayPreferences.zod.ts";
 export * from "./schemas/database/UserFastingPreferences.zod.ts";
 export * from "./schemas/database/MindfulnessSessions.zod.ts";
 export * from "./schemas/database/RunPrograms.zod.ts";
+export * from "./schemas/database/CustomRunPrograms.zod.ts";
 export * from "./types/progression.ts";
 export * from "./utils/exerciseMuscleAggregates.ts";
 export * from "./utils/trainingConsistency.ts";
