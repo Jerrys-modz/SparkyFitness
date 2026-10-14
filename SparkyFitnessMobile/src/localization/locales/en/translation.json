@@ -632,7 +632,9 @@
     "watchRunLiveRun": "Run on your watch",
     "watchWalkLive": "Walk on your watch",
     "runProgramCalendar": "Program calendar",
-    "runProgramWorkout": "Workout"
+    "runProgramWorkout": "Workout",
+    "runProgramEdit": "Edit plan",
+    "runProgramNew": "New plan"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -6728,7 +6730,8 @@
       "switchTitle": "Switch to {{name}}?",
       "switchMessage": "You will start the new program at week 1. Your place in the current one is not kept.",
       "switchConfirm": "Switch",
-      "startDayPast": "Started {{date}}. Your next workout is scheduled from today."
+      "startDayPast": "Started {{date}}. Your next workout is scheduled from today.",
+      "customWorkoutLabel": "{{name}} · {{workout}}"
     },
     "watch": {
       "title": "Record with",
@@ -7407,6 +7410,52 @@
       "start": "Start this workout",
       "repeat": "Repeat this workout",
       "jump": "Make this the next workout"
+    },
+    "custom": {
+      "workoutNumber": "Workout {{number}}",
+      "optionLabel_one": "{{name}} · {{formattedCount}} workout",
+      "optionLabel_other": "{{name}} · {{formattedCount}} workouts",
+      "workoutCount_one": "{{formattedCount}} workout",
+      "workoutCount_other": "{{formattedCount}} workouts",
+      "kind": {
+        "warmup": "Warm up",
+        "cooldown": "Cool down",
+        "recovery": "Easy",
+        "workWalk": "Brisk walk",
+        "workRun": "Run"
+      },
+      "missing": "This plan is no longer there.",
+      "problem": {
+        "name": "Give the plan a name.",
+        "noWorkouts": "Add at least one workout.",
+        "emptyWorkout": "Every workout needs at least one step."
+      },
+      "saveError": "Could not save your plan",
+      "deleteTitle": "Delete this plan?",
+      "deleteMessage": "If you are following it, you can carry on; it just leaves your list of plans.",
+      "deleteError": "Could not delete your plan",
+      "nameLabel": "Name",
+      "namePlaceholder": "My plan",
+      "activityRun": "Run",
+      "activityWalk": "Walk",
+      "moveUp": "Move earlier",
+      "moveDown": "Move later",
+      "duplicate": "Duplicate workout",
+      "removeWorkout": "Remove workout",
+      "titlePlaceholder": "Name (optional)",
+      "totalMinutes": "{{minutes}} minutes in all",
+      "kindHint": "Changes the kind of step",
+      "shorter": "Shorter",
+      "longer": "Longer",
+      "removeStep": "Remove step",
+      "addStep": "Add a step",
+      "addWorkout": "Add a workout",
+      "delete": "Delete plan",
+      "title": "Your plans",
+      "intro": "Write your own plan as a list of workouts, each made of timed steps, and follow it like any program.",
+      "restart": "Start again",
+      "edit": "Edit",
+      "create": "Create a plan"
     }
   },
   "speechVoice": {

@@ -6,7 +6,7 @@ import { planMinutes } from '@workspace/shared';
 import Button from '../components/ui/Button';
 import ProgramMonthGrid from '../components/recording/ProgramMonthGrid';
 import {
-  programName,
+  programTitle,
   workoutTitle,
 } from '../components/recording/RunProgramCard';
 import { usePreferences } from '../hooks/usePreferences';
@@ -175,7 +175,7 @@ const RunProgramCalendarScreen: React.FC<Props> = ({ navigation }) => {
         }}
       >
         <Text className="text-text-primary text-lg font-bold">
-          {programName(t, status.program.id)}
+          {programTitle(t, status.program)}
         </Text>
         <Text className="text-text-secondary text-sm mb-3">
           {t('runPrograms.calendarScreen.progress', {

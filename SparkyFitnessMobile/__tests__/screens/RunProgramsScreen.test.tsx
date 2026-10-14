@@ -7,6 +7,7 @@ import {
   setProgramEnabled,
   setProgramSchedule,
   startProgram,
+  useCustomRunPrograms,
   useRunProgram,
 } from '../../src/services/runProgramService';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -24,6 +25,11 @@ const renderScreen = (props: React.ComponentProps<typeof RunProgramsScreen>) =>
 
 jest.mock('../../src/services/runProgramService', () => ({
   useRunProgram: jest.fn(),
+  useCustomRunPrograms: jest.fn(() => ({
+    programs: [],
+    loaded: true,
+    refetch: jest.fn(),
+  })),
   startProgram: jest.fn(() => Promise.resolve()),
   setProgramEnabled: jest.fn(() => Promise.resolve()),
   setProgramPosition: jest.fn(() => Promise.resolve()),
@@ -64,7 +70,14 @@ jest.mock('../../src/components/CalendarSheet', () => {
 const mockedUse = jest.mocked(useRunProgram);
 
 describe('RunProgramsScreen', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.mocked(useCustomRunPrograms).mockReturnValue({
+      programs: [],
+      loaded: true,
+      refetch: jest.fn(),
+    } as never);
+  });
 
   it('lists every program and starts the one chosen', () => {
     mockedUse.mockReturnValue({
@@ -179,5 +192,62 @@ describe('RunProgramsScreen', () => {
     expect(props.navigation.navigate).toHaveBeenCalledWith(
       'RunProgramCalendar'
     );
+  });
+
+  describe('your own plans', () => {
+    const plan = {
+      id: '0b6f1c1e-6a52-4a8e-9a3b-2f1d4f5a9c10',
+      name: 'Hills',
+      activity: 'run' as const,
+      workouts: [{}, {}, {}],
+      created_at: '',
+      updated_at: '',
+    };
+    const withPlan = () =>
+      jest.mocked(useCustomRunPrograms).mockReturnValue({
+        programs: [plan],
+        loaded: true,
+        refetch: jest.fn(),
+      } as never);
+
+    it('offers to create a plan', () => {
+      mockedUse.mockReturnValue({
+        status: null,
+        enabled: false,
+        lastAdjustment: null,
+        schedule: { days: [], startDay: null, endDay: null },
+        doneDay: null,
+        loaded: true,
+      });
+      const props = RunProgramsProps();
+      renderScreen(props);
+      fireEvent.press(screen.getByTestId('custom-plan-new'));
+      expect(props.navigation.navigate).toHaveBeenCalledWith('RunProgramEdit');
+    });
+
+    it('lists a plan, edits it and starts it from today', () => {
+      withPlan();
+      mockedUse.mockReturnValue({
+        status: null,
+        enabled: false,
+        lastAdjustment: null,
+        schedule: { days: [], startDay: null, endDay: null },
+        doneDay: null,
+        loaded: true,
+      });
+      const props = RunProgramsProps();
+      const alert = jest.spyOn(Alert, 'alert');
+      renderScreen(props);
+      expect(screen.getByText('Hills')).toBeTruthy();
+      expect(screen.getByText('3 workouts')).toBeTruthy();
+      fireEvent.press(screen.getByTestId(`custom-plan-edit-${plan.id}`));
+      expect(props.navigation.navigate).toHaveBeenCalledWith('RunProgramEdit', {
+        id: plan.id,
+      });
+      fireEvent.press(screen.getByTestId(`custom-plan-start-${plan.id}`));
+      const buttons = alert.mock.calls.at(-1)?.[2] ?? [];
+      act(() => buttons.find((b) => b.text === 'Start today')?.onPress?.());
+      expect(startProgram).toHaveBeenCalledWith(`custom:${plan.id}`, null);
+    });
   });
 });

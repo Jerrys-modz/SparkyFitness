@@ -3,7 +3,13 @@ import { Alert, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
-import { findProgram, programOutline, RUN_PROGRAMS } from '@workspace/shared';
+import {
+  customProgramId,
+  findProgram,
+  programOutline,
+  RUN_PROGRAMS,
+  type CustomRunProgramResponse,
+} from '@workspace/shared';
 import RunProgramCard, {
   programDescription,
   programName,
@@ -24,9 +30,11 @@ import {
   setProgramPosition,
   skipProgramWorkout,
   startProgram,
+  useCustomRunPrograms,
   useRunProgram,
 } from '../services/runProgramService';
 import { addLog } from '../services/LogService';
+import { formatLocalizedNumber } from '../localization';
 import type { RootStackScreenProps } from '../types/navigation';
 import { addDays, toLocalDateString } from '../utils/dateUtils';
 
@@ -47,6 +55,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   const storedId = status?.program.id;
   const startCalendarRef = useRef<CalendarSheetRef>(null);
   const [startingId, setStartingId] = useState<string | null>(null);
+  const { programs: customPrograms } = useCustomRunPrograms();
 
   const header = useScreenHeader({
     title: t('screens.runPrograms', { defaultValue: 'Training programs' }),
@@ -74,10 +83,14 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   // Starting asks when the first workout is: today, or a date from the calendar.
+  const nameOf = (id: string): string =>
+    customPrograms.find((p) => customProgramId(p.id) === id)?.name ??
+    programName(t, id);
+
   const askStart = (id: string) => {
     Alert.alert(
       t('runPrograms.startWhenTitle', {
-        name: programName(t, id),
+        name: nameOf(id),
         defaultValue: 'Start {{name}}',
       }),
       t('runPrograms.startWhenMessage', {
@@ -114,7 +127,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
     // week 1 (and switches it on), so it is always confirmed.
     Alert.alert(
       t('recordActivity.program.switchTitle', {
-        name: programName(t, id),
+        name: nameOf(id),
         defaultValue: 'Switch to {{name}}?',
       }),
       t('recordActivity.program.switchMessage', {
@@ -139,6 +152,75 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
       ]
     );
   };
+
+  const yourPlans = (
+    <View className="mt-6" testID="your-plans">
+      <Text className="text-text-primary text-base font-semibold">
+        {t('runPrograms.custom.title', { defaultValue: 'Your plans' })}
+      </Text>
+      <Text className="text-text-secondary text-xs mt-1">
+        {t('runPrograms.custom.intro', {
+          defaultValue:
+            'Write your own plan as a list of workouts, each made of timed steps, and follow it like any program.',
+        })}
+      </Text>
+      {customPrograms.map((plan: CustomRunProgramResponse) => (
+        <View
+          key={plan.id}
+          className="bg-surface rounded-xl p-4 mt-3"
+          testID={`custom-plan-${plan.id}`}
+        >
+          <Text className="text-text-primary text-base font-semibold">
+            {plan.name}
+          </Text>
+          <Text className="text-text-muted text-xs mt-0.5">
+            {t('runPrograms.custom.workoutCount', {
+              count: plan.workouts.length,
+              formattedCount: formatLocalizedNumber(plan.workouts.length),
+              defaultValue: '{{formattedCount}} workouts',
+              defaultValue_one: '{{formattedCount}} workout',
+              defaultValue_other: '{{formattedCount}} workouts',
+            })}
+          </Text>
+          <View className="flex-row mt-3">
+            <View className="flex-1 mr-2">
+              <Button
+                variant="outline"
+                onPress={() => askStart(customProgramId(plan.id))}
+                testID={`custom-plan-start-${plan.id}`}
+              >
+                {storedId === customProgramId(plan.id)
+                  ? t('runPrograms.custom.restart', {
+                      defaultValue: 'Start again',
+                    })
+                  : t('runPrograms.start', { defaultValue: 'Start program' })}
+              </Button>
+            </View>
+            <View className="flex-1">
+              <Button
+                variant="outline"
+                onPress={() =>
+                  navigation.navigate('RunProgramEdit', { id: plan.id })
+                }
+                testID={`custom-plan-edit-${plan.id}`}
+              >
+                {t('runPrograms.custom.edit', { defaultValue: 'Edit' })}
+              </Button>
+            </View>
+          </View>
+        </View>
+      ))}
+      <View className="mt-3">
+        <Button
+          variant="outline"
+          onPress={() => navigation.navigate('RunProgramEdit')}
+          testID="custom-plan-new"
+        >
+          {t('runPrograms.custom.create', { defaultValue: 'Create a plan' })}
+        </Button>
+      </View>
+    </View>
+  );
 
   let body: React.ReactNode = null;
   if (loaded && status) {
@@ -184,7 +266,10 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           doneDay={doneDay}
           today={today}
         />
-        <RunProgramGuide programId={storedId} />
+        <RunProgramGuide
+          programId={status.program.custom ? undefined : storedId}
+        />
+        {yourPlans}
       </>
     );
   } else if (loaded) {
@@ -244,6 +329,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
             </View>
           );
         })}
+        {yourPlans}
       </>
     );
   }

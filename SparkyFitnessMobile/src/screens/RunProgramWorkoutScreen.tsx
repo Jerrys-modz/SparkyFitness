@@ -10,7 +10,7 @@ import {
 } from '@workspace/shared';
 import Button from '../components/ui/Button';
 import {
-  programName,
+  programTitle,
   workoutTitle,
 } from '../components/recording/RunProgramCard';
 import { usePreferences } from '../hooks/usePreferences';
@@ -211,7 +211,7 @@ const RunProgramWorkoutScreen: React.FC<Props> = ({ navigation, route }) => {
         }}
       >
         <Text className="text-text-muted text-xs">
-          {programName(t, status.program.id)}
+          {programTitle(t, status.program)}
         </Text>
         <Text
           className="text-text-primary text-2xl font-bold"

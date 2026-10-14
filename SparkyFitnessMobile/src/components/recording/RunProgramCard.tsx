@@ -8,7 +8,7 @@ import BottomSheetPicker, {
   type PickerOption,
   type PickerSection,
 } from '../BottomSheetPicker';
-import { getAppLocale } from '../../localization';
+import { formatLocalizedNumber, getAppLocale } from '../../localization';
 import CalendarSheet, { type CalendarSheetRef } from '../CalendarSheet';
 import type { ProgramScheduleChange } from '../../services/runProgramService';
 import { toLocalDateString } from '../../utils/dateUtils';
@@ -24,6 +24,22 @@ import {
   type RunProgram,
   type RunProgramAdjustment,
 } from '@workspace/shared';
+
+/** A program's name: the person's own for a custom one, else the built-in's. */
+export function programTitle(t: TFunction, program: RunProgram): string {
+  return program.custom?.name || programName(t, program.id);
+}
+
+/** "Workout 4" or the person's own name for a workout of a custom program. */
+function customWorkoutTitle(t: TFunction, workout: ProgramWorkout): string {
+  return (
+    workout.title ||
+    t('runPrograms.custom.workoutNumber', {
+      number: workout.week * 7 + workout.day + 1,
+      defaultValue: 'Workout {{number}}',
+    })
+  );
+}
 
 export function programName(t: TFunction, id: string): string {
   switch (id) {
@@ -100,6 +116,7 @@ export function workoutTitle(
   program: RunProgram,
   workout: ProgramWorkout
 ): string {
+  if (program.custom) return customWorkoutTitle(t, workout);
   if (program.activity === 'walk') {
     return t('runPrograms.detail.workoutTitleWalk', {
       week: workout.week + 1,
@@ -120,17 +137,24 @@ export function programWorkoutLabel(
   status: ProgramStatus
 ): string {
   const workout = status.workout;
-  if (!workout) return programName(t, status.program.id);
+  if (!workout) return programTitle(t, status.program);
+  if (status.program.custom) {
+    return t('recordActivity.program.customWorkoutLabel', {
+      name: programTitle(t, status.program),
+      workout: customWorkoutTitle(t, workout),
+      defaultValue: '{{name}} · {{workout}}',
+    });
+  }
   if (status.program.activity === 'walk') {
     return t('recordActivity.program.workoutLabelWalk', {
-      name: programName(t, status.program.id),
+      name: programTitle(t, status.program),
       week: workout.week + 1,
       walk: workout.day + 1,
       defaultValue: '{{name}} · Week {{week}}, walk {{walk}}',
     });
   }
   return t('recordActivity.program.workoutLabel', {
-    name: programName(t, status.program.id),
+    name: programTitle(t, status.program),
     week: workout.week + 1,
     run: workout.day + 1,
     defaultValue: '{{name}} · Week {{week}}, run {{run}}',
@@ -235,6 +259,20 @@ const RunProgramCard: React.FC<Props> = ({
     }),
     value: p.id,
   }));
+  // A plan the person wrote is not in the built-in list, but is the one shown.
+  if (status?.program.custom) {
+    programOptions.unshift({
+      label: t('runPrograms.custom.optionLabel', {
+        name: programTitle(t, status.program),
+        count: status.total,
+        formattedCount: formatLocalizedNumber(status.total),
+        defaultValue: '{{name}} · {{formattedCount}} workouts',
+        defaultValue_one: '{{name}} · {{formattedCount}} workout',
+        defaultValue_other: '{{name}} · {{formattedCount}} workouts',
+      }),
+      value: status.program.id,
+    });
+  }
 
   if (!enabled || !status) {
     return (
@@ -253,7 +291,7 @@ const RunProgramCard: React.FC<Props> = ({
         <Text className="text-text-secondary text-xs mt-3">
           {status && status.program.id === programId
             ? t('recordActivity.program.paused', {
-                name: programName(t, status.program.id),
+                name: programTitle(t, status.program),
                 done: status.done,
                 total: status.total,
                 defaultValue:
@@ -340,7 +378,7 @@ const RunProgramCard: React.FC<Props> = ({
       <Text className="text-text-primary text-sm font-semibold mt-3">
         {status.finished
           ? t('recordActivity.program.finished', {
-              name: programName(t, status.program.id),
+              name: programTitle(t, status.program),
               defaultValue: '{{name}} complete',
             })
           : programWorkoutLabel(t, status)}

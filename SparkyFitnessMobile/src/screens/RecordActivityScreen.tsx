@@ -34,7 +34,7 @@ import SegmentedControl from '../components/SegmentedControl';
 import { SplitRow, Stat } from '../components/recording/SplitRow';
 import RunProgramSelect from '../components/recording/RunProgramSelect';
 import {
-  programName,
+  programTitle,
   programWorkoutLabel,
 } from '../components/recording/RunProgramCard';
 import GpsSignalBadge from '../components/recording/GpsSignalBadge';
@@ -568,7 +568,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               intervalChoice === 'program' && programStatus
                 ? {
                     id: programStatus.program.id,
-                    name: programName(t, programStatus.program.id),
+                    name: programTitle(t, programStatus.program),
                     program: {
                       id: programStatus.program.id,
                       index: programStatus.done,
