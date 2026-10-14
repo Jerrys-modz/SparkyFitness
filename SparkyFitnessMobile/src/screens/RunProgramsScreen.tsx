@@ -213,6 +213,15 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
       <View className="mt-3">
         <Button
           variant="outline"
+          onPress={() => navigation.navigate('RunProgramRace')}
+          testID="plan-a-race"
+        >
+          {t('runPrograms.race.open', { defaultValue: 'Plan a race' })}
+        </Button>
+      </View>
+      <View className="mt-3">
+        <Button
+          variant="outline"
           onPress={() => navigation.navigate('RunProgramEdit')}
           testID="custom-plan-new"
         >

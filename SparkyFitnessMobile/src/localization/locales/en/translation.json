@@ -634,7 +634,8 @@
     "runProgramCalendar": "Program calendar",
     "runProgramWorkout": "Workout",
     "runProgramEdit": "Edit plan",
-    "runProgramNew": "New plan"
+    "runProgramNew": "New plan",
+    "runProgramRace": "Plan a race"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -7467,6 +7468,47 @@
       "targetHint": "Use m:ss for pace and bpm for heart rate, with the two ends at least 10 apart. Empty means no target.",
       "customize": "Customize this program",
       "copyName": "{{name}} (my copy)"
+    },
+    "race": {
+      "distance": {
+        "5k": "5K",
+        "10k": "10K",
+        "half": "Half marathon",
+        "marathon": "Marathon"
+      },
+      "level": {
+        "new": "New to running",
+        "some": "Run a little",
+        "regular": "Run regularly",
+        "experienced": "Experienced"
+      },
+      "title": {
+        "easy": "Easy run",
+        "long": "Long run",
+        "tempo": "Tempo run",
+        "intervals": "Intervals",
+        "shakeout": "Shake-out run",
+        "race": "Race day: {{label}}"
+      },
+      "planName": "{{label}} race plan",
+      "saveError": "Could not create your plan",
+      "replaceTitle": "Replace your current program?",
+      "replaceMessage": "The race plan starts now and replaces the program you are following. Your place in it is not kept.",
+      "replaceConfirm": "Replace",
+      "intro": "Pick your race and the days you can run. The plan builds up to race day, with an easier week every fourth week and a taper at the end.",
+      "distanceLabel": "Distance",
+      "levelLabel": "How much do you run now?",
+      "dayLabel": "Race day",
+      "daysLabel": "Days you can run",
+      "daysHint": "Race day is always included. Pick at least two days; three or four suit most people.",
+      "pastDay": "Pick a race day that has not passed.",
+      "summaryTitle": "{{weeks}} weeks to race day",
+      "summaryBody": "{{workouts}} workouts, the longest run about {{long}} minutes.",
+      "estimate": "Race day is planned at about {{minutes}} minutes at an easy pace; you can change it in the plan afterwards.",
+      "tooShort": "That is less time than we suggest: at least {{min}} weeks for this distance. Pick a later race day.",
+      "tooFewDays": "Pick at least two days to run.",
+      "create": "Create and start the plan",
+      "open": "Plan a race"
     }
   },
   "speechVoice": {

@@ -46,6 +46,7 @@ import {
   SafeRunPrograms,
   SafeRunProgramCalendar,
   SafeRunProgramEdit,
+  SafeRunProgramRace,
   SafeRunProgramWorkout,
   SafeMealPlanForm,
   SafeWorkoutPlans,
@@ -577,6 +578,11 @@ function AppContent() {
             name="RunProgramCalendar"
             component={SafeRunProgramCalendar}
             options={createStackScreenOptions(t('screens.runProgramCalendar', { defaultValue: 'Program calendar' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
+          />
+          <Stack.Screen
+            name="RunProgramRace"
+            component={SafeRunProgramRace}
+            options={createStackScreenOptions(t('screens.runProgramRace', { defaultValue: 'Plan a race' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
           />
           <Stack.Screen
             name="RunProgramEdit"

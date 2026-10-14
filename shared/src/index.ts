@@ -233,6 +233,7 @@ export * from "./utils/paceTargets.ts";
 export * from "./utils/heartRateTargets.ts";
 export * from "./utils/runPrograms.ts";
 export * from "./utils/runProgramSchedule.ts";
+export * from "./utils/racePlan.ts";
 export * from "./constants/corosSportTypes.ts";
 export * from "./utils/runProgramAdjust.ts";
 export * from "./utils/runProgramEffort.ts";

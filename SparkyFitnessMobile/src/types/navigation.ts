@@ -87,6 +87,7 @@ export type RootStackParamList = {
   RunPrograms: undefined;
   RunProgramCalendar: undefined;
   RunProgramWorkout: { index: number };
+  RunProgramRace: undefined;
   RunProgramEdit: { id?: string; fromProgramId?: string } | undefined;
   PersonalRecords: undefined;
   WatchRunLive: undefined;
