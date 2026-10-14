@@ -314,7 +314,16 @@ export function VariantCard({
                                 <Sparkles
                                   data-testid={`ai-unit-option-indicator-${index}-${unit}`}
                                   className={`h-3 w-3 ${AI_SPARKLE_TONE_CLASSES[CONFIDENCE_TONES[matchedAi.confidence]]}`}
-                                  aria-label={`AI estimate (${OVERALL_CONFIDENCE_LABELS[matchedAi.confidence]} confidence)`}
+                                  aria-label={t(
+                                    'foodSearch.variantCard.aiEstimateConfidence',
+                                    'AI estimate ({{confidence}} confidence)',
+                                    {
+                                      confidence:
+                                        OVERALL_CONFIDENCE_LABELS[
+                                          matchedAi.confidence
+                                        ],
+                                    }
+                                  )}
                                   fill="currentColor"
                                   strokeWidth={0.75}
                                 />
@@ -352,7 +361,16 @@ export function VariantCard({
                                 <Sparkles
                                   data-testid={`ai-unit-option-indicator-${index}-${unit}`}
                                   className={`h-3 w-3 ${AI_SPARKLE_TONE_CLASSES[CONFIDENCE_TONES[matchedAi.confidence]]}`}
-                                  aria-label={`AI estimate (${OVERALL_CONFIDENCE_LABELS[matchedAi.confidence]} confidence)`}
+                                  aria-label={t(
+                                    'foodSearch.variantCard.aiEstimateConfidence',
+                                    'AI estimate ({{confidence}} confidence)',
+                                    {
+                                      confidence:
+                                        OVERALL_CONFIDENCE_LABELS[
+                                          matchedAi.confidence
+                                        ],
+                                    }
+                                  )}
                                   fill="currentColor"
                                   strokeWidth={0.75}
                                 />
@@ -545,7 +563,16 @@ export function VariantCard({
         {showAiEstimateBadge && (
           <span
             className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold ${AI_BADGE_TONE_CLASSES[CONFIDENCE_TONES[variant.ai_confidence as AiConfidence]]}`}
-            aria-label={`AI estimate (${OVERALL_CONFIDENCE_LABELS[variant.ai_confidence as AiConfidence]} confidence)`}
+            aria-label={t(
+              'foodSearch.variantCard.aiEstimateConfidence',
+              'AI estimate ({{confidence}} confidence)',
+              {
+                confidence:
+                  OVERALL_CONFIDENCE_LABELS[
+                    variant.ai_confidence as AiConfidence
+                  ],
+              }
+            )}
           >
             {t(
               'foodSearch.variantCard.estimate2',

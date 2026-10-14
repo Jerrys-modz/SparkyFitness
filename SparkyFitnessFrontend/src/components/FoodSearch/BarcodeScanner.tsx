@@ -364,7 +364,14 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
               <SelectContent>
                 {cameras.map((cam) => (
                   <SelectItem key={cam.deviceId} value={cam.deviceId}>
-                    {cam.label || `Camera ${cam.deviceId.slice(0, 4)}...`}
+                    {cam.label ||
+                      t(
+                        'foodSearch.barcodeScanner.cameraName',
+                        'Camera {{id}}...',
+                        {
+                          id: cam.deviceId.slice(0, 4),
+                        }
+                      )}
                   </SelectItem>
                 ))}
               </SelectContent>
