@@ -116,9 +116,9 @@ async function updateGoalPreset(presetId: any, presetData: any) {
         protein_percentage = $22, carbs_percentage = $23, fat_percentage = $24,
         breakfast_percentage = $25, lunch_percentage = $26, dinner_percentage = $27, snacks_percentage = $28,
         custom_nutrients = $29, custom_meal_percentages = $30,
-        caffeine_mg = $31, alcohol_g = $32, target_steps = $33,
+        caffeine_mg = $31, alcohol_g = $32, target_steps = CASE WHEN $33::boolean THEN $34::integer ELSE target_steps END,
         updated_at = now()
-      WHERE id = $34 AND user_id = $35
+      WHERE id = $35 AND user_id = $36
       RETURNING *`,
       [
         presetData.preset_name,
@@ -153,7 +153,9 @@ async function updateGoalPreset(presetId: any, presetData: any) {
         presetData.custom_meal_percentages || {},
         presetData.caffeine_mg,
         presetData.alcohol_g,
-        presetData.target_steps,
+        // A client that predates the steps goal omits it; keep the stored value.
+        presetData.target_steps !== undefined,
+        presetData.target_steps ?? null,
         presetId,
         presetData.user_id,
       ]
