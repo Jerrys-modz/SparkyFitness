@@ -30,6 +30,7 @@ const program = (
   lastAdjustment: null,
   schedule: { days: [], startDay: null, endDay: null },
   doneDay: null,
+  pendingEffort: null,
   loaded: true,
   refetch: jest.fn(() => Promise.resolve()),
   ...over,
