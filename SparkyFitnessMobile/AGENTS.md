@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-12_
+_Last updated: 2026-10-14_
 
 SparkyFitness Mobile is a React Native 0.86 + Expo SDK 57 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
 
@@ -353,6 +353,7 @@ When reviewing an API issue, trace screen/hook -> API client -> server route -> 
 - Translation keys are semantic and statically analyzable. Every static `defaultValue` is the English source fallback and must exactly match the EN catalog entry.
 - A key used with `count` is a plural family: EN requires `_one` and `_other`; PL requires `_one`, `_few`, `_many`, and `_other`. Use grammatically correct forms rather than duplicating suffixes blindly.
 - Run `pnpm run i18n:audit` after localization work. `pnpm run validate` includes typecheck, lint with zero warnings, and this audit.
+- `pnpm run swift-i18n:audit` (part of `validate`) scans the watch, watch complication and iOS widget Swift targets for SwiftUI literals (`Text("…")`, `Button`, `Label`, `.navigationTitle`, …) that are not keys in an `en.lproj/Localizable.strings`. New code uses `String(localized: "watch.<area>.<name>", defaultValue: "…")` plus a Localizable.strings entry; existing literals are counted per file in `scripts/i18n-audit/swift-baseline.json`, which may only go down (`pnpm run swift-i18n:baseline` after cleaning some up). Add `// i18n-ignore` to a line that must stay literal.
 - Keep canonical storage/API values and user-generated content literal; localize only application-owned presentation labels.
 
 ## Testing Guidance

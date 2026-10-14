@@ -177,6 +177,16 @@ import { getLanguageDisplayName, getSupportedLanguages } from "@/utils/languageU
 
 `getLanguageDisplayName` returns each language's endonym — `Deutsch`, `Español`, `日本語` — so the list reads the same whatever the interface language is.
 
+## Automated checks
+
+Jest (`SparkyFitnessFrontend/src/tests/i18n/`) fails the build when a change would leave text untranslatable:
+
+- `hardcodedStrings.test.ts` — literal UI text in JSX, `placeholder`/`aria-label`/`title`-style attributes, toasts and query `meta` messages.
+- `catalog.test.ts` — a `t('key', 'Default')` call whose key is missing from `public/locales/en/translation.json`, or whose default uses different `{{placeholders}}` than the catalog text.
+- `sharedLabels.test.ts` and `sharedStrings.test.ts` — labels owned by `shared/` (symptom options, body regions, default symptoms) must have English catalog entries in both apps, and display strings in `shared/src` may not grow past a recorded baseline.
+
+The mobile package adds `pnpm run swift-i18n:audit`, which does the same for the Apple Watch, watch complication and iOS widget Swift code.
+
 ## 8. Adding New Languages
 
 Translation files are not created by hand. A language is requested on [Weblate](https://weblate.sparkyfitness.com/engage/sparkyfitness) and translated there. A maintainer then runs the **Sync Translations** workflow (`workflow_dispatch`), which copies the non-English files into `public/locales/` and opens a pull request. Enabling the language is a separate edit: add the code to `getSupportedLanguages()` and `getLanguageDisplayName()` in `src/utils/languageUtils.ts`.

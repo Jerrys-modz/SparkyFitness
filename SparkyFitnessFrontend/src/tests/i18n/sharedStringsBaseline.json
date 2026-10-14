@@ -1,0 +1,18 @@
+{
+  "cycle/constants.ts": 95,
+  "cycle/content.ts": 41,
+  "cycle/predictions.ts": 5,
+  "cycle/pregnancy.ts": 17,
+  "cycle/pregnancyContent.ts": 12,
+  "medications/glp1.ts": 21,
+  "medications/symptoms.ts": 9,
+  "mood/index.ts": 15,
+  "nutrients/alcoholUnits.ts": 6,
+  "nutrients/macroPickerFields.ts": 5,
+  "nutrients/micronutrientCatalog.ts": 34,
+  "symptoms/bodyRegions.ts": 26,
+  "symptoms/builtIns.ts": 2,
+  "utils/parseCsv.ts": 1,
+  "utils/progressionEngine.ts": 2,
+  "utils/servingSizeConversions.ts": 3
+}

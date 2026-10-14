@@ -8,6 +8,11 @@ on:
       - "SparkyFitnessMobile/**"
       - "SparkyFitnessServer/**"
       - "SparkyFitnessGarmin/**"
+      # Consumed by the frontend, mobile and server packages.
+      - "shared/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "patches/**"
       - ".github/workflows/ci-tests.yml"
   push:
     branches: [main]
@@ -16,6 +21,11 @@ on:
       - "SparkyFitnessMobile/**"
       - "SparkyFitnessServer/**"
       - "SparkyFitnessGarmin/**"
+      # Consumed by the frontend, mobile and server packages.
+      - "shared/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "patches/**"
       - ".github/workflows/ci-tests.yml"
 
 jobs:
@@ -40,10 +50,22 @@ jobs:
           filters: |
             frontend:
               - 'SparkyFitnessFrontend/**'
+              - 'shared/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'patches/**'
             mobile:
               - 'SparkyFitnessMobile/**'
+              - 'shared/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'patches/**'
             server:
               - 'SparkyFitnessServer/**'
+              - 'shared/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'patches/**'
             garmin:
               - 'SparkyFitnessGarmin/**'
             # Files whose change can break a fresh-install migration run.

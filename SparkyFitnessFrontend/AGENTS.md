@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-02_
+_Last updated: 2026-10-14_
 
 SparkyFitness Frontend is the React web app for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessFrontend/`.
 
@@ -71,6 +71,7 @@ When searching, ignore `node_modules/`, `dist/`, and every locale except `public
 - UI strings go through `useTranslation()` / `t('...')` keys, not hardcoded literals.
 - `en/translation.json` is ~120 KB - grep for the key or section you need instead of reading the whole file.
 - Developer docs: `../docs/src/developer/translations.md`.
+- Jest enforces this in `src/tests/i18n/`: `hardcodedStrings.test.ts` (no literal UI text in JSX, UI attributes, toasts or query `meta`; language-neutral text goes in its `ALLOWED` list with a reason), `catalog.test.ts` (every literal `t()` key exists in `en/translation.json`, plural forms included, with the same `{{placeholders}}` as the in-code default), `sharedLabels.test.ts` (every built-in label from `@workspace/shared` has a `symptoms.builtIn.*` entry in the web and mobile catalogs) and `sharedStrings.test.ts` (display strings in `shared/src` may not grow past `sharedStringsBaseline.json`; regenerate with `UPDATE_SHARED_STRINGS_BASELINE=1 pnpm exec jest sharedStrings`).
 
 ## Conventions
 
