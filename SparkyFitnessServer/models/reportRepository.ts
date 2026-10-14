@@ -746,7 +746,51 @@ async function getDailyNutritionTotalsRange(
   }
 }
 
+/**
+ * Every logged workout in the range with just what training load needs: its
+ * day, length and average heart rate. Synced calorie summaries are not
+ * workouts.
+ */
+async function getTrainingLoadSessions(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<
+  { day: string; durationMinutes: number; avgHeartRate: number | null }[]
+> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT TO_CHAR(entry_date, 'YYYY-MM-DD') AS day,
+              duration_minutes,
+              avg_heart_rate
+       FROM exercise_entries
+       WHERE user_id = $1
+         AND entry_date BETWEEN $2 AND $3
+         AND exercise_name != 'Active Calories'
+         AND duration_minutes > 0
+       ORDER BY entry_date ASC`,
+      [userId, startDate, endDate]
+    );
+    return result.rows.map(
+      (row: {
+        day: string;
+        duration_minutes: string | number;
+        avg_heart_rate: string | number | null;
+      }) => ({
+        day: row.day,
+        durationMinutes: Number(row.duration_minutes),
+        avgHeartRate:
+          row.avg_heart_rate === null ? null : Number(row.avg_heart_rate),
+      })
+    );
+  } finally {
+    client.release();
+  }
+}
+
 export { getNutritionData };
+export { getTrainingLoadSessions };
 export { getTabularFoodData };
 export { getMeasurementData };
 export { getCustomMeasurementsData };
@@ -762,6 +806,7 @@ export default {
   getCustomMeasurementsData,
   getMiniNutritionTrends,
   getExerciseEntries,
+  getTrainingLoadSessions,
   getBodyWeightReadings,
   getExerciseNames,
   getDailyNutritionTotalsRange,

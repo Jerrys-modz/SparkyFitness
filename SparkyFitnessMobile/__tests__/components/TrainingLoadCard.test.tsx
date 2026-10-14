@@ -52,7 +52,7 @@ test('explains there is nothing to compare yet', () => {
       isError={false}
     />
   );
-  expect(screen.getByText(/No cardio logged/)).toBeTruthy();
+  expect(screen.getByText(/No workouts logged/)).toBeTruthy();
   expect(screen.queryByText(/Take a rest day/)).toBeNull();
 });
 

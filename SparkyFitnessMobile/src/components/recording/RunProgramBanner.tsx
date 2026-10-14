@@ -7,6 +7,7 @@ import {
   planMinutes,
   programRunForDate,
   suggestFromBreak,
+  suggestFromLoad,
   type ExerciseSessionResponse,
 } from '@workspace/shared';
 import Icon from '../Icon';
@@ -16,11 +17,15 @@ import {
   completeProgramWorkout,
   useRunProgram,
 } from '../../services/runProgramService';
+import { useTrainingLoad } from '../../hooks/useTrainingLoad';
 import { useRefetchOnFocus } from '../../hooks/useRefetchOnFocus';
 import { addLog } from '../../services/LogService';
 import { toLocalDateString } from '../../utils/dateUtils';
 import { findLoggedRun } from '../../utils/loggedRun';
 import { programName } from './RunProgramCard';
+
+/** The current time, read when the Diary renders. */
+const clockNow = (): number => Date.now();
 
 /**
  * The Diary's card for the training program's workout, in the style of a
@@ -52,6 +57,7 @@ const RunProgramBanner: React.FC<{
     loaded,
     refetch,
   } = useRunProgram();
+  const { load } = useTrainingLoad();
   // The program may have changed on another device or through Sparky.
   useRefetchOnFocus(refetch, true);
 
@@ -80,7 +86,7 @@ const RunProgramBanner: React.FC<{
     ? findLoggedRun(exerciseEntries, minutes, status.program.activity)
     : null;
 
-  const ease =
+  const breakOffer =
     isToday && status.program.activity !== 'walk' && !easeDismissed
       ? suggestFromBreak({
           lastDoneDay: doneDay,
@@ -89,6 +95,26 @@ const RunProgramBanner: React.FC<{
           total: status.total,
           lastAdjustedAt: lastAdjustment?.at ?? null,
         })
+      : null;
+  // Training load only speaks up when the break offer has nothing to say.
+  const loadOffer =
+    !breakOffer &&
+    isToday &&
+    status.program.activity !== 'walk' &&
+    !easeDismissed &&
+    load
+      ? suggestFromLoad({
+          status: load.status,
+          next: status.done,
+          total: status.total,
+          lastAdjustedAt: lastAdjustment?.at ?? null,
+          nowMs: clockNow(),
+        })
+      : null;
+  const ease = breakOffer
+    ? { ...breakOffer, reason: 'break' as const }
+    : loadOffer
+      ? { ...loadOffer, reason: 'load' as const }
       : null;
 
   const easeBackIn = async (percent: number, count: number) => {
@@ -183,13 +209,20 @@ const RunProgramBanner: React.FC<{
       {ease ? (
         <View className="mt-3 pt-3 border-t border-border-subtle">
           <Text className="text-text-secondary text-sm mb-2">
-            {t('runPrograms.banner.easeBack', {
-              workouts: ease.count,
-              days: ease.daysAway,
-              percent: Math.abs(ease.percent),
-              defaultValue:
-                "It's been {{days}} days since your last workout. Ease the running in the next {{workouts}} workouts by {{percent}}% to build back safely?",
-            })}
+            {ease.reason === 'break'
+              ? t('runPrograms.banner.easeBack', {
+                  workouts: ease.count,
+                  days: ease.daysAway,
+                  percent: Math.abs(ease.percent),
+                  defaultValue:
+                    "It's been {{days}} days since your last workout. Ease the running in the next {{workouts}} workouts by {{percent}}% to build back safely?",
+                })
+              : t('runPrograms.banner.easeLoad', {
+                  workouts: ease.count,
+                  percent: Math.abs(ease.percent),
+                  defaultValue:
+                    'Your training jumped well above your usual this week. Ease the running in the next {{workouts}} workouts by {{percent}}% to lower the injury risk?',
+                })}
           </Text>
           <View className="flex-row gap-2">
             <Button
