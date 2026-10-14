@@ -1216,7 +1216,14 @@ export default function AddMedicationDialog({
                           setEffectiveness(star === effectiveness ? 0 : star)
                         }
                         className="text-lg transition-transform hover:scale-110"
-                        aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                        aria-label={t(
+                          'medications.addMedicationDialog.rateStars',
+                          {
+                            count: star,
+                            defaultValue_one: 'Rate {{count}} star',
+                            defaultValue_other: 'Rate {{count}} stars',
+                          }
+                        )}
                       >
                         <Star
                           className={`h-5 w-5 ${

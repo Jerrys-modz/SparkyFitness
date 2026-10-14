@@ -693,7 +693,7 @@ export const ProviderCard = ({
             ?.display_name || provider.provider_type}
           {provider.base_url && (
             <>
-              {' - URL: '}
+              {` - ${t('settings.providerCard.urlLabel', 'URL:')} `}
               <a
                 href={provider.base_url}
                 target="_blank"
@@ -712,7 +712,7 @@ export const ProviderCard = ({
               'free-exercise-db',
               'wger',
             ].includes(provider.provider_type) && (
-              <span>{` - App ID: ${
+              <span>{` - ${t('settings.providerCard.appIdLabel', 'App ID:')} ${
                 provider.provider_type === 'yazio'
                   ? (yazioDisplay.username || yazioDisplay.clientId).substring(
                       0,
@@ -730,10 +730,10 @@ export const ProviderCard = ({
               'fatsecret',
               'withings',
             ].includes(provider.provider_type) && (
-              <span>{` - App Key: ${provider.app_key.substring(0, 4)}...`}</span>
+              <span>{` - ${t('settings.providerCard.appKeyLabel', 'App Key:')} ${provider.app_key.substring(0, 4)}...`}</span>
             )}
           {provider.sync_frequency && (
-            <span>{` - Sync: ${provider.sync_frequency}`}</span>
+            <span>{` - ${t('settings.providerCard.syncLabel', 'Sync:')} ${provider.sync_frequency}`}</span>
           )}
         </p>
 

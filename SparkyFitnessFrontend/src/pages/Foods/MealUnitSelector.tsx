@@ -126,13 +126,23 @@ const MealUnitSelector = ({
           <DialogTitle>
             {title ??
               (initialQuantity
-                ? `Edit ${meal?.name}`
-                : `Add ${meal?.name} to Meal Plan`)}
+                ? t('foods.mealUnitSelector.editMeal', 'Edit {{name}}', {
+                    name: meal?.name,
+                  })
+                : t(
+                    'foods.mealUnitSelector.addMealToPlan',
+                    'Add {{name}} to Meal Plan',
+                    { name: meal?.name }
+                  ))}
           </DialogTitle>
           <DialogDescription>
             {description ??
               (initialQuantity
-                ? `Edit the quantity for ${meal?.name}.`
+                ? t(
+                    'foods.mealUnitSelector.editQuantityFor',
+                    'Edit the quantity for {{name}}.',
+                    { name: meal?.name }
+                  )
                 : t(
                     'foods.mealUnitSelector.selectTheQuantityForThis',
                     'Select the quantity for this meal in your meal plan.'
