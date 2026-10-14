@@ -1,4 +1,5 @@
 import React from 'react';
+import { BackHandler, Platform } from 'react-native';
 import { render, fireEvent, act } from '@testing-library/react-native';
 import AddSheet, { type AddSheetRef } from '../../src/components/AddSheet';
 
@@ -237,5 +238,114 @@ describe('AddSheet', () => {
 
     expect(props.onLogWorkout).toHaveBeenCalledTimes(1);
     expect(props.onStartWorkout).not.toHaveBeenCalled();
+  });
+
+  // BottomSheetModal does not handle Android's hardware Back, so before the
+  // sheet took it the press reached navigation and closed the app from the
+  // Dashboard (#2868).
+  describe('Android hardware Back', () => {
+    let listeners: (() => boolean | null | undefined)[];
+    let remove: jest.Mock;
+    let addEventListenerSpy: jest.SpyInstance;
+    let osSpy: jest.ReplaceProperty<typeof Platform.OS>;
+
+    beforeEach(() => {
+      listeners = [];
+      remove = jest.fn();
+      osSpy = jest.replaceProperty(Platform, 'OS', 'android');
+      addEventListenerSpy = jest
+        .spyOn(BackHandler, 'addEventListener')
+        .mockImplementation(((_event, handler) => {
+          listeners.push(handler);
+          return { remove };
+        }) as typeof BackHandler.addEventListener);
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      osSpy.restore();
+    });
+
+    const pressBack = () => {
+      let handled: boolean | null | undefined;
+      act(() => {
+        handled = listeners[listeners.length - 1]();
+      });
+      return handled;
+    };
+
+    const fireOpened = () =>
+      act(() => mockBottomSheetControls.onAnimate?.(-1, 0));
+
+    it('returns from the Exercise menu to the main menu', () => {
+      const { ref, getByText, queryByText } = renderAddSheet();
+
+      act(() => ref.current?.present());
+      fireOpened();
+      fireEvent.press(getByText('Exercise'));
+      expect(getByText('Live sets & reps')).toBeTruthy();
+
+      expect(pressBack()).toBe(true);
+
+      expect(queryByText('Live sets & reps')).toBeNull();
+      expect(getByText('Food')).toBeTruthy();
+      expect(mockBottomSheetControls.dismiss).not.toHaveBeenCalled();
+    });
+
+    it('returns to the main menu when the sheet opened on the Exercise menu', () => {
+      const { ref, getByText, queryByText } = renderAddSheet();
+
+      act(() => ref.current?.present({ initialMenu: 'exercise' }));
+      fireOpened();
+
+      expect(pressBack()).toBe(true);
+
+      expect(queryByText('Live sets & reps')).toBeNull();
+      expect(getByText('Food')).toBeTruthy();
+      expect(mockBottomSheetControls.dismiss).not.toHaveBeenCalled();
+    });
+
+    it('closes the sheet from the main menu, like tapping outside it', () => {
+      const onDismissWithoutAction = jest.fn();
+      const { ref } = renderAddSheet({ onDismissWithoutAction });
+
+      act(() => ref.current?.present());
+      fireOpened();
+
+      expect(pressBack()).toBe(true);
+      expect(mockBottomSheetControls.dismiss).toHaveBeenCalledTimes(1);
+
+      act(() => mockBottomSheetControls.onDismiss?.());
+      expect(onDismissWithoutAction).toHaveBeenCalledTimes(1);
+      expect(remove).toHaveBeenCalled();
+    });
+
+    it('only listens while the sheet is open', () => {
+      const { ref } = renderAddSheet();
+
+      act(() => ref.current?.present());
+      expect(listeners).toHaveLength(0);
+
+      fireOpened();
+      expect(listeners).toHaveLength(1);
+
+      act(() => mockBottomSheetControls.onDismiss?.());
+      expect(remove).toHaveBeenCalled();
+    });
+
+    it('swallows Back while the sheet closes without changing its menu', () => {
+      const { ref, props, getByText } = renderAddSheet();
+
+      act(() => ref.current?.present({ initialMenu: 'exercise' }));
+      fireOpened();
+      fireEvent.press(getByText('Workout'));
+      expect(props.onStartWorkout).toHaveBeenCalledTimes(1);
+      expect(mockBottomSheetControls.dismiss).toHaveBeenCalledTimes(1);
+
+      expect(pressBack()).toBe(true);
+
+      expect(getByText('Live sets & reps')).toBeTruthy();
+      expect(mockBottomSheetControls.dismiss).toHaveBeenCalledTimes(1);
+    });
   });
 });

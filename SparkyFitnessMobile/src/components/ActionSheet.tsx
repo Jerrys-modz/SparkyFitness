@@ -7,8 +7,6 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  BackHandler,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -18,7 +16,11 @@ import {
 import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useCSSVariable } from 'uniwind';
 import Icon from './Icon';
-import { sheetContainer, useSheetBackdrop } from './ui/sheetChrome';
+import {
+  sheetContainer,
+  useSheetBackdrop,
+  useSheetHardwareBack,
+} from './ui/sheetChrome';
 
 export interface ActionSheetItem {
   key: string;
@@ -138,19 +140,7 @@ const ActionSheet = React.forwardRef<ActionSheetRef, ActionSheetProps>(
       };
     }, [clearScheduledPresent]);
 
-    useEffect(() => {
-      if (!isOpen || Platform.OS !== 'android') return;
-      // Registered while open (after any screen handlers), so the sheet wins
-      // Back and the press can't fall through and pop the screen.
-      const subscription = BackHandler.addEventListener(
-        'hardwareBackPress',
-        () => {
-          dismissSheet();
-          return true;
-        }
-      );
-      return () => subscription.remove();
-    }, [isOpen, dismissSheet]);
+    useSheetHardwareBack(isOpen, dismissSheet);
 
     const handleAnimate = useCallback(
       (fromIndex: number, toIndex: number) => {
