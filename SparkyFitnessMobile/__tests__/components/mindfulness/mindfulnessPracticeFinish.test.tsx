@@ -180,3 +180,64 @@ describe.each(practices)('$name Finish & Save', ({ start, Practice }) => {
     expect(screen.getByText('Finish & Save')).toBeTruthy();
   });
 });
+
+describe('Meditation Timer Finish & Save across modes', () => {
+  // Switching to the unused clock hides Finish but keeps the paused run, so
+  // it must not end the run whose save is still pending.
+  const startPausedCountdown = (props: PracticeProps) => {
+    render(
+      <SafeAreaProvider initialMetrics={metrics}>
+        <MeditationTimerModal {...props} />
+      </SafeAreaProvider>
+    );
+    fireEvent.press(screen.getByText('Begin Meditation'));
+    act(() => {
+      jest.advanceTimersByTime(3000);
+    });
+    fireEvent.press(screen.getByText('Pause'));
+  };
+
+  beforeAll(async () => {
+    await initializeI18n('en');
+  });
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('logs the run once when Finish is pressed again after a mode round trip', async () => {
+    const { onSave, settle } = pendingSave();
+    const onClose = jest.fn();
+    startPausedCountdown({ visible: true, onSave, onClose });
+
+    fireEvent.press(screen.getByText('Finish & Save'));
+    fireEvent.press(screen.getByText('Open Stopwatch'));
+    expect(screen.queryByText('Finish & Save')).toBeNull();
+    fireEvent.press(screen.getByText('Countdown'));
+    fireEvent.press(screen.getByText('Finish & Save'));
+    await act(async () => {
+      settle.resolve();
+    });
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes once the save lands while the stopwatch is shown', async () => {
+    const { onSave, settle } = pendingSave();
+    const onClose = jest.fn();
+    startPausedCountdown({ visible: true, onSave, onClose });
+
+    fireEvent.press(screen.getByText('Finish & Save'));
+    fireEvent.press(screen.getByText('Open Stopwatch'));
+    await act(async () => {
+      settle.resolve();
+    });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});

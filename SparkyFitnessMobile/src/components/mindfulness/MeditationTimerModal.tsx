@@ -96,8 +96,12 @@ export const MeditationTimerModal: React.FC<MeditationTimerModalProps> = ({
   const canFinish =
     (mode === 'countdown' && secondsRemaining < selectedMinutes * 60) ||
     (mode === 'stopwatch' && stopwatchSeconds > 0);
-  // Finish stays on screen while the save runs: one run is logged once.
-  const saveRunOnce = useSaveOncePerRun(canFinish);
+  // Finish stays on screen while the save runs: one run is logged once. The
+  // run is the time on either clock: switching to the unused one hides Finish
+  // but keeps the run, so it must not end the run whose save is pending.
+  const saveRunOnce = useSaveOncePerRun(
+    secondsRemaining < selectedMinutes * 60 || stopwatchSeconds > 0
+  );
   const handleFinish = () => {
     const finalSeconds =
       mode === 'countdown'
