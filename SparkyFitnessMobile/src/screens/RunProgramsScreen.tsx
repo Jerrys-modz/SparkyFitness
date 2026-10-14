@@ -274,6 +274,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           schedule={schedule}
           doneDay={doneDay}
           today={today}
+          onCatchUp={(next) => change(() => setProgramPosition(next))}
         />
         <RunProgramGuide
           programId={status.program.custom ? undefined : storedId}

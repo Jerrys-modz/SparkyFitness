@@ -1,10 +1,12 @@
 import React from 'react';
 import { Alert } from 'react-native';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { programStatus } from '@workspace/shared';
+import { addDays, programStatus } from '@workspace/shared';
+import { toLocalDateString } from '../../src/utils/dateUtils';
 import RunProgramsScreen from '../../src/screens/RunProgramsScreen';
 import {
   setProgramEnabled,
+  setProgramPosition,
   setProgramSchedule,
   startProgram,
   useCustomRunPrograms,
@@ -126,6 +128,27 @@ describe('RunProgramsScreen', () => {
     act(() => onSelectDate('2099-01-05'));
     expect(startProgram).toHaveBeenCalledWith('walkFit', '2099-01-05');
     alert.mockRestore();
+  });
+
+  it('offers to skip workouts to finish before the goal day', async () => {
+    const day = toLocalDateString(new Date());
+    mockedUse.mockReturnValue({
+      status: programStatus({ programId: 'beginner5k', next: 2 })!,
+      enabled: true,
+      lastAdjustment: null,
+      schedule: {
+        days: [0, 1, 2, 3, 4, 5, 6],
+        startDay: null,
+        endDay: addDays(day, 22),
+      },
+      doneDay: null,
+      loaded: true,
+    });
+    renderScreen(RunProgramsProps());
+    expect(screen.getByTestId('run-program-catch-up')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('run-program-catch-up-button'));
+    await act(async () => {});
+    expect(setProgramPosition).toHaveBeenCalledWith(4);
   });
 
   it("shows the program being followed and starts today's workout from Record", () => {

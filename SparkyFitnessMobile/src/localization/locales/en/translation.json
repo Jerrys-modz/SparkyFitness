@@ -7351,7 +7351,13 @@
       "showAll_other": "Show all {{count}}",
       "showLess": "Show fewer",
       "cutOff_one": "{{count}} workout does not fit before your goal date.",
-      "cutOff_other": "{{count}} workouts do not fit before your goal date."
+      "cutOff_other": "{{count}} workouts do not fit before your goal date.",
+      "catchUp_one": "Skip the next {{count}} workout to finish on {{date}}, in time for your goal. The last workout is never skipped.",
+      "catchUp_other": "Skip the next {{count}} workouts to finish on {{date}}, in time for your goal. The last workout is never skipped.",
+      "catchUpButton_one": "Skip {{count}} workout",
+      "catchUpButton_other": "Skip {{count}} workouts",
+      "tooFar_one": "You are too far behind to catch up by skipping: {{count}} workout will not fit. Add workout days or move your goal date.",
+      "tooFar_other": "You are too far behind to catch up by skipping: {{count}} workouts will not fit. Add workout days or move your goal date."
     },
     "select": {
       "today": "Today's program workout",
