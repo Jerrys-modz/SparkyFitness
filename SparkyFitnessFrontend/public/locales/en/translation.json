@@ -844,7 +844,6 @@
       "moveDown": "Move {{label}} down",
       "toggle": "Toggle {{label}}"
     },
-    "glp12": "GLP-1",
     "scheduleManager": {
       "eGForPainFor": "e.g. For pain, For headache",
       "noScheduleRulesConfiguredYet": "No schedule rules configured yet.",
@@ -853,12 +852,7 @@
     "todayMedications": {
       "prn": "PRN"
     },
-    "glpDailyCheckIn": {
-      "hunger": "Hunger",
-      "foodNoise": "Food noise",
-      "fullness": "Fullness",
-      "energy": "Energy"
-    }
+    "glp1Name": "GLP-1"
   },
   "nav": {
     "diary": "Diary",
@@ -1080,8 +1074,6 @@
       "activeCalories": "Active Calories: {{activeCaloriesFromExercise}} {{energyUnit}}",
       "stepsCalories": "Steps: {{dailySteps}} = {{stepsCalories}} {{energyUnit}}",
       "bmrCalories": "BMR: {{bmr}} {{energyUnit}}",
-      "bmrSourceMeasured": "Measured",
-      "bmrSourceAlgorithm": "Algorithm",
       "totalCaloriesBurned": "Total: {{totalCaloriesBurned}} {{energyUnit}}",
       "goal": "goal",
       "caloriesBurnedBreakdownTitle": "Calories Burned Breakdown",
@@ -1116,10 +1108,11 @@
       "weightTrend": "Weight Trend",
       "eaten2": "{{energyUnitString}} eaten",
       "burned2": "{{energyUnitString}} burned",
-      "bmr": "BMR: {{bmr}} {{energyUnit}}{{bmrSource}}",
       "goal2": "{{energyUnitString}} goal",
       "days2": "{{daysOfData}} days",
-      "remaining2": "remaining {{energyUnitString}}"
+      "remaining2": "remaining {{energyUnitString}}",
+      "bmrMeasured": "BMR: {{bmr}} {{energyUnit}} (Measured)",
+      "bmrAlgorithm": "BMR: {{bmr}} {{energyUnit}} (Algorithm)"
     },
     "editExerciseEntryDialog": {
       "setLabel": "Set",
@@ -2050,8 +2043,8 @@
       "providerCardLicence": "Contains information published by Health Canada licensed under the <1>Open Government Licence – Canada</1>. Supported languages: <3>English (en)</3> and <5>French (fr)</5>. <7>Canadian Nutrient File</7>",
       "providerSpecificDescription": "The Canadian Nutrient File (CNF) contains information published by Health Canada under the <1>Open Government Licence – Canada</1>. It is free, public, and requires no credentials. Supported languages are <3>English (en)</3> and <5>French (fr)</5>.",
       "providerSpecificPortal": "For more details, see the official portal at <1>Canadian Nutrient File</1>.",
-      "processed2": "Processed: <span>{{processed}}</span> / <span2>{{total}}</span2>",
-      "importedUpdated": "Imported: <span>{{imported}}</span> | Updated: <span2>{{updated}}</span2>"
+      "processed2": "Processed: <processed>{{processed}}</processed> / <total>{{total}}</total>",
+      "importedUpdated": "Imported: <imported>{{imported}}</imported> | Updated: <updated>{{updated}}</updated>"
     },
     "foodExerciseDataProviders": {
       "title": "Food & Exercise Data Providers",
@@ -2468,7 +2461,11 @@
     },
     "developerResources": {
       "description": "Access API documentation and resources",
-      "title": "Developer Resources"
+      "title": "Developer Resources",
+      "apiDocumentation": "API Documentation",
+      "exploreTheSparkyFitnessAPIDocumentation": "Explore the SparkyFitness API documentation to build integrations or understand the platform better.",
+      "swaggerUIInteractive": "Swagger UI (Interactive)",
+      "redocReadOnly": "Redoc (Read-only)"
     },
     "goalMode": {
       "baselineAdaptiveGoal": "Baseline (Adaptive Goal)",
@@ -2534,7 +2531,6 @@
       "safetyFloorStandardHint": "Uses the higher of your estimated RMR and the clinical minimum (1,200 kcal for females, 1,500 kcal for males).",
       "safetyFloorValueLabel": "Custom minimum",
       "awaitingCalibrationTitle": "Awaiting Adaptive TDEE Calibration",
-      "modeUnreachableSuffix": "not reachable",
       "customPercentageUnreachable": "Deeper than the ~{{percent}}% your safety floor allows; the target will be raised to that floor.",
       "deficitCeilingHintEstimated": "At your current activity level the deepest reachable deficit is about {{percent}}%. Deeper modes are raised to your safety floor.",
       "deficitCeilingHintMeasured": "Based on your measured TDEE, the deepest reachable deficit is about {{percent}}%. Deeper modes are raised to your safety floor.",
@@ -2570,11 +2566,14 @@
       "percentageEarnBackOnlyEarn": "<span>Percentage Earn-Back:</span> Only earn back a set percentage of your exercise calories. For example, 50% creates a safety buffer to avoid overeating from over-estimated burns.",
       "deviceProjectionUsesHealthConnect": "<span>Device Projection:</span> Uses Health Connect total calories when available, projects the current burn to midnight, and applies Goal Mode directly to that TDEE. Falls back to BMR plus active calories when no device total is available.",
       "inAdaptiveModeThisIs": "💡 In Adaptive mode this is the fallback estimate until you have enough tracking data — and it keeps setting the plausibility limits afterwards. Your measured TDEE is capped to within ±500 kcal of BMR × this multiplier, so a level set too low can hold a genuinely higher expenditure down.",
-      "bodyRecomposition10": "Body Recomposition (-10%){{goalModeSuffix}}",
-      "cut15": "Cut (-15%){{goalModeSuffix}}",
-      "highCut20": "High Cut (-20%){{goalModeSuffix}}",
+      "bodyRecomposition10": "Body Recomposition (-10%)",
+      "cut15": "Cut (-15%)",
+      "highCut20": "High Cut (-20%)",
       "customMinimum": "Custom minimum ({{energyUnitString}})",
-      "measuredAdaptiveTDEEDoesNot": "Measured Adaptive TDEE: <span>{{energy}} {{energyUnitString}}</span> (does not change with Goal Mode)"
+      "measuredAdaptiveTDEEDoesNot": "Measured Adaptive TDEE: <span>{{energy}} {{energyUnitString}}</span> (does not change with Goal Mode)",
+      "bodyRecomposition10Unreachable": "Body Recomposition (-10%) — not reachable",
+      "cut15Unreachable": "Cut (-15%) — not reachable",
+      "highCut20Unreachable": "High Cut (-20%) — not reachable"
     },
     "mfa": {
       "confirmPassword": "Confirm Password to Continue",
@@ -2743,12 +2742,6 @@
       "englishDefault": "English (default)",
       "franAisFrench": "Français (French)"
     },
-    "devloperResources": {
-      "apiDocumentation": "API Documentation",
-      "exploreTheSparkyFitnessAPIDocumentation": "Explore the SparkyFitness API documentation to build integrations or understand the platform better.",
-      "swaggerUIInteractive": "Swagger UI (Interactive)",
-      "redocReadOnly": "Redoc (Read-only)"
-    },
     "editProviderForm": {
       "providerName": "Provider Name",
       "providerType": "Provider Type",
@@ -2915,19 +2908,6 @@
       "updated": "{{updated}} updated",
       "howToImproveThis": "How to improve this?",
       "helpImproveThisIntegrationBy": "Help improve this integration by sharing anonymized mock data!",
-      "stravaAPISettings": "Strava API Settings",
-      "fitbitDeveloperPortal": "Fitbit Developer Portal",
-      "ouraDeveloperPortal": "Oura Developer Portal",
-      "withingsDeveloperDashboard": "Withings Developer Dashboard",
-      "polarFlowApplications": "Polar Flow Applications",
-      "garminConnect": "Garmin Connect",
-      "nutritionixConsole": "Nutritionix Console",
-      "fatSecretPlatformDashboard": "FatSecret Platform Dashboard",
-      "usdaAPIGuide": "USDA API Guide",
-      "yazioAPIDocs": "Yazio API Docs",
-      "openFoodFactsPortal": "Open Food Facts Portal",
-      "corosTrainingHub": "COROS Training Hub",
-      "healthCanadaCNFOpenData": "Health Canada CNF Open Data Portal",
       "supportedLanguagesEnglishEnGerman": "Supported languages: <strong>English (en)</strong>, <strong2>German (de)</strong2>, <strong3>French (fr)</strong3>, and <strong4>Italian (it)</strong4>. Defaults to English if your active language is not supported. <link>Swiss Food Composition Database</link>",
       "importingCatalogFoods": "Importing catalog: {{processed}} / {{total}} foods",
       "fetchesExerciseDataDirectlyFrom2": "Fetches exercise data directly from the community repository at <link>yuhonas/free-exercise-db on GitHub</link>.",
@@ -2964,12 +2944,11 @@
       "enterGarminEmail": "Enter Garmin Email",
       "garminPassword": "Garmin Password",
       "enterGarminPassword": "Enter Garmin Password",
-      "youMustSetYourCallback": ", you must set your callback URL to:",
       "getYourAPIKeyFrom": "Get your API Key from Hevy Settings > API Key.",
       "syncEntireHistoryOnConnect": "Sync entire history on connect",
       "selectRegion": "Select region",
       "openFoodFactsIsA2": "Open Food Facts is a community-driven database that supports localization. Sparky automatically queries products in your active language setting in SparkyFitness. For more information, visit the <link>Open Food Facts Portal</link> or learn about language support in the <link2>Open Food Facts Translations Wiki</link2>.",
-      "thisIntegrationUsesOAuth2You2": "This integration uses OAuth2. You will be redirected to the provider to authorize access after adding or updating the provider.<br/>In your",
+      "thisIntegrationUsesOAuth2You2": "This integration uses OAuth2. You will be redirected to the provider to authorize access after adding or updating the provider.<br/>In your <link>{{dashboard}}</link>, you must set your callback URL to:",
       "stravaIntegrationUsesOAuth2You2": "Strava integration uses OAuth2. You will be redirected to Strava to authorize access after adding or updating the provider.<br/>In your <link>Strava API Dashboard</link>, you must set your \"Authorization Callback Domain\" to:",
       "noteGarminConnectIntegrationIs2": "Note: Garmin Connect integration is tested with few metrics only. Ensure your Docker Compose is updated to include Garmin section.<br/>Sparky Fitness does not store your Garmin email or password. They are used only during login to obtain secure tokens.",
       "generateAnAPIKeyIn2": "Generate an API key in the Liftosaur app: Settings > API Keys (starts with <span>lftsk_</span>). A Liftosaur Pro subscription is required to use the Liftosaur API.",
@@ -3131,7 +3110,7 @@
       "error": "Error",
       "logoUploadFailed": "Provider created, but logo upload failed.",
       "logo2": "{{display_name}} logo",
-      "error2": "Error: {{error}}"
+      "loadFailed": "Failed to load OIDC providers."
     },
     "userManagement": {
       "title": "User Management",
@@ -4974,9 +4953,7 @@
     "medicationLogTable": {
       "prn": "({{prn}} PRN)"
     },
-    "medicationReports": {
-      "glp1": "GLP-1"
-    },
+    "medicationReports": {},
     "prProgressionChart": {
       "noPRDataAvailableFor": "No PR data available for this period.",
       "prProgression": "PR Progression"
@@ -4998,13 +4975,15 @@
       "tu": "Tu",
       "th": "Th"
     },
-    "trend2": "Trend {{weight}}{{weeklyRate}}{{forecastDate}}",
     "avg": "Avg: {{formattedAverage}} {{unit}}",
     "primary2": "(Primary)",
     "totalEaten2": "Total Eaten: {{displayTotalEaten}} {{unitStr}}",
     "totalGoal2": "Total Goal: {{displayTotalGoal}} {{unitStr}}",
     "avg2": "Avg: {{formattedAverageEaten}} {{unitStr}}",
-    "normalAdultRestingRange12": "Normal adult resting range: 12-20 brpm"
+    "normalAdultRestingRange12": "Normal adult resting range: 12-20 brpm",
+    "weightTrendRateAndForecast": "Trend {{weight}} · {{rate}} per week · Goal projected {{date}}",
+    "weightTrendWithRate": "Trend {{weight}} · {{rate}} per week",
+    "weightTrendWithForecast": "Trend {{weight}} · Goal projected {{date}}"
   },
   "sleepHealth": {
     "hrvStatus": "HRV Status",
@@ -5848,9 +5827,6 @@
     },
     "nutrientGoals": {
       "dailyMacroTargets": "Daily Macro Targets",
-      "carbohydrates": "Carbohydrates (",
-      "protein": "Protein (",
-      "fats": "Fats (",
       "fiber": "Fiber",
       "fatBreakdown": "Fat Breakdown",
       "saturatedFat": "Saturated Fat",
@@ -5871,7 +5847,10 @@
       "hydrationExercise": "Hydration & Exercise",
       "waterGoal": "Water Goal",
       "exerciseDuration": "Exercise Duration",
-      "exerciseCalories": "Exercise Calories"
+      "exerciseCalories": "Exercise Calories",
+      "carbohydratesShare": "Carbohydrates ({{percent}}%)",
+      "proteinShare": "Protein ({{percent}}%)",
+      "fatsShare": "Fats ({{percent}}%)"
     },
     "onBoardingSteps": {
       "whatIsYourSex": "What is your sex?",
@@ -6810,7 +6789,8 @@
       "start": "Start contraction",
       "stop": "Stop",
       "title": "Contraction timer",
-      "duration": "Duration: {{started_at}}{{prev}}"
+      "duration": "Duration: {{duration}}",
+      "durationWithInterval": "Duration: {{duration}} · Interval: {{interval}}"
     },
     "disclaimer": "Pregnancy information is educational and not a substitute for medical care.",
     "growth": {
@@ -6896,7 +6876,8 @@
         "withinRange": "Within typical range"
       },
       "kgSinceStart": "{{weightDelta}} kg since start",
-      "iomRangeWkKg": "IOM Range (Wk {{wk}}): <strong>{{lowKg}} – {{highKg}} kg</strong>"
+      "iomRangeWkKg": "IOM Range (Wk {{wk}}): <strong>{{lowKg}} – {{highKg}} kg</strong>",
+      "iomRangeKg": "IOM Range: <strong>{{lowKg}} – {{highKg}} kg</strong>"
     },
     "pregnancyToday": {
       "babyGrowth": "Baby growth",
@@ -6906,7 +6887,8 @@
       "foodMeds": "Food & meds",
       "vitals": "Vitals",
       "checklist": "Checklist",
-      "lengthCmCmweightG": "≈ {{lengthCm}} cm{{weightG}}"
+      "lengthAndWeight": "≈ {{lengthCm}} cm · {{weightG}} g",
+      "lengthOnly": "≈ {{lengthCm}} cm"
     },
     "vitalsCard": {
       "weightInKg": "Weight in kg",
@@ -7120,9 +7102,12 @@
     "linkedFood2": "Linked Food: {{linked_food_name}}",
     "hydration": "Hydration: {{hydration_factor}}%",
     "onePressLogs": "One press logs <span>{{describeLink}}</span>",
-    "linkedFood3": "Linked Food: {{linked_food_name}}{{linked_variant_serving_size}}{{linked_meal_type_name}}",
     "hydrationFactorX": "Hydration Factor: {{hydration_factor}}x",
-    "water": "{{hydrationFactor}}% water"
+    "water": "{{hydrationFactor}}% water",
+    "linkedFoodServingMeal": "Linked Food: {{food}} ({{serving}}) • {{meal}}",
+    "linkedFoodServing": "Linked Food: {{food}} ({{serving}})",
+    "linkedFoodMeal": "Linked Food: {{food}} • {{meal}}",
+    "linkedFoodOnly": "Linked Food: {{food}}"
   },
   "homeFasting": {
     "startNew": "Start a New Fast",
@@ -8135,8 +8120,8 @@
     },
     "useFoodVariants": {
       "failedToCreateFoodVariant": "Failed to create food variant.",
-      "failedToSaveCustomNutrient": "Failed to save custom nutrient.",
-      "foodSavedSuccessfully": "Food saved successfully."
+      "foodSavedSuccessfully": "Food saved successfully.",
+      "failedToSaveFood": "Failed to save food."
     },
     "useFoods": {
       "foodDeletedSuccessfully": "Food deleted successfully."

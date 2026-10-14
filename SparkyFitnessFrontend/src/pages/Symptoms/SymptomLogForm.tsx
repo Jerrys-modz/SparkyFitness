@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { translateSymptomLabel } from './symptomLabels';
+import { translateSymptomChoice } from './symptomLabels';
 import { Plus, X } from 'lucide-react';
 import {
   BUILT_IN_PHASE_OPTIONS,
@@ -480,12 +480,12 @@ export default function SymptomLogForm({
             <SelectContent>
               {choices.map((c) => (
                 <SelectItem key={c.name} value={c.name}>
-                  {translateSymptomLabel(t, c.displayName)}
+                  {translateSymptomChoice(t, c)}
                 </SelectItem>
               ))}
               {!choices.some((c) => c.name === symptomName) && (
                 <SelectItem value={symptomName}>
-                  {translateSymptomLabel(t, choice.displayName)}
+                  {translateSymptomChoice(t, choice)}
                 </SelectItem>
               )}
             </SelectContent>

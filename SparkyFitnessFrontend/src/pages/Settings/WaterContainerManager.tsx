@@ -892,25 +892,38 @@ const WaterContainerManager: React.FC = () => {
                       >
                         <Utensils className="w-3 h-3" />
                         <span>
-                          {t(
-                            'waterContainerManager.linkedFood3',
-                            'Linked Food: {{linked_food_name}}{{linked_variant_serving_size}}{{linked_meal_type_name}}',
-                            {
-                              linked_food_name:
-                                c.linked_food_name ||
-                                t(
-                                  'settings.waterContainerManager.food',
-                                  'Food'
-                                ),
-                              linked_variant_serving_size:
-                                c.linked_variant_serving_size
-                                  ? ` (${c.linked_variant_serving_size} ${c.linked_variant_serving_unit || ''})`
-                                  : '',
-                              linked_meal_type_name: c.linked_meal_type_name
-                                ? ` • ${c.linked_meal_type_name}`
-                                : '',
-                            }
-                          )}
+                          {(() => {
+                            const food =
+                              c.linked_food_name ||
+                              t('settings.waterContainerManager.food', 'Food');
+                            const serving = c.linked_variant_serving_size
+                              ? `${c.linked_variant_serving_size} ${c.linked_variant_serving_unit || ''}`.trim()
+                              : null;
+                            const meal = c.linked_meal_type_name || null;
+                            if (serving && meal)
+                              return t(
+                                'waterContainerManager.linkedFoodServingMeal',
+                                'Linked Food: {{food}} ({{serving}}) • {{meal}}',
+                                { food, serving, meal }
+                              );
+                            if (serving)
+                              return t(
+                                'waterContainerManager.linkedFoodServing',
+                                'Linked Food: {{food}} ({{serving}})',
+                                { food, serving }
+                              );
+                            if (meal)
+                              return t(
+                                'waterContainerManager.linkedFoodMeal',
+                                'Linked Food: {{food}} • {{meal}}',
+                                { food, meal }
+                              );
+                            return t(
+                              'waterContainerManager.linkedFoodOnly',
+                              'Linked Food: {{food}}',
+                              { food }
+                            );
+                          })()}
                         </span>
                       </Badge>
                     )}

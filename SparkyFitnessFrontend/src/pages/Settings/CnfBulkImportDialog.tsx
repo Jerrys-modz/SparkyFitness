@@ -130,26 +130,26 @@ export function CnfBulkImportDialog({
                   <Trans
                     i18nKey="settings.cnf.processed2"
                     defaults={
-                      'Processed: <span>{{processed}}</span> / <span2>{{total}}</span2>'
+                      'Processed: <processed>{{processed}}</processed> / <total>{{total}}</total>'
                     }
                     values={{
                       processed: status?.processed,
                       total: status?.total,
                     }}
-                    components={{ span: <span />, span2: <span /> }}
+                    components={{ processed: <span />, total: <span /> }}
                   />
                 </div>
                 <div className="text-right">
                   <Trans
                     i18nKey="settings.cnf.importedUpdated"
                     defaults={
-                      'Imported: <span>{{imported}}</span> | Updated: <span2>{{updated}}</span2>'
+                      'Imported: <imported>{{imported}}</imported> | Updated: <updated>{{updated}}</updated>'
                     }
                     values={{
                       imported: status?.imported,
                       updated: status?.updated,
                     }}
-                    components={{ span: <span />, span2: <span /> }}
+                    components={{ imported: <span />, updated: <span /> }}
                   />
                 </div>
               </div>

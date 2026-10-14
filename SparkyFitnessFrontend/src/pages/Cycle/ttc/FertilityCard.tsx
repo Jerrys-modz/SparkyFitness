@@ -18,7 +18,7 @@ const BAND_COLORS: Record<string, string> = {
   low: 'bg-muted text-muted-foreground border-transparent',
 };
 
-const BASIS_LABELS: Record<string, string> = {
+const BASIS_DEFAULTS: Record<string, string> = {
   bbt: 'BBT temperature shift',
   opk: 'OPK LH peak test',
   calendar: 'calendar method predictions',
@@ -34,6 +34,7 @@ export default function FertilityCard({
   const band = conceptionProbability.band;
   const probPercent = Math.round(conceptionProbability.probability * 100);
   const basis = ovulationEstimate?.basis || 'calendar';
+  const basisKey = basis in BASIS_DEFAULTS ? basis : 'calendar';
   const ovulationDate = ovulationEstimate?.date;
 
   const formatDate = (dateStr: string) => {
@@ -90,7 +91,10 @@ export default function FertilityCard({
                 }
                 values={{
                   ovulationDate: formatDate(ovulationDate),
-                  basis: BASIS_LABELS[basis],
+                  basis: t(
+                    `cycle.ttc.fertilityBasis.${basisKey}`,
+                    BASIS_DEFAULTS[basisKey] ?? basisKey
+                  ),
                 }}
                 components={{
                   strong: <strong className="font-semibold" />,

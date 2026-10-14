@@ -505,26 +505,27 @@ export const ProviderSpecificFields = ({
           <Trans
             i18nKey="settings.providerSpecificFields.thisIntegrationUsesOAuth2You2"
             defaults={
-              'This integration uses OAuth2. You will be redirected to the provider to authorize access after adding or updating the provider.<br/>In your'
+              'This integration uses OAuth2. You will be redirected to the provider to authorize access after adding or updating the provider.<br/>In your <link>{{dashboard}}</link>, you must set your callback URL to:'
             }
-            components={{ br: <br /> }}
-          />{' '}
-          {providerDashboard ? (
-            <a
-              href={providerDashboard.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 underline"
-            >
-              {t(providerDashboard.labelKey)}
-            </a>
-          ) : (
-            <span>{t(`${OAUTH_DASHBOARD_LABELS}.fallback`)}</span>
-          )}
-          {t(
-            'settings.providerSpecificFields.youMustSetYourCallback',
-            ', you must set your callback URL to:'
-          )}
+            values={{
+              dashboard: providerDashboard
+                ? t(providerDashboard.labelKey)
+                : t(`${OAUTH_DASHBOARD_LABELS}.fallback`),
+            }}
+            components={{
+              br: <br />,
+              link: providerDashboard ? (
+                <a
+                  href={providerDashboard.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 underline"
+                />
+              ) : (
+                <span />
+              ),
+            }}
+          />
           <strong className="flex items-center mt-1">
             {getCallbackUrl()}
             <Button

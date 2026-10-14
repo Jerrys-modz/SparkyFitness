@@ -1531,8 +1531,7 @@ const MedicationReports = ({
                     </td>
                     <td className="py-1 font-semibold">
                       {medications.find((m) => m.id === inj.medication_id)
-                        ?.display_name ||
-                        t('reports.medicationReports.glp1', 'GLP-1')}
+                        ?.display_name || t('medications.glp1Name', 'GLP-1')}
                     </td>
                     <td className="py-1">
                       <span>{inj.dose_mg}</span> mg

@@ -26,7 +26,7 @@ import {
   CustomMeasurementsResponse,
 } from '@workspace/shared';
 
-import i18n from 'i18next';
+import type { TFunction } from 'i18next';
 // Respiration metric names as they come from Garmin sync
 interface RespirationCardProps {
   categories: CustomCategoriesResponse[];
@@ -43,13 +43,14 @@ interface RespirationDay {
 
 // Get status info based on respiration rate
 const getRespirationStatusInfo = (
-  value: number
+  value: number,
+  t: TFunction
 ): { status: string; color: string; description: string } => {
   if (value < 12) {
     return {
       status: 'Low',
       color: '#f97316',
-      description: i18n.t(
+      description: t(
         'reports.respirationCard.belowNormalBreathingRateAt',
         'Below normal breathing rate at rest.'
       ),
@@ -58,7 +59,7 @@ const getRespirationStatusInfo = (
     return {
       status: 'Normal',
       color: '#22c55e',
-      description: i18n.t(
+      description: t(
         'reports.respirationCard.healthyBreathingRateForAdults',
         'Healthy breathing rate for adults at rest.'
       ),
@@ -67,7 +68,7 @@ const getRespirationStatusInfo = (
     return {
       status: 'Elevated',
       color: '#f97316',
-      description: i18n.t(
+      description: t(
         'reports.respirationCard.aboveNormalRestingBreathingRate',
         'Above normal resting breathing rate.'
       ),
@@ -238,7 +239,10 @@ const RespirationCard: React.FC<RespirationCardProps> = ({
       ? transformedData[transformedData.length - 1]
       : null;
   const displayValue = latestData?.sleepAvg ?? latestData?.average ?? 0;
-  const { status, color, description } = getRespirationStatusInfo(displayValue);
+  const { status, color, description } = getRespirationStatusInfo(
+    displayValue,
+    t
+  );
 
   // Don't render if no respiration data
   const hasAnyData =

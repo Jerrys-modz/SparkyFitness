@@ -144,13 +144,13 @@ export default function PregnancyToday() {
                   {baby.lengthCm != null ? (
                     <p className="text-xs text-muted-foreground">
                       {t(
-                        'pregnancy.pregnancyToday.lengthCmCmweightG',
-                        '≈ {{lengthCm}} cm{{weightG}}',
-                        {
-                          lengthCm: baby.lengthCm,
-                          weightG:
-                            baby.weightG != null ? ` · ${baby.weightG} g` : '',
-                        }
+                        baby.weightG != null
+                          ? 'pregnancy.pregnancyToday.lengthAndWeight'
+                          : 'pregnancy.pregnancyToday.lengthOnly',
+                        baby.weightG != null
+                          ? '≈ {{lengthCm}} cm · {{weightG}} g'
+                          : '≈ {{lengthCm}} cm',
+                        { lengthCm: baby.lengthCm, weightG: baby.weightG }
                       )}
                     </p>
                   ) : null}
@@ -212,6 +212,7 @@ export default function PregnancyToday() {
               pregnancyId={pregnancyId}
               vitals={overview.vitals ?? null}
               date={overview.date ?? ''}
+              week={gestation.week}
             />
           ) : null}
           {tool === 'checklist' ? (
