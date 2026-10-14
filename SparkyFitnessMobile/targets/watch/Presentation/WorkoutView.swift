@@ -189,7 +189,7 @@ private struct WaitingForWorkoutView: View {
                     Haptics.tap()
                     choosingCardio = true
                 } label: {
-                    Label("Cardio", systemImage: "figure.run")
+                    Label(String(localized: "watch.cardio.title", defaultValue: "Cardio"), systemImage: "figure.run")
                         .font(.system(size: WatchStyle.s(16), weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -2115,7 +2115,7 @@ private struct CardioChoicesView: View {
                         }
                     }
                     if !plans.isEmpty {
-                        sectionTitle("Follow a plan")
+                        sectionTitle(String(localized: "watch.cardio.followPlan", defaultValue: "Follow a plan"))
                         ForEach(plans) { plan in
                             NavigationLink {
                                 PlanPlaceView(plan: plan, onChoose: choose)
@@ -2128,7 +2128,7 @@ private struct CardioChoicesView: View {
                 }
                 .padding(.horizontal, WatchStyle.s(2))
             }
-            .navigationTitle("Cardio")
+            .navigationTitle(String(localized: "watch.cardio.title", defaultValue: "Cardio"))
         }
     }
 
@@ -2147,7 +2147,7 @@ private struct CardioChoicesView: View {
                     .font(.system(size: WatchStyle.s(15), weight: .semibold))
                     .foregroundStyle(alerts == .off ? Color.secondary : Color.orange)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Alerts")
+                    Text(String(localized: "watch.cardio.alerts", defaultValue: "Alerts"))
                         .font(.system(size: WatchStyle.s(15), weight: .semibold))
                         .foregroundStyle(.white)
                     Text(alertsSummary)
@@ -2169,12 +2169,12 @@ private struct CardioChoicesView: View {
     private var alertsSummary: String {
         var parts: [String] = []
         if let pace = alerts.pace {
-            parts.append("Pace \(RunAlertsView.paceText(pace, usesMiles: usesMiles))")
+            parts.append(String(localized: "watch.cardio.summary.pace", defaultValue: "Pace \(RunAlertsView.paceText(pace, usesMiles: usesMiles))"))
         }
         if let hr = alerts.heartRate {
-            parts.append("Heart rate \(Int(hr.minBpm))–\(Int(hr.maxBpm))")
+            parts.append(String(localized: "watch.cardio.summary.heartRate", defaultValue: "Heart rate \(Int(hr.minBpm))–\(Int(hr.maxBpm))"))
         }
-        return parts.isEmpty ? "Off" : parts.joined(separator: " · ")
+        return parts.isEmpty ? String(localized: "watch.cardio.off", defaultValue: "Off") : parts.joined(separator: " · ")
     }
 
     private func sectionTitle(_ text: String) -> some View {
@@ -2196,7 +2196,7 @@ private struct CardioChoicesView: View {
                 Image(systemName: kind.symbol)
                     .font(.system(size: WatchStyle.s(22), weight: .semibold))
                     .foregroundStyle(.green)
-                Text(kind == .run ? "Run" : "Walk")
+                Text(kind == .run ? String(localized: "watch.activity.run", defaultValue: "Run") : String(localized: "watch.activity.walk", defaultValue: "Walk"))
                     .font(.system(size: WatchStyle.s(15), weight: .semibold))
                     .foregroundStyle(.white)
             }
@@ -2270,19 +2270,19 @@ private struct RunAlertsView: View {
 
     /// Seconds per kilometre to the phone's unit, and back.
     private var perUnit: Double { usesMiles ? 1.609344 : 1 }
-    private var unitLabel: String { usesMiles ? "/mi" : "/km" }
+    private var unitLabel: String { usesMiles ? String(localized: "watch.unit.perMi", defaultValue: "/mi") : String(localized: "watch.unit.perKm", defaultValue: "/km") }
 
     /// "5:00–5:30 /km", in the phone's unit.
     static func paceText(_ band: WatchPaceBand, usesMiles: Bool) -> String {
         let perUnit = usesMiles ? 1.609344 : 1
         let fast = WatchRunMetrics.paceText(band.minSecondsPerKm * perUnit)
         let slow = WatchRunMetrics.paceText(band.maxSecondsPerKm * perUnit)
-        return "\(fast)–\(slow) \(usesMiles ? "/mi" : "/km")"
+        return "\(fast)–\(slow) \(usesMiles ? String(localized: "watch.unit.perMi", defaultValue: "/mi") : String(localized: "watch.unit.perKm", defaultValue: "/km"))"
     }
 
     var body: some View {
         List {
-            Toggle("Pace alert", isOn: Binding(
+            Toggle(String(localized: "watch.run.paceAlert", defaultValue: "Pace alert"), isOn: Binding(
                 get: { alerts.pace != nil },
                 set: { alerts.pace = $0 ? suggestedPace : nil }
             ))
@@ -2292,17 +2292,17 @@ private struct RunAlertsView: View {
                     in: paceRange(for: pace, fastest: true),
                     step: 5
                 ) {
-                    edgeLabel("Fastest", WatchRunMetrics.paceText(pace.minSecondsPerKm * perUnit) + " " + unitLabel)
+                    edgeLabel(String(localized: "watch.cardio.fastest", defaultValue: "Fastest"), WatchRunMetrics.paceText(pace.minSecondsPerKm * perUnit) + " " + unitLabel)
                 }
                 Stepper(
                     value: paceEdge(\.maxSecondsPerKm, of: pace),
                     in: paceRange(for: pace, fastest: false),
                     step: 5
                 ) {
-                    edgeLabel("Slowest", WatchRunMetrics.paceText(pace.maxSecondsPerKm * perUnit) + " " + unitLabel)
+                    edgeLabel(String(localized: "watch.cardio.slowest", defaultValue: "Slowest"), WatchRunMetrics.paceText(pace.maxSecondsPerKm * perUnit) + " " + unitLabel)
                 }
             }
-            Toggle("Heart rate alert", isOn: Binding(
+            Toggle(String(localized: "watch.run.heartRateAlert", defaultValue: "Heart rate alert"), isOn: Binding(
                 get: { alerts.heartRate != nil },
                 set: { alerts.heartRate = $0 ? suggestedHeartRate : nil }
             ))
@@ -2312,18 +2312,18 @@ private struct RunAlertsView: View {
                     in: WatchHeartRateBand.lowest...(hr.maxBpm - WatchHeartRateBand.minWidth),
                     step: 5
                 ) {
-                    edgeLabel("Lowest", "\(Int(hr.minBpm)) bpm")
+                    edgeLabel(String(localized: "watch.cardio.lowest", defaultValue: "Lowest"), "\(Int(hr.minBpm)) \(String(localized: "watch.unit.bpm", defaultValue: "bpm"))")
                 }
                 Stepper(
                     value: heartRateEdge(lowest: false),
                     in: (hr.minBpm + WatchHeartRateBand.minWidth)...WatchHeartRateBand.highest,
                     step: 5
                 ) {
-                    edgeLabel("Highest", "\(Int(hr.maxBpm)) bpm")
+                    edgeLabel(String(localized: "watch.cardio.highest", defaultValue: "Highest"), "\(Int(hr.maxBpm)) \(String(localized: "watch.unit.bpm", defaultValue: "bpm"))")
                 }
             }
         }
-        .navigationTitle("Alerts")
+        .navigationTitle(String(localized: "watch.cardio.alerts", defaultValue: "Alerts"))
     }
 
     private func edgeLabel(_ title: String, _ value: String) -> some View {

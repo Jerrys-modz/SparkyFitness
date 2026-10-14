@@ -105,7 +105,7 @@ struct CardioLiveLayout<Banner: View>: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityLabel(status.map { "\(title), \($0)" } ?? title)
+                .accessibilityLabel(status.map { String(localized: "watch.run.titleWithStatus", defaultValue: "\(title), \($0)") } ?? title)
             if let signal {
                 TimelineView(.periodic(from: .now, by: 5)) { context in
                     GpsSignalBars(signal: signal(context.date))

@@ -25,7 +25,7 @@ struct RecordingView: View {
             CardioLiveLayout(
                 systemImage: state.activity.symbol,
                 title: state.activity.title,
-                status: state.status == .paused ? "Paused" : nil,
+                status: state.status == .paused ? String(localized: "watch.run.paused", defaultValue: "Paused") : nil,
                 elapsed: { state.elapsed(at: $0) },
                 stats: stats(for: state),
                 controls: controls(for: state),
@@ -52,7 +52,7 @@ struct RecordingView: View {
             CardioStat(
                 id: "heart",
                 value: recording.liveHeartRate.map { "\($0)" } ?? "--",
-                unit: "bpm",
+                unit: String(localized: "watch.unit.bpm", defaultValue: "bpm"),
                 systemImage: "heart.fill",
                 tint: recording.liveHeartRate == nil ? .secondary : .red
             ),
@@ -66,7 +66,7 @@ struct RecordingView: View {
             CardioControl(
                 id: "lap",
                 systemImage: "flag.fill",
-                accessibilityLabel: state.lapCount > 0 ? "Lap, \(state.lapCount) so far" : "Lap",
+                accessibilityLabel: state.lapCount > 0 ? String(localized: "watch.run.lapCount", defaultValue: "Lap, \(state.lapCount) so far") : String(localized: "watch.run.lap", defaultValue: "Lap"),
                 // A lap needs distance to measure, so only while moving.
                 disabled: !recordingNow,
                 action: { recording.lap() }
@@ -74,14 +74,14 @@ struct RecordingView: View {
             CardioControl(
                 id: "pause",
                 systemImage: recordingNow ? "pause.fill" : "play.fill",
-                accessibilityLabel: recordingNow ? "Pause" : "Resume",
+                accessibilityLabel: recordingNow ? String(localized: "watch.run.pause", defaultValue: "Pause") : String(localized: "watch.run.resume", defaultValue: "Resume"),
                 prominent: true,
                 action: { if recordingNow { recording.pause() } else { recording.resume() } }
             ),
             CardioControl(
                 id: "finish",
                 systemImage: "stop.fill",
-                accessibilityLabel: "Finish",
+                accessibilityLabel: String(localized: "watch.run.finish", defaultValue: "Finish"),
                 tint: .red,
                 action: { recording.finish() }
             ),
@@ -91,7 +91,7 @@ struct RecordingView: View {
     /// Finished on either side: the totals, and where to save it.
     private func finished(_ state: RecordingState) -> some View {
         VStack(spacing: 6) {
-            Label("\(state.activity.title) finished", systemImage: state.activity.symbol)
+            Label(String(localized: "watch.recording.finished", defaultValue: "\(state.activity.title) finished"), systemImage: state.activity.symbol)
                 .font(.headline)
                 .foregroundStyle(.green)
                 .lineLimit(1)
@@ -106,7 +106,7 @@ struct RecordingView: View {
             }
             .font(.caption.weight(.semibold))
             .monospacedDigit()
-            Label("Save it on your iPhone", systemImage: "iphone")
+            Label(String(localized: "watch.recording.saveOnPhone", defaultValue: "Save it on your iPhone"), systemImage: "iphone")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }

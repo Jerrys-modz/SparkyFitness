@@ -16,8 +16,8 @@ enum WatchRunPlace: String {
 
     var label: String {
         switch self {
-        case .indoor: return "Indoor"
-        case .outdoor: return "Outdoor"
+        case .indoor: return String(localized: "watch.run.place.indoor", defaultValue: "Indoor")
+        case .outdoor: return String(localized: "watch.run.place.outdoor", defaultValue: "Outdoor")
         }
     }
 }
@@ -46,10 +46,10 @@ enum GpsSignal: Int {
 
     var label: String {
         switch self {
-        case .none: return "No GPS signal"
-        case .weak: return "Weak GPS signal"
-        case .fair: return "Fair GPS signal"
-        case .good: return "Good GPS signal"
+        case .none: return String(localized: "watch.run.gps.none", defaultValue: "No GPS signal")
+        case .weak: return String(localized: "watch.run.gps.weak", defaultValue: "Weak GPS signal")
+        case .fair: return String(localized: "watch.run.gps.fair", defaultValue: "Fair GPS signal")
+        case .good: return String(localized: "watch.run.gps.good", defaultValue: "Good GPS signal")
         }
     }
 }
@@ -60,9 +60,11 @@ enum WatchRunKind: String {
     case walk, run
 
     func title(_ place: WatchRunPlace) -> String {
-        switch self {
-        case .walk: return "\(place.label) walk"
-        case .run: return "\(place.label) run"
+        switch (self, place) {
+        case (.walk, .indoor): return String(localized: "watch.run.title.indoorWalk", defaultValue: "Indoor walk")
+        case (.walk, .outdoor): return String(localized: "watch.run.title.outdoorWalk", defaultValue: "Outdoor walk")
+        case (.run, .indoor): return String(localized: "watch.run.title.indoorRun", defaultValue: "Indoor run")
+        case (.run, .outdoor): return String(localized: "watch.run.title.outdoorRun", defaultValue: "Outdoor run")
         }
     }
 
@@ -231,7 +233,7 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
             }
             start = end
         }
-        return Position(index: steps.count, label: "Plan complete", remaining: 0, next: nil, finished: true)
+        return Position(index: steps.count, label: String(localized: "watch.run.planComplete", defaultValue: "Plan complete"), remaining: 0, next: nil, finished: true)
     }
 
     /// Whether the last step has begun: the rule the phone uses to tick off a program workout.

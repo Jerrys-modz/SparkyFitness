@@ -217,7 +217,7 @@ final class WatchRunStore: ObservableObject {
                 if self.healthKit.start(kind, place: place, plan: plan, settings: chosen) {
                     // With a plan, its first step is the start cue; saying
                     // both would cut one off.
-                    if plan == nil { self.cue("\(kind.title(place)) started.") }
+                    if plan == nil { self.cue(String(localized: "watch.run.cue.started", defaultValue: "\(kind.title(place)) started.")) }
                     self.startStepTimer()
                     self.startLiveTimer()
                 } else {
@@ -302,7 +302,7 @@ final class WatchRunStore: ObservableObject {
         phase = .paused
         autoPaused = false
         healthKit.pause()
-        cue("Paused.")
+        cue(String(localized: "watch.run.cue.paused", defaultValue: "Paused."))
         pushLive(force: true)
     }
 
@@ -312,7 +312,7 @@ final class WatchRunStore: ObservableObject {
         autoPaused = false
         recentPace.reset()
         healthKit.resume()
-        cue("Resumed.")
+        cue(String(localized: "watch.run.cue.resumed", defaultValue: "Resumed."))
         pushLive(force: true)
     }
 
@@ -344,7 +344,7 @@ final class WatchRunStore: ObservableObject {
         healthKit.updateSettings(settings)
         if on {
             // Heard at once, so the wearer knows the speaker works.
-            cue("Voice cues on.")
+            cue(String(localized: "watch.run.cue.voiceOn", defaultValue: "Voice cues on."))
         } else {
             WatchRunCues.shared.stop()
         }
@@ -406,7 +406,7 @@ final class WatchRunStore: ObservableObject {
         guard let band else { return }
         guard let alert = heartRateAlertState.step(bpm: metrics.heartRate, band: band, now: elapsed) else { return }
         Haptics.heartRate(tooHigh: alert == .tooHigh)
-        cue(alert == .tooHigh ? "Heart rate high. Ease off." : "Heart rate low. Pick it up.")
+        cue(alert == .tooHigh ? String(localized: "watch.run.cue.hrHigh", defaultValue: "Heart rate high. Ease off.") : String(localized: "watch.run.cue.hrLow", defaultValue: "Heart rate low. Pick it up."))
     }
 
     /// Tells the wearer when the pace has stayed outside their range: a tap
@@ -434,7 +434,7 @@ final class WatchRunStore: ObservableObject {
         guard let band else { return }
         guard let alert = paceAlertState.step(pace: pace, band: band, now: elapsed) else { return }
         Haptics.pace(tooFast: alert == .tooFast)
-        cue(alert == .tooFast ? "Too fast. Ease off." : "Too slow. Pick it up.")
+        cue(alert == .tooFast ? String(localized: "watch.run.cue.tooFast", defaultValue: "Too fast. Ease off.") : String(localized: "watch.run.cue.tooSlow", defaultValue: "Too slow. Pick it up."))
     }
 
     /// Marks a lap at this moment; the phone cuts the saved route there.
@@ -537,7 +537,7 @@ final class WatchRunStore: ObservableObject {
         }
         guard settings.voiceCues else { return }
         if position.finished {
-            WatchRunCues.shared.speak("Plan complete.", interrupt: true)
+            WatchRunCues.shared.speak(String(localized: "watch.run.cue.planComplete", defaultValue: "Plan complete."), interrupt: true)
         } else {
             WatchRunCues.shared.speak(
                 WatchRunCues.stepText(label: position.label, seconds: plan.steps[position.index].seconds),
@@ -577,7 +577,7 @@ final class WatchRunStore: ObservableObject {
             autoPaused = true
             healthKit.pause(automatic: true)
             WKInterfaceDevice.current().play(.stop)
-            cue("Auto-paused.")
+            cue(String(localized: "watch.run.cue.autoPaused", defaultValue: "Auto-paused."))
             pushLive(force: true)
         case .resume:
             guard phase == .paused, autoPaused else { return }
@@ -585,7 +585,7 @@ final class WatchRunStore: ObservableObject {
             autoPaused = false
             healthKit.resume()
             WKInterfaceDevice.current().play(.start)
-            cue("Resumed.")
+            cue(String(localized: "watch.run.cue.resumed", defaultValue: "Resumed."))
             pushLive(force: true)
         case .none:
             break

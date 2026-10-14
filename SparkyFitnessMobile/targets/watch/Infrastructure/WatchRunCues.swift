@@ -77,13 +77,9 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
 
     /// "5 minutes 24 seconds", spelled out for speech.
     static func duration(_ seconds: TimeInterval) -> String {
-        let total = Int(seconds.rounded())
-        let minutes = total / 60
-        let secs = total % 60
-        var parts: [String] = []
-        if minutes > 0 { parts.append("\(minutes) minute\(minutes == 1 ? "" : "s")") }
-        if secs > 0 || minutes == 0 { parts.append("\(secs) second\(secs == 1 ? "" : "s")") }
-        return parts.joined(separator: " ")
+        // Locale-aware and plural-correct, e.g. "5 minutes, 24 seconds".
+        Duration.seconds(Int64(seconds.rounded()))
+            .formatted(.units(allowed: [.minutes, .seconds], width: .wide))
     }
 
     /// What is said at the finish: "Outdoor run saved. 3.21 kilometers in
@@ -91,20 +87,24 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
     static func finishText(title: String, distanceMeters: Double, seconds: TimeInterval, usesMiles: Bool) -> String {
         let unitMeters = usesMiles ? 1609.344 : 1000.0
         let amount = String(format: "%.2f", distanceMeters / unitMeters)
-        let unit = usesMiles ? "miles" : "kilometers"
-        return "\(title) saved. \(amount) \(unit) in \(duration(seconds))."
+        let time = duration(seconds)
+        return usesMiles
+            ? String(localized: "watch.run.cue.finishedMiles", defaultValue: "\(title) saved. \(amount) miles in \(time).")
+            : String(localized: "watch.run.cue.finishedKm", defaultValue: "\(title) saved. \(amount) kilometers in \(time).")
     }
 
     /// What is said when a plan step begins: "Run, 1 minute."
     static func stepText(label: String, seconds: TimeInterval) -> String {
-        "\(label), \(duration(seconds))."
+        String(localized: "watch.run.cue.step", defaultValue: "\(label), \(duration(seconds)).")
     }
 
     /// Words for a completed split. Durations are spelled out because a speech
     /// engine reads "5:24" as a time of day.
     static func splitText(number: Int, seconds: TimeInterval, usesMiles: Bool) -> String {
-        let unit = usesMiles ? "Mile" : "Kilometer"
-        return "\(unit) \(number). \(duration(seconds))."
+        let time = duration(seconds)
+        return usesMiles
+            ? String(localized: "watch.run.cue.splitMile", defaultValue: "Mile \(number). \(time).")
+            : String(localized: "watch.run.cue.splitKm", defaultValue: "Kilometer \(number). \(time).")
     }
 
     /// Whole units covered, and how many of them are new since `cued`.

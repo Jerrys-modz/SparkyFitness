@@ -26,7 +26,7 @@ struct WatchRunView: View {
 
     private var status: String? {
         guard run.phase == .paused else { return nil }
-        return run.autoPaused ? "Auto-paused" : "Paused"
+        return run.autoPaused ? String(localized: "watch.run.autoPaused", defaultValue: "Auto-paused") : String(localized: "watch.run.paused", defaultValue: "Paused")
     }
 
     // MARK: - Running
@@ -94,21 +94,21 @@ struct WatchRunView: View {
             CardioControl(
                 id: "lap",
                 systemImage: "flag.fill",
-                accessibilityLabel: run.lapCount > 0 ? "Lap, \(run.lapCount) so far" : "Lap",
+                accessibilityLabel: run.lapCount > 0 ? String(localized: "watch.run.lapCount", defaultValue: "Lap, \(run.lapCount) so far") : String(localized: "watch.run.lap", defaultValue: "Lap"),
                 disabled: !running,
                 action: { run.lap() }
             ),
             CardioControl(
                 id: "pause",
                 systemImage: running ? "pause.fill" : "play.fill",
-                accessibilityLabel: running ? "Pause" : "Resume",
+                accessibilityLabel: running ? String(localized: "watch.run.pause", defaultValue: "Pause") : String(localized: "watch.run.resume", defaultValue: "Resume"),
                 prominent: true,
                 action: { if running { run.pause() } else { run.resume() } }
             ),
             CardioControl(
                 id: "finish",
                 systemImage: "stop.fill",
-                accessibilityLabel: "Finish",
+                accessibilityLabel: String(localized: "watch.run.finish", defaultValue: "Finish"),
                 tint: .red,
                 action: { run.finish() }
             ),
@@ -117,7 +117,7 @@ struct WatchRunView: View {
             CardioControl(
                 id: "settings",
                 systemImage: "gearshape.fill",
-                accessibilityLabel: "Auto-pause and voice cues",
+                accessibilityLabel: String(localized: "watch.run.settings", defaultValue: "Auto-pause and voice cues"),
                 action: { showingSettings = true }
             ),
         ]
@@ -128,11 +128,11 @@ struct WatchRunView: View {
     private var settingsSheet: some View {
         NavigationStack {
             List {
-                Toggle("Auto-pause", isOn: Binding(
+                Toggle(String(localized: "watch.run.autoPause", defaultValue: "Auto-pause"), isOn: Binding(
                     get: { run.settings.autoPause },
                     set: { run.setAutoPause($0) }
                 ))
-                Toggle("Voice cues", isOn: Binding(
+                Toggle(String(localized: "watch.run.voiceCues", defaultValue: "Voice cues"), isOn: Binding(
                     get: { run.settings.voiceCues },
                     set: { run.setVoiceCues($0) }
                 ))
@@ -140,8 +140,8 @@ struct WatchRunView: View {
                 heartRateAlertRow
                 // Plays whatever the switch says, so a silent speaker can be
                 // told apart from cues that are off.
-                Button("Test voice") {
-                    WatchRunCues.shared.speak("This is how your voice cues sound.", interrupt: true)
+                Button(String(localized: "watch.run.testVoice", defaultValue: "Test voice")) {
+                    WatchRunCues.shared.speak(String(localized: "watch.run.testVoicePhrase", defaultValue: "This is how your voice cues sound."), interrupt: true)
                 }
             }
             .navigationTitle(run.kind.title(run.place))
@@ -210,7 +210,7 @@ struct WatchRunView: View {
         let perUnit = usesMiles ? 1.609344 : 1
         let fast = WatchRunMetrics.paceText(band.minSecondsPerKm * perUnit)
         let slow = WatchRunMetrics.paceText(band.maxSecondsPerKm * perUnit)
-        return "\(fast)–\(slow) \(usesMiles ? "/mi" : "/km")"
+        return "\(fast)–\(slow) \(usesMiles ? String(localized: "watch.unit.perMi", defaultValue: "/mi") : String(localized: "watch.unit.perKm", defaultValue: "/km"))"
     }
 
     // MARK: - Finished
@@ -222,31 +222,31 @@ struct WatchRunView: View {
             ScrollView {
                 VStack(spacing: 6) {
                     Label(
-                        summary.saved ? "\(summary.kind.title(summary.place)) saved" : "\(summary.kind.title(summary.place)) done",
+                        summary.saved ? String(localized: "watch.run.saved", defaultValue: "\(summary.kind.title(summary.place)) saved") : String(localized: "watch.run.done", defaultValue: "\(summary.kind.title(summary.place)) done"),
                         systemImage: summary.saved ? "checkmark.circle.fill" : summary.kind.symbol
                     )
                     .font(.headline)
                     .foregroundStyle(.green)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                    row("Time", RecordingState.clock(summary.elapsed))
+                    row(String(localized: "watch.run.row.time", defaultValue: "Time"), RecordingState.clock(summary.elapsed))
                     row(
-                        "Distance",
-                        "\(WatchRunMetrics.distanceText(summary.metrics.distanceMeters, usesMiles: usesMiles)) \(usesMiles ? "mi" : "km")"
+                        String(localized: "watch.run.row.distance", defaultValue: "Distance"),
+                        "\(WatchRunMetrics.distanceText(summary.metrics.distanceMeters, usesMiles: usesMiles)) \(usesMiles ? String(localized: "watch.unit.mi", defaultValue: "mi") : String(localized: "watch.unit.km", defaultValue: "km"))"
                     )
                     row(
-                        "Pace",
-                        "\(WatchRunMetrics.paceText(WatchRunMetrics.paceSeconds(elapsed: summary.elapsed, distanceMeters: summary.metrics.distanceMeters, usesMiles: usesMiles))) \(usesMiles ? "/mi" : "/km")"
+                        String(localized: "watch.run.row.pace", defaultValue: "Pace"),
+                        "\(WatchRunMetrics.paceText(WatchRunMetrics.paceSeconds(elapsed: summary.elapsed, distanceMeters: summary.metrics.distanceMeters, usesMiles: usesMiles))) \(usesMiles ? String(localized: "watch.unit.perMi", defaultValue: "/mi") : String(localized: "watch.unit.perKm", defaultValue: "/km"))"
                     )
                     if summary.metrics.activeEnergyKcal > 0 {
-                        row("Active", "\(Int(summary.metrics.activeEnergyKcal.rounded())) kcal")
+                        row(String(localized: "watch.run.row.active", defaultValue: "Active"), "\(Int(summary.metrics.activeEnergyKcal.rounded())) \(String(localized: "watch.unit.kcal", defaultValue: "kcal"))")
                     }
-                    Text("Sent to your iPhone. It shows up in SparkyFitness once the phone can reach the server.")
+                    Text(String(localized: "watch.run.sentToPhone", defaultValue: "Sent to your iPhone. It shows up in SparkyFitness once the phone can reach the server."))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.top, 2)
-                    Button("Done") {
+                    Button(String(localized: "watch.run.done.button", defaultValue: "Done")) {
                         Haptics.tap()
                         run.dismissSummary()
                     }
@@ -281,16 +281,23 @@ private struct TreadmillDistanceView: View {
 
     private var usesMiles: Bool { store.context.distanceUnit == "miles" }
     private var unitMeters: Double { usesMiles ? 1609.344 : 1000 }
-    private var unit: String { usesMiles ? "mi" : "km" }
+    private var unit: String { usesMiles ? String(localized: "watch.unit.mi", defaultValue: "mi") : String(localized: "watch.unit.km", defaultValue: "km") }
+
+    private var treadmillMessage: String {
+        let measured = WatchRunMetrics.distanceText(run.metrics.distanceMeters, usesMiles: usesMiles)
+        return run.kind == .walk
+            ? String(localized: "watch.run.treadmill.messageWalk", defaultValue: "The watch measured \(measured) \(unit). Enter what the machine showed, and the next walk will read closer.")
+            : String(localized: "watch.run.treadmill.messageRun", defaultValue: "The watch measured \(measured) \(unit). Enter what the machine showed, and the next run will read closer.")
+    }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 8) {
-                Label("Treadmill distance?", systemImage: run.kind.symbol)
+                Label(String(localized: "watch.run.treadmill.title", defaultValue: "Treadmill distance?"), systemImage: run.kind.symbol)
                     .font(.headline)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                Text("The watch measured \(WatchRunMetrics.distanceText(run.metrics.distanceMeters, usesMiles: usesMiles)) \(unit). Enter what the machine showed, and the next \(run.kind == .walk ? "walk" : "run") will read closer.")
+                Text(treadmillMessage)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -298,10 +305,10 @@ private struct TreadmillDistanceView: View {
                     Haptics.tap()
                     entering = true
                 } label: {
-                    Label("Enter distance", systemImage: "number")
+                    Label(String(localized: "watch.run.treadmill.enter", defaultValue: "Enter distance"), systemImage: "number")
                 }
                 .buttonStyle(.borderedProminent)
-                Button("Keep watch distance") {
+                Button(String(localized: "watch.run.treadmill.keep", defaultValue: "Keep watch distance")) {
                     Haptics.tap()
                     run.confirmDistance(nil)
                 }
