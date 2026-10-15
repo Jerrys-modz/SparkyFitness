@@ -1101,7 +1101,9 @@
     "stateHidden": "Hidden",
     "configureCard": "Configure {{name}}",
     "trainingLoad": "Training Load",
-    "trainingLoadSubtitle": "Show this week against your usual training, with a nudge to rest"
+    "trainingLoadSubtitle": "Show this week against your usual training, with a nudge to rest",
+    "labResults": "Lab Results",
+    "labResultsSubtitle": "Show your latest lab results and which are out of range"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",
@@ -7620,6 +7622,13 @@
       "low": "Low"
     },
     "unit": "Unit",
-    "value": "Result"
+    "value": "Result",
+    "card": {
+      "a11y": "Lab results",
+      "empty": "No results yet. Tap to add one.",
+      "outOfRange_one": "{{count}} outside the reference range",
+      "outOfRange_other": "{{count}} outside the reference range",
+      "title": "Lab results"
+    }
   }
 }
