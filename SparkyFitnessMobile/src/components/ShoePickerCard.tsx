@@ -6,9 +6,11 @@ import Toast from 'react-native-toast-message';
 
 import BottomSheetPicker from './BottomSheetPicker';
 import { cardioSessionDetailQueryKey } from '../hooks/queryKeys';
-import { useAssignShoe, useShoes } from '../hooks/useShoes';
+import { useAssignShoe, useShoeMutations, useShoes } from '../hooks/useShoes';
 import { addLog } from '../services/LogService';
 import { fetchExerciseEntry } from '../services/api/exerciseStatsApi';
+import { findShoeThatReachedLimit } from '../services/shoeWear';
+import { promptToRetireShoe } from '../utils/retireShoePrompt';
 
 const NO_SHOE = 'none';
 
@@ -24,6 +26,7 @@ const ShoePickerCard: React.FC<ShoePickerCardProps> = ({ exerciseEntryId }) => {
   const { t } = useTranslation();
   const { shoes } = useShoes();
   const assignShoe = useAssignShoe();
+  const { updateMutation } = useShoeMutations();
   // Same key and fetcher as `useCardioSessionDetail`, so the entry is shared.
   const entryQuery = useQuery({
     queryKey: cardioSessionDetailQueryKey('entry', exerciseEntryId),
@@ -58,13 +61,35 @@ const ShoePickerCard: React.FC<ShoePickerCardProps> = ({ exerciseEntryId }) => {
         value={currentShoeId ?? NO_SHOE}
         options={options}
         title={t('shoes.shoe', { defaultValue: 'Shoe' })}
-        onSelect={(value) =>
+        onSelect={(value) => {
+          const picked =
+            value === NO_SHOE
+              ? undefined
+              : shoes.find((shoe) => shoe.id === value);
           assignShoe.mutate(
             {
               exerciseEntryId,
               shoeId: value === NO_SHOE ? null : value,
             },
             {
+              onSuccess: () => {
+                if (!picked || picked.status !== 'active') return;
+                // Best effort: the shoe is already linked, so a failed
+                // lookup just means no prompt.
+                findShoeThatReachedLimit(picked.id, picked.is_worn_out)
+                  .then((wornOut) => {
+                    if (!wornOut) return;
+                    promptToRetireShoe(t, wornOut, () =>
+                      updateMutation.mutate({
+                        id: wornOut.id,
+                        data: { status: 'retired' },
+                      })
+                    );
+                  })
+                  .catch((error) =>
+                    addLog(`Could not check shoe mileage: ${error}`, 'WARNING')
+                  );
+              },
               onError: (error) => {
                 addLog(`Failed to assign shoe: ${error}`, 'ERROR');
                 Toast.show({
@@ -78,8 +103,8 @@ const ShoePickerCard: React.FC<ShoePickerCardProps> = ({ exerciseEntryId }) => {
                 });
               },
             }
-          )
-        }
+          );
+        }}
       />
     </View>
   );

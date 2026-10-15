@@ -5,6 +5,7 @@ import {
   createExerciseEntry,
   searchExercises,
 } from '../../src/services/api/exerciseApi';
+import { findShoeThatReachedLimit } from '../../src/services/shoeWear';
 import {
   assignShoeToExerciseEntry,
   fetchShoes,
@@ -28,6 +29,7 @@ import type { Exercise } from '../../src/types/exercise';
 
 jest.mock('../../src/services/api/exerciseApi');
 jest.mock('../../src/services/api/shoesApi');
+jest.mock('../../src/services/shoeWear');
 jest.mock('../../src/services/gpsRecordingService', () => ({
   elapsedSeconds: jest.fn(() => 1500),
   markRecordingSaved: jest.fn(() => Promise.resolve()),
@@ -47,6 +49,7 @@ const mockedLearnOutdoor = jest.mocked(learnFromOutdoorRecording);
 const mockedFetchShoes = jest.mocked(fetchShoes);
 const mockedAssignShoe = jest.mocked(assignShoeToExerciseEntry);
 const mockedMeasureForm = jest.mocked(measureOutdoorForm);
+const mockedWornOut = jest.mocked(findShoeThatReachedLimit);
 
 const DEG_PER_METER = 1 / 111_194.9;
 const T0 = new Date(2026, 9, 6, 7, 5, 0).getTime();
@@ -89,6 +92,7 @@ beforeEach(() => {
   mockedCreateEntry.mockResolvedValue({ id: 'entry-1' } as never);
   mockedAttach.mockResolvedValue(undefined);
   mockedFetchShoes.mockResolvedValue([]);
+  mockedWornOut.mockResolvedValue(null);
   mockedAssignShoe.mockResolvedValue({
     exercise_entry_id: 'entry-1',
     shoe_id: null,
@@ -383,14 +387,36 @@ describe('learning a stride while saving', () => {
 
 describe('saveRecordedActivity default shoe', () => {
   const shoe = (id: string, isDefault: boolean) =>
-    ({ id, is_default: isDefault, status: 'active' }) as Awaited<
-      ReturnType<typeof fetchShoes>
-    >[number];
+    ({
+      id,
+      is_default: isDefault,
+      is_worn_out: false,
+      status: 'active',
+    }) as Awaited<ReturnType<typeof fetchShoes>>[number];
 
   it('links a new run to the default pair', async () => {
     mockedFetchShoes.mockResolvedValue([shoe('a', false), shoe('b', true)]);
     await saveRecordedActivity(session, points, 'km');
     expect(mockedFetchShoes).toHaveBeenCalledWith('active');
+    expect(mockedAssignShoe).toHaveBeenCalledWith('entry-1', 'b');
+  });
+
+  it('reports the default pair when the run took it over its limit', async () => {
+    mockedFetchShoes.mockResolvedValue([shoe('b', true)]);
+    const worn = { id: 'b', is_worn_out: true } as Awaited<
+      ReturnType<typeof fetchShoes>
+    >[number];
+    mockedWornOut.mockResolvedValue(worn);
+    const saved = await saveRecordedActivity(session, points, 'km');
+    expect(mockedWornOut).toHaveBeenCalledWith('b', false);
+    expect(saved.wornOutShoe).toBe(worn);
+  });
+
+  it('leaves wornOutShoe off when the mileage check fails', async () => {
+    mockedFetchShoes.mockResolvedValue([shoe('b', true)]);
+    mockedWornOut.mockRejectedValue(new Error('offline'));
+    const saved = await saveRecordedActivity(session, points, 'km');
+    expect(saved).not.toHaveProperty('wornOutShoe');
     expect(mockedAssignShoe).toHaveBeenCalledWith('entry-1', 'b');
   });
 

@@ -4,6 +4,7 @@ _Last updated: 2026-10-14_
 _Last updated: 2026-10-05_
 _Last updated: 2026-10-13_
 _Last updated: 2026-10-06_
+_Last updated: 2026-10-15_
 
 SparkyFitness Mobile is a React Native 0.86 + Expo SDK 57 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
 
@@ -427,7 +428,7 @@ const androidService = require('../../src/services/healthConnectService.ts');
 - Widget/deep-link bug: inspect `useWidgetSync`, `CalorieWidgetBridge`, widget targets, widget plugins, `app.config.ts`, `app.identifiers.js`, `App.tsx`, and dashboard.
 - Widget string shows as a raw key: inspect `targets/widget/en.lproj/Localizable.strings`, the `fallbackWidgetString` map in `SharedHelpers.swift`, and the derived-key contract in `__tests__/config/helpers/widgetSwiftKeys.ts`.
 - Chat/voice settings bug: inspect `ChatScreen`, `ChatSettingsScreen`, `components/chat/`, `useVoicePreferencesRefresh`, `aiSettingsApi`, `preferencesApi`, and `voiceTranscriptionApi`; settings and contracts also have web/server consumers.
-- Shoe inventory bug: inspect `ShoesScreen` / `ShoeFormScreen` (Library > Equipment), `components/ShoePickerCard.tsx` (the picker on `CardioSessionScreen` and, for cardio entries, `ActivityDetailScreen`), `hooks/useShoes.ts`, `services/api/shoesApi.ts`, and `assignDefaultShoe` in `services/gpsRecordingSave.ts` (a newly created GPS run is linked to the default pair, best effort and only on first create). Distances are stored in km and edited in the app's distance unit; mileage is derived on the server from the linked entries, so every assignment invalidates `shoesQueryKey` and the cardio session caches.
+- Shoe inventory bug: inspect `ShoesScreen` / `ShoeFormScreen` (Library > Equipment), `components/ShoePickerCard.tsx` (the picker on `CardioSessionScreen` and, for cardio entries, `ActivityDetailScreen`), `hooks/useShoes.ts`, `services/api/shoesApi.ts`, and `assignDefaultShoe` in `services/gpsRecordingSave.ts` (a newly created recorded run, outdoor or indoor, is linked to the default pair, best effort and only on first create). When a run takes a pair to its retire-at distance, `services/shoeWear.ts` (`findShoeThatReachedLimit`) reports it: `saveRecordedActivity` returns it as `wornOutShoe` and `ShoePickerCard` checks after a pick, and both ask through `utils/retireShoePrompt.ts`. Distances are stored in km and edited in the app's distance unit; mileage is derived on the server from the linked entries, so every assignment invalidates `shoesQueryKey` and the cardio session caches.
 - Settings/diagnostics bug: inspect settings screens, `SettingsRow`, haptics/theme/sounds/notification services, diagnostics services, `DevTools`, and screen error boundaries.
 
 ## Priority Rule
