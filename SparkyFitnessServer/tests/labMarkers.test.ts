@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   LAB_MARKER_PRESETS,
+  LAB_MARKER_SEX_RANGES,
+  hasSexSpecificRange,
+  labPresetRange,
   findLabMarkerPreset,
   labRangeStatus,
 } from '@workspace/shared';
@@ -57,5 +60,51 @@ describe('LAB_MARKER_PRESETS names', () => {
     for (const p of LAB_MARKER_PRESETS) {
       expect(findLabMarkerPreset(p.displayName)?.key).toBe(p.key);
     }
+  });
+});
+
+describe('sex-specific ranges', () => {
+  const preset = (key: string) =>
+    LAB_MARKER_PRESETS.find((p) => p.key === key)!;
+
+  it('only covers real presets, with sane bounds', () => {
+    for (const [key, bySex] of Object.entries(LAB_MARKER_SEX_RANGES)) {
+      expect(LAB_MARKER_PRESETS.some((p) => p.key === key)).toBe(true);
+      for (const { low, high } of Object.values(bySex)) {
+        if (low !== null && high !== null)
+          expect(low).toBeLessThanOrEqual(high);
+      }
+    }
+  });
+  it('uses the profile sex when known', () => {
+    expect(labPresetRange(preset('hemoglobin'), 'male')).toEqual({
+      low: 13.5,
+      high: 17.5,
+    });
+    expect(labPresetRange(preset('hemoglobin'), 'female')).toEqual({
+      low: 12.0,
+      high: 15.5,
+    });
+    expect(labPresetRange(preset('hdl'), 'female')).toEqual({
+      low: 50,
+      high: null,
+    });
+  });
+  it('falls back to the sex-neutral default when sex is unknown', () => {
+    expect(labPresetRange(preset('hemoglobin'), null)).toEqual({
+      low: 12.0,
+      high: 17.5,
+    });
+    expect(labPresetRange(preset('testosterone'), undefined)).toEqual({
+      low: null,
+      high: null,
+    });
+  });
+  it('leaves sex-neutral markers alone', () => {
+    expect(hasSexSpecificRange(preset('hba1c'))).toBe(false);
+    expect(labPresetRange(preset('hba1c'), 'female')).toEqual({
+      low: 4,
+      high: 5.6,
+    });
   });
 });

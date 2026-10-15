@@ -1,10 +1,12 @@
 // Presets for lab-result markers. Picking one creates a custom category with
 // `is_lab` set, the unit prefilled into `measurement_type`, and the reference
-// range prefilled. Ranges are common adult defaults only; labs differ, and some
-// markers vary by sex or age (hemoglobin, testosterone, ...), so the user can
-// edit them. Markers with no sensible single default have no range. `aliases`
-// are the other names a lab report may print, used to match scanned results to
-// a marker.
+// range prefilled. Ranges are common adult defaults only; labs differ, so the
+// user can edit them. `refRangeLow`/`refRangeHigh` are the sex-neutral default;
+// markers that differ by sex also have an entry in `LAB_MARKER_SEX_RANGES`,
+// which `labPresetRange` prefers when the profile's sex is known. Markers with
+// no sensible single default have no range. Age is not used. `aliases` are the
+// other names a lab report may print, used to match scanned results to a
+// marker.
 export interface LabMarkerPreset {
   /** Stable key, also used as the category `name`. */
   key: string;
@@ -751,6 +753,61 @@ export const LAB_MARKER_PRESETS: readonly LabMarkerPreset[] = [
     aliases: ["tpo", "thyroid peroxidase antibodies", "anti-tpo"],
   },
 ];
+
+export type LabSex = "male" | "female";
+
+export interface LabRange {
+  low: number | null;
+  high: number | null;
+}
+
+const r = (low: number | null, high: number | null): LabRange => ({
+  low,
+  high,
+});
+
+/** Typical adult ranges by sex, for the markers where they differ. */
+export const LAB_MARKER_SEX_RANGES: Readonly<
+  Record<string, Record<LabSex, LabRange>>
+> = {
+  hdl: { male: r(40, null), female: r(50, null) },
+  ferritin: { male: r(24, 336), female: r(11, 307) },
+  creatinine: { male: r(0.74, 1.35), female: r(0.59, 1.04) },
+  alt: { male: r(7, 55), female: r(7, 45) },
+  ast: { male: r(10, 40), female: r(9, 32) },
+  ggt: { male: r(8, 61), female: r(5, 36) },
+  rbc: { male: r(4.5, 5.9), female: r(4.1, 5.1) },
+  hemoglobin: { male: r(13.5, 17.5), female: r(12.0, 15.5) },
+  hematocrit: { male: r(41, 53), female: r(36, 46) },
+  uric_acid: { male: r(3.4, 7.0), female: r(2.4, 6.0) },
+  esr: { male: r(0, 15), female: r(0, 20) },
+  iron: { male: r(65, 175), female: r(50, 170) },
+  transferrin_saturation: { male: r(20, 50), female: r(15, 50) },
+  testosterone: { male: r(264, 916), female: r(15, 70) },
+  free_testosterone: { male: r(50, 210), female: r(1.0, 8.5) },
+  shbg: { male: r(10, 57), female: r(18, 144) },
+  // Female estradiol swings across the cycle, so it has no default.
+  estradiol: { male: r(10, 40), female: r(null, null) },
+  // PSA is a prostate marker; there is no female range.
+  psa: { male: r(null, 4.0), female: r(null, null) },
+};
+
+/** True when the preset has a different range for each sex. */
+export function hasSexSpecificRange(preset: LabMarkerPreset): boolean {
+  return preset.key in LAB_MARKER_SEX_RANGES;
+}
+
+/**
+ * The reference range to prefill for a preset: the sex-specific one when the
+ * profile's sex is known, otherwise the sex-neutral default.
+ */
+export function labPresetRange(
+  preset: LabMarkerPreset,
+  sex: LabSex | null | undefined,
+): LabRange {
+  const bySex = sex ? LAB_MARKER_SEX_RANGES[preset.key]?.[sex] : undefined;
+  return bySex ?? { low: preset.refRangeLow, high: preset.refRangeHigh };
+}
 
 export type LabRangeStatus = "low" | "high" | "in_range" | "unknown";
 
