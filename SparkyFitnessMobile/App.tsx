@@ -1001,7 +1001,7 @@ function AppContent() {
           <Stack.Screen
             name="Shoes"
             component={SafeShoes}
-            options={createStackScreenOptions(t('shoes.title', { defaultValue: 'Shoes' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+            options={createStackScreenOptions(t('shoes.title', { defaultValue: 'Shoes' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
           />
           <Stack.Screen
             name="ShoeForm"

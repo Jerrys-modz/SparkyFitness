@@ -897,8 +897,7 @@
     "foodLog": "Food Log",
     "wellness": "Wellness",
     "symptoms": "Symptoms",
-    "sparkyFitnessV": "SparkyFitness v{{version}}",
-    "shoes": "Shoes"
+    "sparkyFitnessV": "SparkyFitness v{{version}}"
   },
   "nutrition": {
     "calories": "Calories",
@@ -5324,18 +5323,7 @@
     "triceps": "Triceps"
   },
   "equipment": {
-    "barbell": "Barbell",
-    "dumbbell": "Dumbbell",
-    "kettlebells": "Kettlebells",
-    "cable": "Cable",
-    "machine": "Machine",
-    "bands": "Bands",
-    "body only": "Body Only",
-    "medicine ball": "Medicine Ball",
-    "exercise ball": "Exercise Ball",
-    "foam roll": "Foam Roll",
-    "e-z curl bar": "E-Z Curl Bar",
-    "other": "Other"
+    "title": "Equipment"
   },
   "sleepAnalyticsCharts": {
     "sleepStages": "Sleep Stages",

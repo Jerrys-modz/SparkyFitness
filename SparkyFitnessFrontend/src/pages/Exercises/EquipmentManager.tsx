@@ -121,7 +121,12 @@ const ShoeCard: React.FC<{
   );
 };
 
-const Shoes: React.FC = () => {
+/**
+ * The Equipment section of the Exercises page. Shoes are the only kind of
+ * equipment tracked so far, so they fill it; another kind would get its own
+ * heading inside this card.
+ */
+const EquipmentManager: React.FC = () => {
   const { t } = useTranslation();
   const { data: shoes, isLoading } = useShoes();
   const createShoe = useCreateShoeMutation();
@@ -170,78 +175,80 @@ const Shoes: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold">
-            <Footprints className="h-6 w-6" />
-            {t('shoes.title', 'Shoes')}
-          </h1>
-          <p className="text-sm text-muted-foreground">
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <div className="min-w-0">
+          <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight">
+            {t('equipment.title', 'Equipment')}
+          </CardTitle>
+          <CardDescription>
             {t(
               'shoes.subtitle',
               'Keep track of the mileage on each pair of running shoes.'
             )}
-          </p>
+          </CardDescription>
         </div>
-        <Button onClick={openAdd}>
+        <Button onClick={openAdd} className="shrink-0">
           <Plus className="mr-1 h-4 w-4" />
           {t('shoes.addShoe', 'Add shoe')}
         </Button>
-      </div>
-
-      {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Skeleton className="h-40" />
-          <Skeleton className="h-40" />
-        </div>
-      ) : (shoes ?? []).length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-muted-foreground">
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <h3 className="flex items-center gap-2 text-lg font-semibold">
+          <Footprints className="h-5 w-5" />
+          {t('shoes.title', 'Shoes')}
+        </h3>
+        {isLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Skeleton className="h-40" />
+            <Skeleton className="h-40" />
+          </div>
+        ) : (shoes ?? []).length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
             {t(
               'shoes.empty',
               'No shoes yet. Add a pair, then pick it on a run to start counting its mileage.'
             )}
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          {active.length > 0 && renderCards(active)}
-          {retired.length > 0 && (
-            <section className="space-y-3">
-              <h2 className="text-lg font-semibold">
-                {t('shoes.retiredSection', 'Retired')}
-              </h2>
-              {renderCards(retired)}
-            </section>
-          )}
-        </>
-      )}
-
-      <ShoeFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        shoe={editing}
-        onSubmit={handleSubmit}
-        isSaving={createShoe.isPending || updateShoe.isPending}
-      />
-      <ConfirmationDialog
-        open={pendingDelete !== null}
-        onOpenChange={(open) => !open && setPendingDelete(null)}
-        title={t('shoes.deleteTitle', 'Delete this shoe?')}
-        description={t(
-          'shoes.deleteDescription',
-          'Runs logged with this pair stay in your diary, but they will no longer be linked to a shoe.'
+          </p>
+        ) : (
+          <>
+            {active.length > 0 && renderCards(active)}
+            {retired.length > 0 && (
+              <section className="space-y-3">
+                <h4 className="text-base font-semibold text-muted-foreground">
+                  {t('shoes.retiredSection', 'Retired')}
+                </h4>
+                {renderCards(retired)}
+              </section>
+            )}
+          </>
         )}
-        variant="destructive"
-        confirmLabel={t('common.delete', 'Delete')}
-        onConfirm={() => {
-          if (pendingDelete) deleteShoe.mutate(pendingDelete.id);
-          setPendingDelete(null);
-        }}
-      />
-    </div>
+
+        <ShoeFormDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          shoe={editing}
+          onSubmit={handleSubmit}
+          isSaving={createShoe.isPending || updateShoe.isPending}
+        />
+        <ConfirmationDialog
+          open={pendingDelete !== null}
+          onOpenChange={(open) => !open && setPendingDelete(null)}
+          title={t('shoes.deleteTitle', 'Delete this shoe?')}
+          description={t(
+            'shoes.deleteDescription',
+            'Runs logged with this pair stay in your diary, but they will no longer be linked to a shoe.'
+          )}
+          variant="destructive"
+          confirmLabel={t('common.delete', 'Delete')}
+          onConfirm={() => {
+            if (pendingDelete) deleteShoe.mutate(pendingDelete.id);
+            setPendingDelete(null);
+          }}
+        />
+      </CardContent>
+    </Card>
   );
 };
 
-export default Shoes;
+export default EquipmentManager;

@@ -1,7 +1,7 @@
 import { fireEvent, screen } from '@testing-library/react';
 import type { ShoeResponse } from '@workspace/shared';
 import { renderWithClient } from '../test-utils';
-import Shoes from '@/pages/Shoes/Shoes';
+import EquipmentManager from '@/pages/Exercises/EquipmentManager';
 import { useShoes } from '@/hooks/Shoes/useShoes';
 
 jest.mock('@/hooks/Shoes/useShoes', () => ({
@@ -58,7 +58,7 @@ describe('Shoes page', () => {
 
   it('shows the empty state when there are no shoes', () => {
     (useShoes as jest.Mock).mockReturnValue({ data: [], isLoading: false });
-    renderWithClient(<Shoes />);
+    renderWithClient(<EquipmentManager />);
     expect(screen.getByText(/No shoes yet/i)).toBeTruthy();
   });
 
@@ -70,7 +70,7 @@ describe('Shoes page', () => {
       ],
       isLoading: false,
     });
-    renderWithClient(<Shoes />);
+    renderWithClient(<EquipmentManager />);
 
     expect(screen.getByText('812.0 km')).toBeTruthy();
     expect(screen.getByText('Worn out')).toBeTruthy();

@@ -6,7 +6,7 @@ Keep a list of your running shoes and see how many kilometres (or miles) each pa
 
 ## Adding a pair
 
-1. Open **Shoes** from the navigation (on the web it is one of the main tabs; in the mobile app it is under **Settings**).
+1. Open the **Equipment** section: on the web it is at the bottom of the **Exercises** page; in the mobile app it is **Library > Equipment**.
 2. Tap **Add shoe** and fill in the details:
    - **Name** is the only required field. Brand, model and a nickname are optional.
    - **Starting mileage** is for a pair that already has some distance on it when you add it.
