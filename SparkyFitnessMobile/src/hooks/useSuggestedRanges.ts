@@ -12,18 +12,19 @@ import {
   referencePace,
   suggestedHeartRateRanges,
   suggestedPaceRanges,
+  warmPaceFromEasy,
   type SuggestedPair,
 } from '../utils/suggestedRanges';
 
 export interface SuggestedRanges {
-  /** Fast and easy pace ranges from recent sessions, or null without enough history. */
+  /** Fast, easy and warm-up pace ranges from recent sessions, or null without enough history. */
   pace: (SuggestedPair<PaceBand> & { sessions: number }) | null;
-  /** Fast and easy heart-rate ranges from the person's age, or null without a birth date. */
+  /** Fast, easy and warm-up heart-rate ranges from the person's age, or null without a birth date. */
   heartRate: (SuggestedPair<HeartRateBand> & { maxHeartRate: number }) | null;
 }
 
 /**
- * Ranges to offer for a plan's fast and easy stretches: pace from the last
+ * Ranges to offer for a plan's fast and easy stretches and its warm-up and cool-down: pace from the last
  * couple of months of outdoor sessions of the same sport, heart rate from the
  * estimated maximum for the person's age. Reads the sessions the cardio view
  * already loads, and only when `enabled`.
@@ -58,7 +59,7 @@ export function useSuggestedRanges(
     const easy = zones && paceZone(zones.zones, 'easy');
     const pace =
       zones && interval && easy
-        ? { work: interval, easy }
+        ? { work: interval, easy, warm: warmPaceFromEasy(easy) }
         : reference
           ? suggestedPaceRanges(reference, activity)
           : null;
@@ -76,6 +77,10 @@ export function useSuggestedRanges(
               easy: {
                 minSecondsPerKm: pace.easy.minSecondsPerKm,
                 maxSecondsPerKm: pace.easy.maxSecondsPerKm,
+              },
+              warm: {
+                minSecondsPerKm: pace.warm.minSecondsPerKm,
+                maxSecondsPerKm: pace.warm.maxSecondsPerKm,
               },
               sessions: zones?.sessions ?? reference?.sessions ?? 0,
             }

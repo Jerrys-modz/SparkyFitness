@@ -412,54 +412,65 @@ export function isValidIntervalPlan(value: unknown): value is IntervalPlan {
         (step.unit === undefined || step.unit === "m" || step.unit === "mi") &&
         (step.pace === undefined || normalizePaceBand(step.pace) !== null) &&
         (step.heartRate === undefined ||
-          normalizeHeartRateBand(step.heartRate) !== null)
+          normalizeHeartRateBand(step.heartRate) !== null),
     )
   );
 }
 
 /** Whether the last step has begun, i.e. the person got through the plan. */
 export const lastStepStarted = (
-  intervals: { plan: IntervalPlan; cued: number } | undefined
+  intervals: { plan: IntervalPlan; cued: number } | undefined,
 ): boolean => !!intervals && intervals.cued >= intervals.plan.steps.length - 1;
 
 /**
  * The plan with a pace range on its fast and easy stretches: `work` goes on
- * every work step and `easy` on every recovery step. Warm-up and cool-down
- * stay free. A band that is not usable is ignored.
+ * every work step, `easy` on every recovery step and `warm` on the warm-up and
+ * cool-down. A step left without a range is not judged by the plan. A band
+ * that is not usable is ignored.
  */
 export function applyPaceTargets(
   plan: IntervalPlan,
-  targets: { work?: PaceBand | null; easy?: PaceBand | null }
+  targets: {
+    work?: PaceBand | null;
+    easy?: PaceBand | null;
+    warm?: PaceBand | null;
+  },
 ): IntervalPlan {
   const work = normalizePaceBand(targets.work);
   const easy = normalizePaceBand(targets.easy);
-  if (!work && !easy) return plan;
+  const warm = normalizePaceBand(targets.warm);
+  if (!work && !easy && !warm) return plan;
   return {
     ...plan,
     steps: plan.steps.map((step) => {
       const pace =
-        step.kind === "work" ? work : step.kind === "recovery" ? easy : null;
+        step.kind === "work" ? work : step.kind === "recovery" ? easy : warm;
       return pace ? { ...step, pace } : step;
     }),
   };
 }
 
 /**
- * The same for heart rate: `work` goes on every work step and `easy` on every
- * recovery step.
+ * The same for heart rate: `work` goes on every work step, `easy` on every
+ * recovery step and `warm` on the warm-up and cool-down.
  */
 export function applyHeartRateTargets(
   plan: IntervalPlan,
-  targets: { work?: HeartRateBand | null; easy?: HeartRateBand | null }
+  targets: {
+    work?: HeartRateBand | null;
+    easy?: HeartRateBand | null;
+    warm?: HeartRateBand | null;
+  },
 ): IntervalPlan {
   const work = normalizeHeartRateBand(targets.work);
   const easy = normalizeHeartRateBand(targets.easy);
-  if (!work && !easy) return plan;
+  const warm = normalizeHeartRateBand(targets.warm);
+  if (!work && !easy && !warm) return plan;
   return {
     ...plan,
     steps: plan.steps.map((step) => {
       const heartRate =
-        step.kind === "work" ? work : step.kind === "recovery" ? easy : null;
+        step.kind === "work" ? work : step.kind === "recovery" ? easy : warm;
       return heartRate ? { ...step, heartRate } : step;
     }),
   };
