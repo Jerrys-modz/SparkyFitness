@@ -7924,6 +7924,38 @@
       "tooFewDays": "Pick at least two days to run.",
       "create": "Create and start the plan",
       "open": "Plan a race"
+    },
+    "goals": {
+      "title": "Running goals",
+      "intro": "Set a weekly distance to aim for and a race to count down to.",
+      "set": "Set a goal",
+      "edit": "Edit",
+      "none": "None",
+      "unit": {
+        "km": "km",
+        "miles": "mi"
+      },
+      "weeklyLabel": "Weekly distance ({{unit}})",
+      "weeklyProgress": "{{done}} of {{target}} {{unit}} this week",
+      "weeklyReached": "Weekly goal reached",
+      "weeklyNeeded_one": "{{amount}} {{unit}} today to reach it ({{count}} day left)",
+      "weeklyNeeded_other": "About {{amount}} {{unit}} a day to reach it ({{count}} days left)",
+      "raceNameLabel": "Race name",
+      "raceDefaultName": "Race day",
+      "raceDistanceLabel": "Race distance ({{unit}})",
+      "raceDateLabel": "Race day",
+      "pickDate": "Pick a date",
+      "clearRace": "Remove race",
+      "raceToday": "Race day is today",
+      "raceIn_one": "{{count}} day to go",
+      "raceIn_other": "{{count}} days to go",
+      "racePast_one": "{{count}} day ago",
+      "racePast_other": "{{count}} days ago",
+      "errors": {
+        "distance": "Enter a distance above zero, or leave it empty.",
+        "raceDay": "Pick the race day, or clear the race name and distance.",
+        "save": "Could not save your goals. Please try again."
+      }
     }
   },
   "speechVoice": {

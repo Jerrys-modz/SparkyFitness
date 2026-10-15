@@ -14,6 +14,7 @@ import RunProgramCard, {
   programDescription,
   programName,
 } from '../components/recording/RunProgramCard';
+import RunGoalsCard from '../components/recording/RunGoalsCard';
 import RunProgramCalendar from '../components/recording/RunProgramCalendar';
 import RunProgramGuide, {
   programStructure,
@@ -25,6 +26,7 @@ import ProgramActionRow, {
 import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
+import { useRunGoals } from '../hooks/useRunGoals';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import {
   restartProgram,
@@ -52,6 +54,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { status, enabled, lastAdjustment, schedule, doneDay, loaded } =
     useRunProgram();
+  const goals = useRunGoals();
   const [now] = useState(() => Date.now());
   const today = toLocalDateString(new Date(now));
   const [chosenId, setChosenId] = useState('beginner5k');
@@ -386,6 +389,16 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
     );
   }
 
+  const goalsCard = goals.data ? (
+    <RunGoalsCard
+      data={goals.data}
+      distanceUnit={goals.distanceUnit}
+      today={today}
+      saving={goals.isSaving}
+      onSave={goals.save}
+    />
+  ) : null;
+
   return (
     <>
       {header}
@@ -396,6 +409,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           paddingBottom: insets.bottom + 24,
         }}
       >
+        {goalsCard}
         {body}
       </ScrollView>
       <CalendarSheet
