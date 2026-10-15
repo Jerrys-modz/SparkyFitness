@@ -155,7 +155,9 @@
       "fasting": "Fasting",
       "goals": "Goals",
       "reports": "Reports",
-      "customMeasurements": "Custom Measurements"
+      "customMeasurements": "Custom Measurements",
+      "addMenu": "Add menu",
+      "profile": "Profile & Account"
     },
     "theme": {
       "title": "Theme",
@@ -639,7 +641,8 @@
     "runProgramEdit": "Edit plan",
     "runProgramNew": "New plan",
     "runProgramRace": "Plan a race",
-    "allergenSettings": "Allergens"
+    "allergenSettings": "Allergens",
+    "addMenuSettings": "Add menu"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -8021,5 +8024,17 @@
       "foodDatabase": "Food Database",
       "reportTabular": "Report (Tabular)"
     }
+  },
+  "addMenuSettings": {
+    "reorder": "Reorder {{name}}",
+    "reorderHint": "Changes where this row sits in the + menu",
+    "reset": "Reset to default",
+    "cardsTitle": "Big buttons",
+    "cardsDescription": "The four buttons at the top of the + menu. Tap one to choose what goes there. Choosing something already placed swaps the two.",
+    "rowsTitle": "Rows",
+    "rowsDescription": "Everything else, listed under the buttons. Drag a row by its handle to move it. Toggle a row off to hide it.",
+    "chooseCard": "Choose a big button",
+    "slotLabel": "Big button {{number}}: {{name}}",
+    "slotHint": "Opens a list to choose what goes here"
   }
 }

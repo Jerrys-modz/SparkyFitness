@@ -392,6 +392,7 @@ export type RootStackParamList = {
   DashboardSettings: undefined;
   HealthTrendsSettings: undefined;
   WatchSettings: undefined;
+  AddMenuSettings: undefined;
   DiarySettings: undefined;
   CustomCategories: undefined;
   CustomCategoryEdit: { categoryId?: string } | undefined;

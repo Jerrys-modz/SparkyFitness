@@ -15,6 +15,12 @@ import {
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import {
+  ADD_MENU_ITEM_KEYS,
+  DEFAULT_ADD_MENU_CARDS,
+  type AddMenuItemKey,
+} from '../constants/addMenuItems';
+import { resolveAddMenuCards } from '../utils/addMenu';
+import {
   DASHBOARD_CARD_KEYS,
   type DashboardCardKey,
 } from '../constants/dashboardCards';
@@ -123,6 +129,9 @@ export const PREFERENCE_DEFAULTS = {
   languagePreference: 'system' as LanguagePreference,
   healthTrendOrder: [...HEALTH_TREND_KEYS] as HealthTrendKey[],
   hiddenHealthTrends: [] as HealthTrendKey[],
+  addMenuCards: [...DEFAULT_ADD_MENU_CARDS] as AddMenuItemKey[],
+  addMenuOrder: [...ADD_MENU_ITEM_KEYS] as AddMenuItemKey[],
+  hiddenAddMenuItems: [] as AddMenuItemKey[],
   watchPageOrder: [...WATCH_PAGE_KEYS] as WatchPageKey[],
   hiddenWatchPages: [] as WatchPageKey[],
   watchDoubleTapEnabled: true,
@@ -211,6 +220,12 @@ export type AppPreferencesData = {
   languagePreference: LanguagePreference;
   healthTrendOrder: HealthTrendKey[];
   hiddenHealthTrends: HealthTrendKey[];
+  /** The four items in the + sheet's big card slots, in order. */
+  addMenuCards: AddMenuItemKey[];
+  /** Order of the rows under the cards in the + sheet. */
+  addMenuOrder: AddMenuItemKey[];
+  /** + sheet rows turned off in Settings → Add menu. */
+  hiddenAddMenuItems: AddMenuItemKey[];
   /** Swipe order of the Apple Watch app's pages; sent to the watch. */
   watchPageOrder: WatchPageKey[];
   /** Watch pages turned off in Settings → Apple Watch. */
@@ -299,6 +314,10 @@ export interface AppPreferencesState extends AppPreferencesData {
   setLanguagePreference: (value: LanguagePreference) => void;
   setHealthTrendOrder: (order: HealthTrendKey[]) => void;
   setHealthTrendHidden: (key: HealthTrendKey, isHidden: boolean) => void;
+  setAddMenuCards: (cards: AddMenuItemKey[]) => void;
+  setAddMenuOrder: (order: AddMenuItemKey[]) => void;
+  setAddMenuItemHidden: (key: AddMenuItemKey, isHidden: boolean) => void;
+  resetAddMenu: () => void;
   setWatchPageOrder: (order: WatchPageKey[]) => void;
   setWatchPageHidden: (key: WatchPageKey, isHidden: boolean) => void;
   setReportOrder: (order: ReportKey[]) => void;
@@ -465,6 +484,32 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
             isHidden
           ),
         })),
+      setAddMenuCards: (cards) =>
+        set((state) => {
+          const resolved = resolveAddMenuCards(cards);
+          return {
+            addMenuCards: resolved,
+            // An item given a card is shown, whatever its row switch said.
+            hiddenAddMenuItems: state.hiddenAddMenuItems.filter(
+              (key) => !resolved.includes(key)
+            ),
+          };
+        }),
+      setAddMenuOrder: (order) => set({ addMenuOrder: order }),
+      setAddMenuItemHidden: (key, isHidden) =>
+        set((state) => ({
+          hiddenAddMenuItems: withMembership(
+            state.hiddenAddMenuItems,
+            key,
+            isHidden
+          ),
+        })),
+      resetAddMenu: () =>
+        set({
+          addMenuCards: [...DEFAULT_ADD_MENU_CARDS],
+          addMenuOrder: [...ADD_MENU_ITEM_KEYS],
+          hiddenAddMenuItems: [],
+        }),
       setWatchPageOrder: (order) => set({ watchPageOrder: order }),
       setReportOrder: (order) => set({ reportOrder: order }),
       setReportHidden: (key, isHidden) =>
@@ -591,6 +636,9 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         languagePreference: state.languagePreference,
         healthTrendOrder: state.healthTrendOrder,
         hiddenHealthTrends: state.hiddenHealthTrends,
+        addMenuCards: state.addMenuCards,
+        addMenuOrder: state.addMenuOrder,
+        hiddenAddMenuItems: state.hiddenAddMenuItems,
         watchPageOrder: state.watchPageOrder,
         hiddenWatchPages: state.hiddenWatchPages,
         watchDoubleTapEnabled: state.watchDoubleTapEnabled,
