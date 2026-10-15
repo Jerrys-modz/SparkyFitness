@@ -478,6 +478,19 @@ const ActivityReportVisualizer = ({
             )}
           </p>
         )}
+        {paceData.length > 0 ? (
+          <ActivityPaceChart
+            data={paceData}
+            // Pace against distance reads best for a run or ride, so use it
+            // whenever the track has distance, whatever the full report shows.
+            xAxisMode={hasDistanceData ? 'distance' : effectiveXAxisMode}
+            getXAxisDataKey={() =>
+              hasDistanceData ? 'distance' : getXAxisDataKey()
+            }
+            getXAxisLabel={getXAxisLabel}
+            distanceUnit={distanceUnit}
+          />
+        ) : null}
         {heartRateData.length > 0 || workoutHrSeries.length > 0 ? (
           <ActivityHeartRateChart
             data={heartRateData.length > 0 ? heartRateData : workoutHrSeries}
