@@ -19,6 +19,8 @@ import {
   type IndoorDistanceEstimate,
 } from './stepDistance';
 import { assignShoeToExerciseEntry, fetchShoes } from './api/shoesApi';
+import { findShoeThatReachedLimit } from './shoeWear';
+import type { ShoeResponse } from '@workspace/shared';
 import { buildActivitySetsPayload } from '../utils/workoutSession';
 import { toLocalDateString } from '../utils/dateUtils';
 import {
@@ -88,6 +90,8 @@ const pad = (value: number) => String(value).padStart(2, '0');
 export interface SavedRecording {
   entryId: string;
   entryDate: string;
+  /** Set when this run took the default pair to its retire-at distance. */
+  wornOutShoe?: ShoeResponse;
 }
 
 /**
@@ -123,6 +127,7 @@ export async function saveRecordedActivity(
     : Math.round(summarizeRecording(points).distanceMeters) / METERS_PER_KM;
 
   let entryId = session.savedEntryId;
+  let wornOutShoe: ShoeResponse | null = null;
   if (!entryId) {
     const exercise = await resolveRecordingExercise(session.activity);
     const created = await createExerciseEntry({
@@ -172,7 +177,7 @@ export async function saveRecordedActivity(
       addLog(`[GPS Recording] Could not learn stride: ${message}`, 'WARNING');
     }
     if (session.activity === 'run') {
-      await assignDefaultShoe(entryId);
+      wornOutShoe = await assignDefaultShoe(entryId);
     }
   }
 
@@ -191,7 +196,7 @@ export async function saveRecordedActivity(
     });
   }
   await attachWatchHeartRate(entryId);
-  return { entryId, entryDate };
+  return { entryId, entryDate, ...(wornOutShoe && { wornOutShoe }) };
 }
 
 /**
@@ -200,18 +205,27 @@ export async function saveRecordedActivity(
  * blocks the save. Runs only when the entry is first created, so retrying the
  * route upload does not undo a shoe the person changed in between.
  */
-async function assignDefaultShoe(entryId: string): Promise<void> {
+async function assignDefaultShoe(
+  entryId: string
+): Promise<ShoeResponse | null> {
   try {
     const shoes = await fetchShoes('active');
     const defaultShoe = shoes.find((shoe) => shoe.is_default);
-    if (!defaultShoe) return;
+    if (!defaultShoe) return null;
     await assignShoeToExerciseEntry(entryId, defaultShoe.id);
+    // Only the lookup of whether the pair is now worn out is optional: the
+    // run is already linked, so a failure there is not worth reporting.
+    return await findShoeThatReachedLimit(
+      defaultShoe.id,
+      defaultShoe.is_worn_out
+    ).catch(() => null);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     addLog(
       `[GPS Recording] Could not assign default shoe: ${message}`,
       'WARNING'
     );
+    return null;
   }
 }
 
