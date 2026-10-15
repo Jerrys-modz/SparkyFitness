@@ -612,6 +612,7 @@
     "exerciseStatistics": "Exercise Statistics",
     "cardioSession": "Cardio Session",
     "watchSettings": "Apple Watch",
+    "allergenSettings": "Allergens",
     "aiSettings": "AI",
     "fastingSettings": "Fasting Settings",
     "fasting": "Fasting",
@@ -3988,6 +3989,10 @@
       "default": "Default",
       "retryTitle": "Retry with Open Food Facts",
       "retryDescription": "If no result is found, try Open Food Facts automatically."
+    },
+    "allergens": {
+      "title": "Allergens",
+      "subtitle": "Get warnings on foods and scans that contain allergens you track"
     }
   },
   "workoutComplete": {
@@ -6443,6 +6448,55 @@
         "title": "Scan Labels On Device",
         "description": "Read nutrition labels with Apple Intelligence on this device. If it cannot read a label, the server AI provider is used instead."
       }
+    }
+  },
+  "allergens": {
+    "trace": "trace: {{name}}",
+    "warningTitle": "Contains an allergen you track",
+    "traceWarningTitle": "May contain an allergen you track",
+    "mayContainTraces": "May contain traces of: {{names}}"
+  },
+  "allergenSettings": {
+    "title": "Allergens",
+    "description": "Add the allergens you want to be warned about. When a food contains one of these, a warning badge appears on foods and diary entries.",
+    "common": "Common allergens",
+    "custom": "Custom allergen",
+    "customPlaceholder": "e.g., lupin, molluscs…",
+    "tracked": "Your tracked allergens",
+    "empty": "No allergens tracked yet. Add some above to get warnings on foods.",
+    "remove": "Remove {{name}}",
+    "alreadyAdded": "Already added",
+    "alreadyAddedDescription": "{{name}} is already in your list.",
+    "errors": {
+      "error": "Error",
+      "updateFailed": "Failed to update allergens."
+    },
+    "sync": {
+      "title": "Sync from OpenFoodFacts",
+      "description": "Fetch allergen data for your saved OpenFoodFacts foods. Only needs to be done once.",
+      "button": "Sync allergens",
+      "complete": "Allergen sync complete",
+      "upToDate": "All your OpenFoodFacts foods already have allergen data.",
+      "result": "Updated {{updated}} of {{total}} food(s).",
+      "failed": "Sync failed",
+      "failedDescription": "Could not sync allergens. Please try again."
+    },
+    "names": {
+      "gluten": "gluten",
+      "wheat": "wheat",
+      "milk": "milk",
+      "eggs": "eggs",
+      "peanuts": "peanuts",
+      "treeNuts": "tree nuts",
+      "soy": "soy",
+      "fish": "fish",
+      "shellfish": "shellfish",
+      "crustaceans": "crustaceans",
+      "sesame": "sesame",
+      "celery": "celery",
+      "mustard": "mustard",
+      "lupin": "lupin",
+      "sulphites": "sulphites"
     }
   },
   "fastingSettings": {

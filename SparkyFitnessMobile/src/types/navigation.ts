@@ -379,6 +379,7 @@ export type RootStackParamList = {
   WeeklyGoalPlanEdit: { planId?: string } | undefined;
   MealTypeSettings: undefined;
   FoodSettings: undefined;
+  AllergenSettings: undefined;
   DashboardSettings: undefined;
   HealthTrendsSettings: undefined;
   WatchSettings: undefined;
