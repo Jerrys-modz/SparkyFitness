@@ -244,10 +244,11 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
         return Position(index: steps.count, label: String(localized: "watch.run.planComplete", defaultValue: "Plan complete"), remaining: 0, next: nil, finished: true)
     }
 
-    /// Whether the last step has begun: the rule the phone uses to tick off a program workout.
-    func lastStepStarted(at elapsed: TimeInterval) -> Bool {
-        guard let last = steps.last else { return false }
-        return elapsed >= totalSeconds - last.seconds
+    /// Whether every step has run its full length (active time, so pauses do
+    /// not count): the rule the phone uses to tick off a program workout.
+    /// Starting the last step is not enough; stopping inside it is a run cut short.
+    func completed(at elapsed: TimeInterval) -> Bool {
+        !steps.isEmpty && elapsed >= totalSeconds
     }
 
     static func clock(_ seconds: Double) -> String {

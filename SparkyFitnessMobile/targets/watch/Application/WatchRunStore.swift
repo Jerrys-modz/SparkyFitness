@@ -331,7 +331,7 @@ final class WatchRunStore: ObservableObject {
     /// What follows a program workout that reached its last step, from the
     /// phone; nil for any other run or one stopped early.
     private func programDoneText(elapsed: TimeInterval) -> String? {
-        guard let plan, plan.programId != nil, plan.lastStepStarted(at: elapsed) else { return nil }
+        guard let plan, plan.programId != nil, plan.completed(at: elapsed) else { return nil }
         return plan.doneText
     }
 
