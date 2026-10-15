@@ -472,6 +472,15 @@ export function ingestFixes(fixes: readonly RawFix[]): Promise<void> {
       if (accepted) {
         points.push(accepted);
         added++;
+        // A distance step ends at the fix that crossed it, so the step after
+        // it starts from that fix's time rather than the end of the batch.
+        if (
+          session.intervals &&
+          planHasDistanceSteps(session.intervals.plan) &&
+          advanceIntervals(Math.min(accepted.t, Date.now()))
+        ) {
+          sessionChanged = true;
+        }
       }
     }
     const splitText = added > 0 ? cueSplit() : null;

@@ -242,6 +242,20 @@ describe('distance steps', () => {
     expect((await stored())?.intervals?.cued).toBe(2);
   });
 
+  test('start the next step from the fix that crossed the distance, not the batch end', async () => {
+    await startRecording({
+      activity: 'run',
+      intervals: distancePlan,
+      notification,
+    });
+    // One late batch: 400 m is reached at 100 s but the batch ends at 130 s.
+    at(130);
+    await ingestFixes(runFixes(0, 130));
+    const cursor = (await stored())?.intervals?.cursor;
+    expect(cursor?.index).toBe(1);
+    expect(cursor?.startSeconds).toBe(100);
+  });
+
   test('say how far the step is and when 100 m is left', async () => {
     const long = buildIntervalPlan({
       style: 'fastEasy',
