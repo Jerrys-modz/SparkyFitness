@@ -189,6 +189,9 @@ export const CreateCustomCategoryBodySchema = z
     frequency: requiredLegacyString('frequency'),
     measurement_type: requiredLegacyString('measurement_type'),
     data_type: nullableOptionalLegacyString,
+    is_lab: z.boolean().optional(),
+    ref_range_low: z.number().nullable().optional(),
+    ref_range_high: z.number().nullable().optional(),
   })
   .loose();
 
@@ -203,6 +206,9 @@ export const UpdateCustomCategoryBodySchema = z
     frequency: optionalLegacyString,
     measurement_type: optionalLegacyString,
     data_type: nullableOptionalLegacyString,
+    is_lab: z.boolean().optional(),
+    ref_range_low: z.number().nullable().optional(),
+    ref_range_high: z.number().nullable().optional(),
   })
   .loose();
 
