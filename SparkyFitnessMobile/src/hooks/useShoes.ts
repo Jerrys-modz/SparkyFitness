@@ -52,7 +52,7 @@ export function useShoeMutations() {
     // Shared by every caller (save, retire, reactivate), so none of them needs
     // its own failure feedback.
     onError: (error) => {
-      addLog(`Failed to update shoe: ${error}`, 'ERROR');
+      addLog('Failed to update shoe', 'ERROR', [String(error)]);
       Toast.show({
         type: 'error',
         text1: t('shoes.updateFailed', {

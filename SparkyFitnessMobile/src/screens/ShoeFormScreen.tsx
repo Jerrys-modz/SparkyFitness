@@ -101,7 +101,7 @@ const ShoeForm: React.FC<{
   const optionalText = (value: string) => value.trim() || null;
 
   const handleError = (error: unknown) => {
-    addLog(`Failed to save shoe: ${error}`, 'ERROR');
+    addLog('Failed to save shoe', 'ERROR', [String(error)]);
     Toast.show({
       type: 'error',
       text1: t('shoes.saveFailed', { defaultValue: 'Failed to save shoe' }),

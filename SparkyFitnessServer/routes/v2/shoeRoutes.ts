@@ -89,9 +89,11 @@ router.get('/', async (req, res, next) => {
  *         application/json:
  *           schema:
  *             type: object
+ *             required: [shoe_id]
  *             properties:
  *               shoe_id:
  *                 type: string
+ *                 format: uuid
  *                 nullable: true
  *                 description: Shoe to link, or null to clear
  *     responses:
@@ -192,7 +194,17 @@ router.get('/:id', async (req, res, next) => {
  *         application/json:
  *           schema:
  *             type: object
- *             description: createShoeBodySchema / updateShoeBodySchema in @workspace/shared
+ *             required: [name]
+ *             properties:
+ *               name: {type: string, minLength: 1, maxLength: 120}
+ *               brand: {type: string, nullable: true, maxLength: 120}
+ *               model: {type: string, nullable: true, maxLength: 120}
+ *               nickname: {type: string, nullable: true, maxLength: 120}
+ *               purchase_date: {type: string, format: date, nullable: true}
+ *               purchase_price: {type: number, minimum: 0, maximum: 99999999.99, nullable: true}
+ *               starting_distance_km: {type: number, minimum: 0, maximum: 9999999.99}
+ *               retirement_distance_km: {type: number, exclusiveMinimum: 0, maximum: 9999999.99}
+ *               is_default: {type: boolean}
  *     responses:
  *       201:
  *         description: The created shoe
@@ -246,7 +258,17 @@ router.post('/', async (req, res, next) => {
  *         application/json:
  *           schema:
  *             type: object
- *             description: createShoeBodySchema / updateShoeBodySchema in @workspace/shared
+ *             properties:
+ *               name: {type: string, minLength: 1, maxLength: 120}
+ *               brand: {type: string, nullable: true, maxLength: 120}
+ *               model: {type: string, nullable: true, maxLength: 120}
+ *               nickname: {type: string, nullable: true, maxLength: 120}
+ *               purchase_date: {type: string, format: date, nullable: true}
+ *               purchase_price: {type: number, minimum: 0, maximum: 99999999.99, nullable: true}
+ *               starting_distance_km: {type: number, minimum: 0, maximum: 9999999.99}
+ *               retirement_distance_km: {type: number, exclusiveMinimum: 0, maximum: 9999999.99}
+ *               is_default: {type: boolean}
+ *               status: {type: string, enum: [active, retired]}
  *     responses:
  *       200:
  *         description: The updated shoe
