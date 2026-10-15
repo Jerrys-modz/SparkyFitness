@@ -6713,6 +6713,10 @@
       "switchHint": "Follow a plan that builds up week by week. Off by default.",
       "paused": "{{name}} is paused at {{done}} of {{total}} workouts. Switch it on to carry on.",
       "startOver": "Start over",
+      "startOverHint": "Go back to the first workout",
+      "skipHint": "Move on without doing this workout",
+      "scheduleTitle": "Schedule",
+      "manageTitle": "Manage",
       "errors": {
         "update": "Could not update your program"
       },
@@ -7367,6 +7371,7 @@
     },
     "partOfProgram": "Part of your training program",
     "openCalendar": "Open the program calendar",
+    "openCalendarHint": "Every workout on a month view",
     "monthGrid": {
       "previous": "Previous month",
       "next": "Next month",
@@ -7473,6 +7478,7 @@
       "heartRateHigh": "Highest heart rate",
       "targetHint": "Use m:ss for pace and bpm for heart rate, with the two ends at least 10 apart. Empty means no target.",
       "customize": "Customize this program",
+      "customizeHint": "Copy it as a plan you can edit",
       "copyName": "{{name}} (my copy)"
     },
     "race": {

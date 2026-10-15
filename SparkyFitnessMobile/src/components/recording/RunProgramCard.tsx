@@ -1,8 +1,9 @@
 import React, { useRef } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import Button from '../ui/Button';
+import ProgramActionRow, { ProgramActionList } from './ProgramActionRow';
 import Switch from '../ui/Switch';
 import BottomSheetPicker, {
   type PickerOption,
@@ -199,7 +200,32 @@ interface Props {
   startLabel?: string;
   onRestart: () => void;
   onSkip: () => void;
+  /** Fill the start button, for the screen whose main job is starting it. */
+  prominent?: boolean;
 }
+
+const SectionHeading: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => (
+  <Text className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+    {children}
+  </Text>
+);
+
+const InlineLink: React.FC<{
+  onPress: () => void;
+  children: string;
+}> = ({ onPress, children }) => (
+  <Pressable
+    accessibilityRole="button"
+    onPress={onPress}
+    hitSlop={8}
+    className="mr-5"
+    style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+  >
+    <Text className="text-text-link text-sm font-semibold">{children}</Text>
+  </Pressable>
+);
 
 /** Start, follow and leave a multi-week run program. */
 const RunProgramCard: React.FC<Props> = ({
@@ -219,6 +245,7 @@ const RunProgramCard: React.FC<Props> = ({
   startLabel,
   onRestart,
   onSkip,
+  prominent = false,
 }) => {
   const { t } = useTranslation();
   const calendarRef = useRef<CalendarSheetRef>(null);
@@ -375,7 +402,8 @@ const RunProgramCard: React.FC<Props> = ({
   return (
     <View className="bg-surface rounded-xl p-4 mt-4">
       {header}
-      <Text className="text-text-primary text-sm font-semibold mt-3">
+      <View className="h-px bg-border-subtle mt-4" />
+      <Text className="text-text-primary text-lg font-semibold mt-4">
         {status.finished
           ? t('recordActivity.program.finished', {
               name: programTitle(t, status.program),
@@ -418,36 +446,37 @@ const RunProgramCard: React.FC<Props> = ({
           style={{ width: `${Math.round(fraction * 100)}%` }}
         />
       </View>
-      <View className="flex-row mt-3">
+      <View className="mt-4">
         {status.finished ? (
-          <View className="flex-1 mr-2">
-            <Button variant="outline" onPress={onRestart}>
-              {t('recordActivity.program.restart', {
-                defaultValue: 'Start again',
-              })}
-            </Button>
-          </View>
+          <Button variant="outline" onPress={onRestart}>
+            {t('recordActivity.program.restart', {
+              defaultValue: 'Start again',
+            })}
+          </Button>
         ) : (
-          <View className="flex-1 mr-2">
-            <Button
-              variant={selected ? 'primary' : 'outline'}
-              onPress={onSelect}
-            >
-              {selected
-                ? t('recordActivity.program.using', {
-                    defaultValue: 'Using this workout',
-                  })
-                : (startLabel ??
-                  t('recordActivity.program.doThis', {
-                    defaultValue: 'Do this workout',
-                  }))}
-            </Button>
-          </View>
+          <Button
+            variant={selected || prominent ? 'primary' : 'outline'}
+            onPress={onSelect}
+          >
+            {selected
+              ? t('recordActivity.program.using', {
+                  defaultValue: 'Using this workout',
+                })
+              : (startLabel ??
+                t('recordActivity.program.doThis', {
+                  defaultValue: 'Do this workout',
+                }))}
+          </Button>
         )}
       </View>
       {status.finished ? null : (
-        <View className="mt-3">
-          <Text className="text-text-primary text-sm font-semibold">
+        <View className="mt-6">
+          <SectionHeading>
+            {t('recordActivity.program.scheduleTitle', {
+              defaultValue: 'Schedule',
+            })}
+          </SectionHeading>
+          <Text className="text-text-primary text-sm font-semibold mt-3">
             {t('recordActivity.program.diaryDays', {
               defaultValue: 'Days in your Diary',
             })}
@@ -488,7 +517,8 @@ const RunProgramCard: React.FC<Props> = ({
                     'Pick the days you plan to train, or leave them empty to see the workout every day.',
                 })}
           </Text>
-          <Text className="text-text-primary text-sm font-semibold mt-3">
+          <View className="h-px bg-border-subtle mt-4" />
+          <Text className="text-text-primary text-sm font-semibold mt-4">
             {t('recordActivity.program.startDay', {
               defaultValue: 'First workout',
             })}
@@ -512,27 +542,22 @@ const RunProgramCard: React.FC<Props> = ({
                       'Starts today, {{date}}. Pick a later date if you want to begin then.',
                   })}
           </Text>
-          <View className="flex-row">
-            <Button
-              variant="link"
-              onPress={() => calendarRef.current?.present()}
-            >
+          <View className="flex-row mt-2">
+            <InlineLink onPress={() => calendarRef.current?.present()}>
               {t('recordActivity.program.startChange', {
                 defaultValue: 'Change start date',
               })}
-            </Button>
+            </InlineLink>
             {hasStart ? (
-              <Button
-                variant="link"
-                onPress={() => onSchedule({ startDay: null })}
-              >
+              <InlineLink onPress={() => onSchedule({ startDay: null })}>
                 {t('recordActivity.program.startClear', {
                   defaultValue: 'Start today',
                 })}
-              </Button>
+              </InlineLink>
             ) : null}
           </View>
-          <Text className="text-text-primary text-sm font-semibold mt-1">
+          <View className="h-px bg-border-subtle mt-4" />
+          <Text className="text-text-primary text-sm font-semibold mt-4">
             {t('recordActivity.program.goalDay', {
               defaultValue: 'Goal date',
             })}
@@ -549,11 +574,8 @@ const RunProgramCard: React.FC<Props> = ({
                     'Optional, for example a race day. The schedule below says whether the program fits before it.',
                 })}
           </Text>
-          <View className="flex-row">
-            <Button
-              variant="link"
-              onPress={() => goalCalendarRef.current?.present()}
-            >
+          <View className="flex-row mt-2">
+            <InlineLink onPress={() => goalCalendarRef.current?.present()}>
               {schedule.endDay
                 ? t('recordActivity.program.goalChange', {
                     defaultValue: 'Change goal date',
@@ -561,63 +583,80 @@ const RunProgramCard: React.FC<Props> = ({
                 : t('recordActivity.program.goalPick', {
                     defaultValue: 'Set a goal date',
                   })}
-            </Button>
+            </InlineLink>
             {schedule.endDay ? (
-              <Button
-                variant="link"
-                onPress={() => onSchedule({ endDay: null })}
-              >
+              <InlineLink onPress={() => onSchedule({ endDay: null })}>
                 {t('recordActivity.program.goalClear', {
                   defaultValue: 'Clear',
                 })}
-              </Button>
+              </InlineLink>
             ) : null}
           </View>
         </View>
       )}
-      <BottomSheetPicker<string>
-        value={programId}
-        options={programOptions}
-        onSelect={onChooseProgram}
-        title={t('recordActivity.program.chooseTitle', {
-          defaultValue: 'Choose a program',
-        })}
-        renderTrigger={({ onPress }) => (
-          <Button variant="link" onPress={onPress}>
-            {t('recordActivity.program.change', {
-              defaultValue: 'Change program',
+      <View className="mt-6">
+        <SectionHeading>
+          {t('recordActivity.program.manageTitle', {
+            defaultValue: 'Manage',
+          })}
+        </SectionHeading>
+        <ProgramActionList>
+          <BottomSheetPicker<string>
+            value={programId}
+            options={programOptions}
+            onSelect={onChooseProgram}
+            title={t('recordActivity.program.chooseTitle', {
+              defaultValue: 'Choose a program',
             })}
-          </Button>
-        )}
-      />
-      <BottomSheetPicker<number>
-        value={Math.min(status.done, status.total - 1)}
-        sections={sections}
-        onSelect={onPickWorkout}
-        title={t('recordActivity.program.pickTitle', {
-          defaultValue: 'Choose a workout',
-        })}
-        renderTrigger={({ onPress }) => (
-          <Button variant="link" onPress={onPress}>
-            {t('recordActivity.program.pick', {
-              defaultValue: 'Choose a different workout',
+            renderTrigger={({ onPress }) => (
+              <ProgramActionRow
+                onPress={onPress}
+                label={t('recordActivity.program.change', {
+                  defaultValue: 'Change program',
+                })}
+              />
+            )}
+          />
+          <BottomSheetPicker<number>
+            value={Math.min(status.done, status.total - 1)}
+            sections={sections}
+            onSelect={onPickWorkout}
+            title={t('recordActivity.program.pickTitle', {
+              defaultValue: 'Choose a workout',
             })}
-          </Button>
-        )}
-      />
-      <View className="flex-row mt-1">
-        {status.finished ? null : (
-          <Button variant="link" onPress={onSkip}>
-            {t('recordActivity.program.skip', { defaultValue: 'Skip' })}
-          </Button>
-        )}
-        {status.done > 0 ? (
-          <Button variant="link" onPress={onRestart}>
-            {t('recordActivity.program.startOver', {
-              defaultValue: 'Start over',
-            })}
-          </Button>
-        ) : null}
+            renderTrigger={({ onPress }) => (
+              <ProgramActionRow
+                onPress={onPress}
+                label={t('recordActivity.program.pick', {
+                  defaultValue: 'Choose a different workout',
+                })}
+              />
+            )}
+          />
+          {status.finished ? null : (
+            <ProgramActionRow
+              onPress={onSkip}
+              chevron={false}
+              label={t('recordActivity.program.skip', { defaultValue: 'Skip' })}
+              hint={t('recordActivity.program.skipHint', {
+                defaultValue: 'Move on without doing this workout',
+              })}
+            />
+          )}
+          {status.done > 0 ? (
+            <ProgramActionRow
+              onPress={onRestart}
+              chevron={false}
+              destructive
+              label={t('recordActivity.program.startOver', {
+                defaultValue: 'Start over',
+              })}
+              hint={t('recordActivity.program.startOverHint', {
+                defaultValue: 'Go back to the first workout',
+              })}
+            />
+          ) : null}
+        </ProgramActionList>
       </View>
       <CalendarSheet
         ref={goalCalendarRef}

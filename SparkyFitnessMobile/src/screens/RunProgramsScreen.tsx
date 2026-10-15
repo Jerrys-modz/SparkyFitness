@@ -19,6 +19,9 @@ import RunProgramGuide, {
   programStructure,
 } from '../components/recording/RunProgramGuide';
 import Button from '../components/ui/Button';
+import ProgramActionRow, {
+  ProgramActionList,
+} from '../components/recording/ProgramActionRow';
 import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
@@ -210,23 +213,27 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         </View>
       ))}
-      <View className="mt-3">
-        <Button
-          variant="outline"
-          onPress={() => navigation.navigate('RunProgramRace')}
-          testID="plan-a-race"
-        >
-          {t('runPrograms.race.open', { defaultValue: 'Plan a race' })}
-        </Button>
-      </View>
-      <View className="mt-3">
-        <Button
-          variant="outline"
-          onPress={() => navigation.navigate('RunProgramEdit')}
-          testID="custom-plan-new"
-        >
-          {t('runPrograms.custom.create', { defaultValue: 'Create a plan' })}
-        </Button>
+      <View className="flex-row mt-3">
+        <View className="flex-1 mr-2">
+          <Button
+            variant="secondary"
+            onPress={() => navigation.navigate('RunProgramRace')}
+            testID="plan-a-race"
+          >
+            {t('runPrograms.race.open', { defaultValue: 'Plan a race' })}
+          </Button>
+        </View>
+        <View className="flex-1">
+          <Button
+            variant="secondary"
+            onPress={() => navigation.navigate('RunProgramEdit')}
+            testID="custom-plan-new"
+          >
+            {t('runPrograms.custom.create', {
+              defaultValue: 'Create a plan',
+            })}
+          </Button>
+        </View>
       </View>
     </View>
   );
@@ -253,21 +260,41 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           onSelect={() =>
             navigation.navigate('RecordActivity', { programWorkout: true })
           }
+          prominent
           startLabel={t('runPrograms.startWorkout', {
             defaultValue: "Start today's workout",
           })}
           onRestart={() => change(restartProgram)}
           onSkip={() => change(skipProgramWorkout)}
         />
-        <View className="mt-4">
-          <Button
-            variant="outline"
-            onPress={() => navigation.navigate('RunProgramCalendar')}
-          >
-            {t('runPrograms.openCalendar', {
-              defaultValue: 'Open the program calendar',
-            })}
-          </Button>
+        <View className="bg-surface rounded-xl px-4 mt-4">
+          <ProgramActionList>
+            <ProgramActionRow
+              label={t('runPrograms.openCalendar', {
+                defaultValue: 'Open the program calendar',
+              })}
+              hint={t('runPrograms.openCalendarHint', {
+                defaultValue: 'Every workout on a month view',
+              })}
+              onPress={() => navigation.navigate('RunProgramCalendar')}
+            />
+            {status.program.custom ? null : (
+              <ProgramActionRow
+                label={t('runPrograms.custom.customize', {
+                  defaultValue: 'Customize this program',
+                })}
+                hint={t('runPrograms.custom.customizeHint', {
+                  defaultValue: 'Copy it as a plan you can edit',
+                })}
+                onPress={() =>
+                  navigation.navigate('RunProgramEdit', {
+                    fromProgramId: status.program.id,
+                  })
+                }
+                testID="customize-current"
+              />
+            )}
+          </ProgramActionList>
         </View>
         <RunProgramCalendar
           status={status}
@@ -279,23 +306,6 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
         <RunProgramGuide
           programId={status.program.custom ? undefined : storedId}
         />
-        {status.program.custom ? null : (
-          <View className="mt-4">
-            <Button
-              variant="outline"
-              onPress={() =>
-                navigation.navigate('RunProgramEdit', {
-                  fromProgramId: status.program.id,
-                })
-              }
-              testID="customize-current"
-            >
-              {t('runPrograms.custom.customize', {
-                defaultValue: 'Customize this program',
-              })}
-            </Button>
-          </View>
-        )}
         {yourPlans}
       </>
     );
