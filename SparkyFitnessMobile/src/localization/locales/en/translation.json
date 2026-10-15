@@ -632,7 +632,8 @@
     "personalRecords": "Personal records",
     "watchRunLive": "On your watch",
     "watchRunLiveRun": "Run on your watch",
-    "watchWalkLive": "Walk on your watch"
+    "watchWalkLive": "Walk on your watch",
+    "allergenSettings": "Allergens"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -3990,6 +3991,10 @@
       "default": "Default",
       "retryTitle": "Retry with Open Food Facts",
       "retryDescription": "If no result is found, try Open Food Facts automatically."
+    },
+    "allergens": {
+      "title": "Allergens",
+      "subtitle": "Get warnings on foods and scans that contain allergens you track"
     }
   },
   "workoutComplete": {
@@ -6807,6 +6812,9 @@
       "paceTooSlow": "Too slow. Pick it up.",
       "heartRateTooHigh": "Heart rate high. Ease off.",
       "heartRateTooLow": "Heart rate low. Pick it up.",
+      "meters_one": "{{count}} meter",
+      "meters_other": "{{count}} meters",
+      "intervalToGo": "{{distance}} to go.",
       "stepCountdown": "Three. Two. One.",
       "milestone5k": "5K done. Nice work.",
       "milestone10k": "10K done. Strong effort.",
@@ -6841,6 +6849,7 @@
       "title": "Intervals",
       "description": "Follow timed steps, like run/walk or speed repeats. You are told when to switch.",
       "descriptionNoRun": "Follow timed steps of fast and easy effort. You are told when to switch.",
+      "distanceOutdoorOnly": "Distance repeats need GPS, so they are only offered outdoors.",
       "off": "Off",
       "custom": "Custom",
       "preset": {
@@ -6849,7 +6858,9 @@
         "runWalk5": "Run/walk, 5 minutes",
         "short": "Short repeats",
         "threeMinutes": "3-minute repeats",
-        "fourByFour": "4 × 4 minutes"
+        "fourByFour": "4 × 4 minutes",
+        "sixBy400m": "6 × 400 m",
+        "fiveBy1k": "5 × 1 km"
       },
       "styleRunWalk": "Run / walk",
       "styleFastEasy": "Fast / easy",
@@ -6859,6 +6870,10 @@
       "walk": "Walk",
       "fast": "Fast",
       "easy": "Easy",
+      "byTime": "By time",
+      "byDistance": "By distance",
+      "unitMeters": "Meters",
+      "unitMiles": "Miles",
       "rounds": "Rounds",
       "decrease": "Decrease {{label}}",
       "increase": "Increase {{label}}",
@@ -7634,5 +7649,54 @@
     "takeRest": "Take a rest day or an easy session.",
     "ready": "You are rested and ready.",
     "explain": "Adds up how long and how hard your workouts were. Usual is your 4-week average. Bars show the last 4 weeks; green is this week."
+  },
+  "allergens": {
+    "trace": "trace: {{name}}",
+    "warningTitle": "Contains an allergen you track",
+    "traceWarningTitle": "May contain an allergen you track",
+    "mayContainTraces": "May contain traces of: {{names}}"
+  },
+  "allergenSettings": {
+    "title": "Allergens",
+    "description": "Add the allergens you want to be warned about. When a food contains one of these, a warning badge appears on foods and diary entries.",
+    "common": "Common allergens",
+    "custom": "Custom allergen",
+    "customPlaceholder": "e.g., lupin, molluscs…",
+    "tracked": "Your tracked allergens",
+    "empty": "No allergens tracked yet. Add some above to get warnings on foods.",
+    "remove": "Remove {{name}}",
+    "alreadyAdded": "Already added",
+    "alreadyAddedDescription": "{{name}} is already in your list.",
+    "errors": {
+      "error": "Error",
+      "updateFailed": "Failed to update allergens."
+    },
+    "sync": {
+      "title": "Sync from OpenFoodFacts",
+      "description": "Fetch allergen data for your saved OpenFoodFacts foods. Only needs to be done once.",
+      "button": "Sync allergens",
+      "complete": "Allergen sync complete",
+      "upToDate": "All your OpenFoodFacts foods already have allergen data.",
+      "result": "Updated {{updated}} of {{total}} food(s).",
+      "failed": "Sync failed",
+      "failedDescription": "Could not sync allergens. Please try again."
+    },
+    "names": {
+      "gluten": "gluten",
+      "wheat": "wheat",
+      "milk": "milk",
+      "eggs": "eggs",
+      "peanuts": "peanuts",
+      "treeNuts": "tree nuts",
+      "soy": "soy",
+      "fish": "fish",
+      "shellfish": "shellfish",
+      "crustaceans": "crustaceans",
+      "sesame": "sesame",
+      "celery": "celery",
+      "mustard": "mustard",
+      "lupin": "lupin",
+      "sulphites": "sulphites"
+    }
   }
 }

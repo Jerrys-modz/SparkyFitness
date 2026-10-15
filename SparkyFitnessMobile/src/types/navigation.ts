@@ -382,6 +382,7 @@ export type RootStackParamList = {
   Shoes: undefined;
   ShoeForm: { shoeId?: string };
   FoodSettings: undefined;
+  AllergenSettings: undefined;
   DashboardSettings: undefined;
   HealthTrendsSettings: undefined;
   WatchSettings: undefined;

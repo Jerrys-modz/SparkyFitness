@@ -769,7 +769,8 @@ export const attachExerciseEntryDistanceSeriesRequestSchema = z
           points.every((point, i) => {
             const previous = points[i - 1];
             return (
-              !previous || (point[0] >= previous[0] && point[1] >= previous[1])
+              previous === undefined ||
+              (point[0] >= previous[0] && point[1] >= previous[1])
             );
           }),
         {
