@@ -243,7 +243,7 @@ const CaloriesBarChart: React.FC<CaloriesBarChartProps> = ({
         (text) => axisFont.getTextWidth(text),
         FALLBACK_LABEL_COLUMN_WIDTH
       ),
-    [yAxisScale.tickValues]
+    [yAxisScale.tickValues, axisFont]
   );
 
   const columns = useMemo(
