@@ -1700,6 +1700,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             testID="live-check-in"
             minutes={session.checkInMinutes ?? 0}
             onChange={(minutes) => {
+              preferenceEdits.current.checkInMinutes = true;
+              setCheckInMinutes(minutes);
               void setCheckInPreference(minutes);
               void setRecordingCheckIn(minutes);
             }}
