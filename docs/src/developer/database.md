@@ -114,7 +114,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `check_in_measurements` | Weight, body composition, BMR, and circumference measurements |
 | `check_in_photos` | Progress photos |
 | `custom_measurements` | User-defined custom measurement types |
-| `custom_categories` | User-defined measurement categories |
+| `custom_categories` | User-defined measurement categories; lab markers set `is_lab` and a reference range |
 | `water_intake` | Total water logged for the day |
 | `water_intake_entries` | Individual logged water cups |
 | `water_containers` | Configured container sizes |

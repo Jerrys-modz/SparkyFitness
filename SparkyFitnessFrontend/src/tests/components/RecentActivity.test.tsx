@@ -52,6 +52,9 @@ describe('RecentActivity', () => {
           frequency: 'daily',
           data_type: null,
           display_name: 'Body Battery Charged',
+          is_lab: false,
+          ref_range_low: null,
+          ref_range_high: null,
         },
       },
     ];
@@ -77,6 +80,9 @@ describe('RecentActivity', () => {
           frequency: 'daily',
           data_type: null,
           display_name: 'BMI',
+          is_lab: false,
+          ref_range_low: null,
+          ref_range_high: null,
         },
       },
     ];
@@ -140,6 +146,9 @@ describe('RecentActivity', () => {
           frequency: 'daily',
           data_type: null,
           display_name: 'Steps',
+          is_lab: false,
+          ref_range_low: null,
+          ref_range_high: null,
         },
       },
     ];
@@ -182,6 +191,9 @@ describe('RecentActivity', () => {
           frequency: 'daily',
           data_type: null,
           display_name: 'Some Metric',
+          is_lab: false,
+          ref_range_low: null,
+          ref_range_high: null,
         },
       },
     ];
@@ -208,6 +220,9 @@ describe('RecentActivity', () => {
           frequency: 'daily',
           data_type: null,
           display_name: 'BMI',
+          is_lab: false,
+          ref_range_low: null,
+          ref_range_high: null,
         },
       },
     ];

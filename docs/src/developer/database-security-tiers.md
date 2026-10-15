@@ -163,7 +163,7 @@ Symptoms are their own domain (they used to share the medications permission). P
 | `mood_entries` | Logged mood and energy levels | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `mindfulness_sessions` | Logged mindfulness, meditation, and breathwork sessions | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `day_classification_cache` | Daily summary caching logs | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
-| `custom_categories` | User-defined custom measurement categories (e.g. GLP-1 daily check-in metrics) | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
+| `custom_categories` | User-defined custom measurement categories (e.g. GLP-1 daily check-in metrics). Lab-result markers are categories with `is_lab` set plus an optional reference range (`ref_range_low`/`ref_range_high`); same access as any category | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `custom_measurements` | Logged values for custom measurement categories | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `user_custom_moods` | User-defined mood tags (icon/color) for the mood picker | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `exercise_entry_laps` | Lap split intervals for exercise entries | Delegate with `can_manage_diary` | Delegate with `can_manage_diary` or `can_view_reports` |
