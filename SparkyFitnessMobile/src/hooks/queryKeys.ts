@@ -406,3 +406,6 @@ export const workoutLocationsQueryKey = ['workoutLocations'] as const;
 
 /** The person's run program and place in it (server-backed). */
 export const runProgramQueryKey = ['runProgram'] as const;
+
+/** The person's weekly running distance target and race (server-backed). */
+export const runGoalsQueryKey = ['runGoals'] as const;
