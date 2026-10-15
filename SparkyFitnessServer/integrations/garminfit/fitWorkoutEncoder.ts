@@ -110,3 +110,90 @@ export function encodeFitWorkout(
   });
   return encoder.close();
 }
+
+export interface StrengthWorkoutSet {
+  reps?: number | null;
+  /** Kilograms. */
+  weight?: number | null;
+  /** Seconds, for a timed hold with no rep count. */
+  duration?: number | null;
+  /** Seconds of rest after the set. */
+  rest_time?: number | null;
+}
+
+export interface StrengthWorkoutExercise {
+  exercise_name: string;
+  sets: StrengthWorkoutSet[];
+}
+
+type FitMessage = { mesgNum: number } & Record<string, unknown>;
+
+/**
+ * Encodes a strength preset as a FIT workout: one step per set (reps or a timed
+ * hold, with its planned weight) and a rest step after each set that has one.
+ * A watch's strength app steps through them and records the sets.
+ */
+export function encodeFitStrengthWorkout(
+  workout: { name: string; exercises: StrengthWorkoutExercise[] },
+  options: { now?: Date } = {}
+): Uint8Array {
+  const steps: FitMessage[] = [];
+  for (const exercise of workout.exercises) {
+    for (const set of exercise.sets) {
+      const step: FitMessage = {
+        mesgNum: Profile.MesgNum.WORKOUT_STEP,
+        messageIndex: steps.length,
+        wktStepName: exercise.exercise_name.slice(0, 15),
+        intensity: 'active',
+        targetType: 'open',
+        targetValue: 0,
+      };
+      if (set.reps && set.reps > 0) {
+        step.durationType = 'reps';
+        step.durationValue = Math.round(set.reps);
+      } else if (set.duration && set.duration > 0) {
+        step.durationType = 'time';
+        step.durationValue = Math.round(set.duration * 1000);
+      } else {
+        step.durationType = 'open';
+        step.durationValue = 0;
+      }
+      if (set.weight && set.weight > 0) {
+        // Kilograms; the SDK applies the field's x100 scale, which caps it at 655.35.
+        step.exerciseWeight = Math.min(set.weight, 655.35);
+      }
+      steps.push(step);
+      if (set.rest_time && set.rest_time > 0) {
+        steps.push({
+          mesgNum: Profile.MesgNum.WORKOUT_STEP,
+          messageIndex: steps.length,
+          wktStepName: 'Rest',
+          intensity: 'rest',
+          durationType: 'time',
+          durationValue: Math.round(set.rest_time * 1000),
+          targetType: 'open',
+          targetValue: 0,
+        });
+      }
+    }
+  }
+
+  const encoder = new Encoder();
+  encoder.writeMesg({
+    mesgNum: Profile.MesgNum.FILE_ID,
+    type: 'workout',
+    manufacturer: 'development',
+    product: 0,
+    timeCreated: Utils.convertDateToDateTime(options.now ?? new Date()),
+    serialNumber: 1,
+  });
+  encoder.writeMesg({
+    mesgNum: Profile.MesgNum.WORKOUT,
+    sport: 'training',
+    subSport: 'strengthTraining',
+    numValidSteps: steps.length,
+    wktName: workout.name.slice(0, 15),
+  });
+  for (const step of steps) encoder.writeMesg(step);
+  return encoder.close();
+}

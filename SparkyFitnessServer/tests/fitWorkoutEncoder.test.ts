@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { buildIntervalPlan } from '@workspace/shared';
-import { encodeFitWorkout } from '../integrations/garminfit/fitWorkoutEncoder.js';
+import {
+  encodeFitStrengthWorkout,
+  encodeFitWorkout,
+} from '../integrations/garminfit/fitWorkoutEncoder.js';
 import { decodeFitBuffer } from '../integrations/garminfit/fitDecoder.js';
 
 const decode = (bytes: Uint8Array) => decodeFitBuffer(Buffer.from(bytes));
@@ -75,6 +78,51 @@ describe('encodeFitWorkout', () => {
       targetType: 'heartRate',
       customTargetValueLow: 200,
       customTargetValueHigh: 230,
+    });
+  });
+});
+
+describe('encodeFitStrengthWorkout', () => {
+  it('writes a step per set with reps, weight and rest', () => {
+    const result = decode(
+      encodeFitStrengthWorkout({
+        name: 'Push day',
+        exercises: [
+          {
+            exercise_name: 'Bench Press',
+            sets: [
+              { reps: 8, weight: 60, rest_time: 90 },
+              { reps: 6, weight: 62.5, rest_time: 0 },
+            ],
+          },
+          { exercise_name: 'Plank', sets: [{ duration: 45 }] },
+        ],
+      })
+    );
+    expect(result.errors).toEqual([]);
+    const messages = result.messages as unknown as Record<string, any[]>;
+    expect(messages.workoutMesgs[0]).toMatchObject({
+      sport: 'training',
+      subSport: 'strengthTraining',
+      numValidSteps: 4,
+    });
+    const steps = messages.workoutStepMesgs;
+    expect(steps[0]).toMatchObject({
+      wktStepName: 'Bench Press',
+      durationType: 'reps',
+      durationValue: 8,
+      exerciseWeight: 60,
+    });
+    expect(steps[1]).toMatchObject({
+      intensity: 'rest',
+      durationType: 'time',
+      durationValue: 90_000,
+    });
+    expect(steps[2]).toMatchObject({ durationValue: 6, exerciseWeight: 62.5 });
+    expect(steps[3]).toMatchObject({
+      wktStepName: 'Plank',
+      durationType: 'time',
+      durationValue: 45_000,
     });
   });
 });
