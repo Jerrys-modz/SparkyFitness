@@ -1,4 +1,5 @@
 import type {
+  AdjustRunProgramBody,
   CustomRunProgramInput,
   CustomRunProgramResponse,
   ListCustomRunProgramsResponse,
@@ -55,6 +56,17 @@ export const rateRunProgramWorkout = (
     body,
   });
 
+/** Eases or lengthens the running in the next few workouts. */
+export const adjustRunProgramRunning = (
+  body: AdjustRunProgramBody
+): Promise<GetRunProgramResponse> =>
+  apiFetch<GetRunProgramResponse>({
+    endpoint: '/api/v2/run-program/adjust',
+    serviceName: SERVICE,
+    operation: 'adjust run program',
+    method: 'POST',
+    body,
+  });
 /** The person's own programs, newest first. */
 export const fetchCustomRunPrograms =
   (): Promise<ListCustomRunProgramsResponse> =>

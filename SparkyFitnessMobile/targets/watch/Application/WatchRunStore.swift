@@ -331,7 +331,7 @@ final class WatchRunStore: ObservableObject {
     /// What follows a program workout that reached its last step, from the
     /// phone; nil for any other run or one stopped early.
     private func programDoneText(elapsed: TimeInterval) -> String? {
-        guard let plan, plan.programId != nil, plan.lastStepStarted(at: elapsed) else { return nil }
+        guard let plan, plan.programId != nil, plan.completed(at: elapsed) else { return nil }
         return plan.doneText
     }
 
@@ -697,10 +697,10 @@ final class WatchRunStore: ObservableObject {
                 var scaled = result?.scalingDistance(by: scale)
                 scaled?.distanceScale = scale
                 // Indoors the wearer is asked for the treadmill's distance
-                // first; the snapshot stays until the answer is sent, so a
+                // first (the program's done cue waits for `confirmDistance`, so it
+                // is heard once, in the finish cue); the snapshot stays until the answer is sent, so a
                 // relaunch in between still delivers the run.
                 if save, endingPlace == .indoor, let scaled {
-                    if let done = self.programDoneText(elapsed: elapsed) { self.cue(done) }
                     self.pendingResult = scaled
                     self.pendingElapsed = elapsed
                     self.phase = .confirmingDistance

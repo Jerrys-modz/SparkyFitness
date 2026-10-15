@@ -26,6 +26,7 @@ import {
   ingestFixes,
   resetRecordingStateForTests,
   startRecording,
+  tickIntervals,
 } from '../../src/services/gpsRecordingService';
 
 const notification = { title: 'Recording', body: 'Tracking' };
@@ -98,6 +99,7 @@ describe('distance milestones', () => {
       notification,
     });
     jest.setSystemTime(T0 + 60 * 60 * 1000);
+    await tickIntervals();
     expect(spoken().some((text) => text.includes('5K'))).toBe(false);
   });
 });

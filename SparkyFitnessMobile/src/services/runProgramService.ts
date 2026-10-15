@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
+  pendingEffortRating,
   storedProgramStatus,
   type CustomRunProgramInput,
   type CustomRunProgramResponse,
@@ -16,6 +17,7 @@ import {
   runProgramQueryKey,
 } from '../hooks/queryKeys';
 import {
+  adjustRunProgramRunning,
   createCustomRunProgram,
   deleteCustomRunProgram,
   fetchCustomRunPrograms,
@@ -203,6 +205,14 @@ export async function completeProgramWorkout(
   );
 }
 
+/** Eases (negative) or lengthens the running in the next `count` workouts. */
+export async function adjustProgramRunning(
+  percent: number,
+  count: number
+): Promise<void> {
+  setCache((await adjustRunProgramRunning({ percent, count })).program);
+}
+
 /**
  * Saves how hard finished workout `index` felt and returns the program as the
  * server now holds it (unchanged if that workout cannot be rated).
@@ -218,6 +228,9 @@ export async function rateProgramWorkout(
   setCache(program);
   return program;
 }
+
+/** The current time; read when the Diary renders, as the card ages out over two days. */
+const clockNow = (): number => Date.now();
 
 /** The current program status, or null when none is active. */
 export function useRunProgram(): {
@@ -237,6 +250,8 @@ export function useRunProgram(): {
   };
   /** The local day a program workout was last completed, or null. */
   doneDay: string | null;
+  /** The latest program workout still waiting to be rated, if recent. */
+  pendingEffort: { programId: string; index: number } | null;
   loaded: boolean;
   refetch: () => Promise<unknown>;
 } {
@@ -246,6 +261,9 @@ export function useRunProgram(): {
     // Always re-read on opening a screen: the assistant may have changed it.
     staleTime: 0,
   });
+  const pending = data
+    ? pendingEffortRating(data.completion_log, data.effort_log, clockNow())
+    : null;
   return {
     program: data ?? null,
     status: data ? storedProgramStatus(data) : null,
@@ -257,6 +275,10 @@ export function useRunProgram(): {
       endDay: data?.end_date ?? null,
     },
     doneDay: data?.last_done_date ?? null,
+    pendingEffort:
+      pending && data
+        ? { programId: data.program_id, index: pending.index }
+        : null,
     loaded: isSuccess,
     refetch,
   };
