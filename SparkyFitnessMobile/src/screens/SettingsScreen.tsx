@@ -360,6 +360,12 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
                 />
               )}
               <SettingsRow
+                icon="exercise-running-filled"
+                title={t('settings.rows.shoes', { defaultValue: 'Shoes' })}
+                onPress={() => navigation.navigate('Shoes')}
+                iconColor={catOrange}
+              />
+              <SettingsRow
                 icon="workout-settings"
                 title={t('settings.rows.workout', { defaultValue: 'Workout' })}
                 onPress={() => navigation.navigate('WorkoutSettings')}

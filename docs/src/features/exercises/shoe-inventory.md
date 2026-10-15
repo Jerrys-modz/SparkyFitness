@@ -6,20 +6,20 @@ Keep a list of your running shoes and see how many kilometres (or miles) each pa
 
 ## Adding a pair
 
-1. Open **Shoes** from the navigation (on the web it is in the main tabs; in the mobile app it is under **Settings**).
+1. Open **Shoes** from the navigation (on the web it is one of the main tabs; in the mobile app it is under **Settings**).
 2. Tap **Add shoe** and fill in the details:
    - **Name** is the only required field. Brand, model and a nickname are optional.
    - **Starting mileage** is for a pair that already has some distance on it when you add it.
    - **Retire at** is the distance after which the pair counts as worn out. It starts at 800 km (about 500 mi).
    - **Purchase date** and **Price** are optional.
-3. Switch on **Use as my default pair** to have that pair pre-selected for new runs. Only one pair can be the default; choosing another one replaces it.
+3. Switch on **Use as my default pair** to have new GPS-recorded runs logged with that pair. Only one pair can be the default; choosing another one replaces it.
 
 Distances follow your distance unit (kilometres or miles). They are stored in kilometres, so changing the unit later converts them.
 
 ## Linking a run to a pair
 
 - **Web:** open a cardio entry (a run, walk or ride) from your diary, pick the shoe under **Shoe**, and save.
-- **Mobile:** open the cardio entry and use **Shoe**. When you finish a GPS recording, the default pair is pre-selected on the save screen.
+- **Mobile:** open the run from your diary (or from **Exercise Statistics**) and use **Shoe**. A run recorded with GPS is saved with your default pair automatically; change it from the session screen if you wore a different one.
 
 A pair's mileage is its starting mileage plus the distance of every run linked to it. Changing or removing the link, editing the distance, or deleting the run updates the total.
 
