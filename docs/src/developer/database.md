@@ -97,6 +97,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `exercise_entry_activity_details` | Heart rate, distance, activity data |
 | `exercise_entry_laps` | Lap split intervals for workouts |
 | `exercise_entry_hr_zones` | Heart-rate time-in-zone splits per workout |
+| `exercise_entry_distance_series` | Distance-against-time rows for an indoor entry with no route, behind its pace chart. One row per workout (`points` is JSONB) |
 | `exercise_entry_gps_points` | GPS trackpoints & second-by-second telemetry. One row per workout (the `points` column holds the whole track as JSONB), not one row per trackpoint |
 | `workout_presets` | Custom workout/preset templates |
 | `workout_preset_exercises` | Exercises assigned to presets |
@@ -153,6 +154,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `cycle_daily_entries` | Per-day cycle logs (flow, BBT, mood, etc.) |
 | `cycle_test_entries` | Ovulation and pregnancy test logs |
 | `pregnancies` | Pregnancy records (due date, status) |
+| `run_programs` | A person's run program, their place in it, its Diary schedule, goal date, adjustments to it and which diary entries its workouts were done as |
 | `pregnancy_kick_sessions` | Fetal kick-counter sessions |
 | `pregnancy_contractions` | Contraction timer logs |
 | `pregnancy_photos` | Bump photo journal |

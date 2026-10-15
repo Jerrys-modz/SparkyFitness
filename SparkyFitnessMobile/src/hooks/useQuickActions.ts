@@ -160,7 +160,7 @@ const iosAppGroup = (
 )?.iosAppGroup;
 
 /**
- * The Scan food and Log food controls (Control Center, Lock Screen) open the
+ * The Scan food, Log food and Calories left controls (Control Center, Lock Screen) open the
  * app and leave the screen they want in the shared app group. Picks it up when
  * the app launches or comes to the front and goes there, the same way the
  * Home Screen shortcuts do.
@@ -175,6 +175,11 @@ export function useControlRouteHandoff(enabled: boolean): void {
       storage.remove(CONTROL_ROUTE_KEY);
       if (route === 'scan') runQuickAction('scan-food');
       else if (route === 'search') runQuickAction('search-food');
+      else if (route === 'diary') {
+        whenNavigationReady(() =>
+          navigationRef.navigate('Tabs', { screen: 'Diary' })
+        );
+      }
     };
     pickUp();
     const subscription = AppState.addEventListener('change', (state) => {

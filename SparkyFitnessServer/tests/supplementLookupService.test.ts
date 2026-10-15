@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   lookupSupplementByUpc,
   mapDsldLabel,
+  mapScannedLabel,
   normalizeUpc,
   sameUpc,
   upcSearchPhrases,
@@ -381,5 +382,56 @@ describe('lookupSupplementByUpc', () => {
 
     expect(signals.length).toBeGreaterThan(1);
     expect(signals.every((signal) => signal === signals[0])).toBe(true);
+  });
+});
+
+describe('mapScannedLabel', () => {
+  const scanned = (
+    ingredients: { name: string; amount: number | null; unit: string | null }[]
+  ) => ({
+    name: 'Daily Multi',
+    brand: 'Acme',
+    form: 'tablet' as const,
+    serving: '1 Tablet',
+    ingredients,
+  });
+
+  it('totals the printed amounts in the app units', () => {
+    const product = mapScannedLabel(
+      scanned([
+        { name: 'Vitamin D3', amount: 1000, unit: 'IU' },
+        { name: 'Calcium', amount: 200, unit: 'mg' },
+        { name: 'Protein', amount: 2, unit: 'g' },
+      ])
+    );
+
+    expect(product.source).toBe('label');
+    expect(product.name).toBe('Daily Multi');
+    expect(product.form).toBe('tablet');
+    expect(product.serving).toBe('1 Tablet');
+    const vitaminD = product.catalog.find((c) => c.catalogId === 'vitamin_d');
+    expect(vitaminD?.amount).toBeCloseTo(25, 3);
+    expect(product.fixed).toEqual(
+      expect.arrayContaining([
+        { key: 'protein', amount: 2 },
+        { key: 'calcium', amount: 200 },
+      ])
+    );
+    expect(product.unmatched).toEqual([]);
+  });
+
+  it('lists a line it cannot place, including one with an unreadable unit', () => {
+    const product = mapScannedLabel(
+      scanned([
+        { name: 'Probiotic Blend', amount: 5, unit: 'billion CFU' },
+        { name: 'Mystery Root', amount: 50, unit: 'mg' },
+        { name: 'Zinc', amount: null, unit: 'mg' },
+      ])
+    );
+
+    expect(product.unmatched.map((u) => u.name)).toEqual([
+      'Probiotic Blend',
+      'Mystery Root',
+    ]);
   });
 });
