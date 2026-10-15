@@ -607,7 +607,9 @@
       "personalRecords": "Personal records",
       "personalRecordsSubtitle": "Your best 1 km, 5 km, 10 km and more",
       "equipment": "Equipment",
-      "equipmentSubtitle": "Shoes and other gear"
+      "equipmentSubtitle": "Shoes and other gear",
+      "labResults": "Lab results",
+      "labResultsSubtitle": "Blood tests and other markers over time"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -644,7 +646,10 @@
     "allergenSettings": "Allergens",
     "addMenuSettings": "Add menu",
     "profile": "Profile",
-    "symptomEpisodeDetail": "Episode Details"
+    "symptomEpisodeDetail": "Episode Details",
+    "labResults": "Lab results",
+    "labResultDetail": "Lab result",
+    "labResultAdd": "Add lab result"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -1113,7 +1118,9 @@
     "stateHidden": "Hidden",
     "configureCard": "Configure {{name}}",
     "trainingLoad": "Training Load",
-    "trainingLoadSubtitle": "Show this week against your usual training, with a nudge to rest"
+    "trainingLoadSubtitle": "Show this week against your usual training, with a nudge to rest",
+    "labResults": "Lab Results",
+    "labResultsSubtitle": "Show your latest lab results and which are out of range"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",
@@ -7343,9 +7350,6 @@
         "saturday": "Saturday",
         "sunday": "Sunday"
       }
-    },
-    "customNutrients": {
-      "notSet": "No goal"
     }
   },
   "reports": {
@@ -8204,5 +8208,50 @@
     "birthDateUnset": "Not set",
     "timezone": "Timezone",
     "resetPasswordSubtitle": "Email me a link to choose a new password"
+  },
+  "labs": {
+    "add": "Add lab result",
+    "changeMarker": "Change",
+    "chartEmpty": "No results yet",
+    "createCustom": "Add \"{{name}}\" as a new marker",
+    "date": "Date of test",
+    "dateFuture": "The test date cannot be in the future.",
+    "deleteFailed": "Could not delete the result",
+    "deleteMessage": "Delete this lab result?",
+    "deleteTitle": "Delete result",
+    "empty": "No lab results yet. Add a result like HbA1c, LDL or vitamin D and track it over time.",
+    "latest": "Latest",
+    "loadFailed": "Could not load your lab results.",
+    "noMatches": "No matching markers",
+    "noResults": "No results",
+    "notesPlaceholder": "Add a note (optional)",
+    "oneResultPerDay": "Saving a second result for the same marker and day replaces the first.",
+    "rangeHigh": "High",
+    "rangeInvalid": "Enter numbers, with the low value not above the high value.",
+    "rangeLow": "Low",
+    "rangeOptional": "Reference range (optional)",
+    "referenceRange": "Reference range: {{range}}",
+    "saveFailed": "Could not save the lab result",
+    "searchPlaceholder": "Search markers (HbA1c, LDL, ...)",
+    "status": {
+      "high": "High",
+      "inRange": "In range",
+      "low": "Low"
+    },
+    "unit": "Unit",
+    "value": "Result",
+    "card": {
+      "a11y": "Lab results",
+      "empty": "No results yet. Tap to add one.",
+      "outOfRange_one": "{{count}} outside the reference range",
+      "outOfRange_other": "{{count}} outside the reference range",
+      "title": "Lab results"
+    },
+    "rangeForSex": "Prefilled for {{sex}} adults from your profile. Labs differ, so edit it to match your report.",
+    "rangeNoSex": "This marker differs by sex. Set your sex in your profile for a tailored range, or enter the range from your report.",
+    "sex": {
+      "female": "female",
+      "male": "male"
+    }
   }
 }
