@@ -67,6 +67,7 @@ import CustomCategoriesScreen from '../screens/CustomCategoriesScreen';
 import CustomCategoryEditScreen from '../screens/CustomCategoryEditScreen';
 import AddMenuSettingsScreen from '../screens/AddMenuSettingsScreen';
 import DiarySettingsScreen from '../screens/DiarySettingsScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import WorkoutSettingsScreen from '../screens/WorkoutSettingsScreen';
 import WarmupSettingsScreen from '../screens/WarmupSettingsScreen';
 import ServerSettingsScreen from '../screens/ServerSettingsScreen';
@@ -207,6 +208,7 @@ export const SafeAddMenuSettings = withErrorBoundary(AddMenuSettingsScreen, 'Add
 export const SafeDiarySettings = withErrorBoundary(DiarySettingsScreen, 'DiarySettings', { canGoBack: true });
 export const SafeCustomCategories = withErrorBoundary(CustomCategoriesScreen, 'CustomCategories', { canGoBack: true });
 export const SafeCustomCategoryEdit = withErrorBoundary(CustomCategoryEditScreen, 'CustomCategoryEdit', { canGoBack: true });
+export const SafeProfile = withErrorBoundary(ProfileScreen, 'Profile', { canGoBack: true });
 export const SafeWorkoutSettings = withErrorBoundary(WorkoutSettingsScreen, 'WorkoutSettings', { canGoBack: true });
 export const SafeWarmupSettings = withErrorBoundary(WarmupSettingsScreen, 'WarmupSettings', { canGoBack: true });
 export const SafeServerSettings = withErrorBoundary(ServerSettingsScreen, 'ServerSettings', { canGoBack: true });

@@ -461,6 +461,36 @@ export const verifyTotp = async (
 };
 
 /**
+ * Asks the server to email a password-reset link. The link lands on the web
+ * app's reset page (`<server>/reset-password`), which completes the reset.
+ * The server answers the same way whether or not the address has an account.
+ */
+export const requestPasswordReset = async (
+  serverUrl: string,
+  email: string
+): Promise<void> => {
+  const baseUrl = normalizeUrl(serverUrl);
+  const headers = await getBetterAuthHeaders(baseUrl);
+
+  const response = await fetchWithTimeout(
+    `${baseUrl}/api/auth/request-password-reset`,
+    {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ email, redirectTo: `${baseUrl}/reset-password` }),
+    },
+    DEFAULT_API_TIMEOUT_MS
+  );
+
+  if (!response.ok) {
+    throw new LoginError(
+      parseAuthErrorText(await response.text()),
+      response.status
+    );
+  }
+};
+
+/**
  * Triggers the server to send an email OTP code to the user.
  */
 export const sendEmailOtp = async (serverUrl: string): Promise<void> => {

@@ -44,6 +44,7 @@ import {
   type MfaFactors,
   type AuthSettings,
   type OidcProvider,
+  requestPasswordReset,
 } from '../services/api/authService';
 import {
   saveServerConfig,
@@ -103,6 +104,7 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
   const [apiKey, setApiKey] = useState('');
   const [proxyHeaders, setProxyHeaders] = useState<ProxyHeader[]>([]);
   const [error, setError] = useState('');
+  const [resetNotice, setResetNotice] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [showHeaders, setShowHeaders] = useState<Record<number, boolean>>({});
@@ -139,6 +141,7 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
     }
 
     setError('');
+    setResetNotice('');
     setLoading(false);
     setStep('form');
     setMfaCode('');
@@ -575,6 +578,61 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
     }
   };
 
+  const handleForgotPassword = async () => {
+    const url = normalizeUrl(serverUrl);
+    if (!url) {
+      setError(
+        t('onboarding.errors.validFrontendUrl', {
+          defaultValue: 'Enter a valid Frontend URL',
+        })
+      );
+      return;
+    }
+    if (!email.trim()) {
+      setError(
+        t('auth.errors.emailRequired', {
+          defaultValue: 'Please enter your email.',
+        })
+      );
+      return;
+    }
+    const validationError = getInsecureUrlError(
+      url,
+      t('auth.errors.httpsRequired', {
+        defaultValue: 'HTTPS is required for server connections.',
+      })
+    );
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setResetNotice('');
+    setPendingProxyHeaders(proxyHeadersToRecord(cleanedHeaders()));
+    try {
+      await requestPasswordReset(url, email.trim());
+      setResetNotice(
+        t('auth.forgotPasswordSent', {
+          defaultValue:
+            'If an account exists for that email, a reset link is on its way. Open it to choose a new password.',
+        })
+      );
+    } catch (err) {
+      setError(
+        err instanceof LoginError
+          ? err.message
+          : t('auth.errors.resetRequestFailed', {
+              defaultValue: 'Failed to send the reset email. Please try again.',
+            })
+      );
+    } finally {
+      clearPendingProxyHeaders();
+      setLoading(false);
+    }
+  };
+
   const handleSendEmailOtp = async () => {
     const url = normalizeUrl(serverUrl);
     setLoading(true);
@@ -976,6 +1034,26 @@ const ServerConfigModal: React.FC<ServerConfigModalProps> = ({
                           />
                         </Button>
                       </View>
+                      <Button
+                        variant="ghost"
+                        onPress={() => void handleForgotPassword()}
+                        disabled={loading}
+                        className="self-start mt-1 px-0 py-1"
+                        accessibilityLabel={t('auth.forgotPassword', {
+                          defaultValue: 'Forgot password?',
+                        })}
+                      >
+                        <Text className="text-sm text-accent-primary">
+                          {t('auth.forgotPassword', {
+                            defaultValue: 'Forgot password?',
+                          })}
+                        </Text>
+                      </Button>
+                      {resetNotice !== '' && (
+                        <Text className="text-sm text-text-secondary mt-1">
+                          {resetNotice}
+                        </Text>
+                      )}
                     </View>
                   </>
                 )}
