@@ -22,6 +22,7 @@ export const ADAPTIVE_REASONS = [
   "too_hard",
   "too_hard_repeated",
   "high_effort",
+  "low_effort",
   "too_easy_repeated",
 ] as const;
 export type AdaptiveReason = (typeof ADAPTIVE_REASONS)[number];
@@ -61,6 +62,10 @@ export const ADAPTIVE_REDUCE_FACTOR = 0.9;
 export const ADAPTIVE_HIGH_RPE = 9.5;
 /** Average RIR at or below this (without feedback) means the same. */
 export const ADAPTIVE_LOW_RIR = 0.5;
+/** Average RPE at or below this (without feedback) means the sets were easy. */
+export const ADAPTIVE_EASY_RPE = 7;
+/** Average RIR at or above this (without feedback) means the same. */
+export const ADAPTIVE_EASY_RIR = 3;
 /** Consecutive answers before a streak rule applies. */
 export const ADAPTIVE_STREAK = 2;
 
@@ -137,7 +142,19 @@ export function decideAdaptiveAdjustment(
       reason: "high_effort",
     });
   }
-  // 6. Too easy twice in a row: one step up.
+  // 6. No feedback, but logged effort says there was plenty left: one step up.
+  if (
+    signal.last_difficulty == null &&
+    ((signal.avg_rpe != null && signal.avg_rpe <= ADAPTIVE_EASY_RPE) ||
+      (signal.avg_rir != null && signal.avg_rir >= ADAPTIVE_EASY_RIR))
+  ) {
+    return adjustment({
+      kind: "increase",
+      addIncrement: true,
+      reason: "low_effort",
+    });
+  }
+  // 7. Too easy twice in a row: one step up.
   if (signal.too_easy_streak >= ADAPTIVE_STREAK) {
     return adjustment({
       kind: "increase",
