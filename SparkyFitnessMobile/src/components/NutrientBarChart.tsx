@@ -5,7 +5,7 @@ import { CartesianChart, Bar } from 'victory-native';
 import { Line as SkiaLine } from '@shopify/react-native-skia';
 import { useCSSVariable } from 'uniwind';
 import {
-  makeChartFont,
+  useChartFont,
   formatXLabel7d,
   formatXLabel30d90d,
   formatTooltipDate,
@@ -53,8 +53,6 @@ const X_TICK_COUNT: Record<TrendRange, number> = {
 
 /** Opacity of the bars that are not the selected day. */
 const DIMMED_BAR_OPACITY = 0.35;
-
-const font = makeChartFont(11);
 
 const formatYLabel = (value: number) => {
   if (value >= 1000) return formatChartYLabel(value);
@@ -109,6 +107,7 @@ const NutrientBarChart: React.FC<NutrientBarChartProps> = ({
   selectedDay,
 }) => {
   const { t } = useTranslation();
+  const font = useChartFont(11);
   const [accentColor, textMuted] = useCSSVariable([
     '--color-accent-primary',
     '--color-text-muted',
