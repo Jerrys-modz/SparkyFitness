@@ -156,8 +156,6 @@ const MeasurementsSummary: React.FC<MeasurementsSummaryProps> = ({
     // measurements are untouched.
     for (const entry of customMeasurements) {
       if (!isManualSource(entry.source)) continue;
-      // Lab results have their own screens; they are not diary tiles.
-      if (entry.custom_categories?.is_lab) continue;
       const cat = entry.custom_categories;
       const label = cat?.display_name ?? cat?.name ?? 'Measurement';
       const suffix = cat?.measurement_type ? ` ${cat.measurement_type}` : '';

@@ -403,31 +403,4 @@ describe('MeasurementsSummary', () => {
     // Strict contract: only literal 'manual' creates a tile.
     expect(toJSON()).toBeNull();
   });
-  test('does not show lab results as diary tiles', () => {
-    const { toJSON } = render(
-      <MeasurementsSummary
-        measurements={undefined}
-        customMeasurements={[
-          {
-            id: 'entry-lab',
-            category_id: 'cat-lab',
-            value: '5.4',
-            entry_date: '2024-06-15',
-            source: 'manual',
-            custom_categories: {
-              name: 'hba1c',
-              display_name: 'HbA1c',
-              measurement_type: '%',
-              frequency: 'All',
-              data_type: 'numeric',
-              is_lab: true,
-              ref_range_low: 4,
-              ref_range_high: 5.6,
-            },
-          },
-        ]}
-      />
-    );
-    expect(toJSON()).toBeNull();
-  });
 });
