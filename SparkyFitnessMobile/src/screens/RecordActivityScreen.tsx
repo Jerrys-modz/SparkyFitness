@@ -93,6 +93,7 @@ import {
   type IntervalOptions,
   type IntervalPlan,
   type RunProgramResponse,
+  zoneShiftForEffort,
 } from '@workspace/shared';
 import {
   completeProgramWorkout,
@@ -284,6 +285,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     status: storedProgram,
     enabled: programEnabled,
     loaded: programLoaded,
+    effortSuggestion,
   } = useRunProgram();
   // The program only drives the screen while the person has it switched on.
   const programStatus = programEnabled ? storedProgram : null;
@@ -380,7 +382,12 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   );
   // Starting ranges for the plan's fast and easy stretches, offered with a tap.
   const showPlanTargets = intervalChoice !== 'off' && (!indoor || onWatch);
-  const suggested = useSuggestedRanges(activity, showPlanTargets);
+  // How the last two rated workouts felt re-paces the suggestions: two hard
+  // ones slow every zone, two easy ones speed them up.
+  const paceShift = zoneShiftForEffort(
+    programEnabled ? effortSuggestion : null
+  );
+  const suggested = useSuggestedRanges(activity, showPlanTargets, paceShift);
   const suggestedPaceChoice = useMemo(() => {
     if (!suggested.pace) return null;
     const perUnit = distanceUnit === 'miles' ? 1.609344 : 1;

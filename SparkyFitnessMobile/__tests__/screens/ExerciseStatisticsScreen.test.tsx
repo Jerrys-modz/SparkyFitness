@@ -51,6 +51,10 @@ const mockTrainingLoad = jest.fn();
 jest.mock('../../src/hooks/useTrainingLoad', () => ({
   useTrainingLoad: () => mockTrainingLoad(),
 }));
+const mockUsePaceZones = jest.fn();
+jest.mock('../../src/hooks/usePaceZones', () => ({
+  usePaceZones: (...args: unknown[]) => mockUsePaceZones(...args),
+}));
 jest.mock('../../src/hooks/useCardioSessions', () => ({
   useCardioSessions: jest.fn(),
 }));
@@ -176,6 +180,8 @@ describe('ExerciseStatisticsScreen', () => {
   });
 
   beforeEach(() => {
+    mockUsePaceZones.mockReset();
+    mockUsePaceZones.mockReturnValue({ result: null, isLoading: false });
     mockUseExerciseDashboard.mockReset();
     mockUseExerciseDashboard.mockReturnValue(dashboardResult());
     mockTrainingLoad.mockReturnValue({
@@ -310,6 +316,30 @@ describe('ExerciseStatisticsScreen', () => {
       session: RUN,
       distanceUnit: 'km',
     });
+  });
+
+  it('shows pace zones above the cardio list once there are runs to build them from', () => {
+    mockUsePaceZones.mockReturnValue({
+      isLoading: false,
+      result: {
+        thresholdSecondsPerKm: 300,
+        source: 'effort',
+        sessions: 2,
+        zones: [
+          { id: 'easy', minSecondsPerKm: 345, maxSecondsPerKm: 405 },
+          { id: 'steady', minSecondsPerKm: 315, maxSecondsPerKm: 345 },
+          { id: 'threshold', minSecondsPerKm: 290, maxSecondsPerKm: 315 },
+          { id: 'interval', minSecondsPerKm: 265, maxSecondsPerKm: 290 },
+          { id: 'repetition', minSecondsPerKm: 240, maxSecondsPerKm: 265 },
+        ],
+      },
+    });
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    expect(screen.queryByText('Pace zones')).toBeNull();
+    fireEvent.press(screen.getByText('Cardio'));
+    expect(mockUsePaceZones).toHaveBeenLastCalledWith(true);
+    expect(screen.getByText('Pace zones')).toBeTruthy();
+    expect(screen.getByText('5:45 – 6:45 /km')).toBeTruthy();
   });
 
   it('loads older cardio sessions on request', () => {

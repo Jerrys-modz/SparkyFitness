@@ -14,6 +14,7 @@ import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useExerciseDashboard } from '../hooks/useExerciseDashboard';
 import { useTrainingConsistency } from '../hooks/useTrainingConsistency';
 import { useCardioSessions } from '../hooks/useCardioSessions';
+import { usePaceZones } from '../hooks/usePaceZones';
 import { usePreferences } from '../hooks/usePreferences';
 import { useProfile } from '../hooks/useProfile';
 import { formatLocalizedNumber } from '../localization';
@@ -28,6 +29,7 @@ import StatusView from '../components/StatusView';
 import CollapsibleSection from '../components/CollapsibleSection';
 import CardioSessionList from '../components/exerciseStats/CardioSessionList';
 import TrainingConsistencyCard from '../components/exerciseStats/TrainingConsistencyCard';
+import PaceZonesCard from '../components/exerciseStats/PaceZonesCard';
 import TrainingLoadCard from '../components/exerciseStats/TrainingLoadCard';
 import { useTrainingLoad } from '../hooks/useTrainingLoad';
 import MuscleFigure, {
@@ -135,6 +137,7 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
   const consistency = useTrainingConsistency();
   const trainingLoad = useTrainingLoad();
   const cardio = useCardioSessions(range, view === 'cardio', customRange);
+  const paceZones = usePaceZones(view === 'cardio');
   const { preferences } = usePreferences();
   const weightUnit: 'kg' | 'lbs' =
     preferences?.default_weight_unit === 'lbs' ||
@@ -220,6 +223,12 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
     }
     return (
       <>
+        {paceZones.result ? (
+          <PaceZonesCard
+            result={paceZones.result}
+            distanceUnit={cardio.distanceUnit}
+          />
+        ) : null}
         <Text className="text-text-secondary text-xs mb-3">
           {t('exerciseStatistics.cardio.hint', {
             defaultValue: 'Tap a workout for its route and heart rate.',
