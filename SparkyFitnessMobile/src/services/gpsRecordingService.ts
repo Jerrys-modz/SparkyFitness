@@ -623,6 +623,7 @@ export async function setCheckInPreference(minutes: number): Promise<void> {
   } catch {
     // The choice just won't be remembered.
   }
+  preferenceListeners.forEach((listener) => listener());
 }
 
 export async function setCountdownPreference(seconds: number): Promise<void> {

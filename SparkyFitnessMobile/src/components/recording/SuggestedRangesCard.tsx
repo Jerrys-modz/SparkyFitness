@@ -31,10 +31,19 @@ const SuggestedRangesCard: React.FC<SuggestedRangesCardProps> = ({
 }) => {
   const { t } = useTranslation();
   if (!pace && !heartRate) return null;
-  const unitLabel = unit === 'miles' ? '/mi' : '/km';
+  const unitLabel =
+    unit === 'miles'
+      ? t('recordActivity.unitMi', { defaultValue: 'mi' })
+      : t('recordActivity.unitKm', { defaultValue: 'km' });
+  const paceUnit = t('recordActivity.perUnit', {
+    defaultValue: '/{{unit}}',
+    unit: unitLabel,
+  });
+  const bpmLabel = t('recordActivity.unitBpm', { defaultValue: 'bpm' });
   const paceText = (band: PaceBandChoice) =>
-    `${formatClock(band.fastest)}–${formatClock(band.slowest)}${unitLabel}`;
-  const bpmText = (band: HeartRateBand) => `${band.minBpm}–${band.maxBpm} bpm`;
+    `${formatClock(band.fastest)}–${formatClock(band.slowest)}${paceUnit}`;
+  const bpmText = (band: HeartRateBand) =>
+    `${band.minBpm}–${band.maxBpm} ${bpmLabel}`;
 
   return (
     <View
