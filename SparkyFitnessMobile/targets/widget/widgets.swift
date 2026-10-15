@@ -24,7 +24,7 @@ private struct CalorieSnapshotPayload: Decodable {
     let lastUpdated: Double?
 }
 
-private func loadCalorieSnapshot() -> CalorieSnapshot {
+func loadCalorieSnapshot() -> CalorieSnapshot {
     guard
         let appGroup = appGroupIdentifier(),
         !appGroup.isEmpty,
