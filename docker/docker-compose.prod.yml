@@ -80,6 +80,10 @@ services:
       ALLOW_PRIVATE_NETWORK_AI: ${ALLOW_PRIVATE_NETWORK_AI:-}
       ALLOW_PRIVATE_NETWORK_FOOD_PROVIDERS: ${ALLOW_PRIVATE_NETWORK_FOOD_PROVIDERS:-}
 
+      # --- Activity weather (optional) ---
+      # 'true' looks up the weather for GPS-recorded activities from Open-Meteo.
+      SPARKY_FITNESS_WEATHER_ENABLED: ${SPARKY_FITNESS_WEATHER_ENABLED:-false}
+
       # --- Network, Reverse Proxy & CORS ---
       ALLOW_PRIVATE_NETWORK_CORS: ${ALLOW_PRIVATE_NETWORK_CORS:-false}
       SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS: ${SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS:-}
