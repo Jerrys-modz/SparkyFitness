@@ -288,7 +288,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                     lapDistances: rows.lapDistances,
                     distanceSeries: self.distanceSeries,
                     plan: self.plan,
-                    planCompleted: self.plan?.lastStepStarted(at: finalElapsed) ?? false
+                    planCompleted: self.plan?.completed(at: finalElapsed) ?? false
                 ) : nil
                 completion(self.metrics, finalElapsed, result)
             }
@@ -477,7 +477,7 @@ extension WatchRunHealthKitController {
             lapDistances: Self.pairedLaps(snapshot.lapMarks, snapshot.lapDistances).distances,
             distanceSeries: snapshot.distanceSeries ?? [],
             plan: snapshot.plan,
-            planCompleted: snapshot.plan?.lastStepStarted(at: snapshot.elapsed) ?? false
+            planCompleted: snapshot.plan?.completed(at: snapshot.elapsed) ?? false
         ))
     }
 }
@@ -672,7 +672,7 @@ extension WatchRunHealthKitController: HKWorkoutSessionDelegate {
                 lapDistances: self.lapDistances,
                 distanceSeries: self.distanceSeries,
                 plan: self.plan,
-                planCompleted: self.plan?.lastStepStarted(at: elapsed) ?? false
+                planCompleted: self.plan?.completed(at: elapsed) ?? false
             ) : nil
             self.session = nil
             self.builder = nil

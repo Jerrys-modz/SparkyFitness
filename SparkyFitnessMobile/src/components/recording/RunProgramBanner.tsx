@@ -93,7 +93,9 @@ const RunProgramBanner: React.FC<{
           today,
           next: status.done,
           total: status.total,
-          lastAdjustedAt: lastAdjustment?.at ?? null,
+          lastAdjustedDay: lastAdjustment
+            ? toLocalDateString(new Date(lastAdjustment.at))
+            : null,
         })
       : null;
   // Training load only speaks up when the break offer has nothing to say.

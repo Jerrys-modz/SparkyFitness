@@ -46,10 +46,29 @@ const TrainingLoadDashboardCard: React.FC<TrainingLoadDashboardCardProps> = ({
   const { t } = useTranslation();
   const accentPrimary = useCSSVariable('--color-accent-primary') as string;
   const visible = useAppPreferencesStore((s) => s.trainingLoadCardVisible);
-  const { load } = useTrainingLoad(visible);
+  const { load, isError } = useTrainingLoad(visible);
   const { data: fitness } = useFitnessFatigue(visible);
   const readiness = fitness?.readiness;
 
+  // A failed first request leaves no data, and the card would simply vanish.
+  // An empty response stays hidden, a failure says so.
+  if (!load && isError) {
+    return (
+      <View
+        testID="training-load-dashboard-card-error"
+        className="bg-surface rounded-xl p-4 mb-3 shadow-sm"
+      >
+        <Text className="font-bold text-text-secondary">
+          {t('trainingLoadCard.title', { defaultValue: 'Training Load' })}
+        </Text>
+        <Text className="text-text-secondary text-sm mt-1">
+          {t('trainingLoadCard.loadFailed', {
+            defaultValue: 'Could not load your training load.',
+          })}
+        </Text>
+      </View>
+    );
+  }
   if (!load || load.status === 'noData') return null;
 
   const verdict = (() => {
