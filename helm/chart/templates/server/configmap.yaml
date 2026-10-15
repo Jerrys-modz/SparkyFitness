@@ -18,6 +18,7 @@ data:
   SPARKY_FITNESS_ADMIN_EMAIL: {{ . | quote }}
   {{- end }}
   ALLOW_PRIVATE_NETWORK_CORS: {{ .Values.config.allowPrivateNetworkCors | quote }}
+  SPARKY_FITNESS_WEATHER_ENABLED: {{ .Values.config.weatherEnabled | quote }}
   {{- with .Values.config.extraTrustedOrigins }}
   SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS: {{ . | quote }}
   {{- end }}
