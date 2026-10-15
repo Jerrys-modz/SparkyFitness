@@ -1,3 +1,4 @@
+import { isCustomProgramId } from "../schemas/api/RunProgram.api.zod.ts";
 import type {
   IntervalPlan,
   IntervalStep,
@@ -16,6 +17,8 @@ export interface ProgramWorkout {
   /** 0-based workout within the week. */
   day: number;
   plan: IntervalPlan;
+  /** A name for the workout; only the person's own programs set one. */
+  title?: string;
 }
 
 export interface RunProgram {
@@ -26,6 +29,12 @@ export interface RunProgram {
   workouts: ProgramWorkout[];
   weeks: number;
   workoutsPerWeek: number;
+  /**
+   * Set for a program the person made: its name, which the built-in ones get
+   * from the translations. Its workouts are a free list, so `week` and `day`
+   * only number them and are never shown.
+   */
+  custom?: { name: string };
 }
 
 type Piece = readonly ["run" | "walk", number];
@@ -315,6 +324,9 @@ export interface StoredRunProgram {
   program_id: string;
   next_index: number;
   workouts: ProgramWorkout[];
+  /** The person's own program's name and activity; null for a built-in one. */
+  name?: string | null;
+  activity?: RunProgram["activity"] | null;
 }
 
 /**
@@ -326,10 +338,13 @@ export function storedProgramStatus(stored: StoredRunProgram): ProgramStatus {
   const weeks = workouts.reduce((max, w) => Math.max(max, w.week + 1), 0);
   const program: RunProgram = {
     id: stored.program_id,
-    activity: programActivity(stored.program_id),
+    activity: stored.activity ?? programActivity(stored.program_id),
     workouts,
     weeks,
     workoutsPerWeek: workouts.filter((w) => w.week === 0).length,
+    ...(isCustomProgramId(stored.program_id) && {
+      custom: { name: stored.name ?? "" },
+    }),
   };
   const total = workouts.length;
   const next = Math.min(Math.max(0, Math.floor(stored.next_index)), total);
@@ -340,4 +355,21 @@ export function storedProgramStatus(stored: StoredRunProgram): ProgramStatus {
     total,
     finished: next >= total,
   };
+}
+
+/**
+ * Numbers a person's own workouts into the stored shape: a free list has no
+ * weeks, so seven workouts make a "week" and the position within it is the
+ * "day". Only the order matters; nothing shows these numbers for such a
+ * program.
+ */
+export function numberCustomWorkouts(
+  workouts: readonly { plan: IntervalPlan; title?: string }[],
+): ProgramWorkout[] {
+  return workouts.map((workout, index) => ({
+    week: Math.floor(index / 7),
+    day: index % 7,
+    plan: workout.plan,
+    ...(workout.title ? { title: workout.title } : {}),
+  }));
 }

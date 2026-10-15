@@ -22,7 +22,7 @@ import { useRefetchOnFocus } from '../../hooks/useRefetchOnFocus';
 import { addLog } from '../../services/LogService';
 import { toLocalDateString } from '../../utils/dateUtils';
 import { findLoggedRun } from '../../utils/loggedRun';
-import { programName } from './RunProgramCard';
+import { programTitle } from './RunProgramCard';
 
 /** The current time, read when the Diary renders. */
 const clockNow = (): number => Date.now();
@@ -171,7 +171,7 @@ const RunProgramBanner: React.FC<{
           className="text-xs font-semibold text-text-secondary flex-1"
           numberOfLines={1}
         >
-          {programName(t, status.program.id)} •{' '}
+          {programTitle(t, status.program)} •{' '}
           {run.kind === 'upNext'
             ? t('runPrograms.banner.upNext', { defaultValue: 'Up next' })
             : isToday
