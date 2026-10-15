@@ -1,11 +1,16 @@
 import express from 'express';
 import {
+  adjustRunning,
+  adjustRunProgramBodySchema,
   completeRunProgramWorkoutBodySchema,
+  findProgram,
+  ProgramAdjustError,
   rateRunProgramWorkoutBodySchema,
   upsertRunProgramBodySchema,
 } from '@workspace/shared';
 import requireSelfActor from '../../middleware/requireSelfMiddleware.js';
 import {
+  adjustRunProgram,
   completeRunProgramWorkout,
   getRunProgram,
   InvalidRunProgramScheduleError,
@@ -145,6 +150,52 @@ router.post('/effort', async (req, res, next) => {
     const program = await getRunProgram(req.userId, req.authenticatedUserId);
     res.json({ program });
   } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /v2/run-program/adjust:
+ *   post:
+ *     summary: Ease or lengthen the running in the next workouts
+ *     description: Changes only workouts not yet done, within 30% under and 10% over the original plan.
+ *     tags: [Exercise]
+ *     responses:
+ *       200:
+ *         description: The updated program.
+ *       400:
+ *         description: Invalid body, no program, or nothing to change.
+ */
+router.post('/adjust', async (req, res, next) => {
+  try {
+    const parsed = adjustRunProgramBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Invalid request body',
+        details: parsed.error.format(),
+      });
+    }
+    const program = await adjustRunProgram(
+      req.userId,
+      'user',
+      (state) =>
+        adjustRunning(
+          state,
+          parsed.data.percent,
+          parsed.data.count,
+          findProgram(state.programId)?.workouts
+        ),
+      req.authenticatedUserId
+    );
+    if (!program) {
+      return res.status(400).json({ error: 'There is no run program.' });
+    }
+    res.json({ program });
+  } catch (error) {
+    if (error instanceof ProgramAdjustError) {
+      return res.status(400).json({ error: error.message });
+    }
     next(error);
   }
 });
