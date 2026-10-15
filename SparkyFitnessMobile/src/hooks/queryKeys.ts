@@ -269,6 +269,8 @@ export const workoutSessionQueryKey = (sessionId: string) =>
 
 export const workoutPresetsQueryKey = ['workoutPresets'] as const;
 
+export const starterRoutinesQueryKey = ['starterRoutines'] as const;
+
 export const workoutPresetSearchQueryKey = (searchTerm: string) =>
   ['workoutPresetSearch', searchTerm] as const;
 
