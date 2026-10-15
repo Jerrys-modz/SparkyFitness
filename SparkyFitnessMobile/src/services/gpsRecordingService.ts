@@ -34,7 +34,6 @@ import {
   INITIAL_PACE_ALERT_STATE,
   intervalPosition,
   isValidIntervalPlan,
-  lastStepStarted,
   normalizeHeartRateBand,
   normalizePaceBand,
   stepHeartRateAlert,
@@ -1464,7 +1463,7 @@ export function finishRecording(): Promise<void> {
     // An indoor session has no GPS distance yet. Stop the cue session without
     // announcing zero before the person enters what the machine showed.
     const programDone =
-      session.audioCues && lastStepStarted(session.intervals)
+      session.audioCues && planCompleted(session)
         ? (programCues(session)?.done ?? null)
         : null;
     if (session.audioCues && session.indoor) {
@@ -1545,6 +1544,19 @@ export function discardRecording(): Promise<void> {
     await persistSession();
     publish();
   });
+}
+
+/**
+ * Whether the recording followed its plan to the end: every step has run its
+ * full length, counted in unpaused time. Starting the last step is not enough,
+ * since stopping a minute into it is a run cut short.
+ */
+export function planCompleted(current: RecordingSession): boolean {
+  if (!current.intervals) return false;
+  return (
+    intervalPosition(current.intervals.plan, elapsedSeconds(current))?.done ===
+    true
+  );
 }
 
 /** Seconds on the clock for a session, with pauses removed. */

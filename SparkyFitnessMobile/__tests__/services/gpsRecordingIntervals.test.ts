@@ -342,7 +342,7 @@ describe('program workout cues', () => {
       program: { id: 'beginner5k', index },
       notification,
     });
-    at(planTotalSeconds(workout.plan) - 5);
+    at(planTotalSeconds(workout.plan));
     await tickIntervals();
     (speakRecordingCue as jest.Mock).mockClear();
     await finishRecording();
@@ -350,6 +350,22 @@ describe('program workout cues', () => {
     expect(spoken()).toEqual([
       `Workout ${index + 1} of ${program.workouts.length} done. Next up, Week ${next.week + 1}, run ${next.day + 1}.`,
     ]);
+  });
+
+  test('stopping during the last step does not claim the workout', async () => {
+    await startRecording({
+      activity: 'run',
+      indoor: true,
+      audioCues: 'km',
+      intervals: workout.plan,
+      program: { id: 'beginner5k', index },
+      notification,
+    });
+    at(planTotalSeconds(workout.plan) - 5);
+    await tickIntervals();
+    (speakRecordingCue as jest.Mock).mockClear();
+    await finishRecording();
+    expect(spoken().join(' ')).not.toContain('done. Next up');
   });
 
   test('stopping early does not claim the workout', async () => {

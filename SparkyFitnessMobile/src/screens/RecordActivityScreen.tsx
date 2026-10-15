@@ -60,6 +60,7 @@ import {
   RecordingPermissionError,
   discardRecording,
   elapsedSeconds,
+  planCompleted,
   finishRecording,
   COUNTDOWN_CHOICES,
   getHeartRateSamples,
@@ -89,7 +90,6 @@ import {
   buildIntervalPlan,
   INTERVAL_PRESETS,
   intervalPosition,
-  lastStepStarted,
   type IntervalOptions,
   type IntervalPlan,
   type RunProgramResponse,
@@ -771,11 +771,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
         session.indoor ? indoorEstimate : null,
         session.indoor === true && indoorDistanceText === null
       );
-      // Ticks a program workout off only if the plan was followed to its last
-      // step; a run cut short can be tried again. The day is the one the run
+      // Ticks a program workout off only if the plan was followed to its end; a run cut short can be tried again. The day is the one the run
       // started on, so a run saved after midnight still counts for its own day.
       let program: RunSummaryParams['program'] = null;
-      if (session.program && lastStepStarted(session.intervals)) {
+      if (session.program && planCompleted(session)) {
         // The activity is already saved, so a failure here only costs the
         // tick: say so and carry on rather than failing the save.
         try {
