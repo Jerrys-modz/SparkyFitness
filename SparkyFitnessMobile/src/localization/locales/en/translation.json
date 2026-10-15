@@ -604,7 +604,7 @@
       "personalRecords": "Personal records",
       "personalRecordsSubtitle": "Your best 1 km, 5 km, 10 km and more",
       "equipment": "Equipment",
-      "equipmentSubtitle": "Shoes and their mileage"
+      "equipmentSubtitle": "Shoes and other gear"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -6446,6 +6446,10 @@
         "description": "Read nutrition labels with Apple Intelligence on this device. If it cannot read a label, the server AI provider is used instead."
       }
     }
+  },
+  "equipmentHub": {
+    "title": "Equipment",
+    "shoesSubtitle": "Running shoes and their mileage"
   },
   "shoes": {
     "title": "Shoes",
