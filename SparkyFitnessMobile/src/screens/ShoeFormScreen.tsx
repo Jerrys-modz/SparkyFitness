@@ -1,16 +1,20 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
+import { useCSSVariable } from 'uniwind';
 import {
   DEFAULT_SHOE_RETIREMENT_DISTANCE_KM,
-  isDayString,
   type CreateShoeBody,
   type ShoeResponse,
 } from '@workspace/shared';
 
+import CalendarSheet, {
+  type CalendarSheetRef,
+} from '../components/CalendarSheet';
 import FormInput from '../components/FormInput';
+import Icon from '../components/Icon';
 import SettingsRow, { SettingsRowGroup } from '../components/SettingsRow';
 import Button from '../components/ui/Button';
 import Switch from '../components/ui/Switch';
@@ -18,8 +22,10 @@ import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { usePreferences } from '../hooks/usePreferences';
 import { useShoeMutations, useShoes } from '../hooks/useShoes';
+import { getAppLocale } from '../localization';
 import { addLog } from '../services/LogService';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
+import { formatDate, toLocalDateString } from '../utils/dateUtils';
 import { kmToMiles, milesToKm } from '../utils/unitConversions';
 import type { RootStackScreenProps } from '../types/navigation';
 
@@ -49,6 +55,12 @@ const ShoeForm: React.FC<{
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
   const { createMutation, updateMutation, deleteMutation } = useShoeMutations();
   const unitLabel = distanceUnit === 'miles' ? 'mi' : 'km';
+  const calendarSheetRef = useRef<CalendarSheetRef>(null);
+  const [accentPrimary, borderSubtle, raisedBg] = useCSSVariable([
+    '--color-accent-primary',
+    '--color-border-subtle',
+    '--color-raised',
+  ]) as [string, string, string];
 
   const [name, setName] = useState(shoe?.name ?? '');
   const [brand, setBrand] = useState(shoe?.brand ?? '');
@@ -77,7 +89,6 @@ const ShoeForm: React.FC<{
     starting: starting == null || starting < 0,
     retirement: retirement == null || retirement <= 0,
     price: purchasePrice.trim() !== '' && (price == null || price < 0),
-    date: purchaseDate.trim() !== '' && !isDayString(purchaseDate.trim()),
   };
   const hasErrors = Object.values(errors).some(Boolean);
   const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -102,7 +113,7 @@ const ShoeForm: React.FC<{
       brand: optionalText(brand),
       model: optionalText(model),
       nickname: optionalText(nickname),
-      purchase_date: purchaseDate.trim() || null,
+      purchase_date: purchaseDate || null,
       purchase_price: price,
       starting_distance_km: toKm(starting),
       retirement_distance_km: toKm(retirement),
@@ -158,198 +169,230 @@ const ShoeForm: React.FC<{
   );
 
   return (
-    <ScrollView
-      contentContainerStyle={{
-        padding: 16,
-        paddingBottom: insets.bottom + 80 + activeWorkoutBarPadding,
-      }}
-      keyboardShouldPersistTaps="handled"
-    >
-      <View className="bg-surface rounded-xl p-4 mb-4 shadow-sm">
-        <FieldLabel title={t('shoes.name', { defaultValue: 'Name' })} />
-        <FormInput
-          value={name}
-          onChangeText={setName}
-          maxLength={120}
-          returnKeyType="next"
-          accessibilityLabel={t('shoes.name', { defaultValue: 'Name' })}
-        />
-        {errors.name &&
-          errorText(t('shoes.nameRequired', { defaultValue: 'Enter a name.' }))}
-        <View className="mt-4">
-          <FieldLabel title={t('shoes.brand', { defaultValue: 'Brand' })} />
+    <>
+      <ScrollView
+        contentContainerStyle={{
+          padding: 16,
+          paddingBottom: insets.bottom + 80 + activeWorkoutBarPadding,
+        }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View className="bg-surface rounded-xl p-4 mb-4 shadow-sm">
+          <FieldLabel title={t('shoes.name', { defaultValue: 'Name' })} />
           <FormInput
-            value={brand}
-            onChangeText={setBrand}
+            value={name}
+            onChangeText={setName}
             maxLength={120}
-            accessibilityLabel={t('shoes.brand', { defaultValue: 'Brand' })}
+            returnKeyType="next"
+            accessibilityLabel={t('shoes.name', { defaultValue: 'Name' })}
           />
+          {errors.name &&
+            errorText(
+              t('shoes.nameRequired', { defaultValue: 'Enter a name.' })
+            )}
+          <View className="mt-4">
+            <FieldLabel title={t('shoes.brand', { defaultValue: 'Brand' })} />
+            <FormInput
+              value={brand}
+              onChangeText={setBrand}
+              maxLength={120}
+              accessibilityLabel={t('shoes.brand', { defaultValue: 'Brand' })}
+            />
+          </View>
+          <View className="mt-4">
+            <FieldLabel title={t('shoes.model', { defaultValue: 'Model' })} />
+            <FormInput
+              value={model}
+              onChangeText={setModel}
+              maxLength={120}
+              accessibilityLabel={t('shoes.model', { defaultValue: 'Model' })}
+            />
+          </View>
+          <View className="mt-4">
+            <FieldLabel
+              title={t('shoes.nickname', { defaultValue: 'Nickname' })}
+            />
+            <FormInput
+              value={nickname}
+              onChangeText={setNickname}
+              maxLength={120}
+              accessibilityLabel={t('shoes.nickname', {
+                defaultValue: 'Nickname',
+              })}
+            />
+          </View>
         </View>
-        <View className="mt-4">
-          <FieldLabel title={t('shoes.model', { defaultValue: 'Model' })} />
-          <FormInput
-            value={model}
-            onChangeText={setModel}
-            maxLength={120}
-            accessibilityLabel={t('shoes.model', { defaultValue: 'Model' })}
-          />
-        </View>
-        <View className="mt-4">
-          <FieldLabel
-            title={t('shoes.nickname', { defaultValue: 'Nickname' })}
-          />
-          <FormInput
-            value={nickname}
-            onChangeText={setNickname}
-            maxLength={120}
-            accessibilityLabel={t('shoes.nickname', {
-              defaultValue: 'Nickname',
-            })}
-          />
-        </View>
-      </View>
 
-      <View className="bg-surface rounded-xl p-4 mb-4 shadow-sm">
-        <FieldLabel
-          title={t('shoes.startingDistance', {
-            defaultValue: 'Starting mileage ({{unit}})',
-            unit: unitLabel,
-          })}
-        />
-        <FormInput
-          value={startingDistance}
-          onChangeText={setStartingDistance}
-          keyboardType="decimal-pad"
-          maxLength={8}
-          returnKeyType="done"
-          accessibilityLabel={t('shoes.startingDistance', {
-            defaultValue: 'Starting mileage ({{unit}})',
-            unit: unitLabel,
-          })}
-        />
-        {errors.starting &&
-          errorText(
-            t('shoes.startingInvalid', {
-              defaultValue: 'Enter 0 or more.',
-            })
-          )}
-        <View className="mt-4">
+        <View className="bg-surface rounded-xl p-4 mb-4 shadow-sm">
           <FieldLabel
-            title={t('shoes.retireAt', {
-              defaultValue: 'Retire at ({{unit}})',
+            title={t('shoes.startingDistance', {
+              defaultValue: 'Starting mileage ({{unit}})',
               unit: unitLabel,
             })}
           />
           <FormInput
-            value={retirementDistance}
-            onChangeText={setRetirementDistance}
+            value={startingDistance}
+            onChangeText={setStartingDistance}
             keyboardType="decimal-pad"
             maxLength={8}
             returnKeyType="done"
-            accessibilityLabel={t('shoes.retireAt', {
-              defaultValue: 'Retire at ({{unit}})',
+            accessibilityLabel={t('shoes.startingDistance', {
+              defaultValue: 'Starting mileage ({{unit}})',
               unit: unitLabel,
             })}
           />
-          {errors.retirement &&
+          {errors.starting &&
             errorText(
-              t('shoes.retireInvalid', {
-                defaultValue: 'Enter a distance above 0.',
+              t('shoes.startingInvalid', {
+                defaultValue: 'Enter 0 or more.',
               })
             )}
-        </View>
-      </View>
-
-      <View className="bg-surface rounded-xl p-4 mb-4 shadow-sm">
-        <FieldLabel
-          title={t('shoes.purchaseDate', {
-            defaultValue: 'Purchase date (YYYY-MM-DD)',
-          })}
-        />
-        <FormInput
-          value={purchaseDate}
-          onChangeText={setPurchaseDate}
-          placeholder={t('shoes.dateFormat', { defaultValue: 'YYYY-MM-DD' })}
-          maxLength={10}
-          autoCapitalize="none"
-          accessibilityLabel={t('shoes.purchaseDate', {
-            defaultValue: 'Purchase date (YYYY-MM-DD)',
-          })}
-        />
-        {errors.date &&
-          errorText(
-            t('shoes.dateInvalid', {
-              defaultValue: 'Use the format YYYY-MM-DD.',
-            })
-          )}
-        <View className="mt-4">
-          <FieldLabel
-            title={t('shoes.purchasePrice', { defaultValue: 'Price' })}
-          />
-          <FormInput
-            value={purchasePrice}
-            onChangeText={setPurchasePrice}
-            keyboardType="decimal-pad"
-            maxLength={10}
-            returnKeyType="done"
-            accessibilityLabel={t('shoes.purchasePrice', {
-              defaultValue: 'Price',
-            })}
-          />
-          {errors.price &&
-            errorText(
-              t('shoes.priceInvalid', { defaultValue: 'Enter 0 or more.' })
-            )}
-        </View>
-      </View>
-
-      <SettingsRowGroup>
-        <SettingsRow
-          title={t('shoes.useAsDefault', {
-            defaultValue: 'Use as my default pair',
-          })}
-          subtitle={t('shoes.useAsDefaultHint', {
-            defaultValue:
-              'New GPS-recorded runs are logged with your default pair.',
-          })}
-          subtitleNumberOfLines={0}
-          rightAccessory={
-            <Switch
-              value={isDefault}
-              onValueChange={setIsDefault}
-              disabled={shoe?.status === 'retired'}
-              accessibilityLabel={t('shoes.useAsDefault', {
-                defaultValue: 'Use as my default pair',
+          <View className="mt-4">
+            <FieldLabel
+              title={t('shoes.retireAt', {
+                defaultValue: 'Retire at ({{unit}})',
+                unit: unitLabel,
               })}
             />
-          }
-        />
-      </SettingsRowGroup>
-
-      <Button
-        variant="primary"
-        onPress={handleSave}
-        loading={isSaving}
-        disabled={hasErrors || isSaving}
-      >
-        {t('common.save', { defaultValue: 'Save' })}
-      </Button>
-
-      {shoe && (
-        <View className="mt-3">
-          <Button variant="outline" onPress={handleToggleRetired}>
-            {shoe.status === 'retired'
-              ? t('shoes.reactivate', { defaultValue: 'Reactivate' })
-              : t('shoes.retire', { defaultValue: 'Retire' })}
-          </Button>
-          <View className="mt-3">
-            <Button variant="destructive" onPress={handleDelete}>
-              {t('common.delete', { defaultValue: 'Delete' })}
-            </Button>
+            <FormInput
+              value={retirementDistance}
+              onChangeText={setRetirementDistance}
+              keyboardType="decimal-pad"
+              maxLength={8}
+              returnKeyType="done"
+              accessibilityLabel={t('shoes.retireAt', {
+                defaultValue: 'Retire at ({{unit}})',
+                unit: unitLabel,
+              })}
+            />
+            {errors.retirement &&
+              errorText(
+                t('shoes.retireInvalid', {
+                  defaultValue: 'Enter a distance above 0.',
+                })
+              )}
           </View>
         </View>
-      )}
-    </ScrollView>
+
+        <View className="bg-surface rounded-xl p-4 mb-4 shadow-sm">
+          <FieldLabel
+            title={t('shoes.purchaseDate', { defaultValue: 'Purchase date' })}
+          />
+          <View className="flex-row items-center">
+            <Pressable
+              onPress={() => calendarSheetRef.current?.present()}
+              accessibilityRole="button"
+              accessibilityLabel={t('shoes.purchaseDate', {
+                defaultValue: 'Purchase date',
+              })}
+              className="flex-1 flex-row items-center justify-between rounded-lg"
+              style={{
+                backgroundColor: raisedBg,
+                borderWidth: 1,
+                borderColor: borderSubtle,
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+              }}
+            >
+              <Text
+                className={
+                  purchaseDate
+                    ? 'text-base text-text-primary'
+                    : 'text-base text-text-muted'
+                }
+              >
+                {purchaseDate
+                  ? formatDate(purchaseDate, getAppLocale())
+                  : t('shoes.selectDate', { defaultValue: 'Select date' })}
+              </Text>
+              <Icon name="chevron-down" size={16} color={accentPrimary} />
+            </Pressable>
+            {purchaseDate ? (
+              <Button
+                variant="ghost"
+                onPress={() => setPurchaseDate('')}
+                accessibilityLabel={t('shoes.clearDate', {
+                  defaultValue: 'Clear date',
+                })}
+              >
+                {t('shoes.clearDate', { defaultValue: 'Clear date' })}
+              </Button>
+            ) : null}
+          </View>
+          <View className="mt-4">
+            <FieldLabel
+              title={t('shoes.purchasePrice', { defaultValue: 'Price' })}
+            />
+            <FormInput
+              value={purchasePrice}
+              onChangeText={setPurchasePrice}
+              keyboardType="decimal-pad"
+              maxLength={10}
+              returnKeyType="done"
+              accessibilityLabel={t('shoes.purchasePrice', {
+                defaultValue: 'Price',
+              })}
+            />
+            {errors.price &&
+              errorText(
+                t('shoes.priceInvalid', { defaultValue: 'Enter 0 or more.' })
+              )}
+          </View>
+        </View>
+
+        <SettingsRowGroup>
+          <SettingsRow
+            title={t('shoes.useAsDefault', {
+              defaultValue: 'Use as my default pair',
+            })}
+            subtitle={t('shoes.useAsDefaultHint', {
+              defaultValue:
+                'New GPS-recorded runs are logged with your default pair.',
+            })}
+            subtitleNumberOfLines={0}
+            rightAccessory={
+              <Switch
+                value={isDefault}
+                onValueChange={setIsDefault}
+                disabled={shoe?.status === 'retired'}
+                accessibilityLabel={t('shoes.useAsDefault', {
+                  defaultValue: 'Use as my default pair',
+                })}
+              />
+            }
+          />
+        </SettingsRowGroup>
+
+        <Button
+          variant="primary"
+          onPress={handleSave}
+          loading={isSaving}
+          disabled={hasErrors || isSaving}
+        >
+          {t('common.save', { defaultValue: 'Save' })}
+        </Button>
+
+        {shoe && (
+          <View className="mt-3">
+            <Button variant="outline" onPress={handleToggleRetired}>
+              {shoe.status === 'retired'
+                ? t('shoes.reactivate', { defaultValue: 'Reactivate' })
+                : t('shoes.retire', { defaultValue: 'Retire' })}
+            </Button>
+            <View className="mt-3">
+              <Button variant="destructive" onPress={handleDelete}>
+                {t('common.delete', { defaultValue: 'Delete' })}
+              </Button>
+            </View>
+          </View>
+        )}
+      </ScrollView>
+      <CalendarSheet
+        ref={calendarSheetRef}
+        selectedDate={purchaseDate || toLocalDateString(new Date())}
+        onSelectDate={setPurchaseDate}
+      />
+    </>
   );
 };
 
