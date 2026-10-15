@@ -125,3 +125,29 @@ export const deleteWorkoutPreset = async (
     operation: 'delete workout preset',
   });
 };
+
+export interface StarterRoutine {
+  id: string;
+  name: string;
+  description: string;
+  move_count: number;
+}
+
+export const fetchStarterRoutines = async (): Promise<StarterRoutine[]> => {
+  return apiFetch<StarterRoutine[]>({
+    endpoint: '/api/workout-presets/starter-routines',
+    serviceName: 'Workout Presets API',
+    operation: 'fetch starter routines',
+  });
+};
+
+export const addStarterRoutine = async (
+  routineId: string
+): Promise<WorkoutPreset> => {
+  return apiFetch<WorkoutPreset>({
+    endpoint: `/api/workout-presets/starter-routines/${encodeURIComponent(routineId)}`,
+    method: 'POST',
+    serviceName: 'Workout Presets API',
+    operation: 'add starter routine',
+  });
+};

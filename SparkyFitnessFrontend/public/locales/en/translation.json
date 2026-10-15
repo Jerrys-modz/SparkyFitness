@@ -1501,6 +1501,16 @@
     }
   },
   "workoutPresetsManager": {
+    "starterRoutines": {
+      "button": "Stretch routines",
+      "title": "Stretch routines",
+      "description": "Add a ready-made stretching routine to your presets. You can edit your copy afterwards.",
+      "moveCount": "{{count}} moves",
+      "adding": "Adding...",
+      "addSuccess": "Routine added to your workout presets.",
+      "addError": "Failed to add routine.",
+      "loadError": "Failed to load starter routines."
+    },
     "addPresetButton": "Add Preset",
     "noPresetsFound": "No workout presets found. Create one to get started!",
     "logPresetToDiaryTooltip": "Log preset to diary",
