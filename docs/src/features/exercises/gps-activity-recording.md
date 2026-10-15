@@ -151,6 +151,17 @@ This is a common beginner structure, not medical advice: if you are unsure about
 
 ---
 
+## Running goals
+
+At the top of **Library → Training programs** the **Running goals** card holds two optional goals. They are separate from the training program, so you can set either, both, or use them without a program.
+
+- **Weekly distance.** Type the distance you want to run each week, in kilometers or miles to match your distance setting. The card shows how far you have run this week, a progress bar, and how much a day the rest of the week needs to reach the goal (or that you have reached it). The week starts on the day set in your preferences. Only runs count: walks, rides, gym cardio and entries with no distance are left out. A run is recognized by its activity name, the same way personal records do it, so a run logged as "Morning workout" will not count until it is named as a run.
+- **Race.** Give a race a day, and optionally a name and a distance. The card counts down the days ("31 days to go", "Race day is today") and, once the day has passed, says how long ago it was. Choosing **Remove race** clears the name, distance and day together.
+
+Goals belong to your account and sync between devices. They are private: they are not shared with family or friends you delegate access to. Sparky's AI assistant does not read or change them yet.
+
+---
+
 ## Recording with the screen locked
 
 - **iOS:** recording keeps running in the background and the status bar shows the blue location indicator. Only "while using the app" location access is needed.
