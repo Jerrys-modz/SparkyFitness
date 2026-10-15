@@ -15,7 +15,7 @@ import {
   computeLaps,
   computeSplits,
   currentPaceSecondsPerUnit,
-  cumulativeDistances,
+  haversineMeters,
   summarizeRecording,
   type RawFix,
   type RecordedPoint,
@@ -761,10 +761,31 @@ function checkPaceBand(now: number): void {
   }
 }
 
-/** Metres recorded so far: the length of the stored track, pauses excluded. */
+/** Running total for `recordedMeters`, extended as fixes are appended. */
+let meterCache: {
+  source: RecordedPoint[];
+  length: number;
+  total: number;
+} | null = null;
+
+/**
+ * Metres recorded so far: the length of the stored track, pauses excluded.
+ * Called every second, so it extends a cached total over the new fixes and
+ * only walks the whole track when the array was replaced.
+ */
 function recordedMeters(): number {
-  const distances = cumulativeDistances(points);
-  return distances.length ? distances[distances.length - 1] : 0;
+  let cached = meterCache;
+  if (!cached || cached.source !== points || cached.length > points.length) {
+    cached = { source: points, length: 0, total: 0 };
+  }
+  for (let i = Math.max(cached.length, 1); i < points.length; i++) {
+    if (points[i].seg === points[i - 1].seg) {
+      cached.total += haversineMeters(points[i - 1], points[i]);
+    }
+  }
+  cached.length = points.length;
+  meterCache = cached;
+  return cached.total;
 }
 
 /**

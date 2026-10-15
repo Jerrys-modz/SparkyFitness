@@ -136,6 +136,17 @@ describe('adjustRunning with distance steps', () => {
     ]);
   });
 
+  it('scales a custom step by its own pace, not the built-in one', () => {
+    const custom = reps(1000);
+    custom.plan.steps[1] = { kind: 'work', seconds: 300, meters: 1000 };
+    const result = adjustRunning({ workouts: [custom], next: 0 }, -20, 1);
+    expect(result.workouts[0].plan.steps[1]).toEqual({
+      kind: 'work',
+      seconds: 240,
+      meters: 800,
+    });
+  });
+
   it('keeps a distance within 30% under and 10% over the original', () => {
     const original = [reps(400)];
     const eased = adjustRunning(

@@ -60,7 +60,14 @@ function scaleDistanceStep(
   return {
     ...step,
     meters,
-    seconds: Math.max(5, Math.round(meters * EXPECTED_SECONDS_PER_METER)),
+    seconds: Math.max(
+      5,
+      Math.round(
+        step.meters
+          ? (step.seconds * meters) / step.meters
+          : meters * EXPECTED_SECONDS_PER_METER,
+      ),
+    ),
   };
 }
 

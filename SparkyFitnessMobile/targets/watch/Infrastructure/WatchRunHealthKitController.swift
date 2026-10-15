@@ -98,7 +98,13 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     func planPosition() -> WatchRunPlan.Position? {
         guard let plan else { return nil }
         let now = elapsed
-        planCursor = plan.advance(planCursor, elapsed: now, meters: metrics.distanceMeters)
+        let advanced = plan.advance(planCursor, elapsed: now, meters: metrics.distanceMeters)
+        if advanced != planCursor {
+            planCursor = advanced
+            // A distance step's start can't be rebuilt from the clock, so a
+            // run killed after a step change must not recover the old cursor.
+            persistSnapshot(force: true)
+        }
         return plan.position(cursor: planCursor, elapsed: now, meters: metrics.distanceMeters)
     }
 

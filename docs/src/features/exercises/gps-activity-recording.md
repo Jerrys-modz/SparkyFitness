@@ -99,7 +99,7 @@ Each step also becomes a lap, so the saved activity is split into your work and 
 
 ### Distance repeats
 
-Some speed sessions are set by distance rather than time: **6 × 400 m** (a 10 minute warm-up, six 400 m repeats with 1 minute 30 seconds easy between them, a 10 minute cool-down) and **5 × 1 km** (2 minutes easy between). In **Custom**, switch the work steps from **By time** to **By distance** and set the distance in 100 m steps (250 m steps above 1 km).
+Some speed sessions are set by distance rather than time: **6 × 400 m** (a 10 minute warm-up, six 400 m repeats with 1 minute 30 seconds easy between them, a 10 minute cool-down) and **5 × 1 km** (2 minutes easy between). In **Custom**, switch the work steps from **By time** to **By distance** and set the distance in 100 m steps up to 1 km and 250 m steps above that, up to 10 km.
 
 A distance step ends when the recording has covered that distance since the step began, however long it takes. The card shows the metres left instead of a countdown, the voice cue says the distance ("Fast. 400 meters."), and on steps of 300 m or more you hear "100 meters to go" near the end. Easy and warm-up steps stay timed, and they count from the moment the distance step ended. Repeat distances are shown in metres and kilometres, as on a track. If your distance unit is miles, **Custom** also has a **Meters / Miles** switch: in miles the repeat goes up in quarter miles (0.25 to 6 mi), it is shown and spoken in miles, and the last cue is "0.1 miles to go".
 
