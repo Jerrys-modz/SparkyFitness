@@ -25,6 +25,7 @@ import {
   BookOpen, // Used for the docs link
   Languages, // Used for the translation link
   HeartPulse, // Used for the delegate-only Symptoms page
+  Footprints, // Used for the Shoes page
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -144,6 +145,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           label: t('exercise.title', 'Exercises'),
           icon: Dumbbell,
         },
+        { value: 'shoes', label: t('nav.shoes', 'Shoes'), icon: Footprints },
         { value: 'goals', label: t('nav.goals', 'Goals'), icon: Target },
         {
           value: 'foodlog',
@@ -259,6 +261,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           label: t('exercise.title', 'Exercises'),
           icon: Dumbbell,
         },
+        { value: '/shoes', label: t('nav.shoes', 'Shoes'), icon: Footprints },
         { value: '/goals', label: t('nav.goals'), icon: Target },
         { value: '/settings', label: t('nav.settings'), icon: SettingsIcon }
       );
