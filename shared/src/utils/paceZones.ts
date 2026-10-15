@@ -93,11 +93,17 @@ export function paceZones(
   if (thresholdSecondsPerKm > MAX_THRESHOLD_SECONDS_PER_KM) return null;
   if (!Number.isFinite(shift) || shift < -0.2 || shift > 0.2) return null;
   const scale = thresholdSecondsPerKm * (1 + shift);
-  const zones = ZONES_FASTEST_FIRST.map((id, index) => ({
-    id,
-    minSecondsPerKm: round5(scale * ZONE_EDGES[index]),
-    maxSecondsPerKm: round5(scale * ZONE_EDGES[index + 1]),
-  }));
+  const zones: PaceZone[] = [];
+  ZONES_FASTEST_FIRST.forEach((id, index) => {
+    const fast = ZONE_EDGES[index];
+    const slow = ZONE_EDGES[index + 1];
+    if (fast === undefined || slow === undefined) return;
+    zones.push({
+      id,
+      minSecondsPerKm: round5(scale * fast),
+      maxSecondsPerKm: round5(scale * slow),
+    });
+  });
   return zones.reverse();
 }
 
