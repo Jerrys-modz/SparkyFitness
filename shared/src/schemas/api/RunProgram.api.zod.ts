@@ -18,6 +18,8 @@ export const runProgramHeartRateSchema = z
 export const runProgramStepSchema = z.object({
   kind: z.enum(["warmup", "work", "recovery", "cooldown"]),
   seconds: z.number().int().min(1).max(14400),
+  meters: z.number().int().min(50).max(50000).optional(),
+  unit: z.enum(["m", "mi"]).optional(),
   /** A pace to hold in this step; only the person's own programs set one. */
   pace: runProgramPaceSchema.optional(),
   /** A heart-rate range to hold in this step; only the person's own programs set one. */
