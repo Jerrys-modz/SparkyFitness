@@ -6922,7 +6922,9 @@
       "workTitle": "Fast stretch pace",
       "workDescription": "Alerts you when a fast stretch is outside this range.",
       "easyTitle": "Easy stretch pace",
-      "easyDescription": "Alerts you when an easy stretch is outside this range."
+      "easyDescription": "Alerts you when an easy stretch is outside this range.",
+      "warmTitle": "Warm-up and cool-down pace",
+      "warmDescription": "Alerts you when the warm-up or cool-down is outside this range."
     },
     "heartRateBand": {
       "title": "Heart rate alert",
@@ -6935,14 +6937,16 @@
       "workTitle": "Fast stretch heart rate",
       "workDescription": "Alerts you when your heart rate in a fast stretch is outside this range.",
       "easyTitle": "Easy stretch heart rate",
-      "easyDescription": "Alerts you when your heart rate in an easy stretch is outside this range."
+      "easyDescription": "Alerts you when your heart rate in an easy stretch is outside this range.",
+      "warmTitle": "Warm-up and cool-down heart rate",
+      "warmDescription": "Alerts you when your heart rate in the warm-up or cool-down is outside this range."
     },
     "suggestedRanges": {
       "title": "Suggested ranges",
-      "pace": "Pace: fast {{fast}}, easy {{easy}}",
+      "pace": "Pace: fast {{fast}}, easy {{easy}}, warm-up and cool-down {{warm}}",
       "paceSource_one": "Based on your last {{formattedCount}} session.",
       "paceSource_other": "Based on your last {{formattedCount}} sessions.",
-      "heartRate": "Heart rate: fast {{fast}}, easy {{easy}}",
+      "heartRate": "Heart rate: fast {{fast}}, easy {{easy}}, warm-up and cool-down {{warm}}",
       "heartRateSource": "From an estimated maximum of {{max}} bpm for your age.",
       "use": "Use these"
     }
