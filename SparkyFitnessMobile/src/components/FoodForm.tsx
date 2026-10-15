@@ -15,6 +15,8 @@ import { useCSSVariable } from 'uniwind';
 import BottomSheetPicker from './BottomSheetPicker';
 import Button from './ui/Button';
 import EquivalentsSection from './EquivalentsSection';
+import NamedFoodPortionsSection from './NamedFoodPortionsSection';
+import type { EditableFoodPortion } from '../utils/namedFoodPortions';
 import FormInput from './FormInput';
 import MarkdownNotesField from './MarkdownNotesField';
 import Icon from './Icon';
@@ -109,6 +111,10 @@ export interface FoodFormProps {
     onChange: (next: EquivalentUnit[]) => void;
     disabled?: boolean;
   };
+  portions?: {
+    items: EditableFoodPortion[];
+    onChange: (items: EditableFoodPortion[]) => void;
+  };
   /** Saved photos of the food, offered by the notes toolbar's insert-photo picker. */
   noteImages?: readonly string[];
   headerChildren?: React.ReactNode;
@@ -141,6 +147,7 @@ const FoodForm: React.FC<FoodFormProps> = ({
   unitSelector,
   convertServingSizeOnUnitChange = false,
   equivalents,
+  portions,
   noteImages,
   headerChildren,
   children,
@@ -1041,6 +1048,15 @@ const FoodForm: React.FC<FoodFormProps> = ({
               )}
             </View>
           </View>
+
+          {portions ? (
+            <NamedFoodPortionsSection
+              items={portions.items}
+              onChange={portions.onChange}
+              servingUnit={form.servingUnit}
+              disabled={isSubmitting}
+            />
+          ) : null}
 
           {equivalents ? (
             <EquivalentsSection

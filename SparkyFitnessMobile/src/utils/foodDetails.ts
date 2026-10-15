@@ -1,4 +1,7 @@
-import { FOOD_VARIANT_NUTRIENT_FIELDS } from '@workspace/shared';
+import {
+  FOOD_VARIANT_NUTRIENT_FIELDS,
+  parseNamedFoodPortion,
+} from '@workspace/shared';
 import type { ExternalFoodVariant } from '../types/externalFoods';
 import type { FoodInfoItem } from '../types/foodInfo';
 import type { FoodVariantDetail } from '../types/foods';
@@ -800,6 +803,7 @@ export function groupEquivalentVariants<
     const match = groups.find(
       (g) =>
         nutritionMatches(g.base, variant) &&
+        !separateNamedPortion(g.base, variant) &&
         !hasConflictingMetricServingContext(g.base, variant)
     );
     if (match) {
@@ -831,7 +835,11 @@ export function groupEquivalentVariants<
     } else {
       // Fallback: the same persisted serving identity with different nutrition
       // (for example provider rounding) is still one picker option.
-      const sizeMatch = groups.find((g) => isSameVariant(g.base, variant));
+      const sizeMatch = groups.find(
+        (g) =>
+          !separateNamedPortion(g.base, variant) &&
+          isSameVariant(g.base, variant)
+      );
       if (sizeMatch) {
         const shouldPromoteMetricContext =
           !hasDistinctMetricServingContext(sizeMatch.base) &&
@@ -850,6 +858,14 @@ export function groupEquivalentVariants<
     }
   }
   return groups;
+}
+
+function separateNamedPortion(a: ServingIdentity, b: ServingIdentity): boolean {
+  const namedA = parseNamedFoodPortion(a.serving_unit ?? '');
+  const namedB = parseNamedFoodPortion(b.serving_unit ?? '');
+  return Boolean(
+    (namedA || namedB) && servingVariantKey(a) !== servingVariantKey(b)
+  );
 }
 
 type DesiredSiblingRow = Partial<FoodVariantDetail> & { id?: string };

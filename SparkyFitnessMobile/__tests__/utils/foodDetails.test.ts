@@ -740,12 +740,13 @@ describe('groupEquivalentVariants', () => {
       const groups = groupEquivalentVariants([legacy, package200, package400]);
 
       expect(groups.map((group) => group.base.id)).toEqual([
+        'legacy-package',
         'package-200',
         'package-400',
       ]);
-      expect(groups[0].equivalents.map((equivalent) => equivalent.id)).toEqual([
-        'legacy-package',
-      ]);
+      expect(groups.every((group) => group.equivalents.length === 0)).toBe(
+        true
+      );
     }
   );
 
