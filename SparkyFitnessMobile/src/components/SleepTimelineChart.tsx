@@ -315,7 +315,7 @@ const SleepTimelineChart: React.FC<SleepTimelineChartProps> = ({
         (text) => axisFont.getTextWidth(text),
         FALLBACK_LABEL_COLUMN_WIDTH
       ),
-    [tickLabels]
+    [tickLabels, axisFont]
   );
 
   const renderPlaceholder = (message: string) => (
