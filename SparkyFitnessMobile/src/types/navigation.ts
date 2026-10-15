@@ -13,6 +13,7 @@ import type {
   WorkoutFormat,
 } from '@workspace/shared';
 import type { FoodFormData } from '../components/FoodForm';
+import type { NutritionLabelScan } from '../utils/labelScanFood';
 import type { SaveFoodPayload } from '../services/api/foodsApi';
 import type { CompletedSetMap, PrSetMap } from '../stores/activeWorkoutStore';
 import type { MealTypeKey } from '../utils/mealNutrition';
@@ -85,6 +86,10 @@ export type RootStackParamList = {
   WorkoutPlans: undefined;
   WorkoutPlanForm: { template?: WorkoutPlanTemplate } | undefined;
   RunPrograms: undefined;
+  RunProgramCalendar: undefined;
+  RunProgramWorkout: { index: number };
+  RunProgramRace: undefined;
+  RunProgramEdit: { id?: string; fromProgramId?: string } | undefined;
   PersonalRecords: undefined;
   WatchRunLive: undefined;
   MealPlanForm: { template?: MealPlanTemplate; initialMeal?: Meal } | undefined;
@@ -240,6 +245,7 @@ export type RootStackParamList = {
         foodId: string;
         variantId: string;
         customNutrients?: Record<string, string | number> | null;
+        pendingNutritionLabelScan?: NutritionLabelScan;
       };
   ExerciseForm:
     | {
@@ -263,6 +269,10 @@ export type RootStackParamList = {
       }
     | {
         mode: 'capture-barcode';
+        returnKey: string;
+      }
+    | {
+        mode: 'capture-label';
         returnKey: string;
       }
     | undefined;
