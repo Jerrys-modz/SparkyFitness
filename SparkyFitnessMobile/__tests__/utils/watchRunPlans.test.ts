@@ -106,3 +106,47 @@ test('marks a step set in miles for the watch', () => {
   });
   expect(sent.steps[0]).toMatchObject({ meters: 1609, unit: 'mi' });
 });
+
+describe('program voice lines', () => {
+  // The mock t above does not fill in placeholders; this one does.
+  const { createInstance } = jest.requireActual('i18next');
+  const real = createInstance();
+  void real.init({
+    lng: 'en',
+    resources: {},
+    interpolation: { escapeValue: false },
+  });
+  const tt = real.t.bind(real);
+
+  test('a program workout carries what the watch says at its start and end', () => {
+    const status = programStatus({ programId: 'beginner5k', next: 4 })!;
+    const [program] = buildWatchRunPlans(tt, { status, enabled: true }, names);
+    expect(program.startText).toMatch(/^Week 2, run 2\. \d+ minutes?/);
+    expect(program.doneText).toMatch(/^Workout 5 of \d+ done\. Next up, Week/);
+  });
+
+  test('other plans carry none', () => {
+    const [preset] = buildWatchRunPlans(
+      tt,
+      { status: null, enabled: false },
+      names
+    );
+    expect(preset.startText).toBeUndefined();
+    expect(preset.doneText).toBeUndefined();
+  });
+
+  test('a plan chosen on the phone gets them when it is a program workout', () => {
+    const status = programStatus({ programId: 'beginner5k', next: 0 })!;
+    const plan = buildWatchStartPlan(tt, status.workout!.plan, {
+      id: 'beginner5k',
+      name: 'x',
+      program: { id: 'beginner5k', index: 0, activity: 'run' },
+    });
+    expect(plan.startText).toMatch(/^Week 1, run 1\./);
+    const free = buildWatchStartPlan(tt, status.workout!.plan, {
+      id: 'p',
+      name: 'x',
+    });
+    expect(free.startText).toBeUndefined();
+  });
+});

@@ -128,6 +128,39 @@ final class WatchRunCues: NSObject, AVSpeechSynthesizerDelegate {
         return whole == 1 ? "1 meter" : "\(whole) meters"
     }
 
+    /// "Ten seconds. Next, Run." or, on the last step, "Ten seconds to go."
+    static func stepWarningText(next: String?) -> String {
+        next.map { "Ten seconds. Next, \($0)." } ?? "Ten seconds to go."
+    }
+
+    static let stepCountdownText = "Three. Two. One."
+
+    /// Said when the distance passes 5K, 10K, a half marathon or a marathon.
+    static func milestoneText(meters: Double) -> String {
+        if meters >= 42195 { return "Marathon distance. Incredible." }
+        if meters >= 21097.5 { return "Half marathon distance. Amazing." }
+        if meters >= 10000 { return "10K done. Strong effort." }
+        return "5K done. Nice work."
+    }
+
+    static let halfwayText = "Halfway there. Keep it up."
+    static let lastMinuteText = "One minute left. Finish strong."
+
+    /// The periodic update: the time, and outdoors the distance and average
+    /// pace. Indoors the distance is only an estimate, so just the time.
+    static func checkInText(seconds: TimeInterval, distanceMeters: Double?, usesMiles: Bool) -> String {
+        let time = duration(seconds)
+        guard let distanceMeters, distanceMeters >= 10 else { return "\(time) done." }
+        let unitMeters = usesMiles ? 1609.344 : 1000.0
+        let count = (distanceMeters / unitMeters * 10).rounded() / 10
+        let amount = count == count.rounded() ? String(Int(count)) : String(format: "%.1f", count)
+        let unitWord = usesMiles ? (count == 1 ? "mile" : "miles") : (count == 1 ? "kilometer" : "kilometers")
+        let pace = duration((seconds / distanceMeters * unitMeters).rounded())
+        return "\(time). \(amount) \(unitWord). Average pace \(pace) per \(usesMiles ? "mile" : "kilometer")."
+    }
+
+    /// Words for a completed split. Durations are spelled out because a speech
+    /// engine reads "5:24" as a time of day.
     static func splitText(number: Int, seconds: TimeInterval, usesMiles: Bool) -> String {
         let time = duration(seconds)
         return usesMiles

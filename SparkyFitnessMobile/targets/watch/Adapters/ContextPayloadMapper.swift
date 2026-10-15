@@ -86,6 +86,7 @@ enum ContextPayloadMapper {
             stepGoal: (payload["stepGoal"] as? NSNumber)?.intValue ?? previous.stepGoal,
             runVoiceCues: payload["runVoiceCues"] as? Bool ?? previous.runVoiceCues,
             runAutoPause: payload["runAutoPause"] as? Bool ?? previous.runAutoPause,
+            runCheckInMinutes: (payload["runCheckInMinutes"] as? NSNumber)?.intValue ?? previous.runCheckInMinutes,
             runPaceBand: WatchPaceBand.normalized(
                 min: (payload["runPaceMinSecondsPerKm"] as? NSNumber)?.doubleValue,
                 max: (payload["runPaceMaxSecondsPerKm"] as? NSNumber)?.doubleValue
@@ -202,7 +203,9 @@ enum ContextPayloadMapper {
             programId: row["programId"] as? String,
             programIndex: (row["programIndex"] as? NSNumber)?.intValue,
             steps: steps,
-            activity: row["activity"] as? String
+            activity: row["activity"] as? String,
+            startText: row["startText"] as? String,
+            doneText: row["doneText"] as? String
         )
     }
 
@@ -240,7 +243,8 @@ enum ContextPayloadMapper {
             heartRateBand: WatchHeartRateBand.normalized(
                 min: (payload["hrMin"] as? NSNumber)?.doubleValue,
                 max: (payload["hrMax"] as? NSNumber)?.doubleValue
-            )
+            ),
+            checkInMinutes: (payload["checkInMinutes"] as? NSNumber)?.intValue
         )
     }
 

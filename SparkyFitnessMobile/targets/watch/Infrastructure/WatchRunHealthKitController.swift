@@ -91,6 +91,8 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     private(set) var plan: WatchRunPlan?
     /// Where the plan's current step began, kept in the snapshot.
     private var planCursor = WatchRunPlan.Cursor.start
+    /// Where the plan's current step began, for the voice coach.
+    var planCursorValue: WatchRunPlan.Cursor { planCursor }
 
     /// Moves the plan on to the step the run is in now and says where it
     /// stands. Steps end on the builder's active clock or, for a distance
@@ -108,10 +110,11 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         return plan.position(cursor: planCursor, elapsed: now, meters: metrics.distanceMeters)
     }
 
-    /// Whether the plan's last step has begun by `elapsed`, for `planCompleted`.
+    /// Whether every step of the plan has ended by `elapsed` (a distance step
+    /// by the distance recorded in it), for `planCompleted`.
     private func planCompleted(at elapsed: TimeInterval) -> Bool {
         guard let plan else { return false }
-        return plan.lastStepStarted(
+        return plan.completed(
             cursor: plan.advance(planCursor, elapsed: elapsed, meters: metrics.distanceMeters)
         )
     }
@@ -511,7 +514,7 @@ extension WatchRunHealthKitController {
             distanceSeries: snapshot.distanceSeries ?? [],
             plan: snapshot.plan,
             planCompleted: snapshot.plan.map { plan in
-                plan.lastStepStarted(
+                plan.completed(
                     cursor: plan.advance(
                         snapshot.planCursor ?? .start,
                         elapsed: snapshot.elapsed,

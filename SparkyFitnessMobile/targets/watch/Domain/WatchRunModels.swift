@@ -162,6 +162,9 @@ struct WatchRunSettings: Codable, Equatable {
     var paceBand: WatchPaceBand? = nil
     /// A heart-rate range to stay inside; nil is no heart-rate alert.
     var heartRateBand: WatchHeartRateBand? = nil
+    /// Minutes between spoken check-ins (time, distance, pace); nil or 0 is off.
+    /// Optional so a snapshot written before it existed still decodes.
+    var checkInMinutes: Int? = nil
     /// The wearer turned the pace alert off, which also silences the ranges
     /// of a plan's own steps. Optional so an older snapshot still decodes.
     var paceStepsOff: Bool? = nil
@@ -223,6 +226,11 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
     let steps: [Step]
     /// "walk" for a walking program, otherwise nil (a run).
     var activity: String? = nil
+    /// What the voice coach says ahead of a program workout's first step and
+    /// when it ends, already in the phone's language. Optional so a plan kept
+    /// in an older snapshot still decodes.
+    var startText: String? = nil
+    var doneText: String? = nil
 
     var kind: WatchRunKind { activity == "walk" ? .walk : .run }
 
@@ -276,11 +284,6 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
         position(cursor: clockCursor(at: elapsed), elapsed: elapsed, meters: 0)
     }
 
-    /// Whether the last step has begun by `elapsed`, judged by the clock alone.
-    func lastStepStarted(at elapsed: TimeInterval) -> Bool {
-        lastStepStarted(cursor: clockCursor(at: elapsed))
-    }
-
     private func clockCursor(at elapsed: TimeInterval) -> Cursor {
         var cursor = Cursor.start
         for (index, step) in steps.enumerated() {
@@ -315,9 +318,18 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
         )
     }
 
-    /// Whether the last step has begun: the rule the phone uses to tick off a program workout.
-    func lastStepStarted(cursor: Cursor) -> Bool {
-        !steps.isEmpty && cursor.index >= steps.count - 1
+    /// Whether every step has run its full length (active time, so pauses do
+    /// not count): the rule the phone uses to tick off a program workout.
+    /// Starting the last step is not enough; stopping inside it is a run cut short.
+    func completed(at elapsed: TimeInterval) -> Bool {
+        !steps.isEmpty && elapsed >= totalSeconds
+    }
+
+    /// The same rule for a plan followed with a cursor, which is how a plan
+    /// with distance steps is judged: every step has ended, by time or by
+    /// the distance recorded in it.
+    func completed(cursor: Cursor) -> Bool {
+        !steps.isEmpty && cursor.index >= steps.count
     }
 
     static func clock(_ seconds: Double) -> String {
@@ -380,7 +392,7 @@ struct WatchRunResult {
     /// `[active seconds, cumulative metres]` every ~10 s while going, for the
     /// phone's pace chart. Empty after a relaunch mid-run.
     var distanceSeries: [[Double]] = []
-    /// The plan followed, if any; `planCompleted` is whether its last step began.
+    /// The plan followed, if any; `planCompleted` is whether every step ran its full length.
     var plan: WatchRunPlan?
     var planCompleted = false
     /// The indoor factor applied to the watch's own distance (1 outdoors).

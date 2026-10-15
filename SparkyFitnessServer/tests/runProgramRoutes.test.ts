@@ -5,6 +5,7 @@ import express from 'express';
 import errorHandler from '../middleware/errorHandler.js';
 import runProgramRoutes from '../routes/v2/runProgramRoutes.js';
 import {
+  adjustRunProgram,
   completeRunProgramWorkout,
   getRunProgram,
   rateRunProgramWorkout,
@@ -16,6 +17,7 @@ vi.mock('../models/runProgramRepository.js', () => {
   class UnknownRunProgramError extends Error {}
   return {
     getRunProgram: vi.fn(),
+    adjustRunProgram: vi.fn(),
     upsertRunProgram: vi.fn(),
     completeRunProgramWorkout: vi.fn(),
     rateRunProgramWorkout: vi.fn(),
@@ -257,5 +259,33 @@ describe('run program routes', () => {
     const res = await request(app).get('/api/v2/run-program');
     expect(res.status).toBe(403);
     expect(getRunProgram).not.toHaveBeenCalled();
+  });
+
+  it('adjusts the next workouts as the person', async () => {
+    vi.mocked(adjustRunProgram).mockResolvedValue(program);
+    const res = await request(app)
+      .post('/api/v2/run-program/adjust')
+      .send({ percent: -15, count: 2 });
+    expect(res.status).toBe(200);
+    expect(adjustRunProgram).toHaveBeenCalledWith(
+      'test-user-id',
+      'user',
+      expect.any(Function),
+      'test-user-id'
+    );
+  });
+
+  it('refuses an out-of-range adjustment and a missing program', async () => {
+    const bad = await request(app)
+      .post('/api/v2/run-program/adjust')
+      .send({ percent: -50, count: 2 });
+    expect(bad.status).toBe(400);
+    expect(adjustRunProgram).not.toHaveBeenCalled();
+
+    vi.mocked(adjustRunProgram).mockResolvedValue(null);
+    const none = await request(app)
+      .post('/api/v2/run-program/adjust')
+      .send({ percent: -15, count: 2 });
+    expect(none.status).toBe(400);
   });
 });

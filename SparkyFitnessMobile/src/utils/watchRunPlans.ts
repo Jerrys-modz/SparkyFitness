@@ -5,6 +5,7 @@ import {
   type IntervalPlan,
   type ProgramStatus,
 } from '@workspace/shared';
+import { programSpokenCues } from './programCues';
 import { intervalStepName } from './recordingCues';
 
 /**
@@ -25,6 +26,10 @@ export interface WatchRunPlanPayload {
    * records, and `seconds` is only the expected time (what a watch build
    * that predates distance steps follows instead).
    */
+  /** Spoken ahead of a program workout's first step (place, length, any easing); the watch says it as is. */
+  startText?: string;
+  /** Spoken when a program workout reaches its end: progress and what is next. */
+  doneText?: string;
   steps: {
     label: string;
     seconds: number;
@@ -39,6 +44,16 @@ export interface WatchRunPlanPayload {
     unit?: 'mi';
   }[];
 }
+
+const programCueText = (
+  t: TFunction,
+  id: string,
+  index: number,
+  plan: IntervalPlan
+): { startText?: string; doneText?: string } => {
+  const cues = programSpokenCues(t, { id, index }, plan);
+  return cues ? { startText: cues.start, doneText: cues.done } : {};
+};
 
 const toSteps = (t: TFunction, plan: IntervalPlan) =>
   plan.steps.map((step) => ({
@@ -83,6 +98,7 @@ export function buildWatchRunPlans(
       ...(status.program.activity === 'walk'
         ? { activity: 'walk' as const }
         : {}),
+      ...programCueText(t, status.program.id, status.done, status.workout.plan),
       steps: toSteps(t, status.workout.plan),
     });
   }
@@ -120,6 +136,7 @@ export function buildWatchStartPlan(
           ...(meta.program.activity === 'walk'
             ? { activity: 'walk' as const }
             : {}),
+          ...programCueText(t, meta.program.id, meta.program.index, plan),
         }
       : {}),
     steps: toSteps(t, plan),
