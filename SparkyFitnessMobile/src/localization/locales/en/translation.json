@@ -2846,6 +2846,7 @@
     "removeFailed": "Failed to remove photo"
   },
   "foodForm": {
+    "scanNutritionLabel": "Scan nutrition label",
     "equivalentSizes": "Equivalent sizes",
     "selectUnit": "Select Unit",
     "unit": "unit",
