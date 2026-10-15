@@ -6,6 +6,7 @@ export const EXERCISE_STATS_ACTIONS = [
   'query_activities',
   'personal_records',
   'matched_courses',
+  'training_review',
 ] as const;
 
 const intervalSchema = z.enum([
@@ -70,11 +71,19 @@ const matchedCoursesSchema = z
   })
   .strict();
 
+const trainingReviewSchema = z
+  .object({
+    action: z.literal('training_review'),
+    window_days: z.coerce.number().int().min(7).max(90).optional(),
+  })
+  .strict();
+
 export const exerciseStatsSchema = z.discriminatedUnion('action', [
   statsSummarySchema,
   queryActivitiesSchema,
   personalRecordsSchema,
   matchedCoursesSchema,
+  trainingReviewSchema,
 ]);
 
 export type ExerciseStatsInput = z.infer<typeof exerciseStatsSchema>;
@@ -90,4 +99,5 @@ export const exerciseStatsInput = z.object({
   search_keyword: z.string().optional(),
   page: z.coerce.number().int().optional(),
   page_size: z.coerce.number().int().optional(),
+  window_days: z.coerce.number().int().optional(),
 });
