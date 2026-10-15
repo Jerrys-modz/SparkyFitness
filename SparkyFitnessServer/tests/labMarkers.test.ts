@@ -40,3 +40,22 @@ describe('findLabMarkerPreset', () => {
     }
   });
 });
+
+describe('LAB_MARKER_PRESETS names', () => {
+  it('keeps aliases lowercase and never shared between two markers', () => {
+    const seen = new Map<string, string>();
+    for (const p of LAB_MARKER_PRESETS) {
+      for (const name of [p.key, p.displayName.toLowerCase(), ...p.aliases]) {
+        expect(name).toBe(name.toLowerCase());
+        const owner = seen.get(name);
+        if (owner !== undefined) expect(owner).toBe(p.key);
+        seen.set(name, p.key);
+      }
+    }
+  });
+  it('resolves every preset by its own display name', () => {
+    for (const p of LAB_MARKER_PRESETS) {
+      expect(findLabMarkerPreset(p.displayName)?.key).toBe(p.key);
+    }
+  });
+});
