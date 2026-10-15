@@ -131,6 +131,43 @@ function sessionStats(
           }),
     });
   }
+  if (session.avgCadence != null && session.avgCadence > 0) {
+    stats.push({
+      key: 'cadence',
+      label: t('exerciseStatistics.cardio.cadence', {
+        defaultValue: 'Avg cadence',
+      }),
+      value: t('exerciseStatistics.cardio.spm', {
+        defaultValue: '{{value}} spm',
+        value: formatLocalizedNumber(Math.round(session.avgCadence)),
+      }),
+    });
+  }
+  if (session.strideLengthCm != null && session.strideLengthCm > 0) {
+    // Stored in centimetres; shown in feet with the miles setting.
+    const feet = distanceUnit === 'miles';
+    const value = formatLocalizedNumber(
+      feet
+        ? Math.round(session.strideLengthCm * FEET_PER_METER) / 100
+        : Math.round(session.strideLengthCm) / 100,
+      { maximumFractionDigits: 2 }
+    );
+    stats.push({
+      key: 'stride',
+      label: t('exerciseStatistics.cardio.strideLength', {
+        defaultValue: 'Stride length',
+      }),
+      value: feet
+        ? t('exerciseStatistics.cardio.feet', {
+            defaultValue: '{{value}} ft',
+            value,
+          })
+        : t('exerciseStatistics.cardio.meters', {
+            defaultValue: '{{value}} m',
+            value,
+          }),
+    });
+  }
   if (session.avgHeartRate != null && session.avgHeartRate > 0) {
     stats.push({
       key: 'hr',
