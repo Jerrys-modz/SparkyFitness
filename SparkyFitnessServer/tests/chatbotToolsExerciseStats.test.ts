@@ -15,12 +15,19 @@ vi.mock('../services/trainingReviewService.js', () => ({
   },
 }));
 
+vi.mock('../services/preferenceService.js', () => ({
+  default: {
+    getUserPreferences: vi.fn(),
+  },
+}));
+
 vi.mock('../config/logging.js', () => ({
   log: vi.fn(),
 }));
 
 import exerciseStatsService from '../services/exerciseStatsService.js';
 import trainingReviewService from '../services/trainingReviewService.js';
+import preferenceService from '../services/preferenceService.js';
 import { buildExerciseStatsTools } from '../ai/tools/exerciseStatsTools.js';
 import { toolOpts } from './helpers/toolExecutionOptions.js';
 
@@ -273,6 +280,29 @@ describe('sparky_get_exercise_stats', () => {
       muscleSets: { chest: 12, quadriceps: 9 },
       untrainedMuscles: ['lats'],
     };
+
+    beforeEach(() => {
+      (
+        preferenceService as unknown as {
+          getUserPreferences: ReturnType<typeof vi.fn>;
+        }
+      ).getUserPreferences.mockResolvedValue({ default_weight_unit: 'kg' });
+    });
+
+    it("shows weights in the lifter's unit", async () => {
+      (
+        preferenceService as unknown as {
+          getUserPreferences: ReturnType<typeof vi.fn>;
+        }
+      ).getUserPreferences.mockResolvedValue({ default_weight_unit: 'lbs' });
+      reviewSvc.getTrainingReview.mockResolvedValue(baseReview);
+      const result = (await getTool().execute!(
+        { action: 'training_review' },
+        opts
+      )) as string;
+      expect(result).toContain('best 257.3 lbs, last 249.8 lbs on 2026-10-04');
+      expect(result).not.toContain(' kg');
+    });
 
     it('passes the window and renders stalls, effort and coverage', async () => {
       reviewSvc.getTrainingReview.mockResolvedValue(baseReview);

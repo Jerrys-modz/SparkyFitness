@@ -2,6 +2,7 @@ import { normalizeMuscleList } from "../constants/exerciseTaxonomy.ts";
 import { addDays } from "./timezone.ts";
 import { isWarmupSetType } from "./dropSetCalculator.ts";
 import { epleyOneRepMaxKg } from "./exerciseLoad.ts";
+import { ADAPTIVE_HIGH_RPE, ADAPTIVE_LOW_RIR } from "./adaptiveCoaching.ts";
 import {
   primaryMusclesOf,
   type MuscleEntry,
@@ -75,8 +76,6 @@ const MAX_REPS_FOR_ESTIMATE = 12;
 /** Fewer sessions than this is not a trend. */
 export const TRAINING_REVIEW_MIN_SESSIONS = 3;
 
-const NEAR_FAILURE_RPE = 9.5;
-const NEAR_FAILURE_RIR = 0.5;
 const NEAR_FAILURE_MIN_SETS = 3;
 const CARDIO_MODALITY = "duration_distance";
 /** Synced calorie summaries are logged as entries but are not workouts. */
@@ -237,9 +236,9 @@ export function buildTrainingReview(
     values.reduce((sum, value) => sum + value, 0) / values.length;
   for (const { name, rpe, rir } of perExercise.values()) {
     const hardRpe =
-      rpe.length >= NEAR_FAILURE_MIN_SETS && average(rpe) >= NEAR_FAILURE_RPE;
+      rpe.length >= NEAR_FAILURE_MIN_SETS && average(rpe) >= ADAPTIVE_HIGH_RPE;
     const hardRir =
-      rir.length >= NEAR_FAILURE_MIN_SETS && average(rir) <= NEAR_FAILURE_RIR;
+      rir.length >= NEAR_FAILURE_MIN_SETS && average(rir) <= ADAPTIVE_LOW_RIR;
     if ((hardRpe || hardRir) && !nearFailure.includes(name)) {
       nearFailure.push(name);
     }

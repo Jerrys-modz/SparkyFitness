@@ -1,6 +1,6 @@
 import { tool } from 'ai';
+import { kgInUnit, type TrainingReview } from '@workspace/shared';
 import type {
-  TrainingReview,
   ExerciseStatsSummaryResponse,
   ExerciseActivityQueryResponse,
   ExercisePRMatrixResponse,
@@ -8,6 +8,7 @@ import type {
 } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import exerciseStatsService from '../../services/exerciseStatsService.js';
+import preferenceService from '../../services/preferenceService.js';
 import trainingReviewService from '../../services/trainingReviewService.js';
 import { ERRORS, formatZodError } from './errors.js';
 import { formatList } from './formatting.js';
@@ -45,8 +46,13 @@ function formatSummary(summary: ExerciseStatsSummaryResponse): string {
   return lines.join('\n');
 }
 
-function formatTrainingReview(review: TrainingReview): string {
+function formatTrainingReview(
+  review: TrainingReview,
+  weightUnit: 'kg' | 'lbs'
+): string {
   const { window, effort } = review;
+  const weight = (kg: number): string =>
+    `${kgInUnit(kg, weightUnit)} ${weightUnit}`;
   const lines = [
     `# Training Review (${window.from} → ${window.to}, ${window.days} days)`,
     '',
@@ -66,7 +72,7 @@ function formatTrainingReview(review: TrainingReview): string {
   } else {
     for (const stall of review.stalls) {
       lines.push(
-        `- **${stall.exerciseName}**: ${stall.stalledSessions} sessions in a row without beating the best estimated 1RM (best ${stall.bestEstimatedOneRepMaxKg} kg, last ${stall.lastEstimatedOneRepMaxKg} kg on ${stall.lastDate}; ${stall.sessions} sessions)`
+        `- **${stall.exerciseName}**: ${stall.stalledSessions} sessions in a row without beating the best estimated 1RM (best ${weight(stall.bestEstimatedOneRepMaxKg)}, last ${weight(stall.lastEstimatedOneRepMaxKg)} on ${stall.lastDate}; ${stall.sessions} sessions)`
       );
     }
     lines.push(
@@ -191,11 +197,17 @@ export function buildExerciseStatsTools(userId: string, tz: string) {
               return `${cardio}\n\n${strength}`;
             }
             case 'training_review': {
-              const review = await trainingReviewService.getTrainingReview(
-                userId,
-                args.window_days
+              const [review, prefs] = await Promise.all([
+                trainingReviewService.getTrainingReview(
+                  userId,
+                  args.window_days
+                ),
+                preferenceService.getUserPreferences(userId, userId),
+              ]);
+              return formatTrainingReview(
+                review,
+                prefs.default_weight_unit === 'lbs' ? 'lbs' : 'kg'
               );
-              return formatTrainingReview(review);
             }
             case 'matched_courses': {
               const result: MatchedCoursesResponse =
