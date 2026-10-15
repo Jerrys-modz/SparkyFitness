@@ -54,6 +54,8 @@ final class WatchRunStore: ObservableObject {
     @Published private(set) var plan: WatchRunPlan?
     /// Index of the plan step already announced (-1 before the first).
     private var cuedStep = -1
+    /// The distance step whose "to go" cue was said, so it is said once.
+    private var toGoCuedStep = -1
     /// Which coaching cues (step warnings, halfway, check-ins) were said.
     private var coaching = WatchCoachingState()
     private var stepTimer: Timer?
@@ -187,6 +189,9 @@ final class WatchRunStore: ObservableObject {
         alerts: WatchRunAlertSetup = .off
     ) {
         guard canStart else { return }
+        // Distance steps follow the watch's GPS distance; indoors there is
+        // only a motion estimate, so the phone does not offer them there.
+        let plan = place == .indoor && plan?.hasDistanceSteps == true ? nil : plan
         var chosen = settings ?? defaultSettings
         // A run begun on the wrist takes its alerts from the start screen; one
         // the phone asked for carries its own.
@@ -207,6 +212,7 @@ final class WatchRunStore: ObservableObject {
         heartRateAlertState = .initial
         heartRateAlertStep = nil
         recentPace.reset()
+        toGoCuedStep = -1
         summary = nil
         metrics = WatchRunMetrics()
         gpsAccuracy = nil
@@ -261,15 +267,19 @@ final class WatchRunStore: ObservableObject {
                     self.plan = self.healthKit.plan
                     self.settings = self.healthKit.settings
                     // The recovered builder may still read 0 for a moment, so the
-                    // snapshot's time is the floor: the step the run is in now is
-                    // not announced again.
+                    // snapshot's time is the floor. The plan's place comes back
+                    // from the snapshot, so the step the run is in now is not
+                    // announced again.
                     let resumedAt = max(self.healthKit.elapsed, recovery.elapsed)
-                    self.cuedStep = self.plan?.position(at: resumedAt)?.index ?? -1
+                    self.cuedStep = self.healthKit.planPosition()?.index ?? -1
+                    self.toGoCuedStep = self.cuedStep
                     self.coaching = WatchCoachingState.resumed(
                         at: resumedAt,
                         plan: self.plan,
                         checkInMinutes: self.settings.checkInMinutes ?? 0,
-                        distanceMeters: self.place == .indoor ? nil : self.metrics.distanceMeters
+                        distanceMeters: self.place == .indoor ? nil : self.metrics.distanceMeters,
+                        cursor: self.healthKit.planCursorValue,
+                        planMeters: self.metrics.distanceMeters
                     )
                     self.startStepTimer()
                     self.startLiveTimer()
@@ -330,8 +340,8 @@ final class WatchRunStore: ObservableObject {
     /// older: a pause or resume is about now.
     /// What follows a program workout that reached its last step, from the
     /// phone; nil for any other run or one stopped early.
-    private func programDoneText(elapsed: TimeInterval) -> String? {
-        guard let plan, plan.programId != nil, plan.completed(at: elapsed) else { return nil }
+    private func programDoneText(completed: Bool) -> String? {
+        guard let plan, plan.programId != nil, completed else { return nil }
         return plan.doneText
     }
 
@@ -409,7 +419,7 @@ final class WatchRunStore: ObservableObject {
         let elapsed = healthKit.elapsed
         var band = settings.heartRateBand
         var stepIndex: Int?
-        if let plan, let position = plan.position(at: elapsed), !position.finished {
+        if let plan, let position = currentPlanPosition(), !position.finished {
             stepIndex = position.index
             // Switching the alert off silences a step's own range too.
             if settings.heartRateStepsOff != true {
@@ -436,7 +446,7 @@ final class WatchRunStore: ObservableObject {
         // run's range, if there is one.
         var band = settings.paceBand
         var stepIndex: Int?
-        if let plan, let position = plan.position(at: elapsed), !position.finished {
+        if let plan, let position = currentPlanPosition(), !position.finished {
             stepIndex = position.index
             if settings.paceStepsOff != true {
                 band = plan.steps[position.index].pace ?? band
@@ -497,7 +507,7 @@ final class WatchRunStore: ObservableObject {
     private func pushLive(force: Bool = false, ended: Bool = false) {
         guard ended || phase == .running || phase == .paused else { return }
         let elapsed = healthKit.elapsed
-        let position = plan?.position(at: elapsed)
+        let position = healthKit.planPosition()
         let step = (position?.finished ?? true) ? nil : position
         WatchSessionManager.shared.sendRunLive(
             OutboundPayloads.runLive(
@@ -514,8 +524,14 @@ final class WatchRunStore: ObservableObject {
                 heartRate: metrics.heartRate,
                 energyKcal: metrics.activeEnergyKcal,
                 lapCount: lapCount,
-                stepLabel: step?.label,
-                stepRemaining: step?.remaining,
+                // A distance step has nothing for the phone to count down, so
+                // its metres left ride in the label, refreshed with each update.
+                stepLabel: step.map { step in
+                    step.remainingMeters.map {
+                        "\(step.label) · \(WatchRunPlan.distance($0, inMiles: step.inMiles))"
+                    } ?? step.label
+                },
+                stepRemaining: step?.remainingMeters == nil ? step?.remaining : nil,
                 nextLabel: step?.next,
                 requestId: requestId
             ),
@@ -543,12 +559,15 @@ final class WatchRunStore: ObservableObject {
     }
 
     /// Announces a plan step when it begins: a tap, the words if Voice cues
-    /// is on, and a lap mark so the saved run is cut at the step. Time is the
-    /// builder's active clock, so a pause never eats into a step.
+    /// is on, and a lap mark so the saved run is cut at the step. Steps follow
+    /// the builder's active clock and recorded distance, so a pause never eats
+    /// into a step.
     private func cueStepIfDue() {
-        guard phase == .running, let plan,
-              let position = plan.position(at: healthKit.elapsed),
-              position.index != cuedStep else { return }
+        guard phase == .running, let plan, let position = healthKit.planPosition() else { return }
+        guard position.index != cuedStep else {
+            cueToGoIfDue(plan, position)
+            return
+        }
         let first = cuedStep < 0
         cuedStep = position.index
         Haptics.step()
@@ -561,7 +580,10 @@ final class WatchRunStore: ObservableObject {
         } else {
             // The first step of a program workout comes with its place in the
             // program, in one cue: a second would cut the first off.
-            let step = WatchRunCues.stepText(label: position.label, seconds: plan.steps[position.index].seconds)
+            let planStep = plan.steps[position.index]
+            let step = planStep.isDistance
+                ? WatchRunCues.stepText(label: position.label, meters: planStep.meters ?? 0, inMiles: planStep.inMiles)
+                : WatchRunCues.stepText(label: position.label, seconds: planStep.seconds)
             let intro = first ? plan.startText : nil
             WatchRunCues.shared.speak(intro.map { "\($0) \(step)" } ?? step, interrupt: true)
         }
@@ -581,6 +603,8 @@ final class WatchRunStore: ObservableObject {
             plan: plan,
             checkInMinutes: checkInMinutes,
             distanceMeters: place == .indoor ? nil : metrics.distanceMeters,
+            cursor: plan == nil ? nil : healthKit.planCursorValue,
+            planMeters: metrics.distanceMeters,
             state: coaching
         )
         coaching = result.state
@@ -606,6 +630,23 @@ final class WatchRunStore: ObservableObject {
                 )
             )
         }
+    }
+
+    /// "100 meters to go" (or "0.1 miles to go"), once per distance step long enough for it.
+    private func cueToGoIfDue(_ plan: WatchRunPlan, _ position: WatchRunPlan.Position) {
+        guard settings.voiceCues, !position.finished,
+              position.index != toGoCuedStep,
+              let left = position.remainingMeters, left > 0,
+              left <= WatchRunCues.toGoMeters(inMiles: position.inMiles),
+              (plan.steps[position.index].meters ?? 0) >= WatchRunCues.toGoMinimumStep
+        else { return }
+        toGoCuedStep = position.index
+        WatchRunCues.shared.speak(WatchRunCues.toGoText(inMiles: position.inMiles), interrupt: true)
+    }
+
+    /// Where the plan stands now, for the run screen.
+    func currentPlanPosition() -> WatchRunPlan.Position? {
+        healthKit.planPosition()
     }
 
     private var usesMiles: Bool {
@@ -717,7 +758,7 @@ final class WatchRunStore: ObservableObject {
                         seconds: elapsed,
                         usesMiles: self.usesMiles
                     )
-                    self.cue(self.programDoneText(elapsed: elapsed).map { "\(finished) \($0)" } ?? finished)
+                    self.cue(self.programDoneText(completed: scaled?.planCompleted ?? false).map { "\(finished) \($0)" } ?? finished)
                 }
                 // The Health workout is stamped so the phone's import skips
                 // it; this message is how the run reaches the diary.
@@ -763,7 +804,7 @@ final class WatchRunStore: ObservableObject {
             seconds: pendingElapsed,
             usesMiles: usesMiles
         )
-        cue(programDoneText(elapsed: pendingElapsed).map { "\(finished) \($0)" } ?? finished)
+        cue(programDoneText(completed: result.planCompleted).map { "\(finished) \($0)" } ?? finished)
         // The snapshot stays until the message is durably queued.
         if WatchSessionManager.shared.sendRunFinished(result) {
             WatchRunSnapshotStore.clear()
