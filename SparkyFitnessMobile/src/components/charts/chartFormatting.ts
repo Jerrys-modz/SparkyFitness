@@ -1,5 +1,10 @@
 import { Platform } from 'react-native';
-import { getAppLocale, formatLocalizedNumber } from '../../localization';
+import { useMemo } from 'react';
+import {
+  getAppLocale,
+  useAppLocale,
+  formatLocalizedNumber,
+} from '../../localization';
 import { matchFont } from '@shopify/react-native-skia';
 
 /**
@@ -27,9 +32,18 @@ export const chartFontFamily = (
   }
 };
 
-/** Skia label font shared by the dashboard/wellness charts. */
-export const makeChartFont = (fontSize: number) =>
-  matchFont({ fontFamily: chartFontFamily(getAppLocale()), fontSize });
+/**
+ * Skia label font shared by the dashboard/wellness charts, rebuilt when the app language changes, so the
+ * family always covers the language on screen. A module-level font runs at
+ * import, before the language has resolved, and would stay on the wrong font.
+ */
+export const useChartFont = (fontSize: number) => {
+  const locale = useAppLocale();
+  return useMemo(
+    () => matchFont({ fontFamily: chartFontFamily(locale), fontSize }),
+    [locale, fontSize]
+  );
+};
 
 /**
  * Axis label size for the dashboard trend charts. Skia text ignores the OS font-size
