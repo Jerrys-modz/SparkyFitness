@@ -94,22 +94,6 @@ const CHILD = move(
   false,
   "Kneel, sit back on your heels and reach your arms forward along the floor.",
 );
-const LEG_SWING = move(
-  "leg-swings",
-  "Leg Swings",
-  ["hamstrings", "hip flexors"],
-  20,
-  true,
-  "Hold a support and swing one leg forward and back in a controlled arc. Keep the torso upright.",
-);
-const WALKING_LUNGE = move(
-  "lunge-twist",
-  "Lunge With Twist",
-  ["hip flexors", "quadriceps"],
-  20,
-  true,
-  "Step into a lunge and rotate your torso toward the front leg, then return.",
-);
 const CAT_COW = move(
   "cat-cow",
   "Cat-Cow",
@@ -141,12 +125,6 @@ export const STRETCH_ROUTINES: readonly StretchRoutine[] = [
     name: "Post-Run Stretch",
     description: "Cool-down stretches for the legs and hips after a run.",
     moves: [CALF, QUAD, HAMSTRING, HIP_FLEXOR, GLUTE, IT_BAND],
-  },
-  {
-    id: "pre-run-warmup",
-    name: "Pre-Run Dynamic Warm-Up",
-    description: "Short dynamic moves to loosen up before running.",
-    moves: [LEG_SWING, WALKING_LUNGE, CALF],
   },
   {
     id: "hips-and-hamstrings",
