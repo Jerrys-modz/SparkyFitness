@@ -41,6 +41,27 @@ jest.mock('../../src/hooks/useCopyFoodEntries', () => ({
   useCopyFoodEntries: jest.fn(),
 }));
 
+jest.mock('../../src/hooks/useCreateMealFromDiary', () => ({
+  useCreateMealFromDiary: () => ({ createMeal: jest.fn(), isPending: false }),
+}));
+
+jest.mock('../../src/components/ConvertToMealSheet', () => {
+  const ReactModule = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: ReactModule.forwardRef(
+      (_props: unknown, ref: React.Ref<unknown>) => {
+        ReactModule.useImperativeHandle(ref, () => ({
+          present: jest.fn(),
+          dismiss: jest.fn(),
+        }));
+        return <View testID="convert-sheet" />;
+      }
+    ),
+  };
+});
+
 jest.mock('../../src/hooks/useScreenHeader', () => {
   const ReactModule = require('react');
   const { Pressable } = require('react-native');
