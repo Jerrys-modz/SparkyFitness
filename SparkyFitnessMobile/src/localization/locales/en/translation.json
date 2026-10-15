@@ -6626,6 +6626,12 @@
     }
   },
   "recordActivity": {
+    "checkIn": {
+      "title": "Spoken updates",
+      "description": "Hear your time, distance and average pace every few minutes.",
+      "off": "Off",
+      "minutes": "{{minutes}} min"
+    },
     "liveActivity": {
       "step": "{{name}} · {{current}} of {{total}}"
     },
@@ -6731,10 +6737,31 @@
       "miles_other": "{{count}} miles",
       "interval": "{{name}}. {{time}}.",
       "intervalsDone": "Intervals complete.",
+      "stepWarning": "Ten seconds. Next, {{name}}.",
+      "stepWarningLast": "Ten seconds to go.",
+      "halfway": "Halfway there. Keep it up.",
+      "lastMinute": "One minute left. Finish strong.",
+      "checkInTime": "{{time}} done.",
+      "checkInDistance": "{{time}}. {{distance}}.",
+      "checkInKm": "{{time}}. {{distance}}. Average pace {{pace}} per kilometer.",
+      "checkInMiles": "{{time}}. {{distance}}. Average pace {{pace}} per mile.",
+      "splitFaster": "{{amount}} faster than the one before.",
+      "splitSlower": "{{amount}} slower than the one before.",
+      "programPlaceRun": "Week {{week}}, run {{day}}",
+      "programPlaceWalk": "Week {{week}}, walk {{day}}",
+      "programStart": "{{place}}. {{time}}.",
+      "programEased": "Eased for today.",
+      "programDone": "Workout {{done}} of {{total}} done. Next up, {{next}}.",
+      "programComplete": "Program complete. Well done.",
       "paceTooFast": "Too fast. Ease off.",
       "paceTooSlow": "Too slow. Pick it up.",
       "heartRateTooHigh": "Heart rate high. Ease off.",
-      "heartRateTooLow": "Heart rate low. Pick it up."
+      "heartRateTooLow": "Heart rate low. Pick it up.",
+      "stepCountdown": "Three. Two. One.",
+      "milestone5k": "5K done. Nice work.",
+      "milestone10k": "10K done. Strong effort.",
+      "milestoneHalfMarathon": "Half marathon distance. Amazing.",
+      "milestoneMarathon": "Marathon distance. Incredible."
     },
     "autoPause": {
       "title": "Auto-pause",
@@ -6909,6 +6936,15 @@
       "workDescription": "Alerts you when your heart rate in a fast stretch is outside this range.",
       "easyTitle": "Easy stretch heart rate",
       "easyDescription": "Alerts you when your heart rate in an easy stretch is outside this range."
+    },
+    "suggestedRanges": {
+      "title": "Suggested ranges",
+      "pace": "Pace: fast {{fast}}, easy {{easy}}",
+      "paceSource_one": "Based on your last {{formattedCount}} session.",
+      "paceSource_other": "Based on your last {{formattedCount}} sessions.",
+      "heartRate": "Heart rate: fast {{fast}}, easy {{easy}}",
+      "heartRateSource": "From an estimated maximum of {{max}} bpm for your age.",
+      "use": "Use these"
     }
   },
   "goals": {
