@@ -631,7 +631,12 @@
     "personalRecords": "Personal records",
     "watchRunLive": "On your watch",
     "watchRunLiveRun": "Run on your watch",
-    "watchWalkLive": "Walk on your watch"
+    "watchWalkLive": "Walk on your watch",
+    "runProgramCalendar": "Program calendar",
+    "runProgramWorkout": "Workout",
+    "runProgramEdit": "Edit plan",
+    "runProgramNew": "New plan",
+    "runProgramRace": "Plan a race"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -6819,7 +6824,9 @@
       "milestone5k": "5K done. Nice work.",
       "milestone10k": "10K done. Strong effort.",
       "milestoneHalfMarathon": "Half marathon distance. Amazing.",
-      "milestoneMarathon": "Marathon distance. Incredible."
+      "milestoneMarathon": "Marathon distance. Incredible.",
+      "customProgramStart": "Workout {{workout}}. {{time}}.",
+      "customProgramDone": "Workout {{done}} of {{total}} done. Next up, workout {{next}}."
     },
     "autoPause": {
       "title": "Auto-pause",
@@ -6925,10 +6932,15 @@
       "weekTitle": "Week {{week}}",
       "pickOption": "{{mark}}Run {{run}} · {{minutes}} min",
       "pickOptionWalk": "{{mark}}Walk {{walk}} · {{minutes}} min",
+      "pickOptionCustom": "{{mark}}{{title}} · {{minutes}} min",
       "doThis": "Do this workout",
       "switchHint": "Follow a plan that builds up week by week. Off by default.",
       "paused": "{{name}} is paused at {{done}} of {{total}} workouts. Switch it on to carry on.",
       "startOver": "Start over",
+      "startOverHint": "Go back to the first workout",
+      "skipHint": "Move on without doing this workout",
+      "scheduleTitle": "Schedule",
+      "manageTitle": "Manage",
       "errors": {
         "update": "Could not update your program"
       },
@@ -6949,7 +6961,8 @@
       "switchTitle": "Switch to {{name}}?",
       "switchMessage": "You will start the new program at week 1. Your place in the current one is not kept.",
       "switchConfirm": "Switch",
-      "startDayPast": "Started {{date}}. Your next workout is scheduled from today."
+      "startDayPast": "Started {{date}}. Your next workout is scheduled from today.",
+      "customWorkoutLabel": "{{name}} · {{workout}}"
     },
     "watch": {
       "title": "Record with",
@@ -7558,7 +7571,8 @@
       "countIt": "Count it",
       "start": "Start",
       "title": "Week {{week}}, run {{run}} · {{minutes}} min",
-      "titleWalk": "Week {{week}}, walk {{walk}} · {{minutes}} min"
+      "titleWalk": "Week {{week}}, walk {{walk}} · {{minutes}} min",
+      "titleCustom": "{{title}} · {{minutes}} min"
     },
     "calendar": {
       "title": "Schedule",
@@ -7576,7 +7590,13 @@
       "showAll_other": "Show all {{count}}",
       "showLess": "Show fewer",
       "cutOff_one": "{{count}} workout does not fit before your goal date.",
-      "cutOff_other": "{{count}} workouts do not fit before your goal date."
+      "cutOff_other": "{{count}} workouts do not fit before your goal date.",
+      "catchUp_one": "Skip the next {{count}} workout to finish on {{date}}, in time for your goal. The last workout is never skipped.",
+      "catchUp_other": "Skip the next {{count}} workouts to finish on {{date}}, in time for your goal. The last workout is never skipped.",
+      "catchUpButton_one": "Skip {{count}} workout",
+      "catchUpButton_other": "Skip {{count}} workouts",
+      "tooFar_one": "You are too far behind to catch up by skipping: {{count}} workout will not fit. Add workout days or move your goal date.",
+      "tooFar_other": "You are too far behind to catch up by skipping: {{count}} workouts will not fit. Add workout days or move your goal date."
     },
     "select": {
       "today": "Today's program workout",
@@ -7584,7 +7604,159 @@
       "none": "Training program",
       "setUp": "Set up a program"
     },
-    "partOfProgram": "Part of your training program"
+    "partOfProgram": "Part of your training program",
+    "openCalendar": "Open the program calendar",
+    "openCalendarHint": "Every workout on a month view",
+    "monthGrid": {
+      "previous": "Previous month",
+      "next": "Next month",
+      "dayA11yNone": "{{date}}, no workouts",
+      "dayA11y_one": "{{date}}, {{formattedCount}} workout",
+      "dayA11y_other": "{{date}}, {{formattedCount}} workouts"
+    },
+    "calendarScreen": {
+      "noProgram": "Start a training program to see its calendar.",
+      "progress": "{{done}} of {{total}} workouts done",
+      "doneOn": "Done {{date}}",
+      "done": "Done",
+      "dueOn": "Next · {{date}}",
+      "notScheduled": "Not scheduled",
+      "minutes": "{{minutes}} min",
+      "legendDone": "Done",
+      "legendAhead": "Due or to come",
+      "noWorkoutsDay": "No program workout on this day.",
+      "pickDays_one": "{{count}} more workout is not on the calendar yet. Pick your workout days on the program screen to see when each one falls.",
+      "pickDays_other": "{{count}} more workouts are not on the calendar yet. Pick your workout days on the program screen to see when each one falls.",
+      "pastGoal_one": "{{count}} workout does not fit before your goal date.",
+      "pastGoal_other": "{{count}} workouts do not fit before your goal date.",
+      "allWorkouts": "All workouts",
+      "today": "Today",
+      "due": "Next"
+    },
+    "detail": {
+      "workoutTitle": "Week {{week}}, run {{run}}",
+      "workoutTitleWalk": "Week {{week}}, walk {{walk}}",
+      "notFound": "This workout is not in your program any more.",
+      "openFailed": "Could not open that run",
+      "openFailedHint": "It may have been deleted from your diary.",
+      "repeatTitle": "Repeat this workout?",
+      "repeatMessage": "Your place moves back to this workout. The ones after it come round again.",
+      "jumpTitle": "Make this the next workout?",
+      "jumpMessage": "Your place moves forward to this workout, skipping the ones before it.",
+      "stateDone": "Done",
+      "stateNext": "Next workout",
+      "stateUpcoming": "Coming up",
+      "doneOn": "Done on {{date}}",
+      "scheduledOn": "Scheduled for {{date}}",
+      "notScheduled": "No date yet. Pick your workout days on the program screen.",
+      "totalTime": "Total time",
+      "briskTime": "Brisk walking",
+      "runTime": "Running",
+      "howHard": "How hard it felt",
+      "rating": "{{rating}} out of 10",
+      "steps": "Steps",
+      "viewRun": "View your run",
+      "start": "Start this workout",
+      "repeat": "Repeat this workout",
+      "jump": "Make this the next workout"
+    },
+    "custom": {
+      "workoutNumber": "Workout {{number}}",
+      "optionLabel_one": "{{name}} · {{formattedCount}} workout",
+      "optionLabel_other": "{{name}} · {{formattedCount}} workouts",
+      "workoutCount_one": "{{formattedCount}} workout",
+      "workoutCount_other": "{{formattedCount}} workouts",
+      "kind": {
+        "warmup": "Warm up",
+        "cooldown": "Cool down",
+        "recovery": "Easy",
+        "workWalk": "Brisk walk",
+        "workRun": "Run"
+      },
+      "missing": "This plan is no longer there.",
+      "problem": {
+        "name": "Give the plan a name.",
+        "noWorkouts": "Add at least one workout.",
+        "emptyWorkout": "Every workout needs at least one step."
+      },
+      "saveError": "Could not save your plan",
+      "deleteTitle": "Delete this plan?",
+      "deleteMessage": "If you are following it, you can carry on; it just leaves your list of plans.",
+      "deleteError": "Could not delete your plan",
+      "nameLabel": "Name",
+      "namePlaceholder": "My plan",
+      "activityRun": "Run",
+      "activityWalk": "Walk",
+      "moveUp": "Move earlier",
+      "moveDown": "Move later",
+      "duplicate": "Duplicate workout",
+      "removeWorkout": "Remove workout",
+      "titlePlaceholder": "Name (optional)",
+      "totalMinutes": "{{minutes}} minutes in all",
+      "kindHint": "Changes the kind of step",
+      "shorter": "Shorter",
+      "longer": "Longer",
+      "removeStep": "Remove step",
+      "addStep": "Add a step",
+      "addWorkout": "Add a workout",
+      "delete": "Delete plan",
+      "title": "Your plans",
+      "intro": "Write your own plan as a list of workouts, each made of timed steps, and follow it like any program.",
+      "restart": "Start again",
+      "edit": "Edit",
+      "create": "Create a plan",
+      "paceTarget": "Pace /km",
+      "paceFast": "Fastest pace per kilometre",
+      "paceSlow": "Slowest pace per kilometre",
+      "heartRateTarget": "Heart rate",
+      "heartRateLow": "Lowest heart rate",
+      "heartRateHigh": "Highest heart rate",
+      "targetHint": "Use m:ss for pace and bpm for heart rate, with the two ends at least 10 apart. Empty means no target.",
+      "customize": "Customize this program",
+      "customizeHint": "Copy it as a plan you can edit",
+      "copyName": "{{name}} (my copy)"
+    },
+    "race": {
+      "distance": {
+        "5k": "5K",
+        "10k": "10K",
+        "half": "Half marathon",
+        "marathon": "Marathon"
+      },
+      "level": {
+        "new": "New to running",
+        "some": "Run a little",
+        "regular": "Run regularly",
+        "experienced": "Experienced"
+      },
+      "title": {
+        "easy": "Easy run",
+        "long": "Long run",
+        "tempo": "Tempo run",
+        "intervals": "Intervals",
+        "shakeout": "Shake-out run",
+        "race": "Race day: {{label}}"
+      },
+      "planName": "{{label}} race plan",
+      "saveError": "Could not create your plan",
+      "replaceTitle": "Replace your current program?",
+      "replaceMessage": "The race plan starts now and replaces the program you are following. Your place in it is not kept.",
+      "replaceConfirm": "Replace",
+      "intro": "Pick your race and the days you can run. The plan builds up to race day, with an easier week every fourth week and a taper at the end.",
+      "distanceLabel": "Distance",
+      "levelLabel": "How much do you run now?",
+      "dayLabel": "Race day",
+      "daysLabel": "Days you can run",
+      "daysHint": "Race day is always included. Pick at least two days; three or four suit most people.",
+      "pastDay": "Pick a race day that has not passed.",
+      "summaryTitle": "{{weeks}} weeks to race day",
+      "summaryBody": "{{workouts}} workouts, the longest run about {{long}} minutes.",
+      "estimate": "Race day is planned at about {{minutes}} minutes at an easy pace; you can change it in the plan afterwards.",
+      "tooShort": "That is less time than we suggest: at least {{min}} weeks for this distance. Pick a later race day.",
+      "tooFewDays": "Pick at least two days to run.",
+      "create": "Create and start the plan",
+      "open": "Plan a race"
+    }
   },
   "speechVoice": {
     "automatic": "Automatic (best installed)",
