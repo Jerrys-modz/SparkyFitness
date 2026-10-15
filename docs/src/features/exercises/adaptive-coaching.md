@@ -6,6 +6,7 @@ SparkyFitness can help during and after a workout, not just plan it:
 - **How did it feel?** feedback after a workout: too easy, just right or too hard, plus pain or discomfort.
 - **Adaptive suggestions** that use that feedback for the next session, and always say why.
 - **Variation hints** when an accessory exercise shows up in almost every workout.
+- **Run review** in the AI assistant: a read of your recent running (runs per week, weekly distance, pace against the period before, training load and recovery), explained in plain language.
 - **Training review** in the AI assistant: a read of your recent strength work (sessions per week, lifts that have stopped improving, effort and muscle coverage), explained in plain language.
 - **Lower music during cues** (mobile app) so beeps and spoken cues are easy to hear over your own music.
 
@@ -120,6 +121,7 @@ Turn on **Settings → Workout Settings → Lower music during cues** and your m
 | "My shoulder hurts. Chest exercises that don't use shoulders?" | Alternatives that avoid shoulder muscles |
 | "Yesterday's workout felt too easy." | Saves the feedback on that workout |
 | "Will my Push Day change next time?" | Explains each exercise's adjustment and why |
+| "How is my running going?" | Reads your last 4 weeks of runs and your training load, and explains what it finds |
 | "How is my training going?" | Reads your last 4 weeks (ask for 7–90 days) and explains what it finds |
 
 ---
@@ -134,3 +136,16 @@ The assistant can review your recent strength training. SparkyFitness works out 
 - **Muscle coverage**: working sets per muscle in the window, and muscles you trained earlier but not in this window.
 
 Bodyweight exercises and cardio are not part of stall detection, and sets above 12 reps are not used to estimate strength. The review only reads your data; it never changes your plan.
+
+---
+
+## Run review
+
+The assistant can also review your recent running. SparkyFitness works out the numbers and the assistant explains them:
+
+- **Runs** in the window and how many a week. With fewer than three runs there is no trend, and the assistant says so.
+- **Weekly distance**, and any week that rose more than 10% on the one before, the usual limit for adding distance.
+- **Pace** over the window against the same length of time before it. Runs under 1 km are left out.
+- **Training load**: this week's workouts (all of them, not only runs) against your four-week average, with a recovery hint. This needs about three weeks of history.
+
+Distances and paces use your distance unit. The review only reads your data; if you follow a run program, the assistant asks before changing it.

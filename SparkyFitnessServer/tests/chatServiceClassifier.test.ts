@@ -46,6 +46,7 @@ describe('classifyByKeywords', () => {
   it('adds the training-review guidance only when exercise is active', () => {
     const withExercise = getSystemPrompt('UTC', '', 'full', ['exercise']);
     expect(withExercise).toContain('training_review');
+    expect(withExercise).toContain('run_review');
     expect(getSystemPrompt('UTC', '', 'full', ['food'])).not.toContain(
       'training_review'
     );

@@ -1,5 +1,10 @@
 import { tool } from 'ai';
-import { kgInUnit, type TrainingReview } from '@workspace/shared';
+import {
+  kgInUnit,
+  type RunReview,
+  type TrainingLoad,
+  type TrainingReview,
+} from '@workspace/shared';
 import type {
   ExerciseStatsSummaryResponse,
   ExerciseActivityQueryResponse,
@@ -9,6 +14,7 @@ import type {
 import { log } from '../../config/logging.js';
 import exerciseStatsService from '../../services/exerciseStatsService.js';
 import preferenceService from '../../services/preferenceService.js';
+import runReviewService from '../../services/runReviewService.js';
 import trainingReviewService from '../../services/trainingReviewService.js';
 import { ERRORS, formatZodError } from './errors.js';
 import { formatList } from './formatting.js';
@@ -117,11 +123,86 @@ function formatTrainingReview(
   return lines.join('\n');
 }
 
+const KM_PER_MILE = 1.609344;
+
+function formatPace(secPerKm: number, unit: 'km' | 'miles'): string {
+  const secs = Math.round(unit === 'miles' ? secPerKm * KM_PER_MILE : secPerKm);
+  return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} /${unit === 'miles' ? 'mi' : 'km'}`;
+}
+
+function formatRunReview(
+  review: RunReview,
+  load: TrainingLoad,
+  unit: 'km' | 'miles'
+): string {
+  const label = unit === 'miles' ? 'mi' : 'km';
+  const dist = (km: number): string =>
+    `${Math.round((unit === 'miles' ? km / KM_PER_MILE : km) * 10) / 10} ${label}`;
+  const { window } = review;
+  const lines = [
+    `# Run Review (${window.from} → ${window.to}, ${window.days} days)`,
+    '',
+    `- Runs: ${review.runs} (${review.runsPerWeek} per week)`,
+    `- Distance: ${dist(review.totalKm)} in all, longest run ${dist(review.longestRunKm)}`,
+  ];
+  if (!review.enoughData) {
+    lines.push(
+      '',
+      'Not enough data for a trend: fewer than 3 runs in the window. Do not recommend changing the plan on this alone; say what to watch for instead.'
+    );
+  }
+  lines.push('', '## Weekly distance (oldest first)');
+  for (const week of review.weeks) {
+    lines.push(`- week of ${week.start}: ${dist(week.km)} (${week.runs} runs)`);
+  }
+  if (review.jumps.length > 0) {
+    for (const jump of review.jumps) {
+      lines.push(
+        `- Week of ${jump.weekStart} rose ${jump.increasePercent}% (${dist(jump.fromKm)} to ${dist(jump.toKm)}), more than the usual 10% a week.`
+      );
+    }
+  }
+  lines.push('', '## Pace');
+  if (review.paceSecPerKm === null) {
+    lines.push('No run of 1 km or more with a duration, so no pace.');
+  } else {
+    lines.push(`- Average pace: ${formatPace(review.paceSecPerKm, unit)}`);
+    if (
+      review.previousPaceSecPerKm !== null &&
+      review.paceChangePercent !== null
+    ) {
+      const faster = review.paceChangePercent < 0;
+      lines.push(
+        `- Previous ${window.days} days: ${formatPace(review.previousPaceSecPerKm, unit)} (${Math.abs(review.paceChangePercent)}% ${faster ? 'faster' : 'slower'})`
+      );
+    } else {
+      lines.push('- No earlier runs to compare with.');
+    }
+  }
+  lines.push('', '## Training load (all workouts, last 4 weeks)');
+  if (load.status === 'noData' || load.status === 'learning') {
+    lines.push(
+      'Not enough history yet to judge load (needs about three weeks of workouts).'
+    );
+  } else {
+    lines.push(
+      `- Status: ${load.status} (this week against the 4-week average: ${load.ratio ?? 'n/a'})`,
+      `- Days since the last workout: ${load.restDays ?? 'n/a'}`,
+      `- Recovery hint: ${load.recovery}`
+    );
+  }
+  lines.push(
+    '',
+    'Treat a distance jump or a high load as a reason to ask how the legs feel, not as a diagnosis. Propose plan changes only with this evidence, change nothing without the user agreeing, and say plainly when nothing warrants one. For a run program, use sparky_manage_run_program.'
+  );
+  return lines.join('\n');
+}
+
 export function buildExerciseStatsTools(userId: string, tz: string) {
   return {
     sparky_get_exercise_stats: tool({
       description:
-        'Read exercise analytics: aggregated stats over an interval (stats_summary), advanced activity search (query_activities), personal records / best efforts (personal_records), and matched course groupings (matched_courses), and a training review of recent strength work (training_review: sessions per week, stalled lifts, effort, muscle coverage; optional window_days 7-90, default 28). Read-only.',
+        'Read exercise analytics: aggregated stats over an interval (stats_summary), advanced activity search (query_activities), personal records / best efforts (personal_records), and matched course groupings (matched_courses), and a training review of recent strength work (training_review: sessions per week, stalled lifts, effort, muscle coverage; optional window_days 7-90, default 28), and a run review (run_review: runs per week, weekly distance and jumps, pace against the period before, training load and recovery; optional window_days 7-90, default 28). Read-only.',
       inputSchema: exerciseStatsInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -207,6 +288,17 @@ export function buildExerciseStatsTools(userId: string, tz: string) {
               return formatTrainingReview(
                 review,
                 prefs.default_weight_unit === 'lbs' ? 'lbs' : 'kg'
+              );
+            }
+            case 'run_review': {
+              const [{ review, load }, prefs] = await Promise.all([
+                runReviewService.getRunReview(userId, args.window_days),
+                preferenceService.getUserPreferences(userId, userId),
+              ]);
+              return formatRunReview(
+                review,
+                load,
+                prefs.default_distance_unit === 'miles' ? 'miles' : 'km'
               );
             }
             case 'matched_courses': {

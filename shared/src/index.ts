@@ -214,6 +214,7 @@ export * from "./types/progression.ts";
 export * from "./utils/exerciseMuscleAggregates.ts";
 export * from "./utils/trainingConsistency.ts";
 export * from "./utils/trainingReview.ts";
+export * from "./utils/runReview.ts";
 export * from "./utils/warmupSets.ts";
 export * from "./utils/muscleBodyMap.ts";
 export * from "./utils/workoutHeartRateSeries.ts";

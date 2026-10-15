@@ -801,8 +801,54 @@ async function getTrainingLoadSessions(
   }
 }
 
+/**
+ * Runs in the range with a distance, for the run review. Same word-boundary
+ * match as the activity search: "crunch" contains "run" and is not one. Treadmill
+ * and trail runs count; strength entries never do.
+ */
+async function getRunSessions(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<{ day: string; distanceKm: number; durationMinutes: number }[]> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT TO_CHAR(entry_date, 'YYYY-MM-DD') AS day,
+              distance,
+              duration_minutes
+       FROM exercise_entries
+       WHERE user_id = $1
+         AND entry_date BETWEEN $2 AND $3
+         AND exercise_name != 'Active Calories'
+         AND COALESCE(distance, 0) > 0
+         AND COALESCE(modality, '') NOT IN ('weight_reps', 'weight_duration', 'weight_distance')
+         AND (
+           LOWER(COALESCE(category, '')) = 'running'
+           OR LOWER(exercise_name) ~* '\\m(run(ning|s)?|jog(ging)?|treadmill)\\M'
+         )
+       ORDER BY entry_date ASC`,
+      [userId, startDate, endDate]
+    );
+    return result.rows.map(
+      (row: {
+        day: string;
+        distance: string | number;
+        duration_minutes: string | number | null;
+      }) => ({
+        day: row.day,
+        distanceKm: Number(row.distance),
+        durationMinutes: Number(row.duration_minutes ?? 0),
+      })
+    );
+  } finally {
+    client.release();
+  }
+}
+
 export { getNutritionData };
 export { getTrainingLoadSessions };
+export { getRunSessions };
 export { getTabularFoodData };
 export { getMeasurementData };
 export { getCustomMeasurementsData };
@@ -819,6 +865,7 @@ export default {
   getMiniNutritionTrends,
   getExerciseEntries,
   getTrainingLoadSessions,
+  getRunSessions,
   getBodyWeightReadings,
   getExerciseNames,
   getDailyNutritionTotalsRange,

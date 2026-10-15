@@ -15,6 +15,12 @@ vi.mock('../services/trainingReviewService.js', () => ({
   },
 }));
 
+vi.mock('../services/runReviewService.js', () => ({
+  default: {
+    getRunReview: vi.fn(),
+  },
+}));
+
 vi.mock('../services/preferenceService.js', () => ({
   default: {
     getUserPreferences: vi.fn(),
@@ -27,6 +33,7 @@ vi.mock('../config/logging.js', () => ({
 
 import exerciseStatsService from '../services/exerciseStatsService.js';
 import trainingReviewService from '../services/trainingReviewService.js';
+import runReviewService from '../services/runReviewService.js';
 import preferenceService from '../services/preferenceService.js';
 import { buildExerciseStatsTools } from '../ai/tools/exerciseStatsTools.js';
 import { toolOpts } from './helpers/toolExecutionOptions.js';
@@ -369,6 +376,129 @@ describe('sparky_get_exercise_stats', () => {
         { action: 'training_review' },
         opts
       );
+      expect(result).toBe(DB_ERROR_TEXT);
+    });
+  });
+  describe('run_review', () => {
+    const runSvc = runReviewService as unknown as {
+      getRunReview: ReturnType<typeof vi.fn>;
+    };
+    const prefs = preferenceService as unknown as {
+      getUserPreferences: ReturnType<typeof vi.fn>;
+    };
+    const baseRun = {
+      review: {
+        window: { from: '2026-09-17', to: '2026-10-14', days: 28 },
+        runs: 6,
+        runsPerWeek: 1.5,
+        enoughData: true,
+        totalKm: 40,
+        longestRunKm: 12,
+        weeks: [
+          { start: '2026-09-17', km: 8, runs: 1 },
+          { start: '2026-09-24', km: 10, runs: 2 },
+          { start: '2026-10-01', km: 10, runs: 1 },
+          { start: '2026-10-08', km: 12, runs: 2 },
+        ],
+        jumps: [
+          {
+            weekStart: '2026-10-08',
+            fromKm: 10,
+            toKm: 12,
+            increasePercent: 20,
+          },
+        ],
+        paceSecPerKm: 330,
+        previousPaceSecPerKm: 345,
+        paceChangePercent: -4.3,
+        lastRunDay: '2026-10-13',
+      },
+      load: {
+        weeks: [],
+        acute: 300,
+        chronic: 200,
+        ratio: 1.5,
+        status: 'high',
+        restDays: 1,
+        recovery: 'takeRest',
+      },
+    };
+
+    beforeEach(() => {
+      prefs.getUserPreferences.mockResolvedValue({
+        default_distance_unit: 'km',
+      });
+    });
+
+    it('renders runs, weekly distance, jumps, pace and load', async () => {
+      runSvc.getRunReview.mockResolvedValue(baseRun);
+      const result = (await getTool().execute!(
+        { action: 'run_review', window_days: 28 },
+        opts
+      )) as string;
+
+      expect(runSvc.getRunReview).toHaveBeenCalledWith('user-1', 28);
+      expect(result).toContain(
+        '# Run Review (2026-09-17 → 2026-10-14, 28 days)'
+      );
+      expect(result).toContain('- Runs: 6 (1.5 per week)');
+      expect(result).toContain('longest run 12 km');
+      expect(result).toContain('Week of 2026-10-08 rose 20% (10 km to 12 km)');
+      expect(result).toContain('- Average pace: 5:30 /km');
+      expect(result).toContain('(4.3% faster)');
+      expect(result).toContain('- Status: high');
+      expect(result).toContain('- Recovery hint: takeRest');
+      expect(result).not.toContain('Not enough data');
+    });
+
+    it('shows miles and min/mi for a miles user', async () => {
+      prefs.getUserPreferences.mockResolvedValue({
+        default_distance_unit: 'miles',
+      });
+      runSvc.getRunReview.mockResolvedValue(baseRun);
+      const result = (await getTool().execute!(
+        { action: 'run_review' },
+        opts
+      )) as string;
+      expect(runSvc.getRunReview).toHaveBeenCalledWith('user-1', undefined);
+      expect(result).toContain('longest run 7.5 mi');
+      expect(result).toContain('- Average pace: 8:51 /mi');
+    });
+
+    it('warns below three runs and when load has no history', async () => {
+      runSvc.getRunReview.mockResolvedValue({
+        review: {
+          ...baseRun.review,
+          runs: 1,
+          enoughData: false,
+          jumps: [],
+          paceSecPerKm: null,
+          previousPaceSecPerKm: null,
+          paceChangePercent: null,
+        },
+        load: { ...baseRun.load, status: 'learning', ratio: null },
+      });
+      const result = (await getTool().execute!(
+        { action: 'run_review' },
+        opts
+      )) as string;
+      expect(result).toContain('Not enough data for a trend');
+      expect(result).toContain('so no pace');
+      expect(result).toContain('Not enough history yet to judge load');
+    });
+
+    it('rejects a window outside 7-90 days', async () => {
+      const result = (await getTool().execute!(
+        { action: 'run_review', window_days: 3 },
+        opts
+      )) as string;
+      expect(runSvc.getRunReview).not.toHaveBeenCalled();
+      expect(result).toContain('window_days');
+    });
+
+    it('returns DB_ERROR when the review fails', async () => {
+      runSvc.getRunReview.mockRejectedValue(new Error('boom'));
+      const result = await getTool().execute!({ action: 'run_review' }, opts);
       expect(result).toBe(DB_ERROR_TEXT);
     });
   });
