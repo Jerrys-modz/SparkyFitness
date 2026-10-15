@@ -113,13 +113,3 @@ export const fetchHeartRateSamples = async (
   });
   return response?.data ?? [];
 };
-
-/** Best efforts per sport and distance (cardio) plus estimated strength maxes. */
-export const fetchPersonalRecords = (
-  unitSystem: 'metric' | 'imperial'
-): Promise<ExercisePRMatrixResponse> =>
-  apiFetch<ExercisePRMatrixResponse>({
-    endpoint: `/api/exercise-stats/prs?unitSystem=${unitSystem}`,
-    serviceName: SERVICE,
-    operation: 'fetch personal records',
-  });
