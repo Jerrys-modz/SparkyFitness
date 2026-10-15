@@ -308,8 +308,6 @@ export function cardioSessionFromDiaryEntry(
     avgHeartRate: session.avg_heart_rate,
     floorsClimbed: floors > 0 ? floors : null,
     elevationGainMeters: elevationGain > 0 ? elevationGain : null,
-    weatherTempCelsius: toFiniteNumber(session.weather_temp_celsius),
-    weatherCondition: session.weather_condition ?? null,
     source: session.source,
     notes: session.notes,
     hasGpsTrack: false,

@@ -171,10 +171,6 @@ export const exerciseActivityQueryItemSchema = z.object({
   avgCadence: z.number().nullable().optional(),
   /** Average stride length in centimetres. */
   strideLengthCm: z.number().nullable().optional(),
-  /** Air temperature at the start, in °C whatever the unit system of the request. */
-  weatherTempCelsius: z.number().nullable().optional(),
-  /** Short description such as "Light rain". */
-  weatherCondition: z.string().nullable().optional(),
   source: z.string().nullable(),
   notes: z.string().nullable(),
   hasGpsTrack: z.boolean(),

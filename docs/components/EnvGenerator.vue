@@ -32,7 +32,6 @@ const apiEncryptionKey = ref("");
 const betterAuthSecret = ref("");
 const timezone = ref("Etc/UTC");
 const logLevel = ref("ERROR");
-const weatherEnabled = ref(false);
 
 // The full IANA zone list straight from the browser, so it never goes stale.
 // Older engines lack Intl.supportedValuesOf, hence the modest fallback.
@@ -371,9 +370,6 @@ TZ=${timezone.value}
 `;
     if (extraTrustedOrigins.value.trim()) {
       out += `SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS=${extraTrustedOrigins.value.trim()}\n`;
-    }
-    if (weatherEnabled.value) {
-      out += `SPARKY_FITNESS_WEATHER_ENABLED=true\n`;
     }
   }
 
@@ -972,22 +968,6 @@ onMounted(() => {
               </select>
               <span class="field-hint"
                 >Raise to DEBUG only while troubleshooting; it is noisy.</span
-              >
-            </div>
-            <div class="checkbox-group">
-              <label class="checkbox-label">
-                <input v-model="weatherEnabled" type="checkbox" />
-                <span class="checkbox-text">
-                  Look up weather for GPS activities
-                  <code class="var-badge"
-                    >SPARKY_FITNESS_WEATHER_ENABLED=true</code
-                  >
-                </span>
-              </label>
-              <span class="field-hint" style="margin-left: 26px"
-                >Sends each activity's start time and start place (rounded to
-                about 1 km) to the free Open-Meteo service. Needs outbound
-                internet access.</span
               >
             </div>
             <div class="form-group">
