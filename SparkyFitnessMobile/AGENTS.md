@@ -2,6 +2,7 @@
 
 _Last updated: 2026-10-14_
 _Last updated: 2026-10-05_
+_Last updated: 2026-10-13_
 
 SparkyFitness Mobile is a React Native 0.86 + Expo SDK 57 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
 
@@ -184,6 +185,7 @@ npx expo prebuild --clean
 - Estimation posts to `POST /api/foods/estimate-food-photo` through `estimateFoodPhoto(...)` in `externalFoodSearchApi.ts` and uses typed `FoodPhotoEstimateError` codes from `@workspace/shared`.
 - Food-photo request/response changes cross package boundaries: update shared schema and server route/service with mobile.
 - Keep `auto_scale_online_imports` separate from Open Food Facts-specific scaling preferences in `FoodSettingsScreen`.
+- Nutrient management lives under Food Settings: `CustomNutrientsScreen` / `CustomNutrientFormScreen` (create, edit, delete; renames and deletes invalidate display, goals and daily-summary caches since the nutrient name is the key), and `NutrientDisplaySettingsScreen` (`mobile` platform only, and only the view groups a mobile screen reads: `food_database`, which `FoodNutrientBreakdown` applies to the food, meal and entry nutrient lists, and `report_tabular`, which `DailyNutritionDetailsScreen` applies; `summary` and `diary` keep their Dashboard/Diary screens, and `quick_info`, `goal` and `report_chart` are not offered until a mobile screen reads them). A nutrient's goal direction is edited on the Goals screen.
 
 ## Exercise, Workouts, And Fasting
 
