@@ -3,6 +3,7 @@ import {
   mapLivsmedelsverketFood,
   searchLivsmedelsverketFoods,
   getLivsmedelsverketFoodDetails,
+  getLivsmedelsverketFoodDirectory,
   resolveSprakCode,
   clearLivsmedelsverketDirectoryCache,
   type LivsmedelsverketFoodDetailRaw,
@@ -205,5 +206,42 @@ describe('livsmedelsverketService - searchLivsmedelsverketFoods & getLivsmedelsv
     expect(details.name).toBe('Havregryn');
     expect(details.default_variant.calories).toBe(370);
     expect(details.default_variant.protein).toBe(13);
+  });
+
+  it('throws an error if nutrient endpoint returns non-OK status', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ nummer: 5, namn: 'Havregryn' }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        text: async () => 'Internal Server Error',
+      });
+
+    await expect(getLivsmedelsverketFoodDetails('5', 'sv')).rejects.toThrow(
+      'Failed to fetch nutrients for Livsmedelsverket food 5: HTTP 500'
+    );
+  });
+
+  it('caches directory per baseUrl and sprakCode', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        livsmedel: [{ nummer: 1, namn: 'Test Food' }],
+      }),
+    });
+
+    await getLivsmedelsverketFoodDirectory(1, 'http://custom1.local');
+    await getLivsmedelsverketFoodDirectory(1, 'http://custom1.local');
+    // First custom URL called once due to cache
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    await getLivsmedelsverketFoodDirectory(1, 'http://custom2.local');
+    // Different baseUrl causes a new fetch
+    expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 });

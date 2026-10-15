@@ -111,9 +111,16 @@ export function LivsmedelsverketBulkImportDialog({
                 </div>
                 <Progress value={status?.progress ?? 0} />
                 <p className="text-xs text-muted-foreground">
-                  {status?.processed ?? 0} / {status?.total ?? 0} foods
-                  processed ({status?.imported ?? 0} imported,{' '}
-                  {status?.updated ?? 0} updated)
+                  {t(
+                    'settings.livsmedelsverket.progressText',
+                    '{{processed}} / {{total}} foods processed ({{imported}} imported, {{updated}} updated)',
+                    {
+                      processed: status?.processed ?? 0,
+                      total: status?.total ?? 0,
+                      imported: status?.imported ?? 0,
+                      updated: status?.updated ?? 0,
+                    }
+                  )}
                 </p>
               </div>
             )}

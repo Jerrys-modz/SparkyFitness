@@ -95,16 +95,17 @@ export interface LivsmedelsverketMappedFood {
   [key: string]: unknown;
 }
 
-// In-memory cache for the ~2,600 food directory per language
+// In-memory cache for the ~2,600 food directory per language and baseUrl
 const DIRECTORY_CACHE_TTL_MS = 1000 * 60 * 60 * 12; // 12 hours
 const directoryCache: Record<
-  number,
+  string,
   { timestamp: number; items: LivsmedelsverketDirectoryItem[] }
 > = {};
 
 export function clearLivsmedelsverketDirectoryCache(): void {
-  delete directoryCache[1];
-  delete directoryCache[2];
+  for (const key of Object.keys(directoryCache)) {
+    delete directoryCache[key];
+  }
 }
 
 export function mapLivsmedelsverketFood(
@@ -208,16 +209,17 @@ export async function getLivsmedelsverketFoodDirectory(
   sprakCode: 1 | 2 = 1,
   customBaseUrl?: string | null
 ): Promise<LivsmedelsverketDirectoryItem[]> {
-  const cached = directoryCache[sprakCode];
-  const now = Date.now();
-  if (cached && now - cached.timestamp < DIRECTORY_CACHE_TTL_MS) {
-    return cached.items;
-  }
-
   const rawBaseUrl = customBaseUrl?.trim() || DEFAULT_BASE_URL;
   let baseUrl = rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
   if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
     baseUrl = `https://${baseUrl}`;
+  }
+
+  const cacheKey = `${baseUrl}|${sprakCode}`;
+  const cached = directoryCache[cacheKey];
+  const now = Date.now();
+  if (cached && now - cached.timestamp < DIRECTORY_CACHE_TTL_MS) {
+    return cached.items;
   }
 
   const url = `${baseUrl}/api/v1/livsmedel?offset=0&limit=3000&sprak=${sprakCode}`;
@@ -243,7 +245,7 @@ export async function getLivsmedelsverketFoodDirectory(
   };
 
   const items = Array.isArray(data?.livsmedel) ? data.livsmedel : [];
-  directoryCache[sprakCode] = { timestamp: now, items };
+  directoryCache[cacheKey] = { timestamp: now, items };
   log(
     'info',
     `Loaded ${items.length} Livsmedelsverket foods into directory cache`
@@ -296,16 +298,15 @@ export async function getLivsmedelsverketFoodDetails(
 
   const foodData = (await foodRes.json()) as LivsmedelsverketFoodDetailRaw;
 
-  let nutrientsData: LivsmedelsverketNutrientRaw[] = [];
-  if (nutrientsRes.ok) {
-    nutrientsData =
-      (await nutrientsRes.json()) as LivsmedelsverketNutrientRaw[];
-  } else {
-    log(
-      'warn',
-      `Failed to fetch nutrients for Livsmedelsverket food ${nummer}: HTTP ${nutrientsRes.status}`
+  if (!nutrientsRes.ok) {
+    const errorBody = await nutrientsRes.text().catch(() => '');
+    throw new Error(
+      `Failed to fetch nutrients for Livsmedelsverket food ${nummer}: HTTP ${nutrientsRes.status}: ${errorBody.slice(0, 200)}`
     );
   }
+
+  const nutrientsData =
+    (await nutrientsRes.json()) as LivsmedelsverketNutrientRaw[];
 
   foodData.naringsvarden = nutrientsData;
   return mapLivsmedelsverketFood(foodData);

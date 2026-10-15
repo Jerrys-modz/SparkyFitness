@@ -90,6 +90,8 @@ export async function startLivsmedelsverketBulkImport(
       let processedCount = 0;
       let importedCount = 0;
       let updatedCount = 0;
+      let failedCount = 0;
+      let firstFailureError: string | null = null;
 
       const BATCH_SIZE = 100;
       for (let i = 0; i < itemsToProcess.length; i += BATCH_SIZE) {
@@ -107,6 +109,11 @@ export async function startLivsmedelsverketBulkImport(
                 'warn',
                 `Failed to fetch details for Livsmedelsverket food ${item.nummer} during import: ${err}`
               );
+              failedCount++;
+              if (!firstFailureError) {
+                firstFailureError =
+                  err instanceof Error ? err.message : String(err);
+              }
               return null;
             }
           })
@@ -199,22 +206,100 @@ export async function startLivsmedelsverketBulkImport(
               );
             }
 
-            // Bulk upsert variants
-            const foodIdsInBatch = validFoods
+            // Find existing default variants for updated foods so we preserve their IDs and references
+            const toUpdateFoodIds = toUpdate
               .map((item) => existingMap.get(item.provider_external_id))
               .filter((id): id is string => Boolean(id));
 
-            if (foodIdsInBatch.length > 0) {
-              await client.query(
-                'DELETE FROM food_variants WHERE food_id = ANY($1)',
-                [foodIdsInBatch]
-              );
+            const existingVariantMap = new Map<string, string>(); // food_id -> variant_id
+            if (toUpdateFoodIds.length > 0) {
+              const existingVariantsRes = (await client.query(
+                'SELECT id, food_id FROM food_variants WHERE food_id = ANY($1) AND is_default = TRUE',
+                [toUpdateFoodIds]
+              )) as { rows: Array<{ id: string; food_id: string }> };
+              for (const row of existingVariantsRes.rows) {
+                existingVariantMap.set(row.food_id, row.id);
+              }
+            }
 
+            // Update existing default variants in place without deleting them
+            for (const item of toUpdate) {
+              const foodId = existingMap.get(item.provider_external_id);
+              if (!foodId) continue;
+              const variantId = existingVariantMap.get(foodId);
+              if (!variantId) continue;
+              const v = item.default_variant;
+
+              await client.query(
+                `UPDATE food_variants
+                 SET serving_size = $2,
+                     serving_unit = $3,
+                     calories = $4,
+                     protein = $5,
+                     carbs = $6,
+                     fat = $7,
+                     saturated_fat = $8,
+                     polyunsaturated_fat = $9,
+                     monounsaturated_fat = $10,
+                     cholesterol = $11,
+                     sodium = $12,
+                     potassium = $13,
+                     dietary_fiber = $14,
+                     sugars = $15,
+                     calcium = $16,
+                     iron = $17,
+                     vitamin_a = $18,
+                     vitamin_c = $19,
+                     caffeine_mg = $20,
+                     water_ml = $21,
+                     alcohol_g = $22,
+                     custom_nutrients = $23::jsonb,
+                     source = 'imported',
+                     updated_at = now()
+                 WHERE id = $1`,
+                [
+                  variantId,
+                  v.serving_size,
+                  v.serving_unit,
+                  v.calories,
+                  v.protein,
+                  v.carbs,
+                  v.fat,
+                  v.saturated_fat ?? null,
+                  v.polyunsaturated_fat ?? null,
+                  v.monounsaturated_fat ?? null,
+                  v.cholesterol ?? null,
+                  v.sodium ?? null,
+                  v.potassium ?? null,
+                  v.dietary_fiber ?? null,
+                  v.sugars ?? null,
+                  v.calcium ?? null,
+                  v.iron ?? null,
+                  v.vitamin_a ?? null,
+                  v.vitamin_c ?? null,
+                  v.caffeine_mg ?? null,
+                  v.water_ml ?? null,
+                  v.alcohol_g ?? null,
+                  JSON.stringify(v.custom_nutrients || {}),
+                ]
+              );
+            }
+
+            // Insert new default variants for new foods or updated foods lacking one
+            const foodsNeedingVariantInsert = [
+              ...toInsert,
+              ...toUpdate.filter((item) => {
+                const foodId = existingMap.get(item.provider_external_id);
+                return foodId && !existingVariantMap.has(foodId);
+              }),
+            ];
+
+            if (foodsNeedingVariantInsert.length > 0) {
               const variantValues: (string | number | boolean | null)[] = [];
               const variantRowClauses: string[] = [];
               let p = 1;
 
-              for (const item of validFoods) {
+              for (const item of foodsNeedingVariantInsert) {
                 const foodId = existingMap.get(item.provider_external_id);
                 if (!foodId) continue;
                 const v = item.default_variant;
@@ -270,11 +355,12 @@ export async function startLivsmedelsverketBulkImport(
               }
             }
 
-            // Optionally refresh past diary entries
+            // Optionally refresh past diary entries matching the default variant
             if (options.syncPastEntries && toUpdate.length > 0) {
               for (const item of toUpdate) {
                 const foodId = existingMap.get(item.provider_external_id);
                 if (!foodId) continue;
+                const variantId = existingVariantMap.get(foodId);
                 const v = item.default_variant;
                 const servingSize = v.serving_size || 100;
                 await client.query(
@@ -299,7 +385,7 @@ export async function startLivsmedelsverketBulkImport(
                        water_ml = ROUND($20 * quantity / NULLIF($3, 0), 1),
                        alcohol_g = ROUND($21 * quantity / NULLIF($3, 0), 1),
                        custom_nutrients = $23::jsonb
-                   WHERE food_id = $1 AND user_id = $22`,
+                   WHERE food_id = $1 AND user_id = $22 AND ($24::uuid IS NULL OR variant_id = $24::uuid OR variant_id IS NULL)`,
                   [
                     foodId,
                     v.calories,
@@ -324,6 +410,7 @@ export async function startLivsmedelsverketBulkImport(
                     v.alcohol_g ?? null,
                     userId,
                     JSON.stringify(v.custom_nutrients || {}),
+                    variantId ?? null,
                   ]
                 );
               }
@@ -334,10 +421,16 @@ export async function startLivsmedelsverketBulkImport(
             updatedCount += toUpdate.length;
           } catch (batchErr) {
             await client.query('ROLLBACK');
+            const batchErrMsg =
+              batchErr instanceof Error ? batchErr.message : String(batchErr);
             log(
               'error',
-              `Error processing Livsmedelsverket batch starting at ${i}: ${batchErr}`
+              `Error processing Livsmedelsverket batch starting at ${i}: ${batchErrMsg}`
             );
+            failedCount += validFoods.length;
+            if (!firstFailureError) {
+              firstFailureError = batchErrMsg;
+            }
           } finally {
             client.release();
           }
@@ -352,11 +445,21 @@ export async function startLivsmedelsverketBulkImport(
       }
 
       initialStatus.isRunning = false;
-      initialStatus.status = 'completed';
       initialStatus.progress = 100;
+      if (failedCount > 0) {
+        if (importedCount === 0 && updatedCount === 0) {
+          initialStatus.status = 'failed';
+          initialStatus.error = `Import failed: all items failed (${failedCount} errors). First error: ${firstFailureError}`;
+        } else {
+          initialStatus.status = 'completed';
+          initialStatus.error = `${failedCount} food(s) failed during import. First error: ${firstFailureError}`;
+        }
+      } else {
+        initialStatus.status = 'completed';
+      }
       log(
         'info',
-        `Livsmedelsverket import completed for user ${userId}: ${importedCount} imported, ${updatedCount} updated`
+        `Livsmedelsverket import completed for user ${userId}: ${importedCount} imported, ${updatedCount} updated${failedCount > 0 ? `, ${failedCount} failed` : ''}`
       );
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);

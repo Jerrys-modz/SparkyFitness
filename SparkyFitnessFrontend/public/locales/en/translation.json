@@ -2079,6 +2079,7 @@
       "dialogTitle": "Swedish Food Agency (Livsmedelsverket) Bulk Import",
       "dialogDescription": "Download the official Swedish Food Composition Database (~2,600 foods) into your food library for offline and instant search.",
       "importing": "Importing foods...",
+      "progressText": "{{processed}} / {{total}} foods processed ({{imported}} imported, {{updated}} updated)",
       "completed": "Last import completed: {{imported}} imported, {{updated}} updated ({{total}} total).",
       "failed": "Import failed: ",
       "language": "Language",

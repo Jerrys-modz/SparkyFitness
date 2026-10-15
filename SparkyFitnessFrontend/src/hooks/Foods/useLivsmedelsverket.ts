@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchLivsmedelsverketStatus,
@@ -14,15 +15,38 @@ export const livsmedelsverketKeys = {
 export function useLivsmedelsverketStatusQuery(options?: {
   enabled?: boolean;
 }) {
-  return useQuery({
+  const queryClient = useQueryClient();
+  const prevIsRunningRef = useRef<boolean | undefined>(undefined);
+
+  const query = useQuery({
     queryKey: livsmedelsverketKeys.status,
     queryFn: fetchLivsmedelsverketStatus,
-    refetchInterval: (query) => {
-      const isRunning = query.state.data?.isRunning;
+    refetchInterval: (q) => {
+      const isRunning = q.state.data?.isRunning;
       return isRunning ? 2000 : false;
     },
     enabled: options?.enabled,
   });
+
+  useEffect(() => {
+    const isRunning = query.data?.isRunning;
+    const status = query.data?.status;
+
+    if (
+      prevIsRunningRef.current === true &&
+      isRunning === false &&
+      status === 'completed'
+    ) {
+      queryClient.invalidateQueries({ queryKey: ['foods'] });
+      queryClient.invalidateQueries({ queryKey: ['foodSearch'] });
+      queryClient.invalidateQueries({ queryKey: ['foodsV2'] });
+      queryClient.invalidateQueries({ queryKey: ['dailySummary'] });
+      queryClient.invalidateQueries({ queryKey: ['foodEntries'] });
+    }
+    prevIsRunningRef.current = isRunning;
+  }, [query.data?.isRunning, query.data?.status, queryClient]);
+
+  return query;
 }
 
 export function useLivsmedelsverketBulkImportMutation() {
@@ -38,11 +62,6 @@ export function useLivsmedelsverketBulkImportMutation() {
         description: data.message || 'Import processed successfully.',
       });
       queryClient.invalidateQueries({ queryKey: livsmedelsverketKeys.status });
-      queryClient.invalidateQueries({ queryKey: ['foods'] });
-      queryClient.invalidateQueries({ queryKey: ['foodSearch'] });
-      queryClient.invalidateQueries({ queryKey: ['foodsV2'] });
-      queryClient.invalidateQueries({ queryKey: ['dailySummary'] });
-      queryClient.invalidateQueries({ queryKey: ['foodEntries'] });
     },
     onError: (error) => {
       const message =

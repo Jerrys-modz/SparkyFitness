@@ -1307,9 +1307,16 @@ router.post(
         });
       }
 
+      const currentStatus = getLivsmedelsverketImportStatus(req.userId);
+      if (currentStatus.isRunning) {
+        return res.status(409).json({
+          error: 'A Livsmedelsverket import is already running for this user.',
+        });
+      }
+
       await startLivsmedelsverketBulkImport(req.userId, parseResult.data);
 
-      res.json({
+      res.status(202).json({
         message: 'Livsmedelsverket bulk import started.',
         status: getLivsmedelsverketImportStatus(req.userId),
       });

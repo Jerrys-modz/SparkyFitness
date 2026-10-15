@@ -575,18 +575,32 @@ export const ProviderCard = ({
               size="sm"
               onClick={() => setIsSlvDialogOpen(true)}
               disabled={loading}
-              title="Bulk Import / Re-Sync"
+              title={t(
+                'settings.providerCard.bulkImportReSync',
+                'Bulk Import / Re-Sync'
+              )}
               className="flex items-center gap-1.5"
             >
               {slvStatus?.isRunning ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <span>Importing ({slvStatus.progress}%)...</span>
+                  <span>
+                    {t(
+                      'settings.providerCard.importing',
+                      'Importing ({{progress}}%)...',
+                      { progress: slvStatus.progress }
+                    )}
+                  </span>
                 </>
               ) : (
                 <>
                   <Download className="h-4 w-4" />
-                  <span>Bulk Import / Sync</span>
+                  <span>
+                    {t(
+                      'settings.providerCard.bulkImportSync',
+                      'Bulk Import / Sync'
+                    )}
+                  </span>
                 </>
               )}
             </Button>
@@ -837,8 +851,11 @@ export const ProviderCard = ({
                 <div className="flex items-center justify-between text-xs font-medium">
                   <span className="flex items-center gap-1.5">
                     <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                    Importing catalog: {slvStatus.processed} / {slvStatus.total}{' '}
-                    foods
+                    {t(
+                      'settings.providerCard.importingCatalogFoods',
+                      'Importing catalog: {{processed}} / {{total}} foods',
+                      { processed: slvStatus.processed, total: slvStatus.total }
+                    )}
                   </span>
                   <span className="font-mono text-xs font-semibold">
                     {slvStatus.progress}%
@@ -846,8 +863,18 @@ export const ProviderCard = ({
                 </div>
                 <Progress value={slvStatus.progress} className="h-2" />
                 <div className="flex justify-between text-[11px] text-muted-foreground">
-                  <span>{slvStatus.imported} imported</span>
-                  <span>{slvStatus.updated} updated</span>
+                  <span>
+                    {t(
+                      'settings.providerCard.imported',
+                      '{{imported}} imported',
+                      { imported: slvStatus.imported }
+                    )}
+                  </span>
+                  <span>
+                    {t('settings.providerCard.updated', '{{updated}} updated', {
+                      updated: slvStatus.updated,
+                    })}
+                  </span>
                 </div>
               </div>
             )}
