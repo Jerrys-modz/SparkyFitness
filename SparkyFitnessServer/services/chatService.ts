@@ -767,6 +767,17 @@ export function getSystemPrompt(
     }
   }
 
+  if (categories.has('exercise') && suffix === 'full') {
+    const exercisePath = path.join(
+      __dirname,
+      '../prompts',
+      `chatbot-${suffix}-exercise.md`
+    );
+    if (existsSync(exercisePath)) {
+      content += '\n\n' + readFileSync(exercisePath, 'utf-8').trim();
+    }
+  }
+
   if (categories.has('vision') && suffix === 'full') {
     const visionPath = path.join(
       __dirname,
@@ -1779,7 +1790,7 @@ const KEYWORD_RULES: { category: ChatToolCategorySlug; keywords: RegExp }[] = [
   {
     category: 'exercise',
     keywords:
-      /\b(run|ran|running|walk|walked|walking|jog|jogged|jogging|lift|lifted|lifting|workout|workouts|exercise|exercises|reps|sets|cardio|strength|gym|heart rate|bpm|treadmill|squats?|bench press|swim|swam|swimming|bike|biking|cycling|cycled|yoga|hike[ds]?|hiking|steps|push-?ups?|pull-?ups?|training|trained|worked out|personal\s+record\w*|best\s+effort\w*|matched\s+course\w*|pace\s+record\w*|workout\s+plan\w*|workout\s+template\w*|training\s+plan\w*|training\s+program\w*)\b/i,
+      /\b(run|ran|running|walk|walked|walking|jog|jogged|jogging|lift|lifted|lifting|workout|workouts|exercise|exercises|reps|sets|cardio|strength|gym|heart rate|bpm|treadmill|squats?|bench press|swim|swam|swimming|bike|biking|cycling|cycled|yoga|hike[ds]?|hiking|steps|push-?ups?|pull-?ups?|training|trained|worked out|personal\s+record\w*|best\s+effort\w*|matched\s+course\w*|pace\s+record\w*|workout\s+plan\w*|workout\s+template\w*|training\s+plan\w*|training\s+program\w*|stalled|stalling|plateau\w*|1rm|one[- ]rep max)\b/i,
   },
   {
     category: 'food',
