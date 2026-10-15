@@ -24,6 +24,14 @@ on:
         required: false
         default: macos-latest
         type: string
+      chart_screenshots:
+        description: >-
+          Only build the iOS app for the simulator with a fixed-data hydration
+          chart and screenshot its axis labels in English and Simplified Chinese
+          (skips the compile check job).
+        required: false
+        default: false
+        type: boolean
 
 # A second push to the same branch makes the first build irrelevant.
 concurrency:
@@ -33,6 +41,7 @@ concurrency:
 jobs:
   build:
     name: Compile iOS app and watchOS companion
+    if: ${{ !inputs.chart_screenshots }}
     runs-on: ${{ inputs.runner == 'xcode-27' && 'xcode-27' || 'macos-latest' }}
     timeout-minutes: 60
     permissions:
@@ -206,3 +215,105 @@ jobs:
           name: watch-screenshots
           path: SparkyFitnessMobile/screenshots/*.png
           if-no-files-found: error
+
+  # Screenshots of a trend chart's axis labels per language, so a font change can
+  # be judged without a TestFlight build. Release, because it embeds the
+  # JavaScript and needs no Metro server. EXPO_PUBLIC_CI_CHART_PROBE swaps the
+  # app root for one fixed-data chart (see CiChartProbe), since a simulator has
+  # no server to supply data. iOS takes the app language from the launch
+  # arguments, as it does from the per-app language setting.
+  chart-screenshots:
+    name: Screenshot chart axis labels
+    if: ${{ inputs.chart_screenshots }}
+    runs-on: ${{ inputs.runner == 'xcode-27' && 'xcode-27' || 'macos-latest' }}
+    timeout-minutes: 75
+    permissions:
+      contents: read
+    env:
+      EXPO_PUBLIC_CI_CHART_PROBE: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prebuild iOS project
+        working-directory: SparkyFitnessMobile
+        run: npx expo prebuild --platform ios
+
+      - name: Build iOS app (Release, simulator)
+        working-directory: SparkyFitnessMobile
+        run: |
+          xcodebuild \
+            -workspace ios/SparkyFitness.xcworkspace \
+            -scheme 'SparkyFitness' \
+            -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build-app \
+            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="-" \
+            build
+
+      # Ad-hoc signing (above) keeps the entitlements; an unsigned build drops
+      # them and the app aborts at launch reading HKSource.defaultSource.
+      - name: Screenshot the chart in each language
+        working-directory: SparkyFitnessMobile
+        run: |
+          set -euo pipefail
+          mkdir -p screenshots
+          APP=$(ls -d build-app/Build/Products/Release-iphonesimulator/*.app | head -1)
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+
+          # The newest iOS runtime's first iPhone.
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys, re
+          devices = json.load(sys.stdin)['devices']
+          def ver(k):
+              m = re.search(r'iOS-(\d+)-(\d+)', k)
+              return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+          for runtime in sorted((k for k in devices if 'iOS' in k and 'watch' not in k.lower()), key=ver, reverse=True):
+              phones = [d for d in devices[runtime] if 'iPhone' in d['name']]
+              if phones:
+                  print(phones[-1]['udid'])
+                  break
+          ")
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl ui "$UDID" appearance dark || true
+          xcrun simctl install "$UDID" "$APP"
+
+          # $1 = output name, $2 = AppleLanguages tag, $3 = AppleLocale
+          shoot() {
+            xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+            xcrun simctl launch "$UDID" "$BUNDLE_ID" \
+              -AppleLanguages "($2)" -AppleLocale "$3"
+            sleep 20
+            xcrun simctl io "$UDID" screenshot "screenshots/$1.png"
+          }
+
+          shoot chart-en en en_US
+          shoot chart-zh-Hans zh-Hans zh_CN
+          shoot chart-zh-Hant zh-Hant zh_TW
+          ls -la screenshots
+
+      - name: Upload chart screenshots
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chart-screenshots
+          path: SparkyFitnessMobile/screenshots/*
+          if-no-files-found: warn

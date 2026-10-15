@@ -30,6 +30,7 @@ import {
 import WatchConnectivity from './modules/watch-connectivity';
 import { useAppStartup } from './src/hooks/useAppStartup';
 import { useAppBootstrap } from './src/hooks/useAppBootstrap';
+import CiChartProbe from './src/components/CiChartProbe';
 import { useAppLanguageForegroundSync } from './src/hooks/useAppLanguageForegroundSync';
 import { useAutoSyncOnOpen } from './src/hooks/useAutoSyncOnOpen';
 import { useAddSheetActions } from './src/hooks/useAddSheetActions';
@@ -446,6 +447,9 @@ function AppContent() {
   }), []);
 
   if (!initialRoute) return null;
+
+  // Set at bundle time only by the iOS chart-screenshot CI job.
+  if (process.env.EXPO_PUBLIC_CI_CHART_PROBE === '1') return <CiChartProbe />;
 
   return (
     <NavigationContainer
