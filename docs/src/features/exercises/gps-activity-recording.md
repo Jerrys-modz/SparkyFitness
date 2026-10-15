@@ -212,7 +212,7 @@ The route map uses Apple Maps on iOS. On Android it uses Google Maps when the bu
 
 A GPS-recorded activity can carry the weather at its start: temperature, conditions, wind and humidity. The temperature and conditions show as a **Weather** tile on the activity's detail screen (in °F when your distance unit is miles), and the web shows the full set in the activity report. Activities imported from Garmin already carry theirs, and it is never replaced.
 
-It is off by default, and the person running the server turns it on with `SPARKY_FITNESS_WEATHER_ENABLED=true` (see [Environment Variables](/install/environment-variables)). Once on, the server looks the weather up after the route is saved: it sends the time the activity started and its start place, rounded to about 1 km, to the free [Open-Meteo](https://open-meteo.com) service. Nothing is sent from your phone, and the server needs outbound internet access. Saving the activity never waits on the lookup, and if it fails the activity simply has no weather. Indoor sessions have no route, so they get none.
+It is off by default, and the person running the server turns it on with `SPARKY_FITNESS_WEATHER_ENABLED=true` (see [Environment Variables](/install/environment-variables)). Once on, the server looks the weather up after the route is saved: it sends the time the activity started and its start place, rounded to about 1 km, to the free [Open-Meteo](https://open-meteo.com) service. Nothing is sent from your phone, and the server needs outbound internet access. No account or API key is needed. Saving the activity never waits on the lookup, and if it fails the activity simply has no weather. Indoor sessions have no route, so they get none.
 
 ## VO2 max trend
 
