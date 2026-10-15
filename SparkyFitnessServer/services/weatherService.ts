@@ -2,6 +2,7 @@ import axios from 'axios';
 import { z } from 'zod';
 import { log } from '../config/logging.js';
 import exerciseEntryRepository from '../models/exerciseEntry.js';
+import globalSettingsRepository from '../models/globalSettingsRepository.js';
 import { describeError } from '../utils/errors.js';
 
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
@@ -40,11 +41,6 @@ const hourlySchema = z.object({
     weather_code: z.array(z.number().nullable()),
   }),
 });
-
-/** Looking weather up sends the activity's start place to a third party, so it is off until the operator turns it on. */
-function isWeatherEnabled(): boolean {
-  return process.env.SPARKY_FITNESS_WEATHER_ENABLED === 'true';
-}
 
 // WMO weather interpretation codes, as returned by Open-Meteo.
 const WMO_CONDITIONS: Readonly<Record<number, string>> = {
@@ -182,7 +178,7 @@ function isUsableStart(start: WeatherLocation): boolean {
 /**
  * Fills in the weather at the start of an activity that has none. Best
  * effort and safe to leave running after the request that triggered it has
- * been answered: it does nothing unless the operator enabled it, never
+ * been answered: it does nothing unless an admin enabled it, never
  * replaces weather a provider (Garmin) already supplied, and never throws.
  */
 export async function attachWeatherToExerciseEntry(
@@ -190,8 +186,13 @@ export async function attachWeatherToExerciseEntry(
   exerciseEntryId: string,
   start: WeatherLocation
 ): Promise<void> {
-  if (!isWeatherEnabled() || !isUsableStart(start)) return;
+  if (!isUsableStart(start)) return;
   try {
+    // Off until an admin turns it on (Admin > Global Provider Settings):
+    // looking the weather up sends the activity's start time and rounded start
+    // place to a third party. Checked first so a disabled instance does no
+    // other work, and it fails closed if the database cannot be read.
+    if (!(await globalSettingsRepository.isWeatherLookupEnabled())) return;
     const entry = await exerciseEntryRepository.getExerciseEntryById(
       exerciseEntryId,
       userId

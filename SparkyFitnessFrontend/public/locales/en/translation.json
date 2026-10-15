@@ -3195,6 +3195,8 @@
       "allowNonAdminUsersTo": "Allow non-admin users to connect custom recipe providers (e.g. Mealie, Tandoor) to private LAN IP addresses.",
       "allowLocalProviderResponseCapture": "Allow Local Provider Response Capture",
       "addsTwoOptionsToThe": "Adds two options to the provider sync dialog, for admins only: save a provider's raw responses to a JSON file on the server, and replay that file instead of calling the provider. Intended for collecting a sample to share when troubleshooting a sync. The captured file is stored per provider rather than per user, so turn this back off once you have what you need.",
+      "lookUpActivityWeather": "Look Up Weather for GPS Activities",
+      "lookUpActivityWeatherDescription": "Adds the temperature and conditions at the start of GPS-recorded activities that have none. When on, the server sends each activity's start time and its start place, rounded to about 1 km, to the free Open-Meteo service (no account or API key needed, free for non-commercial use). The server needs outbound internet access.",
       "configuredGlobalProviders": "Configured Global Providers"
     },
     "oidcProviderDialog": {

@@ -1,6 +1,7 @@
 import { vi, beforeEach, afterEach, describe, expect, it } from 'vitest';
 import axios from 'axios';
 import exerciseEntryRepository from '../models/exerciseEntry.js';
+import globalSettingsRepository from '../models/globalSettingsRepository.js';
 import {
   attachWeatherToExerciseEntry,
   fetchWeatherAt,
@@ -9,6 +10,9 @@ import {
 
 vi.mock('axios', () => ({ default: { get: vi.fn() } }));
 vi.mock('../config/logging', () => ({ log: vi.fn() }));
+vi.mock('../models/globalSettingsRepository', () => ({
+  default: { isWeatherLookupEnabled: vi.fn() },
+}));
 vi.mock('../models/exerciseEntry', () => ({
   default: {
     getExerciseEntryById: vi.fn(),
@@ -17,6 +21,9 @@ vi.mock('../models/exerciseEntry', () => ({
 }));
 
 const mockedGet = vi.mocked(axios.get);
+const weatherLookupEnabled = vi.mocked(
+  globalSettingsRepository.isWeatherLookupEnabled
+);
 const getEntry = vi.mocked(exerciseEntryRepository.getExerciseEntryById);
 const updateTelemetry = vi.mocked(
   exerciseEntryRepository.updateExerciseEntryTelemetryOnly
@@ -39,14 +46,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
-  process.env.SPARKY_FITNESS_WEATHER_ENABLED = 'true';
+  weatherLookupEnabled.mockResolvedValue(true);
   mockedGet.mockResolvedValue({ data: hourlyBody });
   getEntry.mockResolvedValue({ id: 'entry-1', weather_temp_celsius: null });
 });
 
 afterEach(() => {
   vi.useRealTimers();
-  delete process.env.SPARKY_FITNESS_WEATHER_ENABLED;
 });
 
 describe('weatherCodeToCondition', () => {
@@ -117,9 +123,10 @@ describe('attachWeatherToExerciseEntry', () => {
     });
   });
 
-  it('does nothing unless the operator turned it on', async () => {
-    delete process.env.SPARKY_FITNESS_WEATHER_ENABLED;
+  it('does nothing unless an admin turned it on', async () => {
+    weatherLookupEnabled.mockResolvedValue(false);
     await attachWeatherToExerciseEntry('user-1', 'entry-1', start);
+    expect(getEntry).not.toHaveBeenCalled();
     expect(mockedGet).not.toHaveBeenCalled();
     expect(updateTelemetry).not.toHaveBeenCalled();
   });

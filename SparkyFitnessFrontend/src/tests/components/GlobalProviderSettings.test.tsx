@@ -131,4 +131,28 @@ describe('GlobalProviderSettings Open Food Facts gate', () => {
       });
     });
   });
+
+  it('turns the weather lookup on from the provider settings, and it starts off', async () => {
+    renderWithClient(<GlobalProviderSettings />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Global Data Providers/ })
+    );
+    const toggle = await screen.findByRole('switch', {
+      name: 'Look Up Weather for GPS Activities',
+    });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(apiCall).toHaveBeenCalledWith('/admin/global-settings', {
+        method: 'PUT',
+        body: {
+          ...globalSettings,
+          weather_lookup_enabled: true,
+        },
+      });
+    });
+  });
 });

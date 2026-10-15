@@ -116,6 +116,36 @@ const GlobalProviderSettings = () => {
             </div>
           )}
 
+          {globalSettings && (
+            <div className="flex items-center justify-between p-4 border rounded-md">
+              <div className="flex-1">
+                <Label htmlFor="weather_lookup_enabled" className="font-medium">
+                  {t(
+                    'admin.globalProviderSettings.lookUpActivityWeather',
+                    'Look Up Weather for GPS Activities'
+                  )}
+                </Label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {t(
+                    'admin.globalProviderSettings.lookUpActivityWeatherDescription',
+                    "Adds the temperature and conditions at the start of GPS-recorded activities that have none. When on, the server sends each activity's start time and its start place, rounded to about 1 km, to the free Open-Meteo service (no account or API key needed, free for non-commercial use). The server needs outbound internet access."
+                  )}
+                </p>
+              </div>
+              <Switch
+                id="weather_lookup_enabled"
+                checked={globalSettings.weather_lookup_enabled === true}
+                onCheckedChange={(checked) => {
+                  updateSettings({
+                    ...globalSettings,
+                    weather_lookup_enabled: checked,
+                  });
+                }}
+                disabled={settingsLoading}
+              />
+            </div>
+          )}
+
           <OpenFoodFactsAdminContributionSettings />
 
           <AddExternalProviderForm
