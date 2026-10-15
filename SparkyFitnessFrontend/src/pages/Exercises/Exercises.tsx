@@ -36,10 +36,12 @@ import {
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { usePreferences } from '@/contexts/PreferencesContext';
+import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { useAuth } from '@/hooks/useAuth';
 import type { ExerciseOwnershipFilter } from '@/types/exercises';
 import { localizeMuscle, localizeEquipment } from '@/utils/exerciseTaxonomy';
 import WorkoutPresetsManager from './WorkoutPresetsManager';
+import EquipmentManager from '@/pages/Exercises/EquipmentManager';
 import WorkoutPlansManager from '@/pages/Exercises/WorkoutPlansManager';
 import {
   useExercises,
@@ -113,6 +115,7 @@ const ExerciseRowThumbnail = ({
 
 const ExerciseDatabaseManager = () => {
   const { t } = useTranslation();
+  const { isActingOnBehalf } = useActiveUser();
   const { user } = useAuth();
   const { energyUnit, convertEnergy } = usePreferences();
   const isMobile = useIsMobile();
@@ -686,6 +689,9 @@ const ExerciseDatabaseManager = () => {
 
       {/* Workout Plans Section */}
       <WorkoutPlansManager />
+
+      {/* Equipment Section (shoes and their mileage) */}
+      {!isActingOnBehalf && <EquipmentManager />}
 
       <AddExerciseDialog
         open={isAddExerciseDialogOpen}

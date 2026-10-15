@@ -18,6 +18,7 @@ import {
   learnFromOutdoorRecording,
   type IndoorDistanceEstimate,
 } from './stepDistance';
+import { assignShoeToExerciseEntry, fetchShoes } from './api/shoesApi';
 import { buildActivitySetsPayload } from '../utils/workoutSession';
 import { toLocalDateString } from '../utils/dateUtils';
 import {
@@ -170,6 +171,9 @@ export async function saveRecordedActivity(
       const message = error instanceof Error ? error.message : String(error);
       addLog(`[GPS Recording] Could not learn stride: ${message}`, 'WARNING');
     }
+    if (session.activity === 'run') {
+      await assignDefaultShoe(entryId);
+    }
   }
 
   if (!indoor) {
@@ -188,6 +192,27 @@ export async function saveRecordedActivity(
   }
   await attachWatchHeartRate(entryId);
   return { entryId, entryDate };
+}
+
+/**
+ * Links a freshly saved run to the person's default pair of shoes. Best
+ * effort: the run is already in the diary, so a failure is logged and never
+ * blocks the save. Runs only when the entry is first created, so retrying the
+ * route upload does not undo a shoe the person changed in between.
+ */
+async function assignDefaultShoe(entryId: string): Promise<void> {
+  try {
+    const shoes = await fetchShoes('active');
+    const defaultShoe = shoes.find((shoe) => shoe.is_default);
+    if (!defaultShoe) return;
+    await assignShoeToExerciseEntry(entryId, defaultShoe.id);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    addLog(
+      `[GPS Recording] Could not assign default shoe: ${message}`,
+      'WARNING'
+    );
+  }
 }
 
 /**

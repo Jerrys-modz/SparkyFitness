@@ -6,6 +6,10 @@ import {
   searchExercises,
 } from '../../src/services/api/exerciseApi';
 import {
+  assignShoeToExerciseEntry,
+  fetchShoes,
+} from '../../src/services/api/shoesApi';
+import {
   getHeartRateSamples,
   markRecordingSaved,
 } from '../../src/services/gpsRecordingService';
@@ -22,6 +26,7 @@ import type { RecordingSession } from '../../src/services/gpsRecordingService';
 import type { Exercise } from '../../src/types/exercise';
 
 jest.mock('../../src/services/api/exerciseApi');
+jest.mock('../../src/services/api/shoesApi');
 jest.mock('../../src/services/gpsRecordingService', () => ({
   elapsedSeconds: jest.fn(() => 1500),
   markRecordingSaved: jest.fn(() => Promise.resolve()),
@@ -38,6 +43,8 @@ const mockedTelemetry = jest.mocked(attachExerciseEntryWatchTelemetry);
 const mockedHeartRate = jest.mocked(getHeartRateSamples);
 const mockedLearnIndoor = jest.mocked(learnFromIndoorEntry);
 const mockedLearnOutdoor = jest.mocked(learnFromOutdoorRecording);
+const mockedFetchShoes = jest.mocked(fetchShoes);
+const mockedAssignShoe = jest.mocked(assignShoeToExerciseEntry);
 
 const DEG_PER_METER = 1 / 111_194.9;
 const T0 = new Date(2026, 9, 6, 7, 5, 0).getTime();
@@ -79,6 +86,11 @@ beforeEach(() => {
   mockedSearch.mockResolvedValue([exercise({})]);
   mockedCreateEntry.mockResolvedValue({ id: 'entry-1' } as never);
   mockedAttach.mockResolvedValue(undefined);
+  mockedFetchShoes.mockResolvedValue([]);
+  mockedAssignShoe.mockResolvedValue({
+    exercise_entry_id: 'entry-1',
+    shoe_id: null,
+  });
 });
 
 describe('resolveRecordingExercise', () => {
@@ -341,5 +353,58 @@ describe('learning a stride while saving', () => {
       entryDate: '2026-10-06',
     });
     expect(mockedAttach).toHaveBeenCalled();
+  });
+});
+
+describe('saveRecordedActivity default shoe', () => {
+  const shoe = (id: string, isDefault: boolean) =>
+    ({ id, is_default: isDefault, status: 'active' }) as Awaited<
+      ReturnType<typeof fetchShoes>
+    >[number];
+
+  it('links a new run to the default pair', async () => {
+    mockedFetchShoes.mockResolvedValue([shoe('a', false), shoe('b', true)]);
+    await saveRecordedActivity(session, points, 'km');
+    expect(mockedFetchShoes).toHaveBeenCalledWith('active');
+    expect(mockedAssignShoe).toHaveBeenCalledWith('entry-1', 'b');
+  });
+
+  it('leaves the run unlinked when there is no default pair', async () => {
+    mockedFetchShoes.mockResolvedValue([shoe('a', false)]);
+    await saveRecordedActivity(session, points, 'km');
+    expect(mockedAssignShoe).not.toHaveBeenCalled();
+  });
+
+  it('links an indoor run to the default pair', async () => {
+    mockedFetchShoes.mockResolvedValue([shoe('b', true)]);
+    await saveRecordedActivity({ ...session, indoor: true }, [], 'km', 5);
+    expect(mockedAssignShoe).toHaveBeenCalledWith('entry-1', 'b');
+  });
+
+  it('does not link walks or rides', async () => {
+    mockedFetchShoes.mockResolvedValue([shoe('b', true)]);
+    await saveRecordedActivity({ ...session, activity: 'ride' }, points, 'km');
+    await saveRecordedActivity({ ...session, activity: 'walk' }, points, 'km');
+    expect(mockedFetchShoes).not.toHaveBeenCalled();
+    expect(mockedAssignShoe).not.toHaveBeenCalled();
+  });
+
+  it('still saves when the shoe lookup fails', async () => {
+    mockedFetchShoes.mockRejectedValue(new Error('offline'));
+    await expect(saveRecordedActivity(session, points, 'km')).resolves.toEqual(
+      expect.objectContaining({ entryId: 'entry-1' })
+    );
+    expect(mockedAttach).toHaveBeenCalled();
+  });
+
+  it('does not touch the shoe again when retrying the route upload', async () => {
+    mockedFetchShoes.mockResolvedValue([shoe('b', true)]);
+    await saveRecordedActivity(
+      { ...session, savedEntryId: 'entry-1' },
+      points,
+      'km'
+    );
+    expect(mockedFetchShoes).not.toHaveBeenCalled();
+    expect(mockedAssignShoe).not.toHaveBeenCalled();
   });
 });

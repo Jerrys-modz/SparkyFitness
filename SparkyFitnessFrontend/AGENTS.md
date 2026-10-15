@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-05_
+_Last updated: 2026-10-12_
 
 SparkyFitness Frontend is the React web app for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessFrontend/`.
 
@@ -106,6 +106,7 @@ When searching, ignore `node_modules/`, `dist/`, and every locale except `public
 - Training consistency (#59): `pages/Reports/TrainingConsistencyCard.tsx` in the Exercise report's left column, fed by `useTrainingConsistency` (`hooks/Reports/useReports.ts`) from `GET /reports/training-consistency`. A fixed 26-week window computed on the server by the shared `buildTrainingConsistency`, so it ignores the report's date filter; the existing `WorkoutHeatmap` stays the calendar.
 - Running estimates: `pages/Reports/RunEstimatesCard.tsx` in the Exercise report's left column, fed by `useRunEstimates` (`hooks/Reports/useReports.ts`) from `GET /reports/run-estimates` (`getRunEstimates`, contract `RunningEstimatesResponse` in `@workspace/shared`): estimated VO2 max and average running power, both labelled as estimates; the card renders nothing until one exists.
 - Readiness and form: `pages/Reports/FitnessFatigueCard.tsx` in the Exercise report's left column above the consistency card, fed by `useFitnessFatigue` (`hooks/Reports/useReports.ts`) from `GET /reports/fitness-fatigue` (`getFitnessFatigue`, contract `FitnessFatigueResponse` in `@workspace/shared`): today's 0 to 100 readiness with its factors, fitness / fatigue / form numbers and the last 28 days of form. The numbers are computed on the server by the shared `computeFitnessFatigue` and `computeReadiness`; the card only draws them.
+- Shoe inventory: the Equipment section of the Exercises page (`src/pages/Exercises/EquipmentManager.tsx` + `ShoeFormDialog`; there is no separate tab or route), `src/components/Shoes/ShoeSelect.tsx` (the picker used by `pages/Diary/EditExerciseEntryDialog.tsx` for cardio entries), `src/api/Shoes/shoeService.ts`, `src/hooks/Shoes/useShoes.ts`. Distances are stored in km and edited in the user's unit; assigning a shoe invalidates both `shoeKeys` and `exerciseEntryKeys` because mileage is derived from linked entries. The `/shoes` tab is hidden while acting on behalf of someone else.
 - Chart issue: Recharts usage in the domain page plus `src/components/ExerciseCharts/` or `ZoomableChart.tsx`.
 
 ## Priority Rule
