@@ -12,6 +12,7 @@ import googleHealthService from './googleHealthService.js';
 import hevyService from '../integrations/hevy/hevyService.js';
 import liftosaurService from '../integrations/liftosaur/liftosaurService.js';
 import { log } from '../config/logging.js';
+import { startProviderSync } from './providerSyncClaim.js';
 
 export interface ProviderSyncTarget {
   id: string;
@@ -138,7 +139,18 @@ export const runProviderSync = async (
     for (const provider of providers) {
       if (provider.is_active && provider.sync_frequency !== 'manual') {
         try {
-          await config.sync(provider);
+          const started = await startProviderSync(
+            { userId: provider.user_id, providerId: provider.id },
+            () => config.sync(provider)
+          );
+          if (started) {
+            await started.running;
+          } else {
+            log(
+              'info',
+              `[CRON] ${config.name} sync skipped for user ${provider.user_id}: another sync for this account is still running.`
+            );
+          }
         } catch (error) {
           log(
             'error',

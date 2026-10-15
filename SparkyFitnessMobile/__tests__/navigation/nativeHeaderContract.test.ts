@@ -47,6 +47,8 @@ const NATIVE_TABS_ROUTE_EXCLUSIONS = {
     'Root-stack activity detail route presented above the tab host.',
   FastingDetail:
     'Root-stack dashboard detail route presented above the tab host.',
+  MindfulnessDetail:
+    'Root-stack dashboard detail route presented above the tab host.',
   SleepDetail: 'Root-stack diary detail route presented above the tab host.',
   Logs: 'Root-stack settings route presented above the tab host.',
   Sync: 'Root-stack settings route presented above the tab host.',
@@ -54,6 +56,7 @@ const NATIVE_TABS_ROUTE_EXCLUSIONS = {
   CalorieSettings: 'Root-stack settings route presented above the tab host.',
   FoodSettings: 'Root-stack settings route presented above the tab host.',
   AllergenSettings: 'Root-stack settings route presented above the tab host.',
+  ChatSettings: 'Root-stack voice settings route presented above the tab host.',
   DashboardSettings: 'Root-stack settings route presented above the tab host.',
   WorkoutSettings: 'Root-stack settings route presented above the tab host.',
   ServerSettings: 'Root-stack settings route presented above the tab host.',
