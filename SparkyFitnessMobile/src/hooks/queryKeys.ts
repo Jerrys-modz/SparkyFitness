@@ -320,8 +320,10 @@ export const exerciseDashboardQueryKey = (startDate: string, endDate: string) =>
 export const trainingConsistencyQueryKey = () =>
   ['trainingConsistency'] as const;
 
+export const trainingLoadRootQueryKey = ['trainingLoad'] as const;
+
 export const trainingLoadQueryKey = (today: string) =>
-  ['trainingLoad', today] as const;
+  [...trainingLoadRootQueryKey, today] as const;
 
 export const cardioSessionsQueryKey = (
   startDate: string,

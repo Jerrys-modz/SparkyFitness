@@ -41,16 +41,26 @@ describe('suggestFromBreak', () => {
       suggestFromBreak({
         ...base,
         today: '2026-10-01',
-        lastAdjustedAt: '2026-09-20T10:00:00.000Z',
+        lastAdjustedDay: '2026-09-20',
       })
     ).toBeNull();
     expect(
       suggestFromBreak({
         ...base,
         today: '2026-10-01',
-        lastAdjustedAt: '2026-08-30T10:00:00.000Z',
+        lastAdjustedDay: '2026-08-30',
       })
     ).not.toBeNull();
+  });
+
+  it('counts a change made the same local day as the last workout', () => {
+    expect(
+      suggestFromBreak({
+        ...base,
+        today: '2026-10-01',
+        lastAdjustedDay: base.lastDoneDay,
+      })
+    ).toBeNull();
   });
 });
 

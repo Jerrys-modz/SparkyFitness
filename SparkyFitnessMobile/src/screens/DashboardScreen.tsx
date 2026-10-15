@@ -66,7 +66,10 @@ import {
   useWidgetSync,
 } from '../hooks';
 import { useCheckInPhotoDates } from '../hooks/useCheckInPhotos';
-import { moodEntriesRootQueryKey } from '../hooks/queryKeys';
+import {
+  moodEntriesRootQueryKey,
+  trainingLoadRootQueryKey,
+} from '../hooks/queryKeys';
 import { useHeaderActionColors } from '../hooks/useHeaderActionColors';
 import {
   useMindfulnessDay,
@@ -429,6 +432,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       queryClient.invalidateQueries({ queryKey: ['mindfulness'] }),
       // MoodCard owns its own query.
       queryClient.invalidateQueries({ queryKey: moodEntriesRootQueryKey }),
+      // TrainingLoadDashboardCard owns its query, and a pull is not a focus.
+      trainingLoadCardVisible
+        ? queryClient.invalidateQueries({ queryKey: trainingLoadRootQueryKey })
+        : Promise.resolve(),
     ]);
     setRefreshing(false);
   }, [
@@ -439,6 +446,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     refetchCustomNutrients,
     refetchNutrientPrefs,
     refetchCaffeine,
+    trainingLoadCardVisible,
     queryClient,
   ]);
 

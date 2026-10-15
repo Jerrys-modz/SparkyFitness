@@ -47,12 +47,9 @@ jest.mock('../../src/hooks/useTrainingConsistency', () => ({
   }),
 }));
 
+const mockTrainingLoad = jest.fn();
 jest.mock('../../src/hooks/useTrainingLoad', () => ({
-  useTrainingLoad: () => ({
-    load: undefined,
-    isLoading: false,
-    isError: false,
-  }),
+  useTrainingLoad: () => mockTrainingLoad(),
 }));
 jest.mock('../../src/hooks/useCardioSessions', () => ({
   useCardioSessions: jest.fn(),
@@ -181,6 +178,11 @@ describe('ExerciseStatisticsScreen', () => {
   beforeEach(() => {
     mockUseExerciseDashboard.mockReset();
     mockUseExerciseDashboard.mockReturnValue(dashboardResult());
+    mockTrainingLoad.mockReturnValue({
+      load: undefined,
+      isLoading: false,
+      isError: false,
+    });
     navigation.navigate.mockReset();
     mockGender = null;
     mockUseCardioSessions.mockReturnValue(cardioResult());
@@ -341,6 +343,39 @@ describe('ExerciseStatisticsScreen', () => {
     const screen = render(<ExerciseStatisticsScreen {...props} />);
     expect(screen.getByText('No workouts in this range')).toBeTruthy();
     expect(screen.queryByText('Sets per Muscle')).toBeNull();
+  });
+
+  it('still shows the fixed-window training load when the range is empty', () => {
+    mockTrainingLoad.mockReturnValue({
+      load: {
+        weeks: [
+          { start: '2026-09-16', load: 100 },
+          { start: '2026-09-23', load: 120 },
+          { start: '2026-09-30', load: 110 },
+          { start: '2026-10-07', load: 130 },
+        ],
+        acute: 130,
+        chronic: 115,
+        ratio: 1.1,
+        status: 'steady',
+        restDays: 1,
+        recovery: null,
+      },
+      isLoading: false,
+      isError: false,
+    });
+    mockUseExerciseDashboard.mockReturnValue(
+      dashboardResult({
+        data: {
+          ...DASHBOARD,
+          keyStats: { totalWorkouts: 0, totalVolume: 0, totalReps: 0 },
+          muscleGroupSets: {},
+        },
+      })
+    );
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    expect(screen.getByText('No workouts in this range')).toBeTruthy();
+    expect(screen.getAllByTestId('training-load-bar')).toHaveLength(4);
   });
 
   it('keeps showing cached stats when a refetch fails', () => {

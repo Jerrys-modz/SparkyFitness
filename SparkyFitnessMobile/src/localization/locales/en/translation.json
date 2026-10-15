@@ -7397,6 +7397,7 @@
     "controlFailed": "Could not reach your watch"
   },
   "trainingLoadCard": {
+    "loadFailed": "Could not load your training load.",
     "title": "Training Load",
     "details": "Details",
     "openA11y": "Open training load",
