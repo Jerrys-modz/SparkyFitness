@@ -6606,6 +6606,20 @@
       "formLabel": "Form",
       "title": "Readiness and Form",
       "subtitle": "How ready you are today, from training form, sleep and resting heart rate."
+    },
+    "paceZones": {
+      "title": "Pace zones",
+      "perKm": "/km",
+      "perMile": "/mi",
+      "easy": "Easy",
+      "steady": "Steady",
+      "threshold": "Threshold",
+      "interval": "Interval",
+      "repetition": "Repetition",
+      "range": "{{fast}} – {{slow}} {{unit}}",
+      "fromEffort": "Built from your best recent run. Threshold pace is about {{pace}} {{unit}}.",
+      "fromTypical_one": "Estimated from your last {{formattedCount}} run, so less precise. A hard run of 3 km or more sharpens it.",
+      "fromTypical_other": "Estimated from your last {{formattedCount}} runs, so less precise. A hard run of 3 km or more sharpens it."
     }
   },
   "aiSettings": {

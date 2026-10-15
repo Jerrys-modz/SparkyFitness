@@ -151,6 +151,18 @@ const roundPace = (seconds: number): number =>
     Math.max(PACE_BAND_FASTEST_SECONDS_PER_KM, Math.round(seconds / 5) * 5)
   );
 
+/**
+ * A warm-up and cool-down range built from an easy range, for a runner whose
+ * zones are known: nothing quicker than the easy range's fast edge, and the
+ * slow edge pushed out so a walking warm-up does not alert.
+ */
+export function warmPaceFromEasy(easy: PaceBand): PaceBand {
+  return {
+    minSecondsPerKm: roundPace(easy.minSecondsPerKm),
+    maxSecondsPerKm: roundPace(easy.maxSecondsPerKm * 2),
+  };
+}
+
 /** The fast, easy and warm-up pace ranges around a typical pace; null for a ride. */
 export function suggestedPaceRanges(
   reference: ReferencePace,

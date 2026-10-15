@@ -15,6 +15,7 @@ import { useExerciseDashboard } from '../hooks/useExerciseDashboard';
 import { useTrainingConsistency } from '../hooks/useTrainingConsistency';
 import { useCardioSessions } from '../hooks/useCardioSessions';
 import { useRunningTrends } from '../hooks/useRunningTrends';
+import { usePaceZones } from '../hooks/usePaceZones';
 import { usePreferences } from '../hooks/usePreferences';
 import { useProfile } from '../hooks/useProfile';
 import { formatLocalizedNumber } from '../localization';
@@ -30,6 +31,7 @@ import CollapsibleSection from '../components/CollapsibleSection';
 import CardioSessionList from '../components/exerciseStats/CardioSessionList';
 import RunningTrendsCard from '../components/exerciseStats/RunningTrendsCard';
 import TrainingConsistencyCard from '../components/exerciseStats/TrainingConsistencyCard';
+import PaceZonesCard from '../components/exerciseStats/PaceZonesCard';
 import TrainingLoadCard from '../components/exerciseStats/TrainingLoadCard';
 import RunEstimatesCard from '../components/exerciseStats/RunEstimatesCard';
 import FitnessFatigueCard from '../components/exerciseStats/FitnessFatigueCard';
@@ -144,6 +146,7 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
   const fitnessFatigue = useFitnessFatigue();
   const cardio = useCardioSessions(range, view === 'cardio', customRange);
   const running = useRunningTrends(view === 'cardio');
+  const paceZones = usePaceZones(view === 'cardio');
   const { preferences } = usePreferences();
   const weightUnit: 'kg' | 'lbs' =
     preferences?.default_weight_unit === 'lbs' ||
@@ -233,6 +236,12 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
           <RunningTrendsCard
             trends={running.trends}
             raceTimes={running.raceTimes}
+            distanceUnit={cardio.distanceUnit}
+          />
+        ) : null}
+        {paceZones.result ? (
+          <PaceZonesCard
+            result={paceZones.result}
             distanceUnit={cardio.distanceUnit}
           />
         ) : null}

@@ -4,6 +4,7 @@ import {
   referencePace,
   suggestedHeartRateRanges,
   suggestedPaceRanges,
+  warmPaceFromEasy,
 } from '../../src/utils/suggestedRanges';
 
 const session = (
@@ -165,5 +166,17 @@ describe('suggestedPaceRanges', () => {
     expect(
       suggestedPaceRanges({ secondsPerKm: 650, sessions: 3 }, 'ride')
     ).toBeNull();
+  });
+});
+
+describe('warmPaceFromEasy', () => {
+  it("keeps the easy range's fast edge and pushes the slow edge out, inside the alert limits", () => {
+    expect(
+      warmPaceFromEasy({ minSecondsPerKm: 345, maxSecondsPerKm: 405 })
+    ).toEqual({ minSecondsPerKm: 345, maxSecondsPerKm: 810 });
+    expect(
+      warmPaceFromEasy({ minSecondsPerKm: 500, maxSecondsPerKm: 700 })
+        .maxSecondsPerKm
+    ).toBeLessThanOrEqual(1200);
   });
 });
