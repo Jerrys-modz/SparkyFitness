@@ -23,6 +23,15 @@ describe('allergen UI', () => {
     );
     expect(getByTestId('allergen-warning')).toBeTruthy();
     expect(getByText('Peanuts')).toBeTruthy();
+    expect(getByText('Contains an allergen you track')).toBeTruthy();
+  });
+
+  it('uses the softer title when only traces match', () => {
+    const { getByText, queryByText } = render(
+      <AllergenWarning allergens={['milk']} traces={['Peanuts']} />
+    );
+    expect(getByText('May contain an allergen you track')).toBeTruthy();
+    expect(queryByText('Contains an allergen you track')).toBeNull();
   });
 
   it('renders nothing when no tracked allergen matches', () => {

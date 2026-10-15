@@ -6432,6 +6432,7 @@
   "allergens": {
     "trace": "trace: {{name}}",
     "warningTitle": "Contains an allergen you track",
+    "traceWarningTitle": "May contain an allergen you track",
     "mayContainTraces": "May contain traces of: {{names}}"
   },
   "allergenSettings": {

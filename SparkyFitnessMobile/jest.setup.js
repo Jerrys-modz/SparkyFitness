@@ -874,4 +874,4 @@ jest.mock('expo-image-manipulator', () => ({
     PNG: 'png',
     WEBP: 'webp',
   },
->}));
+}));

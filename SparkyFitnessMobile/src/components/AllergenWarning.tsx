@@ -43,9 +43,13 @@ const AllergenWarning: React.FC<AllergenWarningProps> = ({
       <Icon name="warning" size={20} color={dangerColor} />
       <View className="flex-1">
         <Text className="text-text-danger-subtle text-base font-semibold">
-          {t('allergens.warningTitle', {
-            defaultValue: 'Contains an allergen you track',
-          })}
+          {matched.allergens.length > 0
+            ? t('allergens.warningTitle', {
+                defaultValue: 'Contains an allergen you track',
+              })
+            : t('allergens.traceWarningTitle', {
+                defaultValue: 'May contain an allergen you track',
+              })}
         </Text>
         {matched.allergens.length > 0 ? (
           <Text className="text-text-danger-subtle text-sm mt-0.5 capitalize">
