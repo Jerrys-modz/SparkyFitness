@@ -6931,6 +6931,7 @@
       "weekTitle": "Week {{week}}",
       "pickOption": "{{mark}}Run {{run}} · {{minutes}} min",
       "pickOptionWalk": "{{mark}}Walk {{walk}} · {{minutes}} min",
+      "pickOptionCustom": "{{mark}}{{title}} · {{minutes}} min",
       "doThis": "Do this workout",
       "switchHint": "Follow a plan that builds up week by week. Off by default.",
       "paused": "{{name}} is paused at {{done}} of {{total}} workouts. Switch it on to carry on.",
@@ -7569,7 +7570,8 @@
       "countIt": "Count it",
       "start": "Start",
       "title": "Week {{week}}, run {{run}} · {{minutes}} min",
-      "titleWalk": "Week {{week}}, walk {{walk}} · {{minutes}} min"
+      "titleWalk": "Week {{week}}, walk {{walk}} · {{minutes}} min",
+      "titleCustom": "{{title}} · {{minutes}} min"
     },
     "calendar": {
       "title": "Schedule",
