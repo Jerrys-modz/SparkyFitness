@@ -97,6 +97,22 @@ const ShoeCard: React.FC<{
             ? ` · ${t('shoes.lastUsed', 'last used {{date}}', { date: shoe.last_used_date })}`
             : ''}
         </p>
+        {shoe.status === 'active' && shoe.is_worn_out && (
+          <div
+            role="status"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm"
+          >
+            <span>
+              {t(
+                'shoes.retirePrompt',
+                'This pair has reached its limit. Retire it?'
+              )}
+            </span>
+            <Button size="sm" variant="destructive" onClick={onToggleRetired}>
+              {t('shoes.retire', 'Retire')}
+            </Button>
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={onEdit}>
             <Pencil className="mr-1 h-3.5 w-3.5" />

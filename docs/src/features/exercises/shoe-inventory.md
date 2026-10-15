@@ -25,7 +25,7 @@ A pair's mileage is its starting mileage plus the distance of every run linked t
 
 ## Wear and retirement
 
-Each card shows a progress bar, the number of runs and the date of the last run. Once the total reaches the **Retire at** distance the card shows a **Worn out** badge.
+Each card shows a progress bar, the number of runs and the date of the last run. Once the total reaches the **Retire at** distance the card shows a **Worn out** badge and asks whether to retire the pair, with a one-tap **Retire** button.
 
 **Retire** moves a pair to the retired list and clears its default flag. Its past runs keep their link, so the mileage history stays intact, and you can **Reactivate** it later. A retired pair no longer appears in the shoe picker unless a run is already linked to it.
 

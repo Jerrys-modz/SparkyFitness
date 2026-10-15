@@ -14,7 +14,7 @@ import StatusView from '../components/StatusView';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { usePreferences } from '../hooks/usePreferences';
-import { useShoes } from '../hooks/useShoes';
+import { useShoeMutations, useShoes } from '../hooks/useShoes';
 import { formatLocalizedNumber } from '../localization';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { kmToMiles } from '../utils/unitConversions';
@@ -26,7 +26,8 @@ const ShoeCard: React.FC<{
   shoe: ShoeResponse;
   distanceUnit: 'km' | 'miles';
   onPress: () => void;
-}> = ({ shoe, distanceUnit, onPress }) => {
+  onRetire: () => void;
+}> = ({ shoe, distanceUnit, onPress, onRetire }) => {
   const { t } = useTranslation();
   const unit = distanceUnit === 'miles' ? 'mi' : 'km';
   const show = (km: number) =>
@@ -102,6 +103,25 @@ const ShoeCard: React.FC<{
           style={{ width: `${percent}%` }}
         />
       </View>
+      {shoe.status === 'active' && shoe.is_worn_out ? (
+        <View className="flex-row items-center justify-between mt-3 rounded-lg bg-red-500/10 p-2">
+          <Text className="flex-1 pr-2 text-sm text-text-primary">
+            {t('shoes.retirePrompt', {
+              defaultValue: 'This pair has reached its limit. Retire it?',
+            })}
+          </Text>
+          <Pressable
+            onPress={onRetire}
+            accessibilityRole="button"
+            accessibilityLabel={t('shoes.retire', { defaultValue: 'Retire' })}
+            className="rounded-lg bg-red-500 px-3 py-1.5"
+          >
+            <Text className="text-sm font-semibold text-white">
+              {t('shoes.retire', { defaultValue: 'Retire' })}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
       <Text className="text-xs text-text-secondary mt-2">
         {t('shoes.runCount', {
           count: shoe.run_count,
@@ -129,6 +149,7 @@ const ShoesScreen: React.FC<Props> = ({ navigation }) => {
   const distanceUnit =
     (preferences?.default_distance_unit as 'km' | 'miles') ?? 'km';
   const { shoes, isLoading, isError, refetch } = useShoes();
+  const { updateMutation } = useShoeMutations();
 
   const header = useScreenHeader({
     title: t('shoes.title', { defaultValue: 'Shoes' }),
@@ -151,6 +172,9 @@ const ShoesScreen: React.FC<Props> = ({ navigation }) => {
         shoe={shoe}
         distanceUnit={distanceUnit}
         onPress={() => navigation.navigate('ShoeForm', { shoeId: shoe.id })}
+        onRetire={() =>
+          updateMutation.mutate({ id: shoe.id, data: { status: 'retired' } })
+        }
       />
     ));
 

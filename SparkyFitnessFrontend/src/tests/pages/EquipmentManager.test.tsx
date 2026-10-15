@@ -82,4 +82,23 @@ describe('Shoes page', () => {
       data: { status: 'retired' },
     });
   });
+
+  it('prompts to retire a worn-out pair, but not one under its limit', () => {
+    (useShoes as jest.Mock).mockReturnValue({
+      data: [
+        shoe({ total_distance_km: 812, is_worn_out: true }),
+        shoe({ id: 'shoe-3', name: 'Fresh pair' }),
+        shoe({
+          id: 'shoe-4',
+          name: 'Retired worn',
+          status: 'retired',
+          is_worn_out: true,
+        }),
+      ],
+      isLoading: false,
+    });
+    renderWithClient(<EquipmentManager />);
+
+    expect(screen.getAllByText(/has reached its limit/i)).toHaveLength(1);
+  });
 });

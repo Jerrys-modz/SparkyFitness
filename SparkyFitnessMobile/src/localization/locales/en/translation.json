@@ -6455,6 +6455,7 @@
     "useAsDefault": "Use as my default pair",
     "useAsDefaultHint": "New recorded runs, outdoor or indoor, are logged with your default pair.",
     "retire": "Retire",
+    "retirePrompt": "This pair has reached its limit. Retire it?",
     "reactivate": "Reactivate",
     "retired": "Retired",
     "retiredSection": "Retired",

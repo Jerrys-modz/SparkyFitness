@@ -8912,6 +8912,7 @@
     "runCount_other": "{{count}} runs",
     "lastUsed": "last used {{date}}",
     "retire": "Retire",
+    "retirePrompt": "This pair has reached its limit. Retire it?",
     "reactivate": "Reactivate",
     "empty": "No shoes yet. Add a pair, then pick it on a run to start counting its mileage.",
     "deleteTitle": "Delete this shoe?",
