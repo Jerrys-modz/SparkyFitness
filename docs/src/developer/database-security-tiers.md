@@ -51,6 +51,7 @@ These tables contain highly sensitive credentials, API keys, SSO tokens, 2FA rec
 | `pregnancy_photos` | Bump photo journal (image bytes served only via the authenticated `GET /api/v2/pregnancy/photos/file/{id}`; excluded from the public `/uploads` static mount) | Owner-Only | Owner-Only |
 | `pregnancy_checklist_state` | Weekly pregnancy checklist completion/custom items | Owner-Only | Owner-Only |
 | `run_programs` | A person's run program (Beginner 5K), their place in it, its Diary schedule, goal date, AI adjustments and how hard finished workouts felt | Owner-Only | Owner-Only |
+| `custom_run_programs` | A person's own saved run or walk plans (name, activity, workouts) that they can start | Owner-Only | Owner-Only |
 | `health_appointments` | Prenatal & other health appointments | Owner-Only | Owner-Only |
 | `openfoodfacts_product_read_rate_limit` | Singleton coordination lease and cooldown for Open Food Facts product reads, including manual previews; contains no user data or credentials | System services only | Deny all |
 | `openfoodfacts_sync_queue` | Dormant automatic Open Food Facts upload state and retained history; stores food/user identifiers and retry metadata, never provider credentials. The manual first release does not enqueue or process these rows. | System worker and owning user | Owner-Only |
@@ -182,7 +183,7 @@ These tables store global configuration settings, lookup values, and reference m
 | `backup_settings` | Automated database backup timing and storage credentials | Admin-Only | Admin-Only |
 | `sso_provider` | Active Single Sign-On providers (Google, Apple, etc.) | Admin-Only | Public (Login page) |
 | `oidc_providers` | OpenID Connect integration settings and metadata | Admin-Only | Public |
-| `external_provider_types` | Search provider configurations lookup (FatSecret, USDA, Canadian Nutrient File) | Admin-Only | Authenticated Users |
+| `external_provider_types` | Search provider configurations lookup (FatSecret, USDA, Canadian Nutrient File, Livsmedelsverket) | Admin-Only | Authenticated Users |
 | `medication_types` | Medication categories lookup (GLP-1, Insulin, ADHD, etc.) | Admin-Only | Authenticated Users |
 | `medication_route_types` | Medication administration route lookup (Subcutaneous, Oral) | Admin-Only | Authenticated Users |
 | `medication_schedule_types`| Medication scheduling frequencies lookup (Daily, Weekly) | Admin-Only | Authenticated Users |

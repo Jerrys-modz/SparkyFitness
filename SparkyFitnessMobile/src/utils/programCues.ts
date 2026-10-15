@@ -1,10 +1,19 @@
 import type { TFunction } from 'i18next';
 import {
   findProgram,
+  isCustomProgramId,
+  type RunProgramResponse,
   planTotalSeconds,
   type IntervalPlan,
 } from '@workspace/shared';
-import { programDoneCue, programStartCue } from './recordingCues';
+import { queryClient } from '../hooks/queryClient';
+import { runProgramQueryKey } from '../hooks/queryKeys';
+import {
+  customProgramDoneCue,
+  customProgramStartCue,
+  programDoneCue,
+  programStartCue,
+} from './recordingCues';
 
 /** Total running (work) time in a plan. */
 const workSeconds = (plan: IntervalPlan): number =>
@@ -31,6 +40,26 @@ export function programSpokenCues(
   program: { id: string; index: number },
   plan: IntervalPlan
 ): ProgramSpokenCues | null {
+  if (isCustomProgramId(program.id)) {
+    const stored = queryClient.getQueryData<RunProgramResponse | null>(
+      runProgramQueryKey
+    );
+    // Only the program being run is cached; a stale id has no workouts to name.
+    if (!stored || stored.program_id !== program.id) return null;
+    const workout = stored.workouts[program.index];
+    if (!workout) return null;
+    return {
+      start: customProgramStartCue(t, {
+        number: program.index + 1,
+        title: workout.title,
+        totalSeconds: planTotalSeconds(plan),
+      }),
+      done: customProgramDoneCue(t, {
+        done: program.index + 1,
+        total: stored.workouts.length,
+      }),
+    };
+  }
   const definition = findProgram(program.id);
   const workout = definition?.workouts[program.index];
   if (!definition || !workout) return null;

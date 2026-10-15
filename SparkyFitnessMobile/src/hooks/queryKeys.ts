@@ -99,6 +99,8 @@ export const allProvidersFoodSearchQueryKey = (
 
 export const mealTypesQueryKey = ['mealTypes'] as const;
 
+export const allergenPreferencesQueryKey = ['allergenPreferences'] as const;
+
 export const goalsQueryKey = (date: string) => ['goals', date] as const;
 
 export const goalPresetsQueryKey = ['goalPresets'] as const;
@@ -412,3 +414,6 @@ export const runningRecordsQueryKey = () =>
 
 /** The person's run program and place in it (server-backed). */
 export const runProgramQueryKey = ['runProgram'] as const;
+
+/** The person's own saved run programs. */
+export const customRunProgramsQueryKey = ['customRunPrograms'] as const;

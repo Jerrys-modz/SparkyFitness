@@ -21,7 +21,7 @@ import Button from '../components/ui/Button';
 import CreateTile from '../components/CreateTile';
 import FoodLibraryRow from '../components/FoodLibraryRow';
 import Icon from '../components/Icon';
-import { programName } from '../components/recording/RunProgramCard';
+import { programTitle } from '../components/recording/RunProgramCard';
 import { useRunProgram } from '../services/runProgramService';
 import MealLibraryRow from '../components/MealLibraryRow';
 import StatusView from '../components/StatusView';
@@ -431,7 +431,7 @@ const LibraryScreen: React.FC<LibraryScreenProps> = ({ navigation }) => {
             <Text className="text-sm text-text-secondary mt-0.5">
               {activeProgram
                 ? t('screens.library.runProgramsActive', {
-                    name: programName(t, activeProgram.program.id),
+                    name: programTitle(t, activeProgram.program),
                     progress: t('recordActivity.program.workoutsDone', {
                       done: activeProgram.done,
                       total: activeProgram.total,

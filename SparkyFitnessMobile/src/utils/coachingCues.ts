@@ -1,6 +1,9 @@
 import {
   intervalPosition,
+  isDistanceStep,
+  planHasDistanceSteps,
   planTotalSeconds,
+  type IntervalCursor,
   type IntervalPlan,
   type IntervalStep,
 } from '@workspace/shared';
@@ -70,6 +73,11 @@ export function nextCoachingCues(input: {
   checkInMinutes: number | null;
   /** Metres recorded so far; null indoors, where the distance is only an estimate. */
   distanceMeters?: number | null;
+  /**
+   * Where a plan with distance steps stands: its stored cursor and the metres
+   * recorded in the plan so far. Without it the clock alone places the plan.
+   */
+  progress?: { cursor: IntervalCursor | null | undefined; meters: number };
   state: CoachingState;
 }): { cues: CoachingCue[]; state: CoachingState } {
   const { elapsedSeconds, plan, checkInMinutes, distanceMeters } = input;
@@ -78,10 +86,11 @@ export function nextCoachingCues(input: {
   const cues: CoachingCue[] = [];
 
   if (plan) {
-    const position = intervalPosition(plan, elapsedSeconds);
+    const position = intervalPosition(plan, elapsedSeconds, input.progress);
     if (
       position &&
       !position.done &&
+      !isDistanceStep(position.step) &&
       position.step.seconds >= MIN_WARNED_STEP_SECONDS &&
       position.remaining <= STEP_COUNTDOWN_SECONDS &&
       position.index > state.countdownStep
@@ -97,6 +106,7 @@ export function nextCoachingCues(input: {
     if (
       position &&
       !position.done &&
+      !isDistanceStep(position.step) &&
       position.step.seconds >= MIN_WARNED_STEP_SECONDS &&
       position.remaining <= STEP_WARNING_SECONDS &&
       position.index > state.warnedStep
@@ -105,7 +115,10 @@ export function nextCoachingCues(input: {
       state = { ...state, warnedStep: position.index };
     }
 
-    const total = planTotalSeconds(plan);
+    // A distance step has no fixed length, so the plan's length is only a
+    // guess: no halfway or last-minute call for it (its own "to go" cue says
+    // when a step is nearly over).
+    const total = planHasDistanceSteps(plan) ? 0 : planTotalSeconds(plan);
     if (
       !state.lastMinute &&
       total >= MIN_LAST_MINUTE_PLAN_SECONDS &&

@@ -21,6 +21,11 @@ export interface WatchRunPlanPayload {
   programIndex?: number;
   /** 'walk' for a walking program; missing is a run. */
   activity?: 'walk';
+  /**
+   * `meters` marks a distance step: the watch ends it on the distance it
+   * records, and `seconds` is only the expected time (what a watch build
+   * that predates distance steps follows instead).
+   */
   /** Spoken ahead of a program workout's first step (place, length, any easing); the watch says it as is. */
   startText?: string;
   /** Spoken when a program workout reaches its end: progress and what is next. */
@@ -28,12 +33,15 @@ export interface WatchRunPlanPayload {
   steps: {
     label: string;
     seconds: number;
+    meters?: number;
     /** Pace range to hold in this step, seconds per km. */
     paceMin?: number;
     paceMax?: number;
     /** Heart-rate range to hold in this step, bpm. */
     hrMin?: number;
     hrMax?: number;
+    /** 'mi' when the distance step was set in miles; metres otherwise. */
+    unit?: 'mi';
   }[];
 }
 
@@ -51,6 +59,9 @@ const toSteps = (t: TFunction, plan: IntervalPlan) =>
   plan.steps.map((step) => ({
     label: intervalStepName(t, step.kind, plan.style),
     seconds: step.seconds,
+    ...(step.meters !== undefined && step.meters > 0
+      ? { meters: step.meters }
+      : {}),
     ...(step.pace
       ? {
           paceMin: step.pace.minSecondsPerKm,
@@ -60,6 +71,7 @@ const toSteps = (t: TFunction, plan: IntervalPlan) =>
     ...(step.heartRate
       ? { hrMin: step.heartRate.minBpm, hrMax: step.heartRate.maxBpm }
       : {}),
+    ...(step.unit === 'mi' ? { unit: 'mi' as const } : {}),
   }));
 
 /**
