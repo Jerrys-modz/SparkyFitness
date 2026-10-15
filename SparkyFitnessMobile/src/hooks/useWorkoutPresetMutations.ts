@@ -1,5 +1,6 @@
 import {
   useMutation,
+  useQuery,
   useQueryClient,
   type QueryClient,
 } from '@tanstack/react-query';
@@ -10,10 +11,13 @@ import {
   createWorkoutPreset,
   updateWorkoutPreset,
   deleteWorkoutPreset,
+  addStarterRoutine,
+  fetchStarterRoutines,
   type WorkoutPresetCreatePayload,
   type WorkoutPresetUpdatePayload,
 } from '../services/api/workoutPresetsApi';
-import { workoutPresetsQueryKey } from './queryKeys';
+import { invalidateExerciseLibraryCaches } from './useExerciseMutations';
+import { starterRoutinesQueryKey, workoutPresetsQueryKey } from './queryKeys';
 import type { WorkoutPreset } from '../types/workoutPresets';
 
 const isAuthzError = (error: unknown): boolean => {
@@ -149,5 +153,46 @@ export function useDeleteWorkoutPreset({
   return {
     confirmAndDelete,
     isPending: mutation.isPending,
+  };
+}
+
+export function useStarterRoutines(enabled: boolean) {
+  return useQuery({
+    queryKey: starterRoutinesQueryKey,
+    queryFn: fetchStarterRoutines,
+    enabled,
+  });
+}
+
+export function useAddStarterRoutine() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (routineId: string) => addStarterRoutine(routineId),
+    onSuccess: () => {
+      // Also adds the routine's moves to the exercise library; this helper
+      // refreshes those caches and the preset caches together.
+      invalidateExerciseLibraryCaches(queryClient);
+      Toast.show({
+        type: 'success',
+        text1: i18n.t('starterRoutines.added', {
+          defaultValue: 'Routine added to your workout presets',
+        }),
+      });
+    },
+    onError: () => {
+      Toast.show({
+        type: 'error',
+        text1: i18n.t('starterRoutines.addFailed', {
+          defaultValue: 'Could not add routine',
+        }),
+        text2: i18n.t('common.tryAgain', { defaultValue: 'Please try again.' }),
+      });
+    },
+  });
+
+  return {
+    addRoutine: mutation.mutate,
+    isPending: mutation.isPending,
+    pendingRoutineId: mutation.isPending ? mutation.variables : undefined,
   };
 }
