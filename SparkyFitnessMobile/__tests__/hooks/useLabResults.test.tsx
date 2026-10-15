@@ -7,6 +7,7 @@ import {
 import { createQueryWrapper, createTestQueryClient } from './queryTestUtils';
 
 jest.mock('../../src/services/api/measurementsApi', () => ({
+  updateCustomCategory: jest.fn(),
   createCustomCategory: jest.fn(),
   deleteCustomMeasurement: jest.fn(),
   fetchCustomMeasurementsRange: jest.fn(),

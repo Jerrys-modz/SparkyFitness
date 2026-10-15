@@ -1,11 +1,10 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  createCustomCategory,
   deleteCustomMeasurement,
   fetchCustomMeasurementsRange,
-  saveCustomMeasurement,
 } from '../services/api/measurementsApi';
+import { saveLabResult } from '../services/labResultsService';
 import {
   customCategoriesQueryKey,
   labHistoryQueryKey,
@@ -18,12 +17,7 @@ import {
 import { refreshHealthSyncCache } from './refreshHealthSyncCache';
 import { addLog } from '../services/LogService';
 import { getTodayDate } from '../utils/dateUtils';
-import {
-  LAB_CATEGORY_FREQUENCY,
-  isLabCategory,
-  type LabCategory,
-  type NewLabMarker,
-} from '../utils/labResults';
+import { isLabCategory, type LabCategory } from '../utils/labResults';
 
 // A lab history spans years, so ask for every day rather than a trend window.
 const HISTORY_START = '1900-01-01';
@@ -58,15 +52,6 @@ export function useLabHistory(categoryId: string) {
   });
 }
 
-export interface SaveLabResultInput {
-  /** An existing marker's id, or a new marker to create first. */
-  target: { categoryId: string } | { newMarker: NewLabMarker };
-  value: number;
-  /** Draw date, `YYYY-MM-DD`. */
-  date: string;
-  notes?: string;
-}
-
 function invalidateLabCaches(
   queryClient: ReturnType<typeof useQueryClient>,
   categoryId: string
@@ -83,33 +68,7 @@ export function useSaveLabResult() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: SaveLabResultInput) => {
-      let categoryId: string;
-      if ('categoryId' in input.target) {
-        categoryId = input.target.categoryId;
-      } else {
-        const { newMarker } = input.target;
-        const created = await createCustomCategory({
-          name: newMarker.name,
-          display_name: newMarker.display_name,
-          measurement_type: newMarker.measurement_type,
-          frequency: LAB_CATEGORY_FREQUENCY,
-          data_type: 'numeric',
-          is_lab: true,
-          ref_range_low: newMarker.ref_range_low,
-          ref_range_high: newMarker.ref_range_high,
-        });
-        categoryId = created.id;
-      }
-      const entry = await saveCustomMeasurement({
-        category_id: categoryId,
-        value: input.value,
-        entry_date: input.date,
-        notes: input.notes?.trim() || undefined,
-        source: 'manual',
-      });
-      return { categoryId, entry };
-    },
+    mutationFn: saveLabResult,
     onSuccess: ({ categoryId }) => invalidateLabCaches(queryClient, categoryId),
     onError: (err: Error) => {
       addLog(`Failed to save lab result: ${err.message}`, 'ERROR');

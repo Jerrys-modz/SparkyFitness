@@ -88,55 +88,69 @@ const LabResultsScreen: React.FC<Props> = ({ navigation }) => {
             >
               {t('labs.add', { defaultValue: 'Add lab result' })}
             </Button>
+            <Button
+              variant="secondary"
+              onPress={() => navigation.navigate('LabReportImport')}
+            >
+              {t('labs.import.cta', { defaultValue: 'Import from a report' })}
+            </Button>
           </View>
         ) : (
-          <View className="bg-surface rounded-xl overflow-hidden">
-            {markers.map((marker, index) => {
-              const row = latest.byCategory.get(marker.id);
-              const value = row ? parseLabValue(row.value) : null;
-              const unit = marker.measurement_type;
-              const range = formatLabRange(
-                marker.ref_range_low,
-                marker.ref_range_high,
-                unit
-              );
-              return (
-                <Pressable
-                  key={marker.id}
-                  onPress={() =>
-                    navigation.navigate('LabResultDetail', {
-                      categoryId: marker.id,
-                    })
-                  }
-                  className={`px-4 py-3.5 flex-row items-center justify-between ${
-                    index > 0 ? 'border-t border-border-subtle' : ''
-                  }`}
-                  style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
-                  accessibilityRole="button"
-                >
-                  <View className="flex-1 mr-3">
-                    <Text className="text-base font-semibold text-text-primary">
-                      {labMarkerName(marker)}
-                    </Text>
-                    <Text className="text-xs text-text-muted mt-0.5">
-                      {row
-                        ? formatDateLabel(row.entry_date, t, dateLocale)
-                        : t('labs.noResults', { defaultValue: 'No results' })}
-                      {range ? ` · ${range}` : ''}
-                    </Text>
-                  </View>
-                  <View className="items-end mr-2">
-                    <Text className="text-base font-bold text-text-primary">
-                      {value !== null ? formatLabValue(value, unit) : '-'}
-                    </Text>
-                    {value !== null && (
-                      <LabStatusBadge status={labStatus(marker, value)} />
-                    )}
-                  </View>
-                  <Icon name="chevron-forward" size={20} color="#999" />
-                </Pressable>
-              );
-            })}
+          <View className="gap-4">
+            <Button
+              variant="secondary"
+              onPress={() => navigation.navigate('LabReportImport')}
+            >
+              {t('labs.import.cta', { defaultValue: 'Import from a report' })}
+            </Button>
+            <View className="bg-surface rounded-xl overflow-hidden">
+              {markers.map((marker, index) => {
+                const row = latest.byCategory.get(marker.id);
+                const value = row ? parseLabValue(row.value) : null;
+                const unit = marker.measurement_type;
+                const range = formatLabRange(
+                  marker.ref_range_low,
+                  marker.ref_range_high,
+                  unit
+                );
+                return (
+                  <Pressable
+                    key={marker.id}
+                    onPress={() =>
+                      navigation.navigate('LabResultDetail', {
+                        categoryId: marker.id,
+                      })
+                    }
+                    className={`px-4 py-3.5 flex-row items-center justify-between ${
+                      index > 0 ? 'border-t border-border-subtle' : ''
+                    }`}
+                    style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+                    accessibilityRole="button"
+                  >
+                    <View className="flex-1 mr-3">
+                      <Text className="text-base font-semibold text-text-primary">
+                        {labMarkerName(marker)}
+                      </Text>
+                      <Text className="text-xs text-text-muted mt-0.5">
+                        {row
+                          ? formatDateLabel(row.entry_date, t, dateLocale)
+                          : t('labs.noResults', { defaultValue: 'No results' })}
+                        {range ? ` · ${range}` : ''}
+                      </Text>
+                    </View>
+                    <View className="items-end mr-2">
+                      <Text className="text-base font-bold text-text-primary">
+                        {value !== null ? formatLabValue(value, unit) : '-'}
+                      </Text>
+                      {value !== null && (
+                        <LabStatusBadge status={labStatus(marker, value)} />
+                      )}
+                    </View>
+                    <Icon name="chevron-forward" size={20} color="#999" />
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
         )}
       </ScrollView>
