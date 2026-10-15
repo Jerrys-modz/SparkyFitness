@@ -5,6 +5,11 @@ export interface CustomCategory {
   measurement_type: string;
   frequency: string;
   data_type?: string | null;
+  /** True for a lab-result marker (HbA1c, LDL, ...). */
+  is_lab?: boolean;
+  /** Reference range bounds, in the category unit (`measurement_type`). */
+  ref_range_low?: number | null;
+  ref_range_high?: number | null;
   updated_at?: string;
 }
 
@@ -20,6 +25,9 @@ export interface CustomCategoryEntryInfo {
   measurement_type: string;
   frequency: string;
   data_type: string;
+  is_lab?: boolean;
+  ref_range_low?: number | null;
+  ref_range_high?: number | null;
 }
 
 export interface CustomMeasurementEntry {

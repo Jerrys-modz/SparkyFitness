@@ -374,6 +374,9 @@ export const createCustomCategory = async (body: {
   measurement_type: string;
   frequency: string;
   data_type: string;
+  is_lab?: boolean;
+  ref_range_low?: number | null;
+  ref_range_high?: number | null;
 }): Promise<CustomCategory> => {
   return apiFetch<CustomCategory>({
     endpoint: '/api/measurements/custom-categories',
