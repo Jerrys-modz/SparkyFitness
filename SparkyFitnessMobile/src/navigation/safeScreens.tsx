@@ -52,6 +52,7 @@ import CalorieSettingsScreen from '../screens/CalorieSettingsScreen';
 import GoalsScreen from '../screens/GoalsScreen';
 import WeeklyGoalPlanEditScreen from '../screens/WeeklyGoalPlanEditScreen';
 import MealTypeSettingsScreen from '../screens/MealTypeSettingsScreen';
+import EquipmentScreen from '../screens/EquipmentScreen';
 import ShoesScreen from '../screens/ShoesScreen';
 import ShoeFormScreen from '../screens/ShoeFormScreen';
 import AiSettingsScreen from '../screens/AiSettingsScreen';
@@ -194,6 +195,7 @@ export const SafeGoals = withErrorBoundary(GoalsScreen, 'Goals', { canGoBack: tr
 export const SafeWeeklyGoalPlanEdit = withErrorBoundary(WeeklyGoalPlanEditScreen, 'WeeklyGoalPlanEdit', { canGoBack: true });
 export const SafeCalorieSettings = withErrorBoundary(CalorieSettingsScreen, 'CalorieSettings', { canGoBack: true });
 export const SafeMealTypeSettings = withErrorBoundary(MealTypeSettingsScreen, 'MealTypeSettings', { canGoBack: true });
+export const SafeEquipment = withErrorBoundary(EquipmentScreen, 'Equipment', { canGoBack: true });
 export const SafeShoes = withErrorBoundary(ShoesScreen, 'Shoes', { canGoBack: true });
 export const SafeShoeForm = withErrorBoundary(ShoeFormScreen, 'ShoeForm', { canGoBack: true });
 export const SafeAiSettings = withErrorBoundary(AiSettingsScreen, 'AiSettings', { canGoBack: true });
