@@ -385,7 +385,7 @@ export async function startLivsmedelsverketBulkImport(
                        water_ml = ROUND($20 * quantity / NULLIF($3, 0), 1),
                        alcohol_g = ROUND($21 * quantity / NULLIF($3, 0), 1),
                        custom_nutrients = $23::jsonb
-                   WHERE food_id = $1 AND user_id = $22 AND ($24::uuid IS NULL OR variant_id = $24::uuid OR variant_id IS NULL)`,
+                   WHERE food_id = $1 AND user_id = $22 AND (variant_id IS NULL OR variant_id = $24::uuid)`,
                   [
                     foodId,
                     v.calories,
