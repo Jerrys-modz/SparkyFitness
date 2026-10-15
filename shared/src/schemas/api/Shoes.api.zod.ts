@@ -6,7 +6,11 @@ export type ShoeStatus = z.infer<typeof shoeStatusSchema>;
 /** Default retirement mileage for a new pair, in kilometres. */
 export const DEFAULT_SHOE_RETIREMENT_DISTANCE_KM = 800;
 
-const shoeDaySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const shoeDaySchema = z.iso.date();
+
+// Column precision: purchase_price is NUMERIC(10, 2), distances NUMERIC(9, 2).
+const MAX_SHOE_PRICE = 99_999_999.99;
+const MAX_SHOE_DISTANCE_KM = 9_999_999.99;
 
 export const createShoeBodySchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -14,9 +18,13 @@ export const createShoeBodySchema = z.object({
   model: z.string().trim().max(120).nullable().optional(),
   nickname: z.string().trim().max(120).nullable().optional(),
   purchase_date: shoeDaySchema.nullable().optional(),
-  purchase_price: z.number().min(0).nullable().optional(),
-  starting_distance_km: z.number().min(0).optional(),
-  retirement_distance_km: z.number().positive().optional(),
+  purchase_price: z.number().min(0).max(MAX_SHOE_PRICE).nullable().optional(),
+  starting_distance_km: z.number().min(0).max(MAX_SHOE_DISTANCE_KM).optional(),
+  retirement_distance_km: z
+    .number()
+    .positive()
+    .max(MAX_SHOE_DISTANCE_KM)
+    .optional(),
   is_default: z.boolean().optional(),
 });
 export type CreateShoeBody = z.infer<typeof createShoeBodySchema>;

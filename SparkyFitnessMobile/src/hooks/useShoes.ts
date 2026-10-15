@@ -1,4 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import Toast from 'react-native-toast-message';
 import type {
   CreateShoeBody,
   ShoeStatus,
@@ -11,6 +13,7 @@ import {
   fetchShoes,
   updateShoe,
 } from '../services/api/shoesApi';
+import { addLog } from '../services/LogService';
 import { exerciseStatsQueryKeyRoot, shoesQueryKey } from './queryKeys';
 import { useRefetchOnFocus } from './useRefetchOnFocus';
 
@@ -31,6 +34,7 @@ export function useShoes(status?: ShoeStatus) {
 }
 
 export function useShoeMutations() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: [...shoesQueryKey] });
@@ -45,6 +49,18 @@ export function useShoeMutations() {
     mutationFn: ({ id, data }: { id: string; data: UpdateShoeBody }) =>
       updateShoe(id, data),
     onSuccess: refresh,
+    // Shared by every caller (save, retire, reactivate), so none of them needs
+    // its own failure feedback.
+    onError: (error) => {
+      addLog(`Failed to update shoe: ${error}`, 'ERROR');
+      Toast.show({
+        type: 'error',
+        text1: t('shoes.updateFailed', {
+          defaultValue: 'Failed to update shoe',
+        }),
+        text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
+      });
+    },
   });
 
   const deleteMutation = useMutation({

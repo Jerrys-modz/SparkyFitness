@@ -27,7 +27,8 @@ const ShoeCard: React.FC<{
   distanceUnit: 'km' | 'miles';
   onPress: () => void;
   onRetire: () => void;
-}> = ({ shoe, distanceUnit, onPress, onRetire }) => {
+  retiring?: boolean;
+}> = ({ shoe, distanceUnit, onPress, onRetire, retiring }) => {
   const { t } = useTranslation();
   const unit = distanceUnit === 'miles' ? 'mi' : 'km';
   const show = (km: number) =>
@@ -112,9 +113,11 @@ const ShoeCard: React.FC<{
           </Text>
           <Pressable
             onPress={onRetire}
+            disabled={retiring}
+            accessibilityState={{ disabled: retiring }}
             accessibilityRole="button"
             accessibilityLabel={t('shoes.retire', { defaultValue: 'Retire' })}
-            className="rounded-lg bg-red-500 px-3 py-1.5"
+            className={`rounded-lg bg-red-500 px-3 py-1.5 ${retiring ? 'opacity-50' : ''}`}
           >
             <Text className="text-sm font-semibold text-white">
               {t('shoes.retire', { defaultValue: 'Retire' })}
@@ -172,9 +175,11 @@ const ShoesScreen: React.FC<Props> = ({ navigation }) => {
         shoe={shoe}
         distanceUnit={distanceUnit}
         onPress={() => navigation.navigate('ShoeForm', { shoeId: shoe.id })}
-        onRetire={() =>
-          updateMutation.mutate({ id: shoe.id, data: { status: 'retired' } })
-        }
+        retiring={updateMutation.isPending}
+        onRetire={() => {
+          if (updateMutation.isPending) return;
+          updateMutation.mutate({ id: shoe.id, data: { status: 'retired' } });
+        }}
       />
     ));
 

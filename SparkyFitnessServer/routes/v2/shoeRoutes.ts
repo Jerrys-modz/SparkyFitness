@@ -23,6 +23,31 @@ router.use(authenticate);
 router.use(onBehalfOfMiddleware);
 router.use(checkPermissionMiddleware('diary'));
 
+/**
+ * @swagger
+ * /v2/shoes:
+ *   get:
+ *     summary: List running shoes
+ *     tags: [Fitness & Workouts]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [active, retired]
+ *         description: Only return shoes with this status
+ *     responses:
+ *       200:
+ *         description: Shoes with mileage derived from linked diary entries
+ *       400:
+ *         description: status is not active or retired
+ *       403:
+ *         description: Missing diary permission
+ *       500:
+ *         description: Internal server error
+ */
 // GET /api/v2/shoes?status=active|retired
 router.get('/', async (req, res, next) => {
   try {
@@ -44,6 +69,43 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /v2/shoes/assignments/{exerciseEntryId}:
+ *   put:
+ *     summary: Link a diary entry to a shoe, or clear the link
+ *     tags: [Fitness & Workouts]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: exerciseEntryId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               shoe_id:
+ *                 type: string
+ *                 nullable: true
+ *                 description: Shoe to link, or null to clear
+ *     responses:
+ *       200:
+ *         description: The updated assignment
+ *       400:
+ *         description: Invalid request body
+ *       404:
+ *         description: Exercise entry or shoe not found
+ *       403:
+ *         description: Missing diary permission
+ *       500:
+ *         description: Internal server error
+ */
 // PUT /api/v2/shoes/assignments/:exerciseEntryId  { shoe_id: string | null }
 // Registered before /:id so "assignments" is never read as a shoe id.
 router.put('/assignments/:exerciseEntryId', async (req, res, next) => {
@@ -73,6 +135,31 @@ router.put('/assignments/:exerciseEntryId', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /v2/shoes/{id}:
+ *   get:
+ *     summary: Get one running shoe
+ *     tags: [Fitness & Workouts]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Shoe id
+ *     responses:
+ *       200:
+ *         description: The shoe
+ *       404:
+ *         description: Shoe not found
+ *       403:
+ *         description: Missing diary permission
+ *       500:
+ *         description: Internal server error
+ */
 // GET /api/v2/shoes/:id
 router.get('/:id', async (req, res, next) => {
   try {
@@ -91,6 +178,31 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /v2/shoes:
+ *   post:
+ *     summary: Add a running shoe
+ *     tags: [Fitness & Workouts]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             description: createShoeBodySchema / updateShoeBodySchema in @workspace/shared
+ *     responses:
+ *       201:
+ *         description: The created shoe
+ *       400:
+ *         description: Invalid request body
+ *       403:
+ *         description: Missing diary permission
+ *       500:
+ *         description: Internal server error
+ */
 // POST /api/v2/shoes
 router.post('/', async (req, res, next) => {
   try {
@@ -113,6 +225,40 @@ router.post('/', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /v2/shoes/{id}:
+ *   put:
+ *     summary: Update, retire or reactivate a running shoe
+ *     tags: [Fitness & Workouts]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Shoe id
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             description: createShoeBodySchema / updateShoeBodySchema in @workspace/shared
+ *     responses:
+ *       200:
+ *         description: The updated shoe
+ *       400:
+ *         description: Invalid request body
+ *       404:
+ *         description: Shoe not found
+ *       403:
+ *         description: Missing diary permission
+ *       500:
+ *         description: Internal server error
+ */
 // PUT /api/v2/shoes/:id
 router.put('/:id', async (req, res, next) => {
   try {
@@ -139,6 +285,31 @@ router.put('/:id', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /v2/shoes/{id}:
+ *   delete:
+ *     summary: Delete a running shoe
+ *     tags: [Fitness & Workouts]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Shoe id
+ *     responses:
+ *       200:
+ *         description: Deleted; linked diary entries keep their data but lose the link
+ *       404:
+ *         description: Shoe not found
+ *       403:
+ *         description: Missing diary permission
+ *       500:
+ *         description: Internal server error
+ */
 // DELETE /api/v2/shoes/:id
 router.delete('/:id', async (req, res, next) => {
   try {

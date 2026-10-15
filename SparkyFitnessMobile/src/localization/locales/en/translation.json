@@ -6496,6 +6496,7 @@
     "runCount_one": "{{count}} run",
     "runCount_other": "{{count}} runs",
     "lastUsed": "last used {{date}}",
+    "updateFailed": "Failed to update shoe",
     "saveFailed": "Failed to save shoe",
     "deleteTitle": "Delete this shoe?",
     "deleteDescription": "Runs logged with this pair stay in your diary, but they will no longer be linked to a shoe."

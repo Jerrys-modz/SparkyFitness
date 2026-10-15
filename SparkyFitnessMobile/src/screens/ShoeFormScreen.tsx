@@ -93,6 +93,8 @@ const ShoeForm: React.FC<{
   };
   const hasErrors = Object.values(errors).some(Boolean);
   const isSaving = createMutation.isPending || updateMutation.isPending;
+  // Any of the three at once would navigate back twice or race each other.
+  const isBusy = isSaving || deleteMutation.isPending;
 
   const toKm = (value: number) =>
     distanceUnit === 'miles' ? milesToKm(value) : value;
@@ -120,27 +122,27 @@ const ShoeForm: React.FC<{
       retirement_distance_km: toKm(retirement),
       is_default: isDefault,
     };
-    const options = { onSuccess: onDone, onError: handleError };
     if (shoe) {
-      updateMutation.mutate({ id: shoe.id, data }, options);
+      // The update mutation reports its own failures.
+      updateMutation.mutate({ id: shoe.id, data }, { onSuccess: onDone });
     } else {
-      createMutation.mutate(data, options);
+      createMutation.mutate(data, { onSuccess: onDone, onError: handleError });
     }
   };
 
   const handleToggleRetired = () => {
-    if (!shoe) return;
+    if (!shoe || isBusy) return;
     updateMutation.mutate(
       {
         id: shoe.id,
         data: { status: shoe.status === 'retired' ? 'active' : 'retired' },
       },
-      { onSuccess: onDone, onError: handleError }
+      { onSuccess: onDone }
     );
   };
 
   const handleDelete = () => {
-    if (!shoe) return;
+    if (!shoe || isBusy) return;
     Alert.alert(
       t('shoes.deleteTitle', { defaultValue: 'Delete this shoe?' }),
       t('shoes.deleteDescription', {
@@ -368,20 +370,28 @@ const ShoeForm: React.FC<{
           variant="primary"
           onPress={handleSave}
           loading={isSaving}
-          disabled={hasErrors || isSaving}
+          disabled={hasErrors || isBusy}
         >
           {t('common.save', { defaultValue: 'Save' })}
         </Button>
 
         {shoe && (
           <View className="mt-3">
-            <Button variant="outline" onPress={handleToggleRetired}>
+            <Button
+              variant="outline"
+              onPress={handleToggleRetired}
+              disabled={isBusy}
+            >
               {shoe.status === 'retired'
                 ? t('shoes.reactivate', { defaultValue: 'Reactivate' })
                 : t('shoes.retire', { defaultValue: 'Retire' })}
             </Button>
             <View className="mt-3">
-              <Button variant="destructive" onPress={handleDelete}>
+              <Button
+                variant="destructive"
+                onPress={handleDelete}
+                disabled={isBusy}
+              >
                 {t('common.delete', { defaultValue: 'Delete' })}
               </Button>
             </View>
