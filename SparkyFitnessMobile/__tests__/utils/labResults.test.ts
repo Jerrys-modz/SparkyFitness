@@ -4,6 +4,7 @@ import {
   formatLabRange,
   formatLabValue,
   labHistoryPoints,
+  labSexFromGender,
   labStatus,
   newLabMarkerFromPreset,
   parseLabValue,
@@ -123,5 +124,32 @@ describe('newLabMarkerFromPreset', () => {
       ref_range_low: null,
       ref_range_high: 100,
     });
+  });
+});
+
+describe('sex-aware presets', () => {
+  const hemoglobin = LAB_MARKER_PRESETS.find((p) => p.key === 'hemoglobin')!;
+
+  it('uses the profile sex for the prefilled range', () => {
+    expect(newLabMarkerFromPreset(hemoglobin, 'female')).toMatchObject({
+      ref_range_low: 12,
+      ref_range_high: 15.5,
+    });
+    expect(newLabMarkerFromPreset(hemoglobin, 'male')).toMatchObject({
+      ref_range_low: 13.5,
+      ref_range_high: 17.5,
+    });
+  });
+  it('falls back to the neutral default with no known sex', () => {
+    expect(newLabMarkerFromPreset(hemoglobin)).toMatchObject({
+      ref_range_low: 12,
+      ref_range_high: 17.5,
+    });
+  });
+  it('only recognises male and female profile genders', () => {
+    expect(labSexFromGender('male')).toBe('male');
+    expect(labSexFromGender('female')).toBe('female');
+    expect(labSexFromGender('other')).toBeNull();
+    expect(labSexFromGender(null)).toBeNull();
   });
 });

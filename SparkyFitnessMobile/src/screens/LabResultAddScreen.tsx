@@ -18,15 +18,18 @@ import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useLabMarkers, useSaveLabResult } from '../hooks/useLabResults';
 import { useCustomCategories } from '../hooks/useCustomMeasurements';
+import { useProfile } from '../hooks/useProfile';
 import {
   formatDateLabel,
   getDateRelationToToday,
   getTodayDate,
 } from '../utils/dateUtils';
+import { LAB_MARKER_PRESETS, hasSexSpecificRange } from '@workspace/shared';
 import {
   buildLabPickerOptions,
   formatLabRange,
   labMarkerName,
+  labSexFromGender,
   newLabMarkerFromPreset,
   parseLabValue,
   parseRangeBound,
@@ -56,6 +59,8 @@ const LabResultAddScreen: React.FC<Props> = ({ navigation, route }) => {
   const categoriesQuery = useCustomCategories();
   const { markers } = useLabMarkers();
   const save = useSaveLabResult();
+  const { profile } = useProfile();
+  const sex = labSexFromGender(profile?.gender);
 
   const [selection, setSelection] = useState<Selection | null>(
     route.params?.categoryId
@@ -75,6 +80,11 @@ const LabResultAddScreen: React.FC<Props> = ({ navigation, route }) => {
       ? markers.find((m) => m.id === selection.categoryId)
       : undefined;
   const isNew = selection?.kind === 'new';
+  const sexSpecificHint =
+    selection?.kind === 'new' &&
+    LAB_MARKER_PRESETS.some(
+      (p) => p.key === selection.draft.name && hasSexSpecificRange(p)
+    );
 
   const options = useMemo(
     () => buildLabPickerOptions(categoriesQuery.data ?? [], search),
@@ -240,7 +250,7 @@ const LabResultAddScreen: React.FC<Props> = ({ navigation, route }) => {
                             kind: 'existing',
                             categoryId: option.category.id,
                           })
-                        : chooseNew(newLabMarkerFromPreset(option.preset))
+                        : chooseNew(newLabMarkerFromPreset(option.preset, sex))
                     }
                     className={`px-4 py-3 flex-row items-center justify-between ${
                       index > 0 || canCreateCustom
@@ -366,6 +376,25 @@ const LabResultAddScreen: React.FC<Props> = ({ navigation, route }) => {
                     })}
                   />
                 </View>
+                {sexSpecificHint && (
+                  <Text className="text-xs text-text-muted">
+                    {sex
+                      ? t('labs.rangeForSex', {
+                          defaultValue:
+                            'Prefilled for {{sex}} adults from your profile. Labs differ, so edit it to match your report.',
+                          sex:
+                            sex === 'male'
+                              ? t('labs.sex.male', { defaultValue: 'male' })
+                              : t('labs.sex.female', {
+                                  defaultValue: 'female',
+                                }),
+                        })
+                      : t('labs.rangeNoSex', {
+                          defaultValue:
+                            'This marker differs by sex. Set your sex in your profile for a tailored range, or enter the range from your report.',
+                        })}
+                  </Text>
+                )}
                 {!rangeValid && (
                   <Text className="text-xs text-danger">
                     {t('labs.rangeInvalid', {

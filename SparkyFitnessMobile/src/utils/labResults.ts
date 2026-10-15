@@ -1,6 +1,8 @@
 import {
   LAB_MARKER_PRESETS,
+  labPresetRange,
   labRangeStatus,
+  type LabSex,
   type LabMarkerPreset,
   type LabRangeStatus,
 } from '@workspace/shared';
@@ -128,12 +130,22 @@ export interface NewLabMarker {
   ref_range_high: number | null;
 }
 
+/** Profile gender as a lab sex; anything else (unset, other) is unknown. */
+export const labSexFromGender = (
+  gender: string | null | undefined
+): LabSex | null => (gender === 'male' || gender === 'female' ? gender : null);
+
+/** A marker to create from a preset, with the range for the profile's sex. */
 export const newLabMarkerFromPreset = (
-  preset: LabMarkerPreset
-): NewLabMarker => ({
-  name: preset.key,
-  display_name: preset.displayName,
-  measurement_type: preset.unit,
-  ref_range_low: preset.refRangeLow,
-  ref_range_high: preset.refRangeHigh,
-});
+  preset: LabMarkerPreset,
+  sex: LabSex | null = null
+): NewLabMarker => {
+  const range = labPresetRange(preset, sex);
+  return {
+    name: preset.key,
+    display_name: preset.displayName,
+    measurement_type: preset.unit,
+    ref_range_low: range.low,
+    ref_range_high: range.high,
+  };
+};

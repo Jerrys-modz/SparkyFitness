@@ -7629,6 +7629,12 @@
       "outOfRange_one": "{{count}} outside the reference range",
       "outOfRange_other": "{{count}} outside the reference range",
       "title": "Lab results"
+    },
+    "rangeForSex": "Prefilled for {{sex}} adults from your profile. Labs differ, so edit it to match your report.",
+    "rangeNoSex": "This marker differs by sex. Set your sex in your profile for a tailored range, or enter the range from your report.",
+    "sex": {
+      "female": "female",
+      "male": "male"
     }
   }
 }
