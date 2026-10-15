@@ -43,7 +43,10 @@ const AllergenSettingsScreen: React.FC<AllergenSettingsScreenProps> = () => {
     (name: string) => {
       const normalized = normalizeAllergen(name);
       if (!normalized) return;
-      if (tracked.has(normalized)) {
+      const alreadyTracked = (preferences ?? []).some(
+        (p) => normalizeAllergen(p.allergen_name) === normalized
+      );
+      if (alreadyTracked) {
         Toast.show({
           type: 'info',
           text1: t('allergenSettings.alreadyAdded', {
@@ -58,7 +61,6 @@ const AllergenSettingsScreen: React.FC<AllergenSettingsScreenProps> = () => {
       }
       add.mutate(normalized, { onSuccess: () => setCustomAllergen('') });
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [add, t, preferences]
   );
 
