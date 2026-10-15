@@ -1209,9 +1209,6 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
             },
           }
         : {}),
-      ...(options.program && options.intervals
-        ? { program: options.program }
-        : {}),
       ...(normalizePaceBand(options.paceBand)
         ? { paceBand: normalizePaceBand(options.paceBand)! }
         : {}),
