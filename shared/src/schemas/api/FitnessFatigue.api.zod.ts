@@ -46,3 +46,25 @@ export const fitnessFatigueResponseSchema = z.object({
 export type FitnessFatigueResponse = z.infer<
   typeof fitnessFatigueResponseSchema
 >;
+
+export const vo2MaxEstimateSchema = z.object({
+  value: z.number(),
+  runs: z.number().int().min(1),
+  from: day,
+  to: day,
+});
+
+export const runningPowerSchema = z.object({
+  averageWatts: z.number(),
+  wattsPerKg: z.number(),
+  runs: z.array(z.object({ day, watts: z.number() })),
+});
+
+/** Response of GET /api/reports/run-estimates. Both figures are estimates. */
+export const runningEstimatesResponseSchema = z.object({
+  vo2Max: vo2MaxEstimateSchema.nullable(),
+  power: runningPowerSchema.nullable(),
+});
+export type RunningEstimatesResponse = z.infer<
+  typeof runningEstimatesResponseSchema
+>;

@@ -1,5 +1,6 @@
 import type {
   ExerciseDashboardSummary,
+  RunningEstimatesResponse,
   FitnessFatigueResponse,
   TrainingConsistency,
   TrainingLoad,
@@ -74,4 +75,11 @@ export const fetchFitnessFatigue = (): Promise<FitnessFatigueResponse> =>
     endpoint: '/api/reports/fitness-fatigue',
     serviceName: 'Reports API',
     operation: 'fetch fitness and fatigue',
+  });
+
+export const fetchRunEstimates = (): Promise<RunningEstimatesResponse> =>
+  apiFetch<RunningEstimatesResponse>({
+    endpoint: '/api/reports/run-estimates',
+    serviceName: 'Reports API',
+    operation: 'fetch running estimates',
   });

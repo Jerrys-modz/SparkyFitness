@@ -3,12 +3,17 @@ import { vi, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import errorHandler from '../middleware/errorHandler.js';
-import { fitnessFatigueResponseSchema } from '@workspace/shared';
+import {
+  fitnessFatigueResponseSchema,
+  runningEstimatesResponseSchema,
+} from '@workspace/shared';
 
-const { getFitnessFatigue, canAccessUserData } = vi.hoisted(() => ({
-  getFitnessFatigue: vi.fn(),
-  canAccessUserData: vi.fn(),
-}));
+const { getFitnessFatigue, getRunningEstimates, canAccessUserData } =
+  vi.hoisted(() => ({
+    getFitnessFatigue: vi.fn(),
+    getRunningEstimates: vi.fn(),
+    canAccessUserData: vi.fn(),
+  }));
 
 vi.mock('../middleware/authMiddleware.js', () => ({
   authenticate: (
@@ -22,7 +27,7 @@ vi.mock('../middleware/authMiddleware.js', () => ({
   },
 }));
 vi.mock('../services/reportService.js', () => ({
-  default: { getFitnessFatigue },
+  default: { getFitnessFatigue, getRunningEstimates },
 }));
 vi.mock('../utils/permissionUtils.js', () => ({ canAccessUserData }));
 
@@ -108,5 +113,45 @@ describe('fitnessFatigueResponseSchema', () => {
       readiness: { ...body.readiness, score: 140 },
     };
     expect(fitnessFatigueResponseSchema.safeParse(bad).success).toBe(false);
+  });
+});
+
+describe('GET /api/reports/run-estimates', () => {
+  const estimates = {
+    vo2Max: { value: 52.4, runs: 3, from: '2026-09-20', to: '2026-10-10' },
+    power: {
+      averageWatts: 243,
+      wattsPerKg: 3.5,
+      runs: [{ day: '2026-10-10', watts: 243 }],
+    },
+  };
+
+  it('returns the estimates in the documented shape', async () => {
+    getRunningEstimates.mockResolvedValue(estimates);
+    const res = await request(app).get('/api/reports/run-estimates');
+    expect(res.status).toBe(200);
+    expect(runningEstimatesResponseSchema.safeParse(res.body).success).toBe(
+      true
+    );
+    expect(getRunningEstimates).toHaveBeenCalledWith(
+      'test-user-id',
+      'test-user-id'
+    );
+  });
+
+  it('allows both estimates to be null', () => {
+    expect(
+      runningEstimatesResponseSchema.safeParse({ vo2Max: null, power: null })
+        .success
+    ).toBe(true);
+  });
+
+  it('refuses another user without the reports permission', async () => {
+    canAccessUserData.mockResolvedValue(false);
+    const res = await request(app).get(
+      '/api/reports/run-estimates?userId=other-user'
+    );
+    expect(res.status).toBe(403);
+    expect(getRunningEstimates).not.toHaveBeenCalled();
   });
 });

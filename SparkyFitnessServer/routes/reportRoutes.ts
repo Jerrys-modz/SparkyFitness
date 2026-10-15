@@ -423,4 +423,49 @@ router.get('/fitness-fatigue', authenticate, async (req, res, next) => {
     next(error);
   }
 });
+/**
+ * @swagger
+ * /reports/run-estimates:
+ *   get:
+ *     summary: Get estimated VO2 max and running power from recent runs
+ *     tags: [AI & Insights]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         schema: { type: 'string', format: 'uuid' }
+ *     responses:
+ *       200:
+ *         description: An estimated VO2 max (median of runs in the last 6 weeks) and the average running power of the last 4 weeks; each is null without enough data.
+ */
+router.get('/run-estimates', authenticate, async (req, res, next) => {
+  const { userId } = req.query;
+  const targetUserId = userId || req.userId;
+  if (!targetUserId) {
+    return res.status(400).json({ error: 'Target User ID is required.' });
+  }
+  if (userId && userId !== req.userId) {
+    const hasPermission = await canAccessUserData(
+      userId,
+      'reports',
+      req.authenticatedUserId || req.userId
+    );
+    if (!hasPermission) {
+      return res.status(403).json({
+        error:
+          'Forbidden: You do not have permission to view reports for this user.',
+      });
+    }
+  }
+  try {
+    const data = await reportService.getRunningEstimates(
+      req.userId,
+      String(targetUserId)
+    );
+    res.status(200).json(data);
+  } catch (error) {
+    next(error);
+  }
+});
 export default router;

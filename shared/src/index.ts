@@ -244,6 +244,7 @@ export * from "./utils/runProgramPending.ts";
 export * from "./utils/trainingLoad.ts";
 export * from "./utils/fitnessFatigue.ts";
 export * from "./utils/readiness.ts";
+export * from "./utils/runningEstimates.ts";
 export * from "./utils/runProgramLoad.ts";
 export * from "./nutrients/nutrientAlgorithms.ts";
 export * from "./nutrients/nutrientCalculation.ts";
