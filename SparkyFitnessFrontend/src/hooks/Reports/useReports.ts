@@ -5,6 +5,7 @@ import { reportKeys } from '@/api/keys/reports';
 import {
   getExerciseDashboardData,
   getTrainingConsistency,
+  getFitnessFatigue,
   getAlcoholWeekReport,
   getHydrationNutritionRange,
   getWorkoutDays,
@@ -149,6 +150,21 @@ export const useTrainingConsistency = (userId?: string | null) => {
       errorMessage: t(
         'trainingConsistency.loadFailed',
         'Failed to load training consistency.'
+      ),
+    },
+  });
+};
+
+export const useFitnessFatigue = (userId?: string | null) => {
+  const { t } = useTranslation();
+  return useQuery({
+    queryKey: reportKeys.fitnessFatigue(userId ?? undefined),
+    queryFn: () => getFitnessFatigue(userId ?? undefined),
+    enabled: !!userId,
+    meta: {
+      errorMessage: t(
+        'fitnessFatigue.loadFailed',
+        'Failed to load readiness and form.'
       ),
     },
   });

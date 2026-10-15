@@ -8,6 +8,7 @@ import sleepAnalyticsService from './sleepAnalyticsService.js';
 import customNutrientService from './customNutrientService.js';
 import medicationRepository from '../models/medicationRepository.js';
 import medicationEntryRepository from '../models/medicationEntryRepository.js';
+import sleepScienceRepository from '../models/sleepScienceRepository.js';
 import symptomRepository from '../models/symptomRepository.js';
 import injectionRepository from '../models/injectionRepository.js';
 import titrationRepository from '../models/titrationRepository.js';
@@ -28,6 +29,11 @@ import {
   resolveExerciseModality,
   buildTrainingConsistency,
   computeTrainingLoad,
+  computeFitnessFatigue,
+  computeReadiness,
+  CURVE_DAYS,
+  type FitnessFatigue,
+  type Readiness,
   estimateMaxHeartRate,
   LOAD_WEEKS,
   type TrainingLoad,
@@ -1008,8 +1014,67 @@ async function getTrainingLoad(
   }
 }
 
+/** How far back the resting heart rate and HRV baseline reaches. */
+const READINESS_BASELINE_DAYS = 14;
+
+/**
+ * The fitness / fatigue / form curve over the last 90 days and today's
+ * readiness score, which blends that form with last night's sleep and, when a
+ * watch recorded them, resting heart rate and HRV against the person's recent
+ * average. Max heart rate comes from the profile's age when there is one.
+ */
+async function getFitnessFatigue(
+  authenticatedUserId: string,
+  targetUserId: string
+): Promise<{ fitnessFatigue: FitnessFatigue; readiness: Readiness }> {
+  try {
+    const timezone = await loadUserTimezone(targetUserId);
+    const today = todayInZone(timezone);
+    const yesterday = addDays(today, -1);
+    const [sessions, profile, vitals, sleepNeed] = await Promise.all([
+      reportRepository.getTrainingLoadSessions(
+        targetUserId,
+        addDays(today, -(CURVE_DAYS - 1)),
+        today
+      ),
+      userRepository.getUserProfile(targetUserId),
+      reportRepository.getReadinessVitals(
+        targetUserId,
+        today,
+        yesterday,
+        addDays(yesterday, -READINESS_BASELINE_DAYS)
+      ),
+      sleepScienceRepository.getDailyNeed(targetUserId, today),
+    ]);
+    const age = profile?.date_of_birth
+      ? userAge(profile.date_of_birth, timezone)
+      : null;
+    const fitnessFatigue = computeFitnessFatigue(
+      sessions,
+      today,
+      estimateMaxHeartRate(age)
+    );
+    const readiness = computeReadiness({
+      fitnessFatigue,
+      ...vitals,
+      sleepNeedHours: sleepNeed?.total_need
+        ? Number(sleepNeed.total_need)
+        : null,
+    });
+    return { fitnessFatigue, readiness };
+  } catch (error) {
+    log(
+      'error',
+      `Error building fitness and fatigue for user ${targetUserId} by ${authenticatedUserId}:`,
+      error
+    );
+    throw error;
+  }
+}
+
 export { getTrainingConsistency };
 export { getTrainingLoad };
+export { getFitnessFatigue };
 export default {
   getReportsData,
   getMiniNutritionTrends,
@@ -1017,4 +1082,5 @@ export default {
   getExerciseDashboardData,
   getTrainingConsistency,
   getTrainingLoad,
+  getFitnessFatigue,
 };

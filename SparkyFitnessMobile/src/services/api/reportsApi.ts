@@ -1,5 +1,6 @@
 import type {
   ExerciseDashboardSummary,
+  FitnessFatigueResponse,
   TrainingConsistency,
   TrainingLoad,
 } from '@workspace/shared';
@@ -66,4 +67,11 @@ export const fetchTrainingLoad = (): Promise<TrainingLoad> =>
     endpoint: '/api/reports/training-load',
     serviceName: 'Reports API',
     operation: 'fetch training load',
+  });
+
+export const fetchFitnessFatigue = (): Promise<FitnessFatigueResponse> =>
+  apiFetch<FitnessFatigueResponse>({
+    endpoint: '/api/reports/fitness-fatigue',
+    serviceName: 'Reports API',
+    operation: 'fetch fitness and fatigue',
   });

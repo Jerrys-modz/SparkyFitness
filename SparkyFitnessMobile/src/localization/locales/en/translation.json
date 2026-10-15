@@ -6410,6 +6410,33 @@
         "spike": "A big jump from your usual. Ramping up this fast raises the risk of injury, so ease off."
       }
     },
+    "fitness": {
+      "level": {
+        "high": "Ready for a hard session.",
+        "moderate": "Fine for a normal session, but not your hardest.",
+        "low": "Not recovered. An easy day or rest is the better call.",
+        "noData": "Not enough to go on yet. Log workouts and sleep to see your readiness."
+      },
+      "form": {
+        "fresh": "Fresh: recent training is light against what you have built.",
+        "tired": "Tired: recent training is heavy against what you have built.",
+        "neutral": "Balanced: recent training matches what you have built.",
+        "learning": "Still learning your normal. Keep logging."
+      },
+      "factor": {
+        "form": "Training form",
+        "sleep": "Sleep",
+        "restingHeartRate": "Resting heart rate",
+        "hrv": "HRV"
+      },
+      "loadFailed": "Could not load your readiness.",
+      "outOf": "readiness out of 100",
+      "fitness": "Fitness",
+      "fatigue": "Fatigue",
+      "formLabel": "Form",
+      "title": "Readiness and Form",
+      "subtitle": "How ready you are today, from training form, sleep and resting heart rate."
+    },
     "consistency": {
       "title": "Training Consistency",
       "subtitle_one": "Last {{formattedCount}} week, {{first}} to {{last}}",
@@ -7763,6 +7790,10 @@
     "spike": "A big jump: ease off",
     "takeRest": "Take a rest day or an easy session.",
     "ready": "You are rested and ready.",
-    "explain": "Adds up how long and how hard your workouts were. Usual is your 4-week average. Bars show the last 4 weeks; green is this week."
+    "explain": "Adds up how long and how hard your workouts were. Usual is your 4-week average. Bars show the last 4 weeks; green is this week.",
+    "readiness": "Readiness {{score}}",
+    "readinessHigh": "ready for a hard session",
+    "readinessModerate": "fine for a normal session",
+    "readinessLow": "go easy today"
   }
 }
