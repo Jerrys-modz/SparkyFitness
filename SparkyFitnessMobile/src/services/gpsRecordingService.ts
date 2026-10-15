@@ -734,7 +734,8 @@ export function noteLiveHeartRate(
     if (session.intervals) {
       const position = intervalPosition(
         session.intervals.plan,
-        elapsedSeconds(session, now)
+        elapsedSeconds(session, now),
+        { cursor: session.intervals.cursor, meters: recordedMeters() }
       );
       if (position && !position.done) {
         stepIndex = position.index;
@@ -799,7 +800,8 @@ function checkPaceBand(now: number): void {
   if (session.intervals) {
     const position = intervalPosition(
       session.intervals.plan,
-      elapsedSeconds(session, now)
+      elapsedSeconds(session, now),
+      { cursor: session.intervals.cursor, meters: recordedMeters() }
     );
     if (position && !position.done) {
       stepIndex = position.index;
