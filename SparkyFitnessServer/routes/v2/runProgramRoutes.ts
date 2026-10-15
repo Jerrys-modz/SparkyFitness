@@ -33,7 +33,7 @@ router.use(requireSelfActor);
  *     tags: [Exercise]
  *     responses:
  *       200:
- *         description: The program, or `{ program: null }`.
+ *         description: 'The program, or `{ program: null }`.'
  *   put:
  *     summary: Start, switch on or off, or move within the run program
  *     tags: [Exercise]
