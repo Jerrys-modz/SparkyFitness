@@ -161,11 +161,13 @@ export default defineConfig({
             { text: 'Exercise Search', link: '/features/exercises/exercise-search' },
             { text: 'Interval & WOD Workouts', link: '/features/exercises/interval-wod-workouts' },
             { text: 'Guided Workouts', link: '/features/exercises/guided-workouts' },
+            { text: 'GPS Activity Recording', link: '/features/exercises/gps-activity-recording' },
             { text: 'Running Trends', link: '/features/exercises/running-trends' },
             { text: 'Progression & Per-Set Ramp', link: '/features/exercises/progression-and-per-set-ramp' },
             { text: 'Bodyweight Exercises', link: '/features/exercises/bodyweight-exercises' },
             { text: 'Adaptive Coaching', link: '/features/exercises/adaptive-coaching' },
             { text: 'Training Consistency', link: '/features/exercises/training-consistency' },
+            { text: 'Warm-Up Sets', link: '/features/exercises/warm-up-sets' },
           ],
         },
         {

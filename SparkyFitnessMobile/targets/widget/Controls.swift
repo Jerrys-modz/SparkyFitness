@@ -11,10 +11,28 @@ import WidgetKit
 struct LogWaterControl: ControlWidget {
     static let kind = "com.sparkyapps.sparkyfitness.control.logWater"
 
+    // The value is read from the snapshot the Home Screen water widget reads;
+    // iOS asks for it when the control is shown and again after the control's
+    // own intent runs, so the total moves when a drink is logged.
+    struct Provider: ControlValueProvider {
+        var previewValue: WaterSnapshot {
+            WaterSnapshot(consumedMl: 946, goalMl: 2840, drinkMl: 473, unit: "oz", canLog: true)
+        }
+
+        func currentValue() async throws -> WaterSnapshot {
+            loadWaterSnapshot()
+        }
+    }
+
     var body: some ControlWidgetConfiguration {
-        StaticControlConfiguration(kind: Self.kind) {
+        StaticControlConfiguration(kind: Self.kind, provider: Provider()) { snapshot in
+            // Tapping logs a drink; the label is today's total once the phone
+            // has sent one.
             ControlWidgetButton(action: LogWaterIntent()) {
-                Label("widget.control.log_water.name", systemImage: "drop.fill")
+                Label(
+                    snapshot.hasData ? snapshot.amountText : localizedWidgetString("widget.control.log_water.name"),
+                    systemImage: "drop.fill"
+                )
             }
         }
         .displayName("widget.control.log_water.name")
@@ -84,5 +102,57 @@ struct SearchFoodControl: ControlWidget {
         }
         .displayName("widget.control.search_food.name")
         .description("widget.control.search_food.description")
+    }
+}
+
+/// Takes the last drink off today's total, for a mis-tap. The same request the
+/// water widget's minus button makes.
+@available(iOS 18.0, *)
+struct RemoveWaterControl: ControlWidget {
+    static let kind = "com.sparkyapps.sparkyfitness.control.removeWater"
+
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: Self.kind) {
+            ControlWidgetButton(action: RemoveWaterIntent()) {
+                Label("widget.control.remove_water.name", systemImage: "minus.circle")
+            }
+        }
+        .displayName("widget.control.remove_water.name")
+        .description("widget.control.remove_water.description")
+    }
+}
+
+// Controls that show a number as well as doing something, so the Control Center
+// tile reads like a small widget. The value comes from the same snapshots the
+// Home Screen widgets read; iOS asks for it when the control is shown and again
+// after the control's own intent runs.
+
+@available(iOS 18.0, *)
+struct CaloriesLeftControl: ControlWidget {
+    static let kind = "com.sparkyapps.sparkyfitness.control.caloriesLeft"
+
+    struct Provider: ControlValueProvider {
+        var previewValue: CalorieSnapshot {
+            CalorieSnapshot(food: 1540, burned: 255, goal: 3055, remaining: 1515, progress: 0.5, lastUpdated: nil)
+        }
+
+        func currentValue() async throws -> CalorieSnapshot {
+            loadCalorieSnapshot()
+        }
+    }
+
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: Self.kind, provider: Provider()) { snapshot in
+            ControlWidgetButton(action: OpenDiaryControlIntent()) {
+                Label(
+                    snapshot.hasData
+                        ? "\(localizedNumberString(snapshot.remaining)) \(localizedWidgetString("widget.kcal_left"))"
+                        : localizedWidgetString("widget.calorie.name"),
+                    systemImage: "flame.fill"
+                )
+            }
+        }
+        .displayName("widget.control.calories_left.name")
+        .description("widget.control.calories_left.description")
     }
 }
