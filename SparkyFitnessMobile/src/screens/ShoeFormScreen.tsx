@@ -348,7 +348,7 @@ const ShoeForm: React.FC<{
             })}
             subtitle={t('shoes.useAsDefaultHint', {
               defaultValue:
-                'New GPS-recorded runs are logged with your default pair.',
+                'New recorded runs, outdoor or indoor, are logged with your default pair.',
             })}
             subtitleNumberOfLines={0}
             rightAccessory={

@@ -6453,7 +6453,7 @@
     "purchasePrice": "Price",
     "priceInvalid": "Enter 0 or more.",
     "useAsDefault": "Use as my default pair",
-    "useAsDefaultHint": "New GPS-recorded runs are logged with your default pair.",
+    "useAsDefaultHint": "New recorded runs, outdoor or indoor, are logged with your default pair.",
     "retire": "Retire",
     "reactivate": "Reactivate",
     "retired": "Retired",

@@ -375,6 +375,12 @@ describe('saveRecordedActivity default shoe', () => {
     expect(mockedAssignShoe).not.toHaveBeenCalled();
   });
 
+  it('links an indoor run to the default pair', async () => {
+    mockedFetchShoes.mockResolvedValue([shoe('b', true)]);
+    await saveRecordedActivity({ ...session, indoor: true }, [], 'km', 5);
+    expect(mockedAssignShoe).toHaveBeenCalledWith('entry-1', 'b');
+  });
+
   it('does not link walks or rides', async () => {
     mockedFetchShoes.mockResolvedValue([shoe('b', true)]);
     await saveRecordedActivity({ ...session, activity: 'ride' }, points, 'km');
