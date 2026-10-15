@@ -152,6 +152,9 @@ describe('CheckInForm', () => {
       measurement_type: 'cm',
       frequency: 'Daily',
       data_type: 'numeric',
+      is_lab: false,
+      ref_range_low: null,
+      ref_range_high: null,
     };
     const textCategory = {
       id: 'cat-2',
@@ -160,6 +163,9 @@ describe('CheckInForm', () => {
       measurement_type: '',
       frequency: 'Daily',
       data_type: 'text',
+      is_lab: false,
+      ref_range_low: null,
+      ref_range_high: null,
     };
 
     it('shows a previous custom value as a placeholder, not an input value', () => {
