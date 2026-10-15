@@ -1,6 +1,7 @@
 # AGENTS.md
 
 _Last updated: 2026-10-12_
+_Last updated: 2026-10-06_
 
 SparkyFitness Frontend is the React web app for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessFrontend/`.
 
@@ -107,6 +108,7 @@ When searching, ignore `node_modules/`, `dist/`, and every locale except `public
 - Running estimates: `pages/Reports/RunEstimatesCard.tsx` in the Exercise report's left column, fed by `useRunEstimates` (`hooks/Reports/useReports.ts`) from `GET /reports/run-estimates` (`getRunEstimates`, contract `RunningEstimatesResponse` in `@workspace/shared`): estimated VO2 max and average running power, both labelled as estimates; the card renders nothing until one exists.
 - Readiness and form: `pages/Reports/FitnessFatigueCard.tsx` in the Exercise report's left column above the consistency card, fed by `useFitnessFatigue` (`hooks/Reports/useReports.ts`) from `GET /reports/fitness-fatigue` (`getFitnessFatigue`, contract `FitnessFatigueResponse` in `@workspace/shared`): today's 0 to 100 readiness with its factors, fitness / fatigue / form numbers and the last 28 days of form. The numbers are computed on the server by the shared `computeFitnessFatigue` and `computeReadiness`; the card only draws them.
 - Shoe inventory: the Equipment section of the Exercises page (`src/pages/Exercises/EquipmentManager.tsx` + `ShoeFormDialog`; there is no separate tab or route), `src/components/Shoes/ShoeSelect.tsx` (the picker used by `pages/Diary/EditExerciseEntryDialog.tsx` for cardio entries), `src/api/Shoes/shoeService.ts`, `src/hooks/Shoes/useShoes.ts`. Distances are stored in km and edited in the user's unit; assigning a shoe invalidates both `shoeKeys` and `exerciseEntryKeys` because mileage is derived from linked entries. The `/shoes` tab is hidden while acting on behalf of someone else.
+- Nutrient insights (#172): `pages/Reports/NutrientInsightsCard.tsx` on Reports > Charts, driven by the pure helpers in `utils/nutrientInsights.ts` (deficiency status per goal direction, 0-100 nutrition score, `rankFoodSuggestions` over `useRecentAndTopFoodsQuery`). Frontend only; no server endpoint.
 - Chart issue: Recharts usage in the domain page plus `src/components/ExerciseCharts/` or `ZoomableChart.tsx`.
 
 ## Priority Rule
