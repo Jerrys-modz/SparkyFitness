@@ -79,6 +79,12 @@ jest.mock('@/hooks/Exercises/useWorkoutPresets', () => ({
   }),
   useUpdateWorkoutPresetMutation: () => ({ mutateAsync: jest.fn() }),
   useDeleteWorkoutPresetMutation: () => ({ mutateAsync: jest.fn() }),
+  useStarterRoutines: () => ({ data: [], isLoading: false }),
+  useAddStarterRoutineMutation: () => ({
+    mutate: jest.fn(),
+    isPending: false,
+    variables: undefined,
+  }),
 }));
 
 const buildPresets = (count: number, offset = 0): WorkoutPreset[] =>
