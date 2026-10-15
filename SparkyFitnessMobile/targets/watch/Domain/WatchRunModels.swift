@@ -162,6 +162,9 @@ struct WatchRunSettings: Codable, Equatable {
     var paceBand: WatchPaceBand? = nil
     /// A heart-rate range to stay inside; nil is no heart-rate alert.
     var heartRateBand: WatchHeartRateBand? = nil
+    /// Minutes between spoken check-ins (time, distance, pace); nil or 0 is off.
+    /// Optional so a snapshot written before it existed still decodes.
+    var checkInMinutes: Int? = nil
     /// The wearer turned the pace alert off, which also silences the ranges
     /// of a plan's own steps. Optional so an older snapshot still decodes.
     var paceStepsOff: Bool? = nil
@@ -200,6 +203,11 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
     let steps: [Step]
     /// "walk" for a walking program, otherwise nil (a run).
     var activity: String? = nil
+    /// What the voice coach says ahead of a program workout's first step and
+    /// when it ends, already in the phone's language. Optional so a plan kept
+    /// in an older snapshot still decodes.
+    var startText: String? = nil
+    var doneText: String? = nil
 
     var kind: WatchRunKind { activity == "walk" ? .walk : .run }
 
@@ -236,10 +244,11 @@ struct WatchRunPlan: Codable, Equatable, Identifiable {
         return Position(index: steps.count, label: String(localized: "watch.run.planComplete", defaultValue: "Plan complete"), remaining: 0, next: nil, finished: true)
     }
 
-    /// Whether the last step has begun: the rule the phone uses to tick off a program workout.
-    func lastStepStarted(at elapsed: TimeInterval) -> Bool {
-        guard let last = steps.last else { return false }
-        return elapsed >= totalSeconds - last.seconds
+    /// Whether every step has run its full length (active time, so pauses do
+    /// not count): the rule the phone uses to tick off a program workout.
+    /// Starting the last step is not enough; stopping inside it is a run cut short.
+    func completed(at elapsed: TimeInterval) -> Bool {
+        !steps.isEmpty && elapsed >= totalSeconds
     }
 
     static func clock(_ seconds: Double) -> String {

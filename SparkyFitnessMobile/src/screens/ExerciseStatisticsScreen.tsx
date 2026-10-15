@@ -186,6 +186,16 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
   const hasActivity =
     (data?.keyStats.totalWorkouts ?? 0) > 0 || setRows.length > 0;
 
+  // A fixed 28-day window, so it still has something to say when the selected
+  // range holds no workouts.
+  const loadCard = isSectionShown('exercise.load') ? (
+    <TrainingLoadCard
+      data={trainingLoad.load}
+      isLoading={trainingLoad.isLoading}
+      isError={trainingLoad.isError}
+    />
+  ) : null;
+
   const renderCardio = () => {
     if (cardio.isLoading) {
       return <StatusView inline loading />;
@@ -262,18 +272,21 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
     }
     if (!hasActivity) {
       return (
-        <StatusView
-          inline
-          icon="exercise-weights"
-          iconTone="muted"
-          title={t('exerciseStatistics.states.empty', {
-            defaultValue: 'No workouts in this range',
-          })}
-          subtitle={t('exerciseStatistics.states.emptyHint', {
-            defaultValue:
-              'Log a workout and its sets will show up here by muscle.',
-          })}
-        />
+        <>
+          <StatusView
+            inline
+            icon="exercise-weights"
+            iconTone="muted"
+            title={t('exerciseStatistics.states.empty', {
+              defaultValue: 'No workouts in this range',
+            })}
+            subtitle={t('exerciseStatistics.states.emptyHint', {
+              defaultValue:
+                'Log a workout and its sets will show up here by muscle.',
+            })}
+          />
+          {loadCard}
+        </>
       );
     }
 
@@ -474,13 +487,7 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
           </View>
         ) : null}
 
-        {isSectionShown('exercise.load') ? (
-          <TrainingLoadCard
-            data={trainingLoad.load}
-            isLoading={trainingLoad.isLoading}
-            isError={trainingLoad.isError}
-          />
-        ) : null}
+        {loadCard}
 
         {isSectionShown('exercise.load') ? (
           <>

@@ -24,10 +24,12 @@ import Button from '../components/ui/Button';
 import FormInput from '../components/FormInput';
 import RecordingSwitchRow from '../components/recording/RecordingSwitchRow';
 import HeartRateBandCard from '../components/recording/HeartRateBandCard';
+import SuggestedRangesCard from '../components/recording/SuggestedRangesCard';
 import PaceBandCard, {
   type PaceBandChoice,
 } from '../components/recording/PaceBandCard';
 import RecordingVoiceCard from '../components/recording/RecordingVoiceCard';
+import CheckInCard from '../components/recording/CheckInCard';
 import SegmentedControl from '../components/SegmentedControl';
 import { SplitRow, Stat } from '../components/recording/SplitRow';
 import RunProgramSelect from '../components/recording/RunProgramSelect';
@@ -46,6 +48,7 @@ import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useIndoorDistanceEstimate } from '../hooks/useIndoorDistanceEstimate';
 import { invalidateExerciseCache } from '../hooks/invalidateExerciseCache';
 import { usePreferences } from '../hooks/usePreferences';
+import { useSuggestedRanges } from '../hooks/useSuggestedRanges';
 import { useWatchConnectivity } from '../hooks/useWatchConnectivity';
 import { startRunOnWatch } from '../services/watchRunControl';
 import { buildWatchStartPlan } from '../utils/watchRunPlans';
@@ -57,6 +60,7 @@ import {
   RecordingPermissionError,
   discardRecording,
   elapsedSeconds,
+  planCompleted,
   finishRecording,
   COUNTDOWN_CHOICES,
   getHeartRateSamples,
@@ -71,7 +75,9 @@ import {
   resumeRecording,
   setRecordingAudioCues,
   setRecordingAutoPause,
+  setCheckInPreference,
   setCountdownPreference,
+  setRecordingCheckIn,
   setRecordingPreference,
   startRecording,
   tickIntervals,
@@ -84,7 +90,6 @@ import {
   buildIntervalPlan,
   INTERVAL_PRESETS,
   intervalPosition,
-  lastStepStarted,
   type IntervalOptions,
   type IntervalPlan,
   type RunProgramResponse,
@@ -246,6 +251,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const [autoPause, setAutoPause] = useState(true);
   const [audioCues, setAudioCues] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState(0);
+  const [checkInMinutes, setCheckInMinutes] = useState(0);
   const [heartRateAlert, setHeartRateAlert] = useState(false);
   const [heartRateBand, setHeartRateBand] = useState<HeartRateBand | null>(
     null
@@ -372,6 +378,36 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       easyHeartRateBand,
     ]
   );
+  // Starting ranges for the plan's fast and easy stretches, offered with a tap.
+  const showPlanTargets = intervalChoice !== 'off' && (!indoor || onWatch);
+  const suggested = useSuggestedRanges(activity, showPlanTargets);
+  const suggestedPaceChoice = useMemo(() => {
+    if (!suggested.pace) return null;
+    const perUnit = distanceUnit === 'miles' ? 1.609344 : 1;
+    const choice = (band: {
+      minSecondsPerKm: number;
+      maxSecondsPerKm: number;
+    }) => ({
+      fastest: Math.round((band.minSecondsPerKm * perUnit) / 5) * 5,
+      slowest: Math.round((band.maxSecondsPerKm * perUnit) / 5) * 5,
+    });
+    return {
+      work: choice(suggested.pace.work),
+      easy: choice(suggested.pace.easy),
+      sessions: suggested.pace.sessions,
+    };
+  }, [suggested.pace, distanceUnit]);
+  const suggestedHeartRate = watchAvailable ? suggested.heartRate : null;
+  const useSuggestedRangesNow = () => {
+    if (suggestedPaceChoice) {
+      setWorkPace({ enabled: true, band: suggestedPaceChoice.work });
+      setEasyPace({ enabled: true, band: suggestedPaceChoice.easy });
+    }
+    if (suggestedHeartRate) {
+      setWorkHeartRate({ enabled: true, band: suggestedHeartRate.work });
+      setEasyHeartRate({ enabled: true, band: suggestedHeartRate.easy });
+    }
+  };
   // Seconds left before recording begins, or null when no countdown is running.
   const [countdownLeft, setCountdownLeft] = useState<number | null>(null);
   const [permissionProblem, setPermissionProblem] = useState<
@@ -396,6 +432,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     autoPause: false,
     audioCues: false,
     countdownSeconds: false,
+    checkInMinutes: false,
     paceAlert: false,
     heartRateAlert: false,
   });
@@ -421,6 +458,9 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       }
       if (!preferenceEdits.current.audioCues) {
         setAudioCues(preferences.audioCues);
+      }
+      if (!preferenceEdits.current.checkInMinutes) {
+        setCheckInMinutes(preferences.checkInMinutes);
       }
       if (!preferenceEdits.current.countdownSeconds) {
         setCountdownSeconds(preferences.countdownSeconds);
@@ -456,7 +496,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [isLive]);
 
   // Each second, let a timed plan move on to its next step.
-  const hasIntervals = Boolean(session?.intervals);
+  const hasIntervals =
+    Boolean(session?.intervals) || Boolean(session?.checkInMinutes);
   useEffect(() => {
     if (!isLive || !hasIntervals) return;
     void tickIntervals();
@@ -545,6 +586,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               place: indoor ? 'indoor' : 'outdoor',
               autoPause,
               voiceCues: audioCues,
+              checkInMinutes,
               ...(paceAlert
                 ? { paceBand: paceBandPerKm(currentPaceBand, distanceUnit) }
                 : {}),
@@ -571,6 +613,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
                 : 'km'
               : undefined,
             intervals: intervalPlan,
+            checkInMinutes: audioCues ? checkInMinutes : 0,
             indoor,
             paceBand:
               paceAlert && !indoor && activity !== 'ride'
@@ -594,6 +637,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     [
       activity,
       audioCues,
+      checkInMinutes,
       autoPause,
       paceAlert,
       currentPaceBand,
@@ -727,11 +771,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
         session.indoor ? indoorEstimate : null,
         session.indoor === true && indoorDistanceText === null
       );
-      // Ticks a program workout off only if the plan was followed to its last
-      // step; a run cut short can be tried again. The day is the one the run
+      // Ticks a program workout off only if the plan was followed to its end; a run cut short can be tried again. The day is the one the run
       // started on, so a run saved after midnight still counts for its own day.
       let program: RunSummaryParams['program'] = null;
-      if (session.program && lastStepStarted(session.intervals)) {
+      if (session.program && planCompleted(session)) {
         // The activity is already saved, so a failure here only costs the
         // tick: say so and carry on rather than failing the save.
         try {
@@ -1011,6 +1054,16 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
           />
           {/* The watch speaks with its own voice. */}
           {audioCues && !onWatch ? <RecordingVoiceCard /> : null}
+          {audioCues ? (
+            <CheckInCard
+              minutes={checkInMinutes}
+              onChange={(minutes) => {
+                preferenceEdits.current.checkInMinutes = true;
+                setCheckInMinutes(minutes);
+                void setCheckInPreference(minutes);
+              }}
+            />
+          ) : null}
           {/* A phone indoors has no GPS pace to judge by; the watch has its own. */}
           {(!indoor || onWatch) && activity !== 'ride' ? (
             <PaceBandCard
@@ -1102,8 +1155,14 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             activity={activity}
           />
           {/* A plan can hold a pace in its fast and easy stretches. */}
-          {intervalChoice !== 'off' && (!indoor || onWatch) ? (
+          {showPlanTargets ? (
             <>
+              <SuggestedRangesCard
+                unit={distanceUnit}
+                pace={suggestedPaceChoice}
+                heartRate={suggestedHeartRate}
+                onUse={useSuggestedRangesNow}
+              />
               <PaceBandCard
                 testIDPrefix="work-pace"
                 title={t('recordActivity.paceBand.workTitle', {
@@ -1634,6 +1693,18 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
                 value ? (distanceUnit === 'miles' ? 'miles' : 'km') : undefined
               )
             }
+          />
+        )}
+        {finished || session.audioCues == null ? null : (
+          <CheckInCard
+            testID="live-check-in"
+            minutes={session.checkInMinutes ?? 0}
+            onChange={(minutes) => {
+              preferenceEdits.current.checkInMinutes = true;
+              setCheckInMinutes(minutes);
+              void setCheckInPreference(minutes);
+              void setRecordingCheckIn(minutes);
+            }}
           />
         )}
         {/* Change the range without stopping: a new range starts the wait again. */}

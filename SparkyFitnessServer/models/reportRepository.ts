@@ -761,14 +761,26 @@ async function getTrainingLoadSessions(
   const client = await getClient(userId);
   try {
     const result = await client.query(
-      `SELECT TO_CHAR(entry_date, 'YYYY-MM-DD') AS day,
-              duration_minutes,
-              avg_heart_rate
-       FROM exercise_entries
-       WHERE user_id = $1
-         AND entry_date BETWEEN $2 AND $3
-         AND exercise_name != 'Active Calories'
-         AND duration_minutes > 0
+      // A workout logged without a duration still has its sets: their timing
+      // (seconds, per set) stands in for the length before the positive filter.
+      `SELECT day, duration_minutes, avg_heart_rate
+       FROM (
+         SELECT ee.entry_date,
+                TO_CHAR(ee.entry_date, 'YYYY-MM-DD') AS day,
+                COALESCE(
+                  NULLIF(ee.duration_minutes, 0),
+                  (SELECT SUM(COALESCE(s.duration, 0)) / 60.0
+                   FROM exercise_entry_sets s
+                   WHERE s.exercise_entry_id = ee.id),
+                  0
+                ) AS duration_minutes,
+                ee.avg_heart_rate
+         FROM exercise_entries ee
+         WHERE ee.user_id = $1
+           AND ee.entry_date BETWEEN $2 AND $3
+           AND ee.exercise_name != 'Active Calories'
+       ) sessions
+       WHERE duration_minutes > 0
        ORDER BY entry_date ASC`,
       [userId, startDate, endDate]
     );

@@ -51,11 +51,11 @@ const load = (overrides: Partial<TrainingLoad> = {}): TrainingLoad => ({
 
 const navigation = { navigate: jest.fn() } as never;
 
-const mockLoad = (data: TrainingLoad | undefined) =>
+const mockLoad = (data: TrainingLoad | undefined, isError = false) =>
   jest.mocked(useTrainingLoad).mockReturnValue({
     load: data,
     isLoading: false,
-    isError: false,
+    isError,
   });
 
 describe('TrainingLoadDashboardCard', () => {
@@ -93,6 +93,24 @@ describe('TrainingLoadDashboardCard', () => {
     mockLoad(undefined);
     render(<TrainingLoadDashboardCard navigation={navigation} />);
     expect(screen.queryByTestId('training-load-dashboard-card')).toBeNull();
+  });
+
+  it('says so when the first request fails', () => {
+    mockLoad(undefined, true);
+    render(<TrainingLoadDashboardCard navigation={navigation} />);
+    expect(
+      screen.getByTestId('training-load-dashboard-card-error')
+    ).toBeTruthy();
+    expect(screen.getByText('Could not load your training load.')).toBeTruthy();
+  });
+
+  it('keeps showing the cached load when a refetch fails', () => {
+    mockLoad(load(), true);
+    render(<TrainingLoadDashboardCard navigation={navigation} />);
+    expect(screen.getByTestId('training-load-dashboard-card')).toBeTruthy();
+    expect(
+      screen.queryByTestId('training-load-dashboard-card-error')
+    ).toBeNull();
   });
 
   it('adds readiness to the card once it is known', () => {
