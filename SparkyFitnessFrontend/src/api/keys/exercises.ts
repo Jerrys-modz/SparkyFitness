@@ -37,6 +37,12 @@ export const workoutCoachingKeys = {
   suggestions: () => [...workoutCoachingKeys.all, 'suggestions'] as const,
 };
 
+/** Static server-side list; deliberately outside `presetKeys` so preset
+ * invalidation does not refetch it. */
+export const starterRoutineKeys = {
+  all: ['starterRoutines'] as const,
+};
+
 export const presetKeys = {
   all: ['workoutPresets'] as const,
   lists: () => [...presetKeys.all, 'list'] as const,
