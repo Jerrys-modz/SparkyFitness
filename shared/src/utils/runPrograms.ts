@@ -35,6 +35,11 @@ export interface RunProgram {
    * only number them and are never shown.
    */
   custom?: { name: string };
+  /**
+   * Set on the four-runs-a-week version of a program that also comes with
+   * three runs a week: the id of the three-run program it is a version of.
+   */
+  variantOf?: string;
 }
 
 type Piece = readonly ["run" | "walk", number];
@@ -180,6 +185,23 @@ const HALF_MARATHON_WEEKS = steadyWeeks([
   [25, 20, 30],
 ]);
 
+// The four-run version of the half marathon: two easy runs, a middle run and a
+// long run each week, so the long run is a smaller share of the week.
+const HALF_MARATHON_4_WEEKS = steadyWeeks([
+  [30, 30, 30, 50],
+  [30, 35, 30, 55],
+  [35, 40, 35, 65],
+  [30, 30, 30, 50],
+  [35, 40, 35, 75],
+  [40, 45, 40, 85],
+  [40, 45, 40, 95],
+  [35, 35, 35, 70],
+  [45, 50, 45, 105],
+  [45, 50, 45, 115],
+  [40, 40, 40, 90],
+  [25, 20, 30],
+]);
+
 // Sixteen weeks to a marathon for someone who already runs a few times a
 // week: easy, middle, easy and long runs, long runs building to under three
 // hours, an easier week every fourth, and a three-week taper.
@@ -250,6 +272,22 @@ const TEN_K_TO_HALF_WEEKS = steadyWeeks([
   [25, 20, 30],
 ]);
 
+// Ten weeks from a comfortable 10K to a half marathon: two short runs, a
+// middle run and a long run each week, with an easier fourth and eighth week
+// and a short taper.
+const TEN_K_TO_HALF_4_WEEKS = steadyWeeks([
+  [35, 40, 35, 65],
+  [35, 40, 35, 75],
+  [40, 45, 40, 85],
+  [30, 35, 30, 65],
+  [40, 50, 40, 95],
+  [45, 50, 45, 105],
+  [45, 55, 45, 115],
+  [40, 45, 40, 90],
+  [35, 40, 35, 60],
+  [25, 20, 30],
+]);
+
 // Eight weeks to get faster over 10K: a speed session, an easy run and a longer
 // run each week, the longer run turning into a tempo run in the middle weeks.
 const FASTER_10K_WEEKS: readonly (readonly Spec[])[] = [
@@ -278,6 +316,21 @@ const FASTER_HALF_WEEKS: readonly (readonly Spec[])[] = [
   [speed(repeat(3, [run(180), walk(120)])), easy(20), easy(30)],
 ];
 
+// Ten weeks to get faster over a half marathon: a speed session, two easy
+// runs and a long run, with tempo runs, an easier fourth week and a taper.
+const FASTER_HALF_4_WEEKS: readonly (readonly Spec[])[] = [
+  [speed(repeat(5, [run(240), walk(120)])), easy(40), easy(30), easy(70)],
+  [speed(repeat(4, [run(360), walk(150)])), easy(40), easy(30), easy(80)],
+  [speed(repeat(3, [run(600), walk(180)])), easy(45), easy(35), easy(90)],
+  [speed(repeat(6, [run(180), walk(90)])), easy(35), easy(30), easy(60)],
+  [speed(repeat(4, [run(480), walk(150)])), easy(45), easy(35), easy(100)],
+  [speed([run(1500)]), easy(45), easy(35), easy(105)],
+  [speed(repeat(3, [run(720), walk(180)])), easy(45), easy(35), easy(110)],
+  [speed([run(1800)]), easy(40), easy(30), easy(80)],
+  [speed(repeat(4, [run(300), walk(120)])), easy(35), easy(30), easy(60)],
+  [speed(repeat(3, [run(180), walk(120)])), easy(20), easy(30)],
+];
+
 // Eighteen weeks to a first marathon for someone who runs 10K: three runs a
 // week, long runs building to 2½ hours, an easier fourth, eighth and twelfth
 // week and a three-week taper.
@@ -299,6 +352,30 @@ const BEGINNER_MARATHON_WEEKS = steadyWeeks([
   [40, 50, 110],
   [35, 40, 90],
   [30, 35, 60],
+  [25, 20, 15],
+]);
+
+// Eighteen weeks to a first marathon for someone who runs 10K: two short
+// runs, a middle run and a long run each week, long runs building to 2½ hours,
+// an easier fourth, eighth and twelfth week and a three-week taper.
+const BEGINNER_MARATHON_4_WEEKS = steadyWeeks([
+  [35, 40, 35, 70],
+  [35, 40, 35, 80],
+  [40, 45, 40, 90],
+  [30, 35, 30, 70],
+  [40, 45, 40, 100],
+  [40, 50, 45, 110],
+  [45, 50, 45, 120],
+  [35, 40, 35, 90],
+  [45, 50, 45, 130],
+  [45, 55, 50, 140],
+  [45, 55, 50, 150],
+  [35, 40, 35, 100],
+  [45, 55, 50, 150],
+  [45, 55, 50, 140],
+  [40, 50, 45, 110],
+  [35, 40, 35, 90],
+  [30, 35, 30, 60],
   [25, 20, 15],
 ]);
 
@@ -394,6 +471,7 @@ function buildProgram(
   id: string,
   weeks: readonly (readonly Spec[])[],
   activity: RunProgram["activity"] = "run",
+  variantOf?: string,
 ): RunProgram {
   const workouts = weeks.flatMap((days, week) =>
     days.map((spec, day) => ({ week, day, plan: workout(spec) })),
@@ -404,6 +482,7 @@ function buildProgram(
     workouts,
     weeks: weeks.length,
     workoutsPerWeek: weeks[0]?.length ?? 0,
+    ...(variantOf ? { variantOf } : {}),
   };
 }
 
@@ -419,9 +498,18 @@ export const RUN_PROGRAMS: readonly RunProgram[] = [
   buildProgram("beginner10k", BEGINNER_10K_WEEKS),
   buildProgram("faster10k", FASTER_10K_WEEKS),
   buildProgram("tenKToHalf", TEN_K_TO_HALF_WEEKS),
+  buildProgram("tenKToHalf4", TEN_K_TO_HALF_4_WEEKS, "run", "tenKToHalf"),
   buildProgram("halfMarathon", HALF_MARATHON_WEEKS),
+  buildProgram("halfMarathon4", HALF_MARATHON_4_WEEKS, "run", "halfMarathon"),
   buildProgram("fasterHalf", FASTER_HALF_WEEKS),
+  buildProgram("fasterHalf4", FASTER_HALF_4_WEEKS, "run", "fasterHalf"),
   buildProgram("beginnerMarathon", BEGINNER_MARATHON_WEEKS),
+  buildProgram(
+    "beginnerMarathon4",
+    BEGINNER_MARATHON_4_WEEKS,
+    "run",
+    "beginnerMarathon",
+  ),
   buildProgram("marathon", MARATHON_WEEKS),
   buildProgram("advancedMarathon", ADVANCED_MARATHON_WEEKS),
 ];
@@ -433,6 +521,21 @@ export function programActivity(id: string): RunProgram["activity"] {
 
 export function findProgram(id: string): RunProgram | null {
   return RUN_PROGRAMS.find((program) => program.id === id) ?? null;
+}
+
+/** The programs the picker lists: every built-in one that is not another's variant. */
+export const PICKER_PROGRAMS: readonly RunProgram[] = RUN_PROGRAMS.filter(
+  (program) => !program.variantOf,
+);
+
+/**
+ * A program and its other versions, fewest runs a week first. A program with
+ * no variants gives just itself.
+ */
+export function programVersions(id: string): RunProgram[] {
+  return RUN_PROGRAMS.filter(
+    (program) => program.id === id || program.variantOf === id,
+  ).sort((a, b) => a.workoutsPerWeek - b.workoutsPerWeek);
 }
 
 /** Where a person stands in a program. */

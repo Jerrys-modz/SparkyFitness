@@ -1,6 +1,12 @@
 import React from 'react';
 import { Alert } from 'react-native';
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react-native';
 import { addDays, programStatus } from '@workspace/shared';
 import { toLocalDateString } from '../../src/utils/dateUtils';
 import RunProgramsScreen from '../../src/screens/RunProgramsScreen';
@@ -103,6 +109,32 @@ describe('RunProgramsScreen', () => {
     ]);
     buttons[2].onPress?.();
     expect(startProgram).toHaveBeenCalledWith('walkFit', null);
+    alert.mockRestore();
+  });
+
+  it('lets you choose three or four runs a week and starts that version', () => {
+    mockedUse.mockReturnValue({
+      status: null,
+      enabled: false,
+      lastAdjustment: null,
+      schedule: { days: [], startDay: null, endDay: null },
+      doneDay: null,
+      loaded: true,
+    });
+    renderScreen(RunProgramsProps());
+    expect(screen.queryByTestId('run-program-halfMarathon4')).toBeNull();
+    expect(screen.queryByTestId('run-versions-beginner5k')).toBeNull();
+    const card = screen.getByTestId('run-program-halfMarathon');
+    const choice = within(screen.getByTestId('run-versions-halfMarathon'));
+    expect(choice.getByText('3 runs a week')).toBeTruthy();
+    fireEvent.press(choice.getByText('4 runs a week'));
+    expect(
+      within(card).getByText(/Half marathon: twelve weeks, four runs a week/)
+    ).toBeTruthy();
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    fireEvent.press(within(card).getByText('Start program'));
+    alert.mock.calls[0][2]?.[2].onPress?.();
+    expect(startProgram).toHaveBeenCalledWith('halfMarathon4', null);
     alert.mockRestore();
   });
 

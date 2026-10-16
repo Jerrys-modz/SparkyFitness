@@ -6,8 +6,9 @@ import Toast from 'react-native-toast-message';
 import {
   customProgramId,
   findProgram,
+  PICKER_PROGRAMS,
   programOutline,
-  RUN_PROGRAMS,
+  programVersions,
   type CustomRunProgramResponse,
 } from '@workspace/shared';
 import RunProgramCard, {
@@ -19,6 +20,7 @@ import RunProgramGuide, {
   programStructure,
 } from '../components/recording/RunProgramGuide';
 import Button from '../components/ui/Button';
+import SegmentedControl from '../components/SegmentedControl';
 import ProgramActionRow, {
   ProgramActionList,
 } from '../components/recording/ProgramActionRow';
@@ -58,6 +60,8 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   const storedId = status?.program.id;
   const startCalendarRef = useRef<CalendarSheetRef>(null);
   const [startingId, setStartingId] = useState<string | null>(null);
+  // Which version (3 or 4 runs a week) is picked on a card that has both.
+  const [versionOf, setVersionOf] = useState<Record<string, string>>({});
   const { programs: customPrograms } = useCustomRunPrograms();
 
   const header = useScreenHeader({
@@ -319,17 +323,44 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           })}
         </Text>
         <RunProgramGuide defaultOpen />
-        {RUN_PROGRAMS.map((program) => {
+        {PICKER_PROGRAMS.map((basic) => {
+          const versions = programVersions(basic.id);
+          const program =
+            versions.find((v) => v.id === versionOf[basic.id]) ?? basic;
           const outline = programOutline(findProgram(program.id)!);
           return (
             <View
-              key={program.id}
+              key={basic.id}
               className="bg-surface rounded-xl p-4 mt-4"
-              testID={`run-program-${program.id}`}
+              testID={`run-program-${basic.id}`}
             >
               <Text className="text-text-primary text-base font-semibold">
-                {programName(t, program.id)}
+                {programName(t, basic.id)}
               </Text>
+              {versions.length > 1 ? (
+                <View className="mt-2" testID={`run-versions-${basic.id}`}>
+                  <SegmentedControl
+                    segments={versions.map((v) => ({
+                      key: v.id,
+                      label: t('runPrograms.runsPerWeekOption', {
+                        count: v.workoutsPerWeek,
+                        defaultValue: '{{count}} runs a week',
+                        defaultValue_one: '{{count}} run a week',
+                      }),
+                    }))}
+                    activeKey={program.id}
+                    onSelect={(id) =>
+                      setVersionOf((prev) => ({ ...prev, [basic.id]: id }))
+                    }
+                  />
+                  <Text className="text-text-muted text-xs mt-1">
+                    {t('runPrograms.runsPerWeekHint', {
+                      defaultValue:
+                        'A fourth run adds a short easy run, so the long run is a smaller share of your week.',
+                    })}
+                  </Text>
+                </View>
+              ) : null}
               <Text className="text-text-muted text-xs mt-0.5">
                 {t('runPrograms.weeksRuns', {
                   weeks: program.weeks,

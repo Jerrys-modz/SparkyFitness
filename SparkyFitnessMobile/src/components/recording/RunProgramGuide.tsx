@@ -83,6 +83,26 @@ export function programStructure(t: TFunction, id: string): string {
         defaultValue:
           'Most weeks have two easy runs, a speed or tempo session, a middle run and a long run. The long run builds from 90 minutes to three hours, every fourth week is lighter, and the last two weeks taper before race day.',
       });
+    case 'halfMarathon4':
+      return t('runPrograms.guide.structure.halfMarathon4', {
+        defaultValue:
+          'Each week has two easy runs, a middle run and a long run. The long run builds from 50 to 115 minutes',
+      });
+    case 'tenKToHalf4':
+      return t('runPrograms.guide.structure.tenKToHalf4', {
+        defaultValue:
+          'Each week has two short runs, a middle run and a long run. The long run builds from 65 to 115 minutes',
+      });
+    case 'fasterHalf4':
+      return t('runPrograms.guide.structure.fasterHalf4', {
+        defaultValue:
+          'Each week has a speed session, two easy runs and a long run. The long run builds from 70 to 110 minutes',
+      });
+    case 'beginnerMarathon4':
+      return t('runPrograms.guide.structure.beginnerMarathon4', {
+        defaultValue:
+          'Each week has two short runs, a middle run and a long run. The long run builds from 70 minutes to 2½ hours',
+      });
     default:
       return '';
   }

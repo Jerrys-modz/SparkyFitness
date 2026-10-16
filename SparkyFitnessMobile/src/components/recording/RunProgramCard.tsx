@@ -107,6 +107,22 @@ export function programName(t: TFunction, id: string): string {
       return t('recordActivity.program.name.advancedMarathon', {
         defaultValue: 'Advanced marathon',
       });
+    case 'halfMarathon4':
+      return t('recordActivity.program.name.halfMarathon4', {
+        defaultValue: 'Half marathon (4 runs a week)',
+      });
+    case 'tenKToHalf4':
+      return t('recordActivity.program.name.tenKToHalf4', {
+        defaultValue: '10K to half marathon (4 runs a week)',
+      });
+    case 'fasterHalf4':
+      return t('recordActivity.program.name.fasterHalf4', {
+        defaultValue: 'Faster half marathon (4 runs a week)',
+      });
+    case 'beginnerMarathon4':
+      return t('recordActivity.program.name.beginnerMarathon4', {
+        defaultValue: 'Beginner marathon (4 runs a week)',
+      });
     default:
       return id;
   }
@@ -189,6 +205,23 @@ export function programDescription(t: TFunction, id: string): string {
       return t('recordActivity.program.advancedMarathonDescription', {
         defaultValue:
           'Advanced marathon: sixteen weeks, five runs a week, with speed or tempo work and long runs building to three hours. For experienced runners.',
+      });
+    case 'halfMarathon4':
+      return t('recordActivity.program.halfMarathon4Description', {
+        defaultValue: 'Half marathon: twelve weeks, four runs a week',
+      });
+    case 'tenKToHalf4':
+      return t('recordActivity.program.tenKToHalf4Description', {
+        defaultValue: '10K to half marathon: ten weeks, four runs a week',
+      });
+    case 'beginnerMarathon4':
+      return t('recordActivity.program.beginnerMarathon4Description', {
+        defaultValue: 'Beginner marathon: eighteen weeks, four runs a week',
+      });
+    case 'fasterHalf4':
+      return t('recordActivity.program.fasterHalf4Description', {
+        defaultValue:
+          'Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run with tempo work',
       });
     default:
       return id;
