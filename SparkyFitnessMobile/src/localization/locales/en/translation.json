@@ -8404,7 +8404,7 @@
         "duplicate": "Already included from this report.",
         "nameTaken": "Another measurement already uses this name.",
         "noUnit": "The report shows no unit for this test.",
-        "unit": "The report uses a different unit than this marker, and units are not converted."
+        "unit": "The report uses {{reportUnit}}, but this marker uses {{markerUnit}}. Units are not converted."
       },
       "cameraDenied": "Camera access is needed to take a photo.",
       "chooseAnother": "Choose a different report",
@@ -8427,7 +8427,9 @@
       "takePhoto": "Take a photo",
       "tooLarge": "That PDF is too large to read (limit 14 MB).",
       "useReportRanges": "Use the report's reference ranges",
-      "useReportRangesHint": "The lab prints ranges for its own method, age and sex. Existing markers are updated to match."
+      "useReportRangesHint": "The lab prints ranges for its own method, age and sex. Existing markers are updated to match.",
+      "editHint": "Check the values against your report. Tap a value to correct it.",
+      "valueFor": "Result for {{name}}"
     }
   },
   "routes": {

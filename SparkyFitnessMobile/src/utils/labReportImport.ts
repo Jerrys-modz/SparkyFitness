@@ -23,6 +23,8 @@ export interface LabImportRow {
   result: LabReportScanResult;
   /** Shown as the row title. */
   title: string;
+  /** The unit the marker's results are stored in. */
+  markerUnit: string;
   target:
     | { kind: 'existing'; category: LabCategory }
     | { kind: 'new'; marker: NewLabMarker; defaultRange: RangeBounds };
@@ -36,15 +38,50 @@ export interface RangeBounds {
   high: number | null;
 }
 
+/**
+ * Spellings of the same unit, as printed by different labs, after the basic
+ * normalisation below. Only exact equivalences belong here: a value in one
+ * spelling is numerically identical in the other, so no conversion is needed.
+ */
+const UNIT_EQUIVALENTS: Readonly<Record<string, string>> = {
+  // 1 uIU/mL = 1 mIU/L
+  'uiu/ml': 'miu/l',
+  // Enzyme activity: IU/L and U/L are the same.
+  'iu/l': 'u/l',
+  // 1 ng/mL = 1 ug/L
+  'ug/l': 'ng/ml',
+  'mcg/dl': 'ug/dl',
+  // For the monovalent ions (sodium, potassium, chloride, bicarbonate).
+  'meq/l': 'mmol/l',
+  // Blood counts: x10E3/uL, K/uL, thousand/uL are 10^3 per uL.
+  'x10e3/ul': '103/ul',
+  '10e3/ul': '103/ul',
+  'x10^3/ul': '103/ul',
+  '10^3/ul': '103/ul',
+  'k/ul': '103/ul',
+  'thousand/ul': '103/ul',
+  'x10e6/ul': '106/ul',
+  '10e6/ul': '106/ul',
+  'x10^6/ul': '106/ul',
+  '10^6/ul': '106/ul',
+  'm/ul': '106/ul',
+  'million/ul': '106/ul',
+  // eGFR is per 1.73 m2 of body surface whether or not the report prints it.
+  'ml/min/1.73': 'ml/min/1.73m2',
+  'ml/min/1.73m^2': 'ml/min/1.73m2',
+};
+
 /** "mg/dL" and "MG/DL " are the same unit; "µ" and "u" are interchangeable. */
-const normalizeUnit = (unit: string | null | undefined): string =>
-  (unit ?? '')
+const normalizeUnit = (unit: string | null | undefined): string => {
+  const base = (unit ?? '')
     .toLowerCase()
     .replace(/\s+/g, '')
     .replace(/[µμ]/g, 'u')
     .replace(/²/g, '2')
     .replace(/³/g, '3')
     .replace(/⁶/g, '6');
+  return UNIT_EQUIVALENTS[base] ?? base;
+};
 
 export const sameLabUnit = (
   a: string | null | undefined,
@@ -106,6 +143,7 @@ export function planLabImport(
         key: String(index),
         result,
         title: labMarkerName(existing),
+        markerUnit: existing.measurement_type,
         target: { kind: 'existing', category: existing },
         reportRange,
         blocked: duplicate ? 'duplicate' : unitOk ? null : 'unit_mismatch',
@@ -148,6 +186,7 @@ export function planLabImport(
       key: String(index),
       result,
       title: marker.display_name,
+      markerUnit: preset?.unit ?? unit,
       target: { kind: 'new', marker, defaultRange },
       reportRange,
       blocked: existing
@@ -202,9 +241,9 @@ export function reportRangeDiffers(row: LabImportRow): boolean {
  */
 export function labImportSaveInput(
   row: LabImportRow,
-  options: { date: string; useReportRanges: boolean }
+  options: { date: string; useReportRanges: boolean; value?: number }
 ) {
-  const base = { value: row.result.value, date: options.date };
+  const base = { value: options.value ?? row.result.value, date: options.date };
   if (row.target.kind === 'existing') {
     return {
       ...base,

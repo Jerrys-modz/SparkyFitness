@@ -4,6 +4,7 @@ import {
   ScrollView,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -46,8 +47,8 @@ import {
 } from '../utils/labReportImport';
 import {
   formatLabRange,
-  formatLabValue,
   labSexFromGender,
+  parseLabValue,
 } from '../utils/labResults';
 import type { RootStackScreenProps } from '../types/navigation';
 
@@ -79,13 +80,17 @@ const LabReportImportScreen: React.FC<Props> = ({ navigation }) => {
   const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set());
   const [useReportRanges, setUseReportRanges] = useState(true);
   const [pickMessage, setPickMessage] = useState<string | null>(null);
+  // Typed corrections to a scanned value, by row key.
+  const [valueEdits, setValueEdits] = useState<Record<string, string>>({});
 
-  const blockedText = (reason: LabImportBlock): string => {
+  const blockedText = (row: LabImportRow, reason: LabImportBlock): string => {
     switch (reason) {
       case 'unit_mismatch':
         return t('labs.import.blocked.unit', {
           defaultValue:
-            'The report uses a different unit than this marker, and units are not converted.',
+            'The report uses {{reportUnit}}, but this marker uses {{markerUnit}}. Units are not converted.',
+          reportUnit: row.result.unit ?? '',
+          markerUnit: row.markerUnit,
         });
       case 'name_taken':
         return t('labs.import.blocked.nameTaken', {
@@ -142,6 +147,7 @@ const LabReportImportScreen: React.FC<Props> = ({ navigation }) => {
         sex
       );
       setExcluded(new Set(rows.filter((r) => r.blocked).map((r) => r.key)));
+      setValueEdits({});
       setReport({
         labName: response.report.lab_name,
         rows,
@@ -152,9 +158,22 @@ const LabReportImportScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
+  const rowValue = (row: LabImportRow): number | null =>
+    row.key in valueEdits
+      ? parseLabValue(valueEdits[row.key])
+      : row.result.value;
+
   const included = useMemo(
-    () => report?.rows.filter((r) => !excluded.has(r.key) && !r.blocked) ?? [],
-    [report, excluded]
+    () =>
+      report?.rows.filter(
+        (r) =>
+          !excluded.has(r.key) &&
+          !r.blocked &&
+          (r.key in valueEdits
+            ? parseLabValue(valueEdits[r.key]) !== null
+            : true)
+      ) ?? [],
+    [report, excluded, valueEdits]
   );
 
   const handleSave = async () => {
@@ -165,6 +184,7 @@ const LabReportImportScreen: React.FC<Props> = ({ navigation }) => {
         input: labImportSaveInput(row, {
           date: report.date,
           useReportRanges,
+          value: rowValue(row) ?? row.result.value,
         }),
       }))
     );
@@ -337,6 +357,13 @@ const LabReportImportScreen: React.FC<Props> = ({ navigation }) => {
               />
             </View>
 
+            <Text className="text-xs text-text-muted">
+              {t('labs.import.editHint', {
+                defaultValue:
+                  'Check the values against your report. Tap a value to correct it.',
+              })}
+            </Text>
+
             <View className="bg-surface rounded-xl overflow-hidden">
               {report.rows.map((row, index) => {
                 const range = effectiveLabRange(row, useReportRanges);
@@ -345,7 +372,10 @@ const LabReportImportScreen: React.FC<Props> = ({ navigation }) => {
                     ? row.target.category.measurement_type
                     : row.target.marker.measurement_type;
                 const rangeText = formatLabRange(range.low, range.high, unit);
-                const isIncluded = !excluded.has(row.key) && !row.blocked;
+                const value = rowValue(row);
+                const valueInvalid = value === null;
+                const isIncluded =
+                  !excluded.has(row.key) && !row.blocked && !valueInvalid;
                 return (
                   <View
                     key={row.key}
@@ -377,21 +407,46 @@ const LabReportImportScreen: React.FC<Props> = ({ navigation }) => {
                       </Text>
                       {row.blocked && (
                         <Text className="text-xs text-warning mt-0.5">
-                          {blockedText(row.blocked)}
+                          {blockedText(row, row.blocked)}
                         </Text>
                       )}
                     </View>
                     <View className="items-end mr-3">
-                      <Text className="text-base font-bold text-text-primary">
-                        {formatLabValue(row.result.value, unit)}
-                      </Text>
-                      <LabStatusBadge
-                        status={labRangeStatus(
-                          row.result.value,
-                          range.low,
-                          range.high
-                        )}
-                      />
+                      <View className="flex-row items-center gap-1">
+                        <TextInput
+                          value={
+                            row.key in valueEdits
+                              ? valueEdits[row.key]
+                              : String(row.result.value)
+                          }
+                          onChangeText={(text) =>
+                            setValueEdits((prev) => ({
+                              ...prev,
+                              [row.key]: text,
+                            }))
+                          }
+                          editable={row.blocked === null}
+                          keyboardType="decimal-pad"
+                          selectTextOnFocus
+                          className={`min-w-14 text-right text-base font-bold border-b px-1 py-0.5 ${
+                            valueInvalid
+                              ? 'text-text-danger-subtle border-text-danger-subtle'
+                              : 'text-text-primary border-border-subtle'
+                          }`}
+                          accessibilityLabel={t('labs.import.valueFor', {
+                            defaultValue: 'Result for {{name}}',
+                            name: row.title,
+                          })}
+                        />
+                        <Text className="text-sm text-text-secondary">
+                          {unit}
+                        </Text>
+                      </View>
+                      {value !== null && (
+                        <LabStatusBadge
+                          status={labRangeStatus(value, range.low, range.high)}
+                        />
+                      )}
                     </View>
                     <Switch
                       value={isIncluded}

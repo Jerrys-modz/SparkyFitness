@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   deleteCustomMeasurement,
   fetchCustomEntriesForCategory,
-  saveCustomMeasurement,
 } from '../services/api/measurementsApi';
 import { saveLabResult } from '../services/labResultsService';
 import {
