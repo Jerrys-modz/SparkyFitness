@@ -18,6 +18,7 @@ describe('SuggestedRangesCard', () => {
         pace={{
           work: band(290, 310),
           easy: band(360, 405),
+          warm: band(365, 810),
           sessions: 0,
           race: { distanceKm: 5, seconds: 1500 },
           efforts: {
@@ -29,7 +30,9 @@ describe('SuggestedRangesCard', () => {
       />
     );
     expect(
-      screen.getByText('Pace: fast 4:50–5:10/km, easy 6:00–6:45/km')
+      screen.getByText(
+        'Pace: fast 4:50–5:10/km, easy 6:00–6:45/km, warm-up and cool-down 6:05–13:30/km'
+      )
     ).toBeTruthy();
     expect(
       screen.getByText(
@@ -45,7 +48,12 @@ describe('SuggestedRangesCard', () => {
     render(
       <SuggestedRangesCard
         {...base}
-        pace={{ work: band(285, 320), easy: band(360, 420), sessions: 5 }}
+        pace={{
+          work: band(285, 320),
+          easy: band(360, 420),
+          warm: band(365, 840),
+          sessions: 5,
+        }}
       />
     );
     expect(screen.getByText('Based on your last 5 sessions.')).toBeTruthy();
