@@ -113,6 +113,10 @@ export function programRest(t: TFunction, id: string): string {
   switch (id) {
     case 'beginner5k':
     case 'walkFit':
+    case 'walk10k':
+    case 'returnToRunning':
+    case 'gentle5k':
+    case 'beginner10k':
       return t('runPrograms.guide.rest.beginner', {
         defaultValue:
           'Do not train on back-to-back days. Three workouts a week with a rest day between them, for example Monday, Wednesday and Saturday, gives your legs time to adapt. On rest days walk, stretch or do something gentle.',
@@ -123,12 +127,21 @@ export function programRest(t: TFunction, id: string): string {
           'Keep a rest day between the two steady runs, and put the long run a day or two after a rest day. Rest or cross-train (cycling, swimming, an easy walk) on the other days.',
       });
     case 'faster5k':
+    case 'faster10k':
       return t('runPrograms.guide.rest.faster5k', {
         defaultValue:
           'Give the speed session and the longer run an easy day or a rest day on each side. Never do them back to back. Spend the free days resting or cross-training gently.',
       });
     case 'halfMarathon':
+    case 'halfMarathon4':
+    case 'tenKToHalf':
+    case 'tenKToHalf4':
+    case 'fasterHalf':
+    case 'fasterHalf4':
     case 'marathon':
+    case 'beginnerMarathon':
+    case 'beginnerMarathon4':
+    case 'advancedMarathon':
       return t('runPrograms.guide.rest.longDistance', {
         defaultValue:
           'Keep the day before the long run easy or free, and take a rest day the day after it. Space the other runs so no two hard days sit together, and use spare days for rest, walking or low-impact cross-training.',
