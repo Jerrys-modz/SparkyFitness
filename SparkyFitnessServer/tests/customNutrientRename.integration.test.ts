@@ -156,11 +156,16 @@ describe('custom nutrient rename integration test', () => {
   });
 
   afterAll(async () => {
-    if (admin && userId) {
-      await admin.query('DELETE FROM "user" WHERE id = $1', [userId]);
-      admin.release();
+    try {
+      if (admin && userId) {
+        await admin.query('DELETE FROM "user" WHERE id = $1', [userId]);
+      }
+    } finally {
+      // Release the client and close the pool however setup or cleanup went,
+      // or a checked-out client keeps endPool() waiting.
+      admin?.release();
+      await endPool();
     }
-    await endPool();
   });
 
   it('moves every name-keyed value to the new name and leaves history alone', async (ctx) => {
