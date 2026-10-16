@@ -1,6 +1,6 @@
 # AGENTS.md
 
-*Last updated: 2026-10-14*
+*Last updated: 2026-10-16*
 
 `@workspace/shared` is a source-first TypeScript workspace library package for schemas, constants, and timezone/day helpers consumed by SparkyFitnessServer, SparkyFitnessFrontend, and SparkyFitnessMobile.
 
@@ -18,6 +18,7 @@
 - `src/utils/` - timezone helpers (`todayInZone`, `instantToDay`, `dayToUtcRange`, `compareDays`, `addDays`, `isDayString`), cycle/menstruation helpers, unit/calculation utilities, and the race plan generator (`racePlan.ts`, `buildRacePlan`).
 - `src/nutrients/` - nutrient catalogs and the goal calculator used by web onboarding, the web Goals editor and mobile Goals (`nutrientCalculation.ts`: per-nutrient recommended values from age, sex, weight, calories and the saved algorithm choices; `nutrientAlgorithms.ts`: the algorithm enums and labels).
 - `src/ai/`, `src/cycle/`, `src/medications/`, `src/mood/` - domain-specific helpers.
+- Routes: `src/schemas/api/Route.api.zod.ts` (points, turn cues, bodies), `src/utils/routeGeometry.ts` (distance, climb, simplify, bounds) and `src/utils/routeGpx.ts` (dependency-free GPX read/write).
 - `src/symptoms/` - generic symptom tracking: constants and enums (scales, templates, sections, option kinds), template section resolution (`resolveSections`), built-in symptoms and pick-lists, head/body region ids for the location maps, and custom-field validation. The API contract is `src/schemas/api/Symptoms.api.zod.ts`.
 
 ## Naming Convention
