@@ -10,6 +10,7 @@ import {
   Table as TableIcon,
   Pill,
   HeartPulse,
+  FlaskConical,
 } from 'lucide-react';
 
 interface ReportsControlsProps {
@@ -41,6 +42,11 @@ const ReportsControls = ({
       id: 'measurements',
       label: t('reports.measurementsTab', 'Measurements'),
       icon: Activity,
+    },
+    {
+      id: 'lab-results',
+      label: t('reports.labResultsTab', 'Lab Results'),
+      icon: FlaskConical,
     },
     {
       id: 'fasting',
