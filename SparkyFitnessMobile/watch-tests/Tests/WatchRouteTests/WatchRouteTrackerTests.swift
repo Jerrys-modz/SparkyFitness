@@ -169,6 +169,14 @@ final class WatchRouteTrackerTests: XCTestCase {
         XCTAssertFalse(update.snapshot.isOffRoute)
     }
 
+    func testCumulativeDistancesStartAtZeroAndGrow() {
+        let distances = WatchRouteTracker.cumulativeDistances(lRoute().points)
+        XCTAssertEqual(distances.count, 81)
+        XCTAssertEqual(distances.first, 0)
+        XCTAssertEqual(distances[40], 400, accuracy: 2)
+        XCTAssertEqual(WatchRouteTracker.cumulativeDistances([]), [])
+    }
+
     func testProjectionKeepsTheRouteShape() {
         let projection = WatchRouteProjection(points: lRoute().points)
         XCTAssertEqual(projection.aspect, 1, accuracy: 0.02)
