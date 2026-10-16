@@ -268,6 +268,8 @@ final class WatchRunStore: ObservableObject {
             WatchRouteStorage.save(route)
         } else {
             WatchRouteStorage.clear()
+            // A removal the phone sent while this route was being followed.
+            WatchRouteLibraryStore.shared.runEnded()
         }
     }
 

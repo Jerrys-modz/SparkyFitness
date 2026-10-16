@@ -254,6 +254,21 @@ enum ContextPayloadMapper {
         return WatchRoute(id: id, name: dict["name"] as? String ?? "", points: points, cues: cues)
     }
 
+    /// A route the phone wants kept on the watch (`routeSync`). Nil when the
+    /// route cannot be read or carries no revision stamp.
+    static func routeSync(from payload: [String: Any]) -> WatchRouteSync? {
+        guard
+            let route = route(from: payload["route"]),
+            let updatedAt = doubleValue(payload["updatedAt"])
+        else { return nil }
+        return WatchRouteSync(route: route, updatedAt: updatedAt)
+    }
+
+    /// The route id a `routeRemove` names.
+    static func routeRemoveId(from payload: [String: Any]) -> String? {
+        (payload["routeId"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+    }
+
     /// The switches a start request carries; nil unless both are there.
     static func runSettings(from payload: [String: Any]) -> WatchRunSettings? {
         guard let autoPause = payload["autoPause"] as? Bool,
