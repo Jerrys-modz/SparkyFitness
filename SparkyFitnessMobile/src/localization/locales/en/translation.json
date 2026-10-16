@@ -604,7 +604,9 @@
       "personalRecords": "Personal records",
       "personalRecordsSubtitle": "Your best 1 km, 5 km, 10 km and more",
       "trainingCalendar": "Training calendar",
-      "trainingCalendarSubtitle": "Planned and completed workouts, and load by sport"
+      "trainingCalendarSubtitle": "Planned and completed workouts, and load by sport",
+      "equipment": "Equipment",
+      "equipmentSubtitle": "Shoes and other gear"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -633,7 +635,13 @@
     "watchRunLive": "On your watch",
     "watchRunLiveRun": "Run on your watch",
     "watchWalkLive": "Walk on your watch",
-    "trainingCalendar": "Training calendar"
+    "trainingCalendar": "Training calendar",
+    "allergenSettings": "Allergens",
+    "runProgramCalendar": "Program calendar",
+    "runProgramWorkout": "Workout",
+    "runProgramEdit": "Edit plan",
+    "runProgramNew": "New plan",
+    "runProgramRace": "Plan a race"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -2534,6 +2542,7 @@
       "noPhoto": "No photo returned by picker.",
       "analyzeLabel": "Failed to analyze nutrition label. Please try again.",
       "loadPhoto": "Failed to load photo.",
+      "restartApp": "Unable to open gallery. Please restart the app.",
       "lookupBarcode": "Couldn't look up this barcode. Please try again.",
       "timeout": "Request timed out. Check your server connection.",
       "retryOnDevice": "This iPhone could not read the label."
@@ -2849,6 +2858,7 @@
     "removeFailed": "Failed to remove photo"
   },
   "foodForm": {
+    "scanNutritionLabel": "Scan nutrition label",
     "equivalentSizes": "Equivalent sizes",
     "selectUnit": "Select Unit",
     "unit": "unit",
@@ -3991,6 +4001,10 @@
       "default": "Default",
       "retryTitle": "Retry with Open Food Facts",
       "retryDescription": "If no result is found, try Open Food Facts automatically."
+    },
+    "allergens": {
+      "title": "Allergens",
+      "subtitle": "Get warnings on foods and scans that contain allergens you track"
     }
   },
   "workoutComplete": {
@@ -6380,6 +6394,27 @@
       "zone": "Zone {{zone}}",
       "zoneFrom": "from {{bpm}} bpm",
       "minutesAxis": "Minutes from start",
+      "trends": {
+        "title": "Running, last 12 weeks",
+        "thisWeek": "This week",
+        "thisWeekAbove": "This week, {{percent}}% above your recent average",
+        "thisWeekBelow": "This week, {{percent}}% below your recent average",
+        "chartA11y": "Weekly running distance for the last 12 weeks",
+        "longestRun": "Longest run",
+        "efficiency": "Efficiency",
+        "raceTimes": "Race time estimates",
+        "race5k": "5K",
+        "race10k": "10K",
+        "raceHalf": "Half marathon",
+        "raceMarathon": "Marathon",
+        "basis1k": "1K",
+        "basis1mi": "mile",
+        "basis15k": "15K",
+        "yourRecord": "your record",
+        "fromBest": "from your {{distance}}",
+        "raceTimesHint": "Estimates scale your best efforts to each distance. They run optimistic for distances you have not trained for.",
+        "efficiencyHint": "Efficiency is distance per heartbeat on runs of 20 minutes or more, earlier weeks against recent ones. Higher means fitter at the same effort."
+      },
       "kilometersAxis": "Kilometers from start",
       "milesAxis": "Miles from start",
       "bestPace": "Best {{value}}",
@@ -6468,6 +6503,20 @@
       "formLabel": "Form",
       "title": "Readiness and Form",
       "subtitle": "How ready you are today, from training form, sleep and resting heart rate."
+    },
+    "paceZones": {
+      "title": "Pace zones",
+      "perKm": "/km",
+      "perMile": "/mi",
+      "easy": "Easy",
+      "steady": "Steady",
+      "threshold": "Threshold",
+      "interval": "Interval",
+      "repetition": "Repetition",
+      "range": "{{fast}} – {{slow}} {{unit}}",
+      "fromEffort": "Built from your best recent run. Threshold pace is about {{pace}} {{unit}}.",
+      "fromTypical_one": "Estimated from your last {{formattedCount}} run, so less precise. A hard run of 3 km or more sharpens it.",
+      "fromTypical_other": "Estimated from your last {{formattedCount}} runs, so less precise. A hard run of 3 km or more sharpens it."
     }
   },
   "aiSettings": {
@@ -6800,11 +6849,16 @@
       "paceTooSlow": "Too slow. Pick it up.",
       "heartRateTooHigh": "Heart rate high. Ease off.",
       "heartRateTooLow": "Heart rate low. Pick it up.",
+      "meters_one": "{{count}} meter",
+      "meters_other": "{{count}} meters",
+      "intervalToGo": "{{distance}} to go.",
       "stepCountdown": "Three. Two. One.",
       "milestone5k": "5K done. Nice work.",
       "milestone10k": "10K done. Strong effort.",
       "milestoneHalfMarathon": "Half marathon distance. Amazing.",
-      "milestoneMarathon": "Marathon distance. Incredible."
+      "milestoneMarathon": "Marathon distance. Incredible.",
+      "customProgramStart": "Workout {{workout}}. {{time}}.",
+      "customProgramDone": "Workout {{done}} of {{total}} done. Next up, workout {{next}}."
     },
     "autoPause": {
       "title": "Auto-pause",
@@ -6834,6 +6888,7 @@
       "title": "Intervals",
       "description": "Follow timed steps, like run/walk or speed repeats. You are told when to switch.",
       "descriptionNoRun": "Follow timed steps of fast and easy effort. You are told when to switch.",
+      "distanceOutdoorOnly": "Distance repeats need GPS, so they are only offered outdoors.",
       "off": "Off",
       "custom": "Custom",
       "preset": {
@@ -6842,7 +6897,9 @@
         "runWalk5": "Run/walk, 5 minutes",
         "short": "Short repeats",
         "threeMinutes": "3-minute repeats",
-        "fourByFour": "4 × 4 minutes"
+        "fourByFour": "4 × 4 minutes",
+        "sixBy400m": "6 × 400 m",
+        "fiveBy1k": "5 × 1 km"
       },
       "styleRunWalk": "Run / walk",
       "styleFastEasy": "Fast / easy",
@@ -6852,6 +6909,10 @@
       "walk": "Walk",
       "fast": "Fast",
       "easy": "Easy",
+      "byTime": "By time",
+      "byDistance": "By distance",
+      "unitMeters": "Meters",
+      "unitMiles": "Miles",
       "rounds": "Rounds",
       "decrease": "Decrease {{label}}",
       "increase": "Increase {{label}}",
@@ -6903,10 +6964,15 @@
       "weekTitle": "Week {{week}}",
       "pickOption": "{{mark}}Run {{run}} · {{minutes}} min",
       "pickOptionWalk": "{{mark}}Walk {{walk}} · {{minutes}} min",
+      "pickOptionCustom": "{{mark}}{{title}} · {{minutes}} min",
       "doThis": "Do this workout",
       "switchHint": "Follow a plan that builds up week by week. Off by default.",
       "paused": "{{name}} is paused at {{done}} of {{total}} workouts. Switch it on to carry on.",
       "startOver": "Start over",
+      "startOverHint": "Go back to the first workout",
+      "skipHint": "Move on without doing this workout",
+      "scheduleTitle": "Schedule",
+      "manageTitle": "Manage",
       "errors": {
         "update": "Could not update your program"
       },
@@ -6927,7 +6993,8 @@
       "switchTitle": "Switch to {{name}}?",
       "switchMessage": "You will start the new program at week 1. Your place in the current one is not kept.",
       "switchConfirm": "Switch",
-      "startDayPast": "Started {{date}}. Your next workout is scheduled from today."
+      "startDayPast": "Started {{date}}. Your next workout is scheduled from today.",
+      "customWorkoutLabel": "{{name}} · {{workout}}"
     },
     "watch": {
       "title": "Record with",
@@ -6955,6 +7022,10 @@
       "weak": "GPS weak",
       "none": "No GPS"
     },
+    "warmRanges": {
+      "title": "Warm-up and cool-down",
+      "off": "Off"
+    },
     "paceBand": {
       "title": "Pace alert",
       "description": "Buzzes, and speaks with voice cues on, when you stay outside your pace range.",
@@ -6965,7 +7036,9 @@
       "workTitle": "Fast stretch pace",
       "workDescription": "Alerts you when a fast stretch is outside this range.",
       "easyTitle": "Easy stretch pace",
-      "easyDescription": "Alerts you when an easy stretch is outside this range."
+      "easyDescription": "Alerts you when an easy stretch is outside this range.",
+      "warmTitle": "Warm-up and cool-down pace",
+      "warmDescription": "Alerts you when the warm-up or cool-down is outside this range."
     },
     "heartRateBand": {
       "title": "Heart rate alert",
@@ -6978,14 +7051,16 @@
       "workTitle": "Fast stretch heart rate",
       "workDescription": "Alerts you when your heart rate in a fast stretch is outside this range.",
       "easyTitle": "Easy stretch heart rate",
-      "easyDescription": "Alerts you when your heart rate in an easy stretch is outside this range."
+      "easyDescription": "Alerts you when your heart rate in an easy stretch is outside this range.",
+      "warmTitle": "Warm-up and cool-down heart rate",
+      "warmDescription": "Alerts you when your heart rate in the warm-up or cool-down is outside this range."
     },
     "suggestedRanges": {
       "title": "Suggested ranges",
-      "pace": "Pace: fast {{fast}}, easy {{easy}}",
+      "pace": "Pace: fast {{fast}}, easy {{easy}}, warm-up and cool-down {{warm}}",
       "paceSource_one": "Based on your last {{formattedCount}} session.",
       "paceSource_other": "Based on your last {{formattedCount}} sessions.",
-      "heartRate": "Heart rate: fast {{fast}}, easy {{easy}}",
+      "heartRate": "Heart rate: fast {{fast}}, easy {{easy}}, warm-up and cool-down {{warm}}",
       "heartRateSource": "From an estimated maximum of {{max}} bpm for your age.",
       "use": "Use these"
     }
@@ -7536,7 +7611,8 @@
       "countIt": "Count it",
       "start": "Start",
       "title": "Week {{week}}, run {{run}} · {{minutes}} min",
-      "titleWalk": "Week {{week}}, walk {{walk}} · {{minutes}} min"
+      "titleWalk": "Week {{week}}, walk {{walk}} · {{minutes}} min",
+      "titleCustom": "{{title}} · {{minutes}} min"
     },
     "calendar": {
       "title": "Schedule",
@@ -7554,7 +7630,13 @@
       "showAll_other": "Show all {{count}}",
       "showLess": "Show fewer",
       "cutOff_one": "{{count}} workout does not fit before your goal date.",
-      "cutOff_other": "{{count}} workouts do not fit before your goal date."
+      "cutOff_other": "{{count}} workouts do not fit before your goal date.",
+      "catchUp_one": "Skip the next {{count}} workout to finish on {{date}}, in time for your goal. The last workout is never skipped.",
+      "catchUp_other": "Skip the next {{count}} workouts to finish on {{date}}, in time for your goal. The last workout is never skipped.",
+      "catchUpButton_one": "Skip {{count}} workout",
+      "catchUpButton_other": "Skip {{count}} workouts",
+      "tooFar_one": "You are too far behind to catch up by skipping: {{count}} workout will not fit. Add workout days or move your goal date.",
+      "tooFar_other": "You are too far behind to catch up by skipping: {{count}} workouts will not fit. Add workout days or move your goal date."
     },
     "select": {
       "today": "Today's program workout",
@@ -7562,7 +7644,159 @@
       "none": "Training program",
       "setUp": "Set up a program"
     },
-    "partOfProgram": "Part of your training program"
+    "partOfProgram": "Part of your training program",
+    "openCalendar": "Open the program calendar",
+    "openCalendarHint": "Every workout on a month view",
+    "monthGrid": {
+      "previous": "Previous month",
+      "next": "Next month",
+      "dayA11yNone": "{{date}}, no workouts",
+      "dayA11y_one": "{{date}}, {{formattedCount}} workout",
+      "dayA11y_other": "{{date}}, {{formattedCount}} workouts"
+    },
+    "calendarScreen": {
+      "noProgram": "Start a training program to see its calendar.",
+      "progress": "{{done}} of {{total}} workouts done",
+      "doneOn": "Done {{date}}",
+      "done": "Done",
+      "dueOn": "Next · {{date}}",
+      "notScheduled": "Not scheduled",
+      "minutes": "{{minutes}} min",
+      "legendDone": "Done",
+      "legendAhead": "Due or to come",
+      "noWorkoutsDay": "No program workout on this day.",
+      "pickDays_one": "{{count}} more workout is not on the calendar yet. Pick your workout days on the program screen to see when each one falls.",
+      "pickDays_other": "{{count}} more workouts are not on the calendar yet. Pick your workout days on the program screen to see when each one falls.",
+      "pastGoal_one": "{{count}} workout does not fit before your goal date.",
+      "pastGoal_other": "{{count}} workouts do not fit before your goal date.",
+      "allWorkouts": "All workouts",
+      "today": "Today",
+      "due": "Next"
+    },
+    "detail": {
+      "workoutTitle": "Week {{week}}, run {{run}}",
+      "workoutTitleWalk": "Week {{week}}, walk {{walk}}",
+      "notFound": "This workout is not in your program any more.",
+      "openFailed": "Could not open that run",
+      "openFailedHint": "It may have been deleted from your diary.",
+      "repeatTitle": "Repeat this workout?",
+      "repeatMessage": "Your place moves back to this workout. The ones after it come round again.",
+      "jumpTitle": "Make this the next workout?",
+      "jumpMessage": "Your place moves forward to this workout, skipping the ones before it.",
+      "stateDone": "Done",
+      "stateNext": "Next workout",
+      "stateUpcoming": "Coming up",
+      "doneOn": "Done on {{date}}",
+      "scheduledOn": "Scheduled for {{date}}",
+      "notScheduled": "No date yet. Pick your workout days on the program screen.",
+      "totalTime": "Total time",
+      "briskTime": "Brisk walking",
+      "runTime": "Running",
+      "howHard": "How hard it felt",
+      "rating": "{{rating}} out of 10",
+      "steps": "Steps",
+      "viewRun": "View your run",
+      "start": "Start this workout",
+      "repeat": "Repeat this workout",
+      "jump": "Make this the next workout"
+    },
+    "custom": {
+      "workoutNumber": "Workout {{number}}",
+      "optionLabel_one": "{{name}} · {{formattedCount}} workout",
+      "optionLabel_other": "{{name}} · {{formattedCount}} workouts",
+      "workoutCount_one": "{{formattedCount}} workout",
+      "workoutCount_other": "{{formattedCount}} workouts",
+      "kind": {
+        "warmup": "Warm up",
+        "cooldown": "Cool down",
+        "recovery": "Easy",
+        "workWalk": "Brisk walk",
+        "workRun": "Run"
+      },
+      "missing": "This plan is no longer there.",
+      "problem": {
+        "name": "Give the plan a name.",
+        "noWorkouts": "Add at least one workout.",
+        "emptyWorkout": "Every workout needs at least one step."
+      },
+      "saveError": "Could not save your plan",
+      "deleteTitle": "Delete this plan?",
+      "deleteMessage": "If you are following it, you can carry on; it just leaves your list of plans.",
+      "deleteError": "Could not delete your plan",
+      "nameLabel": "Name",
+      "namePlaceholder": "My plan",
+      "activityRun": "Run",
+      "activityWalk": "Walk",
+      "moveUp": "Move earlier",
+      "moveDown": "Move later",
+      "duplicate": "Duplicate workout",
+      "removeWorkout": "Remove workout",
+      "titlePlaceholder": "Name (optional)",
+      "totalMinutes": "{{minutes}} minutes in all",
+      "kindHint": "Changes the kind of step",
+      "shorter": "Shorter",
+      "longer": "Longer",
+      "removeStep": "Remove step",
+      "addStep": "Add a step",
+      "addWorkout": "Add a workout",
+      "delete": "Delete plan",
+      "title": "Your plans",
+      "intro": "Write your own plan as a list of workouts, each made of timed steps, and follow it like any program.",
+      "restart": "Start again",
+      "edit": "Edit",
+      "create": "Create a plan",
+      "paceTarget": "Pace /km",
+      "paceFast": "Fastest pace per kilometre",
+      "paceSlow": "Slowest pace per kilometre",
+      "heartRateTarget": "Heart rate",
+      "heartRateLow": "Lowest heart rate",
+      "heartRateHigh": "Highest heart rate",
+      "targetHint": "Use m:ss for pace and bpm for heart rate, with the two ends at least 10 apart. Empty means no target.",
+      "customize": "Customize this program",
+      "customizeHint": "Copy it as a plan you can edit",
+      "copyName": "{{name}} (my copy)"
+    },
+    "race": {
+      "distance": {
+        "5k": "5K",
+        "10k": "10K",
+        "half": "Half marathon",
+        "marathon": "Marathon"
+      },
+      "level": {
+        "new": "New to running",
+        "some": "Run a little",
+        "regular": "Run regularly",
+        "experienced": "Experienced"
+      },
+      "title": {
+        "easy": "Easy run",
+        "long": "Long run",
+        "tempo": "Tempo run",
+        "intervals": "Intervals",
+        "shakeout": "Shake-out run",
+        "race": "Race day: {{label}}"
+      },
+      "planName": "{{label}} race plan",
+      "saveError": "Could not create your plan",
+      "replaceTitle": "Replace your current program?",
+      "replaceMessage": "The race plan starts now and replaces the program you are following. Your place in it is not kept.",
+      "replaceConfirm": "Replace",
+      "intro": "Pick your race and the days you can run. The plan builds up to race day, with an easier week every fourth week and a taper at the end.",
+      "distanceLabel": "Distance",
+      "levelLabel": "How much do you run now?",
+      "dayLabel": "Race day",
+      "daysLabel": "Days you can run",
+      "daysHint": "Race day is always included. Pick at least two days; three or four suit most people.",
+      "pastDay": "Pick a race day that has not passed.",
+      "summaryTitle": "{{weeks}} weeks to race day",
+      "summaryBody": "{{workouts}} workouts, the longest run about {{long}} minutes.",
+      "estimate": "Race day is planned at about {{minutes}} minutes at an easy pace; you can change it in the plan afterwards.",
+      "tooShort": "That is less time than we suggest: at least {{min}} weeks for this distance. Pick a later race day.",
+      "tooFewDays": "Pick at least two days to run.",
+      "create": "Create and start the plan",
+      "open": "Plan a race"
+    }
   },
   "speechVoice": {
     "automatic": "Automatic (best installed)",
@@ -7684,5 +7918,103 @@
     "next": "Next",
     "distanceKm": "{{value}} km",
     "distanceMiles": "{{value}} mi"
+  },
+  "equipmentHub": {
+    "title": "Equipment",
+    "shoesSubtitle": "Running shoes and their mileage"
+  },
+  "shoes": {
+    "title": "Shoes",
+    "shoe": "Shoe",
+    "noShoe": "No shoe",
+    "add": "Add",
+    "addShoe": "Add shoe",
+    "editShoe": "Edit shoe",
+    "loadFailed": "Could not load your shoes.",
+    "notFound": "Shoe not found.",
+    "assignFailed": "Failed to assign shoe",
+    "empty": "No shoes yet",
+    "emptyHint": "Add a pair, then pick it on a run to start counting its mileage.",
+    "name": "Name",
+    "nameRequired": "Enter a name.",
+    "brand": "Brand",
+    "model": "Model",
+    "nickname": "Nickname",
+    "startingDistance": "Starting mileage ({{unit}})",
+    "startingInvalid": "Enter 0 or more.",
+    "retireAt": "Retire at ({{unit}})",
+    "retireInvalid": "Enter a distance above 0.",
+    "purchaseDate": "Purchase date",
+    "selectDate": "Select date",
+    "clearDate": "Clear date",
+    "purchasePrice": "Price",
+    "priceInvalid": "Enter 0 or more.",
+    "useAsDefault": "Use as my default pair",
+    "useAsDefaultHint": "New recorded runs, outdoor or indoor, are logged with your default pair.",
+    "retire": "Retire",
+    "retirePrompt": "This pair has reached its limit. Retire it?",
+    "limitReachedTitle": "Time for new shoes?",
+    "limitReachedMessage": "{{name}} has reached its mileage limit. Do you want to retire it?",
+    "reactivate": "Reactivate",
+    "retired": "Retired",
+    "retiredSection": "Retired",
+    "wornOut": "Worn out",
+    "ofLimit": "of {{limit}} {{unit}}",
+    "runCount_one": "{{count}} run",
+    "runCount_other": "{{count}} runs",
+    "lastUsed": "last used {{date}}",
+    "updateFailed": "Failed to update shoe",
+    "saveFailed": "Failed to save shoe",
+    "deleteTitle": "Delete this shoe?",
+    "deleteDescription": "Runs logged with this pair stay in your diary, but they will no longer be linked to a shoe."
+  },
+  "allergens": {
+    "trace": "trace: {{name}}",
+    "warningTitle": "Contains an allergen you track",
+    "traceWarningTitle": "May contain an allergen you track",
+    "mayContainTraces": "May contain traces of: {{names}}"
+  },
+  "allergenSettings": {
+    "title": "Allergens",
+    "description": "Add the allergens you want to be warned about. When a food contains one of these, a warning badge appears on foods and diary entries.",
+    "common": "Common allergens",
+    "custom": "Custom allergen",
+    "customPlaceholder": "e.g., lupin, molluscs…",
+    "tracked": "Your tracked allergens",
+    "empty": "No allergens tracked yet. Add some above to get warnings on foods.",
+    "remove": "Remove {{name}}",
+    "alreadyAdded": "Already added",
+    "alreadyAddedDescription": "{{name}} is already in your list.",
+    "errors": {
+      "error": "Error",
+      "updateFailed": "Failed to update allergens."
+    },
+    "sync": {
+      "title": "Sync from OpenFoodFacts",
+      "description": "Fetch allergen data for your saved OpenFoodFacts foods. Only needs to be done once.",
+      "button": "Sync allergens",
+      "complete": "Allergen sync complete",
+      "upToDate": "All your OpenFoodFacts foods already have allergen data.",
+      "result": "Updated {{updated}} of {{total}} food(s).",
+      "failed": "Sync failed",
+      "failedDescription": "Could not sync allergens. Please try again."
+    },
+    "names": {
+      "gluten": "gluten",
+      "wheat": "wheat",
+      "milk": "milk",
+      "eggs": "eggs",
+      "peanuts": "peanuts",
+      "treeNuts": "tree nuts",
+      "soy": "soy",
+      "fish": "fish",
+      "shellfish": "shellfish",
+      "crustaceans": "crustaceans",
+      "sesame": "sesame",
+      "celery": "celery",
+      "mustard": "mustard",
+      "lupin": "lupin",
+      "sulphites": "sulphites"
+    }
   }
 }

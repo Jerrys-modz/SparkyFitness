@@ -1,14 +1,15 @@
 import React, { useRef } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import Button from '../ui/Button';
+import ProgramActionRow, { ProgramActionList } from './ProgramActionRow';
 import Switch from '../ui/Switch';
 import BottomSheetPicker, {
   type PickerOption,
   type PickerSection,
 } from '../BottomSheetPicker';
-import { getAppLocale } from '../../localization';
+import { formatLocalizedNumber, getAppLocale } from '../../localization';
 import CalendarSheet, { type CalendarSheetRef } from '../CalendarSheet';
 import type { ProgramScheduleChange } from '../../services/runProgramService';
 import { toLocalDateString } from '../../utils/dateUtils';
@@ -20,8 +21,29 @@ import {
   programOutline,
   RUN_PROGRAMS,
   type ProgramStatus,
+  type ProgramWorkout,
+  type RunProgram,
   type RunProgramAdjustment,
 } from '@workspace/shared';
+
+/** A program's name: the person's own for a custom one, else the built-in's. */
+export function programTitle(t: TFunction, program: RunProgram): string {
+  return program.custom?.name || programName(t, program.id);
+}
+
+/** "Workout 4" or the person's own name for a workout of a custom program. */
+export function customWorkoutTitle(
+  t: TFunction,
+  workout: ProgramWorkout
+): string {
+  return (
+    workout.title ||
+    t('runPrograms.custom.workoutNumber', {
+      number: workout.week * 7 + workout.day + 1,
+      defaultValue: 'Workout {{number}}',
+    })
+  );
+}
 
 export function programName(t: TFunction, id: string): string {
   switch (id) {
@@ -92,23 +114,51 @@ export function programDescription(t: TFunction, id: string): string {
   }
 }
 
+/** "Week 3, run 2" for a workout of `program`, without the program's name. */
+export function workoutTitle(
+  t: TFunction,
+  program: RunProgram,
+  workout: ProgramWorkout
+): string {
+  if (program.custom) return customWorkoutTitle(t, workout);
+  if (program.activity === 'walk') {
+    return t('runPrograms.detail.workoutTitleWalk', {
+      week: workout.week + 1,
+      walk: workout.day + 1,
+      defaultValue: 'Week {{week}}, walk {{walk}}',
+    });
+  }
+  return t('runPrograms.detail.workoutTitle', {
+    week: workout.week + 1,
+    run: workout.day + 1,
+    defaultValue: 'Week {{week}}, run {{run}}',
+  });
+}
+
 /** "Week 3, run 2" for a program workout. */
 export function programWorkoutLabel(
   t: TFunction,
   status: ProgramStatus
 ): string {
   const workout = status.workout;
-  if (!workout) return programName(t, status.program.id);
+  if (!workout) return programTitle(t, status.program);
+  if (status.program.custom) {
+    return t('recordActivity.program.customWorkoutLabel', {
+      name: programTitle(t, status.program),
+      workout: customWorkoutTitle(t, workout),
+      defaultValue: '{{name}} · {{workout}}',
+    });
+  }
   if (status.program.activity === 'walk') {
     return t('recordActivity.program.workoutLabelWalk', {
-      name: programName(t, status.program.id),
+      name: programTitle(t, status.program),
       week: workout.week + 1,
       walk: workout.day + 1,
       defaultValue: '{{name}} · Week {{week}}, walk {{walk}}',
     });
   }
   return t('recordActivity.program.workoutLabel', {
-    name: programName(t, status.program.id),
+    name: programTitle(t, status.program),
     week: workout.week + 1,
     run: workout.day + 1,
     defaultValue: '{{name}} · Week {{week}}, run {{run}}',
@@ -153,7 +203,32 @@ interface Props {
   startLabel?: string;
   onRestart: () => void;
   onSkip: () => void;
+  /** Fill the start button, for the screen whose main job is starting it. */
+  prominent?: boolean;
 }
+
+const SectionHeading: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => (
+  <Text className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+    {children}
+  </Text>
+);
+
+const InlineLink: React.FC<{
+  onPress: () => void;
+  children: string;
+}> = ({ onPress, children }) => (
+  <Pressable
+    accessibilityRole="button"
+    onPress={onPress}
+    hitSlop={8}
+    className="mr-5"
+    style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+  >
+    <Text className="text-text-link text-sm font-semibold">{children}</Text>
+  </Pressable>
+);
 
 /** Start, follow and leave a multi-week run program. */
 const RunProgramCard: React.FC<Props> = ({
@@ -173,6 +248,7 @@ const RunProgramCard: React.FC<Props> = ({
   startLabel,
   onRestart,
   onSkip,
+  prominent = false,
 }) => {
   const { t } = useTranslation();
   const calendarRef = useRef<CalendarSheetRef>(null);
@@ -213,6 +289,20 @@ const RunProgramCard: React.FC<Props> = ({
     }),
     value: p.id,
   }));
+  // A plan the person wrote is not in the built-in list, but is the one shown.
+  if (status?.program.custom) {
+    programOptions.unshift({
+      label: t('runPrograms.custom.optionLabel', {
+        name: programTitle(t, status.program),
+        count: status.total,
+        formattedCount: formatLocalizedNumber(status.total),
+        defaultValue: '{{name}} · {{formattedCount}} workouts',
+        defaultValue_one: '{{name}} · {{formattedCount}} workout',
+        defaultValue_other: '{{name}} · {{formattedCount}} workouts',
+      }),
+      value: status.program.id,
+    });
+  }
 
   if (!enabled || !status) {
     return (
@@ -231,7 +321,7 @@ const RunProgramCard: React.FC<Props> = ({
         <Text className="text-text-secondary text-xs mt-3">
           {status && status.program.id === programId
             ? t('recordActivity.program.paused', {
-                name: programName(t, status.program.id),
+                name: programTitle(t, status.program),
                 done: status.done,
                 total: status.total,
                 defaultValue:
@@ -277,8 +367,14 @@ const RunProgramCard: React.FC<Props> = ({
         .map((workout, index) => ({ workout, index }))
         .filter(({ workout }) => workout.week === week)
         .map(({ workout, index }) => ({
-          label:
-            status.program.activity === 'walk'
+          label: status.program.custom
+            ? t('recordActivity.program.pickOptionCustom', {
+                title: customWorkoutTitle(t, workout),
+                minutes: planMinutes(workout.plan),
+                mark: index < status.done ? '✓ ' : '',
+                defaultValue: '{{mark}}{{title}} · {{minutes}} min',
+              })
+            : status.program.activity === 'walk'
               ? t('recordActivity.program.pickOptionWalk', {
                   walk: workout.day + 1,
                   minutes: planMinutes(workout.plan),
@@ -315,10 +411,11 @@ const RunProgramCard: React.FC<Props> = ({
   return (
     <View className="bg-surface rounded-xl p-4 mt-4">
       {header}
-      <Text className="text-text-primary text-sm font-semibold mt-3">
+      <View className="h-px bg-border-subtle mt-4" />
+      <Text className="text-text-primary text-lg font-semibold mt-4">
         {status.finished
           ? t('recordActivity.program.finished', {
-              name: programName(t, status.program.id),
+              name: programTitle(t, status.program),
               defaultValue: '{{name}} complete',
             })
           : programWorkoutLabel(t, status)}
@@ -358,36 +455,37 @@ const RunProgramCard: React.FC<Props> = ({
           style={{ width: `${Math.round(fraction * 100)}%` }}
         />
       </View>
-      <View className="flex-row mt-3">
+      <View className="mt-4">
         {status.finished ? (
-          <View className="flex-1 mr-2">
-            <Button variant="outline" onPress={onRestart}>
-              {t('recordActivity.program.restart', {
-                defaultValue: 'Start again',
-              })}
-            </Button>
-          </View>
+          <Button variant="outline" onPress={onRestart}>
+            {t('recordActivity.program.restart', {
+              defaultValue: 'Start again',
+            })}
+          </Button>
         ) : (
-          <View className="flex-1 mr-2">
-            <Button
-              variant={selected ? 'primary' : 'outline'}
-              onPress={onSelect}
-            >
-              {selected
-                ? t('recordActivity.program.using', {
-                    defaultValue: 'Using this workout',
-                  })
-                : (startLabel ??
-                  t('recordActivity.program.doThis', {
-                    defaultValue: 'Do this workout',
-                  }))}
-            </Button>
-          </View>
+          <Button
+            variant={selected || prominent ? 'primary' : 'outline'}
+            onPress={onSelect}
+          >
+            {selected
+              ? t('recordActivity.program.using', {
+                  defaultValue: 'Using this workout',
+                })
+              : (startLabel ??
+                t('recordActivity.program.doThis', {
+                  defaultValue: 'Do this workout',
+                }))}
+          </Button>
         )}
       </View>
       {status.finished ? null : (
-        <View className="mt-3">
-          <Text className="text-text-primary text-sm font-semibold">
+        <View className="mt-6">
+          <SectionHeading>
+            {t('recordActivity.program.scheduleTitle', {
+              defaultValue: 'Schedule',
+            })}
+          </SectionHeading>
+          <Text className="text-text-primary text-sm font-semibold mt-3">
             {t('recordActivity.program.diaryDays', {
               defaultValue: 'Days in your Diary',
             })}
@@ -428,7 +526,8 @@ const RunProgramCard: React.FC<Props> = ({
                     'Pick the days you plan to train, or leave them empty to see the workout every day.',
                 })}
           </Text>
-          <Text className="text-text-primary text-sm font-semibold mt-3">
+          <View className="h-px bg-border-subtle mt-4" />
+          <Text className="text-text-primary text-sm font-semibold mt-4">
             {t('recordActivity.program.startDay', {
               defaultValue: 'First workout',
             })}
@@ -452,27 +551,22 @@ const RunProgramCard: React.FC<Props> = ({
                       'Starts today, {{date}}. Pick a later date if you want to begin then.',
                   })}
           </Text>
-          <View className="flex-row">
-            <Button
-              variant="link"
-              onPress={() => calendarRef.current?.present()}
-            >
+          <View className="flex-row mt-2">
+            <InlineLink onPress={() => calendarRef.current?.present()}>
               {t('recordActivity.program.startChange', {
                 defaultValue: 'Change start date',
               })}
-            </Button>
+            </InlineLink>
             {hasStart ? (
-              <Button
-                variant="link"
-                onPress={() => onSchedule({ startDay: null })}
-              >
+              <InlineLink onPress={() => onSchedule({ startDay: null })}>
                 {t('recordActivity.program.startClear', {
                   defaultValue: 'Start today',
                 })}
-              </Button>
+              </InlineLink>
             ) : null}
           </View>
-          <Text className="text-text-primary text-sm font-semibold mt-1">
+          <View className="h-px bg-border-subtle mt-4" />
+          <Text className="text-text-primary text-sm font-semibold mt-4">
             {t('recordActivity.program.goalDay', {
               defaultValue: 'Goal date',
             })}
@@ -489,11 +583,8 @@ const RunProgramCard: React.FC<Props> = ({
                     'Optional, for example a race day. The schedule below says whether the program fits before it.',
                 })}
           </Text>
-          <View className="flex-row">
-            <Button
-              variant="link"
-              onPress={() => goalCalendarRef.current?.present()}
-            >
+          <View className="flex-row mt-2">
+            <InlineLink onPress={() => goalCalendarRef.current?.present()}>
               {schedule.endDay
                 ? t('recordActivity.program.goalChange', {
                     defaultValue: 'Change goal date',
@@ -501,63 +592,80 @@ const RunProgramCard: React.FC<Props> = ({
                 : t('recordActivity.program.goalPick', {
                     defaultValue: 'Set a goal date',
                   })}
-            </Button>
+            </InlineLink>
             {schedule.endDay ? (
-              <Button
-                variant="link"
-                onPress={() => onSchedule({ endDay: null })}
-              >
+              <InlineLink onPress={() => onSchedule({ endDay: null })}>
                 {t('recordActivity.program.goalClear', {
                   defaultValue: 'Clear',
                 })}
-              </Button>
+              </InlineLink>
             ) : null}
           </View>
         </View>
       )}
-      <BottomSheetPicker<string>
-        value={programId}
-        options={programOptions}
-        onSelect={onChooseProgram}
-        title={t('recordActivity.program.chooseTitle', {
-          defaultValue: 'Choose a program',
-        })}
-        renderTrigger={({ onPress }) => (
-          <Button variant="link" onPress={onPress}>
-            {t('recordActivity.program.change', {
-              defaultValue: 'Change program',
+      <View className="mt-6">
+        <SectionHeading>
+          {t('recordActivity.program.manageTitle', {
+            defaultValue: 'Manage',
+          })}
+        </SectionHeading>
+        <ProgramActionList>
+          <BottomSheetPicker<string>
+            value={programId}
+            options={programOptions}
+            onSelect={onChooseProgram}
+            title={t('recordActivity.program.chooseTitle', {
+              defaultValue: 'Choose a program',
             })}
-          </Button>
-        )}
-      />
-      <BottomSheetPicker<number>
-        value={Math.min(status.done, status.total - 1)}
-        sections={sections}
-        onSelect={onPickWorkout}
-        title={t('recordActivity.program.pickTitle', {
-          defaultValue: 'Choose a workout',
-        })}
-        renderTrigger={({ onPress }) => (
-          <Button variant="link" onPress={onPress}>
-            {t('recordActivity.program.pick', {
-              defaultValue: 'Choose a different workout',
+            renderTrigger={({ onPress }) => (
+              <ProgramActionRow
+                onPress={onPress}
+                label={t('recordActivity.program.change', {
+                  defaultValue: 'Change program',
+                })}
+              />
+            )}
+          />
+          <BottomSheetPicker<number>
+            value={Math.min(status.done, status.total - 1)}
+            sections={sections}
+            onSelect={onPickWorkout}
+            title={t('recordActivity.program.pickTitle', {
+              defaultValue: 'Choose a workout',
             })}
-          </Button>
-        )}
-      />
-      <View className="flex-row mt-1">
-        {status.finished ? null : (
-          <Button variant="link" onPress={onSkip}>
-            {t('recordActivity.program.skip', { defaultValue: 'Skip' })}
-          </Button>
-        )}
-        {status.done > 0 ? (
-          <Button variant="link" onPress={onRestart}>
-            {t('recordActivity.program.startOver', {
-              defaultValue: 'Start over',
-            })}
-          </Button>
-        ) : null}
+            renderTrigger={({ onPress }) => (
+              <ProgramActionRow
+                onPress={onPress}
+                label={t('recordActivity.program.pick', {
+                  defaultValue: 'Choose a different workout',
+                })}
+              />
+            )}
+          />
+          {status.finished ? null : (
+            <ProgramActionRow
+              onPress={onSkip}
+              chevron={false}
+              label={t('recordActivity.program.skip', { defaultValue: 'Skip' })}
+              hint={t('recordActivity.program.skipHint', {
+                defaultValue: 'Move on without doing this workout',
+              })}
+            />
+          )}
+          {status.done > 0 ? (
+            <ProgramActionRow
+              onPress={onRestart}
+              chevron={false}
+              destructive
+              label={t('recordActivity.program.startOver', {
+                defaultValue: 'Start over',
+              })}
+              hint={t('recordActivity.program.startOverHint', {
+                defaultValue: 'Go back to the first workout',
+              })}
+            />
+          ) : null}
+        </ProgramActionList>
       </View>
       <CalendarSheet
         ref={goalCalendarRef}
