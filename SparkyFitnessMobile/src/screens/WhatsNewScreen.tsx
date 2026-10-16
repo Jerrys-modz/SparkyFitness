@@ -8,7 +8,9 @@ import Icon, { type IconName } from '../components/Icon';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
-import { getTodayDate } from '../utils/dateUtils';
+import { getWhatsNewReleases } from '../constants/whatsNewReleases';
+import { getAppLocale } from '../localization/i18n';
+import { formatDate, getTodayDate } from '../utils/dateUtils';
 import { canUseLiquidGlass } from '../utils/liquidGlass';
 import type { RootStackScreenProps } from '../types/navigation';
 
@@ -567,6 +569,8 @@ const WhatsNewScreen: React.FC<WhatsNewScreenProps> = ({ navigation }) => {
   // so its card is gated on the same capability check the setting uses.
   const showLiquidGlassCard = canUseLiquidGlass();
 
+  const releases = getWhatsNewReleases(t);
+
   // Added or changed a card below? Bump WHATS_NEW_CONTENT_VERSION in
   // services/whatsNewBanner.ts so the banner re-appears for existing users.
   const features: Feature[] = [
@@ -752,6 +756,46 @@ const WhatsNewScreen: React.FC<WhatsNewScreenProps> = ({ navigation }) => {
                 </Pressable>
               ) : null}
             </View>
+          </View>
+        ))}
+
+        <Text className="text-xs font-semibold tracking-wider text-text-secondary mt-2 mb-3 px-1">
+          {t('whatsNewPage.releases.heading', {
+            defaultValue: 'RELEASE NOTES',
+          })}
+        </Text>
+        {releases.map((release) => (
+          <View
+            key={release.version}
+            className="bg-surface rounded-xl mb-4 shadow-sm p-4"
+          >
+            <Text className="text-xs font-semibold tracking-wider text-accent-primary mb-1">
+              {t('whatsNewPage.releases.versionLine', {
+                defaultValue: 'VERSION {{version}} · {{date}}',
+                version: release.version,
+                date: formatDate(release.date, getAppLocale()),
+              })}
+            </Text>
+            <Text className="text-lg font-bold text-text-primary mb-2">
+              {release.title}
+            </Text>
+            {release.groups.map((group) => (
+              <View key={group.heading} className="mt-2">
+                <Text className="text-sm font-semibold text-text-primary mb-1">
+                  {group.heading}
+                </Text>
+                {group.bullets.map((bullet) => (
+                  <View key={bullet} className="flex-row mb-1">
+                    <Text className="text-text-secondary text-sm leading-5 mr-2">
+                      {'\u2022'}
+                    </Text>
+                    <Text className="flex-1 text-text-secondary text-sm leading-5">
+                      {bullet}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ))}
           </View>
         ))}
       </ScrollView>

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-15_
+_Last updated: 2026-10-16_
 
 SparkyFitness Mobile is a React Native 0.86 + Expo SDK 57 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
 
@@ -83,6 +83,12 @@ npx expo prebuild --clean
 - `useNavigationActionGuard` locks navigation-triggering actions while a native-stack transition is running (idle-callback unlock on re-focus, 5s safety release) so double-taps cannot queue duplicate screens; Library create actions use it.
 - `ActiveWorkoutBar` is mounted outside normal screen trees, uses the root navigation ref, and hides itself on modal/editor routes such as food search/forms/scan/photo, exercise search, workout/activity add, measurements, mindfulness log, and barcode edit.
 - Most screens are wrapped with `withErrorBoundary(...)`; `SettingsScreen` also uses section-level recovery so settings remain reachable.
+
+## What's New release notes
+
+- The release-notes section of `WhatsNewScreen` renders `getWhatsNewReleases(t)` from `src/constants/whatsNewReleases.ts`, newest release first. Each entry is `{ version, date, title, groups: [{ heading, bullets }] }`.
+- To add an entry when a release ships (the release-please PR bumps `package.json`): add it at the top of the array with the new `version` and release `date`, write plain user-facing bullets (features users can see, not internal changes; take the list from the release's `CHANGELOG.md` section and drop server, docs and CI items), use static `t('whatsNewPage.releases.v<x_y_z>.<group>.<item>', { defaultValue })` calls, add the same strings to `src/localization/locales/en/translation.json` only, and bump `WHATS_NEW_CONTENT_VERSION` in `services/whatsNewBanner.ts` so the banner shows again.
+- `__tests__/constants/whatsNewReleases.test.ts` fails when the newest entry is older than the version in `package.json`, so a version bump without release notes is caught in CI. Only list features that are on `main`.
 
 ## Source Map
 

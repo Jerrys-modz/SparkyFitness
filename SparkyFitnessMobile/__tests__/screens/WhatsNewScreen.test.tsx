@@ -75,6 +75,19 @@ describe('WhatsNewScreen localization', () => {
     expect(navigation.navigate).toHaveBeenCalledWith('MedicationsList');
   });
 
+  it('renders the latest release notes from the releases data', () => {
+    render(<WhatsNewScreen navigation={navigation} route={route} />);
+
+    expect(screen.getByText('RELEASE NOTES')).toBeTruthy();
+    expect(screen.getByText(/^VERSION 1\.8\.0 · /)).toBeTruthy();
+    expect(
+      screen.getByText('Mindfulness, shortcuts and supplements')
+    ).toBeTruthy();
+    expect(
+      screen.getByText('Health Trends charts now draw your goal for each day.')
+    ).toBeTruthy();
+  });
+
   it('renders Polish feature and mockup copy after switching language', async () => {
     await i18n.changeLanguage('pl');
     render(<WhatsNewScreen navigation={navigation} route={route} />);

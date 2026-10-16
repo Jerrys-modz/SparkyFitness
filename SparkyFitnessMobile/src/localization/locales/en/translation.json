@@ -3119,6 +3119,40 @@
         "body": "Estimate nutrition from a photo when you're short on time.",
         "cta": "Try it out"
       }
+    },
+    "releases": {
+      "heading": "RELEASE NOTES",
+      "versionLine": "VERSION {{version}} · {{date}}",
+      "v1_8_0": {
+        "title": "Mindfulness, shortcuts and supplements",
+        "tracking": {
+          "heading": "Tracking",
+          "mindfulness": "Log mindfulness sessions, use paced breathing and a meditation timer, and see your practice on the dashboard.",
+          "symptoms": "Track symptoms with a new dashboard card and see patterns in your history.",
+          "fasting": "Fasts can now be worked out from your meal logs, with eating window tracking and a richer fasting card on the dashboard.",
+          "supplements": "Add and edit supplements alongside your medications. Reminders scheduled for the same time now arrive as one notification.",
+          "goalLines": "Health Trends charts now draw your goal for each day."
+        },
+        "workouts": {
+          "heading": "Workouts and Apple Watch",
+          "heartRate": "See your watch heart rate live during a workout, and the time you spent in each heart-rate zone afterward.",
+          "routes": "Cardio routes are now drawn over a map.",
+          "bodyweight": "Log bodyweight exercises with added or assisted weight, and check your training consistency over time.",
+          "restChime": "The rest-timer chime plays even in silent mode, and in the background on iPhone. Your watch buzzes when rest ends.",
+          "watch": "On Apple Watch, enter weight and reps with the Digital Crown, complete a set with a double-tap, start a saved workout from your wrist, and choose which watch pages to show."
+        },
+        "shortcuts": {
+          "heading": "Shortcuts and scanning",
+          "quickActions": "Press and hold the app icon to scan food, log food, log water or manage a fast.",
+          "siri": "Use Siri and Shortcuts to log water, log your weight, and start or end a fast without opening the app.",
+          "labelScan": "On iOS 27, nutrition labels can be read on your device, and the scan shows whether it was read on your device or by the server."
+        },
+        "polish": {
+          "heading": "Everyday polish",
+          "dates": "The date bar and header are color-coded for past, current and future days, and Today and Yesterday labels are back.",
+          "passkeys": "Passkey sign-in is hidden when your server has turned passkeys off."
+        }
+      }
     }
   },
   "cycleOnboarding": {
