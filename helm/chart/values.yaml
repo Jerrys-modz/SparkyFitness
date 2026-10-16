@@ -57,6 +57,17 @@ config:
   # extraTrustedOrigins: "http://localhost:3004"
   extraTrustedOrigins: ""
 
+  # -- Route generation (optional). Leave `url` empty to keep the feature off.
+  routing:
+    # -- Base URL of the routing engine (e.g. http://valhalla:8002)
+    url: ""
+    # -- Routing engine kind; only "valhalla" is supported
+    provider: "valhalla"
+    # -- Optional existing Secret holding the engine's API key (hosted engines only)
+    apiKeySecret:
+      name: ""
+      key: "api_key"
+
   # -- Force email/password login to be enabled (fail-safe against OIDC lockout)
   forceEmailLogin: true
   # -- Hide email/password login on login page (overridden by forceEmailLogin)
