@@ -40,6 +40,7 @@ import { useAuth } from '@/hooks/useAuth';
 import type { ExerciseOwnershipFilter } from '@/types/exercises';
 import { localizeMuscle, localizeEquipment } from '@/utils/exerciseTaxonomy';
 import WorkoutPresetsManager from './WorkoutPresetsManager';
+import EquipmentManager from '@/pages/Exercises/EquipmentManager';
 import WorkoutPlansManager from '@/pages/Exercises/WorkoutPlansManager';
 import {
   useExercises,
@@ -686,6 +687,9 @@ const ExerciseDatabaseManager = () => {
 
       {/* Workout Plans Section */}
       <WorkoutPlansManager />
+
+      {/* Equipment Section (shoes and their mileage) */}
+      <EquipmentManager />
 
       <AddExerciseDialog
         open={isAddExerciseDialogOpen}

@@ -55,6 +55,7 @@ import {
   hasSeenFoodPhotoIntro,
   markFoodPhotoIntroSeen,
 } from '../services/foodPhotoIntro';
+import { addLog } from '../services/LogService';
 
 type FoodScanScreenProps = RootStackScreenProps<'FoodScan'>;
 
@@ -490,7 +491,11 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
         return;
       }
       setCapturedPhoto(prepared);
-    } catch {
+    } catch (error) {
+      addLog(
+        `[Food Scan] Label camera capture failed: ${error instanceof Error ? error.message : String(error)}`,
+        'ERROR'
+      );
       Toast.show({
         type: 'error',
         text1: t('common.error', { defaultValue: 'Error' }),
@@ -546,14 +551,22 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
         return;
       }
       setCapturedPhoto(prepared);
-    } catch {
-      const msg = t('foodScan.errors.loadPhoto', {
-        defaultValue: 'Failed to load photo.',
-      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      addLog(`[Food Scan] Label pick from library failed: ${message}`, 'ERROR');
+      const isLauncherError = message.includes(
+        'unregistered ActivityResultLauncher'
+      );
       Toast.show({
         type: 'error',
         text1: t('common.error', { defaultValue: 'Error' }),
-        text2: msg,
+        text2: isLauncherError
+          ? t('foodScan.errors.restartApp', {
+              defaultValue: 'Unable to open gallery. Please restart the app.',
+            })
+          : t('foodScan.errors.loadPhoto', {
+              defaultValue: 'Failed to load photo.',
+            }),
       });
       returnToLabelEditor();
     } finally {
@@ -776,14 +789,22 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
           mealTypeId: mealTypeId ?? undefined,
         },
       });
-    } catch {
-      const msg = t('foodScan.errors.loadPhoto', {
-        defaultValue: 'Failed to load photo.',
-      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      addLog(`[Food Scan] Photo pick from library failed: ${message}`, 'ERROR');
+      const isLauncherError = message.includes(
+        'unregistered ActivityResultLauncher'
+      );
       Toast.show({
         type: 'error',
         text1: t('common.error', { defaultValue: 'Error' }),
-        text2: msg,
+        text2: isLauncherError
+          ? t('foodScan.errors.restartApp', {
+              defaultValue: 'Unable to open gallery. Please restart the app.',
+            })
+          : t('foodScan.errors.loadPhoto', {
+              defaultValue: 'Failed to load photo.',
+            }),
       });
     } finally {
       pickerLock.current = false;

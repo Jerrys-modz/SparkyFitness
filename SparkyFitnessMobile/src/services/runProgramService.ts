@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
+  suggestFromEffort,
+  type EffortSuggestion,
   pendingEffortRating,
   storedProgramStatus,
   type CustomRunProgramInput,
@@ -252,6 +254,8 @@ export function useRunProgram(): {
   doneDay: string | null;
   /** The latest program workout still waiting to be rated, if recent. */
   pendingEffort: { programId: string; index: number } | null;
+  /** What the last two rated workouts say about pace: ease off, move on or neither. */
+  effortSuggestion: EffortSuggestion | null;
   loaded: boolean;
   refetch: () => Promise<unknown>;
 } {
@@ -279,6 +283,9 @@ export function useRunProgram(): {
       pending && data
         ? { programId: data.program_id, index: pending.index }
         : null,
+    effortSuggestion: data
+      ? suggestFromEffort(data.effort_log, data.next_index)
+      : null,
     loaded: isSuccess,
     refetch,
   };
