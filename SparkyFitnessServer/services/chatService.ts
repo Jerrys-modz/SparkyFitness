@@ -2088,20 +2088,16 @@ async function processChatMessage(
       aiService.system_prompt,
       latestImageDataUrl,
       aiService.id,
-      aiService.service_type === 'openai' && /^gpt-6(?:[.-]|$)/.test(modelName)
-        ? createOpenAI({ apiKey: aiService.api_key }).tools.webSearch({
-            searchContextSize: 'high',
-          })
-        : undefined,
+      buildFoodResearchTool(
+        aiService.service_type,
+        modelName,
+        aiService.api_key
+      ),
       extractMessageText(
         [...messages].reverse().find((message) => message.role === 'user') ?? {
           role: 'user',
           content: '',
         }
-      buildFoodResearchTool(
-        aiService.service_type,
-        modelName,
-        aiService.api_key
       )
     );
 
@@ -2624,20 +2620,16 @@ async function processChatMessageStream(
       aiService.system_prompt,
       latestImageDataUrl,
       aiService.id,
-      aiService.service_type === 'openai' && /^gpt-6(?:[.-]|$)/.test(modelName)
-        ? createOpenAI({ apiKey: aiService.api_key }).tools.webSearch({
-            searchContextSize: 'high',
-          })
-        : undefined,
+      buildFoodResearchTool(
+        aiService.service_type,
+        modelName,
+        aiService.api_key
+      ),
       extractMessageText(
         [...messages].reverse().find((message) => message.role === 'user') ?? {
           role: 'user',
           content: '',
         }
-      buildFoodResearchTool(
-        aiService.service_type,
-        modelName,
-        aiService.api_key
       )
     );
 
