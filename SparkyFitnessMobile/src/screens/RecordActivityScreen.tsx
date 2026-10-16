@@ -22,6 +22,7 @@ import Toast from 'react-native-toast-message';
 
 import Button from '../components/ui/Button';
 import FormInput from '../components/FormInput';
+import ProgramActionRow from '../components/recording/ProgramActionRow';
 import RecordingSwitchRow from '../components/recording/RecordingSwitchRow';
 import HeartRateBandCard from '../components/recording/HeartRateBandCard';
 import SuggestedRangesCard from '../components/recording/SuggestedRangesCard';
@@ -374,6 +375,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     const preset = INTERVAL_PRESETS.find((p) => p.id === intervalChoice);
     if (preset && usesWorkDistance(preset.options)) setIntervalChoice('off');
   }, [indoor, intervalChoice, customIntervals]);
+  const [warmOpen, setWarmOpen] = useState(false);
   const warmBand = warmPace.band ?? defaultWarmPaceBand(distanceUnit);
   const basePlan = useMemo<IntervalPlan | undefined>(() => {
     if (intervalChoice === 'off') return undefined;
@@ -396,6 +398,22 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const workHeartRateBand = workHeartRate.band ?? DEFAULT_WORK_HEART_RATE_BAND;
   const easyHeartRateBand = easyHeartRate.band ?? DEFAULT_EASY_HEART_RATE_BAND;
   const warmHeartRateBand = warmHeartRate.band ?? DEFAULT_WARM_HEART_RATE_BAND;
+  const warmParts: string[] = [];
+  if (warmPace.enabled) {
+    const unitLabel = distanceUnit === 'miles' ? '/mi' : '/km';
+    warmParts.push(
+      `${formatClock(warmBand.fastest)}–${formatClock(warmBand.slowest)}${unitLabel}`
+    );
+  }
+  if (warmHeartRate.enabled && watchAvailable) {
+    warmParts.push(
+      `${warmHeartRateBand.minBpm}–${warmHeartRateBand.maxBpm} bpm`
+    );
+  }
+  const warmSummary =
+    warmParts.length > 0
+      ? warmParts.join(' · ')
+      : t('recordActivity.warmRanges.off', { defaultValue: 'Off' });
   const currentHeartRateBand = heartRateBand ?? DEFAULT_HEART_RATE_BAND;
   const intervalPlan = useMemo<IntervalPlan | undefined>(
     () =>
@@ -1289,25 +1307,6 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
                 }
                 unit={distanceUnit}
               />
-              <PaceBandCard
-                testIDPrefix="warm-pace"
-                title={t('recordActivity.paceBand.warmTitle', {
-                  defaultValue: 'Warm-up and cool-down pace',
-                })}
-                description={t('recordActivity.paceBand.warmDescription', {
-                  defaultValue:
-                    'Alerts you when the warm-up or cool-down is outside this range.',
-                })}
-                enabled={warmPace.enabled}
-                onEnabledChange={(enabled) =>
-                  setWarmPace((current) => ({ ...current, enabled }))
-                }
-                band={warmBand}
-                onBandChange={(band) =>
-                  setWarmPace((current) => ({ ...current, band }))
-                }
-                unit={distanceUnit}
-              />
               {watchAvailable ? (
                 <>
                   <HeartRateBandCard
@@ -1352,27 +1351,62 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
                       setEasyHeartRate((current) => ({ ...current, band }))
                     }
                   />
-                  <HeartRateBandCard
-                    testIDPrefix="warm-hr"
-                    title={t('recordActivity.heartRateBand.warmTitle', {
-                      defaultValue: 'Warm-up and cool-down heart rate',
+                </>
+              ) : null}
+              <View className="bg-surface rounded-xl px-4 mt-4">
+                <ProgramActionRow
+                  testID="warm-ranges-toggle"
+                  label={t('recordActivity.warmRanges.title', {
+                    defaultValue: 'Warm-up and cool-down',
+                  })}
+                  hint={warmSummary}
+                  onPress={() => setWarmOpen((open) => !open)}
+                />
+              </View>
+              {warmOpen ? (
+                <>
+                  <PaceBandCard
+                    testIDPrefix="warm-pace"
+                    title={t('recordActivity.paceBand.warmTitle', {
+                      defaultValue: 'Warm-up and cool-down pace',
                     })}
-                    description={t(
-                      'recordActivity.heartRateBand.warmDescription',
-                      {
-                        defaultValue:
-                          'Alerts you when your heart rate in the warm-up or cool-down is outside this range.',
-                      }
-                    )}
-                    enabled={warmHeartRate.enabled}
+                    description={t('recordActivity.paceBand.warmDescription', {
+                      defaultValue:
+                        'Alerts you when the warm-up or cool-down is outside this range.',
+                    })}
+                    enabled={warmPace.enabled}
                     onEnabledChange={(enabled) =>
-                      setWarmHeartRate((current) => ({ ...current, enabled }))
+                      setWarmPace((current) => ({ ...current, enabled }))
                     }
-                    band={warmHeartRateBand}
+                    band={warmBand}
                     onBandChange={(band) =>
-                      setWarmHeartRate((current) => ({ ...current, band }))
+                      setWarmPace((current) => ({ ...current, band }))
                     }
+                    unit={distanceUnit}
                   />
+                  {watchAvailable ? (
+                    <HeartRateBandCard
+                      testIDPrefix="warm-hr"
+                      title={t('recordActivity.heartRateBand.warmTitle', {
+                        defaultValue: 'Warm-up and cool-down heart rate',
+                      })}
+                      description={t(
+                        'recordActivity.heartRateBand.warmDescription',
+                        {
+                          defaultValue:
+                            'Alerts you when your heart rate in the warm-up or cool-down is outside this range.',
+                        }
+                      )}
+                      enabled={warmHeartRate.enabled}
+                      onEnabledChange={(enabled) =>
+                        setWarmHeartRate((current) => ({ ...current, enabled }))
+                      }
+                      band={warmHeartRateBand}
+                      onBandChange={(band) =>
+                        setWarmHeartRate((current) => ({ ...current, band }))
+                      }
+                    />
+                  ) : null}
                 </>
               ) : null}
             </>
