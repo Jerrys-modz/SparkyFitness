@@ -15,6 +15,9 @@ export interface FoodCreateProgress {
   attemptedVariantKeys?: string[];
 }
 
+/** Draft indices refer to the complete variants array submitted to saveFood. */
+export type ManagedFoodPortion = { id: string } | { draftIndex: number };
+
 function variantKey(variant: FoodVariant): string {
   return `${Number(variant.serving_size)}|${variant.serving_unit.trim().toLocaleLowerCase()}`;
 }
@@ -30,11 +33,18 @@ function referenceSignature(variant: FoodVariant | undefined): string {
 function rebaseManagedPortions(
   variants: FoodVariant[],
   reference: FoodVariant | undefined,
-  managedUnits: readonly string[] = []
+  managedPortions: readonly ManagedFoodPortion[] = []
 ): FoodVariant[] {
   if (!reference) return variants;
-  return variants.map((variant) => {
-    if (!managedUnits.includes(variant.serving_unit)) return variant;
+  return variants.map((variant, index) => {
+    if (
+      !managedPortions.some((selection) =>
+        'id' in selection
+          ? selection.id === variant.id
+          : !variant.id && selection.draftIndex === index
+      )
+    )
+      return variant;
     const definition = parseNamedFoodPortion(variant.serving_unit);
     if (!definition) return variant;
     const portion = buildNamedFoodPortion(reference, {
@@ -120,7 +130,7 @@ export const saveFood = async (
   onFoodPersisted?: (food: Food) => void,
   options: {
     createProgress?: FoodCreateProgress;
-    managedPortionUnits?: readonly string[];
+    managedPortions?: readonly ManagedFoodPortion[];
   } = {}
 ): Promise<Food> => {
   let savedFood: Food;
@@ -183,10 +193,10 @@ export const saveFood = async (
       ? [
           ...(updatedReference ? [updatedReference] : []),
           ...rebaseManagedPortions(
-            variants.slice(1),
+            variants,
             updatedReference ?? storedReference ?? variants[0],
-            options.managedPortionUnits
-          ),
+            options.managedPortions
+          ).slice(1),
         ]
       : variants;
 
@@ -402,13 +412,13 @@ export const saveFood = async (
 
     // Insert additional variants (starting from the second variant)
     let additionalVariants = rebaseManagedPortions(
-      variants.slice(1),
+      variants,
       savedFood.default_variant ?? primaryVariant,
-      options.managedPortionUnits
-    );
+      options.managedPortions
+    ).slice(1);
     if (
       additionalVariants.length > 0 &&
-      (progress || options.managedPortionUnits?.length)
+      (progress || options.managedPortions?.length)
     ) {
       const baseline = await loadFoodVariants(savedFood.id);
       if (progress) {

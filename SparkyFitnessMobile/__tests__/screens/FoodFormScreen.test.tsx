@@ -613,6 +613,100 @@ describe('FoodFormScreen', () => {
     );
   });
 
+  it.each([
+    {
+      change: 'added',
+      behavior: 'preserves a named portion added by a later refetch',
+    },
+    {
+      change: 'removed',
+      behavior:
+        'deletes an explicitly removed portion omitted by a later refetch',
+    },
+  ])('$behavior', async ({ change }) => {
+    const reference: FoodVariantDetail = {
+      id: 'grams',
+      food_id: 'food-1',
+      serving_size: 100,
+      serving_unit: 'g',
+      calories: 200,
+      protein: 10,
+      carbs: 20,
+      fat: 5,
+      is_default: true,
+    };
+    const packet: FoodVariantDetail = {
+      ...reference,
+      id: 'packet',
+      is_default: false,
+      serving_size: 1,
+      serving_unit: 'packet (150 g)',
+      calories: 300,
+      protein: 15,
+      carbs: 30,
+      fat: 7.5,
+    };
+    let rows = [reference, packet];
+    mockUseFoodVariants.mockReturnValue({
+      variants: change === 'added' ? [reference] : rows,
+      isLoading: false,
+      isError: false,
+    });
+    jest.mocked(fetchFoodVariants).mockImplementation(async () => rows);
+    jest.mocked(deleteFoodVariant).mockImplementation(async (id) => {
+      rows = rows.filter((row) => row.id !== id);
+      return {};
+    });
+    const params: React.ComponentProps<
+      typeof FoodFormScreen
+    >['route']['params'] = {
+      mode: 'edit-food',
+      foodId: 'food-1',
+      variantId: 'grams',
+      returnKey: 'FoodDetail-key',
+      initialValues: mockSubmittedFoodFormData,
+      customNutrients: null,
+      item: {
+        id: 'food-1',
+        name: 'Custom Meal Food',
+        brand: 'Brand Co',
+        source: 'local',
+        servingSize: 100,
+        servingUnit: 'g',
+        calories: 200,
+        protein: 10,
+        carbs: 20,
+        fat: 5,
+        originalItem: {},
+      },
+    };
+    const screen = renderScreen(params);
+    if (change === 'removed') {
+      fireEvent.press(screen.getByText('Apply Portion Fixture'));
+    }
+    mockUseFoodVariants.mockReturnValue({
+      variants: change === 'added' ? rows : [reference],
+      isLoading: false,
+      isError: false,
+    });
+    screen.rerender(
+      <SafeAreaProvider initialMetrics={{ insets, frame }}>
+        <FoodFormScreen
+          navigation={navigation}
+          route={{ key: 'FoodForm-key', name: 'FoodForm', params }}
+        />
+      </SafeAreaProvider>
+    );
+
+    fireEvent.press(screen.getByText('Save'));
+
+    await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
+    expect(rows).toEqual(
+      change === 'added' ? [reference, packet] : [reference]
+    );
+    expect(updateFoodEntriesSnapshot).not.toHaveBeenCalled();
+  });
+
   it.each(['update', 'remove'])(
     'reconciles previously saved equivalents on a changed retry: %s',
     async (action) => {

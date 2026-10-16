@@ -27,19 +27,22 @@ export default function NamedFoodPortionsSection({
   const [amount, setAmount] = useState('');
   const unit = getFoodPortionUnit(servingUnit);
   const parsedAmount = parseDecimalInput(amount);
+  const normalizedName = name.trim().replace(/\s+/g, ' ');
   const valid =
     !!unit &&
-    !!name.trim() &&
-    name.trim().length <= 80 &&
+    !!normalizedName &&
+    normalizedName.length <= 80 &&
     !/[()\r\n]/.test(name) &&
     Number.isFinite(parsedAmount) &&
     parsedAmount > 0 &&
     !items.some(
-      (item) => item.name.toLowerCase() === name.trim().toLowerCase()
+      (item) =>
+        item.name.trim().replace(/\s+/g, ' ').toLowerCase() ===
+        normalizedName.toLowerCase()
     );
   const add = () => {
     if (!valid || !unit) return;
-    onChange([...items, { name: name.trim(), amount: parsedAmount, unit }]);
+    onChange([...items, { name: normalizedName, amount: parsedAmount, unit }]);
     setName('');
     setAmount('');
     setAdding(false);

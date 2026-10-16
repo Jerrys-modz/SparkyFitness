@@ -863,6 +863,15 @@ export function groupEquivalentVariants<
 function separateNamedPortion(a: ServingIdentity, b: ServingIdentity): boolean {
   const namedA = parseNamedFoodPortion(a.serving_unit ?? '');
   const namedB = parseNamedFoodPortion(b.serving_unit ?? '');
+  if (namedA && namedB) {
+    return (
+      a.serving_size !== b.serving_size ||
+      namedA.amount !== namedB.amount ||
+      namedA.unit !== namedB.unit ||
+      namedA.name.replace(/\s+/g, ' ').toLowerCase() !==
+        namedB.name.replace(/\s+/g, ' ').toLowerCase()
+    );
+  }
   return Boolean(
     (namedA || namedB) && servingVariantKey(a) !== servingVariantKey(b)
   );

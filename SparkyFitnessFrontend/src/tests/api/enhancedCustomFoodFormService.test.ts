@@ -41,6 +41,117 @@ describe('enhancedCustomFoodFormService', () => {
     mockApiCall.mockReset();
   });
 
+  it.each([1, 2])(
+    'rebases only the selected saved row when another row shares its unit at size %s',
+    async (customSize) => {
+      const reference = createVariant({
+        id: 'reference',
+        serving_size: 100,
+        serving_unit: 'g',
+        calories: 200,
+        is_default: true,
+      });
+      const calculated = createVariant({
+        id: 'calculated-packet',
+        serving_unit: 'packet (150 g)',
+        calories: 150,
+      });
+      const custom = createVariant({
+        id: 'custom-packet',
+        serving_size: customSize,
+        serving_unit: 'packet (150 g)',
+        calories: 777,
+      });
+      const saved = createFood({
+        id: 'saved-food',
+        default_variant: reference,
+      });
+      mockApiCall.mockImplementation(async (url) =>
+        url.includes('food-variants?') ? [reference, calculated, custom] : saved
+      );
+
+      await saveFood(
+        saved,
+        [{ ...reference, calories: 100 }, calculated, custom],
+        'user-1',
+        saved.id,
+        undefined,
+        undefined,
+        {
+          createProgress: {
+            savedFood: saved,
+            baselineVariantIds: ['reference'],
+          },
+          managedPortions: [{ id: 'calculated-packet' }],
+        }
+      );
+
+      expect(mockApiCall).toHaveBeenCalledWith(
+        '/foods/food-variants/calculated-packet',
+        expect.objectContaining({
+          body: expect.objectContaining({ calories: 300 }),
+        })
+      );
+      expect(mockApiCall).toHaveBeenCalledWith(
+        '/foods/food-variants/custom-packet',
+        expect.objectContaining({
+          body: expect.objectContaining({ calories: 777 }),
+        })
+      );
+    }
+  );
+
+  it.each([1, 2])(
+    'rebases only the selected draft row when another draft shares its unit at size %s',
+    async (customSize) => {
+      const reference = createVariant({
+        id: 'reference',
+        serving_size: 100,
+        serving_unit: 'g',
+        calories: 200,
+        is_default: true,
+      });
+      const saved = createFood({
+        id: 'saved-food',
+        default_variant: reference,
+      });
+      mockApiCall.mockImplementation(async (url) =>
+        url.includes('food-variants?') ? [reference] : saved
+      );
+
+      await saveFood(
+        createFood(),
+        [
+          { ...reference, calories: 100 },
+          createVariant({ serving_unit: 'packet (150 g)', calories: 150 }),
+          createVariant({
+            serving_size: customSize,
+            serving_unit: 'packet (150 g)',
+            calories: 777,
+          }),
+        ],
+        'user-1',
+        undefined,
+        undefined,
+        undefined,
+        { managedPortions: [{ draftIndex: 1 }] }
+      );
+
+      expect(mockApiCall).toHaveBeenCalledWith(
+        '/foods/food-variants/bulk',
+        expect.objectContaining({
+          body: [
+            expect.objectContaining({ calories: 300 }),
+            expect.objectContaining({
+              serving_size: customSize,
+              calories: 777,
+            }),
+          ],
+        })
+      );
+    }
+  );
+
   it('reuses an existing named portion when the initial create resolves to an existing food', async () => {
     const reference = createVariant({
       id: 'existing-default',
@@ -68,7 +179,7 @@ describe('enhancedCustomFoodFormService', () => {
       undefined,
       undefined,
       undefined,
-      { managedPortionUnits: ['Package (150 g)'] }
+      { managedPortions: [{ draftIndex: 1 }] }
     );
     expect(
       mockApiCall.mock.calls.some(
@@ -117,7 +228,7 @@ describe('enhancedCustomFoodFormService', () => {
           baselineVariantIds: ['existing-default', 'unrelated-slice'],
           attemptedVariantKeys: ['1|package (150 g)'],
         },
-        managedPortionUnits: ['Package (150 g)'],
+        managedPortions: [{ draftIndex: 1 }],
       }
     );
     expect(
@@ -168,7 +279,7 @@ describe('enhancedCustomFoodFormService', () => {
     });
     const saveOptions = {
       createProgress: progress,
-      managedPortionUnits: ['Package (150 g)'],
+      managedPortions: [{ draftIndex: 1 }],
     };
     await expect(
       saveFood(
@@ -247,7 +358,7 @@ describe('enhancedCustomFoodFormService', () => {
     });
     const saveOptions = {
       createProgress: progress,
-      managedPortionUnits: ['Package (150 g)'],
+      managedPortions: [{ draftIndex: 1 }],
     };
     await expect(
       saveFood(
@@ -310,7 +421,7 @@ describe('enhancedCustomFoodFormService', () => {
       undefined,
       undefined,
       undefined,
-      { managedPortionUnits: ['Package (150 g)'] }
+      { managedPortions: [{ draftIndex: 1 }] }
     );
     expect(
       mockApiCall.mock.calls.find(

@@ -685,6 +685,25 @@ describe('nutritionMatches', () => {
 });
 
 describe('groupEquivalentVariants', () => {
+  test('keeps named portions distinct when one name contains an interior space', () => {
+    const variants = [
+      makeLocalVariant({
+        id: 'with-space',
+        serving_size: 1,
+        serving_unit: 'protein bar (100 g)',
+      }),
+      makeLocalVariant({
+        id: 'without-space',
+        serving_size: 1,
+        serving_unit: 'proteinbar (100 g)',
+      }),
+    ];
+
+    expect(
+      buildLocalVariantOptions(variants).map((option) => option.id)
+    ).toEqual(['with-space', 'without-space']);
+  });
+
   test('returns empty array for undefined input', () => {
     expect(groupEquivalentVariants(undefined)).toEqual([]);
   });

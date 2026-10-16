@@ -4,7 +4,10 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from '@/hooks/use-toast';
 import { useUpdateFoodEntriesSnapshotMutation } from '@/hooks/Foods/useFoods';
-import type { FoodCreateProgress } from '@/api/Foods/enhancedCustomFoodFormService';
+import type {
+  FoodCreateProgress,
+  ManagedFoodPortion,
+} from '@/api/Foods/enhancedCustomFoodFormService';
 
 /** The three outcomes of the "Sync Past Entries?" prompt. */
 export type SyncPastEntriesChoice =
@@ -38,6 +41,7 @@ import {
   convertNutrientAmount,
   buildNamedFoodPortion,
   getFoodPortionUnit,
+  isCalculatedFoodPortion,
   parseNamedFoodPortion,
   type FoodPortionDefinition,
 } from '@workspace/shared';
@@ -67,6 +71,8 @@ type VariantMeta = {
   aiEstimatedUnit: string | null;
   autoScaleIntent: boolean;
   hasTrustedCompatibilityBase: boolean;
+  managedPortion: boolean;
+  initiallyProportionalPortion: boolean;
   error: string;
 };
 
@@ -75,6 +81,8 @@ const DEFAULT_VARIANT_META: VariantMeta = {
   aiEstimatedUnit: null,
   autoScaleIntent: false,
   hasTrustedCompatibilityBase: false,
+  managedPortion: false,
+  initiallyProportionalPortion: false,
   error: '',
 };
 
@@ -437,7 +445,7 @@ export function useCustomFoodForm({
   const partiallySavedFoodRef = useRef<Food | null>(null);
   const createProgressRef = useRef<FoodCreateProgress>({});
   const initialPortionReferenceRef = useRef('');
-  const managedPortionUnitsRef = useRef(new Set<string>());
+  const [variantMeta, setVariantMeta] = useState<VariantMeta[]>([]);
   const [variants, setVariants] = useState<GroupedFormFoodVariant[]>([]);
   const portionReference =
     variants.find(
@@ -447,24 +455,24 @@ export function useCustomFoodForm({
   const referenceChanged =
     portionReferenceSignature(portionReference) !==
     initialPortionReferenceRef.current;
-  const managedPortionRows = variants.map(
-    (variant) =>
-      !!parseNamedFoodPortion(variant.serving_unit) &&
-      (managedPortionUnitsRef.current.has(variant.serving_unit) ||
-        referenceChanged)
+  const managedPortionRows = useMemo(
+    () =>
+      variants.map(
+        (variant, index) =>
+          !!parseNamedFoodPortion(variant.serving_unit) &&
+          (variantMeta[index]?.managedPortion ||
+            (referenceChanged &&
+              variantMeta[index]?.initiallyProportionalPortion)) === true
+      ),
+    [variants, variantMeta, referenceChanged]
   );
   // Derive measured portions from the current reference, including unsaved
   // nutrition edits. Keep identity and grouping metadata on persisted rows.
   const resolvedVariants = useMemo(
     () =>
-      variants.map((variant) => {
+      variants.map((variant, index) => {
         const definition = parseNamedFoodPortion(variant.serving_unit);
-        if (
-          !definition ||
-          !portionReference ||
-          (!managedPortionUnitsRef.current.has(variant.serving_unit) &&
-            !referenceChanged)
-        )
+        if (!definition || !portionReference || !managedPortionRows[index])
           return variant;
         const portion = buildNamedFoodPortion(
           {
@@ -486,7 +494,7 @@ export function useCustomFoodForm({
             }
           : variant;
       }),
-    [variants, portionReference, referenceChanged]
+    [variants, portionReference, managedPortionRows]
   );
   const [originalVariants, setOriginalVariants] = useState<
     GroupedFormFoodVariant[]
@@ -496,7 +504,6 @@ export function useCustomFoodForm({
   const [loadedVariants, setLoadedVariants] = useState<
     (GroupedFormFoodVariant | null)[]
   >([]);
-  const [variantMeta, setVariantMeta] = useState<VariantMeta[]>([]);
   const [showSyncConfirmation, setShowSyncConfirmation] = useState(false);
   const [savedFoodResult, setSavedFoodResult] = useState<Food | null>(null);
   // Whether the save that triggered the sync prompt also replaced the food's
@@ -580,7 +587,6 @@ export function useCustomFoodForm({
         ) ??
         withMatches.find((variant) => getFoodPortionUnit(variant.serving_unit));
       initialPortionReferenceRef.current = portionReferenceSignature(reference);
-      managedPortionUnitsRef.current = new Set();
       partiallySavedFoodRef.current = null;
       createProgressRef.current = {};
       const trustedSnapshot = deepClone(withMatches);
@@ -595,6 +601,21 @@ export function useCustomFoodForm({
           aiEstimatedUnit: v.source === 'ai_estimate' ? v.serving_unit : null,
           autoScaleIntent: options.autoScaleIntent,
           hasTrustedCompatibilityBase: options.hasTrustedBase,
+          // Classify each row independently: identical units may have custom nutrition.
+          initiallyProportionalPortion:
+            !!reference &&
+            isCalculatedFoodPortion(
+              {
+                ...formVariantToFoodVariant(reference),
+                glycemic_index: sanitizeGlycemicIndexFrontend(
+                  reference.glycemic_index
+                ),
+              },
+              {
+                ...formVariantToFoodVariant(v),
+                glycemic_index: sanitizeGlycemicIndexFrontend(v.glycemic_index),
+              }
+            ),
         }))
       );
     },
@@ -791,14 +812,15 @@ export function useCustomFoodForm({
       definition
     );
     if (!portion) return false;
-    const key = portion.serving_unit.trim().toLocaleLowerCase();
+    const normalizeUnit = (unit: string) =>
+      unit.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+    const key = normalizeUnit(portion.serving_unit);
     if (
       variants.some(
         (variant) =>
-          variant.serving_unit.trim().toLocaleLowerCase() === key ||
+          normalizeUnit(variant.serving_unit) === key ||
           variant.equivalents?.some(
-            (equivalent) =>
-              equivalent.serving_unit.trim().toLocaleLowerCase() === key
+            (equivalent) => normalizeUnit(equivalent.serving_unit) === key
           )
       )
     )
@@ -812,7 +834,6 @@ export function useCustomFoodForm({
       is_locked: false,
       equivalents: [],
     };
-    managedPortionUnitsRef.current.add(next.serving_unit);
     setVariants((previous) => [...previous, next]);
     setOriginalVariants((previous) => [...previous, deepClone(next)]);
     setServingSizeScalingBaseVariants((previous) => [
@@ -820,7 +841,10 @@ export function useCustomFoodForm({
       deepClone(next),
     ]);
     setLoadedVariants((previous) => [...previous, null]);
-    setVariantMeta((previous) => [...previous, { ...DEFAULT_VARIANT_META }]);
+    setVariantMeta((previous) => [
+      ...previous,
+      { ...DEFAULT_VARIANT_META, managedPortion: true },
+    ]);
     return true;
   };
 
@@ -865,10 +889,13 @@ export function useCustomFoodForm({
     setVariantMeta((prev) => [
       ...prev,
       {
+        ...DEFAULT_VARIANT_META,
         manualUnitConversionPending: sourceRequiresManualConversion,
         aiEstimatedUnit: src.source === 'ai_estimate' ? src.serving_unit : null,
         autoScaleIntent: sourceAutoScaleIntent,
         hasTrustedCompatibilityBase: sourceMeta.hasTrustedCompatibilityBase,
+        managedPortion: sourceMeta.managedPortion,
+        initiallyProportionalPortion: sourceMeta.initiallyProportionalPortion,
         error: '',
       },
     ]);
@@ -933,6 +960,10 @@ export function useCustomFoodForm({
     const isNutrientField =
       nutrientFields.includes(field as NumericFoodVariantKeys) ||
       isCustomNutrient;
+
+    if (isNutrientField || field === 'glycemic_index') {
+      metaPatch.initiallyProportionalPortion = false;
+    }
 
     let newVariant: FormFoodVariant & { equivalents?: EquivalentUnit[] };
 
@@ -1505,9 +1536,17 @@ export function useCustomFoodForm({
       };
 
       const expandedVariants: FormFoodVariant[] = [];
+      const managedPortions: ManagedFoodPortion[] = [];
 
-      resolvedVariants.forEach((variant) => {
+      resolvedVariants.forEach((variant, index) => {
         const { equivalents, ...baseVariant } = variant;
+        if (managedPortionRows[index]) {
+          managedPortions.push(
+            variant.id
+              ? { id: variant.id }
+              : { draftIndex: expandedVariants.length }
+          );
+        }
         expandedVariants.push(baseVariant as FormFoodVariant);
 
         if (equivalents && equivalents.length > 0) {
@@ -1529,9 +1568,7 @@ export function useCustomFoodForm({
         userId: user.id,
         foodId: food?.id || partiallySavedFoodRef.current?.id,
         createProgress: !food?.id ? createProgressRef.current : undefined,
-        managedPortionUnits: resolvedVariants
-          .filter((_, index) => managedPortionRows[index])
-          .map((variant) => variant.serving_unit),
+        managedPortions,
         imageFiles,
         onFoodPersisted: (persistedFood: Food) => {
           partiallySavedFoodRef.current = persistedFood;

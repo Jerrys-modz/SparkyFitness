@@ -203,9 +203,15 @@ export function EditFoodMode({
 
   const [portionDraft, setPortionDraft] = useState<EditableFoodPortion[]>([]);
   const [portionSeeded, setPortionSeeded] = useState(false);
+  const [portionBaselineIds, setPortionBaselineIds] = useState<string[]>([]);
   const attemptedPortionUnits = useRef(new Set<string>());
   if (variants && !portionSeeded) {
     setPortionSeeded(true);
+    setPortionBaselineIds(
+      variants
+        .filter((variant) => parseNamedFoodPortion(variant.serving_unit))
+        .map((variant) => variant.id)
+    );
     setPortionDraft(
       variants.flatMap((variant) => {
         const definition = parseNamedFoodPortion(variant.serving_unit);
@@ -424,13 +430,11 @@ export function EditFoodMode({
           )
         )
           throw new Error('Select a metric reference for portions');
-        const removedIds = (variants ?? [])
-          .filter(
-            (variant) =>
-              parseNamedFoodPortion(variant.serving_unit) &&
-              !portionDraft.some((portion) => portion.id === variant.id)
-          )
-          .map((variant) => variant.id);
+        // Only rows shown in the original draft can be explicitly removed.
+        // Refetches must not turn unseen additions into deletions or lose intent.
+        const removedIds = portionBaselineIds.filter(
+          (id) => !portionDraft.some((portion) => portion.id === id)
+        );
         if (
           portionDraft.length === 0 &&
           removedIds.length === 0 &&
