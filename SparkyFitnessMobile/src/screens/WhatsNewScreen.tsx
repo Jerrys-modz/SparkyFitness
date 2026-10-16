@@ -1,15 +1,20 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 
 import Icon, { type IconName } from '../components/Icon';
+import MarkdownMessage from '../components/chat/MarkdownMessage';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { getWhatsNewReleases } from '../constants/whatsNewReleases';
 import { getAppLocale } from '../localization/i18n';
+import {
+  getAnnouncementHistory,
+  type AnnouncementHistoryEntry,
+} from '../services/announcementHistory';
 import { formatDate, getTodayDate } from '../utils/dateUtils';
 import { canUseLiquidGlass } from '../utils/liquidGlass';
 import type { RootStackScreenProps } from '../types/navigation';
@@ -570,6 +575,20 @@ const WhatsNewScreen: React.FC<WhatsNewScreenProps> = ({ navigation }) => {
   const showLiquidGlassCard = canUseLiquidGlass();
 
   const releases = getWhatsNewReleases(t);
+  const textSecondary = useCSSVariable('--color-text-secondary') as string;
+  const [announcements, setAnnouncements] = useState<
+    AnnouncementHistoryEntry[]
+  >([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getAnnouncementHistory().then((history) => {
+      if (!cancelled) setAnnouncements(history);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Added or changed a card below? Bump WHATS_NEW_CONTENT_VERSION in
   // services/whatsNewBanner.ts so the banner re-appears for existing users.
@@ -758,6 +777,39 @@ const WhatsNewScreen: React.FC<WhatsNewScreenProps> = ({ navigation }) => {
             </View>
           </View>
         ))}
+
+        {announcements.length > 0 ? (
+          <>
+            <Text className="text-xs font-semibold tracking-wider text-text-secondary mt-2 mb-3 px-1">
+              {t('whatsNewPage.announcements.heading', {
+                defaultValue: 'ANNOUNCEMENTS',
+              })}
+            </Text>
+            {announcements.map((announcement) => (
+              <View
+                key={announcement.id}
+                className="bg-surface rounded-xl mb-4 shadow-sm p-4"
+              >
+                {announcement.publishedAt ? (
+                  <Text className="text-xs font-semibold tracking-wider text-accent-primary mb-1">
+                    {new Date(announcement.publishedAt).toLocaleDateString(
+                      getAppLocale(),
+                      { year: 'numeric', month: 'short', day: 'numeric' }
+                    )}
+                  </Text>
+                ) : null}
+                <Text className="text-lg font-bold text-text-primary mb-2">
+                  {announcement.title}
+                </Text>
+                <MarkdownMessage
+                  text={announcement.message}
+                  color={textSecondary}
+                  streaming={false}
+                />
+              </View>
+            ))}
+          </>
+        ) : null}
 
         <Text className="text-xs font-semibold tracking-wider text-text-secondary mt-2 mb-3 px-1">
           {t('whatsNewPage.releases.heading', {

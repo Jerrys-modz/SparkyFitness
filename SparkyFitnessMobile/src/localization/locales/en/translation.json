@@ -3054,6 +3054,9 @@
   },
   "whatsNewPage": {
     "title": "What's New",
+    "announcements": {
+      "heading": "ANNOUNCEMENTS"
+    },
     "mockup": {
       "today": "TODAY",
       "kcalLeft": "kcal left",

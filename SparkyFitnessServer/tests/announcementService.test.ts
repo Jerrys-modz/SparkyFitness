@@ -43,6 +43,21 @@ title: Extra Line Test
     expect(parsed.body).toContain('### Content Here');
   });
 
+  test('should expose an optional app marker from frontmatter', () => {
+    const md = `---
+id: mobile-1-9-0
+active: true
+title: New in the app
+app: mobile
+---
+
+Body
+`;
+
+    const parsed = parseFrontmatter(md);
+    expect(parsed.frontmatter.app).toBe('mobile');
+  });
+
   test('should return local fallback announcement when offline or fetching', async () => {
     const result = await announcementService.getLatestAnnouncement();
     expect(result).toBeDefined();

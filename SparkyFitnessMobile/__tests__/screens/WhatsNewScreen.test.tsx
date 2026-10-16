@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import i18n, { initializeI18n } from '../../src/localization/i18n';
 import WhatsNewScreen from '../../src/screens/WhatsNewScreen';
 
@@ -40,6 +41,14 @@ jest.mock('../../src/components/Icon', () => {
   };
 });
 
+jest.mock('../../src/components/chat/MarkdownMessage', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+  return function MockMarkdown({ text }: { text: string }) {
+    return React.createElement(Text, null, text);
+  };
+});
+
 jest.mock('uniwind', () => ({
   useCSSVariable: jest.fn((variables: string | string[]) =>
     (Array.isArray(variables) ? variables : [variables]).map(() => '#000000')
@@ -58,6 +67,7 @@ const route = {
 describe('WhatsNewScreen localization', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
+    await AsyncStorage.clear();
     await initializeI18n('en');
     await i18n.changeLanguage('en');
   });
@@ -86,6 +96,25 @@ describe('WhatsNewScreen localization', () => {
     expect(
       screen.getByText('Health Trends charts now draw your goal for each day.')
     ).toBeTruthy();
+  });
+
+  it('lists saved mobile announcements above the release notes', async () => {
+    await AsyncStorage.setItem(
+      '@WhatsNew:announcementHistory',
+      JSON.stringify([
+        {
+          id: 'mobile-1',
+          title: 'Run programs are here',
+          message: 'Pick a plan under Library.',
+          publishedAt: '2026-10-16T00:00:00.000Z',
+        },
+      ])
+    );
+    render(<WhatsNewScreen navigation={navigation} route={route} />);
+
+    expect(await screen.findByText('Run programs are here')).toBeTruthy();
+    expect(screen.getByText('Pick a plan under Library.')).toBeTruthy();
+    expect(screen.getByText('ANNOUNCEMENTS')).toBeTruthy();
   });
 
   it('renders Polish feature and mockup copy after switching language', async () => {

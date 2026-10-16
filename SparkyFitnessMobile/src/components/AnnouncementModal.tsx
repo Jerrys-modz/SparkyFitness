@@ -14,6 +14,7 @@ import { useCSSVariable } from 'uniwind';
 import Icon from './Icon';
 import MarkdownMessage from './chat/MarkdownMessage';
 import { apiFetch } from '../services/api/apiClient';
+import { recordMobileAnnouncement } from '../services/announcementHistory';
 
 export const DISMISSED_ANNOUNCEMENT_KEY = 'dismissed_announcement_id';
 
@@ -27,6 +28,7 @@ interface AnnouncementPayload {
   active: boolean;
   title: string;
   message: string;
+  app?: string;
   publishedAt?: string;
 }
 
@@ -74,6 +76,10 @@ export const AnnouncementModal: React.FC = () => {
           !data.id
         )
           return;
+
+        // Keep mobile announcements for the What's New history, even if this
+        // one was already dismissed on this device.
+        void recordMobileAnnouncement(data);
 
         const dismissedId = await AsyncStorage.getItem(
           DISMISSED_ANNOUNCEMENT_KEY
