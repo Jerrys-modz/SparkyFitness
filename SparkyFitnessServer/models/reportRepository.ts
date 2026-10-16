@@ -747,6 +747,19 @@ async function getDailyNutritionTotalsRange(
 }
 
 /**
+ * Minutes of an entry for load: its own duration, or the timing of its sets
+ * (seconds, per set) when it has none. One definition for the load report and
+ * the training calendar.
+ */
+const ENTRY_DURATION_SQL = `COALESCE(
+  NULLIF(ee.duration_minutes, 0),
+  (SELECT SUM(COALESCE(s.duration, 0)) / 60.0
+   FROM exercise_entry_sets s
+   WHERE s.exercise_entry_id = ee.id),
+  0
+)`;
+
+/**
  * Every logged workout in the range with just what training load needs: its
  * day, length and average heart rate. Synced calorie summaries are not
  * workouts.
@@ -767,13 +780,7 @@ async function getTrainingLoadSessions(
        FROM (
          SELECT ee.entry_date,
                 TO_CHAR(ee.entry_date, 'YYYY-MM-DD') AS day,
-                COALESCE(
-                  NULLIF(ee.duration_minutes, 0),
-                  (SELECT SUM(COALESCE(s.duration, 0)) / 60.0
-                   FROM exercise_entry_sets s
-                   WHERE s.exercise_entry_id = ee.id),
-                  0
-                ) AS duration_minutes,
+                ${ENTRY_DURATION_SQL} AS duration_minutes,
                 ee.avg_heart_rate
          FROM exercise_entries ee
          WHERE ee.user_id = $1
@@ -795,6 +802,116 @@ async function getTrainingLoadSessions(
         avgHeartRate:
           row.avg_heart_rate === null ? null : Number(row.avg_heart_rate),
       })
+    );
+  } finally {
+    client.release();
+  }
+}
+
+/** A finished diary entry with what the training calendar needs of it. */
+interface CalendarEntryRow {
+  id: string;
+  day: string;
+  exerciseName: string | null;
+  category: string | null;
+  notes: string | null;
+  providerName: string | null;
+  detailData: unknown;
+  exerciseSourceId: string | null;
+  durationMinutes: number;
+  distanceKm: number | null;
+  avgHeartRate: number | null;
+  workoutPlanAssignmentId: number | null;
+}
+
+/**
+ * Every workout with a length logged between two local days (the same entries
+ * and length as the training-load report), with the names the shared sport
+ * detection reads and the plan assignment it was logged from.
+ */
+async function getCalendarEntries(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<CalendarEntryRow[]> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT * FROM (
+         SELECT ee.id, TO_CHAR(ee.entry_date, 'YYYY-MM-DD') AS day,
+                ee.entry_date, ee.created_at,
+                ee.exercise_name, ee.category, ee.notes,
+                ${ENTRY_DURATION_SQL} AS duration_minutes,
+                ee.distance, ee.avg_heart_rate, ee.workout_plan_assignment_id,
+                d.provider_name, d.detail_data,
+                x.source_id AS exercise_source_id
+         FROM exercise_entries ee
+         LEFT JOIN exercises x ON x.id = ee.exercise_id
+         LEFT JOIN LATERAL (
+           SELECT provider_name, detail_data
+           FROM exercise_entry_activity_details
+           WHERE exercise_entry_id = ee.id
+           ORDER BY CASE WHEN detail_type LIKE '%activity_data%' THEN 0 ELSE 1 END
+           LIMIT 1
+         ) d ON TRUE
+         WHERE ee.user_id = $1
+           AND ee.entry_date BETWEEN $2 AND $3
+           AND ee.exercise_name != 'Active Calories'
+       ) entries
+       WHERE duration_minutes > 0
+       ORDER BY entry_date ASC, created_at ASC, id ASC`,
+      [userId, startDate, endDate]
+    );
+    return result.rows.map(
+      (row: {
+        id: string;
+        day: string;
+        exercise_name: string | null;
+        category: string | null;
+        notes: string | null;
+        provider_name: string | null;
+        detail_data: unknown;
+        exercise_source_id: string | null;
+        duration_minutes: string | number;
+        distance: string | number | null;
+        avg_heart_rate: string | number | null;
+        workout_plan_assignment_id: number | null;
+      }) => ({
+        id: row.id,
+        day: row.day,
+        exerciseName: row.exercise_name,
+        category: row.category,
+        notes: row.notes,
+        providerName: row.provider_name,
+        detailData: row.detail_data,
+        exerciseSourceId: row.exercise_source_id,
+        durationMinutes: Number(row.duration_minutes),
+        distanceKm: toNumberOrNull(row.distance),
+        avgHeartRate: toNumberOrNull(row.avg_heart_rate),
+        workoutPlanAssignmentId: row.workout_plan_assignment_id,
+      })
+    );
+  } finally {
+    client.release();
+  }
+}
+
+/** The local day of each of the given diary entries, by id. */
+async function getEntryDays(
+  userId: string,
+  entryIds: string[]
+): Promise<Map<string, string>> {
+  if (entryIds.length === 0) return new Map();
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT id, TO_CHAR(entry_date, 'YYYY-MM-DD') AS day
+       FROM exercise_entries
+       WHERE user_id = $1 AND id = ANY($2::uuid[])`,
+      [userId, entryIds]
+    );
+    return new Map(
+      result.rows.map((row: { id: string; day: string }) => [row.id, row.day])
     );
   } finally {
     client.release();
@@ -941,6 +1058,9 @@ async function getRunCandidates(
 
 export { getNutritionData };
 export { getTrainingLoadSessions };
+export { getCalendarEntries };
+export { getEntryDays };
+export type { CalendarEntryRow };
 export { getReadinessVitals };
 export { getRunCandidates };
 export type { RunCandidateRow };
@@ -961,6 +1081,8 @@ export default {
   getMiniNutritionTrends,
   getExerciseEntries,
   getTrainingLoadSessions,
+  getCalendarEntries,
+  getEntryDays,
   getReadinessVitals,
   getRunCandidates,
   getBodyWeightReadings,
