@@ -6,6 +6,7 @@ SparkyFitness can help during and after a workout, not just plan it:
 - **How did it feel?** feedback after a workout: too easy, just right or too hard, plus pain or discomfort.
 - **Adaptive suggestions** that use that feedback for the next session, and always say why.
 - **Variation hints** when an accessory exercise shows up in almost every workout.
+- **Plan weight changes** in the AI assistant: proposed changes to the planned weights of your workout plan, each with its reason, applied only when you agree.
 - **Run review** in the AI assistant: a read of your recent running (runs per week, weekly distance, pace against the period before, training load and recovery), explained in plain language.
 - **Training review** in the AI assistant: a read of your recent strength work (sessions per week, lifts that have stopped improving, effort and muscle coverage), explained in plain language.
 - **Lower music during cues** (mobile app) so beeps and spoken cues are easy to hear over your own music.
@@ -122,6 +123,7 @@ Turn on **Settings → Workout Settings → Lower music during cues** and your m
 | "My shoulder hurts. Chest exercises that don't use shoulders?" | Alternatives that avoid shoulder muscles |
 | "Yesterday's workout felt too easy." | Saves the feedback on that workout |
 | "Will my Push Day change next time?" | Explains each exercise's adjustment and why |
+| "Should I add weight to my plan?" | Proposes planned-weight changes with reasons, and applies the ones you agree to |
 | "How is my running going?" | Reads your last 4 weeks of runs and your training load, and explains what it finds |
 | "How is my training going?" | Reads your last 4 weeks (ask for 7–90 days) and explains what it finds |
 
@@ -153,3 +155,15 @@ The assistant can also review your recent running. SparkyFitness works out the n
 - **Training load**: this week's workouts (all of them, not only runs) against your four-week average, with a recovery hint. This needs about three weeks of history.
 
 Distances and paces use your distance unit. The review only reads your data; if you follow a run program, the assistant asks before changing it.
+
+---
+
+## Plan weight changes
+
+Ask the assistant whether your plan needs changing and it reviews the planned weights of your active (or a named) workout plan against what you actually lifted. SparkyFitness works out the proposals and the assistant explains them:
+
+- **Add a step** (2.5 kg or 5 lb) to a lift when you met the planned weight and reps in each of your last two sessions without logging a near-failure effort, or when you rated it too easy twice in a row.
+- **Lighten** a lift after pain in that exercise or two sessions rated too hard. After repeated pain the assistant also offers alternatives.
+- **Hold** a lift that you rated too hard last time, whose logged effort was at or near failure, or whose estimated one-rep max has stopped improving. A hold changes nothing; the assistant asks before suggesting a deload or a swap.
+
+Warm-up sets, bodyweight exercises and preset-based sessions are never changed. Nothing is written until you agree: the assistant names each exercise and the new weight, and only then applies it. The weights come from the rules, never from the assistant. Plans that pre-fill your diary are not edited this way, because their diary entries are built from the weights; the assistant describes the change and updates the plan instead.

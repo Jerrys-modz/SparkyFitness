@@ -55,6 +55,21 @@ describe('classifyByKeywords', () => {
     );
   });
 
+  it('adds the calorie-target guidance with the coaching category on the full profile', () => {
+    expect(getSystemPrompt('UTC', '', 'full', ['coaching'])).toContain(
+      '## CALORIE TARGET REVIEWS'
+    );
+    expect(getSystemPrompt('UTC', '', 'full', ['food'])).not.toContain(
+      '## CALORIE TARGET REVIEWS'
+    );
+    expect(getSystemPrompt('UTC', '', 'core', ['coaching'])).not.toContain(
+      '## CALORIE TARGET REVIEWS'
+    );
+    expect(classifyByKeywords('can you recalibrate my targets?')).toContain(
+      'coaching'
+    );
+  });
+
   it('matches the new coaching keyword rule', () => {
     expect(classifyByKeywords('any tips for staying motivated')).toContain(
       'coaching'
