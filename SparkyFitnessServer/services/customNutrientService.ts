@@ -341,10 +341,22 @@ class CustomNutrientService {
               previousName,
               name
             );
+            // Goal values are keyed by nutrient name too: move them (current
+            // goals, past goals and saved presets) to the new name.
+            for (const table of ['user_goals', 'goal_presets']) {
+              await client.query(
+                `UPDATE ${table}
+                    SET custom_nutrients =
+                      (custom_nutrients - $1::text)
+                      || jsonb_build_object($2::text, custom_nutrients -> $1::text)
+                  WHERE user_id = $3 AND custom_nutrients ? $1::text`,
+                [previousName, name, userId]
+              );
+            }
           } catch (renameError) {
             log(
               'error',
-              `Failed to rename goal and display preferences for custom nutrient ${id}: ${renameError instanceof Error ? renameError.message : String(renameError)}`
+              `Failed to rename goal and display data for custom nutrient ${id}: ${renameError instanceof Error ? renameError.message : String(renameError)}`
             );
           }
         }
