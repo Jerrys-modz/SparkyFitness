@@ -14,6 +14,22 @@ import {
 export type IntervalStepKind = "warmup" | "work" | "recovery" | "cooldown";
 
 /**
+ * What a stretch is for, where its kind alone does not say: an easy run in a
+ * run/walk plan, a stride, a tempo or marathon-pace effort, or a hill repeat.
+ * A step with none is just a fast stretch (work) or an easy one (recovery).
+ * It decides which pace range a step gets; nothing else reads it.
+ */
+export type StepEffort = "easy" | "stride" | "tempo" | "marathon" | "hill";
+
+export const STEP_EFFORTS: readonly StepEffort[] = [
+  "easy",
+  "stride",
+  "tempo",
+  "marathon",
+  "hill",
+];
+
+/**
  * The unit a distance step was set in, which is how it is shown and spoken:
  * metres (short track repeats, the default) or miles.
  */
@@ -43,6 +59,8 @@ export interface IntervalStep {
   heartRate?: HeartRateBand;
   /** How a distance step is shown and spoken; metres when absent. */
   unit?: StepDistanceUnit;
+  /** What the stretch is for, which picks its pace range; absent means just fast or easy. */
+  effort?: StepEffort;
 }
 
 export interface IntervalPlan {
@@ -91,7 +109,7 @@ export const planHasDistanceSteps = (plan: IntervalPlan): boolean =>
 export function distanceStep(
   kind: IntervalStepKind,
   meters: number,
-  unit?: StepDistanceUnit
+  unit?: StepDistanceUnit,
 ): IntervalStep {
   const m = clamp(meters, MIN_STEP_METERS, MAX_STEP_METERS);
   return {
@@ -290,7 +308,7 @@ export function advanceIntervalCursor(
   plan: IntervalPlan,
   cursor: IntervalCursor | null | undefined,
   activeSeconds: number,
-  activeMeters: number
+  activeMeters: number,
 ): { cursor: IntervalCursor; started: IntervalCursor[] } {
   const at = Math.max(0, activeSeconds);
   const meters = Math.max(0, activeMeters);
@@ -307,7 +325,11 @@ export function advanceIntervalCursor(
     } else {
       const end = current.startSeconds + step.seconds;
       if (at < end) break;
-      next = { index: current.index + 1, startSeconds: end, startMeters: meters };
+      next = {
+        index: current.index + 1,
+        startSeconds: end,
+        startMeters: meters,
+      };
     }
     started.push(next);
     current = next;
@@ -324,7 +346,7 @@ export function advanceIntervalCursor(
 export function intervalPosition(
   plan: IntervalPlan,
   activeSeconds: number,
-  progress?: { cursor: IntervalCursor | null | undefined; meters: number }
+  progress?: { cursor: IntervalCursor | null | undefined; meters: number },
 ): IntervalPosition | null {
   if (plan.steps.length === 0) return null;
   const at = Math.max(0, activeSeconds);
@@ -334,7 +356,7 @@ export function intervalPosition(
   const roundAt = (index: number) =>
     Math.max(
       1,
-      plan.steps.slice(0, index + 1).filter((s) => s.kind === "work").length
+      plan.steps.slice(0, index + 1).filter((s) => s.kind === "work").length,
     );
   const step = plan.steps[cursor.index];
   if (!step) {
@@ -410,6 +432,7 @@ export function isValidIntervalPlan(value: unknown): value is IntervalPlan {
             step.meters >= MIN_STEP_METERS &&
             step.meters <= MAX_STEP_METERS)) &&
         (step.unit === undefined || step.unit === "m" || step.unit === "mi") &&
+        (step.effort === undefined || STEP_EFFORTS.includes(step.effort)) &&
         (step.pace === undefined || normalizePaceBand(step.pace) !== null) &&
         (step.heartRate === undefined ||
           normalizeHeartRateBand(step.heartRate) !== null),
@@ -427,6 +450,12 @@ export const lastStepStarted = (
  * every work step, `easy` on every recovery step and `warm` on the warm-up and
  * cool-down. A step left without a range is not judged by the plan. A band
  * that is not usable is ignored.
+ *
+ * A work or recovery step with an `effort` gets the range for that effort
+ * instead: `byEffort` names it. An `easy` effort with none follows its kind
+ * like an untagged step, and any other effort with no range of its own gets
+ * none, so a stride or hill repeat is never held to the pace of a long fast
+ * stretch.
  */
 export function applyPaceTargets(
   plan: IntervalPlan,
@@ -434,17 +463,36 @@ export function applyPaceTargets(
     work?: PaceBand | null;
     easy?: PaceBand | null;
     warm?: PaceBand | null;
+    byEffort?: Partial<Record<StepEffort, PaceBand | null>>;
   },
 ): IntervalPlan {
   const work = normalizePaceBand(targets.work);
   const easy = normalizePaceBand(targets.easy);
   const warm = normalizePaceBand(targets.warm);
-  if (!work && !easy && !warm) return plan;
+  const byEffort: Partial<Record<StepEffort, PaceBand>> = {};
+  for (const effort of STEP_EFFORTS) {
+    const band = normalizePaceBand(targets.byEffort?.[effort]);
+    if (band) byEffort[effort] = band;
+  }
+  if (!work && !easy && !warm && Object.keys(byEffort).length === 0) {
+    return plan;
+  }
   return {
     ...plan,
     steps: plan.steps.map((step) => {
-      const pace =
-        step.kind === "work" ? work : step.kind === "recovery" ? easy : warm;
+      let pace: PaceBand | null;
+      if (step.kind !== "work" && step.kind !== "recovery") {
+        pace = warm;
+      } else {
+        const byKind = step.kind === "work" ? work : easy;
+        if (step.effort && byEffort[step.effort]) {
+          pace = byEffort[step.effort] ?? null;
+        } else if (step.effort && step.effort !== "easy") {
+          pace = null;
+        } else {
+          pace = byKind;
+        }
+      }
       return pace ? { ...step, pace } : step;
     }),
   };
@@ -469,8 +517,18 @@ export function applyHeartRateTargets(
   return {
     ...plan,
     steps: plan.steps.map((step) => {
-      const heartRate =
-        step.kind === "work" ? work : step.kind === "recovery" ? easy : warm;
+      let heartRate: HeartRateBand | null;
+      if (step.kind !== "work" && step.kind !== "recovery") {
+        heartRate = warm;
+      } else if (step.effort === "stride" || step.effort === "hill") {
+        // Heart rate lags a short effort, so strides and hill repeats get none.
+        heartRate = null;
+      } else if (step.effort === "tempo" || step.effort === "marathon") {
+        // A tempo or marathon-pace effort is held to the hard range.
+        heartRate = work;
+      } else {
+        heartRate = step.kind === "work" ? work : easy;
+      }
       return heartRate ? { ...step, heartRate } : step;
     }),
   };
