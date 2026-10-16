@@ -65,8 +65,8 @@ const SymptomSeverityChart: React.FC<SymptomSeverityChartProps> = ({
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={summary}>
       <Svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H}>
-        {layout.ticks.map((tick) => (
-          <React.Fragment key={tick.value}>
+        {layout.ticks.map((tick, i) => (
+          <React.Fragment key={`tick-${i}`}>
             <Line
               x1={layout.left}
               x2={layout.right}

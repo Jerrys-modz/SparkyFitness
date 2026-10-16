@@ -67,6 +67,12 @@ const SymptomCalendar: React.FC<SymptomCalendarProps> = ({
     const next = shiftMonth(year, month, delta);
     setYear(next.year);
     setMonth(next.month);
+    if (
+      selectedDate &&
+      selectedDate.slice(0, 7) !== `${next.year}-${pad(next.month)}`
+    ) {
+      onSelectDate(null);
+    }
   };
 
   const title = new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString(
