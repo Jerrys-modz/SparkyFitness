@@ -115,6 +115,8 @@ describe('getTrainingCalendar', () => {
     programRepo.mockResolvedValue({
       id: 'p',
       program_id: 'beginner5k',
+      name: null,
+      activity: null,
       enabled: true,
       next_index: 1,
       workouts: [workout, workout, workout],
