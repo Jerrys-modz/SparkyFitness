@@ -218,6 +218,8 @@ private struct RouteMapLayer: View {
             }
         }
         .mapStyle(.standard(emphasis: .muted, pointsOfInterest: .excludingAll))
+        // The compass badge MapKit adds once the map turns sits on the page dots.
+        .mapControlVisibility(.hidden)
         .accessibilityLabel(route.name)
     }
 

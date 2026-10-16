@@ -14,7 +14,7 @@ struct WatchRouteCamera: Equatable {
     /// Zoom with nothing special in view, about 200 m across the watch face.
     static let baseDistance: Double = 450
     /// Furthest the camera pulls back, for a far turn or when off the route.
-    static let maxDistance: Double = 900
+    static let maxDistance: Double = 1000
     /// How far along the route the heading looks, so a bend does not swing the
     /// map until the wearer is almost at it.
     static let lookAheadMeters: Double = 40
@@ -83,8 +83,8 @@ struct WatchRouteCamera: Equatable {
             camera.heading = heading
         }
         if let next = progress.nextCue {
-            // The turn sits ahead of the wearer; keep it inside the top half.
-            camera.distance = min(maxDistance, max(baseDistance, next.distanceMeters * 3.2))
+            // The turn sits ahead of the wearer; keep it on screen (the wearer sits low, so ahead is most of the height).
+            camera.distance = min(maxDistance, max(baseDistance, next.distanceMeters * 4.2))
         }
         return camera
     }
