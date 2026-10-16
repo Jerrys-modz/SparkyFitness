@@ -17,7 +17,8 @@
   "scripts": {
     "format": "prettier . --write --log-level warn",
     "format:check": "prettier . --check",
-    "validate": "pnpm run typecheck && pnpm run format:check",
-    "typecheck": "tsc --noEmit"
+    "validate": "pnpm run typecheck && pnpm run i18n:audit && pnpm run format:check",
+    "typecheck": "tsc --noEmit",
+    "i18n:audit": "node scripts/audit-user-facing-strings.mjs"
   }
 }
