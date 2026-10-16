@@ -94,8 +94,10 @@ describe('MealBuilder', () => {
   });
 
   it('saves a detached diary snapshot without recreating its library food', async () => {
+    const ingredient = sampleFoods[0];
+    if (!ingredient) throw new Error('Missing meal fixture ingredient');
     const detached = {
-      ...sampleFoods[0],
+      ...ingredient,
       food_id: undefined,
       variant_id: undefined,
     };
