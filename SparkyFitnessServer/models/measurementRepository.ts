@@ -1145,7 +1145,8 @@ async function upsertCustomMeasurement(
   notes?: string | null,
   frequency?: string | null,
   source = 'manual',
-  userTimezone?: string | null
+  userTimezone?: string | null,
+  importId?: string | null
 ) {
   const client = await getClient(actingUserId); // User-specific operation, using actingUserId for RLS context
   try {
@@ -1188,8 +1189,8 @@ async function upsertCustomMeasurement(
     if (frequency === 'Unlimited' || frequency === 'All') {
       // Add updated_by_user_id and created_by_user_id to insert query
       query = `
-        INSERT INTO custom_measurements (user_id, category_id, value, entry_date, entry_hour, entry_timestamp, notes, created_by_user_id, updated_by_user_id, created_at, updated_at, source)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, now(), now(), $9)
+        INSERT INTO custom_measurements (user_id, category_id, value, entry_date, entry_hour, entry_timestamp, notes, created_by_user_id, updated_by_user_id, created_at, updated_at, source, import_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, now(), now(), $9, $10)
         RETURNING *
       `;
       values = [
@@ -1202,6 +1203,7 @@ async function upsertCustomMeasurement(
         notes ?? null,
         actingUserId,
         source,
+        importId ?? null,
       ];
     } else {
       // For 'Daily' and 'Hourly', check if an entry already exists for the given user, category, date, hour (if applicable) and source
@@ -1232,7 +1234,7 @@ async function upsertCustomMeasurement(
         const id = existingEntry.rows[0].id;
         query = `
           UPDATE custom_measurements
-          SET value = $1, entry_timestamp = $2, notes = $3, updated_by_user_id = $4, updated_at = now(), source = $5
+          SET value = $1, entry_timestamp = $2, notes = $3, updated_by_user_id = $4, updated_at = now(), source = $5, import_id = $7
           WHERE id = $6
           RETURNING *
         `;
@@ -1243,12 +1245,13 @@ async function upsertCustomMeasurement(
           actingUserId,
           source,
           id,
+          importId ?? null,
         ];
       } else {
         // Insert new entry with created_by_user_id and updated_by_user_id
         query = `
-          INSERT INTO custom_measurements (user_id, category_id, value, entry_date, entry_hour, entry_timestamp, notes, created_by_user_id, updated_by_user_id, created_at, updated_at, source)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, now(), now(), $9)
+          INSERT INTO custom_measurements (user_id, category_id, value, entry_date, entry_hour, entry_timestamp, notes, created_by_user_id, updated_by_user_id, created_at, updated_at, source, import_id)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, now(), now(), $9, $10)
           RETURNING *
         `;
         values = [
@@ -1261,6 +1264,7 @@ async function upsertCustomMeasurement(
           notes ?? null,
           actingUserId,
           source,
+          importId ?? null,
         ];
       }
     }

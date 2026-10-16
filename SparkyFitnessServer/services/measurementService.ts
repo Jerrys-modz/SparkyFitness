@@ -1855,6 +1855,7 @@ interface UpsertCustomMeasurementPayload {
   notes?: string | null;
   source?: string;
   timezone?: string | null;
+  import_id?: string | null;
 }
 
 async function upsertCustomMeasurementEntry(
@@ -1896,7 +1897,8 @@ async function upsertCustomMeasurementEntry(
       notes,
       category.frequency, // Pass the frequency to the repository
       source, // Pass the source to the repository
-      userTimezone
+      userTimezone,
+      payload.import_id
     );
     return result;
   } catch (error) {

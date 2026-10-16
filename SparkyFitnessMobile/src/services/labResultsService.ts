@@ -12,6 +12,8 @@ export interface SaveLabResultInput {
   /** Test date, `YYYY-MM-DD`. */
   date: string;
   notes?: string;
+  /** Tags the result with the report import that produced it. */
+  importId?: string;
   /** New reference range to set on an existing marker before saving. */
   updateRange?: { low: number | null; high: number | null };
 }
@@ -51,6 +53,7 @@ export async function saveLabResult(input: SaveLabResultInput) {
     entry_date: input.date,
     notes: input.notes?.trim() || undefined,
     source: 'manual',
+    import_id: input.importId,
   });
   return { categoryId, entry };
 }

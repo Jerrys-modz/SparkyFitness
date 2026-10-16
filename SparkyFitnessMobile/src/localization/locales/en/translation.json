@@ -7667,7 +7667,18 @@
       "useReportRanges": "Use the report's reference ranges",
       "useReportRangesHint": "The lab prints ranges for its own method, age and sex. Existing markers are updated to match.",
       "editHint": "Check the values against your report. Tap a value to correct it.",
-      "valueFor": "Result for {{name}}"
-    }
+      "valueFor": "Result for {{name}}",
+      "deleteTitle": "Delete imported results",
+      "deleteMessage": "Delete every result that was imported from a report, and any marker left empty? Results you entered yourself are kept.",
+      "deleted_one": "Deleted {{count}} imported result",
+      "deleted_other": "Deleted {{count}} imported results",
+      "deleteFailed": "Could not delete the imported results"
+    },
+    "moreActions": "More actions",
+    "deleteMarker": "Delete marker and all results",
+    "deleteMarkerTitle": "Delete marker",
+    "deleteMarkerMessage": "Delete {{name}} and all of its results? This cannot be undone.",
+    "deleteMarkerFailed": "Could not delete the marker",
+    "importedTag": "Imported"
   }
 }

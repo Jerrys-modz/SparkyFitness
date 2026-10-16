@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   Text,
@@ -8,12 +9,17 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import Button from '../components/ui/Button';
 import Icon from '../components/Icon';
 import LabStatusBadge from '../components/labs/LabStatusBadge';
 import { useRefetchOnFocus } from '../hooks/useRefetchOnFocus';
 import { useScreenHeader } from '../hooks/useScreenHeader';
-import { useLabMarkers, useLatestLabValues } from '../hooks/useLabResults';
+import {
+  useDeleteImportedLabResults,
+  useLabMarkers,
+  useLatestLabValues,
+} from '../hooks/useLabResults';
 import { formatDateLabel } from '../utils/dateUtils';
 import {
   formatLabRange,
@@ -33,22 +39,82 @@ const LabResultsScreen: React.FC<Props> = ({ navigation }) => {
   const dateLocale = i18n.language.startsWith('pl') ? 'pl-PL' : 'en-US';
   const { markers, isLoading, isError, refetch } = useLabMarkers();
   const latest = useLatestLabValues();
+  const deleteImported = useDeleteImportedLabResults();
   useRefetchOnFocus(() => {
     void refetch();
     void latest.refetch();
   }, true);
 
+  const confirmDeleteImported = () => {
+    Alert.alert(
+      t('labs.import.deleteTitle', { defaultValue: 'Delete imported results' }),
+      t('labs.import.deleteMessage', {
+        defaultValue:
+          'Delete every result that was imported from a report, and any marker left empty? Results you entered yourself are kept.',
+      }),
+      [
+        {
+          text: t('common.cancel', { defaultValue: 'Cancel' }),
+          style: 'cancel',
+        },
+        {
+          text: t('common.delete', { defaultValue: 'Delete' }),
+          style: 'destructive',
+          onPress: () =>
+            deleteImported.mutate(undefined, {
+              onSuccess: ({ results }) =>
+                Toast.show({
+                  type: 'success',
+                  text1: t('labs.import.deleted', {
+                    defaultValue: 'Deleted {{count}} imported results',
+                    defaultValue_one: 'Deleted {{count}} imported result',
+                    defaultValue_other: 'Deleted {{count}} imported results',
+                    count: results,
+                  }),
+                }),
+              onError: () =>
+                Toast.show({
+                  type: 'error',
+                  text1: t('labs.import.deleteFailed', {
+                    defaultValue: 'Could not delete the imported results',
+                  }),
+                }),
+            }),
+        },
+      ]
+    );
+  };
+
   const header = useScreenHeader({
     title: t('screens.labResults', { defaultValue: 'Lab results' }),
     left: { kind: 'back' },
-    right: {
-      kind: 'icon',
-      ionicon: 'add-outline',
-      sfSymbol: 'plus',
-      role: 'primary',
-      accessibilityLabel: t('labs.add', { defaultValue: 'Add lab result' }),
-      onPress: () => navigation.navigate('LabResultAdd', {}),
-    },
+    right: [
+      {
+        kind: 'icon',
+        ionicon: 'add-outline',
+        sfSymbol: 'plus',
+        role: 'primary',
+        accessibilityLabel: t('labs.add', { defaultValue: 'Add lab result' }),
+        onPress: () => navigation.navigate('LabResultAdd', {}),
+      },
+      {
+        kind: 'menu',
+        accessibilityLabel: t('labs.moreActions', {
+          defaultValue: 'More actions',
+        }),
+        items: [
+          {
+            label: t('labs.import.deleteTitle', {
+              defaultValue: 'Delete imported results',
+            }),
+            sfSymbol: 'trash',
+            icon: 'trash',
+            onPress: confirmDeleteImported,
+          },
+        ],
+        identifier: 'lab-results-menu',
+      },
+    ],
   });
 
   return (
