@@ -17,6 +17,7 @@
   "scripts": {
     "format": "prettier . --write --log-level warn",
     "format:check": "prettier . --check",
-    "validate": "pnpm run format:check"
+    "validate": "pnpm run typecheck && pnpm run format:check",
+    "typecheck": "tsc --noEmit"
   }
 }
