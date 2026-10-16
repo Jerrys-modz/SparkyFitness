@@ -28,6 +28,8 @@ import StatusView from '../components/StatusView';
 import CollapsibleSection from '../components/CollapsibleSection';
 import CardioSessionList from '../components/exerciseStats/CardioSessionList';
 import TrainingConsistencyCard from '../components/exerciseStats/TrainingConsistencyCard';
+import TrainingLoadCard from '../components/exerciseStats/TrainingLoadCard';
+import { useTrainingLoad } from '../hooks/useTrainingLoad';
 import MuscleFigure, {
   MUSCLE_HEAT_COLORS,
 } from '../components/exerciseStats/MuscleFigure';
@@ -131,6 +133,7 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
 
   const { data, isLoading } = useExerciseDashboard(range, customRange);
   const consistency = useTrainingConsistency();
+  const trainingLoad = useTrainingLoad();
   const cardio = useCardioSessions(range, view === 'cardio', customRange);
   const { preferences } = usePreferences();
   const weightUnit: 'kg' | 'lbs' =
@@ -176,6 +179,16 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
   const maxRowSets = setRows[0]?.sets ?? 0;
   const hasActivity =
     (data?.keyStats.totalWorkouts ?? 0) > 0 || setRows.length > 0;
+
+  // A fixed 28-day window, so it still has something to say when the selected
+  // range holds no workouts.
+  const loadCard = isSectionShown('exercise.load') ? (
+    <TrainingLoadCard
+      data={trainingLoad.load}
+      isLoading={trainingLoad.isLoading}
+      isError={trainingLoad.isError}
+    />
+  ) : null;
 
   const renderCardio = () => {
     if (cardio.isLoading) {
@@ -253,18 +266,21 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
     }
     if (!hasActivity) {
       return (
-        <StatusView
-          inline
-          icon="exercise-weights"
-          iconTone="muted"
-          title={t('exerciseStatistics.states.empty', {
-            defaultValue: 'No workouts in this range',
-          })}
-          subtitle={t('exerciseStatistics.states.emptyHint', {
-            defaultValue:
-              'Log a workout and its sets will show up here by muscle.',
-          })}
-        />
+        <>
+          <StatusView
+            inline
+            icon="exercise-weights"
+            iconTone="muted"
+            title={t('exerciseStatistics.states.empty', {
+              defaultValue: 'No workouts in this range',
+            })}
+            subtitle={t('exerciseStatistics.states.emptyHint', {
+              defaultValue:
+                'Log a workout and its sets will show up here by muscle.',
+            })}
+          />
+          {loadCard}
+        </>
       );
     }
 
@@ -464,6 +480,8 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
             ) : null}
           </View>
         ) : null}
+
+        {loadCard}
 
         {isSectionShown('exercise.consistency') ? (
           <TrainingConsistencyCard

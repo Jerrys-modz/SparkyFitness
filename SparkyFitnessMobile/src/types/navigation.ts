@@ -7,11 +7,13 @@ import type {
   FoodPhotoEstimateResponse,
   FoodPhotoLogItem,
   IndividualSessionResponse,
+  MindfulnessSessionResponse,
   PresetSessionResponse,
   SharedPregnancy,
   WorkoutFormat,
 } from '@workspace/shared';
 import type { FoodFormData } from '../components/FoodForm';
+import type { NutritionLabelScan } from '../utils/labelScanFood';
 import type { SaveFoodPayload } from '../services/api/foodsApi';
 import type { CompletedSetMap, PrSetMap } from '../stores/activeWorkoutStore';
 import type { MealTypeKey } from '../utils/mealNutrition';
@@ -84,6 +86,12 @@ export type RootStackParamList = {
   WorkoutPlans: undefined;
   WorkoutPlanForm: { template?: WorkoutPlanTemplate } | undefined;
   RunPrograms: undefined;
+  RunProgramCalendar: undefined;
+  RunProgramWorkout: { index: number };
+  RunProgramRace: undefined;
+  RunProgramEdit: { id?: string; fromProgramId?: string } | undefined;
+  PersonalRecords: undefined;
+  WatchRunLive: undefined;
   MealPlanForm: { template?: MealPlanTemplate; initialMeal?: Meal } | undefined;
   // #2115, Phase 12: mobile-only water-container CRUD.
   WaterContainers: undefined;
@@ -237,6 +245,7 @@ export type RootStackParamList = {
         foodId: string;
         variantId: string;
         customNutrients?: Record<string, string | number> | null;
+        pendingNutritionLabelScan?: NutritionLabelScan;
       };
   ExerciseForm:
     | {
@@ -260,6 +269,10 @@ export type RootStackParamList = {
       }
     | {
         mode: 'capture-barcode';
+        returnKey: string;
+      }
+    | {
+        mode: 'capture-label';
         returnKey: string;
       }
     | undefined;
@@ -347,8 +360,12 @@ export type RootStackParamList = {
   FastingDetail: undefined;
   FastingSettings: undefined;
   MindfulnessDetail: { selectedDate?: string } | undefined;
+  /** Logs a mindful session for `date`, or edits `session` when one is passed. */
+  MindfulnessLog:
+    { date?: string; session?: MindfulnessSessionResponse } | undefined;
   SleepDetail: { entryId: string; day: string };
   Chat: undefined;
+  ChatSettings: undefined;
   Logs: undefined;
   Sync: undefined;
   ImportHistory: undefined;
@@ -375,6 +392,7 @@ export type RootStackParamList = {
   CustomNutrients: undefined;
   CustomNutrientForm: { nutrientId?: string } | undefined;
   NutrientDisplaySettings: undefined;
+  AllergenSettings: undefined;
   DashboardSettings: undefined;
   HealthTrendsSettings: undefined;
   WatchSettings: undefined;

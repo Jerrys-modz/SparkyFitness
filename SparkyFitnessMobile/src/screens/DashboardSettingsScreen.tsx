@@ -140,6 +140,12 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   const setMindfulnessCardVisible = useAppPreferencesStore(
     (s) => s.setMindfulnessCardVisible
   );
+  const trainingLoadCardVisible = useAppPreferencesStore(
+    (s) => s.trainingLoadCardVisible
+  );
+  const setTrainingLoadCardVisible = useAppPreferencesStore(
+    (s) => s.setTrainingLoadCardVisible
+  );
 
   const dashboardCardOrder = useAppPreferencesStore(
     (s) => s.dashboardCardOrder
@@ -168,6 +174,7 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
     progressPhotos: progressPhotosCardVisible,
     healthTrends: healthTrendsCardVisible,
     mindfulness: mindfulnessCardVisible,
+    trainingLoad: trainingLoadCardVisible,
   };
 
   const setCardVisibility = useCallback(
@@ -215,6 +222,9 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
         case 'mindfulness':
           setMindfulnessCardVisible(isVisible);
           break;
+        case 'trainingLoad':
+          setTrainingLoadCardVisible(isVisible);
+          break;
       }
     },
     [
@@ -232,6 +242,7 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
       setProgressPhotosCardVisible,
       setHealthTrendsCardVisible,
       setMindfulnessCardVisible,
+      setTrainingLoadCardVisible,
     ]
   );
 

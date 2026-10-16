@@ -183,6 +183,17 @@ const FoodSettingsScreen: React.FC<FoodSettingsScreenProps> = ({
             })}
             onPress={() => navigation.navigate('MealTypeSettings')}
           />
+          <SettingsRow
+            icon="warning"
+            title={t('foodSettings.allergens.title', {
+              defaultValue: 'Allergens',
+            })}
+            subtitle={t('foodSettings.allergens.subtitle', {
+              defaultValue:
+                'Get warnings on foods and scans that contain allergens you track',
+            })}
+            onPress={() => navigation.navigate('AllergenSettings')}
+          />
         </SettingsRowGroup>
 
         <SettingsRowGroup

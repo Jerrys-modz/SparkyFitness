@@ -20,7 +20,8 @@ import { FoodImageSourceProvider } from './src/components/FoodImageSourceProvide
 import { LightboxProvider } from './src/components/LightboxProvider';
 import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 
-import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchFastingBridge, useWatchPlanSync, useWatchRecordingBridge, useWatchSetTargetsSync, useWatchWorkoutBridge, useWatchWorkoutEdit, useWatchRunBridge } from './src/hooks';
+import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchFastingBridge, useWatchPlanSync, useWatchRecordingBridge, useWatchSetTargetsSync, useWatchWorkoutBridge, useWatchWorkoutEdit, useWatchRunBridge, usePreferences } from './src/hooks';
+import { configureRunLiveActivity } from './src/services/runLiveActivity';
 import { useWatchWorkoutStart } from './src/hooks/useWatchWorkoutStart';
 import {
   useStartLiveWorkout,
@@ -40,7 +41,13 @@ import {
   SafeFoodsLibrary,
   SafeMealsLibrary,
   SafeMealPlans,
+  SafePersonalRecords,
+  SafeWatchRunLive,
   SafeRunPrograms,
+  SafeRunProgramCalendar,
+  SafeRunProgramEdit,
+  SafeRunProgramRace,
+  SafeRunProgramWorkout,
   SafeMealPlanForm,
   SafeWorkoutPlans,
   SafeWorkoutPlanForm,
@@ -81,10 +88,12 @@ import {
   SafeSync,
   SafeImportHistory,
   SafeMeasurementsAdd,
+  SafeMindfulnessLog,
   SafeProgressPhotos,
   SafeProgressPhotoCompare,
   SafeProgressPhotoTimelapse,
   SafeChat,
+  SafeChatSettings,
   SafeCalorieSettings,
   SafeGoals,
   SafeWeeklyGoalPlanEdit,
@@ -94,6 +103,7 @@ import {
   SafeCustomNutrients,
   SafeCustomNutrientForm,
   SafeNutrientDisplaySettings,
+  SafeAllergenSettings,
   SafeDashboardSettings,
   SafeHealthTrendsSettings,
   SafeWatchSettings,
@@ -152,9 +162,6 @@ import { FullWindowOverlay } from 'react-native-screens';
 import type { RootStackParamList } from './src/types/navigation';
 import type { WorkoutCelebration } from './src/utils/workoutCelebration';
 import AddSheet, { addSheetRef } from './src/components/AddSheet';
-import { MindfulnessSessionModal } from './src/components/mindfulness/MindfulnessSessionModal';
-import { useMindfulnessMutations } from './src/hooks/useMindfulness';
-import { useDiaryDateStore } from './src/stores/diaryDateStore';
 import { toastConfig } from './src/components/ui/toastConfig';
 import { TabsLayout } from './src/components/TabsLayout';
 import { createIOSSmallNativeHeaderOptions } from './src/utils/nativeHeaderItems';
@@ -250,6 +257,13 @@ function handleWatchFinishedWorkout(
 }
 
 function WatchWorkoutGate() {
+  const { t } = useTranslation();
+  const { preferences } = usePreferences();
+  const distanceUnit =
+    preferences?.default_distance_unit === 'miles' ? 'miles' : 'km';
+  useEffect(() => {
+    configureRunLiveActivity({ t, distanceUnit });
+  }, [t, distanceUnit]);
   const watchSupported = WatchConnectivity?.isSupported() === true;
   const [telemetryPending, setTelemetryPending] = useState(false);
   const { isConnected: isServerConnected } = useServerConnection({
@@ -330,21 +344,13 @@ function AppContent() {
     handleAddProgressPhotos,
     handleAddSymptoms,
     handleAddMood,
+    handleAddMindfulness,
     handleRecordActivity,
     handleAskSparky,
     handleOpenCycle,
     handleSyncHealthData,
     handleAddSheetDismissWithoutAction,
   } = useAddSheetActions({ syncMutation });
-
-  const [mindfulnessLogModalVisible, setMindfulnessLogModalVisible] =
-    useState(false);
-  const selectedDiaryDate = useDiaryDateStore((s) => s.selectedDate);
-  const { saveSession: saveMindfulSession } =
-    useMindfulnessMutations(selectedDiaryDate);
-  const handleAddMindfulness = useCallback(() => {
-    setMindfulnessLogModalVisible(true);
-  }, []);
 
   const { enabled: cycleEnabled, mode: cycleMode, discreetMode: cycleDiscreet } = useCycleMode();
   const cycleSheetLabel = cycleDiscreet
@@ -438,8 +444,11 @@ function AppContent() {
         },
         FoodScan: 'scan',
         FoodSearch: 'search',
+        ChatSettings: 'settings/voice',
         // Tapping the workout Live Activity opens its associated URL.
         ActiveWorkout: 'active-workout',
+        // The run Live Activity opens the recording screen.
+        RecordActivity: 'record-activity',
       },
     },
   }), []);
@@ -568,6 +577,36 @@ function AppContent() {
             name="RunPrograms"
             component={SafeRunPrograms}
             options={createStackScreenOptions(t('screens.runPrograms', { defaultValue: 'Training programs' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="RunProgramCalendar"
+            component={SafeRunProgramCalendar}
+            options={createStackScreenOptions(t('screens.runProgramCalendar', { defaultValue: 'Program calendar' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
+          />
+          <Stack.Screen
+            name="RunProgramRace"
+            component={SafeRunProgramRace}
+            options={createStackScreenOptions(t('screens.runProgramRace', { defaultValue: 'Plan a race' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
+          />
+          <Stack.Screen
+            name="RunProgramEdit"
+            component={SafeRunProgramEdit}
+            options={createStackScreenOptions(t('screens.runProgramEdit', { defaultValue: 'Edit plan' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
+          />
+          <Stack.Screen
+            name="RunProgramWorkout"
+            component={SafeRunProgramWorkout}
+            options={createStackScreenOptions(t('screens.runProgramWorkout', { defaultValue: 'Workout' }), { headerBackTitle: t('screens.runProgramCalendar', { defaultValue: 'Program calendar' }) })}
+          />
+          <Stack.Screen
+            name="PersonalRecords"
+            component={SafePersonalRecords}
+            options={createStackScreenOptions(t('screens.personalRecords', { defaultValue: 'Personal records' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="WatchRunLive"
+            component={SafeWatchRunLive}
+            options={createStackScreenOptions(t('screens.watchRunLive', { defaultValue: 'On your watch' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
             name="MealPlanForm"
@@ -932,6 +971,15 @@ function AppContent() {
             })}
           />
           <Stack.Screen
+            name="MindfulnessLog"
+            component={SafeMindfulnessLog}
+            options={createStackScreenOptions(t('mindfulness.modal.addTitle', { defaultValue: 'Log Mindful Session' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
+          <Stack.Screen
             name="ProgressPhotos"
             component={SafeProgressPhotos}
             options={createStackScreenOptions(t('screens.progressPhotos', { defaultValue: 'Progress Photos' }), { headerBackButtonDisplayMode: 'minimal' })}
@@ -962,6 +1010,11 @@ function AppContent() {
             options={createStackScreenOptions(t('screens.calorieSettings', { defaultValue: 'Calorie Settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
           />
           <Stack.Screen
+            name="ChatSettings"
+            component={SafeChatSettings}
+            options={createStackScreenOptions(t('voiceSettings.open', { defaultValue: 'Voice settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
             name="FoodSettings"
             component={SafeFoodSettings}
             options={createStackScreenOptions(t('screens.foodSettings', { defaultValue: 'Food Settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
@@ -980,6 +1033,11 @@ function AppContent() {
             name="NutrientDisplaySettings"
             component={SafeNutrientDisplaySettings}
             options={createStackScreenOptions(t('nutrientDisplay.title', { defaultValue: 'Nutrient Display' }), { headerBackTitle: t('screens.foodSettings', { defaultValue: 'Food Settings' }) })}
+          />
+          <Stack.Screen
+            name="AllergenSettings"
+            component={SafeAllergenSettings}
+            options={createStackScreenOptions(t('screens.allergenSettings', { defaultValue: 'Allergens' }), { headerBackTitle: t('screens.foodSettings', { defaultValue: 'Food Settings' }) })}
           />
           <Stack.Screen
             name="MealTypeSettings"
@@ -1200,12 +1258,6 @@ function AppContent() {
           showCycleCard={cycleEnabled}
           cycleLabel={cycleSheetLabel}
           onDismissWithoutAction={handleAddSheetDismissWithoutAction}
-        />
-        <MindfulnessSessionModal
-          visible={mindfulnessLogModalVisible}
-          onClose={() => setMindfulnessLogModalVisible(false)}
-          onSave={saveMindfulSession}
-          selectedDate={selectedDiaryDate}
         />
         <ReauthModal
           visible={showReauthModal}
