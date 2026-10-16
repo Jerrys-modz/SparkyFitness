@@ -20,11 +20,15 @@ const wholeNumber = (text: string): number => {
   return Number.isFinite(value) && value > 0 ? value : 0;
 };
 
-const parts = (seconds: number) => ({
-  h: Math.floor(seconds / 3600),
-  m: Math.floor((seconds % 3600) / 60),
-  s: Math.round(seconds % 60),
-});
+// Round the total first so a value such as 1499.6 s reads 25:00, not 24:60.
+const parts = (seconds: number) => {
+  const total = Math.round(seconds);
+  return {
+    h: Math.floor(total / 3600),
+    m: Math.floor((total % 3600) / 60),
+    s: total % 60,
+  };
+};
 
 export interface PaceReferenceCardProps {
   /** The saved race result, or null when none is set. */

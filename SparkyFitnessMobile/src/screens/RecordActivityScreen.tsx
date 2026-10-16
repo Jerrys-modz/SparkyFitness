@@ -428,7 +428,9 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               warm: warmPace.enabled
                 ? paceBandPerKm(warmBand, distanceUnit)
                 : null,
-              byEffort: effortPace ?? undefined,
+              byEffort: workPace.enabled
+                ? (effortPace ?? undefined)
+                : undefined,
             }),
             {
               work: workHeartRate.enabled ? workHeartRateBand : null,
@@ -487,6 +489,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       efforts,
     };
   }, [suggested.pace, suggested.byEffort, distanceUnit]);
+  // Tempo, stride and marathon-pace ranges come from the saved race; once it is
+  // cleared or the activity changes, the ranges applied from it no longer apply.
+  useEffect(() => {
+    setEffortPace(null);
+  }, [suggested.byEffort]);
   const suggestedHeartRate = watchAvailable ? suggested.heartRate : null;
   const useSuggestedRangesNow = () => {
     if (suggestedPaceChoice) {

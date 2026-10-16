@@ -208,20 +208,23 @@ export function programDescription(t: TFunction, id: string): string {
       });
     case 'halfMarathon4':
       return t('recordActivity.program.halfMarathon4Description', {
-        defaultValue: 'Half marathon: twelve weeks, four runs a week',
+        defaultValue:
+          'Half marathon: twelve weeks, four runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably.',
       });
     case 'tenKToHalf4':
       return t('recordActivity.program.tenKToHalf4Description', {
-        defaultValue: '10K to half marathon: ten weeks, four runs a week',
+        defaultValue:
+          '10K to half marathon: ten weeks, four runs a week, with long runs building to about two hours. For when you can run 10K.',
       });
     case 'beginnerMarathon4':
       return t('recordActivity.program.beginnerMarathon4Description', {
-        defaultValue: 'Beginner marathon: eighteen weeks, four runs a week',
+        defaultValue:
+          'Beginner marathon: eighteen weeks, four runs a week, with long runs building to 2⅔ hours and a taper. For when you can run 10K.',
       });
     case 'fasterHalf4':
       return t('recordActivity.program.fasterHalf4Description', {
         defaultValue:
-          'Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run with tempo work',
+          'Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run with tempo work. For when you have run a half marathon before.',
       });
     default:
       return id;

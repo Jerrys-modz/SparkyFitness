@@ -79,8 +79,14 @@ jest.mock('../../src/components/CalendarSheet', () => {
 const mockedUse = jest.mocked(useRunProgram);
 
 describe('RunProgramsScreen', () => {
+  afterEach(() => {
+    useAppPreferencesStore.setState({ paceReferenceRace: null });
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
+    // The saved race lives in a persisted global store; start each test clean.
+    useAppPreferencesStore.setState({ paceReferenceRace: null });
     jest.mocked(useCustomRunPrograms).mockReturnValue({
       programs: [],
       loaded: true,
