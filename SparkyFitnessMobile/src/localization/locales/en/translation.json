@@ -637,7 +637,6 @@
     "watchWalkLive": "Walk on your watch",
     "trainingCalendar": "Training calendar",
     "allergenSettings": "Allergens",
-    "runProgramCalendar": "Program calendar",
     "runProgramWorkout": "Workout",
     "runProgramEdit": "Edit plan",
     "runProgramNew": "New plan",
@@ -7645,33 +7644,10 @@
       "setUp": "Set up a program"
     },
     "partOfProgram": "Part of your training program",
-    "openCalendar": "Open the program calendar",
-    "openCalendarHint": "Every workout on a month view",
-    "monthGrid": {
-      "previous": "Previous month",
-      "next": "Next month",
-      "dayA11yNone": "{{date}}, no workouts",
-      "dayA11y_one": "{{date}}, {{formattedCount}} workout",
-      "dayA11y_other": "{{date}}, {{formattedCount}} workouts"
-    },
+    "openCalendar": "Open the training calendar",
+    "openCalendarHint": "Program and plan workouts, done and to come",
     "calendarScreen": {
-      "noProgram": "Start a training program to see its calendar.",
-      "progress": "{{done}} of {{total}} workouts done",
-      "doneOn": "Done {{date}}",
-      "done": "Done",
-      "dueOn": "Next · {{date}}",
-      "notScheduled": "Not scheduled",
-      "minutes": "{{minutes}} min",
-      "legendDone": "Done",
-      "legendAhead": "Due or to come",
-      "noWorkoutsDay": "No program workout on this day.",
-      "pickDays_one": "{{count}} more workout is not on the calendar yet. Pick your workout days on the program screen to see when each one falls.",
-      "pickDays_other": "{{count}} more workouts are not on the calendar yet. Pick your workout days on the program screen to see when each one falls.",
-      "pastGoal_one": "{{count}} workout does not fit before your goal date.",
-      "pastGoal_other": "{{count}} workouts do not fit before your goal date.",
-      "allWorkouts": "All workouts",
-      "today": "Today",
-      "due": "Next"
+      "minutes": "{{minutes}} min"
     },
     "detail": {
       "workoutTitle": "Week {{week}}, run {{run}}",
