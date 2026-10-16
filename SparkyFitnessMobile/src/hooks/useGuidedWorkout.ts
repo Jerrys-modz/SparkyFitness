@@ -255,6 +255,13 @@ export function useGuidedWorkout(onCompleteSet: (setId: string) => void): {
       setNow(nowMs);
       const state = useActiveWorkoutStore.getState();
       const set = describeGuidedSet(state, state.activeSetId);
+      // Lead-in beeps for the next set's announcement: the rest bar only beeps
+      // while the app is frontmost, but guided mode is meant for a pocketed
+      // phone, so the last three seconds of a rest are cued from here.
+      if (state.rest.state === 'resting' && state.rest.endsAt != null) {
+        const restLeft = Math.ceil((state.rest.endsAt - nowMs) / 1000);
+        if (restLeft >= 1 && restLeft <= 3) beep(`rest:${restLeft}`);
+      }
       if (set == null || state.rest.state !== 'ready') {
         if (memo.getReady) updateGetReady(null);
         return;

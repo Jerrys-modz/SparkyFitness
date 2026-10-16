@@ -49,6 +49,8 @@ interface ActiveWorkoutRestBarProps {
   onCompleteSet: () => void;
   /** Taps on the bar outside its controls (the buttons claim their own). */
   onPressBar?: () => void;
+  /** Guided mode owns the last-3-seconds beeps, so the bar stays quiet. */
+  guidedBeeps?: boolean;
 }
 
 /**
@@ -83,6 +85,7 @@ function ActiveWorkoutRestBar({
   onResume,
   onCompleteSet,
   onPressBar,
+  guidedBeeps = false,
 }: ActiveWorkoutRestBarProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -101,6 +104,8 @@ function ActiveWorkoutRestBar({
       lastCountdownSecRef.current = null;
       return;
     }
+    // Guided mode beeps the last three seconds itself, app active or not.
+    if (guidedBeeps) return;
 
     const remainingSec = Math.ceil(remainingMs / 1000);
     if (
@@ -117,7 +122,7 @@ function ActiveWorkoutRestBar({
         fireSelectionHaptic();
       }
     }
-  }, [remainingMs, state]);
+  }, [remainingMs, state, guidedBeeps]);
 
   const paused = state === 'paused';
   const timerColor = paused ? textMuted : accentPrimary;
