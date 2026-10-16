@@ -954,6 +954,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
           onResume={() => useActiveWorkoutStore.getState().resumeRest()}
           onCompleteSet={handleCompleteActiveSet}
           onPressBar={handlePressRestBar}
+          guidedBeeps={guidedWorkoutEnabled && workoutFormat === 'standard'}
         />
       )}
 
