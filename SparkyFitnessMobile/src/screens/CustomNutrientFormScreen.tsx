@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -126,7 +126,19 @@ const CustomNutrientForm: React.FC<CustomNutrientFormProps> = ({
     saveMutation.mutate();
   };
 
+  // `disabled` only updates after a re-render, so a fast double tap could open
+  // two alerts and send two DELETEs. Taken synchronously, released when the
+  // alert is dismissed or the request settles.
+  const deleteLock = useRef(false);
+  const releaseDeleteLock = () => {
+    deleteLock.current = false;
+  };
+  const startDelete = (deleteAllHistory: boolean) =>
+    deleteMutation.mutate(deleteAllHistory, { onSettled: releaseDeleteLock });
+
   const confirmDelete = () => {
+    if (deleteLock.current || deleteMutation.isPending) return;
+    deleteLock.current = true;
     Alert.alert(
       t('customNutrients.deleteTitle', {
         defaultValue: 'Delete custom nutrient',
@@ -140,22 +152,24 @@ const CustomNutrientForm: React.FC<CustomNutrientFormProps> = ({
         {
           text: t('common.cancel', { defaultValue: 'Cancel' }),
           style: 'cancel',
+          onPress: releaseDeleteLock,
         },
         {
           text: t('customNutrients.deleteKeepHistory', {
             defaultValue: 'Delete, keep history',
           }),
           style: 'destructive',
-          onPress: () => deleteMutation.mutate(false),
+          onPress: () => startDelete(false),
         },
         {
           text: t('customNutrients.deleteAllHistory', {
             defaultValue: 'Delete and remove history',
           }),
           style: 'destructive',
-          onPress: () => deleteMutation.mutate(true),
+          onPress: () => startDelete(true),
         },
-      ]
+      ],
+      { onDismiss: releaseDeleteLock }
     );
   };
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -193,13 +193,29 @@ const NutrientDisplaySettingsScreen: React.FC<
       }),
   });
 
+  // Save and reset both replace the whole list server-side, so only one may be
+  // in flight. `isPending` is render-derived and cannot stop a second handler
+  // that runs before the next render; this ref is taken synchronously.
+  const requestInFlight = useRef(false);
+  const runExclusive = (start: () => Promise<unknown>) => {
+    if (requestInFlight.current) return;
+    requestInFlight.current = true;
+    void start()
+      .catch(() => undefined) // reported by the mutation's onError
+      .finally(() => {
+        requestInFlight.current = false;
+      });
+  };
+
   const toggle = (nutrient: string, on: boolean) => {
     // A newly shown nutrient joins the end of the visible list; a hidden one
     // drops out of it. Hidden nutrients keep their place below the visible ones.
     const next = on
       ? [...visible, nutrient]
       : visible.filter((n) => n !== nutrient);
-    saveMutation.mutate({ group: viewGroup, nutrients: next });
+    runExclusive(() =>
+      saveMutation.mutateAsync({ group: viewGroup, nutrients: next })
+    );
   };
 
   const move = (nutrient: string, delta: -1 | 1) => {
@@ -208,7 +224,9 @@ const NutrientDisplaySettingsScreen: React.FC<
     if (index < 0 || target < 0 || target >= visible.length) return;
     const next = [...visible];
     [next[index], next[target]] = [next[target]!, next[index]!];
-    saveMutation.mutate({ group: viewGroup, nutrients: next });
+    runExclusive(() =>
+      saveMutation.mutateAsync({ group: viewGroup, nutrients: next })
+    );
   };
 
   const labelFor = (key: string) =>
@@ -338,8 +356,10 @@ const NutrientDisplaySettingsScreen: React.FC<
         <Pressable
           testID="reset-nutrient-display"
           accessibilityRole="button"
-          onPress={() => resetMutation.mutate(viewGroup)}
-          disabled={resetMutation.isPending}
+          onPress={() =>
+            runExclusive(() => resetMutation.mutateAsync(viewGroup))
+          }
+          disabled={resetMutation.isPending || saveMutation.isPending}
           className="items-center py-3"
         >
           <Text className="text-accent-primary text-base font-semibold">

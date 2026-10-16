@@ -334,10 +334,17 @@ class CustomNutrientService {
               previousName,
               name
             );
+            const { default: nutrientDisplayPreferenceRepository } =
+              await import('../models/nutrientDisplayPreferenceRepository.js');
+            await nutrientDisplayPreferenceRepository.renameNutrientDisplayPreferenceKey(
+              userId,
+              previousName,
+              name
+            );
           } catch (renameError) {
             log(
               'error',
-              `Failed to rename goal-direction preference for custom nutrient ${id}: ${renameError instanceof Error ? renameError.message : String(renameError)}`
+              `Failed to rename goal and display preferences for custom nutrient ${id}: ${renameError instanceof Error ? renameError.message : String(renameError)}`
             );
           }
         }
