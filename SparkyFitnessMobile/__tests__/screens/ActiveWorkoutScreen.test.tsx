@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useIsFocused } from '@react-navigation/native';
 import ActiveWorkoutScreen from '../../src/screens/ActiveWorkoutScreen';
 import { useActiveWorkoutAutosave } from '../../src/hooks/useActiveWorkoutAutosave';
+import { useNavigationActionGuard } from '../../src/hooks/useNavigationActionGuard';
 import {
   __resetActiveWorkoutStoreForTests,
   useActiveWorkoutStore,
@@ -70,6 +71,11 @@ jest.mock('../../src/components/ActiveWorkoutRail', () => {
   return { __esModule: true, ...actual, default: () => null };
 });
 
+// The stub is not memoized, so it renders with every render of the screen:
+// its count is the screen's render count, and the props it last received show
+// whether the real (memoized) header would have re-rendered.
+let mockHeaderRenders = 0;
+let mockHeaderProps: Record<string, unknown> = {};
 jest.mock('../../src/components/ActiveWorkoutHeader', () => {
   const React = require('react');
   const { View } = require('react-native');
@@ -77,7 +83,11 @@ jest.mock('../../src/components/ActiveWorkoutHeader', () => {
   return {
     __esModule: true,
     buildExerciseProgress: actual.buildExerciseProgress,
-    default: () => <View testID="header" />,
+    default: (props: Record<string, unknown>) => {
+      mockHeaderRenders += 1;
+      mockHeaderProps = props;
+      return <View testID="header" />;
+    },
   };
 });
 
@@ -344,7 +354,7 @@ function pressSheetItem(key: string) {
 describe('ActiveWorkoutScreen overflow menu wiring', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // The screen's 1s elapsed tick would otherwise fire outside act().
+    // The rest bar's own countdown would otherwise tick outside act().
     jest.useFakeTimers();
     __resetActiveWorkoutStoreForTests();
     __resetAppPreferencesStoreForTests();
@@ -765,6 +775,118 @@ describe('ActiveWorkoutScreen persistent rest bar', () => {
 
     expect(queryByLabelText('Complete set')).toBeNull();
     expect(queryByLabelText('Skip rest')).toBeNull();
+  });
+});
+
+describe('ActiveWorkoutScreen render cost', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+    __resetActiveWorkoutStoreForTests();
+    __resetAppPreferencesStoreForTests();
+    useActiveWorkoutStore.getState().startWorkout(makeSession());
+    // The real hooks return stable callbacks; the default stubs mint new
+    // ones per render, which would churn every callback built on them.
+    (useActiveWorkoutAutosave as jest.Mock).mockReturnValue({
+      flush: jest.fn(async () => true),
+    });
+    (useNavigationActionGuard as jest.Mock).mockReturnValue({
+      runNavigationAction: jest.fn((action: () => void) => action()),
+    });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    (useActiveWorkoutAutosave as jest.Mock).mockImplementation(() => ({
+      flush: jest.fn(async () => true),
+    }));
+    (useNavigationActionGuard as jest.Mock).mockImplementation(() => ({
+      runNavigationAction: jest.fn((action: () => void) => action()),
+    }));
+  });
+
+  async function renderSettled() {
+    const utils = renderScreen();
+    await act(async () => {});
+    mockHeaderRenders = 0;
+    return utils;
+  }
+
+  it('does not re-render the screen while its clocks tick', async () => {
+    await renderSettled();
+
+    act(() => {
+      jest.advanceTimersByTime(5_000);
+    });
+
+    expect(mockHeaderRenders).toBe(0);
+  });
+
+  it('counts a running rest down inside the bar without re-rendering the screen', async () => {
+    const { getByLabelText, getByTestId } = await renderSettled();
+    fireEvent.press(getByLabelText('Complete set'));
+    const restBar = () => within(getByTestId('rest-bar-body'));
+    expect(restBar().getByText('1:30')).toBeTruthy();
+    mockHeaderRenders = 0;
+
+    act(() => {
+      jest.advanceTimersByTime(2_000);
+    });
+
+    expect(restBar().getByText('1:28')).toBeTruthy();
+    expect(mockHeaderRenders).toBe(0);
+  });
+
+  it("ticks the keyboard bar's rest row with the docked bar, without re-rendering the screen", async () => {
+    const { getByLabelText, getByTestId } = await renderSettled();
+    fireEvent.press(getByLabelText('Complete set'));
+    fireEvent.press(getByTestId('focus-rpe-201'));
+    const restBar = () => within(getByTestId('rest-bar-body'));
+    const keyboardBar = () => within(getByTestId('set-accessory-bar'));
+    expect(restBar().getByText('1:30')).toBeTruthy();
+    expect(keyboardBar().getByText('1:30')).toBeTruthy();
+    mockHeaderRenders = 0;
+
+    for (const shown of ['1:29', '1:28']) {
+      act(() => {
+        jest.advanceTimersByTime(1_000);
+      });
+      // One shared tick moves both countdowns at once.
+      expect(restBar().getByText(shown)).toBeTruthy();
+      expect(keyboardBar().getByText(shown)).toBeTruthy();
+    }
+    expect(mockHeaderRenders).toBe(0);
+  });
+
+  it('tells the autosave a set is being edited while a cell holds focus', async () => {
+    const { getByTestId, getByLabelText } = await renderSettled();
+    expect(useActiveWorkoutAutosave).toHaveBeenLastCalledWith({
+      editing: false,
+    });
+
+    fireEvent.press(getByTestId('focus-rpe-102'));
+    expect(useActiveWorkoutAutosave).toHaveBeenLastCalledWith({
+      editing: true,
+    });
+
+    // Logging the set from the rest bar ends the edit.
+    fireEvent.press(getByLabelText('Complete set'));
+    expect(useActiveWorkoutAutosave).toHaveBeenLastCalledWith({
+      editing: false,
+    });
+  });
+
+  it('hands the header the same props when only the focused cell moves', async () => {
+    const { getByTestId } = await renderSettled();
+    const before = mockHeaderProps;
+
+    fireEvent.press(getByTestId('focus-rpe-102'));
+
+    expect(mockHeaderRenders).toBeGreaterThan(0);
+    const changed = Object.keys(before).filter(
+      (key) => mockHeaderProps[key] !== before[key]
+    );
+    expect(changed).toEqual([]);
   });
 });
 

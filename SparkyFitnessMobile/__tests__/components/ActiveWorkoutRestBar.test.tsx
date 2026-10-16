@@ -1,11 +1,18 @@
 import React from 'react';
 import { AppState, StyleSheet } from 'react-native';
-import { act, render, fireEvent } from '@testing-library/react-native';
+import {
+  act,
+  render,
+  renderHook,
+  fireEvent,
+} from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 import ActiveWorkoutRestBar, {
   ActiveWorkoutCompactRestRow,
+  LiveActiveWorkoutRestBar,
 } from '../../src/components/ActiveWorkoutRestBar';
+import { useClockTick } from '../../src/hooks/useClockTick';
 import { fireSelectionHaptic } from '../../src/services/haptics';
 import { useNativeIOSTabsActive } from '../../src/services/nativeTabBarPreference';
 import { playIntervalCue } from '../../src/services/sounds';
@@ -24,8 +31,9 @@ jest.mock('../../src/services/sounds', () => ({
   setRestKeepAlive: jest.fn(),
 }));
 
-// The compact row's controls go through the store, which reschedules the
-// rest-complete notification.
+// The live bar and the compact row read the rest from the store, and the
+// compact row's controls go through it, which reschedules the rest-complete
+// notification.
 jest.mock('../../src/services/notifications', () => ({
   scheduleRestNotification: jest.fn(async () => 'notif-abc'),
   cancelScheduledNotification: jest.fn(async () => undefined),
@@ -276,6 +284,108 @@ describe('ActiveWorkoutRestBar', () => {
       expect(mockPlayIntervalCue).not.toHaveBeenCalled();
     });
   });
+
+  describe('LiveActiveWorkoutRestBar', () => {
+    const NOW = 1_700_000_000_000;
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(NOW);
+      __resetActiveWorkoutStoreForTests();
+      mockPlayIntervalCue.mockClear();
+      setAppState('active');
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('counts the rest down on its own and beeps once for each of 3, 2, 1', () => {
+      useActiveWorkoutStore.setState({
+        rest: {
+          state: 'resting',
+          durationSec: 60,
+          endsAt: NOW + 3_500,
+          pausedRemainingMs: null,
+          scheduledNotificationId: null,
+          instanceToken: 1,
+        },
+      });
+      const { getByText } = render(
+        <SafeAreaProvider initialMetrics={{ insets, frame }}>
+          <LiveActiveWorkoutRestBar
+            label="Bench Press · Set 2"
+            onAdjust={jest.fn()}
+            onSkip={jest.fn()}
+            onPause={jest.fn()}
+            onResume={jest.fn()}
+            onCompleteSet={jest.fn()}
+          />
+        </SafeAreaProvider>
+      );
+      expect(getByText('0:04')).toBeTruthy();
+      expect(mockPlayIntervalCue).not.toHaveBeenCalled();
+
+      for (const shown of ['0:03', '0:02', '0:01']) {
+        act(() => {
+          jest.advanceTimersByTime(1_000);
+        });
+        expect(getByText(shown)).toBeTruthy();
+      }
+      expect(mockPlayIntervalCue).toHaveBeenCalledTimes(3);
+      expect(mockPlayIntervalCue).toHaveBeenCalledWith('countdown');
+    });
+
+    it('ticks with the clock already running, not from when the rest started', () => {
+      // The header's elapsed time, ticking since before the rest began.
+      const clock = renderHook(() => useClockTick());
+      act(() => {
+        jest.advanceTimersByTime(600);
+      });
+      useActiveWorkoutStore.setState({
+        rest: {
+          state: 'resting',
+          durationSec: 60,
+          endsAt: NOW + 600 + 3_000,
+          pausedRemainingMs: null,
+          scheduledNotificationId: null,
+          instanceToken: 1,
+        },
+      });
+      const { getByText } = render(
+        <SafeAreaProvider initialMetrics={{ insets, frame }}>
+          <LiveActiveWorkoutRestBar
+            label="Bench Press · Set 2"
+            onAdjust={jest.fn()}
+            onSkip={jest.fn()}
+            onPause={jest.fn()}
+            onResume={jest.fn()}
+            onCompleteSet={jest.fn()}
+          />
+        </SafeAreaProvider>
+      );
+      expect(getByText('0:03')).toBeTruthy();
+
+      // The shared tick: 2.6s left still reads 0:03.
+      act(() => {
+        jest.advanceTimersByTime(400);
+      });
+      expect(getByText('0:03')).toBeTruthy();
+
+      // A second into the rest, between two ticks: nothing re-renders.
+      act(() => {
+        jest.advanceTimersByTime(600);
+      });
+      expect(getByText('0:03')).toBeTruthy();
+
+      // The next shared tick moves both clocks together.
+      act(() => {
+        jest.advanceTimersByTime(400);
+      });
+      expect(getByText('0:02')).toBeTruthy();
+      expect(clock.result.current).toBe(NOW + 2_000);
+    });
+  });
 });
 
 describe('ActiveWorkoutCompactRestRow', () => {
@@ -328,8 +438,60 @@ describe('ActiveWorkoutCompactRestRow', () => {
         .width
     ).toBe('50%');
 
+    // Nothing else is mounted: the row starts the shared clock itself.
     act(() => jest.advanceTimersByTime(1_000));
     expect(getByText('0:44')).toBeTruthy();
+  });
+
+  it('ticks on the shared clock already running, not from when it mounted', () => {
+    // The header's elapsed time, ticking since before the rest began.
+    const clock = renderHook(() => useClockTick());
+    act(() => jest.advanceTimersByTime(600));
+    setRest({ state: 'resting', durationSec: 90, endsAt: NOW + 600 + 45_000 });
+    const { getByText } = render(<ActiveWorkoutCompactRestRow />);
+    expect(getByText('0:45')).toBeTruthy();
+
+    // The shared tick: 44.6s left still reads 0:45.
+    act(() => jest.advanceTimersByTime(400));
+    expect(getByText('0:45')).toBeTruthy();
+
+    // A second after the row mounted, between two shared ticks: a timer of
+    // its own would have moved it to 0:44 here.
+    act(() => jest.advanceTimersByTime(600));
+    expect(getByText('0:45')).toBeTruthy();
+
+    // The next shared tick moves it together with the header's clock.
+    act(() => jest.advanceTimersByTime(400));
+    expect(getByText('0:44')).toBeTruthy();
+    expect(clock.result.current).toBe(NOW + 2_000);
+  });
+
+  it('changes on the same tick as the docked bar, from one timer', () => {
+    setAppState('active');
+    setRest({ state: 'resting', durationSec: 90, endsAt: NOW + 45_500 });
+    // The store's rest deadline timer is already pending.
+    const timersBefore = jest.getTimerCount();
+    const { getAllByText } = render(
+      <SafeAreaProvider initialMetrics={{ insets, frame }}>
+        <LiveActiveWorkoutRestBar
+          label="Bench Press · Set 2"
+          onAdjust={jest.fn()}
+          onSkip={jest.fn()}
+          onPause={jest.fn()}
+          onResume={jest.fn()}
+          onCompleteSet={jest.fn()}
+        />
+        <ActiveWorkoutCompactRestRow />
+      </SafeAreaProvider>
+    );
+    expect(getAllByText('0:46')).toHaveLength(2);
+    // Both countdowns ride the one shared interval; neither adds its own.
+    expect(jest.getTimerCount()).toBe(timersBefore + 1);
+
+    for (const shown of ['0:45', '0:44']) {
+      act(() => jest.advanceTimersByTime(1_000));
+      expect(getAllByText(shown)).toHaveLength(2);
+    }
   });
 
   it('drives the rest through the store: ±15 s, pause, resume, skip', () => {

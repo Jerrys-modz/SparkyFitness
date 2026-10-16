@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 import { useCSSVariable } from 'uniwind';
+import { useClockTick } from '../hooks/useClockTick';
 import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
 import { formatElapsed } from '../utils/workoutSession';
 import type { ExerciseProgress } from '../utils/workoutProgress';
@@ -20,8 +21,6 @@ interface ActiveWorkoutHeaderProps {
   name: string;
   location?: string | null;
   startedAt: number | null;
-  /** Epoch ms driving the elapsed clock — the screen's 1s tick. */
-  now: number;
   progress: ExerciseProgress[];
   onBack: () => void;
   onDiscard: () => void;
@@ -90,6 +89,26 @@ function HeaderIconButton({
 }
 
 /**
+ * The "MM:SS elapsed" line. It ticks on its own once a second, so neither the
+ * rest of the header nor the screen re-renders for the clock.
+ */
+function ElapsedTime({ startedAt }: { startedAt: number | null }) {
+  const { t } = useTranslation();
+  const now = useClockTick();
+  return (
+    <Text
+      className="text-xs text-text-secondary"
+      style={{ fontVariant: ['tabular-nums'] }}
+    >
+      {t('activeWorkout.header.elapsedTime', {
+        defaultValue: '{{time}} elapsed',
+        time: formatElapsed(startedAt, now),
+      })}
+    </Text>
+  );
+}
+
+/**
  * Custom chrome for the active-workout screen (the route renders with
  * `headerShown: false`): back, name + elapsed clock, kebab menu, and the
  * one segmented per-exercise progress bar.
@@ -98,7 +117,6 @@ function ActiveWorkoutHeader({
   name,
   location,
   startedAt,
-  now,
   progress,
   onBack,
   onDiscard,
@@ -244,15 +262,7 @@ function ActiveWorkoutHeader({
             {name}
           </Text>
           <View className="flex-row items-center gap-2">
-            <Text
-              className="text-xs text-text-secondary"
-              style={{ fontVariant: ['tabular-nums'] }}
-            >
-              {t('activeWorkout.header.elapsedTime', {
-                defaultValue: '{{time}} elapsed',
-                time: formatElapsed(startedAt, now),
-              })}
-            </Text>
+            <ElapsedTime startedAt={startedAt} />
             {location ? (
               <Pressable
                 onPress={onEditLocation}

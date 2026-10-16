@@ -8,6 +8,7 @@ import Icon from './Icon';
 import LiquidGlassSurface, {
   createLiquidGlassPillStyle,
 } from './LiquidGlassSurface';
+import { useClockTick } from '../hooks/useClockTick';
 import { useRestCountdown } from '../hooks/useRestCountdown';
 import { fireSelectionHaptic } from '../services/haptics';
 import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
@@ -340,6 +341,34 @@ function ActiveWorkoutRestBar({
   );
 }
 
+type LiveActiveWorkoutRestBarProps = Omit<
+  ActiveWorkoutRestBarProps,
+  'remainingMs' | 'progress' | 'state'
+>;
+
+/**
+ * The rest bar fed straight from the store's countdown. While a rest runs it
+ * re-renders on the shared 1s clock (`useClockTick`), in step with the
+ * header's elapsed time; that tick also drives the 3-2-1 lead-in above, so
+ * the screen hosting the bar needs no clock of its own.
+ */
+export const LiveActiveWorkoutRestBar = React.memo(
+  function LiveActiveWorkoutRestBar(props: LiveActiveWorkoutRestBarProps) {
+    const { state, remainingMs, progress } = useRestCountdown({
+      selfTick: false,
+    });
+    useClockTick(state === 'resting');
+    return (
+      <ActiveWorkoutRestBar
+        {...props}
+        state={state}
+        remainingMs={remainingMs}
+        progress={progress}
+      />
+    );
+  }
+);
+
 export default React.memo(ActiveWorkoutRestBar);
 
 /**
@@ -352,14 +381,19 @@ export const COMPACT_REST_ROW_HEIGHT = 46;
  * One-row rest controls for the set-entry keyboard bar (its `restSlot`): the
  * docked bar sits behind the keyboard while a set cell is being edited, so
  * the keyboard bar carries pause/resume, −15s, the countdown, +15s and skip
- * over a thin progress line. It ticks itself and calls the store directly,
- * so the screen's clock never re-renders the keyboard bar. It plays no
- * countdown beep or haptic: the docked bar stays mounted behind the keyboard
- * and remains the only source of that cue.
+ * over a thin progress line. Like {@link LiveActiveWorkoutRestBar} it
+ * re-renders on the shared 1s clock (`useClockTick`), so its countdown, the
+ * docked bar's and the header's elapsed time change on the same tick, and it
+ * calls the store directly, so the keyboard bar around it never re-renders
+ * for the countdown. It plays no countdown beep or haptic: the docked bar
+ * stays mounted behind the keyboard and remains the only source of that cue.
  */
 function CompactRestRow() {
   const { t } = useTranslation();
-  const { state, remainingMs, progress } = useRestCountdown();
+  const { state, remainingMs, progress } = useRestCountdown({
+    selfTick: false,
+  });
+  useClockTick(state === 'resting');
   const [accentPrimary, textMuted, trackColor] = useCSSVariable([
     '--color-accent-primary',
     '--color-text-muted',
