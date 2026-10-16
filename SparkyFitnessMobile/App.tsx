@@ -98,6 +98,9 @@ import {
   SafeGoals,
   SafeWeeklyGoalPlanEdit,
   SafeMealTypeSettings,
+  SafeEquipment,
+  SafeShoes,
+  SafeShoeForm,
   SafeAiSettings,
   SafeFoodSettings,
   SafeAllergenSettings,
@@ -1025,6 +1028,21 @@ function AppContent() {
             name="MealTypeSettings"
             component={SafeMealTypeSettings}
             options={createStackScreenOptions(t('screens.mealTypes', { defaultValue: 'Meal Types' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="Equipment"
+            component={SafeEquipment}
+            options={createStackScreenOptions(t('equipmentHub.title', { defaultValue: 'Equipment' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="Shoes"
+            component={SafeShoes}
+            options={createStackScreenOptions(t('shoes.title', { defaultValue: 'Shoes' }), { headerBackTitle: t('equipmentHub.title', { defaultValue: 'Equipment' }) })}
+          />
+          <Stack.Screen
+            name="ShoeForm"
+            component={SafeShoeForm}
+            options={createStackScreenOptions(t('shoes.title', { defaultValue: 'Shoes' }), { headerBackTitle: t('shoes.title', { defaultValue: 'Shoes' }) })}
           />
           <Stack.Screen
             name="DashboardSettings"
