@@ -111,19 +111,20 @@ const TrainingCalendarScreen: React.FC<Props> = () => {
 
   const distanceUnit =
     preferences?.default_distance_unit === 'miles' ? 'miles' : 'km';
-  const distance = (km: number) =>
-    t(
-      distanceUnit === 'miles'
-        ? 'trainingCalendar.distanceMiles'
-        : 'trainingCalendar.distanceKm',
-      {
-        value: formatLocalizedNumber(distanceFromKm(km, distanceUnit), {
-          maximumFractionDigits: 1,
-        }),
-        defaultValue:
-          distanceUnit === 'miles' ? '{{value}} mi' : '{{value}} km',
-      }
-    );
+  const distance = (km: number) => {
+    const value = formatLocalizedNumber(distanceFromKm(km, distanceUnit), {
+      maximumFractionDigits: 1,
+    });
+    return distanceUnit === 'miles'
+      ? t('trainingCalendar.distanceMiles', {
+          value,
+          defaultValue: '{{value}} mi',
+        })
+      : t('trainingCalendar.distanceKm', {
+          value,
+          defaultValue: '{{value}} km',
+        });
+  };
 
   const weekStart = weekStartOf(selected, firstDayOfWeek);
   const selectedWeek = data?.weeks.find((w) => w.start === weekStart);
