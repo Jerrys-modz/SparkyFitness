@@ -13,6 +13,7 @@ import {
   useRunProgram,
 } from '../../src/services/runProgramService';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useRunGoals } from '../../src/hooks/useRunGoals';
 
 const metrics = {
   insets: { top: 0, bottom: 0, left: 0, right: 0 },
@@ -39,6 +40,7 @@ jest.mock('../../src/services/runProgramService', () => ({
   skipProgramWorkout: jest.fn(() => Promise.resolve()),
   setProgramSchedule: jest.fn(() => Promise.resolve()),
 }));
+jest.mock('../../src/hooks/useRunGoals', () => ({ useRunGoals: jest.fn() }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 jest.mock('../../src/hooks/useScreenHeader', () => ({
   useScreenHeader: () => null,
@@ -71,6 +73,26 @@ jest.mock('../../src/components/CalendarSheet', () => {
 
 const mockedUse = jest.mocked(useRunProgram);
 
+const noGoals = {
+  data: {
+    goals: null,
+    progress: {
+      week_start: '2026-10-12',
+      week_end: '2026-10-18',
+      week_distance_km: 0,
+      run_count: 0,
+      weekly_percent: null,
+      days_left_in_week: 4,
+      daily_needed_km: null,
+      race_days_left: null,
+    },
+  },
+  loaded: true,
+  isSaving: false,
+  save: jest.fn(() => Promise.resolve()),
+  distanceUnit: 'km' as const,
+};
+
 describe('RunProgramsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -79,6 +101,39 @@ describe('RunProgramsScreen', () => {
       loaded: true,
       refetch: jest.fn(),
     } as never);
+    jest.mocked(useRunGoals).mockReturnValue(noGoals);
+  });
+
+  it('offers running goals above the programs', () => {
+    mockedUse.mockReturnValue({
+      status: null,
+      enabled: false,
+      lastAdjustment: null,
+      schedule: { days: [], startDay: null, endDay: null },
+      doneDay: null,
+      pendingEffort: null,
+      loaded: true,
+      refetch: jest.fn(),
+    });
+    renderScreen(RunProgramsProps());
+    expect(screen.getByText('Running goals')).toBeTruthy();
+    expect(screen.getByText('Set a goal')).toBeTruthy();
+  });
+
+  it('leaves the goals card out until the goals have loaded', () => {
+    jest.mocked(useRunGoals).mockReturnValue({ ...noGoals, data: null });
+    mockedUse.mockReturnValue({
+      status: null,
+      enabled: false,
+      lastAdjustment: null,
+      schedule: { days: [], startDay: null, endDay: null },
+      doneDay: null,
+      pendingEffort: null,
+      loaded: true,
+      refetch: jest.fn(),
+    });
+    renderScreen(RunProgramsProps());
+    expect(screen.queryByText('Running goals')).toBeNull();
   });
 
   it('lists every program and starts the one chosen', () => {
