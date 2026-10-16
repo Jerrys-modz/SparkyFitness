@@ -24,6 +24,13 @@ export const SPORT_COLORS: Record<LoadSportGroup, string> = {
   other: '#8a8f98',
 };
 
+/**
+ * Work nothing was planned for. Not a status colour and not a sport colour, so
+ * the calendar reads one way throughout: colours mean done / partly / missed /
+ * upcoming, and this outline means extra.
+ */
+export const EXTRA_COLOR = '#5b8def';
+
 export const STATUS_COLORS: Record<PlannedStatus, string> = {
   done: '#3d9a50',
   partial: '#e0a030',
