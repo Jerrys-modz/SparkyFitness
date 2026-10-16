@@ -188,7 +188,7 @@ private struct RouteMapLayer: View {
                 }
             }
         }
-        .mapStyle(.standard(emphasis: .muted))
+        .mapStyle(.standard(emphasis: .muted, pointsOfInterest: .excludingAll))
         .accessibilityLabel(route.name)
     }
 
