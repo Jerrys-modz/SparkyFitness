@@ -80,8 +80,10 @@ export default function SymptomEpisodeDetailScreen({
     none: t('symptoms.effectiveness.none', { defaultValue: 'no relief' }),
   } as const;
 
-  const scale =
-    definitions.find((d) => d.id === entry?.symptom_id)?.scale_type ?? '1-10';
+  // Definitions load separately from the entry, so the scale is only known once
+  // the matching definition is in; until then (or if it is gone) no chart is drawn.
+  const scale = definitions.find((d) => d.id === entry?.symptom_id)?.scale_type;
+  const chartMax = scale ? scaleMax(scale) : 0;
   const clock = (iso: string) =>
     new Date(iso).toLocaleTimeString(getAppLocale(), {
       hour: '2-digit',
@@ -148,9 +150,9 @@ export default function SymptomEpisodeDetailScreen({
             )}
           </View>
 
-          {isEpisode && scaleMax(scale) > 0 && (
+          {isEpisode && chartMax > 0 && (
             <View className="mt-4 p-3 rounded-xl bg-surface border border-border">
-              <SymptomSeverityChart entry={entry} max={scaleMax(scale)} />
+              <SymptomSeverityChart entry={entry} max={chartMax} />
             </View>
           )}
 
