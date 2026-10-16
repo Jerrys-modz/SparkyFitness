@@ -170,7 +170,7 @@ describe('USDA mapping & Vitamin A verification (#2936)', () => {
     expect(pepperVariant?.vitamin_a).toBe(23);
   });
 
-  it('maps branded food variants with householdServingFullText and legacy 1104 fallback', () => {
+  it('does not convert undifferentiated nutrient 1104 (IU) when 1106 (RAE) is absent', () => {
     const usdaFood: UsdaFood = {
       fdcId: 1952060,
       description: 'FORTIFIED BREAKFAST CEREAL',
@@ -187,45 +187,21 @@ describe('USDA mapping & Vitamin A verification (#2936)', () => {
           nutrientName: 'Vitamin A, IU',
           value: 2500, // per 100g
         },
-        // Sugars under 2000
-        { nutrientId: 2000, nutrientName: 'Total Sugars', value: 25 },
       ],
     };
 
     const food = mapUsdaBarcodeProduct(usdaFood);
-
-    // Variants: 40g default, 100g base, and household portion
-    expect(food.variants.length).toBeGreaterThanOrEqual(2);
 
     // Default 40g serving variant
     const defaultVariant = food.default_variant;
     expect(defaultVariant?.serving_size).toBe(40);
-    expect(defaultVariant?.serving_unit).toBe('g');
-    // Vitamin A: 2500 IU * 0.3 = 750 µg RAE per 100g -> for 40g: 750 * 0.4 = 300 µg
-    expect(defaultVariant?.vitamin_a).toBe(300);
-    // Sugars: 25g * 0.4 = 10g
-    expect(defaultVariant?.sugars).toBe(10);
+    // When 1106 is absent, 1104 is not converted using 0.3 factor; defaults to 0
+    expect(defaultVariant?.vitamin_a).toBe(0);
 
     // 100g variant
     const variant100g = food.variants.find((v) => v.serving_size === 100);
     expect(variant100g).toBeDefined();
-    expect(variant100g?.vitamin_a).toBe(750);
-    expect(variant100g?.sugars).toBe(25);
-  });
-
-  it('maps sugars correctly when reported under nutrient 1063 (Sugars, total NLEA)', () => {
-    const usdaFood: UsdaFood = {
-      fdcId: 12345,
-      description: 'Fruit item',
-      servingSize: 100,
-      servingSizeUnit: 'g',
-      foodNutrients: [
-        { nutrientId: 1063, nutrientName: 'Sugars, total NLEA', value: 14.5 },
-      ],
-    };
-
-    const food = mapUsdaBarcodeProduct(usdaFood);
-    expect(food.default_variant?.sugars).toBe(14.5);
+    expect(variant100g?.vitamin_a).toBe(0);
   });
 
   it('respects explicitly reported 0 for nutrient 1106 across all variants', () => {

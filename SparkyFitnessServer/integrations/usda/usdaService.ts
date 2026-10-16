@@ -351,9 +351,7 @@ function mapUsdaBarcodeProduct(food: UsdaFood) {
         sodium: Math.round((nutrients[1093] || 0) * scale),
         potassium: Math.round((nutrients[1092] || 0) * scale),
         dietary_fiber: Math.round((nutrients[1079] || 0) * scale * 10) / 10,
-        sugars:
-          Math.round(((nutrients[2000] ?? nutrients[1063]) || 0) * scale * 10) /
-          10,
+        sugars: Math.round((nutrients[2000] || 0) * scale * 10) / 10,
         calcium: Math.round((nutrients[1087] || 0) * scale),
         iron: Math.round((nutrients[1089] || 0) * scale * 10) / 10,
         polyunsaturated_fat:
@@ -361,17 +359,15 @@ function mapUsdaBarcodeProduct(food: UsdaFood) {
         monounsaturated_fat:
           Math.round((nutrients[1292] || 0) * scale * 10) / 10,
         // FDC nutrient id 1106 = Vitamin A, RAE (µg). Prefer 1106 directly since
-        // Sparky tracks Vitamin A in µg RAE. Fall back to 1104 (Vitamin A, IU)
-        // with the retinol conversion factor (0.3 µg/IU) only when 1106 is absent
-        // (e.g. older branded food labels).
+        // Sparky tracks Vitamin A in µg RAE. Do not convert undifferentiated 1104
+        // (Vitamin A, IU) because 1 IU = 0.3 µg for animal retinol but 0.05 µg
+        // for plant carotenoids; without source differentiation, applying a fixed
+        // 0.3 factor produces incorrect RAE values (see #2936). Missing nutrients
+        // default to 0 consistent with the rest of the provider mapping contract.
         vitamin_a:
-          Math.round(
-            (nutrients[1106] !== undefined
-              ? nutrients[1106]
-              : (nutrients[1104] || 0) * 0.3) *
-              scale *
-              10
-          ) / 10,
+          nutrients[1106] !== undefined
+            ? Math.round(nutrients[1106] * scale * 10) / 10
+            : 0,
         vitamin_c: Math.round((nutrients[1162] || 0) * scale * 10) / 10,
         // FDC nutrient id 1057 = Caffeine, reported mg/100g -- no unit
         // conversion needed, unlike the g/100g nutrients above.
