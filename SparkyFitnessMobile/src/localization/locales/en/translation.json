@@ -5389,6 +5389,7 @@
     "activeOngoing": "Active Ongoing Episodes",
     "noHistory": "No symptom logs found",
     "noHistoryDesc": "Logs and past episodes for the last 30 days will show here.",
+    "noHistoryForDay": "No symptoms were logged on this day.",
     "yourCustomSymptoms": "Your Custom Symptoms",
     "noCustomSymptoms": "No custom symptoms created yet.",
     "createFirst": "+ Create Custom Symptom",

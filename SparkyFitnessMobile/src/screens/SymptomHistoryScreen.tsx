@@ -391,10 +391,14 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
               })}
             </Text>
             <Text className="text-xs text-text-muted text-center px-6">
-              {t('symptoms.noHistoryDesc', {
-                defaultValue:
-                  'Logs and past episodes for the last 30 days will show here.',
-              })}
+              {selectedDate
+                ? t('symptoms.noHistoryForDay', {
+                    defaultValue: 'No symptoms were logged on this day.',
+                  })
+                : t('symptoms.noHistoryDesc', {
+                    defaultValue:
+                      'Logs and past episodes for the last 30 days will show here.',
+                  })}
             </Text>
           </View>
         ) : (
