@@ -672,7 +672,7 @@ function AppContent() {
           <Stack.Screen
             name="RunProgramWorkout"
             component={SafeRunProgramWorkout}
-            options={createStackScreenOptions(t('screens.runProgramWorkout', { defaultValue: 'Workout' }), { headerBackTitle: t('screens.runProgramCalendar', { defaultValue: 'Program calendar' }) })}
+            options={createStackScreenOptions(t('screens.runProgramWorkout', { defaultValue: 'Workout' }), { headerBackTitle: t('screens.trainingCalendar', { defaultValue: 'Training calendar' }) })}
           />
           <Stack.Screen
             name="Routes"
