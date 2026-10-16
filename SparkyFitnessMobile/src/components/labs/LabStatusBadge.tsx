@@ -4,9 +4,9 @@ import { useTranslation } from 'react-i18next';
 import type { LabRangeStatus } from '@workspace/shared';
 
 const STATUS_CLASS: Record<LabRangeStatus, string> = {
-  low: 'text-warning',
-  high: 'text-danger',
-  in_range: 'text-success',
+  low: 'text-text-warning',
+  high: 'text-text-danger-subtle',
+  in_range: 'text-text-success',
   unknown: 'text-text-muted',
 };
 

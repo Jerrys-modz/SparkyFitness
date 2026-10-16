@@ -40,6 +40,47 @@ describe('sameLabUnit', () => {
   });
 });
 
+describe('unit spellings that are the same unit', () => {
+  it.each([
+    ['uIU/mL', 'mIU/L'],
+    ['µIU/mL', 'mIU/L'],
+    ['IU/L', 'U/L'],
+    ['mL/min/1.73', 'mL/min/1.73m²'],
+    ['mL/min/1.73 m2', 'mL/min/1.73m²'],
+    ['x10E3/uL', '10³/µL'],
+    ['K/uL', '10³/µL'],
+    ['x10E6/uL', '10⁶/µL'],
+    ['ug/L', 'ng/mL'],
+    ['mEq/L', 'mmol/L'],
+    ['mcg/dL', 'µg/dL'],
+  ])('%s is %s', (a, b) => {
+    expect(sameLabUnit(a, b)).toBe(true);
+  });
+
+  it('still tells genuinely different units apart', () => {
+    expect(sameLabUnit('mg/dL', 'mmol/L')).toBe(false);
+    expect(sameLabUnit('ng/mL', 'ng/dL')).toBe(false);
+    expect(sameLabUnit('g/dL', 'g/L')).toBe(false);
+  });
+
+  it('imports a TSH printed in uIU/mL and an eGFR without the m2', () => {
+    const rows = planLabImport(
+      [
+        result({ marker_key: 'tsh', name: 'TSH', unit: 'uIU/mL', value: 1.69 }),
+        result({
+          marker_key: 'egfr',
+          name: 'eGFR',
+          unit: 'mL/min/1.73',
+          value: 84,
+        }),
+      ],
+      [],
+      null
+    );
+    expect(rows.map((r) => r.blocked)).toEqual([null, null]);
+  });
+});
+
 describe('planLabImport', () => {
   it('saves to the marker the user already has', () => {
     const [row] = planLabImport([result({})], [labCategory({})], null);
@@ -149,6 +190,7 @@ describe('planLabImport', () => {
       null
     );
     expect(existingRow.blocked).toBe('unit_mismatch');
+    expect(existingRow.markerUnit).toBe('mg/dL');
 
     const [newRow] = planLabImport(
       [result({ marker_key: 'ldl', name: 'LDL', unit: 'mmol/L' })],
@@ -218,6 +260,16 @@ describe('ranges on save', () => {
         useReportRanges: false,
       }).updateRange
     ).toBeUndefined();
+  });
+
+  it('saves a corrected value instead of the scanned one', () => {
+    expect(
+      labImportSaveInput(newRow, {
+        date: '2026-09-20',
+        useReportRanges: true,
+        value: 97,
+      }).value
+    ).toBe(97);
   });
 
   it('builds a new-marker save with the chosen range', () => {
