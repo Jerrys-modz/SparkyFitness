@@ -4,6 +4,7 @@ import {
   estimateIndoorDistance,
   learnFromIndoorEntry,
   learnFromOutdoorRecording,
+  measureOutdoorForm,
   type IndoorDistanceEstimate,
   type StepWindow,
 } from '../../src/services/stepDistance';
@@ -147,5 +148,35 @@ describe('learnFromOutdoorRecording', () => {
 
     expect(mockedSteps).not.toHaveBeenCalled();
     expect(mockedLearn).not.toHaveBeenCalled();
+  });
+});
+
+describe('measureOutdoorForm', () => {
+  it('gives cadence and stride for a continuous run', async () => {
+    mockedSteps.mockResolvedValue(4000);
+
+    expect(await measureOutdoorForm(window({ activity: 'run' }), 4000)).toEqual(
+      {
+        avgCadence: 133,
+        strideLengthCm: 100,
+      }
+    );
+    expect(mockedSteps).toHaveBeenCalledWith(START, START + 30 * 60_000, {
+      askForPermission: false,
+    });
+  });
+
+  it('keeps cadence but drops stride when the session paused', async () => {
+    mockedSteps.mockResolvedValue(4000);
+
+    expect(
+      await measureOutdoorForm(window({ activity: 'run', paused: true }), 4000)
+    ).toEqual({ avgCadence: 133, strideLengthCm: null });
+  });
+
+  it('is null when the phone cannot say', async () => {
+    mockedSteps.mockResolvedValue(null);
+
+    expect(await measureOutdoorForm(window(), 4000)).toBeNull();
   });
 });

@@ -2,7 +2,9 @@ import { getStepsBetween } from './stepCounter';
 import { getStride, learnStride } from './strideCalibration';
 import {
   activeShare,
+  computeFormMetrics,
   estimateDistanceMeters,
+  type FormMetrics,
   isStepActivity,
 } from '../utils/stride';
 import type { RecordingActivity } from '../utils/gpsRecording';
@@ -108,4 +110,23 @@ export async function learnFromOutdoorRecording(
   const steps = await activeSteps(window, false);
   if (steps == null || !isStepActivity(window.activity)) return;
   await learnStride(window.activity, steps, distanceMeters);
+}
+
+/**
+ * Cadence and stride length for a finished outdoor recording, or null when the
+ * phone cannot say. Like learning, it never raises a permission prompt. A
+ * paused session still gets a cadence (steps over moving time) but no stride,
+ * because its GPS distance and step window do not line up.
+ */
+export async function measureOutdoorForm(
+  window: StepWindow,
+  distanceMeters: number
+): Promise<FormMetrics | null> {
+  const steps = await activeSteps(window, false);
+  if (steps == null) return null;
+  return computeFormMetrics(
+    steps,
+    window.activeSeconds,
+    window.paused === true ? null : distanceMeters
+  );
 }
