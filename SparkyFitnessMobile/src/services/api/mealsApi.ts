@@ -159,3 +159,26 @@ export const fetchMealDeletionImpact = async (
     operation: 'fetch meal deletion impact',
   });
 };
+
+export interface CreateMealFromDiaryPayload {
+  date: string;
+  mealType: string;
+  mealName: string;
+  description: string | null;
+  isPublic: boolean;
+}
+
+/**
+ * Creates a meal template from the food entries logged for a date and meal type.
+ */
+export const createMealFromDiary = async (
+  payload: CreateMealFromDiaryPayload
+): Promise<Meal> => {
+  return apiFetch<Meal>({
+    endpoint: '/api/meals/create-meal-from-diary',
+    serviceName: 'Meals API',
+    operation: 'create meal from diary',
+    method: 'POST',
+    body: { ...payload },
+  });
+};
