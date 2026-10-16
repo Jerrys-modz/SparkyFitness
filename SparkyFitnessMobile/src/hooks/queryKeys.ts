@@ -444,3 +444,9 @@ export const runProgramQueryKey = ['runProgram'] as const;
 export const customRunProgramsQueryKey = ['customRunPrograms'] as const;
 /** The person's weekly running distance target and race (server-backed). */
 export const runGoalsQueryKey = ['runGoals'] as const;
+
+/** The person's saved routes (summaries). */
+export const routesQueryKey = ['routes'] as const;
+
+/** One saved route with its points and cues. */
+export const routeQueryKey = (id: string) => ['routes', id] as const;

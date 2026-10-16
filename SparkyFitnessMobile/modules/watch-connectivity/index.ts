@@ -821,6 +821,34 @@ export interface WatchRunStartPlanStep {
   hrMax?: number;
 }
 
+/**
+ * A saved route for the watch to follow. `points` is flat
+ * `[lat, lon, lat, lon, …]` in millionths of a degree (integers keep the
+ * property list small: ~20 KB for the 2000-point maximum). `cues` are turn
+ * instructions anchored to a point index; the watch words them from `kind`
+ * unless `text` is given. See `toWatchRoutePayload` in `src/utils/watchRoute.ts`.
+ */
+export interface WatchRoutePayload {
+  id: string;
+  name: string;
+  points: number[];
+  cues: {
+    index: number;
+    kind:
+      | 'depart'
+      | 'straight'
+      | 'slight_left'
+      | 'left'
+      | 'sharp_left'
+      | 'slight_right'
+      | 'right'
+      | 'sharp_right'
+      | 'uturn'
+      | 'arrive';
+    text?: string;
+  }[];
+}
+
 /** Asks the watch to start recording a walk or run itself. */
 export interface WatchRunStartPayload {
   requestId: string;
@@ -849,6 +877,8 @@ export interface WatchRunStartPayload {
     doneText?: string;
     steps: WatchRunStartPlanStep[];
   };
+  /** An outdoor run only: a saved route to follow. Rides this one request, so it reaches the watch exactly when the run does. */
+  route?: WatchRoutePayload;
 }
 
 export type WatchRunControlAction =

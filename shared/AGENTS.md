@@ -20,6 +20,7 @@
 - `src/nutrients/` - nutrient catalogs and the goal calculator used by web onboarding, the web Goals editor and mobile Goals (`nutrientCalculation.ts`: per-nutrient recommended values from age, sex, weight, calories and the saved algorithm choices; `nutrientAlgorithms.ts`: the algorithm enums and labels).
 - `src/utils/trainingCalendar.ts` - planned-against-completed matching for the training calendar (`matchPlan`, `programSlots`, `weeklyPlanSlots`, `weeklyTotals`, `sportLoadOf`) on top of `trainingLoad.ts`'s `sessionLoad`; contract `src/schemas/api/TrainingCalendar.api.zod.ts`.
 - `src/ai/`, `src/cycle/`, `src/medications/`, `src/mood/` - domain-specific helpers.
+- Routes: `src/schemas/api/Route.api.zod.ts` (points, turn cues, bodies), `src/utils/routeGeometry.ts` (distance, climb, simplify, bounds) and `src/utils/routeGpx.ts` (dependency-free GPX read/write).
 - `src/symptoms/` - generic symptom tracking: constants and enums (scales, templates, sections, option kinds), template section resolution (`resolveSections`), built-in symptoms and pick-lists, head/body region ids for the location maps, and custom-field validation. The API contract is `src/schemas/api/Symptoms.api.zod.ts`.
 
 ## Naming Convention

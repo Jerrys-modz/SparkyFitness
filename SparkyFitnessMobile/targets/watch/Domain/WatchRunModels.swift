@@ -149,6 +149,8 @@ struct WatchRunStartRequest: Equatable {
     /// The Record screen's switches. Nil from an older phone build, which
     /// leaves the run to the phone's saved preferences.
     var settings: WatchRunSettings? = nil
+    /// A saved route to follow, outdoors only. Nil from an older phone build.
+    var route: WatchRoute? = nil
 }
 
 /// Auto-pause and voice cues for one run. Chosen at the start (from the

@@ -611,7 +611,9 @@
       "equipment": "Equipment",
       "equipmentSubtitle": "Shoes and other gear",
       "labResults": "Lab results",
-      "labResultsSubtitle": "Blood tests and other markers over time"
+      "labResultsSubtitle": "Blood tests and other markers over time",
+      "routes": "Routes",
+      "routesSubtitle": "Draw, import and save routes to follow"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -652,7 +654,9 @@
     "labResults": "Lab results",
     "labResultDetail": "Lab result",
     "labResultAdd": "Add lab result",
-    "labReportImport": "Import report"
+    "labReportImport": "Import report",
+    "routes": "Routes",
+    "routeDraw": "Draw a route"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -8417,5 +8421,34 @@
       "useReportRanges": "Use the report's reference ranges",
       "useReportRangesHint": "The lab prints ranges for its own method, age and sex. Existing markers are updated to match."
     }
+  },
+  "routes": {
+    "addTitle": "Add a route",
+    "draw": "Draw on a map",
+    "importGpx": "Import a GPX file",
+    "importFailed": "Could not import that file",
+    "importFailedHint": "Choose a GPX file with a track or route in it.",
+    "loadFailed": "Could not load your routes.",
+    "loadOneFailed": "Could not load this route.",
+    "empty": "No routes yet. Draw one on a map, import a GPX file, or save a recorded run or walk from its details.",
+    "mapA11y": "Map of this route, from the green dot to the red ring",
+    "nameLabel": "Route name",
+    "namePlaceholder": "Name this route",
+    "climb": "{{climb}} climb",
+    "rename": "Rename",
+    "renameFailed": "Could not rename",
+    "shareGpx": "Share as GPX",
+    "shareFailed": "Could not share the route",
+    "deleteTitle": "Delete this route?",
+    "deleteMessage": "Recorded activities it was saved from are not affected.",
+    "deleteFailed": "Could not delete the route",
+    "saveFailed": "Could not save the route",
+    "drawHint": "Tap the map to add points",
+    "undo": "Undo",
+    "clear": "Clear",
+    "saveAsRoute": "Save as route",
+    "savedAsRoute": "Saved to Routes",
+    "saveAsRouteFailed": "Could not save the route",
+    "alreadyHasNoRoute": "This activity has no GPS route"
   }
 }
