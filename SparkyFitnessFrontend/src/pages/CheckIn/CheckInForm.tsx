@@ -388,112 +388,118 @@ export const CheckInForm: React.FC<CheckInFormProps> = ({
             {/* Custom Categories */}
 
             {/* Custom Categories */}
-            {customCategories.map((category) => {
-              const categoryLabel = healthMetricLabel(
-                category.name,
-                category.display_name,
-                t
-              );
-              const isConvertible = shouldConvertCustomMeasurement(
-                category.measurement_type
-              );
-              const unitToUse = isConvertible
-                ? category.measurement_type === 'kg' ||
-                  category.measurement_type === 'lbs' ||
-                  category.measurement_type === 'st_lbs'
-                  ? defaultWeightUnit
-                  : defaultMeasurementUnit
-                : category.measurement_type;
-              const displayUnit = healthMetricUnitLabel(unitToUse, t);
-              const currentValue = customValues[category.id] || '';
-              // Previous value for this category, offered only while the field
-              // is empty. The server returns manual values only, so a health
-              // sample can never be adopted here.
-              const previousValue = customPlaceholders[category.id] ?? null;
-              const offerPrevious =
-                currentValue === '' && previousValue !== null;
-              const adoptPrevious = () =>
-                setCustomValues((prev) => ({
-                  ...prev,
-                  [category.id]: String(previousValue),
-                }));
+            {/* Lab markers are tracked from lab results, not the daily check-in. */}
+            {customCategories
+              .filter((category) => !category.is_lab)
+              .map((category) => {
+                const categoryLabel = healthMetricLabel(
+                  category.name,
+                  category.display_name,
+                  t
+                );
+                const isConvertible = shouldConvertCustomMeasurement(
+                  category.measurement_type
+                );
+                const unitToUse = isConvertible
+                  ? category.measurement_type === 'kg' ||
+                    category.measurement_type === 'lbs' ||
+                    category.measurement_type === 'st_lbs'
+                    ? defaultWeightUnit
+                    : defaultMeasurementUnit
+                  : category.measurement_type;
+                const displayUnit = healthMetricUnitLabel(unitToUse, t);
+                const currentValue = customValues[category.id] || '';
+                // Previous value for this category, offered only while the field
+                // is empty. The server returns manual values only, so a health
+                // sample can never be adopted here.
+                const previousValue = customPlaceholders[category.id] ?? null;
+                const offerPrevious =
+                  currentValue === '' && previousValue !== null;
+                const adoptPrevious = () =>
+                  setCustomValues((prev) => ({
+                    ...prev,
+                    [category.id]: String(previousValue),
+                  }));
 
-              return (
-                <div key={category.id}>
-                  <div className="mb-1 flex items-center justify-between">
-                    <Label htmlFor={`custom-${category.id}`}>
-                      {categoryLabel} ({displayUnit})
-                    </Label>
-                    <UseLastButton
-                      value={currentValue}
-                      lastValue={offerPrevious ? previousValue : null}
-                      onAdopt={adoptPrevious}
-                    />
-                  </div>
-                  {isConvertible && category.data_type === 'numeric' ? (
-                    <UnitInput
-                      id={`custom-${category.id}`}
-                      type={
-                        category.measurement_type === 'kg' ||
-                        category.measurement_type === 'lbs' ||
-                        category.measurement_type === 'st_lbs'
-                          ? 'weight'
-                          : 'measurement'
-                      }
-                      unit={unitToUse}
-                      value={currentValue}
-                      placeholderValue={
-                        offerPrevious ? Number(previousValue) : null
-                      }
-                      onChange={(val) => {
-                        setCustomValues((prev) => ({
-                          ...prev,
-                          [category.id]: val !== null ? val.toString() : '',
-                        }));
-                      }}
-                    />
-                  ) : (
+                return (
+                  <div key={category.id}>
+                    <div className="mb-1 flex items-center justify-between">
+                      <Label htmlFor={`custom-${category.id}`}>
+                        {categoryLabel} ({displayUnit})
+                      </Label>
+                      <UseLastButton
+                        value={currentValue}
+                        lastValue={offerPrevious ? previousValue : null}
+                        onAdopt={adoptPrevious}
+                      />
+                    </div>
+                    {isConvertible && category.data_type === 'numeric' ? (
+                      <UnitInput
+                        id={`custom-${category.id}`}
+                        type={
+                          category.measurement_type === 'kg' ||
+                          category.measurement_type === 'lbs' ||
+                          category.measurement_type === 'st_lbs'
+                            ? 'weight'
+                            : 'measurement'
+                        }
+                        unit={unitToUse}
+                        value={currentValue}
+                        placeholderValue={
+                          offerPrevious ? Number(previousValue) : null
+                        }
+                        onChange={(val) => {
+                          setCustomValues((prev) => ({
+                            ...prev,
+                            [category.id]: val !== null ? val.toString() : '',
+                          }));
+                        }}
+                      />
+                    ) : (
+                      <Input
+                        id={`custom-${category.id}`}
+                        type={
+                          category.data_type === 'numeric' ? 'number' : 'text'
+                        }
+                        step={
+                          category.data_type === 'numeric' ? '0.01' : undefined
+                        }
+                        value={currentValue}
+                        onChange={(e) => {
+                          setCustomValues((prev) => ({
+                            ...prev,
+                            [category.id]: e.target.value,
+                          }));
+                        }}
+                        placeholder={
+                          offerPrevious
+                            ? String(previousValue)
+                            : t('checkIn.enterCustomCategory', {
+                                categoryName: categoryLabel.toLowerCase(),
+                                defaultValue: `Enter ${categoryLabel.toLowerCase()}`,
+                              })
+                        }
+                      />
+                    )}
                     <Input
-                      id={`custom-${category.id}`}
-                      type={
-                        category.data_type === 'numeric' ? 'number' : 'text'
-                      }
-                      step={
-                        category.data_type === 'numeric' ? '0.01' : undefined
-                      }
-                      value={currentValue}
+                      id={`custom-notes-${category.id}`}
+                      type="text"
+                      value={customNotes[category.id] || ''}
                       onChange={(e) => {
-                        setCustomValues((prev) => ({
+                        setCustomNotes((prev) => ({
                           ...prev,
                           [category.id]: e.target.value,
                         }));
                       }}
-                      placeholder={
-                        offerPrevious
-                          ? String(previousValue)
-                          : t('checkIn.enterCustomCategory', {
-                              categoryName: categoryLabel.toLowerCase(),
-                              defaultValue: `Enter ${categoryLabel.toLowerCase()}`,
-                            })
-                      }
+                      placeholder={t(
+                        'checkIn.notesOptional',
+                        'Notes (optional)'
+                      )}
+                      className="mt-2"
                     />
-                  )}
-                  <Input
-                    id={`custom-notes-${category.id}`}
-                    type="text"
-                    value={customNotes[category.id] || ''}
-                    onChange={(e) => {
-                      setCustomNotes((prev) => ({
-                        ...prev,
-                        [category.id]: e.target.value,
-                      }));
-                    }}
-                    placeholder={t('checkIn.notesOptional', 'Notes (optional)')}
-                    className="mt-2"
-                  />
-                </div>
-              );
-            })}
+                  </div>
+                );
+              })}
           </div>
 
           <div className="flex justify-center">

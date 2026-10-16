@@ -45,6 +45,7 @@ import {
   exportFoodDiary,
 } from '@/utils/reportUtil';
 import { CustomCategoryReport } from './CustomCategoryReport';
+import { LabResultsReport } from './LabResultsReport';
 import { ChartErrorBoundary } from '../Errors/ChartErrorFallback';
 import { CustomCategoriesResponse } from '@workspace/shared';
 import { useDailyGoalsRange } from '@/hooks/Goals/useGoals';
@@ -263,6 +264,12 @@ const Reports = () => {
             </ChartErrorBoundary>
             <ChartErrorBoundary>
               <CustomCategoryReport
+                customCategories={customCategories}
+                customMeasurementsData={customMeasurementsData}
+              />
+            </ChartErrorBoundary>
+            <ChartErrorBoundary>
+              <LabResultsReport
                 customCategories={customCategories}
                 customMeasurementsData={customMeasurementsData}
               />
