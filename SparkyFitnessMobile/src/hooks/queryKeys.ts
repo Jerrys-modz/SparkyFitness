@@ -151,6 +151,11 @@ export const checkInPhotoDatesQueryKey = [
 ] as const;
 
 export const customCategoriesQueryKey = ['customCategories'] as const;
+
+/** Every lab result for one marker, oldest first. */
+export const labHistoryRootQueryKey = ['labHistory'] as const;
+export const labHistoryQueryKey = (categoryId: string) =>
+  [...labHistoryRootQueryKey, categoryId] as const;
 export const customMeasurementsByDateQueryKey = (date: string) =>
   ['customMeasurements', date] as const;
 

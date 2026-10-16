@@ -158,8 +158,11 @@ const UseLastButton: React.FC<{
  */
 function isDailyCustomCategory(category: {
   frequency: string | null | undefined;
+  is_lab?: boolean;
 }): boolean {
-  return category.frequency === 'Daily';
+  // Lab markers are Daily so repeated saves upsert, but they are logged from
+  // Lab results, not the daily editor.
+  return category.frequency === 'Daily' && !category.is_lab;
 }
 
 const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
