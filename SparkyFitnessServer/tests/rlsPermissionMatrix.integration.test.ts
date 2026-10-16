@@ -197,6 +197,7 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     food_favorites: 'diary',
     goal_presets: 'diary',
     meal_plans: 'diary',
+    shoes: 'diary',
     user_allergen_preferences: 'diary',
     user_custom_nutrients: 'diary',
     user_goals: 'diary',

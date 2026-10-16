@@ -6680,7 +6680,8 @@
     "lastUsed": "last used {{date}}",
     "saveFailed": "Failed to save shoe",
     "deleteTitle": "Delete this shoe?",
-    "deleteDescription": "Runs logged with this pair stay in your diary, but they will no longer be linked to a shoe."
+    "deleteDescription": "Runs logged with this pair stay in your diary, but they will no longer be linked to a shoe.",
+    "updateFailed": "Failed to update shoe"
   },
   "fastingSettings": {
     "title": "Fasting Settings",
@@ -7359,9 +7360,6 @@
         "saturday": "Saturday",
         "sunday": "Sunday"
       }
-    },
-    "customNutrients": {
-      "notSet": "No goal"
     }
   },
   "reports": {

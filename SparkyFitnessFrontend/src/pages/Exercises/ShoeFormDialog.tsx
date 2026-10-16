@@ -91,24 +91,28 @@ export const ShoeFormDialog: React.FC<ShoeFormDialogProps> = ({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!isValid) return;
-    await onSubmit({
-      name: name.trim(),
-      brand: optionalText(brand),
-      model: optionalText(model),
-      nickname: optionalText(nickname),
-      purchase_date: purchaseDate || null,
-      purchase_price: optionalNumber(purchasePrice),
-      starting_distance_km:
-        shoe && startingDistance === toDisplay(shoe.starting_distance_km)
-          ? shoe.starting_distance_km
-          : convertDistance(startingValue, distanceUnit, 'km'),
-      retirement_distance_km:
-        shoe && retirementDistance === toDisplay(shoe.retirement_distance_km)
-          ? shoe.retirement_distance_km
-          : convertDistance(retirementValue, distanceUnit, 'km'),
-      is_default: isDefault,
-    });
-    onOpenChange(false);
+    try {
+      await onSubmit({
+        name: name.trim(),
+        brand: optionalText(brand),
+        model: optionalText(model),
+        nickname: optionalText(nickname),
+        purchase_date: purchaseDate || null,
+        purchase_price: optionalNumber(purchasePrice),
+        starting_distance_km:
+          shoe && startingDistance === toDisplay(shoe.starting_distance_km)
+            ? shoe.starting_distance_km
+            : convertDistance(startingValue, distanceUnit, 'km'),
+        retirement_distance_km:
+          shoe && retirementDistance === toDisplay(shoe.retirement_distance_km)
+            ? shoe.retirement_distance_km
+            : convertDistance(retirementValue, distanceUnit, 'km'),
+        is_default: isDefault,
+      });
+      onOpenChange(false);
+    } catch {
+      // The mutation already shows the error toast; keep the dialog open.
+    }
   };
 
   return (

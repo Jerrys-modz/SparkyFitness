@@ -217,6 +217,8 @@ export * from "./schemas/database/RunPrograms.zod.ts";
 export * from "./schemas/database/CustomRunPrograms.zod.ts";
 export * from "./schemas/database/Shoes.zod.ts";
 export * from "./schemas/database/RunGoals.zod.ts";
+export * from "./schemas/database/Shoes.zod.ts";
+export * from "./schemas/database/CustomRunPrograms.zod.ts";
 export * from "./types/progression.ts";
 export * from "./utils/exerciseMuscleAggregates.ts";
 export * from "./utils/trainingConsistency.ts";
