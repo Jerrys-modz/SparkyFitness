@@ -1656,15 +1656,17 @@ interface CorrelationEvent {
   bundleId: string;
   startTime: number;
   endTime: number;
+  containedTypes: Set<string>;
 }
 
 // Reconstruct per-food entries from LOOSE dietary samples — those NOT contained in any Food
 // correlation. A source's samples are grouped by event instant (one logged food = one shared
 // timestamp). `correlationUuids` are the contained-sample UUIDs to skip so we never
 // double-count nutrients that the correlation read already returned.
-// `correlationEvents` are the source bundle + time window of all read correlations so loose
-// samples from that same source and meal window are excluded even if sample UUIDs don't match
-// (preventing double-counting in apps like MacroFactor that emit both correlations and loose samples).
+// `correlationEvents` are the source bundle + time window + contained nutrient types of all read
+// correlations so loose samples from that same source and meal window are excluded if the correlation
+// already provides that nutrient (preventing double-counting in apps like MacroFactor that emit
+// both correlations and loose samples, while keeping distinct loose nutrients not in the correlation).
 const readLooseNutrition = async (
   startDate: Date,
   endDate: Date,
@@ -1714,12 +1716,14 @@ const readLooseNutrition = async (
         : sampleEndMsRaw;
 
       // Skip loose samples matching a correlation from the same source bundle in the same
-      // event window (±1s tolerance for timestamp serialization variance).
+      // event window that already contains this nutrient type (prevents double-counting
+      // nutrients while preserving distinct nutrients not included in the correlation).
       if (
         bundleId &&
         correlationEvents.some(
           (event) =>
             event.bundleId === bundleId &&
+            event.containedTypes.has(identifier) &&
             sampleStartMs <= event.endTime + 1000 &&
             sampleEndMs >= event.startTime - 1000
         )
@@ -1837,10 +1841,17 @@ const handleNutrition: RecordHandler = async (
         ? new Date(correlation.endDate).getTime()
         : startMs;
       if (!Number.isNaN(startMs)) {
+        const containedTypes = new Set<string>();
+        for (const o of objects) {
+          if (o.quantityType) {
+            containedTypes.add(o.quantityType);
+          }
+        }
         correlationEvents.push({
           bundleId,
           startTime: Math.min(startMs, Number.isNaN(endMs) ? startMs : endMs),
           endTime: Math.max(startMs, Number.isNaN(endMs) ? startMs : endMs),
+          containedTypes,
         });
       }
     }

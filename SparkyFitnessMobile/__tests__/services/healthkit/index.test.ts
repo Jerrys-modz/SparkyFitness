@@ -2157,6 +2157,77 @@ describe('readHealthRecords', () => {
       expect(ids).toContain('corr-lunch');
       expect(ids).toContain('com.example.nutrition:2024-01-15T16:30:00Z');
     });
+
+    test('preserves distinct loose nutrient from the same bundle within the correlation window', async () => {
+      await initHealthConnect();
+      const appBundle = 'com.example.nutrition';
+      mockQueryCorrelationSamples.mockResolvedValue([
+        correlation({
+          uuid: 'corr-protein-only',
+          startDate: '2024-01-15T12:30:00Z',
+          endDate: '2024-01-15T12:30:00Z',
+          sourceRevision: { source: { bundleIdentifier: appBundle } },
+          objects: [
+            {
+              uuid: 'corr-protein',
+              quantityType: 'HKQuantityTypeIdentifierDietaryProtein',
+              quantity: 25,
+              unit: 'g',
+            },
+          ],
+        }),
+      ]);
+      mockQueryQuantitySamples.mockImplementation(
+        looseByIdentifier({
+          HKQuantityTypeIdentifierDietaryProtein: [
+            // Same nutrient type inside the correlation window -> excluded
+            {
+              uuid: 'loose-duplicate-protein',
+              startDate: '2024-01-15T12:30:00Z',
+              quantity: 25,
+              unit: 'g',
+              source: { bundleIdentifier: appBundle },
+            },
+          ],
+          HKQuantityTypeIdentifierDietaryEnergyConsumed: [
+            // Distinct nutrient type NOT in the correlation -> preserved
+            {
+              uuid: 'loose-distinct-energy',
+              startDate: '2024-01-15T12:30:00Z',
+              quantity: 200,
+              unit: 'kcal',
+              source: { bundleIdentifier: appBundle },
+            },
+          ],
+        })
+      );
+
+      const result = await readHealthRecords(
+        'Nutrition',
+        new Date('2024-01-15T00:00:00Z'),
+        new Date('2024-01-15T23:59:59Z')
+      );
+
+      // Should return the correlation record AND the loose record for the distinct nutrient
+      expect(result).toHaveLength(2);
+      const ids = result.map((r) => (r as { uuid: string }).uuid);
+      expect(ids).toContain('corr-protein-only');
+      expect(ids).toContain('com.example.nutrition:2024-01-15T12:30:00Z');
+
+      const looseEntry = result.find(
+        (r) =>
+          (r as { uuid: string }).uuid ===
+          'com.example.nutrition:2024-01-15T12:30:00Z'
+      );
+      expect(
+        (looseEntry as { objects: { quantityType: string }[] }).objects
+      ).toEqual([
+        expect.objectContaining({
+          quantityType: 'HKQuantityTypeIdentifierDietaryEnergyConsumed',
+          quantity: 200,
+        }),
+      ]);
+    });
   });
 });
 
