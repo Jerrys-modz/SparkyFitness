@@ -75,6 +75,11 @@ export const createRouteBodySchema = z.object({
   activity: routeActivitySchema.default("run"),
   points: z.array(routePointSchema).min(2).max(ROUTE_MAX_INPUT_POINTS),
   cues: z.array(routeCueSchema).max(1000).optional(),
+  /**
+   * `generated` lets a client save a route it got from the generate endpoint.
+   * Defaults to `drawn`; `gpx` and `activity` stay server-assigned.
+   */
+  source: z.enum(["drawn", "generated"]).default("drawn"),
 });
 
 export const updateRouteBodySchema = z
@@ -98,6 +103,67 @@ export const routeFromActivityBodySchema = z.object({
   activity: routeActivitySchema.optional(),
 });
 
+/** The most cues a saved route keeps (matches `createRouteBodySchema`). */
+export const ROUTE_MAX_CUES = 1000;
+/** Bounds for a generated loop or out-and-back, in metres. */
+export const ROUTE_GENERATE_MIN_DISTANCE_M = 500;
+export const ROUTE_GENERATE_MAX_DISTANCE_M = 100_000;
+/** The most waypoints a generated route may be routed through. */
+export const ROUTE_GENERATE_MAX_WAYPOINTS = 20;
+
+export const routeGenerateCapabilitiesSchema = z.object({
+  available: z.boolean(),
+});
+
+const generateBaseSchema = z.object({
+  /** Where the route starts (and, for loops, ends). */
+  start: routePointSchema.pick({ lat: true, lon: true }),
+  activity: routeActivitySchema.default("run"),
+  name: routeNameSchema.optional(),
+});
+
+/** (a) A loop or out-and-back of about `distanceM` from the start. */
+export const generateLoopRouteBodySchema = generateBaseSchema.extend({
+  mode: z.literal("loop"),
+  distanceM: z
+    .number()
+    .min(ROUTE_GENERATE_MIN_DISTANCE_M)
+    .max(ROUTE_GENERATE_MAX_DISTANCE_M),
+  shape: z.enum(["loop", "out_and_back"]).default("loop"),
+  /** Compass direction (degrees) to head out in; random when omitted. */
+  bearingDeg: z.number().min(0).max(360).optional(),
+});
+
+/** (b) An ordered list of waypoints to route through. */
+export const generateWaypointsRouteBodySchema = generateBaseSchema.extend({
+  mode: z.literal("waypoints"),
+  waypoints: z
+    .array(routePointSchema.pick({ lat: true, lon: true }))
+    .min(1)
+    .max(ROUTE_GENERATE_MAX_WAYPOINTS),
+  /** Finish back at the start instead of the last waypoint. */
+  returnToStart: z.boolean().default(false),
+});
+
+export const generateRouteBodySchema = z.discriminatedUnion("mode", [
+  generateLoopRouteBodySchema,
+  generateWaypointsRouteBodySchema,
+]);
+
+/**
+ * A route that has been generated but not saved. Every field is what
+ * `POST /api/v2/routes` accepts, so the client can save it as returned.
+ */
+export const generatedRoutePreviewSchema = z.object({
+  name: routeNameSchema,
+  activity: routeActivitySchema,
+  source: z.literal("generated"),
+  points: z.array(routePointSchema),
+  cues: z.array(routeCueSchema),
+  distanceM: z.number(),
+  elevationGainM: z.number().nullable(),
+});
+
 export type RoutePoint = z.infer<typeof routePointSchema>;
 export type RouteCueKind = z.infer<typeof routeCueKindSchema>;
 export type RouteCue = z.infer<typeof routeCueSchema>;
@@ -107,3 +173,8 @@ export type CreateRouteBody = z.infer<typeof createRouteBodySchema>;
 export type UpdateRouteBody = z.infer<typeof updateRouteBodySchema>;
 export type ImportGpxRouteBody = z.infer<typeof importGpxRouteBodySchema>;
 export type RouteFromActivityBody = z.infer<typeof routeFromActivityBodySchema>;
+export type RouteGenerateCapabilities = z.infer<
+  typeof routeGenerateCapabilitiesSchema
+>;
+export type GenerateRouteBody = z.infer<typeof generateRouteBodySchema>;
+export type GeneratedRoutePreview = z.infer<typeof generatedRoutePreviewSchema>;
