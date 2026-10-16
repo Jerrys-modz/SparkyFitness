@@ -148,7 +148,7 @@ export default function SymptomEpisodeDetailScreen({
             )}
           </View>
 
-          {isEpisode && (
+          {isEpisode && scaleMax(scale) > 0 && (
             <View className="mt-4 p-3 rounded-xl bg-surface border border-border">
               <SymptomSeverityChart entry={entry} max={scaleMax(scale)} />
             </View>
