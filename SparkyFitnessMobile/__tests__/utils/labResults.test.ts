@@ -81,6 +81,16 @@ describe('labHistoryPoints', () => {
   });
 });
 
+describe('labHistoryPoints with rows that have no entry_date', () => {
+  it('skips them instead of throwing', () => {
+    const rows = [
+      { category_id: 'c', value: '5.4', date: '2025-03-01' },
+      { id: '2', category_id: 'c', value: '5.5', entry_date: '2025-04-01' },
+    ] as unknown as CustomMeasurementEntry[];
+    expect(labHistoryPoints(rows)).toEqual([{ day: '2025-04-01', value: 5.5 }]);
+  });
+});
+
 describe('buildLabPickerOptions', () => {
   const hba1c = category({
     id: 'lab-1',

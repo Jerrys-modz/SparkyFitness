@@ -438,6 +438,22 @@ export const fetchDailyVo2Max = async (
   return response?.data ?? [];
 };
 
+/**
+ * Every entry of one category, newest first, with each row's id (so a result
+ * can be deleted) and notes. The range endpoint answers with narrower rows that
+ * have neither, so a history that needs them reads from here.
+ */
+export const fetchCustomEntriesForCategory = async (
+  categoryId: string,
+  limit = 1000
+): Promise<CustomMeasurementEntry[]> => {
+  return apiFetch<CustomMeasurementEntry[]>({
+    endpoint: `/api/measurements/custom-entries?category_id=${encodeURIComponent(categoryId)}&limit=${limit}&orderBy=entry_timestamp.desc`,
+    serviceName: 'Measurements API',
+    operation: 'fetch custom entries for category',
+  });
+};
+
 export const fetchCustomMeasurementsByDate = async (
   date: string
 ): Promise<CustomMeasurementEntry[]> => {
