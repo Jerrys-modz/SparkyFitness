@@ -42,7 +42,7 @@ const EMPTY_DAY: DayItems = { planned: [], completed: [] };
  * scheduled workout plans) against what was done (the diary's workouts), with
  * a status on every planned item, weekly totals and a day's detail.
  */
-const TrainingCalendarScreen: React.FC<Props> = () => {
+const TrainingCalendarScreen: React.FC<Props> = ({ navigation }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const appLocale = useAppLocale();
@@ -183,37 +183,56 @@ const TrainingCalendarScreen: React.FC<Props> = () => {
     </Pressable>
   );
 
-  const renderPlanned = (item: PlannedItem) => (
-    <View key={item.id} className="flex-row items-center py-2">
-      <View
-        className="w-2 h-8 rounded-full mr-3"
-        style={{ backgroundColor: STATUS_COLORS[item.status] }}
-      />
-      <View className="flex-1">
-        <Text className="text-text-primary text-sm font-semibold">
-          {plannedItemLabel(t, item)}
-        </Text>
-        <Text className="text-text-secondary text-xs">
-          {plannedStatusLabel(t, item.status)}
-          {' · '}
-          {sportLoadLabel(t, item.sport)}
-          {item.plannedMinutes != null
-            ? ` · ${
-                item.completedMinutes > 0
-                  ? t('trainingCalendar.minutesOf', {
-                      done: formatLocalizedNumber(item.completedMinutes),
-                      planned: formatLocalizedNumber(
-                        Math.round(item.plannedMinutes)
-                      ),
-                      defaultValue: '{{done}} of {{planned}} min',
-                    })
-                  : minutes(item.plannedMinutes)
-              }`
-            : ''}
-        </Text>
-      </View>
-    </View>
-  );
+  // A run program workout opens its own screen (steps, the run it was done as,
+  // repeat or skip); a workout plan item has no screen of its own.
+  const renderPlanned = (item: PlannedItem) => {
+    const programIndex =
+      item.source === 'runProgram' && item.workoutNumber != null
+        ? item.workoutNumber - 1
+        : null;
+    return (
+      <Pressable
+        key={item.id}
+        testID={`planned-${item.id}`}
+        disabled={programIndex === null}
+        accessibilityRole={programIndex === null ? undefined : 'button'}
+        onPress={() =>
+          programIndex === null
+            ? undefined
+            : navigation.navigate('RunProgramWorkout', { index: programIndex })
+        }
+        className="flex-row items-center py-2"
+      >
+        <View
+          className="w-2 h-8 rounded-full mr-3"
+          style={{ backgroundColor: STATUS_COLORS[item.status] }}
+        />
+        <View className="flex-1">
+          <Text className="text-text-primary text-sm font-semibold">
+            {plannedItemLabel(t, item)}
+          </Text>
+          <Text className="text-text-secondary text-xs">
+            {plannedStatusLabel(t, item.status)}
+            {' · '}
+            {sportLoadLabel(t, item.sport)}
+            {item.plannedMinutes != null
+              ? ` · ${
+                  item.completedMinutes > 0
+                    ? t('trainingCalendar.minutesOf', {
+                        done: formatLocalizedNumber(item.completedMinutes),
+                        planned: formatLocalizedNumber(
+                          Math.round(item.plannedMinutes)
+                        ),
+                        defaultValue: '{{done}} of {{planned}} min',
+                      })
+                    : minutes(item.plannedMinutes)
+                }`
+              : ''}
+          </Text>
+        </View>
+      </Pressable>
+    );
+  };
 
   const renderCompleted = (item: CompletedItem) => (
     <View key={item.id} className="flex-row items-center py-2">

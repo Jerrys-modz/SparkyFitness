@@ -94,8 +94,11 @@ const state = (overrides: Record<string, unknown> = {}) =>
     refetch: jest.fn(),
     ...overrides,
   } as never);
+const navigate = jest.fn();
 const renderScreen = () =>
-  render(<TrainingCalendarScreen {...({} as never)} />);
+  render(
+    <TrainingCalendarScreen {...({ navigation: { navigate } } as never)} />
+  );
 
 beforeAll(async () => {
   await initializeI18n('en');
@@ -153,4 +156,26 @@ test('week view lists the seven days of the chosen week', () => {
   renderScreen();
   fireEvent.press(screen.getByText('Week'));
   expect(screen.getAllByText('Week of Oct 12').length).toBeGreaterThan(1);
+});
+
+test('opens the program workout from a planned run program item', () => {
+  const program = {
+    ...planned('program-1', '2026-10-14', 'upcoming'),
+    source: 'runProgram' as const,
+    sport: 'running' as const,
+    programId: 'beginner5k',
+    workoutNumber: 4,
+    label: null,
+  };
+  state({ data: { ...data, planned: [...data.planned, program] } });
+  renderScreen();
+  fireEvent.press(screen.getByTestId('planned-program-1'));
+  expect(navigate).toHaveBeenCalledWith('RunProgramWorkout', { index: 3 });
+});
+
+test('a workout plan item opens nothing', () => {
+  state();
+  renderScreen();
+  fireEvent.press(screen.getByTestId('planned-Pull'));
+  expect(navigate).not.toHaveBeenCalled();
 });
