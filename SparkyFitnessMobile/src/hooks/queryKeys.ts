@@ -100,6 +100,8 @@ export const allProvidersFoodSearchQueryKey = (
 export const mealTypesQueryKey = ['mealTypes'] as const;
 
 export const shoesQueryKey = ['shoes'] as const;
+/** Root of every bike query (list and detail); invalidate it to refresh all. */
+export const bikesQueryKey = ['bikes'] as const;
 export const allergenPreferencesQueryKey = ['allergenPreferences'] as const;
 
 export const goalsQueryKey = (date: string) => ['goals', date] as const;

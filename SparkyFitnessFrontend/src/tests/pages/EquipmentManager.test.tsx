@@ -25,6 +25,17 @@ jest.mock('@/contexts/PreferencesContext', () => ({
   }),
 }));
 
+jest.mock('@/hooks/Bikes/useBikes', () => ({
+  useBikes: () => ({ data: [], isLoading: false }),
+  useCreateBikeMutation: () => ({ mutateAsync: jest.fn(), isPending: false }),
+  useUpdateBikeMutation: () => ({
+    mutate: jest.fn(),
+    mutateAsync: jest.fn(),
+    isPending: false,
+  }),
+  useDeleteBikeMutation: () => ({ mutate: jest.fn() }),
+}));
+
 const mockUpdate = jest.fn();
 let mockCanWrite = true;
 

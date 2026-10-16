@@ -164,6 +164,7 @@ export default defineConfig({
             { text: 'GPS Activity Recording', link: '/features/exercises/gps-activity-recording' },
             { text: 'Running Trends', link: '/features/exercises/running-trends' },
             { text: 'Shoe Inventory', link: '/features/exercises/shoe-inventory' },
+            { text: 'Bike Inventory', link: '/features/exercises/bike-inventory' },
             { text: 'Progression & Per-Set Ramp', link: '/features/exercises/progression-and-per-set-ramp' },
             { text: 'Bodyweight Exercises', link: '/features/exercises/bodyweight-exercises' },
             { text: 'Adaptive Coaching', link: '/features/exercises/adaptive-coaching' },

@@ -22,6 +22,7 @@ import {
   useShoes,
   useUpdateShoeMutation,
 } from '@/hooks/Shoes/useShoes';
+import BikeEquipment from './BikeEquipment';
 import { ShoeFormDialog } from './ShoeFormDialog';
 
 const ShoeCard: React.FC<{
@@ -143,9 +144,8 @@ const ShoeCard: React.FC<{
 };
 
 /**
- * The Equipment section of the Exercises page. Shoes are the only kind of
- * equipment tracked so far, so they fill it; another kind would get its own
- * heading inside this card.
+ * The Equipment section of the Exercises page: shoes, then bikes. Another
+ * kind of equipment would get its own heading inside this card.
  */
 const EquipmentManager: React.FC = () => {
   const { t } = useTranslation();
@@ -209,7 +209,7 @@ const EquipmentManager: React.FC = () => {
           <CardDescription>
             {t(
               'shoes.subtitle',
-              'Keep track of the mileage on each pair of running shoes.'
+              'Keep track of the mileage on your running shoes and the distance on your bikes.'
             )}
           </CardDescription>
         </div>
@@ -258,6 +258,8 @@ const EquipmentManager: React.FC = () => {
           onSubmit={handleSubmit}
           isSaving={createShoe.isPending || updateShoe.isPending}
         />
+        <BikeEquipment />
+
         <ConfirmationDialog
           open={pendingDelete !== null}
           onOpenChange={(open) => !open && setPendingDelete(null)}

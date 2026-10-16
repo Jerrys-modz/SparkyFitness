@@ -391,6 +391,10 @@ export type RootStackParamList = {
   Equipment: undefined;
   Shoes: undefined;
   ShoeForm: { shoeId?: string };
+  Bikes: undefined;
+  BikeForm: { bikeId?: string };
+  BikeDetail: { bikeId: string };
+  BikeComponentForm: { bikeId: string; componentId?: string };
   FoodSettings: undefined;
   AllergenSettings: undefined;
   DashboardSettings: undefined;

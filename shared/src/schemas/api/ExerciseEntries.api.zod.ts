@@ -496,6 +496,7 @@ export const exerciseEntryResponseSchema = z
     gear_name: z.string().nullable().optional(),
     gear_external_id: z.string().nullable().optional(),
     shoe_id: z.string().nullable().optional(),
+    bike_id: z.string().nullable().optional(),
     water_estimated: z.number().nullable().optional(),
     moving_time_seconds: z.number().nullable().optional(),
     elapsed_time_seconds: z.number().nullable().optional(),

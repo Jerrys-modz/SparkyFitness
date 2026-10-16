@@ -7,6 +7,10 @@ import {
 } from '../../src/services/api/exerciseApi';
 import { findShoeThatReachedLimit } from '../../src/services/shoeWear';
 import {
+  assignBikeToExerciseEntry,
+  fetchBikes,
+} from '../../src/services/api/bikesApi';
+import {
   assignShoeToExerciseEntry,
   fetchShoes,
 } from '../../src/services/api/shoesApi';
@@ -28,6 +32,7 @@ import type { Exercise } from '../../src/types/exercise';
 
 jest.mock('../../src/services/api/exerciseApi');
 jest.mock('../../src/services/api/shoesApi');
+jest.mock('../../src/services/api/bikesApi');
 jest.mock('../../src/services/shoeWear');
 jest.mock('../../src/services/gpsRecordingService', () => ({
   elapsedSeconds: jest.fn(() => 1500),
@@ -432,5 +437,49 @@ describe('saveRecordedActivity default shoe', () => {
     );
     expect(mockedFetchShoes).not.toHaveBeenCalled();
     expect(mockedAssignShoe).not.toHaveBeenCalled();
+  });
+});
+
+describe('saveRecordedActivity default bike', () => {
+  const bike = (id: string, isDefault: boolean) =>
+    ({ id, is_default: isDefault, status: 'active' }) as Awaited<
+      ReturnType<typeof fetchBikes>
+    >[number];
+  const ride: RecordingSession = { ...session, activity: 'ride' };
+
+  beforeEach(() => {
+    jest.mocked(fetchBikes).mockResolvedValue([]);
+    jest.mocked(assignBikeToExerciseEntry).mockResolvedValue({
+      exercise_entry_id: 'entry-1',
+      bike_id: null,
+    });
+  });
+
+  it('links a new ride to the default bike and never to a shoe', async () => {
+    jest
+      .mocked(fetchBikes)
+      .mockResolvedValue([bike('a', false), bike('b', true)]);
+    await saveRecordedActivity(ride, points, 'km');
+    expect(fetchBikes).toHaveBeenCalledWith('active');
+    expect(assignBikeToExerciseEntry).toHaveBeenCalledWith('entry-1', 'b');
+    expect(mockedAssignShoe).not.toHaveBeenCalled();
+  });
+
+  it('leaves a ride unlinked when there is no default bike', async () => {
+    jest.mocked(fetchBikes).mockResolvedValue([bike('a', false)]);
+    await saveRecordedActivity(ride, points, 'km');
+    expect(assignBikeToExerciseEntry).not.toHaveBeenCalled();
+  });
+
+  it('still saves the ride when the bike lookup fails', async () => {
+    jest.mocked(fetchBikes).mockRejectedValue(new Error('offline'));
+    await expect(saveRecordedActivity(ride, points, 'km')).resolves.toEqual(
+      expect.objectContaining({ entryId: 'entry-1' })
+    );
+  });
+
+  it('does not look for a bike on a run', async () => {
+    await saveRecordedActivity(session, points, 'km');
+    expect(fetchBikes).not.toHaveBeenCalled();
   });
 });

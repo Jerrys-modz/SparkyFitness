@@ -12,6 +12,7 @@ import FormInput from '../components/FormInput';
 import Button from '../components/ui/Button';
 import SafeImage from '../components/SafeImage';
 import ProgramWorkoutBadge from '../components/recording/ProgramWorkoutBadge';
+import BikePickerCard from '../components/BikePickerCard';
 import ShoePickerCard from '../components/ShoePickerCard';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
@@ -55,7 +56,10 @@ import { addLog } from '../services/LogService';
 import type { RootStackScreenProps } from '../types/navigation';
 import type { WorkoutDraftSet } from '../types/drafts';
 import type { ExerciseEntrySetResponse } from '@workspace/shared';
-import { canEditGroupedWorkout } from '@workspace/shared';
+import {
+  canEditGroupedWorkout,
+  classifyActivitySport,
+} from '@workspace/shared';
 
 type Props = RootStackScreenProps<'ActivityDetail'>;
 
@@ -91,6 +95,14 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const entryDate = session.entry_date ?? '';
   const normalizedDate = normalizeDate(entryDate);
   const { name, duration, calories } = getWorkoutSummary(session, t);
+
+  // A ride is picked a bike instead of a pair of shoes.
+  const isRide =
+    classifyActivitySport({
+      exerciseName: name,
+      category: session.exercise_snapshot?.category,
+      notes: session.notes,
+    }).sport === 'cycling';
 
   const firstImage = session.exercise_snapshot?.images?.[0];
   const firstImageSource = firstImage ? getImageSource(firstImage) : null;
@@ -735,7 +747,11 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {!isEditing && isCardioModality(modality) && (
           <View className="mt-4">
-            <ShoePickerCard exerciseEntryId={session.id} />
+            {isRide ? (
+              <BikePickerCard exerciseEntryId={session.id} />
+            ) : (
+              <ShoePickerCard exerciseEntryId={session.id} />
+            )}
           </View>
         )}
 
