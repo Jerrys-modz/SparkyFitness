@@ -18,7 +18,7 @@ import { getCalendarWeekdayShortNames } from '../utils/calendarLocalization';
 import { distanceFromKm } from '../utils/unitConversions';
 import { formatDate, formatShortDate, getTodayDate } from '../utils/dateUtils';
 import {
-  SPORT_COLORS,
+  EXTRA_COLOR,
   STATUS_COLORS,
   itemsByDay,
   monthRange,
@@ -150,7 +150,7 @@ const TrainingCalendarScreen: React.FC<Props> = ({ navigation }) => {
               key={item.id}
               testID="extra-dot"
               className="w-2 h-2 border"
-              style={{ borderColor: SPORT_COLORS[item.sport] }}
+              style={{ borderColor: EXTRA_COLOR }}
             />
           ))}
       </View>
@@ -234,11 +234,19 @@ const TrainingCalendarScreen: React.FC<Props> = ({ navigation }) => {
     );
   };
 
+  // A completed row wears the colour of the planned item it counted for, or
+  // the extra colour when nothing was planned: sport is in the text.
+  const plannedStatus = new Map(detail.planned.map((p) => [p.id, p.status]));
   const renderCompleted = (item: CompletedItem) => (
     <View key={item.id} className="flex-row items-center py-2">
       <View
         className="w-2 h-8 rounded-full mr-3"
-        style={{ backgroundColor: SPORT_COLORS[item.sport] }}
+        style={{
+          backgroundColor:
+            item.plannedItemId !== null && plannedStatus.has(item.plannedItemId)
+              ? STATUS_COLORS[plannedStatus.get(item.plannedItemId)!]
+              : EXTRA_COLOR,
+        }}
       />
       <View className="flex-1">
         <Text className="text-text-primary text-sm font-semibold">
@@ -366,7 +374,10 @@ const TrainingCalendarScreen: React.FC<Props> = ({ navigation }) => {
               )
             )}
             <View className="flex-row items-center">
-              <View className="w-2 h-2 border border-text-muted mr-1" />
+              <View
+                className="w-2 h-2 border mr-1"
+                style={{ borderColor: EXTRA_COLOR }}
+              />
               <Text className="text-text-muted text-xs">
                 {t('trainingCalendar.extra', { defaultValue: 'Extra' })}
               </Text>
