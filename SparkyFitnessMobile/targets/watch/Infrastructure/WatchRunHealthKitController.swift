@@ -74,6 +74,10 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     var runId: String { clientId }
     private var startedAt = Date()
     private var runPlace: WatchRunPlace = .indoor
+    /// An indoor workout that has ended but is not yet written to Health.
+    private var heldBuilder: HKLiveWorkoutBuilder?
+    private var heldStart = Date()
+    private var heldEnd = Date()
     /// What goes to the phone: the accepted route and the heart-rate readings.
     private var routeRows: [[Double]] = []
     private var routeSegment = 0.0
@@ -286,23 +290,33 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         stopRoute()
         self.session = nil
         self.builder = nil
+        // An indoor run is asked for the treadmill's distance before it is
+        // written, so the workout waits (`finishHeld`) for the answer.
+        let hold = save && runPlace == .indoor
         session.end()
         endingBuilder.endCollection(withEnd: endedAt) { [weak self] _, _ in
-            if save {
+            if save && !hold {
                 endingBuilder.finishWorkout { workout, _ in
                     // The route can only be attached to a saved workout.
                     if let workout, let endingRoute {
                         endingRoute.finishRoute(with: workout, metadata: nil) { _, _ in }
                     }
                 }
-            } else {
+            } else if !save {
                 endingBuilder.discardWorkout()
                 endingRoute?.discard()
             }
             DispatchQueue.main.async {
                 guard let self else {
+                    // Nobody is left to answer for the held workout: write it as measured.
+                    if hold { endingBuilder.finishWorkout { _, _ in } }
                     completion(WatchRunMetrics(), finalElapsed, nil)
                     return
+                }
+                if hold {
+                    self.heldBuilder = endingBuilder
+                    self.heldStart = self.startedAt
+                    self.heldEnd = endedAt
                 }
                 let result = save ? WatchRunResult(
                     clientId: self.clientId,
@@ -322,6 +336,31 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                 ) : nil
                 completion(self.metrics, finalElapsed, result)
             }
+        }
+    }
+
+    /// Writes the indoor workout held by `end(save:)` once the treadmill
+    /// question is answered. HealthKit cannot lower distance it already
+    /// collected, so a larger final figure is topped up with a sample for the
+    /// difference; a smaller one leaves the measured distance as it was.
+    func finishHeld(distanceMeters: Double) {
+        guard let held = heldBuilder else { return }
+        heldBuilder = nil
+        let collected = held.statistics(for: Self.distanceType)?
+            .sumQuantity()?.doubleValue(for: .meter()) ?? 0
+        let missing = distanceMeters - collected
+        guard missing >= 1 else {
+            held.finishWorkout { _, _ in }
+            return
+        }
+        let sample = HKQuantitySample(
+            type: Self.distanceType,
+            quantity: HKQuantity(unit: .meter(), doubleValue: missing),
+            start: heldStart,
+            end: heldEnd
+        )
+        held.add([sample]) { _, _ in
+            held.finishWorkout { _, _ in }
         }
     }
 }
