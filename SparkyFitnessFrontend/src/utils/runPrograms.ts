@@ -3,8 +3,6 @@ import {
   type ProgramStatus,
   type ProgramWorkout,
   type RunProgram,
-  type RunProgramResponse,
-  type UpsertRunProgramBody,
 } from '@workspace/shared';
 import { PROGRAM_COPY } from '@/constants/runProgramCopy';
 
@@ -90,59 +88,14 @@ export const formatDayLabel = (
   });
 };
 
-// --- Request bodies for the actions on the card -----------------------------
-// Each change is one PUT /api/v2/run-program with only the fields that move,
-// built from the program as the server holds it.
-
-/** Starts `programId` from its first workout and switches it on. */
-export const startProgramBody = (
-  programId: string,
-  startDay?: string | null
-): UpsertRunProgramBody => ({
-  program_id: programId,
-  enabled: true,
-  start_date: startDay,
-});
-
-export const setEnabledBody = (
-  program: RunProgramResponse,
-  enabled: boolean
-): UpsertRunProgramBody => ({ program_id: program.program_id, enabled });
-
-/** Jumps to any workout (0-based), to repeat one or start further in. */
-export const setPositionBody = (
-  program: RunProgramResponse,
-  index: number
-): UpsertRunProgramBody => ({
-  program_id: program.program_id,
-  next_index: Math.max(0, Math.floor(index)),
-});
-
-export const skipWorkoutBody = (
-  program: RunProgramResponse
-): UpsertRunProgramBody => setPositionBody(program, program.next_index + 1);
-
-export const restartBody = (
-  program: RunProgramResponse
-): UpsertRunProgramBody => setPositionBody(program, 0);
-
-/** Flips one weekday (0 = Sunday) on the days the server has now. */
-export const toggleDayBody = (
-  program: RunProgramResponse,
-  day: number
-): UpsertRunProgramBody => ({
-  program_id: program.program_id,
-  run_days: program.run_days.includes(day)
-    ? program.run_days.filter((d) => d !== day)
-    : [...program.run_days, day].sort((a, b) => a - b),
-});
-
-/** null clears a day; omitting a field leaves it as it is. */
-export const scheduleBody = (
-  program: RunProgramResponse,
-  change: { startDay?: string | null; endDay?: string | null }
-): UpsertRunProgramBody => ({
-  program_id: program.program_id,
-  ...(change.startDay !== undefined && { start_date: change.startDay }),
-  ...(change.endDay !== undefined && { end_date: change.endDay }),
-});
+/** A weekday (0 = Sunday) as text in `locale`, e.g. "Mon". */
+export const weekdayLabel = (
+  day: number,
+  locale: string,
+  style: 'short' | 'long' = 'short'
+): string =>
+  // 2024-01-07 was a Sunday, so day 0 is Sunday.
+  new Date(Date.UTC(2024, 0, 7 + day)).toLocaleDateString(locale, {
+    weekday: style,
+    timeZone: 'UTC',
+  });

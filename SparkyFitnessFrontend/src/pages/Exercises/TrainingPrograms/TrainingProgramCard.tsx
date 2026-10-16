@@ -26,6 +26,7 @@ import {
   programDescription,
   programTitle,
   programWorkoutLabel,
+  weekdayLabel,
 } from '@/utils/runPrograms';
 
 /** A change older than this is history, not news. */
@@ -80,12 +81,6 @@ const TrainingProgramCard = ({
     lastChange && now - Date.parse(lastChange.at) < RECENT_CHANGE_MS
       ? lastChange
       : null;
-  const weekdayLabel = (day: number) =>
-    // 2024-01-07 was a Sunday, so day 0 is Sunday.
-    new Date(Date.UTC(2024, 0, 7 + day)).toLocaleDateString(locale, {
-      weekday: 'short',
-      timeZone: 'UTC',
-    });
   const dayText = (day: string) => formatDayLabel(day, locale);
 
   const workoutOption = (index: number): string => {
@@ -314,7 +309,7 @@ const TrainingProgramCard = ({
                           disabled={busy}
                           onClick={() => onToggleDay(day)}
                         >
-                          {weekdayLabel(day)}
+                          {weekdayLabel(day, locale)}
                         </Button>
                       );
                     })}

@@ -259,6 +259,7 @@ export * from "./utils/stretchRoutines.ts";
 export * from "./utils/runProgramSchedule.ts";
 export * from "./utils/runProgramCatchUp.ts";
 export * from "./utils/runProgramTimeline.ts";
+export * from "./utils/runProgramActions.ts";
 export * from "./utils/racePlan.ts";
 export * from "./constants/corosSportTypes.ts";
 export * from "./utils/runProgramAdjust.ts";

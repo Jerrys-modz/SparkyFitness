@@ -66,6 +66,20 @@ describe('buildProgramTimeline', () => {
     expect(items.map((i) => i.day)).toEqual(['2026-10-14', null, null]);
   });
 
+  it('leaves the due workout unplaced when the goal day has already passed', () => {
+    const items = buildProgramTimeline({
+      total: 2,
+      next: 0,
+      completions: [],
+      efforts: [],
+      schedule: { runDays: [], startDay: null, endDay: '2026-10-13' },
+      today: '2026-10-14',
+      doneToday: false,
+      isoToDay,
+    });
+    expect(items.map((i) => i.day)).toEqual([null, null]);
+  });
+
   it('groups items by day in workout order', () => {
     const items = buildProgramTimeline({
       total: 3,

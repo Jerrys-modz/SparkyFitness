@@ -17,7 +17,7 @@ import {
   getRunProgram,
   saveRunProgram,
 } from '@/api/Exercises/runPrograms';
-import { toggleDayBody } from '@/utils/runPrograms';
+import { toggleDayBody } from '@workspace/shared';
 import {
   makeCustomProgram,
   makeRunProgram,

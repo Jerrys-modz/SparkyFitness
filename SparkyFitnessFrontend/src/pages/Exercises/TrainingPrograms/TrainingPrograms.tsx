@@ -1,7 +1,16 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { todayInZone } from '@workspace/shared';
+import {
+  restartBody,
+  scheduleBody,
+  setEnabledBody,
+  setPositionBody,
+  skipWorkoutBody,
+  startProgramBody,
+  todayInZone,
+  toggleDayBody,
+} from '@workspace/shared';
 import { ArrowLeft } from 'lucide-react';
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,15 +23,7 @@ import {
   useRunProgram,
   useSaveRunProgramMutation,
 } from '@/hooks/Exercises/useRunProgram';
-import {
-  restartBody,
-  scheduleBody,
-  setEnabledBody,
-  setPositionBody,
-  skipWorkoutBody,
-  startProgramBody,
-  toggleDayBody,
-} from '@/utils/runPrograms';
+
 import StartProgramDialog from './StartProgramDialog';
 import TrainingProgramCalendar from './TrainingProgramCalendar';
 import TrainingProgramCard from './TrainingProgramCard';

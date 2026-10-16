@@ -86,12 +86,17 @@ export function buildProgramTimeline({
     }
     // With no weekdays chosen the Diary offers the due workout today (or on
     // the first day), so the calendar puts it there too.
-    const dueDay =
+    const fallbackDay =
       index === next && schedule.runDays.length === 0 && !doneToday
         ? schedule.startDay && schedule.startDay > today
           ? schedule.startDay
           : today
         : null;
+    // Nothing is scheduled after the goal day, here as in `projectRuns`.
+    const dueDay =
+      fallbackDay && schedule.endDay && fallbackDay > schedule.endDay
+        ? null
+        : fallbackDay;
     return {
       index,
       state: index === next ? "next" : "upcoming",
