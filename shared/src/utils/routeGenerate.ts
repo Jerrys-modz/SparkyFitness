@@ -36,7 +36,7 @@ export function limitWaypoints<T>(
   const result: T[] = [];
   for (let i = 0; i < max; i++) {
     result.push(
-      waypoints[Math.round((i * (waypoints.length - 1)) / (max - 1))],
+      waypoints[Math.round((i * (waypoints.length - 1)) / (max - 1))] as T,
     );
   }
   return result;
@@ -50,8 +50,8 @@ export function buildFollowRoadsRequest(
   taps: readonly LatLon[],
   activity: RouteActivity = "run",
 ): WaypointsBody | null {
-  if (taps.length < 2) return null;
   const [start, ...rest] = taps;
+  if (!start || rest.length === 0) return null;
   return {
     mode: "waypoints",
     start: { lat: start.lat, lon: start.lon },
