@@ -80,3 +80,4 @@ plans/
 /vendor
 /installations
 /.bundle
+watch-tests/.build/
