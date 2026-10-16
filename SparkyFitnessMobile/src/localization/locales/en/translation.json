@@ -7196,6 +7196,10 @@
       "weak": "GPS weak",
       "none": "No GPS"
     },
+    "warmRanges": {
+      "title": "Warm-up and cool-down",
+      "off": "Off"
+    },
     "paceBand": {
       "title": "Pace alert",
       "description": "Buzzes, and speaks with voice cues on, when you stay outside your pace range.",
