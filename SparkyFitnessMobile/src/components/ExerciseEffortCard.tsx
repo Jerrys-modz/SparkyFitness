@@ -90,6 +90,8 @@ const ExerciseEffortCard: React.FC<ExerciseEffortCardProps> = ({
             className="flex-row items-end gap-1.5"
             accessibilityLabel={t('exerciseEffort.trendLabel', {
               defaultValue: 'Average RPE of your last {{count}} sessions',
+              defaultValue_one: 'Average RPE of your last {{count}} session',
+              defaultValue_other: 'Average RPE of your last {{count}} sessions',
               count: trend.length,
             })}
           >
