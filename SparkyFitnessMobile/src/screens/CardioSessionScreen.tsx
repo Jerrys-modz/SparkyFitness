@@ -22,6 +22,7 @@ import {
 } from '../utils/cardioSession';
 import Button from '../components/ui/Button';
 import { shareRouteAsGpx } from '../services/gpxExport';
+import { saveActivityAsRoute } from '../services/routeService';
 import RouteMap from '../components/exerciseStats/RouteMap';
 import HeartRateChart from '../components/exerciseStats/HeartRateChart';
 import PaceChart from '../components/exerciseStats/PaceChart';
@@ -215,6 +216,27 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
       });
     }
   };
+  const [savingRoute, setSavingRoute] = React.useState(false);
+  const saveAsRoute = () => {
+    setSavingRoute(true);
+    void saveActivityAsRoute(session.id, session.exerciseName)
+      .then((saved) => {
+        Toast.show({
+          type: 'success',
+          text1: t('routes.savedAsRoute', { defaultValue: 'Saved to Routes' }),
+        });
+        navigation.navigate('RouteDetail', { id: saved.id });
+      })
+      .catch(() => {
+        Toast.show({
+          type: 'error',
+          text1: t('routes.saveAsRouteFailed', {
+            defaultValue: 'Could not save the route',
+          }),
+        });
+      })
+      .finally(() => setSavingRoute(false));
+  };
   const [year, month, day] = session.entryDate
     .slice(0, 10)
     .split('-')
@@ -307,6 +329,14 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
                 {t('exerciseStatistics.cardio.exportGpx', {
                   defaultValue: 'Export GPX',
                 })}
+              </Button>
+              <Button
+                variant="link"
+                testID="save-as-route"
+                loading={savingRoute}
+                onPress={saveAsRoute}
+              >
+                {t('routes.saveAsRoute', { defaultValue: 'Save as route' })}
               </Button>
             </>
           ) : (
