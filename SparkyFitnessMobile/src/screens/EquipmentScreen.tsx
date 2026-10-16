@@ -12,7 +12,7 @@ import type { RootStackScreenProps } from '../types/navigation';
 type Props = RootStackScreenProps<'Equipment'>;
 
 /**
- * Hub for the gear a person tracks. Shoes is the only kind today; a new kind
+ * Hub for the gear a person tracks. Shoes and bikes are the kinds today; a new kind
  * is another `SettingsRow` here plus its own screen.
  */
 const EquipmentScreen: React.FC<Props> = ({ navigation }) => {
@@ -47,6 +47,15 @@ const EquipmentScreen: React.FC<Props> = ({ navigation }) => {
             })}
             onPress={() => navigation.navigate('Shoes')}
             testID="equipment-shoes"
+          />
+          <SettingsRow
+            icon="exercise-cycling"
+            title={t('bikes.title', { defaultValue: 'Bikes' })}
+            subtitle={t('equipmentHub.bikesSubtitle', {
+              defaultValue: 'Bikes, their distance and component wear',
+            })}
+            onPress={() => navigation.navigate('Bikes')}
+            testID="equipment-bikes"
           />
         </SettingsRowGroup>
       </ScrollView>

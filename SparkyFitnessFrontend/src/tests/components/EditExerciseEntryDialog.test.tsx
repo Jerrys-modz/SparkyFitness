@@ -4,6 +4,7 @@ import EditExerciseEntryDialog from '@/pages/Diary/EditExerciseEntryDialog';
 import type { ExerciseEntry } from '@/types/exercises';
 
 const mockUpdateExerciseEntry = jest.fn();
+const mockAssignBike = jest.fn();
 
 // The published uuid build is ESM-only and ts-jest doesn't transform
 // node_modules; the dialogs only need unique dnd keys.
@@ -67,6 +68,16 @@ jest.mock('@/components/ExerciseActivityDetailsEditor', () => ({
 
 jest.mock('@/hooks/Shoes/useShoes', () => ({
   useAssignShoeMutation: () => ({ mutateAsync: jest.fn() }),
+}));
+
+jest.mock('@/hooks/Bikes/useBikes', () => ({
+  useAssignBikeMutation: () => ({ mutateAsync: mockAssignBike }),
+}));
+
+jest.mock('@/components/Bikes/BikeSelect', () => ({
+  BikeSelect: ({ onChange }: { onChange: (id: string | null) => void }) => (
+    <button data-testid="bike-select" onClick={() => onChange('bike-9')} />
+  ),
 }));
 
 jest.mock('@/components/Shoes/ShoeSelect', () => ({
@@ -215,5 +226,34 @@ describe('EditExerciseEntryDialog cardio set write', () => {
     // No cardio override lands on a strength set: rest survives, distance
     // stays absent on the set.
     expect(data.sets[0]).toMatchObject({ rest_time: 90, distance: null });
+  });
+  describe('bike or shoe on cardio entries', () => {
+    it('offers a bike, not a shoe, on a ride and links the chosen bike on save', async () => {
+      renderDialog(
+        makeEntry({
+          exercise_snapshot: {
+            id: 'ex-2',
+            name: 'Cycling',
+            category: 'Cardio',
+            modality: 'duration_distance',
+          },
+        } as unknown as Partial<ExerciseEntry>)
+      );
+      expect(screen.queryByTestId('shoe-select')).toBeNull();
+      fireEvent.click(screen.getByTestId('bike-select'));
+      await saveEntry();
+      await waitFor(() =>
+        expect(mockAssignBike).toHaveBeenCalledWith({
+          exerciseEntryId: 'entry-1',
+          bikeId: 'bike-9',
+        })
+      );
+    });
+
+    it('offers a shoe, not a bike, on a run', () => {
+      renderDialog(makeEntry());
+      expect(screen.getByTestId('shoe-select')).toBeTruthy();
+      expect(screen.queryByTestId('bike-select')).toBeNull();
+    });
   });
 });

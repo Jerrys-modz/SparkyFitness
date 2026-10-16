@@ -80,11 +80,14 @@ import {
   toSetTableModality,
 } from '@/constants/exercises';
 import { CardioLog } from '../Exercises/CardioLog';
+import { BikeSelect } from '@/components/Bikes/BikeSelect';
 import { ShoeSelect } from '@/components/Shoes/ShoeSelect';
+import { useAssignBikeMutation } from '@/hooks/Bikes/useBikes';
 import { useAssignShoeMutation } from '@/hooks/Shoes/useShoes';
 import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import {
+  classifyActivitySport,
   resolveExerciseModality,
   setsDurationMinutes,
   toHourMinute,
@@ -274,6 +277,13 @@ const EditExerciseEntryDialog = ({
     entry.exercise_snapshot?.category
   );
   const isCardio = modality === 'duration_distance';
+  // A ride is given a bike instead of a pair of shoes.
+  const isRide =
+    classifyActivitySport({
+      exerciseName: entry.exercise_snapshot?.name,
+      category: entry.exercise_snapshot?.category,
+      notes: entry.notes,
+    }).sport === 'cycling';
 
   // Laps/GPS only exist for cardio (duration_distance) entries; skip the request
   // entirely for strength-set edits instead of firing two calls that always come back
@@ -320,6 +330,7 @@ const EditExerciseEntryDialog = ({
       : ''
   );
   const [shoeId, setShoeId] = useState<string | null>(entry.shoe_id ?? null);
+  const [bikeId, setBikeId] = useState<string | null>(entry.bike_id ?? null);
   const [avgHeartRateInput, setAvgHeartRateInput] = useState<number | ''>(
     entry.avg_heart_rate != null ? entry.avg_heart_rate : ''
   );
@@ -572,6 +583,7 @@ const EditExerciseEntryDialog = ({
   const { mutateAsync: updateExerciseEntry, isPending: loading } =
     useUpdateExerciseEntryMutation();
   const { mutateAsync: assignShoe } = useAssignShoeMutation();
+  const { mutateAsync: assignBike } = useAssignBikeMutation();
   const queryClient = useQueryClient();
 
   const handleCopyRawData = async () => {
@@ -837,8 +849,11 @@ const EditExerciseEntryDialog = ({
         },
       });
 
-      if (isCardio && shoeId !== (entry.shoe_id ?? null)) {
+      if (isCardio && !isRide && shoeId !== (entry.shoe_id ?? null)) {
         await assignShoe({ exerciseEntryId: entry.id, shoeId });
+      }
+      if (isCardio && isRide && bikeId !== (entry.bike_id ?? null)) {
+        await assignBike({ exerciseEntryId: entry.id, bikeId });
       }
 
       info(
@@ -914,7 +929,19 @@ const EditExerciseEntryDialog = ({
             />
           </div>
 
-          {isCardio && (
+          {isCardio && isRide && (
+            <div className="space-y-2">
+              <Label htmlFor="exercise-entry-bike">
+                {t('bikes.bike', 'Bike')}
+              </Label>
+              <BikeSelect
+                id="exercise-entry-bike"
+                value={bikeId}
+                onChange={setBikeId}
+              />
+            </div>
+          )}
+          {isCardio && !isRide && (
             <div className="space-y-2">
               <Label htmlFor="exercise-entry-shoe">
                 {t('shoes.shoe', 'Shoe')}

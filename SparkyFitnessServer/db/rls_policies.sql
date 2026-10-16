@@ -50,6 +50,8 @@ BEGIN
     'mindfulness_sessions',
     'run_programs',
     'shoes',
+    'bikes',
+    'bike_components',
     'custom_run_programs',
     'onboarding_data',
     'onboarding_status',
@@ -684,6 +686,9 @@ SELECT create_checkin_policy('custom_measurements');
 SELECT create_diary_policy('exercise_entries');
 -- Running shoes belong to the exercise diary, so diary delegates manage them.
 SELECT create_diary_policy('shoes');
+-- Bikes and their components are the same kind of equipment: diary delegates manage them.
+SELECT create_diary_policy('bikes');
+SELECT create_diary_policy('bike_components');
 -- Custom policy for exercise_entries to allow access if linked to an owned exercise_preset_entry
 CREATE POLICY select_exercise_preset_entry_linked_policy ON public.exercise_entries FOR SELECT TO PUBLIC
 USING (

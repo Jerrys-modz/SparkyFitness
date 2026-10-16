@@ -101,6 +101,10 @@ import {
   SafeEquipment,
   SafeShoes,
   SafeShoeForm,
+  SafeBikes,
+  SafeBikeForm,
+  SafeBikeDetail,
+  SafeBikeComponentForm,
   SafeAiSettings,
   SafeFoodSettings,
   SafeAllergenSettings,
@@ -1043,6 +1047,26 @@ function AppContent() {
             name="ShoeForm"
             component={SafeShoeForm}
             options={createStackScreenOptions(t('shoes.title', { defaultValue: 'Shoes' }), { headerBackTitle: t('shoes.title', { defaultValue: 'Shoes' }) })}
+          />
+          <Stack.Screen
+            name="Bikes"
+            component={SafeBikes}
+            options={createStackScreenOptions(t('bikes.title', { defaultValue: 'Bikes' }), { headerBackTitle: t('equipmentHub.title', { defaultValue: 'Equipment' }) })}
+          />
+          <Stack.Screen
+            name="BikeForm"
+            component={SafeBikeForm}
+            options={createStackScreenOptions(t('bikes.title', { defaultValue: 'Bikes' }), { headerBackTitle: t('bikes.title', { defaultValue: 'Bikes' }) })}
+          />
+          <Stack.Screen
+            name="BikeDetail"
+            component={SafeBikeDetail}
+            options={createStackScreenOptions(t('bikes.title', { defaultValue: 'Bikes' }), { headerBackTitle: t('bikes.title', { defaultValue: 'Bikes' }) })}
+          />
+          <Stack.Screen
+            name="BikeComponentForm"
+            component={SafeBikeComponentForm}
+            options={createStackScreenOptions(t('bikes.components', { defaultValue: 'Components' }), { headerBackTitle: t('bikes.title', { defaultValue: 'Bikes' }) })}
           />
           <Stack.Screen
             name="DashboardSettings"

@@ -96,6 +96,8 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `exercise_entry_sets` | Reps, weights, and sets completed |
 | `exercise_entry_activity_details` | Heart rate, distance, activity data |
 | `shoes` | Running-shoe inventory with retirement mileage; linked from `exercise_entries.shoe_id` |
+| `bikes` | Bike inventory with distance and moving time from linked rides; linked from `exercise_entries.bike_id` |
+| `bike_components` | Per-bike components with install date, expected life and wear; replaced parts stay as retired history |
 | `exercise_entry_laps` | Lap split intervals for workouts |
 | `exercise_entry_hr_zones` | Heart-rate time-in-zone splits per workout |
 | `exercise_entry_distance_series` | Distance-against-time rows for an indoor entry with no route, behind its pace chart. One row per workout (`points` is JSONB) |

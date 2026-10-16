@@ -16,6 +16,7 @@ import {
 import { exerciseEntryKeys, exerciseKeys } from '@/api/keys/exercises';
 import i18n from '@/i18n';
 import { dailyProgressKeys } from '@/api/keys/diary';
+import { bikeKeys } from '@/api/keys/bikes';
 import { shoeKeys } from '@/api/keys/shoes';
 import { UpdateExerciseEntryRequest } from '@workspace/shared';
 import { useDiaryInvalidation } from '../useInvalidateKeys';
@@ -85,6 +86,7 @@ export const useUpdateExerciseEntryMutation = () => {
     onSuccess: () => {
       invalidate();
       queryClient.invalidateQueries({ queryKey: shoeKeys.all });
+      queryClient.invalidateQueries({ queryKey: bikeKeys.all });
     },
     meta: {
       successMessage: t(
@@ -108,8 +110,10 @@ export const useDeleteExerciseEntryMutation = () => {
     mutationFn: deleteExerciseEntry,
     onSuccess: () => {
       invalidate();
-      // A linked run counts toward its shoe's mileage and run count.
+      // A linked run counts toward its shoe's mileage and run count, and a
+      // linked ride toward its bike's distance and component wear.
       queryClient.invalidateQueries({ queryKey: shoeKeys.all });
+      queryClient.invalidateQueries({ queryKey: bikeKeys.all });
     },
     meta: {
       successMessage: t(

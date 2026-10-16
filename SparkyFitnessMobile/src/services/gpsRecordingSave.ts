@@ -18,6 +18,7 @@ import {
   learnFromOutdoorRecording,
   type IndoorDistanceEstimate,
 } from './stepDistance';
+import { assignBikeToExerciseEntry, fetchBikes } from './api/bikesApi';
 import { assignShoeToExerciseEntry, fetchShoes } from './api/shoesApi';
 import { findShoeThatReachedLimit } from './shoeWear';
 import type { ShoeResponse } from '@workspace/shared';
@@ -178,6 +179,8 @@ export async function saveRecordedActivity(
     }
     if (session.activity === 'run') {
       wornOutShoe = await assignDefaultShoe(entryId);
+    } else if (session.activity === 'ride') {
+      await assignDefaultBike(entryId);
     }
   }
 
@@ -197,6 +200,26 @@ export async function saveRecordedActivity(
   }
   await attachWatchHeartRate(entryId);
   return { entryId, entryDate, ...(wornOutShoe && { wornOutShoe }) };
+}
+
+/**
+ * Links a freshly saved ride to the person's default bike. Best effort, like
+ * the default shoe: the ride is already in the diary, so a failure is logged
+ * and never blocks the save.
+ */
+async function assignDefaultBike(entryId: string): Promise<void> {
+  try {
+    const bikes = await fetchBikes('active');
+    const defaultBike = bikes.find((bike) => bike.is_default);
+    if (!defaultBike) return;
+    await assignBikeToExerciseEntry(entryId, defaultBike.id);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    addLog(
+      `[GPS Recording] Could not assign default bike: ${message}`,
+      'WARNING'
+    );
+  }
 }
 
 /**
