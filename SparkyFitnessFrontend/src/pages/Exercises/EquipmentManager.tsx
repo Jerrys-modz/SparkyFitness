@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { Footprints, Pencil, Plus, Star, Trash2 } from 'lucide-react';
 import type { CreateShoeBody, ShoeResponse } from '@workspace/shared';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +29,9 @@ const ShoeCard: React.FC<{
   onEdit: () => void;
   onDelete: () => void;
   onToggleRetired: () => void;
-}> = ({ shoe, onEdit, onDelete, onToggleRetired }) => {
+  /** A delegate who can only view reports sees the pair but cannot change it. */
+  readOnly?: boolean;
+}> = ({ shoe, onEdit, onDelete, onToggleRetired, readOnly }) => {
   const { t } = useTranslation();
   const { distanceUnit, convertDistance } = usePreferences();
   const unitLabel = distanceUnit === 'miles' ? 'mi' : 'km';
@@ -97,7 +100,7 @@ const ShoeCard: React.FC<{
             ? ` · ${t('shoes.lastUsed', 'last used {{date}}', { date: shoe.last_used_date })}`
             : ''}
         </p>
-        {shoe.status === 'active' && shoe.is_worn_out && (
+        {!readOnly && shoe.status === 'active' && shoe.is_worn_out && (
           <div
             role="status"
             className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm"
@@ -113,25 +116,27 @@ const ShoeCard: React.FC<{
             </Button>
           </div>
         )}
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={onEdit}>
-            <Pencil className="mr-1 h-3.5 w-3.5" />
-            {t('common.edit', 'Edit')}
-          </Button>
-          <Button size="sm" variant="outline" onClick={onToggleRetired}>
-            {shoe.status === 'retired'
-              ? t('shoes.reactivate', 'Reactivate')
-              : t('shoes.retire', 'Retire')}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onDelete}
-            aria-label={t('common.delete', 'Delete')}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        </div>
+        {!readOnly && (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={onEdit}>
+              <Pencil className="mr-1 h-3.5 w-3.5" />
+              {t('common.edit', 'Edit')}
+            </Button>
+            <Button size="sm" variant="outline" onClick={onToggleRetired}>
+              {shoe.status === 'retired'
+                ? t('shoes.reactivate', 'Reactivate')
+                : t('shoes.retire', 'Retire')}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onDelete}
+              aria-label={t('common.delete', 'Delete')}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -144,6 +149,9 @@ const ShoeCard: React.FC<{
  */
 const EquipmentManager: React.FC = () => {
   const { t } = useTranslation();
+  const { hasWritePermission } = useActiveUser();
+  // Reads follow the diary or reports permission; every change needs diary write.
+  const canWrite = hasWritePermission('diary');
   const { data: shoes, isLoading } = useShoes();
   const createShoe = useCreateShoeMutation();
   const updateShoe = useUpdateShoeMutation();
@@ -175,6 +183,7 @@ const EquipmentManager: React.FC = () => {
         <ShoeCard
           key={shoe.id}
           shoe={shoe}
+          readOnly={!canWrite}
           onEdit={() => openEdit(shoe)}
           onDelete={() => setPendingDelete(shoe)}
           onToggleRetired={() =>
@@ -204,10 +213,12 @@ const EquipmentManager: React.FC = () => {
             )}
           </CardDescription>
         </div>
-        <Button onClick={openAdd} className="shrink-0">
-          <Plus className="mr-1 h-4 w-4" />
-          {t('shoes.addShoe', 'Add shoe')}
-        </Button>
+        {canWrite && (
+          <Button onClick={openAdd} className="shrink-0">
+            <Plus className="mr-1 h-4 w-4" />
+            {t('shoes.addShoe', 'Add shoe')}
+          </Button>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
         <h3 className="flex items-center gap-2 text-lg font-semibold">
