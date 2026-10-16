@@ -43,6 +43,7 @@ import {
   SafeMealsLibrary,
   SafeMealPlans,
   SafePersonalRecords,
+  SafeTrainingCalendar,
   SafeWatchRunLive,
   SafeRunPrograms,
   SafeRunProgramCalendar,
@@ -661,6 +662,11 @@ function AppContent() {
             name="PersonalRecords"
             component={SafePersonalRecords}
             options={createStackScreenOptions(t('screens.personalRecords', { defaultValue: 'Personal records' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="TrainingCalendar"
+            component={SafeTrainingCalendar}
+            options={createStackScreenOptions(t('screens.trainingCalendar', { defaultValue: 'Training calendar' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
           />
           <Stack.Screen
             name="WatchRunLive"

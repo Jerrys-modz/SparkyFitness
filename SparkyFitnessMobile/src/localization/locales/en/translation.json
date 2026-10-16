@@ -633,7 +633,9 @@
       "routes": "Routes",
       "routesSubtitle": "Draw, import and save routes to follow",
       "equipment": "Equipment",
-      "equipmentSubtitle": "Shoes and other gear"
+      "equipmentSubtitle": "Shoes and other gear",
+      "trainingCalendar": "Training calendar",
+      "trainingCalendarSubtitle": "Planned and completed workouts, and load by sport"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -667,6 +669,7 @@
     "watchRunLiveRun": "Run on your watch",
     "watchRunLiveJumpRope": "Jump Rope on your watch",
     "watchWalkLive": "Walk on your watch",
+    "trainingCalendar": "Training calendar",
     "allergenSettings": "Allergens",
     "runProgramCalendar": "Program calendar",
     "runProgramWorkout": "Workout",
@@ -9272,5 +9275,58 @@
     "barCard": "Bar {{number}}: {{name}}",
     "removeBarShort": "Remove",
     "barWeightUnit": "Weight ({{unit}})"
+  },
+  "trainingCalendar": {
+    "load": {
+      "title": "Load by Sport",
+      "subtitle": "Where your training load comes from: running, cycling, walking, strength and other.",
+      "thisWeek": "This week",
+      "thisMonth": "This month",
+      "weekly": "Weekly load",
+      "noneYet": "No workouts logged yet.",
+      "loadFailed": "Could not load your load by sport.",
+      "method": "Load is minutes weighted by your average heart rate (1 to 5, from how close it was to your maximum). A workout with no heart rate counts at a moderate weight of 2, so a strength session with no watch still counts by its time. Effort ratings are not used.",
+      "openCalendar": "Open training calendar"
+    },
+    "sport": {
+      "running": "Running",
+      "cycling": "Cycling",
+      "walking": "Walking",
+      "strength": "Strength",
+      "other": "Other"
+    },
+    "status": {
+      "done": "Done",
+      "partial": "Partly done",
+      "missed": "Missed",
+      "upcoming": "Upcoming"
+    },
+    "programWorkout": "{{name}} · workout {{number}}",
+    "workoutPlanFallback": "Workout plan",
+    "weekOf": "Week of {{date}}",
+    "minutesShort": "{{value}} min",
+    "minutesOf": "{{done}} of {{planned}} min",
+    "loadValue": "load {{value}}",
+    "estimated": "(estimated, no heart rate)",
+    "extra": "Extra",
+    "totals": {
+      "title": "Planned vs completed",
+      "sessions": "{{done}} of {{planned}} planned sessions",
+      "extra_one": "{{count}} extra",
+      "extra_other": "{{count}} extra",
+      "minutes": "Time {{done}} of {{planned}} min",
+      "load": "Load {{done}} of {{planned}}"
+    },
+    "loadFailed": "Could not load your training calendar.",
+    "refreshFailed": "Could not refresh. Showing the last result.",
+    "emptyDay": "Nothing planned or logged this day.",
+    "planned": "Planned",
+    "completed": "Completed",
+    "month": "Month",
+    "week": "Week",
+    "previous": "Previous",
+    "next": "Next",
+    "distanceKm": "{{value}} km",
+    "distanceMiles": "{{value}} mi"
   }
 }
