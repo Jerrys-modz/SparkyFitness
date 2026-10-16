@@ -372,6 +372,25 @@ class CustomNutrientService {
                 AND food_id IN (SELECT id FROM foods WHERE user_id = $3)`,
             [previousName, name, userId]
           );
+          // Supplement definitions keep their per-dose custom values under the
+          // nested `custom_nutrients` object. Logged snapshots
+          // (medication_entries.nutrients_snapshot) are history and stay.
+          await client.query(
+            `UPDATE medications
+                SET nutrients = jsonb_set(
+                  nutrients,
+                  '{custom_nutrients}',
+                  CASE
+                    WHEN nutrients->'custom_nutrients' ? $2::text
+                      THEN (nutrients->'custom_nutrients') - $1::text
+                    ELSE ((nutrients->'custom_nutrients') - $1::text)
+                      || jsonb_build_object($2::text, nutrients->'custom_nutrients'->$1::text)
+                  END
+                )
+              WHERE user_id = $3
+                AND nutrients->'custom_nutrients' ? $1::text`,
+            [previousName, name, userId]
+          );
         }
       }
       await client.query('COMMIT');
