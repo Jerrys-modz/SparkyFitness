@@ -1,3 +1,4 @@
+import { scaleMax } from '@workspace/shared';
 import { useState, useMemo } from 'react';
 import {
   View,
@@ -38,6 +39,9 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
   >(null);
 
   const { definitions } = useSymptomDefinitions();
+  // A symptom can be rated on 1-5 or 1-10; show each severity against its own scale.
+  const maxFor = (symptomId: string | null | undefined) =>
+    scaleMax(definitions.find((d) => d.id === symptomId)?.scale_type ?? '1-10');
   const [now] = useState(() => Date.now());
   const { episodes: ongoing } = useOngoingEpisodes();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -368,7 +372,7 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
                 {ep.severity != null && (
                   <View className="bg-amber-500/20 px-2.5 py-1 rounded-md border border-amber-500/40">
                     <Text className="text-xs font-bold text-amber-500">
-                      {ep.severity}/10
+                      {ep.severity}/{maxFor(ep.symptom_id)}
                     </Text>
                   </View>
                 )}
@@ -428,7 +432,7 @@ export default function SymptomHistoryScreen({ navigation }: Props) {
                 {item.severity != null && (
                   <View className="bg-accent-primary/10 px-2.5 py-1 rounded-lg border border-accent-primary/20">
                     <Text className="text-xs font-bold text-accent-primary">
-                      {item.severity}/10
+                      {item.severity}/{maxFor(item.symptom_id)}
                     </Text>
                   </View>
                 )}
