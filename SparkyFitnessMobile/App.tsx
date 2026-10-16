@@ -41,6 +41,10 @@ import {
   SafeFoodsLibrary,
   SafeMealsLibrary,
   SafeMealPlans,
+  SafeLabReportImport,
+  SafeLabResultAdd,
+  SafeLabResultDetail,
+  SafeLabResults,
   SafePersonalRecords,
   SafeTrainingCalendar,
   SafeWatchRunLive,
@@ -620,6 +624,34 @@ function AppContent() {
             name="TrainingCalendar"
             component={SafeTrainingCalendar}
             options={createStackScreenOptions(t('screens.trainingCalendar', { defaultValue: 'Training calendar' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="LabResults"
+            component={SafeLabResults}
+            options={createStackScreenOptions(t('screens.labResults', { defaultValue: 'Lab results' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="LabResultDetail"
+            component={SafeLabResultDetail}
+            options={createStackScreenOptions(t('screens.labResultDetail', { defaultValue: 'Lab result' }), { headerBackTitle: t('screens.labResults', { defaultValue: 'Lab results' }) })}
+          />
+          <Stack.Screen
+            name="LabReportImport"
+            component={SafeLabReportImport}
+            options={createStackScreenOptions(t('screens.labReportImport', { defaultValue: 'Import report' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
+          <Stack.Screen
+            name="LabResultAdd"
+            component={SafeLabResultAdd}
+            options={createStackScreenOptions(t('screens.labResultAdd', { defaultValue: 'Add lab result' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
           />
           <Stack.Screen
             name="WatchRunLive"

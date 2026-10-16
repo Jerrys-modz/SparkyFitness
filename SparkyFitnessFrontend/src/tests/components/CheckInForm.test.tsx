@@ -336,6 +336,9 @@ describe('CheckInForm', () => {
       measurement_type: 'cm',
       frequency: 'Daily',
       data_type: 'numeric',
+      is_lab: false,
+      ref_range_low: null,
+      ref_range_high: null,
     };
     const textCategory = {
       id: 'cat-2',
@@ -344,7 +347,36 @@ describe('CheckInForm', () => {
       measurement_type: '',
       frequency: 'Daily',
       data_type: 'text',
+      is_lab: false,
+      ref_range_low: null,
+      ref_range_high: null,
     };
+
+    it('leaves lab markers out of the daily check-in', () => {
+      render(
+        <CheckInForm
+          {...defaultProps}
+          customCategories={[
+            numericCategory,
+            {
+              ...numericCategory,
+              id: 'lab-1',
+              name: 'hba1c',
+              display_name: 'HbA1c',
+              measurement_type: '%',
+              frequency: 'All',
+              is_lab: true,
+              ref_range_low: 4,
+              ref_range_high: 5.6,
+            },
+          ]}
+          customValues={{}}
+        />
+      );
+
+      expect(screen.getByLabelText('Chest (cm)')).toBeInTheDocument();
+      expect(screen.queryByLabelText(/HbA1c/)).not.toBeInTheDocument();
+    });
 
     it('shows a previous custom value as a placeholder, not an input value', () => {
       render(

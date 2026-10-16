@@ -609,7 +609,9 @@
       "trainingCalendar": "Training calendar",
       "trainingCalendarSubtitle": "Planned and completed workouts, and load by sport",
       "equipment": "Equipment",
-      "equipmentSubtitle": "Shoes and other gear"
+      "equipmentSubtitle": "Shoes and other gear",
+      "labResults": "Lab results",
+      "labResultsSubtitle": "Blood tests and other markers over time"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -646,7 +648,11 @@
     "runProgramNew": "New plan",
     "runProgramRace": "Plan a race",
     "addMenuSettings": "Add menu",
-    "trainingCalendar": "Training calendar"
+    "trainingCalendar": "Training calendar",
+    "labResults": "Lab results",
+    "labResultDetail": "Lab result",
+    "labResultAdd": "Add lab result",
+    "labReportImport": "Import report"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -1129,7 +1135,9 @@
     "stateHidden": "Hidden",
     "configureCard": "Configure {{name}}",
     "trainingLoad": "Training Load",
-    "trainingLoadSubtitle": "Show this week against your usual training, with a nudge to rest"
+    "trainingLoadSubtitle": "Show this week against your usual training, with a nudge to rest",
+    "labResults": "Lab Results",
+    "labResultsSubtitle": "Show your latest lab results and which are out of range"
   },
   "diarySettings": {
     "updateFailed": "Failed to update setting.",
@@ -8334,5 +8342,80 @@
     "next": "Next",
     "distanceKm": "{{value}} km",
     "distanceMiles": "{{value}} mi"
+  },
+  "labs": {
+    "add": "Add lab result",
+    "changeMarker": "Change",
+    "chartEmpty": "No results yet",
+    "createCustom": "Add \"{{name}}\" as a new marker",
+    "date": "Date of test",
+    "dateFuture": "The test date cannot be in the future.",
+    "deleteFailed": "Could not delete the result",
+    "deleteMessage": "Delete this lab result?",
+    "deleteTitle": "Delete result",
+    "empty": "No lab results yet. Add a result like HbA1c, LDL or vitamin D and track it over time.",
+    "latest": "Latest",
+    "loadFailed": "Could not load your lab results.",
+    "noMatches": "No matching markers",
+    "noResults": "No results",
+    "notesPlaceholder": "Add a note (optional)",
+    "oneResultPerDay": "Saving a second result for the same marker and day replaces the first.",
+    "rangeHigh": "High",
+    "rangeInvalid": "Enter numbers, with the low value not above the high value.",
+    "rangeLow": "Low",
+    "rangeOptional": "Reference range (optional)",
+    "referenceRange": "Reference range: {{range}}",
+    "saveFailed": "Could not save the lab result",
+    "searchPlaceholder": "Search markers (HbA1c, LDL, ...)",
+    "status": {
+      "high": "High",
+      "inRange": "In range",
+      "low": "Low"
+    },
+    "unit": "Unit",
+    "value": "Result",
+    "card": {
+      "a11y": "Lab results",
+      "empty": "No results yet. Tap to add one.",
+      "outOfRange_one": "{{count}} outside the reference range",
+      "outOfRange_other": "{{count}} outside the reference range",
+      "title": "Lab results"
+    },
+    "rangeForSex": "Prefilled for {{sex}} adults from your profile. Labs differ, so edit it to match your report.",
+    "rangeNoSex": "This marker differs by sex. Set your sex in your profile for a tailored range, or enter the range from your report.",
+    "sex": {
+      "female": "female",
+      "male": "male"
+    },
+    "import": {
+      "blocked": {
+        "duplicate": "Already included from this report.",
+        "nameTaken": "Another measurement already uses this name.",
+        "noUnit": "The report shows no unit for this test.",
+        "unit": "The report uses a different unit than this marker, and units are not converted."
+      },
+      "cameraDenied": "Camera access is needed to take a photo.",
+      "chooseAnother": "Choose a different report",
+      "choosePdf": "Choose a PDF",
+      "choosePhoto": "Choose a photo or screenshot",
+      "cta": "Import from a report",
+      "existingMarker": "Your marker",
+      "includeRow": "Include {{name}}",
+      "intro": "Choose a lab report PDF, or a photo or screenshot of one. Your AI provider reads it and you review the results before anything is saved. The report itself is not stored.",
+      "newMarker": "New marker",
+      "partial": "Could not save: {{names}}",
+      "pickFailed": "Could not open that file.",
+      "rangeUpdated": "range will update",
+      "reading": "Reading your report...",
+      "saveCount_one": "Save {{count}} result",
+      "saveCount_other": "Save {{count}} results",
+      "saved_one": "Saved {{count}} result",
+      "saved_other": "Saved {{count}} results",
+      "scanFailed": "Could not read that report.",
+      "takePhoto": "Take a photo",
+      "tooLarge": "That PDF is too large to read (limit 14 MB).",
+      "useReportRanges": "Use the report's reference ranges",
+      "useReportRangesHint": "The lab prints ranges for its own method, age and sex. Existing markers are updated to match."
+    }
   }
 }

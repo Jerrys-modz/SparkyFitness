@@ -1,0 +1,89 @@
+import { useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  deleteCustomMeasurement,
+  fetchCustomMeasurementsRange,
+} from '../services/api/measurementsApi';
+import { saveLabResult } from '../services/labResultsService';
+import {
+  customCategoriesQueryKey,
+  labHistoryQueryKey,
+  latestManualCustomEntriesRootQueryKey,
+} from './queryKeys';
+import {
+  useCustomCategories,
+  useLatestManualCustomEntriesOnOrBefore,
+} from './useCustomMeasurements';
+import { refreshHealthSyncCache } from './refreshHealthSyncCache';
+import { addLog } from '../services/LogService';
+import { getTodayDate } from '../utils/dateUtils';
+import { isLabCategory, type LabCategory } from '../utils/labResults';
+
+// A lab history spans years, so ask for every day rather than a trend window.
+const HISTORY_START = '1900-01-01';
+
+/** The user's lab markers, as flagged custom categories. */
+export function useLabMarkers() {
+  const query = useCustomCategories();
+  const markers = useMemo<LabCategory[]>(
+    () => (query.data ?? []).filter(isLabCategory),
+    [query.data]
+  );
+  return { markers, ...query };
+}
+
+/** Newest manual value per category as of today, keyed by category id. */
+export function useLatestLabValues() {
+  const query = useLatestManualCustomEntriesOnOrBefore(getTodayDate());
+  const byCategory = useMemo(
+    () => new Map((query.data ?? []).map((row) => [row.category_id, row])),
+    [query.data]
+  );
+  return { byCategory, ...query };
+}
+
+/** Every result for one marker, oldest first. */
+export function useLabHistory(categoryId: string) {
+  return useQuery({
+    queryKey: labHistoryQueryKey(categoryId),
+    queryFn: () =>
+      fetchCustomMeasurementsRange(categoryId, HISTORY_START, getTodayDate()),
+    enabled: !!categoryId,
+  });
+}
+
+function invalidateLabCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  categoryId: string
+) {
+  queryClient.invalidateQueries({ queryKey: customCategoriesQueryKey });
+  queryClient.invalidateQueries({ queryKey: labHistoryQueryKey(categoryId) });
+  queryClient.invalidateQueries({
+    queryKey: latestManualCustomEntriesRootQueryKey,
+  });
+  refreshHealthSyncCache(queryClient);
+}
+
+export function useSaveLabResult() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: saveLabResult,
+    onSuccess: ({ categoryId }) => invalidateLabCaches(queryClient, categoryId),
+    onError: (err: Error) => {
+      addLog(`Failed to save lab result: ${err.message}`, 'ERROR');
+    },
+  });
+}
+
+export function useDeleteLabResult(categoryId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (entryId: string) => deleteCustomMeasurement(entryId),
+    onSuccess: () => invalidateLabCaches(queryClient, categoryId),
+    onError: (err: Error) => {
+      addLog(`Failed to delete lab result: ${err.message}`, 'ERROR');
+    },
+  });
+}

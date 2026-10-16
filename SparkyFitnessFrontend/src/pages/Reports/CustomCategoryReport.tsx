@@ -93,6 +93,7 @@ export const CustomCategoryReport = ({
           .filter(
             (c) =>
               c.data_type === 'numeric' &&
+              !c.is_lab && // shown in the Lab Results section
               !HIDDEN_CUSTOM_METRICS.includes(c.name)
           )
           .map((category) => {

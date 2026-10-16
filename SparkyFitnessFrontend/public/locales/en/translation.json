@@ -5070,7 +5070,14 @@
     "normalAdultRestingRange12": "Normal adult resting range: 12-20 brpm",
     "weightTrendRateAndForecast": "Trend {{weight}} · {{rate}} per week · Goal projected {{date}}",
     "weightTrendWithRate": "Trend {{weight}} · {{rate}} per week",
-    "weightTrendWithForecast": "Trend {{weight}} · Goal projected {{date}}"
+    "weightTrendWithForecast": "Trend {{weight}} · Goal projected {{date}}",
+    "labResultsTitle": "Lab Results",
+    "labResultsDisclaimer": "Reference ranges are editable general defaults and differ between labs. This is not medical advice.",
+    "labStatusLow": "Low",
+    "labStatusHigh": "High",
+    "labStatusInRange": "In range",
+    "labReferenceRange": "Reference range: {{range}}",
+    "labNoResultsInPeriod": "No results in this period."
   },
   "sleepHealth": {
     "hrvStatus": "HRV Status",

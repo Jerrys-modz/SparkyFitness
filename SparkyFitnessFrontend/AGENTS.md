@@ -2,6 +2,7 @@
 
 _Last updated: 2026-10-15_
 _Last updated: 2026-10-06_
+_Last updated: 2026-10-16_
 
 SparkyFitness Frontend is the React web app for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessFrontend/`.
 
@@ -109,6 +110,7 @@ When searching, ignore `node_modules/`, `dist/`, and every locale except `public
 - Readiness and form: `pages/Reports/FitnessFatigueCard.tsx` in the Exercise report's left column above the consistency card, fed by `useFitnessFatigue` (`hooks/Reports/useReports.ts`) from `GET /reports/fitness-fatigue` (`getFitnessFatigue`, contract `FitnessFatigueResponse` in `@workspace/shared`): today's 0 to 100 readiness with its factors, fitness / fatigue / form numbers and the last 28 days of form. The numbers are computed on the server by the shared `computeFitnessFatigue` and `computeReadiness`; the card only draws them.
 - Shoe inventory: the Equipment section of the Exercises page (`src/pages/Exercises/EquipmentManager.tsx` + `ShoeFormDialog`; there is no separate tab or route), `src/components/Shoes/ShoeSelect.tsx` (the picker used by `pages/Diary/EditExerciseEntryDialog.tsx` for cardio entries), `src/api/Shoes/shoeService.ts`, `src/hooks/Shoes/useShoes.ts`. Distances are stored in km and edited in the user's unit; assigning a shoe invalidates both `shoeKeys` and `exerciseEntryKeys` because mileage is derived from linked entries. The Equipment section also shows while acting on behalf of someone: `can_manage_diary` delegates can edit it and `can_view_reports` delegates read it, as the server enforces.
 - Nutrient insights (#172): `pages/Reports/NutrientInsightsCard.tsx` on Reports > Charts, driven by the pure helpers in `utils/nutrientInsights.ts` (deficiency status per goal direction, 0-100 nutrition score, `rankFoodSuggestions` over `useRecentAndTopFoodsQuery`). Frontend only; no server endpoint.
+- Lab results: `pages/Reports/LabResultsReport.tsx` in Reports > Measurements charts every custom category flagged `is_lab` (frequency `All`) with its reference range as a band (`ReferenceArea`, or a `ReferenceLine` for a one-sided range) and the latest value's Low / High / In range status from the shared `labRangeStatus`. Lab categories are left out of `CustomCategoryReport` and the daily `CheckInForm`; they are added on mobile (Library > Lab results, including report import). It reads the report's date range, so a marker with no result in it shows an empty state.
 - Chart issue: Recharts usage in the domain page plus `src/components/ExerciseCharts/` or `ZoomableChart.tsx`.
 
 ## Priority Rule
