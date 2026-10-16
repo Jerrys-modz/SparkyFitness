@@ -6980,6 +6980,12 @@
       "outdoorHint": "Your watch records it with its own GPS and heart rate sensor. Your phone can stay behind.",
       "planName": "Intervals"
     },
+    "route": {
+      "title": "Route",
+      "none": "No route",
+      "watchHint": "Your watch shows the line and buzzes at each turn.",
+      "phoneHint": "The route is drawn under your track on the map."
+    },
     "title": {
       "outdoorRun": "Outdoor run",
       "indoorRun": "Indoor run",
@@ -7853,6 +7859,26 @@
     "saveAsRoute": "Save as route",
     "savedAsRoute": "Saved to Routes",
     "saveAsRouteFailed": "Could not save the route",
-    "alreadyHasNoRoute": "This activity has no GPS route"
+    "alreadyHasNoRoute": "This activity has no GPS route",
+    "start": "Start",
+    "watch": {
+      "title": "Run it without your phone",
+      "hint": "Keep a copy on your watch, then start it from Cardio on the watch with the phone left behind.",
+      "send": "Send to watch",
+      "sendAgain": "Send again",
+      "remove": "Remove from watch",
+      "sent": "Sent to your watch",
+      "pending": "Sent. Waiting for your watch to confirm.",
+      "onWatch": "On your watch",
+      "outdated": "Out of date, send again",
+      "full": "Your watch is full. Remove a route from it, then send this one again.",
+      "badgeOn": "On watch",
+      "badgeOutdated": "Out of date on watch",
+      "sendFailed": "Could not send the route to your watch",
+      "removeFailed": "Could not remove the route from your watch",
+      "startFailed": "Could not start on your watch",
+      "startTitle": "Start on your watch",
+      "startMessage": "Your watch follows the route and buzzes at each turn."
+    }
   }
 }
