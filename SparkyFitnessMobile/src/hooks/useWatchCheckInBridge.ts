@@ -68,6 +68,7 @@ import {
   onRecordingPreferenceChange,
 } from '../services/gpsRecordingService';
 import { useRunProgram } from '../services/runProgramService';
+import { suggestedPaceRangesFromRace } from '../utils/suggestedRanges';
 import { buildWatchRunPlans } from '../utils/watchRunPlans';
 import {
   getWatchIndoorScale,
@@ -313,6 +314,21 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     };
   }, []);
 
+  const paceReferenceRace = useAppPreferencesStore((s) => s.paceReferenceRace);
+  const paceReferenceOnWatch = useAppPreferencesStore(
+    (s) => s.paceReferenceOnWatch
+  );
+  // Race-based pace ranges for the program workout offered on the watch, when
+  // the person has set a race and asked for them there. Runs only.
+  const watchPaceRanges = useMemo(
+    () =>
+      paceReferenceOnWatch &&
+      paceReferenceRace &&
+      programStatus?.program.activity !== 'walk'
+        ? suggestedPaceRangesFromRace(paceReferenceRace, 'run')
+        : null,
+    [paceReferenceOnWatch, paceReferenceRace, programStatus]
+  );
   const runPlans = useMemo(
     () =>
       buildWatchRunPlans(
@@ -321,9 +337,10 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         {
           program: (status) => programWorkoutLabel(t, status),
           preset: (id) => presetName(t, id),
-        }
+        },
+        watchPaceRanges
       ),
-    [t, programStatus, programEnabled]
+    [t, programStatus, programEnabled, watchPaceRanges]
   );
   const { presets } = useWorkoutPresets({ enabled });
   const fastQuery = useCurrentFast({ enabled });

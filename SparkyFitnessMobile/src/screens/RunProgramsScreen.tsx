@@ -1,13 +1,14 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, Platform, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import {
   customProgramId,
   findProgram,
+  PICKER_PROGRAMS,
   programOutline,
-  RUN_PROGRAMS,
+  programVersions,
   type CustomRunProgramResponse,
 } from '@workspace/shared';
 import RunProgramCard, {
@@ -15,11 +16,13 @@ import RunProgramCard, {
   programName,
 } from '../components/recording/RunProgramCard';
 import RunGoalsCard from '../components/recording/RunGoalsCard';
+import PaceReferenceCard from '../components/recording/PaceReferenceCard';
 import RunProgramCalendar from '../components/recording/RunProgramCalendar';
 import RunProgramGuide, {
   programStructure,
 } from '../components/recording/RunProgramGuide';
 import Button from '../components/ui/Button';
+import SegmentedControl from '../components/SegmentedControl';
 import ProgramActionRow, {
   ProgramActionList,
 } from '../components/recording/ProgramActionRow';
@@ -39,6 +42,7 @@ import {
   useRunProgram,
 } from '../services/runProgramService';
 import { addLog } from '../services/LogService';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { formatLocalizedNumber } from '../localization';
 import type { RootStackScreenProps } from '../types/navigation';
 import { addDays, toLocalDateString } from '../utils/dateUtils';
@@ -61,7 +65,19 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   const storedId = status?.program.id;
   const startCalendarRef = useRef<CalendarSheetRef>(null);
   const [startingId, setStartingId] = useState<string | null>(null);
+  // Which version (3 or 4 runs a week) is picked on a card that has both.
+  const [versionOf, setVersionOf] = useState<Record<string, string>>({});
   const { programs: customPrograms } = useCustomRunPrograms();
+  const paceReferenceRace = useAppPreferencesStore((s) => s.paceReferenceRace);
+  const setPaceReferenceRace = useAppPreferencesStore(
+    (s) => s.setPaceReferenceRace
+  );
+  const paceReferenceOnWatch = useAppPreferencesStore(
+    (s) => s.paceReferenceOnWatch
+  );
+  const setPaceReferenceOnWatch = useAppPreferencesStore(
+    (s) => s.setPaceReferenceOnWatch
+  );
 
   const header = useScreenHeader({
     title: t('screens.runPrograms', { defaultValue: 'Training programs' }),
@@ -309,6 +325,18 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
         <RunProgramGuide
           programId={status.program.custom ? undefined : storedId}
         />
+        <PaceReferenceCard
+          race={paceReferenceRace}
+          onSave={setPaceReferenceRace}
+          watch={
+            Platform.OS === 'ios'
+              ? {
+                  value: paceReferenceOnWatch,
+                  onChange: setPaceReferenceOnWatch,
+                }
+              : undefined
+          }
+        />
         {yourPlans}
       </>
     );
@@ -322,17 +350,44 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           })}
         </Text>
         <RunProgramGuide defaultOpen />
-        {RUN_PROGRAMS.map((program) => {
+        {PICKER_PROGRAMS.map((basic) => {
+          const versions = programVersions(basic.id);
+          const program =
+            versions.find((v) => v.id === versionOf[basic.id]) ?? basic;
           const outline = programOutline(findProgram(program.id)!);
           return (
             <View
-              key={program.id}
+              key={basic.id}
               className="bg-surface rounded-xl p-4 mt-4"
-              testID={`run-program-${program.id}`}
+              testID={`run-program-${basic.id}`}
             >
               <Text className="text-text-primary text-base font-semibold">
-                {programName(t, program.id)}
+                {programName(t, basic.id)}
               </Text>
+              {versions.length > 1 ? (
+                <View className="mt-2" testID={`run-versions-${basic.id}`}>
+                  <SegmentedControl
+                    segments={versions.map((v) => ({
+                      key: v.id,
+                      label: t('runPrograms.runsPerWeekOption', {
+                        count: v.workoutsPerWeek,
+                        defaultValue: '{{count}} runs a week',
+                        defaultValue_one: '{{count}} run a week',
+                      }),
+                    }))}
+                    activeKey={program.id}
+                    onSelect={(id) =>
+                      setVersionOf((prev) => ({ ...prev, [basic.id]: id }))
+                    }
+                  />
+                  <Text className="text-text-muted text-xs mt-1">
+                    {t('runPrograms.runsPerWeekHint', {
+                      defaultValue:
+                        'A fourth run adds a short easy run, so the long run is a smaller share of your week.',
+                    })}
+                  </Text>
+                </View>
+              ) : null}
               <Text className="text-text-muted text-xs mt-0.5">
                 {t('runPrograms.weeksRuns', {
                   weeks: program.weeks,
@@ -384,6 +439,18 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
             </View>
           );
         })}
+        <PaceReferenceCard
+          race={paceReferenceRace}
+          onSave={setPaceReferenceRace}
+          watch={
+            Platform.OS === 'ios'
+              ? {
+                  value: paceReferenceOnWatch,
+                  onChange: setPaceReferenceOnWatch,
+                }
+              : undefined
+          }
+        />
         {yourPlans}
       </>
     );
