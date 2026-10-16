@@ -119,7 +119,7 @@ describe('custom nutrient rename integration test', () => {
     presetId = preset.rows[0].id;
 
     const food = await admin.query(
-      `INSERT INTO foods (name, user_id) VALUES ('Rename Food', $1) RETURNING id`,
+      "INSERT INTO foods (name, user_id) VALUES ('Rename Food', $1) RETURNING id",
       [userId]
     );
     const variant = await admin.query(
@@ -144,7 +144,7 @@ describe('custom nutrient rename integration test', () => {
 
     // History: a diary snapshot that must keep the name it was logged under.
     const mealType = await admin.query(
-      `INSERT INTO meal_types (user_id, name) VALUES ($1, 'Rename Meal') RETURNING id`,
+      "INSERT INTO meal_types (user_id, name) VALUES ($1, 'Rename Meal') RETURNING id",
       [userId]
     );
     const entry = await admin.query(
