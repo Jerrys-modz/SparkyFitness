@@ -172,23 +172,28 @@ enum ScreenshotSeed {
     private static func applyRouteRun(_ scenario: String) {
         let p = sampleRoute.points
         var walked: [WatchRoutePoint]
+        // Roughly how far along the loop each scene is, so the tiles agree with the map.
+        let metres: Double
         switch scenario {
         case "routemap":
             // Well round the loop, so the covered part is greyed out.
             walked = fixes(through: [p[0], p[1], p[2], p[3], p[4], WatchRoutePoint(lat: 40.7760, lon: -73.9740)])
+            metres = 1500
         case "routeoff":
             // A few seconds of fixes ~70 m off the line.
             walked = fixes(through: [p[0], WatchRoutePoint(lat: 40.7700, lon: -73.9775)])
             let off = WatchRoutePoint(lat: 40.7710, lon: -73.9768)
             walked.append(contentsOf: Array(repeating: off, count: 5))
+            metres = 330
         default:
             // Just short of the second turn.
             walked = fixes(through: [p[0], p[1], WatchRoutePoint(lat: 40.77264, lon: -73.9760)])
+            metres = 630
         }
         WatchRunStore.shared.seedRouteRun(
             route: sampleRoute,
             fixes: walked,
-            metrics: WatchRunMetrics(distanceMeters: 1480, activeEnergyKcal: 96, heartRate: 148)
+            metrics: WatchRunMetrics(distanceMeters: metres, activeEnergyKcal: 96, heartRate: 148)
         )
     }
 }
