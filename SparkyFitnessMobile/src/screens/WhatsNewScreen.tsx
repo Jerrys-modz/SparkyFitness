@@ -563,6 +563,62 @@ const MedicationsMockup: React.FC = () => {
   );
 };
 
+// Same tinted hero tile the feature cards use, for release notes and
+// announcements that have no bespoke mockup.
+const NoteHero: React.FC<{
+  icon: IconName;
+  title: string;
+  pill?: string;
+}> = ({ icon, title, pill }) => {
+  const [accent, textSecondary] = useCSSVariable([
+    '--color-accent-primary',
+    '--color-text-secondary',
+  ]) as [string, string];
+
+  return (
+    <View
+      className="h-44 items-center justify-center overflow-hidden"
+      style={{ backgroundColor: `${accent}20` }}
+    >
+      <View
+        className="bg-surface rounded-2xl shadow-md justify-center px-4 py-3 border border-border-subtle"
+        style={{ width: 220, height: 110 }}
+      >
+        <View className="flex-row items-center gap-2">
+          <View
+            className="w-7 h-7 rounded-full items-center justify-center"
+            style={{ backgroundColor: `${accent}30` }}
+          >
+            <Icon name={icon} size={14} color={accent} />
+          </View>
+          <Text
+            className="flex-1 text-xs font-bold text-text-primary"
+            numberOfLines={2}
+          >
+            {title}
+          </Text>
+        </View>
+        {pill ? (
+          <View className="flex-row items-center mt-2 pt-2 border-t border-border-subtle">
+            <Text className="text-[11px]" style={{ color: textSecondary }}>
+              {pill}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+};
+
+// Announcement timestamps are instants; release dates are calendar days and use
+// formatDate so they never shift with the device timezone.
+const formatNoteDate = (value: string): string =>
+  new Date(value).toLocaleDateString(getAppLocale(), {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+
 const WhatsNewScreen: React.FC<WhatsNewScreenProps> = ({ navigation }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -778,76 +834,80 @@ const WhatsNewScreen: React.FC<WhatsNewScreenProps> = ({ navigation }) => {
           </View>
         ))}
 
-        {announcements.length > 0 ? (
-          <>
-            <Text className="text-xs font-semibold tracking-wider text-text-secondary mt-2 mb-3 px-1">
-              {t('whatsNewPage.announcements.heading', {
-                defaultValue: 'ANNOUNCEMENTS',
+        {announcements.map((announcement) => (
+          <View
+            key={announcement.id}
+            className="bg-surface rounded-xl mb-4 shadow-sm overflow-hidden"
+          >
+            <NoteHero
+              icon="sparkles"
+              title={t('whatsNewPage.announcements.heroLabel', {
+                defaultValue: 'From the Sparky team',
               })}
-            </Text>
-            {announcements.map((announcement) => (
-              <View
-                key={announcement.id}
-                className="bg-surface rounded-xl mb-4 shadow-sm p-4"
-              >
-                {announcement.publishedAt ? (
-                  <Text className="text-xs font-semibold tracking-wider text-accent-primary mb-1">
-                    {new Date(announcement.publishedAt).toLocaleDateString(
-                      getAppLocale(),
-                      { year: 'numeric', month: 'short', day: 'numeric' }
-                    )}
-                  </Text>
-                ) : null}
-                <Text className="text-lg font-bold text-text-primary mb-2">
-                  {announcement.title}
-                </Text>
-                <MarkdownMessage
-                  text={announcement.message}
-                  color={textSecondary}
-                  streaming={false}
-                />
-              </View>
-            ))}
-          </>
-        ) : null}
+              pill={
+                announcement.publishedAt
+                  ? formatNoteDate(announcement.publishedAt)
+                  : undefined
+              }
+            />
+            <View className="p-4">
+              <Text className="text-xs font-semibold tracking-wider text-accent-primary mb-1">
+                {t('whatsNewPage.announcements.eyebrow', {
+                  defaultValue: 'ANNOUNCEMENT',
+                })}
+              </Text>
+              <Text className="text-lg font-bold text-text-primary mb-1">
+                {announcement.title}
+              </Text>
+              <MarkdownMessage
+                text={announcement.message}
+                color={textSecondary}
+                streaming={false}
+              />
+            </View>
+          </View>
+        ))}
 
-        <Text className="text-xs font-semibold tracking-wider text-text-secondary mt-2 mb-3 px-1">
-          {t('whatsNewPage.releases.heading', {
-            defaultValue: 'RELEASE NOTES',
-          })}
-        </Text>
         {releases.map((release) => (
           <View
             key={release.version}
-            className="bg-surface rounded-xl mb-4 shadow-sm p-4"
+            className="bg-surface rounded-xl mb-4 shadow-sm overflow-hidden"
           >
-            <Text className="text-xs font-semibold tracking-wider text-accent-primary mb-1">
-              {t('whatsNewPage.releases.versionLine', {
-                defaultValue: 'VERSION {{version}} · {{date}}',
+            <NoteHero
+              icon="whats-new"
+              title={t('whatsNewPage.releases.versionLabel', {
+                defaultValue: 'Version {{version}}',
                 version: release.version,
-                date: formatDate(release.date, getAppLocale()),
               })}
-            </Text>
-            <Text className="text-lg font-bold text-text-primary mb-2">
-              {release.title}
-            </Text>
-            {release.groups.map((group) => (
-              <View key={group.heading} className="mt-2">
-                <Text className="text-sm font-semibold text-text-primary mb-1">
-                  {group.heading}
-                </Text>
-                {group.bullets.map((bullet) => (
-                  <View key={bullet} className="flex-row mb-1">
-                    <Text className="text-text-secondary text-sm leading-5 mr-2">
-                      {'\u2022'}
-                    </Text>
-                    <Text className="flex-1 text-text-secondary text-sm leading-5">
-                      {bullet}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            ))}
+              pill={formatDate(release.date, getAppLocale())}
+            />
+            <View className="p-4">
+              <Text className="text-xs font-semibold tracking-wider text-accent-primary mb-1">
+                {t('whatsNewPage.releases.eyebrow', {
+                  defaultValue: 'RELEASE NOTES',
+                })}
+              </Text>
+              <Text className="text-lg font-bold text-text-primary mb-1">
+                {release.title}
+              </Text>
+              {release.groups.map((group) => (
+                <View key={group.heading} className="mt-3">
+                  <Text className="text-sm font-semibold text-text-primary mb-1">
+                    {group.heading}
+                  </Text>
+                  {group.bullets.map((bullet) => (
+                    <View key={bullet} className="flex-row mb-1">
+                      <Text className="text-text-secondary text-sm leading-5 mr-2">
+                        {'\u2022'}
+                      </Text>
+                      <Text className="flex-1 text-text-secondary text-sm leading-5">
+                        {bullet}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ))}
+            </View>
           </View>
         ))}
       </ScrollView>

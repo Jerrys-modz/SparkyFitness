@@ -89,7 +89,7 @@ describe('WhatsNewScreen localization', () => {
     render(<WhatsNewScreen navigation={navigation} route={route} />);
 
     expect(screen.getByText('RELEASE NOTES')).toBeTruthy();
-    expect(screen.getByText(/^VERSION 1\.8\.0 · /)).toBeTruthy();
+    expect(screen.getByText('Version 1.8.0')).toBeTruthy();
     expect(
       screen.getByText('Mindfulness, shortcuts and supplements')
     ).toBeTruthy();
@@ -114,7 +114,7 @@ describe('WhatsNewScreen localization', () => {
 
     expect(await screen.findByText('Run programs are here')).toBeTruthy();
     expect(screen.getByText('Pick a plan under Library.')).toBeTruthy();
-    expect(screen.getByText('ANNOUNCEMENTS')).toBeTruthy();
+    expect(screen.getByText('ANNOUNCEMENT')).toBeTruthy();
   });
 
   it('renders Polish feature and mockup copy after switching language', async () => {

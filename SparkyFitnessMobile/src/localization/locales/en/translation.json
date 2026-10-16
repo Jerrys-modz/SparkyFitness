@@ -3055,7 +3055,8 @@
   "whatsNewPage": {
     "title": "What's New",
     "announcements": {
-      "heading": "ANNOUNCEMENTS"
+      "eyebrow": "ANNOUNCEMENT",
+      "heroLabel": "From the Sparky team"
     },
     "mockup": {
       "today": "TODAY",
@@ -3124,8 +3125,8 @@
       }
     },
     "releases": {
-      "heading": "RELEASE NOTES",
-      "versionLine": "VERSION {{version}} · {{date}}",
+      "eyebrow": "RELEASE NOTES",
+      "versionLabel": "Version {{version}}",
       "v1_8_0": {
         "title": "Mindfulness, shortcuts and supplements",
         "tracking": {
