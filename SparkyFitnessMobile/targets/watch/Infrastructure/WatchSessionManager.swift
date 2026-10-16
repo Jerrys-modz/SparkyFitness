@@ -286,8 +286,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
 
     private static let runLiveInterval: TimeInterval = 2
 
-    /// Cues handed to the phone that it has not confirmed yet, each with what
-    /// to do if it never does.
+    /// Cues handed to the phone that it has not confirmed yet (by replying to
+    /// the message, or with a `runCueAck`), each with what to do if it never does.
     private var pendingCues: [String: () -> Void] = [:]
     private static let cueAckTimeout: TimeInterval = 2
 
@@ -299,9 +299,15 @@ final class WatchSessionManager: NSObject, ObservableObject {
         guard WCSession.isSupported(), isActivated, WCSession.default.isReachable else { return false }
         let id = UUID().uuidString
         pendingCues[id] = fallback
+        // The phone's reply to this message is the confirmation: its native
+        // delegate answers the moment the message arrives, before any app code
+        // runs, so a phone that is slow to wake or a reachability change right
+        // after the run ends cannot make the watch say the cue as well.
         WCSession.default.sendMessage(
             OutboundPayloads.runCue(id: id, text: text, interrupt: interrupt),
-            replyHandler: nil
+            replyHandler: { [weak self] _ in
+                Task { @MainActor in self?.pendingCues.removeValue(forKey: id) }
+            }
         ) { [weak self] _ in
             Task { @MainActor in self?.failCue(id) }
         }
