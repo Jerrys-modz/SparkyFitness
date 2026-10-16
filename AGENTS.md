@@ -46,7 +46,7 @@ For `docs/` and `SparkyFitnessGarmin/`, there is no package-level `AGENTS.md`. `
 
 - `pnpm-workspace.yaml` currently lists `frontend`, `SparkyFitnessFrontend`, `shared`, `SparkyFitnessMobile`, `SparkyFitnessServer`, and `docs`.
 - Only `SparkyFitnessFrontend/` exists on disk right now; treat `frontend` as a legacy workspace entry unless the task is specifically about workspace cleanup.
-- `shared/` is a library package, not an app. Validate shared changes from the consuming package(s), not in isolation.
+- `shared/` is a library package, not an app; its `pnpm run validate` only runs the Prettier check. Validate shared changes from the consuming package(s), not in isolation.
 - `SparkyFitnessGarmin/` is outside the current workspace. Inspect its own manifest and scripts before working there.
 
 ## Agent Efficiency (read this before searching)

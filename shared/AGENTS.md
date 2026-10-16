@@ -1,6 +1,6 @@
 # AGENTS.md
 
-*Last updated: 2026-10-16*
+_Last updated: 2026-10-16_
 
 `@workspace/shared` is a source-first TypeScript workspace library package for schemas, constants, and timezone/day helpers consumed by SparkyFitnessServer, SparkyFitnessFrontend, and SparkyFitnessMobile.
 
@@ -31,6 +31,7 @@
 - Changes to `src/schemas/api/` usually affect server routes and both frontend/mobile API clients.
 - Changes to `src/schemas/database/` require matching server migrations and RLS policies when changing the stored schema. CI regenerates the schema backup after merge; never hand-edit or regenerate it locally. Mirroring existing columns missing from a Zod schema does not require another migration.
 - Timezone/day-string helpers prevent bugs; prefer them over `toISOString().split('T')[0]`.
+- Formatting: Prettier with the same `.prettierrc` as the other packages. `pnpm run format` writes, `pnpm run validate` (= `format:check`) checks, and lint-staged formats staged files on commit. CI does not run on shared-only changes, so run it locally.
 - Test any shared change from the consumer packages (`pnpm run validate` in SparkyFitnessServer, SparkyFitnessFrontend, and SparkyFitnessMobile after modifying shared).
 
 ## Working Rules
