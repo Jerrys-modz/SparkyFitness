@@ -2088,6 +2088,7 @@ CREATE TABLE public.exercise_entries (
     watch_telemetry_observed_at timestamp with time zone,
     watch_duration_minutes numeric,
     record_timezone text,
+    shoe_id uuid,
     CONSTRAINT exercise_entries_modality_check CHECK ((modality = ANY (ARRAY['weight_reps'::text, 'reps_only'::text, 'bodyweight_reps'::text, 'weight_duration'::text, 'weight_distance'::text, 'duration'::text, 'duration_distance'::text])))
 );
 
@@ -3760,6 +3761,33 @@ CREATE TABLE public.session (
 --
 
 COMMENT ON TABLE public.session IS 'Better Auth session table';
+
+
+--
+-- Name: shoes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.shoes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    name character varying(120) NOT NULL,
+    brand character varying(120),
+    model character varying(120),
+    nickname character varying(120),
+    purchase_date date,
+    purchase_price numeric(10,2),
+    starting_distance_km numeric(9,2) DEFAULT 0 NOT NULL,
+    retirement_distance_km numeric(9,2) DEFAULT 800 NOT NULL,
+    status character varying(20) DEFAULT 'active'::character varying NOT NULL,
+    is_default boolean DEFAULT false NOT NULL,
+    retired_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by_user_id uuid,
+    updated_by_user_id uuid,
+    CONSTRAINT shoes_distances_check CHECK (((starting_distance_km >= (0)::numeric) AND (retirement_distance_km > (0)::numeric))),
+    CONSTRAINT shoes_status_check CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'retired'::character varying])::text[])))
+);
 
 
 --
@@ -6030,6 +6058,14 @@ ALTER TABLE ONLY public.session
 
 
 --
+-- Name: shoes shoes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.shoes
+    ADD CONSTRAINT shoes_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: sleep_entries sleep_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6787,6 +6823,13 @@ CREATE INDEX idx_exercise_entries_exercise_preset_entry_id ON public.exercise_en
 
 
 --
+-- Name: idx_exercise_entries_shoe_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_exercise_entries_shoe_id ON public.exercise_entries USING btree (shoe_id) WHERE (shoe_id IS NOT NULL);
+
+
+--
 -- Name: idx_exercise_entry_activity_details_entry_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -7204,6 +7247,20 @@ CREATE INDEX idx_session_token ON public.session USING btree (token);
 --
 
 CREATE INDEX idx_session_user_id ON public.session USING btree (user_id);
+
+
+--
+-- Name: idx_shoes_user_default; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_shoes_user_default ON public.shoes USING btree (user_id) WHERE is_default;
+
+
+--
+-- Name: idx_shoes_user_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_shoes_user_status ON public.shoes USING btree (user_id, status);
 
 
 --
@@ -8164,6 +8221,14 @@ ALTER TABLE ONLY public.exercise_entries
 
 
 --
+-- Name: exercise_entries exercise_entries_shoe_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.exercise_entries
+    ADD CONSTRAINT exercise_entries_shoe_id_fkey FOREIGN KEY (shoe_id) REFERENCES public.shoes(id) ON DELETE SET NULL;
+
+
+--
 -- Name: exercise_entries exercise_entries_updated_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9049,6 +9114,30 @@ ALTER TABLE ONLY public.session
 
 ALTER TABLE ONLY public.session
     ADD CONSTRAINT session_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: shoes shoes_created_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.shoes
+    ADD CONSTRAINT shoes_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: shoes shoes_updated_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.shoes
+    ADD CONSTRAINT shoes_updated_by_user_id_fkey FOREIGN KEY (updated_by_user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: shoes shoes_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.shoes
+    ADD CONSTRAINT shoes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --
@@ -10362,6 +10451,13 @@ CREATE POLICY modify_policy ON public.profiles USING ((public.authenticated_user
 
 
 --
+-- Name: shoes modify_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY modify_policy ON public.shoes USING (public.has_diary_access(user_id)) WITH CHECK (public.has_diary_access(user_id));
+
+
+--
 -- Name: sleep_entries modify_policy; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -11166,6 +11262,13 @@ CREATE POLICY select_policy ON public.profiles FOR SELECT USING (public.has_prof
 
 
 --
+-- Name: shoes select_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY select_policy ON public.shoes FOR SELECT USING (public.has_diary_read_access(user_id));
+
+
+--
 -- Name: sleep_entries select_policy; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -11371,6 +11474,12 @@ CREATE POLICY select_policy ON public.workout_preset_exercises FOR SELECT USING 
 
 CREATE POLICY select_policy ON public.workout_presets FOR SELECT USING (public.has_library_access_with_public(user_id, is_public, ARRAY['can_view_exercise_library'::text, 'can_manage_diary'::text]));
 
+
+--
+-- Name: shoes; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.shoes ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: sleep_entries; Type: ROW SECURITY; Schema: public; Owner: -
@@ -12600,6 +12709,13 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.run_programs TO sparky_app;
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.session TO sparky_app;
+
+
+--
+-- Name: TABLE shoes; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.shoes TO sparky_app;
 
 
 --
