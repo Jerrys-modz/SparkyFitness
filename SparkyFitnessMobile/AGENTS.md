@@ -48,7 +48,7 @@ pnpm run test:coverage -- --watchman=false --runInBand
 npx expo prebuild --clean
 ```
 
-- `pnpm run validate` runs i18n and muscle-figure generation checks, typecheck, lint, i18n audit, Knip (`pnpm run knip` for unused files and exports), native locales check, and Prettier check together.
+- `pnpm run validate` runs i18n and muscle-figure generation checks, typecheck, lint, i18n audit, watch i18n audit, Knip (`pnpm run knip` for unused files and exports), native locales check, and Prettier check together.
 - Use Watchman-disabled Jest commands in agent/sandbox runs; bare Jest often fails on macOS.
 - `collectCoverage` is enabled in Jest config, so expect coverage output from normal test runs.
 - Run `npx expo prebuild --clean` after native dependency changes, permissions, app group or widget target changes, Expo plugin changes, native config edits, or patching native modules.
@@ -370,6 +370,7 @@ When reviewing an API issue, trace screen/hook -> API client -> server route -> 
 - Pass `t` through every presentation helper and include it in `useMemo` / `useCallback` dependencies when the derived result contains localized text; this keeps mounted UI correct after a runtime language switch.
 - Translation keys are semantic and statically analyzable. Every static `defaultValue` is the English source fallback and must exactly match the EN catalog entry.
 - A key used with `count` is a plural family: EN requires `_one` and `_other`; PL requires `_one`, `_few`, `_many`, and `_other`. Use grammatically correct forms rather than duplicating suffixes blindly.
+- Apple Watch Swift text (`targets/watch`, `targets/watch-widget`) must use `String(localized: "watch.<key>", defaultValue: ...)` with the key in `targets/watch/en.lproj/Localizable.strings`. `pnpm run i18n:audit:watch` (tested by `__tests__/scripts/watchI18nAudit.test.ts`) fails on missing catalog keys and on any file gaining bare `Text("...")`/`Button("...")`-style literals beyond `scripts/i18n-audit/watchBaseline.json`; lower it with `node scripts/audit-watch-i18n.mjs --update-baseline` after localizing, or add `// i18n-ignore` for literals that must stay.
 - Run `pnpm run i18n:audit` after localization work. `pnpm run validate` includes typecheck, lint with zero warnings, and this audit.
 - Keep canonical storage/API values and user-generated content literal; localize only application-owned presentation labels.
 
