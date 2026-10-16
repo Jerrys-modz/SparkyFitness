@@ -651,9 +651,8 @@
     "layoutClassic": "Classic",
     "layoutRoute": "Route",
     "layoutMinimal": "Minimal",
-    "textColor": "Text color",
-    "toneLight": "White",
-    "toneDark": "Black",
+    "textColor": "Color",
+    "customColor": "Custom color hex code",
     "share": "Share image",
     "shareFailed": "Could not create the image"
   },

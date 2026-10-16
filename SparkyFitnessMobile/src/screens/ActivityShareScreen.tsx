@@ -4,6 +4,7 @@ import {
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -17,11 +18,15 @@ import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { shareActivityImage } from '../services/activityShareImage';
 import { pickImageFromCamera, pickImagesFromLibrary } from '../utils/pickImage';
 import { sessionStats } from '../utils/cardioSessionStats';
+import {
+  DEFAULT_SHARE_COLOR,
+  SHARE_COLOR_PRESETS,
+  normalizeHexColor,
+} from '../utils/shareColor';
 import Button from '../components/ui/Button';
 import ActivityShareCard, {
   SHARE_CARD_ASPECT,
   type ActivityShareTemplate,
-  type ActivityShareTone,
 } from '../components/activityShare/ActivityShareCard';
 import type { RootStackScreenProps } from '../types/navigation';
 
@@ -83,7 +88,8 @@ const ActivityShareScreen: React.FC<ActivityShareScreenProps> = ({ route }) => {
 
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [template, setTemplate] = useState<ActivityShareTemplate>('classic');
-  const [tone, setTone] = useState<ActivityShareTone>('light');
+  const [color, setColor] = useState<string>(DEFAULT_SHARE_COLOR);
+  const [hexText, setHexText] = useState<string>(DEFAULT_SHARE_COLOR);
   const [sharing, setSharing] = useState(false);
 
   const header = useScreenHeader({
@@ -174,7 +180,7 @@ const ActivityShareScreen: React.FC<ActivityShareScreenProps> = ({ route }) => {
             width={previewWidth}
             photoUri={photoUri}
             template={template}
-            tone={tone}
+            color={color}
             title={session.exerciseName}
             dateText={dateText}
             stats={stats}
@@ -251,21 +257,65 @@ const ActivityShareScreen: React.FC<ActivityShareScreenProps> = ({ route }) => {
             },
           ]}
         />
-        <OptionRow
-          label={t('activityShare.textColor', { defaultValue: 'Text color' })}
-          value={tone}
-          onChange={setTone}
-          options={[
-            {
-              value: 'light',
-              label: t('activityShare.toneLight', { defaultValue: 'White' }),
-            },
-            {
-              value: 'dark',
-              label: t('activityShare.toneDark', { defaultValue: 'Black' }),
-            },
-          ]}
-        />
+        <View className="mb-4">
+          <Text className="text-text-secondary text-xs mb-2">
+            {t('activityShare.textColor', { defaultValue: 'Color' })}
+          </Text>
+          <View className="flex-row flex-wrap items-center">
+            {SHARE_COLOR_PRESETS.map((preset) => {
+              const selected = preset === color;
+              return (
+                <Pressable
+                  key={preset}
+                  testID={`share-color-${preset}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={preset}
+                  accessibilityState={{ selected }}
+                  onPress={() => {
+                    setColor(preset);
+                    setHexText(preset);
+                  }}
+                  className="mr-3 mb-3 rounded-full items-center justify-center"
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderWidth: 3,
+                    borderColor: selected ? '#0A84FF' : 'transparent',
+                  }}
+                >
+                  <View
+                    className="rounded-full"
+                    style={{
+                      width: 26,
+                      height: 26,
+                      backgroundColor: preset,
+                      borderWidth: 1,
+                      borderColor: 'rgba(128,128,128,0.5)',
+                    }}
+                  />
+                </Pressable>
+              );
+            })}
+          </View>
+          <TextInput
+            testID="share-color-hex"
+            value={hexText}
+            onChangeText={(text) => {
+              setHexText(text);
+              const normalized = normalizeHexColor(text);
+              if (normalized) setColor(normalized);
+            }}
+            onEndEditing={() => setHexText(color)}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            maxLength={7}
+            accessibilityLabel={t('activityShare.customColor', {
+              defaultValue: 'Custom color hex code',
+            })}
+            placeholder={DEFAULT_SHARE_COLOR}
+            className="bg-raised text-text-primary rounded-xl px-4 py-3 text-base"
+          />
+        </View>
 
         <Button
           variant="primary"

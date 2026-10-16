@@ -5,9 +5,9 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import type { GpsTrackPoint } from '@workspace/shared';
 import { projectRoute } from '../../utils/cardioSession';
 import type { Stat } from '../../utils/cardioSessionStats';
+import { isLightColor } from '../../utils/shareColor';
 
 export type ActivityShareTemplate = 'classic' | 'route' | 'minimal';
-export type ActivityShareTone = 'light' | 'dark';
 
 /** Width over height of the card; every template renders at this ratio. */
 export const SHARE_CARD_ASPECT = 4 / 5;
@@ -21,7 +21,8 @@ interface ActivityShareCardProps {
   /** A photo to sit behind the overlay; null leaves the card transparent. */
   photoUri: string | null;
   template: ActivityShareTemplate;
-  tone: ActivityShareTone;
+  /** Hex color of the text and route. */
+  color: string;
   title: string;
   dateText: string;
   stats: readonly Stat[];
@@ -33,6 +34,7 @@ interface RouteDrawingProps {
   width: number;
   height: number;
   ink: string;
+  inkIsLight: boolean;
   scale: number;
 }
 
@@ -45,6 +47,7 @@ const RouteDrawing: React.FC<RouteDrawingProps> = ({
   width,
   height,
   ink,
+  inkIsLight,
   scale,
 }) => {
   const projected = useMemo(
@@ -52,7 +55,7 @@ const RouteDrawing: React.FC<RouteDrawingProps> = ({
     [route, width, height, scale]
   );
   if (!projected) return null;
-  const halo = ink === '#FFFFFF' ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.5)';
+  const halo = inkIsLight ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.5)';
   return (
     <Svg width={width} height={height}>
       <Path
@@ -95,13 +98,18 @@ const RouteDrawing: React.FC<RouteDrawingProps> = ({
  * from `width`, so the image captured from it is the same at any preview size.
  */
 const ActivityShareCard = forwardRef<View, ActivityShareCardProps>(
-  ({ width, photoUri, template, tone, title, dateText, stats, route }, ref) => {
+  (
+    { width, photoUri, template, color, title, dateText, stats, route },
+    ref
+  ) => {
     const scale = width / REFERENCE_WIDTH;
     const height = width / SHARE_CARD_ASPECT;
-    const ink = tone === 'light' ? '#FFFFFF' : '#111111';
+    const ink = color;
+    const inkIsLight = isLightColor(color);
     const shadow = {
-      textShadowColor:
-        tone === 'light' ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.45)',
+      textShadowColor: inkIsLight
+        ? 'rgba(0,0,0,0.45)'
+        : 'rgba(255,255,255,0.45)',
       textShadowOffset: { width: 0, height: 1 },
       textShadowRadius: 4 * scale,
     };
@@ -157,7 +165,7 @@ const ActivityShareCard = forwardRef<View, ActivityShareCardProps>(
               contentFit="cover"
             />
             {/* A light scrim keeps white stats legible on a bright photo. */}
-            {tone === 'light' ? (
+            {inkIsLight ? (
               <View
                 style={{
                   position: 'absolute',
@@ -187,6 +195,7 @@ const ActivityShareCard = forwardRef<View, ActivityShareCardProps>(
               width={width - padding * 2}
               height={height * 0.62}
               ink={ink}
+              inkIsLight={inkIsLight}
               scale={scale}
             />
           </View>
@@ -199,6 +208,7 @@ const ActivityShareCard = forwardRef<View, ActivityShareCardProps>(
               width={width * 0.5}
               height={width * 0.5}
               ink={ink}
+              inkIsLight={inkIsLight}
               scale={scale}
             />
           </View>
