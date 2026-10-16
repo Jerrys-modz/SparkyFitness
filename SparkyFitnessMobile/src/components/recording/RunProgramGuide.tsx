@@ -100,7 +100,7 @@ const RunProgramGuide: React.FC<{
           >
             {t('runPrograms.guide.workout.body', {
               defaultValue:
-                'A workout starts with a warm-up walk (a gentle jog before speed sessions), then the run and walk steps in order, then a cool-down walk. The app tells you when to switch, so you can put your phone away. Weeks are not tied to the calendar: if you miss a run, the same workout stays due.',
+                'A workout starts with a warm-up walk (a gentle jog before speed sessions), then its steps in order, then a cool-down walk. The app tells you when to switch, so you can put your phone away. Weeks are not tied to the calendar: if you miss a workout, the same one stays due.',
             })}
           </Section>
           <Section
@@ -130,7 +130,7 @@ const RunProgramGuide: React.FC<{
           >
             {t('runPrograms.guide.listen.body', {
               defaultValue:
-                'Aches that settle after a day are normal; sharp or lasting pain is not, so stop and rest. If a week was too hard, repeat it or ask Sparky to ease the next workouts. Leave a rest day between runs while you are starting out. This is general guidance, not medical advice: if you are unsure about starting to run, check with your doctor first.',
+                'Aches that settle after a day are normal; sharp or lasting pain is not, so stop and rest. If a week was too hard, repeat it or ask Sparky to ease the next workouts. Leave a rest day between workouts while you are starting out. This is general guidance, not medical advice: if you are unsure about starting a new exercise plan, check with your doctor first.',
             })}
           </Section>
         </View>
