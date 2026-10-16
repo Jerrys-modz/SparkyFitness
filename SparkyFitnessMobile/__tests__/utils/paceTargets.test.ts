@@ -129,6 +129,18 @@ describe('applyPaceTargets', () => {
     expect(isValidIntervalPlan(result)).toBe(true);
   });
 
+  it('puts the warm-up range on the warm-up and cool-down', () => {
+    const warm = { minSecondsPerKm: 400, maxSecondsPerKm: 860 };
+    const result = applyPaceTargets(plan, { work: fast, easy, warm });
+    expect(result.steps.map((step) => step.pace)).toEqual([
+      warm,
+      fast,
+      easy,
+      warm,
+    ]);
+    expect(isValidIntervalPlan(result)).toBe(true);
+  });
+
   it('leaves the plan as it was when nothing usable is given', () => {
     expect(applyPaceTargets(plan, {})).toBe(plan);
     expect(
