@@ -383,10 +383,10 @@ export const createCustomCategory = async (
 
 export const updateCustomCategory = async (
   id: string,
-  payload: SaveCustomCategoryPayload
+  payload: Partial<SaveCustomCategoryPayload>
 ): Promise<CustomCategory> => {
   return apiFetch<CustomCategory>({
-    endpoint: `/api/measurements/custom-categories/${id}`,
+    endpoint: `/api/measurements/custom-categories/${encodeURIComponent(id)}`,
     serviceName: 'Measurements API',
     operation: 'update custom category',
     method: 'PUT',
@@ -400,22 +400,6 @@ export const deleteCustomCategory = async (id: string): Promise<void> => {
     serviceName: 'Measurements API',
     operation: 'delete custom category',
     method: 'DELETE',
-  });
-};
-
-export const updateCustomCategory = async (
-  id: string,
-  body: {
-    ref_range_low?: number | null;
-    ref_range_high?: number | null;
-  }
-): Promise<CustomCategory> => {
-  return apiFetch<CustomCategory>({
-    endpoint: `/api/measurements/custom-categories/${encodeURIComponent(id)}`,
-    serviceName: 'Measurements API',
-    operation: 'update custom category',
-    method: 'PUT',
-    body,
   });
 };
 

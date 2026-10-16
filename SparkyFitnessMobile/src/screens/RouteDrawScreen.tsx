@@ -66,7 +66,7 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
 
   const save = () => {
     setSaving(true);
-    void saveDrawnRoute({ name: name.trim(), points })
+    void saveDrawnRoute({ name: name.trim(), points, source: 'drawn' })
       .then((route) => navigation.replace('RouteDetail', { id: route.id }))
       .catch((error: unknown) => {
         addLog(`[Routes] Could not save a drawn route: ${error}`, 'WARNING');
