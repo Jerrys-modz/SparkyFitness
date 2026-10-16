@@ -35,6 +35,9 @@ import PaceZonesCard from '../components/exerciseStats/PaceZonesCard';
 import TrainingLoadCard from '../components/exerciseStats/TrainingLoadCard';
 import RunEstimatesCard from '../components/exerciseStats/RunEstimatesCard';
 import FitnessFatigueCard from '../components/exerciseStats/FitnessFatigueCard';
+import SportLoadCard from '../components/exerciseStats/SportLoadCard';
+import { useTrainingCalendar } from '../hooks/useTrainingCalendar';
+import { sportLoadRange } from '../utils/trainingCalendar';
 import { useTrainingLoad } from '../hooks/useTrainingLoad';
 import { useRunEstimates } from '../hooks/useRunEstimates';
 import { useFitnessFatigue } from '../hooks/useFitnessFatigue';
@@ -144,6 +147,8 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
   const trainingLoad = useTrainingLoad();
   const runEstimates = useRunEstimates();
   const fitnessFatigue = useFitnessFatigue();
+  const sportRange = sportLoadRange(getTodayDate());
+  const sportLoad = useTrainingCalendar(sportRange.start, sportRange.end);
   const cardio = useCardioSessions(range, view === 'cardio', customRange);
   const running = useRunningTrends(view === 'cardio');
   const paceZones = usePaceZones(view === 'cardio');
@@ -514,6 +519,12 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
               data={fitnessFatigue.data}
               isLoading={fitnessFatigue.isLoading}
               isError={fitnessFatigue.isError}
+            />
+            <SportLoadCard
+              data={sportLoad.data}
+              isLoading={sportLoad.isLoading}
+              isError={sportLoad.isError}
+              onOpenCalendar={() => navigation.navigate('TrainingCalendar')}
             />
             <RunEstimatesCard
               data={runEstimates.data}

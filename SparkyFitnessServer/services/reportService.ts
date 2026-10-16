@@ -985,6 +985,21 @@ export { getMiniNutritionTrends };
 export { getNutritionTrendsWithGoals };
 export { getExerciseDashboardData };
 /**
+ * The person's estimated maximum heart rate, from the age on their profile
+ * (a default without one), for weighting load by heart rate.
+ */
+async function loadMaxHeartRate(
+  targetUserId: string,
+  timezone: string
+): Promise<number> {
+  const profile = await userRepository.getUserProfile(targetUserId);
+  const age = profile?.date_of_birth
+    ? userAge(profile.date_of_birth, timezone)
+    : null;
+  return estimateMaxHeartRate(age);
+}
+
+/**
  * Acute against chronic training load over the last four weeks, from every
  * logged workout (cardio and strength). Max heart rate comes from the profile's
  * age when there is one.
@@ -996,18 +1011,15 @@ async function getTrainingLoad(
   try {
     const timezone = await loadUserTimezone(targetUserId);
     const today = todayInZone(timezone);
-    const [sessions, profile] = await Promise.all([
+    const [sessions, maxHeartRate] = await Promise.all([
       reportRepository.getTrainingLoadSessions(
         targetUserId,
         addDays(today, -(LOAD_WEEKS * 7 - 1)),
         today
       ),
-      userRepository.getUserProfile(targetUserId),
+      loadMaxHeartRate(targetUserId, timezone),
     ]);
-    const age = profile?.date_of_birth
-      ? userAge(profile.date_of_birth, timezone)
-      : null;
-    return computeTrainingLoad(sessions, today, estimateMaxHeartRate(age));
+    return computeTrainingLoad(sessions, today, maxHeartRate);
   } catch (error) {
     log(
       'error',
@@ -1035,13 +1047,13 @@ async function getFitnessFatigue(
     const timezone = await loadUserTimezone(targetUserId);
     const today = todayInZone(timezone);
     const yesterday = addDays(today, -1);
-    const [sessions, profile, vitals, sleepNeed] = await Promise.all([
+    const [sessions, maxHeartRate, vitals, sleepNeed] = await Promise.all([
       reportRepository.getTrainingLoadSessions(
         targetUserId,
         addDays(today, -(CURVE_DAYS - 1)),
         today
       ),
-      userRepository.getUserProfile(targetUserId),
+      loadMaxHeartRate(targetUserId, timezone),
       reportRepository.getReadinessVitals(
         targetUserId,
         today,
@@ -1050,14 +1062,7 @@ async function getFitnessFatigue(
       ),
       sleepScienceRepository.getDailyNeed(targetUserId, today),
     ]);
-    const age = profile?.date_of_birth
-      ? userAge(profile.date_of_birth, timezone)
-      : null;
-    const fitnessFatigue = computeFitnessFatigue(
-      sessions,
-      today,
-      estimateMaxHeartRate(age)
-    );
+    const fitnessFatigue = computeFitnessFatigue(sessions, today, maxHeartRate);
     const readiness = computeReadiness({
       fitnessFatigue,
       ...vitals,
@@ -1141,6 +1146,7 @@ async function getRunningEstimates(
 
 export { getTrainingConsistency };
 export { getTrainingLoad };
+export { loadMaxHeartRate };
 export { getFitnessFatigue };
 export { getRunningEstimates };
 export default {

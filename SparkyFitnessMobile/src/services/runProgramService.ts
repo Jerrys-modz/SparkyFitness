@@ -17,6 +17,7 @@ import { programWorkoutForEntry } from '../utils/runProgramSummary';
 import {
   customRunProgramsQueryKey,
   runProgramQueryKey,
+  trainingCalendarRootQueryKey,
 } from '../hooks/queryKeys';
 import {
   adjustRunProgramRunning,
@@ -42,6 +43,10 @@ const setCache = (program: RunProgramResponse | null) => {
   // old state back (a screen mounting while a tick-off is in flight).
   void queryClient.cancelQueries({ queryKey: runProgramQueryKey });
   queryClient.setQueryData(runProgramQueryKey, program);
+  // Where the program puts its workouts is part of the plan calendar.
+  void queryClient.invalidateQueries({
+    queryKey: [...trainingCalendarRootQueryKey],
+  });
 };
 
 async function load(): Promise<RunProgramResponse | null> {

@@ -1,0 +1,511 @@
+import { describe, expect, it } from 'vitest';
+import {
+  matchPlan,
+  groupPresetEntries,
+  programSlots,
+  sportLoadOf,
+  weeklyPlanSlots,
+  weeklyTotals,
+  loadSportGroup,
+  sessionLoad,
+  addDays,
+  dayOfWeek,
+  type CalendarEntry,
+  type PlanSlot,
+  type ProgramPlanInput,
+} from '@workspace/shared';
+
+// A Wednesday.
+const TODAY = '2026-10-14';
+const day = (offset: number) => addDays(TODAY, offset);
+
+const entry = (
+  id: string,
+  offset: number,
+  overrides: Partial<CalendarEntry> = {}
+): CalendarEntry => ({
+  id,
+  day: day(offset),
+  name: 'Run',
+  sport: 'running',
+  durationMinutes: 30,
+  distanceKm: 5,
+  avgHeartRate: null,
+  linkKey: null,
+  ...overrides,
+});
+
+const slot = (
+  id: string,
+  offset: number,
+  overrides: Partial<PlanSlot> = {}
+): PlanSlot => ({
+  id,
+  day: day(offset),
+  source: 'runProgram',
+  sport: 'running',
+  label: null,
+  programId: 'beginner5k',
+  workoutNumber: 1,
+  plannedMinutes: 30,
+  linkKeys: [],
+  ...overrides,
+});
+
+const statusOf = (
+  slots: PlanSlot[],
+  entries: CalendarEntry[],
+  id = slots[0]!.id
+) => matchPlan(slots, entries, TODAY).planned.find((p) => p.id === id)!.status;
+
+describe('matchPlan statuses', () => {
+  it('is missed before today with nothing logged', () => {
+    expect(statusOf([slot('a', -2)], [])).toBe('missed');
+  });
+
+  it('is upcoming today and later with nothing logged', () => {
+    expect(statusOf([slot('a', 0)], [])).toBe('upcoming');
+    expect(statusOf([slot('a', 3)], [])).toBe('upcoming');
+  });
+
+  it('is done when the same sport is logged the same day for most of the time', () => {
+    expect(
+      statusOf([slot('a', -1)], [entry('e', -1, { durationMinutes: 26 })])
+    ).toBe('done');
+  });
+
+  it('is partial below 80% of the planned minutes', () => {
+    expect(
+      statusOf([slot('a', -1)], [entry('e', -1, { durationMinutes: 20 })])
+    ).toBe('partial');
+  });
+
+  it('adds up several entries of the day towards the plan', () => {
+    const result = matchPlan(
+      [slot('a', -1)],
+      [
+        entry('e1', -1, { durationMinutes: 15 }),
+        entry('e2', -1, { durationMinutes: 14 }),
+      ],
+      TODAY
+    );
+    expect(result.planned[0]).toMatchObject({
+      status: 'done',
+      completedMinutes: 29,
+      entryIds: ['e1', 'e2'],
+    });
+  });
+
+  it('is done with no planned minutes as soon as the sport is logged', () => {
+    expect(
+      statusOf(
+        [slot('a', -1, { plannedMinutes: null })],
+        [entry('e', -1, { durationMinutes: 5 })]
+      )
+    ).toBe('done');
+  });
+
+  it('does not match a different sport on the same day', () => {
+    const result = matchPlan(
+      [slot('a', -1)],
+      [entry('e', -1, { sport: 'cycling' })],
+      TODAY
+    );
+    expect(result.planned[0]?.status).toBe('missed');
+    expect(result.completed[0]?.plannedItemId).toBeNull();
+  });
+
+  it('does not match the same sport on another day without a link', () => {
+    expect(statusOf([slot('a', -2)], [entry('e', -1)])).toBe('missed');
+  });
+});
+
+describe('matchPlan links', () => {
+  it('counts an entry logged as the workout as done even on another day and sport', () => {
+    const result = matchPlan(
+      [slot('a', -2, { linkKeys: ['runProgram:4'] })],
+      [entry('e', -1, { linkKey: 'runProgram:4', durationMinutes: 5 })],
+      TODAY
+    );
+    expect(result.planned[0]?.status).toBe('done');
+    expect(result.completed[0]?.plannedItemId).toBe('a');
+  });
+
+  it('ignores a link more than three days away', () => {
+    const result = matchPlan(
+      [slot('a', -6, { linkKeys: ['plan:7'] })],
+      [entry('e', -1, { linkKey: 'plan:7' })],
+      TODAY
+    );
+    expect(result.planned[0]?.status).toBe('missed');
+    expect(result.completed[0]?.plannedItemId).toBeNull();
+  });
+
+  it('is partial when only some parts of a session are logged', () => {
+    const session = slot('s', -1, {
+      source: 'workoutPlan',
+      sport: 'strength',
+      linkKeys: ['plan:1', 'plan:2'],
+    });
+    const one = entry('e1', -1, { sport: 'strength', linkKey: 'plan:1' });
+    const two = entry('e2', -1, { sport: 'strength', linkKey: 'plan:2' });
+    expect(statusOf([session], [one])).toBe('partial');
+    expect(statusOf([session], [one, two])).toBe('done');
+  });
+
+  it('does not hand a linked entry to another slot by day and sport', () => {
+    const result = matchPlan(
+      [slot('a', -1)],
+      [entry('e', -1, { linkKey: 'plan:9' })],
+      TODAY
+    );
+    expect(result.planned[0]?.status).toBe('missed');
+  });
+
+  it('keeps each week of a repeating plan item to its own entry', () => {
+    const slots = [
+      slot('w1', -7, { linkKeys: ['plan:3'], sport: 'strength' }),
+      slot('w2', 0, { linkKeys: ['plan:3'], sport: 'strength' }),
+    ];
+    const result = matchPlan(
+      slots,
+      [entry('e', -7, { linkKey: 'plan:3', sport: 'strength' })],
+      TODAY
+    );
+    expect(result.planned.map((p) => p.status)).toEqual(['done', 'upcoming']);
+  });
+});
+
+describe('matchPlan extra work and load', () => {
+  it('marks entries nothing planned as extra', () => {
+    const result = matchPlan([], [entry('e', -1)], TODAY);
+    expect(result.completed[0]?.plannedItemId).toBeNull();
+  });
+
+  it('uses the training-load formula, with and without heart rate', () => {
+    const withHr = entry('hr', -1, { durationMinutes: 40, avgHeartRate: 160 });
+    const without = entry('no', -1, { durationMinutes: 40 });
+    const { completed } = matchPlan([], [withHr, without], TODAY, 190);
+    const byId = Object.fromEntries(completed.map((c) => [c.id, c]));
+    expect(byId.hr).toMatchObject({
+      load: Math.round(sessionLoad(withHr, 190)),
+      loadBasis: 'heartRate',
+    });
+    expect(byId.no).toMatchObject({ load: 80, loadBasis: 'estimated' });
+    // 160 / 190 is 84%: weight 4, against the moderate weight 2.
+    expect(byId.hr?.load).toBe(160);
+  });
+
+  it('estimates a planned load at the moderate weight', () => {
+    const result = matchPlan([slot('a', 2, { plannedMinutes: 45 })], [], TODAY);
+    expect(result.planned[0]?.plannedLoad).toBe(90);
+  });
+});
+
+describe('weeklyTotals and sportLoadOf', () => {
+  const start = '2026-10-12'; // Monday
+  const end = '2026-10-18';
+  const { planned, completed } = matchPlan(
+    [
+      slot('done', -1, { plannedMinutes: 30 }),
+      slot('missed', -2, { plannedMinutes: 30 }),
+      slot('later', 2, { plannedMinutes: 40 }),
+    ],
+    [
+      entry('e1', -1, { durationMinutes: 30 }),
+      entry('x', 0, {
+        sport: 'strength',
+        durationMinutes: 50,
+        distanceKm: null,
+      }),
+    ],
+    TODAY
+  );
+
+  it('totals planned and completed for the week', () => {
+    const [week] = weeklyTotals(planned, completed, start, end, 1);
+    expect(week).toMatchObject({
+      start,
+      plannedSessions: 3,
+      doneSessions: 1,
+      missedSessions: 1,
+      extraSessions: 1,
+      completedSessions: 2,
+      plannedMinutes: 100,
+      completedMinutes: 80,
+      plannedLoad: 200,
+      completedLoad: 60 + 100,
+      completedDistanceKm: 5,
+    });
+  });
+
+  it('starts weeks on the chosen first day of the week', () => {
+    const weeks = weeklyTotals(planned, completed, start, end, 0);
+    expect(weeks.map((w) => w.start)).toEqual(['2026-10-11', '2026-10-18']);
+    expect(dayOfWeek(weeks[0]!.start)).toBe(0);
+  });
+
+  it('splits load by sport group, week and month', () => {
+    const load = sportLoadOf(completed, '2026-09-28', end, 1);
+    expect(load.total).toMatchObject({
+      running: 60,
+      strength: 100,
+      cycling: 0,
+    });
+    expect(load.weeks.at(-1)?.bySport.strength).toBe(100);
+    expect(load.months.map((m) => m.month)).toEqual(['2026-09', '2026-10']);
+    expect(load.months[1]?.bySport.running).toBe(60);
+    expect(load.months[0]?.bySport.running).toBe(0);
+  });
+
+  it('keeps a month boundary on the person local day, not UTC', () => {
+    // 23:30 on Oct 31 local is already Nov 1 in UTC; the entry carries the local day.
+    const late = matchPlan(
+      [],
+      [entry('late', 0, { day: '2026-10-31' })],
+      TODAY
+    );
+    const load = sportLoadOf(late.completed, '2026-10-26', '2026-11-01', 1);
+    expect(load.months.map((m) => [m.month, m.bySport.running])).toEqual([
+      ['2026-10', 60],
+      ['2026-11', 0],
+    ]);
+  });
+});
+
+describe('loadSportGroup', () => {
+  it('folds the sport taxonomy into the five groups', () => {
+    expect(loadSportGroup('hiking')).toBe('walking');
+    expect(loadSportGroup('swimming')).toBe('other');
+    expect(loadSportGroup('fitness_equipment')).toBe('other');
+    expect(loadSportGroup('strength')).toBe('strength');
+  });
+});
+
+describe('weeklyPlanSlots', () => {
+  const template = {
+    id: 1,
+    name: 'Upper/Lower',
+    scheduleType: 'weekly' as const,
+    start: '2026-10-05',
+    end: null,
+    assignments: [
+      {
+        id: 10,
+        dayOfWeek: 1,
+        sessionIndex: null,
+        sessionName: 'Upper',
+        name: 'Bench',
+        sport: 'strength' as const,
+        minutes: 30,
+      },
+      {
+        id: 11,
+        dayOfWeek: 1,
+        sessionIndex: null,
+        sessionName: 'Upper',
+        name: 'Row',
+        sport: 'strength' as const,
+        minutes: 20,
+      },
+      {
+        id: 12,
+        dayOfWeek: 4,
+        sessionIndex: null,
+        sessionName: null,
+        name: 'Squat',
+        sport: 'strength' as const,
+        minutes: null,
+      },
+    ],
+  };
+
+  it('lays one item per plan day, grouping the assignments of that day', () => {
+    const slots = weeklyPlanSlots([template], '2026-10-12', '2026-10-18');
+    expect(slots.map((s) => [s.day, s.label, s.plannedMinutes])).toEqual([
+      ['2026-10-12', 'Upper', 50],
+      ['2026-10-15', 'Squat', null],
+    ]);
+    expect(slots[0]?.linkKeys).toEqual(['plan:10', 'plan:11']);
+  });
+
+  it('stays inside the days the plan runs', () => {
+    const ended = { ...template, end: '2026-10-13' };
+    expect(
+      weeklyPlanSlots([ended], '2026-09-28', '2026-10-18').map((s) => s.day)
+    ).toEqual(['2026-10-05', '2026-10-08', '2026-10-12']);
+  });
+
+  it('leaves sequential plans to the caller', () => {
+    const sequential = { ...template, scheduleType: 'sequential' as const };
+    expect(weeklyPlanSlots([sequential], '2026-10-12', '2026-10-18')).toEqual(
+      []
+    );
+  });
+});
+
+describe('programSlots', () => {
+  const minutes = Array.from({ length: 10 }, (_, i) => 20 + i);
+  const base: ProgramPlanInput = {
+    programId: 'beginner5k',
+    activity: 'run',
+    enabled: true,
+    total: 10,
+    next: 3,
+    minutes,
+    // Monday, Wednesday, Friday.
+    schedule: { runDays: [1, 3, 5], startDay: '2026-10-05', endDay: null },
+    doneDay: day(-2),
+    completions: [
+      { index: 0, entryId: 'a', day: '2026-10-05' },
+      { index: 1, entryId: 'b', day: '2026-10-07' },
+      { index: 2, entryId: 'c', day: '2026-10-12' },
+    ],
+  };
+  const range = (p: ProgramPlanInput) =>
+    programSlots(p, TODAY, '2026-10-05', '2026-10-23').map((s) => [
+      s.day,
+      s.workoutNumber,
+    ]);
+
+  it('projects the coming workouts onto the run days and fills the past', () => {
+    // Fri Oct 9 had no run: missed (it was due workout 3, after workout 2).
+    expect(range(base)).toEqual([
+      ['2026-10-05', 1],
+      ['2026-10-07', 2],
+      ['2026-10-09', 3],
+      ['2026-10-12', 3],
+      // Wed Oct 14 (today), Fri 16, Mon 19, Wed 21, Fri 23.
+      ['2026-10-14', 4],
+      ['2026-10-16', 5],
+      ['2026-10-19', 6],
+      ['2026-10-21', 7],
+      ['2026-10-23', 8],
+    ]);
+  });
+
+  it('lets a workout done a day late fill the run day it was due', () => {
+    const late = {
+      ...base,
+      completions: [
+        { index: 0, entryId: 'a', day: '2026-10-06' },
+        { index: 1, entryId: 'b', day: '2026-10-07' },
+      ],
+    };
+    const slots = programSlots(late, TODAY, '2026-10-05', '2026-10-13');
+    expect(slots.find((s) => s.workoutNumber === 1)?.day).toBe('2026-10-05');
+    expect(slots.find((s) => s.workoutNumber === 2)?.day).toBe('2026-10-07');
+    // The late one is linked to its entry day too, so the match still holds.
+    const { planned } = matchPlan(
+      slots,
+      [
+        entry('a', 0, { day: '2026-10-06', linkKey: 'runProgram:0' }),
+        entry('b', 0, { day: '2026-10-07', linkKey: 'runProgram:1' }),
+      ],
+      TODAY
+    );
+    expect(planned.find((p) => p.workoutNumber === 1)?.status).toBe('done');
+  });
+
+  it('has no missed days without a first day, or when switched off', () => {
+    const noStart = {
+      ...base,
+      schedule: { ...base.schedule, startDay: null },
+    };
+    expect(
+      programSlots(noStart, TODAY, '2026-10-05', '2026-10-13').map(
+        (s) => s.workoutNumber
+      )
+    ).toEqual([1, 2, 3]);
+    const off = { ...base, enabled: false };
+    expect(
+      programSlots(off, TODAY, '2026-10-05', '2026-10-23').map((s) => s.day)
+    ).toEqual(['2026-10-05', '2026-10-07', '2026-10-12']);
+  });
+
+  it('offers the next workout today when no weekdays are chosen', () => {
+    const anyDay = {
+      ...base,
+      doneDay: null,
+      schedule: { runDays: [], startDay: null, endDay: null },
+      completions: [],
+    };
+    const slots = programSlots(anyDay, TODAY, day(-3), day(3));
+    expect(slots.map((s) => [s.day, s.workoutNumber])).toEqual([[TODAY, 4]]);
+    expect(slots[0]?.plannedMinutes).toBe(23);
+  });
+
+  it('stops at the goal day and labels a walk program as walking', () => {
+    const walk = {
+      ...base,
+      activity: 'walk' as const,
+      schedule: { ...base.schedule, endDay: '2026-10-16' },
+    };
+    const slots = programSlots(walk, TODAY, TODAY, '2026-10-31');
+    expect(slots.map((s) => s.day)).toEqual([TODAY, '2026-10-16']);
+    expect(slots.every((s) => s.sport === 'walking')).toBe(true);
+  });
+
+  it('gives a finished program no missed days after the last workout', () => {
+    const finished = {
+      ...base,
+      next: 10,
+      total: 3,
+      doneDay: '2026-10-12',
+      minutes: [20, 21, 22],
+    };
+    const days = programSlots(finished, TODAY, '2026-10-05', '2026-10-23').map(
+      (s) => s.day
+    );
+    expect(days).toEqual([
+      '2026-10-05',
+      '2026-10-07',
+      '2026-10-09',
+      '2026-10-12',
+    ]);
+  });
+});
+
+describe('run done inside another plan item', () => {
+  it('still counts for the run slot of its own day', () => {
+    const runSlot = slot('r', 0);
+    const plan = slot('p', 0, {
+      source: 'workoutPlan',
+      sport: 'strength',
+      linkKeys: ['plan:7'],
+    });
+    const run = entry('run', 0, { linkKey: 'plan:7' });
+    expect(statusOf([runSlot, plan], [run], 'r')).toBe('done');
+    expect(statusOf([runSlot, plan], [run], 'p')).toBe('done');
+    const { completed } = matchPlan([runSlot, plan], [run], TODAY);
+    expect(completed).toHaveLength(1);
+    expect(completed[0]!.plannedItemId).toBe('p');
+  });
+});
+
+describe('groupPresetEntries', () => {
+  const part = (
+    id: string,
+    minutes: number,
+    sport: CalendarEntry['sport']
+  ) => ({
+    ...entry(id, 0, { sport, durationMinutes: minutes, distanceKm: null }),
+    presetEntryId: 'preset-1',
+    presetName: 'Day 2 Upper',
+  });
+  it('merges a preset into one strength session', () => {
+    const merged = groupPresetEntries([
+      part('a', 4, 'other'),
+      part('b', 3, 'strength'),
+      { ...entry('c', 0), presetEntryId: null, presetName: null },
+    ]);
+    expect(merged).toHaveLength(2);
+    expect(merged[0]).toMatchObject({
+      id: 'a',
+      name: 'Day 2 Upper',
+      sport: 'strength',
+      durationMinutes: 7,
+    });
+    expect(merged[1]!.id).toBe('c');
+  });
+});
