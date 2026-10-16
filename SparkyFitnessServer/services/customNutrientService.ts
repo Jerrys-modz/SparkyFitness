@@ -358,6 +358,20 @@ class CustomNutrientService {
               [previousName, name, userId]
             );
           }
+          // The user's own library foods keep per-variant values under the
+          // name as well. Diary snapshots (food_entries) are history and stay.
+          await client.query(
+            `UPDATE food_variants
+                SET custom_nutrients = CASE
+                  WHEN custom_nutrients ? $2::text
+                    THEN custom_nutrients - $1::text
+                  ELSE (custom_nutrients - $1::text)
+                    || jsonb_build_object($2::text, custom_nutrients -> $1::text)
+                END
+              WHERE custom_nutrients ? $1::text
+                AND food_id IN (SELECT id FROM foods WHERE user_id = $3)`,
+            [previousName, name, userId]
+          );
         }
       }
       await client.query('COMMIT');
