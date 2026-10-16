@@ -19,7 +19,7 @@ describe('PaceReferenceCard', () => {
   it('saves a half marathon with hours', () => {
     const onSave = jest.fn();
     render(<PaceReferenceCard race={null} onSave={onSave} />);
-    fireEvent.press(screen.getByText('Half marathon'));
+    fireEvent.press(screen.getByText('Half'));
     type('hours', '1');
     type('minutes', '55');
     type('seconds', '30');

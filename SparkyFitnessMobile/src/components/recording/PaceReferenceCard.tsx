@@ -92,20 +92,26 @@ const PaceReferenceCard: React.FC<PaceReferenceCardProps> = ({
       <Text className="text-text-secondary text-sm mt-1">
         {t('paceReference.intro', {
           defaultValue:
-            'Enter a recent race time and the Record screen can suggest pace ranges for easy runs, tempo, marathon pace, strides and fast stretches. Without one, it uses the pace of your recent runs. Kept on this device.',
+            'Enter a recent race time to get pace ranges for easy runs, tempo, marathon pace, strides and fast stretches. Kept on this device.',
         })}
       </Text>
       <View className="mt-3">
         <SegmentedControl
           segments={PACE_REFERENCE_RACES.map((r) => ({
             key: r.id,
-            label: raceDistanceName(t, r.id),
+            label:
+              r.id === 'half'
+                ? t('paceReference.race.halfShort', { defaultValue: 'Half' })
+                : raceDistanceName(t, r.id),
           }))}
           activeKey={raceId}
           onSelect={setRaceId}
         />
       </View>
-      <View className="flex-row gap-2 mt-3">
+      <Text className="text-text-muted text-xs mt-4 mb-1.5">
+        {t('paceReference.finishTime', { defaultValue: 'Finish time' })}
+      </Text>
+      <View className="flex-row items-center gap-2">
         {(
           [
             [
@@ -127,19 +133,26 @@ const PaceReferenceCard: React.FC<PaceReferenceCardProps> = ({
               t('paceReference.seconds', { defaultValue: 'sec' }),
             ],
           ] as const
-        ).map(([key, value, setValue, label]) => (
-          <View key={key} className="flex-1">
-            <Text className="text-text-muted text-xs mb-1">{label}</Text>
-            <FormInput
-              testID={`pace-reference-${key}`}
-              value={value}
-              onChangeText={(text) => setValue(text.replace(/[^0-9]/g, ''))}
-              keyboardType="number-pad"
-              maxLength={2}
-              placeholder="0"
-              accessibilityLabel={label}
-            />
-          </View>
+        ).map(([key, value, setValue, label], index) => (
+          <React.Fragment key={key}>
+            {index > 0 ? (
+              <Text className="text-text-muted text-lg">:</Text>
+            ) : null}
+            <View className="flex-1 flex-row items-center bg-raised rounded-lg border border-border-subtle pr-3">
+              <FormInput
+                testID={`pace-reference-${key}`}
+                className="flex-1 border-0"
+                style={{ backgroundColor: 'transparent', borderWidth: 0 }}
+                value={value}
+                onChangeText={(text) => setValue(text.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                maxLength={2}
+                placeholder="0"
+                accessibilityLabel={label}
+              />
+              <Text className="text-text-muted text-sm">{label}</Text>
+            </View>
+          </React.Fragment>
         ))}
       </View>
       {invalid ? (
@@ -168,9 +181,9 @@ const PaceReferenceCard: React.FC<PaceReferenceCardProps> = ({
           })}
         </Text>
       ) : null}
-      <View className="flex-row gap-2 mt-3">
+      <View className="flex-row gap-2 mt-4">
         <View className="flex-1">
-          <Button variant="outline" onPress={save} testID="pace-reference-save">
+          <Button onPress={save} testID="pace-reference-save">
             {t('paceReference.save', { defaultValue: 'Save' })}
           </Button>
         </View>

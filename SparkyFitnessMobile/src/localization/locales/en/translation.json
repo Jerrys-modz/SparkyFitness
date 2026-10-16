@@ -7934,15 +7934,17 @@
   },
   "paceReference": {
     "title": "Your race pace",
-    "intro": "Enter a recent race time and the Record screen can suggest pace ranges for easy runs, tempo, marathon pace, strides and fast stretches. Without one, it uses the pace of your recent runs. Kept on this device.",
+    "intro": "Enter a recent race time to get pace ranges for easy runs, tempo, marathon pace, strides and fast stretches. Kept on this device.",
     "race": {
       "5k": "5K",
       "10k": "10K",
       "half": "Half marathon",
+      "halfShort": "Half",
       "marathon": "Marathon",
       "other": "{{km}} km"
     },
     "result": "{{race}} in {{time}}",
+    "finishTime": "Finish time",
     "hours": "h",
     "minutes": "min",
     "seconds": "sec",
