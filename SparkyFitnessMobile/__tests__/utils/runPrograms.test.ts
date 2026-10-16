@@ -83,22 +83,40 @@ describe('every program', () => {
   test('is listed once, easiest first, and can be found by id', () => {
     expect(RUN_PROGRAMS.map((p) => p.id)).toEqual([
       'walkFit',
+      'walk10k',
+      'returnToRunning',
+      'gentle5k',
       'beginner5k',
       'fiveToTenK',
       'faster5k',
+      'beginner10k',
+      'faster10k',
+      'tenKToHalf',
       'halfMarathon',
+      'fasterHalf',
+      'beginnerMarathon',
       'marathon',
+      'advancedMarathon',
     ]);
     for (const p of RUN_PROGRAMS) expect(findProgram(p.id)).toBe(p);
   });
 
   test.each([
     ['walkFit', 8, 24],
+    ['walk10k', 10, 30],
+    ['returnToRunning', 4, 12],
+    ['gentle5k', 12, 36],
     ['beginner5k', 9, 27],
     ['fiveToTenK', 8, 24],
     ['faster5k', 6, 18],
+    ['beginner10k', 12, 36],
+    ['faster10k', 8, 24],
+    ['tenKToHalf', 10, 30],
     ['halfMarathon', 12, 36],
+    ['fasterHalf', 10, 30],
+    ['beginnerMarathon', 18, 54],
     ['marathon', 16, 63],
+    ['advancedMarathon', 16, 78],
   ])('%s has %i weeks and %i workouts', (id, weeks, total) => {
     const p = findProgram(id)!;
     expect(p.weeks).toBe(weeks);
@@ -129,6 +147,12 @@ describe('every program', () => {
     expect(longest('fiveToTenK')).toBe(65 * 60);
     expect(longest('halfMarathon')).toBe(115 * 60);
     expect(longest('marathon')).toBe(165 * 60);
+    expect(longest('walk10k')).toBe(105 * 60);
+    expect(longest('beginner10k')).toBe(60 * 60);
+    expect(longest('tenKToHalf')).toBe(115 * 60);
+    expect(longest('fasterHalf')).toBe(110 * 60);
+    expect(longest('beginnerMarathon')).toBe(150 * 60);
+    expect(longest('advancedMarathon')).toBe(180 * 60);
     for (const p of RUN_PROGRAMS) {
       expect(longest(p.id)).toBeLessThanOrEqual(4 * 3600);
     }
@@ -137,6 +161,12 @@ describe('every program', () => {
   test('the speed plan is called fast and easy, the others run and walk', () => {
     expect(findProgram('faster5k')!.workouts[0].plan.style).toBe('fastEasy');
     expect(findProgram('marathon')!.workouts[0].plan.style).toBe('runWalk');
+    expect(findProgram('faster10k')!.workouts[0].plan.style).toBe('fastEasy');
+  });
+
+  test('the new walking program is recorded as a walk', () => {
+    expect(programActivity('walk10k')).toBe('walk');
+    expect(programActivity('returnToRunning')).toBe('run');
   });
 
   test('an easy run in the speed plan is an easy step, not a run', () => {
