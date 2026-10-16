@@ -317,6 +317,9 @@ export const chatHistoryQueryKey = ['chatHistory'] as const;
 export const nutritionTrendsQueryKey = (startDate: string, endDate: string) =>
   ['nutritionTrends', startDate, endDate] as const;
 
+export const foodEntriesRangeQueryKey = (startDate: string, endDate: string) =>
+  ['foodEntriesRange', startDate, endDate] as const;
+
 export const exerciseDashboardQueryKey = (startDate: string, endDate: string) =>
   ['exerciseDashboard', startDate, endDate] as const;
 
