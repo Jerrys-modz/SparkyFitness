@@ -391,14 +391,13 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const warmHeartRateBand = warmHeartRate.band ?? DEFAULT_WARM_HEART_RATE_BAND;
   const warmParts: string[] = [];
   if (warmPace.enabled) {
-    const unitLabel = distanceUnit === 'miles' ? '/mi' : '/km';
     warmParts.push(
-      `${formatClock(warmBand.fastest)}–${formatClock(warmBand.slowest)}${unitLabel}`
+      `${formatClock(warmBand.fastest)}–${formatClock(warmBand.slowest)}/${unitLabel}`
     );
   }
   if (warmHeartRate.enabled && watchAvailable) {
     warmParts.push(
-      `${warmHeartRateBand.minBpm}–${warmHeartRateBand.maxBpm} bpm`
+      `${warmHeartRateBand.minBpm}–${warmHeartRateBand.maxBpm} ${t('recordActivity.unitBpm', { defaultValue: 'bpm' })}`
     );
   }
   const warmSummary =
