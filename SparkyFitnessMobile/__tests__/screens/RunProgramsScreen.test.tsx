@@ -1,8 +1,15 @@
 import React from 'react';
 import { Alert } from 'react-native';
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react-native';
 import { addDays, programStatus } from '@workspace/shared';
 import { toLocalDateString } from '../../src/utils/dateUtils';
+import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import RunProgramsScreen from '../../src/screens/RunProgramsScreen';
 import {
   setProgramEnabled,
@@ -72,8 +79,14 @@ jest.mock('../../src/components/CalendarSheet', () => {
 const mockedUse = jest.mocked(useRunProgram);
 
 describe('RunProgramsScreen', () => {
+  afterEach(() => {
+    useAppPreferencesStore.setState({ paceReferenceRace: null });
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
+    // The saved race lives in a persisted global store; start each test clean.
+    useAppPreferencesStore.setState({ paceReferenceRace: null });
     jest.mocked(useCustomRunPrograms).mockReturnValue({
       programs: [],
       loaded: true,
@@ -104,6 +117,54 @@ describe('RunProgramsScreen', () => {
     buttons[2].onPress?.();
     expect(startProgram).toHaveBeenCalledWith('walkFit', null);
     alert.mockRestore();
+  });
+
+  it('lets you choose three or four runs a week and starts that version', () => {
+    mockedUse.mockReturnValue({
+      status: null,
+      enabled: false,
+      lastAdjustment: null,
+      schedule: { days: [], startDay: null, endDay: null },
+      doneDay: null,
+      loaded: true,
+    });
+    renderScreen(RunProgramsProps());
+    expect(screen.queryByTestId('run-program-halfMarathon4')).toBeNull();
+    expect(screen.queryByTestId('run-versions-beginner5k')).toBeNull();
+    const card = screen.getByTestId('run-program-halfMarathon');
+    const choice = within(screen.getByTestId('run-versions-halfMarathon'));
+    expect(choice.getByText('3 runs a week')).toBeTruthy();
+    fireEvent.press(choice.getByText('4 runs a week'));
+    expect(
+      within(card).getByText(/Half marathon: twelve weeks, four runs a week/)
+    ).toBeTruthy();
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    fireEvent.press(within(card).getByText('Start program'));
+    alert.mock.calls[0][2]?.[2].onPress?.();
+    expect(startProgram).toHaveBeenCalledWith('halfMarathon4', null);
+    alert.mockRestore();
+  });
+
+  it('shows the race pace card and keeps what is saved on this device', () => {
+    mockedUse.mockReturnValue({
+      status: null,
+      enabled: false,
+      lastAdjustment: null,
+      schedule: { days: [], startDay: null, endDay: null },
+      doneDay: null,
+      loaded: true,
+    });
+    renderScreen(RunProgramsProps());
+    expect(screen.getByTestId('pace-reference-card')).toBeTruthy();
+    fireEvent.changeText(screen.getByTestId('pace-reference-minutes'), '25');
+    fireEvent.press(screen.getByTestId('pace-reference-save'));
+    expect(useAppPreferencesStore.getState().paceReferenceRace).toEqual({
+      distanceKm: 5,
+      seconds: 1500,
+    });
+    expect(screen.getByTestId('pace-reference-saved')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('pace-reference-clear'));
+    expect(useAppPreferencesStore.getState().paceReferenceRace).toBeNull();
   });
 
   it('starts on a date picked from the calendar', () => {

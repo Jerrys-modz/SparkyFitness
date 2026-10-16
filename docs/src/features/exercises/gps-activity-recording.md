@@ -93,6 +93,8 @@ If you follow a [training program](#training-programs) and rate your workouts, t
 
 
 
+**Your race pace.** Under **Training programs → Your race pace** you can enter a recent 5K, 10K, half marathon or marathon time (kept on your device). The Record screen then works the suggested pace ranges out from it instead of from your recent runs: easy runs, intervals (about 5K pace), tempo, marathon pace and strides each get their own range, and the card says which race it used. A stride, tempo or marathon-pace stretch in a plan is held to its own range, and hill repeats get none because pace means little uphill. The ranges come from Riegel's formula with typical training ratios, so treat them as estimates: heat, hills or a tired week change them, and effort wins when the two disagree. On an iPhone with an Apple Watch, **Also use on my Apple Watch** puts the same ranges on the program workout offered in the watch's plan list, so the watch alerts you the way the phone does (runs only).
+
 **Coaching.** With voice cues on, the phone also coaches a plan workout: ten seconds before a step of 30 seconds or more ends it says what comes next ("Ten seconds. Next, Fast."), then counts you in with "Three. Two. One." for the last three seconds, and it calls halfway and the last minute of a workout that is long enough. Outdoors it also marks 5K, 10K, a half marathon and a marathon when you pass them, in the same breath as a split if one lands at the same moment. **Spoken updates** (off, or every 5, 10 or 15 minutes) read out your time, distance and average pace, or just the time indoors; you can change it while recording. For a training-program workout the phone also introduces it ("Week 2, run 3. 25 minutes.", with "Eased for today." when you eased it) and, once you have run every step for its full length, closes it with your progress and what is next ("Workout 4 of 27 done. Next up, Week 2, run 4."). Each split also says how much faster or slower it was than the one before. Runs recorded on the watch speak the same coaching, in English, through the watch or your headphones; the spoken-updates choice is sent to the watch when you start (or, for a run begun on the wrist, the last one you chose).
 
 **Voice.** With voice cues on, a **Voice** card lets you choose the voice and hear it with **Test voice**. The default, **Automatic**, uses the best Premium or Enhanced voice installed on your phone for the app language, and the phone's standard voice if there is none. Better voices are a free download: on an iPhone go to Settings → Accessibility → Read & Speak → Voices (Spoken Content → Voices before iOS 18) and download a Premium or Enhanced voice for your language, then reopen the card. The same choice is used for guided workouts. Siri's own voices and Apple Fitness's coaching voices aren't available to apps, so those can't be chosen.
@@ -128,11 +130,24 @@ Training programs are optional and off by default. Open **Library → Training p
 | Program | For | Length |
 | --- | --- | --- |
 | **Walk for fitness** | Not running yet. Brisk walks alternating with easy ones, building to 30 minutes of brisk walking. Recorded as a walk. | 8 weeks, 3 walks a week |
+| **Brisk walk 10K** | You walk regularly and want a bigger goal. Brisk walks and a long walk building to about 1¾ hours (a 10K walk). Recorded as a walk. | 10 weeks, 3 walks a week |
+| **Return to running** | Coming back after a break. One-minute runs building to about 20 minutes of running. Leave a day or two between runs and keep the pace easy; if you are returning from an injury, check with a physio or doctor first. | 4 weeks, 3 runs a week |
+| **Gentle 5K** | Starting to run, slowly. Very short runs between long walks, building to 30 minutes of running. | 12 weeks, 3 runs a week |
 | **Beginner 5K** | Starting to run. Alternating running and walking, building to 30 minutes of running. | 9 weeks, 3 runs a week |
 | **5K to 10K** | You can run 30 minutes. Steady runs and a long run building to 65 minutes, with an easier week every fourth. | 8 weeks, 3 runs a week |
 | **Faster 5K** | You already run 5K. Interval sessions, easy runs and tempo runs. | 6 weeks, 3 runs a week |
-| **Half marathon** | You run 30 minutes comfortably. Long runs building to about 2 hours, with a taper. | 12 weeks, 3 runs a week |
+| **Beginner 10K** | Starting from walking. Run/walk building to continuous running, then runs of up to an hour. | 12 weeks, 3 runs a week |
+| **Faster 10K** | You already run 10K. Interval sessions, easy runs and tempo runs of up to 30 minutes. | 8 weeks, 3 runs a week |
+| **10K to half marathon** | You can run 10K. Long runs building from 65 to 115 minutes, with easier weeks and a taper. | 10 weeks, 3 or 4 runs a week (your choice) |
+| **Half marathon** | You run 30 minutes comfortably. Long runs building to about 2 hours, with a taper. | 12 weeks, 3 or 4 runs a week (your choice) |
+| **Faster half marathon** | You have run a half marathon. Interval sessions, tempo runs and long runs building to 110 minutes, with a taper. | 10 weeks, 3 or 4 runs a week (your choice) |
+| **Beginner marathon** | You can run 10K. Long runs building to 2½ hours, an easier week every fourth and a three-week taper. | 18 weeks, 3 or 4 runs a week (your choice) |
 | **Marathon** | You already run regularly. Long runs building to about 2¾ hours, an easier week every fourth and a taper. | 16 weeks, 3 to 4 runs a week |
+| **Advanced marathon** | You run five days a week. Speed or tempo work, middle runs and long runs building to 3 hours, with a taper. | 16 weeks, 3 to 5 runs a week |
+
+For the half marathon, 10K to half marathon, faster half marathon and beginner marathon programs you can choose **3 runs a week** or **4 runs a week** before you start. The four-run version adds a short easy run, so the long run is a smaller share of your week.
+
+The faster 5K, faster 10K, faster half marathon and advanced marathon plans also use **strides** (six quick 20 second efforts at the end of an easy run), **tempo runs** (a steady, comfortably hard stretch of 15 to 35 minutes), **hill repeats** (hard 45 to 75 second efforts uphill with an easy walk or jog back down) and, in the advanced marathon, **marathon-pace blocks** of 40 to 50 minutes inside the long run in the later weeks.
 
 Each workout is a timed plan (a warm-up, the run, a cool-down) that follows the same steps, cues and laps as an interval plan. Runs in the longer programs are timed by minutes, not distance, and the easy runs are meant to be at a pace you could chat at. **Change program** (on the Training programs screen) switches to another one and starts it at week 1.
 
