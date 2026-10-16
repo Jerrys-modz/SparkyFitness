@@ -579,9 +579,9 @@ describe('dispatchAiRequest — text-only structured request shapes', () => {
     expect(rf.json_schema.strict).toBe(true);
     // Strict transform: additionalProperties:false everywhere, propertyOrdering gone.
     expect(rf.json_schema.schema.additionalProperties).toBe(false);
-    expect(rf.json_schema.schema.properties?.nested?.additionalProperties).toBe(
-      false
-    );
+    expect(rf.json_schema.schema.properties?.nested).toMatchObject({
+      additionalProperties: false,
+    });
     expect(rf.json_schema.schema.propertyOrdering).toBeUndefined();
     // Text-only: content is a plain string, not an array of blocks.
     const messages = body.messages as Array<{ content: unknown }>;
@@ -873,7 +873,9 @@ describe('dispatchAiRequest — text-only structured request shapes', () => {
     };
     expect(format.type).toBe('json_schema');
     expect(format.schema.additionalProperties).toBe(false);
-    expect(format.schema.properties?.nested?.additionalProperties).toBe(false);
+    expect(format.schema.properties?.nested).toMatchObject({
+      additionalProperties: false,
+    });
   });
 
   it('anthropic sends no output_config when no schema is requested', async () => {
@@ -1901,10 +1903,48 @@ describe('dispatchAiRequest — 429 rate-limit retry', () => {
 });
 
 describe('toStrictJsonSchema', () => {
+  it('strictly transforms nested unions, definitions and tuple items while retaining boolean schemas', () => {
+    const strict = toStrictJsonSchema({
+      type: 'object',
+      properties: {
+        choice: {
+          anyOf: [
+            {
+              type: 'object',
+              properties: { allowed: true },
+              propertyOrdering: ['allowed'],
+            },
+            { type: 'null' },
+          ],
+        },
+        list: {
+          type: 'array',
+          items: [{ type: ['object', 'null'], properties: {} }, false],
+        },
+      },
+      $defs: { nested: { type: 'object', properties: {} } },
+    });
+    expect(strict).toMatchObject({
+      additionalProperties: false,
+      properties: {
+        choice: {
+          anyOf: [
+            { additionalProperties: false, properties: { allowed: true } },
+            { type: 'null' },
+          ],
+        },
+        list: { items: [{ additionalProperties: false }, false] },
+      },
+      $defs: { nested: { additionalProperties: false } },
+    });
+    expect(JSON.stringify(strict)).not.toContain('propertyOrdering');
+  });
   it('adds additionalProperties:false to every object node and strips propertyOrdering', () => {
     const strict = toStrictJsonSchema(SCHEMA);
     expect(strict.additionalProperties).toBe(false);
-    expect(strict.properties?.nested?.additionalProperties).toBe(false);
+    expect(strict.properties?.nested).toMatchObject({
+      additionalProperties: false,
+    });
     expect(strict.propertyOrdering).toBeUndefined();
   });
 
