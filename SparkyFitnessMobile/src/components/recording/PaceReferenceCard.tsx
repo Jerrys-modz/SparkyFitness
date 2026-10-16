@@ -10,6 +10,7 @@ import {
 import Button from '../ui/Button';
 import FormInput from '../FormInput';
 import SegmentedControl from '../SegmentedControl';
+import RecordingSwitchRow from './RecordingSwitchRow';
 import { raceDistanceName, raceIdForDistance } from '../../utils/paceReference';
 import { formatClock } from '../../utils/gpsRecording';
 
@@ -29,6 +30,11 @@ export interface PaceReferenceCardProps {
   /** The saved race result, or null when none is set. */
   race: PaceReferenceRace | null;
   onSave: (race: PaceReferenceRace | null) => void;
+  /**
+   * The switch that also puts the ranges on the program workout offered on the
+   * Apple Watch. Left out where there is no watch to offer it on.
+   */
+  watch?: { value: boolean; onChange: (value: boolean) => void };
 }
 
 /**
@@ -40,6 +46,7 @@ export interface PaceReferenceCardProps {
 const PaceReferenceCard: React.FC<PaceReferenceCardProps> = ({
   race,
   onSave,
+  watch,
 }) => {
   const { t } = useTranslation();
   const [raceId, setRaceId] = useState<PaceReferenceRaceId>(
@@ -179,6 +186,22 @@ const PaceReferenceCard: React.FC<PaceReferenceCardProps> = ({
           </View>
         ) : null}
       </View>
+      {race && watch ? (
+        <View className="-mx-4 -mb-4">
+          <RecordingSwitchRow
+            testID="pace-reference-watch"
+            title={t('paceReference.watch', {
+              defaultValue: 'Also use on my Apple Watch',
+            })}
+            description={t('paceReference.watchHint', {
+              defaultValue:
+                'Holds the program workout offered on the watch to these ranges. Runs only.',
+            })}
+            value={watch.value}
+            onValueChange={watch.onChange}
+          />
+        </View>
+      ) : null}
     </View>
   );
 };

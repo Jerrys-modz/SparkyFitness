@@ -7903,6 +7903,8 @@
     "invalid": "That time does not look right for this distance. Check the hours, minutes and seconds.",
     "saved": "Saved: {{race}} in {{time}}.",
     "save": "Save",
-    "clear": "Clear"
+    "clear": "Clear",
+    "watch": "Also use on my Apple Watch",
+    "watchHint": "Holds the program workout offered on the watch to these ranges. Runs only."
   }
 }

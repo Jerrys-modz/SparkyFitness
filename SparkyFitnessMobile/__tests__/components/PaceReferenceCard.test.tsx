@@ -67,4 +67,34 @@ describe('PaceReferenceCard', () => {
     expect(onSave).toHaveBeenCalledWith(null);
     expect(screen.getByTestId('pace-reference-minutes').props.value).toBe('');
   });
+
+  it('offers the Apple Watch switch only with a saved race and a watch', () => {
+    const onChange = jest.fn();
+    const { rerender } = render(
+      <PaceReferenceCard
+        race={null}
+        onSave={jest.fn()}
+        watch={{ value: false, onChange }}
+      />
+    );
+    expect(screen.queryByTestId('pace-reference-watch')).toBeNull();
+
+    rerender(
+      <PaceReferenceCard
+        race={{ distanceKm: 5, seconds: 1500 }}
+        onSave={jest.fn()}
+        watch={{ value: false, onChange }}
+      />
+    );
+    fireEvent(screen.getByTestId('pace-reference-watch'), 'valueChange', true);
+    expect(onChange).toHaveBeenCalledWith(true);
+
+    rerender(
+      <PaceReferenceCard
+        race={{ distanceKm: 5, seconds: 1500 }}
+        onSave={jest.fn()}
+      />
+    );
+    expect(screen.queryByTestId('pace-reference-watch')).toBeNull();
+  });
 });

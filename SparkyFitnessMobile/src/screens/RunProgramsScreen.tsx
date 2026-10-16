@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, Platform, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -68,6 +68,12 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   const paceReferenceRace = useAppPreferencesStore((s) => s.paceReferenceRace);
   const setPaceReferenceRace = useAppPreferencesStore(
     (s) => s.setPaceReferenceRace
+  );
+  const paceReferenceOnWatch = useAppPreferencesStore(
+    (s) => s.paceReferenceOnWatch
+  );
+  const setPaceReferenceOnWatch = useAppPreferencesStore(
+    (s) => s.setPaceReferenceOnWatch
   );
 
   const header = useScreenHeader({
@@ -319,6 +325,14 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
         <PaceReferenceCard
           race={paceReferenceRace}
           onSave={setPaceReferenceRace}
+          watch={
+            Platform.OS === 'ios'
+              ? {
+                  value: paceReferenceOnWatch,
+                  onChange: setPaceReferenceOnWatch,
+                }
+              : undefined
+          }
         />
         {yourPlans}
       </>
@@ -425,6 +439,14 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
         <PaceReferenceCard
           race={paceReferenceRace}
           onSave={setPaceReferenceRace}
+          watch={
+            Platform.OS === 'ios'
+              ? {
+                  value: paceReferenceOnWatch,
+                  onChange: setPaceReferenceOnWatch,
+                }
+              : undefined
+          }
         />
         {yourPlans}
       </>
