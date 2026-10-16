@@ -108,6 +108,36 @@ export function programStructure(t: TFunction, id: string): string {
   }
 }
 
+/** Rest-day advice for a program: how to space its workouts across the week. */
+export function programRest(t: TFunction, id: string): string {
+  switch (id) {
+    case 'beginner5k':
+    case 'walkFit':
+      return t('runPrograms.guide.rest.beginner', {
+        defaultValue:
+          'Do not train on back-to-back days. Three workouts a week with a rest day between them, for example Monday, Wednesday and Saturday, gives your legs time to adapt. On rest days walk, stretch or do something gentle.',
+      });
+    case 'fiveToTenK':
+      return t('runPrograms.guide.rest.fiveToTenK', {
+        defaultValue:
+          'Keep a rest day between the two steady runs, and put the long run a day or two after a rest day. Rest or cross-train (cycling, swimming, an easy walk) on the other days.',
+      });
+    case 'faster5k':
+      return t('runPrograms.guide.rest.faster5k', {
+        defaultValue:
+          'Give the speed session and the longer run an easy day or a rest day on each side. Never do them back to back. Spend the free days resting or cross-training gently.',
+      });
+    case 'halfMarathon':
+    case 'marathon':
+      return t('runPrograms.guide.rest.longDistance', {
+        defaultValue:
+          'Keep the day before the long run easy or free, and take a rest day the day after it. Space the other runs so no two hard days sit together, and use spare days for rest, walking or low-impact cross-training.',
+      });
+    default:
+      return '';
+  }
+}
+
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({
   title,
   children,
@@ -188,6 +218,15 @@ const RunProgramGuide: React.FC<{
                 'Walk briskly but comfortably, about 5 to 6 km/h (3 to 3.5 mph), which is roughly 10 to 12 minutes per kilometer or 16 to 19 minutes per mile. Keep moving rather than stopping: the walks are for getting your breath back, so you should be able to talk normally by the end of each one. The warm-up and cool-down walks can be a little easier.',
             })}
           </Section>
+          {programId && programRest(t, programId) ? (
+            <Section
+              title={t('runPrograms.guide.rest.title', {
+                defaultValue: 'Rest days',
+              })}
+            >
+              {programRest(t, programId)}
+            </Section>
+          ) : null}
           <Section
             title={t('runPrograms.guide.listen.title', {
               defaultValue: 'Listening to your body',

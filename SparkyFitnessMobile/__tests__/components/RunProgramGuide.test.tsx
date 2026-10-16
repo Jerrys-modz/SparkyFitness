@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { RUN_PROGRAMS } from '@workspace/shared';
 import RunProgramGuide, {
+  programRest,
   programStructure,
 } from '../../src/components/recording/RunProgramGuide';
 import i18n from '../../src/localization/i18n';
@@ -29,5 +30,16 @@ describe('RunProgramGuide', () => {
         programStructure(i18n.t.bind(i18n), program.id).length
       ).toBeGreaterThan(20);
     }
+  });
+
+  it('gives rest-day advice for every program', () => {
+    for (const program of RUN_PROGRAMS) {
+      expect(programRest(i18n.t.bind(i18n), program.id).length).toBeGreaterThan(
+        20
+      );
+    }
+    render(<RunProgramGuide programId="beginner5k" defaultOpen />);
+    expect(screen.getByText('Rest days')).toBeTruthy();
+    expect(screen.getByText(/back-to-back days/)).toBeTruthy();
   });
 });
