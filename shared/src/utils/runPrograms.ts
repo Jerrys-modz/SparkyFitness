@@ -3,6 +3,7 @@ import type {
   IntervalPlan,
   IntervalStep,
   IntervalStyle,
+  StepEffort,
 } from "./runIntervals.ts";
 
 /**
@@ -42,7 +43,8 @@ export interface RunProgram {
   variantOf?: string;
 }
 
-type Piece = readonly ["run" | "walk", number];
+/** A run (work) or walk (recovery) piece, with what the stretch is for when its kind does not say. */
+type Piece = readonly ["run" | "walk", number, StepEffort?];
 
 /** How a workout is wrapped: warm-up, cool-down and what the steps are called. */
 interface Shape {
@@ -67,8 +69,16 @@ function workout(spec: Spec): IntervalPlan {
   const steps: IntervalStep[] = [
     { kind: "warmup", seconds: spec.shape.warmup },
   ];
-  for (const [kind, seconds] of spec.pieces) {
-    steps.push({ kind: kind === "run" ? "work" : "recovery", seconds });
+  for (const [kind, seconds, effort] of spec.pieces) {
+    // The runs of a run/walk plan are easy running, so they get an easy pace.
+    const stepEffort =
+      effort ??
+      (kind === "run" && spec.shape.style === "runWalk" ? "easy" : undefined);
+    steps.push({
+      kind: kind === "run" ? "work" : "recovery",
+      seconds,
+      ...(stepEffort ? { effort: stepEffort } : {}),
+    });
   }
   steps.push({ kind: "cooldown", seconds: spec.shape.cooldown });
   return { style: spec.shape.style, steps };
@@ -89,6 +99,34 @@ const speed = (pieces: readonly Piece[]): Spec => ({ pieces, shape: SPEED });
 /** An easy run (an "easy" step, not a "run" one) of `minutes`. */
 const easy = (minutes: number): Spec => ({
   pieces: [walk(minutes * 60)],
+  shape: EASY,
+});
+
+/** A continuous tempo effort of `minutes`: comfortably hard, with a long warm-up and cool-down. */
+const tempo = (minutes: number): Spec =>
+  speed([["run", minutes * 60, "tempo"]]);
+/** An easy run of `minutes` that ends with `count` strides: 20 seconds quick and relaxed, then a walk or jog back. */
+const stridesRun = (minutes: number, count = 6): Spec => ({
+  pieces: [
+    walk(minutes * 60),
+    ...repeat(count, [["run", 20, "stride"], walk(70)]),
+  ],
+  shape: EASY,
+});
+/** Hill repeats: `count` hard efforts of `upSeconds` uphill, each followed by an easy walk or jog back down. */
+const hills = (count: number, upSeconds: number, downSeconds: number): Spec =>
+  speed(repeat(count, [["run", upSeconds, "hill"], walk(downSeconds)]));
+/** A long run: easy, then `paceMinutes` at marathon pace, then easy again. */
+const marathonPaceLong = (
+  easyFirst: number,
+  paceMinutes: number,
+  easyLast: number,
+): Spec => ({
+  pieces: [
+    walk(easyFirst * 60),
+    ["run", paceMinutes * 60, "marathon"],
+    walk(easyLast * 60),
+  ],
   shape: EASY,
 });
 
@@ -162,9 +200,9 @@ const FASTER_5K_WEEKS: readonly (readonly Spec[])[] = [
   [speed(repeat(6, [run(120), walk(120)])), easy(30), easy(40)],
   [speed(repeat(5, [run(180), walk(120)])), easy(30), easy(45)],
   [speed(repeat(4, [run(240), walk(150)])), easy(35), easy(50)],
-  [speed(repeat(8, [run(90), walk(90)])), easy(30), speed([run(900)])],
-  [speed(repeat(3, [run(360), walk(180)])), easy(30), speed([run(1200)])],
-  [speed(repeat(4, [run(180), walk(120)])), easy(25), speed([run(1500)])],
+  [speed(repeat(8, [run(90), walk(90)])), easy(30), tempo(15)],
+  [speed(repeat(3, [run(360), walk(180)])), easy(30), tempo(20)],
+  [speed(repeat(4, [run(180), walk(120)])), easy(25), tempo(25)],
 ];
 
 // Twelve weeks to a half marathon for someone who runs 30 minutes: an easy
@@ -289,29 +327,32 @@ const TEN_K_TO_HALF_4_WEEKS = steadyWeeks([
 ]);
 
 // Eight weeks to get faster over 10K: a speed session, an easy run and a longer
-// run each week, the longer run turning into a tempo run in the middle weeks.
+// run each week. Two of the speed sessions are hill repeats, three of the easy
+// runs end with strides, and the longer run turns into a tempo run in the
+// middle weeks.
 const FASTER_10K_WEEKS: readonly (readonly Spec[])[] = [
   [speed(repeat(5, [run(180), walk(120)])), easy(30), easy(45)],
-  [speed(repeat(4, [run(300), walk(150)])), easy(30), easy(50)],
-  [speed(repeat(6, [run(180), walk(90)])), easy(35), easy(55)],
+  [hills(8, 45, 105), easy(30), easy(50)],
+  [speed(repeat(6, [run(180), walk(90)])), stridesRun(35), easy(55)],
   [speed(repeat(8, [run(90), walk(90)])), easy(30), easy(40)],
-  [speed(repeat(3, [run(480), walk(180)])), easy(35), speed([run(1200)])],
-  [speed(repeat(4, [run(360), walk(150)])), easy(35), speed([run(1500)])],
-  [speed(repeat(5, [run(300), walk(120)])), easy(30), speed([run(1800)])],
+  [speed(repeat(3, [run(480), walk(180)])), stridesRun(35), tempo(20)],
+  [hills(10, 60, 120), easy(35), tempo(25)],
+  [speed(repeat(5, [run(300), walk(120)])), stridesRun(30), tempo(30)],
   [speed(repeat(3, [run(240), walk(120)])), easy(25), easy(30)],
 ];
 
 // Ten weeks to get faster over a half marathon: a speed session, an easy run
-// and a long run, with tempo runs, an easier fourth week and a taper.
+// and a long run, with two hill sessions, strides after three easy runs, tempo
+// runs, an easier fourth week and a taper.
 const FASTER_HALF_WEEKS: readonly (readonly Spec[])[] = [
   [speed(repeat(5, [run(240), walk(120)])), easy(40), easy(70)],
-  [speed(repeat(4, [run(360), walk(150)])), easy(40), easy(80)],
-  [speed(repeat(3, [run(600), walk(180)])), easy(45), easy(90)],
+  [hills(10, 60, 120), easy(40), easy(80)],
+  [speed(repeat(3, [run(600), walk(180)])), stridesRun(45), easy(90)],
   [speed(repeat(6, [run(180), walk(90)])), easy(35), easy(60)],
-  [speed(repeat(4, [run(480), walk(150)])), easy(45), easy(100)],
-  [speed([run(1500)]), easy(45), easy(105)],
-  [speed(repeat(3, [run(720), walk(180)])), easy(45), easy(110)],
-  [speed([run(1800)]), easy(40), easy(80)],
+  [hills(10, 75, 135), stridesRun(45), easy(100)],
+  [tempo(25), easy(45), easy(105)],
+  [speed(repeat(3, [run(720), walk(180)])), stridesRun(45), easy(110)],
+  [tempo(30), easy(40), easy(80)],
   [speed(repeat(4, [run(300), walk(120)])), easy(35), easy(60)],
   [speed(repeat(3, [run(180), walk(120)])), easy(20), easy(30)],
 ];
@@ -320,13 +361,18 @@ const FASTER_HALF_WEEKS: readonly (readonly Spec[])[] = [
 // runs and a long run, with tempo runs, an easier fourth week and a taper.
 const FASTER_HALF_4_WEEKS: readonly (readonly Spec[])[] = [
   [speed(repeat(5, [run(240), walk(120)])), easy(40), easy(30), easy(70)],
-  [speed(repeat(4, [run(360), walk(150)])), easy(40), easy(30), easy(80)],
-  [speed(repeat(3, [run(600), walk(180)])), easy(45), easy(35), easy(90)],
+  [hills(10, 60, 120), easy(40), easy(30), easy(80)],
+  [speed(repeat(3, [run(600), walk(180)])), easy(45), stridesRun(35), easy(90)],
   [speed(repeat(6, [run(180), walk(90)])), easy(35), easy(30), easy(60)],
-  [speed(repeat(4, [run(480), walk(150)])), easy(45), easy(35), easy(100)],
-  [speed([run(1500)]), easy(45), easy(35), easy(105)],
-  [speed(repeat(3, [run(720), walk(180)])), easy(45), easy(35), easy(110)],
-  [speed([run(1800)]), easy(40), easy(30), easy(80)],
+  [hills(10, 75, 135), easy(45), stridesRun(35), easy(100)],
+  [tempo(25), easy(45), easy(35), easy(105)],
+  [
+    speed(repeat(3, [run(720), walk(180)])),
+    easy(45),
+    stridesRun(35),
+    easy(110),
+  ],
+  [tempo(30), easy(40), easy(30), easy(80)],
   [speed(repeat(4, [run(300), walk(120)])), easy(35), easy(30), easy(60)],
   [speed(repeat(3, [run(180), walk(120)])), easy(20), easy(30)],
 ];
@@ -379,37 +425,59 @@ const BEGINNER_MARATHON_4_WEEKS = steadyWeeks([
   [25, 20, 15],
 ]);
 
-/** A marathon week for an experienced runner: easy, speed, easy, middle and long. */
+/** A marathon week for an experienced runner: easy, quality, easy, middle and long. */
 const advancedWeek = (
-  speedPieces: readonly Piece[],
+  quality: Spec,
   middleMinutes: number,
-  longMinutes: number,
-): Spec[] => [
-  easy(40),
-  speed(speedPieces),
-  easy(40),
-  easy(middleMinutes),
-  easy(longMinutes),
-];
+  long: Spec,
+  easyRun: Spec = easy(40),
+): Spec[] => [easyRun, quality, easy(40), easy(middleMinutes), long];
 
-// Sixteen weeks to a marathon for someone who runs five days a week: a speed
-// or tempo session, a middle run and a long run building to three hours.
+// Sixteen weeks to a marathon for someone who runs five days a week: a speed,
+// hill or tempo session, a middle run and a long run building to three hours.
+// From week 3 the first easy run ends with strides, and from week 9 the long
+// run holds a block at marathon pace.
 const ADVANCED_MARATHON_WEEKS: readonly (readonly Spec[])[] = [
-  advancedWeek(repeat(6, [run(180), walk(90)]), 60, 90),
-  advancedWeek(repeat(5, [run(240), walk(120)]), 60, 100),
-  advancedWeek(repeat(4, [run(360), walk(120)]), 65, 110),
-  advancedWeek(repeat(8, [run(90), walk(90)]), 50, 80),
-  advancedWeek(repeat(3, [run(600), walk(180)]), 70, 120),
-  advancedWeek([run(1500)], 70, 130),
-  advancedWeek(repeat(5, [run(300), walk(120)]), 75, 140),
-  advancedWeek([run(1200)], 55, 100),
-  advancedWeek(repeat(4, [run(480), walk(150)]), 75, 150),
-  advancedWeek([run(1800)], 80, 160),
-  advancedWeek(repeat(3, [run(720), walk(180)]), 80, 170),
-  advancedWeek(repeat(6, [run(180), walk(90)]), 60, 110),
-  advancedWeek([run(2100)], 80, 180),
-  advancedWeek(repeat(4, [run(480), walk(150)]), 75, 150),
-  advancedWeek(repeat(5, [run(240), walk(120)]), 60, 100),
+  advancedWeek(speed(repeat(6, [run(180), walk(90)])), 60, easy(90)),
+  advancedWeek(hills(10, 60, 120), 60, easy(100)),
+  advancedWeek(
+    speed(repeat(4, [run(360), walk(120)])),
+    65,
+    easy(110),
+    stridesRun(40),
+  ),
+  advancedWeek(speed(repeat(8, [run(90), walk(90)])), 50, easy(80)),
+  advancedWeek(hills(10, 75, 135), 70, easy(120), stridesRun(40)),
+  advancedWeek(tempo(25), 70, easy(130), stridesRun(40)),
+  advancedWeek(
+    speed(repeat(5, [run(300), walk(120)])),
+    75,
+    easy(140),
+    stridesRun(40),
+  ),
+  advancedWeek(tempo(20), 55, easy(100)),
+  advancedWeek(
+    speed(repeat(4, [run(480), walk(150)])),
+    75,
+    marathonPaceLong(80, 40, 30),
+    stridesRun(40),
+  ),
+  advancedWeek(tempo(30), 80, marathonPaceLong(90, 40, 30), stridesRun(40)),
+  advancedWeek(
+    speed(repeat(3, [run(720), walk(180)])),
+    80,
+    marathonPaceLong(90, 50, 30),
+    stridesRun(40),
+  ),
+  advancedWeek(speed(repeat(6, [run(180), walk(90)])), 60, easy(110)),
+  advancedWeek(tempo(35), 80, marathonPaceLong(100, 50, 30), stridesRun(40)),
+  advancedWeek(
+    speed(repeat(4, [run(480), walk(150)])),
+    75,
+    marathonPaceLong(80, 40, 30),
+    stridesRun(40),
+  ),
+  advancedWeek(speed(repeat(5, [run(240), walk(120)])), 60, easy(100)),
   [easy(30), speed(repeat(3, [run(180), walk(120)])), easy(20)],
 ];
 

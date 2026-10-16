@@ -15,6 +15,7 @@ import RunProgramCard, {
   programDescription,
   programName,
 } from '../components/recording/RunProgramCard';
+import PaceReferenceCard from '../components/recording/PaceReferenceCard';
 import RunProgramCalendar from '../components/recording/RunProgramCalendar';
 import RunProgramGuide, {
   programStructure,
@@ -39,6 +40,7 @@ import {
   useRunProgram,
 } from '../services/runProgramService';
 import { addLog } from '../services/LogService';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { formatLocalizedNumber } from '../localization';
 import type { RootStackScreenProps } from '../types/navigation';
 import { addDays, toLocalDateString } from '../utils/dateUtils';
@@ -63,6 +65,10 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   // Which version (3 or 4 runs a week) is picked on a card that has both.
   const [versionOf, setVersionOf] = useState<Record<string, string>>({});
   const { programs: customPrograms } = useCustomRunPrograms();
+  const paceReferenceRace = useAppPreferencesStore((s) => s.paceReferenceRace);
+  const setPaceReferenceRace = useAppPreferencesStore(
+    (s) => s.setPaceReferenceRace
+  );
 
   const header = useScreenHeader({
     title: t('screens.runPrograms', { defaultValue: 'Training programs' }),
@@ -310,6 +316,10 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
         <RunProgramGuide
           programId={status.program.custom ? undefined : storedId}
         />
+        <PaceReferenceCard
+          race={paceReferenceRace}
+          onSave={setPaceReferenceRace}
+        />
         {yourPlans}
       </>
     );
@@ -412,6 +422,10 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
             </View>
           );
         })}
+        <PaceReferenceCard
+          race={paceReferenceRace}
+          onSave={setPaceReferenceRace}
+        />
         {yourPlans}
       </>
     );

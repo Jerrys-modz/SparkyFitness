@@ -24,6 +24,18 @@ describe('RunProgramGuide', () => {
     expect(screen.getByText(/Weeks 7 to 9 are continuous runs/)).toBeTruthy();
   });
 
+  it('explains strides, hills, tempo and marathon pace, and pace ranges', () => {
+    render(<RunProgramGuide defaultOpen />);
+    expect(
+      screen.getByText('Strides, hills, tempo and marathon pace')
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/A stride is a short, quick, relaxed effort/)
+    ).toBeTruthy();
+    expect(screen.getByText('Pace ranges')).toBeTruthy();
+    expect(screen.getByText(/under Your race pace/)).toBeTruthy();
+  });
+
   it('describes every program', () => {
     for (const program of RUN_PROGRAMS) {
       expect(
