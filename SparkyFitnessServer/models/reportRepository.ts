@@ -801,6 +801,144 @@ async function getTrainingLoadSessions(
   }
 }
 
+/** What the readiness score reads besides training: last night and a baseline. */
+interface ReadinessVitals {
+  sleepHours: number | null;
+  restingHeartRate: number | null;
+  restingHeartRateBaseline: number | null;
+  hrv: number | null;
+  hrvBaseline: number | null;
+}
+
+const toNumberOrNull = (value: string | number | null | undefined) =>
+  value === null || value === undefined ? null : Number(value);
+
+/**
+ * The latest night's sleep, resting heart rate and HRV (nights ending `today`
+ * or the day before) and the average of the 14 nights before that, which the
+ * readiness score compares them with. Any of them can be null.
+ */
+async function getReadinessVitals(
+  userId: string,
+  today: string,
+  yesterday: string,
+  baselineStart: string
+): Promise<ReadinessVitals> {
+  const client = await getClient(userId);
+  try {
+    const latest = await client.query(
+      `SELECT COALESCE(time_asleep_in_seconds, duration_in_seconds) / 3600.0 AS sleep_hours,
+              resting_heart_rate,
+              avg_overnight_hrv
+       FROM sleep_entries
+       WHERE user_id = $1 AND entry_date BETWEEN $2 AND $3
+       ORDER BY entry_date DESC, wake_time DESC
+       LIMIT 1`,
+      [userId, yesterday, today]
+    );
+    const baseline = await client.query(
+      `SELECT AVG(resting_heart_rate) AS resting_heart_rate,
+              AVG(avg_overnight_hrv) AS hrv
+       FROM sleep_entries
+       WHERE user_id = $1 AND entry_date >= $2 AND entry_date < $3`,
+      [userId, baselineStart, yesterday]
+    );
+    const row = latest.rows[0];
+    const base = baseline.rows[0];
+    return {
+      sleepHours: toNumberOrNull(row?.sleep_hours),
+      restingHeartRate: toNumberOrNull(row?.resting_heart_rate),
+      restingHeartRateBaseline: toNumberOrNull(base?.resting_heart_rate),
+      hrv: toNumberOrNull(row?.avg_overnight_hrv),
+      hrvBaseline: toNumberOrNull(base?.hrv),
+    };
+  } finally {
+    client.release();
+  }
+}
+
+/** A logged cardio entry that might be a run, with what sport detection reads. */
+interface RunCandidateRow {
+  day: string;
+  distanceKm: number;
+  durationMinutes: number;
+  avgHeartRate: number | null;
+  elevationGainMeters: number | null;
+  exerciseName: string | null;
+  category: string | null;
+  notes: string | null;
+  providerName: string | null;
+  detailData: unknown;
+  exerciseSourceId: string | null;
+}
+
+/**
+ * Cardio entries with a distance and a duration between two local days, with the
+ * provider blob and names the shared sport detection reads, so the caller can
+ * keep only the runs. Sport is not a column.
+ */
+async function getRunCandidates(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<RunCandidateRow[]> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT TO_CHAR(ee.entry_date, 'YYYY-MM-DD') AS day,
+              ee.distance, ee.duration_minutes, ee.avg_heart_rate,
+              ee.elevation_gain_meters, ee.exercise_name, ee.category, ee.notes,
+              d.provider_name, d.detail_data,
+              x.source_id AS exercise_source_id
+       FROM exercise_entries ee
+       LEFT JOIN exercises x ON x.id = ee.exercise_id
+       LEFT JOIN LATERAL (
+         SELECT provider_name, detail_data
+         FROM exercise_entry_activity_details
+         WHERE exercise_entry_id = ee.id
+         ORDER BY CASE WHEN detail_type LIKE '%activity_data%' THEN 0 ELSE 1 END
+         LIMIT 1
+       ) d ON TRUE
+       WHERE ee.user_id = $1
+         AND ee.entry_date BETWEEN $2 AND $3
+         AND ee.distance > 0
+         AND ee.duration_minutes > 0
+         AND ee.exercise_name != 'Active Calories'
+       ORDER BY ee.entry_date ASC`,
+      [userId, startDate, endDate]
+    );
+    return result.rows.map(
+      (row: {
+        day: string;
+        distance: string | number;
+        duration_minutes: string | number;
+        avg_heart_rate: string | number | null;
+        elevation_gain_meters: string | number | null;
+        exercise_name: string | null;
+        category: string | null;
+        notes: string | null;
+        provider_name: string | null;
+        detail_data: unknown;
+        exercise_source_id: string | null;
+      }) => ({
+        day: row.day,
+        distanceKm: Number(row.distance),
+        durationMinutes: Number(row.duration_minutes),
+        avgHeartRate: toNumberOrNull(row.avg_heart_rate),
+        elevationGainMeters: toNumberOrNull(row.elevation_gain_meters),
+        exerciseName: row.exercise_name,
+        category: row.category,
+        notes: row.notes,
+        providerName: row.provider_name,
+        detailData: row.detail_data,
+        exerciseSourceId: row.exercise_source_id,
+      })
+    );
+  } finally {
+    client.release();
+  }
+}
+
 /**
  * Runs in the range with a distance, for the run review. Same word-boundary
  * match as the activity search: "crunch" contains "run" and is not one. Treadmill
@@ -848,6 +986,10 @@ async function getRunSessions(
 
 export { getNutritionData };
 export { getTrainingLoadSessions };
+export { getReadinessVitals };
+export { getRunCandidates };
+export type { RunCandidateRow };
+export type { ReadinessVitals };
 export { getRunSessions };
 export { getTabularFoodData };
 export { getMeasurementData };
@@ -865,6 +1007,8 @@ export default {
   getMiniNutritionTrends,
   getExerciseEntries,
   getTrainingLoadSessions,
+  getReadinessVitals,
+  getRunCandidates,
   getRunSessions,
   getBodyWeightReadings,
   getExerciseNames,
