@@ -79,7 +79,24 @@ export const LabResultsReport = ({
   );
 
   const labCategories = customCategories.filter(isLabCategory);
-  if (labCategories.length === 0) return null;
+  if (labCategories.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center space-y-2">
+          <FlaskConical className="w-8 h-8 mx-auto text-muted-foreground" />
+          <p className="font-medium">
+            {t('reports.noLabResults', 'No lab results yet')}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {t(
+              'reports.noLabResultsHint',
+              'Add results or import a report in the mobile app under Library > Lab results, and they will show here.'
+            )}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">

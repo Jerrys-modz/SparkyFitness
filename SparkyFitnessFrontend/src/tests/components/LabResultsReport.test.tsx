@@ -89,14 +89,15 @@ const entry = (
   }) as unknown as CustomMeasurementsResponse;
 
 describe('LabResultsReport', () => {
-  it('renders nothing when there are no lab markers', () => {
-    const { container } = render(
+  it('points at the mobile app when there are no lab markers', () => {
+    render(
       <LabResultsReport
         customCategories={[category({ is_lab: false, name: 'Chest' })]}
         customMeasurementsData={[]}
       />
     );
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.getByText('No lab results yet')).toBeInTheDocument();
+    expect(screen.queryByText('Chest')).not.toBeInTheDocument();
   });
 
   it('shows the latest result, its status and the reference range', () => {
