@@ -114,6 +114,7 @@ describe('TrainingPrograms page', () => {
       expect(save).toHaveBeenCalledWith({
         program_id: 'beginner5k',
         enabled: true,
+        next_index: 0,
         start_date: null,
       });
     });
@@ -143,6 +144,7 @@ describe('TrainingPrograms page', () => {
       expect(save).toHaveBeenCalledWith({
         program_id: 'beginner5k',
         enabled: true,
+        next_index: 0,
         start_date: later,
       });
     });
@@ -178,6 +180,7 @@ describe('TrainingPrograms page', () => {
       expect(save).toHaveBeenCalledWith({
         program_id: 'custom:custom-1',
         enabled: true,
+        next_index: 0,
         start_date: null,
       });
     });
@@ -217,12 +220,14 @@ describe('TrainingPrograms page', () => {
       expect(body).toEqual({
         program_id: 'faster5k',
         enabled: true,
+        next_index: 0,
         start_date: undefined,
       });
       // No start_date key on the wire: JSON drops undefined, so the schedule stays.
       expect(JSON.parse(JSON.stringify(body))).toEqual({
         program_id: 'faster5k',
         enabled: true,
+        next_index: 0,
       });
     });
 

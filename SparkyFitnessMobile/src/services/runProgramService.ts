@@ -147,9 +147,9 @@ export async function setProgramEnabled(
 }
 
 /**
- * Starts `programId` from its first workout and switches it on. Choosing the
- * program already held just switches it on and keeps the place; choosing a
- * different one replaces it (the server reseeds the workouts and the place).
+ * Starts `programId` from its first workout and switches it on. Choosing a
+ * different program replaces it (the server reseeds the workouts and the
+ * place); choosing the one already held goes back to its first workout.
  * `startDay` sets the first day (null = today); leave it out to keep the
  * schedule as it is.
  */

@@ -11,13 +11,18 @@ import type {
 
 type HeldProgram = Pick<RunProgramResponse, "program_id">;
 
-/** Starts `programId` from its first workout and switches it on. `startDay` null = today; absent keeps the schedule. */
+/**
+ * Starts `programId` from its first workout and switches it on, also when it
+ * is the program already held (the server keeps the place unless told).
+ * `startDay` null = today; absent keeps the schedule.
+ */
 export const startProgramBody = (
   programId: string,
   startDay?: string | null,
 ): UpsertRunProgramBody => ({
   program_id: programId,
   enabled: true,
+  next_index: 0,
   start_date: startDay,
 });
 
