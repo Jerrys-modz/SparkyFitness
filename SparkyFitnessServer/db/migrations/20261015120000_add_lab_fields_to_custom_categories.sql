@@ -10,7 +10,9 @@ ALTER TABLE public.custom_categories
   DROP CONSTRAINT IF EXISTS custom_categories_ref_range_check;
 ALTER TABLE public.custom_categories
   ADD CONSTRAINT custom_categories_ref_range_check
-  CHECK (ref_range_low IS NULL OR ref_range_high IS NULL OR ref_range_low <= ref_range_high);
+  CHECK (ref_range_low IS NULL OR ref_range_high IS NULL OR ref_range_low <= ref_range_high) NOT VALID;
+ALTER TABLE public.custom_categories
+  VALIDATE CONSTRAINT custom_categories_ref_range_check;
 
 COMMENT ON COLUMN public.custom_categories.is_lab IS 'True for lab-result markers (HbA1c, LDL, ...); these are listed under Lab results instead of the generic custom measurements.';
 COMMENT ON COLUMN public.custom_categories.ref_range_low IS 'Lower bound of the reference range, in the category unit (measurement_type). NULL when unknown.';
