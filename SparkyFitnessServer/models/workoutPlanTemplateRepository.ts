@@ -616,6 +616,75 @@ async function getActiveWorkoutPlanForDate(
   }
 }
 
+/** An active plan with each assignment's name and planned minutes. */
+export interface PlanCalendarTemplateRow {
+  id: number;
+  plan_name: string;
+  schedule_type: 'weekly' | 'sequential';
+  start_day: string;
+  end_day: string | null;
+  assignments: {
+    id: number;
+    day_of_week: number | null;
+    session_index: number | null;
+    session_name: string | null;
+    name: string | null;
+    modality: string | null;
+    is_preset: boolean;
+    minutes: number | null;
+  }[];
+}
+
+/**
+ * The active plans that run on any day between two local days, for the training
+ * calendar: each assignment with the preset or exercise it names and the
+ * minutes its sets add up to (set times are seconds).
+ */
+async function getPlanTemplatesForCalendar(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<PlanCalendarTemplateRow[]> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT t.id, t.plan_name, t.schedule_type,
+              TO_CHAR(t.start_date, 'YYYY-MM-DD') AS start_day,
+              TO_CHAR(t.end_date, 'YYYY-MM-DD') AS end_day,
+              COALESCE((
+                SELECT json_agg(json_build_object(
+                         'id', a.id,
+                         'day_of_week', a.day_of_week,
+                         'session_index', a.session_index,
+                         'session_name', a.session_name,
+                         'name', COALESCE(wp.name, e.name),
+                         'modality', e.modality,
+                         'is_preset', a.workout_preset_id IS NOT NULL,
+                         'minutes', (
+                           SELECT NULLIF(SUM(COALESCE(s.duration, 0)), 0) / 60.0
+                           FROM workout_plan_assignment_sets s
+                           WHERE s.assignment_id = a.id
+                         )
+                       ) ORDER BY a.session_index ASC NULLS LAST, a.sort_order ASC, a.id ASC)
+                FROM workout_plan_template_assignments a
+                LEFT JOIN workout_presets wp ON a.workout_preset_id = wp.id
+                LEFT JOIN exercises e ON a.exercise_id = e.id
+                WHERE a.template_id = t.id
+              ), '[]'::json) AS assignments
+       FROM workout_plan_templates t
+       WHERE t.user_id = $1
+         AND t.is_active = TRUE
+         AND t.start_date <= $3
+         AND COALESCE(t.end_date, '9999-12-31') >= $2
+       ORDER BY t.created_at ASC`,
+      [userId, startDate, endDate]
+    );
+    return result.rows as PlanCalendarTemplateRow[];
+  } finally {
+    client.release();
+  }
+}
+
 async function unlinkExerciseEntriesByTemplateId(
   templateId: string | number,
   userId: string,
@@ -682,6 +751,7 @@ export { updatePlannedSetWeights };
 export { getWorkoutPlanTemplateOwnerId };
 export { getActiveWorkoutPlanForDate };
 export { unlinkExerciseEntriesByTemplateId };
+export { getPlanTemplatesForCalendar };
 export default {
   createWorkoutPlanTemplate,
   getWorkoutPlanTemplatesByUserId,
@@ -692,4 +762,5 @@ export default {
   getWorkoutPlanTemplateOwnerId,
   getActiveWorkoutPlanForDate,
   unlinkExerciseEntriesByTemplateId,
+  getPlanTemplatesForCalendar,
 };

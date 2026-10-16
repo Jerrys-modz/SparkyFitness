@@ -102,15 +102,3 @@ export function buildProgramTimeline({
     };
   });
 }
-
-/** The items by day, in workout order within a day. */
-export function itemsByDay(
-  items: readonly TimelineItem[]
-): Map<string, TimelineItem[]> {
-  const byDay = new Map<string, TimelineItem[]>();
-  for (const item of items) {
-    if (!item.day) continue;
-    byDay.set(item.day, [...(byDay.get(item.day) ?? []), item]);
-  }
-  return byDay;
-}
