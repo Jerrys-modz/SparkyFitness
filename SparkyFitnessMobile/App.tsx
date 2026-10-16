@@ -20,7 +20,8 @@ import { FoodImageSourceProvider } from './src/components/FoodImageSourceProvide
 import { LightboxProvider } from './src/components/LightboxProvider';
 import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 
-import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchFastingBridge, useWatchPlanSync, useWatchRecordingBridge, useWatchSetTargetsSync, useWatchWorkoutBridge, useWatchWorkoutEdit, useWatchRunBridge } from './src/hooks';
+import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchFastingBridge, useWatchPlanSync, useWatchRecordingBridge, useWatchSetTargetsSync, useWatchWorkoutBridge, useWatchWorkoutEdit, useWatchRunBridge, usePreferences } from './src/hooks';
+import { configureRunLiveActivity } from './src/services/runLiveActivity';
 import { useWatchWorkoutStart } from './src/hooks/useWatchWorkoutStart';
 import {
   useStartLiveWorkout,
@@ -40,7 +41,13 @@ import {
   SafeFoodsLibrary,
   SafeMealsLibrary,
   SafeMealPlans,
+  SafePersonalRecords,
+  SafeWatchRunLive,
   SafeRunPrograms,
+  SafeRunProgramCalendar,
+  SafeRunProgramEdit,
+  SafeRunProgramRace,
+  SafeRunProgramWorkout,
   SafeMealPlanForm,
   SafeWorkoutPlans,
   SafeWorkoutPlanForm,
@@ -86,12 +93,20 @@ import {
   SafeProgressPhotoCompare,
   SafeProgressPhotoTimelapse,
   SafeChat,
+  SafeChatSettings,
   SafeCalorieSettings,
   SafeGoals,
   SafeWeeklyGoalPlanEdit,
   SafeMealTypeSettings,
+  SafeEquipment,
+  SafeShoes,
+  SafeShoeForm,
   SafeAiSettings,
   SafeFoodSettings,
+  SafeCustomNutrients,
+  SafeCustomNutrientForm,
+  SafeNutrientDisplaySettings,
+  SafeAllergenSettings,
   SafeDashboardSettings,
   SafeHealthTrendsSettings,
   SafeWatchSettings,
@@ -137,6 +152,7 @@ import {
   SafeSymptomLog,
   SafeMoodLog,
   SafeSymptomHistory,
+  SafeSymptomEpisodeDetail,
   SafeManageSymptoms,
   SafeSymptomDefinitionEditor,
 } from './src/navigation/safeScreens';
@@ -245,6 +261,13 @@ function handleWatchFinishedWorkout(
 }
 
 function WatchWorkoutGate() {
+  const { t } = useTranslation();
+  const { preferences } = usePreferences();
+  const distanceUnit =
+    preferences?.default_distance_unit === 'miles' ? 'miles' : 'km';
+  useEffect(() => {
+    configureRunLiveActivity({ t, distanceUnit });
+  }, [t, distanceUnit]);
   const watchSupported = WatchConnectivity?.isSupported() === true;
   const [telemetryPending, setTelemetryPending] = useState(false);
   const { isConnected: isServerConnected } = useServerConnection({
@@ -425,8 +448,11 @@ function AppContent() {
         },
         FoodScan: 'scan',
         FoodSearch: 'search',
+        ChatSettings: 'settings/voice',
         // Tapping the workout Live Activity opens its associated URL.
         ActiveWorkout: 'active-workout',
+        // The run Live Activity opens the recording screen.
+        RecordActivity: 'record-activity',
       },
     },
   }), []);
@@ -555,6 +581,36 @@ function AppContent() {
             name="RunPrograms"
             component={SafeRunPrograms}
             options={createStackScreenOptions(t('screens.runPrograms', { defaultValue: 'Training programs' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="RunProgramCalendar"
+            component={SafeRunProgramCalendar}
+            options={createStackScreenOptions(t('screens.runProgramCalendar', { defaultValue: 'Program calendar' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
+          />
+          <Stack.Screen
+            name="RunProgramRace"
+            component={SafeRunProgramRace}
+            options={createStackScreenOptions(t('screens.runProgramRace', { defaultValue: 'Plan a race' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
+          />
+          <Stack.Screen
+            name="RunProgramEdit"
+            component={SafeRunProgramEdit}
+            options={createStackScreenOptions(t('screens.runProgramEdit', { defaultValue: 'Edit plan' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
+          />
+          <Stack.Screen
+            name="RunProgramWorkout"
+            component={SafeRunProgramWorkout}
+            options={createStackScreenOptions(t('screens.runProgramWorkout', { defaultValue: 'Workout' }), { headerBackTitle: t('screens.runProgramCalendar', { defaultValue: 'Program calendar' }) })}
+          />
+          <Stack.Screen
+            name="PersonalRecords"
+            component={SafePersonalRecords}
+            options={createStackScreenOptions(t('screens.personalRecords', { defaultValue: 'Personal records' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="WatchRunLive"
+            component={SafeWatchRunLive}
+            options={createStackScreenOptions(t('screens.watchRunLive', { defaultValue: 'On your watch' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
             name="MealPlanForm"
@@ -958,14 +1014,54 @@ function AppContent() {
             options={createStackScreenOptions(t('screens.calorieSettings', { defaultValue: 'Calorie Settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
           />
           <Stack.Screen
+            name="ChatSettings"
+            component={SafeChatSettings}
+            options={createStackScreenOptions(t('voiceSettings.open', { defaultValue: 'Voice settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
             name="FoodSettings"
             component={SafeFoodSettings}
             options={createStackScreenOptions(t('screens.foodSettings', { defaultValue: 'Food Settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
           />
           <Stack.Screen
+            name="CustomNutrients"
+            component={SafeCustomNutrients}
+            options={createStackScreenOptions(t('customNutrients.title', { defaultValue: 'Custom Nutrients' }), { headerBackTitle: t('screens.foodSettings', { defaultValue: 'Food Settings' }) })}
+          />
+          <Stack.Screen
+            name="CustomNutrientForm"
+            component={SafeCustomNutrientForm}
+            options={createStackScreenOptions(t('customNutrients.editTitle', { defaultValue: 'Edit nutrient' }), { headerBackTitle: t('common.back', { defaultValue: 'Back' }) })}
+          />
+          <Stack.Screen
+            name="NutrientDisplaySettings"
+            component={SafeNutrientDisplaySettings}
+            options={createStackScreenOptions(t('nutrientDisplay.title', { defaultValue: 'Nutrient Display' }), { headerBackTitle: t('screens.foodSettings', { defaultValue: 'Food Settings' }) })}
+          />
+          <Stack.Screen
+            name="AllergenSettings"
+            component={SafeAllergenSettings}
+            options={createStackScreenOptions(t('screens.allergenSettings', { defaultValue: 'Allergens' }), { headerBackTitle: t('screens.foodSettings', { defaultValue: 'Food Settings' }) })}
+          />
+          <Stack.Screen
             name="MealTypeSettings"
             component={SafeMealTypeSettings}
             options={createStackScreenOptions(t('screens.mealTypes', { defaultValue: 'Meal Types' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="Equipment"
+            component={SafeEquipment}
+            options={createStackScreenOptions(t('equipmentHub.title', { defaultValue: 'Equipment' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="Shoes"
+            component={SafeShoes}
+            options={createStackScreenOptions(t('shoes.title', { defaultValue: 'Shoes' }), { headerBackTitle: t('equipmentHub.title', { defaultValue: 'Equipment' }) })}
+          />
+          <Stack.Screen
+            name="ShoeForm"
+            component={SafeShoeForm}
+            options={createStackScreenOptions(t('shoes.title', { defaultValue: 'Shoes' }), { headerBackTitle: t('shoes.title', { defaultValue: 'Shoes' }) })}
           />
           <Stack.Screen
             name="DashboardSettings"
@@ -1142,6 +1238,13 @@ function AppContent() {
             name="SymptomHistory"
             component={SafeSymptomHistory}
             options={createStackScreenOptions(t('screens.symptomHistory', { defaultValue: 'Symptom History' }), {
+              headerBackButtonDisplayMode: 'minimal',
+            })}
+          />
+          <Stack.Screen
+            name="SymptomEpisodeDetail"
+            component={SafeSymptomEpisodeDetail}
+            options={createStackScreenOptions(t('screens.symptomEpisodeDetail', { defaultValue: 'Episode Details' }), {
               headerBackButtonDisplayMode: 'minimal',
             })}
           />
