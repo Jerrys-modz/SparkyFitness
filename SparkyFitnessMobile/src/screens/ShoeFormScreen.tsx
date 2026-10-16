@@ -118,8 +118,19 @@ const ShoeForm: React.FC<{
       nickname: optionalText(nickname),
       purchase_date: purchaseDate || null,
       purchase_price: price,
-      starting_distance_km: toKm(starting),
-      retirement_distance_km: toKm(retirement),
+      // An untouched field keeps the stored km value: converting the rounded
+      // display string back would drift it.
+      starting_distance_km:
+        shoe &&
+        startingDistance === toDisplay(shoe.starting_distance_km, distanceUnit)
+          ? shoe.starting_distance_km
+          : toKm(starting),
+      retirement_distance_km:
+        shoe &&
+        retirementDistance ===
+          toDisplay(shoe.retirement_distance_km, distanceUnit)
+          ? shoe.retirement_distance_km
+          : toKm(retirement),
       is_default: isDefault,
     };
     if (shoe) {
