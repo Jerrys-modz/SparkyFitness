@@ -127,7 +127,7 @@ Training programs are optional and off by default. Open **Library → Training p
 | --- | --- | --- |
 | **Walk for fitness** | Not running yet. Brisk walks alternating with easy ones, building to 30 minutes of brisk walking. Recorded as a walk. | 8 weeks, 3 walks a week |
 | **Brisk walk 10K** | You walk regularly and want a bigger goal. Brisk walks and a long walk building to about 1¾ hours (a 10K walk). Recorded as a walk. | 10 weeks, 3 walks a week |
-| **Return to running** | Coming back after a break or an injury. One-minute runs building to 25 minutes of running. | 4 weeks, 3 runs a week |
+| **Return to running** | Coming back after a break. One-minute runs building to about 20 minutes of running. Leave a day or two between runs and keep the pace easy; if you are returning from an injury, check with a physio or doctor first. | 4 weeks, 3 runs a week |
 | **Gentle 5K** | Starting to run, slowly. Very short runs between long walks, building to 30 minutes of running. | 12 weeks, 3 runs a week |
 | **Beginner 5K** | Starting to run. Alternating running and walking, building to 30 minutes of running. | 9 weeks, 3 runs a week |
 | **5K to 10K** | You can run 30 minutes. Steady runs and a long run building to 65 minutes, with an easier week every fourth. | 8 weeks, 3 runs a week |

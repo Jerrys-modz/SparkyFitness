@@ -46,7 +46,7 @@ export function programStructure(t: TFunction, id: string): string {
     case 'returnToRunning':
       return t('runPrograms.guide.structure.returnToRunning', {
         defaultValue:
-          'Weeks 1 to 3 alternate short runs with walks, from 1-minute runs to 5-minute runs. Week 4 has continuous runs of 20 and 25 minutes and a run/walk session with two 10-minute runs.',
+          'Weeks 1 to 3 alternate short runs with walks, from 1-minute runs to 5-minute runs. Week 4 has three run/walk sessions with runs of 6, 10 and 12 minutes, adding up to 18, 20 and 22 minutes of running.',
       });
     case 'gentle5k':
       return t('runPrograms.guide.structure.gentle5k', {

@@ -153,7 +153,7 @@ export function programDescription(t: TFunction, id: string): string {
     case 'returnToRunning':
       return t('recordActivity.program.returnToRunningDescription', {
         defaultValue:
-          'Return to running: four weeks, three runs a week, for easing back in after a break or an injury. You build from one-minute runs to 25 minutes.',
+          'Return to running: four weeks, three runs a week, for easing back in after a break. You build from one-minute runs to about 20 minutes of running. Leave a day or two between runs and keep the pace easy. If you are coming back from an injury, check with a physio or doctor first.',
       });
     case 'gentle5k':
       return t('recordActivity.program.gentle5kDescription', {

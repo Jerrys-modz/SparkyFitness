@@ -353,13 +353,19 @@ const GENTLE_5K_WEEKS: readonly (readonly Spec[])[] = [
   thrice(steady(30)),
 ];
 
-// Four weeks to ease back into running after a break or an injury, from
-// minute-long runs to 25 minutes of running, three times a week.
+// Four weeks to ease back into running after a break, from minute-long runs
+// to about 20 minutes of running, three times a week. Every week adds a little
+// to the last: the run blocks grow from 1 to 12 minutes and no session adds
+// more than a few minutes of running to the one before.
 const RETURN_TO_RUNNING_WEEKS: readonly (readonly Spec[])[] = [
   thrice(rw(repeat(6, [run(60), walk(120)]))),
   thrice(rw(repeat(5, [run(120), walk(90)]))),
   thrice(rw(repeat(3, [run(300), walk(120)]))),
-  [steady(20), rw(repeat(2, [run(600), walk(120)])), steady(25)],
+  [
+    rw(repeat(3, [run(360), walk(120)])),
+    rw(repeat(2, [run(600), walk(120)])),
+    rw([run(720), walk(120), run(600)]),
+  ],
 ];
 
 /** A walking week: two sessions of the same brisk stretches, then one long walk. */
@@ -376,8 +382,8 @@ const WALK_10K_WEEKS: readonly (readonly Spec[])[] = [
   walkWeek(repeat(3, [brisk(720), stroll(120)]), 2700),
   walkWeek(repeat(3, [brisk(900), stroll(120)]), 3000),
   walkWeek(repeat(2, [brisk(900), stroll(120)]), 2400),
-  walkWeek(repeat(3, [brisk(1200), stroll(120)]), 3600),
-  walkWeek(repeat(2, [brisk(1500), stroll(120)]), 4200),
+  walkWeek(repeat(2, [brisk(1500), stroll(120)]), 3300),
+  walkWeek(repeat(2, [brisk(1650), stroll(120)]), 4200),
   walkWeek(repeat(2, [brisk(1800), stroll(120)]), 4800),
   walkWeek(repeat(2, [brisk(1200), stroll(120)]), 3600),
   walkWeek(repeat(2, [brisk(1800), stroll(120)]), 5400),
