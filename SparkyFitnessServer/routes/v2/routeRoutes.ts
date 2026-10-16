@@ -8,6 +8,9 @@ import {
   serializeGpx,
   updateRouteBodySchema,
 } from '@workspace/shared';
+import garminConnectService, {
+  GarminCourseError,
+} from '../../integrations/garminconnect/garminConnectService.js';
 import requireSelfActor from '../../middleware/requireSelfMiddleware.js';
 import { generateRoute } from '../../services/routeGenerationService.js';
 import {
@@ -314,6 +317,58 @@ router.post('/generate', async (req, res, next) => {
       return res.status(422).json({ error: error.message });
     }
     if (!sendRouteError(res, error)) next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /v2/routes/{id}/send-to-garmin:
+ *   post:
+ *     summary: Send a saved route to Garmin Connect as a course
+ *     description: >
+ *       Uploads the route (with turn cues as course points) to the linked
+ *       Garmin account, from where it syncs to the watch. Uses Garmin's
+ *       unofficial course importer, which can change without notice.
+ *     tags: [Exercise]
+ *     responses:
+ *       200:
+ *         description: 'Sent: `{ status, format: "fit" | "gpx", courseId }`.'
+ *       404:
+ *         description: Route not found.
+ *       409:
+ *         description: No Garmin account is linked.
+ *       424:
+ *         description: Garmin rejected the saved login; reconnect it (not 401, which clients read as a lost session).
+ *       429:
+ *         description: Garmin is rate limiting.
+ *       502:
+ *         description: Garmin rejected the course.
+ *       503:
+ *         description: The Garmin service is unavailable.
+ */
+router.post('/:id/send-to-garmin', async (req, res, next) => {
+  try {
+    const id = String(req.params.id);
+    if (!isUuid(id)) return res.status(404).json({ error: 'Route not found' });
+    const route = await getRoute(req.userId, id, req.authenticatedUserId);
+    if (!route) return res.status(404).json({ error: 'Route not found' });
+    const result = await garminConnectService.sendRouteToGarmin(
+      req.userId,
+      route
+    );
+    res.json(result);
+  } catch (error) {
+    if (error instanceof GarminCourseError) {
+      const status = {
+        not_linked: 409,
+        auth: 424,
+        rate_limited: 429,
+        rejected: 502,
+        unavailable: 503,
+      }[error.failure];
+      return res.status(status).json({ error: error.message });
+    }
+    next(error);
   }
 });
 

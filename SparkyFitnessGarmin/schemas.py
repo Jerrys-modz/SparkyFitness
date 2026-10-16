@@ -34,3 +34,25 @@ class NutritionDiaryRequest(BaseModel):
     end_date: str
     data_source: str | None = None
     save_mock_data: bool | None = None
+
+
+class CoursePoint(BaseModel):
+    lat: float
+    lon: float
+    alt: float | None = None
+
+
+class CourseCue(BaseModel):
+    index: int
+    kind: str
+    text: str | None = None
+    distanceM: float | None = None
+
+
+class UploadCourseRequest(BaseModel):
+    user_id: str
+    tokens: str
+    name: str
+    activity: str = "run"
+    points: list[CoursePoint]
+    cues: list[CourseCue] = []

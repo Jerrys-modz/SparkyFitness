@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 import uuid
 from datetime import datetime, timezone
@@ -17,12 +18,15 @@ from garminconnect import (
     GarminConnectTooManyRequestsError,
 )
 
+from course_fit import build_fit_course, build_gpx_course
+
 # Import from your new files
 from schemas import (
     GarminLoginRequest,
     HealthAndWellnessRequest,
     ActivitiesAndWorkoutsRequest,
     NutritionDiaryRequest,
+    UploadCourseRequest,
 )
 from service import (
     ALL_HEALTH_METRICS,
@@ -1911,6 +1915,94 @@ async def get_nutrition_diary(request_data: NutritionDiaryRequest):
     except GarminConnectConnectionError as e:
         raise HTTPException(status_code=500, detail=f"Garmin connection error: {e}")
     except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"An unexpected error occurred: {e}"
+        )
+
+
+# Garmin Connect's course importer. This is the endpoint the Connect web app's
+# "Import" button on the Courses page calls; garminconnect has no wrapper for
+# it, and it is not a documented API, so it can change without notice.
+COURSE_IMPORT_PATH = "/course-service/course/import"
+COURSE_SAVE_PATH = "/course-service/course"
+
+
+def _post_course_file(garmin: Garmin, filename: str, content: bytes) -> dict:
+    """Upload a course file and return Garmin's JSON answer."""
+    resp = garmin.client.post(
+        "connectapi",
+        COURSE_IMPORT_PATH,
+        files={"file": (filename, content, "application/octet-stream")},
+        api=True,
+    )
+    return resp if isinstance(resp, dict) else {}
+
+
+def upload_course(garmin: Garmin, req: UploadCourseRequest) -> dict:
+    """Send a route to Garmin Connect as a course (blocking).
+
+    Tries a FIT file with turn-by-turn course points first. If Garmin rejects
+    it, retries with a plain GPX track, which loses the turn alerts.
+    """
+    points = [p.model_dump(exclude_none=True) for p in req.points]
+    cues = [c.model_dump(exclude_none=True) for c in req.cues]
+    safe_name = re.sub(r"[^A-Za-z0-9_-]+", "_", req.name).strip("_")[:40] or "route"
+
+    used = "fit"
+    try:
+        result = _post_course_file(
+            garmin,
+            f"{safe_name}.fit",
+            build_fit_course(req.name, points, cues, req.activity),
+        )
+    except GarminConnectConnectionError as e:
+        logger.warning(f"Garmin rejected the FIT course ({e}); retrying as GPX.")
+        used = "gpx"
+        result = _post_course_file(
+            garmin, f"{safe_name}.gpx", build_gpx_course(req.name, points, cues)
+        )
+
+    # The importer may only parse the file and hand back a course to save.
+    if "courseId" not in result and result.get("geoPoints"):
+        result["courseName"] = req.name[:100]
+        saved = garmin.client.post("connectapi", COURSE_SAVE_PATH, json=result, api=True)
+        result = saved if isinstance(saved, dict) else result
+
+    return {"format": used, "course_id": result.get("courseId")}
+
+
+@router.post("/data/upload_course")
+async def upload_course_endpoint(request_data: UploadCourseRequest):
+    """Uploads a saved route to the user's Garmin Connect account as a course."""
+    if not request_data.user_id or not request_data.tokens:
+        raise HTTPException(status_code=400, detail="Missing user_id or tokens.")
+    if len(request_data.points) < 2:
+        raise HTTPException(status_code=422, detail="A course needs at least two points.")
+
+    try:
+        garmin = Garmin(is_cn=IS_CN)
+        await asyncio.to_thread(garmin.login, request_data.tokens)
+        outcome = await safe_garmin_call(upload_course, garmin, request_data)
+        return {
+            "status": "uploaded",
+            **outcome,
+            "new_tokens": json.loads(garmin.client.dumps()),
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Invalid course: {e}")
+    except GarminConnectAuthenticationError as e:
+        raise HTTPException(
+            status_code=401, detail=f"Garmin authentication failed: {e}"
+        )
+    except GarminConnectTooManyRequestsError as e:
+        raise HTTPException(status_code=429, detail=f"Garmin rate limit hit: {e}")
+    except GarminConnectConnectionError as e:
+        logger.error(f"Garmin rejected course upload for {request_data.user_id}: {e}")
+        raise HTTPException(status_code=502, detail=f"Garmin rejected the course: {e}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error uploading course: {e}")
         raise HTTPException(
             status_code=500, detail=f"An unexpected error occurred: {e}"
         )

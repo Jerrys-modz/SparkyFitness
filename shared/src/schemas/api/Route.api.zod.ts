@@ -178,3 +178,20 @@ export type RouteGenerateCapabilities = z.infer<
 >;
 export type GenerateRouteBody = z.infer<typeof generateRouteBodySchema>;
 export type GeneratedRoutePreview = z.infer<typeof generatedRoutePreviewSchema>;
+
+/** Result of sending a saved route to Garmin Connect as a course. */
+export const sendRouteToGarminResponseSchema = z.object({
+  status: z.literal("sent"),
+  /**
+   * `fit` carries turn-by-turn course points; `gpx` is the fallback used when
+   * Garmin rejects the FIT file, and a watch then shows the line but no turn
+   * alerts.
+   */
+  format: z.enum(["fit", "gpx"]),
+  /** Garmin's id for the new course, when it returned one. */
+  courseId: z.number().nullable(),
+});
+
+export type SendRouteToGarminResponse = z.infer<
+  typeof sendRouteToGarminResponseSchema
+>;

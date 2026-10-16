@@ -15,6 +15,7 @@ import {
   GarminLoginResponseDto,
 } from '../../types/garmin.js';
 import { addDays } from '@workspace/shared';
+import type { Route, SendRouteToGarminResponse } from '@workspace/shared';
 
 const GARMIN_MICROSERVICE_URL =
   process.env.GARMIN_MICROSERVICE_URL || 'http://localhost:8000'; // Default for local dev
@@ -498,6 +499,99 @@ async function fetchGarminNutritionDiaryChunk(
   }
 }
 
+/** Why sending a route to Garmin failed, so the caller can pick a status. */
+export type GarminCourseFailure =
+  'not_linked' | 'auth' | 'rate_limited' | 'rejected' | 'unavailable';
+
+export class GarminCourseError extends Error {
+  constructor(
+    readonly failure: GarminCourseFailure,
+    message: string,
+    options?: { cause?: unknown }
+  ) {
+    super(message, options);
+    this.name = 'GarminCourseError';
+  }
+}
+
+/**
+ * Sends a saved route to the person's Garmin Connect account as a course via
+ * the Garmin microservice. This rides Garmin's unofficial course importer, so
+ * a failure may mean Garmin changed it rather than that the route is bad.
+ */
+async function sendRouteToGarmin(
+  userId: string,
+  route: Pick<Route, 'name' | 'activity' | 'points' | 'cues'>
+): Promise<SendRouteToGarminResponse> {
+  const provider =
+    await externalProviderRepository.getExternalDataProviderByUserIdAndProviderName(
+      userId,
+      'garmin'
+    );
+  if (!provider?.garth_dump) {
+    throw new GarminCourseError(
+      'not_linked',
+      'No Garmin account is linked. Connect Garmin in Settings first.'
+    );
+  }
+  const tokens = provider.garth_dump;
+  try {
+    const response = await garminAxios.post<{
+      format?: 'fit' | 'gpx';
+      course_id?: number | null;
+      new_tokens?: GarminTokenPayload;
+    }>(`${GARMIN_MICROSERVICE_URL}/data/upload_course`, {
+      user_id: userId,
+      tokens,
+      name: route.name,
+      activity: route.activity,
+      points: route.points,
+      cues: route.cues,
+    });
+    const result = response.data;
+    if (result.new_tokens) {
+      try {
+        await saveRefreshedGarminTokens(userId, tokens, result.new_tokens);
+      } catch {
+        // The course is already on Garmin; the next sync refreshes tokens.
+      }
+    }
+    return {
+      status: 'sent',
+      format: result.format === 'gpx' ? 'gpx' : 'fit',
+      courseId: typeof result.course_id === 'number' ? result.course_id : null,
+    };
+  } catch (error: unknown) {
+    const { detail } = formatGarminMicroserviceError(error);
+    const status = axios.isAxiosError(error)
+      ? error.response?.status
+      : undefined;
+    log('error', `Error sending route to Garmin for user ${userId}: ${detail}`);
+    if (status === 401) {
+      throw new GarminCourseError(
+        'auth',
+        'Garmin rejected the saved login. Reconnect Garmin in Settings.',
+        { cause: error }
+      );
+    }
+    if (status === 429) {
+      throw new GarminCourseError(
+        'rate_limited',
+        'Garmin is rate limiting requests. Try again later.',
+        { cause: error }
+      );
+    }
+    if (status === 502 || status === 422) {
+      throw new GarminCourseError('rejected', detail, { cause: error });
+    }
+    throw new GarminCourseError(
+      'unavailable',
+      'The Garmin service could not be reached.',
+      { cause: error }
+    );
+  }
+}
+
 async function syncGarminHealthAndWellness(
   userId: string,
   startDate: string,
@@ -650,6 +744,7 @@ export {
   fetchGarminActivitiesAndWorkouts,
   fetchGarminNutritionDiary,
   formatGarminMicroserviceError,
+  sendRouteToGarmin,
 };
 
 export default {
@@ -664,4 +759,5 @@ export default {
   fetchGarminActivitiesAndWorkouts,
   fetchGarminNutritionDiary,
   formatGarminMicroserviceError,
+  sendRouteToGarmin,
 };

@@ -11,7 +11,7 @@ SparkyFitness supports integration with the following health and fitness data pr
 - Apple Health (iOS)
 - Google Health Connect (Android)
 - Fitbit
-- Garmin Connect
+- [Garmin Connect](/features/settings/garmin)
 - Oura Ring
 - Withings
 - Polar Flow (partially tested)
