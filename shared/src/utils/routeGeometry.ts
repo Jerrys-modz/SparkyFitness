@@ -2,6 +2,8 @@ import type { RoutePoint } from "../schemas/api/Route.api.zod.ts";
 
 const EARTH_RADIUS_M = 6371008.8;
 const toRad = (deg: number): number => (deg * Math.PI) / 180;
+/** Element at an index the caller has already checked is in range. */
+const at = <T>(items: readonly T[], index: number): T => items[index] as T;
 
 /** Great-circle distance in metres between two points. */
 export function haversineMeters(a: RoutePoint, b: RoutePoint): number {
@@ -17,7 +19,7 @@ export function haversineMeters(a: RoutePoint, b: RoutePoint): number {
 export function routeDistanceMeters(points: readonly RoutePoint[]): number {
   let total = 0;
   for (let i = 1; i < points.length; i++) {
-    total += haversineMeters(points[i - 1], points[i]);
+    total += haversineMeters(at(points, i - 1), at(points, i));
   }
   return total;
 }
@@ -80,7 +82,11 @@ function douglasPeucker(
     let farthest = -1;
     let farthestDistance = toleranceM;
     for (let i = start + 1; i < end; i++) {
-      const d = distanceToSegmentMeters(points[i], points[start], points[end]);
+      const d = distanceToSegmentMeters(
+        at(points, i),
+        at(points, start),
+        at(points, end),
+      );
       if (d > farthestDistance) {
         farthest = i;
         farthestDistance = d;
@@ -100,7 +106,7 @@ function sampleEvenly(indexes: number[], count: number): number[] {
   const sampled: number[] = [];
   const last = indexes.length - 1;
   for (let i = 0; i < count; i++) {
-    sampled.push(indexes[Math.round((i * last) / (count - 1))]);
+    sampled.push(at(indexes, Math.round((i * last) / (count - 1))));
   }
   return [...new Set(sampled)];
 }
@@ -131,7 +137,10 @@ export function simplifyRoute(
   let candidates: number[] = [0];
   for (let i = 1; i < last; i++) {
     if (
-      haversineMeters(points[candidates[candidates.length - 1]], points[i]) >= 2
+      haversineMeters(
+        at(points, at(candidates, candidates.length - 1)),
+        at(points, i),
+      ) >= 2
     ) {
       candidates.push(i);
     }
@@ -139,19 +148,19 @@ export function simplifyRoute(
   candidates.push(last);
   candidates = sampleEvenly(candidates, MAX_SIMPLIFY_INPUT);
 
-  const subset = candidates.map((i) => points[i]);
+  const subset = candidates.map((i) => at(points, i));
   let tolerance = toleranceM;
   let kept = douglasPeucker(subset, tolerance);
   for (let n = 0; kept.length > maxPoints && n < MAX_WIDENINGS; n++) {
     tolerance *= 1.5;
     kept = douglasPeucker(subset, tolerance);
   }
-  let sourceIndexes = kept.map((i) => candidates[i]);
+  let sourceIndexes = kept.map((i) => at(candidates, i));
   if (sourceIndexes.length > maxPoints) {
     sourceIndexes = sampleEvenly(sourceIndexes, maxPoints);
   }
   return {
-    points: sourceIndexes.map((i) => points[i]),
+    points: sourceIndexes.map((i) => at(points, i)),
     sourceIndexes,
   };
 }
@@ -165,11 +174,12 @@ export interface RouteBounds {
 
 export function routeBounds(points: readonly RoutePoint[]): RouteBounds | null {
   if (points.length === 0) return null;
+  const first = at(points, 0);
   const bounds = {
-    minLat: points[0].lat,
-    minLon: points[0].lon,
-    maxLat: points[0].lat,
-    maxLon: points[0].lon,
+    minLat: first.lat,
+    minLon: first.lon,
+    maxLat: first.lat,
+    maxLon: first.lon,
   };
   for (const p of points) {
     bounds.minLat = Math.min(bounds.minLat, p.lat);
