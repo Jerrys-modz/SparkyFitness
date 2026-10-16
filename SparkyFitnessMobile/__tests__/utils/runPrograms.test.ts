@@ -8,6 +8,7 @@ import {
   programVersions,
   RUN_PROGRAMS,
   isValidIntervalPlan,
+  runProgramWorkoutSchema,
 } from '@workspace/shared';
 
 const program = findProgram('beginner5k')!;
@@ -162,7 +163,17 @@ describe('every program', () => {
     expect(longest('tenKToHalf')).toBe(115 * 60);
     expect(longest('fasterHalf')).toBe(110 * 60);
     expect(longest('beginnerMarathon')).toBe(150 * 60);
-    expect(longest('advancedMarathon')).toBe(180 * 60);
+    // The advanced marathon's long runs are split into an easy part and a
+    // marathon-pace block, so measure the whole workout without its warm-up
+    // and cool-down.
+    const longestRun = Math.max(
+      ...findProgram('advancedMarathon')!.workouts.map((w) =>
+        w.plan.steps
+          .filter((s) => s.kind === 'work' || s.kind === 'recovery')
+          .reduce((sum, s) => sum + s.seconds, 0)
+      )
+    );
+    expect(longestRun).toBe(180 * 60);
     for (const p of RUN_PROGRAMS) {
       expect(longest(p.id)).toBeLessThanOrEqual(4 * 3600);
     }
@@ -207,6 +218,77 @@ describe('every program', () => {
       'recovery',
       'cooldown',
     ]);
+  });
+});
+
+describe('step efforts', () => {
+  const stepsOf = (id: string) =>
+    findProgram(id)!.workouts.flatMap((w) => w.plan.steps);
+
+  test('efforts survive the schema a stored program is read back through', () => {
+    for (const id of ['faster10k', 'advancedMarathon']) {
+      for (const workout of findProgram(id)!.workouts) {
+        expect(runProgramWorkoutSchema.parse(workout)).toEqual(workout);
+      }
+    }
+  });
+
+  test('the runs of a run/walk plan are tagged as easy running', () => {
+    const work = stepsOf('beginner5k').filter((s) => s.kind === 'work');
+    expect(work.length).toBeGreaterThan(0);
+    expect(work.every((s) => s.effort === 'easy')).toBe(true);
+  });
+
+  test('strides are 20 second efforts, and only the faster plans have them', () => {
+    for (const id of ['faster10k', 'fasterHalf', 'advancedMarathon']) {
+      const strides = stepsOf(id).filter((s) => s.effort === 'stride');
+      expect(strides.length).toBeGreaterThan(0);
+      expect(strides.every((s) => s.kind === 'work' && s.seconds === 20)).toBe(
+        true
+      );
+    }
+    expect(stepsOf('beginner5k').some((s) => s.effort === 'stride')).toBe(
+      false
+    );
+  });
+
+  test('tempo runs are single steady efforts of 15 to 35 minutes', () => {
+    for (const id of [
+      'faster5k',
+      'faster10k',
+      'fasterHalf',
+      'advancedMarathon',
+    ]) {
+      const tempo = stepsOf(id).filter((s) => s.effort === 'tempo');
+      expect(tempo.length).toBeGreaterThan(0);
+      for (const step of tempo) {
+        expect(step.seconds).toBeGreaterThanOrEqual(15 * 60);
+        expect(step.seconds).toBeLessThanOrEqual(35 * 60);
+      }
+    }
+  });
+
+  test('hill repeats are only in the plans that name them, 45 to 75 seconds up', () => {
+    for (const id of ['faster10k', 'fasterHalf', 'advancedMarathon']) {
+      const hills = stepsOf(id).filter((s) => s.effort === 'hill');
+      expect(hills.length).toBeGreaterThan(0);
+      for (const step of hills) {
+        expect(step.seconds).toBeGreaterThanOrEqual(45);
+        expect(step.seconds).toBeLessThanOrEqual(75);
+      }
+    }
+    expect(stepsOf('marathon').some((s) => s.effort === 'hill')).toBe(false);
+  });
+
+  test('marathon-pace blocks are in the advanced marathon long runs, 40 to 50 minutes', () => {
+    const blocks = stepsOf('advancedMarathon').filter(
+      (s) => s.effort === 'marathon'
+    );
+    expect(blocks).toHaveLength(5);
+    expect(blocks.map((s) => s.seconds / 60)).toEqual([40, 40, 50, 50, 40]);
+    expect(stepsOf('halfMarathon').some((s) => s.effort === 'marathon')).toBe(
+      false
+    );
   });
 });
 

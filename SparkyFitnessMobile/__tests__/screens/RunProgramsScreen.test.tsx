@@ -9,6 +9,7 @@ import {
 } from '@testing-library/react-native';
 import { addDays, programStatus } from '@workspace/shared';
 import { toLocalDateString } from '../../src/utils/dateUtils';
+import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import RunProgramsScreen from '../../src/screens/RunProgramsScreen';
 import {
   setProgramEnabled,
@@ -191,6 +192,28 @@ describe('RunProgramsScreen', () => {
     alert.mock.calls[0][2]?.[2].onPress?.();
     expect(startProgram).toHaveBeenCalledWith('halfMarathon4', null);
     alert.mockRestore();
+  });
+
+  it('shows the race pace card and keeps what is saved on this device', () => {
+    mockedUse.mockReturnValue({
+      status: null,
+      enabled: false,
+      lastAdjustment: null,
+      schedule: { days: [], startDay: null, endDay: null },
+      doneDay: null,
+      loaded: true,
+    });
+    renderScreen(RunProgramsProps());
+    expect(screen.getByTestId('pace-reference-card')).toBeTruthy();
+    fireEvent.changeText(screen.getByTestId('pace-reference-minutes'), '25');
+    fireEvent.press(screen.getByTestId('pace-reference-save'));
+    expect(useAppPreferencesStore.getState().paceReferenceRace).toEqual({
+      distanceKm: 5,
+      seconds: 1500,
+    });
+    expect(screen.getByTestId('pace-reference-saved')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('pace-reference-clear'));
+    expect(useAppPreferencesStore.getState().paceReferenceRace).toBeNull();
   });
 
   it('starts on a date picked from the calendar', () => {

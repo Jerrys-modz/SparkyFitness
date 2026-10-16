@@ -5,9 +5,12 @@ import {
   PACE_BAND_FASTEST_SECONDS_PER_KM,
   PACE_BAND_SLOWEST_SECONDS_PER_KM,
   classifyActivitySport,
+  racePaceZones,
   type ExerciseActivityQueryItem,
   type HeartRateBand,
   type PaceBand,
+  type PaceReferenceRace,
+  type StepEffort,
 } from '@workspace/shared';
 import type { RecordingActivity } from './gpsRecording';
 
@@ -160,6 +163,40 @@ export function warmPaceFromEasy(easy: PaceBand): PaceBand {
   return {
     minSecondsPerKm: roundPace(easy.minSecondsPerKm),
     maxSecondsPerKm: roundPace(easy.maxSecondsPerKm * 2),
+  };
+}
+
+/** What a recent race gives: fast and easy ranges, and one for each effort a plan can ask for. */
+export interface RacePaceRanges {
+  pair: SuggestedPair<PaceBand>;
+  /** Ranges for each effort a plan can ask for. Hill repeats get none: pace means nothing uphill. */
+  byEffort: Partial<Record<Exclude<StepEffort, 'hill'>, PaceBand>>;
+}
+
+/**
+ * Pace ranges from a recent race result, for a run: the plan's fast stretches
+ * get the interval range (about 5K pace) and its easy ones the easy range, and
+ * tempo, marathon-pace and stride efforts get their own. Null for a walk or
+ * ride, or a result that cannot be right.
+ */
+export function suggestedPaceRangesFromRace(
+  race: PaceReferenceRace,
+  activity: RecordingActivity
+): RacePaceRanges | null {
+  if (activity !== 'run') return null;
+  const zones = racePaceZones(race);
+  if (!zones?.interval || !zones.easy) return null;
+  const byEffort: RacePaceRanges['byEffort'] = { easy: zones.easy };
+  if (zones.tempo) byEffort.tempo = zones.tempo;
+  if (zones.marathon) byEffort.marathon = zones.marathon;
+  if (zones.stride) byEffort.stride = zones.stride;
+  return {
+    pair: {
+      work: zones.interval,
+      easy: zones.easy,
+      warm: warmPaceFromEasy(zones.easy),
+    },
+    byEffort,
   };
 }
 

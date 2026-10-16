@@ -7232,7 +7232,11 @@
       "paceSource_other": "Based on your last {{formattedCount}} sessions.",
       "heartRate": "Heart rate: fast {{fast}}, easy {{easy}}, warm-up and cool-down {{warm}}",
       "heartRateSource": "From an estimated maximum of {{max}} bpm for your age.",
-      "use": "Use these"
+      "use": "Use these",
+      "tempo": "tempo {{range}}",
+      "marathonPace": "marathon pace {{range}}",
+      "strides": "strides {{range}}",
+      "paceSourceRace": "Based on your recent race: {{race}}."
     }
   },
   "goals": {
@@ -7769,7 +7773,10 @@
         "beginner": "Do not train on back-to-back days. Three workouts a week with a rest day between them, for example Monday, Wednesday and Saturday, gives your legs time to adapt. On rest days walk, stretch or do something gentle.",
         "fiveToTenK": "Keep a rest day between the two steady runs, and put the long run a day or two after a rest day. Rest or cross-train (cycling, swimming, an easy walk) on the other days.",
         "faster5k": "Give the speed session and the longer run an easy day or a rest day on each side. Never do them back to back. Spend the free days resting or cross-training gently.",
-        "longDistance": "Keep the day before the long run easy or free, and take a rest day the day after it. Space the other runs so no two hard days sit together, and use spare days for rest, walking or low-impact cross-training."
+        "longDistance": "Keep the day before the long run easy or free, and take a rest day the day after it. Space the other runs so no two hard days sit together, and use spare days for rest, walking or low-impact cross-training.",
+        "returnToRunning": "Leave a day or two between runs, for example Monday, Thursday and Saturday, and keep every run easy and conversational. Rest, walk or cycle gently on the other days. If anything hurts more as you go, drop back to the previous week.",
+        "fourRun": "With four runs a week, take at least one full rest day and never run more than two days in a row. Keep the day before the long run easy or free, and rest or cross-train the day after it. Use the other days for rest, walking or low-impact cross-training.",
+        "advanced": "With five runs a week, take two rest or cross-training days and avoid more than two runs in a row. Keep the speed or tempo session and the long run at least two days apart, keep the days either side of them easy, and rest more in the lighter weeks."
       },
       "title": "How the plans work",
       "workout": {
@@ -7787,6 +7794,14 @@
       "listen": {
         "title": "Listening to your body",
         "body": "Aches that settle after a day are normal; sharp or lasting pain is not, so stop and rest. If a week was too hard, repeat it or ask Sparky to ease the next workouts. Leave a rest day between workouts while you are starting out. This is general guidance, not medical advice: if you are unsure about starting a new exercise plan, check with your doctor first."
+      },
+      "efforts": {
+        "title": "Strides, hills, tempo and marathon pace",
+        "body": "A stride is a short, quick, relaxed effort of about 20 seconds, followed by a walk or jog back, done at the end of an easy run to loosen up. Hill repeats are hard efforts uphill with an easy walk or jog back down; pace does not matter on a hill, so judge them by effort. A tempo run is a steady stretch you could hold for about an hour, comfortably hard. Marathon pace is the pace you plan to hold on race day: practise it in the second half of long runs."
+      },
+      "pace": {
+        "title": "Pace ranges",
+        "body": "Enter a recent race time under Your race pace and the Record screen can suggest a pace range for each kind of stretch. They are estimates: heat, hills or a tired week will change them, so use them as a guide and go by effort when the two disagree."
       }
     },
     "start": "Start program",
@@ -8287,5 +8302,26 @@
     "toneDark": "Black",
     "share": "Share image",
     "shareFailed": "Could not create the image"
+  },
+  "paceReference": {
+    "title": "Your race pace",
+    "intro": "Enter a recent race time and the Record screen can suggest pace ranges for easy runs, tempo, marathon pace, strides and fast stretches. Without one, it uses the pace of your recent runs. Kept on this device.",
+    "race": {
+      "5k": "5K",
+      "10k": "10K",
+      "half": "Half marathon",
+      "marathon": "Marathon",
+      "other": "{{km}} km"
+    },
+    "result": "{{race}} in {{time}}",
+    "hours": "h",
+    "minutes": "min",
+    "seconds": "sec",
+    "invalid": "That time does not look right for this distance. Check the hours, minutes and seconds.",
+    "saved": "Saved: {{race}} in {{time}}.",
+    "save": "Save",
+    "clear": "Clear",
+    "watch": "Also use on my Apple Watch",
+    "watchHint": "Holds the program workout offered on the watch to these ranges. Runs only."
   }
 }

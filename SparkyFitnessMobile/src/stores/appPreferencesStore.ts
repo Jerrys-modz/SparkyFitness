@@ -10,6 +10,7 @@ import {
   DEFAULT_WARMUP_METHOD,
   DEFAULT_WARMUP_PLATE_ROUNDING,
   normalizeWarmupMethod,
+  type PaceReferenceRace,
   type WarmupMethodStep,
 } from '@workspace/shared';
 import { create } from 'zustand';
@@ -115,6 +116,8 @@ export const PREFERENCE_DEFAULTS = {
   diarySummaryVisible: false,
   diarySummaryExpanded: false,
   defaultRestSec: DEFAULT_REST_SEC as number,
+  paceReferenceRace: null as PaceReferenceRace | null,
+  paceReferenceOnWatch: false,
   restTimerSoundEnabled: true,
   restChimeThroughSilent: false,
   duckMusicDuringCues: false,
@@ -192,6 +195,13 @@ export type AppPreferencesData = {
   diarySummaryVisible: boolean;
   diarySummaryExpanded: boolean;
   defaultRestSec: number;
+  /**
+   * A recent race result the training paces are worked out from (device-local),
+   * or null to use the pace of recent sessions.
+   */
+  paceReferenceRace: PaceReferenceRace | null;
+  /** Also put the race-based pace ranges on the program workout offered on the Apple Watch. */
+  paceReferenceOnWatch: boolean;
   restTimerSoundEnabled: boolean;
   /**
    * Play the rest chime even with the ringer/silent switch off (#2506). On iOS
@@ -302,6 +312,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setDiarySummaryVisible: (value: boolean) => void;
   setDiarySummaryExpanded: (value: boolean) => void;
   setDefaultRestSec: (value: number) => void;
+  setPaceReferenceRace: (value: PaceReferenceRace | null) => void;
+  setPaceReferenceOnWatch: (value: boolean) => void;
   setRestTimerSoundEnabled: (value: boolean) => void;
   setRestChimeThroughSilent: (value: boolean) => void;
   setDuckMusicDuringCues: (value: boolean) => void;
@@ -451,6 +463,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setDiarySummaryVisible: (value) => set({ diarySummaryVisible: value }),
       setDiarySummaryExpanded: (value) => set({ diarySummaryExpanded: value }),
       setDefaultRestSec: (value) => set({ defaultRestSec: value }),
+      setPaceReferenceRace: (value) => set({ paceReferenceRace: value }),
+      setPaceReferenceOnWatch: (value) => set({ paceReferenceOnWatch: value }),
       setRestTimerSoundEnabled: (value) =>
         set({ restTimerSoundEnabled: value }),
       setRestChimeThroughSilent: (value) =>
@@ -627,6 +641,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         diarySummaryVisible: state.diarySummaryVisible,
         diarySummaryExpanded: state.diarySummaryExpanded,
         defaultRestSec: state.defaultRestSec,
+        paceReferenceRace: state.paceReferenceRace,
+        paceReferenceOnWatch: state.paceReferenceOnWatch,
         restTimerSoundEnabled: state.restTimerSoundEnabled,
         restChimeThroughSilent: state.restChimeThroughSilent,
         duckMusicDuringCues: state.duckMusicDuringCues,

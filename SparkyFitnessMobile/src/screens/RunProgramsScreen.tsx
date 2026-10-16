@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, Platform, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -16,6 +16,7 @@ import RunProgramCard, {
   programName,
 } from '../components/recording/RunProgramCard';
 import RunGoalsCard from '../components/recording/RunGoalsCard';
+import PaceReferenceCard from '../components/recording/PaceReferenceCard';
 import RunProgramCalendar from '../components/recording/RunProgramCalendar';
 import RunProgramGuide, {
   programStructure,
@@ -41,6 +42,7 @@ import {
   useRunProgram,
 } from '../services/runProgramService';
 import { addLog } from '../services/LogService';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { formatLocalizedNumber } from '../localization';
 import type { RootStackScreenProps } from '../types/navigation';
 import { addDays, toLocalDateString } from '../utils/dateUtils';
@@ -66,6 +68,16 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   // Which version (3 or 4 runs a week) is picked on a card that has both.
   const [versionOf, setVersionOf] = useState<Record<string, string>>({});
   const { programs: customPrograms } = useCustomRunPrograms();
+  const paceReferenceRace = useAppPreferencesStore((s) => s.paceReferenceRace);
+  const setPaceReferenceRace = useAppPreferencesStore(
+    (s) => s.setPaceReferenceRace
+  );
+  const paceReferenceOnWatch = useAppPreferencesStore(
+    (s) => s.paceReferenceOnWatch
+  );
+  const setPaceReferenceOnWatch = useAppPreferencesStore(
+    (s) => s.setPaceReferenceOnWatch
+  );
 
   const header = useScreenHeader({
     title: t('screens.runPrograms', { defaultValue: 'Training programs' }),
@@ -313,6 +325,18 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
         <RunProgramGuide
           programId={status.program.custom ? undefined : storedId}
         />
+        <PaceReferenceCard
+          race={paceReferenceRace}
+          onSave={setPaceReferenceRace}
+          watch={
+            Platform.OS === 'ios'
+              ? {
+                  value: paceReferenceOnWatch,
+                  onChange: setPaceReferenceOnWatch,
+                }
+              : undefined
+          }
+        />
         {yourPlans}
       </>
     );
@@ -415,6 +439,18 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
             </View>
           );
         })}
+        <PaceReferenceCard
+          race={paceReferenceRace}
+          onSave={setPaceReferenceRace}
+          watch={
+            Platform.OS === 'ios'
+              ? {
+                  value: paceReferenceOnWatch,
+                  onChange: setPaceReferenceOnWatch,
+                }
+              : undefined
+          }
+        />
         {yourPlans}
       </>
     );

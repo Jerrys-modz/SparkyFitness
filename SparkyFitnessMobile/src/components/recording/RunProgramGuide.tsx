@@ -114,7 +114,6 @@ export function programRest(t: TFunction, id: string): string {
     case 'beginner5k':
     case 'walkFit':
     case 'walk10k':
-    case 'returnToRunning':
     case 'gentle5k':
     case 'beginner10k':
       return t('runPrograms.guide.rest.beginner', {
@@ -128,20 +127,33 @@ export function programRest(t: TFunction, id: string): string {
       });
     case 'faster5k':
     case 'faster10k':
+    case 'fasterHalf':
       return t('runPrograms.guide.rest.faster5k', {
         defaultValue:
           'Give the speed session and the longer run an easy day or a rest day on each side. Never do them back to back. Spend the free days resting or cross-training gently.',
       });
-    case 'halfMarathon':
+    case 'returnToRunning':
+      return t('runPrograms.guide.rest.returnToRunning', {
+        defaultValue:
+          'Leave a day or two between runs, for example Monday, Thursday and Saturday, and keep every run easy and conversational. Rest, walk or cycle gently on the other days. If anything hurts more as you go, drop back to the previous week.',
+      });
     case 'halfMarathon4':
-    case 'tenKToHalf':
     case 'tenKToHalf4':
-    case 'fasterHalf':
     case 'fasterHalf4':
-    case 'marathon':
-    case 'beginnerMarathon':
     case 'beginnerMarathon4':
+      return t('runPrograms.guide.rest.fourRun', {
+        defaultValue:
+          'With four runs a week, take at least one full rest day and never run more than two days in a row. Keep the day before the long run easy or free, and rest or cross-train the day after it. Use the other days for rest, walking or low-impact cross-training.',
+      });
     case 'advancedMarathon':
+      return t('runPrograms.guide.rest.advanced', {
+        defaultValue:
+          'With five runs a week, take two rest or cross-training days and avoid more than two runs in a row. Keep the speed or tempo session and the long run at least two days apart, keep the days either side of them easy, and rest more in the lighter weeks.',
+      });
+    case 'halfMarathon':
+    case 'tenKToHalf':
+    case 'beginnerMarathon':
+    case 'marathon':
       return t('runPrograms.guide.rest.longDistance', {
         defaultValue:
           'Keep the day before the long run easy or free, and take a rest day the day after it. Space the other runs so no two hard days sit together, and use spare days for rest, walking or low-impact cross-training.',
@@ -219,6 +231,26 @@ const RunProgramGuide: React.FC<{
             {t('runPrograms.guide.run.body', {
               defaultValue:
                 'Go by effort, not pace. Run slowly enough that you could talk in short sentences. If you cannot, slow down or take a walk break early. Beginner runs should feel easy to moderate, around 4 to 5 out of 10. Easy runs stay conversational, tempo runs feel comfortably hard (about 6 to 7 out of 10), and the fast pieces in speed sessions feel hard but controlled (7 to 8 out of 10), with the easy pieces between them a relaxed jog.',
+            })}
+          </Section>
+          <Section
+            title={t('runPrograms.guide.efforts.title', {
+              defaultValue: 'Strides, hills, tempo and marathon pace',
+            })}
+          >
+            {t('runPrograms.guide.efforts.body', {
+              defaultValue:
+                'A stride is a short, quick, relaxed effort of about 20 seconds, followed by a walk or jog back, done at the end of an easy run to loosen up. Hill repeats are hard efforts uphill with an easy walk or jog back down; pace does not matter on a hill, so judge them by effort. A tempo run is a steady stretch you could hold for about an hour, comfortably hard. Marathon pace is the pace you plan to hold on race day: practise it in the second half of long runs.',
+            })}
+          </Section>
+          <Section
+            title={t('runPrograms.guide.pace.title', {
+              defaultValue: 'Pace ranges',
+            })}
+          >
+            {t('runPrograms.guide.pace.body', {
+              defaultValue:
+                'Enter a recent race time under Your race pace and the Record screen can suggest a pace range for each kind of stretch. They are estimates: heat, hills or a tired week will change them, so use them as a guide and go by effort when the two disagree.',
             })}
           </Section>
           <Section
