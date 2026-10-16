@@ -6,7 +6,6 @@ import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
 import { formatElapsed } from '../utils/workoutSession';
 import type { ExerciseProgress } from '../utils/workoutProgress';
 import Icon, { type IconName } from './Icon';
-import KeyboardCollapsible from './KeyboardCollapsible';
 import LiquidGlassSurface, {
   createLiquidGlassPillStyle,
 } from './LiquidGlassSurface';
@@ -287,52 +286,46 @@ function ActiveWorkoutHeader({
         />
       </View>
 
-      {/* Folds away with the keyboard so the log gets the row's height back;
-          the name + elapsed clock above stay visible. */}
-      <KeyboardCollapsible>
-        <View className="flex-row items-center gap-3 px-2 mt-1">
-          <View className="flex-1 flex-row gap-1">
-            {progress.map((p) => {
-              const isDone = p.totalSets > 0 && p.completedSets >= p.totalSets;
-              const fillPct =
-                p.totalSets > 0
-                  ? Math.min(1, p.completedSets / p.totalSets)
-                  : 0;
-              return (
-                <View
-                  key={p.entryId}
-                  testID={isDone ? 'header-segment-done' : 'header-segment'}
-                  className="flex-1 h-[5px] rounded-full overflow-hidden"
-                  style={{
-                    backgroundColor: isDone ? successColor : trackColor,
-                  }}
-                >
-                  {!isDone && fillPct > 0 && (
-                    <View
-                      testID="header-segment-fill"
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${fillPct * 100}%`,
-                        backgroundColor: accentPrimary,
-                      }}
-                    />
-                  )}
-                </View>
-              );
-            })}
-          </View>
-          <Text
-            className="text-xs text-text-secondary"
-            style={{ fontVariant: ['tabular-nums'] }}
-          >
-            {t('activeWorkout.header.exerciseProgress', {
-              defaultValue: '{{completed}} / {{count}} exercises',
-              completed: doneCount,
-              count: progress.length,
-            })}
-          </Text>
+      <View className="flex-row items-center gap-3 px-2 mt-1">
+        <View className="flex-1 flex-row gap-1">
+          {progress.map((p) => {
+            const isDone = p.totalSets > 0 && p.completedSets >= p.totalSets;
+            const fillPct =
+              p.totalSets > 0 ? Math.min(1, p.completedSets / p.totalSets) : 0;
+            return (
+              <View
+                key={p.entryId}
+                testID={isDone ? 'header-segment-done' : 'header-segment'}
+                className="flex-1 h-[5px] rounded-full overflow-hidden"
+                style={{
+                  backgroundColor: isDone ? successColor : trackColor,
+                }}
+              >
+                {!isDone && fillPct > 0 && (
+                  <View
+                    testID="header-segment-fill"
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${fillPct * 100}%`,
+                      backgroundColor: accentPrimary,
+                    }}
+                  />
+                )}
+              </View>
+            );
+          })}
         </View>
-      </KeyboardCollapsible>
+        <Text
+          className="text-xs text-text-secondary"
+          style={{ fontVariant: ['tabular-nums'] }}
+        >
+          {t('activeWorkout.header.exerciseProgress', {
+            defaultValue: '{{completed}} / {{count}} exercises',
+            completed: doneCount,
+            count: progress.length,
+          })}
+        </Text>
+      </View>
 
       <ActionSheet ref={menuSheetRef} title={name} items={menuItems} />
     </View>

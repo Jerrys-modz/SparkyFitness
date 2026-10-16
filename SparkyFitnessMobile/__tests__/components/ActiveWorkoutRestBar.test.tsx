@@ -1,11 +1,18 @@
 import React from 'react';
 import { AppState, StyleSheet } from 'react-native';
-import { render, fireEvent } from '@testing-library/react-native';
+import { act, render, fireEvent } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
-import ActiveWorkoutRestBar from '../../src/components/ActiveWorkoutRestBar';
+import ActiveWorkoutRestBar, {
+  ActiveWorkoutCompactRestRow,
+} from '../../src/components/ActiveWorkoutRestBar';
+import { fireSelectionHaptic } from '../../src/services/haptics';
 import { useNativeIOSTabsActive } from '../../src/services/nativeTabBarPreference';
 import { playIntervalCue } from '../../src/services/sounds';
+import {
+  __resetActiveWorkoutStoreForTests,
+  useActiveWorkoutStore,
+} from '../../src/stores/activeWorkoutStore';
 
 jest.mock('../../src/services/nativeTabBarPreference', () => ({
   useNativeIOSTabsActive: jest.fn(() => false),
@@ -13,7 +20,29 @@ jest.mock('../../src/services/nativeTabBarPreference', () => ({
 
 jest.mock('../../src/services/sounds', () => ({
   playIntervalCue: jest.fn(),
+  // The store keeps a running rest's deadline timer alive through it.
+  setRestKeepAlive: jest.fn(),
 }));
+
+// The compact row's controls go through the store, which reschedules the
+// rest-complete notification.
+jest.mock('../../src/services/notifications', () => ({
+  scheduleRestNotification: jest.fn(async () => 'notif-abc'),
+  cancelScheduledNotification: jest.fn(async () => undefined),
+  fireRestCompleteCue: jest.fn(),
+  COMPLETE_SET_ACTION: 'complete-set',
+  addNotificationResponseListener: jest.fn(() => ({ remove: jest.fn() })),
+  dismissDeliveredNotification: jest.fn(async () => undefined),
+}));
+
+jest.mock('../../src/services/haptics', () => ({
+  ...jest.requireActual('../../src/services/haptics'),
+  fireSelectionHaptic: jest.fn(),
+}));
+
+const mockFireSelectionHaptic = fireSelectionHaptic as jest.MockedFunction<
+  typeof fireSelectionHaptic
+>;
 
 const mockPlayIntervalCue = playIntervalCue as jest.MockedFunction<
   typeof playIntervalCue
@@ -246,5 +275,89 @@ describe('ActiveWorkoutRestBar', () => {
       renderBar({ remainingMs: 2_500 });
       expect(mockPlayIntervalCue).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('ActiveWorkoutCompactRestRow', () => {
+  const NOW = new Date('2026-07-01T10:00:00.000Z').getTime();
+
+  function setRest(
+    rest: Partial<ReturnType<typeof useActiveWorkoutStore.getState>['rest']>
+  ) {
+    // Braces matter: the persisted store's setState returns a promise, which
+    // would turn this into an un-awaited async act.
+    act(() => {
+      useActiveWorkoutStore.setState({
+        rest: { ...useActiveWorkoutStore.getState().rest, ...rest },
+      });
+    });
+  }
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(NOW);
+    __resetActiveWorkoutStoreForTests();
+    mockPlayIntervalCue.mockClear();
+    mockFireSelectionHaptic.mockClear();
+    (useCSSVariable as jest.Mock).mockImplementation(
+      (vars: string | string[]) =>
+        Array.isArray(vars)
+          ? vars.map((v) => COLORS[v] ?? '#888888')
+          : (COLORS[vars] ?? '#888888')
+    );
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('renders nothing while no rest runs', () => {
+    const { queryByTestId } = render(<ActiveWorkoutCompactRestRow />);
+    expect(queryByTestId('compact-rest-row')).toBeNull();
+  });
+
+  it('shows the countdown over a progress line and ticks on its own', () => {
+    setRest({ state: 'resting', durationSec: 90, endsAt: NOW + 45_000 });
+    const { getByText, getByTestId } = render(<ActiveWorkoutCompactRestRow />);
+
+    const countdown = getByText('0:45');
+    // Not a live region: a screen reader would otherwise read every second.
+    expect(countdown.props.accessibilityLiveRegion).toBeUndefined();
+    expect(
+      StyleSheet.flatten(getByTestId('compact-rest-progress-fill').props.style)
+        .width
+    ).toBe('50%');
+
+    act(() => jest.advanceTimersByTime(1_000));
+    expect(getByText('0:44')).toBeTruthy();
+  });
+
+  it('drives the rest through the store: ±15 s, pause, resume, skip', () => {
+    setRest({ state: 'resting', durationSec: 90, endsAt: NOW + 45_000 });
+    const { getByLabelText } = render(<ActiveWorkoutCompactRestRow />);
+    const rest = () => useActiveWorkoutStore.getState().rest;
+
+    fireEvent.press(getByLabelText('Extend rest by 15 seconds'));
+    expect(rest().endsAt).toBe(NOW + 60_000);
+    fireEvent.press(getByLabelText('Shorten rest by 15 seconds'));
+    expect(rest().endsAt).toBe(NOW + 45_000);
+
+    fireEvent.press(getByLabelText('Pause rest'));
+    expect(rest().state).toBe('paused');
+    fireEvent.press(getByLabelText('Resume rest'));
+    expect(rest().state).toBe('resting');
+
+    fireEvent.press(getByLabelText('Skip rest'));
+    expect(rest().state).toBe('ready');
+  });
+
+  it('plays no countdown beep or haptic: the docked bar stays the only cue', () => {
+    setAppState('active');
+    setRest({ state: 'resting', durationSec: 90, endsAt: NOW + 3_500 });
+    render(<ActiveWorkoutCompactRestRow />);
+
+    act(() => jest.advanceTimersByTime(3_000));
+    expect(mockPlayIntervalCue).not.toHaveBeenCalled();
+    expect(mockFireSelectionHaptic).not.toHaveBeenCalled();
   });
 });

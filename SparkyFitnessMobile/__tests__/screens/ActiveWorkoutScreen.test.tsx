@@ -1,6 +1,6 @@
 import React from 'react';
-import { Alert } from 'react-native';
-import { fireEvent, render, act } from '@testing-library/react-native';
+import { Alert, AppState } from 'react-native';
+import { fireEvent, render, act, within } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useIsFocused } from '@react-navigation/native';
@@ -11,6 +11,7 @@ import {
   useActiveWorkoutStore,
 } from '../../src/stores/activeWorkoutStore';
 import { __resetAppPreferencesStoreForTests } from '../../src/stores/appPreferencesStore';
+import { SET_ACCESSORY_BAR_HEIGHT } from '../../src/components/SetRowChrome';
 import type { ActionSheetItem } from '../../src/components/ActionSheet';
 import type { PresetSessionResponse } from '@workspace/shared';
 import { getActiveServerConfig } from '../../src/services/storage';
@@ -614,6 +615,106 @@ describe('ActiveWorkoutScreen keyboard accessory bar', () => {
     expect(queryByText('Next')).toBeNull();
     expect(queryByText('Next Set')).toBeNull();
     expect(queryByText('Log')).toBeNull();
+  });
+
+  it('keeps the bar mounted, parked behind the keyboard, with nothing on it until a set is focused', () => {
+    const { getByTestId } = renderScreen();
+    const hidden = { includeHiddenElements: true };
+    const sticky = () => getByTestId('set-accessory-sticky', hidden);
+
+    expect(sticky().props.offset).toEqual({
+      closed: SET_ACCESSORY_BAR_HEIGHT,
+      opened: 0,
+    });
+    expect(within(sticky()).queryByText('Done', hidden)).toBeNull();
+
+    fireEvent.press(getByTestId('focus-rpe-102'));
+    expect(within(sticky()).queryByText('Done')).toBeTruthy();
+  });
+
+  it('carries the compact rest row while a rest runs; its ±15 s adjust the rest', () => {
+    act(() => {
+      useActiveWorkoutStore.getState().completeSet('102');
+    });
+    expect(useActiveWorkoutStore.getState().rest.state).toBe('resting');
+    const { getByTestId } = renderScreen();
+
+    fireEvent.press(getByTestId('focus-rpe-201'));
+    // The docked bar has the same controls behind the keyboard; these are
+    // the keyboard bar's own.
+    const bar = within(getByTestId('set-accessory-bar'));
+    expect(bar.getByTestId('compact-rest-row')).toBeTruthy();
+
+    const endsAt = useActiveWorkoutStore.getState().rest.endsAt!;
+    fireEvent.press(bar.getByLabelText('Extend rest by 15 seconds'));
+    expect(useActiveWorkoutStore.getState().rest.endsAt).toBe(endsAt + 15_000);
+    fireEvent.press(bar.getByLabelText('Shorten rest by 15 seconds'));
+    expect(useActiveWorkoutStore.getState().rest.endsAt).toBe(endsAt);
+  });
+
+  it('leaves the rest row out of the bar while no rest runs', () => {
+    const { getByTestId } = renderScreen();
+    fireEvent.press(getByTestId('focus-rpe-102'));
+    expect(
+      within(getByTestId('set-accessory-bar')).queryByTestId('compact-rest-row')
+    ).toBeNull();
+  });
+
+  describe('rest expiry auto-focus', () => {
+    // The RN preset mocks currentState as a function; the screen only acts
+    // on an expiry while the app is in the foreground.
+    let currentStateDescriptor: PropertyDescriptor | undefined;
+
+    beforeEach(() => {
+      currentStateDescriptor = Object.getOwnPropertyDescriptor(
+        AppState,
+        'currentState'
+      );
+      Object.defineProperty(AppState, 'currentState', {
+        get: () => 'active',
+        configurable: true,
+      });
+    });
+
+    afterEach(() => {
+      if (currentStateDescriptor != null) {
+        Object.defineProperty(AppState, 'currentState', currentStateDescriptor);
+      }
+    });
+
+    const expireRest = () =>
+      act(() => {
+        useActiveWorkoutStore.setState({ restExpiredAt: Date.now() });
+      });
+
+    it("puts the keyboard in the on-deck set's first cell when nothing is focused", () => {
+      const { getByTestId } = renderScreen();
+      const bar = () =>
+        within(
+          getByTestId('set-accessory-sticky', { includeHiddenElements: true })
+        );
+      expect(bar().queryByText('Done')).toBeNull();
+
+      expireRest();
+
+      // Weight is the first cell, so Next (→ reps) and Log are on offer.
+      expect(bar().queryByText('Next')).toBeTruthy();
+      expect(bar().queryByText('Log')).toBeTruthy();
+    });
+
+    it('does not move the keyboard off a set the lifter is editing', () => {
+      const { getByTestId, getByText, queryByText } = renderScreen();
+      // RPE is the walk's last field: the bar offers Log only.
+      fireEvent.press(getByTestId('focus-rpe-102'));
+      expect(queryByText('Next')).toBeNull();
+
+      expireRest();
+
+      // Still on RPE: a jump to the weight cell would offer Next.
+      expect(queryByText('Next')).toBeNull();
+      fireEvent.press(getByText('Log'));
+      expect(mockAccessoryHandles['102'].log).toHaveBeenCalledTimes(1);
+    });
   });
 });
 
