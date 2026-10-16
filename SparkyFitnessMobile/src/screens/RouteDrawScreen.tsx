@@ -1,17 +1,35 @@
 import React, { useRef, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { useCSSVariable } from 'uniwind';
-import { routeDistanceMeters, type RoutePoint } from '@workspace/shared';
+import {
+  canAddFollowRoadsPoint,
+  ROUTE_FOLLOW_ROADS_MAX_POINTS,
+  countRouteTurns,
+  routeDistanceMeters,
+  type RoutePoint,
+} from '@workspace/shared';
 import Button from '../components/ui/Button';
+import Switch from '../components/ui/Switch';
+import { useFollowRoadsRoute } from '../hooks/useFollowRoadsRoute';
 import { usePreferences } from '../hooks/usePreferences';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { addLog } from '../services/LogService';
-import { saveDrawnRoute } from '../services/routeService';
+import {
+  saveDrawnRoute,
+  useRouteGenerationAvailable,
+} from '../services/routeService';
+import { routeGenerateErrorMessage } from '../utils/routeGenerateError';
 import { formatRouteDistance } from '../utils/routeDisplay';
 import type { RootStackScreenProps } from '../types/navigation';
 
@@ -28,8 +46,9 @@ const MIN_ROUTE_METERS = 10;
 
 /**
  * Draw a route by tapping the map: each tap adds a point and the points are
- * joined by straight lines, so tap often around bends. (Following roads and
- * paths needs a routing service, which is a separate, optional feature.)
+ * joined by straight lines, so tap often around bends. When the server has a
+ * routing engine, "Follow roads" turns the taps into ordered waypoints and the
+ * engine's line (with its turn cues) replaces the straight ones.
  */
 const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
   const { t } = useTranslation();
@@ -41,10 +60,21 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
   const [points, setPoints] = useState<RoutePoint[]>([]);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
+  const [followRoads, setFollowRoads] = useState(false);
+  const { available } = useRouteGenerationAvailable();
+  const snapping = available && followRoads;
+  const snap = useFollowRoadsRoute(snapping, points);
+  const snapped = snapping ? snap.preview : null;
+  const atWaypointLimit = snapping && !canAddFollowRoadsPoint(points.length);
 
-  const distance = routeDistanceMeters(points);
+  const distance = snapped ? snapped.distanceM : routeDistanceMeters(points);
+  // Following roads saves what the engine returned, so wait until it matches
+  // the taps on screen.
   const canSave =
-    points.length >= 2 && distance >= MIN_ROUTE_METERS && name.trim() !== '';
+    points.length >= 2 &&
+    distance >= MIN_ROUTE_METERS &&
+    name.trim() !== '' &&
+    (!snapping || (snapped !== null && snap.isCurrent));
 
   const centerOnPerson = () => {
     void (async () => {
@@ -66,7 +96,11 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
 
   const save = () => {
     setSaving(true);
-    void saveDrawnRoute({ name: name.trim(), points, source: 'drawn' })
+    void saveDrawnRoute(
+      snapped
+        ? { name: name.trim(), points: snapped.points, cues: snapped.cues }
+        : { name: name.trim(), points }
+    )
       .then((route) => navigation.replace('RouteDetail', { id: route.id }))
       .catch((error: unknown) => {
         addLog(`[Routes] Could not save a drawn route: ${error}`, 'WARNING');
@@ -95,6 +129,10 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
     latitude: p.lat,
     longitude: p.lon,
   }));
+  const lineCoordinates = (snapped?.points ?? points).map((p) => ({
+    latitude: p.lat,
+    longitude: p.lon,
+  }));
 
   return (
     <>
@@ -106,6 +144,7 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
           initialRegion={FALLBACK_REGION}
           onMapReady={centerOnPerson}
           onPress={(event) => {
+            if (atWaypointLimit) return;
             const { latitude, longitude } = event.nativeEvent.coordinate;
             setPoints((current) => [
               ...current,
@@ -115,9 +154,9 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
           showsUserLocation
           toolbarEnabled={false}
         >
-          {coordinates.length > 1 ? (
+          {lineCoordinates.length > 1 ? (
             <Polyline
-              coordinates={coordinates}
+              coordinates={lineCoordinates}
               strokeColor={lineColor}
               strokeWidth={4}
               lineCap="round"
@@ -152,14 +191,65 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
               defaultValue: 'Route name',
             })}
           />
-          <View className="flex-row items-center justify-between mt-3">
-            <Text className="text-text-primary text-base font-semibold">
-              {points.length < 2
-                ? t('routes.drawHint', {
-                    defaultValue: 'Tap the map to add points',
-                  })
-                : formatRouteDistance(distance, unit)}
+          {available ? (
+            <View className="flex-row items-center justify-between mt-3">
+              <Text className="text-text-primary text-base">
+                {t('routes.followRoads', { defaultValue: 'Follow roads' })}
+              </Text>
+              <Switch
+                value={followRoads}
+                onValueChange={setFollowRoads}
+                accessibilityLabel={t('routes.followRoads', {
+                  defaultValue: 'Follow roads',
+                })}
+              />
+            </View>
+          ) : null}
+          {snapping && snap.error ? (
+            <View className="flex-row items-center justify-between mt-2">
+              <Text className="text-text-secondary text-sm flex-1 mr-3">
+                {routeGenerateErrorMessage(snap.error, t)}
+              </Text>
+              <Button variant="secondary" onPress={snap.retry}>
+                {t('common.retry', { defaultValue: 'Retry' })}
+              </Button>
+            </View>
+          ) : null}
+          {atWaypointLimit ? (
+            <Text className="text-text-secondary text-sm mt-2">
+              {t('routes.followRoadsLimit', {
+                defaultValue:
+                  'Following roads takes up to {{max}} points. Undo a point to add another.',
+                max: ROUTE_FOLLOW_ROADS_MAX_POINTS,
+              })}
             </Text>
+          ) : null}
+          <View className="flex-row items-center justify-between mt-3">
+            <View className="flex-1 mr-3 flex-row items-center">
+              <Text className="text-text-primary text-base font-semibold">
+                {points.length < 2
+                  ? t('routes.drawHint', {
+                      defaultValue: 'Tap the map to add points',
+                    })
+                  : formatRouteDistance(distance, unit)}
+                {snapped
+                  ? ` · ${t('routes.turnCount', {
+                      count: countRouteTurns(snapped.cues),
+                      defaultValue: '{{count}} turns',
+                      defaultValue_one: '{{count}} turn',
+                      defaultValue_other: '{{count}} turns',
+                    })}`
+                  : ''}
+              </Text>
+              {snap.isLoading ? (
+                <ActivityIndicator
+                  className="ml-2"
+                  accessibilityLabel={t('routes.findingRoute', {
+                    defaultValue: 'Finding a route',
+                  })}
+                />
+              ) : null}
+            </View>
             <View className="flex-row gap-2">
               <Button
                 variant="secondary"

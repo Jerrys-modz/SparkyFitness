@@ -23,6 +23,7 @@ import RunProgramEditScreen from '../screens/RunProgramEditScreen';
 import RoutesScreen from '../screens/RoutesScreen';
 import RouteDetailScreen from '../screens/RouteDetailScreen';
 import RouteDrawScreen from '../screens/RouteDrawScreen';
+import RouteGenerateScreen from '../screens/RouteGenerateScreen';
 import RunProgramWorkoutScreen from '../screens/RunProgramWorkoutScreen';
 import LabReportImportScreen from '../screens/LabReportImportScreen';
 import LabResultAddScreen from '../screens/LabResultAddScreen';
@@ -149,6 +150,7 @@ export const SafeRunProgramRace = withErrorBoundary(RunProgramRaceScreen, 'RunPr
 export const SafeRoutes = withErrorBoundary(RoutesScreen, 'Routes', { canGoBack: true });
 export const SafeRouteDetail = withErrorBoundary(RouteDetailScreen, 'RouteDetail', { canGoBack: true });
 export const SafeRouteDraw = withErrorBoundary(RouteDrawScreen, 'RouteDraw', { canGoBack: true });
+export const SafeRouteGenerate = withErrorBoundary(RouteGenerateScreen, 'RouteGenerate', { canGoBack: true });
 export const SafeRunProgramEdit = withErrorBoundary(RunProgramEditScreen, 'RunProgramEdit', { canGoBack: true });
 export const SafeRunProgramWorkout = withErrorBoundary(RunProgramWorkoutScreen, 'RunProgramWorkout', { canGoBack: true });
 export const SafeMealPlanForm = withErrorBoundary(MealPlanFormScreen, 'MealPlanForm', { canGoBack: true });

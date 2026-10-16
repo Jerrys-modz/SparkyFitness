@@ -656,7 +656,8 @@
     "labResultAdd": "Add lab result",
     "labReportImport": "Import report",
     "routes": "Routes",
-    "routeDraw": "Draw a route"
+    "routeDraw": "Draw a route",
+    "routeGenerate": "Generate a route"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -8459,6 +8460,56 @@
     "saveAsRoute": "Save as route",
     "savedAsRoute": "Saved to Routes",
     "saveAsRouteFailed": "Could not save the route",
-    "alreadyHasNoRoute": "This activity has no GPS route"
+    "alreadyHasNoRoute": "This activity has no GPS route",
+    "generateRoute": "Generate a loop or out-and-back",
+    "generateUnavailable": "This server has no routing service set up, so routes cannot be generated. You can still draw one on a map.",
+    "generate": "Generate",
+    "regenerate": "Try another direction",
+    "distanceLabel": "Distance",
+    "distanceRange": "Choose between {{min}} and {{max}} {{unit}}.",
+    "startFrom": "Starting at the green pin. Tap the map to move it.",
+    "startUnknown": "Waiting for your location. Or tap the map to choose a start.",
+    "useMyLocation": "My location",
+    "turnCount_one": "{{count}} turn",
+    "turnCount_other": "{{count}} turns",
+    "followRoads": "Follow roads",
+    "followRoadsLimit": "Following roads takes up to {{max}} points. Undo a point to add another.",
+    "findingRoute": "Finding a route",
+    "turns": "Turns",
+    "showFewerTurns": "Show fewer",
+    "showAllTurns_one": "Show all {{count}} turn",
+    "showAllTurns_other": "Show all {{count}} turns",
+    "activity": {
+      "run": "Run",
+      "walk": "Walk",
+      "ride": "Ride",
+      "hike": "Hike"
+    },
+    "shape": {
+      "loop": "Loop",
+      "outAndBack": "Out and back"
+    },
+    "generateError": {
+      "noRoute": "No route found there. Try another spot or a different distance.",
+      "rateLimited": "Too many route requests. Wait a few minutes and retry.",
+      "engineError": "The routing service had a problem. Try again shortly.",
+      "timeout": "The routing service took too long. Try again.",
+      "notConfigured": "This server has no routing service set up.",
+      "invalid": "Those points cannot be routed.",
+      "unknown": "Could not generate a route."
+    },
+    "cue": {
+      "depart": "Start",
+      "straight": "Continue straight",
+      "slight_left": "Bear left",
+      "left": "Turn left",
+      "sharp_left": "Sharp left",
+      "slight_right": "Bear right",
+      "right": "Turn right",
+      "sharp_right": "Sharp right",
+      "uturn": "Make a U-turn",
+      "arrive": "Arrive"
+    },
+    "goBack": "Go back"
   }
 }

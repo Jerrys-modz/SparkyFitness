@@ -272,6 +272,7 @@ export * from "./utils/readiness.ts";
 export * from "./utils/runningEstimates.ts";
 export * from "./utils/runProgramLoad.ts";
 export * from "./utils/routeGeometry.ts";
+export * from "./utils/routeGenerate.ts";
 export * from "./utils/routeGpx.ts";
 export * from "./nutrients/nutrientAlgorithms.ts";
 export * from "./nutrients/nutrientCalculation.ts";
