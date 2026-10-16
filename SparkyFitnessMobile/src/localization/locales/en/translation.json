@@ -611,6 +611,7 @@
     "progressPhotoTimelapse": "Time-lapse",
     "exerciseStatistics": "Exercise Statistics",
     "cardioSession": "Cardio Session",
+    "activityShare": "Share Activity",
     "watchSettings": "Apple Watch",
     "allergenSettings": "Allergens",
     "aiSettings": "AI",
@@ -637,6 +638,23 @@
     "runProgramEdit": "Edit plan",
     "runProgramNew": "New plan",
     "runProgramRace": "Plan a race"
+  },
+  "activityShare": {
+    "title": "Share Activity",
+    "choosePhoto": "Choose photo",
+    "takePhoto": "Take photo",
+    "removePhoto": "Remove",
+    "transparentHint": "With no photo the image is a transparent PNG you can lay over a photo or video in another app.",
+    "cameraDenied": "Allow camera access in Settings to take a photo",
+    "noRoute": "This workout has no stored GPS route, so the layout shows stats only.",
+    "layout": "Layout",
+    "layoutClassic": "Classic",
+    "layoutRoute": "Route",
+    "layoutMinimal": "Minimal",
+    "textColor": "Color",
+    "customColor": "Custom color hex code",
+    "share": "Share image",
+    "shareFailed": "Could not create the image"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -6367,6 +6385,9 @@
       "floorsCount_one": "{{formattedCount}} floor",
       "floorsCount_other": "{{formattedCount}} floors",
       "elevationGain": "Elevation gain",
+      "cadence": "Avg cadence",
+      "spm": "{{value}} spm",
+      "strideLength": "Stride length",
       "calories": "{{value}} Cal",
       "minutes_one": "{{formattedCount}} min",
       "minutes_other": "{{formattedCount}} min",
@@ -6395,7 +6416,8 @@
       "perMile": "/mi",
       "underOneMinute": "<1 min",
       "exportGpx": "Export GPX",
-      "exportGpxFailed": "Could not export the route"
+      "exportGpxFailed": "Could not export the route",
+      "shareImage": "Share as image"
     },
     "load": {
       "title": "Training Load",
