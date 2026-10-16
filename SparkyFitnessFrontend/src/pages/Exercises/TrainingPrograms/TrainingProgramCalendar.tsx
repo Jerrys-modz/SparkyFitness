@@ -18,7 +18,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePreferences } from '@/contexts/PreferencesContext';
-import { formatDayLabel, workoutTitle } from '@/utils/runPrograms';
+import {
+  formatDayLabel,
+  weekdayLabel,
+  workoutTitle,
+} from '@/utils/runPrograms';
 
 /** Workouts listed before "Show all". */
 const PREVIEW_RUNS = 7;
@@ -97,10 +101,7 @@ const TrainingProgramCalendar = ({
   const weekdayLabels = useMemo(
     () =>
       Array.from({ length: 7 }, (_, i) =>
-        // 2024-01-07 was a Sunday, so day 0 is Sunday.
-        new Date(
-          Date.UTC(2024, 0, 7 + ((firstDayOfWeek + i) % 7))
-        ).toLocaleDateString(locale, { weekday: 'short', timeZone: 'UTC' })
+        weekdayLabel((firstDayOfWeek + i) % 7, locale)
       ),
     [firstDayOfWeek, locale]
   );

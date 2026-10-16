@@ -1,6 +1,13 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
+  restartBody,
+  scheduleBody,
+  setEnabledBody,
+  setPositionBody,
+  skipWorkoutBody,
+  startProgramBody,
+  toggleDayBody,
   suggestFromEffort,
   type EffortSuggestion,
   pendingEffortRating,
@@ -76,19 +83,18 @@ export function setProgramSchedule(
 async function applySchedule(change: ProgramScheduleChange): Promise<void> {
   const current = await freshProgram();
   if (!current) return;
-  const days =
+  const body =
     change.toggleDay !== undefined
-      ? current.run_days.includes(change.toggleDay)
-        ? current.run_days.filter((d) => d !== change.toggleDay)
-        : [...current.run_days, change.toggleDay].sort((a, b) => a - b)
-      : change.days;
+      ? toggleDayBody(current, change.toggleDay)
+      : { program_id: current.program_id, run_days: change.days };
   setCache(
     (
       await saveRunProgram({
-        program_id: current.program_id,
-        run_days: days,
-        start_date: change.startDay,
-        end_date: change.endDay,
+        ...body,
+        ...scheduleBody(current, {
+          startDay: change.startDay,
+          endDay: change.endDay,
+        }),
       })
     ).program
   );
@@ -130,10 +136,12 @@ export async function setProgramEnabled(
   if (!current && !enabled) return;
   setCache(
     (
-      await saveRunProgram({
-        program_id: current?.program_id ?? programId,
-        enabled,
-      })
+      await saveRunProgram(
+        setEnabledBody(
+          { program_id: current?.program_id ?? programId },
+          enabled
+        )
+      )
     ).program
   );
 }
@@ -150,13 +158,7 @@ export async function startProgram(
   startDay?: string | null
 ): Promise<void> {
   setCache(
-    (
-      await saveRunProgram({
-        program_id: programId,
-        enabled: true,
-        start_date: startDay,
-      })
-    ).program
+    (await saveRunProgram(startProgramBody(programId, startDay))).program
   );
 }
 
@@ -164,23 +166,21 @@ export async function startProgram(
 export async function setProgramPosition(index: number): Promise<void> {
   const current = await freshProgram();
   if (!current) return;
-  setCache(
-    (
-      await saveRunProgram({
-        program_id: current.program_id,
-        next_index: Math.max(0, Math.floor(index)),
-      })
-    ).program
-  );
+  setCache((await saveRunProgram(setPositionBody(current, index))).program);
 }
 
 /** Goes back to the first workout, keeping the program switched on. */
-export const restartProgram = (): Promise<void> => setProgramPosition(0);
+export async function restartProgram(): Promise<void> {
+  const current = await freshProgram();
+  if (!current) return;
+  setCache((await saveRunProgram(restartBody(current))).program);
+}
 
 /** Skips the workout that is due. */
 export async function skipProgramWorkout(): Promise<void> {
   const current = await freshProgram();
-  if (current) await setProgramPosition(current.next_index + 1);
+  if (!current) return;
+  setCache((await saveRunProgram(skipWorkoutBody(current))).program);
 }
 
 /**
