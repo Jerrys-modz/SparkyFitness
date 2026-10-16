@@ -5342,6 +5342,7 @@
     "triceps": "Triceps"
   },
   "equipment": {
+    "title": "Equipment",
     "barbell": "Barbell",
     "dumbbell": "Dumbbell",
     "kettlebells": "Kettlebells",
@@ -8914,5 +8915,45 @@
     "tagInput": {
       "removeTag": "Remove {{tag}}"
     }
+  },
+  "shoes": {
+    "title": "Shoes",
+    "subtitle": "Keep track of the mileage on each pair of running shoes.",
+    "shoe": "Shoe",
+    "noShoe": "No shoe",
+    "addShoe": "Add shoe",
+    "editShoe": "Edit shoe",
+    "formDescription": "Track the mileage on a pair and get a nudge when it is time to replace it.",
+    "name": "Name",
+    "brand": "Brand",
+    "model": "Model",
+    "nickname": "Nickname",
+    "purchaseDate": "Purchase date",
+    "purchasePrice": "Price",
+    "startingDistance": "Starting mileage ({{unit}})",
+    "retireAt": "Retire at ({{unit}})",
+    "useAsDefault": "Use as my default pair",
+    "default": "Default pair",
+    "retired": "Retired",
+    "retiredSection": "Retired",
+    "wornOut": "Worn out",
+    "mileage": "Mileage",
+    "ofLimit": "of {{limit}} {{unit}}",
+    "runCount_one": "{{count}} run",
+    "runCount_other": "{{count}} runs",
+    "lastUsed": "last used {{date}}",
+    "retire": "Retire",
+    "retirePrompt": "This pair has reached its limit. Retire it?",
+    "reactivate": "Reactivate",
+    "empty": "No shoes yet. Add a pair, then pick it on a run to start counting its mileage.",
+    "deleteTitle": "Delete this shoe?",
+    "deleteDescription": "Runs logged with this pair stay in your diary, but they will no longer be linked to a shoe.",
+    "added": "Shoe added.",
+    "updated": "Shoe updated.",
+    "deleted": "Shoe deleted.",
+    "failedToLoad": "Failed to load shoes.",
+    "failedToSave": "Failed to save shoe.",
+    "failedToDelete": "Failed to delete shoe.",
+    "failedToAssign": "Failed to update the shoe for this run."
   }
 }

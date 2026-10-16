@@ -108,6 +108,8 @@ import {
 } from '../utils/runSummary';
 import { toLocalDateString } from '../utils/dateUtils';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
+import { useShoeMutations } from '../hooks/useShoes';
+import { promptToRetireShoe } from '../utils/retireShoePrompt';
 import { fireSelectionHaptic } from '../services/haptics';
 import { addLog } from '../services/LogService';
 import {
@@ -227,6 +229,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const { updateMutation: updateShoe } = useShoeMutations();
   const { preferences } = usePreferences();
   const distanceUnit =
     (preferences?.default_distance_unit as 'km' | 'miles') ?? 'km';
@@ -827,6 +830,15 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
         }
       }
       invalidateExerciseCache(queryClient, saved.entryDate);
+      const { wornOutShoe } = saved;
+      if (wornOutShoe) {
+        promptToRetireShoe(t, wornOutShoe, () =>
+          updateShoe.mutate({
+            id: wornOutShoe.id,
+            data: { status: 'retired' },
+          })
+        );
+      }
       // The activity is filed. Nothing after this may report the save as
       // failed, or the person would be told to try again for no reason.
       let summaryParams: RunSummaryParams | null = null;
@@ -881,6 +893,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     queryClient,
     session,
     t,
+    updateShoe,
   ]);
 
   const number = (value: number, digits = 2) =>

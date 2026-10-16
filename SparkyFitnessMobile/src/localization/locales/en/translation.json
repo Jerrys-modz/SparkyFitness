@@ -602,7 +602,9 @@
       "runProgramsSubtitle": "Run and walk plans from Beginner 5K to marathon",
       "runProgramsActive": "{{name}} · {{progress}}",
       "personalRecords": "Personal records",
-      "personalRecordsSubtitle": "Your best 1 km, 5 km, 10 km and more"
+      "personalRecordsSubtitle": "Your best 1 km, 5 km, 10 km and more",
+      "equipment": "Equipment",
+      "equipmentSubtitle": "Shoes and other gear"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -612,7 +614,6 @@
     "exerciseStatistics": "Exercise Statistics",
     "cardioSession": "Cardio Session",
     "watchSettings": "Apple Watch",
-    "allergenSettings": "Allergens",
     "aiSettings": "AI",
     "fastingSettings": "Fasting Settings",
     "fasting": "Fasting",
@@ -632,6 +633,7 @@
     "watchRunLive": "On your watch",
     "watchRunLiveRun": "Run on your watch",
     "watchWalkLive": "Walk on your watch",
+    "allergenSettings": "Allergens",
     "runProgramCalendar": "Program calendar",
     "runProgramWorkout": "Workout",
     "runProgramEdit": "Edit plan",
@@ -6457,54 +6459,54 @@
       }
     }
   },
-  "allergens": {
-    "trace": "trace: {{name}}",
-    "warningTitle": "Contains an allergen you track",
-    "traceWarningTitle": "May contain an allergen you track",
-    "mayContainTraces": "May contain traces of: {{names}}"
+  "equipmentHub": {
+    "title": "Equipment",
+    "shoesSubtitle": "Running shoes and their mileage"
   },
-  "allergenSettings": {
-    "title": "Allergens",
-    "description": "Add the allergens you want to be warned about. When a food contains one of these, a warning badge appears on foods and diary entries.",
-    "common": "Common allergens",
-    "custom": "Custom allergen",
-    "customPlaceholder": "e.g., lupin, molluscs…",
-    "tracked": "Your tracked allergens",
-    "empty": "No allergens tracked yet. Add some above to get warnings on foods.",
-    "remove": "Remove {{name}}",
-    "alreadyAdded": "Already added",
-    "alreadyAddedDescription": "{{name}} is already in your list.",
-    "errors": {
-      "error": "Error",
-      "updateFailed": "Failed to update allergens."
-    },
-    "sync": {
-      "title": "Sync from OpenFoodFacts",
-      "description": "Fetch allergen data for your saved OpenFoodFacts foods. Only needs to be done once.",
-      "button": "Sync allergens",
-      "complete": "Allergen sync complete",
-      "upToDate": "All your OpenFoodFacts foods already have allergen data.",
-      "result": "Updated {{updated}} of {{total}} food(s).",
-      "failed": "Sync failed",
-      "failedDescription": "Could not sync allergens. Please try again."
-    },
-    "names": {
-      "gluten": "gluten",
-      "wheat": "wheat",
-      "milk": "milk",
-      "eggs": "eggs",
-      "peanuts": "peanuts",
-      "treeNuts": "tree nuts",
-      "soy": "soy",
-      "fish": "fish",
-      "shellfish": "shellfish",
-      "crustaceans": "crustaceans",
-      "sesame": "sesame",
-      "celery": "celery",
-      "mustard": "mustard",
-      "lupin": "lupin",
-      "sulphites": "sulphites"
-    }
+  "shoes": {
+    "title": "Shoes",
+    "shoe": "Shoe",
+    "noShoe": "No shoe",
+    "add": "Add",
+    "addShoe": "Add shoe",
+    "editShoe": "Edit shoe",
+    "loadFailed": "Could not load your shoes.",
+    "notFound": "Shoe not found.",
+    "assignFailed": "Failed to assign shoe",
+    "empty": "No shoes yet",
+    "emptyHint": "Add a pair, then pick it on a run to start counting its mileage.",
+    "name": "Name",
+    "nameRequired": "Enter a name.",
+    "brand": "Brand",
+    "model": "Model",
+    "nickname": "Nickname",
+    "startingDistance": "Starting mileage ({{unit}})",
+    "startingInvalid": "Enter 0 or more.",
+    "retireAt": "Retire at ({{unit}})",
+    "retireInvalid": "Enter a distance above 0.",
+    "purchaseDate": "Purchase date",
+    "selectDate": "Select date",
+    "clearDate": "Clear date",
+    "purchasePrice": "Price",
+    "priceInvalid": "Enter 0 or more.",
+    "useAsDefault": "Use as my default pair",
+    "useAsDefaultHint": "New recorded runs, outdoor or indoor, are logged with your default pair.",
+    "retire": "Retire",
+    "retirePrompt": "This pair has reached its limit. Retire it?",
+    "limitReachedTitle": "Time for new shoes?",
+    "limitReachedMessage": "{{name}} has reached its mileage limit. Do you want to retire it?",
+    "reactivate": "Reactivate",
+    "retired": "Retired",
+    "retiredSection": "Retired",
+    "wornOut": "Worn out",
+    "ofLimit": "of {{limit}} {{unit}}",
+    "runCount_one": "{{count}} run",
+    "runCount_other": "{{count}} runs",
+    "lastUsed": "last used {{date}}",
+    "updateFailed": "Failed to update shoe",
+    "saveFailed": "Failed to save shoe",
+    "deleteTitle": "Delete this shoe?",
+    "deleteDescription": "Runs logged with this pair stay in your diary, but they will no longer be linked to a shoe."
   },
   "fastingSettings": {
     "title": "Fasting Settings",
@@ -7822,5 +7824,54 @@
     "takeRest": "Take a rest day or an easy session.",
     "ready": "You are rested and ready.",
     "explain": "Adds up how long and how hard your workouts were. Usual is your 4-week average. Bars show the last 4 weeks; green is this week."
+  },
+  "allergens": {
+    "trace": "trace: {{name}}",
+    "warningTitle": "Contains an allergen you track",
+    "traceWarningTitle": "May contain an allergen you track",
+    "mayContainTraces": "May contain traces of: {{names}}"
+  },
+  "allergenSettings": {
+    "title": "Allergens",
+    "description": "Add the allergens you want to be warned about. When a food contains one of these, a warning badge appears on foods and diary entries.",
+    "common": "Common allergens",
+    "custom": "Custom allergen",
+    "customPlaceholder": "e.g., lupin, molluscs…",
+    "tracked": "Your tracked allergens",
+    "empty": "No allergens tracked yet. Add some above to get warnings on foods.",
+    "remove": "Remove {{name}}",
+    "alreadyAdded": "Already added",
+    "alreadyAddedDescription": "{{name}} is already in your list.",
+    "errors": {
+      "error": "Error",
+      "updateFailed": "Failed to update allergens."
+    },
+    "sync": {
+      "title": "Sync from OpenFoodFacts",
+      "description": "Fetch allergen data for your saved OpenFoodFacts foods. Only needs to be done once.",
+      "button": "Sync allergens",
+      "complete": "Allergen sync complete",
+      "upToDate": "All your OpenFoodFacts foods already have allergen data.",
+      "result": "Updated {{updated}} of {{total}} food(s).",
+      "failed": "Sync failed",
+      "failedDescription": "Could not sync allergens. Please try again."
+    },
+    "names": {
+      "gluten": "gluten",
+      "wheat": "wheat",
+      "milk": "milk",
+      "eggs": "eggs",
+      "peanuts": "peanuts",
+      "treeNuts": "tree nuts",
+      "soy": "soy",
+      "fish": "fish",
+      "shellfish": "shellfish",
+      "crustaceans": "crustaceans",
+      "sesame": "sesame",
+      "celery": "celery",
+      "mustard": "mustard",
+      "lupin": "lupin",
+      "sulphites": "sulphites"
+    }
   }
 }
