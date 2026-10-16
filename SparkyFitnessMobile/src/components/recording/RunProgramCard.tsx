@@ -71,6 +71,58 @@ export function programName(t: TFunction, id: string): string {
       return t('recordActivity.program.name.marathon', {
         defaultValue: 'Marathon',
       });
+    case 'walk10k':
+      return t('recordActivity.program.name.walk10k', {
+        defaultValue: 'Brisk walk 10K',
+      });
+    case 'returnToRunning':
+      return t('recordActivity.program.name.returnToRunning', {
+        defaultValue: 'Return to running',
+      });
+    case 'gentle5k':
+      return t('recordActivity.program.name.gentle5k', {
+        defaultValue: 'Gentle 5K',
+      });
+    case 'beginner10k':
+      return t('recordActivity.program.name.beginner10k', {
+        defaultValue: 'Beginner 10K',
+      });
+    case 'faster10k':
+      return t('recordActivity.program.name.faster10k', {
+        defaultValue: 'Faster 10K',
+      });
+    case 'tenKToHalf':
+      return t('recordActivity.program.name.tenKToHalf', {
+        defaultValue: '10K to half marathon',
+      });
+    case 'fasterHalf':
+      return t('recordActivity.program.name.fasterHalf', {
+        defaultValue: 'Faster half marathon',
+      });
+    case 'beginnerMarathon':
+      return t('recordActivity.program.name.beginnerMarathon', {
+        defaultValue: 'Beginner marathon',
+      });
+    case 'advancedMarathon':
+      return t('recordActivity.program.name.advancedMarathon', {
+        defaultValue: 'Advanced marathon',
+      });
+    case 'halfMarathon4':
+      return t('recordActivity.program.name.halfMarathon4', {
+        defaultValue: 'Half marathon (4 runs a week)',
+      });
+    case 'tenKToHalf4':
+      return t('recordActivity.program.name.tenKToHalf4', {
+        defaultValue: '10K to half marathon (4 runs a week)',
+      });
+    case 'fasterHalf4':
+      return t('recordActivity.program.name.fasterHalf4', {
+        defaultValue: 'Faster half marathon (4 runs a week)',
+      });
+    case 'beginnerMarathon4':
+      return t('recordActivity.program.name.beginnerMarathon4', {
+        defaultValue: 'Beginner marathon (4 runs a week)',
+      });
     default:
       return id;
   }
@@ -108,6 +160,68 @@ export function programDescription(t: TFunction, id: string): string {
       return t('recordActivity.program.marathonDescription', {
         defaultValue:
           'Marathon: sixteen weeks, four runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly.',
+      });
+    case 'walk10k':
+      return t('recordActivity.program.walk10kDescription', {
+        defaultValue:
+          'Brisk walk 10K: ten weeks, three walks a week, with no running. You build up to a 10K walk of about an hour and three quarters.',
+      });
+    case 'returnToRunning':
+      return t('recordActivity.program.returnToRunningDescription', {
+        defaultValue:
+          'Return to running: four weeks, three runs a week, for easing back in after a break. You build from one-minute runs to about 20 minutes of running. Leave a day or two between runs and keep the pace easy. If you are coming back from an injury, check with a physio or doctor first.',
+      });
+    case 'gentle5k':
+      return t('recordActivity.program.gentle5kDescription', {
+        defaultValue:
+          'Gentle 5K: twelve weeks, three runs a week. A slower start than Beginner 5K, with very short runs between long walks, building to 30 minutes of running.',
+      });
+    case 'beginner10k':
+      return t('recordActivity.program.beginner10kDescription', {
+        defaultValue:
+          'Beginner 10K: twelve weeks, three runs a week, starting from walking. You build up to running for an hour.',
+      });
+    case 'faster10k':
+      return t('recordActivity.program.faster10kDescription', {
+        defaultValue:
+          'Faster 10K: eight weeks of speed sessions, easy runs and tempo runs, for when you already run 10K.',
+      });
+    case 'tenKToHalf':
+      return t('recordActivity.program.tenKToHalfDescription', {
+        defaultValue:
+          '10K to half marathon: ten weeks, three runs a week, for when you can run 10K. Long runs build from 65 to 115 minutes.',
+      });
+    case 'fasterHalf':
+      return t('recordActivity.program.fasterHalfDescription', {
+        defaultValue:
+          'Faster half marathon: ten weeks of speed sessions, easy runs and long runs with tempo work, for when you have run a half marathon before.',
+      });
+    case 'beginnerMarathon':
+      return t('recordActivity.program.beginnerMarathonDescription', {
+        defaultValue:
+          'Beginner marathon: eighteen weeks, three runs a week, with long runs building to 2½ hours and a taper. For when you can run 10K.',
+      });
+    case 'advancedMarathon':
+      return t('recordActivity.program.advancedMarathonDescription', {
+        defaultValue:
+          'Advanced marathon: sixteen weeks, five runs a week, with speed or tempo work and long runs building to three hours. For experienced runners.',
+      });
+    case 'halfMarathon4':
+      return t('recordActivity.program.halfMarathon4Description', {
+        defaultValue: 'Half marathon: twelve weeks, four runs a week',
+      });
+    case 'tenKToHalf4':
+      return t('recordActivity.program.tenKToHalf4Description', {
+        defaultValue: '10K to half marathon: ten weeks, four runs a week',
+      });
+    case 'beginnerMarathon4':
+      return t('recordActivity.program.beginnerMarathon4Description', {
+        defaultValue: 'Beginner marathon: eighteen weeks, four runs a week',
+      });
+    case 'fasterHalf4':
+      return t('recordActivity.program.fasterHalf4Description', {
+        defaultValue:
+          'Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run with tempo work',
       });
     default:
       return id;

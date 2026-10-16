@@ -38,6 +38,71 @@ export function programStructure(t: TFunction, id: string): string {
         defaultValue:
           'Most weeks have two easy runs, a middle run and a long run. The long run builds from 70 minutes to 2¾ hours, every fourth week is lighter, and the last two weeks taper before race day.',
       });
+    case 'walk10k':
+      return t('runPrograms.guide.structure.walk10k', {
+        defaultValue:
+          'Each week has two walks of brisk stretches with short easy breaks and one long brisk walk. The long walk grows from 40 to 105 minutes, weeks 4 and 8 are lighter, and the last week ends with the 10K walk.',
+      });
+    case 'returnToRunning':
+      return t('runPrograms.guide.structure.returnToRunning', {
+        defaultValue:
+          'Weeks 1 to 3 alternate short runs with walks, from 1-minute runs to 5-minute runs. Week 4 has three run/walk sessions with runs of 6, 10 and 12 minutes, adding up to 18, 20 and 22 minutes of running.',
+      });
+    case 'gentle5k':
+      return t('runPrograms.guide.structure.gentle5k', {
+        defaultValue:
+          'Every week repeats one run/walk session three times. The runs grow from 30 seconds to 5 minutes by week 8, then to two 10-minute runs, a 15 and a 10-minute run, and finally continuous runs of 25 and 30 minutes.',
+      });
+    case 'beginner10k':
+      return t('runPrograms.guide.structure.beginner10k', {
+        defaultValue:
+          'Weeks 1 to 6 follow the beginner 5K build from short runs and walks to continuous running. Weeks 7 to 12 are three runs a week, with the long run growing from 30 to 60 minutes.',
+      });
+    case 'faster10k':
+      return t('runPrograms.guide.structure.faster10k', {
+        defaultValue:
+          'Each week has a speed session (fast and easy repeats), an easy run and a longer run. In weeks 5 to 7 the longer run is a tempo run of 20, 25 and then 30 minutes, and the last week eases off.',
+      });
+    case 'tenKToHalf':
+      return t('runPrograms.guide.structure.tenKToHalf', {
+        defaultValue:
+          'Each week has a short run, a middle run and a long run. The long run builds from 65 to 115 minutes, weeks 4 and 8 are lighter, and the last two weeks taper before race day.',
+      });
+    case 'fasterHalf':
+      return t('runPrograms.guide.structure.fasterHalf', {
+        defaultValue:
+          'Each week has a speed session, an easy run and a long run. The long run builds from 70 to 110 minutes, tempo runs of 25 and 30 minutes replace the speed session in weeks 6 and 8, and the last two weeks taper.',
+      });
+    case 'beginnerMarathon':
+      return t('runPrograms.guide.structure.beginnerMarathon', {
+        defaultValue:
+          'Each week has a short run, a middle run and a long run. The long run builds from 70 minutes to 2½ hours, every fourth week is lighter, and the last three weeks taper before race day.',
+      });
+    case 'advancedMarathon':
+      return t('runPrograms.guide.structure.advancedMarathon', {
+        defaultValue:
+          'Most weeks have two easy runs, a speed or tempo session, a middle run and a long run. The long run builds from 90 minutes to three hours, every fourth week is lighter, and the last two weeks taper before race day.',
+      });
+    case 'halfMarathon4':
+      return t('runPrograms.guide.structure.halfMarathon4', {
+        defaultValue:
+          'Each week has two easy runs, a middle run and a long run. The long run builds from 50 to 115 minutes',
+      });
+    case 'tenKToHalf4':
+      return t('runPrograms.guide.structure.tenKToHalf4', {
+        defaultValue:
+          'Each week has two short runs, a middle run and a long run. The long run builds from 65 to 115 minutes',
+      });
+    case 'fasterHalf4':
+      return t('runPrograms.guide.structure.fasterHalf4', {
+        defaultValue:
+          'Each week has a speed session, two easy runs and a long run. The long run builds from 70 to 110 minutes',
+      });
+    case 'beginnerMarathon4':
+      return t('runPrograms.guide.structure.beginnerMarathon4', {
+        defaultValue:
+          'Each week has two short runs, a middle run and a long run. The long run builds from 70 minutes to 2½ hours',
+      });
     default:
       return '';
   }

@@ -131,11 +131,22 @@ Training programs are optional and off by default. Open **Library → Training p
 | Program | For | Length |
 | --- | --- | --- |
 | **Walk for fitness** | Not running yet. Brisk walks alternating with easy ones, building to 30 minutes of brisk walking. Recorded as a walk. | 8 weeks, 3 walks a week |
+| **Brisk walk 10K** | You walk regularly and want a bigger goal. Brisk walks and a long walk building to about 1¾ hours (a 10K walk). Recorded as a walk. | 10 weeks, 3 walks a week |
+| **Return to running** | Coming back after a break. One-minute runs building to about 20 minutes of running. Leave a day or two between runs and keep the pace easy; if you are returning from an injury, check with a physio or doctor first. | 4 weeks, 3 runs a week |
+| **Gentle 5K** | Starting to run, slowly. Very short runs between long walks, building to 30 minutes of running. | 12 weeks, 3 runs a week |
 | **Beginner 5K** | Starting to run. Alternating running and walking, building to 30 minutes of running. | 9 weeks, 3 runs a week |
 | **5K to 10K** | You can run 30 minutes. Steady runs and a long run building to 65 minutes, with an easier week every fourth. | 8 weeks, 3 runs a week |
 | **Faster 5K** | You already run 5K. Interval sessions, easy runs and tempo runs. | 6 weeks, 3 runs a week |
-| **Half marathon** | You run 30 minutes comfortably. Long runs building to about 2 hours, with a taper. | 12 weeks, 3 runs a week |
+| **Beginner 10K** | Starting from walking. Run/walk building to continuous running, then runs of up to an hour. | 12 weeks, 3 runs a week |
+| **Faster 10K** | You already run 10K. Interval sessions, easy runs and tempo runs of up to 30 minutes. | 8 weeks, 3 runs a week |
+| **10K to half marathon** | You can run 10K. Long runs building from 65 to 115 minutes, with easier weeks and a taper. | 10 weeks, 3 or 4 runs a week (your choice) |
+| **Half marathon** | You run 30 minutes comfortably. Long runs building to about 2 hours, with a taper. | 12 weeks, 3 or 4 runs a week (your choice) |
+| **Faster half marathon** | You have run a half marathon. Interval sessions, tempo runs and long runs building to 110 minutes, with a taper. | 10 weeks, 3 or 4 runs a week (your choice) |
+| **Beginner marathon** | You can run 10K. Long runs building to 2½ hours, an easier week every fourth and a three-week taper. | 18 weeks, 3 or 4 runs a week (your choice) |
 | **Marathon** | You already run regularly. Long runs building to about 2¾ hours, an easier week every fourth and a taper. | 16 weeks, 3 to 4 runs a week |
+| **Advanced marathon** | You run five days a week. Speed or tempo work, middle runs and long runs building to 3 hours, with a taper. | 16 weeks, 3 to 5 runs a week |
+
+For the half marathon, 10K to half marathon, faster half marathon and beginner marathon programs you can choose **3 runs a week** or **4 runs a week** before you start. The four-run version adds a short easy run, so the long run is a smaller share of your week.
 
 Each workout is a timed plan (a warm-up, the run, a cool-down) that follows the same steps, cues and laps as an interval plan. Runs in the longer programs are timed by minutes, not distance, and the easy runs are meant to be at a pace you could chat at. **Change program** (on the Training programs screen) switches to another one and starts it at week 1.
 

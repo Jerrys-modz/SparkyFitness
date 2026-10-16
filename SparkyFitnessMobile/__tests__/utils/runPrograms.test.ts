@@ -2,8 +2,10 @@ import {
   advanceProgress,
   findProgram,
   planMinutes,
+  PICKER_PROGRAMS,
   programActivity,
   programStatus,
+  programVersions,
   RUN_PROGRAMS,
   isValidIntervalPlan,
 } from '@workspace/shared';
@@ -83,22 +85,48 @@ describe('every program', () => {
   test('is listed once, easiest first, and can be found by id', () => {
     expect(RUN_PROGRAMS.map((p) => p.id)).toEqual([
       'walkFit',
+      'walk10k',
+      'returnToRunning',
+      'gentle5k',
       'beginner5k',
       'fiveToTenK',
       'faster5k',
+      'beginner10k',
+      'faster10k',
+      'tenKToHalf',
+      'tenKToHalf4',
       'halfMarathon',
+      'halfMarathon4',
+      'fasterHalf',
+      'fasterHalf4',
+      'beginnerMarathon',
+      'beginnerMarathon4',
       'marathon',
+      'advancedMarathon',
     ]);
     for (const p of RUN_PROGRAMS) expect(findProgram(p.id)).toBe(p);
   });
 
   test.each([
     ['walkFit', 8, 24],
+    ['walk10k', 10, 30],
+    ['returnToRunning', 4, 12],
+    ['gentle5k', 12, 36],
     ['beginner5k', 9, 27],
     ['fiveToTenK', 8, 24],
     ['faster5k', 6, 18],
+    ['beginner10k', 12, 36],
+    ['faster10k', 8, 24],
+    ['tenKToHalf', 10, 30],
+    ['tenKToHalf4', 10, 39],
     ['halfMarathon', 12, 36],
+    ['halfMarathon4', 12, 47],
+    ['fasterHalf', 10, 30],
+    ['fasterHalf4', 10, 39],
+    ['beginnerMarathon', 18, 54],
+    ['beginnerMarathon4', 18, 71],
     ['marathon', 16, 63],
+    ['advancedMarathon', 16, 78],
   ])('%s has %i weeks and %i workouts', (id, weeks, total) => {
     const p = findProgram(id)!;
     expect(p.weeks).toBe(weeks);
@@ -129,14 +157,47 @@ describe('every program', () => {
     expect(longest('fiveToTenK')).toBe(65 * 60);
     expect(longest('halfMarathon')).toBe(115 * 60);
     expect(longest('marathon')).toBe(165 * 60);
+    expect(longest('walk10k')).toBe(105 * 60);
+    expect(longest('beginner10k')).toBe(60 * 60);
+    expect(longest('tenKToHalf')).toBe(115 * 60);
+    expect(longest('fasterHalf')).toBe(110 * 60);
+    expect(longest('beginnerMarathon')).toBe(150 * 60);
+    expect(longest('advancedMarathon')).toBe(180 * 60);
     for (const p of RUN_PROGRAMS) {
       expect(longest(p.id)).toBeLessThanOrEqual(4 * 3600);
+    }
+  });
+
+  test('the four-run and longer plans keep the long run under half the week', () => {
+    for (const id of [
+      'tenKToHalf4',
+      'halfMarathon4',
+      'fasterHalf4',
+      'beginnerMarathon4',
+      'marathon',
+      'advancedMarathon',
+    ]) {
+      const p = findProgram(id)!;
+      // The last week is race week, with a shorter schedule.
+      for (let week = 0; week < p.weeks - 1; week++) {
+        const minutes = p.workouts
+          .filter((w) => w.week === week)
+          .map((w) => w.plan.steps.reduce((sum, s) => sum + s.seconds, 0));
+        const total = minutes.reduce((sum, m) => sum + m, 0);
+        expect(Math.max(...minutes) / total).toBeLessThan(0.5);
+      }
     }
   });
 
   test('the speed plan is called fast and easy, the others run and walk', () => {
     expect(findProgram('faster5k')!.workouts[0].plan.style).toBe('fastEasy');
     expect(findProgram('marathon')!.workouts[0].plan.style).toBe('runWalk');
+    expect(findProgram('faster10k')!.workouts[0].plan.style).toBe('fastEasy');
+  });
+
+  test('the new walking program is recorded as a walk', () => {
+    expect(programActivity('walk10k')).toBe('walk');
+    expect(programActivity('returnToRunning')).toBe('run');
   });
 
   test('an easy run in the speed plan is an easy step, not a run', () => {
@@ -145,6 +206,30 @@ describe('every program', () => {
       'warmup',
       'recovery',
       'cooldown',
+    ]);
+  });
+});
+
+describe('program versions', () => {
+  test('a four-run version names the three-run program it belongs to', () => {
+    for (const id of [
+      'tenKToHalf',
+      'halfMarathon',
+      'fasterHalf',
+      'beginnerMarathon',
+    ]) {
+      const versions = programVersions(id);
+      expect(versions.map((p) => p.id)).toEqual([id, `${id}4`]);
+      expect(versions.map((p) => p.workoutsPerWeek)).toEqual([3, 4]);
+      expect(findProgram(`${id}4`)!.variantOf).toBe(id);
+      expect(PICKER_PROGRAMS.map((p) => p.id)).not.toContain(`${id}4`);
+      expect(PICKER_PROGRAMS.map((p) => p.id)).toContain(id);
+    }
+  });
+
+  test('a program with no other version is its own only version', () => {
+    expect(programVersions('beginner5k').map((p) => p.id)).toEqual([
+      'beginner5k',
     ]);
   });
 });
