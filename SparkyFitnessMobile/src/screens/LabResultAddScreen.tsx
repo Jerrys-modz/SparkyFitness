@@ -396,7 +396,7 @@ const LabResultAddScreen: React.FC<Props> = ({ navigation, route }) => {
                   </Text>
                 )}
                 {!rangeValid && (
-                  <Text className="text-xs text-danger">
+                  <Text className="text-xs text-text-danger-subtle">
                     {t('labs.rangeInvalid', {
                       defaultValue:
                         'Enter numbers, with the low value not above the high value.',
@@ -423,7 +423,7 @@ const LabResultAddScreen: React.FC<Props> = ({ navigation, route }) => {
                 </Text>
               </TouchableOpacity>
               {!dateValid && (
-                <Text className="text-xs text-danger">
+                <Text className="text-xs text-text-danger-subtle">
                   {t('labs.dateFuture', {
                     defaultValue: 'The test date cannot be in the future.',
                   })}

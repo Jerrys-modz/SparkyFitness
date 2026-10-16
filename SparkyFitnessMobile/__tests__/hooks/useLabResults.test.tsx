@@ -55,7 +55,7 @@ describe('useSaveLabResult', () => {
       name: 'hba1c',
       display_name: 'HbA1c',
       measurement_type: '%',
-      frequency: 'All',
+      frequency: 'Daily',
       data_type: 'numeric',
       is_lab: true,
       ref_range_low: 4,

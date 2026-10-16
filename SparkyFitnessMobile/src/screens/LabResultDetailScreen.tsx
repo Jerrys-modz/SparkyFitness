@@ -192,7 +192,7 @@ const LabResultDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                           defaultValue: 'Delete',
                         })}
                       >
-                        <Text className="text-sm font-semibold text-danger">
+                        <Text className="text-sm font-semibold text-text-danger-subtle">
                           {t('common.delete', { defaultValue: 'Delete' })}
                         </Text>
                       </TouchableOpacity>

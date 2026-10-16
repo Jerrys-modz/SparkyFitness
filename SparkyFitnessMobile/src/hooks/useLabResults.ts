@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createCustomCategory,
   deleteCustomMeasurement,
-  fetchCustomMeasurementsRange,
+  fetchCustomEntriesForCategory,
   saveCustomMeasurement,
 } from '../services/api/measurementsApi';
 import {
@@ -24,9 +24,6 @@ import {
   type LabCategory,
   type NewLabMarker,
 } from '../utils/labResults';
-
-// A lab history spans years, so ask for every day rather than a trend window.
-const HISTORY_START = '1900-01-01';
 
 /** The user's lab markers, as flagged custom categories. */
 export function useLabMarkers() {
@@ -52,8 +49,7 @@ export function useLatestLabValues() {
 export function useLabHistory(categoryId: string) {
   return useQuery({
     queryKey: labHistoryQueryKey(categoryId),
-    queryFn: () =>
-      fetchCustomMeasurementsRange(categoryId, HISTORY_START, getTodayDate()),
+    queryFn: () => fetchCustomEntriesForCategory(categoryId),
     enabled: !!categoryId,
   });
 }

@@ -1,5 +1,6 @@
 import {
   fetchMeasurements,
+  fetchCustomEntriesForCategory,
   fetchWaterContainers,
   changeWaterIntake,
   upsertCheckIn,
@@ -35,6 +36,37 @@ describe('measurementsApi', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  describe('fetchCustomEntriesForCategory', () => {
+    test('reads one category from the entries endpoint, which includes row ids', async () => {
+      mockGetActiveServerConfig.mockResolvedValue({
+        id: 'test-id',
+        url: 'https://example.com',
+        apiKey: 'test-api-key-12345',
+      });
+      const rows = [
+        {
+          id: 'e1',
+          category_id: 'cat-1',
+          value: '5.4',
+          entry_date: '2026-09-12',
+          notes: null,
+        },
+      ];
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(rows),
+      });
+
+      const result = await fetchCustomEntriesForCategory('cat-1');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://example.com/api/measurements/custom-entries?category_id=cat-1&limit=1000&orderBy=entry_timestamp.desc',
+        expect.objectContaining({ method: 'GET' })
+      );
+      expect(result).toEqual(rows);
+    });
   });
 
   describe('fetchMeasurements', () => {
