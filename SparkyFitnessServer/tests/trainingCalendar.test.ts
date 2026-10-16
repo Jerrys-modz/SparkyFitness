@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   matchPlan,
+  groupPresetEntries,
   programSlots,
   sportLoadOf,
   weeklyPlanSlots,
@@ -462,5 +463,49 @@ describe('programSlots', () => {
       '2026-10-09',
       '2026-10-12',
     ]);
+  });
+});
+
+describe('run done inside another plan item', () => {
+  it('still counts for the run slot of its own day', () => {
+    const runSlot = slot('r', 0);
+    const plan = slot('p', 0, {
+      source: 'workoutPlan',
+      sport: 'strength',
+      linkKeys: ['plan:7'],
+    });
+    const run = entry('run', 0, { linkKey: 'plan:7' });
+    expect(statusOf([runSlot, plan], [run], 'r')).toBe('done');
+    expect(statusOf([runSlot, plan], [run], 'p')).toBe('done');
+    const { completed } = matchPlan([runSlot, plan], [run], TODAY);
+    expect(completed).toHaveLength(1);
+    expect(completed[0]!.plannedItemId).toBe('p');
+  });
+});
+
+describe('groupPresetEntries', () => {
+  const part = (
+    id: string,
+    minutes: number,
+    sport: CalendarEntry['sport']
+  ) => ({
+    ...entry(id, 0, { sport, durationMinutes: minutes, distanceKm: null }),
+    presetEntryId: 'preset-1',
+    presetName: 'Day 2 Upper',
+  });
+  it('merges a preset into one strength session', () => {
+    const merged = groupPresetEntries([
+      part('a', 4, 'other'),
+      part('b', 3, 'strength'),
+      { ...entry('c', 0), presetEntryId: null, presetName: null },
+    ]);
+    expect(merged).toHaveLength(2);
+    expect(merged[0]).toMatchObject({
+      id: 'a',
+      name: 'Day 2 Upper',
+      sport: 'strength',
+      durationMinutes: 7,
+    });
+    expect(merged[1]!.id).toBe('c');
   });
 });

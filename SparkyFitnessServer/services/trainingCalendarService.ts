@@ -13,6 +13,7 @@ import {
   compareDays,
   computeFitnessFatigue,
   CURVE_DAYS,
+  groupPresetEntries,
   loadSportGroup,
   matchPlan,
   planMinutes,
@@ -24,6 +25,7 @@ import {
   weeklyPlanSlots,
   weeklyTotals,
   type CalendarEntry,
+  type GroupableEntry,
   type LoadSportGroup,
   type PlanAssignmentInput,
   type PlanSlot,
@@ -48,7 +50,7 @@ function assignmentSport(
 function toEntry(
   row: CalendarEntryRow,
   programIndexByEntry: Map<string, number>
-): CalendarEntry {
+): GroupableEntry {
   const programIndex = programIndexByEntry.get(row.id);
   return {
     id: row.id,
@@ -67,6 +69,8 @@ function toEntry(
     durationMinutes: row.durationMinutes,
     distanceKm: row.distanceKm,
     avgHeartRate: row.avgHeartRate,
+    presetEntryId: row.presetEntryId,
+    presetName: row.presetName,
     linkKey:
       programIndex !== undefined
         ? `runProgram:${programIndex}`
@@ -134,7 +138,9 @@ async function getTrainingCalendar(
       return day ? [{ index: c.index, entryId: c.entry_id, day }] : [];
     });
 
-    const entries = rows.map((row) => toEntry(row, programIndexByEntry));
+    const entries = groupPresetEntries(
+      rows.map((row) => toEntry(row, programIndexByEntry))
+    );
 
     const slots: PlanSlot[] = [];
     if (program) {

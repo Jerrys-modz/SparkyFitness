@@ -52,6 +52,8 @@ const row = (overrides: Record<string, unknown>) => ({
   distanceKm: 5,
   avgHeartRate: null,
   workoutPlanAssignmentId: null,
+  presetEntryId: null,
+  presetName: null,
   ...overrides,
 });
 
