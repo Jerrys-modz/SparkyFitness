@@ -276,13 +276,16 @@ const Reports = () => {
                 customMeasurementsData={customMeasurementsData}
               />
             </ChartErrorBoundary>
-            <ChartErrorBoundary>
-              <LabResultsReport
-                customCategories={customCategories}
-                customMeasurementsData={customMeasurementsData}
-              />
-            </ChartErrorBoundary>
           </div>
+        );
+      case 'lab-results':
+        return (
+          <ChartErrorBoundary>
+            <LabResultsReport
+              customCategories={customCategories}
+              customMeasurementsData={customMeasurementsData}
+            />
+          </ChartErrorBoundary>
         );
       case 'fasting':
         return (
