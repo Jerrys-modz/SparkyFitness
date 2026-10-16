@@ -415,5 +415,11 @@ export const customRunProgramsQueryKey = ['customRunPrograms'] as const;
 /** The person's saved routes (summaries). */
 export const routesQueryKey = ['routes'] as const;
 
+/** Whether the server can generate routes (a routing engine is configured). */
+export const routeGenerationCapabilitiesQueryKey = [
+  'routeGeneration',
+  'capabilities',
+] as const;
+
 /** One saved route with its points and cues. */
 export const routeQueryKey = (id: string) => ['routes', id] as const;
