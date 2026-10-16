@@ -7096,6 +7096,13 @@
     "currentPace": "Pace",
     "elevationGain": "Elevation gain",
     "splits": "Splits",
+    "splitsTable": {
+      "km": "Km",
+      "mi": "Mi",
+      "pace": "Pace",
+      "elev": "Elev",
+      "hr": "HR"
+    },
     "laps": "Laps",
     "lap": "Lap",
     "lapLabel": "Lap {{number}}",
