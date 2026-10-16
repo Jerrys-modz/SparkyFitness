@@ -12,10 +12,11 @@ import type {
 } from '../types/customMeasurements';
 
 /**
- * Lab markers use frequency `All` so the Daily editor, which only lists
- * `Daily` categories, never shows them.
+ * Lab markers use frequency `Daily`, which the server upserts per (marker, day,
+ * source), so a repeated save replaces the day's result instead of adding a
+ * duplicate. The Daily editor filters lab markers out by `is_lab`.
  */
-export const LAB_CATEGORY_FREQUENCY = 'All';
+export const LAB_CATEGORY_FREQUENCY = 'Daily';
 
 export type LabCategory = CustomCategory & { is_lab: true };
 
@@ -80,10 +81,13 @@ export const labHistoryPoints = (
 ): LabHistoryPoint[] =>
   entries
     .map((entry) => ({
-      day: entry.entry_date.slice(0, 10),
+      day: entry.entry_date?.slice(0, 10) ?? '',
       value: parseLabValue(entry.value),
     }))
-    .filter((point): point is LabHistoryPoint => point.value !== null)
+    .filter(
+      (point): point is LabHistoryPoint =>
+        point.value !== null && point.day !== ''
+    )
     .sort((a, b) => a.day.localeCompare(b.day));
 
 /** One row of the marker picker: a marker the user has, or a preset to create. */
