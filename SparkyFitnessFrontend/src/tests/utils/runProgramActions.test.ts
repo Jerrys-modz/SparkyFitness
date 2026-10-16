@@ -16,6 +16,7 @@ describe('request bodies', () => {
     expect(startProgramBody('faster5k')).toEqual({
       program_id: 'faster5k',
       enabled: true,
+      next_index: 0,
       start_date: undefined,
     });
     expect(startProgramBody('faster5k', '2026-11-02').start_date).toBe(
