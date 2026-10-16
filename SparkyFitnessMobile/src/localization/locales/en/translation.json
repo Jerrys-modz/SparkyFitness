@@ -644,7 +644,8 @@
     "allergenSettings": "Allergens",
     "addMenuSettings": "Add menu",
     "profile": "Profile",
-    "symptomEpisodeDetail": "Episode Details"
+    "symptomEpisodeDetail": "Episode Details",
+    "activityShare": "Share Activity"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -6519,7 +6520,8 @@
         "fromBest": "from your {{distance}}",
         "raceTimesHint": "Estimates scale your best efforts to each distance. They run optimistic for distances you have not trained for.",
         "efficiencyHint": "Efficiency is distance per heartbeat on runs of 20 minutes or more, earlier weeks against recent ones. Higher means fitter at the same effort."
-      }
+      },
+      "shareImage": "Share as image"
     },
     "load": {
       "title": "Training Load",
@@ -8268,5 +8270,22 @@
     "birthDateUnset": "Not set",
     "timezone": "Timezone",
     "resetPasswordSubtitle": "Email me a link to choose a new password"
+  },
+  "activityShare": {
+    "title": "Share Activity",
+    "choosePhoto": "Choose photo",
+    "takePhoto": "Take photo",
+    "removePhoto": "Remove",
+    "transparentHint": "With no photo the image is a transparent PNG you can lay over a photo or video in another app.",
+    "cameraDenied": "Allow camera access in Settings to take a photo",
+    "layout": "Layout",
+    "layoutClassic": "Classic",
+    "layoutRoute": "Route",
+    "layoutMinimal": "Minimal",
+    "textColor": "Text color",
+    "toneLight": "White",
+    "toneDark": "Black",
+    "share": "Share image",
+    "shareFailed": "Could not create the image"
   }
 }

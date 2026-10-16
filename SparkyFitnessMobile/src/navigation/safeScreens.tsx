@@ -115,6 +115,7 @@ import SubstancesReportScreen from '../screens/SubstancesReportScreen';
 import MeasurementsReportScreen from '../screens/MeasurementsReportScreen';
 import ReportsSettingsScreen from '../screens/ReportsSettingsScreen';
 import CardioSessionScreen from '../screens/CardioSessionScreen';
+import ActivityShareScreen from '../screens/ActivityShareScreen';
 import RecordActivityScreen from '../screens/RecordActivityScreen';
 import RunSummaryScreen from '../screens/RunSummaryScreen';
 import FamilyMembersScreen from '../screens/FamilyMembersScreen';
@@ -234,6 +235,7 @@ export const SafeMeasurementsReport = withErrorBoundary(MeasurementsReportScreen
 export const SafeMoodReport = withErrorBoundary(MoodReportScreen, 'MoodReport', { canGoBack: true });
 export const SafeRunSummary = withErrorBoundary(RunSummaryScreen, 'RunSummary', { canGoBack: true });
 export const SafeCardioSession = withErrorBoundary(CardioSessionScreen, 'CardioSession', { canGoBack: true });
+export const SafeActivityShare = withErrorBoundary(ActivityShareScreen, 'ActivityShare', { canGoBack: true });
 export const SafeFamilyMembers = withErrorBoundary(FamilyMembersScreen, 'FamilyMembers', { canGoBack: true });
 export const SafeFamilyDiary = withErrorBoundary(FamilyDiaryScreen, 'FamilyDiary', { canGoBack: true });
 export const SafeFamilyMealDetail = withErrorBoundary(FamilyMealDetailScreen, 'FamilyMealDetail', { canGoBack: true });

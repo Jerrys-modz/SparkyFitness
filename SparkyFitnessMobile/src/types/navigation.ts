@@ -211,6 +211,10 @@ export type RootStackParamList = {
     /** The diary entry this was opened from, when it can be edited in the app. */
     diaryEntry?: IndividualSessionResponse;
   };
+  ActivityShare: {
+    session: ExerciseActivityQueryItem;
+    distanceUnit: 'km' | 'miles';
+  };
   FoodForm:
     | {
         mode: 'create-food';
