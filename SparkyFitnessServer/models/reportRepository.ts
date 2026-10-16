@@ -834,6 +834,9 @@ interface CalendarEntryRow {
   distanceKm: number | null;
   avgHeartRate: number | null;
   workoutPlanAssignmentId: number | null;
+  /** The logged workout preset the exercise belongs to, when it does. */
+  presetEntryId: string | null;
+  presetName: string | null;
 }
 
 /**
@@ -855,10 +858,14 @@ async function getCalendarEntries(
                 ee.exercise_name, ee.category, ee.notes,
                 ${ENTRY_DURATION_SQL} AS duration_minutes,
                 ee.distance, ee.avg_heart_rate, ee.workout_plan_assignment_id,
+                ee.exercise_preset_entry_id AS preset_entry_id,
+                epe.name AS preset_name,
                 d.provider_name, d.detail_data,
                 x.source_id AS exercise_source_id
          FROM exercise_entries ee
          LEFT JOIN exercises x ON x.id = ee.exercise_id
+         LEFT JOIN exercise_preset_entries epe
+           ON epe.id = ee.exercise_preset_entry_id
          LEFT JOIN LATERAL (
            SELECT provider_name, detail_data
            FROM exercise_entry_activity_details
@@ -888,6 +895,8 @@ async function getCalendarEntries(
         distance: string | number | null;
         avg_heart_rate: string | number | null;
         workout_plan_assignment_id: number | null;
+        preset_entry_id: string | null;
+        preset_name: string | null;
       }) => ({
         id: row.id,
         day: row.day,
@@ -901,6 +910,8 @@ async function getCalendarEntries(
         distanceKm: toNumberOrNull(row.distance),
         avgHeartRate: toNumberOrNull(row.avg_heart_rate),
         workoutPlanAssignmentId: row.workout_plan_assignment_id,
+        presetEntryId: row.preset_entry_id,
+        presetName: row.preset_name,
       })
     );
   } finally {
