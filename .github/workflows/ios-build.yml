@@ -201,6 +201,11 @@ jobs:
             shoot route-live none workout routelive
             shoot route-map none workout routemap
             shoot route-off none workout routeoff
+            # The followed map (heading up, close in), just short of a turn,
+            # off the route, and the whole-route overview page.
+            shoot route-turn none workout routeturn
+            shoot route-off-map none workout routeoffmap
+            shoot route-overview none workout routeoverview
           done <<< "$DEVICES"
 
           ls -la screenshots

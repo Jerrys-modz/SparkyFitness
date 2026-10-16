@@ -65,15 +65,24 @@ enum ScreenshotSeed {
 
     /// Which followed-run scene to render, set through the same
     /// `SPARKY_SCREENSHOT_SHEET` variable: `routelive` (the run page with the
-    /// next turn), `routemap` (the route page) or `routeoff` (the off-route
-    /// warning). Nil leaves the workout seed alone.
+    /// next turn), `routemap` (the followed map, mid-loop), `routeturn` (the
+    /// followed map just short of a turn), `routeoffmap` (the followed map
+    /// while off the route), `routeoverview` (the whole route) or `routeoff`
+    /// (the main page's off-route warning). Nil leaves the workout seed alone.
     private static var routeScenario: String? {
         let v = ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_SHEET"]
-        return ["routelive", "routemap", "routeoff"].contains(v) ? v : nil
+        return ["routelive", "routemap", "routeturn", "routeoffmap", "routeoverview", "routeoff"].contains(v) ? v : nil
     }
 
-    /// Lands the followed run on its route page instead of the main page.
-    static var opensRouteMap: Bool { routeScenario == "routemap" }
+    /// The page of the followed run to land on: 0 the main page, 1 the
+    /// followed map, 2 the whole route.
+    static var routeTab: Int {
+        switch routeScenario {
+        case "routemap", "routeturn", "routeoffmap": return 1
+        case "routeoverview": return 2
+        default: return 0
+        }
+    }
 
     private static var workoutState: WorkoutState {
         WorkoutState(
@@ -175,11 +184,11 @@ enum ScreenshotSeed {
         // Roughly how far along the loop each scene is, so the tiles agree with the map.
         let metres: Double
         switch scenario {
-        case "routemap":
+        case "routemap", "routeoverview":
             // Well round the loop, so the covered part is greyed out.
             walked = fixes(through: [p[0], p[1], p[2], p[3], p[4], WatchRoutePoint(lat: 40.7760, lon: -73.9740)])
             metres = 1500
-        case "routeoff":
+        case "routeoff", "routeoffmap":
             // A few seconds of fixes ~70 m off the line.
             walked = fixes(through: [p[0], WatchRoutePoint(lat: 40.7700, lon: -73.9775)])
             let off = WatchRoutePoint(lat: 40.7710, lon: -73.9768)
