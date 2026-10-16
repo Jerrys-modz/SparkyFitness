@@ -418,8 +418,8 @@ const ActivityReportVisualizer = ({
     }
   };
 
-  const getXAxisLabel = () => {
-    switch (effectiveXAxisMode) {
+  const getXAxisLabel = (mode: XAxisMode = effectiveXAxisMode) => {
+    switch (mode) {
       case 'activityDuration':
         return t('reports.activityReport.activityDurationMin');
       case 'distance':
@@ -487,7 +487,9 @@ const ActivityReportVisualizer = ({
             getXAxisDataKey={() =>
               hasDistanceData ? 'distance' : getXAxisDataKey()
             }
-            getXAxisLabel={getXAxisLabel}
+            getXAxisLabel={() =>
+              getXAxisLabel(hasDistanceData ? 'distance' : effectiveXAxisMode)
+            }
             distanceUnit={distanceUnit}
           />
         ) : null}
