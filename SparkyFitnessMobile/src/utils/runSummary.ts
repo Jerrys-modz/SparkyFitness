@@ -2,6 +2,7 @@ import type { GpsTrackPoint } from '@workspace/shared';
 import {
   computeLaps,
   computeSplits,
+  withSplitHeartRate,
   METERS_PER_KM,
   METERS_PER_MILE,
   summarizeRecording,
@@ -64,6 +65,7 @@ export function buildRunSummary({
   points,
   lapMarks,
   avgHeartRate,
+  heartRateSamples,
   program,
   entryId,
 }: {
@@ -73,6 +75,8 @@ export function buildRunSummary({
   points: readonly RecordedPoint[];
   lapMarks: readonly number[] | undefined;
   avgHeartRate: number | null;
+  /** Readings (epoch ms) that give each split its own average, when held. */
+  heartRateSamples?: readonly { t: number; bpm: number }[];
   program: RunSummaryParams['program'];
   entryId?: string | null;
 }): RunSummaryParams {
@@ -92,7 +96,10 @@ export function buildRunSummary({
             ({ t, lat, lon }) => ({ t, lat, lon })
           )
         : [],
-    splits: computeSplits(points, unitMeters),
+    splits: withSplitHeartRate(
+      computeSplits(points, unitMeters),
+      heartRateSamples ?? []
+    ),
     laps: lapMarks && lapMarks.length > 0 ? computeLaps(points, lapMarks) : [],
     program,
     entryId: entryId ?? null,
