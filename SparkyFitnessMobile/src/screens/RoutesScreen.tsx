@@ -15,6 +15,7 @@ import Icon from '../components/Icon';
 import { useRefetchOnFocus } from '../hooks/useRefetchOnFocus';
 import { usePreferences } from '../hooks/usePreferences';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { useWatchRouteStatuses } from '../hooks/useWatchRouteStatus';
 import { addLog } from '../services/LogService';
 import {
   pickAndImportGpx,
@@ -34,6 +35,7 @@ const RoutesScreen: React.FC<Props> = ({ navigation }) => {
   const { preferences } = usePreferences();
   const unit = preferences?.default_distance_unit ?? 'km';
   const { available: canGenerate } = useRouteGenerationAvailable();
+  const watchStatusOf = useWatchRouteStatuses();
   const [importing, setImporting] = useState(false);
   useRefetchOnFocus(refetch, true);
 
@@ -56,6 +58,20 @@ const RoutesScreen: React.FC<Props> = ({ navigation }) => {
         });
       })
       .finally(() => setImporting(false));
+  };
+
+  // "On your watch" / "Out of date on watch", shown after the distance.
+  const watchBadge = (route: { id: string; updatedAt: string }): string => {
+    const status = watchStatusOf(route);
+    if (status === 'onWatch') {
+      return ` · ${t('routes.watch.badgeOn', { defaultValue: 'On watch' })}`;
+    }
+    if (status === 'outdated') {
+      return ` · ${t('routes.watch.badgeOutdated', {
+        defaultValue: 'Out of date on watch',
+      })}`;
+    }
+    return '';
   };
 
   const add = () =>
@@ -145,6 +161,7 @@ const RoutesScreen: React.FC<Props> = ({ navigation }) => {
                   </Text>
                   <Text className="text-sm text-text-secondary mt-0.5">
                     {formatRouteDistance(route.distanceM, unit)}
+                    {watchBadge(route)}
                   </Text>
                 </View>
                 <Icon name="chevron-forward" size={20} color="#999" />

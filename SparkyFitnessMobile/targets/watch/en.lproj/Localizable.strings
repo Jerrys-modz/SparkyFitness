@@ -94,6 +94,7 @@
 "watch.run.titleWithStatus" = "%@, %@";
 "watch.cardio.title" = "Cardio";
 "watch.cardio.followPlan" = "Follow a plan";
+"watch.cardio.routes" = "Routes";
 "watch.cardio.alerts" = "Alerts";
 "watch.cardio.summary.pace" = "Pace %@";
 "watch.cardio.summary.heartRate" = "Heart rate %lld–%lld";

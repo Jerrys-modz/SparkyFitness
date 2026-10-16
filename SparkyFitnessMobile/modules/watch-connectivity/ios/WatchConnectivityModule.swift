@@ -51,6 +51,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onRunCue: (([String: Any]) -> Void)?
     /// A walk or run recorded on the watch alone, sent when it finished.
     var onRunFinished: (([String: Any]) -> Void)?
+    /// Which routes the watch holds, and which it turned away.
+    var onRouteLibrary: (([String: Any]) -> Void)?
 
     /// The newest `setTargets` update sent before the session finished
     /// activating. Apple only queues `transferUserInfo` on an activated
@@ -149,6 +151,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onRunCue?(payload)
         case "runFinished":
             onRunFinished?(payload)
+        case "routeLibrary":
+            onRouteLibrary?(payload)
         default:
             break
         }
@@ -313,7 +317,8 @@ public class WatchConnectivityModule: Module {
             "onFastEndRequested",
             "onRunLive",
             "onRunCue",
-            "onRunFinished"
+            "onRunFinished",
+            "onRouteLibrary"
         )
 
         OnCreate {
@@ -549,6 +554,22 @@ public class WatchConnectivityModule: Module {
                 self.rememberFinishedRun(event)
                 self.sendEvent("onRunFinished", event)
             }
+            self.delegateHandler.onRouteLibrary = { [weak self] payload in
+                let routes: [[String: Any]] = dictionaryArray(payload["routes"]).compactMap { row in
+                    guard let id = row["id"] as? String, !id.isEmpty else { return nil }
+                    return ["id": id, "updatedAt": (row["updatedAt"] as? NSNumber)?.doubleValue ?? 0]
+                }
+                let rejected: [[String: Any]] = dictionaryArray(payload["rejected"]).compactMap { row in
+                    guard let id = row["id"] as? String, !id.isEmpty else { return nil }
+                    return ["id": id, "reason": row["reason"] as? String ?? ""]
+                }
+                self?.sendEvent("onRouteLibrary", [
+                    "routes": routes,
+                    "rejected": rejected,
+                    "capacity": (payload["capacity"] as? NSNumber)?.intValue ?? 0,
+                    "sentAt": (payload["sentAt"] as? NSNumber)?.doubleValue ?? 0,
+                ])
+            }
             self.delegateHandler.activate()
         }
 
@@ -660,6 +681,23 @@ public class WatchConnectivityModule: Module {
                 activity: payload["kind"] as? String,
                 indoor: payload["place"] as? String == "indoor"
             )
+        }
+
+        /// Puts a saved route in the watch's library, for runs without the
+        /// phone. Queued only, never also sent live: a live copy that lands
+        /// after a later `routeRemove` would bring the route back. The watch
+        /// keeps the newest `updatedAt` and answers with `routeLibrary`.
+        AsyncFunction("sendRoute") { (sync: [String: Any]) -> Void in
+            guard WCSession.isSupported() else { return }
+            var payload = sync.compactMapValues(withoutNulls)
+            payload["type"] = "routeSync"
+            WCSession.default.transferUserInfo(payload)
+        }
+
+        /// Takes a route out of the watch's library. Queued, like `sendRoute`.
+        AsyncFunction("removeRoute") { (routeId: String) -> Void in
+            guard WCSession.isSupported() else { return }
+            WCSession.default.transferUserInfo(["type": "routeRemove", "routeId": routeId])
         }
 
         /// Pause, resume, lap, finish or discard for the run going on the
