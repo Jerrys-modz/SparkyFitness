@@ -19,12 +19,14 @@ import {
 import {
   paceSeriesFromDistance,
   paceSeriesFromTrack,
+  splitsFromTrack,
 } from '../utils/cardioSession';
 import Button from '../components/ui/Button';
 import { shareRouteAsGpx } from '../services/gpxExport';
 import RouteMap from '../components/exerciseStats/RouteMap';
 import HeartRateChart from '../components/exerciseStats/HeartRateChart';
 import PaceChart from '../components/exerciseStats/PaceChart';
+import SplitsTable from '../components/recording/SplitsTable';
 import HeartRateZones from '../components/exerciseStats/HeartRateZones';
 import ProgramWorkoutBadge from '../components/recording/ProgramWorkoutBadge';
 import ShoePickerCard from '../components/ShoePickerCard';
@@ -239,6 +241,13 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
         : paceSeriesFromDistance(detail.distanceSeries ?? [], unitMeters),
     [detail.route, detail.distanceSeries, unitMeters]
   );
+  const splits = React.useMemo(
+    () =>
+      detail.route.length > 1
+        ? splitsFromTrack(detail.route, unitMeters, detail.heartRate)
+        : [],
+    [detail.route, detail.heartRate, unitMeters]
+  );
   const paceUnitLabel =
     distanceUnit === 'miles'
       ? t('exerciseStatistics.cardio.perMile', { defaultValue: '/mi' })
@@ -349,6 +358,20 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
                       defaultValue: 'Kilometers from start',
                     })
               }
+            />
+          </Card>
+        ) : null}
+
+        {splits.length > 0 ? (
+          <Card
+            title={t('exerciseStatistics.cardio.splits', {
+              defaultValue: 'Splits',
+            })}
+          >
+            <SplitsTable
+              splits={splits}
+              unitMeters={unitMeters}
+              unit={distanceUnit}
             />
           </Card>
         ) : null}
