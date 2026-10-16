@@ -26,6 +26,11 @@ jest.mock('@/contexts/PreferencesContext', () => ({
 }));
 
 const mockUpdate = jest.fn();
+let mockCanWrite = true;
+
+jest.mock('@/contexts/ActiveUserContext', () => ({
+  useActiveUser: () => ({ hasWritePermission: () => mockCanWrite }),
+}));
 
 const shoe = (overrides: Partial<ShoeResponse>): ShoeResponse => ({
   id: 'shoe-1',
@@ -54,6 +59,7 @@ const shoe = (overrides: Partial<ShoeResponse>): ShoeResponse => ({
 describe('Shoes page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCanWrite = true;
   });
 
   it('shows the empty state when there are no shoes', () => {
@@ -100,5 +106,20 @@ describe('Shoes page', () => {
     renderWithClient(<EquipmentManager />);
 
     expect(screen.getAllByText(/has reached its limit/i)).toHaveLength(1);
+  });
+
+  it('shows a read-only delegate the mileage but no write controls', () => {
+    mockCanWrite = false;
+    (useShoes as jest.Mock).mockReturnValue({
+      data: [shoe({ total_distance_km: 812, is_worn_out: true })],
+      isLoading: false,
+    });
+    renderWithClient(<EquipmentManager />);
+
+    expect(screen.getByText('812.0 km')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Add shoe' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Retire' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+    expect(screen.queryByText(/has reached its limit/i)).toBeNull();
   });
 });
