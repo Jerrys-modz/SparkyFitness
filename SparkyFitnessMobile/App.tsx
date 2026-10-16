@@ -149,6 +149,7 @@ import {
   SafeSymptomLog,
   SafeMoodLog,
   SafeSymptomHistory,
+  SafeSymptomEpisodeDetail,
   SafeManageSymptoms,
   SafeSymptomDefinitionEditor,
 } from './src/navigation/safeScreens';
@@ -1219,6 +1220,13 @@ function AppContent() {
             name="SymptomHistory"
             component={SafeSymptomHistory}
             options={createStackScreenOptions(t('screens.symptomHistory', { defaultValue: 'Symptom History' }), {
+              headerBackButtonDisplayMode: 'minimal',
+            })}
+          />
+          <Stack.Screen
+            name="SymptomEpisodeDetail"
+            component={SafeSymptomEpisodeDetail}
+            options={createStackScreenOptions(t('screens.symptomEpisodeDetail', { defaultValue: 'Episode Details' }), {
               headerBackButtonDisplayMode: 'minimal',
             })}
           />
