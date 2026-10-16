@@ -286,6 +286,13 @@ BEGIN
     p_admin_user_id, 'Canadian Nutrient File', 'canadian-nutrient-file', TRUE, TRUE, now(), now()
   ) ON CONFLICT (user_id, provider_name) DO UPDATE SET is_public = TRUE;
 
+  -- Swedish Food Agency (Livsmedelsverket)
+  INSERT INTO public.external_data_providers (
+    user_id, provider_name, provider_type, is_active, is_public, created_at, updated_at
+  ) VALUES (
+    p_admin_user_id, 'Swedish Food Agency (Livsmedelsverket)', 'livsmedelsverket', TRUE, TRUE, now(), now()
+  ) ON CONFLICT (user_id, provider_name) DO UPDATE SET is_public = TRUE;
+
   -- NIH Dietary Supplement Label Database
   INSERT INTO public.external_data_providers (
     user_id, provider_name, provider_type, is_active, is_public, created_at, updated_at
@@ -1777,6 +1784,22 @@ CREATE TABLE public.custom_measurements (
     created_by_user_id uuid,
     updated_by_user_id uuid,
     source character varying(50) DEFAULT 'manual'::character varying NOT NULL
+);
+
+
+--
+-- Name: custom_run_programs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.custom_run_programs (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    name character varying(60) NOT NULL,
+    activity character varying(10) DEFAULT 'run'::character varying NOT NULL,
+    workouts jsonb DEFAULT '[]'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT custom_run_programs_activity_check CHECK (((activity)::text = ANY ((ARRAY['run'::character varying, 'walk'::character varying])::text[])))
 );
 
 
@@ -3706,7 +3729,10 @@ CREATE TABLE public.run_programs (
     last_done_date date,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    name character varying(60),
+    activity character varying(10),
     CONSTRAINT chk_run_programs_end_after_start CHECK (((end_date IS NULL) OR (start_date IS NULL) OR (end_date >= start_date))),
+    CONSTRAINT run_programs_activity_check CHECK (((activity IS NULL) OR ((activity)::text = ANY ((ARRAY['run'::character varying, 'walk'::character varying])::text[])))),
     CONSTRAINT run_programs_next_index_check CHECK ((next_index >= 0)),
     CONSTRAINT run_programs_run_days_check CHECK ((run_days <@ ARRAY[(0)::smallint, (1)::smallint, (2)::smallint, (3)::smallint, (4)::smallint, (5)::smallint, (6)::smallint]))
 );
@@ -5420,6 +5446,14 @@ ALTER TABLE ONLY public.check_in_photos
 
 
 --
+-- Name: custom_run_programs custom_run_programs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.custom_run_programs
+    ADD CONSTRAINT custom_run_programs_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: cycle_daily_entries cycle_daily_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6673,6 +6707,13 @@ CREATE INDEX idx_custom_measurements_date ON public.custom_measurements USING bt
 --
 
 CREATE INDEX idx_custom_measurements_user_id ON public.custom_measurements USING btree (user_id);
+
+
+--
+-- Name: idx_custom_run_programs_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_custom_run_programs_user ON public.custom_run_programs USING btree (user_id);
 
 
 --
@@ -8040,6 +8081,14 @@ ALTER TABLE ONLY public.custom_measurements
 
 ALTER TABLE ONLY public.custom_measurements
     ADD CONSTRAINT custom_measurements_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: custom_run_programs custom_run_programs_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.custom_run_programs
+    ADD CONSTRAINT custom_run_programs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --
@@ -9703,6 +9752,12 @@ ALTER TABLE public.custom_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.custom_measurements ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: custom_run_programs; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.custom_run_programs ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: cycle_daily_entries; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -10558,6 +10613,13 @@ ALTER TABLE public.openfoodfacts_sync_queue ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY owner_policy ON public.api_key USING ((reference_id = public.authenticated_user_id())) WITH CHECK ((reference_id = public.authenticated_user_id()));
+
+
+--
+-- Name: custom_run_programs owner_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY owner_policy ON public.custom_run_programs USING ((user_id = public.authenticated_user_id())) WITH CHECK ((user_id = public.authenticated_user_id()));
 
 
 --
@@ -12076,6 +12138,13 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.custom_categories TO sparky_ap
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.custom_measurements TO sparky_app;
+
+
+--
+-- Name: TABLE custom_run_programs; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.custom_run_programs TO sparky_app;
 
 
 --

@@ -162,6 +162,8 @@ export interface FoodInfoItem {
   waterMl?: number;
   alcoholG?: number;
   customNutrients?: Record<string, string | number> | null;
+  allergens?: string[] | null;
+  traces?: string[] | null;
   variantId?: string;
   externalVariants?: ExternalFoodVariant[];
   provider_verified?: boolean;
@@ -196,6 +198,8 @@ export const foodItemToFoodInfo = (
   notes: item.notes ?? null,
   userId: item.user_id,
   sharedWithPublic: item.shared_with_public,
+  allergens: item.default_variant.allergens ?? null,
+  traces: item.default_variant.traces ?? null,
   provider_type: item.provider_type ?? undefined,
   provider_external_id: item.provider_external_id ?? undefined,
   provider_verified: item.provider_verified,
@@ -257,6 +261,8 @@ export const externalFoodItemToFoodInfo = (
   caffeineMg: item.caffeine_mg,
   waterMl: item.water_ml,
   alcoholG: item.alcohol_g,
+  allergens: item.allergens ?? null,
+  traces: item.traces ?? null,
   externalVariants: item.variants,
   provider_verified: item.provider_verified,
   images: item.images ?? null,

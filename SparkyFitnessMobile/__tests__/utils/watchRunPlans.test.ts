@@ -1,4 +1,8 @@
-import { programStatus, INTERVAL_PRESETS } from '@workspace/shared';
+import {
+  buildIntervalPlan,
+  programStatus,
+  INTERVAL_PRESETS,
+} from '@workspace/shared';
 import {
   buildWatchRunPlans,
   buildWatchStartPlan,
@@ -74,6 +78,33 @@ test('builds the single plan chosen on the phone, tagged as a program workout wh
     buildWatchStartPlan(t, status.workout!.plan, { id: 'x', name: 'X' })
       .programId
   ).toBeUndefined();
+});
+
+test('sends a distance step with its metres and expected time', () => {
+  const plans = buildWatchRunPlans(t, { status: null, enabled: false }, names);
+  const reps = plans.find((p) => p.id === 'sixBy400m');
+  expect(reps?.steps.filter((s) => s.meters === 400)).toHaveLength(6);
+  expect(reps?.steps.find((s) => s.meters)?.seconds).toBe(144);
+  // Timed steps carry no `meters` key at all.
+  expect(Object.keys(reps!.steps[0])).toEqual(['label', 'seconds']);
+});
+
+test('marks a step set in miles for the watch', () => {
+  const plan = buildIntervalPlan({
+    style: 'fastEasy',
+    warmupSeconds: 0,
+    workSeconds: 90,
+    workMeters: 1609,
+    workUnit: 'mi',
+    recoverySeconds: 0,
+    rounds: 1,
+    cooldownSeconds: 0,
+  });
+  const sent = buildWatchStartPlan(t, plan, {
+    id: 'custom',
+    name: 'Intervals',
+  });
+  expect(sent.steps[0]).toMatchObject({ meters: 1609, unit: 'mi' });
 });
 
 describe('program voice lines', () => {

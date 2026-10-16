@@ -22,7 +22,7 @@ import { useRefetchOnFocus } from '../../hooks/useRefetchOnFocus';
 import { addLog } from '../../services/LogService';
 import { toLocalDateString } from '../../utils/dateUtils';
 import { findLoggedRun } from '../../utils/loggedRun';
-import { programName } from './RunProgramCard';
+import { customWorkoutTitle, programTitle } from './RunProgramCard';
 
 /** The current time, read when the Diary renders. */
 const clockNow = (): number => Date.now();
@@ -171,7 +171,7 @@ const RunProgramBanner: React.FC<{
           className="text-xs font-semibold text-text-secondary flex-1"
           numberOfLines={1}
         >
-          {programName(t, status.program.id)} •{' '}
+          {programTitle(t, status.program)} •{' '}
           {run.kind === 'upNext'
             ? t('runPrograms.banner.upNext', { defaultValue: 'Up next' })
             : isToday
@@ -188,19 +188,26 @@ const RunProgramBanner: React.FC<{
           className="text-base font-semibold text-text-primary flex-1 mr-3"
           numberOfLines={2}
         >
-          {status.program.activity === 'walk'
-            ? t('runPrograms.banner.titleWalk', {
-                week: workout.week + 1,
-                walk: workout.day + 1,
+          {status.program.custom
+            ? t('runPrograms.banner.titleCustom', {
+                title: customWorkoutTitle(t, workout),
                 minutes,
-                defaultValue: 'Week {{week}}, walk {{walk}} · {{minutes}} min',
+                defaultValue: '{{title}} · {{minutes}} min',
               })
-            : t('runPrograms.banner.title', {
-                week: workout.week + 1,
-                run: workout.day + 1,
-                minutes,
-                defaultValue: 'Week {{week}}, run {{run}} · {{minutes}} min',
-              })}
+            : status.program.activity === 'walk'
+              ? t('runPrograms.banner.titleWalk', {
+                  week: workout.week + 1,
+                  walk: workout.day + 1,
+                  minutes,
+                  defaultValue:
+                    'Week {{week}}, walk {{walk}} · {{minutes}} min',
+                })
+              : t('runPrograms.banner.title', {
+                  week: workout.week + 1,
+                  run: workout.day + 1,
+                  minutes,
+                  defaultValue: 'Week {{week}}, run {{run}} · {{minutes}} min',
+                })}
         </Text>
         {isToday ? (
           <Button variant="primary" onPress={onStart}>
