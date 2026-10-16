@@ -11,6 +11,7 @@ import {
 } from './queryKeys';
 import { refreshHealthSyncCache } from './refreshHealthSyncCache';
 import { addLog } from '../services/LogService';
+import { newUuid } from '../utils/ids';
 
 /** Reads a report; the results come back for review and nothing is saved. */
 export function useScanLabReport() {
@@ -45,9 +46,11 @@ export function useImportLabResults() {
       rows: { name: string; input: SaveLabResultInput }[]
     ): Promise<ImportLabResultsOutcome> => {
       const outcome: ImportLabResultsOutcome = { saved: 0, failed: [] };
+      // One id for the whole import, so its results can be found and deleted together.
+      const importId = newUuid();
       for (const row of rows) {
         try {
-          await saveLabResult(row.input);
+          await saveLabResult({ ...row.input, importId });
           outcome.saved += 1;
         } catch (error) {
           addLog(

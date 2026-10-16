@@ -4,12 +4,20 @@ import request from 'supertest';
 import express from 'express';
 import labReportRoutes from '../routes/v2/labReportRoutes.js';
 import { extractLabReport } from '../services/labReportScanService.js';
+import {
+  deleteImportedLabResults,
+  deleteLabMarkerWithResults,
+} from '../models/labResultRepository.js';
 
 vi.mock('../services/labReportScanService.js', async (importOriginal) => ({
   ...(await importOriginal<
     typeof import('../services/labReportScanService.js')
   >()),
   extractLabReport: vi.fn(),
+}));
+vi.mock('../models/labResultRepository.js', () => ({
+  deleteImportedLabResults: vi.fn(),
+  deleteLabMarkerWithResults: vi.fn(),
 }));
 vi.mock('../utils/adminCheck.js', () => ({
   resolveIsAdmin: vi.fn(async () => false),
@@ -119,5 +127,82 @@ describe('POST /api/v2/lab-reports/scan', () => {
 
     expect(res.statusCode).toBe(400);
     expect(extractLabReport).not.toHaveBeenCalled();
+  });
+});
+
+const UUID = '550e8400-e29b-41d4-a716-446655440000';
+
+describe('DELETE /api/v2/lab-reports/imports', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('deletes every imported result for the user', async () => {
+    vi.mocked(deleteImportedLabResults).mockResolvedValue({
+      results: 12,
+      markers: 3,
+    });
+
+    const res = await request(app).delete('/api/v2/lab-reports/imports');
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ results: 12, markers: 3 });
+    expect(deleteImportedLabResults).toHaveBeenCalledWith(
+      'testUser',
+      undefined
+    );
+  });
+
+  it('can be limited to one import', async () => {
+    vi.mocked(deleteImportedLabResults).mockResolvedValue({
+      results: 1,
+      markers: 0,
+    });
+
+    await request(app).delete(`/api/v2/lab-reports/imports?import_id=${UUID}`);
+
+    expect(deleteImportedLabResults).toHaveBeenCalledWith('testUser', UUID);
+  });
+
+  it('rejects an import id that is not a UUID', async () => {
+    const res = await request(app).delete(
+      '/api/v2/lab-reports/imports?import_id=nope'
+    );
+
+    expect(res.statusCode).toBe(400);
+    expect(deleteImportedLabResults).not.toHaveBeenCalled();
+  });
+});
+
+describe('DELETE /api/v2/lab-reports/markers/:categoryId', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('deletes a lab marker with its results', async () => {
+    vi.mocked(deleteLabMarkerWithResults).mockResolvedValue({ results: 4 });
+
+    const res = await request(app).delete(
+      `/api/v2/lab-reports/markers/${UUID}`
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ results: 4 });
+    expect(deleteLabMarkerWithResults).toHaveBeenCalledWith('testUser', UUID);
+  });
+
+  it('answers 404 for a category that is not one of the lab markers', async () => {
+    vi.mocked(deleteLabMarkerWithResults).mockResolvedValue(null);
+
+    const res = await request(app).delete(
+      `/api/v2/lab-reports/markers/${UUID}`
+    );
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('rejects an id that is not a UUID', async () => {
+    const res = await request(app).delete(
+      '/api/v2/lab-reports/markers/not-a-uuid'
+    );
+
+    expect(res.statusCode).toBe(400);
+    expect(deleteLabMarkerWithResults).not.toHaveBeenCalled();
   });
 });

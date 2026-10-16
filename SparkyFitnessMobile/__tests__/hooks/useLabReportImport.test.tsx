@@ -9,6 +9,9 @@ jest.mock('../../src/services/api/labReportApi', () => ({
 jest.mock('../../src/services/labResultsService', () => ({
   saveLabResult: jest.fn(),
 }));
+jest.mock('../../src/utils/ids', () => ({
+  newUuid: () => 'import-1',
+}));
 jest.mock('../../src/hooks/refreshHealthSyncCache', () => ({
   refreshHealthSyncCache: jest.fn(),
 }));
@@ -38,6 +41,23 @@ describe('useImportLabResults', () => {
     expect(
       jest.mocked(saveLabResult).mock.calls.map(([arg]) => arg.target)
     ).toEqual([{ categoryId: 'a' }, { categoryId: 'b' }]);
+  });
+
+  it('tags every result of one import with the same import id', async () => {
+    jest.mocked(saveLabResult).mockResolvedValue({} as never);
+    const { result } = renderHook(() => useImportLabResults(), {
+      wrapper: createQueryWrapper(createTestQueryClient()),
+    });
+
+    result.current.mutate([
+      { name: 'HbA1c', input: input('a') },
+      { name: 'LDL', input: input('b') },
+    ]);
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(
+      jest.mocked(saveLabResult).mock.calls.map(([arg]) => arg.importId)
+    ).toEqual(['import-1', 'import-1']);
   });
 
   it('keeps going after a failure and names what failed', async () => {

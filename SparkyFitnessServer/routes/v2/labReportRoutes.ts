@@ -1,9 +1,14 @@
 import express, { RequestHandler } from 'express';
+import { z } from 'zod';
 import { labReportScanRequestSchema } from '@workspace/shared';
 import { authenticate } from '../../middleware/authMiddleware.js';
 import onBehalfOfMiddleware from '../../middleware/onBehalfOfMiddleware.js';
 import checkPermissionMiddleware from '../../middleware/checkPermissionMiddleware.js';
 import { resolveIsAdmin } from '../../utils/adminCheck.js';
+import {
+  deleteImportedLabResults,
+  deleteLabMarkerWithResults,
+} from '../../models/labResultRepository.js';
 import {
   extractLabReport,
   matchLabReportResults,
@@ -97,6 +102,76 @@ const scanLabReport: RequestHandler = async (req, res, next) => {
   }
 };
 
+/**
+ * @swagger
+ * /v2/lab-reports/imports:
+ *   delete:
+ *     summary: Delete the lab results saved by report imports
+ *     description: >
+ *       Removes every result that has an import id (or one import's results with
+ *       `import_id`), then the lab markers left with no results. Results typed in
+ *       by hand are not touched.
+ *     tags: [Check-in]
+ *     security: [{ cookieAuth: [] }]
+ *     parameters:
+ *       - { in: query, name: import_id, required: false, schema: { type: string, format: uuid } }
+ *     responses:
+ *       200: { description: "How many results and markers were deleted." }
+ *       400: { description: Invalid import_id. }
+ * /v2/lab-reports/markers/{categoryId}:
+ *   delete:
+ *     summary: Delete a lab marker and all of its results
+ *     tags: [Check-in]
+ *     security: [{ cookieAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: categoryId, required: true, schema: { type: string, format: uuid } }
+ *     responses:
+ *       200: { description: The marker and its results were deleted. }
+ *       404: { description: Not one of the user's lab markers. }
+ */
+const importIdQuerySchema = z.object({
+  import_id: z.string().uuid().optional(),
+});
+
+const deleteImports: RequestHandler = async (req, res, next) => {
+  try {
+    const query = importIdQuerySchema.safeParse(req.query);
+    if (!query.success) {
+      return res.status(400).json({ error: 'import_id must be a UUID' });
+    }
+    const outcome = await deleteImportedLabResults(
+      req.userId,
+      query.data.import_id
+    );
+    res.json(outcome);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteMarker: RequestHandler = async (req, res, next) => {
+  try {
+    const params = z
+      .object({ categoryId: z.string().uuid() })
+      .safeParse(req.params);
+    if (!params.success) {
+      return res.status(400).json({ error: 'categoryId must be a UUID' });
+    }
+    const outcome = await deleteLabMarkerWithResults(
+      req.userId,
+      params.data.categoryId
+    );
+    if (!outcome) {
+      return res.status(404).json({ error: 'Lab marker not found' });
+    }
+    res.json(outcome);
+  } catch (error) {
+    next(error);
+  }
+};
+
 router.post('/scan', scanLabReport);
+router.delete('/imports', deleteImports);
+router.delete('/markers/:categoryId', deleteMarker);
 
 export default router;

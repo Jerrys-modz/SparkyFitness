@@ -480,6 +480,7 @@ export const saveCustomMeasurement = async (
       entry_timestamp: payload.entry_timestamp,
       notes: payload.notes,
       source: payload.source,
+      import_id: payload.import_id,
     },
   });
 };

@@ -250,6 +250,7 @@ export const UpsertCustomEntryBodySchema = z
     entry_timestamp: optionalLegacyString,
     notes: optionalLegacyString,
     source: optionalLegacyString,
+    import_id: z.string().uuid().nullable().optional(),
   })
   .loose();
 
