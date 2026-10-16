@@ -271,6 +271,24 @@ final class WatchRunStore: ObservableObject {
         }
     }
 
+    #if DEBUG
+    /// CI screenshots only: shows an outdoor run in progress on `route`, with
+    /// `fixes` already fed in as if the wearer had walked them. Nothing is
+    /// recorded; HealthKit is never touched. See `ScreenshotSeed`.
+    func seedRouteRun(route: WatchRoute, fixes: [WatchRoutePoint], metrics seeded: WatchRunMetrics) {
+        followRoute(route)
+        kind = .run
+        place = .outdoor
+        metrics = seeded
+        phase = .running
+        var at = Date().addingTimeInterval(-Double(fixes.count) * 2)
+        for fix in fixes {
+            routeFix(fix, accuracy: 5, at: at)
+            at = at.addingTimeInterval(2)
+        }
+    }
+    #endif
+
     /// Takes a GPS fix. The map and the next cue follow every usable fix; the
     /// buzzes and spoken lines only come while the run is going, so a paused
     /// wearer is not nagged.

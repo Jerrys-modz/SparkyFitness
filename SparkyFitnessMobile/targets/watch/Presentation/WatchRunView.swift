@@ -8,6 +8,12 @@ struct WatchRunView: View {
     @EnvironmentObject private var run: WatchRunStore
     @EnvironmentObject private var store: CheckInStore
     @State private var showingSettings = false
+    /// 0 is the run's main page, 1 the route. Only the CI screenshot job lands on 1.
+    #if DEBUG
+    @State private var tab = ScreenshotSeed.opensRouteMap ? 1 : 0
+    #else
+    @State private var tab = 0
+    #endif
 
     private var usesMiles: Bool { store.context.distanceUnit == "miles" }
 
@@ -18,9 +24,9 @@ struct WatchRunView: View {
         case .running, .paused:
             if run.route != nil {
                 // Crown or swipe up for the route; the main page stays first.
-                TabView {
-                    live
-                    WatchRouteMapPage()
+                TabView(selection: $tab) {
+                    live.tag(0)
+                    WatchRouteMapPage().tag(1)
                 }
                 .tabViewStyle(.verticalPage)
             } else {

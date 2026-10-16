@@ -196,6 +196,11 @@ jobs:
             shoot workout-stopwatch stopwatch workout
             shoot workout-interval interval workout
             shoot goals none goals
+            # A followed run: the main page with the next turn, the route
+            # page, and the off-route warning (ScreenshotSeed.routeScenario).
+            shoot route-live none workout routelive
+            shoot route-map none workout routemap
+            shoot route-off none workout routeoff
           done <<< "$DEVICES"
 
           ls -la screenshots
