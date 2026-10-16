@@ -517,9 +517,7 @@ describe('EditLoggedMealScreen', () => {
         } else {
           mockConsume.mockReturnValueOnce({
             ingredient: buildIngredient(
-              edit === 'amount'
-                ? { food_id: 'food-2', variant_id: 'var-2', quantity: 250 }
-                : {}
+              edit === 'amount' ? { ...rice, quantity: 250 } : {}
             ),
             ...(edit === 'amount' ? { ingredientIndex: 1 } : {}),
           });
@@ -540,6 +538,34 @@ describe('EditLoggedMealScreen', () => {
             ]),
           })
         );
+        const saved = mockUpdateMeal.mock.calls[0][0];
+        expect(saved.name).toBe(edit === 'name' ? 'Lunch' : baseMeal.name);
+        expect(saved.foods).toHaveLength(
+          edit === 'add' ? 3 : edit === 'remove' ? 1 : 2
+        );
+        if (edit === 'remove') {
+          expect(saved.foods).not.toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({ food_name: 'Rice' }),
+            ])
+          );
+        } else {
+          expect(saved.foods).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                ...rice,
+                quantity: edit === 'amount' ? 250 : 150,
+              }),
+            ])
+          );
+        }
+        if (edit === 'add') {
+          expect(saved.foods).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({ food_name: 'Almonds', quantity: 50 }),
+            ])
+          );
+        }
       } finally {
         os.restore();
       }

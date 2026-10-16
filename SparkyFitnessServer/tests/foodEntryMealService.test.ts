@@ -387,6 +387,45 @@ describe('foodEntryMealService', () => {
   });
 
   describe('updateFoodEntryMeal component dates', () => {
+    it('preserves the write error and discards a client when rollback fails', async () => {
+      const writeError = new Error('Original write failure');
+      vi.mocked(
+        foodEntryMealRepository.updateFoodEntryMeal
+      ).mockRejectedValueOnce(writeError);
+      transactionClient.query
+        .mockResolvedValueOnce({ rows: [] })
+        .mockRejectedValueOnce(new Error('Connection lost'));
+
+      await expect(
+        updateFoodEntryMeal('user-1', 'user-1', 'meal-entry-1', {
+          notes: 'Edited note',
+        })
+      ).rejects.toBe(writeError);
+      expect(transactionClient.release).toHaveBeenCalledWith(true);
+    });
+
+    it.each([undefined, '', '   '])(
+      'rejects an unnamed detached snapshot (%s) before writes',
+      async (foodName) => {
+        await expect(
+          updateFoodEntryMeal('user-1', 'user-1', 'meal-entry-1', {
+            foods: [
+              {
+                food_id: null,
+                food_name: foodName,
+                quantity: 100,
+                serving_size: 100,
+                calories: 165,
+              },
+            ],
+          })
+        ).rejects.toMatchObject({ statusCode: 400 });
+        expect(
+          foodEntryMealRepository.updateFoodEntryMeal
+        ).not.toHaveBeenCalled();
+      }
+    );
+
     it.each(['parent', 'template', 'replacement'])(
       'rolls back the whole save when %s fails',
       async (failure) => {
@@ -523,6 +562,8 @@ describe('foodEntryMealService', () => {
         '',
         Infinity,
         NaN,
+        -1,
+        '-1',
         ...(field === 'serving_size'
           ? [0, '0', -1]
           : field === 'quantity'

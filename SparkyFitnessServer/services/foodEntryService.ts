@@ -2539,11 +2539,11 @@ async function updateFoodEntryMeal(
           (typeof value !== 'number' && typeof value !== 'string') ||
           (typeof value === 'string' && value.trim() === '') ||
           !Number.isFinite(Number(value)) ||
-          (field === 'quantity' && Number(value) < 0) ||
+          Number(value) < 0 ||
           (field === 'serving_size' && Number(value) <= 0)
         ) {
           const error: Error & { statusCode?: number } = new Error(
-            `Food item ${field} must be a finite ${field === 'serving_size' ? 'positive number' : field === 'quantity' ? 'nonnegative number' : 'number'}.`
+            `Food item ${field} must be a finite ${field === 'serving_size' ? 'positive number' : 'nonnegative number'}.`
           );
           error.statusCode = 400;
           throw error;
@@ -2599,6 +2599,8 @@ async function updateFoodEntryMeal(
       // edited amount. Keep that snapshot even if the library links were
       // deleted or the current variant's nutrition has changed. Older clients
       // that send only IDs still resolve their nutrition from the variant.
+      // serving_size and calories describe one reference serving, not values
+      // pre-scaled to the consumed quantity; scaling happens when entries are read.
       let snapshot;
       if (
         foodItem.serving_size !== undefined &&
@@ -2608,9 +2610,17 @@ async function updateFoodEntryMeal(
         foodItem.calories !== undefined &&
         foodItem.calories !== null
       ) {
+        const foodName = (foodItem.food_name ?? food?.name ?? '').trim();
+        if (!foodName) {
+          const error: Error & { statusCode?: number } = new Error(
+            'A food item needs a nonempty food name.'
+          );
+          error.statusCode = 400;
+          throw error;
+        }
         snapshot = buildFoodEntrySnapshot(
           {
-            name: foodItem.food_name ?? food?.name ?? '',
+            name: foodName,
             brand: food?.brand ?? null,
           },
           {
@@ -2639,6 +2649,7 @@ async function updateFoodEntryMeal(
     // All meal writes share one RLS-scoped connection and transaction. A late
     // insert/constraint failure must retain both the parent and its components.
     const client = await getClient(authenticatedUserId);
+    let discardClient = false;
     try {
       await client.query('BEGIN');
       // 2. Update the parent food_entry_meals record's metadata
@@ -2753,10 +2764,19 @@ async function updateFoodEntryMeal(
       await client.query('COMMIT');
       return updatedFoodEntryMeal;
     } catch (error) {
-      await client.query('ROLLBACK');
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        discardClient = true;
+        log(
+          'error',
+          'Failed to roll back the logged meal update:',
+          rollbackError
+        );
+      }
       throw error;
     } finally {
-      client.release();
+      client.release(discardClient);
     }
   } catch (error) {
     log(
