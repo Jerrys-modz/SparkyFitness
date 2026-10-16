@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 
 /// What the wearer needs from a followed route at a glance, shown under the
 /// clock on the run's main page: the next turn and how far, or a red warning
@@ -53,13 +54,14 @@ struct RouteCueStrip: View {
     }
 }
 
-/// The route page of a followed run: the route drawn north-up with the part
+/// The route page of a followed run: Apple Maps behind the route with the part
 /// already covered greyed out, a dot for the wearer, a ring on the next turn,
 /// and the distance left with the next instruction underneath.
 ///
-/// Drawn with a `Canvas` rather than MapKit: a trail or a park often has no
-/// signal to fetch tiles on, the route is all the wearer needs to see, and the
-/// line stays sharp and cheap to redraw on every fix.
+/// The map is a still picture fitted to the route (no panning or zooming, which
+/// would fight the crown and the swipe between pages). With no signal the tiles
+/// stay blank, but the route and the wearer are overlays MapKit draws itself, so
+/// the page is still usable on a trail with no coverage.
 struct WatchRouteMapPage: View {
     @EnvironmentObject private var run: WatchRunStore
     @EnvironmentObject private var store: CheckInStore
@@ -68,7 +70,7 @@ struct WatchRouteMapPage: View {
 
     var body: some View {
         if let route = run.route {
-            RouteCanvas(
+            RouteMapLayer(
                 route: route,
                 progress: run.routeProgress,
                 position: run.routePosition
@@ -127,83 +129,89 @@ struct WatchRouteMapPage: View {
     }
 }
 
-/// The drawing. Everything that depends only on the route (the fit, the
-/// cumulative distances) is worked out once, not on every fix.
-private struct RouteCanvas: View {
+/// The map and what is drawn on it. MapKit places everything, so the route
+/// lines up with the roads whatever shape the screen is.
+private struct RouteMapLayer: View {
     let route: WatchRoute
     let progress: WatchRouteTracker.Snapshot?
     let position: WatchRoutePoint?
 
-    private let projection: WatchRouteProjection
     private let cumulative: [Double]
 
     init(route: WatchRoute, progress: WatchRouteTracker.Snapshot?, position: WatchRoutePoint?) {
         self.route = route
         self.progress = progress
         self.position = position
-        projection = WatchRouteProjection(points: route.points)
         cumulative = WatchRouteTracker.cumulativeDistances(route.points)
     }
 
     var body: some View {
-        Canvas { context, size in
-            // Room for the clock above and the footer below.
-            let top = WatchStyle.s(30)
-            let bottom = WatchStyle.s(44)
-            let margin = WatchStyle.s(12)
-            let area = CGRect(
-                x: margin, y: top,
-                width: max(1, size.width - 2 * margin),
-                height: max(1, size.height - top - bottom)
-            )
-            let box = Self.fit(aspect: projection.aspect, in: area)
-            func place(_ point: WatchRoutePoint) -> CGPoint {
-                let unit = projection.normalized(point)
-                return CGPoint(x: box.minX + unit.x * box.width, y: box.minY + unit.y * box.height)
-            }
+        // The point the wearer has reached; everything before it is done.
+        let reached = progress.map { reachedIndex(progressMeters: $0.progressMeters) } ?? 0
+        let done = route.points[0...reached].map(Self.coordinate)
+        let ahead = route.points[reached...].map(Self.coordinate)
+        let off = progress?.isOffRoute == true
 
-            // The point the wearer has reached; everything before it is done.
-            let reached = progress.map { reachedIndex(progressMeters: $0.progressMeters) } ?? 0
-            var done = Path()
-            var ahead = Path()
-            for (i, point) in route.points.enumerated() {
-                let p = place(point)
-                if i <= reached {
-                    if i == 0 { done.move(to: p) } else { done.addLine(to: p) }
-                }
-                if i == reached { ahead.move(to: p) } else if i > reached { ahead.addLine(to: p) }
+        Map(position: .constant(.region(region)), interactionModes: []) {
+            if done.count > 1 {
+                MapPolyline(coordinates: done).stroke(.gray, lineWidth: 5)
             }
-            let style = StrokeStyle(lineWidth: WatchStyle.s(4), lineCap: .round, lineJoin: .round)
-            context.stroke(done, with: .color(.gray.opacity(0.7)), style: style)
-            context.stroke(ahead, with: .color(.cyan), style: style)
+            if ahead.count > 1 {
+                MapPolyline(coordinates: ahead).stroke(.cyan, lineWidth: 5)
+            }
 
             // Start and finish.
             if let first = route.points.first, let last = route.points.last {
-                dot(&context, at: place(first), radius: 4, fill: .green)
-                dot(&context, at: place(last), radius: 4, fill: .white)
+                Annotation("", coordinate: Self.coordinate(first), anchor: .center) {
+                    Self.dot(.green, size: 10)
+                }
+                Annotation("", coordinate: Self.coordinate(last), anchor: .center) {
+                    Self.dot(.white, size: 10)
+                }
             }
 
             // The next turn.
             if let next = progress?.nextCue, next.cue.kind != .depart {
                 let index = min(next.cue.index, route.points.count - 1)
-                let ring = Path(ellipseIn: CGRect(
-                    x: place(route.points[index]).x - 7, y: place(route.points[index]).y - 7,
-                    width: 14, height: 14
-                ))
-                context.stroke(ring, with: .color(.orange), lineWidth: 2.5)
+                Annotation("", coordinate: Self.coordinate(route.points[index]), anchor: .center) {
+                    Circle().stroke(Color.orange, lineWidth: 3).frame(width: 18, height: 18)
+                }
             }
 
-            // The wearer, kept on the screen even when well off the route.
+            // The wearer.
             if let position {
-                var p = place(position)
-                p.x = min(max(p.x, 6), size.width - 6)
-                p.y = min(max(p.y, 6), size.height - 6)
-                let tint: Color = progress?.isOffRoute == true ? .red : .blue
-                dot(&context, at: p, radius: 8, fill: .white)
-                dot(&context, at: p, radius: 5.5, fill: tint)
+                Annotation("", coordinate: Self.coordinate(position), anchor: .center) {
+                    Circle()
+                        .fill(off ? Color.red : Color.blue)
+                        .frame(width: 14, height: 14)
+                        .overlay(Circle().stroke(Color.white, lineWidth: 3))
+                }
             }
         }
+        .mapStyle(.standard(emphasis: .muted))
         .accessibilityLabel(route.name)
+    }
+
+    /// The route, with a margin for the clock above and the footer below; the
+    /// wearer too while off the route, so the dot stays on the screen.
+    private var region: MKCoordinateRegion {
+        var lats = route.points.map(\.lat)
+        var lons = route.points.map(\.lon)
+        if let position, progress?.isOffRoute == true {
+            lats.append(position.lat)
+            lons.append(position.lon)
+        }
+        let minLat = lats.min() ?? 0
+        let maxLat = lats.max() ?? 0
+        let minLon = lons.min() ?? 0
+        let maxLon = lons.max() ?? 0
+        return MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2, longitude: (minLon + maxLon) / 2),
+            span: MKCoordinateSpan(
+                latitudeDelta: max((maxLat - minLat) * 1.7, 0.004),
+                longitudeDelta: max((maxLon - minLon) * 1.4, 0.004)
+            )
+        )
     }
 
     /// The last point at or before `progressMeters` along the line.
@@ -217,20 +225,14 @@ private struct RouteCanvas: View {
         return low
     }
 
-    private func dot(_ context: inout GraphicsContext, at point: CGPoint, radius: CGFloat, fill: Color) {
-        let circle = Path(ellipseIn: CGRect(x: point.x - radius, y: point.y - radius, width: radius * 2, height: radius * 2))
-        context.fill(circle, with: .color(fill))
+    private static func coordinate(_ point: WatchRoutePoint) -> CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: point.lat, longitude: point.lon)
     }
 
-    /// The largest box of `aspect` (width over height) that fits `area`, centred.
-    private static func fit(aspect: Double, in area: CGRect) -> CGRect {
-        let a = CGFloat(max(aspect, 0.05))
-        var width = area.width
-        var height = width / a
-        if height > area.height {
-            height = area.height
-            width = height * a
-        }
-        return CGRect(x: area.midX - width / 2, y: area.midY - height / 2, width: width, height: height)
+    private static func dot(_ color: Color, size: CGFloat) -> some View {
+        Circle()
+            .fill(color)
+            .frame(width: size, height: size)
+            .overlay(Circle().stroke(Color.black.opacity(0.5), lineWidth: 1.5))
     }
 }
