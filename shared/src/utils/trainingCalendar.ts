@@ -61,6 +61,80 @@ export interface CalendarEntry {
    * `plan:<assignment id>`; null for a free entry.
    */
   linkKey: string | null;
+  /** Further links when several logged exercises were merged into one workout. */
+  alsoLinked?: string[];
+}
+
+const keysOf = (entry: CalendarEntry): string[] =>
+  entry.linkKey ? [entry.linkKey, ...(entry.alsoLinked ?? [])] : [];
+
+/** A diary exercise that may belong to a logged workout preset. */
+export interface GroupableEntry extends CalendarEntry {
+  /** The preset session it was logged in; null for a single exercise. */
+  presetEntryId: string | null;
+  presetName: string | null;
+}
+
+/**
+ * The exercises of one logged workout preset are one session, not one per
+ * exercise: they merge into a single entry named after the preset, with the
+ * summed time and distance and a minutes-weighted average heart rate. Its
+ * sport is strength when any exercise is, else the one with the most minutes.
+ */
+export function groupPresetEntries(
+  entries: readonly GroupableEntry[],
+): CalendarEntry[] {
+  const out: CalendarEntry[] = [];
+  const groups = new Map<string, GroupableEntry[]>();
+  for (const entry of entries) {
+    const { presetEntryId, presetName, ...plain } = entry;
+    void presetName;
+    if (!presetEntryId) {
+      out.push(plain);
+      continue;
+    }
+    const list = groups.get(presetEntryId) ?? [];
+    list.push(entry);
+    groups.set(presetEntryId, list);
+    if (list.length === 1) out.push(plain); // placeholder keeps day order
+  }
+  return out.map((entry) => {
+    const group = [...groups.values()].find((g) => g[0]?.id === entry.id);
+    if (!group || group.length === 1) return entry;
+    const minutes = group.reduce((sum, e) => sum + e.durationMinutes, 0);
+    const byMinutes = new Map<LoadSportGroup, number>();
+    for (const e of group) {
+      byMinutes.set(e.sport, (byMinutes.get(e.sport) ?? 0) + e.durationMinutes);
+    }
+    const sport: LoadSportGroup = byMinutes.has("strength")
+      ? "strength"
+      : ([...byMinutes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ??
+        entry.sport);
+    const beats = group.filter((e) => hasHeartRate(e.avgHeartRate));
+    const beatMinutes = beats.reduce((sum, e) => sum + e.durationMinutes, 0);
+    const distances = group.filter((e) => e.distanceKm != null);
+    const links = [...new Set(group.flatMap(keysOf))];
+    return {
+      id: entry.id,
+      day: entry.day,
+      name: group[0]?.presetName ?? entry.name,
+      sport,
+      durationMinutes: minutes,
+      distanceKm:
+        distances.length === 0
+          ? null
+          : distances.reduce((sum, e) => sum + (e.distanceKm ?? 0), 0),
+      avgHeartRate:
+        beatMinutes > 0
+          ? beats.reduce(
+              (sum, e) => sum + (e.avgHeartRate ?? 0) * e.durationMinutes,
+              0,
+            ) / beatMinutes
+          : null,
+      linkKey: links[0] ?? null,
+      alsoLinked: links.slice(1),
+    };
+  });
 }
 
 /** Something planned for one day. */
@@ -125,8 +199,8 @@ export function matchPlan(
   for (const slot of ordered) {
     if (slot.linkKeys.length === 0) continue;
     for (const entry of free) {
-      if (taken.has(entry.id) || !entry.linkKey) continue;
-      if (!slot.linkKeys.includes(entry.linkKey)) continue;
+      if (taken.has(entry.id)) continue;
+      if (!keysOf(entry).some((k) => slot.linkKeys.includes(k))) continue;
       if (Math.abs(daysBetween(slot.day, entry.day)) > MATCH_WINDOW_DAYS) {
         continue;
       }
@@ -142,6 +216,19 @@ export function matchPlan(
       }
     }
   }
+  // An entry logged against some other plan item still counts for a slot of
+  // its own day and sport that nothing else filled (a run done inside a plan
+  // session satisfies that day's run). It stays with the item that took it.
+  for (const slot of ordered) {
+    if (matched.has(slot.id)) continue;
+    for (const entry of free) {
+      if (!taken.has(entry.id) || entry.day !== slot.day) continue;
+      if (entry.sport !== slot.sport) continue;
+      const current = matched.get(slot.id) ?? { entries: [], linked: false };
+      current.entries.push(entry);
+      matched.set(slot.id, current);
+    }
+  }
 
   const loadOf = (entry: CalendarEntry) => sessionLoad(entry, maxHeartRate);
 
@@ -154,7 +241,9 @@ export function matchPlan(
     if (!found)
       status = compareDays(slot.day, today) < 0 ? "missed" : "upcoming";
     else if (found.linked) {
-      const covered = new Set(found.entries.map((e) => e.linkKey)).size;
+      const covered = new Set(
+        found.entries.flatMap(keysOf).filter((k) => slot.linkKeys.includes(k)),
+      ).size;
       status = covered >= slot.linkKeys.length ? "done" : "partial";
     } else if (slot.plannedMinutes != null && slot.plannedMinutes > 0) {
       status = minutes / slot.plannedMinutes >= DONE_SHARE ? "done" : "partial";
