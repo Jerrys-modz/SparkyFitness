@@ -312,6 +312,9 @@ export const fastingRangeQueryKey = (startDate: string, endDate: string) =>
   ['fasting', 'range', startDate, endDate] as const;
 
 export const customNutrientsQueryKey = ['customNutrients'] as const;
+export const nutrientGoalPreferencesQueryKey = [
+  'nutrientGoalPreferences',
+] as const;
 export const nutrientDisplayPreferencesQueryKey = [
   'nutrientDisplayPreferences',
 ] as const;
