@@ -54,15 +54,19 @@ struct RouteCueStrip: View {
     }
 }
 
-/// The route page of a followed run: Apple Maps behind the route with the part
-/// already covered greyed out, a dot for the wearer, a ring on the next turn,
-/// and the distance left with the next instruction underneath.
+/// The route page of a followed run: Apple Maps close around the wearer,
+/// turned so the way ahead points up, with the route ahead in bold cyan and the
+/// part already covered greyed out, a marker on the next turn, and the distance
+/// left with the next instruction underneath. `WatchRouteOverviewPage` is the
+/// whole route on one screen.
 ///
-/// The map is a still picture fitted to the route (no panning or zooming, which
-/// would fight the crown and the swipe between pages). With no signal the tiles
-/// stay blank, but the route and the wearer are overlays MapKit draws itself, so
-/// the page is still usable on a trail with no coverage.
+/// The map is a still picture (no panning or zooming, which would fight the
+/// crown and the swipe between pages). With no signal the tiles stay blank, but
+/// the route and the wearer are overlays MapKit draws itself, so the page is
+/// still usable on a trail with no coverage.
 struct WatchRouteMapPage: View {
+    var mode: RouteMapMode = .follow
+
     @EnvironmentObject private var run: WatchRunStore
     @EnvironmentObject private var store: CheckInStore
 
@@ -73,7 +77,8 @@ struct WatchRouteMapPage: View {
             RouteMapLayer(
                 route: route,
                 progress: run.routeProgress,
-                position: run.routePosition
+                position: run.routePosition,
+                mode: mode
             )
             .overlay(alignment: .bottom) { footer }
             .overlay(alignment: .top) {
@@ -123,10 +128,24 @@ struct WatchRouteMapPage: View {
         .lineLimit(1)
         .minimumScaleFactor(0.7)
         .padding(.horizontal, WatchStyle.s(8))
-        .padding(.vertical, WatchStyle.s(4))
+        .padding(.vertical, WatchStyle.s(2))
         .frame(maxWidth: .infinity)
-        .background(.black.opacity(0.7))
+        .background(.black.opacity(0.6))
     }
+}
+
+/// The whole route on one screen, the page after the followed map.
+struct WatchRouteOverviewPage: View {
+    var body: some View {
+        WatchRouteMapPage(mode: .overview)
+    }
+}
+
+enum RouteMapMode {
+    /// Close around the wearer, heading up.
+    case follow
+    /// The whole route, north up.
+    case overview
 }
 
 /// The map and what is drawn on it. MapKit places everything, so the route
@@ -135,13 +154,15 @@ private struct RouteMapLayer: View {
     let route: WatchRoute
     let progress: WatchRouteTracker.Snapshot?
     let position: WatchRoutePoint?
+    let mode: RouteMapMode
 
     private let cumulative: [Double]
 
-    init(route: WatchRoute, progress: WatchRouteTracker.Snapshot?, position: WatchRoutePoint?) {
+    init(route: WatchRoute, progress: WatchRouteTracker.Snapshot?, position: WatchRoutePoint?, mode: RouteMapMode) {
         self.route = route
         self.progress = progress
         self.position = position
+        self.mode = mode
         cumulative = WatchRouteTracker.cumulativeDistances(route.points)
     }
 
@@ -152,12 +173,15 @@ private struct RouteMapLayer: View {
         let ahead = route.points[reached...].map(Self.coordinate)
         let off = progress?.isOffRoute == true
 
-        Map(position: .constant(.region(region)), interactionModes: []) {
+        Map(position: .constant(mapPosition), interactionModes: []) {
             if done.count > 1 {
-                MapPolyline(coordinates: done).stroke(.gray, lineWidth: 5)
+                MapPolyline(coordinates: done).stroke(.gray.opacity(0.8), lineWidth: 5)
             }
             if ahead.count > 1 {
-                MapPolyline(coordinates: ahead).stroke(.cyan, lineWidth: 5)
+                // A white edge under the cyan keeps the line readable over
+                // parks, water and busy streets.
+                MapPolyline(coordinates: ahead).stroke(.white, lineWidth: 10)
+                MapPolyline(coordinates: ahead).stroke(.cyan, lineWidth: 6)
             }
 
             // Start and finish.
@@ -174,7 +198,12 @@ private struct RouteMapLayer: View {
             if let next = progress?.nextCue, next.cue.kind != .depart {
                 let index = min(next.cue.index, route.points.count - 1)
                 Annotation("", coordinate: Self.coordinate(route.points[index]), anchor: .center) {
-                    Circle().stroke(Color.orange, lineWidth: 3).frame(width: 18, height: 18)
+                    Image(systemName: next.cue.kind.symbol)
+                        .font(.system(size: 11, weight: .heavy))
+                        .foregroundStyle(.white)
+                        .frame(width: 24, height: 24)
+                        .background(Circle().fill(Color.orange))
+                        .overlay(Circle().stroke(Color.white, lineWidth: 2))
                 }
             }
 
@@ -190,6 +219,22 @@ private struct RouteMapLayer: View {
         }
         .mapStyle(.standard(emphasis: .muted, pointsOfInterest: .excludingAll))
         .accessibilityLabel(route.name)
+    }
+
+    private var mapPosition: MapCameraPosition {
+        guard mode == .follow, let position else { return .region(region) }
+        let camera = WatchRouteCamera.follow(
+            route: route,
+            cumulative: cumulative,
+            progress: progress,
+            position: position
+        )
+        return .camera(MapCamera(
+            centerCoordinate: CLLocationCoordinate2D(latitude: camera.lat, longitude: camera.lon),
+            distance: camera.distance,
+            heading: camera.heading,
+            pitch: 0
+        ))
     }
 
     /// The route, with a margin for the clock above and the footer below; the

@@ -17,10 +17,12 @@ struct WatchRunView: View {
             Color.clear
         case .running, .paused:
             if run.route != nil {
-                // Crown or swipe up for the route; the main page stays first.
+                // Crown or swipe up for the route, then the whole route; the
+                // main page stays first.
                 TabView {
                     live
                     WatchRouteMapPage()
+                    WatchRouteOverviewPage()
                 }
                 .tabViewStyle(.verticalPage)
             } else {
