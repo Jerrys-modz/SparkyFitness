@@ -111,7 +111,10 @@ const ActivityShareCard = forwardRef<View, ActivityShareCardProps>(
     const padding = 20 * scale;
 
     const statBlock = (stat: Stat, big: boolean) => (
-      <View key={stat.key} style={{ marginRight: 18 * scale }}>
+      <View
+        key={stat.key}
+        style={{ marginRight: 18 * scale, marginBottom: 6 * scale }}
+      >
         <Text
           style={[
             shadow,
@@ -240,12 +243,18 @@ const ActivityShareCard = forwardRef<View, ActivityShareCardProps>(
           {template === 'classic' ? (
             <>
               {hero ? statBlock(hero, true) : null}
-              <View style={{ flexDirection: 'row', marginTop: 8 * scale }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  marginTop: 8 * scale,
+                }}
+              >
                 {rest.map((stat) => statBlock(stat, false))}
               </View>
             </>
           ) : (
-            <View style={{ flexDirection: 'row' }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
               {shown.map((stat) => statBlock(stat, false))}
             </View>
           )}

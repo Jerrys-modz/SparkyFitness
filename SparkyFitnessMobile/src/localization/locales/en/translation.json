@@ -646,6 +646,7 @@
     "removePhoto": "Remove",
     "transparentHint": "With no photo the image is a transparent PNG you can lay over a photo or video in another app.",
     "cameraDenied": "Allow camera access in Settings to take a photo",
+    "noRoute": "This workout has no stored GPS route, so the layout shows stats only.",
     "layout": "Layout",
     "layoutClassic": "Classic",
     "layoutRoute": "Route",

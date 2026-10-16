@@ -182,6 +182,15 @@ const ActivityShareScreen: React.FC<ActivityShareScreenProps> = ({ route }) => {
           />
         </View>
 
+        {routeQuery.isSuccess && points.length < 2 && template !== 'minimal' ? (
+          <Text className="text-text-secondary text-xs mb-4">
+            {t('activityShare.noRoute', {
+              defaultValue:
+                'This workout has no stored GPS route, so the layout shows stats only.',
+            })}
+          </Text>
+        ) : null}
+
         <View className="flex-row mb-4">
           <Button
             variant="secondary"
