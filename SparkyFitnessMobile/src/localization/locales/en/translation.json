@@ -4974,6 +4974,16 @@
     "empty": "Meals you create will appear here.",
     "noun": "meals"
   },
+  "starterRoutines": {
+    "title": "Stretch routines",
+    "open": "Stretch routines",
+    "description": "Add a ready-made stretching routine to your presets. You can edit your copy afterwards.",
+    "moveCount_one": "{{count}} move",
+    "moveCount_other": "{{count}} moves",
+    "addA11y": "Add {{name}} to workout presets",
+    "added": "Routine added to your workout presets",
+    "addFailed": "Could not add routine"
+  },
   "presetLibrary": {
     "title": "Workout presets",
     "search": "Search workout presets...",
