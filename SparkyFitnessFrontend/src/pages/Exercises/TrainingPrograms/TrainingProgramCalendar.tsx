@@ -397,6 +397,8 @@ const TrainingProgramCalendar = ({
                       'Show all {{count}}',
                       {
                         count: runs.length,
+                        defaultValue_one: 'Show {{count}}',
+                        defaultValue_other: 'Show all {{count}}',
                       }
                     )}
               </Button>
