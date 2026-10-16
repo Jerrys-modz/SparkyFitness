@@ -179,6 +179,7 @@ export default defineConfig({
             { text: 'Calculation Settings', link: '/features/settings/calculation-settings' },
             { text: 'External Providers', link: '/features/settings/external-providers' },
             { text: 'Canadian Nutrient File', link: '/features/settings/canadian-nutrient-file' },
+            { text: 'Swedish Food Agency', link: '/features/settings/livsmedelsverket' },
             { text: 'Liftosaur', link: '/features/settings/liftosaur' },
             { text: 'Nutrient Display', link: '/features/settings/nutrient-display-settings' },
             { text: 'Login Management', link: '/features/settings/login-management' },

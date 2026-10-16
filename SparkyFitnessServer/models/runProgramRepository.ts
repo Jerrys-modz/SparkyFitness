@@ -461,11 +461,18 @@ export async function createCustomRunProgram(
 ): Promise<CustomRunProgramResponse> {
   const client = await getClient(userId, authenticatedUserId);
   try {
+    await client.query('BEGIN');
+    // Serialize one person's creates so two at once cannot both pass the
+    // limit check.
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+      `custom_run_programs:${userId}`,
+    ]);
     const count = await client.query(
       'SELECT COUNT(*)::int AS n FROM custom_run_programs WHERE user_id = $1',
       [userId]
     );
     if (count.rows[0].n >= MAX_CUSTOM_PROGRAMS) {
+      await client.query('ROLLBACK');
       throw new CustomRunProgramLimitError();
     }
     const result = await client.query(
@@ -478,7 +485,11 @@ export async function createCustomRunProgram(
         JSON.stringify(numberCustomWorkouts(input.workouts)),
       ]
     );
+    await client.query('COMMIT');
     return mapCustomRow(result.rows[0]);
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
   } finally {
     client.release();
   }

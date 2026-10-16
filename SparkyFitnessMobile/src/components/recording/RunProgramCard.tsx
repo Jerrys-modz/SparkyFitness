@@ -32,7 +32,10 @@ export function programTitle(t: TFunction, program: RunProgram): string {
 }
 
 /** "Workout 4" or the person's own name for a workout of a custom program. */
-function customWorkoutTitle(t: TFunction, workout: ProgramWorkout): string {
+export function customWorkoutTitle(
+  t: TFunction,
+  workout: ProgramWorkout
+): string {
   return (
     workout.title ||
     t('runPrograms.custom.workoutNumber', {
@@ -364,8 +367,14 @@ const RunProgramCard: React.FC<Props> = ({
         .map((workout, index) => ({ workout, index }))
         .filter(({ workout }) => workout.week === week)
         .map(({ workout, index }) => ({
-          label:
-            status.program.activity === 'walk'
+          label: status.program.custom
+            ? t('recordActivity.program.pickOptionCustom', {
+                title: customWorkoutTitle(t, workout),
+                minutes: planMinutes(workout.plan),
+                mark: index < status.done ? '✓ ' : '',
+                defaultValue: '{{mark}}{{title}} · {{minutes}} min',
+              })
+            : status.program.activity === 'walk'
               ? t('recordActivity.program.pickOptionWalk', {
                   walk: workout.day + 1,
                   minutes: planMinutes(workout.plan),

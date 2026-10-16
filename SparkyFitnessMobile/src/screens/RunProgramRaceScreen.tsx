@@ -77,6 +77,11 @@ const RunProgramRaceScreen: React.FC<Props> = ({ navigation }) => {
   const [raceDay, setRaceDay] = useState<string>(() => addDays(today, 7 * 12));
   const [runDays, setRunDays] = useState<number[]>([2, 4, 0]);
   const [saving, setSaving] = useState(false);
+  // What a failed attempt already did, so a retry does only the rest instead
+  // of saving the plan again. Cleared when the plan itself changes.
+  const progress = useRef<{ planKey: string; id?: string; started?: boolean }>({
+    planKey: '',
+  });
 
   const header = useScreenHeader({
     title: t('screens.runProgramRace', { defaultValue: 'Plan a race' }),
@@ -163,23 +168,41 @@ const RunProgramRaceScreen: React.FC<Props> = ({ navigation }) => {
   const create = async () => {
     setSaving(true);
     try {
-      const saved = await saveCustomProgram({
-        name: t('runPrograms.race.planName', {
-          label: distanceLabel(distance),
-          defaultValue: '{{label}} race plan',
-        }).slice(0, 60),
-        activity: 'run',
-        workouts: plan.workouts,
-      });
-      await startProgram(
-        customProgramId(saved.id),
-        plan.startDay <= today ? null : plan.startDay
-      );
+      const planKey = JSON.stringify([
+        distance,
+        plan.workouts,
+        plan.startDay,
+        plan.endDay,
+        plan.runDays,
+      ]);
+      if (progress.current.planKey !== planKey) {
+        progress.current = { planKey };
+      }
+      const done = progress.current;
+      if (!done.id) {
+        const saved = await saveCustomProgram({
+          name: t('runPrograms.race.planName', {
+            label: distanceLabel(distance),
+            defaultValue: '{{label}} race plan',
+          }).slice(0, 60),
+          activity: 'run',
+          workouts: plan.workouts,
+        });
+        done.id = saved.id;
+      }
+      if (!done.started) {
+        await startProgram(
+          customProgramId(done.id),
+          plan.startDay <= today ? null : plan.startDay
+        );
+        done.started = true;
+      }
       await setProgramSchedule({
         days: plan.runDays,
         startDay: plan.startDay <= today ? null : plan.startDay,
         endDay: plan.endDay,
       });
+      progress.current = { planKey: '' };
       navigation.goBack();
     } catch (error) {
       addLog(

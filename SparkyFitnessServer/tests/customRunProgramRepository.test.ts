@@ -39,12 +39,24 @@ beforeEach(() => {
 
 describe('custom run programs', () => {
   it('numbers workouts into weeks of seven and saves them', async () => {
-    query
-      .mockResolvedValueOnce({ rows: [{ n: 0 }] })
-      .mockResolvedValueOnce({ rows: [row] });
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes('COUNT(*)')) return { rows: [{ n: 0 }] };
+      if (sql.includes('INSERT INTO custom_run_programs')) {
+        return { rows: [row] };
+      }
+      return { rows: [] };
+    });
     const created = await createCustomRunProgram('u1', input);
     expect(created.id).toBe(id);
-    const saved = JSON.parse(query.mock.calls[1][1][3]);
+    // One person's creates are serialized, and the insert commits.
+    expect(query.mock.calls.map(([sql]) => String(sql))).toEqual([
+      'BEGIN',
+      expect.stringContaining('pg_advisory_xact_lock'),
+      expect.stringContaining('COUNT(*)'),
+      expect.stringContaining('INSERT INTO custom_run_programs'),
+      'COMMIT',
+    ]);
+    const saved = JSON.parse(query.mock.calls[3][1][3]);
     expect(saved).toHaveLength(9);
     expect(saved[0]).toMatchObject({ week: 0, day: 0, title: 'First' });
     expect(saved[7]).toMatchObject({ week: 1, day: 0 });
@@ -52,10 +64,13 @@ describe('custom run programs', () => {
   });
 
   it('refuses a thirty-first program', async () => {
-    query.mockResolvedValueOnce({ rows: [{ n: 30 }] });
+    query.mockImplementation(async (sql: string) =>
+      sql.includes('COUNT(*)') ? { rows: [{ n: 30 }] } : { rows: [] }
+    );
     await expect(createCustomRunProgram('u1', input)).rejects.toBeInstanceOf(
       CustomRunProgramLimitError
     );
+    expect(query).toHaveBeenCalledWith('ROLLBACK');
     expect(release).toHaveBeenCalled();
   });
 
