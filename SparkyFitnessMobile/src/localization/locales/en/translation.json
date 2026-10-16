@@ -602,7 +602,9 @@
       "runProgramsSubtitle": "Run and walk plans from Beginner 5K to marathon",
       "runProgramsActive": "{{name}} · {{progress}}",
       "personalRecords": "Personal records",
-      "personalRecordsSubtitle": "Your best 1 km, 5 km, 10 km and more"
+      "personalRecordsSubtitle": "Your best 1 km, 5 km, 10 km and more",
+      "equipment": "Equipment",
+      "equipmentSubtitle": "Shoes and other gear"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -612,7 +614,6 @@
     "exerciseStatistics": "Exercise Statistics",
     "cardioSession": "Cardio Session",
     "watchSettings": "Apple Watch",
-    "allergenSettings": "Allergens",
     "aiSettings": "AI",
     "fastingSettings": "Fasting Settings",
     "fasting": "Fasting",
@@ -632,6 +633,7 @@
     "watchRunLive": "On your watch",
     "watchRunLiveRun": "Run on your watch",
     "watchWalkLive": "Walk on your watch",
+    "allergenSettings": "Allergens",
     "runProgramCalendar": "Program calendar",
     "runProgramWorkout": "Workout",
     "runProgramEdit": "Edit plan",
@@ -2537,6 +2539,7 @@
       "noPhoto": "No photo returned by picker.",
       "analyzeLabel": "Failed to analyze nutrition label. Please try again.",
       "loadPhoto": "Failed to load photo.",
+      "restartApp": "Unable to open gallery. Please restart the app.",
       "lookupBarcode": "Couldn't look up this barcode. Please try again.",
       "timeout": "Request timed out. Check your server connection.",
       "retryOnDevice": "This iPhone could not read the label."
@@ -6388,6 +6391,27 @@
       "zone": "Zone {{zone}}",
       "zoneFrom": "from {{bpm}} bpm",
       "minutesAxis": "Minutes from start",
+      "trends": {
+        "title": "Running, last 12 weeks",
+        "thisWeek": "This week",
+        "thisWeekAbove": "This week, {{percent}}% above your recent average",
+        "thisWeekBelow": "This week, {{percent}}% below your recent average",
+        "chartA11y": "Weekly running distance for the last 12 weeks",
+        "longestRun": "Longest run",
+        "efficiency": "Efficiency",
+        "raceTimes": "Race time estimates",
+        "race5k": "5K",
+        "race10k": "10K",
+        "raceHalf": "Half marathon",
+        "raceMarathon": "Marathon",
+        "basis1k": "1K",
+        "basis1mi": "mile",
+        "basis15k": "15K",
+        "yourRecord": "your record",
+        "fromBest": "from your {{distance}}",
+        "raceTimesHint": "Estimates scale your best efforts to each distance. They run optimistic for distances you have not trained for.",
+        "efficiencyHint": "Efficiency is distance per heartbeat on runs of 20 minutes or more, earlier weeks against recent ones. Higher means fitter at the same effort."
+      },
       "kilometersAxis": "Kilometers from start",
       "milesAxis": "Miles from start",
       "bestPace": "Best {{value}}",
@@ -6436,6 +6460,20 @@
       "setsTitle": "Sets per muscle",
       "noSets": "No sets logged this week or last.",
       "loadFailed": "Could not load your training consistency."
+    },
+    "paceZones": {
+      "title": "Pace zones",
+      "perKm": "/km",
+      "perMile": "/mi",
+      "easy": "Easy",
+      "steady": "Steady",
+      "threshold": "Threshold",
+      "interval": "Interval",
+      "repetition": "Repetition",
+      "range": "{{fast}} – {{slow}} {{unit}}",
+      "fromEffort": "Built from your best recent run. Threshold pace is about {{pace}} {{unit}}.",
+      "fromTypical_one": "Estimated from your last {{formattedCount}} run, so less precise. A hard run of 3 km or more sharpens it.",
+      "fromTypical_other": "Estimated from your last {{formattedCount}} runs, so less precise. A hard run of 3 km or more sharpens it."
     }
   },
   "aiSettings": {
@@ -6456,54 +6494,54 @@
       }
     }
   },
-  "allergens": {
-    "trace": "trace: {{name}}",
-    "warningTitle": "Contains an allergen you track",
-    "traceWarningTitle": "May contain an allergen you track",
-    "mayContainTraces": "May contain traces of: {{names}}"
+  "equipmentHub": {
+    "title": "Equipment",
+    "shoesSubtitle": "Running shoes and their mileage"
   },
-  "allergenSettings": {
-    "title": "Allergens",
-    "description": "Add the allergens you want to be warned about. When a food contains one of these, a warning badge appears on foods and diary entries.",
-    "common": "Common allergens",
-    "custom": "Custom allergen",
-    "customPlaceholder": "e.g., lupin, molluscs…",
-    "tracked": "Your tracked allergens",
-    "empty": "No allergens tracked yet. Add some above to get warnings on foods.",
-    "remove": "Remove {{name}}",
-    "alreadyAdded": "Already added",
-    "alreadyAddedDescription": "{{name}} is already in your list.",
-    "errors": {
-      "error": "Error",
-      "updateFailed": "Failed to update allergens."
-    },
-    "sync": {
-      "title": "Sync from OpenFoodFacts",
-      "description": "Fetch allergen data for your saved OpenFoodFacts foods. Only needs to be done once.",
-      "button": "Sync allergens",
-      "complete": "Allergen sync complete",
-      "upToDate": "All your OpenFoodFacts foods already have allergen data.",
-      "result": "Updated {{updated}} of {{total}} food(s).",
-      "failed": "Sync failed",
-      "failedDescription": "Could not sync allergens. Please try again."
-    },
-    "names": {
-      "gluten": "gluten",
-      "wheat": "wheat",
-      "milk": "milk",
-      "eggs": "eggs",
-      "peanuts": "peanuts",
-      "treeNuts": "tree nuts",
-      "soy": "soy",
-      "fish": "fish",
-      "shellfish": "shellfish",
-      "crustaceans": "crustaceans",
-      "sesame": "sesame",
-      "celery": "celery",
-      "mustard": "mustard",
-      "lupin": "lupin",
-      "sulphites": "sulphites"
-    }
+  "shoes": {
+    "title": "Shoes",
+    "shoe": "Shoe",
+    "noShoe": "No shoe",
+    "add": "Add",
+    "addShoe": "Add shoe",
+    "editShoe": "Edit shoe",
+    "loadFailed": "Could not load your shoes.",
+    "notFound": "Shoe not found.",
+    "assignFailed": "Failed to assign shoe",
+    "empty": "No shoes yet",
+    "emptyHint": "Add a pair, then pick it on a run to start counting its mileage.",
+    "name": "Name",
+    "nameRequired": "Enter a name.",
+    "brand": "Brand",
+    "model": "Model",
+    "nickname": "Nickname",
+    "startingDistance": "Starting mileage ({{unit}})",
+    "startingInvalid": "Enter 0 or more.",
+    "retireAt": "Retire at ({{unit}})",
+    "retireInvalid": "Enter a distance above 0.",
+    "purchaseDate": "Purchase date",
+    "selectDate": "Select date",
+    "clearDate": "Clear date",
+    "purchasePrice": "Price",
+    "priceInvalid": "Enter 0 or more.",
+    "useAsDefault": "Use as my default pair",
+    "useAsDefaultHint": "New recorded runs, outdoor or indoor, are logged with your default pair.",
+    "retire": "Retire",
+    "retirePrompt": "This pair has reached its limit. Retire it?",
+    "limitReachedTitle": "Time for new shoes?",
+    "limitReachedMessage": "{{name}} has reached its mileage limit. Do you want to retire it?",
+    "reactivate": "Reactivate",
+    "retired": "Retired",
+    "retiredSection": "Retired",
+    "wornOut": "Worn out",
+    "ofLimit": "of {{limit}} {{unit}}",
+    "runCount_one": "{{count}} run",
+    "runCount_other": "{{count}} runs",
+    "lastUsed": "last used {{date}}",
+    "updateFailed": "Failed to update shoe",
+    "saveFailed": "Failed to save shoe",
+    "deleteTitle": "Delete this shoe?",
+    "deleteDescription": "Runs logged with this pair stay in your diary, but they will no longer be linked to a shoe."
   },
   "fastingSettings": {
     "title": "Fasting Settings",
@@ -7016,6 +7054,10 @@
       "weak": "GPS weak",
       "none": "No GPS"
     },
+    "warmRanges": {
+      "title": "Warm-up and cool-down",
+      "off": "Off"
+    },
     "paceBand": {
       "title": "Pace alert",
       "description": "Buzzes, and speaks with voice cues on, when you stay outside your pace range.",
@@ -7026,7 +7068,9 @@
       "workTitle": "Fast stretch pace",
       "workDescription": "Alerts you when a fast stretch is outside this range.",
       "easyTitle": "Easy stretch pace",
-      "easyDescription": "Alerts you when an easy stretch is outside this range."
+      "easyDescription": "Alerts you when an easy stretch is outside this range.",
+      "warmTitle": "Warm-up and cool-down pace",
+      "warmDescription": "Alerts you when the warm-up or cool-down is outside this range."
     },
     "heartRateBand": {
       "title": "Heart rate alert",
@@ -7039,14 +7083,16 @@
       "workTitle": "Fast stretch heart rate",
       "workDescription": "Alerts you when your heart rate in a fast stretch is outside this range.",
       "easyTitle": "Easy stretch heart rate",
-      "easyDescription": "Alerts you when your heart rate in an easy stretch is outside this range."
+      "easyDescription": "Alerts you when your heart rate in an easy stretch is outside this range.",
+      "warmTitle": "Warm-up and cool-down heart rate",
+      "warmDescription": "Alerts you when your heart rate in the warm-up or cool-down is outside this range."
     },
     "suggestedRanges": {
       "title": "Suggested ranges",
-      "pace": "Pace: fast {{fast}}, easy {{easy}}",
+      "pace": "Pace: fast {{fast}}, easy {{easy}}, warm-up and cool-down {{warm}}",
       "paceSource_one": "Based on your last {{formattedCount}} session.",
       "paceSource_other": "Based on your last {{formattedCount}} sessions.",
-      "heartRate": "Heart rate: fast {{fast}}, easy {{easy}}",
+      "heartRate": "Heart rate: fast {{fast}}, easy {{easy}}, warm-up and cool-down {{warm}}",
       "heartRateSource": "From an estimated maximum of {{max}} bpm for your age.",
       "use": "Use these",
       "tempo": "tempo {{range}}",
@@ -7906,5 +7952,54 @@
     "clear": "Clear",
     "watch": "Also use on my Apple Watch",
     "watchHint": "Holds the program workout offered on the watch to these ranges. Runs only."
+  },
+  "allergens": {
+    "trace": "trace: {{name}}",
+    "warningTitle": "Contains an allergen you track",
+    "traceWarningTitle": "May contain an allergen you track",
+    "mayContainTraces": "May contain traces of: {{names}}"
+  },
+  "allergenSettings": {
+    "title": "Allergens",
+    "description": "Add the allergens you want to be warned about. When a food contains one of these, a warning badge appears on foods and diary entries.",
+    "common": "Common allergens",
+    "custom": "Custom allergen",
+    "customPlaceholder": "e.g., lupin, molluscs…",
+    "tracked": "Your tracked allergens",
+    "empty": "No allergens tracked yet. Add some above to get warnings on foods.",
+    "remove": "Remove {{name}}",
+    "alreadyAdded": "Already added",
+    "alreadyAddedDescription": "{{name}} is already in your list.",
+    "errors": {
+      "error": "Error",
+      "updateFailed": "Failed to update allergens."
+    },
+    "sync": {
+      "title": "Sync from OpenFoodFacts",
+      "description": "Fetch allergen data for your saved OpenFoodFacts foods. Only needs to be done once.",
+      "button": "Sync allergens",
+      "complete": "Allergen sync complete",
+      "upToDate": "All your OpenFoodFacts foods already have allergen data.",
+      "result": "Updated {{updated}} of {{total}} food(s).",
+      "failed": "Sync failed",
+      "failedDescription": "Could not sync allergens. Please try again."
+    },
+    "names": {
+      "gluten": "gluten",
+      "wheat": "wheat",
+      "milk": "milk",
+      "eggs": "eggs",
+      "peanuts": "peanuts",
+      "treeNuts": "tree nuts",
+      "soy": "soy",
+      "fish": "fish",
+      "shellfish": "shellfish",
+      "crustaceans": "crustaceans",
+      "sesame": "sesame",
+      "celery": "celery",
+      "mustard": "mustard",
+      "lupin": "lupin",
+      "sulphites": "sulphites"
+    }
   }
 }

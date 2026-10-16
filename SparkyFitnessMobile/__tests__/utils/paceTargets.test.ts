@@ -129,6 +129,18 @@ describe('applyPaceTargets', () => {
     expect(isValidIntervalPlan(result)).toBe(true);
   });
 
+  it('puts the warm-up range on the warm-up and cool-down', () => {
+    const warm = { minSecondsPerKm: 400, maxSecondsPerKm: 860 };
+    const result = applyPaceTargets(plan, { work: fast, easy, warm });
+    expect(result.steps.map((step) => step.pace)).toEqual([
+      warm,
+      fast,
+      easy,
+      warm,
+    ]);
+    expect(isValidIntervalPlan(result)).toBe(true);
+  });
+
   describe('with efforts', () => {
     const tempo = { minSecondsPerKm: 320, maxSecondsPerKm: 340 };
     const stride = { minSecondsPerKm: 250, maxSecondsPerKm: 270 };

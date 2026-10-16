@@ -1,82 +1,150 @@
-import { normalizePaceBand, type PaceBand } from "./paceTargets.ts";
-
 /**
- * Training pace ranges worked out from a recent race result. The race is
- * turned into an equivalent 5K pace with Riegel's formula, and each kind of
- * stretch is a band around that pace. They are starting points for a runner who
- * has no better numbers, in seconds per kilometre, never applied without a tap.
+ * Training pace zones for running, worked out from one fitness reference: the
+ * pace a person could hold for about an hour (their threshold pace). Pure and
+ * unit-free (seconds per kilometre), like `paceTargets.ts`, so the phone, the
+ * web app and the server share one set of rules.
  */
 
-export interface PaceReferenceRace {
-  /** How far the race was, in kilometres. */
-  distanceKm: number;
-  /** How long it took, in seconds. */
-  seconds: number;
+export type PaceZoneId =
+  | "easy"
+  | "steady"
+  | "threshold"
+  | "interval"
+  | "repetition";
+
+/** Seconds per kilometre. `min` is the fastest pace in the zone, `max` the slowest. */
+export interface PaceZone {
+  id: PaceZoneId;
+  minSecondsPerKm: number;
+  maxSecondsPerKm: number;
 }
 
-/** The races the pace reference can come from. */
-export const PACE_REFERENCE_RACES = [
-  { id: "5k", distanceKm: 5 },
-  { id: "10k", distanceKm: 10 },
-  { id: "half", distanceKm: 21.0975 },
-  { id: "marathon", distanceKm: 42.195 },
-] as const;
+/** Slowest zone first, which is the order a runner reads them in. */
+export const PACE_ZONE_IDS: readonly PaceZoneId[] = [
+  "easy",
+  "steady",
+  "threshold",
+  "interval",
+  "repetition",
+];
 
-export type PaceReferenceRaceId = (typeof PACE_REFERENCE_RACES)[number]["id"];
+/**
+ * Edges of each zone as multiples of threshold pace, fastest to slowest. The
+ * zones touch, so every pace falls in exactly one: repetition 0.80-0.89,
+ * interval 0.89-0.97, threshold 0.97-1.045, steady 1.045-1.145 (about marathon
+ * pace) and easy 1.145-1.35.
+ */
+const ZONE_EDGES = [0.8, 0.89, 0.97, 1.045, 1.145, 1.35] as const;
+const ZONES_FASTEST_FIRST: readonly PaceZoneId[] = [
+  "repetition",
+  "interval",
+  "threshold",
+  "steady",
+  "easy",
+];
 
-export type PaceZoneName =
-  "easy" | "interval" | "tempo" | "marathon" | "stride";
+/** Riegel's exponent: how much a pace slows as the distance grows. */
+export const RIEGEL_EXPONENT = 1.06;
+/** Threshold pace is the pace held for an hour. */
+const THRESHOLD_SECONDS = 3600;
+/** Efforts outside this range say little about an hour-long pace. */
+export const MIN_EFFORT_METERS = 3000;
+export const MAX_EFFORT_METERS = 25000;
 
-/** Riegel's exponent: how much slower the pace gets as the distance grows. */
-const RIEGEL_EXPONENT = 1.06;
+/** Fastest and slowest threshold pace worth building zones on: 2:30 and 12:00 per km. */
+const MIN_THRESHOLD_SECONDS_PER_KM = 150;
+const MAX_THRESHOLD_SECONDS_PER_KM = 720;
 
-/** Fastest and slowest race pace worth working from: 2:30 and 12:00 per km. */
-const FASTEST_RACE_PACE = 150;
-const SLOWEST_RACE_PACE = 720;
+const round5 = (seconds: number): number => Math.round(seconds / 5) * 5;
 
-/** Multiples of the equivalent 5K pace: the fast edge and the slow edge. */
-const ZONE_FACTORS: Record<PaceZoneName, readonly [number, number]> = {
-  easy: [1.2, 1.35],
-  interval: [0.97, 1.03],
-  tempo: [1.07, 1.12],
-  marathon: [1.13, 1.19],
-  stride: [0.88, 0.95],
-};
-
-/** Seconds per km rounded to the 5 s the pace steppers move by. */
-const roundPace = (seconds: number): number => Math.round(seconds / 5) * 5;
-
-/** The race's equivalent 5K pace in seconds per km, or null for a result that cannot be right. */
-export function equivalent5kPace(race: PaceReferenceRace): number | null {
-  const { distanceKm, seconds } = race;
-  if (!Number.isFinite(distanceKm) || !Number.isFinite(seconds)) return null;
-  if (distanceKm < 1 || distanceKm > 50 || seconds <= 0) return null;
-  const racePace = seconds / distanceKm;
-  if (racePace < FASTEST_RACE_PACE || racePace > SLOWEST_RACE_PACE) {
+/**
+ * Threshold pace from one hard effort of `distanceMeters` in `seconds`, by
+ * Riegel's formula carried to a one hour run. Null for an effort that is too
+ * short or too long to say anything, or a result that cannot be right.
+ */
+export function thresholdPaceFromEffort(
+  distanceMeters: number,
+  seconds: number,
+): number | null {
+  if (!Number.isFinite(distanceMeters) || !Number.isFinite(seconds)) return null;
+  if (seconds <= 0) return null;
+  if (distanceMeters < MIN_EFFORT_METERS || distanceMeters > MAX_EFFORT_METERS) {
     return null;
   }
-  const fiveKSeconds = seconds * Math.pow(5 / distanceKm, RIEGEL_EXPONENT);
-  return fiveKSeconds / 5;
+  const hourMeters =
+    distanceMeters * (THRESHOLD_SECONDS / seconds) ** (1 / RIEGEL_EXPONENT);
+  const pace = THRESHOLD_SECONDS / (hourMeters / 1000);
+  if (pace < MIN_THRESHOLD_SECONDS_PER_KM) return null;
+  if (pace > MAX_THRESHOLD_SECONDS_PER_KM) return null;
+  return pace;
 }
 
 /**
- * Pace ranges for each kind of stretch, or null when the race result cannot
- * be used. A zone whose range falls outside what a pace target allows is left
- * out.
+ * The five zones around `thresholdSecondsPerKm`, slowest first, paces rounded
+ * to 5 s. `shift` moves every edge by that share (0.03 is 3% slower, negative
+ * is faster) for easing off or pushing on. Null when the threshold is unusable.
  */
-export function racePaceZones(
-  race: PaceReferenceRace,
-): Partial<Record<PaceZoneName, PaceBand>> | null {
-  const pace = equivalent5kPace(race);
-  if (pace === null) return null;
-  const zones: Partial<Record<PaceZoneName, PaceBand>> = {};
-  for (const name of Object.keys(ZONE_FACTORS) as PaceZoneName[]) {
-    const [fast, slow] = ZONE_FACTORS[name];
-    const band = normalizePaceBand({
-      minSecondsPerKm: roundPace(pace * fast),
-      maxSecondsPerKm: roundPace(pace * slow),
+export function paceZones(
+  thresholdSecondsPerKm: number,
+  shift = 0,
+): PaceZone[] | null {
+  if (!Number.isFinite(thresholdSecondsPerKm)) return null;
+  if (thresholdSecondsPerKm < MIN_THRESHOLD_SECONDS_PER_KM) return null;
+  if (thresholdSecondsPerKm > MAX_THRESHOLD_SECONDS_PER_KM) return null;
+  if (!Number.isFinite(shift) || shift < -0.2 || shift > 0.2) return null;
+  const scale = thresholdSecondsPerKm * (1 + shift);
+  const zones: PaceZone[] = [];
+  ZONES_FASTEST_FIRST.forEach((id, index) => {
+    const fast = ZONE_EDGES[index];
+    const slow = ZONE_EDGES[index + 1];
+    if (fast === undefined || slow === undefined) return;
+    zones.push({
+      id,
+      minSecondsPerKm: round5(scale * fast),
+      maxSecondsPerKm: round5(scale * slow),
     });
-    if (band) zones[name] = band;
+  });
+  return zones.reverse();
+}
+
+/** The zone a pace falls in, or null when it is faster or slower than all of them. */
+export function zoneForPace(
+  zones: readonly PaceZone[],
+  secondsPerKm: number,
+): PaceZoneId | null {
+  if (!Number.isFinite(secondsPerKm)) return null;
+  for (const zone of zones) {
+    if (
+      secondsPerKm >= zone.minSecondsPerKm &&
+      secondsPerKm < zone.maxSecondsPerKm
+    ) {
+      return zone.id;
+    }
   }
-  return Object.keys(zones).length > 0 ? zones : null;
+  return null;
+}
+
+/** One zone by id. */
+export function paceZone(
+  zones: readonly PaceZone[],
+  id: PaceZoneId,
+): PaceZone | undefined {
+  return zones.find((zone) => zone.id === id);
+}
+
+/** How far two hard-rated workouts in a row slow the zones, and two easy ones speed them. */
+export const EASE_ZONE_SHIFT = 0.03;
+export const ADVANCE_ZONE_SHIFT = -0.015;
+
+/**
+ * Zone shift for what a runner's effort ratings say: easing off slows every
+ * zone 3%, moving on speeds them 1.5%, anything else leaves them alone. Takes
+ * the output of `suggestFromEffort`.
+ */
+export function zoneShiftForEffort(
+  suggestion: "ease" | "advance" | null,
+): number {
+  if (suggestion === "ease") return EASE_ZONE_SHIFT;
+  if (suggestion === "advance") return ADVANCE_ZONE_SHIFT;
+  return 0;
 }

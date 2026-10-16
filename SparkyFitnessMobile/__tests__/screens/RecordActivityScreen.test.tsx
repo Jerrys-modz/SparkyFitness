@@ -267,16 +267,18 @@ describe('RecordActivityScreen', () => {
         pace: {
           work: { minSecondsPerKm: 285, maxSecondsPerKm: 320 },
           easy: { minSecondsPerKm: 360, maxSecondsPerKm: 420 },
+          warm: { minSecondsPerKm: 380, maxSecondsPerKm: 840 },
           sessions: 5,
         },
         heartRate: {
           work: { minBpm: 155, maxBpm: 170 },
           easy: { minBpm: 110, maxBpm: 130 },
+          warm: { minBpm: 95, maxBpm: 120 },
           maxHeartRate: 185,
         },
       };
 
-      it('offers them for a plan and puts them on every fast and easy stretch when used', async () => {
+      it('offers them for a plan and puts them on every fast, easy and warm-up stretch when used', async () => {
         state(null);
         onProgram();
         jest.mocked(useWatchConnectivity).mockReturnValue({
@@ -291,7 +293,9 @@ describe('RecordActivityScreen', () => {
         );
         expect(screen.getByText('Based on your last 5 sessions.')).toBeTruthy();
         expect(
-          screen.getByText('Pace: fast 4:45–5:20/km, easy 6:00–7:00/km')
+          screen.getByText(
+            'Pace: fast 4:45–5:20/km, easy 6:00–7:00/km, warm-up and cool-down 6:20–14:00/km'
+          )
         ).toBeTruthy();
 
         fireEvent.press(screen.getByTestId('suggested-ranges-use'));
@@ -310,6 +314,18 @@ describe('RecordActivityScreen', () => {
           maxSecondsPerKm: 420,
         });
         expect(easy?.heartRate).toEqual({ minBpm: 110, maxBpm: 130 });
+        const warmSteps =
+          intervals?.steps.filter(
+            (step) => step.kind === 'warmup' || step.kind === 'cooldown'
+          ) ?? [];
+        expect(warmSteps.length).toBeGreaterThan(0);
+        for (const step of warmSteps) {
+          expect(step.pace).toEqual({
+            minSecondsPerKm: 380,
+            maxSecondsPerKm: 840,
+          });
+          expect(step.heartRate).toEqual({ minBpm: 95, maxBpm: 120 });
+        }
       });
 
       it('from a recent race, gives the runs of a run/walk plan the easy-running range', async () => {

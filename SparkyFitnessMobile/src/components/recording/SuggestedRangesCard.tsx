@@ -17,6 +17,7 @@ export interface SuggestedRangesCardProps {
   pace: {
     work: PaceBandChoice;
     easy: PaceBandChoice;
+    warm: PaceBandChoice;
     sessions: number;
     race?: PaceReferenceRace | null;
     efforts?: {
@@ -29,13 +30,14 @@ export interface SuggestedRangesCardProps {
   heartRate: {
     work: HeartRateBand;
     easy: HeartRateBand;
+    warm: HeartRateBand;
     maxHeartRate: number;
   } | null;
   onUse: () => void;
 }
 
 /**
- * Starting ranges for a plan's fast and easy stretches, with where they came
+ * Starting ranges for a plan's fast and easy stretches and its warm-up and cool-down, with where they came
  * from. Nothing is switched on until the person taps Use.
  */
 const SuggestedRangesCard: React.FC<SuggestedRangesCardProps> = ({
@@ -76,7 +78,9 @@ const SuggestedRangesCard: React.FC<SuggestedRangesCardProps> = ({
             {t('recordActivity.suggestedRanges.pace', {
               fast: paceText(pace.work),
               easy: paceText(pace.easy),
-              defaultValue: 'Pace: fast {{fast}}, easy {{easy}}',
+              warm: paceText(pace.warm),
+              defaultValue:
+                'Pace: fast {{fast}}, easy {{easy}}, warm-up and cool-down {{warm}}',
             })}
           </Text>
           {pace.efforts && Object.keys(pace.efforts).length > 0 ? (
@@ -130,7 +134,9 @@ const SuggestedRangesCard: React.FC<SuggestedRangesCardProps> = ({
             {t('recordActivity.suggestedRanges.heartRate', {
               fast: bpmText(heartRate.work),
               easy: bpmText(heartRate.easy),
-              defaultValue: 'Heart rate: fast {{fast}}, easy {{easy}}',
+              warm: bpmText(heartRate.warm),
+              defaultValue:
+                'Heart rate: fast {{fast}}, easy {{easy}}, warm-up and cool-down {{warm}}',
             })}
           </Text>
           <Text className="text-text-secondary text-xs mt-0.5">

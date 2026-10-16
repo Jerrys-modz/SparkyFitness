@@ -447,42 +447,51 @@ export const lastStepStarted = (
 
 /**
  * The plan with a pace range on its fast and easy stretches: `work` goes on
- * every work step and `easy` on every recovery step. Warm-up and cool-down
- * stay free. A band that is not usable is ignored.
+ * every work step, `easy` on every recovery step and `warm` on the warm-up and
+ * cool-down. A step left without a range is not judged by the plan. A band
+ * that is not usable is ignored.
  *
- * A step with an `effort` gets the range for that effort instead: `byEffort`
- * names it. An `easy` effort with none follows its kind like an untagged step,
- * and any other effort with no range of its own gets none, so a stride or hill
- * repeat is never held to the pace of a long fast stretch.
+ * A work or recovery step with an `effort` gets the range for that effort
+ * instead: `byEffort` names it. An `easy` effort with none follows its kind
+ * like an untagged step, and any other effort with no range of its own gets
+ * none, so a stride or hill repeat is never held to the pace of a long fast
+ * stretch.
  */
 export function applyPaceTargets(
   plan: IntervalPlan,
   targets: {
     work?: PaceBand | null;
     easy?: PaceBand | null;
+    warm?: PaceBand | null;
     byEffort?: Partial<Record<StepEffort, PaceBand | null>>;
   },
 ): IntervalPlan {
   const work = normalizePaceBand(targets.work);
   const easy = normalizePaceBand(targets.easy);
+  const warm = normalizePaceBand(targets.warm);
   const byEffort: Partial<Record<StepEffort, PaceBand>> = {};
   for (const effort of STEP_EFFORTS) {
     const band = normalizePaceBand(targets.byEffort?.[effort]);
     if (band) byEffort[effort] = band;
   }
-  if (!work && !easy && Object.keys(byEffort).length === 0) return plan;
+  if (!work && !easy && !warm && Object.keys(byEffort).length === 0) {
+    return plan;
+  }
   return {
     ...plan,
     steps: plan.steps.map((step) => {
-      if (step.kind !== "work" && step.kind !== "recovery") return step;
-      const byKind = step.kind === "work" ? work : easy;
       let pace: PaceBand | null;
-      if (step.effort && byEffort[step.effort]) {
-        pace = byEffort[step.effort] ?? null;
-      } else if (step.effort && step.effort !== "easy") {
-        pace = null;
+      if (step.kind !== "work" && step.kind !== "recovery") {
+        pace = warm;
       } else {
-        pace = byKind;
+        const byKind = step.kind === "work" ? work : easy;
+        if (step.effort && byEffort[step.effort]) {
+          pace = byEffort[step.effort] ?? null;
+        } else if (step.effort && step.effort !== "easy") {
+          pace = null;
+        } else {
+          pace = byKind;
+        }
       }
       return pace ? { ...step, pace } : step;
     }),
@@ -490,27 +499,36 @@ export function applyPaceTargets(
 }
 
 /**
- * The same for heart rate: `work` goes on every work step and `easy` on every
- * recovery step.
+ * The same for heart rate: `work` goes on every work step, `easy` on every
+ * recovery step and `warm` on the warm-up and cool-down.
  */
 export function applyHeartRateTargets(
   plan: IntervalPlan,
-  targets: { work?: HeartRateBand | null; easy?: HeartRateBand | null },
+  targets: {
+    work?: HeartRateBand | null;
+    easy?: HeartRateBand | null;
+    warm?: HeartRateBand | null;
+  },
 ): IntervalPlan {
   const work = normalizeHeartRateBand(targets.work);
   const easy = normalizeHeartRateBand(targets.easy);
-  if (!work && !easy) return plan;
+  const warm = normalizeHeartRateBand(targets.warm);
+  if (!work && !easy && !warm) return plan;
   return {
     ...plan,
     steps: plan.steps.map((step) => {
-      if (step.kind !== "work" && step.kind !== "recovery") return step;
-      // Heart rate lags a short effort, so strides and hill repeats get none;
-      // a tempo or marathon-pace effort is held to the hard range.
       let heartRate: HeartRateBand | null;
-      if (step.effort === "stride" || step.effort === "hill") heartRate = null;
-      else if (step.effort === "tempo" || step.effort === "marathon") {
+      if (step.kind !== "work" && step.kind !== "recovery") {
+        heartRate = warm;
+      } else if (step.effort === "stride" || step.effort === "hill") {
+        // Heart rate lags a short effort, so strides and hill repeats get none.
+        heartRate = null;
+      } else if (step.effort === "tempo" || step.effort === "marathon") {
+        // A tempo or marathon-pace effort is held to the hard range.
         heartRate = work;
-      } else heartRate = step.kind === "work" ? work : easy;
+      } else {
+        heartRate = step.kind === "work" ? work : easy;
+      }
       return heartRate ? { ...step, heartRate } : step;
     }),
   };

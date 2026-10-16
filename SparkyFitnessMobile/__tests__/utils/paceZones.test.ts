@@ -1,96 +1,87 @@
-import {
-  equivalent5kPace,
-  PACE_REFERENCE_RACES,
-  racePaceZones,
-} from '@workspace/shared';
+import type { ExerciseActivityQueryItem } from '@workspace/shared';
+import { paceZonesFromSessions } from '../../src/utils/paceZones';
 
-describe('equivalent5kPace', () => {
-  it('is the race pace for a 5K', () => {
-    expect(equivalent5kPace({ distanceKm: 5, seconds: 1500 })).toBe(300);
-  });
-
-  it('turns a longer race into the faster pace it implies over 5K', () => {
-    // 50:00 for 10K is about 4:48/km at 5K (Riegel).
-    const pace = equivalent5kPace({ distanceKm: 10, seconds: 3000 })!;
-    expect(pace).toBeGreaterThan(285);
-    expect(pace).toBeLessThan(295);
-  });
-
-  it('rejects a result that cannot be right', () => {
-    expect(equivalent5kPace({ distanceKm: 5, seconds: 0 })).toBeNull();
-    expect(equivalent5kPace({ distanceKm: 5, seconds: 300 })).toBeNull();
-    expect(equivalent5kPace({ distanceKm: 5, seconds: 6000 })).toBeNull();
-    expect(equivalent5kPace({ distanceKm: 0.5, seconds: 120 })).toBeNull();
-    expect(equivalent5kPace({ distanceKm: 100, seconds: 36000 })).toBeNull();
-    expect(equivalent5kPace({ distanceKm: NaN, seconds: 1500 })).toBeNull();
-  });
+const run = (
+  overrides: Partial<ExerciseActivityQueryItem> = {}
+): ExerciseActivityQueryItem => ({
+  id: 'e1',
+  userId: 'u1',
+  exerciseName: 'Outdoor Running',
+  category: 'cardio',
+  entryDate: '2026-10-05',
+  entryTime: null,
+  durationMinutes: 25,
+  movingDurationMinutes: null,
+  distanceMeters: 5000,
+  distanceFormatted: 5,
+  avgPaceSecondsPerKm: 300,
+  formattedPace: '5:00 /km',
+  caloriesBurned: 300,
+  avgHeartRate: null,
+  source: null,
+  notes: null,
+  hasGpsTrack: true,
+  ...overrides,
 });
 
-describe('racePaceZones', () => {
-  const zones = racePaceZones({ distanceKm: 5, seconds: 1500 })!;
+const TODAY = '2026-10-13';
 
-  it('has a range for every kind of stretch, in 5 second steps', () => {
-    for (const name of [
-      'easy',
-      'interval',
-      'tempo',
-      'marathon',
-      'stride',
-    ] as const) {
-      const band = zones[name]!;
-      expect(band.minSecondsPerKm).toBeLessThan(band.maxSecondsPerKm);
-      expect(band.minSecondsPerKm % 5).toBe(0);
-      expect(band.maxSecondsPerKm % 5).toBe(0);
-    }
-  });
-
-  it('orders them from fastest to slowest: strides, intervals, tempo, marathon, easy', () => {
-    const slowEdge = (
-      name: 'stride' | 'interval' | 'tempo' | 'marathon' | 'easy'
-    ) => zones[name]!.maxSecondsPerKm;
-    expect(slowEdge('stride')).toBeLessThan(slowEdge('interval'));
-    expect(slowEdge('interval')).toBeLessThan(slowEdge('tempo'));
-    expect(slowEdge('tempo')).toBeLessThan(slowEdge('marathon'));
-    expect(slowEdge('marathon')).toBeLessThan(slowEdge('easy'));
-  });
-
-  it('puts a 25:00 5K intervals around 5:00/km and easy runs at 6:00 to 6:45', () => {
-    expect(zones.interval).toEqual({
-      minSecondsPerKm: 290,
-      maxSecondsPerKm: 310,
-    });
-    expect(zones.easy).toEqual({ minSecondsPerKm: 360, maxSecondsPerKm: 405 });
-  });
-
-  it('gives a faster runner faster zones', () => {
-    const fast = racePaceZones({ distanceKm: 5, seconds: 1200 })!;
-    expect(fast.easy!.minSecondsPerKm).toBeLessThan(
-      zones.easy!.minSecondsPerKm
+describe('paceZonesFromSessions', () => {
+  it('builds zones from the best recent hard run', () => {
+    const result = paceZonesFromSessions(
+      [
+        run({ id: 'slow', avgPaceSecondsPerKm: 360 }),
+        run({ id: 'fast', avgPaceSecondsPerKm: 300 }),
+      ],
+      TODAY
     );
-    expect(fast.tempo!.maxSecondsPerKm).toBeLessThan(
-      zones.tempo!.maxSecondsPerKm
+    expect(result?.source).toBe('effort');
+    expect(result?.sessions).toBe(2);
+    // The faster 5K sets the reference, not the slower one.
+    expect(result!.thresholdSecondsPerKm).toBeGreaterThan(300);
+    expect(result!.thresholdSecondsPerKm).toBeLessThan(340);
+    expect(result!.zones).toHaveLength(5);
+  });
+
+  it('works from one run', () => {
+    expect(paceZonesFromSessions([run()], TODAY)?.source).toBe('effort');
+  });
+
+  it('ignores walks, indoor runs and old runs', () => {
+    const sessions = [
+      run({ id: 'walk', exerciseName: 'Outdoor Walking' }),
+      run({ id: 'indoor', hasGpsTrack: false }),
+      run({ id: 'old', entryDate: '2026-06-01' }),
+    ];
+    expect(paceZonesFromSessions(sessions, TODAY)).toBeNull();
+  });
+
+  it('does not take a very short or very long run as a hard effort', () => {
+    const result = paceZonesFromSessions(
+      [
+        run({ id: 'short', distanceMeters: 2000, avgPaceSecondsPerKm: 250 }),
+        run({ id: 'long', distanceMeters: 30000, avgPaceSecondsPerKm: 250 }),
+      ],
+      TODAY
     );
+    expect(result?.source).toBe('typical');
   });
 
-  it('gives the same zones for the same fitness shown by a different race', () => {
-    // 25:00 for 5K and the Riegel-equivalent 10K time.
-    const tenK = racePaceZones({
-      distanceKm: 10,
-      seconds: 1500 * Math.pow(2, 1.06),
-    })!;
-    expect(tenK.easy).toEqual(zones.easy);
+  it('falls back to an average of runs when none is a usable effort', () => {
+    const runs = [
+      run({ id: 'a', distanceMeters: 2500, avgPaceSecondsPerKm: 400 }),
+      run({ id: 'b', distanceMeters: 2500, avgPaceSecondsPerKm: 400 }),
+    ];
+    const result = paceZonesFromSessions(runs, TODAY);
+    expect(result?.source).toBe('typical');
+    expect(result?.thresholdSecondsPerKm).toBeCloseTo(360);
   });
 
-  it('is null for a result that cannot be used', () => {
-    expect(racePaceZones({ distanceKm: 5, seconds: -1 })).toBeNull();
-  });
-
-  it('lists the four standard races', () => {
-    expect(PACE_REFERENCE_RACES.map((r) => r.id)).toEqual([
-      '5k',
-      '10k',
-      'half',
-      'marathon',
-    ]);
+  it('shifts the zones slower for a positive shift', () => {
+    const base = paceZonesFromSessions([run()], TODAY)!;
+    const eased = paceZonesFromSessions([run()], TODAY, 0.03)!;
+    expect(eased.zones[0].minSecondsPerKm).toBeGreaterThan(
+      base.zones[0].minSecondsPerKm
+    );
   });
 });

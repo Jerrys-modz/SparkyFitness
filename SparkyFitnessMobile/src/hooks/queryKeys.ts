@@ -99,6 +99,7 @@ export const allProvidersFoodSearchQueryKey = (
 
 export const mealTypesQueryKey = ['mealTypes'] as const;
 
+export const shoesQueryKey = ['shoes'] as const;
 export const allergenPreferencesQueryKey = ['allergenPreferences'] as const;
 
 export const goalsQueryKey = (date: string) => ['goals', date] as const;
@@ -405,6 +406,12 @@ export const glp1SiteSuggestionQueryKey = (medicationId: string) =>
 
 /** Autocomplete source for the live workout's gym / location prompt. */
 export const workoutLocationsQueryKey = ['workoutLocations'] as const;
+
+export const runningTrendsQueryKey = (startDate: string, endDate: string) =>
+  ['cardioSessions', 'runningTrends', startDate, endDate] as const;
+
+export const runningRecordsQueryKey = () =>
+  ['cardioSessions', 'runningRecords'] as const;
 
 /** The person's run program and place in it (server-backed). */
 export const runProgramQueryKey = ['runProgram'] as const;
