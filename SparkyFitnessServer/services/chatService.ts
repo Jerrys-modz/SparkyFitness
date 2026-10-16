@@ -767,6 +767,17 @@ export function getSystemPrompt(
     }
   }
 
+  if (categories.has('coaching') && suffix === 'full') {
+    const coachingPath = path.join(
+      __dirname,
+      '../prompts',
+      `chatbot-${suffix}-coaching.md`
+    );
+    if (existsSync(coachingPath)) {
+      content += '\n\n' + readFileSync(coachingPath, 'utf-8').trim();
+    }
+  }
+
   if (categories.has('exercise') && suffix === 'full') {
     const exercisePath = path.join(
       __dirname,
@@ -1815,7 +1826,7 @@ const KEYWORD_RULES: { category: ChatToolCategorySlug; keywords: RegExp }[] = [
   {
     category: 'coaching',
     keywords:
-      /\b(advice|advise|tips?|motivat\w*|recommend\w*|suggest\w*|coach(?:ing)?|plan)\b/i,
+      /\b(advice|advise|tips?|motivat\w*|recommend\w*|suggest\w*|coach(?:ing)?|plan|recalibrat\w*|maintenance calories|tdee)\b/i,
   },
   {
     category: 'vision',
