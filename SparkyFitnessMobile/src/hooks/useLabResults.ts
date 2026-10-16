@@ -4,10 +4,15 @@ import {
   deleteCustomMeasurement,
   fetchCustomEntriesForCategory,
 } from '../services/api/measurementsApi';
+import {
+  deleteImportedLabResults,
+  deleteLabMarker,
+} from '../services/api/labReportApi';
 import { saveLabResult } from '../services/labResultsService';
 import {
   customCategoriesQueryKey,
   labHistoryQueryKey,
+  labHistoryRootQueryKey,
   latestManualCustomEntriesRootQueryKey,
 } from './queryKeys';
 import {
@@ -80,6 +85,43 @@ export function useDeleteLabResult(categoryId: string) {
     onSuccess: () => invalidateLabCaches(queryClient, categoryId),
     onError: (err: Error) => {
       addLog(`Failed to delete lab result: ${err.message}`, 'ERROR');
+    },
+  });
+}
+
+function invalidateAllLabCaches(
+  queryClient: ReturnType<typeof useQueryClient>
+) {
+  queryClient.invalidateQueries({ queryKey: customCategoriesQueryKey });
+  queryClient.invalidateQueries({ queryKey: labHistoryRootQueryKey });
+  queryClient.invalidateQueries({
+    queryKey: latestManualCustomEntriesRootQueryKey,
+  });
+  refreshHealthSyncCache(queryClient);
+}
+
+/** Deletes every result a report import saved, and the markers left empty. */
+export function useDeleteImportedLabResults() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteImportedLabResults,
+    onSettled: () => invalidateAllLabCaches(queryClient),
+    onError: (err: Error) => {
+      addLog(`Failed to delete imported lab results: ${err.message}`, 'ERROR');
+    },
+  });
+}
+
+/** Deletes one lab marker with all of its results. */
+export function useDeleteLabMarker() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (categoryId: string) => deleteLabMarker(categoryId),
+    onSettled: () => invalidateAllLabCaches(queryClient),
+    onError: (err: Error) => {
+      addLog(`Failed to delete lab marker: ${err.message}`, 'ERROR');
     },
   });
 }

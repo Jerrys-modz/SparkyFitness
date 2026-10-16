@@ -54,6 +54,8 @@ export interface CustomMeasurementEntry {
   entry_timestamp?: string;
   notes?: string | null;
   source?: string;
+  /** Set when the result was saved by a lab report import. */
+  import_id?: string | null;
   custom_categories?: CustomCategoryEntryInfo;
 }
 
@@ -65,6 +67,8 @@ export interface SaveCustomMeasurementPayload {
   entry_timestamp?: string;
   notes?: string;
   source?: string;
+  /** Tags the result with the lab report import that saved it. */
+  import_id?: string;
 }
 
 /**
