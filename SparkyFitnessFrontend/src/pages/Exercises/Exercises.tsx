@@ -42,6 +42,7 @@ import { localizeMuscle, localizeEquipment } from '@/utils/exerciseTaxonomy';
 import WorkoutPresetsManager from './WorkoutPresetsManager';
 import EquipmentManager from '@/pages/Exercises/EquipmentManager';
 import WorkoutPlansManager from '@/pages/Exercises/WorkoutPlansManager';
+import TrainingProgramsEntry from '@/pages/Exercises/TrainingPrograms/TrainingProgramsEntry';
 import {
   useExercises,
   useUpdateExerciseShareStatusMutation,
@@ -687,6 +688,9 @@ const ExerciseDatabaseManager = () => {
 
       {/* Workout Plans Section */}
       <WorkoutPlansManager />
+
+      {/* Run and walk training programs */}
+      <TrainingProgramsEntry />
 
       {/* Equipment Section (shoes and their mileage) */}
       <EquipmentManager />

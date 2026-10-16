@@ -78,6 +78,7 @@ async function renameNutrientGoalPreferenceKey(
   // When given, the caller owns the transaction and the client's lifetime.
   sharedClient?: PoolClient
 ): Promise<void> {
+  if (oldKey === newKey) return;
   const client = sharedClient ?? (await getClient(userId));
   try {
     if (!sharedClient) await client.query('BEGIN');
