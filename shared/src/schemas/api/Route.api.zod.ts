@@ -57,8 +57,35 @@ export const routeSchema = z.object({
   points: z.array(routePointSchema),
   cues: z.array(routeCueSchema),
   sourceExerciseEntryId: z.string().nullable(),
+  /** Diary entries that followed this route. */
+  runCount: z.number().int().min(0),
+  /** Shortest logged time over the route, in seconds; null before a first run. */
+  bestDurationSeconds: z.number().int().nullable(),
+  /** Day (`YYYY-MM-DD`) of the newest run; null before a first run. */
+  lastRunDate: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
+});
+
+/** One diary entry that followed a route, as listed under the route. */
+export const routeRunSchema = z.object({
+  entryId: z.string(),
+  /** Calendar day (`YYYY-MM-DD`). */
+  date: z.string(),
+  durationSeconds: z.number().int().min(0),
+  distanceM: z.number().nullable(),
+  /** Seconds per kilometre; null when the entry has no distance. */
+  paceSecPerKm: z.number().nullable(),
+  avgHeartRate: z.number().nullable(),
+});
+
+export const routeRunsResponseSchema = z.object({
+  runs: z.array(routeRunSchema),
+});
+
+/** Links an exercise entry to a route, or clears the link with `null`. */
+export const attachEntryRouteBodySchema = z.object({
+  routeId: z.guid().nullable(),
 });
 
 /** A route in a list: everything but the (large) points and cues. */
@@ -103,6 +130,9 @@ export type RouteCueKind = z.infer<typeof routeCueKindSchema>;
 export type RouteCue = z.infer<typeof routeCueSchema>;
 export type Route = z.infer<typeof routeSchema>;
 export type RouteSummary = z.infer<typeof routeSummarySchema>;
+export type RouteRun = z.infer<typeof routeRunSchema>;
+export type RouteRunsResponse = z.infer<typeof routeRunsResponseSchema>;
+export type AttachEntryRouteBody = z.infer<typeof attachEntryRouteBodySchema>;
 export type CreateRouteBody = z.infer<typeof createRouteBodySchema>;
 export type UpdateRouteBody = z.infer<typeof updateRouteBodySchema>;
 export type ImportGpxRouteBody = z.infer<typeof importGpxRouteBodySchema>;

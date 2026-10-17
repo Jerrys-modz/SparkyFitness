@@ -10,6 +10,7 @@ import {
   getActivityTrack,
   getRoute,
   InvalidRouteError,
+  listRouteRuns,
   listRoutes,
   RouteLimitError,
   updateRoute,
@@ -19,6 +20,7 @@ vi.mock('../models/routeRepository.js', () => {
   class InvalidRouteError extends Error {}
   return {
     listRoutes: vi.fn(),
+    listRouteRuns: vi.fn(),
     getRoute: vi.fn(),
     createRoute: vi.fn(),
     updateRoute: vi.fn(),
@@ -179,5 +181,38 @@ describe('routes API', () => {
     expect(gpx.status).toBe(200);
     expect(gpx.headers['content-type']).toContain('application/gpx+xml');
     expect(gpx.text).toContain('<trkpt lat="40" lon="-74">');
+  });
+
+  it('lists the runs that followed a route', async () => {
+    const runs = [
+      {
+        entryId: ID,
+        date: '2026-10-16',
+        durationSeconds: 1500,
+        distanceM: 5000,
+        paceSecPerKm: 300,
+        avgHeartRate: 150,
+      },
+    ];
+    vi.mocked(listRouteRuns).mockResolvedValueOnce(runs);
+    const ok = await request(app).get(`/api/v2/routes/${ID}/runs`);
+    expect(ok.status).toBe(200);
+    expect(ok.body).toEqual({ runs });
+    expect(listRouteRuns).toHaveBeenCalledWith('test-user-id', ID, actingAs);
+
+    vi.mocked(listRouteRuns).mockResolvedValueOnce(null);
+    expect((await request(app).get(`/api/v2/routes/${ID}/runs`)).status).toBe(
+      404
+    );
+    expect((await request(app).get('/api/v2/routes/nope/runs')).status).toBe(
+      404
+    );
+  });
+
+  it('refuses the run list in a delegated context', async () => {
+    actingAs = 'someone-else';
+    const res = await request(app).get(`/api/v2/routes/${ID}/runs`);
+    expect(res.status).toBe(403);
+    expect(listRouteRuns).not.toHaveBeenCalled();
   });
 });
