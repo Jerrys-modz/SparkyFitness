@@ -213,6 +213,12 @@ Optional. Route generation needs a routing engine you run yourself (or have a ke
 - **`SPARKY_FITNESS_ROUTING_PROVIDER`**: Which engine the URL points at. Defaults to `valhalla`, currently the only supported value; any other value leaves the feature unavailable.
 - **`SPARKY_FITNESS_ROUTING_API_KEY`**: Only for a hosted engine that needs a key. Sent as the `api_key` query parameter and never logged. Can be supplied as `SPARKY_FITNESS_ROUTING_API_KEY_FILE`.
 
+### Module 12c: 📍 Route Stops `[Backend]`
+
+Optional. Shows drinking water, toilets, cafes and viewpoints along a saved route, using OpenStreetMap data through an [Overpass API](https://wiki.openstreetmap.org/wiki/Overpass_API) endpoint. With `SPARKY_FITNESS_OVERPASS_URL` unset the feature is off and hidden in the app. See [Route Generation](../features/exercises/route-generation.md#stops-along-the-way).
+
+- **`SPARKY_FITNESS_OVERPASS_URL`**: Full URL of the Overpass `interpreter` endpoint, for example `https://overpass-api.de/api/interpreter` or your own instance. Must be `http` or `https`. Only the server calls it, never the app. The server caches each route's answer for days, sends at most 20 queries a minute in total, and identifies itself in the `User-Agent`. The public instances have a [usage policy](https://wiki.openstreetmap.org/wiki/Overpass_API#Public_Overpass_API_instances); run your own for more than light use.
+
 ### Module 13: 📱 iOS Mobile App Development `[Mobile Build]`
 
 Configures code signing, bundle identifiers, and shared App Groups when building [`SparkyFitnessMobile`](/developer/getting-started):

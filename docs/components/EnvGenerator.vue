@@ -19,6 +19,8 @@ const enableGarmin = ref(false);
 const enableRouting = ref(false);
 const routingUrl = ref("http://sparkyfitness-valhalla:8002");
 const routingApiKey = ref("");
+const enableOverpass = ref(false);
+const overpassUrl = ref("https://overpass-api.de/api/interpreter");
 
 // --- 1. Database Credentials (Always Core) ---
 const dbName = ref("sparkyfitness_db");
@@ -237,6 +239,7 @@ function applyPreset(preset: "simple" | "full") {
     enableOutboundProxy.value = false;
     enableGarmin.value = false;
     enableRouting.value = false;
+    enableOverpass.value = false;
     garminIsCn.value = false;
     realIpHeader.value = "none";
     trustedProxies.value = "";
@@ -260,6 +263,7 @@ function applyPreset(preset: "simple" | "full") {
     enableOutboundProxy.value = true;
     enableGarmin.value = true;
     enableRouting.value = false;
+    enableOverpass.value = false;
     garminIsCn.value = false;
   }
 }
@@ -317,7 +321,8 @@ const generatedEnv = computed(() => {
     !enableSmtp.value &&
     !enableOutboundProxy.value &&
     !enableGarmin.value &&
-    !enableRouting.value;
+    !enableRouting.value &&
+    !enableOverpass.value;
 
   if (isMinimal) {
     return `# =================================================================
@@ -448,6 +453,12 @@ SPARKY_FITNESS_ROUTING_PROVIDER=valhalla
     if (routingApiKey.value.trim()) {
       out += `SPARKY_FITNESS_ROUTING_API_KEY=${routingApiKey.value.trim()}\n`;
     }
+  }
+
+  if (enableOverpass.value) {
+    out += `\n# --- Route Stops ---
+SPARKY_FITNESS_OVERPASS_URL=${overpassUrl.value}
+`;
   }
 
   if (enableRateLimiting.value) {
@@ -1498,7 +1509,9 @@ onMounted(() => {
             <div class="form-group">
               <label
                 >API key (hosted engines only)
-                <code class="var-badge">SPARKY_FITNESS_ROUTING_API_KEY</code></label
+                <code class="var-badge"
+                  >SPARKY_FITNESS_ROUTING_API_KEY</code
+                ></label
               >
               <input
                 v-model="routingApiKey"
@@ -1507,6 +1520,37 @@ onMounted(() => {
                 placeholder="optional"
               />
             </div>
+          </div>
+        </div>
+      </div>
+      <!-- Module: Route stops -->
+      <div :class="['module-card', { active: enableOverpass }]">
+        <div class="module-header" @click="enableOverpass = !enableOverpass">
+          <div class="module-title">
+            <input v-model="enableOverpass" type="checkbox" />
+            <h3>Route Stops</h3>
+          </div>
+          <span class="module-badge">{{
+            enableOverpass ? "Enabled" : "Click to Enable"
+          }}</span>
+        </div>
+        <div v-if="enableOverpass" class="module-body">
+          <div class="field-explanation">
+            Shows water, toilets, cafes and viewpoints along a route from an
+            Overpass API endpoint. Leave this off to hide the feature. Use your
+            own instance for more than light use.
+          </div>
+          <div class="form-group">
+            <label
+              >Overpass endpoint
+              <code class="var-badge">SPARKY_FITNESS_OVERPASS_URL</code></label
+            >
+            <input
+              v-model="overpassUrl"
+              type="text"
+              class="text-input font-mono"
+              placeholder="https://overpass-api.de/api/interpreter"
+            />
           </div>
         </div>
       </div>

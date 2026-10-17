@@ -68,6 +68,12 @@ config:
       name: ""
       key: "api_key"
 
+  # -- Route stops (optional). Leave `url` empty to keep the feature off.
+  overpass:
+    # -- Overpass API endpoint (e.g. https://overpass-api.de/api/interpreter); the
+    # server queries it, caches answers for days and identifies itself in the User-Agent
+    url: ""
+
   # -- Force email/password login to be enabled (fail-safe against OIDC lockout)
   forceEmailLogin: true
   # -- Hide email/password login on login page (overridden by forceEmailLogin)
