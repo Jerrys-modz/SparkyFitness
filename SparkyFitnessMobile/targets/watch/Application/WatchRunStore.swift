@@ -63,7 +63,15 @@ final class WatchRunStore: ObservableObject {
     /// The climb in the next stretch of a followed route that has heights; nil
     /// when there is none worth mentioning, off the route, or before it is reached.
     @Published private(set) var routeClimb: WatchRouteClimb.Ahead?
+    /// How the wearer stands against the best run over the followed route
+    /// ("Ahead 12 s"); nil without a pace line, with the switch off, before
+    /// there is progress to compare, and off the route.
+    @Published private(set) var routeRace: WatchRouteRace?
     private var routeTracker: WatchRouteTracker?
+    /// For the behind-the-best-time alert: the last standing seen and when it
+    /// last buzzed, so it fires on the change and at most every two minutes.
+    private var lastRaceStanding: WatchRouteRace.Standing?
+    private var lastRaceAlertAt: Date?
     /// Index of the plan step already announced (-1 before the first).
     private var cuedStep = -1
     /// The distance step whose "to go" cue was said, so it is said once.
@@ -268,6 +276,9 @@ final class WatchRunStore: ObservableObject {
         routeProgress = nil
         routePosition = nil
         routeClimb = nil
+        routeRace = nil
+        lastRaceStanding = nil
+        lastRaceAlertAt = nil
         if let route = self.route {
             WatchRouteStorage.save(route)
         } else {
@@ -292,6 +303,7 @@ final class WatchRunStore: ObservableObject {
         } else {
             routeClimb = nil
         }
+        updateRace(snapshot: snapshot, tracker: tracker, at: date)
         guard phase == .running else { return }
         for event in update.events {
             switch event {
@@ -300,7 +312,13 @@ final class WatchRunStore: ObservableObject {
                 cue(routeCue.spoken(distanceMeters: update.snapshot.nextCue?.distanceMeters ?? 0, inMiles: usesMiles))
             case .wentOffRoute:
                 Haptics.offRoute()
-                cue(String(localized: "watch.route.offRouteSpoken", defaultValue: "You are off the route."))
+                // The rejoin line is the same off-route cue, so it keeps the
+                // event's once-per-episode cooldown.
+                if let rejoin = snapshot.rejoin {
+                    cue(rejoin.spoken(course: snapshot.course, usesMiles: usesMiles))
+                } else {
+                    cue(String(localized: "watch.route.offRouteSpoken", defaultValue: "You are off the route."))
+                }
             case .backOnRoute:
                 Haptics.onRoute()
                 cue(String(localized: "watch.route.backOn", defaultValue: "Back on route."))
@@ -309,6 +327,37 @@ final class WatchRunStore: ObservableObject {
                 cue(String(localized: "watch.route.arrived", defaultValue: "You have reached the end of the route."))
             }
         }
+    }
+
+    /// Works out the race against the best run from the latest fix and the
+    /// run's active clock. The buzz (and the spoken line, with voice cues on)
+    /// comes only on the change from ahead to behind and at most every two
+    /// minutes; `cue` already stays silent unless voice cues are on.
+    private func updateRace(snapshot: WatchRouteTracker.Snapshot, tracker: WatchRouteTracker, at date: Date) {
+        guard CheckInStore.shared.context.effectiveRaceBestEnabled else {
+            routeRace = nil
+            lastRaceStanding = nil
+            return
+        }
+        let race = WatchRouteRace.compare(
+            ghost: route?.ghost,
+            progressMeters: snapshot.progressMeters,
+            totalMeters: tracker.totalMeters,
+            elapsedSeconds: elapsed,
+            onRoute: snapshot.reachedRoute && !snapshot.isOffRoute
+        )
+        routeRace = race
+        // Off the route there is no comparison; the standing carries over so
+        // coming back behind is not a fresh "dropped behind".
+        guard let race else { return }
+        if phase == .running,
+           WatchRouteRace.shouldAlert(previous: lastRaceStanding, current: race.standing, lastAlertAt: lastRaceAlertAt, now: date) {
+            lastRaceAlertAt = date
+            Haptics.raceBehind()
+            cue(race.behindSpoken)
+        }
+        // A dead heat on the way from ahead to behind is not a new start.
+        if race.standing != .even { lastRaceStanding = race.standing }
     }
 
     /// Picks a run back up after the watch app was killed while it was going.
@@ -610,7 +659,8 @@ final class WatchRunStore: ObservableObject {
                 },
                 stepRemaining: step?.remainingMeters == nil ? step?.remaining : nil,
                 nextLabel: step?.next,
-                requestId: requestId
+                requestId: requestId,
+                raceSeconds: routeRace.map { $0.standing == .behind ? -$0.seconds : $0.seconds }
             ),
             force: force
         )

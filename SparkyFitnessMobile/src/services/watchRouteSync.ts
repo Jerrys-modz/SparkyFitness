@@ -3,11 +3,14 @@ import WatchConnectivity from '../../modules/watch-connectivity';
 import { useWatchRouteStore } from '../stores/watchRouteStore';
 import { buildRouteSync } from '../utils/watchRouteSync';
 import { addLog } from './LogService';
+import { loadWatchGhost } from './watchRouteGhost';
 
 /**
  * Puts a saved route in the watch's own library so it can be run with the
  * phone left behind. Queued (`transferUserInfo`): it reaches the watch when it
- * is next in range even if it is not now. The watch answers with its library
+ * is next in range even if it is not now. It carries the route's best run as a
+ * pace line when there is one, read at send time, so sending again picks up a
+ * newer best. The watch answers with its library
  * (`useWatchRouteBridge` takes that in), which is what turns "sent" into "On
  * your watch" or reports a full library.
  */
@@ -15,7 +18,7 @@ export async function sendRouteToWatch(
   route: Pick<Route, 'id' | 'name' | 'points' | 'cues' | 'updatedAt'>
 ): Promise<void> {
   if (!WatchConnectivity) throw new Error('Apple Watch is not available');
-  const sync = buildRouteSync(route);
+  const sync = buildRouteSync(route, await loadWatchGhost(route.id));
   if (!sync) throw new Error('A route needs at least two points');
   try {
     await WatchConnectivity.sendRoute(sync);

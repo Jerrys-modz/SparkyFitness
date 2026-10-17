@@ -1,10 +1,12 @@
 import { getClient } from '../db/poolManager.js';
 import {
   ROUTE_MAX_PER_USER,
+  buildGhostSplits,
   routeCueSchema,
   routePointSchema,
   type CreateRouteBody,
   type Route,
+  type RouteGhost,
   type RouteRun,
   type RouteSummary,
   type RoutePoint,
@@ -323,6 +325,81 @@ export async function listRouteRuns(
           : null,
       avgHeartRate: row.avg_heart_rate,
     }));
+  } finally {
+    client.release();
+  }
+}
+
+interface GhostRow {
+  distance_m: number;
+  entry_id: string;
+  duration_seconds: number;
+  points: unknown;
+}
+
+const ghostTrackPointSchema = z.object({
+  t: z.string(),
+  lat: z.number().min(-90).max(90),
+  lon: z.number().min(-180).max(180),
+});
+
+/**
+ * The best run over a route as a pace line for the watch to race, or null when
+ * the route is not the person's. `ghost` is null while no timed run follows
+ * it. The best run is the shortest logged time (the same rule as
+ * `bestDurationSeconds`); its time-by-distance comes from its stored GPS
+ * track, and a run with no track gets an even pace over its total time
+ * (`constant_pace`).
+ */
+export async function getRouteGhost(
+  userId: string,
+  routeId: string,
+  authenticatedUserId?: string
+): Promise<{ ghost: RouteGhost | null } | null> {
+  const client = await getClient(userId, authenticatedUserId);
+  try {
+    const owned = (await client.query(
+      'SELECT 1 FROM routes WHERE id = $1 AND user_id = $2',
+      [routeId, userId]
+    )) as { rows: unknown[] };
+    if (owned.rows.length === 0) return null;
+    const result = (await client.query(
+      `SELECT r.distance_m,
+              e.id AS entry_id,
+              ROUND(e.duration_minutes * 60)::int AS duration_seconds,
+              p.points
+         FROM routes r
+         JOIN exercise_entries e
+           ON e.route_id = r.id AND e.user_id = r.user_id
+          AND e.duration_minutes > 0
+         LEFT JOIN exercise_entry_gps_points p
+           ON p.exercise_entry_id = e.id
+        WHERE r.id = $1 AND r.user_id = $2
+        ORDER BY e.duration_minutes ASC, e.entry_date DESC, e.created_at DESC
+        LIMIT 1`,
+      [routeId, userId]
+    )) as { rows: GhostRow[] };
+    const row = result.rows[0];
+    if (!row) return { ghost: null };
+    const track = Array.isArray(row.points)
+      ? row.points.flatMap((raw) => {
+          const parsed = ghostTrackPointSchema.safeParse(raw);
+          return parsed.success ? [parsed.data] : [];
+        })
+      : null;
+    const built = buildGhostSplits({
+      track,
+      routeDistanceM: row.distance_m,
+      durationSeconds: row.duration_seconds,
+    });
+    if (!built) return { ghost: null };
+    return {
+      ghost: {
+        entryId: row.entry_id,
+        durationSeconds: row.duration_seconds,
+        ...built,
+      },
+    };
   } finally {
     client.release();
   }

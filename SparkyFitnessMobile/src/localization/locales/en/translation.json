@@ -6113,6 +6113,9 @@
     "doubleTapTitle": "Double-tap to log a set",
     "rpeTitle": "Ask for effort (RPE) after each set",
     "rpeSubtitle": "After you log a set on the watch, turn the Digital Crown to pick how hard it was, from 1 to 10, then tap Save, or tap Skip.",
+    "routesTitle": "Routes",
+    "raceBestTitle": "Race my best time on routes",
+    "raceBestSubtitle": "Following a saved route you have run before, the watch shows how many seconds ahead or behind your best time you are. Resend a route to your watch to update its best time.",
     "doubleTapSubtitle": "Double-tap on a supported watch (Series 9, Ultra 2 or later, watchOS 11) logs the set on screen during a workout.",
     "pagesTitle": "Pages",
     "description": "Drag a page by its handle to change the order you swipe through them on your watch. Toggle a page off to hide it. The Workout page still appears while a workout is running.",
@@ -7805,6 +7808,9 @@
     "rowA11y": "{{distance}}, {{time}}, {{pace}}, {{date}}"
   },
   "watchRunLive": {
+    "raceAhead": "Ahead {{time}}",
+    "raceBehind": "Behind {{time}}",
+    "raceEven": "Even with your best time",
     "paceAlert": "Pace alert",
     "heartRateAlert": "Heart rate alert",
     "open": "Open the workout on your watch",

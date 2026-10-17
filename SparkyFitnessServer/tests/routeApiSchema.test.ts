@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   attachEntryRouteBodySchema,
   exerciseEntriesMutatorSchema,
+  routeGhostResponseSchema,
   routeRunsResponseSchema,
   routeSummarySchema,
 } from '@workspace/shared';
@@ -39,6 +40,34 @@ describe('route history contract', () => {
     expect(routeRunsResponseSchema.safeParse({ runs: [{}] }).success).toBe(
       false
     );
+  });
+
+  it('parses a ghost, and a null one before a first run', () => {
+    expect(routeGhostResponseSchema.safeParse({ ghost: null }).success).toBe(
+      true
+    );
+    expect(
+      routeGhostResponseSchema.safeParse({
+        ghost: {
+          entryId: 'e1',
+          durationSeconds: 1490,
+          intervalM: 100,
+          splits: [30, 61],
+          source: 'constant_pace',
+        },
+      }).success
+    ).toBe(true);
+    expect(
+      routeGhostResponseSchema.safeParse({
+        ghost: {
+          entryId: 'e1',
+          durationSeconds: 0,
+          intervalM: 100,
+          splits: [],
+          source: 'guess',
+        },
+      }).success
+    ).toBe(false);
   });
 
   it('requires the run stats on a summary', () => {

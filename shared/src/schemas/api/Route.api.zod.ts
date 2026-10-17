@@ -83,6 +83,28 @@ export const routeRunsResponseSchema = z.object({
   runs: z.array(routeRunSchema),
 });
 
+/** Metres of route between two ghost times. */
+export const ROUTE_GHOST_INTERVAL_M = 100;
+
+/**
+ * The best run over a route as a pace line: `splits[i]` is the active seconds
+ * the best run had spent when it reached `min((i + 1) * intervalM, route length)`
+ * metres along the route, so the last entry is its total time.
+ */
+export const routeGhostSchema = z.object({
+  entryId: z.string(),
+  durationSeconds: z.number().int().min(1),
+  intervalM: z.number().int().min(1),
+  splits: z.array(z.number().int().min(0)),
+  /** `track` is read off the run's own GPS timeline; `constant_pace` is an even pace over its total time. */
+  source: z.enum(["track", "constant_pace"]),
+});
+
+/** `ghost` is null while the route has no timed run. */
+export const routeGhostResponseSchema = z.object({
+  ghost: routeGhostSchema.nullable(),
+});
+
 /** Links an exercise entry to a route, or clears the link with `null`. */
 export const attachEntryRouteBodySchema = z.object({
   routeId: z.guid().nullable(),
@@ -131,6 +153,8 @@ export type RouteCue = z.infer<typeof routeCueSchema>;
 export type Route = z.infer<typeof routeSchema>;
 export type RouteSummary = z.infer<typeof routeSummarySchema>;
 export type RouteRun = z.infer<typeof routeRunSchema>;
+export type RouteGhost = z.infer<typeof routeGhostSchema>;
+export type RouteGhostResponse = z.infer<typeof routeGhostResponseSchema>;
 export type RouteRunsResponse = z.infer<typeof routeRunsResponseSchema>;
 export type AttachEntryRouteBody = z.infer<typeof attachEntryRouteBodySchema>;
 export type CreateRouteBody = z.infer<typeof createRouteBodySchema>;

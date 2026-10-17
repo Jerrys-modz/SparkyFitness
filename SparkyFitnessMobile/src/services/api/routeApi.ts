@@ -3,6 +3,7 @@ import type {
   ImportGpxRouteBody,
   Route,
   RouteFromActivityBody,
+  RouteGhostResponse,
   RouteRun,
   RouteSummary,
   UpdateRouteBody,
@@ -99,4 +100,12 @@ export const attachExerciseEntryRoute = (
     operation: 'link entry to route',
     method: 'POST',
     body: { routeId },
+  });
+
+/** The best run over a route as a pace line for the watch; `ghost` is null before a first timed run. */
+export const fetchRouteGhost = (id: string): Promise<RouteGhostResponse> =>
+  apiFetch<RouteGhostResponse>({
+    endpoint: `/api/v2/routes/${id}/ghost`,
+    serviceName: SERVICE,
+    operation: 'fetch route ghost',
   });

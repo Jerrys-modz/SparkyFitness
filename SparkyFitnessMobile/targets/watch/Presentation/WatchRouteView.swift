@@ -13,8 +13,25 @@ func startAwayText(_ approach: WatchRouteTracker.StartApproach, usesMiles: Bool)
 struct RouteCueStrip: View {
     let progress: WatchRouteTracker.Snapshot?
     let usesMiles: Bool
+    /// Ahead / Behind the best run, when the route has one and the switch is on.
+    var race: WatchRouteRace? = nil
 
     var body: some View {
+        VStack(alignment: .leading, spacing: WatchStyle.s(2)) {
+            cueRow
+            if let race {
+                RaceLabel(race: race)
+                    .font(.system(size: WatchStyle.s(12), weight: .bold))
+            }
+        }
+        .padding(.horizontal, WatchStyle.s(8))
+        .padding(.vertical, WatchStyle.s(4))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(tint.opacity(0.18), in: RoundedRectangle(cornerRadius: WatchStyle.s(10), style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var cueRow: some View {
         HStack(spacing: WatchStyle.s(6)) {
             Image(systemName: symbol)
                 .font(.system(size: WatchStyle.s(15), weight: .bold))
@@ -30,11 +47,6 @@ struct RouteCueStrip: View {
         }
         .font(.system(size: WatchStyle.s(14), weight: .bold))
         .foregroundStyle(tint)
-        .padding(.horizontal, WatchStyle.s(8))
-        .padding(.vertical, WatchStyle.s(4))
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(tint.opacity(0.18), in: RoundedRectangle(cornerRadius: WatchStyle.s(10), style: .continuous))
-        .accessibilityElement(children: .combine)
     }
 
     private var isOff: Bool { progress?.isOffRoute == true }
@@ -45,14 +57,15 @@ struct RouteCueStrip: View {
     /// The start arrow turns to point at the start, ahead being up when the
     /// wearer's direction of travel is known and north otherwise.
     private var symbolRotation: Double {
-        approach.map { $0.arrowRotation(heading: $0.course) } ?? 0
+        if isOff, let rejoin = progress?.rejoin { return rejoin.arrowRotation(heading: progress?.course) }
+        return approach.map { $0.arrowRotation(heading: $0.course) } ?? 0
     }
 
     private var tint: Color { isOff ? .red : .cyan }
 
     private var symbol: String {
         if approach != nil { return "location.north.fill" }
-        if isOff { return "exclamationmark.triangle.fill" }
+        if isOff { return progress?.rejoin != nil ? "location.north.fill" : "exclamationmark.triangle.fill" }
         guard let progress else { return "location.slash" }
         if progress.arrived { return WatchRouteCueKind.arrive.symbol }
         return progress.nextCue?.cue.kind.symbol ?? "arrow.up"
@@ -62,7 +75,11 @@ struct RouteCueStrip: View {
         if let approach {
             return startAwayText(approach, usesMiles: usesMiles)
         }
-        if isOff { return String(localized: "watch.route.offRoute", defaultValue: "Off route") }
+        if isOff {
+            // How to get back, not just that the wearer has left.
+            if let rejoin = progress?.rejoin { return rejoin.instruction(usesMiles: usesMiles) }
+            return String(localized: "watch.route.offRoute", defaultValue: "Off route")
+        }
         guard let progress else { return String(localized: "watch.route.waitingGps", defaultValue: "Waiting for GPS") }
         if progress.arrived { return WatchRouteCueKind.arrive.title }
         return progress.nextCue?.cue.instruction ?? WatchRouteCueKind.straight.title
@@ -71,6 +88,20 @@ struct RouteCueStrip: View {
     private var distance: String? {
         guard let progress, approach == nil, !isOff, !progress.arrived, let next = progress.nextCue else { return nil }
         return WatchRunPlan.distance(next.distanceMeters, inMiles: usesMiles)
+    }
+}
+
+/// "Ahead 12 s" in green, "Behind 8 s" in orange.
+struct RaceLabel: View {
+    let race: WatchRouteRace
+
+    var body: some View {
+        Label {
+            Text(race.text).monospacedDigit()
+        } icon: {
+            Image(systemName: race.standing == .behind ? "tortoise.fill" : "hare.fill")
+        }
+        .foregroundStyle(race.standing == .behind ? Color.orange : Color.green)
     }
 }
 
@@ -98,7 +129,8 @@ struct WatchRouteMapPage: View {
                 route: route,
                 progress: run.routeProgress,
                 position: run.routePosition,
-                mode: mode
+                mode: mode,
+                rejoin: run.routeProgress?.rejoin
             )
             .overlay(alignment: .bottom) { footer }
             .overlay(alignment: .top) {
@@ -149,6 +181,20 @@ struct WatchRouteMapPage: View {
                 Text(String(localized: "watch.route.left", defaultValue: "\(remainingText(progress)) left"))
                 .font(.system(size: WatchStyle.s(15), weight: .bold, design: .rounded))
                 .monospacedDigit()
+                if let race = run.routeRace {
+                    RaceLabel(race: race)
+                        .font(.system(size: WatchStyle.s(12), weight: .bold))
+                }
+                if let rejoin = progress.rejoin {
+                    Label {
+                        Text(rejoin.instruction(usesMiles: usesMiles))
+                    } icon: {
+                        Image(systemName: "location.north.fill")
+                            .rotationEffect(.degrees(rejoin.arrowRotation(heading: nil)))
+                    }
+                    .font(.system(size: WatchStyle.s(11), weight: .semibold))
+                    .foregroundStyle(.orange)
+                }
                 if let climb = run.routeClimb {
                     Label {
                         Text(climbAheadText(climb))
@@ -203,14 +249,23 @@ private struct RouteMapLayer: View {
     let progress: WatchRouteTracker.Snapshot?
     let position: WatchRoutePoint?
     let mode: RouteMapMode
+    /// Where to rejoin the line while off it; a dashed line leads there.
+    let rejoin: WatchRouteRejoin?
 
     private let cumulative: [Double]
 
-    init(route: WatchRoute, progress: WatchRouteTracker.Snapshot?, position: WatchRoutePoint?, mode: RouteMapMode) {
+    init(
+        route: WatchRoute,
+        progress: WatchRouteTracker.Snapshot?,
+        position: WatchRoutePoint?,
+        mode: RouteMapMode,
+        rejoin: WatchRouteRejoin? = nil
+    ) {
         self.route = route
         self.progress = progress
         self.position = position
         self.mode = mode
+        self.rejoin = rejoin
         cumulative = WatchRouteTracker.cumulativeDistances(route.points)
     }
 
@@ -230,6 +285,12 @@ private struct RouteMapLayer: View {
                 // parks, water and busy streets.
                 MapPolyline(coordinates: ahead).stroke(.white, lineWidth: 10)
                 MapPolyline(coordinates: ahead).stroke(.cyan, lineWidth: 6)
+            }
+
+            // From the wearer to where the line is nearest ahead.
+            if let position, let rejoin {
+                MapPolyline(coordinates: [Self.coordinate(position), Self.coordinate(rejoin.point)])
+                    .stroke(.orange, style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [5, 5]))
             }
 
             // Start and finish.

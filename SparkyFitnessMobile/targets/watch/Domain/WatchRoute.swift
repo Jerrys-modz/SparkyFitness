@@ -36,6 +36,10 @@ struct WatchRoute: Codable, Equatable, Identifiable {
     /// route carries none (a drawn route, or a phone that predates the field);
     /// older saved routes decode without it.
     var elevations: [Int]? = nil
+    /// The best run over this route: elapsed active seconds at every 100 m of
+    /// progress, the last at the route's end (see `WatchRouteGhost`). Nil when
+    /// the route has no timed run, or the phone predates the field.
+    var ghost: [Int]? = nil
 }
 
 /// Where a live position stands against a route.
@@ -94,6 +98,11 @@ struct WatchRouteTracker {
         var reachedRoute: Bool = true
         /// Set exactly while `reachedRoute` is false.
         var startApproach: StartApproach? = nil
+        /// Where to rejoin the line, set exactly while `isOffRoute` is true.
+        var rejoin: WatchRouteRejoin? = nil
+        /// The way the wearer has been moving, once they have moved far enough
+        /// to tell; nil standing still. The rejoin arrow and "to your left" use it.
+        var course: Double? = nil
     }
 
     enum Event: Equatable {
@@ -217,7 +226,11 @@ struct WatchRouteTracker {
             isOffRoute: isOffRoute,
             arrived: hasArrived,
             reachedRoute: hasReachedRoute,
-            startApproach: hasReachedRoute ? nil : startApproach(from: here)
+            startApproach: hasReachedRoute ? nil : startApproach(from: here),
+            rejoin: isOffRoute
+                ? WatchRouteRejoin.plan(from: here, route: route, cumulative: cumulative, progressMeters: progressMeters)
+                : nil,
+            course: course
         )
         return Update(snapshot: snapshot, events: events)
     }

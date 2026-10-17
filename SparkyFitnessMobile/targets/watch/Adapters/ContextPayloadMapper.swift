@@ -79,6 +79,7 @@ enum ContextPayloadMapper {
             distanceUnit: payload["distanceUnit"] as? String ?? previous.distanceUnit,
             doubleTapEnabled: payload["doubleTapEnabled"] as? Bool ?? previous.doubleTapEnabled,
             rpeEnabled: payload["rpeEnabled"] as? Bool ?? previous.rpeEnabled,
+            raceBestEnabled: payload["raceBestEnabled"] as? Bool ?? previous.raceBestEnabled,
             medications: medications(from: payload),
             fast: fastKnown(in: payload) ? fast(from: payload["fast"]) : previous.fast,
             fastSynced: fastKnown(in: payload) ? true : previous.fastSynced,
@@ -257,7 +258,8 @@ enum ContextPayloadMapper {
             name: dict["name"] as? String ?? "",
             points: points,
             cues: cues,
-            elevations: elevations(from: dict["elevations"], count: points.count)
+            elevations: elevations(from: dict["elevations"], count: points.count),
+            ghost: WatchRouteGhost.decode(numberArray(dict["ghost"]))
         )
     }
 

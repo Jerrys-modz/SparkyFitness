@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getRoute,
+  getRouteGhost,
   listRouteRuns,
   listRoutes,
   setEntryRoute,
@@ -105,6 +106,79 @@ describe('listRouteRuns', () => {
     expect(getClient).toHaveBeenCalledWith('u1', 'actor');
     const sql = String(query.mock.calls[1][0]);
     expect(sql).toMatch(/ORDER BY e\.entry_date DESC/);
+  });
+});
+
+describe('getRouteGhost', () => {
+  it('returns null for a route that is not the person’s', async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+    expect(await getRouteGhost('u1', ROUTE)).toBeNull();
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it('has no ghost before a timed run', async () => {
+    query.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] });
+    query.mockResolvedValueOnce({ rows: [] });
+    expect(await getRouteGhost('u1', ROUTE)).toEqual({ ghost: null });
+  });
+
+  it('reads the pace line off the best run’s track', async () => {
+    query.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] });
+    // About 222 m north in 100 s: 148 m in the first minute, 74 m in the last 40 s.
+    query.mockResolvedValueOnce({
+      rows: [
+        {
+          distance_m: 222.4,
+          entry_id: ENTRY,
+          duration_seconds: 100,
+          points: [
+            { t: '2026-10-16T08:00:00Z', lat: 40, lon: -74 },
+            { t: '2026-10-16T08:01:00Z', lat: 40.0013344, lon: -74 },
+            { t: '2026-10-16T08:01:40Z', lat: 40.002, lon: -74 },
+          ],
+        },
+      ],
+    });
+    const result = await getRouteGhost('u1', ROUTE, 'actor');
+    expect(result?.ghost).toMatchObject({
+      entryId: ENTRY,
+      durationSeconds: 100,
+      intervalM: 100,
+      source: 'track',
+    });
+    const splits = result?.ghost?.splits ?? [];
+    expect(splits).toHaveLength(3);
+    expect(splits[2]).toBe(100);
+    // Quicker than an even pace early (45 s and 90 s), which a flat line would miss.
+    expect(splits[0]).toBeLessThan(45);
+    expect(splits[1]).toBeLessThan(90);
+    expect(splits[0]).toBeGreaterThan(36);
+    expect(getClient).toHaveBeenCalledWith('u1', 'actor');
+    expect(String(query.mock.calls[1][0])).toContain(
+      'exercise_entry_gps_points'
+    );
+  });
+
+  it('falls back to an even pace when the best run has no track', async () => {
+    query.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] });
+    query.mockResolvedValueOnce({
+      rows: [
+        {
+          distance_m: 250,
+          entry_id: ENTRY,
+          duration_seconds: 100,
+          points: null,
+        },
+      ],
+    });
+    const result = await getRouteGhost('u1', ROUTE);
+    expect(result?.ghost).toEqual({
+      entryId: ENTRY,
+      durationSeconds: 100,
+      intervalM: 100,
+      source: 'constant_pace',
+      splits: [40, 80, 100],
+    });
   });
 });
 

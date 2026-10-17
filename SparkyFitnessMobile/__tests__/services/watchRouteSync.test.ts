@@ -3,6 +3,7 @@ import {
   removeRouteFromWatch,
   sendRouteToWatch,
 } from '../../src/services/watchRouteSync';
+import { loadWatchGhost } from '../../src/services/watchRouteGhost';
 import { useWatchRouteStore } from '../../src/stores/watchRouteStore';
 
 jest.mock('../../modules/watch-connectivity', () => ({
@@ -13,6 +14,9 @@ jest.mock('../../modules/watch-connectivity', () => ({
   },
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
+jest.mock('../../src/services/watchRouteGhost', () => ({
+  loadWatchGhost: jest.fn(() => Promise.resolve(null)),
+}));
 
 const module = WatchConnectivity as unknown as {
   sendRoute: jest.Mock;
@@ -43,6 +47,21 @@ beforeEach(() => {
 });
 
 describe('sendRouteToWatch', () => {
+  it('carries the best run’s pace line when the route has one', async () => {
+    (loadWatchGhost as jest.Mock).mockResolvedValueOnce([30, 61, 95]);
+    await sendRouteToWatch(route);
+    expect(module.sendRoute.mock.calls[0][0].route.ghost).toEqual([30, 61, 95]);
+    // The revision is still the route's own, so the status logic is unchanged.
+    expect(module.sendRoute.mock.calls[0][0].updatedAt).toBe(
+      Date.parse(UPDATED)
+    );
+  });
+
+  it('sends the route without a ghost when it has no history', async () => {
+    await sendRouteToWatch(route);
+    expect(module.sendRoute.mock.calls[0][0].route).not.toHaveProperty('ghost');
+  });
+
   it('queues the route with its revision and remembers it was sent', async () => {
     await sendRouteToWatch(route);
     expect(module.sendRoute).toHaveBeenCalledTimes(1);

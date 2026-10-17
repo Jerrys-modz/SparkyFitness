@@ -219,4 +219,21 @@ describe('WatchSettingsScreen', () => {
     fireEvent.press(screen.getByText('Keypad'));
     expect(useAppPreferencesStore.getState().watchSetInputStyle).toBe('keypad');
   });
+
+  test('the race-my-best-time switch is on by default and saves a change', () => {
+    renderScreen();
+
+    const row = screen.getByTestId('watch-race-best-switch');
+    expect(row.props.value).toBe(true);
+
+    fireEvent(row, 'valueChange', false);
+    expect(useAppPreferencesStore.getState().watchRaceBestEnabled).toBe(false);
+
+    fireEvent(
+      screen.getByTestId('watch-race-best-switch'),
+      'valueChange',
+      true
+    );
+    expect(useAppPreferencesStore.getState().watchRaceBestEnabled).toBe(true);
+  });
 });

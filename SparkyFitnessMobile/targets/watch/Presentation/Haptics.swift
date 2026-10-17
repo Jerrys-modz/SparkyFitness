@@ -37,6 +37,11 @@ enum Haptics {
         play(.failure)
     }
 
+    /// The wearer has dropped behind their best time on the followed route.
+    static func raceBehind() {
+        play(.directionDown)
+    }
+
     /// Back on the route, or at its end.
     static func onRoute() {
         play(.success)

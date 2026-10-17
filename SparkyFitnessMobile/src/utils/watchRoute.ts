@@ -1,7 +1,9 @@
 import {
+  ROUTE_GHOST_INTERVAL_M,
   haversineMeters,
   simplifyRoute,
   type Route,
+  type RouteGhost,
   type RouteCue,
   type RouteCueKind,
   type RoutePoint,
@@ -132,6 +134,34 @@ export function encodeWatchElevations(
   });
 }
 
+/**
+ * The most ghost times a route is sent with: 100 m apart that is 100 km, far
+ * past any route, so a longer line is a malformed one and goes without.
+ */
+export const WATCH_GHOST_MAX_KNOTS = 1000;
+
+/**
+ * The best run as the compact array the watch races: elapsed active seconds at
+ * every `ROUTE_GHOST_INTERVAL_M` (100 m) of route progress, the last at the
+ * end of the route. Null (so the field is omitted) when there is no ghost or
+ * it is not a usable pace line: empty, too long, a different interval from
+ * the one the watch assumes, or not rising. The watch's `WatchRouteGhost`
+ * reads it; keep the interval and shape in step.
+ */
+export function encodeWatchGhost(
+  ghost: Pick<RouteGhost, 'intervalM' | 'splits'> | null | undefined
+): number[] | null {
+  if (!ghost || ghost.intervalM !== ROUTE_GHOST_INTERVAL_M) return null;
+  const { splits } = ghost;
+  if (splits.length === 0 || splits.length > WATCH_GHOST_MAX_KNOTS) return null;
+  let previous = 0;
+  for (const seconds of splits) {
+    if (!Number.isInteger(seconds) || seconds < previous) return null;
+    previous = seconds;
+  }
+  return previous > 0 ? [...splits] : null;
+}
+
 /** Index in `kept` (ascending source indexes) closest to `source`. */
 function nearestKept(kept: readonly number[], source: number): number {
   let low = 0;
@@ -148,10 +178,12 @@ function nearestKept(kept: readonly number[], source: number): number {
 /**
  * Builds the payload `startRunOnWatch` sends. A route over the point cap is
  * thinned again (cues follow their points); one with no cues gets derived
- * ones, so the watch always has something to announce.
+ * ones, so the watch always has something to announce. `ghost` is the best
+ * run's pace line (`encodeWatchGhost`), carried through untouched.
  */
 export function toWatchRoutePayload(
-  route: Pick<Route, 'id' | 'name' | 'points' | 'cues'>
+  route: Pick<Route, 'id' | 'name' | 'points' | 'cues'>,
+  ghost?: number[] | null
 ): WatchRoutePayload | null {
   if (route.points.length < 2) return null;
 
@@ -192,5 +224,7 @@ export function toWatchRoutePayload(
     ]),
     cues: sentCues,
     ...(elevations ? { elevations } : {}),
+    // Omitted for a route with no timed run; an older watch ignores the key.
+    ...(ghost && ghost.length > 0 ? { ghost } : {}),
   };
 }

@@ -37,6 +37,43 @@ final class WatchRouteLibraryTests: XCTestCase {
         XCTAssertEqual(library.route(id: "a")?.route.name, "Current")
     }
 
+    private func route(_ id: String, ghost: [Int]?) -> WatchRoute {
+        var copy = route(id)
+        copy.ghost = ghost
+        return copy
+    }
+
+    func testTheSameRevisionWithANewBestTimeRefreshesIt() {
+        var library = WatchRouteLibrary()
+        _ = library.add(route("a", ghost: [30, 60]), updatedAt: 20, now: now)
+        XCTAssertEqual(library.add(route("a", ghost: [28, 57]), updatedAt: 20, now: now), .replaced)
+        XCTAssertEqual(library.route(id: "a")?.route.ghost, [28, 57])
+        XCTAssertEqual(library.entries.count, 1)
+    }
+
+    func testTheFirstBestTimeReachesARouteSentWithoutOne() {
+        var library = WatchRouteLibrary()
+        _ = library.add(route("a"), updatedAt: 20, now: now)
+        XCTAssertEqual(library.add(route("a", ghost: [30, 60]), updatedAt: 20, now: now), .replaced)
+        XCTAssertEqual(library.route(id: "a")?.route.ghost, [30, 60])
+    }
+
+    func testAResendWithTheSameOrNoBestTimeChangesNothing() {
+        var library = WatchRouteLibrary()
+        _ = library.add(route("a", ghost: [30, 60]), updatedAt: 20, now: now)
+        XCTAssertEqual(library.add(route("a", ghost: [30, 60]), updatedAt: 20, now: now), .unchanged)
+        // A phone that predates the field must not wipe the stored line.
+        XCTAssertEqual(library.add(route("a"), updatedAt: 20, now: now), .unchanged)
+        XCTAssertEqual(library.route(id: "a")?.route.ghost, [30, 60])
+    }
+
+    func testAStaleCopyNeverBringsBackAnOlderBestTime() {
+        var library = WatchRouteLibrary()
+        _ = library.add(route("a", ghost: [28, 57]), updatedAt: 20, now: now)
+        XCTAssertEqual(library.add(route("a", ghost: [30, 60]), updatedAt: 10, now: now), .unchanged)
+        XCTAssertEqual(library.route(id: "a")?.route.ghost, [28, 57])
+    }
+
     func testFullLibraryRefusesANewRouteButStillReplacesAStoredOne() {
         var library = WatchRouteLibrary()
         for index in 0..<WatchRouteLibrary.capacity {
