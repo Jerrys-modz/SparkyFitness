@@ -70,8 +70,11 @@ jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 jest.mock('../../src/hooks/useScreenHeader', () => ({
   useScreenHeader: jest.fn(() => null),
 }));
+let mockDistanceUnit = 'km';
 jest.mock('../../src/hooks/usePreferences', () => ({
-  usePreferences: () => ({ preferences: { default_distance_unit: 'km' } }),
+  usePreferences: () => ({
+    preferences: { default_distance_unit: mockDistanceUnit },
+  }),
 }));
 jest.mock('../../src/components/exerciseStats/RouteTileMap', () => () => null);
 jest.mock('react-native-safe-area-context', () => ({
