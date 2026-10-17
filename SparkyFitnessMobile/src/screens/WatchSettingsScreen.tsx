@@ -46,6 +46,12 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
     (s) => s.watchDoubleTapEnabled
   );
   const watchRpeEnabled = useAppPreferencesStore((s) => s.watchRpeEnabled);
+  const watchRaceBestEnabled = useAppPreferencesStore(
+    (s) => s.watchRaceBestEnabled
+  );
+  const setWatchRaceBestEnabled = useAppPreferencesStore(
+    (s) => s.setWatchRaceBestEnabled
+  );
   const setWatchRpeEnabled = useAppPreferencesStore(
     (s) => s.setWatchRpeEnabled
   );
@@ -154,6 +160,27 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
               testID="watch-rpe-switch"
               value={watchRpeEnabled}
               onValueChange={setWatchRpeEnabled}
+            />
+          }
+        />
+
+        <Text className="text-text-primary text-base font-semibold mt-6 mb-1">
+          {t('watchSettings.routesTitle', { defaultValue: 'Routes' })}
+        </Text>
+        <SettingsRow
+          title={t('watchSettings.raceBestTitle', {
+            defaultValue: 'Race my best time on routes',
+          })}
+          subtitle={t('watchSettings.raceBestSubtitle', {
+            defaultValue:
+              'Following a saved route you have run before, the watch shows how many seconds ahead or behind your best time you are. Resend a route to your watch to update its best time.',
+          })}
+          subtitleNumberOfLines={0}
+          rightAccessory={
+            <Switch
+              testID="watch-race-best-switch"
+              value={watchRaceBestEnabled}
+              onValueChange={setWatchRaceBestEnabled}
             />
           }
         />

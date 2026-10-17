@@ -22,6 +22,8 @@ export interface WatchRunLive {
   /** Whether a pace or heart-rate range is being watched; null from an older watch build. */
   paceAlert: boolean | null;
   heartRateAlert: boolean | null;
+  /** Seconds ahead (positive) or behind (negative) the best run over the followed route; null without one. */
+  raceSeconds: number | null;
   /** Active seconds when the watch sent it. */
   elapsed: number;
   distanceMeters: number;
@@ -116,6 +118,9 @@ export const useWatchRunLiveStore = create<WatchRunLiveState>((set) => ({
             typeof payload.heartRateAlert === 'boolean'
               ? payload.heartRateAlert
               : null,
+          raceSeconds: finite(payload.raceSeconds)
+            ? Math.round(payload.raceSeconds)
+            : null,
           elapsed: Math.max(0, payload.elapsed),
           distanceMeters: Math.max(0, payload.distanceMeters),
           heartRate:

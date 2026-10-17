@@ -12,6 +12,21 @@ jest.mock('expo-location', () => ({
 }));
 jest.mock('../../src/services/routeService', () => ({
   saveDrawnRoute: jest.fn(() => Promise.resolve({ id: 'new' })),
+  useRouteGenerationCapabilities: () => ({
+    capabilities: {
+      available: false,
+      maxAlternatives: 1,
+      style: {
+        surface: false,
+        hilliness: false,
+        avoidSteps: false,
+        avoidBusyRoads: false,
+      },
+      stops: false,
+    },
+    isLoading: false,
+  }),
+  generateRoutePreview: jest.fn(),
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 jest.mock('../../src/hooks/useScreenHeader', () => ({

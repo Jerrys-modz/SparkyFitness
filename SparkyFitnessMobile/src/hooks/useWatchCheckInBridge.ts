@@ -258,6 +258,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // Device-local settings the watch's haptics follow.
   const hapticsEnabled = useAppPreferencesStore((s) => s.hapticsEnabled);
   const watchRpeEnabled = useAppPreferencesStore((s) => s.watchRpeEnabled);
+  const watchRaceBestEnabled = useAppPreferencesStore(
+    (s) => s.watchRaceBestEnabled
+  );
   const watchDoubleTapEnabled = useAppPreferencesStore(
     (s) => s.watchDoubleTapEnabled
   );
@@ -742,6 +745,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         restAlertsEnabled,
         doubleTapEnabled: watchDoubleTapEnabled,
         rpeEnabled: watchRpeEnabled,
+        raceBestEnabled: watchRaceBestEnabled,
         runVoiceCues: recording.audioCues,
         runAutoPause: recording.autoPause,
         runCheckInMinutes: recording.checkInMinutes,
@@ -804,6 +808,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     restAlertsEnabled,
     watchDoubleTapEnabled,
     watchRpeEnabled,
+    watchRaceBestEnabled,
     runPlans,
     indoorDistanceScale,
     startableWorkouts,

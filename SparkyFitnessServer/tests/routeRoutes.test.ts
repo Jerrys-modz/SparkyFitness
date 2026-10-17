@@ -9,6 +9,7 @@ import {
   deleteRoute,
   getActivityTrack,
   getRoute,
+  getRouteGhost,
   InvalidRouteError,
   listRouteRuns,
   listRoutes,
@@ -22,6 +23,7 @@ vi.mock('../models/routeRepository.js', () => {
     listRoutes: vi.fn(),
     listRouteRuns: vi.fn(),
     getRoute: vi.fn(),
+    getRouteGhost: vi.fn(),
     createRoute: vi.fn(),
     updateRoute: vi.fn(),
     deleteRoute: vi.fn(),
@@ -214,5 +216,32 @@ describe('routes API', () => {
     const res = await request(app).get(`/api/v2/routes/${ID}/runs`);
     expect(res.status).toBe(403);
     expect(listRouteRuns).not.toHaveBeenCalled();
+  });
+
+  it('serves the best run as a pace line and 404s a route that is not theirs', async () => {
+    const ghost = {
+      entryId: 'e1',
+      durationSeconds: 1490,
+      intervalM: 100,
+      splits: [30, 60],
+      source: 'track' as const,
+    };
+    vi.mocked(getRouteGhost).mockResolvedValueOnce({ ghost });
+    const ok = await request(app).get(`/api/v2/routes/${ID}/ghost`);
+    expect(ok.status).toBe(200);
+    expect(ok.body).toEqual({ ghost });
+    expect(getRouteGhost).toHaveBeenCalledWith('test-user-id', ID, actingAs);
+
+    vi.mocked(getRouteGhost).mockResolvedValueOnce({ ghost: null });
+    const none = await request(app).get(`/api/v2/routes/${ID}/ghost`);
+    expect(none.body).toEqual({ ghost: null });
+
+    vi.mocked(getRouteGhost).mockResolvedValueOnce(null);
+    expect((await request(app).get(`/api/v2/routes/${ID}/ghost`)).status).toBe(
+      404
+    );
+    expect((await request(app).get('/api/v2/routes/nope/ghost')).status).toBe(
+      404
+    );
   });
 });

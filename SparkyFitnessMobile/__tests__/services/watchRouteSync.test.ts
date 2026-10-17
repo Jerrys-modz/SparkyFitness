@@ -3,6 +3,8 @@ import {
   removeRouteFromWatch,
   sendRouteToWatch,
 } from '../../src/services/watchRouteSync';
+import { loadWatchGhost } from '../../src/services/watchRouteGhost';
+import { loadRouteFootprint } from '../../src/services/routeFootprint';
 import { useWatchRouteStore } from '../../src/stores/watchRouteStore';
 
 jest.mock('../../modules/watch-connectivity', () => ({
@@ -13,6 +15,12 @@ jest.mock('../../modules/watch-connectivity', () => ({
   },
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
+jest.mock('../../src/services/watchRouteGhost', () => ({
+  loadWatchGhost: jest.fn(() => Promise.resolve(null)),
+}));
+jest.mock('../../src/services/routeFootprint', () => ({
+  loadRouteFootprint: jest.fn(() => Promise.resolve([])),
+}));
 
 const module = WatchConnectivity as unknown as {
   sendRoute: jest.Mock;
@@ -36,6 +44,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   useWatchRouteStore.setState({
     sent: {},
+    footprints: {},
     reported: null,
     rejected: {},
     reportedAt: 0,
@@ -43,6 +52,42 @@ beforeEach(() => {
 });
 
 describe('sendRouteToWatch', () => {
+  it('carries the best run’s pace line when the route has one', async () => {
+    (loadWatchGhost as jest.Mock).mockResolvedValueOnce([30, 61, 95]);
+    await sendRouteToWatch(route);
+    expect(module.sendRoute.mock.calls[0][0].route.ghost).toEqual([30, 61, 95]);
+    // The revision is still the route's own, so the status logic is unchanged.
+    expect(module.sendRoute.mock.calls[0][0].updatedAt).toBe(
+      Date.parse(UPDATED)
+    );
+  });
+
+  it('sends the route without a ghost when it has no history', async () => {
+    await sendRouteToWatch(route);
+    expect(module.sendRoute.mock.calls[0][0].route).not.toHaveProperty('ghost');
+  });
+
+  it('sends the nearby paths with the route and remembers how many', async () => {
+    (loadRouteFootprint as jest.Mock).mockResolvedValueOnce([
+      [1, 2, 3, 4],
+      [5, 6, 7, 8],
+    ]);
+    await sendRouteToWatch(route);
+    expect(module.sendRoute.mock.calls[0][0].route.footprint).toEqual([
+      [1, 2, 3, 4],
+      [5, 6, 7, 8],
+    ]);
+    expect(useWatchRouteStore.getState().footprints).toEqual({ r1: 2 });
+  });
+
+  it('sends the route with no footprint when nothing is nearby', async () => {
+    await sendRouteToWatch(route);
+    expect(module.sendRoute.mock.calls[0][0].route).not.toHaveProperty(
+      'footprint'
+    );
+    expect(useWatchRouteStore.getState().footprints).toEqual({ r1: 0 });
+  });
+
   it('queues the route with its revision and remembers it was sent', async () => {
     await sendRouteToWatch(route);
     expect(module.sendRoute).toHaveBeenCalledTimes(1);

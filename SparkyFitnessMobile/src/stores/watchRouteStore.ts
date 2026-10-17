@@ -10,6 +10,8 @@ import {
 interface WatchRouteState {
   /** Route id -> the revision (epoch ms) last sent to the watch. */
   sent: Record<string, number>;
+  /** Route id -> nearby paths sent with it for the watch's offline map (0 = none). */
+  footprints: Record<string, number>;
   /** What the watch last reported holding; null before it has said. */
   reported: Record<string, number> | null;
   rejected: Record<string, 'full' | 'storage'>;
@@ -17,7 +19,11 @@ interface WatchRouteState {
   capacity: number;
   /** `sentAt` of the newest report taken, so a late queued copy is ignored. */
   reportedAt: number;
-  markSent: (routeId: string, revision: number) => void;
+  markSent: (
+    routeId: string,
+    revision: number,
+    footprintLines?: number
+  ) => void;
   /** Forgets a route the phone just asked the watch to drop. */
   markRemoved: (routeId: string) => void;
   applyReport: (report: WatchRouteLibraryPayload) => void;
@@ -32,20 +38,27 @@ export const useWatchRouteStore = create<WatchRouteState>()(
   persist(
     (set, get) => ({
       sent: {},
+      footprints: {},
       reported: null,
       rejected: {},
       capacity: DEFAULT_WATCH_ROUTE_CAPACITY,
       reportedAt: 0,
-      markSent: (routeId, revision) =>
+      markSent: (routeId, revision, footprintLines = 0) =>
         set((state) => {
           const rejected = { ...state.rejected };
           delete rejected[routeId];
-          return { sent: { ...state.sent, [routeId]: revision }, rejected };
+          return {
+            sent: { ...state.sent, [routeId]: revision },
+            footprints: { ...state.footprints, [routeId]: footprintLines },
+            rejected,
+          };
         }),
       markRemoved: (routeId) =>
         set((state) => {
           const sent = { ...state.sent };
           delete sent[routeId];
+          const footprints = { ...state.footprints };
+          delete footprints[routeId];
           const rejected = { ...state.rejected };
           delete rejected[routeId];
           let reported = state.reported;
@@ -53,7 +66,7 @@ export const useWatchRouteStore = create<WatchRouteState>()(
             reported = { ...reported };
             delete reported[routeId];
           }
-          return { sent, rejected, reported };
+          return { sent, footprints, rejected, reported };
         }),
       applyReport: (report) => {
         if (report.sentAt > 0 && report.sentAt < get().reportedAt) return;
@@ -79,6 +92,7 @@ export const useWatchRouteStore = create<WatchRouteState>()(
       version: 1,
       partialize: (state) => ({
         sent: state.sent,
+        footprints: state.footprints,
         reported: state.reported,
         rejected: state.rejected,
         capacity: state.capacity,

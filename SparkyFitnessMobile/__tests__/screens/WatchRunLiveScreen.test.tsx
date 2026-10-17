@@ -72,6 +72,27 @@ it('shows the clock, distance, pace, heart rate and laps', () => {
   expect(screen.getByText(/treadmill/)).toBeTruthy();
 });
 
+it('shows how far ahead or behind the best run the wearer is', () => {
+  jest
+    .mocked(useWatchRunLive)
+    .mockReturnValue(run({ raceSeconds: 12 }) as never);
+  const first = renderScreen();
+  expect(screen.getByTestId('watch-run-race')).toHaveTextContent('Ahead 12 s');
+  first.unmount();
+
+  jest
+    .mocked(useWatchRunLive)
+    .mockReturnValue(run({ raceSeconds: -75 }) as never);
+  renderScreen();
+  expect(screen.getByTestId('watch-run-race')).toHaveTextContent('Behind 1:15');
+});
+
+it('shows no race line without a best run', () => {
+  jest.mocked(useWatchRunLive).mockReturnValue(run() as never);
+  renderScreen();
+  expect(screen.queryByTestId('watch-run-race')).toBeNull();
+});
+
 it('shows the plan step, its time left and the next one', () => {
   jest.mocked(useWatchRunLive).mockReturnValue(
     run({

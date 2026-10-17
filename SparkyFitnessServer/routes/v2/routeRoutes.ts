@@ -1,13 +1,24 @@
 import express from 'express';
 import {
   createRouteBodySchema,
+  generateRouteBodySchema,
   importGpxRouteBodySchema,
   parseGpx,
   routeFromActivityBodySchema,
+  routeStopsBodySchema,
   serializeGpx,
   updateRouteBodySchema,
 } from '@workspace/shared';
 import requireSelfActor from '../../middleware/requireSelfMiddleware.js';
+import { generateRoute } from '../../services/routeGenerationService.js';
+import {
+  getRouteGenerateCapabilities,
+  getRoutingProvider,
+} from '../../services/routing/routingConfig.js';
+import { isRouteStopsAvailable } from '../../services/routeStopsConfig.js';
+import { getStopsAlongRoute } from '../../services/routeStopsService.js';
+import { RoutingProviderError } from '../../services/routing/routingProvider.js';
+import { createUserRateLimiter } from '../../utils/userRateLimiter.js';
 import {
   ActivityHasNoRouteError,
   createRoute,
@@ -15,6 +26,7 @@ import {
   getActivityTrack,
   getRoute,
   InvalidRouteError,
+  getRouteGhost,
   listRouteRuns,
   listRoutes,
   RouteLimitError,
@@ -28,6 +40,22 @@ import {
 const router = express.Router();
 
 router.use(requireSelfActor);
+
+/** Each generate call can cost several engine calls, so keep it modest. */
+export const GENERATE_RATE_LIMIT_MAX = 10;
+export const GENERATE_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+export const generateRateLimiter = createUserRateLimiter(
+  GENERATE_RATE_LIMIT_MAX,
+  GENERATE_RATE_LIMIT_WINDOW_MS
+);
+
+/** Cached lookups are cheap; this only stops one account flooding the endpoint. */
+export const STOPS_RATE_LIMIT_MAX = 60;
+export const STOPS_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+export const stopsRateLimiter = createUserRateLimiter(
+  STOPS_RATE_LIMIT_MAX,
+  STOPS_RATE_LIMIT_WINDOW_MS
+);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -66,7 +94,8 @@ function sendRouteError(res: express.Response, error: unknown): boolean {
  *     summary: Save a route from a list of points
  *     description: >
  *       The track is thinned for storage; distance and climb are measured on
- *       the full track.
+ *       the full track. `source` may be `drawn` (default) or `generated` for a
+ *       route returned by `POST /v2/routes/generate`.
  *     tags: [Exercise]
  *     responses:
  *       201:
@@ -96,7 +125,7 @@ router.post('/', async (req, res, next) => {
     }
     const route = await createRoute(
       req.userId,
-      { ...parsed.data, source: 'drawn' },
+      parsed.data,
       req.authenticatedUserId
     );
     res.status(201).json({ route });
@@ -198,6 +227,216 @@ router.post('/from-activity/:exerciseEntryId', async (req, res, next) => {
     res.status(201).json({ route });
   } catch (error) {
     if (!sendRouteError(res, error)) next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /v2/routes/generate/capabilities:
+ *   get:
+ *     summary: What route generation and stops lookup the server offers
+ *     description: >
+ *       Generation needs a routing engine the admin has configured
+ *       (`SPARKY_FITNESS_ROUTING_URL`); stops need an Overpass endpoint
+ *       (`SPARKY_FITNESS_OVERPASS_URL`). Clients use this to show or hide
+ *       each feature and only the style controls the engine supports.
+ *     tags: [Exercise]
+ *     responses:
+ *       200:
+ *         description: >
+ *           `{ available, maxAlternatives, style: { surface, hilliness,
+ *           avoidSteps, avoidBusyRoads }, stops }`.
+ */
+router.get('/generate/capabilities', (_req, res) => {
+  res.json(getRouteGenerateCapabilities());
+});
+
+/**
+ * @swagger
+ * /v2/routes/generate:
+ *   post:
+ *     summary: Generate a preview route with the configured routing engine
+ *     description: >
+ *       Either `mode: "loop"` (a loop or out-and-back of about `distanceM`
+ *       from `start`) or `mode: "waypoints"` (route through an ordered list).
+ *       Nothing is saved: the response is a preview whose fields can be sent
+ *       as-is to `POST /v2/routes` (with `source: "generated"`). Limited to
+ *       10 requests per user per 10 minutes.
+ *     tags: [Exercise]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [mode, start]
+ *             properties:
+ *               mode: { type: string, enum: [loop, waypoints] }
+ *               start: { type: object, properties: { lat: { type: number }, lon: { type: number } } }
+ *               activity: { type: string, enum: [run, walk, ride, hike] }
+ *               name: { type: string }
+ *               distanceM: { type: number, description: 'Loop mode: target distance in metres.' }
+ *               shape: { type: string, enum: [loop, out_and_back] }
+ *               bearingDeg: { type: number }
+ *               alternatives: { type: integer, minimum: 1, maximum: 3, description: 'Loop mode: how many distinct candidates to return, at most.' }
+ *               style:
+ *                 type: object
+ *                 description: Preferences; ignored where the engine does not support them.
+ *                 properties:
+ *                   surface: { type: string, enum: [any, trails, roads] }
+ *                   hilliness: { type: string, enum: [any, flat, hilly] }
+ *                   avoidSteps: { type: boolean }
+ *                   avoidBusyRoads: { type: boolean }
+ *               waypoints: { type: array, items: { type: object } }
+ *               returnToStart: { type: boolean }
+ *     responses:
+ *       200:
+ *         description: >
+ *           `{ route, options }`. `route` is the first candidate (name, activity,
+ *           source, points, cues, distanceM, elevationGainM); `options` lists the
+ *           candidates, each as `{ route, label, trailShare }`.
+ *       400:
+ *         description: Invalid body.
+ *       422:
+ *         description: The engine found no route between those points.
+ *       429:
+ *         description: Too many generate requests.
+ *       502:
+ *         description: The routing engine failed, was unreachable, or refused the server's credentials.
+ *       503:
+ *         description: Route generation is not configured on this server.
+ *       504:
+ *         description: The routing engine timed out.
+ */
+router.post('/generate', async (req, res, next) => {
+  try {
+    const provider = getRoutingProvider();
+    if (!provider) {
+      return res
+        .status(503)
+        .json({ error: 'Route generation is not configured on this server' });
+    }
+    const parsed = generateRouteBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Invalid request body',
+        details: parsed.error.format(),
+      });
+    }
+    const retryAfter = generateRateLimiter.hit(req.userId);
+    if (retryAfter > 0) {
+      res.set('Retry-After', String(retryAfter));
+      return res
+        .status(429)
+        .json({ error: 'Too many route requests. Try again shortly.' });
+    }
+    res.json(await generateRoute(provider, parsed.data));
+  } catch (error) {
+    if (error instanceof RoutingProviderError) {
+      const status =
+        error.kind === 'timeout' ? 504 : error.kind === 'no_route' ? 422 : 502;
+      return res.status(status).json({ error: error.message });
+    }
+    if (error instanceof InvalidRouteError) {
+      return res.status(422).json({ error: error.message });
+    }
+    if (!sendRouteError(res, error)) next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /v2/routes/stops:
+ *   post:
+ *     summary: Stops along a route that is not saved
+ *     description: >
+ *       Drinking water, toilets, cafes and viewpoints within 150 m of the
+ *       given line, from the Overpass endpoint the admin configured. Never
+ *       calls Overpass for the client; answers are cached for days. Any
+ *       failure answers `status: "no_data"`.
+ *     tags: [Exercise]
+ *     responses:
+ *       200:
+ *         description: '`{ status, stops, truncated }`.'
+ *       400:
+ *         description: Invalid body.
+ *       429:
+ *         description: Too many requests.
+ *       503:
+ *         description: Stops are not configured on this server.
+ */
+router.post('/stops', async (req, res, next) => {
+  try {
+    if (!isRouteStopsAvailable()) {
+      return res
+        .status(503)
+        .json({ error: 'Route stops are not configured on this server' });
+    }
+    const parsed = routeStopsBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Invalid request body',
+        details: parsed.error.format(),
+      });
+    }
+    const retryAfter = stopsRateLimiter.hit(req.userId);
+    if (retryAfter > 0) {
+      res.set('Retry-After', String(retryAfter));
+      return res
+        .status(429)
+        .json({ error: 'Too many requests. Try again shortly.' });
+    }
+    res.json(await getStopsAlongRoute(parsed.data.points));
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /v2/routes/{id}/stops:
+ *   get:
+ *     summary: Stops along a saved route
+ *     description: >
+ *       As `POST /v2/routes/stops`, for a route the person saved. One
+ *       Overpass query per route is cached for days.
+ *     tags: [Exercise]
+ *     responses:
+ *       200:
+ *         description: '`{ status, stops, truncated }`.'
+ *       404:
+ *         description: Not found.
+ *       429:
+ *         description: Too many requests.
+ *       503:
+ *         description: Stops are not configured on this server.
+ */
+router.get('/:id/stops', async (req, res, next) => {
+  try {
+    if (!isRouteStopsAvailable()) {
+      return res
+        .status(503)
+        .json({ error: 'Route stops are not configured on this server' });
+    }
+    if (!isUuid(req.params.id)) {
+      return res.status(404).json({ error: 'Route not found' });
+    }
+    const retryAfter = stopsRateLimiter.hit(req.userId);
+    if (retryAfter > 0) {
+      res.set('Retry-After', String(retryAfter));
+      return res
+        .status(429)
+        .json({ error: 'Too many requests. Try again shortly.' });
+    }
+    const route = await getRoute(
+      req.userId,
+      req.params.id,
+      req.authenticatedUserId
+    );
+    if (!route) return res.status(404).json({ error: 'Route not found' });
+    res.json(await getStopsAlongRoute(route.points));
+  } catch (error) {
+    next(error);
   }
 });
 
@@ -315,6 +554,40 @@ router.get('/:id/runs', async (req, res, next) => {
     );
     if (!runs) return res.status(404).json({ error: 'Route not found' });
     res.json({ runs });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /v2/routes/{id}/ghost:
+ *   get:
+ *     summary: The best run over a route as a pace line
+ *     description: >
+ *       Active seconds the person's fastest run over the route had spent at
+ *       every 100 m of route progress, for the watch to race. Read from that
+ *       run's GPS track; a run without one gets an even pace over its total
+ *       time (`source` says which). `ghost` is null before a first timed run.
+ *     tags: [Exercise]
+ *     responses:
+ *       200:
+ *         description: 'The pace line: `{ ghost: RouteGhost | null }`.'
+ *       404:
+ *         description: Not found.
+ */
+router.get('/:id/ghost', async (req, res, next) => {
+  try {
+    if (!isUuid(req.params.id)) {
+      return res.status(404).json({ error: 'Route not found' });
+    }
+    const result = await getRouteGhost(
+      req.userId,
+      req.params.id,
+      req.authenticatedUserId
+    );
+    if (!result) return res.status(404).json({ error: 'Route not found' });
+    res.json(result);
   } catch (error) {
     next(error);
   }

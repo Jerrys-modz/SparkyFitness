@@ -53,6 +53,15 @@ describe('receive', () => {
     expect(current()).toMatchObject({ paceAlert: null, heartRateAlert: null });
   });
 
+  test('keeps the signed race margin, or null without one', () => {
+    receive(live({ raceSeconds: -8 }));
+    expect(current()?.raceSeconds).toBe(-8);
+    receive(live({ raceSeconds: 12.4, sentAt: 2000 }));
+    expect(current()?.raceSeconds).toBe(12);
+    receive(live({ sentAt: 3000 }));
+    expect(current()?.raceSeconds).toBeNull();
+  });
+
   test('keeps a run the watch is recording, with its optional parts', () => {
     receive(
       live({

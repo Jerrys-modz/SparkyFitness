@@ -170,6 +170,11 @@ export interface WatchContextPayload {
   /** Whether the watch asks for an RPE after each logged set. */
   rpeEnabled?: boolean | null;
   /**
+   * Settings → Apple Watch → Race my best time on routes. While on, a followed
+   * route that carries a `ghost` shows Ahead / Behind against it. Missing reads as on.
+   */
+  raceBestEnabled?: boolean | null;
+  /**
    * The Record screen's Voice cues switch. A run recorded from the wrist alone
    * speaks each completed km or mile while this is on. Missing reads as off.
    */
@@ -809,6 +814,11 @@ export interface WatchRunLivePayload {
   /** Whether a pace or heart-rate range is being watched; absent from an older watch build. */
   paceAlert?: boolean;
   heartRateAlert?: boolean;
+  /**
+   * Seconds ahead (positive) or behind (negative) the best run over the
+   * followed route; absent without a route, a best run or the switch.
+   */
+  raceSeconds?: number;
 }
 
 /** One step of a guided walk or run the phone hands the watch. */
@@ -840,6 +850,21 @@ export interface WatchRoutePayload {
    * a watch that predates the field ignores it. See `encodeWatchElevations`.
    */
   elevations?: number[];
+  /**
+   * The best run over the route as elapsed active seconds at every 100 m of
+   * route progress (the last entry at the end of the route), so the watch can
+   * show how far ahead or behind it is. Omitted when the route has no timed
+   * run; a watch that predates the field ignores it. See `encodeWatchGhost`.
+   */
+  ghost?: number[];
+
+  /**
+   * Nearby paths the watch draws under the route when it has no map tiles:
+   * each a flat `[lat, lon, …]` line in millionths of a degree. Omitted when
+   * there are none; a watch that predates the field ignores it. See
+   * `buildRouteFootprint` in `src/utils/routeFootprint.ts`.
+   */
+  footprint?: number[][];
   cues: {
     index: number;
     kind:

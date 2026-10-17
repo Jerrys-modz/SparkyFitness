@@ -3,6 +3,7 @@ import {
   sendRunControl,
   startRunOnWatch,
 } from '../../src/services/watchRunControl';
+import { loadWatchGhost } from '../../src/services/watchRouteGhost';
 import { useWatchRunLiveStore } from '../../src/stores/watchRunLiveStore';
 
 jest.mock('../../modules/watch-connectivity', () => ({
@@ -13,6 +14,9 @@ jest.mock('../../modules/watch-connectivity', () => ({
   },
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
+jest.mock('../../src/services/watchRouteGhost', () => ({
+  loadWatchGhost: jest.fn(() => Promise.resolve(null)),
+}));
 
 const module = WatchConnectivity as unknown as {
   startRun: jest.Mock;
@@ -55,6 +59,40 @@ describe('following a saved route', () => {
     ],
     cues: [],
   };
+
+  it('sends the best run’s pace line with the route', async () => {
+    (loadWatchGhost as jest.Mock).mockResolvedValueOnce([30, 61, 95]);
+    await startRunOnWatch({
+      kind: 'run',
+      place: 'outdoor',
+      autoPause: true,
+      voiceCues: false,
+      route,
+    });
+    expect(loadWatchGhost).toHaveBeenCalledWith('r1');
+    expect(module.startRun.mock.calls[0][0].route.ghost).toEqual([30, 61, 95]);
+  });
+
+  it('starts without a ghost when the route has no history, and never looks one up indoors', async () => {
+    await startRunOnWatch({
+      kind: 'run',
+      place: 'outdoor',
+      autoPause: true,
+      voiceCues: false,
+      route,
+    });
+    expect(module.startRun.mock.calls[0][0].route).not.toHaveProperty('ghost');
+
+    (loadWatchGhost as jest.Mock).mockClear();
+    await startRunOnWatch({
+      kind: 'run',
+      place: 'indoor',
+      autoPause: true,
+      voiceCues: false,
+      route,
+    });
+    expect(loadWatchGhost).not.toHaveBeenCalled();
+  });
 
   it('sends the route with an outdoor start', async () => {
     await startRunOnWatch({

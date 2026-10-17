@@ -457,6 +457,9 @@ struct WatchContext: Codable, Equatable {
     var doubleTapEnabled: Bool? = nil
     /// Phone's Settings → Apple Watch → effort (RPE) switch. Nil reads as off.
     var rpeEnabled: Bool? = nil
+    /// Phone's Settings → Apple Watch → Race my best time on routes switch.
+    /// Nil reads as on.
+    var raceBestEnabled: Bool? = nil
     /// Today's scheduled medication doses. Nil until the phone has said, which
     /// the page renders as "not synced yet" rather than an empty list. Expires
     /// at midnight like `water`.
@@ -569,6 +572,8 @@ struct WatchContext: Codable, Equatable {
     var effectiveDoubleTapEnabled: Bool { doubleTapEnabled ?? true }
 
     var effectiveRpeEnabled: Bool { rpeEnabled ?? false }
+
+    var effectiveRaceBestEnabled: Bool { raceBestEnabled ?? true }
 
     /// Stale seeds are worse than no seed: every morning would start from a lie
     /// and the delta line would reassure falsely.

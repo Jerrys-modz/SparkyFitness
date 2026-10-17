@@ -1,9 +1,13 @@
 import type {
   CreateRouteBody,
+  GenerateRouteBody,
+  GenerateRouteResponse,
   ImportGpxRouteBody,
   Route,
   RouteFromActivityBody,
+  RouteGhostResponse,
   RouteRun,
+  RouteStopsResponse,
   RouteSummary,
   UpdateRouteBody,
 } from '@workspace/shared';
@@ -27,7 +31,7 @@ export const fetchRoute = (id: string): Promise<{ route: Route }> =>
   });
 
 export const createRoute = (
-  body: Omit<CreateRouteBody, 'activity'> & Partial<CreateRouteBody>
+  body: Pick<CreateRouteBody, 'name' | 'points'> & Partial<CreateRouteBody>
 ): Promise<{ route: Route }> =>
   apiFetch<{ route: Route }>({
     endpoint: '/api/v2/routes',
@@ -99,4 +103,46 @@ export const attachExerciseEntryRoute = (
     operation: 'link entry to route',
     method: 'POST',
     body: { routeId },
+  });
+
+/** The best run over a route as a pace line for the watch; `ghost` is null before a first timed run. */
+export const fetchRouteGhost = (id: string): Promise<RouteGhostResponse> =>
+  apiFetch<RouteGhostResponse>({
+    endpoint: `/api/v2/routes/${id}/ghost`,
+    serviceName: SERVICE,
+    operation: 'fetch route ghost',
+  });
+
+/**
+ * What the server offers for generating routes and looking up stops. Older
+ * servers send only `available`; read the answer with
+ * `resolveRouteGenerateCapabilities`.
+ */
+export const fetchRouteGenerationCapabilities = (): Promise<unknown> =>
+  apiFetch<unknown>({
+    endpoint: '/api/v2/routes/generate/capabilities',
+    serviceName: SERVICE,
+    operation: 'check route generation',
+  });
+
+/** Preview routes from the routing engine: `route` is the first of `options`. */
+export const generateRoute = (
+  body: GenerateRouteBody
+): Promise<GenerateRouteResponse> =>
+  apiFetch<GenerateRouteResponse>({
+    endpoint: '/api/v2/routes/generate',
+    serviceName: SERVICE,
+    operation: 'generate route',
+    method: 'POST',
+    body,
+    // A loop can cost the server a few engine calls, several candidates more.
+    timeoutMs: 90_000,
+  });
+
+/** Stops near a saved route; the server answers `no_data` on any failure. */
+export const fetchRouteStops = (id: string): Promise<RouteStopsResponse> =>
+  apiFetch<RouteStopsResponse>({
+    endpoint: `/api/v2/routes/${id}/stops`,
+    serviceName: SERVICE,
+    operation: 'fetch route stops',
   });

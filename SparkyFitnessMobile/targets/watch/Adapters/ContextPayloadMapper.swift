@@ -79,6 +79,7 @@ enum ContextPayloadMapper {
             distanceUnit: payload["distanceUnit"] as? String ?? previous.distanceUnit,
             doubleTapEnabled: payload["doubleTapEnabled"] as? Bool ?? previous.doubleTapEnabled,
             rpeEnabled: payload["rpeEnabled"] as? Bool ?? previous.rpeEnabled,
+            raceBestEnabled: payload["raceBestEnabled"] as? Bool ?? previous.raceBestEnabled,
             medications: medications(from: payload),
             fast: fastKnown(in: payload) ? fast(from: payload["fast"]) : previous.fast,
             fastSynced: fastKnown(in: payload) ? true : previous.fastSynced,
@@ -257,8 +258,19 @@ enum ContextPayloadMapper {
             name: dict["name"] as? String ?? "",
             points: points,
             cues: cues,
-            elevations: elevations(from: dict["elevations"], count: points.count)
+            elevations: elevations(from: dict["elevations"], count: points.count),
+            ghost: WatchRouteGhost.decode(numberArray(dict["ghost"])),
+            footprint: footprint(from: dict["footprint"])
         )
+    }
+
+    /// The nearby paths a route carries for the offline map: an array of flat
+    /// `[lat, lon, …]` lines in millionths of a degree. Nil when absent, and a
+    /// malformed line is skipped (`WatchRouteFootprint.decode`) rather than
+    /// failing the route: the map is only a backdrop.
+    static func footprint(from raw: Any?) -> [[WatchRoutePoint]]? {
+        guard let rows = raw as? [Any] else { return nil }
+        return WatchRouteFootprint.decode(rows.compactMap { numberArray($0) })
     }
 
     /// The heights a route carries, one whole metre per point. They arrive as

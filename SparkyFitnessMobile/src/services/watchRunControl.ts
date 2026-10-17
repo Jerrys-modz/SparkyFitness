@@ -4,6 +4,7 @@ import WatchConnectivity, {
 import type { WatchRunPlanPayload } from '../utils/watchRunPlans';
 import { useWatchRunLiveStore } from '../stores/watchRunLiveStore';
 import { addLog } from './LogService';
+import { loadWatchGhost } from './watchRouteGhost';
 import { toWatchRoutePayload } from '../utils/watchRoute';
 import type { Route } from '@workspace/shared';
 
@@ -32,13 +33,17 @@ export async function startRunOnWatch(options: {
   route?: Pick<Route, 'id' | 'name' | 'points' | 'cues'>;
 }): Promise<string> {
   if (!WatchConnectivity) throw new Error('Apple Watch is not available');
-  const requestId = newId();
-  const requestedAt = Date.now();
-  // Indoors there is no GPS to follow a route with.
+  // Indoors there is no GPS to follow a route with. Built first: the ghost
+  // lookup is a request, and the watch drops a start older than two minutes.
   const route =
     options.route && options.place === 'outdoor'
-      ? toWatchRoutePayload(options.route)
+      ? toWatchRoutePayload(
+          options.route,
+          await loadWatchGhost(options.route.id)
+        )
       : null;
+  const requestId = newId();
+  const requestedAt = Date.now();
   await WatchConnectivity.startRun({
     requestId,
     kind: options.kind,

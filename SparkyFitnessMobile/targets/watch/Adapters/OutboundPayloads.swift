@@ -324,7 +324,8 @@ enum OutboundPayloads {
         stepLabel: String?,
         stepRemaining: TimeInterval?,
         nextLabel: String?,
-        requestId: String?
+        requestId: String?,
+        raceSeconds: Int? = nil
     ) -> [String: Any] {
         var payload: [String: Any] = [
             "type": Kind.runLive,
@@ -348,6 +349,8 @@ enum OutboundPayloads {
         if let stepRemaining { payload["stepRemaining"] = stepRemaining }
         if let nextLabel { payload["nextLabel"] = nextLabel }
         if let requestId { payload["requestId"] = requestId }
+        // Signed: positive is ahead of the best run on the followed route.
+        if let raceSeconds { payload["raceSeconds"] = raceSeconds }
         return payload
     }
 

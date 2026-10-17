@@ -25,6 +25,7 @@ const summary = (id: string, name: string, runCount: number) => ({
 
 jest.mock('../../src/services/routeService', () => ({
   useRoutes: jest.fn(),
+  useRouteGenerationAvailable: () => ({ available: false, isLoading: false }),
   pickAndImportGpx: jest.fn(),
 }));
 jest.mock('../../src/hooks/useRefetchOnFocus', () => ({
