@@ -346,3 +346,4 @@ export * from './utils/runGoals.ts';
 export * from './utils/calorieMaintenancePeriods.ts';
 export * from './utils/workoutEmojis.ts';
 export * from './utils/stretchRoutines.ts';
+export * from './schemas/api/ClientRequestId.api.zod.ts';
