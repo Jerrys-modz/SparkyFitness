@@ -421,5 +421,9 @@ export const routeGenerationCapabilitiesQueryKey = [
   'capabilities',
 ] as const;
 
+/** Stops (water, toilets, cafes, viewpoints) along one saved route. */
+export const routeStopsQueryKey = (id: string) =>
+  ['routes', id, 'stops'] as const;
+
 /** One saved route with its points and cues. */
 export const routeQueryKey = (id: string) => ['routes', id] as const;

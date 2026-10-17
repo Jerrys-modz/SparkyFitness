@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import RouteTileMap from '../components/exerciseStats/RouteTileMap';
 import RouteCueList from '../components/RouteCueList';
+import RouteStopsSection from '../components/RouteStopsSection';
 import Button from '../components/ui/Button';
 import { usePreferences } from '../hooks/usePreferences';
 import { useScreenHeader } from '../hooks/useScreenHeader';
@@ -21,6 +22,7 @@ import {
   renameRoute,
   shareRouteGpx,
   useRoute,
+  useRouteStops,
 } from '../services/routeService';
 import { formatRouteClimb, formatRouteDistance } from '../utils/routeDisplay';
 import type { RootStackScreenProps } from '../types/navigation';
@@ -33,6 +35,7 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { route, isLoading, isError, refetch } = useRoute(id);
+  const routeStops = useRouteStops(id);
   const { preferences } = usePreferences();
   const unit = preferences?.default_distance_unit ?? 'km';
   const [name, setName] = useState<string | null>(null);
@@ -130,6 +133,7 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
           <>
             <RouteTileMap
               points={route.points}
+              stops={routeStops.stops?.stops}
               accessibilityLabel={t('routes.mapA11y', {
                 defaultValue:
                   'Map of this route, from the green dot to the red ring',
@@ -163,6 +167,13 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
                   : ''}
               </Text>
             </View>
+            {routeStops.available ? (
+              <RouteStopsSection
+                stops={routeStops.stops}
+                isLoading={routeStops.isLoading}
+                unit={unit}
+              />
+            ) : null}
             <RouteCueList cues={route.cues} unit={unit} />
             <View className="mt-4 gap-2">
               {name === null ? (

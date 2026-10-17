@@ -1,12 +1,16 @@
 import { renderHook, waitFor } from '@testing-library/react-native';
 import {
+  generateRouteOptions,
   generateRoutePreview,
   saveGeneratedRoute,
   useRouteGenerationAvailable,
+  useRouteGenerationCapabilities,
+  useRouteStops,
 } from '../../src/services/routeService';
 import {
   createRoute,
   fetchRouteGenerationCapabilities,
+  fetchRouteStops,
   generateRoute,
 } from '../../src/services/api/routeApi';
 import { queryClient } from '../../src/hooks/queryClient';
@@ -25,6 +29,7 @@ jest.mock('../../src/services/api/routeApi', () => ({
   fetchRoute: jest.fn(),
   fetchRoutes: jest.fn(),
   fetchRouteGenerationCapabilities: jest.fn(),
+  fetchRouteStops: jest.fn(),
   generateRoute: jest.fn(),
   importGpxRoute: jest.fn(),
   updateRoute: jest.fn(),
@@ -32,6 +37,7 @@ jest.mock('../../src/services/api/routeApi', () => ({
 
 const mockCapabilities = fetchRouteGenerationCapabilities as jest.Mock;
 const mockGenerate = generateRoute as jest.Mock;
+const mockStops = fetchRouteStops as jest.Mock;
 const mockCreate = createRoute as jest.Mock;
 
 const previewRoute = {
@@ -82,6 +88,132 @@ describe('route generation service', () => {
     });
   });
 
+  describe('useRouteGenerationCapabilities', () => {
+    const render = () => {
+      const client = createTestQueryClient();
+      return renderHook(() => useRouteGenerationCapabilities(), {
+        wrapper: createQueryWrapper(client),
+      });
+    };
+
+    it('reads everything the server offers', async () => {
+      mockCapabilities.mockResolvedValue({
+        available: true,
+        maxAlternatives: 3,
+        style: {
+          surface: true,
+          hilliness: false,
+          avoidSteps: true,
+          avoidBusyRoads: false,
+        },
+        stops: true,
+      });
+      const { result } = render();
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.capabilities).toEqual({
+        available: true,
+        maxAlternatives: 3,
+        style: {
+          surface: true,
+          hilliness: false,
+          avoidSteps: true,
+          avoidBusyRoads: false,
+        },
+        stops: true,
+      });
+    });
+
+    it('reads an older server’s answer as nothing extra', async () => {
+      mockCapabilities.mockResolvedValue({ available: true });
+      const { result } = render();
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.capabilities).toMatchObject({
+        available: true,
+        maxAlternatives: 1,
+        stops: false,
+        style: { surface: false, hilliness: false },
+      });
+    });
+
+    it('keeps the same object between renders', async () => {
+      mockCapabilities.mockResolvedValue({ available: true });
+      const { result, rerender } = render();
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      const first = result.current.capabilities;
+      rerender({});
+      expect(result.current.capabilities).toBe(first);
+    });
+  });
+
+  describe('useRouteStops', () => {
+    const render = () => {
+      const client = createTestQueryClient();
+      return renderHook(() => useRouteStops('route-1'), {
+        wrapper: createQueryWrapper(client),
+      });
+    };
+    const answer = {
+      status: 'ok' as const,
+      stops: [
+        {
+          kind: 'cafe' as const,
+          name: null,
+          lat: 1,
+          lon: 2,
+          distanceFromStartM: 100,
+          offRouteM: 10,
+        },
+      ],
+      truncated: false,
+    };
+
+    it('does not ask when the server has no stops lookup', async () => {
+      mockCapabilities.mockResolvedValue({ available: true, stops: false });
+      const { result } = render();
+      await waitFor(() => expect(mockCapabilities).toHaveBeenCalled());
+      expect(result.current.available).toBe(false);
+      expect(mockStops).not.toHaveBeenCalled();
+    });
+
+    it('loads the stops once the server offers them', async () => {
+      mockCapabilities.mockResolvedValue({ available: false, stops: true });
+      mockStops.mockResolvedValue(answer);
+      const { result } = render();
+      await waitFor(() => expect(result.current.stops).toEqual(answer));
+      expect(result.current.available).toBe(true);
+      expect(result.current.isLoading).toBe(false);
+      expect(mockStops).toHaveBeenCalledWith('route-1');
+    });
+
+    it('shows no stops, not an error, when the request fails', async () => {
+      mockCapabilities.mockResolvedValue({ available: true, stops: true });
+      mockStops.mockRejectedValue(new Error('429'));
+      const { result } = render();
+      await waitFor(() => expect(mockStops).toHaveBeenCalled());
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.stops).toBeNull();
+      expect(mockStops).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('returns every option from the generate endpoint', async () => {
+    const response = {
+      route: previewRoute,
+      options: [{ route: previewRoute, label: null, trailShare: null }],
+    };
+    mockGenerate.mockResolvedValue(response);
+    const body = {
+      mode: 'loop' as const,
+      start: { lat: 1, lon: 2 },
+      activity: 'run' as const,
+      distanceM: 5000,
+      shape: 'loop' as const,
+      alternatives: 3,
+    };
+    await expect(generateRouteOptions(body)).resolves.toBe(response);
+    expect(mockGenerate).toHaveBeenCalledWith(body);
+  });
+
   it('returns the preview from the generate endpoint', async () => {
     mockGenerate.mockResolvedValue({ route: previewRoute });
     const body = {
@@ -90,6 +222,7 @@ describe('route generation service', () => {
       activity: 'run' as const,
       distanceM: 5000,
       shape: 'loop' as const,
+      alternatives: 1,
     };
     await expect(generateRoutePreview(body)).resolves.toBe(previewRoute);
     expect(mockGenerate).toHaveBeenCalledWith(body);

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -13,12 +13,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { useCSSVariable } from 'uniwind';
 import {
+  DEFAULT_ROUTE_STYLE,
   canAddFollowRoadsPoint,
   ROUTE_FOLLOW_ROADS_MAX_POINTS,
   countRouteTurns,
+  hasRouteStyleControls,
+  restrictRouteStyle,
   routeDistanceMeters,
   type RoutePoint,
+  type RouteStyle,
 } from '@workspace/shared';
+import RouteStyleControls from '../components/RouteStyleControls';
 import Button from '../components/ui/Button';
 import Switch from '../components/ui/Switch';
 import { useFollowRoadsRoute } from '../hooks/useFollowRoadsRoute';
@@ -27,7 +32,7 @@ import { useScreenHeader } from '../hooks/useScreenHeader';
 import { addLog } from '../services/LogService';
 import {
   saveDrawnRoute,
-  useRouteGenerationAvailable,
+  useRouteGenerationCapabilities,
 } from '../services/routeService';
 import { routeGenerateErrorMessage } from '../utils/routeGenerateError';
 import { formatRouteDistance } from '../utils/routeDisplay';
@@ -61,9 +66,15 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const [followRoads, setFollowRoads] = useState(false);
-  const { available } = useRouteGenerationAvailable();
+  const [style, setStyle] = useState<RouteStyle>(DEFAULT_ROUTE_STYLE);
+  const { capabilities } = useRouteGenerationCapabilities();
+  const available = capabilities.available;
   const snapping = available && followRoads;
-  const snap = useFollowRoadsRoute(snapping, points);
+  const followStyle = useMemo(
+    () => restrictRouteStyle(style, capabilities.style),
+    [style, capabilities.style]
+  );
+  const snap = useFollowRoadsRoute(snapping, points, followStyle);
   const snapped = snapping ? snap.preview : null;
   const atWaypointLimit = snapping && !canAddFollowRoadsPoint(points.length);
 
@@ -202,6 +213,16 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
                 accessibilityLabel={t('routes.followRoads', {
                   defaultValue: 'Follow roads',
                 })}
+              />
+            </View>
+          ) : null}
+          {snapping && hasRouteStyleControls(capabilities.style) ? (
+            <View className="mt-3">
+              <RouteStyleControls
+                value={style}
+                onChange={setStyle}
+                supported={capabilities.style}
+                activity="run"
               />
             </View>
           ) : null}
