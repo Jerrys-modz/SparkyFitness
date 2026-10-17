@@ -6984,7 +6984,8 @@
       "title": "Route",
       "none": "No route",
       "watchHint": "Your watch shows the line and buzzes at each turn.",
-      "phoneHint": "The route is drawn under your track on the map."
+      "phoneHint": "The route is drawn under your track on the map.",
+      "startAway": "Start is {{distance}} away"
     },
     "title": {
       "outdoorRun": "Outdoor run",
@@ -7879,6 +7880,11 @@
       "startFailed": "Could not start on your watch",
       "startTitle": "Start on your watch",
       "startMessage": "Your watch follows the route and buzzes at each turn."
+    },
+    "elevation": {
+      "title": "Elevation",
+      "milesAxis": "Miles from start, height in feet",
+      "kilometersAxis": "Kilometers from start, height in meters"
     }
   }
 }

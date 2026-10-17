@@ -1,6 +1,12 @@
 import SwiftUI
 import MapKit
 
+/// "Start is 600 m away", for a wearer who has not reached the route yet.
+func startAwayText(_ approach: WatchRouteTracker.StartApproach, usesMiles: Bool) -> String {
+    let distance = WatchRunPlan.distance(max(10, (approach.distanceMeters / 10).rounded() * 10), inMiles: usesMiles)
+    return String(localized: "watch.route.startAway", defaultValue: "Start is \(distance) away")
+}
+
 /// What the wearer needs from a followed route at a glance, shown under the
 /// clock on the run's main page: the next turn and how far, or a red warning
 /// when they have left the route.
@@ -12,6 +18,7 @@ struct RouteCueStrip: View {
         HStack(spacing: WatchStyle.s(6)) {
             Image(systemName: symbol)
                 .font(.system(size: WatchStyle.s(15), weight: .bold))
+                .rotationEffect(.degrees(symbolRotation))
             Text(label)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -32,9 +39,19 @@ struct RouteCueStrip: View {
 
     private var isOff: Bool { progress?.isOffRoute == true }
 
+    /// Set while the wearer has not reached the route line yet.
+    private var approach: WatchRouteTracker.StartApproach? { progress?.startApproach }
+
+    /// The start arrow turns to point at the start, ahead being up when the
+    /// wearer's direction of travel is known and north otherwise.
+    private var symbolRotation: Double {
+        approach.map { $0.arrowRotation(heading: $0.course) } ?? 0
+    }
+
     private var tint: Color { isOff ? .red : .cyan }
 
     private var symbol: String {
+        if approach != nil { return "location.north.fill" }
         if isOff { return "exclamationmark.triangle.fill" }
         guard let progress else { return "location.slash" }
         if progress.arrived { return WatchRouteCueKind.arrive.symbol }
@@ -42,6 +59,9 @@ struct RouteCueStrip: View {
     }
 
     private var label: String {
+        if let approach {
+            return startAwayText(approach, usesMiles: usesMiles)
+        }
         if isOff { return String(localized: "watch.route.offRoute", defaultValue: "Off route") }
         guard let progress else { return String(localized: "watch.route.waitingGps", defaultValue: "Waiting for GPS") }
         if progress.arrived { return WatchRouteCueKind.arrive.title }
@@ -49,7 +69,7 @@ struct RouteCueStrip: View {
     }
 
     private var distance: String? {
-        guard let progress, !isOff, !progress.arrived, let next = progress.nextCue else { return nil }
+        guard let progress, approach == nil, !isOff, !progress.arrived, let next = progress.nextCue else { return nil }
         return WatchRunPlan.distance(next.distanceMeters, inMiles: usesMiles)
     }
 }
@@ -104,12 +124,40 @@ struct WatchRouteMapPage: View {
         return "\(WatchRunMetrics.distanceText(progress.remainingMeters, usesMiles: usesMiles)) \(unit)"
     }
 
+    /// "Climb ahead: +24 m in 400 m", in the phone's unit.
+    private func climbAheadText(_ climb: WatchRouteClimb.Ahead) -> String {
+        let gain = usesMiles
+            ? "\(Int((Double(climb.gainMeters) * 3.28084).rounded())) ft"
+            : "\(climb.gainMeters) m"
+        let over = WatchRunPlan.distance(max(10, (climb.overMeters / 10).rounded() * 10), inMiles: usesMiles)
+        return String(localized: "watch.route.climbAhead", defaultValue: "Climb ahead: +\(gain) in \(over)")
+    }
+
     private var footer: some View {
         VStack(spacing: 0) {
-            if let progress = run.routeProgress {
+            if let approach = run.routeProgress?.startApproach {
+                // The map is north up until the line is reached, so the arrow is the bearing itself.
+                Label {
+                    Text(startAwayText(approach, usesMiles: usesMiles))
+                } icon: {
+                    Image(systemName: "location.north.fill")
+                        .rotationEffect(.degrees(approach.arrowRotation(heading: nil)))
+                }
+                .font(.system(size: WatchStyle.s(15), weight: .bold, design: .rounded))
+                .foregroundStyle(.cyan)
+            } else if let progress = run.routeProgress {
                 Text(String(localized: "watch.route.left", defaultValue: "\(remainingText(progress)) left"))
                 .font(.system(size: WatchStyle.s(15), weight: .bold, design: .rounded))
                 .monospacedDigit()
+                if let climb = run.routeClimb {
+                    Label {
+                        Text(climbAheadText(climb))
+                    } icon: {
+                        Image(systemName: "arrow.up.right")
+                    }
+                    .font(.system(size: WatchStyle.s(11), weight: .semibold))
+                    .foregroundStyle(.orange)
+                }
                 if !progress.isOffRoute, !progress.arrived, let next = progress.nextCue {
                     Label {
                         Text("\(next.cue.instruction) · \(WatchRunPlan.distance(next.distanceMeters, inMiles: usesMiles))")

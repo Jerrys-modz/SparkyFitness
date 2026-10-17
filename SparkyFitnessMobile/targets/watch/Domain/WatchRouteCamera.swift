@@ -74,6 +74,14 @@ struct WatchRouteCamera: Equatable {
     ) -> WatchRouteCamera {
         var camera = WatchRouteCamera(lat: position.lat, lon: position.lon, distance: baseDistance, heading: 0)
         guard let progress else { return camera }
+        if !progress.reachedRoute {
+            // On the way to the start: nothing ahead to turn the map by, and the
+            // start may be some way off, so pull back when it is.
+            if let approach = progress.startApproach, approach.distanceMeters > 150 {
+                camera.distance = 650
+            }
+            return camera
+        }
         if progress.isOffRoute {
             camera.distance = 650
             return camera

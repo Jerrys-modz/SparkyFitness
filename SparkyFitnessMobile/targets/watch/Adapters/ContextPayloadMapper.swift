@@ -230,7 +230,8 @@ enum ContextPayloadMapper {
     }
 
     /// The saved route a start request carries. Points arrive flat, as
-    /// `[lat, lon, lat, lon, …]` in millionths of a degree. Nil when absent or
+    /// `[lat, lon, lat, lon, …]` in millionths of a degree, with an optional
+    /// parallel `elevations` array (see `elevations(from:count:)`). Nil when absent or
     /// unusable (fewer than two points, an odd count); a cue with an unknown
     /// kind or a point past the end is skipped rather than failing the route.
     static func route(from raw: Any?) -> WatchRoute? {
@@ -251,7 +252,23 @@ enum ContextPayloadMapper {
             let text = (row["text"] as? String).flatMap { $0.isEmpty ? nil : $0 }
             return WatchRouteCue(index: index, kind: kind, text: text)
         }
-        return WatchRoute(id: id, name: dict["name"] as? String ?? "", points: points, cues: cues)
+        return WatchRoute(
+            id: id,
+            name: dict["name"] as? String ?? "",
+            points: points,
+            cues: cues,
+            elevations: elevations(from: dict["elevations"], count: points.count)
+        )
+    }
+
+    /// The heights a route carries, one whole metre per point. They arrive as
+    /// the zigzag of each step from the previous height (the first from 0),
+    /// which keeps every number a small non-negative integer on the wire. Nil
+    /// when absent, not a number array, or not one per point: an older phone
+    /// sends none, and a route without heights simply shows no climb.
+    static func elevations(from raw: Any?, count: Int) -> [Int]? {
+        guard let steps = numberArray(raw), steps.count == count, count > 0 else { return nil }
+        return WatchRouteClimb.decodeHeights(steps.map { Int($0) })
     }
 
     /// A route the phone wants kept on the watch (`routeSync`). Nil when the

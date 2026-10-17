@@ -32,6 +32,10 @@ struct WatchRoute: Codable, Equatable, Identifiable {
     let name: String
     let points: [WatchRoutePoint]
     let cues: [WatchRouteCue]
+    /// Whole-metre height of each point, parallel to `points`. Nil when the
+    /// route carries none (a drawn route, or a phone that predates the field);
+    /// older saved routes decode without it.
+    var elevations: [Int]? = nil
 }
 
 /// Where a live position stands against a route.
@@ -58,6 +62,24 @@ struct WatchRouteTracker {
         let distanceMeters: Double
     }
 
+    /// Where the route starts, for a wearer who has not reached the line yet.
+    struct StartApproach: Equatable {
+        /// Metres in a straight line to the first point.
+        var distanceMeters: Double
+        /// Degrees clockwise from north, from the wearer to the first point.
+        var bearing: Double
+        /// Degrees clockwise from north the wearer has been moving, once they
+        /// have moved far enough to tell; nil standing still.
+        var course: Double?
+
+        /// Degrees clockwise to turn an upward-pointing arrow so it points at
+        /// the start, on a screen whose top is `heading` (0 is north up).
+        func arrowRotation(heading: Double?) -> Double {
+            let turned = (bearing - (heading ?? 0)).truncatingRemainder(dividingBy: 360)
+            return turned < 0 ? turned + 360 : turned
+        }
+    }
+
     struct Snapshot: Equatable {
         /// Straight-line distance from the position to the nearest point on the route.
         var distanceFromRoute: Double
@@ -67,6 +89,11 @@ struct WatchRouteTracker {
         var nextCue: UpcomingCue?
         var isOffRoute: Bool
         var arrived: Bool
+        /// Whether the position has been on the line at least once. Until it
+        /// has, the wearer is getting to the start, not off the route.
+        var reachedRoute: Bool = true
+        /// Set exactly while `reachedRoute` is false.
+        var startApproach: StartApproach? = nil
     }
 
     enum Event: Equatable {
@@ -90,6 +117,12 @@ struct WatchRouteTracker {
     private(set) var progressMeters: Double = 0
     private(set) var isOffRoute = false
     private(set) var hasArrived = false
+    /// True once a fix has been within `offRouteMeters` of the line. Before that
+    /// the wearer is walking to the start: there is no route to be off yet, so
+    /// no off-route alarm.
+    private(set) var hasReachedRoute = false
+    private var lastCourseFix: WatchRoutePoint?
+    private var course: Double?
     private var offRouteSince: Date?
     private var announced: Set<Int> = []
 
@@ -125,12 +158,20 @@ struct WatchRouteTracker {
             match = anywhere.distance < nearby.distance ? anywhere : nearby
         }
         let onLine = match.distance <= Self.offRouteMeters
-        if onLine { progressMeters = match.along }
+        if onLine {
+            progressMeters = match.along
+            hasReachedRoute = true
+        }
+        noteCourse(here)
 
         var events: [Event] = []
 
-        // Off route needs the position to stay away for a while; back on is at once.
-        if onLine {
+        // Off route needs the position to stay away for a while; back on is at
+        // once. Not before the line has been reached once: until then the wearer
+        // is on the way to the start.
+        if !hasReachedRoute {
+            offRouteSince = nil
+        } else if onLine {
             offRouteSince = nil
             if isOffRoute {
                 isOffRoute = false
@@ -174,9 +215,36 @@ struct WatchRouteTracker {
                 UpcomingCue(cue: anchoredCues[$0].cue, distanceMeters: max(0, anchoredCues[$0].along - progressMeters))
             },
             isOffRoute: isOffRoute,
-            arrived: hasArrived
+            arrived: hasArrived,
+            reachedRoute: hasReachedRoute,
+            startApproach: hasReachedRoute ? nil : startApproach(from: here)
         )
         return Update(snapshot: snapshot, events: events)
+    }
+
+    // MARK: - Getting to the start
+
+    /// How far the wearer must move before the way they are heading is taken
+    /// from it, so GPS wobble while standing still does not swing the arrow.
+    private static let courseMinMeters: Double = 8
+
+    private mutating func noteCourse(_ here: WatchRoutePoint) {
+        guard let last = lastCourseFix else {
+            lastCourseFix = here
+            return
+        }
+        guard Self.haversine(last, here) >= Self.courseMinMeters else { return }
+        course = WatchRouteCamera.bearing(from: last, to: here)
+        lastCourseFix = here
+    }
+
+    private func startApproach(from here: WatchRoutePoint) -> StartApproach {
+        let start = route.points[0]
+        return StartApproach(
+            distanceMeters: Self.haversine(here, start),
+            bearing: WatchRouteCamera.bearing(from: here, to: start),
+            course: course
+        )
     }
 
     // MARK: - Matching

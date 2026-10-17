@@ -3,6 +3,7 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
+import RouteElevationCard from '../components/exerciseStats/RouteElevationCard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { useCSSVariable } from 'uniwind';
@@ -139,6 +140,8 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
           className="absolute left-0 right-0 bottom-0 bg-surface px-4 pt-3"
           style={{ paddingBottom: insets.bottom + 12 }}
         >
+          {/* Only drawn when the points carry altitude; a tapped route has none. */}
+          <RouteElevationCard points={points} unit={unit} className="mb-3" />
           <TextInput
             className="border-b border-border-subtle text-text-primary py-1"
             style={{ fontSize: 16 }}

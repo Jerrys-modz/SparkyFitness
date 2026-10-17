@@ -49,6 +49,7 @@ import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useIndoorDistanceEstimate } from '../hooks/useIndoorDistanceEstimate';
 import { invalidateExerciseCache } from '../hooks/invalidateExerciseCache';
 import { usePreferences } from '../hooks/usePreferences';
+import { useRouteStartDistance } from '../hooks/useRouteStartDistance';
 import { useSuggestedRanges } from '../hooks/useSuggestedRanges';
 import { useWatchConnectivity } from '../hooks/useWatchConnectivity';
 import { startRunOnWatch } from '../services/watchRunControl';
@@ -131,6 +132,7 @@ import {
 import BottomSheetPicker from '../components/BottomSheetPicker';
 import { useRoute, useRoutes } from '../services/routeService';
 import { formatRouteDistance } from '../utils/routeDisplay';
+import { formatStartDistance } from '../utils/routeStart';
 import type { RootStackScreenProps } from '../types/navigation';
 
 /** A starting band: 5:00 to 5:30 per km, 8:00 to 8:50 per mile. */
@@ -258,6 +260,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const { routes: savedRoutes } = useRoutes();
   const routeChoiceShown = !indoor && activity !== 'ride';
   const { route: chosenRoute } = useRoute(routeChoiceShown ? routeId : '');
+  const startDistance = useRouteStartDistance(chosenRoute?.points, points);
   const [autoPause, setAutoPause] = useState(true);
   const [audioCues, setAudioCues] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState(0);
@@ -1447,6 +1450,17 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             </Text>
           </View>
         )}
+        {!indoorSession && startDistance !== null && !finished ? (
+          <Text
+            className="text-text-secondary text-sm -mt-2 mb-4"
+            testID="route-start-away"
+          >
+            {t('recordActivity.route.startAway', {
+              distance: formatStartDistance(startDistance, distanceUnit),
+              defaultValue: 'Start is {{distance}} away',
+            })}
+          </Text>
+        ) : null}
         {indoorSession || finished ? null : (
           <View className="items-center mb-2">
             <GpsSignalBadge />

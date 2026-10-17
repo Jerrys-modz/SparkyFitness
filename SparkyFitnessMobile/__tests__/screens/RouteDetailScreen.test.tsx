@@ -10,6 +10,7 @@ import {
   sendRouteToWatch,
 } from '../../src/services/watchRouteSync';
 import { startRunOnWatch } from '../../src/services/watchRunControl';
+import { useRoute } from '../../src/services/routeService';
 import { initializeI18n } from '../../src/localization/i18n';
 import type { RootStackScreenProps } from '../../src/types/navigation';
 
@@ -61,8 +62,11 @@ jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 jest.mock('../../src/hooks/useScreenHeader', () => ({
   useScreenHeader: jest.fn(() => null),
 }));
+let mockDistanceUnit = 'km';
 jest.mock('../../src/hooks/usePreferences', () => ({
-  usePreferences: () => ({ preferences: { default_distance_unit: 'km' } }),
+  usePreferences: () => ({
+    preferences: { default_distance_unit: mockDistanceUnit },
+  }),
 }));
 jest.mock('../../src/components/exerciseStats/RouteTileMap', () => () => null);
 jest.mock('react-native-safe-area-context', () => ({
@@ -223,5 +227,76 @@ describe('RouteDetailScreen on the watch', () => {
       );
       alert.mockRestore();
     });
+  });
+});
+
+describe('RouteDetailScreen elevation profile', () => {
+  const hilly = {
+    ...savedRoute,
+    elevationGainM: 24,
+    points: [
+      { lat: 51.5, lon: -0.12, alt: 100 },
+      { lat: 51.501, lon: -0.12, alt: 112 },
+      { lat: 51.502, lon: -0.12, alt: 124 },
+    ],
+  };
+  const showing = (route: typeof savedRoute) =>
+    jest.mocked(useRoute).mockReturnValue({
+      route,
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    } as never);
+
+  beforeAll(async () => {
+    await initializeI18n('en');
+  });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    paired(false);
+    record({}, null);
+  });
+  afterEach(() => {
+    showing(savedRoute);
+    mockDistanceUnit = 'km';
+  });
+
+  it('shows the profile and its range when the points carry elevation', () => {
+    showing(hilly as never);
+    const screen = renderScreen();
+    expect(screen.getByTestId('route-elevation')).toBeTruthy();
+    expect(screen.getByText('Elevation')).toBeTruthy();
+    expect(screen.getByText('100–124 m')).toBeTruthy();
+    expect(screen.getByTestId('cartesian-chart')).toBeTruthy();
+  });
+
+  it('shows feet and miles with the miles setting', () => {
+    mockDistanceUnit = 'miles';
+    showing(hilly as never);
+    const screen = renderScreen();
+    expect(screen.getByText('328–407 ft')).toBeTruthy();
+    expect(screen.getByText('Miles from start, height in feet')).toBeTruthy();
+  });
+
+  it('hides it for a route with no elevation and draws nothing in its place', () => {
+    showing(savedRoute);
+    const screen = renderScreen();
+    expect(screen.queryByTestId('route-elevation')).toBeNull();
+    expect(screen.queryByText('Elevation')).toBeNull();
+    expect(screen.queryByTestId('cartesian-chart')).toBeNull();
+  });
+
+  it('hides it when only a stray point has an altitude', () => {
+    showing({
+      ...savedRoute,
+      points: [
+        { lat: 51.5, lon: -0.12, alt: 100 },
+        { lat: 51.501, lon: -0.12 },
+        { lat: 51.502, lon: -0.12 },
+        { lat: 51.503, lon: -0.12 },
+      ],
+    } as never);
+    const screen = renderScreen();
+    expect(screen.queryByTestId('route-elevation')).toBeNull();
   });
 });
