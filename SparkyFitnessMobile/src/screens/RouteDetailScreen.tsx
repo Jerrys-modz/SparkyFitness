@@ -13,6 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import RouteElevationCard from '../components/exerciseStats/RouteElevationCard';
 import RouteTileMap from '../components/exerciseStats/RouteTileMap';
+import RouteCueList from '../components/RouteCueList';
+import RouteStopsSection from '../components/RouteStopsSection';
 import Button from '../components/ui/Button';
 import Icon from '../components/Icon';
 import { usePreferences } from '../hooks/usePreferences';
@@ -29,6 +31,7 @@ import {
   shareRouteGpx,
   useRoute,
   useRouteRuns,
+  useRouteStops,
 } from '../services/routeService';
 import { startRunOnWatch } from '../services/watchRunControl';
 import {
@@ -54,6 +57,7 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
   const insets = useSafeAreaInsets();
   const { route, isLoading, isError, refetch } = useRoute(id);
   const { runs } = useRouteRuns(id);
+  const routeStops = useRouteStops(id);
   const { preferences } = usePreferences();
   const unit = preferences?.default_distance_unit ?? 'km';
   const [name, setName] = useState<string | null>(null);
@@ -274,6 +278,7 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
           <>
             <RouteTileMap
               points={route.points}
+              stops={routeStops.stops?.stops}
               accessibilityLabel={t('routes.mapA11y', {
                 defaultValue:
                   'Map of this route, from the green dot to the red ring',
@@ -410,6 +415,14 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
                 </>
               )}
             </View>
+            {routeStops.available ? (
+              <RouteStopsSection
+                stops={routeStops.stops}
+                isLoading={routeStops.isLoading}
+                unit={unit}
+              />
+            ) : null}
+            <RouteCueList cues={route.cues} unit={unit} />
             <View className="mt-4 gap-2">
               <Button onPress={start} disabled={busy}>
                 {t('routes.start', { defaultValue: 'Start' })}

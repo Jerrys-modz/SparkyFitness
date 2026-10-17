@@ -21,6 +21,13 @@ data:
   {{- with .Values.config.extraTrustedOrigins }}
   SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS: {{ . | quote }}
   {{- end }}
+  {{- with .Values.config.routing.url }}
+  SPARKY_FITNESS_ROUTING_URL: {{ . | quote }}
+  SPARKY_FITNESS_ROUTING_PROVIDER: {{ $.Values.config.routing.provider | quote }}
+  {{- end }}
+  {{- with .Values.config.overpass.url }}
+  SPARKY_FITNESS_OVERPASS_URL: {{ . | quote }}
+  {{- end }}
   SPARKY_FITNESS_FORCE_EMAIL_LOGIN: {{ .Values.config.forceEmailLogin | quote }}
   SPARKY_FITNESS_DISABLE_EMAIL_LOGIN: {{ .Values.config.disableEmailLogin | quote }}
   SPARKY_FITNESS_DISABLE_PASSKEY_LOGIN: {{ .Values.config.disablePasskeyLogin | quote }}

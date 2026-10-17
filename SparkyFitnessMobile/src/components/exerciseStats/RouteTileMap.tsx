@@ -2,8 +2,12 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { useCSSVariable, useUniwind } from 'uniwind';
-import type { GpsTrackPoint } from '@workspace/shared';
+import type { GpsTrackPoint, RouteStop } from '@workspace/shared';
 import { routeRegion, usableRoutePoints } from '../../utils/cardioSession';
+import {
+  ROUTE_STOPS_MAP_LIMIT,
+  ROUTE_STOP_COLORS,
+} from '../../utils/routeStopsDisplay';
 import { DARK_MAP_STYLE } from './darkMapStyle';
 
 const HEIGHT = 220;
@@ -17,6 +21,8 @@ interface RouteTileMapProps {
    */
   guide?: readonly Pick<GpsTrackPoint, 'lat' | 'lon'>[];
   accessibilityLabel: string;
+  /** Stops to mark along the route, as small coloured dots. */
+  stops?: readonly Pick<RouteStop, 'kind' | 'name' | 'lat' | 'lon'>[];
 }
 
 /**
@@ -33,6 +39,7 @@ const RouteTileMap: React.FC<RouteTileMapProps> = ({
   points,
   guide,
   accessibilityLabel,
+  stops,
 }) => {
   const { theme } = useUniwind();
   const isDark = theme === 'dark' || theme === 'amoled';
@@ -109,6 +116,26 @@ const RouteTileMap: React.FC<RouteTileMapProps> = ({
           lineCap="round"
           lineJoin="round"
         />
+        {(stops ?? []).slice(0, ROUTE_STOPS_MAP_LIMIT).map((stop, index) => (
+          <Marker
+            key={`stop-${index}`}
+            coordinate={{ latitude: stop.lat, longitude: stop.lon }}
+            anchor={MARKER_CENTER}
+            tracksViewChanges={false}
+            testID="route-stop-marker"
+          >
+            <View
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: 6,
+                borderWidth: 2,
+                borderColor: '#ffffff',
+                backgroundColor: ROUTE_STOP_COLORS[stop.kind],
+              }}
+            />
+          </Marker>
+        ))}
         {/* The finish is a ring so a loop that ends where it began still
             shows the start dot inside it. */}
         <Marker coordinate={finish} anchor={MARKER_CENTER}>

@@ -247,6 +247,8 @@ export * from "./utils/trainingLoad.ts";
 export * from "./utils/runProgramLoad.ts";
 export * from "./utils/routeGeometry.ts";
 export * from "./utils/routeGhost.ts";
+export * from "./utils/routeGenerate.ts";
 export * from "./utils/routeGpx.ts";
+export * from "./utils/routeStops.ts";
 export * from "./nutrients/nutrientAlgorithms.ts";
 export * from "./nutrients/nutrientCalculation.ts";

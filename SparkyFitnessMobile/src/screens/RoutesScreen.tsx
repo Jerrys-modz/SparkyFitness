@@ -17,7 +17,11 @@ import { usePreferences } from '../hooks/usePreferences';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useWatchRouteStatuses } from '../hooks/useWatchRouteStatus';
 import { addLog } from '../services/LogService';
-import { pickAndImportGpx, useRoutes } from '../services/routeService';
+import {
+  pickAndImportGpx,
+  useRouteGenerationAvailable,
+  useRoutes,
+} from '../services/routeService';
 import { formatRouteDistance } from '../utils/routeDisplay';
 import type { RootStackScreenProps } from '../types/navigation';
 
@@ -31,6 +35,7 @@ const RoutesScreen: React.FC<Props> = ({ navigation }) => {
   const { preferences } = usePreferences();
   const unit = preferences?.default_distance_unit ?? 'km';
   const watchStatusOf = useWatchRouteStatuses();
+  const { available: canGenerate } = useRouteGenerationAvailable();
   const [importing, setImporting] = useState(false);
   useRefetchOnFocus(refetch, true);
 
@@ -75,6 +80,16 @@ const RoutesScreen: React.FC<Props> = ({ navigation }) => {
         text: t('routes.draw', { defaultValue: 'Draw on a map' }),
         onPress: () => navigation.navigate('RouteDraw'),
       },
+      ...(canGenerate
+        ? [
+            {
+              text: t('routes.generateRoute', {
+                defaultValue: 'Generate a loop or out-and-back',
+              }),
+              onPress: () => navigation.navigate('RouteGenerate'),
+            },
+          ]
+        : []),
       {
         text: t('routes.importGpx', { defaultValue: 'Import a GPX file' }),
         onPress: importGpx,
