@@ -7,6 +7,7 @@ import {
 } from './api/exerciseApi';
 import { resolveRecordingExercise } from './gpsRecordingSave';
 import { addLog } from './LogService';
+import { linkEntryToRoute } from './routeLink';
 import { buildActivitySetsPayload } from '../utils/workoutSession';
 import { toLocalDateString } from '../utils/dateUtils';
 import {
@@ -118,6 +119,9 @@ export async function saveWatchRun(
       }
     }
   }
+  // A retry repeats this step on the stored entry, so a failure here is not
+  // lost; a route deleted since the run started is skipped.
+  if (payload.routeId) await linkEntryToRoute(entryId, payload.routeId);
   await attachTelemetry(entryId, payload);
   return entryId;
 }

@@ -7,6 +7,7 @@ import {
   dailySummaryQueryKey,
   workoutSessionQueryKeyRoot,
   workoutLocationsQueryKey,
+  routesQueryKey,
 } from './queryKeys';
 
 export function invalidateExerciseCache(
@@ -16,6 +17,8 @@ export function invalidateExerciseCache(
   void queryClient.invalidateQueries({
     queryKey: [...workoutLocationsQueryKey],
   });
+  // A saved run may follow a route: its run count, best time and history.
+  void queryClient.invalidateQueries({ queryKey: [...routesQueryKey] });
   void queryClient.invalidateQueries({
     queryKey: [...exerciseHistoryQueryKey],
   });

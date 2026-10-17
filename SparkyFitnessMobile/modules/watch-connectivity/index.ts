@@ -767,6 +767,8 @@ export interface WatchRunFinishedPayload {
   distanceScale?: number;
   /** What the watch showed before a treadmill distance was entered on the wrist. */
   estimatedDistanceMeters?: number;
+  /** The saved route the run followed; absent when it followed none. */
+  routeId?: string;
 }
 
 /**

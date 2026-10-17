@@ -7490,6 +7490,9 @@
     "weekAlcohol": "alcohol"
   },
   "runSummary": {
+    "followedRoute": "Followed {{name}}",
+    "routeBest": "Route best, beating your {{time}}",
+    "viewRoute": "View route",
     "done": "Done",
     "runSaved": "Run saved",
     "walkSaved": "Walk saved",
@@ -7845,6 +7848,18 @@
     "nameLabel": "Route name",
     "namePlaceholder": "Name this route",
     "climb": "{{climb}} climb",
+    "ranTimes_one": "Ran {{count}} time",
+    "ranTimes_other": "Ran {{count}} times",
+    "history": {
+      "title": "History",
+      "empty": "No runs yet. A run or walk that follows this route is listed here.",
+      "runs": "Runs",
+      "best": "Best",
+      "last": "Last run",
+      "heartRate": "{{bpm}} bpm",
+      "openFailed": "Could not open that run",
+      "openFailedHint": "It may have been deleted from your diary."
+    },
     "rename": "Rename",
     "renameFailed": "Could not rename",
     "shareGpx": "Share as GPX",

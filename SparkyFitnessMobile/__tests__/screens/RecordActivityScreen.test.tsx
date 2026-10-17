@@ -477,6 +477,10 @@ describe('RecordActivityScreen', () => {
       fireEvent.press(screen.getByText('Start'));
       await waitFor(() => expect(startRecording).toHaveBeenCalled());
       expect(startRunOnWatch).not.toHaveBeenCalled();
+      // Kept on the session, so the saved run links back to the route.
+      expect(startRecording).toHaveBeenCalledWith(
+        expect.objectContaining({ routeId: 'hill' })
+      );
     });
   });
 

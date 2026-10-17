@@ -36,6 +36,19 @@ describe('parseWatchRunPayload', () => {
     expect(plain?.estimatedDistanceMeters).toBeUndefined();
   });
 
+  test('reads the followed route id and ignores a bad one', () => {
+    expect(parseWatchRunPayload({ ...base, routeId: 'r1' })?.routeId).toBe(
+      'r1'
+    );
+    expect(parseWatchRunPayload(base)?.routeId).toBeUndefined();
+    expect(
+      parseWatchRunPayload({ ...base, routeId: '' })?.routeId
+    ).toBeUndefined();
+    expect(
+      parseWatchRunPayload({ ...base, routeId: 7 })?.routeId
+    ).toBeUndefined();
+  });
+
   test('keeps good rows and drops malformed ones', () => {
     const parsed = parseWatchRunPayload(base);
     expect(parsed?.route).toHaveLength(2);

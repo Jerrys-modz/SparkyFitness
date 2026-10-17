@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -12,24 +13,30 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import RouteTileMap from '../components/exerciseStats/RouteTileMap';
 import Button from '../components/ui/Button';
+import Icon from '../components/Icon';
 import { usePreferences } from '../hooks/usePreferences';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useWatchConnectivity } from '../hooks/useWatchConnectivity';
 import { useWatchRouteStatus } from '../hooks/useWatchRouteStatus';
 import { getRecordingPreferences } from '../services/gpsRecordingService';
 import { addLog } from '../services/LogService';
+import { openRunEntry } from '../services/openRunEntry';
 import {
   removeRoute,
   renameRoute,
   shareRouteGpx,
   useRoute,
+  useRouteRuns,
 } from '../services/routeService';
 import { startRunOnWatch } from '../services/watchRunControl';
 import {
   removeRouteFromWatch,
   sendRouteToWatch,
 } from '../services/watchRouteSync';
+import { formatDayLabel } from '../utils/dayLabel';
+import { formatClock } from '../utils/gpsRecording';
 import { formatRouteClimb, formatRouteDistance } from '../utils/routeDisplay';
+import { formatRunPace } from '../utils/routeHistory';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type Props = RootStackScreenProps<'RouteDetail'>;
@@ -44,6 +51,7 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { route, isLoading, isError, refetch } = useRoute(id);
+  const { runs } = useRouteRuns(id);
   const { preferences } = usePreferences();
   const unit = preferences?.default_distance_unit ?? 'km';
   const [name, setName] = useState<string | null>(null);
@@ -176,6 +184,21 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
     );
   };
 
+  const openRun = (entryId: string) => {
+    void openRunEntry(navigation, entryId, unit).catch((error: unknown) => {
+      addLog(`[Routes] Could not open the run: ${error}`, 'WARNING');
+      Toast.show({
+        type: 'error',
+        text1: t('routes.history.openFailed', {
+          defaultValue: 'Could not open that run',
+        }),
+        text2: t('routes.history.openFailedHint', {
+          defaultValue: 'It may have been deleted from your diary.',
+        }),
+      });
+    });
+  };
+
   const watchStatusText: Record<typeof watchStatus, string | null> = {
     none: null,
     pending: t('routes.watch.pending', {
@@ -280,6 +303,108 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
                     })}`
                   : ''}
               </Text>
+            </View>
+            <View
+              className="bg-surface rounded-xl p-4 mt-4"
+              testID="route-history"
+            >
+              <Text className="text-text-primary text-sm font-semibold">
+                {t('routes.history.title', { defaultValue: 'History' })}
+              </Text>
+              {route.runCount === 0 ? (
+                <Text className="text-text-secondary text-sm mt-1">
+                  {t('routes.history.empty', {
+                    defaultValue:
+                      'No runs yet. A run or walk that follows this route is listed here.',
+                  })}
+                </Text>
+              ) : (
+                <>
+                  <View className="flex-row justify-between mt-2">
+                    <View>
+                      <Text className="text-text-secondary text-xs">
+                        {t('routes.history.runs', { defaultValue: 'Runs' })}
+                      </Text>
+                      <Text
+                        className="text-text-primary text-base font-semibold"
+                        testID="route-history-count"
+                      >
+                        {route.runCount}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text className="text-text-secondary text-xs">
+                        {t('routes.history.best', { defaultValue: 'Best' })}
+                      </Text>
+                      <Text
+                        className="text-text-primary text-base font-semibold"
+                        testID="route-history-best"
+                      >
+                        {route.bestDurationSeconds !== null
+                          ? formatClock(route.bestDurationSeconds)
+                          : '—'}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text className="text-text-secondary text-xs">
+                        {t('routes.history.last', { defaultValue: 'Last run' })}
+                      </Text>
+                      <Text
+                        className="text-text-primary text-base font-semibold"
+                        testID="route-history-last"
+                      >
+                        {route.lastRunDate
+                          ? formatDayLabel(route.lastRunDate)
+                          : '—'}
+                      </Text>
+                    </View>
+                  </View>
+                  {runs.map((run) => (
+                    <Pressable
+                      key={run.entryId}
+                      className="flex-row items-center justify-between pt-3 mt-3 border-t border-border-subtle"
+                      onPress={() => openRun(run.entryId)}
+                      style={({ pressed }) =>
+                        pressed ? { opacity: 0.7 } : null
+                      }
+                      accessibilityRole="button"
+                      testID={`route-run-${run.entryId}`}
+                    >
+                      <View className="flex-1 mr-3">
+                        <Text className="text-text-primary text-sm font-semibold">
+                          {formatDayLabel(run.date)}
+                        </Text>
+                        <Text className="text-text-secondary text-xs mt-0.5">
+                          {[
+                            formatClock(run.durationSeconds),
+                            run.distanceM !== null
+                              ? formatRouteDistance(run.distanceM, unit)
+                              : null,
+                            run.paceSecPerKm !== null
+                              ? `${formatRunPace(run.paceSecPerKm, unit)} ${t(
+                                  'recordActivity.perUnit',
+                                  {
+                                    defaultValue: '/{{unit}}',
+                                    unit: unit === 'miles' ? 'mi' : 'km',
+                                  }
+                                )}`
+                              : null,
+                            run.avgHeartRate !== null
+                              ? t('routes.history.heartRate', {
+                                  defaultValue: '{{bpm}} bpm',
+                                  bpm: Math.round(run.avgHeartRate),
+                                })
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </Text>
+                      </View>
+                      <Icon name="chevron-forward" size={20} color="#999" />
+                    </Pressable>
+                  ))}
+                </>
+              )}
             </View>
             <View className="mt-4 gap-2">
               <Button onPress={start} disabled={busy}>

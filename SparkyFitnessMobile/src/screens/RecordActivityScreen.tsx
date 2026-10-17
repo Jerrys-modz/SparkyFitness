@@ -660,6 +660,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               intervalChoice === 'program' && programStatus && intervalPlan
                 ? { id: programStatus.program.id, index: programStatus.done }
                 : undefined,
+            routeId: routeChoiceShown && routeId ? routeId : undefined,
             notification: notificationText(t, activity),
           });
         },
@@ -860,6 +861,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
           ),
           program,
           entryId: saved.entryId,
+          routeId: session.indoor ? null : (session.routeId ?? null),
         });
       } catch (error) {
         addLog(

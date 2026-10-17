@@ -39,6 +39,8 @@ export interface WatchRunPayload {
    * on the wrist; absent when they kept the watch's figure.
    */
   estimatedDistanceMeters?: number;
+  /** The saved route the wearer followed, when the run followed one. */
+  routeId?: string;
 }
 
 /** Stands in for "no altitude": a property list cannot carry null. */
@@ -106,6 +108,9 @@ export function parseWatchRunPayload(raw: unknown): WatchRunPayload | null {
       : {}),
     ...(finite(p.estimatedDistanceMeters) && p.estimatedDistanceMeters > 0
       ? { estimatedDistanceMeters: p.estimatedDistanceMeters }
+      : {}),
+    ...(typeof p.routeId === 'string' && p.routeId
+      ? { routeId: p.routeId }
       : {}),
   };
 }
