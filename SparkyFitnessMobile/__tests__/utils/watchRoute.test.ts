@@ -1,7 +1,9 @@
 import type { Route, RoutePoint } from '@workspace/shared';
 import {
   WATCH_ROUTE_MAX_POINTS,
+  WATCH_ROUTE_MAX_POINTS_WITH_ELEVATION,
   deriveRouteCues,
+  encodeWatchElevations,
   toWatchRoutePayload,
 } from '../../src/utils/watchRoute';
 
@@ -198,5 +200,102 @@ describe('toWatchRoutePayload', () => {
     const payload = toWatchRoutePayload(route(points));
     // ~5 bytes a number in a binary property list.
     expect((payload?.points.length ?? 0) * 5).toBeLessThan(25_000);
+  });
+});
+
+/** What the watch does with `elevations` (WatchRouteClimb.decodeHeights). */
+const decodeHeights = (steps: number[]): number[] => {
+  let height = 0;
+  return steps.map((step) => {
+    height += step % 2 === 0 ? step / 2 : -(step + 1) / 2;
+    return height;
+  });
+};
+
+describe('encodeWatchElevations', () => {
+  it('is null when there are no points or any point has no altitude', () => {
+    expect(encodeWatchElevations([])).toBeNull();
+    expect(
+      encodeWatchElevations([{ ...at(0, 0), alt: 10 }, at(10, 0)])
+    ).toBeNull();
+  });
+
+  it('sends whole metres as small non-negative zigzag steps from the previous height', () => {
+    const points = [100.4, 101.2, 98.6, 99, -3].map((alt, i) => ({
+      ...at(i * 10, 0),
+      alt,
+    }));
+    const encoded = encodeWatchElevations(points)!;
+    expect(encoded).toEqual([200, 2, 3, 0, 203]);
+    expect(encoded.every((n) => Number.isInteger(n) && n >= 0)).toBe(true);
+    expect(decodeHeights(encoded)).toEqual([100, 101, 99, 99, -3]);
+  });
+});
+
+describe('toWatchRoutePayload with elevation', () => {
+  const withAlt = (n: number, alt: (i: number) => number | undefined) =>
+    Array.from({ length: n }, (_, i): RoutePoint => {
+      const a = alt(i);
+      return {
+        ...at(i * 5, Math.sin(i / 40) * 80),
+        ...(a === undefined ? {} : { alt: a }),
+      };
+    });
+  const route = (points: RoutePoint[]) => ({
+    id: 'r1',
+    name: 'Hills',
+    points,
+    cues: [],
+  });
+
+  it('adds one height per point when every point has an altitude', () => {
+    const payload = toWatchRoutePayload(
+      route(withAlt(50, (i) => 40 + i * 0.5))
+    );
+    expect(payload?.elevations).toHaveLength(payload!.points.length / 2);
+    expect(decodeHeights(payload!.elevations!)).toEqual(
+      Array.from({ length: 50 }, (_, i) => Math.round(40 + i * 0.5))
+    );
+  });
+
+  it('leaves the field out when any altitude is missing, inventing none', () => {
+    const payload = toWatchRoutePayload(
+      route(withAlt(50, (i) => (i === 20 ? undefined : 40)))
+    );
+    expect(payload).not.toBeNull();
+    expect(payload).not.toHaveProperty('elevations');
+  });
+
+  it('leaves it out for a drawn route with no altitude at all', () => {
+    const payload = toWatchRoutePayload(route(withAlt(50, () => undefined)));
+    expect(payload).not.toHaveProperty('elevations');
+  });
+
+  it('thins to fewer points when it carries heights, keeping them one per point', () => {
+    const payload = toWatchRoutePayload(
+      route(withAlt(3000, (i) => 200 + Math.round(Math.sin(i / 60) * 90)))
+    );
+    const count = payload!.points.length / 2;
+    expect(count).toBeLessThanOrEqual(WATCH_ROUTE_MAX_POINTS_WITH_ELEVATION);
+    expect(payload!.elevations).toHaveLength(count);
+  });
+
+  it('stays inside the budget of a full route without heights (~20 KB)', () => {
+    const payload = toWatchRoutePayload(
+      route(withAlt(3000, (i) => 200 + Math.round(Math.sin(i / 60) * 90)))
+    )!;
+    // A binary property list: ~5 bytes for a coordinate, 2 for a small
+    // non-negative integer (marker + byte), 3 once past 255.
+    const bytes =
+      payload.points.length * 5 +
+      payload.elevations!.reduce((sum, n) => sum + (n > 255 ? 3 : 2), 0);
+    expect(bytes).toBeLessThanOrEqual(WATCH_ROUTE_MAX_POINTS * 2 * 5);
+  });
+
+  it('sends a route that was already small as it was, plus heights', () => {
+    const points = withAlt(10, (i) => i);
+    const payload = toWatchRoutePayload(route(points))!;
+    expect(payload.points).toHaveLength(20);
+    expect(payload.elevations).toHaveLength(10);
   });
 });

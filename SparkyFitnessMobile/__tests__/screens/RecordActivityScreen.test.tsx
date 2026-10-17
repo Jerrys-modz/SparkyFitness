@@ -484,6 +484,95 @@ describe('RecordActivityScreen', () => {
     });
   });
 
+  describe('getting to the start of a chosen route', () => {
+    // A 100 m line starting 350 m south of where the recording begins.
+    const lineStart = 51.5 - 350 * DEG_PER_METER;
+    const farRoute = {
+      id: 'far',
+      name: 'Far loop',
+      distanceM: 100,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      points: [
+        { lat: lineStart, lon: -0.12 },
+        { lat: lineStart + 100 * DEG_PER_METER, lon: -0.12 },
+      ],
+      cues: [],
+    };
+    const fix = (metersNorth: number, t: number): RecordedPoint => ({
+      ...track[0],
+      t,
+      lat: 51.5 + metersNorth * DEG_PER_METER,
+    });
+    const renderFor = async (routeId?: string) => {
+      mockRoutes.mockReturnValue({ routes: [farRoute] });
+      mockRoute.mockImplementation((id: string) => ({
+        route: id === 'far' ? farRoute : undefined,
+      }));
+      const screen = render(
+        <QueryClientProvider client={new QueryClient()}>
+          <RecordActivityScreen
+            {...props}
+            route={
+              {
+                key: 'RecordActivity',
+                name: 'RecordActivity',
+                params: routeId ? { routeId } : undefined,
+              } as never
+            }
+          />
+        </QueryClientProvider>
+      );
+      await waitFor(() =>
+        expect(screen.queryByTestId('record-activity-loading')).toBeNull()
+      );
+      return screen;
+    };
+
+    it('says how far away the start is while the track has not reached the line', async () => {
+      state(session(), [fix(0, 1), fix(250, 2)]);
+      const screen = await renderFor('far');
+      expect(screen.getByTestId('route-start-away')).toHaveTextContent(
+        'Start is 600 m away'
+      );
+    });
+
+    it('shows it once a single fix exists', async () => {
+      state(session(), [fix(0, 1)]);
+      const screen = await renderFor('far');
+      expect(screen.getByTestId('route-start-away')).toHaveTextContent(
+        'Start is 350 m away'
+      );
+    });
+
+    it('goes away for good once the track has been on the line', async () => {
+      // On the line's start, then 600 m further on: following, not approaching.
+      state(session(), [fix(-350, 1), fix(250, 2)]);
+      const screen = await renderFor('far');
+      expect(screen.queryByTestId('route-start-away')).toBeNull();
+    });
+
+    it('is not shown with no route chosen', async () => {
+      state(session(), [fix(0, 1), fix(250, 2)]);
+      const screen = await renderFor();
+      expect(screen.queryByTestId('route-start-away')).toBeNull();
+    });
+
+    it('is not shown with no fix yet', async () => {
+      state(session(), []);
+      const screen = await renderFor('far');
+      expect(screen.queryByTestId('route-start-away')).toBeNull();
+    });
+
+    it('is not shown once the recording is finished', async () => {
+      state(session({ status: 'finished', finishedAt: Date.now() }), [
+        fix(0, 1),
+        fix(250, 2),
+      ]);
+      const screen = await renderFor('far');
+      expect(screen.queryByTestId('route-start-away')).toBeNull();
+    });
+  });
+
   describe('with a paired watch', () => {
     beforeEach(() =>
       jest.mocked(useWatchConnectivity).mockReturnValue({

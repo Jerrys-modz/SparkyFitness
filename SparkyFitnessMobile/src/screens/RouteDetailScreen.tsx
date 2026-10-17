@@ -11,6 +11,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
+import RouteElevationCard from '../components/exerciseStats/RouteElevationCard';
 import RouteTileMap from '../components/exerciseStats/RouteTileMap';
 import Button from '../components/ui/Button';
 import Icon from '../components/Icon';
@@ -276,6 +277,7 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
                   'Map of this route, from the green dot to the red ring',
               })}
             />
+            <RouteElevationCard points={route.points} unit={unit} />
             <View className="bg-surface rounded-xl p-4 mt-4">
               {name === null ? (
                 <Text className="text-text-primary text-lg font-bold">

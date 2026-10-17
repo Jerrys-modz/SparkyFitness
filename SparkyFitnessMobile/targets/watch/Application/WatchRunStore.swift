@@ -60,6 +60,9 @@ final class WatchRunStore: ObservableObject {
     @Published private(set) var routeProgress: WatchRouteTracker.Snapshot?
     /// The latest usable fix, for the "you are here" dot.
     @Published private(set) var routePosition: WatchRoutePoint?
+    /// The climb in the next stretch of a followed route that has heights; nil
+    /// when there is none worth mentioning, off the route, or before it is reached.
+    @Published private(set) var routeClimb: WatchRouteClimb.Ahead?
     private var routeTracker: WatchRouteTracker?
     /// Index of the plan step already announced (-1 before the first).
     private var cuedStep = -1
@@ -264,6 +267,7 @@ final class WatchRunStore: ObservableObject {
         self.route = routeTracker == nil ? nil : route
         routeProgress = nil
         routePosition = nil
+        routeClimb = nil
         if let route = self.route {
             WatchRouteStorage.save(route)
         } else {
@@ -282,6 +286,12 @@ final class WatchRunStore: ObservableObject {
         routeTracker = tracker
         routePosition = point
         routeProgress = update.snapshot
+        let snapshot = update.snapshot
+        if let route, snapshot.reachedRoute, !snapshot.isOffRoute, !snapshot.arrived {
+            routeClimb = WatchRouteClimb.ahead(route: route, cumulative: tracker.cumulative, progressMeters: snapshot.progressMeters)
+        } else {
+            routeClimb = nil
+        }
         guard phase == .running else { return }
         for event in update.events {
             switch event {
