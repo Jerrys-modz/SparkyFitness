@@ -230,9 +230,9 @@ export async function flushActiveWorkoutBeforeClear(
  * keyboard: saves still go out on the usual debounce, but a response landing
  * while editing is held and adopted once editing ends and the keyboard has
  * closed (or by the next save, a flush, or the app leaving the foreground,
- * whichever comes first). A response landing in the background is never
- * held. Local edits
- * are never touched by the hold: the store stays dirty until the held
+ * whichever comes first). A response that lands while the app is not in the
+ * foreground (iOS reports inactive before background) is never held. Local
+ * edits are never touched by the hold: the store stays dirty until the held
  * response is adopted.
  *
  * Deliberately not `useCrudMutation`: that toasts on every failure, but
@@ -287,7 +287,7 @@ export function useActiveWorkoutAutosave(options?: { editing?: boolean }): {
   const performSave = useCallback(async (): Promise<boolean> => {
     const outcome = await saveActiveWorkoutSession(queryClient, {
       holdAdoption: () =>
-        editingRef.current && AppState.currentState !== 'background',
+        editingRef.current && AppState.currentState === 'active',
     });
     if (outcome === 'saved') {
       savedSinceInvalidateRef.current = true;

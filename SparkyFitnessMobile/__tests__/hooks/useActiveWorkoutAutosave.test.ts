@@ -453,13 +453,31 @@ describe('useActiveWorkoutAutosave', () => {
       return payload.exercises![0]!.sets!.map((set) => set.id);
     }
 
+    // The jest preset mocks AppState.currentState as a function; a response
+    // is only held while the app is in the foreground.
+    const currentStateDescriptor = Object.getOwnPropertyDescriptor(
+      AppState,
+      'currentState'
+    );
+
+    function setAppState(state: string): void {
+      Object.defineProperty(AppState, 'currentState', {
+        get: () => state,
+        configurable: true,
+      });
+    }
+
     beforeEach(() => {
       // Editing ends with the keyboard already gone unless a test says not.
       mockKeyboardVisible.mockReturnValue(false);
+      setAppState('active');
     });
 
     afterEach(() => {
       mockKeyboardVisible.mockReturnValue(true);
+      if (currentStateDescriptor != null) {
+        Object.defineProperty(AppState, 'currentState', currentStateDescriptor);
+      }
     });
 
     it('still sends the save on the usual debounce', async () => {
@@ -619,18 +637,6 @@ describe('useActiveWorkoutAutosave', () => {
       const mockAddEventListener = AppState.addEventListener as jest.Mock;
       const defaultAddEventListener =
         mockAddEventListener.getMockImplementation();
-      const currentStateDescriptor = Object.getOwnPropertyDescriptor(
-        AppState,
-        'currentState'
-      );
-
-      function setAppState(state: string): void {
-        Object.defineProperty(AppState, 'currentState', {
-          get: () => state,
-          configurable: true,
-        });
-      }
-
       beforeEach(() => {
         appStateListeners = [];
         mockAddEventListener.mockImplementation(
@@ -643,13 +649,6 @@ describe('useActiveWorkoutAutosave', () => {
 
       afterEach(() => {
         mockAddEventListener.mockImplementation(defaultAddEventListener);
-        if (currentStateDescriptor != null) {
-          Object.defineProperty(
-            AppState,
-            'currentState',
-            currentStateDescriptor
-          );
-        }
       });
 
       // The held response lives only in memory; an app killed in the
@@ -673,20 +672,25 @@ describe('useActiveWorkoutAutosave', () => {
         expect(getStore().hasUnsavedChanges).toBe(false);
       });
 
-      it('does not hold a response that lands in the background', async () => {
-        const { rerender } = renderEditable(false);
-        startAndEdit(80);
-        const resolveSave = deferNextSave();
-        await advance(AUTOSAVE_DEBOUNCE_MS);
-        rerender({ editing: true });
-        setAppState('background');
-        await resolveSave(serverCopy({ '101': 501, '102': 502 }));
+      // iOS reports inactive (app switcher, a call) before background, and a
+      // swipe from the app switcher can kill the app without reaching it.
+      it.each(['inactive', 'background'])(
+        'does not hold a response that lands while the app is %s',
+        async (appState) => {
+          const { rerender } = renderEditable(false);
+          startAndEdit(80);
+          const resolveSave = deferNextSave();
+          await advance(AUTOSAVE_DEBOUNCE_MS);
+          rerender({ editing: true });
+          setAppState(appState);
+          await resolveSave(serverCopy({ '101': 501, '102': 502 }));
 
-        expect(
-          getStore().session!.exercises[0].sets.map((set) => set.id)
-        ).toEqual([501, 502]);
-        expect(getStore().hasUnsavedChanges).toBe(false);
-      });
+          expect(
+            getStore().session!.exercises[0].sets.map((set) => set.id)
+          ).toEqual([501, 502]);
+          expect(getStore().hasUnsavedChanges).toBe(false);
+        }
+      );
     });
 
     it('drops a held response once its live run has been replaced', async () => {
