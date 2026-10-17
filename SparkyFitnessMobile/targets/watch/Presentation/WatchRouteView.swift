@@ -98,7 +98,8 @@ struct WatchRouteMapPage: View {
                 route: route,
                 progress: run.routeProgress,
                 position: run.routePosition,
-                mode: mode
+                mode: mode,
+                usesMiles: usesMiles
             )
             .overlay(alignment: .bottom) { footer }
             .overlay(alignment: .top) {
@@ -196,21 +197,75 @@ enum RouteMapMode {
     case overview
 }
 
+/// North arrow and scale bar for the offline map, which has no street names or
+/// labels to read the direction and size from. The arrow turns against the map
+/// (the map is heading up while a route is followed), and the bar is a round
+/// length drawn to the screen's approximate scale.
+private struct OfflineMapChrome: View {
+    /// Degrees clockwise from north that point up the screen; 0 is north up.
+    let heading: Double
+    /// Metres across the screen's width, approximately.
+    let acrossMeters: Double
+    let usesMiles: Bool
+
+    var body: some View {
+        GeometryReader { geometry in
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 2) {
+                    Image(systemName: "location.north.fill")
+                        .rotationEffect(.degrees(-heading))
+                    Text(String(localized: "watch.route.north", defaultValue: "N"))
+                }
+                .font(.system(size: WatchStyle.s(11), weight: .bold))
+                if let bar = WatchRouteFootprint.scaleBarMeters(acrossMeters: acrossMeters), acrossMeters > 0 {
+                    Rectangle()
+                        .frame(width: geometry.size.width * bar / acrossMeters, height: 2)
+                    Text(WatchRunPlan.distance(bar, inMiles: usesMiles))
+                        .font(.system(size: WatchStyle.s(10), weight: .semibold))
+                        .monospacedDigit()
+                }
+            }
+            .foregroundStyle(.white.opacity(0.85))
+            .shadow(color: .black, radius: 1.5)
+            // Under the system clock, which sits over the top.
+            .padding(.top, WatchStyle.s(22))
+            .padding(.leading, WatchStyle.s(6))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 /// The map and what is drawn on it. MapKit places everything, so the route
 /// lines up with the roads whatever shape the screen is.
+///
+/// A route that carries a footprint also draws those nearby paths as thin grey
+/// lines under it, with a north arrow and a scale bar. They are overlays like
+/// the route, so they turn with the heading-up camera and are there whether or
+/// not MapKit has any tiles (it gives no signal for that); with tiles they are
+/// a faint extra, without them they are the only context around the route.
 private struct RouteMapLayer: View {
     let route: WatchRoute
     let progress: WatchRouteTracker.Snapshot?
     let position: WatchRoutePoint?
     let mode: RouteMapMode
+    let usesMiles: Bool
 
     private let cumulative: [Double]
 
-    init(route: WatchRoute, progress: WatchRouteTracker.Snapshot?, position: WatchRoutePoint?, mode: RouteMapMode) {
+    init(
+        route: WatchRoute,
+        progress: WatchRouteTracker.Snapshot?,
+        position: WatchRoutePoint?,
+        mode: RouteMapMode,
+        usesMiles: Bool
+    ) {
         self.route = route
         self.progress = progress
         self.position = position
         self.mode = mode
+        self.usesMiles = usesMiles
         cumulative = WatchRouteTracker.cumulativeDistances(route.points)
     }
 
@@ -222,6 +277,13 @@ private struct RouteMapLayer: View {
         let off = progress?.isOffRoute == true
 
         Map(position: .constant(mapPosition), interactionModes: []) {
+            // Known paths nearby, under everything else.
+            if let footprint = route.footprint {
+                ForEach(Array(footprint.enumerated()), id: \.offset) { _, line in
+                    MapPolyline(coordinates: line.map(Self.coordinate))
+                        .stroke(.gray.opacity(0.55), lineWidth: 2)
+                }
+            }
             if done.count > 1 {
                 MapPolyline(coordinates: done).stroke(.gray.opacity(0.8), lineWidth: 5)
             }
@@ -268,17 +330,40 @@ private struct RouteMapLayer: View {
         .mapStyle(.standard(emphasis: .muted, pointsOfInterest: .excludingAll))
         // The compass badge MapKit adds once the map turns sits on the page dots.
         .mapControlVisibility(.hidden)
+        .overlay {
+            if route.footprint != nil {
+                OfflineMapChrome(
+                    heading: followCamera?.heading ?? 0,
+                    acrossMeters: acrossMeters,
+                    usesMiles: usesMiles
+                )
+            }
+        }
         .accessibilityLabel(route.name)
     }
 
-    private var mapPosition: MapCameraPosition {
-        guard mode == .follow, let position else { return .region(region) }
-        let camera = WatchRouteCamera.follow(
+    /// Where the camera is while following; nil in the overview.
+    private var followCamera: WatchRouteCamera? {
+        guard mode == .follow, let position else { return nil }
+        return WatchRouteCamera.follow(
             route: route,
             cumulative: cumulative,
             progress: progress,
             position: position
         )
+    }
+
+    /// About how many metres the map shows across the screen, for the scale bar.
+    private var acrossMeters: Double {
+        if let camera = followCamera {
+            return WatchRouteFootprint.acrossMeters(cameraDistance: camera.distance)
+        }
+        return region.span.longitudeDelta
+            * WatchRouteFootprint.metersPerDegreeLongitude(at: region.center.latitude)
+    }
+
+    private var mapPosition: MapCameraPosition {
+        guard let camera = followCamera else { return .region(region) }
         return .camera(MapCamera(
             centerCoordinate: CLLocationCoordinate2D(latitude: camera.lat, longitude: camera.lon),
             distance: camera.distance,

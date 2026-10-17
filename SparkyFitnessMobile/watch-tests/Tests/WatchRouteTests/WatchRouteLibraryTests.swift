@@ -20,6 +20,27 @@ final class WatchRouteLibraryTests: XCTestCase {
         XCTAssertEqual(library.route(id: "a")?.updatedAt, 10)
     }
 
+    func testFootprintRidesWithTheRouteThroughStorageAndReplacement() throws {
+        var withMap = route("a")
+        withMap.footprint = [[WatchRoutePoint(lat: 51.5, lon: -0.121), WatchRoutePoint(lat: 51.505, lon: -0.121)]]
+        var library = WatchRouteLibrary()
+        _ = library.add(withMap, updatedAt: 10, now: now)
+
+        let decoded = try JSONDecoder().decode(WatchRouteLibrary.self, from: JSONEncoder().encode(library))
+        XCTAssertEqual(decoded.route(id: "a")?.route.footprint, withMap.footprint)
+
+        // A newer copy without a footprint replaces it: the phone's latest word wins.
+        XCTAssertEqual(library.add(route("a"), updatedAt: 20, now: now), .replaced)
+        XCTAssertNil(library.route(id: "a")?.route.footprint)
+    }
+
+    func testARouteSavedBeforeFootprintsExistedStillDecodes() throws {
+        let json = #"{"id":"old","name":"Old","points":[{"lat":51.5,"lon":-0.12},{"lat":51.51,"lon":-0.12}],"cues":[]}"#
+        let decoded = try JSONDecoder().decode(WatchRoute.self, from: Data(json.utf8))
+        XCTAssertNil(decoded.footprint)
+        XCTAssertNil(decoded.elevations)
+    }
+
     func testNewerRevisionReplacesTheStoredRoute() {
         var library = WatchRouteLibrary()
         _ = library.add(route("a", name: "Old"), updatedAt: 10, now: now)

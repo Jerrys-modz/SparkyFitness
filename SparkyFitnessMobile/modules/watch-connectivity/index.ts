@@ -840,6 +840,13 @@ export interface WatchRoutePayload {
    * a watch that predates the field ignores it. See `encodeWatchElevations`.
    */
   elevations?: number[];
+  /**
+   * Nearby paths the watch draws under the route when it has no map tiles:
+   * each a flat `[lat, lon, …]` line in millionths of a degree. Omitted when
+   * there are none; a watch that predates the field ignores it. See
+   * `buildRouteFootprint` in `src/utils/routeFootprint.ts`.
+   */
+  footprint?: number[][];
   cues: {
     index: number;
     kind:

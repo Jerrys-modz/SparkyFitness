@@ -3,6 +3,7 @@ import WatchConnectivity from '../../modules/watch-connectivity';
 import { useWatchRouteStore } from '../stores/watchRouteStore';
 import { buildRouteSync } from '../utils/watchRouteSync';
 import { addLog } from './LogService';
+import { loadRouteFootprint } from './routeFootprint';
 
 /**
  * Puts a saved route in the watch's own library so it can be run with the
@@ -15,7 +16,8 @@ export async function sendRouteToWatch(
   route: Pick<Route, 'id' | 'name' | 'points' | 'cues' | 'updatedAt'>
 ): Promise<void> {
   if (!WatchConnectivity) throw new Error('Apple Watch is not available');
-  const sync = buildRouteSync(route);
+  const footprint = await loadRouteFootprint(route);
+  const sync = buildRouteSync(route, footprint);
   if (!sync) throw new Error('A route needs at least two points');
   try {
     await WatchConnectivity.sendRoute(sync);
@@ -23,7 +25,9 @@ export async function sendRouteToWatch(
     addLog(`[Watch Route] Could not send ${route.id}: ${error}`, 'ERROR');
     throw error;
   }
-  useWatchRouteStore.getState().markSent(route.id, sync.updatedAt);
+  useWatchRouteStore
+    .getState()
+    .markSent(route.id, sync.updatedAt, footprint.length);
 }
 
 /**

@@ -113,6 +113,7 @@ describe('RouteDetailScreen on the watch', () => {
     jest.clearAllMocks();
     paired(true);
     record({}, null);
+    useWatchRouteStore.setState({ footprints: {} });
   });
 
   describe('send and remove', () => {
@@ -165,6 +166,30 @@ describe('RouteDetailScreen on the watch', () => {
       fireEvent.press(screen.getByText('Send again'));
       await waitFor(() => expect(sendRouteToWatch).toHaveBeenCalled());
       expect(screen.getByText('Remove from watch')).toBeTruthy();
+    });
+
+    it('says the offline map is ready, with how many nearby paths', () => {
+      record({ r1: REV }, { r1: REV });
+      useWatchRouteStore.setState({ footprints: { r1: 3 } });
+      const screen = renderScreen();
+      expect(screen.getByTestId('route-watch-offline-map').props.children).toBe(
+        'Offline map ready: 3 nearby paths under the route'
+      );
+    });
+
+    it('says plainly when nothing nearby could be drawn', () => {
+      record({ r1: REV }, { r1: REV });
+      useWatchRouteStore.setState({ footprints: { r1: 0 } });
+      const screen = renderScreen();
+      expect(
+        screen.getByTestId('route-watch-offline-map').props.children
+      ).toMatch(/^No offline map/);
+    });
+
+    it('shows no offline map line for a route sent by an older build', () => {
+      record({ r1: REV }, { r1: REV });
+      const screen = renderScreen();
+      expect(screen.queryByTestId('route-watch-offline-map')).toBeNull();
     });
 
     it('explains a full watch', () => {

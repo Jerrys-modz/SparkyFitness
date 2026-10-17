@@ -36,6 +36,10 @@ struct WatchRoute: Codable, Equatable, Identifiable {
     /// route carries none (a drawn route, or a phone that predates the field);
     /// older saved routes decode without it.
     var elevations: [Int]? = nil
+    /// Nearby paths drawn under the route as the offline map (see
+    /// `WatchRouteFootprint`). Nil when the phone sent none; saved routes and
+    /// library entries from before the field decode without it.
+    var footprint: [[WatchRoutePoint]]? = nil
 }
 
 /// Where a live position stands against a route.

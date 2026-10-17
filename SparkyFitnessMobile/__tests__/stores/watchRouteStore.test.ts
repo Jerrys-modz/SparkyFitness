@@ -3,6 +3,7 @@ import { useWatchRouteStore } from '../../src/stores/watchRouteStore';
 const reset = () =>
   useWatchRouteStore.setState({
     sent: {},
+    footprints: {},
     reported: null,
     rejected: {},
     capacity: 10,
@@ -17,6 +18,15 @@ describe('watchRouteStore', () => {
     useWatchRouteStore.getState().markSent('r1', 100);
     expect(useWatchRouteStore.getState().sent).toEqual({ r1: 100 });
     expect(useWatchRouteStore.getState().rejected).toEqual({});
+  });
+
+  it('remembers how many nearby paths went with a route and forgets them on removal', () => {
+    useWatchRouteStore.getState().markSent('r1', 100, 4);
+    expect(useWatchRouteStore.getState().footprints).toEqual({ r1: 4 });
+    useWatchRouteStore.getState().markSent('r2', 100);
+    expect(useWatchRouteStore.getState().footprints).toEqual({ r1: 4, r2: 0 });
+    useWatchRouteStore.getState().markRemoved('r1');
+    expect(useWatchRouteStore.getState().footprints).toEqual({ r2: 0 });
   });
 
   it('forgets a removed route everywhere, including the last report', () => {
