@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react-native';
+import { AppState, type NativeEventSubscription } from 'react-native';
 import Toast from 'react-native-toast-message';
 import {
   KeyboardController,
@@ -609,6 +610,83 @@ describe('useActiveWorkoutAutosave', () => {
         });
       });
       expect(getStore().session!.exercises[0].sets[0].id).toBe(501);
+    });
+
+    describe('when the app leaves the foreground', () => {
+      let appStateListeners: ((state: string) => void)[];
+      // The jest preset's AppState mock: a spy over it would restore it to
+      // an empty implementation, so its own implementation is swapped back.
+      const mockAddEventListener = AppState.addEventListener as jest.Mock;
+      const defaultAddEventListener =
+        mockAddEventListener.getMockImplementation();
+      const currentStateDescriptor = Object.getOwnPropertyDescriptor(
+        AppState,
+        'currentState'
+      );
+
+      function setAppState(state: string): void {
+        Object.defineProperty(AppState, 'currentState', {
+          get: () => state,
+          configurable: true,
+        });
+      }
+
+      beforeEach(() => {
+        appStateListeners = [];
+        mockAddEventListener.mockImplementation(
+          (_: string, handler: (state: string) => void) => {
+            appStateListeners.push(handler);
+            return { remove: jest.fn() } as unknown as NativeEventSubscription;
+          }
+        );
+      });
+
+      afterEach(() => {
+        mockAddEventListener.mockImplementation(defaultAddEventListener);
+        if (currentStateDescriptor != null) {
+          Object.defineProperty(
+            AppState,
+            'currentState',
+            currentStateDescriptor
+          );
+        }
+      });
+
+      // The held response lives only in memory; an app killed in the
+      // background must come back with the server's ids in the store.
+      it('takes in a held response mid-edit', async () => {
+        const { rerender } = renderEditable(false);
+        startAndEdit(80);
+        const resolveSave = deferNextSave();
+        await advance(AUTOSAVE_DEBOUNCE_MS);
+        rerender({ editing: true });
+        await resolveSave(serverCopy({ '101': 501, '102': 502 }));
+        expect(getStore().session!.exercises[0].sets[0].id).toBe(101);
+
+        act(() => {
+          for (const listener of appStateListeners) listener('background');
+        });
+
+        expect(
+          getStore().session!.exercises[0].sets.map((set) => set.id)
+        ).toEqual([501, 502]);
+        expect(getStore().hasUnsavedChanges).toBe(false);
+      });
+
+      it('does not hold a response that lands in the background', async () => {
+        const { rerender } = renderEditable(false);
+        startAndEdit(80);
+        const resolveSave = deferNextSave();
+        await advance(AUTOSAVE_DEBOUNCE_MS);
+        rerender({ editing: true });
+        setAppState('background');
+        await resolveSave(serverCopy({ '101': 501, '102': 502 }));
+
+        expect(
+          getStore().session!.exercises[0].sets.map((set) => set.id)
+        ).toEqual([501, 502]);
+        expect(getStore().hasUnsavedChanges).toBe(false);
+      });
     });
 
     it('drops a held response once its live run has been replaced', async () => {

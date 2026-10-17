@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
@@ -25,7 +26,9 @@ let saveQueue: Promise<unknown> = Promise.resolve();
  * Adopting it swaps in the server's copy of the session, which re-renders
  * every card under the open keyboard. It carries the ids the server assigned,
  * so it is adopted before any later save builds its payload, and otherwise
- * once editing ends (see `useActiveWorkoutAutosave`).
+ * once editing ends or the app leaves the foreground (see
+ * `useActiveWorkoutAutosave`): it lives only in memory, and an app killed in
+ * the background must come back with those ids in the persisted store.
  */
 let heldResponse: {
   result: PresetSessionResponse;
@@ -226,7 +229,9 @@ export async function flushActiveWorkoutBeforeClear(
  * `editing` (a set cell is focused) keeps the response away from the
  * keyboard: saves still go out on the usual debounce, but a response landing
  * while editing is held and adopted once editing ends and the keyboard has
- * closed (or by the next save or flush, whichever comes first). Local edits
+ * closed (or by the next save, a flush, or the app leaving the foreground,
+ * whichever comes first). A response landing in the background is never
+ * held. Local edits
  * are never touched by the hold: the store stays dirty until the held
  * response is adopted.
  *
@@ -271,9 +276,18 @@ export function useActiveWorkoutAutosave(options?: { editing?: boolean }): {
     []
   );
 
+  // So does leaving the foreground: the app may be killed in the background.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next !== 'active') adoptHeldServerSession();
+    });
+    return () => subscription.remove();
+  }, []);
+
   const performSave = useCallback(async (): Promise<boolean> => {
     const outcome = await saveActiveWorkoutSession(queryClient, {
-      holdAdoption: () => editingRef.current,
+      holdAdoption: () =>
+        editingRef.current && AppState.currentState !== 'background',
     });
     if (outcome === 'saved') {
       savedSinceInvalidateRef.current = true;
