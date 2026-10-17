@@ -245,6 +245,12 @@ They are built around your threshold pace, the pace you could hold for about an 
 
 The route map uses Apple Maps on iOS. On Android it uses Google Maps when the build was made with a Google Maps API key; without one, Android shows the route as a plain line instead. See [Environment Variables](/install/environment-variables) for `GOOGLE_MAPS_ANDROID_API_KEY`.
 
+## Weather
+
+A GPS-recorded activity can carry the weather at its start: temperature, conditions, wind and humidity. The temperature and conditions show as a **Weather** tile on the activity's detail screen (in °F when your distance unit is miles), and the web shows the full set in the activity report. Activities imported from Garmin already carry theirs, and it is never replaced.
+
+It is off by default. An admin turns it on with **Look Up Weather for GPS Activities** in **Admin → Global Provider Settings**. Once on, the server looks the weather up after the route is saved: it sends the time the activity started and its start place, rounded to about 1 km, to the free [Open-Meteo](https://open-meteo.com) service. Nothing is sent from your phone, and the server needs outbound internet access. No account or API key is needed. Saving the activity never waits on the lookup, and if it fails the activity simply has no weather. Indoor sessions have no route, so they get none.
+
 ## VO2 max trend
 
 If your Apple Watch or Health Connect source records **VO2 max**, turn on VO2 max sync and a **VO2 max** graph joins the Dashboard's Health Trends (7, 30 or 90 days, one reading per day). Garmin and other providers that store VO2 max with your daily metrics show up too. It is a good way to see whether your training is working. The graph only appears once a reading has synced; hide it or move it in Dashboard Settings → Health Trends.
