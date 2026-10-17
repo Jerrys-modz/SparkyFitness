@@ -239,6 +239,7 @@ export * from "./utils/paceZones.ts";
 export * from "./utils/racePaceZones.ts";
 export * from "./utils/heartRateTargets.ts";
 export * from "./utils/runPrograms.ts";
+export * from "./utils/stretchRoutines.ts";
 export * from "./utils/runProgramSchedule.ts";
 export * from "./utils/runProgramCatchUp.ts";
 export * from "./utils/racePlan.ts";

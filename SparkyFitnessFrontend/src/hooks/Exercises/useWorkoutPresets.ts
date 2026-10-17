@@ -7,9 +7,12 @@ import {
   updateWorkoutPreset,
   deleteWorkoutPreset,
   searchWorkoutPresets,
+  getStarterRoutines,
+  addStarterRoutine,
 } from '@/api/Exercises/workoutPresets';
 import type { WorkoutPreset } from '@/types/workout';
-import { presetKeys } from '@/api/keys/exercises';
+import { presetKeys, starterRoutineKeys } from '@/api/keys/exercises';
+import { useExerciseInvalidation } from '@/hooks/useInvalidateKeys';
 
 export const workoutPresetByIdOptions = (id: string | number) => ({
   queryKey: presetKeys.detail(String(id)),
@@ -133,6 +136,45 @@ export const useSearchWorkoutPresets = (
       errorMessage: t(
         'workoutPresetsManager.failedToLoadPresets',
         'Failed to load workout presets.'
+      ),
+    },
+  });
+};
+
+export const useStarterRoutines = () => {
+  const { t } = useTranslation();
+
+  return useQuery({
+    queryKey: starterRoutineKeys.all,
+    queryFn: getStarterRoutines,
+    staleTime: Infinity,
+    meta: {
+      errorMessage: t(
+        'workoutPresetsManager.starterRoutines.loadError',
+        'Failed to load starter routines.'
+      ),
+    },
+  });
+};
+
+export const useAddStarterRoutineMutation = () => {
+  const invalidateExercises = useExerciseInvalidation();
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: addStarterRoutine,
+    onSuccess: () => {
+      // Also adds the routine's moves to the exercise library.
+      invalidateExercises();
+    },
+    meta: {
+      successMessage: t(
+        'workoutPresetsManager.starterRoutines.addSuccess',
+        'Routine added to your workout presets.'
+      ),
+      errorMessage: t(
+        'workoutPresetsManager.starterRoutines.addError',
+        'Failed to add routine.'
       ),
     },
   });
