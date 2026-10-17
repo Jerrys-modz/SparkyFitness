@@ -340,7 +340,7 @@ const CoachingScreen: React.FC<CoachingScreenProps> = ({ navigation }) => {
                   {t('coaching.expenditure.intake', {
                     kcal: kcalText(data.expenditure.avgIntakeKcal),
                     defaultValue:
-                      'Based on an average of {{kcal}} kcal on the days you logged food',
+                      'Based on an average of {{kcal}} kcal on the days you logged food, so it reads low if some food goes unlogged',
                   })}
                 </Text>
               ) : null}

@@ -60,6 +60,10 @@ const reasonTitle = (t: TFunction, reason: CoachingReason): string => {
       return t('coaching.reason.behind.title', 'Behind your goal');
     case 'ahead':
       return t('coaching.reason.ahead.title', 'Ahead of your goal');
+    case 'drifting':
+      return t('coaching.reason.drifting.title', 'Weight is drifting');
+    case 'off-target-intake':
+      return t('coaching.reason.offTarget.title', 'Not eating to your target');
   }
 };
 
@@ -117,6 +121,16 @@ const reasonBody = (
         'coaching.reason.ahead.bodyLose',
         'You are losing faster than your goal rate. A slightly higher target keeps the pace sustainable.'
       );
+    case 'drifting':
+      return t(
+        'coaching.reason.drifting.body',
+        'Your weight is moving while you aim to hold steady. A small change to your calorie target is suggested.'
+      );
+    case 'off-target-intake':
+      return t(
+        'coaching.reason.offTarget.body',
+        'Your calorie target already fits your estimated energy use, but your weight is not moving at your goal rate, so you have likely been eating more or less than the target. Nothing was changed.'
+      );
   }
 };
 
@@ -145,6 +159,11 @@ const limitText = (t: TFunction, limit: CoachingLimit): string => {
       return t(
         'coaching.limit.safetyFloor',
         'Held at your minimum safe calorie level.'
+      );
+    case 'uncertain-estimate':
+      return t(
+        'coaching.limit.uncertain',
+        'The estimate is still uncertain, so only part of the change is suggested.'
       );
   }
 };
@@ -418,7 +437,7 @@ const CoachingCheckInCard = ({
                       data.expenditure.avgIntakeKcal
                     ).toLocaleString(),
                     defaultValue:
-                      'Based on an average of {{kcal}} kcal on the days you logged food',
+                      'Based on an average of {{kcal}} kcal on the days you logged food, so it reads low if some food goes unlogged',
                   })}
                 </p>
               )}

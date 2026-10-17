@@ -37,6 +37,14 @@ export function coachingReasonTitle(
       return t('coaching.reason.ahead.title', {
         defaultValue: 'Ahead of your goal',
       });
+    case 'drifting':
+      return t('coaching.reason.drifting.title', {
+        defaultValue: 'Weight is drifting',
+      });
+    case 'off-target-intake':
+      return t('coaching.reason.offTarget.title', {
+        defaultValue: 'Not eating to your target',
+      });
   }
 }
 
@@ -94,6 +102,16 @@ export function coachingReasonBody(
         defaultValue:
           'You are losing faster than your goal rate. A slightly higher target keeps the pace sustainable.',
       });
+    case 'drifting':
+      return t('coaching.reason.drifting.body', {
+        defaultValue:
+          'Your weight is moving while you aim to hold steady. A small change to your calorie target is suggested.',
+      });
+    case 'off-target-intake':
+      return t('coaching.reason.offTarget.body', {
+        defaultValue:
+          'Your calorie target already fits your estimated energy use, but your weight is not moving at your goal rate, so you have likely been eating more or less than the target. Nothing was changed.',
+      });
   }
 }
 
@@ -121,6 +139,11 @@ export function coachingLimitText(t: TFunction, limit: CoachingLimit): string {
     case 'safety-floor':
       return t('coaching.limit.safetyFloor', {
         defaultValue: 'Held at your minimum safe calorie level.',
+      });
+    case 'uncertain-estimate':
+      return t('coaching.limit.uncertain', {
+        defaultValue:
+          'The estimate is still uncertain, so only part of the change is suggested.',
       });
   }
 }

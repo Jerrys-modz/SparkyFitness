@@ -89,7 +89,9 @@ describe('data requirements', () => {
   });
 
   it('counts how many more logged days are needed', () => {
-    const result = checkIn({ intake: intake(2000, (d) => d >= DAYS - 6) });
+    // Today is still being logged, so it is not counted: 7 days of intake
+    // ending today make 6 usable ones.
+    const result = checkIn({ intake: intake(2000, (d) => d >= DAYS - 7) });
     expect(result.reason).toBe('insufficient-data');
     expect(result.dataQuality.loggedDays).toBe(6);
     expect(result.dataQuality.missingLoggedDays).toBe(
@@ -344,7 +346,7 @@ describe('recommendation', () => {
       rate: 0,
       weighIns: weighIns(0.6),
     });
-    expect(drifting.reason).toBe('behind');
+    expect(drifting.reason).toBe('drifting');
     expect(drifting.suggested!.calories).toBeLessThan(2000);
   });
 
@@ -379,7 +381,9 @@ describe('recommendation', () => {
       current: { calories: 1870, protein: 150, carbs: 200, fat: 55 },
       rate: 0.5,
     });
-    expect(result.reason).toBe('behind');
+    // The weight is off the goal rate while the target already fits, so the
+    // cause is what is being eaten, not the target.
+    expect(result.reason).toBe('off-target-intake');
     expect(result.suggested).toBeNull();
     expect(result.actionable).toBe(false);
   });
@@ -529,5 +533,98 @@ describe('data notes', () => {
         'on-track'
       )
     ).toEqual([]);
+  });
+});
+
+/** Weigh-ins with a repeatable pseudo-random error of up to +/- `noiseKg`. */
+function noisyWeighIns(
+  kgPerWeek: number,
+  noiseKg: number,
+  every: number
+): CoachingWeighIn[] {
+  let seed = 12345;
+  const next = () => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  };
+  const out: CoachingWeighIn[] = [];
+  for (let d = 0; d < DAYS; d += every) {
+    out.push({
+      date: addDays(START, d),
+      weightKg: 80 + (kgPerWeek / 7) * d + (next() - 0.5) * 2 * noiseKg,
+    });
+  }
+  return out;
+}
+
+describe('uncertain estimates', () => {
+  // Eating 2000 while spending about 2430: losing 0.5 kg/week against a
+  // 0.25 kg/week goal, so a higher target is wanted.
+  const noisy = (noiseKg: number, every: number) =>
+    checkIn({
+      weighIns: noisyWeighIns(-0.5, noiseKg, every),
+      rate: 0.25,
+    });
+
+  it('takes the whole change when the estimate is steady', () => {
+    const steady = checkIn({
+      weighIns: weighIns(-0.5, undefined, 0.1),
+      rate: 0.25,
+    });
+    expect(steady.expenditure.marginKcal!).toBeLessThan(150);
+    expect(steady.limits).not.toContain('uncertain-estimate');
+    expect(steady.suggested).not.toBeNull();
+  });
+
+  it('takes only part of the change when the weigh-ins are noisy', () => {
+    const steady = checkIn({
+      weighIns: weighIns(-0.5, undefined, 0.1),
+      rate: 0.25,
+    });
+    const result = noisy(1.5, 3);
+    expect(result.expenditure.marginKcal!).toBeGreaterThan(150);
+    if (result.suggested) {
+      expect(result.limits).toContain('uncertain-estimate');
+      expect(Math.abs(result.changeKcal)).toBeLessThan(
+        Math.abs(steady.changeKcal)
+      );
+    }
+  });
+
+  it('suggests nothing when the margin is too large to act on', () => {
+    const result = noisy(5, 4);
+    expect(result.expenditure.marginKcal!).toBeGreaterThanOrEqual(450);
+    expect(result.suggested).toBeNull();
+    expect(result.actionable).toBe(false);
+    expect(result.limits).toContain('uncertain-estimate');
+    // Still reports why it is off track, not a made-up cause.
+    expect(['ahead', 'behind']).toContain(result.reason);
+  });
+});
+
+describe('a day still being logged', () => {
+  it('leaves today out of the intake average', () => {
+    const full = checkIn();
+    const partialToday = checkIn({
+      intake: intake(2000).map((d) =>
+        d.date === TODAY ? { ...d, calories: 1100 } : d
+      ),
+    });
+    expect(partialToday.expenditure.avgIntakeKcal).toBe(
+      full.expenditure.avgIntakeKcal
+    );
+    expect(partialToday.expenditure.rawKcal).toBe(full.expenditure.rawKcal);
+    expect(partialToday.dataQuality.loggedDays).toBe(
+      full.dataQuality.loggedDays
+    );
+  });
+
+  it('does not count today in the adherence window either', () => {
+    const onlyToday = checkIn({
+      weighIns: [],
+      intake: [{ date: TODAY, calories: 2000 }],
+    });
+    expect(onlyToday.dataQuality.loggedDays).toBe(0);
+    expect(onlyToday.dataQuality.windowDays).toBe(0);
   });
 });

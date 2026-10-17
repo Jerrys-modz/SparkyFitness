@@ -15,6 +15,8 @@ export const coachingReasonSchema = z.enum([
   "on-track",
   "behind",
   "ahead",
+  "drifting",
+  "off-target-intake",
 ]);
 
 export const coachingSettingsSchema = z.object({
@@ -90,7 +92,7 @@ export const coachingCheckInResponseSchema = z.object({
   current: targetsSchema,
   suggested: targetsSchema.nullable(),
   changeKcal: z.number(),
-  limits: z.array(z.enum(["weekly-cap", "safety-floor"])),
+  limits: z.array(z.enum(["weekly-cap", "safety-floor", "uncertain-estimate"])),
   proteinFloorApplied: z.boolean(),
   actionable: z.boolean(),
   settings: coachingSettingsSchema,
