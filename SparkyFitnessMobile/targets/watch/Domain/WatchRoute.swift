@@ -40,6 +40,11 @@ struct WatchRoute: Codable, Equatable, Identifiable {
     /// progress, the last at the route's end (see `WatchRouteGhost`). Nil when
     /// the route has no timed run, or the phone predates the field.
     var ghost: [Int]? = nil
+
+    /// Nearby paths drawn under the route as the offline map (see
+    /// `WatchRouteFootprint`). Nil when the phone sent none; saved routes and
+    /// library entries from before the field decode without it.
+    var footprint: [[WatchRoutePoint]]? = nil
 }
 
 /// Where a live position stands against a route.

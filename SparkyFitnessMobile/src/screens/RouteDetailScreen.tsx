@@ -19,6 +19,7 @@ import { usePreferences } from '../hooks/usePreferences';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useWatchConnectivity } from '../hooks/useWatchConnectivity';
 import { useWatchRouteStatus } from '../hooks/useWatchRouteStatus';
+import { useWatchRouteStore } from '../stores/watchRouteStore';
 import { getRecordingPreferences } from '../services/gpsRecordingService';
 import { addLog } from '../services/LogService';
 import { openRunEntry } from '../services/openRunEntry';
@@ -59,6 +60,7 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
   const [busy, setBusy] = useState(false);
   const { isPaired: watchPaired } = useWatchConnectivity();
   const watchStatus = useWatchRouteStatus(route);
+  const offlineMapLines = useWatchRouteStore((s) => s.footprints[id]);
   const [watchBusy, setWatchBusy] = useState(false);
 
   const header = useScreenHeader({
@@ -434,6 +436,28 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
                       })}
                     </Text>
                   )}
+                  {(watchStatus === 'onWatch' || watchStatus === 'pending') &&
+                  offlineMapLines !== undefined ? (
+                    <Text
+                      className="text-text-secondary text-sm"
+                      testID="route-watch-offline-map"
+                    >
+                      {offlineMapLines > 0
+                        ? t('routes.watch.offlineMapReady', {
+                            count: offlineMapLines,
+                            defaultValue:
+                              'Offline map ready: {{count}} nearby paths under the route',
+                            defaultValue_one:
+                              'Offline map ready: {{count}} nearby path under the route',
+                            defaultValue_other:
+                              'Offline map ready: {{count}} nearby paths under the route',
+                          })
+                        : t('routes.watch.offlineMapNone', {
+                            defaultValue:
+                              'No offline map: none of your other routes pass nearby, so only the route is drawn without a connection.',
+                          })}
+                    </Text>
+                  ) : null}
                   {watchStatus !== 'onWatch' ? (
                     <Button
                       variant="secondary"

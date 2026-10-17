@@ -132,4 +132,5 @@
 "watch.route.left" = "%@ left";
 "watch.route.waitingGps" = "Waiting for GPS";
 "watch.route.startAway" = "Start is %@ away";
+"watch.route.north" = "N";
 "watch.route.climbAhead" = "Climb ahead: +%@ in %@";

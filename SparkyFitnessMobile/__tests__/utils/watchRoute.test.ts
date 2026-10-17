@@ -299,3 +299,22 @@ describe('toWatchRoutePayload with elevation', () => {
     expect(payload.elevations).toHaveLength(10);
   });
 });
+
+describe('toWatchRoutePayload footprint', () => {
+  const route = {
+    id: 'r1',
+    name: 'Loop',
+    points: walk([[90, 200]]),
+    cues: [],
+  };
+
+  it('carries the footprint lines when given', () => {
+    const payload = toWatchRoutePayload(route, [[1, 2, 3, 4]]);
+    expect(payload?.footprint).toEqual([[1, 2, 3, 4]]);
+  });
+
+  it('omits the field when there is no footprint', () => {
+    expect(toWatchRoutePayload(route)).not.toHaveProperty('footprint');
+    expect(toWatchRoutePayload(route, [])).not.toHaveProperty('footprint');
+  });
+});

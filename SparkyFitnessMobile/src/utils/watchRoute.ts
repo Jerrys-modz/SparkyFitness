@@ -183,7 +183,8 @@ function nearestKept(kept: readonly number[], source: number): number {
  */
 export function toWatchRoutePayload(
   route: Pick<Route, 'id' | 'name' | 'points' | 'cues'>,
-  ghost?: number[] | null
+  ghost?: number[] | null,
+  footprint?: readonly number[][]
 ): WatchRoutePayload | null {
   if (route.points.length < 2) return null;
 
@@ -226,5 +227,8 @@ export function toWatchRoutePayload(
     ...(elevations ? { elevations } : {}),
     // Omitted for a route with no timed run; an older watch ignores the key.
     ...(ghost && ghost.length > 0 ? { ghost } : {}),
+    ...(footprint && footprint.length > 0
+      ? { footprint: footprint.map((line) => [...line]) }
+      : {}),
   };
 }
