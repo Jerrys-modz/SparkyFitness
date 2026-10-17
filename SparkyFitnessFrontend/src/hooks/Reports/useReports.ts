@@ -4,6 +4,7 @@ import { checkInKeys } from '@/api/keys/checkin';
 import { reportKeys } from '@/api/keys/reports';
 import {
   getExerciseDashboardData,
+  getCoachingCheckIn,
   getTrainingConsistency,
   getAlcoholWeekReport,
   getHydrationNutritionRange,
@@ -150,6 +151,18 @@ export const useTrainingConsistency = (userId?: string | null) => {
         'trainingConsistency.loadFailed',
         'Failed to load training consistency.'
       ),
+    },
+  });
+};
+
+export const useCoachingCheckIn = (userId?: string | null) => {
+  const { t } = useTranslation();
+  return useQuery({
+    queryKey: reportKeys.coachingCheckIn(userId ?? undefined),
+    queryFn: () => getCoachingCheckIn(userId ?? undefined),
+    enabled: !!userId,
+    meta: {
+      errorMessage: t('coaching.loadFailed', 'Could not load your check-in.'),
     },
   });
 };
