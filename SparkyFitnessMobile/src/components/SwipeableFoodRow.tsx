@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, View, Text, TouchableOpacity } from 'react-native';
+import Toast from 'react-native-toast-message';
 import Button from './ui/Button';
 import { useNavigation } from '@react-navigation/native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -18,6 +19,8 @@ import { useFoodImageSourceContext } from './FoodImageSourceProvider';
 import { diaryEntryImage, diaryEntryImages } from '../utils/foodImages';
 import { useOpenLightbox } from './LightboxProvider';
 import AllergenBadges from './AllergenBadges';
+import PendingSyncBadge from './PendingSyncBadge';
+import { isPendingEntryId } from '../services/offlineQueue/overlay';
 
 interface SwipeableFoodRowProps {
   entry: FoodEntry;
@@ -40,6 +43,7 @@ const SwipeableFoodRow: React.FC<SwipeableFoodRowProps> = ({
   );
 
   const isMealComponent = !!entry.food_entry_meal_id;
+  const isPending = isPendingEntryId(entry.id);
   const getImageSource = useFoodImageSourceContext();
   const entryImage = diaryEntryImage(entry);
   const openLightbox = useOpenLightbox();
@@ -92,14 +96,32 @@ const SwipeableFoodRow: React.FC<SwipeableFoodRowProps> = ({
     />
   );
 
+  // A queued entry has no server row yet, so it cannot be edited: it can be
+  // deleted (which cancels it) and logged again.
   const canQuickAdjust =
-    !isMealComponent && !!onAdjustServing && Number(entry.serving_size) > 0;
+    !isMealComponent &&
+    !isPending &&
+    !!onAdjustServing &&
+    Number(entry.serving_size) > 0;
   const name =
     entry.food_name ||
     t('foodRow.unknownFood', { defaultValue: 'Unknown food' });
   const timeLabel = formatTimeLabel(entry.entry_time, preferences?.time_format);
 
   const handlePress = () => {
+    if (isPending) {
+      Toast.show({
+        type: 'info',
+        text1: t('offlineQueue.pendingEntry.title', {
+          defaultValue: 'Waiting to sync',
+        }),
+        text2: t('offlineQueue.pendingEntry.message', {
+          defaultValue:
+            'This entry is on your phone and will sync when your server is reachable. Delete it to log it again.',
+        }),
+      });
+      return;
+    }
     if (isMealComponent && entry.food_entry_meal_id) {
       navigation.navigate('EditLoggedMeal', {
         foodEntryMealId: entry.food_entry_meal_id,
@@ -178,6 +200,7 @@ const SwipeableFoodRow: React.FC<SwipeableFoodRowProps> = ({
                 </Text>
               )}
             </View>
+            {isPending ? <PendingSyncBadge /> : null}
             <AllergenBadges allergens={entry.allergens} traces={entry.traces} />
           </TouchableOpacity>
           {canQuickAdjust ? (

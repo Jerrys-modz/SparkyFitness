@@ -319,13 +319,7 @@ export const fetchLatestManualCustomEntriesOnOrBefore = async (
   }
 };
 
-/**
- * Upserts a check-in measurement record for a given date.
- *
- * `undefined` fields are stripped by `JSON.stringify` and left unchanged
- * server-side. Pass `null` to explicitly clear a previously-saved value.
- */
-export const upsertCheckIn = async (params: {
+export interface UpsertCheckInParams {
   entryDate: string;
   weight?: number | null;
   neck?: number | null;
@@ -338,12 +332,24 @@ export const upsertCheckIn = async (params: {
   boneMassKg?: number | null;
   bodyWaterPercentage?: number | null;
   bmr?: number | null;
-}): Promise<CheckInMeasurement> => {
+}
+
+/**
+ * Upserts a check-in measurement record for a given date.
+ *
+ * `undefined` fields are stripped by `JSON.stringify` and left unchanged
+ * server-side. Pass `null` to explicitly clear a previously-saved value.
+ */
+export const upsertCheckIn = async (
+  params: UpsertCheckInParams,
+  options?: { timeoutMs?: number }
+): Promise<CheckInMeasurement> => {
   return apiFetch<CheckInMeasurement>({
     endpoint: '/api/measurements/check-in',
     serviceName: 'Measurements API',
     operation: 'upsert check-in',
     method: 'POST',
+    timeoutMs: options?.timeoutMs,
     body: {
       entry_date: params.entryDate,
       weight: params.weight,
@@ -527,6 +533,9 @@ export const changeWaterIntake = async (params: {
   entryDate: string;
   changeDrinks: number;
   containerId: number;
+  /** Idempotency key; the server accepts it for a single "+" press only. */
+  clientId?: string;
+  timeoutMs?: number;
 }): Promise<WaterIntakeResponse> => {
   return apiFetch<WaterIntakeResponse>({
     endpoint: '/api/measurements/water-intake',
@@ -537,7 +546,9 @@ export const changeWaterIntake = async (params: {
       entry_date: params.entryDate,
       change_drinks: params.changeDrinks,
       container_id: params.containerId,
+      ...(params.clientId ? { client_id: params.clientId } : {}),
     },
+    timeoutMs: params.timeoutMs,
   });
 };
 

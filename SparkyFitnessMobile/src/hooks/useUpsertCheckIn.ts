@@ -3,6 +3,13 @@ import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import { upsertCheckIn } from '../services/api/measurementsApi';
 import {
+  QUEUED_WRITE,
+  QueueFullError,
+  isQueuedWrite,
+  submitOrQueue,
+  type QueuedWrite,
+} from '../services/offlineQueue/queueRunner';
+import {
   latestMeasurementsOnOrBeforeRootQueryKey,
   measurementsQueryKey,
 } from './queryKeys';
@@ -29,8 +36,25 @@ export function useUpsertCheckIn(options?: { showErrorToast?: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (vars: UpsertCheckInVars) => upsertCheckIn(vars),
+    mutationFn: async (
+      vars: UpsertCheckInVars
+    ): Promise<CheckInMeasurement | QueuedWrite> => {
+      // An upsert by day is safe to replay, so a check-in can wait in the
+      // offline queue; it is applied over whatever the server holds by then.
+      const outcome = await submitOrQueue({
+        send: (_clientId, timeoutMs) => upsertCheckIn(vars, { timeoutMs }),
+        queueAs: () => ({
+          kind: 'check_in',
+          entryDate: vars.entryDate,
+          payload: vars,
+        }),
+      });
+      return outcome.status === 'sent' ? outcome.result : QUEUED_WRITE;
+    },
     onSuccess: (data, vars) => {
+      // Queued: the measurement overlay shows it and nothing changed on the
+      // server yet.
+      if (isQueuedWrite(data)) return;
       queryClient.setQueryData<CheckInMeasurement>(
         measurementsQueryKey(vars.entryDate),
         data
@@ -46,6 +70,18 @@ export function useUpsertCheckIn(options?: { showErrorToast?: boolean }) {
     },
     onError: (error) => {
       addLog(`Failed to upsert check-in: ${error}`, 'ERROR');
+      if (error instanceof QueueFullError) {
+        Toast.show({
+          type: 'error',
+          text1: t('offlineQueue.errors.queueFull', {
+            defaultValue: 'Too many entries are waiting',
+          }),
+          text2: t('offlineQueue.errors.queueFullMessage', {
+            defaultValue: 'Reconnect to sync them before adding more.',
+          }),
+        });
+        return;
+      }
       // Standalone callers rely on this toast. Multi-mutation flows pass
       // showErrorToast:false so the orchestrating screen owns the single
       // user-facing error message.
