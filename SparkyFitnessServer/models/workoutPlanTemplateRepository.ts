@@ -639,11 +639,46 @@ async function unlinkExerciseEntriesByTemplateId(
   }
 }
 
+/**
+ * Sets the planned weight of individual set rows of one template, in one
+ * statement. A set that does not belong to the template (or that the caller
+ * cannot see through RLS) is simply not matched, so the count tells the
+ * caller whether every change landed.
+ */
+async function updatePlannedSetWeights(
+  userId: string,
+  templateId: string | number,
+  changes: readonly { setId: number | string; weightKg: number }[]
+): Promise<number> {
+  if (changes.length === 0) return 0;
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `UPDATE workout_plan_assignment_sets s
+       SET weight = c.weight
+       FROM unnest($2::int[], $3::numeric[]) AS c(id, weight),
+            workout_plan_template_assignments a
+       WHERE s.id = c.id
+         AND a.id = s.assignment_id
+         AND a.template_id = $1`,
+      [
+        templateId,
+        changes.map((change) => Number(change.setId)),
+        changes.map((change) => change.weightKg),
+      ]
+    );
+    return result.rowCount ?? 0;
+  } finally {
+    client.release();
+  }
+}
+
 export { createWorkoutPlanTemplate };
 export { getWorkoutPlanTemplatesByUserId };
 export { getWorkoutPlanTemplateById };
 export { updateWorkoutPlanTemplate };
 export { deleteWorkoutPlanTemplate };
+export { updatePlannedSetWeights };
 export { getWorkoutPlanTemplateOwnerId };
 export { getActiveWorkoutPlanForDate };
 export { unlinkExerciseEntriesByTemplateId };
@@ -653,6 +688,7 @@ export default {
   getWorkoutPlanTemplateById,
   updateWorkoutPlanTemplate,
   deleteWorkoutPlanTemplate,
+  updatePlannedSetWeights,
   getWorkoutPlanTemplateOwnerId,
   getActiveWorkoutPlanForDate,
   unlinkExerciseEntriesByTemplateId,
