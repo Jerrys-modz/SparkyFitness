@@ -19,11 +19,8 @@ export async function sendRouteToWatch(
   route: Pick<Route, 'id' | 'name' | 'points' | 'cues' | 'updatedAt'>
 ): Promise<void> {
   if (!WatchConnectivity) throw new Error('Apple Watch is not available');
-  const sync = buildRouteSync(
-    route,
-    await loadWatchGhost(route.id),
-    await loadRouteFootprint(route)
-  );
+  const footprint = await loadRouteFootprint(route);
+  const sync = buildRouteSync(route, await loadWatchGhost(route.id), footprint);
   if (!sync) throw new Error('A route needs at least two points');
   try {
     await WatchConnectivity.sendRoute(sync);
