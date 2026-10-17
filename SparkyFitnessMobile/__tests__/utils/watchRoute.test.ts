@@ -309,12 +309,14 @@ describe('toWatchRoutePayload footprint', () => {
   };
 
   it('carries the footprint lines when given', () => {
-    const payload = toWatchRoutePayload(route, [[1, 2, 3, 4]]);
+    const payload = toWatchRoutePayload(route, null, [[1, 2, 3, 4]]);
     expect(payload?.footprint).toEqual([[1, 2, 3, 4]]);
   });
 
   it('omits the field when there is no footprint', () => {
     expect(toWatchRoutePayload(route)).not.toHaveProperty('footprint');
-    expect(toWatchRoutePayload(route, [])).not.toHaveProperty('footprint');
+    expect(toWatchRoutePayload(route, null, [])).not.toHaveProperty(
+      'footprint'
+    );
   });
 });

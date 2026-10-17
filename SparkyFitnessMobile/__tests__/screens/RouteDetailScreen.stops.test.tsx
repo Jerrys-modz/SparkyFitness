@@ -15,6 +15,7 @@ jest.mock('../../src/services/routeService', () => ({
   renameRoute: jest.fn(),
   shareRouteGpx: jest.fn(),
   useRoute: jest.fn(),
+  useRouteRuns: jest.fn(() => ({ runs: [] })),
   useRouteStops: jest.fn(),
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
