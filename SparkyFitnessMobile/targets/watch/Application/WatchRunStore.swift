@@ -355,11 +355,14 @@ final class WatchRunStore: ObservableObject {
                     self.phase = recovery.paused ? .paused : .running
                     completion(true)
                 case .salvaged(let unscaled):
+                    // The route file is still on disk from before the kill.
+                    let followedRouteId = unscaled.place == .outdoor ? WatchRouteStorage.load()?.id : nil
                     self.followRoute(nil)
                     // The Health session was lost; the run itself was not.
                     let scale = Self.scale(for: unscaled.kind, place: unscaled.place)
                     var result = unscaled.scalingDistance(by: scale)
                     result.distanceScale = scale
+                    result.routeId = followedRouteId
                     // The snapshot stays until the message is durably queued.
                     if WatchSessionManager.shared.sendRunFinished(result) {
                         WatchRunSnapshotStore.clear()
@@ -781,6 +784,7 @@ final class WatchRunStore: ObservableObject {
         guard phase == .running || phase == .paused else { return }
         stopStepTimer()
         stopLiveTimer()
+        let followedRouteId = route?.id
         followRoute(nil)
         // Finish tapped while the Health prompts were still up: nothing was
         // ever recorded, so there is nothing to save.
@@ -803,6 +807,7 @@ final class WatchRunStore: ObservableObject {
                 self.metrics = metrics.scaled(scale)
                 var scaled = result?.scalingDistance(by: scale)
                 scaled?.distanceScale = scale
+                scaled?.routeId = followedRouteId
                 // Indoors the wearer is asked for the treadmill's distance
                 // first (the program's done cue waits for `confirmDistance`, so it
                 // is heard once, in the finish cue); the snapshot stays until the answer is sent, so a
@@ -890,6 +895,7 @@ final class WatchRunStore: ObservableObject {
         guard phase == .running || phase == .paused else { return }
         stopStepTimer()
         stopLiveTimer()
+        let followedRouteId = route?.id
         followRoute(nil)
         autoPaused = false
         guard let result else {
@@ -901,6 +907,7 @@ final class WatchRunStore: ObservableObject {
         // The Health session failed, but the run was recorded: send it on.
         var scaled = result.scalingDistance(by: distanceScale)
         scaled.distanceScale = distanceScale
+        scaled.routeId = followedRouteId
         // Keep the snapshot when the message could not be queued yet.
         if WatchSessionManager.shared.sendRunFinished(scaled) {
             WatchRunSnapshotStore.clear()
