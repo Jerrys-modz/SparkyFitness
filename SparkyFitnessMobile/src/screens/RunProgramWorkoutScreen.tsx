@@ -16,15 +16,14 @@ import {
 } from '../components/recording/RunProgramCard';
 import { usePreferences } from '../hooks/usePreferences';
 import { useScreenHeader } from '../hooks/useScreenHeader';
-import { fetchExerciseEntry } from '../services/api/exerciseStatsApi';
 import { addLog } from '../services/LogService';
+import { openRunEntry } from '../services/openRunEntry';
 import {
   setProgramPosition,
   useRunProgram,
 } from '../services/runProgramService';
 import { toLocalDateString } from '../utils/dateUtils';
 import { formatDayLabel } from '../utils/dayLabel';
-import { cardioSessionFromDiaryEntry } from '../utils/cardioSession';
 import { formatClock } from '../utils/gpsRecording';
 import { intervalStepName } from '../utils/recordingCues';
 import type { RootStackScreenProps } from '../types/navigation';
@@ -96,24 +95,7 @@ const RunProgramWorkoutScreen: React.FC<Props> = ({ navigation, route }) => {
   const openRun = async (entryId: string) => {
     setOpening(true);
     try {
-      const entry = await fetchExerciseEntry(entryId);
-      const session = {
-        ...entry,
-        type: 'individual',
-        name: entry.exercise_snapshot?.name ?? null,
-      } as IndividualSessionResponse;
-      const cardio = cardioSessionFromDiaryEntry(session, distanceUnit, {
-        allowInApp: true,
-      });
-      if (cardio) {
-        navigation.navigate('CardioSession', {
-          session: cardio,
-          distanceUnit,
-          diaryEntry: session,
-        });
-      } else {
-        navigation.navigate('ActivityDetail', { session });
-      }
+      await openRunEntry(navigation, entryId, distanceUnit);
     } catch (error) {
       addLog(`[Run Program] Could not open the run: ${error}`, 'WARNING');
       Toast.show({

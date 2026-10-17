@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,22 +14,29 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { useCSSVariable } from 'uniwind';
 import {
+  DEFAULT_ROUTE_STYLE,
   buildLoopRequest,
   countRouteTurns,
   generateDistanceRange,
+  hasRouteStyleControls,
   nextBearingDeg,
-  type GeneratedRoutePreview,
+  restrictRouteStyle,
+  type GeneratedRouteOption,
   type GenerateRouteBody,
   type RoutePoint,
+  type RouteStyle,
 } from '@workspace/shared';
+import RouteChip from '../components/RouteChip';
+import RouteOptionCards from '../components/RouteOptionCards';
+import RouteStyleControls from '../components/RouteStyleControls';
 import Button from '../components/ui/Button';
 import { usePreferences } from '../hooks/usePreferences';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { addLog } from '../services/LogService';
 import {
-  generateRoutePreview,
+  generateRouteOptions,
   saveGeneratedRoute,
-  useRouteGenerationAvailable,
+  useRouteGenerationCapabilities,
 } from '../services/routeService';
 import { routeGenerateErrorMessage } from '../utils/routeGenerateError';
 import { formatRouteClimb, formatRouteDistance } from '../utils/routeDisplay';
@@ -53,36 +59,13 @@ const DEFAULT_DISTANCE: Record<'km' | 'miles', string> = {
   miles: '3',
 };
 
-const Chip: React.FC<{
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}> = ({ label, selected, onPress }) => (
-  <Pressable
-    onPress={onPress}
-    accessibilityRole="button"
-    accessibilityState={{ selected }}
-    className={`px-3 py-2 rounded-full border ${
-      selected
-        ? 'bg-accent-primary border-accent-primary'
-        : 'border-border-subtle'
-    }`}
-  >
-    <Text
-      className={`text-sm font-semibold ${
-        selected ? 'text-white' : 'text-text-primary'
-      }`}
-    >
-      {label}
-    </Text>
-  </Pressable>
-);
-
 /**
  * Generate a loop or out-and-back of a chosen distance from the person's
  * position (or a point they tap on the map) with the server's routing engine.
- * Shows a preview to regenerate (another heading) or save; needs the engine,
- * so without one it only explains that.
+ * Shows up to three distinct options as cards, the chosen one on the map, to
+ * regenerate (other headings) or save; route style choices appear only for
+ * what the engine supports. Needs the engine, so without one it only explains
+ * that.
  */
 const RouteGenerateScreen: React.FC<Props> = ({ navigation }) => {
   const { t } = useTranslation();
@@ -90,7 +73,9 @@ const RouteGenerateScreen: React.FC<Props> = ({ navigation }) => {
   const { preferences } = usePreferences();
   const unit = preferences?.default_distance_unit ?? 'km';
   const lineColor = useCSSVariable('--color-accent-primary') as string;
-  const { available, isLoading: checking } = useRouteGenerationAvailable();
+  const { capabilities, isLoading: checking } =
+    useRouteGenerationCapabilities();
+  const available = capabilities.available;
   const mapRef = useRef<MapView>(null);
   const sequence = useRef(0);
   const pickedStart = useRef(false);
@@ -100,7 +85,9 @@ const RouteGenerateScreen: React.FC<Props> = ({ navigation }) => {
   const [distanceText, setDistanceText] = useState(DEFAULT_DISTANCE[unit]);
   const [start, setStart] = useState<Start | null>(null);
   const [bearing, setBearing] = useState<number | null>(null);
-  const [preview, setPreview] = useState<GeneratedRoutePreview | null>(null);
+  const [options, setOptions] = useState<GeneratedRouteOption[]>([]);
+  const [selected, setSelected] = useState(0);
+  const [style, setStyle] = useState<RouteStyle>(DEFAULT_ROUTE_STYLE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [name, setName] = useState<string | null>(null);
@@ -110,6 +97,8 @@ const RouteGenerateScreen: React.FC<Props> = ({ navigation }) => {
     unit === 'miles'
       ? t('workout.mi', { defaultValue: 'mi' })
       : t('workout.km', { defaultValue: 'km' });
+  const preview = options[selected]?.route ?? null;
+  const showStyle = hasRouteStyleControls(capabilities.style);
   const range = generateDistanceRange(unit);
   const distance = Number.parseFloat(distanceText.replace(',', '.'));
   const distanceValid =
@@ -163,22 +152,25 @@ const RouteGenerateScreen: React.FC<Props> = ({ navigation }) => {
       distance,
       unit,
       bearingDeg: heading,
+      alternatives: capabilities.maxAlternatives,
+      style: restrictRouteStyle(style, capabilities.style),
     });
     if (!request) return;
     const mine = ++sequence.current;
     setBearing(heading);
     setLoading(true);
     setError(null);
-    generateRoutePreview(request)
-      .then((route) => {
+    generateRouteOptions(request)
+      .then((response) => {
         if (mine !== sequence.current) return;
-        setPreview(route);
+        setOptions(response.options);
+        setSelected(0);
         setName(null);
       })
       .catch((failure: unknown) => {
         if (mine !== sequence.current) return;
         addLog(`[Routes] Could not generate a route: ${failure}`, 'WARNING');
-        // The last good preview stays on screen.
+        // The last good options stay on screen.
         setError(failure);
       })
       .finally(() => {
@@ -294,7 +286,7 @@ const RouteGenerateScreen: React.FC<Props> = ({ navigation }) => {
         </View>
         <ScrollView
           className="bg-surface"
-          style={{ maxHeight: 340, flexGrow: 0 }}
+          style={{ maxHeight: 420, flexGrow: 0 }}
           contentContainerStyle={{
             paddingHorizontal: 16,
             paddingTop: 12,
@@ -304,7 +296,7 @@ const RouteGenerateScreen: React.FC<Props> = ({ navigation }) => {
         >
           <View className="flex-row flex-wrap gap-2">
             {ACTIVITIES.map((value) => (
-              <Chip
+              <RouteChip
                 key={value}
                 label={activityLabel[value]}
                 selected={activity === value}
@@ -313,12 +305,12 @@ const RouteGenerateScreen: React.FC<Props> = ({ navigation }) => {
             ))}
           </View>
           <View className="flex-row gap-2 mt-3">
-            <Chip
+            <RouteChip
               label={t('routes.shape.loop', { defaultValue: 'Loop' })}
               selected={shape === 'loop'}
               onPress={() => setShape('loop')}
             />
-            <Chip
+            <RouteChip
               label={t('routes.shape.outAndBack', {
                 defaultValue: 'Out and back',
               })}
@@ -375,6 +367,29 @@ const RouteGenerateScreen: React.FC<Props> = ({ navigation }) => {
             <Text className="text-text-secondary text-sm mt-3">
               {routeGenerateErrorMessage(error, t)}
             </Text>
+          ) : null}
+          {showStyle ? (
+            <View className="mt-3">
+              <RouteStyleControls
+                value={style}
+                onChange={setStyle}
+                supported={capabilities.style}
+                activity={activity}
+              />
+            </View>
+          ) : null}
+          {options.length > 1 ? (
+            <View className="mt-3">
+              <RouteOptionCards
+                options={options}
+                selectedIndex={selected}
+                onSelect={(index) => {
+                  setSelected(index);
+                  setName(null);
+                }}
+                unit={unit}
+              />
+            </View>
           ) : null}
           {preview ? (
             <View className="mt-3">

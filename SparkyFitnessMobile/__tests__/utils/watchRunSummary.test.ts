@@ -114,3 +114,10 @@ test('an indoor run carries its distance series for the pace chart', () => {
       .distanceSeries
   ).toBeUndefined();
 });
+
+test('carries the route the watch followed', () => {
+  expect(
+    watchRunSummary({ ...outdoor, routeId: 'r1' }, 'km', null).routeId
+  ).toBe('r1');
+  expect(watchRunSummary(outdoor, 'km', null).routeId).toBeNull();
+});

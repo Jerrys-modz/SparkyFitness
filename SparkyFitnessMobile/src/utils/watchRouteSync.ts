@@ -58,9 +58,11 @@ export function watchRouteStatus(
 
 /** The `routeSync` message for a route, or null when it has no line to follow. */
 export function buildRouteSync(
-  route: Pick<Route, 'id' | 'name' | 'points' | 'cues' | 'updatedAt'>
+  route: Pick<Route, 'id' | 'name' | 'points' | 'cues' | 'updatedAt'>,
+  ghost?: number[] | null,
+  footprint?: readonly number[][]
 ): WatchRouteSyncPayload | null {
-  const payload = toWatchRoutePayload(route);
+  const payload = toWatchRoutePayload(route, ghost, footprint);
   if (!payload) return null;
   return { route: payload, updatedAt: routeRevision(route.updatedAt) };
 }

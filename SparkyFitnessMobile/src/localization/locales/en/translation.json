@@ -657,7 +657,8 @@
     "labReportImport": "Import report",
     "routes": "Routes",
     "routeDraw": "Draw a route",
-    "routeGenerate": "Generate a route"
+    "routeGenerate": "Generate a route",
+    "runProgramCalendar": "Program calendar"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -6260,7 +6261,10 @@
     "setInputTitle": "Set input",
     "setInputDescription": "How you enter weight and reps on the watch during a workout: type them on a keypad, or tap a value and turn the Digital Crown or drag it, 0.5 at a time for weight.",
     "setInputKeypad": "Keypad",
-    "setInputCrown": "Digital Crown"
+    "setInputCrown": "Digital Crown",
+    "routesTitle": "Routes",
+    "raceBestTitle": "Race my best time on routes",
+    "raceBestSubtitle": "Following a saved route you have run before, the watch shows how many seconds ahead or behind your best time you are. Resend a route to your watch to update its best time."
   },
   "progressPhotos": {
     "card": {
@@ -6546,7 +6550,7 @@
       "kilometersAxis": "Kilometers from start",
       "milesAxis": "Miles from start",
       "splits": "Splits",
-    "bestPace": "Best {{value}}",
+      "bestPace": "Best {{value}}",
       "perKm": "/km",
       "perMile": "/mi",
       "underOneMinute": "<1 min",
@@ -7327,7 +7331,8 @@
       "title": "Route",
       "none": "No route",
       "watchHint": "Your watch shows the line and buzzes at each turn.",
-      "phoneHint": "The route is drawn under your track on the map."
+      "phoneHint": "The route is drawn under your track on the map.",
+      "startAway": "Start is {{distance}} away"
     }
   },
   "goals": {
@@ -7825,7 +7830,10 @@
     "saveDistance": "Update",
     "distanceInvalid": "Enter the distance from the machine.",
     "distanceFailed": "Could not save the distance.",
-    "heartRate": "Heart rate"
+    "heartRate": "Heart rate",
+    "followedRoute": "Followed {{name}}",
+    "routeBest": "Route best, beating your {{time}}",
+    "viewRoute": "View route"
   },
   "runPrograms": {
     "startWhenTitle": "Start {{name}}",
@@ -7951,7 +7959,23 @@
     "openCalendar": "Open the training calendar",
     "openCalendarHint": "Program and plan workouts, done and to come",
     "calendarScreen": {
-      "minutes": "{{minutes}} min"
+      "minutes": "{{minutes}} min",
+      "noProgram": "Start a training program to see its calendar.",
+      "progress": "{{done}} of {{total}} workouts done",
+      "doneOn": "Done {{date}}",
+      "done": "Done",
+      "dueOn": "Next · {{date}}",
+      "notScheduled": "Not scheduled",
+      "legendDone": "Done",
+      "legendAhead": "Due or to come",
+      "noWorkoutsDay": "No program workout on this day.",
+      "pickDays_one": "{{count}} more workout is not on the calendar yet. Pick your workout days on the program screen to see when each one falls.",
+      "pickDays_other": "{{count}} more workouts are not on the calendar yet. Pick your workout days on the program screen to see when each one falls.",
+      "pastGoal_one": "{{count}} workout does not fit before your goal date.",
+      "pastGoal_other": "{{count}} workouts do not fit before your goal date.",
+      "allWorkouts": "All workouts",
+      "today": "Today",
+      "due": "Next"
     },
     "detail": {
       "workoutTitle": "Week {{week}}, run {{run}}",
@@ -8108,6 +8132,13 @@
         "raceDay": "Pick the race day, or clear the race name and distance.",
         "save": "Could not save your goals. Please try again."
       }
+    },
+    "monthGrid": {
+      "previous": "Previous month",
+      "next": "Next month",
+      "dayA11yNone": "{{date}}, no workouts",
+      "dayA11y_one": "{{date}}, {{formattedCount}} workout",
+      "dayA11y_other": "{{date}}, {{formattedCount}} workouts"
     }
   },
   "speechVoice": {
@@ -8157,7 +8188,10 @@
     "indoorNote": "Indoors the distance is the watch’s estimate. You can correct it to the treadmill’s figure when you finish.",
     "starting": "Starting on your watch…",
     "startingHint": "Raise your wrist and open SparkyFitness if it does not start on its own. The workout starts as soon as the watch gets the request.",
-    "controlFailed": "Could not reach your watch"
+    "controlFailed": "Could not reach your watch",
+    "raceAhead": "Ahead {{time}}",
+    "raceBehind": "Behind {{time}}",
+    "raceEven": "Even with your best time"
   },
   "trainingLoadCard": {
     "loadFailed": "Could not load your training load.",
@@ -8547,7 +8581,66 @@
       "removeFailed": "Could not remove the route from your watch",
       "startFailed": "Could not start on your watch",
       "startTitle": "Start on your watch",
-      "startMessage": "Your watch follows the route and buzzes at each turn."
+      "startMessage": "Your watch follows the route and buzzes at each turn.",
+      "offlineMapReady_one": "Offline map ready: {{count}} nearby path under the route",
+      "offlineMapReady_other": "Offline map ready: {{count}} nearby paths under the route",
+      "offlineMapNone": "No offline map: none of your other routes pass nearby, so only the route is drawn without a connection."
+    },
+    "ranTimes_one": "Ran {{count}} time",
+    "ranTimes_other": "Ran {{count}} times",
+    "history": {
+      "title": "History",
+      "empty": "No runs yet. A run or walk that follows this route is listed here.",
+      "runs": "Runs",
+      "best": "Best",
+      "last": "Last run",
+      "heartRate": "{{bpm}} bpm",
+      "openFailed": "Could not open that run",
+      "openFailedHint": "It may have been deleted from your diary."
+    },
+    "elevation": {
+      "title": "Elevation",
+      "milesAxis": "Miles from start, height in feet",
+      "kilometersAxis": "Kilometers from start, height in meters"
+    },
+    "style": {
+      "title": "Route style",
+      "surface": "Surface",
+      "hills": "Hills",
+      "any": "Any",
+      "trails": "Trails",
+      "roads": "Roads",
+      "flat": "Flatter",
+      "hilly": "Hillier",
+      "avoidSteps": "Avoid steps",
+      "avoidBusyRoads": "Avoid busy roads"
+    },
+    "option": {
+      "title": "Option {{n}}",
+      "flatter": "Flatter",
+      "moreTrail": "More trail",
+      "shorter": "Shorter"
+    },
+    "stops": {
+      "title": "Stops along the way",
+      "water_one": "{{count}} water",
+      "water_other": "{{count}} water",
+      "toilets_one": "{{count}} toilet",
+      "toilets_other": "{{count}} toilets",
+      "cafe_one": "{{count}} cafe",
+      "cafe_other": "{{count}} cafes",
+      "viewpoint_one": "{{count}} viewpoint",
+      "viewpoint_other": "{{count}} viewpoints",
+      "kindWater": "Drinking water",
+      "kindToilets": "Toilets",
+      "kindCafe": "Cafe",
+      "kindViewpoint": "Viewpoint",
+      "truncated": "and more",
+      "more_one": "{{count}} more not shown",
+      "more_other": "{{count}} more not shown",
+      "none": "No stops found near this route.",
+      "noData": "Stop information is not available right now.",
+      "attribution": "Map data from OpenStreetMap contributors."
     }
   }
 }

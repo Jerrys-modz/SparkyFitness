@@ -36,6 +36,7 @@ export function watchRunSummary(
     heartRateSamples: payload.heartRate.map(([t, bpm]) => ({ t, bpm })),
     program,
     entryId,
+    routeId: payload.routeId ?? null,
   });
   const laps: RecordedSplit[] =
     points.length >= 2

@@ -1,7 +1,9 @@
 import {
+  ROUTE_GHOST_INTERVAL_M,
   haversineMeters,
   simplifyRoute,
   type Route,
+  type RouteGhost,
   type RouteCue,
   type RouteCueKind,
   type RoutePoint,
@@ -10,6 +12,12 @@ import type { WatchRoutePayload } from '../../modules/watch-connectivity';
 
 /** The most points the watch is sent; matches what the server stores. */
 export const WATCH_ROUTE_MAX_POINTS = 2000;
+/**
+ * The most points a route with elevation is sent. The elevations add about two
+ * bytes a point, so 1600 points with them stay inside the ~20 KB that 2000
+ * points without them take.
+ */
+export const WATCH_ROUTE_MAX_POINTS_WITH_ELEVATION = 1600;
 
 /** Degrees are sent as whole millionths (about 11 cm), so the wire holds integers. */
 const MICRO = 1_000_000;
@@ -99,6 +107,61 @@ export function deriveRouteCues(points: readonly RoutePoint[]): RouteCue[] {
   ];
 }
 
+/** Zigzag: 0, -1, 1, -2 … become 0, 1, 2, 3 …, so small steps stay small non-negative integers. */
+function zigzag(value: number): number {
+  return value >= 0 ? value * 2 : -value * 2 - 1;
+}
+
+/**
+ * Whole-metre heights for the watch, one per point, or null when any point
+ * lacks an altitude (nothing is filled in). Each entry is the zigzag of the
+ * step from the previous height (the first from 0): a property list stores a
+ * small non-negative integer in two bytes but a negative one in nine, and
+ * heights between neighbouring points differ by a metre or two.
+ */
+export function encodeWatchElevations(
+  points: readonly RoutePoint[]
+): number[] | null {
+  if (points.length === 0 || points.some((p) => p.alt === undefined)) {
+    return null;
+  }
+  let previous = 0;
+  return points.map((p) => {
+    const metres = Math.round(p.alt as number);
+    const step = zigzag(metres - previous);
+    previous = metres;
+    return step;
+  });
+}
+
+/**
+ * The most ghost times a route is sent with: 100 m apart that is 100 km, far
+ * past any route, so a longer line is a malformed one and goes without.
+ */
+export const WATCH_GHOST_MAX_KNOTS = 1000;
+
+/**
+ * The best run as the compact array the watch races: elapsed active seconds at
+ * every `ROUTE_GHOST_INTERVAL_M` (100 m) of route progress, the last at the
+ * end of the route. Null (so the field is omitted) when there is no ghost or
+ * it is not a usable pace line: empty, too long, a different interval from
+ * the one the watch assumes, or not rising. The watch's `WatchRouteGhost`
+ * reads it; keep the interval and shape in step.
+ */
+export function encodeWatchGhost(
+  ghost: Pick<RouteGhost, 'intervalM' | 'splits'> | null | undefined
+): number[] | null {
+  if (!ghost || ghost.intervalM !== ROUTE_GHOST_INTERVAL_M) return null;
+  const { splits } = ghost;
+  if (splits.length === 0 || splits.length > WATCH_GHOST_MAX_KNOTS) return null;
+  let previous = 0;
+  for (const seconds of splits) {
+    if (!Number.isInteger(seconds) || seconds < previous) return null;
+    previous = seconds;
+  }
+  return previous > 0 ? [...splits] : null;
+}
+
 /** Index in `kept` (ascending source indexes) closest to `source`. */
 function nearestKept(kept: readonly number[], source: number): number {
   let low = 0;
@@ -115,17 +178,23 @@ function nearestKept(kept: readonly number[], source: number): number {
 /**
  * Builds the payload `startRunOnWatch` sends. A route over the point cap is
  * thinned again (cues follow their points); one with no cues gets derived
- * ones, so the watch always has something to announce.
+ * ones, so the watch always has something to announce. `ghost` is the best
+ * run's pace line (`encodeWatchGhost`), carried through untouched.
  */
 export function toWatchRoutePayload(
-  route: Pick<Route, 'id' | 'name' | 'points' | 'cues'>
+  route: Pick<Route, 'id' | 'name' | 'points' | 'cues'>,
+  ghost?: number[] | null,
+  footprint?: readonly number[][]
 ): WatchRoutePayload | null {
   if (route.points.length < 2) return null;
 
   let points: readonly RoutePoint[] = route.points;
   let cues: readonly RouteCue[] = route.cues;
-  if (points.length > WATCH_ROUTE_MAX_POINTS) {
-    const thinned = simplifyRoute(points, WATCH_ROUTE_MAX_POINTS);
+  const cap = points.every((p) => p.alt !== undefined)
+    ? WATCH_ROUTE_MAX_POINTS_WITH_ELEVATION
+    : WATCH_ROUTE_MAX_POINTS;
+  if (points.length > cap) {
+    const thinned = simplifyRoute(points, cap);
     points = thinned.points;
     cues = cues.map((cue) => ({
       ...cue,
@@ -145,6 +214,8 @@ export function toWatchRoutePayload(
       ...(text ? { text } : {}),
     }));
 
+  const elevations = encodeWatchElevations(points);
+
   return {
     id: route.id,
     name: route.name,
@@ -153,5 +224,11 @@ export function toWatchRoutePayload(
       Math.round(p.lon * MICRO),
     ]),
     cues: sentCues,
+    ...(elevations ? { elevations } : {}),
+    // Omitted for a route with no timed run; an older watch ignores the key.
+    ...(ghost && ghost.length > 0 ? { ghost } : {}),
+    ...(footprint && footprint.length > 0
+      ? { footprint: footprint.map((line) => [...line]) }
+      : {}),
   };
 }

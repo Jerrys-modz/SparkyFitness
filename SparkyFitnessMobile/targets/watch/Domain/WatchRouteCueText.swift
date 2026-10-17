@@ -44,3 +44,57 @@ extension WatchRouteCue {
         return String(localized: "watch.route.spoken", defaultValue: "In \(distance), \(instruction)")
     }
 }
+
+extension WatchRouteRejoin {
+    /// "80 m", rounded to the nearest 10 below a kilometre, in the phone's unit.
+    func distanceText(usesMiles: Bool) -> String {
+        WatchRunPlan.distance(max(10, (distanceMeters / 10).rounded() * 10), inMiles: usesMiles)
+    }
+
+    /// "Back on route in 80 m", for the cue strip and the route page.
+    func instruction(usesMiles: Bool) -> String {
+        String(localized: "watch.route.rejoin", defaultValue: "Back on route in \(distanceText(usesMiles: usesMiles))")
+    }
+
+    /// "Off route. Rejoin in 80 m, to your left" for the voice coach. Without a
+    /// course there is no left or right to give, so the distance stands alone.
+    func spoken(course: Double?, usesMiles: Bool) -> String {
+        let distance = distanceText(usesMiles: usesMiles)
+        switch side(course: course) {
+        case .ahead?:
+            return String(localized: "watch.route.rejoinSpokenAhead", defaultValue: "Off route. Rejoin in \(distance), straight ahead")
+        case .left?:
+            return String(localized: "watch.route.rejoinSpokenLeft", defaultValue: "Off route. Rejoin in \(distance), to your left")
+        case .right?:
+            return String(localized: "watch.route.rejoinSpokenRight", defaultValue: "Off route. Rejoin in \(distance), to your right")
+        case .behind?:
+            return String(localized: "watch.route.rejoinSpokenBehind", defaultValue: "Off route. Rejoin in \(distance), behind you")
+        case nil:
+            return String(localized: "watch.route.rejoinSpoken", defaultValue: "Off route. Rejoin in \(distance)")
+        }
+    }
+}
+
+extension WatchRouteRace {
+    /// "Ahead 12 s", "Behind 8 s" or "Even with your best".
+    var text: String {
+        switch standing {
+        case .ahead:
+            return String(localized: "watch.route.race.ahead", defaultValue: "Ahead \(Self.clock(seconds))")
+        case .behind:
+            return String(localized: "watch.route.race.behind", defaultValue: "Behind \(Self.clock(seconds))")
+        case .even:
+            return String(localized: "watch.route.race.even", defaultValue: "Even with your best")
+        }
+    }
+
+    /// Said when the wearer drops behind: "You are 8 seconds behind your best time."
+    var behindSpoken: String {
+        String(localized: "watch.route.race.behindSpoken", defaultValue: "You are \(seconds) seconds behind your best time.")
+    }
+
+    /// "12 s", or "1:05" from a minute up.
+    static func clock(_ seconds: Int) -> String {
+        seconds < 60 ? "\(seconds) s" : String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+}

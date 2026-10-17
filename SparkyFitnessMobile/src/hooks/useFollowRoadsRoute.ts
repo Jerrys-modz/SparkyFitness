@@ -5,6 +5,7 @@ import {
   type GeneratedRoutePreview,
   type RouteGenerateErrorKind,
   type RoutePoint,
+  type RouteStyle,
 } from '@workspace/shared';
 import { generateRoutePreview } from '../services/routeService';
 import { classifyRouteGenerateError } from '../utils/routeGenerateError';
@@ -33,11 +34,13 @@ interface Settled {
  * Snaps ordered taps to roads through the generate endpoint (waypoints mode).
  * Requests are debounced, only the latest one is used, and the last good
  * preview stays when a request fails. A rate-limit answer pauses automatic
- * requests until `retry` so later taps do not keep hitting the limit.
+ * requests until `retry` so later taps do not keep hitting the limit. A
+ * changed `style` counts as a changed request.
  */
 export function useFollowRoadsRoute(
   enabled: boolean,
-  points: readonly RoutePoint[]
+  points: readonly RoutePoint[],
+  style?: RouteStyle
 ): FollowRoadsState {
   const [settled, setSettled] = useState<Settled | null>(null);
   // The taps a request last finished for, whether it worked or not.
@@ -49,8 +52,14 @@ export function useFollowRoadsRoute(
   const sequence = useRef(0);
   const paused = useRef(false);
 
-  const key = useMemo(() => followRoadsKey(points), [points]);
-  const request = useMemo(() => buildFollowRoadsRequest(points), [points]);
+  const key = useMemo(
+    () => followRoadsKey(points, 'run', style),
+    [points, style]
+  );
+  const request = useMemo(
+    () => buildFollowRoadsRequest(points, 'run', style),
+    [points, style]
+  );
   const active = enabled && request !== null;
 
   // Nothing to show once following is off or there are fewer than two taps.

@@ -55,7 +55,7 @@ struct WatchRunView: View {
                 : nil,
             banner: { _ in
                 if run.route != nil {
-                    RouteCueStrip(progress: run.routeProgress, usesMiles: usesMiles)
+                    RouteCueStrip(progress: run.routeProgress, usesMiles: usesMiles, race: run.routeRace)
                 }
                 if run.plan != nil, let position = run.currentPlanPosition() {
                     CardioPlanStep(

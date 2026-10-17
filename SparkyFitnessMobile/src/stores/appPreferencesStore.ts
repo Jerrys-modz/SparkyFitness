@@ -141,6 +141,7 @@ export const PREFERENCE_DEFAULTS = {
   hiddenWatchPages: [] as WatchPageKey[],
   watchDoubleTapEnabled: true,
   watchRpeEnabled: false,
+  watchRaceBestEnabled: true,
   watchNutrientOrder: [] as string[],
   shownWatchNutrients: [...DEFAULT_WATCH_NUTRIENTS] as string[],
   watchSetInputStyle: 'keypad' as WatchSetInputStyle,
@@ -260,6 +261,8 @@ export type AppPreferencesData = {
   watchDoubleTapEnabled: boolean;
   /** Whether the watch asks for an effort (RPE) after each logged set. */
   watchRpeEnabled: boolean;
+  /** Whether a followed route shows Ahead / Behind against the best run over it. */
+  watchRaceBestEnabled: boolean;
   /**
    * Order of the nutrients the watch's Goals page can list (standard keys and
    * custom nutrient names). Empty until the wearer drags one.
@@ -347,6 +350,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   resetReportCustomization: () => void;
   setWatchDoubleTapEnabled: (value: boolean) => void;
   setWatchRpeEnabled: (value: boolean) => void;
+  setWatchRaceBestEnabled: (value: boolean) => void;
   setWatchNutrientOrder: (order: string[]) => void;
   setWatchNutrientShown: (key: string, isShown: boolean) => void;
   setWatchSetInputStyle: (value: WatchSetInputStyle) => void;
@@ -580,6 +584,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setWatchDoubleTapEnabled: (value) =>
         set({ watchDoubleTapEnabled: value }),
       setWatchRpeEnabled: (value) => set({ watchRpeEnabled: value }),
+      setWatchRaceBestEnabled: (value) => set({ watchRaceBestEnabled: value }),
       setWatchPageHidden: (key, isHidden) =>
         set((state) => ({
           hiddenWatchPages: withMembership(
@@ -671,6 +676,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         hiddenWatchPages: state.hiddenWatchPages,
         watchDoubleTapEnabled: state.watchDoubleTapEnabled,
         watchRpeEnabled: state.watchRpeEnabled,
+        watchRaceBestEnabled: state.watchRaceBestEnabled,
         watchNutrientOrder: state.watchNutrientOrder,
         shownWatchNutrients: state.shownWatchNutrients,
         watchSetInputStyle: state.watchSetInputStyle,

@@ -97,4 +97,24 @@ final class WatchRouteCameraTests: XCTestCase {
         let cumulative = WatchRouteTracker.cumulativeDistances(route.points)
         XCTAssertNil(WatchRouteCamera.routeHeading(points: route.points, cumulative: cumulative, progressMeters: 900))
     }
+
+    func testOnTheWayToTheStartTheMapStaysNorthUp() {
+        let approach = WatchRouteTracker.StartApproach(distanceMeters: 600, bearing: 200, course: 90)
+        var far = snapshot(progress: 0, cueMeters: 400)
+        far.reachedRoute = false
+        far.startApproach = approach
+        let result = camera(far, position: at(0, -600))
+        XCTAssertEqual(result.heading, 0)
+        XCTAssertEqual(result.distance, 650)
+        XCTAssertEqual(result.lat, at(0, -600).lat, accuracy: 1e-9)
+    }
+
+    func testCloseToTheStartTheMapKeepsItsBaseZoom() {
+        var near = snapshot(progress: 0, cueMeters: 400)
+        near.reachedRoute = false
+        near.startApproach = WatchRouteTracker.StartApproach(distanceMeters: 90, bearing: 10, course: nil)
+        let result = camera(near, position: at(0, -90))
+        XCTAssertEqual(result.heading, 0)
+        XCTAssertEqual(result.distance, WatchRouteCamera.baseDistance)
+    }
 }

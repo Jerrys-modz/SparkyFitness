@@ -402,6 +402,9 @@ struct WatchRunResult {
     /// What the watch showed before the wearer entered the treadmill's
     /// distance; nil when nothing was entered. The phone learns from the pair.
     var estimatedDistanceMeters: Double?
+    /// The saved route the wearer was following, so the phone can link the
+    /// filed run to it; nil when the run followed none.
+    var routeId: String?
 
     /// The run with its distance (and the lap marks along it) multiplied by
     /// `factor`.

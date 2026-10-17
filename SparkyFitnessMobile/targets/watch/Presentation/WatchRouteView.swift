@@ -1,17 +1,41 @@
 import SwiftUI
 import MapKit
 
+/// "Start is 600 m away", for a wearer who has not reached the route yet.
+func startAwayText(_ approach: WatchRouteTracker.StartApproach, usesMiles: Bool) -> String {
+    let distance = WatchRunPlan.distance(max(10, (approach.distanceMeters / 10).rounded() * 10), inMiles: usesMiles)
+    return String(localized: "watch.route.startAway", defaultValue: "Start is \(distance) away")
+}
+
 /// What the wearer needs from a followed route at a glance, shown under the
 /// clock on the run's main page: the next turn and how far, or a red warning
 /// when they have left the route.
 struct RouteCueStrip: View {
     let progress: WatchRouteTracker.Snapshot?
     let usesMiles: Bool
+    /// Ahead / Behind the best run, when the route has one and the switch is on.
+    var race: WatchRouteRace? = nil
 
     var body: some View {
+        VStack(alignment: .leading, spacing: WatchStyle.s(2)) {
+            cueRow
+            if let race {
+                RaceLabel(race: race)
+                    .font(.system(size: WatchStyle.s(12), weight: .bold))
+            }
+        }
+        .padding(.horizontal, WatchStyle.s(8))
+        .padding(.vertical, WatchStyle.s(4))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(tint.opacity(0.18), in: RoundedRectangle(cornerRadius: WatchStyle.s(10), style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var cueRow: some View {
         HStack(spacing: WatchStyle.s(6)) {
             Image(systemName: symbol)
                 .font(.system(size: WatchStyle.s(15), weight: .bold))
+                .rotationEffect(.degrees(symbolRotation))
             Text(label)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -23,34 +47,61 @@ struct RouteCueStrip: View {
         }
         .font(.system(size: WatchStyle.s(14), weight: .bold))
         .foregroundStyle(tint)
-        .padding(.horizontal, WatchStyle.s(8))
-        .padding(.vertical, WatchStyle.s(4))
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(tint.opacity(0.18), in: RoundedRectangle(cornerRadius: WatchStyle.s(10), style: .continuous))
-        .accessibilityElement(children: .combine)
     }
 
     private var isOff: Bool { progress?.isOffRoute == true }
 
+    /// Set while the wearer has not reached the route line yet.
+    private var approach: WatchRouteTracker.StartApproach? { progress?.startApproach }
+
+    /// The start arrow turns to point at the start, ahead being up when the
+    /// wearer's direction of travel is known and north otherwise.
+    private var symbolRotation: Double {
+        if isOff, let rejoin = progress?.rejoin { return rejoin.arrowRotation(heading: progress?.course) }
+        return approach.map { $0.arrowRotation(heading: $0.course) } ?? 0
+    }
+
     private var tint: Color { isOff ? .red : .cyan }
 
     private var symbol: String {
-        if isOff { return "exclamationmark.triangle.fill" }
+        if approach != nil { return "location.north.fill" }
+        if isOff { return progress?.rejoin != nil ? "location.north.fill" : "exclamationmark.triangle.fill" }
         guard let progress else { return "location.slash" }
         if progress.arrived { return WatchRouteCueKind.arrive.symbol }
         return progress.nextCue?.cue.kind.symbol ?? "arrow.up"
     }
 
     private var label: String {
-        if isOff { return String(localized: "watch.route.offRoute", defaultValue: "Off route") }
+        if let approach {
+            return startAwayText(approach, usesMiles: usesMiles)
+        }
+        if isOff {
+            // How to get back, not just that the wearer has left.
+            if let rejoin = progress?.rejoin { return rejoin.instruction(usesMiles: usesMiles) }
+            return String(localized: "watch.route.offRoute", defaultValue: "Off route")
+        }
         guard let progress else { return String(localized: "watch.route.waitingGps", defaultValue: "Waiting for GPS") }
         if progress.arrived { return WatchRouteCueKind.arrive.title }
         return progress.nextCue?.cue.instruction ?? WatchRouteCueKind.straight.title
     }
 
     private var distance: String? {
-        guard let progress, !isOff, !progress.arrived, let next = progress.nextCue else { return nil }
+        guard let progress, approach == nil, !isOff, !progress.arrived, let next = progress.nextCue else { return nil }
         return WatchRunPlan.distance(next.distanceMeters, inMiles: usesMiles)
+    }
+}
+
+/// "Ahead 12 s" in green, "Behind 8 s" in orange.
+struct RaceLabel: View {
+    let race: WatchRouteRace
+
+    var body: some View {
+        Label {
+            Text(race.text).monospacedDigit()
+        } icon: {
+            Image(systemName: race.standing == .behind ? "tortoise.fill" : "hare.fill")
+        }
+        .foregroundStyle(race.standing == .behind ? Color.orange : Color.green)
     }
 }
 
@@ -78,7 +129,9 @@ struct WatchRouteMapPage: View {
                 route: route,
                 progress: run.routeProgress,
                 position: run.routePosition,
-                mode: mode
+                mode: mode,
+                rejoin: run.routeProgress?.rejoin,
+                usesMiles: usesMiles
             )
             .overlay(alignment: .bottom) { footer }
             .overlay(alignment: .top) {
@@ -104,12 +157,54 @@ struct WatchRouteMapPage: View {
         return "\(WatchRunMetrics.distanceText(progress.remainingMeters, usesMiles: usesMiles)) \(unit)"
     }
 
+    /// "Climb ahead: +24 m in 400 m", in the phone's unit.
+    private func climbAheadText(_ climb: WatchRouteClimb.Ahead) -> String {
+        let gain = usesMiles
+            ? "\(Int((Double(climb.gainMeters) * 3.28084).rounded())) ft"
+            : "\(climb.gainMeters) m"
+        let over = WatchRunPlan.distance(max(10, (climb.overMeters / 10).rounded() * 10), inMiles: usesMiles)
+        return String(localized: "watch.route.climbAhead", defaultValue: "Climb ahead: +\(gain) in \(over)")
+    }
+
     private var footer: some View {
         VStack(spacing: 0) {
-            if let progress = run.routeProgress {
+            if let approach = run.routeProgress?.startApproach {
+                // The map is north up until the line is reached, so the arrow is the bearing itself.
+                Label {
+                    Text(startAwayText(approach, usesMiles: usesMiles))
+                } icon: {
+                    Image(systemName: "location.north.fill")
+                        .rotationEffect(.degrees(approach.arrowRotation(heading: nil)))
+                }
+                .font(.system(size: WatchStyle.s(15), weight: .bold, design: .rounded))
+                .foregroundStyle(.cyan)
+            } else if let progress = run.routeProgress {
                 Text(String(localized: "watch.route.left", defaultValue: "\(remainingText(progress)) left"))
                 .font(.system(size: WatchStyle.s(15), weight: .bold, design: .rounded))
                 .monospacedDigit()
+                if let race = run.routeRace {
+                    RaceLabel(race: race)
+                        .font(.system(size: WatchStyle.s(12), weight: .bold))
+                }
+                if let rejoin = progress.rejoin {
+                    Label {
+                        Text(rejoin.instruction(usesMiles: usesMiles))
+                    } icon: {
+                        Image(systemName: "location.north.fill")
+                            .rotationEffect(.degrees(rejoin.arrowRotation(heading: nil)))
+                    }
+                    .font(.system(size: WatchStyle.s(11), weight: .semibold))
+                    .foregroundStyle(.orange)
+                }
+                if let climb = run.routeClimb {
+                    Label {
+                        Text(climbAheadText(climb))
+                    } icon: {
+                        Image(systemName: "arrow.up.right")
+                    }
+                    .font(.system(size: WatchStyle.s(11), weight: .semibold))
+                    .foregroundStyle(.orange)
+                }
                 if !progress.isOffRoute, !progress.arrived, let next = progress.nextCue {
                     Label {
                         Text("\(next.cue.instruction) · \(WatchRunPlan.distance(next.distanceMeters, inMiles: usesMiles))")
@@ -148,21 +243,79 @@ enum RouteMapMode {
     case overview
 }
 
+/// North arrow and scale bar for the offline map, which has no street names or
+/// labels to read the direction and size from. The arrow turns against the map
+/// (the map is heading up while a route is followed), and the bar is a round
+/// length drawn to the screen's approximate scale.
+private struct OfflineMapChrome: View {
+    /// Degrees clockwise from north that point up the screen; 0 is north up.
+    let heading: Double
+    /// Metres across the screen's width, approximately.
+    let acrossMeters: Double
+    let usesMiles: Bool
+
+    var body: some View {
+        GeometryReader { geometry in
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 2) {
+                    Image(systemName: "location.north.fill")
+                        .rotationEffect(.degrees(-heading))
+                    Text(String(localized: "watch.route.north", defaultValue: "N"))
+                }
+                .font(.system(size: WatchStyle.s(11), weight: .bold))
+                if let bar = WatchRouteFootprint.scaleBarMeters(acrossMeters: acrossMeters), acrossMeters > 0 {
+                    Rectangle()
+                        .frame(width: geometry.size.width * bar / acrossMeters, height: 2)
+                    Text(WatchRunPlan.distance(bar, inMiles: usesMiles))
+                        .font(.system(size: WatchStyle.s(10), weight: .semibold))
+                        .monospacedDigit()
+                }
+            }
+            .foregroundStyle(.white.opacity(0.85))
+            .shadow(color: .black, radius: 1.5)
+            // Under the system clock, which sits over the top.
+            .padding(.top, WatchStyle.s(22))
+            .padding(.leading, WatchStyle.s(6))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 /// The map and what is drawn on it. MapKit places everything, so the route
 /// lines up with the roads whatever shape the screen is.
+///
+/// A route that carries a footprint also draws those nearby paths as thin grey
+/// lines under it, with a north arrow and a scale bar. They are overlays like
+/// the route, so they turn with the heading-up camera and are there whether or
+/// not MapKit has any tiles (it gives no signal for that); with tiles they are
+/// a faint extra, without them they are the only context around the route.
 private struct RouteMapLayer: View {
     let route: WatchRoute
     let progress: WatchRouteTracker.Snapshot?
     let position: WatchRoutePoint?
     let mode: RouteMapMode
+    /// Where to rejoin the line while off it; a dashed line leads there.
+    let rejoin: WatchRouteRejoin?
+    let usesMiles: Bool
 
     private let cumulative: [Double]
 
-    init(route: WatchRoute, progress: WatchRouteTracker.Snapshot?, position: WatchRoutePoint?, mode: RouteMapMode) {
+    init(
+        route: WatchRoute,
+        progress: WatchRouteTracker.Snapshot?,
+        position: WatchRoutePoint?,
+        mode: RouteMapMode,
+        rejoin: WatchRouteRejoin? = nil,
+        usesMiles: Bool
+    ) {
         self.route = route
         self.progress = progress
         self.position = position
         self.mode = mode
+        self.rejoin = rejoin
+        self.usesMiles = usesMiles
         cumulative = WatchRouteTracker.cumulativeDistances(route.points)
     }
 
@@ -174,6 +327,13 @@ private struct RouteMapLayer: View {
         let off = progress?.isOffRoute == true
 
         Map(position: .constant(mapPosition), interactionModes: []) {
+            // Known paths nearby, under everything else.
+            if let footprint = route.footprint {
+                ForEach(Array(footprint.enumerated()), id: \.offset) { _, line in
+                    MapPolyline(coordinates: line.map(Self.coordinate))
+                        .stroke(.gray.opacity(0.55), lineWidth: 2)
+                }
+            }
             if done.count > 1 {
                 MapPolyline(coordinates: done).stroke(.gray.opacity(0.8), lineWidth: 5)
             }
@@ -182,6 +342,12 @@ private struct RouteMapLayer: View {
                 // parks, water and busy streets.
                 MapPolyline(coordinates: ahead).stroke(.white, lineWidth: 10)
                 MapPolyline(coordinates: ahead).stroke(.cyan, lineWidth: 6)
+            }
+
+            // From the wearer to where the line is nearest ahead.
+            if let position, let rejoin {
+                MapPolyline(coordinates: [Self.coordinate(position), Self.coordinate(rejoin.point)])
+                    .stroke(.orange, style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [5, 5]))
             }
 
             // Start and finish.
@@ -218,17 +384,42 @@ private struct RouteMapLayer: View {
             }
         }
         .mapStyle(.standard(emphasis: .muted, pointsOfInterest: .excludingAll))
+        // The compass badge MapKit adds once the map turns sits on the page dots.
+        .mapControlVisibility(.hidden)
+        .overlay {
+            if route.footprint != nil {
+                OfflineMapChrome(
+                    heading: followCamera?.heading ?? 0,
+                    acrossMeters: acrossMeters,
+                    usesMiles: usesMiles
+                )
+            }
+        }
         .accessibilityLabel(route.name)
     }
 
-    private var mapPosition: MapCameraPosition {
-        guard mode == .follow, let position else { return .region(region) }
-        let camera = WatchRouteCamera.follow(
+    /// Where the camera is while following; nil in the overview.
+    private var followCamera: WatchRouteCamera? {
+        guard mode == .follow, let position else { return nil }
+        return WatchRouteCamera.follow(
             route: route,
             cumulative: cumulative,
             progress: progress,
             position: position
         )
+    }
+
+    /// About how many metres the map shows across the screen, for the scale bar.
+    private var acrossMeters: Double {
+        if let camera = followCamera {
+            return WatchRouteFootprint.acrossMeters(cameraDistance: camera.distance)
+        }
+        return region.span.longitudeDelta
+            * WatchRouteFootprint.metersPerDegreeLongitude(at: region.center.latitude)
+    }
+
+    private var mapPosition: MapCameraPosition {
+        guard let camera = followCamera else { return .region(region) }
         return .camera(MapCamera(
             centerCoordinate: CLLocationCoordinate2D(latitude: camera.lat, longitude: camera.lon),
             distance: camera.distance,

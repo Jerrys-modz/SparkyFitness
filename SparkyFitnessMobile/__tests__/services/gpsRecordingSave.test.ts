@@ -23,6 +23,7 @@ import {
   learnFromOutdoorRecording,
   measureOutdoorForm,
 } from '../../src/services/stepDistance';
+import { linkEntryToRoute } from '../../src/services/routeLink';
 import type { RecordedPoint } from '../../src/utils/gpsRecording';
 import type { RecordingSession } from '../../src/services/gpsRecordingService';
 import type { Exercise } from '../../src/types/exercise';
@@ -37,6 +38,9 @@ jest.mock('../../src/services/gpsRecordingService', () => ({
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 jest.mock('../../src/services/stepDistance');
+jest.mock('../../src/services/routeLink', () => ({
+  linkEntryToRoute: jest.fn(() => Promise.resolve()),
+}));
 
 const mockedSearch = jest.mocked(searchExercises);
 const mockedCreateExercise = jest.mocked(createExercise);
@@ -382,6 +386,41 @@ describe('learning a stride while saving', () => {
       entryDate: '2026-10-06',
     });
     expect(mockedAttach).toHaveBeenCalled();
+  });
+
+  it('links the run to the route it followed', async () => {
+    await saveRecordedActivity({ ...session, routeId: 'r1' }, points, 'km');
+    expect(linkEntryToRoute).toHaveBeenCalledWith('entry-1', 'r1');
+  });
+
+  it('links nothing for a run that followed no route', async () => {
+    await saveRecordedActivity(session, points, 'km');
+    expect(linkEntryToRoute).not.toHaveBeenCalled();
+  });
+
+  it('does not link an indoor session', async () => {
+    await saveRecordedActivity(
+      { ...session, indoor: true, routeId: 'r1' },
+      [],
+      'km',
+      5
+    );
+    expect(linkEntryToRoute).not.toHaveBeenCalled();
+  });
+
+  it('fails the save when the link fails, so a retry repeats it', async () => {
+    jest.mocked(linkEntryToRoute).mockRejectedValueOnce(new Error('offline'));
+    await expect(
+      saveRecordedActivity({ ...session, routeId: 'r1' }, points, 'km')
+    ).rejects.toThrow('offline');
+    // The entry exists already; a retry carries its id and links again.
+    await saveRecordedActivity(
+      { ...session, routeId: 'r1', savedEntryId: 'entry-1' },
+      points,
+      'km'
+    );
+    expect(mockedCreateEntry).toHaveBeenCalledTimes(1);
+    expect(linkEntryToRoute).toHaveBeenLastCalledWith('entry-1', 'r1');
   });
 });
 

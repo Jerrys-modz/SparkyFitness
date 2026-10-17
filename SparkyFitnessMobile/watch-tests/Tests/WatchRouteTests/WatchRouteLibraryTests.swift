@@ -20,6 +20,27 @@ final class WatchRouteLibraryTests: XCTestCase {
         XCTAssertEqual(library.route(id: "a")?.updatedAt, 10)
     }
 
+    func testFootprintRidesWithTheRouteThroughStorageAndReplacement() throws {
+        var withMap = route("a")
+        withMap.footprint = [[WatchRoutePoint(lat: 51.5, lon: -0.121), WatchRoutePoint(lat: 51.505, lon: -0.121)]]
+        var library = WatchRouteLibrary()
+        _ = library.add(withMap, updatedAt: 10, now: now)
+
+        let decoded = try JSONDecoder().decode(WatchRouteLibrary.self, from: JSONEncoder().encode(library))
+        XCTAssertEqual(decoded.route(id: "a")?.route.footprint, withMap.footprint)
+
+        // A newer copy without a footprint replaces it: the phone's latest word wins.
+        XCTAssertEqual(library.add(route("a"), updatedAt: 20, now: now), .replaced)
+        XCTAssertNil(library.route(id: "a")?.route.footprint)
+    }
+
+    func testARouteSavedBeforeFootprintsExistedStillDecodes() throws {
+        let json = #"{"id":"old","name":"Old","points":[{"lat":51.5,"lon":-0.12},{"lat":51.51,"lon":-0.12}],"cues":[]}"#
+        let decoded = try JSONDecoder().decode(WatchRoute.self, from: Data(json.utf8))
+        XCTAssertNil(decoded.footprint)
+        XCTAssertNil(decoded.elevations)
+    }
+
     func testNewerRevisionReplacesTheStoredRoute() {
         var library = WatchRouteLibrary()
         _ = library.add(route("a", name: "Old"), updatedAt: 10, now: now)
@@ -35,6 +56,43 @@ final class WatchRouteLibraryTests: XCTestCase {
         XCTAssertEqual(library.add(route("a", name: "Again"), updatedAt: 20, now: now), .unchanged)
         XCTAssertEqual(library.add(route("a", name: "Stale"), updatedAt: 5, now: now), .unchanged)
         XCTAssertEqual(library.route(id: "a")?.route.name, "Current")
+    }
+
+    private func route(_ id: String, ghost: [Int]?) -> WatchRoute {
+        var copy = route(id)
+        copy.ghost = ghost
+        return copy
+    }
+
+    func testTheSameRevisionWithANewBestTimeRefreshesIt() {
+        var library = WatchRouteLibrary()
+        _ = library.add(route("a", ghost: [30, 60]), updatedAt: 20, now: now)
+        XCTAssertEqual(library.add(route("a", ghost: [28, 57]), updatedAt: 20, now: now), .replaced)
+        XCTAssertEqual(library.route(id: "a")?.route.ghost, [28, 57])
+        XCTAssertEqual(library.entries.count, 1)
+    }
+
+    func testTheFirstBestTimeReachesARouteSentWithoutOne() {
+        var library = WatchRouteLibrary()
+        _ = library.add(route("a"), updatedAt: 20, now: now)
+        XCTAssertEqual(library.add(route("a", ghost: [30, 60]), updatedAt: 20, now: now), .replaced)
+        XCTAssertEqual(library.route(id: "a")?.route.ghost, [30, 60])
+    }
+
+    func testAResendWithTheSameOrNoBestTimeChangesNothing() {
+        var library = WatchRouteLibrary()
+        _ = library.add(route("a", ghost: [30, 60]), updatedAt: 20, now: now)
+        XCTAssertEqual(library.add(route("a", ghost: [30, 60]), updatedAt: 20, now: now), .unchanged)
+        // A phone that predates the field must not wipe the stored line.
+        XCTAssertEqual(library.add(route("a"), updatedAt: 20, now: now), .unchanged)
+        XCTAssertEqual(library.route(id: "a")?.route.ghost, [30, 60])
+    }
+
+    func testAStaleCopyNeverBringsBackAnOlderBestTime() {
+        var library = WatchRouteLibrary()
+        _ = library.add(route("a", ghost: [28, 57]), updatedAt: 20, now: now)
+        XCTAssertEqual(library.add(route("a", ghost: [30, 60]), updatedAt: 10, now: now), .unchanged)
+        XCTAssertEqual(library.route(id: "a")?.route.ghost, [28, 57])
     }
 
     func testFullLibraryRefusesANewRouteButStillReplacesAStoredOne() {

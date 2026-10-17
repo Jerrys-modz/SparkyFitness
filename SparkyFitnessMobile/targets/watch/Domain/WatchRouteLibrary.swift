@@ -46,14 +46,19 @@ struct WatchRouteLibrary: Codable, Equatable {
         case full
     }
 
-    /// Stores `route`, replacing the stored copy when this one is newer. A
+    /// Stores `route`, replacing the stored copy when this one is newer (or the
+    /// same revision carrying a different best-time line). A
     /// route that was marked for removal while being followed is kept: sending
     /// it again is the phone changing its mind.
     mutating func add(_ route: WatchRoute, updatedAt: Double, now: Date) -> AddResult {
         pendingRemovals.remove(route.id)
         let stored = WatchStoredRoute(route: route, updatedAt: updatedAt, addedAt: now)
         if let index = entries.firstIndex(where: { $0.id == route.id }) {
-            guard updatedAt > entries[index].updatedAt else { return .unchanged }
+            // The same revision with a different best-time line is the route
+            // sent again to refresh it: the route itself did not change.
+            let refreshesGhost = updatedAt == entries[index].updatedAt
+                && route.ghost != nil && route.ghost != entries[index].route.ghost
+            guard updatedAt > entries[index].updatedAt || refreshesGhost else { return .unchanged }
             entries[index] = stored
             return .replaced
         }

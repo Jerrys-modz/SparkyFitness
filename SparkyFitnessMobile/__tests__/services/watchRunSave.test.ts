@@ -7,10 +7,14 @@ import {
 } from '../../src/services/api/exerciseApi';
 import { resolveRecordingExercise } from '../../src/services/gpsRecordingSave';
 import { saveWatchRun } from '../../src/services/watchRunSave';
+import { linkEntryToRoute } from '../../src/services/routeLink';
 import type { WatchRunPayload } from '../../src/utils/watchRun';
 
 jest.mock('../../src/services/api/exerciseApi');
 jest.mock('../../src/services/gpsRecordingSave');
+jest.mock('../../src/services/routeLink', () => ({
+  linkEntryToRoute: jest.fn(() => Promise.resolve()),
+}));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 
 const T0 = new Date(2026, 9, 10, 7, 5).getTime();
@@ -47,6 +51,7 @@ const outdoor: WatchRunPayload = {
 
 beforeEach(() => {
   jest.resetAllMocks();
+  jest.mocked(linkEntryToRoute).mockResolvedValue(undefined);
   jest
     .mocked(resolveRecordingExercise)
     .mockResolvedValue({ id: 'ex1', name: 'Running' } as never);
@@ -174,4 +179,37 @@ test('a failed series upload does not fail the save', async () => {
     ],
   };
   await expect(saveWatchRun(indoor, 'km', 'e7', jest.fn())).resolves.toBe('e7');
+});
+
+test('links the run to the route the watch followed', async () => {
+  await saveWatchRun(
+    { ...outdoor, routeId: 'r1' },
+    'km',
+    undefined,
+    async () => {}
+  );
+  expect(linkEntryToRoute).toHaveBeenCalledWith('e1', 'r1');
+});
+
+test('links a retried run onto its stored entry without creating another', async () => {
+  await saveWatchRun(
+    { ...outdoor, routeId: 'r1' },
+    'km',
+    'stored',
+    async () => {}
+  );
+  expect(createExerciseEntry).not.toHaveBeenCalled();
+  expect(linkEntryToRoute).toHaveBeenCalledWith('stored', 'r1');
+});
+
+test('links nothing when the run followed no route', async () => {
+  await saveWatchRun(outdoor, 'km', undefined, async () => {});
+  expect(linkEntryToRoute).not.toHaveBeenCalled();
+});
+
+test('fails the save when the link fails so the queue retries it', async () => {
+  jest.mocked(linkEntryToRoute).mockRejectedValueOnce(new Error('offline'));
+  await expect(
+    saveWatchRun({ ...outdoor, routeId: 'r1' }, 'km', undefined, async () => {})
+  ).rejects.toThrow('offline');
 });

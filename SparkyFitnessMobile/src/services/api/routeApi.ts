@@ -1,11 +1,13 @@
 import type {
   CreateRouteBody,
-  GeneratedRoutePreview,
   GenerateRouteBody,
+  GenerateRouteResponse,
   ImportGpxRouteBody,
   Route,
   RouteFromActivityBody,
-  RouteGenerateCapabilities,
+  RouteGhostResponse,
+  RouteRun,
+  RouteStopsResponse,
   RouteSummary,
   UpdateRouteBody,
 } from '@workspace/shared';
@@ -82,25 +84,65 @@ export const deleteRoute = (id: string): Promise<void> =>
     method: 'DELETE',
   });
 
-/** Whether the server has a routing engine; cheap and not rate limited. */
-export const fetchRouteGenerationCapabilities =
-  (): Promise<RouteGenerateCapabilities> =>
-    apiFetch<RouteGenerateCapabilities>({
-      endpoint: '/api/v2/routes/generate/capabilities',
-      serviceName: SERVICE,
-      operation: 'check route generation',
-    });
+/** The diary entries that followed a route, newest first. */
+export const fetchRouteRuns = (id: string): Promise<{ runs: RouteRun[] }> =>
+  apiFetch<{ runs: RouteRun[] }>({
+    endpoint: `/api/v2/routes/${id}/runs`,
+    serviceName: SERVICE,
+    operation: 'fetch route runs',
+  });
 
-/** A preview route from the routing engine; nothing is saved. */
+/** Links a diary entry to the route it followed (the server checks both). */
+export const attachExerciseEntryRoute = (
+  entryId: string,
+  routeId: string
+): Promise<void> =>
+  apiFetch<void>({
+    endpoint: `/api/exercise-entries/${encodeURIComponent(entryId)}/route`,
+    serviceName: SERVICE,
+    operation: 'link entry to route',
+    method: 'POST',
+    body: { routeId },
+  });
+
+/** The best run over a route as a pace line for the watch; `ghost` is null before a first timed run. */
+export const fetchRouteGhost = (id: string): Promise<RouteGhostResponse> =>
+  apiFetch<RouteGhostResponse>({
+    endpoint: `/api/v2/routes/${id}/ghost`,
+    serviceName: SERVICE,
+    operation: 'fetch route ghost',
+  });
+
+/**
+ * What the server offers for generating routes and looking up stops. Older
+ * servers send only `available`; read the answer with
+ * `resolveRouteGenerateCapabilities`.
+ */
+export const fetchRouteGenerationCapabilities = (): Promise<unknown> =>
+  apiFetch<unknown>({
+    endpoint: '/api/v2/routes/generate/capabilities',
+    serviceName: SERVICE,
+    operation: 'check route generation',
+  });
+
+/** Preview routes from the routing engine: `route` is the first of `options`. */
 export const generateRoute = (
   body: GenerateRouteBody
-): Promise<{ route: GeneratedRoutePreview }> =>
-  apiFetch<{ route: GeneratedRoutePreview }>({
+): Promise<GenerateRouteResponse> =>
+  apiFetch<GenerateRouteResponse>({
     endpoint: '/api/v2/routes/generate',
     serviceName: SERVICE,
     operation: 'generate route',
     method: 'POST',
     body,
-    // A loop can cost the server a few engine calls.
-    timeoutMs: 60_000,
+    // A loop can cost the server a few engine calls, several candidates more.
+    timeoutMs: 90_000,
+  });
+
+/** Stops near a saved route; the server answers `no_data` on any failure. */
+export const fetchRouteStops = (id: string): Promise<RouteStopsResponse> =>
+  apiFetch<RouteStopsResponse>({
+    endpoint: `/api/v2/routes/${id}/stops`,
+    serviceName: SERVICE,
+    operation: 'fetch route stops',
   });

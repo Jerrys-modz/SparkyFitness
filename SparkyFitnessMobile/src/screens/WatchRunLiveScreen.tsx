@@ -24,6 +24,7 @@ import {
   paceSecondsPerUnit,
 } from '../utils/gpsRecording';
 import type { RootStackScreenProps } from '../types/navigation';
+import { raceLabel } from '../utils/routeRace';
 
 type Props = RootStackScreenProps<'WatchRunLive'>;
 
@@ -70,6 +71,7 @@ const WatchRunLiveScreen: React.FC<Props> = ({ navigation }) => {
     nativeTitle: title,
     left: { kind: 'back' },
   });
+  const race = raceLabel(run?.raceSeconds, t);
   const number = (value: number, digits = 2) =>
     formatLocalizedNumber(value, {
       minimumFractionDigits: digits,
@@ -238,6 +240,19 @@ const WatchRunLiveScreen: React.FC<Props> = ({ navigation }) => {
                   </Text>
                 ) : null}
               </View>
+            ) : null}
+
+            {race ? (
+              <Text
+                testID="watch-run-race"
+                className={`text-lg font-semibold mb-3 ${
+                  race.tone === 'behind'
+                    ? 'text-text-warning'
+                    : 'text-text-success'
+                }`}
+              >
+                {race.text}
+              </Text>
             ) : null}
 
             <View className="flex-row mb-3">

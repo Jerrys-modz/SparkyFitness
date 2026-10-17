@@ -79,6 +79,7 @@ enum ContextPayloadMapper {
             distanceUnit: payload["distanceUnit"] as? String ?? previous.distanceUnit,
             doubleTapEnabled: payload["doubleTapEnabled"] as? Bool ?? previous.doubleTapEnabled,
             rpeEnabled: payload["rpeEnabled"] as? Bool ?? previous.rpeEnabled,
+            raceBestEnabled: payload["raceBestEnabled"] as? Bool ?? previous.raceBestEnabled,
             medications: medications(from: payload),
             fast: fastKnown(in: payload) ? fast(from: payload["fast"]) : previous.fast,
             fastSynced: fastKnown(in: payload) ? true : previous.fastSynced,
@@ -230,7 +231,8 @@ enum ContextPayloadMapper {
     }
 
     /// The saved route a start request carries. Points arrive flat, as
-    /// `[lat, lon, lat, lon, …]` in millionths of a degree. Nil when absent or
+    /// `[lat, lon, lat, lon, …]` in millionths of a degree, with an optional
+    /// parallel `elevations` array (see `elevations(from:count:)`). Nil when absent or
     /// unusable (fewer than two points, an odd count); a cue with an unknown
     /// kind or a point past the end is skipped rather than failing the route.
     static func route(from raw: Any?) -> WatchRoute? {
@@ -251,7 +253,34 @@ enum ContextPayloadMapper {
             let text = (row["text"] as? String).flatMap { $0.isEmpty ? nil : $0 }
             return WatchRouteCue(index: index, kind: kind, text: text)
         }
-        return WatchRoute(id: id, name: dict["name"] as? String ?? "", points: points, cues: cues)
+        return WatchRoute(
+            id: id,
+            name: dict["name"] as? String ?? "",
+            points: points,
+            cues: cues,
+            elevations: elevations(from: dict["elevations"], count: points.count),
+            ghost: WatchRouteGhost.decode(numberArray(dict["ghost"])),
+            footprint: footprint(from: dict["footprint"])
+        )
+    }
+
+    /// The nearby paths a route carries for the offline map: an array of flat
+    /// `[lat, lon, …]` lines in millionths of a degree. Nil when absent, and a
+    /// malformed line is skipped (`WatchRouteFootprint.decode`) rather than
+    /// failing the route: the map is only a backdrop.
+    static func footprint(from raw: Any?) -> [[WatchRoutePoint]]? {
+        guard let rows = raw as? [Any] else { return nil }
+        return WatchRouteFootprint.decode(rows.compactMap { numberArray($0) })
+    }
+
+    /// The heights a route carries, one whole metre per point. They arrive as
+    /// the zigzag of each step from the previous height (the first from 0),
+    /// which keeps every number a small non-negative integer on the wire. Nil
+    /// when absent, not a number array, or not one per point: an older phone
+    /// sends none, and a route without heights simply shows no climb.
+    static func elevations(from raw: Any?, count: Int) -> [Int]? {
+        guard let steps = numberArray(raw), steps.count == count, count > 0 else { return nil }
+        return WatchRouteClimb.decodeHeights(steps.map { Int($0) })
     }
 
     /// A route the phone wants kept on the watch (`routeSync`). Nil when the
