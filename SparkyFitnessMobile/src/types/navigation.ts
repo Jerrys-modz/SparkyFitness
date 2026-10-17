@@ -471,6 +471,7 @@ export type RootStackParamList = {
   NotificationSettings: undefined;
   About: undefined;
   WhatsNew: undefined;
+  OfflineQueue: undefined;
   MedicationsList: undefined;
   MedicationAdherence: undefined;
   MedicationEntryEdit: { entry: MedicationEntry };

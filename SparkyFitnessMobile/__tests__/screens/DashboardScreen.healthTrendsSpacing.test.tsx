@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import DashboardScreen from '../../src/screens/DashboardScreen';
+import { useDailySummary, useServerConnection } from '../../src/hooks';
 import {
   useAppPreferencesStore,
   __resetAppPreferencesStoreForTests,
@@ -251,5 +252,51 @@ describe('DashboardScreen Health Trends spacing', () => {
     fireEvent.press(screen.getByTestId('dashboard-reports-link'));
 
     expect(mockNavigation.navigate).toHaveBeenCalledWith('Reports');
+  });
+});
+
+describe('DashboardScreen without a connection', () => {
+  beforeEach(() => {
+    __resetAppPreferencesStoreForTests();
+    const store = useAppPreferencesStore.getState();
+    store.setDashboardCardOrder(['healthTrends', 'askSparky']);
+    store.setCalorieRingCardVisible(false);
+    store.setMacrosCardVisible(false);
+    store.setExerciseCardVisible(false);
+    store.setHydrationCardVisible(false);
+    store.setCaffeineCardVisible(false);
+    store.setFastingCardVisible(false);
+    store.setCycleCardVisible(false);
+    store.setMedicationsCardVisible(false);
+    store.setProgressPhotosCardVisible(false);
+    jest
+      .mocked(useServerConnection)
+      .mockReturnValue({ isConnected: false, isLoading: false } as never);
+  });
+
+  afterEach(() => {
+    jest
+      .mocked(useServerConnection)
+      .mockReturnValue({ isConnected: true, isLoading: false } as never);
+  });
+
+  it('keeps showing the cached day, with what was logged offline, instead of "no server"', () => {
+    renderDashboard();
+
+    expect(screen.getByText('Health Trends')).toBeTruthy();
+    expect(screen.queryByText('No server configured')).toBeNull();
+  });
+
+  it('shows the no-server state when nothing is cached', () => {
+    jest.mocked(useDailySummary).mockReturnValueOnce({
+      summary: undefined,
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    } as never);
+
+    renderDashboard();
+
+    expect(screen.getByText('No server configured')).toBeTruthy();
   });
 });

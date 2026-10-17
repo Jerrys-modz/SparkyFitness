@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useState, useEffect, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
@@ -7,9 +8,21 @@ import {
   fetchWaterContainers,
   changeWaterIntake,
 } from '../services/api/measurementsApi';
+import {
+  NeedsConnectionError,
+  QUEUED_WRITE,
+  QueueFullError,
+  isKnownOffline,
+  isQueuedWrite,
+  submitOrQueue,
+  type QueuedWrite,
+} from '../services/offlineQueue/queueRunner';
 import { getServingVolume } from '../utils/unitConversions';
 import type { DailySummaryRawData } from './useDailySummary';
-import type { WaterContainer } from '../types/measurements';
+import type {
+  WaterContainer,
+  WaterIntakeResponse,
+} from '../types/measurements';
 import {
   caffeineActiveQueryKey,
   dailySummaryQueryKey,
@@ -39,6 +52,81 @@ const SELECTED_CONTAINER_KEY = '@SparkyFitness/selected-water-container';
 interface UseWaterIntakeMutationOptions {
   date: string;
   enabled?: boolean;
+}
+
+type WaterWriteResult = WaterIntakeResponse | QueuedWrite;
+
+/**
+ * Logs drinks for a container. A single "+" press can wait in the offline
+ * queue; anything else (a "-", several at once) acts on what the server holds
+ * and needs the server.
+ */
+async function writeWaterChange(params: {
+  date: string;
+  changeDrinks: number;
+  container: Pick<
+    WaterContainer,
+    'id' | 'volume' | 'servings_per_container' | 'linked_food_id'
+  >;
+}): Promise<WaterWriteResult> {
+  const { date, changeDrinks, container } = params;
+  if (changeDrinks !== 1) {
+    if (isKnownOffline()) throw new NeedsConnectionError();
+    return changeWaterIntake({
+      entryDate: date,
+      changeDrinks,
+      containerId: container.id,
+    });
+  }
+  const outcome = await submitOrQueue({
+    send: (clientId, timeoutMs) =>
+      changeWaterIntake({
+        entryDate: date,
+        changeDrinks,
+        containerId: container.id,
+        clientId,
+        timeoutMs,
+      }),
+    queueAs: () => ({
+      kind: 'water',
+      entryDate: date,
+      payload: { containerId: container.id },
+      previewMl: getServingVolume(container),
+    }),
+  });
+  return outcome.status === 'sent' ? outcome.result : QUEUED_WRITE;
+}
+
+function showWaterError(
+  t: TFunction,
+  error: unknown,
+  fallback: { text1: string; text2?: string }
+) {
+  if (error instanceof NeedsConnectionError) {
+    Toast.show({
+      type: 'error',
+      text1: t('offlineQueue.errors.needsConnection', {
+        defaultValue: 'This needs a connection',
+      }),
+      text2: t('offlineQueue.errors.needsConnectionWater', {
+        defaultValue: 'Removing a drink needs your server to be reachable.',
+      }),
+    });
+    return;
+  }
+  if (error instanceof QueueFullError) {
+    Toast.show({
+      type: 'error',
+      text1: t('offlineQueue.errors.queueFull', {
+        defaultValue: 'Too many entries are waiting',
+      }),
+      text2: t('offlineQueue.errors.queueFullMessage', {
+        defaultValue: 'Reconnect to sync them before adding more.',
+      }),
+    });
+    return;
+  }
+  Toast.show({ type: 'error', ...fallback });
 }
 
 export function useWaterIntakeMutation({
@@ -130,18 +218,18 @@ export function useWaterIntakeMutation({
   };
 
   const mutation = useMutation({
-    mutationFn: async (changeDrinks: number) => {
+    mutationFn: async (changeDrinks: number): Promise<WaterWriteResult> => {
       if (!activeContainer) {
         throw new Error('No water container configured');
       }
-      return changeWaterIntake({
-        entryDate: date,
+      return writeWaterChange({
+        date,
         changeDrinks,
-        containerId: activeContainer.id,
+        container: activeContainer,
       });
     },
     onMutate: async (changeDrinks: number) => {
-      if (!activeContainer) return;
+      if (!activeContainer) return undefined;
 
       // #2115: a linked container's water credit is foodWater(entry) x
       // hydration_factor, not the container volume -- a different number the
@@ -149,9 +237,15 @@ export function useWaterIntakeMutation({
       // those, so skip and let onSuccess/onSettled apply the server's real
       // total instead of flashing the wrong one.
       const perPressMl = getServingVolume(activeContainer);
-      if (perPressMl == null) return;
+      if (perPressMl == null) return undefined;
 
       await queryClient.cancelQueries({ queryKey: dailySummaryQueryKey(date) });
+
+      // Kept so a press that ends up in the offline queue (shown by the
+      // overlay instead) or fails can put the cached day back.
+      const previous = queryClient.getQueryData<DailySummaryRawData>(
+        dailySummaryQueryKey(date)
+      );
 
       queryClient.setQueryData<DailySummaryRawData>(
         dailySummaryQueryKey(date),
@@ -168,8 +262,18 @@ export function useWaterIntakeMutation({
           };
         }
       );
+      return { previous };
     },
-    onSuccess: (response) => {
+    onSuccess: (response, _vars, context) => {
+      if (isQueuedWrite(response)) {
+        if (context?.previous) {
+          queryClient.setQueryData(
+            dailySummaryQueryKey(date),
+            context.previous
+          );
+        }
+        return;
+      }
       queryClient.setQueryData<DailySummaryRawData>(
         dailySummaryQueryKey(date),
         (old) => {
@@ -181,16 +285,31 @@ export function useWaterIntakeMutation({
         }
       );
     },
-    onError: () => {
-      Toast.show({
-        type: 'error',
+    onError: (error, _vars, context) => {
+      if (
+        context?.previous &&
+        (error instanceof NeedsConnectionError ||
+          error instanceof QueueFullError)
+      ) {
+        queryClient.setQueryData(dailySummaryQueryKey(date), context.previous);
+      }
+      showWaterError(t, error, {
         text1: t('waterIntake.updateFailed', { defaultValue: 'Error' }),
         text2: t('waterIntake.updateMessage', {
           defaultValue: 'Failed to update water intake. Please try again.',
         }),
       });
     },
-    onSettled: () => {
+    onSettled: (response, error) => {
+      // A queued press changed nothing on the server, and one refused for want
+      // of a connection never left the phone: a refetch could only fail.
+      if (
+        isQueuedWrite(response) ||
+        error instanceof NeedsConnectionError ||
+        error instanceof QueueFullError
+      ) {
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: dailySummaryQueryKey(date) });
       // The itemized log backs hydration reminders and the watch's log view.
       queryClient.invalidateQueries({ queryKey: waterIntakeLogQueryKey(date) });
@@ -240,9 +359,14 @@ export function useWaterIntakeMutation({
   // foodWater x hydration_factor, which the client cannot predict, so the
   // server's total is what lands.
   const logPreset = useMutation({
-    mutationFn: (containerId: number) =>
-      changeWaterIntake({ entryDate: date, changeDrinks: 1, containerId }),
-    onSuccess: () => {
+    mutationFn: (containerId: number): Promise<WaterWriteResult> => {
+      const container = (containers ?? []).find((c) => c.id === containerId);
+      if (!container) throw new Error('Unknown drink preset');
+      return writeWaterChange({ date, changeDrinks: 1, container });
+    },
+    onSuccess: (response) => {
+      // A queued drink is shown by the offline overlay; nothing to refetch.
+      if (isQueuedWrite(response)) return;
       void queryClient.invalidateQueries({
         queryKey: dailySummaryQueryKey(date),
       });
@@ -253,9 +377,8 @@ export function useWaterIntakeMutation({
         queryKey: caffeineActiveQueryKey(date),
       });
     },
-    onError: () => {
-      Toast.show({
-        type: 'error',
+    onError: (error) => {
+      showWaterError(t, error, {
         text1: t('dashboard.logDrinkFailed', {
           defaultValue: 'Could not log that drink',
         }),

@@ -163,6 +163,8 @@ describe('useWaterIntakeMutation', () => {
         entryDate: testDate,
         changeDrinks: 1,
         containerId: 9,
+        clientId: expect.any(String),
+        timeoutMs: expect.any(Number),
       });
     });
   });
@@ -275,6 +277,8 @@ describe('useWaterIntakeMutation', () => {
           entryDate: testDate,
           changeDrinks: 1,
           containerId: 1,
+          clientId: expect.any(String),
+          timeoutMs: expect.any(Number),
         });
       });
     });

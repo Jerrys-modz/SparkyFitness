@@ -34,6 +34,7 @@ import {
   useMeasurements,
 } from '../hooks/useMeasurements';
 import { useUpsertCheckIn } from '../hooks/useUpsertCheckIn';
+import { isQueuedWrite } from '../services/offlineQueue/queueRunner';
 import { usePreferences } from '../hooks/usePreferences';
 import { useProfile } from '../hooks/useProfile';
 import { getTodayDate, addDays, formatDate } from '../utils/dateUtils';
@@ -1110,9 +1111,12 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
           }
         }
 
+        let savedOffline = false;
         if (customSucceeded && hasAnyField) {
           try {
-            await upsertMutation.mutateAsync(payload);
+            savedOffline = isQueuedWrite(
+              await upsertMutation.mutateAsync(payload)
+            );
             stepSavedRef.current = true;
           } catch {
             customSucceeded = false;
@@ -1125,10 +1129,22 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
             guidedCheckIn.advance({ saved: true });
             return;
           }
-          Toast.show({
-            type: 'success',
-            text1: t('measurements.saved', { defaultValue: 'Saved' }),
-          });
+          Toast.show(
+            savedOffline
+              ? {
+                  type: 'info',
+                  text1: t('offlineQueue.toasts.measurementQueued', {
+                    defaultValue: 'Saved on this phone',
+                  }),
+                  text2: t('offlineQueue.toasts.willSync', {
+                    defaultValue: 'It will sync when your server is reachable.',
+                  }),
+                }
+              : {
+                  type: 'success',
+                  text1: t('measurements.saved', { defaultValue: 'Saved' }),
+                }
+          );
           navigation.goBack();
           return;
         }

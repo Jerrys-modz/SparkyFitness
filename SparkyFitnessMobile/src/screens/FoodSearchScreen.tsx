@@ -1305,7 +1305,11 @@ const FoodSearchScreen: React.FC<FoodSearchScreenProps> = ({
   // --- Body ---
 
   const renderBody = () => {
-    if (!isConnected) {
+    // Typing a search needs the server. The landing lists (recent, frequent
+    // and favourite foods) are cached, so they stay usable offline.
+    const hasCachedLanding =
+      recentFoods.length > 0 || topFoods.length > 0 || favoriteFoods.length > 0;
+    if (!isConnected && (inSearchMode || !hasCachedLanding)) {
       return (
         <View className="flex-1 justify-center items-center px-6">
           <Icon name="cloud-offline" size={48} color={accentColor} />

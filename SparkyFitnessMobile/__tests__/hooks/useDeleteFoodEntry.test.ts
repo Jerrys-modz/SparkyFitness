@@ -4,6 +4,8 @@ import Toast from 'react-native-toast-message';
 import { useDeleteFoodEntry } from '../../src/hooks/useDeleteFoodEntry';
 import { deleteFoodEntry } from '../../src/services/api/foodEntriesApi';
 import { dailySummaryQueryKey } from '../../src/hooks/queryKeys';
+import { useOfflineQueueStore } from '../../src/stores/offlineQueueStore';
+import { foodItem } from '../helpers/offlineQueue';
 import {
   createTestQueryClient,
   createQueryWrapper,
@@ -225,5 +227,35 @@ describe('useDeleteFoodEntry', () => {
     });
 
     invalidateSpy.mockRestore();
+  });
+
+  test('cancels a queued entry instead of calling the server', async () => {
+    await useOfflineQueueStore
+      .getState()
+      .commit((state) => ({ ...state, items: [foodItem('queued-1')] }));
+    const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries');
+    const onSuccess = jest.fn();
+
+    const { result } = renderHook(
+      () =>
+        useDeleteFoodEntry({
+          entryId: 'pending:queued-1',
+          entryDate: '2026-10-17',
+          onSuccess,
+        }),
+      { wrapper: createQueryWrapper(queryClient) }
+    );
+
+    act(() => {
+      result.current.deleteEntry();
+    });
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+    expect(mockDeleteFoodEntry).not.toHaveBeenCalled();
+    expect(useOfflineQueueStore.getState().items).toEqual([]);
+
+    // Nothing changed on the server, so there is nothing to refetch.
+    act(() => result.current.invalidateCache());
+    expect(invalidateSpy).not.toHaveBeenCalled();
   });
 });

@@ -63,6 +63,8 @@ const NATIVE_TABS_ROUTE_EXCLUSIONS = {
   AppSettings: 'Root-stack settings route presented above the tab host.',
   About: 'Root-stack settings route presented above the tab host.',
   WhatsNew: 'Root-stack informational route presented above the tab host.',
+  OfflineQueue:
+    'Root-stack utility route opened from the offline banner above the tab host.',
   CycleSettings: 'Root-stack settings route presented above the tab host.',
   CycleOnboarding:
     'First-run cycle setup wizard route presented above the tab host.',

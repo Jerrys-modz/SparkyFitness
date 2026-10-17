@@ -132,4 +132,38 @@ describe('SwipeableFoodRow', () => {
 
     alertSpy.mockRestore();
   });
+
+  it('marks a queued entry, does not offer to adjust it, and explains a tap', () => {
+    const entry = createEntry({ id: 'pending:queued-1' });
+    const onAdjustServing = jest.fn();
+
+    const screen = renderRow(
+      <SwipeableFoodRow
+        entry={entry}
+        nutrition={{ calories: 120, protein: 15, carbs: 8, fat: 2 }}
+        onAdjustServing={onAdjustServing}
+      />
+    );
+
+    expect(screen.getByText('Waiting to sync')).toBeTruthy();
+    // Plain calories, not the adjust-serving button.
+    expect(screen.queryByText(/120 Cal ▾/)).toBeNull();
+
+    fireEvent.press(screen.getByText('Greek Yogurt'));
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(onAdjustServing).not.toHaveBeenCalled();
+  });
+
+  it('shows no badge on an entry the server already has', () => {
+    const screen = renderRow(
+      <SwipeableFoodRow
+        entry={createEntry()}
+        nutrition={{ calories: 120, protein: 15, carbs: 8, fat: 2 }}
+        onAdjustServing={jest.fn()}
+      />
+    );
+
+    expect(screen.queryByText('Waiting to sync')).toBeNull();
+  });
 });
