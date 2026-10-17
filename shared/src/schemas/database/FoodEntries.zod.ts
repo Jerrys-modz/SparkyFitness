@@ -59,6 +59,7 @@ export const foodEntriesSchema = z.object({
   meal_type_id: mealTypesIdSchema,
   source: z.string().nullable(),
   source_id: z.string().nullable(),
+  client_id: z.string().nullable(),
   images: z.array(z.string()),
   notes: z.string().nullable(),
 });
@@ -109,6 +110,7 @@ export const foodEntriesInitializerSchema = z.object({
   meal_type_id: mealTypesIdSchema,
   source: z.string().optional().nullable(),
   source_id: z.string().optional().nullable(),
+  client_id: z.string().optional().nullable(),
   images: z.array(z.string()).optional(),
   notes: z.string().optional().nullable(),
 });
@@ -159,6 +161,7 @@ export const foodEntriesMutatorSchema = z.object({
   meal_type_id: mealTypesIdSchema.optional(),
   source: z.string().optional().nullable(),
   source_id: z.string().optional().nullable(),
+  client_id: z.string().optional().nullable(),
   images: z.array(z.string()).optional(),
   notes: z.string().optional().nullable(),
 });

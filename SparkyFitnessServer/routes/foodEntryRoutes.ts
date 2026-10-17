@@ -7,6 +7,7 @@ import { clearUserTdeeCache } from '../services/AdaptiveTdeeService.js';
 import {
   CopyReviewedFoodEntriesFromUserBodySchema,
   CopySelectedFoodEntriesFromUserBodySchema,
+  clientRequestIdSchema,
   isEntryTimeString,
 } from '@workspace/shared';
 import {
@@ -145,7 +146,7 @@ router.post('/import-from-csv', authenticate, async (req, res, next) => {
  *   post:
  *     summary: Create a new food entry
  *     tags: [Nutrition & Meals]
- *     description: Adds a new food entry to the user's diary for a specific meal and date.
+ *     description: Adds a new food entry to the user's diary for a specific meal and date. An optional `client_id` (UUID) makes the call idempotent. A repeat with the same id returns the entry the first call created.
  *     requestBody:
  *       required: true
  *       content:
@@ -181,6 +182,15 @@ router.post(
       ) {
         return res.status(400).json({
           error: 'entry_time must be in HH:MM (24h) format.',
+        });
+      }
+
+      if (
+        req.body.client_id !== undefined &&
+        !clientRequestIdSchema.safeParse(req.body.client_id).success
+      ) {
+        return res.status(400).json({
+          error: 'client_id must be a UUID.',
         });
       }
 
