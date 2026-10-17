@@ -6,6 +6,7 @@ export const DASHBOARD_CARD_KEYS = [
   'macros',
   'exercise',
   'trainingLoad',
+  'coaching',
   'hydration',
   'caffeine',
   'fasting',
@@ -33,6 +34,8 @@ export const DASHBOARD_CARD_TITLES: Record<
     t('dashboardSettings.exercise', { defaultValue: 'Exercise Progress' }),
   trainingLoad: (t) =>
     t('dashboardSettings.trainingLoad', { defaultValue: 'Training Load' }),
+  coaching: (t) =>
+    t('dashboardSettings.coaching', { defaultValue: 'Weekly Coaching' }),
   hydration: (t) =>
     t('dashboardSettings.hydration', { defaultValue: 'Hydration' }),
   caffeine: (t) =>
@@ -81,6 +84,11 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
     t('dashboardSettings.trainingLoadSubtitle', {
       defaultValue:
         'Show this week against your usual training, with a nudge to rest',
+    }),
+  coaching: (t) =>
+    t('dashboardSettings.coachingSubtitle', {
+      defaultValue:
+        'Show your weekly check-in: weight trend, estimated burn and suggested targets',
     }),
   hydration: (t) =>
     t('dashboardSettings.hydrationSubtitle', {

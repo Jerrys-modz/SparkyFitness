@@ -19,6 +19,7 @@ import {
 const CHANNEL_ID = 'workout-timer';
 const FASTING_CHANNEL_ID = 'fasting';
 const HYDRATION_CHANNEL_ID = 'hydration';
+const COACHING_CHANNEL_ID = 'coaching';
 export const MEDICATION_REMINDER_CHANNEL_ID = 'medication-reminders';
 const EXACT_ALARM_PROMPT_KEY = '@SparkyFitness/exactAlarmPromptShown';
 
@@ -76,6 +77,13 @@ export async function registerLocalizedNotificationPresentation(): Promise<void>
       ),
       importance: Notifications.AndroidImportance.HIGH,
       enableVibrate: true,
+    });
+    await Notifications.setNotificationChannelAsync(COACHING_CHANNEL_ID, {
+      name: notificationCopy(
+        'notifications.channels.coaching',
+        'Weekly check-in'
+      ),
+      importance: Notifications.AndroidImportance.DEFAULT,
     });
     await Notifications.setNotificationChannelAsync(
       MEDICATION_REMINDER_CHANNEL_ID,
@@ -628,6 +636,50 @@ export async function scheduleWaterReminderNotifications(
     }
   }
   return ids;
+}
+
+/**
+ * Schedules the weekly coaching check-in notification for `time` and returns its
+ * id, or null when it was not scheduled. Never prompts for permission: this runs
+ * from a background reconcile, and the settings toggle only turns on once
+ * permission is granted.
+ */
+export async function scheduleCoachingCheckInNotification(
+  time: Date
+): Promise<string | null> {
+  const prefs = useAppPreferencesStore.getState();
+  if (!prefs.notificationsEnabled || !prefs.coachingReminderEnabled) {
+    return null;
+  }
+  if (!(await hasNotificationPermission())) return null;
+  const timeMs = time.getTime();
+  if (Number.isNaN(timeMs) || timeMs <= Date.now()) return null;
+  try {
+    return await Notifications.scheduleNotificationAsync({
+      content: {
+        title: notificationCopy(
+          'notifications.coaching.title',
+          'Your weekly check-in is ready'
+        ),
+        body: notificationCopy(
+          'notifications.coaching.body',
+          'See how your week went and whether your targets need a change.'
+        ),
+        sound: true,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: time,
+        channelId: COACHING_CHANNEL_ID,
+      },
+    });
+  } catch (err) {
+    addLog(
+      `scheduleCoachingCheckInNotification failed: ${(err as Error).message}`,
+      'ERROR'
+    );
+    return null;
+  }
 }
 
 export async function cancelScheduledNotification(
