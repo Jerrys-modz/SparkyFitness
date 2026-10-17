@@ -5,6 +5,7 @@ import {
   routePointSchema,
   type CreateRouteBody,
   type Route,
+  type RouteRun,
   type RouteSummary,
   type RoutePoint,
   type UpdateRouteBody,
@@ -28,6 +29,9 @@ interface RouteRow {
   points: unknown;
   cues: unknown;
   source_exercise_entry_id: string | null;
+  run_count: number;
+  best_duration_seconds: number | null;
+  last_run_date: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -35,9 +39,26 @@ interface RouteRow {
 const pointsSchema = z.array(routePointSchema);
 const cuesSchema = z.array(routeCueSchema);
 
+/**
+ * What the diary says about runs over a route, as columns of a `routes` row
+ * (they read `routes.id`, so they work in SELECT and RETURNING alike). The
+ * best time is the shortest logged duration; entries with no time are left out.
+ */
+const RUN_STATS_COLUMNS = `
+  (SELECT COUNT(*)::int FROM exercise_entries e
+     WHERE e.route_id = routes.id) AS run_count,
+  (SELECT MIN(ROUND(e.duration_minutes * 60))::int FROM exercise_entries e
+     WHERE e.route_id = routes.id AND e.duration_minutes > 0)
+     AS best_duration_seconds,
+  (SELECT to_char(MAX(e.entry_date), 'YYYY-MM-DD') FROM exercise_entries e
+     WHERE e.route_id = routes.id) AS last_run_date`;
+
+const ROUTE_COLUMNS = `routes.*, ${RUN_STATS_COLUMNS}`;
+
 const SUMMARY_COLUMNS = `id, name, activity, source, distance_m, elevation_gain_m,
   source_exercise_entry_id, created_at, updated_at,
-  points -> 0 AS start, jsonb_array_length(points) AS point_count`;
+  points -> 0 AS start, jsonb_array_length(points) AS point_count,
+  ${RUN_STATS_COLUMNS}`;
 
 interface RouteSummaryRow extends Omit<RouteRow, 'points' | 'cues'> {
   start: unknown;
@@ -55,6 +76,9 @@ function mapRoute(row: RouteRow): Route {
     points: pointsSchema.catch([]).parse(row.points),
     cues: cuesSchema.catch([]).parse(row.cues),
     sourceExerciseEntryId: row.source_exercise_entry_id,
+    runCount: row.run_count,
+    bestDurationSeconds: row.best_duration_seconds,
+    lastRunDate: row.last_run_date,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   };
@@ -70,6 +94,9 @@ function mapSummary(row: RouteSummaryRow): RouteSummary {
     distanceM: row.distance_m,
     elevationGainM: row.elevation_gain_m,
     sourceExerciseEntryId: row.source_exercise_entry_id,
+    runCount: row.run_count,
+    bestDurationSeconds: row.best_duration_seconds,
+    lastRunDate: row.last_run_date,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
     start: start.success ? start.data : null,
@@ -101,7 +128,7 @@ export async function getRoute(
   const client = await getClient(userId, authenticatedUserId);
   try {
     const result = (await client.query(
-      'SELECT * FROM routes WHERE id = $1 AND user_id = $2',
+      `SELECT ${ROUTE_COLUMNS} FROM routes WHERE id = $1 AND user_id = $2`,
       [routeId, userId]
     )) as { rows: RouteRow[] };
     return result.rows[0] ? mapRoute(result.rows[0]) : null;
@@ -143,7 +170,8 @@ export async function createRoute(
          (user_id, name, activity, source, distance_m, elevation_gain_m,
           points, cues, source_exercise_entry_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9)
-       RETURNING *`,
+       RETURNING *, 0 AS run_count, NULL::int AS best_duration_seconds,
+                 NULL::text AS last_run_date`,
       [
         userId,
         input.name,
@@ -180,7 +208,7 @@ export async function updateRoute(
               activity = COALESCE($4, activity),
               updated_at = NOW()
         WHERE id = $1 AND user_id = $2
-        RETURNING *`,
+        RETURNING routes.*, ${RUN_STATS_COLUMNS}`,
       [routeId, userId, patch.name ?? null, patch.activity ?? null]
     )) as { rows: RouteRow[] };
     return result.rows[0] ? mapRoute(result.rows[0]) : null;
@@ -241,6 +269,93 @@ export async function getActivityTrack(
       if (parsed.success) points.push(parsed.data);
     }
     return { name: row.exercise_name, points };
+  } finally {
+    client.release();
+  }
+}
+
+interface RouteRunRow {
+  entry_id: string;
+  entry_date: string;
+  duration_seconds: number;
+  distance_m: number | null;
+  avg_heart_rate: number | null;
+}
+
+/**
+ * The diary entries that followed a route, newest first, or null when the
+ * route is not the person's. Pace is worked out here from the logged time and
+ * distance so every client shows the same figure.
+ */
+export async function listRouteRuns(
+  userId: string,
+  routeId: string,
+  authenticatedUserId?: string
+): Promise<RouteRun[] | null> {
+  const client = await getClient(userId, authenticatedUserId);
+  try {
+    const owned = (await client.query(
+      'SELECT 1 FROM routes WHERE id = $1 AND user_id = $2',
+      [routeId, userId]
+    )) as { rows: unknown[] };
+    if (owned.rows.length === 0) return null;
+    const result = (await client.query(
+      `SELECT e.id AS entry_id,
+              to_char(e.entry_date, 'YYYY-MM-DD') AS entry_date,
+              ROUND(e.duration_minutes * 60)::int AS duration_seconds,
+              CASE WHEN e.distance > 0 THEN e.distance * 1000 END AS distance_m,
+              e.avg_heart_rate
+         FROM exercise_entries e
+        WHERE e.route_id = $1 AND e.user_id = $2
+        ORDER BY e.entry_date DESC, e.entry_time DESC NULLS LAST,
+                 e.created_at DESC
+        LIMIT 200`,
+      [routeId, userId]
+    )) as { rows: RouteRunRow[] };
+    return result.rows.map((row) => ({
+      entryId: row.entry_id,
+      date: row.entry_date,
+      durationSeconds: row.duration_seconds,
+      distanceM: row.distance_m,
+      paceSecPerKm:
+        row.distance_m && row.distance_m > 0 && row.duration_seconds > 0
+          ? Math.round(row.duration_seconds / (row.distance_m / 1000))
+          : null,
+      avgHeartRate: row.avg_heart_rate,
+    }));
+  } finally {
+    client.release();
+  }
+}
+
+export type SetEntryRouteResult = 'ok' | 'entry_not_found' | 'route_not_found';
+
+/**
+ * Links one of the person's exercise entries to one of their routes, or
+ * clears the link when `routeId` is null. The route is looked up as the
+ * person (the `routes` policy is owner-only), so another user's route, or any
+ * route from a delegated context, is reported as not found.
+ */
+export async function setEntryRoute(
+  userId: string,
+  exerciseEntryId: string,
+  routeId: string | null,
+  authenticatedUserId?: string
+): Promise<SetEntryRouteResult> {
+  const client = await getClient(userId, authenticatedUserId);
+  try {
+    if (routeId !== null) {
+      const route = (await client.query(
+        'SELECT 1 FROM routes WHERE id = $1 AND user_id = $2',
+        [routeId, userId]
+      )) as { rows: unknown[] };
+      if (route.rows.length === 0) return 'route_not_found';
+    }
+    const result = (await client.query(
+      'UPDATE exercise_entries SET route_id = $3 WHERE id = $1 AND user_id = $2',
+      [exerciseEntryId, userId, routeId]
+    )) as { rowCount: number | null };
+    return (result.rowCount ?? 0) > 0 ? 'ok' : 'entry_not_found';
   } finally {
     client.release();
   }

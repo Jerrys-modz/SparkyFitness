@@ -31,6 +31,13 @@ final class WatchRouteTrackerTests: XCTestCase {
         WatchRouteTracker(route: route ?? lRoute())!
     }
 
+    /// A tracker that has already been on the line, so off-route rules apply.
+    private func trackerOnTheLine() -> WatchRouteTracker {
+        var t = tracker()
+        _ = t.update(lat: at(0, 200).lat, lon: at(0, 200).lon, accuracy: 5, at: t0 - 10)
+        return t
+    }
+
     func testNeedsTwoPoints() {
         XCTAssertNil(WatchRouteTracker(route: WatchRoute(id: "x", name: "x", points: [at(0, 0)], cues: [])))
     }
@@ -93,7 +100,7 @@ final class WatchRouteTrackerTests: XCTestCase {
     }
 
     func testOffRouteNeedsToLastSeveralSeconds() throws {
-        var t = tracker()
+        var t = trackerOnTheLine()
         let away = at(80, 200) // 80 m east of the first leg
         let first = try XCTUnwrap(t.update(lat: away.lat, lon: away.lon, accuracy: 5, at: t0))
         XCTAssertEqual(first.snapshot.distanceFromRoute, 80, accuracy: 3)
@@ -110,7 +117,7 @@ final class WatchRouteTrackerTests: XCTestCase {
     }
 
     func testReturningClearsOffRouteAtOnce() throws {
-        var t = tracker()
+        var t = trackerOnTheLine()
         let away = at(80, 200)
         _ = t.update(lat: away.lat, lon: away.lon, accuracy: 5, at: t0)
         _ = t.update(lat: away.lat, lon: away.lon, accuracy: 5, at: t0 + 7)
@@ -120,7 +127,7 @@ final class WatchRouteTrackerTests: XCTestCase {
     }
 
     func testABriefStrayResetsTheTimer() throws {
-        var t = tracker()
+        var t = trackerOnTheLine()
         let away = at(80, 200)
         _ = t.update(lat: away.lat, lon: away.lon, accuracy: 5, at: t0)
         _ = t.update(lat: at(0, 205).lat, lon: at(0, 205).lon, accuracy: 5, at: t0 + 4)
@@ -175,5 +182,96 @@ final class WatchRouteTrackerTests: XCTestCase {
         XCTAssertEqual(distances.first, 0)
         XCTAssertEqual(distances[40], 400, accuracy: 2)
         XCTAssertEqual(WatchRouteTracker.cumulativeDistances([]), [])
+    }
+
+    // MARK: - Getting to the start
+
+    func testFarFromTheStartIsAnApproachNotOffRoute() throws {
+        var t = tracker()
+        let far = at(0, -600) // 600 m south of the first point
+        let first = try XCTUnwrap(t.update(lat: far.lat, lon: far.lon, accuracy: 5, at: t0))
+        XCTAssertFalse(first.snapshot.reachedRoute)
+        XCTAssertFalse(first.snapshot.isOffRoute)
+        let approach = try XCTUnwrap(first.snapshot.startApproach)
+        XCTAssertEqual(approach.distanceMeters, 600, accuracy: 5)
+        XCTAssertEqual(approach.bearing, 0, accuracy: 1) // the start is due north
+        XCTAssertEqual(first.snapshot.progressMeters, 0, accuracy: 1)
+        XCTAssertGreaterThan(first.snapshot.distanceFromRoute, WatchRouteTracker.offRouteMeters)
+    }
+
+    func testNoOffRouteAlarmWhileGettingToTheStart() throws {
+        var t = tracker()
+        let far = at(150, -300)
+        var all: [WatchRouteTracker.Event] = []
+        for seconds in stride(from: 0.0, through: 120.0, by: 3.0) {
+            let update = try XCTUnwrap(t.update(lat: far.lat, lon: far.lon, accuracy: 5, at: t0 + seconds))
+            XCTAssertFalse(update.snapshot.isOffRoute)
+            XCTAssertNotNil(update.snapshot.startApproach)
+            all += update.events
+        }
+        XCTAssertEqual(all, [])
+    }
+
+    func testWalkingTowardsTheStartShrinksTheDistance() throws {
+        var t = tracker()
+        var last = Double.infinity
+        for north in stride(from: -500.0, through: -100.0, by: 100.0) {
+            let p = at(0, north)
+            let update = try XCTUnwrap(t.update(lat: p.lat, lon: p.lon, accuracy: 5, at: t0 + (north + 500) / 2))
+            let distance = try XCTUnwrap(update.snapshot.startApproach).distanceMeters
+            XCTAssertLessThan(distance, last)
+            last = distance
+        }
+    }
+
+    func testTheCourseIsTakenFromTheWayTheWearerMoves() throws {
+        var t = tracker()
+        // Moving east with the start to the north-east: it is off to the left of the way ahead.
+        let a = at(-200, -300)
+        let b = at(-150, -300)
+        _ = t.update(lat: a.lat, lon: a.lon, accuracy: 5, at: t0)
+        let update = try XCTUnwrap(t.update(lat: b.lat, lon: b.lon, accuracy: 5, at: t0 + 10))
+        let approach = try XCTUnwrap(update.snapshot.startApproach)
+        XCTAssertEqual(try XCTUnwrap(approach.course), 90, accuracy: 1)
+        // The start is at about 27 deg; with east at the top of the screen that is 297 deg round.
+        XCTAssertEqual(approach.arrowRotation(heading: approach.course), approach.bearing - 90 + 360, accuracy: 0.1)
+        XCTAssertEqual(approach.arrowRotation(heading: nil), approach.bearing, accuracy: 0.1)
+    }
+
+    func testNearTheStartIsAlreadyOnTheRoute() throws {
+        var t = tracker()
+        let near = at(10, 15) // within 40 m of the first leg
+        let update = try XCTUnwrap(t.update(lat: near.lat, lon: near.lon, accuracy: 5, at: t0))
+        XCTAssertTrue(update.snapshot.reachedRoute)
+        XCTAssertNil(update.snapshot.startApproach)
+        XCTAssertFalse(update.snapshot.isOffRoute)
+    }
+
+    func testReachingTheLineEndsTheApproachForGood() throws {
+        var t = tracker()
+        let far = at(0, -200)
+        XCTAssertNotNil(try XCTUnwrap(t.update(lat: far.lat, lon: far.lon, accuracy: 5, at: t0)).snapshot.startApproach)
+        let start = at(0, 5)
+        let reached = try XCTUnwrap(t.update(lat: start.lat, lon: start.lon, accuracy: 5, at: t0 + 60))
+        XCTAssertTrue(reached.snapshot.reachedRoute)
+        XCTAssertNil(reached.snapshot.startApproach)
+        // Back off into the distance: now that is off the route, not an approach.
+        let away = at(0, -300)
+        _ = t.update(lat: away.lat, lon: away.lon, accuracy: 5, at: t0 + 70)
+        let later = try XCTUnwrap(t.update(lat: away.lat, lon: away.lon, accuracy: 5, at: t0 + 77))
+        XCTAssertNil(later.snapshot.startApproach)
+        XCTAssertTrue(later.snapshot.isOffRoute)
+        XCTAssertEqual(later.events, [.wentOffRoute])
+    }
+
+    func testDriftingOffAfterReachingTheLineIsNormalOffRoute() throws {
+        var t = trackerOnTheLine()
+        let away = at(120, 200)
+        _ = t.update(lat: away.lat, lon: away.lon, accuracy: 5, at: t0)
+        let sustained = try XCTUnwrap(t.update(lat: away.lat, lon: away.lon, accuracy: 5, at: t0 + 7))
+        XCTAssertTrue(sustained.snapshot.reachedRoute)
+        XCTAssertNil(sustained.snapshot.startApproach)
+        XCTAssertTrue(sustained.snapshot.isOffRoute)
+        XCTAssertEqual(sustained.events, [.wentOffRoute])
     }
 }

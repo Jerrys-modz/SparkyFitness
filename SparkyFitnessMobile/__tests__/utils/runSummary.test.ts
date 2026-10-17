@@ -62,3 +62,8 @@ test('averages heart rate readings and has none without them', () => {
   expect(averageHeartRate([{ bpm: 140 }, { bpm: 151 }])).toBe(146);
   expect(averageHeartRate([])).toBeNull();
 });
+
+test('carries the followed route id, or null', () => {
+  expect(build({ routeId: 'r1' }).routeId).toBe('r1');
+  expect(build().routeId).toBeNull();
+});

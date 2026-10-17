@@ -10,6 +10,12 @@ import type { WatchRoutePayload } from '../../modules/watch-connectivity';
 
 /** The most points the watch is sent; matches what the server stores. */
 export const WATCH_ROUTE_MAX_POINTS = 2000;
+/**
+ * The most points a route with elevation is sent. The elevations add about two
+ * bytes a point, so 1600 points with them stay inside the ~20 KB that 2000
+ * points without them take.
+ */
+export const WATCH_ROUTE_MAX_POINTS_WITH_ELEVATION = 1600;
 
 /** Degrees are sent as whole millionths (about 11 cm), so the wire holds integers. */
 const MICRO = 1_000_000;
@@ -99,6 +105,33 @@ export function deriveRouteCues(points: readonly RoutePoint[]): RouteCue[] {
   ];
 }
 
+/** Zigzag: 0, -1, 1, -2 … become 0, 1, 2, 3 …, so small steps stay small non-negative integers. */
+function zigzag(value: number): number {
+  return value >= 0 ? value * 2 : -value * 2 - 1;
+}
+
+/**
+ * Whole-metre heights for the watch, one per point, or null when any point
+ * lacks an altitude (nothing is filled in). Each entry is the zigzag of the
+ * step from the previous height (the first from 0): a property list stores a
+ * small non-negative integer in two bytes but a negative one in nine, and
+ * heights between neighbouring points differ by a metre or two.
+ */
+export function encodeWatchElevations(
+  points: readonly RoutePoint[]
+): number[] | null {
+  if (points.length === 0 || points.some((p) => p.alt === undefined)) {
+    return null;
+  }
+  let previous = 0;
+  return points.map((p) => {
+    const metres = Math.round(p.alt as number);
+    const step = zigzag(metres - previous);
+    previous = metres;
+    return step;
+  });
+}
+
 /** Index in `kept` (ascending source indexes) closest to `source`. */
 function nearestKept(kept: readonly number[], source: number): number {
   let low = 0;
@@ -124,8 +157,11 @@ export function toWatchRoutePayload(
 
   let points: readonly RoutePoint[] = route.points;
   let cues: readonly RouteCue[] = route.cues;
-  if (points.length > WATCH_ROUTE_MAX_POINTS) {
-    const thinned = simplifyRoute(points, WATCH_ROUTE_MAX_POINTS);
+  const cap = points.every((p) => p.alt !== undefined)
+    ? WATCH_ROUTE_MAX_POINTS_WITH_ELEVATION
+    : WATCH_ROUTE_MAX_POINTS;
+  if (points.length > cap) {
+    const thinned = simplifyRoute(points, cap);
     points = thinned.points;
     cues = cues.map((cue) => ({
       ...cue,
@@ -145,6 +181,8 @@ export function toWatchRoutePayload(
       ...(text ? { text } : {}),
     }));
 
+  const elevations = encodeWatchElevations(points);
+
   return {
     id: route.id,
     name: route.name,
@@ -153,5 +191,6 @@ export function toWatchRoutePayload(
       Math.round(p.lon * MICRO),
     ]),
     cues: sentCues,
+    ...(elevations ? { elevations } : {}),
   };
 }

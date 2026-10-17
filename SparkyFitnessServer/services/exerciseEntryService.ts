@@ -4,6 +4,7 @@ import exerciseEntryRepository, {
   type WatchTelemetryFields,
   type WatchTelemetryZoneSpec,
 } from '../models/exerciseEntry.js';
+import { setEntryRoute } from '../models/routeRepository.js';
 import workoutPresetRepository from '../models/workoutPresetRepository.js';
 import activityDetailsRepository from '../models/activityDetailsRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
@@ -787,8 +788,36 @@ async function setExerciseEntryDistance(
   }
 }
 
+/**
+ * Links an entry to the saved route it followed (null clears the link). The
+ * route must be the person's own; a missing entry or route is a 404.
+ */
+async function attachRouteToExerciseEntry(
+  userId: string,
+  actingUserId: string,
+  exerciseEntryId: string,
+  routeId: string | null
+): Promise<void> {
+  const outcome = await setEntryRoute(
+    userId,
+    exerciseEntryId,
+    routeId,
+    actingUserId
+  );
+  if (outcome === 'ok') return;
+  const error = new Error(
+    outcome === 'route_not_found'
+      ? 'Route not found.'
+      : 'Exercise entry not found.'
+  );
+  // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+  error.status = 404;
+  throw error;
+}
+
 export {
   importExerciseEntriesFromCsv,
+  attachRouteToExerciseEntry,
   attachWatchTelemetryToExerciseEntry,
   attachGpsTrackToExerciseEntry,
   attachLapsToExerciseEntry,
@@ -798,6 +827,7 @@ export {
 };
 export default {
   importExerciseEntriesFromCsv,
+  attachRouteToExerciseEntry,
   attachWatchTelemetryToExerciseEntry,
   attachGpsTrackToExerciseEntry,
   attachLapsToExerciseEntry,

@@ -767,6 +767,8 @@ export interface WatchRunFinishedPayload {
   distanceScale?: number;
   /** What the watch showed before a treadmill distance was entered on the wrist. */
   estimatedDistanceMeters?: number;
+  /** The saved route the run followed; absent when it followed none. */
+  routeId?: string;
 }
 
 /**
@@ -832,6 +834,12 @@ export interface WatchRoutePayload {
   id: string;
   name: string;
   points: number[];
+  /**
+   * Whole-metre heights, one per point, as the zigzag of each step from the
+   * previous height (the first from 0). Omitted when any point has no altitude;
+   * a watch that predates the field ignores it. See `encodeWatchElevations`.
+   */
+  elevations?: number[];
   cues: {
     index: number;
     kind:

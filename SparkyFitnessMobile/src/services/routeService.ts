@@ -6,16 +6,22 @@ import {
   serializeGpx,
   type CreateRouteBody,
   type Route,
+  type RouteRun,
   type RouteSummary,
   type UpdateRouteBody,
 } from '@workspace/shared';
 import { queryClient } from '../hooks/queryClient';
-import { routeQueryKey, routesQueryKey } from '../hooks/queryKeys';
+import {
+  routeQueryKey,
+  routeRunsQueryKey,
+  routesQueryKey,
+} from '../hooks/queryKeys';
 import {
   createRoute,
   createRouteFromActivity,
   deleteRoute,
   fetchRoute,
+  fetchRouteRuns,
   fetchRoutes,
   importGpxRoute,
   updateRoute,
@@ -51,6 +57,21 @@ export function useRoute(id: string): {
     enabled: id.length > 0,
   });
   return { route: data, isLoading, isError, refetch };
+}
+
+/** The runs and walks that followed a route, newest first. */
+export function useRouteRuns(id: string): {
+  runs: RouteRun[];
+  isLoading: boolean;
+  isError: boolean;
+  refetch: () => Promise<unknown>;
+} {
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: routeRunsQueryKey(id),
+    queryFn: async () => (await fetchRouteRuns(id)).runs,
+    enabled: id.length > 0,
+  });
+  return { runs: data ?? [], isLoading, isError, refetch };
 }
 
 const refreshRoutes = () =>

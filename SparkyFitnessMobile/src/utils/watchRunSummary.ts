@@ -35,6 +35,7 @@ export function watchRunSummary(
     avgHeartRate,
     program,
     entryId,
+    routeId: payload.routeId ?? null,
   });
   const laps: RecordedSplit[] =
     points.length >= 2

@@ -375,6 +375,9 @@ enum OutboundPayloads {
         if let estimated = result.estimatedDistanceMeters {
             payload["estimatedDistanceMeters"] = estimated
         }
+        if let routeId = result.routeId {
+            payload["routeId"] = routeId
+        }
         if let plan = result.plan {
             payload["planId"] = plan.id
             if let programId = plan.programId, let index = plan.programIndex {

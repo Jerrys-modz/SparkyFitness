@@ -10,6 +10,8 @@ import {
   sendRouteToWatch,
 } from '../../src/services/watchRouteSync';
 import { startRunOnWatch } from '../../src/services/watchRunControl';
+import { openRunEntry } from '../../src/services/openRunEntry';
+import { useRoute, useRouteRuns } from '../../src/services/routeService';
 import { initializeI18n } from '../../src/localization/i18n';
 import type { RootStackScreenProps } from '../../src/types/navigation';
 
@@ -26,6 +28,9 @@ const savedRoute = {
   ],
   cues: [],
   sourceExerciseEntryId: null,
+  runCount: 0,
+  bestDurationSeconds: null,
+  lastRunDate: null,
   createdAt: '2026-03-01T10:00:00.000Z',
   updatedAt: '2026-03-01T10:00:00.000Z',
 };
@@ -38,6 +43,7 @@ jest.mock('../../src/services/routeService', () => ({
     isError: false,
     refetch: jest.fn(),
   })),
+  useRouteRuns: jest.fn(() => ({ runs: [] })),
   removeRoute: jest.fn(() => Promise.resolve()),
   renameRoute: jest.fn(() => Promise.resolve()),
   shareRouteGpx: jest.fn(() => Promise.resolve()),
@@ -48,6 +54,9 @@ jest.mock('../../src/hooks/useWatchConnectivity', () => ({
 jest.mock('../../src/services/watchRouteSync', () => ({
   sendRouteToWatch: jest.fn(() => Promise.resolve()),
   removeRouteFromWatch: jest.fn(() => Promise.resolve()),
+}));
+jest.mock('../../src/services/openRunEntry', () => ({
+  openRunEntry: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('../../src/services/watchRunControl', () => ({
   startRunOnWatch: jest.fn(() => Promise.resolve('q1')),
@@ -61,8 +70,11 @@ jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 jest.mock('../../src/hooks/useScreenHeader', () => ({
   useScreenHeader: jest.fn(() => null),
 }));
+let mockDistanceUnit = 'km';
 jest.mock('../../src/hooks/usePreferences', () => ({
-  usePreferences: () => ({ preferences: { default_distance_unit: 'km' } }),
+  usePreferences: () => ({
+    preferences: { default_distance_unit: mockDistanceUnit },
+  }),
 }));
 jest.mock('../../src/components/exerciseStats/RouteTileMap', () => () => null);
 jest.mock('react-native-safe-area-context', () => ({
@@ -223,5 +235,160 @@ describe('RouteDetailScreen on the watch', () => {
       );
       alert.mockRestore();
     });
+  });
+});
+
+describe('RouteDetailScreen history', () => {
+  beforeAll(async () => {
+    await initializeI18n('en');
+  });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    paired(false);
+    record({}, null);
+  });
+  afterEach(() => {
+    jest.mocked(useRoute).mockReturnValue({
+      route: savedRoute,
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    } as never);
+    jest.mocked(useRouteRuns).mockReturnValue({ runs: [] } as never);
+  });
+
+  const withRuns = () => {
+    jest.mocked(useRoute).mockReturnValue({
+      route: {
+        ...savedRoute,
+        runCount: 2,
+        bestDurationSeconds: 1490,
+        lastRunDate: '2026-10-16',
+      },
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    } as never);
+    jest.mocked(useRouteRuns).mockReturnValue({
+      runs: [
+        {
+          entryId: 'e2',
+          date: '2026-10-16',
+          durationSeconds: 1500,
+          distanceM: 5000,
+          paceSecPerKm: 300,
+          avgHeartRate: 151,
+        },
+        {
+          entryId: 'e1',
+          date: '2026-10-09',
+          durationSeconds: 1490,
+          distanceM: null,
+          paceSecPerKm: null,
+          avgHeartRate: null,
+        },
+      ],
+    } as never);
+  };
+
+  it('says there are no runs yet', () => {
+    const screen = renderScreen();
+    expect(screen.getByText('History')).toBeTruthy();
+    expect(screen.getByText(/No runs yet/)).toBeTruthy();
+    expect(screen.queryByTestId('route-history-count')).toBeNull();
+  });
+
+  it('shows the count, best time, last run and the runs', () => {
+    withRuns();
+    const screen = renderScreen();
+    expect(screen.getByTestId('route-history-count').props.children).toBe(2);
+    expect(screen.getByTestId('route-history-best').props.children).toBe(
+      '24:50'
+    );
+    expect(screen.getByTestId('route-history-last')).toBeTruthy();
+    expect(
+      screen.getByText('25:00 · 5.00 km · 5:00 /km · 151 bpm')
+    ).toBeTruthy();
+    expect(screen.getByTestId('route-run-e1')).toBeTruthy();
+  });
+
+  it('opens the entry of a run', async () => {
+    withRuns();
+    const screen = renderScreen();
+    fireEvent.press(screen.getByTestId('route-run-e2'));
+    await waitFor(() =>
+      expect(openRunEntry).toHaveBeenCalledWith(navigation, 'e2', 'km')
+    );
+  });
+});
+
+describe('RouteDetailScreen elevation profile', () => {
+  const hilly = {
+    ...savedRoute,
+    elevationGainM: 24,
+    points: [
+      { lat: 51.5, lon: -0.12, alt: 100 },
+      { lat: 51.501, lon: -0.12, alt: 112 },
+      { lat: 51.502, lon: -0.12, alt: 124 },
+    ],
+  };
+  const showing = (route: typeof savedRoute) =>
+    jest.mocked(useRoute).mockReturnValue({
+      route,
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    } as never);
+
+  beforeAll(async () => {
+    await initializeI18n('en');
+  });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    paired(false);
+    record({}, null);
+  });
+  afterEach(() => {
+    showing(savedRoute);
+    mockDistanceUnit = 'km';
+  });
+
+  it('shows the profile and its range when the points carry elevation', () => {
+    showing(hilly as never);
+    const screen = renderScreen();
+    expect(screen.getByTestId('route-elevation')).toBeTruthy();
+    expect(screen.getByText('Elevation')).toBeTruthy();
+    expect(screen.getByText('100–124 m')).toBeTruthy();
+    expect(screen.getByTestId('cartesian-chart')).toBeTruthy();
+  });
+
+  it('shows feet and miles with the miles setting', () => {
+    mockDistanceUnit = 'miles';
+    showing(hilly as never);
+    const screen = renderScreen();
+    expect(screen.getByText('328–407 ft')).toBeTruthy();
+    expect(screen.getByText('Miles from start, height in feet')).toBeTruthy();
+  });
+
+  it('hides it for a route with no elevation and draws nothing in its place', () => {
+    showing(savedRoute);
+    const screen = renderScreen();
+    expect(screen.queryByTestId('route-elevation')).toBeNull();
+    expect(screen.queryByText('Elevation')).toBeNull();
+    expect(screen.queryByTestId('cartesian-chart')).toBeNull();
+  });
+
+  it('hides it when only a stray point has an altitude', () => {
+    showing({
+      ...savedRoute,
+      points: [
+        { lat: 51.5, lon: -0.12, alt: 100 },
+        { lat: 51.501, lon: -0.12 },
+        { lat: 51.502, lon: -0.12 },
+        { lat: 51.503, lon: -0.12 },
+      ],
+    } as never);
+    const screen = renderScreen();
+    expect(screen.queryByTestId('route-elevation')).toBeNull();
   });
 });

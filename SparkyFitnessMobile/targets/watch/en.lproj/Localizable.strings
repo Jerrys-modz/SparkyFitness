@@ -121,3 +121,5 @@
 "watch.route.arrived" = "You have reached the end of the route.";
 "watch.route.left" = "%@ left";
 "watch.route.waitingGps" = "Waiting for GPS";
+"watch.route.startAway" = "Start is %@ away";
+"watch.route.climbAhead" = "Climb ahead: +%@ in %@";
