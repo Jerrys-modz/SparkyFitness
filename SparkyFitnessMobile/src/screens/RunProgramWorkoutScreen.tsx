@@ -7,7 +7,6 @@ import {
   buildProgramTimeline,
   planMinutes,
   runMinutes,
-  type IndividualSessionResponse,
 } from '@workspace/shared';
 import Button from '../components/ui/Button';
 import {
