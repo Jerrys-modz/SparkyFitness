@@ -7916,5 +7916,55 @@
       "lupin": "lupin",
       "sulphites": "sulphites"
     }
+  },
+  "offlineQueue": {
+    "banner": {
+      "offline": "You're offline",
+      "offlineWaiting_one": "Offline, {{count}} waiting to sync",
+      "offlineWaiting_other": "Offline, {{count}} waiting to sync",
+      "waiting_one": "{{count}} waiting to sync",
+      "waiting_other": "{{count}} waiting to sync",
+      "syncing_one": "Syncing {{count}}...",
+      "syncing_other": "Syncing {{count}}...",
+      "needsAttention_one": "{{count}} needs attention",
+      "needsAttention_other": "{{count}} need attention"
+    },
+    "pendingEntry": {
+      "title": "Waiting to sync",
+      "message": "This entry is on your phone and will sync when your server is reachable. Delete it to log it again."
+    },
+    "toasts": {
+      "foodQueued": "Saved on this phone",
+      "measurementQueued": "Saved on this phone",
+      "willSync": "It will sync when your server is reachable."
+    },
+    "errors": {
+      "needsConnection": "This needs a connection",
+      "needsConnectionFood": "New and online foods can only be added while your server is reachable.",
+      "needsConnectionWater": "Removing a drink needs your server to be reachable.",
+      "queueFull": "Too many entries are waiting",
+      "queueFullMessage": "Reconnect to sync them before adding more."
+    },
+    "items": {
+      "water": "Water",
+      "oneDrink": "1 drink",
+      "measurements": "Measurements"
+    },
+    "screen": {
+      "title": "Offline entries",
+      "syncNow": "Sync now",
+      "waiting": "Waiting to sync",
+      "needsAttention": "Needs attention",
+      "empty": "Nothing is waiting to sync.",
+      "synced_one": "Synced {{count}} entry",
+      "synced_other": "Synced {{count}} entries",
+      "signInAgain": "Sign in again to sync",
+      "serverError": "Your server had a problem. It will retry.",
+      "stillOffline": "Can't reach your server yet",
+      "discard": "Discard",
+      "discardTitle": "Discard entry?",
+      "discardMessage": "It was not saved to your server and cannot be recovered after this.",
+      "accountMismatch": "Made while signed in as a different account, so it was not sent."
+    }
   }
 }

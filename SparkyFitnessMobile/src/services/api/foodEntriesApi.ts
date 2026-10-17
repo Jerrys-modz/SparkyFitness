@@ -42,13 +42,16 @@ export interface CreateFoodEntryPayload {
   custom_nutrients?: Record<string, string | number> | null;
   // Meal entry
   meal_id?: string;
+  /** Idempotency key: a repeat with the same id returns the first entry. */
+  client_id?: string;
 }
 
 /**
  * Creates a food entry.
  */
 export const createFoodEntry = async (
-  payload: CreateFoodEntryPayload
+  payload: CreateFoodEntryPayload,
+  options?: { timeoutMs?: number }
 ): Promise<FoodEntry> => {
   return apiFetch<FoodEntry>({
     endpoint: '/api/food-entries/',
@@ -56,6 +59,7 @@ export const createFoodEntry = async (
     operation: 'create food entry',
     method: 'POST',
     body: payload,
+    timeoutMs: options?.timeoutMs,
   });
 };
 
