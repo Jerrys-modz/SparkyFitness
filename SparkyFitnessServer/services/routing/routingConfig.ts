@@ -1,4 +1,6 @@
+import type { RouteGenerateCapabilities } from '@workspace/shared';
 import { log } from '../../config/logging.js';
+import { isRouteStopsAvailable } from '../routeStopsConfig.js';
 import type { RoutingProvider } from './routingProvider.js';
 import { createValhallaProvider } from './valhallaProvider.js';
 
@@ -46,6 +48,31 @@ export function getRoutingProvider(): RoutingProvider | null {
     apiKey: process.env.SPARKY_FITNESS_ROUTING_API_KEY?.trim() || undefined,
     timeoutMs: ROUTING_REQUEST_TIMEOUT_MS,
   });
+}
+
+/** What the configured engine supports, as `GET /generate/capabilities` reports it. */
+export function getRouteGenerateCapabilities(): RouteGenerateCapabilities {
+  const provider = getRoutingProvider();
+  const stops = isRouteStopsAvailable();
+  if (!provider) {
+    return {
+      available: false,
+      maxAlternatives: 1,
+      style: {
+        surface: false,
+        hilliness: false,
+        avoidSteps: false,
+        avoidBusyRoads: false,
+      },
+      stops,
+    };
+  }
+  return {
+    available: true,
+    maxAlternatives: provider.capabilities.maxAlternatives,
+    style: provider.capabilities.style,
+    stops,
+  };
 }
 
 export function isRouteGenerationAvailable(): boolean {

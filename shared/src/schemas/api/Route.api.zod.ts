@@ -111,8 +111,49 @@ export const ROUTE_GENERATE_MAX_DISTANCE_M = 100_000;
 /** The most waypoints a generated route may be routed through. */
 export const ROUTE_GENERATE_MAX_WAYPOINTS = 20;
 
+/** The most distinct candidates one loop request may return. */
+export const ROUTE_GENERATE_MAX_ALTERNATIVES = 3;
+
+/** What the routing engine is asked to prefer. */
+export const routeSurfaceSchema = z.enum(["any", "trails", "roads"]);
+export const routeHillinessSchema = z.enum(["any", "flat", "hilly"]);
+
+export const routeStyleSchema = z.object({
+  surface: routeSurfaceSchema.default("any"),
+  hilliness: routeHillinessSchema.default("any"),
+  /** Pedestrian activities only; riders are never routed over steps. */
+  avoidSteps: z.boolean().default(false),
+  avoidBusyRoads: z.boolean().default(false),
+});
+
+const routeStyleCapabilitiesSchema = z.object({
+  surface: z.boolean().default(false),
+  hilliness: z.boolean().default(false),
+  avoidSteps: z.boolean().default(false),
+  avoidBusyRoads: z.boolean().default(false),
+});
+
+/**
+ * What the server's routing engine can do. Every field after `available` is
+ * absent from older servers, so a missing one reads as "not supported".
+ */
 export const routeGenerateCapabilitiesSchema = z.object({
   available: z.boolean(),
+  /** Candidates a loop request can return (1 = one route only). */
+  maxAlternatives: z
+    .number()
+    .int()
+    .min(1)
+    .max(ROUTE_GENERATE_MAX_ALTERNATIVES)
+    .default(1),
+  style: routeStyleCapabilitiesSchema.default({
+    surface: false,
+    hilliness: false,
+    avoidSteps: false,
+    avoidBusyRoads: false,
+  }),
+  /** Whether stops (water, toilets, cafes, viewpoints) can be looked up. */
+  stops: z.boolean().default(false),
 });
 
 const generateBaseSchema = z.object({
@@ -120,6 +161,8 @@ const generateBaseSchema = z.object({
   start: routePointSchema.pick({ lat: true, lon: true }),
   activity: routeActivitySchema.default("run"),
   name: routeNameSchema.optional(),
+  /** Preferences; ignored for any the engine does not support. */
+  style: routeStyleSchema.optional(),
 });
 
 /** (a) A loop or out-and-back of about `distanceM` from the start. */
@@ -132,6 +175,13 @@ export const generateLoopRouteBodySchema = generateBaseSchema.extend({
   shape: z.enum(["loop", "out_and_back"]).default("loop"),
   /** Compass direction (degrees) to head out in; random when omitted. */
   bearingDeg: z.number().min(0).max(360).optional(),
+  /** How many distinct candidates to return, at most. */
+  alternatives: z
+    .number()
+    .int()
+    .min(1)
+    .max(ROUTE_GENERATE_MAX_ALTERNATIVES)
+    .default(1),
 });
 
 /** (b) An ordered list of waypoints to route through. */
@@ -164,6 +214,59 @@ export const generatedRoutePreviewSchema = z.object({
   elevationGainM: z.number().nullable(),
 });
 
+/** Said of a candidate only when its numbers beat the others'. */
+export const routeOptionLabelSchema = z.enum([
+  "flatter",
+  "moreTrail",
+  "shorter",
+]);
+
+export const generatedRouteOptionSchema = z.object({
+  route: generatedRoutePreviewSchema,
+  label: routeOptionLabelSchema.nullable(),
+  /** Share (0 to 1) of the route on paths and unpaved ways, when known. */
+  trailShare: z.number().min(0).max(1).nullable(),
+});
+
+/** `route` is the first option, so a client that ignores `options` still works. */
+export const generateRouteResponseSchema = z.object({
+  route: generatedRoutePreviewSchema,
+  options: z.array(generatedRouteOptionSchema).min(1),
+});
+
+export const routeStopKindSchema = z.enum([
+  "water",
+  "toilets",
+  "cafe",
+  "viewpoint",
+]);
+
+export const routeStopSchema = z.object({
+  kind: routeStopKindSchema,
+  name: z.string().nullable(),
+  lat: z.number().min(-90).max(90),
+  lon: z.number().min(-180).max(180),
+  /** Metres along the route to the point nearest the stop. */
+  distanceFromStartM: z.number().min(0),
+  /** Metres from the route to the stop. */
+  offRouteM: z.number().min(0),
+});
+
+/** `no_data` covers every failure and an empty corridor alike. */
+export const routeStopsResponseSchema = z.object({
+  status: z.enum(["ok", "no_data"]),
+  stops: z.array(routeStopSchema),
+  truncated: z.boolean(),
+});
+
+/** Stops along a route that is not saved (for example a generated preview). */
+export const routeStopsBodySchema = z.object({
+  points: z
+    .array(routePointSchema.pick({ lat: true, lon: true }))
+    .min(2)
+    .max(ROUTE_MAX_STORED_POINTS),
+});
+
 export type RoutePoint = z.infer<typeof routePointSchema>;
 export type RouteCueKind = z.infer<typeof routeCueKindSchema>;
 export type RouteCue = z.infer<typeof routeCueSchema>;
@@ -178,3 +281,13 @@ export type RouteGenerateCapabilities = z.infer<
 >;
 export type GenerateRouteBody = z.infer<typeof generateRouteBodySchema>;
 export type GeneratedRoutePreview = z.infer<typeof generatedRoutePreviewSchema>;
+export type RouteStyle = z.infer<typeof routeStyleSchema>;
+export type RouteSurface = z.infer<typeof routeSurfaceSchema>;
+export type RouteHilliness = z.infer<typeof routeHillinessSchema>;
+export type RouteOptionLabel = z.infer<typeof routeOptionLabelSchema>;
+export type GeneratedRouteOption = z.infer<typeof generatedRouteOptionSchema>;
+export type GenerateRouteResponse = z.infer<typeof generateRouteResponseSchema>;
+export type RouteStopKind = z.infer<typeof routeStopKindSchema>;
+export type RouteStop = z.infer<typeof routeStopSchema>;
+export type RouteStopsResponse = z.infer<typeof routeStopsResponseSchema>;
+export type RouteStopsBody = z.infer<typeof routeStopsBodySchema>;

@@ -36,6 +36,16 @@ vi.mock('axios', async (importOriginal) => {
 
 const START = { lat: 40, lon: -74 };
 
+const NO_STYLE_SUPPORT = {
+  style: {
+    surface: false,
+    hilliness: false,
+    avoidSteps: false,
+    avoidBusyRoads: false,
+  },
+  maxAlternatives: 1,
+};
+
 /** A provider that follows the given locations in straight lines. */
 function straightLineProvider(
   scale = 1,
@@ -43,6 +53,7 @@ function straightLineProvider(
 ): RoutingProvider {
   return {
     kind: 'fake',
+    capabilities: NO_STYLE_SUPPORT,
     async route(req) {
       calls.push(req);
       const points = req.locations.map((l) => ({ ...l }));
@@ -65,7 +76,7 @@ describe('generateRoute', () => {
       { lat: 40.01, lon: -74 },
       { lat: 40.01, lon: -74.01 },
     ];
-    const route = await generateRoute(straightLineProvider(1, calls), {
+    const { route } = await generateRoute(straightLineProvider(1, calls), {
       mode: 'waypoints',
       start: START,
       waypoints,
@@ -81,7 +92,7 @@ describe('generateRoute', () => {
   });
 
   it('uses the requested name', async () => {
-    const route = await generateRoute(straightLineProvider(), {
+    const { route } = await generateRoute(straightLineProvider(), {
       mode: 'waypoints',
       start: START,
       waypoints: [{ lat: 40.01, lon: -74 }],
@@ -95,13 +106,14 @@ describe('generateRoute', () => {
   it('resizes a loop that comes back too long, then stops within tolerance', async () => {
     const calls: RoutingRequest[] = [];
     // The "engine" returns 1.6x the straight-line distance of what it is asked.
-    const route = await generateRoute(straightLineProvider(1.6, calls), {
+    const { route } = await generateRoute(straightLineProvider(1.6, calls), {
       mode: 'loop',
       start: START,
       distanceM: 5000,
       shape: 'loop',
       bearingDeg: 90,
       activity: 'run',
+      alternatives: 1,
     });
     expect(calls.length).toBeGreaterThan(1);
     expect(calls.length).toBeLessThanOrEqual(3);
@@ -125,6 +137,7 @@ describe('generateRoute', () => {
       shape: 'out_and_back',
       bearingDeg: 0,
       activity: 'ride',
+      alternatives: 1,
     });
     const [from, turn, back] = calls[0].locations;
     expect(from).toEqual(START);
@@ -136,6 +149,7 @@ describe('generateRoute', () => {
   it('propagates provider failures', async () => {
     const provider: RoutingProvider = {
       kind: 'fake',
+      capabilities: NO_STYLE_SUPPORT,
       route: () =>
         Promise.reject(
           new RoutingProviderError('timeout', 'The routing engine timed out')
@@ -317,10 +331,20 @@ describe('route generation endpoints', () => {
 
   it('reports availability from config', async () => {
     let res = await request(app).get('/api/v2/routes/generate/capabilities');
-    expect(res.body).toEqual({ available: true });
+    expect(res.body).toMatchObject({ available: true, maxAlternatives: 3 });
     delete process.env.SPARKY_FITNESS_ROUTING_URL;
     res = await request(app).get('/api/v2/routes/generate/capabilities');
-    expect(res.body).toEqual({ available: false });
+    expect(res.body).toEqual({
+      available: false,
+      maxAlternatives: 1,
+      style: {
+        surface: false,
+        hilliness: false,
+        avoidSteps: false,
+        avoidBusyRoads: false,
+      },
+      stops: false,
+    });
   });
 
   it('returns 503 when not configured', async () => {
@@ -342,6 +366,8 @@ describe('route generation endpoints', () => {
     expect(res.status).toBe(200);
     expect(res.body.route.source).toBe('generated');
     expect(res.body.route.points.length).toBeGreaterThan(1);
+    expect(res.body.options).toHaveLength(1);
+    expect(res.body.options[0].route).toEqual(res.body.route);
   });
 
   it('refuses a delegated context', async () => {
