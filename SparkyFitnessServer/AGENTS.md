@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-13_
+_Last updated: 2026-10-17_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -76,6 +76,7 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 - `services/` - business logic and orchestration
 - `models/` - PostgreSQL repositories and persistence helpers
 - `middleware/` - auth, permissions, uploads, and shared Express middleware
+- `utils/uniqueViolation.ts` - `isUniqueViolationOn(error, indexName)`, used to turn a lost race on an idempotency index into "already created"
 - `utils/uploadsPath.ts` - the uploads root plus the resolver and containment guard for stored `file_path` values; use it instead of re-deriving `SPARKY_FITNESS_CUSTOM_UPLOADS_DIRECTORY`
 - `utils/oauthState.ts` - server-issued single-use OAuth `state` nonces for provider linking (`issueOAuthState`, `persistOAuthState`, `claimOAuthState`); use it instead of hand-rolling a state value
 - `utils/outboundHttp.ts` - process-wide outbound HTTP defaults, applied from `index.ts`: the axios request timeout and the per-address-family connect attempt timeout (`net.setDefaultAutoSelectFamilyAttemptTimeout`). Both are fixed constants on purpose - do not add env overrides, and read the sizing note there before changing either, because the two values interact
@@ -272,6 +273,8 @@ When searching, ignore noisy/generated directories unless you explicitly need th
   For an indoor run's pace chart, `POST`/`GET /exercise-entries/:id/distance-series` (`attachDistanceSeriesToExerciseEntry`, `getExerciseEntryDistanceSeries`, table `exercise_entry_distance_series`, rows of `[active seconds, metres]`; `setExerciseEntryDistance` rescales them with the laps).
 - Correcting the distance of an entry with no GPS track (a treadmill run, from the summary screen):
   inspect `POST /exercise-entries/:id/distance` in `routes/exerciseEntryRoutes.ts`, `services/exerciseEntryService.ts`'s `setExerciseEntryDistance` and `setExerciseEntryDistanceRequestSchema` in `shared/src/schemas/api/ExerciseEntries.api.zod.ts`. It changes only the entry's `distance`, its sets' distance and any laps (`distance_meters` and speed scaled by new over old distance), in one transaction, so measured heart rate and energy are kept; an entry with a GPS track is refused with 409.
+- Replayed writes from the mobile offline queue (a food entry or a drink logged twice, or a missing one):
+  inspect the optional `client_id` (uuid) on `POST /food-entries` (`routes/foodEntryRoutes.ts`, `models/foodEntry.ts` `createFoodEntry`: lookup inside the transaction, then the unique-index race handled with `isUniqueViolationOn`) and on `POST /measurements/water-intake` plus `/v2/measurements/water-intake` (`UpsertWaterIntakeBodySchema`, `measurementService.upsertWaterIntake`, `measurementRepository.findWaterIntakeLogByClientId`). Columns `food_entries.client_id` and `water_intake_entries.client_id` have partial unique indexes on `(user_id, client_id)` (migration `20261017120000_add_client_id_for_offline_replay.sql`). A repeat returns the first result and writes nothing; water accepts a key only with `change_drinks` of 1, and a linked container stamps the same key on its food entry. Check-in is an upsert by day and takes no key. Contract: `shared/src/schemas/api/ClientRequestId.api.zod.ts`; design: `docs/src/developer/offline-logging.md`.
 - Water, hydration, caffeine, or alcohol issue:
   inspect `services/hydrationTotalsService.ts` (the single owner of the daily water formula), `services/measurementService.ts` (the container "+/-" path and the container->food link), `services/caffeineKineticsService.ts` / `services/alcoholWeekService.ts`, `models/waterContainerRepository.ts`, and the shared maths in `../shared/src/nutrients/`
 - Self-service "delete synced data by source" issue:

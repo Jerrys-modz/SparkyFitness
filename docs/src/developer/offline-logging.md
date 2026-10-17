@@ -31,7 +31,7 @@ A queued write never changes what the user typed: the queue stores the request t
 
 AsyncStorage, one key (`@SparkyFitness/offlineQueue`), as `watchRunQueue` does. SQLite would add a native dependency and a migration story for a list that is small by construction: items are about 1 KB and the queue is capped at 200 pending entries (a full queue refuses new writes with a message rather than dropping old ones). Writes are serialised through one promise chain so two enqueues cannot lose each other.
 
-Corruption: the value is parsed and each item is shape-checked. Unparseable data is copied to `@SparkyFitness/offlineQueue.corrupt` and logged, never silently discarded; a malformed single item is moved to the needs-attention list.
+Corruption: the value is parsed and each item is shape-checked. Unparseable data, and any single item that fails the check, is copied to `@SparkyFitness/offlineQueue.corrupt` and logged (never silently discarded); the readable items carry on.
 
 ## Entry shape
 
@@ -74,7 +74,7 @@ One rule: **a queued entry can be deleted but not edited.** Deleting removes it 
 Optional `client_id` (uuid) on `POST /api/food-entries` and `POST /api/measurements/water-intake`:
 
 - Migration adds `food_entries.client_id` and `water_intake_entries.client_id`, each with a partial unique index on `(user_id, client_id) WHERE client_id IS NOT NULL`. No new table, so RLS policies are unchanged.
-- A request whose `client_id` already exists returns the existing row (food: `200` with the entry; water: the current day totals) and writes nothing. A concurrent duplicate that loses the race hits the unique index and is resolved to the same answer.
+- A request whose `client_id` already exists returns the existing row (food: the entry, with the same status as a first create; water: the current day totals) and writes nothing. A concurrent duplicate that loses the race hits the unique index and is resolved to the same answer.
 - `client_id` on water requires `change_drinks` of exactly `1`. For a container linked to a food, the food entry carries the same id, so a duplicate stops before creating a second one.
 - Check-in needs no key.
 

@@ -107,7 +107,7 @@ These are the projects most people compare SparkyFitness against when they want 
 | Web application | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
 | Native iOS app | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Native Android app | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Offline logging on mobile | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Offline logging on mobile | 🟡 food, water and weight queue and sync later | ✅ | ✅ | ✅ | ✅ | ❌ |
 | Home-screen widget | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
 | Wearable & health-platform sync | ✅ 8+ services | ❌ | 🟡 Health Connect | ❌ | ❌ | 🟡 |
 | Writes data back to Apple Health / Health Connect | ✅ initial release | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -331,7 +331,7 @@ Being straight about the gaps:
 - **No social layer.** No feed, no challenges, no leaderboards. Sharing is delegated caregiver access, not a community.
 - **No grocery or shopping lists**, and no macro/carb cycling scheduling.
 - **No server-side reminders.** Medication and check-in reminders are local notifications from the mobile app; there is no background notification service, so cycle and ovulation reminders remain on the roadmap.
-- **No offline logging on mobile.** The apps expect to reach your server. wger and the local-first Android trackers beat us here.
+- **Offline logging on mobile is limited.** Foods already in your library, water and weight can be logged without a connection and sync later ([how it works](/mobile-app/mobile-app#offline-logging)). Everything else, including searching foods, scanning barcodes, photo estimates, editing or deleting entries and exercise, still needs your server, and the app is not a local-first database. wger and the local-first Android trackers beat us here.
 - **Postpartum and menopause cycle modes are not built yet** ([Cycle Hub modes](/features/cycle-hub/modes-comparison)).
 - **The food database is only as good as your provider.** There is no SparkyFitness-curated, verified database behind it.
 - **The docs you are reading are incomplete.** Several feature pages are still stubs.
