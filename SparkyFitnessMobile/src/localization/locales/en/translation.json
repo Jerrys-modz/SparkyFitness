@@ -8105,7 +8105,9 @@
       "body_one": "Your last fitness test was {{formattedCount}} week ago. A retest updates your training paces and shows how your fitness has changed.",
       "body_other": "Your last fitness test was {{formattedCount}} weeks ago. A retest updates your training paces and shows how your fitness has changed.",
       "action": "Retest",
-      "later": "Later"
+      "later": "Later",
+      "sameTreadmill": "You tested on a treadmill last time, so the retest starts on a treadmill too.",
+      "sameOutdoor": "You tested outdoors last time, so the retest starts outdoors too."
     },
     "badge": {
       "title": "Fitness test",
@@ -8116,11 +8118,17 @@
       "5k": "Run evenly and hard. {{remaining}} {{unit}} to go until 5 km.",
       "cooper": "Cover as much distance as you can. {{time}} left.",
       "30minLast20": "Hold this pace: the last 20 minutes set your threshold. {{time}} left.",
-      "30minFirst10": "Settle into a hard, steady effort. The last 20 minutes start in {{time}}."
+      "30minFirst10": "Settle into a hard, steady effort. The last 20 minutes start in {{time}}.",
+      "5kIndoor": "Run evenly and hard. Tap Finish when your treadmill reaches 5 km. Time {{time}}.",
+      "30minFirst10Indoor": "Settle into a hard, steady effort. At 10:00, in {{time}}, note the distance on your treadmill."
     },
     "finished": {
       "threshold": "Threshold pace {{pace}}, about {{time}} for 5K. Saving sets your training paces.",
-      "incomplete": "The test was stopped before its mark, so it will be saved as an ordinary run and your paces stay as they were."
+      "incomplete": "The test was stopped before its mark, so it will be saved as an ordinary run and your paces stay as they were.",
+      "adjusted": "Adjusted for {{incline}}% incline: {{raw}} counts as {{adjusted}}.",
+      "needDistance": "Enter the distance your treadmill shows to save the test. Until then it will be saved as an ordinary run.",
+      "badSplit": "The distance at 10:00 must be more than zero and less than the total.",
+      "badTime": "Enter your time to 5 km as minutes and seconds, like 24:30."
     },
     "paces": {
       "tempo": "Tempo {{range}}",
@@ -8146,9 +8154,13 @@
       "cooper": "Cover as much distance as you can in 12 minutes. The distance you reach is the result."
     },
     "setup": {
-      "outdoorOnly": "Tests are recorded outdoors with your phone’s GPS, as a run, and marked as a fitness test on the activity.",
       "voiceDescription": "Speaks when the test is complete.",
-      "start": "Start the test"
+      "start": "Start the test",
+      "outdoor": "Outdoor (GPS)",
+      "indoor": "Treadmill",
+      "indoorNote": "On a treadmill nothing is tracked by GPS. The test is timed, and when you finish you enter the distance your treadmill shows and its incline. It is saved as an indoor run and marked as a fitness test.",
+      "outdoorNote": "Outdoors the test is recorded with your phone’s GPS, as a run, and marked as a fitness test on the activity.",
+      "sameAsLast": "Suggested because your last test was the same."
     },
     "delete": {
       "title": "Delete this test?",
@@ -8198,6 +8210,25 @@
       "same": "no change",
       "faster": "{{seconds}} s/{{unit}} faster",
       "slower": "{{seconds}} s/{{unit}} slower"
+    },
+    "indoor": {
+      "timeTitle": "Time to 5 km",
+      "timeHint": "Your clock time is filled in. Change it if your treadmill showed another time at 5 km.",
+      "splitTitle": "Distance at 10:00",
+      "splitHint": "The distance your treadmill showed after 10 minutes. The last 20 minutes set your threshold pace. Leave it empty to assume a steady pace.",
+      "cooperHint": "Enter the distance your treadmill showed after 12 minutes in the Distance box above.",
+      "inclineTitle": "Incline",
+      "inclineHint": "A treadmill at 0% understates outdoor effort; 1% is about the same as running flat outdoors. Enter the incline you ran at.",
+      "inclineInvalid": "Enter an incline from 0 to 15.",
+      "adjustTitle": "Adjust for incline",
+      "adjustDescription": "Counts your effort as it would be on a flat outdoor course, using the running cost of each percent of incline. At 1% nothing changes. Turn off to use the numbers as they are."
+    },
+    "lastSurface": "Your last test was on: {{surface}}. A new test starts on the same, and you can change it before you start.",
+    "surface": {
+      "indoor": "Treadmill",
+      "outdoor": "Outdoor",
+      "inclineAdjusted": "Treadmill, {{incline}}% incline, adjusted",
+      "inclineNotAdjusted": "Treadmill, {{incline}}% incline, not adjusted"
     }
   }
 }

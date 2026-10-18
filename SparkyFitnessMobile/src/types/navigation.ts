@@ -199,7 +199,13 @@ export type RootStackParamList = {
   ExerciseStatistics: undefined;
   /** `programWorkout` opens it with today's training-program workout chosen. */
   RecordActivity:
-    { programWorkout?: boolean; fitnessTest?: FitnessTestType } | undefined;
+    | {
+        programWorkout?: boolean;
+        fitnessTest?: FitnessTestType;
+        /** A fitness test opens on the treadmill option when true, outdoors when false. */
+        indoor?: boolean;
+      }
+    | undefined;
   RunSummary: RunSummaryParams;
   Reports: undefined;
   HydrationReport: undefined;

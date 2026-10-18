@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyIncline,
   comparePaces,
   cooperToFiveKSeconds,
   evaluateFitnessTest,
+  inclineSpeedFactor,
   levelFromFiveK,
   programIdForFiveK,
   racePaceFromFiveK,
@@ -267,5 +269,165 @@ describe('plans from a test', () => {
     expect(
       buildRacePlan({ ...base, racePaceSecondsPerKm: 20 }).raceMinutes
     ).toBe(guessed.raceMinutes);
+  });
+});
+
+describe('inclineSpeedFactor', () => {
+  it('is exactly 1 at 1%, which stands in for a flat outdoor run', () => {
+    expect(inclineSpeedFactor(1)).toBe(1);
+  });
+
+  it('counts a 0% treadmill for a little less than the same speed outdoors', () => {
+    // ACSM running cost per metre: 0.2 at 0%, 0.209 at 1%.
+    expect(inclineSpeedFactor(0)).toBeCloseTo(0.2 / 0.209, 6);
+    expect(inclineSpeedFactor(0)!).toBeLessThan(1);
+  });
+
+  it('counts a steeper treadmill for more, about 4% per percent of incline', () => {
+    expect(inclineSpeedFactor(2)).toBeCloseTo(0.218 / 0.209, 6);
+    expect(inclineSpeedFactor(5)).toBeCloseTo(0.245 / 0.209, 6);
+    expect(inclineSpeedFactor(15)).toBeCloseTo(0.335 / 0.209, 6);
+    expect(inclineSpeedFactor(5)!).toBeGreaterThan(inclineSpeedFactor(2)!);
+  });
+
+  it('refuses an incline that is not between 0 and 15 percent', () => {
+    expect(inclineSpeedFactor(-0.5)).toBeNull();
+    expect(inclineSpeedFactor(15.1)).toBeNull();
+    expect(inclineSpeedFactor(Number.NaN)).toBeNull();
+  });
+});
+
+describe('applyIncline', () => {
+  const cooper = {
+    type: 'cooper' as const,
+    distanceMeters: 3000,
+    durationSeconds: 720,
+  };
+
+  it('changes nothing without an incline, at 1%, or with the correction off', () => {
+    expect(applyIncline(cooper)).toEqual(cooper);
+    expect(applyIncline({ ...cooper, inclinePercent: null })).toMatchObject(
+      cooper
+    );
+    const flat = { ...cooper, inclinePercent: 1 };
+    expect(applyIncline(flat)).toEqual(flat);
+    const off = { ...cooper, inclinePercent: 6, adjustForIncline: false };
+    expect(applyIncline(off)).toEqual(off);
+  });
+
+  it('credits more distance for a steeper treadmill, and less for 0%', () => {
+    expect(
+      applyIncline({ ...cooper, inclinePercent: 3 }).distanceMeters
+    ).toBeCloseTo((3000 * 0.227) / 0.209, 6);
+    expect(
+      applyIncline({ ...cooper, inclinePercent: 0 }).distanceMeters
+    ).toBeCloseTo((3000 * 0.2) / 0.209, 6);
+    expect(applyIncline({ ...cooper, inclinePercent: 3 }).durationSeconds).toBe(
+      720
+    );
+  });
+
+  it('shortens the time of a 5K, which has a fixed distance', () => {
+    const fiveK = {
+      type: '5k' as const,
+      distanceMeters: 5000,
+      durationSeconds: 1500,
+    };
+    const steeper = applyIncline({ ...fiveK, inclinePercent: 3 });
+    expect(steeper.durationSeconds).toBeCloseTo((1500 * 0.209) / 0.227, 6);
+    expect(steeper.distanceMeters).toBe(5000);
+    expect(
+      applyIncline({ ...fiveK, inclinePercent: 0 }).durationSeconds
+    ).toBeGreaterThan(1500);
+  });
+
+  it('scales the total and the 10-minute split of the 30-minute run alike', () => {
+    const thirty = {
+      type: '30min' as const,
+      distanceMeters: 6600,
+      splitDistanceMeters: 2000,
+      durationSeconds: 1800,
+      inclinePercent: 3,
+    };
+    const factor = 0.227 / 0.209;
+    const adjusted = applyIncline(thirty);
+    expect(adjusted.distanceMeters).toBeCloseTo(6600 * factor, 6);
+    expect(adjusted.splitDistanceMeters).toBeCloseTo(2000 * factor, 6);
+  });
+
+  it('leaves a missing split missing', () => {
+    expect(
+      applyIncline({
+        type: '30min',
+        distanceMeters: 6600,
+        durationSeconds: 1800,
+        inclinePercent: 3,
+      }).splitDistanceMeters
+    ).toBeUndefined();
+  });
+});
+
+describe('evaluateFitnessTest on a treadmill', () => {
+  const cooper = {
+    type: 'cooper' as const,
+    distanceMeters: 3000,
+    durationSeconds: 720,
+  };
+
+  it('reports the adjusted result and faster paces for a steeper treadmill', () => {
+    const raw = evaluateFitnessTest({
+      ...cooper,
+      inclinePercent: 3,
+      adjustForIncline: false,
+    })!;
+    const adjusted = evaluateFitnessTest({ ...cooper, inclinePercent: 3 })!;
+    expect(raw.resultValue).toBe(3000);
+    expect(adjusted.resultValue).toBe(Math.round((3000 * 0.227) / 0.209));
+    expect(adjusted.paces.thresholdSecondsPerKm).toBeLessThan(
+      raw.paces.thresholdSecondsPerKm
+    );
+  });
+
+  it('gives the same result at 1% as with no incline entered', () => {
+    expect(evaluateFitnessTest({ ...cooper, inclinePercent: 1 })).toEqual(
+      evaluateFitnessTest(cooper)
+    );
+  });
+
+  it('slows the paces for a 0% treadmill', () => {
+    expect(
+      evaluateFitnessTest({ ...cooper, inclinePercent: 0 })!.paces
+        .thresholdSecondsPerKm
+    ).toBeGreaterThan(evaluateFitnessTest(cooper)!.paces.thresholdSecondsPerKm);
+  });
+
+  it('adjusts a 5K time and a 30-minute run too', () => {
+    const fiveK = evaluateFitnessTest({
+      type: '5k',
+      distanceMeters: 5000,
+      durationSeconds: 1500,
+      inclinePercent: 4,
+    })!;
+    expect(fiveK.resultValue).toBe(Math.round((1500 * 0.209) / 0.236));
+    const thirty = evaluateFitnessTest({
+      type: '30min',
+      distanceMeters: 6600,
+      splitDistanceMeters: 2000,
+      durationSeconds: 1800,
+      inclinePercent: 4,
+    })!;
+    // The last 20 minutes are 4600 m raw; the pace is that over the factor.
+    expect(thirty.resultValue).toBe(Math.round(261.0 / (0.236 / 0.209)));
+  });
+
+  it('refuses an incline outside 0 to 15 percent, adjusted or not', () => {
+    expect(evaluateFitnessTest({ ...cooper, inclinePercent: 16 })).toBeNull();
+    expect(
+      evaluateFitnessTest({
+        ...cooper,
+        inclinePercent: -1,
+        adjustForIncline: false,
+      })
+    ).toBeNull();
   });
 });

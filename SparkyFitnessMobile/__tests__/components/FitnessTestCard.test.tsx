@@ -106,3 +106,101 @@ describe('FitnessTestFinishedCard', () => {
     expect(screen.getByText(/saved as an ordinary run/)).toBeTruthy();
   });
 });
+
+describe('on a treadmill', () => {
+  it('has the runner end the 5K, since nothing measures the distance', () => {
+    render(
+      <FitnessTestCard
+        type="5k"
+        activeSeconds={754}
+        distanceMeters={0}
+        unit="km"
+        indoor
+      />
+    );
+    expect(screen.getByTestId('fitness-test-guidance').props.children).toBe(
+      'Run evenly and hard. Tap Finish when your treadmill reaches 5 km. Time 12:34.'
+    );
+  });
+
+  it('tells the 30-minute runner to note the treadmill distance at 10:00', () => {
+    render(
+      <FitnessTestCard
+        type="30min"
+        activeSeconds={240}
+        distanceMeters={0}
+        unit="km"
+        indoor
+      />
+    );
+    expect(screen.getByTestId('fitness-test-guidance').props.children).toBe(
+      'Settle into a hard, steady effort. At 10:00, in 6:00, note the distance on your treadmill.'
+    );
+  });
+
+  it('ends the timed tests on the clock as outdoors', () => {
+    render(
+      <FitnessTestCard
+        type="cooper"
+        activeSeconds={720}
+        distanceMeters={0}
+        unit="km"
+        indoor
+      />
+    );
+    expect(screen.getByTestId('fitness-test-guidance').props.children).toBe(
+      'Test complete. Slow down and tap Finish.'
+    );
+  });
+});
+
+describe('FitnessTestFinishedCard on a treadmill', () => {
+  const outcome = evaluateFitnessTest({
+    type: 'cooper',
+    distanceMeters: 3000,
+    durationSeconds: 720,
+    inclinePercent: 3,
+  });
+
+  it('shows the raw and adjusted numbers', () => {
+    render(
+      <FitnessTestFinishedCard
+        type="cooper"
+        outcome={outcome}
+        unit="km"
+        adjustment={{
+          incline: '3',
+          raw: '3,000 m in 12 minutes',
+          adjusted: '3,258 m in 12 minutes',
+        }}
+      />
+    );
+    expect(screen.getByTestId('fitness-test-adjustment').props.children).toBe(
+      'Adjusted for 3% incline: 3,000 m in 12 minutes counts as 3,258 m in 12 minutes.'
+    );
+  });
+
+  it('shows no adjustment line when there is none', () => {
+    render(
+      <FitnessTestFinishedCard type="cooper" outcome={outcome} unit="km" />
+    );
+    expect(screen.queryByTestId('fitness-test-adjustment')).toBeNull();
+  });
+
+  it.each([
+    ['noDistance', /Enter the distance your treadmill shows/],
+    ['badSplit', /distance at 10:00 must be more than zero/],
+    ['badTime', /minutes and seconds, like 24:30/],
+    ['tooShort', /stopped before its mark/],
+  ] as const)('says what is missing: %s', (problem, text) => {
+    render(
+      <FitnessTestFinishedCard
+        type="cooper"
+        outcome={null}
+        unit="km"
+        problem={problem}
+      />
+    );
+    expect(screen.getByText(text)).toBeTruthy();
+  });
+});

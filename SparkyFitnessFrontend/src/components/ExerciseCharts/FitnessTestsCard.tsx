@@ -97,6 +97,19 @@ export const FitnessTestsCard = ({
     );
   };
 
+  const surfaceText = (test: FitnessTestResponse) =>
+    test.incline_percent === null
+      ? t('exerciseAnalytics.cardio.fitnessTests.treadmill', 'Treadmill')
+      : t(
+          test.incline_adjusted
+            ? 'exerciseAnalytics.cardio.fitnessTests.treadmillInclineAdjusted'
+            : 'exerciseAnalytics.cardio.fitnessTests.treadmillIncline',
+          test.incline_adjusted
+            ? 'Treadmill, {{incline}}% incline, adjusted'
+            : 'Treadmill, {{incline}}% incline',
+          { incline: test.incline_percent }
+        );
+
   const status = retestStatus(latest.test_date, today);
   const weeks = weeksSinceTest(latest.test_date, today);
 
@@ -121,6 +134,14 @@ export const FitnessTestsCard = ({
               }
             )}
           </p>
+          {latest.surface === 'indoor' && (
+            <p
+              className="text-sm text-muted-foreground"
+              data-testid="fitness-tests-surface"
+            >
+              {surfaceText(latest)}
+            </p>
+          )}
           {status !== 'recent' && (
             <p
               className="mt-1 text-sm text-amber-600"
@@ -170,6 +191,7 @@ export const FitnessTestsCard = ({
                 <li key={test.id} className="flex justify-between gap-4">
                   <span>
                     {formatDay(test.test_date)} · {testName(test.test_type)}
+                    {test.surface === 'indoor' && ` · ${surfaceText(test)}`}
                   </span>
                   <span>
                     {resultText(test)} ·{' '}

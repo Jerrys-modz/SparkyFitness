@@ -1,11 +1,13 @@
 import type { TFunction } from 'i18next';
 import {
   COOPER_SECONDS,
+  evaluateFitnessTest,
   FIVE_K_METERS,
   THIRTY_MINUTE_SECONDS,
   THIRTY_MINUTE_SPLIT_SECONDS,
   type FitnessTestMeasurement,
   type FitnessTestResponse,
+  type FitnessTestSurface,
   type FitnessTestType,
 } from '@workspace/shared';
 import { formatLocalizedNumber } from '../localization';
@@ -249,4 +251,163 @@ export function paceChangeText(
         unit: perUnit,
         defaultValue: '{{seconds}} s/{{unit}} slower',
       });
+}
+
+/** "24:30" or "1:02:03" as seconds, or null when it is not a time. */
+export function parseClockText(text: string): number | null {
+  const parts = text.trim().split(':');
+  if (parts.length < 2 || parts.length > 3) return null;
+  if (!parts.every((part) => /^\d{1,2}$/.test(part))) return null;
+  const numbers = parts.map(Number);
+  const seconds = numbers.at(-1)!;
+  const minutes = numbers.at(-2)!;
+  if (seconds > 59 || (parts.length === 3 && minutes > 59)) return null;
+  const hours = parts.length === 3 ? numbers[0] : 0;
+  const total = hours * 3600 + minutes * 60 + seconds;
+  return total > 0 ? total : null;
+}
+
+/** What a treadmill test needs from the person after Finish. */
+export interface IndoorTestInputs {
+  /** Time on the clock with pauses removed, seconds. */
+  activeSeconds: number;
+  /** The distance the treadmill shows, metres; null when not entered. */
+  distanceMeters: number | null;
+  /** 5K: the time at 5 km as typed, seconds; null to use the clock. */
+  timeSeconds: number | null;
+  /** 30-minute run: the distance at 10:00 as typed, metres; null to assume a steady pace. */
+  splitMeters: number | null;
+  /** Treadmill incline, percent; null for none. */
+  inclinePercent: number | null;
+  /** Correct the result for the incline. */
+  adjustForIncline: boolean;
+}
+
+export type IndoorTestMeasurement =
+  | { ok: true; measurement: FitnessTestMeasurement }
+  | { ok: false; reason: 'tooShort' | 'noDistance' | 'badSplit' | 'badTime' };
+
+/**
+ * A treadmill test's measurement from what the clock and the person gave:
+ * the 12-minute and 30-minute tests end on the clock and need the distance on
+ * the display; the 5K needs its time, which is the clock unless the person
+ * typed another. A 30-minute run with no distance at 10:00 assumes a steady
+ * pace (a third of the total there).
+ */
+export function measureIndoorTest(
+  type: FitnessTestType,
+  input: IndoorTestInputs
+): IndoorTestMeasurement {
+  const extras = {
+    inclinePercent: input.inclinePercent,
+    adjustForIncline: input.adjustForIncline,
+  };
+  if (type === '5k') {
+    const seconds = input.timeSeconds ?? Math.round(input.activeSeconds);
+    if (!(seconds > 0)) return { ok: false, reason: 'badTime' };
+    return {
+      ok: true,
+      measurement: {
+        type,
+        distanceMeters: FIVE_K_METERS,
+        durationSeconds: seconds,
+        ...extras,
+      },
+    };
+  }
+  const total = type === 'cooper' ? COOPER_SECONDS : THIRTY_MINUTE_SECONDS;
+  if (input.activeSeconds < total) return { ok: false, reason: 'tooShort' };
+  const distance = input.distanceMeters;
+  if (distance === null || !(distance > 0)) {
+    return { ok: false, reason: 'noDistance' };
+  }
+  if (type === 'cooper') {
+    return {
+      ok: true,
+      measurement: {
+        type,
+        distanceMeters: Math.round(distance),
+        durationSeconds: COOPER_SECONDS,
+        ...extras,
+      },
+    };
+  }
+  const split = input.splitMeters ?? distance / 3;
+  if (!(split > 0) || split >= distance) {
+    return { ok: false, reason: 'badSplit' };
+  }
+  return {
+    ok: true,
+    measurement: {
+      type,
+      distanceMeters: Math.round(distance),
+      splitDistanceMeters: Math.round(split),
+      durationSeconds: THIRTY_MINUTE_SECONDS,
+      ...extras,
+    },
+  };
+}
+
+/** "Outdoor" or "Treadmill". */
+export function fitnessTestSurfaceName(
+  t: TFunction,
+  surface: FitnessTestSurface
+): string {
+  return surface === 'indoor'
+    ? t('fitnessTest.surface.indoor', { defaultValue: 'Treadmill' })
+    : t('fitnessTest.surface.outdoor', { defaultValue: 'Outdoor' });
+}
+
+/** "Treadmill, 3% incline, adjusted" for a treadmill test; "Outdoor" for a GPS one. */
+export function fitnessTestSurfaceText(
+  t: TFunction,
+  test: Pick<
+    FitnessTestResponse,
+    'surface' | 'incline_percent' | 'incline_adjusted'
+  >
+): string {
+  if (test.surface !== 'indoor') return fitnessTestSurfaceName(t, 'outdoor');
+  if (test.incline_percent === null) {
+    return fitnessTestSurfaceName(t, 'indoor');
+  }
+  const incline = formatLocalizedNumber(test.incline_percent, {
+    maximumFractionDigits: 1,
+  });
+  return test.incline_adjusted
+    ? t('fitnessTest.surface.inclineAdjusted', {
+        incline,
+        defaultValue: 'Treadmill, {{incline}}% incline, adjusted',
+      })
+    : t('fitnessTest.surface.inclineNotAdjusted', {
+        incline,
+        defaultValue: 'Treadmill, {{incline}}% incline, not adjusted',
+      });
+}
+
+/**
+ * For a test corrected for its incline: what was measured and what it counted
+ * as, e.g. "3,000 m in 12 minutes" and "3,258 m in 12 minutes". Null when no
+ * correction was applied or it changed nothing.
+ */
+export function inclineAdjustmentText(
+  t: TFunction,
+  test: FitnessTestResponse,
+  unit: 'km' | 'miles'
+): { raw: string; adjusted: string } | null {
+  if (!test.incline_adjusted || test.incline_percent === null) return null;
+  const raw = evaluateFitnessTest({
+    type: test.test_type,
+    distanceMeters: test.distance_meters,
+    durationSeconds: test.duration_seconds,
+    splitDistanceMeters: test.split_distance_meters,
+  });
+  if (!raw || raw.resultValue === test.result_value) return null;
+  return {
+    raw: fitnessTestResultText(
+      t,
+      { ...test, result_value: raw.resultValue },
+      unit
+    ),
+    adjusted: fitnessTestResultText(t, test, unit),
+  };
 }

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { FitnessTestType } from '@workspace/shared';
 import Button from '../ui/Button';
 import RecordingSwitchRow from './RecordingSwitchRow';
+import SegmentedControl from '../SegmentedControl';
 import { fitnessTestName } from '../../utils/fitnessTest';
 
 /** What the test is and how to run it, as a short list. */
@@ -52,6 +53,11 @@ export function fitnessTestSteps(
 
 export interface FitnessTestSetupProps {
   type: FitnessTestType;
+  /** Run it on a treadmill (no GPS); false for an outdoor GPS run. */
+  indoor: boolean;
+  onIndoorChange: (indoor: boolean) => void;
+  /** Last test's surface, to say why this one is suggested. */
+  suggestedFromLast?: boolean;
   audioCues: boolean;
   onAudioCuesChange: (value: boolean) => void;
   busy: boolean;
@@ -64,6 +70,9 @@ export interface FitnessTestSetupProps {
 /** The Record screen's before-Start view for a fitness test: guidance, voice cues and Start. */
 const FitnessTestSetup: React.FC<FitnessTestSetupProps> = ({
   type,
+  indoor,
+  onIndoorChange,
+  suggestedFromLast = false,
   audioCues,
   onAudioCuesChange,
   busy,
@@ -83,12 +92,44 @@ const FitnessTestSetup: React.FC<FitnessTestSetupProps> = ({
             {line}
           </Text>
         ))}
+        <View className="mt-3">
+          <SegmentedControl<'outdoor' | 'indoor'>
+            segments={[
+              {
+                key: 'outdoor',
+                label: t('fitnessTest.setup.outdoor', {
+                  defaultValue: 'Outdoor (GPS)',
+                }),
+              },
+              {
+                key: 'indoor',
+                label: t('fitnessTest.setup.indoor', {
+                  defaultValue: 'Treadmill',
+                }),
+              },
+            ]}
+            activeKey={indoor ? 'indoor' : 'outdoor'}
+            onSelect={(key) => onIndoorChange(key === 'indoor')}
+          />
+        </View>
         <Text className="text-text-muted text-xs mt-3">
-          {t('fitnessTest.setup.outdoorOnly', {
-            defaultValue:
-              'Tests are recorded outdoors with your phone’s GPS, as a run, and marked as a fitness test on the activity.',
-          })}
+          {indoor
+            ? t('fitnessTest.setup.indoorNote', {
+                defaultValue:
+                  'On a treadmill nothing is tracked by GPS. The test is timed, and when you finish you enter the distance your treadmill shows and its incline. It is saved as an indoor run and marked as a fitness test.',
+              })
+            : t('fitnessTest.setup.outdoorNote', {
+                defaultValue:
+                  'Outdoors the test is recorded with your phone’s GPS, as a run, and marked as a fitness test on the activity.',
+              })}
         </Text>
+        {suggestedFromLast ? (
+          <Text className="text-text-muted text-xs mt-1">
+            {t('fitnessTest.setup.sameAsLast', {
+              defaultValue: 'Suggested because your last test was the same.',
+            })}
+          </Text>
+        ) : null}
       </View>
       <RecordingSwitchRow
         testID="fitness-test-audio-cues"

@@ -336,12 +336,15 @@ describe('sparky_manage_run_program get_fitness_tests', () => {
         split_distance_meters: null,
         result_value: 1500,
         exercise_entry_id: null,
+        surface: 'outdoor',
+        incline_percent: null,
+        incline_adjusted: false,
         paces: outcome.paces,
         created_at: '2020-01-01T10:00:00.000Z',
       },
     ]);
     const text = await run({ action: 'get_fitness_tests' });
-    expect(text).toContain('5K time trial, 5K in 25:00');
+    expect(text).toContain('5K time trial (outdoors), 5K in 25:00');
     expect(text).toContain('Equivalent 5K time: 25:00');
     expect(text).toContain('- easy:');
     expect(text).toContain('retest is overdue');
@@ -350,5 +353,34 @@ describe('sparky_manage_run_program get_fitness_tests', () => {
   it('takes no other fields and reads nothing when they are sent', async () => {
     await run({ action: 'get_fitness_tests', confirmed: true });
     expect(listFitnessTests).not.toHaveBeenCalled();
+  });
+
+  it('says when a test was run on a treadmill, and whether it was adjusted', async () => {
+    const outcome = evaluateFitnessTest({
+      type: 'cooper',
+      distanceMeters: 3000,
+      durationSeconds: 720,
+      inclinePercent: 3,
+    })!;
+    vi.mocked(listFitnessTests).mockResolvedValue([
+      {
+        id: 't1',
+        test_type: 'cooper',
+        test_date: '2026-10-17',
+        distance_meters: 3000,
+        duration_seconds: 720,
+        split_distance_meters: null,
+        result_value: outcome.resultValue,
+        exercise_entry_id: null,
+        surface: 'indoor',
+        incline_percent: 3,
+        incline_adjusted: true,
+        paces: outcome.paces,
+        created_at: '2026-10-17T10:00:00.000Z',
+      },
+    ]);
+    expect(await run({ action: 'get_fitness_tests' })).toContain(
+      '(on a treadmill at 3% incline, adjusted for incline)'
+    );
   });
 });

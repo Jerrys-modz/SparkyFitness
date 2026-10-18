@@ -7617,7 +7617,10 @@
           "threshold": "Threshold",
           "interval": "Interval",
           "repetition": "Repetition"
-        }
+        },
+        "treadmill": "Treadmill",
+        "treadmillIncline": "Treadmill, {{incline}}% incline",
+        "treadmillInclineAdjusted": "Treadmill, {{incline}}% incline, adjusted"
       }
     },
     "matchedCourses": {

@@ -123,6 +123,12 @@ function describeTestResult(test: FitnessTestResponse): string {
   return `${clock(test.result_value)}/km over the last 20 minutes`;
 }
 
+function describeSurface(test: FitnessTestResponse): string {
+  if (test.surface === 'outdoor') return 'outdoors';
+  if (test.incline_percent === null) return 'on a treadmill';
+  return `on a treadmill at ${test.incline_percent}% incline${test.incline_adjusted ? ', adjusted for incline' : ', not adjusted'}`;
+}
+
 function summariseFitnessTests(
   tests: FitnessTestResponse[],
   today: string
@@ -138,7 +144,7 @@ function summariseFitnessTests(
       .slice(0, 5)
       .map(
         (test) =>
-          `- ${test.test_date}: ${FITNESS_TEST_NAMES[test.test_type]}, ${describeTestResult(test)}, threshold pace ${clock(test.paces.thresholdSecondsPerKm)}/km`
+          `- ${test.test_date}: ${FITNESS_TEST_NAMES[test.test_type]} (${describeSurface(test)}), ${describeTestResult(test)}, threshold pace ${clock(test.paces.thresholdSecondsPerKm)}/km`
       ),
     '',
     `Latest test training paces (per km), from ${latest.test_date}:`,

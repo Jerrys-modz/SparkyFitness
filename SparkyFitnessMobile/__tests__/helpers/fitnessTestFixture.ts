@@ -36,6 +36,12 @@ export function fitnessTest(
     split_distance_meters: measurement.splitDistanceMeters ?? null,
     result_value: outcome.resultValue,
     exercise_entry_id: null,
+    // A measurement with an incline is a treadmill test.
+    surface: measurement.inclinePercent != null ? 'indoor' : 'outdoor',
+    incline_percent: measurement.inclinePercent ?? null,
+    incline_adjusted:
+      measurement.inclinePercent != null &&
+      measurement.adjustForIncline !== false,
     paces: outcome.paces,
     created_at: '2026-10-01T10:00:00.000Z',
     ...rest,

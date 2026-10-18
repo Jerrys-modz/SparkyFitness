@@ -138,7 +138,7 @@ describe('starting', () => {
     expect((await storedSession())?.fitnessTest).toBeUndefined();
   });
 
-  it('does not record a fitness test indoors, where there is no route to measure', async () => {
+  it('records a fitness test on a treadmill, with no location task', async () => {
     await startRecording({
       activity: 'run',
       indoor: true,
@@ -146,7 +146,12 @@ describe('starting', () => {
       notification,
     });
 
-    expect((await storedSession())?.fitnessTest).toBeUndefined();
+    const stored = await storedSession();
+    expect(stored).toMatchObject({ indoor: true, fitnessTest: '5k' });
+    expect(mockedLocation.startLocationUpdatesAsync).not.toHaveBeenCalled();
+    expect(
+      mockedLocation.requestForegroundPermissionsAsync
+    ).not.toHaveBeenCalled();
   });
 
   it('does not record when permission is denied', async () => {

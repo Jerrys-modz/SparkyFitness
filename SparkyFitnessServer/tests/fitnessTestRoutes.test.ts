@@ -53,6 +53,9 @@ const test = {
   split_distance_meters: null,
   result_value: 1500,
   exercise_entry_id: null,
+  surface: 'outdoor',
+  incline_percent: null,
+  incline_adjusted: false,
   paces: {
     thresholdSecondsPerKm: 290,
     equivalent5kSeconds: 1500,
@@ -101,7 +104,50 @@ describe('fitness test routes', () => {
     expect(res.status).toBe(200);
     expect(createFitnessTest).toHaveBeenCalledWith(
       'test-user-id',
-      body,
+      expect.objectContaining(body),
+      'test-user-id'
+    );
+  });
+
+  it('saves a treadmill test with its incline, adjusted unless turned off', async () => {
+    vi.mocked(createFitnessTest).mockResolvedValue(test as never);
+    const treadmill = {
+      ...body,
+      test_type: 'cooper',
+      distance_meters: 3000,
+      duration_seconds: 720,
+      surface: 'indoor',
+      incline_percent: 3,
+    };
+    const res = await request(app)
+      .post('/api/v2/fitness-tests')
+      .send(treadmill);
+    expect(res.status).toBe(200);
+    expect(createFitnessTest).toHaveBeenLastCalledWith(
+      'test-user-id',
+      expect.objectContaining({
+        surface: 'indoor',
+        incline_percent: 3,
+        incline_adjusted: true,
+      }),
+      'test-user-id'
+    );
+    await request(app)
+      .post('/api/v2/fitness-tests')
+      .send({ ...treadmill, incline_adjusted: false });
+    expect(createFitnessTest).toHaveBeenLastCalledWith(
+      'test-user-id',
+      expect.objectContaining({ incline_adjusted: false }),
+      'test-user-id'
+    );
+  });
+
+  it('treats a test with no surface as outdoor', async () => {
+    vi.mocked(createFitnessTest).mockResolvedValue(test as never);
+    await request(app).post('/api/v2/fitness-tests').send(body);
+    expect(createFitnessTest).toHaveBeenLastCalledWith(
+      'test-user-id',
+      expect.objectContaining({ surface: 'outdoor' }),
       'test-user-id'
     );
   });
@@ -113,6 +159,11 @@ describe('fitness test routes', () => {
       { ...body, test_date: '2026-02-31' },
       { ...body, distance_meters: -5 },
       { ...body, exercise_entry_id: 'not-a-uuid' },
+      { ...body, surface: 'track' },
+      { ...body, surface: 'indoor', incline_percent: 20 },
+      { ...body, surface: 'indoor', incline_percent: -1 },
+      // An incline only applies to a treadmill.
+      { ...body, incline_percent: 2 },
     ]) {
       const res = await request(app).post('/api/v2/fitness-tests').send(bad);
       expect(res.status).toBe(400);

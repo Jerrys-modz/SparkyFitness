@@ -71,6 +71,34 @@ describe('FitnessRetestPrompt', () => {
   });
 });
 
+describe('FitnessRetestPrompt surface', () => {
+  it('says the retest starts outdoors after an outdoor test', () => {
+    withTests(fitnessTest({ id: 's1' }));
+    render(<FitnessRetestPrompt today={IN_SIX_WEEKS} onRetest={jest.fn()} />);
+    expect(screen.getByTestId('fitness-retest-surface').props.children).toBe(
+      'You tested outdoors last time, so the retest starts outdoors too.'
+    );
+  });
+
+  it('says the retest starts on a treadmill after a treadmill test', () => {
+    withTests(
+      fitnessTest({
+        id: 's2',
+        measurement: {
+          type: 'cooper',
+          distanceMeters: 3000,
+          durationSeconds: 720,
+          inclinePercent: 1,
+        },
+      })
+    );
+    render(<FitnessRetestPrompt today={IN_SIX_WEEKS} onRetest={jest.fn()} />);
+    expect(screen.getByTestId('fitness-retest-surface').props.children).toBe(
+      'You tested on a treadmill last time, so the retest starts on a treadmill too.'
+    );
+  });
+});
+
 describe('ProgramRetestPrompt', () => {
   const running = (over = {}) =>
     jest.mocked(useRunProgram).mockReturnValue({

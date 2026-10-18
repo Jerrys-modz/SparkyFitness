@@ -17,6 +17,8 @@ import { formatDayLabel } from '../utils/dayLabel';
 import {
   fitnessTestName,
   fitnessTestResultText,
+  fitnessTestSurfaceName,
+  fitnessTestSurfaceText,
   paceRangeText,
   paceText,
 } from '../utils/fitnessTest';
@@ -58,7 +60,7 @@ const FitnessTestScreen: React.FC<Props> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { preferences } = usePreferences();
   const unit = (preferences?.default_distance_unit as 'km' | 'miles') ?? 'km';
-  const { tests, refetch } = useFitnessTests();
+  const { tests, latest, refetch } = useFitnessTests();
   useRefetchOnFocus(refetch, true);
 
   const header = useScreenHeader({
@@ -66,8 +68,14 @@ const FitnessTestScreen: React.FC<Props> = ({ navigation }) => {
     left: { kind: 'back' },
   });
 
+  // A retest starts on the surface the last test was run on.
   const start = (type: FitnessTestType) =>
-    navigation.navigate('RecordActivity', { fitnessTest: type });
+    navigation.navigate(
+      'RecordActivity',
+      latest
+        ? { fitnessTest: type, indoor: latest.surface === 'indoor' }
+        : { fitnessTest: type }
+    );
 
   return (
     <>
@@ -85,6 +93,19 @@ const FitnessTestScreen: React.FC<Props> = ({ navigation }) => {
               'A fitness test is one hard, measured run. It is recorded with your phone’s GPS, and the result sets your training paces for easy runs, tempo, intervals and race plans.',
           })}
         </Text>
+
+        {latest ? (
+          <Text
+            className="text-text-muted text-xs mt-3"
+            testID="fitness-test-last-surface"
+          >
+            {t('fitnessTest.lastSurface', {
+              surface: fitnessTestSurfaceName(t, latest.surface),
+              defaultValue:
+                'Your last test was on: {{surface}}. A new test starts on the same, and you can change it before you start.',
+            })}
+          </Text>
+        ) : null}
 
         {FITNESS_TEST_TYPES.map((type) => (
           <View
@@ -145,6 +166,12 @@ const FitnessTestScreen: React.FC<Props> = ({ navigation }) => {
                 </Text>
                 <Text className="text-text-primary text-base font-semibold mt-0.5">
                   {fitnessTestResultText(t, test, unit)}
+                </Text>
+                <Text
+                  className="text-text-muted text-xs mt-0.5"
+                  testID={`fitness-test-surface-${test.id}`}
+                >
+                  {fitnessTestSurfaceText(t, test)}
                 </Text>
                 <Text className="text-text-secondary text-xs mt-1">
                   {t('fitnessTest.history.paces', {

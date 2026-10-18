@@ -7,6 +7,7 @@ import { useFitnessTests } from '../../services/fitnessTestService';
 import {
   fitnessTestName,
   fitnessTestResultText,
+  fitnessTestSurfaceText,
 } from '../../utils/fitnessTest';
 
 /**
@@ -40,6 +41,9 @@ const FitnessTestBadge: React.FC<{
             result: fitnessTestResultText(t, test, unit),
             defaultValue: '{{test}}: {{result}}',
           })}
+          {test.surface === 'indoor'
+            ? ` · ${fitnessTestSurfaceText(t, test)}`
+            : ''}
         </Text>
       </View>
     </View>

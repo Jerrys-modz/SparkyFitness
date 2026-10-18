@@ -152,3 +152,54 @@ describe('deleting', () => {
     expect(navigation.goBack).not.toHaveBeenCalled();
   });
 });
+
+describe('treadmill tests', () => {
+  const treadmill = (extra: object = {}) =>
+    fitnessTest({
+      id: 'tm',
+      test_date: '2026-11-20',
+      measurement: {
+        type: 'cooper',
+        distanceMeters: 3000,
+        durationSeconds: 720,
+        inclinePercent: 3,
+        ...extra,
+      },
+    });
+
+  it('says it was a treadmill test and shows the raw and adjusted numbers', () => {
+    jest
+      .mocked(useFitnessTests)
+      .mockReturnValue(fitnessTestsHook([treadmill()]));
+    renderScreen('tm');
+    expect(screen.getByTestId('fitness-result-surface').props.children).toBe(
+      'Treadmill, 3% incline, adjusted'
+    );
+    expect(screen.getByTestId('fitness-result-adjustment').props.children).toBe(
+      'Adjusted for 3% incline: 3,000 m in 12 minutes counts as 3,258 m in 12 minutes.'
+    );
+    // The headline is the adjusted result.
+    expect(screen.getByText('3,258 m in 12 minutes')).toBeTruthy();
+  });
+
+  it('shows no adjustment when it was switched off', () => {
+    jest
+      .mocked(useFitnessTests)
+      .mockReturnValue(
+        fitnessTestsHook([treadmill({ adjustForIncline: false })])
+      );
+    renderScreen('tm');
+    expect(screen.getByTestId('fitness-result-surface').props.children).toBe(
+      'Treadmill, 3% incline, not adjusted'
+    );
+    expect(screen.queryByTestId('fitness-result-adjustment')).toBeNull();
+  });
+
+  it('says outdoors for a GPS test', () => {
+    renderScreen('earlier');
+    expect(screen.getByTestId('fitness-result-surface').props.children).toBe(
+      'Outdoor'
+    );
+    expect(screen.queryByTestId('fitness-result-adjustment')).toBeNull();
+  });
+});

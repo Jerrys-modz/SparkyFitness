@@ -107,3 +107,70 @@ it('keeps the history short', () => {
   expect(screen.getAllByTestId(/fitness-test-row-/)).toHaveLength(10);
   expect(screen.getByText('Showing your latest 10 tests.')).toBeTruthy();
 });
+
+describe('surface', () => {
+  const treadmill = fitnessTest({
+    id: 'tm',
+    measurement: {
+      type: 'cooper',
+      distanceMeters: 3000,
+      durationSeconds: 720,
+      inclinePercent: 3,
+    },
+  });
+
+  it('starts a retest on the surface the last test used', () => {
+    jest
+      .mocked(useFitnessTests)
+      .mockReturnValue(
+        fitnessTestsHook([treadmill, fitnessTest({ id: 'old' })])
+      );
+    renderScreen();
+    expect(
+      screen.getByTestId('fitness-test-last-surface').props.children
+    ).toMatch(/Your last test was on: Treadmill/);
+    fireEvent.press(screen.getByTestId('fitness-test-start-5k'));
+    expect(navigate).toHaveBeenCalledWith('RecordActivity', {
+      fitnessTest: '5k',
+      indoor: true,
+    });
+  });
+
+  it('suggests outdoors after an outdoor test', () => {
+    jest
+      .mocked(useFitnessTests)
+      .mockReturnValue(fitnessTestsHook([fitnessTest({ id: 'out' })]));
+    renderScreen();
+    expect(
+      screen.getByTestId('fitness-test-last-surface').props.children
+    ).toMatch(/Your last test was on: Outdoor/);
+    fireEvent.press(screen.getByTestId('fitness-test-start-cooper'));
+    expect(navigate).toHaveBeenCalledWith('RecordActivity', {
+      fitnessTest: 'cooper',
+      indoor: false,
+    });
+  });
+
+  it('suggests nothing before a first test', () => {
+    renderScreen();
+    expect(screen.queryByTestId('fitness-test-last-surface')).toBeNull();
+  });
+
+  it('marks each test in the history as outdoor or treadmill, with its incline', () => {
+    jest
+      .mocked(useFitnessTests)
+      .mockReturnValue(
+        fitnessTestsHook([
+          treadmill,
+          fitnessTest({ id: 'out', test_date: '2026-08-01' }),
+        ])
+      );
+    renderScreen();
+    expect(screen.getByTestId('fitness-test-surface-tm').props.children).toBe(
+      'Treadmill, 3% incline, adjusted'
+    );
+    expect(screen.getByTestId('fitness-test-surface-out').props.children).toBe(
+      'Outdoor'
+    );
+  });
+});

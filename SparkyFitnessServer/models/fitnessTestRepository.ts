@@ -35,6 +35,12 @@ function mapRow(row: Record<string, unknown>): FitnessTestResponse | null {
     exercise_entry_id: row.exercise_entry_id
       ? String(row.exercise_entry_id)
       : null,
+    surface: row.surface === 'indoor' ? 'indoor' : 'outdoor',
+    incline_percent:
+      row.incline_percent === null || row.incline_percent === undefined
+        ? null
+        : Number(row.incline_percent),
+    incline_adjusted: Boolean(row.incline_adjusted),
     paces: paces.data,
     created_at: new Date(row.created_at as string).toISOString(),
   };
@@ -87,11 +93,19 @@ export async function createFitnessTest(
   body: CreateFitnessTestBody,
   authenticatedUserId?: string
 ): Promise<FitnessTestResponse> {
+  const indoor = body.surface === 'indoor';
+  // An incline only means something on a treadmill; the correction is on
+  // unless the person turned it off.
+  const inclinePercent = indoor ? (body.incline_percent ?? null) : null;
+  const inclineAdjusted =
+    inclinePercent !== null && body.incline_adjusted !== false;
   const outcome = evaluateFitnessTest({
     type: body.test_type,
     distanceMeters: body.distance_meters,
     durationSeconds: body.duration_seconds,
     splitDistanceMeters: body.split_distance_meters,
+    inclinePercent,
+    adjustForIncline: inclineAdjusted,
   });
   if (!outcome) {
     throw new InvalidFitnessTestError(
@@ -120,12 +134,16 @@ export async function createFitnessTest(
       outcome.paces.thresholdSecondsPerKm,
       outcome.paces.equivalent5kSeconds,
       JSON.stringify(outcome.paces),
+      indoor ? 'indoor' : 'outdoor',
+      inclinePercent,
+      inclineAdjusted,
     ];
     const columns = `user_id, test_type, test_date, exercise_entry_id,
           distance_meters, duration_seconds, split_distance_meters,
-          result_value, threshold_pace_seconds_per_km, equivalent_5k_seconds, paces`;
+          result_value, threshold_pace_seconds_per_km, equivalent_5k_seconds, paces,
+          surface, incline_percent, incline_adjusted`;
     const insert = `INSERT INTO fitness_tests (${columns})
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)`;
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13, $14)`;
     const sql = entryId
       ? `${insert}
          ON CONFLICT (exercise_entry_id) WHERE exercise_entry_id IS NOT NULL
@@ -138,6 +156,9 @@ export async function createFitnessTest(
            threshold_pace_seconds_per_km = EXCLUDED.threshold_pace_seconds_per_km,
            equivalent_5k_seconds = EXCLUDED.equivalent_5k_seconds,
            paces = EXCLUDED.paces,
+           surface = EXCLUDED.surface,
+           incline_percent = EXCLUDED.incline_percent,
+           incline_adjusted = EXCLUDED.incline_adjusted,
            updated_at = NOW()
          RETURNING ${COLUMNS}`
       : `${insert} RETURNING ${COLUMNS}`;

@@ -63,6 +63,20 @@ const FitnessRetestPrompt: React.FC<FitnessRetestPromptProps> = ({
             'Your last fitness test was {{formattedCount}} weeks ago. A retest updates your training paces and shows how your fitness has changed.',
         })}
       </Text>
+      <Text
+        className="text-text-secondary text-xs mt-1"
+        testID="fitness-retest-surface"
+      >
+        {latest.surface === 'indoor'
+          ? t('fitnessTest.retest.sameTreadmill', {
+              defaultValue:
+                'You tested on a treadmill last time, so the retest starts on a treadmill too.',
+            })
+          : t('fitnessTest.retest.sameOutdoor', {
+              defaultValue:
+                'You tested outdoors last time, so the retest starts outdoors too.',
+            })}
+      </Text>
       <View className="flex-row mt-3">
         <View className="flex-1 mr-2">
           <Button

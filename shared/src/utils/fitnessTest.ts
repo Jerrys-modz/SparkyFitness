@@ -43,6 +43,38 @@ export const THIRTY_MINUTE_SPLIT_SECONDS =
 /** Riegel's exponent, as in `paceZones.ts` and `racePaceZones.ts`. */
 const RIEGEL_EXPONENT = 1.06;
 
+/** Where a test was run: outdoors with GPS, or indoors (a treadmill) with the distance typed in. */
+export const FITNESS_TEST_SURFACES = ["outdoor", "indoor"] as const;
+export type FitnessTestSurface = (typeof FITNESS_TEST_SURFACES)[number];
+
+/** Steepest treadmill incline the correction covers, in percent. */
+export const MAX_INCLINE_PERCENT = 15;
+/** The incline that stands in for a flat outdoor run (air resistance outdoors). */
+export const FLAT_EQUIVALENT_INCLINE_PERCENT = 1;
+
+/**
+ * ACSM running equation: the oxygen cost of each metre run is
+ * 0.2 + 0.9 x grade (grade as a fraction). Jones and Doust (1996) found that
+ * a 1% incline makes a treadmill cost the same as a flat outdoor run.
+ */
+const ACSM_FLAT_COST = 0.2;
+const ACSM_GRADE_COST = 0.9;
+
+/**
+ * How much faster (above 1) or slower (below 1) a treadmill speed is, in
+ * flat-outdoor terms, at this incline. Exactly 1 at 1%; a 0% treadmill gives
+ * about 0.957 (the same effort is a little easier than outdoors, so the speed
+ * counts for less) and each extra percent adds about 4%. Null for an incline
+ * that is not a number between 0 and 15.
+ */
+export function inclineSpeedFactor(inclinePercent: number): number | null {
+  if (!Number.isFinite(inclinePercent)) return null;
+  if (inclinePercent < 0 || inclinePercent > MAX_INCLINE_PERCENT) return null;
+  const cost = (percent: number) =>
+    ACSM_FLAT_COST + (ACSM_GRADE_COST * percent) / 100;
+  return cost(inclinePercent) / cost(FLAT_EQUIVALENT_INCLINE_PERCENT);
+}
+
 /** What was measured. Distance is in metres and time in seconds. */
 export interface FitnessTestMeasurement {
   type: FitnessTestType;
@@ -55,6 +87,45 @@ export interface FitnessTestMeasurement {
   durationSeconds: number;
   /** 30-minute run only: the distance covered after the first 10 minutes. */
   splitDistanceMeters?: number | null;
+  /** Treadmill incline, percent, when the person entered one. */
+  inclinePercent?: number | null;
+  /**
+   * Whether to correct for the incline (the default when an incline is
+   * given). Off uses the numbers as measured.
+   */
+  adjustForIncline?: boolean;
+}
+
+/**
+ * The measurement as the incline correction sees it: the same effort in
+ * flat-outdoor terms. A faster-than-flat treadmill (above 1%) credits more
+ * distance in the same time, or less time for the 5K; a 0% treadmill credits
+ * less. Unchanged without an incline, with the correction off, at exactly 1%,
+ * or for an incline outside 0 to 15% (which `evaluateFitnessTest` refuses).
+ */
+export function applyIncline(
+  measurement: FitnessTestMeasurement,
+): FitnessTestMeasurement {
+  const { inclinePercent } = measurement;
+  if (inclinePercent == null || measurement.adjustForIncline === false) {
+    return measurement;
+  }
+  const factor = inclineSpeedFactor(inclinePercent);
+  if (factor === null || factor === 1) return measurement;
+  if (measurement.type === "5k") {
+    return {
+      ...measurement,
+      durationSeconds: measurement.durationSeconds / factor,
+    };
+  }
+  return {
+    ...measurement,
+    distanceMeters: measurement.distanceMeters * factor,
+    splitDistanceMeters:
+      measurement.splitDistanceMeters == null
+        ? measurement.splitDistanceMeters
+        : measurement.splitDistanceMeters * factor,
+  };
 }
 
 /** What the person's training paces are worked out from. */
@@ -99,7 +170,10 @@ export function thirtyMinuteThresholdPace(
   splitDistanceMeters: number | null | undefined,
 ): number | null {
   if (typeof splitDistanceMeters !== "number") return null;
-  if (!Number.isFinite(distanceMeters) || !Number.isFinite(splitDistanceMeters)) {
+  if (
+    !Number.isFinite(distanceMeters) ||
+    !Number.isFinite(splitDistanceMeters)
+  ) {
     return null;
   }
   if (splitDistanceMeters <= 0) return null;
@@ -133,8 +207,15 @@ function pacesFor(
  * measurement that does not fit its test or a result that cannot be right.
  */
 export function evaluateFitnessTest(
-  measurement: FitnessTestMeasurement,
+  input: FitnessTestMeasurement,
 ): FitnessTestOutcome | null {
+  if (
+    input.inclinePercent != null &&
+    inclineSpeedFactor(input.inclinePercent) === null
+  ) {
+    return null;
+  }
+  const measurement = applyIncline(input);
   const { type, distanceMeters, durationSeconds } = measurement;
   if (!isFitnessTestType(type)) return null;
   if (!Number.isFinite(distanceMeters) || !Number.isFinite(durationSeconds)) {

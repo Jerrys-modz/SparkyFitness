@@ -16,10 +16,13 @@ import {
 import { addLog } from '../services/LogService';
 import type { RootStackScreenProps } from '../types/navigation';
 import { formatDayLabel } from '../utils/dayLabel';
+import { formatLocalizedNumber } from '../localization';
 import { formatClock } from '../utils/gpsRecording';
 import {
   fitnessTestName,
   fitnessTestResultText,
+  fitnessTestSurfaceText,
+  inclineAdjustmentText,
   paceChangeText,
   paceText,
 } from '../utils/fitnessTest';
@@ -43,6 +46,7 @@ const FitnessTestResultScreen: React.FC<Props> = ({ navigation, route }) => {
   const previous = index >= 0 ? (tests[index + 1] ?? null) : null;
   const change =
     test && previous ? comparePaces(previous.paces, test.paces) : null;
+  const adjustment = test ? inclineAdjustmentText(t, test, unit) : null;
 
   const header = useScreenHeader({
     title: t('screens.fitnessTestResult', { defaultValue: 'Fitness test' }),
@@ -127,6 +131,28 @@ const FitnessTestResultScreen: React.FC<Props> = ({ navigation, route }) => {
               <Text className="text-text-primary text-2xl font-bold mt-1">
                 {fitnessTestResultText(t, test, unit)}
               </Text>
+              <Text
+                className="text-text-secondary text-sm mt-2"
+                testID="fitness-result-surface"
+              >
+                {fitnessTestSurfaceText(t, test)}
+              </Text>
+              {adjustment && test.incline_percent !== null ? (
+                <Text
+                  className="text-text-secondary text-sm mt-1"
+                  testID="fitness-result-adjustment"
+                >
+                  {t('fitnessTest.finished.adjusted', {
+                    incline: formatLocalizedNumber(test.incline_percent, {
+                      maximumFractionDigits: 1,
+                    }),
+                    raw: adjustment.raw,
+                    adjusted: adjustment.adjusted,
+                    defaultValue:
+                      'Adjusted for {{incline}}% incline: {{raw}} counts as {{adjusted}}.',
+                  })}
+                </Text>
+              ) : null}
               <Text className="text-text-secondary text-sm mt-2">
                 {t('fitnessTest.result.derived', {
                   pace: paceText(t, test.paces.thresholdSecondsPerKm, unit),

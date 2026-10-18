@@ -117,4 +117,78 @@ describe('fitness test repository', () => {
     query.mockResolvedValueOnce({ rowCount: 0 });
     expect(await deleteFitnessTest('u1', entryId)).toBe(false);
   });
+
+  describe('on a treadmill', () => {
+    const treadmill = {
+      test_type: 'cooper' as const,
+      test_date: '2026-10-18',
+      distance_meters: 3000,
+      duration_seconds: 720,
+      surface: 'indoor' as const,
+      incline_percent: 3,
+    };
+    const insertValues = () => query.mock.calls[0][1];
+
+    it('saves the surface and incline and corrects the result for it', async () => {
+      query.mockResolvedValue({
+        rows: [
+          {
+            ...row,
+            test_type: 'cooper',
+            surface: 'indoor',
+            incline_percent: '3.0',
+            incline_adjusted: true,
+          },
+        ],
+      });
+      const saved = await createFitnessTest('u1', treadmill, 'u1');
+      expect(saved).toMatchObject({
+        surface: 'indoor',
+        incline_percent: 3,
+        incline_adjusted: true,
+      });
+      const values = insertValues();
+      // The raw distance is kept; the result is the corrected one.
+      expect(values[4]).toBe(3000);
+      expect(values[7]).toBe(Math.round((3000 * 0.227) / 0.209));
+      expect(values.slice(11)).toEqual(['indoor', 3, true]);
+    });
+
+    it('keeps the numbers as measured when the correction is off', async () => {
+      query.mockResolvedValue({ rows: [{ ...row, surface: 'indoor' }] });
+      await createFitnessTest('u1', { ...treadmill, incline_adjusted: false });
+      expect(insertValues()[7]).toBe(3000);
+      expect(insertValues().slice(11)).toEqual(['indoor', 3, false]);
+    });
+
+    it('records no correction when no incline was entered', async () => {
+      query.mockResolvedValue({ rows: [{ ...row, surface: 'indoor' }] });
+      await createFitnessTest('u1', { ...treadmill, incline_percent: null });
+      expect(insertValues()[7]).toBe(3000);
+      expect(insertValues().slice(11)).toEqual(['indoor', null, false]);
+    });
+
+    it('ignores an incline sent with an outdoor test', async () => {
+      query.mockResolvedValue({ rows: [row] });
+      await createFitnessTest('u1', { ...body, incline_percent: 6 });
+      expect(insertValues().slice(11)).toEqual(['outdoor', null, false]);
+    });
+
+    it('refuses an incline outside 0 to 15 percent, writing nothing', async () => {
+      await expect(
+        createFitnessTest('u1', { ...treadmill, incline_percent: 20 })
+      ).rejects.toBeInstanceOf(InvalidFitnessTestError);
+      expect(query).not.toHaveBeenCalled();
+    });
+
+    it('reads a test saved before surfaces existed as outdoor', async () => {
+      query.mockResolvedValue({ rows: [row] });
+      const [only] = await listFitnessTests('u1', 'u1');
+      expect(only).toMatchObject({
+        surface: 'outdoor',
+        incline_percent: null,
+        incline_adjusted: false,
+      });
+    });
+  });
 });

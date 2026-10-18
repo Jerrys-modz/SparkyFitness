@@ -161,13 +161,21 @@ const navigation = {
   navigate: jest.fn(),
 };
 
-const renderScreen = async (fitnessTestParam?: FitnessTestType) => {
+const renderScreen = async (
+  fitnessTestParam?: FitnessTestType,
+  indoorParam?: boolean
+) => {
   const props = {
     navigation,
     route: {
       key: 'RecordActivity',
       name: 'RecordActivity',
-      params: fitnessTestParam ? { fitnessTest: fitnessTestParam } : undefined,
+      params: fitnessTestParam
+        ? {
+            fitnessTest: fitnessTestParam,
+            ...(indoorParam !== undefined ? { indoor: indoorParam } : {}),
+          }
+        : undefined,
     },
   } as unknown as RootStackScreenProps<'RecordActivity'>;
   const screen = render(
@@ -335,6 +343,9 @@ describe('RecordActivityScreen fitness test', () => {
         duration_seconds: 1000,
         split_distance_meters: null,
         exercise_entry_id: 'entry-1',
+        surface: 'outdoor',
+        incline_percent: null,
+        incline_adjusted: false,
       });
       // The activity is saved first, so the test can name it.
       expect(
@@ -409,6 +420,325 @@ describe('RecordActivityScreen fitness test', () => {
       fireEvent.press(screen.getByText('Save activity'));
       await waitFor(() => expect(navigation.replace).toHaveBeenCalled());
       expect(saveFitnessTest).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('on a treadmill', () => {
+    const treadmill = (
+      type: FitnessTestType,
+      overrides: Partial<RecordingSession> = {}
+    ) =>
+      session({
+        status: 'finished',
+        finishedAt: START + 1_900_000,
+        fitnessTest: type,
+        indoor: true,
+        ...overrides,
+      });
+    const saved = () =>
+      jest.mocked(saveRecordedActivity).mockResolvedValue({
+        entryId: 'entry-1',
+        entryDate: '2026-10-18',
+      } as never);
+    const typeDistance = (
+      screen: Awaited<ReturnType<typeof renderScreen>>,
+      text: string
+    ) => fireEvent.changeText(screen.getByLabelText('Distance'), text);
+
+    it('starts a treadmill test when Treadmill is chosen', async () => {
+      state(null);
+      const screen = await renderScreen('30min');
+      fireEvent.press(screen.getByText('Treadmill'));
+      fireEvent.press(screen.getByTestId('fitness-test-start'));
+      await waitFor(() => expect(startRecording).toHaveBeenCalled());
+      expect(startRecording).toHaveBeenCalledWith(
+        expect.objectContaining({
+          activity: 'run',
+          indoor: true,
+          fitnessTest: '30min',
+          autoPause: false,
+        })
+      );
+    });
+
+    it('opens on the surface the last test used', async () => {
+      state(null);
+      const screen = await renderScreen('5k', true);
+      expect(
+        screen.getByText(/On a treadmill nothing is tracked by GPS/)
+      ).toBeTruthy();
+      expect(screen.getByText(/Suggested because your last test/)).toBeTruthy();
+      fireEvent.press(screen.getByTestId('fitness-test-start'));
+      await waitFor(() => expect(startRecording).toHaveBeenCalled());
+      expect(startRecording).toHaveBeenCalledWith(
+        expect.objectContaining({ indoor: true })
+      );
+    });
+
+    it('opens outdoors with no earlier test, and says nothing about a suggestion', async () => {
+      state(null);
+      const screen = await renderScreen('5k');
+      expect(screen.getByText(/Outdoors the test is recorded/)).toBeTruthy();
+      expect(screen.queryByText(/Suggested because your last test/)).toBeNull();
+    });
+
+    it('guides a treadmill 5K by the clock', async () => {
+      state(session({ fitnessTest: '5k', indoor: true }));
+      const screen = await renderScreen();
+      expect(screen.getByTestId('fitness-test-guidance').props.children).toBe(
+        'Run evenly and hard. Tap Finish when your treadmill reaches 5 km. Time 5:00.'
+      );
+    });
+
+    it('ends a treadmill Cooper test on the clock', async () => {
+      jest.mocked(elapsedSeconds).mockReturnValue(720);
+      state(session({ fitnessTest: 'cooper', indoor: true }));
+      await renderScreen();
+      expect(fireSuccessHaptic).toHaveBeenCalledTimes(1);
+    });
+
+    it('asks for the distance and the incline, with the correction on by default', async () => {
+      jest.mocked(elapsedSeconds).mockReturnValue(725);
+      state(treadmill('cooper'));
+      const screen = await renderScreen();
+      expect(screen.getByTestId('indoor-test-fields')).toBeTruthy();
+      expect(screen.getByTestId('indoor-test-incline').props.value).toBe('1');
+      expect(
+        screen.getByText(/Enter the distance your treadmill shows/)
+      ).toBeTruthy();
+    });
+
+    it('files a Cooper test with the typed distance, incline and surface', async () => {
+      jest.mocked(elapsedSeconds).mockReturnValue(725);
+      state(treadmill('cooper'));
+      saved();
+      jest
+        .mocked(saveFitnessTest)
+        .mockResolvedValue(fitnessTest({ id: 'tm-1' }));
+      const screen = await renderScreen();
+      typeDistance(screen, '2.8');
+      fireEvent.press(screen.getByText('Save activity'));
+      await waitFor(() =>
+        expect(navigation.replace).toHaveBeenCalledWith('FitnessTestResult', {
+          id: 'tm-1',
+        })
+      );
+      expect(saveRecordedActivity).toHaveBeenCalledWith(
+        expect.objectContaining({ indoor: true }),
+        expect.anything(),
+        'km',
+        2.8,
+        null,
+        false
+      );
+      expect(saveFitnessTest).toHaveBeenCalledWith({
+        test_type: 'cooper',
+        test_date: '2026-10-18',
+        distance_meters: 2800,
+        duration_seconds: 720,
+        split_distance_meters: null,
+        exercise_entry_id: 'entry-1',
+        surface: 'indoor',
+        incline_percent: 1,
+        incline_adjusted: true,
+      });
+    });
+
+    it('shows the raw and adjusted numbers for a steeper incline', async () => {
+      jest.mocked(elapsedSeconds).mockReturnValue(725);
+      state(treadmill('cooper'));
+      saved();
+      jest.mocked(saveFitnessTest).mockResolvedValue(fitnessTest());
+      const screen = await renderScreen();
+      typeDistance(screen, '2.8');
+      expect(screen.queryByTestId('fitness-test-adjustment')).toBeNull();
+      fireEvent.changeText(screen.getByTestId('indoor-test-incline'), '3');
+      expect(screen.getByTestId('fitness-test-adjustment').props.children).toBe(
+        'Adjusted for 3% incline: 2,800 m in 12 minutes counts as 3,041 m in 12 minutes.'
+      );
+      fireEvent.press(screen.getByText('Save activity'));
+      await waitFor(() => expect(saveFitnessTest).toHaveBeenCalled());
+      expect(saveFitnessTest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          incline_percent: 3,
+          incline_adjusted: true,
+        })
+      );
+    });
+
+    it('uses the numbers as they are when the correction is switched off', async () => {
+      jest.mocked(elapsedSeconds).mockReturnValue(725);
+      state(treadmill('cooper'));
+      saved();
+      jest.mocked(saveFitnessTest).mockResolvedValue(fitnessTest());
+      const screen = await renderScreen();
+      typeDistance(screen, '2.8');
+      fireEvent.changeText(screen.getByTestId('indoor-test-incline'), '3');
+      fireEvent(screen.getByTestId('indoor-test-adjust'), 'valueChange', false);
+      expect(screen.queryByTestId('fitness-test-adjustment')).toBeNull();
+      fireEvent.press(screen.getByText('Save activity'));
+      await waitFor(() => expect(saveFitnessTest).toHaveBeenCalled());
+      expect(saveFitnessTest).toHaveBeenCalledWith(
+        expect.objectContaining({ incline_percent: 3, incline_adjusted: false })
+      );
+    });
+
+    it('files no incline when the field is left empty', async () => {
+      jest.mocked(elapsedSeconds).mockReturnValue(725);
+      state(treadmill('cooper'));
+      saved();
+      jest.mocked(saveFitnessTest).mockResolvedValue(fitnessTest());
+      const screen = await renderScreen();
+      typeDistance(screen, '2.8');
+      fireEvent.changeText(screen.getByTestId('indoor-test-incline'), '');
+      fireEvent.press(screen.getByText('Save activity'));
+      await waitFor(() => expect(saveFitnessTest).toHaveBeenCalled());
+      expect(saveFitnessTest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          incline_percent: null,
+          incline_adjusted: false,
+        })
+      );
+    });
+
+    it('will not save with an incline outside 0 to 15', async () => {
+      jest.mocked(elapsedSeconds).mockReturnValue(725);
+      state(treadmill('cooper'));
+      saved();
+      const screen = await renderScreen();
+      typeDistance(screen, '2.8');
+      fireEvent.changeText(screen.getByTestId('indoor-test-incline'), '20');
+      expect(screen.getByText('Enter an incline from 0 to 15.')).toBeTruthy();
+      fireEvent.press(screen.getByText('Save activity'));
+      expect(saveRecordedActivity).not.toHaveBeenCalled();
+    });
+
+    it('saves a treadmill test with no distance as an ordinary run', async () => {
+      jest.mocked(elapsedSeconds).mockReturnValue(725);
+      state(treadmill('cooper'));
+      saved();
+      const screen = await renderScreen();
+      fireEvent.press(screen.getByText('Save activity'));
+      await waitFor(() =>
+        expect(navigation.replace).toHaveBeenCalledWith(
+          'RunSummary',
+          expect.anything()
+        )
+      );
+      expect(saveFitnessTest).not.toHaveBeenCalled();
+    });
+
+    it('does not count a Cooper test that stopped before 12 minutes', async () => {
+      jest.mocked(elapsedSeconds).mockReturnValue(500);
+      state(treadmill('cooper'));
+      saved();
+      const screen = await renderScreen();
+      typeDistance(screen, '2.0');
+      expect(screen.getByText(/stopped before its mark/)).toBeTruthy();
+      fireEvent.press(screen.getByText('Save activity'));
+      await waitFor(() => expect(navigation.replace).toHaveBeenCalled());
+      expect(saveFitnessTest).not.toHaveBeenCalled();
+    });
+
+    it('takes a 5K time from the clock, and logs the run as 5 km', async () => {
+      jest.mocked(elapsedSeconds).mockReturnValue(1503);
+      state(treadmill('5k'));
+      saved();
+      jest.mocked(saveFitnessTest).mockResolvedValue(fitnessTest());
+      const screen = await renderScreen();
+      expect(screen.getByTestId('indoor-test-time').props.value).toBe('25:03');
+      fireEvent.press(screen.getByText('Save activity'));
+      await waitFor(() => expect(saveFitnessTest).toHaveBeenCalled());
+      expect(saveRecordedActivity).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        'km',
+        5,
+        null,
+        // Nothing was typed in the distance box.
+        true
+      );
+      expect(saveFitnessTest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          test_type: '5k',
+          distance_meters: 5000,
+          duration_seconds: 1503,
+          surface: 'indoor',
+        })
+      );
+    });
+
+    it('takes the 5K time the person typed', async () => {
+      jest.mocked(elapsedSeconds).mockReturnValue(1503);
+      state(treadmill('5k'));
+      saved();
+      jest.mocked(saveFitnessTest).mockResolvedValue(fitnessTest());
+      const screen = await renderScreen();
+      fireEvent.changeText(screen.getByTestId('indoor-test-time'), '24:55');
+      fireEvent.press(screen.getByText('Save activity'));
+      await waitFor(() => expect(saveFitnessTest).toHaveBeenCalled());
+      expect(saveFitnessTest).toHaveBeenCalledWith(
+        expect.objectContaining({ duration_seconds: 1495 })
+      );
+    });
+
+    it('saves an unreadable 5K time as an ordinary run, and says why', async () => {
+      jest.mocked(elapsedSeconds).mockReturnValue(1503);
+      state(treadmill('5k'));
+      saved();
+      const screen = await renderScreen();
+      fireEvent.changeText(screen.getByTestId('indoor-test-time'), 'fast');
+      expect(screen.getByText(/minutes and seconds, like 24:30/)).toBeTruthy();
+      fireEvent.press(screen.getByText('Save activity'));
+      await waitFor(() => expect(navigation.replace).toHaveBeenCalled());
+      expect(saveFitnessTest).not.toHaveBeenCalled();
+    });
+
+    it('sends the distance at 10:00 for a 30-minute run, or assumes a steady pace', async () => {
+      jest.mocked(elapsedSeconds).mockReturnValue(1805);
+      state(treadmill('30min'));
+      saved();
+      jest.mocked(saveFitnessTest).mockResolvedValue(fitnessTest());
+      const screen = await renderScreen();
+      typeDistance(screen, '6.6');
+      fireEvent.changeText(screen.getByTestId('indoor-test-split'), '2');
+      fireEvent.press(screen.getByText('Save activity'));
+      await waitFor(() => expect(saveFitnessTest).toHaveBeenCalled());
+      expect(saveFitnessTest).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          test_type: '30min',
+          distance_meters: 6600,
+          split_distance_meters: 2000,
+          duration_seconds: 1800,
+        })
+      );
+    });
+
+    it('assumes a steady pace for the 30-minute run when the split is empty', async () => {
+      jest.mocked(elapsedSeconds).mockReturnValue(1805);
+      state(treadmill('30min'));
+      saved();
+      jest.mocked(saveFitnessTest).mockResolvedValue(fitnessTest());
+      const screen = await renderScreen();
+      typeDistance(screen, '6.6');
+      fireEvent.press(screen.getByText('Save activity'));
+      await waitFor(() => expect(saveFitnessTest).toHaveBeenCalled());
+      expect(saveFitnessTest).toHaveBeenCalledWith(
+        expect.objectContaining({ split_distance_meters: 2200 })
+      );
+    });
+
+    it('keeps the recording when the treadmill test cannot be saved', async () => {
+      jest.mocked(elapsedSeconds).mockReturnValue(725);
+      state(treadmill('cooper'));
+      saved();
+      jest.mocked(saveFitnessTest).mockRejectedValue(new Error('offline'));
+      const screen = await renderScreen();
+      typeDistance(screen, '2.8');
+      fireEvent.press(screen.getByText('Save activity'));
+      await waitFor(() => expect(saveFitnessTest).toHaveBeenCalled());
+      expect(discardRecording).not.toHaveBeenCalled();
+      expect(navigation.replace).not.toHaveBeenCalled();
     });
   });
 });

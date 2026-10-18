@@ -36,6 +36,11 @@ const test = (
     split_distance_meters: measurement.splitDistanceMeters ?? null,
     result_value: outcome.resultValue,
     exercise_entry_id: null,
+    surface: measurement.inclinePercent != null ? 'indoor' : 'outdoor',
+    incline_percent: measurement.inclinePercent ?? null,
+    incline_adjusted:
+      measurement.inclinePercent != null &&
+      measurement.adjustForIncline !== false,
     paces: outcome.paces,
     created_at: `${testDate}T10:00:00.000Z`,
   };
@@ -150,5 +155,38 @@ describe('FitnessTestsCard', () => {
     expect(screen.getByTestId('fitness-tests-retest')).toHaveTextContent(
       'Your last test was 6 weeks ago'
     );
+  });
+
+  it('marks a treadmill test with its incline', () => {
+    const treadmill = test('t', '2026-10-10', {
+      type: 'cooper',
+      distanceMeters: 3000,
+      durationSeconds: 720,
+      inclinePercent: 3,
+    });
+    renderCard([treadmill, fiveK]);
+    expect(screen.getByTestId('fitness-tests-surface')).toHaveTextContent(
+      'Treadmill, 3% incline, adjusted'
+    );
+    // The headline is the corrected result.
+    expect(screen.getByText('3258 m in 12 minutes')).toBeInTheDocument();
+  });
+
+  it('marks a treadmill test in the history, and an outdoor one not at all', () => {
+    const treadmill = test('t', '2026-08-10', {
+      type: 'cooper',
+      distanceMeters: 3000,
+      durationSeconds: 720,
+      inclinePercent: 1,
+    });
+    renderCard([fiveK, treadmill]);
+    expect(
+      within(screen.getByTestId('fitness-tests-history')).getByText(
+        /Treadmill, 1% incline, adjusted/
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId('fitness-tests-surface')
+    ).not.toBeInTheDocument();
   });
 });

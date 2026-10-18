@@ -4,6 +4,8 @@ import FitnessTestSetup from '../../src/components/recording/FitnessTestSetup';
 
 const props = (overrides = {}) => ({
   type: '5k' as const,
+  indoor: false,
+  onIndoorChange: jest.fn(),
   audioCues: false,
   onAudioCuesChange: jest.fn(),
   busy: false,
@@ -47,4 +49,35 @@ it('says why Start did nothing when location is refused', () => {
   expect(screen.getByText(/needs location access/)).toBeTruthy();
   fireEvent.press(screen.getByText('Open Settings'));
   expect(p.onOpenSettings).toHaveBeenCalled();
+});
+
+describe('surface', () => {
+  it('offers Outdoor (GPS) and Treadmill and reports the choice', () => {
+    const p = props();
+    render(<FitnessTestSetup {...p} />);
+    fireEvent.press(screen.getByText('Treadmill'));
+    expect(p.onIndoorChange).toHaveBeenCalledWith(true);
+    fireEvent.press(screen.getByText('Outdoor (GPS)'));
+    expect(p.onIndoorChange).toHaveBeenCalledWith(false);
+  });
+
+  it('explains the treadmill version', () => {
+    render(<FitnessTestSetup {...props({ indoor: true })} />);
+    expect(
+      screen.getByText(/On a treadmill nothing is tracked by GPS/)
+    ).toBeTruthy();
+    expect(screen.queryByText(/Outdoors the test is recorded/)).toBeNull();
+  });
+
+  it('explains the outdoor version', () => {
+    render(<FitnessTestSetup {...props()} />);
+    expect(screen.getByText(/Outdoors the test is recorded/)).toBeTruthy();
+  });
+
+  it('says when the surface was suggested from the last test', () => {
+    const { rerender } = render(<FitnessTestSetup {...props()} />);
+    expect(screen.queryByText(/Suggested because your last test/)).toBeNull();
+    rerender(<FitnessTestSetup {...props({ suggestedFromLast: true })} />);
+    expect(screen.getByText(/Suggested because your last test/)).toBeTruthy();
+  });
 });
