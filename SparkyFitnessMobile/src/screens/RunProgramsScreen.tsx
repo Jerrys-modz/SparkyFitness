@@ -268,6 +268,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           now={now}
           schedule={schedule}
           onSchedule={(next) => change(() => setProgramSchedule(next))}
+          raceDay={goals.data?.goals?.race_date ?? null}
           onPickWorkout={(index) => change(() => setProgramPosition(index))}
           status={status}
           loaded={loaded}

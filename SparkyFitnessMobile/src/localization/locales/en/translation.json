@@ -7028,7 +7028,8 @@
       "switchMessage": "You will start the new program at week 1. Your place in the current one is not kept.",
       "switchConfirm": "Switch",
       "startDayPast": "Started {{date}}. Your next workout is scheduled from today.",
-      "customWorkoutLabel": "{{name}} · {{workout}}"
+      "customWorkoutLabel": "{{name}} · {{workout}}",
+      "goalUseRaceDay": "Use race day ({{date}})"
     },
     "watch": {
       "title": "Record with",
