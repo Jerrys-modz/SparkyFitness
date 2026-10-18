@@ -18,6 +18,7 @@ import RunProgramCard, {
 import RunGoalsCard from '../components/recording/RunGoalsCard';
 import PaceReferenceCard from '../components/recording/PaceReferenceCard';
 import RunProgramCalendar from '../components/recording/RunProgramCalendar';
+import RunProgramRealignCard from '../components/recording/RunProgramRealignCard';
 import RunProgramGuide, {
   programStructure,
 } from '../components/recording/RunProgramGuide';
@@ -32,6 +33,7 @@ import CalendarSheet, {
 import { useRunGoals } from '../hooks/useRunGoals';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import {
+  applyProgramRealign,
   restartProgram,
   setProgramEnabled,
   setProgramSchedule,
@@ -56,8 +58,15 @@ type Props = RootStackScreenProps<'RunPrograms'>;
 const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { status, enabled, lastAdjustment, schedule, doneDay, loaded } =
-    useRunProgram();
+  const {
+    program,
+    status,
+    enabled,
+    lastAdjustment,
+    schedule,
+    doneDay,
+    loaded,
+  } = useRunProgram();
   const goals = useRunGoals();
   const [now] = useState(() => Date.now());
   const today = toLocalDateString(new Date(now));
@@ -102,6 +111,32 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
       });
     },
     [t]
+  );
+
+  // Accepting a realignment rewrites the rest of the plan; a failure is shown
+  // here and the card is worked out again from the server's copy.
+  const realign = useCallback(
+    async (token: string, force: boolean) => {
+      try {
+        await applyProgramRealign({ token, force, today });
+        Toast.show({
+          type: 'success',
+          text1: t('runPrograms.realign.done', {
+            defaultValue: 'Your plan was realigned',
+          }),
+        });
+      } catch (error) {
+        addLog(`[Run Program] Could not realign the plan: ${error}`, 'WARNING');
+        Toast.show({
+          type: 'error',
+          text1: t('runPrograms.realign.error', {
+            defaultValue: 'Could not realign your plan',
+          }),
+          text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
+        });
+      }
+    },
+    [t, today]
   );
 
   // Starting asks when the first workout is: today, or a date from the calendar.
@@ -322,6 +357,22 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           today={today}
           onCatchUp={(next) => change(() => setProgramPosition(next))}
         />
+        {program && enabled ? (
+          <RunProgramRealignCard
+            program={program}
+            today={today}
+            onAccept={realign}
+            onMoveGoal={(day) =>
+              change(() => setProgramSchedule({ endDay: day }))
+            }
+            onPlanShorter={(distance) =>
+              navigation.navigate('RunProgramRace', {
+                distance,
+                raceDay: schedule.endDay ?? undefined,
+              })
+            }
+          />
+        ) : null}
         <RunProgramGuide
           programId={status.program.custom ? undefined : storedId}
         />

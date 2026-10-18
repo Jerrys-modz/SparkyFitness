@@ -606,6 +606,21 @@ export function programVersions(id: string): RunProgram[] {
   ).sort((a, b) => a.workoutsPerWeek - b.workoutsPerWeek);
 }
 
+/**
+ * The built-in workouts a stored copy is measured against when it is adjusted,
+ * or undefined once the copy has a different length (a realignment dropped or
+ * added workouts, so the positions no longer line up).
+ */
+export function builtInBaseline(
+  programId: string,
+  workouts: readonly ProgramWorkout[],
+): ProgramWorkout[] | undefined {
+  const program = findProgram(programId);
+  return program && program.workouts.length === workouts.length
+    ? program.workouts
+    : undefined;
+}
+
 /** Where a person stands in a program. */
 export interface ProgramProgress {
   programId: string;
