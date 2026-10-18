@@ -67,3 +67,53 @@ test('carries the followed route id, or null', () => {
   expect(build({ routeId: 'r1' }).routeId).toBe('r1');
   expect(build().routeId).toBeNull();
 });
+
+describe('grade-adjusted pace', () => {
+  // The same 4 m/s run, climbing 5% for the first 1.2 km then dropping 3%.
+  const hilly = (
+    mutate: (p: RecordedPoint) => Partial<RecordedPoint> = () => ({})
+  ) =>
+    track.map((p, i) => {
+      const meters = i * 60;
+      const alt =
+        meters <= 1200 ? 100 + meters * 0.05 : 160 - (meters - 1200) * 0.03;
+      return { ...p, alt, vacc: 3, ...mutate(p) };
+    });
+
+  test('is on the run and on each split when the track has elevation', () => {
+    const summary = build({ points: hilly() });
+    expect(summary.avgGapSeconds).toEqual(expect.any(Number));
+    expect(summary.splits).toHaveLength(3);
+    const [first, second] = summary.splits;
+    // The climb makes the first kilometre faster than it ran, the descent
+    // makes the second slower.
+    expect(first.gapSeconds as number).toBeLessThan(250);
+    expect(second.gapSeconds as number).toBeGreaterThan(
+      first.gapSeconds as number
+    );
+  });
+
+  test('is absent, not the plain pace, when there is no elevation', () => {
+    const summary = build();
+    expect(summary).not.toHaveProperty('avgGapSeconds');
+    for (const split of summary.splits) {
+      expect(split).not.toHaveProperty('gapSeconds');
+    }
+  });
+
+  test('is absent when the altitude readings are not trustworthy', () => {
+    const summary = build({ points: hilly(() => ({ vacc: 120 })) });
+    expect(summary).not.toHaveProperty('avgGapSeconds');
+  });
+
+  test('also covers marked laps', () => {
+    const summary = build({
+      points: hilly(),
+      lapMarks: [1_000_000 + 300_000],
+    });
+    expect(summary.laps).toHaveLength(2);
+    for (const lap of summary.laps) {
+      expect(lap.gapSeconds).toEqual(expect.any(Number));
+    }
+  });
+});

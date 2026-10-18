@@ -6,6 +6,7 @@ import type {
 import {
   cardioSessionFromDiaryEntry,
   gpsHeartRateSeries,
+  gradeAdjustedPaceOfTrack,
   combinedHeartRateZoneRows,
   heartRateZoneRows,
   paceSeriesFromDistance,
@@ -15,6 +16,7 @@ import {
   usableRoutePoints,
   splitsFromTrack,
 } from '../../src/utils/cardioSession';
+import { gradeAdjustmentFactor } from '@workspace/shared';
 
 const point = (lat: number, lon: number, t = '2026-09-20T12:00:00Z') =>
   ({ t, lat, lon }) as GpsTrackPoint;
@@ -422,6 +424,98 @@ describe('paceSeriesFromTrack', () => {
     const best = Math.min(...series.map((point) => point.paceSeconds));
 
     expect(best).toBeLessThan(100);
+  });
+});
+
+describe('grade-adjusted pace along a track', () => {
+  const T0 = Date.UTC(2026, 8, 26, 7, 0, 0);
+  const KM = 1000;
+  /** A 4 m/s run north, one fix every 10 s, climbing `grade` percent. */
+  const climb = (grade: number, fixes = 40, extra = {}) =>
+    Array.from(
+      { length: fixes },
+      (_, i) =>
+        ({
+          t: new Date(T0 + i * 10_000).toISOString(),
+          lat: 51.5 + (i * 40) / 111_194.9,
+          lon: -0.1,
+          alt: 100 + i * 40 * (grade / 100),
+          ...extra,
+        }) as GpsTrackPoint
+    );
+
+  it('gives a faster flat-equivalent pace on a climb', () => {
+    const series = paceSeriesFromTrack(climb(6), KM);
+    expect(series.length).toBeGreaterThan(0);
+    for (const reading of series) {
+      expect(reading.paceSeconds).toBeCloseTo(250, 0);
+      expect(reading.gapSeconds).toBeCloseTo(
+        reading.paceSeconds / gradeAdjustmentFactor(6),
+        0
+      );
+      expect(reading.gapSeconds as number).toBeLessThan(reading.paceSeconds);
+    }
+  });
+
+  it('gives a slower one down a moderate descent', () => {
+    const series = paceSeriesFromTrack(climb(-5), KM);
+    for (const reading of series) {
+      expect(reading.gapSeconds as number).toBeGreaterThan(reading.paceSeconds);
+    }
+  });
+
+  it('matches the plain pace on flat ground that still reports altitude', () => {
+    // Real flat ground wobbles a little; a perfectly constant altitude is
+    // treated as a stuck sensor (below).
+    const track = climb(0).map((p, i) => ({ ...p, alt: 100 + (i % 2) * 0.4 }));
+    const series = paceSeriesFromTrack(track, KM);
+    for (const reading of series) {
+      expect(reading.gapSeconds as number).toBeCloseTo(reading.paceSeconds, -1);
+    }
+  });
+
+  it('adds no grade-adjusted pace when the track has no altitude', () => {
+    const series = paceSeriesFromTrack(climb(6, 40, { alt: undefined }), KM);
+    expect(series.length).toBeGreaterThan(0);
+    expect(series.every((p) => p.gapSeconds === undefined)).toBe(true);
+    expect(
+      gradeAdjustedPaceOfTrack(climb(6, 40, { alt: undefined }), KM)
+    ).toBeNull();
+  });
+
+  it('adds none when the altitude never changes', () => {
+    const series = paceSeriesFromTrack(climb(6, 40, { alt: 120 }), KM);
+    expect(series.every((p) => p.gapSeconds === undefined)).toBe(true);
+  });
+
+  it('adds none for an indoor distance series', () => {
+    const series = paceSeriesFromDistance(
+      [
+        [0, 0],
+        [60, 240],
+        [120, 480],
+      ],
+      KM
+    );
+    expect(series.every((p) => p.gapSeconds === undefined)).toBe(true);
+  });
+
+  it('ignores altitude readings with a bad vertical accuracy', () => {
+    const series = paceSeriesFromTrack(climb(6, 40, { vacc: 90 }), KM);
+    expect(series.every((p) => p.gapSeconds === undefined)).toBe(true);
+  });
+
+  it('averages over the whole run, in miles too', () => {
+    const km = gradeAdjustedPaceOfTrack(climb(6), KM) as number;
+    expect(km).toBeCloseTo(250 / gradeAdjustmentFactor(6), 0);
+    const mi = gradeAdjustedPaceOfTrack(climb(6), 1609.344) as number;
+    expect(mi / 1.609344).toBeCloseTo(km, 0);
+  });
+
+  it('gives nothing for a track too short to grade', () => {
+    expect(gradeAdjustedPaceOfTrack(climb(6, 1), KM)).toBeNull();
+    expect(gradeAdjustedPaceOfTrack([], KM)).toBeNull();
+    expect(gradeAdjustedPaceOfTrack(climb(6), 0)).toBeNull();
   });
 });
 

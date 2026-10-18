@@ -50,6 +50,7 @@ const SplitsTable: React.FC<Props> = ({ splits, unitMeters, unit }) => {
     (split) => split.elevationChangeMeters != null
   );
   const showHeartRate = splits.some((split) => split.avgHeartRate != null);
+  const showGap = splits.some((split) => split.gapSeconds != null);
   const miles = unit === 'miles';
 
   const elevationText = (meters: number | null | undefined): string => {
@@ -71,6 +72,11 @@ const SplitsTable: React.FC<Props> = ({ splits, unitMeters, unit }) => {
           {t('recordActivity.splitsTable.pace', { defaultValue: 'Pace' })}
         </Text>
         <View className="flex-1" />
+        {showGap ? (
+          <Text className="w-14 text-right text-text-muted text-xs">
+            {t('recordActivity.splitsTable.gap', { defaultValue: 'GAP' })}
+          </Text>
+        ) : null}
         {showElevation ? (
           <Text className="w-12 text-right text-text-muted text-xs">
             {t('recordActivity.splitsTable.elev', { defaultValue: 'Elev' })}
@@ -116,6 +122,14 @@ const SplitsTable: React.FC<Props> = ({ splits, unitMeters, unit }) => {
                 }}
               />
             </View>
+            {showGap ? (
+              <Text
+                className="w-14 text-right text-text-primary text-sm"
+                style={TABULAR}
+              >
+                {split.gapSeconds != null ? formatPace(split.gapSeconds) : '–'}
+              </Text>
+            ) : null}
             {showElevation ? (
               <Text
                 className="w-12 text-right text-text-primary text-sm"

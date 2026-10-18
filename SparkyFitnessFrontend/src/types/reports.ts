@@ -161,6 +161,19 @@ export interface ChartDataPoint {
   heartRate: number | null;
   runCadence: number;
   elevation: number | null;
+  /**
+   * Flat-equivalent pace in minutes per km (same unit as `pace`). Only set
+   * when the track carries elevation to grade it with; never a copy of `pace`.
+   */
+  gradeAdjustedPace?: number | null;
+  /** Milliseconds. */
+  groundContactTime?: number | null;
+  /** Centimetres, or inches with the miles setting. */
+  verticalOscillation?: number | null;
+  /** Percent of step length. */
+  verticalRatio?: number | null;
+  /** Watts. */
+  power?: number | null;
 }
 
 import {

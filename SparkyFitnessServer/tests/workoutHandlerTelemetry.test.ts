@@ -397,6 +397,52 @@ describe('workoutHandler — GPS, laps and zones', () => {
     expect(rows[0].timestamp).toBeInstanceOf(Date);
   });
 
+  it('stores the running dynamics a track carries and backfills the averages', async () => {
+    await workoutHandler.handle(
+      baseEntry({
+        gps_points: [
+          {
+            t: at(0),
+            lat: 37.7749,
+            lon: -122.4194,
+            gct: 240,
+            vo: 80,
+            stride: 100,
+          },
+          {
+            t: at(15),
+            lat: 37.7754,
+            lon: -122.4188,
+            gct: 260,
+            vo: 90,
+            stride: 110,
+          },
+          // A reading that is not a number is dropped, not stored as one.
+          { t: at(30), lat: 37.776, lon: -122.418, gct: 'x', vo: null },
+        ],
+      }),
+      makeCtx()
+    );
+
+    const rows = (telemetryRepo.bulkInsertExerciseEntryGpsPoints as Mock).mock
+      .calls[0][2];
+    expect(rows[0]).toMatchObject({
+      ground_contact_time_ms: 240,
+      vertical_oscillation_mm: 80,
+      stride_length_cm: 100,
+    });
+    expect(rows[2]).toMatchObject({
+      ground_contact_time_ms: null,
+      vertical_oscillation_mm: null,
+      stride_length_cm: null,
+    });
+    const payload = (exerciseEntryDb.createExerciseEntry as Mock).mock
+      .calls[0][1];
+    expect(payload.ground_contact_time_ms).toBe(250);
+    expect(payload.vertical_oscillation_mm).toBe(85);
+    expect(payload.stride_length_cm).toBe(105);
+  });
+
   it('writes laps with server-derived aggregates and Date bounds', async () => {
     await workoutHandler.handle(gpsEntry(), makeCtx());
 

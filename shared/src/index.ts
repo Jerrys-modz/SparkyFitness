@@ -280,3 +280,6 @@ export * from "./utils/routeGpx.ts";
 export * from "./utils/routeStops.ts";
 export * from "./nutrients/nutrientAlgorithms.ts";
 export * from "./nutrients/nutrientCalculation.ts";
+export * from "./utils/gradeAdjustedPace.ts";
+export * from "./utils/runningDynamics.ts";
+export * from "./utils/gradeAdjustedTrack.ts";

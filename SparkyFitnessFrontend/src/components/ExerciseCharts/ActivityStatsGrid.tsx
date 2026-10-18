@@ -32,6 +32,8 @@ interface ActivityStatsGridProps {
   elevationRange?: string | null;
   weather?: string | null;
   gear?: string | null;
+  /** Further tiles, each hidden by simply not being passed (grade adjusted pace, running dynamics). */
+  extraStats?: { key: string; label: string; value: string }[];
 }
 
 export const ActivityStatsGrid = ({
@@ -50,6 +52,7 @@ export const ActivityStatsGrid = ({
   elevationRange = null,
   weather = null,
   gear = null,
+  extraStats = [],
 }: ActivityStatsGridProps) => {
   const { t } = useTranslation();
 
@@ -240,6 +243,17 @@ export const ActivityStatsGrid = ({
           </CardContent>
         </Card>
       )}
+      {extraStats.map((stat) => (
+        <Card key={stat.key}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+            <CardTitle className="text-sm font-medium">{stat.label}</CardTitle>
+            <FaRunning className="h-5 w-5 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stat.value}</div>
+          </CardContent>
+        </Card>
+      ))}
       {gear !== null && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">

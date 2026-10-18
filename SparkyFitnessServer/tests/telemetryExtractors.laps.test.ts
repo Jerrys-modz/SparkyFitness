@@ -262,3 +262,96 @@ describe('extractGarminHrZones keeps a zero-indexed zone 1', () => {
     expect(zones).toHaveLength(0);
   });
 });
+
+describe('running dynamics on Garmin Connect activity details', () => {
+  const details = (
+    unitKeys: { vo?: string; stride?: string; gct?: string },
+    row: (number | null)[]
+  ) => ({
+    details: {
+      metricDescriptors: [
+        { key: 'directTimestamp', metricsIndex: 0 },
+        { key: 'directPower', metricsIndex: 1 },
+        {
+          key: 'directGroundContactTime',
+          metricsIndex: 2,
+          ...(unitKeys.gct && { unit: { key: unitKeys.gct } }),
+        },
+        {
+          key: 'directVerticalOscillation',
+          metricsIndex: 3,
+          ...(unitKeys.vo && { unit: { key: unitKeys.vo } }),
+        },
+        {
+          key: 'directStrideLength',
+          metricsIndex: 4,
+          ...(unitKeys.stride && { unit: { key: unitKeys.stride } }),
+        },
+      ],
+      activityDetailMetrics: [{ metrics: [1785225600000, ...row] }],
+    },
+  });
+
+  it('converts each metric from the unit the descriptor names', () => {
+    const [point] = extractGarminGpsPoints(
+      details(
+        { vo: 'centimeter', stride: 'centimeter', gct: 'ms' },
+        [231, 248.4, 8.2, 112.6]
+      )
+    );
+    expect(point.power_watts).toBe(231);
+    expect(point.ground_contact_time_ms).toBe(248.4);
+    expect(point.vertical_oscillation_mm).toBe(82);
+    expect(point.stride_length_cm).toBe(112.6);
+  });
+
+  it('reads millimetres and metres when that is what the descriptor says', () => {
+    const [point] = extractGarminGpsPoints(
+      details({ vo: 'millimeter', stride: 'meter', gct: 'second' }, [
+        null,
+        0.25,
+        82,
+        1.126,
+      ])
+    );
+    expect(point.ground_contact_time_ms).toBe(250);
+    expect(point.vertical_oscillation_mm).toBe(82);
+    expect(point.stride_length_cm).toBe(112.6);
+  });
+
+  it('falls back to the magnitude when no unit is named', () => {
+    const [centimetres] = extractGarminGpsPoints(
+      details({}, [null, 250, 8.2, 112.6])
+    );
+    expect(centimetres.vertical_oscillation_mm).toBe(82);
+    expect(centimetres.stride_length_cm).toBe(112.6);
+    const [metres] = extractGarminGpsPoints(
+      details({}, [null, 250, 82, 1.126])
+    );
+    expect(metres.vertical_oscillation_mm).toBe(82);
+    expect(metres.stride_length_cm).toBe(112.6);
+  });
+
+  it('treats zero and absent readings as no reading, not as a measurement', () => {
+    const [point] = extractGarminGpsPoints(
+      details({ vo: 'centimeter', stride: 'centimeter' }, [0, 0, 0, null])
+    );
+    expect(point.power_watts).toBeNull();
+    expect(point.ground_contact_time_ms).toBeNull();
+    expect(point.vertical_oscillation_mm).toBeNull();
+    expect(point.stride_length_cm).toBeNull();
+  });
+
+  it('leaves the fields null when the activity has no such metric', () => {
+    const [point] = extractGarminGpsPoints({
+      details: {
+        metricDescriptors: [{ key: 'directTimestamp', metricsIndex: 0 }],
+        activityDetailMetrics: [{ metrics: [1785225600000] }],
+      },
+    });
+    expect(point.ground_contact_time_ms).toBeNull();
+    expect(point.vertical_oscillation_mm).toBeNull();
+    expect(point.stride_length_cm).toBeNull();
+    expect(point.power_watts).toBeNull();
+  });
+});

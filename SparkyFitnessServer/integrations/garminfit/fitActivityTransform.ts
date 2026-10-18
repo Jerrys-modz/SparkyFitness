@@ -32,6 +32,8 @@ export interface FitEntryData {
 interface MetricDescriptor {
   key: string;
   metricsIndex: number;
+  /** Named so a reader never has to guess the unit of a length or a time. */
+  unit?: { key: string };
 }
 
 interface LapDto {
@@ -143,6 +145,9 @@ function deriveLocalOffsetMs(
   return localMs - utcMs;
 }
 
+const numberOrNull = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) ? value : null;
+
 function buildRecordMetrics(
   records: RecordMesg[],
   cadenceMultiplier: number
@@ -157,6 +162,10 @@ function buildRecordMetrics(
   let hasElevation = false;
   let hasCadence = false;
   let hasPosition = false;
+  let hasPower = false;
+  let hasGroundContact = false;
+  let hasOscillation = false;
+  let hasStepLength = false;
   for (const record of records) {
     if (record.heartRate !== undefined) hasHeartRate = true;
     if (record.distance !== undefined) hasDistance = true;
@@ -165,13 +174,21 @@ function buildRecordMetrics(
     if (record.enhancedAltitude !== undefined || record.altitude !== undefined)
       hasElevation = true;
     if (record.cadence !== undefined) hasCadence = true;
+    if (record.power !== undefined) hasPower = true;
+    if (record.stanceTime !== undefined) hasGroundContact = true;
+    if (record.verticalOscillation !== undefined) hasOscillation = true;
+    if (record.stepLength !== undefined) hasStepLength = true;
     if (record.positionLat !== undefined && record.positionLong !== undefined)
       hasPosition = true;
   }
 
   const metricDescriptors: MetricDescriptor[] = [];
-  const addDescriptor = (key: string) =>
-    metricDescriptors.push({ key, metricsIndex: metricDescriptors.length });
+  const addDescriptor = (key: string, unit?: string) =>
+    metricDescriptors.push({
+      key,
+      metricsIndex: metricDescriptors.length,
+      ...(unit && { unit: { key: unit } }),
+    });
   addDescriptor('directTimestamp');
   // Coordinates must ride along in activityDetailMetrics, not only in the
   // polyline below. extractGarminGpsPoints takes the activityDetailMetrics
@@ -187,6 +204,11 @@ function buildRecordMetrics(
   if (hasSpeed) addDescriptor('directSpeed');
   if (hasElevation) addDescriptor('directElevation');
   if (hasCadence) addDescriptor('directDoubleCadence');
+  if (hasPower) addDescriptor('directPower');
+  // The FIT profile gives these in milliseconds and millimetres.
+  if (hasGroundContact) addDescriptor('directGroundContactTime', 'ms');
+  if (hasOscillation) addDescriptor('directVerticalOscillation', 'millimeter');
+  if (hasStepLength) addDescriptor('directStrideLength', 'millimeter');
 
   const activityDetailMetrics: { metrics: (number | null)[] }[] = [];
   const polyline: { lat: number; lon: number }[] = [];
@@ -216,6 +238,10 @@ function buildRecordMetrics(
               cadenceMultiplier
           : null
       );
+    if (hasPower) metrics.push(numberOrNull(record.power));
+    if (hasGroundContact) metrics.push(numberOrNull(record.stanceTime));
+    if (hasOscillation) metrics.push(numberOrNull(record.verticalOscillation));
+    if (hasStepLength) metrics.push(numberOrNull(record.stepLength));
     activityDetailMetrics.push({ metrics });
     if (hasRecordPosition) {
       polyline.push({

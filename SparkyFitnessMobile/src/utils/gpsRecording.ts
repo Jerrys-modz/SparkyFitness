@@ -333,6 +333,11 @@ export interface RecordedSplit {
   elevationChangeMeters?: number | null;
   /** Average heart rate over the split, or null with no readings in it. */
   avgHeartRate?: number | null;
+  /**
+   * Grade-adjusted pace, seconds per display unit. Set only on the run
+   * summary, and only when the track had elevation to grade it with.
+   */
+  gapSeconds?: number | null;
 }
 
 /**

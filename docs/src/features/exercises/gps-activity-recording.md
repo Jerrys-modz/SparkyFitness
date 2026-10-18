@@ -67,6 +67,8 @@ When you finish, the summary lists your laps and your splits per kilometer or mi
 
 After saving, opening the activity from Exercise Statistics shows a **Pace** chart next to the route and heart rate: pace against distance, with faster stretches higher, and your best pace above it. It works for any activity with a GPS route, including imported ones, and leaves out the time you stood still.
 
+When the route has elevation, the summary also shows your **Avg GAP** (grade-adjusted pace) and a GAP line under each split's pace, and the saved activity's Pace chart has a **Grade adjusted** switch. Nothing about GAP appears for a recording without usable elevation. See [Grade-Adjusted Pace & Running Dynamics](/features/exercises/grade-adjusted-pace-and-running-dynamics) for how it is worked out.
+
 If you marked laps, those are what's saved with the activity, because they're the intervals you meant to compare. If you didn't, your per-kilometer or per-mile splits are saved as before.
 
 ---

@@ -11,6 +11,8 @@ import {
   type RecordedSplit,
   type RecordingActivity,
 } from './gpsRecording';
+import { gradeAdjustedForSamples } from '@workspace/shared';
+import { rangesOfSplits, samplesFromRecording } from './gradeAdjusted';
 
 /** Route points kept for the summary's map: enough for the shape, small for navigation params. */
 const SUMMARY_ROUTE_POINTS = 250;
@@ -31,6 +33,11 @@ export interface RunSummaryParams {
   avgHeartRate: number | null;
   /** A thinned route, empty for a recording with no usable track. */
   route: GpsTrackPoint[];
+  /**
+   * Average grade-adjusted pace, seconds per display unit. Absent when the
+   * recording had no usable elevation, in which case nothing is shown.
+   */
+  avgGapSeconds?: number | null;
   /** Per km or mile splits. */
   splits: RecordedSplit[];
   /** The laps the person marked, when any. */
@@ -86,6 +93,26 @@ export function buildRunSummary({
 }): RunSummaryParams {
   const unitMeters = distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
   const summary = summarizeRecording(points);
+  const splits = withSplitHeartRate(
+    computeSplits(points, unitMeters),
+    heartRateSamples ?? []
+  );
+  const laps =
+    lapMarks && lapMarks.length > 0 ? computeLaps(points, lapMarks) : [];
+  // Elevation permitting, a grade-adjusted pace for the whole run and for each
+  // split or lap, graded on the full-resolution fixes rather than the route.
+  const gap = gradeAdjustedForSamples(
+    samplesFromRecording(points),
+    unitMeters,
+    [...rangesOfSplits(splits), ...rangesOfSplits(laps)]
+  );
+  const withGap = (rows: RecordedSplit[], offset: number): RecordedSplit[] =>
+    gap.averageSecondsPerUnit == null
+      ? rows
+      : rows.map((row, i) => ({
+          ...row,
+          gapSeconds: gap.rangeSecondsPerUnit[offset + i] ?? null,
+        }));
   return {
     activity,
     entryDate,
@@ -100,11 +127,11 @@ export function buildRunSummary({
             ({ t, lat, lon }) => ({ t, lat, lon })
           )
         : [],
-    splits: withSplitHeartRate(
-      computeSplits(points, unitMeters),
-      heartRateSamples ?? []
-    ),
-    laps: lapMarks && lapMarks.length > 0 ? computeLaps(points, lapMarks) : [],
+    ...(gap.averageSecondsPerUnit != null && {
+      avgGapSeconds: gap.averageSecondsPerUnit,
+    }),
+    splits: withGap(splits, 0),
+    laps: withGap(laps, splits.length),
     program,
     entryId: entryId ?? null,
     routeId: routeId ?? null,

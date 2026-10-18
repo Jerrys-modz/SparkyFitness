@@ -6,10 +6,12 @@ export const SplitRow: React.FC<{
   label: string;
   detail?: string;
   pace: string;
+  /** Grade-adjusted pace, shown under the pace when the track had elevation. */
+  gap?: string;
   fraction: number;
   fastest: boolean;
   fastestLabel: string;
-}> = ({ label, detail, pace, fraction, fastest, fastestLabel }) => (
+}> = ({ label, detail, pace, gap, fraction, fastest, fastestLabel }) => (
   <View className="py-1">
     <View className="flex-row justify-between">
       <Text className="text-text-secondary text-sm">
@@ -21,6 +23,9 @@ export const SplitRow: React.FC<{
         {pace}
       </Text>
     </View>
+    {gap ? (
+      <Text className="text-text-muted text-xs text-right">{gap}</Text>
+    ) : null}
     <View className="h-1.5 rounded-full bg-form-disabled mt-1">
       <View
         className={`h-1.5 rounded-full ${
