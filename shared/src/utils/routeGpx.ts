@@ -44,8 +44,8 @@ export function parseGpx(gpx: string): ParsedGpx {
   POINT_PATTERN.lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = POINT_PATTERN.exec(gpx)) !== null) {
-    const lat = attribute(match[2], "lat");
-    const lon = attribute(match[2], "lon");
+    const lat = attribute(match[2] ?? "", "lat");
+    const lon = attribute(match[2] ?? "", "lon");
     if (lat === null || lon === null) continue;
     if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
     const point: RoutePoint = { lat, lon };

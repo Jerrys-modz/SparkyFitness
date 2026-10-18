@@ -17,7 +17,10 @@ export function haversineMeters(a: RoutePoint, b: RoutePoint): number {
 export function routeDistanceMeters(points: readonly RoutePoint[]): number {
   let total = 0;
   for (let i = 1; i < points.length; i++) {
-    total += haversineMeters(points[i - 1], points[i]);
+    total += haversineMeters(
+      points[i - 1] as RoutePoint,
+      points[i] as RoutePoint,
+    );
   }
   return total;
 }
@@ -80,7 +83,11 @@ function douglasPeucker(
     let farthest = -1;
     let farthestDistance = toleranceM;
     for (let i = start + 1; i < end; i++) {
-      const d = distanceToSegmentMeters(points[i], points[start], points[end]);
+      const d = distanceToSegmentMeters(
+        points[i] as RoutePoint,
+        points[start] as RoutePoint,
+        points[end] as RoutePoint,
+      );
       if (d > farthestDistance) {
         farthest = i;
         farthestDistance = d;
@@ -100,7 +107,7 @@ function sampleEvenly(indexes: number[], count: number): number[] {
   const sampled: number[] = [];
   const last = indexes.length - 1;
   for (let i = 0; i < count; i++) {
-    sampled.push(indexes[Math.round((i * last) / (count - 1))]);
+    sampled.push(indexes[Math.round((i * last) / (count - 1))] as number);
   }
   return [...new Set(sampled)];
 }
@@ -131,7 +138,10 @@ export function simplifyRoute(
   let candidates: number[] = [0];
   for (let i = 1; i < last; i++) {
     if (
-      haversineMeters(points[candidates[candidates.length - 1]], points[i]) >= 2
+      haversineMeters(
+        points[candidates[candidates.length - 1] as number] as RoutePoint,
+        points[i] as RoutePoint,
+      ) >= 2
     ) {
       candidates.push(i);
     }
@@ -139,19 +149,19 @@ export function simplifyRoute(
   candidates.push(last);
   candidates = sampleEvenly(candidates, MAX_SIMPLIFY_INPUT);
 
-  const subset = candidates.map((i) => points[i]);
+  const subset = candidates.map((i) => points[i] as RoutePoint);
   let tolerance = toleranceM;
   let kept = douglasPeucker(subset, tolerance);
   for (let n = 0; kept.length > maxPoints && n < MAX_WIDENINGS; n++) {
     tolerance *= 1.5;
     kept = douglasPeucker(subset, tolerance);
   }
-  let sourceIndexes = kept.map((i) => candidates[i]);
+  let sourceIndexes = kept.map((i) => candidates[i] as number);
   if (sourceIndexes.length > maxPoints) {
     sourceIndexes = sampleEvenly(sourceIndexes, maxPoints);
   }
   return {
-    points: sourceIndexes.map((i) => points[i]),
+    points: sourceIndexes.map((i) => points[i] as RoutePoint),
     sourceIndexes,
   };
 }
@@ -164,12 +174,13 @@ export interface RouteBounds {
 }
 
 export function routeBounds(points: readonly RoutePoint[]): RouteBounds | null {
-  if (points.length === 0) return null;
+  const first = points[0];
+  if (!first) return null;
   const bounds = {
-    minLat: points[0].lat,
-    minLon: points[0].lon,
-    maxLat: points[0].lat,
-    maxLon: points[0].lon,
+    minLat: first.lat,
+    minLon: first.lon,
+    maxLat: first.lat,
+    maxLon: first.lon,
   };
   for (const p of points) {
     bounds.minLat = Math.min(bounds.minLat, p.lat);
