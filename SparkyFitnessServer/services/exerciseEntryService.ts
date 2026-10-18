@@ -5,6 +5,7 @@ import exerciseEntryRepository, {
   type WatchTelemetryZoneSpec,
 } from '../models/exerciseEntry.js';
 import { setEntryRoute } from '../models/routeRepository.js';
+import { rematchEntryAfterTrackAttach } from './segmentService.js';
 import workoutPresetRepository from '../models/workoutPresetRepository.js';
 import activityDetailsRepository from '../models/activityDetailsRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
@@ -542,6 +543,9 @@ async function attachGpsTrackToExerciseEntry(
       derived
     );
     await client.query('COMMIT');
+    // Best effort and off the request: the person's segments are matched
+    // against the new track after the save has already succeeded.
+    void rematchEntryAfterTrackAttach(userId, exerciseEntryId, actingUserId);
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

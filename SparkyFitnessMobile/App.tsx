@@ -54,6 +54,10 @@ import {
   SafeRouteDetail,
   SafeRouteDraw,
   SafeRouteGenerate,
+  SafeSegments,
+  SafeSegmentDetail,
+  SafeSegmentCreate,
+  SafeHeatmap,
   SafeRunProgramRace,
   SafeRunProgramWorkout,
   SafeMealPlanForm,
@@ -639,6 +643,26 @@ function AppContent() {
             name="RouteGenerate"
             component={SafeRouteGenerate}
             options={createStackScreenOptions(t('screens.routeGenerate', { defaultValue: 'Generate a route' }), { headerBackTitle: t('screens.routes', { defaultValue: 'Routes' }) })}
+          />
+          <Stack.Screen
+            name="Segments"
+            component={SafeSegments}
+            options={createStackScreenOptions(t('screens.segments', { defaultValue: 'Segments' }), { headerBackTitle: t('screens.routes', { defaultValue: 'Routes' }) })}
+          />
+          <Stack.Screen
+            name="SegmentDetail"
+            component={SafeSegmentDetail}
+            options={createStackScreenOptions(t('screens.segments', { defaultValue: 'Segments' }), { headerBackTitle: t('screens.segments', { defaultValue: 'Segments' }) })}
+          />
+          <Stack.Screen
+            name="SegmentCreate"
+            component={SafeSegmentCreate}
+            options={createStackScreenOptions(t('screens.segmentCreate', { defaultValue: 'New segment' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
+            name="Heatmap"
+            component={SafeHeatmap}
+            options={createStackScreenOptions(t('screens.heatmap', { defaultValue: 'Heatmap' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
           />
           <Stack.Screen
             name="PersonalRecords"

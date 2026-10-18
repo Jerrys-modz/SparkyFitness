@@ -13,7 +13,10 @@ import {
   loadReportsData,
 } from '@/api/Reports/reportsService';
 import { parseStressMeasurement } from '@/utils/reportUtil';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { loadHeatmap, type HeatmapRequest } from '@/api/Reports/heatmapService';
+
+export type { HeatmapRequest };
 import { useTranslation } from 'react-i18next';
 import { useCustomCategories } from '../CheckIn/useCheckIn';
 import type { DailyCalorieBalanceRow } from '@workspace/shared';
@@ -253,6 +256,24 @@ export const useHydrationNutritionRange = (
       errorMessage: t(
         'reports.failedToLoadHydrationTrend',
         'Failed to load hydration trend data.'
+      ),
+    },
+  });
+};
+
+export const useHeatmap = (request: HeatmapRequest, enabled = true) => {
+  const { t } = useTranslation();
+  return useQuery({
+    queryKey: reportKeys.heatmap(request),
+    queryFn: () => loadHeatmap(request),
+    enabled,
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+    retry: false,
+    meta: {
+      errorMessage: t(
+        'reports.routeHeatmap.loadFailed',
+        'Failed to load your route heatmap.'
       ),
     },
   });

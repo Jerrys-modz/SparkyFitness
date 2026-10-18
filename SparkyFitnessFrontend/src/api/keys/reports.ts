@@ -1,5 +1,6 @@
 export const reportKeys = {
   all: ['reports'] as const,
+  heatmap: (request: unknown) => ['reports', 'heatmap', request] as const,
   stress: {
     all: ['reports', 'stress'] as const,
     raw: (userId?: string) => ['reports', 'stress', 'raw', { userId }] as const,

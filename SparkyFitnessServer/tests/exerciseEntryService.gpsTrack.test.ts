@@ -3,6 +3,7 @@ import exerciseEntryRepository from '../models/exerciseEntry.js';
 import * as workoutTelemetryRepo from '../models/workoutTelemetryRepository.js';
 import { getClient } from '../db/poolManager.js';
 import { attachGpsTrackToExerciseEntry } from '../services/exerciseEntryService.js';
+import { rematchEntryAfterTrackAttach } from '../services/segmentService.js';
 
 vi.mock('../config/logging', () => ({ log: vi.fn() }));
 vi.mock('../db/poolManager', () => ({ getClient: vi.fn() }));
@@ -13,6 +14,9 @@ vi.mock('../models/exerciseEntry', () => ({
     getExerciseEntryById: vi.fn(),
     _updateExerciseEntryTelemetryOnlyWithClient: vi.fn(),
   },
+}));
+vi.mock('../services/segmentService', () => ({
+  rematchEntryAfterTrackAttach: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('../models/workoutPresetRepository', () => ({ default: {} }));
 vi.mock('../models/activityDetailsRepository', () => ({ default: {} }));
@@ -82,6 +86,22 @@ describe('attachGpsTrackToExerciseEntry', () => {
     ).mock.calls[0][3] as Record<string, number>;
     expect(telemetry.avg_speed_mps).toBeCloseTo(2.2, 1);
     expect(client.release).toHaveBeenCalled();
+    // Segments are matched after the commit, as the person.
+    expect(rematchEntryAfterTrackAttach).toHaveBeenCalledWith(
+      userId,
+      entryId,
+      'actor-1'
+    );
+  });
+
+  it('does not match segments when the save fails', async () => {
+    vi.mocked(
+      workoutTelemetryRepo._bulkInsertExerciseEntryGpsPointsWithClient
+    ).mockRejectedValueOnce(new Error('db down'));
+    await expect(
+      attachGpsTrackToExerciseEntry(userId, 'actor-1', entryId, { points })
+    ).rejects.toThrow('db down');
+    expect(rematchEntryAfterTrackAttach).not.toHaveBeenCalled();
   });
 
   it('refuses an invalid timestamp instead of saving a shorter track', async () => {

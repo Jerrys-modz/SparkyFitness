@@ -78,8 +78,8 @@ function splitsFromTrack(
       clock.push(0);
     } else {
       const last = clock.length - 1;
-      if (at - start < clock[last] * 1000) continue;
-      along.push(along[last] + haversineMeters(previous, point));
+      if (at - start < (clock[last] as number) * 1000) continue;
+      along.push((along[last] as number) + haversineMeters(previous, point));
       clock.push((at - start) / 1000);
     }
     previous = point;
@@ -96,14 +96,19 @@ function splitsFromTrack(
   let floor = 0;
   return knots.map((knot, i) => {
     const target = knot * scaleDistance;
-    while (cursor < along.length - 1 && along[cursor] < target) cursor++;
-    const span = along[cursor] - along[cursor - 1];
+    while (cursor < along.length - 1 && (along[cursor] as number) < target) {
+      cursor++;
+    }
+    const alongHere = along[cursor] as number;
+    const alongBefore = along[cursor - 1] as number;
+    const span = alongHere - alongBefore;
     const fraction =
       span > 0
-        ? Math.min(1, Math.max(0, (target - along[cursor - 1]) / span))
+        ? Math.min(1, Math.max(0, (target - alongBefore) / span))
         : 1;
     const seconds =
-      (clock[cursor - 1] + fraction * (clock[cursor] - clock[cursor - 1])) *
+      ((clock[cursor - 1] as number) +
+        fraction * ((clock[cursor] as number) - (clock[cursor - 1] as number))) *
       scaleTime;
     // The finish is the logged time exactly; never run backwards.
     const value =

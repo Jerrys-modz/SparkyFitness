@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 
 import RoutesScreen from '../../src/screens/RoutesScreen';
 import { useRoutes } from '../../src/services/routeService';
@@ -74,5 +74,25 @@ describe('RoutesScreen run counts', () => {
     expect(screen.getByText(/Ran 3 times/)).toBeTruthy();
     expect(screen.getByText(/Ran 1 time$/)).toBeTruthy();
     expect(screen.getAllByText(/Ran \d+ time/)).toHaveLength(2);
+  });
+});
+
+describe('RoutesScreen links', () => {
+  beforeAll(async () => {
+    await initializeI18n('en');
+  });
+
+  it('opens Segments and the Heatmap, even before any route exists', () => {
+    jest.mocked(useRoutes).mockReturnValue({
+      routes: [],
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    } as never);
+    const screen = render(<RoutesScreen {...props} />);
+    fireEvent.press(screen.getByTestId('routes-segments-link'));
+    expect(props.navigation.navigate).toHaveBeenCalledWith('Segments');
+    fireEvent.press(screen.getByTestId('routes-heatmap-link'));
+    expect(props.navigation.navigate).toHaveBeenCalledWith('Heatmap');
   });
 });

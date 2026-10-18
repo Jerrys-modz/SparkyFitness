@@ -262,6 +262,12 @@ describe('LibraryScreen', () => {
     expect(navigation.navigate).toHaveBeenCalledWith('FoodsLibrary');
   });
 
+  it('navigates to the Heatmap when its row is pressed', () => {
+    const screen = renderScreen();
+    fireEvent.press(screen.getByText('Heatmap'));
+    expect(navigation.navigate).toHaveBeenCalledWith('Heatmap');
+  });
+
   it('shows a single combined Recent list of up to 4 items mixing meals and foods', () => {
     mockUseRecentMeals.mockReturnValue({
       recentMeals: [

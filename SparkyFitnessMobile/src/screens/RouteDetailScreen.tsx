@@ -33,6 +33,7 @@ import {
   useRouteRuns,
   useRouteStops,
 } from '../services/routeService';
+import { useSegments } from '../services/segmentService';
 import { startRunOnWatch } from '../services/watchRunControl';
 import {
   removeRouteFromWatch,
@@ -42,6 +43,7 @@ import { formatDayLabel } from '../utils/dayLabel';
 import { formatClock } from '../utils/gpsRecording';
 import { formatRouteClimb, formatRouteDistance } from '../utils/routeDisplay';
 import { formatRunPace } from '../utils/routeHistory';
+import { formatSegmentTime, segmentTitle } from '../utils/segmentDisplay';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type Props = RootStackScreenProps<'RouteDetail'>;
@@ -58,6 +60,10 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
   const { route, isLoading, isError, refetch } = useRoute(id);
   const { runs } = useRouteRuns(id);
   const routeStops = useRouteStops(id);
+  const { segments } = useSegments();
+  const routeSegments = segments.filter(
+    (segment) => segment.sourceRouteId === id
+  );
   const { preferences } = usePreferences();
   const unit = preferences?.default_distance_unit ?? 'km';
   const [name, setName] = useState<string | null>(null);
@@ -414,6 +420,68 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
                   ))}
                 </>
               )}
+            </View>
+            <View
+              className="bg-surface rounded-xl p-4 mt-4"
+              testID="route-segments"
+            >
+              <Text className="text-text-primary text-sm font-semibold">
+                {t('segments.onRoute', { defaultValue: 'Segments' })}
+              </Text>
+              {routeSegments.length === 0 ? (
+                <Text className="text-text-secondary text-sm mt-1">
+                  {t('segments.onRouteEmpty', {
+                    defaultValue:
+                      'Pick a stretch of this route to time yourself on it every time you run it.',
+                  })}
+                </Text>
+              ) : (
+                routeSegments.map((segment) => (
+                  <Pressable
+                    key={segment.id}
+                    className="flex-row items-center justify-between pt-3 mt-3 border-t border-border-subtle"
+                    onPress={() =>
+                      navigation.navigate('SegmentDetail', { id: segment.id })
+                    }
+                    style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+                    accessibilityRole="button"
+                    testID={`route-segment-${segment.id}`}
+                  >
+                    <View className="flex-1 mr-3">
+                      <Text className="text-text-primary text-sm font-semibold">
+                        {segmentTitle(t, segment, unit)}
+                      </Text>
+                      <Text className="text-text-secondary text-xs mt-0.5">
+                        {segment.bestSeconds !== null
+                          ? `${t('segments.bestTime', {
+                              time: formatSegmentTime(segment.bestSeconds),
+                              defaultValue: 'Best {{time}}',
+                            })} · ${t('segments.efforts', {
+                              count: segment.effortCount,
+                              defaultValue: '{{count}} efforts',
+                              defaultValue_one: '{{count}} effort',
+                              defaultValue_other: '{{count}} efforts',
+                            })}`
+                          : t('segments.noEfforts', {
+                              defaultValue: 'No efforts yet',
+                            })}
+                      </Text>
+                    </View>
+                    <Icon name="chevron-forward" size={20} color="#999" />
+                  </Pressable>
+                ))
+              )}
+              <Button
+                variant="link"
+                testID="route-create-segment"
+                onPress={() =>
+                  navigation.navigate('SegmentCreate', { routeId: id })
+                }
+              >
+                {t('segments.createFromRoute', {
+                  defaultValue: 'Create segment',
+                })}
+              </Button>
             </View>
             {routeStops.available ? (
               <RouteStopsSection

@@ -53,6 +53,10 @@ jest.mock('../../src/services/routeService', () => ({
   renameRoute: jest.fn(() => Promise.resolve()),
   shareRouteGpx: jest.fn(() => Promise.resolve()),
 }));
+let mockSegments: unknown[] = [];
+jest.mock('../../src/services/segmentService', () => ({
+  useSegments: jest.fn(() => ({ segments: mockSegments })),
+}));
 jest.mock('../../src/hooks/useWatchConnectivity', () => ({
   useWatchConnectivity: jest.fn(),
 }));
@@ -420,5 +424,61 @@ describe('RouteDetailScreen elevation profile', () => {
     } as never);
     const screen = renderScreen();
     expect(screen.queryByTestId('route-elevation')).toBeNull();
+  });
+});
+
+describe('RouteDetailScreen segments', () => {
+  beforeAll(async () => {
+    await initializeI18n('en');
+  });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    paired(false);
+    mockSegments = [];
+  });
+  afterAll(() => {
+    mockSegments = [];
+  });
+
+  const segment = (overrides: Record<string, unknown> = {}) => ({
+    id: 's1',
+    name: 'Climb',
+    activity: 'run',
+    lengthM: 800,
+    sourceRouteId: 'r1',
+    sourceExerciseEntryId: null,
+    createdAt: '2026-03-01T10:00:00.000Z',
+    updatedAt: '2026-03-01T10:00:00.000Z',
+    start: { lat: 51.5, lon: -0.12 },
+    effortCount: 3,
+    bestSeconds: 214.4,
+    lastEffortDate: '2026-10-12',
+    ...overrides,
+  });
+
+  it('offers to create a segment when the route has none', () => {
+    const screen = renderScreen();
+    expect(screen.getByText(/Pick a stretch of this route/)).toBeTruthy();
+    fireEvent.press(screen.getByTestId('route-create-segment'));
+    expect(navigation.navigate).toHaveBeenCalledWith('SegmentCreate', {
+      routeId: 'r1',
+    });
+  });
+
+  it('lists this route’s segments with best time and count, not other routes’', () => {
+    mockSegments = [
+      segment(),
+      segment({ id: 's2', name: 'Elsewhere', sourceRouteId: 'other' }),
+      segment({ id: 's3', name: null, bestSeconds: null, effortCount: 0 }),
+    ];
+    const screen = renderScreen();
+    expect(screen.getByText('Climb')).toBeTruthy();
+    expect(screen.getByText('Best 3:34.4 · 3 efforts')).toBeTruthy();
+    expect(screen.queryByText('Elsewhere')).toBeNull();
+    expect(screen.getByText('No efforts yet')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('route-segment-s1'));
+    expect(navigation.navigate).toHaveBeenCalledWith('SegmentDetail', {
+      id: 's1',
+    });
   });
 });

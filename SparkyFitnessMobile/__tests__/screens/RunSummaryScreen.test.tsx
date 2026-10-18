@@ -12,6 +12,7 @@ import {
 } from '../../src/services/runProgramService';
 import { setExerciseEntryDistance } from '../../src/services/api/exerciseApi';
 import { usePersonalRecords } from '../../src/hooks/usePersonalRecords';
+import { useEntrySegmentEfforts } from '../../src/services/segmentService';
 import { useRouteRuns, useRoutes } from '../../src/services/routeService';
 import type { RunSummaryParams } from '../../src/utils/runSummary';
 
@@ -28,6 +29,9 @@ jest.mock('../../src/services/api/exerciseApi', () => ({
 jest.mock('../../src/services/routeService', () => ({
   useRoutes: jest.fn(() => ({ routes: [] })),
   useRouteRuns: jest.fn(() => ({ runs: [] })),
+}));
+jest.mock('../../src/services/segmentService', () => ({
+  useEntrySegmentEfforts: jest.fn(() => ({ efforts: [], isLoading: false })),
 }));
 jest.mock('../../src/hooks/usePersonalRecords', () => ({
   usePersonalRecords: jest.fn(() => ({ records: [] })),
@@ -412,5 +416,79 @@ describe('followed route', () => {
     renderScreen(params({ entryId: 'entry-1', routeId: 'r1' }));
     expect(screen.getByText('Followed Hill loop')).toBeTruthy();
     expect(screen.queryByText(/Route best/)).toBeNull();
+  });
+});
+
+describe('segments crossed by the run', () => {
+  const effort = (overrides: Record<string, unknown> = {}) => ({
+    segmentId: 'seg-1',
+    segmentName: 'Park hill',
+    segmentLengthM: 800,
+    entryId: 'entry-1',
+    date: '2026-10-12',
+    startedAt: '2026-10-12T08:00:00.000Z',
+    elapsedSeconds: 214.4,
+    avgSpeedMps: 3.7,
+    isBest: false,
+    isPersonalRecord: false,
+    isNewPersonalBest: false,
+    previousBestSeconds: null,
+    ...overrides,
+  });
+  const crossed = (efforts: ReturnType<typeof effort>[]) =>
+    jest
+      .mocked(useEntrySegmentEfforts)
+      .mockReturnValue({ efforts, isLoading: false } as never);
+  afterEach(() =>
+    jest
+      .mocked(useEntrySegmentEfforts)
+      .mockReturnValue({ efforts: [], isLoading: false } as never)
+  );
+
+  it('shows nothing when the run crossed no segment, and asks only for a saved entry', () => {
+    renderScreen(params({ entryId: 'entry-1' }));
+    expect(screen.queryByTestId('run-segments')).toBeNull();
+    expect(useEntrySegmentEfforts).toHaveBeenCalledWith('entry-1');
+    renderScreen(params({ entryId: undefined }));
+    expect(useEntrySegmentEfforts).toHaveBeenLastCalledWith(undefined);
+  });
+
+  it('lists a line per segment with its time', () => {
+    crossed([
+      effort(),
+      effort({ segmentId: 'seg-2', segmentName: null, elapsedSeconds: 61 }),
+    ]);
+    renderScreen(params({ entryId: 'entry-1' }));
+    expect(screen.getByText('Segments')).toBeTruthy();
+    expect(screen.getByText('Park hill')).toBeTruthy();
+    expect(screen.getByText('3:34.4')).toBeTruthy();
+    expect(screen.getByText('Segment · 0.80 km')).toBeTruthy();
+    expect(screen.getByText('1:01.0')).toBeTruthy();
+    expect(screen.queryByText(/New segment PR/)).toBeNull();
+  });
+
+  it('calls out a new segment PR and what it beat', () => {
+    crossed([
+      effort({ isNewPersonalBest: true, previousBestSeconds: 220 }),
+      effort({ segmentId: 'seg-2', segmentName: 'Bridge' }),
+    ]);
+    renderScreen(params({ entryId: 'entry-1' }));
+    expect(screen.getByText('New segment PR')).toBeTruthy();
+    expect(screen.getByText('New PR, beating your 3:40.0')).toBeTruthy();
+    expect(screen.queryByTestId('run-segment-pr-seg-2')).toBeNull();
+  });
+
+  it('says PRs for more than one and opens a segment', () => {
+    crossed([
+      effort({ isNewPersonalBest: true }),
+      effort({ segmentId: 'seg-2', isNewPersonalBest: true }),
+    ]);
+    renderScreen(params({ entryId: 'entry-1' }));
+    expect(screen.getByText('New segment PRs')).toBeTruthy();
+    expect(screen.getAllByText('New PR')).toHaveLength(2);
+    fireEvent.press(screen.getByTestId('run-segment-seg-2'));
+    expect(navigation.navigate).toHaveBeenCalledWith('SegmentDetail', {
+      id: 'seg-2',
+    });
   });
 });
