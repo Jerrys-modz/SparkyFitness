@@ -9,6 +9,7 @@ import {
   useWorkoutDays,
 } from '@/hooks/Reports/useReports';
 import TrainingConsistencyCard from './TrainingConsistencyCard';
+import RouteHeatmapCard from './RouteHeatmapCard';
 import MuscleGroupRecoveryTracker from './MuscleGroupRecoveryTracker';
 import { PrProgressionChart } from './PrProgressionChart';
 import ExerciseVarietyScore from './ExerciseVarietyScore';
@@ -144,7 +145,7 @@ const ExerciseReportsDashboard = ({
     return () => media.removeEventListener('change', update);
   }, []);
 
-  const { activeUserId } = useActiveUser();
+  const { activeUserId, isActingOnBehalf } = useActiveUser();
 
   // The heatmap always covers the last 12 months on its own lightweight
   // query; the report's date filter only outlines days inside it (#2461).
@@ -862,6 +863,9 @@ const ExerciseReportsDashboard = ({
           )}
         </div>
       </div>
+
+      {/* The route heatmap is personal: never shown, or asked for, when acting for someone else. */}
+      {!isActingOnBehalf && viewMode !== 'strength' && <RouteHeatmapCard />}
 
       {/* Tier 3: Domain Analytics Sections */}
 

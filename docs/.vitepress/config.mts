@@ -163,6 +163,8 @@ export default defineConfig({
             { text: 'Guided Workouts', link: '/features/exercises/guided-workouts' },
             { text: 'GPS Activity Recording', link: '/features/exercises/gps-activity-recording' },
             { text: 'Route Generation', link: '/features/exercises/route-generation' },
+            { text: 'Segments', link: '/features/exercises/segments' },
+            { text: 'Route Heatmap', link: '/features/exercises/route-heatmap' },
             { text: 'Progression & Per-Set Ramp', link: '/features/exercises/progression-and-per-set-ramp' },
             { text: 'Bodyweight Exercises', link: '/features/exercises/bodyweight-exercises' },
             { text: 'Adaptive Coaching', link: '/features/exercises/adaptive-coaching' },

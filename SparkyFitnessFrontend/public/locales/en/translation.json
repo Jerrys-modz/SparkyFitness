@@ -5044,7 +5044,32 @@
     "normalAdultRestingRange12": "Normal adult resting range: 12-20 brpm",
     "weightTrendRateAndForecast": "Trend {{weight}} · {{rate}} per week · Goal projected {{date}}",
     "weightTrendWithRate": "Trend {{weight}} · {{rate}} per week",
-    "weightTrendWithForecast": "Trend {{weight}} · Goal projected {{date}}"
+    "weightTrendWithForecast": "Trend {{weight}} · Goal projected {{date}}",
+    "routeHeatmap": {
+      "title": "Route heatmap",
+      "loading": "Loading your heatmap...",
+      "loadFailed": "Failed to load your route heatmap.",
+      "empty": "Nothing to show for this filter yet. Runs, walks and rides with a recorded GPS track appear here.",
+      "tapHint": "Click the map to see how often a road was used.",
+      "truncated": "Showing the busiest places. Zoom in or choose a shorter period to see more.",
+      "activity": {
+        "all": "All",
+        "run": "Run",
+        "walk": "Walk",
+        "ride": "Ride",
+        "hike": "Hike"
+      },
+      "period": {
+        "30d": "30 days",
+        "90d": "90 days",
+        "1y": "Year",
+        "all": "All time"
+      },
+      "used_one": "Used {{count}} time",
+      "used_other": "Used {{count}} times",
+      "summary_one": "{{count}} activity",
+      "summary_other": "{{count}} activities"
+    }
   },
   "sleepHealth": {
     "hrvStatus": "HRV Status",

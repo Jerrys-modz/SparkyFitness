@@ -100,6 +100,17 @@ jest.mock('react-leaflet', () => ({
     React.createElement('div', { 'data-testid': 'marker' }, children),
   Popup: ({ children }: { children?: React.ReactNode }) =>
     React.createElement('div', { 'data-testid': 'popup' }, children),
+  Rectangle: () => React.createElement('div', { 'data-testid': 'heat-cell' }),
+  useMap: () => ({
+    fitBounds: jest.fn(),
+    getBounds: () => ({
+      getSouth: () => 40,
+      getNorth: () => 41,
+      getWest: () => -75,
+      getEast: () => -74,
+    }),
+  }),
+  useMapEvents: () => ({}),
 }));
 
 jest.mock('leaflet', () => ({
