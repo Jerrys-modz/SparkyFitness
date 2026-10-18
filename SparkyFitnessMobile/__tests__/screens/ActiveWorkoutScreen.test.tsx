@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, AppState } from 'react-native';
+import { Alert, AppState, Dimensions } from 'react-native';
 import { fireEvent, render, act, within } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -660,6 +660,29 @@ describe('ActiveWorkoutScreen keyboard accessory bar', () => {
     expect(useActiveWorkoutStore.getState().rest.endsAt).toBe(endsAt + 15_000);
     fireEvent.press(bar.getByLabelText('Shorten rest by 15 seconds'));
     expect(useActiveWorkoutStore.getState().rest.endsAt).toBe(endsAt);
+  });
+
+  it('leaves the rest row out of the bar on a short screen, so the set being edited stays in view', () => {
+    const windowSize = jest.spyOn(Dimensions, 'get').mockReturnValue({
+      width: 360,
+      height: 640,
+      scale: 2,
+      fontScale: 1,
+    });
+    try {
+      act(() => {
+        useActiveWorkoutStore.getState().completeSet('102');
+      });
+      expect(useActiveWorkoutStore.getState().rest.state).toBe('resting');
+      const { getByTestId } = renderScreen();
+
+      fireEvent.press(getByTestId('focus-rpe-201'));
+      const bar = within(getByTestId('set-accessory-bar'));
+      expect(bar.queryByTestId('compact-rest-row')).toBeNull();
+      expect(bar.getByText('Done')).toBeTruthy();
+    } finally {
+      windowSize.mockRestore();
+    }
   });
 
   it('leaves the rest row out of the bar while no rest runs', () => {

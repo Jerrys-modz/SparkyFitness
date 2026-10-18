@@ -10,6 +10,7 @@ import {
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  useWindowDimensions,
 } from 'react-native';
 import {
   KeyboardAwareScrollView,
@@ -42,6 +43,7 @@ import { MetricColumnMenu, SetTypeMenu } from '../components/WorkoutMenus';
 import {
   ActiveWorkoutCompactRestRow,
   COMPACT_REST_ROW_HEIGHT,
+  MIN_WINDOW_HEIGHT_FOR_COMPACT_REST_ROW,
   LiveActiveWorkoutRestBar,
   REST_BAR_GLASS_CLEARANCE,
 } from '../components/ActiveWorkoutRestBar';
@@ -698,12 +700,16 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
   ]);
 
   // While a rest runs, the keyboard bar carries its controls: the docked rest
-  // bar is behind the keyboard. The row ticks on the shared clock by itself,
+  // bar is behind the keyboard. A short screen leaves the row out, or it would
+  // cover the set being edited. The row ticks on the shared clock by itself,
   // so the element only changes when a rest starts or ends.
   const restRunning = restState !== 'ready';
+  const { height: windowHeight } = useWindowDimensions();
+  const barCarriesRest =
+    restRunning && windowHeight >= MIN_WINDOW_HEIGHT_FOR_COMPACT_REST_ROW;
   const accessoryRestSlot = useMemo(
-    () => (restRunning ? <ActiveWorkoutCompactRestRow /> : undefined),
-    [restRunning]
+    () => (barCarriesRest ? <ActiveWorkoutCompactRestRow /> : undefined),
+    [barCarriesRest]
   );
 
   const handleCompleteSet = useCallback((setId: string) => {
@@ -929,7 +935,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         // the keyboard, and of the rest row it carries while a rest runs.
         bottomOffset={
           SET_ACCESSORY_BAR_HEIGHT +
-          (restRunning ? COMPACT_REST_ROW_HEIGHT : 0) +
+          (barCarriesRest ? COMPACT_REST_ROW_HEIGHT : 0) +
           16
         }
         disableScrollOnKeyboardHide

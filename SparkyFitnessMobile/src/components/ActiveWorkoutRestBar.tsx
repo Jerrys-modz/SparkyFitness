@@ -378,6 +378,14 @@ export default React.memo(ActiveWorkoutRestBar);
 export const COMPACT_REST_ROW_HEIGHT = 46;
 
 /**
+ * Window height (dp) below which the keyboard bar leaves the compact rest row
+ * out. On a 640 dp phone the header, the rail, the keyboard and both rows of
+ * the bar leave no room for the set being edited; the docked bar still has
+ * the rest controls once the keyboard closes.
+ */
+export const MIN_WINDOW_HEIGHT_FOR_COMPACT_REST_ROW = 740;
+
+/**
  * One-row rest controls for the set-entry keyboard bar (its `restSlot`): the
  * docked bar sits behind the keyboard while a set cell is being edited, so
  * the keyboard bar carries pause/resume, −15s, the countdown, +15s and skip
