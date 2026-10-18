@@ -748,6 +748,21 @@ describe('ActiveWorkoutScreen keyboard accessory bar', () => {
       fireEvent.press(getByText('Log'));
       expect(mockAccessoryHandles['102'].log).toHaveBeenCalledTimes(1);
     });
+
+    it('does not move the keyboard off a cell tapped in the same tick', () => {
+      const { getByTestId, getByText, queryByText } = renderScreen();
+
+      // The outer act holds the tap's commit and effects back, so the expiry
+      // lands before the screen has rendered the focus.
+      act(() => {
+        fireEvent.press(getByTestId('focus-rpe-102'));
+        useActiveWorkoutStore.setState({ restExpiredAt: Date.now() });
+      });
+
+      expect(queryByText('Next')).toBeNull();
+      fireEvent.press(getByText('Log'));
+      expect(mockAccessoryHandles['102'].log).toHaveBeenCalledTimes(1);
+    });
   });
 });
 

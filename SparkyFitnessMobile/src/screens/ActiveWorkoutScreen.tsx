@@ -177,8 +177,15 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     sourcePresetId == null ||
     (isFocused && settledPresetCheckKey === presetCheckKey);
 
-  // The set cell holding the keyboard (its render key) and which field.
-  const [focusedSetKey, setFocusedSetKey] = useState<string | null>(null);
+  // The set cell holding the keyboard (its render key) and which field. The
+  // ref is written with the state, not by an effect after the commit, so the
+  // rest-expiry subscription below already sees a tap from the same tick.
+  const [focusedSetKey, setFocusedSetKeyState] = useState<string | null>(null);
+  const focusedSetKeyRef = useRef<string | null>(null);
+  const setFocusedSetKey = useCallback((key: string | null) => {
+    focusedSetKeyRef.current = key;
+    setFocusedSetKeyState(key);
+  }, []);
   const [focusedField, setFocusedField] = useState<SetInputField>('weight');
 
   // While a set is being edited the autosave holds the server's replies back
@@ -557,12 +564,15 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
       setFocusedField(field);
       setFocusedSetKey(setKey);
     },
-    []
+    [setFocusedSetKey]
   );
-  const handleActivateRpe = useCallback((setKey: string) => {
-    setFocusedField('rpe');
-    setFocusedSetKey(setKey);
-  }, []);
+  const handleActivateRpe = useCallback(
+    (setKey: string) => {
+      setFocusedField('rpe');
+      setFocusedSetKey(setKey);
+    },
+    [setFocusedSetKey]
+  );
 
   const accessoryHandlesRef = useRef<Record<string, SetRowAccessoryHandle>>({});
   const handleRegisterAccessoryHandle = useCallback(
@@ -583,10 +593,6 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
   useEffect(() => {
     isFocusedRef.current = isFocused;
   }, [isFocused]);
-  const focusedSetKeyRef = useRef(focusedSetKey);
-  useEffect(() => {
-    focusedSetKeyRef.current = focusedSetKey;
-  }, [focusedSetKey]);
   useEffect(
     () =>
       useActiveWorkoutStore.subscribe((state, prev) => {
@@ -618,14 +624,14 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
   );
 
   useDeactivateOnKeyboardDismiss(
-    useCallback(() => setFocusedSetKey(null), []),
+    useCallback(() => setFocusedSetKey(null), [setFocusedSetKey]),
     focusedSetKey != null
   );
 
   const handleAccessoryDone = useCallback(() => {
     setFocusedSetKey(null);
     Keyboard.dismiss();
-  }, []);
+  }, [setFocusedSetKey]);
 
   // The keyboard bar is mounted the whole time, so its props are memoized: a
   // screen render that changes nothing on it (a sheet or menu opening, a rest
@@ -712,25 +718,29 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     [barCarriesRest]
   );
 
-  const handleCompleteSet = useCallback((setId: string) => {
-    useActiveWorkoutStore.getState().completeSet(setId);
-    setFocusedSetKey(null);
-    setExpandedSetKey(null);
-    Keyboard.dismiss();
-    const store = useActiveWorkoutStore.getState();
-    const completed = store.completedSetIds;
-    const remaining =
-      store.session?.exercises.reduce(
-        (sum, e) => sum + e.sets.filter((s) => !completed[String(s.id)]).length,
-        0
-      ) ?? 0;
-    if (remaining === 0) {
-      runAfterKeyboardSettles(() => {
-        programmaticScrollUntilRef.current = Date.now() + 600;
-        scrollRef.current?.scrollToEnd({ animated: true });
-      }, 350);
-    }
-  }, []);
+  const handleCompleteSet = useCallback(
+    (setId: string) => {
+      useActiveWorkoutStore.getState().completeSet(setId);
+      setFocusedSetKey(null);
+      setExpandedSetKey(null);
+      Keyboard.dismiss();
+      const store = useActiveWorkoutStore.getState();
+      const completed = store.completedSetIds;
+      const remaining =
+        store.session?.exercises.reduce(
+          (sum, e) =>
+            sum + e.sets.filter((s) => !completed[String(s.id)]).length,
+          0
+        ) ?? 0;
+      if (remaining === 0) {
+        runAfterKeyboardSettles(() => {
+          programmaticScrollUntilRef.current = Date.now() + 600;
+          scrollRef.current?.scrollToEnd({ animated: true });
+        }, 350);
+      }
+    },
+    [setFocusedSetKey]
+  );
 
   const handleCompleteActiveSet = useCallback(() => {
     const id = useActiveWorkoutStore.getState().activeSetId;
