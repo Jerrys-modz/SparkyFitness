@@ -20,6 +20,8 @@ import MealPlansScreen from '../screens/MealPlansScreen';
 import RunProgramsScreen from '../screens/RunProgramsScreen';
 import RunProgramCalendarScreen from '../screens/RunProgramCalendarScreen';
 import RunProgramRaceScreen from '../screens/RunProgramRaceScreen';
+import FitnessTestScreen from '../screens/FitnessTestScreen';
+import FitnessTestResultScreen from '../screens/FitnessTestResultScreen';
 import RunProgramEditScreen from '../screens/RunProgramEditScreen';
 import RunProgramWorkoutScreen from '../screens/RunProgramWorkoutScreen';
 import PersonalRecordsScreen from '../screens/PersonalRecordsScreen';
@@ -130,6 +132,8 @@ export const SafeWatchRunLive = withErrorBoundary(WatchRunLiveScreen, 'WatchRunL
 export const SafePersonalRecords = withErrorBoundary(PersonalRecordsScreen, 'PersonalRecords', { canGoBack: true });
 export const SafeRunPrograms = withErrorBoundary(RunProgramsScreen, 'RunPrograms', { canGoBack: true });
 export const SafeRunProgramRace = withErrorBoundary(RunProgramRaceScreen, 'RunProgramRace', { canGoBack: true });
+export const SafeFitnessTest = withErrorBoundary(FitnessTestScreen, 'FitnessTest', { canGoBack: true });
+export const SafeFitnessTestResult = withErrorBoundary(FitnessTestResultScreen, 'FitnessTestResult', { canGoBack: true });
 export const SafeRunProgramEdit = withErrorBoundary(RunProgramEditScreen, 'RunProgramEdit', { canGoBack: true });
 export const SafeRunProgramCalendar = withErrorBoundary(RunProgramCalendarScreen, 'RunProgramCalendar', { canGoBack: true });
 export const SafeRunProgramWorkout = withErrorBoundary(RunProgramWorkoutScreen, 'RunProgramWorkout', { canGoBack: true });

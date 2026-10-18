@@ -34,6 +34,10 @@ import CheckInCard from '../components/recording/CheckInCard';
 import SegmentedControl from '../components/SegmentedControl';
 import { SplitRow, Stat } from '../components/recording/SplitRow';
 import RunProgramSelect from '../components/recording/RunProgramSelect';
+import FitnessTestCard, {
+  FitnessTestFinishedCard,
+} from '../components/recording/FitnessTestCard';
+import FitnessTestSetup from '../components/recording/FitnessTestSetup';
 import {
   programTitle,
   programWorkoutLabel,
@@ -88,6 +92,8 @@ import {
 import {
   applyHeartRateTargets,
   applyPaceTargets,
+  evaluateFitnessTest,
+  type FitnessTestResponse,
   type HeartRateBand,
   buildIntervalPlan,
   INTERVAL_PRESETS,
@@ -114,7 +120,13 @@ import { toLocalDateString } from '../utils/dateUtils';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
 import { useShoeMutations } from '../hooks/useShoes';
 import { promptToRetireShoe } from '../utils/retireShoePrompt';
-import { fireSelectionHaptic } from '../services/haptics';
+import { fireSelectionHaptic, fireSuccessHaptic } from '../services/haptics';
+import { saveFitnessTest } from '../services/fitnessTestService';
+import {
+  fitnessTestName,
+  fitnessTestProgress,
+  measureFitnessTest,
+} from '../utils/fitnessTest';
 import { addLog } from '../services/LogService';
 import {
   beginRecordingCues,
@@ -265,7 +277,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   // phone-only.
   const [indoor, setIndoor] = useState(false);
   const [recordWith, setRecordWith] = useState<'phone' | 'watch'>('phone');
-  const watchAvailable = watchSupported && watchPaired && activity !== 'ride';
+  // A fitness test is a plain outdoor phone-GPS run: the measurement comes
+  // from the recording, so none of the other choices apply.
+  const fitnessTestParam = route.params?.fitnessTest ?? null;
+  const watchAvailable =
+    !fitnessTestParam && watchSupported && watchPaired && activity !== 'ride';
   const onWatch = watchAvailable && recordWith === 'watch';
   const [autoPause, setAutoPause] = useState(true);
   const [audioCues, setAudioCues] = useState(false);
@@ -486,10 +502,12 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       warm: choice(suggested.pace.warm),
       sessions: suggested.pace.sessions,
       race: suggested.pace.race,
+      fitnessTest: suggested.pace.fitnessTest,
       efforts,
     };
   }, [suggested.pace, suggested.byEffort, distanceUnit]);
-  // Tempo, stride and marathon-pace ranges come from the saved race; once it is
+  // Tempo, stride and marathon-pace ranges come from the latest fitness test or
+  // the saved race; once it is
   // cleared or the activity changes, the ranges applied from it no longer apply.
   useEffect(() => {
     setEffortPace(null);
@@ -540,8 +558,12 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   // While a recording is going, the header names it ("Outdoor run"), so the
   // screen always says what is being recorded.
   const liveTitle = session
-    ? recordingTitle(t, session.activity, session.indoor === true)
-    : t('screens.recordActivity', { defaultValue: 'Record Activity' });
+    ? session.fitnessTest
+      ? fitnessTestName(t, session.fitnessTest)
+      : recordingTitle(t, session.activity, session.indoor === true)
+    : fitnessTestParam
+      ? fitnessTestName(t, fitnessTestParam)
+      : t('screens.recordActivity', { defaultValue: 'Record Activity' });
   useScreenHeader({
     title: liveTitle,
     nativeTitle: liveTitle,
@@ -604,6 +626,39 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [isLive, hasIntervals, now]);
 
   const summary = useMemo(() => summarizeRecording(points), [points]);
+  // Tell the runner when a fitness test has reached its mark.
+  const testType = session?.fitnessTest ?? null;
+  const testComplete =
+    testType !== null &&
+    isLive &&
+    fitnessTestProgress(
+      testType,
+      elapsedSeconds(session!, now),
+      summary.distanceMeters
+    ).complete;
+  const cueTestComplete = Boolean(session?.audioCues);
+  useEffect(() => {
+    if (!testComplete) return;
+    fireSuccessHaptic();
+    if (cueTestComplete) {
+      speakRecordingCue(
+        t('fitnessTest.cue.complete', {
+          defaultValue: 'Test complete. Slow down and finish.',
+        })
+      );
+    }
+  }, [testComplete, cueTestComplete, t]);
+  const testMeasurement = useMemo(
+    () =>
+      session?.fitnessTest && session.status === 'finished'
+        ? measureFitnessTest(session.fitnessTest, points)
+        : null,
+    [points, session?.fitnessTest, session?.status]
+  );
+  const testOutcome = useMemo(
+    () => (testMeasurement ? evaluateFitnessTest(testMeasurement) : null),
+    [testMeasurement]
+  );
   const mapPoints = useMemo(
     () =>
       points.map((p) => ({
@@ -663,6 +718,24 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       run(
         async () => {
           setPermissionProblem(null);
+          if (fitnessTestParam) {
+            setStartedHere(true);
+            await startRecording({
+              activity: 'run',
+              // The test is timed on the recording's own clock; auto-pause
+              // would take time out of it.
+              autoPause: false,
+              audioCues: audioCues
+                ? distanceUnit === 'miles'
+                  ? 'miles'
+                  : 'km'
+                : undefined,
+              indoor: false,
+              fitnessTest: fitnessTestParam,
+              notification: notificationText(t, 'run'),
+            });
+            return;
+          }
           if (onWatch) {
             const meta =
               intervalChoice === 'program' && programStatus
@@ -738,6 +811,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       activity,
       audioCues,
       checkInMinutes,
+      fitnessTestParam,
       autoPause,
       paceAlert,
       currentPaceBand,
@@ -871,6 +945,20 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
         session.indoor ? indoorEstimate : null,
         session.indoor === true && indoorDistanceText === null
       );
+      // A completed fitness test is filed against the saved activity. A
+      // failure throws like any save failure: the recording is kept, and the
+      // retry reuses the saved activity and replaces the test, never doubling it.
+      let savedTest: FitnessTestResponse | null = null;
+      if (session.fitnessTest && testMeasurement) {
+        savedTest = await saveFitnessTest({
+          test_type: testMeasurement.type,
+          test_date: toLocalDateString(new Date(session.startedAt)),
+          distance_meters: testMeasurement.distanceMeters,
+          duration_seconds: testMeasurement.durationSeconds,
+          split_distance_meters: testMeasurement.splitDistanceMeters ?? null,
+          exercise_entry_id: saved.entryId,
+        });
+      }
       // Ticks a program workout off only if the plan was followed to its end; a run cut short can be tried again. The day is the one the run
       // started on, so a run saved after midnight still counts for its own day.
       let program: RunSummaryParams['program'] = null;
@@ -946,8 +1034,13 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
           'WARNING'
         )
       );
-      if (summaryParams) navigation.replace('RunSummary', summaryParams);
-      else navigation.goBack();
+      if (savedTest) {
+        navigation.replace('FitnessTestResult', { id: savedTest.id });
+      } else if (summaryParams) {
+        navigation.replace('RunSummary', summaryParams);
+      } else {
+        navigation.goBack();
+      }
     } catch (error) {
       addLog(`[GPS Recording] Save failed: ${error}`, 'ERROR');
       Toast.show({
@@ -972,6 +1065,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     queryClient,
     session,
     t,
+    testMeasurement,
     updateShoe,
   ]);
 
@@ -1010,6 +1104,23 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             {t('recordActivity.countdown.cancel', { defaultValue: 'Cancel' })}
           </Button>
         </View>
+      );
+    }
+    if (!session && fitnessTestParam) {
+      return (
+        <FitnessTestSetup
+          type={fitnessTestParam}
+          audioCues={audioCues}
+          onAudioCuesChange={(value) => {
+            preferenceEdits.current.audioCues = true;
+            setAudioCues(value);
+            void setRecordingPreference('audioCues', value);
+          }}
+          busy={busy}
+          permissionProblem={permissionProblem}
+          onStart={handleStartPress}
+          onOpenSettings={() => void Linking.openSettings()}
+        />
       );
     }
     if (!session) {
@@ -1567,6 +1678,22 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
         </View>
         {session.intervals && intervalPos && !finished ? (
           <IntervalCard plan={session.intervals.plan} position={intervalPos} />
+        ) : null}
+        {session.fitnessTest ? (
+          finished ? (
+            <FitnessTestFinishedCard
+              type={session.fitnessTest}
+              outcome={testOutcome}
+              unit={distanceUnit}
+            />
+          ) : (
+            <FitnessTestCard
+              type={session.fitnessTest}
+              activeSeconds={active}
+              distanceMeters={distance}
+              unit={distanceUnit}
+            />
+          )
         ) : null}
         {indoorSession ? null : (
           <>
