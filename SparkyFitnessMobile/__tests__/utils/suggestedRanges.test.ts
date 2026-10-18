@@ -5,6 +5,7 @@ import {
   suggestedHeartRateRanges,
   suggestedPaceRanges,
   warmPaceFromEasy,
+  suggestedPaceRangesFromRace,
 } from '../../src/utils/suggestedRanges';
 
 const session = (
@@ -178,5 +179,38 @@ describe('warmPaceFromEasy', () => {
       warmPaceFromEasy({ minSecondsPerKm: 500, maxSecondsPerKm: 700 })
         .maxSecondsPerKm
     ).toBeLessThanOrEqual(1200);
+  });
+});
+
+describe('suggestedPaceRangesFromRace', () => {
+  const race = { distanceKm: 5, seconds: 1500 };
+
+  it('gives interval and easy ranges, and one for each effort a plan can ask for', () => {
+    const ranges = suggestedPaceRangesFromRace(race, 'run')!;
+    expect(ranges.pair.work).toEqual({
+      minSecondsPerKm: 290,
+      maxSecondsPerKm: 310,
+    });
+    expect(ranges.pair.easy).toEqual({
+      minSecondsPerKm: 360,
+      maxSecondsPerKm: 405,
+    });
+    expect(Object.keys(ranges.byEffort).sort()).toEqual([
+      'easy',
+      'marathon',
+      'stride',
+      'tempo',
+    ]);
+  });
+
+  it('has none for a walk or a ride, which a running race says nothing about', () => {
+    expect(suggestedPaceRangesFromRace(race, 'walk')).toBeNull();
+    expect(suggestedPaceRangesFromRace(race, 'ride')).toBeNull();
+  });
+
+  it('has none for a result that cannot be right', () => {
+    expect(
+      suggestedPaceRangesFromRace({ distanceKm: 5, seconds: 60 }, 'run')
+    ).toBeNull();
   });
 });

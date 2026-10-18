@@ -392,6 +392,9 @@ export type RootStackParamList = {
   Shoes: undefined;
   ShoeForm: { shoeId?: string };
   FoodSettings: undefined;
+  CustomNutrients: undefined;
+  CustomNutrientForm: { nutrientId?: string } | undefined;
+  NutrientDisplaySettings: undefined;
   AllergenSettings: undefined;
   DashboardSettings: undefined;
   HealthTrendsSettings: undefined;
@@ -429,6 +432,7 @@ export type RootStackParamList = {
     | undefined;
   MoodLog: { date?: string } | undefined;
   SymptomHistory: { symptomId?: string } | undefined;
+  SymptomEpisodeDetail: { entryId: string };
   ManageSymptoms: undefined;
   SymptomDefinitionEditor: { definitionId?: string } | undefined;
 };
