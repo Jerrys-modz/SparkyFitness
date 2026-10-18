@@ -58,8 +58,28 @@ jest.mock('../../src/components/exerciseStats/PaceChart', () => {
   const { View } = require('react-native');
   return {
     __esModule: true,
+    default: ({
+      data,
+      gradeAdjusted,
+    }: {
+      data: unknown[];
+      gradeAdjusted?: unknown;
+    }) => (
+      <View
+        testID="pace-chart"
+        accessibilityHint={String(data.length)}
+        accessibilityLabel={gradeAdjusted ? 'with-gap' : 'plain'}
+      />
+    ),
+  };
+});
+
+jest.mock('../../src/components/exerciseStats/RunningDynamicsChart', () => {
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
     default: ({ data }: { data: unknown[] }) => (
-      <View testID="pace-chart" accessibilityHint={String(data.length)} />
+      <View testID="dynamics-chart" accessibilityHint={String(data.length)} />
     ),
   };
 });
@@ -366,5 +386,136 @@ describe('CardioSessionScreen', () => {
     mockDetail.mockReturnValue(detail({ route: [] }));
     const screen = render(<CardioSessionScreen {...props()} />);
     expect(screen.queryByTestId('export-gpx')).toBeNull();
+  });
+
+  describe('grade adjusted pace', () => {
+    /** 4 m/s north for five minutes, climbing `grade` percent. */
+    const climbingRoute = (grade: number, withAltitude = true) =>
+      Array.from({ length: 31 }, (_, i) => ({
+        t: new Date(Date.UTC(2026, 8, 26, 7, 0, i * 10)).toISOString(),
+        lat: 51.5 + (i * 40) / 111_194.9,
+        lon: -0.1,
+        ...(withAltitude && { alt: 100 + i * 40 * (grade / 100) }),
+      }));
+
+    it('shows an average GAP tile and a toggle when the route has elevation', () => {
+      mockDetail.mockReturnValue(detail({ route: climbingRoute(6) }));
+      const screen = render(<CardioSessionScreen {...props()} />);
+
+      expect(screen.getByText('Avg GAP')).toBeTruthy();
+      // 6% costs about 1.4x the flat effort: 4:10 /km becomes about 3:0x.
+      expect(screen.getByText(/^3:0\d \/km$/)).toBeTruthy();
+      expect(screen.getByTestId('grade-adjusted-toggle')).toBeTruthy();
+      expect(screen.getByTestId('pace-chart').props.accessibilityLabel).toBe(
+        'plain'
+      );
+    });
+
+    it('draws the grade adjusted line once the toggle is on, with the model credited', () => {
+      mockDetail.mockReturnValue(detail({ route: climbingRoute(6) }));
+      const screen = render(<CardioSessionScreen {...props()} />);
+
+      fireEvent(
+        screen.getByTestId('grade-adjusted-toggle'),
+        'valueChange',
+        true
+      );
+
+      expect(screen.getByTestId('pace-chart').props.accessibilityLabel).toBe(
+        'with-gap'
+      );
+      expect(screen.getByText(/Minetti/)).toBeTruthy();
+    });
+
+    it('hides GAP entirely when the route has no elevation', () => {
+      mockDetail.mockReturnValue(detail({ route: climbingRoute(6, false) }));
+      const screen = render(<CardioSessionScreen {...props()} />);
+
+      expect(screen.getByTestId('pace-chart')).toBeTruthy();
+      expect(screen.queryByText('Avg GAP')).toBeNull();
+      expect(screen.queryByTestId('grade-adjusted-toggle')).toBeNull();
+    });
+  });
+
+  describe('running dynamics', () => {
+    const DYNAMICS_RUN = {
+      ...RUN_WITH_FORM,
+      groundContactTimeMs: 243.5,
+      verticalOscillationMm: 81,
+      verticalRatioPercent: 7.8,
+      avgPowerWatts: 232,
+    } as ExerciseActivityQueryItem;
+
+    it('shows each measured metric as a tile with a note', () => {
+      mockDetail.mockReturnValue(detail());
+      const screen = render(<CardioSessionScreen {...props(DYNAMICS_RUN)} />);
+
+      expect(screen.getByText('244 ms')).toBeTruthy();
+      expect(screen.getByText('8.1 cm')).toBeTruthy();
+      expect(screen.getByText('7.8%')).toBeTruthy();
+      expect(screen.getByText('232 W')).toBeTruthy();
+      expect(
+        screen.getByText(/How long each foot stays on the ground/)
+      ).toBeTruthy();
+      expect(screen.getByText(/How far your torso bounces/)).toBeTruthy();
+      expect(screen.getByText(/percentage of your step length/)).toBeTruthy();
+      expect(screen.getByText(/Brands calculate it differently/)).toBeTruthy();
+    });
+
+    it('shows vertical oscillation in inches with the miles setting', () => {
+      mockDetail.mockReturnValue(detail());
+      const imperial = {
+        ...props(DYNAMICS_RUN),
+        route: {
+          key: 'CardioSession',
+          name: 'CardioSession',
+          params: { session: DYNAMICS_RUN, distanceUnit: 'miles' },
+        },
+      } as unknown as RootStackScreenProps<'CardioSession'>;
+      const screen = render(<CardioSessionScreen {...imperial} />);
+
+      // 81 mm is 3.2 in.
+      expect(screen.getByText('3.2 in')).toBeTruthy();
+    });
+
+    it('hides every dynamics tile and card for a run that has none', () => {
+      mockDetail.mockReturnValue(detail());
+      const screen = render(<CardioSessionScreen {...props(RUN_WITH_FORM)} />);
+
+      expect(screen.queryByText('Ground contact')).toBeNull();
+      expect(screen.queryByText('Vertical oscillation')).toBeNull();
+      expect(screen.queryByText('Vertical ratio')).toBeNull();
+      expect(screen.queryByText('Avg power')).toBeNull();
+      expect(screen.queryByTestId('dynamics-chart')).toBeNull();
+    });
+
+    it('works the averages out of the stored track when the row has none', () => {
+      const route = Array.from({ length: 6 }, (_, i) => ({
+        t: new Date(Date.UTC(2026, 8, 26, 7, 0, i * 30)).toISOString(),
+        lat: 51.5 + (i * 120) / 111_194.9,
+        lon: -0.1,
+        gct: 240 + i * 4,
+        vo: 80,
+        stride: 100,
+        power: 220,
+      }));
+      mockDetail.mockReturnValue(detail({ route }));
+      const screen = render(<CardioSessionScreen {...props(RUN_WITH_FORM)} />);
+
+      expect(screen.getByText('250 ms')).toBeTruthy();
+      expect(screen.getByText('8 cm')).toBeTruthy();
+      // 80 mm over the row's own 104.3 cm stride.
+      expect(screen.getByText('7.7%')).toBeTruthy();
+      expect(screen.getByText('220 W')).toBeTruthy();
+      // One chart per metric the track has enough readings of.
+      expect(screen.getAllByTestId('dynamics-chart')).toHaveLength(4);
+    });
+
+    it('draws no chart for a metric the row has only an average of', () => {
+      mockDetail.mockReturnValue(detail());
+      const screen = render(<CardioSessionScreen {...props(DYNAMICS_RUN)} />);
+
+      expect(screen.queryByTestId('dynamics-chart')).toBeNull();
+    });
   });
 });

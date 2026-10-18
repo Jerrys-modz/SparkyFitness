@@ -6,10 +6,16 @@ import {
   ActivityDetailsResponse,
 } from '@/types/exercises';
 import {
+  buildElevationProfile,
   ExerciseEntries,
   ExerciseEntryResponse,
   GpsTrackPoint,
+  gradeAdjustedForSamples,
+  gradeAdjustedPace,
+  summarizeRunningDynamics,
+  verticalRatioPercent,
 } from '@workspace/shared';
+import type { TrackSample } from '@workspace/shared';
 import { ChartDataPoint } from '@/types/reports';
 
 interface MetricDescriptor {
@@ -432,6 +438,116 @@ export const processChartData = (
   }));
 };
 
+const EARTH_RADIUS_M = 6_371_008.8;
+
+const haversineMeters = (
+  a: Pick<GpsTrackPoint, 'lat' | 'lon'>,
+  b: Pick<GpsTrackPoint, 'lat' | 'lon'>
+): number => {
+  const rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad;
+  const dLon = (b.lon - a.lon) * rad;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
+};
+
+/**
+ * A track as samples for grading: the point's own cumulative `dist` when it
+ * has one, else the path length between fixes (Garmin imports carry none).
+ * A point whose clock does not advance is skipped.
+ */
+const trackSamplesOf = (
+  points: readonly GpsTrackPoint[]
+): { samples: TrackSample[]; metersByPoint: Map<number, number> } => {
+  const samples: TrackSample[] = [];
+  const metersByPoint = new Map<number, number>();
+  let running = 0;
+  let lastT = -Infinity;
+  let previous: GpsTrackPoint | null = null;
+  points.forEach((pt, i) => {
+    const t = Date.parse(pt.t);
+    if (!Number.isFinite(t) || t <= lastT) return;
+    if (typeof pt.dist === 'number' && Number.isFinite(pt.dist)) {
+      running = pt.dist;
+    } else if (previous) {
+      running += haversineMeters(previous, pt);
+    }
+    previous = pt;
+    lastT = t;
+    samples.push({
+      t,
+      meters: running,
+      altitude: pt.alt,
+      verticalAccuracy: pt.vacc,
+    });
+    metersByPoint.set(i, running);
+  });
+  return { samples, metersByPoint };
+};
+
+/**
+ * Average grade-adjusted pace in minutes per `distanceUnit`, or null when the
+ * track carries too little elevation to grade (Minetti 2002; see
+ * `gradeAdjustedPace.ts` in `@workspace/shared`).
+ */
+export const gradeAdjustedAveragePace = (
+  points: readonly GpsTrackPoint[] | undefined,
+  distanceUnit: DistanceUnit
+): number | null => {
+  if (!points || points.length < 2) return null;
+  const unitMeters = distanceUnit === 'miles' ? 1609.344 : 1000;
+  const { averageSecondsPerUnit } = gradeAdjustedForSamples(
+    trackSamplesOf(points).samples,
+    unitMeters
+  );
+  return averageSecondsPerUnit == null ? null : averageSecondsPerUnit / 60;
+};
+
+export interface ResolvedRunningDynamics {
+  groundContactTimeMs: number | null;
+  verticalOscillationMm: number | null;
+  verticalRatioPercent: number | null;
+  powerWatts: number | null;
+}
+
+const positiveOrNull = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+/**
+ * Per-run running dynamics for the stat tiles: what the stored entry says,
+ * else the averages of the stored track. Whatever neither has stays null so
+ * its tile is not drawn; the ratio is derived from the two lengths, never
+ * measured.
+ */
+export const resolveRunningDynamics = (
+  entry: Record<string, unknown> | undefined,
+  points: readonly GpsTrackPoint[] | undefined
+): ResolvedRunningDynamics => {
+  const track = summarizeRunningDynamics(points ?? []);
+  const verticalOscillationMm =
+    positiveOrNull(entry?.['vertical_oscillation_mm']) ??
+    track.verticalOscillationMm;
+  return {
+    groundContactTimeMs:
+      positiveOrNull(entry?.['ground_contact_time_ms']) ??
+      track.groundContactTimeMs,
+    verticalOscillationMm,
+    verticalRatioPercent: verticalRatioPercent(
+      verticalOscillationMm,
+      positiveOrNull(entry?.['stride_length_cm']) ?? track.strideLengthCm
+    ),
+    powerWatts: positiveOrNull(entry?.['avg_power_watts']) ?? track.powerWatts,
+  };
+};
+
+/** Metres either side of a point over which its gradient is read. */
+const GRADE_HALF_SPAN_METERS = 30;
+
 export const processGpsPointsToChartData = (
   // The workout's trackpoint array (ExerciseEntryGpsPoints.points), not the
   // wrapping row -- callers pass gpsData?.points.
@@ -449,11 +565,28 @@ export const processGpsPointsToChartData = (
   const startTs = new Date(firstPt.t).getTime();
   const initialDist = firstPt.dist ?? 0;
 
-  return points.map((pt) => {
+  // Elevation smoothed once for the whole track; null when the track has too
+  // little of it, in which case no point gets a grade-adjusted pace.
+  const { samples, metersByPoint } = trackSamplesOf(points);
+  const profile = buildElevationProfile(samples);
+
+  return points.map((pt, i) => {
     const currentTs = new Date(pt.t).getTime();
     const speed = pt.speed ?? 0;
     const paceMinutesPerKm = speed > 0 ? 1000 / (speed * 60) : 0;
     const relDistance = (pt.dist ?? 0) - initialDist;
+
+    const meters = metersByPoint.get(i);
+    const grade =
+      profile && meters !== undefined && paceMinutesPerKm > 0
+        ? profile.gradePercent(
+            meters - GRADE_HALF_SPAN_METERS,
+            meters + GRADE_HALF_SPAN_METERS
+          )
+        : null;
+    const gap =
+      grade !== null ? gradeAdjustedPace(paceMinutesPerKm * 60, grade) : null;
+    const ratio = verticalRatioPercent(pt.vo, pt.stride);
 
     return {
       timestamp: currentTs,
@@ -464,6 +597,17 @@ export const processGpsPointsToChartData = (
       heartRate: pt.hr ?? null,
       runCadence: pt.cad ?? 0,
       elevation: pt.alt ?? null,
+      gradeAdjustedPace:
+        gap !== null ? parseFloat((gap / 60).toFixed(2)) : null,
+      groundContactTime: pt.gct && pt.gct > 0 ? pt.gct : null,
+      verticalOscillation:
+        pt.vo && pt.vo > 0
+          ? parseFloat(
+              (distanceUnit === 'miles' ? pt.vo / 25.4 : pt.vo / 10).toFixed(2)
+            )
+          : null,
+      verticalRatio: ratio,
+      power: pt.power && pt.power > 0 ? pt.power : null,
     };
   });
 };

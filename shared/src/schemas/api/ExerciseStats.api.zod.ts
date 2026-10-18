@@ -171,6 +171,14 @@ export const exerciseActivityQueryItemSchema = z.object({
   avgCadence: z.number().nullable().optional(),
   /** Average stride length in centimetres. */
   strideLengthCm: z.number().nullable().optional(),
+  /** Average ground contact time in milliseconds, as the device measured it. */
+  groundContactTimeMs: z.number().nullable().optional(),
+  /** Average vertical oscillation in millimetres, as the device measured it. */
+  verticalOscillationMm: z.number().nullable().optional(),
+  /** Vertical oscillation as a percentage of step length; derived, not measured. */
+  verticalRatioPercent: z.number().nullable().optional(),
+  /** Average running power in watts, as the device measured it. */
+  avgPowerWatts: z.number().nullable().optional(),
   source: z.string().nullable(),
   notes: z.string().nullable(),
   hasGpsTrack: z.boolean(),

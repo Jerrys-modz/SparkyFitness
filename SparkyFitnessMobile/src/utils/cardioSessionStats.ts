@@ -1,8 +1,15 @@
 import type { TFunction } from 'i18next';
-import type { ExerciseActivityQueryItem } from '@workspace/shared';
+import type {
+  ExerciseActivityQueryItem,
+  GpsTrackPoint,
+  RunningDynamicsSummary,
+} from '@workspace/shared';
+import { runningDynamicsSeries, verticalRatioPercent } from '@workspace/shared';
 import { formatLocalizedNumber } from '../localization';
+import { formatPace } from './gpsRecording';
 
 const FEET_PER_METER = 3.28084;
+const MM_PER_INCH = 25.4;
 
 export interface Stat {
   key: string;
@@ -25,10 +32,92 @@ export const bpmText = (t: TFunction, bpm: number) =>
     value: formatLocalizedNumber(Math.round(bpm)),
   });
 
+/**
+ * Per-run running dynamics for the tiles and charts: what the session row
+ * carries, else the averages of the stored track. Whatever neither has stays
+ * null, so a tile for it is not drawn.
+ */
+export interface ResolvedRunningDynamics {
+  groundContactTimeMs: number | null;
+  verticalOscillationMm: number | null;
+  verticalRatioPercent: number | null;
+  powerWatts: number | null;
+}
+
+export function resolveRunningDynamics(
+  session: ExerciseActivityQueryItem,
+  track: RunningDynamicsSummary | null
+): ResolvedRunningDynamics {
+  const positive = (value: number | null | undefined): number | null =>
+    value != null && Number.isFinite(value) && value > 0 ? value : null;
+  const verticalOscillationMm =
+    positive(session.verticalOscillationMm) ??
+    positive(track?.verticalOscillationMm);
+  return {
+    groundContactTimeMs:
+      positive(session.groundContactTimeMs) ??
+      positive(track?.groundContactTimeMs),
+    verticalOscillationMm,
+    verticalRatioPercent:
+      positive(session.verticalRatioPercent) ??
+      verticalRatioPercent(
+        verticalOscillationMm,
+        positive(session.strideLengthCm) ?? track?.strideLengthCm
+      ),
+    powerWatts: positive(session.avgPowerWatts) ?? positive(track?.powerWatts),
+  };
+}
+
+/** A vertical oscillation in the display unit: centimetres, or inches with miles. */
+export function verticalOscillationDisplay(
+  millimeters: number,
+  distanceUnit: 'km' | 'miles'
+): number {
+  return distanceUnit === 'miles'
+    ? millimeters / MM_PER_INCH
+    : millimeters / 10;
+}
+
+export interface RunningDynamicsCharts {
+  groundContact: { elapsedMinutes: number; value: number }[];
+  verticalOscillation: { elapsedMinutes: number; value: number }[];
+  verticalRatio: { elapsedMinutes: number; value: number }[];
+  power: { elapsedMinutes: number; value: number }[];
+}
+
+/**
+ * The chart series of a stored track, each empty when the track has too few
+ * readings of it. Vertical oscillation is converted to the display unit.
+ */
+export function runningDynamicsCharts(
+  route: readonly GpsTrackPoint[],
+  distanceUnit: 'km' | 'miles'
+): RunningDynamicsCharts {
+  return {
+    groundContact: runningDynamicsSeries(route, 'groundContactTimeMs'),
+    verticalOscillation: runningDynamicsSeries(
+      route,
+      'verticalOscillationMm'
+    ).map((reading) => ({
+      elapsedMinutes: reading.elapsedMinutes,
+      value: verticalOscillationDisplay(reading.value, distanceUnit),
+    })),
+    verticalRatio: runningDynamicsSeries(route, 'verticalRatioPercent'),
+    power: runningDynamicsSeries(route, 'powerWatts'),
+  };
+}
+
+export interface SessionStatExtras {
+  /** Seconds per display unit; only for a track with elevation. */
+  gradeAdjustedPaceSeconds?: number | null;
+  dynamics?: ResolvedRunningDynamics | null;
+}
+
 export function sessionStats(
   t: TFunction,
   session: ExerciseActivityQueryItem,
-  distanceUnit: 'km' | 'miles'
+  distanceUnit: 'km' | 'miles',
+  extras: SessionStatExtras = {}
 ): Stat[] {
   const stats: Stat[] = [];
   if (session.distanceFormatted != null && session.distanceFormatted > 0) {
@@ -136,6 +225,81 @@ export function sessionStats(
             defaultValue: '{{value}} m',
             value,
           }),
+    });
+  }
+  const gap = extras.gradeAdjustedPaceSeconds;
+  if (gap != null && gap > 0) {
+    stats.push({
+      key: 'gap',
+      label: t('exerciseStatistics.cardio.avgGap', {
+        defaultValue: 'Avg GAP',
+      }),
+      value: `${formatPace(gap)} ${
+        distanceUnit === 'miles'
+          ? t('exerciseStatistics.cardio.perMile', { defaultValue: '/mi' })
+          : t('exerciseStatistics.cardio.perKm', { defaultValue: '/km' })
+      }`,
+    });
+  }
+  const dynamics = extras.dynamics;
+  if (dynamics?.groundContactTimeMs != null) {
+    stats.push({
+      key: 'groundContact',
+      label: t('exerciseStatistics.cardio.groundContactTime', {
+        defaultValue: 'Ground contact',
+      }),
+      value: t('exerciseStatistics.cardio.ms', {
+        defaultValue: '{{value}} ms',
+        value: formatLocalizedNumber(Math.round(dynamics.groundContactTimeMs)),
+      }),
+    });
+  }
+  if (dynamics?.verticalOscillationMm != null) {
+    const miles = distanceUnit === 'miles';
+    const value = formatLocalizedNumber(
+      verticalOscillationDisplay(dynamics.verticalOscillationMm, distanceUnit),
+      { maximumFractionDigits: 1 }
+    );
+    stats.push({
+      key: 'verticalOscillation',
+      label: t('exerciseStatistics.cardio.verticalOscillation', {
+        defaultValue: 'Vertical oscillation',
+      }),
+      value: miles
+        ? t('exerciseStatistics.cardio.inches', {
+            defaultValue: '{{value}} in',
+            value,
+          })
+        : t('exerciseStatistics.cardio.centimeters', {
+            defaultValue: '{{value}} cm',
+            value,
+          }),
+    });
+  }
+  if (dynamics?.verticalRatioPercent != null) {
+    stats.push({
+      key: 'verticalRatio',
+      label: t('exerciseStatistics.cardio.verticalRatio', {
+        defaultValue: 'Vertical ratio',
+      }),
+      value: t('exerciseStatistics.cardio.percent', {
+        defaultValue: '{{value}}%',
+        value: formatLocalizedNumber(dynamics.verticalRatioPercent, {
+          maximumFractionDigits: 1,
+        }),
+      }),
+    });
+  }
+  if (dynamics?.powerWatts != null) {
+    stats.push({
+      key: 'power',
+      label: t('exerciseStatistics.cardio.avgPower', {
+        defaultValue: 'Avg power',
+      }),
+      value: t('exerciseStatistics.cardio.watts', {
+        defaultValue: '{{value}} W',
+        value: formatLocalizedNumber(Math.round(dynamics.powerWatts)),
+      }),
     });
   }
   if (session.avgHeartRate != null && session.avgHeartRate > 0) {

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-*Last updated: 2026-10-14*
+*Last updated: 2026-10-18*
 
 `@workspace/shared` is a source-first TypeScript workspace library package for schemas, constants, and timezone/day helpers consumed by SparkyFitnessServer, SparkyFitnessFrontend, and SparkyFitnessMobile.
 
@@ -16,6 +16,7 @@
 - `src/schemas/api/` - API request/response contracts (`*api.zod.ts`). `VoiceTranscription.api.zod.ts` defines multipart limits/MIME types, transcription responses, voice preference patches, and compatible public service options shared by web/mobile/server.
 - `src/constants/` - shared constants and enums (exercises, nutrients, meal types, fasting protocols, medication schedules, cycle phases, etc.).
 - `src/utils/` - timezone helpers (`todayInZone`, `instantToDay`, `dayToUtcRange`, `compareDays`, `addDays`, `isDayString`), cycle/menstruation helpers, unit/calculation utilities, and the race plan generator (`racePlan.ts`, `buildRacePlan`).
+- `src/utils/gradeAdjustedPace.ts`, `gradeAdjustedTrack.ts`, `runningDynamics.ts` - grade-adjusted pace (the Minetti et al. 2002 cost-of-running model, a smoothed `ElevationProfile` with the gradient clamped to ±20%, `gradeAdjustedForSamples` over a track) and running-dynamics averages, series and the derived vertical ratio, used by mobile and web. Tests live in `SparkyFitnessServer/tests/` (`gradeAdjustedPace`, `gradeAdjustedTrack`, `runningDynamics`), because this package has no runner. Everything here must compile under the frontend's `noUncheckedIndexedAccess`.
 - `src/nutrients/` - nutrient catalogs and the goal calculator used by web onboarding, the web Goals editor and mobile Goals (`nutrientCalculation.ts`: per-nutrient recommended values from age, sex, weight, calories and the saved algorithm choices; `nutrientAlgorithms.ts`: the algorithm enums and labels).
 - `src/ai/`, `src/cycle/`, `src/medications/`, `src/mood/` - domain-specific helpers.
 - `src/symptoms/` - generic symptom tracking: constants and enums (scales, templates, sections, option kinds), template section resolution (`resolveSections`), built-in symptoms and pick-lists, head/body region ids for the location maps, and custom-field validation. The API contract is `src/schemas/api/Symptoms.api.zod.ts`.

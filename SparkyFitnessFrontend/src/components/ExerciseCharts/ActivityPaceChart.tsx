@@ -33,6 +33,11 @@ export const ActivityPaceChart = ({
 }: ActivityPaceChartProps) => {
   const { t } = useTranslation();
   const { timeFormat } = usePreferences();
+  // Only a track with elevation has one; the line is left off otherwise
+  // rather than drawn over the plain pace.
+  const hasGradeAdjustedPace = data.some(
+    (point) => point.gradeAdjustedPace != null
+  );
 
   return (
     <ZoomableChart title={t('reports.activityReport.paceAndSpeed')}>
@@ -107,6 +112,19 @@ export const ActivityPaceChart = ({
                   strokeWidth={2}
                   isAnimationActive={false}
                 />
+                {hasGradeAdjustedPace && (
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="gradeAdjustedPace"
+                    stroke="#ff7300"
+                    name={t('reports.activityReport.gradeAdjustedPaceMinPerKm')}
+                    dot={false}
+                    strokeWidth={2}
+                    isAnimationActive={false}
+                    connectNulls
+                  />
+                )}
                 <Line
                   yAxisId="right"
                   type="monotone"
