@@ -29,6 +29,10 @@ let saveQueue: Promise<unknown> = Promise.resolve();
  * once editing ends or the app leaves the foreground (see
  * `useActiveWorkoutAutosave`): it lives only in memory, and an app killed in
  * the background must come back with those ids in the persisted store.
+ *
+ * A single slot is only safe because `saveNow` adopts it before every save
+ * and saves are serialized through `saveQueue`, so a second response can
+ * never land while one is still held.
  */
 let heldResponse: {
   result: PresetSessionResponse;
