@@ -103,7 +103,7 @@ describe('ProgressPhotoTimelapseDialog', () => {
     renderDialog();
 
     const previous = screen.getByRole('button', { name: 'Previous photo' });
-    expect(previous).toBeDisabled();
+    expect(previous).toHaveAttribute('aria-disabled', 'true');
 
     fireEvent.click(screen.getByRole('button', { name: 'Next photo' }));
     expect(shownFrame()).toHaveAttribute('alt', '2026-06-01');
@@ -116,6 +116,63 @@ describe('ProgressPhotoTimelapseDialog', () => {
     renderDialog([frontDay('2025-02-01'), frontDay('2025-01-01')]);
 
     expect(screen.getByText('1 of 2 · All time')).toBeInTheDocument();
+  });
+
+  it('keeps the date picker open after choosing Custom range', () => {
+    renderDialog();
+
+    fireEvent.keyDown(screen.getByRole('combobox', { name: 'Play back' }), {
+      key: 'ArrowDown',
+    });
+    fireEvent.click(screen.getByRole('option', { name: 'Custom range' }));
+    // The Select hands focus back on a zero-delay timer once it has closed;
+    // that must not dismiss the picker it just opened.
+    act(() => {
+      jest.advanceTimersByTime(50);
+    });
+
+    expect(
+      screen.getByRole('button', { name: 'Play this range' })
+    ).toBeInTheDocument();
+  });
+
+  it('steps with the arrow keys wherever focus is in the dialog', () => {
+    renderDialog();
+
+    fireEvent.keyDown(document.body, { key: 'ArrowRight' });
+    expect(shownFrame()).toHaveAttribute('alt', '2026-06-01');
+
+    fireEvent.keyDown(document.body, { key: 'ArrowLeft' });
+    expect(shownFrame()).toHaveAttribute('alt', '2026-05-10');
+  });
+
+  it('keeps the next button focusable on the last frame', () => {
+    renderDialog();
+
+    const next = screen.getByRole('button', { name: 'Next photo' });
+    fireEvent.click(next);
+    fireEvent.click(next);
+    expect(shownFrame()).toHaveAttribute('alt', '2026-06-20');
+
+    // A natively disabled button would drop focus to <body> here.
+    expect(next).not.toBeDisabled();
+    expect(next).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(next);
+    expect(shownFrame()).toHaveAttribute('alt', '2026-06-20');
+  });
+
+  it('shows a placeholder, not the previous photo, when a frame fails to load', () => {
+    renderDialog();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next photo' }));
+    fireEvent.error(shownFrame());
+
+    expect(screen.getByRole('img', { name: '2026-06-01' })).toBeInTheDocument();
+    expect(
+      document.querySelector(
+        'img[src="/api/measurements/check-in-photos/file/2026-05-10-front"]'
+      )
+    ).toBeNull();
   });
 
   it('shows the empty state with fewer than two photos of the angle', () => {

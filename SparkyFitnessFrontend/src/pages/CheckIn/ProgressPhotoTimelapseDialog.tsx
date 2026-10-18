@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DateRange } from 'react-day-picker';
 import {
   CalendarIcon,
   ChevronLeft,
   ChevronRight,
+  ImageIcon,
   Pause,
   Play,
 } from 'lucide-react';
@@ -69,6 +70,8 @@ interface ProgressPhotoTimelapseDialogProps {
   /** The whole gallery, grouped by day (newest first). */
   days: ProgressPhotoDay[];
   onLogWeight?: (date: string) => void;
+  /** Where focus goes back to on close; the dialog has no DialogTrigger. */
+  returnFocusRef?: RefObject<HTMLElement | null>;
 }
 
 interface TimelapseContentProps {
@@ -92,6 +95,13 @@ const TimelapseContent = ({ days, onLogWeight }: TimelapseContentProps) => {
   const [speed, setSpeed] = useState<Speed>('normal');
   const [index, setIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [failedIds, setFailedIds] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
+  // Set while the range Select closes to open the date picker, so the Select
+  // does not hand focus back to its trigger: that focus move lands outside the
+  // just-opened popover and would dismiss it straight away.
+  const openingCustomRef = useRef(false);
 
   // Oldest to newest: the point is watching the change accumulate.
   const allFrames = useMemo(() => framesForAngle(days, angle), [days, angle]);
@@ -141,6 +151,32 @@ const TimelapseContent = ({ days, onLogWeight }: TimelapseContentProps) => {
       image.src = checkInPhotoFileUrl(photo.id);
     }
   }, [frames, index, angle]);
+
+  // Left and right step through the frames wherever focus is in the dialog,
+  // except inside the range picker, a menu or a text field, which use them.
+  const frameCount = frames.length;
+  useEffect(() => {
+    if (frameCount < 2) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.closest(
+            'input, textarea, select, [role="listbox"], [role="grid"], [data-radix-popper-content-wrapper]'
+          ))
+      ) {
+        return;
+      }
+      setIsPlaying(false);
+      const delta = event.key === 'ArrowLeft' ? -1 : 1;
+      setIndex((i) => Math.min(Math.max(i + delta, 0), frameCount - 1));
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [frameCount]);
 
   const current = frames[index];
   const currentId = current?.photos[angle]?.id ?? null;
@@ -212,6 +248,7 @@ const TimelapseContent = ({ days, onLogWeight }: TimelapseContentProps) => {
           // Custom only takes effect once a range is picked, so the selection
           // stays on the current window until then.
           if (value === 'custom') {
+            openingCustomRef.current = true;
             setDraftRange(undefined);
             setRangePickerOpen(true);
             return;
@@ -225,7 +262,13 @@ const TimelapseContent = ({ days, onLogWeight }: TimelapseContentProps) => {
         >
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent
+          onCloseAutoFocus={(event) => {
+            if (!openingCustomRef.current) return;
+            openingCustomRef.current = false;
+            event.preventDefault();
+          }}
+        >
           {(['30d', '3m', 'all', 'custom'] as TimelapseRange[]).map(
             (window) => (
               <SelectItem key={window} value={window}>
@@ -243,12 +286,11 @@ const TimelapseContent = ({ days, onLogWeight }: TimelapseContentProps) => {
               variant="outline"
               size="sm"
               className="h-9 gap-2"
-              aria-label={t('checkIn.photos.pickRange', 'Pick dates')}
             >
               <CalendarIcon className="h-3.5 w-3.5" />
-              {custom
-                ? rangeLabel('custom')
-                : t('checkIn.photos.pickRange', 'Pick dates')}
+              {/* The Select already shows the picked range; this is the way
+                  to change it. */}
+              {t('checkIn.photos.pickRange', 'Pick dates')}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="center" sideOffset={8}>
@@ -295,18 +337,16 @@ const TimelapseContent = ({ days, onLogWeight }: TimelapseContentProps) => {
     );
   }
 
+  const currentFailed = failedIds.has(currentId);
+
   return (
-    <div
-      className="flex flex-col items-center gap-3"
-      onKeyDown={(event) => {
-        if (event.key === 'ArrowLeft') step(-1);
-        else if (event.key === 'ArrowRight') step(1);
-      }}
-    >
+    <div className="flex flex-col items-center gap-3">
       {controls}
 
       <div className="relative aspect-[3/4] w-full max-w-[min(24rem,36vh)] overflow-hidden rounded-lg border border-border bg-muted">
-        {shown.previous && (
+        {/* A frame that failed to load shows a placeholder rather than the
+            previous day's photo through it, under the new date. */}
+        {shown.previous && !currentFailed && (
           <img
             key={shown.previous}
             src={checkInPhotoFileUrl(shown.previous)}
@@ -315,13 +355,30 @@ const TimelapseContent = ({ days, onLogWeight }: TimelapseContentProps) => {
             className="absolute inset-0 h-full w-full object-cover"
           />
         )}
-        <img
-          key={currentId}
-          src={checkInPhotoFileUrl(currentId)}
-          alt={formatDate(current.entry_date)}
-          className="absolute inset-0 h-full w-full object-cover animate-in fade-in-0 motion-reduce:animate-none"
-          style={{ animationDuration: `${fadeMs}ms` }}
-        />
+        {currentFailed ? (
+          <div
+            role="img"
+            aria-label={formatDate(current.entry_date)}
+            className="absolute inset-0 flex items-center justify-center text-muted-foreground"
+          >
+            <ImageIcon className="h-10 w-10" />
+          </div>
+        ) : (
+          <img
+            key={currentId}
+            src={checkInPhotoFileUrl(currentId)}
+            alt={formatDate(current.entry_date)}
+            className="absolute inset-0 h-full w-full object-cover animate-in fade-in-0 motion-reduce:animate-none"
+            style={{ animationDuration: `${fadeMs}ms` }}
+            // Once the dissolve is over the outgoing frame is fully covered.
+            onAnimationEnd={() =>
+              setShown((s) =>
+                s.id === currentId ? { ...s, previous: null } : s
+              )
+            }
+            onError={() => setFailedIds((ids) => new Set(ids).add(currentId))}
+          />
+        )}
       </div>
 
       <div className="flex flex-col items-center gap-0.5">
@@ -350,8 +407,11 @@ const TimelapseContent = ({ days, onLogWeight }: TimelapseContentProps) => {
             type="button"
             variant="ghost"
             size="icon"
-            onClick={() => step(-1)}
-            disabled={index === 0}
+            // aria-disabled rather than disabled: a disabled button loses focus
+            // the moment it reaches the end, dropping keyboard users to <body>.
+            onClick={() => index > 0 && step(-1)}
+            aria-disabled={index === 0}
+            className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
             aria-label={t('checkIn.photos.previousPhoto', 'Previous photo')}
           >
             <ChevronLeft className="h-5 w-5" />
@@ -377,8 +437,9 @@ const TimelapseContent = ({ days, onLogWeight }: TimelapseContentProps) => {
             type="button"
             variant="ghost"
             size="icon"
-            onClick={() => step(1)}
-            disabled={atEnd}
+            onClick={() => !atEnd && step(1)}
+            aria-disabled={atEnd}
+            className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
             aria-label={t('checkIn.photos.nextPhoto', 'Next photo')}
           >
             <ChevronRight className="h-5 w-5" />
@@ -415,11 +476,19 @@ export const ProgressPhotoTimelapseDialog = ({
   onOpenChange,
   days,
   onLogWeight,
+  returnFocusRef,
 }: ProgressPhotoTimelapseDialogProps) => {
   const { t } = useTranslation();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto sm:max-w-xl"
+        onCloseAutoFocus={(event) => {
+          if (!returnFocusRef?.current) return;
+          event.preventDefault();
+          returnFocusRef.current.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>
             {t('checkIn.photos.timelapseTitle', 'Progress time-lapse')}

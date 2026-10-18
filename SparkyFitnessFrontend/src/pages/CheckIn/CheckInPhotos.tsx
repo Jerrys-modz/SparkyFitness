@@ -174,6 +174,8 @@ export const CheckInPhotos = ({
   const canCompare = hasComparableAngle(galleryDays);
   const [compareOpen, setCompareOpen] = useState(false);
   const [timelapseOpen, setTimelapseOpen] = useState(false);
+  const compareButtonRef = useRef<HTMLButtonElement>(null);
+  const timelapseButtonRef = useRef<HTMLButtonElement>(null);
 
   // Logging a weight happens on the Measurements tab, so close whichever
   // dialog asked before switching there.
@@ -226,6 +228,7 @@ export const CheckInPhotos = ({
             {canCompare && (
               <div className="flex gap-2">
                 <Button
+                  ref={compareButtonRef}
                   type="button"
                   variant="outline"
                   size="sm"
@@ -235,6 +238,7 @@ export const CheckInPhotos = ({
                   {t('checkIn.photos.compare', 'Compare')}
                 </Button>
                 <Button
+                  ref={timelapseButtonRef}
                   type="button"
                   variant="outline"
                   size="sm"
@@ -280,12 +284,14 @@ export const CheckInPhotos = ({
         onOpenChange={setCompareOpen}
         days={galleryDays}
         onLogWeight={handleLogWeight}
+        returnFocusRef={compareButtonRef}
       />
       <ProgressPhotoTimelapseDialog
         open={timelapseOpen}
         onOpenChange={setTimelapseOpen}
         days={galleryDays}
         onLogWeight={handleLogWeight}
+        returnFocusRef={timelapseButtonRef}
       />
     </Card>
   );

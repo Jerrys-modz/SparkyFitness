@@ -42,6 +42,12 @@ function LightboxContent({
   intervalMs,
 }: Required<Omit<ImageLightboxProps, 'open' | 'onOpenChange'>>) {
   const { t } = useTranslation();
+  // Captured on mount, which is when the lightbox opens.
+  const [opener] = useState(() =>
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+  );
   const count = images.length;
   const hasMultiple = count > 1;
   const [index, setIndex] = useState(() =>
@@ -113,7 +119,15 @@ function LightboxContent({
   return (
     <>
       {/* DialogContent renders its own close button in the top-right. */}
-      <DialogContent className="max-w-4xl p-0 bg-black/95 border-none">
+      <DialogContent
+        className="max-w-4xl p-0 bg-black/95 border-none"
+        // Opened from a plain button rather than a DialogTrigger, so Radix has
+        // nothing to hand focus back to; restore it to the opener ourselves.
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          if (opener?.isConnected) opener.focus();
+        }}
+      >
         {/* Named for screen readers; the visual title would clutter the image. */}
         <DialogTitle className="sr-only">
           {title || t('food.imageViewer', 'Image viewer')}

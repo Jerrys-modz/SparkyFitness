@@ -126,21 +126,25 @@ export const PhotoDayPicker = ({
           type="button"
           variant="ghost"
           size="sm"
-          aria-label={label}
           className="h-8 gap-2 font-semibold"
         >
           <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+          {/* The visible date stays part of the name, so screen readers hear
+              which day is shown and voice control can target what is seen. */}
+          <span className="sr-only">{label}: </span>
           {formatDate(value)}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="center" sideOffset={8}>
         <Calendar
           mode="single"
+          // Clicking the day already shown picks it again (and closes) rather
+          // than clearing the selection.
+          required
           selected={selected}
           defaultMonth={selected}
           disabled={(date) => !available.has(localDateToDay(date))}
-          onSelect={(date) => {
-            if (!date) return;
+          onSelect={(date: Date) => {
             onSelect(localDateToDay(date));
             setOpen(false);
           }}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   daysBetween,
@@ -32,6 +32,8 @@ interface ProgressPhotoCompareDialogProps {
   /** The whole gallery, grouped by day (newest first). */
   days: ProgressPhotoDay[];
   onLogWeight?: (date: string) => void;
+  /** Where focus goes back to on close; the dialog has no DialogTrigger. */
+  returnFocusRef?: RefObject<HTMLElement | null>;
 }
 
 interface CompareContentProps {
@@ -70,11 +72,13 @@ const CompareContent = ({ days, onLogWeight }: CompareContentProps) => {
 
   const angleToggle = <PhotoAngleToggle value={angle} onChange={setAngle} />;
 
+  // Same wrapper and position for the toggle as below, so switching to an
+  // angle without a pair keeps the toggle (and its focus) mounted.
   if (timeline.length < 2 || !beforeDay || !afterDay) {
     return (
-      <div className="flex flex-col items-center gap-4 py-6">
-        {angleToggle}
-        <p className="text-center text-sm text-muted-foreground">
+      <div className="flex flex-col gap-4">
+        <div className="flex justify-center">{angleToggle}</div>
+        <p className="py-6 text-center text-sm text-muted-foreground">
           {t(
             'checkIn.photos.compareEmpty',
             'Add photos of this angle on at least two days to compare them.'
@@ -111,7 +115,7 @@ const CompareContent = ({ days, onLogWeight }: CompareContentProps) => {
           onClick={() => url && setZoomed({ url, alt })}
           disabled={!url}
           aria-label={t('checkIn.photos.viewFull', 'View {{label}} full size', {
-            label,
+            label: alt,
           })}
         >
           {url && (
@@ -186,11 +190,19 @@ export const ProgressPhotoCompareDialog = ({
   onOpenChange,
   days,
   onLogWeight,
+  returnFocusRef,
 }: ProgressPhotoCompareDialogProps) => {
   const { t } = useTranslation();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto sm:max-w-3xl"
+        onCloseAutoFocus={(event) => {
+          if (!returnFocusRef?.current) return;
+          event.preventDefault();
+          returnFocusRef.current.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>
             {t('checkIn.photos.compareTitle', 'Compare progress photos')}
