@@ -3,6 +3,7 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
   ExerciseActivityQueryItem,
+  FitnessTestType,
   ExerciseRecentSessionSet,
   FoodPhotoEstimateResponse,
   FoodPhotoLogItem,
@@ -89,6 +90,8 @@ export type RootStackParamList = {
   RunPrograms: undefined;
   RunProgramWorkout: { index: number };
   RunProgramRace: { distance?: RaceDistance; raceDay?: string } | undefined;
+  FitnessTest: undefined;
+  FitnessTestResult: { id: string };
   RunProgramEdit: { id?: string; fromProgramId?: string } | undefined;
   PersonalRecords: undefined;
   TrainingCalendar: undefined;
@@ -213,7 +216,15 @@ export type RootStackParamList = {
   };
   ExerciseStatistics: undefined;
   /** `programWorkout` opens it with today's training-program workout chosen. */
-  RecordActivity: { programWorkout?: boolean; routeId?: string } | undefined;
+  RecordActivity:
+    | {
+        programWorkout?: boolean;
+        routeId?: string;
+        fitnessTest?: FitnessTestType;
+        /** A fitness test opens on the treadmill option when true, outdoors when false. */
+        indoor?: boolean;
+      }
+    | undefined;
   RunSummary: RunSummaryParams;
   Reports: undefined;
   HydrationReport: undefined;

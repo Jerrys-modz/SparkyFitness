@@ -68,6 +68,8 @@ import {
 } from '@workspace/shared';
 import { useRunningTrends } from '@/hooks/Reports/useRunningTrends';
 import { RunningTrendsCard } from '@/components/ExerciseCharts/RunningTrendsCard';
+import { FitnessTestsCard } from '@/components/ExerciseCharts/FitnessTestsCard';
+import { useFitnessTests } from '@/hooks/Exercises/useFitnessTests';
 
 interface ExerciseReportsDashboardProps {
   exerciseDashboardData: ExerciseDashboardData | undefined;
@@ -168,6 +170,9 @@ const ExerciseReportsDashboard = ({
   // The heatmap always covers the last 12 months on its own lightweight
   // query; the report's date filter only outlines days inside it (#2461).
   const heatmapToday = todayInZone(timezone);
+  // Fitness tests are personal training data: not shown while acting on
+  // behalf of someone else, and not asked for.
+  const { data: fitnessTests } = useFitnessTests(!isActingOnBehalf);
   const heatmapWindow = workoutHeatmapWindow(heatmapToday);
   const { data: workoutDaysData } = useWorkoutDays(
     heatmapWindow.start,
@@ -927,6 +932,14 @@ const ExerciseReportsDashboard = ({
       {/* 3C: CARDIO & GPS VIEW */}
       {viewMode === 'cardio' && (
         <div className="space-y-6">
+          {fitnessTests && fitnessTests.length > 0 && (
+            <FitnessTestsCard
+              tests={fitnessTests}
+              distanceUnit={distanceUnit === 'miles' ? 'miles' : 'km'}
+              today={heatmapToday}
+              formatDay={(day) => formatDateInUserTimezone(day, 'MMM d')}
+            />
+          )}
           {runningTrends && runningTrends.totalRuns > 0 && (
             <RunningTrendsCard
               trends={runningTrends}

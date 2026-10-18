@@ -23,6 +23,8 @@ import {
 import { storedBeginnerProgram } from '../helpers/runProgramFixture';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useRunGoals } from '../../src/hooks/useRunGoals';
+import { useFitnessTests } from '../../src/services/fitnessTestService';
+import { fitnessTest, fitnessTestsHook } from '../helpers/fitnessTestFixture';
 
 const metrics = {
   insets: { top: 0, bottom: 0, left: 0, right: 0 },
@@ -35,6 +37,15 @@ const renderScreen = (props: React.ComponentProps<typeof RunProgramsScreen>) =>
     </SafeAreaProvider>
   );
 
+jest.mock('../../src/hooks/useRefetchOnFocus', () => ({
+  useRefetchOnFocus: jest.fn(),
+}));
+jest.mock('../../src/services/fitnessTestService', () => ({
+  useFitnessTests: jest.fn(),
+}));
+jest.mock('../../src/hooks/usePreferences', () => ({
+  usePreferences: () => ({ preferences: { default_distance_unit: 'km' } }),
+}));
 jest.mock('../../src/services/runProgramService', () => ({
   useRunProgram: jest.fn(),
   useCustomRunPrograms: jest.fn(() => ({
@@ -118,6 +129,7 @@ describe('RunProgramsScreen', () => {
       refetch: jest.fn(),
     } as never);
     jest.mocked(useRunGoals).mockReturnValue(noGoals);
+    jest.mocked(useFitnessTests).mockReturnValue(fitnessTestsHook([]));
   });
 
   it('offers running goals above the programs', () => {
@@ -492,6 +504,96 @@ describe('RunProgramsScreen', () => {
       use(behind(31), false);
       renderScreen(RunProgramsProps());
       expect(screen.queryByTestId('run-program-realign')).toBeNull();
+    });
+  });
+
+  describe('fitness test', () => {
+    const noProgram = () =>
+      mockedUse.mockReturnValue({
+        status: null,
+        enabled: false,
+        lastAdjustment: null,
+        schedule: { days: [], startDay: null, endDay: null },
+        doneDay: null,
+        loaded: true,
+      });
+    const navigate = jest.fn();
+    const props = () =>
+      ({
+        navigation: { navigate, goBack: jest.fn() },
+        route: { key: 'RunPrograms', name: 'RunPrograms' },
+      }) as unknown as React.ComponentProps<typeof RunProgramsScreen>;
+
+    beforeEach(() => navigate.mockClear());
+
+    it('invites a first test, and opens the tests', () => {
+      noProgram();
+      renderScreen(props());
+      fireEvent.press(screen.getByTestId('fitness-test-take'));
+      expect(navigate).toHaveBeenCalledWith('FitnessTest');
+    });
+
+    it('starts the program the latest test points to, asking when', () => {
+      noProgram();
+      jest
+        .mocked(useFitnessTests)
+        .mockReturnValue(fitnessTestsHook([fitnessTest()]));
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      renderScreen(props());
+      fireEvent.press(screen.getByTestId('fitness-test-start-program'));
+      expect(alert.mock.calls[0][0]).toBe('Start Faster 10K');
+      alert.mock.calls[0][2]?.[2].onPress?.();
+      expect(startProgram).toHaveBeenCalledWith('faster10k', null);
+      alert.mockRestore();
+    });
+
+    it('plans a race from the test', () => {
+      noProgram();
+      jest
+        .mocked(useFitnessTests)
+        .mockReturnValue(fitnessTestsHook([fitnessTest()]));
+      renderScreen(props());
+      fireEvent.press(screen.getByTestId('fitness-test-plan-race'));
+      expect(navigate).toHaveBeenCalledWith('RunProgramRace');
+    });
+
+    it('offers a retest with the program being followed, and shows the panel there too', () => {
+      mockedUse.mockReturnValue({
+        status: programStatus({ programId: 'beginner5k', next: 3 })!,
+        enabled: true,
+        lastAdjustment: null,
+        schedule: { days: [], startDay: null, endDay: null },
+        doneDay: null,
+        loaded: true,
+      });
+      // Seven weeks after the test.
+      jest.mocked(useFitnessTests).mockReturnValue(
+        fitnessTestsHook([
+          fitnessTest({
+            test_date: addDays(toLocalDateString(new Date()), -49),
+          }),
+        ])
+      );
+      renderScreen(props());
+      expect(screen.getByTestId('fitness-retest-prompt')).toBeTruthy();
+      fireEvent.press(screen.getByTestId('fitness-retest-start'));
+      expect(navigate).toHaveBeenCalledWith('FitnessTest');
+      expect(screen.getByTestId('fitness-test-panel')).toBeTruthy();
+    });
+
+    it('says a saved test replaces the typed race time', () => {
+      noProgram();
+      jest
+        .mocked(useFitnessTests)
+        .mockReturnValue(fitnessTestsHook([fitnessTest()]));
+      renderScreen(props());
+      expect(screen.getByTestId('pace-reference-test-note')).toBeTruthy();
+    });
+
+    it('does not mention it without a test', () => {
+      noProgram();
+      renderScreen(props());
+      expect(screen.queryByTestId('pace-reference-test-note')).toBeNull();
     });
   });
 });

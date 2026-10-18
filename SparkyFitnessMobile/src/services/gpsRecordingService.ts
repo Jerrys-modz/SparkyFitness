@@ -42,6 +42,7 @@ import {
   planHasDistanceSteps,
   stepHeartRateAlert,
   stepPaceAlert,
+  type FitnessTestType,
   type HeartRateAlertState,
   type HeartRateBand,
   type IntervalCursor,
@@ -167,6 +168,8 @@ export interface RecordingSession {
   program?: { id: string; index: number };
   /** The saved route this recording followed, so the saved run links to it. */
   routeId?: string;
+  /** The fitness test this recording is, so saving it can work out the result. */
+  fitnessTest?: FitnessTestType;
   /**
    * A pace band to stay inside: the phone buzzes, and speaks when voice cues
    * are on, after the pace has been outside it for a few seconds.
@@ -1112,6 +1115,8 @@ export interface StartRecordingOptions {
   program?: { id: string; index: number };
   /** The saved route being followed (outdoor walk or run), if any. */
   routeId?: string;
+  /** The fitness test being run (5K, 30-minute run or Cooper), outdoors or on a treadmill. */
+  fitnessTest?: FitnessTestType;
   /** Text for the Android foreground-service notification. */
   notification: { title: string; body: string };
 }
@@ -1234,6 +1239,7 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
       ...(options.routeId && !options.indoor
         ? { routeId: options.routeId }
         : {}),
+      ...(options.fitnessTest ? { fitnessTest: options.fitnessTest } : {}),
       savedEntryId: null,
       ...(indoor && { indoor: true }),
       ...(stepCounterAtStart != null && { stepCounterAtStart }),

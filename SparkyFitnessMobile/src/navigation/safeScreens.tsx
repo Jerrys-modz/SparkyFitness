@@ -19,6 +19,8 @@ import MealsLibraryScreen from '../screens/MealsLibraryScreen';
 import MealPlansScreen from '../screens/MealPlansScreen';
 import RunProgramsScreen from '../screens/RunProgramsScreen';
 import RunProgramRaceScreen from '../screens/RunProgramRaceScreen';
+import FitnessTestScreen from '../screens/FitnessTestScreen';
+import FitnessTestResultScreen from '../screens/FitnessTestResultScreen';
 import RunProgramEditScreen from '../screens/RunProgramEditScreen';
 import RoutesScreen from '../screens/RoutesScreen';
 import RouteDetailScreen from '../screens/RouteDetailScreen';
@@ -159,6 +161,8 @@ export const SafeSegmentCreate = withErrorBoundary(SegmentCreateScreen, 'Segment
 export const SafeHeatmap = withErrorBoundary(HeatmapScreen, 'Heatmap', { canGoBack: true });
 export const SafeRouteDraw = withErrorBoundary(RouteDrawScreen, 'RouteDraw', { canGoBack: true });
 export const SafeRouteGenerate = withErrorBoundary(RouteGenerateScreen, 'RouteGenerate', { canGoBack: true });
+export const SafeFitnessTest = withErrorBoundary(FitnessTestScreen, 'FitnessTest', { canGoBack: true });
+export const SafeFitnessTestResult = withErrorBoundary(FitnessTestResultScreen, 'FitnessTestResult', { canGoBack: true });
 export const SafeRunProgramEdit = withErrorBoundary(RunProgramEditScreen, 'RunProgramEdit', { canGoBack: true });
 export const SafeRunProgramWorkout = withErrorBoundary(RunProgramWorkoutScreen, 'RunProgramWorkout', { canGoBack: true });
 export const SafeMealPlanForm = withErrorBoundary(MealPlanFormScreen, 'MealPlanForm', { canGoBack: true });

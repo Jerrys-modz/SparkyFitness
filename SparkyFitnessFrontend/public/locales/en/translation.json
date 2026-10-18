@@ -7674,7 +7674,30 @@
       "moreSessions": "Older sessions",
       "noRoute": "No GPS route stored. Indoor workouts do not have one. An outdoor walk only has a route if Apple Health shared it when the workout synced.",
       "avgHeartRate": "Average heart rate {{bpm}} bpm. Beat-by-beat samples were not stored.",
-      "noHeartRate": "No heart-rate samples for this workout."
+      "noHeartRate": "No heart-rate samples for this workout.",
+      "fitnessTests": {
+        "title": "Fitness tests",
+        "type5k": "5K time trial",
+        "type30min": "30-minute all-out run",
+        "typeCooper": "12-minute Cooper test",
+        "result5k": "5K in {{time}}",
+        "resultCooper": "{{distance}} {{unit}} in 12 minutes",
+        "result30min": "{{pace}} over the last 20 minutes",
+        "latest": "{{test}} on {{date}}. Threshold pace {{pace}}.",
+        "retest": "Your last test was {{weeks}} weeks ago. Retest in the mobile app to update your paces.",
+        "paces": "Training paces",
+        "history": "Earlier tests",
+        "zone": {
+          "easy": "Easy",
+          "steady": "Steady",
+          "threshold": "Threshold",
+          "interval": "Interval",
+          "repetition": "Repetition"
+        },
+        "treadmill": "Treadmill",
+        "treadmillIncline": "Treadmill, {{incline}}% incline",
+        "treadmillInclineAdjusted": "Treadmill, {{incline}}% incline, adjusted"
+      }
     },
     "matchedCourses": {
       "title": "Matched Courses & Route History (\"Matched Runs\")",

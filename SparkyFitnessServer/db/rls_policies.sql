@@ -55,6 +55,7 @@ BEGIN
     'routes',
     'segments',
     'segment_efforts',
+    'fitness_tests',
     'onboarding_data',
     'onboarding_status',
     'openfoodfacts_product_read_rate_limit',
@@ -769,6 +770,8 @@ SELECT create_owner_policy('routes');
 -- 20261018120000_add_segments.sql). Tier 1, owner-only: never delegated or shared.
 SELECT create_owner_policy('segments');
 SELECT create_owner_policy('segment_efforts');
+-- Running fitness tests (5K, 30-minute run, Cooper) and the paces they gave: personal training data, owner-only.
+SELECT create_owner_policy('fitness_tests');
 
 -- User-defined mood tags. Mood is check-in data (mood_entries uses the check-in
 -- policy), and custom check-in definitions like custom_categories are shared with

@@ -33,6 +33,8 @@ const parts = (seconds: number) => {
 export interface PaceReferenceCardProps {
   /** The saved race result, or null when none is set. */
   race: PaceReferenceRace | null;
+  /** The person has a fitness test, which is used for their paces instead of this race. */
+  overriddenByTest?: boolean;
   onSave: (race: PaceReferenceRace | null) => void;
   /**
    * The switch that also puts the ranges on the program workout offered on the
@@ -49,6 +51,7 @@ export interface PaceReferenceCardProps {
  */
 const PaceReferenceCard: React.FC<PaceReferenceCardProps> = ({
   race,
+  overriddenByTest = false,
   onSave,
   watch,
 }) => {
@@ -99,6 +102,17 @@ const PaceReferenceCard: React.FC<PaceReferenceCardProps> = ({
             'Enter a recent race time to get pace ranges for easy runs, tempo, marathon pace, strides and fast stretches. Kept on this device.',
         })}
       </Text>
+      {overriddenByTest ? (
+        <Text
+          className="text-text-muted text-xs mt-2"
+          testID="pace-reference-test-note"
+        >
+          {t('paceReference.testNote', {
+            defaultValue:
+              'You have a fitness test, so your latest test sets your paces while it is saved. This race time is used again if you delete your tests.',
+          })}
+        </Text>
+      ) : null}
       <View className="mt-3">
         <SegmentedControl
           segments={PACE_REFERENCE_RACES.map((r) => ({
