@@ -157,6 +157,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `pregnancies` | Pregnancy records (due date, status) |
 | `run_programs` | A person's run program, their place in it, its Diary schedule, goal date, adjustments to it and which diary entries its workouts were done as |
 | `custom_run_programs` | A person's own run or walk plans: a name, the activity and an ordered list of workouts, each a list of timed steps. Starting one copies it into `run_programs` |
+| `fitness_tests` | A person's running fitness tests (5K time trial, 30-minute run, Cooper test): measurements, result, the training paces derived from them and the recorded activity it was run as |
 | `pregnancy_kick_sessions` | Fetal kick-counter sessions |
 | `pregnancy_contractions` | Contraction timer logs |
 | `pregnancy_photos` | Bump photo journal |
