@@ -22,6 +22,7 @@ import Toast from 'react-native-toast-message';
 
 import Button from '../components/ui/Button';
 import FormInput from '../components/FormInput';
+import ProgramActionRow from '../components/recording/ProgramActionRow';
 import RecordingSwitchRow from '../components/recording/RecordingSwitchRow';
 import HeartRateBandCard from '../components/recording/HeartRateBandCard';
 import SuggestedRangesCard from '../components/recording/SuggestedRangesCard';
@@ -34,7 +35,7 @@ import SegmentedControl from '../components/SegmentedControl';
 import { SplitRow, Stat } from '../components/recording/SplitRow';
 import RunProgramSelect from '../components/recording/RunProgramSelect';
 import {
-  programName,
+  programTitle,
   programWorkoutLabel,
 } from '../components/recording/RunProgramCard';
 import GpsSignalBadge from '../components/recording/GpsSignalBadge';
@@ -93,7 +94,10 @@ import {
   intervalPosition,
   type IntervalOptions,
   type IntervalPlan,
+  type PaceBand,
   type RunProgramResponse,
+  zoneShiftForEffort,
+  type StepEffort,
 } from '@workspace/shared';
 import {
   completeProgramWorkout,
@@ -108,6 +112,8 @@ import {
 } from '../utils/runSummary';
 import { toLocalDateString } from '../utils/dateUtils';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
+import { useShoeMutations } from '../hooks/useShoes';
+import { promptToRetireShoe } from '../utils/retireShoePrompt';
 import { fireSelectionHaptic } from '../services/haptics';
 import { addLog } from '../services/LogService';
 import {
@@ -146,6 +152,11 @@ const DEFAULT_EASY_HEART_RATE_BAND: HeartRateBand = {
   minBpm: 120,
   maxBpm: 140,
 };
+/** And for the warm-up and cool-down, an easy zone below the easy stretches. */
+const DEFAULT_WARM_HEART_RATE_BAND: HeartRateBand = {
+  minBpm: 100,
+  maxBpm: 125,
+};
 
 /** One of a plan's heart-rate ranges as chosen on this screen. */
 interface HeartRateTargetChoice {
@@ -171,6 +182,12 @@ const defaultEasyPaceBand = (unit: 'km' | 'miles'): PaceBandChoice =>
   unit === 'miles'
     ? { fastest: 580, slowest: 675 }
     : { fastest: 360, slowest: 420 };
+
+/** And for its warm-up and cool-down, up to a walk: 6:30-15:00/km, 10:30-24:10/mi. */
+const defaultWarmPaceBand = (unit: 'km' | 'miles'): PaceBandChoice =>
+  unit === 'miles'
+    ? { fastest: 630, slowest: 1450 }
+    : { fastest: 390, slowest: 900 };
 
 /** The band the service takes: seconds per kilometre. */
 const paceBandPerKm = (band: PaceBandChoice, unit: 'km' | 'miles') => {
@@ -227,6 +244,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const { updateMutation: updateShoe } = useShoeMutations();
   const { preferences } = usePreferences();
   const distanceUnit =
     (preferences?.default_distance_unit as 'km' | 'miles') ?? 'km';
@@ -265,6 +283,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     enabled: false,
     band: null,
   });
+  const [warmHeartRate, setWarmHeartRate] = useState<HeartRateTargetChoice>({
+    enabled: false,
+    band: null,
+  });
   const [paceAlert, setPaceAlert] = useState(false);
   const [paceBand, setPaceBand] = useState<PaceBandChoice | null>(null);
   // The range last saved (seconds per km), shown until the person changes it.
@@ -285,6 +307,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     status: storedProgram,
     enabled: programEnabled,
     loaded: programLoaded,
+    effortSuggestion,
   } = useRunProgram();
   // The program only drives the screen while the person has it switched on.
   const programStatus = programEnabled ? storedProgram : null;
@@ -317,11 +340,19 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     if (preset?.options.style === 'runWalk') setIntervalChoice('off');
   }, [activity, intervalChoice]);
   // Optional pace ranges for a plan's fast and easy stretches, this run only.
+  // Paces for tempo, marathon-pace and stride stretches, set from a recent race.
+  const [effortPace, setEffortPace] = useState<Partial<
+    Record<StepEffort, PaceBand>
+  > | null>(null);
   const [workPace, setWorkPace] = useState<PaceTargetChoice>({
     enabled: false,
     band: null,
   });
   const [easyPace, setEasyPace] = useState<PaceTargetChoice>({
+    enabled: false,
+    band: null,
+  });
+  const [warmPace, setWarmPace] = useState<PaceTargetChoice>({
     enabled: false,
     band: null,
   });
@@ -344,6 +375,8 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     const preset = INTERVAL_PRESETS.find((p) => p.id === intervalChoice);
     if (preset && usesWorkDistance(preset.options)) setIntervalChoice('off');
   }, [indoor, intervalChoice, customIntervals]);
+  const [warmOpen, setWarmOpen] = useState(false);
+  const warmBand = warmPace.band ?? defaultWarmPaceBand(distanceUnit);
   const basePlan = useMemo<IntervalPlan | undefined>(() => {
     if (intervalChoice === 'off') return undefined;
     if (intervalChoice === 'program') return programWorkout?.plan;
@@ -364,6 +397,22 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [intervalChoice, customIntervals, programWorkout, activity]);
   const workHeartRateBand = workHeartRate.band ?? DEFAULT_WORK_HEART_RATE_BAND;
   const easyHeartRateBand = easyHeartRate.band ?? DEFAULT_EASY_HEART_RATE_BAND;
+  const warmHeartRateBand = warmHeartRate.band ?? DEFAULT_WARM_HEART_RATE_BAND;
+  const warmParts: string[] = [];
+  if (warmPace.enabled) {
+    warmParts.push(
+      `${formatClock(warmBand.fastest)}–${formatClock(warmBand.slowest)}/${unitLabel}`
+    );
+  }
+  if (warmHeartRate.enabled && watchAvailable) {
+    warmParts.push(
+      `${warmHeartRateBand.minBpm}–${warmHeartRateBand.maxBpm} ${t('recordActivity.unitBpm', { defaultValue: 'bpm' })}`
+    );
+  }
+  const warmSummary =
+    warmParts.length > 0
+      ? warmParts.join(' · ')
+      : t('recordActivity.warmRanges.off', { defaultValue: 'Off' });
   const currentHeartRateBand = heartRateBand ?? DEFAULT_HEART_RATE_BAND;
   const intervalPlan = useMemo<IntervalPlan | undefined>(
     () =>
@@ -376,10 +425,17 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               easy: easyPace.enabled
                 ? paceBandPerKm(easyBand, distanceUnit)
                 : null,
+              warm: warmPace.enabled
+                ? paceBandPerKm(warmBand, distanceUnit)
+                : null,
+              byEffort: workPace.enabled
+                ? (effortPace ?? undefined)
+                : undefined,
             }),
             {
               work: workHeartRate.enabled ? workHeartRateBand : null,
               easy: easyHeartRate.enabled ? easyHeartRateBand : null,
+              warm: warmHeartRate.enabled ? warmHeartRateBand : null,
             }
           )
         : undefined,
@@ -387,18 +443,28 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       basePlan,
       workPace.enabled,
       easyPace.enabled,
+      warmPace.enabled,
+      effortPace,
       workBand,
       easyBand,
+      warmBand,
       distanceUnit,
       workHeartRate.enabled,
       easyHeartRate.enabled,
+      warmHeartRate.enabled,
       workHeartRateBand,
       easyHeartRateBand,
+      warmHeartRateBand,
     ]
   );
   // Starting ranges for the plan's fast and easy stretches, offered with a tap.
   const showPlanTargets = intervalChoice !== 'off' && (!indoor || onWatch);
-  const suggested = useSuggestedRanges(activity, showPlanTargets);
+  // How the last two rated workouts felt re-paces the suggestions: two hard
+  // ones slow every zone, two easy ones speed them up.
+  const paceShift = zoneShiftForEffort(
+    programEnabled ? effortSuggestion : null
+  );
+  const suggested = useSuggestedRanges(activity, showPlanTargets, paceShift);
   const suggestedPaceChoice = useMemo(() => {
     if (!suggested.pace) return null;
     const perUnit = distanceUnit === 'miles' ? 1.609344 : 1;
@@ -409,21 +475,37 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       fastest: Math.round((band.minSecondsPerKm * perUnit) / 5) * 5,
       slowest: Math.round((band.maxSecondsPerKm * perUnit) / 5) * 5,
     });
+    const efforts: Record<string, ReturnType<typeof choice>> = {};
+    for (const effort of ['tempo', 'marathon', 'stride'] as const) {
+      const band = suggested.byEffort?.[effort];
+      if (band) efforts[effort] = choice(band);
+    }
     return {
       work: choice(suggested.pace.work),
       easy: choice(suggested.pace.easy),
+      warm: choice(suggested.pace.warm),
       sessions: suggested.pace.sessions,
+      race: suggested.pace.race,
+      efforts,
     };
-  }, [suggested.pace, distanceUnit]);
+  }, [suggested.pace, suggested.byEffort, distanceUnit]);
+  // Tempo, stride and marathon-pace ranges come from the saved race; once it is
+  // cleared or the activity changes, the ranges applied from it no longer apply.
+  useEffect(() => {
+    setEffortPace(null);
+  }, [suggested.byEffort]);
   const suggestedHeartRate = watchAvailable ? suggested.heartRate : null;
   const useSuggestedRangesNow = () => {
     if (suggestedPaceChoice) {
       setWorkPace({ enabled: true, band: suggestedPaceChoice.work });
       setEasyPace({ enabled: true, band: suggestedPaceChoice.easy });
+      setWarmPace({ enabled: true, band: suggestedPaceChoice.warm });
+      setEffortPace(suggested.byEffort);
     }
     if (suggestedHeartRate) {
       setWorkHeartRate({ enabled: true, band: suggestedHeartRate.work });
       setEasyHeartRate({ enabled: true, band: suggestedHeartRate.easy });
+      setWarmHeartRate({ enabled: true, band: suggestedHeartRate.warm });
     }
   };
   // Seconds left before recording begins, or null when no countdown is running.
@@ -586,7 +668,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               intervalChoice === 'program' && programStatus
                 ? {
                     id: programStatus.program.id,
-                    name: programName(t, programStatus.program.id),
+                    name: programTitle(t, programStatus.program),
                     program: {
                       id: programStatus.program.id,
                       index: programStatus.done,
@@ -827,6 +909,15 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
         }
       }
       invalidateExerciseCache(queryClient, saved.entryDate);
+      const { wornOutShoe } = saved;
+      if (wornOutShoe) {
+        promptToRetireShoe(t, wornOutShoe, () =>
+          updateShoe.mutate({
+            id: wornOutShoe.id,
+            data: { status: 'retired' },
+          })
+        );
+      }
       // The activity is filed. Nothing after this may report the save as
       // failed, or the person would be told to try again for no reason.
       let summaryParams: RunSummaryParams | null = null;
@@ -881,6 +972,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     queryClient,
     session,
     t,
+    updateShoe,
   ]);
 
   const number = (value: number, digits = 2) =>
@@ -1174,7 +1266,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             distanceAllowed={!indoor}
             milesAvailable={distanceUnit === 'miles'}
           />
-          {/* A plan can hold a pace in its fast and easy stretches. */}
+          {/* A plan can hold a pace in its fast and easy stretches and its warm-up and cool-down. */}
           {showPlanTargets ? (
             <>
               <SuggestedRangesCard
@@ -1265,6 +1357,62 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
                       setEasyHeartRate((current) => ({ ...current, band }))
                     }
                   />
+                </>
+              ) : null}
+              <View className="bg-surface rounded-xl px-4 mt-4">
+                <ProgramActionRow
+                  testID="warm-ranges-toggle"
+                  label={t('recordActivity.warmRanges.title', {
+                    defaultValue: 'Warm-up and cool-down',
+                  })}
+                  hint={warmSummary}
+                  onPress={() => setWarmOpen((open) => !open)}
+                />
+              </View>
+              {warmOpen ? (
+                <>
+                  <PaceBandCard
+                    testIDPrefix="warm-pace"
+                    title={t('recordActivity.paceBand.warmTitle', {
+                      defaultValue: 'Warm-up and cool-down pace',
+                    })}
+                    description={t('recordActivity.paceBand.warmDescription', {
+                      defaultValue:
+                        'Alerts you when the warm-up or cool-down is outside this range.',
+                    })}
+                    enabled={warmPace.enabled}
+                    onEnabledChange={(enabled) =>
+                      setWarmPace((current) => ({ ...current, enabled }))
+                    }
+                    band={warmBand}
+                    onBandChange={(band) =>
+                      setWarmPace((current) => ({ ...current, band }))
+                    }
+                    unit={distanceUnit}
+                  />
+                  {watchAvailable ? (
+                    <HeartRateBandCard
+                      testIDPrefix="warm-hr"
+                      title={t('recordActivity.heartRateBand.warmTitle', {
+                        defaultValue: 'Warm-up and cool-down heart rate',
+                      })}
+                      description={t(
+                        'recordActivity.heartRateBand.warmDescription',
+                        {
+                          defaultValue:
+                            'Alerts you when your heart rate in the warm-up or cool-down is outside this range.',
+                        }
+                      )}
+                      enabled={warmHeartRate.enabled}
+                      onEnabledChange={(enabled) =>
+                        setWarmHeartRate((current) => ({ ...current, enabled }))
+                      }
+                      band={warmHeartRateBand}
+                      onBandChange={(band) =>
+                        setWarmHeartRate((current) => ({ ...current, band }))
+                      }
+                    />
+                  ) : null}
                 </>
               ) : null}
             </>
