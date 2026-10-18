@@ -1,13 +1,20 @@
 import { tool } from 'ai';
 import {
   adjustRunning,
-  findProgram,
+  applyRealign,
+  builtInBaseline,
   firstIndexOfWeek,
+  instantToDay,
   moveTo,
   planMinutes,
   ProgramAdjustError,
+  realignInputFromProgram,
+  realignProgram,
   repeatWeek,
   suggestFromEffort,
+  todayInZone,
+  type RaceDistance,
+  type RunProgramRealignPreview,
   type RunProgramResponse,
 } from '@workspace/shared';
 import { log } from '../../config/logging.js';
@@ -100,6 +107,51 @@ function summarise(program: RunProgramResponse): string {
   return lines.join('\n');
 }
 
+function describeRealign(preview: RunProgramRealignPreview): string {
+  const lines = [preview.summary];
+  for (const change of preview.changes) {
+    const what = change.title
+      ? `"${change.title}"`
+      : `week ${change.week}, run ${change.run}`;
+    const verb =
+      change.kind === 'dropped'
+        ? 'drop'
+        : change.kind === 'merged'
+          ? 'fold away'
+          : change.kind === 'added'
+            ? 'add a repeat of'
+            : 'repeat';
+    lines.push(`- ${verb} ${what} (${change.minutes} min): ${change.reason}`);
+  }
+  lines.push(
+    `${preview.before.workouts} workouts left become ${preview.after.workouts}; the last one falls on ${preview.after.finishDay ?? 'the goal day'}.`
+  );
+  return lines.join('\n');
+}
+
+function realignInputFor(
+  program: RunProgramResponse,
+  tz: string,
+  options: { distance?: RaceDistance; force?: boolean } = {}
+) {
+  const lastAdjusted = program.adjustment_log.at(-1);
+  return realignInputFromProgram(program, {
+    today: todayInZone(tz),
+    lastAdjustedDay: lastAdjusted ? instantToDay(lastAdjusted.at, tz) : null,
+    distance: options.distance,
+    force: options.force,
+  });
+}
+
+/** A line telling the assistant the plan no longer fits the goal day, if so. */
+function realignHint(program: RunProgramResponse, tz: string): string {
+  const outcome = realignProgram(realignInputFor(program, tz));
+  if (outcome.state === 'plan' || outcome.state === 'unrealistic') {
+    return '\n\nThe plan no longer lines up with the goal day. Offer to realign it (action realign_run_program) and ask before changing anything.';
+  }
+  return '';
+}
+
 const confirmFirst = (what: string): string =>
   `${what} Confirm with the user first. If they agree, call this action again with the same fields and confirmed=true. Nothing was changed.`;
 
@@ -119,6 +171,7 @@ Actions:
 - action: 'repeat_run_program_week' (fields: week (1-based), confirmed) — goes back to the start of a week to do it again
 - action: 'move_run_program' (fields: week (1-based), run? (1-based, default 1), confirmed) — jumps to a workout
 - action: 'set_run_program_schedule' (fields: run_days? weekdays like ["mon","wed","sat"] (empty = every day), start_date? YYYY-MM-DD (null = from today), end_date? goal day YYYY-MM-DD such as a race (null = none), confirmed) — changes when workouts show in the user's Diary. Only the fields given change. Workouts are laid out one per chosen weekday in order, a missed run moves the rest along, and nothing is scheduled after the goal day. It does not change which workout is next.
+- action: 'realign_run_program' (fields: force?, distance?, confirmed) — rebuilds the rest of the plan to finish on the goal day (a race) after missed weeks, or uses spare time by repeating base weeks. It drops repeats and the shortest easy runs first, folds a lighter week into the next, never touches the taper or the final workout, keeps at least two runs a week for someone running three or more days, and eases the running after a long gap. Without confirmed=true it only says what it would change. If the goal day is not realistic for the plan it changes nothing and says so: offer a later goal day (set_run_program_schedule), a shorter race (the app's Plan a race), or, only if the user insists, call again with force=true
 - action: 'adjust_run_program_running' (fields: percent (-30 to +10), count? (1-9, default 1), confirmed) — makes the running in the next workouts shorter or a little longer, keeping walking, warm-up and cool-down
 
 Every change needs confirmed=true after the user has agreed.`,
@@ -136,7 +189,9 @@ Every change needs confirmed=true after the user has agreed.`,
         try {
           if (args.action === 'get_run_program') {
             const program = await getRunProgram(userId, userId);
-            return program ? summarise(program) : NO_PROGRAM;
+            return program
+              ? `${summarise(program)}${realignHint(program, tz)}`
+              : NO_PROGRAM;
           }
 
           if (args.action === 'start_run_program') {
@@ -221,6 +276,51 @@ Every change needs confirmed=true after the user has agreed.`,
             return `${formatConfirmation('Run program schedule updated.')}\n\n${summarise(program)}`;
           }
 
+          if (args.action === 'realign_run_program') {
+            const outcome = realignProgram(realignInputFor(existing, tz, args));
+            if (outcome.state === 'unavailable') {
+              return ERRORS.VALIDATION(
+                outcome.reason === 'noGoalDay'
+                  ? 'The user has no goal day. Set one first (set_run_program_schedule end_date).'
+                  : outcome.reason === 'noRunDays'
+                    ? 'The user has not chosen workout days. Set them first (set_run_program_schedule run_days).'
+                    : 'The program is finished: nothing to realign.'
+              );
+            }
+            if (outcome.state === 'fits') {
+              return 'The plan already fits the goal day. Nothing to realign and nothing was changed.';
+            }
+            if (outcome.state === 'unrealistic') {
+              const options = [
+                outcome.options.includes('later')
+                  ? `a later goal day (the whole plan would end ${outcome.laterDay}; set_run_program_schedule end_date)`
+                  : null,
+                outcome.lowerDistance
+                  ? `a shorter race (${outcome.lowerDistance}; the user plans it in the app's Plan a race)`
+                  : null,
+                outcome.options.includes('continue')
+                  ? 'continuing anyway (call realign_run_program again with force=true, only if the user insists)'
+                  : null,
+              ].filter((option): option is string => option !== null);
+              return `The goal day is not realistic for this plan: ${outcome.workoutsLeft} workouts are left and only ${outcome.slots} workout days (${outcome.weeksLeft} weeks) remain. Nothing was changed. Tell the user plainly and offer: ${options.join('; ')}.`;
+            }
+            if (args.confirmed !== true) {
+              return confirmFirst(
+                `This will realign the rest of the plan to finish on the goal day.\n${describeRealign(outcome.preview)}`
+              );
+            }
+            const program = await adjustRunProgram(
+              userId,
+              'assistant',
+              (state) => applyRealign(realignInputFor(state.program, tz, args)),
+              userId
+            );
+            if (!program) return NO_PROGRAM;
+            const last =
+              program.adjustment_log[program.adjustment_log.length - 1];
+            return `${formatConfirmation(last?.summary ?? 'Run program realigned.')}\n\n${summarise(program)}`;
+          }
+
           let change;
           let describe: string;
           if (args.action === 'repeat_run_program_week') {
@@ -261,7 +361,7 @@ Every change needs confirmed=true after the user has agreed.`,
                 state,
                 args.percent,
                 count,
-                findProgram(state.programId)?.workouts
+                builtInBaseline(state.programId, state.workouts)
               );
           }
           if (args.confirmed !== true) return confirmFirst(describe);

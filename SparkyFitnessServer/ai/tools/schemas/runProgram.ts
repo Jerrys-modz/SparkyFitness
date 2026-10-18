@@ -13,6 +13,7 @@ export const RUN_PROGRAM_ACTIONS = [
   'move_run_program',
   'adjust_run_program_running',
   'set_run_program_schedule',
+  'realign_run_program',
 ] as const;
 
 const confirmedSchema = z
@@ -146,6 +147,24 @@ export const manageRunProgramSchema = z.discriminatedUnion('action', [
         value.end_date !== undefined,
       { message: 'Give run_days, start_date or end_date.' }
     ),
+  z
+    .object({
+      action: z.literal('realign_run_program'),
+      force: z
+        .boolean()
+        .optional()
+        .describe(
+          'Only after the user has chosen to go ahead although the goal day is not realistic for the plan: realigns past the usual cap on dropped workouts.'
+        ),
+      distance: z
+        .enum(['5k', '10k', 'half', 'marathon'])
+        .optional()
+        .describe(
+          'The race distance, when it is not clear from the plan (it is normally read from the longest run).'
+        ),
+      confirmed: confirmedSchema,
+    })
+    .strict(),
 ]);
 
 export type ManageRunProgramInput = z.infer<typeof manageRunProgramSchema>;
@@ -163,5 +182,7 @@ export const manageRunProgramInput = z.object({
   run_days: z.array(z.union([z.string(), z.number()])).optional(),
   start_date: z.string().nullable().optional(),
   end_date: z.string().nullable().optional(),
+  force: z.boolean().optional(),
+  distance: z.string().max(10).optional(),
   confirmed: z.boolean().optional(),
 });
