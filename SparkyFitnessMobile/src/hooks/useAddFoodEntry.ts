@@ -13,9 +13,21 @@ import {
   type CreateFoodEntryPayload,
 } from '../services/api/foodEntriesApi';
 import type { ImageUploadArgs } from '../utils/pickerImages';
+import {
+  NeedsConnectionError,
+  QueueFullError,
+  isKnownOffline,
+  submitOrQueue,
+} from '../services/offlineQueue/queueRunner';
+import {
+  buildPendingFoodEntry,
+  type PendingFoodPreviewInput,
+} from '../services/offlineQueue/foodPreview';
+import { isPendingEntryId } from '../services/offlineQueue/overlay';
 import { invalidateFoodCache } from './invalidateFoodCache';
 import { invalidateMealUsageCaches } from './useMeals';
 import type { FoodEntry } from '../types/foodEntries';
+import type { FoodEntryQueueItem } from '../services/offlineQueue/types';
 import type { ExternalFoodVariant } from '../types/externalFoods';
 import type { FoodVariantDetail } from '../types/foods';
 import {
@@ -41,6 +53,11 @@ export interface AddFoodEntryInput {
    */
   externalVariants?: ExternalFoodVariant[];
   createEntryPayload: CreateFoodEntryPayload;
+  /**
+   * What the diary should show for the entry while it waits to sync. Without
+   * it the entry cannot be queued and a missing connection is reported.
+   */
+  offlinePreview?: PendingFoodPreviewInput;
 }
 
 interface UseAddFoodEntryOptions {
@@ -120,8 +137,11 @@ export function useAddFoodEntry(options?: UseAddFoodEntryOptions) {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async (input: AddFoodEntryInput) => {
+    mutationFn: async (input: AddFoodEntryInput): Promise<FoodEntry> => {
       if (input.saveFoodPayload) {
+        // Saving a food comes first and the entry needs the id it returns, so
+        // this path cannot wait in the offline queue.
+        if (isKnownOffline()) throw new NeedsConnectionError();
         const saved = await saveFood(
           input.saveFoodPayload,
           input.saveFoodImages
@@ -171,16 +191,71 @@ export function useAddFoodEntry(options?: UseAddFoodEntryOptions) {
           unit,
         });
       }
-      return createFoodEntry(input.createEntryPayload);
+      const payload = input.createEntryPayload;
+      const preview = input.offlinePreview;
+      const outcome = await submitOrQueue({
+        send: (clientId, timeoutMs) =>
+          createFoodEntry({ ...payload, client_id: clientId }, { timeoutMs }),
+        queueAs: preview
+          ? (clientId) => ({
+              kind: 'food_entry',
+              entryDate: payload.entry_date,
+              payload,
+              preview: buildPendingFoodEntry(clientId, payload, preview),
+            })
+          : null,
+      });
+      return outcome.status === 'sent'
+        ? outcome.result
+        : (outcome.item as FoodEntryQueueItem).preview;
     },
     onSuccess: (entry) => {
-      invalidateCache(entry.entry_date);
-      if (entry.meal_id) {
-        invalidateMealUsageCaches(queryClient);
+      if (isPendingEntryId(entry.id)) {
+        // Nothing reached the server, so there is nothing to refetch; the
+        // queued entry is overlaid on the cached day.
+        Toast.show({
+          type: 'info',
+          text1: t('offlineQueue.toasts.foodQueued', {
+            defaultValue: 'Saved on this phone',
+          }),
+          text2: t('offlineQueue.toasts.willSync', {
+            defaultValue: 'It will sync when your server is reachable.',
+          }),
+        });
+      } else {
+        invalidateCache(entry.entry_date);
+        if (entry.meal_id) {
+          invalidateMealUsageCaches(queryClient);
+        }
       }
       options?.onSuccess?.(entry);
     },
     onError: (error) => {
+      if (error instanceof NeedsConnectionError) {
+        Toast.show({
+          type: 'error',
+          text1: t('offlineQueue.errors.needsConnection', {
+            defaultValue: 'This needs a connection',
+          }),
+          text2: t('offlineQueue.errors.needsConnectionFood', {
+            defaultValue:
+              'New and online foods can only be added while your server is reachable.',
+          }),
+        });
+        return;
+      }
+      if (error instanceof QueueFullError) {
+        Toast.show({
+          type: 'error',
+          text1: t('offlineQueue.errors.queueFull', {
+            defaultValue: 'Too many entries are waiting',
+          }),
+          text2: t('offlineQueue.errors.queueFullMessage', {
+            defaultValue: 'Reconnect to sync them before adding more.',
+          }),
+        });
+        return;
+      }
       const text2 =
         error instanceof Error &&
         error.message === SELECTED_VARIANT_RESOLUTION_ERROR

@@ -21,6 +21,10 @@ import {
   notifyWatchTelemetryAccountSwitch,
 } from '../utils/watchTelemetryPersistence';
 import { useFoodSearchSelectionStore } from '../stores/foodSearchSelectionStore';
+import {
+  onOfflineQueueIdentityChanged,
+  purgeOfflineQueueForConfig,
+} from '../services/offlineQueue/queueActions';
 
 export type AuthModalReason = 'session_expired' | 'no_configs' | null;
 
@@ -49,7 +53,11 @@ export function useAuth() {
     });
     // A deleted config's saved watch telemetry and queued batches can never
     // be posted again.
-    setOnServerConfigDeleted(deleteWatchTelemetryForConfig);
+    setOnServerConfigDeleted(async (configId) => {
+      await deleteWatchTelemetryForConfig(configId);
+      // Entries queued for a server that no longer exists can never be sent.
+      await purgeOfflineQueueForConfig(configId);
+    });
     // Everything cached under the previous account has to go, or the new one
     // reads it until each query happens to refetch.
     setOnIdentityChanged(async () => {
@@ -59,6 +67,11 @@ export function useAuth() {
       // succeeds; restore waits until the ids are read and purged.
       notifyWatchTelemetryAccountSwitch(takeIdentityChangeServerConfigIds);
       queryClient.clear();
+      // The persisted read cache goes with it. Queued entries stay: they are
+      // checked against the signed-in account before anything is sent.
+      void onOfflineQueueIdentityChanged().catch((err: unknown) => {
+        addLog(`Failed to reset the offline cache: ${err}`, 'WARNING');
+      });
       // The Siri and Shortcuts copy holds the previous login and proxy
       // headers; the dashboard writes a fresh one once the new identity's
       // preferences and container load.

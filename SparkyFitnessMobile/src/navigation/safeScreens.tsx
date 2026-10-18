@@ -73,6 +73,7 @@ import AppSettingsScreen from '../screens/AppSettingsScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import AboutScreen from '../screens/AboutScreen';
 import WhatsNewScreen from '../screens/WhatsNewScreen';
+import OfflineQueueScreen from '../screens/OfflineQueueScreen';
 import MeasurementsAddScreen from '../screens/MeasurementsAddScreen';
 import MindfulnessLogScreen from '../screens/MindfulnessLogScreen';
 import ProgressPhotosScreen from '../screens/ProgressPhotosScreen';
@@ -212,6 +213,7 @@ export const SafeAppSettings = withErrorBoundary(AppSettingsScreen, 'AppSettings
 export const SafeNotificationSettings = withErrorBoundary(NotificationSettingsScreen, 'NotificationSettings', { canGoBack: true });
 export const SafeAbout = withErrorBoundary(AboutScreen, 'About', { canGoBack: true });
 export const SafeWhatsNew = withErrorBoundary(WhatsNewScreen, 'WhatsNew', { canGoBack: true });
+export const SafeOfflineQueue = withErrorBoundary(OfflineQueueScreen, 'OfflineQueue', { canGoBack: true });
 export const SafeDailyNutritionDetails = withErrorBoundary(DailyNutritionDetailsScreen, 'DailyNutritionDetails', { canGoBack: true });
 export const SafeNutrientTrends = withErrorBoundary(NutrientTrendsScreen, 'NutrientTrends', { canGoBack: true });
 export const SafeExerciseStatistics = withErrorBoundary(ExerciseStatisticsScreen, 'ExerciseStatistics', { canGoBack: true });

@@ -1726,6 +1726,23 @@ export { getExternalBmrByDateRange };
 
 // ── Water Intake Entries (granular drink-by-drink tracking) ──────────────
 
+export const WATER_ENTRY_CLIENT_ID_INDEX =
+  'idx_water_intake_entries_user_client_id';
+
+/** The drink an earlier request with this client id already logged, if any. */
+async function findWaterIntakeLogByClientId(userId: string, clientId: string) {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      'SELECT * FROM water_intake_entries WHERE user_id = $1 AND client_id = $2',
+      [userId, clientId]
+    );
+    return result.rows[0] ?? null;
+  } finally {
+    client.release();
+  }
+}
+
 async function insertWaterIntakeLog(
   userId: string,
   actingUserId: string,
@@ -1740,15 +1757,17 @@ async function insertWaterIntakeLog(
   // must not rewrite history, following container_name's existing precedent.
   foodEntryId: string | null = null,
   hydrationFactor: number | null = null,
-  client?: PoolClient
+  client?: PoolClient,
+  // Mobile offline-queue idempotency key (water_intake_entries.client_id).
+  clientId: string | null = null
 ) {
   const ownClient = !client;
   const activeClient = client ?? (await getClient(actingUserId));
   try {
     const result = await activeClient.query(
       `INSERT INTO water_intake_entries
-        (user_id, entry_date, water_ml, container_id, container_name, source, created_at, created_by_user_id, logged_at, food_entry_id, hydration_factor)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, COALESCE($8, NOW()), $9, $10)
+        (user_id, entry_date, water_ml, container_id, container_name, source, created_at, created_by_user_id, logged_at, food_entry_id, hydration_factor, client_id)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, COALESCE($8, NOW()), $9, $10, $11)
        RETURNING *`,
       [
         userId,
@@ -1761,6 +1780,7 @@ async function insertWaterIntakeLog(
         loggedAt,
         foodEntryId,
         hydrationFactor,
+        clientId,
       ]
     );
     return result.rows[0];
@@ -2232,6 +2252,7 @@ export default {
   updateWaterIntake,
   deleteWaterIntake,
   insertWaterIntakeLog,
+  findWaterIntakeLogByClientId,
   upsertWaterIntakeSamples,
   getWaterIntakeLogByDate,
   getWaterIntakeLogsByDates,
