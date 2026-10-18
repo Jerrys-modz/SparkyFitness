@@ -222,18 +222,18 @@ struct FirstRunEntryView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 6) {
-                Text("First check-in")
+                Text(String(localized: "watch.checkin.first.title", defaultValue: "First check-in"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("Type today's numbers once — after this the Digital Crown starts from your last value.")
+                Text(String(localized: "watch.checkin.first.body", defaultValue: "Type today's numbers once — after this the Digital Crown starts from your last value."))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 
-                TextField("Weight \(unit.suffix)", text: $weightText)
-                TextField("Body fat % (optional)", text: $bodyFatText)
+                TextField(String(localized: "watch.checkin.weightPlaceholder", defaultValue: "Weight \(unit.suffix)"), text: $weightText)
+                TextField(String(localized: "watch.checkin.bodyFatOptional", defaultValue: "Body fat % (optional)"), text: $bodyFatText)
 
-                Button("Save") {
+                Button(String(localized: "watch.common.save", defaultValue: "Save")) {
                     guard let weight = parse(weightText) else { return }
                     Haptics.tap()
                     onSave(unit.toKg(weight), parse(bodyFatText))
