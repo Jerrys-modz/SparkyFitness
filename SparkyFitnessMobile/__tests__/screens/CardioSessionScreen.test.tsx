@@ -327,5 +327,21 @@ describe('CardioSessionScreen', () => {
     mockDetail.mockReturnValue(detail({ route: [] }));
     const screen = render(<CardioSessionScreen {...props()} />);
     expect(screen.queryByTestId('export-gpx')).toBeNull();
+    expect(screen.queryByTestId('create-segment')).toBeNull();
+  });
+
+  it('starts a segment from the recorded route', () => {
+    mockDetail.mockReturnValue(detail());
+    const navigate = jest.fn();
+    const base = props();
+    const screen = render(
+      <CardioSessionScreen
+        {...({ ...base, navigation: { navigate } } as never)}
+      />
+    );
+    fireEvent.press(screen.getByTestId('create-segment'));
+    expect(navigate).toHaveBeenCalledWith('SegmentCreate', {
+      exerciseEntryId: SESSION.id,
+    });
   });
 });

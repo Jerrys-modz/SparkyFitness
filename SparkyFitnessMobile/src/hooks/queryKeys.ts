@@ -428,6 +428,21 @@ export const routeStopsQueryKey = (id: string) =>
 /** One saved route with its points and cues. */
 export const routeQueryKey = (id: string) => ['routes', id] as const;
 
+/** The person's segments (summaries). */
+export const segmentsQueryKey = ['segments'] as const;
+
+/** One segment with the person's efforts on it. */
+export const segmentQueryKey = (id: string) => ['segments', id] as const;
+
+/** The segments one activity ran, with new-best verdicts. */
+export const entrySegmentEffortsQueryKey = (entryId: string) =>
+  ['segments', 'entry', entryId] as const;
+
+/** The personal heatmap for a filter and a view. */
+export const heatmapQueryKey = (params: unknown) =>
+  ['heatmap', params] as const;
+export const heatmapRootQueryKey = ['heatmap'] as const;
+
 /** The diary entries that followed one route. */
 export const routeRunsQueryKey = (id: string) =>
   ['routes', id, 'runs'] as const;

@@ -10,6 +10,9 @@ jest.mock('../../src/hooks/usePreferences', () => ({
 jest.mock('../../src/hooks/useScreenHeader', () => ({
   useScreenHeader: jest.fn(() => null),
 }));
+jest.mock('../../src/services/segmentService', () => ({
+  useSegments: jest.fn(() => ({ segments: [] })),
+}));
 jest.mock('../../src/services/routeService', () => ({
   removeRoute: jest.fn(),
   renameRoute: jest.fn(),

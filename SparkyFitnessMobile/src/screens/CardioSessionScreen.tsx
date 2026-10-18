@@ -338,6 +338,19 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
               >
                 {t('routes.saveAsRoute', { defaultValue: 'Save as route' })}
               </Button>
+              <Button
+                variant="link"
+                testID="create-segment"
+                onPress={() =>
+                  navigation.navigate('SegmentCreate', {
+                    exerciseEntryId: session.id,
+                  })
+                }
+              >
+                {t('segments.createFromActivity', {
+                  defaultValue: 'Create segment',
+                })}
+              </Button>
             </>
           ) : (
             <Text className="text-text-secondary text-sm">

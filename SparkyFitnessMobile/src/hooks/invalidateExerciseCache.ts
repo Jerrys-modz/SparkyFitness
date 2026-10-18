@@ -8,6 +8,8 @@ import {
   workoutSessionQueryKeyRoot,
   workoutLocationsQueryKey,
   routesQueryKey,
+  segmentsQueryKey,
+  heatmapRootQueryKey,
 } from './queryKeys';
 
 export function invalidateExerciseCache(
@@ -19,6 +21,9 @@ export function invalidateExerciseCache(
   });
   // A saved run may follow a route: its run count, best time and history.
   void queryClient.invalidateQueries({ queryKey: [...routesQueryKey] });
+  // ...and over segments (best times, counts) and the personal heatmap.
+  void queryClient.invalidateQueries({ queryKey: [...segmentsQueryKey] });
+  void queryClient.invalidateQueries({ queryKey: [...heatmapRootQueryKey] });
   void queryClient.invalidateQueries({
     queryKey: [...exerciseHistoryQueryKey],
   });

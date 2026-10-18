@@ -604,7 +604,9 @@
       "personalRecords": "Personal records",
       "personalRecordsSubtitle": "Your best 1 km, 5 km, 10 km and more",
       "routes": "Routes",
-      "routesSubtitle": "Draw, import and save routes to follow"
+      "routesSubtitle": "Draw, import and save routes to follow",
+      "heatmap": "Heatmap",
+      "heatmapSubtitle": "Everywhere you have run, walked or ridden"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -641,7 +643,10 @@
     "runProgramRace": "Plan a race",
     "routes": "Routes",
     "routeDraw": "Draw a route",
-    "routeGenerate": "Generate a route"
+    "routeGenerate": "Generate a route",
+    "segmentCreate": "New segment",
+    "segments": "Segments",
+    "heatmap": "Heatmap"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -7534,7 +7539,12 @@
     "saveDistance": "Update",
     "distanceInvalid": "Enter the distance from the machine.",
     "distanceFailed": "Could not save the distance.",
-    "heartRate": "Heart rate"
+    "heartRate": "Heart rate",
+    "newSegmentPr_one": "New segment PR",
+    "newSegmentPr_other": "New segment PRs",
+    "segments": "Segments",
+    "segmentPrBeat": "New PR, beating your {{time}}",
+    "segmentPr": "New PR"
   },
   "runPrograms": {
     "startWhenTitle": "Start {{name}}",
@@ -7999,6 +8009,83 @@
       "uturn": "Make a U-turn",
       "arrive": "Arrive"
     },
-    "goBack": "Go back"
+    "goBack": "Go back",
+    "segmentsSubtitle": "Time yourself on stretches of your routes",
+    "heatmapSubtitle": "Where you have been, brighter where you go most"
+  },
+  "segments": {
+    "create": {
+      "saved": "Segment saved. Looking for your past efforts…",
+      "saveFailed": "Could not save the segment",
+      "noLine": "There is no route to cut a segment from.",
+      "tooShort": "This route is too short for a segment (100 m at least).",
+      "mapA11y": "Map of the route with the chosen segment drawn over it",
+      "pick": "Drag the handles to choose the stretch",
+      "namePlaceholder": "Name (optional)",
+      "nameLabel": "Segment name",
+      "activityHint": "A ride segment is timed on rides only; the others on runs, walks and hikes.",
+      "save": "Save segment",
+      "rangeA11y": "Segment from {{start}} to {{end}} along the line. Drag a handle to change it.",
+      "startEarlier": "Move the start earlier",
+      "start": "Start",
+      "startLater": "Move the start later",
+      "endEarlier": "Move the end earlier",
+      "end": "End",
+      "endLater": "Move the end later",
+      "length": "Segment length {{distance}}"
+    },
+    "loadFailed": "Could not load your segments.",
+    "empty": "No segments yet. Open a route or a recorded run, choose \"Create segment\" and pick a stretch to time yourself on.",
+    "efforts_one": "{{count}} effort",
+    "efforts_other": "{{count}} efforts",
+    "noEfforts": "No efforts yet",
+    "bestTime": "Best {{time}}",
+    "lastEffort": "Last {{day}}",
+    "renameFailed": "Could not rename",
+    "searchDone_one": "Found {{count}} effort",
+    "searchDone_other": "Found {{count}} efforts",
+    "deleteTitle": "Delete this segment?",
+    "deleteMessage": "Your times on it are removed. The activities themselves are not affected.",
+    "deleteFailed": "Could not delete the segment",
+    "loadOneFailed": "Could not load this segment.",
+    "mapA11y": "Map of this segment, from the green dot to the red ring",
+    "best": "Best",
+    "count": "Efforts",
+    "last": "Last effort",
+    "overTime": "Your times over time",
+    "chartCaption": "Effort number, oldest first. Green dots are new records.",
+    "effortsTitle": "Efforts",
+    "noEffortsHint": "No efforts found yet. Runs and walks with a recorded GPS track that pass this stretch in the same direction are timed automatically.",
+    "bestBadge": "BEST",
+    "prBadge": "PR",
+    "findEfforts": "Find past efforts",
+    "untitled": "Segment · {{distance}}",
+    "onRoute": "Segments",
+    "onRouteEmpty": "Pick a stretch of this route to time yourself on it every time you run it.",
+    "createFromRoute": "Create segment",
+    "createFromActivity": "Create segment"
+  },
+  "heatmap": {
+    "activity": {
+      "all": "All"
+    },
+    "period": {
+      "30d": "30 days",
+      "90d": "90 days",
+      "1y": "Year",
+      "all": "All time"
+    },
+    "loadFailed": "Could not load your heatmap.",
+    "empty": "Nothing to show for this filter yet. Runs, walks and rides with a recorded GPS track appear here.",
+    "mapA11y": "Heatmap of where you have been, brighter where you went more often",
+    "used_one": "Used {{count}} time",
+    "used_other": "Used {{count}} times",
+    "usedApprox": "The busiest road in a {{distance}} m square. Zoom in for a single road.",
+    "tapHint": "Tap the map to see how often a road was used.",
+    "fewer": "Less",
+    "more": "More",
+    "activities_one": "{{count}} activity",
+    "activities_other": "{{count}} activities",
+    "truncated": "Showing the busiest places. Zoom in or choose a shorter period to see more."
   }
 }

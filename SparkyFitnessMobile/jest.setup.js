@@ -721,6 +721,7 @@ jest.mock('react-native-maps', () => {
     default: piece('map-view'),
     Polyline: piece('map-polyline'),
     Marker: piece('map-marker'),
+    Circle: piece('map-circle'),
   };
 });
 
