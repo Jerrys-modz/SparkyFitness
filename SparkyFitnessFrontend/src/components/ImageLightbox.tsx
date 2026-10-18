@@ -12,6 +12,8 @@ interface ImageLightboxProps {
   initialIndex?: number;
   /** Accessible name for the dialog, e.g. the food's name. */
   title?: string;
+  /** Alt text for the image; defaults to a numbered food image label. */
+  alt?: string;
   /** Milliseconds each slide is shown while playing. */
   intervalMs?: number;
 }
@@ -36,6 +38,7 @@ function LightboxContent({
   images,
   initialIndex,
   title,
+  alt,
   intervalMs,
 }: Required<Omit<ImageLightboxProps, 'open' | 'onOpenChange'>>) {
   const { t } = useTranslation();
@@ -119,10 +122,13 @@ function LightboxContent({
         <div className="relative flex items-center justify-center min-h-[50vh] max-h-[85vh]">
           <img
             src={images[index]}
-            alt={t('food.imagePreviewAlt', {
-              defaultValue: 'Food image {{number}}',
-              number: index + 1,
-            })}
+            alt={
+              alt ||
+              t('food.imagePreviewAlt', {
+                defaultValue: 'Food image {{number}}',
+                number: index + 1,
+              })
+            }
             className="max-h-[85vh] max-w-full object-contain"
           />
 
@@ -186,6 +192,7 @@ function ImageLightbox({
   onOpenChange,
   initialIndex = 0,
   title,
+  alt,
   intervalMs = DEFAULT_INTERVAL_MS,
 }: ImageLightboxProps) {
   if (images.length === 0) {
@@ -199,6 +206,7 @@ function ImageLightbox({
           images={images}
           initialIndex={initialIndex}
           title={title ?? ''}
+          alt={alt ?? ''}
           intervalMs={intervalMs}
         />
       )}

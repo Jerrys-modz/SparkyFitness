@@ -1,6 +1,14 @@
 import { useRef, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Camera, Upload, Trash2, ImageIcon, ChevronDown } from 'lucide-react';
+import {
+  Camera,
+  Upload,
+  Trash2,
+  ImageIcon,
+  ChevronDown,
+  Columns2,
+  Film,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -9,10 +17,15 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import {
+  checkInPhotoFileUrl,
+  useCheckInPhotoGallery,
   useCheckInPhotos,
   type PhotoType,
   type CheckInPhoto,
 } from '@/hooks/CheckIn/useCheckInPhotos';
+import { hasComparableAngle, PHOTO_ANGLES } from '@/utils/progressPhotos';
+import { ProgressPhotoCompareDialog } from './ProgressPhotoCompareDialog';
+import { ProgressPhotoTimelapseDialog } from './ProgressPhotoTimelapseDialog';
 
 interface PhotoSlotProps {
   type: PhotoType;
@@ -53,12 +66,7 @@ const PhotoSlot = ({
     [type, onUpload]
   );
 
-  // Served through the authenticated, ownership-checked route (the session
-  // cookie travels with the same-origin <img> request), not the public static
-  // mount — progress photos are private.
-  const photoUrl = photo
-    ? `/api/measurements/check-in-photos/file/${photo.id}`
-    : null;
+  const photoUrl = photo ? checkInPhotoFileUrl(photo.id) : null;
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -142,19 +150,14 @@ const PhotoSlot = ({
 
 interface CheckInPhotosProps {
   selectedDate: string;
+  /** Opens the measurements for a day, for a photo day without a weight. */
+  onLogWeight?: (date: string) => void;
 }
 
-const PHOTO_TYPES: {
-  type: PhotoType;
-  labelKey: string;
-  defaultLabel: string;
-}[] = [
-  { type: 'front', labelKey: 'checkIn.photos.front', defaultLabel: 'Front' },
-  { type: 'back', labelKey: 'checkIn.photos.back', defaultLabel: 'Back' },
-  { type: 'side', labelKey: 'checkIn.photos.side', defaultLabel: 'Side' },
-];
-
-export const CheckInPhotos = ({ selectedDate }: CheckInPhotosProps) => {
+export const CheckInPhotos = ({
+  selectedDate,
+  onLogWeight,
+}: CheckInPhotosProps) => {
   const { t } = useTranslation();
   const {
     photos,
@@ -164,6 +167,23 @@ export const CheckInPhotos = ({ selectedDate }: CheckInPhotosProps) => {
     uploadingType,
     isDeleting,
   } = useCheckInPhotos(selectedDate);
+
+  // The whole history backs the comparison and the time-lapse. Their buttons
+  // only show once some angle has two days to work with.
+  const { days: galleryDays } = useCheckInPhotoGallery();
+  const canCompare = hasComparableAngle(galleryDays);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [timelapseOpen, setTimelapseOpen] = useState(false);
+
+  // Logging a weight happens on the Measurements tab, so close whichever
+  // dialog asked before switching there.
+  const handleLogWeight = onLogWeight
+    ? (date: string) => {
+        setCompareOpen(false);
+        setTimelapseOpen(false);
+        onLogWeight(date);
+      }
+    : undefined;
 
   const photoMap = useMemo(
     () => new Map(photos.map((p) => [p.photo_type, p])),
@@ -185,23 +205,47 @@ export const CheckInPhotos = ({ selectedDate }: CheckInPhotosProps) => {
           {/* When collapsed, the whole header is the trigger so a single compact
               row is all that's rendered. When expanded (or photos exist) the
               chevron is hidden and the full header/subtitle show as before. */}
-          <CollapsibleTrigger
-            asChild
-            disabled={hasPhotos}
-            className="group disabled:cursor-default"
-          >
-            <div className="flex items-center justify-between gap-2 cursor-pointer">
-              <CardTitle>
-                {t('checkIn.photos.title', 'Progress Photos')}
-              </CardTitle>
-              {!hasPhotos && (
-                <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                  {t('checkIn.photos.addPhotos', 'Add progress photos')}
-                  <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
-                </span>
-              )}
-            </div>
-          </CollapsibleTrigger>
+          <div className="flex flex-wrap items-center gap-2">
+            <CollapsibleTrigger
+              asChild
+              disabled={hasPhotos}
+              className="group disabled:cursor-default"
+            >
+              <div className="flex flex-[1_1_auto] items-center justify-between gap-2 cursor-pointer">
+                <CardTitle>
+                  {t('checkIn.photos.title', 'Progress Photos')}
+                </CardTitle>
+                {!hasPhotos && (
+                  <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                    {t('checkIn.photos.addPhotos', 'Add progress photos')}
+                    <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+                  </span>
+                )}
+              </div>
+            </CollapsibleTrigger>
+            {canCompare && (
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCompareOpen(true)}
+                >
+                  <Columns2 className="h-3.5 w-3.5 mr-1" />
+                  {t('checkIn.photos.compare', 'Compare')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTimelapseOpen(true)}
+                >
+                  <Film className="h-3.5 w-3.5 mr-1" />
+                  {t('checkIn.photos.timelapse', 'Time-lapse')}
+                </Button>
+              </div>
+            )}
+          </div>
           {expanded && (
             <p className="text-sm text-muted-foreground">
               {t(
@@ -214,7 +258,7 @@ export const CheckInPhotos = ({ selectedDate }: CheckInPhotosProps) => {
         <CollapsibleContent>
           <CardContent>
             <div className="grid grid-cols-3 gap-2 sm:gap-4">
-              {PHOTO_TYPES.map(({ type, labelKey, defaultLabel }) => (
+              {PHOTO_ANGLES.map(({ type, labelKey, defaultLabel }) => (
                 <PhotoSlot
                   key={type}
                   type={type}
@@ -231,6 +275,18 @@ export const CheckInPhotos = ({ selectedDate }: CheckInPhotosProps) => {
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
+      <ProgressPhotoCompareDialog
+        open={compareOpen}
+        onOpenChange={setCompareOpen}
+        days={galleryDays}
+        onLogWeight={handleLogWeight}
+      />
+      <ProgressPhotoTimelapseDialog
+        open={timelapseOpen}
+        onOpenChange={setTimelapseOpen}
+        days={galleryDays}
+        onLogWeight={handleLogWeight}
+      />
     </Card>
   );
 };
