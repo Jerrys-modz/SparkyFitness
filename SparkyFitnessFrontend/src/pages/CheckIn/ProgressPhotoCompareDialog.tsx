@@ -2,6 +2,7 @@ import { useMemo, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   daysBetween,
+  framesForAngle,
   type PhotoType,
   type ProgressPhotoDay,
 } from '@workspace/shared';
@@ -15,11 +16,7 @@ import {
 import ImageLightbox from '@/components/ImageLightbox';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { checkInPhotoFileUrl } from '@/hooks/CheckIn/useCheckInPhotos';
-import {
-  defaultAngle,
-  formatWeightDelta,
-  framesForAngle,
-} from '@/utils/progressPhotos';
+import { defaultAngle, formatWeightDelta } from '@/utils/progressPhotos';
 import {
   PhotoAngleToggle,
   PhotoDayPicker,

@@ -1,11 +1,19 @@
-import type { PhotoType, ProgressPhotoDay } from '@workspace/shared';
+import {
+  formatSignedWeightChange,
+  framesForAngle,
+  framesInRange,
+  type PhotoType,
+  type ProgressPhotoDay,
+} from '@workspace/shared';
 import {
   defaultAngle,
   formatWeightDelta,
-  framesForAngle,
-  framesInRange,
   hasComparableAngle,
 } from '@/utils/progressPhotos';
+
+// framesForAngle, framesInRange and formatSignedWeightChange live in
+// @workspace/shared (the mobile screens use them too); like the other shared
+// utils they are tested from a consuming package.
 
 // Builds a gallery day with photos for the given angles, ids derived from the
 // date so each frame can be told apart.
@@ -143,6 +151,18 @@ describe('framesInRange', () => {
   it('plays everything while a custom range has not been picked yet', () => {
     const result = framesInRange(frames, 'custom', today, null);
     expect(dates(result)).toHaveLength(4);
+  });
+});
+
+describe('formatSignedWeightChange', () => {
+  it('rounds to one decimal and signs gains', () => {
+    expect(formatSignedWeightChange(1.04)).toBe('+1');
+    expect(formatSignedWeightChange(-4.26)).toBe('-4.3');
+  });
+
+  it('shows no change without a sign', () => {
+    expect(formatSignedWeightChange(0)).toBe('0');
+    expect(formatSignedWeightChange(-0.01)).toBe('0');
   });
 });
 

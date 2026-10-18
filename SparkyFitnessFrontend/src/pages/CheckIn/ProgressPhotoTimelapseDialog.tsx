@@ -10,10 +10,14 @@ import {
   Play,
 } from 'lucide-react';
 import {
+  framesForAngle,
+  framesInRange,
   localDateToDay,
   todayInZone,
+  type CustomRange,
   type PhotoType,
   type ProgressPhotoDay,
+  type TimelapseRange,
 } from '@workspace/shared';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -38,13 +42,7 @@ import {
 } from '@/components/ui/select';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { checkInPhotoFileUrl } from '@/hooks/CheckIn/useCheckInPhotos';
-import {
-  defaultAngle,
-  framesForAngle,
-  framesInRange,
-  type CustomRange,
-  type TimelapseRange,
-} from '@/utils/progressPhotos';
+import { defaultAngle } from '@/utils/progressPhotos';
 import { PhotoAngleToggle, PhotoDayWeight } from './ProgressPhotoControls';
 
 type Speed = 'slow' | 'normal' | 'fast';
