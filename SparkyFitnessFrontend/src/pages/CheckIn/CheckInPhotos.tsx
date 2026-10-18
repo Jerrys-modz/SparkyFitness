@@ -68,8 +68,14 @@ const PhotoSlot = ({
 
   const photoUrl = photo ? checkInPhotoFileUrl(photo.id) : null;
 
+  const uploadLabel = photo
+    ? t('checkIn.photos.replace', 'Replace')
+    : t('checkIn.photos.upload', 'Upload');
+
   return (
-    <div className="flex flex-col items-center gap-2">
+    // min-w-0: a grid item will not shrink below its content by default, so on
+    // a phone the button row pushed the third slot out of the card.
+    <div className="flex min-w-0 flex-col items-center gap-2">
       <span className="text-sm font-medium text-foreground">{label}</span>
 
       {/* Photo preview or placeholder */}
@@ -117,18 +123,19 @@ const PhotoSlot = ({
       />
 
       <div className="flex gap-2 w-full">
+        {/* Three slots share a phone-width row, so below sm the label gives way
+            to the icon; the aria-label keeps the button's name either way. */}
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="flex-1"
+          className="min-w-0 flex-1"
           disabled={disabled}
+          aria-label={uploadLabel}
           onClick={() => fileInputRef.current?.click()}
         >
-          <Upload className="h-3 w-3 mr-1" />
-          {photo
-            ? t('checkIn.photos.replace', 'Replace')
-            : t('checkIn.photos.upload', 'Upload')}
+          <Upload className="h-3 w-3 sm:mr-1" />
+          <span className="hidden truncate sm:inline">{uploadLabel}</span>
         </Button>
 
         {photo && (
@@ -136,8 +143,9 @@ const PhotoSlot = ({
             type="button"
             variant="ghost"
             size="sm"
-            className="text-destructive hover:text-destructive"
+            className="shrink-0 px-2 text-destructive hover:text-destructive"
             disabled={disabled}
+            aria-label={t('checkIn.photos.remove', 'Remove photo')}
             onClick={() => onDelete(photo.id)}
           >
             <Trash2 className="h-3 w-3" />

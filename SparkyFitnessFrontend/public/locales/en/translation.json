@@ -4009,6 +4009,7 @@
       "tapToUpload": "Tap to upload",
       "upload": "Upload",
       "replace": "Replace",
+      "remove": "Remove photo",
       "uploadSuccess": "Photo saved",
       "uploadError": "Upload failed",
       "tooLarge": "Image is too large (max 10 MB).",
