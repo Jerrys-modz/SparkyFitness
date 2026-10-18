@@ -157,6 +157,7 @@ export * from "./utils/activitySport.ts";
 export * from "./utils/foodEntryCopyFingerprint.ts";
 export * from "./utils/foodPhotoEstimateMath.ts";
 export * from "./utils/foodPhotoIngredientDraft.ts";
+export * from "./utils/progressPhotos.ts";
 export * from "./ai/unitConversion.ts";
 export * from "./ai/confidenceLabels.ts";
 export * from "./medications/contracts.ts";
