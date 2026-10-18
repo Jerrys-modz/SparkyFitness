@@ -94,8 +94,10 @@ import {
   intervalPosition,
   type IntervalOptions,
   type IntervalPlan,
+  type PaceBand,
   type RunProgramResponse,
   zoneShiftForEffort,
+  type StepEffort,
 } from '@workspace/shared';
 import {
   completeProgramWorkout,
@@ -338,6 +340,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     if (preset?.options.style === 'runWalk') setIntervalChoice('off');
   }, [activity, intervalChoice]);
   // Optional pace ranges for a plan's fast and easy stretches, this run only.
+  // Paces for tempo, marathon-pace and stride stretches, set from a recent race.
+  const [effortPace, setEffortPace] = useState<Partial<
+    Record<StepEffort, PaceBand>
+  > | null>(null);
   const [workPace, setWorkPace] = useState<PaceTargetChoice>({
     enabled: false,
     band: null,
@@ -422,6 +428,9 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               warm: warmPace.enabled
                 ? paceBandPerKm(warmBand, distanceUnit)
                 : null,
+              byEffort: workPace.enabled
+                ? (effortPace ?? undefined)
+                : undefined,
             }),
             {
               work: workHeartRate.enabled ? workHeartRateBand : null,
@@ -435,6 +444,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       workPace.enabled,
       easyPace.enabled,
       warmPace.enabled,
+      effortPace,
       workBand,
       easyBand,
       warmBand,
@@ -465,19 +475,32 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       fastest: Math.round((band.minSecondsPerKm * perUnit) / 5) * 5,
       slowest: Math.round((band.maxSecondsPerKm * perUnit) / 5) * 5,
     });
+    const efforts: Record<string, ReturnType<typeof choice>> = {};
+    for (const effort of ['tempo', 'marathon', 'stride'] as const) {
+      const band = suggested.byEffort?.[effort];
+      if (band) efforts[effort] = choice(band);
+    }
     return {
       work: choice(suggested.pace.work),
       easy: choice(suggested.pace.easy),
       warm: choice(suggested.pace.warm),
       sessions: suggested.pace.sessions,
+      race: suggested.pace.race,
+      efforts,
     };
-  }, [suggested.pace, distanceUnit]);
+  }, [suggested.pace, suggested.byEffort, distanceUnit]);
+  // Tempo, stride and marathon-pace ranges come from the saved race; once it is
+  // cleared or the activity changes, the ranges applied from it no longer apply.
+  useEffect(() => {
+    setEffortPace(null);
+  }, [suggested.byEffort]);
   const suggestedHeartRate = watchAvailable ? suggested.heartRate : null;
   const useSuggestedRangesNow = () => {
     if (suggestedPaceChoice) {
       setWorkPace({ enabled: true, band: suggestedPaceChoice.work });
       setEasyPace({ enabled: true, band: suggestedPaceChoice.easy });
       setWarmPace({ enabled: true, band: suggestedPaceChoice.warm });
+      setEffortPace(suggested.byEffort);
     }
     if (suggestedHeartRate) {
       setWorkHeartRate({ enabled: true, band: suggestedHeartRate.work });

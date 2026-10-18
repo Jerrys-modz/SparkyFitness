@@ -237,6 +237,7 @@ export * from "./utils/adaptiveCoaching.ts";
 export * from "./utils/runIntervals.ts";
 export * from "./utils/paceTargets.ts";
 export * from "./utils/paceZones.ts";
+export * from "./utils/racePaceZones.ts";
 export * from "./utils/heartRateTargets.ts";
 export * from "./utils/runPrograms.ts";
 export * from "./utils/runProgramSchedule.ts";
