@@ -62,6 +62,8 @@ export function watchRunSummary(
             scale: payload.distanceScale ?? 1,
             estimatedMeters:
               payload.estimatedDistanceMeters ?? payload.distanceMeters,
+            startedAt: payload.startedAt,
+            endedAt: payload.endedAt,
           },
         }
       : {}),

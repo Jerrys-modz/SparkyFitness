@@ -13,6 +13,7 @@ import {
 import { setExerciseEntryDistance } from '../../src/services/api/exerciseApi';
 import { usePersonalRecords } from '../../src/hooks/usePersonalRecords';
 import { learnWatchIndoorScale } from '../../src/services/watchIndoorScale';
+import { learnFromWatchRun } from '../../src/services/stepDistance';
 import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import type { RunSummaryParams } from '../../src/utils/runSummary';
 
@@ -25,6 +26,9 @@ jest.mock('../../src/services/runProgramService', () => ({
 }));
 jest.mock('../../src/services/api/exerciseApi', () => ({
   setExerciseEntryDistance: jest.fn(() => Promise.resolve()),
+}));
+jest.mock('../../src/services/stepDistance', () => ({
+  learnFromWatchRun: jest.fn(() => Promise.resolve(true)),
 }));
 jest.mock('../../src/services/watchIndoorScale', () => ({
   learnWatchIndoorScale: jest.fn(() => Promise.resolve()),
@@ -387,7 +391,14 @@ describe('treadmill correction', () => {
   it('teaches the watch factor from the corrected figure, not the display', async () => {
     correct(4);
     renderScreen(
-      treadmill({ watchIndoor: { scale: 1, estimatedMeters: 4000 } })
+      treadmill({
+        watchIndoor: {
+          scale: 1,
+          estimatedMeters: 4000,
+          startedAt: 1_000_000,
+          endedAt: 2_200_000,
+        },
+      })
     );
     fireEvent.changeText(
       screen.getByLabelText('Distance from the treadmill in km'),
@@ -400,6 +411,15 @@ describe('treadmill correction', () => {
       'run',
       1,
       4000,
+      expect.closeTo(5000, 3)
+    );
+    // The stride learns from the phone's steps over the run, same corrected figure.
+    expect(learnFromWatchRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        startedAt: 1_000_000,
+        finishedAt: 2_200_000,
+        activeSeconds: 1200,
+      }),
       expect.closeTo(5000, 3)
     );
   });

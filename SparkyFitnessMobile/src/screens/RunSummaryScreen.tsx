@@ -40,6 +40,7 @@ import {
 } from '../utils/gpsRecording';
 import type { RootStackScreenProps } from '../types/navigation';
 import { learnWatchIndoorScale } from '../services/watchIndoorScale';
+import { learnFromWatchRun } from '../services/stepDistance';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { correctTreadmillDistance } from '../utils/treadmillCorrection';
 import { formatTreadmillPercent } from '../utils/treadmillCorrectionFormat';
@@ -142,6 +143,19 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
           summary.watchIndoor.estimatedMeters,
           km * METERS_PER_KM
         );
+        const { startedAt, endedAt } = summary.watchIndoor;
+        if (startedAt != null && endedAt != null) {
+          // The stride too, from the phone's steps over the run.
+          void learnFromWatchRun(
+            {
+              activity: summary.activity,
+              startedAt,
+              finishedAt: endedAt,
+              activeSeconds: summary.activeSeconds,
+            },
+            km * METERS_PER_KM
+          );
+        }
       }
       setDistanceSaved(true);
       invalidateExerciseCache(queryClient, summary.entryDate);
