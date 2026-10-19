@@ -50,6 +50,8 @@ BEGIN
     'mindfulness_sessions',
     'run_programs',
     'run_goals',
+    'shoes',
+    'custom_run_programs',
     'onboarding_data',
     'onboarding_status',
     'openfoodfacts_product_read_rate_limit',
@@ -681,6 +683,8 @@ SELECT create_checkin_policy('check_in_photos');
 SELECT create_checkin_policy('custom_categories');
 SELECT create_checkin_policy('custom_measurements');
 SELECT create_diary_policy('exercise_entries');
+-- Running shoes belong to the exercise diary, so diary delegates manage them.
+SELECT create_diary_policy('shoes');
 -- Custom policy for exercise_entries to allow access if linked to an owned exercise_preset_entry
 CREATE POLICY select_exercise_preset_entry_linked_policy ON public.exercise_entries FOR SELECT TO PUBLIC
 USING (
@@ -756,6 +760,7 @@ SELECT create_owner_policy('pregnancy_checklist_state');
 SELECT create_owner_policy('health_appointments');
 SELECT create_owner_policy('run_programs');
 SELECT create_owner_policy('run_goals');
+SELECT create_owner_policy('custom_run_programs');
 
 -- User-defined mood tags. Mood is check-in data (mood_entries uses the check-in
 -- policy), and custom check-in definitions like custom_categories are shared with
@@ -852,7 +857,8 @@ CREATE POLICY insert_policy ON public.food_entries FOR INSERT TO PUBLIC
 WITH CHECK (
   has_diary_access(user_id) AND (
     (food_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.foods f WHERE f.id = food_entries.food_id)) OR
-    (meal_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.meals m WHERE m.id = food_entries.meal_id))
+    (meal_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.meals m WHERE m.id = food_entries.meal_id)) OR
+    (food_id IS NULL AND meal_id IS NULL AND variant_id IS NULL)
   )
 );
 CREATE POLICY update_policy ON public.food_entries FOR UPDATE TO PUBLIC

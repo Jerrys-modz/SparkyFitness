@@ -198,3 +198,35 @@ describe('distance milestones', () => {
     expect(at(4999).cues).toEqual([]);
   });
 });
+
+describe('a plan with distance steps', () => {
+  // 400 m work (expected 144 s), 60 s easy, 400 m work.
+  const distancePlan = buildIntervalPlan({
+    style: 'fastEasy',
+    warmupSeconds: 0,
+    workSeconds: 144,
+    workMeters: 400,
+    recoverySeconds: 60,
+    rounds: 2,
+    cooldownSeconds: 0,
+  });
+  const progress = {
+    cursor: { index: 0, startSeconds: 0, startMeters: 0 },
+    meters: 100,
+  };
+
+  it('gives no warning or countdown for a step that ends on distance', () => {
+    // At its expected time the step has not ended: 100 m recorded.
+    const { cues } = run(140, { plan: distancePlan, progress });
+    expect(cues).toEqual([]);
+  });
+
+  it('calls no halfway or last minute, since the length is a guess', () => {
+    const { cues } = run(distancePlan.steps.length * 200, {
+      plan: distancePlan,
+      progress,
+    });
+    expect(cues.map((cue) => cue.kind)).not.toContain('halfway');
+    expect(cues.map((cue) => cue.kind)).not.toContain('lastMinute');
+  });
+});

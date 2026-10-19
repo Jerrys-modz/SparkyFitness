@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-05_
+_Last updated: 2026-10-15_
 
 SparkyFitness Frontend is the React web app for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessFrontend/`.
 
@@ -14,7 +14,7 @@ If a task also touches the server, mobile app, or `shared/`, read that package g
 
 ## Current Snapshot
 
-- Stack: React 19, Vite 8, TypeScript 5, Tailwind CSS v4 (via `@tailwindcss/vite`), shadcn/ui-style Radix primitives, TanStack Query 5, React Router 7 (`createBrowserRouter`), i18next, Better Auth client, Zod 4, Recharts.
+- Stack: React 19, Vite 8, TypeScript 6, Tailwind CSS v4 (via `@tailwindcss/vite`), shadcn/ui-style Radix primitives, TanStack Query 5, React Router 7 (`createBrowserRouter`), i18next, Better Auth client, Zod 4, Recharts.
 - `@/*` maps to `src/`; `@workspace/shared` maps to `../shared/src/index.ts` (also in Jest via `moduleNameMapper`).
 - Dev server runs on port `8080` and proxies `/api`, `/mcp`, and `/uploads` to the backend on `3010`; `/health-data` is proxied with an `/api` prefix rewrite. Override the backend host with `VITE_BACKEND_HOST`.
 - PWA (`vite-plugin-pwa`) is enabled in production builds only.
@@ -104,6 +104,7 @@ When searching, ignore `node_modules/`, `dist/`, and every locale except `public
 - Bodyweight exercises (#56): the `bodyweight_reps` layout in `constants/exercises.ts` (`signedWeight`) drives the +/− weight header and placeholder in the set editor; reports and trend charts count body weight through the shared `effectiveLoadKg` / `setVolumeKg` (`pages/Reports/ReportsTables.tsx`, `utils/exerciseTrendUtils.ts`, which reads `body_weight_kg` from the progress endpoint).
 - `weight_distance` / `weight_duration` (#127) have their own `SET_TABLE_LAYOUT` entries: carries swap the reps cell for a distance cell (stored km, edited in metres/yards via `carryDistanceFromKm` / `carryDistanceToKm` in `@workspace/shared`), loaded holds drop reps and use the duration column.
 - Training consistency (#59): `pages/Reports/TrainingConsistencyCard.tsx` in the Exercise report's left column, fed by `useTrainingConsistency` (`hooks/Reports/useReports.ts`) from `GET /reports/training-consistency`. A fixed 26-week window computed on the server by the shared `buildTrainingConsistency`, so it ignores the report's date filter; the existing `WorkoutHeatmap` stays the calendar.
+- Shoe inventory: the Equipment section of the Exercises page (`src/pages/Exercises/EquipmentManager.tsx` + `ShoeFormDialog`; there is no separate tab or route), `src/components/Shoes/ShoeSelect.tsx` (the picker used by `pages/Diary/EditExerciseEntryDialog.tsx` for cardio entries), `src/api/Shoes/shoeService.ts`, `src/hooks/Shoes/useShoes.ts`. Distances are stored in km and edited in the user's unit; assigning a shoe invalidates both `shoeKeys` and `exerciseEntryKeys` because mileage is derived from linked entries. The Equipment section also shows while acting on behalf of someone: `can_manage_diary` delegates can edit it and `can_view_reports` delegates read it, as the server enforces.
 - Chart issue: Recharts usage in the domain page plus `src/components/ExerciseCharts/` or `ZoomableChart.tsx`.
 
 ## Priority Rule

@@ -463,14 +463,31 @@ jest.mock('react-native-keyboard-controller', () => {
     KeyboardAwareScrollView: React.forwardRef(({ children, ...props }, ref) =>
       React.createElement(ScrollView, { ...props, ref }, children)
     ),
+    // `offset` stays on the host View so tests can assert where a sticky view
+    // parks while the keyboard is closed.
     KeyboardStickyView: React.forwardRef(
-      ({ children, offset: _offset, enabled: _enabled, ...props }, ref) =>
+      ({ children, enabled: _enabled, ...props }, ref) =>
         React.createElement(View, { ...props, ref }, children)
     ),
-    // Keyboard-closed shared values; tests render with the rail expanded.
+    // Keyboard-closed shared values.
     useReanimatedKeyboardAnimation: () => ({
       height: { value: 0 },
       progress: { value: 0 },
+    }),
+    // Reports the keyboard up, like KeyboardController.isVisible below, so a
+    // focused set's sticky bar is reachable; a test that needs the keyboard
+    // down swaps the implementation and restores it afterwards.
+    useKeyboardState: jest.fn((selector) => {
+      const state = {
+        isVisible: true,
+        height: 300,
+        duration: 250,
+        timestamp: 0,
+        target: -1,
+        type: 'default',
+        appearance: 'light',
+      };
+      return selector ? selector(state) : state;
     }),
     // isVisible defaults to true so the Android IME-retry path in
     // focusSetCellInput stays quiet unless a test opts in.
@@ -848,6 +865,19 @@ jest.mock('expo-crypto', () => {
     },
   };
 });
+
+// Rows render AllergenBadges, which reads the user's tracked allergens through
+// React Query. Most suites render rows without a QueryClientProvider, so default
+// to "no tracked allergens"; allergen suites mock this module themselves.
+jest.mock('./src/hooks/useAllergenPreferences', () => ({
+  useAllergenPreferences: () => ({
+    preferences: [],
+    isLoading: false,
+    isError: false,
+    refetch: jest.fn(),
+  }),
+  useAllergenPreferenceMutations: jest.fn(),
+}));
 
 jest.mock('expo-image-manipulator', () => ({
   manipulateAsync: jest.fn(async (uri, _actions = [], options = {}) => ({

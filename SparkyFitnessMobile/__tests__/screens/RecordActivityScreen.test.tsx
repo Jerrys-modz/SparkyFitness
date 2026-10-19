@@ -267,16 +267,18 @@ describe('RecordActivityScreen', () => {
         pace: {
           work: { minSecondsPerKm: 285, maxSecondsPerKm: 320 },
           easy: { minSecondsPerKm: 360, maxSecondsPerKm: 420 },
+          warm: { minSecondsPerKm: 380, maxSecondsPerKm: 840 },
           sessions: 5,
         },
         heartRate: {
           work: { minBpm: 155, maxBpm: 170 },
           easy: { minBpm: 110, maxBpm: 130 },
+          warm: { minBpm: 95, maxBpm: 120 },
           maxHeartRate: 185,
         },
       };
 
-      it('offers them for a plan and puts them on every fast and easy stretch when used', async () => {
+      it('offers them for a plan and puts them on every fast, easy and warm-up stretch when used', async () => {
         state(null);
         onProgram();
         jest.mocked(useWatchConnectivity).mockReturnValue({
@@ -291,7 +293,9 @@ describe('RecordActivityScreen', () => {
         );
         expect(screen.getByText('Based on your last 5 sessions.')).toBeTruthy();
         expect(
-          screen.getByText('Pace: fast 4:45–5:20/km, easy 6:00–7:00/km')
+          screen.getByText(
+            'Pace: fast 4:45–5:20/km, easy 6:00–7:00/km, warm-up and cool-down 6:20–14:00/km'
+          )
         ).toBeTruthy();
 
         fireEvent.press(screen.getByTestId('suggested-ranges-use'));
@@ -310,6 +314,57 @@ describe('RecordActivityScreen', () => {
           maxSecondsPerKm: 420,
         });
         expect(easy?.heartRate).toEqual({ minBpm: 110, maxBpm: 130 });
+        const warmSteps =
+          intervals?.steps.filter(
+            (step) => step.kind === 'warmup' || step.kind === 'cooldown'
+          ) ?? [];
+        expect(warmSteps.length).toBeGreaterThan(0);
+        for (const step of warmSteps) {
+          expect(step.pace).toEqual({
+            minSecondsPerKm: 380,
+            maxSecondsPerKm: 840,
+          });
+          expect(step.heartRate).toEqual({ minBpm: 95, maxBpm: 120 });
+        }
+      });
+
+      it('from a recent race, gives the runs of a run/walk plan the easy-running range', async () => {
+        state(null);
+        onProgram();
+        mockSuggestedRanges.mockReturnValue({
+          ...suggestion,
+          pace: {
+            ...suggestion.pace,
+            sessions: 0,
+            race: { distanceKm: 5, seconds: 1500 },
+          },
+          byEffort: {
+            easy: { minSecondsPerKm: 365, maxSecondsPerKm: 410 },
+            tempo: { minSecondsPerKm: 320, maxSecondsPerKm: 335 },
+          },
+        } as never);
+        const screen = openProgramWorkout();
+        await waitFor(() =>
+          expect(screen.getByTestId('suggested-ranges-card')).toBeTruthy()
+        );
+        expect(
+          screen.getByText('Based on your recent race: 5K in 25:00.')
+        ).toBeTruthy();
+
+        fireEvent.press(screen.getByTestId('suggested-ranges-use'));
+        fireEvent.press(screen.getByText('Start'));
+        await waitFor(() => expect(startRecording).toHaveBeenCalled());
+        const { intervals } = jest.mocked(startRecording).mock.calls[0][0];
+        const runs = intervals?.steps.filter((step) => step.kind === 'work');
+        expect(runs?.length).toBeGreaterThan(0);
+        // Beginner runs are easy running, so they get the easy-effort range,
+        // not the interval range the fast stretches get.
+        for (const step of runs ?? []) {
+          expect(step.pace).toEqual({
+            minSecondsPerKm: 365,
+            maxSecondsPerKm: 410,
+          });
+        }
       });
 
       it('shows nothing without a suggestion, and applies nothing until tapped', async () => {
