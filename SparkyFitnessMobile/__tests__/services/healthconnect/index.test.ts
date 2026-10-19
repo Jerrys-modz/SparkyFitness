@@ -1817,7 +1817,7 @@ describe('enrichExerciseSessions', () => {
   });
 
   test.each([75, 80])(
-    'does not turn resting-only energy into workout calories (basal %s)',
+    'preserves zero active energy for 75 kcal total and basal %s within the resting-rate cap',
     async (basal) => {
       mockAggregateRecord.mockImplementation(
         ({ recordType }: { recordType: string }) => {
@@ -1847,7 +1847,7 @@ describe('enrichExerciseSessions', () => {
     }
   );
 
-  test('keeps the legacy total fallback when basal consumes the total', async () => {
+  test('keeps the legacy total fallback when basal exceeds the resting-rate cap', async () => {
     mockAggregateRecord.mockImplementation(
       ({ recordType }: { recordType: string }) => {
         if (recordType === 'ActiveCaloriesBurned') {

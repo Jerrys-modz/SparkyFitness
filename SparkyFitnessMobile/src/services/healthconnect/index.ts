@@ -1369,6 +1369,14 @@ type SessionCaloriePair = {
   total?: number;
 };
 
+/**
+ * Selects active session energy after validating basal energy against the
+ * duration-based resting-rate cap. Missing, non-finite, negative, or over-cap
+ * basal values retain the legacy Active/Total fallback. An accepted basal value
+ * may exceed Total; its derived zero is preserved instead of crediting resting
+ * energy as exercise. A positive, session-valid Active value still takes priority
+ * when it exceeds that derived estimate.
+ */
 const selectBasalNormalizedSessionCalories = (
   active: number | undefined,
   total: number | undefined,
