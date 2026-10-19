@@ -395,7 +395,7 @@ Progress photos attached to a calendar day. Every route below requires the `chec
 
 *   **Path**: `/api/measurements/check-in-photos`
 *   **Method**: `GET`
-*   **Description**: Every photo the caller has, newest day first, each paired with the weight logged on the same calendar day. Backs the mobile gallery, side-by-side comparison and time-lapse in one request. The weight is joined on `(user_id, entry_date)` rather than the stored `check_in_measurement_id`, so a photo taken before that day's weight was entered still reports it.
+*   **Description**: Every photo the caller has, newest day first, each paired with the weight logged on the same calendar day. Backs the mobile gallery and the side-by-side comparison and time-lapse on both mobile and web, in one request. The weight is joined on `(user_id, entry_date)` rather than the stored `check_in_measurement_id`, so a photo taken before that day's weight was entered still reports it.
 *   **Authentication**: JWT Token.
 *   **Responses**:
     *   `200 OK`: ordered by `entry_date DESC, photo_type ASC`. `weight` is in kilograms and is `null` when the day has no check-in measurement or that measurement carries no weight. `file_path` is omitted on purpose — image bytes come from `/file/{id}`, so the on-disk layout stays a server detail.
