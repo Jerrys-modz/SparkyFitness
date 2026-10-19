@@ -119,7 +119,6 @@ private struct WorkoutSummaryView: View {
     @EnvironmentObject private var checkIn: CheckInStore
     @EnvironmentObject private var session: WatchSessionManager
     let summary: WorkoutSummary
-
     private var unit: WeightUnit { checkIn.context.effectiveWeightUnit }
 
     private var duration: String {
@@ -148,6 +147,9 @@ private struct WorkoutSummaryView: View {
                 }
                 if let kcal = summary.activeEnergyKcal, kcal > 0 {
                     row("Active", "\(Int(kcal.rounded())) kcal")
+                }
+                WorkoutEffortPicker { score, done in
+                    session.rateWorkoutEffort(score, sessionId: summary.sessionId, completion: done)
                 }
                 Button("Done") { store.dismissSummary() }
                     .padding(.top, 4)

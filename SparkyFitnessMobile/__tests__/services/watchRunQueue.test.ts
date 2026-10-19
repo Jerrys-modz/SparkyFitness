@@ -5,9 +5,14 @@ import {
   hasQueuedWatchRuns,
   onWatchRunRetry,
   processWatchRunQueue,
+  receiveWatchRunEffort,
 } from '../../src/services/watchRunQueue';
 import { saveWatchRun } from '../../src/services/watchRunSave';
-import { completeProgramWorkout } from '../../src/services/runProgramService';
+import {
+  completeProgramWorkout,
+  rateProgramWorkout,
+} from '../../src/services/runProgramService';
+import { setExerciseEntryEffort } from '../../src/services/api/exerciseApi';
 import { ApiError } from '../../src/services/api/errors';
 import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import type { WatchRunPayload } from '../../src/utils/watchRun';
@@ -19,6 +24,10 @@ jest.mock('../../src/services/watchIndoorScale', () => ({
 }));
 jest.mock('../../src/services/runProgramService', () => ({
   completeProgramWorkout: jest.fn(() => Promise.resolve()),
+  rateProgramWorkout: jest.fn(() => Promise.resolve(null)),
+}));
+jest.mock('../../src/services/api/exerciseApi', () => ({
+  setExerciseEntryEffort: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 
@@ -45,6 +54,9 @@ const run = (clientId: string): WatchRunPayload => ({
 
 beforeEach(async () => {
   jest.mocked(completeProgramWorkout).mockClear();
+  jest.mocked(rateProgramWorkout).mockClear();
+  jest.mocked(setExerciseEntryEffort).mockReset();
+  jest.mocked(setExerciseEntryEffort).mockResolvedValue(undefined);
   await AsyncStorage.clear();
   mockedSave.mockReset();
   onWatchRunRetry(null);
@@ -335,5 +347,100 @@ describe('treadmill correction on a wrist-entered distance', () => {
 
     expect(mockedSave.mock.calls[0][0].distanceMeters).toBe(5200);
     expect(mockedSave.mock.calls[0][0].treadmillDisplayMeters).toBeUndefined();
+  });
+});
+
+describe('effort rated on the watch', () => {
+  const programRun = (clientId: string): WatchRunPayload => ({
+    ...run(clientId),
+    program: { id: 'beginner5k', index: 4 },
+    planCompleted: true,
+  });
+
+  test('is saved on the diary entry of a run that is already filed', async () => {
+    mockedSave.mockResolvedValue('entry-1');
+    await enqueueWatchRun(run('e1'));
+    await processWatchRunQueue('km');
+
+    await receiveWatchRunEffort('e1', 7);
+
+    expect(setExerciseEntryEffort).toHaveBeenCalledWith('entry-1', 7);
+    expect(rateProgramWorkout).not.toHaveBeenCalled();
+  });
+
+  test('waits for a run that is not filed yet, then is saved with it', async () => {
+    mockedSave.mockResolvedValue('entry-2');
+    await enqueueWatchRun(run('e2'));
+
+    await receiveWatchRunEffort('e2', 4);
+    expect(setExerciseEntryEffort).not.toHaveBeenCalled();
+
+    await processWatchRunQueue('km');
+    expect(setExerciseEntryEffort).toHaveBeenCalledWith('entry-2', 4);
+  });
+
+  test('also rates the program workout the run completed', async () => {
+    mockedSave.mockResolvedValue('entry-3');
+    await enqueueWatchRun(programRun('e3'));
+    await processWatchRunQueue('km');
+
+    await receiveWatchRunEffort('e3', 9);
+
+    expect(setExerciseEntryEffort).toHaveBeenCalledWith('entry-3', 9);
+    expect(rateProgramWorkout).toHaveBeenCalledWith('beginner5k', 4, 9);
+  });
+
+  test('is saved once, not again by later passes', async () => {
+    mockedSave.mockResolvedValue('entry-4');
+    await enqueueWatchRun(run('e4'));
+    await processWatchRunQueue('km');
+    await receiveWatchRunEffort('e4', 6);
+    await enqueueWatchRun(run('e4b'));
+    await processWatchRunQueue('km');
+
+    expect(setExerciseEntryEffort).toHaveBeenCalledTimes(1);
+  });
+
+  test('a failure that may pass keeps the rating for the next pass', async () => {
+    mockedSave.mockResolvedValue('entry-5');
+    await enqueueWatchRun(run('e5'));
+    await processWatchRunQueue('km');
+    jest
+      .mocked(setExerciseEntryEffort)
+      .mockRejectedValueOnce(new ApiError('down', 503));
+
+    await receiveWatchRunEffort('e5', 8);
+    expect(setExerciseEntryEffort).toHaveBeenCalledTimes(1);
+
+    await enqueueWatchRun(run('e5b'));
+    mockedSave.mockResolvedValue('entry-5b');
+    await processWatchRunQueue('km');
+    expect(setExerciseEntryEffort).toHaveBeenCalledTimes(2);
+    expect(setExerciseEntryEffort).toHaveBeenLastCalledWith('entry-5', 8);
+  });
+
+  test('a rating the server will never accept is dropped, not retried', async () => {
+    mockedSave.mockResolvedValue('entry-6');
+    await enqueueWatchRun(run('e6'));
+    await processWatchRunQueue('km');
+    jest
+      .mocked(setExerciseEntryEffort)
+      .mockRejectedValueOnce(new ApiError('gone', 404));
+
+    await receiveWatchRunEffort('e6', 5);
+    await enqueueWatchRun(run('e6b'));
+    await processWatchRunQueue('km');
+
+    expect(setExerciseEntryEffort).toHaveBeenCalledTimes(1);
+  });
+
+  test('ignores a rating outside 1-10 or without a run', async () => {
+    await receiveWatchRunEffort('x', 0);
+    await receiveWatchRunEffort('x', 11);
+    await receiveWatchRunEffort('x', 6.5);
+    await receiveWatchRunEffort('', 5);
+    expect(await AsyncStorage.getItem('@SparkyFitness/watchRunEffort')).toBe(
+      null
+    );
   });
 });

@@ -134,3 +134,5 @@
 "watch.route.startAway" = "Start is %@ away";
 "watch.route.north" = "N";
 "watch.route.climbAhead" = "Climb ahead: +%@ in %@";
+"watch.effort.title" = "How hard was that?";
+"watch.effort.saved" = "Saved to Health";

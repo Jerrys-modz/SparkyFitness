@@ -179,6 +179,8 @@ export const exerciseActivityQueryItemSchema = z.object({
   verticalRatioPercent: z.number().nullable().optional(),
   /** Average running power in watts, as the device measured it. */
   avgPowerWatts: z.number().nullable().optional(),
+  /** The person's own 1 (easy) to 10 (maximal) rating of the workout. */
+  workoutEffort: z.number().int().min(1).max(10).nullable().optional(),
   source: z.string().nullable(),
   notes: z.string().nullable(),
   hasGpsTrack: z.boolean(),

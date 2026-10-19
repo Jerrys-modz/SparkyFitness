@@ -621,6 +621,12 @@ export interface WatchSetTimerStartedPayload {
   armedAt?: number;
 }
 
+/** How hard the wearer rated a finished strength workout, 1 to 10. */
+export interface WatchWorkoutEffortPayload {
+  sessionId: string;
+  rating: number;
+}
+
 export interface WatchWorkoutStopPayload {
   sessionId: string;
 }
@@ -787,6 +793,12 @@ export interface WatchRunCuePayload {
   text: string;
   /** Say it now rather than after the cue being spoken. */
   interrupt: boolean;
+}
+
+/** How hard the wearer rated a finished watch run, 1 to 10. Matches a run by `clientId`. */
+export interface WatchRunEffortPayload {
+  clientId: string;
+  rating: number;
 }
 
 export interface WatchRunLivePayload {
@@ -975,6 +987,7 @@ export type WatchConnectivityEvents = {
   onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
   onLiveHeartRate: (payload: WatchLiveHeartRatePayload) => void;
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
+  onWorkoutEffort: (payload: WatchWorkoutEffortPayload) => void;
   onWorkoutDiscard: (payload: WatchWorkoutDiscardPayload) => void;
   onWorkoutStartRequested: (payload: WatchWorkoutStartRequestedPayload) => void;
   onWorkoutEdit: (payload: WatchWorkoutEditPayload) => void;
@@ -987,6 +1000,7 @@ export type WatchConnectivityEvents = {
   onRunCue: (payload: WatchRunCuePayload) => void;
   onRunFinished: (payload: WatchRunFinishedPayload) => void;
   onRouteLibrary: (payload: WatchRouteLibraryPayload) => void;
+  onRunEffort: (payload: WatchRunEffortPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {

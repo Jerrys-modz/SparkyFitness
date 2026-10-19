@@ -15,6 +15,7 @@ import {
   Flame,
   Clock,
   Activity,
+  Gauge,
   Layers,
   MapPin,
 } from 'lucide-react';
@@ -96,6 +97,15 @@ const ExercisePresetEntryDisplay: React.FC<ExercisePresetEntryDisplayProps> = ({
             withHR.length
         )
       : 0;
+  })();
+
+  // A strength session stores the person's rating on every exercise, so any
+  // one that has it speaks for the session.
+  const effort = (() => {
+    const ratings = (presetEntry.exercises ?? [])
+      .map((ex) => ex.workout_effort)
+      .filter((value): value is number => typeof value === 'number');
+    return ratings.length > 0 ? Math.max(...ratings) : null;
   })();
 
   const earliestTime = earliestEntryTime(presetEntry.exercises ?? []);
@@ -287,7 +297,9 @@ const ExercisePresetEntryDisplay: React.FC<ExercisePresetEntryDisplayProps> = ({
 
           {/* Stats strip */}
           {hasExercises && (
-            <div className="mx-4 mb-4 mt-1 grid grid-cols-4 divide-x divide-gray-100 dark:divide-gray-800 bg-gray-50 dark:bg-gray-800/60 rounded-lg overflow-hidden">
+            <div
+              className={`mx-4 mb-4 mt-1 grid ${effort != null ? 'grid-cols-5' : 'grid-cols-4'} divide-x divide-gray-100 dark:divide-gray-800 bg-gray-50 dark:bg-gray-800/60 rounded-lg overflow-hidden`}
+            >
               <StatCell
                 icon={<Layers className="w-3 h-3" />}
                 value={String(totalSets)}
@@ -306,6 +318,17 @@ const ExercisePresetEntryDisplay: React.FC<ExercisePresetEntryDisplayProps> = ({
                 label={t('common.avgHrUnit', 'Avg HR')}
                 color="text-rose-500 dark:text-rose-400"
               />
+              {effort != null && (
+                <StatCell
+                  icon={<Gauge className="w-3 h-3" />}
+                  value={t('exerciseCard.effortOutOf', {
+                    defaultValue: '{{rating}}/10',
+                    rating: effort,
+                  })}
+                  label={t('exerciseCard.effort', 'Effort')}
+                  color="text-purple-600 dark:text-purple-400"
+                />
+              )}
               <StatCell
                 icon={<Flame className="w-3 h-3" />}
                 value={String(totalCalories)}

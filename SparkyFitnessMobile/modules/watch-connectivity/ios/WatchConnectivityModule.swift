@@ -33,6 +33,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onLiveHeartRate: (([String: Any]) -> Void)?
     /// The wearer ended the workout on the watch.
     var onWorkoutStop: (([String: Any]) -> Void)?
+    /// How hard the wearer rated a finished strength workout (1-10).
+    var onWorkoutEffort: (([String: Any]) -> Void)?
     var onWorkoutDiscard: (([String: Any]) -> Void)?
     /// The wearer picked a saved workout on the watch. The phone starts it.
     var onWorkoutStartRequested: (([String: Any]) -> Void)?
@@ -53,6 +55,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onRunFinished: (([String: Any]) -> Void)?
     /// Which routes the watch holds, and which it turned away.
     var onRouteLibrary: (([String: Any]) -> Void)?
+    /// How hard the wearer rated a finished run (1-10).
+    var onRunEffort: (([String: Any]) -> Void)?
 
     /// The newest `setTargets` update sent before the session finished
     /// activating. Apple only queues `transferUserInfo` on an activated
@@ -129,6 +133,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onLiveHeartRate?(payload)
         case "workoutStop":
             onWorkoutStop?(payload)
+        case "workoutEffort":
+            onWorkoutEffort?(payload)
         case "workoutDiscard":
             onWorkoutDiscard?(payload)
         case "workoutStartRequested":
@@ -153,6 +159,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onRunFinished?(payload)
         case "routeLibrary":
             onRouteLibrary?(payload)
+        case "runEffort":
+            onRunEffort?(payload)
         default:
             break
         }
@@ -307,6 +315,7 @@ public class WatchConnectivityModule: Module {
             "onHeartRateBatch",
             "onLiveHeartRate",
             "onWorkoutStop",
+            "onWorkoutEffort",
             "onWorkoutDiscard",
             "onWorkoutStartRequested",
             "onWorkoutEdit",
@@ -318,7 +327,8 @@ public class WatchConnectivityModule: Module {
             "onRunLive",
             "onRunCue",
             "onRunFinished",
-            "onRouteLibrary"
+            "onRouteLibrary",
+            "onRunEffort"
         )
 
         OnCreate {
@@ -463,6 +473,12 @@ public class WatchConnectivityModule: Module {
                     "at": at,
                 ])
             }
+            self.delegateHandler.onWorkoutEffort = { [weak self] payload in
+                self?.sendEvent("onWorkoutEffort", [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "rating": payload["rating"] as? Int ?? 0,
+                ])
+            }
             self.delegateHandler.onWorkoutStop = { [weak self] payload in
                 self?.sendEvent("onWorkoutStop", [
                     "sessionId": payload["sessionId"] as? String ?? "",
@@ -569,6 +585,12 @@ public class WatchConnectivityModule: Module {
                     "rejected": rejected,
                     "capacity": (payload["capacity"] as? NSNumber)?.intValue ?? 0,
                     "sentAt": (payload["sentAt"] as? NSNumber)?.doubleValue ?? 0,
+                ])
+            }
+            self.delegateHandler.onRunEffort = { [weak self] payload in
+                self?.sendEvent("onRunEffort", [
+                    "clientId": payload["clientId"] as? String ?? "",
+                    "rating": payload["rating"] as? Int ?? 0,
                 ])
             }
             self.delegateHandler.activate()

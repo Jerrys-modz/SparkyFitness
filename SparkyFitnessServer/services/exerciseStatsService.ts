@@ -579,6 +579,7 @@ async function queryExerciseActivities(
         floors_climbed, elevation_gain_meters,
         avg_cadence, stride_length_cm,
         ground_contact_time_ms, vertical_oscillation_mm, avg_power_watts,
+        workout_effort,
         EXISTS (
           SELECT 1 FROM public.exercise_entry_gps_points g
           WHERE g.exercise_entry_id = exercise_entries.id
@@ -643,6 +644,10 @@ async function queryExerciseActivities(
             positiveOrNull(row.stride_length_cm, 1)
           ),
           avgPowerWatts: positiveOrNull(row.avg_power_watts, 0),
+          workoutEffort:
+            row.workout_effort !== null && row.workout_effort !== undefined
+              ? Number(row.workout_effort)
+              : null,
           source: row.source ? String(row.source) : null,
           notes: row.notes ? String(row.notes) : null,
           hasGpsTrack: row.has_gps_track === true,
