@@ -1,4 +1,7 @@
-import { getStepsBetween } from '../../src/services/stepCounter';
+import {
+  getHealthStepsBetween,
+  getStepsBetween,
+} from '../../src/services/stepCounter';
 import { getStride, learnStride } from '../../src/services/strideCalibration';
 import {
   estimateIndoorDistance,
@@ -14,6 +17,7 @@ jest.mock('../../src/services/stepCounter');
 jest.mock('../../src/services/strideCalibration');
 
 const mockedSteps = jest.mocked(getStepsBetween);
+const mockedHealthSteps = jest.mocked(getHealthStepsBetween);
 const mockedStride = jest.mocked(getStride);
 const mockedLearn = jest.mocked(learnStride);
 
@@ -29,6 +33,7 @@ const window = (overrides: Partial<StepWindow> = {}): StepWindow => ({
 beforeEach(() => {
   jest.clearAllMocks();
   mockedSteps.mockResolvedValue(3900);
+  mockedHealthSteps.mockResolvedValue(null);
   mockedStride.mockResolvedValue({ meters: 0.8, calibrated: true });
   mockedLearn.mockResolvedValue(true);
 });
@@ -183,6 +188,17 @@ describe('measureOutdoorForm', () => {
 });
 
 describe('measureWatchRunForm', () => {
+  it('prefers the steps Apple Health holds, so the phone can be left behind', async () => {
+    mockedHealthSteps.mockResolvedValue(5000);
+    mockedSteps.mockResolvedValue(10);
+
+    expect(
+      await measureWatchRunForm(window({ activity: 'run' }), 4500)
+    ).toEqual({ avgCadence: 167, strideLengthCm: 90, steps: 5000 });
+    expect(mockedHealthSteps).toHaveBeenCalledWith(START, START + 30 * 60_000);
+    expect(mockedSteps).not.toHaveBeenCalled();
+  });
+
   it('works cadence and stride out of the steps over the watch window', async () => {
     mockedSteps.mockResolvedValue(5000);
 

@@ -1,4 +1,4 @@
-import { getStepsBetween } from './stepCounter';
+import { getHealthStepsBetween, getStepsBetween } from './stepCounter';
 import { getStride, learnStride } from './strideCalibration';
 import {
   activeShare,
@@ -149,7 +149,22 @@ export async function measureWatchRunForm(
   window: StepWindow,
   distanceMeters: number
 ): Promise<WatchRunForm | null> {
-  const steps = await activeSteps(window, false);
+  // A watch run: Apple Health's steps (the watch writes them, so the phone
+  // can be left behind), else whatever the phone's pedometer counted.
+  const health = await getHealthStepsBetween(
+    window.startedAt,
+    window.finishedAt
+  );
+  const steps =
+    health != null
+      ? Math.round(
+          health *
+            activeShare(
+              window.activeSeconds,
+              (window.finishedAt - window.startedAt) / 1000
+            )
+        )
+      : await activeSteps(window, false);
   if (steps == null) return null;
   const metrics = computeFormMetrics(
     steps,
