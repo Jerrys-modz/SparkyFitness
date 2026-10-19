@@ -93,6 +93,8 @@ const REQUIRED_KEYS = [
   'widget_fat',
   'widget_search_food',
   'widget_scan_barcode',
+  'tile_log_water',
+  'tile_calories_left',
   'widget_preview_calories_left',
   'widget_preview_macros_left',
   'widget_preview_grams_protein',
@@ -129,6 +131,7 @@ const KOTLIN_TEMPLATES = [
   'MacroWidgetReceiver.kt.tmpl',
   'CalorieWidgetModule.kt.tmpl',
   'WidgetLocale.kt.tmpl',
+  'QuickSettingsTiles.kt.tmpl',
 ];
 
 const WIDGET_INFO_XMLS = [
@@ -289,6 +292,23 @@ describe('Android widget localization contract', () => {
       // Classic one-line header: no caption/value split in the macro widget.
       expect(macroSrc).not.toMatch(/R\.string\.widget_kcal_left_caption/);
       expect(macroSrc).not.toMatch(/R\.string\.widget_kcal_left_value/);
+    });
+
+    it('renders the Quick Settings tiles in the widget language from resources', () => {
+      const src = fs.readFileSync(
+        path.join(KOTLIN_ROOT, 'QuickSettingsTiles.kt.tmpl'),
+        'utf8'
+      );
+      expect(src).toMatch(
+        /render\(tile, WidgetLocale\.localizedContext\(this\)\)/
+      );
+      expect(src).toMatch(/context\.getString\(labelRes\)/);
+      expect(src).toMatch(
+        /context\.getString\(R\.string\.tile_log_water_pending\)/
+      );
+      expect(src).toMatch(/R\.string\.widget_kcal_left/);
+      // No label or subtitle set from a hardcoded string.
+      expect(src).not.toMatch(/tile\.(label|subtitle) = "/);
     });
 
     it('localizes accessibility labels in the Kotlin widgets', () => {

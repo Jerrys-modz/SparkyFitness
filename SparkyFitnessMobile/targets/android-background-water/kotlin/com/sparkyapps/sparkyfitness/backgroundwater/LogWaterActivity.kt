@@ -1,11 +1,13 @@
 package com.sparkyapps.sparkyfitness.backgroundwater
 
 import android.app.Activity
+import android.content.ComponentName
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.service.quicksettings.TileService
 import android.widget.Toast
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
@@ -27,27 +29,79 @@ import java.util.Locale
 class LogWaterActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        try {
-            val requestBuilder = OneTimeWorkRequestBuilder<LogWaterWorker>()
-            // Before Android 12 an expedited job runs as a foreground service,
-            // and this worker does not supply ForegroundInfo.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                requestBuilder.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-            }
-            val request = requestBuilder.build()
-            WorkManager.getInstance(applicationContext).enqueue(request)
-        } catch (e: Exception) {
-            toast(applicationContext, "SparkyFitness could not log the water")
-        }
+        enqueueLogWater(applicationContext)
         finish()
     }
 }
 
-/** Owns the shortcut POST after [LogWaterActivity] has finished. */
+/**
+ * Logs one drink in the background and reports the result, as a Toast and
+ * through [LogWaterOutcome]. Shared by the launcher shortcut and the Quick
+ * Settings tile (targets/android-widget).
+ */
+fun enqueueLogWater(context: Context) {
+    try {
+        val requestBuilder = OneTimeWorkRequestBuilder<LogWaterWorker>()
+        // Before Android 12 an expedited job runs as a foreground service,
+        // and this worker does not supply ForegroundInfo.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            requestBuilder.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+        }
+        val request = requestBuilder.build()
+        WorkManager.getInstance(context).enqueue(request)
+    } catch (e: Exception) {
+        val message = "SparkyFitness could not log the water"
+        LogWaterOutcome.finished(context, message)
+        toast(context, message)
+    }
+}
+
+/** Owns the POST that [enqueueLogWater] queued, after its caller has gone. */
 class LogWaterWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
     override fun doWork(): Result {
-        toast(applicationContext, logWater(applicationContext))
+        val message = logWater(applicationContext)
+        LogWaterOutcome.finished(applicationContext, message)
+        toast(applicationContext, message)
         return Result.success()
+    }
+}
+
+/**
+ * How the last log went, for the Quick Settings tile: a Toast is hidden behind
+ * the open panel and the lock screen, so the tile shows this for a minute.
+ */
+object LogWaterOutcome {
+    private const val PREFS = "sparky_background_water_outcome"
+    private const val KEY_AT = "at"
+    private const val KEY_MESSAGE = "message"
+    private const val SHOWN_FOR_MS = 60_000L
+    private const val TILE = "com.sparkyapps.sparkyfitness.widget.LogWaterTileService"
+
+    /** A log was just asked for; [recent] reads "" until it has finished. */
+    fun started(context: Context) = write(context, "")
+
+    fun finished(context: Context, message: String) {
+        write(context, message)
+        try {
+            // Draws the tile again if the panel is open.
+            TileService.requestListeningState(context, ComponentName(context.packageName, TILE))
+        } catch (e: Exception) {
+            // The tile may not be in the panel at all.
+        }
+    }
+
+    /** "" while a log is running, its message once done, null after a minute. */
+    fun recent(context: Context): String? {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (System.currentTimeMillis() - prefs.getLong(KEY_AT, 0L) > SHOWN_FOR_MS) return null
+        return prefs.getString(KEY_MESSAGE, null)
+    }
+
+    private fun write(context: Context, message: String) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putLong(KEY_AT, System.currentTimeMillis())
+            .putString(KEY_MESSAGE, message)
+            .apply()
     }
 }
 

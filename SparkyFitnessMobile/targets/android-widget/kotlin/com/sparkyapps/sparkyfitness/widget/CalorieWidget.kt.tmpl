@@ -169,7 +169,7 @@ class CalorieWidget : GlanceAppWidget() {
         }
     }
 
-    private data class CalorieSnapshot(
+    internal data class CalorieSnapshot(
         val date: String,
         val remaining: Double,
         val goal: Double,
@@ -177,50 +177,52 @@ class CalorieWidget : GlanceAppWidget() {
         val lastUpdated: Long,
     )
 
-    private fun loadSnapshot(context: Context): CalorieSnapshot? {
-        val prefs = context.getSharedPreferences(
-            CalorieWidgetReceiver.PREFS_NAME,
-            Context.MODE_PRIVATE,
-        )
-        return parseSnapshot(prefs.getString(CalorieWidgetReceiver.PREFS_KEY_SNAPSHOT, null))
-    }
-
-    private fun parseSnapshot(json: String?): CalorieSnapshot? {
-        if (json == null) return null
-        return try {
-            val obj = JSONObject(json)
-            val date = obj.optString("date", "")
-            if (!isToday(date)) return null
-            CalorieSnapshot(
-                date = date,
-                remaining = obj.optDouble("remaining", 0.0),
-                goal = obj.optDouble("goal", 0.0),
-                progress = obj.optDouble("progress", 0.0),
-                lastUpdated = obj.optLong("lastUpdated", 0L),
-            )
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun isToday(date: String): Boolean {
-        if (date.isBlank()) return false
-        return try {
-            val parsed = LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE)
-            parsed == LocalDate.now()
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    private fun formatInt(context: Context, value: Double): String {
-        // Pre-localization rounding preserved: the calorie widget truncates
-        // (1240.7 -> 1240) — see 22415819.
-        return formatWidgetInt(context, value.toLong())
-    }
-
     companion object {
         val SNAPSHOT_STATE_KEY = stringPreferencesKey(CalorieWidgetReceiver.PREFS_KEY_SNAPSHOT)
+
+        /** Also used by the Calories left Quick Settings tile, so both show the same figure. */
+        internal fun formatInt(context: Context, value: Double): String {
+            // Pre-localization rounding preserved: the calorie widget truncates
+            // (1240.7 -> 1240) — see 22415819.
+            return formatWidgetInt(context, value.toLong())
+        }
+
+        /** Today's snapshot, also read by the Calories left Quick Settings tile. */
+        internal fun loadSnapshot(context: Context): CalorieSnapshot? {
+            val prefs = context.getSharedPreferences(
+                CalorieWidgetReceiver.PREFS_NAME,
+                Context.MODE_PRIVATE,
+            )
+            return parseSnapshot(prefs.getString(CalorieWidgetReceiver.PREFS_KEY_SNAPSHOT, null))
+        }
+
+        private fun parseSnapshot(json: String?): CalorieSnapshot? {
+            if (json == null) return null
+            return try {
+                val obj = JSONObject(json)
+                val date = obj.optString("date", "")
+                if (!isToday(date)) return null
+                CalorieSnapshot(
+                    date = date,
+                    remaining = obj.optDouble("remaining", 0.0),
+                    goal = obj.optDouble("goal", 0.0),
+                    progress = obj.optDouble("progress", 0.0),
+                    lastUpdated = obj.optLong("lastUpdated", 0L),
+                )
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        private fun isToday(date: String): Boolean {
+            if (date.isBlank()) return false
+            return try {
+                val parsed = LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE)
+                parsed == LocalDate.now()
+            } catch (e: Exception) {
+                false
+            }
+        }
     }
 }
 

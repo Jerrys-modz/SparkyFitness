@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import {
   LAUNCH_GUARD,
   addQuickActionLaunchGuard,
@@ -32,6 +34,15 @@ describe('addQuickActionLaunchGuard', () => {
     expect(
       result.indexOf('SplashScreenManager.registerOnActivity')
     ).toBeLessThan(result.indexOf(LAUNCH_GUARD));
+  });
+
+  it("also drops the app's own links, so a tile or widget link is not replayed", () => {
+    const { scheme } = JSON.parse(
+      fs.readFileSync(path.join(__dirname, '../../app.json'), 'utf8')
+    ).expo;
+    expect(LAUNCH_GUARD).toContain('intent?.action == Intent.ACTION_VIEW');
+    expect(LAUNCH_GUARD).toContain(`intent?.data?.scheme == "${scheme}"`);
+    expect(LAUNCH_GUARD).toContain('.setData(null)');
   });
 
   it('changes nothing on a second run', () => {
