@@ -175,6 +175,71 @@ describe('ProgressPhotoTimelapseDialog', () => {
     ).toBeNull();
   });
 
+  const outgoingFrame = () =>
+    document.querySelector(
+      'img[src="/api/measurements/check-in-photos/file/2026-05-10-front"]'
+    );
+
+  it('drops the outgoing frame once the fade has finished', () => {
+    renderDialog();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next photo' }));
+    // Loading alone is not enough: the new frame is still fading in over it.
+    fireEvent.load(shownFrame());
+    expect(outgoingFrame()).not.toBeNull();
+
+    fireEvent.animationEnd(shownFrame());
+    expect(outgoingFrame()).toBeNull();
+  });
+
+  describe('with reduced motion', () => {
+    let matchMedia: jest.SpyInstance;
+
+    beforeEach(() => {
+      matchMedia = jest
+        .spyOn(window, 'matchMedia')
+        .mockImplementation((query: string) => ({
+          matches: query === '(prefers-reduced-motion: reduce)',
+          media: query,
+          onchange: null,
+          addListener: jest.fn(),
+          removeListener: jest.fn(),
+          addEventListener: jest.fn(),
+          removeEventListener: jest.fn(),
+          dispatchEvent: jest.fn(),
+        }));
+    });
+
+    afterEach(() => {
+      matchMedia.mockRestore();
+    });
+
+    it('drops the outgoing frame once the new one loads', () => {
+      renderDialog();
+      fireEvent.click(screen.getByRole('button', { name: 'Next photo' }));
+      expect(outgoingFrame()).not.toBeNull();
+
+      // No fade runs, so there is no animationend to wait for.
+      fireEvent.load(shownFrame());
+      expect(outgoingFrame()).toBeNull();
+    });
+
+    it('keeps nothing underneath after stepping back before a frame loads', () => {
+      renderDialog();
+      fireEvent.click(screen.getByRole('button', { name: 'Next photo' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Previous photo' }));
+
+      // The first frame's image is reused and fires no load event, so the
+      // second one must not be left mounted under it.
+      expect(shownFrame()).toHaveAttribute('alt', '2026-05-10');
+      expect(
+        document.querySelector(
+          'img[src="/api/measurements/check-in-photos/file/2026-06-01-front"]'
+        )
+      ).toBeNull();
+    });
+  });
+
   it('shows the empty state with fewer than two photos of the angle', () => {
     renderDialog([frontDay('2026-06-20')]);
 

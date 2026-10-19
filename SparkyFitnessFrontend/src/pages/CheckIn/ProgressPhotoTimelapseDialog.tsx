@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/select';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { checkInPhotoFileUrl } from '@/hooks/CheckIn/useCheckInPhotos';
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 import { defaultAngle } from '@/utils/progressPhotos';
 import { PhotoAngleToggle, PhotoDayWeight } from './ProgressPhotoControls';
 
@@ -181,12 +182,17 @@ const TimelapseContent = ({ days, onLogWeight }: TimelapseContentProps) => {
 
   // The outgoing frame stays underneath while the new one fades in on top, so
   // the two overlap into a dissolve rather than a cut.
+  const reduceMotion = usePrefersReducedMotion();
   const [shown, setShown] = useState<{
     id: string | null;
     previous: string | null;
   }>({ id: currentId, previous: null });
   if (shown.id !== currentId) {
-    setShown({ id: currentId, previous: shown.id });
+    // Stepping back onto the frame still underneath reuses its image, which
+    // has already loaded and so fires no load event. With no fade to wait for,
+    // nothing needs to stay under it.
+    const reused = reduceMotion && currentId === shown.previous;
+    setShown({ id: currentId, previous: reused ? null : shown.id });
   }
 
   const togglePlay = () => {
@@ -337,6 +343,9 @@ const TimelapseContent = ({ days, onLogWeight }: TimelapseContentProps) => {
 
   const currentFailed = failedIds.has(currentId);
 
+  const clearPrevious = () =>
+    setShown((s) => (s.id === currentId ? { ...s, previous: null } : s));
+
   return (
     <div className="flex flex-col items-center gap-3">
       {controls}
@@ -369,11 +378,12 @@ const TimelapseContent = ({ days, onLogWeight }: TimelapseContentProps) => {
             className="absolute inset-0 h-full w-full object-cover animate-in fade-in-0 motion-reduce:animate-none"
             style={{ animationDuration: `${fadeMs}ms` }}
             // Once the dissolve is over the outgoing frame is fully covered.
-            onAnimationEnd={() =>
-              setShown((s) =>
-                s.id === currentId ? { ...s, previous: null } : s
-              )
-            }
+            onAnimationEnd={clearPrevious}
+            // With reduced motion there is no fade, so no animationend to wait
+            // for: the outgoing frame goes as soon as this one is on screen.
+            onLoad={() => {
+              if (reduceMotion) clearPrevious();
+            }}
             onError={() => setFailedIds((ids) => new Set(ids).add(currentId))}
           />
         )}
