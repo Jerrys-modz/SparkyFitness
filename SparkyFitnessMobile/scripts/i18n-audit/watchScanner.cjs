@@ -11,7 +11,7 @@ const IGNORE_MARKER = 'i18n-ignore';
 // treats a bare literal as a LocalizedStringKey, but the watch catalog uses
 // semantic keys, so a bare literal never gets translated.
 const UI_CALL =
-  /\b(?:Text|Button|Label|Toggle|Section|NavigationLink|Picker|TextField|Link|navigationTitle|accessibilityLabel|accessibilityHint)\(\s*"/g;
+  /\b(?:Text|Button|Label|Toggle|Section|NavigationLink|Picker|TextField|Link|navigationTitle|accessibilityLabel|accessibilityHint|alert|confirmationDialog)\(\s*"/g;
 
 function listSwiftFiles(dir) {
   if (!fs.existsSync(dir)) return [];

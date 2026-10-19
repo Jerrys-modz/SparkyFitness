@@ -497,7 +497,7 @@ private struct ActiveWorkoutView: View {
         // Asked when Finish is tapped on a workout that changed from the saved
         // one it started from, as Hevy does. Only buttons close it.
         .alert(
-            "Update Workout?",
+            String(localized: "watch.workout.updatePresetTitle", defaultValue: "Update Workout?"),
             isPresented: Binding(
                 get: { store.askingPresetUpdate },
                 set: { _ in }

@@ -39,7 +39,7 @@ struct SetOptionsPage: View {
             }
         }
         .confirmationDialog(
-            "Delete this set?",
+            String(localized: "watch.workout.deleteSetConfirm", defaultValue: "Delete this set?"),
             isPresented: $confirmingDelete,
             titleVisibility: .visible
         ) {
@@ -114,7 +114,7 @@ struct ExerciseOptionsPage: View {
         }
         .sheet(isPresented: $addingExercise) { AddExerciseSheet() }
         .confirmationDialog(
-            "Delete \(step.exerciseName)?",
+            String(localized: "watch.workout.deleteExerciseConfirm", defaultValue: "Delete \(step.exerciseName)?"),
             isPresented: $confirmingDelete,
             titleVisibility: .visible
         ) {
@@ -251,7 +251,7 @@ private struct EndWorkoutDialogs: ViewModifier {
     func body(content: Content) -> some View {
         content
             .confirmationDialog(
-                "Finish workout?",
+                String(localized: "watch.workout.finishConfirm", defaultValue: "Finish workout?"),
                 isPresented: $confirmingFinish,
                 titleVisibility: .visible
             ) {
@@ -268,7 +268,7 @@ private struct EndWorkoutDialogs: ViewModifier {
                 Text(String(localized: "watch.workout.finishMessage", defaultValue: "Heart rate for this session is sent to your phone."))
             }
             .confirmationDialog(
-                "Discard workout?",
+                String(localized: "watch.workout.discardConfirm", defaultValue: "Discard workout?"),
                 isPresented: $confirmingDiscard,
                 titleVisibility: .visible
             ) {

@@ -153,3 +153,8 @@
 "watch.common.done" = "Done";
 "watch.workout.done" = "Workout done";
 "watch.workout.newPr" = "New PR!";
+"watch.workout.deleteSetConfirm" = "Delete this set?";
+"watch.workout.deleteExerciseConfirm" = "Delete %@?";
+"watch.workout.finishConfirm" = "Finish workout?";
+"watch.workout.discardConfirm" = "Discard workout?";
+"watch.workout.updatePresetTitle" = "Update Workout?";

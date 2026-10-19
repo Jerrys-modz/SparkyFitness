@@ -47,12 +47,19 @@ describe('watch i18n audit', () => {
         'Text(String(localized: "watch.ok", defaultValue: "OK"))',
         'Text("\\(value) \\(unit)")',
         'Text("--")',
+        '.alert(\n"Update?", isPresented: $a) {}',
+        '.confirmationDialog(\n"Delete?", isPresented: $b) {}',
         'Text("Raw") // i18n-ignore',
       ].join('\n'),
       '"watch.ok" = "OK";\n'
     );
     const found = scanBareLiterals(root).map((f: { text: string }) => f.text);
-    expect(found).toEqual(['Nothing logged yet', 'Add Set']);
+    expect(found).toEqual([
+      'Nothing logged yet',
+      'Add Set',
+      'Update?',
+      'Delete?',
+    ]);
     expect(auditWatch(root).hasErrors).toBe(true);
   });
 
