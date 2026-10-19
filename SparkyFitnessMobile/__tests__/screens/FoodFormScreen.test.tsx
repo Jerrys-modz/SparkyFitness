@@ -179,6 +179,7 @@ let mockSubmittedFoodFormData: any;
 let mockUnitSelectionResult: any;
 let mockEquivalentDraft: EquivalentUnit[] = [];
 let mockPortionDraft: EditableFoodPortion[] = [];
+let mockCustomNutrientDraft: Record<string, number> = {};
 
 jest.mock('../../src/components/FoodForm', () => {
   const React = require('react');
@@ -218,6 +219,15 @@ jest.mock('../../src/components/FoodForm', () => {
               onPress={() => props.portions.onChange(mockPortionDraft)}
             >
               <Text>Apply Portion Fixture</Text>
+            </Pressable>
+          ) : null}
+          {props.onCustomNutrientsChange ? (
+            <Pressable
+              onPress={() =>
+                props.onCustomNutrientsChange?.(mockCustomNutrientDraft)
+              }
+            >
+              <Text>Apply Custom Nutrient Fixture</Text>
             </Pressable>
           ) : null}
           <Pressable onPress={() => onSubmit(mockSubmittedFoodFormData)}>
@@ -333,6 +343,139 @@ describe('FoodFormScreen', () => {
       </SafeAreaProvider>
     );
 
+  const renderFailedEntryRetry = () => {
+    mockSubmittedFoodFormData = {
+      ...mockSubmittedFoodFormData,
+      notes: '',
+      caffeineMg: '',
+      waterMl: '',
+      alcoholG: '',
+    };
+    const state: {
+      food: FoodItem | null;
+      rows: FoodVariantDetail[];
+      failure:
+        'metadata-response' | 'variant-write' | 'variant-response' | null;
+    } = { food: null, rows: [], failure: null };
+    let createdFoods = 0;
+    jest.mocked(saveFood).mockImplementation(async (payload) => {
+      const foodId = `food-${++createdFoods}`;
+      const variant: FoodVariantDetail = {
+        ...payload,
+        id: `reference-${foodId}`,
+        food_id: foodId,
+      };
+      state.rows.push(variant);
+      state.food = {
+        id: foodId,
+        name: payload.name,
+        brand: payload.brand,
+        notes: payload.notes,
+        barcode: payload.barcode,
+        is_quick_food: payload.is_quick_food,
+        is_custom: true,
+        default_variant: variant,
+      };
+      return state.food;
+    });
+    mockSaveFoodAsync.mockImplementation(
+      (...args: Parameters<typeof saveFood>) => saveFood(...args)
+    );
+    jest
+      .mocked(fetchFoodVariants)
+      .mockImplementation(async (foodId) =>
+        state.rows.filter((row) => row.food_id === foodId)
+      );
+    jest.mocked(updateFood).mockImplementation(async (foodId, payload) => {
+      if (state.food?.id !== foodId) throw new Error('Unknown food');
+      state.food = { ...state.food, ...payload };
+      if (state.failure === 'metadata-response') {
+        state.failure = null;
+        throw new Error('metadata response lost after commit');
+      }
+      return state.food;
+    });
+    jest.mocked(updateFoodVariant).mockImplementation(async (id, payload) => {
+      if (state.failure === 'variant-write') {
+        state.failure = null;
+        throw new Error('variant write failed');
+      }
+      const variant = { ...payload, id };
+      state.rows = state.rows.map((row) => (row.id === id ? variant : row));
+      if (state.food?.default_variant.id === id)
+        state.food = { ...state.food, default_variant: variant };
+      if (state.failure === 'variant-response') {
+        state.failure = null;
+        throw new Error('variant response lost after commit');
+      }
+      return variant;
+    });
+    jest
+      .mocked(createFoodEntry)
+      .mockRejectedValueOnce(new Error('entry write failed'))
+      .mockImplementation(async (payload) => {
+        const variant = state.rows.find((row) => row.id === payload.variant_id);
+        if (!variant) throw new Error('Unknown serving');
+        return {
+          id: 'entry-1',
+          food_id: payload.food_id,
+          variant_id: payload.variant_id,
+          quantity: payload.quantity,
+          unit: payload.unit,
+          entry_date: payload.entry_date,
+          meal_type: 'breakfast',
+          serving_size: variant.serving_size,
+          serving_unit: variant.serving_unit,
+          calories: variant.calories,
+          custom_nutrients: variant.custom_nutrients,
+        };
+      });
+    mockUseAddFoodEntry.mockImplementation(
+      jest.requireActual<typeof import('../../src/hooks/useAddFoodEntry')>(
+        '../../src/hooks/useAddFoodEntry'
+      ).useAddFoodEntry
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+    });
+    mockLiveQueryClient = queryClient;
+    const screen = render(
+      <QueryClientProvider client={queryClient}>
+        <SafeAreaProvider initialMetrics={{ insets, frame }}>
+          <FoodFormScreen
+            navigation={navigation}
+            route={{
+              key: 'FoodForm-key',
+              name: 'FoodForm',
+              params: {
+                mode: 'create-food',
+                date: '2026-04-23',
+                barcode: '1234567890123',
+              },
+            }}
+          />
+        </SafeAreaProvider>
+      </QueryClientProvider>
+    );
+    return { screen, state };
+  };
+
+  const expectFailedEntry = () =>
+    waitFor(() =>
+      expect(mockToast.show).toHaveBeenCalledWith(
+        expect.objectContaining({ text1: 'Failed to add food' })
+      )
+    );
+
+  const expectFailedRetry = () =>
+    waitFor(() =>
+      expect(mockToast.show).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text1: 'Could not save all portions. Try saving again.',
+        })
+      )
+    );
+
   beforeEach(async () => {
     await act(async () => {
       await initializeI18n('en');
@@ -343,6 +486,7 @@ describe('FoodFormScreen', () => {
     mockFoodForm.mockClear();
     mockPortionDraft = [];
     mockEquivalentDraft = [];
+    mockCustomNutrientDraft = {};
     jest.mocked(fetchFoodVariants).mockResolvedValue([]);
     mockSubmittedFoodFormData = {
       name: 'Custom Meal Food',
@@ -677,6 +821,176 @@ describe('FoodFormScreen', () => {
       );
     }
   );
+
+  it.each([
+    { barcode: '9876543210987', initiallySaved: true },
+    { barcode: '', initiallySaved: false },
+  ])(
+    'updates barcode and library choice on a saved-food retry: $barcode / $initiallySaved',
+    async ({ barcode, initiallySaved }) => {
+      const { screen, state } = renderFailedEntryRetry();
+      fireEvent(
+        screen.getByLabelText('Save to Database'),
+        'valueChange',
+        initiallySaved
+      );
+      fireEvent.press(screen.getByText('Add Food'));
+      await expectFailedEntry();
+      expect(state.food).toMatchObject({
+        barcode: '1234567890123',
+        is_quick_food: !initiallySaved,
+      });
+
+      fireEvent.changeText(
+        screen.getByPlaceholderText('012345678905'),
+        barcode
+      );
+      fireEvent(
+        screen.getByLabelText('Save to Database'),
+        'valueChange',
+        !initiallySaved
+      );
+      fireEvent.press(screen.getByText('Add Food'));
+      await waitFor(() => expect(navigation.dispatch).toHaveBeenCalled());
+
+      expect(saveFood).toHaveBeenCalledTimes(1);
+      expect(updateFood).toHaveBeenLastCalledWith(
+        'food-1',
+        { barcode: barcode || null, is_quick_food: initiallySaved },
+        undefined
+      );
+      expect(state.food).toMatchObject({
+        barcode: barcode || null,
+        is_quick_food: initiallySaved,
+      });
+      expect(createFoodEntry).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          food_id: 'food-1',
+          variant_id: 'reference-food-1',
+        })
+      );
+      expect(updateFoodVariant).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['variant-write', 'metadata-response'] as const)(
+    'restores reverted metadata after a saved-food retry fails at %s',
+    async (failure) => {
+      const { screen, state } = renderFailedEntryRetry();
+      const originalData = { ...mockSubmittedFoodFormData };
+      fireEvent.press(screen.getByText('Add Food'));
+      await expectFailedEntry();
+
+      mockSubmittedFoodFormData = {
+        ...originalData,
+        name: 'Changed food',
+        brand: 'Changed brand',
+        notes: 'Changed note',
+        calories: '300',
+      };
+      fireEvent.changeText(
+        screen.getByPlaceholderText('012345678905'),
+        '9876543210987'
+      );
+      fireEvent(
+        screen.getByLabelText('Save to Database'),
+        'valueChange',
+        false
+      );
+      state.failure = failure;
+      fireEvent.press(screen.getByText('Add Food'));
+      await expectFailedRetry();
+      expect(state.food).toMatchObject({
+        name: 'Changed food',
+        brand: 'Changed brand',
+        notes: 'Changed note',
+      });
+      expect(navigation.dispatch).not.toHaveBeenCalled();
+
+      mockSubmittedFoodFormData = { ...originalData, calories: '300' };
+      fireEvent.changeText(
+        screen.getByPlaceholderText('012345678905'),
+        '1234567890123'
+      );
+      fireEvent(screen.getByLabelText('Save to Database'), 'valueChange', true);
+      fireEvent.press(screen.getByText('Add Food'));
+      await waitFor(() => expect(navigation.dispatch).toHaveBeenCalled());
+
+      expect(state.food).toMatchObject({
+        name: originalData.name,
+        brand: originalData.brand,
+        notes: null,
+        barcode: '1234567890123',
+        is_quick_food: false,
+      });
+      expect(state.rows).toEqual([
+        expect.objectContaining({
+          id: 'reference-food-1',
+          calories: 300,
+        }),
+      ]);
+      expect(updateFood).toHaveBeenCalledTimes(2);
+      expect(saveFood).toHaveBeenCalledTimes(1);
+      expect(createFoodEntry).toHaveBeenLastCalledWith(
+        expect.objectContaining({ food_id: 'food-1' })
+      );
+    }
+  );
+
+  it('restores reverted serving, nutrition and custom nutrients after a lost saved-food retry response', async () => {
+    const { screen, state } = renderFailedEntryRetry();
+    const originalData = { ...mockSubmittedFoodFormData };
+    mockCustomNutrientDraft = { iodine: 2 };
+    fireEvent.press(screen.getByText('Apply Custom Nutrient Fixture'));
+    fireEvent.press(screen.getByText('Add Food'));
+    await expectFailedEntry();
+
+    mockSubmittedFoodFormData = {
+      ...originalData,
+      servingSize: '50',
+      servingUnit: 'ml',
+      calories: '300',
+    };
+    mockCustomNutrientDraft = { iodine: 3 };
+    fireEvent.press(screen.getByText('Apply Custom Nutrient Fixture'));
+    state.failure = 'variant-response';
+    fireEvent.press(screen.getByText('Add Food'));
+    await expectFailedRetry();
+    expect(state.rows).toEqual([
+      expect.objectContaining({
+        serving_size: 50,
+        serving_unit: 'ml',
+        calories: 300,
+        custom_nutrients: { iodine: 3 },
+      }),
+    ]);
+
+    mockSubmittedFoodFormData = originalData;
+    mockCustomNutrientDraft = { iodine: 2 };
+    fireEvent.press(screen.getByText('Apply Custom Nutrient Fixture'));
+    fireEvent.press(screen.getByText('Add Food'));
+    await waitFor(() => expect(navigation.dispatch).toHaveBeenCalled());
+
+    expect(state.rows).toEqual([
+      expect.objectContaining({
+        id: 'reference-food-1',
+        serving_size: 100,
+        serving_unit: 'g',
+        calories: 200,
+        custom_nutrients: { iodine: 2 },
+      }),
+    ]);
+    expect(updateFoodVariant).toHaveBeenCalledTimes(2);
+    expect(saveFood).toHaveBeenCalledTimes(1);
+    expect(createFoodVariant).not.toHaveBeenCalled();
+    expect(createFoodEntry).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        food_id: 'food-1',
+        variant_id: 'reference-food-1',
+        unit: 'g',
+      })
+    );
+  });
 
   it.each([
     { change: 'unchanged', edited: false, renamed: false },

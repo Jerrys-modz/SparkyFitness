@@ -49,6 +49,7 @@ import {
   fetchFoodVariants,
   updateFood,
   updateFoodVariant,
+  type UpdateFoodPayload,
 } from '../../services/api/foodsApi';
 import type { FoodItem } from '../../types/foods';
 import {
@@ -96,6 +97,8 @@ interface FoodSaveSnapshot {
   data: FoodFormData;
   custom: string;
   images: string;
+  barcode: string | null;
+  isQuickFood: boolean;
 }
 
 export function CreateFoodMode({
@@ -168,6 +171,10 @@ export function CreateFoodMode({
   const savedReferenceVariantIdRef = useRef<string | null>(null);
   const savedRequestRef = useRef<FoodSaveSnapshot | null>(null);
   const pendingFoodSaveSnapshotRef = useRef<FoodSaveSnapshot | null>(null);
+  const pendingMetadataKeysRef = useRef(new Set<keyof UpdateFoodPayload>());
+  const pendingMetadataImagesRef = useRef(false);
+  const pendingReferenceWriteRef = useRef(false);
+  const pendingCustomWriteRef = useRef(false);
   const initialVariantIdsRef = useRef<Set<string> | null>(null);
   const attemptedVariantKeysRef = useRef(new Set<string>());
   const queryClient = useQueryClient();
@@ -430,6 +437,8 @@ export function CreateFoodMode({
       data: { ...data },
       custom: JSON.stringify(customNutrientValues),
       images: JSON.stringify(imageArgs ?? null),
+      barcode: resolvedBarcode,
+      isQuickFood: saveFoodPayload.is_quick_food,
     };
 
     const saveFoodForForm = async () => {
@@ -470,17 +479,37 @@ export function CreateFoodMode({
           source = persistedReference;
           // Keep the row identity even if a unit-changing PUT loses its response.
           savedReferenceVariantIdRef.current = selectedReference.id;
-          const metadata: {
-            name?: string;
-            brand?: string;
-            notes?: string | null;
-          } = {};
-          if (data.name !== previous?.data.name) metadata.name = data.name;
-          if (data.brand !== previous?.data.brand) metadata.brand = data.brand;
-          if (data.notes !== previous?.data.notes)
+          const metadata: UpdateFoodPayload = {};
+          const metadataChanged = (
+            key: keyof UpdateFoodPayload,
+            changed: boolean
+          ) => changed || pendingMetadataKeysRef.current.has(key);
+          if (metadataChanged('name', data.name !== previous?.data.name))
+            metadata.name = data.name;
+          if (metadataChanged('brand', data.brand !== previous?.data.brand))
+            metadata.brand = data.brand;
+          if (metadataChanged('notes', data.notes !== previous?.data.notes))
             metadata.notes = saveFoodPayload.notes;
-          const imagesChanged = previous?.images !== requestSnapshot.images;
+          if (metadataChanged('barcode', resolvedBarcode !== previous?.barcode))
+            metadata.barcode = resolvedBarcode;
+          if (
+            metadataChanged(
+              'is_quick_food',
+              requestSnapshot.isQuickFood !== previous?.isQuickFood
+            )
+          )
+            metadata.is_quick_food = requestSnapshot.isQuickFood;
+          const imagesChanged =
+            pendingMetadataImagesRef.current ||
+            previous?.images !== requestSnapshot.images;
           if (Object.keys(metadata).length > 0 || imagesChanged) {
+            // A failed response may still mean the write committed. Retain only
+            // attempted fields so a later reversion can restore the user's intent.
+            for (const key of Object.keys(
+              metadata
+            ) as (keyof UpdateFoodPayload)[])
+              pendingMetadataKeysRef.current.add(key);
+            pendingMetadataImagesRef.current = imagesChanged;
             const updated = await updateFood(
               saved.id,
               metadata,
@@ -491,11 +520,25 @@ export function CreateFoodMode({
               ...updated,
               default_variant: saved.default_variant,
             };
+            savedFoodRef.current = saved;
+            savedRequestRef.current = {
+              ...requestSnapshot,
+              data: {
+                ...(previous?.data ?? data),
+                name: data.name,
+                brand: data.brand,
+                notes: data.notes,
+              },
+              custom: previous?.custom ?? requestSnapshot.custom,
+            };
+            pendingMetadataKeysRef.current.clear();
+            pendingMetadataImagesRef.current = false;
           }
           const customChanged = previous?.custom !== requestSnapshot.custom;
           if (
             source.id &&
-            (customChanged ||
+            (pendingReferenceWriteRef.current ||
+              customChanged ||
               hasFoodFormChanges(
                 previous?.data ?? data,
                 data,
@@ -505,11 +548,16 @@ export function CreateFoodMode({
             const payload = buildCreateFoodVariantPayload(saved.id, {
               ...source,
               ...buildVariantFromFormData(data, pendingUnitSelection),
-              custom_nutrients: customChanged
-                ? customNutrientValues
-                : source.custom_nutrients,
+              custom_nutrients:
+                customChanged || pendingCustomWriteRef.current
+                  ? customNutrientValues
+                  : source.custom_nutrients,
             });
+            pendingReferenceWriteRef.current = true;
+            pendingCustomWriteRef.current ||= customChanged;
             await updateFoodVariant(source.id, payload);
+            pendingReferenceWriteRef.current = false;
+            pendingCustomWriteRef.current = false;
             source = { ...source, ...payload };
             if (source.id === saved.default_variant.id) {
               saved = { ...saved, default_variant: source };
