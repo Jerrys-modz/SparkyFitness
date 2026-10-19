@@ -26,6 +26,7 @@ import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import type { ReportSectionKey } from '../constants/reports';
 import StatusView from '../components/StatusView';
 import CollapsibleSection from '../components/CollapsibleSection';
+import RunningFormCard from '../components/exerciseStats/RunningFormCard';
 import CardioSessionList from '../components/exerciseStats/CardioSessionList';
 import TrainingConsistencyCard from '../components/exerciseStats/TrainingConsistencyCard';
 import TrainingLoadCard from '../components/exerciseStats/TrainingLoadCard';
@@ -35,6 +36,7 @@ import MuscleFigure, {
 } from '../components/exerciseStats/MuscleFigure';
 import type { CustomRange, ReportRange } from '../utils/trendRange';
 import { getTodayDate } from '../utils/dateUtils';
+import { runFormTrend } from '../utils/runningForm';
 import { weightFromKg } from '../utils/unitConversions';
 import {
   muscleRecoveryRows,
@@ -135,6 +137,10 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
   const consistency = useTrainingConsistency();
   const trainingLoad = useTrainingLoad();
   const cardio = useCardioSessions(range, view === 'cardio', customRange);
+  const formTrend = useMemo(
+    () => runFormTrend(cardio.sessions),
+    [cardio.sessions]
+  );
   const { preferences } = usePreferences();
   const weightUnit: 'kg' | 'lbs' =
     preferences?.default_weight_unit === 'lbs' ||
@@ -220,6 +226,7 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
     }
     return (
       <>
+        <RunningFormCard trend={formTrend} distanceUnit={cardio.distanceUnit} />
         <Text className="text-text-secondary text-xs mb-3">
           {t('exerciseStatistics.cardio.hint', {
             defaultValue: 'Tap a workout for its route and heart rate.',

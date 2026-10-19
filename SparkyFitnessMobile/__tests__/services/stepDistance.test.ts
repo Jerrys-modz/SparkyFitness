@@ -5,6 +5,7 @@ import {
   learnFromIndoorEntry,
   learnFromOutdoorRecording,
   measureOutdoorForm,
+  measureWatchRunForm,
   type IndoorDistanceEstimate,
   type StepWindow,
 } from '../../src/services/stepDistance';
@@ -178,5 +179,77 @@ describe('measureOutdoorForm', () => {
     mockedSteps.mockResolvedValue(null);
 
     expect(await measureOutdoorForm(window(), 4000)).toBeNull();
+  });
+});
+
+describe('measureWatchRunForm', () => {
+  it('works cadence and stride out of the steps over the watch window', async () => {
+    mockedSteps.mockResolvedValue(5000);
+
+    expect(
+      await measureWatchRunForm(window({ activity: 'run' }), 4500)
+    ).toEqual({ avgCadence: 167, strideLengthCm: 90, steps: 5000 });
+  });
+
+  it('never raises a permission prompt', async () => {
+    await measureWatchRunForm(window({ activity: 'run' }), 4500);
+
+    expect(mockedSteps).toHaveBeenCalledWith(START, START + 30 * 60_000, {
+      askForPermission: false,
+    });
+  });
+
+  it('leaves the paused time out of the steps', async () => {
+    mockedSteps.mockResolvedValue(6000);
+
+    const form = await measureWatchRunForm(
+      window({ activity: 'run', activeSeconds: 900 }),
+      4500
+    );
+
+    expect(form?.steps).toBe(3000);
+    expect(form?.avgCadence).toBe(200);
+  });
+
+  it('ignores a window with too few steps, as when the phone was left behind', async () => {
+    mockedSteps.mockResolvedValue(60);
+
+    expect(await measureWatchRunForm(window({ activity: 'run' }), 4500)).toBe(
+      null
+    );
+  });
+
+  it('ignores steps that cannot belong to this distance', async () => {
+    // 800 steps over 5 km is a 6 m stride: the phone was carried part of the way.
+    mockedSteps.mockResolvedValue(800);
+
+    expect(await measureWatchRunForm(window({ activity: 'run' }), 5000)).toBe(
+      null
+    );
+  });
+
+  it('keeps cadence alone when there is no distance to judge by', async () => {
+    mockedSteps.mockResolvedValue(5000);
+
+    expect(await measureWatchRunForm(window({ activity: 'run' }), 0)).toEqual({
+      avgCadence: 167,
+      strideLengthCm: null,
+      steps: 5000,
+    });
+  });
+
+  it('says nothing when the phone has no step reading', async () => {
+    mockedSteps.mockResolvedValue(null);
+
+    expect(await measureWatchRunForm(window({ activity: 'run' }), 4500)).toBe(
+      null
+    );
+  });
+
+  it('says nothing for a ride', async () => {
+    expect(await measureWatchRunForm(window({ activity: 'ride' }), 4500)).toBe(
+      null
+    );
+    expect(mockedSteps).not.toHaveBeenCalled();
   });
 });

@@ -312,6 +312,37 @@ describe('ExerciseStatisticsScreen', () => {
     });
   });
 
+  it('shows running form across the runs that have it', () => {
+    mockUseCardioSessions.mockReturnValue(
+      cardioResult({
+        sessions: [
+          { ...RUN, avgCadence: 170, strideLengthCm: 110 },
+          {
+            ...RUN,
+            id: 'run-0',
+            entryDate: '2026-09-20',
+            exerciseName: 'Indoor Running',
+            avgCadence: 160,
+          },
+          BIKE,
+        ],
+      })
+    );
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    expect(screen.queryByText('Running form')).toBeNull();
+
+    fireEvent.press(screen.getByText('Cardio'));
+    expect(screen.getByText('Running form')).toBeTruthy();
+    expect(screen.getByText('170 spm')).toBeTruthy();
+    expect(screen.getByText('1.1 m')).toBeTruthy();
+  });
+
+  it('has no running form card when no run was measured', () => {
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    fireEvent.press(screen.getByText('Cardio'));
+    expect(screen.queryByText('Running form')).toBeNull();
+  });
+
   it('loads older cardio sessions on request', () => {
     const fetchNextPage = jest.fn();
     mockUseCardioSessions.mockReturnValue(

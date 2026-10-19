@@ -132,6 +132,8 @@ async function measureForm(
 export interface SavedRecording {
   entryId: string;
   entryDate: string;
+  /** Cadence and stride put on the entry; null on a retry or when unknown. */
+  form: FormMetrics | null;
 }
 
 /**
@@ -167,9 +169,10 @@ export async function saveRecordedActivity(
     : Math.round(summarizeRecording(points).distanceMeters) / METERS_PER_KM;
 
   let entryId = session.savedEntryId;
+  let form: FormMetrics | null = null;
   if (!entryId) {
     const exercise = await resolveRecordingExercise(session.activity);
-    const form = await measureForm(
+    form = await measureForm(
       session,
       indoor,
       durationSeconds,
@@ -245,7 +248,7 @@ export async function saveRecordedActivity(
     });
   }
   await attachWatchHeartRate(entryId);
-  return { entryId, entryDate };
+  return { entryId, entryDate, form };
 }
 
 /**
