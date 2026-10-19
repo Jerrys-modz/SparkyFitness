@@ -291,7 +291,17 @@ const CheckIn = () => {
         </TabsContent>
 
         <TabsContent value="photos" className="focus-visible:outline-none">
-          <CheckInPhotos selectedDate={selectedDate} />
+          <CheckInPhotos
+            selectedDate={selectedDate}
+            onLogWeight={(dateString) => {
+              setSelectedDate(dateString);
+              setSearchParams((prev) => {
+                prev.set('tab', 'measurements');
+                prev.set('date', dateString);
+                return prev;
+              });
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="symptoms" className="focus-visible:outline-none">
