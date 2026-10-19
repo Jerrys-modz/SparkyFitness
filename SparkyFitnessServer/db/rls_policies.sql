@@ -51,6 +51,7 @@ BEGIN
     'run_programs',
     'shoes',
     'custom_run_programs',
+    'fitness_tests',
     'onboarding_data',
     'onboarding_status',
     'openfoodfacts_product_read_rate_limit',
@@ -759,6 +760,8 @@ SELECT create_owner_policy('pregnancy_checklist_state');
 SELECT create_owner_policy('health_appointments');
 SELECT create_owner_policy('run_programs');
 SELECT create_owner_policy('custom_run_programs');
+-- Running fitness tests (5K, 30-minute run, Cooper) and the paces they gave: personal training data, owner-only.
+SELECT create_owner_policy('fitness_tests');
 
 -- User-defined mood tags. Mood is check-in data (mood_entries uses the check-in
 -- policy), and custom check-in definitions like custom_categories are shared with

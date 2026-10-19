@@ -639,7 +639,9 @@
     "runProgramWorkout": "Workout",
     "runProgramEdit": "Edit plan",
     "runProgramNew": "New plan",
-    "runProgramRace": "Plan a race"
+    "runProgramRace": "Plan a race",
+    "fitnessTest": "Fitness tests",
+    "fitnessTestResult": "Fitness test"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -6508,7 +6510,8 @@
       "range": "{{fast}} – {{slow}} {{unit}}",
       "fromEffort": "Built from your best recent run. Threshold pace is about {{pace}} {{unit}}.",
       "fromTypical_one": "Estimated from your last {{formattedCount}} run, so less precise. A hard run of 3 km or more sharpens it.",
-      "fromTypical_other": "Estimated from your last {{formattedCount}} runs, so less precise. A hard run of 3 km or more sharpens it."
+      "fromTypical_other": "Estimated from your last {{formattedCount}} runs, so less precise. A hard run of 3 km or more sharpens it.",
+      "fromTest": "Set by your latest fitness test. Threshold pace is about {{pace}} {{unit}}."
     }
   },
   "aiSettings": {
@@ -7176,7 +7179,8 @@
       "tempo": "tempo {{range}}",
       "marathonPace": "marathon pace {{range}}",
       "strides": "strides {{range}}",
-      "paceSourceRace": "Based on your recent race: {{race}}."
+      "paceSourceRace": "Based on your recent race: {{race}}.",
+      "paceSourceTest": "Based on your {{test}} on {{date}}."
     }
   },
   "goals": {
@@ -7947,7 +7951,11 @@
       "tooShort": "That is less time than we suggest: at least {{min}} weeks for this distance. Pick a later race day.",
       "tooFewDays": "Pick at least two days to run.",
       "create": "Create and start the plan",
-      "open": "Plan a race"
+      "open": "Plan a race",
+      "useTest": "Plan from my latest test",
+      "useTestDescription": "Uses your {{test}} on {{date}} for your level and race-day pace.",
+      "fromTest": "Starting level: {{level}}. Race-day pace about {{pace}}.",
+      "estimateFromTest": "Race day is planned at about {{minutes}} minutes, at the pace your fitness test points to; you can change it in the plan afterwards."
     }
   },
   "speechVoice": {
@@ -8035,7 +8043,10 @@
     "save": "Save",
     "clear": "Clear",
     "watch": "Also use on my Apple Watch",
-    "watchHint": "Holds the program workout offered on the watch to these ranges. Runs only."
+    "watchHint": "Holds the program workout offered on the watch to these ranges. Runs only.",
+    "testNote": "You have a fitness test, so your latest test sets your paces while it is saved. This race time is used again if you delete your tests.",
+    "collapsedTest": "Your fitness test sets your paces",
+    "collapsedEmpty": "Add a recent race time to set your paces"
   },
   "allergens": {
     "trace": "trace: {{name}}",
@@ -8084,6 +8095,143 @@
       "mustard": "mustard",
       "lupin": "lupin",
       "sulphites": "sulphites"
+    }
+  },
+  "fitnessTest": {
+    "cue": {
+      "complete": "Test complete. Slow down and finish."
+    },
+    "retest": {
+      "dueTitle": "Time for a retest",
+      "overdueTitle": "Your paces may be out of date",
+      "body_one": "Your last fitness test was {{formattedCount}} week ago. A retest updates your training paces and shows how your fitness has changed.",
+      "body_other": "Your last fitness test was {{formattedCount}} weeks ago. A retest updates your training paces and shows how your fitness has changed.",
+      "action": "Retest",
+      "later": "Later",
+      "sameTreadmill": "You tested on a treadmill last time, so the retest starts on a treadmill too.",
+      "sameOutdoor": "You tested outdoors last time, so the retest starts outdoors too."
+    },
+    "badge": {
+      "title": "Fitness test",
+      "line": "{{test}}: {{result}}"
+    },
+    "live": {
+      "complete": "Test complete. Slow down and tap Finish.",
+      "5k": "Run evenly and hard. {{remaining}} {{unit}} to go until 5 km.",
+      "cooper": "Cover as much distance as you can. {{time}} left.",
+      "30minLast20": "Hold this pace: the last 20 minutes set your threshold. {{time}} left.",
+      "30minFirst10": "Settle into a hard, steady effort. The last 20 minutes start in {{time}}.",
+      "5kIndoor": "Run evenly and hard. Tap Finish when your treadmill reaches 5 km. Time {{time}}.",
+      "30minFirst10Indoor": "Settle into a hard, steady effort. At 10:00, in {{time}}, note the distance on your treadmill."
+    },
+    "finished": {
+      "threshold": "Threshold pace {{pace}}, about {{time}} for 5K. Saving sets your training paces.",
+      "incomplete": "The test was stopped before its mark, so it will be saved as an ordinary run and your paces stay as they were.",
+      "adjusted": "Adjusted for {{incline}}% incline: {{raw}} counts as {{adjusted}}.",
+      "needDistance": "Enter the distance your treadmill shows to save the test. Until then it will be saved as an ordinary run.",
+      "badSplit": "The distance at 10:00 must be more than zero and less than the total.",
+      "badTime": "Enter your time to 5 km as minutes and seconds, like 24:30."
+    },
+    "paces": {
+      "tempo": "Tempo {{range}}",
+      "marathon": "Marathon pace {{range}}",
+      "stride": "Strides {{range}}"
+    },
+    "panel": {
+      "emptyTitle": "Find your training paces",
+      "emptyBody": "Run a guided fitness test: a 5K time trial, a 30-minute all-out run or a 12-minute Cooper test. The result sets your training paces and can start a plan.",
+      "take": "Take a fitness test",
+      "title": "Your fitness test",
+      "latest": "{{test}} on {{date}}: {{result}}",
+      "paces": "Threshold pace {{pace}}, about {{time}} for 5K. Your training paces follow this test.",
+      "startProgram": "Start {{program}} from my test",
+      "planRace": "Plan a race",
+      "open": "Tests and paces",
+      "compactHint": "Take a guided fitness test"
+    },
+    "steps": {
+      "warmUp": "Warm up with 10 to 15 minutes of easy running, then come back here and start.",
+      "flat": "Pick a flat, open route and keep your phone with you. Pauses are not counted.",
+      "5k": "Run 5 km as fast as you can hold evenly. Your time to 5 km is the result; keep going to cool down.",
+      "30min": "Run as hard as you can keep steady for 30 minutes. Your threshold pace is the average pace of the last 20 minutes, so do not start too fast.",
+      "cooper": "Cover as much distance as you can in 12 minutes. The distance you reach is the result."
+    },
+    "setup": {
+      "voiceDescription": "Speaks when the test is complete.",
+      "start": "Start the test",
+      "outdoor": "Outdoor (GPS)",
+      "indoor": "Treadmill",
+      "indoorNote": "On a treadmill nothing is tracked by GPS. The test is timed, and when you finish you enter the distance your treadmill shows and its incline. It is saved as an indoor run and marked as a fitness test.",
+      "outdoorNote": "Outdoors the test is recorded with your phone’s GPS, as a run, and marked as a fitness test on the activity.",
+      "sameAsLast": "Suggested because your last test was the same."
+    },
+    "delete": {
+      "title": "Delete this test?",
+      "message": "The activity stays in your diary. Your training paces follow your latest remaining test.",
+      "confirm": "Delete",
+      "error": "Could not delete the test",
+      "action": "Delete this test"
+    },
+    "result": {
+      "missing": "This test is no longer saved.",
+      "when": "{{date}} · {{test}}",
+      "derived": "Threshold pace {{pace}}. As a 5K that is about {{time}}.",
+      "changeTitle": "Since your test on {{date}}",
+      "changeThreshold": "Threshold pace: {{change}}.",
+      "pacesTitle": "Your training paces",
+      "pacesBody": "These now set your pace zones and the suggested ranges for plans and races.",
+      "plan": "Start a plan from this test",
+      "5k": "5K in {{time}}",
+      "cooperMiles": "{{distance}} mi in 12 minutes",
+      "cooperMeters": "{{distance}} m in 12 minutes",
+      "30min": "{{pace}} over the last 20 minutes"
+    },
+    "describe": {
+      "5k": "Run 5 km as fast as you can hold evenly. Your time sets your paces.",
+      "30min": "Run 30 minutes all-out. Your threshold pace is the average pace of the last 20 minutes.",
+      "cooper": "Cover as far as you can in 12 minutes. Your distance is turned into a 5K time."
+    },
+    "intro": "A fitness test is one hard, measured run. It is recorded with your phone’s GPS, and the result sets your training paces for easy runs, tempo, intervals and race plans.",
+    "choose": "Start this test",
+    "history": {
+      "title": "Your tests",
+      "empty": "No tests yet. Your results and the paces they gave will be listed here.",
+      "rowTitle": "{{date}} · {{test}}",
+      "paces": "Threshold {{threshold}} · Easy {{easy}}",
+      "limit": "Showing your latest {{limit}} tests."
+    },
+    "type": {
+      "5k": "5K time trial",
+      "30min": "30-minute all-out run",
+      "cooper": "12-minute Cooper test"
+    },
+    "pacePerUnit": "{{pace}}/{{unit}}",
+    "perMile": "mi",
+    "perKm": "km",
+    "paceRange": "{{fast}}–{{slow}}/{{unit}}",
+    "change": {
+      "same": "no change",
+      "faster": "{{seconds}} s/{{unit}} faster",
+      "slower": "{{seconds}} s/{{unit}} slower"
+    },
+    "indoor": {
+      "timeTitle": "Time to 5 km",
+      "timeHint": "Your clock time is filled in. Change it if your treadmill showed another time at 5 km.",
+      "splitTitle": "Distance at 10:00",
+      "splitHint": "The distance your treadmill showed after 10 minutes. The last 20 minutes set your threshold pace. Leave it empty to assume a steady pace.",
+      "cooperHint": "Enter the distance your treadmill showed after 12 minutes in the Distance box above.",
+      "inclineTitle": "Incline",
+      "inclineHint": "A treadmill at 0% understates outdoor effort; 1% is about the same as running flat outdoors. Enter the incline you ran at.",
+      "inclineInvalid": "Enter an incline from 0 to 15.",
+      "adjustTitle": "Adjust for incline",
+      "adjustDescription": "Counts your effort as it would be on a flat outdoor course, using the running cost of each percent of incline. At 1% nothing changes. Turn off to use the numbers as they are."
+    },
+    "lastSurface": "Your last test was on: {{surface}}. A new test starts on the same, and you can change it before you start.",
+    "surface": {
+      "indoor": "Treadmill",
+      "outdoor": "Outdoor",
+      "inclineAdjusted": "Treadmill, {{incline}}% incline, adjusted",
+      "inclineNotAdjusted": "Treadmill, {{incline}}% incline, not adjusted"
     }
   }
 }
