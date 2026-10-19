@@ -283,7 +283,11 @@ const LogExerciseEntryDialog: React.FC<LogExerciseEntryDialogProps> = ({
         notes,
         entry_date: selectedDate,
         entry_time: entryTime || null,
-        calories_burned: Number(caloriesBurnedInput),
+        // Omit when blank so the server estimates from calories_per_hour;
+        // sending 0 would be stored as-is and skip the auto-calculation.
+        ...(caloriesBurnedInput !== '' && {
+          calories_burned: Number(caloriesBurnedInput),
+        }),
         duration_minutes: totalDuration,
         imageFile,
         distance:
