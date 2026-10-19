@@ -649,6 +649,22 @@ describe('RunProgramsScreen', () => {
       expect(screen.getByTestId('pace-reference-test-note')).toBeTruthy();
     });
 
+    it('shows one short row, not the full invitation, while a program runs', () => {
+      mockedUse.mockReturnValue({
+        status: programStatus({ programId: 'beginner5k', next: 3 })!,
+        enabled: true,
+        lastAdjustment: null,
+        schedule: { days: [], startDay: null, endDay: null },
+        doneDay: null,
+        loaded: true,
+      });
+      renderScreen(props());
+      expect(screen.getByText('Take a guided fitness test')).toBeTruthy();
+      expect(screen.queryByText(/Run a guided fitness test/)).toBeNull();
+      fireEvent.press(screen.getByTestId('fitness-test-take'));
+      expect(navigate).toHaveBeenCalledWith('FitnessTest');
+    });
+
     it('does not mention it without a test', () => {
       noProgram();
       renderScreen(props());

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { programIdForFiveK } from '@workspace/shared';
 import Button from '../ui/Button';
 import FitnessRetestPrompt from './FitnessRetestPrompt';
+import ProgramActionRow from './ProgramActionRow';
 import { programName } from './RunProgramCard';
 import { useFitnessTests } from '../../services/fitnessTestService';
 import { formatClock } from '../../utils/gpsRecording';
@@ -20,6 +21,8 @@ export interface FitnessTestPanelProps {
   onOpenTests: () => void;
   onStartProgram: (programId: string) => void;
   onPlanRace: () => void;
+  /** With no test yet, show one short row instead of the full invitation. */
+  compact?: boolean;
 }
 
 /**
@@ -33,10 +36,31 @@ const FitnessTestPanel: React.FC<FitnessTestPanelProps> = ({
   onOpenTests,
   onStartProgram,
   onPlanRace,
+  compact = false,
 }) => {
   const { t } = useTranslation();
   const { latest, loaded } = useFitnessTests();
   if (!loaded) return null;
+
+  if (!latest && compact) {
+    return (
+      <View
+        className="bg-surface rounded-xl px-4 mb-4"
+        testID="fitness-test-panel-empty"
+      >
+        <ProgramActionRow
+          label={t('fitnessTest.panel.emptyTitle', {
+            defaultValue: 'Find your training paces',
+          })}
+          hint={t('fitnessTest.panel.compactHint', {
+            defaultValue: 'Take a guided fitness test',
+          })}
+          onPress={onOpenTests}
+          testID="fitness-test-take"
+        />
+      </View>
+    );
+  }
 
   if (!latest) {
     return (
