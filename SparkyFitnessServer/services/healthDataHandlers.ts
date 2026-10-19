@@ -11,10 +11,11 @@ import * as workoutTelemetryRepo from '../models/workoutTelemetryRepository.js';
 import * as mindfulnessRepository from '../models/mindfulnessRepository.js';
 import { resolveActivityMapping } from './workoutActivityMapping.js';
 import {
-  computeHrZones,
-  resolveMaxHr,
+  computeTimeInZones,
+  observedMaxBpm,
   type HrSample,
-} from './hrZoneCalculator.js';
+} from '@workspace/shared';
+import heartRateZoneService from './heartRateZoneService.js';
 import {
   deriveLaps,
   deriveWorkoutTelemetry,
@@ -1770,9 +1771,11 @@ async function persistWorkoutTelemetry(
         .map((p) => ({ t: p.t, bpm: p.hr as number }));
 
   if (zoneSamples.length > 1) {
-    const { userProfile } = await ctx.getSleepContext();
-    const { maxHr } = resolveMaxHr(userProfile?.date_of_birth, zoneSamples);
-    const zones = computeHrZones(zoneSamples, maxHr);
+    const resolved = await heartRateZoneService.resolveZonesForUser(
+      ctx.userId,
+      observedMaxBpm(zoneSamples)
+    );
+    const zones = computeTimeInZones(zoneSamples, resolved.floors);
     if (zones.length > 0) {
       await workoutTelemetryRepo.bulkInsertExerciseEntryHrZones(
         ctx.userId,
@@ -1785,6 +1788,7 @@ async function persistWorkoutTelemetry(
           zone_lower_bpm: zone.zone_lower_bpm,
           zone_upper_bpm: zone.zone_upper_bpm,
           seconds_in_zone: zone.seconds_in_zone,
+          zone_method: resolved.effectiveMethod,
         }))
       );
     }

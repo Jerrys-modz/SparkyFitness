@@ -1,4 +1,12 @@
+import {
+  heartRateZoneFor,
+  percentMaxFloors,
+  FALLBACK_MAX_HR,
+} from "./heartRateZones.ts";
 import { addDays, daysBetween } from "./timezone.ts";
+
+/** The maximum heart rate assumed when none is known: the zone module's fallback. */
+export const DEFAULT_MAX_HEART_RATE = FALLBACK_MAX_HR;
 
 /** One finished cardio session, as far as load is concerned. */
 export interface LoadSession {
@@ -8,8 +16,6 @@ export interface LoadSession {
   avgHeartRate: number | null;
 }
 
-/** Used when the person's age is not known. */
-export const DEFAULT_MAX_HEART_RATE = 190;
 /** Sessions longer than this are treated as this long (a forgotten stop). */
 const MAX_SESSION_MINUTES = 600;
 /** Load points per minute for a session with no heart rate. */
@@ -19,33 +25,23 @@ export const MIN_HISTORY_DAYS = 21;
 export const LOAD_WEEKS = 4;
 
 export type LoadStatus =
-  | "noData"
-  | "learning"
-  | "low"
-  | "steady"
-  | "high"
-  | "spike";
+  "noData" | "learning" | "low" | "steady" | "high" | "spike";
 
 export type RecoveryHint = "ready" | "ok" | "takeRest";
 
-/** 220 - age, kept to a believable range; the default without an age. */
-export function estimateMaxHeartRate(age: number | null | undefined): number {
-  if (age == null || !Number.isFinite(age) || age < 10 || age > 100) {
-    return DEFAULT_MAX_HEART_RATE;
-  }
-  return Math.min(210, Math.max(150, 220 - Math.round(age)));
-}
-
 /**
  * Load points for one session: minutes weighted by how hard the heart worked
- * (1 under 60% of the maximum, up to 5 above 90%, the Edwards zone method). A
- * session without a heart rate counts as moderate, so a run from a phone with
- * no watch still counts.
+ * (the Edwards zone method: the weight is the person's heart-rate zone, 1 up to
+ * 5, with anything below zone 1 counting as 1). A session without a heart rate counts as moderate, so a run from a phone with
+ * no watch still counts. `zones` is the five zone floors in bpm, or a maximum
+ * heart rate (read as the default percent-of-max zones).
  */
 export function sessionLoad(
   session: Pick<LoadSession, "durationMinutes" | "avgHeartRate">,
-  maxHeartRate: number,
+  zones: number | readonly number[],
 ): number {
+  // A bare number is a maximum heart rate, worked out as percent-of-max zones.
+  const zoneFloors = typeof zones === "number" ? percentMaxFloors(zones) : zones;
   const minutes = Math.min(
     MAX_SESSION_MINUTES,
     Math.max(0, session.durationMinutes),
@@ -54,9 +50,7 @@ export function sessionLoad(
   if (bpm == null || !Number.isFinite(bpm) || bpm <= 0) {
     return minutes * UNKNOWN_HEART_RATE_WEIGHT;
   }
-  const share = bpm / maxHeartRate;
-  const weight =
-    share < 0.6 ? 1 : share < 0.7 ? 2 : share < 0.8 ? 3 : share < 0.9 ? 4 : 5;
+  const weight = Math.max(1, heartRateZoneFor(bpm, zoneFloors));
   return minutes * weight;
 }
 
@@ -83,7 +77,7 @@ export interface TrainingLoad {
 export function computeTrainingLoad(
   sessions: readonly LoadSession[],
   today: string,
-  maxHeartRate: number = DEFAULT_MAX_HEART_RATE,
+  zoneFloors: readonly number[] = percentMaxFloors(FALLBACK_MAX_HR),
 ): TrainingLoad {
   const windowDays = LOAD_WEEKS * 7;
   const oldest = addDays(today, -(windowDays - 1));
@@ -98,7 +92,7 @@ export function computeTrainingLoad(
     const slot = Math.floor(daysBetween(oldest, session.day) / 7);
     const week = weeks[slot];
     if (!week) continue;
-    week.load += sessionLoad(session, maxHeartRate);
+    week.load += sessionLoad(session, zoneFloors);
     if (earliest === null || session.day < earliest) earliest = session.day;
     if (latest === null || session.day > latest) latest = session.day;
   }

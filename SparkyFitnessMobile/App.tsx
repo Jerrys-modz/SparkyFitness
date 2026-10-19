@@ -130,6 +130,7 @@ import {
   SafeCustomCategoryEdit,
   SafeWorkoutSettings,
   SafeWarmupSettings,
+  SafeHeartRateZonesSettings,
   SafeServerSettings,
   SafePasskeySettings,
   SafeAppSettings,
@@ -1221,6 +1222,11 @@ function AppContent() {
             name="WarmupSettings"
             component={SafeWarmupSettings}
             options={createStackScreenOptions(t('screens.warmupSettings', { defaultValue: 'Warm-up Calculator' }), { headerBackTitle: t('screens.workoutSettings', { defaultValue: 'Workout Settings' }) })}
+          />
+          <Stack.Screen
+            name="HeartRateZonesSettings"
+            component={SafeHeartRateZonesSettings}
+            options={createStackScreenOptions(t('screens.heartRateZonesSettings', { defaultValue: 'Heart Rate Zones' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
           />
           <Stack.Screen
             name="ServerSettings"

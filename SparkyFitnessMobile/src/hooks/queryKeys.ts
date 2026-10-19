@@ -484,3 +484,5 @@ export const heatmapRootQueryKey = ['heatmap'] as const;
 /** The diary entries that followed one route. */
 export const routeRunsQueryKey = (id: string) =>
   ['routes', id, 'runs'] as const;
+
+export const heartRateZonesQueryKey = ['heartRateZones'] as const;

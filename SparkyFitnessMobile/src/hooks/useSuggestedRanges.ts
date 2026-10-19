@@ -1,22 +1,21 @@
 import { useMemo } from 'react';
-import { calculateAge, paceZone } from '@workspace/shared';
+import { paceZone } from '@workspace/shared';
 import type {
   FitnessTestResponse,
   HeartRateBand,
+  HeartRateZonesResponse,
   PaceBand,
   PaceReferenceRace,
   StepEffort,
 } from '@workspace/shared';
 import { useCardioSessions } from './useCardioSessions';
-import { usePreferences } from './usePreferences';
-import { useProfile } from './useProfile';
+import { useHeartRateZones } from './useHeartRateZones';
 import { useFitnessTests } from '../services/fitnessTestService';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { getTodayDate } from '../utils/dateUtils';
 import { paceZonesFromSessions } from '../utils/paceZones';
 import type { RecordingActivity } from '../utils/gpsRecording';
 import {
-  estimateMaxHeartRate,
   referencePace,
   suggestedHeartRateRanges,
   suggestedPaceRanges,
@@ -43,7 +42,14 @@ export interface SuggestedRanges {
   /** Ranges for tempo, marathon-pace and stride efforts; only from a fitness test or a race. */
   byEffort: Partial<Record<StepEffort, PaceBand>> | null;
   /** Fast, easy and warm-up heart-rate ranges from the person's age, or null without a birth date. */
-  heartRate: (SuggestedPair<HeartRateBand> & { maxHeartRate: number }) | null;
+  heartRate:
+    | (SuggestedPair<HeartRateBand> & {
+        maxHeartRate: number;
+        /** Where the max came from and how the zones were worked out. */
+        maxHrSource: HeartRateZonesResponse['resolved']['max_hr_source'];
+        zoneMethod: HeartRateZonesResponse['resolved']['effective_method'];
+      })
+    | null;
 }
 
 /**
@@ -65,15 +71,12 @@ export function useSuggestedRanges(
   enabled: boolean,
   paceShift = 0
 ): SuggestedRanges {
-  const { profile } = useProfile();
-  const { preferences } = usePreferences();
   const race = useAppPreferencesStore((s) => s.paceReferenceRace);
   const { latest: fitnessTest } = useFitnessTests(
     enabled && activity === 'run'
   );
   const { sessions } = useCardioSessions('90d', enabled && activity !== 'ride');
-  const dateOfBirth = profile?.date_of_birth ?? null;
-  const timezone = preferences?.timezone ?? undefined;
+  const { zones: heartRateZones } = useHeartRateZones(enabled);
 
   return useMemo(() => {
     const fromTest = fitnessTest
@@ -97,9 +100,12 @@ export function useSuggestedRanges(
         : reference
           ? suggestedPaceRanges(reference, activity)
           : null;
-    const maxHeartRate = dateOfBirth
-      ? estimateMaxHeartRate(calculateAge(dateOfBirth, timezone))
-      : null;
+    // Without a date of birth or a max heart rate of their own there is only a
+    // typical figure to go on, which is not worth suggesting a range from.
+    const resolved = heartRateZones?.resolved;
+    const knownMax =
+      resolved &&
+      (resolved.max_hr_source === 'user' || resolved.max_hr_source === 'age');
     return {
       pace: fromTest
         ? { ...fromTest.pair, sessions: 0, race: null, fitnessTest }
@@ -129,9 +135,17 @@ export function useSuggestedRanges(
         : fromRace
           ? fromRace.byEffort
           : null,
-      heartRate: maxHeartRate
-        ? { ...suggestedHeartRateRanges(maxHeartRate), maxHeartRate }
-        : null,
+      heartRate:
+        resolved && knownMax
+          ? {
+              ...suggestedHeartRateRanges(
+                resolved.zones.map((zone) => zone.lower_bpm)
+              ),
+              maxHeartRate: resolved.max_hr,
+              maxHrSource: resolved.max_hr_source,
+              zoneMethod: resolved.effective_method,
+            }
+          : null,
     };
-  }, [activity, sessions, dateOfBirth, timezone, paceShift, race, fitnessTest]);
+  }, [activity, sessions, heartRateZones, paceShift, race, fitnessTest]);
 }

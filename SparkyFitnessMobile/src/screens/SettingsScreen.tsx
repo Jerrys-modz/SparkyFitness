@@ -381,6 +381,17 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
                 onPress={() => navigation.navigate('WorkoutSettings')}
                 iconColor={catBlue}
               />
+              <SettingsRow
+                icon="heart-rate"
+                title={t('settings.rows.heartRateZones', {
+                  defaultValue: 'Heart Rate Zones',
+                })}
+                subtitle={t('settings.rows.heartRateZonesSubtitle', {
+                  defaultValue: 'Max and resting heart rate, zone method',
+                })}
+                onPress={() => navigation.navigate('HeartRateZonesSettings')}
+                iconColor={catBlue}
+              />
               {hasPairedWatch && (
                 <SettingsRow
                   icon="watch-settings"

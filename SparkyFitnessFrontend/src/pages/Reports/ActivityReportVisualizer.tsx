@@ -7,6 +7,7 @@ import { ActivityPaceChart } from '@/components/ExerciseCharts/ActivityPaceChart
 import { ActivityStatsGrid } from '@/components/ExerciseCharts/ActivityStatsGrid';
 import ZoomableChart from '@/components/ZoomableChart';
 import { usePreferences } from '@/contexts/PreferencesContext';
+import { storedZoneMethodOf } from '@/utils/heartRateZoneLabels';
 import {
   useActivityDetailsQuery,
   useExerciseEntryById,
@@ -313,7 +314,9 @@ const ActivityReportVisualizer = ({
   // activities synced before this table existed / before the backfill has run.
   let hrInTimezonesData:
     Array<{ name: string; [key: string]: string | number }> | undefined;
+  let hrZoneMethod: ReturnType<typeof storedZoneMethodOf> = null;
   if (dbHrZones && dbHrZones.length > 0) {
+    hrZoneMethod = storedZoneMethodOf(dbHrZones);
     hrInTimezonesData = dbHrZones.map((zone) => ({
       name: `Zone ${zone.zone_index} (${zone.zone_lower_bpm ?? 0} bpm)`,
       [t('reports.activityReport.timeInZoneS')]: zone.seconds_in_zone,
@@ -642,6 +645,7 @@ const ActivityReportVisualizer = ({
           <ActivityHeartRateZonesChart
             data={hrInTimezonesData}
             providerName={providerName}
+            zoneMethod={hrZoneMethod}
           />
         )}
       </div>
@@ -831,6 +835,7 @@ const ActivityReportVisualizer = ({
           <ActivityHeartRateZonesChart
             data={hrInTimezonesData}
             providerName={providerName}
+            zoneMethod={hrZoneMethod}
           />
         )}
       </div>

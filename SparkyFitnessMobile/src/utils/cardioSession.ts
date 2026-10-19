@@ -2,6 +2,7 @@ import type {
   ElevationProfile,
   ExerciseActivityQueryItem,
   ExerciseEntryHrZones,
+  StoredZoneMethod,
   GpsTrackPoint,
   IndividualSessionResponse,
   TrackSample,
@@ -215,6 +216,12 @@ export interface HeartRateZoneRow {
   seconds: number;
   /** Share of the time spent across all zones, 0-1. */
   share: number;
+  /**
+   * How the zone bounds were worked out when the workout was stored; null for
+   * workouts stored before methods were recorded, 'mixed' when the entries of
+   * one workout disagree.
+   */
+  method: StoredZoneMethod | 'mixed' | null;
 }
 
 export function heartRateZoneRows(
@@ -235,7 +242,13 @@ export function combinedHeartRateZoneRows(
 ): HeartRateZoneRow[] {
   const byZone = new Map<
     number,
-    { lowerBpm: number | null; upperBpm: number | null; seconds: number }
+    {
+      lowerBpm: number | null;
+      upperBpm: number | null;
+      seconds: number;
+      method: StoredZoneMethod | 'mixed' | null;
+      methodSeen: boolean;
+    }
   >();
   for (const zones of zonesPerEntry) {
     for (const zone of zones) {
@@ -243,8 +256,17 @@ export function combinedHeartRateZoneRows(
         lowerBpm: null,
         upperBpm: null,
         seconds: 0,
+        method: null,
+        methodSeen: false,
       };
       row.seconds += Math.max(0, zone.seconds_in_zone);
+      const method = zone.zone_method ?? null;
+      row.method = !row.methodSeen
+        ? method
+        : row.method === method
+          ? method
+          : 'mixed';
+      row.methodSeen = true;
       if (zone.zone_lower_bpm != null) {
         row.lowerBpm =
           row.lowerBpm == null
@@ -269,6 +291,7 @@ export function combinedHeartRateZoneRows(
       upperBpm: row.upperBpm,
       seconds: row.seconds,
       share: total > 0 ? row.seconds / total : 0,
+      method: row.method,
     }));
 }
 

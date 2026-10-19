@@ -113,7 +113,7 @@ async function getTrainingCalendar(
           end
         ),
         getRunProgram(targetUserId, authenticatedUserId),
-        loadMaxHeartRate(targetUserId, timezone),
+        loadMaxHeartRate(targetUserId),
         reportRepository.getTrainingLoadSessions(
           targetUserId,
           addDays(today, -(CURVE_DAYS - 1)),

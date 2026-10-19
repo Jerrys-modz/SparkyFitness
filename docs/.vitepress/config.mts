@@ -166,6 +166,7 @@ export default defineConfig({
             { text: 'Training Programs', link: '/features/exercises/training-programs' },
             { text: 'Running Trends', link: '/features/exercises/running-trends' },
             { text: 'Fitness Tests', link: '/features/exercises/fitness-tests' },
+            { text: 'Heart Rate Zones', link: '/features/exercises/heart-rate-zones' },
             { text: 'Shoe Inventory', link: '/features/exercises/shoe-inventory' },
             { text: 'Route Generation', link: '/features/exercises/route-generation' },
             { text: 'Grade-Adjusted Pace & Running Dynamics', link: '/features/exercises/grade-adjusted-pace-and-running-dynamics' },
