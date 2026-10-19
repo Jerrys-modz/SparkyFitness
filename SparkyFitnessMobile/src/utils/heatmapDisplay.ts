@@ -91,19 +91,47 @@ export function viewInside(
   );
 }
 
-/** A map region framing everything the heatmap holds. */
-export function regionForBounds(bounds: {
-  minLat: number;
-  maxLat: number;
-  minLon: number;
-  maxLon: number;
-}): MapRegionLike | null {
+/** The value below which `share` of the total weight of `pairs` (value, weight) falls. */
+function weightedQuantile(
+  pairs: readonly (readonly [number, number])[],
+  share: number
+): number {
+  const sorted = [...pairs].sort((a, b) => a[0] - b[0]);
+  const total = sorted.reduce((sum, [, weight]) => sum + weight, 0);
+  let seen = 0;
+  for (const [value, weight] of sorted) {
+    seen += weight;
+    if (seen >= total * share) return value;
+  }
+  return sorted[sorted.length - 1]?.[0] ?? 0;
+}
+
+/** Share of the heat left out of each end when framing, so one far trip does not set the zoom. */
+const FRAME_TRIM = 0.03;
+
+/**
+ * A map region framing where the heat is: the box holding all but the faintest
+ * few percent at either end, weighted by how often each cell was used. A single
+ * trip to another city leaves the home area filling the map, not a whole country.
+ */
+export function regionForCells(
+  cells: readonly (readonly [number, number, number])[]
+): MapRegionLike | null {
+  if (cells.length === 0) return null;
+  const lats = cells.map(([lat, , count]) => [lat, count] as const);
+  const lons = cells.map(([, lon, count]) => [lon, count] as const);
   return routeRegion(
     [
-      { lat: bounds.minLat, lon: bounds.minLon },
-      { lat: bounds.maxLat, lon: bounds.maxLon },
+      {
+        lat: weightedQuantile(lats, FRAME_TRIM),
+        lon: weightedQuantile(lons, FRAME_TRIM),
+      },
+      {
+        lat: weightedQuantile(lats, 1 - FRAME_TRIM),
+        lon: weightedQuantile(lons, 1 - FRAME_TRIM),
+      },
     ],
-    1.4
+    1.5
   );
 }
 

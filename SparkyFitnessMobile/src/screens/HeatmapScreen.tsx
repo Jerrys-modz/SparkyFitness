@@ -33,7 +33,7 @@ import {
   HEATMAP_PERIODS,
   heatCellRadiusM,
   heatmapPeriodFrom,
-  regionForBounds,
+  regionForCells,
   viewFromRegion,
   viewInside,
   type HeatmapActivity,
@@ -91,12 +91,10 @@ const HeatmapScreen: React.FC<Props> = () => {
     view !== undefined ? (detail.data ?? overview.data) : overview.data;
   const mapAvailable = canShowRouteMap();
 
+  // Frame where the heat is, once per filter (not on every pan or refetch).
   const initialRegion = useMemo(
-    () =>
-      overview.data?.bounds ? regionForBounds(overview.data.bounds) : null,
-    // Frame the map once per filter, not on every pan.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [overview.data?.bounds?.minLat, overview.data?.bounds?.maxLon]
+    () => (overview.data ? regionForCells(overview.data.cells) : null),
+    [overview.data]
   );
 
   const onRegionChangeComplete = (next: MapRegionLike) => {
@@ -201,6 +199,7 @@ const HeatmapScreen: React.FC<Props> = () => {
                 testID="heatmap-map"
               >
                 <MapView
+                  key={`${activity}:${period}`}
                   ref={mapRef}
                   style={StyleSheet.absoluteFill}
                   initialRegion={initialRegion ?? undefined}
@@ -226,6 +225,7 @@ const HeatmapScreen: React.FC<Props> = () => {
                           )
                         ]
                       }
+                      strokeColor="rgba(0,0,0,0)"
                       strokeWidth={0}
                     />
                   ))}
