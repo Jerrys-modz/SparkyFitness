@@ -2,7 +2,7 @@ import {
   cellAtTap,
   heatCellRadiusM,
   heatmapPeriodFrom,
-  regionForBounds,
+  regionForCells,
   viewFromRegion,
   viewInside,
 } from '../../src/utils/heatmapDisplay';
@@ -44,15 +44,27 @@ describe('heatmap display', () => {
     expect(view.maxLon).toBe(180);
   });
 
-  it('frames the bounds with a margin', () => {
-    const region = regionForBounds({
-      minLat: 40,
-      maxLat: 40.1,
-      minLon: -74.1,
-      maxLon: -74,
-    });
-    expect(region?.latitude).toBeCloseTo(40.05, 3);
+  it('frames where the heat is, with a margin', () => {
+    const region = regionForCells([
+      [40.0, -74.1, 3],
+      [40.1, -74.0, 3],
+    ]);
+    expect(region?.latitude).toBeCloseTo(40.05, 2);
     expect(region?.latitudeDelta).toBeGreaterThan(0.1);
+  });
+
+  it('does not let one far trip set the zoom', () => {
+    const home = Array.from(
+      { length: 40 },
+      (_, i) => [40 + i * 0.0005, -74 + i * 0.0005, 20] as const
+    );
+    const region = regionForCells([...home, [34.0, -118.2, 1]]);
+    expect(region?.latitude).toBeCloseTo(40.01, 1);
+    expect(region?.latitudeDelta).toBeLessThan(0.1);
+  });
+
+  it('has no region without cells', () => {
+    expect(regionForCells([])).toBeNull();
   });
 
   it('finds the cell under a tap within a cell and a bit', () => {
