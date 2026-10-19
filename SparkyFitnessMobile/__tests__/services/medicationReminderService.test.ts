@@ -765,5 +765,45 @@ describe('reconcileMedicationReminders', () => {
       );
       expect(todayScheduled).toHaveLength(0);
     });
+
+    it('dismisses already-delivered notifications from the tray when a dose is logged', async () => {
+      (
+        Notifications.getPresentedNotificationsAsync as jest.Mock
+      ).mockResolvedValue([
+        {
+          request: {
+            identifier: 'delivered-base',
+            content: {
+              data: {
+                medicationId: 'med-1',
+                key: BASE_KEY,
+                baseKey: BASE_KEY,
+              },
+            },
+          },
+        },
+        {
+          request: {
+            identifier: 'delivered-repeat-10',
+            content: {
+              data: {
+                medicationId: 'med-1',
+                key: `${BASE_KEY}_10`,
+                baseKey: BASE_KEY,
+              },
+            },
+          },
+        },
+      ]);
+
+      await reconcileMedicationReminders([buildMedication()], [buildEntry()]);
+
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith(
+        'delivered-base'
+      );
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith(
+        'delivered-repeat-10'
+      );
+    });
   });
 });

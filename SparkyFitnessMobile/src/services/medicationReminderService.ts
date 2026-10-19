@@ -58,6 +58,19 @@ async function cancelReminders(ids: string[]): Promise<void> {
   );
 }
 
+async function dismissPresentedReminders(ids: string[]): Promise<void> {
+  if (typeof Notifications.dismissNotificationAsync !== 'function') return;
+  await Promise.all(
+    ids.map(async (id) => {
+      try {
+        await Notifications.dismissNotificationAsync(id);
+      } catch {
+        // already dismissed or invalid
+      }
+    })
+  );
+}
+
 async function scheduleReminder(
   body: string,
   triggerDate: Date,
@@ -115,6 +128,15 @@ export async function reconcileMedicationReminders(
         .filter((n) => n.content.data?.medicationId)
         .map((n) => n.identifier);
       if (medIds.length > 0) await cancelReminders(medIds);
+      if (typeof Notifications.getPresentedNotificationsAsync === 'function') {
+        const presented =
+          await Notifications.getPresentedNotificationsAsync().catch(() => []);
+        const presentedIds = presented
+          .filter((n) => n.request.content.data?.medicationId)
+          .map((n) => n.request.identifier);
+        if (presentedIds.length > 0)
+          await dismissPresentedReminders(presentedIds);
+      }
       return;
     }
 
@@ -257,6 +279,27 @@ export async function reconcileMedicationReminders(
       })
       .map((n) => n.identifier);
     if (toCancel.length > 0) await cancelReminders(toCancel);
+
+    if (typeof Notifications.getPresentedNotificationsAsync === 'function') {
+      const presented =
+        await Notifications.getPresentedNotificationsAsync().catch(() => []);
+      const presentedToDismiss = presented
+        .filter((n) => {
+          const data = n.request.content.data as
+            Record<string, string | undefined> | undefined;
+          if (!data?.medicationId) return false;
+          const key = data.key;
+          const baseKey = data.baseKey ?? key;
+          return (
+            (!key || !desiredKeys.has(key)) &&
+            (!baseKey || !desiredKeys.has(baseKey))
+          );
+        })
+        .map((n) => n.request.identifier);
+      if (presentedToDismiss.length > 0) {
+        await dismissPresentedReminders(presentedToDismiss);
+      }
+    }
 
     const pendingKeys = new Set(
       allPending

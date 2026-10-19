@@ -235,5 +235,117 @@ describe('logging a dose from a notification action', () => {
         Notifications.cancelScheduledNotificationAsync
       ).not.toHaveBeenCalledWith('unrelated');
     });
+
+    it('dismisses all other already-delivered notifications for the same dose when one is logged or skipped', async () => {
+      const baseKey = 'med_2026-08-12_m1_s1_09:00';
+      (
+        Notifications.getPresentedNotificationsAsync as jest.Mock
+      ).mockResolvedValue([
+        {
+          request: {
+            identifier: 'notif-base',
+            content: {
+              data: {
+                medicationId: 'm1',
+                scheduleId: 's1',
+                entryDate: DATE,
+                key: baseKey,
+                baseKey,
+              },
+            },
+          },
+        },
+        {
+          request: {
+            identifier: 'notif-repeat-10',
+            content: {
+              data: {
+                medicationId: 'm1',
+                scheduleId: 's1',
+                entryDate: DATE,
+                key: `${baseKey}_10`,
+                baseKey,
+              },
+            },
+          },
+        },
+        {
+          request: {
+            identifier: 'notif-other-med',
+            content: {
+              data: {
+                medicationId: 'm2',
+                scheduleId: 's2',
+                entryDate: DATE,
+                key: 'med_2026-08-12_m2_s2_09:00',
+                baseKey: 'med_2026-08-12_m2_s2_09:00',
+              },
+            },
+          },
+        },
+      ]);
+
+      listener({
+        actionIdentifier: MEDICATION_TAKEN_ACTION,
+        notification: {
+          request: {
+            identifier: 'notif-repeat-20',
+            content: {
+              data: {
+                medicationId: 'm1',
+                scheduleId: 's1',
+                entryDate: DATE,
+                key: `${baseKey}_20`,
+                baseKey,
+              },
+            },
+          },
+        },
+      });
+      await new Promise(process.nextTick);
+
+      expect(dismissDeliveredNotification).toHaveBeenCalledWith(
+        'notif-repeat-20'
+      );
+      expect(dismissDeliveredNotification).toHaveBeenCalledWith('notif-base');
+      expect(dismissDeliveredNotification).toHaveBeenCalledWith(
+        'notif-repeat-10'
+      );
+      expect(dismissDeliveredNotification).not.toHaveBeenCalledWith(
+        'notif-other-med'
+      );
+    });
+  });
+
+  describe('Android background notification task (dataString payload)', () => {
+    it('logs the dose when invoked with raw Android dataString payload', async () => {
+      listener({
+        actionIdentifier: MEDICATION_TAKEN_ACTION,
+        notification: {
+          request: {
+            identifier: 'bg-notif-1',
+            content: {
+              dataString: JSON.stringify({
+                medicationId: 'm1',
+                scheduleId: 's1',
+                entryDate: DATE,
+              }),
+            },
+          },
+        },
+      });
+      await new Promise(process.nextTick);
+
+      expect(dismissDeliveredNotification).toHaveBeenCalledWith('bg-notif-1');
+      expect(createEntry).toHaveBeenCalledTimes(1);
+      expect(createEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          medication_id: 'm1',
+          schedule_id: 's1',
+          status: 'taken',
+          entry_date: DATE,
+        })
+      );
+    });
   });
 });
