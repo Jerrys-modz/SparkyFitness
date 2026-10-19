@@ -26,6 +26,7 @@ import {
   attachExerciseEntryLapsRequestSchema,
   attachExerciseEntryDistanceSeriesRequestSchema,
   setExerciseEntryDistanceRequestSchema,
+  setExerciseEntryEffortRequestSchema,
   isEntryTimeString,
 } from '@workspace/shared';
 const __filename = fileURLToPath(import.meta.url);
@@ -1285,6 +1286,66 @@ router.post(
     }
   }
 );
+/**
+ * @swagger
+ * /exercise-entries/{id}/effort:
+ *   post:
+ *     summary: Set how hard a workout felt
+ *     tags: [Fitness & Workouts]
+ *     description: >
+ *       Stores the person's 1 (easy) to 10 (maximal) rating of a workout. For
+ *       an entry that belongs to a strength session the rating is stored on
+ *       every entry of that session. Sending it again replaces it.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [rating]
+ *             properties:
+ *               rating: { type: integer, minimum: 1, maximum: 10 }
+ *     responses:
+ *       204:
+ *         description: Effort saved.
+ *       400:
+ *         description: Invalid request body or exercise entry ID.
+ *       404:
+ *         description: Exercise entry not found.
+ */
+router.post('/:id/effort', authenticate, demoGuard, async (req, res, next) => {
+  const { id } = req.params;
+  if (!id || typeof id !== 'string' || !isValidUuid(id)) {
+    return res.status(400).json({
+      error: 'Exercise Entry ID is required and must be a valid UUID.',
+    });
+  }
+  const parsed = setExerciseEntryEffortRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.message });
+  }
+  try {
+    await exerciseEntryService.setExerciseEntryEffort(
+      req.userId,
+      req.originalUserId || req.userId,
+      id,
+      parsed.data
+    );
+    res.status(204).send();
+  } catch (error) {
+    const status = (error as { status?: number }).status;
+    const message = error instanceof Error ? error.message : '';
+    if (status === 404 || message.startsWith('Exercise entry not found')) {
+      return res.status(404).json({ error: message });
+    }
+    next(error);
+  }
+});
 /**
  * @swagger
  * /exercise-entries/progress/{exerciseId}:

@@ -40,6 +40,7 @@ enum OutboundPayloads {
         static let fastEnd = "fastEnd"
         static let runFinished = "runFinished"
         static let runEffort = "runEffort"
+        static let workoutEffort = "workoutEffort"
         static let runLive = "runLive"
         static let runCue = "runCue"
     }
@@ -330,6 +331,16 @@ enum OutboundPayloads {
         if let nextLabel { payload["nextLabel"] = nextLabel }
         if let requestId { payload["requestId"] = requestId }
         return payload
+    }
+
+    /// How hard the wearer rated a finished strength workout (1-10). Queued,
+    /// and matched to the workout by the session id the plan carried.
+    static func workoutEffort(sessionId: String, rating: Int) -> [String: Any] {
+        [
+            "type": Kind.workoutEffort,
+            "sessionId": sessionId,
+            "rating": rating,
+        ]
     }
 
     /// How hard the wearer rated a finished run (1-10), sent after the run

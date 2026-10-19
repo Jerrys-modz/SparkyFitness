@@ -7,6 +7,7 @@ import {
   completeProgramWorkout,
   rateProgramWorkout,
 } from './runProgramService';
+import { setExerciseEntryEffort } from './api/exerciseApi';
 import { toLocalDateString } from '../utils/dateUtils';
 import { parseWatchRunPayload, type WatchRunPayload } from '../utils/watchRun';
 
@@ -52,9 +53,16 @@ function serial<T>(task: () => Promise<T>): Promise<T> {
 }
 
 interface RunEffort {
+  /** What the wearer said, 1 to 10. Absent until the watch sends it. */
   rating?: number;
+  /** The diary entry the run was filed as; set once it is filed. */
+  entryId?: string;
   /** The program workout the run completed; set once it is ticked off. */
   program?: { id: string; index: number };
+  /** True once filed if the run was a program workout, so it is rated too. */
+  expectsProgram?: boolean;
+  entrySaved?: boolean;
+  programSaved?: boolean;
 }
 type RunEfforts = Record<string, RunEffort>;
 
@@ -66,34 +74,64 @@ async function writeEfforts(efforts: RunEfforts): Promise<void> {
   await AsyncStorage.setItem(EFFORT_KEY, JSON.stringify(kept));
 }
 
+function patchEffort(clientId: string, patch: Partial<RunEffort>) {
+  return serial(async () => {
+    const efforts = await readEfforts();
+    efforts[clientId] = { ...efforts[clientId], ...patch };
+    await writeEfforts(efforts);
+  });
+}
+
 /**
- * Rates the program workout of every run that has both its rating from the
- * watch and its workout ticked off. A failure that may pass keeps the rating
- * for the next pass; one the server will never accept drops it. A rating for
- * a run that was not a program workout is never matched and ages out.
+ * Saves each rating from the watch where it belongs: on the run's diary entry,
+ * and on its program workout when it completed one. Either needs the run to be
+ * filed first, so a rating that arrives early waits here. A failure that may
+ * pass keeps that part for the next pass; one the server will never accept is
+ * logged and dropped.
  */
 async function settleEfforts(): Promise<void> {
   const efforts = await serial(readEfforts);
   for (const [clientId, effort] of Object.entries(efforts)) {
-    if (effort.rating == null || !effort.program) continue;
-    try {
-      await rateProgramWorkout(
-        effort.program.id,
-        effort.program.index,
-        effort.rating
-      );
-    } catch (error) {
-      if (isRetryable(error)) continue;
-      addLog(
-        `[Watch Run] Could not save the effort: ${String(error)}`,
-        'WARNING'
-      );
+    const { rating } = effort;
+    if (rating == null) continue;
+    const done: Partial<RunEffort> = {};
+    if (effort.entryId && !effort.entrySaved) {
+      if (
+        await tryRate(() => setExerciseEntryEffort(effort.entryId!, rating))
+      ) {
+        done.entrySaved = true;
+      }
     }
+    if (effort.program && !effort.programSaved) {
+      const { id, index } = effort.program;
+      if (await tryRate(() => rateProgramWorkout(id, index, rating))) {
+        done.programSaved = true;
+      }
+    }
+    const now = { ...effort, ...done };
+    const finished =
+      now.entrySaved && (!now.expectsProgram || now.programSaved);
     await serial(async () => {
       const latest = await readEfforts();
-      delete latest[clientId];
+      if (finished) delete latest[clientId];
+      else latest[clientId] = { ...latest[clientId], ...done };
       await writeEfforts(latest);
     });
+  }
+}
+
+/** True when the call is finished with: it worked, or can never work. */
+async function tryRate(call: () => Promise<unknown>): Promise<boolean> {
+  try {
+    await call();
+    return true;
+  } catch (error) {
+    if (isRetryable(error)) return false;
+    addLog(
+      `[Watch Run] Could not save the effort: ${String(error)}`,
+      'WARNING'
+    );
+    return true;
   }
 }
 
@@ -105,22 +143,7 @@ export function receiveWatchRunEffort(
   if (!clientId || !Number.isInteger(rating) || rating < 1 || rating > 10) {
     return Promise.resolve();
   }
-  return serial(async () => {
-    const efforts = await readEfforts();
-    efforts[clientId] = { ...efforts[clientId], rating };
-    await writeEfforts(efforts);
-  }).then(settleEfforts);
-}
-
-async function rememberProgramRun(
-  clientId: string,
-  program: { id: string; index: number }
-): Promise<void> {
-  await serial(async () => {
-    const efforts = await readEfforts();
-    efforts[clientId] = { ...efforts[clientId], program };
-    await writeEfforts(efforts);
-  });
+  return patchEffort(clientId, { rating }).then(settleEfforts);
 }
 
 /** Stores a run that just arrived. Returns false for a copy already handled. */
@@ -203,7 +226,7 @@ async function tickOffProgram(
       toLocalDateString(new Date(payload.startedAt)),
       entryId
     );
-    await rememberProgramRun(payload.clientId, payload.program);
+    await patchEffort(payload.clientId, { program: payload.program });
   } catch (error) {
     // A failure that may pass (offline, 5xx, auth) keeps the run queued: the
     // entry id is already stored, so the retry only repeats the later steps.
@@ -312,6 +335,10 @@ async function drainOnce(
             update(clientId, (run) => ({ ...run, entryId: created }))
           )
       );
+      await patchEffort(clientId, {
+        entryId,
+        expectsProgram: !!item.payload.program && item.payload.planCompleted,
+      });
       await tickOffProgram(item.payload, entryId);
       // A treadmill distance entered on the wrist teaches the indoor factor.
       // Before marking done, so a run that stops here is learned on retry.

@@ -1492,11 +1492,17 @@ final class WatchSessionManager: NSObject, ObservableObject {
         transfer(OutboundPayloads.heartRateBatch(batch))
     }
 
-    /// Whether the workout that just ended can still take an effort rating.
-    var canRateWorkoutEffort: Bool { workoutHealthKit.canSaveEffort }
-
-    /// Saves the wearer's 1-10 effort for the workout that just ended to Health.
-    func rateWorkoutEffort(_ score: Int, completion: @escaping (Bool) -> Void) {
+    /// Saves the wearer's 1-10 effort for the workout that just ended: to Health
+    /// (watchOS 11+) and, when the summary names its session, to the phone,
+    /// which files it with the workout in the diary.
+    func rateWorkoutEffort(_ score: Int, sessionId: String?, completion: @escaping (Bool) -> Void) {
+        if let sessionId {
+            transfer(OutboundPayloads.workoutEffort(sessionId: sessionId, rating: score))
+        }
+        guard workoutHealthKit.canSaveEffort else {
+            completion(true)
+            return
+        }
         workoutHealthKit.saveEffort(score, completion: completion)
     }
 

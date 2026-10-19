@@ -616,6 +616,12 @@ export interface WatchSetTimerStartedPayload {
   armedAt?: number;
 }
 
+/** How hard the wearer rated a finished strength workout, 1 to 10. */
+export interface WatchWorkoutEffortPayload {
+  sessionId: string;
+  rating: number;
+}
+
 export interface WatchWorkoutStopPayload {
   sessionId: string;
 }
@@ -894,6 +900,7 @@ export type WatchConnectivityEvents = {
   onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
   onLiveHeartRate: (payload: WatchLiveHeartRatePayload) => void;
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
+  onWorkoutEffort: (payload: WatchWorkoutEffortPayload) => void;
   onWorkoutDiscard: (payload: WatchWorkoutDiscardPayload) => void;
   onWorkoutStartRequested: (payload: WatchWorkoutStartRequestedPayload) => void;
   onWorkoutEdit: (payload: WatchWorkoutEditPayload) => void;

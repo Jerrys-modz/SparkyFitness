@@ -166,6 +166,7 @@ export default defineConfig({
             { text: 'Shoe Inventory', link: '/features/exercises/shoe-inventory' },
             { text: 'Progression & Per-Set Ramp', link: '/features/exercises/progression-and-per-set-ramp' },
             { text: 'Bodyweight Exercises', link: '/features/exercises/bodyweight-exercises' },
+            { text: 'Workout Effort', link: '/features/exercises/workout-effort' },
             { text: 'Adaptive Coaching', link: '/features/exercises/adaptive-coaching' },
             { text: 'Training Consistency', link: '/features/exercises/training-consistency' },
             { text: 'Warm-Up Sets', link: '/features/exercises/warm-up-sets' },

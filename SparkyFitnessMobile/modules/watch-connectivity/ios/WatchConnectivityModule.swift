@@ -33,6 +33,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onLiveHeartRate: (([String: Any]) -> Void)?
     /// The wearer ended the workout on the watch.
     var onWorkoutStop: (([String: Any]) -> Void)?
+    /// How hard the wearer rated a finished strength workout (1-10).
+    var onWorkoutEffort: (([String: Any]) -> Void)?
     var onWorkoutDiscard: (([String: Any]) -> Void)?
     /// The wearer picked a saved workout on the watch. The phone starts it.
     var onWorkoutStartRequested: (([String: Any]) -> Void)?
@@ -129,6 +131,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onLiveHeartRate?(payload)
         case "workoutStop":
             onWorkoutStop?(payload)
+        case "workoutEffort":
+            onWorkoutEffort?(payload)
         case "workoutDiscard":
             onWorkoutDiscard?(payload)
         case "workoutStartRequested":
@@ -307,6 +311,7 @@ public class WatchConnectivityModule: Module {
             "onHeartRateBatch",
             "onLiveHeartRate",
             "onWorkoutStop",
+            "onWorkoutEffort",
             "onWorkoutDiscard",
             "onWorkoutStartRequested",
             "onWorkoutEdit",
@@ -461,6 +466,12 @@ public class WatchConnectivityModule: Module {
                     "exerciseEntryId": payload["exerciseEntryId"] as? String ?? "",
                     "bpm": bpm,
                     "at": at,
+                ])
+            }
+            self.delegateHandler.onWorkoutEffort = { [weak self] payload in
+                self?.sendEvent("onWorkoutEffort", [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "rating": payload["rating"] as? Int ?? 0,
                 ])
             }
             self.delegateHandler.onWorkoutStop = { [weak self] payload in
