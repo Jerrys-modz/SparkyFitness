@@ -1,4 +1,4 @@
-import { apiCall } from '@/api/api';
+import { API_BASE_URL, apiCall } from '@/api/api';
 import type { CheckInPhotoWithWeight } from '@workspace/shared';
 
 export type PhotoType = 'front' | 'back' | 'side';
@@ -30,7 +30,7 @@ export const fetchCheckInPhotos = async (
  * progress photos are private.
  */
 export const checkInPhotoFileUrl = (id: string): string =>
-  `/api/measurements/check-in-photos/file/${id}`;
+  `${API_BASE_URL}/measurements/check-in-photos/file/${id}`;
 
 /**
  * Every progress photo with the weight logged that day, newest day first. One
