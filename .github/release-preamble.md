@@ -15,4 +15,4 @@ If SparkyFitness has been useful to you & your family, please consider [sponsori
 
 <!-- Add key release highlights here -->
 
-- **Adaptive calorie budgets:** Dynamic Goal and Percentage Earn-Back no longer add activity calories to an Adaptive target a second time. Remaining calories may be lower after upgrading because the duplicate credit is removed. Recorded activity remains visible, and Manual targets retain their existing earn-back behavior.
+- **Adaptive calorie budgets:** Dynamic Goal and Percentage Earn-Back no longer add activity calories or optional BMR credit to an Adaptive target a second time. Remaining calories may be lower after upgrading because these duplicate credits are removed. Recorded activity remains visible, and Manual targets retain their existing earn-back behavior.

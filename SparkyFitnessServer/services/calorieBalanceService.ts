@@ -231,6 +231,13 @@ export function sumFoodEntryCalories(
   }, 0);
 }
 
+/**
+ * Calculates daily energy totals, the effective goal, and remaining calories.
+ * Adaptive targets with a positive BMR already include full-day expenditure, so
+ * Dynamic and Percentage modes do not add activity or optional BMR credit again.
+ * Without a positive BMR, those modes keep their existing earn-back behavior.
+ * Explicit Device Projection modes continue to use their device-based goal.
+ */
 export function computeCalorieBalance({
   eatenCalories,
   exercise,
