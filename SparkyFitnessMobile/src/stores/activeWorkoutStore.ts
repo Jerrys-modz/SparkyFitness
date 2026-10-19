@@ -2556,8 +2556,37 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           calories_per_hour: exercise.calories_per_hour ?? null,
         };
 
-        // Reset to a single default set — the old sets no longer describe the
-        // new movement. `?? null` on distance/heart_rate keeps the entry valid.
+        // Same modality: keep the set structure and the planned weight/reps/
+        // duration/distance so a swap doesn't mean re-entering them. What the
+        // old movement's sets recorded (notes, rpe, completion, PR) doesn't
+        // carry over. A different modality can't reuse the values (a duration
+        // set's null reps, a weight_reps set's stale duration), so it resets to
+        // one default set — the old sets no longer describe the new movement.
+        // `?? null` on distance/heart_rate keeps the entry valid.
+        const replaced = session.exercises.find((e) => e.id === entryId);
+        const newModality = resolveSnapshotModality(snapshot);
+        const preserveSets =
+          replaced != null &&
+          replaced.sets.length > 0 &&
+          resolveSnapshotModality(replaced.exercise_snapshot) === newModality;
+        const preservedIds = new Set(
+          preserveSets ? replaced.sets.map((s) => String(s.id)) : []
+        );
+        const sets: ExerciseEntrySetResponse[] = preserveSets
+          ? replaced.sets.map((s) => ({
+              ...s,
+              notes: null,
+              rpe: null,
+              completed_at: null,
+              is_pr: false,
+            }))
+          : [
+              makeDefaultSet(
+                nextTempSetId(session, state.setRenderKeys),
+                1,
+                newModality
+              ),
+            ];
         const next: PresetSessionResponse = {
           ...session,
           exercises: session.exercises.map((e) =>
@@ -2566,17 +2595,21 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
                   ...e,
                   exercise_id: exercise.id,
                   exercise_snapshot: snapshot,
-                  sets: [
-                    makeDefaultSet(
-                      nextTempSetId(session, state.setRenderKeys),
-                      1,
-                      resolveSnapshotModality(snapshot)
-                    ),
-                  ],
+                  sets,
                 }
               : e
           ),
         };
+        // Preserved sets keep their ids, so clear their completion and PR
+        // stamps here or the edit would still treat them as performed.
+        const completedSetIds = { ...state.completedSetIds };
+        const prSetIds = { ...state.prSetIds };
+        let clearedCompletion = false;
+        for (const id of preservedIds) {
+          if (completedSetIds[id] != null) clearedCompletion = true;
+          delete completedSetIds[id];
+          delete prSetIds[id];
+        }
         // The entry keeps its id, so drop the replaced exercise's preset
         // progression/ramp settings rather than applying them to the new one.
         const { [entryId]: _replaced, ...exerciseConfigs } =
@@ -2586,7 +2619,17 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         const { [entryId]: _declined, ...declinedAdaptive } =
           state.declinedAdaptive;
         set({
-          ...buildSessionEditState(state, next),
+          ...buildSessionEditState(
+            {
+              ...state,
+              completedSetIds,
+              prSetIds,
+              // Un-logged sets are due again, so send the cursor back to the
+              // first one still to do.
+              activeSetId: clearedCompletion ? null : state.activeSetId,
+            },
+            next
+          ),
           exerciseConfigs,
           declinedAdaptive,
         });
