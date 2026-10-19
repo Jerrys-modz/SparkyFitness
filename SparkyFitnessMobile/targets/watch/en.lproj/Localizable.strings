@@ -105,3 +105,9 @@
 "watch.cardio.distanceOutdoorOnly" = "Distance steps need GPS, so this plan is outdoor only.";
 "watch.effort.title" = "How hard was that?";
 "watch.effort.saved" = "Saved to Health";
+"watch.effort.band.easy" = "Easy";
+"watch.effort.band.moderate" = "Moderate";
+"watch.effort.band.hard" = "Hard";
+"watch.effort.band.allOut" = "All Out";
+"watch.effort.hint.select" = "Tap to change";
+"watch.effort.hint.adjusting" = "Turn the crown · tap to finish";
