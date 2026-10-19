@@ -58,7 +58,9 @@ beforeEach(async () => {
 describe('strides', () => {
   it('shows the default for a stride that has not been learned', async () => {
     renderScreen();
-    await screen.findAllByText('Default stride. Not learned yet.');
+    await screen.findAllByText(
+      'Default stride. Not learned yet: it learns when you correct a treadmill distance after a run with the phone on you, or set it below.'
+    );
     expect(screen.getByText('0.75 m')).toBeTruthy();
     expect(screen.getByText('1.05 m')).toBeTruthy();
     expect(screen.queryByText('Reset and learn from scratch')).toBeNull();

@@ -55,7 +55,13 @@ export interface RunSummaryParams {
    * distance it showed before any correction, so a treadmill distance entered
    * here teaches the factor (`learnWatchIndoorScale`).
    */
-  watchIndoor?: { scale: number; estimatedMeters: number };
+  watchIndoor?: {
+    scale: number;
+    estimatedMeters: number;
+    /** When the run happened, so the phone's steps over it can teach the stride. */
+    startedAt?: number;
+    endedAt?: number;
+  };
   /**
    * What the treadmill showed when a correction was taken off it to give
    * `distanceMeters`, so the screen can show both.

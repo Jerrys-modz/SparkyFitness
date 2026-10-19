@@ -98,6 +98,24 @@ export async function learnFromIndoorEntry(
 }
 
 /**
+ * Learns from a treadmill run the watch recorded, once the person has entered
+ * what the machine showed. The watch sends no step count, so this asks the
+ * phone for its steps over the run's window: it only counts when the phone was
+ * carried, and a window with too few steps (a phone left on a shelf) teaches
+ * nothing. Asks for Motion & Fitness, since the person has just acted on the
+ * run. Returns whether a stride was learned.
+ */
+export async function learnFromWatchRun(
+  window: StepWindow,
+  distanceMeters: number
+): Promise<boolean> {
+  if (!isStepActivity(window.activity)) return false;
+  const steps = await activeSteps(window, true);
+  if (steps == null || steps < MIN_STEPS_FOR_ESTIMATE) return false;
+  return learnStride(window.activity, steps, distanceMeters);
+}
+
+/**
  * Learns from a GPS recording, whose distance is known. Only when Motion &
  * Fitness is already allowed: a prompt out of nowhere while saving a run
  * would be worse than learning nothing.
