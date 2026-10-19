@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import {
+  buildProgramTimeline,
   planMinutes,
   runMinutes,
   type IndividualSessionResponse,
@@ -25,7 +26,6 @@ import { toLocalDateString } from '../utils/dateUtils';
 import { formatDayLabel } from '../utils/dayLabel';
 import { cardioSessionFromDiaryEntry } from '../utils/cardioSession';
 import { formatClock } from '../utils/gpsRecording';
-import { buildProgramTimeline } from '../utils/programTimeline';
 import { intervalStepName } from '../utils/recordingCues';
 import type { RootStackScreenProps } from '../types/navigation';
 

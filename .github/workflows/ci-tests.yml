@@ -8,6 +8,7 @@ on:
       - "SparkyFitnessMobile/**"
       - "SparkyFitnessServer/**"
       - "SparkyFitnessGarmin/**"
+      - "shared/**"
       - ".github/workflows/ci-tests.yml"
   push:
     branches: [main]
@@ -16,6 +17,7 @@ on:
       - "SparkyFitnessMobile/**"
       - "SparkyFitnessServer/**"
       - "SparkyFitnessGarmin/**"
+      - "shared/**"
       - ".github/workflows/ci-tests.yml"
 
 jobs:
@@ -28,6 +30,7 @@ jobs:
       mobile: ${{ steps.filter.outputs.mobile }}
       server: ${{ steps.filter.outputs.server }}
       garmin: ${{ steps.filter.outputs.garmin }}
+      shared: ${{ steps.filter.outputs.shared }}
       migrations: ${{ steps.filter.outputs.migrations }}
     steps:
       - name: Checkout code
@@ -40,12 +43,17 @@ jobs:
           filters: |
             frontend:
               - 'SparkyFitnessFrontend/**'
+              - 'shared/**'
             mobile:
               - 'SparkyFitnessMobile/**'
+              - 'shared/**'
             server:
               - 'SparkyFitnessServer/**'
+              - 'shared/**'
             garmin:
               - 'SparkyFitnessGarmin/**'
+            shared:
+              - 'shared/**'
             # Files whose change can break a fresh-install migration run.
             # Includes the jobs' own execution path (workflow + script) so a
             # change there can't break migration CI while the jobs gate out.
@@ -67,6 +75,40 @@ jobs:
               - 'SparkyFitnessServer/models/oidcProviderRepository.ts'
               - 'SparkyFitnessServer/package.json'
               - '.github/workflows/ci-tests.yml'
+
+  shared-validate:
+    name: Shared Validate
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.shared == 'true'
+    permissions:
+      contents: read
+
+    defaults:
+      run:
+        working-directory: shared
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run validation (Type Check, Format)
+        run: pnpm run validate
 
   frontend-tests:
     name: Frontend Tests

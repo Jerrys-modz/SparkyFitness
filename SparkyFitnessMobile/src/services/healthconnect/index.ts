@@ -1369,6 +1369,14 @@ type SessionCaloriePair = {
   total?: number;
 };
 
+/**
+ * Selects active session energy after validating basal energy against the
+ * duration-based resting-rate cap. Missing, non-finite, negative, or over-cap
+ * basal values retain the legacy Active/Total fallback. An accepted basal value
+ * may exceed Total; its derived zero is preserved instead of crediting resting
+ * energy as exercise. A positive, session-valid Active value still takes priority
+ * when it exceeds that derived estimate.
+ */
 const selectBasalNormalizedSessionCalories = (
   active: number | undefined,
   total: number | undefined,
@@ -1392,14 +1400,15 @@ const selectBasalNormalizedSessionCalories = (
   const reportedActive =
     isPositiveCalories(active) && active <= totalValid ? active : undefined;
   const derivedActive = deriveActiveCalories(totalValid, basalValid);
-  const derivedPositive =
-    derivedActive != null && derivedActive > 0 ? derivedActive : undefined;
 
-  if (derivedPositive == null) {
+  if (derivedActive == null) {
     return selectSessionCalories(active, total, durationMs);
   }
-  if (reportedActive == null) return derivedPositive;
-  return Math.max(reportedActive, derivedPositive);
+  // A plausible basal aggregate can account for all the total energy. That is
+  // a valid zero active estimate, not a missing Android bridge value: falling
+  // back to Total here would label the resting energy as workout calories.
+  if (reportedActive == null) return derivedActive;
+  return Math.max(reportedActive, derivedActive);
 };
 
 const extractSessionCaloriePair = (

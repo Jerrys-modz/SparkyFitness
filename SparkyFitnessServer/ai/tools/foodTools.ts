@@ -865,9 +865,9 @@ export async function getWaterHistoryRows(
 }
 
 /**
- * Cascade lookup for food nutrition: internal DB, then the user's active
- * configured external providers (sort_order first), then free OpenFoodFacts.
- * `source: 'ai_estimate'` with a null food signals the AI-estimation fallback.
+ * Fetch verified provider details using the selected provider's credentials.
+ * Returns null when the provider cannot supply usable nutrition; callers must
+ * request another verified source rather than inventing a fallback.
  */
 async function fetchVerifiedProviderFood(
   userId: string,
@@ -1293,12 +1293,6 @@ Actions:
 
               if (!result.food) {
                 return `No verified match is available for "${args.food_name}"${result.source === 'unavailable' ? '; one or more providers failed' : ''}. Try another provider or official source (up to three candidates), then ask for the label or portion weight. Do not invent nutrition.`;
-              }
-              if (!result.food) {
-                // MCP quirk: an explicit provider_type='internal' miss
-                // crashed its renderer on the null food and surfaced as a
-                // DB error — ported as-is.
-                return ERRORS.DB_ERROR();
               }
 
               const f = result.food;
