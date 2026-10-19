@@ -359,6 +359,12 @@ export interface WatchContextPayload {
   steps?: { day: string; count: number } | null;
   /** Daily step goal the Steps page and complication measure against. */
   stepGoal?: number | null;
+  /**
+   * The profile's target weight in kg, drawn as a goal line on the weight trend.
+   * 0 means none: a null is stripped before the transfer, so "cleared" could not
+   * be told from "not sent" and the watch would keep a goal the user removed.
+   */
+  goalWeightKg?: number;
 }
 
 /** One target set the watch shows for a planned exercise. */

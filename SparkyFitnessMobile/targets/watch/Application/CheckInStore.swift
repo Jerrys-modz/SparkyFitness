@@ -433,6 +433,36 @@ final class CheckInStore: ObservableObject {
         }
     }
 
+    /// Change per week, in kg, over the last two weeks of `trend` — a
+    /// least-squares slope of trend against day. Port of `weeklyRateOf` in
+    /// `@workspace/shared` (same thresholds; keep them in step). Nil until
+    /// there are at least four weigh-ins spanning two weeks, so a thin history
+    /// shows no rate rather than a wild one.
+    ///
+    /// `trend` is `weightTrend`'s output over the full history, ascending.
+    func weeklyRateKg(trend: [HistoryPoint]) -> Double? {
+        guard let last = trend.last else { return nil }
+        let window = trend.filter {
+            (CheckInDate.dayOffset(from: $0.day, to: last.day) ?? Int.max) <= 14
+        }
+        guard window.count >= 4, let first = window.first else { return nil }
+        let xs = window.compactMap { CheckInDate.dayOffset(from: first.day, to: $0.day) }
+        guard xs.count == window.count, let span = xs.last, span >= 13 else { return nil }
+
+        let n = Double(window.count)
+        let meanX = xs.reduce(0.0) { $0 + Double($1) } / n
+        let meanY = window.reduce(0.0) { $0 + $1.weightKg } / n
+        var numerator = 0.0
+        var denominator = 0.0
+        for (index, point) in window.enumerated() {
+            let dx = Double(xs[index]) - meanX
+            numerator += dx * (point.weightKg - meanY)
+            denominator += dx * dx
+        }
+        guard denominator > 0 else { return nil }
+        return numerator / denominator * 7
+    }
+
     // MARK: - Day rollover
 
     /// Drops nutrition and water snapshots that describe a day now past.

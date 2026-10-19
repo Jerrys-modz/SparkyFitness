@@ -487,6 +487,17 @@ struct WatchContext: Codable, Equatable {
     /// Learned correction for the watch's indoor distance. Nil until the
     /// phone has learned one, which reads as no correction.
     var indoorDistanceScale: IndoorDistanceScale? = nil
+    /// The profile's target weight in kg, for the trend chart's goal line.
+    /// Account configuration, so carried forward when a push omits it. The
+    /// phone sends 0 for "no goal" (a null would be stripped in transit);
+    /// read `effectiveGoalWeightKg`.
+    var goalWeightKg: Double? = nil
+
+    /// The target weight, or nil when none is set.
+    var effectiveGoalWeightKg: Double? {
+        guard let goalWeightKg, goalWeightKg > 0 else { return nil }
+        return goalWeightKg
+    }
 
     static let empty = WatchContext(
         today: nil,
