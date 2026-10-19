@@ -1,6 +1,6 @@
 # AGENTS.md
 
-*Last updated: 2026-10-18*
+*Last updated: 2026-10-19*
 
 `@workspace/shared` is a source-first TypeScript workspace library package for schemas, constants, and timezone/day helpers consumed by SparkyFitnessServer, SparkyFitnessFrontend, and SparkyFitnessMobile.
 
@@ -19,7 +19,7 @@
 - `src/nutrients/` - nutrient catalogs and the goal calculator used by web onboarding, the web Goals editor and mobile Goals (`nutrientCalculation.ts`: per-nutrient recommended values from age, sex, weight, calories and the saved algorithm choices; `nutrientAlgorithms.ts`: the algorithm enums and labels).
 - `src/ai/`, `src/cycle/`, `src/medications/`, `src/mood/` - domain-specific helpers.
 - Routes: `src/schemas/api/Route.api.zod.ts` (points, turn cues, bodies, run history: `routeRunSchema`, `attachEntryRouteBodySchema`; the best-run pace line the watch races: `routeGhostSchema`, `ROUTE_GHOST_INTERVAL_M`), `src/utils/routeGeometry.ts` (distance, climb, simplify, bounds), `src/utils/routeGhost.ts` (`buildGhostSplits`: a best run's GPS timeline to seconds at every 100 m of the route, even-pace fallback without a track) and `src/utils/routeGpx.ts` (dependency-free GPX read/write).
-- Segments and heatmap: `src/schemas/api/Segment.api.zod.ts` (create bodies, `segmentSummarySchema`, `segmentEffortSchema`, `entrySegmentEffortSchema`, limits), `src/schemas/api/Heatmap.api.zod.ts` (`heatmapQuerySchema`, tuple cells), `src/schemas/database/Segments.zod.ts` and `SegmentEfforts.zod.ts`, `src/utils/segmentMatch.ts` (pure: `findSegmentPasses`, `bestSegmentPass`, `sliceRouteByDistance`, `prepareSegment`, `annotateEfforts`, `isSegmentPersonalBest`), `src/utils/heatmap.ts` (pure grid: `addTrackToHeatGrid`, `coarsenHeatGrid`, `sliceHeatGrid`, `nearestHeatCell`) and `src/utils/trackActivity.ts` (`trackActivityKind`, `segmentAcceptsActivity`). They build on `routeGeometry.ts` and are tested from the server (`tests/segmentMatch.test.ts`, `heatmapGrid.test.ts`).
+- Segments and heatmap: `src/schemas/api/Segment.api.zod.ts` (create bodies, `segmentSummarySchema`, `segmentEffortSchema`, `entrySegmentEffortSchema`, limits), `src/schemas/api/Heatmap.api.zod.ts` (`heatmapQuerySchema`, tuple cells, and `heatmapTracksQuerySchema` / `heatmapTracksResponseSchema` for the street-level lines), `src/schemas/database/Segments.zod.ts` and `SegmentEfforts.zod.ts`, `src/utils/segmentMatch.ts` (pure: `findSegmentPasses`, `bestSegmentPass`, `sliceRouteByDistance`, `prepareSegment`, `annotateEfforts`, `isSegmentPersonalBest`), `src/utils/heatmap.ts` (pure grid: `addTrackToHeatGrid`, `coarsenHeatGrid`, `sliceHeatGrid`, `nearestHeatCell`, and for lines `simplifyHeatTrack`, `heatPartBounds`, `boundsOverlap`, `countTracksNear`) and `src/utils/trackActivity.ts` (`trackActivityKind`, `segmentAcceptsActivity`). They build on `routeGeometry.ts` and are tested from the server (`tests/segmentMatch.test.ts`, `heatmapGrid.test.ts`).
 - `src/symptoms/` - generic symptom tracking: constants and enums (scales, templates, sections, option kinds), template section resolution (`resolveSections`), built-in symptoms and pick-lists, head/body region ids for the location maps, and custom-field validation. The API contract is `src/schemas/api/Symptoms.api.zod.ts`.
 
 ## Naming Convention
