@@ -201,6 +201,55 @@ describe('useQuickActions', () => {
     expect(navigationRef.navigate).toHaveBeenCalledWith('FastingDetail');
   });
 
+  it('ignores a Log water launch action sent to Android by another app', async () => {
+    setPlatform('android');
+    // MainActivity is exported, so any app can start it with a shortcut
+    // intent naming an id the app never registered there.
+    (QuickActions as { initial?: { id: string } }).initial = {
+      id: 'log-water',
+    };
+
+    renderHook(() => useQuickActions(true));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(fetchWaterContainers).not.toHaveBeenCalled();
+    expect(changeWaterIntake).not.toHaveBeenCalled();
+  });
+
+  it('runs only the registered actions that arrive while the app is open on Android', async () => {
+    setPlatform('android');
+
+    renderHook(() => useQuickActions(true));
+    const listener = (QuickActions.addListener as jest.Mock).mock
+      .calls[0][0] as (action: { id: string }) => void;
+
+    listener({ id: 'log-water' });
+    listener({ id: 'scan-food' });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(fetchWaterContainers).not.toHaveBeenCalled();
+    expect(changeWaterIntake).not.toHaveBeenCalled();
+    expect(navigationRef.navigate).toHaveBeenCalledWith('FoodScan');
+  });
+
+  it('logs water from the iOS shortcut tapped while the app is open', async () => {
+    setPlatform('ios');
+    (fetchWaterContainers as jest.Mock).mockResolvedValue([
+      { id: 2, is_primary: true },
+    ]);
+
+    renderHook(() => useQuickActions(true));
+    const listener = (QuickActions.addListener as jest.Mock).mock
+      .calls[0][0] as (action: { id: string }) => void;
+    listener({ id: 'log-water' });
+
+    await waitFor(() => expect(changeWaterIntake).toHaveBeenCalledTimes(1));
+  });
+
   it('does not run the launch action again when the app mounts again', () => {
     setPlatform('android');
     (QuickActions as { initial?: { id: string } }).initial = {

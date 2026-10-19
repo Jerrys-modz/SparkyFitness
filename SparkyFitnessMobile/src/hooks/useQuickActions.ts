@@ -168,20 +168,26 @@ export function useQuickActions(enabled: boolean): void {
     if (!enabled || (Platform.OS !== 'ios' && Platform.OS !== 'android')) {
       return;
     }
-    const registered = QuickActions.setItems(quickActionItems()).catch(
-      () => undefined
-    );
+    const items = quickActionItems();
+    const registered = QuickActions.setItems(items).catch(() => undefined);
     if (Platform.OS === 'android') {
       void registered.then(restoreLogWaterShortcut);
     }
+    // On Android the action comes from an intent to MainActivity, which is
+    // exported, so any installed app can send one with any id. Only the ids
+    // registered here are run: Android's Log water is the native shortcut,
+    // whose activity is not exported, so another app cannot log water
+    // through this path.
+    const registeredIds = new Set(items.map((item) => item.id));
+    const run = (action: QuickActions.Action): void => {
+      if (registeredIds.has(action.id)) runQuickAction(action.id);
+    };
     const initial = QuickActions.initial;
     if (initial && initial !== handledLaunchAction) {
       handledLaunchAction = initial;
-      runQuickAction(initial.id);
+      run(initial);
     }
-    const subscription = QuickActions.addListener((action) =>
-      runQuickAction(action.id)
-    );
+    const subscription = QuickActions.addListener(run);
     return () => subscription.remove();
   }, [enabled, language]);
 }
