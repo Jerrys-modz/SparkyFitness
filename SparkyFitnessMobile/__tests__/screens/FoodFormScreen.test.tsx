@@ -2,7 +2,7 @@ import React from 'react';
 import { Alert } from 'react-native';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import FoodFormScreen from '../../src/screens/FoodFormScreen';
 import type { FoodFormProps } from '../../src/components/FoodForm';
@@ -19,11 +19,15 @@ import { setPendingMealPlanSelection } from '../../src/services/mealPlanSelectio
 import {
   createFoodVariant,
   fetchFoodVariants,
+  saveFood,
+  updateFood,
   updateFoodVariant,
   deleteFoodVariant,
   updateFoodEntriesSnapshot,
 } from '../../src/services/api/foodsApi';
-import type { FoodVariantDetail } from '../../src/types/foods';
+import { createFoodEntry } from '../../src/services/api/foodEntriesApi';
+import type { FoodEntry } from '../../src/types/foodEntries';
+import type { FoodItem, FoodVariantDetail } from '../../src/types/foods';
 import type { EditableFoodPortion } from '../../src/utils/namedFoodPortions';
 import type { EquivalentUnit } from '../../src/types/foodUnitVariants';
 
@@ -64,6 +68,9 @@ jest.mock('../../src/hooks/useSaveFood', () => ({
 }));
 
 jest.mock('../../src/hooks/useAddFoodEntry', () => ({
+  ...jest.requireActual<typeof import('../../src/hooks/useAddFoodEntry')>(
+    '../../src/hooks/useAddFoodEntry'
+  ),
   useAddFoodEntry: jest.fn(),
 }));
 
@@ -91,6 +98,11 @@ jest.mock('../../src/services/api/foodsApi', () => ({
   updateFood: jest.fn(() => Promise.resolve({})),
   updateFoodEntriesSnapshot: jest.fn(() => Promise.resolve()),
   fetchFoodVariants: jest.fn(() => Promise.resolve([])),
+  saveFood: jest.fn(),
+}));
+
+jest.mock('../../src/services/api/foodEntriesApi', () => ({
+  createFoodEntry: jest.fn(),
 }));
 
 jest.mock('@tanstack/react-query', () => ({
@@ -525,6 +537,529 @@ describe('FoodFormScreen', () => {
     }
   );
 
+  it.each([true, false])(
+    'reuses a saved manual food after a failed log with portions: %s',
+    async (withPortions) => {
+      mockSubmittedFoodFormData = {
+        ...mockSubmittedFoodFormData,
+        notes: '',
+        caffeineMg: '',
+        waterMl: '',
+        alcoholG: '',
+      };
+      const reference: FoodVariantDetail = {
+        id: 'grams',
+        food_id: 'food-1',
+        serving_size: 100,
+        serving_unit: 'g',
+        calories: 200,
+        protein: 10,
+        carbs: 20,
+        fat: 5,
+      };
+      const savedFoods: FoodItem[] = [];
+      let rows: FoodVariantDetail[] = [];
+      jest.mocked(saveFood).mockImplementation(async () => {
+        const foodId = `food-${savedFoods.length + 1}`;
+        const variant = {
+          ...reference,
+          id: savedFoods.length === 0 ? 'grams' : `grams-${foodId}`,
+          food_id: foodId,
+        };
+        const saved = {
+          id: foodId,
+          name: 'Custom Meal Food',
+          brand: 'Brand Co',
+          is_custom: true,
+          default_variant: variant,
+        };
+        savedFoods.push(saved);
+        rows = [...rows, variant];
+        return saved;
+      });
+      mockSaveFoodAsync.mockImplementation(
+        (...args: Parameters<typeof saveFood>) => saveFood(...args)
+      );
+      jest
+        .mocked(fetchFoodVariants)
+        .mockImplementation(async (foodId) =>
+          rows.filter((row) => row.food_id === foodId)
+        );
+      jest.mocked(createFoodVariant).mockImplementation(async (payload) => {
+        const row = { ...payload, id: `variant-${rows.length}` };
+        rows = [...rows, row];
+        return row;
+      });
+      const entry: FoodEntry = {
+        id: 'entry-1',
+        food_id: 'food-1',
+        variant_id: 'grams',
+        meal_type: 'breakfast',
+        meal_type_id: 'meal-1',
+        quantity: 100,
+        unit: 'g',
+        entry_date: '2026-04-23',
+        serving_size: 100,
+        serving_unit: 'g',
+        calories: 200,
+        protein: 10,
+        carbs: 20,
+        fat: 5,
+      };
+      jest
+        .mocked(createFoodEntry)
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockImplementation(async (payload) => ({
+          ...entry,
+          food_id: payload.food_id,
+          variant_id: payload.variant_id,
+          quantity: payload.quantity,
+          unit: payload.unit,
+          entry_date: payload.entry_date,
+        }));
+      mockUseAddFoodEntry.mockImplementation(
+        jest.requireActual<typeof import('../../src/hooks/useAddFoodEntry')>(
+          '../../src/hooks/useAddFoodEntry'
+        ).useAddFoodEntry
+      );
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+      });
+      mockLiveQueryClient = queryClient;
+      const screen = render(
+        <QueryClientProvider client={queryClient}>
+          <SafeAreaProvider initialMetrics={{ insets, frame }}>
+            <FoodFormScreen
+              navigation={navigation}
+              route={{
+                key: 'FoodForm-key',
+                name: 'FoodForm',
+                params: { mode: 'create-food', date: '2026-04-23' },
+              }}
+            />
+          </SafeAreaProvider>
+        </QueryClientProvider>
+      );
+      mockEquivalentDraft = [{ serving_size: 1, serving_unit: 'serving' }];
+      fireEvent.press(screen.getByText('Apply Equivalent Fixture'));
+      fireEvent.press(screen.getByText('Add Food'));
+      await waitFor(() =>
+        expect(mockToast.show).toHaveBeenCalledWith(
+          expect.objectContaining({ text1: 'Failed to add food' })
+        )
+      );
+      expect(rows).toEqual([reference]);
+      expect(navigation.dispatch).not.toHaveBeenCalled();
+
+      if (withPortions) {
+        mockPortionDraft = [{ name: 'packet', amount: 150, unit: 'g' }];
+        fireEvent.press(screen.getByText('Apply Portion Fixture'));
+      }
+      fireEvent.press(screen.getByText('Add Food'));
+      await waitFor(() => expect(navigation.dispatch).toHaveBeenCalled());
+
+      expect(savedFoods.map((food) => food.id)).toEqual(['food-1']);
+      expect(saveFood).toHaveBeenCalledTimes(1);
+      expect(mockSaveFoodAsync).not.toHaveBeenCalled();
+      expect(rows.map((row) => row.serving_unit)).toEqual([
+        'g',
+        ...(withPortions ? ['packet (150 g)'] : []),
+        'serving',
+      ]);
+      expect(rows.find((row) => row.serving_unit === 'serving')).toMatchObject({
+        calories: 200,
+        protein: 10,
+        carbs: 20,
+        fat: 5,
+      });
+      expect(createFoodEntry).toHaveBeenLastCalledWith(
+        expect.objectContaining({ food_id: 'food-1', variant_id: 'grams' })
+      );
+    }
+  );
+
+  it.each([
+    { change: 'unchanged', edited: false, renamed: false },
+    { change: 'nutrition', edited: true, renamed: false },
+    { change: 'unit with a lost response', edited: true, renamed: true },
+  ])(
+    'keeps the selected nondefault serving after retry: $change',
+    async ({ edited, renamed }) => {
+      const reference: FoodVariantDetail = {
+        id: 'grams',
+        food_id: 'food-1',
+        serving_size: 100,
+        serving_unit: 'g',
+        calories: 200,
+        protein: 10,
+        carbs: 20,
+        fat: 5,
+      };
+      const selected: FoodVariantDetail = {
+        ...reference,
+        id: 'cup',
+        serving_size: 1,
+        serving_unit: 'cup (250 ml)',
+        calories: 400,
+      };
+      jest.mocked(saveFood).mockResolvedValue({
+        id: 'food-1',
+        name: 'Custom Meal Food',
+        brand: 'Brand Co',
+        is_custom: true,
+        default_variant: reference,
+      });
+      mockSaveFoodAsync.mockImplementation(
+        (...args: Parameters<typeof saveFood>) => saveFood(...args)
+      );
+      let rows = [reference, selected];
+      let responseLost = false;
+      jest.mocked(fetchFoodVariants).mockImplementation(async () => rows);
+      jest.mocked(updateFoodVariant).mockImplementation(async (id, payload) => {
+        const row = { ...payload, id };
+        rows = rows.map((current) => (current.id === id ? row : current));
+        if (renamed && !responseLost) {
+          responseLost = true;
+          throw new Error('response lost after commit');
+        }
+        return row;
+      });
+      jest.mocked(createFoodVariant).mockImplementation(async (payload) => {
+        const row = { ...payload, id: 'bottle' };
+        rows = [...rows, row];
+        return row;
+      });
+      jest
+        .mocked(createFoodEntry)
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockImplementation(async (payload) => ({
+          id: 'entry-1',
+          food_id: payload.food_id,
+          variant_id: payload.variant_id,
+          quantity: payload.quantity,
+          unit: payload.unit,
+          entry_date: payload.entry_date,
+          meal_type: 'breakfast',
+          serving_size: 1,
+          calories: 400,
+        }));
+      mockSubmittedFoodFormData = {
+        ...mockSubmittedFoodFormData,
+        servingSize: '1',
+        servingUnit: 'cup (250 ml)',
+        calories: '400',
+        notes: '',
+        caffeineMg: '',
+        waterMl: '',
+        alcoholG: '',
+      };
+      mockUseAddFoodEntry.mockImplementation(
+        jest.requireActual<typeof import('../../src/hooks/useAddFoodEntry')>(
+          '../../src/hooks/useAddFoodEntry'
+        ).useAddFoodEntry
+      );
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+      });
+      mockLiveQueryClient = queryClient;
+      const screen = render(
+        <QueryClientProvider client={queryClient}>
+          <SafeAreaProvider initialMetrics={{ insets, frame }}>
+            <FoodFormScreen
+              navigation={navigation}
+              route={{
+                key: 'FoodForm-key',
+                name: 'FoodForm',
+                params: {
+                  mode: 'create-food',
+                  date: '2026-04-23',
+                  barcode: '1234567890123',
+                },
+              }}
+            />
+          </SafeAreaProvider>
+        </QueryClientProvider>
+      );
+      fireEvent.press(screen.getByText('Add Food'));
+      await waitFor(() =>
+        expect(mockToast.show).toHaveBeenCalledWith(
+          expect.objectContaining({ text1: 'Failed to add food' })
+        )
+      );
+      expect(createFoodEntry).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          food_id: 'food-1',
+          variant_id: 'cup',
+          unit: 'cup (250 ml)',
+        })
+      );
+      if (edited)
+        mockSubmittedFoodFormData = {
+          ...mockSubmittedFoodFormData,
+          calories: '500',
+        };
+      if (renamed) {
+        mockSubmittedFoodFormData = {
+          ...mockSubmittedFoodFormData,
+          servingSize: '100',
+          servingUnit: 'ml',
+        };
+        mockPortionDraft = [{ name: 'bottle', amount: 150, unit: 'ml' }];
+        fireEvent.press(screen.getByText('Apply Portion Fixture'));
+      }
+      fireEvent.press(screen.getByText('Add Food'));
+      if (renamed) {
+        await waitFor(() =>
+          expect(mockToast.show).toHaveBeenCalledWith(
+            expect.objectContaining({
+              text1: 'Could not save all portions. Try saving again.',
+            })
+          )
+        );
+        expect(navigation.dispatch).not.toHaveBeenCalled();
+        fireEvent.press(screen.getByText('Add Food'));
+      }
+      await waitFor(() => expect(navigation.dispatch).toHaveBeenCalled());
+      expect(saveFood).toHaveBeenCalledTimes(1);
+      expect(createFoodEntry).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          food_id: 'food-1',
+          variant_id: 'cup',
+          unit: renamed ? 'ml' : 'cup (250 ml)',
+        })
+      );
+      expect(rows.find((row) => row.id === 'grams')).toEqual(reference);
+      expect(rows.find((row) => row.id === 'cup')).toMatchObject({
+        calories: edited ? 500 : 400,
+      });
+      if (!edited) expect(updateFoodVariant).not.toHaveBeenCalled();
+      if (renamed)
+        expect(rows.find((row) => row.id === 'bottle')).toMatchObject({
+          serving_unit: 'bottle (150 ml)',
+          calories: 750,
+        });
+      else expect(createFoodVariant).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['ml', 'cup'])(
+    'rejects incompatible new Create portions before writes for %s',
+    async (servingUnit) => {
+      let rows: FoodVariantDetail[] = [];
+      mockSaveFoodAsync.mockImplementation(
+        async (payload: Parameters<typeof saveFood>[0]) => {
+          const reference: FoodVariantDetail = {
+            id: 'grams',
+            food_id: 'food-1',
+            serving_size: payload.serving_size,
+            serving_unit: payload.serving_unit,
+            calories: payload.calories,
+            protein: payload.protein,
+            carbs: payload.carbs,
+            fat: payload.fat,
+          };
+          rows = [reference];
+          return {
+            id: 'food-1',
+            name: payload.name,
+            brand: payload.brand,
+            is_custom: true,
+            default_variant: reference,
+          };
+        }
+      );
+      jest.mocked(fetchFoodVariants).mockImplementation(async () => rows);
+      jest.mocked(createFoodVariant).mockImplementation(async (payload) => {
+        const row = { ...payload, id: 'packet' };
+        rows = [...rows, row];
+        return row;
+      });
+      const screen = renderScreen({
+        mode: 'create-food',
+        pickerMode: 'library',
+      });
+      mockPortionDraft = [{ name: 'packet', amount: 150, unit: 'g' }];
+      fireEvent.press(screen.getByText('Apply Portion Fixture'));
+      mockSubmittedFoodFormData = { ...mockSubmittedFoodFormData, servingUnit };
+      fireEvent.press(screen.getByText('Save'));
+      await waitFor(() =>
+        expect(mockToast.show).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'error',
+            text1:
+              'Select a gram or milliliter serving that matches your new portions.',
+          })
+        )
+      );
+      expect(mockSaveFoodAsync).not.toHaveBeenCalled();
+      expect(updateFood).not.toHaveBeenCalled();
+      expect(updateFoodVariant).not.toHaveBeenCalled();
+      expect(createFoodVariant).not.toHaveBeenCalled();
+      expect(navigation.dispatch).not.toHaveBeenCalled();
+      expect(rows).toEqual([]);
+      mockSubmittedFoodFormData = {
+        ...mockSubmittedFoodFormData,
+        servingUnit: 'g',
+      };
+      fireEvent.press(screen.getByText('Save'));
+      await waitFor(() => expect(navigation.dispatch).toHaveBeenCalled());
+      expect(mockSaveFoodAsync).toHaveBeenCalledTimes(1);
+      expect(rows.map((row) => row.serving_unit)).toEqual([
+        'g',
+        'packet (150 g)',
+      ]);
+    }
+  );
+
+  it.each([
+    { servingUnit: 'ml', draft: false },
+    { servingUnit: 'cup', draft: true },
+  ])(
+    'rejects incompatible new portions before writes for $servingUnit and saves after correction',
+    async ({ servingUnit, draft }) => {
+      const reference: FoodVariantDetail = {
+        id: 'grams',
+        food_id: 'food-1',
+        serving_size: 100,
+        serving_unit: 'g',
+        calories: 200,
+        protein: 10,
+        carbs: 20,
+        fat: 5,
+      };
+      const importedPortion: FoodVariantDetail = {
+        ...reference,
+        id: 'imported',
+        serving_size: 1,
+        serving_unit: 'packet (150 g)',
+        calories: 777,
+        source: 'imported',
+      };
+      let rows = [reference, importedPortion];
+      mockUseFoodVariants.mockReturnValue({
+        variants: rows,
+        isLoading: false,
+        isError: false,
+      });
+      jest.mocked(fetchFoodVariants).mockImplementation(async () => rows);
+      jest.mocked(updateFoodVariant).mockImplementation(async (id, payload) => {
+        const row = { ...payload, id };
+        rows = rows.map((current) => (current.id === id ? row : current));
+        return row;
+      });
+      const createVariant = async (
+        payload: Parameters<typeof createFoodVariant>[0]
+      ) => {
+        const row = { ...payload, id: `variant-${rows.length}` };
+        rows = [...rows, row];
+        return row;
+      };
+      jest.mocked(createFoodVariant).mockImplementation(createVariant);
+      mockCreateVariant.mockImplementation(createVariant);
+      const initialValues = { ...mockSubmittedFoodFormData };
+      mockSubmittedFoodFormData = {
+        ...initialValues,
+        name: 'Updated food',
+        calories: '240',
+        servingUnit,
+      };
+      const preservedPortion: EditableFoodPortion = {
+        id: 'imported',
+        name: 'packet',
+        amount: 150,
+        unit: 'g',
+        preserveNutrition: true,
+      };
+      mockPortionDraft = [
+        preservedPortion,
+        { name: 'bottle', amount: 150, unit: 'g' },
+      ];
+      const screen = renderScreen({
+        mode: 'edit-food',
+        foodId: 'food-1',
+        variantId: 'grams',
+        returnKey: 'FoodDetail-key',
+        initialValues,
+        customNutrients: null,
+        item: {
+          id: 'food-1',
+          name: 'Custom Meal Food',
+          brand: 'Brand Co',
+          source: 'local',
+          servingSize: 100,
+          servingUnit: 'g',
+          calories: 200,
+          protein: 10,
+          carbs: 20,
+          fat: 5,
+          originalItem: {},
+        },
+      });
+      fireEvent.press(screen.getByText('Apply Portion Fixture'));
+      if (draft) {
+        mockUnitSelectionResult = {
+          kind: 'draft',
+          variant: { ...reference, id: undefined, serving_unit: servingUnit },
+        };
+        await act(async () => {
+          fireEvent.press(screen.getByText('Select Converted Unit'));
+        });
+      }
+      fireEvent.press(screen.getByText('Save'));
+      await waitFor(() =>
+        expect(mockToast.show).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'error',
+            text1:
+              'Select a gram or milliliter serving that matches your new portions.',
+          })
+        )
+      );
+      expect(updateFood).not.toHaveBeenCalled();
+      expect(updateFoodVariant).not.toHaveBeenCalled();
+      expect(createFoodVariant).not.toHaveBeenCalled();
+      expect(mockCreateVariant).not.toHaveBeenCalled();
+      expect(deleteFoodVariant).not.toHaveBeenCalled();
+      expect(updateFoodEntriesSnapshot).not.toHaveBeenCalled();
+      expect(navigation.dispatch).not.toHaveBeenCalled();
+      expect(navigation.goBack).not.toHaveBeenCalled();
+      expect(rows).toEqual([reference, importedPortion]);
+
+      if (draft) {
+        mockUnitSelectionResult = { kind: 'existing', variant: reference };
+        await act(async () => {
+          fireEvent.press(screen.getByText('Select Converted Unit'));
+        });
+        mockSubmittedFoodFormData = {
+          ...mockSubmittedFoodFormData,
+          servingUnit: 'g',
+        };
+      } else {
+        mockPortionDraft = [
+          preservedPortion,
+          { name: 'bottle', amount: 150, unit: 'ml' },
+        ];
+        fireEvent.press(screen.getByText('Apply Portion Fixture'));
+      }
+      fireEvent.press(screen.getByText('Save'));
+      await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
+      expect(rows.find((row) => row.id === 'grams')).toMatchObject({
+        serving_unit: draft ? 'g' : 'ml',
+        calories: 240,
+      });
+      expect(
+        rows.find((row) => row.serving_unit.startsWith('bottle'))
+      ).toMatchObject({
+        serving_unit: draft ? 'bottle (150 g)' : 'bottle (150 ml)',
+        calories: 360,
+      });
+      expect(rows.find((row) => row.id === 'imported')).toEqual(
+        importedPortion
+      );
+      expect(updateFoodEntriesSnapshot).not.toHaveBeenCalled();
+    }
+  );
+
   it('waits for named portions before leaving and retries using the same created food', async () => {
     let rows: FoodVariantDetail[] = [
       {
@@ -909,6 +1444,89 @@ describe('FoodFormScreen', () => {
         expect(
           rows.find((row) => row.serving_unit === 'serving')?.calories
         ).toBe(400);
+    }
+  );
+
+  it.each(['packet', 'Packet'])(
+    'preserves baseline %s and equivalent nutrition when creating another portion',
+    async (name) => {
+      const reference: FoodVariantDetail = {
+        id: 'grams',
+        food_id: 'food-1',
+        serving_size: 100,
+        serving_unit: 'g',
+        calories: 200,
+        protein: 10,
+        carbs: 20,
+        fat: 5,
+      };
+      const existingPortion: FoodVariantDetail = {
+        ...reference,
+        id: 'packet',
+        serving_size: 1,
+        serving_unit: `${name} (150 g)`,
+        calories: 777,
+        custom_nutrients: { iodine: 42 },
+        source: 'imported',
+        ai_confidence: null,
+      };
+      const existingEquivalent: FoodVariantDetail = {
+        ...reference,
+        id: 'serving',
+        serving_size: 1,
+        serving_unit: name === 'packet' ? 'serving' : 'Serving',
+        calories: 888,
+        custom_nutrients: { iodine: 84 },
+        source: 'ai_estimate',
+        ai_confidence: 'high',
+      };
+      let rows = [reference, existingPortion, existingEquivalent];
+      mockSaveFoodAsync.mockResolvedValue({
+        id: 'food-1',
+        name: 'Custom Meal Food',
+        brand: 'Brand Co',
+        is_custom: true,
+        default_variant: reference,
+      });
+      jest.mocked(fetchFoodVariants).mockImplementation(async () => rows);
+      jest.mocked(createFoodVariant).mockImplementation(async (payload) => {
+        const row = { ...payload, id: `variant-${rows.length}` };
+        rows = [...rows, row];
+        return row;
+      });
+      jest.mocked(updateFoodVariant).mockImplementation(async (id, payload) => {
+        const row = { ...payload, id };
+        rows = rows.map((current) => (current.id === id ? row : current));
+        return row;
+      });
+      mockPortionDraft = [
+        { name: 'packet', amount: 150, unit: 'g' },
+        { name: 'bottle', amount: 200, unit: 'g' },
+      ];
+      mockEquivalentDraft = [{ serving_size: 1, serving_unit: 'serving' }];
+      const screen = renderScreen({
+        mode: 'create-food',
+        pickerMode: 'library',
+        barcode: '1234567890123',
+      });
+      fireEvent.press(screen.getByText('Apply Portion Fixture'));
+      fireEvent.press(screen.getByText('Apply Equivalent Fixture'));
+      fireEvent.press(screen.getByText('Save'));
+      await waitFor(() => expect(navigation.dispatch).toHaveBeenCalled());
+      expect(rows).toHaveLength(4);
+      expect(rows.find((row) => row.id === 'packet')).toEqual(existingPortion);
+      expect(rows.find((row) => row.id === 'serving')).toEqual(
+        existingEquivalent
+      );
+      expect(
+        rows.find((row) => row.serving_unit === 'bottle (200 g)')
+      ).toMatchObject({ food_id: 'food-1', calories: 400 });
+      expect(new Set(rows.map((row) => row.food_id))).toEqual(
+        new Set(['food-1'])
+      );
+      expect(updateFoodVariant).not.toHaveBeenCalled();
+      expect(deleteFoodVariant).not.toHaveBeenCalled();
+      expect(updateFoodEntriesSnapshot).not.toHaveBeenCalled();
     }
   );
 

@@ -2862,6 +2862,7 @@
       "help": "Keep this food in grams or milliliters and add portions such as a packet or bottle.",
       "remove": "Remove portion {{name}}",
       "metricReference": "Select a gram or milliliter serving to define portion sizes.",
+      "metricReferenceRequired": "Select a gram or milliliter serving that matches your new portions.",
       "name": "Portion name",
       "namePlaceholder": "e.g. packet",
       "equals": "1 portion =",

@@ -128,6 +128,88 @@ describe('saving named food portions', () => {
     expect(rows.map((row) => row.id)).toEqual(['grams']);
   });
 
+  it('deletes each portion once when retry removal sources contain the same ID', async () => {
+    stored.push({
+      ...source,
+      serving_size: 1,
+      serving_unit: 'packet (150 g)',
+      id: 'packet',
+      food_id: 'food-1',
+    });
+    jest.mocked(deleteFoodVariant).mockImplementation(async (id) => {
+      if (!stored.some((row) => row.id === id)) throw new Error('Not found');
+      stored = stored.filter((row) => row.id !== id);
+      return {};
+    });
+    const removedIds = Object.freeze(['packet', 'packet']);
+
+    const rows = await saveNamedFoodPortions('food-1', source, [], removedIds);
+
+    expect(deleteFoodVariant).toHaveBeenCalledTimes(1);
+    expect(deleteFoodVariant).toHaveBeenCalledWith('packet');
+    expect(rows.map((row) => row.id)).toEqual(['grams']);
+    expect(removedIds).toEqual(['packet', 'packet']);
+  });
+  it('replaces an explicitly removed portion when its definition is added again', async () => {
+    stored.push({
+      ...source,
+      serving_size: 1,
+      serving_unit: 'packet (150 g)',
+      calories: 777,
+      source: 'imported',
+      id: 'old-packet',
+      food_id: 'food-1',
+    });
+
+    const rows = await saveNamedFoodPortions(
+      'food-1',
+      source,
+      [{ name: 'packet', amount: 150, unit: 'g' }],
+      ['old-packet']
+    );
+
+    expect(createFoodVariant).toHaveBeenCalledTimes(1);
+    expect(updateFoodVariant).not.toHaveBeenCalled();
+    expect(deleteFoodVariant).toHaveBeenCalledWith('old-packet');
+    expect(rows.map((row) => row.id)).toEqual(['grams', 'variant-2']);
+    expect(rows[1]).toMatchObject({
+      serving_unit: 'packet (150 g)',
+      calories: 300,
+    });
+  });
+
+  it('reuses a replacement after deletion fails without modifying the removed row', async () => {
+    stored.push({
+      ...source,
+      serving_size: 1,
+      serving_unit: 'packet (150 g)',
+      calories: 777,
+      source: 'imported',
+      id: 'old-packet',
+      food_id: 'food-1',
+    });
+    jest.mocked(deleteFoodVariant).mockRejectedValueOnce(new Error('offline'));
+    const portions = [{ name: 'packet', amount: 150, unit: 'g' as const }];
+    const removedIds = Object.freeze(['old-packet']);
+
+    await expect(
+      saveNamedFoodPortions('food-1', source, portions, removedIds)
+    ).rejects.toThrow('offline');
+    expect(stored.find((row) => row.id === 'old-packet')?.calories).toBe(777);
+    expect(stored).toHaveLength(3);
+
+    const rows = await saveNamedFoodPortions(
+      'food-1',
+      source,
+      portions,
+      removedIds
+    );
+
+    expect(createFoodVariant).toHaveBeenCalledTimes(1);
+    expect(deleteFoodVariant).toHaveBeenCalledTimes(2);
+    expect(rows.map((row) => row.id)).toEqual(['grams', 'variant-2']);
+    expect(rows[1]?.calories).toBe(300);
+  });
   it('leaves custom saved portion nutrition and metadata unchanged', async () => {
     const custom = {
       ...source,

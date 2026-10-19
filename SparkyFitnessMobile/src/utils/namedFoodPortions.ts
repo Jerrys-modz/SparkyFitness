@@ -42,11 +42,13 @@ export async function saveNamedFoodPortions(
       };
     });
   const existing = await fetchFoodVariants(foodId);
+  const removedIdSet = new Set(removedIds);
   for (const row of desired) {
     const match =
       existing.find((variant) => variant.id === row.id) ??
       existing.find(
         (variant) =>
+          !removedIdSet.has(variant.id) &&
           variant.serving_size === 1 &&
           variant.serving_unit === row.payload.serving_unit
       );
@@ -63,7 +65,7 @@ export async function saveNamedFoodPortions(
       await createFoodVariant(row.payload);
     }
   }
-  for (const id of removedIds) {
+  for (const id of removedIdSet) {
     const match = existing.find((variant) => variant.id === id);
     if (match && parseNamedFoodPortion(match.serving_unit))
       await deleteFoodVariant(id);

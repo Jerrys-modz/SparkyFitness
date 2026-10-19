@@ -373,6 +373,20 @@ export function EditFoodMode({
       return;
     }
 
+    const metricUnit = getFoodPortionUnit(data.servingUnit);
+    if (
+      portionDraft.some((portion) => !portion.id && portion.unit !== metricUnit)
+    ) {
+      Toast.show({
+        type: 'error',
+        text1: t('foodForm.portions.metricReferenceRequired', {
+          defaultValue:
+            'Select a gram or milliliter serving that matches your new portions.',
+        }),
+      });
+      return;
+    }
+
     const draftSelection =
       pendingUnitSelection?.kind === 'draft' ? pendingUnitSelection : null;
     if (!draftSelection && !variants) {
@@ -417,19 +431,12 @@ export function EditFoodMode({
         const snapshot = variants?.find(
           (variant) => variant.id === currentVariantId
         );
-        const metricUnit = getFoodPortionUnit(data.servingUnit);
         const canScale = !!metricUnit;
         // Editing a named row changes that row; metric reference edits recalculate
         // all named sizes from the latest values without touching diary snapshots.
         const scalablePortions = portionDraft.filter(
           (portion) => !portion.preserveNutrition && portion.unit === metricUnit
         );
-        if (
-          portionDraft.some(
-            (portion) => !portion.id && portion.unit !== metricUnit
-          )
-        )
-          throw new Error('Select a metric reference for portions');
         // Only rows shown in the original draft can be explicitly removed.
         // Refetches must not turn unseen additions into deletions or lose intent.
         const removedIds = portionBaselineIds.filter(
