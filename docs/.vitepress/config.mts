@@ -169,6 +169,7 @@ export default defineConfig({
             { text: 'GPS Activity Recording', link: '/features/exercises/gps-activity-recording' },
             { text: 'Training Programs', link: '/features/exercises/training-programs' },
             { text: 'Workout Programs', link: '/features/exercises/workout-programs' },
+            { text: 'Treadmill Runs', link: '/features/exercises/treadmill-runs' },
             { text: 'Running Trends', link: '/features/exercises/running-trends' },
             { text: 'Fitness Tests', link: '/features/exercises/fitness-tests' },
             { text: 'Zone 2 Base Program', link: '/features/exercises/zone-2-program' },

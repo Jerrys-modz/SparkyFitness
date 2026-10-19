@@ -54,6 +54,10 @@ import {
 import type { LanguagePreference } from '../localization';
 import type { TrendRange } from '../utils/trendRange';
 import type { OwnershipFilter } from '../utils/shareStatus';
+import {
+  clampTreadmillPercent,
+  type TreadmillCorrection,
+} from '../utils/treadmillCorrection';
 
 const STORE_KEY = '@SparkyFitness/app-preferences';
 const STORE_VERSION = 1;
@@ -133,6 +137,8 @@ export const PREFERENCE_DEFAULTS = {
   diarySummaryVisible: false,
   diarySummaryExpanded: false,
   defaultRestSec: DEFAULT_REST_SEC as number,
+  treadmillCorrectionEnabled: false,
+  treadmillCorrectionPercent: 0,
   paceReferenceRace: null as PaceReferenceRace | null,
   paceReferenceOnWatch: false,
   restTimerSoundEnabled: true,
@@ -222,6 +228,13 @@ export type AppPreferencesData = {
   diarySummaryVisible: boolean;
   diarySummaryExpanded: boolean;
   defaultRestSec: number;
+  /**
+   * Treadmill display correction (device-local): when on, a distance typed or
+   * read from a treadmill is divided by `1 + percent / 100` before it is stored.
+   */
+  treadmillCorrectionEnabled: boolean;
+  /** How far the treadmill display reads over (positive) or under (negative) the true distance. */
+  treadmillCorrectionPercent: number;
   /**
    * A recent race result the training paces are worked out from (device-local),
    * or null to use the pace of recent sessions.
@@ -364,6 +377,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setDefaultRestSec: (value: number) => void;
   setPaceReferenceRace: (value: PaceReferenceRace | null) => void;
   setPaceReferenceOnWatch: (value: boolean) => void;
+  setTreadmillCorrectionEnabled: (value: boolean) => void;
+  setTreadmillCorrectionPercent: (value: number) => void;
   setRestTimerSoundEnabled: (value: boolean) => void;
   setRestChimeThroughSilent: (value: boolean) => void;
   setDuckMusicDuringCues: (value: boolean) => void;
@@ -528,6 +543,10 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setDefaultRestSec: (value) => set({ defaultRestSec: value }),
       setPaceReferenceRace: (value) => set({ paceReferenceRace: value }),
       setPaceReferenceOnWatch: (value) => set({ paceReferenceOnWatch: value }),
+      setTreadmillCorrectionEnabled: (value) =>
+        set({ treadmillCorrectionEnabled: value }),
+      setTreadmillCorrectionPercent: (value) =>
+        set({ treadmillCorrectionPercent: clampTreadmillPercent(value) }),
       setRestTimerSoundEnabled: (value) =>
         set({ restTimerSoundEnabled: value }),
       setRestChimeThroughSilent: (value) =>
@@ -731,6 +750,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         diarySummaryVisible: state.diarySummaryVisible,
         diarySummaryExpanded: state.diarySummaryExpanded,
         defaultRestSec: state.defaultRestSec,
+        treadmillCorrectionEnabled: state.treadmillCorrectionEnabled,
+        treadmillCorrectionPercent: state.treadmillCorrectionPercent,
         paceReferenceRace: state.paceReferenceRace,
         paceReferenceOnWatch: state.paceReferenceOnWatch,
         restTimerSoundEnabled: state.restTimerSoundEnabled,
@@ -807,6 +828,16 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
  */
 export function getDefaultRestSec(): number {
   return useAppPreferencesStore.getState().defaultRestSec;
+}
+
+/** The treadmill correction now in force, for non-React callers. */
+export function getTreadmillCorrection(): TreadmillCorrection {
+  const { treadmillCorrectionEnabled, treadmillCorrectionPercent } =
+    useAppPreferencesStore.getState();
+  return {
+    enabled: treadmillCorrectionEnabled,
+    percent: treadmillCorrectionPercent,
+  };
 }
 
 /**
