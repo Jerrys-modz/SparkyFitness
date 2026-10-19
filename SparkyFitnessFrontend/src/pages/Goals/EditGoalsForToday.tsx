@@ -93,6 +93,8 @@ const EditGoalsForm = ({
     ...DEFAULT_GOALS,
     ...initialData,
   });
+  // Baseline captured at mount; initialData can change on refetch while open.
+  const [initialCalories] = useState(goals.calories);
 
   const {
     algorithms,
@@ -442,7 +444,7 @@ const EditGoalsForm = ({
               finalGoals.carbs_percentage = null;
               finalGoals.fat_percentage = null;
             }
-            onSave(finalGoals, false, initialData.calories);
+            onSave(finalGoals, false, initialCalories);
           }}
           disabled={isSaving || !isMacroValid || !isTotalPercentageValid}
           className="w-full"
