@@ -92,44 +92,40 @@ export const entryExerciseSnapshotResponseSchema =
   exerciseSnapshotResponseSchema.extend({ id: z.string().nullable() });
 
 /** A single set within an exercise entry */
-export const exerciseEntrySetResponseSchema = z
-  .object({
-    id: z.number(),
-    set_number: z.number(),
-    set_type: z.string().nullable(),
-    reps: z.number().nullable(),
-    weight: z.number().nullable(),
-    // Per-set duration is integer SECONDS.
-    duration: z.number().int().nullable(),
-    rest_time: z.number().nullable(),
-    notes: z.string().nullable(),
-    rpe: z.number().nullable(),
-    completed_at: z.string().nullable(),
-    is_pr: z.boolean(),
-    rir: z.number().nullable().optional(),
-    // Km. Optional: pre-distance servers omit it.
-    distance: z.number().nullable().optional(),
-    // Progression & Equipment Fields
-    progression_mode: z
-      .enum(['rep_goal', 'fixed', 'step_load', 'manual'])
-      .nullable()
-      .optional(),
-    rep_goal: z.number().int().nullable().optional(),
-    increment_type: z.enum(['weight', 'reps']).nullable().optional(),
-    increment_value: z.number().nullable().optional(),
-    equipment_brand: z.string().nullable().optional(),
-  })
-  .strict();
+export const exerciseEntrySetResponseSchema = z.object({
+  id: z.number(),
+  set_number: z.number(),
+  set_type: z.string().nullable(),
+  reps: z.number().nullable(),
+  weight: z.number().nullable(),
+  // Per-set duration is integer SECONDS.
+  duration: z.number().int().nullable(),
+  rest_time: z.number().nullable(),
+  notes: z.string().nullable(),
+  rpe: z.number().nullable(),
+  completed_at: z.string().nullable(),
+  is_pr: z.boolean(),
+  rir: z.number().nullable().optional(),
+  // Km. Optional: pre-distance servers omit it.
+  distance: z.number().nullable().optional(),
+  // Progression & Equipment Fields
+  progression_mode: z
+    .enum(['rep_goal', 'fixed', 'step_load', 'manual'])
+    .nullable()
+    .optional(),
+  rep_goal: z.number().int().nullable().optional(),
+  increment_type: z.enum(['weight', 'reps']).nullable().optional(),
+  increment_value: z.number().nullable().optional(),
+  equipment_brand: z.string().nullable().optional(),
+});
 
 /** Flexible activity detail blob (heart rate zones, splits, etc.) */
-export const activityDetailResponseSchema = z
-  .object({
-    id: z.string(),
-    provider_name: z.string(),
-    detail_type: z.string(),
-    detail_data: z.unknown(),
-  })
-  .strict();
+export const activityDetailResponseSchema = z.object({
+  id: z.string(),
+  provider_name: z.string(),
+  detail_type: z.string(),
+  detail_data: z.unknown(),
+});
 
 // --- Request contracts for grouped workout sessions ---
 
@@ -433,83 +429,84 @@ export const updateExerciseEntryRequestSchema = createExerciseEntryRequestSchema
 
 // --- Exercise entry (shared shape used in both individual and preset contexts) ---
 
-export const exerciseEntryResponseSchema = z
-  .object({
-    id: z.string(),
-    // Nulled rather than cascaded when the library exercise is deleted
-    // (20260912150000_preserve_data_on_user_and_library_deletes.sql), so the
-    // entry outlives it. Parsing a preserved entry would throw otherwise.
-    exercise_id: z.string().nullable(),
-    duration_minutes: z.number(),
-    calories_burned: z.number(),
-    entry_date: z.string().nullable(),
-    entry_time: z.string().nullish(),
-    /** IANA zone `entry_time` was recorded in; null for older and manual entries. */
-    record_timezone: z.string().nullish(),
-    notes: z.string().nullable(),
-    distance: z.number().nullable(),
-    avg_heart_rate: z.number().nullable(),
-    source: z.string().nullable(),
-    image_url: z.string().nullable().optional(),
-    exercise_preset_entry_id: z.string().nullable().optional(),
-    created_at: z.string().nullable().optional(),
-    sets: z.array(exerciseEntrySetResponseSchema),
-    // Entry snapshots outlive the library row they were copied from, so their
-    // id can be null. The base schema keeps a required id because it is also
-    // used for live library and search results, where one always exists.
-    exercise_snapshot: entryExerciseSnapshotResponseSchema.nullable(),
-    activity_details: z.array(activityDetailResponseSchema),
-    steps: z.number().nullable().optional(),
-    category: z.string().nullable().optional(),
-    superset_group: z.number().int().nullable(),
-    workout_plan_assignment_id: z
-      .union([z.string(), z.number()])
-      .nullable()
-      .optional(),
-    max_heart_rate: z.number().nullable().optional(),
-    heart_rate_recovery_1min: z.number().nullable().optional(),
-    avg_respiration_brpm: z.number().nullable().optional(),
-    max_respiration_brpm: z.number().nullable().optional(),
-    avg_speed_mps: z.number().nullable().optional(),
-    max_speed_mps: z.number().nullable().optional(),
-    avg_cadence: z.number().nullable().optional(),
-    max_cadence: z.number().nullable().optional(),
-    avg_power_watts: z.number().nullable().optional(),
-    max_power_watts: z.number().nullable().optional(),
-    normalized_power_watts: z.number().nullable().optional(),
-    tss_score: z.number().nullable().optional(),
-    intensity_factor: z.number().nullable().optional(),
-    elevation_gain_meters: z.number().nullable().optional(),
-    elevation_loss_meters: z.number().nullable().optional(),
-    floors_climbed: z.number().nullable().optional(),
-    stroke_count: z.number().nullable().optional(),
-    training_load: z.number().nullable().optional(),
-    aerobic_training_effect: z.number().nullable().optional(),
-    anaerobic_training_effect: z.number().nullable().optional(),
-    vo2_max_estimate: z.number().nullable().optional(),
-    avg_temperature_celsius: z.number().nullable().optional(),
-    max_temperature_celsius: z.number().nullable().optional(),
-    weather_condition: z.string().nullable().optional(),
-    weather_temp_celsius: z.number().nullable().optional(),
-    weather_wind_speed_mps: z.number().nullable().optional(),
-    weather_humidity_percentage: z.number().nullable().optional(),
-    gear_name: z.string().nullable().optional(),
-    gear_external_id: z.string().nullable().optional(),
-    shoe_id: z.string().nullable().optional(),
-    water_estimated: z.number().nullable().optional(),
-    moving_time_seconds: z.number().nullable().optional(),
-    elapsed_time_seconds: z.number().nullable().optional(),
-    work_time_seconds: z.number().nullable().optional(),
-    resting_calories: z.number().nullable().optional(),
-    active_calories: z.number().nullable().optional(),
-    avg_moving_speed_mps: z.number().nullable().optional(),
-    min_elevation_meters: z.number().nullable().optional(),
-    max_elevation_meters: z.number().nullable().optional(),
-    ground_contact_time_ms: z.number().nullable().optional(),
-    vertical_oscillation_mm: z.number().nullable().optional(),
-    stride_length_cm: z.number().nullable().optional(),
-  })
-  .strict();
+export const exerciseEntryResponseSchema = z.object({
+  id: z.string(),
+  // Nulled rather than cascaded when the library exercise is deleted
+  // (20260912150000_preserve_data_on_user_and_library_deletes.sql), so the
+  // entry outlives it. Parsing a preserved entry would throw otherwise.
+  exercise_id: z.string().nullable(),
+  duration_minutes: z.number(),
+  calories_burned: z.number(),
+  entry_date: z.string().nullable(),
+  entry_time: z.string().nullish(),
+  /** IANA zone `entry_time` was recorded in; null for older and manual entries. */
+  record_timezone: z.string().nullish(),
+  notes: z.string().nullable(),
+  distance: z.number().nullable(),
+  avg_heart_rate: z.number().nullable(),
+  source: z.string().nullable(),
+  image_url: z.string().nullable().optional(),
+  exercise_preset_entry_id: z.string().nullable().optional(),
+  created_at: z.string().nullable().optional(),
+  sets: z.array(exerciseEntrySetResponseSchema),
+  // Entry snapshots outlive the library row they were copied from, so their
+  // id can be null. The base schema keeps a required id because it is also
+  // used for live library and search results, where one always exists.
+  exercise_snapshot: entryExerciseSnapshotResponseSchema.nullable(),
+  activity_details: z.array(activityDetailResponseSchema),
+  steps: z.number().nullable().optional(),
+  category: z.string().nullable().optional(),
+  superset_group: z.number().int().nullable(),
+  workout_plan_assignment_id: z
+    .union([z.string(), z.number()])
+    .nullable()
+    .optional(),
+  max_heart_rate: z.number().nullable().optional(),
+  heart_rate_recovery_1min: z.number().nullable().optional(),
+  avg_respiration_brpm: z.number().nullable().optional(),
+  max_respiration_brpm: z.number().nullable().optional(),
+  avg_speed_mps: z.number().nullable().optional(),
+  max_speed_mps: z.number().nullable().optional(),
+  avg_cadence: z.number().nullable().optional(),
+  max_cadence: z.number().nullable().optional(),
+  avg_power_watts: z.number().nullable().optional(),
+  max_power_watts: z.number().nullable().optional(),
+  normalized_power_watts: z.number().nullable().optional(),
+  tss_score: z.number().nullable().optional(),
+  intensity_factor: z.number().nullable().optional(),
+  elevation_gain_meters: z.number().nullable().optional(),
+  elevation_loss_meters: z.number().nullable().optional(),
+  floors_climbed: z.number().nullable().optional(),
+  stroke_count: z.number().nullable().optional(),
+  training_load: z.number().nullable().optional(),
+  aerobic_training_effect: z.number().nullable().optional(),
+  anaerobic_training_effect: z.number().nullable().optional(),
+  vo2_max_estimate: z.number().nullable().optional(),
+  avg_temperature_celsius: z.number().nullable().optional(),
+  max_temperature_celsius: z.number().nullable().optional(),
+  weather_condition: z.string().nullable().optional(),
+  weather_temp_celsius: z.number().nullable().optional(),
+  weather_wind_speed_mps: z.number().nullable().optional(),
+  weather_humidity_percentage: z.number().nullable().optional(),
+  gear_name: z.string().nullable().optional(),
+  gear_external_id: z.string().nullable().optional(),
+  shoe_id: z.string().nullable().optional(),
+  water_estimated: z.number().nullable().optional(),
+  moving_time_seconds: z.number().nullable().optional(),
+  elapsed_time_seconds: z.number().nullable().optional(),
+  work_time_seconds: z.number().nullable().optional(),
+  resting_calories: z.number().nullable().optional(),
+  active_calories: z.number().nullable().optional(),
+  avg_moving_speed_mps: z.number().nullable().optional(),
+  min_elevation_meters: z.number().nullable().optional(),
+  max_elevation_meters: z.number().nullable().optional(),
+  ground_contact_time_ms: z.number().nullable().optional(),
+  vertical_oscillation_mm: z.number().nullable().optional(),
+  stride_length_cm: z.number().nullable().optional(),
+});
+
+/** Set shape in progress responses: mirrors request fields but strips undeclared server fields rather than throwing */
+export const exerciseProgressSetSchema = exerciseEntrySetRequestSchema.strip();
 
 export const exerciseProgressResponseSchema = z.object({
   exercise_entry_id: z.string(),
@@ -529,7 +526,7 @@ export const exerciseProgressResponseSchema = z.object({
   modality: exerciseModalitySchema.nullable().optional(),
   /** The lifter's body weight that day (kg), null with no check-ins. */
   body_weight_kg: z.number().nullable().optional(),
-  sets: z.array(exerciseEntrySetRequestSchema),
+  sets: z.array(exerciseProgressSetSchema),
 });
 
 // --- Session types (discriminated by "type") ---
@@ -542,28 +539,26 @@ export const individualSessionResponseSchema =
   });
 
 /** Grouped workout session with nested exercise entries */
-export const presetSessionResponseSchema = z
-  .object({
-    type: z.literal('preset'),
-    id: z.string(),
-    entry_date: z.string().nullable(),
-    workout_preset_id: z.number().int().nullable(),
-    workout_plan_assignment_id: z
-      .union([z.string(), z.number()])
-      .nullable()
-      .optional(),
-    name: z.string(),
-    description: z.string().nullable(),
-    notes: z.string().nullable(),
-    location: z.string().nullable().optional(),
-    source: z.string(),
-    created_at: z.string().nullable().optional(),
-    total_duration_minutes: z.number(),
-    exercises: z.array(exerciseEntryResponseSchema),
-    exercise_snapshot: exerciseSnapshotResponseSchema.nullable().optional(),
-    activity_details: z.array(activityDetailResponseSchema),
-  })
-  .strict();
+export const presetSessionResponseSchema = z.object({
+  type: z.literal('preset'),
+  id: z.string(),
+  entry_date: z.string().nullable(),
+  workout_preset_id: z.number().int().nullable(),
+  workout_plan_assignment_id: z
+    .union([z.string(), z.number()])
+    .nullable()
+    .optional(),
+  name: z.string(),
+  description: z.string().nullable(),
+  notes: z.string().nullable(),
+  location: z.string().nullable().optional(),
+  source: z.string(),
+  created_at: z.string().nullable().optional(),
+  total_duration_minutes: z.number(),
+  exercises: z.array(exerciseEntryResponseSchema),
+  exercise_snapshot: exerciseSnapshotResponseSchema.nullable().optional(),
+  activity_details: z.array(activityDetailResponseSchema),
+});
 
 /** Any session returned by the exercise entries endpoints */
 export const exerciseSessionResponseSchema = z.discriminatedUnion('type', [
