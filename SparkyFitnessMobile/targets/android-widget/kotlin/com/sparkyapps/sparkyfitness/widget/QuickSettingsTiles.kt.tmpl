@@ -8,7 +8,6 @@ import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.sparkyapps.sparkyfitness.backgroundwater.BackgroundWaterStore
-import com.sparkyapps.sparkyfitness.backgroundwater.LogWaterOutcome
 import com.sparkyapps.sparkyfitness.backgroundwater.enqueueLogWater
 import {{APPLICATION_ID}}.R
 
@@ -30,18 +29,12 @@ abstract class SparkyTileService : TileService() {
     protected fun refresh() {
         val tile = qsTile ?: return
         tile.state = Tile.STATE_INACTIVE
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) tile.subtitle = null
         render(tile, WidgetLocale.localizedContext(this))
         tile.updateTile()
     }
 
     protected open fun render(tile: Tile, context: Context) {
         tile.label = context.getString(labelRes)
-    }
-
-    /** A second line from Android 10, the label itself before that. */
-    protected fun showDetail(tile: Tile, text: String) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) tile.subtitle = text else tile.label = text
     }
 
     /** Opens the app on a deep link, asking to unlock first on the lock screen. */
@@ -84,26 +77,22 @@ class SearchFoodTileService : SparkyTileService() {
 /**
  * Logs one drink without opening the app, like the "Log water" launcher
  * shortcut and the iOS control, so it also works from the lock screen. Greyed
- * out while the app holds no login for it. A Toast would be hidden behind the
- * open panel and the lock screen, so the tile itself says how the tap went.
+ * out while the app holds no login for it. It is a button, not a switch, so it
+ * is drawn again right away and never stays on. A Toast would be drawn under
+ * the open panel or hidden by the lock screen, and some panels (HyperOS) do
+ * not show a tile's subtitle, so its result goes to the notification list
+ * (fromTile = true).
  */
 class LogWaterTileService : SparkyTileService() {
     override val labelRes = R.string.tile_log_water
 
     override fun render(tile: Tile, context: Context) {
         super.render(tile, context)
-        if (BackgroundWaterStore.load(this) == null) {
-            tile.state = Tile.STATE_UNAVAILABLE
-            return
-        }
-        val outcome = LogWaterOutcome.recent(this) ?: return
-        tile.state = Tile.STATE_ACTIVE
-        showDetail(tile, outcome.ifEmpty { context.getString(R.string.tile_log_water_pending) })
+        if (BackgroundWaterStore.load(this) == null) tile.state = Tile.STATE_UNAVAILABLE
     }
 
     override fun onClick() {
-        LogWaterOutcome.started(applicationContext)
-        enqueueLogWater(applicationContext)
+        enqueueLogWater(applicationContext, fromTile = true)
         refresh()
     }
 }

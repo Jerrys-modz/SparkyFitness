@@ -303,9 +303,6 @@ describe('Android widget localization contract', () => {
         /render\(tile, WidgetLocale\.localizedContext\(this\)\)/
       );
       expect(src).toMatch(/context\.getString\(labelRes\)/);
-      expect(src).toMatch(
-        /context\.getString\(R\.string\.tile_log_water_pending\)/
-      );
       expect(src).toMatch(/R\.string\.widget_kcal_left/);
       // No label or subtitle set from a hardcoded string.
       expect(src).not.toMatch(/tile\.(label|subtitle) = "/);

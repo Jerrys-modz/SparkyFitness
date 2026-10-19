@@ -1,19 +1,22 @@
 package com.sparkyapps.sparkyfitness.backgroundwater
 
 import android.app.Activity
-import android.content.ComponentName
+import android.app.PendingIntent
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.service.quicksettings.TileService
 import android.widget.Toast
+import androidx.core.app.NotificationChannelCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -35,13 +38,14 @@ class LogWaterActivity : Activity() {
 }
 
 /**
- * Logs one drink in the background and reports the result, as a Toast and
- * through [LogWaterOutcome]. Shared by the launcher shortcut and the Quick
- * Settings tile (targets/android-widget).
+ * Logs one drink in the background and reports how it went. Shared by the
+ * launcher shortcut and, with [fromTile], the Quick Settings tile
+ * (targets/android-widget).
  */
-fun enqueueLogWater(context: Context) {
+fun enqueueLogWater(context: Context, fromTile: Boolean = false) {
     try {
         val requestBuilder = OneTimeWorkRequestBuilder<LogWaterWorker>()
+            .setInputData(workDataOf(KEY_FROM_TILE to fromTile))
         // Before Android 12 an expedited job runs as a foreground service,
         // and this worker does not supply ForegroundInfo.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -50,68 +54,92 @@ fun enqueueLogWater(context: Context) {
         val request = requestBuilder.build()
         WorkManager.getInstance(context).enqueue(request)
     } catch (e: Exception) {
-        val message = "SparkyFitness could not log the water"
-        LogWaterOutcome.finished(context, message)
-        toast(context, message)
+        report(context, LogWaterResult(false, "SparkyFitness could not log the water"), fromTile)
     }
 }
 
 /** Owns the POST that [enqueueLogWater] queued, after its caller has gone. */
 class LogWaterWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
     override fun doWork(): Result {
-        val message = logWater(applicationContext)
-        LogWaterOutcome.finished(applicationContext, message)
-        toast(applicationContext, message)
+        report(applicationContext, logWater(applicationContext), inputData.getBoolean(KEY_FROM_TILE, false))
         return Result.success()
     }
 }
 
+private const val KEY_FROM_TILE = "from_tile"
+private const val CHANNEL_ID = "quick-logging"
+private const val LOGGED_NOTIFICATION_ID = 7301
+private const val FAILED_NOTIFICATION_ID = 7302
+private const val LOGGED_SHOWN_FOR_MS = 30_000L
+
+private class LogWaterResult(val logged: Boolean, val message: String)
+
 /**
- * How the last log went, for the Quick Settings tile: a Toast is hidden behind
- * the open panel and the lock screen, so the tile shows this for a minute.
+ * The shortcut is tapped on the home screen, so a Toast is enough. Over the
+ * tile a Toast would be drawn under the open panel or hidden by the lock
+ * screen, so the tile's result goes to the notification list instead. Unless
+ * the app is on screen, either way needs the app's notifications on: Android
+ * drops a Toast from an app in the background while they are off.
  */
-object LogWaterOutcome {
-    private const val PREFS = "sparky_background_water_outcome"
-    private const val KEY_AT = "at"
-    private const val KEY_MESSAGE = "message"
-    private const val SHOWN_FOR_MS = 60_000L
-    private const val TILE = "com.sparkyapps.sparkyfitness.widget.LogWaterTileService"
+private fun report(context: Context, result: LogWaterResult, fromTile: Boolean) {
+    // A logged drink, from either side, answers the tile's last failure.
+    if (result.logged) NotificationManagerCompat.from(context).cancel(FAILED_NOTIFICATION_ID)
+    if (!fromTile || !notify(context, result)) toast(context, result.message)
+}
 
-    /** A log was just asked for; [recent] reads "" until it has finished. */
-    fun started(context: Context) = write(context, "")
-
-    fun finished(context: Context, message: String) {
-        write(context, message)
-        try {
-            // Draws the tile again if the panel is open.
-            TileService.requestListeningState(context, ComponentName(context.packageName, TILE))
-        } catch (e: Exception) {
-            // The tile may not be in the panel at all.
+/**
+ * Lists [result] without sound, vibration or a heads-up pop-up, since it only
+ * confirms a tap; tapping it opens the app. A logged drink goes away after 30
+ * seconds, a failure stays until a drink is logged or the tile fails again.
+ * Shown in full on the lock screen, where the tile is often used: it holds
+ * only a container name or an error. False when the app's notifications are
+ * off. A user who turned off just this channel gets nothing.
+ */
+private fun notify(context: Context, result: LogWaterResult): Boolean {
+    val manager = NotificationManagerCompat.from(context)
+    if (!manager.areNotificationsEnabled()) return false
+    return try {
+        manager.createNotificationChannel(
+            NotificationChannelCompat.Builder(CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_DEFAULT)
+                .setName("Quick logging")
+                .setSound(null, null)
+                .setVibrationEnabled(false)
+                .build(),
+        )
+        // The tile's own icon (targets/android-widget), looked up by name like
+        // the shortcut's because R's package differs between builds.
+        val icon = context.resources.getIdentifier("ic_tile_log_water", "drawable", context.packageName)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(if (icon != 0) icon else context.applicationInfo.icon)
+            .setContentText(result.message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(result.message))
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+        if (result.logged) {
+            builder.setTimeoutAfter(LOGGED_SHOWN_FOR_MS)
         }
-    }
-
-    /** "" while a log is running, its message once done, null after a minute. */
-    fun recent(context: Context): String? {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (System.currentTimeMillis() - prefs.getLong(KEY_AT, 0L) > SHOWN_FOR_MS) return null
-        return prefs.getString(KEY_MESSAGE, null)
-    }
-
-    private fun write(context: Context, message: String) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putLong(KEY_AT, System.currentTimeMillis())
-            .putString(KEY_MESSAGE, message)
-            .apply()
+        context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
+            builder.setContentIntent(PendingIntent.getActivity(context, 0, it, PendingIntent.FLAG_IMMUTABLE))
+        }
+        // Two ids, because on many Android versions a logged drink's timeout
+        // would also remove a failure posted under the same id.
+        if (!result.logged) manager.cancel(LOGGED_NOTIFICATION_ID)
+        manager.notify(if (result.logged) LOGGED_NOTIFICATION_ID else FAILED_NOTIFICATION_ID, builder.build())
+        true
+    } catch (e: SecurityException) {
+        // The permission was taken back after the check above.
+        false
     }
 }
 
-private fun logWater(context: Context): String {
+private fun logWater(context: Context): LogWaterResult {
     return try {
         val json = BackgroundWaterStore.load(context)
-            ?: return "Open SparkyFitness and sign in to a server first."
+            ?: return LogWaterResult(false, "Open SparkyFitness and sign in to a server first.")
         val config = JSONObject(json)
         if (config.isNull("containerId") || config.isNull("containerName")) {
-            return "Pick a water container in SparkyFitness first."
+            return LogWaterResult(false, "Pick a water container in SparkyFitness first.")
         }
         val baseUrl = config.getString("baseUrl")
         val containerName = config.getString("containerName")
@@ -140,17 +168,17 @@ private fun logWater(context: Context): String {
             when {
                 status in 200..299 -> {
                     val what = if (volume.isNotEmpty()) "$containerName ($volume)" else containerName
-                    "Logged 1 × $what"
+                    LogWaterResult(true, "Logged 1 × $what")
                 }
                 status == 401 || status == 403 ->
-                    "Your SparkyFitness login expired. Open the app once to sign in again."
-                else -> "SparkyFitness could not log the water (error $status)"
+                    LogWaterResult(false, "Your SparkyFitness login expired. Open the app once to sign in again.")
+                else -> LogWaterResult(false, "SparkyFitness could not log the water (error $status)")
             }
         } finally {
             connection.disconnect()
         }
     } catch (e: Exception) {
-        "SparkyFitness could not reach your server"
+        LogWaterResult(false, "SparkyFitness could not reach your server")
     }
 }
 

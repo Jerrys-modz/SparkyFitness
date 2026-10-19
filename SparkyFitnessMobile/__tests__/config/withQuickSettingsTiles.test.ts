@@ -100,6 +100,15 @@ describe('addQuickSettingsTiles', () => {
     }
   });
 
+  it('keeps every tile a button that is never left on', () => {
+    // Log water reports in the notification list, not on the tile: some
+    // panels (HyperOS) do not show a subtitle, so an "on" tile only looked stuck.
+    expect(TILES_SOURCE).not.toMatch(/STATE_ACTIVE/);
+    expect(TILES_SOURCE).toMatch(
+      /enqueueLogWater\(applicationContext, fromTile = true\)/
+    );
+  });
+
   it('opens only links the app can route, and is applied by app.config.ts', () => {
     const appSource = fs.readFileSync(
       path.join(__dirname, '../../App.tsx'),
