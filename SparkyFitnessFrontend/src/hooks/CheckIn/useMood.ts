@@ -50,12 +50,20 @@ export const useSaveMoodEntryMutation = () => {
       notes,
       entryDate,
       moodTags,
+      energyValue,
+      focusValue,
     }: {
       moodValue: number;
       notes: string;
       entryDate: string;
       moodTags?: string[];
-    }) => saveMoodEntry(moodValue, notes, entryDate, moodTags),
+      energyValue: number | null;
+      focusValue: number | null;
+    }) =>
+      saveMoodEntry(moodValue, notes, entryDate, moodTags, {
+        energyValue,
+        focusValue,
+      }),
     onSuccess: () => {
       return queryClient.invalidateQueries({ queryKey: moodKeys.all });
     },

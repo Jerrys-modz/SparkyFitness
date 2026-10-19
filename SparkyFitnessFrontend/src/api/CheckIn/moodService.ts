@@ -8,7 +8,8 @@ export const saveMoodEntry = async (
   moodValue: number,
   notes: string,
   entryDate: string,
-  moodTags?: string[]
+  moodTags?: string[],
+  ratings?: { energyValue: number | null; focusValue: number | null }
 ): Promise<MoodEntry> => {
   try {
     const userLoggingLevel = getUserLoggingLevel();
@@ -24,6 +25,10 @@ export const saveMoodEntry = async (
         mood_tags: moodTags,
         notes,
         entry_date: entryDate,
+        ...(ratings && {
+          energy_value: ratings.energyValue,
+          focus_value: ratings.focusValue,
+        }),
       },
     });
     return response.data;

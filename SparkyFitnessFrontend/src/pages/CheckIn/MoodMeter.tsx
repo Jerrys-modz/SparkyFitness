@@ -39,14 +39,19 @@ import {
   useMoodDisplayPreferences,
   useUpdateMoodDisplayPreferencesMutation,
 } from '@/hooks/CheckIn/useMood';
+import RatingSelector from '@/pages/CheckIn/RatingSelector';
 
 interface MoodMeterProps {
   mood: number;
   notes: string;
   moodTags: string[];
+  energy: number | null;
+  focus: number | null;
   onMoodChange: (value: number) => void;
   onNotesChange: (value: string) => void;
   onTagsChange: (tags: string[]) => void;
+  onEnergyChange: (value: number | null) => void;
+  onFocusChange: (value: number | null) => void;
 }
 
 // Domain color tokens -> hex, so mood colors are actually rendered on chips.
@@ -129,9 +134,13 @@ const MoodMeter = ({
   mood,
   notes,
   moodTags,
+  energy,
+  focus,
   onMoodChange,
   onNotesChange,
   onTagsChange,
+  onEnergyChange,
+  onFocusChange,
 }: MoodMeterProps) => {
   const { t } = useTranslation();
   const { data: customMoods } = useCustomMoods();
@@ -279,6 +288,24 @@ const MoodMeter = ({
         </div>
       </div>
 
+      {/* Optional energy and focus ratings */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <RatingSelector
+          label={t('moodMeter.energy', 'Energy')}
+          lowLabel={t('moodMeter.energyLow', 'Drained')}
+          highLabel={t('moodMeter.energyHigh', 'Energized')}
+          value={energy}
+          onChange={onEnergyChange}
+        />
+        <RatingSelector
+          label={t('moodMeter.focus', 'Focus')}
+          lowLabel={t('moodMeter.focusLow', 'Scattered')}
+          highLabel={t('moodMeter.focusHigh', 'Locked in')}
+          value={focus}
+          onChange={onFocusChange}
+        />
+      </div>
+
       {/* Multi-select mood tags */}
       <div>
         <div className="mb-2 flex items-center justify-between">
@@ -407,7 +434,7 @@ const MoodMeter = ({
       {/* Notes */}
       <div>
         <Label htmlFor="mood-notes">
-          {t('checkIn.notesOptional', 'Notes (optional)')}
+          {t('checkIn.journalOptional', 'Journal (optional)')}
         </Label>
         <Textarea
           id="mood-notes"
@@ -417,7 +444,7 @@ const MoodMeter = ({
           )}
           value={notes}
           onChange={(e) => onNotesChange(e.target.value)}
-          className="mt-2"
+          className="mt-2 min-h-[140px]"
         />
       </div>
     </div>

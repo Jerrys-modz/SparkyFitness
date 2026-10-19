@@ -4,6 +4,8 @@ export interface MoodEntry {
   mood_value: number;
   mood_tags: string[];
   notes: string | null;
+  energy_value: number | null;
+  focus_value: number | null;
   entry_date: string;
   created_at: string;
   updated_at: string;

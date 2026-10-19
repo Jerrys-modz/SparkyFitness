@@ -300,6 +300,9 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
     return existingMood?.notes || '';
   }, [existingMood?.notes]);
 
+  const derivedEnergy = existingMood?.energy_value ?? null;
+  const derivedFocus = existingMood?.focus_value ?? null;
+
   const derivedMoodTags = useMemo(() => {
     return existingMood?.mood_tags ?? [];
   }, [existingMood?.mood_tags]);
@@ -375,6 +378,14 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
   );
   const [moodTags, setMoodTags] = useDerivedState<string[]>(
     derivedMoodTags,
+    selectedDate
+  );
+  const [energy, setEnergy] = useDerivedState<number | null>(
+    derivedEnergy,
+    selectedDate
+  );
+  const [focus, setFocus] = useDerivedState<number | null>(
+    derivedFocus,
     selectedDate
   );
   const [customValues, setCustomValues] = useDerivedState<
@@ -603,6 +614,8 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
         notes: moodNotes,
         entryDate: selectedDate,
         moodTags,
+        energyValue: energy,
+        focusValue: focus,
       });
 
       toast({
@@ -841,6 +854,8 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
     mood,
     moodNotes,
     moodTags,
+    energy,
+    focus,
     neck,
     placeholders,
     recentMeasurements,
@@ -857,6 +872,8 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
     setMood,
     setMoodNotes,
     setMoodTags,
+    setEnergy,
+    setFocus,
     setNeck,
     setSelectedDate,
     setSteps,
