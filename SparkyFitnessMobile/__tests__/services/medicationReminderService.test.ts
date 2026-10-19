@@ -834,5 +834,37 @@ describe('reconcileMedicationReminders', () => {
         'delivered-other'
       );
     });
+
+    it('reloads today entries when flushPendingMedicationNotificationActions processes a queued action', async () => {
+      const handlerMod =
+        require('../../src/services/medicationNotificationHandler') as typeof import('../../src/services/medicationNotificationHandler');
+      const apiMod =
+        require('../../src/services/api/medicationsApi') as typeof import('../../src/services/api/medicationsApi');
+
+      const flushSpy = jest
+        .spyOn(handlerMod, 'flushPendingMedicationNotificationActions')
+        .mockResolvedValueOnce(true);
+      const listEntriesSpy = jest
+        .spyOn(apiMod, 'listEntries')
+        .mockResolvedValueOnce([buildEntry()]);
+
+      // Pass stale empty entries snapshot; reloaded entries include today's logged dose
+      await reconcileMedicationReminders([buildMedication()], []);
+
+      expect(flushSpy).toHaveBeenCalledTimes(1);
+      expect(listEntriesSpy).toHaveBeenCalledWith({
+        fromDate: TODAY,
+        toDate: TODAY,
+      });
+
+      // Today's base + repeat reminders should NOT be scheduled since reloaded entries show the dose is logged
+      const scheduledKeys = mockSchedule.mock.calls.map(
+        (c) => (c[0].content.data as { key: string }).key
+      );
+      expect(scheduledKeys).not.toContain(BASE_KEY);
+
+      flushSpy.mockRestore();
+      listEntriesSpy.mockRestore();
+    });
   });
 });

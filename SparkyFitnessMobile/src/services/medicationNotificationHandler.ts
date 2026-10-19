@@ -34,6 +34,13 @@ export interface PendingMedicationNotificationAction {
 
 let initialized = false;
 const inFlightActions = new Map<string, Promise<boolean>>();
+let pendingActionsQueue: Promise<unknown> = Promise.resolve();
+
+function withPendingActionsLock<T>(work: () => Promise<T>): Promise<T> {
+  const next = pendingActionsQueue.then(work, work);
+  pendingActionsQueue = next.catch(() => undefined);
+  return next;
+}
 
 export function extractNotificationData(
   content: Notifications.NotificationContent | undefined
@@ -192,11 +199,13 @@ async function writePendingActions(
 async function enqueuePendingAction(
   record: PendingMedicationNotificationAction
 ): Promise<void> {
-  const existing = await readPendingActions();
-  const id = actionDedupeId(record);
-  const filtered = existing.filter((item) => actionDedupeId(item) !== id);
-  filtered.push(record);
-  await writePendingActions(filtered);
+  await withPendingActionsLock(async () => {
+    const existing = await readPendingActions();
+    const id = actionDedupeId(record);
+    const filtered = existing.filter((item) => actionDedupeId(item) !== id);
+    filtered.push(record);
+    await writePendingActions(filtered);
+  });
 }
 
 async function removePendingAction(record: {
@@ -204,18 +213,20 @@ async function removePendingAction(record: {
   entryDate: string;
   doses: { medicationId: string; scheduleId: string | null }[];
 }): Promise<void> {
-  const existing = await readPendingActions();
-  if (existing.length === 0) return;
-  const id = actionDedupeId(record);
-  const filtered = existing.filter((item) => actionDedupeId(item) !== id);
-  if (filtered.length !== existing.length) {
-    await writePendingActions(filtered);
-  }
+  await withPendingActionsLock(async () => {
+    const existing = await readPendingActions();
+    if (existing.length === 0) return;
+    const id = actionDedupeId(record);
+    const filtered = existing.filter((item) => actionDedupeId(item) !== id);
+    if (filtered.length !== existing.length) {
+      await writePendingActions(filtered);
+    }
+  });
 }
 
-export async function flushPendingMedicationNotificationActions(): Promise<void> {
+export async function flushPendingMedicationNotificationActions(): Promise<boolean> {
   const pending = await readPendingActions();
-  if (pending.length === 0) return;
+  if (pending.length === 0) return false;
 
   // A queued action records only medication ids, never the account that queued
   // it, so it must not be replayed blindly: after an account switch those ids
@@ -229,7 +240,7 @@ export async function flushPendingMedicationNotificationActions(): Promise<void>
   } catch {
     // Ownership cannot be verified right now; keep the queue for a later run
     // rather than writing it into an account we cannot vouch for.
-    return;
+    return false;
   }
 
   const resolvedIds = new Set<string>();
@@ -304,14 +315,17 @@ export async function flushPendingMedicationNotificationActions(): Promise<void>
   }
 
   if (resolvedIds.size > 0) {
-    const latest = await readPendingActions();
-    await writePendingActions(
-      latest.filter((item) => !resolvedIds.has(actionDedupeId(item)))
-    );
+    await withPendingActionsLock(async () => {
+      const latest = await readPendingActions();
+      await writePendingActions(
+        latest.filter((item) => !resolvedIds.has(actionDedupeId(item)))
+      );
+    });
   }
   if (anySucceeded) {
     invalidateMedicationEntryCaches(queryClient);
   }
+  return anySucceeded;
 }
 
 export async function processMedicationNotificationResponse(
