@@ -388,7 +388,13 @@ export type RootStackParamList = {
   Goals: { presetId?: string; newPreset?: boolean } | undefined;
   WeeklyGoalPlanEdit: { planId?: string } | undefined;
   MealTypeSettings: undefined;
+  Equipment: undefined;
+  Shoes: undefined;
+  ShoeForm: { shoeId?: string };
   FoodSettings: undefined;
+  CustomNutrients: undefined;
+  CustomNutrientForm: { nutrientId?: string } | undefined;
+  NutrientDisplaySettings: undefined;
   AllergenSettings: undefined;
   DashboardSettings: undefined;
   HealthTrendsSettings: undefined;
@@ -425,6 +431,7 @@ export type RootStackParamList = {
     | undefined;
   MoodLog: { date?: string } | undefined;
   SymptomHistory: { symptomId?: string } | undefined;
+  SymptomEpisodeDetail: { entryId: string };
   ManageSymptoms: undefined;
   SymptomDefinitionEditor: { definitionId?: string } | undefined;
 };
