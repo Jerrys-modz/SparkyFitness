@@ -166,6 +166,8 @@ export default defineConfig({
             { text: 'Training Programs', link: '/features/exercises/training-programs' },
             { text: 'Running Trends', link: '/features/exercises/running-trends' },
             { text: 'Fitness Tests', link: '/features/exercises/fitness-tests' },
+            { text: 'Zone 2 Base Program', link: '/features/exercises/zone-2-program' },
+            { text: 'Zone 2 Research Notes', link: '/features/exercises/zone-2-research' },
             { text: 'Heart Rate Zones', link: '/features/exercises/heart-rate-zones' },
             { text: 'Shoe Inventory', link: '/features/exercises/shoe-inventory' },
             { text: 'Route Generation', link: '/features/exercises/route-generation' },
