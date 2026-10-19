@@ -200,7 +200,7 @@ router.get('/', async (req, res, next) => {
   try {
     const { userId, startDate, endDate } = req.query;
 
-    const targetUserId = userId || req.userId;
+    const targetUserId = (userId as string | undefined) || req.userId;
     if (!startDate || !endDate) {
       return res
         .status(400)
@@ -208,8 +208,8 @@ router.get('/', async (req, res, next) => {
     }
     const moodEntries = await moodRepository.getMoodEntriesByUserId(
       targetUserId,
-      startDate,
-      endDate
+      startDate as string,
+      endDate as string
     );
     res.json(moodEntries);
   } catch (error) {
@@ -278,7 +278,7 @@ router.get('/date/:entryDate', async (req, res, next) => {
     const { entryDate } = req.params;
     const { userId } = req.query;
 
-    const targetUserId = userId || req.userId;
+    const targetUserId = (userId as string | undefined) || req.userId;
     const moodEntry = await moodRepository.getMoodEntryByDate(
       targetUserId,
       entryDate
