@@ -48,6 +48,7 @@ Certain tables contain private user data that is **never** accessible to any fam
 * Personal Fasting Preferences and auto-calculation configuration (`user_fasting_preferences` table)
 * Cycle & Pregnancy hub data (`cycle_settings`, `cycle_daily_entries`, `cycles`, `user_cycle_display_preferences`, `cycle_test_entries`, `pregnancies`, `pregnancy_kick_sessions`, `pregnancy_contractions`, `pregnancy_photos`, `pregnancy_checklist_state`, `health_appointments` tables) — this reproductive-health data is **never** shared or delegated, even with `can_view_reports`. It is strictly owner-only. Bump photo *files* are owner-only too: they are excluded from the public uploads URLs and can only be fetched through an authenticated request by their owner.
 * Run program (`run_programs` table): your Beginner 5K program, your place in it, the days it shows in your Diary, its first day and your goal date, and any changes the AI assistant or you made to its workouts. A training plan is personal, so it is never shared or delegated.
+* Running goals (`run_goals` table): your weekly running distance target and the race you are counting down to. Like the run program, they are personal and never shared or delegated.
 * Your own run plans (`custom_run_programs` table): plans you wrote yourself, with their names and workouts. They are personal, so they are never shared or delegated.
 
 ### 2. Tier 2: Read-Only Profile & Settings Data

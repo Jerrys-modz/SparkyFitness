@@ -49,6 +49,7 @@ BEGIN
     'mood_entries',
     'mindfulness_sessions',
     'run_programs',
+    'run_goals',
     'shoes',
     'custom_run_programs',
     'onboarding_data',
@@ -758,6 +759,7 @@ SELECT create_owner_policy('pregnancy_photos');
 SELECT create_owner_policy('pregnancy_checklist_state');
 SELECT create_owner_policy('health_appointments');
 SELECT create_owner_policy('run_programs');
+SELECT create_owner_policy('run_goals');
 SELECT create_owner_policy('custom_run_programs');
 
 -- User-defined mood tags. Mood is check-in data (mood_entries uses the check-in

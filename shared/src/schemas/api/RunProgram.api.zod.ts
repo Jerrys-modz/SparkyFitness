@@ -80,7 +80,7 @@ const isRealDay = (value: string): boolean => {
     date.getUTCDate() === d
   );
 };
-const dayString = z
+export const runDayStringSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .refine(isRealDay, { message: "Not a real calendar day." });
@@ -109,11 +109,11 @@ export const runProgramResponseSchema = z.object({
   /** Weekdays (0 = Sunday) the person plans to run; empty means every day. */
   run_days: z.array(weekday).max(7),
   /** First day (YYYY-MM-DD) the Diary offers the workout, or null for any. */
-  start_date: dayString.nullable(),
+  start_date: runDayStringSchema.nullable(),
   /** The person's goal day (e.g. race day), or null. Nothing is scheduled after it. */
-  end_date: dayString.nullable(),
+  end_date: runDayStringSchema.nullable(),
   /** The last day a program workout was completed (the person's local day). */
-  last_done_date: dayString.nullable(),
+  last_done_date: runDayStringSchema.nullable(),
   updated_at: z.string(),
 });
 export type RunProgramResponse = z.infer<typeof runProgramResponseSchema>;
@@ -187,8 +187,8 @@ export const upsertRunProgramBodySchema = z
     next_index: z.number().int().min(0).max(1000).optional(),
     run_days: z.array(weekday).max(7).optional(),
     /** null clears it; absent leaves it as it is. */
-    start_date: dayString.nullable().optional(),
-    end_date: dayString.nullable().optional(),
+    start_date: runDayStringSchema.nullable().optional(),
+    end_date: runDayStringSchema.nullable().optional(),
   })
   .refine(
     (body) =>
@@ -206,7 +206,7 @@ export const completeRunProgramWorkoutBodySchema = z.object({
   /** The program the workout belonged to; ignored if the person has switched since. */
   program_id: z.string().min(1).max(40).optional(),
   /** The person's local day, recorded as the last day a workout was done. */
-  day: dayString.optional(),
+  day: runDayStringSchema.optional(),
   /** The diary exercise entry the workout was done as, so it can be shown as part of the program. */
   entry_id: z.string().min(1).max(64).optional(),
 });
