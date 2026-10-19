@@ -491,7 +491,13 @@ const EditGoalsForToday = ({ selectedDate }: EditGoalsProps) => {
       );
     }
 
-    if (goalModeCalculationMethod === 'adaptive' || goalMode !== 'maintain') {
+    // Only a manual calorie edit overrides the adaptive/goal-mode setup;
+    // changing macros alone must leave it intact.
+    const caloriesEdited = finalGoals.calories !== serverGoals?.calories;
+    if (
+      caloriesEdited &&
+      (goalModeCalculationMethod === 'adaptive' || goalMode !== 'maintain')
+    ) {
       try {
         await saveAllPreferences({
           goalMode: 'maintain',
