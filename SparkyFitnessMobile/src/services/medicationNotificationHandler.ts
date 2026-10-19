@@ -29,6 +29,7 @@ export interface PendingMedicationNotificationAction {
   status: MedicationEntryStatus;
   doses: { medicationId: string; scheduleId: string | null }[];
   entryDate: string;
+  userId?: string | null;
   takenAt?: string;
 }
 
@@ -151,13 +152,15 @@ function actionDedupeId(action: {
   key: string | null;
   entryDate: string;
   doses: { medicationId: string; scheduleId: string | null }[];
+  userId?: string | null;
 }): string {
-  if (action.key) return action.key;
+  const prefix = action.userId ? `${action.userId}_` : '';
+  if (action.key) return `${prefix}${action.key}`;
   const doseIds = action.doses
     .map((d) => `${d.medicationId}:${d.scheduleId ?? ''}`)
     .sort()
     .join(',');
-  return `${action.entryDate}_${doseIds}`;
+  return `${prefix}${action.entryDate}_${doseIds}`;
 }
 
 async function readPendingActions(): Promise<
@@ -212,6 +215,7 @@ async function removePendingAction(record: {
   key: string | null;
   entryDate: string;
   doses: { medicationId: string; scheduleId: string | null }[];
+  userId?: string | null;
 }): Promise<void> {
   await withPendingActionsLock(async () => {
     const existing = await readPendingActions();
@@ -228,14 +232,19 @@ export async function flushPendingMedicationNotificationActions(): Promise<boole
   const pending = await readPendingActions();
   if (pending.length === 0) return false;
 
-  // A queued action records only medication ids, never the account that queued
-  // it, so it must not be replayed blindly: after an account switch those ids
-  // belong to the account that is no longer signed in. Resolve the medications
-  // the current account owns and drop any dose that is not among them.
+  // Resolve the medications (and owning user_id) for the currently signed-in
+  // account. Queued records belonging to another account must be retained in
+  // storage so they can be replayed when that account is active again, while
+  // never writing another account's doses into the current account.
   let ownedMedicationIds: Set<string>;
+  let activeUserIds: Set<string>;
   try {
-    ownedMedicationIds = new Set(
-      (await listMedications()).map((medication) => medication.id)
+    const medications = await listMedications();
+    ownedMedicationIds = new Set(medications.map((m) => m.id));
+    activeUserIds = new Set(
+      medications
+        .map((m) => m.user_id)
+        .filter((id): id is string => Boolean(id))
     );
   } catch {
     // Ownership cannot be verified right now; keep the queue for a later run
@@ -256,12 +265,27 @@ export async function flushPendingMedicationNotificationActions(): Promise<boole
 
     const replayPromise = (async (): Promise<boolean> => {
       try {
+        if (
+          record.userId &&
+          activeUserIds.size > 0 &&
+          !activeUserIds.has(record.userId)
+        ) {
+          // Record belongs to a different account; retain it for replay later.
+          return false;
+        }
+
         const ownedDoses = record.doses.filter((d) =>
           ownedMedicationIds.has(d.medicationId)
         );
         if (ownedDoses.length === 0) {
-          resolvedIds.add(dedupeKey);
-          return true;
+          // Only drop the record if we can confirm its owning user is currently
+          // active (meaning the medication was deleted by its owner). Otherwise
+          // retain it so the owning account can replay it after switching back.
+          if (record.userId && activeUserIds.has(record.userId)) {
+            resolvedIds.add(dedupeKey);
+            return true;
+          }
+          return false;
         }
 
         const existing = await listEntries({
@@ -360,7 +384,8 @@ export async function processMedicationNotificationResponse(
 
   const notificationId = response.notification.request.identifier;
   const baseKey = data?.baseKey ?? data?.key ?? null;
-  const dedupeKey = actionDedupeId({ key: baseKey, entryDate, doses });
+  const userId = data?.userId ?? null;
+  const dedupeKey = actionDedupeId({ key: baseKey, entryDate, doses, userId });
 
   const existingPromise = inFlightActions.get(dedupeKey);
   if (existingPromise) {
@@ -372,7 +397,8 @@ export async function processMedicationNotificationResponse(
     doses,
     entryDate,
     notificationId,
-    baseKey
+    baseKey,
+    userId
   ).finally(() => {
     inFlightActions.delete(dedupeKey);
   });
@@ -468,7 +494,8 @@ async function handleNotificationAction(
   doses: { medicationId: string; scheduleId: string | null }[],
   entryDate: string,
   notificationId: string,
-  key: string | null
+  key: string | null,
+  userId: string | null = null
 ): Promise<boolean> {
   const takenAt = status === 'taken' ? new Date().toISOString() : undefined;
   try {
@@ -488,7 +515,7 @@ async function handleNotificationAction(
     );
 
     if (unlogged.length === 0) {
-      await removePendingAction({ key, entryDate, doses });
+      await removePendingAction({ key, entryDate, doses, userId });
       await clearMatchingReminders(notificationId, key, doses, entryDate);
       invalidateMedicationEntryCaches(queryClient);
       return true;
@@ -506,7 +533,7 @@ async function handleNotificationAction(
       )
     );
 
-    await removePendingAction({ key, entryDate, doses });
+    await removePendingAction({ key, entryDate, doses, userId });
     await clearMatchingReminders(notificationId, key, doses, entryDate);
 
     // This path writes the entry through the API directly rather than through the
@@ -527,6 +554,7 @@ async function handleNotificationAction(
       status,
       doses,
       entryDate,
+      userId,
       takenAt,
     });
     addLog(

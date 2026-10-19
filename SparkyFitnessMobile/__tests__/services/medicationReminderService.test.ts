@@ -226,6 +226,7 @@ describe('reconcileMedicationReminders', () => {
           data: {
             medicationId: 'med-1',
             scheduleId: 'sched-1',
+            userId: 'user-1',
             entryDate: TODAY,
             key: BASE_KEY,
             baseKey: BASE_KEY,

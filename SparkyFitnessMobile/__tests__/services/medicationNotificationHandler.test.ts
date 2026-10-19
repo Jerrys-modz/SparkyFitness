@@ -416,7 +416,7 @@ describe('logging a dose from a notification action', () => {
       ).toHaveBeenCalledWith('repeat-10');
     });
 
-    it('drops queued doses not owned by the active account when flushing after an account switch', async () => {
+    it('retains queued doses for another account during an account switch and replays them when the owning account is active again', async () => {
       const baseKey = 'med_2026-08-12_med-of-A_sched-A_09:00';
       (createEntry as jest.Mock).mockRejectedValueOnce(new Error('offline'));
 
@@ -434,6 +434,7 @@ describe('logging a dose from a notification action', () => {
                 data: {
                   medicationId: 'med-of-A',
                   scheduleId: 'sched-A',
+                  userId: 'user-A',
                   entryDate: DATE,
                   key: baseKey,
                   baseKey,
@@ -448,15 +449,32 @@ describe('logging a dose from a notification action', () => {
       expect(createEntry).toHaveBeenCalledTimes(1);
       (createEntry as jest.Mock).mockClear();
 
-      // Switch to account B which only owns med-of-B
+      // Switch to account B which only owns med-of-B -> should NOT replay or delete A's record
       (listMedications as jest.Mock).mockResolvedValueOnce([
-        { id: 'med-of-B' },
+        { id: 'med-of-B', user_id: 'user-B' },
       ]);
       const { flushPendingMedicationNotificationActions } =
         require('../../src/services/medicationNotificationHandler') as typeof import('../../src/services/medicationNotificationHandler');
-      await flushPendingMedicationNotificationActions();
+      const flushedUnderB = await flushPendingMedicationNotificationActions();
 
+      expect(flushedUnderB).toBe(false);
       expect(createEntry).not.toHaveBeenCalled();
+
+      // Switch back to account A -> should replay A's retained record
+      (listMedications as jest.Mock).mockResolvedValueOnce([
+        { id: 'med-of-A', user_id: 'user-A' },
+      ]);
+      (createEntry as jest.Mock).mockResolvedValueOnce({ id: 'entry-a' });
+      const flushedUnderA = await flushPendingMedicationNotificationActions();
+
+      expect(flushedUnderA).toBe(true);
+      expect(createEntry).toHaveBeenCalledTimes(1);
+      expect(createEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          medication_id: 'med-of-A',
+          schedule_id: 'sched-A',
+        })
+      );
     });
 
     it('preserves actions enqueued while flushPendingMedicationNotificationActions is awaiting network calls and coordinates with inFlightActions', async () => {

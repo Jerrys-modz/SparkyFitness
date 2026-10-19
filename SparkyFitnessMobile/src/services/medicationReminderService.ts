@@ -398,6 +398,9 @@ export async function reconcileMedicationReminders(
       const data: Record<string, string> = {
         medicationId: doses[0].medication.id,
         scheduleId: doses[0].schedule.id,
+        ...(doses[0].medication.user_id
+          ? { userId: doses[0].medication.user_id }
+          : {}),
         entryDate: date,
         key: baseKey,
         baseKey,
