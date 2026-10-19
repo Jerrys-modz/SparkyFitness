@@ -2481,6 +2481,7 @@
       "percentageGoal": "Percentage Earn-Back",
       "percentageGoalDescription": "Only earn back a set percentage of your exercise calories. For example, 50% creates a safety buffer to avoid overeating from over-estimated burns.",
       "percentageLabel": "Earn-back percentage:",
+      "adaptiveEarnBack": "Adaptive targets already include activity. Remaining calories are Target minus Eaten. Exercise earn-back applies only to Manual targets.",
       "tdeeGoal": "Device Projection",
       "tdeeActivityHint": "Activity level is only used by the BMR + active calories fallback when a device total is unavailable.",
       "tdeeGoalDescription": "Uses Health Connect total calories when available, projects the current burn to midnight, and applies Goal Mode directly to that TDEE. Falls back to BMR plus active calories when no device total is available.",
@@ -3392,6 +3393,8 @@
     "saveChanges": "Save Changes",
     "active": "Active",
     "pickADate": "Pick a date",
+    "pickTime": "Pick a time",
+    "pickDateTime": "Pick a date and time",
     "yes": "Yes",
     "no": "No",
     "monday": "Monday",
@@ -3915,6 +3918,7 @@
       "deletedSuccess": "Drink removed",
       "deletedError": "Failed to remove drink",
       "editTime": "Click to change time",
+      "logTime": "Drink time",
       "noManualToRemove": "Only manually logged water can be removed here",
       "fromFood": "Includes {{volume}} {{unit}} from food",
       "linkedFoodRemovedTitle": "Food Entry Removed",
@@ -4009,12 +4013,47 @@
       "tapToUpload": "Tap to upload",
       "upload": "Upload",
       "replace": "Replace",
+      "remove": "Remove photo",
       "uploadSuccess": "Photo saved",
       "uploadError": "Upload failed",
       "tooLarge": "Image is too large (max 10 MB).",
       "deleteSuccess": "Photo removed",
       "deleteError": "Failed to remove photo",
-      "calendarLegend": "Progress photos"
+      "calendarLegend": "Progress photos",
+      "compare": "Compare",
+      "timelapse": "Time-lapse",
+      "angle": "Angle",
+      "before": "Before",
+      "after": "After",
+      "noWeight": "No weight logged",
+      "logWeight": "Log weight",
+      "viewFull": "View {{label}} full size",
+      "pickDay": "Choose the {{label}} day",
+      "compareTitle": "Compare progress photos",
+      "compareDescription": "Pick any two days to see how this angle has changed.",
+      "compareEmpty": "Add photos of this angle on at least two days to compare them.",
+      "daysApart_one": "{{count}} day apart",
+      "daysApart_other": "{{count}} days apart",
+      "timelapseTitle": "Progress time-lapse",
+      "timelapseDescription": "Watch one angle change over time. Use the arrow keys to step through it.",
+      "timelapseEmpty": "Add photos of this angle on at least two days to play a time-lapse.",
+      "timelapseEmptyRange": "There are fewer than two photos of this angle in that range.",
+      "rangeLabel": "Play back",
+      "range30d": "Last 30 days",
+      "range3m": "Last 3 months",
+      "rangeAll": "All time",
+      "rangeCustom": "Custom range",
+      "pickRange": "Pick dates",
+      "playRange": "Play this range",
+      "frameCount": "{{current}} of {{total}} · {{range}}",
+      "previousPhoto": "Previous photo",
+      "nextPhoto": "Next photo",
+      "play": "Play",
+      "pause": "Pause",
+      "speed": "Speed",
+      "speedSlow": "Slow",
+      "speedNormal": "Normal",
+      "speedFast": "Fast"
     },
     "bmr": "BMR (kcal)",
     "bodyWater": "Body Water %",
@@ -5627,6 +5666,20 @@
     "usingStandardUnitsLikeKcal": "💡 Using standard units (like kcal, mmHg, BPM) automatically optimizes chart precision."
   },
   "customFoodForm": {
+    "portions": "Named portions",
+    "portionNutritionCalculated": "Nutrition is calculated from the reference unit. Edit that unit to change nutrition.",
+    "addPortion": "Add portion",
+    "portionsHelp": "Define a package, slice, or other portion by its known weight or volume. Nutrition is calculated from this food; you can still log any gram or milliliter quantity.",
+    "portionsNeedReference": "Add a weight or volume unit first to calculate portions.",
+    "portionName": "Portion name",
+    "portionNamePlaceholder": "e.g. Package",
+    "portionWeight": "Weight (g)",
+    "portionVolume": "Volume (ml)",
+    "portionInvalid": "Enter a unique portion name and a positive amount. A portion with this name and amount may already exist.",
+    "addPortionToFood": "Add portion to food",
+    "hidePortionDetails": "Hide details",
+    "editPortionDetails": "Edit unit",
+    "removePortion": "Remove portion",
     "foodNameLabel": "Food Name *",
     "foodNamePlaceholder": "e.g., Homemade Pizza",
     "brandLabel": "Brand (optional)",
@@ -6306,6 +6359,7 @@
       "appointments": "Appointments",
       "apptLocation": "Location (optional)",
       "apptTitle": "Title (optional)",
+      "apptWhen": "Date and time",
       "avgCycle": "Average cycle length",
       "avgPeriod": "Average period length",
       "birthPlan": "Birth plan",
@@ -8975,5 +9029,233 @@
     "failedToSave": "Failed to save shoe.",
     "failedToDelete": "Failed to delete shoe.",
     "failedToAssign": "Failed to update the shoe for this run."
+  },
+  "trainingPrograms": {
+    "banner": {
+      "markDone": "Mark as done",
+      "open": "Open program",
+      "program": "Training program: {{name}}",
+      "scheduled": "Scheduled",
+      "scheduledToday": "Scheduled Today",
+      "title": "{{title}} · {{minutes}} min",
+      "upNext": "Up next"
+    },
+    "calendar": {
+      "done": "Done",
+      "doneOn": "Done {{date}}",
+      "due": "Next",
+      "finish": "Finishes on {{date}}.",
+      "finishedNote": "Every workout is done. Start the program again to plan another round.",
+      "legendAhead": "Planned",
+      "legendDone": "Done",
+      "legendNext": "Next",
+      "moves": "A workout you miss is not skipped: the dates after it move along.",
+      "noWorkoutsDay": "No workouts on this day.",
+      "notScheduled": "Not scheduled",
+      "showLess": "Show fewer",
+      "title": "Schedule",
+      "today": "Today",
+      "upcoming": "Coming up",
+      "fitsBefore_one": "On track: you finish on {{date}}, {{count}} day before your goal date.",
+      "fitsBefore_other": "On track: you finish on {{date}}, {{count}} days before your goal date.",
+      "fitsAfter_one": "At this pace you finish on {{date}}, {{count}} day after your goal date. Add a workout day or move the date.",
+      "fitsAfter_other": "At this pace you finish on {{date}}, {{count}} days after your goal date. Add a workout day or move the date.",
+      "noDays_one": "{{count}} workout left. Pick your run days to see when each one falls; until then the Diary offers the next one every day.",
+      "noDays_other": "{{count}} workouts left. Pick your run days to see when each one falls; until then the Diary offers the next one every day.",
+      "catchUp_one": "Skip the next {{count}} workout to finish on {{date}}, in time for your goal. The last workout is never skipped.",
+      "catchUp_other": "Skip the next {{count}} workouts to finish on {{date}}, in time for your goal. The last workout is never skipped.",
+      "catchUpButton_one": "Skip {{count}} workout",
+      "catchUpButton_other": "Skip {{count}} workouts",
+      "tooFar_one": "You are too far behind to catch up by skipping: {{count}} workout will not fit. Add run days or move your goal date.",
+      "tooFar_other": "You are too far behind to catch up by skipping: {{count}} workouts will not fit. Add run days or move your goal date.",
+      "cutOff_one": "{{count}} workout does not fit before your goal date.",
+      "cutOff_other": "{{count}} workouts do not fit before your goal date.",
+      "showAll_one": "Show {{count}}",
+      "showAll_other": "Show all {{count}}"
+    },
+    "card": {
+      "actionsHint": "Skip moves on without doing this workout. Start over goes back to the first workout.",
+      "changed": "Plan changed on {{date}}: {{summary}}",
+      "changedBySparky": "Sparky changed your plan on {{date}}: {{summary}}",
+      "chooseWorkout": "Choose a different workout",
+      "finished": "{{name}} complete",
+      "finishedHint": "Well done. You can start it again or move on.",
+      "goalClear": "Clear",
+      "goalDay": "Goal date",
+      "goalDayHint": "Optional, for example a race day. The schedule below says whether the program fits before it.",
+      "goalDaySet": "Nothing is scheduled after {{date}}. The schedule below says whether the program fits.",
+      "markDone": "Mark workout as done",
+      "minutes": "{{minutes}} min",
+      "paused": "{{name}} is paused at {{done}} of {{total}} workouts. Switch it on to carry on.",
+      "pickRun": "Run {{number}}",
+      "pickWalk": "Walk {{number}}",
+      "pickWorkout": "Pick a workout",
+      "progress": "Workout {{done}} of {{total}} done · {{minutes}} min today",
+      "progressBar": "Place in the program",
+      "restart": "Start again",
+      "runDays": "Run days",
+      "runDaysHint": "Pick the days you plan to train, or leave them empty to see the workout every day.",
+      "runDaysSet": "The Diary shows the workout on these days. A workout you miss stays due.",
+      "schedule": "Schedule",
+      "skip": "Skip",
+      "startClear": "Start today",
+      "startDay": "First workout",
+      "startDayPast": "Started {{date}}. Your next workout is scheduled from today.",
+      "startDaySet": "Starts {{date}}. Nothing shows in the Diary before then.",
+      "startDayToday": "Starts today, {{date}}. Pick a later date if you want to begin then.",
+      "startOver": "Start over",
+      "switchHint": "Follow a plan that builds up week by week.",
+      "title": "Training program",
+      "use": "Use a training program",
+      "week": "Week {{week}}"
+    },
+    "custom": {
+      "intro": "Plans you wrote or built in the mobile app. Start one to follow it like any program.",
+      "title": "Your plans",
+      "workoutCount_one": "{{count}} workout",
+      "workoutCount_other": "{{count}} workouts"
+    },
+    "entry": {
+      "description": "Follow a run or walk plan that builds up week by week, with a calendar and the workout in your Diary.",
+      "open": "Open training programs",
+      "title": "Training programs"
+    },
+    "errors": {
+      "load": "Could not load your training program.",
+      "loadCustom": "Could not load your plans.",
+      "update": "Could not update your program. Please try again."
+    },
+    "page": {
+      "allPrograms": "All programs",
+      "back": "Exercises",
+      "intro": "Follow a plan that builds up week by week. Pick a program to see what it involves, then start it when you are ready.",
+      "ownOnly": "Training programs are personal. Switch back to your own account to see yours.",
+      "title": "Training programs"
+    },
+    "picker": {
+      "current": "Current program",
+      "outline": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.",
+      "outlineWalk": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of brisk walking.",
+      "runsPerWeekHint": "A fourth run adds a short easy run, so the long run is a smaller share of your week.",
+      "start": "Start program",
+      "weeksRuns": "{{weeks}} weeks, {{runs}} workouts a week",
+      "runsPerWeekOption_one": "{{count}} run a week",
+      "runsPerWeekOption_other": "{{count}} runs a week"
+    },
+    "programs": {
+      "advancedMarathon": {
+        "description": "Advanced marathon: sixteen weeks, five runs a week, with speed or tempo work and long runs building to three hours. For experienced runners.",
+        "name": "Advanced marathon",
+        "structure": "Most weeks have two easy runs, a speed or tempo session, a middle run and a long run. The long run builds from 90 minutes to three hours, every fourth week is lighter, and the last two weeks taper before race day."
+      },
+      "beginner10k": {
+        "description": "Beginner 10K: twelve weeks, three runs a week, starting from walking. You build up to running for an hour.",
+        "name": "Beginner 10K",
+        "structure": "Weeks 1 to 6 follow the beginner 5K build from short runs and walks to continuous running. Weeks 7 to 12 are three runs a week, with the long run growing from 30 to 60 minutes."
+      },
+      "beginner5k": {
+        "description": "Beginner 5K: nine weeks, three runs a week. You alternate running and walking, and build up to 30 minutes of running.",
+        "name": "Beginner 5K",
+        "structure": "Weeks 1 to 4 alternate short runs with walks, starting at 1 minute of running and building to 5-minute runs. Weeks 5 and 6 mix run and walk intervals with one continuous run. Weeks 7 to 9 are continuous runs of 25, 28 and then 30 minutes."
+      },
+      "beginnerMarathon": {
+        "description": "Beginner marathon: eighteen weeks, three runs a week, with long runs building to 2½ hours and a taper. For when you can run 10K.",
+        "name": "Beginner marathon",
+        "structure": "Each week has a short run, a middle run and a long run. The long run builds from 70 minutes to 2½ hours, every fourth week is lighter, and the last three weeks taper before race day."
+      },
+      "beginnerMarathon4": {
+        "description": "Beginner marathon: eighteen weeks, four runs a week, with long runs building to 2⅔ hours and a taper. For when you can run 10K.",
+        "name": "Beginner marathon (4 runs a week)",
+        "structure": "Each week has two short runs, a middle run and a long run. The long run builds from 80 minutes to 2 hours 40 minutes, every fourth week is lighter, and the last three weeks taper before race day. The final week has three shorter runs."
+      },
+      "faster10k": {
+        "description": "Faster 10K: eight weeks of speed sessions, easy runs and tempo runs, for when you already run 10K.",
+        "name": "Faster 10K",
+        "structure": "Each week has a speed session (fast and easy repeats), an easy run and a longer run. In weeks 5 to 7 the longer run is a tempo run of 20, 25 and then 30 minutes, and the last week eases off."
+      },
+      "faster5k": {
+        "description": "Faster 5K: six weeks of speed sessions, easy runs and tempo runs, for when you already run 5K.",
+        "name": "Faster 5K",
+        "structure": "Each week has a speed session (fast and easy repeats), an easy run and a longer run. In weeks 1 to 3 the longer run is easy; in weeks 4 to 6 it becomes a tempo run of 15, 20 and then 25 minutes."
+      },
+      "fasterHalf": {
+        "description": "Faster half marathon: ten weeks of speed sessions, easy runs and long runs with tempo work, for when you have run a half marathon before.",
+        "name": "Faster half marathon",
+        "structure": "Each week has a speed session, an easy run and a long run. The long run builds from 70 to 110 minutes, tempo runs of 25 and 30 minutes replace the speed session in weeks 6 and 8, and the last two weeks taper."
+      },
+      "fasterHalf4": {
+        "description": "Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run with tempo work. For when you have run a half marathon before.",
+        "name": "Faster half marathon (4 runs a week)",
+        "structure": "Each week has a speed session, two easy runs and a long run. The long run builds from 80 to 120 minutes, week 4 is lighter, and the last three weeks taper before race day. The final week has three shorter runs."
+      },
+      "fiveToTenK": {
+        "description": "5K to 10K: eight weeks, three runs a week, for when you can run 30 minutes. It builds to a 65 minute long run.",
+        "name": "5K to 10K",
+        "structure": "Each week has two steady runs and a long run. The long run grows from 40 to 65 minutes. Every fourth week is lighter so you can recover, and the last week eases off."
+      },
+      "gentle5k": {
+        "description": "Gentle 5K: twelve weeks, three runs a week. A slower start than Beginner 5K, with very short runs between long walks, building to 30 minutes of running.",
+        "name": "Gentle 5K",
+        "structure": "Every week repeats one run/walk session three times. The runs grow from 30 seconds to 5 minutes by week 8, then to two 10-minute runs, a 15 and a 10-minute run, and finally continuous runs of 25 and 30 minutes."
+      },
+      "halfMarathon": {
+        "description": "Half marathon: twelve weeks, three runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably.",
+        "name": "Half marathon",
+        "structure": "Each week has an easy run, a middle run and a long run. The long run builds from 50 to 115 minutes, every fourth week is lighter, and the last week is short before race day."
+      },
+      "halfMarathon4": {
+        "description": "Half marathon: twelve weeks, four runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably.",
+        "name": "Half marathon (4 runs a week)",
+        "structure": "Each week has two easy runs, a middle run and a long run. The long run builds from 60 to 125 minutes, every fourth week is lighter, and the last two weeks taper before race day. The final week has three shorter runs."
+      },
+      "marathon": {
+        "description": "Marathon: sixteen weeks, four runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly.",
+        "name": "Marathon",
+        "structure": "Most weeks have two easy runs, a middle run and a long run. The long run builds from 70 minutes to 2¾ hours, every fourth week is lighter, and the last two weeks taper before race day."
+      },
+      "returnToRunning": {
+        "description": "Return to running: four weeks, three runs a week, for easing back in after a break. You build from one-minute runs to about 20 minutes of running. Leave a day or two between runs and keep the pace easy. If you are coming back from an injury, check with a physio or doctor first.",
+        "name": "Return to running",
+        "structure": "Weeks 1 to 3 alternate short runs with walks, from 1-minute runs to 5-minute runs. Week 4 has three run/walk sessions with runs of 6, 10 and 12 minutes, adding up to 18, 20 and 22 minutes of running."
+      },
+      "tenKToHalf": {
+        "description": "10K to half marathon: ten weeks, three runs a week, for when you can run 10K. Long runs build from 65 to 115 minutes.",
+        "name": "10K to half marathon",
+        "structure": "Each week has a short run, a middle run and a long run. The long run builds from 65 to 115 minutes, weeks 4 and 8 are lighter, and the last two weeks taper before race day."
+      },
+      "tenKToHalf4": {
+        "description": "10K to half marathon: ten weeks, four runs a week, with long runs building to about two hours. For when you can run 10K.",
+        "name": "10K to half marathon (4 runs a week)",
+        "structure": "Each week has two short runs, a middle run and a long run. The long run builds from 75 to 125 minutes, week 4 is lighter, and the last three weeks taper before race day. The final week has three shorter runs."
+      },
+      "walk10k": {
+        "description": "Brisk walk 10K: ten weeks, three walks a week, with no running. You build up to a 10K walk of about an hour and three quarters.",
+        "name": "Brisk walk 10K",
+        "structure": "Each week has two walks of brisk stretches with short easy breaks and one long brisk walk. The long walk grows from 40 to 105 minutes, weeks 4 and 8 are lighter, and the last week ends with the 10K walk."
+      },
+      "walkFit": {
+        "description": "Walk for fitness: eight weeks, three walks a week, with no running. You alternate brisk and easy walking and build up to 30 minutes of brisk walking.",
+        "name": "Walk for fitness",
+        "structure": "Weeks 1 to 4 alternate stretches of brisk walking (3 to 8 minutes) with 2 minutes of easy walking. Weeks 5 and 6 use two longer brisk stretches of 12 and 15 minutes. Weeks 7 and 8 are continuous brisk walks of 20 to 30 minutes."
+      }
+    },
+    "start": {
+      "message": "When is your first workout?",
+      "pickDate": "Pick a date",
+      "startOnDate": "Start on that date",
+      "title": "Start {{name}}",
+      "today": "Start today"
+    },
+    "switch": {
+      "confirm": "Switch",
+      "message": "You will start the new program at week 1. Your place in the current one is not kept.",
+      "title": "Switch to {{name}}?"
+    },
+    "workout": {
+      "label": "{{name}} · {{workout}}",
+      "number": "Workout {{number}}",
+      "titleRun": "Week {{week}}, run {{run}}",
+      "titleWalk": "Week {{week}}, walk {{walk}}"
+    }
   }
 }

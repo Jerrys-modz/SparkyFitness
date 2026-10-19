@@ -297,8 +297,13 @@ async function getFatSecretAccessToken(
         );
         return getFatSecretAccessToken(clientId, clientSecret, 'basic');
       }
-      throw new Error(
-        `FatSecret authentication failed: ${errorData.error_description || response.statusText}`
+      // Keep FatSecret's OAuth code (e.g. invalid_scope) in the message: premier
+      // entitlement detection matches on it to start the premier cooldown.
+      throw Object.assign(
+        new Error(
+          `FatSecret authentication failed: ${[errorData.error, errorData.error_description].filter(Boolean).join(' - ') || response.statusText}`
+        ),
+        { fatSecretOAuthError: errorData.error }
       );
     }
     const data = (await response.json()) as {
@@ -310,6 +315,10 @@ async function getFatSecretAccessToken(
     tokensByScope.set(cacheKey, { token, expiry });
     return token;
   } catch (error) {
+    // A rejection from FatSecret itself is not a network error; rethrow it as is.
+    if ((error as { fatSecretOAuthError?: unknown }).fatSecretOAuthError) {
+      throw error;
+    }
     log(
       'error',
       `Network error during FatSecret OAuth token acquisition for scope "${requestedScope}":`,
