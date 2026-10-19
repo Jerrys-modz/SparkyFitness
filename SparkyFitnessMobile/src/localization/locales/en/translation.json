@@ -669,7 +669,8 @@
     "heatmap": "Heatmap",
     "fitnessTest": "Fitness tests",
     "fitnessTestResult": "Fitness test",
-    "heartRateZonesSettings": "Heart Rate Zones"
+    "heartRateZonesSettings": "Heart Rate Zones",
+    "treadmillSettings": "Treadmill & Stride"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -1242,7 +1243,9 @@
     "duckMusicSubtitle": "Briefly turn down music from other apps while a workout beep or spoken cue plays.",
     "duckMusicAccessibility": "Lower music during cues",
     "warmupCalculator": "Warm-up calculator",
-    "warmupCalculatorSubtitle": "The ramp, and the weights it rounds to, for warm-up sets you add to an exercise."
+    "warmupCalculatorSubtitle": "The ramp, and the weights it rounds to, for warm-up sets you add to an exercise.",
+    "treadmillStride": "Treadmill & stride",
+    "treadmillStrideSubtitle": "See and set the stride used to estimate indoor distance, and correct a treadmill that reads long or short."
   },
   "restPeriod": {
     "title": "Rest period",
@@ -7150,7 +7153,8 @@
       "estimateLearned_other": "Estimated from {{formattedCount}} steps using your stride. Change it to match your treadmill and the app keeps learning.",
       "estimateRough_one": "A rough estimate from {{formattedCount}} step with a typical stride. Enter what your treadmill shows and the app learns yours.",
       "estimateRough_other": "A rough estimate from {{formattedCount}} steps with a typical stride. Enter what your treadmill shows and the app learns yours.",
-      "invalid": "Enter a distance of zero or more."
+      "invalid": "Enter a distance of zero or more.",
+      "corrected": "Treadmill showed {{shown}} {{unit}}. Saved as {{saved}} {{unit}} with your {{percent}} treadmill correction."
     },
     "heartRate": "Heart rate",
     "errors": {
@@ -8032,7 +8036,9 @@
     "newSegmentPr_other": "New segment PRs",
     "segments": "Segments",
     "segmentPrBeat": "New PR, beating your {{time}}",
-    "segmentPr": "New PR"
+    "segmentPr": "New PR",
+    "treadmillCorrected": "Machine showed {{shown}} {{unit}}; saved as {{saved}} {{unit}} with your treadmill correction.",
+    "treadmillCorrectionOn": "Your {{percent}} treadmill correction is taken off the figure you enter."
   },
   "runPrograms": {
     "startWhenTitle": "Start {{name}}",
@@ -9162,5 +9168,39 @@
       "customFloors": "Each zone must start above the one before it, from 30 to 250 bpm.",
       "saveFailed": "Could not save. Check the values and try again."
     }
+  },
+  "treadmillSettings": {
+    "title": "Treadmill & Stride",
+    "unitFeet": "ft",
+    "unitMeters": "m",
+    "walkingStride": "Walking stride",
+    "runningStride": "Running stride",
+    "strideManual": "Set by you. New distances nudge it from here.",
+    "strideLearned_one": "Learned from {{count}} real distance.",
+    "strideLearned_other": "Learned from {{count}} real distances.",
+    "strideDefault": "Default stride. Not learned yet.",
+    "correction": "Correct treadmill distance",
+    "correctionSubtitle": "If your treadmill display reads long or short, take that off the distance you enter from it. Distances the phone estimates from steps are not changed. Kept on this device.",
+    "correctionA11y": "Correct treadmill distance",
+    "displayReads": "My treadmill display reads",
+    "readsLong": "Long",
+    "readsShort": "Short",
+    "percentA11y": "Percent the treadmill reads off",
+    "preview": "A display of {{shown}} {{unit}} is saved as {{saved}} {{unit}} ({{percent}}).",
+    "previewNone": "Enter how far off it is, up to {{max}} percent. At 0 nothing changes.",
+    "strideInput": "Set by hand",
+    "strideInputA11y": "{{activity}} in {{unit}}",
+    "strideInvalid": "That stride does not look right. A step is usually between 0.3 and 2.5 m (1 and 8 ft).",
+    "reset": "Reset and learn from scratch",
+    "calibrate": "Calibrate on purpose",
+    "calibrateHint": "Walk or run a distance you know is real, note your steps (from Health or your watch) and what the treadmill showed. This sets your stride, and works out how far off the treadmill is.",
+    "calSteps": "Steps taken",
+    "calDistance": "Real distance",
+    "calShown": "Treadmill showed (optional)",
+    "calibrateAction": "Calibrate",
+    "calibrateFailed": "That is too short or does not add up. Use at least 150 steps and 100 m, and check the numbers.",
+    "calibrated": "Your {{activity}} is now {{stride}} {{unit}}.",
+    "calibratedPercent": "The treadmill display is off by {{percent}}.",
+    "useCorrection": "Use this correction"
   }
 }

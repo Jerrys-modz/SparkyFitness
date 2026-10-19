@@ -41,6 +41,11 @@ export interface WatchRunPayload {
   estimatedDistanceMeters?: number;
   /** The saved route the wearer followed, when the run followed one. */
   routeId?: string;
+  /**
+   * Set by the phone, never the watch: the treadmill figure the wearer entered
+   * when a treadmill correction was taken off it to give `distanceMeters`.
+   */
+  treadmillDisplayMeters?: number;
 }
 
 /** Stands in for "no altitude": a property list cannot carry null. */
