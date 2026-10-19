@@ -1153,6 +1153,7 @@ describe('FoodEntryAddScreen', () => {
       date: '2026-04-23',
     });
 
+    expect(screen.getByLabelText('Select Serving')).toBeTruthy();
     expect(screen.getByText('1 portion (150 g) (180 cal)')).toBeTruthy();
     expect(screen.getByText('100 g (120 cal)')).toBeTruthy();
   });

@@ -11,6 +11,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/TimeInput';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -1001,7 +1002,7 @@ const EditExerciseEntryDialog = ({
           {/* Start Time (optional) */}
           <div className="space-y-1.5 max-w-[280px]">
             <div className="flex items-center justify-between">
-              <Label htmlFor="entryTime" className="text-sm">
+              <Label id="entryTime-label" className="text-sm">
                 {t(
                   'diary.editExerciseEntryDialog.startTimeOptional',
                   'Start Time (optional)'
@@ -1040,11 +1041,11 @@ const EditExerciseEntryDialog = ({
                 </button>
               </div>
             </div>
-            <Input
+            <TimeInput
               id="entryTime"
-              type="time"
+              aria-labelledby="entryTime-label"
               value={entryTime}
-              onChange={(e) => setEntryTime(e.target.value)}
+              onChange={setEntryTime}
               className="text-sm h-9"
             />
           </div>
