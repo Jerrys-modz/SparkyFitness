@@ -10,6 +10,10 @@ _Last updated: 2026-10-16_
 - Validate changes from consuming packages (server, frontend, mobile), not in isolation.
 - Every schema change here potentially touches three packages.
 
+## Food Assistant State
+
+`schemas/api/FoodAssistant.api.zod.ts` and `schemas/database/FoodAssistant.zod.ts` define lasting preferences, versioned tasks, unresolved ingredients and idempotent operation records. All state is owner-only; these additive contracts do not change existing chat clients.
+
 ## Structure
 
 - `src/schemas/database/` - one Zod file per table (`Foods.zod.ts`, `Exercises.zod.ts`, ~115 files). Agent shortcut: to learn a table shape, read the matching file here instead of the SQL dump.

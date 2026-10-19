@@ -539,7 +539,8 @@ async function prepareChatContext(
   serviceSystemPrompt?: string | null,
   latestImageDataUrl?: string | null,
   serviceConfigId?: string | null,
-  foodResearchTool?: Tool
+  foodResearchTool?: Tool,
+  latestUserText?: string
 ) {
   const { chatTz, customCategoriesList } =
     await chatContextInputsCache.getOrLoad(authenticatedUserId, async () => {
@@ -602,6 +603,7 @@ async function prepareChatContext(
     latestImageDataUrl,
     serviceConfigId,
     foodResearchTool,
+    latestUserText,
   };
 
   if (categoriesAreManual) {
@@ -2090,6 +2092,12 @@ async function processChatMessage(
         aiService.service_type,
         modelName,
         aiService.api_key
+      ),
+      extractMessageText(
+        [...messages].reverse().find((message) => message.role === 'user') ?? {
+          role: 'user',
+          content: '',
+        }
       )
     );
 
@@ -2198,12 +2206,13 @@ async function processChatMessage(
     if (!finalContent) {
       // A tool call can fail or only search. Its name never proves a write.
       // Preserve the actual result instead of claiming a food was logged.
-      log(
-        'debug',
-        'No assistant reply text; tool output retained for diagnostics:',
-        toolOutputs
-      );
-      finalContent = EMPTY_RESPONSE_ERROR_TEXT;
+      log('debug', 'No assistant reply text; tool result metadata:', {
+        toolNames: executedToolsList.map((tool) => tool.name),
+        resultCount: toolOutputs.length,
+      });
+      finalContent = executedToolsList.length
+        ? EMPTY_TOOL_RESPONSE_TEXT
+        : EMPTY_RESPONSE_ERROR_TEXT;
     }
 
     if (finalContent) {
@@ -2477,6 +2486,8 @@ async function testAiServiceConnection(
   }
   return { ok: true };
 }
+const EMPTY_TOOL_RESPONSE_TEXT =
+  'Tools ran, but the AI service returned no summary. Check your diary and saved changes before retrying.';
 const EMPTY_RESPONSE_ERROR_TEXT =
   'The AI service returned an empty response. Please try again.';
 
@@ -2616,6 +2627,12 @@ async function processChatMessageStream(
         aiService.service_type,
         modelName,
         aiService.api_key
+      ),
+      extractMessageText(
+        [...messages].reverse().find((message) => message.role === 'user') ?? {
+          role: 'user',
+          content: '',
+        }
       )
     );
 
