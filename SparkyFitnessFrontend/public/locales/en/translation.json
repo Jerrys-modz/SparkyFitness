@@ -703,6 +703,18 @@
       "heading": "Schedules & Reminders",
       "subheading": "Configure reminders and intake rules",
       "addRule": "Add Rule",
+      "addDose": "Add another dose",
+      "extraDoseTime": "Time",
+      "extraDoseAmount": "Dose",
+      "removeExtraDose": "Remove dose",
+      "extraDoseHint": "Each extra dose is saved as its own rule with the same recurrence and food relation.",
+      "preset": {
+        "qd": "Once daily",
+        "qhs": "Bedtime",
+        "bid": "Twice daily",
+        "tid": "3x daily",
+        "qid": "4x daily"
+      },
       "title": "Add Schedule Rule",
       "type": "Schedule Type",
       "daily": "Every day",
