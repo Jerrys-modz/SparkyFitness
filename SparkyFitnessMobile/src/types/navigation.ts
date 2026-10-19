@@ -8,6 +8,7 @@ import type {
   FoodPhotoEstimateResponse,
   FoodPhotoLogItem,
   IndividualSessionResponse,
+  MedicationEntry,
   MindfulnessSessionResponse,
   PresetSessionResponse,
   RaceDistance,
@@ -445,6 +446,8 @@ export type RootStackParamList = {
   About: undefined;
   WhatsNew: undefined;
   MedicationsList: undefined;
+  MedicationAdherence: undefined;
+  MedicationEntryEdit: { entry: MedicationEntry };
   MedicationDetail: { medicationId: string };
   MedicationForm: {
     medicationId?: string;
