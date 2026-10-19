@@ -31,6 +31,7 @@ vi.mock('../models/moodRepository', () => ({
   default: {
     createOrUpdateMoodEntry: vi.fn(),
     getMoodEntryByDate: vi.fn(),
+    updateMoodEntry: vi.fn(),
   },
 }));
 vi.mock('../models/fastingRepository', () => ({
@@ -556,7 +557,85 @@ describe('log_mood', () => {
     );
 
     expect(String(result)).toContain('Error');
+    expect(String(result)).toContain('energy_value');
     expect(moodRepository.createOrUpdateMoodEntry).not.toHaveBeenCalled();
+  });
+
+  describe('energy or focus without a mood score', () => {
+    const existing = {
+      id: 'mood-1',
+      mood_value: 80,
+      energy_value: null,
+      focus_value: 3,
+      mood_tags: [],
+      notes: 'Long day',
+    };
+
+    it('updates only the ratings of the existing check-in', async () => {
+      vi.mocked(moodRepository.getMoodEntryByDate).mockResolvedValue(existing);
+      vi.mocked(moodRepository.updateMoodEntry).mockResolvedValue({
+        ...existing,
+        energy_value: 2,
+      });
+
+      const result = await tools.sparky_manage_checkin.execute!(
+        { action: 'log_mood', energy_value: 2, entry_date: '2026-06-01' },
+        opts
+      );
+
+      expect(moodRepository.updateMoodEntry).toHaveBeenCalledWith(
+        'mood-1',
+        'user-1',
+        null,
+        null,
+        null,
+        { energyValue: 2, focusValue: undefined }
+      );
+      expect(moodRepository.createOrUpdateMoodEntry).not.toHaveBeenCalled();
+      expect(result).toBe(
+        '✅ Mood check-in updated for 2026-06-01: 8/10, energy 2/5, focus 3/5 — Long day.'
+      );
+    });
+
+    it('asks for a mood score when there is no check-in to update', async () => {
+      vi.mocked(moodRepository.getMoodEntryByDate).mockResolvedValue(undefined);
+
+      const result = await tools.sparky_manage_checkin.execute!(
+        { action: 'log_mood', focus_value: 4, entry_date: '2026-06-01' },
+        opts
+      );
+
+      expect(String(result)).toContain(
+        'there is no mood check-in for 2026-06-01 yet'
+      );
+      expect(moodRepository.createOrUpdateMoodEntry).not.toHaveBeenCalled();
+      expect(moodRepository.updateMoodEntry).not.toHaveBeenCalled();
+    });
+
+    it('infers log_mood from energy_value when no action is given', async () => {
+      vi.mocked(moodRepository.createOrUpdateMoodEntry).mockResolvedValue({
+        id: 'mood-1',
+      });
+
+      const result = await tools.sparky_manage_checkin.execute!(
+        { energy_value: 3, mood_value: 7, entry_date: '2026-06-01' },
+        opts
+      );
+
+      expect(result).toBe('✅ Mood logged for 2026-06-01: 7/10, energy 3/5.');
+      expect(moodRepository.createOrUpdateMoodEntry).toHaveBeenCalled();
+    });
+
+    it('infers log_mood from focus_value alone when no action is given', async () => {
+      vi.mocked(moodRepository.getMoodEntryByDate).mockResolvedValue(undefined);
+
+      const result = await tools.sparky_manage_checkin.execute!(
+        { focus_value: 3, entry_date: '2026-06-01' },
+        opts
+      );
+
+      expect(String(result)).toContain('there is no mood check-in');
+    });
   });
 
   it('logs mood without notes', async () => {

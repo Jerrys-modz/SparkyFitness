@@ -190,6 +190,8 @@ Actions:
           (args) => {
             if (
               args.mood_value !== undefined ||
+              args.energy_value !== undefined ||
+              args.focus_value !== undefined ||
               (args.notes !== undefined && args.category_name === undefined)
             ) {
               return 'log_mood';
@@ -253,6 +255,8 @@ Actions:
           normalized.entry_date = todayInZone(tz);
         }
 
+        // The schema defaults a missing mood to 5, so note the omission first.
+        const moodOmitted = normalized.mood_value === undefined;
         const parsed = manageCheckinSchema.safeParse(normalized);
         if (!parsed.success) {
           return formatZodError(parsed.error);
@@ -433,6 +437,38 @@ Actions:
             }
 
             case 'log_mood': {
+              if (moodOmitted) {
+                const existing = await moodRepository.getMoodEntryByDate(
+                  userId,
+                  args.entry_date
+                );
+                if (existing) {
+                  // Keep the stored mood, journal and tags; only the ratings
+                  // the caller gave change.
+                  const row = await moodRepository.updateMoodEntry(
+                    existing.id,
+                    userId,
+                    null,
+                    args.notes ?? null,
+                    args.mood_tags ?? null,
+                    {
+                      energyValue: args.energy_value,
+                      focusValue: args.focus_value,
+                    }
+                  );
+                  return formatConfirmation(
+                    `Mood check-in updated for ${args.entry_date}: ${moodValueToChatScore(row.mood_value)}/10${formatMoodRatings(row.energy_value, row.focus_value)}${formatMoodTags(row.mood_tags)}${row.notes ? ' — ' + row.notes : ''}.`
+                  );
+                }
+                if (
+                  args.energy_value !== undefined ||
+                  args.focus_value !== undefined
+                ) {
+                  return ERRORS.VALIDATION(
+                    `To log energy or focus, also give a mood score (1-10) — there is no mood check-in for ${args.entry_date} yet.`
+                  );
+                }
+              }
               await moodRepository.createOrUpdateMoodEntry(
                 userId,
                 // The tool speaks in 1-10; the column holds 10-100.
