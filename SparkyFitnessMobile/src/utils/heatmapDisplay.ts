@@ -1,4 +1,10 @@
-import { addDays, nearestHeatCell, type HeatCell } from '@workspace/shared';
+import {
+  addDays,
+  countTracksNear,
+  nearestHeatCell,
+  type HeatCell,
+  type HeatTrack,
+} from '@workspace/shared';
 import type { HeatmapParams } from '../services/api/heatmapApi';
 import { routeRegion } from './cardioSession';
 
@@ -160,3 +166,78 @@ export function cellAtTap(
 ): HeatCell | null {
   return nearestHeatCell(cells, lat, lon, cellM * 1.1);
 }
+
+/** Metres per degree of latitude, as the grid maths uses. */
+const M_PER_DEG_LAT = 111_320;
+
+/** The map is drawn as lines, not cells, when it spans less than this across. */
+export const HEATMAP_LINE_MAX_SPAN_M = 3000;
+/** Tracks and points asked for per view: a native map draws each polyline. */
+export const HEATMAP_TRACKS_MAX = 300;
+export const HEATMAP_TRACK_POINTS_MAX = 20000;
+
+/** How far across the map is, in metres: the longer of its height and width. */
+export function regionSpanMeters(region: MapRegionLike): number {
+  const height = region.latitudeDelta * M_PER_DEG_LAT;
+  const cos = Math.max(0.01, Math.cos((region.latitude * Math.PI) / 180));
+  const width = region.longitudeDelta * M_PER_DEG_LAT * cos;
+  return Math.max(height, width);
+}
+
+/** Whether the map is zoomed in far enough to draw tracks as lines. */
+export function lineModeWanted(region: MapRegionLike | null): boolean {
+  return region !== null && regionSpanMeters(region) < HEATMAP_LINE_MAX_SPAN_M;
+}
+
+export type HeatmapMode = 'lines' | 'grid';
+
+/**
+ * Lines when zoomed in and the person's tracks for the view arrived whole;
+ * otherwise the grid: zoomed out, still loading, cut short by the server's
+ * caps, or failed.
+ */
+export function heatmapMode(
+  region: MapRegionLike | null,
+  tracks: { truncated: boolean } | undefined,
+  tracksFailed: boolean
+): HeatmapMode {
+  if (!lineModeWanted(region) || !tracks || tracksFailed || tracks.truncated) {
+    return 'grid';
+  }
+  return 'lines';
+}
+
+/**
+ * Whether the tracks must be fetched again for a new region: it left the box
+ * fetched, or the box held more than the server would send and the person has
+ * since zoomed in to well under half of it, so a tighter box may now fit.
+ */
+export function tracksNeedRefetch(
+  region: MapRegionLike,
+  fetched: NonNullable<HeatmapParams['view']> | undefined,
+  truncated: boolean
+): boolean {
+  if (!viewInside(region, fetched) || !fetched) return true;
+  return (
+    truncated && region.latitudeDelta < (fetched.maxLat - fetched.minLat) / 2
+  );
+}
+
+/** The reach of a fingertip on the map: a fiftieth of its width, between 10 and 60 m. */
+export function tapToleranceM(region: MapRegionLike): number {
+  return Math.min(60, Math.max(10, regionSpanMeters(region) / 50));
+}
+
+/** How many tracks pass under a tap, in line mode. */
+export function tracksAtTap(
+  tracks: readonly HeatTrack[],
+  region: MapRegionLike,
+  lat: number,
+  lon: number
+): number {
+  return countTracksNear(tracks, lat, lon, tapToleranceM(region));
+}
+
+/** A warm line that stacks into a brighter one where tracks overlap. */
+export const HEATMAP_LINE_COLOR = 'rgba(255, 110, 30, 0.3)';
+export const HEATMAP_LINE_WIDTH = 3;

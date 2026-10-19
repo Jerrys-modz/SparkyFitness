@@ -6,7 +6,11 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import MapView, { Circle, type MapPressEvent } from 'react-native-maps';
+import MapView, {
+  Circle,
+  Polyline,
+  type MapPressEvent,
+} from 'react-native-maps';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUniwind } from 'uniwind';
@@ -22,18 +26,27 @@ import Button from '../components/ui/Button';
 import { DARK_MAP_STYLE } from '../components/exerciseStats/darkMapStyle';
 import { usePreferences } from '../hooks/usePreferences';
 import { useScreenHeader } from '../hooks/useScreenHeader';
-import { useHeatmap } from '../services/heatmapService';
+import { useHeatmap, useHeatmapTracks } from '../services/heatmapService';
 import { formatDayLabel } from '../utils/dayLabel';
 import {
   cellAtTap,
   HEATMAP_ACTIVITIES,
   HEATMAP_CLASSES,
   HEATMAP_COLORS,
+  HEATMAP_LINE_COLOR,
+  HEATMAP_LINE_WIDTH,
   HEATMAP_MAX_CELLS,
+  HEATMAP_TRACK_POINTS_MAX,
+  HEATMAP_TRACKS_MAX,
   HEATMAP_PERIODS,
   heatCellRadiusM,
+  heatmapMode,
   heatmapPeriodFrom,
+  lineModeWanted,
   regionForCells,
+  tapToleranceM,
+  tracksAtTap,
+  tracksNeedRefetch,
   viewFromRegion,
   viewInside,
   type HeatmapActivity,
@@ -42,15 +55,32 @@ import {
 } from '../utils/heatmapDisplay';
 import { canShowRouteMap } from '../utils/routeMapSupport';
 import type { RootStackScreenProps } from '../types/navigation';
-import type { HeatmapParams } from '../services/api/heatmapApi';
+import type {
+  HeatmapParams,
+  HeatmapTracksParams,
+} from '../services/api/heatmapApi';
+
+/** What a tap found: how many times, and the circle to mark it with. */
+interface TapResult {
+  mode: 'grid' | 'lines';
+  lat: number;
+  lon: number;
+  count: number;
+  radiusM: number;
+  /** Cell size in metres when the count is the busiest road in a square. */
+  cellM?: number;
+}
 
 type Props = RootStackScreenProps<'Heatmap'>;
 
 /**
  * Everywhere the person has run, walked, ridden or hiked, drawn over a map:
- * brighter where they have been more often. Filter by activity and period;
- * tap the map to see how many times a spot was used. Personal only: it is
- * built from their own tracks, by the server, and never shared.
+ * brighter where they have been more often. Zoomed out it is a coloured grid;
+ * zoomed in to street level it is their own tracks as thin translucent lines
+ * that stack into brighter ones where they overlap (and the grid again if the
+ * tracks could not be had whole). Filter by activity and period; tap the map
+ * to see how many times a spot was used. Personal only: it is built from
+ * their own tracks, by the server, and never shared.
  */
 const HeatmapScreen: React.FC<Props> = () => {
   const { t } = useTranslation();
@@ -67,7 +97,8 @@ const HeatmapScreen: React.FC<Props> = () => {
   const [period, setPeriod] = useState<HeatmapPeriod>('all');
   const [region, setRegion] = useState<MapRegionLike | null>(null);
   const [view, setView] = useState<HeatmapParams['view']>();
-  const [selected, setSelected] = useState<HeatCell | null>(null);
+  const [trackView, setTrackView] = useState<HeatmapParams['view']>();
+  const [selected, setSelected] = useState<TapResult | null>(null);
   const mapRef = useRef<MapView>(null);
 
   const header = useScreenHeader({
@@ -91,6 +122,41 @@ const HeatmapScreen: React.FC<Props> = () => {
     view !== undefined ? (detail.data ?? overview.data) : overview.data;
   const mapAvailable = canShowRouteMap();
 
+  const trackParams: HeatmapTracksParams | undefined = useMemo(
+    () =>
+      trackView
+        ? {
+            ...(base.activities ? { activities: base.activities } : {}),
+            ...(base.from ? { from: base.from } : {}),
+            view: trackView,
+            maxTracks: HEATMAP_TRACKS_MAX,
+            maxPoints: HEATMAP_TRACK_POINTS_MAX,
+          }
+        : undefined,
+    [base, trackView]
+  );
+  const tracks = useHeatmapTracks(
+    trackParams,
+    mapAvailable && lineModeWanted(region)
+  );
+  const mode = heatmapMode(region, tracks.data, tracks.isError);
+  const lines = useMemo(
+    () =>
+      mode === 'lines' && tracks.data
+        ? tracks.data.tracks.flatMap((track, t) =>
+            track.map((part, p) => ({
+              key: `${t}:${p}`,
+              coordinates: part.map(([latitude, longitude]) => ({
+                latitude,
+                longitude,
+              })),
+            }))
+          )
+        : [],
+    [mode, tracks.data]
+  );
+  const shownSelected = selected?.mode === mode ? selected : null;
+
   // Frame where the heat is, once per filter (not on every pan or refetch).
   const initialRegion = useMemo(
     () => (overview.data ? regionForCells(overview.data.cells) : null),
@@ -100,17 +166,55 @@ const HeatmapScreen: React.FC<Props> = () => {
   const onRegionChangeComplete = (next: MapRegionLike) => {
     setRegion(next);
     if (!viewInside(next, view)) setView(viewFromRegion(next));
+    if (
+      lineModeWanted(next) &&
+      tracksNeedRefetch(next, trackView, tracks.data?.truncated ?? false)
+    ) {
+      setTrackView(viewFromRegion(next));
+    }
   };
 
   const onMapPress = (event: MapPressEvent) => {
     if (!data) return;
     const { latitude, longitude } = event.nativeEvent.coordinate;
+    if (mode === 'lines' && tracks.data && region) {
+      const count = tracksAtTap(
+        tracks.data.tracks,
+        region,
+        latitude,
+        longitude
+      );
+      setSelected(
+        count > 0
+          ? {
+              mode: 'lines',
+              lat: latitude,
+              lon: longitude,
+              count,
+              radiusM: tapToleranceM(region),
+            }
+          : null
+      );
+      return;
+    }
     const cells: HeatCell[] = data.cells.map(([lat, lon, count]) => ({
       lat,
       lon,
       count,
     }));
-    setSelected(cellAtTap(cells, data.cellM, latitude, longitude));
+    const cell = cellAtTap(cells, data.cellM, latitude, longitude);
+    setSelected(
+      cell
+        ? {
+            mode: 'grid',
+            lat: cell.lat,
+            lon: cell.lon,
+            count: cell.count,
+            radiusM: heatCellRadiusM(data.cellM) * 1.1,
+            cellM: data.cellM,
+          }
+        : null
+    );
   };
 
   const activityLabels: Record<HeatmapActivity, string> = {
@@ -132,6 +236,7 @@ const HeatmapScreen: React.FC<Props> = () => {
     (value: T) => {
       setSelected(null);
       setView(undefined);
+      setTrackView(undefined);
       set(value);
     };
 
@@ -211,31 +316,42 @@ const HeatmapScreen: React.FC<Props> = () => {
                   userInterfaceStyle={isDark ? 'dark' : 'light'}
                   customMapStyle={isDark ? DARK_MAP_STYLE : []}
                 >
-                  {data.cells.map(([lat, lon, count]) => (
-                    <Circle
-                      key={`${lat}:${lon}`}
-                      center={{ latitude: lat, longitude: lon }}
-                      radius={heatCellRadiusM(data.cellM)}
-                      fillColor={
-                        HEATMAP_COLORS[
-                          heatIntensityClass(
-                            count,
-                            data.maxCount,
-                            HEATMAP_CLASSES
-                          )
-                        ]
-                      }
-                      strokeColor="rgba(0,0,0,0)"
-                      strokeWidth={0}
-                    />
-                  ))}
-                  {selected ? (
+                  {mode === 'grid'
+                    ? data.cells.map(([lat, lon, count]) => (
+                        <Circle
+                          key={`${lat}:${lon}`}
+                          center={{ latitude: lat, longitude: lon }}
+                          radius={heatCellRadiusM(data.cellM)}
+                          fillColor={
+                            HEATMAP_COLORS[
+                              heatIntensityClass(
+                                count,
+                                data.maxCount,
+                                HEATMAP_CLASSES
+                              )
+                            ]
+                          }
+                          strokeColor="rgba(0,0,0,0)"
+                          strokeWidth={0}
+                        />
+                      ))
+                    : lines.map((line) => (
+                        <Polyline
+                          key={line.key}
+                          coordinates={line.coordinates}
+                          strokeColor={HEATMAP_LINE_COLOR}
+                          strokeWidth={HEATMAP_LINE_WIDTH}
+                          lineCap="round"
+                          lineJoin="round"
+                        />
+                      ))}
+                  {shownSelected ? (
                     <Circle
                       center={{
-                        latitude: selected.lat,
-                        longitude: selected.lon,
+                        latitude: shownSelected.lat,
+                        longitude: shownSelected.lon,
                       }}
-                      radius={heatCellRadiusM(data.cellM) * 1.1}
+                      radius={shownSelected.radiusM}
                       strokeColor="#ffffff"
                       strokeWidth={2}
                       fillColor="rgba(255,255,255,0.15)"
@@ -253,23 +369,24 @@ const HeatmapScreen: React.FC<Props> = () => {
               />
             )}
 
-            {selected ? (
+            {shownSelected ? (
               <View
                 className="bg-surface rounded-xl p-3 mt-3"
                 testID="heatmap-selected"
               >
                 <Text className="text-text-primary text-base font-semibold">
                   {t('heatmap.used', {
-                    count: selected.count,
+                    count: shownSelected.count,
                     defaultValue: 'Used {{count}} times',
                     defaultValue_one: 'Used {{count}} time',
                     defaultValue_other: 'Used {{count}} times',
                   })}
                 </Text>
-                {data.cellM > 100 ? (
+                {shownSelected.cellM !== undefined &&
+                shownSelected.cellM > 100 ? (
                   <Text className="text-text-secondary text-xs mt-0.5">
                     {t('heatmap.usedApprox', {
-                      distance: Math.round(data.cellM),
+                      distance: Math.round(shownSelected.cellM),
                       defaultValue:
                         'The busiest road in a {{distance}} m square. Zoom in for a single road.',
                     })}
@@ -278,31 +395,39 @@ const HeatmapScreen: React.FC<Props> = () => {
               </View>
             ) : mapAvailable ? (
               <Text className="text-text-muted text-xs text-center mt-2">
-                {t('heatmap.tapHint', {
-                  defaultValue: 'Tap the map to see how often a road was used.',
-                })}
+                {mode === 'lines'
+                  ? t('heatmap.linesHint', {
+                      defaultValue:
+                        'Your own tracks, brighter where they overlap. Tap a road to see how many times it was used.',
+                    })
+                  : t('heatmap.tapHint', {
+                      defaultValue:
+                        'Tap the map to see how often a road was used.',
+                    })}
               </Text>
             ) : null}
 
-            <View className="flex-row items-center justify-center gap-2 mt-3">
-              <Text className="text-text-secondary text-xs">
-                {t('heatmap.fewer', { defaultValue: 'Less' })}
-              </Text>
-              {HEATMAP_COLORS.map((color) => (
-                <View
-                  key={color}
-                  style={{
-                    width: 16,
-                    height: 10,
-                    borderRadius: 3,
-                    backgroundColor: color,
-                  }}
-                />
-              ))}
-              <Text className="text-text-secondary text-xs">
-                {t('heatmap.more', { defaultValue: 'More' })}
-              </Text>
-            </View>
+            {mode === 'grid' ? (
+              <View className="flex-row items-center justify-center gap-2 mt-3">
+                <Text className="text-text-secondary text-xs">
+                  {t('heatmap.fewer', { defaultValue: 'Less' })}
+                </Text>
+                {HEATMAP_COLORS.map((color) => (
+                  <View
+                    key={color}
+                    style={{
+                      width: 16,
+                      height: 10,
+                      borderRadius: 3,
+                      backgroundColor: color,
+                    }}
+                  />
+                ))}
+                <Text className="text-text-secondary text-xs">
+                  {t('heatmap.more', { defaultValue: 'More' })}
+                </Text>
+              </View>
+            ) : null}
 
             <Text
               className="text-text-secondary text-sm text-center mt-3"

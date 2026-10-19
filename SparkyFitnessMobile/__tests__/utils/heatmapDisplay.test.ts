@@ -1,6 +1,13 @@
 import {
   cellAtTap,
   heatCellRadiusM,
+  heatmapMode,
+  HEATMAP_LINE_MAX_SPAN_M,
+  lineModeWanted,
+  regionSpanMeters,
+  tapToleranceM,
+  tracksAtTap,
+  tracksNeedRefetch,
   heatmapPeriodFrom,
   regionForCells,
   viewFromRegion,
@@ -72,5 +79,86 @@ describe('heatmap display', () => {
     expect(cellAtTap(cells, 50, 40.0002, -74)?.count).toBe(4);
     expect(cellAtTap(cells, 50, 40.01, -74)).toBeNull();
     expect(heatCellRadiusM(100)).toBeGreaterThan(50);
+  });
+});
+
+describe('heatmap line mode', () => {
+  const at = (latitude: number, delta: number) => ({
+    latitude,
+    longitude: -74,
+    latitudeDelta: delta,
+    longitudeDelta: delta,
+  });
+
+  it('measures the map across in metres, narrower in longitude away from the equator', () => {
+    expect(regionSpanMeters(at(0, 0.01))).toBeCloseTo(1113.2, 0);
+    // At 60 degrees a degree of longitude is half as long, so the height wins.
+    expect(regionSpanMeters(at(60, 0.01))).toBeCloseTo(1113.2, 0);
+  });
+
+  it('wants lines under the threshold and not at it', () => {
+    expect(lineModeWanted(null)).toBe(false);
+    expect(lineModeWanted(at(40, 0.02))).toBe(true);
+    expect(lineModeWanted(at(40, 0.03))).toBe(false);
+    const justUnder = HEATMAP_LINE_MAX_SPAN_M / 111_320 - 1e-5;
+    expect(lineModeWanted(at(0, justUnder))).toBe(true);
+    expect(lineModeWanted(at(0, HEATMAP_LINE_MAX_SPAN_M / 111_320))).toBe(
+      false
+    );
+  });
+
+  it('draws lines only for a whole answer to a zoomed-in map', () => {
+    const near = at(40, 0.01);
+    const far = at(40, 0.5);
+    expect(heatmapMode(near, { truncated: false }, false)).toBe('lines');
+    expect(heatmapMode(far, { truncated: false }, false)).toBe('grid');
+    expect(heatmapMode(null, { truncated: false }, false)).toBe('grid');
+    expect(heatmapMode(near, undefined, false)).toBe('grid');
+    expect(heatmapMode(near, { truncated: true }, false)).toBe('grid');
+    expect(heatmapMode(near, { truncated: false }, true)).toBe('grid');
+  });
+
+  it('fetches again on leaving the box, or on zooming well into a truncated one', () => {
+    const view = {
+      minLat: 39.99,
+      maxLat: 40.02,
+      minLon: -74.015,
+      maxLon: -73.985,
+    };
+    const inside = at(40.005, 0.01);
+    expect(tracksNeedRefetch(inside, undefined, false)).toBe(true);
+    expect(tracksNeedRefetch(inside, view, false)).toBe(false);
+    expect(tracksNeedRefetch(at(40.3, 0.01), view, false)).toBe(true);
+    // Truncated, and the view is now well under half the box: try a tighter one.
+    expect(tracksNeedRefetch(at(40.005, 0.004), view, true)).toBe(true);
+    expect(tracksNeedRefetch(at(40.005, 0.004), view, false)).toBe(false);
+    expect(tracksNeedRefetch(at(40.005, 0.02), view, true)).toBe(false);
+  });
+
+  it('reaches a fingertip wide, between 10 and 60 m', () => {
+    expect(tapToleranceM(at(40, 0.0005))).toBe(10);
+    expect(tapToleranceM(at(40, 0.02))).toBeCloseTo(44.5, 0);
+    expect(tapToleranceM(at(40, 0.2))).toBe(60);
+  });
+
+  it('counts the tracks under a tap, each once', () => {
+    const street: [number, number][] = [
+      [40, -74],
+      [40.004, -74],
+    ];
+    const tracks = [
+      [street],
+      [street, street],
+      [
+        [
+          [40, -74.002],
+          [40.004, -74.002],
+        ] as [number, number][],
+      ],
+    ];
+    const region = at(40.002, 0.01);
+    expect(tracksAtTap(tracks, region, 40.002, -74)).toBe(2);
+    expect(tracksAtTap(tracks, region, 40.002, -74.002)).toBe(1);
+    expect(tracksAtTap(tracks, region, 40.002, -74.01)).toBe(0);
   });
 });

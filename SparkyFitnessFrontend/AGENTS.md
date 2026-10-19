@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-18_
+_Last updated: 2026-10-19_
 
 SparkyFitness Frontend is the React web app for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessFrontend/`.
 

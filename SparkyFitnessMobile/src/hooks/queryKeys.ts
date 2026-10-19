@@ -476,6 +476,9 @@ export const entrySegmentEffortsQueryKey = (entryId: string) =>
 /** The personal heatmap for a filter and a view. */
 export const heatmapQueryKey = (params: unknown) =>
   ['heatmap', params] as const;
+/** The person's tracks inside a map box; under the heatmap root so one invalidation refreshes both. */
+export const heatmapTracksQueryKey = (params: unknown) =>
+  ['heatmap', 'tracks', params] as const;
 export const heatmapRootQueryKey = ['heatmap'] as const;
 
 /** The diary entries that followed one route. */

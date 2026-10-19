@@ -1,7 +1,10 @@
 import express from 'express';
-import { heatmapQuerySchema } from '@workspace/shared';
+import {
+  heatmapQuerySchema,
+  heatmapTracksQuerySchema,
+} from '@workspace/shared';
 import requireSelfActor from '../../middleware/requireSelfMiddleware.js';
-import { getHeatmap } from '../../services/heatmapService.js';
+import { getHeatmap, getHeatmapTracks } from '../../services/heatmapService.js';
 import { createUserRateLimiter } from '../../utils/userRateLimiter.js';
 
 /**
@@ -18,6 +21,55 @@ export const heatmapRateLimiter = createUserRateLimiter(
   HEATMAP_RATE_LIMIT_MAX,
   HEATMAP_RATE_LIMIT_WINDOW_MS
 );
+
+export const heatmapTracksRateLimiter = createUserRateLimiter(
+  HEATMAP_RATE_LIMIT_MAX,
+  HEATMAP_RATE_LIMIT_WINDOW_MS
+);
+
+/**
+ * @swagger
+ * /v2/heatmap/tracks:
+ *   get:
+ *     summary: The person's own simplified tracks inside a map box
+ *     description: >
+ *       For drawing street-level lines. The same `activities` and `from`/`to`
+ *       filters as the grid, and the four box corners (all required). Each
+ *       track is a list of parts, each part a list of `[lat, lon]`, simplified
+ *       to a few metres. At most `maxTracks` (300 by default, 600 at most) and
+ *       `maxPoints` (20000 by default, 40000 at most) come back, newest first;
+ *       `truncated` says some were left out. Owner-only; 120 requests per
+ *       user per 10 minutes.
+ *     tags: [Exercise]
+ *     responses:
+ *       200:
+ *         description: The tracks.
+ *       400:
+ *         description: Invalid query.
+ *       429:
+ *         description: Too many requests.
+ */
+router.get('/tracks', async (req, res, next) => {
+  try {
+    const parsed = heatmapTracksQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Invalid query',
+        details: parsed.error.format(),
+      });
+    }
+    const wait = heatmapTracksRateLimiter.hit(req.userId);
+    if (wait > 0) {
+      res.set('Retry-After', String(wait));
+      return res.status(429).json({ error: 'Too many requests' });
+    }
+    res.json(
+      await getHeatmapTracks(req.userId, parsed.data, req.authenticatedUserId)
+    );
+  } catch (error) {
+    next(error);
+  }
+});
 
 /**
  * @swagger

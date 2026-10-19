@@ -8808,6 +8808,7 @@
     "used_other": "Used {{count}} times",
     "usedApprox": "The busiest road in a {{distance}} m square. Zoom in for a single road.",
     "tapHint": "Tap the map to see how often a road was used.",
+    "linesHint": "Your own tracks, brighter where they overlap. Tap a road to see how many times it was used.",
     "fewer": "Less",
     "more": "More",
     "activities_one": "{{count}} activity",

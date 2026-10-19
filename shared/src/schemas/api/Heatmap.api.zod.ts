@@ -2,6 +2,13 @@ import { z } from "zod";
 import { routeActivitySchema } from "../database/Routes.zod.ts";
 import { HEATMAP_MAX_CELLS } from "../../utils/heatmap.ts";
 
+/** Tracks a line-mode response carries by default, and at most. */
+export const HEATMAP_TRACKS_DEFAULT = 300;
+export const HEATMAP_TRACKS_MAX = 600;
+/** Points across all tracks of a line-mode response, by default and at most. */
+export const HEATMAP_TRACK_POINTS_DEFAULT = 20000;
+export const HEATMAP_TRACK_POINTS_MAX = 40000;
+
 /** Which activity kinds to include; all four when omitted. */
 export const heatmapActivitiesSchema = z
   .string()
@@ -80,6 +87,63 @@ export const heatmapResponseSchema = z.object({
   lastDate: z.string().nullable(),
 });
 
+/**
+ * Query of `GET /api/v2/heatmap/tracks`: the same activity and period filters
+ * as the grid, and a map box (all four corners are required).
+ */
+export const heatmapTracksQuerySchema = z
+  .object({
+    activities: heatmapActivitiesSchema.optional(),
+    from: day.optional(),
+    to: day.optional(),
+    minLat: z.coerce.number().min(-90).max(90),
+    maxLat: z.coerce.number().min(-90).max(90),
+    minLon: z.coerce.number().min(-180).max(180),
+    maxLon: z.coerce.number().min(-180).max(180),
+    maxTracks: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(HEATMAP_TRACKS_MAX)
+      .default(HEATMAP_TRACKS_DEFAULT),
+    maxPoints: z.coerce
+      .number()
+      .int()
+      .min(100)
+      .max(HEATMAP_TRACK_POINTS_MAX)
+      .default(HEATMAP_TRACK_POINTS_DEFAULT),
+  })
+  .refine((q) => !q.from || !q.to || q.from <= q.to, {
+    message: "from must not be after to",
+    path: ["from"],
+  })
+  .refine((q) => q.minLat <= q.maxLat, {
+    message: "minLat must not exceed maxLat",
+    path: ["minLat"],
+  })
+  .refine((q) => q.minLon <= q.maxLon, {
+    message: "minLon must not exceed maxLon",
+    path: ["minLon"],
+  });
+
+const trackPoint = z.tuple([z.number(), z.number()]);
+
+/** One activity: its continuous parts, each a list of `[lat, lon]`. */
+export const heatmapTrackSchema = z.array(z.array(trackPoint).min(2)).min(1);
+
+export const heatmapTracksResponseSchema = z.object({
+  /** The person's own simplified tracks that pass through the box, newest first. */
+  tracks: z.array(heatmapTrackSchema),
+  /** Points across all returned tracks. */
+  pointCount: z.number().int().min(0),
+  /** True when tracks were left out to stay under the caps; draw the grid instead. */
+  truncated: z.boolean(),
+  /** How far the lines may stray from the recorded fixes, in metres. */
+  toleranceM: z.number(),
+});
+
 export type HeatmapQuery = z.infer<typeof heatmapQuerySchema>;
 export type HeatmapResponse = z.infer<typeof heatmapResponseSchema>;
 export type HeatmapCellTuple = z.infer<typeof heatmapCellSchema>;
+export type HeatmapTracksQuery = z.infer<typeof heatmapTracksQuerySchema>;
+export type HeatmapTracksResponse = z.infer<typeof heatmapTracksResponseSchema>;

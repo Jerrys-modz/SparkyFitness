@@ -1,4 +1,11 @@
-import type { RouteBounds } from "./routeGeometry.ts";
+import type { RoutePoint } from "../schemas/api/Route.api.zod.ts";
+import {
+  distanceToSegment,
+  localProjector,
+  routeDistanceMeters,
+  simplifyRoute,
+  type RouteBounds,
+} from "./routeGeometry.ts";
 
 /*
  * A personal heatmap is a grid of roughly square cells; each cell counts the
@@ -297,4 +304,152 @@ export function heatIntensityClass(
   if (count <= 0 || maxCount <= 0 || classes <= 1) return 0;
   const ratio = Math.log(1 + count) / Math.log(1 + maxCount);
   return Math.min(classes - 1, Math.floor(ratio * classes));
+}
+
+/*
+ * Tracks as lines. At street level a native map draws the person's own
+ * simplified tracks instead of grid cells, so overlaps add up to brighter
+ * lines. A track is a list of parts (a pause or a jump starts a new one);
+ * a part is a list of `[lat, lon]` points.
+ */
+
+/** One point of a drawn track: latitude, longitude. */
+export type HeatTrackPoint = [number, number];
+/** A continuous stretch of one activity. */
+export type HeatTrackPart = HeatTrackPoint[];
+/** One activity: its parts, in order. */
+export type HeatTrack = HeatTrackPart[];
+
+/** How far a simplified line may stray from the recorded fixes, in metres. */
+export const HEATMAP_TRACK_TOLERANCE_M = 4;
+/** Points one part keeps at most. */
+export const HEATMAP_TRACK_PART_MAX_POINTS = 400;
+/** Parts shorter than this are noise, not a street. */
+const MIN_PART_LENGTH_M = 10;
+
+export interface SimplifyHeatTrackOptions extends AddTrackOptions {
+  /** Douglas-Peucker tolerance in metres. */
+  toleranceM?: number;
+  /** Most points a single part keeps. */
+  maxPartPoints?: number;
+}
+
+const round5 = (n: number): number => Math.round(n * 1e5) / 1e5;
+
+/**
+ * Thins one activity to lines a map can draw: fixes with a poor accuracy are
+ * dropped, the track is cut where it has a gap (same rules as the grid) and
+ * each part is simplified, so a 1 Hz recording becomes a few hundred points.
+ */
+export function simplifyHeatTrack(
+  fixes: readonly HeatFix[],
+  options: SimplifyHeatTrackOptions = {}
+): HeatTrackPart[] {
+  const { toleranceM, maxPartPoints, ...gapOptions } = options;
+  const opt = { ...DEFAULT_ADD, ...gapOptions };
+  const tolerance = toleranceM ?? HEATMAP_TRACK_TOLERANCE_M;
+  const maxPoints = Math.max(2, maxPartPoints ?? HEATMAP_TRACK_PART_MAX_POINTS);
+  const parts: HeatTrackPart[] = [];
+  let current: HeatFix[] = [];
+
+  const flush = () => {
+    if (current.length >= 2) {
+      const points: RoutePoint[] = current.map((f) => ({
+        lat: f.lat,
+        lon: f.lon,
+      }));
+      const kept = simplifyRoute(points, maxPoints, tolerance).points;
+      if (kept.length >= 2 && routeDistanceMeters(kept) >= MIN_PART_LENGTH_M) {
+        parts.push(kept.map((p): HeatTrackPoint => [round5(p.lat), round5(p.lon)]));
+      }
+    }
+    current = [];
+  };
+
+  let prev: HeatFix | null = null;
+  for (const fix of fixes) {
+    if (!validFix(fix, opt.maxAccuracyM)) continue;
+    if (prev) {
+      const seconds =
+        prev.tMs !== undefined && fix.tMs !== undefined
+          ? (fix.tMs - prev.tMs) / 1000
+          : 0;
+      if (approxMeters(prev, fix) > opt.maxGapM || seconds > opt.maxGapSeconds) {
+        flush();
+      }
+    }
+    current.push(fix);
+    prev = fix;
+  }
+  flush();
+  return parts;
+}
+
+/** The box around a part. */
+export function heatPartBounds(part: readonly HeatTrackPoint[]): RouteBounds {
+  const first = part[0] as HeatTrackPoint;
+  const box: RouteBounds = {
+    minLat: first[0],
+    maxLat: first[0],
+    minLon: first[1],
+    maxLon: first[1],
+  };
+  for (const [lat, lon] of part) {
+    if (lat < box.minLat) box.minLat = lat;
+    if (lat > box.maxLat) box.maxLat = lat;
+    if (lon < box.minLon) box.minLon = lon;
+    if (lon > box.maxLon) box.maxLon = lon;
+  }
+  return box;
+}
+
+/** Whether two boxes share any area (or touch). */
+export function boundsOverlap(a: RouteBounds, b: RouteBounds): boolean {
+  return (
+    a.minLat <= b.maxLat &&
+    a.maxLat >= b.minLat &&
+    a.minLon <= b.maxLon &&
+    a.maxLon >= b.minLon
+  );
+}
+
+function partPassesNear(
+  part: readonly HeatTrackPoint[],
+  project: (p: { lat: number; lon: number }) => { x: number; y: number },
+  maxDistanceM: number
+): boolean {
+  const origin = { x: 0, y: 0 };
+  const first = part[0];
+  if (!first) return false;
+  let prev = project({ lat: first[0], lon: first[1] });
+  if (Math.hypot(prev.x, prev.y) <= maxDistanceM) return true;
+  for (let i = 1; i < part.length; i++) {
+    const p = part[i] as HeatTrackPoint;
+    const cur = project({ lat: p[0], lon: p[1] });
+    if (distanceToSegment(origin, prev, cur).distance <= maxDistanceM) {
+      return true;
+    }
+    prev = cur;
+  }
+  return false;
+}
+
+/**
+ * How many activities have a line within `maxDistanceM` of a position: an
+ * activity counts once however many of its parts or passes are close.
+ */
+export function countTracksNear(
+  tracks: readonly HeatTrack[],
+  lat: number,
+  lon: number,
+  maxDistanceM: number
+): number {
+  const project = localProjector({ lat, lon });
+  let count = 0;
+  for (const track of tracks) {
+    if (track.some((part) => partPassesNear(part, project, maxDistanceM))) {
+      count++;
+    }
+  }
+  return count;
 }

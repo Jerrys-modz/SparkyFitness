@@ -7,7 +7,12 @@ import {
   matchSegment,
   updateSegment,
 } from '../../src/services/api/segmentApi';
-import { fetchHeatmap, heatmapQuery } from '../../src/services/api/heatmapApi';
+import {
+  fetchHeatmap,
+  fetchHeatmapTracks,
+  heatmapQuery,
+  heatmapTracksQuery,
+} from '../../src/services/api/heatmapApi';
 import { apiFetch } from '../../src/services/api/apiClient';
 
 jest.mock('../../src/services/api/apiClient', () => ({ apiFetch: jest.fn() }));
@@ -86,5 +91,42 @@ describe('heatmap API', () => {
       endpoint: '/api/v2/heatmap?activities=walk',
       timeoutMs: 60_000,
     });
+  });
+});
+
+describe('heatmap tracks API', () => {
+  const view = { minLat: 40, maxLat: 41, minLon: -75, maxLon: -74 };
+
+  it('always sends the box, with filters and caps when given', () => {
+    const bare = new URLSearchParams(heatmapTracksQuery({ view }).slice(1));
+    expect(bare.get('minLat')).toBe('40');
+    expect(bare.get('maxLon')).toBe('-74');
+    expect(bare.has('activities')).toBe(false);
+    expect(bare.has('maxTracks')).toBe(false);
+
+    const full = new URLSearchParams(
+      heatmapTracksQuery({
+        activities: ['run', 'ride'],
+        from: '2026-01-01',
+        to: '2026-06-30',
+        view,
+        maxTracks: 300,
+        maxPoints: 20000,
+      }).slice(1)
+    );
+    expect(full.get('activities')).toBe('run,ride');
+    expect(full.get('from')).toBe('2026-01-01');
+    expect(full.get('to')).toBe('2026-06-30');
+    expect(full.get('maxTracks')).toBe('300');
+    expect(full.get('maxPoints')).toBe('20000');
+  });
+
+  it('calls the tracks endpoint', async () => {
+    await fetchHeatmapTracks({ view, activities: ['walk'] });
+    const call = lastCall() as { endpoint: string; timeoutMs: number };
+    expect(call.endpoint).toMatch(
+      /^\/api\/v2\/heatmap\/tracks\?activities=walk&minLat=40/
+    );
+    expect(call.timeoutMs).toBe(60_000);
   });
 });

@@ -1,13 +1,17 @@
 import React from 'react';
 import { act, fireEvent, render } from '@testing-library/react-native';
 import HeatmapScreen from '../../src/screens/HeatmapScreen';
-import { useHeatmap } from '../../src/services/heatmapService';
+import {
+  useHeatmap,
+  useHeatmapTracks,
+} from '../../src/services/heatmapService';
 import { canShowRouteMap } from '../../src/utils/routeMapSupport';
 import { initializeI18n } from '../../src/localization/i18n';
 import type { RootStackScreenProps } from '../../src/types/navigation';
 
 jest.mock('../../src/services/heatmapService', () => ({
   useHeatmap: jest.fn(),
+  useHeatmapTracks: jest.fn(),
 }));
 jest.mock('../../src/utils/routeMapSupport', () => ({
   canShowRouteMap: jest.fn(() => true),
@@ -52,6 +56,58 @@ const answer = (value: unknown, state: Record<string, unknown> = {}) =>
     ...state,
   } as never);
 
+const tracksAnswer = (value: unknown, state: Record<string, unknown> = {}) =>
+  jest.mocked(useHeatmapTracks).mockReturnValue({
+    data: value,
+    isFetching: false,
+    isError: false,
+    ...state,
+  } as never);
+
+const tracksData = (overrides: Record<string, unknown> = {}) => ({
+  // Two activities on one street, one a little east.
+  tracks: [
+    [
+      [
+        [40.0, -74.0],
+        [40.004, -74.0],
+      ],
+    ],
+    [
+      [
+        [40.0, -74.0],
+        [40.004, -74.0],
+      ],
+    ],
+    [
+      [
+        [40.0, -74.001],
+        [40.004, -74.001],
+      ],
+    ],
+  ],
+  pointCount: 6,
+  truncated: false,
+  toleranceM: 4,
+  ...overrides,
+});
+
+const ZOOMED_IN = {
+  latitude: 40.002,
+  longitude: -74.0,
+  latitudeDelta: 0.01,
+  longitudeDelta: 0.01,
+};
+const ZOOMED_OUT = { ...ZOOMED_IN, latitudeDelta: 0.5, longitudeDelta: 0.5 };
+
+const settle = (
+  screen: ReturnType<typeof render>,
+  region: typeof ZOOMED_IN
+) => {
+  const map = screen.getByTestId('map-view', { includeHiddenElements: true });
+  act(() => map.props.onRegionChangeComplete(region));
+};
+
 const paramsOfCall = (call: number) =>
   jest.mocked(useHeatmap).mock.calls[call]?.[0] as Record<string, unknown>;
 const lastBaseParams = () => {
@@ -71,6 +127,7 @@ describe('HeatmapScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(canShowRouteMap).mockReturnValue(true);
+    tracksAnswer(undefined);
   });
 
   it('shows a spinner while it loads', () => {
@@ -195,5 +252,147 @@ describe('HeatmapScreen', () => {
       screen.queryByTestId('map-view', { includeHiddenElements: true })
     ).toBeNull();
     expect(screen.queryByText(/Tap the map/)).toBeNull();
+  });
+
+  describe('line mode', () => {
+    const polylines = (screen: ReturnType<typeof render>) =>
+      screen.queryAllByTestId('map-polyline', { includeHiddenElements: true });
+    const circles = (screen: ReturnType<typeof render>) =>
+      screen.queryAllByTestId('map-circle', { includeHiddenElements: true });
+
+    it('keeps the grid, and asks for no tracks, until the map is zoomed in', () => {
+      answer(data());
+      tracksAnswer(tracksData());
+      const screen = render(<HeatmapScreen {...props} />);
+      settle(screen, ZOOMED_OUT);
+      expect(polylines(screen)).toHaveLength(0);
+      expect(circles(screen)).toHaveLength(3);
+      const enabled = jest.mocked(useHeatmapTracks).mock.calls.at(-1)?.[1];
+      expect(enabled).toBe(false);
+    });
+
+    it('draws thin round translucent lines and hides the grid when zoomed in', () => {
+      answer(data());
+      tracksAnswer(tracksData());
+      const screen = render(<HeatmapScreen {...props} />);
+      settle(screen, ZOOMED_IN);
+      const lines = polylines(screen);
+      expect(lines).toHaveLength(3);
+      expect(lines[0]?.props.lineCap).toBe('round');
+      expect(lines[0]?.props.strokeColor).toMatch(/^rgba\(.*, 0\.[23]\d*\)$/);
+      expect(lines[0]?.props.strokeWidth).toBeLessThanOrEqual(4);
+      expect(lines[0]?.props.coordinates[0]).toEqual({
+        latitude: 40.0,
+        longitude: -74.0,
+      });
+      expect(circles(screen)).toHaveLength(0);
+      // The grid's legend gives way to a hint about the lines.
+      expect(screen.queryByText('Less')).toBeNull();
+      expect(screen.getByText(/brighter where they overlap/)).toBeTruthy();
+    });
+
+    it('asks for the tracks of the visible box with the same filters', () => {
+      answer(data());
+      tracksAnswer(undefined);
+      const screen = render(<HeatmapScreen {...props} />);
+      fireEvent.press(screen.getByText('Ride'));
+      settle(screen, ZOOMED_IN);
+      const [params, enabled] =
+        jest.mocked(useHeatmapTracks).mock.calls.at(-1) ?? [];
+      expect(enabled).toBe(true);
+      expect(params).toMatchObject({
+        activities: ['ride'],
+        maxTracks: 300,
+        maxPoints: 20000,
+      });
+      expect((params as { view: { minLat: number } }).view.minLat).toBeLessThan(
+        40.002
+      );
+    });
+
+    it('falls back to the grid when the tracks were cut short', () => {
+      answer(data());
+      tracksAnswer(tracksData({ truncated: true }));
+      const screen = render(<HeatmapScreen {...props} />);
+      settle(screen, ZOOMED_IN);
+      expect(polylines(screen)).toHaveLength(0);
+      expect(circles(screen)).toHaveLength(3);
+    });
+
+    it('falls back to the grid when the track request fails', () => {
+      answer(data());
+      tracksAnswer(undefined, { isError: true });
+      const screen = render(<HeatmapScreen {...props} />);
+      settle(screen, ZOOMED_IN);
+      expect(polylines(screen)).toHaveLength(0);
+      expect(circles(screen)).toHaveLength(3);
+      expect(screen.getByText('Less')).toBeTruthy();
+    });
+
+    it('stays on the grid while the tracks are still loading', () => {
+      answer(data());
+      tracksAnswer(undefined, { isFetching: true });
+      const screen = render(<HeatmapScreen {...props} />);
+      settle(screen, ZOOMED_IN);
+      expect(circles(screen)).toHaveLength(3);
+    });
+
+    it('counts the tracks passing under a tap', () => {
+      answer(data());
+      tracksAnswer(tracksData());
+      const screen = render(<HeatmapScreen {...props} />);
+      settle(screen, ZOOMED_IN);
+      const press = (latitude: number, longitude: number) =>
+        act(() => {
+          screen
+            .getByTestId('map-view', { includeHiddenElements: true })
+            .props.onPress({
+              nativeEvent: { coordinate: { latitude, longitude } },
+            });
+        });
+      press(40.002, -74.0);
+      expect(screen.getByText('Used 2 times')).toBeTruthy();
+      press(40.002, -74.001);
+      expect(screen.getByText('Used 1 time')).toBeTruthy();
+      // The tap is marked by a circle the size of the reach.
+      expect(circles(screen)).toHaveLength(1);
+      // Away from every line: nothing is selected.
+      press(40.002, -74.01);
+      expect(screen.queryByTestId('heatmap-selected')).toBeNull();
+    });
+
+    it('drops a selection made in one mode when the other takes over', () => {
+      answer(data());
+      tracksAnswer(tracksData());
+      const screen = render(<HeatmapScreen {...props} />);
+      settle(screen, ZOOMED_IN);
+      act(() => {
+        screen
+          .getByTestId('map-view', { includeHiddenElements: true })
+          .props.onPress({
+            nativeEvent: { coordinate: { latitude: 40.002, longitude: -74.0 } },
+          });
+      });
+      expect(screen.getByTestId('heatmap-selected')).toBeTruthy();
+      settle(screen, ZOOMED_OUT);
+      expect(screen.queryByTestId('heatmap-selected')).toBeNull();
+    });
+
+    it('counts grid cells as before when line mode is not on', () => {
+      answer(data());
+      tracksAnswer(tracksData({ truncated: true }));
+      const screen = render(<HeatmapScreen {...props} />);
+      settle(screen, ZOOMED_IN);
+      act(() => {
+        screen
+          .getByTestId('map-view', { includeHiddenElements: true })
+          .props.onPress({
+            nativeEvent: {
+              coordinate: { latitude: 40.0009, longitude: -74.0 },
+            },
+          });
+      });
+      expect(screen.getByText('Used 6 times')).toBeTruthy();
+    });
   });
 });
