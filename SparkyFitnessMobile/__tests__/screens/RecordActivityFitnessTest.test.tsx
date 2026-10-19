@@ -65,6 +65,9 @@ jest.mock('../../src/services/gpsRecordingService', () => {
     COUNTDOWN_CHOICES: [0, 3, 5, 10],
   };
 });
+jest.mock('../../src/hooks/useHeartRateZones', () => ({
+  useHeartRateZones: () => ({ zones: undefined }),
+}));
 jest.mock('../../src/hooks/useWatchConnectivity', () => ({
   useWatchConnectivity: jest.fn(() => ({
     isSupported: false,

@@ -4,6 +4,14 @@ vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
 vi.mock('../utils/timezoneLoader.js', () => ({
   loadUserTimezone: vi.fn().mockResolvedValue('UTC'),
 }));
+vi.mock('../models/heartRateZoneRepository.js', () => ({
+  getHeartRateZoneSettings: vi.fn().mockResolvedValue({
+    maxHeartRate: null,
+    restingHeartRate: null,
+    method: 'percent_max',
+    customFloors: null,
+  }),
+}));
 vi.mock('../models/reportRepository.js', () => ({
   default: {
     getTrainingLoadSessions: vi.fn(),

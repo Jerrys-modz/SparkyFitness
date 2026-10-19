@@ -139,4 +139,18 @@ export const PROGRAM_COPY: Readonly<Record<string, ProgramCopy>> = {
     structure:
       'Most weeks have two easy runs, a speed or tempo session, a middle run and a long run. The long run builds from 90 minutes to three hours, every fourth week is lighter, and the last two weeks taper before race day.',
   },
+  zone2Base: {
+    name: 'Zone 2 base',
+    description:
+      'Zone 2 base: ten weeks, three easy runs a week held to your Zone 2 heart rate (or the talk test), building time in zone with a long run of up to 70 minutes. For when you can run 30 minutes.',
+    structure:
+      'Each week has a short run, a middle run and a long run, all easy and held to Zone 2. Time in zone grows from 100 to 155 minutes a week, the long run from 40 to 70 minutes, and weeks 4 and 8 are lighter. Weeks 6, 7 and 9 end the short run with four relaxed strides. The middle run of weeks 4, 8 and 10 is a zone check.',
+  },
+  zone2Base4: {
+    name: 'Zone 2 base (4 runs a week)',
+    description:
+      'Zone 2 base: ten weeks, four easy runs a week held to your Zone 2 heart rate (or the talk test), building time in zone with a long run of up to 70 minutes. For when you can run 30 minutes.',
+    structure:
+      'Each week has two short runs, a middle run and a long run, all easy and held to Zone 2. Time in zone grows from 130 to 190 minutes a week, the long run from 40 to 70 minutes, and weeks 4 and 8 are lighter. Weeks 6, 7 and 9 end the first run with four relaxed strides. The middle run of weeks 4, 8 and 10 is a zone check.',
+  },
 };
