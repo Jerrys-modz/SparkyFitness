@@ -1,4 +1,4 @@
-import { getStepsBetween } from './stepCounter';
+import { getHealthStepsBetween, getStepsBetween } from './stepCounter';
 import { getStride, learnStride } from './strideCalibration';
 import {
   activeShare,
@@ -99,18 +99,32 @@ export async function learnFromIndoorEntry(
 
 /**
  * Learns from a treadmill run the watch recorded, once the person has entered
- * what the machine showed. The watch sends no step count, so this asks the
- * phone for its steps over the run's window: it only counts when the phone was
- * carried, and a window with too few steps (a phone left on a shelf) teaches
- * nothing. Asks for Motion & Fitness, since the person has just acted on the
- * run. Returns whether a stride was learned.
+ * what the machine showed. The watch sends no step count of its own, so the
+ * steps come from Apple Health over the run's window (the watch writes them
+ * there, and the phone can be left on the treadmill), falling back to the
+ * phone's pedometer. A window with too few steps teaches nothing. Asks for
+ * Motion & Fitness only on that fallback, since the person has just acted on
+ * the run. Returns whether a stride was learned.
  */
 export async function learnFromWatchRun(
   window: StepWindow,
   distanceMeters: number
 ): Promise<boolean> {
   if (!isStepActivity(window.activity)) return false;
-  const steps = await activeSteps(window, true);
+  const health = await getHealthStepsBetween(
+    window.startedAt,
+    window.finishedAt
+  );
+  const steps =
+    health != null
+      ? Math.round(
+          health *
+            activeShare(
+              window.activeSeconds,
+              (window.finishedAt - window.startedAt) / 1000
+            )
+        )
+      : await activeSteps(window, true);
   if (steps == null || steps < MIN_STEPS_FOR_ESTIMATE) return false;
   return learnStride(window.activity, steps, distanceMeters);
 }
