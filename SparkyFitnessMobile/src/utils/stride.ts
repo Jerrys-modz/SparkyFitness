@@ -1,4 +1,5 @@
 import type { RecordingActivity } from './gpsRecording';
+import { percentFromKnownDistance } from './treadmillCorrection';
 
 /**
  * Stride maths for estimating distance from steps, which is how a phone
@@ -30,9 +31,14 @@ export const DEFAULT_STRIDE_METERS: Record<StepActivity, number> = {
 export interface StrideCalibration {
   /** Metres per step. */
   meters: number;
-  /** How many sessions it is built from. */
+  /** How many real distances it has been taught by. */
   samples: number;
+  /** Set by the person (typed or calibrated on purpose), not yet learned from. */
+  manual?: boolean;
 }
+
+/** A hand-set stride weighs as much as this many learned distances. */
+const MANUAL_STRIDE_WEIGHT = 3;
 
 /** Strides outside this are a bad sample (a typo, a stalled counter), not a person. */
 export const MIN_PLAUSIBLE_STRIDE_METERS = 0.3;
@@ -76,8 +82,15 @@ export function blendStride(
   previous: StrideCalibration | undefined,
   sample: number
 ): StrideCalibration {
-  if (!previous || previous.samples <= 0) return { meters: sample, samples: 1 };
-  const weight = Math.max(1 / (previous.samples + 1), MIN_NEW_SAMPLE_WEIGHT);
+  if (!previous || (previous.samples <= 0 && !previous.manual)) {
+    return { meters: sample, samples: 1 };
+  }
+  // A stride the person set is trusted like a few learned ones, so the first
+  // odd treadmill does not throw it away.
+  const history = previous.manual
+    ? Math.max(previous.samples, MANUAL_STRIDE_WEIGHT)
+    : previous.samples;
+  const weight = Math.max(1 / (history + 1), MIN_NEW_SAMPLE_WEIGHT);
   return {
     meters: previous.meters * (1 - weight) + sample * weight,
     samples: previous.samples + 1,
@@ -102,4 +115,52 @@ export function activeShare(
 ): number {
   if (!(windowSeconds > 0)) return 0;
   return Math.min(1, Math.max(0, activeSeconds / windowSeconds));
+}
+
+const FEET_PER_METER = 3.28084;
+
+/** Strides are shown in metres for km users and feet for mile users. */
+export function strideToDisplay(meters: number, unit: 'km' | 'miles'): number {
+  return unit === 'miles' ? meters * FEET_PER_METER : meters;
+}
+
+export function strideFromDisplay(value: number, unit: 'km' | 'miles'): number {
+  return unit === 'miles' ? value / FEET_PER_METER : value;
+}
+
+export function isPlausibleStride(meters: number): boolean {
+  return (
+    Number.isFinite(meters) &&
+    meters >= MIN_PLAUSIBLE_STRIDE_METERS &&
+    meters <= MAX_PLAUSIBLE_STRIDE_METERS
+  );
+}
+
+export interface KnownDistanceCalibration {
+  /** Metres per step over the real distance. */
+  strideMeters: number;
+  /** How far the treadmill display read from it, when the display figure was given. */
+  treadmillPercent: number | null;
+}
+
+/**
+ * A stride, and optionally the treadmill's error, from a deliberate run or
+ * walk over a distance the person knows: the steps taken, the real distance
+ * and, optionally, what the treadmill showed. Null when the sample is too
+ * short or implausible (see `strideFromSample`).
+ */
+export function calibrateFromKnownDistance(
+  steps: number,
+  actualMeters: number,
+  displayedMeters: number | null
+): KnownDistanceCalibration | null {
+  const strideMeters = strideFromSample(steps, actualMeters);
+  if (strideMeters == null) return null;
+  return {
+    strideMeters,
+    treadmillPercent:
+      displayedMeters == null
+        ? null
+        : percentFromKnownDistance(displayedMeters, actualMeters),
+  };
 }

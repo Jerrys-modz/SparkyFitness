@@ -46,6 +46,11 @@ export interface RunSummaryParams {
    * here teaches the factor (`learnWatchIndoorScale`).
    */
   watchIndoor?: { scale: number; estimatedMeters: number };
+  /**
+   * What the treadmill showed when a correction was taken off it to give
+   * `distanceMeters`, so the screen can show both.
+   */
+  treadmillDisplayMeters?: number;
   /** For a program workout: where the person is now and what comes next. */
   program: {
     nextLine: string;

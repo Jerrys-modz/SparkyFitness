@@ -39,6 +39,11 @@ export interface WatchRunPayload {
    * on the wrist; absent when they kept the watch's figure.
    */
   estimatedDistanceMeters?: number;
+  /**
+   * Set by the phone, never the watch: the treadmill figure the wearer entered
+   * when a treadmill correction was taken off it to give `distanceMeters`.
+   */
+  treadmillDisplayMeters?: number;
 }
 
 /** Stands in for "no altitude": a property list cannot carry null. */
