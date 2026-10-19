@@ -1,3 +1,4 @@
+-- Optional 1-5 energy and focus ratings on mood check-ins; NULL means not rated.
 BEGIN;
 ALTER TABLE public.mood_entries ADD COLUMN IF NOT EXISTS energy_value SMALLINT;
 ALTER TABLE public.mood_entries ADD COLUMN IF NOT EXISTS focus_value SMALLINT;

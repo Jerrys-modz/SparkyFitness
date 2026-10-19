@@ -143,8 +143,7 @@ async function updateMoodEntry(
     client.release();
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function deleteMoodEntry(moodEntryId: any, userId: any) {
+async function deleteMoodEntry(moodEntryId: string, userId: string) {
   const client = await getClient(userId); // User-specific operation
   try {
     const result = await client.query(
