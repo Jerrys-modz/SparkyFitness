@@ -15,6 +15,7 @@ import {
 } from 'react-day-picker';
 
 import { cn } from '@/lib/utils';
+import { usePreferences } from '@/contexts/PreferencesContext';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Select,
@@ -37,9 +38,11 @@ function Calendar({
   yearsRange = 10,
   formatters,
   components,
+  weekStartsOn,
   ...props
 }: CalendarProps) {
   const defaultClassNames = getDefaultClassNames();
+  const { firstDayOfWeek } = usePreferences();
 
   return (
     <DayPicker
@@ -52,6 +55,7 @@ function Calendar({
       )}
       captionLayout={captionLayout}
       locale={locale}
+      weekStartsOn={weekStartsOn ?? firstDayOfWeek}
       reverseYears
       startMonth={new Date(new Date().getFullYear() - yearsRange, 0)}
       endMonth={new Date(new Date().getFullYear() + 1, 11)}
