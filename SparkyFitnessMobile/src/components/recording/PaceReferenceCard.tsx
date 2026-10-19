@@ -10,6 +10,7 @@ import {
 import Button from '../ui/Button';
 import FormInput from '../FormInput';
 import SegmentedControl from '../SegmentedControl';
+import ProgramActionRow from './ProgramActionRow';
 import RecordingSwitchRow from './RecordingSwitchRow';
 import { raceDistanceName, raceIdForDistance } from '../../utils/paceReference';
 import { formatClock } from '../../utils/gpsRecording';
@@ -41,6 +42,8 @@ export interface PaceReferenceCardProps {
    * Apple Watch. Left out where there is no watch to offer it on.
    */
   watch?: { value: boolean; onChange: (value: boolean) => void };
+  /** Fold the form away behind a row that says what is saved; tap to open it. */
+  collapsible?: boolean;
 }
 
 /**
@@ -54,8 +57,10 @@ const PaceReferenceCard: React.FC<PaceReferenceCardProps> = ({
   overriddenByTest = false,
   onSave,
   watch,
+  collapsible = false,
 }) => {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(!collapsible);
   const [raceId, setRaceId] = useState<PaceReferenceRaceId>(
     (race && raceIdForDistance(race.distanceKm)) ?? '5k'
   );
@@ -87,6 +92,39 @@ const PaceReferenceCard: React.FC<PaceReferenceCardProps> = ({
     setSeconds('');
     onSave(null);
   };
+
+  if (!open) {
+    return (
+      <View
+        className="bg-surface rounded-xl px-4 mt-4"
+        testID="pace-reference-card"
+      >
+        <ProgramActionRow
+          label={t('paceReference.title', { defaultValue: 'Your race pace' })}
+          hint={
+            overriddenByTest
+              ? t('paceReference.collapsedTest', {
+                  defaultValue: 'Your fitness test sets your paces',
+                })
+              : race
+                ? t('paceReference.saved', {
+                    race: raceDistanceName(
+                      t,
+                      raceIdForDistance(race.distanceKm) ?? '5k'
+                    ),
+                    time: formatClock(race.seconds),
+                    defaultValue: 'Saved: {{race}} in {{time}}.',
+                  })
+                : t('paceReference.collapsedEmpty', {
+                    defaultValue: 'Add a recent race time to set your paces',
+                  })
+          }
+          onPress={() => setOpen(true)}
+          testID="pace-reference-toggle"
+        />
+      </View>
+    );
+  }
 
   return (
     <View

@@ -8044,7 +8044,9 @@
     "clear": "Clear",
     "watch": "Also use on my Apple Watch",
     "watchHint": "Holds the program workout offered on the watch to these ranges. Runs only.",
-    "testNote": "You have a fitness test, so your latest test sets your paces while it is saved. This race time is used again if you delete your tests."
+    "testNote": "You have a fitness test, so your latest test sets your paces while it is saved. This race time is used again if you delete your tests.",
+    "collapsedTest": "Your fitness test sets your paces",
+    "collapsedEmpty": "Add a recent race time to set your paces"
   },
   "allergens": {
     "trace": "trace: {{name}}",
@@ -8144,7 +8146,8 @@
       "paces": "Threshold pace {{pace}}, about {{time}} for 5K. Your training paces follow this test.",
       "startProgram": "Start {{program}} from my test",
       "planRace": "Plan a race",
-      "open": "Tests and paces"
+      "open": "Tests and paces",
+      "compactHint": "Take a guided fitness test"
     },
     "steps": {
       "warmUp": "Warm up with 10 to 15 minutes of easy running, then come back here and start.",

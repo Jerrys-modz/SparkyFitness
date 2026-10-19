@@ -266,6 +266,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
 
   const fitnessPanel = (
     <FitnessTestPanel
+      compact={Boolean(status)}
       today={today}
       unit={distanceUnit}
       onOpenTests={() => navigation.navigate('FitnessTest')}
@@ -344,6 +345,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           programId={status.program.custom ? undefined : storedId}
         />
         <PaceReferenceCard
+          collapsible
           race={paceReferenceRace}
           overriddenByTest={latestTest !== null}
           onSave={setPaceReferenceRace}
