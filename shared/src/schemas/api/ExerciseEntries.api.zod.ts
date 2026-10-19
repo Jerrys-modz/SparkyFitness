@@ -1,20 +1,20 @@
-import { z } from "zod";
-import { paginationSchema } from "./Pagination.api.zod.ts";
-import { exerciseModalitySchema } from "./Exercises.api.zod.ts";
-import { workoutFormatSchema } from "./WorkoutPresets.api.zod.ts";
-import { gpsTrackPointSchema } from "../database/ExerciseEntryGpsPoints.zod.ts";
+import { z } from 'zod';
+import { paginationSchema } from './Pagination.api.zod.ts';
+import { exerciseModalitySchema } from './Exercises.api.zod.ts';
+import { workoutFormatSchema } from './WorkoutPresets.api.zod.ts';
+import { gpsTrackPointSchema } from '../database/ExerciseEntryGpsPoints.zod.ts';
 
 // --- Query contracts ---
 
 const dateStringSchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Entry date must be in YYYY-MM-DD format.");
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Entry date must be in YYYY-MM-DD format.');
 
 const timeStringSchema = z
   .string()
   .regex(
     /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/,
-    "Entry time must be in HH:MM (24h) format.",
+    'Entry time must be in HH:MM (24h) format.'
   );
 
 /** Query params for the paginated exercise history endpoint */
@@ -111,11 +111,11 @@ export const exerciseEntrySetResponseSchema = z
     distance: z.number().nullable().optional(),
     // Progression & Equipment Fields
     progression_mode: z
-      .enum(["rep_goal", "fixed", "step_load", "manual"])
+      .enum(['rep_goal', 'fixed', 'step_load', 'manual'])
       .nullable()
       .optional(),
     rep_goal: z.number().int().nullable().optional(),
-    increment_type: z.enum(["weight", "reps"]).nullable().optional(),
+    increment_type: z.enum(['weight', 'reps']).nullable().optional(),
     increment_value: z.number().nullable().optional(),
     equipment_brand: z.string().nullable().optional(),
   })
@@ -141,7 +141,7 @@ const workoutLocationRequestSchema = z
   .string()
   .trim()
   .max(WORKOUT_LOCATION_MAX_LENGTH)
-  .transform((value) => (value === "" ? null : value))
+  .transform((value) => (value === '' ? null : value))
   .nullable()
   .optional();
 
@@ -187,11 +187,11 @@ export const presetSessionExerciseRequestSchema = z
     superset_group: z.number().int().nullable().optional(),
     // Progression & Equipment Fields
     progression_mode: z
-      .enum(["rep_goal", "fixed", "step_load", "manual"])
+      .enum(['rep_goal', 'fixed', 'step_load', 'manual'])
       .nullable()
       .optional(),
     rep_goal: z.number().int().positive().nullable().optional(),
-    increment_type: z.enum(["weight", "reps"]).nullable().optional(),
+    increment_type: z.enum(['weight', 'reps']).nullable().optional(),
     increment_value: z.number().positive().nullable().optional(),
     equipment_brand: z.string().nullable().optional(),
     sets: z.array(exerciseEntrySetRequestSchema).default([]),
@@ -213,11 +213,11 @@ export const activityDetailRequestItemSchema = z.object({
 export const wodScoreDetailDataSchema = z.object({
   workout_format: workoutFormatSchema,
   time_cap_seconds: z.number().int().nullable().optional(),
-  score_type: z.enum(["time", "rounds_reps", "total_reps", "completion"]),
+  score_type: z.enum(['time', 'rounds_reps', 'total_reps', 'completion']),
   rounds_completed: z.number().int().nullable().optional(),
   reps_completed: z.number().int().nullable().optional(),
   elapsed_seconds: z.number().int().nullable().optional(),
-  status: z.enum(["rx", "scaled"]).nullable().optional(),
+  status: z.enum(['rx', 'scaled']).nullable().optional(),
   scaling_notes: z.string().nullable().optional(),
   rounds: z
     .array(
@@ -225,7 +225,7 @@ export const wodScoreDetailDataSchema = z.object({
         round: z.number().int(),
         started_at_s: z.number().optional(),
         completed_at_s: z.number().optional(),
-      }),
+      })
     )
     .optional(),
 });
@@ -242,7 +242,7 @@ export const createPresetSessionRequestSchema = z
     description: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
     location: workoutLocationRequestSchema,
-    source: z.string().default("manual"),
+    source: z.string().default('manual'),
     exercises: z.array(presetSessionExerciseRequestSchema).optional(),
     workoutPlanAssignmentId: z
       .union([z.string(), z.number()])
@@ -261,8 +261,8 @@ export const createPresetSessionRequestSchema = z
       if (!data.name || data.name.trim().length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Name is required when creating a freeform workout",
-          path: ["name"],
+          message: 'Name is required when creating a freeform workout',
+          path: ['name'],
         });
       }
     }
@@ -275,8 +275,8 @@ export const createPresetSessionRequestSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message:
-          "Workout session must include at least one exercise when not started from a stored preset.",
-        path: ["exercises"],
+          'Workout session must include at least one exercise when not started from a stored preset.',
+        path: ['exercises'],
       });
     }
   });
@@ -304,7 +304,7 @@ export const updatePresetSessionRequestSchema = z
     if (!hasAnyField) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "At least one field must be provided.",
+        message: 'At least one field must be provided.',
       });
     }
   });
@@ -358,8 +358,8 @@ export const attachExerciseEntryWatchTelemetryRequestSchema = z
       (body.durationMinutes !== undefined && body.durationMinutes > 0),
     {
       message:
-        "At least one of hrSamples, activeEnergyKcal, or durationMinutes is required.",
-    },
+        'At least one of hrSamples, activeEnergyKcal, or durationMinutes is required.',
+    }
   );
 
 export const createExerciseEntryRequestSchema = z
@@ -537,14 +537,14 @@ export const exerciseProgressResponseSchema = z.object({
 /** Standalone exercise entry (cardio, single exercise, etc.) */
 export const individualSessionResponseSchema =
   exerciseEntryResponseSchema.extend({
-    type: z.literal("individual"),
+    type: z.literal('individual'),
     name: z.string().nullable(),
   });
 
 /** Grouped workout session with nested exercise entries */
 export const presetSessionResponseSchema = z
   .object({
-    type: z.literal("preset"),
+    type: z.literal('preset'),
     id: z.string(),
     entry_date: z.string().nullable(),
     workout_preset_id: z.number().int().nullable(),
@@ -566,7 +566,7 @@ export const presetSessionResponseSchema = z
   .strict();
 
 /** Any session returned by the exercise entries endpoints */
-export const exerciseSessionResponseSchema = z.discriminatedUnion("type", [
+export const exerciseSessionResponseSchema = z.discriminatedUnion('type', [
   individualSessionResponseSchema,
   presetSessionResponseSchema,
 ]);
@@ -586,7 +586,7 @@ export const exerciseHistoryResponseSchema = z
 export const importFitFileResultSchema = z
   .object({
     fileName: z.string(),
-    status: z.enum(["created", "updated", "failed"]),
+    status: z.enum(['created', 'updated', 'failed']),
     reason: z.string().optional(),
     warning: z.string().optional(),
     exerciseEntryId: z.string().optional(),
@@ -641,8 +641,8 @@ export const exerciseRecentSessionSetSchema = z
       s.distance != null,
     {
       message:
-        "Recent-session sets must have weight, reps, duration, or distance",
-    },
+        'Recent-session sets must have weight, reps, duration, or distance',
+    }
   );
 
 export const exerciseRecentSessionSchema = z
@@ -685,7 +685,7 @@ export const attachExerciseEntryGpsTrackRequestSchema = z
           // Reject a bad instant here. The service used to drop it and still
           // save the rest, which stored a shorter route than the client sent.
           t: z.iso.datetime(),
-        }),
+        })
       )
       .min(2)
       .max(50000),
@@ -695,7 +695,7 @@ export const attachExerciseEntryGpsTrackRequestSchema = z
           lap_index: z.number().int().positive(),
           start_time: z.iso.datetime(),
           end_time: z.iso.datetime(),
-        }),
+        })
       )
       .max(1000)
       .optional(),
@@ -725,14 +725,14 @@ export const attachExerciseEntryLapsRequestSchema = z
       .refine(
         (laps) =>
           new Set(laps.map((lap) => lap.lap_index)).size === laps.length,
-        { message: "Each lap needs its own lap_index." }
+        { message: 'Each lap needs its own lap_index.' }
       )
       .refine(
         (laps) =>
           laps.every(
             (lap) => Date.parse(lap.end_time) > Date.parse(lap.start_time)
           ),
-        { message: "Every lap must end after it starts." }
+        { message: 'Every lap must end after it starts.' }
       ),
   })
   .strict();
@@ -775,7 +775,7 @@ export const attachExerciseEntryDistanceSeriesRequestSchema = z
           }),
         {
           message:
-            "Active seconds and cumulative metres must not decrease from one row to the next.",
+            'Active seconds and cumulative metres must not decrease from one row to the next.',
         }
       ),
   })

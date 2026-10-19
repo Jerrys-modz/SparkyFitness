@@ -1,6 +1,6 @@
-import { z } from "zod";
+import { z } from 'zod';
 
-export const shoeStatusSchema = z.enum(["active", "retired"]);
+export const shoeStatusSchema = z.enum(['active', 'retired']);
 export type ShoeStatus = z.infer<typeof shoeStatusSchema>;
 
 /** Default retirement mileage for a new pair, in kilometres. */

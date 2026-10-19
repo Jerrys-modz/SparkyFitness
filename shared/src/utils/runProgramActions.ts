@@ -1,7 +1,7 @@
 import type {
   RunProgramResponse,
   UpsertRunProgramBody,
-} from "../schemas/api/RunProgram.api.zod.ts";
+} from '../schemas/api/RunProgram.api.zod.ts';
 
 /**
  * Request bodies for the changes a person makes to their run program. Each is
@@ -9,7 +9,7 @@ import type {
  * the program as the server holds it.
  */
 
-type HeldProgram = Pick<RunProgramResponse, "program_id">;
+type HeldProgram = Pick<RunProgramResponse, 'program_id'>;
 
 /**
  * Starts `programId` from its first workout and switches it on, also when it
@@ -18,7 +18,7 @@ type HeldProgram = Pick<RunProgramResponse, "program_id">;
  */
 export const startProgramBody = (
   programId: string,
-  startDay?: string | null,
+  startDay?: string | null
 ): UpsertRunProgramBody => ({
   program_id: programId,
   enabled: true,
@@ -28,13 +28,13 @@ export const startProgramBody = (
 
 export const setEnabledBody = (
   program: HeldProgram,
-  enabled: boolean,
+  enabled: boolean
 ): UpsertRunProgramBody => ({ program_id: program.program_id, enabled });
 
 /** Jumps to any workout (0-based), to repeat one or start further in. */
 export const setPositionBody = (
   program: HeldProgram,
-  index: number,
+  index: number
 ): UpsertRunProgramBody => ({
   program_id: program.program_id,
   next_index: Math.max(0, Math.floor(index)),
@@ -42,7 +42,7 @@ export const setPositionBody = (
 
 /** Skips the workout that is due. */
 export const skipWorkoutBody = (
-  program: HeldProgram & Pick<RunProgramResponse, "next_index">,
+  program: HeldProgram & Pick<RunProgramResponse, 'next_index'>
 ): UpsertRunProgramBody => setPositionBody(program, program.next_index + 1);
 
 /** Goes back to the first workout. */
@@ -51,8 +51,8 @@ export const restartBody = (program: HeldProgram): UpsertRunProgramBody =>
 
 /** Flips one weekday (0 = Sunday) on the days the program has now. */
 export const toggleDayBody = (
-  program: HeldProgram & Pick<RunProgramResponse, "run_days">,
-  day: number,
+  program: HeldProgram & Pick<RunProgramResponse, 'run_days'>,
+  day: number
 ): UpsertRunProgramBody => ({
   program_id: program.program_id,
   run_days: program.run_days.includes(day)
@@ -63,7 +63,7 @@ export const toggleDayBody = (
 /** null clears a day; omitting a field leaves it as it is. */
 export const scheduleBody = (
   program: HeldProgram,
-  change: { startDay?: string | null; endDay?: string | null },
+  change: { startDay?: string | null; endDay?: string | null }
 ): UpsertRunProgramBody => ({
   program_id: program.program_id,
   ...(change.startDay !== undefined && { start_date: change.startDay }),

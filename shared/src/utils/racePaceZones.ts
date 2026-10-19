@@ -1,4 +1,4 @@
-import { normalizePaceBand, type PaceBand } from "./paceTargets.ts";
+import { normalizePaceBand, type PaceBand } from './paceTargets.ts';
 
 /**
  * Training pace ranges worked out from a recent race result. The race is
@@ -16,16 +16,16 @@ export interface PaceReferenceRace {
 
 /** The races the pace reference can come from. */
 export const PACE_REFERENCE_RACES = [
-  { id: "5k", distanceKm: 5 },
-  { id: "10k", distanceKm: 10 },
-  { id: "half", distanceKm: 21.0975 },
-  { id: "marathon", distanceKm: 42.195 },
+  { id: '5k', distanceKm: 5 },
+  { id: '10k', distanceKm: 10 },
+  { id: 'half', distanceKm: 21.0975 },
+  { id: 'marathon', distanceKm: 42.195 },
 ] as const;
 
-export type PaceReferenceRaceId = (typeof PACE_REFERENCE_RACES)[number]["id"];
+export type PaceReferenceRaceId = (typeof PACE_REFERENCE_RACES)[number]['id'];
 
 export type PaceZoneName =
-  "easy" | "interval" | "tempo" | "marathon" | "stride";
+  'easy' | 'interval' | 'tempo' | 'marathon' | 'stride';
 
 /** Riegel's exponent: how much slower the pace gets as the distance grows. */
 const RIEGEL_EXPONENT = 1.06;
@@ -65,7 +65,7 @@ export function equivalent5kPace(race: PaceReferenceRace): number | null {
  * out.
  */
 export function racePaceZones(
-  race: PaceReferenceRace,
+  race: PaceReferenceRace
 ): Partial<Record<PaceZoneName, PaceBand>> | null {
   const pace = equivalent5kPace(race);
   if (pace === null) return null;
