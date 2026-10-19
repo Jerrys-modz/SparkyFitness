@@ -7,7 +7,11 @@ import {
   MEDICATION_TAKEN_ACTION,
   MEDICATION_SKIP_ACTION,
 } from './notifications';
-import { createEntry, listEntries } from './api/medicationsApi';
+import {
+  createEntry,
+  listEntries,
+  listMedications,
+} from './api/medicationsApi';
 import { queryClient } from '../hooks/queryClient';
 import { invalidateMedicationEntryCaches } from '../hooks/invalidateMedicationEntryCaches';
 import { addLog, _flushBuffer } from '../services/LogService';
@@ -213,20 +217,40 @@ export async function flushPendingMedicationNotificationActions(): Promise<void>
   const pending = await readPendingActions();
   if (pending.length === 0) return;
 
+  // A queued action records only medication ids, never the account that queued
+  // it, so it must not be replayed blindly: after an account switch those ids
+  // belong to the account that is no longer signed in. Resolve the medications
+  // the current account owns and drop any dose that is not among them.
+  let ownedMedicationIds: Set<string>;
+  try {
+    ownedMedicationIds = new Set(
+      (await listMedications()).map((medication) => medication.id)
+    );
+  } catch {
+    // Ownership cannot be verified right now; keep the queue for a later run
+    // rather than writing it into an account we cannot vouch for.
+    return;
+  }
+
   const remaining: PendingMedicationNotificationAction[] = [];
   let anySucceeded = false;
 
   for (const record of pending) {
     try {
+      const ownedDoses = record.doses.filter((d) =>
+        ownedMedicationIds.has(d.medicationId)
+      );
+      if (ownedDoses.length === 0) continue;
+
       const existing = await listEntries({
         fromDate: record.entryDate,
         toDate: record.entryDate,
-        ...(record.doses.length === 1
-          ? { medicationId: record.doses[0].medicationId }
+        ...(ownedDoses.length === 1
+          ? { medicationId: ownedDoses[0].medicationId }
           : {}),
       });
 
-      const unlogged = record.doses.filter(
+      const unlogged = ownedDoses.filter(
         (d) => !isDoseLogged(existing, d.medicationId, d.scheduleId)
       );
 
@@ -251,7 +275,7 @@ export async function flushPendingMedicationNotificationActions(): Promise<void>
       await clearMatchingReminders(
         record.notificationId,
         record.key,
-        record.doses,
+        ownedDoses,
         record.entryDate
       );
       anySucceeded = true;

@@ -13,6 +13,7 @@ import {
 import {
   createEntry,
   listEntries,
+  listMedications,
 } from '../../src/services/api/medicationsApi';
 import { queryClient } from '../../src/hooks/queryClient';
 
@@ -26,6 +27,7 @@ jest.mock('../../src/services/notifications', () => ({
 jest.mock('../../src/services/api/medicationsApi', () => ({
   createEntry: jest.fn(),
   listEntries: jest.fn(),
+  listMedications: jest.fn(),
 }));
 
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
@@ -107,6 +109,10 @@ describe('logging a dose from a notification action', () => {
       .spyOn(queryClient, 'invalidateQueries')
       .mockImplementation(() => undefined as never);
     (listEntries as jest.Mock).mockResolvedValue([]);
+    (listMedications as jest.Mock).mockResolvedValue([
+      { id: 'm1' },
+      { id: 'm2' },
+    ]);
     (createEntry as jest.Mock).mockResolvedValue({ id: 'e1' });
     (
       Notifications.getAllScheduledNotificationsAsync as jest.Mock
@@ -408,6 +414,49 @@ describe('logging a dose from a notification action', () => {
       expect(
         Notifications.cancelScheduledNotificationAsync
       ).toHaveBeenCalledWith('repeat-10');
+    });
+
+    it('drops queued doses not owned by the active account when flushing after an account switch', async () => {
+      const baseKey = 'med_2026-08-12_med-of-A_sched-A_09:00';
+      (createEntry as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+
+      if (!registeredTaskExecutor) {
+        throw new Error('background notification task executor not registered');
+      }
+
+      await registeredTaskExecutor({
+        data: {
+          actionIdentifier: MEDICATION_TAKEN_ACTION,
+          notification: {
+            request: {
+              identifier: 'notif-a',
+              content: {
+                data: {
+                  medicationId: 'med-of-A',
+                  scheduleId: 'sched-A',
+                  entryDate: DATE,
+                  key: baseKey,
+                  baseKey,
+                },
+              },
+            },
+          },
+        },
+        error: null,
+      });
+
+      expect(createEntry).toHaveBeenCalledTimes(1);
+      (createEntry as jest.Mock).mockClear();
+
+      // Switch to account B which only owns med-of-B
+      (listMedications as jest.Mock).mockResolvedValueOnce([
+        { id: 'med-of-B' },
+      ]);
+      const { flushPendingMedicationNotificationActions } =
+        require('../../src/services/medicationNotificationHandler') as typeof import('../../src/services/medicationNotificationHandler');
+      await flushPendingMedicationNotificationActions();
+
+      expect(createEntry).not.toHaveBeenCalled();
     });
   });
 
