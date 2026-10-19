@@ -1,5 +1,9 @@
 import { apiCall } from '../api';
 import { buildPayloadRequest } from '../imageRequest';
+import {
+  foodVariantKey,
+  planFoodVariantReconciliation,
+} from './foodVariantReconciliation';
 
 import type { Food, FoodVariant } from '@/types/food';
 import {
@@ -17,10 +21,6 @@ export interface FoodCreateProgress {
 
 /** Draft indices refer to the complete variants array submitted to saveFood. */
 export type ManagedFoodPortion = { id: string } | { draftIndex: number };
-
-function variantKey(variant: FoodVariant): string {
-  return `${Number(variant.serving_size)}|${variant.serving_unit.trim().toLocaleLowerCase()}`;
-}
 
 function metadataSignature(food: Food): string {
   return JSON.stringify({ ...food, id: undefined });
@@ -200,49 +200,24 @@ export const saveFood = async (
         ]
       : variants;
 
-    // A previous bulk request may have committed before its response failed.
-    // Match drafts without IDs to read-back rows before creating or deleting
-    // anything, including the default row from a partially completed create.
-    const claimedIds = new Set(
-      requestedVariants.flatMap((variant) => (variant.id ? [variant.id] : []))
-    );
-    const reconciledVariants = requestedVariants.map((variant) => {
-      if (variant.id) return variant;
-      const existing = existingVariants.find(
-        (candidate) =>
-          candidate.id &&
-          !claimedIds.has(candidate.id) &&
-          variantKey(candidate) === variantKey(variant)
-      );
-      if (!existing?.id) return variant;
-      claimedIds.add(existing.id);
-      return { ...variant, id: existing.id };
-    });
-    const variantsToCreate = reconciledVariants.filter((v) => !v.id);
-    const variantsToUpdate = reconciledVariants.filter(
-      (variant) =>
-        variant.id &&
-        (!resumeCreate ||
-          variant.id === updatedReference?.id ||
-          !resumeCreate.baselineVariantIds?.includes(variant.id))
-    );
-    const variantsToDelete = existingVariants.filter(
-      (ev) =>
-        !reconciledVariants.some((v) => v.id === ev.id) &&
-        (!resumeCreate ||
-          (!!ev.id &&
-            !resumeCreate.baselineVariantIds?.includes(ev.id) &&
-            !!resumeCreate.attemptedVariantKeys?.includes(variantKey(ev))))
+    const {
+      variantsToCreate,
+      variantsToUpdate,
+      variantsToDelete,
+      nextAttemptedVariantKeys,
+    } = planFoodVariantReconciliation(
+      requestedVariants,
+      existingVariants,
+      resumeCreate
+        ? {
+            baselineVariantIds: resumeCreate.baselineVariantIds ?? [],
+            attemptedVariantKeys: resumeCreate.attemptedVariantKeys ?? [],
+            updatedReferenceId: updatedReference?.id,
+          }
+        : undefined
     );
     if (resumeCreate)
-      resumeCreate.attemptedVariantKeys = [
-        ...new Set([
-          ...(resumeCreate.attemptedVariantKeys ?? []),
-          ...requestedVariants
-            .filter((variant) => !variant.is_default)
-            .map(variantKey),
-        ]),
-      ];
+      resumeCreate.attemptedVariantKeys = nextAttemptedVariantKeys;
 
     // Update existing variants
     for (const variant of variantsToUpdate) {
@@ -425,12 +400,12 @@ export const saveFood = async (
         progress.baselineVariantIds = baseline.flatMap((variant) =>
           variant.id ? [variant.id] : []
         );
-        progress.attemptedVariantKeys = additionalVariants.map(variantKey);
+        progress.attemptedVariantKeys = additionalVariants.map(foodVariantKey);
       }
       additionalVariants = additionalVariants.filter(
         (variant) =>
           !baseline.some(
-            (existing) => variantKey(existing) === variantKey(variant)
+            (existing) => foodVariantKey(existing) === foodVariantKey(variant)
           )
       );
     }

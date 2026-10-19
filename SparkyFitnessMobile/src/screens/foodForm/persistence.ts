@@ -300,28 +300,26 @@ export function hasFoodFormChanges(
   });
 }
 
-export async function invalidateFoodCaches(
+export function invalidateFoodCaches(
   queryClient: QueryClient,
   foodId: string
-) {
-  await Promise.all(
-    [
-      foodVariantsQueryKey(foodId),
-      foodsQueryKey,
-      ['foodsLibrary'],
-      ['foodSearch'],
-      ['foodDetail', foodId],
-      ['favorites'],
-      ['meals'],
-      ['mealDetail'],
-      ['mealPlans'],
-      ['mealPlanTemplate'],
-      ['dailySummary'],
-      ['foodEntryMealDetail'],
-    ].map((queryKey) =>
-      queryClient.invalidateQueries({ queryKey, refetchType: 'all' })
-    )
-  );
+): void {
+  for (const queryKey of [
+    foodVariantsQueryKey(foodId),
+    foodsQueryKey,
+    ['foodsLibrary'],
+    ['foodSearch'],
+    ['foodDetail', foodId],
+    ['favorites'],
+    ['meals'],
+    ['mealDetail'],
+    ['mealPlans'],
+    ['mealPlanTemplate'],
+    ['dailySummary'],
+    ['foodEntryMealDetail'],
+  ]) {
+    void queryClient.invalidateQueries({ queryKey, refetchType: 'all' });
+  }
 }
 
 function updateFoodVariantCache(

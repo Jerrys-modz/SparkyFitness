@@ -490,7 +490,7 @@ export function EditFoodMode({
             };
           }
         }
-        await invalidateFoodCaches(queryClient, foodId);
+        invalidateFoodCaches(queryClient, foodId);
       };
 
       if (draftSelection) {

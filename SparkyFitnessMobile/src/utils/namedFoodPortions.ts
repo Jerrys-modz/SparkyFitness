@@ -20,7 +20,6 @@ export interface EditableFoodPortion extends FoodPortionDefinition {
 export { isCalculatedFoodPortion } from '@workspace/shared';
 
 /** Read before each attempt: a successful POST with a lost response must not create duplicates on retry. */
-
 export async function saveNamedFoodPortions(
   foodId: string,
   source: FoodPortionSource,

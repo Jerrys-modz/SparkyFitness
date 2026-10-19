@@ -548,7 +548,7 @@ export function CreateFoodMode({
         )
           throw new Error('Food equivalents could not be confirmed');
         queryClient.setQueryData(['foodVariants', saved.id], readback);
-        await invalidateFoodCaches(queryClient, saved.id);
+        invalidateFoodCaches(queryClient, saved.id);
         return saved;
       } catch (error) {
         Toast.show({

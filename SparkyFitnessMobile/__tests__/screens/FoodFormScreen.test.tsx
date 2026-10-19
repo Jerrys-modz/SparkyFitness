@@ -2,6 +2,7 @@ import React from 'react';
 import { Alert } from 'react-native';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { QueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import FoodFormScreen from '../../src/screens/FoodFormScreen';
 import type { FoodFormProps } from '../../src/components/FoodForm';
@@ -32,6 +33,7 @@ const mockPop = jest.fn((count: number) => ({
 }));
 const mockPopToTop = jest.fn(() => ({ type: 'POP_TO_TOP' }));
 const mockFoodForm = jest.fn();
+let mockLiveQueryClient: QueryClient | undefined;
 const mockNavigation = {
   setOptions: jest.fn(),
   goBack: jest.fn(),
@@ -92,10 +94,14 @@ jest.mock('../../src/services/api/foodsApi', () => ({
 }));
 
 jest.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({
-    setQueryData: jest.fn(),
-    invalidateQueries: jest.fn(),
-  }),
+  ...jest.requireActual<typeof import('@tanstack/react-query')>(
+    '@tanstack/react-query'
+  ),
+  useQueryClient: () =>
+    mockLiveQueryClient ?? {
+      setQueryData: jest.fn(),
+      invalidateQueries: jest.fn(),
+    },
 }));
 
 jest.mock('../../src/components/Icon', () => {
@@ -399,6 +405,125 @@ describe('FoodFormScreen', () => {
       invalidateCache: mockInvalidateCache,
     }));
   });
+
+  afterEach(() => {
+    mockLiveQueryClient?.clear();
+    mockLiveQueryClient = undefined;
+  });
+
+  it.each(['create-food', 'edit-food'] as const)(
+    'leaves %s after confirming named portions while unrelated refetches are pending',
+    async (mode) => {
+      const reference: FoodVariantDetail = {
+        id: 'grams',
+        food_id: 'food-1',
+        serving_size: 100,
+        serving_unit: 'g',
+        calories: 200,
+        protein: 10,
+        carbs: 20,
+        fat: 5,
+      };
+      let rows = [reference];
+      mockSaveFoodAsync.mockResolvedValue({
+        id: 'food-1',
+        name: 'Custom Meal Food',
+        brand: 'Brand Co',
+        is_custom: true,
+        default_variant: reference,
+      });
+      mockUseFoodVariants.mockReturnValue({
+        variants: rows,
+        isLoading: false,
+        isError: false,
+      });
+      mockPortionDraft = [{ name: 'packet', amount: 150, unit: 'g' }];
+      jest.mocked(fetchFoodVariants).mockImplementation(async () => rows);
+      jest.mocked(createFoodVariant).mockImplementation(async (payload) => {
+        const row = { ...payload, id: 'packet' };
+        rows = [...rows, row];
+        return row;
+      });
+
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+      });
+      mockLiveQueryClient = queryClient;
+      let finishMealsRefetch: (() => void) | undefined;
+      const pendingMeals = new Promise<string[]>((resolve) => {
+        finishMealsRefetch = () => resolve(['refreshed meal']);
+      });
+      let refetchPending = false;
+      await queryClient.fetchQuery({
+        queryKey: ['meals'],
+        queryFn: () =>
+          refetchPending ? pendingMeals : Promise.resolve(['existing meal']),
+      });
+      refetchPending = true;
+
+      const params: React.ComponentProps<
+        typeof FoodFormScreen
+      >['route']['params'] =
+        mode === 'create-food'
+          ? { mode, pickerMode: 'library' }
+          : {
+              mode,
+              foodId: 'food-1',
+              variantId: 'grams',
+              returnKey: 'FoodDetail-key',
+              initialValues: mockSubmittedFoodFormData,
+              customNutrients: null,
+              item: {
+                id: 'food-1',
+                name: 'Custom Meal Food',
+                brand: 'Brand Co',
+                source: 'local',
+                servingSize: 100,
+                servingUnit: 'g',
+                calories: 200,
+                protein: 10,
+                carbs: 20,
+                fat: 5,
+                originalItem: {},
+              },
+            };
+      const screen = renderScreen(params);
+      try {
+        fireEvent.press(screen.getByText('Apply Portion Fixture'));
+        fireEvent.press(screen.getByText('Save'));
+
+        await waitFor(() =>
+          expect(queryClient.getQueryState(['meals'])?.fetchStatus).toBe(
+            'fetching'
+          )
+        );
+        expect(queryClient.getQueryData(['foodVariants', 'food-1'])).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              id: 'packet',
+              serving_unit: 'packet (150 g)',
+              calories: 300,
+            }),
+          ])
+        );
+        await waitFor(() =>
+          expect(
+            mode === 'create-food' ? navigation.dispatch : navigation.goBack
+          ).toHaveBeenCalled()
+        );
+        expect(queryClient.getQueryState(['meals'])?.fetchStatus).toBe(
+          'fetching'
+        );
+        expect(queryClient.getQueryData(['meals'])).toEqual(['existing meal']);
+        expect(updateFoodEntriesSnapshot).not.toHaveBeenCalled();
+      } finally {
+        await act(async () => {
+          finishMealsRefetch?.();
+          await pendingMeals;
+        });
+      }
+    }
+  );
 
   it('waits for named portions before leaving and retries using the same created food', async () => {
     let rows: FoodVariantDetail[] = [
