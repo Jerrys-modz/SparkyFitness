@@ -5,6 +5,7 @@ import {
   DateField,
   DateInput,
   DateSegment,
+  FieldError,
   TimeField,
   type TimeFieldProps,
 } from 'react-aria-components';
@@ -23,7 +24,9 @@ import { cn } from '@/lib/utils';
 // preference. These fields keep the native string formats ('HH:mm' and
 // 'YYYY-MM-DDTHH:mm') as their value contract but render the hour cycle the
 // user picked. The picker button still opens the browser's own picker, through
-// a hidden native input that shares the value.
+// a hidden native input that shares the value. An empty required field blocks
+// submission through react-aria's validation input, which suppresses the
+// browser's bubble, so its message is shown under the field instead.
 
 interface FieldProps {
   /**
@@ -50,7 +53,9 @@ interface FieldProps {
 }
 
 const FIELD_CLASS =
-  'relative flex h-10 w-full items-center gap-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2';
+  'relative flex h-10 w-full items-center gap-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 group-data-[invalid]/field:focus-within:ring-destructive';
+
+const ERROR_CLASS = 'mt-1.5 block text-sm font-medium text-destructive';
 
 const SEGMENT_CLASS =
   'rounded-sm px-0.5 tabular-nums caret-transparent outline-none data-[type=literal]:px-0 data-[placeholder]:text-muted-foreground data-[focused]:bg-accent data-[focused]:text-accent-foreground';
@@ -112,7 +117,7 @@ function useHourCycleProps() {
 const Segments: React.FC<{ lowercaseDayPeriod: boolean }> = ({
   lowercaseDayPeriod,
 }) => (
-  <DateInput className="flex items-center">
+  <DateInput className="flex min-w-0 flex-1 items-center">
     {(segment) => (
       <DateSegment
         segment={segment}
@@ -133,7 +138,6 @@ interface FieldShellProps {
   onPick: (value: string) => void;
   onLeave: () => void;
   className?: string;
-  required?: boolean;
   disabled?: boolean;
   children: React.ReactNode;
 }
@@ -147,7 +151,6 @@ const FieldShell: React.FC<FieldShellProps> = ({
   onPick,
   onLeave,
   className,
-  required,
   disabled,
   children,
 }) => {
@@ -183,12 +186,7 @@ const FieldShell: React.FC<FieldShellProps> = ({
       }}
     >
       {children}
-      {/*
-        Anchors the browser picker to this box; never shown or tabbed to.
-        Also required when the field is: react-aria's own validation input
-        blocks submission but suppresses the browser's "Please fill out this
-        field" bubble, so this one lets the browser show it over the field.
-      */}
+      {/* Anchors the browser picker to this box; never shown or tabbed to. */}
       <input
         ref={nativeRef}
         type={nativeType}
@@ -196,7 +194,6 @@ const FieldShell: React.FC<FieldShellProps> = ({
         onChange={(e) => onPick(e.target.value)}
         tabIndex={-1}
         aria-hidden="true"
-        required={required}
         disabled={disabled}
         className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
       />
@@ -235,29 +232,29 @@ export const TimeInput: React.FC<FieldProps> = ({
   });
   const { lowercaseDayPeriod, ...hourCycleProps } = useHourCycleProps();
   return (
-    <FieldShell
-      nativeType="time"
-      pickerLabel={t('common.pickTime', 'Pick a time')}
-      icon={Clock}
-      value={current}
-      onPick={setCurrent}
-      onLeave={() => onBlur?.(latest.current)}
-      className={className}
-      required={required}
-      disabled={disabled}
+    <TimeField
+      {...fieldProps}
+      {...hourCycleProps}
+      className="group/field"
+      value={parseOrNull<Time>(current, parseTime)}
+      onChange={(time) => setCurrent(time ? toTimeString(time) : '')}
+      isRequired={required}
+      isDisabled={disabled}
     >
-      <TimeField
-        {...fieldProps}
-        {...hourCycleProps}
-        className="min-w-0 flex-1"
-        value={parseOrNull<Time>(current, parseTime)}
-        onChange={(time) => setCurrent(time ? toTimeString(time) : '')}
-        isRequired={required}
-        isDisabled={disabled}
+      <FieldShell
+        nativeType="time"
+        pickerLabel={t('common.pickTime', 'Pick a time')}
+        icon={Clock}
+        value={current}
+        onPick={setCurrent}
+        onLeave={() => onBlur?.(latest.current)}
+        className={className}
+        disabled={disabled}
       >
         <Segments lowercaseDayPeriod={lowercaseDayPeriod} />
-      </TimeField>
-    </FieldShell>
+      </FieldShell>
+      <FieldError className={ERROR_CLASS} />
+    </TimeField>
   );
 };
 
@@ -279,31 +276,31 @@ export const DateTimeInput: React.FC<FieldProps> = ({
   });
   const { lowercaseDayPeriod, ...hourCycleProps } = useHourCycleProps();
   return (
-    <FieldShell
-      nativeType="datetime-local"
-      pickerLabel={t('common.pickDateTime', 'Pick a date and time')}
-      icon={CalendarDays}
-      value={current}
-      onPick={setCurrent}
-      onLeave={() => onBlur?.(latest.current)}
-      className={className}
-      required={required}
-      disabled={disabled}
+    <DateField
+      {...fieldProps}
+      {...hourCycleProps}
+      className="group/field"
+      value={parseOrNull<CalendarDateTime>(current, parseDateTime)}
+      onChange={(dateTime) =>
+        setCurrent(dateTime ? toDateTimeString(dateTime) : '')
+      }
+      granularity="minute"
+      isRequired={required}
+      isDisabled={disabled}
     >
-      <DateField
-        {...fieldProps}
-        {...hourCycleProps}
-        className="min-w-0 flex-1"
-        value={parseOrNull<CalendarDateTime>(current, parseDateTime)}
-        onChange={(dateTime) =>
-          setCurrent(dateTime ? toDateTimeString(dateTime) : '')
-        }
-        granularity="minute"
-        isRequired={required}
-        isDisabled={disabled}
+      <FieldShell
+        nativeType="datetime-local"
+        pickerLabel={t('common.pickDateTime', 'Pick a date and time')}
+        icon={CalendarDays}
+        value={current}
+        onPick={setCurrent}
+        onLeave={() => onBlur?.(latest.current)}
+        className={className}
+        disabled={disabled}
       >
         <Segments lowercaseDayPeriod={lowercaseDayPeriod} />
-      </DateField>
-    </FieldShell>
+      </FieldShell>
+      <FieldError className={ERROR_CLASS} />
+    </DateField>
   );
 };

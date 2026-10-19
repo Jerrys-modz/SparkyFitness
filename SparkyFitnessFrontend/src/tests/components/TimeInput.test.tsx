@@ -405,7 +405,7 @@ describe('required field message', () => {
     ['TimeInput', TimeInput],
     ['DateTimeInput', DateTimeInput],
   ] as const)(
-    '%s leaves the browser an unsuppressed invalid field to report',
+    '%s keeps an empty required field on a visible, described segment',
     (_name, Field) => {
       const onSubmit = jest.fn();
       const { container } = render(
@@ -413,27 +413,25 @@ describe('required field message', () => {
           <Field aria-label="End time" value="" onChange={jest.fn()} required />
         </form>
       );
-      const reported: HTMLElement[] = [];
-      const record = (e: Event) =>
-        // Read defaultPrevented after every handler has run.
-        setTimeout(() => {
-          if (!e.defaultPrevented) reported.push(e.target as HTMLElement);
-        });
-      document.addEventListener('invalid', record, true);
-      jest.useFakeTimers();
-      try {
-        act(() => container.querySelector('form')!.requestSubmit());
-        act(() => jest.runAllTimers());
-      } finally {
-        jest.useRealTimers();
-        document.removeEventListener('invalid', record, true);
-      }
+
+      act(() => container.querySelector('form')!.requestSubmit());
 
       expect(onSubmit).not.toHaveBeenCalled();
-      // The browser shows "Please fill out this field" on this input, which
-      // sits over the visible field.
-      expect(reported).toHaveLength(1);
-      expect(reported[0]).toHaveAttribute('aria-hidden', 'true');
+      // Focus goes to the first visible segment, never the hidden picker input.
+      const firstSegment = screen.getAllByRole('spinbutton')[0]!;
+      expect(firstSegment).toHaveFocus();
+      expect(
+        container.querySelector('input[aria-hidden="true"]')
+      ).not.toBeRequired();
+      // The field is marked invalid and its message is linked for screen
+      // readers, so it is announced with the field.
+      const group = screen.getByRole('group', { name: 'End time' });
+      expect(group).toHaveAttribute('data-invalid');
+      const message = container.querySelector('[slot="errorMessage"]');
+      expect(message).toBeInTheDocument();
+      expect(firstSegment.getAttribute('aria-describedby')).toContain(
+        message!.id
+      );
     }
   );
 });
