@@ -184,6 +184,29 @@ const Preview: React.FC<{
  * not realistic is said plainly, with the choices (a later date, a shorter
  * race, or going ahead anyway). Nothing changes until Accept.
  */
+/** What realigning the program to its goal day would do, as of `today`. */
+export function realignOutcomeFor(
+  program: RunProgramResponse,
+  today: string
+): RealignOutcome {
+  const lastAdjusted = program.adjustment_log.at(-1);
+  return realignProgram(
+    realignInputFromProgram(program, {
+      today,
+      lastAdjustedDay: lastAdjusted
+        ? toLocalDateString(new Date(lastAdjusted.at))
+        : null,
+    })
+  );
+}
+
+/** Whether the outcome is something to offer: a plan, or an unrealistic goal. */
+export function realignIsOffered(
+  outcome: RealignOutcome
+): outcome is Extract<RealignOutcome, { state: 'plan' | 'unrealistic' }> {
+  return outcome.state === 'plan' || outcome.state === 'unrealistic';
+}
+
 const RunProgramRealignCard: React.FC<{
   program: RunProgramResponse;
   /** Today, YYYY-MM-DD. */
@@ -199,20 +222,11 @@ const RunProgramRealignCard: React.FC<{
   const [dismissed, setDismissed] = useState<string | null>(null);
   const [forced, setForced] = useState(false);
   const [busy, setBusy] = useState(false);
-  const lastAdjusted = program.adjustment_log.at(-1);
-  const outcome: RealignOutcome = useMemo(
-    () =>
-      realignProgram(
-        realignInputFromProgram(program, {
-          today,
-          lastAdjustedDay: lastAdjusted
-            ? toLocalDateString(new Date(lastAdjusted.at))
-            : null,
-        })
-      ),
-    [program, today, lastAdjusted]
+  const outcome = useMemo(
+    () => realignOutcomeFor(program, today),
+    [program, today]
   );
-  if (outcome.state !== 'plan' && outcome.state !== 'unrealistic') return null;
+  if (!realignIsOffered(outcome)) return null;
   const key = outcome.state === 'plan' ? outcome.preview.token : 'unrealistic';
   if (dismissed === key) return null;
 
