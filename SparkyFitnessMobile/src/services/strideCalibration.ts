@@ -4,6 +4,7 @@ import { addLog } from './LogService';
 import {
   blendStride,
   DEFAULT_STRIDE_METERS,
+  isPlausibleStride,
   strideFromSample,
   type StepActivity,
   type StrideCalibration,
@@ -38,8 +39,16 @@ async function read(): Promise<Stored> {
 
 export interface Stride {
   meters: number;
-  /** True once at least one real distance has taught the app this stride. */
+  /** True once a real distance has taught the app this stride, or the person set it. */
   calibrated: boolean;
+}
+
+/** One activity's stride as the settings screen shows it. */
+export interface StrideInfo extends Stride {
+  /** Real distances it has been taught by. */
+  samples: number;
+  /** Set by the person and not yet learned from. */
+  manual: boolean;
 }
 
 /**
@@ -49,9 +58,69 @@ export interface Stride {
  */
 export async function getStride(activity: StepActivity): Promise<Stride> {
   const learned = (await read())[activity];
-  return learned && learned.samples > 0
+  return strideOf(activity, learned);
+}
+
+function strideOf(
+  activity: StepActivity,
+  learned: StrideCalibration | undefined
+): Stride {
+  return learned && (learned.samples > 0 || learned.manual === true)
     ? { meters: learned.meters, calibrated: true }
     : { meters: DEFAULT_STRIDE_METERS[activity], calibrated: false };
+}
+
+/** Both strides with what is behind them, for the settings screen. */
+export async function getStrideProfile(): Promise<
+  Record<StepActivity, StrideInfo>
+> {
+  const stored = await read();
+  const info = (activity: StepActivity): StrideInfo => ({
+    ...strideOf(activity, stored[activity]),
+    samples: stored[activity]?.samples ?? 0,
+    manual: stored[activity]?.manual === true,
+  });
+  return { walk: info('walk'), run: info('run') };
+}
+
+/**
+ * Sets a stride by hand (typed, or from a deliberate calibration). Returns
+ * false for an implausible value, and when storage fails; never throws.
+ */
+export async function setStride(
+  activity: StepActivity,
+  meters: number
+): Promise<boolean> {
+  if (!isPlausibleStride(meters)) return false;
+  try {
+    const stored = await read();
+    await AsyncStorage.setItem(
+      KEY,
+      JSON.stringify({
+        ...stored,
+        [activity]: { meters, samples: 0, manual: true },
+      })
+    );
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    addLog(`[Stride] Could not save the stride: ${message}`, 'WARNING');
+    return false;
+  }
+}
+
+/** Forgets what was learned for one activity, so it starts from the default. */
+export async function resetStride(activity: StepActivity): Promise<boolean> {
+  try {
+    const next = { ...(await read()) };
+    delete next[activity];
+    await AsyncStorage.setItem(KEY, JSON.stringify(next));
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    addLog(`[Stride] Could not reset the stride: ${message}`, 'WARNING');
+    return false;
+  }
 }
 
 /**

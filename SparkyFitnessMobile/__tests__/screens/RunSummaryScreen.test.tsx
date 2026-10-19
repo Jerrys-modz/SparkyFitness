@@ -12,6 +12,8 @@ import {
 } from '../../src/services/runProgramService';
 import { setExerciseEntryDistance } from '../../src/services/api/exerciseApi';
 import { usePersonalRecords } from '../../src/hooks/usePersonalRecords';
+import { learnWatchIndoorScale } from '../../src/services/watchIndoorScale';
+import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import type { RunSummaryParams } from '../../src/utils/runSummary';
 
 jest.mock('../../src/hooks/useScreenHeader', () => ({
@@ -23,6 +25,9 @@ jest.mock('../../src/services/runProgramService', () => ({
 }));
 jest.mock('../../src/services/api/exerciseApi', () => ({
   setExerciseEntryDistance: jest.fn(() => Promise.resolve()),
+}));
+jest.mock('../../src/services/watchIndoorScale', () => ({
+  learnWatchIndoorScale: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('../../src/hooks/usePersonalRecords', () => ({
   usePersonalRecords: jest.fn(() => ({ records: [] })),
@@ -332,5 +337,96 @@ describe('treadmill distance', () => {
     );
     fireEvent.press(screen.getByText('Update'));
     expect(setExerciseEntryDistance).not.toHaveBeenCalled();
+  });
+});
+
+describe('treadmill correction', () => {
+  const treadmill = (overrides: Partial<RunSummaryParams> = {}) =>
+    params({
+      entryId: 'entry-1',
+      editableDistance: true,
+      distanceMeters: 4000,
+      activeSeconds: 1200,
+      ...overrides,
+    });
+  const correct = (percent: number) => {
+    useAppPreferencesStore.getState().setTreadmillCorrectionEnabled(true);
+    useAppPreferencesStore.getState().setTreadmillCorrectionPercent(percent);
+  };
+  afterEach(() => {
+    useAppPreferencesStore.getState().setTreadmillCorrectionEnabled(false);
+    useAppPreferencesStore.getState().setTreadmillCorrectionPercent(0);
+  });
+
+  it('stores the corrected distance and shows the machine’s figure next to it', async () => {
+    correct(4);
+    renderScreen(treadmill());
+    expect(
+      screen.getByText(/Your \+4% treadmill correction is taken off/)
+    ).toBeTruthy();
+    fireEvent.changeText(
+      screen.getByLabelText('Distance from the treadmill in km'),
+      '5.2'
+    );
+    fireEvent.press(screen.getByText('Update'));
+    await screen.findByText('Distance updated.');
+
+    expect(setExerciseEntryDistance).toHaveBeenCalledWith(
+      'entry-1',
+      expect.closeTo(5, 6)
+    );
+    expect(
+      screen.getByText(
+        'Machine showed 5.20 km; saved as 5.00 km with your treadmill correction.'
+      )
+    ).toBeTruthy();
+    // The headline figure is the corrected one.
+    expect(screen.getByText('5.00')).toBeTruthy();
+  });
+
+  it('teaches the watch factor from the corrected figure, not the display', async () => {
+    correct(4);
+    renderScreen(
+      treadmill({ watchIndoor: { scale: 1, estimatedMeters: 4000 } })
+    );
+    fireEvent.changeText(
+      screen.getByLabelText('Distance from the treadmill in km'),
+      '5.2'
+    );
+    fireEvent.press(screen.getByText('Update'));
+    await screen.findByText('Distance updated.');
+
+    expect(learnWatchIndoorScale).toHaveBeenCalledWith(
+      'run',
+      1,
+      4000,
+      expect.closeTo(5000, 3)
+    );
+  });
+
+  it('sends the figure as typed while the correction is off', async () => {
+    useAppPreferencesStore.getState().setTreadmillCorrectionPercent(4);
+    renderScreen(treadmill());
+    expect(screen.queryByText(/treadmill correction is taken off/)).toBeNull();
+    fireEvent.changeText(
+      screen.getByLabelText('Distance from the treadmill in km'),
+      '5.2'
+    );
+    fireEvent.press(screen.getByText('Update'));
+    await screen.findByText('Distance updated.');
+
+    expect(setExerciseEntryDistance).toHaveBeenCalledWith('entry-1', 5.2);
+    expect(screen.queryByText(/Machine showed/)).toBeNull();
+  });
+
+  it('shows the figure typed on the watch when it was corrected on arrival', () => {
+    renderScreen(
+      treadmill({ distanceMeters: 5000, treadmillDisplayMeters: 5200 })
+    );
+    expect(
+      screen.getByText(
+        'Machine showed 5.20 km; saved as 5.00 km with your treadmill correction.'
+      )
+    ).toBeTruthy();
   });
 });

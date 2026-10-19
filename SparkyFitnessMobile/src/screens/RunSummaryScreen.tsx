@@ -40,6 +40,9 @@ import {
 } from '../utils/gpsRecording';
 import type { RootStackScreenProps } from '../types/navigation';
 import { learnWatchIndoorScale } from '../services/watchIndoorScale';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
+import { correctTreadmillDistance } from '../utils/treadmillCorrection';
+import { formatTreadmillPercent } from '../utils/treadmillCorrectionFormat';
 
 type Props = RootStackScreenProps<'RunSummary'>;
 
@@ -93,12 +96,32 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
   const [distanceText, setDistanceText] = useState('');
   const [savingDistance, setSavingDistance] = useState(false);
   const [distanceSaved, setDistanceSaved] = useState(false);
+  // What the machine showed when a correction was taken off it: from the watch
+  // (typed on the wrist, corrected when the run was filed) or from here.
+  const [displayedMeters, setDisplayedMeters] = useState<number | null>(
+    summary.treadmillDisplayMeters ?? null
+  );
+  const treadmillCorrectionEnabled = useAppPreferencesStore(
+    (s) => s.treadmillCorrectionEnabled
+  );
+  const treadmillCorrectionPercent = useAppPreferencesStore(
+    (s) => s.treadmillCorrectionPercent
+  );
   const distanceScale =
     summary.distanceMeters > 0 ? distanceMeters / summary.distanceMeters : 1;
   const saveDistance = async () => {
     const entered = parseDecimalInput(distanceText);
-    const km = miles ? (entered * METERS_PER_MILE) / METERS_PER_KM : entered;
-    if (!summary.entryId || !(km > 0) || km > 1000) {
+    const enteredKm = miles
+      ? (entered * METERS_PER_MILE) / METERS_PER_KM
+      : entered;
+    // The machine's figure with its known error taken off; this is what is
+    // stored and what the watch's factor learns from.
+    const corrected = correctTreadmillDistance(enteredKm * METERS_PER_KM, {
+      enabled: treadmillCorrectionEnabled,
+      percent: treadmillCorrectionPercent,
+    });
+    const km = corrected.correctedMeters / METERS_PER_KM;
+    if (!summary.entryId || !(enteredKm > 0) || enteredKm > 1000) {
       showFailure(
         t('runSummary.distanceInvalid', {
           defaultValue: 'Enter the distance from the machine.',
@@ -110,6 +133,7 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       await setExerciseEntryDistance(summary.entryId, km);
       setDistanceMeters(km * METERS_PER_KM);
+      setDisplayedMeters(corrected.applied ? corrected.displayedMeters : null);
       // The watch's indoor estimate learns from the machine's figure.
       if (summary.watchIndoor) {
         void learnWatchIndoorScale(
@@ -306,6 +330,26 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
                       'The watch estimated this distance. Enter what the machine showed to correct it.',
                   })}
             </Text>
+            {displayedMeters != null ? (
+              <Text className="text-text-secondary text-sm mt-1">
+                {t('runSummary.treadmillCorrected', {
+                  defaultValue:
+                    'Machine showed {{shown}} {{unit}}; saved as {{saved}} {{unit}} with your treadmill correction.',
+                  shown: number(displayedMeters / unitMeters),
+                  saved: number(distanceMeters / unitMeters),
+                  unit: unitLabel,
+                })}
+              </Text>
+            ) : treadmillCorrectionEnabled &&
+              treadmillCorrectionPercent !== 0 ? (
+              <Text className="text-text-secondary text-sm mt-1">
+                {t('runSummary.treadmillCorrectionOn', {
+                  defaultValue:
+                    'Your {{percent}} treadmill correction is taken off the figure you enter.',
+                  percent: formatTreadmillPercent(treadmillCorrectionPercent),
+                })}
+              </Text>
+            ) : null}
             <View className="flex-row items-center mt-3" style={{ gap: 8 }}>
               <FormInput
                 className="flex-1 bg-raised rounded-lg px-3 text-text-primary"
