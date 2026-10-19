@@ -39,6 +39,7 @@ enum OutboundPayloads {
         static let fastStart = "fastStart"
         static let fastEnd = "fastEnd"
         static let runFinished = "runFinished"
+        static let runEffort = "runEffort"
         static let runLive = "runLive"
         static let runCue = "runCue"
     }
@@ -329,6 +330,16 @@ enum OutboundPayloads {
         if let nextLabel { payload["nextLabel"] = nextLabel }
         if let requestId { payload["requestId"] = requestId }
         return payload
+    }
+
+    /// How hard the wearer rated a finished run (1-10), sent after the run
+    /// itself. Queued like `runFinished`, and matched to it by `clientId`.
+    static func runEffort(clientId: String, rating: Int) -> [String: Any] {
+        [
+            "type": Kind.runEffort,
+            "clientId": clientId,
+            "rating": rating,
+        ]
     }
 
     /// A walk or run recorded on the wrist alone, sent once when it finishes.

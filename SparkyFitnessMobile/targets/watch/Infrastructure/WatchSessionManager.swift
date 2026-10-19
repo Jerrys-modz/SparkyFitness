@@ -333,6 +333,11 @@ final class WatchSessionManager: NSObject, ObservableObject {
         return WatchRunOutbox.append(payload)
     }
 
+    /// Tells the phone how hard a finished run felt. Queued, like the run.
+    func sendRunEffort(clientId: String, rating: Int) {
+        transfer(OutboundPayloads.runEffort(clientId: clientId, rating: rating))
+    }
+
     /// Sends runs that were finished before the session had activated.
     private func flushRunOutbox() {
         guard isActivated else { return }

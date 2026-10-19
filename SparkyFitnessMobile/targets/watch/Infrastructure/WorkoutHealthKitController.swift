@@ -100,10 +100,7 @@ final class WorkoutHealthKitController: NSObject {
         var shareTypes: Set<HKSampleType> = [
             HKObjectType.workoutType(), heartRateType, activeEnergyType,
         ]
-        // Apple's 1-10 workout effort rating (watchOS 11+).
-        if #available(watchOS 11.0, *) {
-            shareTypes.insert(HKQuantityType(.workoutEffortScore))
-        }
+        if let effortType = WorkoutEffort.shareType { shareTypes.insert(effortType) }
         let readTypes: Set<HKObjectType> = [
             heartRateType, activeEnergyType, HKObjectType.workoutType(),
         ]
@@ -366,29 +363,15 @@ final class WorkoutHealthKitController: NSObject {
 
     /// True when the last finished workout was saved and this watchOS can
     /// attach an effort rating to it.
-    var canSaveEffort: Bool {
-        guard lastSavedWorkout != nil else { return false }
-        if #available(watchOS 11.0, *) { return true }
-        return false
-    }
+    var canSaveEffort: Bool { lastSavedWorkout != nil && WorkoutEffort.isSupported }
 
-    /// Attaches the wearer's 1-10 effort to the workout just saved, the same
-    /// rating Apple's own Workout app asks for, so it shows in Fitness and
-    /// Health. Completion is on the main queue with whether it was saved.
+    /// Attaches the wearer's 1-10 effort to the workout just saved.
     func saveEffort(_ score: Int, completion: @escaping (Bool) -> Void) {
-        guard #available(watchOS 11.0, *), let workout = lastSavedWorkout else {
+        guard let workout = lastSavedWorkout else {
             completion(false)
             return
         }
-        let sample = HKQuantitySample(
-            type: HKQuantityType(.workoutEffortScore),
-            quantity: HKQuantity(unit: .appleEffortScore(), doubleValue: Double(min(max(score, 1), 10))),
-            start: workout.startDate,
-            end: workout.endDate
-        )
-        healthStore.relateWorkoutEffortSample(sample, with: workout, activity: nil) { success, _ in
-            DispatchQueue.main.async { completion(success) }
-        }
+        WorkoutEffort.save(score, for: workout, in: healthStore, completion: completion)
     }
 
     /// Ends the session and throws the workout away: nothing is saved to

@@ -119,11 +119,6 @@ private struct WorkoutSummaryView: View {
     @EnvironmentObject private var checkIn: CheckInStore
     @EnvironmentObject private var session: WatchSessionManager
     let summary: WorkoutSummary
-    /// 1-10 effort for the whole workout, saved to Health as Apple's workout
-    /// effort rating. Starts mid-scale so a quick tap is a sensible answer.
-    @State private var effort = 5
-    @State private var effortSaved = false
-
     private var unit: WeightUnit { checkIn.context.effectiveWeightUnit }
 
     private var duration: String {
@@ -154,7 +149,9 @@ private struct WorkoutSummaryView: View {
                     row("Active", "\(Int(kcal.rounded())) kcal")
                 }
                 if session.canRateWorkoutEffort {
-                    effortSection
+                    WorkoutEffortPicker { score, done in
+                        session.rateWorkoutEffort(score, completion: done)
+                    }
                 }
                 Button("Done") { store.dismissSummary() }
                     .padding(.top, 4)
@@ -164,37 +161,6 @@ private struct WorkoutSummaryView: View {
             // starts below it.
             .padding(.top, 22)
         }
-    }
-
-    private var effortSection: some View {
-        VStack(spacing: 2) {
-            Text(String(localized: "watch.effort.title", defaultValue: "How hard was that?"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if effortSaved {
-                Label(
-                    String(localized: "watch.effort.saved", defaultValue: "Saved to Health"),
-                    systemImage: "checkmark"
-                )
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.green)
-            } else {
-                Picker(
-                    String(localized: "watch.effort.title", defaultValue: "How hard was that?"),
-                    selection: $effort
-                ) {
-                    ForEach(1...10, id: \.self) { Text("\($0)").tag($0) }
-                }
-                .pickerStyle(.wheel)
-                .frame(height: 60)
-                Button(String(localized: "watch.rpe.save", defaultValue: "Save")) {
-                    session.rateWorkoutEffort(effort) { saved in
-                        effortSaved = saved
-                    }
-                }
-            }
-        }
-        .padding(.top, 4)
     }
 
     private func row(_ title: String, _ value: String) -> some View {

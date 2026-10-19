@@ -51,6 +51,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onRunCue: (([String: Any]) -> Void)?
     /// A walk or run recorded on the watch alone, sent when it finished.
     var onRunFinished: (([String: Any]) -> Void)?
+    /// How hard the wearer rated a finished run (1-10).
+    var onRunEffort: (([String: Any]) -> Void)?
 
     /// The newest `setTargets` update sent before the session finished
     /// activating. Apple only queues `transferUserInfo` on an activated
@@ -149,6 +151,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onRunCue?(payload)
         case "runFinished":
             onRunFinished?(payload)
+        case "runEffort":
+            onRunEffort?(payload)
         default:
             break
         }
@@ -313,7 +317,8 @@ public class WatchConnectivityModule: Module {
             "onFastEndRequested",
             "onRunLive",
             "onRunCue",
-            "onRunFinished"
+            "onRunFinished",
+            "onRunEffort"
         )
 
         OnCreate {
@@ -548,6 +553,12 @@ public class WatchConnectivityModule: Module {
                 let event = self.normalizedRunEvent(payload)
                 self.rememberFinishedRun(event)
                 self.sendEvent("onRunFinished", event)
+            }
+            self.delegateHandler.onRunEffort = { [weak self] payload in
+                self?.sendEvent("onRunEffort", [
+                    "clientId": payload["clientId"] as? String ?? "",
+                    "rating": payload["rating"] as? Int ?? 0,
+                ])
             }
             self.delegateHandler.activate()
         }

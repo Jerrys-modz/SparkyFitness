@@ -782,6 +782,12 @@ export interface WatchRunCuePayload {
   interrupt: boolean;
 }
 
+/** How hard the wearer rated a finished watch run, 1 to 10. Matches a run by `clientId`. */
+export interface WatchRunEffortPayload {
+  clientId: string;
+  rating: number;
+}
+
 export interface WatchRunLivePayload {
   runId: string;
   kind: string;
@@ -899,6 +905,7 @@ export type WatchConnectivityEvents = {
   onRunLive: (payload: WatchRunLivePayload) => void;
   onRunCue: (payload: WatchRunCuePayload) => void;
   onRunFinished: (payload: WatchRunFinishedPayload) => void;
+  onRunEffort: (payload: WatchRunEffortPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {

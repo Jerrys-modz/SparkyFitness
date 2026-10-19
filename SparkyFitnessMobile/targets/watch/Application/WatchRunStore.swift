@@ -27,6 +27,8 @@ final class WatchRunStore: ObservableObject {
         let elapsed: TimeInterval
         let metrics: WatchRunMetrics
         let saved: Bool
+        /// The run's id, so an effort rating can be matched to it on the phone.
+        var clientId: String? = nil
     }
 
     @Published private(set) var phase: Phase = .idle
@@ -308,7 +310,8 @@ final class WatchRunStore: ObservableObject {
                         place: result.place,
                         elapsed: result.activeSeconds,
                         metrics: result.metrics,
-                        saved: true
+                        saved: true,
+                        clientId: result.clientId
                     )
                     self.phase = .finished
                     completion(false)
@@ -771,7 +774,7 @@ final class WatchRunStore: ObservableObject {
                     WatchRunSnapshotStore.clear()
                 }
                 if save {
-                    self.summary = Summary(kind: ending, place: endingPlace, elapsed: elapsed, metrics: metrics, saved: true)
+                    self.summary = Summary(kind: ending, place: endingPlace, elapsed: elapsed, metrics: metrics, saved: true, clientId: scaled?.clientId)
                     self.phase = .finished
                 } else {
                     self.requestId = nil
@@ -810,7 +813,7 @@ final class WatchRunStore: ObservableObject {
             WatchRunSnapshotStore.clear()
         }
         metrics = result.metrics
-        summary = Summary(kind: result.kind, place: result.place, elapsed: pendingElapsed, metrics: result.metrics, saved: true)
+        summary = Summary(kind: result.kind, place: result.place, elapsed: pendingElapsed, metrics: result.metrics, saved: true, clientId: result.clientId)
         phase = .finished
     }
 
@@ -844,8 +847,25 @@ final class WatchRunStore: ObservableObject {
             place: result.place,
             elapsed: result.activeSeconds,
             metrics: scaled.metrics,
-            saved: true
+            saved: true,
+            clientId: scaled.clientId
         )
         phase = .finished
+    }
+
+    /// Saves the wearer's 1-10 effort for the run just finished: to Apple
+    /// Health when its workout was saved (watchOS 11+), and to the phone, which
+    /// files it against the training program when the run was one.
+    func rateEffort(_ score: Int, completion: @escaping (Bool) -> Void) {
+        if let clientId = summary?.clientId {
+            WatchSessionManager.shared.sendRunEffort(clientId: clientId, rating: score)
+        }
+        guard healthKit.canSaveEffort else {
+            // Nothing to write to Health (older watchOS, or the Health session
+            // was lost); the phone still has the rating.
+            completion(true)
+            return
+        }
+        healthKit.saveEffort(score, completion: completion)
     }
 }

@@ -3,7 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ApiError } from './api/errors';
 import { addLog } from './LogService';
 import { saveWatchRun } from './watchRunSave';
-import { completeProgramWorkout } from './runProgramService';
+import {
+  completeProgramWorkout,
+  rateProgramWorkout,
+} from './runProgramService';
 import { toLocalDateString } from '../utils/dateUtils';
 import { parseWatchRunPayload, type WatchRunPayload } from '../utils/watchRun';
 
@@ -18,6 +21,8 @@ const QUEUE_KEY = '@SparkyFitness/watchRunQueue';
 /** Ids already filed, so a re-delivered message is not logged twice. */
 const DONE_KEY = '@SparkyFitness/watchRunDone';
 const MAX_DONE = 50;
+/** Effort ratings from the watch, waiting for their run's program workout. */
+const EFFORT_KEY = '@SparkyFitness/watchRunEffort';
 const RETRYABLE_CLIENT_STATUSES = new Set([401, 408, 429]);
 
 interface QueuedRun {
@@ -44,6 +49,78 @@ function serial<T>(task: () => Promise<T>): Promise<T> {
   const next = chain.then(task, task);
   chain = next.catch(() => undefined);
   return next;
+}
+
+interface RunEffort {
+  rating?: number;
+  /** The program workout the run completed; set once it is ticked off. */
+  program?: { id: string; index: number };
+}
+type RunEfforts = Record<string, RunEffort>;
+
+const readEfforts = () => readJson<RunEfforts>(EFFORT_KEY, {});
+
+async function writeEfforts(efforts: RunEfforts): Promise<void> {
+  // Insertion order, so the oldest entries go first.
+  const kept = Object.fromEntries(Object.entries(efforts).slice(-MAX_DONE));
+  await AsyncStorage.setItem(EFFORT_KEY, JSON.stringify(kept));
+}
+
+/**
+ * Rates the program workout of every run that has both its rating from the
+ * watch and its workout ticked off. A failure that may pass keeps the rating
+ * for the next pass; one the server will never accept drops it. A rating for
+ * a run that was not a program workout is never matched and ages out.
+ */
+async function settleEfforts(): Promise<void> {
+  const efforts = await serial(readEfforts);
+  for (const [clientId, effort] of Object.entries(efforts)) {
+    if (effort.rating == null || !effort.program) continue;
+    try {
+      await rateProgramWorkout(
+        effort.program.id,
+        effort.program.index,
+        effort.rating
+      );
+    } catch (error) {
+      if (isRetryable(error)) continue;
+      addLog(
+        `[Watch Run] Could not save the effort: ${String(error)}`,
+        'WARNING'
+      );
+    }
+    await serial(async () => {
+      const latest = await readEfforts();
+      delete latest[clientId];
+      await writeEfforts(latest);
+    });
+  }
+}
+
+/** Keeps the 1 to 10 rating the wearer gave a run on the watch. */
+export function receiveWatchRunEffort(
+  clientId: string,
+  rating: number
+): Promise<void> {
+  if (!clientId || !Number.isInteger(rating) || rating < 1 || rating > 10) {
+    return Promise.resolve();
+  }
+  return serial(async () => {
+    const efforts = await readEfforts();
+    efforts[clientId] = { ...efforts[clientId], rating };
+    await writeEfforts(efforts);
+  }).then(settleEfforts);
+}
+
+async function rememberProgramRun(
+  clientId: string,
+  program: { id: string; index: number }
+): Promise<void> {
+  await serial(async () => {
+    const efforts = await readEfforts();
+    efforts[clientId] = { ...efforts[clientId], program };
+    await writeEfforts(efforts);
+  });
 }
 
 /** Stores a run that just arrived. Returns false for a copy already handled. */
@@ -126,6 +203,7 @@ async function tickOffProgram(
       toLocalDateString(new Date(payload.startedAt)),
       entryId
     );
+    await rememberProgramRun(payload.clientId, payload.program);
   } catch (error) {
     // A failure that may pass (offline, 5xx, auth) keeps the run queued: the
     // entry id is already stored, so the retry only repeats the later steps.
@@ -199,6 +277,8 @@ export function processWatchRunQueue(
       filed.push(...pass.filed);
       if (pass.needsRetry) needsRetry = true;
     } while (again);
+    // After the loop: a rating that arrived before its run was ticked off.
+    await settleEfforts().catch(() => undefined);
     return filed;
   })().finally(() => {
     processing = null;
