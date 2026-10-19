@@ -1487,6 +1487,14 @@ final class WatchSessionManager: NSObject, ObservableObject {
         transfer(OutboundPayloads.heartRateBatch(batch))
     }
 
+    /// Whether the workout that just ended can still take an effort rating.
+    var canRateWorkoutEffort: Bool { workoutHealthKit.canSaveEffort }
+
+    /// Saves the wearer's 1-10 effort for the workout that just ended to Health.
+    func rateWorkoutEffort(_ score: Int, completion: @escaping (Bool) -> Void) {
+        workoutHealthKit.saveEffort(score, completion: completion)
+    }
+
     /// Ends the workout. The stop signal waits until HealthKit has finished
     /// the workout and the tail has been queued. See `finishCollection`.
     func endWorkout() {

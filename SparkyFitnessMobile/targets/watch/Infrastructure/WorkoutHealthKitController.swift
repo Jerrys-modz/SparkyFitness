@@ -28,6 +28,10 @@ final class WorkoutHealthKitController: NSObject {
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
+    /// The workout `finishWorkout` last saved, kept so the wearer can attach
+    /// an effort rating to it from the summary screen. Cleared when the next
+    /// session starts. Main queue only.
+    private var lastSavedWorkout: HKWorkout?
     private var pendingSamples: [HeartRateSample] = []
     /// Timestamps already sitting in `pendingSamples` (or flushed this
     /// session), so a series-query callback and a statistics burst cannot
@@ -93,9 +97,13 @@ final class WorkoutHealthKitController: NSObject {
             DispatchQueue.main.async { completion(false) }
             return
         }
-        let shareTypes: Set<HKSampleType> = [
+        var shareTypes: Set<HKSampleType> = [
             HKObjectType.workoutType(), heartRateType, activeEnergyType,
         ]
+        // Apple's 1-10 workout effort rating (watchOS 11+).
+        if #available(watchOS 11.0, *) {
+            shareTypes.insert(HKQuantityType(.workoutEffortScore))
+        }
         let readTypes: Set<HKObjectType> = [
             heartRateType, activeEnergyType, HKObjectType.workoutType(),
         ]
@@ -217,6 +225,7 @@ final class WorkoutHealthKitController: NSObject {
             pendingSamples = []
             pendingSampleTimes = []
             skipReadingsThrough = nil
+            lastSavedWorkout = nil
             sessionGeneration += 1
 
             let now = Date()
@@ -331,6 +340,7 @@ final class WorkoutHealthKitController: NSObject {
                     finishTail([])
                     return
                 }
+                DispatchQueue.main.async { self.lastSavedWorkout = workout }
                 self.readHeartRate(
                     matching: HKQuery.predicateForObjects(from: workout),
                     skipThrough: skipThrough
@@ -351,6 +361,33 @@ final class WorkoutHealthKitController: NSObject {
                     }
                 }
             }
+        }
+    }
+
+    /// True when the last finished workout was saved and this watchOS can
+    /// attach an effort rating to it.
+    var canSaveEffort: Bool {
+        guard lastSavedWorkout != nil else { return false }
+        if #available(watchOS 11.0, *) { return true }
+        return false
+    }
+
+    /// Attaches the wearer's 1-10 effort to the workout just saved, the same
+    /// rating Apple's own Workout app asks for, so it shows in Fitness and
+    /// Health. Completion is on the main queue with whether it was saved.
+    func saveEffort(_ score: Int, completion: @escaping (Bool) -> Void) {
+        guard #available(watchOS 11.0, *), let workout = lastSavedWorkout else {
+            completion(false)
+            return
+        }
+        let sample = HKQuantitySample(
+            type: HKQuantityType(.workoutEffortScore),
+            quantity: HKQuantity(unit: .appleEffortScore(), doubleValue: Double(min(max(score, 1), 10))),
+            start: workout.startDate,
+            end: workout.endDate
+        )
+        healthStore.relateWorkoutEffortSample(sample, with: workout, activity: nil) { success, _ in
+            DispatchQueue.main.async { completion(success) }
         }
     }
 

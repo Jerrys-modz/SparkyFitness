@@ -103,3 +103,5 @@
 "watch.cardio.lowest" = "Lowest";
 "watch.cardio.highest" = "Highest";
 "watch.cardio.distanceOutdoorOnly" = "Distance steps need GPS, so this plan is outdoor only.";
+"watch.effort.title" = "How hard was that?";
+"watch.effort.saved" = "Saved to Health";
