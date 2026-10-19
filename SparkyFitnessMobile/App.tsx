@@ -143,6 +143,8 @@ import {
   SafeCycleLogModal,
   SafePregnancySetup,
   SafeMedicationsList,
+  SafeMedicationAdherence,
+  SafeMedicationEntryEdit,
   SafeMedicationDetail,
   SafeMedicationForm,
   SafeMedicationScheduleForm,
@@ -1164,6 +1166,20 @@ function AppContent() {
             name="MedicationsList"
             component={SafeMedicationsList}
             options={createStackScreenOptions(t('screens.medications', { defaultValue: 'Medications' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
+            name="MedicationAdherence"
+            component={SafeMedicationAdherence}
+            options={createStackScreenOptions(t('medications.adherence.screenTitle', { defaultValue: 'Adherence' }), { headerBackTitle: t('screens.medications', { defaultValue: 'Medications' }) })}
+          />
+          <Stack.Screen
+            name="MedicationEntryEdit"
+            component={SafeMedicationEntryEdit}
+            options={createStackScreenOptions(t('medications.entryEdit.title', { defaultValue: 'Edit logged dose' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
           />
           <Stack.Screen
             name="MedicationDetail"
