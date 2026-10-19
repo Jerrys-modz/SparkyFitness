@@ -133,6 +133,7 @@ interface FieldShellProps {
   onPick: (value: string) => void;
   onLeave: () => void;
   className?: string;
+  required?: boolean;
   disabled?: boolean;
   children: React.ReactNode;
 }
@@ -146,6 +147,7 @@ const FieldShell: React.FC<FieldShellProps> = ({
   onPick,
   onLeave,
   className,
+  required,
   disabled,
   children,
 }) => {
@@ -181,7 +183,12 @@ const FieldShell: React.FC<FieldShellProps> = ({
       }}
     >
       {children}
-      {/* Anchors the browser picker to this box; never shown or tabbed to. */}
+      {/*
+        Anchors the browser picker to this box; never shown or tabbed to.
+        Also required when the field is: react-aria's own validation input
+        blocks submission but suppresses the browser's "Please fill out this
+        field" bubble, so this one lets the browser show it over the field.
+      */}
       <input
         ref={nativeRef}
         type={nativeType}
@@ -189,6 +196,7 @@ const FieldShell: React.FC<FieldShellProps> = ({
         onChange={(e) => onPick(e.target.value)}
         tabIndex={-1}
         aria-hidden="true"
+        required={required}
         disabled={disabled}
         className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
       />
@@ -235,6 +243,7 @@ export const TimeInput: React.FC<FieldProps> = ({
       onPick={setCurrent}
       onLeave={() => onBlur?.(latest.current)}
       className={className}
+      required={required}
       disabled={disabled}
     >
       <TimeField
@@ -278,6 +287,7 @@ export const DateTimeInput: React.FC<FieldProps> = ({
       onPick={setCurrent}
       onLeave={() => onBlur?.(latest.current)}
       className={className}
+      required={required}
       disabled={disabled}
     >
       <DateField

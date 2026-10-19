@@ -363,3 +363,77 @@ describe('browser picker button', () => {
     expect(screen.getByRole('button', { name: 'Pick a time' })).toBeDisabled();
   });
 });
+
+describe('required fields', () => {
+  it.each([
+    ['TimeInput', TimeInput, '14:30'],
+    ['DateTimeInput', DateTimeInput, '2026-10-18T14:30'],
+  ] as const)(
+    '%s blocks form submission while empty, like a native required input',
+    (_name, Field, filled) => {
+      const { container, rerender } = render(
+        <form>
+          <Field
+            aria-label="Start time"
+            value=""
+            onChange={jest.fn()}
+            required
+          />
+        </form>
+      );
+      const form = container.querySelector('form')!;
+
+      expect(form.checkValidity()).toBe(false);
+
+      rerender(
+        <form>
+          <Field
+            aria-label="Start time"
+            value={filled}
+            onChange={jest.fn()}
+            required
+          />
+        </form>
+      );
+      expect(form.checkValidity()).toBe(true);
+    }
+  );
+});
+
+describe('required field message', () => {
+  it.each([
+    ['TimeInput', TimeInput],
+    ['DateTimeInput', DateTimeInput],
+  ] as const)(
+    '%s leaves the browser an unsuppressed invalid field to report',
+    (_name, Field) => {
+      const onSubmit = jest.fn();
+      const { container } = render(
+        <form onSubmit={onSubmit}>
+          <Field aria-label="End time" value="" onChange={jest.fn()} required />
+        </form>
+      );
+      const reported: HTMLElement[] = [];
+      const record = (e: Event) =>
+        // Read defaultPrevented after every handler has run.
+        setTimeout(() => {
+          if (!e.defaultPrevented) reported.push(e.target as HTMLElement);
+        });
+      document.addEventListener('invalid', record, true);
+      jest.useFakeTimers();
+      try {
+        act(() => container.querySelector('form')!.requestSubmit());
+        act(() => jest.runAllTimers());
+      } finally {
+        jest.useRealTimers();
+        document.removeEventListener('invalid', record, true);
+      }
+
+      expect(onSubmit).not.toHaveBeenCalled();
+      // The browser shows "Please fill out this field" on this input, which
+      // sits over the visible field.
+      expect(reported).toHaveLength(1);
+      expect(reported[0]).toHaveAttribute('aria-hidden', 'true');
+    }
+  );
+});
