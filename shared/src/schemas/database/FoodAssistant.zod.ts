@@ -1,8 +1,8 @@
-import { z } from "zod";
+import { z } from 'zod';
 import {
   foodAssistantCheckpointSchema,
   foodAssistantTaskStatusSchema,
-} from "../api/FoodAssistant.api.zod.ts";
+} from '../api/FoodAssistant.api.zod.ts';
 
 export const foodAssistantPreferenceSchema = z.object({
   user_id: z.string().uuid(),
@@ -16,7 +16,7 @@ export const foodAssistantPreferenceSchema = z.object({
 export const foodAssistantTaskSchema = z.object({
   id: z.string().uuid(),
   user_id: z.string().uuid(),
-  kind: z.enum(["recipe", "meal_plan", "diary", "shopping", "analysis"]),
+  kind: z.enum(['recipe', 'meal_plan', 'diary', 'shopping', 'analysis']),
   title: z.string(),
   creation_hash: z.string(),
   status: foodAssistantTaskStatusSchema,

@@ -1,18 +1,18 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 const uuid = z.string().uuid();
 const text = z.string().trim().min(1).max(2000);
 export const foodAssistantTaskStatusSchema = z.enum([
-  "draft",
-  "running",
-  "awaiting_input",
-  "complete",
-  "cancelled",
-  "failed",
+  'draft',
+  'running',
+  'awaiting_input',
+  'complete',
+  'cancelled',
+  'failed',
 ]);
 export const foodAssistantEvidenceSchema = z
   .object({
-    source: z.enum(["saved_food", "provider", "label", "recipe", "web"]),
+    source: z.enum(['saved_food', 'provider', 'label', 'recipe', 'web']),
     title: text,
     url: z
       .string()
@@ -36,17 +36,17 @@ export const foodAssistantIngredientSchema = z
     unit: z.string().trim().min(1).max(100),
     food_id: uuid.optional(),
     variant_id: uuid.optional(),
-    status: z.enum(["unresolved", "selected", "verified"]),
+    status: z.enum(['unresolved', 'selected', 'verified']),
     issue: text.optional(),
     evidence: z.array(foodAssistantEvidenceSchema).max(10).default([]),
   })
   .strict()
   .superRefine((value, ctx) => {
-    if (value.status !== "unresolved" && !value.food_id) {
+    if (value.status !== 'unresolved' && !value.food_id) {
       ctx.addIssue({
-        code: "custom",
-        path: ["food_id"],
-        message: "A selected ingredient requires a saved food ID.",
+        code: 'custom',
+        path: ['food_id'],
+        message: 'A selected ingredient requires a saved food ID.',
       });
     }
   });
@@ -77,9 +77,9 @@ export const foodAssistantCheckpointSchema = z
 export const createFoodAssistantTaskSchema = z
   .object({
     id: uuid.describe(
-      "Stable request ID. Reuse it when retrying the same task creation.",
+      'Stable request ID. Reuse it when retrying the same task creation.'
     ),
-    kind: z.enum(["recipe", "meal_plan", "diary", "shopping", "analysis"]),
+    kind: z.enum(['recipe', 'meal_plan', 'diary', 'shopping', 'analysis']),
     title: z.string().trim().min(1).max(200),
     checkpoint: foodAssistantCheckpointSchema,
   })
@@ -88,7 +88,7 @@ export const checkpointFoodAssistantTaskSchema = z
   .object({
     operation_id: uuid,
     expected_version: z.number().int().positive(),
-    status: z.enum(["draft", "running", "awaiting_input", "failed"]),
+    status: z.enum(['draft', 'running', 'awaiting_input', 'failed']),
     checkpoint: foodAssistantCheckpointSchema,
   })
   .strict();
