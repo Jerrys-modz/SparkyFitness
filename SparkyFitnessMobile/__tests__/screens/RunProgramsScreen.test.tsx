@@ -474,5 +474,4 @@ describe('RunProgramsScreen', () => {
       expect(screen.queryByTestId('run-program-use-race-day')).toBeNull();
     });
   });
-
 });
