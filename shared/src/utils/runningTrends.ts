@@ -1,5 +1,5 @@
-import { addDays, daysBetween } from "./timezone.ts";
-import { classifyActivitySport } from "./activitySport.ts";
+import { addDays, daysBetween } from './timezone.ts';
+import { classifyActivitySport } from './activitySport.ts';
 
 /**
  * Weekly running volume, long run and aerobic efficiency from a list of
@@ -61,8 +61,11 @@ const MIN_RUN_METERS = 100;
 export type WeekStart = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 /** Reads a stored `first_day_of_week` value, falling back to Monday. */
-export function toWeekStart(value: unknown, fallback: WeekStart = 1): WeekStart {
-  return typeof value === "number" &&
+export function toWeekStart(
+  value: unknown,
+  fallback: WeekStart = 1
+): WeekStart {
+  return typeof value === 'number' &&
     Number.isInteger(value) &&
     value >= 0 &&
     value <= 6
@@ -72,7 +75,7 @@ export function toWeekStart(value: unknown, fallback: WeekStart = 1): WeekStart 
 
 /** 0 = Sunday ... 6 = Saturday, for a YYYY-MM-DD calendar day. */
 function weekdayOf(day: string): number {
-  const [year, month, date] = day.split("-").map(Number);
+  const [year, month, date] = day.split('-').map(Number);
   return new Date(Date.UTC(year!, month! - 1, date!)).getUTCDay();
 }
 
@@ -87,7 +90,7 @@ export function isRunningActivity(activity: RunningTrendsActivity): boolean {
     classifyActivitySport({
       exerciseName: activity.exerciseName,
       category: activity.category,
-    }).sport === "running"
+    }).sport === 'running'
   );
 }
 
@@ -100,7 +103,7 @@ const mean = (values: readonly number[]): number =>
  */
 export function buildRunningTrends(
   activities: readonly RunningTrendsActivity[],
-  options: { today: string; weeks?: number; weekStartsOn?: WeekStart },
+  options: { today: string; weeks?: number; weekStartsOn?: WeekStart }
 ): RunningTrends {
   const weekCount = options.weeks ?? 12;
   const weekStartsOn = options.weekStartsOn ?? 1;

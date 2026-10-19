@@ -190,13 +190,21 @@ async function syncGoogleHealthData(
           },
           tz
         );
-      if (r['raw_activity_level'])
+      const activityMinutesRollups = [
+        r['raw_rollup_active_minutes'],
+        r['raw_rollup_sedentary_period'],
+      ].flatMap(
+        (raw) =>
+          (
+            raw?.data as
+              { rollupDataPoints?: Record<string, unknown>[] } | undefined
+          )?.rollupDataPoints ?? []
+      );
+      if (activityMinutesRollups.length > 0)
         await googleHealthDataProcessor.processGoogleActivityMinutes(
           userId,
           userId,
-          r['raw_activity_level'].data as {
-            dataPoints: Record<string, unknown>[];
-          },
+          { rollupDataPoints: activityMinutesRollups },
           tz
         );
       if (r['raw_rollup_distance'])

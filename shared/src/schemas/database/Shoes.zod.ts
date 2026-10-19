@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 export const shoesIdSchema = z.string();
 
@@ -13,7 +13,7 @@ export const shoesSchema = z.object({
   purchase_price: z.number().nullable(),
   starting_distance_km: z.number(),
   retirement_distance_km: z.number(),
-  status: z.enum(["active", "retired"]),
+  status: z.enum(['active', 'retired']),
   is_default: z.boolean(),
   retired_at: z.coerce.date().nullable(),
   created_at: z.coerce.date(),
@@ -33,7 +33,7 @@ export const shoesInitializerSchema = z.object({
   purchase_price: z.number().optional().nullable(),
   starting_distance_km: z.number().optional().default(0),
   retirement_distance_km: z.number().optional().default(800),
-  status: z.enum(["active", "retired"]).optional().default("active"),
+  status: z.enum(['active', 'retired']).optional().default('active'),
   is_default: z.boolean().optional().default(false),
   retired_at: z.coerce.date().optional().nullable(),
   created_at: z.coerce.date().optional(),

@@ -1,4 +1,4 @@
-import { addDays, compareDays, dayOfWeek } from "./timezone.ts";
+import { addDays, compareDays, dayOfWeek } from './timezone.ts';
 
 /**
  * When a run program's workouts fall, from the person's place in it and the
@@ -93,7 +93,7 @@ export function projectedFinishDay({
 }
 
 export interface DiaryProgramRun {
-  kind: "scheduled" | "upNext";
+  kind: 'scheduled' | 'upNext';
   /** Index of the workout to show. */
   index: number;
 }
@@ -132,7 +132,7 @@ export function programRunForDate({
     if (schedule.startDay && compareDays(today, schedule.startDay) < 0) {
       return null;
     }
-    return { kind: "upNext", index: next };
+    return { kind: 'upNext', index: next };
   }
   const run = projectRuns({
     total,
@@ -142,5 +142,5 @@ export function programRunForDate({
     doneToday,
     limit: 60,
   }).find((r) => r.day === date);
-  return run ? { kind: "scheduled", index: run.index } : null;
+  return run ? { kind: 'scheduled', index: run.index } : null;
 }

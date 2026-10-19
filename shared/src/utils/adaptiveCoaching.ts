@@ -1,4 +1,4 @@
-import type { ExerciseCoachingSignal } from "../schemas/api/WorkoutCoaching.api.zod.ts";
+import type { ExerciseCoachingSignal } from '../schemas/api/WorkoutCoaching.api.zod.ts';
 
 /**
  * Deterministic adaptive prescription (issue #1560). The server reports what
@@ -16,17 +16,17 @@ import type { ExerciseCoachingSignal } from "../schemas/api/WorkoutCoaching.api.
 
 /** Why a suggestion changed; clients render each as a sentence. */
 export const ADAPTIVE_REASONS = [
-  "pain_reported",
-  "pain_repeated",
-  "session_pain",
-  "too_hard",
-  "too_hard_repeated",
-  "high_effort",
-  "too_easy_repeated",
+  'pain_reported',
+  'pain_repeated',
+  'session_pain',
+  'too_hard',
+  'too_hard_repeated',
+  'high_effort',
+  'too_easy_repeated',
 ] as const;
 export type AdaptiveReason = (typeof ADAPTIVE_REASONS)[number];
 
-export type AdaptiveAdjustmentKind = "none" | "hold" | "reduce" | "increase";
+export type AdaptiveAdjustmentKind = 'none' | 'hold' | 'reduce' | 'increase';
 
 export interface AdaptiveAdjustment {
   kind: AdaptiveAdjustmentKind;
@@ -45,7 +45,7 @@ export interface AdaptiveAdjustment {
 }
 
 export const NO_ADAPTIVE_ADJUSTMENT: AdaptiveAdjustment = {
-  kind: "none",
+  kind: 'none',
   loadFactor: 1,
   blockIncrease: false,
   addIncrement: false,
@@ -72,7 +72,7 @@ function adjustment(
   partial: Partial<AdaptiveAdjustment> & {
     kind: AdaptiveAdjustmentKind;
     reason: AdaptiveReason;
-  },
+  }
 ): AdaptiveAdjustment {
   return { ...NO_ADAPTIVE_ADJUSTMENT, ...partial };
 }
@@ -83,7 +83,7 @@ function adjustment(
  * change. Rules are checked in priority order; the first that applies wins.
  */
 export function decideAdaptiveAdjustment(
-  signal: ExerciseCoachingSignal | null | undefined,
+  signal: ExerciseCoachingSignal | null | undefined
 ): AdaptiveAdjustment {
   if (!signal) return NO_ADAPTIVE_ADJUSTMENT;
   if (
@@ -94,36 +94,40 @@ export function decideAdaptiveAdjustment(
   }
 
   // 1. Pain felt in this exercise: lighter, and twice in a row -> swap it.
-  if (signal.last_pain === "exercise") {
+  if (signal.last_pain === 'exercise') {
     const repeated = signal.pain_streak >= ADAPTIVE_STREAK;
     return adjustment({
-      kind: "reduce",
+      kind: 'reduce',
       loadFactor: ADAPTIVE_REDUCE_FACTOR,
       blockIncrease: true,
       suggestAlternative: true,
-      reason: repeated ? "pain_repeated" : "pain_reported",
+      reason: repeated ? 'pain_repeated' : 'pain_reported',
     });
   }
   // 2. Pain somewhere in the last session, exercise not named: hold.
-  if (signal.last_pain === "session") {
+  if (signal.last_pain === 'session') {
     return adjustment({
-      kind: "hold",
+      kind: 'hold',
       blockIncrease: true,
-      reason: "session_pain",
+      reason: 'session_pain',
     });
   }
   // 3. Too hard twice in a row: a lighter day.
   if (signal.too_hard_streak >= ADAPTIVE_STREAK) {
     return adjustment({
-      kind: "reduce",
+      kind: 'reduce',
       loadFactor: ADAPTIVE_REDUCE_FACTOR,
       blockIncrease: true,
-      reason: "too_hard_repeated",
+      reason: 'too_hard_repeated',
     });
   }
   // 4. Too hard last time: don't add load yet.
-  if (signal.last_difficulty === "too_hard") {
-    return adjustment({ kind: "hold", blockIncrease: true, reason: "too_hard" });
+  if (signal.last_difficulty === 'too_hard') {
+    return adjustment({
+      kind: 'hold',
+      blockIncrease: true,
+      reason: 'too_hard',
+    });
   }
   // 5. No feedback, but logged effort says it was a grind.
   if (
@@ -132,17 +136,17 @@ export function decideAdaptiveAdjustment(
       (signal.avg_rir != null && signal.avg_rir <= ADAPTIVE_LOW_RIR))
   ) {
     return adjustment({
-      kind: "hold",
+      kind: 'hold',
       blockIncrease: true,
-      reason: "high_effort",
+      reason: 'high_effort',
     });
   }
   // 6. Too easy twice in a row: one step up.
   if (signal.too_easy_streak >= ADAPTIVE_STREAK) {
     return adjustment({
-      kind: "increase",
+      kind: 'increase',
       addIncrement: true,
-      reason: "too_easy_repeated",
+      reason: 'too_easy_repeated',
     });
   }
   return NO_ADAPTIVE_ADJUSTMENT;
@@ -156,10 +160,10 @@ export function decideAdaptiveAdjustment(
  */
 export function shouldSuggestVariation(
   signal: ExerciseCoachingSignal | null | undefined,
-  mechanic: string | null | undefined,
+  mechanic: string | null | undefined
 ): boolean {
   if (!signal) return false;
-  if (mechanic?.trim().toLowerCase() === "compound") return false;
+  if (mechanic?.trim().toLowerCase() === 'compound') return false;
   if (signal.last_pain != null) return false;
   return signal.sessions_in_variation_window >= VARIATION_MIN_SESSIONS;
 }
@@ -168,8 +172,8 @@ export function shouldSuggestVariation(
  * Smallest loadable step in the user's unit: plates come in 2.5 kg / 5 lb
  * pairs on most equipment.
  */
-export function adaptiveWeightStep(unit: "kg" | "lbs"): number {
-  return unit === "kg" ? 2.5 : 5;
+export function adaptiveWeightStep(unit: 'kg' | 'lbs'): number {
+  return unit === 'kg' ? 2.5 : 5;
 }
 
 /**
@@ -182,7 +186,7 @@ export function adaptiveWeightStep(unit: "kg" | "lbs"): number {
 export function applyAdaptiveLoadFactor(
   weight: number,
   loadFactor: number,
-  unit: "kg" | "lbs",
+  unit: 'kg' | 'lbs'
 ): number {
   if (!(weight > 0) || loadFactor >= 1) return weight;
   const step = adaptiveWeightStep(unit);
@@ -196,10 +200,10 @@ export function applyAdaptiveLoadFactor(
 const KG_PER_LB = 0.45359237;
 
 /** One loadable step (2.5 kg / 5 lb) expressed in kg. */
-export function adaptiveWeightStepKg(unit: "kg" | "lbs"): number {
-  return unit === "kg"
-    ? adaptiveWeightStep("kg")
-    : adaptiveWeightStep("lbs") * KG_PER_LB;
+export function adaptiveWeightStepKg(unit: 'kg' | 'lbs'): number {
+  return unit === 'kg'
+    ? adaptiveWeightStep('kg')
+    : adaptiveWeightStep('lbs') * KG_PER_LB;
 }
 
 /**
@@ -210,12 +214,12 @@ export function adaptiveWeightStepKg(unit: "kg" | "lbs"): number {
 export function applyAdaptiveLoadFactorKg(
   weightKg: number,
   loadFactor: number,
-  unit: "kg" | "lbs",
+  unit: 'kg' | 'lbs'
 ): number {
   if (!(weightKg > 0) || loadFactor >= 1) return weightKg;
-  if (unit === "kg") return applyAdaptiveLoadFactor(weightKg, loadFactor, "kg");
+  if (unit === 'kg') return applyAdaptiveLoadFactor(weightKg, loadFactor, 'kg');
   const pounds = weightKg / KG_PER_LB;
-  const adjusted = applyAdaptiveLoadFactor(pounds, loadFactor, "lbs");
+  const adjusted = applyAdaptiveLoadFactor(pounds, loadFactor, 'lbs');
   if (adjusted === pounds) return weightKg;
   return Math.round(adjusted * KG_PER_LB * 10000) / 10000;
 }

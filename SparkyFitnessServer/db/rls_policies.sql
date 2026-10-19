@@ -58,6 +58,9 @@ BEGIN
     'profiles',
     'rate_limit',
     'sparky_chat_history',
+    'food_assistant_preferences',
+    'food_assistant_tasks',
+    'food_assistant_operations',
     'admin_activity_logs',
     'api_key',
     'user_goals',
@@ -617,6 +620,9 @@ USING (
 SELECT create_owner_policy('api_key', 'reference_id');
 SELECT create_owner_policy('user_oidc_links');
 SELECT create_owner_policy('sparky_chat_history');
+SELECT create_owner_policy('food_assistant_preferences');
+SELECT create_owner_policy('food_assistant_tasks');
+SELECT create_owner_policy('food_assistant_operations');
 
 -- Profiles: delegates can read (with any meaningful permission) but only owner can write.
 -- Delegates do not need to modify another user's profile to manage their diary.
@@ -855,7 +861,8 @@ CREATE POLICY insert_policy ON public.food_entries FOR INSERT TO PUBLIC
 WITH CHECK (
   has_diary_access(user_id) AND (
     (food_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.foods f WHERE f.id = food_entries.food_id)) OR
-    (meal_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.meals m WHERE m.id = food_entries.meal_id))
+    (meal_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.meals m WHERE m.id = food_entries.meal_id)) OR
+    (food_id IS NULL AND meal_id IS NULL AND variant_id IS NULL)
   )
 );
 CREATE POLICY update_policy ON public.food_entries FOR UPDATE TO PUBLIC
