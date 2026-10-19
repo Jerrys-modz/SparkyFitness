@@ -30,6 +30,14 @@ vi.mock('../utils/timezoneLoader', () => ({
 vi.mock('../models/userRepository', () => ({
   default: { getUserProfile: vi.fn() },
 }));
+vi.mock('../models/heartRateZoneRepository', () => ({
+  getHeartRateZoneSettings: vi.fn().mockResolvedValue({
+    maxHeartRate: null,
+    restingHeartRate: null,
+    method: 'percent_max',
+    customFloors: null,
+  }),
+}));
 vi.mock('../models/workoutTelemetryRepository', () => ({
   bulkInsertExerciseEntryHrZones: vi.fn(),
   replaceExerciseEntryHrZones: vi.fn(),

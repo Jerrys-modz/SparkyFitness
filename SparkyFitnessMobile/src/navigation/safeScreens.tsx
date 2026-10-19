@@ -67,6 +67,7 @@ import WatchSettingsScreen from '../screens/WatchSettingsScreen';
 import DiarySettingsScreen from '../screens/DiarySettingsScreen';
 import WorkoutSettingsScreen from '../screens/WorkoutSettingsScreen';
 import WarmupSettingsScreen from '../screens/WarmupSettingsScreen';
+import HeartRateZonesSettingsScreen from '../screens/HeartRateZonesSettingsScreen';
 import ServerSettingsScreen from '../screens/ServerSettingsScreen';
 import PasskeySettingsScreen from '../screens/PasskeySettingsScreen';
 import AppSettingsScreen from '../screens/AppSettingsScreen';
@@ -206,6 +207,7 @@ export const SafeWatchSettings = withErrorBoundary(WatchSettingsScreen, 'WatchSe
 export const SafeDiarySettings = withErrorBoundary(DiarySettingsScreen, 'DiarySettings', { canGoBack: true });
 export const SafeWorkoutSettings = withErrorBoundary(WorkoutSettingsScreen, 'WorkoutSettings', { canGoBack: true });
 export const SafeWarmupSettings = withErrorBoundary(WarmupSettingsScreen, 'WarmupSettings', { canGoBack: true });
+export const SafeHeartRateZonesSettings = withErrorBoundary(HeartRateZonesSettingsScreen, 'HeartRateZonesSettings', { canGoBack: true });
 export const SafeServerSettings = withErrorBoundary(ServerSettingsScreen, 'ServerSettings', { canGoBack: true });
 export const SafePasskeySettings = withErrorBoundary(PasskeySettingsScreen, 'PasskeySettings', { canGoBack: true });
 export const SafeAppSettings = withErrorBoundary(AppSettingsScreen, 'AppSettings', { canGoBack: true });
