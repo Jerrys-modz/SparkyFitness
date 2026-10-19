@@ -147,6 +147,15 @@ export async function reconcileMedicationReminders(
         .filter((n) => n.content.data?.medicationId)
         .map((n) => n.identifier);
       if (medIds.length > 0) await cancelReminders(medIds);
+      if (typeof Notifications.getPresentedNotificationsAsync === 'function') {
+        const presented =
+          await Notifications.getPresentedNotificationsAsync().catch(() => []);
+        const presentedIds = presented
+          .filter((n) => n.request.content.data?.medicationId)
+          .map((n) => n.request.identifier);
+        if (presentedIds.length > 0)
+          await dismissPresentedReminders(presentedIds);
+      }
       return;
     }
 

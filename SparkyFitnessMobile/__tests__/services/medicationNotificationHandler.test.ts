@@ -1,5 +1,9 @@
 import * as Notifications from 'expo-notifications';
-import { initMedicationNotificationActions } from '../../src/services/medicationNotificationHandler';
+import * as TaskManager from 'expo-task-manager';
+import {
+  initMedicationNotificationActions,
+  MEDICATION_NOTIFICATION_TASK_NAME,
+} from '../../src/services/medicationNotificationHandler';
 import {
   addNotificationResponseListener,
   dismissDeliveredNotification,
@@ -29,6 +33,16 @@ jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 const DATE = '2026-08-12';
 
 type ResponseListener = (response: unknown) => void;
+type TaskExecutor = (body: {
+  data: unknown;
+  error: Error | null;
+}) => Promise<unknown>;
+
+const registeredTaskExecutor = (
+  TaskManager.defineTask as jest.Mock
+).mock.calls.find(
+  ([taskName]) => taskName === MEDICATION_NOTIFICATION_TASK_NAME
+)?.[1] as TaskExecutor | undefined;
 
 function takenResponse() {
   return {
@@ -315,27 +329,96 @@ describe('logging a dose from a notification action', () => {
         'notif-other-med'
       );
     });
-  });
 
-  describe('Android background notification task (dataString payload)', () => {
-    it('logs the dose when invoked with raw Android dataString payload', async () => {
+    it('leaves sibling and scheduled repeat reminders intact when createEntry fails', async () => {
+      const baseKey = 'med_2026-08-12_m1_s1_09:00';
+      (createEntry as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+      (
+        Notifications.getPresentedNotificationsAsync as jest.Mock
+      ).mockResolvedValue([
+        {
+          request: {
+            identifier: 'notif-base',
+            content: {
+              data: {
+                medicationId: 'm1',
+                scheduleId: 's1',
+                entryDate: DATE,
+                key: baseKey,
+                baseKey,
+              },
+            },
+          },
+        },
+      ]);
+      (
+        Notifications.getAllScheduledNotificationsAsync as jest.Mock
+      ).mockResolvedValue([
+        {
+          identifier: 'repeat-10',
+          content: { data: { baseKey } },
+        },
+      ]);
+
       listener({
         actionIdentifier: MEDICATION_TAKEN_ACTION,
         notification: {
           request: {
-            identifier: 'bg-notif-1',
+            identifier: 'notif-repeat-20',
             content: {
-              dataString: JSON.stringify({
+              data: {
                 medicationId: 'm1',
                 scheduleId: 's1',
                 entryDate: DATE,
-              }),
+                key: `${baseKey}_20`,
+                baseKey,
+              },
             },
           },
         },
       });
       await new Promise(process.nextTick);
 
+      expect(dismissDeliveredNotification).toHaveBeenCalledWith(
+        'notif-repeat-20'
+      );
+      expect(dismissDeliveredNotification).not.toHaveBeenCalledWith(
+        'notif-base'
+      );
+      expect(
+        Notifications.cancelScheduledNotificationAsync
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Android background notification task (dataString payload)', () => {
+    it('logs the dose when invoked via TaskManager.defineTask with raw Android dataString payload', async () => {
+      if (!registeredTaskExecutor) {
+        throw new Error('background notification task executor not registered');
+      }
+
+      const result = await registeredTaskExecutor({
+        data: {
+          actionIdentifier: MEDICATION_TAKEN_ACTION,
+          notification: {
+            request: {
+              identifier: 'bg-notif-1',
+              content: {
+                dataString: JSON.stringify({
+                  medicationId: 'm1',
+                  scheduleId: 's1',
+                  entryDate: DATE,
+                }),
+              },
+            },
+          },
+        },
+        error: null,
+      });
+
+      expect(result).toBe(
+        Notifications.BackgroundNotificationTaskResult.NewData
+      );
       expect(dismissDeliveredNotification).toHaveBeenCalledWith('bg-notif-1');
       expect(createEntry).toHaveBeenCalledTimes(1);
       expect(createEntry).toHaveBeenCalledWith(

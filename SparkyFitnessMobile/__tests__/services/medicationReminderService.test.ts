@@ -805,5 +805,34 @@ describe('reconcileMedicationReminders', () => {
         'delivered-repeat-10'
       );
     });
+
+    it('dismisses presented medication reminders when notification permission is not granted', async () => {
+      mockGetPerms.mockResolvedValue({ status: 'denied' } as never);
+      (
+        Notifications.getPresentedNotificationsAsync as jest.Mock
+      ).mockResolvedValue([
+        {
+          request: {
+            identifier: 'delivered-med',
+            content: { data: { medicationId: 'med-1' } },
+          },
+        },
+        {
+          request: {
+            identifier: 'delivered-other',
+            content: { data: { other: 'true' } },
+          },
+        },
+      ]);
+
+      await reconcileMedicationReminders([buildMedication()], []);
+
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith(
+        'delivered-med'
+      );
+      expect(Notifications.dismissNotificationAsync).not.toHaveBeenCalledWith(
+        'delivered-other'
+      );
+    });
   });
 });

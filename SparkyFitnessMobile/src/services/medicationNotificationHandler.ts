@@ -221,6 +221,41 @@ export function initMedicationNotificationActions(): void {
   });
 }
 
+async function clearMatchingReminders(
+  notificationId: string,
+  key: string | null,
+  doses: { medicationId: string; scheduleId: string | null }[],
+  entryDate: string
+): Promise<void> {
+  if (typeof Notifications.getPresentedNotificationsAsync === 'function') {
+    const presented =
+      await Notifications.getPresentedNotificationsAsync().catch(() => []);
+    const siblingDelivered = presented.filter(
+      (n) =>
+        n.request.identifier !== notificationId &&
+        doesNotificationMatchAction(n.request.content, key, doses, entryDate)
+    );
+    await Promise.all(
+      siblingDelivered.map((n) =>
+        dismissDeliveredNotification(n.request.identifier)
+      )
+    );
+  }
+
+  const allPending =
+    await Notifications.getAllScheduledNotificationsAsync().catch(() => []);
+  const toCancel = allPending.filter((n) =>
+    doesNotificationMatchAction(n.content, key, doses, entryDate)
+  );
+  await Promise.all(
+    toCancel.map((n) =>
+      Notifications.cancelScheduledNotificationAsync(n.identifier).catch(
+        () => {}
+      )
+    )
+  );
+}
+
 async function handleNotificationAction(
   status: MedicationEntryStatus,
   doses: { medicationId: string; scheduleId: string | null }[],
@@ -229,38 +264,10 @@ async function handleNotificationAction(
   key: string | null
 ): Promise<void> {
   try {
-    // Dismiss the tapped notification and any other already-delivered repeat
-    // notifications for the same dose(s) immediately so Android / Wear OS clears
-    // all duplicate reminders from the tray right away.
+    // Dismiss the tapped notification immediately so Android / Wear OS clears
+    // the interacted reminder right away. Sibling delivered and scheduled repeat
+    // reminders are cleared only after the entry is confirmed or written.
     await dismissDeliveredNotification(notificationId);
-
-    if (typeof Notifications.getPresentedNotificationsAsync === 'function') {
-      const presented =
-        await Notifications.getPresentedNotificationsAsync().catch(() => []);
-      const siblingDelivered = presented.filter(
-        (n) =>
-          n.request.identifier !== notificationId &&
-          doesNotificationMatchAction(n.request.content, key, doses, entryDate)
-      );
-      await Promise.all(
-        siblingDelivered.map((n) =>
-          dismissDeliveredNotification(n.request.identifier)
-        )
-      );
-    }
-
-    const allPending =
-      await Notifications.getAllScheduledNotificationsAsync().catch(() => []);
-    const toCancel = allPending.filter((n) =>
-      doesNotificationMatchAction(n.content, key, doses, entryDate)
-    );
-    await Promise.all(
-      toCancel.map((n) =>
-        Notifications.cancelScheduledNotificationAsync(n.identifier).catch(
-          () => {}
-        )
-      )
-    );
 
     const existing = await listEntries({
       fromDate: entryDate,
@@ -273,6 +280,7 @@ async function handleNotificationAction(
     );
 
     if (unlogged.length === 0) {
+      await clearMatchingReminders(notificationId, key, doses, entryDate);
       invalidateMedicationEntryCaches(queryClient);
       return;
     }
@@ -290,6 +298,8 @@ async function handleNotificationAction(
         })
       )
     );
+
+    await clearMatchingReminders(notificationId, key, doses, entryDate);
 
     // This path writes the entry through the API directly rather than through the
     // mutations, so nothing else marks the caches stale. With an infinite stale time the
