@@ -129,8 +129,12 @@ function goalProgress(consumed: number, goal: number): number {
 /** Step goal sent to the watch when the user has not set one. */
 const DEFAULT_WATCH_STEP_GOAL = 10000;
 
-/** Days of history relayed to the watch — matches the watch's 14-day chart. */
-const HISTORY_DAYS = 14;
+/**
+ * Days of history relayed to the watch. The chart shows the last 14 of them;
+ * the extra two weeks are warm-up so the trailing 7-day trend is already
+ * settled where the visible line starts (see `TrendView.displayDays`).
+ */
+const HISTORY_DAYS = 28;
 
 /**
  * Every day-scoped figure, blanked.

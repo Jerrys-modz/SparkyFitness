@@ -680,6 +680,20 @@ enum CheckInDate {
         formatter.date(from: value)
     }
 
+    /// Whole calendar days from `start` to `end` (negative when `end` is
+    /// earlier). Nil if either string isn't a `yyyy-MM-dd` day.
+    static func dayOffset(from start: String, to end: String) -> Int? {
+        guard let from = parse(start), let to = parse(end) else { return nil }
+        return Calendar(identifier: .gregorian).dateComponents([.day], from: from, to: to).day
+    }
+
+    /// The day `days` before today, as `yyyy-MM-dd`. Day strings sort
+    /// lexicographically, so this works directly as a cut-off.
+    static func day(daysAgo days: Int) -> String {
+        let date = Calendar(identifier: .gregorian).date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        return formatter.string(from: date)
+    }
+
     /// Short weekday + day + month for the entry screen header, e.g. "Mon 17 Aug".
     static func headerLabel(for value: String) -> String {
         guard let date = parse(value) else { return value }

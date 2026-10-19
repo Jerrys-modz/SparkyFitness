@@ -35,8 +35,22 @@ struct TrendView: View {
     /// whole page) because `digitalCrownRotation` only binds to Double.
     @State private var metricIndex: Double = 0
 
-    private var points: [HistoryPoint] { store.trendPoints() }
-    private var mean: [HistoryPoint] { store.rollingMean(points: points) }
+    /// Days drawn on the chart. The phone relays more history than this so the
+    /// trend is warmed up before the first visible day.
+    private static let displayDays = 14
+
+    private var allPoints: [HistoryPoint] { store.trendPoints() }
+
+    private var points: [HistoryPoint] {
+        let cutoff = CheckInDate.day(daysAgo: Self.displayDays - 1)
+        return allPoints.filter { $0.day >= cutoff }
+    }
+
+    /// Smoothed over the full history, then cut to what is on screen.
+    private var mean: [HistoryPoint] {
+        let visible = Set(points.map(\.day))
+        return store.weightTrend(points: allPoints).filter { visible.contains($0.day) }
+    }
 
     /// Mirrors the phone's Settings → default weight unit. Stored/transmitted
     /// values (`points`, `store.lastCaptured`, etc.) stay kg throughout — this
@@ -149,7 +163,10 @@ struct TrendView: View {
                     LineMark(x: .value("Day", date), y: .value("Mean", unit.fromKg(point.weightKg)))
                         .lineStyle(StrokeStyle(lineWidth: 2))
                         .foregroundStyle(.tint)
-                        .interpolationMethod(.catmullRom)
+                        // Monotone, not catmullRom: the trend is already
+                        // smooth, and catmullRom overshoots between points,
+                        // drawing a wiggle the data doesn't contain.
+                        .interpolationMethod(.monotone)
                 }
             }
             ForEach(points) { point in
