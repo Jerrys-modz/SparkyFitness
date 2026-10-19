@@ -96,7 +96,8 @@ enum ContextPayloadMapper {
                 max: (payload["runHeartRateMaxBpm"] as? NSNumber)?.doubleValue
             ) ?? previous.runHeartRateBand,
             runPlans: runPlans(from: payload) ?? previous.runPlans,
-            indoorDistanceScale: indoorDistanceScale(from: payload) ?? previous.indoorDistanceScale
+            indoorDistanceScale: indoorDistanceScale(from: payload) ?? previous.indoorDistanceScale,
+            goalWeightKg: (payload["goalWeightKg"] as? NSNumber)?.doubleValue ?? previous.goalWeightKg
         )
     }
 

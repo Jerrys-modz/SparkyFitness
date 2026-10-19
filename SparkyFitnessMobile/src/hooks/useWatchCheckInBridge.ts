@@ -53,6 +53,7 @@ import { WATCH_PAGE_KEYS } from '../constants/watchPages';
 import { resolveKeyOrder } from '../utils/reorderUtils';
 import { buildWatchGoalNutrients, shownInOrder } from '../utils/watchNutrients';
 import { useCustomNutrients } from './useCustomNutrients';
+import { useProfile } from './useProfile';
 import { useTranslation } from 'react-i18next';
 import type { CheckInMeasurement } from '../types/measurements';
 import type { WorkoutPreset } from '../types/workoutPresets';
@@ -129,8 +130,12 @@ function goalProgress(consumed: number, goal: number): number {
 /** Step goal sent to the watch when the user has not set one. */
 const DEFAULT_WATCH_STEP_GOAL = 10000;
 
-/** Days of history relayed to the watch — matches the watch's 14-day chart. */
-const HISTORY_DAYS = 14;
+/**
+ * Days of history relayed to the watch. The chart shows the last 14 of them;
+ * the extra two weeks are warm-up so the trailing 7-day trend is already
+ * settled where the visible line starts (see `TrendView.displayDays`).
+ */
+const HISTORY_DAYS = 28;
 
 /**
  * Every day-scoped figure, blanked.
@@ -284,6 +289,12 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   // Units for the custom nutrients the Goals page may list. Rides the same
   // cached query the nutrition screens use.
   const { customNutrients } = useCustomNutrients({ enabled });
+  // `target_weight` is a numeric string (see `resolveWeightGoal`); kept in kg
+  // here because the watch converts to its own display unit. 0 = no goal.
+  const { profile } = useProfile();
+  const targetWeightKg = Number(profile?.target_weight);
+  const goalWeightKg =
+    Number.isFinite(targetWeightKg) && targetWeightKg > 0 ? targetWeightKg : 0;
   const weightUnit: 'kg' | 'lbs' =
     preferences?.default_weight_unit === 'lbs' ||
     preferences?.default_weight_unit === 'st_lbs'
@@ -792,6 +803,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
             ? { day: today, count: Math.round(todayRow.steps) }
             : null,
         stepGoal,
+        goalWeightKg,
         pageOrder: resolveKeyOrder(watchPageOrder, WATCH_PAGE_KEYS),
         hiddenPages: hiddenWatchPages,
         setInputStyle: watchSetInputStyle,
@@ -828,6 +840,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     scheduledWorkouts,
     waterGoalMl,
     stepGoal,
+    goalWeightKg,
     waterDisplayUnit,
     watchPageOrder,
     hiddenWatchPages,
