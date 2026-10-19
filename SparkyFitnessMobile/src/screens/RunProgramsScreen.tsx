@@ -15,7 +15,10 @@ import RunProgramCard, {
   programName,
 } from '../components/recording/RunProgramCard';
 import RunProgramCalendar from '../components/recording/RunProgramCalendar';
-import RunProgramRealignCard from '../components/recording/RunProgramRealignCard';
+import RunProgramRealignCard, {
+  realignIsOffered,
+  realignOutcomeFor,
+} from '../components/recording/RunProgramRealignCard';
 import RunProgramGuide, {
   programStructure,
 } from '../components/recording/RunProgramGuide';
@@ -273,6 +276,14 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
     </View>
   );
 
+  // The realign card sits under the program card; while it is offering a fix
+  // the Schedule's own "skip workouts" shortcut would be a second, competing one.
+  const realignOffered =
+    program !== null &&
+    program !== undefined &&
+    enabled &&
+    realignIsOffered(realignOutcomeFor(program, today));
+
   let body: React.ReactNode = null;
   if (loaded && status) {
     body = (
@@ -302,6 +313,22 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           onRestart={() => change(restartProgram)}
           onSkip={() => change(skipProgramWorkout)}
         />
+        {program && enabled ? (
+          <RunProgramRealignCard
+            program={program}
+            today={today}
+            onAccept={realign}
+            onMoveGoal={(day) =>
+              change(() => setProgramSchedule({ endDay: day }))
+            }
+            onPlanShorter={(distance) =>
+              navigation.navigate('RunProgramRace', {
+                distance,
+                raceDay: schedule.endDay ?? undefined,
+              })
+            }
+          />
+        ) : null}
         <View className="bg-surface rounded-xl px-4 mt-4">
           <ProgramActionList>
             <ProgramActionRow
@@ -336,24 +363,12 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           schedule={schedule}
           doneDay={doneDay}
           today={today}
-          onCatchUp={(next) => change(() => setProgramPosition(next))}
+          onCatchUp={
+            realignOffered
+              ? undefined
+              : (next) => change(() => setProgramPosition(next))
+          }
         />
-        {program && enabled ? (
-          <RunProgramRealignCard
-            program={program}
-            today={today}
-            onAccept={realign}
-            onMoveGoal={(day) =>
-              change(() => setProgramSchedule({ endDay: day }))
-            }
-            onPlanShorter={(distance) =>
-              navigation.navigate('RunProgramRace', {
-                distance,
-                raceDay: schedule.endDay ?? undefined,
-              })
-            }
-          />
-        ) : null}
         <RunProgramGuide
           programId={status.program.custom ? undefined : storedId}
         />

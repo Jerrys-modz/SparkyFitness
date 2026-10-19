@@ -353,6 +353,13 @@ describe('RunProgramsScreen', () => {
       });
     });
 
+    it('does not also offer to skip workouts while it offers a realignment', () => {
+      use(behind(31));
+      renderScreen(RunProgramsProps());
+      expect(screen.getByTestId('run-program-realign')).toBeTruthy();
+      expect(screen.queryByTestId('run-program-catch-up')).toBeNull();
+    });
+
     it('has no card while the plan fits', () => {
       use(behind(33));
       renderScreen(RunProgramsProps());
