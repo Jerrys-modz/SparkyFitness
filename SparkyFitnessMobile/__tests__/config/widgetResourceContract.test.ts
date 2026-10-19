@@ -314,15 +314,20 @@ describe('Android widget localization contract', () => {
         'utf8'
       );
       expect(moduleSrc).toMatch(/fun clearSnapshots\(promise: Promise\)/);
+      expect(moduleSrc).toMatch(/\.remove\(prefsKey\)\.commit\(\)/);
+      // Both widgets, their stored copy and every instance's state, each
+      // part tried and redrawn past one that fails.
       expect(moduleSrc).toMatch(
-        /CalorieWidgetReceiver\.PREFS_KEY_SNAPSHOT,\s*\n\s*MacroWidgetReceiver/
+        /CalorieWidgetReceiver\.PREFS_KEY_SNAPSHOT,\s*\n\s*CalorieWidget\(\),\s*\n\s*CalorieWidget\.SNAPSHOT_STATE_KEY/
       );
-      expect(moduleSrc).toMatch(/\.remove\(key\)\.commit\(\)/);
       expect(moduleSrc).toMatch(
-        /state\.remove\(CalorieWidget\.SNAPSHOT_STATE_KEY\)/
+        /MacroWidgetReceiver\.PREFS_KEY_SNAPSHOT,\s*\n\s*MacroWidget\(\),\s*\n\s*MacroWidget\.SNAPSHOT_STATE_KEY/
       );
       expect(moduleSrc).toMatch(
-        /state\.remove\(MacroWidget\.SNAPSHOT_STATE_KEY\)/
+        /updateAppWidgetState\(ctx, id\) \{ state -> state\.remove\(stateKey\) \}\s*\n\s*widget\.update\(ctx, id\)/
+      );
+      expect(moduleSrc.match(/failures \+= /g)?.length).toBeGreaterThanOrEqual(
+        3
       );
       // Writes and the clear share one serial executor and one lock, so a
       // write for the previous account cannot land after the clear.

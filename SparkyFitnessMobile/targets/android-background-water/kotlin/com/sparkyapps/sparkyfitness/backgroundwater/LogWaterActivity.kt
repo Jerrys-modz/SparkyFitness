@@ -91,9 +91,10 @@ private fun report(context: Context, result: LogWaterResult, fromTile: Boolean) 
  * Lists [result] without sound, vibration or a heads-up pop-up, since it only
  * confirms a tap; tapping it opens the app. A logged drink goes away after 30
  * seconds, a failure stays until a drink is logged or the tile fails again.
- * Shown in full on the lock screen, where the tile is often used: it holds
- * only a container name or an error. False when the app's notifications are
- * off. A user who turned off just this channel gets nothing.
+ * A lock screen that hides sensitive content shows a logged drink's public
+ * version, which does not name the container; a failure never names it, so it
+ * stays readable there. False when the app's notifications are off. A user who turned off just this
+ * channel gets nothing.
  */
 private fun notify(context: Context, result: LogWaterResult): Boolean {
     val manager = NotificationManagerCompat.from(context)
@@ -109,15 +110,24 @@ private fun notify(context: Context, result: LogWaterResult): Boolean {
         // The tile's own icon (targets/android-widget), looked up by name like
         // the shortcut's because R's package differs between builds.
         val icon = context.resources.getIdentifier("ic_tile_log_water", "drawable", context.packageName)
+        val smallIcon = if (icon != 0) icon else context.applicationInfo.icon
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(if (icon != 0) icon else context.applicationInfo.icon)
+            .setSmallIcon(smallIcon)
             .setContentText(result.message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(result.message))
             .setCategory(NotificationCompat.CATEGORY_STATUS)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
         if (result.logged) {
             builder.setTimeoutAfter(LOGGED_SHOWN_FOR_MS)
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                .setPublicVersion(
+                    NotificationCompat.Builder(context, CHANNEL_ID)
+                        .setSmallIcon(smallIcon)
+                        .setContentText("Water logged")
+                        .build(),
+                )
+        } else {
+            builder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
         }
         context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
             builder.setContentIntent(PendingIntent.getActivity(context, 0, it, PendingIntent.FLAG_IMMUTABLE))
