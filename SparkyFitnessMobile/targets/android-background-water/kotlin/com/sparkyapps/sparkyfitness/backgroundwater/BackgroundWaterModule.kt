@@ -39,7 +39,8 @@ class BackgroundWaterModule(reactContext: ReactApplicationContext) :
      * Labels the shortcut in the app language and puts it back while a login
      * is stored. The other app shortcuts (expo-quick-actions) are registered by
      * replacing the whole dynamic list, which drops this one, so JavaScript
-     * calls this after them.
+     * calls this after them. False while no login is stored, or when Android
+     * did not publish it (it rate-limits shortcut updates).
      */
     @ReactMethod(isBlockingSynchronousMethod = true)
     fun refreshShortcut(shortLabel: String, longLabel: String): Boolean {
@@ -68,7 +69,6 @@ class BackgroundWaterModule(reactContext: ReactApplicationContext) :
                 .setIntent(intent)
                 .build()
             ShortcutManagerCompat.pushDynamicShortcut(context, shortcut)
-            true
         } catch (e: Exception) {
             // The shortcut is a convenience; the stored copy is what matters.
             false
