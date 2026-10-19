@@ -7,7 +7,6 @@ import exerciseEntryRepository, {
 import workoutPresetRepository from '../models/workoutPresetRepository.js';
 import activityDetailsRepository from '../models/activityDetailsRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
-import userRepository from '../models/userRepository.js';
 import { parseISO, isValid } from 'date-fns';
 import {
   instantToDay,
@@ -30,10 +29,11 @@ import {
   type TelemetryGpsPoint,
 } from './workoutTelemetryDerivation.js';
 import {
-  computeHrZones,
-  resolveMaxHr,
+  computeTimeInZones,
+  observedMaxBpm,
   type HrSample,
-} from './hrZoneCalculator.js';
+} from '@workspace/shared';
+import heartRateZoneService from './heartRateZoneService.js';
 async function importExerciseEntriesFromCsv(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   authenticatedUserId: any,
@@ -332,14 +332,20 @@ async function attachWatchTelemetryToExerciseEntry(
   let zones: WatchTelemetryZoneSpec[] | null = null;
   if (hrSamples && hrSamples.length > 0) {
     const samples: HrSample[] = hrSamples;
-    // The same date of birth the sync path reads (healthDataHandlers.ts's
-    // persistWorkoutTelemetry). Without it this path fell back to the observed
-    // sample max, so one user's zones depended on where the workout came from:
-    // a 55-year-old got a 190 ceiling from the wrist and 176 from a synced
-    // copy of the same session, shifting every zone floor between them.
-    const profile = await userRepository.getUserProfile(userId);
-    const { maxHr } = resolveMaxHr(profile?.date_of_birth, samples);
-    zones = computeHrZones(samples, maxHr);
+    // The same resolution the sync path uses (healthDataHandlers.ts's
+    // persistWorkoutTelemetry): the person's own max heart rate or their date
+    // of birth. Without it this path fell back to the observed sample max, so
+    // one user's zones depended on where the workout came from: a 55-year-old
+    // got a 190 ceiling from the wrist and 176 from a synced copy of the same
+    // session, shifting every zone floor between them.
+    const resolved = await heartRateZoneService.resolveZonesForUser(
+      userId,
+      observedMaxBpm(samples)
+    );
+    zones = computeTimeInZones(samples, resolved.floors).map((zone) => ({
+      ...zone,
+      zone_method: resolved.effectiveMethod,
+    }));
   }
 
   if (hrSamples && hrSamples.length > 0) {

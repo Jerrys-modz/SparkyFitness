@@ -23,7 +23,7 @@ Every workout is a five minute warm-up, the Zone 2 run, and a five minute cool-d
 
 ## Your target
 
-A Zone 2 workout asks for a **heart rate range**, not a pace. The range is the second of five zones: **60 to 70 percent of your estimated maximum heart rate**. The maximum comes from your date of birth in your profile (the same estimate used for time in zone elsewhere in the app), so add it under your profile to see a range. For example, at 40 years old your estimated maximum is 185 bpm and Zone 2 is **111 to 129 bpm**.
+A Zone 2 workout asks for a **heart rate range**, not a pace. The range is the second of your five [heart rate zones](/features/exercises/heart-rate-zones): **60 to 70 percent of your maximum heart rate** by default, or whatever your zone method gives if you chose heart rate reserve or custom zones. The maximum comes from your own entry in Settings > Heart Rate Zones, or from your date of birth, so set one of them to see a range. For example, at 40 years old your estimated maximum is 185 bpm and Zone 2 is **111 to 129 bpm**.
 
 ::: tip It is an estimate
 An age-based maximum can be ten beats or more off in either direction. If the range feels too easy or too hard, trust the **talk test**: you should be able to speak in full sentences. If you can only say a few words, slow down, and walk if you need to.

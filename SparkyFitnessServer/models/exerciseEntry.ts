@@ -1,4 +1,8 @@
-import { compareByEntryTime, earliestEntryTime } from '@workspace/shared';
+import {
+  compareByEntryTime,
+  earliestEntryTime,
+  type ExerciseEntryHrZonesInitializer,
+} from '@workspace/shared';
 import { getClient } from '../db/poolManager.js';
 import type { PoolClient } from 'pg';
 // @ts-expect-error TS(7016): Could not find a declaration file for module 'pg-f... Remove this comment to see the full error message
@@ -526,6 +530,7 @@ export type WatchTelemetryZoneSpec = {
   /** null for the open-ended top zone. */
   zone_upper_bpm: number | null;
   seconds_in_zone: number;
+  zone_method?: ExerciseEntryHrZonesInitializer['zone_method'];
 };
 
 /**
@@ -592,6 +597,7 @@ async function applyWatchTelemetryAtomically(
             zone_lower_bpm: zone.zone_lower_bpm,
             zone_upper_bpm: zone.zone_upper_bpm,
             seconds_in_zone: zone.seconds_in_zone,
+            zone_method: zone.zone_method,
           }))
         );
       }

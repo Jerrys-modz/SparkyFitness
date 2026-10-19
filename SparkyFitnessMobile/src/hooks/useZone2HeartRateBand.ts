@@ -1,28 +1,28 @@
 import { useMemo } from 'react';
-import {
-  calculateAge,
-  zone2HeartRateRangeForAge,
-  type HeartRateBand,
-} from '@workspace/shared';
-import { usePreferences } from './usePreferences';
-import { useProfile } from './useProfile';
+import { zone2HeartRateBand, type HeartRateBand } from '@workspace/shared';
+import { useHeartRateZones } from './useHeartRateZones';
 
 /**
- * The person's Zone 2 heart-rate range, or null without a date of birth. Today
- * it comes from the age-based maximum heart rate in `@workspace/shared`; this
- * hook is the one place to read the person's own zones from once they can be
- * set.
+ * The person's Zone 2 heart-rate range, from their own zones (a maximum or
+ * resting rate they set, the zone method they chose). Null until zones are
+ * known, and without a maximum from their date of birth or their own entry,
+ * because a typical figure is not worth holding a run to.
  */
 export function useZone2HeartRateBand(): HeartRateBand | null {
-  const { profile } = useProfile();
-  const { preferences } = usePreferences();
-  const dateOfBirth = profile?.date_of_birth ?? null;
-  const timezone = preferences?.timezone ?? undefined;
-  return useMemo(
-    () =>
-      dateOfBirth
-        ? zone2HeartRateRangeForAge(calculateAge(dateOfBirth, timezone))
-        : null,
-    [dateOfBirth, timezone]
-  );
+  const { zones } = useHeartRateZones(true);
+  const resolved = zones?.resolved;
+  return useMemo(() => {
+    if (!resolved) return null;
+    if (resolved.max_hr_source !== 'user' && resolved.max_hr_source !== 'age') {
+      return null;
+    }
+    return zone2HeartRateBand({
+      maxHr: resolved.max_hr,
+      zones: resolved.zones.map((zone) => ({
+        zone: zone.zone,
+        lowerBpm: zone.lower_bpm,
+        upperBpm: zone.upper_bpm,
+      })),
+    });
+  }, [resolved]);
 }

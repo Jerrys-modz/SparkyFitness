@@ -1,117 +1,395 @@
-import {
-  HEART_RATE_BAND_HIGHEST_BPM,
-  HEART_RATE_BAND_LOWEST_BPM,
-  normalizeHeartRateBand,
-  type HeartRateBand,
-} from "./heartRateTargets.ts";
-
 /**
- * Heart-rate zones as a share of maximum heart rate: five zones, the split the
- * Garmin, Polar and Strava defaults share. `heartRateZoneRange` is the one
- * place that turns a zone number into bpm, so a person's own zone settings
- * (a measured maximum, a resting rate, another method) only have to change
- * what it is given or how it reads the floors.
+ * Heart-rate zones: the one place that decides a person's maximum heart rate,
+ * where their five zones start, and how a series of readings splits across
+ * them. The server (stored time in zone, training load), the web app and the
+ * mobile app all call this, so the zones on a chart, the ranges a plan
+ * suggests and the load a workout earns always agree.
+ *
+ * Max heart rate comes from, in order: the value the person set, a formula
+ * from their age (Nes et al. 2013, 211 - 0.64 x age; the formula the server
+ * has always used for stored zones, so history does not shift), the highest
+ * reading in the workout when there is no age, and a fixed fallback.
  */
-export type HeartRateZone = 1 | 2 | 3 | 4 | 5;
 
-/** Floor of each zone as a fraction of maximum heart rate. Zone 2 is 60 to 70 percent. */
-export const HEART_RATE_ZONE_FLOORS = [0.5, 0.6, 0.7, 0.8, 0.9] as const;
+export const HR_ZONE_COUNT = 5;
+
+/** How the five zone floors are worked out. */
+export const HR_ZONE_METHODS = [
+  "percent_max",
+  "heart_rate_reserve",
+  "custom",
+] as const;
+export type HrZoneMethod = (typeof HR_ZONE_METHODS)[number];
+
+export const DEFAULT_HR_ZONE_METHOD: HrZoneMethod = "percent_max";
+
+/** Zone floors as a fraction of max HR (percent of max) or of reserve (Karvonen). */
+export const HR_ZONE_FRACTIONS = [0.5, 0.6, 0.7, 0.8, 0.9] as const;
+
+/** Last-resort max HR when nothing else is known, so zones still render. */
+export const FALLBACK_MAX_HR = 190;
+
+export const MIN_MAX_HR = 100;
+export const MAX_MAX_HR = 250;
+export const MIN_RESTING_HR = 25;
+export const MAX_RESTING_HR = 150;
+/** Custom zone floors, in bpm. */
+export const MIN_CUSTOM_FLOOR_BPM = 30;
+export const MAX_CUSTOM_FLOOR_BPM = 250;
+
+/** What a person has chosen. Every field is optional in effect: null/default means "work it out". */
+export interface HeartRateZoneSettings {
+  maxHeartRate: number | null;
+  restingHeartRate: number | null;
+  method: HrZoneMethod;
+  /** Five ascending bpm floors for the `custom` method; null otherwise. */
+  customFloors: number[] | null;
+}
+
+export const DEFAULT_HEART_RATE_ZONE_SETTINGS: HeartRateZoneSettings = {
+  maxHeartRate: null,
+  restingHeartRate: null,
+  method: DEFAULT_HR_ZONE_METHOD,
+  customFloors: null,
+};
+
+/** Where the maximum heart rate in use came from. */
+export type MaxHrSource = "user" | "age" | "observed" | "fallback";
+
+export interface HeartRateZone {
+  /** 1 (easiest) to 5 (hardest). */
+  zone: number;
+  lowerBpm: number;
+  /** null for the open-ended top zone. */
+  upperBpm: number | null;
+}
+
+export interface ResolvedHeartRateZones {
+  maxHr: number;
+  maxHrSource: MaxHrSource;
+  restingHr: number | null;
+  /** The method the person asked for. */
+  method: HrZoneMethod;
+  /** The method actually used; differs when the chosen one lacked what it needs. */
+  effectiveMethod: HrZoneMethod;
+  /** Five ascending bpm floors, zone 1 first. */
+  floors: number[];
+  zones: HeartRateZone[];
+}
 
 /**
- * Maximum heart rate from age, by the Nes et al. (2013) formula, the same one
- * the server uses for time in zone (`estimateMaxHrFromAge` in hrZoneCalculator). It holds up
- * better than `220 - age`, which overestimates for young adults and
- * underestimates for older ones. A population estimate: a measured maximum is
- * better.
+ * Nes et al. (2013) max-HR estimate. Chosen over the textbook `220 - age`
+ * (which over-estimates for the young and under-estimates for the old) and
+ * over Tanaka (208 - 0.7 x age): Nes is what stored zones have used since they
+ * were introduced, so keeping it means past workouts and new ones line up.
  */
 export function estimateMaxHrFromAge(age: number): number {
   return Math.round(211 - 0.64 * age);
 }
 
 /**
- * The bpm range of `zone` for someone with `maxHr`: from the zone's floor up
- * to one below the next zone's floor, and for zone 5 up to the maximum. Null
- * when the maximum is not a usable number or the range falls outside what a
- * heart-rate target can hold.
+ * Whole years between a date of birth and `today` (a YYYY-MM-DD day in the
+ * person's timezone). Null for a missing or unusable date of birth.
  */
-export function heartRateZoneRange(
+export function ageFromDateOfBirth(
+  dateOfBirth: string | Date | null | undefined,
+  today: string,
+): number | null {
+  if (!dateOfBirth) return null;
+  const dob = dateOfBirth instanceof Date ? dateOfBirth : new Date(dateOfBirth);
+  if (Number.isNaN(dob.getTime())) return null;
+  const todayMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(today);
+  if (!todayMatch) return null;
+  const year = Number(todayMatch[1]);
+  const month = Number(todayMatch[2]);
+  const day = Number(todayMatch[3]);
+
+  let age = year - dob.getUTCFullYear();
+  const monthDelta = month - 1 - dob.getUTCMonth();
+  if (monthDelta < 0 || (monthDelta === 0 && day < dob.getUTCDate())) {
+    age -= 1;
+  }
+  return age >= 0 && age < 130 ? age : null;
+}
+
+/** Null when the five floors are fine, otherwise why not. */
+export function customFloorsProblem(
+  floors: readonly number[] | null | undefined,
+): string | null {
+  if (!floors || floors.length !== HR_ZONE_COUNT) {
+    return `Custom zones need ${HR_ZONE_COUNT} floors.`;
+  }
+  let previous: number | null = null;
+  for (const floor of floors) {
+    if (
+      !Number.isInteger(floor) ||
+      floor < MIN_CUSTOM_FLOOR_BPM ||
+      floor > MAX_CUSTOM_FLOOR_BPM
+    ) {
+      return `Zone floors must be whole numbers from ${MIN_CUSTOM_FLOOR_BPM} to ${MAX_CUSTOM_FLOOR_BPM} bpm.`;
+    }
+    if (previous !== null && floor <= previous) {
+      return "Each zone must start above the one before it.";
+    }
+    previous = floor;
+  }
+  return null;
+}
+
+interface MaxHrInput {
+  maxHeartRate?: number | null;
+  dateOfBirth?: string | Date | null;
+  /** The person's local day, YYYY-MM-DD, for working out their age. */
+  today: string;
+  /** Highest reading in the workout being bucketed; only used when no age is known. */
+  observedMaxBpm?: number | null;
+}
+
+function isValidMaxHr(value: number | null | undefined): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= MIN_MAX_HR &&
+    value <= MAX_MAX_HR
+  );
+}
+
+function isValidRestingHr(value: number | null | undefined): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= MIN_RESTING_HR &&
+    value <= MAX_RESTING_HR
+  );
+}
+
+/**
+ * Max HR in use and where it came from: the person's own value, else the age
+ * formula, else the highest reading seen (never below the fallback), else the
+ * fallback itself.
+ */
+export function resolveMaxHr(input: MaxHrInput): {
+  maxHr: number;
+  source: MaxHrSource;
+} {
+  if (isValidMaxHr(input.maxHeartRate)) {
+    return { maxHr: Math.round(input.maxHeartRate), source: "user" };
+  }
+  const age = ageFromDateOfBirth(input.dateOfBirth, input.today);
+  if (age !== null) {
+    return { maxHr: estimateMaxHrFromAge(age), source: "age" };
+  }
+  const observed =
+    typeof input.observedMaxBpm === "number" &&
+    Number.isFinite(input.observedMaxBpm)
+      ? input.observedMaxBpm
+      : 0;
+  if (observed > FALLBACK_MAX_HR) {
+    return { maxHr: observed, source: "observed" };
+  }
+  return { maxHr: FALLBACK_MAX_HR, source: "fallback" };
+}
+
+/** Zone floors for percent-of-max-HR zones. */
+export function percentMaxFloors(maxHr: number): number[] {
+  return HR_ZONE_FRACTIONS.map((fraction) => Math.round(maxHr * fraction));
+}
+
+/** Zone floors for heart-rate-reserve (Karvonen) zones: rest + fraction x (max - rest). */
+export function heartRateReserveFloors(
   maxHr: number,
-  zone: HeartRateZone,
-): HeartRateBand | null {
-  if (!Number.isFinite(maxHr) || maxHr <= 0) return null;
-  const floors: readonly number[] = HEART_RATE_ZONE_FLOORS;
-  const floor = floors[zone - 1];
-  const next = floors[zone];
-  if (floor === undefined) return null;
-  return normalizeHeartRateBand({
-    minBpm: Math.round(maxHr * floor),
-    maxBpm:
-      next === undefined ? Math.round(maxHr) : Math.round(maxHr * next) - 1,
+  restingHr: number,
+): number[] {
+  return HR_ZONE_FRACTIONS.map((fraction) =>
+    Math.round(restingHr + (maxHr - restingHr) * fraction),
+  );
+}
+
+function zonesFromFloors(floors: readonly number[]): HeartRateZone[] {
+  return floors.map((lowerBpm, i) => {
+    const nextFloor = floors[i + 1];
+    return {
+      zone: i + 1,
+      lowerBpm,
+      upperBpm: nextFloor === undefined ? null : nextFloor - 1,
+    };
   });
 }
 
-/** Zone 2, the easy aerobic range the Zone 2 program holds its runs to. */
-export const zone2HeartRateRange = (maxHr: number): HeartRateBand | null =>
-  heartRateZoneRange(maxHr, 2);
-
-/**
- * Zone 2 for someone of this age, or null when the age is not believable.
- * Where the Zone 2 program's range comes from today; the single place to read
- * a person's own maximum or zones from once they can be set.
- */
-export function zone2HeartRateRangeForAge(age: number): HeartRateBand | null {
-  if (!Number.isFinite(age) || age < 10 || age > 100) return null;
-  return zone2HeartRateRange(estimateMaxHrFromAge(age));
+export interface ResolveHeartRateZonesInput {
+  settings?: Partial<HeartRateZoneSettings> | null;
+  dateOfBirth?: string | Date | null;
+  /** The person's local day, YYYY-MM-DD. */
+  today: string;
+  observedMaxBpm?: number | null;
 }
 
-/** How far past Zone 2's top edge heart rate may drift on a long steady run. */
-export const ZONE2_DRIFT_MAX_BPM = 5;
-/** Drift is not allowed for before this long into a Zone 2 stretch... */
-export const ZONE2_DRIFT_START_SECONDS = 20 * 60;
-/** ...and reaches its full allowance by this long. */
-export const ZONE2_DRIFT_FULL_SECONDS = 60 * 60;
-/** Heart rate lags effort, so the first minutes of a stretch may sit this far under the range. */
-export const ZONE2_SETTLE_SECONDS = 3 * 60;
-export const ZONE2_SETTLE_BPM = 10;
-
 /**
- * The range a Zone 2 stretch is judged against `secondsIn` seconds after it
- * began. Heart rate climbs slowly at the start of a run and drifts up on a long
- * steady one (heat, fluid loss) with no change in effort, so the lower edge is
- * relaxed while it settles and the upper edge grows by up to five bpm between
- * 20 and 60 minutes. The displayed target stays the plain Zone 2 range.
+ * The person's zones. Settings that cannot be honoured (heart rate reserve
+ * with no resting rate, custom floors that are not five ascending numbers)
+ * fall back to percent of max, and `effectiveMethod` says so.
  */
-export function zone2LiveBand(
-  band: HeartRateBand,
-  secondsIn: number,
-): HeartRateBand {
-  const elapsed = Math.max(0, secondsIn);
-  const drift =
-    elapsed <= ZONE2_DRIFT_START_SECONDS
-      ? 0
-      : Math.min(
-          1,
-          (elapsed - ZONE2_DRIFT_START_SECONDS) /
-            (ZONE2_DRIFT_FULL_SECONDS - ZONE2_DRIFT_START_SECONDS),
-        ) * ZONE2_DRIFT_MAX_BPM;
-  const settle = elapsed < ZONE2_SETTLE_SECONDS ? ZONE2_SETTLE_BPM : 0;
+export function resolveHeartRateZones(
+  input: ResolveHeartRateZonesInput,
+): ResolvedHeartRateZones {
+  const settings = { ...DEFAULT_HEART_RATE_ZONE_SETTINGS, ...input.settings };
+  const { maxHr, source } = resolveMaxHr({
+    maxHeartRate: settings.maxHeartRate,
+    dateOfBirth: input.dateOfBirth,
+    today: input.today,
+    observedMaxBpm: input.observedMaxBpm,
+  });
+  const restingHr = isValidRestingHr(settings.restingHeartRate)
+    ? Math.round(settings.restingHeartRate)
+    : null;
+
+  let effectiveMethod: HrZoneMethod = "percent_max";
+  let floors = percentMaxFloors(maxHr);
+  if (settings.method === "heart_rate_reserve") {
+    if (restingHr !== null && restingHr < maxHr) {
+      effectiveMethod = "heart_rate_reserve";
+      floors = heartRateReserveFloors(maxHr, restingHr);
+    }
+  } else if (settings.method === "custom") {
+    if (customFloorsProblem(settings.customFloors) === null) {
+      effectiveMethod = "custom";
+      floors = [...(settings.customFloors as number[])];
+    }
+  }
+
   return {
-    minBpm: Math.max(HEART_RATE_BAND_LOWEST_BPM, band.minBpm - settle),
-    maxBpm: Math.min(
-      HEART_RATE_BAND_HIGHEST_BPM,
-      band.maxBpm + Math.round(drift),
-    ),
+    maxHr,
+    maxHrSource: source,
+    restingHr,
+    method: settings.method,
+    effectiveMethod,
+    floors,
+    zones: zonesFromFloors(floors),
   };
 }
 
-export type HeartRateStanding = "above" | "below" | "inside";
+/**
+ * The bpm range of zone `zone` (1-5) for a person's resolved zones. The top
+ * zone's upper end is their max heart rate. Null for a zone outside 1-5.
+ */
+export function heartRateZoneRange(
+  resolved: Pick<ResolvedHeartRateZones, "zones" | "maxHr">,
+  zone: number,
+): { lowerBpm: number; upperBpm: number } | null {
+  const found = resolved.zones[zone - 1];
+  if (!Number.isInteger(zone) || !found) return null;
+  return {
+    lowerBpm: found.lowerBpm,
+    upperBpm: found.upperBpm ?? Math.max(resolved.maxHr, found.lowerBpm),
+  };
+}
 
-/** Where a reading sits against a range; no margin, the alert rule adds its own. */
-export function heartRateStanding(
+/** Zone 1-5 for a reading, or 0 when it is below zone 1. */
+export function heartRateZoneFor(
   bpm: number,
-  band: HeartRateBand,
-): HeartRateStanding {
-  if (bpm > band.maxBpm) return "above";
-  if (bpm < band.minBpm) return "below";
-  return "inside";
+  floors: readonly number[],
+): number {
+  let index = 0;
+  floors.forEach((floor, i) => {
+    if (bpm >= floor) index = i + 1;
+  });
+  return index;
+}
+
+/** One bpm reading. `t` is an ISO 8601 instant. */
+export interface HrSample {
+  t: string;
+  bpm: number;
+}
+
+/** A single time-in-zone bucket, shaped for exercise_entry_hr_zones. */
+export interface HrZoneBucket {
+  zone_index: number;
+  zone_lower_bpm: number;
+  /** null for the open-ended top zone. */
+  zone_upper_bpm: number | null;
+  seconds_in_zone: number;
+}
+
+/**
+ * Cap on the time credited to a single sample gap.
+ *
+ * Watches stop sampling when a workout is paused, when a strap loses contact, or
+ * when optical HR drops out. Without a cap, one 20-minute gap credits 20 minutes
+ * to whichever zone happened to precede it and the chart becomes meaningless.
+ * 60s is comfortably above every normal sampling interval (1-15s) while bounding
+ * the damage from a dropout.
+ */
+const MAX_GAP_SECONDS = 60;
+
+/**
+ * Splits a heart-rate series into time-in-zone buckets using `floors`.
+ *
+ * Time is attributed forward: the interval between two consecutive samples is
+ * credited to the zone of the *earlier* sample, clamped to MAX_GAP_SECONDS. The
+ * final sample contributes nothing, since there is no following instant to
+ * measure against. Readings below the zone 1 floor belong to no zone and are
+ * dropped: resting/recovery time is not zone-1 training time.
+ *
+ * Returns only zones with non-zero time, ascending by zone_index. An empty or
+ * single-sample series returns [].
+ */
+export function computeTimeInZones(
+  samples: readonly HrSample[],
+  floors: readonly number[],
+): HrZoneBucket[] {
+  if (!Array.isArray(samples) || samples.length < 2) return [];
+  if (
+    floors.length !== HR_ZONE_COUNT ||
+    floors.some((floor) => !Number.isFinite(floor) || floor <= 0)
+  ) {
+    return [];
+  }
+
+  const ordered = samples
+    .filter((s) => Number.isFinite(s?.bpm) && typeof s?.t === "string")
+    .map((s) => ({ ms: Date.parse(s.t), bpm: s.bpm }))
+    .filter((s) => Number.isFinite(s.ms))
+    .sort((a, b) => a.ms - b.ms);
+
+  if (ordered.length < 2) return [];
+
+  const secondsByZone = new Map<number, number>();
+
+  for (let i = 0; i < ordered.length - 1; i += 1) {
+    const current = ordered[i];
+    const next = ordered[i + 1];
+    if (!current || !next) continue;
+
+    const zone = heartRateZoneFor(current.bpm, floors);
+    if (zone === 0) continue;
+
+    const gapSeconds = (next.ms - current.ms) / 1000;
+    if (gapSeconds <= 0) continue;
+
+    const credited = Math.min(gapSeconds, MAX_GAP_SECONDS);
+    secondsByZone.set(zone, (secondsByZone.get(zone) ?? 0) + credited);
+  }
+
+  const buckets: HrZoneBucket[] = [];
+  floors.forEach((lowerBpm, i) => {
+    const seconds = secondsByZone.get(i + 1);
+    if (!seconds) return;
+    const nextFloor = floors[i + 1];
+    buckets.push({
+      zone_index: i + 1,
+      zone_lower_bpm: lowerBpm,
+      zone_upper_bpm: nextFloor === undefined ? null : nextFloor - 1,
+      seconds_in_zone: Math.round(seconds),
+    });
+  });
+  return buckets;
+}
+
+/** Highest bpm in a series, or 0 for none. */
+export function observedMaxBpm(samples: readonly HrSample[]): number {
+  return samples.reduce(
+    (max, s) => (Number.isFinite(s?.bpm) && s.bpm > max ? s.bpm : max),
+    0,
+  );
 }

@@ -275,6 +275,8 @@ describe('RecordActivityScreen', () => {
           easy: { minBpm: 110, maxBpm: 130 },
           warm: { minBpm: 95, maxBpm: 120 },
           maxHeartRate: 185,
+          maxHrSource: 'age',
+          zoneMethod: 'percent_max',
         },
       };
 
