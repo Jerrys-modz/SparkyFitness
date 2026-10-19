@@ -132,7 +132,10 @@ describe('saveRecordedActivity', () => {
   it('logs the entry, then attaches the route and per-km splits', async () => {
     const saved = await saveRecordedActivity(session, points, 'km');
 
-    expect(saved).toEqual({ entryId: 'entry-1', entryDate: '2026-10-06' });
+    expect(saved).toMatchObject({
+      entryId: 'entry-1',
+      entryDate: '2026-10-06',
+    });
     const entry = mockedCreateEntry.mock.calls[0][0];
     expect(entry).toMatchObject({
       exercise_id: 'ex-1',
@@ -221,7 +224,9 @@ describe('saveRecordedActivity', () => {
     ]);
     mockedTelemetry.mockRejectedValueOnce(new Error('offline'));
 
-    await expect(saveRecordedActivity(session, points, 'km')).resolves.toEqual({
+    await expect(
+      saveRecordedActivity(session, points, 'km')
+    ).resolves.toMatchObject({
       entryId: 'entry-1',
       entryDate: '2026-10-06',
     });
@@ -234,7 +239,10 @@ describe('saveRecordedActivity for an indoor session', () => {
   it('logs the entered distance and sends no route', async () => {
     const saved = await saveRecordedActivity(indoor, [], 'km', 5.2);
 
-    expect(saved).toEqual({ entryId: 'entry-1', entryDate: '2026-10-06' });
+    expect(saved).toMatchObject({
+      entryId: 'entry-1',
+      entryDate: '2026-10-06',
+    });
     expect(mockedCreateEntry).toHaveBeenCalledWith(
       expect.objectContaining({
         exercise_name: 'Indoor Running',
@@ -330,11 +338,17 @@ describe('learning a stride while saving', () => {
       strideLengthCm: 104.2,
     });
 
-    await saveRecordedActivity({ ...session, activity: 'run' }, points, 'km');
+    const saved = await saveRecordedActivity(
+      { ...session, activity: 'run' },
+      points,
+      'km'
+    );
 
     expect(mockedCreateEntry).toHaveBeenCalledWith(
       expect.objectContaining({ avg_cadence: 168, stride_length_cm: 104.2 })
     );
+    // Handed back so the summary can show the same numbers.
+    expect(saved.form).toEqual({ avgCadence: 168, strideLengthCm: 104.2 });
   });
 
   it('logs the run without form metrics when the phone cannot measure them', async () => {
@@ -377,7 +391,9 @@ describe('learning a stride while saving', () => {
   it('never fails the save', async () => {
     mockedLearnOutdoor.mockRejectedValueOnce(new Error('storage full'));
 
-    await expect(saveRecordedActivity(session, points, 'km')).resolves.toEqual({
+    await expect(
+      saveRecordedActivity(session, points, 'km')
+    ).resolves.toMatchObject({
       entryId: 'entry-1',
       entryDate: '2026-10-06',
     });

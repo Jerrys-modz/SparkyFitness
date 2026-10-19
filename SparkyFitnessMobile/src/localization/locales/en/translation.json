@@ -6468,6 +6468,13 @@
       "strength": "Strength",
       "cardio": "Cardio"
     },
+    "runningForm": {
+      "title": "Running form",
+      "subtitle": "Steps per minute and stride length on your runs",
+      "average": "Average {{value}}",
+      "change": "{{value}} vs earlier runs",
+      "hint": "A treadmill run counts once its steps were measured."
+    },
     "cardio": {
       "hint": "Tap a workout for its route and heart rate.",
       "empty": "No cardio workouts in this range",

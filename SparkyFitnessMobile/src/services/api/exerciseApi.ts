@@ -443,6 +443,24 @@ export const setExerciseEntryDistance = async (
   });
 };
 
+/**
+ * Sets the stride length of an entry alone. A partial update keeps everything
+ * else on the entry, so this is how a corrected treadmill distance brings the
+ * stride along; null clears a stride the new distance no longer supports.
+ */
+export const setExerciseEntryStrideLength = async (
+  id: string,
+  strideLengthCm: number | null
+): Promise<void> => {
+  await apiFetch<unknown>({
+    endpoint: `/api/exercise-entries/${encodeURIComponent(id)}`,
+    serviceName: 'Exercise API',
+    operation: 'set exercise entry stride length',
+    method: 'PUT',
+    body: { stride_length_cm: strideLengthCm },
+  });
+};
+
 export const getWorkout = async (
   id: string
 ): Promise<PresetSessionResponse> => {
