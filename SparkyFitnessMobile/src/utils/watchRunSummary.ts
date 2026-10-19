@@ -74,6 +74,9 @@ export function watchRunSummary(
       : {}),
     activeEnergyKcal:
       payload.activeEnergyKcal > 0 ? payload.activeEnergyKcal : null,
+    ...(payload.treadmillDisplayMeters != null
+      ? { treadmillDisplayMeters: payload.treadmillDisplayMeters }
+      : {}),
     // The watch's own figures, not re-derived from a thinned route.
     distanceMeters:
       payload.distanceMeters > 0 ? payload.distanceMeters : base.distanceMeters,

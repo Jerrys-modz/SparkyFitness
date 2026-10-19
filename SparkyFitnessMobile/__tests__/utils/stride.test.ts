@@ -5,7 +5,11 @@ import {
   DEFAULT_STRIDE_METERS,
   estimateDistanceMeters,
   isStepActivity,
+  calibrateFromKnownDistance,
+  isPlausibleStride,
+  strideFromDisplay,
   strideFromSample,
+  strideToDisplay,
 } from '../../src/utils/stride';
 
 describe('isStepActivity', () => {
@@ -99,5 +103,65 @@ describe('computeFormMetrics', () => {
     expect(computeFormMetrics(50, 600, 400)).toBeNull();
     expect(computeFormMetrics(1000, 1800, 1000)).toBeNull();
     expect(computeFormMetrics(4000, 0, 4000)).toBeNull();
+  });
+});
+
+describe('blendStride with a hand-set stride', () => {
+  it('counts a hand-set stride like a few learned ones', () => {
+    // Weight is a quarter, not a half, for the first real distance.
+    const next = blendStride({ meters: 1, samples: 0, manual: true }, 1.4);
+    expect(next.meters).toBeCloseTo(1.1);
+    expect(next.samples).toBe(1);
+    expect(next.manual).toBeUndefined();
+  });
+
+  it('still starts fresh when there is nothing', () => {
+    expect(blendStride({ meters: 1, samples: 0 }, 1.4)).toEqual({
+      meters: 1.4,
+      samples: 1,
+    });
+  });
+});
+
+describe('stride display units', () => {
+  it('keeps metres for km and shows feet for miles', () => {
+    expect(strideToDisplay(0.75, 'km')).toBe(0.75);
+    expect(strideToDisplay(0.75, 'miles')).toBeCloseTo(2.46, 2);
+  });
+
+  it('round-trips through the display unit', () => {
+    expect(
+      strideFromDisplay(strideToDisplay(0.9, 'miles'), 'miles')
+    ).toBeCloseTo(0.9);
+  });
+});
+
+describe('isPlausibleStride', () => {
+  it('accepts a person’s step and rejects the rest', () => {
+    expect(isPlausibleStride(0.8)).toBe(true);
+    expect(isPlausibleStride(0.1)).toBe(false);
+    expect(isPlausibleStride(3)).toBe(false);
+    expect(isPlausibleStride(NaN)).toBe(false);
+  });
+});
+
+describe('calibrateFromKnownDistance', () => {
+  it('gives the stride and how far the treadmill read', () => {
+    // 5 km in 5,000 steps; the treadmill showed 5.2 km.
+    const result = calibrateFromKnownDistance(5000, 5000, 5200);
+    expect(result?.strideMeters).toBeCloseTo(1);
+    expect(result?.treadmillPercent).toBe(4);
+  });
+
+  it('works without a treadmill figure', () => {
+    expect(calibrateFromKnownDistance(5000, 5000, null)).toEqual({
+      strideMeters: 1,
+      treadmillPercent: null,
+    });
+  });
+
+  it('refuses a sample too short or implausible to learn from', () => {
+    expect(calibrateFromKnownDistance(100, 5000, null)).toBeNull();
+    expect(calibrateFromKnownDistance(5000, 50, null)).toBeNull();
   });
 });
