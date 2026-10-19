@@ -7,7 +7,9 @@
 // Android: copies the Kotlin sources (targets/android-background-water), adds
 // the no-UI LogWaterActivity to the manifest, adds WorkManager so the POST
 // outlives that activity, and registers the native module JavaScript uses to
-// store or erase the login and publish the launcher shortcut.
+// store or erase the login and publish the launcher shortcut. Also copies the
+// launcher shortcut icons, which the other app shortcuts
+// (src/hooks/useQuickActions.ts) use too.
 import {
   ConfigPlugin,
   IOSConfig,
@@ -43,6 +45,7 @@ const MODULE_PACKAGE_IMPORT = `import ${MODULE_PACKAGE}.BackgroundWaterPackage`;
 const MODULE_PACKAGE_ADD_LINE = 'add(BackgroundWaterPackage())';
 const ACTIVITY_NAME = `${MODULE_PACKAGE}.LogWaterActivity`;
 const ANDROID_SOURCE_DIR = 'targets/android-background-water/kotlin';
+const ANDROID_RES_DIR = 'targets/android-background-water/res';
 
 async function copyTree(srcDir: string, destDir: string): Promise<void> {
   const entries = await fs.promises.readdir(srcDir, { withFileTypes: true });
@@ -104,6 +107,10 @@ const withBackgroundWater: ConfigPlugin = (config) => {
       await copyTree(
         path.join(config.modRequest.projectRoot, ANDROID_SOURCE_DIR),
         path.join(config.modRequest.platformProjectRoot, 'app/src/main/java')
+      );
+      await copyTree(
+        path.join(config.modRequest.projectRoot, ANDROID_RES_DIR),
+        path.join(config.modRequest.platformProjectRoot, 'app/src/main/res')
       );
       return config;
     },

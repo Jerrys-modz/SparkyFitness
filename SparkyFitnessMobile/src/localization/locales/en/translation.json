@@ -6154,6 +6154,7 @@
     "scanFood": "Scan food",
     "searchFood": "Log food",
     "logWater": "Log water",
+    "logWaterInBackground": "Log water without opening the app",
     "fasting": "Fasting",
     "waterLogged": "Water logged",
     "waterFailed": "Could not log water"
