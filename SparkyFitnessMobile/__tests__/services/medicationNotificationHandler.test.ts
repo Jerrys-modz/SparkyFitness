@@ -458,6 +458,120 @@ describe('logging a dose from a notification action', () => {
 
       expect(createEntry).not.toHaveBeenCalled();
     });
+
+    it('preserves actions enqueued while flushPendingMedicationNotificationActions is awaiting network calls and coordinates with inFlightActions', async () => {
+      if (!registeredTaskExecutor) {
+        throw new Error('background notification task executor not registered');
+      }
+
+      // 1. Enqueue a failed action for m1
+      (createEntry as jest.Mock).mockRejectedValueOnce(new Error('offline-1'));
+      await registeredTaskExecutor({
+        data: {
+          actionIdentifier: MEDICATION_TAKEN_ACTION,
+          notification: {
+            request: {
+              identifier: 'notif-m1',
+              content: {
+                data: {
+                  medicationId: 'm1',
+                  scheduleId: 's1',
+                  entryDate: DATE,
+                  key: 'med_2026-08-12_m1_s1_09:00',
+                  baseKey: 'med_2026-08-12_m1_s1_09:00',
+                },
+              },
+            },
+          },
+        },
+        error: null,
+      });
+
+      (createEntry as jest.Mock).mockClear();
+
+      // 2. Start flushing m1; while createEntry for m1 is in flight,
+      //    a concurrent live action for m1 should share inFlightActions,
+      //    and a concurrent failed live action for m2 should be enqueued.
+      let resolveM1Create!: (val: unknown) => void;
+      (createEntry as jest.Mock)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveM1Create = resolve;
+            })
+        )
+        .mockRejectedValueOnce(new Error('offline-m2'));
+
+      const { flushPendingMedicationNotificationActions } =
+        require('../../src/services/medicationNotificationHandler') as typeof import('../../src/services/medicationNotificationHandler');
+      const flushPromise = flushPendingMedicationNotificationActions();
+
+      // Wait until flush reaches createEntry for m1
+      await new Promise((r) => setTimeout(r, 10));
+
+      // Concurrent live tap on m1 while replay is in flight -> should dedupe via inFlightActions
+      const duplicateM1Promise = registeredTaskExecutor({
+        data: {
+          actionIdentifier: MEDICATION_TAKEN_ACTION,
+          notification: {
+            request: {
+              identifier: 'notif-m1-repeat',
+              content: {
+                data: {
+                  medicationId: 'm1',
+                  scheduleId: 's1',
+                  entryDate: DATE,
+                  key: 'med_2026-08-12_m1_s1_09:00_10',
+                  baseKey: 'med_2026-08-12_m1_s1_09:00',
+                },
+              },
+            },
+          },
+        },
+        error: null,
+      });
+
+      // Concurrent live tap on m2 that fails while flush is in flight -> enqueued into AsyncStorage
+      await registeredTaskExecutor({
+        data: {
+          actionIdentifier: MEDICATION_TAKEN_ACTION,
+          notification: {
+            request: {
+              identifier: 'notif-m2',
+              content: {
+                data: {
+                  medicationId: 'm2',
+                  scheduleId: 's2',
+                  entryDate: DATE,
+                  key: 'med_2026-08-12_m2_s2_09:00',
+                  baseKey: 'med_2026-08-12_m2_s2_09:00',
+                },
+              },
+            },
+          },
+        },
+        error: null,
+      });
+
+      resolveM1Create({ id: 'e-m1' });
+      await Promise.all([flushPromise, duplicateM1Promise]);
+
+      // m1 was only created once despite concurrent replay + live tap, and m2 was attempted once
+      expect(createEntry).toHaveBeenCalledTimes(2);
+
+      // 3. Flushing again should replay the preserved m2 action that was enqueued mid-flush
+      (createEntry as jest.Mock).mockClear();
+      (createEntry as jest.Mock).mockResolvedValueOnce({ id: 'e-m2' });
+      await flushPendingMedicationNotificationActions();
+
+      expect(createEntry).toHaveBeenCalledTimes(1);
+      expect(createEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          medication_id: 'm2',
+          schedule_id: 's2',
+        })
+      );
+    });
   });
 
   describe('Android background notification task (dataString payload)', () => {

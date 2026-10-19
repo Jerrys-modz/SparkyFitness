@@ -232,59 +232,83 @@ export async function flushPendingMedicationNotificationActions(): Promise<void>
     return;
   }
 
-  const remaining: PendingMedicationNotificationAction[] = [];
+  const resolvedIds = new Set<string>();
   let anySucceeded = false;
 
   for (const record of pending) {
-    try {
-      const ownedDoses = record.doses.filter((d) =>
-        ownedMedicationIds.has(d.medicationId)
-      );
-      if (ownedDoses.length === 0) continue;
-
-      const existing = await listEntries({
-        fromDate: record.entryDate,
-        toDate: record.entryDate,
-        ...(ownedDoses.length === 1
-          ? { medicationId: ownedDoses[0].medicationId }
-          : {}),
-      });
-
-      const unlogged = ownedDoses.filter(
-        (d) => !isDoseLogged(existing, d.medicationId, d.scheduleId)
-      );
-
-      if (unlogged.length > 0) {
-        const takenAt =
-          record.status === 'taken'
-            ? (record.takenAt ?? new Date().toISOString())
-            : undefined;
-        await Promise.all(
-          unlogged.map((d) =>
-            createEntry({
-              medication_id: d.medicationId,
-              schedule_id: d.scheduleId,
-              status: record.status,
-              entry_date: record.entryDate,
-              taken_at: takenAt,
-            })
-          )
-        );
-      }
-
-      await clearMatchingReminders(
-        record.notificationId,
-        record.key,
-        ownedDoses,
-        record.entryDate
-      );
-      anySucceeded = true;
-    } catch {
-      remaining.push(record);
+    const dedupeKey = actionDedupeId(record);
+    const existingPromise = inFlightActions.get(dedupeKey);
+    if (existingPromise) {
+      await existingPromise;
+      continue;
     }
+
+    const replayPromise = (async (): Promise<boolean> => {
+      try {
+        const ownedDoses = record.doses.filter((d) =>
+          ownedMedicationIds.has(d.medicationId)
+        );
+        if (ownedDoses.length === 0) {
+          resolvedIds.add(dedupeKey);
+          return true;
+        }
+
+        const existing = await listEntries({
+          fromDate: record.entryDate,
+          toDate: record.entryDate,
+          ...(ownedDoses.length === 1
+            ? { medicationId: ownedDoses[0].medicationId }
+            : {}),
+        });
+
+        const unlogged = ownedDoses.filter(
+          (d) => !isDoseLogged(existing, d.medicationId, d.scheduleId)
+        );
+
+        if (unlogged.length > 0) {
+          const takenAt =
+            record.status === 'taken'
+              ? (record.takenAt ?? new Date().toISOString())
+              : undefined;
+          await Promise.all(
+            unlogged.map((d) =>
+              createEntry({
+                medication_id: d.medicationId,
+                schedule_id: d.scheduleId,
+                status: record.status,
+                entry_date: record.entryDate,
+                taken_at: takenAt,
+              })
+            )
+          );
+        }
+
+        await clearMatchingReminders(
+          record.notificationId,
+          record.key,
+          ownedDoses,
+          record.entryDate
+        );
+        resolvedIds.add(dedupeKey);
+        anySucceeded = true;
+        return true;
+      } catch {
+        return false;
+      }
+    })().finally(() => {
+      inFlightActions.delete(dedupeKey);
+    });
+
+    inFlightActions.set(dedupeKey, replayPromise);
+    await replayPromise;
   }
 
-  await writePendingActions(remaining);
+  if (resolvedIds.size > 0) {
+    const latest = await readPendingActions();
+    await writePendingActions(
+      latest.filter((item) => !resolvedIds.has(actionDedupeId(item)))
+    );
+  }
   if (anySucceeded) {
     invalidateMedicationEntryCaches(queryClient);
   }
@@ -322,7 +346,7 @@ export async function processMedicationNotificationResponse(
 
   const notificationId = response.notification.request.identifier;
   const baseKey = data?.baseKey ?? data?.key ?? null;
-  const dedupeKey = baseKey ?? notificationId;
+  const dedupeKey = actionDedupeId({ key: baseKey, entryDate, doses });
 
   const existingPromise = inFlightActions.get(dedupeKey);
   if (existingPromise) {
