@@ -153,18 +153,21 @@ const withBackgroundWater: ConfigPlugin = (config) => {
   config = withAndroidManifest(config, (config) => {
     const application = config.modResults.manifest.application?.[0];
     if (!application) return config;
-    const activities = application.activity ?? [];
-    if (!activities.some((a) => a.$['android:name'] === ACTIVITY_NAME)) {
-      activities.push({
-        $: {
-          'android:name': ACTIVITY_NAME,
-          'android:exported': 'false',
-          'android:theme': '@android:style/Theme.NoDisplay',
-          'android:excludeFromRecents': 'true',
-          'android:noHistory': 'true',
-        },
-      });
-    }
+    const activities = (application.activity ?? []).filter(
+      (a) => a.$['android:name'] !== ACTIVITY_NAME
+    );
+    activities.push({
+      $: {
+        'android:name': ACTIVITY_NAME,
+        'android:exported': 'false',
+        'android:theme': '@android:style/Theme.NoDisplay',
+        'android:excludeFromRecents': 'true',
+        'android:noHistory': 'true',
+        // A task of its own: sharing the app's would bring the app to the
+        // front whenever it is open in the background.
+        'android:taskAffinity': '',
+      },
+    });
     application.activity = activities;
     return config;
   });
