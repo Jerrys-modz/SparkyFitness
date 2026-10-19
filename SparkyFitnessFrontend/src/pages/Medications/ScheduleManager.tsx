@@ -1,11 +1,16 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Settings, Clock, Trash2 } from 'lucide-react';
+import { Settings, Clock, Trash2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import {
   todayInZone,
   formatDose,
+  areExtraDosesValid,
+  buildExtraDoseSchedules,
+  applyDoseFrequencyPreset,
+  type DoseFrequencyPresetId,
+  type ExtraDoseInput,
   type MedicationWithMeal,
 } from '@workspace/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,6 +65,7 @@ export default function ScheduleManager({ med }: { med: MedicationDetail }) {
   const [prnMaxPerDay, setPrnMaxPerDay] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [extraDoses, setExtraDoses] = useState<ExtraDoseInput[]>([]);
 
   const handleTypeChange = (val: string) => {
     setScheduleTypeId(val);
@@ -71,7 +77,28 @@ export default function ScheduleManager({ med }: { med: MedicationDetail }) {
   const addMutation = useAddScheduleMutation(med.id);
   const deleteMutation = useDeleteScheduleMutation();
 
-  const handleSave = () => {
+  const presetLabels: Record<DoseFrequencyPresetId, string> = {
+    qd: t('medications.schedule.preset.qd', 'Once daily'),
+    qhs: t('medications.schedule.preset.qhs', 'Bedtime'),
+    bid: t('medications.schedule.preset.bid', 'Twice daily'),
+    tid: t('medications.schedule.preset.tid', '3x daily'),
+    qid: t('medications.schedule.preset.qid', '4x daily'),
+  };
+
+  const applyPreset = (id: DoseFrequencyPresetId) => {
+    const preset = applyDoseFrequencyPreset(id);
+    setTimeOfDay(preset.time);
+    setExtraDoses(preset.extras);
+  };
+
+  const updateExtraDose = (index: number, patch: Partial<ExtraDoseInput>) => {
+    setExtraDoses((prev) =>
+      prev.map((dose, i) => (i === index ? { ...dose, ...patch } : dose))
+    );
+  };
+
+  const handleSave = async () => {
+    if (!areExtraDosesValid(extraDoses)) return;
     const body: Partial<MedicationSchedule> & { schedule_type_id: string } = {
       schedule_type_id: scheduleTypeId,
       time_of_day: scheduleTypeId === 'prn' ? null : timeOfDay,
@@ -95,24 +122,31 @@ export default function ScheduleManager({ med }: { med: MedicationDetail }) {
       body.prn_max_per_day = prnMaxPerDay ? Number(prnMaxPerDay) : null;
     }
 
-    addMutation.mutate(body, {
-      onSuccess: () => {
-        setOpen(false);
-        setScheduleTypeId('daily');
-        setTimeOfDay('09:00');
-        setDoseAmount('');
-        setWithMeal(null);
-        setDaysOfWeek([]);
-        setIntervalDays('1');
-        setDayOfMonth('1');
-        setCycleOnDays('7');
-        setCycleOffDays('7');
-        setPrnReason('');
-        setPrnMaxPerDay('');
-        setStartDate('');
-        setEndDate('');
-      },
-    });
+    try {
+      await addMutation.mutateAsync(body);
+      // Each extra dose is its own rule sharing this rule's recurrence.
+      for (const extra of buildExtraDoseSchedules(body, extraDoses)) {
+        await addMutation.mutateAsync(extra);
+      }
+    } catch {
+      // The mutation's meta already surfaces the error toast.
+      return;
+    }
+    setOpen(false);
+    setScheduleTypeId('daily');
+    setTimeOfDay('09:00');
+    setDoseAmount('');
+    setWithMeal(null);
+    setDaysOfWeek([]);
+    setIntervalDays('1');
+    setDayOfMonth('1');
+    setCycleOnDays('7');
+    setCycleOffDays('7');
+    setPrnReason('');
+    setPrnMaxPerDay('');
+    setStartDate('');
+    setEndDate('');
+    setExtraDoses([]);
   };
 
   const toggleDay = (day: number) => {
@@ -252,6 +286,98 @@ export default function ScheduleManager({ med }: { med: MedicationDetail }) {
                   </p>
                 )}
               </div>
+
+              {/* Additional doses at other times of day (same rule, own time and amount) */}
+              {scheduleTypeId !== 'prn' && (
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-1">
+                    {(['qd', 'qhs', 'bid', 'tid', 'qid'] as const).map((id) => (
+                      <Button
+                        key={id}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => applyPreset(id)}
+                      >
+                        {presetLabels[id]}
+                      </Button>
+                    ))}
+                  </div>
+                  {extraDoses.map((extra, index) => (
+                    <div key={index} className="flex items-end gap-2">
+                      <div className="space-y-1 flex-1">
+                        <Label>
+                          {t('medications.schedule.extraDoseTime', 'Time')}
+                        </Label>
+                        <Input
+                          type="time"
+                          value={extra.time}
+                          onChange={(e) =>
+                            updateExtraDose(index, { time: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1 flex-1">
+                        <Label>
+                          {t('medications.schedule.extraDoseAmount', 'Dose')}
+                        </Label>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          placeholder={
+                            doseAmount ||
+                            (med.dose_amount != null
+                              ? String(med.dose_amount)
+                              : '1')
+                          }
+                          value={extra.dose}
+                          onChange={(e) =>
+                            updateExtraDose(index, { dose: e.target.value })
+                          }
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={() =>
+                          setExtraDoses((prev) =>
+                            prev.filter((_, i) => i !== index)
+                          )
+                        }
+                        aria-label={t(
+                          'medications.schedule.removeExtraDose',
+                          'Remove dose'
+                        )}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setExtraDoses((prev) => [...prev, { time: '', dose: '' }])
+                    }
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    {t('medications.schedule.addDose', 'Add another dose')}
+                  </Button>
+                  {extraDoses.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {t(
+                        'medications.schedule.extraDoseHint',
+                        'Each extra dose is saved as its own rule with the same recurrence and food relation.'
+                      )}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Food relation */}
               <div className="space-y-2">
@@ -453,6 +579,7 @@ export default function ScheduleManager({ med }: { med: MedicationDetail }) {
                 onClick={handleSave}
                 disabled={
                   addMutation.isPending ||
+                  !areExtraDosesValid(extraDoses) ||
                   ((scheduleTypeId === 'every_n_days' ||
                     scheduleTypeId === 'cyclic') &&
                     !startDate)

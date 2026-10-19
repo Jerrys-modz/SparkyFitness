@@ -37,10 +37,15 @@ import {
   localizedMealTimingLabel,
   localizedWeekdayLabels,
 } from '../utils/medicationScheduleLocalization';
-import type {
-  CreateScheduleInput,
-  MedicationSchedule,
-  MedicationWithMeal,
+import {
+  areExtraDosesValid,
+  buildExtraDoseSchedules,
+  applyDoseFrequencyPreset,
+  type DoseFrequencyPresetId,
+  type ExtraDoseInput,
+  type CreateScheduleInput,
+  type MedicationSchedule,
+  type MedicationWithMeal,
 } from '@workspace/shared';
 import { getTodayDate, formatDateLabel } from '../utils/dateUtils';
 import { addLog } from '../services/LogService';
@@ -192,6 +197,10 @@ const MedicationScheduleFormScreen: React.FC<
   const weekdaySheetRef = useRef<WeekdaySheetRef>(null);
 
   const [edits, setEdits] = useState<Partial<FormState>>({});
+  // Extra doses are create-only: each becomes its own schedule on save.
+  const [extraDoses, setExtraDoses] = useState<ExtraDoseInput[]>([]);
+  const [editingExtra, setEditingExtra] = useState(0);
+  const extraTimeSheetRef = useRef<TimeSheetRef>(null);
 
   const form: FormState = useMemo(
     () => ({ ...baseFromSchedule(existing), ...edits }),
@@ -373,6 +382,15 @@ const MedicationScheduleFormScreen: React.FC<
         return;
       }
     }
+    if (!isEditing && !areExtraDosesValid(extraDoses)) {
+      Alert.alert(
+        t('medications.schedule.invalidDose', { defaultValue: 'Invalid dose' }),
+        t('medications.schedule.doseMessage', {
+          defaultValue: 'Please enter a valid dose amount.',
+        })
+      );
+      return;
+    }
     if (isPrnType(type) && form.prnMaxPerDay) {
       const max = parseInt(form.prnMaxPerDay, 10);
       if (!Number.isFinite(max) || max < 1) {
@@ -417,20 +435,46 @@ const MedicationScheduleFormScreen: React.FC<
         }
       );
     } else {
-      createScheduleMutation.mutate(
-        { medicationId, body },
-        {
-          onSuccess: () => navigation.goBack(),
-          onError: (error) =>
+      const onCreateError = (error: Error) =>
+        Alert.alert(
+          t('common.error', { defaultValue: 'Error' }),
+          t('medications.schedule.createFailed', {
+            defaultValue: 'Failed to create schedule: {{error}}',
+            error: error.message,
+          })
+        );
+      const extras = isPrnType(type)
+        ? []
+        : buildExtraDoseSchedules(body, extraDoses);
+      if (extras.length === 0) {
+        createScheduleMutation.mutate(
+          { medicationId, body },
+          { onSuccess: () => navigation.goBack(), onError: onCreateError }
+        );
+        return;
+      }
+      createScheduleMutation
+        .mutateAsync({ medicationId, body })
+        .then(async () => {
+          try {
+            for (const extra of extras) {
+              await createScheduleMutation.mutateAsync({
+                medicationId,
+                body: extra,
+              });
+            }
+          } catch (error) {
             Alert.alert(
               t('common.error', { defaultValue: 'Error' }),
-              t('medications.schedule.createFailed', {
-                defaultValue: 'Failed to create schedule: {{error}}',
-                error: error.message,
+              t('medications.schedule.createExtraFailed', {
+                defaultValue:
+                  'The first schedule was saved, but another dose failed: {{error}}',
+                error: error instanceof Error ? error.message : String(error),
               })
-            ),
-        }
-      );
+            );
+          }
+          navigation.goBack();
+        }, onCreateError);
     }
   }, [
     form,
@@ -439,6 +483,7 @@ const MedicationScheduleFormScreen: React.FC<
     scheduleId,
     medicationId,
     buildPayload,
+    extraDoses,
     createScheduleMutation,
     updateScheduleMutation,
     navigation,
@@ -549,6 +594,14 @@ const MedicationScheduleFormScreen: React.FC<
     ],
     [t]
   );
+
+  const presetLabels: Record<DoseFrequencyPresetId, string> = {
+    qd: t('medications.schedule.preset.qd', { defaultValue: 'Once daily' }),
+    qhs: t('medications.schedule.preset.qhs', { defaultValue: 'Bedtime' }),
+    bid: t('medications.schedule.preset.bid', { defaultValue: 'Twice daily' }),
+    tid: t('medications.schedule.preset.tid', { defaultValue: '3x daily' }),
+    qid: t('medications.schedule.preset.qid', { defaultValue: '4x daily' }),
+  };
 
   const type = form.scheduleTypeId;
   const startRequired = requiresStartDate(type);
@@ -819,6 +872,119 @@ const MedicationScheduleFormScreen: React.FC<
           </Text>
         )}
 
+        {!isEditing && !isPrnType(type) && (
+          <View className="mb-4">
+            <View className="flex-row flex-wrap gap-2 mb-2">
+              {(
+                ['qd', 'qhs', 'bid', 'tid', 'qid'] as DoseFrequencyPresetId[]
+              ).map((id) => (
+                <TouchableOpacity
+                  key={id}
+                  activeOpacity={0.7}
+                  className="px-3 py-1.5 rounded-full border border-border-subtle"
+                  onPress={() => {
+                    const preset = applyDoseFrequencyPreset(id);
+                    updateField('timeOfDay', preset.time);
+                    setExtraDoses(preset.extras);
+                  }}
+                  accessibilityRole="button"
+                >
+                  <Text className="text-sm text-text-link font-medium">
+                    {presetLabels[id]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {extraDoses.length > 0 && (
+              <SettingsRowGroup>
+                {extraDoses.map((extra, index) => (
+                  <SettingsRow
+                    key={index}
+                    title={t('medications.schedule.extraDoseTitle', {
+                      defaultValue: 'Dose {{number}}',
+                      number: index + 2,
+                    })}
+                    onPress={() => {
+                      setEditingExtra(index);
+                      extraTimeSheetRef.current?.present();
+                    }}
+                    rightAccessory={
+                      <View className="flex-row items-center gap-3">
+                        <FormInput
+                          placeholder={t('medications.schedule.default', {
+                            defaultValue: 'Default',
+                          })}
+                          value={extra.dose}
+                          onChangeText={(v) =>
+                            setExtraDoses((prev) =>
+                              prev.map((d, i) =>
+                                i === index ? { ...d, dose: v } : d
+                              )
+                            )
+                          }
+                          keyboardType="decimal-pad"
+                          style={{ ...INLINE_INPUT_STYLE, minWidth: 60 }}
+                        />
+                        <Text className="text-base text-text-secondary">
+                          {extra.time
+                            ? formatLocalizedTimeOfDay(
+                                extra.time,
+                                undefined,
+                                preferences?.time_format
+                              )
+                            : t('medications.schedule.none', {
+                                defaultValue: 'None',
+                              })}
+                        </Text>
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onPress={() =>
+                            setExtraDoses((prev) =>
+                              prev.filter((_, i) => i !== index)
+                            )
+                          }
+                          accessibilityRole="button"
+                          accessibilityLabel={t(
+                            'medications.schedule.removeExtraDose',
+                            { defaultValue: 'Remove dose' }
+                          )}
+                        >
+                          <Text className="text-text-danger-subtle text-sm font-medium">
+                            {t('common.remove', { defaultValue: 'Remove' })}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    }
+                  />
+                ))}
+              </SettingsRowGroup>
+            )}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              className="py-2 px-1"
+              onPress={() =>
+                setExtraDoses((prev) => [...prev, { time: '', dose: '' }])
+              }
+              accessibilityRole="button"
+            >
+              <Text className="text-text-link text-base font-medium">
+                +{' '}
+                {t('medications.schedule.addDose', {
+                  defaultValue: 'Add another dose',
+                })}
+              </Text>
+            </TouchableOpacity>
+            {extraDoses.length > 0 && (
+              <Text className="text-sm text-text-muted px-1">
+                {t('medications.schedule.extraDoseHint', {
+                  defaultValue:
+                    'Each extra dose is saved as its own schedule with the same frequency and meal timing.',
+                })}
+              </Text>
+            )}
+          </View>
+        )}
+
         <SettingsRowGroup>
           <SettingsRow
             title={
@@ -977,6 +1143,18 @@ const MedicationScheduleFormScreen: React.FC<
         timeFormat={preferences?.time_format}
         onSelectTime={(time) => updateField('timeOfDay', time)}
       />
+      {extraDoses.length > 0 && (
+        <TimeSheet
+          ref={extraTimeSheetRef}
+          value={extraDoses[editingExtra]?.time ?? ''}
+          timeFormat={preferences?.time_format}
+          onSelectTime={(time) =>
+            setExtraDoses((prev) =>
+              prev.map((d, i) => (i === editingExtra ? { ...d, time } : d))
+            )
+          }
+        />
+      )}
       <CalendarSheet
         ref={startCalendarRef}
         selectedDate={form.startDate || getTodayDate()}
