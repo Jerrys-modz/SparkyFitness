@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import {
@@ -15,9 +16,20 @@ import { isDoseLogged } from '../utils/medications';
 
 export const MEDICATION_NOTIFICATION_TASK_NAME =
   'MEDICATION_NOTIFICATION_ACTION_TASK';
+export const PENDING_MEDICATION_NOTIFICATION_ACTIONS_KEY =
+  'pending_medication_notification_actions';
+
+export interface PendingMedicationNotificationAction {
+  key: string | null;
+  notificationId: string;
+  status: MedicationEntryStatus;
+  doses: { medicationId: string; scheduleId: string | null }[];
+  entryDate: string;
+  takenAt?: string;
+}
 
 let initialized = false;
-const inFlightActions = new Map<string, Promise<void>>();
+const inFlightActions = new Map<string, Promise<boolean>>();
 
 export function extractNotificationData(
   content: Notifications.NotificationContent | undefined
@@ -124,9 +136,139 @@ function doesNotificationMatchAction(
   );
 }
 
+function actionDedupeId(action: {
+  key: string | null;
+  entryDate: string;
+  doses: { medicationId: string; scheduleId: string | null }[];
+}): string {
+  if (action.key) return action.key;
+  const doseIds = action.doses
+    .map((d) => `${d.medicationId}:${d.scheduleId ?? ''}`)
+    .sort()
+    .join(',');
+  return `${action.entryDate}_${doseIds}`;
+}
+
+async function readPendingActions(): Promise<
+  PendingMedicationNotificationAction[]
+> {
+  try {
+    const raw = await AsyncStorage.getItem(
+      PENDING_MEDICATION_NOTIFICATION_ACTIONS_KEY
+    );
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? (parsed as PendingMedicationNotificationAction[])
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writePendingActions(
+  actions: PendingMedicationNotificationAction[]
+): Promise<void> {
+  try {
+    if (actions.length === 0) {
+      await AsyncStorage.removeItem(
+        PENDING_MEDICATION_NOTIFICATION_ACTIONS_KEY
+      );
+    } else {
+      await AsyncStorage.setItem(
+        PENDING_MEDICATION_NOTIFICATION_ACTIONS_KEY,
+        JSON.stringify(actions)
+      );
+    }
+  } catch {
+    // ignore storage errors
+  }
+}
+
+async function enqueuePendingAction(
+  record: PendingMedicationNotificationAction
+): Promise<void> {
+  const existing = await readPendingActions();
+  const id = actionDedupeId(record);
+  const filtered = existing.filter((item) => actionDedupeId(item) !== id);
+  filtered.push(record);
+  await writePendingActions(filtered);
+}
+
+async function removePendingAction(record: {
+  key: string | null;
+  entryDate: string;
+  doses: { medicationId: string; scheduleId: string | null }[];
+}): Promise<void> {
+  const existing = await readPendingActions();
+  if (existing.length === 0) return;
+  const id = actionDedupeId(record);
+  const filtered = existing.filter((item) => actionDedupeId(item) !== id);
+  if (filtered.length !== existing.length) {
+    await writePendingActions(filtered);
+  }
+}
+
+export async function flushPendingMedicationNotificationActions(): Promise<void> {
+  const pending = await readPendingActions();
+  if (pending.length === 0) return;
+
+  const remaining: PendingMedicationNotificationAction[] = [];
+  let anySucceeded = false;
+
+  for (const record of pending) {
+    try {
+      const existing = await listEntries({
+        fromDate: record.entryDate,
+        toDate: record.entryDate,
+        ...(record.doses.length === 1
+          ? { medicationId: record.doses[0].medicationId }
+          : {}),
+      });
+
+      const unlogged = record.doses.filter(
+        (d) => !isDoseLogged(existing, d.medicationId, d.scheduleId)
+      );
+
+      if (unlogged.length > 0) {
+        const takenAt =
+          record.status === 'taken'
+            ? (record.takenAt ?? new Date().toISOString())
+            : undefined;
+        await Promise.all(
+          unlogged.map((d) =>
+            createEntry({
+              medication_id: d.medicationId,
+              schedule_id: d.scheduleId,
+              status: record.status,
+              entry_date: record.entryDate,
+              taken_at: takenAt,
+            })
+          )
+        );
+      }
+
+      await clearMatchingReminders(
+        record.notificationId,
+        record.key,
+        record.doses,
+        record.entryDate
+      );
+      anySucceeded = true;
+    } catch {
+      remaining.push(record);
+    }
+  }
+
+  await writePendingActions(remaining);
+  if (anySucceeded) {
+    invalidateMedicationEntryCaches(queryClient);
+  }
+}
+
 export async function processMedicationNotificationResponse(
   response: Notifications.NotificationResponse
-): Promise<void> {
+): Promise<boolean> {
   const actionId = response.actionIdentifier;
 
   let status: MedicationEntryStatus | null = null;
@@ -136,7 +278,7 @@ export async function processMedicationNotificationResponse(
     status = 'skipped';
   }
 
-  if (!status) return;
+  if (!status) return true;
 
   const content = response.notification?.request?.content;
   const data = extractNotificationData(content);
@@ -148,11 +290,11 @@ export async function processMedicationNotificationResponse(
       '[MedicationNotificationAction] Missing required data in notification',
       'WARNING'
     );
-    return;
+    return false;
   }
 
   const doses = parseDosesFromData(data);
-  if (doses.length === 0) return;
+  if (doses.length === 0) return false;
 
   const notificationId = response.notification.request.identifier;
   const baseKey = data?.baseKey ?? data?.key ?? null;
@@ -160,8 +302,7 @@ export async function processMedicationNotificationResponse(
 
   const existingPromise = inFlightActions.get(dedupeKey);
   if (existingPromise) {
-    await existingPromise;
-    return;
+    return existingPromise;
   }
 
   const actionPromise = handleNotificationAction(
@@ -175,7 +316,7 @@ export async function processMedicationNotificationResponse(
   });
 
   inFlightActions.set(dedupeKey, actionPromise);
-  await actionPromise;
+  return actionPromise;
 }
 
 TaskManager.defineTask<Notifications.NotificationTaskPayload>(
@@ -191,9 +332,13 @@ TaskManager.defineTask<Notifications.NotificationTaskPayload>(
     }
 
     if (data && typeof data === 'object' && 'actionIdentifier' in data) {
-      await processMedicationNotificationResponse(
+      const ok = await processMedicationNotificationResponse(
         data as unknown as Notifications.NotificationResponse
       );
+      await _flushBuffer?.();
+      return ok
+        ? Notifications.BackgroundNotificationTaskResult.NewData
+        : Notifications.BackgroundNotificationTaskResult.Failed;
     }
 
     await _flushBuffer?.();
@@ -262,7 +407,8 @@ async function handleNotificationAction(
   entryDate: string,
   notificationId: string,
   key: string | null
-): Promise<void> {
+): Promise<boolean> {
+  const takenAt = status === 'taken' ? new Date().toISOString() : undefined;
   try {
     // Dismiss the tapped notification immediately so Android / Wear OS clears
     // the interacted reminder right away. Sibling delivered and scheduled repeat
@@ -280,12 +426,11 @@ async function handleNotificationAction(
     );
 
     if (unlogged.length === 0) {
+      await removePendingAction({ key, entryDate, doses });
       await clearMatchingReminders(notificationId, key, doses, entryDate);
       invalidateMedicationEntryCaches(queryClient);
-      return;
+      return true;
     }
-
-    const takenAt = status === 'taken' ? new Date().toISOString() : undefined;
 
     await Promise.all(
       unlogged.map((d) =>
@@ -299,6 +444,7 @@ async function handleNotificationAction(
       )
     );
 
+    await removePendingAction({ key, entryDate, doses });
     await clearMatchingReminders(notificationId, key, doses, entryDate);
 
     // This path writes the entry through the API directly rather than through the
@@ -311,10 +457,20 @@ async function handleNotificationAction(
       `[MedicationNotificationAction] Logged ${unlogged.length} medication(s) as ${status}`,
       'DEBUG'
     );
+    return true;
   } catch (error) {
+    await enqueuePendingAction({
+      key,
+      notificationId,
+      status,
+      doses,
+      entryDate,
+      takenAt,
+    });
     addLog(
       `[MedicationNotificationAction] Failed to log medication: ${(error as Error).message}`,
       'ERROR'
     );
+    return false;
   }
 }

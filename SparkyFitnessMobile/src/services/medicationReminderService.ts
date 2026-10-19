@@ -14,6 +14,7 @@ import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import type { MedicationDetail, MedicationEntry } from '@workspace/shared';
 import { isDoseLogged } from '../utils/medications';
 import { addLog } from './LogService';
+import { flushPendingMedicationNotificationActions } from './medicationNotificationHandler';
 
 const REPEAT_MINUTES = [10, 20, 30];
 // iOS keeps only the 64 soonest pending notifications, so base reminders get a
@@ -121,6 +122,7 @@ export async function reconcileMedicationReminders(
   schedulingLock.add('medication-reminders');
 
   try {
+    await flushPendingMedicationNotificationActions();
     const prefs = useAppPreferencesStore.getState();
     if (!prefs.medicationRemindersEnabled || !prefs.notificationsEnabled) {
       const all = await Notifications.getAllScheduledNotificationsAsync();

@@ -330,7 +330,7 @@ describe('logging a dose from a notification action', () => {
       );
     });
 
-    it('leaves sibling and scheduled repeat reminders intact when createEntry fails', async () => {
+    it('persists failed actions for retry and leaves sibling/repeat reminders intact until flushed', async () => {
       const baseKey = 'med_2026-08-12_m1_s1_09:00';
       (createEntry as jest.Mock).mockRejectedValueOnce(new Error('offline'));
       (
@@ -360,25 +360,34 @@ describe('logging a dose from a notification action', () => {
         },
       ]);
 
-      listener({
-        actionIdentifier: MEDICATION_TAKEN_ACTION,
-        notification: {
-          request: {
-            identifier: 'notif-repeat-20',
-            content: {
-              data: {
-                medicationId: 'm1',
-                scheduleId: 's1',
-                entryDate: DATE,
-                key: `${baseKey}_20`,
-                baseKey,
+      if (!registeredTaskExecutor) {
+        throw new Error('background notification task executor not registered');
+      }
+
+      const failResult = await registeredTaskExecutor({
+        data: {
+          actionIdentifier: MEDICATION_TAKEN_ACTION,
+          notification: {
+            request: {
+              identifier: 'notif-repeat-20',
+              content: {
+                data: {
+                  medicationId: 'm1',
+                  scheduleId: 's1',
+                  entryDate: DATE,
+                  key: `${baseKey}_20`,
+                  baseKey,
+                },
               },
             },
           },
         },
+        error: null,
       });
-      await new Promise(process.nextTick);
 
+      expect(failResult).toBe(
+        Notifications.BackgroundNotificationTaskResult.Failed
+      );
       expect(dismissDeliveredNotification).toHaveBeenCalledWith(
         'notif-repeat-20'
       );
@@ -388,6 +397,17 @@ describe('logging a dose from a notification action', () => {
       expect(
         Notifications.cancelScheduledNotificationAsync
       ).not.toHaveBeenCalled();
+
+      (createEntry as jest.Mock).mockResolvedValueOnce({ id: 'e-retried' });
+      const { flushPendingMedicationNotificationActions } =
+        require('../../src/services/medicationNotificationHandler') as typeof import('../../src/services/medicationNotificationHandler');
+      await flushPendingMedicationNotificationActions();
+
+      expect(createEntry).toHaveBeenCalledTimes(2);
+      expect(dismissDeliveredNotification).toHaveBeenCalledWith('notif-base');
+      expect(
+        Notifications.cancelScheduledNotificationAsync
+      ).toHaveBeenCalledWith('repeat-10');
     });
   });
 
