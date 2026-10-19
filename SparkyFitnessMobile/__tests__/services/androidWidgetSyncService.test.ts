@@ -16,6 +16,8 @@ jest.mock('../../src/services/CalorieWidgetBridge', () => ({
     reloadWidget: jest.fn(() => Promise.resolve()),
     setMacroSnapshot: jest.fn(() => Promise.resolve()),
     reloadMacroWidget: jest.fn(() => Promise.resolve()),
+    setWaterSnapshot: jest.fn(() => Promise.resolve()),
+    reloadWaterWidget: jest.fn(() => Promise.resolve()),
     clearSnapshots: jest.fn(() => Promise.resolve()),
   },
 }));
@@ -35,6 +37,9 @@ const summary = {
   protein: { consumed: 92, goal: 150 },
   carbs: { consumed: 180, goal: 200 },
   fat: { consumed: 55, goal: 65 },
+  waterConsumed: 1500,
+  waterGoal: 2500,
+  waterManual: 1000,
 };
 
 describe('androidWidgetSyncService', () => {
@@ -44,7 +49,7 @@ describe('androidWidgetSyncService', () => {
     (buildDailySummary as jest.Mock).mockReturnValue(summary);
   });
 
-  it('erases both snapshots and moves the generation on', async () => {
+  it('erases the snapshots and moves the generation on', async () => {
     const before = getAndroidWidgetGeneration();
 
     await clearAndroidWidgetSnapshots();
@@ -60,6 +65,18 @@ describe('androidWidgetSyncService', () => {
 
     expect(CalorieWidgetBridge.setCalorieSnapshot).toHaveBeenCalledTimes(1);
     expect(CalorieWidgetBridge.setMacroSnapshot).toHaveBeenCalledTimes(1);
+    expect(CalorieWidgetBridge.setWaterSnapshot).toHaveBeenCalledTimes(1);
+    const water = JSON.parse(
+      (CalorieWidgetBridge.setWaterSnapshot as jest.Mock).mock.calls[0][0]
+    );
+    expect(water).toMatchObject({
+      date: '2026-10-19',
+      consumedMl: 1500,
+      goalMl: 2500,
+      manualMl: 1000,
+    });
+    expect(water).not.toHaveProperty('drinkMl');
+    expect(CalorieWidgetBridge.reloadWaterWidget).toHaveBeenCalledTimes(1);
   });
 
   it('drops a refresh for the previous account when the account changes mid-load', async () => {
@@ -78,5 +95,6 @@ describe('androidWidgetSyncService', () => {
 
     expect(CalorieWidgetBridge.setCalorieSnapshot).not.toHaveBeenCalled();
     expect(CalorieWidgetBridge.setMacroSnapshot).not.toHaveBeenCalled();
+    expect(CalorieWidgetBridge.setWaterSnapshot).not.toHaveBeenCalled();
   });
 });

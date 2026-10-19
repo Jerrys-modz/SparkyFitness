@@ -25,7 +25,7 @@ type WidgetSyncState = {
  * Android <=12 continues to use the widget-only override.
  *
  * Runs are serialized and deduped by {preference, effectiveLanguage}. Locale
- * preparation must complete before either widget reload. Any preparation or
+ * preparation must complete before any widget reload. Any preparation or
  * partial reload failure leaves the state unapplied so a later signal retries.
  */
 export function useWidgetLanguageRefresh(): void {
@@ -68,9 +68,10 @@ export function useWidgetLanguageRefresh(): void {
       const results = await Promise.allSettled([
         CalorieWidgetBridge.reloadWidget(),
         CalorieWidgetBridge.reloadMacroWidget(),
+        CalorieWidgetBridge.reloadWaterWidget(),
       ]);
 
-      const [calorieResult, macroResult] = results;
+      const [calorieResult, macroResult, waterResult] = results;
       let fullyApplied = true;
       if (calorieResult.status === 'rejected') {
         void addLog(
@@ -82,6 +83,13 @@ export function useWidgetLanguageRefresh(): void {
       if (macroResult.status === 'rejected') {
         void addLog(
           '[useWidgetLanguageRefresh] Macro widget reload failed',
+          'ERROR'
+        );
+        fullyApplied = false;
+      }
+      if (waterResult.status === 'rejected') {
+        void addLog(
+          '[useWidgetLanguageRefresh] Water widget reload failed',
           'ERROR'
         );
         fullyApplied = false;
