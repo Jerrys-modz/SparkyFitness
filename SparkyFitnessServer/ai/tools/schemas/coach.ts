@@ -54,3 +54,6 @@ export type DetectPatternsInput = z.infer<typeof DetectPatternsSchema>;
 export type GenerateCoachingPlanInput = z.infer<
   typeof GenerateCoachingPlanSchema
 >;
+
+export const GetCoachingCheckInSchema = z.object({}).strict();
+export type GetCoachingCheckInInput = z.infer<typeof GetCoachingCheckInSchema>;

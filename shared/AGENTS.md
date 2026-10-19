@@ -1,6 +1,6 @@
 # AGENTS.md
 
-*Last updated: 2026-10-16*
+*Last updated: 2026-10-18*
 
 `@workspace/shared` is a source-first TypeScript workspace library package for schemas, constants, and timezone/day helpers consumed by SparkyFitnessServer, SparkyFitnessFrontend, and SparkyFitnessMobile.
 
@@ -16,6 +16,7 @@
 - `src/schemas/api/` - API request/response contracts (`*api.zod.ts`). `VoiceTranscription.api.zod.ts` defines multipart limits/MIME types, transcription responses, voice preference patches, and compatible public service options shared by web/mobile/server.
 - `src/constants/` - shared constants and enums (exercises, nutrients, meal types, fasting protocols, medication schedules, cycle phases, etc.).
 - `src/utils/` - timezone helpers (`todayInZone`, `instantToDay`, `dayToUtcRange`, `compareDays`, `addDays`, `isDayString`), cycle/menstruation helpers, unit/calculation utilities, the race plan generator (`racePlan.ts`, `buildRacePlan`), and the training pace zones (`racePaceZones.ts`: `racePaceZones` turns a recent race result into easy, interval, tempo, marathon-pace and stride ranges with Riegel's formula; `equivalent5kPace` is the shared 5K conversion; `paceZones.ts` holds the effort-based `paceZones`, `thresholdPaceFromEffort` and `PACE_ZONE_IDS`).
+- `src/utils/weightCoaching.ts` - the weekly weight coaching maths (`buildWeightCoachingCheckIn`, `buildExpenditureHistory`, `splitMacrosForCalories`, `coachingDataNotes`): a robust weight-trend fit, expenditure from intake and trend (using `ENERGY_DENSITY_KCAL_PER_KG`), progress against a goal rate and a capped, floored target suggestion. Pure functions over day strings; tested in `SparkyFitnessServer/tests/weightCoaching.test.ts`. API contract in `src/schemas/api/CoachingCheckIn.api.zod.ts`.
 - `src/nutrients/` - nutrient catalogs and the goal calculator used by web onboarding, the web Goals editor and mobile Goals (`nutrientCalculation.ts`: per-nutrient recommended values from age, sex, weight, calories and the saved algorithm choices; `nutrientAlgorithms.ts`: the algorithm enums and labels).
 - `src/ai/`, `src/cycle/`, `src/medications/`, `src/mood/` - domain-specific helpers.
 - `src/symptoms/` - generic symptom tracking: constants and enums (scales, templates, sections, option kinds), template section resolution (`resolveSections`), built-in symptoms and pick-lists, head/body region ids for the location maps, and custom-field validation. The API contract is `src/schemas/api/Symptoms.api.zod.ts`.

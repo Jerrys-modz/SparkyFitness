@@ -406,6 +406,7 @@ export type RootStackParamList = {
   PasskeySettings: undefined;
   AppSettings: undefined;
   NotificationSettings: undefined;
+  Coaching: undefined;
   About: undefined;
   WhatsNew: undefined;
   MedicationsList: undefined;

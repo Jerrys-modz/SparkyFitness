@@ -53,7 +53,7 @@ Certain tables contain private user data that is **never** accessible to any fam
 ### 2. Tier 2: Read-Only Profile & Settings Data
 The following data can be **read** by delegates who hold at least one of `can_manage_diary`, `can_manage_checkin`, `can_manage_medications`, `can_manage_symptoms`, or `can_view_reports` — but **only the account owner can modify it**:
 * Profile information (`profiles` table — name, date of birth, height, avatar, etc.)
-* General preferences (`user_preferences` table — themes, units, calculation methods, calorie safety-floor settings, report chart scaling, and Chat/Vision/Voice selections). Voice visibility and the System/AI selection sync across web and mobile. Only the owner can change them; disabling voice preserves the selected model.
+* General preferences (`user_preferences` table — themes, units, calculation methods, calorie safety-floor settings, report chart scaling, and Chat/Vision/Voice selections). The weekly coaching goal (direction, rate, check-in day) is stored with them. Voice visibility and the System/AI selection sync across web and mobile. Only the owner can change them; disabling voice preserves the selected model.
 * Nutrient column display preferences (`user_nutrient_display_preferences`)
 * Dashboard widget layout (`user_dashboard_layouts`)
 * Onboarding data and completion status (`onboarding_data`, `onboarding_status`)

@@ -95,6 +95,9 @@ export const PREFERENCE_DEFAULTS = {
   healthTrendsCardVisible: true,
   mindfulnessCardVisible: true,
   trainingLoadCardVisible: true,
+  coachingCardVisible: true,
+  coachingReminderEnabled: true,
+  coachingDismissedSignature: null as string | null,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
   medicationRemindersEnabled: true,
   medicationReminderRepeats: true,
@@ -170,6 +173,9 @@ export type AppPreferencesData = {
   healthTrendsCardVisible: boolean;
   mindfulnessCardVisible: boolean;
   trainingLoadCardVisible: boolean;
+  coachingCardVisible: boolean;
+  coachingReminderEnabled: boolean;
+  coachingDismissedSignature: string | null;
   dashboardCardOrder: DashboardCardKey[];
   medicationRemindersEnabled: boolean;
   medicationReminderRepeats: boolean;
@@ -281,6 +287,9 @@ export interface AppPreferencesState extends AppPreferencesData {
   setHealthTrendsCardVisible: (value: boolean) => void;
   setMindfulnessCardVisible: (value: boolean) => void;
   setTrainingLoadCardVisible: (value: boolean) => void;
+  setCoachingCardVisible: (value: boolean) => void;
+  setCoachingReminderEnabled: (value: boolean) => void;
+  setCoachingDismissedSignature: (value: string | null) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
   setMedicationRemindersEnabled: (value: boolean) => void;
   setMedicationReminderRepeats: (value: boolean) => void;
@@ -418,6 +427,11 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ mindfulnessCardVisible: value }),
       setTrainingLoadCardVisible: (value) =>
         set({ trainingLoadCardVisible: value }),
+      setCoachingCardVisible: (value) => set({ coachingCardVisible: value }),
+      setCoachingReminderEnabled: (value) =>
+        set({ coachingReminderEnabled: value }),
+      setCoachingDismissedSignature: (value) =>
+        set({ coachingDismissedSignature: value }),
       setDashboardCardOrder: (order) => set({ dashboardCardOrder: order }),
       setMedicationRemindersEnabled: (value) =>
         set({ medicationRemindersEnabled: value }),
@@ -574,6 +588,9 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         healthTrendsCardVisible: state.healthTrendsCardVisible,
         mindfulnessCardVisible: state.mindfulnessCardVisible,
         trainingLoadCardVisible: state.trainingLoadCardVisible,
+        coachingCardVisible: state.coachingCardVisible,
+        coachingReminderEnabled: state.coachingReminderEnabled,
+        coachingDismissedSignature: state.coachingDismissedSignature,
         dashboardCardOrder: state.dashboardCardOrder,
         medicationRemindersEnabled: state.medicationRemindersEnabled,
         medicationReminderRepeats: state.medicationReminderRepeats,

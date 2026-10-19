@@ -16,6 +16,7 @@ import {
   maybePromptForExactAlarmPermission,
   scheduleFastGoalNotification,
   scheduleRestNotification,
+  scheduleCoachingCheckInNotification,
   scheduleWaterReminderNotifications,
   setNotificationsEnabled,
   setRestTimerNotificationsEnabled,
@@ -522,6 +523,64 @@ describe('notifications service', () => {
       );
       expect(mockRequestPerms).not.toHaveBeenCalled();
       expect(mockSchedule).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('scheduleCoachingCheckInNotification', () => {
+    const inHours = (hours: number) =>
+      new Date(Date.now() + hours * 60 * 60 * 1000);
+
+    beforeEach(() => {
+      useAppPreferencesStore.getState().setCoachingReminderEnabled(true);
+    });
+
+    it('schedules a DATE notification on the coaching channel', async () => {
+      mockSchedule.mockResolvedValueOnce('coach-1' as any);
+      const when = inHours(48);
+
+      expect(await scheduleCoachingCheckInNotification(when)).toBe('coach-1');
+      expect(mockSchedule).toHaveBeenCalledWith({
+        content: expect.objectContaining({
+          title: 'Your weekly check-in is ready',
+          body: 'See how your week went and whether your targets need a change.',
+        }),
+        trigger: expect.objectContaining({
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: when,
+          channelId: 'coaching',
+        }),
+      });
+    });
+
+    it('refuses a time that has already passed', async () => {
+      expect(
+        await scheduleCoachingCheckInNotification(new Date(Date.now() - 1000))
+      ).toBeNull();
+      expect(mockSchedule).not.toHaveBeenCalled();
+    });
+
+    it('schedules nothing while the check-in reminder is off', async () => {
+      useAppPreferencesStore.getState().setCoachingReminderEnabled(false);
+      expect(await scheduleCoachingCheckInNotification(inHours(5))).toBeNull();
+      expect(mockSchedule).not.toHaveBeenCalled();
+    });
+
+    it('schedules nothing while the master notifications toggle is off', async () => {
+      useAppPreferencesStore.getState().setNotificationsEnabled(false);
+      expect(await scheduleCoachingCheckInNotification(inHours(5))).toBeNull();
+      expect(mockSchedule).not.toHaveBeenCalled();
+    });
+
+    it('never prompts and schedules nothing without OS permission', async () => {
+      mockGetPerms.mockResolvedValue({ status: 'undetermined' } as any);
+      expect(await scheduleCoachingCheckInNotification(inHours(5))).toBeNull();
+      expect(mockRequestPerms).not.toHaveBeenCalled();
+      expect(mockSchedule).not.toHaveBeenCalled();
+    });
+
+    it('returns null rather than throwing when scheduling fails', async () => {
+      mockSchedule.mockRejectedValueOnce(new Error('unavailable'));
+      expect(await scheduleCoachingCheckInNotification(inHours(5))).toBeNull();
     });
   });
 

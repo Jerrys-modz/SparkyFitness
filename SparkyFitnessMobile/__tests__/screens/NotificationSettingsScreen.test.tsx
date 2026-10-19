@@ -343,6 +343,51 @@ describe('NotificationSettingsScreen', () => {
     });
   });
 
+  describe('weekly check-in reminder toggle', () => {
+    const coachingSwitch = (
+      switches: { props: { accessibilityLabel?: string } }[]
+    ) =>
+      switches.find((s) => s.props.accessibilityLabel === 'Weekly Check-in')!;
+
+    it('turns the reminder on once permission is granted', async () => {
+      useAppPreferencesStore.setState({ coachingReminderEnabled: false });
+      const { getAllByRole } = renderScreen();
+
+      fireEvent(coachingSwitch(getAllByRole('switch')), 'valueChange', true);
+
+      await waitFor(() => {
+        expect(useAppPreferencesStore.getState().coachingReminderEnabled).toBe(
+          true
+        );
+      });
+      expect(mockRequestPermission).toHaveBeenCalled();
+    });
+
+    it('leaves the reminder off when permission is denied', async () => {
+      useAppPreferencesStore.setState({ coachingReminderEnabled: false });
+      mockRequestPermission.mockResolvedValue('denied');
+      const { getAllByRole } = renderScreen();
+
+      fireEvent(coachingSwitch(getAllByRole('switch')), 'valueChange', true);
+
+      await waitFor(() => expect(mockRequestPermission).toHaveBeenCalled());
+      expect(useAppPreferencesStore.getState().coachingReminderEnabled).toBe(
+        false
+      );
+    });
+
+    it('turns it off without asking for permission', () => {
+      const { getAllByRole } = renderScreen();
+
+      fireEvent(coachingSwitch(getAllByRole('switch')), 'valueChange', false);
+
+      expect(useAppPreferencesStore.getState().coachingReminderEnabled).toBe(
+        false
+      );
+      expect(mockRequestPermission).not.toHaveBeenCalled();
+    });
+  });
+
   it('provides contextual accessibility labels for notification switches', () => {
     const { getAllByRole } = renderScreen();
     const switches = getAllByRole('switch');

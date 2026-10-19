@@ -1,7 +1,15 @@
 import express from 'express';
 import { authenticate } from '../middleware/authMiddleware.js';
 import checkPermissionMiddleware from '../middleware/checkPermissionMiddleware.js';
+import requireSelfActor from '../middleware/requireSelfMiddleware.js';
 import goalService from '../services/goalService.js';
+import weightCoachingService, {
+  CoachingConflictError,
+} from '../services/weightCoachingService.js';
+import {
+  acceptCoachingCheckInBodySchema,
+  updateCoachingSettingsBodySchema,
+} from '@workspace/shared';
 const router = express.Router();
 /**
  * @swagger
@@ -163,4 +171,100 @@ router.post('/manage-timeline', authenticate, async (req, res, next) => {
     next(error);
   }
 });
+/**
+ * @swagger
+ * /goals/coaching-settings:
+ *   put:
+ *     summary: Save the weight coaching goal (direction, kg per week) and check-in weekday
+ *     tags: [Goals & Personalization]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               direction: { type: 'string', enum: [lose, maintain, gain] }
+ *               rateKgPerWeek: { type: 'number', minimum: 0, maximum: 1 }
+ *               checkInWeekday: { type: 'integer', minimum: 0, maximum: 6 }
+ *     responses:
+ *       200:
+ *         description: The saved settings.
+ */
+router.put(
+  '/coaching-settings',
+  authenticate,
+  requireSelfActor,
+  async (req, res, next) => {
+    const parsed = updateCoachingSettingsBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message });
+    }
+    try {
+      res
+        .status(200)
+        .json(
+          await weightCoachingService.updateCoachingSettings(
+            req.userId,
+            parsed.data
+          )
+        );
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+/**
+ * @swagger
+ * /goals/coaching-checkin/accept:
+ *   post:
+ *     summary: Accept the suggested targets from the weekly coaching check-in
+ *     description: >
+ *       Recomputes the check-in and, if the calories match what the person was
+ *       shown, saves the new targets from today through the goals timeline.
+ *       Answers 409 when the check-in has changed, there is nothing to accept,
+ *       or Calorie Settings set the calorie target.
+ *     tags: [Goals & Personalization]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               calories: { type: 'integer' }
+ *             required: [calories]
+ *     responses:
+ *       200:
+ *         description: The targets now in effect.
+ *       409:
+ *         description: Nothing was changed; the body carries a `code`.
+ */
+router.post(
+  '/coaching-checkin/accept',
+  authenticate,
+  requireSelfActor,
+  async (req, res, next) => {
+    const parsed = acceptCoachingCheckInBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message });
+    }
+    try {
+      const targets = await weightCoachingService.acceptCoachingCheckIn(
+        req.userId,
+        parsed.data.calories
+      );
+      res.status(200).json(targets);
+    } catch (error) {
+      if (error instanceof CoachingConflictError) {
+        return res.status(409).json({ error: error.message, code: error.code });
+      }
+      next(error);
+    }
+  }
+);
 export default router;

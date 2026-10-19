@@ -18,7 +18,9 @@ import {
   Get30DayTrendsSchema,
   DetectPatternsSchema,
   GenerateCoachingPlanSchema,
+  GetCoachingCheckInSchema,
 } from './schemas/coach.js';
+import { getCoachingCheckIn } from '../../services/weightCoachingService.js';
 
 // Trend math and pattern classification ported from MCP's coachService; the
 // SQL lives in models/coachRepository.ts.
@@ -514,6 +516,38 @@ export function buildCoachTools(userId: string, tz: string) {
           return formatSuccess(result, 'Coaching Plan');
         } catch (error) {
           log('error', '[Coach Tool] generateCoachingPlan error:', error);
+          return ERRORS.DB_ERROR(error);
+        }
+      },
+    }),
+    sparky_get_coaching_checkin: tool({
+      description:
+        "Reads the user's weekly weight check-in: smoothed weight trend, estimated real calorie expenditure (from logged intake and weight change), progress against their goal rate, data-quality notes, and the calorie and macro targets the app would suggest. Read-only: nothing changes until the user accepts a suggestion in the app. These are estimates, not medical advice.",
+      inputSchema: GetCoachingCheckInSchema,
+      execute: async () => {
+        try {
+          const checkIn = await getCoachingCheckIn(userId, userId);
+          return formatSuccess(
+            {
+              as_of: checkIn.asOf,
+              reason: checkIn.reason,
+              goal: checkIn.goal,
+              data_quality: checkIn.dataQuality,
+              trend_weight_kg: checkIn.trend.currentKg,
+              weekly_rate_kg: checkIn.trend.weeklyRateKg,
+              estimated_expenditure_kcal: checkIn.expenditure.kcal,
+              expenditure_margin_kcal: checkIn.expenditure.marginKcal,
+              average_logged_intake_kcal: checkIn.expenditure.avgIntakeKcal,
+              current_target: checkIn.current,
+              suggested_target: checkIn.suggested,
+              limits: checkIn.limits,
+              goal_managed_by_calorie_settings: checkIn.goalManagedBySettings,
+              note: 'Estimate only, not medical advice. The user accepts or declines a suggestion in the app.',
+            },
+            'Weekly Coaching Check-In'
+          );
+        } catch (error) {
+          log('error', '[Coach Tool] getCoachingCheckIn error:', error);
           return ERRORS.DB_ERROR(error);
         }
       },

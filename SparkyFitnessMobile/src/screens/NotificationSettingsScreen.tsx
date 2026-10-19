@@ -77,6 +77,12 @@ const NotificationSettingsScreen: React.FC<
   const setMedicationReminderConsolidate = useAppPreferencesStore(
     (s) => s.setMedicationReminderConsolidate
   );
+  const coachingReminderEnabled = useAppPreferencesStore(
+    (s) => s.coachingReminderEnabled
+  );
+  const setCoachingReminderEnabled = useAppPreferencesStore(
+    (s) => s.setCoachingReminderEnabled
+  );
   const waterReminderEnabled = useAppPreferencesStore(
     (s) => s.waterReminderEnabled
   );
@@ -113,6 +119,21 @@ const NotificationSettingsScreen: React.FC<
     await requestNotificationPermission();
     bannerRef.current?.refresh();
   }, []);
+
+  const handleCoachingReminderToggle = useCallback(
+    async (value: boolean) => {
+      if (!value) {
+        setCoachingReminderEnabled(false);
+        return;
+      }
+      const status = await requestNotificationPermission();
+      bannerRef.current?.refresh();
+      // Without OS permission the toggle would show "on" while the check-in
+      // never arrives; the permission banner above explains and links to settings.
+      if (status === 'granted') setCoachingReminderEnabled(true);
+    },
+    [setCoachingReminderEnabled]
+  );
 
   const handleMedicationRemindersToggle = useCallback(
     async (value: boolean) => {
@@ -471,6 +492,36 @@ const NotificationSettingsScreen: React.FC<
                 }
               />
             )}
+          </SettingsRowGroup>
+        )}
+        {notificationsEnabled && (
+          <SettingsRowGroup
+            title={t('notificationSettings.coaching', {
+              defaultValue: 'Coaching',
+            })}
+          >
+            <SettingsRow
+              title={t('notificationSettings.coachingCheckIn', {
+                defaultValue: 'Weekly Check-in',
+              })}
+              subtitle={t('notificationSettings.coachingCheckInSubtitle', {
+                defaultValue:
+                  'A reminder on your check-in day to review your trend and targets.',
+              })}
+              subtitleNumberOfLines={0}
+              rightAccessory={
+                <Switch
+                  accessibilityLabel={t(
+                    'notificationSettings.coachingCheckIn',
+                    {
+                      defaultValue: 'Weekly Check-in',
+                    }
+                  )}
+                  value={coachingReminderEnabled}
+                  onValueChange={handleCoachingReminderToggle}
+                />
+              }
+            />
           </SettingsRowGroup>
         )}
       </ScrollView>
