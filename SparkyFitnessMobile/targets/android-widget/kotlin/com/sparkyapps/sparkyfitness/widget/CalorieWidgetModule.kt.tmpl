@@ -11,43 +11,58 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.Executors
 
 class CalorieWidgetModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
 
     private val moduleScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    // Snapshot writes and clears run one at a time in the order JS sent them,
+    // so a write for the previous account cannot land after the clear. The
+    // single thread makes each reach the lock in that order; the lock keeps
+    // the next one out while a Glance state write is suspended.
+    private val snapshotExecutor = Executors.newSingleThreadExecutor()
+    private val snapshotWrites = snapshotExecutor.asCoroutineDispatcher()
+    private val snapshotLock = Mutex()
+
     override fun getName(): String = NAME
 
     override fun invalidate() {
         moduleScope.cancel()
+        snapshotExecutor.shutdown()
         super.invalidate()
     }
 
     @ReactMethod
     fun setCalorieSnapshot(json: String, promise: Promise) {
         val ctx = reactApplicationContext
-        moduleScope.launch {
-            try {
-                val prefs = ctx.getSharedPreferences(
-                    CalorieWidgetReceiver.PREFS_NAME,
-                    Context.MODE_PRIVATE,
-                )
-                if (!prefs.edit().putString(CalorieWidgetReceiver.PREFS_KEY_SNAPSHOT, json).commit()) {
-                    throw IllegalStateException("Failed to persist calorie widget snapshot")
-                }
-
-                val manager = GlanceAppWidgetManager(ctx)
-                manager.getGlanceIds(CalorieWidget::class.java).forEach { id ->
-                    updateAppWidgetState(ctx, id) { state ->
-                        state[CalorieWidget.SNAPSHOT_STATE_KEY] = json
+        moduleScope.launch(snapshotWrites) {
+            snapshotLock.withLock {
+                try {
+                    val prefs = ctx.getSharedPreferences(
+                        CalorieWidgetReceiver.PREFS_NAME,
+                        Context.MODE_PRIVATE,
+                    )
+                    if (!prefs.edit().putString(CalorieWidgetReceiver.PREFS_KEY_SNAPSHOT, json).commit()) {
+                        throw IllegalStateException("Failed to persist calorie widget snapshot")
                     }
+
+                    val manager = GlanceAppWidgetManager(ctx)
+                    manager.getGlanceIds(CalorieWidget::class.java).forEach { id ->
+                        updateAppWidgetState(ctx, id) { state ->
+                            state[CalorieWidget.SNAPSHOT_STATE_KEY] = json
+                        }
+                    }
+                    promise.resolve(null)
+                } catch (e: Exception) {
+                    promise.reject("E_WRITE_FAILED", e)
                 }
-                promise.resolve(null)
-            } catch (e: Exception) {
-                promise.reject("E_WRITE_FAILED", e)
             }
         }
     }
@@ -55,26 +70,85 @@ class CalorieWidgetModule(reactContext: ReactApplicationContext) :
     @ReactMethod
     fun setMacroSnapshot(json: String, promise: Promise) {
         val ctx = reactApplicationContext
-        moduleScope.launch {
-            try {
-                val prefs = ctx.getSharedPreferences(
-                    MacroWidgetReceiver.PREFS_NAME,
-                    Context.MODE_PRIVATE,
-                )
-                if (!prefs.edit().putString(MacroWidgetReceiver.PREFS_KEY_SNAPSHOT, json).commit()) {
-                    throw IllegalStateException("Failed to persist macro widget snapshot")
-                }
-
-                val manager = GlanceAppWidgetManager(ctx)
-                manager.getGlanceIds(MacroWidget::class.java).forEach { id ->
-                    updateAppWidgetState(ctx, id) { state ->
-                        state[MacroWidget.SNAPSHOT_STATE_KEY] = json
+        moduleScope.launch(snapshotWrites) {
+            snapshotLock.withLock {
+                try {
+                    val prefs = ctx.getSharedPreferences(
+                        MacroWidgetReceiver.PREFS_NAME,
+                        Context.MODE_PRIVATE,
+                    )
+                    if (!prefs.edit().putString(MacroWidgetReceiver.PREFS_KEY_SNAPSHOT, json).commit()) {
+                        throw IllegalStateException("Failed to persist macro widget snapshot")
                     }
+
+                    val manager = GlanceAppWidgetManager(ctx)
+                    manager.getGlanceIds(MacroWidget::class.java).forEach { id ->
+                        updateAppWidgetState(ctx, id) { state ->
+                            state[MacroWidget.SNAPSHOT_STATE_KEY] = json
+                        }
+                    }
+                    promise.resolve(null)
+                } catch (e: Exception) {
+                    promise.reject("E_WRITE_FAILED", e)
                 }
-                promise.resolve(null)
-            } catch (e: Exception) {
-                promise.reject("E_WRITE_FAILED", e)
             }
+        }
+    }
+
+    /**
+     * Erases both snapshots when the account changes. They carry no account,
+     * and the Quick Settings tile shows the calorie figure on the lock screen,
+     * so the previous account's numbers must not outlive the switch.
+     */
+    @ReactMethod
+    fun clearSnapshots(promise: Promise) {
+        val ctx = reactApplicationContext
+        moduleScope.launch(snapshotWrites) {
+            snapshotLock.withLock {
+                try {
+                    for ((prefsName, key) in listOf(
+                        CalorieWidgetReceiver.PREFS_NAME to CalorieWidgetReceiver.PREFS_KEY_SNAPSHOT,
+                        MacroWidgetReceiver.PREFS_NAME to MacroWidgetReceiver.PREFS_KEY_SNAPSHOT,
+                    )) {
+                        val prefs = ctx.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+                        if (!prefs.edit().remove(key).commit()) {
+                            throw IllegalStateException("Failed to clear widget snapshot $key")
+                        }
+                    }
+
+                    val manager = GlanceAppWidgetManager(ctx)
+                    val calorieWidget = CalorieWidget()
+                    manager.getGlanceIds(CalorieWidget::class.java).forEach { id ->
+                        updateAppWidgetState(ctx, id) { state ->
+                            state.remove(CalorieWidget.SNAPSHOT_STATE_KEY)
+                        }
+                        updateQuietly { calorieWidget.update(ctx, id) }
+                    }
+                    val macroWidget = MacroWidget()
+                    manager.getGlanceIds(MacroWidget::class.java).forEach { id ->
+                        updateAppWidgetState(ctx, id) { state ->
+                            state.remove(MacroWidget.SNAPSHOT_STATE_KEY)
+                        }
+                        updateQuietly { macroWidget.update(ctx, id) }
+                    }
+                    promise.resolve(null)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    promise.reject("E_WRITE_FAILED", e)
+                }
+            }
+        }
+    }
+
+    /** The snapshot is already gone, so a widget that fails to redraw now loses it at its next update. */
+    private suspend fun updateQuietly(update: suspend () -> Unit) {
+        try {
+            update()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Nothing to roll back.
         }
     }
 

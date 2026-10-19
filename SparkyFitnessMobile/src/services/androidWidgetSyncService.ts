@@ -91,7 +91,26 @@ export async function pushAndroidMacroSnapshot(
   await CalorieWidgetBridge.reloadMacroWidget();
 }
 
+// Moves on at every account change. A snapshot built for an earlier value
+// belongs to the previous account and is not pushed.
+let widgetGeneration = 0;
+
+export function getAndroidWidgetGeneration(): number {
+  return widgetGeneration;
+}
+
+/**
+ * Erases the calorie and macro snapshots when the account changes: they carry
+ * no account, and the Quick Settings tile shows the calorie figure on the
+ * lock screen.
+ */
+export async function clearAndroidWidgetSnapshots(): Promise<void> {
+  widgetGeneration += 1;
+  await CalorieWidgetBridge.clearSnapshots();
+}
+
 export async function refreshAndroidWidgetsFromServer(): Promise<void> {
+  const generation = widgetGeneration;
   const timezone = await ensureTimezoneBootstrapped({ throwOnFailure: true });
   if (!timezone) {
     throw new Error('Account timezone is unavailable for widget refresh');
@@ -102,6 +121,9 @@ export async function refreshAndroidWidgetsFromServer(): Promise<void> {
   const snapshots = buildAndroidWidgetSnapshots(summary);
   const lastUpdated = Math.floor(Date.now() / 1000);
   const updates: Promise<void>[] = [];
+  // The account changed while the summary loaded. Checked in the same turn
+  // as the pushes below, which reach the native module before awaiting.
+  if (generation !== widgetGeneration) return;
 
   if (snapshots.calorie) {
     updates.push(pushAndroidCalorieSnapshot(snapshots.calorie, lastUpdated));

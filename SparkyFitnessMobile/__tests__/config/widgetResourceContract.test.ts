@@ -308,6 +308,40 @@ describe('Android widget localization contract', () => {
       expect(src).not.toMatch(/tile\.(label|subtitle) = "/);
     });
 
+    it('erases both snapshots on an account change, in order with the writes', () => {
+      const moduleSrc = fs.readFileSync(
+        path.join(KOTLIN_ROOT, 'CalorieWidgetModule.kt.tmpl'),
+        'utf8'
+      );
+      expect(moduleSrc).toMatch(/fun clearSnapshots\(promise: Promise\)/);
+      expect(moduleSrc).toMatch(
+        /CalorieWidgetReceiver\.PREFS_KEY_SNAPSHOT,\s*\n\s*MacroWidgetReceiver/
+      );
+      expect(moduleSrc).toMatch(/\.remove\(key\)\.commit\(\)/);
+      expect(moduleSrc).toMatch(
+        /state\.remove\(CalorieWidget\.SNAPSHOT_STATE_KEY\)/
+      );
+      expect(moduleSrc).toMatch(
+        /state\.remove\(MacroWidget\.SNAPSHOT_STATE_KEY\)/
+      );
+      // Writes and the clear share one serial executor and one lock, so a
+      // write for the previous account cannot land after the clear.
+      expect(
+        moduleSrc.match(/moduleScope\.launch\(snapshotWrites\)/g)
+      ).toHaveLength(3);
+      expect(moduleSrc.match(/snapshotLock\.withLock \{/g)).toHaveLength(3);
+
+      // A live Glance session reads the stored copy at composition instead of
+      // one captured at its start, which would bring a cleared snapshot back.
+      for (const template of ['CalorieWidget.kt.tmpl', 'MacroWidget.kt.tmpl']) {
+        const src = fs.readFileSync(path.join(KOTLIN_ROOT, template), 'utf8');
+        expect(src).not.toMatch(/fallbackSnapshot/);
+        expect(src).toMatch(
+          /parseSnapshot\(state\[SNAPSHOT_STATE_KEY\]\) \?: loadSnapshot\(context\)/
+        );
+      }
+    });
+
     it('localizes accessibility labels in the Kotlin widgets', () => {
       for (const template of ['CalorieWidget.kt.tmpl', 'MacroWidget.kt.tmpl']) {
         const src = fs.readFileSync(path.join(KOTLIN_ROOT, template), 'utf8');

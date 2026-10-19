@@ -99,9 +99,9 @@ class LogWaterTileService : SparkyTileService() {
 
 /**
  * Today's calories left, read from the calorie widget's snapshot, in the
- * label like the iOS control. Opens the food diary. The figure only shows
- * while a login is stored: Quick Settings opens on the lock screen, and the
- * snapshot is not erased at sign-out.
+ * label like the iOS control. Opens the food diary. Quick Settings opens on
+ * the lock screen, so the figure only shows while a login is stored, and the
+ * app erases the snapshot whenever the account changes (useAuth).
  */
 class CaloriesLeftTileService : SparkyTileService() {
     override val labelRes = R.string.tile_calories_left
