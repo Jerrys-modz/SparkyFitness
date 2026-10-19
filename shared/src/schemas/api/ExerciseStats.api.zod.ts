@@ -167,6 +167,10 @@ export const exerciseActivityQueryItemSchema = z.object({
   floorsClimbed: z.number().nullable().optional(),
   /** Total ascent in metres, whatever the unit system of the request. */
   elevationGainMeters: z.number().nullable().optional(),
+  /** Air temperature at the start, in °C whatever the unit system of the request. */
+  weatherTempCelsius: z.number().nullable().optional(),
+  /** Short description such as "Light rain". */
+  weatherCondition: z.string().nullable().optional(),
   source: z.string().nullable(),
   notes: z.string().nullable(),
   hasGpsTrack: z.boolean(),
