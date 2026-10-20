@@ -61,6 +61,12 @@ The public instances are shared, so for more than light use run your own Overpas
 
 ---
 
+## Editing a route on the map
+
+In the mobile app, **Routes → Draw** and **Edit route on map** (on a saved route) open the route editor. Tap the map to add points, tap the line to insert a point on it, drag a point to move it, and select a point to delete it. Undo, Redo and Clear cover every change. The **Satellite** button switches the map to the platform's satellite imagery.
+
+With a routing engine configured, **Follow roads** snaps each stretch between points to roads or trails. Select a point and choose **Straight before** or **Straight after** to draw that stretch as a plain line (for a shortcut across a field, say). Moving a point re-routes only the stretches next to it, and stretches of a saved route you have not touched keep the line they had. Without a routing engine every stretch is a straight line.
+
 ## Running Valhalla locally
 
 Add a service to your Compose file (or run it alongside) using the community-maintained [gis-ops image](https://github.com/gis-ops/docker-valhalla). It downloads an OpenStreetMap extract on first start and builds its tiles, which can take a few minutes to a few hours depending on the area.

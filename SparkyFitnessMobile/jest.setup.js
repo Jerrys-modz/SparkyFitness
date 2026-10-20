@@ -737,7 +737,18 @@ jest.mock('react-native-maps', () => {
   };
   return {
     __esModule: true,
-    default: piece('map-view'),
+    default: React.forwardRef(({ children, ...props }, ref) => {
+      // The camera methods screens call through a ref.
+      React.useImperativeHandle(ref, () => ({
+        animateToRegion: jest.fn(),
+        fitToCoordinates: jest.fn(),
+      }));
+      return React.createElement(
+        View,
+        { testID: 'map-view', ...props },
+        children
+      );
+    }),
     Polyline: piece('map-polyline'),
     Marker: piece('map-marker'),
     Circle: piece('map-circle'),

@@ -569,6 +569,14 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
                   ) : null}
                 </View>
               ) : null}
+              <Button
+                variant="secondary"
+                onPress={() =>
+                  navigation.navigate('RouteDraw', { routeId: id })
+                }
+              >
+                {t('routes.editLine', { defaultValue: 'Edit route on map' })}
+              </Button>
               {name === null ? (
                 <Button variant="secondary" onPress={() => setName(route.name)}>
                   {t('routes.rename', { defaultValue: 'Rename' })}

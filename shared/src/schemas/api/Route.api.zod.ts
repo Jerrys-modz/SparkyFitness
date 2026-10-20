@@ -135,9 +135,24 @@ export const updateRouteBodySchema = z
   .object({
     name: routeNameSchema.optional(),
     activity: routeActivitySchema.optional(),
+    /** A new line for the route; distance and elevation are recomputed. */
+    points: z
+      .array(routePointSchema)
+      .min(2)
+      .max(ROUTE_MAX_INPUT_POINTS)
+      .optional(),
+    /** Turn cues for the new line. Replaced together with `points`; cleared when omitted. */
+    cues: z.array(routeCueSchema).max(1000).optional(),
   })
-  .refine((body) => body.name !== undefined || body.activity !== undefined, {
-    message: 'Provide a name or an activity',
+  .refine(
+    (body) =>
+      body.name !== undefined ||
+      body.activity !== undefined ||
+      body.points !== undefined,
+    { message: 'Provide a name, an activity or points' }
+  )
+  .refine((body) => body.cues === undefined || body.points !== undefined, {
+    message: 'Cues can only be sent together with points',
   });
 
 export const importGpxRouteBodySchema = z.object({

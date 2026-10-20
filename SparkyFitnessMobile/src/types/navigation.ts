@@ -102,7 +102,8 @@ export type RootStackParamList = {
   LabReportImport: undefined;
   Routes: undefined;
   RouteDetail: { id: string };
-  RouteDraw: undefined;
+  /** `routeId` opens a saved route in the editor and saves over it. */
+  RouteDraw: { routeId?: string } | undefined;
   RouteGenerate: undefined;
   Segments: undefined;
   SegmentDetail: { id: string };
