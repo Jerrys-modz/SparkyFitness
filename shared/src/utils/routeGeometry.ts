@@ -52,52 +52,126 @@ export function routeElevationGainMeters(
   return reference === null ? null : gain;
 }
 
-/** Distance in metres from `p` to the segment `a`-`b` (local flat approximation). */
-function distanceToSegmentMeters(
-  p: RoutePoint,
-  a: RoutePoint,
-  b: RoutePoint
-): number {
-  const cosLat = Math.cos(toRad(a.lat));
-  const toXY = (q: RoutePoint): [number, number] => [
-    toRad(q.lon - a.lon) * cosLat * EARTH_RADIUS_M,
-    toRad(q.lat - a.lat) * EARTH_RADIUS_M,
-  ];
-  const [px, py] = toXY(p);
-  const [bx, by] = toXY(b);
-  const lengthSq = bx * bx + by * by;
-  if (lengthSq === 0) return Math.hypot(px, py);
-  const t = Math.max(0, Math.min(1, (px * bx + py * by) / lengthSq));
-  return Math.hypot(px - t * bx, py - t * by);
+/** Points on a flat plane in metres around the first one (fine at route scale). */
+function projectToMeters(points: readonly RoutePoint[]): {
+  xs: Float64Array;
+  ys: Float64Array;
+} {
+  const origin = at(points, 0);
+  const cosLat = Math.cos(toRad(origin.lat));
+  const xs = new Float64Array(points.length);
+  const ys = new Float64Array(points.length);
+  points.forEach((p, i) => {
+    xs[i] = toRad(p.lon - origin.lon) * cosLat * EARTH_RADIUS_M;
+    ys[i] = toRad(p.lat - origin.lat) * EARTH_RADIUS_M;
+  });
+  return { xs, ys };
 }
 
-function douglasPeucker(
-  points: readonly RoutePoint[],
-  toleranceM: number
-): number[] {
-  const keep = new Set<number>([0, points.length - 1]);
-  const stack: Array<[number, number]> = [[0, points.length - 1]];
-  while (stack.length > 0) {
-    const [start, end] = stack.pop() as [number, number];
-    let farthest = -1;
-    let farthestDistance = toleranceM;
-    for (let i = start + 1; i < end; i++) {
-      const d = distanceToSegmentMeters(
-        at(points, i),
-        at(points, start),
-        at(points, end)
-      );
-      if (d > farthestDistance) {
-        farthest = i;
-        farthestDistance = d;
-      }
+interface Span {
+  start: number;
+  end: number;
+  farthest: number;
+  distance: number;
+}
+
+/**
+ * The point between `start` and `end` farthest from the straight line joining
+ * them, with its distance in metres.
+ */
+function farthestFromChord(
+  xs: Float64Array,
+  ys: Float64Array,
+  start: number,
+  end: number
+): Span {
+  const ax = xs[start] as number;
+  const ay = ys[start] as number;
+  const bx = (xs[end] as number) - ax;
+  const by = (ys[end] as number) - ay;
+  const lengthSq = bx * bx + by * by;
+  let farthest = -1;
+  let distance = 0;
+  for (let i = start + 1; i < end; i++) {
+    const px = (xs[i] as number) - ax;
+    const py = (ys[i] as number) - ay;
+    let d: number;
+    if (lengthSq === 0) {
+      d = Math.hypot(px, py);
+    } else {
+      const t = Math.max(0, Math.min(1, (px * bx + py * by) / lengthSq));
+      d = Math.hypot(px - t * bx, py - t * by);
     }
-    if (farthest !== -1) {
-      keep.add(farthest);
-      stack.push([start, farthest], [farthest, end]);
+    if (d > distance) {
+      distance = d;
+      farthest = i;
     }
   }
-  return [...keep].sort((x, y) => x - y);
+  return { start, end, farthest, distance };
+}
+
+/**
+ * Douglas-Peucker, best first: always splits the span whose farthest point is
+ * the most significant, and stops when that is within `toleranceM` or when
+ * `maxPoints` are kept. One pass, so the count is bounded without retrying with
+ * a wider tolerance. Returns the kept indexes in order.
+ */
+function simplifyBestFirst(
+  points: readonly RoutePoint[],
+  maxPoints: number,
+  toleranceM: number
+): number[] {
+  const last = points.length - 1;
+  const { xs, ys } = projectToMeters(points);
+  const kept = [0, last];
+  // A binary max-heap of spans by distance.
+  const heap: Span[] = [];
+  const push = (span: Span): void => {
+    if (span.farthest === -1 || span.distance <= toleranceM) return;
+    heap.push(span);
+    let i = heap.length - 1;
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if ((heap[parent] as Span).distance >= (heap[i] as Span).distance) break;
+      [heap[parent], heap[i]] = [heap[i] as Span, heap[parent] as Span];
+      i = parent;
+    }
+  };
+  const pop = (): Span => {
+    const top = heap[0] as Span;
+    const tail = heap.pop() as Span;
+    if (heap.length > 0) {
+      heap[0] = tail;
+      let i = 0;
+      for (;;) {
+        const l = 2 * i + 1;
+        const r = l + 1;
+        let largest = i;
+        if (
+          l < heap.length &&
+          (heap[l] as Span).distance > (heap[largest] as Span).distance
+        )
+          largest = l;
+        if (
+          r < heap.length &&
+          (heap[r] as Span).distance > (heap[largest] as Span).distance
+        )
+          largest = r;
+        if (largest === i) break;
+        [heap[largest], heap[i]] = [heap[i] as Span, heap[largest] as Span];
+        i = largest;
+      }
+    }
+    return top;
+  };
+  push(farthestFromChord(xs, ys, 0, last));
+  while (heap.length > 0 && kept.length < maxPoints) {
+    const span = pop();
+    kept.push(span.farthest);
+    push(farthestFromChord(xs, ys, span.start, span.farthest));
+    push(farthestFromChord(xs, ys, span.farthest, span.end));
+  }
+  return kept.sort((x, y) => x - y);
 }
 
 /** Keeps the first and last of `indexes` and spreads the rest evenly. */
@@ -113,12 +187,11 @@ function sampleEvenly(indexes: number[], count: number): number[] {
 
 /** Douglas-Peucker is quadratic in the worst case, so it never sees more than this. */
 const MAX_SIMPLIFY_INPUT = 4000;
-const MAX_WIDENINGS = 12;
 
 /**
  * Thins a track to at most `maxPoints`: points closer than 2 m to the last kept
- * one go first, then Douglas-Peucker with a tolerance that widens until the
- * track fits. Returns the kept points and, for each, its index in the input
+ * one go first, then Douglas-Peucker (most significant points first) until the
+ * rest are within the tolerance or the track fits. Returns the kept points and, for each, its index in the input
  * (so cues can be re-pointed). Bounded work even for adversarial input.
  */
 export function simplifyRoute(
@@ -149,12 +222,7 @@ export function simplifyRoute(
   candidates = sampleEvenly(candidates, MAX_SIMPLIFY_INPUT);
 
   const subset = candidates.map((i) => at(points, i));
-  let tolerance = toleranceM;
-  let kept = douglasPeucker(subset, tolerance);
-  for (let n = 0; kept.length > maxPoints && n < MAX_WIDENINGS; n++) {
-    tolerance *= 1.5;
-    kept = douglasPeucker(subset, tolerance);
-  }
+  const kept = simplifyBestFirst(subset, maxPoints, toleranceM);
   let sourceIndexes = kept.map((i) => at(candidates, i));
   if (sourceIndexes.length > maxPoints) {
     sourceIndexes = sampleEvenly(sourceIndexes, maxPoints);

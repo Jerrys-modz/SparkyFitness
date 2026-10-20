@@ -110,3 +110,70 @@ describe('GPX', () => {
     expect(again.points).toEqual(points);
   });
 });
+
+describe('parseGpx work bound', () => {
+  // Each input is a few MB of the kind of markup that makes a backtracking
+  // expression quadratic. A linear scan finishes in milliseconds; the old
+  // regular expression took seconds to minutes on these.
+  const within = (ms: number, gpx: string): ReturnType<typeof parseGpx> => {
+    const started = Date.now();
+    const parsed = parseGpx(gpx);
+    expect(Date.now() - started).toBeLessThan(ms);
+    return parsed;
+  };
+
+  it('copes with many unclosed point tags', () => {
+    const parsed = within(
+      1500,
+      '<gpx>' + '<trkpt lat="1" lon="1">'.repeat(150_000)
+    );
+    expect(parsed.points).toEqual([]);
+  });
+
+  it('copes with many point openers that never end', () => {
+    expect(within(1500, '<trkpt '.repeat(300_000)).points).toEqual([]);
+    expect(within(1500, '<rtept lat="1" '.repeat(150_000)).points).toEqual([]);
+  });
+
+  it('copes with many track and CDATA openers and no names', () => {
+    expect(within(1500, '<trk '.repeat(400_000)).name).toBeNull();
+    expect(
+      within(1500, '<trk><name>' + '<![CDATA['.repeat(150_000) + '</name>').name
+    ).not.toBeNull();
+  });
+
+  it('copes with many elevation openers inside one point', () => {
+    const body = '<ele>'.repeat(200_000);
+    const parsed = within(1500, `<trkpt lat="1" lon="2">${body}</trkpt>`);
+    expect(parsed.points).toEqual([{ lat: 1, lon: 2 }]);
+  });
+
+  it('still reads a large well-formed file', () => {
+    const pts = Array.from(
+      { length: 100_000 },
+      (_, i) =>
+        `<trkpt lat="${40 + (i % 100) / 1000}" lon="-74"><ele>${i % 50}</ele></trkpt>`
+    ).join('');
+    const parsed = within(2000, `<gpx><trk><name>Big</name>${pts}</trk></gpx>`);
+    expect(parsed.points).toHaveLength(100_000);
+    expect(parsed.name).toBe('Big');
+  });
+
+  it('keeps reading points, names and elevation as before', () => {
+    const parsed = parseGpx(
+      `<gpx><metadata><name><![CDATA[Trail & <b>]]></name></metadata>
+       <trk><trkseg>
+         <trkpt lat="40" lon="-74"><ele>12.5</ele></trkpt>
+         <trkpt lat='41' lon='-73'/>
+         <trkpt lat="95" lon="1"/>
+         <trkpt lat="42" lon="-72"><ele>99999</ele></trkpt>
+       </trkseg></trk></gpx>`
+    );
+    expect(parsed.name).toBe('Trail & <b>');
+    expect(parsed.points).toEqual([
+      { lat: 40, lon: -74, alt: 12.5 },
+      { lat: 41, lon: -73 },
+      { lat: 42, lon: -72 },
+    ]);
+  });
+});
