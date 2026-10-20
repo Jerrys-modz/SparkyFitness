@@ -7,7 +7,6 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react-native';
-import { Alert } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { todayInZone } from '@workspace/shared';
@@ -798,7 +797,8 @@ describe('MoodLogScreen check-in composer (several check-ins a day)', () => {
 });
 
 describe('MoodLogScreen daily reminder offer', () => {
-  const alertSpy = jest.spyOn(Alert, 'alert');
+  // Created per test: earlier suites restore their own Alert spies.
+  let alertSpy: jest.SpyInstance;
 
   const setPrefs = (notifications: boolean, reminders: boolean) =>
     useAppPreferencesStore.setState({
@@ -820,11 +820,12 @@ describe('MoodLogScreen daily reminder offer', () => {
 
   afterEach(() => {
     useAppPreferencesStore.setState(initialPrefs, true);
+    alertSpy.mockRestore();
   });
 
   beforeEach(() => {
     jest.clearAllMocks();
-    alertSpy.mockImplementation(() => {});
+    alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     mockEntry = null;
     mockSupported = true;
     mockMutateAsync.mockResolvedValue({ energy_value: null });
@@ -937,5 +938,138 @@ describe('MoodLogScreen daily reminder offer', () => {
     expect(useAppPreferencesStore.getState().checkinRemindersEnabled).toBe(
       false
     );
+  });
+});
+
+describe('MoodLogScreen daily reminder offer on a server with several check-ins a day', () => {
+  let alertSpy: jest.SpyInstance;
+  const initialPrefs = useAppPreferencesStore.getState();
+
+  const remindMe = async () => {
+    const buttons = (alertSpy.mock.calls[0][2] ?? []) as AlertButton[];
+    await buttons.find((b) => b.text === 'Remind me')?.onPress?.();
+  };
+
+  const settle = async () => {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+
+  const saveNew = async () => {
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Happy'));
+    fireEvent.press(screen.getByText('Save'));
+    await waitFor(() => expect(mockCreateMutateAsync).toHaveBeenCalled());
+    await waitFor(() => expect(mockNavigation.goBack).toHaveBeenCalled());
+    await settle();
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    mockCheckinsSupport = { supported: true, isLoading: false };
+    mockCheckins = [];
+    mockTimezone = 'UTC';
+    mockCreateMutateAsync.mockResolvedValue(savedEntry());
+    mockUpdateMutateAsync.mockResolvedValue(savedEntry());
+    (hasShownCheckinReminderOffer as jest.Mock).mockResolvedValue(false);
+    (markCheckinReminderOfferShown as jest.Mock).mockResolvedValue(undefined);
+    useAppPreferencesStore.setState({
+      notificationsEnabled: true,
+      checkinRemindersEnabled: false,
+      checkinReminderTimes: ['08:00'],
+    });
+  });
+
+  afterEach(() => {
+    useAppPreferencesStore.setState(initialPrefs, true);
+    alertSpy.mockRestore();
+  });
+
+  it('opens a new check-in for today when the reminder tap passes no params', () => {
+    render(
+      <SafeAreaProvider
+        initialMetrics={{
+          insets: { top: 24, bottom: 48, left: 0, right: 0 },
+          frame,
+        }}
+      >
+        <MoodLogScreen
+          navigation={mockNavigation}
+          route={{ key: 'MoodLog-key', name: 'MoodLog', params: undefined }}
+        />
+      </SafeAreaProvider>
+    );
+    expect(screen.getByText('New check-in')).toBeTruthy();
+    expect(screen.queryByText('Edit check-in')).toBeNull();
+    expect(screen.queryByText(/Logging for/)).toBeNull();
+  });
+
+  it('offers reminders once after a new check-in and marks it shown', async () => {
+    await saveNew();
+    expect(alertSpy).toHaveBeenCalledTimes(1);
+    expect(alertSpy.mock.calls[0][0]).toBe('Remind me daily?');
+    expect(markCheckinReminderOfferShown).toHaveBeenCalledTimes(1);
+  });
+
+  it('never offers after an edit', async () => {
+    mockCheckins = [
+      savedEntry({
+        id: 'checkin-1',
+        entry_timestamp: `${DATE}T08:10:42.000Z`,
+      }),
+    ];
+    renderWithParams({ date: DATE, checkinId: 'checkin-1' });
+    fireEvent.press(screen.getByLabelText('Energy 4'));
+    fireEvent.press(screen.getByText('Save'));
+    await waitFor(() => expect(mockUpdateMutateAsync).toHaveBeenCalled());
+    await waitFor(() => expect(mockNavigation.goBack).toHaveBeenCalled());
+    await settle();
+    expect(hasShownCheckinReminderOffer).not.toHaveBeenCalled();
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  it('turns reminders on at 20:30 when accepted and permitted', async () => {
+    (requestNotificationPermission as jest.Mock).mockResolvedValue('granted');
+    await saveNew();
+    await remindMe();
+    const state = useAppPreferencesStore.getState();
+    expect(state.checkinRemindersEnabled).toBe(true);
+    expect(state.checkinReminderTimes).toEqual(['20:30']);
+  });
+
+  it('explains that notifications are off and leaves reminders off when denied', async () => {
+    (requestNotificationPermission as jest.Mock).mockResolvedValue('denied');
+    await saveNew();
+    await remindMe();
+    expect(Toast.show).toHaveBeenCalledWith(
+      expect.objectContaining({ text1: 'Notifications off' })
+    );
+    expect(useAppPreferencesStore.getState().checkinRemindersEnabled).toBe(
+      false
+    );
+  });
+
+  it('shows no offer when the create fails', async () => {
+    mockCreateMutateAsync.mockRejectedValue(new Error('network'));
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Happy'));
+    fireEvent.press(screen.getByText('Save'));
+    await waitFor(() => expect(mockCreateMutateAsync).toHaveBeenCalled());
+    await settle();
+    expect(mockNavigation.goBack).not.toHaveBeenCalled();
+    expect(hasShownCheckinReminderOffer).not.toHaveBeenCalled();
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  it('leaves the screen without waiting for the offer flag', async () => {
+    (hasShownCheckinReminderOffer as jest.Mock).mockReturnValue(
+      new Promise(() => {})
+    );
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Happy'));
+    fireEvent.press(screen.getByText('Save'));
+    await waitFor(() => expect(mockNavigation.goBack).toHaveBeenCalled());
   });
 });

@@ -49,14 +49,7 @@ import { useMoodRatingsSupport } from '../hooks/useMoodRatingsSupport';
 import { usePreferences } from '../hooks/usePreferences';
 import { getApiErrorMessage } from '../services/api/errors';
 import type { MoodEntry } from '../services/api/moodApi';
-import {
-  hasShownCheckinReminderOffer,
-  markCheckinReminderOfferShown,
-} from '../services/checkinReminderOffer';
-import { addLog } from '../services/LogService';
-import { requestNotificationPermission } from '../services/notifications';
-import { useAppPreferencesStore } from '../stores/appPreferencesStore';
-import { DEFAULT_CHECKIN_REMINDER_TIME } from '../utils/checkinReminderTimes';
+import { offerCheckinRemindersAfterLeaving } from '../services/offerCheckinReminders';
 import { getDeviceTimezone, getTodayDate } from '../utils/dateUtils';
 import { moodDayInZone } from '../utils/moodDay';
 import {
@@ -283,53 +276,6 @@ function LegacyMoodLog({
   const isToday = targetDate === getTodayDate();
   const entryReady = !entryLoading && !entryError;
 
-  // Offered once per device after a check-in, only when the master toggle is
-  // on and reminders are off. Runs after goBack and never blocks navigation.
-  const offerCheckinReminders = async () => {
-    const prefs = useAppPreferencesStore.getState();
-    if (!prefs.notificationsEnabled || prefs.checkinRemindersEnabled) return;
-    if (await hasShownCheckinReminderOffer()) return;
-    await markCheckinReminderOfferShown();
-    Alert.alert(
-      t('mood.reminderOfferTitle', { defaultValue: 'Remind me daily?' }),
-      t('mood.reminderOfferBody', {
-        defaultValue:
-          'Get a reminder each evening to check in. You can change the time or add more in Settings → App Settings → Notifications.',
-      }),
-      [
-        {
-          text: t('common.notNow', { defaultValue: 'Not now' }),
-          style: 'cancel',
-        },
-        {
-          text: t('mood.reminderOfferAccept', { defaultValue: 'Remind me' }),
-          onPress: async () => {
-            try {
-              if ((await requestNotificationPermission()) === 'granted') {
-                const store = useAppPreferencesStore.getState();
-                store.setCheckinReminderTimes([DEFAULT_CHECKIN_REMINDER_TIME]);
-                store.setCheckinRemindersEnabled(true);
-              } else {
-                // Same copy ensureNotificationPermission uses.
-                Toast.show({
-                  type: 'info',
-                  text1: t('notifications.permission.notificationsOff', {
-                    defaultValue: 'Notifications off',
-                  }),
-                });
-              }
-            } catch (error) {
-              addLog(
-                `[Mood] Check-in reminder opt-in failed: ${error}`,
-                'WARNING'
-              );
-            }
-          },
-        },
-      ]
-    );
-  };
-
   const handleSave = async () => {
     if (!entryReady || saveMood.isPending) return;
     const sendEnergy = showRatings && energyOverride !== undefined;
@@ -361,9 +307,7 @@ function LegacyMoodLog({
       });
     }
     navigation.goBack();
-    offerCheckinReminders().catch((error) =>
-      addLog(`[Mood] Check-in reminder offer failed: ${error}`, 'WARNING')
-    );
+    offerCheckinRemindersAfterLeaving(t);
   };
 
   return (
@@ -604,6 +548,8 @@ function CheckinComposer({
     }
     // The single success point after a save.
     navigation.goBack();
+    // Only a new check-in prompts; an edit never does.
+    if (!editing) offerCheckinRemindersAfterLeaving(t);
   };
 
   // Set at once rather than on the next render, so a second confirm sent
