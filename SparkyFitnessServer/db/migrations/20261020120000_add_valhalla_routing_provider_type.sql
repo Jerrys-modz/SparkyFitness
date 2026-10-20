@@ -3,7 +3,6 @@
 -- use the routing service a person (or the admin, as a global provider) adds in
 -- Settings > External Providers: a base URL plus an optional API key, stored
 -- encrypted in external_data_providers.app_key like the other providers' keys.
--- The SPARKY_FITNESS_ROUTING_* environment variables remain a fallback.
 --
 -- No new table or column, so no RLS change: external_data_providers keeps its
 -- owner / public / family-share policies. Not strictly private, so an admin can

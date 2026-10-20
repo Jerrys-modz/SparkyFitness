@@ -57,18 +57,6 @@ config:
   # extraTrustedOrigins: "http://localhost:3004"
   extraTrustedOrigins: ""
 
-  # -- Route generation fallback (optional). People add a routing provider in
-  # Settings > External Providers; this applies to those who have not. Leave `url` empty to skip it.
-  routing:
-    # -- Base URL of the routing engine (e.g. http://valhalla:8002)
-    url: ""
-    # -- Routing engine kind; only "valhalla" is supported
-    provider: "valhalla"
-    # -- Optional existing Secret holding the engine's API key (hosted engines only)
-    apiKeySecret:
-      name: ""
-      key: "api_key"
-
   # -- Route stops (optional). Leave `url` empty to keep the feature off.
   overpass:
     # -- Overpass API endpoint (e.g. https://overpass-api.de/api/interpreter); the

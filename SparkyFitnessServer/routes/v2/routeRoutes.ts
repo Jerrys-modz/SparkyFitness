@@ -238,8 +238,7 @@ router.post('/from-activity/:exerciseEntryId', async (req, res, next) => {
  *     description: >
  *       Generation needs a routing provider: the Valhalla routing provider the
  *       person (or the admin, as a public provider) added in Settings >
- *       External Providers, else the server's `SPARKY_FITNESS_ROUTING_URL`
- *       fallback; stops need an Overpass endpoint
+ *       External Providers; stops need an Overpass endpoint
  *       (`SPARKY_FITNESS_OVERPASS_URL`). Clients use this to show or hide
  *       each feature and only the style controls the engine supports.
  *     tags: [Exercise]
