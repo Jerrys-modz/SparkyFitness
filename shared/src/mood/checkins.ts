@@ -1,11 +1,26 @@
+import type {
+  MoodCheckinCreateBody,
+  MoodCheckinUpdateBody,
+} from '../schemas/api/Mood.api.zod.ts';
 import {
   instantForDay,
   instantHourMinute,
   localDateTimeToUtc,
-  type MoodCheckinCreateBody,
-  type MoodCheckinUpdateBody,
-} from '@workspace/shared';
-import type { MoodEntry } from '@/types/mood';
+} from '../utils/timezone.ts';
+import type { MoodRowSource } from './index.ts';
+
+/** The slice of a stored check-in the composer helpers read. */
+export interface MoodCheckinRow {
+  id: string;
+  mood_value: number | null;
+  energy_value?: number | null;
+  focus_value?: number | null;
+  notes: string | null;
+  mood_tags: string[] | null;
+  entry_date: string; // YYYY-MM-DD
+  entry_timestamp: string;
+  source: MoodRowSource;
+}
 
 /** What the check-in composer holds. `time` is 'HH:mm' in the user's zone. */
 export interface CheckinDraft {
@@ -65,11 +80,14 @@ export function defaultCheckinTime(
   return localTime(instantForDay(day, tz, now), tz);
 }
 
-export function draftFromEntry(entry: MoodEntry, tz: string): CheckinDraft {
+export function draftFromEntry(
+  entry: MoodCheckinRow,
+  tz: string
+): CheckinDraft {
   return {
     mood: entry.mood_value,
-    energy: entry.energy_value,
-    focus: entry.focus_value,
+    energy: entry.energy_value ?? null,
+    focus: entry.focus_value ?? null,
     notes: entry.notes ?? '',
     tags: entry.mood_tags ?? [],
     time: localTime(entry.entry_timestamp, tz),
@@ -106,15 +124,16 @@ export function buildCheckinCreateBody(
  * sends a new instant, together with its day.
  */
 export function buildCheckinUpdateBody(
-  original: MoodEntry,
+  original: MoodCheckinRow,
   d: CheckinDraft,
   day: string,
   tz: string
 ): MoodCheckinUpdateBody {
   const body: MoodCheckinUpdateBody = {};
   if (d.mood !== original.mood_value) body.mood_value = d.mood;
-  if (d.energy !== original.energy_value) body.energy_value = d.energy;
-  if (d.focus !== original.focus_value) body.focus_value = d.focus;
+  if (d.energy !== (original.energy_value ?? null))
+    body.energy_value = d.energy;
+  if (d.focus !== (original.focus_value ?? null)) body.focus_value = d.focus;
 
   const notes = d.notes.trim();
   if (notes !== (original.notes ?? '').trim()) body.notes = notes || null;
@@ -133,10 +152,11 @@ export function buildCheckinUpdateBody(
 
 /** Whether an edit changes anything the update would send. */
 export function checkinEditChanged(
-  original: MoodEntry,
+  original: MoodCheckinRow,
   d: CheckinDraft,
+  day: string,
   tz: string
 ): boolean {
-  const body = buildCheckinUpdateBody(original, d, original.entry_date, tz);
+  const body = buildCheckinUpdateBody(original, d, day, tz);
   return Object.keys(body).length > 0;
 }
