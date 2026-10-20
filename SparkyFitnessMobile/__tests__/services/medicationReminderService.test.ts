@@ -867,5 +867,42 @@ describe('reconcileMedicationReminders', () => {
       flushSpy.mockRestore();
       listEntriesSpy.mockRestore();
     });
+
+    it('preserves an active snoozed reminder for an unlogged dose without rescheduling its base or repeat slots', async () => {
+      mockGetAllScheduled.mockResolvedValue([
+        pendingRequest('leftover-repeat', {
+          medicationId: 'med-1',
+          key: `${BASE_KEY}_20`,
+          baseKey: BASE_KEY,
+        }),
+        pendingRequest('snoozed-1', {
+          medicationId: 'med-1',
+          key: `${BASE_KEY}_snooze_12345`,
+          baseKey: BASE_KEY,
+          isSnoozed: 'true',
+        }),
+      ]);
+
+      await reconcileMedicationReminders([buildMedication()], []);
+
+      expect(mockCancel).not.toHaveBeenCalledWith('snoozed-1');
+      expect(mockCancel).toHaveBeenCalledWith('leftover-repeat');
+      expect(scheduledKeys()).toEqual(WINDOW_DATES.slice(1).map(baseKeyFor));
+    });
+
+    it('cancels a pending snoozed reminder once its dose is logged', async () => {
+      mockGetAllScheduled.mockResolvedValue([
+        pendingRequest('snoozed-1', {
+          medicationId: 'med-1',
+          key: `${BASE_KEY}_snooze_12345`,
+          baseKey: BASE_KEY,
+          isSnoozed: 'true',
+        }),
+      ]);
+
+      await reconcileMedicationReminders([buildMedication()], [buildEntry()]);
+
+      expect(mockCancel).toHaveBeenCalledWith('snoozed-1');
+    });
   });
 });

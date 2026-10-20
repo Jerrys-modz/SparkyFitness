@@ -4,8 +4,13 @@ import * as TaskManager from 'expo-task-manager';
 import {
   addNotificationResponseListener,
   dismissDeliveredNotification,
+  ensureMedicationReminderChannel,
+  MEDICATION_REMINDER_CATEGORY,
+  MEDICATION_REMINDER_CHANNEL_ID,
+  MEDICATION_REMINDER_GROUP_CATEGORY,
   MEDICATION_TAKEN_ACTION,
   MEDICATION_SKIP_ACTION,
+  MEDICATION_SNOOZE_ACTION,
 } from './notifications';
 import {
   createEntry,
@@ -17,6 +22,8 @@ import { invalidateMedicationEntryCaches } from '../hooks/invalidateMedicationEn
 import { addLog, _flushBuffer } from '../services/LogService';
 import type { MedicationEntryStatus } from '@workspace/shared';
 import { isDoseLogged } from '../utils/medications';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
+import i18n from '../localization/i18n';
 
 export const MEDICATION_NOTIFICATION_TASK_NAME =
   'MEDICATION_NOTIFICATION_ACTION_TASK';
@@ -357,6 +364,7 @@ export async function processMedicationNotificationResponse(
 ): Promise<boolean> {
   const actionId = response.actionIdentifier;
 
+  const isSnooze = actionId === MEDICATION_SNOOZE_ACTION;
   let status: MedicationEntryStatus | null = null;
   if (actionId === MEDICATION_TAKEN_ACTION) {
     status = 'taken';
@@ -364,7 +372,7 @@ export async function processMedicationNotificationResponse(
     status = 'skipped';
   }
 
-  if (!status) return true;
+  if (!status && !isSnooze) return true;
 
   const content = response.notification?.request?.content;
   const data = extractNotificationData(content);
@@ -385,26 +393,134 @@ export async function processMedicationNotificationResponse(
   const notificationId = response.notification.request.identifier;
   const baseKey = data?.baseKey ?? data?.key ?? null;
   const userId = data?.userId ?? null;
-  const dedupeKey = actionDedupeId({ key: baseKey, entryDate, doses, userId });
+  const dedupeKey = isSnooze
+    ? `snooze_${actionDedupeId({ key: baseKey, entryDate, doses, userId })}`
+    : actionDedupeId({ key: baseKey, entryDate, doses, userId });
 
   const existingPromise = inFlightActions.get(dedupeKey);
   if (existingPromise) {
     return existingPromise;
   }
 
-  const actionPromise = handleNotificationAction(
-    status,
-    doses,
-    entryDate,
-    notificationId,
-    baseKey,
-    userId
+  const actionPromise = (
+    isSnooze
+      ? handleSnoozeNotificationAction(
+          content,
+          data,
+          doses,
+          entryDate,
+          notificationId,
+          baseKey
+        )
+      : handleNotificationAction(
+          status!,
+          doses,
+          entryDate,
+          notificationId,
+          baseKey,
+          userId
+        )
   ).finally(() => {
     inFlightActions.delete(dedupeKey);
   });
 
   inFlightActions.set(dedupeKey, actionPromise);
   return actionPromise;
+}
+
+async function handleSnoozeNotificationAction(
+  content: Notifications.NotificationContent | undefined,
+  data: Record<string, string | undefined> | undefined,
+  doses: { medicationId: string; scheduleId: string | null }[],
+  entryDate: string,
+  notificationId: string,
+  key: string | null
+): Promise<boolean> {
+  try {
+    if (!useAppPreferencesStore.persist?.hasHydrated?.()) {
+      await useAppPreferencesStore.persist?.rehydrate?.();
+    }
+  } catch {
+    // Fall back to in-memory default if storage rehydration fails in headless mode.
+  }
+
+  try {
+    if (typeof ensureMedicationReminderChannel === 'function') {
+      await ensureMedicationReminderChannel();
+    }
+
+    const snoozeMinutes =
+      useAppPreferencesStore.getState()?.medicationReminderSnoozeMinutes ?? 30;
+    const triggerDate = new Date(Date.now() + snoozeMinutes * 60_000);
+    const effectiveBaseKey = key ?? `${entryDate}_${doses[0].medicationId}`;
+    const snoozeKey = `${effectiveBaseKey}_snooze_${triggerDate.getTime()}`;
+    const isGroup = doses.length > 1 || data?.isGroup === 'true';
+    const categoryIdentifier =
+      content?.categoryIdentifier ||
+      (isGroup
+        ? MEDICATION_REMINDER_GROUP_CATEGORY
+        : MEDICATION_REMINDER_CATEGORY);
+
+    const cleanData: Record<string, string> = {};
+    if (data) {
+      for (const [k, v] of Object.entries(data)) {
+        if (typeof v === 'string') {
+          cleanData[k] = v;
+        }
+      }
+    }
+    cleanData.medicationId = doses[0].medicationId;
+    if (doses[0].scheduleId) {
+      cleanData.scheduleId = doses[0].scheduleId;
+    }
+    cleanData.entryDate = entryDate;
+    cleanData.baseKey = effectiveBaseKey;
+    cleanData.key = snoozeKey;
+    cleanData.isSnoozed = 'true';
+
+    // Schedule the replacement reminder before dismissing the active notification
+    // or cancelling pending repeats so a scheduling error never drops the alert.
+    const scheduledId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title:
+          content?.title ||
+          i18n.t('medications.notificationTitle', {
+            defaultValue: 'Medication reminder',
+          }),
+        body:
+          content?.body ||
+          i18n.t('medications.notificationScheduledDose', {
+            defaultValue: 'You have a scheduled dose',
+          }),
+        sound: true,
+        categoryIdentifier,
+        data: cleanData,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: triggerDate,
+        channelId: MEDICATION_REMINDER_CHANNEL_ID,
+      },
+    });
+
+    await dismissDeliveredNotification(notificationId);
+    await clearMatchingReminders(notificationId, key, doses, entryDate, {
+      excludeIdentifier: scheduledId,
+      excludeKey: snoozeKey,
+    });
+
+    addLog(
+      `[MedicationNotificationAction] Snoozed ${doses.length} medication(s) for ${snoozeMinutes}m`,
+      'DEBUG'
+    );
+    return true;
+  } catch (error) {
+    addLog(
+      `[MedicationNotificationAction] Failed to snooze medication: ${(error as Error).message}`,
+      'ERROR'
+    );
+    return false;
+  }
 }
 
 TaskManager.defineTask<Notifications.NotificationTaskPayload>(
@@ -458,7 +574,8 @@ async function clearMatchingReminders(
   notificationId: string,
   key: string | null,
   doses: { medicationId: string; scheduleId: string | null }[],
-  entryDate: string
+  entryDate: string,
+  options?: { excludeIdentifier?: string; excludeKey?: string }
 ): Promise<void> {
   if (typeof Notifications.getPresentedNotificationsAsync === 'function') {
     const presented =
@@ -477,9 +594,21 @@ async function clearMatchingReminders(
 
   const allPending =
     await Notifications.getAllScheduledNotificationsAsync().catch(() => []);
-  const toCancel = allPending.filter((n) =>
-    doesNotificationMatchAction(n.content, key, doses, entryDate)
-  );
+  const toCancel = allPending.filter((n) => {
+    if (
+      options?.excludeIdentifier &&
+      n.identifier === options.excludeIdentifier
+    ) {
+      return false;
+    }
+    if (
+      options?.excludeKey &&
+      extractNotificationData(n.content)?.key === options.excludeKey
+    ) {
+      return false;
+    }
+    return doesNotificationMatchAction(n.content, key, doses, entryDate);
+  });
   await Promise.all(
     toCancel.map((n) =>
       Notifications.cancelScheduledNotificationAsync(n.identifier).catch(

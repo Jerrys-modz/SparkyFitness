@@ -291,10 +291,26 @@ export async function reconcileMedicationReminders(
     }
 
     const allPending = await Notifications.getAllScheduledNotificationsAsync();
+    const snoozedBaseKeys = new Set<string>();
+    for (const n of allPending) {
+      if (!n.content.data?.medicationId) continue;
+      if (n.content.data.isSnoozed !== 'true') continue;
+      const key = n.content.data.key as string | undefined;
+      const baseKey = (n.content.data.baseKey ?? key) as string | undefined;
+      if (baseKey && desiredKeys.has(baseKey)) {
+        snoozedBaseKeys.add(baseKey);
+      }
+    }
+
     const toCancel = allPending
       .filter((n) => {
         if (!n.content.data?.medicationId) return false;
         const key = n.content.data.key as string | undefined;
+        const baseKey = (n.content.data.baseKey ?? key) as string | undefined;
+        if (n.content.data.isSnoozed === 'true') {
+          return !baseKey || !snoozedBaseKeys.has(baseKey);
+        }
+        if (baseKey && snoozedBaseKeys.has(baseKey)) return true;
         if (!key || !desiredKeys.has(key)) return true;
         // Notification copy is language-sensitive as well as privacy-sensitive:
         // changing EN ↔ PL must replace pending notifications created earlier.
@@ -312,7 +328,8 @@ export async function reconcileMedicationReminders(
       const presentedToDismiss = presented
         .filter((n) => {
           const data = n.request.content.data as
-            Record<string, string | undefined> | undefined;
+            | Record<string, string | undefined>
+            | undefined;
           if (!data?.medicationId) return false;
           const key = data.key;
           const baseKey = data.baseKey ?? key;
@@ -344,6 +361,7 @@ export async function reconcileMedicationReminders(
       withRepeats,
       baseKey,
     } of slotsToSchedule) {
+      if (snoozedBaseKeys.has(baseKey)) continue;
       const isGroup = doses.length > 1;
       const categoryIdentifier = isGroup
         ? MEDICATION_REMINDER_GROUP_CATEGORY

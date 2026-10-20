@@ -43,6 +43,7 @@ export const MEDICATION_REMINDER_CATEGORY = 'medication-reminder';
 export const MEDICATION_REMINDER_GROUP_CATEGORY = 'medication-reminder-group';
 export const MEDICATION_TAKEN_ACTION = 'medication-taken';
 export const MEDICATION_SKIP_ACTION = 'medication-skip';
+export const MEDICATION_SNOOZE_ACTION = 'medication-snooze';
 
 export type AppNotificationPermission = 'granted' | 'denied' | 'undetermined';
 
@@ -90,6 +91,14 @@ export async function registerLocalizedNotificationPresentation(): Promise<void>
     );
   }
 
+  const snoozeMinutes =
+    useAppPreferencesStore.getState()?.medicationReminderSnoozeMinutes ?? 30;
+  const remindInTitle = notificationCopy(
+    'notifications.actions.remindInMinutes',
+    'Remind in {{minutes}}m',
+    { minutes: snoozeMinutes }
+  );
+
   await Notifications.setNotificationCategoryAsync(REST_COMPLETE_CATEGORY, [
     {
       identifier: COMPLETE_SET_ACTION,
@@ -119,6 +128,11 @@ export async function registerLocalizedNotificationPresentation(): Promise<void>
         ),
         options: { opensAppToForeground: false },
       },
+      {
+        identifier: MEDICATION_SNOOZE_ACTION,
+        buttonTitle: remindInTitle,
+        options: { opensAppToForeground: false },
+      },
     ]
   );
   await Notifications.setNotificationCategoryAsync(
@@ -135,6 +149,11 @@ export async function registerLocalizedNotificationPresentation(): Promise<void>
       {
         identifier: MEDICATION_SKIP_ACTION,
         buttonTitle: notificationCopy('notifications.actions.skip', 'Skip'),
+        options: { opensAppToForeground: false },
+      },
+      {
+        identifier: MEDICATION_SNOOZE_ACTION,
+        buttonTitle: remindInTitle,
         options: { opensAppToForeground: false },
       },
     ]

@@ -9,6 +9,7 @@ import {
   dismissDeliveredNotification,
   MEDICATION_TAKEN_ACTION,
   MEDICATION_SKIP_ACTION,
+  MEDICATION_SNOOZE_ACTION,
 } from '../../src/services/notifications';
 import {
   createEntry,
@@ -16,12 +17,18 @@ import {
   listMedications,
 } from '../../src/services/api/medicationsApi';
 import { queryClient } from '../../src/hooks/queryClient';
+import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 
 jest.mock('../../src/services/notifications', () => ({
   addNotificationResponseListener: jest.fn(),
   dismissDeliveredNotification: jest.fn(async () => undefined),
+  ensureMedicationReminderChannel: jest.fn(async () => undefined),
+  MEDICATION_REMINDER_CATEGORY: 'medication-reminder',
+  MEDICATION_REMINDER_GROUP_CATEGORY: 'medication-reminder-group',
+  MEDICATION_REMINDER_CHANNEL_ID: 'medication-reminders',
   MEDICATION_TAKEN_ACTION: 'MEDICATION_TAKEN',
   MEDICATION_SKIP_ACTION: 'MEDICATION_SKIP',
+  MEDICATION_SNOOZE_ACTION: 'MEDICATION_SNOOZE',
 }));
 
 jest.mock('../../src/services/api/medicationsApi', () => ({
@@ -630,6 +637,80 @@ describe('logging a dose from a notification action', () => {
           entry_date: DATE,
         })
       );
+    });
+
+    it('schedules a snoozed notification using medicationReminderSnoozeMinutes (default 30m, configurable) and clears sibling repeats', async () => {
+      if (!registeredTaskExecutor) {
+        throw new Error('background notification task executor not registered');
+      }
+
+      const baseKey = 'med_2026-08-12_m1_s1_09:00';
+      (
+        Notifications.getAllScheduledNotificationsAsync as jest.Mock
+      ).mockResolvedValue([
+        {
+          identifier: 'repeat-10',
+          content: { data: { baseKey } },
+        },
+      ]);
+
+      useAppPreferencesStore.setState({ medicationReminderSnoozeMinutes: 15 });
+      const before = Date.now();
+
+      const result = await registeredTaskExecutor({
+        data: {
+          actionIdentifier: MEDICATION_SNOOZE_ACTION,
+          notification: {
+            request: {
+              identifier: 'notif-base',
+              content: {
+                title: 'Medication reminder',
+                body: 'Scheduled dose: Metformin (500 mg)',
+                categoryIdentifier: 'medication-reminder',
+                data: {
+                  medicationId: 'm1',
+                  scheduleId: 's1',
+                  entryDate: DATE,
+                  key: baseKey,
+                  baseKey,
+                },
+              },
+            },
+          },
+        },
+        error: null,
+      });
+
+      expect(result).toBe(
+        Notifications.BackgroundNotificationTaskResult.NewData
+      );
+      expect(dismissDeliveredNotification).toHaveBeenCalledWith('notif-base');
+      expect(
+        Notifications.cancelScheduledNotificationAsync
+      ).toHaveBeenCalledWith('repeat-10');
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+
+      const scheduledCall = (
+        Notifications.scheduleNotificationAsync as jest.Mock
+      ).mock.calls[0][0];
+      expect(scheduledCall.content.data).toEqual(
+        expect.objectContaining({
+          medicationId: 'm1',
+          scheduleId: 's1',
+          entryDate: DATE,
+          baseKey,
+          isSnoozed: 'true',
+        })
+      );
+      const triggerDate = scheduledCall.trigger.date as Date;
+      expect(triggerDate.getTime()).toBeGreaterThanOrEqual(
+        before + 15 * 60_000 - 1000
+      );
+      expect(triggerDate.getTime()).toBeLessThanOrEqual(
+        Date.now() + 15 * 60_000 + 1000
+      );
+
+      useAppPreferencesStore.setState({ medicationReminderSnoozeMinutes: 30 });
     });
   });
 });
