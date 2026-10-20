@@ -365,3 +365,16 @@ describe('parseGpx tag-end and elevation scans', () => {
     ).toEqual([{ lat: 1, lon: 2 }]);
   });
 });
+
+describe('parseGpx at the largest accepted size', () => {
+  it('stays fast on a 10 MB file of point openers with one closing bracket', () => {
+    const started = Date.now();
+    const shapes = [
+      '<trkpt '.repeat(1_428_000) + '>',
+      '<trkpt <rtept '.repeat(714_000) + '>',
+      '<trkpt lat="1" lon="2">'.repeat(434_000),
+    ];
+    for (const gpx of shapes) expect(parseGpx(gpx).points).toEqual([]);
+    expect(Date.now() - started).toBeLessThan(15_000);
+  }, 60_000);
+});

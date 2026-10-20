@@ -187,6 +187,7 @@ export function parseGpx(source: string): ParsedGpx {
   const opens: Record<string, number> = { trkpt: -1, rtept: -1 };
   let cursor = 0;
   let copied = 0;
+  // The next `>` at or after the scan point, found once and reused; -2 = none left.
   let tagEndAt = -1;
   const nextOpen = (tag: 'trkpt' | 'rtept'): number => {
     if (opens[tag] === -2) return -1;
