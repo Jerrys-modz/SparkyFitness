@@ -283,6 +283,25 @@ async function getCheckinsForDate(
   }
 }
 
+/** Whether the user already has a manual check-in stamped at this instant. */
+async function hasManualCheckinAt(
+  userId: string,
+  entryTimestamp: string | Date
+): Promise<boolean> {
+  const client = await getClient(userId); // User-specific operation
+  try {
+    const result = await client.query(
+      `SELECT 1 FROM mood_entries
+       WHERE user_id = $1 AND source = 'manual' AND entry_timestamp = $2::timestamptz
+       LIMIT 1`,
+      [userId, entryTimestamp]
+    );
+    return result.rows.length > 0;
+  } finally {
+    client.release();
+  }
+}
+
 async function getMoodEntriesByUserId(
   userId: string,
   startDate: string,
@@ -513,6 +532,7 @@ async function upsertMoodDisplayPreferences(
 
 export {
   createCheckin,
+  hasManualCheckinAt,
   upsertDerivedMood,
   getLegacyMoodEntryForDate,
   getLegacyMoodEntriesInRange,
@@ -530,6 +550,7 @@ export {
 };
 export default {
   createCheckin,
+  hasManualCheckinAt,
   upsertDerivedMood,
   getLegacyMoodEntryForDate,
   getLegacyMoodEntriesInRange,

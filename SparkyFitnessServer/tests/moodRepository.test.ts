@@ -101,6 +101,27 @@ describe('moodRepository', () => {
     });
   });
 
+  describe('hasManualCheckinAt', () => {
+    it('looks for a manual check-in at that exact instant', async () => {
+      query.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] });
+      const at = '2026-10-20T16:00:00.000Z';
+      await expect(moodRepository.hasManualCheckinAt('u1', at)).resolves.toBe(
+        true
+      );
+      const [sql, params] = query.mock.calls[0];
+      expect(sql).toContain("source = 'manual'");
+      expect(sql).toContain('entry_timestamp = $2::timestamptz');
+      expect(params).toEqual(['u1', at]);
+    });
+
+    it('is false when there is none', async () => {
+      query.mockResolvedValueOnce({ rows: [] });
+      await expect(
+        moodRepository.hasManualCheckinAt('u1', '2026-10-20T16:00:00.000Z')
+      ).resolves.toBe(false);
+    });
+  });
+
   describe('upsertLegacyMoodEntry', () => {
     it('updates the existing manual mood row in place', async () => {
       query
