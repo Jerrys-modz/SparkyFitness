@@ -1,6 +1,6 @@
 # Database Schema & Migrations
 
-*Last updated: 2026-09-01*
+*Last updated: 2026-10-20*
 
 This document covers the database structure, schema design, and migration process for SparkyFitness.
 
