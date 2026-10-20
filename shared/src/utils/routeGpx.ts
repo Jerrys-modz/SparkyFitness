@@ -187,6 +187,7 @@ export function parseGpx(source: string): ParsedGpx {
   const opens: Record<string, number> = { trkpt: -1, rtept: -1 };
   let cursor = 0;
   let copied = 0;
+  let tagEndAt = -1;
   const nextOpen = (tag: 'trkpt' | 'rtept'): number => {
     if (opens[tag] === -2) return -1;
     if ((opens[tag] as number) < cursor) {
@@ -210,8 +211,13 @@ export function parseGpx(source: string): ParsedGpx {
       tag = 'rtept';
     }
     const attributesStart = start + 1 + tag.length;
-    const tagEnd = gpx.indexOf('>', attributesStart);
-    if (tagEnd === -1) break;
+    // The next `>`, found once and reused while it is still ahead.
+    if (tagEndAt !== -2 && tagEndAt < attributesStart) {
+      const found = gpx.indexOf('>', attributesStart);
+      tagEndAt = found === -1 ? -2 : found;
+    }
+    if (tagEndAt === -2) break;
+    const tagEnd = tagEndAt;
     const selfClosing = gpx[tagEnd - 1] === '/';
     const attributes = gpx.slice(
       attributesStart,
