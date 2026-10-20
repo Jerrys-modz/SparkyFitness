@@ -12,7 +12,11 @@ import { num, str, toUtcInstant } from './garminTelemetryExtractors.js';
 // Shared with the generic /api/health-data workout path; Garmin keeps the
 // default 'replace' mode because it re-fetches the whole day on every sync.
 import { upsertSamplesByDay } from '../healthMetricSampleWriter.js';
-import { localDateTimeToUtc, instantToDay } from '@workspace/shared';
+import {
+  localDateTimeToUtc,
+  instantToDay,
+  instantForDay,
+} from '@workspace/shared';
 
 interface ActivityWindow {
   id: string;
@@ -199,6 +203,8 @@ export async function processGarminHealthAndWellnessData(
               moodValue: derived_mood_value,
               notes: derived_mood_notes,
               entryDate: date,
+              // A daily value: now for today, local noon for a past day.
+              entryTimestamp: instantForDay(date, userTz),
             });
             processedResults.push({
               type: 'derived_mood_value',

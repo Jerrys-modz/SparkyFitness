@@ -458,6 +458,27 @@ describe('processGarminHealthAndWellnessData - derived mood', () => {
       moodValue: 80,
       notes,
       entryDate: '2026-08-01',
+      entryTimestamp: new Date('2026-08-01T12:00:00.000Z'),
     });
+  });
+
+  it("stamps a past day's mood at local noon in the user timezone", async () => {
+    const { loadUserTimezone } = await import('../utils/timezoneLoader.js');
+    (loadUserTimezone as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      'America/Chicago'
+    );
+
+    await processGarminHealthAndWellnessData(
+      'user-1',
+      'user-1',
+      { stress: [{ date: '2026-08-01', derived_mood_value: 80 }] },
+      '2026-08-01',
+      '2026-08-01'
+    );
+
+    // Noon CDT, so the mood sits on its own day rather than at sync time.
+    expect(upsertDerivedMood.mock.calls[0]![2].entryTimestamp).toEqual(
+      new Date('2026-08-01T17:00:00.000Z')
+    );
   });
 });

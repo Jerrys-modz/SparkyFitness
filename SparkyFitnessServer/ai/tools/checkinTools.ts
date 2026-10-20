@@ -1,6 +1,7 @@
 import { tool } from 'ai';
 import {
   dayToUtcRange,
+  instantForDay,
   todayInZone,
   utcOffsetMinutesFromIsoString,
   BUILT_IN_MOODS,
@@ -476,6 +477,9 @@ Actions:
               const row = await moodRepository.createCheckin(userId, {
                 ...checkin,
                 entryDate: args.entry_date,
+                // Now for today; local noon for another day, so the time
+                // stays on the day it was logged for.
+                entryTimestamp: instantForDay(args.entry_date, tz),
               });
               return formatConfirmation(
                 `Check-in logged for ${args.entry_date} at ${formatClock(row.entry_timestamp, tz)}:${formatCheckinDetail(row)}.`

@@ -11,7 +11,28 @@
 BEGIN;
 
 ALTER TABLE public.mood_entries ADD COLUMN IF NOT EXISTS entry_timestamp TIMESTAMPTZ;
-UPDATE public.mood_entries SET entry_timestamp = created_at WHERE entry_timestamp IS NULL;
+-- Each existing row gets a time on its own day: created_at when that falls on
+-- entry_date in the user's timezone, otherwise local noon of entry_date (a
+-- NULL created_at also takes noon). A missing or unknown zone counts as UTC,
+-- because AT TIME ZONE with a bad name would abort the migration.
+WITH zones AS (
+  SELECT user_id, timezone AS tz
+  FROM public.user_preferences
+  WHERE timezone IN (SELECT name FROM pg_timezone_names)
+),
+placed AS (
+  SELECT e.id, COALESCE(z.tz, 'UTC') AS tz
+  FROM public.mood_entries e
+  LEFT JOIN zones z ON z.user_id = e.user_id
+  WHERE e.entry_timestamp IS NULL
+)
+UPDATE public.mood_entries m
+SET entry_timestamp = CASE
+    WHEN (m.created_at AT TIME ZONE placed.tz)::date = m.entry_date THEN m.created_at
+    ELSE (m.entry_date + time '12:00') AT TIME ZONE placed.tz
+  END
+FROM placed
+WHERE m.id = placed.id;
 ALTER TABLE public.mood_entries ALTER COLUMN entry_timestamp SET NOT NULL;
 ALTER TABLE public.mood_entries ALTER COLUMN entry_timestamp SET DEFAULT now();
 

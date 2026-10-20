@@ -107,6 +107,17 @@ describe('Mood Routes', () => {
       expect(moodRepository.upsertLegacyMoodEntry).not.toHaveBeenCalled();
     });
 
+    it('gives a row inserted for a past day local noon, not the save time', async () => {
+      await request(app)
+        .post('/mood')
+        .send({ mood_value: 70, entry_date: '2026-06-01' })
+        .expect(201);
+
+      expect(upsertInput().entryTimestamp).toEqual(
+        new Date('2026-06-01T16:00:00.000Z')
+      );
+    });
+
     it('still requires the field to be present at all', async () => {
       await request(app)
         .post('/mood')
@@ -254,6 +265,18 @@ describe('Mood Routes', () => {
     });
 
     describe('with the v2 header', () => {
+      // 10:00 on 2026-10-20 in New York.
+      const storedTimestamp = '2026-10-20T14:00:00.000Z';
+
+      beforeEach(() => {
+        vi.mocked(moodRepository.getMoodEntryById).mockResolvedValue({
+          id: 'mood-1',
+          source: 'manual',
+          entry_date: '2026-10-20',
+          entry_timestamp: new Date(storedTimestamp),
+        } as never);
+      });
+
       it('clears notes on an explicit null', async () => {
         await request(app)
           .put('/mood/mood-1')
@@ -296,6 +319,68 @@ describe('Mood Routes', () => {
           entryTimestamp: '2026-10-21T02:30:00Z',
           entryDate: '2026-10-20',
         });
+      });
+
+      it('keeps the day when the stored timestamp is sent back unchanged', async () => {
+        // The same instant written with an offset, as an edit form might echo it.
+        await request(app)
+          .put('/mood/mood-1')
+          .set(V2)
+          .send({
+            mood_value: 70,
+            entry_timestamp: '2026-10-20T10:00:00-04:00',
+          })
+          .expect(200);
+
+        expect(patchArg().entryDate).toBeUndefined();
+        expect(patchArg().moodValue).toBe(70);
+      });
+
+      it('moves the day when the new time crosses midnight in the user timezone', async () => {
+        await request(app)
+          .put('/mood/mood-1')
+          .set(V2)
+          .send({ entry_timestamp: '2026-10-21T04:30:00Z' })
+          .expect(200);
+
+        // 04:30 UTC is 00:30 on the 21st in New York.
+        expect(patchArg()).toStrictEqual({
+          entryTimestamp: '2026-10-21T04:30:00Z',
+          entryDate: '2026-10-21',
+        });
+      });
+
+      it('returns 404 without updating when the check-in is missing or not yours', async () => {
+        vi.mocked(moodRepository.getMoodEntryById).mockResolvedValue(undefined);
+        await request(app)
+          .put('/mood/nope')
+          .set(V2)
+          .send({ notes: 'x' })
+          .expect(404);
+
+        expect(moodRepository.getMoodEntryById).toHaveBeenCalledWith(
+          'nope',
+          'testUserId'
+        );
+        expect(moodRepository.updateMoodEntryFields).not.toHaveBeenCalled();
+      });
+
+      it('refuses to edit a Garmin mood with 409', async () => {
+        vi.mocked(moodRepository.getMoodEntryById).mockResolvedValue({
+          id: 'mood-g',
+          source: 'garmin',
+          entry_timestamp: new Date(storedTimestamp),
+        } as never);
+        const res = await request(app)
+          .put('/mood/mood-g')
+          .set(V2)
+          .send({ mood_value: 70 })
+          .expect(409);
+
+        expect(res.body).toStrictEqual({
+          message: "Moods from Garmin or imports can't be edited.",
+        });
+        expect(moodRepository.updateMoodEntryFields).not.toHaveBeenCalled();
       });
 
       it('trusts an explicit entry_date sent with the timestamp', async () => {
@@ -430,6 +515,21 @@ describe('Mood Routes', () => {
       expect(
         vi.mocked(moodRepository.createCheckin).mock.calls[0]![1].entryDate
       ).toBe('2026-10-19');
+    });
+
+    it('stamps a past day sent without a time at local noon', async () => {
+      await request(app)
+        .post('/mood')
+        .set(V2)
+        .send({ mood_value: 50, entry_date: '2026-06-01' })
+        .expect(201);
+
+      const input = vi.mocked(moodRepository.createCheckin).mock.calls[0]![1];
+      expect(input.entryDate).toBe('2026-06-01');
+      // Noon EDT, so the check-in stays on its own day.
+      expect(input.entryTimestamp).toEqual(
+        new Date('2026-06-01T16:00:00.000Z')
+      );
     });
 
     it.each([{}, { notes: '   ' }, { mood_tags: [] }])(

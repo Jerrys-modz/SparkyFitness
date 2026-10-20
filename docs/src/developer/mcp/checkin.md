@@ -50,7 +50,7 @@ The `sparky_manage_checkin` tool supports the following actions:
     - `unit` (string, optional): Unit for the new category.
 
 ### `log_mood`
-- **Description:** Logs a new mood check-in. Every call adds a check-in, so a day can hold several. Every parameter is optional, but at least one of mood, energy, focus, notes or tags is required. The check-in is timestamped with the current time.
+- **Description:** Logs a new mood check-in. Every call adds a check-in, so a day can hold several. Every parameter is optional, but at least one of mood, energy, focus, notes or tags is required. The check-in is timestamped with the current time, or with local noon when `entry_date` is another day.
 - **Parameters:**
     - `mood_value` (integer 1-10, optional): Mood score. There is no default; omit it for a check-in with no mood.
     - `energy_value` (integer 1-5, optional): Energy rating (1 = drained, 5 = energized).

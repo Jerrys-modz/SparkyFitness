@@ -30,6 +30,9 @@ function moodRow(overrides: Partial<MoodEntryRow> = {}): MoodEntryRow {
   };
 }
 
+// log_mood stamps a check-in for another day at local noon (UTC in these tests).
+const NOON_JUNE_1 = new Date('2026-06-01T12:00:00.000Z');
+
 // getLegacyMoodEntryForDate only ever returns rows that carry a mood.
 function legacyRow(
   overrides: Partial<LegacyMoodEntryRow> = {}
@@ -547,6 +550,7 @@ describe('log_mood', () => {
       energyValue: undefined,
       focusValue: undefined,
       entryDate: '2026-06-01',
+      entryTimestamp: NOON_JUNE_1,
     });
   });
 
@@ -582,6 +586,7 @@ describe('log_mood', () => {
       energyValue: 4,
       focusValue: 2,
       entryDate: '2026-06-01',
+      entryTimestamp: NOON_JUNE_1,
     });
   });
 
@@ -792,24 +797,45 @@ describe('log_mood', () => {
       energyValue: undefined,
       focusValue: undefined,
       entryDate: '2026-06-01',
+      entryTimestamp: NOON_JUNE_1,
     });
   });
 
-  it("defaults to today's date if entry_date is omitted, leaving the timestamp to the repository", async () => {
-    vi.mocked(moodRepository.createCheckin).mockResolvedValue(
-      moodRow({ mood_value: 80 })
-    );
+  it("defaults to today's date and the current time if entry_date is omitted", async () => {
+    const now = new Date('2026-06-01T15:20:00.000Z');
+    vi.useFakeTimers({ toFake: ['Date'], now });
+    try {
+      vi.mocked(moodRepository.createCheckin).mockResolvedValue(
+        moodRow({ mood_value: 80 })
+      );
 
-    const today = todayInZone('UTC');
-    const result = await tools.sparky_manage_checkin.execute!(
-      { action: 'log_mood', mood_value: 8 } as any,
+      const today = todayInZone('UTC');
+      const result = await tools.sparky_manage_checkin.execute!(
+        { action: 'log_mood', mood_value: 8 },
+        opts
+      );
+
+      expect(result).toBe(`✅ Check-in logged for ${today} at 12:00: 8/10.`);
+      const input = vi.mocked(moodRepository.createCheckin).mock.calls[0]![1];
+      expect(input.entryDate).toBe('2026-06-01');
+      expect(input.entryTimestamp).toEqual(now);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('stamps a check-in for another day at local noon in the user timezone', async () => {
+    const nyTools = buildCheckinTools('user-1', 'America/New_York');
+    vi.mocked(moodRepository.createCheckin).mockResolvedValue(moodRow());
+
+    await nyTools.sparky_manage_checkin.execute!(
+      { action: 'log_mood', energy_value: 3, entry_date: '2026-06-01' },
       opts
     );
 
-    expect(result).toBe(`✅ Check-in logged for ${today} at 12:00: 8/10.`);
-    const input = vi.mocked(moodRepository.createCheckin).mock.calls[0]![1];
-    expect(input.entryDate).toBe(today);
-    expect(input).not.toHaveProperty('entryTimestamp');
+    expect(
+      vi.mocked(moodRepository.createCheckin).mock.calls[0]![1].entryTimestamp
+    ).toEqual(new Date('2026-06-01T16:00:00.000Z'));
   });
 
   // The reported bug: the tool validated 1-10 and stored it verbatim into a
@@ -1505,6 +1531,7 @@ describe('error handling', () => {
       energyValue: undefined,
       focusValue: undefined,
       entryDate: '2026-06-01',
+      entryTimestamp: NOON_JUNE_1,
     });
   });
 
@@ -1556,6 +1583,7 @@ describe('error handling', () => {
       energyValue: undefined,
       focusValue: undefined,
       entryDate: '2026-06-01',
+      entryTimestamp: NOON_JUNE_1,
     });
   });
 });

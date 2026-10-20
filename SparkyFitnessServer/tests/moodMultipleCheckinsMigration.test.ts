@@ -22,17 +22,33 @@ describe('multiple mood check-ins migration', () => {
     .join('\n')
     .replace(/\s+/g, ' ');
 
-  it('adds entry_timestamp, backfills it from created_at, then makes it required with a default', () => {
+  it("adds entry_timestamp, backfills it on each row's own day, then makes it required with a default", () => {
     expect(sql).toMatch(
       /ADD COLUMN IF NOT EXISTS entry_timestamp TIMESTAMPTZ/i
     );
-    expect(sql).toMatch(
-      /UPDATE public\.mood_entries SET entry_timestamp = created_at WHERE entry_timestamp IS NULL/i
-    );
     expect(sql).toMatch(/ALTER COLUMN entry_timestamp SET NOT NULL/i);
     expect(sql).toMatch(/ALTER COLUMN entry_timestamp SET DEFAULT now\(\)/i);
-    expect(sql.search(/entry_timestamp = created_at/i)).toBeLessThan(
+    expect(sql.search(/SET entry_timestamp = CASE/i)).toBeLessThan(
       sql.search(/entry_timestamp SET NOT NULL/i)
+    );
+    // created_at no longer stands in for every row's time.
+    expect(sql).not.toMatch(/SET entry_timestamp = created_at/i);
+  });
+
+  it('keeps created_at when it is on entry_date in the user timezone, else local noon', () => {
+    expect(sql).toMatch(
+      /SET entry_timestamp = CASE WHEN \(m\.created_at AT TIME ZONE placed\.tz\)::date = m\.entry_date THEN m\.created_at ELSE \(m\.entry_date \+ time '12:00'\) AT TIME ZONE placed\.tz END/i
+    );
+    // Only rows without a time yet, so a re-run changes nothing.
+    expect(sql).toMatch(/WHERE e\.entry_timestamp IS NULL/i);
+  });
+
+  it('reads the zone from user_preferences and falls back to UTC for a missing or unknown one', () => {
+    expect(sql).toMatch(
+      /SELECT user_id, timezone AS tz FROM public\.user_preferences WHERE timezone IN \(SELECT name FROM pg_timezone_names\)/i
+    );
+    expect(sql).toMatch(
+      /COALESCE\(z\.tz, 'UTC'\) AS tz FROM public\.mood_entries e LEFT JOIN zones z ON z\.user_id = e\.user_id/i
     );
   });
 

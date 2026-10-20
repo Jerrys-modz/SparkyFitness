@@ -121,18 +121,38 @@ describe('moodRepository', () => {
     });
 
     it('inserts a manual row when no legacy row exists', async () => {
+      const noon = new Date('2026-10-20T16:00:00.000Z');
       query
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [{ id: 'new-1' }] });
       await moodRepository.upsertLegacyMoodEntry('u1', {
         moodValue: 60,
         entryDate: '2026-10-20',
+        entryTimestamp: noon,
       });
       expect(query).toHaveBeenCalledTimes(2);
-      const [sql] = query.mock.calls[1];
+      const [sql, params] = query.mock.calls[1];
       expect(sql).toContain('INSERT INTO mood_entries');
       expect(sql).toContain("'manual'");
       expect(sql).not.toContain('ON CONFLICT');
+      expect(sql).toContain('COALESCE($8::timestamptz, now())');
+      expect(params[7]).toBe(noon);
+    });
+
+    it("keeps the updated row's own time", async () => {
+      query
+        .mockResolvedValueOnce({ rows: [{ id: 'legacy-1' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'legacy-1' }] });
+      const noon = new Date('2026-10-20T16:00:00.000Z');
+      await moodRepository.upsertLegacyMoodEntry('u1', {
+        moodValue: 60,
+        entryDate: '2026-10-20',
+        entryTimestamp: noon,
+      });
+      const [sql, params] = query.mock.calls[1];
+      expect(sql).toContain('UPDATE mood_entries');
+      expect(sql).not.toMatch(/entry_timestamp\s*=/);
+      expect(params).not.toContain(noon);
     });
 
     it('keeps stored ratings when the caller sends none', async () => {

@@ -1,7 +1,9 @@
 import express from 'express';
 import {
   clampStoredMoodValue,
+  instantForDay,
   instantToDay,
+  isDayString,
   MOOD_MODEL_VERSION,
   MOOD_MODEL_VERSION_HEADER,
   moodCheckinCreateBodySchema,
@@ -31,6 +33,7 @@ function parseMoodRatings(body: unknown): MoodRatingsInput | null {
 const RATINGS_MESSAGE = 'Energy and focus must be whole numbers from 1 to 5.';
 const EMPTY_CHECKIN_MESSAGE =
   'A check-in needs at least one of mood, energy, focus, notes or tags.';
+const DERIVED_EDIT_MESSAGE = "Moods from Garmin or imports can't be edited.";
 
 // Clients that send X-Mood-Model-Version >= 2 get several check-ins per day;
 // everyone else keeps the one-mood-per-day behaviour.
@@ -68,16 +71,35 @@ function clampSuppliedMood(value: unknown): number | null | undefined {
   return clampStoredMoodValue(value);
 }
 
-// A new timestamp moves the check-in to that instant's day in the user's
-// timezone, unless the client named the day.
-async function resolveEntryDate(
+// Where a new check-in sits in time. Without a day it takes the timestamp's
+// day in the user's timezone; without a timestamp it takes now when the day is
+// today and local noon otherwise, so the time never falls on another day.
+async function placeCheckin(
   userId: string,
   entryDate: string | undefined,
   entryTimestamp: string | undefined
-): Promise<string> {
-  if (entryDate) return entryDate;
+): Promise<{ entryDate: string; entryTimestamp: string | Date }> {
   const tz = await loadUserTimezone(userId);
-  return instantToDay(entryTimestamp ?? new Date(), tz);
+  const day = entryDate ?? instantToDay(entryTimestamp ?? new Date(), tz);
+  return {
+    entryDate: day,
+    entryTimestamp: entryTimestamp ?? instantForDay(day, tz),
+  };
+}
+
+// Moving a check-in to another instant moves it to that instant's day in the
+// user's timezone. A timestamp sent back unchanged, as an edit form that posts
+// the whole check-in does, moves nothing.
+async function dayOfMovedCheckin(
+  userId: string,
+  entryTimestamp: string | Date | undefined,
+  storedTimestamp: string | Date
+): Promise<string | undefined> {
+  if (entryTimestamp === undefined) return undefined;
+  const moved =
+    new Date(entryTimestamp).getTime() !== new Date(storedTimestamp).getTime();
+  if (!moved) return undefined;
+  return instantToDay(entryTimestamp, await loadUserTimezone(userId));
 }
 router.use(authenticate);
 // Mood entries are check-in data (RLS uses the check-in policy). Guard every
@@ -162,8 +184,9 @@ router.put('/display-preferences', async (req, res, next) => {
  *       `X-Mood-Model-Version: 2` adds a new check-in every time, allows
  *       check-ins without a mood, and needs at least one of mood_value,
  *       energy_value, focus_value, notes or mood_tags. entry_timestamp
- *       (ISO 8601) is optional and defaults to now; entry_date defaults to
- *       that instant's day in the user's timezone.
+ *       (ISO 8601) is optional and defaults to now, or to local noon when
+ *       entry_date names another day; entry_date defaults to the timestamp's
+ *       day in the user's timezone.
  *     security:
  *       - cookieAuth: []
  *     requestBody:
@@ -202,7 +225,7 @@ router.put('/display-preferences', async (req, res, next) => {
  *               entry_timestamp:
  *                 type: string
  *                 format: date-time
- *                 description: Version 2 only. When the check-in happened; defaults to now.
+ *                 description: Version 2 only. When the check-in happened; defaults to now, or to local noon of entry_date when that is not today.
  *     responses:
  *       201:
  *         description: Mood entry created or updated successfully.
@@ -243,6 +266,12 @@ router.post('/', async (req, res, next) => {
     if (storedMoodValue === null) {
       return res.status(400).json({ message: 'Mood value must be a number.' });
     }
+    // Only a newly inserted row takes this time; updating the day's mood row
+    // keeps the time it already has.
+    const entryTimestamp =
+      typeof entry_date === 'string' && isDayString(entry_date)
+        ? instantForDay(entry_date, await loadUserTimezone(userId))
+        : undefined;
     // An old client saves its one mood for the day: update the day's mood row
     // in place. It never targets a mood-less (AI energy-only) check-in.
     const savedMoodEntry = await moodRepository.upsertLegacyMoodEntry(userId, {
@@ -250,6 +279,7 @@ router.post('/', async (req, res, next) => {
       notes,
       moodTags: Array.isArray(mood_tags) ? mood_tags : null,
       entryDate: entry_date,
+      entryTimestamp,
       ...ratingsInput,
     });
     res.status(201).json(savedMoodEntry);
@@ -281,15 +311,14 @@ async function createCheckin(req: express.Request, res: express.Response) {
   if (!hasMoodContent(input)) {
     return res.status(400).json({ message: EMPTY_CHECKIN_MESSAGE });
   }
-  const entryDate = await resolveEntryDate(
+  const placed = await placeCheckin(
     req.userId,
     body.entry_date,
     body.entry_timestamp
   );
   const created = await moodRepository.createCheckin(req.userId, {
     ...input,
-    entryDate,
-    entryTimestamp: body.entry_timestamp,
+    ...placed,
   });
   res.status(201).json(created);
 }
@@ -460,6 +489,8 @@ router.get('/date/:entryDate', async (req, res, next) => {
  *       mood_value, notes or mood_tags also keeps it. `X-Mood-Model-Version: 2`
  *       treats an explicit null as clearing the field, and 400s when that would
  *       leave the check-in empty. entry_timestamp and entry_date cannot be null.
+ *       Under version 2 only manual check-ins can be edited (Garmin and import
+ *       moods return 409).
  *     security:
  *       - cookieAuth: []
  *     parameters:
@@ -483,7 +514,7 @@ router.get('/date/:entryDate', async (req, res, next) => {
  *               entry_timestamp:
  *                 type: string
  *                 format: date-time
- *                 description: Version 2 only. Moves the check-in; entry_date follows unless sent.
+ *                 description: Version 2 only. Moves the check-in; entry_date follows unless sent. Sending the stored time back unchanged moves nothing.
  *               energy_value:
  *                 type: integer
  *                 minimum: 1
@@ -501,14 +532,38 @@ router.get('/date/:entryDate', async (req, res, next) => {
  *         description: Updated mood entry.
  *       400:
  *         description: Invalid mood value or energy/focus rating.
+ *       404:
+ *         description: Mood entry not found.
+ *       409:
+ *         description: Version 2 only. The entry is a Garmin or import mood, which cannot be edited.
  */
 router.put('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const v2 = isV2(req);
-    const patch = v2 ? await v2Patch(req) : legacyPatch(req);
+    const patch = v2 ? v2Patch(req) : legacyPatch(req);
     if ('error' in patch) {
       return res.status(400).json({ message: patch.error });
+    }
+    if (v2) {
+      // Owner-scoped like the update, so a missing or foreign id is a 404.
+      const stored = await moodRepository.getMoodEntryById(id, req.userId);
+      if (!stored) {
+        return res.status(404).json({ error: 'Mood entry not found.' });
+      }
+      // Garmin and import moods are rewritten on the next sync, so an edit
+      // would not stick.
+      if (stored.source !== 'manual') {
+        return res.status(409).json({ message: DERIVED_EDIT_MESSAGE });
+      }
+      if (patch.value.entryDate === undefined) {
+        const movedTo = await dayOfMovedCheckin(
+          req.userId,
+          patch.value.entryTimestamp,
+          stored.entry_timestamp
+        );
+        if (movedTo) patch.value.entryDate = movedTo;
+      }
     }
     const updatedMoodEntry = await moodRepository.updateMoodEntryFields(
       id,
@@ -550,8 +605,9 @@ function legacyPatch(req: express.Request): PatchResult {
   };
 }
 
-// v2: an absent field is kept and an explicit null clears it.
-async function v2Patch(req: express.Request): Promise<PatchResult> {
+// v2: an absent field is kept and an explicit null clears it. The PUT handler
+// adds the day a moved check-in lands on.
+function v2Patch(req: express.Request): PatchResult {
   const parsed = moodCheckinUpdateBodySchema.safeParse(req.body ?? {});
   if (!parsed.success)
     return { error: invalidBodyMessage(parsed.error.issues) };
@@ -567,17 +623,11 @@ async function v2Patch(req: express.Request): Promise<PatchResult> {
     ...(body.mood_tags !== undefined && { moodTags: body.mood_tags }),
     ...(body.energy_value !== undefined && { energyValue: body.energy_value }),
     ...(body.focus_value !== undefined && { focusValue: body.focus_value }),
+    ...(body.entry_timestamp !== undefined && {
+      entryTimestamp: body.entry_timestamp,
+    }),
+    ...(body.entry_date !== undefined && { entryDate: body.entry_date }),
   };
-  if (body.entry_timestamp !== undefined) {
-    value.entryTimestamp = body.entry_timestamp;
-    value.entryDate = await resolveEntryDate(
-      req.userId,
-      body.entry_date,
-      body.entry_timestamp
-    );
-  } else if (body.entry_date !== undefined) {
-    value.entryDate = body.entry_date;
-  }
   return { value };
 }
 /**

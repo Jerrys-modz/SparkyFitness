@@ -26,8 +26,10 @@ import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
 import {
   BUILT_IN_MOODS,
+  instantForDay,
   instantHourMinute,
   instantToDay,
+  isDayString,
   MAX_HEALTH_TOTAL_CALORIES_PER_DAY,
   MIN_MEASURED_BMR_KCAL,
   MAX_MEASURED_BMR_KCAL,
@@ -1421,6 +1423,21 @@ async function ensureCustomMoodsExist(
   }
 }
 
+// A record dated by day alone, as the CSV import sends it, has no time of its
+// own: resolveHealthEntryDate stamps it at UTC midnight, which is the evening
+// before for anyone west of UTC. Such a mood takes now for today and local noon
+// for a past day instead.
+async function importedMoodTimestamp(
+  entry: { date?: unknown; entry_date?: unknown; timestamp?: unknown },
+  ctx: HealthEntryContext
+): Promise<string | Date> {
+  const day = entry.date || entry.entry_date;
+  if (entry.timestamp || typeof day !== 'string' || !isDayString(day)) {
+    return ctx.entryTimestamp;
+  }
+  return instantForDay(ctx.parsedDate, await loadUserTimezone(ctx.userId));
+}
+
 // Mood has its own dedicated table (mood_entries), upserted as the day's
 // 'import' derived row on (user_id, entry_date, source) so a re-import never
 // touches manual check-ins — unlike Stress it does not go through
@@ -1453,7 +1470,7 @@ const moodHandler: HealthTypeHandler = {
           notes: entry.notes ?? null,
           moodTags,
           entryDate: ctx.parsedDate,
-          entryTimestamp: ctx.entryTimestamp,
+          entryTimestamp: await importedMoodTimestamp(entry, ctx),
         }
       );
       return { status: 'success', data: result };
