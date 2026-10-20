@@ -136,6 +136,7 @@ export * from "./constants/notes.ts";
 export * from "./constants/chartConstants.ts";
 export * from "./constants/foodProviderTypes.ts";
 export * from "./constants/supplementProviderTypes.ts";
+export * from "./constants/routingProviderTypes.ts";
 export * from "./utils/noteImages.ts";
 export * from "./utils/markdownToolbar.ts";
 export * from "./nutrients/micronutrientCatalog.ts";

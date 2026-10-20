@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-19_
+_Last updated: 2026-10-20_
 
 SparkyFitness Frontend is the React web app for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessFrontend/`.
 
@@ -105,6 +105,7 @@ When searching, ignore `node_modules/`, `dist/`, and every locale except `public
 - `weight_distance` / `weight_duration` (#127) have their own `SET_TABLE_LAYOUT` entries: carries swap the reps cell for a distance cell (stored km, edited in metres/yards via `carryDistanceFromKm` / `carryDistanceToKm` in `@workspace/shared`), loaded holds drop reps and use the duration column.
 - Training consistency (#59): `pages/Reports/TrainingConsistencyCard.tsx` in the Exercise report's left column, fed by `useTrainingConsistency` (`hooks/Reports/useReports.ts`) from `GET /reports/training-consistency`. A fixed 26-week window computed on the server by the shared `buildTrainingConsistency`, so it ignores the report's date filter; the existing `WorkoutHeatmap` stays the calendar.
 - Route heatmap: `pages/Reports/RouteHeatmapCard.tsx` in the Exercise report (All and Cardio views; hidden when `isActingOnBehalf`, because `GET /api/v2/heatmap` is owner-only), fed by `useHeatmap` (`hooks/Reports/useReports.ts`) from `api/Reports/heatmapService.ts`. It reuses the Leaflet already used by `ActivityReportMap`/`WorkoutGpsMap` (no new map dependency) and draws the server's grid cells as canvas `Rectangle`s; the view is re-requested on `moveend`, a click shows the count of the nearest cell. Segments are mobile-only.
+- Routing provider (Valhalla, route generation and Follow roads): a Settings > External Providers type like Mealie, with `pages/Settings/RoutingProviderFields.tsx` (URL prefilled from shared `ROUTING_PROVIDER_DEFAULT_BASE_URL`, optional API key, privacy and fair-use notes) used by `ProviderSpecificFields` (add) and `EditProviderForm`; the type row is seeded by the server migration, the server resolves it per person (see the server guide).
 - Chart issue: Recharts usage in the domain page plus `src/components/ExerciseCharts/` or `ZoomableChart.tsx`.
 
 ## Priority Rule

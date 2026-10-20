@@ -168,13 +168,6 @@ spec:
                   name: {{ include "sparkyfitness.smtpSecretName" . }}
                   key: {{ .Values.config.email.secrets.existingSecretKeys.password | default "password" }}
             {{- end }}
-            {{- if and .Values.config.routing.url .Values.config.routing.apiKeySecret.name }}
-            - name: SPARKY_FITNESS_ROUTING_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.config.routing.apiKeySecret.name }}
-                  key: {{ .Values.config.routing.apiKeySecret.key | default "api_key" }}
-            {{- end }}
             {{- if and $splitJobs (eq $role "server") }}
             - name: SPARKY_FITNESS_DISABLE_SCHEDULED_JOBS
               value: "true"

@@ -244,6 +244,7 @@ describe('route generate contract', () => {
         avoidBusyRoads: false,
       },
       stops: false,
+      source: null,
     });
     expect(resolveRouteGenerateCapabilities('nonsense').available).toBe(false);
     expect(resolveRouteGenerateCapabilities(null).available).toBe(false);

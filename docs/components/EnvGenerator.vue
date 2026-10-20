@@ -16,9 +16,6 @@ const enableOidc = ref(false);
 const enableSmtp = ref(false);
 const enableOutboundProxy = ref(false);
 const enableGarmin = ref(false);
-const enableRouting = ref(false);
-const routingUrl = ref("http://sparkyfitness-valhalla:8002");
-const routingApiKey = ref("");
 const enableOverpass = ref(false);
 const overpassUrl = ref("https://overpass-api.de/api/interpreter");
 
@@ -238,7 +235,6 @@ function applyPreset(preset: "simple" | "full") {
     enableSmtp.value = false;
     enableOutboundProxy.value = false;
     enableGarmin.value = false;
-    enableRouting.value = false;
     enableOverpass.value = false;
     garminIsCn.value = false;
     realIpHeader.value = "none";
@@ -262,7 +258,6 @@ function applyPreset(preset: "simple" | "full") {
     enableSmtp.value = true;
     enableOutboundProxy.value = true;
     enableGarmin.value = true;
-    enableRouting.value = false;
     enableOverpass.value = false;
     garminIsCn.value = false;
   }
@@ -321,7 +316,6 @@ const generatedEnv = computed(() => {
     !enableSmtp.value &&
     !enableOutboundProxy.value &&
     !enableGarmin.value &&
-    !enableRouting.value &&
     !enableOverpass.value;
 
   if (isMinimal) {
@@ -442,16 +436,6 @@ GARMIN_SERVICE_PORT=${garminPort.value}
 `;
     if (garminIsCn.value) {
       out += `GARMIN_SERVICE_IS_CN=true\n`;
-    }
-  }
-
-  if (enableRouting.value) {
-    out += `\n# --- Route Generation ---
-SPARKY_FITNESS_ROUTING_URL=${routingUrl.value}
-SPARKY_FITNESS_ROUTING_PROVIDER=valhalla
-`;
-    if (routingApiKey.value.trim()) {
-      out += `SPARKY_FITNESS_ROUTING_API_KEY=${routingApiKey.value.trim()}\n`;
     }
   }
 
@@ -1474,52 +1458,6 @@ onMounted(() => {
               >Only for accounts on Garmin's China service. Leave off everywhere
               else.</span
             >
-          </div>
-        </div>
-      </div>
-      <!-- Module: Route generation -->
-      <div :class="['module-card', { active: enableRouting }]">
-        <div class="module-header" @click="enableRouting = !enableRouting">
-          <div class="module-title">
-            <input v-model="enableRouting" type="checkbox" />
-            <h3>Route Generation</h3>
-          </div>
-          <span class="module-badge">{{
-            enableRouting ? "Enabled" : "Click to Enable"
-          }}</span>
-        </div>
-        <div v-if="enableRouting" class="module-body">
-          <div class="field-explanation">
-            Points the server at a Valhalla routing engine you run. Leave this
-            off to keep route generation unavailable.
-          </div>
-          <div class="grid-2">
-            <div class="form-group">
-              <label
-                >Routing engine URL
-                <code class="var-badge">SPARKY_FITNESS_ROUTING_URL</code></label
-              >
-              <input
-                v-model="routingUrl"
-                type="text"
-                class="text-input font-mono"
-                placeholder="http://sparkyfitness-valhalla:8002"
-              />
-            </div>
-            <div class="form-group">
-              <label
-                >API key (hosted engines only)
-                <code class="var-badge"
-                  >SPARKY_FITNESS_ROUTING_API_KEY</code
-                ></label
-              >
-              <input
-                v-model="routingApiKey"
-                type="password"
-                class="text-input font-mono"
-                placeholder="optional"
-              />
-            </div>
           </div>
         </div>
       </div>
