@@ -31,6 +31,8 @@ describe('upsertSleepEntry keepExistingBiometrics', () => {
     data: Parameters<typeof sleepRepository.upsertSleepEntry>[2],
     options?: { keepExistingBiometrics?: boolean }
   ) => {
+    // Forget earlier runs so the lookup below only sees this invocation.
+    mockClient.query.mockClear();
     mockClient.query.mockImplementation(async (text: string) => {
       if (
         text.includes('INSERT INTO sleep_entries') ||
@@ -41,7 +43,7 @@ describe('upsertSleepEntry keepExistingBiometrics', () => {
       return { rows: [] };
     });
     await sleepRepository.upsertSleepEntry('user-1', 'user-1', data, options);
-    const call = mockClient.query.mock.calls.find(
+    const call = mockClient.query.mock.calls.findLast(
       (c) =>
         typeof c[0] === 'string' &&
         (c[0].includes('INSERT INTO sleep_entries') ||
@@ -96,9 +98,25 @@ describe('upsertSleepEntry keepExistingBiometrics', () => {
   });
 
   it('binds identical parameter values in both modes', async () => {
-    for (const data of [ENTRY, { ...ENTRY, id: 'sleep-1' }]) {
+    const withBiometrics = {
+      ...ENTRY,
+      avg_overnight_hrv: 42,
+      resting_heart_rate: 55,
+    };
+    const cases = [
+      { data: withBiometrics, statement: 'INSERT INTO sleep_entries' },
+      {
+        data: { ...withBiometrics, id: 'sleep-1' },
+        statement: 'UPDATE sleep_entries',
+      },
+    ];
+    for (const { data, statement } of cases) {
       const def = await run(data);
       const keep = await run(data, { keepExistingBiometrics: true });
+      expect(def.text).toContain(statement);
+      expect(keep.text).toContain(statement);
+      expect(def.values).toContain(42);
+      expect(def.values).toContain(55);
       expect(keep.values).toEqual(def.values);
     }
   });
