@@ -271,7 +271,8 @@
       "logAsTaken": "Log as taken",
       "logAllAsTaken": "Log all as taken",
       "skip": "Skip",
-      "skipAll": "Skip all"
+      "skipAll": "Skip all",
+      "remindInMinutes": "Remind in {{minutes}}m"
     },
     "permission": {
       "notificationsOff": "Notifications off",
@@ -1157,6 +1158,8 @@
     "hideMedicationNamesSubtitle": "Show a generic reminder instead of the medication name and dose.",
     "consolidateReminders": "Consolidate Reminders",
     "consolidateRemindersSubtitle": "Group medications scheduled for the same time into a single notification.",
+    "medicationSnoozeInterval": "Remind In",
+    "snoozeMinutesOption": "{{minutes}}m",
     "hydration": "Hydration",
     "waterReminders": "Water Reminders",
     "waterRemindersSubtitle": "Remind you to drink when you haven't logged water in a while.",
