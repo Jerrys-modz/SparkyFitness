@@ -1,10 +1,10 @@
-import { addDays, daysBetween } from "./timezone.ts";
+import { addDays, daysBetween } from './timezone.ts';
 import {
   DEFAULT_MAX_HEART_RATE,
   MIN_HISTORY_DAYS,
   sessionLoad,
   type LoadSession,
-} from "./trainingLoad.ts";
+} from './trainingLoad.ts';
 
 /** Time constants (days) of the usual fitness and fatigue curves. */
 export const FITNESS_TIME_CONSTANT = 42;
@@ -25,7 +25,7 @@ export interface FitnessFatiguePoint {
   form: number;
 }
 
-export type FormStatus = "noData" | "learning" | "fresh" | "neutral" | "tired";
+export type FormStatus = 'noData' | 'learning' | 'fresh' | 'neutral' | 'tired';
 
 export interface FitnessFatigue {
   /** Oldest first; the last point is today. Empty with no sessions. */
@@ -52,7 +52,7 @@ export function computeFitnessFatigue(
   sessions: readonly LoadSession[],
   today: string,
   maxHeartRate: number = DEFAULT_MAX_HEART_RATE,
-  days: number = CURVE_DAYS,
+  days: number = CURVE_DAYS
 ): FitnessFatigue {
   const first = addDays(today, -(days - 1));
   const daily = new Array<number>(days).fill(0);
@@ -63,7 +63,7 @@ export function computeFitnessFatigue(
     daily[index] = (daily[index] ?? 0) + sessionLoad(session, maxHeartRate);
     if (earliest === null || session.day < earliest) earliest = session.day;
   }
-  if (earliest === null) return { points: [], today: null, status: "noData" };
+  if (earliest === null) return { points: [], today: null, status: 'noData' };
 
   const fitnessDecay = Math.exp(-1 / FITNESS_TIME_CONSTANT);
   const fatigueDecay = Math.exp(-1 / FATIGUE_TIME_CONSTANT);
@@ -82,12 +82,12 @@ export function computeFitnessFatigue(
   });
 
   const last = points[points.length - 1] ?? null;
-  let status: FormStatus = "neutral";
-  if (daysBetween(earliest, today) < MIN_HISTORY_DAYS) status = "learning";
+  let status: FormStatus = 'neutral';
+  if (daysBetween(earliest, today) < MIN_HISTORY_DAYS) status = 'learning';
   else if (last && last.fitness > 0) {
     const share = last.form / last.fitness;
-    if (share > FRESH_SHARE) status = "fresh";
-    else if (share < TIRED_SHARE) status = "tired";
+    if (share > FRESH_SHARE) status = 'fresh';
+    else if (share < TIRED_SHARE) status = 'tired';
   }
   return { points, today: last, status };
 }
