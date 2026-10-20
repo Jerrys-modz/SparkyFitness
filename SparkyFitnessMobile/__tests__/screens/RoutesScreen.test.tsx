@@ -9,6 +9,7 @@ import type { RootStackScreenProps } from '../../src/types/navigation';
 
 jest.mock('../../src/services/routeService', () => ({
   useRoutes: jest.fn(),
+  useRouteGenerationAvailable: () => ({ available: false }),
   pickAndImportGpx: jest.fn(),
 }));
 jest.mock('../../src/utils/routeMapSupport', () => ({
