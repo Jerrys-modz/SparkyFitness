@@ -29,7 +29,7 @@ It works at once: no restart. `GET /api/v2/routes/generate/capabilities` returns
 The provider belongs to you, like any other. Sharing follows the usual rules for external providers: an admin can add one in **Admin → Global Provider Settings** to make it available to everyone on the server, and with the **Share Integrations** family permission your family members can use yours (see [Family & Friends Sharing](../family-friends-sharing.md)). A person's own active provider is used first, then a public or shared one. Generating and snapping routes is still always for the signed-in person only, with the limit of 10 requests per 10 minutes.
 
 ::: warning Your route points go to that server
-To plan a route, the SparkyFitness **server** sends the start, end and waypoints (and, to find elevation and surface, the resulting line) to the server you choose, which can see them. Use a server you trust, or run your own (below). Your phone never contacts the routing server directly, and saved routes, segments and heatmaps are never sent.
+To plan a route, the SparkyFitness **server** sends the start, end and waypoints (and, to find elevation, the resulting line) to the server you choose, which can see them. Use a server you trust, or run your own (below). Your phone never contacts the routing server directly, and your saved routes are never sent.
 :::
 
 ### The public and hosted options

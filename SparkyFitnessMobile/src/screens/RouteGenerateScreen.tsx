@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -292,146 +294,151 @@ const RouteGenerateScreen: React.FC<Props> = ({ navigation }) => {
             ) : null}
           </MapView>
         </View>
-        <ScrollView
-          className="bg-surface"
-          style={{ maxHeight: 340, flexGrow: 0 }}
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingTop: 12,
-            paddingBottom: insets.bottom + 12,
-          }}
-          keyboardShouldPersistTaps="handled"
+        {/* The distance field sits low on the screen; keep it above the keyboard. */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <View className="flex-row flex-wrap gap-2">
-            {ACTIVITIES.map((value) => (
+          <ScrollView
+            className="bg-surface"
+            style={{ maxHeight: 340, flexGrow: 0 }}
+            contentContainerStyle={{
+              paddingHorizontal: 16,
+              paddingTop: 12,
+              paddingBottom: insets.bottom + 12,
+            }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View className="flex-row flex-wrap gap-2">
+              {ACTIVITIES.map((value) => (
+                <Chip
+                  key={value}
+                  label={activityLabel[value]}
+                  selected={activity === value}
+                  onPress={() => setActivity(value)}
+                />
+              ))}
+            </View>
+            <View className="flex-row gap-2 mt-3">
               <Chip
-                key={value}
-                label={activityLabel[value]}
-                selected={activity === value}
-                onPress={() => setActivity(value)}
+                label={t('routes.shape.loop', { defaultValue: 'Loop' })}
+                selected={shape === 'loop'}
+                onPress={() => setShape('loop')}
               />
-            ))}
-          </View>
-          <View className="flex-row gap-2 mt-3">
-            <Chip
-              label={t('routes.shape.loop', { defaultValue: 'Loop' })}
-              selected={shape === 'loop'}
-              onPress={() => setShape('loop')}
-            />
-            <Chip
-              label={t('routes.shape.outAndBack', {
-                defaultValue: 'Out and back',
-              })}
-              selected={shape === 'out_and_back'}
-              onPress={() => setShape('out_and_back')}
-            />
-          </View>
-          <View className="flex-row items-center mt-3">
-            <Text className="text-text-primary text-base mr-3">
-              {t('routes.distanceLabel', { defaultValue: 'Distance' })}
-            </Text>
-            <TextInput
-              className="border-b border-border-subtle text-text-primary py-1 min-w-16"
-              style={{ fontSize: 16 }}
-              value={distanceText}
-              onChangeText={setDistanceText}
-              keyboardType="decimal-pad"
-              maxLength={6}
-              accessibilityLabel={t('routes.distanceLabel', {
-                defaultValue: 'Distance',
-              })}
-            />
-            <Text className="text-text-secondary text-base ml-2">
-              {unitLabel}
-            </Text>
-          </View>
-          {!distanceValid ? (
-            <Text className="text-text-secondary text-sm mt-1">
-              {t('routes.distanceRange', {
-                min: range.min,
-                max: range.max,
-                unit: unitLabel,
-                defaultValue: 'Choose between {{min}} and {{max}} {{unit}}.',
-              })}
-            </Text>
-          ) : null}
-          <View className="flex-row items-center justify-between mt-3">
-            <Text className="text-text-secondary text-sm flex-1 mr-3">
-              {start
-                ? t('routes.startFrom', {
-                    defaultValue:
-                      'Starting at the green pin. Tap the map to move it.',
-                  })
-                : t('routes.startUnknown', {
-                    defaultValue:
-                      'Waiting for your location. Or tap the map to choose a start.',
-                  })}
-            </Text>
-            <Button variant="secondary" onPress={locateMe}>
-              {t('routes.useMyLocation', { defaultValue: 'My location' })}
-            </Button>
-          </View>
-          {error ? (
-            <Text className="text-text-secondary text-sm mt-3">
-              {routeGenerateErrorMessage(error, t)}
-            </Text>
-          ) : null}
-          {preview ? (
-            <View className="mt-3">
+              <Chip
+                label={t('routes.shape.outAndBack', {
+                  defaultValue: 'Out and back',
+                })}
+                selected={shape === 'out_and_back'}
+                onPress={() => setShape('out_and_back')}
+              />
+            </View>
+            <View className="flex-row items-center mt-3">
+              <Text className="text-text-primary text-base mr-3">
+                {t('routes.distanceLabel', { defaultValue: 'Distance' })}
+              </Text>
               <TextInput
-                className="border-b border-border-subtle text-text-primary py-1"
+                className="border-b border-border-subtle text-text-primary py-1 min-w-16"
                 style={{ fontSize: 16 }}
-                value={name ?? preview.name}
-                onChangeText={setName}
-                maxLength={100}
-                accessibilityLabel={t('routes.nameLabel', {
-                  defaultValue: 'Route name',
+                value={distanceText}
+                onChangeText={setDistanceText}
+                keyboardType="decimal-pad"
+                maxLength={6}
+                accessibilityLabel={t('routes.distanceLabel', {
+                  defaultValue: 'Distance',
                 })}
               />
-              <Text className="text-text-primary text-base font-semibold mt-2">
-                {formatRouteDistance(preview.distanceM, unit)}
-                {preview.elevationGainM !== null
-                  ? ` · ${t('routes.climb', {
-                      climb: formatRouteClimb(preview.elevationGainM, unit),
-                      defaultValue: '{{climb}} climb',
-                    })}`
-                  : ''}
-                {` · ${t('routes.turnCount', {
-                  count: countRouteTurns(preview.cues),
-                  defaultValue: '{{count}} turns',
-                  defaultValue_one: '{{count}} turn',
-                  defaultValue_other: '{{count}} turns',
-                })}`}
+              <Text className="text-text-secondary text-base ml-2">
+                {unitLabel}
               </Text>
             </View>
-          ) : null}
-          <View className="flex-row gap-2 mt-3">
+            {!distanceValid ? (
+              <Text className="text-text-secondary text-sm mt-1">
+                {t('routes.distanceRange', {
+                  min: range.min,
+                  max: range.max,
+                  unit: unitLabel,
+                  defaultValue: 'Choose between {{min}} and {{max}} {{unit}}.',
+                })}
+              </Text>
+            ) : null}
+            <View className="flex-row items-center justify-between mt-3">
+              <Text className="text-text-secondary text-sm flex-1 mr-3">
+                {start
+                  ? t('routes.startFrom', {
+                      defaultValue:
+                        'Starting at the green pin. Tap the map to move it.',
+                    })
+                  : t('routes.startUnknown', {
+                      defaultValue:
+                        'Waiting for your location. Or tap the map to choose a start.',
+                    })}
+              </Text>
+              <Button variant="secondary" onPress={locateMe}>
+                {t('routes.useMyLocation', { defaultValue: 'My location' })}
+              </Button>
+            </View>
+            {error ? (
+              <Text className="text-text-secondary text-sm mt-3">
+                {routeGenerateErrorMessage(error, t)}
+              </Text>
+            ) : null}
             {preview ? (
-              <View className="flex-1">
-                <Button
-                  variant="secondary"
-                  disabled={loading || !start || !distanceValid}
-                  onPress={() => generate(nextBearingDeg(bearing))}
-                >
-                  {t('routes.regenerate', {
-                    defaultValue: 'Try another direction',
+              <View className="mt-3">
+                <TextInput
+                  className="border-b border-border-subtle text-text-primary py-1"
+                  style={{ fontSize: 16 }}
+                  value={name ?? preview.name}
+                  onChangeText={setName}
+                  maxLength={100}
+                  accessibilityLabel={t('routes.nameLabel', {
+                    defaultValue: 'Route name',
                   })}
-                </Button>
+                />
+                <Text className="text-text-primary text-base font-semibold mt-2">
+                  {formatRouteDistance(preview.distanceM, unit)}
+                  {preview.elevationGainM !== null
+                    ? ` · ${t('routes.climb', {
+                        climb: formatRouteClimb(preview.elevationGainM, unit),
+                        defaultValue: '{{climb}} climb',
+                      })}`
+                    : ''}
+                  {` · ${t('routes.turnCount', {
+                    count: countRouteTurns(preview.cues),
+                    defaultValue: '{{count}} turns',
+                    defaultValue_one: '{{count}} turn',
+                    defaultValue_other: '{{count}} turns',
+                  })}`}
+                </Text>
               </View>
-            ) : (
-              <View className="flex-1">
-                <Button
-                  loading={loading}
-                  disabled={!start || !distanceValid}
-                  onPress={() => generate(nextBearingDeg(bearing))}
-                >
-                  {t('routes.generate', { defaultValue: 'Generate' })}
-                </Button>
-              </View>
-            )}
-            {loading && preview ? <ActivityIndicator /> : null}
-          </View>
-        </ScrollView>
+            ) : null}
+            <View className="flex-row gap-2 mt-3">
+              {preview ? (
+                <View className="flex-1">
+                  <Button
+                    variant="secondary"
+                    disabled={loading || !start || !distanceValid}
+                    onPress={() => generate(nextBearingDeg(bearing))}
+                  >
+                    {t('routes.regenerate', {
+                      defaultValue: 'Try another direction',
+                    })}
+                  </Button>
+                </View>
+              ) : (
+                <View className="flex-1">
+                  <Button
+                    loading={loading}
+                    disabled={!start || !distanceValid}
+                    onPress={() => generate(nextBearingDeg(bearing))}
+                  >
+                    {t('routes.generate', { defaultValue: 'Generate' })}
+                  </Button>
+                </View>
+              )}
+              {loading && preview ? <ActivityIndicator /> : null}
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </View>
     </>
   );

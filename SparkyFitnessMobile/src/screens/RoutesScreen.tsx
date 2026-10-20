@@ -69,8 +69,9 @@ const RoutesScreen: React.FC<Props> = ({ navigation }) => {
       .finally(() => setImporting(false));
   };
 
-  // Drawing needs a map to tap on; an Android build without a Google Maps key
-  // renders a blank one, so it is not offered there (importing still is).
+  // Drawing and generating both need a map to show the route on; an Android
+  // build without a Google Maps key renders a blank one, so neither is offered
+  // there (importing still is).
   const add = () =>
     Alert.alert(t('routes.addTitle', { defaultValue: 'Add a route' }), '', [
       ...(canShowRouteMap()
@@ -81,7 +82,7 @@ const RoutesScreen: React.FC<Props> = ({ navigation }) => {
             },
           ]
         : []),
-      ...(canGenerate
+      ...(canGenerate && canShowRouteMap()
         ? [
             {
               text: t('routes.generateRoute', {
