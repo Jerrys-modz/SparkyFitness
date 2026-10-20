@@ -365,6 +365,7 @@ export async function reconcileMedicationReminders(
         staleSnoozeSource.set(baseKey, data);
       }
     }
+    const presentedStaleSnoozes = new Set<string>();
     for (const n of presented) {
       const data = n.request.content.data as
         Record<string, string | undefined> | undefined;
@@ -377,6 +378,7 @@ export async function reconcileMedicationReminders(
       if (copyIsStale && !staleSnoozeFireAt.has(baseKey)) {
         staleSnoozeFireAt.set(baseKey, new Date(Date.now() + 1000));
         staleSnoozeSource.set(baseKey, data);
+        presentedStaleSnoozes.add(baseKey);
       }
     }
 
@@ -449,8 +451,11 @@ export async function reconcileMedicationReminders(
       withRepeats,
       baseKey,
     } of slotsToSchedule) {
-      const snoozeFireAt = staleSnoozeFireAt.get(baseKey);
+      let snoozeFireAt = staleSnoozeFireAt.get(baseKey);
       if (snoozedBaseKeys.has(baseKey) && !snoozeFireAt) continue;
+      if (snoozeFireAt && presentedStaleSnoozes.has(baseKey)) {
+        snoozeFireAt = new Date(Date.now() + 1000);
+      }
       const isGroup = doses.length > 1;
       const categoryIdentifier = isGroup
         ? MEDICATION_REMINDER_GROUP_CATEGORY
@@ -563,9 +568,12 @@ export async function reconcileMedicationReminders(
       }
     }
 
-    for (const [baseKey, snoozeFireAt] of staleSnoozeFireAt.entries()) {
+    for (const [baseKey, recordedSnoozeFireAt] of staleSnoozeFireAt.entries()) {
       if (slotBaseKeys.has(baseKey)) continue;
       const sourceData = staleSnoozeSource.get(baseKey);
+      const snoozeFireAt = presentedStaleSnoozes.has(baseKey)
+        ? new Date(Date.now() + 1000)
+        : recordedSnoozeFireAt;
       if (!sourceData || snoozeFireAt.getTime() <= Date.now()) continue;
 
       let parsedDoses: { medicationId: string; scheduleId?: string | null }[] =
