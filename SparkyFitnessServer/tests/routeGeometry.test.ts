@@ -177,3 +177,55 @@ describe('parseGpx work bound', () => {
     ]);
   });
 });
+
+describe('GPX comments, CDATA and control characters', () => {
+  it('ignores point tags inside comments and CDATA', () => {
+    const parsed = parseGpx(
+      `<gpx><trk><name>Real</name>
+        <!-- <trkpt lat="1" lon="1"/> <name>Hidden</name> -->
+        <trkseg>
+          <trkpt lat="40" lon="-74"/>
+          <![CDATA[ <trkpt lat="2" lon="2"/> ]]>
+          <trkpt lat="41" lon="-73"/>
+        </trkseg></trk></gpx>`
+    );
+    expect(parsed.name).toBe('Real');
+    expect(parsed.points).toEqual([
+      { lat: 40, lon: -74 },
+      { lat: 41, lon: -73 },
+    ]);
+  });
+
+  it('does not read points from an unclosed comment or CDATA section', () => {
+    expect(
+      parseGpx('<trkpt lat="40" lon="-74"/><!-- <trkpt lat="1" lon="1"/>')
+        .points
+    ).toEqual([{ lat: 40, lon: -74 }]);
+    expect(
+      parseGpx('<trkpt lat="40" lon="-74"/><![CDATA[ <trkpt lat="1" lon="1"/>')
+        .points
+    ).toEqual([{ lat: 40, lon: -74 }]);
+  });
+
+  it('copes with many unclosed comments and CDATA openers', () => {
+    const started = Date.now();
+    parseGpx('<!--'.repeat(300_000));
+    parseGpx('<![CDATA['.repeat(300_000) + '<trkpt lat="1" lon="1"/>');
+    parseGpx('<trkpt lat="1" lon="1"/><![CDATA['.repeat(100_000));
+    expect(Date.now() - started).toBeLessThan(3000);
+  });
+
+  it('writes a name without the characters XML 1.0 forbids', () => {
+    const gpx = serializeGpx('Run\u0001 \u0008to\u000b￾\ud800 café 🏃', [
+      { lat: 40, lon: -74 },
+    ]);
+    // eslint-disable-next-line no-control-regex
+    expect(gpx).not.toMatch(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/);
+    expect(gpx).toContain('<name>Run to café 🏃</name>');
+    expect(parseGpx(gpx).name).toBe('Run to café 🏃');
+  });
+
+  it('keeps tab and newline in a name', () => {
+    expect(serializeGpx('a\tb\nc', [])).toContain('<name>a\tb\nc</name>');
+  });
+});
