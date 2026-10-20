@@ -941,5 +941,70 @@ describe('reconcileMedicationReminders', () => {
       expect(keys).not.toContain(`${pastBaseKey}_30`);
       expect(keys.every((k) => !k.startsWith(pastBaseKey))).toBe(true);
     });
+
+    it('retains a cross-day grouped snooze while at least one represented dose is unlogged, then cancels it once all represented doses are logged', async () => {
+      const apiMod =
+        require('../../src/services/api/medicationsApi') as typeof import('../../src/services/api/medicationsApi');
+      const yesterday = '2026-07-27';
+      const crossDayGroupKey = `med_group_${yesterday}_23:50_med-1:sched-1_med-2:sched-2`;
+      const snoozedRequest = pendingRequest('cross-day-group-snooze', {
+        medicationId: 'med-1',
+        scheduleId: 'sched-1',
+        entryDate: yesterday,
+        key: `${crossDayGroupKey}_snooze_99999`,
+        baseKey: crossDayGroupKey,
+        isGroup: 'true',
+        isSnoozed: 'true',
+        doses: JSON.stringify([
+          { medicationId: 'med-1', scheduleId: 'sched-1' },
+          { medicationId: 'med-2', scheduleId: 'sched-2' },
+        ]),
+      });
+
+      mockGetAllScheduled.mockResolvedValue([snoozedRequest]);
+
+      // First run after midnight: med-1 is taken on yesterday, med-2 is still unlogged
+      const listEntriesSpy = jest
+        .spyOn(apiMod, 'listEntries')
+        .mockResolvedValueOnce([
+          buildEntry({
+            medication_id: 'med-1',
+            schedule_id: 'sched-1',
+            entry_date: yesterday,
+            status: 'taken',
+          }),
+        ]);
+
+      await reconcileMedicationReminders([buildMedication(), med2], []);
+
+      expect(listEntriesSpy).toHaveBeenCalledWith({
+        fromDate: yesterday,
+        toDate: yesterday,
+      });
+      expect(mockCancel).not.toHaveBeenCalledWith('cross-day-group-snooze');
+
+      // Second run after midnight: both med-1 and med-2 have terminal entries for yesterday
+      mockCancel.mockClear();
+      listEntriesSpy.mockResolvedValueOnce([
+        buildEntry({
+          medication_id: 'med-1',
+          schedule_id: 'sched-1',
+          entry_date: yesterday,
+          status: 'taken',
+        }),
+        buildEntry({
+          id: 'entry-2',
+          medication_id: 'med-2',
+          schedule_id: 'sched-2',
+          entry_date: yesterday,
+          status: 'skipped',
+        }),
+      ]);
+
+      await reconcileMedicationReminders([buildMedication(), med2], []);
+
+      expect(mockCancel).toHaveBeenCalledWith('cross-day-group-snooze');
+      listEntriesSpy.mockRestore();
+    });
   });
 });

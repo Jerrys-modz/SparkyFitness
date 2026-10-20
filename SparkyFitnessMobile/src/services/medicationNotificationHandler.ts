@@ -20,7 +20,7 @@ import {
 import { queryClient } from '../hooks/queryClient';
 import { invalidateMedicationEntryCaches } from '../hooks/invalidateMedicationEntryCaches';
 import { addLog, _flushBuffer } from '../services/LogService';
-import type { MedicationEntryStatus } from '@workspace/shared';
+import type { MedicationEntry, MedicationEntryStatus } from '@workspace/shared';
 import { isDoseLogged } from '../utils/medications';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import i18n from '../localization/i18n';
@@ -34,6 +34,7 @@ const SNOOZED_MEDICATION_REMINDERS_KEY = 'snoozed_medication_reminders';
 interface SnoozedMedicationReminderRecord {
   baseKey: string;
   entryDate: string;
+  doses?: { medicationId: string; scheduleId: string | null }[];
 }
 
 export interface PendingMedicationNotificationAction {
@@ -275,12 +276,13 @@ async function writeSnoozedReminders(
 
 async function recordSnoozedReminder(
   baseKey: string,
-  entryDate: string
+  entryDate: string,
+  doses: { medicationId: string; scheduleId: string | null }[]
 ): Promise<void> {
   await withPendingActionsLock(async () => {
     const existing = await readSnoozedReminders();
     const filtered = existing.filter((item) => item.baseKey !== baseKey);
-    filtered.push({ baseKey, entryDate });
+    filtered.push({ baseKey, entryDate, doses });
     await writeSnoozedReminders(filtered);
   });
 }
@@ -298,23 +300,104 @@ async function removeSnoozedReminder(baseKey: string | null): Promise<void> {
 }
 
 /**
- * Returns the set of baseKeys that were snoozed on `today` and are still
- * present in `desiredKeys`, while pruning stale or logged entries from storage.
+ * Returns the set of snoozed `baseKey`s that remain active while pruning stale
+ * or logged entries from storage. Same-day snoozes are retained while their
+ * `baseKey` is in `desiredKeys`; cross-day snoozes are retained only while at
+ * least one represented dose has no terminal `taken` or `skipped` entry for its
+ * stored `entryDate`.
  */
 export async function syncSnoozedMedicationReminders(
   today: string,
-  desiredKeys: Set<string>
+  desiredKeys: Set<string>,
+  activeSnoozeNotifications: Notifications.NotificationContent[] = []
 ): Promise<Set<string>> {
   return withPendingActionsLock(async () => {
     const existing = await readSnoozedReminders();
-    if (existing.length === 0) return new Set<string>();
-    const retained = existing.filter(
-      (item) => item.entryDate === today && desiredKeys.has(item.baseKey)
-    );
-    if (retained.length !== existing.length) {
-      await writeSnoozedReminders(retained);
+    const candidates = new Map<
+      string,
+      {
+        baseKey: string;
+        entryDate: string;
+        doses: { medicationId: string; scheduleId: string | null }[];
+      }
+    >();
+
+    for (const item of existing) {
+      candidates.set(item.baseKey, {
+        baseKey: item.baseKey,
+        entryDate: item.entryDate,
+        doses: Array.isArray(item.doses) ? item.doses : [],
+      });
     }
-    return new Set(retained.map((item) => item.baseKey));
+
+    for (const content of activeSnoozeNotifications) {
+      const data = extractNotificationData(content);
+      if (!data || data.isSnoozed !== 'true') continue;
+      const baseKey = data.baseKey ?? data.key;
+      if (!baseKey) continue;
+      const entryDate = data.entryDate || today;
+      const notifDoses = parseDosesFromData(data);
+      const current = candidates.get(baseKey);
+      if (current) {
+        if (current.doses.length === 0 && notifDoses.length > 0) {
+          current.doses = notifDoses;
+        }
+      } else {
+        candidates.set(baseKey, {
+          baseKey,
+          entryDate,
+          doses: notifDoses,
+        });
+      }
+    }
+
+    if (candidates.size === 0) return new Set<string>();
+
+    const entriesByDate = new Map<string, Promise<MedicationEntry[] | null>>();
+    const getEntriesForDate = (
+      entryDate: string
+    ): Promise<MedicationEntry[] | null> => {
+      let pending = entriesByDate.get(entryDate);
+      if (!pending) {
+        pending = listEntries({ fromDate: entryDate, toDate: entryDate }).catch(
+          () => null
+        );
+        entriesByDate.set(entryDate, pending);
+      }
+      return pending;
+    };
+
+    const retainedBaseKeys = new Set<string>();
+    for (const candidate of candidates.values()) {
+      if (candidate.entryDate === today) {
+        if (desiredKeys.has(candidate.baseKey)) {
+          retainedBaseKeys.add(candidate.baseKey);
+        }
+        continue;
+      }
+
+      if (candidate.doses.length === 0) {
+        continue;
+      }
+
+      const entriesForDate = await getEntriesForDate(candidate.entryDate);
+      const hasUnloggedDose =
+        entriesForDate === null ||
+        candidate.doses.some(
+          (d) => !isDoseLogged(entriesForDate, d.medicationId, d.scheduleId)
+        );
+      if (hasUnloggedDose) {
+        retainedBaseKeys.add(candidate.baseKey);
+      }
+    }
+
+    const retainedStorage = existing.filter((item) =>
+      retainedBaseKeys.has(item.baseKey)
+    );
+    if (retainedStorage.length !== existing.length) {
+      await writeSnoozedReminders(retainedStorage);
+    }
+    return retainedBaseKeys;
   });
 }
 
@@ -587,7 +670,7 @@ async function handleSnoozeNotificationAction(
       },
     });
 
-    await recordSnoozedReminder(effectiveBaseKey, entryDate);
+    await recordSnoozedReminder(effectiveBaseKey, entryDate, doses);
     await dismissDeliveredNotification(notificationId);
     await clearMatchingReminders(notificationId, key, doses, entryDate, {
       excludeIdentifier: scheduledId,

@@ -299,28 +299,28 @@ export async function reconcileMedicationReminders(
         ? await Notifications.getPresentedNotificationsAsync().catch(() => [])
         : [];
 
+    const snoozedContents: Notifications.NotificationContent[] = [
+      ...allPending
+        .filter(
+          (n) =>
+            Boolean(n.content.data?.medicationId) &&
+            n.content.data?.isSnoozed === 'true'
+        )
+        .map((n) => n.content),
+      ...presented
+        .filter((n) => {
+          const data = n.request.content.data as
+            Record<string, string | undefined> | undefined;
+          return Boolean(data?.medicationId) && data?.isSnoozed === 'true';
+        })
+        .map((n) => n.request.content),
+    ];
+
     const snoozedBaseKeys = await syncSnoozedMedicationReminders(
       today,
-      desiredKeys
+      desiredKeys,
+      snoozedContents
     );
-    for (const n of allPending) {
-      if (!n.content.data?.medicationId) continue;
-      if (n.content.data.isSnoozed !== 'true') continue;
-      const key = n.content.data.key as string | undefined;
-      const baseKey = (n.content.data.baseKey ?? key) as string | undefined;
-      if (baseKey && desiredKeys.has(baseKey)) {
-        snoozedBaseKeys.add(baseKey);
-      }
-    }
-    for (const n of presented) {
-      const data = n.request.content.data as
-        Record<string, string | undefined> | undefined;
-      if (!data?.medicationId || data.isSnoozed !== 'true') continue;
-      const baseKey = data.baseKey ?? data.key;
-      if (baseKey && desiredKeys.has(baseKey)) {
-        snoozedBaseKeys.add(baseKey);
-      }
-    }
 
     const toCancel = allPending
       .filter((n) => {
@@ -350,6 +350,9 @@ export async function reconcileMedicationReminders(
           if (!data?.medicationId) return false;
           const key = data.key;
           const baseKey = data.baseKey ?? key;
+          if (data.isSnoozed === 'true') {
+            return !baseKey || !snoozedBaseKeys.has(baseKey);
+          }
           return (
             (!key || !desiredKeys.has(key)) &&
             (!baseKey || !desiredKeys.has(baseKey))
