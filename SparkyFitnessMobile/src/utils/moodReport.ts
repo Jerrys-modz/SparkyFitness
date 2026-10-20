@@ -1,4 +1,4 @@
-import { moodByName, moodValueToTag } from '@workspace/shared';
+import { dailyMoodSeries, moodByName, moodValueToTag } from '@workspace/shared';
 import { average } from './mathUtils';
 import { addDays, weekdayOfDay } from './dateUtils';
 import type { MoodEntry } from '../services/api/moodApi';
@@ -7,6 +7,7 @@ export type MoodDayPoint = {
   day: string;
   /** Mean 0-100 mood for the day; 0 when nothing was logged. */
   value: number;
+  /** Manual check-ins with a mood that day. */
   entries: number;
 };
 
@@ -48,30 +49,37 @@ export function buildMoodReport(
   days: number,
   topTagLimit = 5
 ): MoodReport {
-  const byDay = new Map<string, MoodEntry[]>();
+  const dailyValue = new Map(
+    dailyMoodSeries(entries).map((point) => [point.date, point.mood_value])
+  );
+  const manualMoodCount = new Map<string, number>();
   for (const entry of entries) {
-    const list = byDay.get(entry.entry_date);
-    if (list) list.push(entry);
-    else byDay.set(entry.entry_date, [entry]);
+    if (entry.source === 'manual' && entry.mood_value !== null) {
+      manualMoodCount.set(
+        entry.entry_date,
+        (manualMoodCount.get(entry.entry_date) ?? 0) + 1
+      );
+    }
   }
 
   const points: MoodDayPoint[] = [];
-  const dailyAverages: number[] = [];
+  const loggedPoints: MoodDayPoint[] = [];
   for (let i = 0; i < days; i++) {
     const day = addDays(startDate, i);
-    const dayEntries = byDay.get(day) ?? [];
-    const mean = average(
-      // Interim: skip check-ins with no mood; reworked with the report.
-      dayEntries.flatMap((entry) =>
-        entry.mood_value === null ? [] : [entry.mood_value]
-      )
-    );
-    if (mean !== null) dailyAverages.push(mean);
-    points.push({ day, value: mean ?? 0, entries: dayEntries.length });
+    const value = dailyValue.get(day);
+    const point = {
+      day,
+      value: value ?? 0,
+      entries: manualMoodCount.get(day) ?? 0,
+    };
+    points.push(point);
+    // Only a day with a mood counts as logged; a check-in with no mood is not a 0.
+    if (value !== undefined) loggedPoints.push(point);
   }
 
   const tagCounts = new Map<string, number>();
   for (const entry of entries) {
+    if (entry.source !== 'manual') continue;
     for (const tag of entry.mood_tags ?? []) {
       tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
     }
@@ -81,7 +89,7 @@ export function buildMoodReport(
     .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
     .slice(0, topTagLimit);
 
-  const logged = points.filter((point) => point.entries > 0);
+  const logged = loggedPoints;
   const ranked = [...logged].sort((a, b) => a.value - b.value);
   const byWeekday = new Map<number, number[]>();
   for (const point of logged) {
@@ -99,8 +107,8 @@ export function buildMoodReport(
     lowest: ranked.length > 1 ? ranked[0] : null,
     weekdayAverages,
     days: points,
-    loggedDays: dailyAverages.length,
-    averageValue: average(dailyAverages),
+    loggedDays: loggedPoints.length,
+    averageValue: average(loggedPoints.map((point) => point.value)),
     topTags,
   };
 }

@@ -3,6 +3,7 @@ import {
   useCreateMoodCheckin,
   useDeleteMoodCheckin,
   useMoodCheckinsForDate,
+  useMoodEntries,
   useMoodEntryForDate,
   useUpdateMoodCheckin,
 } from '../../src/hooks/useMood';
@@ -11,8 +12,10 @@ import {
   deleteMoodCheckin,
   fetchLegacyMoodEntries,
   fetchMoodCheckinsForDate,
+  fetchMoodEntries,
   updateMoodCheckin,
 } from '../../src/services/api/moodApi';
+import { getTodayDate } from '../../src/utils/dateUtils';
 import { createTestQueryClient, createQueryWrapper } from './queryTestUtils';
 
 jest.mock('../../src/services/api/moodApi', () => ({
@@ -45,6 +48,30 @@ describe('mood check-in hooks', () => {
     expect(
       client.getQueryData(['moodEntries', 'checkins', '2026-10-05'])
     ).toEqual([]);
+  });
+
+  it('charts one point per day, averaging several check-ins and skipping null moods', async () => {
+    const today = getTodayDate();
+    const row = (id: string, mood_value: number | null) => ({
+      id,
+      entry_date: today,
+      entry_timestamp: `${today}T12:00:00Z`,
+      source: 'manual',
+      mood_value,
+      mood_tags: null,
+      notes: null,
+    });
+    mocked(fetchMoodEntries).mockResolvedValue([
+      row('a', 40),
+      row('b', 80),
+      row('c', null),
+    ]);
+    const { result } = renderHook(() => useMoodEntries('7d'), {
+      wrapper: createQueryWrapper(createTestQueryClient()),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.points).toEqual([{ day: today, mood: 60 }]);
   });
 
   it('keeps the legacy single-day entry apart from a one-day range', async () => {

@@ -2,9 +2,10 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
-import type {
-  MoodCheckinCreateBody,
-  MoodCheckinUpdateBody,
+import {
+  dailyMoodSeries,
+  type MoodCheckinCreateBody,
+  type MoodCheckinUpdateBody,
 } from '@workspace/shared';
 import {
   createMoodCheckin,
@@ -58,12 +59,10 @@ export function useMoodEntries(range: HealthTrendDateRange) {
 
   const points = useMemo<MoodDataPoint[]>(
     () =>
-      // Interim: check-ins with no mood have no point; reworked with the day view.
-      entries.flatMap((entry) =>
-        entry.mood_value === null
-          ? []
-          : [{ day: entry.entry_date, mood: entry.mood_value }]
-      ),
+      dailyMoodSeries(entries).map(({ date, mood_value }) => ({
+        day: date,
+        mood: mood_value,
+      })),
     [entries]
   );
 
