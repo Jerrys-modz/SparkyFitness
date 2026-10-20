@@ -47,6 +47,8 @@ export interface MoodEntryPatch {
   energyValue?: number | null;
   focusValue?: number | null;
   entryTimestamp?: string | Date;
+  // Moving a check-in to another time moves its day too; never null.
+  entryDate?: string;
 }
 
 // Mirrors the mood_entries_has_content CHECK constraint.
@@ -327,6 +329,7 @@ async function updateMoodEntryFields(
            energy_value = CASE WHEN $9 THEN $10::smallint ELSE energy_value END,
            focus_value = CASE WHEN $11 THEN $12::smallint ELSE focus_value END,
            entry_timestamp = CASE WHEN $13 THEN $14::timestamptz ELSE entry_timestamp END,
+           entry_date = CASE WHEN $15 THEN $16::date ELSE entry_date END,
            updated_at = NOW()
        WHERE id = $1 AND user_id = $2
        RETURNING ${MOOD_ENTRY_COLUMNS}`,
@@ -345,6 +348,8 @@ async function updateMoodEntryFields(
         patch.focusValue ?? null,
         patch.entryTimestamp !== undefined,
         patch.entryTimestamp ?? null,
+        patch.entryDate !== undefined,
+        patch.entryDate ?? null,
       ]
     );
     return result.rows[0];

@@ -189,10 +189,12 @@ describe('moodRepository', () => {
     it('sets flag false for every field when the patch is empty', async () => {
       await moodRepository.updateMoodEntryFields('m1', 'u1', {});
       const [sql, params] = query.mock.calls[0];
-      expect(sql).not.toContain('entry_date =');
+      expect(sql).toContain('entry_date = CASE WHEN $15');
       expect(params).toEqual([
         'm1',
         'u1',
+        false,
+        null,
         false,
         null,
         false,
@@ -214,10 +216,11 @@ describe('moodRepository', () => {
         energyValue: 4,
         moodTags: ['calm'],
         entryTimestamp: '2026-10-20T10:00:00Z',
+        entryDate: '2026-10-20',
       });
       const params = query.mock.calls[0][1];
       // [id, user, mood flag, mood, notes flag, notes, tags flag, tags,
-      //  energy flag, energy, focus flag, focus, timestamp flag, timestamp]
+      //  energy flag, energy, focus flag, focus, timestamp flag, timestamp, date flag, date]
       expect(params.slice(2)).toEqual([
         false,
         null,
@@ -231,10 +234,12 @@ describe('moodRepository', () => {
         null,
         true,
         '2026-10-20T10:00:00Z',
+        true,
+        '2026-10-20',
       ]);
     });
 
-    it('uses a CASE flag for all six fields', async () => {
+    it('uses a CASE flag for all seven fields', async () => {
       await moodRepository.updateMoodEntryFields('m1', 'u1', { moodValue: 50 });
       const sql = query.mock.calls[0][0];
       for (const column of [
@@ -244,6 +249,7 @@ describe('moodRepository', () => {
         'energy_value',
         'focus_value',
         'entry_timestamp',
+        'entry_date',
       ]) {
         expect(sql).toContain(`${column} = CASE WHEN $`);
         expect(sql).toContain(`ELSE ${column} END`);
@@ -280,6 +286,8 @@ describe('moodRepository', () => {
         null,
         true,
         5,
+        false,
+        null,
         false,
         null,
       ]);

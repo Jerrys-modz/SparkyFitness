@@ -1,8 +1,19 @@
 import express from 'express';
-import { clampStoredMoodValue, moodRatingsBodySchema } from '@workspace/shared';
+import {
+  clampStoredMoodValue,
+  instantToDay,
+  MOOD_MODEL_VERSION,
+  MOOD_MODEL_VERSION_HEADER,
+  moodCheckinCreateBodySchema,
+  moodCheckinUpdateBodySchema,
+  moodRatingsBodySchema,
+} from '@workspace/shared';
 import moodRepository, {
+  hasMoodContent,
+  type MoodEntryPatch,
   type MoodRatingsInput,
 } from '../models/moodRepository.js';
+import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import { authenticate } from '../middleware/authMiddleware.js';
 import checkPermissionMiddleware from '../middleware/checkPermissionMiddleware.js';
 const router = express.Router();
@@ -15,6 +26,58 @@ function parseMoodRatings(body: unknown): MoodRatingsInput | null {
     energyValue: ratings.data.energy_value,
     focusValue: ratings.data.focus_value,
   };
+}
+
+const RATINGS_MESSAGE = 'Energy and focus must be whole numbers from 1 to 5.';
+const EMPTY_CHECKIN_MESSAGE =
+  'A check-in needs at least one of mood, energy, focus, notes or tags.';
+
+// Clients that send X-Mood-Model-Version >= 2 get several check-ins per day;
+// everyone else keeps the one-mood-per-day behaviour.
+function moodModelVersion(req: express.Request): number {
+  return Number(req.header(MOOD_MODEL_VERSION_HEADER)) || 1;
+}
+function isV2(req: express.Request): boolean {
+  return moodModelVersion(req) >= MOOD_MODEL_VERSION;
+}
+
+function isHasContentViolation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === '23514' &&
+    'constraint' in error &&
+    error.constraint === 'mood_entries_has_content'
+  );
+}
+
+// 400 body for a v2 body that fails the schema: ratings keep their message.
+function invalidBodyMessage(issues: { path: PropertyKey[] }[]): string {
+  const ratingField = issues.some(
+    (issue) =>
+      issue.path[0] === 'energy_value' || issue.path[0] === 'focus_value'
+  );
+  return ratingField ? RATINGS_MESSAGE : 'Invalid mood check-in.';
+}
+
+// Clamps a supplied mood onto the stored scale. Undefined when absent, null
+// when it is not a number.
+function clampSuppliedMood(value: unknown): number | null | undefined {
+  if (value === null || value === undefined) return undefined;
+  return clampStoredMoodValue(value);
+}
+
+// A new timestamp moves the check-in to that instant's day in the user's
+// timezone, unless the client named the day.
+async function resolveEntryDate(
+  userId: string,
+  entryDate: string | undefined,
+  entryTimestamp: string | undefined
+): Promise<string> {
+  if (entryDate) return entryDate;
+  const tz = await loadUserTimezone(userId);
+  return instantToDay(entryTimestamp ?? new Date(), tz);
 }
 router.use(authenticate);
 // Mood entries are check-in data (RLS uses the check-in policy). Guard every
@@ -93,7 +156,14 @@ router.put('/display-preferences', async (req, res, next) => {
  *   post:
  *     summary: Create or update a mood entry
  *     tags: [Wellness & Metrics]
- *     description: Creates a new mood entry or updates an existing one for the authenticated user and specified date.
+ *     description: >-
+ *       Without a version header, saves the day's single mood entry (creating
+ *       it or updating the existing one) and requires mood_value.
+ *       `X-Mood-Model-Version: 2` adds a new check-in every time, allows
+ *       check-ins without a mood, and needs at least one of mood_value,
+ *       energy_value, focus_value, notes or mood_tags. entry_timestamp
+ *       (ISO 8601) is optional and defaults to now; entry_date defaults to
+ *       that instant's day in the user's timezone.
  *     security:
  *       - cookieAuth: []
  *     requestBody:
@@ -125,7 +195,11 @@ router.put('/display-preferences', async (req, res, next) => {
  *                 type: string
  *                 format: date
  *                 description: The date of the entry (YYYY-MM-DD).
- *             required: [mood_value, entry_date]
+ *               entry_timestamp:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Version 2 only. When the check-in happened; defaults to now.
+ *             required: [entry_date]
  *     responses:
  *       201:
  *         description: Mood entry created or updated successfully.
@@ -134,7 +208,7 @@ router.put('/display-preferences', async (req, res, next) => {
  *             schema:
  *               $ref: '#/components/schemas/MoodEntry'
  *       400:
- *         description: Mood value is required, or energy or focus is not a whole number from 1 to 5.
+ *         description: Mood value is required (legacy), the check-in is empty (version 2), or energy or focus is not a whole number from 1 to 5.
  *       401:
  *         description: Unauthorized.
  *       500:
@@ -142,13 +216,12 @@ router.put('/display-preferences', async (req, res, next) => {
  */
 router.post('/', async (req, res, next) => {
   try {
+    if (isV2(req)) return await createCheckin(req, res);
     const { mood_value, mood_tags, notes, entry_date } = req.body ?? {};
 
     const ratingsInput = parseMoodRatings(req.body);
     if (!ratingsInput) {
-      return res.status(400).json({
-        message: 'Energy and focus must be whole numbers from 1 to 5.',
-      });
+      return res.status(400).json({ message: RATINGS_MESSAGE });
     }
     const userId = req.userId;
     // Catch both an explicit null and a missing/undefined field. A missing
@@ -167,26 +240,66 @@ router.post('/', async (req, res, next) => {
     if (storedMoodValue === null) {
       return res.status(400).json({ message: 'Mood value must be a number.' });
     }
-    const newMoodEntry = await moodRepository.createOrUpdateMoodEntry(
-      userId,
-      storedMoodValue,
+    // An old client saves its one mood for the day: update the day's mood row
+    // in place. It never targets a mood-less (AI energy-only) check-in.
+    const savedMoodEntry = await moodRepository.upsertLegacyMoodEntry(userId, {
+      moodValue: storedMoodValue,
       notes,
-      entry_date,
-      Array.isArray(mood_tags) ? mood_tags : null,
-      ratingsInput
-    );
-    res.status(201).json(newMoodEntry);
+      moodTags: Array.isArray(mood_tags) ? mood_tags : null,
+      entryDate: entry_date,
+      ...ratingsInput,
+    });
+    res.status(201).json(savedMoodEntry);
   } catch (error) {
     next(error);
   }
 });
+
+// v2: every POST adds a check-in; every field is optional but one.
+async function createCheckin(req: express.Request, res: express.Response) {
+  const parsed = moodCheckinCreateBodySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res
+      .status(400)
+      .json({ message: invalidBodyMessage(parsed.error.issues) });
+  }
+  const body = parsed.data;
+  const moodValue = clampSuppliedMood(body.mood_value);
+  if (moodValue === null) {
+    return res.status(400).json({ message: 'Mood value must be a number.' });
+  }
+  const input = {
+    moodValue,
+    notes: body.notes,
+    moodTags: body.mood_tags,
+    energyValue: body.energy_value,
+    focusValue: body.focus_value,
+  };
+  if (!hasMoodContent(input)) {
+    return res.status(400).json({ message: EMPTY_CHECKIN_MESSAGE });
+  }
+  const entryDate = await resolveEntryDate(
+    req.userId,
+    body.entry_date,
+    body.entry_timestamp
+  );
+  const created = await moodRepository.createCheckin(req.userId, {
+    ...input,
+    entryDate,
+    entryTimestamp: body.entry_timestamp,
+  });
+  res.status(201).json(created);
+}
 /**
  * @swagger
  * /mood:
  *   get:
  *     summary: Get mood entries within a date range
  *     tags: [Wellness & Metrics]
- *     description: Retrieves mood entries for a specific user and date range.
+ *     description: >-
+ *       Retrieves mood entries for a specific user and date range. Without a
+ *       version header it returns one entry per day. `X-Mood-Model-Version: 2`
+ *       returns every entry, derived ones included (see `source`), newest first.
  *     security:
  *       - cookieAuth: []
  *     parameters:
@@ -237,7 +350,10 @@ router.get('/', async (req, res, next) => {
         .status(400)
         .json({ message: 'Start date and end date are required.' });
     }
-    const moodEntries = await moodRepository.getMoodEntriesByUserId(
+    const loadEntries = isV2(req)
+      ? moodRepository.getMoodEntriesByUserId
+      : moodRepository.getLegacyMoodEntriesInRange;
+    const moodEntries = await loadEntries(
       targetUserId,
       startDate as string,
       endDate as string
@@ -302,7 +418,10 @@ router.get('/:id', async (req, res, next) => {
  *           format: date
  *     responses:
  *       200:
- *         description: The mood entry for the date (or empty object if not found).
+ *         description: >-
+ *           The mood entry for the date, or an empty object if not found.
+ *           `X-Mood-Model-Version: 2` returns an array of the day's manual
+ *           check-ins in time order (empty when none).
  */
 router.get('/date/:entryDate', async (req, res, next) => {
   try {
@@ -310,7 +429,12 @@ router.get('/date/:entryDate', async (req, res, next) => {
     const { userId } = req.query;
 
     const targetUserId = (userId as string | undefined) || req.userId;
-    const moodEntry = await moodRepository.getMoodEntryByDate(
+    if (isV2(req)) {
+      return res.json(
+        await moodRepository.getCheckinsForDate(targetUserId, entryDate)
+      );
+    }
+    const moodEntry = await moodRepository.getLegacyMoodEntryForDate(
       targetUserId,
       entryDate
     );
@@ -328,6 +452,11 @@ router.get('/date/:entryDate', async (req, res, next) => {
  *   put:
  *     summary: Update a mood entry
  *     tags: [Wellness & Metrics]
+ *     description: >-
+ *       Absent fields keep their value. Without a version header a null
+ *       mood_value, notes or mood_tags also keeps it. `X-Mood-Model-Version: 2`
+ *       treats an explicit null as clearing the field, and 400s when that would
+ *       leave the check-in empty. entry_timestamp and entry_date cannot be null.
  *     security:
  *       - cookieAuth: []
  *     parameters:
@@ -348,6 +477,10 @@ router.get('/date/:entryDate', async (req, res, next) => {
  *                 description: Mood intensity on a 10-100 scale; see the MoodEntry schema for the band boundaries.
  *               notes:
  *                 type: string
+ *               entry_timestamp:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Version 2 only. Moves the check-in; entry_date follows unless sent.
  *               energy_value:
  *                 type: integer
  *                 minimum: 1
@@ -369,33 +502,15 @@ router.get('/date/:entryDate', async (req, res, next) => {
 router.put('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { mood_value, notes, mood_tags } = req.body;
-    const ratingsInput = parseMoodRatings(req.body);
-    if (!ratingsInput) {
-      return res.status(400).json({
-        message: 'Energy and focus must be whole numbers from 1 to 5.',
-      });
+    const v2 = isV2(req);
+    const patch = v2 ? await v2Patch(req) : legacyPatch(req);
+    if ('error' in patch) {
+      return res.status(400).json({ message: patch.error });
     }
-    // Same clamp as the create path. An absent value is left for the UPDATE's
-    // COALESCE to keep whatever the row already holds, so only a supplied one
-    // is brought into range.
-    let storedMoodValue: number | null = null;
-    if (mood_value !== null && mood_value !== undefined) {
-      storedMoodValue = clampStoredMoodValue(mood_value);
-      if (storedMoodValue === null) {
-        return res
-          .status(400)
-          .json({ message: 'Mood value must be a number.' });
-      }
-    }
-    const updatedMoodEntry = await moodRepository.updateMoodEntry(
+    const updatedMoodEntry = await moodRepository.updateMoodEntryFields(
       id,
-
       req.userId,
-      storedMoodValue,
-      notes,
-      Array.isArray(mood_tags) ? mood_tags : null,
-      ratingsInput
+      patch.value
     );
     // RLS scopes the UPDATE to the caller, so a missing or not-owned id returns
     // no row. Return 404 instead of a misleading empty-body 200.
@@ -404,9 +519,64 @@ router.put('/:id', async (req, res, next) => {
     }
     res.json(updatedMoodEntry);
   } catch (error) {
+    if (isHasContentViolation(error)) {
+      return res.status(400).json({ message: EMPTY_CHECKIN_MESSAGE });
+    }
     next(error);
   }
 });
+
+type PatchResult = { value: MoodEntryPatch } | { error: string };
+
+// Old clients: a null mood, note or tag list means "keep"; ratings keep when
+// absent and clear on null.
+function legacyPatch(req: express.Request): PatchResult {
+  const { mood_value, notes, mood_tags } = req.body ?? {};
+  const ratingsInput = parseMoodRatings(req.body);
+  if (!ratingsInput) return { error: RATINGS_MESSAGE };
+  // Same clamp as the create path; only a supplied value is brought into range.
+  const moodValue = clampSuppliedMood(mood_value);
+  if (moodValue === null) return { error: 'Mood value must be a number.' };
+  return {
+    value: {
+      ...(moodValue !== undefined && { moodValue }),
+      ...(notes !== null && notes !== undefined && { notes }),
+      ...(Array.isArray(mood_tags) && { moodTags: mood_tags }),
+      ...ratingsInput,
+    },
+  };
+}
+
+// v2: an absent field is kept and an explicit null clears it.
+async function v2Patch(req: express.Request): Promise<PatchResult> {
+  const parsed = moodCheckinUpdateBodySchema.safeParse(req.body ?? {});
+  if (!parsed.success)
+    return { error: invalidBodyMessage(parsed.error.issues) };
+  const body = parsed.data;
+  const moodValue =
+    body.mood_value === null ? null : clampSuppliedMood(body.mood_value);
+  if (moodValue === null && body.mood_value !== null) {
+    return { error: 'Mood value must be a number.' };
+  }
+  const value: MoodEntryPatch = {
+    ...(moodValue !== undefined && { moodValue }),
+    ...(body.notes !== undefined && { notes: body.notes }),
+    ...(body.mood_tags !== undefined && { moodTags: body.mood_tags }),
+    ...(body.energy_value !== undefined && { energyValue: body.energy_value }),
+    ...(body.focus_value !== undefined && { focusValue: body.focus_value }),
+  };
+  if (body.entry_timestamp !== undefined) {
+    value.entryTimestamp = body.entry_timestamp;
+    value.entryDate = await resolveEntryDate(
+      req.userId,
+      body.entry_date,
+      body.entry_timestamp
+    );
+  } else if (body.entry_date !== undefined) {
+    value.entryDate = body.entry_date;
+  }
+  return { value };
+}
 /**
  * @swagger
  * /mood/{id}:
