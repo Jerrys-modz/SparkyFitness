@@ -14,7 +14,10 @@ import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import type { MedicationDetail, MedicationEntry } from '@workspace/shared';
 import { isDoseLogged } from '../utils/medications';
 import { addLog } from './LogService';
-import { flushPendingMedicationNotificationActions } from './medicationNotificationHandler';
+import {
+  flushPendingMedicationNotificationActions,
+  syncSnoozedMedicationReminders,
+} from './medicationNotificationHandler';
 import { listEntries } from './api/medicationsApi';
 
 const REPEAT_MINUTES = [10, 20, 30];
@@ -291,12 +294,29 @@ export async function reconcileMedicationReminders(
     }
 
     const allPending = await Notifications.getAllScheduledNotificationsAsync();
-    const snoozedBaseKeys = new Set<string>();
+    const presented =
+      typeof Notifications.getPresentedNotificationsAsync === 'function'
+        ? await Notifications.getPresentedNotificationsAsync().catch(() => [])
+        : [];
+
+    const snoozedBaseKeys = await syncSnoozedMedicationReminders(
+      today,
+      desiredKeys
+    );
     for (const n of allPending) {
       if (!n.content.data?.medicationId) continue;
       if (n.content.data.isSnoozed !== 'true') continue;
       const key = n.content.data.key as string | undefined;
       const baseKey = (n.content.data.baseKey ?? key) as string | undefined;
+      if (baseKey && desiredKeys.has(baseKey)) {
+        snoozedBaseKeys.add(baseKey);
+      }
+    }
+    for (const n of presented) {
+      const data = n.request.content.data as
+        Record<string, string | undefined> | undefined;
+      if (!data?.medicationId || data.isSnoozed !== 'true') continue;
+      const baseKey = data.baseKey ?? data.key;
       if (baseKey && desiredKeys.has(baseKey)) {
         snoozedBaseKeys.add(baseKey);
       }
@@ -322,14 +342,11 @@ export async function reconcileMedicationReminders(
       .map((n) => n.identifier);
     if (toCancel.length > 0) await cancelReminders(toCancel);
 
-    if (typeof Notifications.getPresentedNotificationsAsync === 'function') {
-      const presented =
-        await Notifications.getPresentedNotificationsAsync().catch(() => []);
+    if (presented.length > 0) {
       const presentedToDismiss = presented
         .filter((n) => {
           const data = n.request.content.data as
-            | Record<string, string | undefined>
-            | undefined;
+            Record<string, string | undefined> | undefined;
           if (!data?.medicationId) return false;
           const key = data.key;
           const baseKey = data.baseKey ?? key;

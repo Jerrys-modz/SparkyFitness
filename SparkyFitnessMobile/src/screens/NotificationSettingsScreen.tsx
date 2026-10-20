@@ -422,7 +422,9 @@ const NotificationSettingsScreen: React.FC<
                     <SegmentedControl
                       segments={snoozeSegments}
                       activeKey={
-                        String(medicationReminderSnoozeMinutes) as SnoozeMinutesKey
+                        String(
+                          medicationReminderSnoozeMinutes
+                        ) as SnoozeMinutesKey
                       }
                       onSelect={(key) =>
                         setMedicationReminderSnoozeMinutes(

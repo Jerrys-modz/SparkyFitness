@@ -29,6 +29,12 @@ export const MEDICATION_NOTIFICATION_TASK_NAME =
   'MEDICATION_NOTIFICATION_ACTION_TASK';
 export const PENDING_MEDICATION_NOTIFICATION_ACTIONS_KEY =
   'pending_medication_notification_actions';
+const SNOOZED_MEDICATION_REMINDERS_KEY = 'snoozed_medication_reminders';
+
+interface SnoozedMedicationReminderRecord {
+  baseKey: string;
+  entryDate: string;
+}
 
 export interface PendingMedicationNotificationAction {
   key: string | null;
@@ -235,6 +241,83 @@ async function removePendingAction(record: {
   });
 }
 
+async function readSnoozedReminders(): Promise<
+  SnoozedMedicationReminderRecord[]
+> {
+  try {
+    const raw = await AsyncStorage.getItem(SNOOZED_MEDICATION_REMINDERS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? (parsed as SnoozedMedicationReminderRecord[])
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeSnoozedReminders(
+  records: SnoozedMedicationReminderRecord[]
+): Promise<void> {
+  try {
+    if (records.length === 0) {
+      await AsyncStorage.removeItem(SNOOZED_MEDICATION_REMINDERS_KEY);
+    } else {
+      await AsyncStorage.setItem(
+        SNOOZED_MEDICATION_REMINDERS_KEY,
+        JSON.stringify(records)
+      );
+    }
+  } catch {
+    // ignore storage errors
+  }
+}
+
+async function recordSnoozedReminder(
+  baseKey: string,
+  entryDate: string
+): Promise<void> {
+  await withPendingActionsLock(async () => {
+    const existing = await readSnoozedReminders();
+    const filtered = existing.filter((item) => item.baseKey !== baseKey);
+    filtered.push({ baseKey, entryDate });
+    await writeSnoozedReminders(filtered);
+  });
+}
+
+async function removeSnoozedReminder(baseKey: string | null): Promise<void> {
+  if (!baseKey) return;
+  await withPendingActionsLock(async () => {
+    const existing = await readSnoozedReminders();
+    if (existing.length === 0) return;
+    const filtered = existing.filter((item) => item.baseKey !== baseKey);
+    if (filtered.length !== existing.length) {
+      await writeSnoozedReminders(filtered);
+    }
+  });
+}
+
+/**
+ * Returns the set of baseKeys that were snoozed on `today` and are still
+ * present in `desiredKeys`, while pruning stale or logged entries from storage.
+ */
+export async function syncSnoozedMedicationReminders(
+  today: string,
+  desiredKeys: Set<string>
+): Promise<Set<string>> {
+  return withPendingActionsLock(async () => {
+    const existing = await readSnoozedReminders();
+    if (existing.length === 0) return new Set<string>();
+    const retained = existing.filter(
+      (item) => item.entryDate === today && desiredKeys.has(item.baseKey)
+    );
+    if (retained.length !== existing.length) {
+      await writeSnoozedReminders(retained);
+    }
+    return new Set(retained.map((item) => item.baseKey));
+  });
+}
+
 export async function flushPendingMedicationNotificationActions(): Promise<boolean> {
   const pending = await readPendingActions();
   if (pending.length === 0) return false;
@@ -325,6 +408,7 @@ export async function flushPendingMedicationNotificationActions(): Promise<boole
           );
         }
 
+        await removeSnoozedReminder(record.key);
         await clearMatchingReminders(
           record.notificationId,
           record.key,
@@ -503,6 +587,7 @@ async function handleSnoozeNotificationAction(
       },
     });
 
+    await recordSnoozedReminder(effectiveBaseKey, entryDate);
     await dismissDeliveredNotification(notificationId);
     await clearMatchingReminders(notificationId, key, doses, entryDate, {
       excludeIdentifier: scheduledId,
@@ -645,6 +730,7 @@ async function handleNotificationAction(
 
     if (unlogged.length === 0) {
       await removePendingAction({ key, entryDate, doses, userId });
+      await removeSnoozedReminder(key);
       await clearMatchingReminders(notificationId, key, doses, entryDate);
       invalidateMedicationEntryCaches(queryClient);
       return true;
@@ -663,6 +749,7 @@ async function handleNotificationAction(
     );
 
     await removePendingAction({ key, entryDate, doses, userId });
+    await removeSnoozedReminder(key);
     await clearMatchingReminders(notificationId, key, doses, entryDate);
 
     // This path writes the entry through the API directly rather than through the

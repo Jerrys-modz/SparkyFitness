@@ -904,5 +904,42 @@ describe('reconcileMedicationReminders', () => {
 
       expect(mockCancel).toHaveBeenCalledWith('snoozed-1');
     });
+
+    it('does not reschedule future repeat slots after a snoozed reminder has already fired and is only in presented notifications', async () => {
+      const pastBaseKey = `med_${TODAY}_med-1_sched-1_07:55`;
+      mockGetAllScheduled.mockResolvedValue([]);
+      (
+        Notifications.getPresentedNotificationsAsync as jest.Mock
+      ).mockResolvedValue([
+        {
+          request: {
+            identifier: 'delivered-snooze',
+            content: {
+              data: {
+                medicationId: 'med-1',
+                key: `${pastBaseKey}_snooze_12345`,
+                baseKey: pastBaseKey,
+                isSnoozed: 'true',
+              },
+            },
+          },
+        },
+      ]);
+
+      await reconcileMedicationReminders(
+        [
+          buildMedication({
+            schedules: [buildSchedule({ time_of_day: '07:55' })],
+          }),
+        ],
+        []
+      );
+
+      const keys = scheduledKeys();
+      expect(keys).not.toContain(`${pastBaseKey}_10`);
+      expect(keys).not.toContain(`${pastBaseKey}_20`);
+      expect(keys).not.toContain(`${pastBaseKey}_30`);
+      expect(keys.every((k) => !k.startsWith(pastBaseKey))).toBe(true);
+    });
   });
 });
