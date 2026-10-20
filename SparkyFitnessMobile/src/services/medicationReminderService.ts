@@ -326,11 +326,16 @@ export async function reconcileMedicationReminders(
     // and its key is not in `desiredKeys`, so the copy-freshness test below never
     // reaches it. Rebuild it at the time the snooze was due to fire when the
     // privacy or language preference changed after the snooze was created.
+    const slotBaseKeys = new Set(slotsToSchedule.map((s) => s.baseKey));
     const staleSnoozeFireAt = new Map<string, Date>();
+    const staleSnoozeSource = new Map<
+      string,
+      Record<string, string | undefined>
+    >();
     for (const n of allPending) {
-      const data = n.content.data ?? {};
-      const key = data.key as string | undefined;
-      const baseKey = (data.baseKey ?? key) as string | undefined;
+      const data = (n.content.data ?? {}) as Record<string, string | undefined>;
+      const key = data.key;
+      const baseKey = data.baseKey ?? key;
       if (!data.medicationId || data.isSnoozed !== 'true' || !baseKey) continue;
       if (!snoozedBaseKeys.has(baseKey)) continue;
       const copyIsStale =
@@ -357,6 +362,7 @@ export async function reconcileMedicationReminders(
                 : NaN;
       if (Number.isFinite(epochMs) && epochMs > Date.now()) {
         staleSnoozeFireAt.set(baseKey, new Date(epochMs));
+        staleSnoozeSource.set(baseKey, data);
       }
     }
     for (const n of presented) {
@@ -370,6 +376,7 @@ export async function reconcileMedicationReminders(
         (data.locale ?? 'en') !== reminderLocale;
       if (copyIsStale && !staleSnoozeFireAt.has(baseKey)) {
         staleSnoozeFireAt.set(baseKey, new Date(Date.now() + 1000));
+        staleSnoozeSource.set(baseKey, data);
       }
     }
 
@@ -554,6 +561,106 @@ export async function reconcileMedicationReminders(
           }
         }
       }
+    }
+
+    for (const [baseKey, snoozeFireAt] of staleSnoozeFireAt.entries()) {
+      if (slotBaseKeys.has(baseKey)) continue;
+      const sourceData = staleSnoozeSource.get(baseKey);
+      if (!sourceData || snoozeFireAt.getTime() <= Date.now()) continue;
+
+      let parsedDoses: { medicationId: string; scheduleId?: string | null }[] =
+        [];
+      if (typeof sourceData.doses === 'string') {
+        try {
+          const parsed = JSON.parse(sourceData.doses);
+          if (Array.isArray(parsed)) parsedDoses = parsed;
+        } catch {
+          // ignore malformed JSON
+        }
+      }
+      if (parsedDoses.length === 0 && sourceData.medicationId) {
+        parsedDoses = [
+          {
+            medicationId: sourceData.medicationId,
+            scheduleId: sourceData.scheduleId ?? null,
+          },
+        ];
+      }
+
+      const isGroup = parsedDoses.length > 1 || sourceData.isGroup === 'true';
+      const categoryIdentifier = isGroup
+        ? MEDICATION_REMINDER_GROUP_CATEGORY
+        : MEDICATION_REMINDER_CATEGORY;
+
+      const medById = new Map(medications.map((m) => [m.id, m]));
+      const resolvedMeds = parsedDoses
+        .map((d) => medById.get(d.medicationId))
+        .filter((m): m is MedicationDetail => Boolean(m));
+
+      let body: string;
+      if (hideNames || resolvedMeds.length === 0) {
+        const count = Math.max(parsedDoses.length, 1);
+        body = isGroup
+          ? i18n.t('medications.notificationScheduledDoses', {
+              count,
+              defaultValue: 'You have {{count}} scheduled doses',
+              defaultValue_one: 'You have {{count}} scheduled dose',
+            })
+          : i18n.t('medications.notificationScheduledDose', {
+              defaultValue: 'You have a scheduled dose',
+            });
+      } else if (!isGroup) {
+        const med = resolvedMeds[0];
+        const doseSuffix =
+          med.dose_amount != null
+            ? ` (${med.dose_amount}${med.dose_unit ? ` ${med.dose_unit}` : ''})`
+            : '';
+        body = i18n.t('medications.notificationScheduledDoseNamed', {
+          defaultValue: 'Scheduled dose: {{name}}{{dose}}',
+          name: med.name,
+          dose: doseSuffix,
+        });
+      } else {
+        const doseNames = resolvedMeds.map((med) => {
+          const doseSuffix =
+            med.dose_amount != null
+              ? ` (${med.dose_amount}${med.dose_unit ? ` ${med.dose_unit}` : ''})`
+              : '';
+          return `${med.name}${doseSuffix}`;
+        });
+        body =
+          doseNames.length <= 3
+            ? i18n.t('medications.notificationScheduledDosesNamed', {
+                defaultValue: 'Scheduled doses: {{names}}',
+                names: doseNames.join(', '),
+              })
+            : i18n.t('medications.notificationScheduledDosesOverflow', {
+                count: doseNames.length - 3,
+                names: doseNames.slice(0, 3).join(', '),
+                defaultValue: 'Scheduled doses: {{names}}, and {{count}} more',
+                defaultValue_one:
+                  'Scheduled doses: {{names}}, and {{count}} more',
+              });
+      }
+
+      const rebuiltData: Record<string, string> = {};
+      for (const [k, v] of Object.entries(sourceData)) {
+        if (typeof v === 'string') {
+          rebuiltData[k] = v;
+        }
+      }
+      rebuiltData.baseKey = baseKey;
+      rebuiltData.key = `${baseKey}_snooze_${snoozeFireAt.getTime()}`;
+      rebuiltData.isSnoozed = 'true';
+      rebuiltData.hideNames = String(hideNames);
+      rebuiltData.locale = reminderLocale;
+
+      await scheduleReminder(
+        body,
+        snoozeFireAt,
+        rebuiltData,
+        categoryIdentifier
+      );
     }
   } finally {
     schedulingLock.delete('medication-reminders');

@@ -1030,8 +1030,8 @@ describe('reconcileMedicationReminders', () => {
             },
           } as unknown as Notifications.NotificationContent,
           trigger: {
-            type: 'timeInterval',
-            seconds: 900,
+            type: 'date',
+            value: snoozeFireAt.getTime(),
           } as unknown as Notifications.NotificationTrigger,
         },
       ]);
