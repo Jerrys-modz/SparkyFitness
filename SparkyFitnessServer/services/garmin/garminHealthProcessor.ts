@@ -947,6 +947,11 @@ export async function processGarminHealthAndWellnessData(
   }
 }
 
+/** A bedtime or wake time that `new Date()` reads as a real instant. */
+const isSleepInstant = (value: unknown): value is string | Date =>
+  (typeof value === 'string' || value instanceof Date) &&
+  !Number.isNaN(new Date(value).getTime());
+
 export async function processGarminSleepData(
   userId: string,
   actingUserId: string,
@@ -970,10 +975,22 @@ export async function processGarminSleepData(
 
   for (const sleepEntry of sleepDataArray) {
     try {
+      // routes.py skips a night without both times; one that slips through
+      // fails here, with the others still processed, instead of reaching the
+      // upsert as an Invalid Date.
+      if (
+        !isSleepInstant(sleepEntry.bedtime) ||
+        !isSleepInstant(sleepEntry.wake_time)
+      ) {
+        throw new Error(
+          'Garmin sleep entry is missing a valid bedtime or wake_time.'
+        );
+      }
       const result = await measurementService.processSleepEntry(
         userId,
         actingUserId,
-        // Shaped by the Garmin service's sleep mapper, which isn't typed yet.
+        // The rest is shaped by the Garmin service's sleep mapper, which
+        // isn't typed yet.
         sleepEntry as SleepEntryInput
       );
       processedResults.push({ status: 'success', data: result });
