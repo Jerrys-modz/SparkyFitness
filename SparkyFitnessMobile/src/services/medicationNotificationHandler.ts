@@ -701,16 +701,16 @@ async function handleSnoozeNotificationAction(
           defaultValue: 'You have a scheduled dose',
         }) || 'You have a scheduled dose';
 
+    const fallbackTitle =
+      i18n.t('medications.notificationTitle', {
+        defaultValue: 'Medication reminder',
+      }) || 'Medication reminder';
+
     // Schedule the replacement reminder before dismissing the active notification
     // or cancelling pending repeats so a scheduling error never drops the alert.
     const scheduledId = await Notifications.scheduleNotificationAsync({
       content: {
-        title:
-          content?.title ||
-          i18n.t('medications.notificationTitle', {
-            defaultValue: 'Medication reminder',
-          }) ||
-          'Medication reminder',
+        title: content?.title || fallbackTitle,
         body: hideNames ? genericBody : content?.body || genericBody,
         sound: true,
         categoryIdentifier,
