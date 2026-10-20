@@ -92,12 +92,17 @@ export function buildExerciseEffortSummary(
     }
   }
 
-  // Oldest first. Within a day, by completion time when both sessions have
-  // one; otherwise the history lists a day's sessions newest first, so the
-  // later entry is the older session.
+  // Oldest first. A day is ordered by completion time only when every session
+  // on it has one; if any lacks it, the whole day follows the history order
+  // (newest first, so the later entry is the older session). Mixing the two
+  // rules inside one day would not be a consistent ordering.
+  const untimedDays = new Set(
+    points.filter((point) => point.completedAt === null).map((p) => p.date)
+  );
   points.sort((a, b) => {
     if (a.date !== b.date) return a.date < b.date ? -1 : 1;
     if (
+      !untimedDays.has(a.date) &&
       a.completedAt !== null &&
       b.completedAt !== null &&
       a.completedAt !== b.completedAt

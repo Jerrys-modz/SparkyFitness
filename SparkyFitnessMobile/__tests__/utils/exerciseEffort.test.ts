@@ -33,6 +33,9 @@ const single = (
     sets,
   }) as unknown as ExerciseSessionResponse;
 
+const buildExerciseEffortSubset = (sessions: ExerciseSessionResponse[]) =>
+  buildExerciseEffortSummary(sessions, 'ex-1', false).trend;
+
 describe('buildExerciseEffortSummary', () => {
   it('averages the working sets with an RPE, per session, oldest first', () => {
     const summary = buildExerciseEffortSummary(
@@ -119,6 +122,22 @@ describe('buildExerciseEffortSummary', () => {
       expect(trend.map((point) => point.id)).toEqual([
         'individual:older',
         'individual:newer',
+      ]);
+    });
+
+    it('uses the history order for the whole day when any session has no completion time', () => {
+      // History order is newest first: late, none, early. Mixing completion
+      // time for the two timed sessions with history order for the rest would
+      // not be a consistent ordering.
+      const trend = buildExerciseEffortSubset([
+        single('late', '2026-10-01', 'ex-1', [timed('2026-10-01T18:00:00Z')]),
+        single('none', '2026-10-01', 'ex-1', [timed(null)]),
+        single('early', '2026-10-01', 'ex-1', [timed('2026-10-01T07:00:00Z')]),
+      ]);
+      expect(trend.map((point) => point.id)).toEqual([
+        'individual:early',
+        'individual:none',
+        'individual:late',
       ]);
     });
 
