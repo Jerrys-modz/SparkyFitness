@@ -92,6 +92,25 @@ describe('routes API', () => {
     expect(bad.status).toBe(400);
   });
 
+  it('saves a generated route but never lets a client claim gpx or activity', async () => {
+    vi.mocked(createRoute).mockResolvedValue(route as never);
+    const generated = await request(app)
+      .post('/api/v2/routes')
+      .send({ name: 'Loop', points, source: 'generated' });
+    expect(generated.status).toBe(201);
+    expect(createRoute).toHaveBeenCalledWith(
+      'test-user-id',
+      expect.objectContaining({ source: 'generated' }),
+      actingAs
+    );
+    for (const source of ['gpx', 'activity']) {
+      const res = await request(app)
+        .post('/api/v2/routes')
+        .send({ name: 'Loop', points, source });
+      expect(res.status).toBe(400);
+    }
+  });
+
   it('maps repository errors to statuses', async () => {
     vi.mocked(createRoute).mockRejectedValueOnce(
       new InvalidRouteError('short')
