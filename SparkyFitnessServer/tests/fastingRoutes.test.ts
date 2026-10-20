@@ -300,7 +300,7 @@ describe('Fasting Routes', () => {
       expect(moodRepository.createCheckin).not.toHaveBeenCalled();
     });
 
-    it('logs no second mood when a completed fast is ended again', async () => {
+    it('logs no second mood when a retried end finds the first check-in', async () => {
       // @ts-expect-error TS(2339)
       fastingRepository.getFastingById.mockResolvedValueOnce({
         ...activeFast,
@@ -308,6 +308,7 @@ describe('Fasting Routes', () => {
       });
       // @ts-expect-error TS(2339)
       fastingRepository.endFast.mockResolvedValue({ id: 'fast-id' });
+      vi.mocked(moodRepository.hasManualCheckinAt).mockResolvedValueOnce(true);
 
       await request(app)
         .post('/fasting/end')
@@ -315,10 +316,47 @@ describe('Fasting Routes', () => {
         .expect(200);
 
       expect(fastingRepository.endFast).toHaveBeenCalled();
+      expect(moodRepository.hasManualCheckinAt).toHaveBeenCalledWith(
+        'testUserId',
+        endTime
+      );
       expect(moodRepository.createCheckin).not.toHaveBeenCalled();
     });
 
-    it('logs no mood when the auto-calculated fast is already recorded', async () => {
+    it('recovers the mood on a retry after its first write failed', async () => {
+      // First attempt: the fast ends, then the mood write fails.
+      // @ts-expect-error TS(2339)
+      fastingRepository.getFastingById.mockResolvedValueOnce(activeFast);
+      // @ts-expect-error TS(2339)
+      fastingRepository.endFast.mockResolvedValue({ id: 'fast-id' });
+      vi.mocked(moodRepository.createCheckin).mockRejectedValueOnce(
+        new Error('db down')
+      );
+      await request(app)
+        .post('/fasting/end')
+        .send({ id: 'fast-id', end_time: endTime, mood: { value: 50 } })
+        .expect(500);
+
+      // Retry: the fast is already completed and no check-in was stored.
+      // @ts-expect-error TS(2339)
+      fastingRepository.getFastingById.mockResolvedValueOnce({
+        ...activeFast,
+        status: 'COMPLETED',
+      });
+      vi.mocked(moodRepository.hasManualCheckinAt).mockResolvedValueOnce(false);
+      await request(app)
+        .post('/fasting/end')
+        .send({ id: 'fast-id', end_time: endTime, mood: { value: 50 } })
+        .expect(200);
+
+      expect(moodRepository.createCheckin).toHaveBeenCalledTimes(2);
+      expect(moodRepository.createCheckin).toHaveBeenLastCalledWith(
+        'testUserId',
+        expect.objectContaining({ moodValue: 50, entryTimestamp: endTime })
+      );
+    });
+
+    it('logs no second mood when the auto-calculated fast and its check-in are already recorded', async () => {
       // @ts-expect-error TS(2339)
       fastingAutoCalculationService.getCurrentAutoFast.mockResolvedValue({
         start_time: '2026-07-18T00:00:00.000Z',
@@ -326,6 +364,7 @@ describe('Fasting Routes', () => {
       // A retry: the insert finds the fast it already stored and returns null.
       // @ts-expect-error TS(2339)
       fastingRepository.createCompletedFast.mockResolvedValueOnce(null);
+      vi.mocked(moodRepository.hasManualCheckinAt).mockResolvedValueOnce(true);
 
       await request(app)
         .post('/fasting/end')
@@ -333,6 +372,26 @@ describe('Fasting Routes', () => {
         .expect(200);
 
       expect(moodRepository.createCheckin).not.toHaveBeenCalled();
+    });
+
+    it('recovers the auto-calculated fast mood when its check-in is missing on a retry', async () => {
+      // @ts-expect-error TS(2339)
+      fastingAutoCalculationService.getCurrentAutoFast.mockResolvedValue({
+        start_time: '2026-07-18T00:00:00.000Z',
+      });
+      // @ts-expect-error TS(2339)
+      fastingRepository.createCompletedFast.mockResolvedValueOnce(null);
+      vi.mocked(moodRepository.hasManualCheckinAt).mockResolvedValueOnce(false);
+
+      await request(app)
+        .post('/fasting/end')
+        .send({ id: 'auto-current', end_time: endTime, mood: { value: 50 } })
+        .expect(200);
+
+      expect(moodRepository.createCheckin).toHaveBeenCalledWith(
+        'testUserId',
+        expect.objectContaining({ moodValue: 50, entryTimestamp: endTime })
+      );
     });
 
     it('ends the fast without logging a mood that carries no value', async () => {

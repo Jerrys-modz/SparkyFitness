@@ -17,8 +17,10 @@ import checkPermissionMiddleware from '../middleware/checkPermissionMiddleware.j
 const router = express.Router();
 
 // Logs the optional end-of-fast mood as a manual check-in stamped at the end
-// of the fast and dated in the user's timezone. Writes nothing (and loads no
-// timezone) when the fast ended without a mood value.
+// of the fast and dated in the user's timezone. Writes nothing when the fast
+// ended without a mood value, or when a check-in at that end time already
+// exists: a retried end then neither duplicates the mood nor loses one whose
+// first write failed after the fast had ended.
 async function saveFastingMoodCheckin(
   userId: string,
   moodValue: number | null,
@@ -26,6 +28,7 @@ async function saveFastingMoodCheckin(
   endTime: string
 ): Promise<void> {
   if (moodValue === null) return;
+  if (await moodRepository.hasManualCheckinAt(userId, endTime)) return;
   const tz = await loadUserTimezone(userId);
   await moodRepository.createCheckin(userId, {
     moodValue,
@@ -272,16 +275,14 @@ router.post('/end', async (req, res) => {
         durationMinutes,
         fastingType
       );
-      // A retried end finds the fast already recorded (null) and logs no
-      // second mood.
-      if (completed) {
-        await saveFastingMoodCheckin(
-          userId,
-          storedMoodValue,
-          mood?.notes,
-          end_time
-        );
-      }
+      // A retried end finds the fast already recorded (null); the mood write
+      // is keyed on the end time, so it is still made once and only once.
+      await saveFastingMoodCheckin(
+        userId,
+        storedMoodValue,
+        mood?.notes,
+        end_time
+      );
       return res.json(completed);
     }
 
@@ -306,8 +307,9 @@ router.post('/end', async (req, res) => {
       durationMinutes,
       startUsed
     );
-    // Ending a fast that was already completed (a retry) logs no second mood.
-    if (updatedFast && fast.status !== 'COMPLETED') {
+    // A retry of an already completed fast still reaches here; the mood write
+    // is keyed on the end time, so it is made once and only once.
+    if (updatedFast) {
       await saveFastingMoodCheckin(
         userId,
         storedMoodValue,

@@ -226,6 +226,7 @@ describe('reconcileMedicationReminders', () => {
           data: {
             medicationId: 'med-1',
             scheduleId: 'sched-1',
+            userId: 'user-1',
             entryDate: TODAY,
             key: BASE_KEY,
             baseKey: BASE_KEY,
@@ -764,6 +765,107 @@ describe('reconcileMedicationReminders', () => {
         (c[0].content.data?.key as string)?.includes(TODAY)
       );
       expect(todayScheduled).toHaveLength(0);
+    });
+
+    it('dismisses already-delivered notifications from the tray when a dose is logged', async () => {
+      (
+        Notifications.getPresentedNotificationsAsync as jest.Mock
+      ).mockResolvedValue([
+        {
+          request: {
+            identifier: 'delivered-base',
+            content: {
+              data: {
+                medicationId: 'med-1',
+                key: BASE_KEY,
+                baseKey: BASE_KEY,
+              },
+            },
+          },
+        },
+        {
+          request: {
+            identifier: 'delivered-repeat-10',
+            content: {
+              data: {
+                medicationId: 'med-1',
+                key: `${BASE_KEY}_10`,
+                baseKey: BASE_KEY,
+              },
+            },
+          },
+        },
+      ]);
+
+      await reconcileMedicationReminders([buildMedication()], [buildEntry()]);
+
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith(
+        'delivered-base'
+      );
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith(
+        'delivered-repeat-10'
+      );
+    });
+
+    it('dismisses presented medication reminders when notification permission is not granted', async () => {
+      mockGetPerms.mockResolvedValue({ status: 'denied' } as never);
+      (
+        Notifications.getPresentedNotificationsAsync as jest.Mock
+      ).mockResolvedValue([
+        {
+          request: {
+            identifier: 'delivered-med',
+            content: { data: { medicationId: 'med-1' } },
+          },
+        },
+        {
+          request: {
+            identifier: 'delivered-other',
+            content: { data: { other: 'true' } },
+          },
+        },
+      ]);
+
+      await reconcileMedicationReminders([buildMedication()], []);
+
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith(
+        'delivered-med'
+      );
+      expect(Notifications.dismissNotificationAsync).not.toHaveBeenCalledWith(
+        'delivered-other'
+      );
+    });
+
+    it('reloads today entries when flushPendingMedicationNotificationActions processes a queued action', async () => {
+      const handlerMod =
+        require('../../src/services/medicationNotificationHandler') as typeof import('../../src/services/medicationNotificationHandler');
+      const apiMod =
+        require('../../src/services/api/medicationsApi') as typeof import('../../src/services/api/medicationsApi');
+
+      const flushSpy = jest
+        .spyOn(handlerMod, 'flushPendingMedicationNotificationActions')
+        .mockResolvedValueOnce(true);
+      const listEntriesSpy = jest
+        .spyOn(apiMod, 'listEntries')
+        .mockResolvedValueOnce([buildEntry()]);
+
+      // Pass stale empty entries snapshot; reloaded entries include today's logged dose
+      await reconcileMedicationReminders([buildMedication()], []);
+
+      expect(flushSpy).toHaveBeenCalledTimes(1);
+      expect(listEntriesSpy).toHaveBeenCalledWith({
+        fromDate: TODAY,
+        toDate: TODAY,
+      });
+
+      // Today's base + repeat reminders should NOT be scheduled since reloaded entries show the dose is logged
+      const scheduledKeys = mockSchedule.mock.calls.map(
+        (c) => (c[0].content.data as { key: string }).key
+      );
+      expect(scheduledKeys).not.toContain(BASE_KEY);
+
+      flushSpy.mockRestore();
+      listEntriesSpy.mockRestore();
     });
   });
 });

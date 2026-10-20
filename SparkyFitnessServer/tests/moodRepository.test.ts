@@ -101,6 +101,27 @@ describe('moodRepository', () => {
     });
   });
 
+  describe('hasManualCheckinAt', () => {
+    it('looks for a manual check-in at that exact instant', async () => {
+      query.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] });
+      const at = '2026-10-20T16:00:00.000Z';
+      await expect(moodRepository.hasManualCheckinAt('u1', at)).resolves.toBe(
+        true
+      );
+      const [sql, params] = query.mock.calls[0];
+      expect(sql).toContain("source = 'manual'");
+      expect(sql).toContain('entry_timestamp = $2::timestamptz');
+      expect(params).toEqual(['u1', at]);
+    });
+
+    it('is false when there is none', async () => {
+      query.mockResolvedValueOnce({ rows: [] });
+      await expect(
+        moodRepository.hasManualCheckinAt('u1', '2026-10-20T16:00:00.000Z')
+      ).resolves.toBe(false);
+    });
+  });
+
   describe('upsertLegacyMoodEntry', () => {
     it('updates the existing manual mood row in place', async () => {
       query
@@ -125,6 +146,19 @@ describe('moodRepository', () => {
       expect(updateParams[0]).toBe('legacy-1');
       expect(updateParams[1]).toBe('u1');
       expect(row).toEqual({ id: 'legacy-1', mood_value: 60 });
+    });
+
+    it('keeps the stored journal when no notes are sent', async () => {
+      query
+        .mockResolvedValueOnce({ rows: [{ id: 'legacy-1' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'legacy-1' }] });
+      await moodRepository.upsertLegacyMoodEntry('u1', {
+        moodValue: 70,
+        entryDate: '2026-10-20',
+      });
+      const [updateSql, updateParams] = query.mock.calls[1];
+      expect(updateSql).toContain('notes = COALESCE($5, notes)');
+      expect(updateParams[4]).toBeNull();
     });
 
     it('inserts a manual row when no legacy row exists', async () => {

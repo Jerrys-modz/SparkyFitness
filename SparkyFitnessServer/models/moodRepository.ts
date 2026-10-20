@@ -221,7 +221,7 @@ async function upsertLegacyMoodEntry(
         `UPDATE mood_entries
          SET mood_value = $3,
              mood_tags = COALESCE($4::text[], mood_tags),
-             notes = $5,
+             notes = COALESCE($5, notes),
              energy_value = CASE WHEN $7 THEN $6::smallint ELSE energy_value END,
              focus_value = CASE WHEN $9 THEN $8::smallint ELSE focus_value END,
              updated_at = NOW()
@@ -278,6 +278,25 @@ async function getCheckinsForDate(
       [userId, entryDate]
     );
     return result.rows;
+  } finally {
+    client.release();
+  }
+}
+
+/** Whether the user already has a manual check-in stamped at this instant. */
+async function hasManualCheckinAt(
+  userId: string,
+  entryTimestamp: string | Date
+): Promise<boolean> {
+  const client = await getClient(userId); // User-specific operation
+  try {
+    const result = await client.query(
+      `SELECT 1 FROM mood_entries
+       WHERE user_id = $1 AND source = 'manual' AND entry_timestamp = $2::timestamptz
+       LIMIT 1`,
+      [userId, entryTimestamp]
+    );
+    return result.rows.length > 0;
   } finally {
     client.release();
   }
@@ -513,6 +532,7 @@ async function upsertMoodDisplayPreferences(
 
 export {
   createCheckin,
+  hasManualCheckinAt,
   upsertDerivedMood,
   getLegacyMoodEntryForDate,
   getLegacyMoodEntriesInRange,
@@ -530,6 +550,7 @@ export {
 };
 export default {
   createCheckin,
+  hasManualCheckinAt,
   upsertDerivedMood,
   getLegacyMoodEntryForDate,
   getLegacyMoodEntriesInRange,
