@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 // @ts-expect-error TS7016 supertest typing
 import request from 'supertest';
 import express from 'express';
@@ -7,7 +7,7 @@ import errorHandler from '../middleware/errorHandler.js';
 import routeRoutes, { generateRateLimiter } from '../routes/v2/routeRoutes.js';
 import { generateRoute } from '../services/routeGenerationService.js';
 import {
-  getEnvRoutingProvider,
+  ROUTING_REQUEST_TIMEOUT_MS,
   resolveRoutingProvider,
 } from '../services/routing/routingConfig.js';
 import externalProviderRepository from '../models/externalProviderRepository.js';
@@ -17,6 +17,7 @@ import {
   type RoutingProvider,
   type RoutingRequest,
 } from '../services/routing/routingProvider.js';
+import { createValhallaProvider } from '../services/routing/valhallaProvider.js';
 import { destinationPoint } from '../services/routing/loopPlanner.js';
 import { routeDistanceMeters } from '@workspace/shared';
 
@@ -199,44 +200,17 @@ describe('destinationPoint', () => {
   });
 });
 
-describe('routing config', () => {
-  const saved = { ...process.env };
-  afterEach(() => {
-    process.env = { ...saved };
-  });
-
-  it('is unavailable without a URL', () => {
-    delete process.env.SPARKY_FITNESS_ROUTING_URL;
-    expect(getEnvRoutingProvider()).toBeNull();
-  });
-
-  it('is unavailable for an unsupported provider or a non-http URL', () => {
-    process.env.SPARKY_FITNESS_ROUTING_URL = 'http://valhalla:8002';
-    process.env.SPARKY_FITNESS_ROUTING_PROVIDER = 'osrm';
-    expect(getEnvRoutingProvider()).toBeNull();
-    process.env.SPARKY_FITNESS_ROUTING_PROVIDER = 'valhalla';
-    process.env.SPARKY_FITNESS_ROUTING_URL = 'file:///etc/passwd';
-    expect(getEnvRoutingProvider()).toBeNull();
-  });
-
-  it('defaults to valhalla when a URL is set', () => {
-    process.env.SPARKY_FITNESS_ROUTING_URL = 'http://valhalla:8002/';
-    delete process.env.SPARKY_FITNESS_ROUTING_PROVIDER;
-    expect(getEnvRoutingProvider()?.kind).toBe('valhalla');
-  });
-});
-
 describe('Valhalla provider over HTTP (axios mocked)', () => {
-  const saved = { ...process.env };
   const post = vi.mocked(axios.post);
   beforeEach(() => {
     post.mockReset();
-    process.env.SPARKY_FITNESS_ROUTING_URL = 'http://valhalla:8002/';
-    process.env.SPARKY_FITNESS_ROUTING_API_KEY = 'super-secret-key';
   });
-  afterEach(() => {
-    process.env = { ...saved };
-  });
+  const engine = () =>
+    createValhallaProvider({
+      baseUrl: 'http://valhalla:8002/',
+      apiKey: 'super-secret-key',
+      timeoutMs: ROUTING_REQUEST_TIMEOUT_MS,
+    });
 
   const axiosError = (
     code: string | undefined,
@@ -273,7 +247,7 @@ describe('Valhalla provider over HTTP (axios mocked)', () => {
       }
       throw axiosError('ECONNREFUSED'); // no /height: elevation is optional
     });
-    const result = await getEnvRoutingProvider()!.route(req);
+    const result = await engine().route(req);
     const [url, body, config] = post.mock.calls[0] as [string, any, any];
     expect(url).toBe('http://valhalla:8002/route');
     expect(body.costing).toBe('bicycle');
@@ -291,14 +265,14 @@ describe('Valhalla provider over HTTP (axios mocked)', () => {
     [axiosError(undefined, 503), 'unreachable'],
   ])('maps a failure to %#', async (error, kind) => {
     post.mockRejectedValue(error);
-    await expect(getEnvRoutingProvider()!.route(req)).rejects.toMatchObject({
+    await expect(engine().route(req)).rejects.toMatchObject({
       kind,
     });
   });
 
   it('never puts the API key in an error message', async () => {
     post.mockRejectedValue(axiosError(undefined, 403));
-    const failure = await getEnvRoutingProvider()!
+    const failure = await engine()
       .route(req)
       .catch((e) => e);
     expect(String(failure.message)).not.toContain('super-secret-key');
@@ -306,14 +280,13 @@ describe('Valhalla provider over HTTP (axios mocked)', () => {
 
   it('rejects an unreadable response', async () => {
     post.mockResolvedValue({ data: { nope: true } });
-    await expect(getEnvRoutingProvider()!.route(req)).rejects.toMatchObject({
+    await expect(engine().route(req)).rejects.toMatchObject({
       kind: 'bad_response',
     });
   });
 });
 
 describe('route generation endpoints', () => {
-  const saved = { ...process.env };
   const post = vi.mocked(axios.post);
   let actingAs = 'test-user-id';
   const app = express();
@@ -332,16 +305,20 @@ describe('route generation endpoints', () => {
     start: START,
     waypoints: [{ lat: 40.01, lon: -74 }],
   };
+  const providerRow = {
+    id: 'p1',
+    user_id: 'test-user-id',
+    provider_name: 'My routing',
+    base_url: 'https://valhalla.example.org',
+    app_key: null,
+  };
 
   beforeEach(() => {
     post.mockReset();
-    vi.mocked(providerLookup).mockReset().mockResolvedValue(null);
+    vi.mocked(providerLookup).mockReset().mockResolvedValue(providerRow);
+    vi.mocked(resolveIsAdminByUserId).mockReset().mockResolvedValue(true);
     generateRateLimiter.reset();
     actingAs = 'test-user-id';
-    process.env.SPARKY_FITNESS_ROUTING_URL = 'http://valhalla:8002';
-  });
-  afterEach(() => {
-    process.env = { ...saved };
   });
 
   const engineAnswer = {
@@ -360,9 +337,9 @@ describe('route generation endpoints', () => {
     expect(res.body).toMatchObject({
       available: true,
       maxAlternatives: 3,
-      source: 'env',
+      source: 'provider',
     });
-    delete process.env.SPARKY_FITNESS_ROUTING_URL;
+    vi.mocked(providerLookup).mockResolvedValue(null);
     res = await request(app).get('/api/v2/routes/generate/capabilities');
     expect(res.body).toEqual({
       source: null,
@@ -379,7 +356,7 @@ describe('route generation endpoints', () => {
   });
 
   it('returns 503 when not configured', async () => {
-    delete process.env.SPARKY_FITNESS_ROUTING_URL;
+    vi.mocked(providerLookup).mockResolvedValue(null);
     const res = await request(app).post('/api/v2/routes/generate').send(body);
     expect(res.status).toBe(503);
   });
@@ -447,7 +424,6 @@ describe('route generation endpoints', () => {
 });
 
 describe('routing provider resolution', () => {
-  const saved = { ...process.env };
   const post = vi.mocked(axios.post);
   const lookup = vi.mocked(providerLookup);
   const isAdmin = vi.mocked(resolveIsAdminByUserId);
@@ -481,11 +457,6 @@ describe('routing provider resolution', () => {
     post.mockReset();
     lookup.mockReset().mockResolvedValue(null);
     isAdmin.mockReset().mockResolvedValue(true);
-    delete process.env.SPARKY_FITNESS_ROUTING_URL;
-    delete process.env.SPARKY_FITNESS_ROUTING_API_KEY;
-  });
-  afterEach(() => {
-    process.env = { ...saved };
   });
 
   it('is unavailable with no provider and no environment fallback', async () => {
@@ -520,23 +491,19 @@ describe('routing provider resolution', () => {
     expect(config.params).toBeUndefined();
   });
 
-  it('prefers the provider over the environment variables', async () => {
-    process.env.SPARKY_FITNESS_ROUTING_URL = 'http://env-valhalla:8002';
+  it("uses the person's provider", async () => {
     lookup.mockResolvedValue(row());
     const resolved = await resolveRoutingProvider('user-a');
     expect(resolved?.source).toBe('provider');
   });
 
-  it('falls back to the environment variables when the person has no provider', async () => {
-    process.env.SPARKY_FITNESS_ROUTING_URL = 'http://env-valhalla:8002';
-    const resolved = await resolveRoutingProvider('user-a');
-    expect(resolved?.source).toBe('env');
+  it('is unavailable when the person has no provider', async () => {
+    expect(await resolveRoutingProvider('user-a')).toBeNull();
   });
 
-  it('falls back to the environment when the lookup fails', async () => {
-    process.env.SPARKY_FITNESS_ROUTING_URL = 'http://env-valhalla:8002';
+  it('is unavailable when the lookup fails', async () => {
     lookup.mockRejectedValue(new Error('db down'));
-    expect((await resolveRoutingProvider('user-a'))?.source).toBe('env');
+    expect(await resolveRoutingProvider('user-a')).toBeNull();
   });
 
   it("resolves per user: one person's provider never serves another", async () => {
@@ -568,12 +535,10 @@ describe('routing provider resolution', () => {
     );
   });
 
-  it('refuses a stored internal address for a non-admin owner and uses the fallback', async () => {
+  it('refuses a stored internal address for a non-admin owner', async () => {
     isAdmin.mockResolvedValue(false);
     lookup.mockResolvedValue(row({ base_url: 'http://10.0.0.5:8002' }));
     expect(await resolveRoutingProvider('user-a')).toBeNull();
-    process.env.SPARKY_FITNESS_ROUTING_URL = 'http://env-valhalla:8002';
-    expect((await resolveRoutingProvider('user-a'))?.source).toBe('env');
   });
 
   it('allows an internal address for an admin owner', async () => {
@@ -607,7 +572,6 @@ describe('routing provider resolution', () => {
 });
 
 describe('route generation endpoints with a routing provider', () => {
-  const saved = { ...process.env };
   const post = vi.mocked(axios.post);
   const lookup = vi.mocked(providerLookup);
   let userId = 'user-a';
@@ -628,10 +592,6 @@ describe('route generation endpoints with a routing provider', () => {
     vi.mocked(resolveIsAdminByUserId).mockReset().mockResolvedValue(true);
     generateRateLimiter.reset();
     userId = 'user-a';
-    delete process.env.SPARKY_FITNESS_ROUTING_URL;
-  });
-  afterEach(() => {
-    process.env = { ...saved };
   });
 
   it('is available as soon as the provider exists, with no restart', async () => {

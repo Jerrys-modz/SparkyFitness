@@ -21,56 +21,12 @@ import { createValhallaProvider } from './valhallaProvider.js';
 /** How long one call to the engine may take before it is abandoned. */
 export const ROUTING_REQUEST_TIMEOUT_MS = 20_000;
 
-const SUPPORTED_PROVIDERS = ['valhalla'] as const;
-
 /** Where a person's routing engine comes from. */
 export type RoutingSource = NonNullable<RouteGenerateCapabilities['source']>;
 
 export interface ResolvedRoutingProvider {
   provider: RoutingProvider;
   source: RoutingSource;
-}
-
-let warnedUnknownProvider = false;
-
-/**
- * The engine the admin configured in the environment, or null when it is not
- * set. Read on every call so a change needs no code path of its own
- * (`SPARKY_FITNESS_ROUTING_API_KEY_FILE` is resolved at boot by
- * `utils/secretLoader.ts`). This is the fallback behind the routing provider a
- * person adds in Settings > External Providers.
- */
-export function getEnvRoutingProvider(): RoutingProvider | null {
-  const baseUrl = process.env.SPARKY_FITNESS_ROUTING_URL?.trim();
-  if (!baseUrl) return null;
-
-  const kind = (
-    process.env.SPARKY_FITNESS_ROUTING_PROVIDER?.trim() || 'valhalla'
-  ).toLowerCase();
-  if (!(SUPPORTED_PROVIDERS as readonly string[]).includes(kind)) {
-    if (!warnedUnknownProvider) {
-      warnedUnknownProvider = true;
-      log(
-        'warn',
-        `SPARKY_FITNESS_ROUTING_PROVIDER "${kind}" is not supported (supported: ${SUPPORTED_PROVIDERS.join(', ')}); route generation is unavailable.`
-      );
-    }
-    return null;
-  }
-
-  try {
-    // Reject anything that is not an http(s) URL up front.
-    const url = new URL(baseUrl);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
-  } catch {
-    return null;
-  }
-
-  return createValhallaProvider({
-    baseUrl,
-    apiKey: process.env.SPARKY_FITNESS_ROUTING_API_KEY?.trim() || undefined,
-    timeoutMs: ROUTING_REQUEST_TIMEOUT_MS,
-  });
 }
 
 /**
@@ -120,9 +76,9 @@ async function buildProviderFromRow(
 
 /**
  * The routing engine this person should use, or null when route generation is
- * off for them: the routing provider they added (or one the admin made public,
- * or a family member shared) first, then the environment variables. A new or
- * edited provider applies on the next request; nothing is cached.
+ * off for them: the routing provider they added, or one the admin made public
+ * or a family member shared. A new or edited provider applies on the next
+ * request; nothing is cached.
  */
 export async function resolveRoutingProvider(
   userId: string
@@ -142,8 +98,7 @@ export async function resolveRoutingProvider(
       `Could not look up the routing provider: ${describeError(error)}`
     );
   }
-  const provider = getEnvRoutingProvider();
-  return provider ? { provider, source: 'env' } : null;
+  return null;
 }
 
 /** What this person's routing engine supports, as `GET /generate/capabilities` reports it. */
