@@ -712,5 +712,29 @@ describe('logging a dose from a notification action', () => {
 
       useAppPreferencesStore.setState({ medicationReminderSnoozeMinutes: 30 });
     });
+
+    it('passes a non-empty channel name to setNotificationChannelAsync in headless background execution before i18n is initialized', async () => {
+      const { Platform } =
+        require('react-native') as typeof import('react-native');
+      const prevOS = Platform.OS;
+      Platform.OS = 'android';
+      try {
+        const realNotifications = jest.requireActual(
+          '../../src/services/notifications'
+        ) as typeof import('../../src/services/notifications');
+        (Notifications.setNotificationChannelAsync as jest.Mock).mockClear();
+
+        await realNotifications.ensureMedicationReminderChannel();
+
+        expect(Notifications.setNotificationChannelAsync).toHaveBeenCalledWith(
+          'medication-reminders',
+          expect.objectContaining({
+            name: 'Medication reminders',
+          })
+        );
+      } finally {
+        Platform.OS = prevOS;
+      }
+    });
   });
 });

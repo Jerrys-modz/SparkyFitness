@@ -28,7 +28,14 @@ function notificationCopy(
   options?: Record<string, unknown>
 ): string {
   // i18n-audit-ignore-next-line dynamic-i18n-key -- all call sites use literal notification catalog keys.
-  return i18n.t(key, { defaultValue, ...options });
+  const translated = i18n.t(key, { defaultValue, ...options });
+  if (typeof translated === 'string' && translated.length > 0) {
+    return translated;
+  }
+  if (!options) return defaultValue;
+  return defaultValue.replace(/\{\{(\w+)\}\}/g, (_, token: string) =>
+    options[token] !== undefined ? String(options[token]) : `{{${token}}}`
+  );
 }
 
 const REST_COMPLETE_CATEGORY = 'rest-complete';

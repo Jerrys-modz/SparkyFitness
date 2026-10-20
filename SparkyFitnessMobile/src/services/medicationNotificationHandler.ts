@@ -24,7 +24,11 @@ import type { MedicationEntry, MedicationEntryStatus } from '@workspace/shared';
 import { addDays } from '../utils/dateUtils';
 import { isDoseLogged } from '../utils/medications';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
-import i18n from '../localization/i18n';
+import i18n, {
+  getDeviceLanguage,
+  initializeI18n,
+  normalizeLanguage,
+} from '../localization/i18n';
 
 export const MEDICATION_NOTIFICATION_TASK_NAME =
   'MEDICATION_NOTIFICATION_ACTION_TASK';
@@ -637,6 +641,21 @@ async function handleSnoozeNotificationAction(
   }
 
   try {
+    if (!i18n.isInitialized) {
+      const prefsLang = useAppPreferencesStore.getState()?.language;
+      const targetLang = normalizeLanguage(
+        data?.locale ??
+          (prefsLang && prefsLang !== 'system'
+            ? prefsLang
+            : getDeviceLanguage())
+      );
+      await initializeI18n(targetLang);
+    }
+  } catch {
+    // Fall back to default English strings if i18n init fails in headless mode.
+  }
+
+  try {
     if (typeof ensureMedicationReminderChannel === 'function') {
       await ensureMedicationReminderChannel();
     }
@@ -677,10 +696,10 @@ async function handleSnoozeNotificationAction(
           count: doses.length,
           defaultValue: 'You have {{count}} scheduled doses',
           defaultValue_one: 'You have {{count}} scheduled dose',
-        })
+        }) || `You have ${doses.length} scheduled doses`
       : i18n.t('medications.notificationScheduledDose', {
           defaultValue: 'You have a scheduled dose',
-        });
+        }) || 'You have a scheduled dose';
 
     // Schedule the replacement reminder before dismissing the active notification
     // or cancelling pending repeats so a scheduling error never drops the alert.
@@ -690,7 +709,8 @@ async function handleSnoozeNotificationAction(
           content?.title ||
           i18n.t('medications.notificationTitle', {
             defaultValue: 'Medication reminder',
-          }),
+          }) ||
+          'Medication reminder',
         body: hideNames ? genericBody : content?.body || genericBody,
         sound: true,
         categoryIdentifier,
