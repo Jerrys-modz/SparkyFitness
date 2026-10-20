@@ -305,12 +305,15 @@ async function removeSnoozedReminder(baseKey: string | null): Promise<void> {
  * or logged entries from storage. Same-day snoozes are retained while their
  * `baseKey` is in `desiredKeys`; cross-day snoozes are retained only while at
  * least one represented dose has no terminal `taken` or `skipped` entry for its
- * stored `entryDate`.
+ * stored `entryDate`. Records whose doses all belong to other medications than
+ * the active account's are never retained: a snooze record carries no user
+ * identity, so the medication ids it references are the only proof of ownership.
  */
 export async function syncSnoozedMedicationReminders(
   today: string,
   desiredKeys: Set<string>,
-  activeSnoozeNotifications: Notifications.NotificationContent[] = []
+  activeSnoozeNotifications: Notifications.NotificationContent[] = [],
+  ownedMedicationIds?: Set<string>
 ): Promise<Set<string>> {
   return withPendingActionsLock(async () => {
     const existing = await readSnoozedReminders();
@@ -372,6 +375,16 @@ export async function syncSnoozedMedicationReminders(
 
     const retainedBaseKeys = new Set<string>();
     for (const candidate of candidates.values()) {
+      // A snooze left behind by an account that is no longer active must not
+      // keep its reminder alive: the stored copy still carries that account's
+      // medication names, and nothing else in reconcile cancels it.
+      if (
+        ownedMedicationIds &&
+        !candidate.doses.some((d) => ownedMedicationIds.has(d.medicationId))
+      ) {
+        continue;
+      }
+
       if (candidate.entryDate === today) {
         if (desiredKeys.has(candidate.baseKey)) {
           retainedBaseKeys.add(candidate.baseKey);
@@ -394,7 +407,9 @@ export async function syncSnoozedMedicationReminders(
       const hasUnloggedDose =
         entriesForDate === null ||
         candidate.doses.some(
-          (d) => !isDoseLogged(entriesForDate, d.medicationId, d.scheduleId)
+          (d) =>
+            (!ownedMedicationIds || ownedMedicationIds.has(d.medicationId)) &&
+            !isDoseLogged(entriesForDate, d.medicationId, d.scheduleId)
         );
       if (hasUnloggedDose) {
         retainedBaseKeys.add(candidate.baseKey);

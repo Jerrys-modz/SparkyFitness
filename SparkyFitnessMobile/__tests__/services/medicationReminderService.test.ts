@@ -1106,5 +1106,45 @@ describe('reconcileMedicationReminders', () => {
         })
       );
     });
+
+    it('cancels and drops a snoozed reminder whose medication does not belong to the active account', async () => {
+      const AsyncStorage =
+        require('@react-native-async-storage/async-storage') as {
+          setItem: (k: string, v: string) => Promise<void>;
+          getItem: (k: string) => Promise<string | null>;
+        };
+      const yesterday = '2026-07-27';
+      const foreignBaseKey = `med_${yesterday}_other-med_other-sched_23:50`;
+
+      await AsyncStorage.setItem(
+        'snoozed_medication_reminders',
+        JSON.stringify([
+          {
+            baseKey: foreignBaseKey,
+            entryDate: yesterday,
+            doses: [{ medicationId: 'other-med', scheduleId: 'other-sched' }],
+          },
+        ])
+      );
+
+      mockGetAllScheduled.mockResolvedValue([
+        pendingRequest('foreign-snooze', {
+          medicationId: 'other-med',
+          scheduleId: 'other-sched',
+          entryDate: yesterday,
+          key: `${foreignBaseKey}_snooze_${Date.now() + 600_000}`,
+          baseKey: foreignBaseKey,
+          isSnoozed: 'true',
+        }),
+      ]);
+
+      await reconcileMedicationReminders([buildMedication({ id: 'med-1' })], []);
+
+      expect(mockCancel).toHaveBeenCalledWith('foreign-snooze');
+      const remaining = await AsyncStorage.getItem(
+        'snoozed_medication_reminders'
+      );
+      expect(JSON.parse(remaining ?? '[]')).toEqual([]);
+    });
   });
 });

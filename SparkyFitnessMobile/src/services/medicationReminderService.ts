@@ -319,7 +319,8 @@ export async function reconcileMedicationReminders(
     const snoozedBaseKeys = await syncSnoozedMedicationReminders(
       today,
       desiredKeys,
-      snoozedContents
+      snoozedContents,
+      new Set(medications.map((m) => m.id))
     );
 
     // A snoozed reminder is a verbatim copy of the notification the user tapped
