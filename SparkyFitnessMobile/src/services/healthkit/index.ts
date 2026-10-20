@@ -315,43 +315,9 @@ export const initHealthConnect = async (): Promise<boolean> => {
   }
 };
 
-export const requestHealthPermissions = async (
+const healthKitAuthorizationTypes = (
   permissionsToRequest: PermissionRequest[]
-): Promise<boolean> => {
-  if (!isHealthKitAvailable) {
-    Alert.alert(
-      i18n.t('healthSync.alerts.healthAppUnavailableTitle', {
-        defaultValue: 'Health App Not Available',
-      }),
-      i18n.t('healthSync.alerts.healthAppUnavailableMessage', {
-        defaultValue:
-          'Please install the Apple Health app to sync your health data.',
-      })
-    );
-    return false;
-  }
-
-  const isSimulator =
-    Platform.OS === 'ios' &&
-    (Platform.constants as { simulator?: boolean })?.simulator === true;
-  if (
-    isSimulator &&
-    !(globalThis as Record<string, unknown>).FORCE_HEALTHKIT_ON_SIM
-  ) {
-    // Returning true here is a convenience for simulator runs, but callers log it as
-    // "permission granted" — say plainly that nothing was requested so the log is not
-    // read as evidence that HealthKit was asked.
-    addLog(
-      '[HealthKitService] Simulator: skipped the authorization request entirely (no sheet, no grant). Set FORCE_HEALTHKIT_ON_SIM to exercise the real path.',
-      'WARNING'
-    );
-    return true;
-  }
-
-  if (!permissionsToRequest || permissionsToRequest.length === 0) {
-    return true;
-  }
-
+): { toRead: string[]; toShare: string[] } => {
   const readPermissionsSet = new Set<string>();
   const writePermissionsSet = new Set<string>();
 
@@ -435,6 +401,48 @@ export const requestHealthPermissions = async (
 
   const toRead = Array.from(readPermissionsSet);
   const toShare = Array.from(writePermissionsSet);
+
+  return { toRead, toShare };
+};
+
+export const requestHealthPermissions = async (
+  permissionsToRequest: PermissionRequest[]
+): Promise<boolean> => {
+  if (!isHealthKitAvailable) {
+    Alert.alert(
+      i18n.t('healthSync.alerts.healthAppUnavailableTitle', {
+        defaultValue: 'Health App Not Available',
+      }),
+      i18n.t('healthSync.alerts.healthAppUnavailableMessage', {
+        defaultValue:
+          'Please install the Apple Health app to sync your health data.',
+      })
+    );
+    return false;
+  }
+
+  const isSimulator =
+    Platform.OS === 'ios' &&
+    (Platform.constants as { simulator?: boolean })?.simulator === true;
+  if (
+    isSimulator &&
+    !(globalThis as Record<string, unknown>).FORCE_HEALTHKIT_ON_SIM
+  ) {
+    // Returning true here is a convenience for simulator runs, but callers log it as
+    // "permission granted" — say plainly that nothing was requested so the log is not
+    // read as evidence that HealthKit was asked.
+    addLog(
+      '[HealthKitService] Simulator: skipped the authorization request entirely (no sheet, no grant). Set FORCE_HEALTHKIT_ON_SIM to exercise the real path.',
+      'WARNING'
+    );
+    return true;
+  }
+
+  if (!permissionsToRequest || permissionsToRequest.length === 0) {
+    return true;
+  }
+
+  const { toRead, toShare } = healthKitAuthorizationTypes(permissionsToRequest);
 
   if (toRead.length === 0 && toShare.length === 0) {
     // Every requested record type expanded to nothing — an unmapped record type, or one
