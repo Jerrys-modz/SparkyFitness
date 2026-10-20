@@ -61,6 +61,7 @@ private enum SupersetPalette {
 struct WorkoutView: View {
     @EnvironmentObject private var store: WorkoutSessionStore
     @EnvironmentObject private var run: WatchRunStore
+    @EnvironmentObject private var recording: RecordingStore
 
     var body: some View {
         Group {
@@ -78,6 +79,11 @@ struct WorkoutView: View {
                 // A walk or run recorded on the wrist alone, started from the
                 // Cardio row below.
                 WatchRunView()
+            } else if recording.isActive {
+                // A walk, run or ride the phone is recording with its GPS.
+                // It is the workout going on, so it shows here rather than on
+                // a page of its own.
+                RecordingView()
             } else if let summary = store.lastSummary {
                 WorkoutSummaryView(summary: summary)
             } else {
@@ -93,7 +99,7 @@ private struct PersonalRecordBanner: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Label("New PR!", systemImage: "trophy.fill")
+            Label(String(localized: "watch.workout.newPr", defaultValue: "New PR!"), systemImage: "trophy.fill")
                 .font(.caption.weight(.bold))
             if !exercise.isEmpty {
                 Text(exercise).font(.caption2).lineLimit(1)
@@ -126,7 +132,7 @@ private struct WorkoutSummaryView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 6) {
-                Label("Workout done", systemImage: "checkmark.circle.fill")
+                Label(String(localized: "watch.workout.done", defaultValue: "Workout done"), systemImage: "checkmark.circle.fill")
                     .font(.headline)
                     .foregroundStyle(.green)
                 row("Time", duration)
@@ -143,7 +149,7 @@ private struct WorkoutSummaryView: View {
                 if let kcal = summary.activeEnergyKcal, kcal > 0 {
                     row("Active", "\(Int(kcal.rounded())) kcal")
                 }
-                Button("Done") { store.dismissSummary() }
+                Button(String(localized: "watch.common.done", defaultValue: "Done")) { store.dismissSummary() }
                     .padding(.top, 4)
             }
             .padding(.horizontal, 4)
@@ -183,7 +189,7 @@ private struct WaitingForWorkoutView: View {
                     Haptics.tap()
                     choosingCardio = true
                 } label: {
-                    Label("Cardio", systemImage: "figure.run")
+                    Label(String(localized: "watch.cardio.title", defaultValue: "Cardio"), systemImage: "figure.run")
                         .font(.system(size: WatchStyle.s(16), weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -198,9 +204,14 @@ private struct WaitingForWorkoutView: View {
             workoutPicker
         }
         .sheet(isPresented: $choosingCardio) {
-            CardioChoicesView { kind, place in
+            CardioChoicesView(
+                plans: checkIn.context.runPlans ?? [],
+                usesMiles: checkIn.context.distanceUnit == "miles",
+                suggestedPace: checkIn.context.runPaceBand ?? .standard,
+                suggestedHeartRate: checkIn.context.runHeartRateBand ?? .standard
+            ) { kind, place, plan, alerts in
                 choosingCardio = false
-                run.start(kind, place: place)
+                run.start(kind, place: place, plan: plan, alerts: alerts)
             }
         }
     }
@@ -220,7 +231,7 @@ private struct WaitingForWorkoutView: View {
                 Image(systemName: "figure.strengthtraining.traditional")
                     .font(.title2)
                     .foregroundStyle(.secondary)
-                Text("Start a workout on your phone")
+                Text(String(localized: "watch.workout.startOnPhone", defaultValue: "Start a workout on your phone"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -486,16 +497,16 @@ private struct ActiveWorkoutView: View {
         // Asked when Finish is tapped on a workout that changed from the saved
         // one it started from, as Hevy does. Only buttons close it.
         .alert(
-            "Update Workout?",
+            String(localized: "watch.workout.updatePresetTitle", defaultValue: "Update Workout?"),
             isPresented: Binding(
                 get: { store.askingPresetUpdate },
                 set: { _ in }
             )
         ) {
-            Button("Update") { finish(updatingPreset: true) }
-            Button("Keep Original", role: .cancel) { finish(updatingPreset: false) }
+            Button(String(localized: "watch.workout.updatePreset", defaultValue: "Update")) { finish(updatingPreset: true) }
+            Button(String(localized: "watch.workout.keepOriginal", defaultValue: "Keep Original"), role: .cancel) { finish(updatingPreset: false) }
         } message: {
-            Text("Save the changes you made to \"\(store.plan?.workoutName ?? "")\"?")
+            Text(String(localized: "watch.workout.updatePresetMessage", defaultValue: "Save the changes you made to \"\(store.plan?.workoutName ?? "")\"?"))
         }
         .onAppear {
             if pendingRpe == nil, let pending = store.pendingSetCompletion,
@@ -568,9 +579,9 @@ private struct WorkoutCompleteView: View {
     var body: some View {
         VStack(spacing: 8) {
             Spacer()
-            Text("Workout complete")
+            Text(String(localized: "watch.workout.complete", defaultValue: "Workout complete"))
                 .font(.headline)
-            Button("Finish") {
+            Button(String(localized: "watch.common.finish", defaultValue: "Finish")) {
                 Haptics.tap()
                 if !store.askPresetUpdateBeforeFinish() { session.endWorkout() }
             }
@@ -680,7 +691,7 @@ private struct ExerciseListView: View {
                         Haptics.tap()
                         addingExercise = true
                     } label: {
-                        Label("Add Exercise", systemImage: "plus")
+                        Label(String(localized: "watch.workout.addExercise", defaultValue: "Add Exercise"), systemImage: "plus")
                             .font(.caption)
                     }
                     .listRowBackground(WatchStyle.shape.fill(WatchStyle.fill))
@@ -694,7 +705,7 @@ private struct ExerciseListView: View {
                         Haptics.tap()
                         confirmingFinish = true
                     } label: {
-                        Label("Finish Workout", systemImage: "flag.checkered")
+                        Label(String(localized: "watch.workout.finishWorkout", defaultValue: "Finish Workout"), systemImage: "flag.checkered")
                             .font(.caption)
                     }
                     .listRowBackground(WatchStyle.shape.fill(WatchStyle.fill))
@@ -702,7 +713,7 @@ private struct ExerciseListView: View {
                         Haptics.tap()
                         confirmingDiscard = true
                     } label: {
-                        Label("Discard Workout", systemImage: "trash")
+                        Label(String(localized: "watch.workout.discardWorkout", defaultValue: "Discard Workout"), systemImage: "trash")
                             .font(.caption)
                     }
                     .listRowBackground(WatchStyle.shape.fill(WatchStyle.fill))
@@ -761,7 +772,7 @@ private struct ExerciseRow: View {
 /// glyph in it. Big enough to hit with a thumb (44 pt tall in a row, 34 pt in
 /// the header), the same fill as the value cards, and dimmed while disabled.
 /// `prominent` is the single main action on a screen: white with a black glyph.
-private enum WatchStyle {
+enum WatchStyle {
     /// Screen height of the 44 mm watch the sizes below were drawn for. A 40 mm
     /// screen is 12% shorter, so fixed sizes made the page taller than the
     /// screen and pushed it up under the clock; a 49 mm one has room to spare.
@@ -781,16 +792,22 @@ private enum WatchStyle {
     }
 }
 
-private struct SquircleButton: View {
+struct SquircleButton: View {
     let systemImage: String
     var prominent = false
     /// A round button for the header.
     var circular = false
+    /// The glyph's colour on a dark box, for a control that needs telling
+    /// apart at a glance (a red finish). Ignored when `prominent`.
+    var tint: Color?
+    /// The height of a box in a row, drawn for the reference watch; a compact
+    /// screen such as the run's passes a smaller one.
+    var height: CGFloat = 44
     let action: () -> Void
 
     var body: some View {
         Button(action: Haptics.tapping(action)) {
-            SquircleLabel(systemImage: systemImage, prominent: prominent, circular: circular)
+            SquircleLabel(systemImage: systemImage, prominent: prominent, circular: circular, tint: tint, height: height)
         }
         .buttonStyle(.plain)
     }
@@ -800,6 +817,8 @@ private struct SquircleLabel: View {
     let systemImage: String
     let prominent: Bool
     let circular: Bool
+    var tint: Color?
+    var height: CGFloat = 44
 
     @Environment(\.isEnabled) private var isEnabled
 
@@ -810,9 +829,9 @@ private struct SquircleLabel: View {
         )
         Image(systemName: systemImage)
             .font(.system(size: WatchStyle.s(circular ? 14 : 20), weight: .semibold))
-            .foregroundStyle(prominent ? Color.black : Color.white.opacity(0.6))
+            .foregroundStyle(prominent ? Color.black : (tint ?? Color.white.opacity(0.6)))
             .frame(maxWidth: circular ? WatchStyle.s(28) : CGFloat.infinity)
-            .frame(height: WatchStyle.s(circular ? 28 : 44))
+            .frame(height: WatchStyle.s(circular ? 28 : height))
             .background(prominent ? Color.white : WatchStyle.fill, in: shape)
             .opacity(isEnabled ? 1 : 0.35)
             // The whole box takes the tap, not only the glyph's pixels.
@@ -970,7 +989,7 @@ private struct CurrentSetView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                 if let partners = step.supersetWith {
-                    Text("Superset · \(partners)")
+                    Text(String(localized: "watch.workout.superset", defaultValue: "Superset · \(partners)"))
                         .font(.system(size: 9))
                         .foregroundStyle(supersetColor ?? Color.secondary)
                         .lineLimit(1)
@@ -1014,7 +1033,7 @@ private struct CurrentSetView: View {
             .onChange(of: crownValue) { noteCrownChange() }
 
             if crownField != nil {
-                Text("Crown or drag · tap again to type")
+                Text(String(localized: "watch.workout.crownHint", defaultValue: "Crown or drag · tap again to type"))
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
             }
@@ -1430,7 +1449,7 @@ private struct HoldStopwatch: View {
                     .minimumScaleFactor(0.5)
                 if elapsed == nil {
                     if let previous = store.previousDurationSec(forSetId: setId) {
-                        Text("Last \(Self.clock(previous))")
+                        Text(String(localized: "watch.workout.last", defaultValue: "Last \(Self.clock(previous))"))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
@@ -1584,7 +1603,7 @@ private struct RestView: View {
         VStack(spacing: 6) {
             VStack(spacing: 0) {
                 if store.restPausedRemaining != nil {
-                    Text("Paused")
+                    Text(String(localized: "watch.run.paused", defaultValue: "Paused"))
                         .font(.caption2)
                         .foregroundStyle(.orange)
                 }
@@ -1713,7 +1732,7 @@ private struct RestView: View {
 /// Digit pad for one value. watchOS has no usable inline number field, and
 /// the Digital Crown alone makes a 60 → 82.5 change a long scroll, so a
 /// tapped value opens this instead.
-private struct NumericKeypadView: View {
+struct NumericKeypadView: View {
     let title: String
     let initial: Double?
     let allowsDecimal: Bool
@@ -1764,7 +1783,7 @@ private struct NumericKeypadView: View {
                 }
             }
 
-            Button("OK") {
+            Button(String(localized: "watch.common.ok", defaultValue: "OK")) {
                 Haptics.tap()
                 // Nothing typed keeps the value shown in grey.
                 if let value = Double(entry) {
@@ -2061,31 +2080,301 @@ private extension View {
     }
 }
 
-/// The walks and runs the watch can record on its own, under Outdoor and
-/// Indoor. Outdoors uses the watch's GPS and records a route; indoors there is
-/// no route and the distance is the watch's own estimate.
+/// The walks and runs the watch can record on its own: Run and Walk side by
+/// side under Outdoor and Indoor, then any plans, in the same flat squircles
+/// as the workout list. Outdoors uses the watch's GPS and records a route;
+/// indoors there is no route and the distance is the watch's own estimate.
 private struct CardioChoicesView: View {
-    let onChoose: (WatchRunKind, WatchRunPlace) -> Void
+    /// Plans from the phone: the training-program workout due, then the
+    /// built-in interval plans. Empty until the phone has said.
+    let plans: [WatchRunPlan]
+    let usesMiles: Bool
+    /// Where the alert ranges start when turned on: what was last used on the
+    /// phone, or a plain default.
+    let suggestedPace: WatchPaceBand
+    let suggestedHeartRate: WatchHeartRateBand
+    let onChoose: (WatchRunKind, WatchRunPlace, WatchRunPlan?, WatchRunAlertSetup) -> Void
+    /// This run's alerts. Fresh each time the sheet opens, so an alert never
+    /// carries over to the next run.
+    @State private var alerts = WatchRunAlertSetup.off
+
+    private func choose(_ kind: WatchRunKind, _ place: WatchRunPlace, _ plan: WatchRunPlan?) {
+        onChoose(kind, place, plan, alerts)
+    }
 
     var body: some View {
-        List {
-            Section("Outdoor") {
-                row(.run, .outdoor)
-                row(.walk, .outdoor)
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: WatchStyle.s(6)) {
+                    alertsRow
+                    ForEach([WatchRunPlace.outdoor, .indoor], id: \.self) { place in
+                        sectionTitle(place.label)
+                        HStack(spacing: WatchStyle.s(6)) {
+                            tile(.run, place)
+                            tile(.walk, place)
+                        }
+                    }
+                    if !plans.isEmpty {
+                        sectionTitle(String(localized: "watch.cardio.followPlan", defaultValue: "Follow a plan"))
+                        ForEach(plans) { plan in
+                            NavigationLink {
+                                PlanPlaceView(plan: plan, onChoose: choose)
+                            } label: {
+                                planRow(plan)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .padding(.horizontal, WatchStyle.s(2))
             }
-            Section("Indoor") {
-                row(.run, .indoor)
-                row(.walk, .indoor)
-            }
+            .navigationTitle(String(localized: "watch.cardio.title", defaultValue: "Cardio"))
         }
     }
 
-    private func row(_ kind: WatchRunKind, _ place: WatchRunPlace) -> some View {
+    /// "Alerts: Off", or what is on for this run. Opens the setup.
+    private var alertsRow: some View {
+        NavigationLink {
+            RunAlertsView(
+                alerts: $alerts,
+                usesMiles: usesMiles,
+                suggestedPace: suggestedPace,
+                suggestedHeartRate: suggestedHeartRate
+            )
+        } label: {
+            HStack(spacing: WatchStyle.s(8)) {
+                Image(systemName: "bell.badge")
+                    .font(.system(size: WatchStyle.s(15), weight: .semibold))
+                    .foregroundStyle(alerts == .off ? Color.secondary : Color.orange)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(String(localized: "watch.cardio.alerts", defaultValue: "Alerts"))
+                        .font(.system(size: WatchStyle.s(15), weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text(alertsSummary)
+                        .font(.system(size: WatchStyle.s(11)))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, WatchStyle.s(12))
+            .padding(.vertical, WatchStyle.s(10))
+            .background(WatchStyle.fill, in: WatchStyle.shape)
+            .contentShape(WatchStyle.shape)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var alertsSummary: String {
+        var parts: [String] = []
+        if let pace = alerts.pace {
+            parts.append(String(localized: "watch.cardio.summary.pace", defaultValue: "Pace \(RunAlertsView.paceText(pace, usesMiles: usesMiles))"))
+        }
+        if let hr = alerts.heartRate {
+            parts.append(String(localized: "watch.cardio.summary.heartRate", defaultValue: "Heart rate \(Int(hr.minBpm))–\(Int(hr.maxBpm))"))
+        }
+        return parts.isEmpty ? String(localized: "watch.cardio.off", defaultValue: "Off") : parts.joined(separator: " · ")
+    }
+
+    private func sectionTitle(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: WatchStyle.s(13), weight: .semibold))
+            .foregroundStyle(.secondary)
+            .padding(.top, WatchStyle.s(4))
+            .padding(.leading, WatchStyle.s(4))
+    }
+
+    /// Glyph over the word, as a square tile, so "Run" and "Walk" sit side by
+    /// side without either being cut short.
+    private func tile(_ kind: WatchRunKind, _ place: WatchRunPlace) -> some View {
         Button {
             Haptics.tap()
-            onChoose(kind, place)
+            choose(kind, place, nil)
         } label: {
-            Label(kind == .run ? "Run" : "Walk", systemImage: kind.symbol)
+            VStack(spacing: WatchStyle.s(4)) {
+                Image(systemName: kind.symbol)
+                    .font(.system(size: WatchStyle.s(22), weight: .semibold))
+                    .foregroundStyle(.green)
+                Text(kind == .run ? String(localized: "watch.activity.run", defaultValue: "Run") : String(localized: "watch.activity.walk", defaultValue: "Walk"))
+                    .font(.system(size: WatchStyle.s(15), weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: WatchStyle.s(64))
+            .background(WatchStyle.fill, in: WatchStyle.shape)
+            .contentShape(WatchStyle.shape)
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(kind.title(place))
+    }
+
+    private func planRow(_ plan: WatchRunPlan) -> some View {
+        HStack(spacing: WatchStyle.s(8)) {
+            Image(systemName: plan.programId == nil ? "timer" : "calendar")
+                .font(.system(size: WatchStyle.s(15), weight: .semibold))
+                .foregroundStyle(plan.programId == nil ? Color.orange : Color.blue)
+            Text(plan.name)
+                .font(.system(size: WatchStyle.s(15), weight: .semibold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, WatchStyle.s(12))
+        .padding(.vertical, WatchStyle.s(12))
+        .background(WatchStyle.fill, in: WatchStyle.shape)
+        .contentShape(WatchStyle.shape)
+    }
+}
+
+/// Where to do a plan: outdoors with the watch's GPS, or indoors. A plan is a
+/// run unless the phone says it is a walk (the walking program).
+private struct PlanPlaceView: View {
+    let plan: WatchRunPlan
+    let onChoose: (WatchRunKind, WatchRunPlace, WatchRunPlan?) -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: WatchStyle.s(6)) {
+                // Distance steps follow the watch's GPS distance, so a plan with
+                // them is outdoor only.
+                ForEach(plan.hasDistanceSteps ? [WatchRunPlace.outdoor] : [.outdoor, .indoor], id: \.self) { place in
+                    Button {
+                        Haptics.tap()
+                        onChoose(plan.kind, place, plan)
+                    } label: {
+                        Label(plan.kind.title(place), systemImage: plan.kind.symbol)
+                            .font(.system(size: WatchStyle.s(16), weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, WatchStyle.s(12))
+                            .padding(.vertical, WatchStyle.s(14))
+                            .background(Color.green.opacity(0.25), in: WatchStyle.shape)
+                            .contentShape(WatchStyle.shape)
+                    }
+                    .buttonStyle(.plain)
+                }
+                if plan.hasDistanceSteps {
+                    Text(String(localized: "watch.cardio.distanceOutdoorOnly", defaultValue: "Distance steps need GPS, so this plan is outdoor only."))
+                        .font(.system(size: WatchStyle.s(11)))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, WatchStyle.s(2))
+        }
+        .navigationTitle(plan.name)
+    }
+}
+
+/// Pace and heart-rate alerts for the run about to start. Each is off until
+/// turned on here, and only lasts for this run, as in the Workout app. A range
+/// is moved with the Digital Crown or the plus and minus buttons.
+private struct RunAlertsView: View {
+    @Binding var alerts: WatchRunAlertSetup
+    let usesMiles: Bool
+    let suggestedPace: WatchPaceBand
+    let suggestedHeartRate: WatchHeartRateBand
+
+    /// Seconds per kilometre to the phone's unit, and back.
+    private var perUnit: Double { usesMiles ? 1.609344 : 1 }
+    private var unitLabel: String { usesMiles ? String(localized: "watch.unit.perMi", defaultValue: "/mi") : String(localized: "watch.unit.perKm", defaultValue: "/km") }
+
+    /// "5:00–5:30 /km", in the phone's unit.
+    static func paceText(_ band: WatchPaceBand, usesMiles: Bool) -> String {
+        let perUnit = usesMiles ? 1.609344 : 1
+        let fast = WatchRunMetrics.paceText(band.minSecondsPerKm * perUnit)
+        let slow = WatchRunMetrics.paceText(band.maxSecondsPerKm * perUnit)
+        return "\(fast)–\(slow) \(usesMiles ? String(localized: "watch.unit.perMi", defaultValue: "/mi") : String(localized: "watch.unit.perKm", defaultValue: "/km"))"
+    }
+
+    var body: some View {
+        List {
+            Toggle(String(localized: "watch.run.paceAlert", defaultValue: "Pace alert"), isOn: Binding(
+                get: { alerts.pace != nil },
+                set: { alerts.pace = $0 ? suggestedPace : nil }
+            ))
+            if let pace = alerts.pace {
+                Stepper(
+                    value: paceEdge(\.minSecondsPerKm, of: pace),
+                    in: paceRange(for: pace, fastest: true),
+                    step: 5
+                ) {
+                    edgeLabel(String(localized: "watch.cardio.fastest", defaultValue: "Fastest"), WatchRunMetrics.paceText(pace.minSecondsPerKm * perUnit) + " " + unitLabel)
+                }
+                Stepper(
+                    value: paceEdge(\.maxSecondsPerKm, of: pace),
+                    in: paceRange(for: pace, fastest: false),
+                    step: 5
+                ) {
+                    edgeLabel(String(localized: "watch.cardio.slowest", defaultValue: "Slowest"), WatchRunMetrics.paceText(pace.maxSecondsPerKm * perUnit) + " " + unitLabel)
+                }
+            }
+            Toggle(String(localized: "watch.run.heartRateAlert", defaultValue: "Heart rate alert"), isOn: Binding(
+                get: { alerts.heartRate != nil },
+                set: { alerts.heartRate = $0 ? suggestedHeartRate : nil }
+            ))
+            if let hr = alerts.heartRate {
+                Stepper(
+                    value: heartRateEdge(lowest: true),
+                    in: WatchHeartRateBand.lowest...(hr.maxBpm - WatchHeartRateBand.minWidth),
+                    step: 5
+                ) {
+                    edgeLabel(String(localized: "watch.cardio.lowest", defaultValue: "Lowest"), "\(Int(hr.minBpm)) \(String(localized: "watch.unit.bpm", defaultValue: "bpm"))")
+                }
+                Stepper(
+                    value: heartRateEdge(lowest: false),
+                    in: (hr.minBpm + WatchHeartRateBand.minWidth)...WatchHeartRateBand.highest,
+                    step: 5
+                ) {
+                    edgeLabel(String(localized: "watch.cardio.highest", defaultValue: "Highest"), "\(Int(hr.maxBpm)) \(String(localized: "watch.unit.bpm", defaultValue: "bpm"))")
+                }
+            }
+        }
+        .navigationTitle(String(localized: "watch.cardio.alerts", defaultValue: "Alerts"))
+    }
+
+    private func edgeLabel(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title).font(.caption2).foregroundStyle(.secondary)
+            Text(value).font(.system(size: WatchStyle.s(16), weight: .semibold)).monospacedDigit()
+        }
+    }
+
+    /// The edge in the phone's unit (seconds per km or mile), written back as
+    /// seconds per km.
+    private func paceEdge(
+        _ keyPath: WritableKeyPath<WatchPaceBand, Double>,
+        of band: WatchPaceBand
+    ) -> Binding<Double> {
+        Binding(
+            get: { band[keyPath: keyPath] * perUnit },
+            set: { newValue in
+                guard var current = alerts.pace else { return }
+                current[keyPath: keyPath] = (newValue / perUnit).rounded()
+                alerts.pace = current
+            }
+        )
+    }
+
+    /// Keeps the two edges at least the minimum width apart.
+    private func paceRange(for band: WatchPaceBand, fastest: Bool) -> ClosedRange<Double> {
+        let gap = WatchPaceBand.minWidth * perUnit
+        if fastest {
+            let upper = max(WatchPaceBand.fastest * perUnit, band.maxSecondsPerKm * perUnit - gap)
+            return (WatchPaceBand.fastest * perUnit)...upper
+        }
+        let lower = min(WatchPaceBand.slowest * perUnit, band.minSecondsPerKm * perUnit + gap)
+        return lower...(WatchPaceBand.slowest * perUnit)
+    }
+
+    private func heartRateEdge(lowest: Bool) -> Binding<Double> {
+        Binding(
+            get: { (lowest ? alerts.heartRate?.minBpm : alerts.heartRate?.maxBpm) ?? 0 },
+            set: { newValue in
+                guard var current = alerts.heartRate else { return }
+                if lowest { current.minBpm = newValue } else { current.maxBpm = newValue }
+                alerts.heartRate = current
+            }
+        )
     }
 }

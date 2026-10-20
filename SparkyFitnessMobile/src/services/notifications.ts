@@ -220,7 +220,9 @@ export async function initNotifications(): Promise<void> {
     Notifications.setNotificationHandler({
       handleNotification: async (notification) => {
         const category = notification.request.content.categoryIdentifier;
-        const isMedReminder = category === MEDICATION_REMINDER_CATEGORY;
+        const isMedReminder =
+          category === MEDICATION_REMINDER_CATEGORY ||
+          category === MEDICATION_REMINDER_GROUP_CATEGORY;
         const isRestPing = category === REST_COMPLETE_CATEGORY;
         // iOS also runs this while the app is frontmost-but-inactive (screen
         // locking, app switcher), where the chime never plays — so there the
