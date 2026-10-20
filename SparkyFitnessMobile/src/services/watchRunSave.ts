@@ -8,6 +8,7 @@ import {
 import { resolveRecordingExercise } from './gpsRecordingSave';
 import { addLog } from './LogService';
 import { linkEntryToRoute } from './routeLink';
+import { measureWatchRunForm, type WatchRunForm } from './stepDistance';
 import { buildActivitySetsPayload } from '../utils/workoutSession';
 import { toLocalDateString } from '../utils/dateUtils';
 import {
@@ -26,6 +27,39 @@ import {
   type WatchRunPayload,
 } from '../utils/watchRun';
 
+/** What a filed watch run leaves behind for the caller. */
+export interface SavedWatchRun {
+  entryId: string;
+  /** Cadence and stride put on the entry; null when the phone could not say. */
+  form: WatchRunForm | null;
+}
+
+/**
+ * Best effort and never prompts: a phone that was not carried, or a step
+ * source that fails, just leaves cadence and stride off the entry.
+ */
+async function measureForm(
+  payload: WatchRunPayload,
+  durationSeconds: number,
+  distanceKm: number
+): Promise<WatchRunForm | null> {
+  try {
+    return await measureWatchRunForm(
+      {
+        activity: watchRunActivity(payload),
+        startedAt: payload.startedAt,
+        finishedAt: payload.endedAt,
+        activeSeconds: durationSeconds,
+      },
+      distanceKm * METERS_PER_KM
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    addLog(`[Watch Run] Could not measure form: ${message}`, 'WARNING');
+    return null;
+  }
+}
+
 const pad = (value: number) => String(value).padStart(2, '0');
 
 /**
@@ -33,14 +67,16 @@ const pad = (value: number) => String(value).padStart(2, '0');
  * the entry first, then its route and splits (outdoors), then heart rate and
  * measured energy. `existingEntryId` lets a retry skip creating the entry
  * again; `onEntryCreated` is called as soon as the id exists so the caller can
- * keep it across a failure in a later step.
+ * keep it, and the form measured with it, across a failure in a later step.
+ * `existingForm` is what that call stored, handed back on a retry.
  */
 export async function saveWatchRun(
   payload: WatchRunPayload,
   distanceUnit: 'km' | 'miles',
   existingEntryId: string | undefined,
-  onEntryCreated: (entryId: string) => Promise<void>
-): Promise<string> {
+  onEntryCreated: (entryId: string, form: WatchRunForm | null) => Promise<void>,
+  existingForm: WatchRunForm | null = null
+): Promise<SavedWatchRun> {
   const points = watchRunPoints(payload);
   const routeMeters =
     points.length >= 2 ? summarizeRecording(points).distanceMeters : 0;
@@ -59,9 +95,13 @@ export async function saveWatchRun(
   );
 
   let entryId = existingEntryId;
+  let form = existingForm;
   if (!entryId) {
     const started = new Date(payload.startedAt);
     const exercise = await resolveRecordingExercise(watchRunActivity(payload));
+    // The stored distance, which for a treadmill run already holds what the
+    // wearer entered on the wrist.
+    form = await measureForm(payload, durationSeconds, distanceKm);
     const created = await createExerciseEntry({
       exercise_id: exercise.id,
       exercise_name: exercise.name,
@@ -69,13 +109,19 @@ export async function saveWatchRun(
       entry_date: toLocalDateString(started),
       entry_time: `${pad(started.getHours())}:${pad(started.getMinutes())}`,
       distance: distanceKm,
+      ...(form && {
+        avg_cadence: form.avgCadence,
+        ...(form.strideLengthCm != null && {
+          stride_length_cm: form.strideLengthCm,
+        }),
+      }),
       sets: buildActivitySetsPayload([], new Map(), 'kg', 'duration_distance', {
         durationSec: durationSeconds,
         distanceKm,
       }),
     });
     entryId = created.id;
-    await onEntryCreated(entryId);
+    await onEntryCreated(entryId, form);
   }
 
   if (points.length >= 2) {
@@ -123,7 +169,7 @@ export async function saveWatchRun(
   // lost; a route deleted since the run started is skipped.
   if (payload.routeId) await linkEntryToRoute(entryId, payload.routeId);
   await attachTelemetry(entryId, payload);
-  return entryId;
+  return { entryId, form };
 }
 
 /**

@@ -138,6 +138,8 @@ export interface SavedRecording {
   entryDate: string;
   /** Set when this run took the default pair to its retire-at distance. */
   wornOutShoe?: ShoeResponse;
+  /** Cadence and stride put on the entry; null on a retry or when unknown. */
+  form: FormMetrics | null;
 }
 
 /**
@@ -174,9 +176,10 @@ export async function saveRecordedActivity(
 
   let entryId = session.savedEntryId;
   let wornOutShoe: ShoeResponse | null = null;
+  let form: FormMetrics | null = null;
   if (!entryId) {
     const exercise = await resolveRecordingExercise(session.activity);
-    const form = await measureForm(
+    form = await measureForm(
       session,
       indoor,
       durationSeconds,
@@ -260,7 +263,12 @@ export async function saveRecordedActivity(
     await linkEntryToRoute(entryId, session.routeId);
   }
   await attachWatchHeartRate(entryId);
-  return { entryId, entryDate, ...(wornOutShoe && { wornOutShoe }) };
+  return {
+    entryId,
+    entryDate,
+    form,
+    ...(wornOutShoe && { wornOutShoe }),
+  };
 }
 
 /**

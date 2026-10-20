@@ -13,6 +13,7 @@ import {
   updateExercise,
   deleteExerciseFromLibrary,
   attachExerciseEntryWatchTelemetry,
+  setExerciseEntryStrideLength,
   type CreateExerciseEntryPayload,
 } from '../../../src/services/api/exerciseApi';
 import {
@@ -639,6 +640,51 @@ describe('exerciseApi - createExerciseEntry / updateExerciseEntry', () => {
       await expect(deleteExerciseEntry('entry-1')).rejects.toThrow(
         'Server error: 500 - Internal Server Error'
       );
+    });
+  });
+
+  describe('setExerciseEntryStrideLength', () => {
+    beforeEach(() => {
+      mockGetActiveServerConfig.mockResolvedValue(testConfig);
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({}),
+      });
+    });
+
+    it('updates only the stride on the entry', async () => {
+      await setExerciseEntryStrideLength('entry-1', 101.5);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://example.com/api/exercise-entries/entry-1',
+        expect.objectContaining({
+          method: 'PUT',
+          body: JSON.stringify({ stride_length_cm: 101.5 }),
+        })
+      );
+    });
+
+    it('clears the stride with null', async () => {
+      await setExerciseEntryStrideLength('entry-1', null);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          body: JSON.stringify({ stride_length_cm: null }),
+        })
+      );
+    });
+
+    it('throws on server error', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 404,
+        text: () => Promise.resolve('Not Found'),
+      });
+
+      await expect(
+        setExerciseEntryStrideLength('entry-1', 100)
+      ).rejects.toThrow('Server error: 404 - Not Found');
     });
   });
 

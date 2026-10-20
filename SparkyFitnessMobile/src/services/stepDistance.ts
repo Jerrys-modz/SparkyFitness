@@ -6,6 +6,7 @@ import {
   estimateDistanceMeters,
   type FormMetrics,
   isStepActivity,
+  MIN_CALIBRATION_METERS,
 } from '../utils/stride';
 import type { RecordingActivity } from '../utils/gpsRecording';
 
@@ -161,4 +162,53 @@ export async function measureOutdoorForm(
     window.activeSeconds,
     window.paused === true ? null : distanceMeters
   );
+}
+
+/** Form worked out for a watch run, with the steps it came from. */
+export interface WatchRunForm extends FormMetrics {
+  /** Steps over the moving time, kept so a corrected distance can redo the stride. */
+  steps: number;
+}
+
+/**
+ * Cadence and stride length for a run the watch recorded, from the steps the
+ * phone counted over the run's window. The phone only counts them if it was
+ * carried, so a window with too few steps, or one whose steps do not fit the
+ * distance (a stride no runner has), is ignored rather than trusted. Never
+ * raises a permission prompt: filing a run in the background must not ask.
+ */
+export async function measureWatchRunForm(
+  window: StepWindow,
+  distanceMeters: number
+): Promise<WatchRunForm | null> {
+  // A watch run: Apple Health's steps (the watch writes them, so the phone
+  // can be left behind), else whatever the phone's pedometer counted.
+  const health = await getHealthStepsBetween(
+    window.startedAt,
+    window.finishedAt
+  );
+  const steps =
+    health != null
+      ? Math.round(
+          health *
+            activeShare(
+              window.activeSeconds,
+              (window.finishedAt - window.startedAt) / 1000
+            )
+        )
+      : await activeSteps(window, false);
+  if (steps == null) return null;
+  const metrics = computeFormMetrics(
+    steps,
+    window.activeSeconds,
+    distanceMeters
+  );
+  if (!metrics) return null;
+  if (
+    distanceMeters >= MIN_CALIBRATION_METERS &&
+    metrics.strideLengthCm == null
+  ) {
+    return null;
+  }
+  return { ...metrics, steps };
 }

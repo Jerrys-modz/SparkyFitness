@@ -121,3 +121,10 @@ test('carries the route the watch followed', () => {
   ).toBe('r1');
   expect(watchRunSummary(outdoor, 'km', null).routeId).toBeNull();
 });
+
+test('carries the form measured when the run was filed', () => {
+  const form = { avgCadence: 170, strideLengthCm: 98.4, steps: 5400 };
+  const summary = watchRunSummary(outdoor, 'km', null, 'e1', form);
+  expect(summary.form).toEqual(form);
+  expect(watchRunSummary(outdoor, 'km', null, 'e1')).not.toHaveProperty('form');
+});

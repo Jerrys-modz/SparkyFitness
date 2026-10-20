@@ -113,6 +113,36 @@ export interface SessionStatExtras {
   dynamics?: ResolvedRunningDynamics | null;
 }
 
+export const spmText = (t: TFunction, cadence: number) =>
+  t('exerciseStatistics.cardio.spm', {
+    defaultValue: '{{value}} spm',
+    value: formatLocalizedNumber(Math.round(cadence)),
+  });
+
+/** A stride stored in centimetres, shown in feet with the miles setting. */
+export function strideText(
+  t: TFunction,
+  strideLengthCm: number,
+  distanceUnit: 'km' | 'miles'
+): string {
+  const feet = distanceUnit === 'miles';
+  const value = formatLocalizedNumber(
+    feet
+      ? Math.round(strideLengthCm * FEET_PER_METER) / 100
+      : Math.round(strideLengthCm) / 100,
+    { maximumFractionDigits: 2 }
+  );
+  return feet
+    ? t('exerciseStatistics.cardio.feet', {
+        defaultValue: '{{value}} ft',
+        value,
+      })
+    : t('exerciseStatistics.cardio.meters', {
+        defaultValue: '{{value}} m',
+        value,
+      });
+}
+
 export function sessionStats(
   t: TFunction,
   session: ExerciseActivityQueryItem,
@@ -196,35 +226,16 @@ export function sessionStats(
       label: t('exerciseStatistics.cardio.cadence', {
         defaultValue: 'Avg cadence',
       }),
-      value: t('exerciseStatistics.cardio.spm', {
-        defaultValue: '{{value}} spm',
-        value: formatLocalizedNumber(Math.round(session.avgCadence)),
-      }),
+      value: spmText(t, session.avgCadence),
     });
   }
   if (session.strideLengthCm != null && session.strideLengthCm > 0) {
-    // Stored in centimetres; shown in feet with the miles setting.
-    const feet = distanceUnit === 'miles';
-    const value = formatLocalizedNumber(
-      feet
-        ? Math.round(session.strideLengthCm * FEET_PER_METER) / 100
-        : Math.round(session.strideLengthCm) / 100,
-      { maximumFractionDigits: 2 }
-    );
     stats.push({
       key: 'stride',
       label: t('exerciseStatistics.cardio.strideLength', {
         defaultValue: 'Stride length',
       }),
-      value: feet
-        ? t('exerciseStatistics.cardio.feet', {
-            defaultValue: '{{value}} ft',
-            value,
-          })
-        : t('exerciseStatistics.cardio.meters', {
-            defaultValue: '{{value}} m',
-            value,
-          }),
+      value: strideText(t, session.strideLengthCm, distanceUnit),
     });
   }
   const gap = extras.gradeAdjustedPaceSeconds;
