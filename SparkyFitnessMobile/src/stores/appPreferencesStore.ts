@@ -70,6 +70,11 @@ export const WATER_REMINDER_INTERVAL_OPTIONS = [1, 2, 3, 4] as const;
 export type WaterReminderIntervalHours =
   (typeof WATER_REMINDER_INTERVAL_OPTIONS)[number];
 
+/** Minutes before a snoozed ("Remind in") medication reminder fires again. */
+export const MEDICATION_REMINDER_SNOOZE_OPTIONS = [10, 15, 30, 60] as const;
+export type MedicationReminderSnoozeMinutes =
+  (typeof MEDICATION_REMINDER_SNOOZE_OPTIONS)[number];
+
 /** Factory default rest period between sets, in seconds. */
 export const DEFAULT_REST_SEC = 90;
 
@@ -100,6 +105,7 @@ export const PREFERENCE_DEFAULTS = {
   medicationReminderRepeats: true,
   medicationReminderHideNames: false,
   medicationReminderConsolidate: true,
+  medicationReminderSnoozeMinutes: 30 as MedicationReminderSnoozeMinutes,
   waterReminderEnabled: false,
   waterReminderIntervalHours: 2 as WaterReminderIntervalHours,
   waterReminderWindowStart: '08:00' as string,
@@ -175,6 +181,7 @@ export type AppPreferencesData = {
   medicationReminderRepeats: boolean;
   medicationReminderHideNames: boolean;
   medicationReminderConsolidate: boolean;
+  medicationReminderSnoozeMinutes: MedicationReminderSnoozeMinutes;
   waterReminderEnabled: boolean;
   waterReminderIntervalHours: WaterReminderIntervalHours;
   waterReminderWindowStart: string;
@@ -286,6 +293,9 @@ export interface AppPreferencesState extends AppPreferencesData {
   setMedicationReminderRepeats: (value: boolean) => void;
   setMedicationReminderHideNames: (value: boolean) => void;
   setMedicationReminderConsolidate: (value: boolean) => void;
+  setMedicationReminderSnoozeMinutes: (
+    value: MedicationReminderSnoozeMinutes
+  ) => void;
   setWaterReminderEnabled: (value: boolean) => void;
   setWaterReminderIntervalHours: (value: WaterReminderIntervalHours) => void;
   setWaterReminderWindow: (start: string, end: string) => void;
@@ -427,6 +437,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ medicationReminderHideNames: value }),
       setMedicationReminderConsolidate: (value) =>
         set({ medicationReminderConsolidate: value }),
+      setMedicationReminderSnoozeMinutes: (value) =>
+        set({ medicationReminderSnoozeMinutes: value }),
       setWaterReminderEnabled: (value) => set({ waterReminderEnabled: value }),
       setWaterReminderIntervalHours: (value) =>
         set({ waterReminderIntervalHours: value }),
@@ -579,6 +591,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         medicationReminderRepeats: state.medicationReminderRepeats,
         medicationReminderHideNames: state.medicationReminderHideNames,
         medicationReminderConsolidate: state.medicationReminderConsolidate,
+        medicationReminderSnoozeMinutes: state.medicationReminderSnoozeMinutes,
         waterReminderEnabled: state.waterReminderEnabled,
         waterReminderIntervalHours: state.waterReminderIntervalHours,
         waterReminderWindowStart: state.waterReminderWindowStart,

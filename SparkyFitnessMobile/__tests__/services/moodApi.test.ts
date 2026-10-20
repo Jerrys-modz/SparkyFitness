@@ -46,6 +46,38 @@ describe('moodApi', () => {
     );
   });
 
+  it('passes energy and focus through when provided', async () => {
+    await saveMoodEntry({
+      mood_value: 72,
+      mood_tags: [],
+      notes: '',
+      entry_date: '2026-10-05',
+      energy_value: 4,
+      focus_value: null,
+    });
+
+    expect(mockApiFetch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ energy_value: 4, focus_value: null }),
+      })
+    );
+  });
+
+  it('sends no energy or focus key when the body omits them', async () => {
+    await saveMoodEntry({
+      mood_value: 72,
+      mood_tags: [],
+      notes: '',
+      entry_date: '2026-10-05',
+    });
+
+    const { body } = mockApiFetch.mock.calls[0][0] as {
+      body: Record<string, unknown>;
+    };
+    expect('energy_value' in body).toBe(false);
+    expect('focus_value' in body).toBe(false);
+  });
+
   it('lists custom moods', async () => {
     await fetchCustomMoods();
 
