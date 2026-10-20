@@ -60,6 +60,19 @@ describe('useMoodRatingsSupport', () => {
     expect(mockFetch).toHaveBeenCalledWith(addDays(today, -365), today);
   });
 
+  it('keeps the answer instead of refetching when the check-in opens again', async () => {
+    mockFetch.mockResolvedValue([entry({ energy_value: 3 })]);
+    const client = createTestQueryClient();
+    const wrapper = createQueryWrapper(client);
+    const first = renderHook(() => useMoodRatingsSupport(), { wrapper });
+    await waitFor(() => expect(first.result.current.supported).toBe(true));
+    first.unmount();
+
+    const second = renderHook(() => useMoodRatingsSupport(), { wrapper });
+    expect(second.result.current.supported).toBe(true);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
   it('reports no support for an older server', async () => {
     mockFetch.mockResolvedValue([entry()]);
     const { result } = run();

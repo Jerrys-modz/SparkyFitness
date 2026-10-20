@@ -23,8 +23,11 @@ export function useMoodRatingsSupport(): {
   const today = getTodayDate();
   const query = useQuery({
     queryKey: moodRatingsSupportQueryKey,
-    // The answer only changes with a server upgrade; save, refresh and server
-    // switch still re-probe, so keep it to avoid a show-then-hide flash.
+    // The answer only changes with a server upgrade, so probe once and keep
+    // it: opening the check-in again does not refetch a year of rows. A save
+    // re-checks only while the answer is still unknown (see useSaveMood); a
+    // dashboard refresh or an account switch starts over.
+    staleTime: Infinity,
     gcTime: Infinity,
     queryFn: async () =>
       moodEntriesSupportRatings(
