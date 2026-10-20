@@ -52,7 +52,6 @@ const MedicationReminderReconciler: React.FC = () => {
   });
 
   useEffect(() => {
-    if (typeof registerLocalizedNotificationPresentation !== 'function') return;
     void registerLocalizedNotificationPresentation().catch((error) => {
       addLog(
         `Failed to update notification categories: ${(error as Error).message}`,

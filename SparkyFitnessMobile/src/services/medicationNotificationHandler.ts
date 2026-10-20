@@ -306,18 +306,20 @@ async function removeSnoozedReminder(baseKey: string | null): Promise<void> {
 
 /**
  * Returns the set of snoozed `baseKey`s that remain active while pruning stale
- * or logged entries from storage. Same-day snoozes are retained while their
- * `baseKey` is in `desiredKeys`; cross-day snoozes are retained only while at
- * least one represented dose has no terminal `taken` or `skipped` entry for its
- * stored `entryDate`. Records whose doses all belong to other medications than
- * the active account's are never retained: a snooze record carries no user
- * identity, so the medication ids it references are the only proof of ownership.
+ * or logged entries from storage. A snooze is retained while its `baseKey` is
+ * in `desiredKeys` or while at least one represented dose has no terminal
+ * `taken` or `skipped` entry for its stored `entryDate` (such as a cross-day
+ * snooze or a same-day grouped snooze after one of its doses is logged).
+ * Records whose doses all belong to medications other than the active account's
+ * are never retained: a snooze record carries no user identity, so the
+ * medication ids it references are the only proof of ownership.
  */
 export async function syncSnoozedMedicationReminders(
   today: string,
   desiredKeys: Set<string>,
   activeSnoozeNotifications: Notifications.NotificationContent[] = [],
-  ownedMedicationIds?: Set<string>
+  ownedMedicationIds?: Set<string>,
+  todayEntries?: MedicationEntry[]
 ): Promise<Set<string>> {
   return withPendingActionsLock(async () => {
     const existing = await readSnoozedReminders();
@@ -367,6 +369,9 @@ export async function syncSnoozedMedicationReminders(
     const getEntriesForDate = (
       entryDate: string
     ): Promise<MedicationEntry[] | null> => {
+      if (entryDate === today && todayEntries !== undefined) {
+        return Promise.resolve(todayEntries);
+      }
       let pending = entriesByDate.get(entryDate);
       if (!pending) {
         pending = listEntries({ fromDate: entryDate, toDate: entryDate }).catch(
@@ -392,8 +397,11 @@ export async function syncSnoozedMedicationReminders(
       if (candidate.entryDate === today) {
         if (desiredKeys.has(candidate.baseKey)) {
           retainedBaseKeys.add(candidate.baseKey);
+          continue;
         }
-        continue;
+        if (!candidate.baseKey.startsWith('med_group_')) {
+          continue;
+        }
       }
 
       if (candidate.doses.length === 0) {
@@ -656,9 +664,7 @@ async function handleSnoozeNotificationAction(
   }
 
   try {
-    if (typeof ensureMedicationReminderChannel === 'function') {
-      await ensureMedicationReminderChannel();
-    }
+    await ensureMedicationReminderChannel();
 
     const prefsState = useAppPreferencesStore.getState();
     const snoozeMinutes = prefsState?.medicationReminderSnoozeMinutes ?? 30;

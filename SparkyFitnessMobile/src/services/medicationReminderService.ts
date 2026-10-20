@@ -295,9 +295,7 @@ export async function reconcileMedicationReminders(
 
     const allPending = await Notifications.getAllScheduledNotificationsAsync();
     const presented =
-      typeof Notifications.getPresentedNotificationsAsync === 'function'
-        ? await Notifications.getPresentedNotificationsAsync().catch(() => [])
-        : [];
+      await Notifications.getPresentedNotificationsAsync().catch(() => []);
 
     const snoozedContents: Notifications.NotificationContent[] = [
       ...allPending
@@ -320,7 +318,8 @@ export async function reconcileMedicationReminders(
       today,
       desiredKeys,
       snoozedContents,
-      new Set(medications.map((m) => m.id))
+      new Set(medications.map((m) => m.id)),
+      entries
     );
 
     // A snoozed reminder is a verbatim copy of the notification the user tapped
@@ -453,7 +452,16 @@ export async function reconcileMedicationReminders(
       baseKey,
     } of slotsToSchedule) {
       let snoozeFireAt = staleSnoozeFireAt.get(baseKey);
-      if (snoozedBaseKeys.has(baseKey) && !snoozeFireAt) continue;
+      const isCoveredBySnooze =
+        snoozedBaseKeys.has(baseKey) ||
+        Array.from(snoozedBaseKeys).some(
+          (k) =>
+            k.startsWith(`med_group_${date}_${timeOfDay}_`) &&
+            doses.every((d) =>
+              k.includes(`${d.medication.id}:${d.schedule.id}`)
+            )
+        );
+      if (isCoveredBySnooze && !snoozeFireAt) continue;
       if (snoozeFireAt && presentedStaleSnoozes.has(baseKey)) {
         snoozeFireAt = new Date(Date.now() + 1000);
       }

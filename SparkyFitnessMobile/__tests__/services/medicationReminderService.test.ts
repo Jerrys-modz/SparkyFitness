@@ -1007,6 +1007,85 @@ describe('reconcileMedicationReminders', () => {
       listEntriesSpy.mockRestore();
     });
 
+    it('retains a same-day grouped snooze when one of its doses is logged, then cancels it once all represented doses are logged', async () => {
+      const sameDayGroupKey = `med_group_${TODAY}_07:50_med-1:sched-1_med-2:sched-2`;
+      const remainingSingleKey = `med_${TODAY}_med-2_sched-2_07:50`;
+      const snoozedRequest = pendingRequest('same-day-group-snooze', {
+        medicationId: 'med-1',
+        scheduleId: 'sched-1',
+        entryDate: TODAY,
+        key: `${sameDayGroupKey}_snooze_${Date.now() + 900_000}`,
+        baseKey: sameDayGroupKey,
+        isGroup: 'true',
+        isSnoozed: 'true',
+        doses: JSON.stringify([
+          { medicationId: 'med-1', scheduleId: 'sched-1' },
+          { medicationId: 'med-2', scheduleId: 'sched-2' },
+        ]),
+      });
+
+      const pastMed1 = buildMedication({
+        id: 'med-1',
+        schedules: [buildSchedule({ id: 'sched-1', time_of_day: '07:50' })],
+      });
+      const pastMed2 = buildMedication({
+        id: 'med-2',
+        name: 'Lisinopril',
+        schedules: [
+          buildSchedule({
+            id: 'sched-2',
+            medication_id: 'med-2',
+            time_of_day: '07:50',
+          }),
+        ],
+      });
+
+      mockGetAllScheduled.mockResolvedValue([snoozedRequest]);
+
+      // One dose (med-1) in the snoozed group is logged; med-2 remains unlogged.
+      await reconcileMedicationReminders(
+        [pastMed1, pastMed2],
+        [
+          buildEntry({
+            medication_id: 'med-1',
+            schedule_id: 'sched-1',
+            entry_date: TODAY,
+            status: 'taken',
+          }),
+        ]
+      );
+
+      expect(mockCancel).not.toHaveBeenCalledWith('same-day-group-snooze');
+      // The remaining dose (med-2) is covered by the retained group snooze, so
+      // no duplicate repeat notifications for med-2 are scheduled for today.
+      expect(
+        scheduledKeys().some((k) => k.startsWith(remainingSingleKey))
+      ).toBe(false);
+
+      // Once med-2 is also logged, the grouped snooze is cancelled.
+      mockCancel.mockClear();
+      await reconcileMedicationReminders(
+        [pastMed1, pastMed2],
+        [
+          buildEntry({
+            medication_id: 'med-1',
+            schedule_id: 'sched-1',
+            entry_date: TODAY,
+            status: 'taken',
+          }),
+          buildEntry({
+            id: 'entry-2',
+            medication_id: 'med-2',
+            schedule_id: 'sched-2',
+            entry_date: TODAY,
+            status: 'taken',
+          }),
+        ]
+      );
+
+      expect(mockCancel).toHaveBeenCalledWith('same-day-group-snooze');
+    });
+
     it('replaces pending and delivered named snoozed reminders with generic copy when hideNames is enabled', async () => {
       useAppPreferencesStore.setState({ medicationReminderHideNames: true });
       const snoozeFireAt = new Date('2026-07-28T09:45:00');
