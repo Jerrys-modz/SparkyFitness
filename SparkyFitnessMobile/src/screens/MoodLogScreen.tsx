@@ -470,13 +470,11 @@ function CheckinComposer({
   const saveDisabled = !hasContent || busy;
 
   // These mutations leave errors to the screen: the server's reason when it
-  // gives one (a refused edit of a synced mood, say), else a generic line.
-  const showError = (error: unknown) =>
+  // gives one (a refused edit of a synced mood, say), else the fallback.
+  const showError = (error: unknown, fallback: string) =>
     Toast.show({
       type: 'error',
-      text1:
-        getApiErrorMessage(error) ??
-        t('mood.saveFailed', { defaultValue: 'Could not save mood' }),
+      text1: getApiErrorMessage(error) ?? fallback,
     });
 
   const handleSave = async () => {
@@ -501,18 +499,32 @@ function CheckinComposer({
         await createCheckin.mutateAsync(buildCheckinCreateBody(sent, date, tz));
       }
     } catch (error) {
-      showError(error);
+      showError(
+        error,
+        t('mood.saveFailed', { defaultValue: 'Could not save mood' })
+      );
       return;
     }
     // Saved: whatever follows a saved check-in goes here, before leaving.
     navigation.goBack();
   };
 
+  // Set at once rather than on the next render, so a second confirm sent
+  // before the screen re-renders cannot send a second delete.
+  const deleteInFlight = useRef(false);
+
+  // The confirm's callback: refuses while anything is being sent.
   const handleDelete = async (id: string) => {
+    if (busy || deleteInFlight.current) return;
+    deleteInFlight.current = true;
     try {
       await deleteCheckin.mutateAsync(id);
     } catch (error) {
-      showError(error);
+      deleteInFlight.current = false;
+      showError(
+        error,
+        t('mood.deleteFailed', { defaultValue: 'Could not delete check-in' })
+      );
       return;
     }
     navigation.goBack();

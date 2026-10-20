@@ -5226,6 +5226,7 @@
     "deleteCheckin": "Delete check-in",
     "deleteCheckinConfirm": "Delete this check-in?",
     "deleteCheckinMessage": "This removes the check-in and its journal entry.",
+    "deleteFailed": "Could not delete check-in",
     "checkinNeedsContent": "Add a mood, energy, focus, a tag or a journal entry to save.",
     "checkinMissing": "This check-in no longer exists.",
     "names": {

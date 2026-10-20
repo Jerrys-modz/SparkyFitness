@@ -579,6 +579,53 @@ describe('MoodLogScreen check-in composer (several check-ins a day)', () => {
       alertSpy.mockRestore();
     });
 
+    /** Opens the delete dialog and returns its Delete button's handler. */
+    const openDeleteConfirm = (alertSpy: jest.SpyInstance) => {
+      fireEvent.press(screen.getByRole('button', { name: 'Delete check-in' }));
+      const buttons = alertSpy.mock.calls.at(-1)?.[2] as AlertButton[];
+      const confirm = buttons.find((b) => b.style === 'destructive')?.onPress;
+      if (!confirm) throw new Error('no destructive button in the dialog');
+      return confirm;
+    };
+
+    it('says when the check-in could not be deleted, and lets it be tried again', async () => {
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      mockDeleteMutateAsync.mockRejectedValueOnce(new Error('Network down'));
+      renderWithParams(editParams);
+      const confirm = openDeleteConfirm(alertSpy);
+      await act(async () => {
+        confirm();
+      });
+      expect(Toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error',
+          text1: 'Could not delete check-in',
+        })
+      );
+      expect(mockNavigation.goBack).not.toHaveBeenCalled();
+
+      await act(async () => {
+        openDeleteConfirm(alertSpy)();
+      });
+      expect(mockDeleteMutateAsync).toHaveBeenCalledTimes(2);
+      expect(mockNavigation.goBack).toHaveBeenCalled();
+      alertSpy.mockRestore();
+    });
+
+    it('sends one delete when the confirm fires twice', async () => {
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      // The first delete is still in flight when the second confirm arrives.
+      mockDeleteMutateAsync.mockReturnValue(new Promise(() => {}));
+      renderWithParams(editParams);
+      const confirm = openDeleteConfirm(alertSpy);
+      await act(async () => {
+        confirm();
+        confirm();
+      });
+      expect(mockDeleteMutateAsync).toHaveBeenCalledTimes(1);
+      alertSpy.mockRestore();
+    });
+
     it('shows a spinner with Save disabled while the day loads', () => {
       mockCheckins = null;
       mockCheckinsLoading = true;
