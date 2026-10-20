@@ -10,7 +10,10 @@ import {
 import { setExerciseEntryEffort } from './api/exerciseApi';
 import type { WatchRunForm } from './stepDistance';
 import { toLocalDateString } from '../utils/dateUtils';
-import { getTreadmillCorrection } from '../stores/appPreferencesStore';
+import {
+  getTreadmillCorrection,
+  whenPreferencesHydrated,
+} from '../stores/appPreferencesStore';
 import { correctWatchRunDistance } from '../utils/treadmillCorrection';
 import { parseWatchRunPayload, type WatchRunPayload } from '../utils/watchRun';
 
@@ -164,6 +167,8 @@ export function enqueueWatchRun(payload: WatchRunPayload): Promise<boolean> {
     // A figure typed from the treadmill display is corrected once, here, and
     // the stored payload carries the result: a retry or the summary never
     // reads the setting again, so a change in between cannot correct twice.
+    // The setting may not be read from storage yet when a run arrives at launch.
+    await whenPreferencesHydrated();
     await AsyncStorage.setItem(
       QUEUE_KEY,
       JSON.stringify([

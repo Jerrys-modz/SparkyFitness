@@ -745,6 +745,26 @@ export function getDefaultRestSec(): number {
   return useAppPreferencesStore.getState().defaultRestSec;
 }
 
+/**
+ * Resolves once the persisted preferences have been read from storage, or
+ * after `timeoutMs` so a storage failure cannot block the caller. Code that
+ * runs before any screen mounts (a watch run delivered at launch) would
+ * otherwise read the defaults instead of what the person set.
+ */
+export function whenPreferencesHydrated(timeoutMs = 3000): Promise<void> {
+  const { persist: persistApi } = useAppPreferencesStore;
+  if (persistApi.hasHydrated()) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const timer = setTimeout(done, timeoutMs);
+    const unsubscribe = persistApi.onFinishHydration(done);
+    function done() {
+      clearTimeout(timer);
+      unsubscribe();
+      resolve();
+    }
+  });
+}
+
 /** The treadmill correction now in force, for non-React callers. */
 export function getTreadmillCorrection(): TreadmillCorrection {
   const { treadmillCorrectionEnabled, treadmillCorrectionPercent } =
