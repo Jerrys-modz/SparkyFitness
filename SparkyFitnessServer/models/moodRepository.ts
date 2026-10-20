@@ -3,6 +3,16 @@ import { getClient } from '../db/poolManager.js';
 export const MOOD_ENTRY_COLUMNS =
   'id, user_id, mood_value, energy_value, focus_value, mood_tags, notes, entry_date, entry_timestamp, source, created_at, updated_at';
 
+/**
+ * One mood value per day, shared by every aggregate (charts, coach, cycle
+ * correlations): the average of the day's non-null manual `mood_value`s, else
+ * the derived value, Garmin before import. AVG ignores NULLs, so check-ins
+ * without a mood drop out rather than counting as 0. Use it with
+ * GROUP BY entry_date and HAVING ... IS NOT NULL.
+ */
+export const DAILY_MOOD_VALUE_SQL =
+  "COALESCE(AVG(mood_value) FILTER (WHERE source = 'manual'), MAX(mood_value) FILTER (WHERE source = 'garmin'), MAX(mood_value) FILTER (WHERE source = 'import'))";
+
 export type MoodSource = 'manual' | 'garmin' | 'import';
 
 export interface MoodEntryRow {

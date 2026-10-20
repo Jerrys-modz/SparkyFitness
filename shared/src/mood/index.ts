@@ -164,6 +164,16 @@ export function moodValueToTag(value: number): string {
 }
 
 /**
+ * Null-safe form of `moodValueToTag`: a check-in may carry no mood at all, and
+ * that must not read as the lowest band.
+ */
+export function moodTagForValue(
+  value: number | null | undefined
+): string | null {
+  return value == null ? null : moodValueToTag(value);
+}
+
+/**
  * Representative 0-100 value for a set of tags (first banded tag wins). Used only
  * when a client sends tags without an explicit rating; the UI normally sets both.
  */
