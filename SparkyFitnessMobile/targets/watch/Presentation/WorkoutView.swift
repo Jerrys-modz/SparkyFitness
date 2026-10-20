@@ -1496,10 +1496,12 @@ private struct HoldStopwatch: View {
 
 /// One big tappable number with its unit underneath. Outlined while the crown
 /// is adjusting it.
-private struct ValueBox: View {
+struct ValueBox: View {
     let value: String
     let unit: String
     var isSelected = false
+    /// Colours the line under the number; nil keeps it the quiet secondary grey.
+    var unitColor: Color? = nil
     let onTap: () -> Void
 
     var body: some View {
@@ -1512,7 +1514,7 @@ private struct ValueBox: View {
                     .minimumScaleFactor(0.5)
                 Text(unit)
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(unitColor.map(AnyShapeStyle.init) ?? AnyShapeStyle(.secondary))
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, WatchStyle.s(8))
