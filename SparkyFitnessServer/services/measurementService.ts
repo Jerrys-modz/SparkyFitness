@@ -1594,7 +1594,8 @@ async function processSleepEntry(
   // Batch callers pass an already-loaded profile + timezone to skip a per-session
   // DB round-trip; single-entry callers omit it and load directly below.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  prefetched?: { tz: string; userProfile: any }
+  prefetched?: { tz: string; userProfile: any },
+  options: { keepExistingBiometrics?: boolean } = {}
 ): Promise<{ id: string } & Record<string, unknown>> {
   log(
     'debug',
@@ -1679,7 +1680,8 @@ async function processSleepEntry(
     const newSleepEntry = await sleepRepository.upsertSleepEntry(
       userId,
       actingUserId,
-      entryToUpsert
+      entryToUpsert,
+      options
     );
     if (originalHadStages && stage_events && stage_events.length > 0) {
       // Stages merge by natural key (entry_id, start_time, end_time) inside one

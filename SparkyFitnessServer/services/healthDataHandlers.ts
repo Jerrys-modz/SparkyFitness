@@ -438,7 +438,8 @@ export interface HealthBatchContext {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sleepEntryData: any,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    sleepContext: { tz: string; userProfile: any }
+    sleepContext: { tz: string; userProfile: any },
+    options?: { keepExistingBiometrics?: boolean }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ) => Promise<any>;
   resolveCategory: (
@@ -1207,6 +1208,26 @@ const bmrHandler: HealthTypeHandler = {
   handleBatch: checkInHandleBatch,
 };
 
+// Overnight HRV / resting heart rate ride along on Health Connect sleep
+// sessions. Only finite, positive numbers are kept; anything else is dropped so
+// the stored value is left alone rather than overwritten with junk.
+function positiveBiometrics(entry: {
+  avg_overnight_hrv?: unknown;
+  resting_heart_rate?: unknown;
+}): { avg_overnight_hrv?: number; resting_heart_rate?: number } {
+  const result: { avg_overnight_hrv?: number; resting_heart_rate?: number } =
+    {};
+  const hrv = entry.avg_overnight_hrv;
+  if (typeof hrv === 'number' && Number.isFinite(hrv) && hrv > 0) {
+    result.avg_overnight_hrv = hrv;
+  }
+  const rhr = entry.resting_heart_rate;
+  if (typeof rhr === 'number' && Number.isFinite(rhr) && rhr > 0) {
+    result.resting_heart_rate = rhr;
+  }
+  return result;
+}
+
 const sleepSessionHandler: HealthTypeHandler = {
   async handle(entry, ctx) {
     const { source = 'manual', timestamp } = entry;
@@ -1236,12 +1257,14 @@ const sleepSessionHandler: HealthTypeHandler = {
         awake_sleep_seconds: Number(entry.awake_sleep_seconds) || 0,
         record_timezone: entry.record_timezone,
         record_utc_offset_minutes: entry.record_utc_offset_minutes,
+        ...positiveBiometrics(entry),
       };
       const sleepEntryResult = await ctx.processSleepEntry(
         ctx.userId,
         ctx.actingUserId,
         sleepEntryData,
-        await ctx.getSleepContext()
+        await ctx.getSleepContext(),
+        { keepExistingBiometrics: true }
       );
       return { status: 'success', data: sleepEntryResult };
     } catch (sleepError) {
