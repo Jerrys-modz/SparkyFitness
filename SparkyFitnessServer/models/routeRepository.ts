@@ -134,10 +134,7 @@ export async function createRoute(
       'SELECT COUNT(*)::int AS n FROM routes WHERE user_id = $1',
       [userId]
     )) as { rows: Array<{ n: number }> };
-    if (count.rows[0].n >= ROUTE_MAX_PER_USER) {
-      await client.query('ROLLBACK');
-      throw new RouteLimitError();
-    }
+    if (count.rows[0].n >= ROUTE_MAX_PER_USER) throw new RouteLimitError();
     const result = (await client.query(
       `INSERT INTO routes
          (user_id, name, activity, source, distance_m, elevation_gain_m,
@@ -238,7 +235,8 @@ export async function getActivityTrack(
       `SELECT ee.exercise_name, p.entry_date, p.points
          FROM exercise_entry_gps_points p
          JOIN exercise_entries ee ON ee.id = p.exercise_entry_id
-        WHERE p.exercise_entry_id = $1 AND p.user_id = $2`,
+        WHERE p.exercise_entry_id = $1 AND p.user_id = $2
+          AND ee.user_id = $2`,
       [exerciseEntryId, userId]
     )) as { rows: ActivityRow[] };
     const row = result.rows[0];
