@@ -663,6 +663,58 @@ describe('log_mood', () => {
     expect(moodRepository.createCheckin).not.toHaveBeenCalled();
   });
 
+  it('stores whitespace-only notes as null so no line ends in a dangling dash', async () => {
+    vi.mocked(moodRepository.createCheckin).mockResolvedValue(
+      moodRow({ mood_value: 80, notes: null })
+    );
+
+    const result = await tools.sparky_manage_checkin.execute!(
+      {
+        action: 'log_mood',
+        mood_value: 8,
+        notes: '   ',
+        entry_date: '2026-06-01',
+      },
+      opts
+    );
+
+    expect(
+      vi.mocked(moodRepository.createCheckin).mock.calls[0]![1].notes
+    ).toBeNull();
+    expect(result).toBe('✅ Check-in logged for 2026-06-01 at 12:00: 8/10.');
+
+    mockEmptyDiary();
+    vi.mocked(moodRepository.getCheckinsForDate).mockResolvedValue([
+      moodRow({ mood_value: 80, notes: null }),
+    ]);
+    const diary = await tools.sparky_manage_checkin.execute!(
+      { action: 'list_checkin_diary', entry_date: '2026-06-01' },
+      opts
+    );
+    expect(diary).toContain('- 12:00 8/10\n');
+  });
+
+  it('renders a notes-only diary line and keeps a note that starts with a dash', async () => {
+    mockEmptyDiary();
+    vi.mocked(moodRepository.getCheckinsForDate).mockResolvedValue([
+      moodRow({ mood_value: null, notes: 'Anxious today' }),
+      moodRow({
+        mood_value: null,
+        notes: '— odd start',
+        entry_timestamp: new Date('2026-06-01T13:00:00Z'),
+      }),
+    ]);
+
+    const result = await tools.sparky_manage_checkin.execute!(
+      { action: 'list_checkin_diary', entry_date: '2026-06-01' },
+      opts
+    );
+
+    expect(result).toContain(
+      '- 12:00 — Anxious today\n- 13:00 — — odd start\n'
+    );
+  });
+
   it('rejects whitespace-only notes with no other field', async () => {
     const result = await tools.sparky_manage_checkin.execute!(
       { action: 'log_mood', notes: '   ', entry_date: '2026-06-01' },
@@ -1444,7 +1496,7 @@ describe('error handling', () => {
     );
 
     expect(result).toBe(
-      '✅ Check-in logged for 2026-06-01 at 12:00: Anxious today.'
+      '✅ Check-in logged for 2026-06-01 at 12:00: — Anxious today.'
     );
     expect(moodRepository.createCheckin).toHaveBeenCalledWith('user-1', {
       moodValue: null,
@@ -1467,7 +1519,7 @@ describe('error handling', () => {
     );
 
     expect(result).toBe(
-      '✅ Check-in logged for 2026-06-01 at 12:00: Anxious today.'
+      '✅ Check-in logged for 2026-06-01 at 12:00: — Anxious today.'
     );
     expect(
       vi.mocked(moodRepository.createCheckin).mock.calls[0]![1].moodValue

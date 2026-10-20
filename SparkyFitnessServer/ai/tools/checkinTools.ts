@@ -119,14 +119,17 @@ function formatClock(ts: Date | string, tz: string): string {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
-// `<score>/10<ratings><tags> — notes`; the score is omitted for a check-in
-// with no mood, so the line may start with ", energy 2/5".
-function formatCheckinLine(row: MoodEntryRow): string {
+// `<score>/10<ratings><tags>` followed by ` — notes` when there are notes. The
+// score is omitted for a check-in with no mood, so the ratings' leading ", " is
+// dropped. Each part carries its own leading space, so any may be absent.
+function formatCheckinDetail(row: MoodEntryRow): string {
   const score =
     row.mood_value === null ? '' : `${moodValueToChatScore(row.mood_value)}/10`;
-  const body = `${score}${formatMoodRatings(row.energy_value, row.focus_value)}${formatMoodTags(row.mood_tags)}`;
-  const text = `${body.replace(/^, /, '')}${row.notes ? ' — ' + row.notes : ''}`;
-  return text.trim().replace(/^— /, '');
+  const body =
+    `${score}${formatMoodRatings(row.energy_value, row.focus_value)}${formatMoodTags(row.mood_tags)}`
+      .replace(/^, /, '')
+      .trim();
+  return `${body ? ' ' + body : ''}${row.notes ? ' — ' + row.notes : ''}`;
 }
 
 function formatMoodTags(tags?: string[] | null): string {
@@ -460,7 +463,7 @@ Actions:
                   args.mood_value === undefined
                     ? null
                     : chatScoreToMoodValue(args.mood_value),
-                notes: args.notes || null,
+                notes: args.notes?.trim() || null,
                 moodTags: args.mood_tags || null,
                 energyValue: args.energy_value,
                 focusValue: args.focus_value,
@@ -475,7 +478,7 @@ Actions:
                 entryDate: args.entry_date,
               });
               return formatConfirmation(
-                `Check-in logged for ${args.entry_date} at ${formatClock(row.entry_timestamp, tz)}: ${formatCheckinLine(row)}.`
+                `Check-in logged for ${args.entry_date} at ${formatClock(row.entry_timestamp, tz)}:${formatCheckinDetail(row)}.`
               );
             }
 
@@ -716,7 +719,7 @@ Actions:
               if (checkins.length > 0 || derivedMood) {
                 text += '## Mood\n';
                 for (const c of checkins) {
-                  text += `- ${formatClock(c.entry_timestamp, tz)} ${formatCheckinLine(c)}\n`;
+                  text += `- ${formatClock(c.entry_timestamp, tz)}${formatCheckinDetail(c)}\n`;
                 }
                 if (derivedMood) {
                   text += `- Derived mood (${derivedMood.source}): ${moodValueToChatScore(derivedMood.mood_value)}/10\n`;
