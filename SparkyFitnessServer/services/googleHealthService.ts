@@ -146,7 +146,20 @@ async function syncGoogleHealthData(
           userId,
           userId,
           r['raw_sleep'].data as { dataPoints: Record<string, unknown>[] },
-          tz
+          tz,
+          {
+            hrvByDate: googleHealthDataProcessor.dailyHrvByDate(
+              r['raw_daily_heart_rate_variability']?.data as
+                { dataPoints: Record<string, unknown>[] } | undefined,
+              tz
+            ),
+            restingHrByDate:
+              googleHealthDataProcessor.dailyRestingHeartRateByDate(
+                r['raw_daily_resting_heart_rate']?.data as
+                  { dataPoints: Record<string, unknown>[] } | undefined,
+                tz
+              ),
+          }
         );
       if (r['raw_exercise'])
         await googleHealthDataProcessor.processGoogleActivities(
@@ -599,7 +612,15 @@ async function syncGoogleHealthData(
         userId,
         userId,
         sleepData,
-        tz
+        tz,
+        {
+          hrvByDate: googleHealthDataProcessor.dailyHrvByDate(hrvData, tz),
+          restingHrByDate:
+            googleHealthDataProcessor.dailyRestingHeartRateByDate(
+              heartRateData,
+              tz
+            ),
+        }
       );
     if (activitiesData)
       await googleHealthDataProcessor.processGoogleActivities(
