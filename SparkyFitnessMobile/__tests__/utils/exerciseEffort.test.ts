@@ -51,8 +51,8 @@ describe('buildExerciseEffortSummary', () => {
       true
     );
     expect(summary.trend).toEqual([
-      { date: '2026-10-01', avgRpe: 7 },
-      { date: '2026-10-05', avgRpe: 9.5 },
+      { id: 'individual:a', date: '2026-10-01', avgRpe: 7 },
+      { id: 'individual:b', date: '2026-10-05', avgRpe: 9.5 },
     ]);
   });
 
@@ -80,8 +80,63 @@ describe('buildExerciseEffortSummary', () => {
       ],
     } as unknown as ExerciseSessionResponse;
     expect(buildExerciseEffortSummary([preset], 'ex-1', false).trend).toEqual([
-      { date: '2026-10-01', avgRpe: 8 },
+      { id: 'preset:p', date: '2026-10-01', avgRpe: 8 },
     ]);
+  });
+
+  describe('sessions on the same day', () => {
+    const timed = (completedAt: string | null) => ({
+      ...set(1, 100, 5, 8),
+      completed_at: completedAt,
+    });
+
+    it('orders them by when their sets were completed', () => {
+      const trend = buildExerciseEffortSummary(
+        [
+          single('late', '2026-10-01', 'ex-1', [timed('2026-10-01T18:00:00Z')]),
+          single('early', '2026-10-01', 'ex-1', [
+            timed('2026-10-01T07:00:00Z'),
+          ]),
+        ],
+        'ex-1',
+        false
+      ).trend;
+      expect(trend.map((point) => point.id)).toEqual([
+        'individual:early',
+        'individual:late',
+      ]);
+    });
+
+    it('falls back to the history order, newest first, when there is no completion time', () => {
+      const trend = buildExerciseEffortSummary(
+        [
+          single('newer', '2026-10-01', 'ex-1', [timed(null)]),
+          single('older', '2026-10-01', 'ex-1', [timed(null)]),
+        ],
+        'ex-1',
+        false
+      ).trend;
+      expect(trend.map((point) => point.id)).toEqual([
+        'individual:older',
+        'individual:newer',
+      ]);
+    });
+
+    it('gives a preset and a single entry different ids even if their ids match', () => {
+      const preset = {
+        type: 'preset',
+        id: 'x',
+        name: 'Push',
+        entry_date: '2026-10-01',
+        exercises: [{ exercise_id: 'ex-1', sets: [timed(null)] }],
+      } as unknown as ExerciseSessionResponse;
+      const trend = buildExerciseEffortSummary(
+        [preset, single('x', '2026-10-01', 'ex-1', [timed(null)])],
+        'ex-1',
+        false
+      ).trend;
+      expect(new Set(trend.map((point) => point.id)).size).toBe(2);
+    });
   });
 
   it('estimates the 1RM with and without counting the reps left', () => {
