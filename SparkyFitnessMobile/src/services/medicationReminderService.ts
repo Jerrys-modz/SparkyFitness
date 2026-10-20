@@ -329,19 +329,47 @@ export async function reconcileMedicationReminders(
     const staleSnoozeFireAt = new Map<string, Date>();
     for (const n of allPending) {
       const data = n.content.data ?? {};
-      const baseKey = (data.baseKey ?? data.key) as string | undefined;
+      const key = data.key as string | undefined;
+      const baseKey = (data.baseKey ?? key) as string | undefined;
       if (!data.medicationId || data.isSnoozed !== 'true' || !baseKey) continue;
       if (!snoozedBaseKeys.has(baseKey)) continue;
       const copyIsStale =
         (data.hideNames === 'true') !== hideNames ||
         (data.locale ?? 'en') !== reminderLocale;
       if (!copyIsStale) continue;
+      const keyMatch =
+        typeof key === 'string' ? /_snooze_(\d+)$/.exec(key) : null;
       const trigger = n.trigger as unknown as {
         date?: Date | number;
+        value?: number;
+        seconds?: number;
       } | null;
-      const fireAt = trigger?.date instanceof Date ? trigger.date : null;
-      if (fireAt && fireAt.getTime() > Date.now()) {
-        staleSnoozeFireAt.set(baseKey, fireAt);
+      const epochMs = keyMatch
+        ? Number(keyMatch[1])
+        : typeof trigger?.value === 'number'
+          ? trigger.value
+          : typeof trigger?.seconds === 'number'
+            ? Date.now() + trigger.seconds * 1000
+            : trigger?.date instanceof Date
+              ? trigger.date.getTime()
+              : typeof trigger?.date === 'number'
+                ? trigger.date
+                : NaN;
+      if (Number.isFinite(epochMs) && epochMs > Date.now()) {
+        staleSnoozeFireAt.set(baseKey, new Date(epochMs));
+      }
+    }
+    for (const n of presented) {
+      const data = n.request.content.data as
+        Record<string, string | undefined> | undefined;
+      if (!data?.medicationId || data.isSnoozed !== 'true') continue;
+      const baseKey = data.baseKey ?? data.key;
+      if (!baseKey || !snoozedBaseKeys.has(baseKey)) continue;
+      const copyIsStale =
+        (data.hideNames === 'true') !== hideNames ||
+        (data.locale ?? 'en') !== reminderLocale;
+      if (copyIsStale && !staleSnoozeFireAt.has(baseKey)) {
+        staleSnoozeFireAt.set(baseKey, new Date(Date.now() + 1000));
       }
     }
 
@@ -378,11 +406,17 @@ export async function reconcileMedicationReminders(
           const key = data.key;
           const baseKey = data.baseKey ?? key;
           if (data.isSnoozed === 'true') {
-            return !baseKey || !snoozedBaseKeys.has(baseKey);
+            return (
+              !baseKey ||
+              !snoozedBaseKeys.has(baseKey) ||
+              staleSnoozeFireAt.has(baseKey)
+            );
           }
           return (
-            (!key || !desiredKeys.has(key)) &&
-            (!baseKey || !desiredKeys.has(baseKey))
+            ((!key || !desiredKeys.has(key)) &&
+              (!baseKey || !desiredKeys.has(baseKey))) ||
+            (data.hideNames === 'true') !== hideNames ||
+            (data.locale ?? 'en') !== reminderLocale
           );
         })
         .map((n) => n.request.identifier);

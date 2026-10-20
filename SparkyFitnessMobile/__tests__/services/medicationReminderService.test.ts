@@ -1007,7 +1007,7 @@ describe('reconcileMedicationReminders', () => {
       listEntriesSpy.mockRestore();
     });
 
-    it('replaces a pending named snoozed reminder with the generic copy at the same fire time when hideNames is enabled', async () => {
+    it('replaces pending and delivered named snoozed reminders with generic copy when hideNames is enabled', async () => {
       useAppPreferencesStore.setState({ medicationReminderHideNames: true });
       const snoozeFireAt = new Date('2026-07-28T09:45:00');
       const snoozeKey = `${BASE_KEY}_snooze_${snoozeFireAt.getTime()}`;
@@ -1030,8 +1030,8 @@ describe('reconcileMedicationReminders', () => {
             },
           } as unknown as Notifications.NotificationContent,
           trigger: {
-            type: 'date',
-            date: snoozeFireAt,
+            type: 'timeInterval',
+            seconds: 900,
           } as unknown as Notifications.NotificationTrigger,
         },
       ]);
@@ -1058,6 +1058,53 @@ describe('reconcileMedicationReminders', () => {
         })
       );
       expect(scheduledKeys()).not.toContain(`${BASE_KEY}_10`);
+
+      // Also verify an already-delivered (presented) named snooze is dismissed and re-posted with generic copy
+      mockSchedule.mockClear();
+      mockGetAllScheduled.mockResolvedValue([]);
+      (
+        Notifications.getPresentedNotificationsAsync as jest.Mock
+      ).mockResolvedValue([
+        {
+          request: {
+            identifier: 'delivered-named-snooze',
+            content: {
+              title: 'Medication reminder',
+              body: 'Scheduled dose: Metformin (500 mg)',
+              data: {
+                medicationId: 'med-1',
+                scheduleId: 'sched-1',
+                entryDate: TODAY,
+                key: snoozeKey,
+                baseKey: BASE_KEY,
+                isSnoozed: 'true',
+                hideNames: 'false',
+                locale: 'en',
+              },
+            },
+          },
+        },
+      ]);
+
+      await reconcileMedicationReminders([buildMedication()], []);
+
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith(
+        'delivered-named-snooze'
+      );
+      const repostedSnooze = mockSchedule.mock.calls.find(
+        (c) => c[0].content.data?.baseKey === BASE_KEY
+      );
+      expect(repostedSnooze).toBeDefined();
+      expect(repostedSnooze?.[0].content.body).toBe(
+        'You have a scheduled dose'
+      );
+      expect(repostedSnooze?.[0].content.data).toEqual(
+        expect.objectContaining({
+          baseKey: BASE_KEY,
+          isSnoozed: 'true',
+          hideNames: 'true',
+        })
+      );
     });
   });
 });
