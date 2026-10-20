@@ -64,7 +64,9 @@ export function useLiveWorkoutInputsCapture(connected: boolean): void {
 
   // The history is the preset's own only when the preset belongs to the
   // server that is active now (preset ids collide across servers); until
-  // that check settles, capturing would pin the unscoped history.
+  // that check settles, capturing would pin the unscoped history. A check
+  // that fails stays unsettled (nothing is captured) and is asked again when
+  // the connection returns, rather than settling as "not this server".
   const scopeKey = `${sessionId ?? ''}|${sourcePresetId ?? ''}|${sourceServerConfigId ?? ''}`;
   const [settled, setSettled] = useState<{
     key: string;
@@ -74,20 +76,22 @@ export function useLiveWorkoutInputsCapture(connected: boolean): void {
     if (!live || sourcePresetId == null) return;
     let cancelled = false;
     void (async () => {
-      let presetId: number | undefined;
       try {
         const config = await getActiveServerConfig();
-        presetId =
-          config?.id === sourceServerConfigId ? sourcePresetId : undefined;
+        if (cancelled) return;
+        setSettled({
+          key: scopeKey,
+          presetId:
+            config?.id === sourceServerConfigId ? sourcePresetId : undefined,
+        });
       } catch {
-        presetId = undefined;
+        // Left unsettled; see above.
       }
-      if (!cancelled) setSettled({ key: scopeKey, presetId });
     })();
     return () => {
       cancelled = true;
     };
-  }, [live, sourcePresetId, sourceServerConfigId, scopeKey]);
+  }, [live, connected, sourcePresetId, sourceServerConfigId, scopeKey]);
 
   const scopeSettled = sourcePresetId == null || settled?.key === scopeKey;
   const presetId = sourcePresetId == null ? undefined : settled?.presetId;

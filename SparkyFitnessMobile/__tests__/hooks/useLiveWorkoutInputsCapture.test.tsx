@@ -196,4 +196,39 @@ describe('useLiveWorkoutInputsCapture', () => {
     );
     expect(mockFetchExerciseStats).toHaveBeenCalledTimes(2);
   });
+
+  it('captures nothing when the server check fails, then scopes it on reconnect', async () => {
+    mockGetActiveServerConfig.mockRejectedValueOnce(new Error('storage'));
+    act(() => {
+      useActiveWorkoutStore.setState({
+        session: makeSession(),
+        sessionId: 'session-1',
+        sourcePresetId: 7,
+        sourceServerConfigId: 'server-1',
+      });
+    });
+    const { rerender } = renderCapture(true);
+
+    await waitFor(() =>
+      expect(mockGetActiveServerConfig).toHaveBeenCalledTimes(1)
+    );
+    expect(mockFetchExerciseStats).not.toHaveBeenCalled();
+    expect(useActiveWorkoutStore.getState().previousSessionSets).toEqual({});
+
+    rerender({ isConnected: false });
+    rerender({ isConnected: true });
+
+    await waitFor(() =>
+      expect(mockFetchExerciseStats).toHaveBeenCalledWith(
+        'ex-1',
+        'session-1',
+        7
+      )
+    );
+    expect(mockFetchExerciseStats).not.toHaveBeenCalledWith(
+      'ex-1',
+      'session-1',
+      undefined
+    );
+  });
 });
