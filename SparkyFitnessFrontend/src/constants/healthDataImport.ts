@@ -307,6 +307,7 @@ export const HEALTH_IMPORT_CATEGORIES: HealthImportCategoryConfig[] = [
     description:
       "One imported mood per day (re-importing a date replaces that day's imported mood). " +
       'Moods you log yourself are kept. ' +
+      'Moods imported before this update are treated as your own, so re-importing those dates adds a second entry. ' +
       'mood_value is 10-100: 10 Sad, 20 Angry, 30 Worried, 40 Neutral, ' +
       '50 Thoughtful, 60 Calm, 70 Confident, 80 Happy, 90 Excited. ' +
       'mood_tags is optional, pipe-separated (e.g. grateful|energetic).',

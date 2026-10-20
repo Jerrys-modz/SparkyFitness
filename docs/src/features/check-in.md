@@ -9,7 +9,7 @@ Add tags and write a Journal entry (optional) to give the check-in some context.
 
 ### Several check-ins a day
 
-On the web Check-In page, open the **Fasting & Mood** tab. The left card is the composer, titled **New check-in** (or **Edit check-in** while you change one). It has a Time field, the mood picker, Energy, Focus, tags and a Journal. The Time field stays on the current time until you set it yourself. Every field is optional, but a check-in needs at least one of them.
+On the web Check-In page, open the **Fasting & Mood** tab. The left card is the composer, titled **New check-in** (or **Edit check-in** while you change one). It has a Time field, the mood picker, Energy, Focus, tags and a Journal. The Time field starts at the current time when you are on today, and stays on it until you set it yourself; on any other day it starts at 12:00. Every field is optional, but a check-in needs at least one of them.
 
 The right side lists the day's check-ins in time order, with the day's average mood, energy and focus above the list. Each check-in has an edit button and a delete button, and deleting asks you to confirm. A check-in without a mood is listed without a face and is left out of the average mood. The fasting card sits under the list.
 
