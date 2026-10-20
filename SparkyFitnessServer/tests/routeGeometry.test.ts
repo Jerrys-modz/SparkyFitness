@@ -240,7 +240,7 @@ describe('GPX entities, attributes and numbers', () => {
   it('decodes each entity once', () => {
     expect(nameOf('a &amp;lt; b')).toBe('a &lt; b');
     expect(nameOf('Tom &amp; Jerry &lt;3 &quot;x&quot; &apos;y&apos;')).toBe(
-      `Tom & Jerry <3 "x" 'y'`
+      'Tom & Jerry <3 "x" \'y\''
     );
   });
 
