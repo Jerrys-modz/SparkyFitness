@@ -8,6 +8,9 @@ import { exerciseStatsQueryKey } from './queryKeys';
 import { useLiveCoachingSignals } from './useLiveCoachingSignals';
 import { usePreferences } from './usePreferences';
 
+/** A transient network error or 5xx at workout start shouldn't cost the history. */
+const STATS_FETCH_RETRIES = 3;
+
 /**
  * Feeds the live workout the inputs its placeholder values resolve from —
  * each exercise's previous session, PR baseline, coaching signals and the
@@ -20,8 +23,11 @@ import { usePreferences } from './usePreferences';
  * the watch was never recognised and a lbs lifter's rounding ran in kg. The
  * store keeps the first value each exercise reports and the cards read the
  * same query keys, so opening the screen later is a cache hit and a no-op.
+ *
+ * No screen will ask again on the watch path, so a failed fetch is retried
+ * here, and a workout started while offline fetches once `connected` flips.
  */
-export function useLiveWorkoutInputsCapture(): void {
+export function useLiveWorkoutInputsCapture(connected: boolean): void {
   useLiveCoachingSignals();
 
   const queryClient = useQueryClient();
@@ -88,13 +94,15 @@ export function useLiveWorkoutInputsCapture(): void {
   const missingKey = exerciseIds.filter((id) => !(id in captured)).join(',');
 
   useEffect(() => {
-    if (sessionId == null || !scopeSettled || missingKey === '') return;
+    if (!connected || sessionId == null || !scopeSettled || missingKey === '')
+      return;
     let cancelled = false;
     for (const exerciseId of missingKey.split(',')) {
       queryClient
         .fetchQuery({
           queryKey: exerciseStatsQueryKey(exerciseId, sessionId, presetId),
           queryFn: () => fetchExerciseStats(exerciseId, sessionId, presetId),
+          retry: STATS_FETCH_RETRIES,
         })
         .then((stats) => {
           const store = useActiveWorkoutStore.getState();
@@ -111,12 +119,12 @@ export function useLiveWorkoutInputsCapture(): void {
           );
         })
         .catch(() => {
-          // No history for now; the next change to the exercise list or the
-          // screen's own card asks again.
+          // Retries are spent: the exercise stays uncaptured, and the next
+          // reconnect or change to the exercise list asks again.
         });
     }
     return () => {
       cancelled = true;
     };
-  }, [queryClient, sessionId, scopeSettled, presetId, missingKey]);
+  }, [queryClient, connected, sessionId, scopeSettled, presetId, missingKey]);
 }

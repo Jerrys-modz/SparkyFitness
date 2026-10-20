@@ -297,7 +297,7 @@ function WatchWorkoutGate() {
   );
   // A watch-started workout never opens the active-workout screen, which is
   // what normally loads the history its targets are resolved from.
-  useLiveWorkoutInputsCapture();
+  useLiveWorkoutInputsCapture(isServerConnected);
   useWatchSetTargetsSync(watchSupported);
   useWatchRecordingBridge(watchSupported);
   useWatchRunBridge(watchSupported, isServerConnected);
