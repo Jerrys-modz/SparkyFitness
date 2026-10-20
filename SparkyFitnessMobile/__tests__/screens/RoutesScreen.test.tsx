@@ -43,7 +43,7 @@ const renderScreen = () =>
   );
 
 beforeAll(async () => {
-  await initializeI18n();
+  await initializeI18n('en');
 });
 beforeEach(() => {
   jest.clearAllMocks();
