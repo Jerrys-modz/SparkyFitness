@@ -181,8 +181,9 @@ const PAGE_SIZE = 5000;
 const MAX_PAGES = 100;
 
 /**
- * Enrichment runs inside the SleepSession metric's own timeout; its optional
- * HRV/RHR reads get a shorter limit so a slow read cannot fail the sleep sync.
+ * Enrichment runs inside the SleepSession metric's own timeout; each optional
+ * HRV/RHR read gets its own shorter limit, so a slow read cannot fail the sleep
+ * sync or discard the other metric's result.
  */
 const SLEEP_BIOMETRICS_TIMEOUT_MS = 15_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -1519,7 +1520,20 @@ const readOptionalSleepBiometric = async (
     );
     return [];
   }
-  const result = await readHealthRecordsOnce(recordType, start, end);
+  let result: Awaited<ReturnType<typeof readHealthRecordsOnce>>;
+  try {
+    result = await withTimeout(
+      readHealthRecordsOnce(recordType, start, end),
+      SLEEP_BIOMETRICS_TIMEOUT_MS,
+      `Sleep enrichment ${recordType} read`
+    );
+  } catch (error) {
+    addLog(
+      `[HealthConnectService] Skipping ${recordType} for sleep enrichment: ${getErrorMessage(error)}`,
+      'DEBUG'
+    );
+    return [];
+  }
   if (result.error) {
     addLog(
       `[HealthConnectService] Skipping ${recordType} for sleep enrichment: ${result.error}`,
@@ -1600,24 +1614,21 @@ export const enrichSleepSessions = async (
       enabled.add('RestingHeartRate');
     }
 
-    const [hrvRecords, rhrRecords] = await withTimeout(
-      Promise.all([
-        readOptionalSleepBiometric(
-          'HeartRateVariabilityRmssd',
-          enabled,
-          new Date(minStartMs),
-          new Date(maxEndMs)
-        ),
-        readOptionalSleepBiometric(
-          'RestingHeartRate',
-          enabled,
-          new Date(firstDay[0], firstDay[1] - 1, firstDay[2], 0, 0, 0, 0),
-          new Date(lastDay[0], lastDay[1] - 1, lastDay[2], 23, 59, 59, 999)
-        ),
-      ]),
-      SLEEP_BIOMETRICS_TIMEOUT_MS,
-      'Sleep HRV/RHR enrichment'
-    );
+    // Each read carries its own time limit, so one slow metric only drops itself.
+    const [hrvRecords, rhrRecords] = await Promise.all([
+      readOptionalSleepBiometric(
+        'HeartRateVariabilityRmssd',
+        enabled,
+        new Date(minStartMs),
+        new Date(maxEndMs)
+      ),
+      readOptionalSleepBiometric(
+        'RestingHeartRate',
+        enabled,
+        new Date(firstDay[0], firstDay[1] - 1, firstDay[2], 0, 0, 0, 0),
+        new Date(lastDay[0], lastDay[1] - 1, lastDay[2], 23, 59, 59, 999)
+      ),
+    ]);
 
     const hrvReadings = hrvRecords.flatMap((r) => {
       const rec = r as { time?: unknown; heartRateVariabilityMillis?: unknown };

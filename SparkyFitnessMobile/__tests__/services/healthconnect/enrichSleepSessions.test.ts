@@ -211,6 +211,21 @@ describe('enrichSleepSessions', () => {
       expect(result).toEqual([mainSleep()]);
       expect(result[0]).not.toHaveProperty('avg_overnight_hrv');
     });
+
+    test('keeps resting heart rate when only the HRV read hangs', async () => {
+      grant('HeartRateVariabilityRmssd', 'RestingHeartRate');
+      setPreferences({ [HRV_KEY]: true, [RHR_KEY]: true });
+      mockReadRecords.mockImplementation((recordType: string) =>
+        recordType === 'HeartRateVariabilityRmssd'
+          ? new Promise(() => {})
+          : Promise.resolve({ records: [rhr('2026-10-15', '06:30', 57)] })
+      );
+      const pending = enrich([mainSleep()]);
+      await jest.advanceTimersByTimeAsync(15_000);
+      const [session] = await pending;
+      expect(session.resting_heart_rate).toBe(57);
+      expect(session).not.toHaveProperty('avg_overnight_hrv');
+    });
   });
 
   test('picks the session with the most asleep time as primary', async () => {
