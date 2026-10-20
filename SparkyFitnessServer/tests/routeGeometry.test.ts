@@ -348,3 +348,20 @@ describe('simplifyRoute limits', () => {
     expect(nearPole).toBeLessThan(250);
   });
 });
+
+describe('parseGpx tag-end and elevation scans', () => {
+  it('copes with many point openers and a single closing bracket', () => {
+    const started = Date.now();
+    expect(parseGpx('<trkpt '.repeat(300_000) + '>').points).toEqual([]);
+    expect(parseGpx('<rtept lat="1" '.repeat(150_000) + '>').points).toEqual(
+      []
+    );
+    expect(Date.now() - started).toBeLessThan(5000);
+  });
+
+  it('still reads a point whose tag follows many openers that never close', () => {
+    expect(
+      parseGpx('<trkpt '.repeat(1000) + '<trkpt lat="1" lon="2"/>').points
+    ).toEqual([{ lat: 1, lon: 2 }]);
+  });
+});
