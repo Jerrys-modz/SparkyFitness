@@ -100,8 +100,15 @@ describe('coachRepository', () => {
     // with a half-fixed query.
     expect(sql.match(/entry_date >= \$3::date - \$2::int/g)).toHaveLength(3);
     // daily_mood is one row per day, so the LEFT JOIN cannot multiply food rows.
-    expect(sql).toContain('GROUP BY entry_date');
-    expect(sql).toContain(DAILY_MOOD_VALUE_SQL);
+    const start = sql.indexOf('daily_mood AS (');
+    const cte = sql.slice(
+      start,
+      sql.indexOf('SELECT', start + 40 + DAILY_MOOD_VALUE_SQL.length)
+    );
+    expect(cte).toContain('GROUP BY entry_date');
+    expect(cte).toMatch(/HAVING [\s\S]*IS NOT NULL/);
+    expect(cte).toContain(DAILY_MOOD_VALUE_SQL);
+    expect(DAILY_MOOD_VALUE_SQL).toContain('::int');
     expect(sql).not.toContain('CURRENT_DATE');
     expect(params).toEqual(['user-1', 30, '2026-06-11']);
   });

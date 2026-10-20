@@ -8,10 +8,11 @@ export const MOOD_ENTRY_COLUMNS =
  * correlations): the average of the day's non-null manual `mood_value`s, else
  * the derived value, Garmin before import. AVG ignores NULLs, so check-ins
  * without a mood drop out rather than counting as 0. Use it with
- * GROUP BY entry_date and HAVING ... IS NOT NULL.
+ * GROUP BY entry_date and HAVING ... IS NOT NULL. Rounded to an integer so
+ * the pg driver returns a number, not a numeric string.
  */
 export const DAILY_MOOD_VALUE_SQL =
-  "COALESCE(AVG(mood_value) FILTER (WHERE source = 'manual'), MAX(mood_value) FILTER (WHERE source = 'garmin'), MAX(mood_value) FILTER (WHERE source = 'import'))";
+  "ROUND(COALESCE(AVG(mood_value) FILTER (WHERE source = 'manual'), MAX(mood_value) FILTER (WHERE source = 'garmin'), MAX(mood_value) FILTER (WHERE source = 'import')))::int";
 
 export type MoodSource = 'manual' | 'garmin' | 'import';
 
