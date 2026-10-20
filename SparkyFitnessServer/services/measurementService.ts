@@ -23,7 +23,11 @@ import {
 } from '../utils/sleepStageAggregates.js';
 import userRepository from '../models/userRepository.js';
 import sleepRepository from '../models/sleepRepository.js';
-import type { SleepEntryUpsertOptions } from '../models/sleepRepository.js';
+import type {
+  SleepEntryInput,
+  SleepEntryUpsertOptions,
+} from '../models/sleepRepository.js';
+import type { SleepUserProfile } from '../models/userRepository.js';
 import exerciseEntryDb from '../models/exerciseEntry.js';
 import waterContainerRepository from '../models/waterContainerRepository.js';
 import foodRepository from '../models/foodRepository.js';
@@ -270,8 +274,9 @@ async function processHealthData(
   const tzFallbackByType = {};
   // Loaded at most once per batch and shared across every sleep session so we don't
   // re-query the user profile per record. Lazy so non-sleep syncs pay nothing.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let sleepContext: { tz: string; userProfile: any } | undefined;
+  let sleepContext:
+    | { tz: string; userProfile: SleepUserProfile | null | undefined }
+    | undefined;
   const getSleepContext = async () => {
     if (!sleepContext) {
       sleepContext = {
@@ -1588,12 +1593,13 @@ async function calculateSleepScore(
 async function processSleepEntry(
   userId: string,
   actingUserId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  sleepEntryData: any,
+  sleepEntryData: SleepEntryInput,
   // Batch callers pass an already-loaded profile + timezone to skip a per-session
   // DB round-trip; single-entry callers omit it and load directly below.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  prefetched?: { tz: string; userProfile: any },
+  prefetched?: {
+    tz: string;
+    userProfile: SleepUserProfile | null | undefined;
+  },
   options: SleepEntryUpsertOptions = {}
 ): Promise<{ id: string } & Record<string, unknown>> {
   log(
@@ -1688,8 +1694,7 @@ async function processSleepEntry(
       await sleepRepository.mergeSleepStageEvents(
         userId,
         newSleepEntry.id,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        stage_events.map((stageEvent: any) => ({
+        stage_events.map((stageEvent) => ({
           ...stageEvent,
           duration_in_seconds:
             Math.round(Number(stageEvent.duration_in_seconds)) || 0,
@@ -1713,8 +1718,7 @@ async function processSleepEntry(
       await sleepRepository.mergeSleepStageEvents(
         userId,
         newSleepEntry.id,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        stage_events.map((stageEvent: any) => ({
+        stage_events.map((stageEvent) => ({
           ...stageEvent,
           duration_in_seconds:
             Math.round(Number(stageEvent.duration_in_seconds)) || 0,

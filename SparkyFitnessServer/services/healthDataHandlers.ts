@@ -5,7 +5,11 @@ import exerciseEntryDb, {
   EXERCISE_ENTRY_TELEMETRY_COLUMNS,
 } from '../models/exerciseEntry.js';
 import foodRepository from '../models/foodRepository.js';
-import type { SleepEntryUpsertOptions } from '../models/sleepRepository.js';
+import type {
+  SleepEntryInput,
+  SleepEntryUpsertOptions,
+} from '../models/sleepRepository.js';
+import type { SleepUserProfile } from '../models/userRepository.js';
 import moodRepository from '../models/moodRepository.js';
 import waterContainerRepository from '../models/waterContainerRepository.js';
 import * as workoutTelemetryRepo from '../models/workoutTelemetryRepository.js';
@@ -418,6 +422,11 @@ async function ingestNutritionFoodEntry(
 
 // ── Registry types ─────────────────────────────────────────────────────────
 
+export interface SleepContext {
+  tz: string;
+  userProfile: SleepUserProfile | null | undefined;
+}
+
 /**
  * Per-request dependencies injected by processHealthData. processSleepEntry
  * and resolveCategory live in measurementService and are passed in rather
@@ -425,22 +434,16 @@ async function ingestNutritionFoodEntry(
  * swap in a request-scoped category resolver without touching handlers).
  */
 export interface HealthBatchContext {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  actingUserId: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getSleepContext: () => Promise<{ tz: string; userProfile: any }>;
+  userId: string;
+  actingUserId: string;
+  getSleepContext: () => Promise<SleepContext>;
   processSleepEntry: (
     userId: string,
     actingUserId: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    sleepEntryData: any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    sleepContext: { tz: string; userProfile: any },
+    sleepEntryData: SleepEntryInput,
+    sleepContext: SleepContext,
     options?: SleepEntryUpsertOptions
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ) => Promise<any>;
+  ) => Promise<{ id: string } & Record<string, unknown>>;
   resolveCategory: (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     userId: any,

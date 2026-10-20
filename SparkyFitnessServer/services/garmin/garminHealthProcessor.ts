@@ -2,6 +2,7 @@ import { log } from '../../config/logging.js';
 import measurementService from '../measurementService.js';
 import moodRepository from '../../models/moodRepository.js';
 import sleepRepository from '../../models/sleepRepository.js';
+import type { SleepEntryInput } from '../../models/sleepRepository.js';
 import foodRepository from '../../models/food.js';
 import foodEntryRepository from '../../models/foodEntry.js';
 import mealTypeRepository from '../../models/mealType.js';
@@ -972,7 +973,8 @@ export async function processGarminSleepData(
       const result = await measurementService.processSleepEntry(
         userId,
         actingUserId,
-        sleepEntry
+        // Shaped by the Garmin service's sleep mapper, which isn't typed yet.
+        sleepEntry as SleepEntryInput
       );
       processedResults.push({ status: 'success', data: result });
     } catch (error: unknown) {
