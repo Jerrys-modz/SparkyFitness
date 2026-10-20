@@ -1595,7 +1595,7 @@ async function processSleepEntry(
   // DB round-trip; single-entry callers omit it and load directly below.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   prefetched?: { tz: string; userProfile: any }
-) {
+): Promise<{ id: string } & Record<string, unknown>> {
   log(
     'debug',
     `[processSleepEntry] Received sleepEntryData: ${JSON.stringify(sleepEntryData)}`

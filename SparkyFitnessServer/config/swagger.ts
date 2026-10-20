@@ -972,7 +972,9 @@ const options = {
             user_id: { type: 'string', format: 'uuid' },
             mood_value: {
               type: 'integer',
+              nullable: true,
               description:
+                'Null for a check-in that only records energy, focus, notes or tags. ' +
                 'Mood intensity on a 10-100 scale, banded 10-15 Sad, 16-25 Angry, ' +
                 '26-35 Worried, 36-45 Neutral, 46-55 Thoughtful, 56-65 Calm, ' +
                 '66-75 Confident, 76-85 Happy, 86-100 Excited',
@@ -991,10 +993,21 @@ const options = {
             },
             notes: { type: 'string', nullable: true },
             entry_date: { type: 'string', format: 'date' },
+            entry_timestamp: {
+              type: 'string',
+              format: 'date-time',
+              description: 'When the check-in happened.',
+            },
+            source: {
+              type: 'string',
+              enum: ['manual', 'garmin', 'import'],
+              description:
+                "'manual' for check-ins a person or the AI logged; 'garmin' and 'import' for moods derived from synced data.",
+            },
             created_at: { type: 'string', format: 'date-time' },
             updated_at: { type: 'string', format: 'date-time' },
           },
-          required: ['mood_value', 'entry_date'],
+          required: ['entry_date'],
         },
         SleepEntry: {
           type: 'object',

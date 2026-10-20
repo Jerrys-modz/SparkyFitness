@@ -16,6 +16,7 @@ import {
   customMoodsQueryKey,
   moodEntriesQueryKey,
   moodEntriesRootQueryKey,
+  moodRatingsSupportQueryKey,
 } from './queryKeys';
 
 export type MoodDataPoint = {
@@ -107,7 +108,14 @@ export function useSaveMood() {
   return useMutation({
     mutationFn: (body: SaveMoodEntryBody) => saveMoodEntry(body),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: moodEntriesRootQueryKey }),
+      queryClient.invalidateQueries({
+        queryKey: moodEntriesRootQueryKey,
+        // A known ratings-support answer only changes with a server upgrade;
+        // re-check it only while it is still unknown (no rows saved before).
+        predicate: (query) =>
+          query.queryKey[1] !== moodRatingsSupportQueryKey[1] ||
+          query.state.data == null,
+      }),
     onError: (error: Error) => {
       addLog(`[Mood] Failed to save mood entry: ${error.message}`, 'ERROR');
       Toast.show({

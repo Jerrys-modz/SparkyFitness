@@ -118,7 +118,10 @@ import mealTypeRoutes from './routes/mealTypeRoutes.js';
 import swaggerUi from 'swagger-ui-express';
 import redoc from 'redoc-express';
 import swaggerSpecs from './config/swagger.js';
-import { createCorsOriginChecker } from './utils/corsHelper.js';
+import {
+  createCorsOriginChecker,
+  CORS_ALLOWED_HEADERS,
+} from './utils/corsHelper.js';
 import authModule from './auth.js';
 import { toNodeHandler } from 'better-auth/node';
 import freeExerciseDBService from './integrations/freeexercisedb/FreeExerciseDBService.js';
@@ -230,19 +233,7 @@ app.use(
         callback(null, {
           origin: allowed,
           methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-          allowedHeaders: [
-            'Content-Type',
-            'Authorization',
-            'x-provider-id',
-            'x-api-key',
-            'x-client-id',
-            'x-requested-with',
-            // MCP StreamableHTTP headers; browser clients fail CORS preflight
-            // without them.
-            'mcp-protocol-version',
-            'mcp-session-id',
-            'last-event-id',
-          ],
+          allowedHeaders: CORS_ALLOWED_HEADERS,
           exposedHeaders: ['mcp-session-id'],
           credentials: true,
           maxAge: 86400,

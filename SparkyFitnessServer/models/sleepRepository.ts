@@ -5,14 +5,50 @@ import {
   scoredStageRemaindersOutsideWindow,
 } from '../utils/sleepStageAggregates.js';
 
+export interface SleepEntryUpsertInput {
+  id?: string;
+  entry_date: string;
+  bedtime: Date | string | null;
+  wake_time: Date | string | null;
+  duration_in_seconds: number;
+  time_asleep_in_seconds?: number | null;
+  sleep_score?: number | null;
+  source: string;
+  deep_sleep_seconds?: number | null;
+  light_sleep_seconds?: number | null;
+  rem_sleep_seconds?: number | null;
+  awake_sleep_seconds?: number | null;
+  average_spo2_value?: number | null;
+  lowest_spo2_value?: number | null;
+  highest_spo2_value?: number | null;
+  average_respiration_value?: number | null;
+  lowest_respiration_value?: number | null;
+  highest_respiration_value?: number | null;
+  awake_count?: number | null;
+  avg_sleep_stress?: number | null;
+  restless_moments_count?: number | null;
+  avg_overnight_hrv?: number | null;
+  body_battery_change?: number | null;
+  resting_heart_rate?: number | null;
+  record_timezone?: string | null;
+  record_utc_offset_minutes?: number | null;
+  [key: string]: unknown;
+}
+
+export interface SleepEntryUpsertOptions {
+  // When true, an incoming null HRV / resting heart rate keeps the stored value
+  // instead of overwriting it. Only syncs that fetch these separately from the
+  // sleep record (and can fail to) should opt in.
+  keepExistingBiometrics?: boolean;
+}
+
 async function upsertSleepEntry(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  _actingUserId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  sleepEntryData: any
-) {
+  userId: string,
+  _actingUserId: string,
+  sleepEntryData: SleepEntryUpsertInput,
+  options: SleepEntryUpsertOptions = {}
+): Promise<{ id: string } & Record<string, unknown>> {
+  const keepBiometrics = options.keepExistingBiometrics === true;
   const client = await getClient(userId);
   try {
     await client.query('BEGIN');
@@ -74,9 +110,9 @@ async function upsertSleepEntry(
                     awake_count = $20,
                     avg_sleep_stress = $21,
                     restless_moments_count = $22,
-                    avg_overnight_hrv = $23,
+                    avg_overnight_hrv = ${keepBiometrics ? 'COALESCE($23, sleep_entries.avg_overnight_hrv)' : '$23'},
                     body_battery_change = $24,
-                    resting_heart_rate = $25,
+                    resting_heart_rate = ${keepBiometrics ? 'COALESCE($25, sleep_entries.resting_heart_rate)' : '$25'},
                     record_timezone = COALESCE($26, record_timezone),
                     record_utc_offset_minutes = COALESCE($27, record_utc_offset_minutes),
                     updated_at = CURRENT_TIMESTAMP
@@ -146,9 +182,9 @@ async function upsertSleepEntry(
                     awake_count = EXCLUDED.awake_count,
                     avg_sleep_stress = EXCLUDED.avg_sleep_stress,
                     restless_moments_count = EXCLUDED.restless_moments_count,
-                    avg_overnight_hrv = EXCLUDED.avg_overnight_hrv,
+                    avg_overnight_hrv = ${keepBiometrics ? 'COALESCE(EXCLUDED.avg_overnight_hrv, sleep_entries.avg_overnight_hrv)' : 'EXCLUDED.avg_overnight_hrv'},
                     body_battery_change = EXCLUDED.body_battery_change,
-                    resting_heart_rate = EXCLUDED.resting_heart_rate,
+                    resting_heart_rate = ${keepBiometrics ? 'COALESCE(EXCLUDED.resting_heart_rate, sleep_entries.resting_heart_rate)' : 'EXCLUDED.resting_heart_rate'},
                     record_timezone = COALESCE(EXCLUDED.record_timezone, sleep_entries.record_timezone),
                     record_utc_offset_minutes = COALESCE(EXCLUDED.record_utc_offset_minutes, sleep_entries.record_utc_offset_minutes),
                     updated_at = CURRENT_TIMESTAMP
@@ -186,7 +222,7 @@ async function upsertSleepEntry(
       log('info', `Saved sleep entry ${sleepEntryId} for user ${userId}.`);
     }
     await client.query('COMMIT');
-    return { id: sleepEntryId, ...sleepEntryData };
+    return { id: sleepEntryId as string, ...sleepEntryData };
   } catch (error) {
     await client.query('ROLLBACK');
     log('error', `Error upserting sleep entry for user ${userId}: `, error);
