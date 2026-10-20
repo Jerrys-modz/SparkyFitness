@@ -372,6 +372,14 @@ export const moodRatingsSupportQueryKey = [
   'moodEntries',
   'ratingsSupport',
 ] as const;
+export const moodCheckinsSupportQueryKey = [
+  'moodEntries',
+  'checkinsSupport',
+] as const;
+export const moodCheckinsQueryKey = (date: string) =>
+  ['moodEntries', 'checkins', date] as const;
+export const moodLegacyDayQueryKey = (date: string) =>
+  ['moodEntries', 'legacyDay', date] as const;
 export const customMoodsQueryKey = ['customMoods'] as const;
 
 export const symptomEntriesQueryKey = (fromDate: string, toDate: string) =>

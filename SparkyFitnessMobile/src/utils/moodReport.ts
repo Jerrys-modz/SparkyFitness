@@ -1,7 +1,7 @@
 import { moodByName, moodValueToTag } from '@workspace/shared';
 import { average } from './mathUtils';
 import { addDays, weekdayOfDay } from './dateUtils';
-import type { MoodEntry } from '../types/mood';
+import type { MoodEntry } from '../services/api/moodApi';
 
 export type MoodDayPoint = {
   day: string;
@@ -60,7 +60,12 @@ export function buildMoodReport(
   for (let i = 0; i < days; i++) {
     const day = addDays(startDate, i);
     const dayEntries = byDay.get(day) ?? [];
-    const mean = average(dayEntries.map((entry) => entry.mood_value));
+    const mean = average(
+      // Interim: skip check-ins with no mood; reworked with the report.
+      dayEntries.flatMap((entry) =>
+        entry.mood_value === null ? [] : [entry.mood_value]
+      )
+    );
     if (mean !== null) dailyAverages.push(mean);
     points.push({ day, value: mean ?? 0, entries: dayEntries.length });
   }

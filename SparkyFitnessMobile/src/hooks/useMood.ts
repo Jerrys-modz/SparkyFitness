@@ -2,10 +2,18 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
+import type {
+  MoodCheckinCreateBody,
+  MoodCheckinUpdateBody,
+} from '@workspace/shared';
 import {
+  createMoodCheckin,
+  deleteMoodCheckin,
   fetchCustomMoods,
+  fetchMoodCheckinsForDate,
   fetchMoodEntries,
   saveMoodEntry,
+  updateMoodCheckin,
   type MoodEntry,
   type SaveMoodEntryBody,
 } from '../services/api/moodApi';
@@ -14,8 +22,11 @@ import { addDays, getTodayDate, normalizeDate } from '../utils/dateUtils';
 import { RANGE_DAYS, type HealthTrendDateRange } from '../types/healthTrends';
 import {
   customMoodsQueryKey,
+  cycleCorrelationsQueryKey,
+  moodCheckinsQueryKey,
   moodEntriesQueryKey,
   moodEntriesRootQueryKey,
+  moodLegacyDayQueryKey,
   moodRatingsSupportQueryKey,
 } from './queryKeys';
 
@@ -46,10 +57,12 @@ export function useMoodEntries(range: HealthTrendDateRange) {
 
   const points = useMemo<MoodDataPoint[]>(
     () =>
-      entries.map((entry) => ({
-        day: entry.entry_date,
-        mood: entry.mood_value,
-      })),
+      // Interim: check-ins with no mood have no point; reworked with the day view.
+      entries.flatMap((entry) =>
+        entry.mood_value === null
+          ? []
+          : [{ day: entry.entry_date, mood: entry.mood_value }]
+      ),
     [entries]
   );
 
@@ -80,7 +93,7 @@ export function useMoodEntriesBetween(startDate: string, endDate: string) {
 /** The entry logged for one calendar day, or null when there is none. */
 export function useMoodEntryForDate(date: string) {
   const query = useQuery({
-    queryKey: moodEntriesQueryKey(date, date),
+    queryKey: moodLegacyDayQueryKey(date),
     queryFn: async () => {
       const entries = await fetchMoodEntries(date, date);
       return entries[0] ?? null;
@@ -123,5 +136,53 @@ export function useSaveMood() {
         text1: t('mood.saveFailed', { defaultValue: 'Could not save mood' }),
       });
     },
+  });
+}
+
+/** A day's check-ins (v2 servers); null when the server answers the old way. */
+export function useMoodCheckinsForDate(date: string) {
+  const query = useQuery({
+    queryKey: moodCheckinsQueryKey(date),
+    queryFn: () => fetchMoodCheckinsForDate(date),
+  });
+  return {
+    checkins: query.data ?? null,
+    isLoading: query.isLoading,
+    isError: query.isError,
+  };
+}
+
+/** Mood feeds the cycle correlations too, so every write refreshes both. */
+function useInvalidateAfterMoodWrite() {
+  const queryClient = useQueryClient();
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: moodEntriesRootQueryKey }),
+      queryClient.invalidateQueries({ queryKey: cycleCorrelationsQueryKey }),
+    ]);
+}
+
+export function useCreateMoodCheckin() {
+  const invalidate = useInvalidateAfterMoodWrite();
+  return useMutation({
+    mutationFn: (body: MoodCheckinCreateBody) => createMoodCheckin(body),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateMoodCheckin() {
+  const invalidate = useInvalidateAfterMoodWrite();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: MoodCheckinUpdateBody }) =>
+      updateMoodCheckin(id, body),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteMoodCheckin() {
+  const invalidate = useInvalidateAfterMoodWrite();
+  return useMutation({
+    mutationFn: (id: string) => deleteMoodCheckin(id),
+    onSuccess: invalidate,
   });
 }

@@ -36,9 +36,11 @@ export default function MoodCard({ navigation, date }: MoodCardProps) {
   const entries = useMoodEntriesBetween(weekStart, selectedDate);
 
   const todayEntry = entries.find((e) => e.entry_date === selectedDate);
-  const todayMood = todayEntry
-    ? moodByName(moodValueToTag(todayEntry.mood_value))
-    : null;
+  // Interim null guard (a check-in can have no mood); reworked with the day view.
+  const todayMood =
+    todayEntry && todayEntry.mood_value !== null
+      ? moodByName(moodValueToTag(todayEntry.mood_value))
+      : null;
 
   const locale = getAppLocale();
   const days = useMemo(() => {
@@ -48,9 +50,10 @@ export default function MoodCard({ navigation, date }: MoodCardProps) {
       const [y, m, d] = day.split('-').map(Number);
       return {
         day,
-        emoji: entry
-          ? moodByName(moodValueToTag(entry.mood_value))?.emoji
-          : null,
+        emoji:
+          entry && entry.mood_value !== null
+            ? moodByName(moodValueToTag(entry.mood_value))?.emoji
+            : null,
         label: new Date(y, m - 1, d).toLocaleDateString(locale, {
           weekday: 'narrow',
         }),

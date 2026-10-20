@@ -1,8 +1,12 @@
 import { apiFetch } from '../../src/services/api/apiClient';
 import {
+  createMoodCheckin,
+  deleteMoodCheckin,
   fetchCustomMoods,
+  fetchMoodCheckinsForDate,
   fetchMoodEntries,
   saveMoodEntry,
+  updateMoodCheckin,
 } from '../../src/services/api/moodApi';
 
 jest.mock('../../src/services/api/apiClient', () => ({
@@ -84,5 +88,96 @@ describe('moodApi', () => {
     expect(mockApiFetch).toHaveBeenCalledWith(
       expect.objectContaining({ endpoint: '/api/mood/custom' })
     );
+  });
+
+  describe('several check-ins per day', () => {
+    const V2 = { headers: { 'X-Mood-Model-Version': '2' } };
+
+    it('sends the v2 header when listing a range', async () => {
+      await fetchMoodEntries('2026-10-01', '2026-10-05');
+      expect(mockApiFetch).toHaveBeenCalledWith(expect.objectContaining(V2));
+    });
+
+    it('does not send the header on custom moods', async () => {
+      await fetchCustomMoods();
+      expect(mockApiFetch.mock.calls[0][0]).not.toHaveProperty('headers');
+    });
+
+    it('lists one day and returns null for an old server answer', async () => {
+      mockApiFetch.mockResolvedValueOnce([]);
+      await expect(fetchMoodCheckinsForDate('2026-10-05')).resolves.toEqual([]);
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          endpoint: '/api/mood/date/2026-10-05',
+          ...V2,
+        })
+      );
+
+      mockApiFetch.mockResolvedValueOnce({});
+      await expect(fetchMoodCheckinsForDate('2026-10-05')).resolves.toBeNull();
+    });
+
+    it('fills source and entry_timestamp on rows from an old server', async () => {
+      mockApiFetch.mockResolvedValueOnce([
+        {
+          id: 'a',
+          entry_date: '2026-10-05',
+          created_at: '2026-10-05T08:00:00Z',
+        },
+        { id: 'b', entry_date: '2026-10-06' },
+        {
+          id: 'c',
+          entry_date: '2026-10-07',
+          source: 'garmin',
+          entry_timestamp: '2026-10-07T01:00:00Z',
+        },
+      ]);
+
+      const rows = await fetchMoodEntries('2026-10-05', '2026-10-07');
+
+      expect(rows.map((r) => [r.source, r.entry_timestamp])).toEqual([
+        ['manual', '2026-10-05T08:00:00Z'],
+        ['manual', '2026-10-06T12:00:00Z'],
+        ['garmin', '2026-10-07T01:00:00Z'],
+      ]);
+    });
+
+    it('creates, updates and deletes with the header', async () => {
+      mockApiFetch.mockResolvedValue({ id: 'x', entry_date: '2026-10-05' });
+      const create = {
+        mood_value: 70,
+        entry_date: '2026-10-05',
+        entry_timestamp: '2026-10-05T14:00:00.000Z',
+      };
+      await createMoodCheckin(create);
+      expect(mockApiFetch).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          endpoint: '/api/mood',
+          method: 'POST',
+          body: create,
+          ...V2,
+        })
+      );
+
+      await updateMoodCheckin('x', { notes: null });
+      expect(mockApiFetch).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          endpoint: '/api/mood/x',
+          method: 'PUT',
+          body: { notes: null },
+          ...V2,
+        })
+      );
+
+      mockApiFetch.mockResolvedValue(undefined);
+      await expect(deleteMoodCheckin('x')).resolves.toBeUndefined();
+      expect(mockApiFetch).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          endpoint: '/api/mood/x',
+          method: 'DELETE',
+          ...V2,
+        })
+      );
+    });
   });
 });

@@ -1,5 +1,5 @@
 import { buildMoodReport, moodTagLabel } from '../../src/utils/moodReport';
-import type { MoodEntry } from '../../src/types/mood';
+import type { MoodEntry } from '../../src/services/api/moodApi';
 
 const entry = (day: string, value: number, tags: string[] = []): MoodEntry => ({
   id: `${day}-${value}`,
