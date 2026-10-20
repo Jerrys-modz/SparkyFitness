@@ -41,7 +41,8 @@ export function routeGenerateErrorMessage(
       });
     case 'notConfigured':
       return t('routes.generateError.notConfigured', {
-        defaultValue: 'This server has no routing service set up.',
+        defaultValue:
+          'No routing provider is set up. Add one in Settings > External Providers on the web app.',
       });
     case 'invalid':
       return t('routes.generateError.invalid', {

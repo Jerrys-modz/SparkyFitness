@@ -301,3 +301,4 @@ export * from './utils/gradeAdjustedTrack.ts';
 export * from './utils/namedFoodPortions.ts';
 export * from './ai/modelFamilies.ts';
 export * from './schemas/api/Mood.api.zod.ts';
+export * from './constants/routingProviderTypes.ts';

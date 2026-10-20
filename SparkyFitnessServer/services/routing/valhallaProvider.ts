@@ -1,7 +1,11 @@
+import http from 'node:http';
+import https from 'node:https';
+import type net from 'node:net';
 import axios, { isAxiosError } from 'axios';
 import { z } from 'zod';
 import type { RoutePoint } from '@workspace/shared';
 import { log } from '../../config/logging.js';
+import pkg from '../../package.json' with { type: 'json' };
 import {
   trailShareFromEdges,
   valhallaCostingOptions,
@@ -19,7 +23,20 @@ export interface ValhallaProviderOptions {
   baseUrl: string;
   apiKey?: string;
   timeoutMs: number;
+  /**
+   * Resolves the server's hostname for every connection. Set for a
+   * user-added URL under the public-only network policy, so a name that later
+   * points at an internal address is refused when it is used, not just when
+   * it was saved.
+   */
+  lookup?: net.LookupFunction;
 }
+
+/**
+ * Public Valhalla servers ask clients to identify themselves, so every
+ * request says who is calling and where to read about it.
+ */
+export const ROUTING_USER_AGENT = `SparkyFitness/${pkg.version} (route generation; https://github.com/CodeWithCJ/SparkyFitness)`;
 
 const COSTING: Record<RoutingActivity, 'pedestrian' | 'bicycle'> = {
   run: 'pedestrian',
@@ -111,6 +128,13 @@ export function createValhallaProvider(
   const base = options.baseUrl.replace(/\/+$/, '');
   const config = {
     timeout: options.timeoutMs,
+    headers: { 'User-Agent': ROUTING_USER_AGENT },
+    ...(options.lookup
+      ? {
+          httpAgent: new http.Agent({ lookup: options.lookup }),
+          httpsAgent: new https.Agent({ lookup: options.lookup }),
+        }
+      : {}),
     // The key travels as `api_key`, the convention of hosted Valhalla
     // services; self-hosted engines ignore it.
     params: options.apiKey ? { api_key: options.apiKey } : undefined,

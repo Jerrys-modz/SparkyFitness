@@ -4,6 +4,7 @@ import externalProviderService from '../services/externalProviderService.js';
 import { invalidateOpenFoodFactsSession } from '../integrations/openfoodfacts/openFoodFactsAuth.js';
 import globalSettingsRepository from '../models/globalSettingsRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
+import { resolveIsAdminByUserId } from '../utils/adminCheck.js';
 
 vi.mock('../models/externalProviderRepository.js');
 vi.mock('../models/globalSettingsRepository.js');
@@ -29,6 +30,9 @@ vi.mock(
   }
 );
 vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
+vi.mock('../utils/adminCheck.js', () => ({
+  resolveIsAdminByUserId: vi.fn(),
+}));
 
 const OWNER = 'owner-1';
 const VIEWER = 'viewer-2';
@@ -1230,5 +1234,58 @@ describe('getAutomaticOpenFoodFactsProvider', () => {
       scope: 'global',
       configurationIdentity: expect.any(String),
     });
+  });
+});
+
+describe('createExternalDataProvider - Valhalla routing provider', () => {
+  const create = vi.mocked(
+    externalProviderRepository.createExternalDataProvider
+  );
+  const routing = (base_url: string) => ({
+    provider_name: 'Routing',
+    provider_type: 'valhalla',
+    base_url,
+    app_key: 'stadia-key',
+    is_active: true,
+  });
+
+  beforeEach(() => {
+    create.mockResolvedValue({ id: 'new-1' });
+    vi.mocked(resolveIsAdminByUserId).mockResolvedValue(false);
+  });
+
+  it('stores the base URL and API key for a public server', async () => {
+    await externalProviderService.createExternalDataProvider(
+      OWNER,
+      routing('https://8.8.8.8:8002')
+    );
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: OWNER,
+        provider_type: 'valhalla',
+        base_url: 'https://8.8.8.8:8002',
+        app_key: 'stadia-key',
+        is_public: false,
+      })
+    );
+  });
+
+  it('refuses an internal address from a non-admin, as for Mealie', async () => {
+    await expect(
+      externalProviderService.createExternalDataProvider(
+        OWNER,
+        routing('http://10.0.0.5:8002')
+      )
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('lets an admin point at a LAN Valhalla', async () => {
+    vi.mocked(resolveIsAdminByUserId).mockResolvedValue(true);
+    await externalProviderService.createExternalDataProvider(
+      OWNER,
+      routing('http://10.0.0.5:8002')
+    );
+    expect(create).toHaveBeenCalled();
   });
 });

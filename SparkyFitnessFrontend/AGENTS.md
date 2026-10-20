@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-19_
+_Last updated: 2026-10-20_
 
 SparkyFitness Frontend is the React web app for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessFrontend/`.
 
@@ -120,6 +120,7 @@ When searching, ignore `node_modules/`, `dist/`, and every locale except `public
 - Route heatmap: `pages/Reports/RouteHeatmapCard.tsx` in the Exercise report (All and Cardio views; hidden when `isActingOnBehalf`, because `GET /api/v2/heatmap` is owner-only), fed by `useHeatmap` (`hooks/Reports/useReports.ts`) from `api/Reports/heatmapService.ts`. It reuses the Leaflet already used by `ActivityReportMap`/`WorkoutGpsMap` (no new map dependency) and draws the server's grid cells as canvas `Rectangle`s; the view is re-requested on `moveend`, a click shows the count of the nearest cell. Segments are mobile-only.
 - Running fitness tests (5K time trial, 30-minute run, Cooper test): read-only `components/ExerciseCharts/FitnessTestsCard.tsx` at the top of Reports > Exercise > Cardio, fed by `hooks/Exercises/useFitnessTests.ts` over `api/Exercises/fitnessTestService.ts` (`GET /api/v2/fitness-tests`). The tests are recorded in the mobile app and are owner-only on the server, so the hook is disabled while `isActingOnBehalf` is true. The paces come from the server's stored `paces`; the card only formats them, and marks treadmill tests (`surface`, `incline_percent`, `incline_adjusted`).
 - Heart rate zones: Settings → Profile & Account → Heart Rate Zones (`src/pages/Settings/HeartRateZoneSettings.tsx`, `src/hooks/Settings/useHeartRateZones.ts`, `src/api/Settings/heartRateZones.ts` over `GET`/`PUT /api/v2/heart-rate-zones`). Zone maths is shared (`@workspace/shared` `heartRateZones.ts`); labels are in `src/utils/heartRateZoneLabels.ts`. `ActivityHeartRateZonesChart` takes `zoneMethod` (from the stored `zone_method` of the workout's zone rows) and says which method the zones were worked out with; stored zones are never recomputed when settings change.
+- Routing provider (Valhalla, route generation and Follow roads): a Settings > External Providers type like Mealie, with `pages/Settings/RoutingProviderFields.tsx` (URL prefilled from shared `ROUTING_PROVIDER_DEFAULT_BASE_URL`, optional API key, privacy and fair-use notes) used by `ProviderSpecificFields` (add) and `EditProviderForm`; the type row is seeded by the server migration, the server resolves it per person (see the server guide).
 - Chart issue: Recharts usage in the domain page plus `src/components/ExerciseCharts/` or `ZoomableChart.tsx`.
 
 ## Priority Rule

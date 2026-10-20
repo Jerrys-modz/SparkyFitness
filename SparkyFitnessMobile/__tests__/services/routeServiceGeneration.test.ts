@@ -120,6 +120,7 @@ describe('route generation service', () => {
           avoidBusyRoads: false,
         },
         stops: true,
+        source: null,
       });
     });
 

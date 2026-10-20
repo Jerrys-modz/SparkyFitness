@@ -28,6 +28,9 @@ vi.mock('../models/routeRepository.js', () => ({
   RouteLimitError: class RouteLimitError extends Error {},
   ActivityHasNoRouteError: class ActivityHasNoRouteError extends Error {},
 }));
+vi.mock('../models/externalProviderRepository.js', () => ({
+  default: { getActiveProviderWithKeyByType: vi.fn(async () => null) },
+}));
 vi.mock('axios', async (importOriginal) => {
   const actual = await importOriginal<typeof import('axios')>();
   return { ...actual, default: { ...actual.default, post: vi.fn() } };

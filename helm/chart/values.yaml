@@ -57,7 +57,8 @@ config:
   # extraTrustedOrigins: "http://localhost:3004"
   extraTrustedOrigins: ""
 
-  # -- Route generation (optional). Leave `url` empty to keep the feature off.
+  # -- Route generation fallback (optional). People add a routing provider in
+  # Settings > External Providers; this applies to those who have not. Leave `url` empty to skip it.
   routing:
     # -- Base URL of the routing engine (e.g. http://valhalla:8002)
     url: ""

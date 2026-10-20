@@ -2,7 +2,7 @@
 
 SparkyFitness can generate a run, walk, ride or hike route for you: a loop or out-and-back of a distance you choose, or a route through points you pick. The result is a preview with turn-by-turn cues; saving it adds it to your saved routes.
 
-Route generation is **optional and off by default**. SparkyFitness is self-hosted and doesn't depend on any hosted routing service, so the server's admin has to point it at a routing engine they run (or have a key for). Until they do, the app reports the feature as unavailable.
+Route generation is **optional and off until a routing provider is added**. SparkyFitness doesn't ship a routing engine and the server needs no extra container or environment variable: you add a Valhalla routing service as an external provider, the same way you add Mealie or Hevy. Until one is added, the app reports the feature as unavailable.
 
 ---
 
@@ -16,18 +16,43 @@ The server talks to engines through a small `RoutingProvider` interface, so anot
 
 ## Turning it on
 
-1. Run a Valhalla engine (below) where the SparkyFitness server can reach it.
-2. Set these in your `.env` and restart the server:
+### Add a routing provider (recommended)
 
-   ```bash
-   SPARKY_FITNESS_ROUTING_URL=http://sparkyfitness-valhalla:8002
-   # SPARKY_FITNESS_ROUTING_PROVIDER=valhalla   # the default, and the only value for now
-   # SPARKY_FITNESS_ROUTING_API_KEY=            # only for a hosted engine that needs a key
-   ```
+1. In the web app, open **Settings → External Providers → Add**.
+2. Choose the type **Valhalla routing** and give it a name.
+3. Enter the **Valhalla server URL**. The form suggests the public FOSSGIS server, `https://valhalla1.openstreetmap.de`; change it to your own server or a hosted service if you prefer.
+4. Enter an **API key** only if the service needs one (hosted services such as [Stadia Maps](https://stadiamaps.com) do). It is sent as the `api_key` query parameter, stored encrypted like the keys of other providers, never shown to anyone else and never logged.
+5. Turn **Activate this provider** on and save.
 
-The key is optional. If you use one, it can also be supplied as `SPARKY_FITNESS_ROUTING_API_KEY_FILE` (a Docker or Kubernetes secret file). It's sent as the `api_key` query parameter, the convention of hosted Valhalla services, and is never logged. See [Environment Variables](../../install/environment-variables.md) for the full list. On Kubernetes, set `config.routing.url` (and optionally `config.routing.apiKeySecret`) in the Helm values.
+It works at once: no restart. `GET /api/v2/routes/generate/capabilities` returns `"available": true` and the mobile app shows route generation and **Follow roads** the next time it checks (it re-checks every few minutes, or when you reopen the app).
 
-To check it's on, open `GET /api/v2/routes/generate/capabilities` as a signed-in user: it returns `"available": true` once the URL is set, along with what the engine supports (see below).
+The provider belongs to you, like any other. Sharing follows the usual rules for external providers: an admin can add one in **Admin → Global Provider Settings** to make it available to everyone on the server, and with the **Share Integrations** family permission your family members can use yours (see [Family & Friends Sharing](../family-friends-sharing.md)). A person's own active provider is used first, then a public or shared one, then the environment fallback below. Generating and snapping routes is still always for the signed-in person only, with the limit of 10 requests per 10 minutes.
+
+::: warning Your route points go to that server
+To plan a route, the SparkyFitness **server** sends the start, end and waypoints (and, to find elevation and surface, the resulting line) to the server you choose, which can see them. Use a server you trust, or run your own (below). Your phone never contacts the routing server directly, and saved routes, segments and heatmaps are never sent.
+:::
+
+### The public and hosted options
+
+- **FOSSGIS public server** (`https://valhalla1.openstreetmap.de`): a shared server run for the OpenStreetMap community. It is free to try but subject to fair-use limits, so it suits light use. Third-party sources report about one request per second per user, but this is unverified against FOSSGIS's own terms, so check their [terms](https://www.fossgis.de) before relying on it. SparkyFitness identifies itself with a `User-Agent` starting `SparkyFitness/`, as public servers expect.
+- **Stadia Maps**: its free plan is for development and **non-commercial use only**; commercial use needs a paid plan. Check their [pricing and limits](https://docs.stadiamaps.com/limits/) for the current quotas.
+- **Your own Valhalla**: no limits except your hardware; see [Running Valhalla locally](#running-valhalla-locally).
+
+A loop request costs up to three engine calls per option, which is another reason to keep to your own server for heavy use.
+
+If the provider's URL points at a private or LAN address, the usual rule for self-hosted providers applies: admins may, other users may not unless the operator allows it in **Admin → Global Provider Settings** (or `ALLOW_PRIVATE_NETWORK_FOOD_PROVIDERS=true`).
+
+### Environment variables (optional fallback)
+
+Existing setups keep working. If a person has no routing provider, the server falls back to these in your `.env`:
+
+```bash
+SPARKY_FITNESS_ROUTING_URL=http://sparkyfitness-valhalla:8002
+# SPARKY_FITNESS_ROUTING_PROVIDER=valhalla   # the default, and the only value for now
+# SPARKY_FITNESS_ROUTING_API_KEY=            # only for a hosted engine that needs a key
+```
+
+The key can also be supplied as `SPARKY_FITNESS_ROUTING_API_KEY_FILE` (a Docker or Kubernetes secret file). See [Environment Variables](../../install/environment-variables.md). On Kubernetes, set `config.routing.url` (and optionally `config.routing.apiKeySecret`) in the Helm values. New installs don't need any of this.
 
 ---
 
@@ -65,7 +90,7 @@ The public instances are shared, so for more than light use run your own Overpas
 
 In the mobile app, **Routes → Draw** and **Edit route on map** (on a saved route) open the route editor. Tap the map to add points, tap the line to insert a point on it, drag a point to move it, and select a point to delete it. Undo, Redo and Clear cover every change. The **Satellite** button switches the map to the platform's satellite imagery.
 
-With a routing engine configured, **Follow roads** snaps each stretch between points to roads or trails. Select a point and choose **Straight before** or **Straight after** to draw that stretch as a plain line (for a shortcut across a field, say). Moving a point re-routes only the stretches next to it, and stretches of a saved route you have not touched keep the line they had. Without a routing engine every stretch is a straight line.
+With a routing provider available, **Follow roads** snaps each stretch between points to roads or trails. Select a point and choose **Straight before** or **Straight after** to draw that stretch as a plain line (for a shortcut across a field, say). Moving a point re-routes only the stretches next to it, and stretches of a saved route you have not touched keep the line they had. Without one the switch is shown disabled with a note that a routing provider is needed (add it in Settings → External Providers on the web app), and every stretch is a straight line.
 
 ## Running Valhalla locally
 
@@ -115,11 +140,12 @@ Returns what this server offers:
     "avoidSteps": true,
     "avoidBusyRoads": true
   },
-  "stops": false
+  "stops": false,
+  "source": "provider"
 }
 ```
 
-`available` is false when no routing engine is set; then `maxAlternatives` is 1 and every `style` field is false. `stops` is true when `SPARKY_FITNESS_OVERPASS_URL` is set, whether or not a routing engine is. Older servers send only `available`; clients read a missing field as "not supported".
+The answer is for the signed-in person. `source` is `"provider"` when it comes from a routing provider (their own, a public one or a shared one), `"env"` for the environment fallback, and `null` when `available` is false. `available` is false when there is neither; then `maxAlternatives` is 1 and every `style` field is false. `stops` is true when `SPARKY_FITNESS_OVERPASS_URL` is set, whether or not a routing engine is. Older servers send only `available`; clients read a missing field as "not supported".
 
 ### `POST /api/v2/routes/generate`
 
@@ -138,7 +164,7 @@ The response is `{ "route": {...}, "options": [{ "route": {...}, "label": "flatt
 | `422`  | The engine found no route (for example a start point off the map extract)     |
 | `429`  | More than 10 generate requests in 10 minutes for this user; see `Retry-After` |
 | `502`  | The engine was unreachable, failed, or refused the server's credentials       |
-| `503`  | Route generation isn't configured on this server                              |
+| `503`  | You have no routing provider and the server has no fallback configured        |
 | `504`  | The engine took longer than 20 seconds                                        |
 
 ### `POST /api/v2/routes/stops` and `GET /api/v2/routes/:id/stops`

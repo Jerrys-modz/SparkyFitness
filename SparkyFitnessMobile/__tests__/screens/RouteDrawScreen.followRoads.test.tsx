@@ -1,4 +1,5 @@
 import React from 'react';
+import { Switch } from 'react-native';
 import { act, fireEvent, render } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { type GeneratedRoutePreview } from '@workspace/shared';
@@ -128,10 +129,36 @@ describe('RouteDrawScreen follow roads', () => {
   });
   afterEach(() => jest.useRealTimers());
 
+  it('shows a disabled Follow roads row that says a routing provider is needed', () => {
+    mockCapabilities.mockReturnValue(caps(false));
+    const utils = renderScreen();
+    expect(utils.getByText('Follow roads')).toBeTruthy();
+    expect(
+      utils.getByText(
+        'A routing provider is needed. Add one in Settings > External Providers on the web app.'
+      )
+    ).toBeTruthy();
+    const toggles = utils.UNSAFE_getAllByType(Switch);
+    expect(toggles).toHaveLength(1);
+    expect(toggles[0].props.disabled).toBe(true);
+    expect(toggles[0].props.value).toBe(false);
+  });
+
+  it('does not flash the disabled row while capabilities are loading', () => {
+    mockCapabilities.mockReturnValue({ ...caps(false), isLoading: true });
+    const utils = renderScreen();
+    expect(utils.queryByText('Follow roads')).toBeNull();
+  });
+
+  it('shows the working switch, not the notice, with a routing provider', () => {
+    const utils = renderScreen();
+    expect(utils.queryByText(/routing provider is needed/i)).toBeNull();
+    expect(utils.UNSAFE_getAllByType(Switch)[0].props.disabled).toBeFalsy();
+  });
+
   it('keeps working as before without a routing engine', () => {
     mockCapabilities.mockReturnValue(caps(false));
     const utils = renderScreen();
-    expect(utils.queryByText('Follow roads')).toBeNull();
     tapMap(utils, 40);
     tapMap(utils, 40.01);
     expect(utils.getAllByTestId('map-polyline')).toHaveLength(1);
