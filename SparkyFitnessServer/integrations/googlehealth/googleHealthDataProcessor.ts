@@ -961,7 +961,7 @@ async function processGoogleWater(
 // ──────────────────────────────────────────────────────────────────────────────
 // Core Body Temperature
 // Google data type: core-body-temperature
-// Response: dataPoints[].coreBodyTemperature.temperature (Celsius)
+// Response: dataPoints[].coreBodyTemperature.temperatureCelsius
 // ──────────────────────────────────────────────────────────────────────────────
 async function processGoogleCoreTemperature(
   userId: UserId,
@@ -981,12 +981,15 @@ async function processGoogleCoreTemperature(
     const entryDate = extractDate(point as Record<string, unknown>, tz);
     if (!entryDate) continue;
     const temp = (
-      point.coreBodyTemperature as { temperature?: unknown } | undefined
-    )?.temperature;
+      point.coreBodyTemperature as
+        { temperatureCelsius?: number | string } | undefined
+    )?.temperatureCelsius;
     if (temp === null || temp === undefined) continue;
+    const celsius = Number(temp);
+    if (!Number.isFinite(celsius)) continue;
     await upsertCustomMeasurementLogic(userId, createdByUserId, {
       categoryName: 'Core Temperature',
-      value: parseFloat(temp as string),
+      value: celsius,
       unit: 'C',
       entryDate,
       entryHour: 0,
@@ -1045,91 +1048,66 @@ async function processGoogleVO2Max(
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Activity Minutes breakdown — matches Fitbit's minutesSedentary/LightlyActive/FairlyActive/VeryActive
-// Google data type: activity-level
-// Response: dataPoints[].activityLevel.{type, duration, interval}
-// Types: SEDENTARY, LIGHTLY_ACTIVE, MODERATELY_ACTIVE, VERY_ACTIVE
-// Aggregated per day; stored as 4 separate custom measurements.
+// Google data types: active-minutes and sedentary-period (dailyRollup)
+// Response: rollupDataPoints[].activeMinutes.activeMinutesRollupByActivityLevel[].{activityLevel, activeMinutesSum}
+//           rollupDataPoints[].sedentaryPeriod.durationSum (e.g. "31740s")
+// Levels: LIGHT, MODERATE, VIGOROUS. A level missing from a day's rollup had 0 minutes.
+// These are Google's own daily totals, already merged across devices. The per-minute
+// activity-level stream is not: a tracker and the phone each report the same minute,
+// so summing it counts those minutes twice.
 // ──────────────────────────────────────────────────────────────────────────────
+type ActiveMinutesRollup = {
+  activeMinutesRollupByActivityLevel?: Array<{
+    activityLevel?: string;
+    activeMinutesSum?: string | number;
+  }>;
+};
+type SedentaryPeriodRollup = { durationSum?: string };
+
+const ACTIVE_MINUTES_CATEGORIES: Array<[string, string]> = [
+  ['LIGHT', 'Minutes Lightly Active'],
+  ['MODERATE', 'Minutes Fairly Active'],
+  ['VIGOROUS', 'Minutes Very Active'],
+];
+
 async function processGoogleActivityMinutes(
   userId: UserId,
   createdByUserId: UserId,
-  data: GoogleDataResult,
-  tz = 'UTC'
+  data: GoogleRollupResult,
+  _tz = 'UTC'
 ) {
-  const points = data?.dataPoints;
+  const points = data?.rollupDataPoints;
   if (!points || points.length === 0) {
-    log('info', `No Google Health activity level data for user ${userId}.`);
+    log('info', `No Google Health activity minutes data for user ${userId}.`);
     return;
   }
 
-  type DayBuckets = {
-    sedentary: number;
-    light: number;
-    moderate: number;
-    veryActive: number;
-  };
-  const byDate = new Map<string, DayBuckets>();
-
   for (const point of points) {
-    const payload = point.activityLevel as
-      | {
-          type?: string;
-          duration?: unknown;
-          interval?: Record<string, unknown>;
-        }
-      | undefined;
-    if (!payload) continue;
+    const d = (point.civilStartTime as CivilStartTimePoint | undefined)?.date;
+    if (!d?.year) continue;
+    const entryDate = `${d.year}-${String(d.month).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`;
 
-    // Determine which date this segment belongs to
-    const entryDate = extractDate(point as Record<string, unknown>, tz);
-    if (!entryDate) continue;
-
-    // Duration: may be explicit "duration" field or derivable from interval
-    let durationSec = 0;
-    if (payload.duration) {
-      const plain = String(payload.duration).match(/^(\d+(?:\.\d+)?)s$/i);
-      durationSec = plain ? Math.round(parseFloat(plain[1])) : 0;
-    } else if (payload.interval?.startTime && payload.interval?.endTime) {
-      const s = googleTimeToIso(payload.interval.startTime);
-      const e = googleTimeToIso(payload.interval.endTime);
-      if (s && e) {
-        durationSec = Math.round(
-          (new Date(e).getTime() - new Date(s).getTime()) / 1000
-        );
+    const values: Array<[string, number]> = [];
+    const byLevel = (point.activeMinutes as ActiveMinutesRollup | undefined)
+      ?.activeMinutesRollupByActivityLevel;
+    if (byLevel && byLevel.length > 0) {
+      for (const [level, categoryName] of ACTIVE_MINUTES_CATEGORIES) {
+        const sum = byLevel.find(
+          (r) => r.activityLevel === level
+        )?.activeMinutesSum;
+        const minutes = sum === undefined ? 0 : Number(sum);
+        if (Number.isFinite(minutes)) values.push([categoryName, minutes]);
       }
     }
-    if (durationSec <= 0) continue;
-
-    const durationMin = durationSec / 60;
-    const type: string = payload.type || '';
-
-    if (!byDate.has(entryDate)) {
-      byDate.set(entryDate, {
-        sedentary: 0,
-        light: 0,
-        moderate: 0,
-        veryActive: 0,
-      });
+    const sedentarySeconds = parseDurationToSeconds(
+      (point.sedentaryPeriod as SedentaryPeriodRollup | undefined)?.durationSum
+    );
+    if (sedentarySeconds !== null) {
+      values.push(['Minutes Sedentary', Math.round(sedentarySeconds / 60)]);
     }
-    const buckets = byDate.get(entryDate)!;
-    if (type === 'SEDENTARY') buckets.sedentary += durationMin;
-    else if (type === 'LIGHTLY_ACTIVE') buckets.light += durationMin;
-    else if (type === 'MODERATELY_ACTIVE' || type === 'FAIRLY_ACTIVE')
-      buckets.moderate += durationMin;
-    else if (type === 'VERY_ACTIVE') buckets.veryActive += durationMin;
-  }
+    if (values.length === 0) continue;
 
-  const categoryMap: Array<[keyof DayBuckets, string]> = [
-    ['sedentary', 'Minutes Sedentary'],
-    ['light', 'Minutes Lightly Active'],
-    ['moderate', 'Minutes Fairly Active'],
-    ['veryActive', 'Minutes Very Active'],
-  ];
-
-  for (const [entryDate, buckets] of byDate) {
-    for (const [key, categoryName] of categoryMap) {
-      const value = Math.round(buckets[key]);
-      if (value <= 0) continue;
+    for (const [categoryName, value] of values) {
       await upsertCustomMeasurementLogic(userId, createdByUserId, {
         categoryName,
         value,

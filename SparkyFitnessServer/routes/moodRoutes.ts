@@ -1,9 +1,21 @@
 import express from 'express';
-import { clampStoredMoodValue } from '@workspace/shared';
-import moodRepository from '../models/moodRepository.js';
+import { clampStoredMoodValue, moodRatingsBodySchema } from '@workspace/shared';
+import moodRepository, {
+  type MoodRatingsInput,
+} from '../models/moodRepository.js';
 import { authenticate } from '../middleware/authMiddleware.js';
 import checkPermissionMiddleware from '../middleware/checkPermissionMiddleware.js';
 const router = express.Router();
+
+// Null when the body carries an out-of-range or non-integer rating.
+function parseMoodRatings(body: unknown): MoodRatingsInput | null {
+  const ratings = moodRatingsBodySchema.safeParse(body ?? {});
+  if (!ratings.success) return null;
+  return {
+    energyValue: ratings.data.energy_value,
+    focusValue: ratings.data.focus_value,
+  };
+}
 router.use(authenticate);
 // Mood entries are check-in data (RLS uses the check-in policy). Guard every
 // endpoint with the matching permission: GET maps to checkin_read (also allows
@@ -97,6 +109,18 @@ router.put('/display-preferences', async (req, res, next) => {
  *               notes:
  *                 type: string
  *                 description: Optional notes about the mood.
+ *               energy_value:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 5
+ *                 nullable: true
+ *                 description: Optional energy rating from 1 to 5. Omit to keep the stored value; null clears it.
+ *               focus_value:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 5
+ *                 nullable: true
+ *                 description: Optional focus rating from 1 to 5. Omit to keep the stored value; null clears it.
  *               entry_date:
  *                 type: string
  *                 format: date
@@ -110,7 +134,7 @@ router.put('/display-preferences', async (req, res, next) => {
  *             schema:
  *               $ref: '#/components/schemas/MoodEntry'
  *       400:
- *         description: Mood value is required.
+ *         description: Mood value is required, or energy or focus is not a whole number from 1 to 5.
  *       401:
  *         description: Unauthorized.
  *       500:
@@ -120,6 +144,12 @@ router.post('/', async (req, res, next) => {
   try {
     const { mood_value, mood_tags, notes, entry_date } = req.body ?? {};
 
+    const ratingsInput = parseMoodRatings(req.body);
+    if (!ratingsInput) {
+      return res.status(400).json({
+        message: 'Energy and focus must be whole numbers from 1 to 5.',
+      });
+    }
     const userId = req.userId;
     // Catch both an explicit null and a missing/undefined field. A missing
     // field previously slipped through and hit the DB NOT NULL constraint,
@@ -142,7 +172,8 @@ router.post('/', async (req, res, next) => {
       storedMoodValue,
       notes,
       entry_date,
-      Array.isArray(mood_tags) ? mood_tags : null
+      Array.isArray(mood_tags) ? mood_tags : null,
+      ratingsInput
     );
     res.status(201).json(newMoodEntry);
   } catch (error) {
@@ -200,7 +231,7 @@ router.get('/', async (req, res, next) => {
   try {
     const { userId, startDate, endDate } = req.query;
 
-    const targetUserId = userId || req.userId;
+    const targetUserId = (userId as string | undefined) || req.userId;
     if (!startDate || !endDate) {
       return res
         .status(400)
@@ -208,8 +239,8 @@ router.get('/', async (req, res, next) => {
     }
     const moodEntries = await moodRepository.getMoodEntriesByUserId(
       targetUserId,
-      startDate,
-      endDate
+      startDate as string,
+      endDate as string
     );
     res.json(moodEntries);
   } catch (error) {
@@ -278,7 +309,7 @@ router.get('/date/:entryDate', async (req, res, next) => {
     const { entryDate } = req.params;
     const { userId } = req.query;
 
-    const targetUserId = userId || req.userId;
+    const targetUserId = (userId as string | undefined) || req.userId;
     const moodEntry = await moodRepository.getMoodEntryByDate(
       targetUserId,
       entryDate
@@ -317,14 +348,34 @@ router.get('/date/:entryDate', async (req, res, next) => {
  *                 description: Mood intensity on a 10-100 scale; see the MoodEntry schema for the band boundaries.
  *               notes:
  *                 type: string
+ *               energy_value:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 5
+ *                 nullable: true
+ *                 description: Optional energy rating from 1 to 5. Omit to keep the stored value; null clears it.
+ *               focus_value:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 5
+ *                 nullable: true
+ *                 description: Optional focus rating from 1 to 5. Omit to keep the stored value; null clears it.
  *     responses:
  *       200:
  *         description: Updated mood entry.
+ *       400:
+ *         description: Invalid mood value or energy/focus rating.
  */
 router.put('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const { mood_value, notes, mood_tags } = req.body;
+    const ratingsInput = parseMoodRatings(req.body);
+    if (!ratingsInput) {
+      return res.status(400).json({
+        message: 'Energy and focus must be whole numbers from 1 to 5.',
+      });
+    }
     // Same clamp as the create path. An absent value is left for the UPDATE's
     // COALESCE to keep whatever the row already holds, so only a supplied one
     // is brought into range.
@@ -343,7 +394,8 @@ router.put('/:id', async (req, res, next) => {
       req.userId,
       storedMoodValue,
       notes,
-      Array.isArray(mood_tags) ? mood_tags : null
+      Array.isArray(mood_tags) ? mood_tags : null,
+      ratingsInput
     );
     // RLS scopes the UPDATE to the caller, so a missing or not-owned id returns
     // no row. Return 404 instead of a misleading empty-body 200.

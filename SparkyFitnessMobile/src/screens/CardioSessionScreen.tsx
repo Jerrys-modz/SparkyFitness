@@ -26,6 +26,7 @@ import HeartRateChart from '../components/exerciseStats/HeartRateChart';
 import PaceChart from '../components/exerciseStats/PaceChart';
 import HeartRateZones from '../components/exerciseStats/HeartRateZones';
 import ProgramWorkoutBadge from '../components/recording/ProgramWorkoutBadge';
+import ShoePickerCard from '../components/ShoePickerCard';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type CardioSessionScreenProps = RootStackScreenProps<'CardioSession'>;
@@ -171,6 +172,7 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
             defaultValue: 'Share as image',
           })}
         </Button>
+        <ShoePickerCard exerciseEntryId={session.id} />
 
         <Card
           title={t('exerciseStatistics.cardio.route', {

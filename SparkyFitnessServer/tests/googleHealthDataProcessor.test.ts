@@ -52,6 +52,8 @@ import {
   processGoogleActiveZoneMinutes,
   processGoogleSleep,
   processGoogleActivities,
+  processGoogleActivityMinutes,
+  processGoogleCoreTemperature,
 } from '../integrations/googlehealth/googleHealthDataProcessor.js';
 import measurementRepository from '../models/measurementRepository.js';
 import sleepRepository from '../models/sleepRepository.js';
@@ -448,5 +450,165 @@ describe('processGoogleSleep — recording-zone stamp', () => {
     await processGoogleSleep(UID, CID, dataPoints(point));
     const entry = vi.mocked(sleepRepository.upsertSleepEntry).mock.calls[0][2];
     expect(entry.record_utc_offset_minutes).toBeUndefined();
+  });
+});
+
+// ─── Activity minutes ────────────────────────────────────────────────────────
+
+// Each category resolves to an id equal to its name, so an upsert call shows
+// which category it wrote: upsertCustomMeasurement(userId, createdBy, categoryId, value, date, ...).
+const ACTIVITY_CATEGORIES = [
+  'Minutes Sedentary',
+  'Minutes Lightly Active',
+  'Minutes Fairly Active',
+  'Minutes Very Active',
+].map((name) => ({ id: name, name }));
+
+function upsertedValues(): Record<string, Record<string, number>> {
+  const out: Record<string, Record<string, number>> = {};
+  for (const call of vi.mocked(measurementRepository.upsertCustomMeasurement)
+    .mock.calls) {
+    const [, , categoryId, value, entryDate] = call as unknown as [
+      string,
+      string,
+      string,
+      number,
+      string,
+    ];
+    out[entryDate] = { ...out[entryDate], [categoryId]: value };
+  }
+  return out;
+}
+
+// dailyRollUp responses recorded from a Fitbit account through the
+// Google Health API (active-minutes and sedentary-period, 2026-10-09 and -10).
+// Rollup points carry no user or device identifiers. On 2026-10-10 Google
+// returned only LIGHT: a level with no minutes is left out of the rollup.
+const RECORDED_ACTIVITY_ROLLUPS = [
+  {
+    civilStartTime: { date: { year: 2026, month: 10, day: 9 }, time: {} },
+    civilEndTime: { date: { year: 2026, month: 10, day: 10 }, time: {} },
+    activeMinutes: {
+      activeMinutesRollupByActivityLevel: [
+        { activityLevel: 'LIGHT', activeMinutesSum: '304' },
+        { activityLevel: 'MODERATE', activeMinutesSum: '86' },
+        { activityLevel: 'VIGOROUS', activeMinutesSum: '27' },
+      ],
+    },
+  },
+  {
+    civilStartTime: { date: { year: 2026, month: 10, day: 10 }, time: {} },
+    civilEndTime: { date: { year: 2026, month: 10, day: 11 }, time: {} },
+    activeMinutes: {
+      activeMinutesRollupByActivityLevel: [
+        { activityLevel: 'LIGHT', activeMinutesSum: '309' },
+      ],
+    },
+  },
+  {
+    civilStartTime: { date: { year: 2026, month: 10, day: 9 }, time: {} },
+    civilEndTime: { date: { year: 2026, month: 10, day: 10 }, time: {} },
+    sedentaryPeriod: { durationSum: '31740s' },
+  },
+  {
+    civilStartTime: { date: { year: 2026, month: 10, day: 10 }, time: {} },
+    civilEndTime: { date: { year: 2026, month: 10, day: 11 }, time: {} },
+    sedentaryPeriod: { durationSum: '32040s' },
+  },
+];
+
+describe('processGoogleActivityMinutes', () => {
+  beforeEach(() => {
+    vi.mocked(measurementRepository.getCustomCategories).mockResolvedValue(
+      ACTIVITY_CATEGORIES as never
+    );
+  });
+
+  it('stores Google daily totals per day from recorded rollups (issue #2915)', async () => {
+    await processGoogleActivityMinutes(
+      UID,
+      CID,
+      rollupPoints(...RECORDED_ACTIVITY_ROLLUPS)
+    );
+    expect(upsertedValues()).toEqual({
+      '2026-10-09': {
+        'Minutes Lightly Active': 304,
+        'Minutes Fairly Active': 86,
+        'Minutes Very Active': 27,
+        'Minutes Sedentary': 529,
+      },
+      // MODERATE and VIGOROUS were absent from the rollup, so they are 0
+      '2026-10-10': {
+        'Minutes Lightly Active': 309,
+        'Minutes Fairly Active': 0,
+        'Minutes Very Active': 0,
+        'Minutes Sedentary': 534,
+      },
+    });
+  });
+
+  it('writes nothing for a day whose rollup has no activity levels', async () => {
+    const point = {
+      civilStartTime: { date: { year: 2026, month: 10, day: 9 } },
+      activeMinutes: {},
+    };
+    await processGoogleActivityMinutes(UID, CID, rollupPoints(point));
+    expect(
+      measurementRepository.upsertCustomMeasurement
+    ).not.toHaveBeenCalled();
+  });
+
+  it('skips a point with no civilStartTime date', async () => {
+    const point = {
+      activeMinutes: {
+        activeMinutesRollupByActivityLevel: [
+          { activityLevel: 'MODERATE', activeMinutesSum: '10' },
+        ],
+      },
+    };
+    await processGoogleActivityMinutes(UID, CID, rollupPoints(point));
+    expect(
+      measurementRepository.upsertCustomMeasurement
+    ).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Core body temperature ───────────────────────────────────────────────────
+
+// Shape from the Google Health API v4 discovery document (CoreBodyTemperature):
+// temperatureCelsius is a number, sampleTime.physicalTime the instant.
+describe('processGoogleCoreTemperature', () => {
+  it('reads temperatureCelsius', async () => {
+    const point = {
+      coreBodyTemperature: {
+        sampleTime: { physicalTime: '2026-10-09T14:00:00Z' },
+        temperatureCelsius: 37.1,
+      },
+    };
+    await processGoogleCoreTemperature(UID, CID, dataPoints(point));
+    expect(measurementRepository.upsertCustomMeasurement).toHaveBeenCalledWith(
+      UID,
+      CID,
+      'cat-1',
+      37.1,
+      '2026-10-09',
+      0,
+      expect.any(String),
+      expect.any(String),
+      'Daily',
+      'Google Health'
+    );
+  });
+
+  it('skips a point without temperatureCelsius', async () => {
+    const point = {
+      coreBodyTemperature: {
+        sampleTime: { physicalTime: '2026-10-09T14:00:00Z' },
+      },
+    };
+    await processGoogleCoreTemperature(UID, CID, dataPoints(point));
+    expect(
+      measurementRepository.upsertCustomMeasurement
+    ).not.toHaveBeenCalled();
   });
 });

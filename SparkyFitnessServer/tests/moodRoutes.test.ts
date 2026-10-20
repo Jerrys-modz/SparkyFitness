@@ -95,6 +95,72 @@ describe('Mood Routes', () => {
 
       expect(moodRepository.createOrUpdateMoodEntry).not.toHaveBeenCalled();
     });
+
+    describe('energy and focus', () => {
+      const ratingsArg = () =>
+        vi.mocked(moodRepository.createOrUpdateMoodEntry).mock.calls[0]![5];
+
+      it('passes energy and focus through', async () => {
+        await request(app)
+          .post('/mood')
+          .send({
+            mood_value: 70,
+            entry_date: '2026-10-20',
+            energy_value: 4,
+            focus_value: 2,
+          })
+          .expect(201);
+
+        expect(ratingsArg()).toStrictEqual({ energyValue: 4, focusValue: 2 });
+      });
+
+      it('leaves ratings an older client never sent for the repository to keep', async () => {
+        await request(app)
+          .post('/mood')
+          .send({ mood_value: 70, entry_date: '2026-10-20' })
+          .expect(201);
+
+        expect(ratingsArg()).toStrictEqual({
+          energyValue: undefined,
+          focusValue: undefined,
+        });
+      });
+
+      it('forwards an explicit null so a cleared rating is cleared', async () => {
+        await request(app)
+          .post('/mood')
+          .send({
+            mood_value: 70,
+            entry_date: '2026-10-20',
+            energy_value: null,
+          })
+          .expect(201);
+
+        expect(ratingsArg()).toStrictEqual({
+          energyValue: null,
+          focusValue: undefined,
+        });
+      });
+
+      it.each([0, 6, 2.5, '4'])(
+        'rejects energy %p before touching the database',
+        async (bad) => {
+          const res = await request(app)
+            .post('/mood')
+            .send({
+              mood_value: 70,
+              entry_date: '2026-10-20',
+              energy_value: bad,
+            })
+            .expect(400);
+
+          expect(res.body.message).toBe(
+            'Energy and focus must be whole numbers from 1 to 5.'
+          );
+          expect(moodRepository.createOrUpdateMoodEntry).not.toHaveBeenCalled();
+        }
+      );
+    });
   });
 
   describe('PUT /mood/:id', () => {
@@ -125,6 +191,29 @@ describe('Mood Routes', () => {
       expect(
         vi.mocked(moodRepository.updateMoodEntry).mock.calls[0]![2]
       ).toBeNull();
+    });
+
+    it('passes only the rating that was sent', async () => {
+      await request(app)
+        .put('/mood/mood-1')
+        .send({ focus_value: 5 })
+        .expect(200);
+
+      expect(
+        vi.mocked(moodRepository.updateMoodEntry).mock.calls[0]![5]
+      ).toStrictEqual({ energyValue: undefined, focusValue: 5 });
+    });
+
+    it('rejects an out-of-range rating', async () => {
+      const res = await request(app)
+        .put('/mood/mood-1')
+        .send({ focus_value: 9 })
+        .expect(400);
+
+      expect(res.body.message).toBe(
+        'Energy and focus must be whole numbers from 1 to 5.'
+      );
+      expect(moodRepository.updateMoodEntry).not.toHaveBeenCalled();
     });
   });
 });

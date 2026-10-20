@@ -95,6 +95,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `exercise_preset_entries` | Logged workout presets for the day |
 | `exercise_entry_sets` | Reps, weights, and sets completed |
 | `exercise_entry_activity_details` | Heart rate, distance, activity data |
+| `shoes` | Running-shoe inventory with retirement mileage; linked from `exercise_entries.shoe_id` |
 | `exercise_entry_laps` | Lap split intervals for workouts |
 | `exercise_entry_hr_zones` | Heart-rate time-in-zone splits per workout |
 | `exercise_entry_distance_series` | Distance-against-time rows for an indoor entry with no route, behind its pace chart. One row per workout (`points` is JSONB) |
@@ -130,7 +131,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 |-------|---------|
 | `fasting_logs` | Fasting timeline logs (start/end fast) |
 | `user_fasting_preferences` | Intermittent fasting targets, auto-calculation config, and alert timing |
-| `mood_entries` | Logged mood and energy levels |
+| `mood_entries` | Logged mood check-ins: mood, energy and focus ratings, tags and journal notes |
 | `mindfulness_sessions` | Logged mindfulness, meditation, and breathwork sessions |
 | `user_custom_moods` | User-defined mood tags (icon/color) |
 | `medications` | Custom medication inventory lists |
@@ -184,6 +185,9 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | Table | Purpose |
 |-------|---------|
 | `sparky_chat_history` | AI Assistant chat messages and history |
+| `food_assistant_preferences` | Explicit lasting food preferences, independently editable and forgettable |
+| `food_assistant_tasks` | Versioned food tasks, recoverable recipe ingredients and source evidence |
+| `food_assistant_operations` | Idempotent task operations and before/after checkpoints |
 | `ai_service_settings` | User-defined custom assistant configurations |
 
 ### Admin & System (Tier 1: Admin-Only or Public)

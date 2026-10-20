@@ -11,6 +11,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/TimeInput';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -80,6 +81,8 @@ import {
   toSetTableModality,
 } from '@/constants/exercises';
 import { CardioLog } from '../Exercises/CardioLog';
+import { ShoeSelect } from '@/components/Shoes/ShoeSelect';
+import { useAssignShoeMutation } from '@/hooks/Shoes/useShoes';
 import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -317,6 +320,7 @@ const EditExerciseEntryDialog = ({
       ? Number(convertDistance(entry.distance, 'km', distanceUnit).toFixed(1))
       : ''
   );
+  const [shoeId, setShoeId] = useState<string | null>(entry.shoe_id ?? null);
   const [avgHeartRateInput, setAvgHeartRateInput] = useState<number | ''>(
     entry.avg_heart_rate != null ? entry.avg_heart_rate : ''
   );
@@ -568,6 +572,7 @@ const EditExerciseEntryDialog = ({
 
   const { mutateAsync: updateExerciseEntry, isPending: loading } =
     useUpdateExerciseEntryMutation();
+  const { mutateAsync: assignShoe } = useAssignShoeMutation();
   const queryClient = useQueryClient();
 
   const handleCopyRawData = async () => {
@@ -833,6 +838,10 @@ const EditExerciseEntryDialog = ({
         },
       });
 
+      if (isCardio && shoeId !== (entry.shoe_id ?? null)) {
+        await assignShoe({ exerciseEntryId: entry.id, shoeId });
+      }
+
       info(
         loggingLevel,
         'EditExerciseEntryDialog: saved successfully:',
@@ -905,6 +914,19 @@ const EditExerciseEntryDialog = ({
               className="bg-muted"
             />
           </div>
+
+          {isCardio && (
+            <div className="space-y-2">
+              <Label htmlFor="exercise-entry-shoe">
+                {t('shoes.shoe', 'Shoe')}
+              </Label>
+              <ShoeSelect
+                id="exercise-entry-shoe"
+                value={shoeId}
+                onChange={setShoeId}
+              />
+            </div>
+          )}
 
           {/* ── Cardio log or strength sets ── */}
           {cardioForm ? (
@@ -980,7 +1002,7 @@ const EditExerciseEntryDialog = ({
           {/* Start Time (optional) */}
           <div className="space-y-1.5 max-w-[280px]">
             <div className="flex items-center justify-between">
-              <Label htmlFor="entryTime" className="text-sm">
+              <Label id="entryTime-label" className="text-sm">
                 {t(
                   'diary.editExerciseEntryDialog.startTimeOptional',
                   'Start Time (optional)'
@@ -1019,11 +1041,11 @@ const EditExerciseEntryDialog = ({
                 </button>
               </div>
             </div>
-            <Input
+            <TimeInput
               id="entryTime"
-              type="time"
+              aria-labelledby="entryTime-label"
               value={entryTime}
-              onChange={(e) => setEntryTime(e.target.value)}
+              onChange={setEntryTime}
               className="text-sm h-9"
             />
           </div>

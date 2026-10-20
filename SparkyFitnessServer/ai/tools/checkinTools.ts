@@ -100,6 +100,16 @@ function isSet<T>(value: T | null | undefined): value is T {
   return value !== null && value !== undefined;
 }
 
+function formatMoodRatings(
+  energy?: number | null,
+  focus?: number | null
+): string {
+  let out = '';
+  if (isSet(energy)) out += `, energy ${energy}/5`;
+  if (isSet(focus)) out += `, focus ${focus}/5`;
+  return out;
+}
+
 function formatMoodTags(tags?: string[] | null): string {
   if (!tags || !tags.length) return '';
   const formatted = tags.map((t) => {
@@ -157,11 +167,11 @@ export async function getBiometricsHistoryRows(
 export function buildCheckinTools(userId: string, tz: string) {
   return {
     sparky_manage_checkin: tool({
-      description: `Health tracking: weight, steps, body measurements, mood, sleep, fasting, custom metrics.
+      description: `Health tracking: weight, steps, body measurements, mood (with optional energy and focus), sleep, fasting, custom metrics.
 
 Actions:
 - log_biometrics(entry_date, weight?, steps?, height?, neck?, waist?, hips?, body_fat?, muscle_mass?, bone_mass?, body_water?, bmr?, weight_unit?:"kg"|"lbs", height_unit?:"cm"|"in", measurements_unit?:"cm"|"in")
-- log_mood(entry_date, mood_value:1-10, notes?)
+- log_mood(entry_date, mood_value:1-10, energy_value?:1-5, focus_value?:1-5, notes?) -- mood, energy, focus and notes can all be logged
 - log_sleep(entry_date, duration_seconds?, sleep_score?:0-100, bedtime?, wake_time?, source?)
 - log_fasting(start_time:ISO8601, end_time?, fasting_status?:"ACTIVE"|"COMPLETED"|"CANCELLED", fasting_type?)
 - log_custom_metric(entry_date, category_name, value:string|number, unit?, notes?)
@@ -180,6 +190,8 @@ Actions:
           (args) => {
             if (
               args.mood_value !== undefined ||
+              args.energy_value !== undefined ||
+              args.focus_value !== undefined ||
               (args.notes !== undefined && args.category_name === undefined)
             ) {
               return 'log_mood';
@@ -243,6 +255,8 @@ Actions:
           normalized.entry_date = todayInZone(tz);
         }
 
+        // The schema defaults a missing mood to 5, so note the omission first.
+        const moodOmitted = normalized.mood_value === undefined;
         const parsed = manageCheckinSchema.safeParse(normalized);
         if (!parsed.success) {
           return formatZodError(parsed.error);
@@ -423,17 +437,50 @@ Actions:
             }
 
             case 'log_mood': {
+              if (moodOmitted) {
+                const existing = await moodRepository.getMoodEntryByDate(
+                  userId,
+                  args.entry_date
+                );
+                if (existing) {
+                  // Keep the stored mood, journal and tags; only the ratings
+                  // the caller gave change.
+                  const row = await moodRepository.updateMoodEntry(
+                    existing.id,
+                    userId,
+                    null,
+                    args.notes ?? null,
+                    args.mood_tags ?? null,
+                    {
+                      energyValue: args.energy_value,
+                      focusValue: args.focus_value,
+                    }
+                  );
+                  return formatConfirmation(
+                    `Mood check-in updated for ${args.entry_date}: ${moodValueToChatScore(row.mood_value)}/10${formatMoodRatings(row.energy_value, row.focus_value)}${formatMoodTags(row.mood_tags)}${row.notes ? ' — ' + row.notes : ''}.`
+                  );
+                }
+                if (
+                  args.energy_value !== undefined ||
+                  args.focus_value !== undefined
+                ) {
+                  return ERRORS.VALIDATION(
+                    `To log energy or focus, also give a mood score (1-10) — there is no mood check-in for ${args.entry_date} yet.`
+                  );
+                }
+              }
               await moodRepository.createOrUpdateMoodEntry(
                 userId,
                 // The tool speaks in 1-10; the column holds 10-100.
                 chatScoreToMoodValue(args.mood_value),
                 args.notes || null,
                 args.entry_date,
-                args.mood_tags || null
+                args.mood_tags || null,
+                { energyValue: args.energy_value, focusValue: args.focus_value }
               );
               const tagsStr = formatMoodTags(args.mood_tags);
               return formatConfirmation(
-                `Mood logged for ${args.entry_date}: ${args.mood_value}/10${tagsStr}${args.notes ? ' — ' + args.notes : ''}.`
+                `Mood logged for ${args.entry_date}: ${args.mood_value}/10${formatMoodRatings(args.energy_value, args.focus_value)}${tagsStr}${args.notes ? ' — ' + args.notes : ''}.`
               );
             }
 
@@ -666,7 +713,7 @@ Actions:
                 text += '## Mood\n';
                 for (const m of moods) {
                   const tagsStr = formatMoodTags(m.mood_tags);
-                  text += `- ${moodValueToChatScore(m.mood_value)}/10${tagsStr}`;
+                  text += `- ${moodValueToChatScore(m.mood_value)}/10${formatMoodRatings(m.energy_value, m.focus_value)}${tagsStr}`;
                   if (m.notes) text += ` — ${m.notes}`;
                   text += '\n';
                 }

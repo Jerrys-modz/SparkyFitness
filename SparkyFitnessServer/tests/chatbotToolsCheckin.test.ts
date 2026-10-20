@@ -31,6 +31,7 @@ vi.mock('../models/moodRepository', () => ({
   default: {
     createOrUpdateMoodEntry: vi.fn(),
     getMoodEntryByDate: vi.fn(),
+    updateMoodEntry: vi.fn(),
   },
 }));
 vi.mock('../models/fastingRepository', () => ({
@@ -509,8 +510,132 @@ describe('log_mood', () => {
       80,
       'Feeling good',
       '2026-06-01',
-      null
+      null,
+      { energyValue: undefined, focusValue: undefined }
     );
+  });
+
+  it('logs energy and focus alongside mood', async () => {
+    vi.mocked(moodRepository.createOrUpdateMoodEntry).mockResolvedValue({
+      id: 'mood-1',
+    });
+
+    const result = await tools.sparky_manage_checkin.execute!(
+      {
+        action: 'log_mood',
+        mood_value: 8,
+        energy_value: 4,
+        focus_value: 2,
+        notes: 'Feeling good',
+        entry_date: '2026-06-01',
+      },
+      opts
+    );
+
+    expect(result).toBe(
+      '✅ Mood logged for 2026-06-01: 8/10, energy 4/5, focus 2/5 — Feeling good.'
+    );
+    expect(moodRepository.createOrUpdateMoodEntry).toHaveBeenCalledWith(
+      'user-1',
+      80,
+      'Feeling good',
+      '2026-06-01',
+      null,
+      { energyValue: 4, focusValue: 2 }
+    );
+  });
+
+  it('rejects an energy_value outside 1-5 without touching the repository', async () => {
+    const result = await tools.sparky_manage_checkin.execute!(
+      {
+        action: 'log_mood',
+        mood_value: 8,
+        energy_value: 6,
+        entry_date: '2026-06-01',
+      },
+      opts
+    );
+
+    expect(String(result)).toContain('Error');
+    expect(String(result)).toContain('energy_value');
+    expect(moodRepository.createOrUpdateMoodEntry).not.toHaveBeenCalled();
+  });
+
+  describe('energy or focus without a mood score', () => {
+    const existing = {
+      id: 'mood-1',
+      mood_value: 80,
+      energy_value: null,
+      focus_value: 3,
+      mood_tags: [],
+      notes: 'Long day',
+    };
+
+    it('updates only the ratings of the existing check-in', async () => {
+      vi.mocked(moodRepository.getMoodEntryByDate).mockResolvedValue(existing);
+      vi.mocked(moodRepository.updateMoodEntry).mockResolvedValue({
+        ...existing,
+        energy_value: 2,
+      });
+
+      const result = await tools.sparky_manage_checkin.execute!(
+        { action: 'log_mood', energy_value: 2, entry_date: '2026-06-01' },
+        opts
+      );
+
+      expect(moodRepository.updateMoodEntry).toHaveBeenCalledWith(
+        'mood-1',
+        'user-1',
+        null,
+        null,
+        null,
+        { energyValue: 2, focusValue: undefined }
+      );
+      expect(moodRepository.createOrUpdateMoodEntry).not.toHaveBeenCalled();
+      expect(result).toBe(
+        '✅ Mood check-in updated for 2026-06-01: 8/10, energy 2/5, focus 3/5 — Long day.'
+      );
+    });
+
+    it('asks for a mood score when there is no check-in to update', async () => {
+      vi.mocked(moodRepository.getMoodEntryByDate).mockResolvedValue(undefined);
+
+      const result = await tools.sparky_manage_checkin.execute!(
+        { action: 'log_mood', focus_value: 4, entry_date: '2026-06-01' },
+        opts
+      );
+
+      expect(String(result)).toContain(
+        'there is no mood check-in for 2026-06-01 yet'
+      );
+      expect(moodRepository.createOrUpdateMoodEntry).not.toHaveBeenCalled();
+      expect(moodRepository.updateMoodEntry).not.toHaveBeenCalled();
+    });
+
+    it('infers log_mood from energy_value when no action is given', async () => {
+      vi.mocked(moodRepository.createOrUpdateMoodEntry).mockResolvedValue({
+        id: 'mood-1',
+      });
+
+      const result = await tools.sparky_manage_checkin.execute!(
+        { energy_value: 3, mood_value: 7, entry_date: '2026-06-01' },
+        opts
+      );
+
+      expect(result).toBe('✅ Mood logged for 2026-06-01: 7/10, energy 3/5.');
+      expect(moodRepository.createOrUpdateMoodEntry).toHaveBeenCalled();
+    });
+
+    it('infers log_mood from focus_value alone when no action is given', async () => {
+      vi.mocked(moodRepository.getMoodEntryByDate).mockResolvedValue(undefined);
+
+      const result = await tools.sparky_manage_checkin.execute!(
+        { focus_value: 3, entry_date: '2026-06-01' },
+        opts
+      );
+
+      expect(String(result)).toContain('there is no mood check-in');
+    });
   });
 
   it('logs mood without notes', async () => {
@@ -529,7 +654,8 @@ describe('log_mood', () => {
       50,
       null,
       '2026-06-01',
-      null
+      null,
+      { energyValue: undefined, focusValue: undefined }
     );
   });
 
@@ -550,7 +676,8 @@ describe('log_mood', () => {
       80,
       null,
       today,
-      null
+      null,
+      { energyValue: undefined, focusValue: undefined }
     );
   });
 
@@ -945,6 +1072,30 @@ describe('list_checkin_diary', () => {
     );
   });
 
+  it('renders energy and focus in the diary mood line, skipping null ratings', async () => {
+    mockEmptyDiary();
+    vi.mocked(moodRepository.getMoodEntryByDate).mockResolvedValue({
+      id: 'mood-1',
+      mood_value: 70,
+      energy_value: 3,
+      focus_value: null,
+      mood_tags: [],
+      notes: null,
+      entry_date: '2026-06-01',
+    });
+
+    const result = await tools.sparky_manage_checkin.execute!(
+      { action: 'list_checkin_diary', entry_date: '2026-06-01' },
+      opts
+    );
+
+    expect(result).toBe(
+      '### Check-in Diary: 2026-06-01\n\n' +
+        '## Mood\n' +
+        '- 7/10, energy 3/5\n\n'
+    );
+  });
+
   it('defaults to today and reports an empty diary', async () => {
     mockEmptyDiary();
 
@@ -1155,7 +1306,8 @@ describe('error handling', () => {
       50,
       'Anxious today',
       '2026-06-01',
-      null
+      null,
+      { energyValue: undefined, focusValue: undefined }
     );
   });
 
@@ -1175,7 +1327,8 @@ describe('error handling', () => {
       50,
       'Anxious today',
       '2026-06-01',
-      null
+      null,
+      { energyValue: undefined, focusValue: undefined }
     );
   });
 
@@ -1203,7 +1356,8 @@ describe('error handling', () => {
       80,
       'Feeling good',
       '2026-06-01',
-      ['anxious', 'tired']
+      ['anxious', 'tired'],
+      { energyValue: undefined, focusValue: undefined }
     );
   });
 });

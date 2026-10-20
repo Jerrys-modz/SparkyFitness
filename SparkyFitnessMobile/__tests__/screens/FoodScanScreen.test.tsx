@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
 import FoodScanScreen from '../../src/screens/FoodScanScreen';
 import {
@@ -830,6 +831,30 @@ describe('FoodScanScreen', () => {
       await act(async () => {
         resolveLaunch?.({ canceled: true });
       });
+    });
+
+    it('logs error and shows restart toast when picker fails with unregistered ActivityResultLauncher', async () => {
+      mockLaunchLibrary.mockRejectedValue(
+        new Error(
+          "Call to function 'ExponentImagePicker.launchImageLibraryAsync' has been rejected. → Caused by: java.lang.IllegalStateException: Attempting to launch an unregistered ActivityResultLauncher with contract expo.modules.imagepicker.contracts.ImageLibraryContract"
+        )
+      );
+
+      const screen = renderScreenWithRoute({ initialMode: 'photo' });
+      await waitFor(() => {
+        expect(screen.getByLabelText('Choose photo from library')).toBeTruthy();
+      });
+
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText('Choose photo from library'));
+      });
+
+      expect(Toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error',
+          text2: 'Unable to open gallery. Please restart the app.',
+        })
+      );
     });
   });
   it('localizes timeout lookup failures and keeps recovery actions visible', async () => {

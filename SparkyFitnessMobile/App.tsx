@@ -98,8 +98,14 @@ import {
   SafeGoals,
   SafeWeeklyGoalPlanEdit,
   SafeMealTypeSettings,
+  SafeEquipment,
+  SafeShoes,
+  SafeShoeForm,
   SafeAiSettings,
   SafeFoodSettings,
+  SafeCustomNutrients,
+  SafeCustomNutrientForm,
+  SafeNutrientDisplaySettings,
   SafeAllergenSettings,
   SafeDashboardSettings,
   SafeHealthTrendsSettings,
@@ -147,6 +153,7 @@ import {
   SafeSymptomLog,
   SafeMoodLog,
   SafeSymptomHistory,
+  SafeSymptomEpisodeDetail,
   SafeManageSymptoms,
   SafeSymptomDefinitionEditor,
 } from './src/navigation/safeScreens';
@@ -207,8 +214,8 @@ function WatchCheckInGate() {
 }
 
 /**
- * Home Screen long-press shortcuts (iOS). Needs a server connection, since
- * "Log water" posts straight to the server.
+ * App icon long-press shortcuts (iOS Home Screen, Android launcher). Needs a
+ * server connection, since the iOS "Log water" posts straight to the server.
  */
 function QuickActionsGate() {
   const { isConnected: isServerConnected } = useServerConnection();
@@ -438,6 +445,8 @@ function AppContent() {
         Tabs: {
           screens: {
             Dashboard: '',
+            // The Android Calories left Quick Settings tile opens the diary.
+            Diary: 'diary',
           },
         },
         FoodScan: 'scan',
@@ -1023,6 +1032,21 @@ function AppContent() {
             options={createStackScreenOptions(t('screens.foodSettings', { defaultValue: 'Food Settings' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
           />
           <Stack.Screen
+            name="CustomNutrients"
+            component={SafeCustomNutrients}
+            options={createStackScreenOptions(t('customNutrients.title', { defaultValue: 'Custom Nutrients' }), { headerBackTitle: t('screens.foodSettings', { defaultValue: 'Food Settings' }) })}
+          />
+          <Stack.Screen
+            name="CustomNutrientForm"
+            component={SafeCustomNutrientForm}
+            options={createStackScreenOptions(t('customNutrients.editTitle', { defaultValue: 'Edit nutrient' }), { headerBackTitle: t('common.back', { defaultValue: 'Back' }) })}
+          />
+          <Stack.Screen
+            name="NutrientDisplaySettings"
+            component={SafeNutrientDisplaySettings}
+            options={createStackScreenOptions(t('nutrientDisplay.title', { defaultValue: 'Nutrient Display' }), { headerBackTitle: t('screens.foodSettings', { defaultValue: 'Food Settings' }) })}
+          />
+          <Stack.Screen
             name="AllergenSettings"
             component={SafeAllergenSettings}
             options={createStackScreenOptions(t('screens.allergenSettings', { defaultValue: 'Allergens' }), { headerBackTitle: t('screens.foodSettings', { defaultValue: 'Food Settings' }) })}
@@ -1031,6 +1055,21 @@ function AppContent() {
             name="MealTypeSettings"
             component={SafeMealTypeSettings}
             options={createStackScreenOptions(t('screens.mealTypes', { defaultValue: 'Meal Types' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="Equipment"
+            component={SafeEquipment}
+            options={createStackScreenOptions(t('equipmentHub.title', { defaultValue: 'Equipment' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="Shoes"
+            component={SafeShoes}
+            options={createStackScreenOptions(t('shoes.title', { defaultValue: 'Shoes' }), { headerBackTitle: t('equipmentHub.title', { defaultValue: 'Equipment' }) })}
+          />
+          <Stack.Screen
+            name="ShoeForm"
+            component={SafeShoeForm}
+            options={createStackScreenOptions(t('shoes.title', { defaultValue: 'Shoes' }), { headerBackTitle: t('shoes.title', { defaultValue: 'Shoes' }) })}
           />
           <Stack.Screen
             name="DashboardSettings"
@@ -1207,6 +1246,13 @@ function AppContent() {
             name="SymptomHistory"
             component={SafeSymptomHistory}
             options={createStackScreenOptions(t('screens.symptomHistory', { defaultValue: 'Symptom History' }), {
+              headerBackButtonDisplayMode: 'minimal',
+            })}
+          />
+          <Stack.Screen
+            name="SymptomEpisodeDetail"
+            component={SafeSymptomEpisodeDetail}
+            options={createStackScreenOptions(t('screens.symptomEpisodeDetail', { defaultValue: 'Episode Details' }), {
               headerBackButtonDisplayMode: 'minimal',
             })}
           />
