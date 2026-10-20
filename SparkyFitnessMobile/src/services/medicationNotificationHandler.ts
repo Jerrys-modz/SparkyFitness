@@ -642,7 +642,7 @@ async function handleSnoozeNotificationAction(
 
   try {
     if (!i18n.isInitialized) {
-      const prefsLang = useAppPreferencesStore.getState()?.language;
+      const prefsLang = useAppPreferencesStore.getState()?.languagePreference;
       const targetLang = normalizeLanguage(
         data?.locale ??
           (prefsLang && prefsLang !== 'system'
