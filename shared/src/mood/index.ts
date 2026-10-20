@@ -2,6 +2,7 @@
 // `mood_value` (0-100 intensity, kept for Garmin sync / analytics / chatbot) plus
 // a multi-select `mood_tags` array. Custom moods live in `user_custom_moods`
 // (mirrors user_custom_symptoms). Framework-free so server + web can share it.
+import type { MoodEntries } from '../schemas/database/MoodEntries.zod.ts';
 
 export interface MoodDef {
   name: string; // stable slug
@@ -233,7 +234,8 @@ export function moodValueToChatScore(value: number): number {
   return Math.min(10, Math.max(1, Math.round(value / 10)));
 }
 
-export type MoodRowSource = 'manual' | 'garmin' | 'import';
+/** Where a mood row came from, as the `mood_entries` schema defines it. */
+export type MoodRowSource = MoodEntries['source'];
 
 /** The slice of a mood row the per-day helpers read. */
 export interface MoodRowLike {
