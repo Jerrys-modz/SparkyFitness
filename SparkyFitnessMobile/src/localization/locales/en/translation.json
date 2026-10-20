@@ -271,7 +271,8 @@
       "logAsTaken": "Log as taken",
       "logAllAsTaken": "Log all as taken",
       "skip": "Skip",
-      "skipAll": "Skip all"
+      "skipAll": "Skip all",
+      "remindInMinutes": "Remind in {{minutes}}m"
     },
     "permission": {
       "notificationsOff": "Notifications off",
@@ -1175,6 +1176,8 @@
     "hideMedicationNamesSubtitle": "Show a generic reminder instead of the medication name and dose.",
     "consolidateReminders": "Consolidate Reminders",
     "consolidateRemindersSubtitle": "Group medications scheduled for the same time into a single notification.",
+    "medicationSnoozeInterval": "Remind In",
+    "snoozeMinutesOption": "{{minutes}}m",
     "hydration": "Hydration",
     "waterReminders": "Water Reminders",
     "waterRemindersSubtitle": "Remind you to drink when you haven't logged water in a while.",
@@ -2942,10 +2945,29 @@
     "notes": "Notes",
     "notesPlaceholder": "e.g. White rice, double chicken, no beans (supports markdown)"
   },
+  "exerciseEffort": {
+    "title": "Effort",
+    "lastAvg": "Avg RPE, last session",
+    "trendLabel_one": "Average RPE of your last {{count}} session",
+    "trendLabel_other": "Average RPE of your last {{count}} sessions",
+    "oneRmEffort": "Est. 1RM with effort",
+    "oneRmPlain": "From reps alone",
+    "oneRmNote": "Counts the reps you had left: RPE 8 is two more reps. Only sets with an RPE are used."
+  },
   "exerciseHistory": {
     "noSetData": "No set data",
     "loadError": "Couldn't load history.",
-    "empty": "No sessions logged yet."
+    "empty": "No sessions logged yet.",
+    "columns": {
+      "set": "Set",
+      "weightReps": "Weight & reps",
+      "timeDistance": "Time & distance",
+      "time": "Time",
+      "weightDistance": "Weight & distance",
+      "weightTime": "Weight & time",
+      "reps": "Reps",
+      "rpe": "RPE"
+    }
   },
   "foodFormPersistence": {
     "discardTitle": "Discard unsaved equivalents?",
@@ -4650,6 +4672,15 @@
       "targetGoal": "Target Daily Goal",
       "averageVsTarget": "Average vs. Target",
       "percentOfGoal": "{{percent}}% of goal"
+    },
+    "topSources": {
+      "title": "Top Sources",
+      "allMeals": "All meals",
+      "clearDay": "Show whole period",
+      "empty": "No {{nutrient}} logged for this selection",
+      "loadFailed": "Failed to load food sources",
+      "share": "{{percent}}%",
+      "servingAmount": "{{quantity}} {{unit}}"
     }
   },
   "workoutPresetDetail": {
@@ -5218,7 +5249,15 @@
     "logTitle": "Mood",
     "overall": "Overall mood",
     "tags": "Moods",
-    "notesPlaceholder": "Add a note (optional)",
+    "energy": "Energy",
+    "energyLow": "Drained",
+    "energyHigh": "Energized",
+    "focus": "Focus",
+    "focusLow": "Scattered",
+    "focusHigh": "Locked in",
+    "journalOptional": "Journal (optional)",
+    "journalPlaceholder": "Any thoughts or feelings you'd like to add?",
+    "ratingsUnsupported": "Your server doesn't save energy and focus yet. Update SparkyFitness to keep them.",
     "loggingForDate": "Logging for {{date}}",
     "chartTitle": "Mood over time",
     "mostCommon": "Most common moods",
@@ -6372,6 +6411,7 @@
       "tooHard": "Holding weight: last time felt too hard.",
       "tooHardRepeated": "Lighter today: too hard two sessions running.",
       "highEffort": "Holding weight: your last sets were near max effort.",
+      "lowEffort": "A step heavier: your last sets were logged as easy.",
       "tooEasyRepeated": "A step heavier: too easy two sessions running."
     },
     "declined": "Using your usual suggestion.",

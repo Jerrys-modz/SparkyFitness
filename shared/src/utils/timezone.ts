@@ -506,6 +506,21 @@ export function localDateTimeToUtc(localDateTimeStr: string, tz: string): Date {
 }
 
 /**
+ * The instant to stamp on something logged for `day` without a time of its
+ * own: `now` when `day` is today in `tz`, otherwise local noon of `day`. Either
+ * way the instant falls on `day` in `tz`, which `now` alone would not for a
+ * backdated entry.
+ */
+export function instantForDay(
+  day: string,
+  tz: string,
+  now: Date = new Date()
+): Date {
+  if (instantToDay(now, tz) === day) return now;
+  return localDateTimeToUtc(`${day}T12:00`, tz);
+}
+
+/**
  * Formats a UTC instant as a `YYYY-MM-DDTHH:mm` string in the given timezone, suitable
  * for a `datetime-local` input value. Inverse of {@link localDateTimeToUtc}. Uses
  * hourCycle 'h23' so midnight renders as `00`, not `24`. Returns '' on invalid input.
