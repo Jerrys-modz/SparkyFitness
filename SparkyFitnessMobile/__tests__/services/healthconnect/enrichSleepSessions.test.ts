@@ -308,6 +308,19 @@ describe('enrichSleepSessions', () => {
       },
     ]);
     expect(session.resting_heart_rate).toBe(55);
+    // The mock ignores the range, so pin it: the read must reach a day past
+    // each side of the wake day (the 15th) in device time, or a reading
+    // dated at a distant offset is never fetched.
+    const [, options] = readsOf('RestingHeartRate')[0] as [
+      string,
+      { timeRangeFilter: { startTime: string; endTime: string } },
+    ];
+    expect(options.timeRangeFilter.startTime).toBe(
+      new Date(2026, 9, 14, 0, 0, 0, 0).toISOString()
+    );
+    expect(options.timeRangeFilter.endTime).toBe(
+      new Date(2026, 9, 16, 23, 59, 59, 999).toISOString()
+    );
   });
 
   test('falls back to the start offset, then the device day, when the end offset is missing', async () => {
