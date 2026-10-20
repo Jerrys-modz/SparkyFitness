@@ -203,6 +203,12 @@ export const routeGenerateCapabilitiesSchema = z.object({
   }),
   /** Whether stops (water, toilets, cafes, viewpoints) can be looked up. */
   stops: z.boolean().default(false),
+  /**
+   * Where the engine comes from: a routing provider the person (or the admin)
+   * added in Settings > External Providers, or the server's environment
+   * variables. Null when `available` is false or the server predates it.
+   */
+  source: z.enum(["provider", "env"]).nullable().default(null),
 });
 
 const generateBaseSchema = z.object({

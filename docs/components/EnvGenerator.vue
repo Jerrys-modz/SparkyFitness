@@ -1490,8 +1490,9 @@ onMounted(() => {
         </div>
         <div v-if="enableRouting" class="module-body">
           <div class="field-explanation">
-            Points the server at a Valhalla routing engine you run. Leave this
-            off to keep route generation unavailable.
+            Optional server-wide fallback: points the server at a Valhalla
+            routing engine for people who have not added a routing provider in
+            Settings > External Providers. Leave this off to need no variables.
           </div>
           <div class="grid-2">
             <div class="form-group">
