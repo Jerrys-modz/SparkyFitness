@@ -649,6 +649,20 @@ describe('Android widget localization contract', () => {
         );
       }
       expect(actions.size).toBe(3);
+      // The water receiver sets the next alarm even when its redraw fails,
+      // since each alarm fires once.
+      const waterMidnight = waterReceiver.slice(
+        waterReceiver.indexOf('if (intent.action == ACTION_MIDNIGHT_REFRESH)'),
+        waterReceiver.indexOf(
+          'if (intent.action == Intent.ACTION_LOCALE_CHANGED)'
+        )
+      );
+      expect(waterMidnight).toMatch(
+        /catch \(e: CancellationException\) \{\s*throw e\s*\} catch \(e: Exception\)/
+      );
+      expect(waterMidnight).toMatch(
+        /\} finally \{[\s\S]*scheduleMidnightRefresh\(context\)[\s\S]*pending\.finish\(\)/
+      );
       expect(actions.has('missing')).toBe(false);
     });
 
