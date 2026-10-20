@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 
 import {
   buildAndroidWidgetSnapshots,
+  getAndroidWidgetGeneration,
   pushAndroidCalorieSnapshot,
   pushAndroidMacroSnapshot,
 } from '../services/androidWidgetSyncService';
@@ -133,9 +134,12 @@ export function useWidgetSync(
 
     if (Platform.OS === 'android') {
       const snapshots = buildAndroidWidgetSnapshots(summary);
+      // An account change clears the widgets, so the same figures signed in
+      // again (a session renewed by the same person) still have to be pushed.
+      const generation = getAndroidWidgetGeneration();
       if (snapshots.calorie) {
         const calorieSnapshot = snapshots.calorie;
-        const calorieSnapshotKey = JSON.stringify(calorieSnapshot);
+        const calorieSnapshotKey = `${generation}:${JSON.stringify(calorieSnapshot)}`;
 
         if (lastAndroidCalorieSnapshotKeyRef.current !== calorieSnapshotKey) {
           lastAndroidCalorieSnapshotKeyRef.current = calorieSnapshotKey;
@@ -163,7 +167,7 @@ export function useWidgetSync(
       // (#2228). Not sent on iOS: that widget draws a composition ring, where
       // the three shares summing to one is the intended reading.
       const macroSnapshot = snapshots.macro;
-      const macroSnapshotKey = JSON.stringify(macroSnapshot);
+      const macroSnapshotKey = `${generation}:${JSON.stringify(macroSnapshot)}`;
       if (lastAndroidMacroSnapshotKeyRef.current === macroSnapshotKey) return;
 
       lastAndroidMacroSnapshotKeyRef.current = macroSnapshotKey;

@@ -93,6 +93,8 @@ const REQUIRED_KEYS = [
   'widget_fat',
   'widget_search_food',
   'widget_scan_barcode',
+  'tile_log_water',
+  'tile_calories_left',
   'widget_preview_calories_left',
   'widget_preview_macros_left',
   'widget_preview_grams_protein',
@@ -129,6 +131,7 @@ const KOTLIN_TEMPLATES = [
   'MacroWidgetReceiver.kt.tmpl',
   'CalorieWidgetModule.kt.tmpl',
   'WidgetLocale.kt.tmpl',
+  'QuickSettingsTiles.kt.tmpl',
 ];
 
 const WIDGET_INFO_XMLS = [
@@ -289,6 +292,59 @@ describe('Android widget localization contract', () => {
       // Classic one-line header: no caption/value split in the macro widget.
       expect(macroSrc).not.toMatch(/R\.string\.widget_kcal_left_caption/);
       expect(macroSrc).not.toMatch(/R\.string\.widget_kcal_left_value/);
+    });
+
+    it('renders the Quick Settings tiles in the widget language from resources', () => {
+      const src = fs.readFileSync(
+        path.join(KOTLIN_ROOT, 'QuickSettingsTiles.kt.tmpl'),
+        'utf8'
+      );
+      expect(src).toMatch(
+        /render\(tile, WidgetLocale\.localizedContext\(this\)\)/
+      );
+      expect(src).toMatch(/context\.getString\(labelRes\)/);
+      expect(src).toMatch(/R\.string\.widget_kcal_left/);
+      // No label or subtitle set from a hardcoded string.
+      expect(src).not.toMatch(/tile\.(label|subtitle) = "/);
+    });
+
+    it('erases both snapshots on an account change, in order with the writes', () => {
+      const moduleSrc = fs.readFileSync(
+        path.join(KOTLIN_ROOT, 'CalorieWidgetModule.kt.tmpl'),
+        'utf8'
+      );
+      expect(moduleSrc).toMatch(/fun clearSnapshots\(promise: Promise\)/);
+      expect(moduleSrc).toMatch(/\.remove\(prefsKey\)\.commit\(\)/);
+      // Both widgets, their stored copy and every instance's state, each
+      // part tried and redrawn past one that fails.
+      expect(moduleSrc).toMatch(
+        /CalorieWidgetReceiver\.PREFS_KEY_SNAPSHOT,\s*\n\s*CalorieWidget\(\),\s*\n\s*CalorieWidget\.SNAPSHOT_STATE_KEY/
+      );
+      expect(moduleSrc).toMatch(
+        /MacroWidgetReceiver\.PREFS_KEY_SNAPSHOT,\s*\n\s*MacroWidget\(\),\s*\n\s*MacroWidget\.SNAPSHOT_STATE_KEY/
+      );
+      expect(moduleSrc).toMatch(
+        /updateAppWidgetState\(ctx, id\) \{ state -> state\.remove\(stateKey\) \}\s*\n\s*widget\.update\(ctx, id\)/
+      );
+      expect(moduleSrc.match(/failures \+= /g)?.length).toBeGreaterThanOrEqual(
+        3
+      );
+      // Writes and the clear share one serial executor and one lock, so a
+      // write for the previous account cannot land after the clear.
+      expect(
+        moduleSrc.match(/moduleScope\.launch\(snapshotWrites\)/g)
+      ).toHaveLength(3);
+      expect(moduleSrc.match(/snapshotLock\.withLock \{/g)).toHaveLength(3);
+
+      // A live Glance session reads the stored copy at composition instead of
+      // one captured at its start, which would bring a cleared snapshot back.
+      for (const template of ['CalorieWidget.kt.tmpl', 'MacroWidget.kt.tmpl']) {
+        const src = fs.readFileSync(path.join(KOTLIN_ROOT, template), 'utf8');
+        expect(src).not.toMatch(/fallbackSnapshot/);
+        expect(src).toMatch(
+          /parseSnapshot\(state\[SNAPSHOT_STATE_KEY\]\) \?: loadSnapshot\(context\)/
+        );
+      }
     });
 
     it('localizes accessibility labels in the Kotlin widgets', () => {
