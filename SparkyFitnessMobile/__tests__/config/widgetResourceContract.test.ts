@@ -412,6 +412,27 @@ describe('Android widget localization contract', () => {
       expect(helper).not.toMatch(/\.toLong\(\)/);
     });
 
+    it('sets the next midnight alarm even when the midnight redraw fails', () => {
+      // Each alarm fires once: a redraw that threw used to crash the process
+      // and leave no alarm for the following night.
+      for (const receiver of [
+        'CalorieWidgetReceiver.kt.tmpl',
+        'MacroWidgetReceiver.kt.tmpl',
+      ]) {
+        const src = fs.readFileSync(path.join(KOTLIN_ROOT, receiver), 'utf8');
+        const midnight = src.slice(
+          src.indexOf('if (intent.action == ACTION_MIDNIGHT_REFRESH)'),
+          src.indexOf('if (intent.action == Intent.ACTION_LOCALE_CHANGED)')
+        );
+        expect(midnight).toMatch(
+          /catch \(e: CancellationException\) \{\s*throw e\s*\} catch \(e: Exception\)/
+        );
+        expect(midnight).toMatch(
+          /\} finally \{[\s\S]*scheduleMidnightRefresh\(context\)[\s\S]*pending\.finish\(\)/
+        );
+      }
+    });
+
     it('updates every GlanceId and continues past a failing instance', () => {
       const moduleSrc = fs.readFileSync(
         path.join(KOTLIN_ROOT, 'CalorieWidgetModule.kt.tmpl'),
