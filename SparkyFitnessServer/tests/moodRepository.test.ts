@@ -34,6 +34,15 @@ describe('moodRepository energy and focus', () => {
     ]);
   });
 
+  it('keeps the stored journal when the caller sends no notes', async () => {
+    await moodRepository.createOrUpdateMoodEntry('u1', 60, null, '2026-10-20');
+    const [sql, params] = query.mock.calls[0];
+    expect(sql).toContain(
+      'notes = COALESCE(EXCLUDED.notes, mood_entries.notes)'
+    );
+    expect(params[3]).toBeNull();
+  });
+
   it('clears a rating the caller explicitly nulls', async () => {
     await moodRepository.createOrUpdateMoodEntry(
       'u1',

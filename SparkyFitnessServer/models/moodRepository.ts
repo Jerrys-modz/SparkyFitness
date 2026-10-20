@@ -36,7 +36,7 @@ async function createOrUpdateMoodEntry(
        ON CONFLICT (user_id, entry_date) DO UPDATE
        SET mood_value = EXCLUDED.mood_value,
            mood_tags = COALESCE($3::text[], mood_entries.mood_tags),
-           notes = EXCLUDED.notes,
+           notes = COALESCE(EXCLUDED.notes, mood_entries.notes),
            energy_value = CASE WHEN $7 THEN EXCLUDED.energy_value ELSE mood_entries.energy_value END,
            focus_value = CASE WHEN $9 THEN EXCLUDED.focus_value ELSE mood_entries.focus_value END,
            updated_at = NOW()
