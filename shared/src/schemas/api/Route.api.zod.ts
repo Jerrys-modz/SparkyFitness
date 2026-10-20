@@ -208,7 +208,7 @@ export const routeGenerateCapabilitiesSchema = z.object({
    * added in Settings > External Providers, or the server's environment
    * variables. Null when `available` is false or the server predates it.
    */
-  source: z.enum(["provider", "env"]).nullable().default(null),
+  source: z.enum(["provider"]).nullable().default(null),
 });
 
 const generateBaseSchema = z.object({

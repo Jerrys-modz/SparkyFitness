@@ -23,7 +23,7 @@ describe('route generate capabilities source', () => {
     avoidBusyRoads: true,
   };
 
-  it.each(['provider', 'env'] as const)('reads source %s', (source) => {
+  it.each(['provider'] as const)('reads source %s', (source) => {
     const caps = resolveRouteGenerateCapabilities({
       available: true,
       maxAlternatives: 3,

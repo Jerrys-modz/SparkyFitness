@@ -16,7 +16,7 @@ The server talks to engines through a small `RoutingProvider` interface, so anot
 
 ## Turning it on
 
-### Add a routing provider (recommended)
+### Add a routing provider
 
 1. In the web app, open **Settings → External Providers → Add**.
 2. Choose the type **Valhalla routing** and give it a name.
@@ -26,7 +26,7 @@ The server talks to engines through a small `RoutingProvider` interface, so anot
 
 It works at once: no restart. `GET /api/v2/routes/generate/capabilities` returns `"available": true` and the mobile app shows route generation and **Follow roads** the next time it checks (it re-checks every few minutes, or when you reopen the app).
 
-The provider belongs to you, like any other. Sharing follows the usual rules for external providers: an admin can add one in **Admin → Global Provider Settings** to make it available to everyone on the server, and with the **Share Integrations** family permission your family members can use yours (see [Family & Friends Sharing](../family-friends-sharing.md)). A person's own active provider is used first, then a public or shared one, then the environment fallback below. Generating and snapping routes is still always for the signed-in person only, with the limit of 10 requests per 10 minutes.
+The provider belongs to you, like any other. Sharing follows the usual rules for external providers: an admin can add one in **Admin → Global Provider Settings** to make it available to everyone on the server, and with the **Share Integrations** family permission your family members can use yours (see [Family & Friends Sharing](../family-friends-sharing.md)). A person's own active provider is used first, then a public or shared one. Generating and snapping routes is still always for the signed-in person only, with the limit of 10 requests per 10 minutes.
 
 ::: warning Your route points go to that server
 To plan a route, the SparkyFitness **server** sends the start, end and waypoints (and, to find elevation and surface, the resulting line) to the server you choose, which can see them. Use a server you trust, or run your own (below). Your phone never contacts the routing server directly, and saved routes, segments and heatmaps are never sent.
@@ -41,18 +41,6 @@ To plan a route, the SparkyFitness **server** sends the start, end and waypoints
 A loop request costs up to three engine calls per option, which is another reason to keep to your own server for heavy use.
 
 If the provider's URL points at a private or LAN address, the usual rule for self-hosted providers applies: admins may, other users may not unless the operator allows it in **Admin → Global Provider Settings** (or `ALLOW_PRIVATE_NETWORK_FOOD_PROVIDERS=true`).
-
-### Environment variables (optional fallback)
-
-Existing setups keep working. If a person has no routing provider, the server falls back to these in your `.env`:
-
-```bash
-SPARKY_FITNESS_ROUTING_URL=http://sparkyfitness-valhalla:8002
-# SPARKY_FITNESS_ROUTING_PROVIDER=valhalla   # the default, and the only value for now
-# SPARKY_FITNESS_ROUTING_API_KEY=            # only for a hosted engine that needs a key
-```
-
-The key can also be supplied as `SPARKY_FITNESS_ROUTING_API_KEY_FILE` (a Docker or Kubernetes secret file). See [Environment Variables](../../install/environment-variables.md). On Kubernetes, set `config.routing.url` (and optionally `config.routing.apiKeySecret`) in the Helm values. New installs don't need any of this.
 
 ---
 
@@ -139,7 +127,7 @@ Returns what this server offers:
 }
 ```
 
-The answer is for the signed-in person. `source` is `"provider"` when it comes from a routing provider (their own, a public one or a shared one), `"env"` for the environment fallback, and `null` when `available` is false. `available` is false when there is neither; then `maxAlternatives` is 1 and every `style` field is false. `stops` is true when `SPARKY_FITNESS_OVERPASS_URL` is set, whether or not a routing engine is. Older servers send only `available`; clients read a missing field as "not supported".
+The answer is for the signed-in person. `source` is `"provider"` when it comes from a routing provider (their own, a public one or a shared one) and `null` when `available` is false. `available` is false when there is no routing provider; then `maxAlternatives` is 1 and every `style` field is false. `stops` is true when `SPARKY_FITNESS_OVERPASS_URL` is set, whether or not a routing engine is. Older servers send only `available`; clients read a missing field as "not supported".
 
 ### `POST /api/v2/routes/generate`
 
