@@ -299,7 +299,7 @@ router.post('/realign', async (req, res, next) => {
  *     tags: [Exercise]
  *     responses:
  *       200:
- *         description: `{ programs: [...] }`, newest first.
+ *         description: '`{ programs: [...] }`, newest first.'
  *   post:
  *     summary: Create one of the person's own run programs
  *     tags: [Exercise]

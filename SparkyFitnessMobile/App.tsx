@@ -23,6 +23,7 @@ import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchFastingBridge, useWatchPlanSync, useWatchRecordingBridge, useWatchSetTargetsSync, useWatchWorkoutBridge, useWatchWorkoutEdit, useWatchRunBridge, useWatchRouteBridge, usePreferences } from './src/hooks';
 import { configureRunLiveActivity } from './src/services/runLiveActivity';
 import { useWatchWorkoutStart } from './src/hooks/useWatchWorkoutStart';
+import { useLiveWorkoutInputsCapture } from './src/hooks/useLiveWorkoutInputsCapture';
 import {
   useStartLiveWorkout,
   type StartLiveWorkoutNavigation,
@@ -236,8 +237,8 @@ function WatchCheckInGate() {
 }
 
 /**
- * Home Screen long-press shortcuts (iOS). Needs a server connection, since
- * "Log water" posts straight to the server.
+ * App icon long-press shortcuts (iOS Home Screen, Android launcher). Needs a
+ * server connection, since the iOS "Log water" posts straight to the server.
  */
 function QuickActionsGate() {
   const { isConnected: isServerConnected } = useServerConnection();
@@ -325,6 +326,9 @@ function WatchWorkoutGate() {
     setTelemetryPending,
     handleWatchFinishedWorkout
   );
+  // A watch-started workout never opens the active-workout screen, which is
+  // what normally loads the history its targets are resolved from.
+  useLiveWorkoutInputsCapture(isServerConnected);
   useWatchSetTargetsSync(watchSupported);
   useWatchRecordingBridge(watchSupported);
   useWatchRunBridge(watchSupported, isServerConnected);
@@ -476,6 +480,8 @@ function AppContent() {
         Tabs: {
           screens: {
             Dashboard: '',
+            // The Android Calories left Quick Settings tile opens the diary.
+            Diary: 'diary',
           },
         },
         FoodScan: 'scan',
