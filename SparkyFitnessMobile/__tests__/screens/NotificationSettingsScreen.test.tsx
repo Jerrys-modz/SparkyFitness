@@ -13,12 +13,17 @@ import {
   useAppPreferencesStore,
   __resetAppPreferencesStoreForTests,
 } from '../../src/stores/appPreferencesStore';
+import { markCheckinReminderOfferShown } from '../../src/services/checkinReminderOffer';
 
 jest.mock('../../src/services/notifications', () => ({
   requestNotificationPermission: jest.fn(async () => 'granted'),
   setNotificationsEnabled: jest.fn(async () => undefined),
   setRestTimerNotificationsEnabled: jest.fn(async () => undefined),
   maybePromptForExactAlarmPermission: jest.fn(async () => undefined),
+}));
+
+jest.mock('../../src/services/checkinReminderOffer', () => ({
+  markCheckinReminderOfferShown: jest.fn(async () => undefined),
 }));
 
 jest.mock('../../src/components/NotificationPermissionBanner', () => {
@@ -395,6 +400,52 @@ describe('NotificationSettingsScreen', () => {
       expect(useAppPreferencesStore.getState().checkinRemindersEnabled).toBe(
         false
       );
+    });
+
+    it('marks the reminder offer as shown when reminders are turned on', async () => {
+      const { getAllByRole } = renderScreen();
+      fireEvent(checkinSwitch(getAllByRole), 'valueChange', true);
+      await waitFor(() =>
+        expect(markCheckinReminderOfferShown).toHaveBeenCalled()
+      );
+    });
+
+    it('marks the reminder offer as shown when reminders are turned off', async () => {
+      useAppPreferencesStore.setState({ checkinRemindersEnabled: true });
+      const { getAllByRole } = renderScreen();
+      fireEvent(checkinSwitch(getAllByRole), 'valueChange', false);
+      await waitFor(() =>
+        expect(markCheckinReminderOfferShown).toHaveBeenCalled()
+      );
+    });
+
+    it('reads the time in each reminder row label', () => {
+      useAppPreferencesStore.setState({
+        checkinRemindersEnabled: true,
+        checkinReminderTimes: ['08:00', '20:30'],
+      });
+      const { getByLabelText } = renderScreen();
+      expect(getByLabelText('Reminder 1, 08:00')).toBeTruthy();
+      expect(getByLabelText('Reminder 2, 20:30')).toBeTruthy();
+    });
+
+    it('exposes removal as an accessibility action on the row', () => {
+      useAppPreferencesStore.setState({
+        checkinRemindersEnabled: true,
+        checkinReminderTimes: ['08:00', '12:00', '20:30'],
+      });
+      const { getByLabelText } = renderScreen();
+      const row = getByLabelText('Reminder 2, 12:00');
+      expect(row.props.accessibilityActions).toEqual([
+        { name: 'remove', label: 'Remove reminder 2' },
+      ]);
+      fireEvent(row, 'accessibilityAction', {
+        nativeEvent: { actionName: 'remove' },
+      });
+      expect(useAppPreferencesStore.getState().checkinReminderTimes).toEqual([
+        '08:00',
+        '20:30',
+      ]);
     });
 
     it('turns reminders off without requesting permission', async () => {

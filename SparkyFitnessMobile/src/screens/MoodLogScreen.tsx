@@ -56,6 +56,7 @@ import {
 import { addLog } from '../services/LogService';
 import { requestNotificationPermission } from '../services/notifications';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
+import { DEFAULT_CHECKIN_REMINDER_TIME } from '../utils/checkinReminderTimes';
 import { getDeviceTimezone, getTodayDate } from '../utils/dateUtils';
 import { moodDayInZone } from '../utils/moodDay';
 import {
@@ -293,7 +294,7 @@ function LegacyMoodLog({
       t('mood.reminderOfferTitle', { defaultValue: 'Remind me daily?' }),
       t('mood.reminderOfferBody', {
         defaultValue:
-          'Get a reminder each evening to check in. You can change the time or add more in Settings → Notifications.',
+          'Get a reminder each evening to check in. You can change the time or add more in Settings → App Settings → Notifications.',
       }),
       [
         {
@@ -306,8 +307,16 @@ function LegacyMoodLog({
             try {
               if ((await requestNotificationPermission()) === 'granted') {
                 const store = useAppPreferencesStore.getState();
-                store.setCheckinReminderTimes(['20:30']);
+                store.setCheckinReminderTimes([DEFAULT_CHECKIN_REMINDER_TIME]);
                 store.setCheckinRemindersEnabled(true);
+              } else {
+                // Same copy ensureNotificationPermission uses.
+                Toast.show({
+                  type: 'info',
+                  text1: t('notifications.permission.notificationsOff', {
+                    defaultValue: 'Notifications off',
+                  }),
+                });
               }
             } catch (error) {
               addLog(
@@ -325,14 +334,20 @@ function LegacyMoodLog({
     if (!entryReady || saveMood.isPending) return;
     const sendEnergy = showRatings && energyOverride !== undefined;
     const sendFocus = showRatings && focusOverride !== undefined;
-    const saved = await saveMood.mutateAsync({
-      mood_value: moodValue,
-      mood_tags: tags,
-      notes,
-      entry_date: targetDate,
-      ...(sendEnergy && { energy_value: energyOverride }),
-      ...(sendFocus && { focus_value: focusOverride }),
-    });
+    let saved: Awaited<ReturnType<typeof saveMood.mutateAsync>>;
+    try {
+      saved = await saveMood.mutateAsync({
+        mood_value: moodValue,
+        mood_tags: tags,
+        notes,
+        entry_date: targetDate,
+        ...(sendEnergy && { energy_value: energyOverride }),
+        ...(sendFocus && { focus_value: focusOverride }),
+      });
+    } catch {
+      // useSaveMood already reports the failure; stay on the screen.
+      return;
+    }
     // An older server ignores the fields and its row has no energy_value key.
     // An empty (non-object) response tells us nothing, so it shows no notice.
     const savedIsRow = saved != null && typeof saved === 'object';

@@ -36,6 +36,7 @@ import {
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { usePreferences } from '../hooks/usePreferences';
+import { markCheckinReminderOfferShown } from '../services/checkinReminderOffer';
 import { MAX_CHECKIN_REMINDERS } from '../utils/checkinReminderTimes';
 import { formatTimeLabel } from '../utils/entryTimeDisplay';
 import { isValidReminderWindow } from '../utils/hydrationReminder';
@@ -192,6 +193,8 @@ const NotificationSettingsScreen: React.FC<
 
   const handleCheckinRemindersToggle = useCallback(
     async (value: boolean) => {
+      // Whoever uses this toggle has made their choice; skip the one-time offer.
+      void markCheckinReminderOfferShown();
       if (!value) {
         setCheckinRemindersEnabled(false);
         return;
@@ -633,40 +636,72 @@ const NotificationSettingsScreen: React.FC<
               }
             />
             {checkinRemindersEnabled &&
-              checkinReminderTimes.map((time, index) => (
-                <SettingsRow
-                  key={time}
-                  title={t('notificationSettings.moodCheckinReminderTime', {
-                    defaultValue: 'Reminder {{number}}',
+              checkinReminderTimes.map((time, index) => {
+                const timeLabel = formatTimeLabel(
+                  time,
+                  preferences?.time_format
+                );
+                const removeLabel = t(
+                  'notificationSettings.moodCheckinRemoveReminder',
+                  {
+                    defaultValue: 'Remove reminder {{number}}',
                     number: index + 1,
-                  })}
-                  onPress={() => openCheckinTimeSheet(index)}
-                  rightAccessory={
-                    <View className="flex-row items-center">
-                      <Text className="text-sm text-text-secondary">
-                        {formatTimeLabel(time, preferences?.time_format)}
-                      </Text>
-                      {checkinReminderTimes.length > 1 && (
-                        <Pressable
-                          onPress={() => handleRemoveCheckinTime(index)}
-                          accessibilityRole="button"
-                          accessibilityLabel={t(
-                            'notificationSettings.moodCheckinRemoveReminder',
-                            {
-                              defaultValue: 'Remove reminder {{number}}',
-                              number: index + 1,
-                            }
-                          )}
-                          hitSlop={8}
-                          className="ml-3"
-                        >
-                          <Icon name="close" size={18} color={secondaryColor} />
-                        </Pressable>
-                      )}
-                    </View>
                   }
-                />
-              ))}
+                );
+                const canRemove = checkinReminderTimes.length > 1;
+                return (
+                  <SettingsRow
+                    key={time}
+                    title={t('notificationSettings.moodCheckinReminderTime', {
+                      defaultValue: 'Reminder {{number}}',
+                      number: index + 1,
+                    })}
+                    accessibilityLabel={t(
+                      'notificationSettings.moodCheckinReminderTimeAccessibility',
+                      {
+                        defaultValue: 'Reminder {{number}}, {{time}}',
+                        number: index + 1,
+                        time: timeLabel,
+                      }
+                    )}
+                    // The visible remove button sits inside the row's
+                    // accessible Pressable, which screen readers can't reach.
+                    accessibilityActions={
+                      canRemove
+                        ? [{ name: 'remove', label: removeLabel }]
+                        : undefined
+                    }
+                    onAccessibilityAction={(event) => {
+                      if (event.nativeEvent.actionName === 'remove') {
+                        handleRemoveCheckinTime(index);
+                      }
+                    }}
+                    onPress={() => openCheckinTimeSheet(index)}
+                    rightAccessory={
+                      <View className="flex-row items-center">
+                        <Text className="text-sm text-text-secondary">
+                          {timeLabel}
+                        </Text>
+                        {canRemove && (
+                          <Pressable
+                            onPress={() => handleRemoveCheckinTime(index)}
+                            accessibilityRole="button"
+                            accessibilityLabel={removeLabel}
+                            hitSlop={14}
+                            className="ml-3"
+                          >
+                            <Icon
+                              name="close"
+                              size={18}
+                              color={secondaryColor}
+                            />
+                          </Pressable>
+                        )}
+                      </View>
+                    }
+                  />
+                );
+              })}
             {checkinRemindersEnabled &&
               checkinReminderTimes.length < MAX_CHECKIN_REMINDERS && (
                 <SettingsRow

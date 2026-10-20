@@ -1,5 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { normalizeCheckinReminderTimes } from '../utils/checkinReminderTimes';
+import {
+  DEFAULT_CHECKIN_REMINDER_TIME,
+  normalizeCheckinReminderTimes,
+} from '../utils/checkinReminderTimes';
 import {
   DEFAULT_GUIDED_COUNTDOWN_SEC,
   DEFAULT_GUIDED_SPEECH_RATE,
@@ -112,7 +115,7 @@ export const PREFERENCE_DEFAULTS = {
   waterReminderWindowStart: '08:00' as string,
   waterReminderWindowEnd: '22:00' as string,
   checkinRemindersEnabled: false,
-  checkinReminderTimes: ['20:30'] as string[],
+  checkinReminderTimes: [DEFAULT_CHECKIN_REMINDER_TIME] as string[],
   liquidGlassTabBarEnabled: false,
   activeWorkoutMetricColumn: 'rpe' as ActiveWorkoutMetricColumn,
   diarySummaryVisible: false,

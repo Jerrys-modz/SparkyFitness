@@ -7,6 +7,7 @@ import {
   scheduleMoodCheckinReminders,
 } from '../../src/services/moodCheckinReminderService';
 import { hasNotificationPermission } from '../../src/services/notifications';
+import i18n from '../../src/localization/i18n';
 import {
   __resetAppPreferencesStoreForTests,
   useAppPreferencesStore,
@@ -99,5 +100,22 @@ describe('MoodCheckinReminderReconciler', () => {
     expect(mockCancel.mock.invocationCallOrder[1]).toBeLessThan(
       mockSchedule.mock.invocationCallOrder[1]
     );
+  });
+
+  it('reschedules when the language changes', async () => {
+    useAppPreferencesStore.setState({
+      checkinRemindersEnabled: true,
+      checkinReminderTimes: ['20:30'],
+      notificationsEnabled: true,
+    });
+    render(<MoodCheckinReminderReconciler />);
+    await waitFor(() => expect(mockSchedule).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      i18n.emit('languageChanged', 'fr');
+    });
+
+    await waitFor(() => expect(mockSchedule).toHaveBeenCalledTimes(2));
+    expect(mockCancel).toHaveBeenCalledTimes(2);
   });
 });

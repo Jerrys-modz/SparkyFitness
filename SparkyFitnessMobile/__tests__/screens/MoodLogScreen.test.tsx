@@ -885,6 +885,31 @@ describe('MoodLogScreen daily reminder offer', () => {
     );
   });
 
+  it('explains that notifications are off when permission is denied', async () => {
+    (requestNotificationPermission as jest.Mock).mockResolvedValue('denied');
+    await save();
+    await remindMe();
+    expect(Toast.show).toHaveBeenCalledWith(
+      expect.objectContaining({ text1: 'Notifications off' })
+    );
+    expect(useAppPreferencesStore.getState().checkinRemindersEnabled).toBe(
+      false
+    );
+  });
+
+  it('does not offer reminders when the save fails', async () => {
+    mockMutateAsync.mockRejectedValue(new Error('network'));
+    renderScreen();
+    fireEvent.press(screen.getByText('Save'));
+    await waitFor(() => expect(mockMutateAsync).toHaveBeenCalled());
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(mockNavigation.goBack).not.toHaveBeenCalled();
+    expect(hasShownCheckinReminderOffer).not.toHaveBeenCalled();
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
   it('still leaves the screen when reading the offer flag fails', async () => {
     (hasShownCheckinReminderOffer as jest.Mock).mockRejectedValue(
       new Error('storage')

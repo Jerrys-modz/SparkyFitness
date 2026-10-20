@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import Toast from 'react-native-toast-message';
 import { addLog } from './LogService';
+import { MOOD_CHECKIN_KIND } from '../utils/checkinReminderTimes';
 import i18n from '../localization/i18n';
 import { fireSuccessHaptic } from './haptics';
 import {
@@ -265,7 +266,7 @@ export async function initNotifications(): Promise<void> {
           category === MEDICATION_REMINDER_GROUP_CATEGORY;
         const isRestPing = category === REST_COMPLETE_CATEGORY;
         const isMoodCheckin =
-          notification.request.content.data?.kind === 'mood-checkin';
+          notification.request.content.data?.kind === MOOD_CHECKIN_KIND;
         // iOS also runs this while the app is frontmost-but-inactive (screen
         // locking, app switcher), where the chime never plays — so there the
         // ping carries the cue itself instead of being hidden as a duplicate.

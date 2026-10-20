@@ -95,6 +95,31 @@ describe('initMoodCheckinNotificationResponses', () => {
     expect(mockNavigate).toHaveBeenCalledTimes(1);
   });
 
+  it('opens the check-in again for the same reminder on a later day', () => {
+    const handle = listener();
+    const first = response(
+      Notifications.DEFAULT_ACTION_IDENTIFIER,
+      'mood-checkin',
+      'mood_checkin_0'
+    );
+    const nextDay = {
+      ...first,
+      notification: { ...first.notification, date: 1000 + 86400 },
+    };
+    handle(first);
+    handle(nextDay);
+    expect(mockNavigate).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not clear a launch response of another kind', () => {
+    mockGetLast.mockReturnValue(
+      response(Notifications.DEFAULT_ACTION_IDENTIFIER, 'water')
+    );
+    initMoodCheckinNotificationResponses();
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(mockClearLast).not.toHaveBeenCalled();
+  });
+
   it('returns an unsubscribe function', () => {
     initMoodCheckinNotificationResponses()();
     expect(remove).toHaveBeenCalled();

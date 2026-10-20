@@ -6,13 +6,12 @@ import {
 } from './notifications';
 import {
   MAX_CHECKIN_REMINDERS,
+  MOOD_CHECKIN_KIND,
   normalizeCheckinReminderTimes,
 } from '../utils/checkinReminderTimes';
 import { addLog } from './LogService';
 
 export { MAX_CHECKIN_REMINDERS, normalizeCheckinReminderTimes };
-
-const MOOD_CHECKIN_KIND = 'mood-checkin';
 
 function reminderIdentifier(index: number): string {
   return `mood_checkin_${index}`;
