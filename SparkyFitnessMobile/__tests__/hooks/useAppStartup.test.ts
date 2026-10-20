@@ -62,6 +62,10 @@ jest.mock('../../src/services/medicationNotificationHandler', () => ({
   initMedicationNotificationActions: jest.fn(),
 }));
 
+jest.mock('../../src/services/moodCheckinNotificationHandler', () => ({
+  initMoodCheckinNotificationResponses: jest.fn(),
+}));
+
 jest.mock('../../src/services/workoutLiveActivity', () => ({
   initWorkoutLiveActivity: jest.fn().mockResolvedValue(undefined),
 }));

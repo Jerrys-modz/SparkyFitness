@@ -53,12 +53,12 @@ export async function cancelMoodCheckinReminders(): Promise<void> {
 export async function scheduleMoodCheckinReminders(
   times: readonly string[]
 ): Promise<string[]> {
-  await ensureMoodCheckinChannel();
-  const normalized = normalizeCheckinReminderTimes(times);
   const ids: string[] = [];
-  for (const [index, time] of normalized.entries()) {
-    const [hour, minute] = time.split(':').map(Number);
-    try {
+  try {
+    await ensureMoodCheckinChannel();
+    const normalized = normalizeCheckinReminderTimes(times);
+    for (const [index, time] of normalized.entries()) {
+      const [hour, minute] = time.split(':').map(Number);
       const id = await Notifications.scheduleNotificationAsync({
         identifier: reminderIdentifier(index),
         content: {
@@ -81,14 +81,14 @@ export async function scheduleMoodCheckinReminders(
         },
       });
       ids.push(id);
-    } catch (err) {
-      addLog(
-        `scheduleMoodCheckinReminders failed: ${(err as Error).message}`,
-        'ERROR'
-      );
-      await Promise.all(ids.map(cancelById));
-      return [];
     }
+    return ids;
+  } catch (err) {
+    addLog(
+      `scheduleMoodCheckinReminders failed: ${(err as Error).message}`,
+      'ERROR'
+    );
+    await Promise.all(ids.map(cancelById));
+    return [];
   }
-  return ids;
 }

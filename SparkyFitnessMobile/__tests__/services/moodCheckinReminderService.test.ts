@@ -117,6 +117,29 @@ describe('scheduleMoodCheckinReminders', () => {
   });
 });
 
+describe('scheduleMoodCheckinReminders channel failure', () => {
+  it('returns nothing and schedules nothing when channel creation rejects', async () => {
+    jest.clearAllMocks();
+    Object.defineProperty(Platform, 'OS', {
+      get: () => 'android',
+      configurable: true,
+    });
+    try {
+      mockSetChannel.mockRejectedValueOnce(new Error('channel boom'));
+
+      const ids = await scheduleMoodCheckinReminders(['08:00']);
+
+      expect(ids).toEqual([]);
+      expect(mockSchedule).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        get: () => 'ios',
+        configurable: true,
+      });
+    }
+  });
+});
+
 describe('cancelMoodCheckinReminders', () => {
   beforeEach(() => {
     jest.clearAllMocks();
