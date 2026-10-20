@@ -282,6 +282,70 @@ describe('enrichSleepSessions', () => {
     expect(session.resting_heart_rate).toBe(57);
   });
 
+  test('dates a sleep and its resting heart rate at the record offset, not the device zone', async () => {
+    const plus9 = { totalSeconds: 32400 };
+    setReads({
+      RestingHeartRate: {
+        records: [
+          {
+            time: '2026-10-15T01:00:00.000Z',
+            zoneOffset: plus9,
+            beatsPerMinute: 55,
+          },
+          {
+            time: '2026-10-14T10:00:00.000Z',
+            zoneOffset: plus9,
+            beatsPerMinute: 61,
+          },
+        ],
+      },
+    });
+    const [session] = await enrich([
+      {
+        startTime: '2026-10-14T13:00:00.000Z',
+        endTime: '2026-10-14T22:00:00.000Z',
+        endZoneOffset: plus9,
+      },
+    ]);
+    expect(session.resting_heart_rate).toBe(55);
+  });
+
+  test('falls back to the start offset, then the device day, when the end offset is missing', async () => {
+    const plus9 = { totalSeconds: 32400 };
+    setReads({
+      RestingHeartRate: {
+        records: [
+          {
+            time: '2026-10-15T01:00:00.000Z',
+            zoneOffset: plus9,
+            beatsPerMinute: 55,
+          },
+        ],
+      },
+    });
+    const [session] = await enrich([
+      {
+        startTime: '2026-10-14T13:00:00.000Z',
+        endTime: '2026-10-14T22:00:00.000Z',
+        startZoneOffset: plus9,
+      },
+    ]);
+    expect(session.resting_heart_rate).toBe(55);
+  });
+
+  test('a session without offsets still uses the device day', async () => {
+    setReads({
+      RestingHeartRate: {
+        records: [
+          rhr('2026-10-15', '09:00', 57),
+          rhr('2026-10-14', '09:00', 99),
+        ],
+      },
+    });
+    const [session] = await enrich([mainSleep()]);
+    expect(session.resting_heart_rate).toBe(57);
+  });
+
   test('postProcessRaw enriches SleepSession records', async () => {
     setReads({
       HeartRateVariabilityRmssd: { records: [hrv('2026-10-15', '02:00', 50)] },

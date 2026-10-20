@@ -601,6 +601,27 @@ const formatLocalDay = (date: Date): string => {
   return `${y}-${m}-${d}`;
 };
 
+/**
+ * Calendar day (YYYY-MM-DD) of an instant at the record's own UTC offset, the
+ * way the server dates a record from its stored offset. Without an offset it
+ * falls back to the device day.
+ */
+const dayAtRecordOffset = (
+  time: string,
+  offset: HCZoneOffset | undefined
+): string => {
+  const totalSeconds = offset?.totalSeconds;
+  const ms = Date.parse(time);
+  if (typeof totalSeconds !== 'number' || !Number.isFinite(ms)) {
+    return toLocalDateString(time);
+  }
+  const shifted = new Date(ms + totalSeconds * 1000);
+  const y = String(shifted.getUTCFullYear()).padStart(4, '0');
+  const m = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(shifted.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 // Canonical implementation lives with the other sync window helpers; re-exported
 // here because HC's aggregateGroupByPeriod anchors DAYS buckets at the supplied
 // start, so callers of this module align cumulative query starts with it.
@@ -1466,6 +1487,8 @@ const sleepEnrichmentWindow = (
   const rec = record as {
     startTime?: unknown;
     endTime?: unknown;
+    startZoneOffset?: HCZoneOffset;
+    endZoneOffset?: HCZoneOffset;
     stages?: { startTime: string; endTime: string; stage: number }[];
   };
   if (typeof rec.startTime !== 'string' || typeof rec.endTime !== 'string') {
@@ -1495,7 +1518,11 @@ const sleepEnrichmentWindow = (
   return {
     startMs,
     endMs,
-    wakeDay: toLocalDateString(rec.endTime),
+    // The server dates a sleep entry from wake_time at the record's offset.
+    wakeDay: dayAtRecordOffset(
+      rec.endTime,
+      rec.endZoneOffset ?? rec.startZoneOffset
+    ),
     asleepMs: hasRecognizedStages ? asleepMs : endMs - startMs,
   };
 };
@@ -1625,8 +1652,10 @@ export const enrichSleepSessions = async (
       readOptionalSleepBiometric(
         'RestingHeartRate',
         enabled,
-        new Date(firstDay[0], firstDay[1] - 1, firstDay[2], 0, 0, 0, 0),
-        new Date(lastDay[0], lastDay[1] - 1, lastDay[2], 23, 59, 59, 999)
+        // One extra day each side: wake days are dated at the record's offset,
+        // which can sit a day away from the device's local midnights.
+        new Date(firstDay[0], firstDay[1] - 1, firstDay[2] - 1, 0, 0, 0, 0),
+        new Date(lastDay[0], lastDay[1] - 1, lastDay[2] + 1, 23, 59, 59, 999)
       ),
     ]);
 
@@ -1644,7 +1673,11 @@ export const enrichSleepSessions = async (
 
     const latestRhrByDay = new Map<string, { ms: number; value: number }>();
     for (const r of rhrRecords) {
-      const rec = r as { time?: unknown; beatsPerMinute?: unknown };
+      const rec = r as {
+        time?: unknown;
+        beatsPerMinute?: unknown;
+        zoneOffset?: HCZoneOffset;
+      };
       const ms = typeof rec.time === 'string' ? Date.parse(rec.time) : NaN;
       const value = rec.beatsPerMinute;
       if (
@@ -1655,7 +1688,7 @@ export const enrichSleepSessions = async (
       ) {
         continue;
       }
-      const day = toLocalDateString(new Date(ms));
+      const day = dayAtRecordOffset(rec.time as string, rec.zoneOffset);
       const current = latestRhrByDay.get(day);
       if (!current || ms > current.ms) latestRhrByDay.set(day, { ms, value });
     }
