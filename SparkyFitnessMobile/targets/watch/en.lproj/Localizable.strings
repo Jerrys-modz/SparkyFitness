@@ -199,3 +199,6 @@
 "watch.effort.hint.adjusting" = "Turn the crown · tap to finish";
 "watch.checkin.tapToAdjust" = "Tap number to adjust";
 "watch.checkin.turnCrown" = "Turn the crown";
+"watch.trend.trend" = "Trend %@";
+"watch.trend.perWeek" = "· %@/wk";
+"watch.trend.goal" = "Goal";
