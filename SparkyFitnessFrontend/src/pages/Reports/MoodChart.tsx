@@ -51,7 +51,7 @@ const MoodChart = ({ data, title }: MoodChartProps) => {
   const formattedData = React.useMemo(() => {
     const checkinCounts = new Map<string, number>();
     for (const entry of data) {
-      if (entry.source === 'manual') {
+      if (entry.source === 'manual' && entry.mood_value !== null) {
         checkinCounts.set(
           entry.entry_date,
           (checkinCounts.get(entry.entry_date) ?? 0) + 1
@@ -236,6 +236,7 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
           <p className="desc" style={{ marginTop: '5px' }}>
             {t('checkIn.checkinCount', '{{count}} check-ins', {
               count: entry.checkinCount,
+              defaultValue_one: '{{count}} check-in',
             })}
           </p>
         )}

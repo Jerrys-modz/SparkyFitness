@@ -196,7 +196,25 @@ describe('MoodMeter with no mood yet', () => {
     const { container, onMoodChange } = renderMeter(null);
     fireEvent.click(legendFaces(container)[2]!);
 
-    expect(onMoodChange).toHaveBeenCalledWith(expect.any(Number));
+    // The third face sits at 23.53% of 10-95: a mood of 30.
+    expect(onMoodChange).toHaveBeenCalledWith(30);
+  });
+
+  test('with no mood the slider shows no fill and announces that', () => {
+    const { container } = renderMeter(null);
+    const thumb = container.querySelector('[role="slider"]')!;
+
+    expect(thumb.getAttribute('aria-valuetext')).toBe('No mood selected');
+    expect(
+      container.querySelector('[data-orientation] > .hidden')
+    ).not.toBeNull();
+  });
+
+  test('with a mood the slider announces its number', () => {
+    const { container } = renderMeter(65);
+    const thumb = container.querySelector('[role="slider"]')!;
+
+    expect(thumb.hasAttribute('aria-valuetext')).toBe(false);
   });
 
   test('a key on the slider sets the first mood, as a press does', () => {

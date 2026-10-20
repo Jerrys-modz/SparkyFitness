@@ -285,6 +285,12 @@ const MoodMeter = ({
             if (mood === null) onMoodChange(50);
           }}
           className={cn('w-full', mood === null && 'opacity-50')}
+          hideRange={mood === null}
+          valueText={
+            mood === null
+              ? t('moodMeter.noMoodSelected', 'No mood selected')
+              : undefined
+          }
           aria-label={t('moodMeter.intensity', 'Overall mood')}
         />
         {/* Tappable band emojis: the scale, and a shortcut to a face. Each is

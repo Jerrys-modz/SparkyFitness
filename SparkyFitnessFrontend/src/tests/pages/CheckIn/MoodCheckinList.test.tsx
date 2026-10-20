@@ -48,13 +48,18 @@ const BAND_FACES = BUILT_IN_MOODS.filter((m) => m.band != null).map(
   (m) => m.emoji
 );
 
-const renderList = (checkins: MoodEntry[], editingId: string | null = null) => {
+const renderList = (
+  checkins: MoodEntry[],
+  editingId: string | null = null,
+  deletingId: string | null = null
+) => {
   const onEdit = jest.fn();
   const onDelete = jest.fn();
   render(
     <MoodCheckinList
       checkins={checkins}
       editingId={editingId}
+      deletingId={deletingId}
       onEdit={onEdit}
       onDelete={onDelete}
     />

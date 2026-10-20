@@ -93,6 +93,8 @@ export const CheckInTopRow = ({
     freshComposer(selectedDate, timezone)
   );
   const [pendingDelete, setPendingDelete] = useState<MoodEntry | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const needsContentId = useId();
 
   // A new day cancels any edit and starts a fresh check-in, so nothing is
   // saved against the wrong day. A new zone (the saved preference replacing
@@ -134,8 +136,12 @@ export const CheckInTopRow = ({
       stillCurrent(prev) ? freshComposer(prev.date, timezone) : prev
     );
 
+  const hasContent = hasCheckinContent(draft);
   const canSave =
-    hasCheckinContent(draft) && isTime(draft.time) && !isSavingCheckin;
+    hasContent &&
+    isTime(draft.time) &&
+    !isSavingCheckin &&
+    !(editing && editing.id === deletingId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,9 +185,14 @@ export const CheckInTopRow = ({
   const confirmDelete = async () => {
     const entry = pendingDelete;
     setPendingDelete(null);
-    if (!entry) return;
-    const ok = await onDeleteCheckin(entry);
-    if (ok) resetIf((prev) => prev.editing?.id === entry.id);
+    if (!entry || deletingId !== null) return;
+    setDeletingId(entry.id);
+    try {
+      const ok = await onDeleteCheckin(entry);
+      if (ok) resetIf((prev) => prev.editing?.id === entry.id);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -230,7 +241,12 @@ export const CheckInTopRow = ({
                   {t('checkIn.cancelEdit', 'Cancel')}
                 </Button>
               )}
-              <Button type="submit" size="sm" disabled={!canSave}>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={!canSave}
+                aria-describedby={!hasContent ? needsContentId : undefined}
+              >
                 {isSavingCheckin
                   ? t('checkIn.saving', 'Saving...')
                   : editing
@@ -238,6 +254,17 @@ export const CheckInTopRow = ({
                     : t('checkIn.addCheckin', 'Add check-in')}
               </Button>
             </div>
+            {!hasContent && (
+              <p
+                id={needsContentId}
+                className="text-center text-xs text-muted-foreground"
+              >
+                {t(
+                  'checkIn.checkinNeedsContent',
+                  'Add a mood, energy, focus, a tag or a journal entry to save.'
+                )}
+              </p>
+            )}
           </form>
         </CardContent>
       </Card>
@@ -265,6 +292,7 @@ export const CheckInTopRow = ({
               <MoodCheckinList
                 checkins={checkins}
                 editingId={editing?.id ?? null}
+                deletingId={deletingId}
                 onEdit={startEdit}
                 onDelete={setPendingDelete}
               />
@@ -287,6 +315,7 @@ export const CheckInTopRow = ({
         )}
         variant="destructive"
         confirmLabel={t('common.delete', 'Delete')}
+        confirmDisabled={deletingId !== null}
       />
     </div>
   );

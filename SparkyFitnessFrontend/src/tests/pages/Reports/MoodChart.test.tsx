@@ -85,7 +85,7 @@ beforeEach(() => {
 });
 
 describe('MoodChart', () => {
-  it('plots one point per day: the mean of that day check-ins', () => {
+  it("plots one point per day: the mean of that day's check-ins", () => {
     renderChart([
       row({ id: 'a', mood_value: 40 }),
       row({ id: 'b', mood_value: 80 }),
@@ -100,13 +100,24 @@ describe('MoodChart', () => {
   });
 
   it('plots nothing for a day whose check-ins have no mood', () => {
-    renderChart([row({ energy_value: 7 }), row({ id: 'b', notes: 'tired' })]);
+    renderChart([row({ energy_value: 4 }), row({ id: 'b', notes: 'tired' })]);
 
     expect(scatterData).toEqual([]);
   });
 
   it('charts a Garmin-only day at the Garmin value', () => {
     renderChart([row({ source: 'garmin', mood_value: 30 })]);
+
+    expect(scatterData).toHaveLength(1);
+    expect(scatterData[0]).toMatchObject({ moodValue: 30, checkinCount: 0 });
+  });
+
+  it('counts no check-ins on a day plotted from Garmin while its manual ones have no mood', () => {
+    renderChart([
+      row({ id: 'g', source: 'garmin', mood_value: 30 }),
+      row({ id: 'a', energy_value: 3 }),
+      row({ id: 'b', notes: 'tired' }),
+    ]);
 
     expect(scatterData).toHaveLength(1);
     expect(scatterData[0]).toMatchObject({ moodValue: 30, checkinCount: 0 });

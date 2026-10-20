@@ -1,4 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query';
 import i18n from 'i18next';
 import type {
   MoodCheckinCreateBody,
@@ -55,11 +60,18 @@ export const useMoodCheckinsByDate = (date: string) =>
     },
   });
 
+/** A check-in change reaches the mood views and the cycle correlations. */
+const invalidateMoodCaches = (queryClient: QueryClient) =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: moodKeys.all }),
+    queryClient.invalidateQueries({ queryKey: ['cycle-correlations'] }),
+  ]);
+
 export const useCreateMoodCheckinMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: MoodCheckinCreateBody) => createMoodCheckin(body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: moodKeys.all }),
+    onSuccess: () => invalidateMoodCaches(queryClient),
     meta: {
       errorMessage: serverMessageOr(
         i18n.t('mood.failedToSave', 'Failed to save mood entry.')
@@ -74,7 +86,7 @@ export const useUpdateMoodCheckinMutation = () => {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: MoodCheckinUpdateBody }) =>
       updateMoodCheckin(id, body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: moodKeys.all }),
+    onSuccess: () => invalidateMoodCaches(queryClient),
     meta: {
       errorMessage: serverMessageOr(
         i18n.t('mood.failedToUpdate', 'Failed to update mood entry.')
@@ -88,7 +100,7 @@ export const useDeleteMoodCheckinMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteMoodCheckin(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: moodKeys.all }),
+    onSuccess: () => invalidateMoodCaches(queryClient),
     meta: {
       errorMessage: serverMessageOr(
         i18n.t('mood.failedToDelete', 'Failed to delete mood entry.')

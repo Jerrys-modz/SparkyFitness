@@ -29,8 +29,9 @@ export const updateMoodCheckin = (
   body: MoodCheckinUpdateBody
 ): Promise<MoodEntry> => api.put(`/mood/${id}`, { body, ...MOOD_V2_OPTIONS });
 
-export const deleteMoodCheckin = (id: string): Promise<void> =>
-  api.delete(`/mood/${id}`, MOOD_V2_OPTIONS);
+export const deleteMoodCheckin = async (id: string): Promise<void> => {
+  await api.delete(`/mood/${id}`, MOOD_V2_OPTIONS);
+};
 
 // --- Custom moods (user-defined mood tags) ---------------------------------
 

@@ -17,6 +17,8 @@ interface MoodCheckinListProps {
   /** The day's manual check-ins, in time order (as the server returns them). */
   checkins: MoodEntry[];
   editingId: string | null;
+  /** The check-in whose delete is in flight; its buttons are off. */
+  deletingId: string | null;
   onEdit: (entry: MoodEntry) => void;
   onDelete: (entry: MoodEntry) => void;
 }
@@ -33,6 +35,7 @@ const snippet = (notes: string | null) => {
 export const MoodCheckinList = ({
   checkins,
   editingId,
+  deletingId,
   onEdit,
   onDelete,
 }: MoodCheckinListProps) => {
@@ -106,6 +109,7 @@ export const MoodCheckinList = ({
           const tags = entry.mood_tags.filter((tag) => tag.trim() !== '');
           const note = snippet(entry.notes);
           const isEditing = entry.id === editingId;
+          const isDeleting = entry.id === deletingId;
           return (
             <li
               key={entry.id}
@@ -145,6 +149,7 @@ export const MoodCheckinList = ({
                       size="icon"
                       className="h-7 w-7 text-muted-foreground"
                       onClick={() => onEdit(entry)}
+                      disabled={isDeleting}
                       aria-label={t(
                         'checkIn.editCheckinAt',
                         'Edit check-in at {{time}}',
@@ -159,6 +164,7 @@ export const MoodCheckinList = ({
                       size="icon"
                       className="h-7 w-7 text-muted-foreground hover:text-destructive"
                       onClick={() => onDelete(entry)}
+                      disabled={isDeleting}
                       aria-label={t(
                         'checkIn.deleteCheckinAt',
                         'Delete check-in at {{time}}',

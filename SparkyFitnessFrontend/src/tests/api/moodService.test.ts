@@ -48,6 +48,8 @@ describe('mood check-in calls (v2)', () => {
   });
 
   test('deleteMoodCheckin DELETEs by id', async () => {
+    // The real api resolves a 204 to an empty object.
+    jest.mocked(api.delete).mockResolvedValueOnce({});
     await expect(deleteMoodCheckin('abc')).resolves.toBeUndefined();
     expect(api.delete).toHaveBeenCalledWith(
       '/mood/abc',

@@ -3955,6 +3955,7 @@
     "otherDayCheckins": "Check-ins",
     "noCheckins": "No check-ins yet for this day.",
     "dayAverage": "Day average",
+    "checkinNeedsContent": "Add a mood, energy, focus, a tag or a journal entry to save.",
     "checkinCount_one": "{{count}} check-in",
     "checkinCount_other": "{{count}} check-ins",
     "energyOutOfFive": "Energy {{value}}/5",

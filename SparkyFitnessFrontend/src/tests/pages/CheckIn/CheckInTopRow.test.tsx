@@ -380,6 +380,83 @@ describe('CheckInTopRow delete', () => {
   });
 });
 
+describe('CheckInTopRow delete in flight', () => {
+  test('a pending delete locks that row and sends no second request', async () => {
+    let finish: (ok: boolean) => void = () => {};
+    const onDeleteCheckin = jest.fn(
+      () => new Promise<boolean>((resolve) => (finish = resolve))
+    );
+    renderRow({ checkins: [stored], onDeleteCheckin });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Delete check-in at 09:30' })
+    );
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Delete',
+      })
+    );
+
+    const rowDelete = screen.getByRole('button', {
+      name: 'Delete check-in at 09:30',
+    });
+    expect(rowDelete).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Edit check-in at 09:30' })
+    ).toBeDisabled();
+    fireEvent.click(rowDelete);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(onDeleteCheckin).toHaveBeenCalledTimes(1);
+
+    await act(async () => finish(true));
+    expect(rowDelete).toBeEnabled();
+  });
+
+  test('Save changes is off while the edited check-in is being deleted', async () => {
+    let finish: (ok: boolean) => void = () => {};
+    const onDeleteCheckin = jest.fn(
+      () => new Promise<boolean>((resolve) => (finish = resolve))
+    );
+    renderRow({ checkins: [stored], onDeleteCheckin });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Edit check-in at 09:30' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Set energy 3' }));
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Delete check-in at 09:30' })
+    );
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Delete',
+      })
+    );
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+
+    await act(async () => finish(false));
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+  });
+});
+
+describe('CheckInTopRow save hint', () => {
+  test('explains what makes a check-in saveable until it has content', () => {
+    renderRow();
+    const add = screen.getByRole('button', { name: 'Add check-in' });
+    const hint = 'Add a mood, energy, focus, a tag or a journal entry to save.';
+
+    expect(add).toBeDisabled();
+    expect(screen.getByText(hint)).toBeInTheDocument();
+    expect(add).toHaveAccessibleDescription(hint);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set energy 3' }));
+
+    expect(screen.queryByText(hint)).not.toBeInTheDocument();
+    expect(add).toBeEnabled();
+    expect(add).not.toHaveAttribute('aria-describedby');
+  });
+});
+
 describe('CheckInTopRow day list', () => {
   test("titles today's list and other days differently", () => {
     const { rerender } = renderRow({ selectedDate: todayInZone('UTC') });
