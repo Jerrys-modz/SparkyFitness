@@ -303,3 +303,7 @@ export * from './utils/runningDynamics.ts';
 export * from './utils/gradeAdjustedTrack.ts';
 export * from './utils/namedFoodPortions.ts';
 export * from './ai/modelFamilies.ts';
+export * from './schemas/api/FitnessFatigue.api.zod.ts';
+export * from './utils/fitnessFatigue.ts';
+export * from './utils/readiness.ts';
+export * from './utils/runningEstimates.ts';
