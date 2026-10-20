@@ -653,6 +653,41 @@ describe('processGoogleSleep — overnight biometrics', () => {
     expect(options).toEqual({ keepExistingBiometrics: true });
   });
 
+  it('keeps zero-valued biometrics through the date maps and onto the night', async () => {
+    const hrvByDate = dailyHrvByDate(
+      dataPoints({
+        dailyHeartRateVariability: {
+          date: { year: 2026, month: 10, day: 15 },
+          averageHeartRateVariabilityMilliseconds: 0,
+        },
+      }),
+      'UTC'
+    );
+    const restingHrByDate = dailyRestingHeartRateByDate(
+      dataPoints({
+        dailyRestingHeartRate: {
+          date: { year: 2026, month: 10, day: 15 },
+          beatsPerMinute: 0,
+        },
+      }),
+      'UTC'
+    );
+    await processGoogleSleep(UID, CID, night(), 'UTC', {
+      hrvByDate,
+      restingHrByDate,
+    });
+    expect(sleepRepository.upsertSleepEntry).toHaveBeenCalledWith(
+      UID,
+      CID,
+      expect.objectContaining({
+        entry_date: '2026-10-15',
+        avg_overnight_hrv: 0,
+        resting_heart_rate: 0,
+      }),
+      { keepExistingBiometrics: true }
+    );
+  });
+
   it('leaves both fields unset when no maps are passed', async () => {
     await processGoogleSleep(UID, CID, night());
     const [, , entry, options] = vi.mocked(sleepRepository.upsertSleepEntry)
