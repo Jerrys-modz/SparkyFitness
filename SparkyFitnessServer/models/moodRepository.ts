@@ -62,7 +62,8 @@ export interface MoodEntryPatch {
   entryDate?: string;
 }
 
-// Mirrors the mood_entries_has_content CHECK constraint.
+// Mirrors the mood_entries_has_content CHECK constraint: whitespace-only notes
+// and blank tags are not content.
 export function hasMoodContent(
   input: Pick<
     MoodCheckinInput,
@@ -73,8 +74,8 @@ export function hasMoodContent(
     (input.moodValue ?? null) !== null ||
     (input.energyValue ?? null) !== null ||
     (input.focusValue ?? null) !== null ||
-    (input.notes ?? '').trim() !== '' ||
-    (input.moodTags ?? []).length > 0
+    /\S/.test(input.notes ?? '') ||
+    (input.moodTags ?? []).some((tag) => /\S/.test(tag))
   );
 }
 
@@ -154,7 +155,7 @@ async function upsertDerivedMood(
 
 /**
  * The legacy (one-per-day) row: the newest manual row with a mood, else the
- * day's derived row.
+ * day's derived row, Garmin before import (as in DAILY_MOOD_VALUE_SQL).
  */
 async function getLegacyMoodEntryForDate(
   userId: string,
@@ -166,7 +167,7 @@ async function getLegacyMoodEntryForDate(
       `SELECT ${MOOD_ENTRY_COLUMNS}
        FROM mood_entries
        WHERE user_id = $1 AND entry_date = $2 AND mood_value IS NOT NULL
-       ORDER BY (source = 'manual') DESC, entry_timestamp DESC, created_at DESC
+       ORDER BY (source = 'manual') DESC, (source = 'garmin') DESC, entry_timestamp DESC, created_at DESC
        LIMIT 1`,
       [userId, entryDate]
     );
@@ -188,7 +189,7 @@ async function getLegacyMoodEntriesInRange(
       `SELECT DISTINCT ON (entry_date) ${MOOD_ENTRY_COLUMNS}
        FROM mood_entries
        WHERE user_id = $1 AND entry_date BETWEEN $2 AND $3 AND mood_value IS NOT NULL
-       ORDER BY entry_date DESC, (source = 'manual') DESC, entry_timestamp DESC, created_at DESC`,
+       ORDER BY entry_date DESC, (source = 'manual') DESC, (source = 'garmin') DESC, entry_timestamp DESC, created_at DESC`,
       [userId, startDate, endDate]
     );
     return result.rows;

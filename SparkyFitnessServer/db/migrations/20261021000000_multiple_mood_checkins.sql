@@ -5,9 +5,9 @@
 --
 -- unique_user_date is a constraint on most installs and a plain unique index on
 -- others, so it is dropped as a constraint first and then as an index.
--- The content CHECK is added NOT VALID and validated in a second transaction so
--- the scan does not hold the add-constraint lock. The runner sends one file as
--- one query; the COMMIT is what splits it.
+-- The backfills fire the table's set_timestamp trigger, so updated_at on every
+-- existing row moves to the time of the migration.
+-- The whole file is one transaction, so a failure leaves the table as it was.
 BEGIN;
 
 ALTER TABLE public.mood_entries ADD COLUMN IF NOT EXISTS entry_timestamp TIMESTAMPTZ;
@@ -38,18 +38,25 @@ ALTER TABLE public.mood_entries ALTER COLUMN entry_timestamp SET DEFAULT now();
 
 ALTER TABLE public.mood_entries ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'manual';
 UPDATE public.mood_entries SET source = 'garmin' WHERE notes LIKE 'Derived from Garmin Stress:%';
+-- The aggregates and the derived-row index know only these three.
+ALTER TABLE public.mood_entries DROP CONSTRAINT IF EXISTS mood_entries_known_source;
+ALTER TABLE public.mood_entries ADD CONSTRAINT mood_entries_known_source
+  CHECK (source IN ('manual', 'garmin', 'import'));
 
 ALTER TABLE public.mood_entries ALTER COLUMN mood_value DROP NOT NULL;
 
+-- The same rule as hasMoodContent in models/moodRepository.ts: whitespace-only
+-- notes and blank tags are not content. The notes branch keeps its NULL guard
+-- because a CHECK that evaluates to NULL lets the row through.
 ALTER TABLE public.mood_entries DROP CONSTRAINT IF EXISTS mood_entries_has_content;
 ALTER TABLE public.mood_entries ADD CONSTRAINT mood_entries_has_content
   CHECK (
     mood_value IS NOT NULL
     OR energy_value IS NOT NULL
     OR focus_value IS NOT NULL
-    OR (notes IS NOT NULL AND btrim(notes) <> '')
-    OR cardinality(mood_tags) > 0
-  ) NOT VALID;
+    OR (notes IS NOT NULL AND notes ~ '\S')
+    OR array_to_string(mood_tags, '') ~ '\S'
+  );
 
 ALTER TABLE public.mood_entries DROP CONSTRAINT IF EXISTS unique_user_date;
 DROP INDEX IF EXISTS public.unique_user_date;
@@ -59,8 +66,4 @@ CREATE UNIQUE INDEX IF NOT EXISTS mood_entries_derived_source_day
 CREATE INDEX IF NOT EXISTS mood_entries_user_day_time
   ON public.mood_entries (user_id, entry_date, entry_timestamp);
 
-COMMIT;
-
-BEGIN;
-ALTER TABLE public.mood_entries VALIDATE CONSTRAINT mood_entries_has_content;
 COMMIT;

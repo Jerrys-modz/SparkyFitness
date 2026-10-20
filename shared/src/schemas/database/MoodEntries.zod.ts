@@ -9,6 +9,10 @@ export const moodEntriesIdSchema = z.string().and(
 
 const userIdSchema = z.any();
 
+// Added by hand to match the mood_entries_known_source CHECK
+// (20261021000000_multiple_mood_checkins); re-add if ts-to-zod is rerun.
+export const moodEntriesSourceSchema = z.enum(['manual', 'garmin', 'import']);
+
 export const moodEntriesSchema = z.object({
   id: moodEntriesIdSchema,
   user_id: userIdSchema,
@@ -19,7 +23,7 @@ export const moodEntriesSchema = z.object({
   notes: z.string().nullable(),
   entry_date: z.date(),
   entry_timestamp: z.date(),
-  source: z.string(),
+  source: moodEntriesSourceSchema,
   created_at: z.date(),
   updated_at: z.date(),
   created_by_user_id: userIdSchema.nullable(),
@@ -36,7 +40,7 @@ export const moodEntriesInitializerSchema = z.object({
   notes: z.string().optional().nullable(),
   entry_date: z.date().optional(),
   entry_timestamp: z.date().optional(),
-  source: z.string().optional(),
+  source: moodEntriesSourceSchema.optional(),
   created_at: z.date().optional(),
   updated_at: z.date().optional(),
   created_by_user_id: userIdSchema.optional().nullable(),
@@ -53,7 +57,7 @@ export const moodEntriesMutatorSchema = z.object({
   notes: z.string().optional().nullable(),
   entry_date: z.date().optional(),
   entry_timestamp: z.date().optional(),
-  source: z.string().optional(),
+  source: moodEntriesSourceSchema.optional(),
   created_at: z.date().optional(),
   updated_at: z.date().optional(),
   created_by_user_id: userIdSchema.optional().nullable(),

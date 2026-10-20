@@ -21,6 +21,13 @@ describe('moodRepository', () => {
       expect(hasMoodContent({})).toBe(false);
     });
 
+    it('matches the CHECK on whitespace: tabs and newlines are not notes, a blank tag is not a tag', () => {
+      expect(hasMoodContent({ notes: '\n\t' })).toBe(false);
+      expect(hasMoodContent({ moodTags: [''] })).toBe(false);
+      expect(hasMoodContent({ moodTags: [' ', '\t'] })).toBe(false);
+      expect(hasMoodContent({ moodTags: ['', 'calm'] })).toBe(true);
+    });
+
     it('is true when any single field carries content', () => {
       expect(hasMoodContent({ energyValue: 2 })).toBe(true);
       expect(hasMoodContent({ moodValue: 0 })).toBe(true);
@@ -73,7 +80,7 @@ describe('moodRepository', () => {
       const [sql, params] = query.mock.calls[0];
       expect(sql).toContain('mood_value IS NOT NULL');
       expect(sql).toMatch(
-        /ORDER BY \(source = 'manual'\) DESC, entry_timestamp DESC, created_at DESC\s+LIMIT 1/
+        /ORDER BY \(source = 'manual'\) DESC, \(source = 'garmin'\) DESC, entry_timestamp DESC, created_at DESC\s+LIMIT 1/
       );
       expect(params).toEqual(['u1', '2026-10-20']);
     });
@@ -88,7 +95,7 @@ describe('moodRepository', () => {
       expect(sql).toContain('DISTINCT ON (entry_date)');
       expect(sql).toContain('mood_value IS NOT NULL');
       expect(sql).toContain(
-        "ORDER BY entry_date DESC, (source = 'manual') DESC, entry_timestamp DESC, created_at DESC"
+        "ORDER BY entry_date DESC, (source = 'manual') DESC, (source = 'garmin') DESC, entry_timestamp DESC, created_at DESC"
       );
       expect(params).toEqual(['u1', '2026-10-01', '2026-10-31']);
     });

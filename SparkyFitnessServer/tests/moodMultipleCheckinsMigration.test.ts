@@ -65,14 +65,32 @@ describe('multiple mood check-ins migration', () => {
     expect(sql).toMatch(/ALTER COLUMN mood_value DROP NOT NULL/i);
   });
 
-  it('requires some content, added NOT VALID and validated in a later transaction', () => {
+  it('requires some content, where whitespace-only notes and blank tags do not count', () => {
+    // Matches hasMoodContent: notes need a non-space character, and tags count
+    // only when one of them has one (so [""] is empty). The notes branch keeps
+    // its NULL guard because a NULL CHECK result would let the row through.
     const check =
-      /ADD CONSTRAINT mood_entries_has_content CHECK \( ?mood_value IS NOT NULL OR energy_value IS NOT NULL OR focus_value IS NOT NULL OR \(notes IS NOT NULL AND btrim\(notes\) <> ''\) OR cardinality\(mood_tags\) > 0 ?\) NOT VALID/i;
+      /ADD CONSTRAINT mood_entries_has_content CHECK \( ?mood_value IS NOT NULL OR energy_value IS NOT NULL OR focus_value IS NOT NULL OR \(notes IS NOT NULL AND notes ~ '\\S'\) OR array_to_string\(mood_tags, ''\) ~ '\\S' ?\);/i;
     expect(sql).toMatch(check);
-    expect(sql).toMatch(/VALIDATE CONSTRAINT mood_entries_has_content/i);
-    expect(
-      sql.search(/COMMIT; BEGIN; ALTER TABLE public\.mood_entries VALIDATE/i)
-    ).toBeGreaterThan(sql.search(/NOT VALID/i));
+    expect(sql).not.toMatch(/btrim\(notes\)/i);
+    expect(sql).not.toMatch(/cardinality\(mood_tags\)/i);
+  });
+
+  it('allows only the three known sources', () => {
+    const drop = sql.search(
+      /DROP CONSTRAINT IF EXISTS mood_entries_known_source;/i
+    );
+    const add = sql.search(
+      /ADD CONSTRAINT mood_entries_known_source CHECK \(source IN \('manual', 'garmin', 'import'\)\);/i
+    );
+    expect(drop).toBeGreaterThanOrEqual(0);
+    expect(add).toBeGreaterThan(drop);
+  });
+
+  it('runs as one transaction', () => {
+    expect(sql.match(/\bBEGIN;/gi)).toHaveLength(1);
+    expect(sql.match(/\bCOMMIT;/gi)).toHaveLength(1);
+    expect(sql).not.toMatch(/NOT VALID|VALIDATE CONSTRAINT/i);
   });
 
   it('drops the old unique as a constraint first, then as an index', () => {

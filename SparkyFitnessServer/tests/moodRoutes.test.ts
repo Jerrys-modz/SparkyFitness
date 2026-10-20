@@ -532,19 +532,22 @@ describe('Mood Routes', () => {
       );
     });
 
-    it.each([{}, { notes: '   ' }, { mood_tags: [] }])(
-      'rejects %j as an empty check-in',
-      async (body) => {
-        const res = await request(app)
-          .post('/mood')
-          .set(V2)
-          .send(body)
-          .expect(400);
+    it.each([
+      {},
+      { notes: '   ' },
+      { notes: '\n\t' },
+      { mood_tags: [] },
+      { mood_tags: [''] },
+    ])('rejects %j as an empty check-in', async (body) => {
+      const res = await request(app)
+        .post('/mood')
+        .set(V2)
+        .send(body)
+        .expect(400);
 
-        expect(res.body).toStrictEqual({ message: EMPTY_MESSAGE });
-        expect(moodRepository.createCheckin).not.toHaveBeenCalled();
-      }
-    );
+      expect(res.body).toStrictEqual({ message: EMPTY_MESSAGE });
+      expect(moodRepository.createCheckin).not.toHaveBeenCalled();
+    });
 
     it('keeps rejecting a non-numeric mood and an out-of-range rating', async () => {
       const mood = await request(app)
