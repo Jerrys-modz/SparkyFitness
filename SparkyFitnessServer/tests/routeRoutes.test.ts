@@ -170,6 +170,25 @@ describe('routes API', () => {
       (await request(app).patch(`/api/v2/routes/${ID}`).send({})).status
     ).toBe(400);
 
+    const replaced = await request(app)
+      .patch(`/api/v2/routes/${ID}`)
+      .send({ points, cues: [] });
+    expect(replaced.status).toBe(200);
+    expect(vi.mocked(updateRoute).mock.calls.at(-1)?.[2]).toMatchObject({
+      points,
+    });
+    expect(
+      (await request(app).patch(`/api/v2/routes/${ID}`).send({ cues: [] }))
+        .status
+    ).toBe(400);
+    expect(
+      (
+        await request(app)
+          .patch(`/api/v2/routes/${ID}`)
+          .send({ points: [points[0]] })
+      ).status
+    ).toBe(400);
+
     vi.mocked(deleteRoute).mockResolvedValueOnce(true);
     expect((await request(app).delete(`/api/v2/routes/${ID}`)).status).toBe(
       204

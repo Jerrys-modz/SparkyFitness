@@ -641,6 +641,7 @@
     "runProgramRace": "Plan a race",
     "routes": "Routes",
     "routeDraw": "Draw a route",
+    "routeEdit": "Edit route",
     "routeGenerate": "Generate a route"
   },
   "healthMetrics": {
@@ -7962,7 +7963,16 @@
       "attribution": "Map data from OpenStreetMap contributors."
     },
     "followRoads": "Follow roads",
-    "followRoadsLimit": "Following roads takes up to {{max}} points. Undo a point to add another.",
+    "editorPointLimit": "A route takes up to {{max}} points. Delete a point to add another.",
+    "followBefore": "Follow roads before",
+    "followAfter": "Follow roads after",
+    "straightBefore": "Straight before",
+    "straightAfter": "Straight after",
+    "deletePoint": "Delete point",
+    "editLine": "Edit route on map",
+    "mapSatellite": "Satellite",
+    "mapStandard": "Map",
+    "redo": "Redo",
     "findingRoute": "Finding a route",
     "turns": "Turns",
     "showFewerTurns": "Show fewer",

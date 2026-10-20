@@ -209,6 +209,22 @@ export async function renameRoute(
   return route;
 }
 
+/**
+ * Saves an edited line (and optionally a new name) over a saved route. The
+ * server recomputes distance and climb. The cached route is replaced and its
+ * stops dropped, since they were looked up along the old line.
+ */
+export async function saveRouteEdits(
+  id: string,
+  patch: UpdateRouteBody
+): Promise<Route> {
+  const { route } = await updateRoute(id, patch);
+  queryClient.setQueryData(routeQueryKey(id), route);
+  queryClient.removeQueries({ queryKey: routeStopsQueryKey(id) });
+  await refreshRoutes();
+  return route;
+}
+
 export async function removeRoute(id: string): Promise<void> {
   await deleteRoute(id);
   queryClient.removeQueries({ queryKey: routeQueryKey(id) });

@@ -1,10 +1,7 @@
 import React from 'react';
 import { act, fireEvent, render } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import {
-  ROUTE_FOLLOW_ROADS_MAX_POINTS,
-  type GeneratedRoutePreview,
-} from '@workspace/shared';
+import { type GeneratedRoutePreview } from '@workspace/shared';
 import RouteDrawScreen from '../../src/screens/RouteDrawScreen';
 import {
   generateRoutePreview,
@@ -28,6 +25,8 @@ jest.mock('../../src/hooks/useScreenHeader', () => ({
 jest.mock('../../src/services/routeService', () => ({
   generateRoutePreview: jest.fn(),
   saveDrawnRoute: jest.fn(),
+  saveRouteEdits: jest.fn(),
+  useRoute: () => ({ route: undefined }),
   useRouteGenerationCapabilities: jest.fn(),
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
@@ -78,7 +77,7 @@ const snapped: GeneratedRoutePreview = {
 const navigation = { replace: jest.fn() };
 
 function renderScreen() {
-  return render(
+  const utils = render(
     <SafeAreaProvider
       initialMetrics={{
         insets: { top: 0, bottom: 0, left: 0, right: 0 },
@@ -91,6 +90,16 @@ function renderScreen() {
       />
     </SafeAreaProvider>
   );
+  // Zoomed in, so a tap only lands on the line when it is close to it.
+  act(() =>
+    utils.getByTestId('map-view').props.onRegionChangeComplete({
+      latitude: 40,
+      longitude: -100,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    })
+  );
+  return utils;
 }
 
 const tapMap = (
@@ -158,46 +167,61 @@ describe('RouteDrawScreen follow roads', () => {
         { lat: 40.004, lon: -100 },
       ],
     });
-    expect(utils.getByTestId('map-polyline').props.coordinates).toHaveLength(
-      snapped.points.length
-    );
-    expect(utils.getByText(/650 m|0\.65 km/)).toBeTruthy();
+    // One polyline per stretch; they share the point where they meet.
+    expect(
+      utils
+        .getAllByTestId('map-polyline')
+        .flatMap((line) => line.props.coordinates)
+    ).toHaveLength(snapped.points.length + 1);
+    // The distance is measured along the drawn line.
+    expect(utils.getByText(/4\d\d m|0\.4\d km/)).toBeTruthy();
     expect(utils.getByText(/2 turns/)).toBeTruthy();
   });
 
-  it('keeps the last good line and offers a retry when a request fails', async () => {
+  it('draws a piece that failed straight, keeps routed pieces, and offers a retry', async () => {
     mockGenerate.mockResolvedValueOnce(snapped);
     const utils = renderScreen();
     fireEvent(utils.getByLabelText('Follow roads'), 'valueChange', true);
     tapMap(utils, 40);
     tapMap(utils, 40.004);
     await settle();
+    expect(mockGenerate).toHaveBeenCalledTimes(1);
 
+    // The third point joins the first piece, which is asked for again and fails.
     mockGenerate.mockRejectedValueOnce(new ApiError('x', 422, '{}'));
     tapMap(utils, 40.01);
     await settle();
     expect(utils.getByText(/No route found there/)).toBeTruthy();
-    expect(utils.getByTestId('map-polyline').props.coordinates).toHaveLength(
-      snapped.points.length
-    );
     expect(utils.getByText('Retry')).toBeTruthy();
-    // The shown line no longer matches the taps, so it cannot be saved.
+    // The shown line does not match the points, so it cannot be saved.
     expect(lastHeader().right.disabled).toBe(true);
   });
 
-  it('stops adding points past the waypoint limit', async () => {
+  it('routes a long route in pieces and only re-routes the piece a change touches', async () => {
     mockGenerate.mockResolvedValue(snapped);
     const utils = renderScreen();
     fireEvent(utils.getByLabelText('Follow roads'), 'valueChange', true);
-    for (let i = 0; i < ROUTE_FOLLOW_ROADS_MAX_POINTS + 3; i++) {
-      tapMap(utils, 40 + i * 0.001);
-    }
-    expect(utils.getAllByTestId('map-marker')).toHaveLength(
-      ROUTE_FOLLOW_ROADS_MAX_POINTS
-    );
-    expect(utils.getByText(/takes up to 21 points/)).toBeTruthy();
+    for (let i = 0; i < 25; i++) tapMap(utils, 40 + i * 0.001);
     await settle();
-    expect(mockGenerate.mock.calls.at(-1)[0].waypoints).toHaveLength(20);
+    expect(mockGenerate).toHaveBeenCalledTimes(2);
+    expect(mockGenerate.mock.calls[0][0].waypoints).toHaveLength(20);
+    expect(mockGenerate.mock.calls[1][0].waypoints).toHaveLength(4);
+
+    // Moving the last point only changes the second piece.
+    const markers = utils.getAllByTestId('map-marker');
+    act(() =>
+      markers[24].props.onDragEnd({
+        nativeEvent: { coordinate: { latitude: 40.03, longitude: -100 } },
+      })
+    );
+    await settle();
+    expect(mockGenerate).toHaveBeenCalledTimes(3);
+    expect(mockGenerate.mock.calls[2][0].waypoints).toHaveLength(4);
+
+    // Undo goes back to a piece already routed, so nothing is asked again.
+    fireEvent.press(utils.getByText('Undo'));
+    await settle();
+    expect(mockGenerate).toHaveBeenCalledTimes(3);
   });
 
   it('saves the snapped line with its cues once it matches the taps', async () => {
@@ -216,7 +240,10 @@ describe('RouteDrawScreen follow roads', () => {
     expect(mockSave).toHaveBeenCalledWith({
       name: 'Park loop',
       points: snapped.points,
-      cues: snapped.cues,
+      cues: snapped.cues.map((cue) => ({
+        ...cue,
+        distanceM: expect.any(Number),
+      })),
     });
     expect(navigation.replace).toHaveBeenCalledWith('RouteDetail', {
       id: 'route-1',

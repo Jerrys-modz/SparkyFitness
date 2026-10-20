@@ -26,6 +26,8 @@ jest.mock('../../src/services/routeService', () => ({
     },
     isLoading: false,
   }),
+  saveRouteEdits: jest.fn(),
+  useRoute: () => ({ route: undefined }),
   generateRoutePreview: jest.fn(),
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
