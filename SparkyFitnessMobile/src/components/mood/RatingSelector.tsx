@@ -18,7 +18,7 @@ const RatingSelector: React.FC<RatingSelectorProps> = ({
   lowLabel,
   highLabel,
 }) => (
-  <View className="mb-4">
+  <View>
     <Text className="text-xs font-bold text-text-muted uppercase tracking-wider mb-2">
       {label}
     </Text>

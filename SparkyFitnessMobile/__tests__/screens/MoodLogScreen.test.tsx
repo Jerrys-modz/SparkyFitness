@@ -203,6 +203,15 @@ describe('MoodLogScreen energy, focus and journal', () => {
     expect(Toast.show).not.toHaveBeenCalled();
   });
 
+  it('still goes back without a notice when the save response is empty', async () => {
+    mockMutateAsync.mockResolvedValue(undefined);
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Focus 2'));
+    await pressSave();
+    await waitFor(() => expect(mockNavigation.goBack).toHaveBeenCalled());
+    expect(Toast.show).not.toHaveBeenCalled();
+  });
+
   it('saves what is typed in the Journal box as notes', async () => {
     renderScreen();
     fireEvent.changeText(

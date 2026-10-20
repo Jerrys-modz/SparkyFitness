@@ -23,6 +23,9 @@ export function useMoodRatingsSupport(): {
   const today = getTodayDate();
   const query = useQuery({
     queryKey: moodRatingsSupportQueryKey,
+    // The answer only changes with a server upgrade; save, refresh and server
+    // switch still re-probe, so keep it to avoid a show-then-hide flash.
+    gcTime: Infinity,
     queryFn: async () =>
       moodEntriesSupportRatings(
         await fetchMoodEntries(addDays(today, -PROBE_DAYS), today)

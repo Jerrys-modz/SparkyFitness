@@ -107,7 +107,9 @@ export default function MoodLogScreen({ navigation, route }: Props) {
       ...(sendFocus && { focus_value: focusOverride }),
     });
     // An older server ignores the fields and its row has no energy_value key.
-    if ((sendEnergy || sendFocus) && !('energy_value' in saved)) {
+    // An empty (non-object) response tells us nothing, so it shows no notice.
+    const savedIsRow = saved != null && typeof saved === 'object';
+    if ((sendEnergy || sendFocus) && savedIsRow && !('energy_value' in saved)) {
       Toast.show({
         type: 'info',
         text1: t('mood.ratingsUnsupported', {
@@ -204,6 +206,7 @@ export default function MoodLogScreen({ navigation, route }: Props) {
         className="flex-1 px-4 py-3"
         contentContainerClassName="gap-4 pb-6"
         keyboardShouldPersistTaps="handled"
+        bottomOffset={80}
       >
         {entryLoading && (
           <Text className="text-xs text-text-muted">
@@ -267,7 +270,7 @@ export default function MoodLogScreen({ navigation, route }: Props) {
         </View>
 
         {showRatings && (
-          <View>
+          <View className="gap-4">
             <RatingSelector
               label={t('mood.energy', { defaultValue: 'Energy' })}
               value={energy}
