@@ -60,8 +60,6 @@ These tables contain highly sensitive credentials, API keys, SSO tokens, 2FA rec
 | `segments` | A person's segments: a timed stretch (a simplified line of at most 400 points, its length and bounding box, an optional name and the activity) cut from a saved route or a recorded activity. `source_route_id` and `source_exercise_entry_id` are nullable and `ON DELETE SET NULL` | Owner-Only | Owner-Only |
 | `segment_efforts` | The cached result of matching one activity's GPS track against one segment: when the segment was crossed and the elapsed time, or a "no valid pass" row (null time) so a track is not re-read. Deleted with the segment or the activity; the API only ever queries it as the owner | Owner-Only | Owner-Only |
 | `fitness_tests` | A person's running fitness tests (5K time trial, 30-minute run, Cooper test): the measurements, the surface (outdoor or treadmill) and incline, the result and the derived training paces, linked to the recorded activity | Owner-Only | Owner-Only |
-| `run_goals` | A person's running goals: a weekly running distance target and a race (name, day, distance) to count down to | Owner-Only | Owner-Only |
-| `custom_run_programs` | A person's own saved run or walk plans (name, activity, workouts) that they can start | Owner-Only | Owner-Only |
 | `health_appointments` | Prenatal & other health appointments | Owner-Only | Owner-Only |
 | `openfoodfacts_product_read_rate_limit` | Singleton coordination lease and cooldown for Open Food Facts product reads, including manual previews; contains no user data or credentials | System services only | Deny all |
 | `openfoodfacts_sync_queue` | Dormant automatic Open Food Facts upload state and retained history; stores food/user identifiers and retry metadata, never provider credentials. The manual first release does not enqueue or process these rows. | System worker and owning user | Owner-Only |
@@ -72,7 +70,6 @@ These tables contain highly sensitive credentials, API keys, SSO tokens, 2FA rec
 ### Tier 2: View-Only Shared (Owner-Only Write, Delegate-Read)
 These tables contain user profiles, layouts, display settings, and custom databases (like the foods/exercises database libraries). Switched delegates can view this data to render the dashboard, but only the account owner is allowed to create or edit them.
 
-| Table Name | Description | Write (insert/update/delete) | Read (select) |
 | :--- | :--- | :--- | :--- |
 | `profiles` | User full name, height, and display metrics | **Owner-Only** (`authenticated_user_id()`) | Switched Delegate (`current_user_id()`) |
 | `user_preferences` | Unit, calculation-method, calorie safety-floor, chart-scale, heart rate zone settings (`max_heart_rate`, `resting_heart_rate`, `hr_zone_method`, `hr_zone_custom_floors`; read and written only through the owner-only `/api/v2/heart-rate-zones` route), and Chat/Vision/Voice configuration preferences (`active_voice_ai_service_id` is nullable; NULL means system recognition, never the Chat provider; `voice_input_enabled` defaults to true and controls microphone visibility on web/mobile without clearing the selection) | **Owner-Only** (`authenticated_user_id()`) | Switched Delegate |
@@ -119,7 +116,6 @@ These tables contain daily diaries, logging entries, and scheduler items. **Care
 
 The `food_entries` insert policy permits detached nutrition snapshots when `food_id`, `meal_id`, and `variant_id` are all null. This branch still requires `has_diary_access(user_id)`; detaching library links does not grant access to another person's diary.
 
-| Table Name | Description | Write (insert/update/delete) | Read (select) |
 | :--- | :--- | :--- | :--- |
 | `food_entries` | Logged meals/calories consumed for the day, plus an optional per-entry markdown `notes` field. Snapshot-backed: carries its own `food_name`, `brand_name`, serving size and full nutrition, and `food_id` is `ON DELETE SET NULL` — see *Library deletes vs. diary history* below | Delegate with `can_manage_diary` | Delegate with `can_manage_diary` or `can_view_reports` |
 | `food_entry_meals` | Meal details associated with logged food entries, including snapshotted dish yield (`entry_total_servings`), plus an optional per-entry markdown `notes` field | Delegate with `can_manage_diary` | Delegate with `can_manage_diary` or `can_view_reports` |
@@ -138,7 +134,6 @@ The `food_entries` insert policy permits detached nutrition snapshots when `food
 
 #### B. Medication Logs (Writable by delegates with `can_manage_medications` / Readable by `can_view_reports` or `can_manage_medications`)
 
-| Table Name | Description | Write (insert/update/delete) | Read (select) |
 | :--- | :--- | :--- | :--- |
 | `medications` | Custom medication inventory lists (e.g. insulin) | Delegate with `can_manage_medications` | Delegate with `can_manage_medications` or `can_view_reports` |
 | `medication_schedules` | Reminders/schedules to take medications | Delegate with `can_manage_medications` | Delegate with `can_manage_medications` or `can_view_reports` |
@@ -151,7 +146,6 @@ The `food_entries` insert policy permits detached nutrition snapshots when `food
 
 Symptoms are their own domain (they used to share the medications permission). Policies use `create_symptom_policy`, backed by `has_symptom_access` / `has_symptom_read_access`.
 
-| Table Name | Description | Write (insert/update/delete) | Read (select) |
 | :--- | :--- | :--- | :--- |
 | `user_custom_symptoms` | The user's symptom definitions: template, section overrides, custom fields, scale | Delegate with `can_manage_symptoms` | Delegate with `can_manage_symptoms` or `can_view_reports` |
 | `user_symptom_options` | Pick-list library (locations, qualities, associated symptoms, triggers, relief methods); replaces `user_custom_symptom_locations` | Delegate with `can_manage_symptoms` | Delegate with `can_manage_symptoms` or `can_view_reports` |
@@ -162,7 +156,6 @@ Symptoms are their own domain (they used to share the medications permission). P
 
 #### C. Check-In & Wellness Logs (Writable by delegates with `can_manage_checkin` / Readable by `can_view_reports` or `can_manage_checkin`)
 
-| Table Name | Description | Write (insert/update/delete) | Read (select) |
 | :--- | :--- | :--- | :--- |
 | `check_in_measurements` | Weight, body composition, BMR, and circumference measurements | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `check_in_photos` | Progress photos (image bytes served only via the authenticated `GET /api/measurements/check-in-photos/file/{id}`; excluded from the public `/uploads` static mount) | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
@@ -190,7 +183,6 @@ Symptoms are their own domain (they used to share the medications permission). P
 ## System & Global Reference Tables (Public Read, Admin Write)
 These tables store global configuration settings, lookup values, and reference metadata. They do not contain user-specific data and do not have Row-Level Security enabled. All authenticated users can read them, but only administrators can update them.
 
-| Table Name | Description | Write (insert/update/delete) | Read (select) |
 | :--- | :--- | :--- | :--- |
 | `global_settings` | Application global feature flags and system configurations | Admin-Only | Authenticated Users |
 | `backup_settings` | Automated database backup timing and storage credentials | Admin-Only | Admin-Only |

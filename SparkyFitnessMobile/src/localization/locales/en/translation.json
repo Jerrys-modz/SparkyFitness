@@ -125,7 +125,8 @@
       "managedByIOS": "Managed by iOS",
       "iosSettingsHint": "Change this app's language in iOS Settings",
       "openSettingsFailed": "Could not open iOS Settings",
-      "iosSubtitle": "{{language}} · {{managedBy}}"
+      "iosSubtitle": "{{language}} · {{managedBy}}",
+      "turkish": "Türkçe"
     },
     "lastSynced": "Last synced {{time}}",
     "addServer": "Tap to add a server",

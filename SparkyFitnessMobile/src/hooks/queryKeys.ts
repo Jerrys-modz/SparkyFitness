@@ -489,7 +489,3 @@ export const routeRunsQueryKey = (id: string) =>
   ['routes', id, 'runs'] as const;
 
 export const heartRateZonesQueryKey = ['heartRateZones'] as const;
-/** The person's weekly running distance target and race (server-backed). */
-export const runGoalsQueryKey = ['runGoals'] as const;
-/** The person's own saved run programs. */
-export const customRunProgramsQueryKey = ['customRunPrograms'] as const;
