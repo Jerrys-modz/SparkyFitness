@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-16_
+_Last updated: 2026-10-20_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -282,6 +282,7 @@ When searching, ignore noisy/generated directories unless you explicitly need th
   inspect `services/chatService.ts`, `ai/tools/`, and the matching domain service and repository
 - Fasting or mood issue:
   inspect `routes/fastingRoutes.ts` / `routes/moodRoutes.ts` and `models/fastingRepository.ts` / `models/moodRepository.ts`
+  `mood_entries` holds several rows per day, each with `entry_timestamp` and a `source`: `manual` (web/app check-ins, AI `log_mood`, end-of-fast mood), or `garmin` / `import` (derived, one row per source per day via a partial unique index). `mood_value` is nullable; a CHECK needs at least one of mood, energy, focus, notes or tags. Requests without the `X-Mood-Model-Version` header keep the one-mood-per-day contract on the "legacy row" (latest manual row with a mood, falling back to the derived row on GET); `X-Mood-Model-Version: 2` always adds a check-in and reads arrays (header is in `CORS_ALLOWED_HEADERS`, `utils/corsHelper.ts`). Per-day aggregates (coach, cycle correlations) use `DAILY_MOOD_VALUE_SQL`: rounded average of manual moods, else Garmin, else import.
 - Symptom or episode tracking issue (#1882):
   inspect `routes/v2/symptomRoutes.ts`, `services/symptomService.ts`, `models/symptomRepository.ts`, `models/symptomOptionRepository.ts`, and the shared contract and built-ins in `../shared/src/schemas/api/Symptoms.api.zod.ts` and `../shared/src/symptoms/`. `symptom_entries` also holds cycle-hub symptoms (`source = 'cycle'`), which RLS keeps owner-only
 - Medications, cycle, or pregnancy issue:
