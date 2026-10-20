@@ -145,14 +145,18 @@ export const deleteMoodCheckin = async (id: string): Promise<void> => {
 };
 
 /** The server keeps one entry per day, so saving again replaces that day's. */
-export const saveMoodEntry = (body: SaveMoodEntryBody): Promise<MoodEntry> =>
-  apiFetch<MoodEntry>({
-    endpoint: '/api/mood',
-    serviceName: SERVICE,
-    operation: 'save mood entry',
-    method: 'POST',
-    body,
-  });
+export const saveMoodEntry = async (
+  body: SaveMoodEntryBody
+): Promise<MoodEntry> =>
+  normalizeMoodEntry(
+    await apiFetch<RawMoodEntry>({
+      endpoint: '/api/mood',
+      serviceName: SERVICE,
+      operation: 'save mood entry',
+      method: 'POST',
+      body,
+    })
+  );
 
 export const fetchCustomMoods = (): Promise<CustomMood[]> =>
   apiFetch<CustomMood[]>({

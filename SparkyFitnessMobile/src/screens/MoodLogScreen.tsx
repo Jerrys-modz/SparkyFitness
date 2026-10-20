@@ -109,6 +109,8 @@ interface MoodLogFrameProps {
   onSave: () => void;
   saving: boolean;
   saveDisabled: boolean;
+  /** Why Save is off, kept in view above the scrolling body. */
+  hint?: string;
   children: ReactNode;
 }
 
@@ -120,6 +122,7 @@ function MoodLogFrame({
   onSave,
   saving,
   saveDisabled,
+  hint,
   children,
 }: MoodLogFrameProps) {
   const { t } = useTranslation();
@@ -153,6 +156,11 @@ function MoodLogFrame({
       style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
     >
       {header}
+      {hint && (
+        <Text className="px-4 pt-2 text-xs text-text-muted text-center">
+          {hint}
+        </Text>
+      )}
       <KeyboardAwareScrollView
         className="flex-1 px-4 py-3"
         contentContainerClassName="gap-4 pb-6"
@@ -450,12 +458,17 @@ function CheckinComposer({
   // check-in's is the default for now, which follows the clock and the zone.
   const timeTouched = changes.time !== undefined;
   const [now, setNow] = useState(() => new Date());
+  // The dashboard passes the device's day, which can differ from the day in
+  // the preference zone; either one counts as today. The default time then
+  // reads the clock in the zone, on the zone's own today.
+  const zoneToday = todayInZone(tz);
+  const isToday = date === zoneToday || date === getTodayDate();
+  const clockDay = isToday ? zoneToday : date;
   const base: CheckinDraft = editing
     ? draftFromEntry(editing, tz)
-    : { ...EMPTY_CHECKIN, time: defaultCheckinTime(date, tz, now) };
+    : { ...EMPTY_CHECKIN, time: defaultCheckinTime(clockDay, tz, now) };
   const draft: CheckinDraft = { ...base, ...changes };
 
-  const isToday = date === todayInZone(tz);
   // A screen left open keeps showing "now" until the user sets a time.
   const followsClock = editing === null && !timeTouched && isToday;
   useEffect(() => {
@@ -495,7 +508,7 @@ function CheckinComposer({
         // was when the screen opened.
         const sent = timeTouched
           ? draft
-          : { ...draft, time: defaultCheckinTime(date, tz) };
+          : { ...draft, time: defaultCheckinTime(clockDay, tz) };
         await createCheckin.mutateAsync(buildCheckinCreateBody(sent, date, tz));
       }
     } catch (error) {
@@ -505,7 +518,7 @@ function CheckinComposer({
       );
       return;
     }
-    // Saved: whatever follows a saved check-in goes here, before leaving.
+    // The single success point after a save.
     navigation.goBack();
   };
 
@@ -567,6 +580,14 @@ function CheckinComposer({
       onSave={handleSave}
       saving={saving}
       saveDisabled={saveDisabled}
+      hint={
+        !hasContent
+          ? t('mood.checkinNeedsContent', {
+              defaultValue:
+                'Add a mood, energy, focus, a tag or a journal entry to save.',
+            })
+          : undefined
+      }
     >
       {!isToday && <MoodLogDateNote date={date} />}
       <TouchableOpacity
@@ -605,14 +626,6 @@ function CheckinComposer({
         value={draft.notes}
         onChangeText={(notes) => change({ notes })}
       />
-      {!hasContent && (
-        <Text className="text-xs text-text-muted text-center">
-          {t('mood.checkinNeedsContent', {
-            defaultValue:
-              'Add a mood, energy, focus, a tag or a journal entry to save.',
-          })}
-        </Text>
-      )}
       {editing && (
         <Button
           variant="destructive"

@@ -3,7 +3,6 @@ import { Alert, type AlertButton } from 'react-native';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import Toast from 'react-native-toast-message';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { moodTagForValue } from '@workspace/shared';
 import MoodDayScreen from '../../src/screens/MoodDayScreen';
 import { initializeI18n } from '../../src/localization/i18n';
 import { ApiError } from '../../src/services/api/errors';
@@ -109,6 +108,9 @@ const checkin = (
   ...overrides,
 });
 
+const ROW_B_LABEL =
+  '13:45, energy 3 of 5, Calm, Hard time focusing after lunch.. Edit check-in.';
+
 const threeCheckins = () => [
   checkin('a', '08:10', { mood_value: 90, energy_value: 4, focus_value: 4 }),
   checkin('b', '13:45', {
@@ -133,24 +135,21 @@ beforeEach(() => {
   mockDeleteMutateAsync.mockResolvedValue(undefined);
 });
 
-describe('moodTagForValue', () => {
-  it('is null for an absent value and the banded tag otherwise', () => {
-    expect(moodTagForValue(null)).toBeNull();
-    expect(moodTagForValue(undefined)).toBeNull();
-    expect(moodTagForValue(70)).toBe('confident');
-    expect(moodTagForValue(0)).toBe('sad');
-  });
-});
-
 describe('MoodDayScreen', () => {
   it('lists the check-ins in order with their times', () => {
     renderScreen();
-    const rows = screen.getAllByRole('button', { name: /^Edit check-in at/ });
+    const rows = screen.getAllByRole('button', { name: /Edit check-in\.$/ });
     expect(rows.map((r) => r.props.accessibilityLabel)).toEqual([
-      'Edit check-in at 08:10',
-      'Edit check-in at 13:45',
-      'Edit check-in at 21:30',
+      '08:10, Excited, energy 4 of 5, focus 4 of 5. Edit check-in.',
+      '13:45, energy 3 of 5, Calm, Hard time focusing after lunch.. Edit check-in.',
+      '21:30, Confident. Edit check-in.',
     ]);
+  });
+
+  it('shows the day as a date, not as raw ISO text', () => {
+    renderScreen();
+    expect(screen.getByText('Wed, Oct 14')).toBeTruthy();
+    expect(screen.queryByText(/Logging for/)).toBeNull();
   });
 
   it('shows no face on a check-in without a mood', () => {
@@ -197,7 +196,7 @@ describe('MoodDayScreen', () => {
 
   it('opens a check-in for editing when its row is pressed', () => {
     renderScreen();
-    fireEvent.press(screen.getByLabelText('Edit check-in at 13:45'));
+    fireEvent.press(screen.getByLabelText(ROW_B_LABEL));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('MoodLog', {
       date: DATE,
       checkinId: 'b',
@@ -245,8 +244,11 @@ describe('MoodDayScreen', () => {
   describe('delete', () => {
     const confirmDelete = async () => {
       const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-      fireEvent(screen.getByLabelText('Edit check-in at 13:45'), 'longPress');
+      // The row's own element carries the long press: nothing inside it
+      // handles touches, so a real long press reaches the delete menu.
+      fireEvent(screen.getByLabelText(ROW_B_LABEL), 'longPress');
       // The long-press menu is the confirmation.
+      expect(alertSpy.mock.calls[0][0]).toBe('check-in at 13:45');
       const buttons = alertSpy.mock.calls[0][2] as AlertButton[];
       await act(async () => {
         buttons.find((b) => b.text === 'Delete')?.onPress?.();
@@ -259,6 +261,14 @@ describe('MoodDayScreen', () => {
       await confirmDelete();
       expect(mockDeleteMutateAsync).toHaveBeenCalledWith('b');
       expect(Toast.show).not.toHaveBeenCalled();
+    });
+
+    it('names the check-in in the swipe-to-delete confirm', () => {
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      renderScreen();
+      fireEvent.press(screen.getAllByText('Delete')[1]);
+      expect(alertSpy.mock.calls[0][0]).toBe('Delete check-in at 13:45?');
+      alertSpy.mockRestore();
     });
 
     it('shows the server message when the delete fails', async () => {

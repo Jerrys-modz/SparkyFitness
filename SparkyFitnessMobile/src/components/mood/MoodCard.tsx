@@ -14,6 +14,7 @@ import {
 import Icon from '../Icon';
 import { getAppLocale } from '../../localization';
 import { useMoodEntriesBetween } from '../../hooks/useMood';
+import { useMoodCheckinsSupport } from '../../hooks/useMoodCheckinsSupport';
 import { getBuiltInMoodLabels } from './moodLabels';
 import { addDays, getTodayDate } from '../../utils/dateUtils';
 import type { RootStackParamList, TabParamList } from '../../types/navigation';
@@ -81,7 +82,14 @@ export default function MoodCard({ navigation, date }: MoodCardProps) {
         date: selectedDate,
       });
 
-  const openDay = () => navigation.navigate('MoodDay', { date: selectedDate });
+  // Asking here warms the server check before the first tap. Only a server
+  // known to keep several check-ins a day has a day list to open; any other
+  // goes straight to the one-entry form (MoodDay also redirects, as a fallback).
+  const { supported } = useMoodCheckinsSupport();
+  const openDay = () =>
+    navigation.navigate(supported === true ? 'MoodDay' : 'MoodLog', {
+      date: selectedDate,
+    });
   const openNewCheckin = () =>
     navigation.navigate('MoodLog', { date: selectedDate });
 

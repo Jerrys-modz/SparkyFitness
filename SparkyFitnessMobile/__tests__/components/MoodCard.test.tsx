@@ -9,6 +9,14 @@ jest.mock('../../src/hooks/useMood', () => ({
   useMoodEntriesBetween: jest.fn(),
 }));
 
+let mockCheckinsSupport: { supported: boolean | null; isLoading: boolean } = {
+  supported: true,
+  isLoading: false,
+};
+jest.mock('../../src/hooks/useMoodCheckinsSupport', () => ({
+  useMoodCheckinsSupport: () => mockCheckinsSupport,
+}));
+
 jest.mock('../../src/components/Icon', () => {
   const React = require('react');
   const { View } = require('react-native');
@@ -44,7 +52,10 @@ const entry = (overrides: Partial<MoodEntry> = {}): MoodEntry => ({
 });
 
 describe('MoodCard on Dashboard', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockCheckinsSupport = { supported: true, isLoading: false };
+  });
 
   it('offers a log button when nothing is logged for the day', () => {
     mockUseMoodEntries.mockReturnValue([]);
@@ -105,4 +116,18 @@ describe('MoodCard on Dashboard', () => {
     fireEvent.press(getByLabelText(`Mood on ${DATE}: Happy`));
     expect(mockNavigate).toHaveBeenCalledWith('MoodDay', { date: DATE });
   });
+
+  it.each([false, null])(
+    'opens the one-entry form when the server check says %s',
+    (supported) => {
+      mockCheckinsSupport = { supported, isLoading: false };
+      mockUseMoodEntries.mockReturnValue([entry()]);
+      const { getByLabelText } = render(
+        <MoodCard navigation={navigation} date={DATE} />
+      );
+
+      fireEvent.press(getByLabelText(`Mood on ${DATE}: Happy`));
+      expect(mockNavigate).toHaveBeenCalledWith('MoodLog', { date: DATE });
+    }
+  );
 });

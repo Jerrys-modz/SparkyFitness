@@ -5,7 +5,7 @@ import type { MoodEntry } from '../services/api/moodApi';
 
 export type MoodDayPoint = {
   day: string;
-  /** Mean 0-100 mood for the day; 0 when nothing was logged. */
+  /** Mean 0-100 mood for the day; 0 on a day with no mood, which `entries` of 0 marks. */
   value: number;
   /** Manual check-ins with a mood that day. */
   entries: number;
@@ -89,10 +89,9 @@ export function buildMoodReport(
     .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
     .slice(0, topTagLimit);
 
-  const logged = loggedPoints;
-  const ranked = [...logged].sort((a, b) => a.value - b.value);
+  const ranked = [...loggedPoints].sort((a, b) => a.value - b.value);
   const byWeekday = new Map<number, number[]>();
-  for (const point of logged) {
+  for (const point of loggedPoints) {
     const weekday = weekdayOfDay(point.day);
     const list = byWeekday.get(weekday) ?? [];
     list.push(point.value);

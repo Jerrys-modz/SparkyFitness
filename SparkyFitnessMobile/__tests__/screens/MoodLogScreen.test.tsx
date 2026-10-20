@@ -12,6 +12,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import MoodLogScreen from '../../src/screens/MoodLogScreen';
 import { initializeI18n } from '../../src/localization/i18n';
 import { ApiError } from '../../src/services/api/errors';
+import * as dateUtils from '../../src/utils/dateUtils';
 import { getTodayDate } from '../../src/utils/dateUtils';
 import type { RootStackScreenProps } from '../../src/types/navigation';
 import type { MoodEntry } from '../../src/services/api/moodApi';
@@ -74,9 +75,10 @@ jest.mock('../../src/hooks/useMoodCheckinsSupport', () => ({
   useMoodCheckinsSupport: () => mockCheckinsSupport,
 }));
 
+let mockTimezone = 'UTC';
 jest.mock('../../src/hooks/usePreferences', () => ({
   usePreferences: () => ({
-    preferences: { timezone: 'UTC', time_format: 'HH:mm' },
+    preferences: { timezone: mockTimezone, time_format: 'HH:mm' },
   }),
 }));
 
@@ -357,6 +359,7 @@ describe('MoodLogScreen check-in composer (several check-ins a day)', () => {
   beforeEach(() => {
     jest.useFakeTimers({ now: NOW });
     mockCheckinsSupport = { supported: true, isLoading: false };
+    mockTimezone = 'UTC';
   });
 
   afterEach(() => {
@@ -379,6 +382,25 @@ describe('MoodLogScreen check-in composer (several check-ins a day)', () => {
         )
       ).toBeTruthy();
       expect(saveButton()).toBeDisabled();
+    });
+
+    it("starts at the current time in the user's zone when the device's today is a different day there", () => {
+      // 23:30 UTC on the 14th is 08:30 on the 15th in Tokyo. The dashboard
+      // passes the device's day (the 14th), which still counts as today.
+      jest.setSystemTime(new Date(`${DATE}T23:30:00Z`));
+      mockTimezone = 'Asia/Tokyo';
+      const deviceToday = jest
+        .spyOn(dateUtils, 'getTodayDate')
+        .mockReturnValue(DATE);
+      renderScreen();
+      expect(screen.getByLabelText('Time, 08:30')).toBeTruthy();
+      expect(screen.queryByText(/Logging for/)).toBeNull();
+      deviceToday.mockRestore();
+    });
+
+    it('defaults a past day to noon', () => {
+      renderWithParams({ date: '2026-10-10' });
+      expect(screen.getByLabelText('Time, 12:00')).toBeTruthy();
     });
 
     it('posts only what was filled in, never a mood that was not chosen', async () => {

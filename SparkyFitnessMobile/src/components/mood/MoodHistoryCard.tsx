@@ -32,6 +32,7 @@ export default function MoodHistoryCard({ customMoods }: MoodHistoryCardProps) {
   const tagFrequency = useMemo(() => {
     const counts = new Map<string, number>();
     for (const entry of entries) {
+      if (entry.source !== 'manual') continue;
       for (const tag of entry.mood_tags ?? []) {
         counts.set(tag, (counts.get(tag) ?? 0) + 1);
       }

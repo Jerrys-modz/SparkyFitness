@@ -15,7 +15,7 @@ import type { RootStackParamList } from '../types/navigation';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import Button from '../components/ui/Button';
-import MoodCheckinRow from '../components/mood/MoodCheckinRow';
+import MoodCheckinListItem from '../components/mood/MoodCheckinListItem';
 import { getBuiltInMoodLabels } from '../components/mood/moodLabels';
 import {
   useCustomMoods,
@@ -26,6 +26,7 @@ import { useMoodCheckinsSupport } from '../hooks/useMoodCheckinsSupport';
 import { usePreferences } from '../hooks/usePreferences';
 import { getApiErrorMessage } from '../services/api/errors';
 import { getDeviceTimezone } from '../utils/dateUtils';
+import { formatDayLabel } from '../utils/dayLabel';
 import { formatTimeLabel } from '../utils/entryTimeDisplay';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MoodDay'>;
@@ -94,10 +95,7 @@ function MoodDayFrame({
       >
         {date && (
           <Text className="text-xs text-text-muted">
-            {t('mood.loggingForDate', {
-              defaultValue: 'Logging for {{date}}',
-              date,
-            })}
+            {formatDayLabel(date)}
           </Text>
         )}
         {children ?? (
@@ -226,7 +224,7 @@ function MoodDayContent({
           </View>
           <View className="gap-2">
             {rows.map((entry) => (
-              <MoodCheckinRow
+              <MoodCheckinListItem
                 key={entry.id}
                 entry={entry}
                 time={

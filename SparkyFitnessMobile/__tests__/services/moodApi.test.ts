@@ -51,6 +51,45 @@ describe('moodApi', () => {
     );
   });
 
+  it('sends no mood model header on the legacy POST', async () => {
+    await saveMoodEntry({
+      mood_value: 72,
+      mood_tags: [],
+      notes: '',
+      entry_date: '2026-10-05',
+    });
+
+    // A v2 server would insert a duplicate if this carried the v2 header.
+    const call = mockApiFetch.mock.calls[0][0];
+    expect(call.method).toBe('POST');
+    expect(call.headers).toBeUndefined();
+  });
+
+  it('normalises the saved entry like the other mood calls', async () => {
+    mockApiFetch.mockResolvedValue({
+      id: 'm1',
+      mood_value: 60,
+      mood_tags: [],
+      notes: null,
+      entry_date: '2026-10-05',
+      created_at: '2026-10-05T08:00:00Z',
+    });
+
+    const saved = await saveMoodEntry({
+      mood_value: 60,
+      mood_tags: [],
+      notes: '',
+      entry_date: '2026-10-05',
+    });
+
+    expect(saved).toEqual(
+      expect.objectContaining({
+        source: 'manual',
+        entry_timestamp: '2026-10-05T08:00:00Z',
+      })
+    );
+  });
+
   it('passes energy and focus through when provided', async () => {
     await saveMoodEntry({
       mood_value: 72,
