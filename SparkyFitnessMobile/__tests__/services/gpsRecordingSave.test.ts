@@ -50,10 +50,10 @@ const mockedTelemetry = jest.mocked(attachExerciseEntryWatchTelemetry);
 const mockedHeartRate = jest.mocked(getHeartRateSamples);
 const mockedLearnIndoor = jest.mocked(learnFromIndoorEntry);
 const mockedLearnOutdoor = jest.mocked(learnFromOutdoorRecording);
+const mockedMeasureForm = jest.mocked(measureOutdoorForm);
 const mockedFetchShoes = jest.mocked(fetchShoes);
 const mockedAssignShoe = jest.mocked(assignShoeToExerciseEntry);
 const mockedWornOut = jest.mocked(findShoeThatReachedLimit);
-const mockedMeasureForm = jest.mocked(measureOutdoorForm);
 
 const DEG_PER_METER = 1 / 111_194.9;
 const T0 = new Date(2026, 9, 6, 7, 5, 0).getTime();

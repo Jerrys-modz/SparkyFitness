@@ -319,7 +319,6 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
           </View>
         ) : null}
 
-        <ShoePickerCard exerciseEntryId={session.id} />
         <Button
           variant="secondary"
           className="mb-4 py-3 items-center"
@@ -332,6 +331,7 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
             defaultValue: 'Share as image',
           })}
         </Button>
+        <ShoePickerCard exerciseEntryId={session.id} />
 
         <Card
           title={t('exerciseStatistics.cardio.route', {

@@ -20,10 +20,10 @@ import {
   measureOutdoorForm,
   type IndoorDistanceEstimate,
 } from './stepDistance';
+import { computeFormMetrics, type FormMetrics } from '../utils/stride';
 import { assignShoeToExerciseEntry, fetchShoes } from './api/shoesApi';
 import { findShoeThatReachedLimit } from './shoeWear';
 import type { ShoeResponse } from '@workspace/shared';
-import { computeFormMetrics, type FormMetrics } from '../utils/stride';
 import { buildActivitySetsPayload } from '../utils/workoutSession';
 import { toLocalDateString } from '../utils/dateUtils';
 import {

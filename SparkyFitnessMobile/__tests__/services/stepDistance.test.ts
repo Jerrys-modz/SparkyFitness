@@ -225,12 +225,13 @@ describe('measureOutdoorForm', () => {
     });
   });
 
-  it('keeps cadence but drops stride when the session paused', async () => {
+  it('is null when the session paused, without reading steps', async () => {
     mockedSteps.mockResolvedValue(4000);
 
     expect(
       await measureOutdoorForm(window({ activity: 'run', paused: true }), 4000)
-    ).toEqual({ avgCadence: 133, strideLengthCm: null });
+    ).toBeNull();
+    expect(mockedSteps).not.toHaveBeenCalled();
   });
 
   it('is null when the phone cannot say', async () => {
