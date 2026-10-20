@@ -1,4 +1,4 @@
-import type { RoutePoint } from "../schemas/api/Route.api.zod.ts";
+import type { RoutePoint } from '../schemas/api/Route.api.zod.ts';
 
 const EARTH_RADIUS_M = 6371008.8;
 const toRad = (deg: number): number => (deg * Math.PI) / 180;
@@ -31,7 +31,7 @@ export function routeDistanceMeters(points: readonly RoutePoint[]): number {
  */
 export function routeElevationGainMeters(
   points: readonly RoutePoint[],
-  thresholdM = 2,
+  thresholdM = 2
 ): number | null {
   let reference: number | null = null;
   let gain = 0;
@@ -56,7 +56,7 @@ export function routeElevationGainMeters(
 function distanceToSegmentMeters(
   p: RoutePoint,
   a: RoutePoint,
-  b: RoutePoint,
+  b: RoutePoint
 ): number {
   const cosLat = Math.cos(toRad(a.lat));
   const toXY = (q: RoutePoint): [number, number] => [
@@ -73,7 +73,7 @@ function distanceToSegmentMeters(
 
 function douglasPeucker(
   points: readonly RoutePoint[],
-  toleranceM: number,
+  toleranceM: number
 ): number[] {
   const keep = new Set<number>([0, points.length - 1]);
   const stack: Array<[number, number]> = [[0, points.length - 1]];
@@ -85,7 +85,7 @@ function douglasPeucker(
       const d = distanceToSegmentMeters(
         at(points, i),
         at(points, start),
-        at(points, end),
+        at(points, end)
       );
       if (d > farthestDistance) {
         farthest = i;
@@ -124,7 +124,7 @@ const MAX_WIDENINGS = 12;
 export function simplifyRoute(
   points: readonly RoutePoint[],
   maxPoints: number,
-  toleranceM = 3,
+  toleranceM = 3
 ): { points: RoutePoint[]; sourceIndexes: number[] } {
   if (points.length <= 2) {
     return {
@@ -139,7 +139,7 @@ export function simplifyRoute(
     if (
       haversineMeters(
         at(points, at(candidates, candidates.length - 1)),
-        at(points, i),
+        at(points, i)
       ) >= 2
     ) {
       candidates.push(i);

@@ -28,8 +28,7 @@ const MIN_ROUTE_METERS = 10;
 
 /**
  * Draw a route by tapping the map: each tap adds a point and the points are
- * joined by straight lines, so tap often around bends. (Following roads and
- * paths needs a routing service, which is a separate, optional feature.)
+ * joined by straight lines, so tap often around bends.
  */
 const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
   const { t } = useTranslation();

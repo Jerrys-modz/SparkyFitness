@@ -1,8 +1,8 @@
-import { z } from "zod";
+import { z } from 'zod';
 import {
   routeActivitySchema,
   routeSourceSchema,
-} from "../database/Routes.zod.ts";
+} from '../database/Routes.zod.ts';
 
 /** The most points a client may send; the server simplifies to far fewer. */
 export const ROUTE_MAX_INPUT_POINTS = 50000;
@@ -25,16 +25,16 @@ export const routePointSchema = z.object({
  * device can fire the cue when it gets close to that point.
  */
 export const routeCueKindSchema = z.enum([
-  "depart",
-  "straight",
-  "slight_left",
-  "left",
-  "sharp_left",
-  "slight_right",
-  "right",
-  "sharp_right",
-  "uturn",
-  "arrive",
+  'depart',
+  'straight',
+  'slight_left',
+  'left',
+  'sharp_left',
+  'slight_right',
+  'right',
+  'sharp_right',
+  'uturn',
+  'arrive',
 ]);
 
 export const routeCueSchema = z.object({
@@ -72,7 +72,7 @@ export const routeSummarySchema = routeSchema
 
 export const createRouteBodySchema = z.object({
   name: routeNameSchema,
-  activity: routeActivitySchema.default("run"),
+  activity: routeActivitySchema.default('run'),
   points: z.array(routePointSchema).min(2).max(ROUTE_MAX_INPUT_POINTS),
   cues: z.array(routeCueSchema).max(1000).optional(),
 });
@@ -83,14 +83,14 @@ export const updateRouteBodySchema = z
     activity: routeActivitySchema.optional(),
   })
   .refine((body) => body.name !== undefined || body.activity !== undefined, {
-    message: "Provide a name or an activity",
+    message: 'Provide a name or an activity',
   });
 
 export const importGpxRouteBodySchema = z.object({
   gpx: z.string().min(1).max(ROUTE_MAX_GPX_CHARS),
   /** Overrides the name found in the file. */
   name: routeNameSchema.optional(),
-  activity: routeActivitySchema.default("run"),
+  activity: routeActivitySchema.default('run'),
 });
 
 export const routeFromActivityBodySchema = z.object({

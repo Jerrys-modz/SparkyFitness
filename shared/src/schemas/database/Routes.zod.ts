@@ -1,14 +1,9 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 export const routesIdSchema = z.string();
 
-export const routeActivitySchema = z.enum(["run", "walk", "ride", "hike"]);
-export const routeSourceSchema = z.enum([
-  "drawn",
-  "gpx",
-  "activity",
-  "generated",
-]);
+export const routeActivitySchema = z.enum(['run', 'walk', 'ride', 'hike']);
+export const routeSourceSchema = z.enum(['drawn', 'gpx', 'activity']);
 
 export const routesSchema = z.object({
   id: routesIdSchema,
@@ -29,8 +24,8 @@ export const routesInitializerSchema = z.object({
   id: routesIdSchema.optional(),
   user_id: z.string(),
   name: z.string(),
-  activity: routeActivitySchema.optional().default("run"),
-  source: routeSourceSchema.optional().default("drawn"),
+  activity: routeActivitySchema.optional().default('run'),
+  source: routeSourceSchema.optional().default('drawn'),
   distance_m: z.number().optional().default(0),
   elevation_gain_m: z.number().nullable().optional(),
   points: z.unknown().optional(),

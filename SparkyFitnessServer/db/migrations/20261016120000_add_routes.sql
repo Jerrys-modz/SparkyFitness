@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public.routes (
     activity VARCHAR(10) NOT NULL DEFAULT 'run'
         CHECK (activity IN ('run', 'walk', 'ride', 'hike')),
     source VARCHAR(10) NOT NULL DEFAULT 'drawn'
-        CHECK (source IN ('drawn', 'gpx', 'activity', 'generated')),
+        CHECK (source IN ('drawn', 'gpx', 'activity')),
     distance_m DOUBLE PRECISION NOT NULL DEFAULT 0,
     elevation_gain_m DOUBLE PRECISION,
     points JSONB NOT NULL DEFAULT '[]'::jsonb,
