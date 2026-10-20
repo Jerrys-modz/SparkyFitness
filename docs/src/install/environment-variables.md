@@ -205,14 +205,6 @@ Each of these is also settable in the Admin UI, where it is stored in the databa
 The developer mock-data switches (formerly `SPARKY_FITNESS_SAVE_MOCK_DATA` and the per-provider `SPARKY_FITNESS_*_DATA_SOURCE` variables) have been removed. Capturing a provider's raw responses, and replaying them instead of calling the provider, are now per-sync checkboxes on the provider sync dialog, available only while an admin has enabled **Allow Local Provider Response Capture** in **Admin > Global Provider Settings**. `GARMIN_SERVICE_IS_CN` is unaffected and remains an environment variable on the Garmin container.
 :::
 
-### Module 12b: 🗺️ Route Generation `[Backend]`
-
-Optional. Route generation needs a routing engine you run yourself (or have a key for); with `SPARKY_FITNESS_ROUTING_URL` unset the feature reports itself as unavailable. See [Route Generation](../features/exercises/route-generation.md) for setup.
-
-- **`SPARKY_FITNESS_ROUTING_URL`**: Base URL of the routing engine, reachable from the server (for example `http://sparkyfitness-valhalla:8002`). Must be `http` or `https`.
-- **`SPARKY_FITNESS_ROUTING_PROVIDER`**: Which engine the URL points at. Defaults to `valhalla`, currently the only supported value; any other value leaves the feature unavailable.
-- **`SPARKY_FITNESS_ROUTING_API_KEY`**: Only for a hosted engine that needs a key. Sent as the `api_key` query parameter and never logged. Can be supplied as `SPARKY_FITNESS_ROUTING_API_KEY_FILE`.
-
 ### Module 12c: 📍 Route Stops `[Backend]`
 
 Optional. Shows drinking water, toilets, cafes and viewpoints along a saved route, using OpenStreetMap data through an [Overpass API](https://wiki.openstreetmap.org/wiki/Overpass_API) endpoint. With `SPARKY_FITNESS_OVERPASS_URL` unset the feature is off and hidden in the app. See [Route Generation](../features/exercises/route-generation.md#stops-along-the-way).
@@ -251,4 +243,3 @@ Any backend environment variable `VAR` can be supplied via a corresponding `VAR_
 | `SPARKY_FITNESS_OIDC_CLIENT_ID`     | `SPARKY_FITNESS_OIDC_CLIENT_ID_FILE`     | OIDC Client ID                          |
 | `SPARKY_FITNESS_OIDC_CLIENT_SECRET` | `SPARKY_FITNESS_OIDC_CLIENT_SECRET_FILE` | OIDC Client Secret                      |
 | `SPARKY_FITNESS_DEMO_PASSWORD`      | `SPARKY_FITNESS_DEMO_PASSWORD_FILE`      | Demo user account password              |
-| `SPARKY_FITNESS_ROUTING_API_KEY`    | `SPARKY_FITNESS_ROUTING_API_KEY_FILE`    | Routing engine API key (optional)       |

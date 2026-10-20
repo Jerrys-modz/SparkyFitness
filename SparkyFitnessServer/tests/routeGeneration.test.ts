@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 // @ts-expect-error TS7016 supertest typing
 import request from 'supertest';
 import express from 'express';
@@ -6,12 +6,18 @@ import axios from 'axios';
 import errorHandler from '../middleware/errorHandler.js';
 import routeRoutes, { generateRateLimiter } from '../routes/v2/routeRoutes.js';
 import { generateRoute } from '../services/routeGenerationService.js';
-import { getRoutingProvider } from '../services/routing/routingConfig.js';
+import {
+  ROUTING_REQUEST_TIMEOUT_MS,
+  resolveRoutingProvider,
+} from '../services/routing/routingConfig.js';
+import externalProviderRepository from '../models/externalProviderRepository.js';
+import { resolveIsAdminByUserId } from '../utils/adminCheck.js';
 import {
   RoutingProviderError,
   type RoutingProvider,
   type RoutingRequest,
 } from '../services/routing/routingProvider.js';
+import { createValhallaProvider } from '../services/routing/valhallaProvider.js';
 import { destinationPoint } from '../services/routing/loopPlanner.js';
 import { routeDistanceMeters } from '@workspace/shared';
 
@@ -26,6 +32,23 @@ vi.mock('../models/routeRepository.js', () => ({
   RouteLimitError: class RouteLimitError extends Error {},
   ActivityHasNoRouteError: class ActivityHasNoRouteError extends Error {},
 }));
+vi.mock('../models/externalProviderRepository.js', () => ({
+  default: { getActiveProviderWithKeyByType: vi.fn() },
+}));
+vi.mock('../utils/adminCheck.js', () => ({
+  resolveIsAdminByUserId: vi.fn(),
+}));
+// The real admin-toggle lookup reads the database; the derived policy is the
+// same rule without it.
+vi.mock('../utils/outboundUrlPolicy.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../utils/outboundUrlPolicy.js')>();
+  return {
+    ...actual,
+    resolveFoodProviderNetworkPolicy: async (isAdmin: boolean) =>
+      actual.deriveFoodProviderNetworkPolicy(isAdmin),
+  };
+});
 vi.mock('axios', async (importOriginal) => {
   const actual = await importOriginal<typeof import('axios')>();
   return {
@@ -35,6 +58,9 @@ vi.mock('axios', async (importOriginal) => {
 });
 
 const START = { lat: 40, lon: -74 };
+
+const providerLookup =
+  externalProviderRepository.getActiveProviderWithKeyByType;
 
 const NO_STYLE_SUPPORT = {
   style: {
@@ -174,44 +200,17 @@ describe('destinationPoint', () => {
   });
 });
 
-describe('routing config', () => {
-  const saved = { ...process.env };
-  afterEach(() => {
-    process.env = { ...saved };
-  });
-
-  it('is unavailable without a URL', () => {
-    delete process.env.SPARKY_FITNESS_ROUTING_URL;
-    expect(getRoutingProvider()).toBeNull();
-  });
-
-  it('is unavailable for an unsupported provider or a non-http URL', () => {
-    process.env.SPARKY_FITNESS_ROUTING_URL = 'http://valhalla:8002';
-    process.env.SPARKY_FITNESS_ROUTING_PROVIDER = 'osrm';
-    expect(getRoutingProvider()).toBeNull();
-    process.env.SPARKY_FITNESS_ROUTING_PROVIDER = 'valhalla';
-    process.env.SPARKY_FITNESS_ROUTING_URL = 'file:///etc/passwd';
-    expect(getRoutingProvider()).toBeNull();
-  });
-
-  it('defaults to valhalla when a URL is set', () => {
-    process.env.SPARKY_FITNESS_ROUTING_URL = 'http://valhalla:8002/';
-    delete process.env.SPARKY_FITNESS_ROUTING_PROVIDER;
-    expect(getRoutingProvider()?.kind).toBe('valhalla');
-  });
-});
-
 describe('Valhalla provider over HTTP (axios mocked)', () => {
-  const saved = { ...process.env };
   const post = vi.mocked(axios.post);
   beforeEach(() => {
     post.mockReset();
-    process.env.SPARKY_FITNESS_ROUTING_URL = 'http://valhalla:8002/';
-    process.env.SPARKY_FITNESS_ROUTING_API_KEY = 'super-secret-key';
   });
-  afterEach(() => {
-    process.env = { ...saved };
-  });
+  const engine = () =>
+    createValhallaProvider({
+      baseUrl: 'http://valhalla:8002/',
+      apiKey: 'super-secret-key',
+      timeoutMs: ROUTING_REQUEST_TIMEOUT_MS,
+    });
 
   const axiosError = (
     code: string | undefined,
@@ -248,7 +247,7 @@ describe('Valhalla provider over HTTP (axios mocked)', () => {
       }
       throw axiosError('ECONNREFUSED'); // no /height: elevation is optional
     });
-    const result = await getRoutingProvider()!.route(req);
+    const result = await engine().route(req);
     const [url, body, config] = post.mock.calls[0] as [string, any, any];
     expect(url).toBe('http://valhalla:8002/route');
     expect(body.costing).toBe('bicycle');
@@ -266,14 +265,14 @@ describe('Valhalla provider over HTTP (axios mocked)', () => {
     [axiosError(undefined, 503), 'unreachable'],
   ])('maps a failure to %#', async (error, kind) => {
     post.mockRejectedValue(error);
-    await expect(getRoutingProvider()!.route(req)).rejects.toMatchObject({
+    await expect(engine().route(req)).rejects.toMatchObject({
       kind,
     });
   });
 
   it('never puts the API key in an error message', async () => {
     post.mockRejectedValue(axiosError(undefined, 403));
-    const failure = await getRoutingProvider()!
+    const failure = await engine()
       .route(req)
       .catch((e) => e);
     expect(String(failure.message)).not.toContain('super-secret-key');
@@ -281,14 +280,13 @@ describe('Valhalla provider over HTTP (axios mocked)', () => {
 
   it('rejects an unreadable response', async () => {
     post.mockResolvedValue({ data: { nope: true } });
-    await expect(getRoutingProvider()!.route(req)).rejects.toMatchObject({
+    await expect(engine().route(req)).rejects.toMatchObject({
       kind: 'bad_response',
     });
   });
 });
 
 describe('route generation endpoints', () => {
-  const saved = { ...process.env };
   const post = vi.mocked(axios.post);
   let actingAs = 'test-user-id';
   const app = express();
@@ -307,15 +305,20 @@ describe('route generation endpoints', () => {
     start: START,
     waypoints: [{ lat: 40.01, lon: -74 }],
   };
+  const providerRow = {
+    id: 'p1',
+    user_id: 'test-user-id',
+    provider_name: 'My routing',
+    base_url: 'https://valhalla.example.org',
+    app_key: null,
+  };
 
   beforeEach(() => {
     post.mockReset();
+    vi.mocked(providerLookup).mockReset().mockResolvedValue(providerRow);
+    vi.mocked(resolveIsAdminByUserId).mockReset().mockResolvedValue(true);
     generateRateLimiter.reset();
     actingAs = 'test-user-id';
-    process.env.SPARKY_FITNESS_ROUTING_URL = 'http://valhalla:8002';
-  });
-  afterEach(() => {
-    process.env = { ...saved };
   });
 
   const engineAnswer = {
@@ -331,10 +334,15 @@ describe('route generation endpoints', () => {
 
   it('reports availability from config', async () => {
     let res = await request(app).get('/api/v2/routes/generate/capabilities');
-    expect(res.body).toMatchObject({ available: true, maxAlternatives: 3 });
-    delete process.env.SPARKY_FITNESS_ROUTING_URL;
+    expect(res.body).toMatchObject({
+      available: true,
+      maxAlternatives: 3,
+      source: 'provider',
+    });
+    vi.mocked(providerLookup).mockResolvedValue(null);
     res = await request(app).get('/api/v2/routes/generate/capabilities');
     expect(res.body).toEqual({
+      source: null,
       available: false,
       maxAlternatives: 1,
       style: {
@@ -348,7 +356,7 @@ describe('route generation endpoints', () => {
   });
 
   it('returns 503 when not configured', async () => {
-    delete process.env.SPARKY_FITNESS_ROUTING_URL;
+    vi.mocked(providerLookup).mockResolvedValue(null);
     const res = await request(app).post('/api/v2/routes/generate').send(body);
     expect(res.status).toBe(503);
   });
@@ -412,5 +420,243 @@ describe('route generation endpoints', () => {
     const res = await request(app).post('/api/v2/routes/generate').send(body);
     expect(res.status).toBe(429);
     expect(Number(res.headers['retry-after'])).toBeGreaterThan(0);
+  });
+});
+
+describe('routing provider resolution', () => {
+  const post = vi.mocked(axios.post);
+  const lookup = vi.mocked(providerLookup);
+  const isAdmin = vi.mocked(resolveIsAdminByUserId);
+  const row = (
+    overrides: Partial<{
+      id: string;
+      user_id: string;
+      base_url: string;
+      app_key: string | null;
+    }> = {}
+  ) => ({
+    id: 'p1',
+    user_id: 'user-a',
+    provider_name: 'My routing',
+    base_url: 'https://valhalla.example.org',
+    app_key: null,
+    ...overrides,
+  });
+  const answer = {
+    data: {
+      trip: {
+        summary: { length: 1.1 },
+        legs: [
+          { shape: '_c`|@_gayB_c`|@?', maneuvers: [{ type: 1, length: 1.1 }] },
+        ],
+      },
+    },
+  };
+
+  beforeEach(() => {
+    post.mockReset();
+    lookup.mockReset().mockResolvedValue(null);
+    isAdmin.mockReset().mockResolvedValue(true);
+  });
+
+  it('is unavailable with no provider and no environment fallback', async () => {
+    expect(await resolveRoutingProvider('user-a')).toBeNull();
+    expect(lookup).toHaveBeenCalledWith('user-a', 'valhalla');
+  });
+
+  it('uses the routing provider the person added, without any environment variable', async () => {
+    lookup.mockResolvedValue(row({ app_key: 'stadia-key' }));
+    post.mockResolvedValue(answer);
+    const resolved = await resolveRoutingProvider('user-a');
+    expect(resolved?.source).toBe('provider');
+    await resolved!.provider.route({
+      locations: [START, { lat: 40.01, lon: -74 }],
+      activity: 'run',
+    });
+    const [url, , config] = post.mock.calls[0] as [string, unknown, any];
+    expect(url).toBe('https://valhalla.example.org/route');
+    expect(config.params).toEqual({ api_key: 'stadia-key' });
+  });
+
+  it('identifies itself to the engine in a User-Agent', async () => {
+    lookup.mockResolvedValue(row());
+    post.mockResolvedValue(answer);
+    const resolved = await resolveRoutingProvider('user-a');
+    await resolved!.provider.route({
+      locations: [START, { lat: 40.01, lon: -74 }],
+      activity: 'run',
+    });
+    const config = post.mock.calls[0][2] as any;
+    expect(config.headers['User-Agent']).toMatch(/^SparkyFitness\/\S+ \(/);
+    expect(config.params).toBeUndefined();
+  });
+
+  it("uses the person's provider", async () => {
+    lookup.mockResolvedValue(row());
+    const resolved = await resolveRoutingProvider('user-a');
+    expect(resolved?.source).toBe('provider');
+  });
+
+  it('is unavailable when the person has no provider', async () => {
+    expect(await resolveRoutingProvider('user-a')).toBeNull();
+  });
+
+  it('is unavailable when the lookup fails', async () => {
+    lookup.mockRejectedValue(new Error('db down'));
+    expect(await resolveRoutingProvider('user-a')).toBeNull();
+  });
+
+  it("resolves per user: one person's provider never serves another", async () => {
+    lookup.mockImplementation(async (userId: string) =>
+      userId === 'user-a' ? row({ base_url: 'https://a.example.org' }) : null
+    );
+    post.mockResolvedValue(answer);
+    expect(await resolveRoutingProvider('user-b')).toBeNull();
+    const a = await resolveRoutingProvider('user-a');
+    await a!.provider.route({
+      locations: [START, { lat: 40.01, lon: -74 }],
+      activity: 'run',
+    });
+    expect((post.mock.calls[0] as unknown[])[0]).toBe(
+      'https://a.example.org/route'
+    );
+  });
+
+  it('reads a URL without a scheme as https', async () => {
+    lookup.mockResolvedValue(row({ base_url: 'valhalla.example.org' }));
+    post.mockResolvedValue(answer);
+    const resolved = await resolveRoutingProvider('user-a');
+    await resolved!.provider.route({
+      locations: [START, { lat: 40.01, lon: -74 }],
+      activity: 'run',
+    });
+    expect((post.mock.calls[0] as unknown[])[0]).toBe(
+      'https://valhalla.example.org/route'
+    );
+  });
+
+  it('refuses a stored internal address for a non-admin owner', async () => {
+    isAdmin.mockResolvedValue(false);
+    lookup.mockResolvedValue(row({ base_url: 'http://10.0.0.5:8002' }));
+    expect(await resolveRoutingProvider('user-a')).toBeNull();
+  });
+
+  it('allows an internal address for an admin owner', async () => {
+    isAdmin.mockResolvedValue(true);
+    lookup.mockResolvedValue(row({ base_url: 'http://10.0.0.5:8002' }));
+    expect((await resolveRoutingProvider('user-a'))?.source).toBe('provider');
+  });
+
+  it('rejects a URL that is not http(s)', async () => {
+    lookup.mockResolvedValue(row({ base_url: 'file:///etc/passwd' }));
+    expect(await resolveRoutingProvider('user-a')).toBeNull();
+  });
+
+  it('never logs or returns the API key in a failure', async () => {
+    lookup.mockResolvedValue(row({ app_key: 'stadia-key' }));
+    post.mockRejectedValue(
+      Object.assign(new Error('boom'), {
+        isAxiosError: true,
+        response: { status: 403 },
+      })
+    );
+    const resolved = await resolveRoutingProvider('user-a');
+    const failure = await resolved!.provider
+      .route({
+        locations: [START, { lat: 40.01, lon: -74 }],
+        activity: 'run',
+      })
+      .catch((e) => e);
+    expect(String(failure.message)).not.toContain('stadia-key');
+  });
+});
+
+describe('route generation endpoints with a routing provider', () => {
+  const post = vi.mocked(axios.post);
+  const lookup = vi.mocked(providerLookup);
+  let userId = 'user-a';
+  const app = express();
+  app.use(express.json());
+  app.use((req: express.Request, _res, next: express.NextFunction) => {
+    req.userId = userId;
+    req.authenticatedUserId = userId;
+    req.originalUserId = userId;
+    next();
+  });
+  app.use('/api/v2/routes', routeRoutes);
+  app.use(errorHandler);
+
+  beforeEach(() => {
+    post.mockReset();
+    lookup.mockReset().mockResolvedValue(null);
+    vi.mocked(resolveIsAdminByUserId).mockReset().mockResolvedValue(true);
+    generateRateLimiter.reset();
+    userId = 'user-a';
+  });
+
+  it('is available as soon as the provider exists, with no restart', async () => {
+    let res = await request(app).get('/api/v2/routes/generate/capabilities');
+    expect(res.body).toMatchObject({ available: false, source: null });
+    lookup.mockResolvedValue({
+      id: 'p1',
+      user_id: 'user-a',
+      provider_name: 'Valhalla',
+      base_url: 'https://valhalla.example.org',
+      app_key: null,
+    });
+    res = await request(app).get('/api/v2/routes/generate/capabilities');
+    expect(res.body).toMatchObject({
+      available: true,
+      maxAlternatives: 3,
+      source: 'provider',
+    });
+  });
+
+  it('answers 503 with a pointer to Settings when the person has no provider', async () => {
+    const res = await request(app)
+      .post('/api/v2/routes/generate')
+      .send({
+        mode: 'waypoints',
+        start: START,
+        waypoints: [{ lat: 40.01, lon: -74 }],
+      });
+    expect(res.status).toBe(503);
+    expect(res.body.error).toMatch(/External Providers/);
+  });
+
+  it('keeps the 10-per-10-minutes limit on a provider-backed engine', async () => {
+    lookup.mockResolvedValue({
+      id: 'p1',
+      user_id: 'user-a',
+      provider_name: 'Valhalla',
+      base_url: 'https://valhalla.example.org',
+      app_key: null,
+    });
+    post.mockResolvedValue({
+      data: {
+        trip: {
+          summary: { length: 1.1 },
+          legs: [
+            {
+              shape: '_c`|@_gayB_c`|@?',
+              maneuvers: [{ type: 1, length: 1.1 }],
+            },
+          ],
+        },
+      },
+    });
+    const body = {
+      mode: 'waypoints',
+      start: START,
+      waypoints: [{ lat: 40.01, lon: -74 }],
+    };
+    for (let i = 0; i < 10; i++) {
+      expect(
+        (await request(app).post('/api/v2/routes/generate').send(body)).status
+      ).toBe(200);
+    }
+    expect(
+      (await request(app).post('/api/v2/routes/generate').send(body)).status
+    ).toBe(429);
   });
 });

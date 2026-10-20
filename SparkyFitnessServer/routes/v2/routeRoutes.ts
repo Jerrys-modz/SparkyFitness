@@ -13,7 +13,7 @@ import requireSelfActor from '../../middleware/requireSelfMiddleware.js';
 import { generateRoute } from '../../services/routeGenerationService.js';
 import {
   getRouteGenerateCapabilities,
-  getRoutingProvider,
+  resolveRoutingProvider,
 } from '../../services/routing/routingConfig.js';
 import { isRouteStopsAvailable } from '../../services/routeStopsConfig.js';
 import { getStopsAlongRoute } from '../../services/routeStopsService.js';
@@ -236,8 +236,9 @@ router.post('/from-activity/:exerciseEntryId', async (req, res, next) => {
  *   get:
  *     summary: What route generation and stops lookup the server offers
  *     description: >
- *       Generation needs a routing engine the admin has configured
- *       (`SPARKY_FITNESS_ROUTING_URL`); stops need an Overpass endpoint
+ *       Generation needs a routing provider: the Valhalla routing provider the
+ *       person (or the admin, as a public provider) added in Settings >
+ *       External Providers; stops need an Overpass endpoint
  *       (`SPARKY_FITNESS_OVERPASS_URL`). Clients use this to show or hide
  *       each feature and only the style controls the engine supports.
  *     tags: [Exercise]
@@ -245,10 +246,15 @@ router.post('/from-activity/:exerciseEntryId', async (req, res, next) => {
  *       200:
  *         description: >
  *           `{ available, maxAlternatives, style: { surface, hilliness,
- *           avoidSteps, avoidBusyRoads }, stops }`.
+ *           avoidSteps, avoidBusyRoads }, stops, source }`. `source` is
+ *           `provider` or `env` when `available`, else null.
  */
-router.get('/generate/capabilities', (_req, res) => {
-  res.json(getRouteGenerateCapabilities());
+router.get('/generate/capabilities', async (req, res, next) => {
+  try {
+    res.json(await getRouteGenerateCapabilities(req.userId));
+  } catch (error) {
+    next(error);
+  }
 });
 
 /**
@@ -304,17 +310,18 @@ router.get('/generate/capabilities', (_req, res) => {
  *       502:
  *         description: The routing engine failed, was unreachable, or refused the server's credentials.
  *       503:
- *         description: Route generation is not configured on this server.
+ *         description: The person has no routing provider and the server has no fallback.
  *       504:
  *         description: The routing engine timed out.
  */
 router.post('/generate', async (req, res, next) => {
   try {
-    const provider = getRoutingProvider();
-    if (!provider) {
-      return res
-        .status(503)
-        .json({ error: 'Route generation is not configured on this server' });
+    const resolved = await resolveRoutingProvider(req.userId);
+    if (!resolved) {
+      return res.status(503).json({
+        error:
+          'Route generation needs a routing provider. Add one in Settings > External Providers.',
+      });
     }
     const parsed = generateRouteBodySchema.safeParse(req.body);
     if (!parsed.success) {
@@ -330,7 +337,7 @@ router.post('/generate', async (req, res, next) => {
         .status(429)
         .json({ error: 'Too many route requests. Try again shortly.' });
     }
-    res.json(await generateRoute(provider, parsed.data));
+    res.json(await generateRoute(resolved.provider, parsed.data));
   } catch (error) {
     if (error instanceof RoutingProviderError) {
       const status =
