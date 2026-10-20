@@ -185,6 +185,22 @@ const ALL_HEALTH_METRICS: HealthMetric[] = [
     enabled: false,
   },
   {
+    // Health Connect only. Each session is sent as a MindfulnessSession and
+    // upserted by its record id into mindfulness_sessions.
+    id: 'mindfulness',
+    labelKey: 'healthMetrics.mindfulness',
+    defaultLabel: 'Mindfulness',
+    stateKey: 'isMindfulnessSyncEnabled',
+    preferenceKey: 'syncMindfulnessEnabled',
+    recordType: 'MindfulnessSession',
+    unit: 'min',
+    icon: require('../assets/icons/health-metrics/stress.png'),
+    permissions: [{ accessType: 'read', recordType: 'MindfulnessSession' }],
+    type: 'mindfulness',
+    platforms: ['android'],
+    category: 'Common',
+  },
+  {
     id: 'basalBodyTemperature',
     labelKey: 'healthMetrics.basalBodyTemperature',
     defaultLabel: 'Basal Body Temperature',
@@ -1127,6 +1143,8 @@ export function getHealthMetricLabel(
       return t('healthMetrics.sleepSession', { defaultValue: 'Sleep Session' });
     case 'stress':
       return t('healthMetrics.stress', { defaultValue: 'Stress' });
+    case 'mindfulness':
+      return t('healthMetrics.mindfulness', { defaultValue: 'Mindfulness' });
     case 'basalBodyTemperature':
       return t('healthMetrics.basalBodyTemperature', {
         defaultValue: 'Basal Body Temperature',

@@ -75,6 +75,100 @@ describe('transformHealthRecords', () => {
       });
     });
 
+    describe('MindfulnessSession', () => {
+      const config = {
+        recordType: 'MindfulnessSession',
+        unit: 'min',
+        type: 'mindfulness',
+      };
+      const session = (overrides: Record<string, unknown> = {}) => ({
+        startTime: '2024-01-15T07:00:00.000Z',
+        endTime: '2024-01-15T07:12:30.000Z',
+        startZoneOffset: { totalSeconds: 3600 },
+        mindfulnessSessionType: 1,
+        title: 'Morning calm',
+        notes: 'Body scan',
+        metadata: { id: 'hc-mindful-1', dataOrigin: 'com.calm.android' },
+        ...overrides,
+      });
+
+      test('sends a MindfulnessSession with duration, type, notes and source id', () => {
+        const result = transformHealthRecords([session()], config);
+
+        expect(result).toEqual([
+          {
+            type: 'MindfulnessSession',
+            source: 'Health Connect',
+            source_id: 'hc-mindful-1',
+            timestamp: '2024-01-15T07:00:00.000Z',
+            startTime: '2024-01-15T07:00:00.000Z',
+            endTime: '2024-01-15T07:12:30.000Z',
+            duration_seconds: 750,
+            session_type: 'meditation',
+            notes: 'Morning calm\nBody scan',
+            record_utc_offset_minutes: 60,
+          },
+        ]);
+      });
+
+      test.each([
+        [0, 'other'],
+        [1, 'meditation'],
+        [2, 'breathwork'],
+        [3, 'other'],
+        [4, 'other'],
+        [5, 'unguided'],
+        [undefined, 'other'],
+      ])('maps Health Connect type %p to %p', (hcType, expected) => {
+        const [result] = transformHealthRecords(
+          [session({ mindfulnessSessionType: hcType })],
+          config
+        ) as { session_type: string }[];
+        expect(result.session_type).toBe(expected);
+      });
+
+      test('omits notes when the record has neither title nor notes', () => {
+        const [result] = transformHealthRecords(
+          [session({ title: undefined, notes: '  ' })],
+          config
+        ) as Record<string, unknown>[];
+        expect(result).not.toHaveProperty('notes');
+      });
+
+      test('skips records without a stable id or with no duration', () => {
+        expect(
+          transformHealthRecords([session({ metadata: {} })], config)
+        ).toEqual([]);
+        expect(
+          transformHealthRecords(
+            [session({ endTime: '2024-01-15T07:00:00.000Z' })],
+            config
+          )
+        ).toEqual([]);
+      });
+
+      test('skips sessions this app wrote itself', () => {
+        setOwnPackageName('org.SparkyApps.SparkyFitnessMobile');
+        try {
+          expect(
+            transformHealthRecords(
+              [
+                session({
+                  metadata: {
+                    id: 'own',
+                    dataOrigin: 'org.SparkyApps.SparkyFitnessMobile',
+                  },
+                }),
+              ],
+              config
+            )
+          ).toEqual([]);
+        } finally {
+          setOwnPackageName(null);
+        }
+      });
+    });
+
     test('transforms raw HeartRateVariabilityRmssd records via value transformer', () => {
       const records = [
         {
