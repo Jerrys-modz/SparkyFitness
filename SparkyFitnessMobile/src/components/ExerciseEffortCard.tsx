@@ -97,7 +97,7 @@ const ExerciseEffortCard: React.FC<ExerciseEffortCardProps> = ({
           >
             {trend.map((point) => (
               <View
-                key={point.date}
+                key={point.id}
                 style={{
                   width: 10,
                   height: barHeight(point.avgRpe),

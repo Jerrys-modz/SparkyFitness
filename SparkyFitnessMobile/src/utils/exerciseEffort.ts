@@ -9,6 +9,8 @@ import { isWarmupSetType } from './workoutSession';
 export const EFFORT_TREND_SESSIONS = 10;
 
 export interface EffortTrendPoint {
+  /** The session it came from, qualified by type, so a list can key on it. */
+  id: string;
   date: string;
   /** Average RPE of the session's working sets that have one. */
   avgRpe: number;
@@ -41,19 +43,31 @@ export function buildExerciseEffortSummary(
   exerciseId: string,
   includeOneRepMax: boolean
 ): ExerciseEffortSummary {
-  const points: EffortTrendPoint[] = [];
+  // `order` is the position in the history, which lists same-day sessions
+  // newest first; `completedAt` is the earliest set completion time of the
+  // exercise in the session, when its sets carry one.
+  const points: (EffortTrendPoint & {
+    order: number;
+    completedAt: number | null;
+  })[] = [];
   let plainKg = 0;
   let effortKg = 0;
 
-  for (const session of sessions) {
+  for (const [order, session] of sessions.entries()) {
     const entries =
       session.type === 'preset'
         ? session.exercises.filter((entry) => entry.exercise_id === exerciseId)
         : [session];
     let rpeSum = 0;
     let rpeCount = 0;
+    let completedAt: number | null = null;
     for (const entry of entries) {
       for (const set of entry.sets) {
+        const completed = set.completed_at ? Date.parse(set.completed_at) : NaN;
+        if (Number.isFinite(completed)) {
+          completedAt =
+            completedAt === null ? completed : Math.min(completedAt, completed);
+        }
         if (isWarmupSetType(set.set_type)) continue;
         if (set.rpe == null || !Number.isFinite(set.rpe)) continue;
         rpeSum += set.rpe;
@@ -68,13 +82,39 @@ export function buildExerciseEffortSummary(
       }
     }
     if (rpeCount > 0 && session.entry_date) {
-      points.push({ date: session.entry_date, avgRpe: rpeSum / rpeCount });
+      points.push({
+        id: `${session.type}:${session.id}`,
+        date: session.entry_date,
+        avgRpe: rpeSum / rpeCount,
+        order,
+        completedAt,
+      });
     }
   }
 
-  points.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  // Oldest first. A day is ordered by completion time only when every session
+  // on it has one; if any lacks it, the whole day follows the history order
+  // (newest first, so the later entry is the older session). Mixing the two
+  // rules inside one day would not be a consistent ordering.
+  const untimedDays = new Set(
+    points.filter((point) => point.completedAt === null).map((p) => p.date)
+  );
+  points.sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    if (
+      !untimedDays.has(a.date) &&
+      a.completedAt !== null &&
+      b.completedAt !== null &&
+      a.completedAt !== b.completedAt
+    ) {
+      return a.completedAt - b.completedAt;
+    }
+    return b.order - a.order;
+  });
   return {
-    trend: points.slice(-EFFORT_TREND_SESSIONS),
+    trend: points
+      .slice(-EFFORT_TREND_SESSIONS)
+      .map(({ id, date, avgRpe }) => ({ id, date, avgRpe })),
     oneRepMax: effortKg > 0 ? { plainKg, effortKg } : null,
   };
 }
