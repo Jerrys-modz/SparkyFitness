@@ -1138,7 +1138,10 @@ describe('reconcileMedicationReminders', () => {
         }),
       ]);
 
-      await reconcileMedicationReminders([buildMedication({ id: 'med-1' })], []);
+      await reconcileMedicationReminders(
+        [buildMedication({ id: 'med-1' })],
+        []
+      );
 
       expect(mockCancel).toHaveBeenCalledWith('foreign-snooze');
       const remaining = await AsyncStorage.getItem(
