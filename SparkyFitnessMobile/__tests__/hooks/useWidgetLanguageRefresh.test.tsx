@@ -71,7 +71,7 @@ describe('useWidgetLanguageRefresh', () => {
     if (osSpy) osSpy.restore();
   });
 
-  const setPreference = (preference: 'system' | 'en' | 'pl') => {
+  const setPreference = (preference: 'system' | 'en' | 'pl' | 'es') => {
     useAppPreferencesStore.setState({ languagePreference: preference });
   };
 
@@ -102,6 +102,24 @@ describe('useWidgetLanguageRefresh', () => {
     expect(mockPrepareWidgetLocale).toHaveBeenLastCalledWith('pl', 'en');
     expect(mockReload).toHaveBeenCalledTimes(2);
     expect(mockReloadMacro).toHaveBeenCalledTimes(2);
+  });
+
+  it('renders the widgets in any shipped language, not only Polish', async () => {
+    setPreference('es');
+    resolvedLanguage = 'es';
+    renderHook(() => useWidgetLanguageRefresh());
+    await flushSync();
+
+    expect(mockPrepareWidgetLocale).toHaveBeenCalledWith('es', 'es');
+  });
+
+  it('follows a system language the app ships, such as German', async () => {
+    setPreference('system');
+    resolvedLanguage = 'de';
+    renderHook(() => useWidgetLanguageRefresh());
+    await flushSync();
+
+    expect(mockPrepareWidgetLocale).toHaveBeenCalledWith('system', 'de');
   });
 
   it('uses system preference with effective EN and prepares before reload', async () => {

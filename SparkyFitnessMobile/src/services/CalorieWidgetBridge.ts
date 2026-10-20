@@ -16,6 +16,8 @@ interface CalorieWidgetNativeModule {
   ): Promise<void>;
   reloadWidget(): Promise<void>;
   reloadMacroWidget(): Promise<void>;
+  /** Absent in a build made before it existed. */
+  clearSnapshots?(): Promise<void>;
 }
 
 const nativeModule: CalorieWidgetNativeModule | undefined =
@@ -39,6 +41,11 @@ export const CalorieWidgetBridge = {
   async reloadMacroWidget(): Promise<void> {
     if (!nativeModule) return;
     await nativeModule.reloadMacroWidget();
+  },
+  /** Erases both widgets' snapshots and redraws them empty. */
+  async clearSnapshots(): Promise<void> {
+    if (!nativeModule?.clearSnapshots) return;
+    await nativeModule.clearSnapshots();
   },
   /**
    * Commits the user preference and effective render language atomically before

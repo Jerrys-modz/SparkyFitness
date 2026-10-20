@@ -11,7 +11,7 @@ struct RecordingView: View {
         if let state = recording.state {
             content(for: state)
         } else {
-            Text("No recording")
+            Text(String(localized: "watch.recording.none", defaultValue: "No recording"))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
