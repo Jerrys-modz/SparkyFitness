@@ -21,6 +21,7 @@ import { queryClient } from '../hooks/queryClient';
 import { invalidateMedicationEntryCaches } from '../hooks/invalidateMedicationEntryCaches';
 import { addLog, _flushBuffer } from '../services/LogService';
 import type { MedicationEntry, MedicationEntryStatus } from '@workspace/shared';
+import { addDays } from '../utils/dateUtils';
 import { isDoseLogged } from '../utils/medications';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import i18n from '../localization/i18n';
@@ -330,11 +331,13 @@ export async function syncSnoozedMedicationReminders(
       });
     }
 
+    const activeSnoozeBaseKeys = new Set<string>();
     for (const content of activeSnoozeNotifications) {
       const data = extractNotificationData(content);
       if (!data || data.isSnoozed !== 'true') continue;
       const baseKey = data.baseKey ?? data.key;
       if (!baseKey) continue;
+      activeSnoozeBaseKeys.add(baseKey);
       const entryDate = data.entryDate || today;
       const notifDoses = parseDosesFromData(data);
       const current = candidates.get(baseKey);
@@ -377,6 +380,13 @@ export async function syncSnoozedMedicationReminders(
       }
 
       if (candidate.doses.length === 0) {
+        continue;
+      }
+
+      if (
+        candidate.entryDate < addDays(today, -1) &&
+        !activeSnoozeBaseKeys.has(candidate.baseKey)
+      ) {
         continue;
       }
 
