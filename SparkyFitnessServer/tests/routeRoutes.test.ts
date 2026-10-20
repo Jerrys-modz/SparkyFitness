@@ -198,5 +198,20 @@ describe('routes API', () => {
     expect(gpx.status).toBe(200);
     expect(gpx.headers['content-type']).toContain('application/gpx+xml');
     expect(gpx.text).toContain('<trkpt lat="40" lon="-74">');
+    expect(gpx.headers['content-disposition']).toMatch(
+      /^attachment; filename="[^"]+\.gpx"/
+    );
+  });
+
+  it('downloads a route whose name is not Latin-1', async () => {
+    vi.mocked(getRoute).mockResolvedValueOnce({
+      ...route,
+      name: '朝のラン Утро',
+    } as never);
+    const res = await request(app).get(`/api/v2/routes/${ID}/gpx`);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('application/gpx+xml');
+    expect(res.headers['content-disposition']).toMatch(/^attachment;/);
+    expect(res.headers['content-disposition']).toContain('filename*=UTF-8');
   });
 });

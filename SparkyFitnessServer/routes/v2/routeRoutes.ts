@@ -440,9 +440,13 @@ router.get('/:id/gpx', async (req, res, next) => {
     if (!route) return res.status(404).json({ error: 'Route not found' });
     const filename =
       route.name.replace(/[^\p{L}\p{N}_-]+/gu, '_').slice(0, 60) || 'route';
+    // `attachment` encodes the name (an ASCII fallback plus `filename*`), so a
+    // route named in Chinese or Cyrillic downloads instead of failing on a
+    // header value Node refuses. It sets the type from the extension, so the
+    // type is set after it.
     res
+      .attachment(`${filename}.gpx`)
       .type('application/gpx+xml')
-      .set('Content-Disposition', `attachment; filename="${filename}.gpx"`)
       .send(serializeGpx(route.name, route.points));
   } catch (error) {
     next(error);

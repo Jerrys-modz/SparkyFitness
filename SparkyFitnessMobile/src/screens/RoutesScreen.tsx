@@ -22,6 +22,7 @@ import {
   useRoutes,
 } from '../services/routeService';
 import { formatRouteDistance } from '../utils/routeDisplay';
+import { canShowRouteMap } from '../utils/routeMapSupport';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type Props = RootStackScreenProps<'Routes'>;
@@ -58,12 +59,18 @@ const RoutesScreen: React.FC<Props> = ({ navigation }) => {
       .finally(() => setImporting(false));
   };
 
+  // Drawing needs a map to tap on; an Android build without a Google Maps key
+  // renders a blank one, so it is not offered there (importing still is).
   const add = () =>
     Alert.alert(t('routes.addTitle', { defaultValue: 'Add a route' }), '', [
-      {
-        text: t('routes.draw', { defaultValue: 'Draw on a map' }),
-        onPress: () => navigation.navigate('RouteDraw'),
-      },
+      ...(canShowRouteMap()
+        ? [
+            {
+              text: t('routes.draw', { defaultValue: 'Draw on a map' }),
+              onPress: () => navigation.navigate('RouteDraw'),
+            },
+          ]
+        : []),
       ...(canGenerate
         ? [
             {

@@ -212,11 +212,19 @@ interface ActivityRow {
   points: unknown;
 }
 
-const trackPointSchema = z.object({
-  lat: z.number().min(-90).max(90),
-  lon: z.number().min(-180).max(180),
-  alt: z.number().min(-1000).max(10000).optional(),
-});
+/**
+ * One stored GPS point as a route point. A bad altitude (an out-of-range
+ * sentinel, say) only costs the altitude, never the position: the point is kept
+ * without `alt`. A point with no usable position is dropped (null).
+ */
+export function toRoutePoint(raw: unknown): RoutePoint | null {
+  const full = routePointSchema.safeParse(raw);
+  if (full.success) return full.data;
+  if (typeof raw !== 'object' || raw === null) return null;
+  const { lat, lon } = raw as { lat?: unknown; lon?: unknown };
+  const position = routePointSchema.omit({ alt: true }).safeParse({ lat, lon });
+  return position.success ? position.data : null;
+}
 
 /** The GPS track of a recorded activity, or null if the entry is not theirs or has none. */
 export async function getActivityTrack(
@@ -237,8 +245,8 @@ export async function getActivityTrack(
     if (!row || !Array.isArray(row.points)) return null;
     const points: RoutePoint[] = [];
     for (const raw of row.points) {
-      const parsed = trackPointSchema.safeParse(raw);
-      if (parsed.success) points.push(parsed.data);
+      const point = toRoutePoint(raw);
+      if (point) points.push(point);
     }
     return { name: row.exercise_name, points };
   } finally {
