@@ -64,7 +64,7 @@ export function epleyOneRepMaxKg(
 export function effortAdjustedOneRepMaxKg(
   loadKg: number | null | undefined,
   reps: number | null | undefined,
-  rpe: number | null | undefined,
+  rpe: number | null | undefined
 ): number {
   const count = Number(reps) || 0;
   const effort = Number(rpe);
