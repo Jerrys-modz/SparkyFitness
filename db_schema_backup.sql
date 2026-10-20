@@ -3395,14 +3395,22 @@ CREATE TABLE public.mindfulness_sessions (
 CREATE TABLE public.mood_entries (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
-    mood_value integer NOT NULL,
+    mood_value integer,
     notes text,
     entry_date date DEFAULT CURRENT_DATE NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     created_by_user_id uuid,
     updated_by_user_id uuid,
-    mood_tags text[] DEFAULT '{}'::text[] NOT NULL
+    mood_tags text[] DEFAULT '{}'::text[] NOT NULL,
+    energy_value smallint,
+    focus_value smallint,
+    entry_timestamp timestamp with time zone DEFAULT now() NOT NULL,
+    source text DEFAULT 'manual'::text NOT NULL,
+    CONSTRAINT mood_entries_energy_value_range CHECK (((energy_value IS NULL) OR ((energy_value >= 1) AND (energy_value <= 5)))),
+    CONSTRAINT mood_entries_focus_value_range CHECK (((focus_value IS NULL) OR ((focus_value >= 1) AND (focus_value <= 5)))),
+    CONSTRAINT mood_entries_has_content CHECK (((mood_value IS NOT NULL) OR (energy_value IS NOT NULL) OR (focus_value IS NOT NULL) OR ((notes IS NOT NULL) AND (notes ~ '\S'::text)) OR (array_to_string(mood_tags, ''::text) ~ '\S'::text))),
+    CONSTRAINT mood_entries_known_source CHECK ((source = ANY (ARRAY['manual'::text, 'garmin'::text, 'import'::text])))
 );
 
 
@@ -6271,14 +6279,6 @@ ALTER TABLE ONLY public.cycles
 
 
 --
--- Name: mood_entries unique_user_date; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.mood_entries
-    ADD CONSTRAINT unique_user_date UNIQUE (user_id, entry_date);
-
-
---
 -- Name: user_medication_display_preferences unique_user_med_display; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7641,6 +7641,20 @@ CREATE INDEX idx_workout_plan_assignments_template_session ON public.workout_pla
 --
 
 CREATE INDEX idx_workout_preset_exercise_sets_preset_exercise_id ON public.workout_preset_exercise_sets USING btree (workout_preset_exercise_id);
+
+
+--
+-- Name: mood_entries_derived_source_day; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX mood_entries_derived_source_day ON public.mood_entries USING btree (user_id, entry_date, source) WHERE (source <> 'manual'::text);
+
+
+--
+-- Name: mood_entries_user_day_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX mood_entries_user_day_time ON public.mood_entries USING btree (user_id, entry_date, entry_timestamp);
 
 
 --
