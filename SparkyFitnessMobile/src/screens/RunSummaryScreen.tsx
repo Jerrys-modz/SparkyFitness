@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Toast from 'react-native-toast-message';
 import { ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -126,6 +126,7 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
 
   // What the machine showed when a correction was taken off it: from the watch
   // (typed on the wrist, corrected when the run was filed) or from here.
+  const taught = useRef(false);
   const [displayedMeters, setDisplayedMeters] = useState<number | null>(
     summary.treadmillDisplayMeters ?? null
   );
@@ -164,14 +165,36 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
       await followStride(summary.entryId, km);
 
       setDisplayedMeters(corrected.applied ? corrected.displayedMeters : null);
-      // The watch's indoor estimate learns from the machine's figure.
-      if (summary.watchIndoor) {
-        void learnWatchIndoorScale(
-          summary.activity,
-          summary.watchIndoor.scale,
-          summary.watchIndoor.estimatedMeters,
-          km * METERS_PER_KM
-        );
+      // The watch's indoor estimate and the stride learn from the machine's
+      // figure, once per run: a run whose figure was typed on the wrist has
+      // already taught the scale when it was filed, and pressing Update again
+      // would count the same run as another sample.
+      if (summary.watchIndoor && !taught.current) {
+        taught.current = true;
+        const { estimatedMeters, startedAt, endedAt } = summary.watchIndoor;
+        const typedOnWrist =
+          Math.abs(summary.distanceMeters - estimatedMeters) >
+          estimatedMeters * 0.01;
+        if (!typedOnWrist) {
+          void learnWatchIndoorScale(
+            summary.activity,
+            summary.watchIndoor.scale,
+            estimatedMeters,
+            km * METERS_PER_KM
+          );
+        }
+        if (startedAt != null && endedAt != null) {
+          // The stride too, from the steps Apple Health holds over the run.
+          void learnFromWatchRun(
+            {
+              activity: summary.activity,
+              startedAt,
+              finishedAt: endedAt,
+              activeSeconds: summary.activeSeconds,
+            },
+            km * METERS_PER_KM
+          );
+        }
       }
       setDistanceSaved(true);
       invalidateExerciseCache(queryClient, summary.entryDate);
