@@ -172,6 +172,10 @@ router.put('/display-preferences', async (req, res, next) => {
  *         application/json:
  *           schema:
  *             type: object
+ *             description: >-
+ *               No field is required by the schema. Requests without the version
+ *               header require mood_value; version 2 requests need at least one
+ *               of mood_value, energy_value, focus_value, notes or mood_tags.
  *             properties:
  *               mood_value:
  *                 type: integer
@@ -199,7 +203,6 @@ router.put('/display-preferences', async (req, res, next) => {
  *                 type: string
  *                 format: date-time
  *                 description: Version 2 only. When the check-in happened; defaults to now.
- *             required: [entry_date]
  *     responses:
  *       201:
  *         description: Mood entry created or updated successfully.

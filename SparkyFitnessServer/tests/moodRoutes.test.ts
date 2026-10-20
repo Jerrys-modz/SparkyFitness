@@ -311,6 +311,16 @@ describe('Mood Routes', () => {
         expect(patchArg().entryDate).toBe('2026-10-21');
       });
 
+      it('rejects an impossible entry_date', async () => {
+        await request(app)
+          .put('/mood/mood-1')
+          .set(V2)
+          .send({ entry_date: '2026-13-01' })
+          .expect(400);
+
+        expect(moodRepository.updateMoodEntryFields).not.toHaveBeenCalled();
+      });
+
       it('rejects a null entry_timestamp', async () => {
         await request(app)
           .put('/mood/mood-1')
@@ -455,6 +465,14 @@ describe('Mood Routes', () => {
       expect(moodRepository.createCheckin).not.toHaveBeenCalled();
     });
 
+    it.each([
+      { energy_value: 2, entry_date: '2026-02-30' },
+      { energy_value: 2, entry_timestamp: 'not-a-date' },
+    ])('rejects the impossible date in %j with 400', async (body) => {
+      await request(app).post('/mood').set(V2).send(body).expect(400);
+      expect(moodRepository.createCheckin).not.toHaveBeenCalled();
+    });
+
     it('treats a header below 2 as legacy', async () => {
       await request(app)
         .post('/mood')
@@ -474,6 +492,19 @@ describe('Mood Routes', () => {
       const res = await request(app).get('/mood/date/2026-10-20').expect(200);
 
       expect(res.body).toStrictEqual(row);
+      expect(moodRepository.getCheckinsForDate).not.toHaveBeenCalled();
+    });
+
+    it('falls back to legacy for an unparseable version header', async () => {
+      vi.mocked(moodRepository.getLegacyMoodEntryForDate).mockResolvedValue(
+        row as never
+      );
+      const res = await request(app)
+        .get('/mood/date/2026-10-20')
+        .set({ 'X-Mood-Model-Version': 'banana' })
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(false);
       expect(moodRepository.getCheckinsForDate).not.toHaveBeenCalled();
     });
 

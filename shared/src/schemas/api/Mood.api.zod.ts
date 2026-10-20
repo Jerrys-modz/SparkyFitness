@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isDayString } from '../../utils/timezone.ts';
 
 export const MOOD_RATING_MIN = 1;
 export const MOOD_RATING_MAX = 5;
@@ -24,7 +25,9 @@ export type MoodRatingsBody = z.infer<typeof moodRatingsBodySchema>;
 export const MOOD_MODEL_VERSION_HEADER = 'X-Mood-Model-Version';
 export const MOOD_MODEL_VERSION = 2;
 
-const moodDaySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const moodDaySchema = z
+  .string()
+  .refine(isDayString, { message: 'Expected a real YYYY-MM-DD date' });
 // A number or numeric string; the route clamps it onto the stored 10-100 scale.
 const moodValueInputSchema = z.union([z.number(), z.string()]);
 
