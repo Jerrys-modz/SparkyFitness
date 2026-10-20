@@ -8175,6 +8175,8 @@
     "saveAsRoute": "Save as route",
     "savedAsRoute": "Saved to Routes",
     "saveAsRouteFailed": "Could not save the route",
-    "alreadyHasNoRoute": "This activity has no GPS route"
+    "fileTooLarge": "That file is too large",
+    "fileTooLargeHint": "A route file can be up to 10 MB.",
+    "drawLimit": "That is as many points as a route can have here. Undo some or save this one."
   }
 }

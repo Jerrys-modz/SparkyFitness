@@ -1,5 +1,12 @@
 import React, { useRef, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
@@ -25,6 +32,8 @@ const FALLBACK_REGION = {
   longitudeDelta: 40,
 };
 const MIN_ROUTE_METERS = 10;
+/** Every point is a tap, so this is far more than anyone draws by hand. */
+const MAX_DRAWN_POINTS = 500;
 
 /**
  * Draw a route by tapping the map: each tap adds a point and the points are
@@ -106,6 +115,16 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
           onMapReady={centerOnPerson}
           onPress={(event) => {
             const { latitude, longitude } = event.nativeEvent.coordinate;
+            if (points.length >= MAX_DRAWN_POINTS) {
+              Toast.show({
+                type: 'info',
+                text1: t('routes.drawLimit', {
+                  defaultValue:
+                    'That is as many points as a route can have here. Undo some or save this one.',
+                }),
+              });
+              return;
+            }
             setPoints((current) => [
               ...current,
               { lat: latitude, lon: longitude },
@@ -123,18 +142,19 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
               lineJoin="round"
             />
           ) : null}
-          {coordinates.map((coordinate, index) => (
-            <Marker
-              key={index}
-              coordinate={coordinate}
-              pinColor={index === 0 ? 'green' : 'red'}
-              opacity={
-                index === 0 || index === coordinates.length - 1 ? 1 : 0.35
-              }
-            />
-          ))}
+          {/* Only the ends are marked: a marker per tap is a native view each. */}
+          {coordinates.map((coordinate, index) =>
+            index === 0 || index === coordinates.length - 1 ? (
+              <Marker
+                key={index}
+                coordinate={coordinate}
+                pinColor={index === 0 ? 'green' : 'red'}
+              />
+            ) : null
+          )}
         </MapView>
-        <View
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           className="absolute left-0 right-0 bottom-0 bg-surface px-4 pt-3"
           style={{ paddingBottom: insets.bottom + 12 }}
         >
@@ -176,7 +196,7 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
               </Button>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </View>
     </>
   );
