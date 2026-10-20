@@ -32,6 +32,18 @@ describe('useMoodCheckinsSupport', () => {
     expect(mockFetch).toHaveBeenCalledWith(todayInZone('Pacific/Auckland'));
   });
 
+  it('keeps the answer instead of refetching when a mood screen opens again', async () => {
+    mockFetch.mockResolvedValue([]);
+    const wrapper = createQueryWrapper(createTestQueryClient());
+    const first = renderHook(() => useMoodCheckinsSupport(), { wrapper });
+    await waitFor(() => expect(first.result.current.supported).toBe(true));
+    first.unmount();
+
+    const second = renderHook(() => useMoodCheckinsSupport(), { wrapper });
+    expect(second.result.current.supported).toBe(true);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
   it('reports no support when the server answers the old way', async () => {
     mockFetch.mockResolvedValue(null);
     const { result } = run();

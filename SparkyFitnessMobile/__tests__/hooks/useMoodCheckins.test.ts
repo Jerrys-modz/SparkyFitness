@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
+import type { QueryKey } from '@tanstack/react-query';
 import {
   useCreateMoodCheckin,
   useDeleteMoodCheckin,
@@ -8,6 +9,11 @@ import {
   useUpdateMoodCheckin,
 } from '../../src/hooks/useMood';
 import {
+  moodCheckinsQueryKey,
+  moodCheckinsSupportQueryKey,
+  moodRatingsSupportQueryKey,
+} from '../../src/hooks/queryKeys';
+import {
   createMoodCheckin,
   deleteMoodCheckin,
   fetchLegacyMoodEntries,
@@ -16,7 +22,11 @@ import {
   updateMoodCheckin,
 } from '../../src/services/api/moodApi';
 import { getTodayDate } from '../../src/utils/dateUtils';
-import { createTestQueryClient, createQueryWrapper } from './queryTestUtils';
+import {
+  createTestQueryClient,
+  createQueryWrapper,
+  type QueryClient,
+} from './queryTestUtils';
 
 jest.mock('../../src/services/api/moodApi', () => ({
   createMoodCheckin: jest.fn(),
@@ -145,5 +155,58 @@ describe('mood check-in hooks', () => {
     });
 
     expectBothInvalidated(spy);
+  });
+
+  const dayKey = moodCheckinsQueryKey('2026-10-05');
+
+  const createIn = async (client: QueryClient) => {
+    mocked(createMoodCheckin).mockResolvedValue(undefined);
+    const { result } = renderHook(() => useCreateMoodCheckin(), {
+      wrapper: createQueryWrapper(client),
+    });
+    await act(async () => {
+      await result.current.mutateAsync({
+        mood_value: 50,
+        entry_date: '2026-10-05',
+        entry_timestamp: '2026-10-05T14:00:00.000Z',
+      });
+    });
+    const invalidated = (key: QueryKey) =>
+      client.getQueryState(key)?.isInvalidated;
+    return {
+      day: invalidated(dayKey),
+      checkinsProbe: invalidated(moodCheckinsSupportQueryKey),
+      ratingsProbe: invalidated(moodRatingsSupportQueryKey),
+    };
+  };
+
+  it('a write refreshes the day but keeps known server-support answers', async () => {
+    const client = createTestQueryClient();
+    client.setQueryData(dayKey, []);
+    client.setQueryData(moodCheckinsSupportQueryKey, true);
+    client.setQueryData(moodRatingsSupportQueryKey, false);
+
+    expect(await createIn(client)).toEqual({
+      day: true,
+      checkinsProbe: false,
+      ratingsProbe: false,
+    });
+  });
+
+  it('a write re-checks server support while the answer is still unknown', async () => {
+    const client = createTestQueryClient();
+    client.setQueryData(dayKey, []);
+    // A failed check-ins probe has no answer; a ratings probe with no rows is null.
+    await client.prefetchQuery({
+      queryKey: moodCheckinsSupportQueryKey,
+      queryFn: () => Promise.reject(new Error('boom')),
+    });
+    client.setQueryData(moodRatingsSupportQueryKey, null);
+
+    expect(await createIn(client)).toEqual({
+      day: true,
+      checkinsProbe: true,
+      ratingsProbe: true,
+    });
   });
 });

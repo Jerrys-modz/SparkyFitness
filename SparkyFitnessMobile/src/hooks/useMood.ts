@@ -1,5 +1,10 @@
 import { useMemo } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import {
@@ -26,6 +31,7 @@ import {
   customMoodsQueryKey,
   cycleCorrelationsQueryKey,
   moodCheckinsQueryKey,
+  moodCheckinsSupportQueryKey,
   moodEntriesQueryKey,
   moodEntriesRootQueryKey,
   moodLegacyDayQueryKey,
@@ -114,21 +120,34 @@ export function useCustomMoods() {
   return query.data ?? [];
 }
 
+/** Server probes whose known answer only changes with a server upgrade. */
+const serverProbeKeys = [
+  moodRatingsSupportQueryKey,
+  moodCheckinsSupportQueryKey,
+];
+
+/**
+ * Refresh every mood query after a write, except a server probe that already
+ * has an answer: it is re-checked only while still unknown (no rows saved
+ * before, or the probe failed). A dashboard refresh or an account switch
+ * still starts over.
+ */
+function invalidateMoodEntries(queryClient: QueryClient) {
+  return queryClient.invalidateQueries({
+    queryKey: moodEntriesRootQueryKey,
+    predicate: (query) =>
+      !serverProbeKeys.some((key) => key[1] === query.queryKey[1]) ||
+      query.state.data == null,
+  });
+}
+
 export function useSaveMood() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (body: SaveMoodEntryBody) => saveMoodEntry(body),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: moodEntriesRootQueryKey,
-        // A known ratings-support answer only changes with a server upgrade;
-        // re-check it only while it is still unknown (no rows saved before).
-        predicate: (query) =>
-          query.queryKey[1] !== moodRatingsSupportQueryKey[1] ||
-          query.state.data == null,
-      }),
+    onSuccess: () => invalidateMoodEntries(queryClient),
     onError: (error: Error) => {
       addLog(`[Mood] Failed to save mood entry: ${error.message}`, 'ERROR');
       Toast.show({
@@ -157,7 +176,7 @@ function useInvalidateAfterMoodWrite() {
   const queryClient = useQueryClient();
   return () =>
     Promise.all([
-      queryClient.invalidateQueries({ queryKey: moodEntriesRootQueryKey }),
+      invalidateMoodEntries(queryClient),
       queryClient.invalidateQueries({ queryKey: cycleCorrelationsQueryKey }),
     ]);
 }

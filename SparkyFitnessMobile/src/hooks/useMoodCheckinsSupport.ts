@@ -18,8 +18,12 @@ export function useMoodCheckinsSupport(): {
   const timezone = preferences?.timezone || getDeviceTimezone();
   const query = useQuery({
     queryKey: moodCheckinsSupportQueryKey,
-    // The answer only changes with a server upgrade; save, refresh and server
-    // switch still re-probe, so keep it to avoid a flash of the wrong screen.
+    // The answer only changes with a server upgrade, so probe once and keep
+    // it: opening a mood screen again does not refetch, nor flash the wrong
+    // screen. A write re-checks only while the answer is still unknown (see
+    // invalidateMoodEntries in useMood); a dashboard refresh or an account
+    // switch starts over.
+    staleTime: Infinity,
     gcTime: Infinity,
     // A failed probe throws so React Query retries and keeps any earlier answer
     // rather than caching "unknown" over it.
