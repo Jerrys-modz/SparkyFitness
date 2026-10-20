@@ -226,7 +226,7 @@ const RouteGenerateScreen: React.FC<Props> = ({ navigation }) => {
               <Text className="text-text-secondary text-base text-center mb-4">
                 {t('routes.generateUnavailable', {
                   defaultValue:
-                    'This server has no routing service set up, so routes cannot be generated. You can still draw one on a map.',
+                    'Route generation needs a routing provider. Add one in Settings > External Providers on the web app. You can still draw a route on a map.',
                 })}
               </Text>
               <Button variant="secondary" onPress={() => navigation.goBack()}>

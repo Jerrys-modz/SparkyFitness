@@ -207,7 +207,7 @@ The developer mock-data switches (formerly `SPARKY_FITNESS_SAVE_MOCK_DATA` and t
 
 ### Module 12b: 🗺️ Route Generation `[Backend]`
 
-Optional. Route generation needs a routing engine you run yourself (or have a key for); with `SPARKY_FITNESS_ROUTING_URL` unset the feature reports itself as unavailable. See [Route Generation](../features/exercises/route-generation.md) for setup.
+Optional, and now a fallback. Route generation uses the Valhalla routing provider a user (or the admin, as a public provider) adds in Settings > External Providers; these variables only apply to a user who has no such provider, and with `SPARKY_FITNESS_ROUTING_URL` unset and no provider added the feature reports itself as unavailable. See [Route Generation](../features/exercises/route-generation.md) for setup.
 
 - **`SPARKY_FITNESS_ROUTING_URL`**: Base URL of the routing engine, reachable from the server (for example `http://sparkyfitness-valhalla:8002`). Must be `http` or `https`.
 - **`SPARKY_FITNESS_ROUTING_PROVIDER`**: Which engine the URL points at. Defaults to `valhalla`, currently the only supported value; any other value leaves the feature unavailable.

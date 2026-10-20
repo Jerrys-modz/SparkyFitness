@@ -126,7 +126,7 @@ describe('RouteGenerateScreen', () => {
   it('explains when the server has no routing engine', () => {
     mockCapabilities.mockReturnValue(capabilities({ available: false }));
     const { getByText, queryByTestId } = renderScreen();
-    expect(getByText(/no routing service set up/i)).toBeTruthy();
+    expect(getByText(/needs a routing provider/i)).toBeTruthy();
     expect(queryByTestId('map-view')).toBeNull();
     expect(mockPermission).not.toHaveBeenCalled();
   });
@@ -134,7 +134,7 @@ describe('RouteGenerateScreen', () => {
   it('shows neither the map nor the notice while checking', () => {
     mockCapabilities.mockReturnValue(capabilities({ available: false }, true));
     const { queryByText, queryByTestId } = renderScreen();
-    expect(queryByText(/no routing service/i)).toBeNull();
+    expect(queryByText(/needs a routing provider/i)).toBeNull();
     expect(queryByTestId('map-view')).toBeNull();
   });
 

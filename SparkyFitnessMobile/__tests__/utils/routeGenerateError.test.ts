@@ -14,7 +14,7 @@ describe('routeGenerateError', () => {
     [429, 'rateLimited', 'Too many route requests'],
     [502, 'engineError', 'routing service had a problem'],
     [504, 'timeout', 'took too long'],
-    [503, 'notConfigured', 'no routing service'],
+    [503, 'notConfigured', 'No routing provider'],
   ])('maps a %s response to a short message', (status, kind, text) => {
     const error = new ApiError(`Server error: ${status}`, status, '{}');
     expect(classifyRouteGenerateError(error)).toBe(kind);

@@ -7913,7 +7913,7 @@
       "kilometersAxis": "Kilometers from start, height in meters"
     },
     "generateRoute": "Generate a loop or out-and-back",
-    "generateUnavailable": "This server has no routing service set up, so routes cannot be generated. You can still draw one on a map.",
+    "generateUnavailable": "Route generation needs a routing provider. Add one in Settings > External Providers on the web app. You can still draw a route on a map.",
     "generate": "Generate",
     "regenerate": "Try another direction",
     "distanceLabel": "Distance",
@@ -7963,6 +7963,7 @@
       "attribution": "Map data from OpenStreetMap contributors."
     },
     "followRoads": "Follow roads",
+    "followRoadsNeedsProvider": "A routing provider is needed. Add one in Settings > External Providers on the web app.",
     "editorPointLimit": "A route takes up to {{max}} points. Delete a point to add another.",
     "followBefore": "Follow roads before",
     "followAfter": "Follow roads after",
@@ -7993,7 +7994,7 @@
       "rateLimited": "Too many route requests. Wait a few minutes and retry.",
       "engineError": "The routing service had a problem. Try again shortly.",
       "timeout": "The routing service took too long. Try again.",
-      "notConfigured": "This server has no routing service set up.",
+      "notConfigured": "No routing provider is set up. Add one in Settings > External Providers on the web app.",
       "invalid": "Those points cannot be routed.",
       "unknown": "Could not generate a route."
     },

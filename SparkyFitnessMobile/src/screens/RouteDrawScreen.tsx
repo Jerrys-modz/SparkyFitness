@@ -97,7 +97,8 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation, route: nav }) => {
   const [saving, setSaving] = useState(false);
   const [followRoads, setFollowRoads] = useState(false);
   const [style, setStyle] = useState<RouteStyle>(DEFAULT_ROUTE_STYLE);
-  const { capabilities } = useRouteGenerationCapabilities();
+  const { capabilities, isLoading: checkingCapabilities } =
+    useRouteGenerationCapabilities();
   const available = capabilities.available;
   const snapping = available && followRoads;
   const followStyle = useMemo(
@@ -334,6 +335,31 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation, route: nav }) => {
                   defaultValue: 'Follow roads',
                 })}
               />
+            </View>
+          ) : !checkingCapabilities ? (
+            <View
+              className="mt-3 opacity-60"
+              accessible
+              accessibilityState={{ disabled: true }}
+              accessibilityLabel={`${t('routes.followRoads', {
+                defaultValue: 'Follow roads',
+              })}. ${t('routes.followRoadsNeedsProvider', {
+                defaultValue:
+                  'A routing provider is needed. Add one in Settings > External Providers on the web app.',
+              })}`}
+            >
+              <View className="flex-row items-center justify-between">
+                <Text className="text-text-primary text-base">
+                  {t('routes.followRoads', { defaultValue: 'Follow roads' })}
+                </Text>
+                <Switch value={false} disabled />
+              </View>
+              <Text className="text-text-secondary text-sm mt-1">
+                {t('routes.followRoadsNeedsProvider', {
+                  defaultValue:
+                    'A routing provider is needed. Add one in Settings > External Providers on the web app.',
+                })}
+              </Text>
             </View>
           ) : null}
           {snapping && hasRouteStyleControls(capabilities.style) ? (
