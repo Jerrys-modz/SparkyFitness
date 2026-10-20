@@ -155,45 +155,51 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
         </MapView>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          className="absolute left-0 right-0 bottom-0 bg-surface px-4 pt-3"
-          style={{ paddingBottom: insets.bottom + 12 }}
+          className="absolute left-0 right-0 bottom-0 bg-surface"
         >
-          <TextInput
-            className="border-b border-border-subtle text-text-primary py-1"
-            style={{ fontSize: 16 }}
-            value={name}
-            onChangeText={setName}
-            maxLength={100}
-            placeholder={t('routes.namePlaceholder', {
-              defaultValue: 'Name this route',
-            })}
-            accessibilityLabel={t('routes.nameLabel', {
-              defaultValue: 'Route name',
-            })}
-          />
-          <View className="flex-row items-center justify-between mt-3">
-            <Text className="text-text-primary text-base font-semibold">
-              {points.length < 2
-                ? t('routes.drawHint', {
-                    defaultValue: 'Tap the map to add points',
-                  })
-                : formatRouteDistance(distance, unit)}
-            </Text>
-            <View className="flex-row gap-2">
-              <Button
-                variant="secondary"
-                disabled={points.length === 0}
-                onPress={() => setPoints((current) => current.slice(0, -1))}
-              >
-                {t('routes.undo', { defaultValue: 'Undo' })}
-              </Button>
-              <Button
-                variant="secondary"
-                disabled={points.length === 0}
-                onPress={() => setPoints([])}
-              >
-                {t('routes.clear', { defaultValue: 'Clear' })}
-              </Button>
+          {/* The padding lives inside: on iOS the avoiding view sets its own
+              paddingBottom and would replace the safe-area one. */}
+          <View
+            className="px-4 pt-3"
+            style={{ paddingBottom: insets.bottom + 12 }}
+          >
+            <TextInput
+              className="border-b border-border-subtle text-text-primary py-1"
+              style={{ fontSize: 16 }}
+              value={name}
+              onChangeText={setName}
+              maxLength={100}
+              placeholder={t('routes.namePlaceholder', {
+                defaultValue: 'Name this route',
+              })}
+              accessibilityLabel={t('routes.nameLabel', {
+                defaultValue: 'Route name',
+              })}
+            />
+            <View className="flex-row items-center justify-between mt-3">
+              <Text className="text-text-primary text-base font-semibold">
+                {points.length < 2
+                  ? t('routes.drawHint', {
+                      defaultValue: 'Tap the map to add points',
+                    })
+                  : formatRouteDistance(distance, unit)}
+              </Text>
+              <View className="flex-row gap-2">
+                <Button
+                  variant="secondary"
+                  disabled={points.length === 0}
+                  onPress={() => setPoints((current) => current.slice(0, -1))}
+                >
+                  {t('routes.undo', { defaultValue: 'Undo' })}
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={points.length === 0}
+                  onPress={() => setPoints([])}
+                >
+                  {t('routes.clear', { defaultValue: 'Clear' })}
+                </Button>
+              </View>
             </View>
           </View>
         </KeyboardAvoidingView>
