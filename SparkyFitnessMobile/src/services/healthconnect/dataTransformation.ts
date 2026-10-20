@@ -631,6 +631,8 @@ const DIRECT_TRANSFORMERS: Record<string, DirectTransformer> = {
           date,
           unit,
           source: HEALTH_CONNECT_SOURCE,
+          // Lets aggregateByDay weight the daily average by time.
+          ...(sample.time ? { timestamp: sample.time } : {}),
         });
       }
     }
