@@ -1,0 +1,272 @@
+import React from 'react';
+import { Alert, type AlertButton } from 'react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import Toast from 'react-native-toast-message';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { moodTagForValue } from '@workspace/shared';
+import MoodDayScreen from '../../src/screens/MoodDayScreen';
+import { initializeI18n } from '../../src/localization/i18n';
+import { ApiError } from '../../src/services/api/errors';
+import type { RootStackScreenProps } from '../../src/types/navigation';
+import type { MoodEntry } from '../../src/services/api/moodApi';
+
+type ScreenProps = RootStackScreenProps<'MoodDay'>;
+
+const DATE = '2026-10-14';
+const mockDeleteMutateAsync = jest.fn();
+let mockCheckins: MoodEntry[] | null = [];
+let mockCheckinsLoading = false;
+jest.mock('../../src/hooks/useMood', () => ({
+  useMoodCheckinsForDate: () => ({
+    checkins: mockCheckins,
+    isLoading: mockCheckinsLoading,
+    isError: false,
+  }),
+  useCustomMoods: () => [],
+  useDeleteMoodCheckin: () => ({
+    mutateAsync: mockDeleteMutateAsync,
+    isPending: false,
+  }),
+}));
+
+let mockCheckinsSupport: { supported: boolean | null; isLoading: boolean } = {
+  supported: true,
+  isLoading: false,
+};
+jest.mock('../../src/hooks/useMoodCheckinsSupport', () => ({
+  useMoodCheckinsSupport: () => mockCheckinsSupport,
+}));
+
+jest.mock('../../src/hooks/usePreferences', () => ({
+  usePreferences: () => ({
+    preferences: { timezone: 'UTC', time_format: 'HH:mm' },
+  }),
+}));
+
+jest.mock('react-native-toast-message', () => ({
+  __esModule: true,
+  default: { show: jest.fn() },
+}));
+
+jest.mock('../../src/services/nativeTabBarPreference', () => ({
+  ...jest.requireActual('../../src/services/nativeTabBarPreference'),
+  useNativeIOSHeadersActive: () => false,
+}));
+
+jest.mock('../../src/components/Icon', () => {
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: ({ name }: { name: string }) => <View testID={`icon-${name}`} />,
+  };
+});
+
+const mockNavigation = {
+  setOptions: jest.fn(),
+  goBack: jest.fn(),
+  isFocused: jest.fn(() => true),
+  navigate: jest.fn(),
+  replace: jest.fn(),
+  dispatch: jest.fn(),
+} as unknown as ScreenProps['navigation'];
+jest.mock('@react-navigation/native', () => ({
+  ...jest.requireActual('@react-navigation/native'),
+  useNavigation: () => mockNavigation,
+}));
+
+const frame = { x: 0, y: 0, width: 390, height: 844 };
+
+const renderScreen = () =>
+  render(
+    <SafeAreaProvider
+      initialMetrics={{
+        insets: { top: 24, bottom: 48, left: 0, right: 0 },
+        frame,
+      }}
+    >
+      <MoodDayScreen
+        navigation={mockNavigation}
+        route={{ key: 'MoodDay-key', name: 'MoodDay', params: { date: DATE } }}
+      />
+    </SafeAreaProvider>
+  );
+
+const checkin = (
+  id: string,
+  time: string,
+  overrides: Partial<MoodEntry> = {}
+): MoodEntry => ({
+  id,
+  mood_value: 70,
+  mood_tags: [],
+  notes: null,
+  entry_date: DATE,
+  entry_timestamp: `${DATE}T${time}:00Z`,
+  source: 'manual',
+  energy_value: null,
+  focus_value: null,
+  ...overrides,
+});
+
+const threeCheckins = () => [
+  checkin('a', '08:10', { mood_value: 90, energy_value: 4, focus_value: 4 }),
+  checkin('b', '13:45', {
+    mood_value: null,
+    energy_value: 3,
+    mood_tags: ['calm'],
+    notes: 'Hard time focusing after lunch.',
+  }),
+  checkin('c', '21:30', { mood_value: 70 }),
+];
+
+beforeAll(async () => {
+  await initializeI18n('en');
+});
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockCheckins = threeCheckins();
+  mockCheckinsLoading = false;
+  mockCheckinsSupport = { supported: true, isLoading: false };
+  mockDeleteMutateAsync.mockResolvedValue(undefined);
+});
+
+describe('moodTagForValue', () => {
+  it('is null for an absent value and the banded tag otherwise', () => {
+    expect(moodTagForValue(null)).toBeNull();
+    expect(moodTagForValue(undefined)).toBeNull();
+    expect(moodTagForValue(70)).toBe('confident');
+    expect(moodTagForValue(0)).toBe('sad');
+  });
+});
+
+describe('MoodDayScreen', () => {
+  it('lists the check-ins in order with their times', () => {
+    renderScreen();
+    const rows = screen.getAllByRole('button', { name: /^Edit check-in at/ });
+    expect(rows.map((r) => r.props.accessibilityLabel)).toEqual([
+      'Edit check-in at 08:10',
+      'Edit check-in at 13:45',
+      'Edit check-in at 21:30',
+    ]);
+  });
+
+  it('shows no face on a check-in without a mood', () => {
+    mockCheckins = [
+      checkin('b', '13:45', { mood_value: null, energy_value: 3 }),
+    ];
+    renderScreen();
+    // Once in the day average, once on the row.
+    expect(screen.getAllByText('Energy 3/5')).toHaveLength(2);
+    expect(
+      screen.queryByText(/Sad|Excited|Happy|Confident|Neutral/)
+    ).toBeNull();
+  });
+
+  it('averages only the check-ins that have a value', () => {
+    renderScreen();
+    expect(screen.getByText('3 check-ins')).toBeTruthy();
+    // (90 + 70) / 2 = 80, ignoring the null mood.
+    expect(screen.getByText(/Happy/)).toBeTruthy();
+    expect(screen.getAllByText('Energy 3.5/5').length).toBe(1);
+    expect(screen.getAllByText('Focus 4/5').length).toBeGreaterThan(0);
+  });
+
+  it('shows a dash when no check-in has a mood', () => {
+    mockCheckins = [checkin('b', '13:45', { mood_value: null, notes: 'x' })];
+    renderScreen();
+    expect(screen.getByText('—')).toBeTruthy();
+    expect(screen.getByText('1 check-in')).toBeTruthy();
+  });
+
+  it('opens a check-in for editing when its row is pressed', () => {
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Edit check-in at 13:45'));
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('MoodLog', {
+      date: DATE,
+      checkinId: 'b',
+    });
+  });
+
+  it('starts a new check-in without a checkinId', () => {
+    renderScreen();
+    fireEvent.press(screen.getByText('Add check-in'));
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('MoodLog', {
+      date: DATE,
+    });
+  });
+
+  it('shows the empty state', () => {
+    mockCheckins = [];
+    renderScreen();
+    expect(screen.getByText('No check-ins yet for this day.')).toBeTruthy();
+  });
+
+  it('replaces itself with the one-entry form on a server without check-ins', () => {
+    mockCheckinsSupport = { supported: false, isLoading: false };
+    renderScreen();
+    expect(mockNavigation.replace).toHaveBeenCalledWith('MoodLog', {
+      date: DATE,
+    });
+    expect(screen.queryByText('Add check-in')).toBeNull();
+  });
+
+  it('does the same when the server check is unknown', () => {
+    mockCheckinsSupport = { supported: null, isLoading: false };
+    renderScreen();
+    expect(mockNavigation.replace).toHaveBeenCalledWith('MoodLog', {
+      date: DATE,
+    });
+  });
+
+  it('shows a spinner and does not redirect while the server check loads', () => {
+    mockCheckinsSupport = { supported: null, isLoading: true };
+    renderScreen();
+    expect(screen.getByLabelText('Loading...')).toBeTruthy();
+    expect(mockNavigation.replace).not.toHaveBeenCalled();
+  });
+
+  describe('delete', () => {
+    const confirmDelete = async () => {
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      fireEvent(screen.getByLabelText('Edit check-in at 13:45'), 'longPress');
+      // The long-press menu is the confirmation.
+      const buttons = alertSpy.mock.calls[0][2] as AlertButton[];
+      await act(async () => {
+        buttons.find((b) => b.text === 'Delete')?.onPress?.();
+      });
+      alertSpy.mockRestore();
+    };
+
+    it('deletes the row and refreshes through the cache', async () => {
+      renderScreen();
+      await confirmDelete();
+      expect(mockDeleteMutateAsync).toHaveBeenCalledWith('b');
+      expect(Toast.show).not.toHaveBeenCalled();
+    });
+
+    it('shows the server message when the delete fails', async () => {
+      mockDeleteMutateAsync.mockRejectedValue(
+        new ApiError(
+          'Server error: 403',
+          403,
+          JSON.stringify({ error: 'Not your check-in.' })
+        )
+      );
+      renderScreen();
+      await confirmDelete();
+      expect(Toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'error', text1: 'Not your check-in.' })
+      );
+    });
+
+    it('falls back to the generic message when the server gives none', async () => {
+      mockDeleteMutateAsync.mockRejectedValue(new Error('Network down'));
+      renderScreen();
+      await confirmDelete();
+      expect(Toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({ text1: 'Could not delete check-in' })
+      );
+    });
+  });
+});

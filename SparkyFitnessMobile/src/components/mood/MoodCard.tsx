@@ -5,7 +5,11 @@ import { useCSSVariable } from 'uniwind';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { moodByName, moodValueToTag } from '@workspace/shared';
+import {
+  dailyMoodSeries,
+  moodByName,
+  moodTagForValue,
+} from '@workspace/shared';
 
 import Icon from '../Icon';
 import { getAppLocale } from '../../localization';
@@ -35,31 +39,33 @@ export default function MoodCard({ navigation, date }: MoodCardProps) {
   const weekStart = addDays(selectedDate, -6);
   const entries = useMoodEntriesBetween(weekStart, selectedDate);
 
-  const todayEntry = entries.find((e) => e.entry_date === selectedDate);
-  // Interim null guard (a check-in can have no mood); reworked with the day view.
-  const todayMood =
-    todayEntry && todayEntry.mood_value !== null
-      ? moodByName(moodValueToTag(todayEntry.mood_value))
-      : null;
+  // One value per day: the manual average, else a synced mood. A day with
+  // only energy, focus or a journal has no value and shows as not logged.
+  const series = useMemo(() => dailyMoodSeries(entries), [entries]);
+  const moodForDay = (day: string) => {
+    const value = series.find((p) => p.date === day)?.mood_value;
+    const tag = moodTagForValue(value);
+    return tag ? moodByName(tag) : null;
+  };
+  const todayMood = moodForDay(selectedDate);
 
   const locale = getAppLocale();
   const days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
       const day = addDays(selectedDate, i - 6);
-      const entry = entries.find((e) => e.entry_date === day);
+      const tag = moodTagForValue(
+        series.find((p) => p.date === day)?.mood_value
+      );
       const [y, m, d] = day.split('-').map(Number);
       return {
         day,
-        emoji:
-          entry && entry.mood_value !== null
-            ? moodByName(moodValueToTag(entry.mood_value))?.emoji
-            : null,
+        emoji: tag ? moodByName(tag)?.emoji : null,
         label: new Date(y, m - 1, d).toLocaleDateString(locale, {
           weekday: 'narrow',
         }),
       };
     });
-  }, [entries, locale, selectedDate]);
+  }, [series, locale, selectedDate]);
 
   const moodLabel = todayMood
     ? (labels[todayMood.name] ?? todayMood.displayName)
@@ -75,12 +81,12 @@ export default function MoodCard({ navigation, date }: MoodCardProps) {
         date: selectedDate,
       });
 
-  const openLog = () => navigation.navigate('MoodLog', { date: selectedDate });
+  const openDay = () => navigation.navigate('MoodDay', { date: selectedDate });
 
   return (
     <Pressable
       className="bg-surface rounded-xl p-4 mb-3 shadow-sm"
-      onPress={openLog}
+      onPress={openDay}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
     >
@@ -106,7 +112,7 @@ export default function MoodCard({ navigation, date }: MoodCardProps) {
             })}
           </Text>
           <TouchableOpacity
-            onPress={openLog}
+            onPress={openDay}
             className="px-2.5 py-1.5 rounded-lg bg-accent-primary"
           >
             <Text className="text-xs font-semibold text-white">

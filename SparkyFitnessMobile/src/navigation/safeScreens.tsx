@@ -95,6 +95,7 @@ import Glp1PenFormScreen from '../screens/Glp1PenFormScreen';
 import Glp1TitrationFormScreen from '../screens/Glp1TitrationFormScreen';
 import SymptomLogScreen from '../screens/SymptomLogScreen';
 import MoodLogScreen from '../screens/MoodLogScreen';
+import MoodDayScreen from '../screens/MoodDayScreen';
 import SymptomHistoryScreen from '../screens/SymptomHistoryScreen';
 import SymptomEpisodeDetailScreen from '../screens/SymptomEpisodeDetailScreen';
 import ManageSymptomsScreen from '../screens/ManageSymptomsScreen';
@@ -245,6 +246,7 @@ export const SafeGlp1PenForm = withErrorBoundary(Glp1PenFormScreen, 'Glp1PenForm
 export const SafeGlp1TitrationForm = withErrorBoundary(Glp1TitrationFormScreen, 'Glp1TitrationForm', { canGoBack: true });
 
 export const SafeMoodLog = withErrorBoundary(MoodLogScreen, 'MoodLog', { canGoBack: true });
+export const SafeMoodDay = withErrorBoundary(MoodDayScreen, 'MoodDay', { canGoBack: true });
 export const SafeSymptomLog = withErrorBoundary(SymptomLogScreen, 'SymptomLog', { canGoBack: true });
 export const SafeSymptomHistory = withErrorBoundary(SymptomHistoryScreen, 'SymptomHistory', { canGoBack: true });
 export const SafeSymptomEpisodeDetail = withErrorBoundary(SymptomEpisodeDetailScreen, 'SymptomEpisodeDetail', { canGoBack: true });

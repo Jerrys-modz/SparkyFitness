@@ -164,6 +164,13 @@ export function moodValueToTag(value: number): string {
   return 'excited';
 }
 
+/** `moodValueToTag` for a value that may be absent (a check-in with no mood). */
+export function moodTagForValue(
+  value: number | null | undefined
+): string | null {
+  return value == null ? null : moodValueToTag(value);
+}
+
 /**
  * Representative 0-100 value for a set of tags (first banded tag wins). Used only
  * when a client sends tags without an explicit rating; the UI normally sets both.
