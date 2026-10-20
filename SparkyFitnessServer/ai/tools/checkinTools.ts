@@ -445,7 +445,7 @@ Actions:
                 if (existing) {
                   // Keep the stored mood, journal and tags; only the ratings
                   // the caller gave change.
-                  const row = await moodRepository.updateMoodEntry(
+                  const updated = await moodRepository.updateMoodEntry(
                     existing.id,
                     userId,
                     null,
@@ -456,8 +456,9 @@ Actions:
                       focusValue: args.focus_value,
                     }
                   );
+                  const row = updated ?? existing;
                   return formatConfirmation(
-                    `Mood check-in updated for ${args.entry_date}: ${moodValueToChatScore(row.mood_value)}/10${formatMoodRatings(row.energy_value, row.focus_value)}${formatMoodTags(row.mood_tags)}${row.notes ? ' — ' + row.notes : ''}.`
+                    `Mood check-in updated for ${args.entry_date}: ${moodValueToChatScore(row.mood_value ?? existing.mood_value)}/10${formatMoodRatings(row.energy_value, row.focus_value)}${formatMoodTags(row.mood_tags)}${row.notes ? ' — ' + row.notes : ''}.`
                   );
                 }
                 if (
