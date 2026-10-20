@@ -32,7 +32,8 @@ vi.mock('../models/routeRepository.js', () => {
 
 let actingAs = 'test-user-id';
 const app = express();
-app.use(express.json());
+// The same body limit as the real app, so the endpoints' own limits are reached.
+app.use(express.json({ limit: '50mb' }));
 app.use(
   (
     req: express.Request,
@@ -213,5 +214,127 @@ describe('routes API', () => {
     expect(res.headers['content-type']).toContain('application/gpx+xml');
     expect(res.headers['content-disposition']).toMatch(/^attachment;/);
     expect(res.headers['content-disposition']).toContain('filename*=UTF-8');
+  });
+});
+
+describe('routes API input limits', () => {
+  const post = (body: unknown) =>
+    request(app).post('/api/v2/routes').send(body);
+
+  it('rejects names that are blank, too long, or not text', async () => {
+    for (const name of ['', '   ', 'x'.repeat(101), 5, null]) {
+      expect((await post({ name, points })).status).toBe(400);
+    }
+    expect(createRoute).not.toHaveBeenCalled();
+  });
+
+  it('rejects points that are missing, out of range or not numbers', async () => {
+    const bad = [
+      undefined,
+      [],
+      [points[0]],
+      [points[0], { lat: 91, lon: 0 }],
+      [points[0], { lat: 0, lon: -181 }],
+      [points[0], { lat: '40', lon: 0 }],
+      [points[0], { lat: null, lon: 0 }],
+      [points[0], { lat: 0, lon: 0, alt: 20000 }],
+      [points[0], {}],
+    ];
+    for (const list of bad) {
+      expect((await post({ name: 'x', points: list })).status).toBe(400);
+    }
+    expect(createRoute).not.toHaveBeenCalled();
+  });
+
+  it('rejects more than the most points a client may send', async () => {
+    const many = Array.from({ length: 50001 }, (_, i) => ({
+      lat: 40 + (i % 100) / 1000,
+      lon: -74,
+    }));
+    expect((await post({ name: 'x', points: many })).status).toBe(400);
+  });
+
+  it('rejects an unknown activity and a field that is not the owner’s to set', async () => {
+    expect((await post({ name: 'x', points, activity: 'swim' })).status).toBe(
+      400
+    );
+    vi.mocked(createRoute).mockResolvedValue(route as never);
+    await post({ name: 'x', points, user_id: 'other' });
+    expect(vi.mocked(createRoute).mock.calls[0]?.[1]).not.toHaveProperty(
+      'user_id'
+    );
+  });
+
+  it('lets a client choose drawn or generated as the source, nothing else', async () => {
+    vi.mocked(createRoute).mockResolvedValue(route as never);
+    for (const source of ['gpx', 'activity', 'magic']) {
+      expect((await post({ name: 'x', points, source })).status).toBe(400);
+    }
+    expect(createRoute).not.toHaveBeenCalled();
+    expect((await post({ name: 'x', points })).status).toBe(201);
+    expect(
+      (await post({ name: 'x', points, source: 'generated' })).status
+    ).toBe(201);
+    expect(
+      vi.mocked(createRoute).mock.calls.map((call) => call[1].source)
+    ).toEqual(['drawn', 'generated']);
+  });
+
+  it('cuts an imported name to 100 characters without splitting an emoji', async () => {
+    vi.mocked(createRoute).mockResolvedValue(route as never);
+    const gpx = `<gpx><trk><name>${'a'.repeat(99)}🏃🏃</name><trkseg>
+      <trkpt lat="40" lon="-74"/><trkpt lat="40.01" lon="-74"/></trkseg></trk></gpx>`;
+    await request(app).post('/api/v2/routes/import-gpx').send({ gpx });
+    const name = vi.mocked(createRoute).mock.calls[0]?.[1].name as string;
+    expect(Array.from(name)).toHaveLength(100);
+    expect(name.endsWith('🏃')).toBe(true);
+    expect(name).not.toMatch(/[\ud800-\udbff]$/);
+  });
+
+  it('prefers a name sent with the file over the one inside it', async () => {
+    vi.mocked(createRoute).mockResolvedValue(route as never);
+    const gpx =
+      '<gpx><trk><name>In file</name><trkpt lat="40" lon="-74"/><trkpt lat="40.01" lon="-74"/></trk></gpx>';
+    await request(app)
+      .post('/api/v2/routes/import-gpx')
+      .send({ gpx, name: 'Mine', activity: 'ride' });
+    expect(createRoute).toHaveBeenCalledWith(
+      'test-user-id',
+      expect.objectContaining({ name: 'Mine', activity: 'ride' }),
+      actingAs
+    );
+  });
+
+  it('rejects a missing, empty or oversized GPX body', async () => {
+    const send = (body: unknown) =>
+      request(app).post('/api/v2/routes/import-gpx').send(body);
+    expect((await send({})).status).toBe(400);
+    expect((await send({ gpx: '' })).status).toBe(400);
+    expect((await send({ gpx: 5 })).status).toBe(400);
+    expect((await send({ gpx: 'x'.repeat(10_000_001) })).status).toBe(400);
+    expect(createRoute).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unknown activity when renaming', async () => {
+    const res = await request(app)
+      .patch(`/api/v2/routes/${ID}`)
+      .send({ activity: 'swim' });
+    expect(res.status).toBe(400);
+    expect(updateRoute).not.toHaveBeenCalled();
+  });
+
+  it('answers 404 for a route id that is not a UUID on every verb', async () => {
+    for (const verb of ['get', 'patch', 'delete'] as const) {
+      const res = await request(app)[verb]('/api/v2/routes/1%27%3BDROP');
+      expect(res.status).toBe(404);
+    }
+    expect((await request(app).get('/api/v2/routes/x/gpx')).status).toBe(404);
+  });
+
+  it('does not hand a stack trace to the client on an unexpected failure', async () => {
+    vi.mocked(listRoutes).mockRejectedValueOnce(new Error('boom'));
+    const res = await request(app).get('/api/v2/routes');
+    expect(res.status).toBe(500);
+    expect(JSON.stringify(res.body)).not.toContain('routeRoutes.ts');
   });
 });

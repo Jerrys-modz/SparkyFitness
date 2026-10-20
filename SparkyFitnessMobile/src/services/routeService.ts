@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { File, Paths } from 'expo-file-system';
+import { File } from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
-import * as Sharing from 'expo-sharing';
 import {
+  ROUTE_MAX_GPX_CHARS,
   serializeGpx,
   type CreateRouteBody,
   type GeneratedRoutePreview,
@@ -17,6 +17,7 @@ import {
   routeQueryKey,
   routesQueryKey,
 } from '../hooks/queryKeys';
+import { shareGpxFile } from './gpxExport';
 import {
   createRoute,
   createRouteFromActivity,
@@ -112,14 +113,14 @@ export async function saveGeneratedRoute(
   });
 }
 
+/**
+ * Saves a recorded activity's GPS track as a route. The route takes the
+ * activity's name; the server cuts it to fit.
+ */
 export async function saveActivityAsRoute(
-  exerciseEntryId: string,
-  name?: string
+  exerciseEntryId: string
 ): Promise<Route> {
-  const { route } = await createRouteFromActivity(
-    exerciseEntryId,
-    name ? { name } : {}
-  );
+  const { route } = await createRouteFromActivity(exerciseEntryId);
   await refreshRoutes();
   return route;
 }
@@ -135,9 +136,22 @@ export async function renameRoute(
 
 export async function removeRoute(id: string): Promise<void> {
   await deleteRoute(id);
-  queryClient.removeQueries({ queryKey: routeQueryKey(id) });
-  await refreshRoutes();
+  queryClient.setQueryData<RouteSummary[]>(routesQueryKey, (list) =>
+    list?.filter((route) => route.id !== id)
+  );
+  // Only the list is refetched: the deleted route's own screen is still
+  // mounted until the caller leaves it, and fetching that route is a 404.
+  await queryClient.invalidateQueries({
+    queryKey: routesQueryKey,
+    exact: true,
+  });
 }
+
+/** The chosen file is too big to be a route; the server would refuse it too. */
+export class GpxFileTooLargeError extends Error {}
+
+/** A UTF-8 character is at most 4 bytes, so a file this big cannot fit. */
+const MAX_GPX_BYTES = ROUTE_MAX_GPX_CHARS * 4;
 
 /**
  * Lets the person pick a GPX file and saves its track as a route. Resolves to
@@ -151,31 +165,33 @@ export async function pickAndImportGpx(): Promise<Route | null> {
   });
   const asset = picked.canceled ? undefined : picked.assets[0];
   if (!asset) return null;
-  const gpx = await new File(asset.uri).text();
-  const { route } = await importGpxRoute({ gpx });
-  await refreshRoutes();
-  return route;
+  const copy = new File(asset.uri);
+  try {
+    if (asset.size !== undefined && asset.size > MAX_GPX_BYTES) {
+      throw new GpxFileTooLargeError();
+    }
+    const gpx = await copy.text();
+    if (gpx.length > ROUTE_MAX_GPX_CHARS) throw new GpxFileTooLargeError();
+    const { route } = await importGpxRoute({ gpx });
+    await refreshRoutes();
+    return route;
+  } finally {
+    // The picker copied the file into the cache; it is not needed afterwards.
+    try {
+      copy.delete();
+    } catch {
+      // Already gone, or not ours to delete.
+    }
+  }
 }
 
 /** Opens the share sheet with the route as a GPX file. False if dismissed. */
-export async function shareRouteGpx(route: Route): Promise<boolean> {
+export function shareRouteGpx(route: Route): Promise<boolean> {
   const safeName =
     route.name.replace(/[^\p{L}\p{N}_-]+/gu, '_').slice(0, 60) || 'route';
-  const file = new File(Paths.cache, `${safeName}.gpx`);
-  if (file.exists) file.delete();
-  file.create();
-  file.write(serializeGpx(route.name, route.points));
-  try {
-    await Sharing.shareAsync(file.uri, {
-      mimeType: 'application/gpx+xml',
-      UTI: 'com.topografix.gpx',
-      dialogTitle: route.name,
-    });
-    return true;
-  } catch (error: unknown) {
-    if (error instanceof Error && error.message?.includes('cancel')) {
-      return false;
-    }
-    throw error;
-  }
+  return shareGpxFile({
+    xml: serializeGpx(route.name, route.points),
+    fileName: `${safeName}.gpx`,
+    title: route.name,
+  });
 }

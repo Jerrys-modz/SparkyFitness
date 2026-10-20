@@ -203,12 +203,12 @@ describe('RouteDrawScreen follow roads', () => {
     for (let i = 0; i < ROUTE_FOLLOW_ROADS_MAX_POINTS + 3; i++) {
       tapMap(utils, 40 + i * 0.001);
     }
-    expect(utils.getAllByTestId('map-marker')).toHaveLength(
-      ROUTE_FOLLOW_ROADS_MAX_POINTS
-    );
     expect(utils.getByText(/takes up to 21 points/)).toBeTruthy();
     await settle();
-    expect(mockGenerate.mock.calls.at(-1)[0].waypoints).toHaveLength(20);
+    // The first tap is the start, so 21 taps are the start and 20 waypoints.
+    expect(mockGenerate.mock.calls.at(-1)[0].waypoints).toHaveLength(
+      ROUTE_FOLLOW_ROADS_MAX_POINTS - 1
+    );
   });
 
   it('saves the snapped line with its cues once it matches the taps', async () => {

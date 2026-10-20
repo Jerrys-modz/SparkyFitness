@@ -17,6 +17,7 @@ import { usePreferences } from '../hooks/usePreferences';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { addLog } from '../services/LogService';
 import {
+  GpxFileTooLargeError,
   pickAndImportGpx,
   useRouteGenerationAvailable,
   useRoutes,
@@ -46,14 +47,23 @@ const RoutesScreen: React.FC<Props> = ({ navigation }) => {
       })
       .catch((error: unknown) => {
         addLog(`[Routes] Could not import a GPX file: ${error}`, 'WARNING');
+        const tooLarge = error instanceof GpxFileTooLargeError;
         Toast.show({
           type: 'error',
-          text1: t('routes.importFailed', {
-            defaultValue: 'Could not import that file',
-          }),
-          text2: t('routes.importFailedHint', {
-            defaultValue: 'Choose a GPX file with a track or route in it.',
-          }),
+          text1: tooLarge
+            ? t('routes.fileTooLarge', {
+                defaultValue: 'That file is too large',
+              })
+            : t('routes.importFailed', {
+                defaultValue: 'Could not import that file',
+              }),
+          text2: tooLarge
+            ? t('routes.fileTooLargeHint', {
+                defaultValue: 'A route file can be up to 10 MB.',
+              })
+            : t('routes.importFailedHint', {
+                defaultValue: 'Choose a GPX file with a track or route in it.',
+              }),
         });
       })
       .finally(() => setImporting(false));
@@ -116,7 +126,7 @@ const RoutesScreen: React.FC<Props> = ({ navigation }) => {
       >
         {isLoading || importing ? (
           <ActivityIndicator />
-        ) : isError ? (
+        ) : isError && routes.length === 0 ? (
           <View className="items-center py-8">
             <Text className="text-text-secondary text-base mb-3">
               {t('routes.loadFailed', {

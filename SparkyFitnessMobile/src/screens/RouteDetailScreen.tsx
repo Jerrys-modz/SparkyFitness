@@ -37,6 +37,7 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
   const unit = preferences?.default_distance_unit ?? 'km';
   const [name, setName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const header = useScreenHeader({
     title: route?.name ?? t('screens.routes', { defaultValue: 'Routes' }),
@@ -88,16 +89,18 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
           text: t('common.delete', { defaultValue: 'Delete' }),
           style: 'destructive',
           onPress: () => {
+            setDeleting(true);
             void removeRoute(id)
               .then(() => navigation.goBack())
-              .catch((error: unknown) =>
+              .catch((error: unknown) => {
+                setDeleting(false);
                 fail(
                   t('routes.deleteFailed', {
                     defaultValue: 'Could not delete the route',
                   }),
                   error
-                )
-              );
+                );
+              });
           },
         },
       ]
@@ -108,6 +111,7 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
       {header}
       <ScrollView
         className="flex-1 bg-background"
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           padding: 16,
           paddingBottom: insets.bottom + 24,
@@ -170,14 +174,27 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
                   {t('routes.rename', { defaultValue: 'Rename' })}
                 </Button>
               ) : (
-                <Button loading={busy} onPress={saveName}>
-                  {t('common.save', { defaultValue: 'Save' })}
-                </Button>
+                <>
+                  <Button loading={busy} onPress={saveName}>
+                    {t('common.save', { defaultValue: 'Save' })}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={busy}
+                    onPress={() => setName(null)}
+                  >
+                    {t('common.cancel', { defaultValue: 'Cancel' })}
+                  </Button>
+                </>
               )}
               <Button variant="secondary" onPress={share}>
                 {t('routes.shareGpx', { defaultValue: 'Share as GPX' })}
               </Button>
-              <Button variant="destructive" onPress={confirmDelete}>
+              <Button
+                variant="destructive"
+                loading={deleting}
+                onPress={confirmDelete}
+              >
                 {t('common.delete', { defaultValue: 'Delete' })}
               </Button>
             </View>

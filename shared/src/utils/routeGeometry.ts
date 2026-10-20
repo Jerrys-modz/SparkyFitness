@@ -191,14 +191,17 @@ const MAX_SIMPLIFY_INPUT = 4000;
 /**
  * Thins a track to at most `maxPoints`: points closer than 2 m to the last kept
  * one go first, then Douglas-Peucker (most significant points first) until the
- * rest are within the tolerance or the track fits. Returns the kept points and, for each, its index in the input
- * (so cues can be re-pointed). Bounded work even for adversarial input.
+ * rest are within the tolerance or the track fits. Returns the kept points and,
+ * for each, its index in the input (so cues can be re-pointed). The first and
+ * last point are always kept, so `maxPoints` is raised to 2 if lower. Bounded
+ * work even for adversarial input.
  */
 export function simplifyRoute(
   points: readonly RoutePoint[],
-  maxPoints: number,
+  requestedMaxPoints: number,
   toleranceM = 3
 ): { points: RoutePoint[]; sourceIndexes: number[] } {
+  const maxPoints = Math.max(2, Math.floor(requestedMaxPoints));
   if (points.length <= 2) {
     return {
       points: [...points],

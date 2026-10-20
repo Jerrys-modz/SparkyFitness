@@ -1,6 +1,6 @@
 # Database Security & RLS Tiers
 
-*Last updated: 2026-09-01*
+*Last updated: 2026-10-20*
 
 SparkyFitness uses PostgreSQL Row-Level Security (RLS) to enforce strict data isolation between accounts, caregivers, family members, and third-party integrations (API keys). This document covers the security design, context switching mechanism, and the three-tier database table classifications.
 

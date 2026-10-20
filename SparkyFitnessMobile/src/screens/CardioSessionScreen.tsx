@@ -220,7 +220,7 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
   const [savingRoute, setSavingRoute] = React.useState(false);
   const saveAsRoute = () => {
     setSavingRoute(true);
-    void saveActivityAsRoute(session.id, session.exerciseName)
+    void saveActivityAsRoute(session.id)
       .then((saved) => {
         Toast.show({
           type: 'success',

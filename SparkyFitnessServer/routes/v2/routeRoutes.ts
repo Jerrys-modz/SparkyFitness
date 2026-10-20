@@ -8,6 +8,7 @@ import {
   serializeGpx,
   updateRouteBodySchema,
 } from '@workspace/shared';
+import { fitRouteName } from '../../utils/routePrep.js';
 import requireSelfActor from '../../middleware/requireSelfMiddleware.js';
 import { generateRoute } from '../../services/routeGenerationService.js';
 import {
@@ -151,7 +152,7 @@ router.post('/import-gpx', async (req, res, next) => {
     const route = await createRoute(
       req.userId,
       {
-        name: (parsed.data.name ?? gpx.name ?? 'Imported route').slice(0, 100),
+        name: fitRouteName(parsed.data.name ?? gpx.name ?? 'Imported route'),
         activity: parsed.data.activity,
         points: gpx.points,
         source: 'gpx',
@@ -200,10 +201,7 @@ router.post('/from-activity/:exerciseEntryId', async (req, res, next) => {
     const route = await createRoute(
       req.userId,
       {
-        name: (parsed.data.name ?? track.name ?? 'Recorded route').slice(
-          0,
-          100
-        ),
+        name: fitRouteName(parsed.data.name ?? track.name ?? 'Recorded route'),
         activity: parsed.data.activity ?? 'run',
         points: track.points,
         source: 'activity',

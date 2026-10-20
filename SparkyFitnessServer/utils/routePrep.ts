@@ -9,6 +9,18 @@ import {
 
 export class InvalidRouteError extends Error {}
 
+/** `routes.name` is VARCHAR(100), counted in characters. */
+const ROUTE_NAME_MAX_CHARS = 100;
+
+/**
+ * A name taken from a file or a recorded activity, cut to what a route can
+ * hold. It cuts between characters, so an emoji at the limit is not split in
+ * half.
+ */
+export function fitRouteName(name: string): string {
+  return Array.from(name.trim()).slice(0, ROUTE_NAME_MAX_CHARS).join('').trim();
+}
+
 export interface PreparedRoute {
   points: RoutePoint[];
   cues: RouteCue[];
