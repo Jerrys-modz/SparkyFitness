@@ -7044,8 +7044,7 @@
     "mood": "Mood",
     "moodValue": "Mood Value",
     "mostCommon": "Most common moods",
-    "noMoodData": "No mood data available for this period.",
-    "notes": "Notes: "
+    "noMoodData": "No mood data available for this period."
   },
   "preferences": {
     "resetError": "Failed to reset preferences"
