@@ -9,8 +9,8 @@ import {
 import {
   createMoodCheckin,
   deleteMoodCheckin,
+  fetchLegacyMoodEntries,
   fetchMoodCheckinsForDate,
-  fetchMoodEntries,
   updateMoodCheckin,
 } from '../../src/services/api/moodApi';
 import { createTestQueryClient, createQueryWrapper } from './queryTestUtils';
@@ -19,6 +19,7 @@ jest.mock('../../src/services/api/moodApi', () => ({
   createMoodCheckin: jest.fn(),
   deleteMoodCheckin: jest.fn(),
   fetchCustomMoods: jest.fn(),
+  fetchLegacyMoodEntries: jest.fn(),
   fetchMoodCheckinsForDate: jest.fn(),
   fetchMoodEntries: jest.fn(),
   saveMoodEntry: jest.fn(),
@@ -47,7 +48,7 @@ describe('mood check-in hooks', () => {
   });
 
   it('keeps the legacy single-day entry apart from a one-day range', async () => {
-    mocked(fetchMoodEntries).mockResolvedValue([{ id: 'a' }]);
+    mocked(fetchLegacyMoodEntries).mockResolvedValue([{ id: 'a' }]);
     const client = createTestQueryClient();
     const { result } = renderHook(() => useMoodEntryForDate('2026-10-05'), {
       wrapper: createQueryWrapper(client),
@@ -68,41 +69,54 @@ describe('mood check-in hooks', () => {
     expect(keys).toContainEqual(['cycleCorrelations']);
   };
 
-  it.each([
-    [
-      'create',
-      () => useCreateMoodCheckin(),
-      createMoodCheckin,
-      {
+  const invalidatingClient = () => {
+    const client = createTestQueryClient();
+    return { client, spy: jest.spyOn(client, 'invalidateQueries') };
+  };
+
+  it('create invalidates mood entries and cycle correlations', async () => {
+    mocked(createMoodCheckin).mockResolvedValue(undefined);
+    const { client, spy } = invalidatingClient();
+    const { result } = renderHook(() => useCreateMoodCheckin(), {
+      wrapper: createQueryWrapper(client),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({
         mood_value: 50,
         entry_date: '2026-10-05',
         entry_timestamp: '2026-10-05T14:00:00.000Z',
-      },
-    ],
-    [
-      'update',
-      () => useUpdateMoodCheckin(),
-      updateMoodCheckin,
-      { id: 'x', body: { notes: 'hi' } },
-    ],
-    ['delete', () => useDeleteMoodCheckin(), deleteMoodCheckin, 'x'],
-  ] as const)(
-    '%s invalidates mood entries and cycle correlations',
-    async (_name, useHook, api, variables) => {
-      mocked(api).mockResolvedValue(undefined);
-      const client = createTestQueryClient();
-      const spy = jest.spyOn(client, 'invalidateQueries');
-      const { result } = renderHook(() => useHook() as never, {
-        wrapper: createQueryWrapper(client),
       });
+    });
 
-      await act(async () => {
-        await (
-          result.current as { mutateAsync: (v: unknown) => Promise<unknown> }
-        ).mutateAsync(variables);
-      });
+    expectBothInvalidated(spy);
+  });
 
-      expectBothInvalidated(spy);
-    }
-  );
+  it('update invalidates mood entries and cycle correlations', async () => {
+    mocked(updateMoodCheckin).mockResolvedValue(undefined);
+    const { client, spy } = invalidatingClient();
+    const { result } = renderHook(() => useUpdateMoodCheckin(), {
+      wrapper: createQueryWrapper(client),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({ id: 'x', body: { notes: 'hi' } });
+    });
+
+    expectBothInvalidated(spy);
+  });
+
+  it('delete invalidates mood entries and cycle correlations', async () => {
+    mocked(deleteMoodCheckin).mockResolvedValue(undefined);
+    const { client, spy } = invalidatingClient();
+    const { result } = renderHook(() => useDeleteMoodCheckin(), {
+      wrapper: createQueryWrapper(client),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync('x');
+    });
+
+    expectBothInvalidated(spy);
+  });
 });

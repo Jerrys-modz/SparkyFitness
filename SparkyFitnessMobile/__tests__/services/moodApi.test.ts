@@ -3,6 +3,7 @@ import {
   createMoodCheckin,
   deleteMoodCheckin,
   fetchCustomMoods,
+  fetchLegacyMoodEntries,
   fetchMoodCheckinsForDate,
   fetchMoodEntries,
   saveMoodEntry,
@@ -96,6 +97,16 @@ describe('moodApi', () => {
     it('sends the v2 header when listing a range', async () => {
       await fetchMoodEntries('2026-10-01', '2026-10-05');
       expect(mockApiFetch).toHaveBeenCalledWith(expect.objectContaining(V2));
+    });
+
+    it('sends no header on the legacy day read', async () => {
+      await fetchLegacyMoodEntries('2026-10-05', '2026-10-05');
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          endpoint: '/api/mood?startDate=2026-10-05&endDate=2026-10-05',
+        })
+      );
+      expect(mockApiFetch.mock.calls[0][0]).not.toHaveProperty('headers');
     });
 
     it('does not send the header on custom moods', async () => {

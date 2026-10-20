@@ -59,18 +59,33 @@ const normalizeMoodEntry = (row: RawMoodEntry): MoodEntry => ({
     row.entry_timestamp ?? row.created_at ?? `${row.entry_date}T12:00:00Z`,
 });
 
-export const fetchMoodEntries = async (
+const listMoodEntries = async (
   startDate: string,
-  endDate: string
+  endDate: string,
+  headers?: Record<string, string>
 ): Promise<MoodEntry[]> => {
   const rows = await apiFetch<RawMoodEntry[]>({
     endpoint: `/api/mood?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
     serviceName: SERVICE,
     operation: 'list mood entries',
-    headers: MOOD_V2_HEADERS,
+    ...(headers && { headers }),
   });
   return rows.map(normalizeMoodEntry);
 };
+
+export const fetchMoodEntries = (
+  startDate: string,
+  endDate: string
+): Promise<MoodEntry[]> => listMoodEntries(startDate, endDate, MOOD_V2_HEADERS);
+
+/**
+ * The legacy one-entry-per-day read: no v2 header, so even a v2 server answers
+ * with its single legacy row for the day.
+ */
+export const fetchLegacyMoodEntries = (
+  startDate: string,
+  endDate: string
+): Promise<MoodEntry[]> => listMoodEntries(startDate, endDate);
 
 /**
  * One day's check-ins. Null when the server answers with something other than

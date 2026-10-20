@@ -10,6 +10,7 @@ import {
   createMoodCheckin,
   deleteMoodCheckin,
   fetchCustomMoods,
+  fetchLegacyMoodEntries,
   fetchMoodCheckinsForDate,
   fetchMoodEntries,
   saveMoodEntry,
@@ -95,7 +96,7 @@ export function useMoodEntryForDate(date: string) {
   const query = useQuery({
     queryKey: moodLegacyDayQueryKey(date),
     queryFn: async () => {
-      const entries = await fetchMoodEntries(date, date);
+      const entries = await fetchLegacyMoodEntries(date, date);
       return entries[0] ?? null;
     },
   });

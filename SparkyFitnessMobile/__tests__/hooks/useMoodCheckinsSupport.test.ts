@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { todayInZone } from '@workspace/shared';
 import { useMoodCheckinsSupport } from '../../src/hooks/useMoodCheckinsSupport';
 import { fetchMoodCheckinsForDate } from '../../src/services/api/moodApi';
@@ -39,11 +39,27 @@ describe('useMoodCheckinsSupport', () => {
     await waitFor(() => expect(result.current.supported).toBe(false));
   });
 
-  it('is unknown when the request fails', async () => {
+  it('is unknown when the first request fails', async () => {
     mockFetch.mockRejectedValue(new Error('boom'));
     const { result } = run();
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.supported).toBeNull();
+  });
+
+  it('keeps a known answer when a later probe fails', async () => {
+    mockFetch.mockResolvedValue([]);
+    const client = createTestQueryClient();
+    const { result } = renderHook(() => useMoodCheckinsSupport(), {
+      wrapper: createQueryWrapper(client),
+    });
+    await waitFor(() => expect(result.current.supported).toBe(true));
+
+    mockFetch.mockRejectedValue(new Error('boom'));
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: ['moodEntries'] });
+    });
+
+    expect(result.current.supported).toBe(true);
   });
 });

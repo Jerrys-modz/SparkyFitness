@@ -8,7 +8,7 @@ import { moodCheckinsSupportQueryKey } from './queryKeys';
 /**
  * Whether the server keeps several mood check-ins per day: true when
  * `GET /api/mood/date/:day` answers with a list, false when it answers with
- * anything else, null when the request fails (unknown).
+ * anything else, null while unknown (the request failed and nothing is known).
  */
 export function useMoodCheckinsSupport(): {
   supported: boolean | null;
@@ -21,13 +21,10 @@ export function useMoodCheckinsSupport(): {
     // The answer only changes with a server upgrade; save, refresh and server
     // switch still re-probe, so keep it to avoid a flash of the wrong screen.
     gcTime: Infinity,
-    queryFn: async () => {
-      try {
-        return (await fetchMoodCheckinsForDate(todayInZone(timezone))) !== null;
-      } catch {
-        return null;
-      }
-    },
+    // A failed probe throws so React Query retries and keeps any earlier answer
+    // rather than caching "unknown" over it.
+    queryFn: async () =>
+      (await fetchMoodCheckinsForDate(todayInZone(timezone))) !== null,
   });
 
   return { supported: query.data ?? null, isLoading: query.isLoading };
