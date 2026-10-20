@@ -79,7 +79,7 @@ export function useAppStartup({ shouldYieldObserverSync }: AppStartupArgs) {
 
     initWorkoutNotificationActions();
     initMedicationNotificationActions();
-    initMoodCheckinNotificationResponses();
+    const stopMoodCheckinResponses = initMoodCheckinNotificationResponses();
     void ensureSymptomNotificationCategory();
 
     // Keeps the iOS Live Activity or Android ongoing notification in sync
@@ -180,6 +180,7 @@ export function useAppStartup({ shouldYieldObserverSync }: AppStartupArgs) {
     return () => {
       cancelled = true;
       i18n.off('languageChanged', onLanguageChanged);
+      stopMoodCheckinResponses();
       if (Platform.OS === 'ios') {
         stopObservers();
       }

@@ -4,6 +4,10 @@ import { addNotificationResponseListener } from './notifications';
 import { navigationRef } from '../components/ActiveWorkoutBar';
 import { whenNavigationReady } from '../hooks/useQuickActions';
 
+// On Android the launch tap can arrive through both the listener and
+// getLastNotificationResponse(); remember the last one so it opens once.
+let lastHandledKey: string | null = null;
+
 function openCheckinIfTapped(response: Notifications.NotificationResponse) {
   if (
     response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER ||
@@ -11,6 +15,9 @@ function openCheckinIfTapped(response: Notifications.NotificationResponse) {
   ) {
     return;
   }
+  const key = `${response.notification.request.identifier}:${response.notification.date}`;
+  if (key === lastHandledKey) return;
+  lastHandledKey = key;
   whenNavigationReady(() => navigationRef.navigate('MoodLog'));
 }
 

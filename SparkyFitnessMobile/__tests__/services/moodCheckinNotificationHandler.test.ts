@@ -28,10 +28,17 @@ const mockNavigate = navigationRef.navigate as unknown as jest.Mock;
 const mockGetLast = Notifications.getLastNotificationResponse as jest.Mock;
 const mockClearLast = Notifications.clearLastNotificationResponse as jest.Mock;
 
-function response(actionIdentifier: string, kind?: string) {
+let nextId = 0;
+function response(actionIdentifier: string, kind?: string, id?: string) {
   return {
     actionIdentifier,
-    notification: { request: { content: { data: kind ? { kind } : {} } } },
+    notification: {
+      date: 1000,
+      request: {
+        identifier: id ?? `notif-${nextId++}`,
+        content: { data: kind ? { kind } : {} },
+      },
+    },
   };
 }
 
@@ -74,6 +81,18 @@ describe('initMoodCheckinNotificationResponses', () => {
     initMoodCheckinNotificationResponses();
     expect(mockNavigate).toHaveBeenCalledWith('MoodLog');
     expect(mockClearLast).toHaveBeenCalled();
+  });
+
+  it('opens the check-in once when the same tap arrives twice', () => {
+    const tap = response(
+      Notifications.DEFAULT_ACTION_IDENTIFIER,
+      'mood-checkin',
+      'launch-tap'
+    );
+    mockGetLast.mockReturnValue(tap);
+    const handle = listener();
+    handle(tap);
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
   });
 
   it('returns an unsubscribe function', () => {
