@@ -322,13 +322,40 @@ export async function reconcileMedicationReminders(
       snoozedContents
     );
 
+    // A snoozed reminder is a verbatim copy of the notification the user tapped
+    // and its key is not in `desiredKeys`, so the copy-freshness test below never
+    // reaches it. Rebuild it at the time the snooze was due to fire when the
+    // privacy or language preference changed after the snooze was created.
+    const staleSnoozeFireAt = new Map<string, Date>();
+    for (const n of allPending) {
+      const data = n.content.data ?? {};
+      const baseKey = (data.baseKey ?? data.key) as string | undefined;
+      if (!data.medicationId || data.isSnoozed !== 'true' || !baseKey) continue;
+      if (!snoozedBaseKeys.has(baseKey)) continue;
+      const copyIsStale =
+        (data.hideNames === 'true') !== hideNames ||
+        (data.locale ?? 'en') !== reminderLocale;
+      if (!copyIsStale) continue;
+      const trigger = n.trigger as unknown as {
+        date?: Date | number;
+      } | null;
+      const fireAt = trigger?.date instanceof Date ? trigger.date : null;
+      if (fireAt && fireAt.getTime() > Date.now()) {
+        staleSnoozeFireAt.set(baseKey, fireAt);
+      }
+    }
+
     const toCancel = allPending
       .filter((n) => {
         if (!n.content.data?.medicationId) return false;
         const key = n.content.data.key as string | undefined;
         const baseKey = (n.content.data.baseKey ?? key) as string | undefined;
         if (n.content.data.isSnoozed === 'true') {
-          return !baseKey || !snoozedBaseKeys.has(baseKey);
+          return (
+            !baseKey ||
+            !snoozedBaseKeys.has(baseKey) ||
+            staleSnoozeFireAt.has(baseKey)
+          );
         }
         if (baseKey && snoozedBaseKeys.has(baseKey)) return true;
         if (!key || !desiredKeys.has(key)) return true;
@@ -381,7 +408,8 @@ export async function reconcileMedicationReminders(
       withRepeats,
       baseKey,
     } of slotsToSchedule) {
-      if (snoozedBaseKeys.has(baseKey)) continue;
+      const snoozeFireAt = staleSnoozeFireAt.get(baseKey);
+      if (snoozedBaseKeys.has(baseKey) && !snoozeFireAt) continue;
       const isGroup = doses.length > 1;
       const categoryIdentifier = isGroup
         ? MEDICATION_REMINDER_GROUP_CATEGORY
@@ -456,16 +484,25 @@ export async function reconcileMedicationReminders(
         data.isGroup = 'true';
       }
 
+      if (snoozeFireAt) {
+        // Stand-in for the cancelled snooze: keep it flagged as snoozed so the
+        // stored snooze record stays consistent, and so the next reconcile
+        // leaves it alone.
+        data.key = `${baseKey}_snooze_${snoozeFireAt.getTime()}`;
+        data.isSnoozed = 'true';
+      }
+
       const [hours, minutes] = timeOfDay.split(':').map(Number);
       const [year, month, day] = date.split('-').map(Number);
-      const triggerDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+      const triggerDate =
+        snoozeFireAt ?? new Date(year, month - 1, day, hours, minutes, 0, 0);
       if (!pendingKeys.has(baseKey) && triggerDate.getTime() > Date.now()) {
         await scheduleReminder(body, triggerDate, data, categoryIdentifier);
       }
 
       // Checked per key, not per dose: enabling repeats mid-day must still add
       // the repeat pings behind an already-pending base reminder.
-      if (withRepeats) {
+      if (withRepeats && !snoozeFireAt) {
         for (const offset of REPEAT_MINUTES) {
           const repeatKey = repeatMedReminderKey(baseKey, offset);
           if (pendingKeys.has(repeatKey)) continue;

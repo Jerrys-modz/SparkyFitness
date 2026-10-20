@@ -626,8 +626,9 @@ async function handleSnoozeNotificationAction(
       await ensureMedicationReminderChannel();
     }
 
-    const snoozeMinutes =
-      useAppPreferencesStore.getState()?.medicationReminderSnoozeMinutes ?? 30;
+    const prefsState = useAppPreferencesStore.getState();
+    const snoozeMinutes = prefsState?.medicationReminderSnoozeMinutes ?? 30;
+    const hideNames = Boolean(prefsState?.medicationReminderHideNames);
     const triggerDate = new Date(Date.now() + snoozeMinutes * 60_000);
     const effectiveBaseKey = key ?? `${entryDate}_${doses[0].medicationId}`;
     const snoozeKey = `${effectiveBaseKey}_snooze_${triggerDate.getTime()}`;
@@ -654,6 +655,17 @@ async function handleSnoozeNotificationAction(
     cleanData.baseKey = effectiveBaseKey;
     cleanData.key = snoozeKey;
     cleanData.isSnoozed = 'true';
+    cleanData.hideNames = String(hideNames);
+
+    const genericBody = isGroup
+      ? i18n.t('medications.notificationScheduledDoses', {
+          count: doses.length,
+          defaultValue: 'You have {{count}} scheduled doses',
+          defaultValue_one: 'You have {{count}} scheduled dose',
+        })
+      : i18n.t('medications.notificationScheduledDose', {
+          defaultValue: 'You have a scheduled dose',
+        });
 
     // Schedule the replacement reminder before dismissing the active notification
     // or cancelling pending repeats so a scheduling error never drops the alert.
@@ -664,11 +676,7 @@ async function handleSnoozeNotificationAction(
           i18n.t('medications.notificationTitle', {
             defaultValue: 'Medication reminder',
           }),
-        body:
-          content?.body ||
-          i18n.t('medications.notificationScheduledDose', {
-            defaultValue: 'You have a scheduled dose',
-          }),
+        body: hideNames ? genericBody : content?.body || genericBody,
         sound: true,
         categoryIdentifier,
         data: cleanData,

@@ -1006,5 +1006,58 @@ describe('reconcileMedicationReminders', () => {
       expect(mockCancel).toHaveBeenCalledWith('cross-day-group-snooze');
       listEntriesSpy.mockRestore();
     });
+
+    it('replaces a pending named snoozed reminder with the generic copy at the same fire time when hideNames is enabled', async () => {
+      useAppPreferencesStore.setState({ medicationReminderHideNames: true });
+      const snoozeFireAt = new Date('2026-07-28T09:45:00');
+      const snoozeKey = `${BASE_KEY}_snooze_${snoozeFireAt.getTime()}`;
+
+      mockGetAllScheduled.mockResolvedValue([
+        {
+          identifier: 'named-snooze',
+          content: {
+            title: 'Medication reminder',
+            body: 'Scheduled dose: Metformin (500 mg)',
+            data: {
+              medicationId: 'med-1',
+              scheduleId: 'sched-1',
+              entryDate: TODAY,
+              key: snoozeKey,
+              baseKey: BASE_KEY,
+              isSnoozed: 'true',
+              hideNames: 'false',
+              locale: 'en',
+            },
+          } as unknown as Notifications.NotificationContent,
+          trigger: {
+            type: 'date',
+            date: snoozeFireAt,
+          } as unknown as Notifications.NotificationTrigger,
+        },
+      ]);
+
+      await reconcileMedicationReminders([buildMedication()], []);
+
+      expect(mockCancel).toHaveBeenCalledWith('named-snooze');
+      const rebuiltSnooze = mockSchedule.mock.calls.find(
+        (c) => c[0].content.data?.key === snoozeKey
+      );
+      expect(rebuiltSnooze).toBeDefined();
+      expect(rebuiltSnooze?.[0].content.body).toBe('You have a scheduled dose');
+      expect(rebuiltSnooze?.[0].content.data).toEqual(
+        expect.objectContaining({
+          key: snoozeKey,
+          baseKey: BASE_KEY,
+          isSnoozed: 'true',
+          hideNames: 'true',
+        })
+      );
+      expect(rebuiltSnooze?.[0].trigger).toEqual(
+        expect.objectContaining({
+          date: snoozeFireAt,
+        })
+      );
+      expect(scheduledKeys()).not.toContain(`${BASE_KEY}_10`);
+    });
   });
 });
