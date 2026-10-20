@@ -404,7 +404,7 @@ const TreadmillSettingsScreen: React.FC<Props> = () => {
           <Text className="text-text-secondary text-sm mt-1 mb-3">
             {t('treadmillSettings.calibrateHint', {
               defaultValue:
-                'Walk or run a distance you know is real, note your steps (from Health or your watch) and what the treadmill showed. This sets your stride, and works out how far off the treadmill is.',
+                'Step 1, your stride: walk or run a distance you know is true (a track or a measured route), then enter the steps from Health or your watch and that distance. Leave the treadmill box empty. Step 2, the treadmill: do the same on the treadmill, enter the real distance (your steps times the stride from step 1) and what the display showed. That works out how far off it is.',
             })}
           </Text>
           <SegmentedControl<StepActivity>
