@@ -50,6 +50,7 @@ import { usePreferences } from '../hooks/usePreferences';
 import { getApiErrorMessage } from '../services/api/errors';
 import type { MoodEntry } from '../services/api/moodApi';
 import { getDeviceTimezone, getTodayDate } from '../utils/dateUtils';
+import { moodDayInZone } from '../utils/moodDay';
 import {
   formatTimeLabel,
   type EntryTimeFormat,
@@ -469,13 +470,12 @@ function CheckinComposer({
   // check-in's is the default for now, which follows the clock and the zone.
   const timeTouched = changes.time !== undefined;
   const [now, setNow] = useState(() => new Date());
-  // The dashboard passes the device's day, which can differ from the day in
-  // the preference zone; either one counts as today. A new check-in for today
-  // then goes on the zone's own today, at the zone's clock, so its day and
-  // time are never a day apart.
+  // The device's today and the zone's today both count as today, and a new
+  // check-in for today goes on the zone's own today, at the zone's clock, so
+  // its day and time are never a day apart.
   const zoneToday = todayInZone(tz);
-  const isToday = date === zoneToday || date === getTodayDate();
-  const checkinDay = isToday ? zoneToday : date;
+  const checkinDay = moodDayInZone(date, tz);
+  const isToday = checkinDay === zoneToday;
   const base: CheckinDraft = editing
     ? draftFromEntry(editing, tz)
     : { ...EMPTY_CHECKIN, time: defaultCheckinTime(checkinDay, tz, now) };

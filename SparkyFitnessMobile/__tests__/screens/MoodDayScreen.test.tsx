@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import MoodDayScreen from '../../src/screens/MoodDayScreen';
 import { initializeI18n } from '../../src/localization/i18n';
 import { ApiError } from '../../src/services/api/errors';
+import * as dateUtils from '../../src/utils/dateUtils';
 import type { RootStackScreenProps } from '../../src/types/navigation';
 import type { MoodEntry } from '../../src/services/api/moodApi';
 
@@ -16,12 +17,16 @@ const mockDeleteMutateAsync = jest.fn();
 let mockCheckins: MoodEntry[] | null = [];
 let mockCheckinsLoading = false;
 let mockCheckinsError = false;
+const mockCheckinsDates: string[] = [];
 jest.mock('../../src/hooks/useMood', () => ({
-  useMoodCheckinsForDate: () => ({
-    checkins: mockCheckins,
-    isLoading: mockCheckinsLoading,
-    isError: mockCheckinsError,
-  }),
+  useMoodCheckinsForDate: (date: string) => {
+    mockCheckinsDates.push(date);
+    return {
+      checkins: mockCheckins,
+      isLoading: mockCheckinsLoading,
+      isError: mockCheckinsError,
+    };
+  },
   useCustomMoods: () => [],
   useDeleteMoodCheckin: () => ({
     mutateAsync: mockDeleteMutateAsync,
@@ -45,9 +50,10 @@ jest.mock('../../src/hooks/useMoodCheckinsSupport', () => ({
   useMoodCheckinsSupport: () => mockCheckinsSupport,
 }));
 
+let mockTimezone = 'UTC';
 jest.mock('../../src/hooks/usePreferences', () => ({
   usePreferences: () => ({
-    preferences: { timezone: 'UTC', time_format: 'HH:mm' },
+    preferences: { timezone: mockTimezone, time_format: 'HH:mm' },
   }),
 }));
 
@@ -251,6 +257,41 @@ describe('MoodDayScreen', () => {
     ).toBeTruthy();
     fireEvent.press(screen.getByText('Retry'));
     expect(mockRetry).toHaveBeenCalledTimes(1);
+  });
+
+  describe("when the device's today is another day in the user's zone", () => {
+    // 23:30 UTC on the 14th is 08:30 on the 15th in Tokyo. The dashboard
+    // passes the device's day (the 14th).
+    let deviceToday: jest.SpyInstance;
+    beforeEach(() => {
+      jest.useFakeTimers({ now: new Date(`${DATE}T23:30:00Z`) });
+      mockTimezone = 'Asia/Tokyo';
+      mockCheckinsDates.length = 0;
+      deviceToday = jest.spyOn(dateUtils, 'getTodayDate').mockReturnValue(DATE);
+    });
+    afterEach(() => {
+      deviceToday.mockRestore();
+      mockTimezone = 'UTC';
+      jest.useRealTimers();
+    });
+
+    it("lists the zone's today, the day a new check-in is saved on", () => {
+      renderScreen();
+      expect(mockCheckinsDates.at(-1)).toBe('2026-10-15');
+      expect(screen.getByText('Thu, Oct 15')).toBeTruthy();
+      fireEvent.press(screen.getByText('Add check-in'));
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('MoodLog', {
+        date: '2026-10-15',
+      });
+    });
+
+    it('hands an older server the day it was asked for', () => {
+      mockCheckinsSupport = { ...mockCheckinsSupport, supported: false };
+      renderScreen();
+      expect(mockNavigation.replace).toHaveBeenCalledWith('MoodLog', {
+        date: DATE,
+      });
+    });
   });
 
   it('shows a spinner and does not redirect while the server check loads', () => {

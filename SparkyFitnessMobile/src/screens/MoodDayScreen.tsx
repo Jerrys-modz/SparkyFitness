@@ -27,6 +27,7 @@ import { useMoodCheckinsSupport } from '../hooks/useMoodCheckinsSupport';
 import { usePreferences } from '../hooks/usePreferences';
 import { getApiErrorMessage } from '../services/api/errors';
 import { getDeviceTimezone } from '../utils/dateUtils';
+import { moodDayInZone } from '../utils/moodDay';
 import { formatDayLabel } from '../utils/dayLabel';
 import { formatTimeLabel } from '../utils/entryTimeDisplay';
 
@@ -42,13 +43,16 @@ type Navigation = Props['navigation'];
 export default function MoodDayScreen({ navigation, route }: Props) {
   const { preferences } = usePreferences();
   const tz = preferences?.timezone || getDeviceTimezone();
-  const date = route.params?.date ?? todayInZone(tz);
+  const requested = route.params?.date ?? todayInZone(tz);
+  // The device's today lists the zone's today, the day MoodLog saves a new
+  // check-in for it on. The one-entry form keeps the day it was asked for.
+  const date = moodDayInZone(requested, tz);
   const { supported, isLoading, retry, retrying } = useMoodCheckinsSupport();
   const legacy = supported === false;
 
   useEffect(() => {
-    if (legacy) navigation.replace('MoodLog', { date });
-  }, [legacy, navigation, date]);
+    if (legacy) navigation.replace('MoodLog', { date: requested });
+  }, [legacy, navigation, requested]);
 
   if (isLoading || legacy) return <MoodDayFrame navigation={navigation} />;
   if (supported === null) {
