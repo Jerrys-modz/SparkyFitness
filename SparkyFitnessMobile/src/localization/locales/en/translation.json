@@ -264,7 +264,12 @@
       "ongoingWorkout": "Ongoing workout",
       "workoutTimer": "Workout timer",
       "fasting": "Fasting",
-      "hydration": "Hydration reminders"
+      "hydration": "Hydration reminders",
+      "moodCheckin": "Mood check-ins"
+    },
+    "moodCheckin": {
+      "title": "How are you feeling?",
+      "body": "Take a quick check-in: mood, energy and focus."
     },
     "actions": {
       "completeSet": "Complete Set",
