@@ -2927,7 +2927,8 @@
   "exerciseEffort": {
     "title": "Effort",
     "lastAvg": "Avg RPE, last session",
-    "trendLabel": "Average RPE of your last {{count}} sessions",
+    "trendLabel_one": "Average RPE of your last {{count}} session",
+    "trendLabel_other": "Average RPE of your last {{count}} sessions",
     "oneRmEffort": "Est. 1RM with effort",
     "oneRmPlain": "From reps alone",
     "oneRmNote": "Counts the reps you had left: RPE 8 is two more reps. Only sets with an RPE are used."
