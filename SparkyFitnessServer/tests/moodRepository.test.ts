@@ -127,6 +127,19 @@ describe('moodRepository', () => {
       expect(row).toEqual({ id: 'legacy-1', mood_value: 60 });
     });
 
+    it('keeps the stored journal when no notes are sent', async () => {
+      query
+        .mockResolvedValueOnce({ rows: [{ id: 'legacy-1' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'legacy-1' }] });
+      await moodRepository.upsertLegacyMoodEntry('u1', {
+        moodValue: 70,
+        entryDate: '2026-10-20',
+      });
+      const [updateSql, updateParams] = query.mock.calls[1];
+      expect(updateSql).toContain('notes = COALESCE($5, notes)');
+      expect(updateParams[4]).toBeNull();
+    });
+
     it('inserts a manual row when no legacy row exists', async () => {
       const noon = new Date('2026-10-20T16:00:00.000Z');
       query

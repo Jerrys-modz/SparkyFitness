@@ -221,7 +221,7 @@ async function upsertLegacyMoodEntry(
         `UPDATE mood_entries
          SET mood_value = $3,
              mood_tags = COALESCE($4::text[], mood_tags),
-             notes = $5,
+             notes = COALESCE($5, notes),
              energy_value = CASE WHEN $7 THEN $6::smallint ELSE energy_value END,
              focus_value = CASE WHEN $9 THEN $8::smallint ELSE focus_value END,
              updated_at = NOW()
