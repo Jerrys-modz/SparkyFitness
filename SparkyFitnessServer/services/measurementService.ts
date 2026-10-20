@@ -23,6 +23,7 @@ import {
 } from '../utils/sleepStageAggregates.js';
 import userRepository from '../models/userRepository.js';
 import sleepRepository from '../models/sleepRepository.js';
+import type { SleepEntryUpsertOptions } from '../models/sleepRepository.js';
 import exerciseEntryDb from '../models/exerciseEntry.js';
 import waterContainerRepository from '../models/waterContainerRepository.js';
 import foodRepository from '../models/foodRepository.js';
@@ -1585,17 +1586,15 @@ async function calculateSleepScore(
   return Math.round(Math.max(0, Math.min(score, maxScore)));
 }
 async function processSleepEntry(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  actingUserId: any,
+  userId: string,
+  actingUserId: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sleepEntryData: any,
   // Batch callers pass an already-loaded profile + timezone to skip a per-session
   // DB round-trip; single-entry callers omit it and load directly below.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   prefetched?: { tz: string; userProfile: any },
-  options: { keepExistingBiometrics?: boolean } = {}
+  options: SleepEntryUpsertOptions = {}
 ): Promise<{ id: string } & Record<string, unknown>> {
   log(
     'debug',

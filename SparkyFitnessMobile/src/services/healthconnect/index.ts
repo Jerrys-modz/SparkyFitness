@@ -35,8 +35,10 @@ import {
 import {
   createConcurrencyLimiter,
   runTasksInBatches,
+  withTimeout,
 } from '../../utils/concurrency';
 import { getErrorMessage } from '../../utils/errors';
+import { loadHealthPreference } from './preferences';
 import { collectSessionTelemetry, sessionCacheKey } from './workoutTelemetry';
 import { deriveActiveCalories } from '@workspace/shared';
 
@@ -177,6 +179,12 @@ export const ensureHistoryReadPermission = async (): Promise<boolean> => {
 
 const PAGE_SIZE = 5000;
 const MAX_PAGES = 100;
+
+/**
+ * Enrichment runs inside the SleepSession metric's own timeout; its optional
+ * HRV/RHR reads get a shorter limit so a slow read cannot fail the sleep sync.
+ */
+const SLEEP_BIOMETRICS_TIMEOUT_MS = 15_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const FALLBACK_DAY_WINDOW_MS = DAY_MS;
 const FALLBACK_HOUR_WINDOW_MS = 60 * 60 * 1000;
@@ -1492,60 +1500,43 @@ const sleepEnrichmentWindow = (
 };
 
 /**
- * Records of an optional read, or [] with a debug log when the read was not
- * granted or failed. Uses a single paged read with no day/hour window fallback and no ERROR/WARNING logging:
- * an unpermitted or failing read must cost one native call, not a split storm.
+ * Records of an optional read, or [] with a debug log when the type is not
+ * enabled or the read failed. Uses a single paged read with no day/hour window
+ * fallback: an unpermitted or failing read must cost one native call, not a
+ * split storm. A truncated window would bias the mean/latest value, so any
+ * error (including too many pages) yields [].
  */
 const readOptionalSleepBiometric = async (
   recordType: string,
-  granted: ReadonlySet<string>,
+  enabled: ReadonlySet<string>,
   start: Date,
   end: Date
 ): Promise<unknown[]> => {
-  if (!granted.has(recordType)) {
+  if (!enabled.has(recordType)) {
     addLog(
-      `[HealthConnectService] Skipping ${recordType} for sleep enrichment: read permission not granted`,
+      `[HealthConnectService] Skipping ${recordType} for sleep enrichment: sync disabled or read permission not granted`,
       'DEBUG'
     );
     return [];
   }
-  const records: unknown[] = [];
-  try {
-    let pageToken: string | undefined;
-    let page = 0;
-    do {
-      page++;
-      const options: ReadRecordsOptions = {
-        timeRangeFilter: {
-          operator: 'between',
-          startTime: start.toISOString(),
-          endTime: end.toISOString(),
-        },
-        pageSize: PAGE_SIZE,
-      };
-      if (pageToken) options.pageToken = pageToken;
-      const result = await readRecords(
-        recordType as Parameters<typeof readRecords>[0],
-        options as unknown as Parameters<typeof readRecords>[1]
-      );
-      records.push(...(result.records || []));
-      pageToken = result.pageToken;
-    } while (pageToken && page < MAX_PAGES);
-    if (pageToken) {
-      // A truncated window would bias the mean/latest value; leave it unset.
-      addLog(
-        `[HealthConnectService] Skipping ${recordType} for sleep enrichment: too many pages`,
-        'DEBUG'
-      );
-      return [];
-    }
-    return records;
-  } catch (error) {
+  const result = await readHealthRecordsOnce(recordType, start, end);
+  if (result.error) {
     addLog(
-      `[HealthConnectService] Skipping ${recordType} for sleep enrichment: ${getErrorMessage(error)}`,
+      `[HealthConnectService] Skipping ${recordType} for sleep enrichment: ${result.error}`,
       'DEBUG'
     );
     return [];
+  }
+  return result.records;
+};
+
+const isSleepBiometricSyncEnabled = async (
+  preferenceKey: string
+): Promise<boolean> => {
+  try {
+    return (await loadHealthPreference<boolean>(preferenceKey)) === true;
+  } catch {
+    return false;
   }
 };
 
@@ -1595,20 +1586,38 @@ export const enrichSleepSessions = async (
       );
     }
 
-    const [hrvRecords, rhrRecords] = await Promise.all([
-      readOptionalSleepBiometric(
-        'HeartRateVariabilityRmssd',
-        granted,
-        new Date(minStartMs),
-        new Date(maxEndMs)
-      ),
-      readOptionalSleepBiometric(
-        'RestingHeartRate',
-        granted,
-        new Date(firstDay[0], firstDay[1] - 1, firstDay[2], 0, 0, 0, 0),
-        new Date(lastDay[0], lastDay[1] - 1, lastDay[2], 23, 59, 59, 999)
-      ),
+    // A metric switched off in the app keeps its Health Connect permission, so
+    // both the permission and the in-app sync toggle must be on.
+    const [hrvEnabled, rhrEnabled] = await Promise.all([
+      isSleepBiometricSyncEnabled('syncHeartRateVariabilityEnabled'),
+      isSleepBiometricSyncEnabled('syncRestingHeartRateEnabled'),
     ]);
+    const enabled = new Set<string>();
+    if (hrvEnabled && granted.has('HeartRateVariabilityRmssd')) {
+      enabled.add('HeartRateVariabilityRmssd');
+    }
+    if (rhrEnabled && granted.has('RestingHeartRate')) {
+      enabled.add('RestingHeartRate');
+    }
+
+    const [hrvRecords, rhrRecords] = await withTimeout(
+      Promise.all([
+        readOptionalSleepBiometric(
+          'HeartRateVariabilityRmssd',
+          enabled,
+          new Date(minStartMs),
+          new Date(maxEndMs)
+        ),
+        readOptionalSleepBiometric(
+          'RestingHeartRate',
+          enabled,
+          new Date(firstDay[0], firstDay[1] - 1, firstDay[2], 0, 0, 0, 0),
+          new Date(lastDay[0], lastDay[1] - 1, lastDay[2], 23, 59, 59, 999)
+        ),
+      ]),
+      SLEEP_BIOMETRICS_TIMEOUT_MS,
+      'Sleep HRV/RHR enrichment'
+    );
 
     const hrvReadings = hrvRecords.flatMap((r) => {
       const rec = r as { time?: unknown; heartRateVariabilityMillis?: unknown };

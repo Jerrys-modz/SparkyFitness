@@ -2,6 +2,7 @@ import {
   getGrantedPermissions,
   readRecords,
 } from 'react-native-health-connect';
+import { loadHealthPreference } from '../../../src/services/healthconnect/preferences';
 import { enrichSleepSessions } from '../../../src/services/healthconnect';
 import { postProcessRaw } from '../../../src/services/healthconnect/provider';
 import { createTelemetryRunContext } from '../../../src/services/shared/telemetryBudget';
@@ -10,6 +11,18 @@ import { atLocalTime } from '../../helpers/localTime';
 jest.mock('../../../src/services/LogService', () => ({
   addLog: jest.fn(),
 }));
+
+jest.mock('../../../src/services/healthconnect/preferences', () => ({
+  loadHealthPreference: jest.fn(),
+}));
+
+const mockLoadPreference = loadHealthPreference as jest.Mock;
+const setPreferences = (prefs: Record<string, boolean | null>) =>
+  mockLoadPreference.mockImplementation(
+    async (key: string) => prefs[key] ?? null
+  );
+const HRV_KEY = 'syncHeartRateVariabilityEnabled';
+const RHR_KEY = 'syncRestingHeartRateEnabled';
 
 const mockReadRecords = readRecords as jest.Mock;
 const mockGetGrantedPermissions = getGrantedPermissions as jest.Mock;
@@ -60,6 +73,7 @@ const enrich = (records: unknown[]) =>
 describe('enrichSleepSessions', () => {
   beforeEach(() => {
     mockReadRecords.mockReset();
+    setPreferences({ [HRV_KEY]: true, [RHR_KEY]: true });
     grant('HeartRateVariabilityRmssd', 'RestingHeartRate');
   });
 
@@ -152,6 +166,51 @@ describe('enrichSleepSessions', () => {
     const [session] = await enrich([mainSleep()]);
     expect(mockReadRecords).not.toHaveBeenCalled();
     expect(session).not.toHaveProperty('avg_overnight_hrv');
+  });
+
+  test('does not read HRV when its sync toggle is off, but still attaches resting heart rate', async () => {
+    setPreferences({ [HRV_KEY]: false, [RHR_KEY]: true });
+    setReads({
+      HeartRateVariabilityRmssd: { records: [hrv('2026-10-15', '02:00', 50)] },
+      RestingHeartRate: { records: [rhr('2026-10-15', '09:00', 57)] },
+    });
+    const [session] = await enrich([mainSleep()]);
+    expect(readsOf('HeartRateVariabilityRmssd')).toHaveLength(0);
+    expect(session.avg_overnight_hrv).toBeUndefined();
+    expect(session.resting_heart_rate).toBe(57);
+  });
+
+  test('does not read anything when both sync toggles are off or unset', async () => {
+    setPreferences({ [HRV_KEY]: false });
+    setReads({
+      HeartRateVariabilityRmssd: { records: [hrv('2026-10-15', '02:00', 50)] },
+      RestingHeartRate: { records: [rhr('2026-10-15', '09:00', 57)] },
+    });
+    const [session] = await enrich([mainSleep()]);
+    expect(mockReadRecords).not.toHaveBeenCalled();
+    expect(session).not.toHaveProperty('avg_overnight_hrv');
+    expect(session).not.toHaveProperty('resting_heart_rate');
+  });
+
+  test('treats a failed preference read as off', async () => {
+    mockLoadPreference.mockRejectedValue(new Error('storage down'));
+    const [session] = await enrich([mainSleep()]);
+    expect(mockReadRecords).not.toHaveBeenCalled();
+    expect(session).not.toHaveProperty('avg_overnight_hrv');
+  });
+
+  describe('time limit', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    test('returns the records unchanged when the reads never resolve', async () => {
+      mockReadRecords.mockImplementation(() => new Promise(() => {}));
+      const pending = enrich([mainSleep()]);
+      await jest.advanceTimersByTimeAsync(15_000);
+      const result = await pending;
+      expect(result).toEqual([mainSleep()]);
+      expect(result[0]).not.toHaveProperty('avg_overnight_hrv');
+    });
   });
 
   test('picks the session with the most asleep time as primary', async () => {

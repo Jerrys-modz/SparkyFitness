@@ -5,6 +5,7 @@ import exerciseEntryDb, {
   EXERCISE_ENTRY_TELEMETRY_COLUMNS,
 } from '../models/exerciseEntry.js';
 import foodRepository from '../models/foodRepository.js';
+import type { SleepEntryUpsertOptions } from '../models/sleepRepository.js';
 import moodRepository from '../models/moodRepository.js';
 import waterContainerRepository from '../models/waterContainerRepository.js';
 import * as workoutTelemetryRepo from '../models/workoutTelemetryRepository.js';
@@ -431,15 +432,13 @@ export interface HealthBatchContext {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getSleepContext: () => Promise<{ tz: string; userProfile: any }>;
   processSleepEntry: (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    userId: any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    actingUserId: any,
+    userId: string,
+    actingUserId: string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sleepEntryData: any,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sleepContext: { tz: string; userProfile: any },
-    options?: { keepExistingBiometrics?: boolean }
+    options?: SleepEntryUpsertOptions
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ) => Promise<any>;
   resolveCategory: (
