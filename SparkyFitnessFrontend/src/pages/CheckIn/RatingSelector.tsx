@@ -1,7 +1,11 @@
+import { MOOD_RATING_MAX, MOOD_RATING_MIN } from '@workspace/shared';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
-const RATINGS = [1, 2, 3, 4, 5];
+const RATINGS = Array.from(
+  { length: MOOD_RATING_MAX - MOOD_RATING_MIN + 1 },
+  (_, i) => MOOD_RATING_MIN + i
+);
 
 interface RatingSelectorProps {
   label: string;

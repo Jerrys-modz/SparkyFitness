@@ -225,6 +225,24 @@ export function clampStoredMoodValue(value: unknown): number | null {
   );
 }
 
+/** The gap between two neighbouring faces' values on the mood pickers. */
+export const MOOD_FACE_STEP = 10;
+
+/**
+ * The value a picker writes for one of the nine banded faces: Sad 10, Angry 20,
+ * up to Excited 90. It is the band midpoint snapped onto the face grid, since
+ * the two end midpoints (8 and 93) sit off it. Every picker writes these, so a
+ * day averaged over check-ins from web and mobile lands in the same band. A tag
+ * with no band gives 50, like `representativeMoodValue`.
+ */
+export function moodFaceValue(name: string): number {
+  const midpoint = representativeMoodValue([name]);
+  return (
+    MOOD_VALUE_MIN +
+    Math.round((midpoint - MOOD_VALUE_MIN) / MOOD_FACE_STEP) * MOOD_FACE_STEP
+  );
+}
+
 /**
  * The 1-10 score a conversation talks in ("I'm an 8 today"), as a stored mood
  * value. The chatbot asks for that scale because it reads naturally out loud,

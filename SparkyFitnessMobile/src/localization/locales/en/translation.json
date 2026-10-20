@@ -5237,6 +5237,7 @@
     "chartEmpty": "No mood logged for this period",
     "chartLoadFailed": "Failed to load mood data",
     "loadFailed": "Could not load this day's mood",
+    "serverCheckFailed": "Couldn't reach your server. Check your connection and try again.",
     "saveFailed": "Could not save mood",
     "newCheckinTitle": "New check-in",
     "editCheckinTitle": "Edit check-in",

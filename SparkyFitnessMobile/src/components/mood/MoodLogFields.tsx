@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next';
 import {
   BUILT_IN_MOODS,
   moodByName,
+  moodFaceValue,
   moodValueToTag,
-  representativeMoodValue,
 } from '@workspace/shared';
 import FormInput from '../FormInput';
 import RatingSelector from './RatingSelector';
@@ -25,7 +25,10 @@ interface MoodFacePickerProps {
   clearable?: boolean;
 }
 
-/** Overall mood: nine faces on the shared 0-100 scale. */
+/**
+ * Overall mood: nine faces on the shared 10-100 scale, each writing its shared
+ * face value (Sad 10 to Excited 90), the same value the web picker writes.
+ */
 export function MoodFacePicker({
   value,
   onChange,
@@ -57,11 +60,7 @@ export function MoodFacePicker({
             <TouchableOpacity
               key={mood.name}
               onPress={() =>
-                onChange(
-                  clearable && active
-                    ? null
-                    : representativeMoodValue([mood.name])
-                )
+                onChange(clearable && active ? null : moodFaceValue(mood.name))
               }
               accessibilityRole="button"
               accessibilityLabel={label}

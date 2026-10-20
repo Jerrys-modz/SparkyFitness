@@ -28,6 +28,7 @@ import { FooterSaveBar } from '../components/FormScreenChrome';
 import Button from '../components/ui/Button';
 import TimeSheet, { type TimeSheetRef } from '../components/TimeSheet';
 import MoodHistoryCard from '../components/mood/MoodHistoryCard';
+import MoodSupportCheckFailed from '../components/mood/MoodSupportCheckFailed';
 import {
   MoodFacePicker,
   MoodJournalField,
@@ -71,23 +72,20 @@ const noop = () => {};
 
 /**
  * Logs mood. A server that keeps several check-ins a day gets the check-in
- * composer (a new one, or an edit with `checkinId`); any other server, or one
- * whose answer is unknown, keeps the one-entry-per-day form. Until the server
- * check settles the screen shows a spinner with Save off, so nothing is ever
- * sent through the wrong contract. No params means a new entry for today.
+ * composer (a new one, or an edit with `checkinId`); one known to keep one
+ * entry a day gets the one-entry-per-day form. Until the server check answers
+ * the screen shows a spinner, or a retry when the check failed, with Save off,
+ * so nothing is ever sent through the wrong contract. No params means a new
+ * entry for today.
  */
 export default function MoodLogScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
-  const { supported, isLoading } = useMoodCheckinsSupport();
+  const { supported, isLoading, retry, retrying } = useMoodCheckinsSupport();
   const date = route.params?.date;
+  const title = t('mood.logTitle', { defaultValue: 'Mood' });
 
   if (isLoading) {
-    return (
-      <MoodLogLoading
-        navigation={navigation}
-        title={t('mood.logTitle', { defaultValue: 'Mood' })}
-      />
-    );
+    return <MoodLogLoading navigation={navigation} title={title} />;
   }
   if (supported === true) {
     return (
@@ -98,7 +96,20 @@ export default function MoodLogScreen({ navigation, route }: Props) {
       />
     );
   }
-  return <LegacyMoodLog navigation={navigation} date={date} />;
+  if (supported === false) {
+    return <LegacyMoodLog navigation={navigation} date={date} />;
+  }
+  return (
+    <MoodLogFrame
+      title={title}
+      onDismiss={() => navigation.goBack()}
+      onSave={noop}
+      saving={false}
+      saveDisabled
+    >
+      <MoodSupportCheckFailed onRetry={retry} retrying={retrying} />
+    </MoodLogFrame>
+  );
 }
 
 interface MoodLogFrameProps {
@@ -459,14 +470,15 @@ function CheckinComposer({
   const timeTouched = changes.time !== undefined;
   const [now, setNow] = useState(() => new Date());
   // The dashboard passes the device's day, which can differ from the day in
-  // the preference zone; either one counts as today. The default time then
-  // reads the clock in the zone, on the zone's own today.
+  // the preference zone; either one counts as today. A new check-in for today
+  // then goes on the zone's own today, at the zone's clock, so its day and
+  // time are never a day apart.
   const zoneToday = todayInZone(tz);
   const isToday = date === zoneToday || date === getTodayDate();
-  const clockDay = isToday ? zoneToday : date;
+  const checkinDay = isToday ? zoneToday : date;
   const base: CheckinDraft = editing
     ? draftFromEntry(editing, tz)
-    : { ...EMPTY_CHECKIN, time: defaultCheckinTime(clockDay, tz, now) };
+    : { ...EMPTY_CHECKIN, time: defaultCheckinTime(checkinDay, tz, now) };
   const draft: CheckinDraft = { ...base, ...changes };
 
   // A screen left open keeps showing "now" until the user sets a time.
@@ -508,8 +520,10 @@ function CheckinComposer({
         // was when the screen opened.
         const sent = timeTouched
           ? draft
-          : { ...draft, time: defaultCheckinTime(clockDay, tz) };
-        await createCheckin.mutateAsync(buildCheckinCreateBody(sent, date, tz));
+          : { ...draft, time: defaultCheckinTime(checkinDay, tz) };
+        await createCheckin.mutateAsync(
+          buildCheckinCreateBody(sent, checkinDay, tz)
+        );
       }
     } catch (error) {
       showError(

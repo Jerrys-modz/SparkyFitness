@@ -59,6 +59,19 @@ describe('useMoodCheckinsSupport', () => {
     expect(result.current.supported).toBeNull();
   });
 
+  it('asks again on retry after a failed probe', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('boom'));
+    const { result } = run();
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.supported).toBeNull();
+
+    mockFetch.mockResolvedValue([]);
+    act(() => result.current.retry());
+
+    await waitFor(() => expect(result.current.supported).toBe(true));
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps a known answer when a later probe fails', async () => {
     mockFetch.mockResolvedValue([]);
     const client = createTestQueryClient();

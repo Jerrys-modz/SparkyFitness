@@ -8,11 +8,16 @@ import { moodCheckinsSupportQueryKey } from './queryKeys';
 /**
  * Whether the server keeps several mood check-ins per day: true when
  * `GET /api/mood/date/:day` answers with a list, false when it answers with
- * anything else, null while unknown (the request failed and nothing is known).
+ * anything else, null while unknown. Unknown once loading is over means the
+ * probe failed. Neither form is safe then (the one-entry POST would edit a v2
+ * server's latest check-in instead of adding one), so screens offer `retry`.
  */
 export function useMoodCheckinsSupport(): {
   supported: boolean | null;
   isLoading: boolean;
+  /** Asks the server again, for a probe that failed. */
+  retry: () => void;
+  retrying: boolean;
 } {
   const { preferences } = usePreferences();
   const timezone = preferences?.timezone || getDeviceTimezone();
@@ -31,5 +36,10 @@ export function useMoodCheckinsSupport(): {
       (await fetchMoodCheckinsForDate(todayInZone(timezone))) !== null,
   });
 
-  return { supported: query.data ?? null, isLoading: query.isLoading };
+  return {
+    supported: query.data ?? null,
+    isLoading: query.isLoading,
+    retry: () => void query.refetch(),
+    retrying: query.isFetching,
+  };
 }

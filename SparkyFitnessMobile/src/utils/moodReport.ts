@@ -5,9 +5,12 @@ import type { MoodEntry } from '../services/api/moodApi';
 
 export type MoodDayPoint = {
   day: string;
-  /** Mean 0-100 mood for the day; 0 on a day with no mood, which `entries` of 0 marks. */
+  /** The day's mood (see `dailyMoodSeries`); 0 when the day has none. */
   value: number;
-  /** Manual check-ins with a mood that day. */
+  /**
+   * Manual check-ins with a mood that day. Not whether the day is logged: a
+   * synced mood gives the day a value with no manual check-in.
+   */
   entries: number;
 };
 

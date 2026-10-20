@@ -29,9 +29,17 @@ jest.mock('../../src/hooks/useMood', () => ({
   }),
 }));
 
-let mockCheckinsSupport: { supported: boolean | null; isLoading: boolean } = {
+const mockRetry = jest.fn();
+let mockCheckinsSupport: {
+  supported: boolean | null;
+  isLoading: boolean;
+  retry: () => void;
+  retrying: boolean;
+} = {
   supported: true,
   isLoading: false,
+  retry: mockRetry,
+  retrying: false,
 };
 jest.mock('../../src/hooks/useMoodCheckinsSupport', () => ({
   useMoodCheckinsSupport: () => mockCheckinsSupport,
@@ -131,7 +139,12 @@ beforeEach(() => {
   mockCheckins = threeCheckins();
   mockCheckinsLoading = false;
   mockCheckinsError = false;
-  mockCheckinsSupport = { supported: true, isLoading: false };
+  mockCheckinsSupport = {
+    supported: true,
+    isLoading: false,
+    retry: mockRetry,
+    retrying: false,
+  };
   mockDeleteMutateAsync.mockResolvedValue(undefined);
 });
 
@@ -218,7 +231,7 @@ describe('MoodDayScreen', () => {
   });
 
   it('replaces itself with the one-entry form on a server without check-ins', () => {
-    mockCheckinsSupport = { supported: false, isLoading: false };
+    mockCheckinsSupport = { ...mockCheckinsSupport, supported: false };
     renderScreen();
     expect(mockNavigation.replace).toHaveBeenCalledWith('MoodLog', {
       date: DATE,
@@ -226,16 +239,26 @@ describe('MoodDayScreen', () => {
     expect(screen.queryByText('Add check-in')).toBeNull();
   });
 
-  it('does the same when the server check is unknown', () => {
-    mockCheckinsSupport = { supported: null, isLoading: false };
+  it('offers a retry instead of the one-entry form when the server check failed', () => {
+    mockCheckinsSupport = { ...mockCheckinsSupport, supported: null };
     renderScreen();
-    expect(mockNavigation.replace).toHaveBeenCalledWith('MoodLog', {
-      date: DATE,
-    });
+    expect(mockNavigation.replace).not.toHaveBeenCalled();
+    expect(screen.queryByText('Add check-in')).toBeNull();
+    expect(
+      screen.getByText(
+        "Couldn't reach your server. Check your connection and try again."
+      )
+    ).toBeTruthy();
+    fireEvent.press(screen.getByText('Retry'));
+    expect(mockRetry).toHaveBeenCalledTimes(1);
   });
 
   it('shows a spinner and does not redirect while the server check loads', () => {
-    mockCheckinsSupport = { supported: null, isLoading: true };
+    mockCheckinsSupport = {
+      ...mockCheckinsSupport,
+      supported: null,
+      isLoading: true,
+    };
     renderScreen();
     expect(screen.getByLabelText('Loading...')).toBeTruthy();
     expect(mockNavigation.replace).not.toHaveBeenCalled();

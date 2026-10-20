@@ -117,17 +117,23 @@ describe('MoodCard on Dashboard', () => {
     expect(mockNavigate).toHaveBeenCalledWith('MoodDay', { date: DATE });
   });
 
-  it.each([false, null])(
-    'opens the one-entry form when the server check says %s',
-    (supported) => {
-      mockCheckinsSupport = { supported, isLoading: false };
+  // The day view sends an older server on to the one-entry form itself, so a
+  // tap before the server check answers cannot open a new check-in by mistake.
+  it.each([
+    ['says no', false, false],
+    ['failed', null, false],
+    ['is still loading', null, true],
+  ])(
+    'opens the day view when the server check %s',
+    (_label, supported, isLoading) => {
+      mockCheckinsSupport = { supported, isLoading };
       mockUseMoodEntries.mockReturnValue([entry()]);
       const { getByLabelText } = render(
         <MoodCard navigation={navigation} date={DATE} />
       );
 
       fireEvent.press(getByLabelText(`Mood on ${DATE}: Happy`));
-      expect(mockNavigate).toHaveBeenCalledWith('MoodLog', { date: DATE });
+      expect(mockNavigate).toHaveBeenCalledWith('MoodDay', { date: DATE });
     }
   );
 });

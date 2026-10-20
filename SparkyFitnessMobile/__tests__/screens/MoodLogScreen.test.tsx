@@ -67,9 +67,17 @@ jest.mock('../../src/hooks/useMoodRatingsSupport', () => ({
   }),
 }));
 
-let mockCheckinsSupport: { supported: boolean | null; isLoading: boolean } = {
+const mockRetry = jest.fn();
+let mockCheckinsSupport: {
+  supported: boolean | null;
+  isLoading: boolean;
+  retry: () => void;
+  retrying: boolean;
+} = {
   supported: false,
   isLoading: false,
+  retry: mockRetry,
+  retrying: false,
 };
 jest.mock('../../src/hooks/useMoodCheckinsSupport', () => ({
   useMoodCheckinsSupport: () => mockCheckinsSupport,
@@ -183,143 +191,172 @@ beforeEach(() => {
   mockSupported = true;
   mockCheckins = [];
   mockCheckinsLoading = false;
-  mockCheckinsSupport = { supported: false, isLoading: false };
+  mockCheckinsSupport = {
+    supported: false,
+    isLoading: false,
+    retry: mockRetry,
+    retrying: false,
+  };
   mockMutateAsync.mockResolvedValue({ energy_value: null });
   mockCreateMutateAsync.mockResolvedValue(savedEntry());
   mockUpdateMutateAsync.mockResolvedValue(savedEntry());
   mockDeleteMutateAsync.mockResolvedValue(undefined);
 });
 
-describe.each([false, null])(
-  'MoodLogScreen energy, focus and journal (check-ins supported: %s)',
-  (checkinsSupported) => {
-    beforeEach(() => {
-      mockCheckinsSupport = { supported: checkinsSupported, isLoading: false };
-    });
+// The top-level beforeEach leaves the server check answering "no check-ins".
+describe('MoodLogScreen energy, focus and journal (one entry a day)', () => {
+  it('shows Energy, Focus and the Journal box when the server supports them', () => {
+    renderScreen();
+    expect(screen.getByText('Energy')).toBeTruthy();
+    expect(screen.getByText('Focus')).toBeTruthy();
+    expect(screen.getByText('Journal (optional)')).toBeTruthy();
+  });
 
-    it('shows Energy, Focus and the Journal box when the server supports them', () => {
-      renderScreen();
-      expect(screen.getByText('Energy')).toBeTruthy();
-      expect(screen.getByText('Focus')).toBeTruthy();
-      expect(screen.getByText('Journal (optional)')).toBeTruthy();
-    });
+  it('hides Energy and Focus when the server does not support them', () => {
+    mockSupported = false;
+    renderScreen();
+    expect(screen.queryByText('Energy')).toBeNull();
+    expect(screen.queryByText('Focus')).toBeNull();
+    expect(screen.getByText('Journal (optional)')).toBeTruthy();
+  });
 
-    it('hides Energy and Focus when the server does not support them', () => {
-      mockSupported = false;
-      renderScreen();
-      expect(screen.queryByText('Energy')).toBeNull();
-      expect(screen.queryByText('Focus')).toBeNull();
-      expect(screen.getByText('Journal (optional)')).toBeTruthy();
-    });
+  it('shows Energy and Focus while support is unknown', () => {
+    mockSupported = null;
+    renderScreen();
+    expect(screen.getByText('Energy')).toBeTruthy();
+    expect(screen.getByText('Focus')).toBeTruthy();
+  });
 
-    it('shows Energy and Focus while support is unknown', () => {
-      mockSupported = null;
-      renderScreen();
-      expect(screen.getByText('Energy')).toBeTruthy();
-      expect(screen.getByText('Focus')).toBeTruthy();
-    });
+  it('leaves untouched ratings out of the saved body', async () => {
+    mockEntry = savedEntry();
+    renderScreen();
+    await pressSave();
+    const body = mockMutateAsync.mock.calls[0][0];
+    expect(body).not.toHaveProperty('energy_value');
+    expect(body).not.toHaveProperty('focus_value');
+    expect(body.mood_value).toBe(70);
+  });
 
-    it('leaves untouched ratings out of the saved body', async () => {
-      mockEntry = savedEntry();
-      renderScreen();
-      await pressSave();
-      const body = mockMutateAsync.mock.calls[0][0];
-      expect(body).not.toHaveProperty('energy_value');
-      expect(body).not.toHaveProperty('focus_value');
-      expect(body.mood_value).toBe(70);
-    });
+  it('sends a changed rating', async () => {
+    mockEntry = savedEntry();
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Energy 4'));
+    await pressSave();
+    const body = mockMutateAsync.mock.calls[0][0];
+    expect(body.energy_value).toBe(4);
+    expect(body).not.toHaveProperty('focus_value');
+  });
 
-    it('sends a changed rating', async () => {
-      mockEntry = savedEntry();
-      renderScreen();
-      fireEvent.press(screen.getByLabelText('Energy 4'));
-      await pressSave();
-      const body = mockMutateAsync.mock.calls[0][0];
-      expect(body.energy_value).toBe(4);
-      expect(body).not.toHaveProperty('focus_value');
-    });
+  it('sends null when the selected rating is tapped again', async () => {
+    mockEntry = savedEntry();
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Energy 3'));
+    await pressSave();
+    expect(mockMutateAsync.mock.calls[0][0].energy_value).toBeNull();
+  });
 
-    it('sends null when the selected rating is tapped again', async () => {
-      mockEntry = savedEntry();
-      renderScreen();
-      fireEvent.press(screen.getByLabelText('Energy 3'));
-      await pressSave();
-      expect(mockMutateAsync.mock.calls[0][0].energy_value).toBeNull();
-    });
+  it('never sends ratings to a server that does not support them', async () => {
+    mockSupported = false;
+    renderScreen();
+    await pressSave();
+    const body = mockMutateAsync.mock.calls[0][0];
+    expect(body).not.toHaveProperty('energy_value');
+    expect(body).not.toHaveProperty('focus_value');
+  });
 
-    it('never sends ratings to a server that does not support them', async () => {
-      mockSupported = false;
-      renderScreen();
-      await pressSave();
-      const body = mockMutateAsync.mock.calls[0][0];
-      expect(body).not.toHaveProperty('energy_value');
-      expect(body).not.toHaveProperty('focus_value');
-    });
+  it('tells the user when the server dropped a rating that was sent', async () => {
+    mockSupported = null;
+    mockMutateAsync.mockResolvedValue({ id: 'mood-1', mood_value: 50 });
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Focus 2'));
+    await pressSave();
+    await waitFor(() => expect(mockNavigation.goBack).toHaveBeenCalled());
+    expect(Toast.show).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text1:
+          "Your server doesn't save energy and focus yet. Update SparkyFitness to keep them.",
+      })
+    );
+  });
 
-    it('tells the user when the server dropped a rating that was sent', async () => {
-      mockSupported = null;
-      mockMutateAsync.mockResolvedValue({ id: 'mood-1', mood_value: 50 });
-      renderScreen();
-      fireEvent.press(screen.getByLabelText('Focus 2'));
-      await pressSave();
-      await waitFor(() => expect(mockNavigation.goBack).toHaveBeenCalled());
-      expect(Toast.show).toHaveBeenCalledWith(
-        expect.objectContaining({
-          text1:
-            "Your server doesn't save energy and focus yet. Update SparkyFitness to keep them.",
-        })
-      );
-    });
+  it('does not show the notice when the server echoes the ratings', async () => {
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Focus 2'));
+    await pressSave();
+    await waitFor(() => expect(mockNavigation.goBack).toHaveBeenCalled());
+    expect(Toast.show).not.toHaveBeenCalled();
+  });
 
-    it('does not show the notice when the server echoes the ratings', async () => {
-      renderScreen();
-      fireEvent.press(screen.getByLabelText('Focus 2'));
-      await pressSave();
-      await waitFor(() => expect(mockNavigation.goBack).toHaveBeenCalled());
-      expect(Toast.show).not.toHaveBeenCalled();
-    });
+  it('still goes back without a notice when the save response is empty', async () => {
+    mockMutateAsync.mockResolvedValue(undefined);
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Focus 2'));
+    await pressSave();
+    await waitFor(() => expect(mockNavigation.goBack).toHaveBeenCalled());
+    expect(Toast.show).not.toHaveBeenCalled();
+  });
 
-    it('still goes back without a notice when the save response is empty', async () => {
-      mockMutateAsync.mockResolvedValue(undefined);
-      renderScreen();
-      fireEvent.press(screen.getByLabelText('Focus 2'));
-      await pressSave();
-      await waitFor(() => expect(mockNavigation.goBack).toHaveBeenCalled());
-      expect(Toast.show).not.toHaveBeenCalled();
-    });
+  it('saves what is typed in the Journal box as notes', async () => {
+    renderScreen();
+    fireEvent.changeText(
+      screen.getByLabelText('Journal (optional)'),
+      'Slept well'
+    );
+    await pressSave();
+    expect(mockMutateAsync.mock.calls[0][0].notes).toBe('Slept well');
+  });
 
-    it('saves what is typed in the Journal box as notes', async () => {
-      renderScreen();
-      fireEvent.changeText(
-        screen.getByLabelText('Journal (optional)'),
-        'Slept well'
-      );
-      await pressSave();
-      expect(mockMutateAsync.mock.calls[0][0].notes).toBe('Slept well');
-    });
+  it('saves the day through the one-entry-per-day call, with a mood', async () => {
+    renderScreen();
+    expect(screen.getByText('Mood')).toBeTruthy();
+    expect(screen.queryByText('Time')).toBeNull();
+    await pressSave();
+    expect(mockMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ mood_value: 50, entry_date: DATE })
+    );
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+  });
 
-    it('saves the day through the one-entry-per-day call, with a mood', async () => {
-      renderScreen();
-      expect(screen.getByText('Mood')).toBeTruthy();
-      expect(screen.queryByText('Time')).toBeNull();
-      await pressSave();
-      expect(mockMutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ mood_value: 50, entry_date: DATE })
-      );
-      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
-    });
+  it('logs today when opened with no params', async () => {
+    renderWithParams(undefined);
+    await pressSave();
+    expect(mockMutateAsync.mock.calls[0][0].entry_date).toBe(getTodayDate());
+  });
+});
 
-    it('logs today when opened with no params', async () => {
-      renderWithParams(undefined);
-      await pressSave();
-      expect(mockMutateAsync.mock.calls[0][0].entry_date).toBe(getTodayDate());
-    });
-  }
-);
+describe('MoodLogScreen when the server check failed', () => {
+  beforeEach(() => {
+    mockCheckinsSupport = { ...mockCheckinsSupport, supported: null };
+  });
+
+  it('offers a retry instead of either form, with Save off', () => {
+    renderScreen();
+    expect(
+      screen.getByText(
+        "Couldn't reach your server. Check your connection and try again."
+      )
+    ).toBeTruthy();
+    expect(screen.queryByText('Overall mood')).toBeNull();
+    expect(saveButton()).toBeDisabled();
+    fireEvent.press(saveButton());
+    expect(mockMutateAsync).not.toHaveBeenCalled();
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('asks the server again on Retry', () => {
+    renderScreen();
+    fireEvent.press(screen.getByText('Retry'));
+    expect(mockRetry).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('MoodLogScreen while the server check is loading', () => {
   beforeEach(() => {
-    mockCheckinsSupport = { supported: null, isLoading: true };
+    mockCheckinsSupport = {
+      ...mockCheckinsSupport,
+      supported: null,
+      isLoading: true,
+    };
   });
 
   it('shows a spinner instead of the form and keeps Save disabled', () => {
@@ -358,7 +395,7 @@ describe('MoodLogScreen check-in composer (several check-ins a day)', () => {
 
   beforeEach(() => {
     jest.useFakeTimers({ now: NOW });
-    mockCheckinsSupport = { supported: true, isLoading: false };
+    mockCheckinsSupport = { ...mockCheckinsSupport, supported: true };
     mockTimezone = 'UTC';
   });
 
@@ -398,6 +435,24 @@ describe('MoodLogScreen check-in composer (several check-ins a day)', () => {
       deviceToday.mockRestore();
     });
 
+    it("saves a check-in for the device's today on the zone's today, at the zone's time", async () => {
+      // Without that, 08:30 on the 14th in Tokyo would be stamped a day early.
+      jest.setSystemTime(new Date(`${DATE}T23:30:00Z`));
+      mockTimezone = 'Asia/Tokyo';
+      const deviceToday = jest
+        .spyOn(dateUtils, 'getTodayDate')
+        .mockReturnValue(DATE);
+      renderScreen();
+      fireEvent.press(screen.getByLabelText('Energy 4'));
+      await pressAndSettle(saveButton());
+      expect(mockCreateMutateAsync).toHaveBeenCalledWith({
+        energy_value: 4,
+        entry_date: '2026-10-15',
+        entry_timestamp: `${DATE}T23:30:00.000Z`,
+      });
+      deviceToday.mockRestore();
+    });
+
     it('defaults a past day to noon', () => {
       renderWithParams({ date: '2026-10-10' });
       expect(screen.getByLabelText('Time, 12:00')).toBeTruthy();
@@ -416,6 +471,19 @@ describe('MoodLogScreen check-in composer (several check-ins a day)', () => {
       });
       expect(mockMutateAsync).not.toHaveBeenCalled();
     });
+
+    it.each([
+      ['Sad', 10],
+      ['Excited', 90],
+    ])(
+      'saves %s as %i, the value the web picker writes',
+      async (face, value) => {
+        renderScreen();
+        fireEvent.press(screen.getByLabelText(face));
+        await pressAndSettle(saveButton());
+        expect(mockCreateMutateAsync.mock.calls[0][0].mood_value).toBe(value);
+      }
+    );
 
     it('clears the mood when the selected face is tapped again', () => {
       renderScreen();

@@ -82,14 +82,12 @@ export default function MoodCard({ navigation, date }: MoodCardProps) {
         date: selectedDate,
       });
 
-  // Asking here warms the server check before the first tap. Only a server
-  // known to keep several check-ins a day has a day list to open; any other
-  // goes straight to the one-entry form (MoodDay also redirects, as a fallback).
-  const { supported } = useMoodCheckinsSupport();
-  const openDay = () =>
-    navigation.navigate(supported === true ? 'MoodDay' : 'MoodLog', {
-      date: selectedDate,
-    });
+  // The day view handles every server: one that keeps a single entry a day is
+  // sent on from there to the one-entry form, so a tap made before the server
+  // check answers still opens the right screen. Asking here only warms that
+  // check before the first tap.
+  useMoodCheckinsSupport();
+  const openDay = () => navigation.navigate('MoodDay', { date: selectedDate });
   const openNewCheckin = () =>
     navigation.navigate('MoodLog', { date: selectedDate });
 

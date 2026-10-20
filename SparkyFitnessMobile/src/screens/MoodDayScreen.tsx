@@ -16,6 +16,7 @@ import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import Button from '../components/ui/Button';
 import MoodCheckinListItem from '../components/mood/MoodCheckinListItem';
+import MoodSupportCheckFailed from '../components/mood/MoodSupportCheckFailed';
 import { getBuiltInMoodLabels } from '../components/mood/moodLabels';
 import {
   useCustomMoods,
@@ -35,20 +36,28 @@ type Navigation = Props['navigation'];
 /**
  * A day's mood check-ins, by time, with the day's averages. A server that
  * keeps one entry a day has no list to show, so it goes straight to the
- * one-entry form. No params means today.
+ * one-entry form; a failed server check offers a retry instead of guessing.
+ * No params means today.
  */
 export default function MoodDayScreen({ navigation, route }: Props) {
   const { preferences } = usePreferences();
   const tz = preferences?.timezone || getDeviceTimezone();
   const date = route.params?.date ?? todayInZone(tz);
-  const { supported, isLoading } = useMoodCheckinsSupport();
-  const legacy = !isLoading && supported !== true;
+  const { supported, isLoading, retry, retrying } = useMoodCheckinsSupport();
+  const legacy = supported === false;
 
   useEffect(() => {
     if (legacy) navigation.replace('MoodLog', { date });
   }, [legacy, navigation, date]);
 
   if (isLoading || legacy) return <MoodDayFrame navigation={navigation} />;
+  if (supported === null) {
+    return (
+      <MoodDayFrame navigation={navigation}>
+        <MoodSupportCheckFailed onRetry={retry} retrying={retrying} />
+      </MoodDayFrame>
+    );
+  }
   return (
     <MoodDayContent
       navigation={navigation}

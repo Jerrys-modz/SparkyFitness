@@ -7,19 +7,14 @@ import {
   instantHourMinute,
   localDateTimeToUtc,
 } from '../utils/timezone.ts';
-import type { MoodRowSource } from './index.ts';
+import type { MoodRowLike } from './index.ts';
 
 /** The slice of a stored check-in the composer helpers read. */
-export interface MoodCheckinRow {
+export interface MoodCheckinRow extends MoodRowLike {
   id: string;
-  mood_value: number | null;
-  energy_value?: number | null;
-  focus_value?: number | null;
   notes: string | null;
   mood_tags: string[] | null;
-  entry_date: string; // YYYY-MM-DD
   entry_timestamp: string;
-  source: MoodRowSource;
 }
 
 /** What the check-in composer holds. `time` is 'HH:mm' in the user's zone. */
