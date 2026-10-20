@@ -388,6 +388,29 @@ describe('treadmill correction', () => {
     expect(screen.getByText('5.00')).toBeTruthy();
   });
 
+  it('teaches once per run, and not the scale for a figure typed on the wrist', async () => {
+    const watchIndoor = {
+      scale: 1,
+      estimatedMeters: 4000,
+      startedAt: 1_000_000,
+      endedAt: 2_200_000,
+    };
+    jest.mocked(learnWatchIndoorScale).mockClear();
+    jest.mocked(learnFromWatchRun).mockClear();
+    renderScreen(treadmill({ watchIndoor, distanceMeters: 5000 }));
+    for (const typed of ['5', '5.1']) {
+      fireEvent.changeText(
+        screen.getByLabelText('Distance from the treadmill in km'),
+        typed
+      );
+      fireEvent.press(screen.getByText('Update'));
+      await screen.findByText('Distance updated.');
+    }
+    // The wrist already taught the scale when the run was filed.
+    expect(learnWatchIndoorScale).not.toHaveBeenCalled();
+    expect(learnFromWatchRun).toHaveBeenCalledTimes(1);
+  });
+
   it('teaches the watch factor from the corrected figure, not the display', async () => {
     correct(4);
     renderScreen(

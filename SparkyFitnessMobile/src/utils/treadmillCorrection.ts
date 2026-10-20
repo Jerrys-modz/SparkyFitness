@@ -116,9 +116,18 @@ export function correctWatchRunDistance(
   }
   const result = correctTreadmillDistance(payload.distanceMeters, correction);
   if (!result.applied) return payload;
+  // The watch already scaled its laps and pace series to the figure typed on
+  // the wrist, so they move with the distance or the last lap and the chart
+  // would end on the machine's figure instead of the corrected one.
+  const ratio = result.correctedMeters / result.displayedMeters;
   return {
     ...payload,
     distanceMeters: result.correctedMeters,
     treadmillDisplayMeters: result.displayedMeters,
+    lapDistances: payload.lapDistances.map((meters) => meters * ratio),
+    distanceSeries: payload.distanceSeries.map(([seconds, meters]) => [
+      seconds,
+      meters * ratio,
+    ]),
   };
 }

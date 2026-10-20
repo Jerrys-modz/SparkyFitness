@@ -131,6 +131,29 @@ describe('correctWatchRunDistance', () => {
     expect(result.estimatedDistanceMeters).toBe(4600);
   });
 
+  it('moves the laps and pace series with the distance', () => {
+    const result = correctWatchRunDistance(
+      watchRun({
+        laps: [1000, 2000],
+        lapDistances: [1040, 2080],
+        distanceSeries: [
+          [0, 0],
+          [600, 2600],
+          [1800, 5200],
+        ],
+      }),
+      on(4)
+    );
+    expect(result.lapDistances[0]).toBeCloseTo(1000);
+    expect(result.lapDistances[1]).toBeCloseTo(2000);
+    expect(result.distanceSeries.map(([, meters]) => meters)).toEqual([
+      0,
+      expect.closeTo(2500),
+      expect.closeTo(5000),
+    ]);
+    expect(result.distanceSeries[2][0]).toBe(1800);
+  });
+
   it('does not correct twice', () => {
     const once = correctWatchRunDistance(watchRun(), on(4));
     expect(correctWatchRunDistance(once, on(4))).toBe(once);
