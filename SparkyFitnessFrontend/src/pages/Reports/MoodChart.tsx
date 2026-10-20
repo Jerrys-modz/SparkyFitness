@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import { getMoodDisplay } from '@/utils/moodUtils';
 import { moodByName } from '@workspace/shared';
-import type { MoodEntry } from '@/types';
+import type { MoodEntry } from '@/types/mood';
 import { useTranslation } from 'react-i18next';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { getTimeXAxisProps, prepareTimeChartData } from '@/utils/chartUtils';
@@ -51,12 +51,18 @@ const MoodChart = ({ data, title }: MoodChartProps) => {
   const formattedData = React.useMemo(
     () =>
       prepareTimeChartData(
-        data.map((entry) => ({
-          date: entry.entry_date,
-          moodValue: entry.mood_value,
-          moodDisplay: getMoodDisplay(entry.mood_value), // Get both emoji and label
-          notes: entry.notes,
-        })),
+        data.flatMap((entry) =>
+          entry.mood_value == null
+            ? []
+            : [
+                {
+                  date: entry.entry_date,
+                  moodValue: entry.mood_value,
+                  moodDisplay: getMoodDisplay(entry.mood_value), // Get both emoji and label
+                  notes: entry.notes,
+                },
+              ]
+        ),
         chartScaleMode
       ),
     [data, chartScaleMode]

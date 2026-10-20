@@ -1,7 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import i18n from 'i18next';
+import type {
+  MoodCheckinCreateBody,
+  MoodCheckinUpdateBody,
+} from '@workspace/shared';
 import {
   saveMoodEntry,
+  getMoodCheckinsByDate,
+  createMoodCheckin,
+  updateMoodCheckin,
+  deleteMoodCheckin,
   getMoodEntries,
   getMoodEntryByDate,
   listCustomMoods,
@@ -72,6 +80,70 @@ export const useSaveMoodEntryMutation = () => {
       successMessage: i18n.t(
         'mood.savedSuccessfully',
         'Mood entry saved successfully.'
+      ),
+    },
+  });
+};
+
+export const useMoodCheckinsByDate = (date: string) =>
+  useQuery({
+    queryKey: moodKeys.byDate(date),
+    queryFn: () => getMoodCheckinsByDate(date),
+    meta: {
+      errorMessage: i18n.t(
+        'mood.failedToLoadEntries',
+        'Failed to load mood entries.'
+      ),
+    },
+  });
+
+export const useCreateMoodCheckinMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: MoodCheckinCreateBody) => createMoodCheckin(body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: moodKeys.all }),
+    meta: {
+      errorMessage: i18n.t('mood.failedToSave', 'Failed to save mood entry.'),
+      successMessage: i18n.t(
+        'mood.savedSuccessfully',
+        'Mood entry saved successfully.'
+      ),
+    },
+  });
+};
+
+export const useUpdateMoodCheckinMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: MoodCheckinUpdateBody }) =>
+      updateMoodCheckin(id, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: moodKeys.all }),
+    meta: {
+      errorMessage: i18n.t(
+        'mood.failedToUpdate',
+        'Failed to update mood entry.'
+      ),
+      successMessage: i18n.t(
+        'mood.updatedSuccessfully',
+        'Mood entry updated successfully.'
+      ),
+    },
+  });
+};
+
+export const useDeleteMoodCheckinMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteMoodCheckin(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: moodKeys.all }),
+    meta: {
+      errorMessage: i18n.t(
+        'mood.failedToDelete',
+        'Failed to delete mood entry.'
+      ),
+      successMessage: i18n.t(
+        'mood.deletedSuccessfully',
+        'Mood entry deleted successfully.'
       ),
     },
   });

@@ -1,3 +1,9 @@
+import {
+  MOOD_MODEL_VERSION,
+  MOOD_MODEL_VERSION_HEADER,
+  type MoodCheckinCreateBody,
+  type MoodCheckinUpdateBody,
+} from '@workspace/shared';
 import { api } from '@/api/api';
 import type { MoodEntry, CustomMood } from '@/types/mood';
 import { getErrorMessage } from '@/utils/api';
@@ -37,6 +43,29 @@ export const saveMoodEntry = async (
     throw error;
   }
 };
+
+const MOOD_V2_OPTIONS = {
+  headers: { [MOOD_MODEL_VERSION_HEADER]: String(MOOD_MODEL_VERSION) },
+};
+
+// --- Check-ins (several per day) --------------------------------------------
+
+/** The day's manual check-ins in time order; empty when there are none. */
+export const getMoodCheckinsByDate = (
+  entryDate: string
+): Promise<MoodEntry[]> => api.get(`/mood/date/${entryDate}`, MOOD_V2_OPTIONS);
+
+export const createMoodCheckin = (
+  body: MoodCheckinCreateBody
+): Promise<MoodEntry> => api.post('/mood', { body, ...MOOD_V2_OPTIONS });
+
+export const updateMoodCheckin = (
+  id: string,
+  body: MoodCheckinUpdateBody
+): Promise<MoodEntry> => api.put(`/mood/${id}`, { body, ...MOOD_V2_OPTIONS });
+
+export const deleteMoodCheckin = (id: string): Promise<void> =>
+  api.delete(`/mood/${id}`, MOOD_V2_OPTIONS);
 
 // --- Custom moods (user-defined mood tags) ---------------------------------
 
@@ -91,6 +120,7 @@ export const getMoodEntries = async (
     if (userId) params.userId = userId;
     const response = await api.get('/mood', {
       params,
+      ...MOOD_V2_OPTIONS,
     });
     // Log the actual response data from the backend
     debug(

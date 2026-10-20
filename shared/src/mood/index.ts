@@ -232,3 +232,74 @@ export function chatScoreToMoodValue(score: number): number {
 export function moodValueToChatScore(value: number): number {
   return Math.min(10, Math.max(1, Math.round(value / 10)));
 }
+
+export type MoodRowSource = 'manual' | 'garmin' | 'import';
+
+/** The slice of a mood row the per-day helpers read. */
+export interface MoodRowLike {
+  entry_date: string; // YYYY-MM-DD
+  mood_value: number | null;
+  energy_value?: number | null;
+  focus_value?: number | null;
+  source: MoodRowSource;
+}
+
+function mean(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
+function nonNull(values: (number | null | undefined)[]): number[] {
+  return values.filter((v): v is number => v != null);
+}
+
+/**
+ * A day's manual check-ins in one line: mood is the rounded mean, energy and
+ * focus the mean to one decimal, each over the rows that have a value.
+ * Derived (garmin/import) rows are not check-ins and are ignored.
+ */
+export function summarizeCheckins(rows: MoodRowLike[]): {
+  mood: number | null;
+  energy: number | null;
+  focus: number | null;
+  count: number;
+} {
+  const manual = rows.filter((r) => r.source === 'manual');
+  const oneDecimal = (v: number | null) =>
+    v == null ? null : Math.round(v * 10) / 10;
+  const mood = mean(nonNull(manual.map((r) => r.mood_value)));
+  return {
+    mood: mood == null ? null : Math.round(mood),
+    energy: oneDecimal(mean(nonNull(manual.map((r) => r.energy_value)))),
+    focus: oneDecimal(mean(nonNull(manual.map((r) => r.focus_value)))),
+    count: manual.length,
+  };
+}
+
+/**
+ * One mood per day for charting: the rounded mean of the day's manual moods,
+ * else garmin, else import. Days with no mood are omitted; ascending by date.
+ * Mirrors the server's DAILY_MOOD_VALUE_SQL.
+ */
+export function dailyMoodSeries(
+  rows: MoodRowLike[]
+): { date: string; mood_value: number }[] {
+  const bySource = new Map<string, Record<MoodRowSource, number[]>>();
+  for (const r of rows) {
+    if (r.mood_value == null) continue;
+    let day = bySource.get(r.entry_date);
+    if (!day) {
+      day = { manual: [], garmin: [], import: [] };
+      bySource.set(r.entry_date, day);
+    }
+    day[r.source].push(r.mood_value);
+  }
+  const series: { date: string; mood_value: number }[] = [];
+  for (const [date, day] of bySource) {
+    const value = mean(day.manual) ?? mean(day.garmin) ?? mean(day.import);
+    if (value != null) series.push({ date, mood_value: Math.round(value) });
+  }
+  return series.sort((a, b) =>
+    a.date < b.date ? -1 : a.date > b.date ? 1 : 0
+  );
+}
