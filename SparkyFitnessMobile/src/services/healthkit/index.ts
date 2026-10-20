@@ -1,5 +1,7 @@
 import {
   requestAuthorization,
+  getRequestStatusForAuthorization,
+  AuthorizationRequestStatus,
   queryQuantitySamples,
   queryStatisticsCollectionForQuantity,
   isHealthDataAvailable,
@@ -403,6 +405,38 @@ const healthKitAuthorizationTypes = (
   const toShare = Array.from(writePermissionsSet);
 
   return { toRead, toShare };
+};
+
+/**
+ * Whether any of these permissions includes a HealthKit type the user has never been
+ * asked about, e.g. one added to a metric in an app update. HealthKit only shows the
+ * sheet for such types, so re-requesting when this is true is safe. An unknown status
+ * or a failed check counts as true: a request with nothing new shows no sheet.
+ */
+export const hasUnrequestedHealthPermissions = async (
+  permissions: PermissionRequest[]
+): Promise<boolean> => {
+  if (!isHealthKitAvailable) {
+    return false;
+  }
+  const { toRead, toShare } = healthKitAuthorizationTypes(permissions);
+  if (toRead.length === 0 && toShare.length === 0) {
+    return false;
+  }
+  try {
+    const status = await getRequestStatusForAuthorization({
+      toRead: toRead as Parameters<typeof requestAuthorization>[0]['toRead'],
+      toShare: toShare as Parameters<typeof requestAuthorization>[0]['toShare'],
+    });
+    return status !== AuthorizationRequestStatus.unnecessary;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    addLog(
+      `[HealthKitService] Failed to check HealthKit authorization status: ${message}`,
+      'WARNING'
+    );
+    return true;
+  }
 };
 
 export const requestHealthPermissions = async (
