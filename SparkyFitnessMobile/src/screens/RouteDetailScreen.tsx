@@ -10,7 +10,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
-import RouteTileMap from '../components/exerciseStats/RouteTileMap';
+import RouteMap from '../components/exerciseStats/RouteMap';
 import Button from '../components/ui/Button';
 import { usePreferences } from '../hooks/usePreferences';
 import { useScreenHeader } from '../hooks/useScreenHeader';
@@ -127,7 +127,7 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
           </View>
         ) : (
           <>
-            <RouteTileMap
+            <RouteMap
               points={route.points}
               accessibilityLabel={t('routes.mapA11y', {
                 defaultValue:
