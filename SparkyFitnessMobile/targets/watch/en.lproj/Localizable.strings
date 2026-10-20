@@ -197,3 +197,5 @@
 "watch.effort.band.allOut" = "All Out";
 "watch.effort.hint.select" = "Tap to change";
 "watch.effort.hint.adjusting" = "Turn the crown · tap to finish";
+"watch.checkin.tapToAdjust" = "Tap number to adjust";
+"watch.checkin.turnCrown" = "Turn the crown";

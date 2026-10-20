@@ -30,6 +30,11 @@ struct CheckInEntryView: View {
     @State private var bodyFat: Double = 20
     @State private var bodyFatSkipped = false
     @State private var showTypeEntry = false
+    /// Whether the crown edits the number. Off until the wearer taps the value,
+    /// so a stray turn — scrolling past this page, a sleeve brushing the crown —
+    /// can't quietly change a weight that then gets saved. Cleared whenever
+    /// focus moves to the other field.
+    @State private var crownArmed = false
     /// The unit `weight` below is currently expressed in, and nil until the
     /// first seed. Replaces a plain `didSeed` flag: latching on "have we
     /// seeded at all" left a stale unit behind whenever the phone changed it.
@@ -111,9 +116,15 @@ struct CheckInEntryView: View {
             by: step,
             sensitivity: .medium,
             isContinuous: false,
-            isHapticFeedbackEnabled: true
+            // Silent while disarmed: a detent tick would suggest the number is
+            // moving when it isn't.
+            isHapticFeedbackEnabled: crownArmed
         )
-        .id(active)
+        // Rebuilt on arming as well as on a field change, so the crown starts
+        // from the number on screen rather than wherever it was turned to
+        // while it was ignored.
+        .id("\(active)-\(crownArmed)")
+        .onChange(of: active) { crownArmed = false }
         .onAppear(perform: seedIfNeeded)
         // `onAppear` alone isn't enough: this is a page in a `.page` TabView,
         // so it stays alive and doesn't appear again when the wearer swipes
@@ -151,11 +162,29 @@ struct CheckInEntryView: View {
                 .font(.system(size: 46, weight: .semibold, design: .rounded))
                 .monospacedDigit()
                 .contentTransition(.numericText())
+                .foregroundStyle(crownArmed ? Color.accentColor : Color.primary)
             Text(active == .weight ? unit.suffix : "%")
                 .font(.title3)
                 .foregroundStyle(.secondary)
         }
+        .padding(.horizontal, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.accentColor.opacity(crownArmed ? 0.2 : 0))
+        )
+        .animation(.snappy, value: crownArmed)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            Haptics.tap()
+            crownArmed.toggle()
+        }
         .onLongPressGesture { showTypeEntry = true }
+    }
+
+    /// True until the wearer has moved the active value off its seed — the
+    /// moment to say how to change it.
+    private var activeValueUntouched: Bool {
+        active == .weight ? weight == seedWeight : bodyFat == seedBodyFat
     }
 
     private var activeText: String {
@@ -164,7 +193,18 @@ struct CheckInEntryView: View {
 
     @ViewBuilder
     private var deltaLine: some View {
-        if let delta = weightDelta, active == .weight {
+        if !crownArmed && activeValueUntouched {
+            // Shown in place of the delta until the number has been touched:
+            // an untouched value is the last weight, so "since last" has
+            // nothing to say yet.
+            Text(String(localized: "watch.checkin.tapToAdjust", defaultValue: "Tap number to adjust"))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        } else if crownArmed && activeValueUntouched {
+            Text(String(localized: "watch.checkin.turnCrown", defaultValue: "Turn the crown"))
+                .font(.caption2)
+                .foregroundStyle(Color.accentColor)
+        } else if let delta = weightDelta, active == .weight {
             Text(String(localized: "watch.checkin.sinceLast", defaultValue: "\(String(format: "%+.1f", delta)) \(unit.suffix) since last"))
                 .font(weightLooksWrong ? .footnote.bold() : .caption2)
                 .foregroundStyle(weightLooksWrong ? .orange : .secondary)
@@ -237,6 +277,7 @@ struct CheckInEntryView: View {
         Binding(
             get: { active == .weight ? weight : bodyFat },
             set: { newValue in
+                guard crownArmed else { return }
                 if active == .weight {
                     weight = newValue
                 } else {
