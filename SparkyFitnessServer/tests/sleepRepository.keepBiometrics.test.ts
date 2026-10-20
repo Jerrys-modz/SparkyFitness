@@ -43,7 +43,7 @@ describe('upsertSleepEntry keepExistingBiometrics', () => {
       return { rows: [] };
     });
     await sleepRepository.upsertSleepEntry('user-1', 'user-1', data, options);
-    const call = mockClient.query.mock.calls.findLast(
+    const call = mockClient.query.mock.calls.find(
       (c) =>
         typeof c[0] === 'string' &&
         (c[0].includes('INSERT INTO sleep_entries') ||
