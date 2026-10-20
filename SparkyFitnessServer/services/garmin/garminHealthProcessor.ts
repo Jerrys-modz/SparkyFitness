@@ -195,12 +195,11 @@ export async function processGarminHealthAndWellnessData(
 
         if (derived_mood_value !== null && derived_mood_value !== undefined) {
           try {
-            await moodRepository.createOrUpdateMoodEntry(
-              userId,
-              derived_mood_value,
-              derived_mood_notes,
-              date
-            );
+            await moodRepository.upsertDerivedMood(userId, 'garmin', {
+              moodValue: derived_mood_value,
+              notes: derived_mood_notes,
+              entryDate: date,
+            });
             processedResults.push({
               type: 'derived_mood_value',
               status: 'success',

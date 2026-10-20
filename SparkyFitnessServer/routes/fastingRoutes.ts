@@ -10,6 +10,7 @@ import {
   addDays,
   userFastingPreferencesMutatorSchema,
   clampStoredMoodValue,
+  instantToDay,
 } from '@workspace/shared';
 import { authenticate } from '../middleware/authMiddleware.js';
 import checkPermissionMiddleware from '../middleware/checkPermissionMiddleware.js';
@@ -236,12 +237,12 @@ router.post('/end', async (req, res) => {
       }
 
       if (storedMoodValue !== null) {
-        await moodRepository.createOrUpdateMoodEntry(
-          userId,
-          storedMoodValue,
-          mood.notes || '',
-          end_time
-        );
+        await moodRepository.createCheckin(userId, {
+          moodValue: storedMoodValue,
+          notes: mood.notes || null,
+          entryTimestamp: end_time,
+          entryDate: instantToDay(end_time, tz),
+        });
       }
 
       const durationMinutes = Math.max(
@@ -273,12 +274,13 @@ router.post('/end', async (req, res) => {
         .json({ error: 'start_time must be before end_time' });
     }
     if (storedMoodValue !== null) {
-      await moodRepository.createOrUpdateMoodEntry(
-        userId,
-        storedMoodValue,
-        mood.notes || '',
-        end_time
-      );
+      const moodTz = await loadUserTimezone(userId);
+      await moodRepository.createCheckin(userId, {
+        moodValue: storedMoodValue,
+        notes: mood.notes || null,
+        entryTimestamp: end_time,
+        entryDate: instantToDay(end_time, moodTz),
+      });
     }
     const durationMinutes = Math.max(
       0,

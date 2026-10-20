@@ -1421,8 +1421,9 @@ async function ensureCustomMoodsExist(
   }
 }
 
-// Mood has its own dedicated table (mood_entries), upserted on
-// (user_id, entry_date) — unlike Stress it does not go through
+// Mood has its own dedicated table (mood_entries), upserted as the day's
+// 'import' derived row on (user_id, entry_date, source) so a re-import never
+// touches manual check-ins — unlike Stress it does not go through
 // custom_measurements. mood_value is a 10-100 scale (see MoodMeter.tsx /
 // moodUtils.ts for the band->label mapping); mood_tags is an optional array
 // of free-form tag names, auto-creating any unrecognized custom mood.
@@ -1444,12 +1445,16 @@ const moodHandler: HealthTypeHandler = {
       if (moodTags && moodTags.length > 0) {
         await ensureCustomMoodsExist(ctx.userId, moodTags);
       }
-      const result = await moodRepository.createOrUpdateMoodEntry(
+      const result = await moodRepository.upsertDerivedMood(
         ctx.userId,
-        moodValue,
-        entry.notes ?? null,
-        ctx.parsedDate,
-        moodTags
+        'import',
+        {
+          moodValue,
+          notes: entry.notes ?? null,
+          moodTags,
+          entryDate: ctx.parsedDate,
+          entryTimestamp: ctx.entryTimestamp,
+        }
       );
       return { status: 'success', data: result };
     } catch (moodError) {

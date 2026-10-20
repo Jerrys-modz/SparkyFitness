@@ -12,6 +12,7 @@ import measurementRepository from '../models/measurementRepository.js';
 import waterContainerRepository from '../models/waterContainerRepository.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
 import * as mindfulnessRepository from '../models/mindfulnessRepository.js';
+import moodRepository from '../models/moodRepository.js';
 import type { WaterContainerResponse } from '@workspace/shared';
 
 vi.mock('../models/measurementRepository.js', () => ({
@@ -29,6 +30,14 @@ vi.mock('../models/waterContainerRepository.js', () => ({
 }));
 vi.mock('../models/genericHealthRepository.js', () => ({
   upsertDailyHealthMetrics: vi.fn(),
+}));
+vi.mock('../models/moodRepository.js', () => ({
+  default: {
+    upsertDerivedMood: vi.fn(),
+    createCheckin: vi.fn(),
+    listCustomMoods: vi.fn().mockResolvedValue([]),
+    createCustomMood: vi.fn(),
+  },
 }));
 vi.mock('../models/mindfulnessRepository.js', () => ({
   createMindfulnessSession: vi.fn(),
@@ -909,5 +918,59 @@ describe('daily summary readings (resting heart rate, VO2 max)', () => {
         vo2_max: 43.3,
       },
     ]);
+  });
+});
+
+describe('moodHandler', () => {
+  const handler = HEALTH_TYPE_HANDLERS.Mood;
+  const ctx = {
+    userId: 'user-123',
+    actingUserId: 'acting-456',
+    parsedDate: '2026-10-05',
+    entryTimestamp: '2026-10-05T10:00:00.000Z',
+    entryHour: 10,
+    resolveCategory: vi.fn(),
+  } as unknown as HealthEntryContext;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("stores the import as the day's derived import row", async () => {
+    const row = { id: 'mood-1', source: 'import' };
+    vi.mocked(moodRepository.upsertDerivedMood).mockResolvedValue(row as never);
+
+    const result = await handler.handle(
+      { type: 'Mood', value: '70', notes: 'ok', mood_tags: ['Happy'] },
+      ctx
+    );
+
+    expect(result).toEqual({ status: 'success', data: row });
+    expect(moodRepository.upsertDerivedMood).toHaveBeenCalledWith(
+      'user-123',
+      'import',
+      {
+        moodValue: 70,
+        notes: 'ok',
+        moodTags: ['Happy'],
+        entryDate: '2026-10-05',
+        entryTimestamp: '2026-10-05T10:00:00.000Z',
+      }
+    );
+  });
+
+  it('re-importing the same day upserts again and never creates a check-in', async () => {
+    vi.mocked(moodRepository.upsertDerivedMood).mockResolvedValue({} as never);
+    const entry = { type: 'Mood', value: '70' };
+
+    await handler.handle(entry, ctx);
+    await handler.handle(entry, ctx);
+
+    expect(moodRepository.upsertDerivedMood).toHaveBeenCalledTimes(2);
+    for (const call of vi.mocked(moodRepository.upsertDerivedMood).mock.calls) {
+      expect(call[1]).toBe('import');
+      expect(call[2].entryDate).toBe('2026-10-05');
+    }
+    expect(moodRepository.createCheckin).not.toHaveBeenCalled();
   });
 });
