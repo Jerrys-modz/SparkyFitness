@@ -1,4 +1,4 @@
--- SparkyFitnessServer/db/migrations/20261020120000_add_valhalla_routing_provider_type.sql
+-- SparkyFitnessServer/db/migrations/20261021120200_add_valhalla_routing_provider_type.sql
 -- Add the Valhalla routing provider type. Route generation and "Follow roads"
 -- use the routing service a person (or the admin, as a global provider) adds in
 -- Settings > External Providers: a base URL plus an optional API key, stored
