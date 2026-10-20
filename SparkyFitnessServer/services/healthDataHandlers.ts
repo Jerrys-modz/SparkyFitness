@@ -26,8 +26,10 @@ import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
 import {
   BUILT_IN_MOODS,
+  instantForDay,
   instantHourMinute,
   instantToDay,
+  isDayString,
   MAX_HEALTH_TOTAL_CALORIES_PER_DAY,
   MIN_MEASURED_BMR_KCAL,
   MAX_MEASURED_BMR_KCAL,
@@ -1421,8 +1423,24 @@ async function ensureCustomMoodsExist(
   }
 }
 
-// Mood has its own dedicated table (mood_entries), upserted on
-// (user_id, entry_date) — unlike Stress it does not go through
+// A record dated by day alone, as the CSV import sends it, has no time of its
+// own: resolveHealthEntryDate stamps it at UTC midnight, which is the evening
+// before for anyone west of UTC. Such a mood takes now for today and local noon
+// for a past day instead.
+async function importedMoodTimestamp(
+  entry: { date?: unknown; entry_date?: unknown; timestamp?: unknown },
+  ctx: HealthEntryContext
+): Promise<string | Date> {
+  const day = entry.date || entry.entry_date;
+  if (entry.timestamp || typeof day !== 'string' || !isDayString(day)) {
+    return ctx.entryTimestamp;
+  }
+  return instantForDay(ctx.parsedDate, await loadUserTimezone(ctx.userId));
+}
+
+// Mood has its own dedicated table (mood_entries), upserted as the day's
+// 'import' derived row on (user_id, entry_date, source) so a re-import never
+// touches manual check-ins — unlike Stress it does not go through
 // custom_measurements. mood_value is a 10-100 scale (see MoodMeter.tsx /
 // moodUtils.ts for the band->label mapping); mood_tags is an optional array
 // of free-form tag names, auto-creating any unrecognized custom mood.
@@ -1444,12 +1462,16 @@ const moodHandler: HealthTypeHandler = {
       if (moodTags && moodTags.length > 0) {
         await ensureCustomMoodsExist(ctx.userId, moodTags);
       }
-      const result = await moodRepository.createOrUpdateMoodEntry(
+      const result = await moodRepository.upsertDerivedMood(
         ctx.userId,
-        moodValue,
-        entry.notes ?? null,
-        ctx.parsedDate,
-        moodTags
+        'import',
+        {
+          moodValue,
+          notes: entry.notes ?? null,
+          moodTags,
+          entryDate: ctx.parsedDate,
+          entryTimestamp: await importedMoodTimestamp(entry, ctx),
+        }
       );
       return { status: 'success', data: result };
     } catch (moodError) {

@@ -131,7 +131,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 |-------|---------|
 | `fasting_logs` | Fasting timeline logs (start/end fast) |
 | `user_fasting_preferences` | Intermittent fasting targets, auto-calculation config, and alert timing |
-| `mood_entries` | Logged mood check-ins: mood, energy and focus ratings, tags and journal notes |
+| `mood_entries` | Logged mood check-ins, several per day: optional mood, energy and focus ratings, tags and journal notes, with a timestamp and a `source` (`manual`, `garmin` or `import`) |
 | `mindfulness_sessions` | Logged mindfulness, meditation, and breathwork sessions |
 | `user_custom_moods` | User-defined mood tags (icon/color) |
 | `medications` | Custom medication inventory lists |
