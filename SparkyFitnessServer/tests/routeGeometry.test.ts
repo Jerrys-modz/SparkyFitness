@@ -137,9 +137,10 @@ describe('parseGpx work bound', () => {
 
   it('copes with many track and CDATA openers and no names', () => {
     expect(within(1500, '<trk '.repeat(400_000)).name).toBeNull();
+    // An unclosed CDATA section is text to the end, so the name never closes.
     expect(
       within(1500, '<trk><name>' + '<![CDATA['.repeat(150_000) + '</name>').name
-    ).not.toBeNull();
+    ).toBeNull();
   });
 
   it('copes with many elevation openers inside one point', () => {
@@ -227,5 +228,123 @@ describe('GPX comments, CDATA and control characters', () => {
 
   it('keeps tab and newline in a name', () => {
     expect(serializeGpx('a\tb\nc', [])).toContain('<name>a\tb\nc</name>');
+  });
+});
+
+describe('GPX entities, attributes and numbers', () => {
+  const nameOf = (name: string): string | null =>
+    parseGpx(`<gpx><trk><name>${name}</name><trkseg>
+      <trkpt lat="40" lon="-74"/><trkpt lat="40.01" lon="-74"/></trkseg></trk></gpx>`)
+      .name;
+
+  it('decodes each entity once', () => {
+    expect(nameOf('a &amp;lt; b')).toBe('a &lt; b');
+    expect(nameOf('Tom &amp; Jerry &lt;3 &quot;x&quot; &apos;y&apos;')).toBe(
+      `Tom & Jerry <3 "x" 'y'`
+    );
+  });
+
+  it('decodes numeric character references and drops forbidden ones', () => {
+    expect(nameOf('Run &#38; walk &#x1F3C3; &#233;')).toBe('Run & walk 🏃 é');
+    expect(nameOf('a&#1;b&#xD800;c&#0;')).toBe('abc');
+  });
+
+  it('leaves text in a CDATA section as it is', () => {
+    expect(nameOf('<![CDATA[Fish &amp; chips &#233;]]>')).toBe(
+      'Fish &amp; chips &#233;'
+    );
+  });
+
+  it('treats a comment opener inside CDATA as text, not a comment', () => {
+    const parsed = parseGpx(
+      `<gpx><trk><name><![CDATA[<!-- not a comment]]></name><trkseg>
+        <trkpt lat="40" lon="-74"/><trkpt lat="40.01" lon="-74"/>
+      </trkseg></trk></gpx>`
+    );
+    expect(parsed.name).toBe('<!-- not a comment');
+    expect(parsed.points).toHaveLength(2);
+  });
+
+  it('treats a CDATA opener inside a comment as text, not CDATA', () => {
+    const parsed = parseGpx(
+      `<gpx><!-- <![CDATA[ --><trk><trkseg>
+        <trkpt lat="40" lon="-74"/><trkpt lat="40.01" lon="-74"/>
+      </trkseg></trk></gpx>`
+    );
+    expect(parsed.points).toHaveLength(2);
+  });
+
+  it('reads lat and lon only as whole attribute names', () => {
+    expect(
+      parseGpx('<trkpt data-lat="1" xlat="2" lat="40" lon="-74"/>').points
+    ).toEqual([{ lat: 40, lon: -74 }]);
+    expect(parseGpx('<trkpt\n lat = "40"\n\tlon=\'-74\' />').points).toEqual([
+      { lat: 40, lon: -74 },
+    ]);
+  });
+
+  it('accepts only plain decimal numbers', () => {
+    for (const bad of ['0x10', '1e1', 'Infinity', '', ' ', '1,5', '--1']) {
+      expect(parseGpx(`<trkpt lat="${bad}" lon="5"/>`).points).toEqual([]);
+    }
+    expect(
+      parseGpx('<trkpt lat=" 40.5 " lon="+5"><ele> 0x10 </ele></trkpt>').points
+    ).toEqual([{ lat: 40.5, lon: 5 }]);
+  });
+
+  it('copes with many elevation openers before a single closer', () => {
+    const started = Date.now();
+    const parsed = parseGpx(
+      `<trkpt lat="1" lon="2">${'<ele>'.repeat(200_000)}</ele></trkpt>`
+    );
+    expect(parsed.points).toEqual([{ lat: 1, lon: 2 }]);
+    expect(Date.now() - started).toBeLessThan(5000);
+  });
+
+  it('reads an elevation that follows a long run of openers', () => {
+    expect(
+      parseGpx(`<trkpt lat="1" lon="2">${'<ele>'.repeat(1000)}12</ele></trkpt>`)
+        .points
+    ).toEqual([{ lat: 1, lon: 2, alt: 12 }]);
+  });
+});
+
+describe('simplifyRoute limits', () => {
+  it('always keeps both ends, even when asked for fewer than two points', () => {
+    for (const max of [0, 1, 2]) {
+      const result = simplifyRoute(
+        Array.from({ length: 50 }, (_, i) => ({
+          lat: 40 + i * 0.001,
+          lon: -74 + (i % 2) * 0.001,
+        })),
+        max
+      );
+      expect(result.sourceIndexes).toEqual([0, 49]);
+    }
+  });
+
+  it('keeps the first and last of a closed loop and its far corners', () => {
+    const loop: RoutePoint[] = [
+      { lat: 40, lon: -74 },
+      { lat: 40.01, lon: -74 },
+      { lat: 40.01, lon: -73.99 },
+      { lat: 40, lon: -73.99 },
+      { lat: 40, lon: -74 },
+    ];
+    expect(simplifyRoute(loop, 100).sourceIndexes).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it('measures across the antimeridian and near a pole', () => {
+    const across = haversineMeters(
+      { lat: 0, lon: 179.9995 },
+      { lat: 0, lon: -179.9995 }
+    );
+    expect(across).toBeGreaterThan(100);
+    expect(across).toBeLessThan(120);
+    const nearPole = routeDistanceMeters([
+      { lat: 89.999, lon: 0 },
+      { lat: 89.999, lon: 180 },
+    ]);
+    expect(nearPole).toBeLessThan(250);
   });
 });

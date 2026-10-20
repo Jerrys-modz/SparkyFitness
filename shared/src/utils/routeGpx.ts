@@ -1,31 +1,51 @@
 import type { RoutePoint } from '../schemas/api/Route.api.zod.ts';
 
+const COMMENT_OPEN = '<!--';
+const COMMENT_CLOSE = '-->';
 const CDATA_OPEN = '<![CDATA[';
 const CDATA_CLOSE = ']]>';
 
-/** Unwraps CDATA sections with plain scans, so odd input cannot make it slow. */
-function unwrapCdata(text: string): string {
+const escapeText = (text: string): string =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/**
+ * The file with its comments removed and each CDATA section turned into
+ * escaped text, in one left-to-right pass. Neither can hold a point: markup in
+ * a comment is ignored and markup in CDATA is data. An unclosed comment runs to
+ * the end; an unclosed CDATA section is taken as text to the end. Every search
+ * resumes where the last one stopped, so the cost is linear in the file.
+ */
+function flattenCommentsAndCdata(text: string): string {
   let out = '';
   let from = 0;
+  let comment = -1;
+  let cdata = -1;
   for (;;) {
-    const open = text.indexOf(CDATA_OPEN, from);
-    if (open === -1) break;
-    const close = text.indexOf(CDATA_CLOSE, open + CDATA_OPEN.length);
-    if (close === -1) break;
-    out += text.slice(from, open) + text.slice(open + CDATA_OPEN.length, close);
-    from = close + CDATA_CLOSE.length;
+    if (comment !== -2 && comment < from) {
+      const found = text.indexOf(COMMENT_OPEN, from);
+      comment = found === -1 ? -2 : found;
+    }
+    if (cdata !== -2 && cdata < from) {
+      const found = text.indexOf(CDATA_OPEN, from);
+      cdata = found === -1 ? -2 : found;
+    }
+    if (comment === -2 && cdata === -2) break;
+    if (cdata === -2 || (comment !== -2 && comment < cdata)) {
+      out += text.slice(from, comment);
+      const close = text.indexOf(COMMENT_CLOSE, comment + COMMENT_OPEN.length);
+      if (close === -1) return out;
+      from = close + COMMENT_CLOSE.length;
+    } else {
+      out += text.slice(from, cdata);
+      const bodyStart = cdata + CDATA_OPEN.length;
+      const close = text.indexOf(CDATA_CLOSE, bodyStart);
+      if (close === -1) return out + escapeText(text.slice(bodyStart));
+      out += escapeText(text.slice(bodyStart, close));
+      from = close + CDATA_CLOSE.length;
+    }
   }
   return out + text.slice(from);
 }
-
-const decodeXml = (text: string): string =>
-  unwrapCdata(text)
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, '&')
-    .trim();
 
 /**
  * Whether a code point may appear in an XML 1.0 document: tab, line feed,
@@ -39,6 +59,32 @@ const isXml10Char = (code: number): boolean =>
   (code >= 0x20 && code <= 0xd7ff) ||
   (code >= 0xe000 && code <= 0xfffd) ||
   (code >= 0x10000 && code <= 0x10ffff);
+
+const NAMED_ENTITIES: Record<string, string> = {
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  amp: '&',
+};
+
+/**
+ * Text with its entities decoded in one pass, so `&amp;lt;` is `&lt;` and not
+ * `<`. Numeric references are read too; one that is not a character XML 1.0
+ * allows is dropped.
+ */
+const decodeXml = (text: string): string =>
+  text
+    .replace(
+      /&(?:(lt|gt|quot|apos|amp)|#(\d{1,7})|#x([0-9a-fA-F]{1,6}));/g,
+      (_match, named?: string, decimal?: string, hex?: string) => {
+        if (named !== undefined) return NAMED_ENTITIES[named] as string;
+        const code =
+          decimal !== undefined ? Number(decimal) : parseInt(hex as string, 16);
+        return isXml10Char(code) ? String.fromCodePoint(code) : '';
+      }
+    )
+    .trim();
 
 /** The text without the characters XML 1.0 cannot carry (a name may hold any). */
 const stripXmlForbidden = (text: string): string => {
@@ -56,28 +102,19 @@ const escapeXml = (text: string): string =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-/** The text with its `<!-- -->` comments removed (an unclosed one runs to the end). */
-function stripComments(text: string): string {
-  let out = '';
-  let from = 0;
-  for (;;) {
-    const open = text.indexOf('<!--', from);
-    if (open === -1) break;
-    out += text.slice(from, open);
-    const close = text.indexOf('-->', open + 4);
-    if (close === -1) return out;
-    from = close + 3;
-  }
-  return out + text.slice(from);
-}
+/** A plain decimal such as `-12.5`: no hex, exponent, `Infinity` or blanks. */
+const DECIMAL = /^[+-]?(?:\d+\.?\d*|\.\d+)$/;
 
+const parseDecimal = (text: string): number | null =>
+  DECIMAL.test(text) ? Number(text) : null;
+
+/** The number in an attribute of a tag, matched only as a whole attribute name. */
 function attribute(attributes: string, name: string): number | null {
-  const match = new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`).exec(
-    attributes
-  );
-  if (!match) return null;
-  const value = Number(match[1]);
-  return Number.isFinite(value) ? value : null;
+  const match = new RegExp(
+    `(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`
+  ).exec(attributes);
+  const value = match?.[1] ?? match?.[2];
+  return value === undefined ? null : parseDecimal(value.trim());
 }
 
 export interface ParsedGpx {
@@ -115,13 +152,18 @@ function elevation(body: string): number | null {
     const close = body.indexOf('</ele>', open + 5);
     if (close === -1) return null;
     from = open + 5;
-    // A number is short; anything longer is not one and is not worth slicing.
-    if (close - from > 40) continue;
+    // A number is short; anything longer is not one. Only an opener within a
+    // few characters of this closer can still be one, so skip straight there
+    // instead of re-scanning to the same closer from every opener before it.
+    if (close - from > 40) {
+      from = Math.max(from, close - 45);
+      continue;
+    }
     const text = body.slice(from, close).trim();
     if (text.length === 0 || /\s/.test(text) || text.includes('<')) continue;
     // The first well-formed element decides, in range or not.
-    const alt = Number(text);
-    return Number.isFinite(alt) && alt >= -1000 && alt <= 10000 ? alt : null;
+    const alt = parseDecimal(text);
+    return alt !== null && alt >= -1000 && alt <= 10000 ? alt : null;
   }
 }
 
@@ -134,8 +176,8 @@ function elevation(body: string): number | null {
  * costs time in proportion to its size.
  */
 export function parseGpx(source: string): ParsedGpx {
-  // Point-shaped text in a comment is not a point.
-  const gpx = stripComments(source);
+  // Point-shaped text in a comment or a CDATA section is not a point.
+  const gpx = flattenCommentsAndCdata(source);
   const tracks: RoutePoint[] = [];
   const routes: RoutePoint[] = [];
   const rest: string[] = []; // the text between points, for the name lookup
@@ -145,17 +187,6 @@ export function parseGpx(source: string): ParsedGpx {
   const opens: Record<string, number> = { trkpt: -1, rtept: -1 };
   let cursor = 0;
   let copied = 0;
-  // The next CDATA section, found once and reused; -2 = none left. Text inside
-  // one is data, so a point tag in it is not a point.
-  let cdataAt = -1;
-  const nextCdata = (): number => {
-    if (cdataAt === -2) return -1;
-    if (cdataAt < cursor) {
-      const found = gpx.indexOf(CDATA_OPEN, cursor);
-      cdataAt = found === -1 ? -2 : found;
-    }
-    return cdataAt === -2 ? -1 : cdataAt;
-  };
   const nextOpen = (tag: 'trkpt' | 'rtept'): number => {
     if (opens[tag] === -2) return -1;
     if ((opens[tag] as number) < cursor) {
@@ -177,13 +208,6 @@ export function parseGpx(source: string): ParsedGpx {
     } else {
       start = route;
       tag = 'rtept';
-    }
-    const cdata = nextCdata();
-    if (cdata !== -1 && cdata < start) {
-      const close = gpx.indexOf(CDATA_CLOSE, cdata + CDATA_OPEN.length);
-      if (close === -1) break;
-      cursor = close + CDATA_CLOSE.length;
-      continue;
     }
     const attributesStart = start + 1 + tag.length;
     const tagEnd = gpx.indexOf('>', attributesStart);
