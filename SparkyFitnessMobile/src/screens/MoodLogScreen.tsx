@@ -1,14 +1,9 @@
 import { useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-} from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useCSSVariable } from 'uniwind';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   BUILT_IN_MOODS,
@@ -20,8 +15,10 @@ import type { RootStackParamList } from '../types/navigation';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { FooterSaveBar } from '../components/FormScreenChrome';
+import FormInput from '../components/FormInput';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
 import MoodLineChart from '../components/mood/MoodLineChart';
+import RatingSelector from '../components/mood/RatingSelector';
 import { getBuiltInMoodLabels } from '../components/mood/moodLabels';
 import { moodColorHex } from '../components/mood/moodColors';
 import {
@@ -30,6 +27,7 @@ import {
   useMoodEntryForDate,
   useSaveMood,
 } from '../hooks/useMood';
+import { useMoodRatingsSupport } from '../hooks/useMoodRatingsSupport';
 import { getTodayDate } from '../utils/dateUtils';
 import type { HealthTrendDateRange } from '../types/healthTrends';
 
@@ -43,7 +41,6 @@ export default function MoodLogScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const usesNativeHeader = useNativeIOSHeadersActive();
-  const [textMuted] = useCSSVariable(['--color-text-muted']) as [string];
   const builtInLabels = useMemo(() => getBuiltInMoodLabels(t), [t]);
   const builtInLabel = (name: string, fallback: string) =>
     builtInLabels[name] ?? fallback;
@@ -56,6 +53,8 @@ export default function MoodLogScreen({ navigation, route }: Props) {
   } = useMoodEntryForDate(targetDate);
   const customMoods = useCustomMoods();
   const saveMood = useSaveMood();
+  const { supported: ratingsSupported } = useMoodRatingsSupport();
+  const showRatings = ratingsSupported !== false;
 
   // Edits are held as overrides on top of the saved entry so the form follows
   // it once it loads, without an effect copying server state into local state.
@@ -65,6 +64,22 @@ export default function MoodLogScreen({ navigation, route }: Props) {
   const moodValue = moodOverride ?? existing?.mood_value ?? DEFAULT_MOOD_VALUE;
   const tags = tagsOverride ?? existing?.mood_tags ?? [];
   const notes = notesOverride ?? existing?.notes ?? '';
+  // undefined = untouched, so only ratings changed on this screen are sent;
+  // null = cleared. A day's rating set elsewhere is never overwritten.
+  const [energyOverride, setEnergyOverride] = useState<
+    number | null | undefined
+  >(undefined);
+  const [focusOverride, setFocusOverride] = useState<number | null | undefined>(
+    undefined
+  );
+  const energy =
+    energyOverride !== undefined
+      ? energyOverride
+      : (existing?.energy_value ?? null);
+  const focus =
+    focusOverride !== undefined
+      ? focusOverride
+      : (existing?.focus_value ?? null);
 
   const [range, setRange] = useState<HealthTrendDateRange>('30d');
   const { entries, points, isLoading, isError } = useMoodEntries(range);
@@ -81,12 +96,26 @@ export default function MoodLogScreen({ navigation, route }: Props) {
 
   const handleSave = async () => {
     if (!entryReady || saveMood.isPending) return;
-    await saveMood.mutateAsync({
+    const sendEnergy = showRatings && energyOverride !== undefined;
+    const sendFocus = showRatings && focusOverride !== undefined;
+    const saved = await saveMood.mutateAsync({
       mood_value: moodValue,
       mood_tags: tags,
       notes,
       entry_date: targetDate,
+      ...(sendEnergy && { energy_value: energyOverride }),
+      ...(sendFocus && { focus_value: focusOverride }),
     });
+    // An older server ignores the fields and its row has no energy_value key.
+    if ((sendEnergy || sendFocus) && !('energy_value' in saved)) {
+      Toast.show({
+        type: 'info',
+        text1: t('mood.ratingsUnsupported', {
+          defaultValue:
+            "Your server doesn't save energy and focus yet. Update SparkyFitness to keep them.",
+        }),
+      });
+    }
     navigation.goBack();
   };
 
@@ -171,7 +200,7 @@ export default function MoodLogScreen({ navigation, route }: Props) {
       style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
     >
       {header}
-      <ScrollView
+      <KeyboardAwareScrollView
         className="flex-1 px-4 py-3"
         contentContainerClassName="gap-4 pb-6"
         keyboardShouldPersistTaps="handled"
@@ -237,6 +266,25 @@ export default function MoodLogScreen({ navigation, route }: Props) {
           </View>
         </View>
 
+        {showRatings && (
+          <View>
+            <RatingSelector
+              label={t('mood.energy', { defaultValue: 'Energy' })}
+              value={energy}
+              onChange={setEnergyOverride}
+              lowLabel={t('mood.energyLow', { defaultValue: 'Drained' })}
+              highLabel={t('mood.energyHigh', { defaultValue: 'Energized' })}
+            />
+            <RatingSelector
+              label={t('mood.focus', { defaultValue: 'Focus' })}
+              value={focus}
+              onChange={setFocusOverride}
+              lowLabel={t('mood.focusLow', { defaultValue: 'Scattered' })}
+              highLabel={t('mood.focusHigh', { defaultValue: 'Locked in' })}
+            />
+          </View>
+        )}
+
         {/* Tags */}
         <View className="gap-2">
           <Text className="text-xs font-bold text-text-muted uppercase tracking-wider">
@@ -260,18 +308,26 @@ export default function MoodLogScreen({ navigation, route }: Props) {
           </View>
         </View>
 
-        {/* Notes */}
-        <TextInput
-          value={notes}
-          onChangeText={setNotesOverride}
-          placeholder={t('mood.notesPlaceholder', {
-            defaultValue: 'Add a note (optional)',
-          })}
-          placeholderTextColor={textMuted}
-          multiline
-          textAlignVertical="top"
-          className="bg-surface border border-border rounded-xl px-3.5 py-2.5 text-sm text-text-primary min-h-20"
-        />
+        {/* Journal */}
+        <View className="gap-2">
+          <Text className="text-xs font-bold text-text-muted uppercase tracking-wider">
+            {t('mood.journalOptional', { defaultValue: 'Journal (optional)' })}
+          </Text>
+          <FormInput
+            value={notes}
+            onChangeText={setNotesOverride}
+            placeholder={t('mood.journalPlaceholder', {
+              defaultValue: "Any thoughts or feelings you'd like to add?",
+            })}
+            accessibilityLabel={t('mood.journalOptional', {
+              defaultValue: 'Journal (optional)',
+            })}
+            multiline
+            numberOfLines={5}
+            textAlignVertical="top"
+            style={{ minHeight: 120 }}
+          />
+        </View>
 
         {/* Mood chart */}
         <View className="bg-surface rounded-xl p-4 gap-3">
@@ -305,7 +361,7 @@ export default function MoodLogScreen({ navigation, route }: Props) {
             </View>
           )}
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
       {!usesNativeHeader && (
         <FooterSaveBar
           onPress={handleSave}
