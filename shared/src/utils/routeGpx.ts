@@ -27,12 +27,49 @@ const decodeXml = (text: string): string =>
     .replace(/&amp;/g, '&')
     .trim();
 
+/**
+ * Whether a code point may appear in an XML 1.0 document: tab, line feed,
+ * carriage return, and the ranges above the control characters, minus the
+ * surrogate block and the two non-characters at the top of the BMP.
+ */
+const isXml10Char = (code: number): boolean =>
+  code === 0x9 ||
+  code === 0xa ||
+  code === 0xd ||
+  (code >= 0x20 && code <= 0xd7ff) ||
+  (code >= 0xe000 && code <= 0xfffd) ||
+  (code >= 0x10000 && code <= 0x10ffff);
+
+/** The text without the characters XML 1.0 cannot carry (a name may hold any). */
+const stripXmlForbidden = (text: string): string => {
+  let out = '';
+  for (const char of text) {
+    if (isXml10Char(char.codePointAt(0) as number)) out += char;
+  }
+  return out;
+};
+
 const escapeXml = (text: string): string =>
-  text
+  stripXmlForbidden(text)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+
+/** The text with its `<!-- -->` comments removed (an unclosed one runs to the end). */
+function stripComments(text: string): string {
+  let out = '';
+  let from = 0;
+  for (;;) {
+    const open = text.indexOf('<!--', from);
+    if (open === -1) break;
+    out += text.slice(from, open);
+    const close = text.indexOf('-->', open + 4);
+    if (close === -1) return out;
+    from = close + 3;
+  }
+  return out + text.slice(from);
+}
 
 function attribute(attributes: string, name: string): number | null {
   const match = new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`).exec(
@@ -96,7 +133,9 @@ function elevation(body: string): number | null {
  * expression, so a hostile or malformed file (thousands of unclosed tags, say)
  * costs time in proportion to its size.
  */
-export function parseGpx(gpx: string): ParsedGpx {
+export function parseGpx(source: string): ParsedGpx {
+  // Point-shaped text in a comment is not a point.
+  const gpx = stripComments(source);
   const tracks: RoutePoint[] = [];
   const routes: RoutePoint[] = [];
   const rest: string[] = []; // the text between points, for the name lookup
@@ -106,6 +145,17 @@ export function parseGpx(gpx: string): ParsedGpx {
   const opens: Record<string, number> = { trkpt: -1, rtept: -1 };
   let cursor = 0;
   let copied = 0;
+  // The next CDATA section, found once and reused; -2 = none left. Text inside
+  // one is data, so a point tag in it is not a point.
+  let cdataAt = -1;
+  const nextCdata = (): number => {
+    if (cdataAt === -2) return -1;
+    if (cdataAt < cursor) {
+      const found = gpx.indexOf(CDATA_OPEN, cursor);
+      cdataAt = found === -1 ? -2 : found;
+    }
+    return cdataAt === -2 ? -1 : cdataAt;
+  };
   const nextOpen = (tag: 'trkpt' | 'rtept'): number => {
     if (opens[tag] === -2) return -1;
     if ((opens[tag] as number) < cursor) {
@@ -127,6 +177,13 @@ export function parseGpx(gpx: string): ParsedGpx {
     } else {
       start = route;
       tag = 'rtept';
+    }
+    const cdata = nextCdata();
+    if (cdata !== -1 && cdata < start) {
+      const close = gpx.indexOf(CDATA_CLOSE, cdata + CDATA_OPEN.length);
+      if (close === -1) break;
+      cursor = close + CDATA_CLOSE.length;
+      continue;
     }
     const attributesStart = start + 1 + tag.length;
     const tagEnd = gpx.indexOf('>', attributesStart);
