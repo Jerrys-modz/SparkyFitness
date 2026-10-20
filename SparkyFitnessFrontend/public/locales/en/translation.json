@@ -3945,7 +3945,6 @@
     "editingTemporarilyUnavailable": "Editing food details is temporarily unavailable due to schema changes."
   },
   "checkIn": {
-    "howAreYouFeelingToday": "How are you feeling today?",
     "newCheckin": "New check-in",
     "editCheckin": "Edit check-in",
     "addCheckin": "Add check-in",
@@ -4084,17 +4083,13 @@
     "failedToLoadRecentCustom": "Failed to load recent custom measurements.",
     "failedToLoadRecentStandard": "Failed to load recent standard measurements.",
     "failedToSaveCustomMeasurement": "Failed to save custom measurement.",
-    "failedToSaveMood": "Failed to save mood.",
     "failedToUpdateMeasurement": "Failed to update measurement.",
     "level": "level",
     "measurementUpdatedSuccessfully": "Measurement updated successfully.",
-    "moodSaved": "Mood Saved",
-    "moodSavedSuccessfully": "Mood saved successfully.",
     "muscleMass": "Muscle Mass",
     "recentFasts": "Recent Fasts",
     "recentFastsDescription": "Your latest fasting logs and status.",
     "recentMeasurementsDescription": "Your latest logs including measurements, completed fasts, and synced health data.",
-    "saveMood": "Save Mood",
     "stressLevel": "Stress Level",
     "tabs": {
       "fasting": "Fasting & Mood",
@@ -7036,7 +7031,6 @@
   "mood": {
     "dailyMood": "Daily Mood",
     "date": "Date",
-    "deletedSuccessfully": "Mood entry deleted successfully.",
     "failedAddCustom": "Could not add mood.",
     "failedDeleteCustom": "Could not remove mood.",
     "failedLoadPrefs": "Failed to load mood prefs.",
@@ -7044,7 +7038,6 @@
     "failedToDelete": "Failed to delete mood entry.",
     "failedToLoadCustom": "Failed to load moods.",
     "failedToLoadEntries": "Failed to load mood entries.",
-    "failedToLoadEntry": "Failed to load mood entry.",
     "failedToSave": "Failed to save mood entry.",
     "failedToUpdate": "Failed to update mood entry.",
     "intensityTrend": "Overall mood over time",
@@ -7052,9 +7045,7 @@
     "moodValue": "Mood Value",
     "mostCommon": "Most common moods",
     "noMoodData": "No mood data available for this period.",
-    "notes": "Notes: ",
-    "savedSuccessfully": "Mood entry saved successfully.",
-    "updatedSuccessfully": "Mood entry updated successfully."
+    "notes": "Notes: "
   },
   "preferences": {
     "resetError": "Failed to reset preferences"

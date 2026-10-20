@@ -199,6 +199,17 @@ describe('MoodMeter with no mood yet', () => {
     expect(onMoodChange).toHaveBeenCalledWith(expect.any(Number));
   });
 
+  test('a key on the slider sets the first mood, as a press does', () => {
+    const { container, onMoodChange } = renderMeter(null);
+    const thumb = container.querySelector<HTMLElement>('[role="slider"]')!;
+
+    fireEvent.keyDown(thumb, { key: 'ArrowRight' });
+    expect(onMoodChange).toHaveBeenLastCalledWith(55);
+
+    fireEvent.keyDown(thumb, { key: 'Home' });
+    expect(onMoodChange).toHaveBeenLastCalledWith(10);
+  });
+
   test('"Clear mood" sets the mood back to none', () => {
     const { onMoodChange, onSubmit } = renderMeter(65);
     fireEvent.click(screen.getByRole('button', { name: 'Clear mood' }));

@@ -130,3 +130,13 @@ export function buildCheckinUpdateBody(
   }
   return body;
 }
+
+/** Whether an edit changes anything the update would send. */
+export function checkinEditChanged(
+  original: MoodEntry,
+  d: CheckinDraft,
+  tz: string
+): boolean {
+  const body = buildCheckinUpdateBody(original, d, original.entry_date, tz);
+  return Object.keys(body).length > 0;
+}

@@ -605,12 +605,13 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
       createMoodCheckin(buildCheckinCreateBody(draft, selectedDate, timezone))
     );
 
-  // An edit that changes nothing sends nothing.
-  const handleUpdateMoodCheckin = (entry: MoodEntry, draft: CheckinDraft) => {
-    const body = buildCheckinUpdateBody(entry, draft, selectedDate, timezone);
-    if (Object.keys(body).length === 0) return Promise.resolve(true);
-    return runCheckinRequest(() => updateMoodCheckin({ id: entry.id, body }));
-  };
+  const handleUpdateMoodCheckin = (entry: MoodEntry, draft: CheckinDraft) =>
+    runCheckinRequest(() =>
+      updateMoodCheckin({
+        id: entry.id,
+        body: buildCheckinUpdateBody(entry, draft, selectedDate, timezone),
+      })
+    );
 
   const handleDeleteMoodCheckin = (entry: MoodEntry) =>
     runCheckinRequest(() => deleteMoodCheckin(entry.id));

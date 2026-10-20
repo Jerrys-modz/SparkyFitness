@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { todayInZone } from '@workspace/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import type { MoodEntry } from '@/types/mood';
 import {
+  checkinEditChanged,
   defaultCheckinTime,
   draftFromEntry,
   hasCheckinContent,
@@ -34,14 +35,23 @@ interface CheckInTopRowProps {
 /** The composer, tied to the day it composes for. */
 interface Composer {
   date: string;
+  /** The zone the default time was worked out in. */
+  tz: string;
   /** The check-in being edited, or null for a new one. */
   editing: MoodEntry | null;
   draft: CheckinDraft;
+  /**
+   * Whether the time was set by the user or came from the check-in being
+   * edited. Until then it is the default, which follows the clock and the zone.
+   */
+  timeTouched: boolean;
 }
 
 const freshComposer = (date: string, tz: string): Composer => ({
   date,
+  tz,
   editing: null,
+  timeTouched: false,
   draft: {
     mood: null,
     energy: null,
@@ -51,6 +61,16 @@ const freshComposer = (date: string, tz: string): Composer => ({
     time: defaultCheckinTime(date, tz),
   },
 });
+
+/** An untouched time moved to the default for now; anything else as it is. */
+const withDefaultTime = (c: Composer): Composer => {
+  if (c.timeTouched) return c;
+  const time = defaultCheckinTime(c.date, c.tz);
+  return time === c.draft.time ? c : { ...c, draft: { ...c.draft, time } };
+};
+
+/** How often an untouched default time is brought up to the clock. */
+const DEFAULT_TIME_REFRESH_MS = 30_000;
 
 const isTime = (value: string) => /^\d{2}:\d{2}$/.test(value);
 
@@ -75,15 +95,37 @@ export const CheckInTopRow = ({
   const [pendingDelete, setPendingDelete] = useState<MoodEntry | null>(null);
 
   // A new day cancels any edit and starts a fresh check-in, so nothing is
-  // saved against the wrong day. Adjusted during render, React's pattern for
-  // state that follows a prop.
+  // saved against the wrong day. A new zone (the saved preference replacing
+  // the browser's on load) re-works an untouched default time. Both adjusted
+  // during render, React's pattern for state that follows a prop.
   if (composer.date !== selectedDate) {
     setComposer(freshComposer(selectedDate, timezone));
+  } else if (composer.tz !== timezone) {
+    setComposer(withDefaultTime({ ...composer, tz: timezone }));
   }
+
+  const isToday = selectedDate === todayInZone(timezone);
+
+  // A page left open keeps showing "now" until the user sets a time.
+  const followsClock = !composer.timeTouched && isToday;
+  useEffect(() => {
+    if (!followsClock) return;
+    const id = window.setInterval(
+      () => setComposer(withDefaultTime),
+      DEFAULT_TIME_REFRESH_MS
+    );
+    return () => window.clearInterval(id);
+  }, [followsClock]);
 
   const { draft, editing } = composer;
   const updateDraft = (patch: Partial<CheckinDraft>) =>
     setComposer((prev) => ({ ...prev, draft: { ...prev.draft, ...patch } }));
+  const setTime = (time: string) =>
+    setComposer((prev) => ({
+      ...prev,
+      timeTouched: true,
+      draft: { ...prev.draft, time },
+    }));
 
   // After a request resolves, start over only if the composer still holds
   // what was sent; the day may have changed or another edit begun meanwhile.
@@ -99,19 +141,32 @@ export const CheckInTopRow = ({
     e.preventDefault();
     if (!canSave) return;
     if (editing) {
+      // An edit that changes nothing sends nothing; it just leaves edit mode.
+      if (!checkinEditChanged(editing, draft, timezone)) {
+        setComposer(freshComposer(selectedDate, timezone));
+        return;
+      }
       const ok = await onUpdateCheckin(editing, draft);
       if (ok) resetIf((prev) => prev.editing?.id === editing.id);
     } else {
-      const day = composer.date;
-      const ok = await onCreateCheckin(draft);
-      if (ok) resetIf((prev) => prev.date === day && prev.editing === null);
+      // An untouched time means "now" as the check-in is sent, not as it was
+      // when the composer opened.
+      const sent = composer.timeTouched
+        ? draft
+        : { ...draft, time: defaultCheckinTime(selectedDate, timezone) };
+      const ok = await onCreateCheckin(sent);
+      if (ok) {
+        resetIf((prev) => prev.date === selectedDate && prev.editing === null);
+      }
     }
   };
 
   const startEdit = (entry: MoodEntry) => {
     setComposer({
       date: selectedDate,
+      tz: timezone,
       editing: entry,
+      timeTouched: true,
       draft: draftFromEntry(entry, timezone),
     });
     // On narrow screens the composer sits above the list, out of view.
@@ -128,8 +183,6 @@ export const CheckInTopRow = ({
     const ok = await onDeleteCheckin(entry);
     if (ok) resetIf((prev) => prev.editing?.id === entry.id);
   };
-
-  const isToday = selectedDate === todayInZone(timezone);
 
   return (
     <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
@@ -148,7 +201,7 @@ export const CheckInTopRow = ({
               <TimeInput
                 aria-labelledby={timeLabelId}
                 value={draft.time}
-                onChange={(time) => updateDraft({ time })}
+                onChange={setTime}
                 required
               />
             </div>

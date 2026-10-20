@@ -1,6 +1,7 @@
 import {
   buildCheckinCreateBody,
   buildCheckinUpdateBody,
+  checkinEditChanged,
   defaultCheckinTime,
   draftFromEntry,
   hasCheckinContent,
@@ -207,5 +208,29 @@ describe('buildCheckinUpdateBody', () => {
     expect(body).toEqual({ energy_value: 5 });
     expect(body).not.toHaveProperty('entry_timestamp');
     expect(body).not.toHaveProperty('entry_date');
+  });
+});
+
+describe('checkinEditChanged', () => {
+  test('is false for an untouched check-in, seconds and tag order included', () => {
+    const stored = entry({ entry_timestamp: '2026-10-19T14:30:59.999Z' });
+    expect(
+      checkinEditChanged(
+        stored,
+        { ...draftFromEntry(stored, TZ), tags: ['tired', 'calm'] },
+        TZ
+      )
+    ).toBe(false);
+  });
+
+  test('is true once any field or the time changes', () => {
+    const stored = entry();
+    const untouched = draftFromEntry(stored, TZ);
+    expect(checkinEditChanged(stored, { ...untouched, focus: 2 }, TZ)).toBe(
+      true
+    );
+    expect(
+      checkinEditChanged(stored, { ...untouched, time: '09:31' }, TZ)
+    ).toBe(true);
   });
 });

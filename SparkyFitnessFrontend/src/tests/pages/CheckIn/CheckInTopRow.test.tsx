@@ -1,5 +1,6 @@
 import type { ComponentProps } from 'react';
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -7,13 +8,23 @@ import {
   within,
 } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { todayInZone } from '@workspace/shared';
+import { todayInZone, type MoodCheckinCreateBody } from '@workspace/shared';
 import { CheckInTopRow } from '@/pages/CheckIn/CheckInTopRow';
 import type { MoodEntry } from '@/types/mood';
+import {
+  buildCheckinCreateBody,
+  type CheckinDraft,
+} from '@/utils/moodCheckins';
+
+let mockTimezone = 'UTC';
 
 jest.mock('@/contexts/PreferencesContext', () => ({
-  usePreferences: () => ({ timezone: 'UTC', timeFormat: 'HH:mm' }),
+  usePreferences: () => ({ timezone: mockTimezone, timeFormat: 'HH:mm' }),
 }));
+
+beforeEach(() => {
+  mockTimezone = 'UTC';
+});
 
 // The meter shows what the composer holds and offers one way to change it.
 jest.mock('@/pages/CheckIn/MoodMeter', () => ({
@@ -85,6 +96,13 @@ const renderRow = (over: Partial<Props> = {}) => {
 };
 
 const meter = () => screen.getByTestId('mood-meter');
+// The hidden native input behind the browser's time picker: a real way for
+// the user to set the time.
+const pickTime = (container: HTMLElement, time: string) =>
+  fireEvent.change(
+    container.querySelector('input[type="time"][aria-hidden="true"]')!,
+    { target: { value: time } }
+  );
 const timeSegments = () =>
   within(screen.getByRole('group', { name: 'Time' }))
     .getAllByRole('spinbutton')
@@ -192,7 +210,7 @@ describe('CheckInTopRow editing', () => {
   });
 
   test('changing the date while editing cancels the edit and resets', () => {
-    const { rerender } = renderRow({ checkins: [stored] });
+    const { props, rerender } = renderRow({ checkins: [stored] });
     fireEvent.click(
       screen.getByRole('button', { name: 'Edit check-in at 09:30' })
     );
@@ -208,6 +226,115 @@ describe('CheckInTopRow editing', () => {
     expect(meter()).toHaveAttribute('data-mood', 'null');
     expect(meter()).toHaveAttribute('data-energy', 'null');
     expect(timeSegments()).toEqual(['12', '00']);
+    expect(screen.getByRole('button', { name: 'Add check-in' })).toBeDisabled();
+
+    // What is saved next is a new check-in, never an edit of the old day's.
+    fireEvent.click(screen.getByRole('button', { name: 'Set energy 3' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add check-in' }));
+
+    expect(props.onUpdateCheckin).not.toHaveBeenCalled();
+    expect(props.onCreateCheckin).toHaveBeenCalledWith({
+      mood: null,
+      energy: 3,
+      focus: null,
+      notes: '',
+      tags: [],
+      time: '12:00',
+    });
+  });
+
+  test('saving an edit that changes nothing sends nothing and leaves edit mode', () => {
+    const { props } = renderRow({ checkins: [stored] });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Edit check-in at 09:30' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(props.onUpdateCheckin).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole('heading', { name: 'New check-in' })
+    ).toBeInTheDocument();
+  });
+});
+
+describe('CheckInTopRow default time', () => {
+  // Today in both UTC and Chicago (CDT, UTC-5), so the default is "now".
+  const TODAY = '2026-10-20';
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-10-20T15:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  /** Renders today's composer; the create handler records the POST body. */
+  const renderToday = () => {
+    const sent: MoodCheckinCreateBody[] = [];
+    const utils = renderRow({
+      selectedDate: TODAY,
+      onCreateCheckin: jest.fn((draft: CheckinDraft) => {
+        sent.push(buildCheckinCreateBody(draft, TODAY, mockTimezone));
+        return Promise.resolve(true);
+      }),
+    });
+    return { ...utils, sent };
+  };
+
+  const addEnergyCheckin = () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Set energy 3' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add check-in' }));
+  };
+
+  test('an untouched time is "now" when the check-in is sent', () => {
+    const { sent } = renderToday();
+    expect(timeSegments()).toEqual(['15', '00']);
+
+    jest.setSystemTime(new Date('2026-10-20T16:20:00.000Z'));
+    addEnergyCheckin();
+
+    expect(sent[0]?.entry_timestamp).toBe('2026-10-20T16:20:00.000Z');
+  });
+
+  test('an untouched time on show follows the clock', () => {
+    renderToday();
+    act(() => {
+      jest.setSystemTime(new Date('2026-10-20T16:20:00.000Z'));
+      jest.advanceTimersByTime(30_000);
+    });
+
+    expect(timeSegments()).toEqual(['16', '20']);
+  });
+
+  test('an untouched time follows a change of zone', () => {
+    const { rerender } = renderToday();
+    expect(timeSegments()).toEqual(['15', '00']);
+
+    // The saved preference replaces the browser zone once it loads.
+    mockTimezone = 'America/Chicago';
+    rerender({});
+
+    expect(timeSegments()).toEqual(['10', '00']);
+  });
+
+  test('a time the user set is kept through the clock and a zone change', () => {
+    const { container, rerender, sent } = renderToday();
+    pickTime(container, '07:45');
+    expect(timeSegments()).toEqual(['07', '45']);
+
+    act(() => {
+      jest.setSystemTime(new Date('2026-10-20T16:20:00.000Z'));
+      jest.advanceTimersByTime(30_000);
+    });
+    mockTimezone = 'America/Chicago';
+    rerender({});
+    expect(timeSegments()).toEqual(['07', '45']);
+
+    addEnergyCheckin();
+    // 07:45 in Chicago (UTC-5).
+    expect(sent[0]?.entry_timestamp).toBe('2026-10-20T12:45:00.000Z');
   });
 });
 
