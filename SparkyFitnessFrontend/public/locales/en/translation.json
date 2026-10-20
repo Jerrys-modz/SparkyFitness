@@ -4057,6 +4057,7 @@
     "enterBodyFatPercentage": "Enter body fat percentage",
     "calculate": "Calculate",
     "notesOptional": "Notes (optional)",
+    "journalOptional": "Journal (optional)",
     "saving": "Saving...",
     "saveCheckIn": "Save Check-In",
     "saveMeasurements": "Save Measurements",
@@ -4291,6 +4292,12 @@
     "restingHR": "Resting HR:"
   },
   "moodMeter": {
+    "energy": "Energy",
+    "energyLow": "Drained",
+    "energyHigh": "Energized",
+    "focus": "Focus",
+    "focusLow": "Scattered",
+    "focusHigh": "Locked in",
     "howAreYouFeelingToday": "How are you feeling today?",
     "neutral": "Neutral",
     "tired": "Tired",

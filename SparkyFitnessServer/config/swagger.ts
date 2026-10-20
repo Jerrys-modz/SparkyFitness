@@ -977,6 +977,18 @@ const options = {
                 '26-35 Worried, 36-45 Neutral, 46-55 Thoughtful, 56-65 Calm, ' +
                 '66-75 Confident, 76-85 Happy, 86-100 Excited',
             },
+            energy_value: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 5,
+              nullable: true,
+            },
+            focus_value: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 5,
+              nullable: true,
+            },
             notes: { type: 'string', nullable: true },
             entry_date: { type: 'string', format: 'date' },
             created_at: { type: 'string', format: 'date-time' },
