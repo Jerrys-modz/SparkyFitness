@@ -39,7 +39,7 @@ const stops = Array.from(
 );
 
 const renderMeter = (
-  mood = 50,
+  mood: number | null = 50,
   ratings: { energy?: number | null; focus?: number | null } = {}
 ) => {
   const onMoodChange = jest.fn();
@@ -165,6 +165,75 @@ describe('MoodMeter header', () => {
     );
     expect(active?.title).toBe(label);
     expect(active?.textContent).toBe(emoji);
+  });
+});
+
+describe('MoodMeter with no mood yet', () => {
+  test('says no mood is selected and highlights no face', () => {
+    const { container } = renderMeter(null);
+
+    expect(container.querySelector('span.font-medium')).toHaveTextContent(
+      'No mood selected'
+    );
+    expect(
+      legendFaces(container).some((face) =>
+        face.className.includes('scale-125')
+      )
+    ).toBe(false);
+    expect(
+      screen.queryByRole('button', { name: 'Clear mood' })
+    ).not.toBeInTheDocument();
+  });
+
+  test('parks the thumb in the middle until a mood is picked', () => {
+    const { container } = renderMeter(null);
+    const thumb = container.querySelector('[role="slider"]')!;
+
+    expect(thumb.getAttribute('aria-valuenow')).toBe('50');
+  });
+
+  test('the first face tapped sets the mood', () => {
+    const { container, onMoodChange } = renderMeter(null);
+    fireEvent.click(legendFaces(container)[2]!);
+
+    // The third face sits at 23.53% of 10-95: a mood of 30.
+    expect(onMoodChange).toHaveBeenCalledWith(30);
+  });
+
+  test('with no mood the slider shows no fill and announces that', () => {
+    const { container } = renderMeter(null);
+    const thumb = container.querySelector('[role="slider"]')!;
+
+    expect(thumb.getAttribute('aria-valuetext')).toBe('No mood selected');
+    expect(
+      container.querySelector('[data-orientation] > .hidden')
+    ).not.toBeNull();
+  });
+
+  test('with a mood the slider announces its number', () => {
+    const { container } = renderMeter(65);
+    const thumb = container.querySelector('[role="slider"]')!;
+
+    expect(thumb.hasAttribute('aria-valuetext')).toBe(false);
+  });
+
+  test('a key on the slider sets the first mood, as a press does', () => {
+    const { container, onMoodChange } = renderMeter(null);
+    const thumb = container.querySelector<HTMLElement>('[role="slider"]')!;
+
+    fireEvent.keyDown(thumb, { key: 'ArrowRight' });
+    expect(onMoodChange).toHaveBeenLastCalledWith(55);
+
+    fireEvent.keyDown(thumb, { key: 'Home' });
+    expect(onMoodChange).toHaveBeenLastCalledWith(10);
+  });
+
+  test('"Clear mood" sets the mood back to none', () => {
+    const { onMoodChange, onSubmit } = renderMeter(65);
+    fireEvent.click(screen.getByRole('button', { name: 'Clear mood' }));
+
+    expect(onMoodChange).toHaveBeenCalledWith(null);
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });
 

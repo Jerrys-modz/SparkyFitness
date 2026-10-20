@@ -42,12 +42,13 @@ import {
 import RatingSelector from '@/pages/CheckIn/RatingSelector';
 
 interface MoodMeterProps {
-  mood: number;
+  /** null until a mood is picked: every part of a check-in is optional. */
+  mood: number | null;
   notes: string;
   moodTags: string[];
   energy: number | null;
   focus: number | null;
-  onMoodChange: (value: number) => void;
+  onMoodChange: (value: number | null) => void;
   onNotesChange: (value: string) => void;
   onTagsChange: (tags: string[]) => void;
   onEnergyChange: (value: number | null) => void;
@@ -159,9 +160,12 @@ const MoodMeter = ({
   // The band the value falls in, driving both the emoji and the label beside it
   // so the header cannot name one mood while the legend highlights another.
   // `moodValueToTag` always names one of the nine; the fallback is for types.
+  // No mood picked yet means no band: nothing is named or highlighted.
   const currentBand =
-    BAND_SCALE.find((m) => m.name === moodValueToTag(mood ?? 50)) ??
-    BAND_SCALE[0]!;
+    mood === null
+      ? null
+      : (BAND_SCALE.find((m) => m.name === moodValueToTag(mood)) ??
+        BAND_SCALE[0]!);
 
   const toggleTag = (name: string) => {
     onTagsChange(
@@ -236,24 +240,57 @@ const MoodMeter = ({
     <div className="space-y-4">
       {/* Intensity rating (kept for interop + trend) */}
       <div>
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-2 flex items-center justify-between gap-2">
           <Label>{t('moodMeter.intensity', 'Overall mood')}</Label>
-          <span className="flex items-center gap-1.5 text-sm font-medium">
-            <span className="text-lg leading-none">{currentBand.emoji}</span>
-            {builtInMoodLabel(currentBand.name, currentBand.displayName)}
-          </span>
+          <div className="flex items-center gap-2">
+            {currentBand ? (
+              <span className="flex items-center gap-1.5 text-sm font-medium">
+                <span className="text-lg leading-none">
+                  {currentBand.emoji}
+                </span>
+                {builtInMoodLabel(currentBand.name, currentBand.displayName)}
+              </span>
+            ) : (
+              <span className="text-sm font-medium text-muted-foreground">
+                {t('moodMeter.noMoodSelected', 'No mood selected')}
+              </span>
+            )}
+            {mood !== null && (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-xs text-muted-foreground"
+                onClick={() => onMoodChange(null)}
+              >
+                {t('moodMeter.clearMood', 'Clear mood')}
+              </Button>
+            )}
+          </div>
         </div>
         {/* Clamped for display only. An import may carry 96-100, and Radix
             announces the controlled value verbatim, so passing one through
             would report a mood above the maximum the slider declares. The
-            stored value is left alone until the user moves the thumb. */}
+            stored value is left alone until the user moves the thumb.
+            With no mood yet the thumb is parked, dimmed, in the middle; a
+            press on it picks that middle value, since Radix only reports a
+            value that differs from the one it shows. */}
         <Slider
           value={[clampToScale(mood ?? 50)]}
           min={MOOD_MIN}
           max={MOOD_MAX}
           step={MOOD_STEP}
           onValueChange={(vals) => onMoodChange(vals[0] ?? 50)}
-          className="w-full"
+          onPointerDown={() => {
+            if (mood === null) onMoodChange(50);
+          }}
+          className={cn('w-full', mood === null && 'opacity-50')}
+          hideRange={mood === null}
+          valueText={
+            mood === null
+              ? t('moodMeter.noMoodSelected', 'No mood selected')
+              : undefined
+          }
           aria-label={t('moodMeter.intensity', 'Overall mood')}
         />
         {/* Tappable band emojis: the scale, and a shortcut to a face. Each is
@@ -264,7 +301,7 @@ const MoodMeter = ({
         >
           <div className="relative h-6">
             {BAND_SCALE.map((m) => {
-              const active = currentBand.name === m.name;
+              const active = currentBand?.name === m.name;
               return (
                 <button
                   key={m.name}
