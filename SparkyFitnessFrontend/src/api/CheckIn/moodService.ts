@@ -6,43 +6,8 @@ import {
 } from '@workspace/shared';
 import { api } from '@/api/api';
 import type { MoodEntry, CustomMood } from '@/types/mood';
-import { getErrorMessage } from '@/utils/api';
-import { debug, info, error } from '@/utils/logging';
+import { debug, error } from '@/utils/logging';
 import { getUserLoggingLevel } from '@/utils/userPreferences';
-
-export const saveMoodEntry = async (
-  moodValue: number,
-  notes: string,
-  entryDate: string,
-  moodTags?: string[],
-  ratings?: { energyValue: number | null; focusValue: number | null }
-): Promise<MoodEntry> => {
-  try {
-    const userLoggingLevel = getUserLoggingLevel();
-    debug(userLoggingLevel, 'Sending mood entry:', {
-      mood_value: moodValue,
-      mood_tags: moodTags,
-      notes,
-      entry_date: entryDate,
-    });
-    const response = await api.post('/mood', {
-      body: {
-        mood_value: moodValue,
-        mood_tags: moodTags,
-        notes,
-        entry_date: entryDate,
-        ...(ratings && {
-          energy_value: ratings.energyValue,
-          focus_value: ratings.focusValue,
-        }),
-      },
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error saving mood entry:', error);
-    throw error;
-  }
-};
 
 const MOOD_V2_OPTIONS = {
   headers: { [MOOD_MODEL_VERSION_HEADER]: String(MOOD_MODEL_VERSION) },
@@ -135,28 +100,6 @@ export const getMoodEntries = async (
       'moodService: Error fetching mood entries:',
       err
     );
-    throw err;
-  }
-};
-
-export const getMoodEntryByDate = async (
-  entryDate: string
-): Promise<MoodEntry | null> => {
-  try {
-    const userLoggingLevel = getUserLoggingLevel();
-    debug(userLoggingLevel, 'Fetching mood entry by date:', { entryDate });
-    const response = await api.get(`/mood/date/${entryDate}`, {
-      suppress404Toast: true,
-    });
-    debug(userLoggingLevel, 'Response from getMoodEntryByDate API:', response);
-    return response;
-  } catch (err: unknown) {
-    const message = getErrorMessage(err);
-    if (message && message.includes('404')) {
-      info(getUserLoggingLevel(), `No mood entry found for date ${entryDate}.`);
-      return null;
-    }
-    error(getUserLoggingLevel(), 'Error fetching mood entry by date:', err);
     throw err;
   }
 };

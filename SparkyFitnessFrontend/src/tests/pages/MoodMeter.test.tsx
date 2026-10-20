@@ -39,7 +39,7 @@ const stops = Array.from(
 );
 
 const renderMeter = (
-  mood = 50,
+  mood: number | null = 50,
   ratings: { energy?: number | null; focus?: number | null } = {}
 ) => {
   const onMoodChange = jest.fn();
@@ -165,6 +165,46 @@ describe('MoodMeter header', () => {
     );
     expect(active?.title).toBe(label);
     expect(active?.textContent).toBe(emoji);
+  });
+});
+
+describe('MoodMeter with no mood yet', () => {
+  test('says no mood is selected and highlights no face', () => {
+    const { container } = renderMeter(null);
+
+    expect(container.querySelector('span.font-medium')).toHaveTextContent(
+      'No mood selected'
+    );
+    expect(
+      legendFaces(container).some((face) =>
+        face.className.includes('scale-125')
+      )
+    ).toBe(false);
+    expect(
+      screen.queryByRole('button', { name: 'Clear mood' })
+    ).not.toBeInTheDocument();
+  });
+
+  test('parks the thumb in the middle until a mood is picked', () => {
+    const { container } = renderMeter(null);
+    const thumb = container.querySelector('[role="slider"]')!;
+
+    expect(thumb.getAttribute('aria-valuenow')).toBe('50');
+  });
+
+  test('the first face tapped sets the mood', () => {
+    const { container, onMoodChange } = renderMeter(null);
+    fireEvent.click(legendFaces(container)[2]!);
+
+    expect(onMoodChange).toHaveBeenCalledWith(expect.any(Number));
+  });
+
+  test('"Clear mood" sets the mood back to none', () => {
+    const { onMoodChange, onSubmit } = renderMeter(65);
+    fireEvent.click(screen.getByRole('button', { name: 'Clear mood' }));
+
+    expect(onMoodChange).toHaveBeenCalledWith(null);
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });
 

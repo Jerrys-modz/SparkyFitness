@@ -4,14 +4,13 @@ import type {
   MoodCheckinCreateBody,
   MoodCheckinUpdateBody,
 } from '@workspace/shared';
+import { HttpApiError } from '@/api/api';
 import {
-  saveMoodEntry,
   getMoodCheckinsByDate,
   createMoodCheckin,
   updateMoodCheckin,
   deleteMoodCheckin,
   getMoodEntries,
-  getMoodEntryByDate,
   listCustomMoods,
   createCustomMood,
   deleteCustomMood,
@@ -37,53 +36,12 @@ export const useMoodEntries = (
   });
 };
 
-export const useMoodEntryByDate = (entryDate: string) => {
-  return useQuery({
-    queryKey: moodKeys.byDate(entryDate),
-    queryFn: () => getMoodEntryByDate(entryDate),
-    meta: {
-      errorMessage: i18n.t(
-        'mood.failedToLoadEntry',
-        'Failed to load mood entry.'
-      ),
-    },
-  });
-};
-
-export const useSaveMoodEntryMutation = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      moodValue,
-      notes,
-      entryDate,
-      moodTags,
-      energyValue,
-      focusValue,
-    }: {
-      moodValue: number;
-      notes: string;
-      entryDate: string;
-      moodTags?: string[];
-      energyValue: number | null;
-      focusValue: number | null;
-    }) =>
-      saveMoodEntry(moodValue, notes, entryDate, moodTags, {
-        energyValue,
-        focusValue,
-      }),
-    onSuccess: () => {
-      return queryClient.invalidateQueries({ queryKey: moodKeys.all });
-    },
-    meta: {
-      errorMessage: i18n.t('mood.failedToSave', 'Failed to save mood entry.'),
-      successMessage: i18n.t(
-        'mood.savedSuccessfully',
-        'Mood entry saved successfully.'
-      ),
-    },
-  });
-};
+/**
+ * A check-in request's error toast: the server's own message when it sent one
+ * (such as why a check-in was rejected), otherwise `fallback`.
+ */
+const serverMessageOr = (fallback: string) => (err: unknown) =>
+  err instanceof HttpApiError && err.message ? err.message : fallback;
 
 export const useMoodCheckinsByDate = (date: string) =>
   useQuery({
@@ -103,11 +61,10 @@ export const useCreateMoodCheckinMutation = () => {
     mutationFn: (body: MoodCheckinCreateBody) => createMoodCheckin(body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: moodKeys.all }),
     meta: {
-      errorMessage: i18n.t('mood.failedToSave', 'Failed to save mood entry.'),
-      successMessage: i18n.t(
-        'mood.savedSuccessfully',
-        'Mood entry saved successfully.'
+      errorMessage: serverMessageOr(
+        i18n.t('mood.failedToSave', 'Failed to save mood entry.')
       ),
+      successMessage: i18n.t('checkIn.checkinSaved', 'Check-in saved'),
     },
   });
 };
@@ -119,14 +76,10 @@ export const useUpdateMoodCheckinMutation = () => {
       updateMoodCheckin(id, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: moodKeys.all }),
     meta: {
-      errorMessage: i18n.t(
-        'mood.failedToUpdate',
-        'Failed to update mood entry.'
+      errorMessage: serverMessageOr(
+        i18n.t('mood.failedToUpdate', 'Failed to update mood entry.')
       ),
-      successMessage: i18n.t(
-        'mood.updatedSuccessfully',
-        'Mood entry updated successfully.'
-      ),
+      successMessage: i18n.t('checkIn.checkinUpdated', 'Check-in updated'),
     },
   });
 };
@@ -137,14 +90,10 @@ export const useDeleteMoodCheckinMutation = () => {
     mutationFn: (id: string) => deleteMoodCheckin(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: moodKeys.all }),
     meta: {
-      errorMessage: i18n.t(
-        'mood.failedToDelete',
-        'Failed to delete mood entry.'
+      errorMessage: serverMessageOr(
+        i18n.t('mood.failedToDelete', 'Failed to delete mood entry.')
       ),
-      successMessage: i18n.t(
-        'mood.deletedSuccessfully',
-        'Mood entry deleted successfully.'
-      ),
+      successMessage: i18n.t('checkIn.checkinDeleted', 'Check-in deleted'),
     },
   });
 };
