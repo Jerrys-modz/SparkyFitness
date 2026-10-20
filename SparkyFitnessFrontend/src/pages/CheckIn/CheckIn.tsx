@@ -52,11 +52,6 @@ const CheckIn = () => {
     height,
     hips,
     loading,
-    mood,
-    moodNotes,
-    moodTags,
-    energy,
-    focus,
     neck,
     placeholders,
     recentMeasurements,
@@ -70,11 +65,6 @@ const CheckIn = () => {
     setCustomValues,
     setHeight,
     setHips,
-    setMood,
-    setMoodNotes,
-    setMoodTags,
-    setEnergy,
-    setFocus,
     setNeck,
     setSelectedDate,
     setSteps,
@@ -86,9 +76,12 @@ const CheckIn = () => {
     useMostRecentForCalculation,
     waist,
     weight,
-    handleSaveMood,
-    isSavingMood,
-    isLoadingMood,
+    moodCheckins,
+    isLoadingMoodCheckins,
+    isSavingMoodCheckin,
+    handleCreateMoodCheckin,
+    handleUpdateMoodCheckin,
+    handleDeleteMoodCheckin,
   } = useCheckInLogic(currentUserId);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -204,19 +197,13 @@ const CheckIn = () => {
           className="focus-visible:outline-none space-y-6"
         >
           <CheckInTopRow
-            mood={mood}
-            moodNotes={moodNotes}
-            moodTags={moodTags}
-            energy={energy}
-            focus={focus}
-            setMood={setMood}
-            setMoodNotes={setMoodNotes}
-            setMoodTags={setMoodTags}
-            setEnergy={setEnergy}
-            setFocus={setFocus}
-            onSaveMood={handleSaveMood}
-            isSavingMood={isSavingMood}
-            isLoadingMood={isLoadingMood}
+            selectedDate={selectedDate}
+            checkins={moodCheckins}
+            isLoadingCheckins={isLoadingMoodCheckins}
+            isSavingCheckin={isSavingMoodCheckin}
+            onCreateCheckin={handleCreateMoodCheckin}
+            onUpdateCheckin={handleUpdateMoodCheckin}
+            onDeleteCheckin={handleDeleteMoodCheckin}
           />
           <RecentActivity
             convertMeasurement={convertMeasurement}
