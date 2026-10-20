@@ -5,15 +5,14 @@ import measurementService from '../services/measurementService.js';
 import preferenceService from '../services/preferenceService.js';
 import moodRepository, {
   type LegacyMoodEntryRow,
+  type MoodEntryRow,
 } from '../models/moodRepository.js';
 import fastingRepository from '../models/fastingRepository.js';
 import sleepRepository from '../models/sleepRepository.js';
 import { toolOpts } from './helpers/toolExecutionOptions.js';
 import { CustomCategoryExistsError } from '../utils/errors.js';
 
-function moodRow(
-  overrides: Partial<LegacyMoodEntryRow> = {}
-): LegacyMoodEntryRow {
+function moodRow(overrides: Partial<MoodEntryRow> = {}): MoodEntryRow {
   return {
     id: 'mood-1',
     user_id: 'user-1',
@@ -29,6 +28,13 @@ function moodRow(
     updated_at: new Date('2026-06-01T12:00:00Z'),
     ...overrides,
   };
+}
+
+// getLegacyMoodEntryForDate only ever returns rows that carry a mood.
+function legacyRow(
+  overrides: Partial<LegacyMoodEntryRow> = {}
+): LegacyMoodEntryRow {
+  return { ...moodRow(), mood_value: 50, ...overrides };
 }
 
 vi.mock('../services/measurementService', () => ({
@@ -49,11 +55,13 @@ vi.mock('../services/preferenceService', () => ({
     getUserPreferences: vi.fn(),
   },
 }));
-vi.mock('../models/moodRepository', () => ({
+vi.mock('../models/moodRepository', async (importOriginal) => ({
+  // hasMoodContent is a pure named export; keep the real one.
+  ...(await importOriginal<typeof import('../models/moodRepository.js')>()),
   default: {
-    createOrUpdateMoodEntry: vi.fn(),
-    getMoodEntryByDate: vi.fn(),
-    updateMoodEntry: vi.fn(),
+    createCheckin: vi.fn(),
+    getCheckinsForDate: vi.fn(),
+    getLegacyMoodEntryForDate: vi.fn(),
   },
 }));
 vi.mock('../models/fastingRepository', () => ({
@@ -84,7 +92,10 @@ function mockEmptyDiary() {
   vi.mocked(
     measurementService.getCheckInMeasurementsByDateRange
   ).mockResolvedValue([]);
-  vi.mocked(moodRepository.getMoodEntryByDate).mockResolvedValue(undefined);
+  vi.mocked(moodRepository.getCheckinsForDate).mockResolvedValue([]);
+  vi.mocked(moodRepository.getLegacyMoodEntryForDate).mockResolvedValue(
+    undefined
+  );
   vi.mocked(
     sleepRepository.getSleepEntriesByUserIdAndDateRange
   ).mockResolvedValue([]);
@@ -510,9 +521,9 @@ describe('list_categories / create_category', () => {
 });
 
 describe('log_mood', () => {
-  it('upserts the mood entry and echoes notes', async () => {
-    vi.mocked(moodRepository.createOrUpdateMoodEntry).mockResolvedValue(
-      moodRow({ id: 'mood-1' })
+  it('creates a check-in and echoes the time and notes', async () => {
+    vi.mocked(moodRepository.createCheckin).mockResolvedValue(
+      moodRow({ mood_value: 80, notes: 'Feeling good' })
     );
 
     const result = await tools.sparky_manage_checkin.execute!(
@@ -526,20 +537,27 @@ describe('log_mood', () => {
     );
 
     // Spoken as 8/10, stored on the 10-100 scale the column holds.
-    expect(result).toBe('✅ Mood logged for 2026-06-01: 8/10 — Feeling good.');
-    expect(moodRepository.createOrUpdateMoodEntry).toHaveBeenCalledWith(
-      'user-1',
-      80,
-      'Feeling good',
-      '2026-06-01',
-      null,
-      { energyValue: undefined, focusValue: undefined }
+    expect(result).toBe(
+      '✅ Check-in logged for 2026-06-01 at 12:00: 8/10 — Feeling good.'
     );
+    expect(moodRepository.createCheckin).toHaveBeenCalledWith('user-1', {
+      moodValue: 80,
+      notes: 'Feeling good',
+      moodTags: null,
+      energyValue: undefined,
+      focusValue: undefined,
+      entryDate: '2026-06-01',
+    });
   });
 
   it('logs energy and focus alongside mood', async () => {
-    vi.mocked(moodRepository.createOrUpdateMoodEntry).mockResolvedValue(
-      moodRow({ id: 'mood-1' })
+    vi.mocked(moodRepository.createCheckin).mockResolvedValue(
+      moodRow({
+        mood_value: 80,
+        energy_value: 4,
+        focus_value: 2,
+        notes: 'Feeling good',
+      })
     );
 
     const result = await tools.sparky_manage_checkin.execute!(
@@ -555,16 +573,106 @@ describe('log_mood', () => {
     );
 
     expect(result).toBe(
-      '✅ Mood logged for 2026-06-01: 8/10, energy 4/5, focus 2/5 — Feeling good.'
+      '✅ Check-in logged for 2026-06-01 at 12:00: 8/10, energy 4/5, focus 2/5 — Feeling good.'
     );
-    expect(moodRepository.createOrUpdateMoodEntry).toHaveBeenCalledWith(
-      'user-1',
-      80,
-      'Feeling good',
-      '2026-06-01',
-      null,
-      { energyValue: 4, focusValue: 2 }
+    expect(moodRepository.createCheckin).toHaveBeenCalledWith('user-1', {
+      moodValue: 80,
+      notes: 'Feeling good',
+      moodTags: null,
+      energyValue: 4,
+      focusValue: 2,
+      entryDate: '2026-06-01',
+    });
+  });
+
+  it('creates a second check-in for the same day instead of updating', async () => {
+    vi.mocked(moodRepository.createCheckin)
+      .mockResolvedValueOnce(
+        moodRow({
+          id: 'mood-1',
+          mood_value: 80,
+          entry_timestamp: new Date('2026-06-01T08:05:00Z'),
+        })
+      )
+      .mockResolvedValueOnce(
+        moodRow({
+          id: 'mood-2',
+          mood_value: 40,
+          entry_timestamp: new Date('2026-06-01T17:30:00Z'),
+        })
+      );
+
+    const first = await tools.sparky_manage_checkin.execute!(
+      { action: 'log_mood', mood_value: 8, entry_date: '2026-06-01' },
+      opts
     );
+    const second = await tools.sparky_manage_checkin.execute!(
+      { action: 'log_mood', mood_value: 4, entry_date: '2026-06-01' },
+      opts
+    );
+
+    expect(moodRepository.createCheckin).toHaveBeenCalledTimes(2);
+    expect(first).toBe('✅ Check-in logged for 2026-06-01 at 08:05: 8/10.');
+    expect(second).toBe('✅ Check-in logged for 2026-06-01 at 17:30: 4/10.');
+  });
+
+  it('renders the time in the user timezone', async () => {
+    const nyTools = buildCheckinTools('user-1', 'America/New_York');
+    vi.mocked(moodRepository.createCheckin).mockResolvedValue(
+      moodRow({
+        mood_value: 80,
+        entry_timestamp: new Date('2026-06-01T13:05:00Z'),
+      })
+    );
+
+    const result = await nyTools.sparky_manage_checkin.execute!(
+      { action: 'log_mood', mood_value: 8, entry_date: '2026-06-01' },
+      opts
+    );
+
+    expect(result).toBe('✅ Check-in logged for 2026-06-01 at 09:05: 8/10.');
+  });
+
+  it('logs energy alone as a check-in with no mood', async () => {
+    vi.mocked(moodRepository.createCheckin).mockResolvedValue(
+      moodRow({ mood_value: null, energy_value: 2 })
+    );
+
+    const result = await tools.sparky_manage_checkin.execute!(
+      { action: 'log_mood', energy_value: 2, entry_date: '2026-06-01' },
+      opts
+    );
+
+    expect(result).toBe(
+      '✅ Check-in logged for 2026-06-01 at 12:00: energy 2/5.'
+    );
+    const input = vi.mocked(moodRepository.createCheckin).mock.calls[0]![1];
+    expect(input.moodValue).toBeNull();
+    expect(input.energyValue).toBe(2);
+  });
+
+  it('rejects an empty log_mood call without touching the repository', async () => {
+    const result = await tools.sparky_manage_checkin.execute!(
+      { action: 'log_mood', entry_date: '2026-06-01' },
+      opts
+    );
+
+    expect(result).toBe(
+      'Error [VALIDATION]: A check-in needs at least one of mood, energy, focus, notes or tags.'
+    );
+    expect(moodRepository.createCheckin).not.toHaveBeenCalled();
+  });
+
+  it('rejects whitespace-only notes with no other field', async () => {
+    const result = await tools.sparky_manage_checkin.execute!(
+      { action: 'log_mood', notes: '   ', entry_date: '2026-06-01' },
+      opts
+    );
+
+    expect(String(result)).toContain(
+      'at least one of mood, energy, focus, notes or tags'
+    );
+    expect(moodRepository.createCheckin).not.toHaveBeenCalled();
   });
 
   it('rejects an energy_value outside 1-5 without touching the repository', async () => {
@@ -580,87 +688,43 @@ describe('log_mood', () => {
 
     expect(String(result)).toContain('Error');
     expect(String(result)).toContain('energy_value');
-    expect(moodRepository.createOrUpdateMoodEntry).not.toHaveBeenCalled();
+    expect(moodRepository.createCheckin).not.toHaveBeenCalled();
   });
 
-  describe('energy or focus without a mood score', () => {
-    const existing = moodRow({
-      mood_value: 80,
-      energy_value: null,
-      focus_value: 3,
-      notes: 'Long day',
-    });
+  it('infers log_mood from energy_value when no action is given', async () => {
+    vi.mocked(moodRepository.createCheckin).mockResolvedValue(
+      moodRow({ mood_value: 70, energy_value: 3 })
+    );
 
-    it('updates only the ratings of the existing check-in', async () => {
-      vi.mocked(moodRepository.getMoodEntryByDate).mockResolvedValue(existing);
-      vi.mocked(moodRepository.updateMoodEntry).mockResolvedValue({
-        ...existing,
-        energy_value: 2,
-      });
+    const result = await tools.sparky_manage_checkin.execute!(
+      { energy_value: 3, mood_value: 7, entry_date: '2026-06-01' },
+      opts
+    );
 
-      const result = await tools.sparky_manage_checkin.execute!(
-        { action: 'log_mood', energy_value: 2, entry_date: '2026-06-01' },
-        opts
-      );
+    expect(result).toBe(
+      '✅ Check-in logged for 2026-06-01 at 12:00: 7/10, energy 3/5.'
+    );
+    expect(moodRepository.createCheckin).toHaveBeenCalled();
+  });
 
-      expect(moodRepository.updateMoodEntry).toHaveBeenCalledWith(
-        'mood-1',
-        'user-1',
-        null,
-        null,
-        null,
-        { energyValue: 2, focusValue: undefined }
-      );
-      expect(moodRepository.createOrUpdateMoodEntry).not.toHaveBeenCalled();
-      expect(result).toBe(
-        '✅ Mood check-in updated for 2026-06-01: 8/10, energy 2/5, focus 3/5 — Long day.'
-      );
-    });
+  it('infers log_mood from focus_value alone when no action is given', async () => {
+    vi.mocked(moodRepository.createCheckin).mockResolvedValue(
+      moodRow({ mood_value: null, focus_value: 3 })
+    );
 
-    it('asks for a mood score when there is no check-in to update', async () => {
-      vi.mocked(moodRepository.getMoodEntryByDate).mockResolvedValue(undefined);
+    const result = await tools.sparky_manage_checkin.execute!(
+      { focus_value: 3, entry_date: '2026-06-01' },
+      opts
+    );
 
-      const result = await tools.sparky_manage_checkin.execute!(
-        { action: 'log_mood', focus_value: 4, entry_date: '2026-06-01' },
-        opts
-      );
-
-      expect(String(result)).toContain(
-        'there is no mood check-in for 2026-06-01 yet'
-      );
-      expect(moodRepository.createOrUpdateMoodEntry).not.toHaveBeenCalled();
-      expect(moodRepository.updateMoodEntry).not.toHaveBeenCalled();
-    });
-
-    it('infers log_mood from energy_value when no action is given', async () => {
-      vi.mocked(moodRepository.createOrUpdateMoodEntry).mockResolvedValue(
-        moodRow({ id: 'mood-1' })
-      );
-
-      const result = await tools.sparky_manage_checkin.execute!(
-        { energy_value: 3, mood_value: 7, entry_date: '2026-06-01' },
-        opts
-      );
-
-      expect(result).toBe('✅ Mood logged for 2026-06-01: 7/10, energy 3/5.');
-      expect(moodRepository.createOrUpdateMoodEntry).toHaveBeenCalled();
-    });
-
-    it('infers log_mood from focus_value alone when no action is given', async () => {
-      vi.mocked(moodRepository.getMoodEntryByDate).mockResolvedValue(undefined);
-
-      const result = await tools.sparky_manage_checkin.execute!(
-        { focus_value: 3, entry_date: '2026-06-01' },
-        opts
-      );
-
-      expect(String(result)).toContain('there is no mood check-in');
-    });
+    expect(result).toBe(
+      '✅ Check-in logged for 2026-06-01 at 12:00: focus 3/5.'
+    );
   });
 
   it('logs mood without notes', async () => {
-    vi.mocked(moodRepository.createOrUpdateMoodEntry).mockResolvedValue(
-      moodRow({ id: 'mood-1' })
+    vi.mocked(moodRepository.createCheckin).mockResolvedValue(
+      moodRow({ mood_value: 50 })
     );
 
     const result = await tools.sparky_manage_checkin.execute!(
@@ -668,37 +732,32 @@ describe('log_mood', () => {
       opts
     );
 
-    expect(result).toBe('✅ Mood logged for 2026-06-01: 5/10.');
-    expect(moodRepository.createOrUpdateMoodEntry).toHaveBeenCalledWith(
-      'user-1',
-      50,
-      null,
-      '2026-06-01',
-      null,
-      { energyValue: undefined, focusValue: undefined }
-    );
+    expect(result).toBe('✅ Check-in logged for 2026-06-01 at 12:00: 5/10.');
+    expect(moodRepository.createCheckin).toHaveBeenCalledWith('user-1', {
+      moodValue: 50,
+      notes: null,
+      moodTags: null,
+      energyValue: undefined,
+      focusValue: undefined,
+      entryDate: '2026-06-01',
+    });
   });
 
-  it("defaults to today's date if entry_date is omitted", async () => {
-    vi.mocked(moodRepository.createOrUpdateMoodEntry).mockResolvedValue({
-      id: 'mood-1',
-    } as any);
+  it("defaults to today's date if entry_date is omitted, leaving the timestamp to the repository", async () => {
+    vi.mocked(moodRepository.createCheckin).mockResolvedValue(
+      moodRow({ mood_value: 80 })
+    );
 
+    const today = todayInZone('UTC');
     const result = await tools.sparky_manage_checkin.execute!(
       { action: 'log_mood', mood_value: 8 } as any,
       opts
     );
 
-    const today = todayInZone('UTC');
-    expect(result).toBe(`✅ Mood logged for ${today}: 8/10.`);
-    expect(moodRepository.createOrUpdateMoodEntry).toHaveBeenCalledWith(
-      'user-1',
-      80,
-      null,
-      today,
-      null,
-      { energyValue: undefined, focusValue: undefined }
-    );
+    expect(result).toBe(`✅ Check-in logged for ${today} at 12:00: 8/10.`);
+    const input = vi.mocked(moodRepository.createCheckin).mock.calls[0]![1];
+    expect(input.entryDate).toBe(today);
+    expect(input).not.toHaveProperty('entryTimestamp');
   });
 
   // The reported bug: the tool validated 1-10 and stored it verbatim into a
@@ -711,34 +770,16 @@ describe('log_mood', () => {
     [8, 'happy'],
     [10, 'excited'],
   ])('stores a score of %i in the %s band', async (score, band) => {
-    vi.mocked(moodRepository.createOrUpdateMoodEntry).mockResolvedValue(
-      moodRow({ id: 'mood-1' })
-    );
+    vi.mocked(moodRepository.createCheckin).mockResolvedValue(moodRow());
 
     await tools.sparky_manage_checkin.execute!(
       { action: 'log_mood', mood_value: score, entry_date: '2026-06-01' },
       opts
     );
 
-    const stored = vi.mocked(moodRepository.createOrUpdateMoodEntry).mock
-      .calls[0]![1] as number;
+    const stored = vi.mocked(moodRepository.createCheckin).mock.calls[0]![1]
+      .moodValue as number;
     expect(moodValueToTag(stored)).toBe(band);
-  });
-
-  it('defaults an omitted score to the middle of the scale, not to sad', async () => {
-    vi.mocked(moodRepository.createOrUpdateMoodEntry).mockResolvedValue(
-      moodRow({ id: 'mood-1' })
-    );
-
-    await tools.sparky_manage_checkin.execute!(
-      { action: 'log_mood', entry_date: '2026-06-01' } as any,
-      opts
-    );
-
-    const stored = vi.mocked(moodRepository.createOrUpdateMoodEntry).mock
-      .calls[0]![1] as number;
-    expect(stored).toBe(50);
-    expect(moodValueToTag(stored)).toBe('thoughtful');
   });
 });
 
@@ -963,13 +1004,13 @@ describe('list_checkin_diary', () => {
         steps: 9000,
       },
     ]);
-    vi.mocked(moodRepository.getMoodEntryByDate).mockResolvedValue(
+    vi.mocked(moodRepository.getCheckinsForDate).mockResolvedValue([
       moodRow({
         // Stored on the 10-100 scale the column holds; read back as 8/10.
         mood_value: 80,
         notes: 'Good',
-      })
-    );
+      }),
+    ]);
     vi.mocked(
       sleepRepository.getSleepEntriesByUserIdAndDateRange
     ).mockResolvedValue([
@@ -1024,7 +1065,7 @@ describe('list_checkin_diary', () => {
         '- **Waist:** 90 cm\n' +
         '\n' +
         '## Mood\n' +
-        '- 8/10 — Good\n' +
+        '- 12:00 8/10 — Good\n' +
         '\n' +
         '## Sleep\n' +
         '- 7h 30m | score: 85/100 | bed: 2026-05-31T23:30:00.000Z | wake: 2026-06-01T07:00:00.000Z | (manual)\n' +
@@ -1072,13 +1113,13 @@ describe('list_checkin_diary', () => {
 
   it('renders checkin diary mood section with tags', async () => {
     mockEmptyDiary();
-    vi.mocked(moodRepository.getMoodEntryByDate).mockResolvedValue({
-      id: 'mood-1',
-      mood_value: 70,
-      notes: 'Feeling okay',
-      mood_tags: ['anxious', 'worried'],
-      entry_date: '2026-06-01',
-    } as any);
+    vi.mocked(moodRepository.getCheckinsForDate).mockResolvedValue([
+      moodRow({
+        mood_value: 70,
+        notes: 'Feeling okay',
+        mood_tags: ['anxious', 'worried'],
+      }),
+    ]);
 
     const result = await tools.sparky_manage_checkin.execute!(
       { action: 'list_checkin_diary', entry_date: '2026-06-01' },
@@ -1088,21 +1129,15 @@ describe('list_checkin_diary', () => {
     expect(result).toBe(
       '### Check-in Diary: 2026-06-01\n\n' +
         '## Mood\n' +
-        '- 7/10 [😰 Anxious, 😟 Worried] — Feeling okay\n\n'
+        '- 12:00 7/10 [😰 Anxious, 😟 Worried] — Feeling okay\n\n'
     );
   });
 
   it('renders energy and focus in the diary mood line, skipping null ratings', async () => {
     mockEmptyDiary();
-    vi.mocked(moodRepository.getMoodEntryByDate).mockResolvedValue({
-      id: 'mood-1',
-      mood_value: 70,
-      energy_value: 3,
-      focus_value: null,
-      mood_tags: [],
-      notes: null,
-      entry_date: '2026-06-01',
-    } as any);
+    vi.mocked(moodRepository.getCheckinsForDate).mockResolvedValue([
+      moodRow({ mood_value: 70, energy_value: 3, focus_value: null }),
+    ]);
 
     const result = await tools.sparky_manage_checkin.execute!(
       { action: 'list_checkin_diary', entry_date: '2026-06-01' },
@@ -1112,8 +1147,96 @@ describe('list_checkin_diary', () => {
     expect(result).toBe(
       '### Check-in Diary: 2026-06-01\n\n' +
         '## Mood\n' +
-        '- 7/10, energy 3/5\n\n'
+        '- 12:00 7/10, energy 3/5\n\n'
     );
+  });
+
+  it('lists every check-in of the day in time order, omitting /10 when mood is null', async () => {
+    mockEmptyDiary();
+    vi.mocked(moodRepository.getCheckinsForDate).mockResolvedValue([
+      moodRow({
+        id: 'mood-1',
+        mood_value: 80,
+        entry_timestamp: new Date('2026-06-01T08:05:00Z'),
+      }),
+      moodRow({
+        id: 'mood-2',
+        mood_value: null,
+        energy_value: 2,
+        notes: 'Crashed',
+        entry_timestamp: new Date('2026-06-01T15:40:00Z'),
+      }),
+    ]);
+
+    const result = await tools.sparky_manage_checkin.execute!(
+      { action: 'list_checkin_diary', entry_date: '2026-06-01' },
+      opts
+    );
+
+    expect(result).toBe(
+      '### Check-in Diary: 2026-06-01\n\n' +
+        '## Mood\n' +
+        '- 08:05 8/10\n' +
+        '- 15:40 energy 2/5 — Crashed\n\n'
+    );
+  });
+
+  it('shows the derived mood when no manual check-in has a mood', async () => {
+    mockEmptyDiary();
+    vi.mocked(moodRepository.getCheckinsForDate).mockResolvedValue([
+      moodRow({ mood_value: null, energy_value: 4 }),
+    ]);
+    vi.mocked(moodRepository.getLegacyMoodEntryForDate).mockResolvedValue(
+      legacyRow({ id: 'mood-g', mood_value: 60, source: 'garmin' })
+    );
+
+    const result = await tools.sparky_manage_checkin.execute!(
+      { action: 'list_checkin_diary', entry_date: '2026-06-01' },
+      opts
+    );
+
+    expect(result).toBe(
+      '### Check-in Diary: 2026-06-01\n\n' +
+        '## Mood\n' +
+        '- 12:00 energy 4/5\n' +
+        '- Derived mood (garmin): 6/10\n\n'
+    );
+  });
+
+  it('shows a Garmin-only day as the derived mood', async () => {
+    mockEmptyDiary();
+    vi.mocked(moodRepository.getLegacyMoodEntryForDate).mockResolvedValue(
+      legacyRow({ id: 'mood-g', mood_value: 60, source: 'garmin' })
+    );
+
+    const result = await tools.sparky_manage_checkin.execute!(
+      { action: 'list_checkin_diary', entry_date: '2026-06-01' },
+      opts
+    );
+
+    expect(result).toBe(
+      '### Check-in Diary: 2026-06-01\n\n' +
+        '## Mood\n' +
+        '- Derived mood (garmin): 6/10\n\n'
+    );
+  });
+
+  it('hides the derived mood when a manual check-in has a mood', async () => {
+    mockEmptyDiary();
+    vi.mocked(moodRepository.getCheckinsForDate).mockResolvedValue([
+      moodRow({ mood_value: 80 }),
+    ]);
+    vi.mocked(moodRepository.getLegacyMoodEntryForDate).mockResolvedValue(
+      legacyRow({ id: 'mood-g', mood_value: 20, source: 'garmin' })
+    );
+
+    const result = await tools.sparky_manage_checkin.execute!(
+      { action: 'list_checkin_diary', entry_date: '2026-06-01' },
+      opts
+    );
+
+    expect(String(result)).not.toContain('Derived');
+    expect(result).toContain('- 12:00 8/10\n');
   });
 
   it('defaults to today and reports an empty diary', async () => {
@@ -1298,7 +1421,7 @@ describe('error handling', () => {
   });
 
   it('returns DB_ERROR for other failures', async () => {
-    vi.mocked(moodRepository.createOrUpdateMoodEntry).mockRejectedValue(
+    vi.mocked(moodRepository.createCheckin).mockRejectedValue(
       new Error('boom')
     );
 
@@ -1310,9 +1433,9 @@ describe('error handling', () => {
     expect(result).toBe(DB_ERROR_TEXT);
   });
 
-  it('normalizes nested log_mood and defaults mood_value to 5', async () => {
-    vi.mocked(moodRepository.createOrUpdateMoodEntry).mockResolvedValue(
-      moodRow({ id: 'mood-1' })
+  it('normalizes nested log_mood and logs notes with no mood', async () => {
+    vi.mocked(moodRepository.createCheckin).mockResolvedValue(
+      moodRow({ mood_value: null, notes: 'Anxious today' })
     );
 
     const result = await tools.sparky_manage_checkin.execute!(
@@ -1320,20 +1443,22 @@ describe('error handling', () => {
       opts
     );
 
-    expect(result).toBe('✅ Mood logged for 2026-06-01: 5/10 — Anxious today.');
-    expect(moodRepository.createOrUpdateMoodEntry).toHaveBeenCalledWith(
-      'user-1',
-      50,
-      'Anxious today',
-      '2026-06-01',
-      null,
-      { energyValue: undefined, focusValue: undefined }
+    expect(result).toBe(
+      '✅ Check-in logged for 2026-06-01 at 12:00: Anxious today.'
     );
+    expect(moodRepository.createCheckin).toHaveBeenCalledWith('user-1', {
+      moodValue: null,
+      notes: 'Anxious today',
+      moodTags: null,
+      energyValue: undefined,
+      focusValue: undefined,
+      entryDate: '2026-06-01',
+    });
   });
 
-  it('infers log_mood from notes only and defaults mood_value to 5', async () => {
-    vi.mocked(moodRepository.createOrUpdateMoodEntry).mockResolvedValue(
-      moodRow({ id: 'mood-1' })
+  it('infers log_mood from notes only without inventing a mood', async () => {
+    vi.mocked(moodRepository.createCheckin).mockResolvedValue(
+      moodRow({ mood_value: null, notes: 'Anxious today' })
     );
 
     const result = await tools.sparky_manage_checkin.execute!(
@@ -1341,20 +1466,21 @@ describe('error handling', () => {
       opts
     );
 
-    expect(result).toBe('✅ Mood logged for 2026-06-01: 5/10 — Anxious today.');
-    expect(moodRepository.createOrUpdateMoodEntry).toHaveBeenCalledWith(
-      'user-1',
-      50,
-      'Anxious today',
-      '2026-06-01',
-      null,
-      { energyValue: undefined, focusValue: undefined }
+    expect(result).toBe(
+      '✅ Check-in logged for 2026-06-01 at 12:00: Anxious today.'
     );
+    expect(
+      vi.mocked(moodRepository.createCheckin).mock.calls[0]![1].moodValue
+    ).toBeNull();
   });
 
   it('logs mood with explicit mood_tags', async () => {
-    vi.mocked(moodRepository.createOrUpdateMoodEntry).mockResolvedValue(
-      moodRow({ id: 'mood-1' })
+    vi.mocked(moodRepository.createCheckin).mockResolvedValue(
+      moodRow({
+        mood_value: 80,
+        notes: 'Feeling good',
+        mood_tags: ['anxious', 'tired'],
+      })
     );
 
     const result = await tools.sparky_manage_checkin.execute!(
@@ -1369,15 +1495,15 @@ describe('error handling', () => {
     );
 
     expect(result).toBe(
-      '✅ Mood logged for 2026-06-01: 8/10 [😰 Anxious, 😴 Tired] — Feeling good.'
+      '✅ Check-in logged for 2026-06-01 at 12:00: 8/10 [😰 Anxious, 😴 Tired] — Feeling good.'
     );
-    expect(moodRepository.createOrUpdateMoodEntry).toHaveBeenCalledWith(
-      'user-1',
-      80,
-      'Feeling good',
-      '2026-06-01',
-      ['anxious', 'tired'],
-      { energyValue: undefined, focusValue: undefined }
-    );
+    expect(moodRepository.createCheckin).toHaveBeenCalledWith('user-1', {
+      moodValue: 80,
+      notes: 'Feeling good',
+      moodTags: ['anxious', 'tired'],
+      energyValue: undefined,
+      focusValue: undefined,
+      entryDate: '2026-06-01',
+    });
   });
 });

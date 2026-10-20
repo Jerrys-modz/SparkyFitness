@@ -257,45 +257,8 @@ describe('moodRepository', () => {
     });
   });
 
-  describe('deprecated wrappers', () => {
-    it('createOrUpdateMoodEntry delegates to the legacy upsert without ON CONFLICT (user_id, entry_date)', async () => {
-      await moodRepository.createOrUpdateMoodEntry(
-        'u1',
-        60,
-        null,
-        '2026-10-20'
-      );
-      const sqls = query.mock.calls.map((c) => c[0] as string).join('\n');
-      expect(sqls).not.toContain('ON CONFLICT (user_id, entry_date)');
-    });
-
-    it('updateMoodEntry keeps omitted ratings and sets supplied ones', async () => {
-      await moodRepository.updateMoodEntry('m1', 'u1', null, undefined, null, {
-        focusValue: 5,
-      });
-      const params = query.mock.calls[0][1];
-      // mood, notes, tags absent; energy absent; focus set
-      expect(params.slice(2)).toEqual([
-        false,
-        null,
-        false,
-        null,
-        false,
-        null,
-        false,
-        null,
-        true,
-        5,
-        false,
-        null,
-        false,
-        null,
-      ]);
-    });
-  });
-
   it('returns energy, focus, timestamp and source from every read', async () => {
-    await moodRepository.getMoodEntryByDate('u1', '2026-10-20');
+    await moodRepository.getLegacyMoodEntryForDate('u1', '2026-10-20');
     expect(query.mock.calls[0][0]).toContain('energy_value, focus_value');
     expect(query.mock.calls[0][0]).toContain('entry_timestamp, source');
   });

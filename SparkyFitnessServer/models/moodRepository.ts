@@ -358,41 +358,6 @@ async function updateMoodEntryFields(
   }
 }
 
-/** @deprecated Use upsertLegacyMoodEntry (legacy clients) or createCheckin (v2). */
-async function createOrUpdateMoodEntry(
-  userId: string,
-  moodValue: number,
-  notes: string | null | undefined,
-  entryDate: string | Date,
-  moodTags: string[] | null = null,
-  ratings: MoodRatingsInput = {}
-): Promise<LegacyMoodEntryRow> {
-  return upsertLegacyMoodEntry(userId, {
-    moodValue,
-    notes,
-    moodTags,
-    entryDate: entryDate as string,
-    ...ratings,
-  });
-}
-
-/** @deprecated Use updateMoodEntryFields. Null mood, notes and tags keep the stored value. */
-async function updateMoodEntry(
-  moodEntryId: string,
-  userId: string,
-  moodValue: number | null,
-  notes: string | null | undefined,
-  moodTags: string[] | null = null,
-  ratings: MoodRatingsInput = {}
-): Promise<MoodEntryRow | undefined> {
-  return updateMoodEntryFields(moodEntryId, userId, {
-    ...(moodValue !== null && { moodValue }),
-    ...(notes !== null && notes !== undefined && { notes }),
-    ...(moodTags !== null && { moodTags }),
-    ...ratings,
-  });
-}
-
 async function deleteMoodEntry(moodEntryId: string, userId: string) {
   const client = await getClient(userId); // User-specific operation
   try {
@@ -404,14 +369,6 @@ async function deleteMoodEntry(moodEntryId: string, userId: string) {
   } finally {
     client.release();
   }
-}
-
-/** @deprecated Use getLegacyMoodEntryForDate (legacy) or getCheckinsForDate (v2). */
-async function getMoodEntryByDate(
-  userId: string,
-  entryDate: string
-): Promise<LegacyMoodEntryRow | undefined> {
-  return getLegacyMoodEntryForDate(userId, entryDate);
 }
 
 // --- Custom moods (user-defined mood tags; mirrors user_custom_symptoms) -----
@@ -550,12 +507,9 @@ export {
   upsertLegacyMoodEntry,
   getCheckinsForDate,
   updateMoodEntryFields,
-  createOrUpdateMoodEntry,
   getMoodEntriesByUserId,
   getMoodEntryById,
-  updateMoodEntry,
   deleteMoodEntry,
-  getMoodEntryByDate,
   listCustomMoods,
   createCustomMood,
   deleteCustomMood,
@@ -570,12 +524,9 @@ export default {
   upsertLegacyMoodEntry,
   getCheckinsForDate,
   updateMoodEntryFields,
-  createOrUpdateMoodEntry,
   getMoodEntriesByUserId,
   getMoodEntryById,
-  updateMoodEntry,
   deleteMoodEntry,
-  getMoodEntryByDate,
   listCustomMoods,
   createCustomMood,
   deleteCustomMood,
