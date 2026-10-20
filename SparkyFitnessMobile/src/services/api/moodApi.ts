@@ -6,6 +6,8 @@ export interface MoodEntry {
   mood_tags: string[] | null;
   notes: string | null;
   entry_date: string;
+  energy_value?: number | null;
+  focus_value?: number | null;
 }
 
 export interface CustomMood {
@@ -21,6 +23,9 @@ export interface SaveMoodEntryBody {
   mood_tags: string[];
   notes: string;
   entry_date: string;
+  /** Omit to leave the stored rating untouched; `null` clears it. */
+  energy_value?: number | null;
+  focus_value?: number | null;
 }
 
 const SERVICE = 'Mood API';

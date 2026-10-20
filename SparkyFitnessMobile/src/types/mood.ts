@@ -6,4 +6,7 @@ export interface MoodEntry {
   mood_value: number;
   mood_tags: string[] | null;
   notes: string | null;
+  /** 1-5; absent on servers that predate energy and focus. */
+  energy_value?: number | null;
+  focus_value?: number | null;
 }
