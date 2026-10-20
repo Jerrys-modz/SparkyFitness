@@ -191,121 +191,127 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
         </MapView>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          className="absolute left-0 right-0 bottom-0 bg-surface px-4 pt-3"
-          style={{ paddingBottom: insets.bottom + 12 }}
+          className="absolute left-0 right-0 bottom-0 bg-surface"
         >
-          <TextInput
-            className="border-b border-border-subtle text-text-primary py-1"
-            style={{ fontSize: 16 }}
-            value={name}
-            onChangeText={setName}
-            maxLength={100}
-            placeholder={t('routes.namePlaceholder', {
-              defaultValue: 'Name this route',
-            })}
-            accessibilityLabel={t('routes.nameLabel', {
-              defaultValue: 'Route name',
-            })}
-          />
-          {available ? (
-            <View className="flex-row items-center justify-between mt-3">
-              <Text className="text-text-primary text-base">
-                {t('routes.followRoads', { defaultValue: 'Follow roads' })}
-              </Text>
-              <Switch
-                value={followRoads}
-                onValueChange={setFollowRoads}
-                accessibilityLabel={t('routes.followRoads', {
-                  defaultValue: 'Follow roads',
-                })}
-              />
-            </View>
-          ) : !checkingCapabilities ? (
-            <View
-              className="mt-3 opacity-60"
-              accessible
-              accessibilityState={{ disabled: true }}
-              accessibilityLabel={`${t('routes.followRoads', {
-                defaultValue: 'Follow roads',
-              })}. ${t('routes.followRoadsNeedsProvider', {
-                defaultValue:
-                  'A routing provider is needed. Add one in Settings > External Providers on the web app.',
-              })}`}
-            >
-              <View className="flex-row items-center justify-between">
+          {/* The padding lives inside: on iOS the avoiding view sets its own
+              paddingBottom and would replace the safe-area one. */}
+          <View
+            className="px-4 pt-3"
+            style={{ paddingBottom: insets.bottom + 12 }}
+          >
+            <TextInput
+              className="border-b border-border-subtle text-text-primary py-1"
+              style={{ fontSize: 16 }}
+              value={name}
+              onChangeText={setName}
+              maxLength={100}
+              placeholder={t('routes.namePlaceholder', {
+                defaultValue: 'Name this route',
+              })}
+              accessibilityLabel={t('routes.nameLabel', {
+                defaultValue: 'Route name',
+              })}
+            />
+            {available ? (
+              <View className="flex-row items-center justify-between mt-3">
                 <Text className="text-text-primary text-base">
                   {t('routes.followRoads', { defaultValue: 'Follow roads' })}
                 </Text>
-                <Switch value={false} disabled />
-              </View>
-              <Text className="text-text-secondary text-sm mt-1">
-                {t('routes.followRoadsNeedsProvider', {
-                  defaultValue:
-                    'A routing provider is needed. Add one in Settings > External Providers on the web app.',
-                })}
-              </Text>
-            </View>
-          ) : null}
-          {snapping && snap.error ? (
-            <View className="flex-row items-center justify-between mt-2">
-              <Text className="text-text-secondary text-sm flex-1 mr-3">
-                {routeGenerateErrorMessage(snap.error, t)}
-              </Text>
-              <Button variant="secondary" onPress={snap.retry}>
-                {t('common.retry', { defaultValue: 'Retry' })}
-              </Button>
-            </View>
-          ) : null}
-          {atWaypointLimit ? (
-            <Text className="text-text-secondary text-sm mt-2">
-              {t('routes.followRoadsLimit', {
-                defaultValue:
-                  'Following roads takes up to {{max}} points. Undo a point to add another.',
-                max: ROUTE_FOLLOW_ROADS_MAX_POINTS,
-              })}
-            </Text>
-          ) : null}
-          <View className="flex-row items-center justify-between mt-3">
-            <View className="flex-1 mr-3 flex-row items-center">
-              <Text className="text-text-primary text-base font-semibold">
-                {points.length < 2
-                  ? t('routes.drawHint', {
-                      defaultValue: 'Tap the map to add points',
-                    })
-                  : formatRouteDistance(distance, unit)}
-                {snapped
-                  ? ` · ${t('routes.turnCount', {
-                      count: countRouteTurns(snapped.cues),
-                      defaultValue: '{{count}} turns',
-                      defaultValue_one: '{{count}} turn',
-                      defaultValue_other: '{{count}} turns',
-                    })}`
-                  : ''}
-              </Text>
-              {snap.isLoading ? (
-                <ActivityIndicator
-                  className="ml-2"
-                  accessibilityLabel={t('routes.findingRoute', {
-                    defaultValue: 'Finding a route',
+                <Switch
+                  value={followRoads}
+                  onValueChange={setFollowRoads}
+                  accessibilityLabel={t('routes.followRoads', {
+                    defaultValue: 'Follow roads',
                   })}
                 />
-              ) : null}
-            </View>
-            <View className="flex-row gap-2">
-              <Button
-                variant="secondary"
-                disabled={points.length === 0}
-                onPress={() => setPoints((current) => current.slice(0, -1))}
+              </View>
+            ) : !checkingCapabilities ? (
+              <View
+                className="mt-3 opacity-60"
+                accessible
+                accessibilityState={{ disabled: true }}
+                accessibilityLabel={`${t('routes.followRoads', {
+                  defaultValue: 'Follow roads',
+                })}. ${t('routes.followRoadsNeedsProvider', {
+                  defaultValue:
+                    'A routing provider is needed. Add one in Settings > External Providers on the web app.',
+                })}`}
               >
-                {t('routes.undo', { defaultValue: 'Undo' })}
-              </Button>
-              <Button
-                variant="secondary"
-                disabled={points.length === 0}
-                onPress={() => setPoints([])}
-              >
-                {t('routes.clear', { defaultValue: 'Clear' })}
-              </Button>
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-text-primary text-base">
+                    {t('routes.followRoads', { defaultValue: 'Follow roads' })}
+                  </Text>
+                  <Switch value={false} disabled />
+                </View>
+                <Text className="text-text-secondary text-sm mt-1">
+                  {t('routes.followRoadsNeedsProvider', {
+                    defaultValue:
+                      'A routing provider is needed. Add one in Settings > External Providers on the web app.',
+                  })}
+                </Text>
+              </View>
+            ) : null}
+            {snapping && snap.error ? (
+              <View className="flex-row items-center justify-between mt-2">
+                <Text className="text-text-secondary text-sm flex-1 mr-3">
+                  {routeGenerateErrorMessage(snap.error, t)}
+                </Text>
+                <Button variant="secondary" onPress={snap.retry}>
+                  {t('common.retry', { defaultValue: 'Retry' })}
+                </Button>
+              </View>
+            ) : null}
+            {atWaypointLimit ? (
+              <Text className="text-text-secondary text-sm mt-2">
+                {t('routes.followRoadsLimit', {
+                  defaultValue:
+                    'Following roads takes up to {{max}} points. Undo a point to add another.',
+                  max: ROUTE_FOLLOW_ROADS_MAX_POINTS,
+                })}
+              </Text>
+            ) : null}
+            <View className="flex-row items-center justify-between mt-3">
+              <View className="flex-1 mr-3 flex-row items-center">
+                <Text className="text-text-primary text-base font-semibold">
+                  {points.length < 2
+                    ? t('routes.drawHint', {
+                        defaultValue: 'Tap the map to add points',
+                      })
+                    : formatRouteDistance(distance, unit)}
+                  {snapped
+                    ? ` · ${t('routes.turnCount', {
+                        count: countRouteTurns(snapped.cues),
+                        defaultValue: '{{count}} turns',
+                        defaultValue_one: '{{count}} turn',
+                        defaultValue_other: '{{count}} turns',
+                      })}`
+                    : ''}
+                </Text>
+                {snap.isLoading ? (
+                  <ActivityIndicator
+                    className="ml-2"
+                    accessibilityLabel={t('routes.findingRoute', {
+                      defaultValue: 'Finding a route',
+                    })}
+                  />
+                ) : null}
+              </View>
+              <View className="flex-row gap-2">
+                <Button
+                  variant="secondary"
+                  disabled={points.length === 0}
+                  onPress={() => setPoints((current) => current.slice(0, -1))}
+                >
+                  {t('routes.undo', { defaultValue: 'Undo' })}
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={points.length === 0}
+                  onPress={() => setPoints([])}
+                >
+                  {t('routes.clear', { defaultValue: 'Clear' })}
+                </Button>
+              </View>
             </View>
           </View>
         </KeyboardAvoidingView>
