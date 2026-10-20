@@ -276,10 +276,15 @@ export function summarizeCheckins(rows: MoodRowLike[]): {
   };
 }
 
+function max(values: number[]): number | null {
+  return values.length === 0 ? null : Math.max(...values);
+}
+
 /**
  * One mood per day for charting: the rounded mean of the day's manual moods,
- * else garmin, else import. Days with no mood are omitted; ascending by date.
- * Mirrors the server's DAILY_MOOD_VALUE_SQL.
+ * else the highest garmin mood, else the highest import mood. Days with no mood
+ * are omitted; ascending by date. Mirrors the server's DAILY_MOOD_VALUE_SQL,
+ * which takes AVG over manual rows and MAX(...) FILTER over garmin and import.
  */
 export function dailyMoodSeries(
   rows: MoodRowLike[]
@@ -296,7 +301,7 @@ export function dailyMoodSeries(
   }
   const series: { date: string; mood_value: number }[] = [];
   for (const [date, day] of bySource) {
-    const value = mean(day.manual) ?? mean(day.garmin) ?? mean(day.import);
+    const value = mean(day.manual) ?? max(day.garmin) ?? max(day.import);
     if (value != null) series.push({ date, mood_value: Math.round(value) });
   }
   return series.sort((a, b) =>

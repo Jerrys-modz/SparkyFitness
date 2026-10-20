@@ -29,6 +29,15 @@ describe('summarizeCheckins', () => {
     expect(summary).toEqual({ mood: 60, energy: 2.5, focus: null, count: 3 });
   });
 
+  test('rounds the energy mean to one decimal', () => {
+    const summary = summarizeCheckins([
+      row('2026-10-20', 'manual', null, 2),
+      row('2026-10-20', 'manual', null, 2),
+      row('2026-10-20', 'manual', null, 3),
+    ]);
+    expect(summary.energy).toBe(2.3);
+  });
+
   test('returns nulls and zero count for no manual rows', () => {
     expect(summarizeCheckins([row('2026-10-20', 'garmin', 30)])).toEqual({
       mood: null,
@@ -55,6 +64,20 @@ describe('dailyMoodSeries', () => {
       { date: '2026-09-30', mood_value: 30 },
       { date: '2026-10-01', mood_value: 61 },
       { date: '2026-10-02', mood_value: 20 },
+    ]);
+  });
+
+  // DAILY_MOOD_VALUE_SQL takes MAX(...) FILTER for garmin and import.
+  test('takes the highest garmin or import mood of a day, like the server', () => {
+    const series = dailyMoodSeries([
+      row('2026-10-01', 'garmin', 20),
+      row('2026-10-01', 'garmin', 41),
+      row('2026-10-02', 'import', 30),
+      row('2026-10-02', 'import', 75),
+    ]);
+    expect(series).toEqual([
+      { date: '2026-10-01', mood_value: 41 },
+      { date: '2026-10-02', mood_value: 75 },
     ]);
   });
 });
