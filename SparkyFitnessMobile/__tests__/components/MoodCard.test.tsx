@@ -55,7 +55,7 @@ describe('MoodCard on Dashboard', () => {
     expect(getByText('No mood logged for this day')).toBeTruthy();
     expect(getByLabelText(`Mood on ${DATE}: none logged`)).toBeTruthy();
     fireEvent.press(getByText('+ Log'));
-    expect(mockNavigate).toHaveBeenCalledWith('MoodDay', { date: DATE });
+    expect(mockNavigate).toHaveBeenCalledWith('MoodLog', { date: DATE });
   });
 
   it("shows the day's mood face and label when logged", () => {

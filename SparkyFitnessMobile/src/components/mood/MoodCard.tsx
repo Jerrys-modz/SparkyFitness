@@ -82,6 +82,8 @@ export default function MoodCard({ navigation, date }: MoodCardProps) {
       });
 
   const openDay = () => navigation.navigate('MoodDay', { date: selectedDate });
+  const openNewCheckin = () =>
+    navigation.navigate('MoodLog', { date: selectedDate });
 
   return (
     <Pressable
@@ -112,7 +114,7 @@ export default function MoodCard({ navigation, date }: MoodCardProps) {
             })}
           </Text>
           <TouchableOpacity
-            onPress={openDay}
+            onPress={openNewCheckin}
             className="px-2.5 py-1.5 rounded-lg bg-accent-primary"
           >
             <Text className="text-xs font-semibold text-white">

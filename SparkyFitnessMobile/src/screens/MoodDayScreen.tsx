@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
@@ -135,7 +135,12 @@ function MoodDayContent({
   const averageTag = moodTagForValue(average.mood);
   const averageMood = averageTag ? moodByName(averageTag) : null;
 
+  // Set at once, so a second confirm sent before the next render is dropped.
+  const deleteInFlight = useRef(false);
+
   const handleDelete = async (id: string) => {
+    if (deleteInFlight.current) return;
+    deleteInFlight.current = true;
     try {
       await deleteCheckin.mutateAsync(id);
     } catch (error) {
@@ -145,6 +150,8 @@ function MoodDayContent({
           getApiErrorMessage(error) ??
           t('mood.deleteFailed', { defaultValue: 'Could not delete check-in' }),
       });
+    } finally {
+      deleteInFlight.current = false;
     }
   };
 
@@ -170,11 +177,13 @@ function MoodDayContent({
         </Text>
       )}
       {rows.length === 0 ? (
-        <Text className="py-6 text-center text-sm text-text-secondary">
-          {t('mood.noCheckins', {
-            defaultValue: 'No check-ins yet for this day.',
-          })}
-        </Text>
+        !isError && (
+          <Text className="py-6 text-center text-sm text-text-secondary">
+            {t('mood.noCheckins', {
+              defaultValue: 'No check-ins yet for this day.',
+            })}
+          </Text>
+        )
       ) : (
         <>
           <View className="bg-surface rounded-xl p-3 gap-1.5">
@@ -185,6 +194,8 @@ function MoodDayContent({
               <Text className="text-xs text-text-muted">
                 {t('mood.checkinCount', {
                   defaultValue: '{{count}} check-ins',
+                  defaultValue_one: '{{count}} check-in',
+                  defaultValue_other: '{{count}} check-ins',
                   count: average.count,
                 })}
               </Text>

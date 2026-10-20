@@ -16,11 +16,12 @@ const DATE = '2026-10-14';
 const mockDeleteMutateAsync = jest.fn();
 let mockCheckins: MoodEntry[] | null = [];
 let mockCheckinsLoading = false;
+let mockCheckinsError = false;
 jest.mock('../../src/hooks/useMood', () => ({
   useMoodCheckinsForDate: () => ({
     checkins: mockCheckins,
     isLoading: mockCheckinsLoading,
-    isError: false,
+    isError: mockCheckinsError,
   }),
   useCustomMoods: () => [],
   useDeleteMoodCheckin: () => ({
@@ -127,6 +128,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockCheckins = threeCheckins();
   mockCheckinsLoading = false;
+  mockCheckinsError = false;
   mockCheckinsSupport = { supported: true, isLoading: false };
   mockDeleteMutateAsync.mockResolvedValue(undefined);
 });
@@ -170,6 +172,20 @@ describe('MoodDayScreen', () => {
     expect(screen.getByText(/Happy/)).toBeTruthy();
     expect(screen.getAllByText('Energy 3.5/5').length).toBe(1);
     expect(screen.getAllByText('Focus 4/5').length).toBeGreaterThan(0);
+  });
+
+  it('shows the load error without the empty state', () => {
+    mockCheckins = null;
+    mockCheckinsError = true;
+    renderScreen();
+    expect(screen.getByText("Could not load this day's mood")).toBeTruthy();
+    expect(screen.queryByText('No check-ins yet for this day.')).toBeNull();
+  });
+
+  it('says "1 check-in" for a single check-in', () => {
+    mockCheckins = [checkin('a', '08:10')];
+    renderScreen();
+    expect(screen.getByText('1 check-in')).toBeTruthy();
   });
 
   it('shows a dash when no check-in has a mood', () => {
@@ -258,6 +274,20 @@ describe('MoodDayScreen', () => {
       expect(Toast.show).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'error', text1: 'Not your check-in.' })
       );
+    });
+
+    it('sends one delete when a second is confirmed while the first is pending', async () => {
+      let resolveDelete: () => void = () => {};
+      mockDeleteMutateAsync.mockReturnValue(
+        new Promise<void>((resolve) => {
+          resolveDelete = resolve;
+        })
+      );
+      renderScreen();
+      await confirmDelete();
+      await confirmDelete();
+      expect(mockDeleteMutateAsync).toHaveBeenCalledTimes(1);
+      await act(async () => resolveDelete());
     });
 
     it('falls back to the generic message when the server gives none', async () => {
