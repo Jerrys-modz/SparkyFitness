@@ -425,3 +425,9 @@ export const runProgramQueryKey = ['runProgram'] as const;
 
 /** The person's own saved run programs. */
 export const customRunProgramsQueryKey = ['customRunPrograms'] as const;
+
+/** The person's saved routes (summaries). */
+export const routesQueryKey = ['routes'] as const;
+
+/** One saved route with its points and cues. */
+export const routeQueryKey = (id: string) => ['routes', id] as const;
