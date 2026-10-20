@@ -18,8 +18,16 @@ import { useUpdateFastMutation } from '@/hooks/Fasting/useFasting';
 import { FastingLog } from '@/types/fasting';
 import { CombinedMeasurement } from '@/types/checkin';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
-import { Timer, Activity, Moon, Camera, HeartPulse } from 'lucide-react';
+import {
+  Timer,
+  Activity,
+  Moon,
+  Camera,
+  HeartPulse,
+  Sparkles,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { MindfulnessSection } from './MindfulnessSection';
 
 const CheckIn = () => {
   const { user } = useAuth();
@@ -122,6 +130,11 @@ const CheckIn = () => {
                 id: 'fasting',
                 label: t('checkIn.tabs.fasting', 'Fasting & Mood'),
                 icon: Timer,
+              },
+              {
+                id: 'mindfulness',
+                label: t('checkIn.tabs.mindfulness', 'Mindfulness'),
+                icon: Sparkles,
               },
               {
                 id: 'sleep',
@@ -269,12 +282,26 @@ const CheckIn = () => {
           />
         </TabsContent>
 
+        <TabsContent value="mindfulness" className="focus-visible:outline-none">
+          <MindfulnessSection selectedDate={selectedDate} />
+        </TabsContent>
+
         <TabsContent value="sleep" className="focus-visible:outline-none">
           <SleepEntrySection key={selectedDate} selectedDate={selectedDate} />
         </TabsContent>
 
         <TabsContent value="photos" className="focus-visible:outline-none">
-          <CheckInPhotos selectedDate={selectedDate} />
+          <CheckInPhotos
+            selectedDate={selectedDate}
+            onLogWeight={(dateString) => {
+              setSelectedDate(dateString);
+              setSearchParams((prev) => {
+                prev.set('tab', 'measurements');
+                prev.set('date', dateString);
+                return prev;
+              });
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="symptoms" className="focus-visible:outline-none">

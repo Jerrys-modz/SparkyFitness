@@ -1,7 +1,7 @@
 import {
   isBodyweightModality,
   type ExerciseModality,
-} from "../constants/exercise.ts";
+} from '../constants/exercise.ts';
 
 /**
  * The weight a set actually moved, in kg: the one number volume, estimated
@@ -21,7 +21,7 @@ import {
 export function effectiveLoadKg(
   weightKg: number | null | undefined,
   modality: ExerciseModality,
-  bodyWeightKg: number | null | undefined,
+  bodyWeightKg: number | null | undefined
 ): number {
   const weight = Number(weightKg) || 0;
   if (!isBodyweightModality(modality)) return weight;
@@ -33,7 +33,7 @@ export function effectiveLoadKg(
 export function setVolumeKg(
   set: { weight?: number | null; reps?: number | null },
   modality: ExerciseModality,
-  bodyWeightKg: number | null | undefined,
+  bodyWeightKg: number | null | undefined
 ): number {
   return (
     effectiveLoadKg(set.weight, modality, bodyWeightKg) *
@@ -47,7 +47,7 @@ export function setVolumeKg(
  */
 export function epleyOneRepMaxKg(
   loadKg: number | null | undefined,
-  reps: number | null | undefined,
+  reps: number | null | undefined
 ): number {
   const load = Number(loadKg) || 0;
   const count = Number(reps) || 0;
@@ -81,7 +81,7 @@ export function effortAdjustedOneRepMaxKg(
  */
 export function bodyWeightOnDay(
   readings: readonly { date: string; weightKg: number | null | undefined }[],
-  day: string,
+  day: string
 ): number | null {
   let before: { date: string; weightKg: number } | null = null;
   let after: { date: string; weightKg: number } | null = null;

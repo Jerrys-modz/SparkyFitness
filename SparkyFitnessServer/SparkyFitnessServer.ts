@@ -13,6 +13,7 @@ import { bridgeBearerAuthHeader } from './utils/bearerAuthBridge.js';
 import { endPool } from './db/poolManager.js';
 import { log } from './config/logging.js';
 import { authenticate } from './middleware/authMiddleware.js';
+import { isReadOnlyApiKeyAuthMutation } from './middleware/readOnlyApiKeyGuard.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { applySignOutCookieCleanup } from './middleware/signOutCookieCleanup.js';
 import {
@@ -45,6 +46,7 @@ import dashboardLayoutRoutes from './routes/dashboardLayoutRoutes.js';
 import nutrientDisplayPreferenceRoutes from './routes/nutrientDisplayPreferenceRoutes.js';
 import nutrientGoalPreferenceRoutes from './routes/nutrientGoalPreferenceRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
+import foodAssistantRoutes from './routes/v2/foodAssistantRoutes.js';
 import measurementRoutes from './routes/measurementRoutes.js';
 import checkInPhotoRoutes from './routes/checkInPhotoRoutes.js';
 import goalRoutes from './routes/goalRoutes.js';
@@ -94,6 +96,9 @@ import cycleRoutesV2 from './routes/v2/cycleRoutes.js';
 import pregnancyRoutesV2 from './routes/v2/pregnancyRoutes.js';
 import reportRoutesV2 from './routes/v2/reportRoutes.js';
 import nutritionKineticsRoutesV2 from './routes/v2/nutritionKineticsRoutes.js';
+import mindfulnessRoutesV2 from './routes/v2/mindfulnessRoutes.js';
+import runProgramRoutesV2 from './routes/v2/runProgramRoutes.js';
+import shoeRoutesV2 from './routes/v2/shoeRoutes.js';
 import backupRoutes from './routes/backupRoutes.js';
 import errorHandler from './middleware/errorHandler.js';
 import reviewRoutes from './routes/reviewRoutes.js';
@@ -421,6 +426,17 @@ app.use(async (req, res, next) => {
       );
     }
 
+    // A read-only API key must not reach Better Auth's own mutations either
+    // (creating a new full-access key, changing the password, ...). These
+    // routes never pass through `authenticate`, so check here (issue #2678).
+    if (await isReadOnlyApiKeyAuthMutation(req)) {
+      log(
+        'warn',
+        `[AUTH HANDLER] Read-only API key refused for ${req.method} ${req.path}`
+      );
+      return res.status(403).json({ error: 'This API key is read-only.' });
+    }
+
     // 2. Manual Sign-Out Cleanup: preserve sparky_active_user_id delete
     // cookie across Better Auth's own Set-Cookie writes.
     if (req.method === 'POST' && req.path === '/api/auth/sign-out') {
@@ -710,6 +726,7 @@ app.get('/api/ping', (_req, res) =>
 );
 // Mounting all API routes
 app.use('/api/chat', chatRoutes);
+app.use('/api/v2/food-assistant', foodAssistantRoutes);
 app.use('/api/ai', aiUnitConversionRoutes);
 app.use('/api/foods', foodRoutes);
 app.use('/api/favorites', favoritesRoutes);
@@ -779,6 +796,9 @@ app.use('/api/v2/cycle', cycleRoutesV2);
 app.use('/api/v2/pregnancy', pregnancyRoutesV2);
 app.use('/api/v2/reports', reportRoutesV2);
 app.use('/api/v2/nutrition', nutritionKineticsRoutesV2);
+app.use('/api/v2/mindfulness', mindfulnessRoutesV2);
+app.use('/api/v2/run-program', runProgramRoutesV2);
+app.use('/api/v2/shoes', shoeRoutesV2);
 app.use('/api/workout-presets', workoutPresetRoutes);
 app.use('/api/workout-plan-templates', workoutPlanTemplateRoutes);
 app.use('/api/review', reviewRoutes);

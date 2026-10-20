@@ -54,11 +54,13 @@ jest.mock('../../src/services/CalorieWidgetBridge', () => ({
     reloadWidget: jest.fn(() => Promise.resolve()),
     setMacroSnapshot: jest.fn(() => Promise.resolve()),
     reloadMacroWidget: jest.fn(() => Promise.resolve()),
+    clearSnapshots: jest.fn(() => Promise.resolve()),
     isAvailable: true,
   },
 }));
 
 import { CalorieWidgetBridge } from '../../src/services/CalorieWidgetBridge';
+import { clearAndroidWidgetSnapshots } from '../../src/services/androidWidgetSyncService';
 
 const setMock = (ExtensionStorage as any).__mockSet as jest.Mock;
 const getMock = (ExtensionStorage as any).__mockGet as jest.Mock;
@@ -151,6 +153,30 @@ describe('useWidgetSync', () => {
     );
     expect(reloadedKinds).toHaveLength(2);
     expect(mockAddLog).not.toHaveBeenCalled();
+  });
+
+  it('writes and reloads the water snapshot when water info is given', () => {
+    renderHook(() =>
+      useWidgetSync(makeSummary({ waterConsumed: 473, waterGoal: 2000 }), {
+        drinkMl: 473.176,
+        unit: 'oz',
+        canLog: true,
+      })
+    );
+
+    const waterCall = setMock.mock.calls.find(
+      (call) => call[0] === 'waterSnapshot'
+    );
+    expect(waterCall?.[1]).toMatchObject({
+      consumedMl: 473,
+      goalMl: 2000,
+      drinkMl: 473.176,
+      unit: 'oz',
+      canLog: 1,
+    });
+    expect(reloadMock.mock.calls.map((call) => call[0])).toContain(
+      'waterWidget'
+    );
   });
 
   it('writes only the macro snapshot when calorieBalance is undefined', () => {
@@ -271,6 +297,27 @@ describe('useWidgetSync', () => {
     expect(androidReload).toHaveBeenCalledTimes(1);
     expect(androidSetMacroSnapshot).toHaveBeenCalledTimes(1);
     expect(androidReloadMacro).toHaveBeenCalledTimes(1);
+  });
+
+  it('pushes the same Android snapshots again after an account change clears them', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: () => 'android',
+      configurable: true,
+    });
+
+    const { rerender } = renderHook(({ summary }) => useWidgetSync(summary), {
+      initialProps: { summary: makeSummary() },
+    });
+    await flushWidgetPush();
+
+    // The same person signing in again gets the same figures, which the
+    // dedupe would otherwise skip and leave the cleared widgets empty.
+    await clearAndroidWidgetSnapshots();
+    rerender({ summary: makeSummary() });
+    await flushWidgetPush();
+
+    expect(androidSetSnapshot).toHaveBeenCalledTimes(2);
+    expect(androidSetMacroSnapshot).toHaveBeenCalledTimes(2);
   });
 
   it('pushes Android snapshot again when rendered calorie fields change', async () => {
