@@ -1,6 +1,6 @@
 import { getClient } from '../db/poolManager.js';
 
-export const MOOD_ENTRY_COLUMNS =
+const MOOD_ENTRY_COLUMNS =
   'id, user_id, mood_value, energy_value, focus_value, mood_tags, notes, entry_date, entry_timestamp, source, created_at, updated_at';
 
 /**

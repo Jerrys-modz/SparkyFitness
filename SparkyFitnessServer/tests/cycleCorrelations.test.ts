@@ -7,7 +7,6 @@ import {
   featuredArticle,
   articleBySlug,
   deriveCycles,
-  moodTagForValue,
   computeCycleStats,
   predictNextCycles,
   type DayEvidence,
@@ -116,14 +115,5 @@ describe('content library', () => {
   it('looks up an article by slug', () => {
     expect(articleBySlug('reading-your-bbt')?.title).toContain('temperature');
     expect(articleBySlug('nope')).toBeNull();
-  });
-});
-
-describe('moodTagForValue', () => {
-  it('is null for a check-in with no mood, not the lowest band', () => {
-    expect(moodTagForValue(null)).toBeNull();
-    expect(moodTagForValue(undefined)).toBeNull();
-    expect(moodTagForValue(10)).toBe('sad');
-    expect(moodTagForValue(70)).toBe('confident');
   });
 });

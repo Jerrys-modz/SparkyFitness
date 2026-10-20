@@ -642,6 +642,18 @@ describe('Mood Routes', () => {
 
       expect(res.body).toStrictEqual([]);
     });
+
+    it('varies on the version header, since it changes the body', async () => {
+      vi.mocked(moodRepository.getLegacyMoodEntryForDate).mockResolvedValue(
+        undefined
+      );
+      vi.mocked(moodRepository.getCheckinsForDate).mockResolvedValue([]);
+      const legacy = await request(app).get('/mood/date/2026-10-20');
+      const v2 = await request(app).get('/mood/date/2026-10-20').set(V2);
+
+      expect(legacy.headers.vary).toContain('X-Mood-Model-Version');
+      expect(v2.headers.vary).toContain('X-Mood-Model-Version');
+    });
   });
 
   describe('GET /mood', () => {
@@ -659,6 +671,15 @@ describe('Mood Routes', () => {
         '2026-10-31'
       );
       expect(moodRepository.getMoodEntriesByUserId).not.toHaveBeenCalled();
+    });
+
+    it('varies on the version header, since it changes the body', async () => {
+      vi.mocked(moodRepository.getLegacyMoodEntriesInRange).mockResolvedValue(
+        []
+      );
+      const res = await request(app).get(`/mood${query}`).expect(200);
+
+      expect(res.headers.vary).toContain('X-Mood-Model-Version');
     });
 
     it('serves every row to a v2 client', async () => {

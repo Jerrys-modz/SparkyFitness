@@ -250,18 +250,15 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ message: RATINGS_MESSAGE });
     }
     const userId = req.userId;
-    // Catch both an explicit null and a missing/undefined field. A missing
-    // field previously slipped through and hit the DB NOT NULL constraint,
-    // leaking the raw column/table names in the error response.
+    // The one-mood-per-day contract requires a mood, so an explicit null and a
+    // missing field are both rejected.
     if (mood_value === null || mood_value === undefined) {
       return res.status(400).json({ message: 'Mood value is required.' });
     }
-    // The column is `integer NOT NULL` on a 10-100 scale, and this route
-    // checked neither. That is how values below the scale reach the table: a
-    // check-in picker that sends the raw band midpoint stores 8 for Sad. The
-    // web one did until #2495; the mobile one added in #2820 still does.
-    // Anything unparseable is rejected here rather than left to fail on the
-    // column, which would leak its name in the error.
+    // The column holds whole numbers on a 10-100 scale: a value outside it
+    // (such as a band midpoint of 8 for Sad) is brought into range, and an
+    // unparseable one is rejected here so it never reaches the column, whose
+    // error would leak its name.
     const storedMoodValue = clampStoredMoodValue(mood_value);
     if (storedMoodValue === null) {
       return res.status(400).json({ message: 'Mood value must be a number.' });
@@ -377,6 +374,8 @@ router.get('/', async (req, res, next) => {
     const { userId, startDate, endDate } = req.query;
 
     const targetUserId = (userId as string | undefined) || req.userId;
+    // The version header picks the shape of the body.
+    res.vary(MOOD_MODEL_VERSION_HEADER);
     if (!startDate || !endDate) {
       return res
         .status(400)
@@ -461,6 +460,8 @@ router.get('/date/:entryDate', async (req, res, next) => {
     const { userId } = req.query;
 
     const targetUserId = (userId as string | undefined) || req.userId;
+    // The version header picks the shape of the body.
+    res.vary(MOOD_MODEL_VERSION_HEADER);
     if (isV2(req)) {
       return res.json(
         await moodRepository.getCheckinsForDate(targetUserId, entryDate)

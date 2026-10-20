@@ -227,9 +227,9 @@ router.post('/end', async (req, res) => {
     return res.status(400).json({ error: 'Fast ID and end time are required' });
   }
   // The mood lands in the same 10-100 column `POST /api/mood` writes, so it is
-  // brought into range the same way. Checked before either branch writes
-  // anything, so a bad value cannot leave a fast half-ended. A mood with no
-  // value logs nothing, rather than reaching the NOT NULL column as undefined.
+  // brought into range the same way, and an unparseable value is rejected here,
+  // before either branch writes anything, rather than reaching the column. A
+  // mood with no value logs no check-in.
   let storedMoodValue: number | null = null;
   if (mood && mood.value !== null && mood.value !== undefined) {
     storedMoodValue = clampStoredMoodValue(mood.value);
@@ -255,13 +255,6 @@ router.post('/end', async (req, res) => {
           .json({ error: 'start_time must be before end_time' });
       }
 
-      await saveFastingMoodCheckin(
-        userId,
-        storedMoodValue,
-        mood?.notes,
-        end_time
-      );
-
       const durationMinutes = Math.max(
         0,
         Math.round(
@@ -279,6 +272,16 @@ router.post('/end', async (req, res) => {
         durationMinutes,
         fastingType
       );
+      // A retried end finds the fast already recorded (null) and logs no
+      // second mood.
+      if (completed) {
+        await saveFastingMoodCheckin(
+          userId,
+          storedMoodValue,
+          mood?.notes,
+          end_time
+        );
+      }
       return res.json(completed);
     }
 
@@ -290,12 +293,6 @@ router.post('/end', async (req, res) => {
         .status(400)
         .json({ error: 'start_time must be before end_time' });
     }
-    await saveFastingMoodCheckin(
-      userId,
-      storedMoodValue,
-      mood?.notes,
-      end_time
-    );
     const durationMinutes = Math.max(
       0,
       Math.round(
@@ -309,6 +306,15 @@ router.post('/end', async (req, res) => {
       durationMinutes,
       startUsed
     );
+    // Ending a fast that was already completed (a retry) logs no second mood.
+    if (updatedFast && fast.status !== 'COMPLETED') {
+      await saveFastingMoodCheckin(
+        userId,
+        storedMoodValue,
+        mood?.notes,
+        end_time
+      );
+    }
     res.json(updatedFast);
   } catch (error) {
     // @ts-expect-error TS(2571): Object is of type 'unknown'.
