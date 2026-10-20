@@ -1082,7 +1082,7 @@ describe('list_checkin_diary', () => {
       mood_tags: [],
       notes: null,
       entry_date: '2026-06-01',
-    } as any);
+    });
 
     const result = await tools.sparky_manage_checkin.execute!(
       { action: 'list_checkin_diary', entry_date: '2026-06-01' },

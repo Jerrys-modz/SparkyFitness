@@ -186,7 +186,8 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
   // entries give context without being resubmitted.
   const { data: latestManualCustom = [] } =
     useLatestManualCustomEntriesOnOrBefore(selectedDate);
-  const { data: existingMood } = useMoodEntryByDate(selectedDate);
+  const { data: existingMood, isLoading: isLoadingMood } =
+    useMoodEntryByDate(selectedDate);
 
   const { data: recentCustom = [] } = useRecentCustomMeasurements();
   const endDate = todayInZone(timezone);
@@ -604,7 +605,7 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
 
   const handleSaveMood = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUserId) return;
+    if (!currentUserId || isLoadingMood) return;
 
     try {
       const moodToSend = mood ?? 50;
@@ -887,5 +888,6 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
     weight,
     handleSaveMood,
     isSavingMood,
+    isLoadingMood,
   };
 };

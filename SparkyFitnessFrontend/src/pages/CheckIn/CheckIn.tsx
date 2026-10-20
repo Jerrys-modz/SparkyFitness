@@ -88,6 +88,7 @@ const CheckIn = () => {
     weight,
     handleSaveMood,
     isSavingMood,
+    isLoadingMood,
   } = useCheckInLogic(currentUserId);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -215,6 +216,7 @@ const CheckIn = () => {
             setFocus={setFocus}
             onSaveMood={handleSaveMood}
             isSavingMood={isSavingMood}
+            isLoadingMood={isLoadingMood}
           />
           <RecentActivity
             convertMeasurement={convertMeasurement}

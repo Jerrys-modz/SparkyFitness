@@ -17,6 +17,7 @@ interface CheckInTopRowProps {
   setFocus: (value: number | null) => void;
   onSaveMood: (e: React.FormEvent) => Promise<void>;
   isSavingMood: boolean;
+  isLoadingMood: boolean;
 }
 
 export const CheckInTopRow = ({
@@ -32,6 +33,7 @@ export const CheckInTopRow = ({
   setFocus,
   onSaveMood,
   isSavingMood,
+  isLoadingMood,
 }: CheckInTopRowProps) => {
   const { t } = useTranslation();
 
@@ -67,7 +69,11 @@ export const CheckInTopRow = ({
                   onFocusChange={setFocus}
                 />
                 <div className="flex justify-center pt-2">
-                  <Button type="submit" disabled={isSavingMood} size="sm">
+                  <Button
+                    type="submit"
+                    disabled={isSavingMood || isLoadingMood}
+                    size="sm"
+                  >
                     {isSavingMood
                       ? t('checkIn.saving', 'Saving...')
                       : t('checkIn.saveMood', 'Save Mood')}
