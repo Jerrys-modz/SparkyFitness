@@ -1,8 +1,8 @@
 import {
   ROUTE_GHOST_INTERVAL_M,
   type RouteGhost,
-} from "../schemas/api/Route.api.zod.ts";
-import { haversineMeters } from "./routeGeometry.ts";
+} from '../schemas/api/Route.api.zod.ts';
+import { haversineMeters } from './routeGeometry.ts';
 
 /** A recorded fix: only the position and when it was taken are needed. */
 export interface GhostTrackPoint {
@@ -28,29 +28,29 @@ export function buildGhostSplits(input: {
   routeDistanceM: number;
   durationSeconds: number;
   intervalM?: number;
-}): Pick<RouteGhost, "splits" | "source" | "intervalM"> | null {
+}): Pick<RouteGhost, 'splits' | 'source' | 'intervalM'> | null {
   const intervalM = input.intervalM ?? ROUTE_GHOST_INTERVAL_M;
   const { routeDistanceM, durationSeconds } = input;
   if (!(routeDistanceM > 0) || !(durationSeconds > 0)) return null;
 
   const count = Math.ceil(routeDistanceM / intervalM);
   const knots = Array.from({ length: count }, (_, i) =>
-    Math.min((i + 1) * intervalM, routeDistanceM),
+    Math.min((i + 1) * intervalM, routeDistanceM)
   );
 
   const fromTrack = splitsFromTrack(
     input.track,
     knots,
     routeDistanceM,
-    durationSeconds,
+    durationSeconds
   );
-  if (fromTrack) return { splits: fromTrack, source: "track", intervalM };
+  if (fromTrack) return { splits: fromTrack, source: 'track', intervalM };
 
   return {
     splits: knots.map((d) =>
-      Math.round((durationSeconds * d) / routeDistanceM),
+      Math.round((durationSeconds * d) / routeDistanceM)
     ),
-    source: "constant_pace",
+    source: 'constant_pace',
     intervalM,
   };
 }
@@ -59,7 +59,7 @@ function splitsFromTrack(
   track: readonly GhostTrackPoint[] | null,
   knots: readonly number[],
   routeDistanceM: number,
-  durationSeconds: number,
+  durationSeconds: number
 ): number[] | null {
   if (!track || track.length < 2) return null;
 
@@ -103,12 +103,11 @@ function splitsFromTrack(
     const alongBefore = along[cursor - 1] as number;
     const span = alongHere - alongBefore;
     const fraction =
-      span > 0
-        ? Math.min(1, Math.max(0, (target - alongBefore) / span))
-        : 1;
+      span > 0 ? Math.min(1, Math.max(0, (target - alongBefore) / span)) : 1;
     const seconds =
       ((clock[cursor - 1] as number) +
-        fraction * ((clock[cursor] as number) - (clock[cursor - 1] as number))) *
+        fraction *
+          ((clock[cursor] as number) - (clock[cursor - 1] as number))) *
       scaleTime;
     // The finish is the logged time exactly; never run backwards.
     const value =

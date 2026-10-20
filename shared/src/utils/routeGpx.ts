@@ -1,27 +1,27 @@
-import type { RoutePoint } from "../schemas/api/Route.api.zod.ts";
+import type { RoutePoint } from '../schemas/api/Route.api.zod.ts';
 
 const decodeXml = (text: string): string =>
   text
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, "&")
+    .replace(/&amp;/g, '&')
     .trim();
 
 const escapeXml = (text: string): string =>
   text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 
 const POINT_PATTERN = /<(trkpt|rtept)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/\1>)/g;
 
 function attribute(attributes: string, name: string): number | null {
   const match = new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`).exec(
-    attributes,
+    attributes
   );
   if (!match) return null;
   const value = Number(match[1]);
@@ -44,27 +44,27 @@ export function parseGpx(gpx: string): ParsedGpx {
   POINT_PATTERN.lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = POINT_PATTERN.exec(gpx)) !== null) {
-    const lat = attribute(match[2] ?? "", "lat");
-    const lon = attribute(match[2] ?? "", "lon");
+    const lat = attribute(match[2] ?? '', 'lat');
+    const lon = attribute(match[2] ?? '', 'lon');
     if (lat === null || lon === null) continue;
     if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
     const point: RoutePoint = { lat, lon };
-    const ele = /<ele>\s*([^<\s]+)\s*<\/ele>/.exec(match[3] ?? "");
+    const ele = /<ele>\s*([^<\s]+)\s*<\/ele>/.exec(match[3] ?? '');
     if (ele) {
       const alt = Number(ele[1]);
       if (Number.isFinite(alt) && alt >= -1000 && alt <= 10000) point.alt = alt;
     }
-    (match[1] === "trkpt" ? tracks : routes).push(point);
+    (match[1] === 'trkpt' ? tracks : routes).push(point);
   }
 
-  const nameSource = gpx.replace(POINT_PATTERN, "");
+  const nameSource = gpx.replace(POINT_PATTERN, '');
   const trackName = /<trk\b[\s\S]*?<name>([\s\S]*?)<\/name>/.exec(nameSource);
   const routeName = /<rte\b[\s\S]*?<name>([\s\S]*?)<\/name>/.exec(nameSource);
   const metadataName = /<metadata\b[\s\S]*?<name>([\s\S]*?)<\/name>/.exec(
-    nameSource,
+    nameSource
   );
   const rawName = trackName?.[1] ?? routeName?.[1] ?? metadataName?.[1];
-  const name = rawName ? decodeXml(rawName) : "";
+  const name = rawName ? decodeXml(rawName) : '';
 
   return {
     name: name.length > 0 ? name : null,
@@ -75,14 +75,14 @@ export function parseGpx(gpx: string): ParsedGpx {
 /** A GPX 1.1 file with one track of one segment. */
 export function serializeGpx(
   name: string,
-  points: readonly RoutePoint[],
+  points: readonly RoutePoint[]
 ): string {
   const body = points
     .map((p) => {
-      const ele = p.alt === undefined ? "" : `<ele>${p.alt}</ele>`;
+      const ele = p.alt === undefined ? '' : `<ele>${p.alt}</ele>`;
       return `      <trkpt lat="${p.lat}" lon="${p.lon}">${ele}</trkpt>`;
     })
-    .join("\n");
+    .join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="SparkyFitness" xmlns="http://www.topografix.com/GPX/1/1">
   <trk>

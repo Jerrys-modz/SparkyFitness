@@ -1,8 +1,8 @@
-import { z } from "zod";
+import { z } from 'zod';
 import {
   routeActivitySchema,
   routeSourceSchema,
-} from "../database/Routes.zod.ts";
+} from '../database/Routes.zod.ts';
 
 /** The most points a client may send; the server simplifies to far fewer. */
 export const ROUTE_MAX_INPUT_POINTS = 50000;
@@ -25,16 +25,16 @@ export const routePointSchema = z.object({
  * device can fire the cue when it gets close to that point.
  */
 export const routeCueKindSchema = z.enum([
-  "depart",
-  "straight",
-  "slight_left",
-  "left",
-  "sharp_left",
-  "slight_right",
-  "right",
-  "sharp_right",
-  "uturn",
-  "arrive",
+  'depart',
+  'straight',
+  'slight_left',
+  'left',
+  'sharp_left',
+  'slight_right',
+  'right',
+  'sharp_right',
+  'uturn',
+  'arrive',
 ]);
 
 export const routeCueSchema = z.object({
@@ -97,7 +97,7 @@ export const routeGhostSchema = z.object({
   intervalM: z.number().int().min(1),
   splits: z.array(z.number().int().min(0)),
   /** `track` is read off the run's own GPS timeline; `constant_pace` is an even pace over its total time. */
-  source: z.enum(["track", "constant_pace"]),
+  source: z.enum(['track', 'constant_pace']),
 });
 
 /** `ghost` is null while the route has no timed run. */
@@ -121,14 +121,14 @@ export const routeSummarySchema = routeSchema
 
 export const createRouteBodySchema = z.object({
   name: routeNameSchema,
-  activity: routeActivitySchema.default("run"),
+  activity: routeActivitySchema.default('run'),
   points: z.array(routePointSchema).min(2).max(ROUTE_MAX_INPUT_POINTS),
   cues: z.array(routeCueSchema).max(1000).optional(),
   /**
    * `generated` lets a client save a route it got from the generate endpoint.
    * Defaults to `drawn`; `gpx` and `activity` stay server-assigned.
    */
-  source: z.enum(["drawn", "generated"]).default("drawn"),
+  source: z.enum(['drawn', 'generated']).default('drawn'),
 });
 
 export const updateRouteBodySchema = z
@@ -137,14 +137,14 @@ export const updateRouteBodySchema = z
     activity: routeActivitySchema.optional(),
   })
   .refine((body) => body.name !== undefined || body.activity !== undefined, {
-    message: "Provide a name or an activity",
+    message: 'Provide a name or an activity',
   });
 
 export const importGpxRouteBodySchema = z.object({
   gpx: z.string().min(1).max(ROUTE_MAX_GPX_CHARS),
   /** Overrides the name found in the file. */
   name: routeNameSchema.optional(),
-  activity: routeActivitySchema.default("run"),
+  activity: routeActivitySchema.default('run'),
 });
 
 export const routeFromActivityBodySchema = z.object({
@@ -164,12 +164,12 @@ export const ROUTE_GENERATE_MAX_WAYPOINTS = 20;
 export const ROUTE_GENERATE_MAX_ALTERNATIVES = 3;
 
 /** What the routing engine is asked to prefer. */
-export const routeSurfaceSchema = z.enum(["any", "trails", "roads"]);
-export const routeHillinessSchema = z.enum(["any", "flat", "hilly"]);
+export const routeSurfaceSchema = z.enum(['any', 'trails', 'roads']);
+export const routeHillinessSchema = z.enum(['any', 'flat', 'hilly']);
 
 export const routeStyleSchema = z.object({
-  surface: routeSurfaceSchema.default("any"),
-  hilliness: routeHillinessSchema.default("any"),
+  surface: routeSurfaceSchema.default('any'),
+  hilliness: routeHillinessSchema.default('any'),
   /** Pedestrian activities only; riders are never routed over steps. */
   avoidSteps: z.boolean().default(false),
   avoidBusyRoads: z.boolean().default(false),
@@ -208,7 +208,7 @@ export const routeGenerateCapabilitiesSchema = z.object({
 const generateBaseSchema = z.object({
   /** Where the route starts (and, for loops, ends). */
   start: routePointSchema.pick({ lat: true, lon: true }),
-  activity: routeActivitySchema.default("run"),
+  activity: routeActivitySchema.default('run'),
   name: routeNameSchema.optional(),
   /** Preferences; ignored for any the engine does not support. */
   style: routeStyleSchema.optional(),
@@ -216,12 +216,12 @@ const generateBaseSchema = z.object({
 
 /** (a) A loop or out-and-back of about `distanceM` from the start. */
 export const generateLoopRouteBodySchema = generateBaseSchema.extend({
-  mode: z.literal("loop"),
+  mode: z.literal('loop'),
   distanceM: z
     .number()
     .min(ROUTE_GENERATE_MIN_DISTANCE_M)
     .max(ROUTE_GENERATE_MAX_DISTANCE_M),
-  shape: z.enum(["loop", "out_and_back"]).default("loop"),
+  shape: z.enum(['loop', 'out_and_back']).default('loop'),
   /** Compass direction (degrees) to head out in; random when omitted. */
   bearingDeg: z.number().min(0).max(360).optional(),
   /** How many distinct candidates to return, at most. */
@@ -235,7 +235,7 @@ export const generateLoopRouteBodySchema = generateBaseSchema.extend({
 
 /** (b) An ordered list of waypoints to route through. */
 export const generateWaypointsRouteBodySchema = generateBaseSchema.extend({
-  mode: z.literal("waypoints"),
+  mode: z.literal('waypoints'),
   waypoints: z
     .array(routePointSchema.pick({ lat: true, lon: true }))
     .min(1)
@@ -244,7 +244,7 @@ export const generateWaypointsRouteBodySchema = generateBaseSchema.extend({
   returnToStart: z.boolean().default(false),
 });
 
-export const generateRouteBodySchema = z.discriminatedUnion("mode", [
+export const generateRouteBodySchema = z.discriminatedUnion('mode', [
   generateLoopRouteBodySchema,
   generateWaypointsRouteBodySchema,
 ]);
@@ -256,7 +256,7 @@ export const generateRouteBodySchema = z.discriminatedUnion("mode", [
 export const generatedRoutePreviewSchema = z.object({
   name: routeNameSchema,
   activity: routeActivitySchema,
-  source: z.literal("generated"),
+  source: z.literal('generated'),
   points: z.array(routePointSchema),
   cues: z.array(routeCueSchema),
   distanceM: z.number(),
@@ -265,9 +265,9 @@ export const generatedRoutePreviewSchema = z.object({
 
 /** Said of a candidate only when its numbers beat the others'. */
 export const routeOptionLabelSchema = z.enum([
-  "flatter",
-  "moreTrail",
-  "shorter",
+  'flatter',
+  'moreTrail',
+  'shorter',
 ]);
 
 export const generatedRouteOptionSchema = z.object({
@@ -284,10 +284,10 @@ export const generateRouteResponseSchema = z.object({
 });
 
 export const routeStopKindSchema = z.enum([
-  "water",
-  "toilets",
-  "cafe",
-  "viewpoint",
+  'water',
+  'toilets',
+  'cafe',
+  'viewpoint',
 ]);
 
 export const routeStopSchema = z.object({
@@ -303,7 +303,7 @@ export const routeStopSchema = z.object({
 
 /** `no_data` covers every failure and an empty corridor alike. */
 export const routeStopsResponseSchema = z.object({
-  status: z.enum(["ok", "no_data"]),
+  status: z.enum(['ok', 'no_data']),
   stops: z.array(routeStopSchema),
   truncated: z.boolean(),
 });

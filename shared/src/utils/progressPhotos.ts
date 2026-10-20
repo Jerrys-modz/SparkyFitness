@@ -1,8 +1,8 @@
 import type {
   CheckInPhotoWithWeight,
   PhotoType,
-} from "../schemas/api/CheckInPhotos.api.zod.ts";
-import { addDays, compareDays } from "./timezone.ts";
+} from '../schemas/api/CheckInPhotos.api.zod.ts';
+import { addDays, compareDays } from './timezone.ts';
 
 /**
  * One calendar day of the progress gallery: the photos taken that day, keyed by
@@ -22,7 +22,7 @@ export interface ProgressPhotoDay {
  * order rather than re-sorting.
  */
 export function groupPhotosByDay(
-  photos: CheckInPhotoWithWeight[],
+  photos: CheckInPhotoWithWeight[]
 ): ProgressPhotoDay[] {
   const days = new Map<string, ProgressPhotoDay>();
   for (const photo of photos) {
@@ -46,13 +46,13 @@ export function groupPhotosByDay(
  */
 export function framesForAngle(
   days: ProgressPhotoDay[],
-  angle: PhotoType,
+  angle: PhotoType
 ): ProgressPhotoDay[] {
   return days.filter((day) => day.photos[angle]).reverse();
 }
 
 /** How far back the time-lapse reaches. */
-export type TimelapseRange = "30d" | "3m" | "all" | "custom";
+export type TimelapseRange = '30d' | '3m' | 'all' | 'custom';
 
 /** A picked time-lapse range: both ends inclusive, as YYYY-MM-DD. */
 export interface CustomRange {
@@ -60,9 +60,9 @@ export interface CustomRange {
   to: string;
 }
 
-const TIMELAPSE_PRESET_DAYS: Record<"30d" | "3m", number> = {
-  "30d": 30,
-  "3m": 92,
+const TIMELAPSE_PRESET_DAYS: Record<'30d' | '3m', number> = {
+  '30d': 30,
+  '3m': 92,
 };
 
 /**
@@ -81,11 +81,11 @@ export function framesInRange(
   frames: ProgressPhotoDay[],
   range: TimelapseRange,
   today: string,
-  custom: CustomRange | null,
+  custom: CustomRange | null
 ): { frames: ProgressPhotoDay[]; widened: boolean } {
-  if (range === "all") return { frames, widened: false };
+  if (range === 'all') return { frames, widened: false };
   let bounds: CustomRange;
-  if (range === "custom") {
+  if (range === 'custom') {
     if (!custom) return { frames, widened: false };
     bounds = custom;
   } else {
@@ -95,10 +95,10 @@ export function framesInRange(
   const windowed = frames.filter(
     (day) =>
       compareDays(day.entry_date, from) >= 0 &&
-      compareDays(day.entry_date, to) <= 0,
+      compareDays(day.entry_date, to) <= 0
   );
 
-  if (windowed.length >= 2 || range === "custom") {
+  if (windowed.length >= 2 || range === 'custom') {
     return { frames: windowed, widened: false };
   }
   return { frames, widened: true };
@@ -112,5 +112,5 @@ export function framesInRange(
 export function formatSignedWeightChange(value: number): string {
   const rounded = Math.round(value * 10) / 10;
   // String(-0) is "0", so a change that rounds away shows unsigned.
-  return `${rounded > 0 ? "+" : ""}${rounded}`;
+  return `${rounded > 0 ? '+' : ''}${rounded}`;
 }

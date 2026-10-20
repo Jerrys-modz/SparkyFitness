@@ -3,11 +3,11 @@ import {
   HEART_RATE_BAND_LOWEST_BPM,
   normalizeHeartRateBand,
   type HeartRateBand,
-} from "./heartRateTargets.ts";
+} from './heartRateTargets.ts';
 import {
   heartRateZoneRange,
   type ResolvedHeartRateZones,
-} from "./heartRateZones.ts";
+} from './heartRateZones.ts';
 
 /**
  * The person's Zone 2 range as a heart-rate target band, from their own
@@ -15,7 +15,7 @@ import {
  * chose). Null when it is too narrow or outside what a target can hold.
  */
 export function zone2HeartRateBand(
-  resolved: Pick<ResolvedHeartRateZones, "zones" | "maxHr">,
+  resolved: Pick<ResolvedHeartRateZones, 'zones' | 'maxHr'>
 ): HeartRateBand | null {
   const range = heartRateZoneRange(resolved, 2);
   if (!range) return null;
@@ -44,7 +44,7 @@ export const ZONE2_SETTLE_BPM = 10;
  */
 export function zone2LiveBand(
   band: HeartRateBand,
-  secondsIn: number,
+  secondsIn: number
 ): HeartRateBand {
   const elapsed = Math.max(0, secondsIn);
   const drift =
@@ -53,26 +53,26 @@ export function zone2LiveBand(
       : Math.min(
           1,
           (elapsed - ZONE2_DRIFT_START_SECONDS) /
-            (ZONE2_DRIFT_FULL_SECONDS - ZONE2_DRIFT_START_SECONDS),
+            (ZONE2_DRIFT_FULL_SECONDS - ZONE2_DRIFT_START_SECONDS)
         ) * ZONE2_DRIFT_MAX_BPM;
   const settle = elapsed < ZONE2_SETTLE_SECONDS ? ZONE2_SETTLE_BPM : 0;
   return {
     minBpm: Math.max(HEART_RATE_BAND_LOWEST_BPM, band.minBpm - settle),
     maxBpm: Math.min(
       HEART_RATE_BAND_HIGHEST_BPM,
-      band.maxBpm + Math.round(drift),
+      band.maxBpm + Math.round(drift)
     ),
   };
 }
 
-export type HeartRateStanding = "above" | "below" | "inside";
+export type HeartRateStanding = 'above' | 'below' | 'inside';
 
 /** Where a reading sits against a range; no margin, the alert rule adds its own. */
 export function heartRateStanding(
   bpm: number,
-  band: HeartRateBand,
+  band: HeartRateBand
 ): HeartRateStanding {
-  if (bpm > band.maxBpm) return "above";
-  if (bpm < band.minBpm) return "below";
-  return "inside";
+  if (bpm > band.maxBpm) return 'above';
+  if (bpm < band.minBpm) return 'below';
+  return 'inside';
 }

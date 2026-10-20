@@ -1,37 +1,37 @@
-import type { routeActivitySchema } from "../schemas/database/Routes.zod.ts";
-import type { z } from "zod";
+import type { routeActivitySchema } from '../schemas/database/Routes.zod.ts';
+import type { z } from 'zod';
 import {
   classifyActivitySport,
   type ActivitySportInput,
-} from "./activitySport.ts";
+} from './activitySport.ts';
 
 export type TrackActivity = z.infer<typeof routeActivitySchema>;
 /**
  * `unknown` is a name that says nothing ("Evening activity"); `excluded` is
  * a sport that is never a GPS run, walk, hike or ride (a swim, a gym session).
  */
-export type TrackActivityKind = TrackActivity | "unknown" | "excluded";
+export type TrackActivityKind = TrackActivity | 'unknown' | 'excluded';
 
 /**
  * Which of the four GPS activity kinds a diary entry is, from its name and
  * category. Segments and the heatmap only look at these.
  */
 export function trackActivityKind(
-  input: ActivitySportInput,
+  input: ActivitySportInput
 ): TrackActivityKind {
   switch (classifyActivitySport(input).sport) {
-    case "running":
-      return "run";
-    case "walking":
-      return "walk";
-    case "hiking":
-      return "hike";
-    case "cycling":
-      return "ride";
-    case "other":
-      return "unknown";
+    case 'running':
+      return 'run';
+    case 'walking':
+      return 'walk';
+    case 'hiking':
+      return 'hike';
+    case 'cycling':
+      return 'ride';
+    case 'other':
+      return 'unknown';
     default:
-      return "excluded";
+      return 'excluded';
   }
 }
 
@@ -44,10 +44,10 @@ export function trackActivityKind(
  */
 export function segmentAcceptsActivity(
   segmentActivity: TrackActivity,
-  kind: TrackActivityKind,
+  kind: TrackActivityKind
 ): boolean {
-  if (kind === "excluded") return false;
-  if (kind === "unknown") return true;
-  if (segmentActivity === "ride") return kind === "ride";
-  return kind !== "ride";
+  if (kind === 'excluded') return false;
+  if (kind === 'unknown') return true;
+  if (segmentActivity === 'ride') return kind === 'ride';
+  return kind !== 'ride';
 }

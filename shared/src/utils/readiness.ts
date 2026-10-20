@@ -1,11 +1,11 @@
-import type { FitnessFatigue } from "./fitnessFatigue.ts";
+import type { FitnessFatigue } from './fitnessFatigue.ts';
 
 /** Hours of sleep that count as a full night when the person has no goal. */
 export const DEFAULT_SLEEP_NEED_HOURS = 8;
 
-export type ReadinessLevel = "noData" | "low" | "moderate" | "high";
+export type ReadinessLevel = 'noData' | 'low' | 'moderate' | 'high';
 
-export type ReadinessFactor = "form" | "sleep" | "restingHeartRate" | "hrv";
+export type ReadinessFactor = 'form' | 'sleep' | 'restingHeartRate' | 'hrv';
 
 export interface ReadinessInput {
   /** From `computeFitnessFatigue`. */
@@ -42,7 +42,7 @@ const WEIGHTS: Record<ReadinessFactor, number> = {
 /** Score from which readiness counts as high. */
 const HIGH_FROM = 70;
 /** The factors a watch measures, and the score under which they cap the level. */
-const VITAL_FACTORS: ReadinessFactor[] = ["restingHeartRate", "hrv"];
+const VITAL_FACTORS: ReadinessFactor[] = ['restingHeartRate', 'hrv'];
 const VITAL_WARNING_BELOW = 40;
 
 const clamp = (n: number, low = 0, high = 100) =>
@@ -54,8 +54,8 @@ const present = (n: number | null | undefined): n is number =>
 function formScore(fitnessFatigue: FitnessFatigue): number | null {
   const today = fitnessFatigue.today;
   if (
-    fitnessFatigue.status === "noData" ||
-    fitnessFatigue.status === "learning" ||
+    fitnessFatigue.status === 'noData' ||
+    fitnessFatigue.status === 'learning' ||
     !today ||
     today.fitness <= 0
   ) {
@@ -102,8 +102,8 @@ export function computeReadiness(input: ReadinessInput): Readiness {
     factors.restingHeartRate = Math.round(
       restingHeartRateScore(
         input.restingHeartRate,
-        input.restingHeartRateBaseline,
-      ),
+        input.restingHeartRateBaseline
+      )
     );
   }
   if (present(input.hrv) && present(input.hrvBaseline)) {
@@ -112,23 +112,23 @@ export function computeReadiness(input: ReadinessInput): Readiness {
 
   const keys = Object.keys(factors) as ReadinessFactor[];
   if (keys.length === 0) {
-    return { score: null, level: "noData", factors, weakest: null };
+    return { score: null, level: 'noData', factors, weakest: null };
   }
   const totalWeight = keys.reduce((sum, key) => sum + WEIGHTS[key], 0);
   const weighted = Math.round(
     keys.reduce((sum, key) => sum + (factors[key] ?? 0) * WEIGHTS[key], 0) /
-      totalWeight,
+      totalWeight
   );
   // A clearly raised resting heart rate or a low HRV is a warning sign that
   // good sleep and a fresh training form should not average away.
   const warning = VITAL_FACTORS.some(
-    (key) => (factors[key] ?? 100) < VITAL_WARNING_BELOW,
+    (key) => (factors[key] ?? 100) < VITAL_WARNING_BELOW
   );
   const score = warning ? Math.min(weighted, HIGH_FROM - 1) : weighted;
   const level: ReadinessLevel =
-    score >= HIGH_FROM ? "high" : score >= 45 ? "moderate" : "low";
+    score >= HIGH_FROM ? 'high' : score >= 45 ? 'moderate' : 'low';
   const lowest = keys.reduce((a, b) =>
-    (factors[a] ?? 100) <= (factors[b] ?? 100) ? a : b,
+    (factors[a] ?? 100) <= (factors[b] ?? 100) ? a : b
   );
   return {
     score,

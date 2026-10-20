@@ -1,4 +1,4 @@
-import type { RoutePoint } from "../schemas/api/Route.api.zod.ts";
+import type { RoutePoint } from '../schemas/api/Route.api.zod.ts';
 import {
   distanceToSegment,
   haversineMeters,
@@ -7,9 +7,9 @@ import {
   routeDistanceMeters,
   simplifyRoute,
   type RouteBounds,
-} from "./routeGeometry.ts";
+} from './routeGeometry.ts';
 
-type LatLon = Pick<RoutePoint, "lat" | "lon">;
+type LatLon = Pick<RoutePoint, 'lat' | 'lon'>;
 type Xy = { x: number; y: number };
 
 /** A stored segment keeps at most this many points. */
@@ -84,7 +84,11 @@ interface Placement {
 }
 
 /** Where `p` sits along `line` and how far it is from it. */
-function place(p: Xy, line: readonly Xy[], cumulative: readonly number[]): Placement {
+function place(
+  p: Xy,
+  line: readonly Xy[],
+  cumulative: readonly number[]
+): Placement {
   let bestD = Infinity;
   let bestS = 0;
   for (let i = 1; i < line.length; i++) {
@@ -114,7 +118,8 @@ function place(p: Xy, line: readonly Xy[], cumulative: readonly number[]): Place
   const tailLen = length - (cumulative[cumulative.length - 2] as number) || 1;
   const tailS =
     length +
-    ((p.x - last.x) * (last.x - lastA.x) + (p.y - last.y) * (last.y - lastA.y)) /
+    ((p.x - last.x) * (last.x - lastA.x) +
+      (p.y - last.y) * (last.y - lastA.y)) /
       tailLen;
   if (tailS > length) bestS = tailS;
   return { s: bestS, d: bestD };
@@ -199,7 +204,13 @@ export function findSegmentPasses(
 
   const placed = fixes.map((f) => {
     const xy = project(f);
-    return { ...place(xy, line, cumulative), xy, tMs: f.tMs, lat: f.lat, lon: f.lon };
+    return {
+      ...place(xy, line, cumulative),
+      xy,
+      tMs: f.tMs,
+      lat: f.lat,
+      lon: f.lon,
+    };
   });
 
   type Placed = (typeof placed)[number];
@@ -369,7 +380,10 @@ export function sliceRouteByDistance(
   if (startPoint) out.push(startPoint);
   let walked = 0;
   for (let i = 1; i < points.length; i++) {
-    walked += haversineMeters(points[i - 1] as RoutePoint, points[i] as RoutePoint);
+    walked += haversineMeters(
+      points[i - 1] as RoutePoint,
+      points[i] as RoutePoint
+    );
     if (walked > from && walked < to) out.push(points[i] as RoutePoint);
   }
   const endPoint = pointAtDistance(points, to);
@@ -464,8 +478,7 @@ export function annotateEfforts(
   const order = efforts
     .map((effort, index) => ({ effort, index }))
     .sort(
-      (a, b) =>
-        a.effort.startedAtMs - b.effort.startedAtMs || a.index - b.index
+      (a, b) => a.effort.startedAtMs - b.effort.startedAtMs || a.index - b.index
     );
   const out: EffortAnnotation[] = efforts.map(() => ({
     isBest: false,

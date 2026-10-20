@@ -3,14 +3,14 @@ import {
   thresholdPaceFromEffort,
   type PaceZone,
   type PaceZoneId,
-} from "./paceZones.ts";
+} from './paceZones.ts';
 import {
   equivalent5kPace,
   racePaceZones,
   type PaceZoneName,
-} from "./racePaceZones.ts";
-import type { PaceBand } from "./paceTargets.ts";
-import { daysBetween } from "./timezone.ts";
+} from './racePaceZones.ts';
+import type { PaceBand } from './paceTargets.ts';
+import { daysBetween } from './timezone.ts';
 
 /**
  * Running fitness tests and the training paces they give. A test is one hard,
@@ -21,7 +21,7 @@ import { daysBetween } from "./timezone.ts";
  * the phone, the web app and the server work out the same numbers.
  */
 
-export const FITNESS_TEST_TYPES = ["5k", "30min", "cooper"] as const;
+export const FITNESS_TEST_TYPES = ['5k', '30min', 'cooper'] as const;
 export type FitnessTestType = (typeof FITNESS_TEST_TYPES)[number];
 
 export function isFitnessTestType(value: unknown): value is FitnessTestType {
@@ -44,7 +44,7 @@ export const THIRTY_MINUTE_SPLIT_SECONDS =
 const RIEGEL_EXPONENT = 1.06;
 
 /** Where a test was run: outdoors with GPS, or indoors (a treadmill) with the distance typed in. */
-export const FITNESS_TEST_SURFACES = ["outdoor", "indoor"] as const;
+export const FITNESS_TEST_SURFACES = ['outdoor', 'indoor'] as const;
 export type FitnessTestSurface = (typeof FITNESS_TEST_SURFACES)[number];
 
 /** Steepest treadmill incline the correction covers, in percent. */
@@ -104,7 +104,7 @@ export interface FitnessTestMeasurement {
  * or for an incline outside 0 to 15% (which `evaluateFitnessTest` refuses).
  */
 export function applyIncline(
-  measurement: FitnessTestMeasurement,
+  measurement: FitnessTestMeasurement
 ): FitnessTestMeasurement {
   const { inclinePercent } = measurement;
   if (inclinePercent == null || measurement.adjustForIncline === false) {
@@ -112,7 +112,7 @@ export function applyIncline(
   }
   const factor = inclineSpeedFactor(inclinePercent);
   if (factor === null || factor === 1) return measurement;
-  if (measurement.type === "5k") {
+  if (measurement.type === '5k') {
     return {
       ...measurement,
       durationSeconds: measurement.durationSeconds / factor,
@@ -167,9 +167,9 @@ export function cooperToFiveKSeconds(distanceMeters: number): number | null {
  */
 export function thirtyMinuteThresholdPace(
   distanceMeters: number,
-  splitDistanceMeters: number | null | undefined,
+  splitDistanceMeters: number | null | undefined
 ): number | null {
-  if (typeof splitDistanceMeters !== "number") return null;
+  if (typeof splitDistanceMeters !== 'number') return null;
   if (
     !Number.isFinite(distanceMeters) ||
     !Number.isFinite(splitDistanceMeters)
@@ -185,7 +185,7 @@ export function thirtyMinuteThresholdPace(
 
 function pacesFor(
   thresholdSecondsPerKm: number,
-  equivalent5kSeconds: number,
+  equivalent5kSeconds: number
 ): FitnessTestPaces | null {
   const threshold = Math.round(thresholdSecondsPerKm);
   const zones = paceZones(threshold);
@@ -207,7 +207,7 @@ function pacesFor(
  * measurement that does not fit its test or a result that cannot be right.
  */
 export function evaluateFitnessTest(
-  input: FitnessTestMeasurement,
+  input: FitnessTestMeasurement
 ): FitnessTestOutcome | null {
   if (
     input.inclinePercent != null &&
@@ -222,7 +222,7 @@ export function evaluateFitnessTest(
     return null;
   }
 
-  if (type === "5k") {
+  if (type === '5k') {
     if (distanceMeters !== FIVE_K_METERS) return null;
     const pace = equivalent5kPace({
       distanceKm: FIVE_K_METERS / 1000,
@@ -234,7 +234,7 @@ export function evaluateFitnessTest(
     return paces && { type, resultValue: Math.round(durationSeconds), paces };
   }
 
-  if (type === "cooper") {
+  if (type === 'cooper') {
     if (durationSeconds !== COOPER_SECONDS) return null;
     const fiveK = cooperToFiveKSeconds(distanceMeters);
     if (fiveK === null) return null;
@@ -247,7 +247,7 @@ export function evaluateFitnessTest(
   if (durationSeconds !== THIRTY_MINUTE_SECONDS) return null;
   const threshold = thirtyMinuteThresholdPace(
     distanceMeters,
-    measurement.splitDistanceMeters,
+    measurement.splitDistanceMeters
   );
   const pace = equivalent5kPace({
     distanceKm: distanceMeters / 1000,
@@ -274,7 +274,7 @@ export interface PaceChange {
 /** How the paces moved from an earlier test to a later one. */
 export function comparePaces(
   previous: FitnessTestPaces,
-  current: FitnessTestPaces,
+  current: FitnessTestPaces
 ): PaceChange {
   const zones: ZoneChange[] = [];
   for (const zone of current.zones) {
@@ -300,7 +300,7 @@ export const RETEST_AFTER_DAYS = 42;
 /** ...and the six-to-eight-week window ends here; later it reads as overdue. */
 export const RETEST_WINDOW_END_DAYS = 56;
 
-export type RetestStatus = "recent" | "due" | "overdue";
+export type RetestStatus = 'recent' | 'due' | 'overdue';
 
 /**
  * Whether the latest test is recent enough, in the six-to-eight-week retest
@@ -308,8 +308,8 @@ export type RetestStatus = "recent" | "due" | "overdue";
  */
 export function retestStatus(lastTestDay: string, today: string): RetestStatus {
   const age = daysBetween(lastTestDay, today);
-  if (age < RETEST_AFTER_DAYS) return "recent";
-  return age <= RETEST_WINDOW_END_DAYS ? "due" : "overdue";
+  if (age < RETEST_AFTER_DAYS) return 'recent';
+  return age <= RETEST_WINDOW_END_DAYS ? 'due' : 'overdue';
 }
 
 /** Whole weeks since the test, for wording ("7 weeks ago"). */
@@ -320,7 +320,7 @@ export function weeksSinceTest(lastTestDay: string, today: string): number {
 /** The pace per km a person could hold over `distanceKm`, from a 5K time, by Riegel's formula. */
 export function racePaceFromFiveK(
   fiveKSeconds: number,
-  distanceKm: number,
+  distanceKm: number
 ): number | null {
   if (!Number.isFinite(fiveKSeconds) || !Number.isFinite(distanceKm)) {
     return null;
@@ -331,14 +331,14 @@ export function racePaceFromFiveK(
 }
 
 /** Where a person starts from, by 5K time. */
-export type TestFitnessLevel = "new" | "some" | "regular" | "experienced";
+export type TestFitnessLevel = 'new' | 'some' | 'regular' | 'experienced';
 
 /** The starting level a 5K time points to, in the words the race planner uses. */
 export function levelFromFiveK(fiveKSeconds: number): TestFitnessLevel {
-  if (fiveKSeconds >= 36 * 60) return "new";
-  if (fiveKSeconds >= 29 * 60) return "some";
-  if (fiveKSeconds >= 23 * 60) return "regular";
-  return "experienced";
+  if (fiveKSeconds >= 36 * 60) return 'new';
+  if (fiveKSeconds >= 29 * 60) return 'some';
+  if (fiveKSeconds >= 23 * 60) return 'regular';
+  return 'experienced';
 }
 
 /**
@@ -346,7 +346,7 @@ export function levelFromFiveK(fiveKSeconds: number): TestFitnessLevel {
  * effort: building up to a 10K for a slower time, speed work for a quicker one.
  */
 export function programIdForFiveK(fiveKSeconds: number): string {
-  if (fiveKSeconds >= 35 * 60) return "fiveToTenK";
-  if (fiveKSeconds >= 26 * 60) return "faster5k";
-  return "faster10k";
+  if (fiveKSeconds >= 35 * 60) return 'fiveToTenK';
+  if (fiveKSeconds >= 26 * 60) return 'faster5k';
+  return 'faster10k';
 }

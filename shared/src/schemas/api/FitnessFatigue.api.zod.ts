@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
@@ -11,11 +11,11 @@ export const fitnessFatiguePointSchema = z.object({
 });
 
 export const formStatusSchema = z.enum([
-  "noData",
-  "learning",
-  "fresh",
-  "neutral",
-  "tired",
+  'noData',
+  'learning',
+  'fresh',
+  'neutral',
+  'tired',
 ]);
 
 export const fitnessFatigueSchema = z.object({
@@ -25,15 +25,15 @@ export const fitnessFatigueSchema = z.object({
 });
 
 export const readinessFactorSchema = z.enum([
-  "form",
-  "sleep",
-  "restingHeartRate",
-  "hrv",
+  'form',
+  'sleep',
+  'restingHeartRate',
+  'hrv',
 ]);
 
 export const readinessSchema = z.object({
   score: z.number().min(0).max(100).nullable(),
-  level: z.enum(["noData", "low", "moderate", "high"]),
+  level: z.enum(['noData', 'low', 'moderate', 'high']),
   factors: z.partialRecord(readinessFactorSchema, z.number().min(0).max(100)),
   weakest: readinessFactorSchema.nullable(),
 });

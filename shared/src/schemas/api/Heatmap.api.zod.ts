@@ -1,6 +1,6 @@
-import { z } from "zod";
-import { routeActivitySchema } from "../database/Routes.zod.ts";
-import { HEATMAP_MAX_CELLS } from "../../utils/heatmap.ts";
+import { z } from 'zod';
+import { routeActivitySchema } from '../database/Routes.zod.ts';
+import { HEATMAP_MAX_CELLS } from '../../utils/heatmap.ts';
 
 /** Tracks a line-mode response carries by default, and at most. */
 export const HEATMAP_TRACKS_DEFAULT = 300;
@@ -12,7 +12,12 @@ export const HEATMAP_TRACK_POINTS_MAX = 40000;
 /** Which activity kinds to include; all four when omitted. */
 export const heatmapActivitiesSchema = z
   .string()
-  .transform((value) => value.split(",").map((v) => v.trim()).filter(Boolean))
+  .transform((value) =>
+    value
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean)
+  )
   .pipe(z.array(routeActivitySchema).min(1).max(4));
 
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -43,18 +48,16 @@ export const heatmapQuerySchema = z
       const given = corners.filter((c) => c !== undefined).length;
       return given === 0 || given === 4;
     },
-    { message: "Give all four viewport corners or none" }
+    { message: 'Give all four viewport corners or none' }
   )
   .refine((q) => !q.from || !q.to || q.from <= q.to, {
-    message: "from must not be after to",
-    path: ["from"],
+    message: 'from must not be after to',
+    path: ['from'],
   })
   .refine(
     (q) =>
-      q.minLat === undefined ||
-      q.maxLat === undefined ||
-      q.minLat <= q.maxLat,
-    { message: "minLat must not exceed maxLat", path: ["minLat"] }
+      q.minLat === undefined || q.maxLat === undefined || q.minLat <= q.maxLat,
+    { message: 'minLat must not exceed maxLat', path: ['minLat'] }
   );
 
 /** One cell: centre latitude, centre longitude, activities that passed through. */
@@ -114,16 +117,16 @@ export const heatmapTracksQuerySchema = z
       .default(HEATMAP_TRACK_POINTS_DEFAULT),
   })
   .refine((q) => !q.from || !q.to || q.from <= q.to, {
-    message: "from must not be after to",
-    path: ["from"],
+    message: 'from must not be after to',
+    path: ['from'],
   })
   .refine((q) => q.minLat <= q.maxLat, {
-    message: "minLat must not exceed maxLat",
-    path: ["minLat"],
+    message: 'minLat must not exceed maxLat',
+    path: ['minLat'],
   })
   .refine((q) => q.minLon <= q.maxLon, {
-    message: "minLon must not exceed maxLon",
-    path: ["minLon"],
+    message: 'minLon must not exceed maxLon',
+    path: ['minLon'],
   });
 
 const trackPoint = z.tuple([z.number(), z.number()]);

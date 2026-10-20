@@ -2,8 +2,8 @@ import {
   heartRateZoneFor,
   percentMaxFloors,
   FALLBACK_MAX_HR,
-} from "./heartRateZones.ts";
-import { addDays, daysBetween } from "./timezone.ts";
+} from './heartRateZones.ts';
+import { addDays, daysBetween } from './timezone.ts';
 
 /** The maximum heart rate assumed when none is known: the zone module's fallback. */
 export const DEFAULT_MAX_HEART_RATE = FALLBACK_MAX_HR;
@@ -25,9 +25,9 @@ export const MIN_HISTORY_DAYS = 21;
 export const LOAD_WEEKS = 4;
 
 export type LoadStatus =
-  "noData" | "learning" | "low" | "steady" | "high" | "spike";
+  'noData' | 'learning' | 'low' | 'steady' | 'high' | 'spike';
 
-export type RecoveryHint = "ready" | "ok" | "takeRest";
+export type RecoveryHint = 'ready' | 'ok' | 'takeRest';
 
 /**
  * Load points for one session: minutes weighted by how hard the heart worked
@@ -37,14 +37,15 @@ export type RecoveryHint = "ready" | "ok" | "takeRest";
  * heart rate (read as the default percent-of-max zones).
  */
 export function sessionLoad(
-  session: Pick<LoadSession, "durationMinutes" | "avgHeartRate">,
-  zones: number | readonly number[],
+  session: Pick<LoadSession, 'durationMinutes' | 'avgHeartRate'>,
+  zones: number | readonly number[]
 ): number {
   // A bare number is a maximum heart rate, worked out as percent-of-max zones.
-  const zoneFloors = typeof zones === "number" ? percentMaxFloors(zones) : zones;
+  const zoneFloors =
+    typeof zones === 'number' ? percentMaxFloors(zones) : zones;
   const minutes = Math.min(
     MAX_SESSION_MINUTES,
-    Math.max(0, session.durationMinutes),
+    Math.max(0, session.durationMinutes)
   );
   const bpm = session.avgHeartRate;
   if (bpm == null || !Number.isFinite(bpm) || bpm <= 0) {
@@ -77,7 +78,7 @@ export interface TrainingLoad {
 export function computeTrainingLoad(
   sessions: readonly LoadSession[],
   today: string,
-  zoneFloors: readonly number[] = percentMaxFloors(FALLBACK_MAX_HR),
+  zoneFloors: readonly number[] = percentMaxFloors(FALLBACK_MAX_HR)
 ): TrainingLoad {
   const windowDays = LOAD_WEEKS * 7;
   const oldest = addDays(today, -(windowDays - 1));
@@ -104,19 +105,19 @@ export function computeTrainingLoad(
   const restDays = latest === null ? null : daysBetween(latest, today);
 
   let status: LoadStatus;
-  if (earliest === null) status = "noData";
-  else if (daysBetween(earliest, today) < MIN_HISTORY_DAYS) status = "learning";
-  else if (ratio === null || ratio < 0.8) status = "low";
-  else if (ratio <= 1.3) status = "steady";
-  else if (ratio <= 1.5) status = "high";
-  else status = "spike";
+  if (earliest === null) status = 'noData';
+  else if (daysBetween(earliest, today) < MIN_HISTORY_DAYS) status = 'learning';
+  else if (ratio === null || ratio < 0.8) status = 'low';
+  else if (ratio <= 1.3) status = 'steady';
+  else if (ratio <= 1.5) status = 'high';
+  else status = 'spike';
 
   const recovery: RecoveryHint =
-    (status === "high" || status === "spike") && (restDays ?? 9) <= 1
-      ? "takeRest"
-      : status === "low" && (restDays ?? 0) >= 2
-        ? "ready"
-        : "ok";
+    (status === 'high' || status === 'spike') && (restDays ?? 9) <= 1
+      ? 'takeRest'
+      : status === 'low' && (restDays ?? 0) >= 2
+        ? 'ready'
+        : 'ok';
 
   return {
     weeks,

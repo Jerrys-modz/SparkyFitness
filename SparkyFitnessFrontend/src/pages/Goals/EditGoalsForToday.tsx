@@ -71,7 +71,11 @@ const EditGoalsForm = ({
 }: {
   initialData: ExpandedGoals;
   selectedDate: string;
-  onSave: (goals: ExpandedGoals, clear?: boolean) => Promise<void>;
+  onSave: (
+    goals: ExpandedGoals,
+    clear?: boolean,
+    initialCalories?: number
+  ) => Promise<void>;
   isSaving: boolean;
   customNutrients: UserCustomNutrient[];
 }) => {
@@ -89,6 +93,8 @@ const EditGoalsForm = ({
     ...DEFAULT_GOALS,
     ...initialData,
   });
+  // Baseline captured at mount; initialData can change on refetch while open.
+  const [initialCalories] = useState(goals.calories);
 
   const {
     algorithms,
@@ -438,7 +444,7 @@ const EditGoalsForm = ({
               finalGoals.carbs_percentage = null;
               finalGoals.fat_percentage = null;
             }
-            onSave(finalGoals);
+            onSave(finalGoals, false, initialCalories);
           }}
           disabled={isSaving || !isMacroValid || !isTotalPercentageValid}
           className="w-full"
@@ -467,7 +473,11 @@ const EditGoalsForToday = ({ selectedDate }: EditGoalsProps) => {
   const { mutateAsync: saveGoals, isPending: saving } = useSaveGoalsMutation();
   const { data: customNutrients = [] } = useCustomNutrients();
 
-  const handleSave = async (goalsToSave: ExpandedGoals, clear = false) => {
+  const handleSave = async (
+    goalsToSave: ExpandedGoals,
+    clear = false,
+    initialCalories?: number
+  ) => {
     if (!user) return;
 
     // Logic to convert percentages if needed before sending to API
@@ -492,8 +502,9 @@ const EditGoalsForToday = ({ selectedDate }: EditGoalsProps) => {
     }
 
     // Only a manual calorie edit overrides the adaptive/goal-mode setup;
-    // changing macros alone must leave it intact.
-    const caloriesEdited = finalGoals.calories !== serverGoals?.calories;
+    // changing macros alone must leave it intact. Compare against the value
+    // the form started with, since serverGoals can refetch while it is open.
+    const caloriesEdited = clear || finalGoals.calories !== initialCalories;
     if (
       caloriesEdited &&
       (goalModeCalculationMethod === 'adaptive' || goalMode !== 'maintain')

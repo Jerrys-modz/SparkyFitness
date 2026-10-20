@@ -1,6 +1,6 @@
-import { z } from "zod";
-import { routeActivitySchema } from "../database/Routes.zod.ts";
-import { routePointSchema } from "./Route.api.zod.ts";
+import { z } from 'zod';
+import { routeActivitySchema } from '../database/Routes.zod.ts';
+import { routePointSchema } from './Route.api.zod.ts';
 
 /** The most segments one person can keep. */
 export const SEGMENT_MAX_PER_USER = 500;
@@ -25,16 +25,18 @@ export const segmentSchema = z.object({
 });
 
 /** What a list needs to show a segment: no line, plus the person's own history on it. */
-export const segmentSummarySchema = segmentSchema.omit({ points: true }).extend({
-  /** First point, for placing the segment on a map. */
-  start: latLonSchema.nullable(),
-  /** Passes found over the segment. */
-  effortCount: z.number().int().min(0),
-  /** Shortest time over the segment, in seconds; null before a first pass. */
-  bestSeconds: z.number().nullable(),
-  /** Day (`YYYY-MM-DD`) of the newest pass. */
-  lastEffortDate: z.string().nullable(),
-});
+export const segmentSummarySchema = segmentSchema
+  .omit({ points: true })
+  .extend({
+    /** First point, for placing the segment on a map. */
+    start: latLonSchema.nullable(),
+    /** Passes found over the segment. */
+    effortCount: z.number().int().min(0),
+    /** Shortest time over the segment, in seconds; null before a first pass. */
+    bestSeconds: z.number().nullable(),
+    /** Day (`YYYY-MM-DD`) of the newest pass. */
+    lastEffortDate: z.string().nullable(),
+  });
 
 /** One timed pass of an activity over a segment. */
 export const segmentEffortSchema = z.object({
@@ -79,9 +81,9 @@ export const entrySegmentEffortsResponseSchema = z.object({
  * activity), or from a stretch of a saved route by distance from its start.
  */
 export const createSegmentFromPointsBodySchema = z.object({
-  mode: z.literal("points"),
+  mode: z.literal('points'),
   name: segmentNameSchema.optional(),
-  activity: routeActivitySchema.default("run"),
+  activity: routeActivitySchema.default('run'),
   points: z.array(latLonSchema).min(2).max(SEGMENT_MAX_INPUT_POINTS),
   sourceRouteId: z.guid().optional(),
   sourceExerciseEntryId: z.guid().optional(),
@@ -89,7 +91,7 @@ export const createSegmentFromPointsBodySchema = z.object({
 
 export const createSegmentFromRouteBodySchema = z
   .object({
-    mode: z.literal("route"),
+    mode: z.literal('route'),
     name: segmentNameSchema.optional(),
     activity: routeActivitySchema.optional(),
     routeId: z.guid(),
@@ -97,11 +99,11 @@ export const createSegmentFromRouteBodySchema = z
     endM: z.number().min(0),
   })
   .refine((body) => body.endM > body.startM, {
-    message: "endM must be greater than startM",
-    path: ["endM"],
+    message: 'endM must be greater than startM',
+    path: ['endM'],
   });
 
-export const createSegmentBodySchema = z.discriminatedUnion("mode", [
+export const createSegmentBodySchema = z.discriminatedUnion('mode', [
   createSegmentFromPointsBodySchema,
   // A refined object is a ZodPipe; the union accepts it through its inner object.
   createSegmentFromRouteBodySchema,
@@ -113,7 +115,7 @@ export const updateSegmentBodySchema = z
     name: segmentNameSchema.nullable().optional(),
   })
   .refine((body) => body.name !== undefined, {
-    message: "Provide a name",
+    message: 'Provide a name',
   });
 
 export const matchSegmentResponseSchema = z.object({

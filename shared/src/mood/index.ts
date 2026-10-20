@@ -18,119 +18,119 @@ export interface MoodDef {
 // descriptive-only (no value band) and are chosen alongside the rating.
 export const BUILT_IN_MOODS: readonly MoodDef[] = [
   {
-    name: "sad",
-    displayName: "Sad",
-    emoji: "😢",
-    icon: "mood-calm",
-    color: "sky",
+    name: 'sad',
+    displayName: 'Sad',
+    emoji: '😢',
+    icon: 'mood-calm',
+    color: 'sky',
     band: 15,
   },
   {
-    name: "angry",
-    displayName: "Angry",
-    emoji: "😠",
-    icon: "mood-irritable",
-    color: "period",
+    name: 'angry',
+    displayName: 'Angry',
+    emoji: '😠',
+    icon: 'mood-irritable',
+    color: 'period',
     band: 25,
   },
   {
-    name: "worried",
-    displayName: "Worried",
-    emoji: "😟",
-    icon: "mood-irritable",
-    color: "lavender",
+    name: 'worried',
+    displayName: 'Worried',
+    emoji: '😟',
+    icon: 'mood-irritable',
+    color: 'lavender',
     band: 35,
   },
   {
-    name: "neutral",
-    displayName: "Neutral",
-    emoji: "😐",
-    icon: "mood-calm",
-    color: "neutral",
+    name: 'neutral',
+    displayName: 'Neutral',
+    emoji: '😐',
+    icon: 'mood-calm',
+    color: 'neutral',
     band: 45,
   },
   {
-    name: "thoughtful",
-    displayName: "Thoughtful",
-    emoji: "🤔",
-    icon: "mood-calm",
-    color: "sky",
+    name: 'thoughtful',
+    displayName: 'Thoughtful',
+    emoji: '🤔',
+    icon: 'mood-calm',
+    color: 'sky',
     band: 55,
   },
   {
-    name: "calm",
-    displayName: "Calm",
-    emoji: "🙂",
-    icon: "mood-calm",
-    color: "green",
+    name: 'calm',
+    displayName: 'Calm',
+    emoji: '🙂',
+    icon: 'mood-calm',
+    color: 'green',
     band: 65,
   },
   {
-    name: "confident",
-    displayName: "Confident",
-    emoji: "😎",
-    icon: "mood-happy",
-    color: "amber",
+    name: 'confident',
+    displayName: 'Confident',
+    emoji: '😎',
+    icon: 'mood-happy',
+    color: 'amber',
     band: 75,
   },
   {
-    name: "happy",
-    displayName: "Happy",
-    emoji: "😀",
-    icon: "mood-happy",
-    color: "amber",
+    name: 'happy',
+    displayName: 'Happy',
+    emoji: '😀',
+    icon: 'mood-happy',
+    color: 'amber',
     band: 85,
   },
   {
-    name: "excited",
-    displayName: "Excited",
-    emoji: "😍",
-    icon: "mood-happy",
-    color: "amber",
+    name: 'excited',
+    displayName: 'Excited',
+    emoji: '😍',
+    icon: 'mood-happy',
+    color: 'amber',
     band: 100,
   },
   // Descriptive tags (no band) — chosen alongside the intensity rating.
   {
-    name: "energetic",
-    displayName: "Energetic",
-    emoji: "⚡",
-    icon: "mood-happy",
-    color: "amber",
+    name: 'energetic',
+    displayName: 'Energetic',
+    emoji: '⚡',
+    icon: 'mood-happy',
+    color: 'amber',
   },
   {
-    name: "sensitive",
-    displayName: "Sensitive",
-    emoji: "🥺",
-    icon: "mood-calm",
-    color: "sky",
+    name: 'sensitive',
+    displayName: 'Sensitive',
+    emoji: '🥺',
+    icon: 'mood-calm',
+    color: 'sky',
   },
   {
-    name: "tired",
-    displayName: "Tired",
-    emoji: "😴",
-    icon: "mood-calm",
-    color: "sky",
+    name: 'tired',
+    displayName: 'Tired',
+    emoji: '😴',
+    icon: 'mood-calm',
+    color: 'sky',
   },
   {
-    name: "low",
-    displayName: "Low energy",
-    emoji: "🔋",
-    icon: "mood-calm",
-    color: "sky",
+    name: 'low',
+    displayName: 'Low energy',
+    emoji: '🔋',
+    icon: 'mood-calm',
+    color: 'sky',
   },
   {
-    name: "anxious",
-    displayName: "Anxious",
-    emoji: "😰",
-    icon: "mood-irritable",
-    color: "lavender",
+    name: 'anxious',
+    displayName: 'Anxious',
+    emoji: '😰',
+    icon: 'mood-irritable',
+    color: 'lavender',
   },
   {
-    name: "irritable",
-    displayName: "Irritable",
-    emoji: "😤",
-    icon: "mood-irritable",
-    color: "period",
+    name: 'irritable',
+    displayName: 'Irritable',
+    emoji: '😤',
+    icon: 'mood-irritable',
+    color: 'period',
   },
 ] as const;
 
@@ -160,7 +160,7 @@ export function moodValueToTag(value: number): string {
   for (const m of BUILT_IN_MOODS) {
     if (m.band != null && value <= m.band) return m.name;
   }
-  return "excited";
+  return 'excited';
 }
 
 /**
@@ -172,7 +172,7 @@ export function representativeMoodValue(tags: string[], fallback = 50): number {
     const def = BUILT_IN_MOODS.find((m) => m.name === tag && m.band != null);
     if (def) {
       const idx = BUILT_IN_MOODS.filter((m) => m.band != null).findIndex(
-        (m) => m.name === tag,
+        (m) => m.name === tag
       );
       // Band midpoint: halfway between the previous band and this one.
       const banded = BUILT_IN_MOODS.filter((m) => m.band != null);
@@ -205,15 +205,15 @@ export function clampStoredMoodValue(value: unknown): number | null {
   // Deliberately not a bare `Number(value)`: that reads null, '', false and []
   // as 0, which would clamp each of them to a real mood the caller never sent.
   const numeric =
-    typeof value === "number"
+    typeof value === 'number'
       ? value
-      : typeof value === "string" && value.trim() !== ""
+      : typeof value === 'string' && value.trim() !== ''
         ? Number(value)
         : Number.NaN;
   if (!Number.isFinite(numeric)) return null;
   return Math.min(
     MOOD_VALUE_MAX,
-    Math.max(MOOD_VALUE_MIN, Math.round(numeric)),
+    Math.max(MOOD_VALUE_MIN, Math.round(numeric))
   );
 }
 

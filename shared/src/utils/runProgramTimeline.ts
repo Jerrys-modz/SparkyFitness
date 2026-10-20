@@ -1,8 +1,8 @@
-import { projectRuns, type ProgramSchedule } from "./runProgramSchedule.ts";
+import { projectRuns, type ProgramSchedule } from './runProgramSchedule.ts';
 import type {
   RunProgramCompletion,
   RunProgramEffort,
-} from "../schemas/api/RunProgram.api.zod.ts";
+} from '../schemas/api/RunProgram.api.zod.ts';
 
 /**
  * Every workout of a program on one line of time: the ones done (with the day
@@ -13,11 +13,11 @@ import type {
 
 export type TimelineState =
   /** Behind the place: done (or skipped past). */
-  | "done"
+  | 'done'
   /** The workout due. */
-  | "next"
+  | 'next'
   /** Ahead of the place. */
-  | "upcoming";
+  | 'upcoming';
 
 export interface TimelineItem {
   /** Index into the program's workouts. */
@@ -69,7 +69,7 @@ export function buildProgramTimeline({
     projectRuns({ total, next, schedule, today, doneToday }).map((run) => [
       run.index,
       run.day,
-    ]),
+    ])
   );
 
   return Array.from({ length: total }, (_, index): TimelineItem => {
@@ -78,7 +78,7 @@ export function buildProgramTimeline({
     if (index < next) {
       return {
         index,
-        state: "done",
+        state: 'done',
         day: completion ? isoToDay(completion.at) : null,
         entryId: completion?.entry_id ?? null,
         rating,
@@ -99,7 +99,7 @@ export function buildProgramTimeline({
         : fallbackDay;
     return {
       index,
-      state: index === next ? "next" : "upcoming",
+      state: index === next ? 'next' : 'upcoming',
       day: projected.get(index) ?? dueDay,
       entryId: null,
       rating: null,
@@ -109,7 +109,7 @@ export function buildProgramTimeline({
 
 /** The items by day, in workout order within a day. */
 export function itemsByDay(
-  items: readonly TimelineItem[],
+  items: readonly TimelineItem[]
 ): Map<string, TimelineItem[]> {
   const byDay = new Map<string, TimelineItem[]>();
   for (const item of items) {

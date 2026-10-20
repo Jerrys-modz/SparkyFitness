@@ -1,11 +1,11 @@
-import type { RoutePoint } from "../schemas/api/Route.api.zod.ts";
+import type { RoutePoint } from '../schemas/api/Route.api.zod.ts';
 import {
   distanceToSegment,
   localProjector,
   routeDistanceMeters,
   simplifyRoute,
   type RouteBounds,
-} from "./routeGeometry.ts";
+} from './routeGeometry.ts';
 
 /*
  * A personal heatmap is a grid of roughly square cells; each cell counts the
@@ -221,11 +221,15 @@ export interface HeatSlice {
   truncated: boolean;
 }
 
-function inBox(lat: number, lon: number, box: RouteBounds, padM: number): boolean {
+function inBox(
+  lat: number,
+  lon: number,
+  box: RouteBounds,
+  padM: number
+): boolean {
   const latPad = padM / M_PER_DEG_LAT;
   const lonPad =
-    padM /
-    (M_PER_DEG_LAT * Math.max(0.01, Math.cos((lat * Math.PI) / 180)));
+    padM / (M_PER_DEG_LAT * Math.max(0.01, Math.cos((lat * Math.PI) / 180)));
   return (
     lat >= box.minLat - latPad &&
     lat <= box.maxLat + latPad &&
@@ -360,7 +364,9 @@ export function simplifyHeatTrack(
       }));
       const kept = simplifyRoute(points, maxPoints, tolerance).points;
       if (kept.length >= 2 && routeDistanceMeters(kept) >= MIN_PART_LENGTH_M) {
-        parts.push(kept.map((p): HeatTrackPoint => [round5(p.lat), round5(p.lon)]));
+        parts.push(
+          kept.map((p): HeatTrackPoint => [round5(p.lat), round5(p.lon)])
+        );
       }
     }
     current = [];
@@ -374,7 +380,10 @@ export function simplifyHeatTrack(
         prev.tMs !== undefined && fix.tMs !== undefined
           ? (fix.tMs - prev.tMs) / 1000
           : 0;
-      if (approxMeters(prev, fix) > opt.maxGapM || seconds > opt.maxGapSeconds) {
+      if (
+        approxMeters(prev, fix) > opt.maxGapM ||
+        seconds > opt.maxGapSeconds
+      ) {
         flush();
       }
     }

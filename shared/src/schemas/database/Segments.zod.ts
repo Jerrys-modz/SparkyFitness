@@ -1,5 +1,5 @@
-import { z } from "zod";
-import { routeActivitySchema } from "./Routes.zod.ts";
+import { z } from 'zod';
+import { routeActivitySchema } from './Routes.zod.ts';
 
 export const segmentsIdSchema = z.string();
 
@@ -24,7 +24,7 @@ export const segmentsInitializerSchema = z.object({
   id: segmentsIdSchema.optional(),
   user_id: z.string(),
   name: z.string().nullable().optional(),
-  activity: routeActivitySchema.optional().default("run"),
+  activity: routeActivitySchema.optional().default('run'),
   length_m: z.number(),
   points: z.unknown().optional(),
   min_lat: z.number(),

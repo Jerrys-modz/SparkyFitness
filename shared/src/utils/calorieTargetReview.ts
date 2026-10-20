@@ -1,4 +1,4 @@
-import { ENERGY_DENSITY_KCAL_PER_KG } from "../constants/calorieConstants.ts";
+import { ENERGY_DENSITY_KCAL_PER_KG } from '../constants/calorieConstants.ts';
 
 /**
  * Deterministic weekly check of a calorie target against what the body did.
@@ -29,7 +29,7 @@ export interface CalorieTargetReviewInput {
 }
 
 export type CalorieTargetStatus =
-  "learning" | "low_logging" | "no_target" | "on_track" | "off_track";
+  'learning' | 'low_logging' | 'no_target' | 'on_track' | 'off_track';
 
 export interface CalorieTargetOption {
   kgPerWeek: number;
@@ -72,7 +72,7 @@ const round2 = (value: number): number => Math.round(value * 100) / 100;
 /** Calories a day that give `kgPerWeek` at this maintenance. */
 export function targetForRate(
   maintenanceKcal: number,
-  kgPerWeek: number,
+  kgPerWeek: number
 ): number {
   return maintenanceKcal + (kgPerWeek * ENERGY_DENSITY_KCAL_PER_KG) / 7;
 }
@@ -80,7 +80,7 @@ export function targetForRate(
 function option(
   maintenanceKcal: number,
   kgPerWeek: number,
-  floorKcal: number | null,
+  floorKcal: number | null
 ): CalorieTargetOption {
   const calories = round10(targetForRate(maintenanceKcal, kgPerWeek));
   return {
@@ -91,7 +91,7 @@ function option(
 }
 
 export function reviewCalorieTarget(
-  input: CalorieTargetReviewInput,
+  input: CalorieTargetReviewInput
 ): CalorieTargetReview {
   const {
     maintenanceKcal,
@@ -107,7 +107,7 @@ export function reviewCalorieTarget(
       ? null
       : round2(
           ((currentTargetKcal - maintenanceKcal) * 7) /
-            ENERGY_DENSITY_KCAL_PER_KG,
+            ENERGY_DENSITY_KCAL_PER_KG
         );
   const observedKgPerWeek =
     input.dailyWeightChangeKg === null
@@ -119,7 +119,7 @@ export function reviewCalorieTarget(
       : null;
 
   const options = CALORIE_REVIEW_RATES_KG_PER_WEEK.map((rate) =>
-    option(maintenanceKcal, rate, floorKcal),
+    option(maintenanceKcal, rate, floorKcal)
   );
   const desired = input.desiredKgPerWeek;
   const suggestion =
@@ -137,18 +137,18 @@ export function reviewCalorieTarget(
         })();
 
   let status: CalorieTargetStatus;
-  if (!input.maintenanceReliable) status = "learning";
+  if (!input.maintenanceReliable) status = 'learning';
   else if (daysLogged / windowDays < CALORIE_REVIEW_MIN_LOGGED_SHARE) {
-    status = "low_logging";
-  } else if (currentTargetKcal === null) status = "no_target";
+    status = 'low_logging';
+  } else if (currentTargetKcal === null) status = 'no_target';
   else if (
     observedKgPerWeek !== null &&
     impliedKgPerWeek !== null &&
     Math.abs(observedKgPerWeek - impliedKgPerWeek) <=
       CALORIE_REVIEW_RATE_TOLERANCE_KG
   ) {
-    status = "on_track";
-  } else status = "off_track";
+    status = 'on_track';
+  } else status = 'off_track';
 
   return {
     status,

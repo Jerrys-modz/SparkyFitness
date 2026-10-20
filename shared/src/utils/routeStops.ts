@@ -2,18 +2,18 @@ import type {
   RoutePoint,
   RouteStop,
   RouteStopKind,
-} from "../schemas/api/Route.api.zod.ts";
+} from '../schemas/api/Route.api.zod.ts';
 import {
   distanceToSegment,
   haversineMeters,
   localProjector,
-} from "./routeGeometry.ts";
+} from './routeGeometry.ts';
 
 export const ROUTE_STOP_KINDS: readonly RouteStopKind[] = [
-  "water",
-  "toilets",
-  "cafe",
-  "viewpoint",
+  'water',
+  'toilets',
+  'cafe',
+  'viewpoint',
 ];
 
 /** A stop as the map data has it, before it is placed along a route. */
@@ -30,9 +30,9 @@ export interface RouteStopCandidate {
  * `maxOffRouteM` are dropped; the rest come back in route order.
  */
 export function locateStopsAlongRoute(
-  points: readonly Pick<RoutePoint, "lat" | "lon">[],
+  points: readonly Pick<RoutePoint, 'lat' | 'lon'>[],
   candidates: readonly RouteStopCandidate[],
-  maxOffRouteM: number,
+  maxOffRouteM: number
 ): RouteStop[] {
   const first = points[0];
   if (!first || points.length < 2) return [];
@@ -43,7 +43,7 @@ export function locateStopsAlongRoute(
   for (let i = 1; i < points.length; i++) {
     cumulative.push(
       (cumulative[i - 1] as number) +
-        haversineMeters(points[i - 1] as RoutePoint, points[i] as RoutePoint),
+        haversineMeters(points[i - 1] as RoutePoint, points[i] as RoutePoint)
     );
   }
 
@@ -55,7 +55,7 @@ export function locateStopsAlongRoute(
       const hit = distanceToSegment(
         at,
         line[i - 1] as { x: number; y: number },
-        line[i] as { x: number; y: number },
+        line[i] as { x: number; y: number }
       );
       if (hit.distance < best.distance) {
         const segment =
@@ -81,7 +81,7 @@ export function locateStopsAlongRoute(
 }
 
 export function countRouteStops(
-  stops: readonly Pick<RouteStop, "kind">[],
+  stops: readonly Pick<RouteStop, 'kind'>[]
 ): Record<RouteStopKind, number> {
   const counts: Record<RouteStopKind, number> = {
     water: 0,

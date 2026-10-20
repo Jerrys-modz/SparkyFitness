@@ -7,12 +7,12 @@ import {
   type PlannedItem,
   type PlannedStatus,
   type SportLoad,
-} from "../schemas/api/TrainingCalendar.api.zod.ts";
-import type { ActivitySport } from "./activitySport.ts";
-import { projectRuns, type ProgramSchedule } from "./runProgramSchedule.ts";
-import { addDays, compareDays, dayOfWeek, daysBetween } from "./timezone.ts";
-import { weekStartOf } from "./trainingConsistency.ts";
-import { DEFAULT_MAX_HEART_RATE, sessionLoad } from "./trainingLoad.ts";
+} from '../schemas/api/TrainingCalendar.api.zod.ts';
+import type { ActivitySport } from './activitySport.ts';
+import { projectRuns, type ProgramSchedule } from './runProgramSchedule.ts';
+import { addDays, compareDays, dayOfWeek, daysBetween } from './timezone.ts';
+import { weekStartOf } from './trainingConsistency.ts';
+import { DEFAULT_MAX_HEART_RATE, sessionLoad } from './trainingLoad.ts';
 
 /**
  * Planned against completed work. What was PLANNED comes from the run program
@@ -32,17 +32,17 @@ export const MATCH_WINDOW_DAYS = 3;
 /** Folds the full sport taxonomy into the groups load is split by. */
 export function loadSportGroup(sport: ActivitySport): LoadSportGroup {
   switch (sport) {
-    case "running":
-      return "running";
-    case "cycling":
-      return "cycling";
-    case "walking":
-    case "hiking":
-      return "walking";
-    case "strength":
-      return "strength";
+    case 'running':
+      return 'running';
+    case 'cycling':
+      return 'cycling';
+    case 'walking':
+    case 'hiking':
+      return 'walking';
+    case 'strength':
+      return 'strength';
     default:
-      return "other";
+      return 'other';
   }
 }
 
@@ -82,7 +82,7 @@ export interface GroupableEntry extends CalendarEntry {
  * sport is strength when any exercise is, else the one with the most minutes.
  */
 export function groupPresetEntries(
-  entries: readonly GroupableEntry[],
+  entries: readonly GroupableEntry[]
 ): CalendarEntry[] {
   const out: CalendarEntry[] = [];
   const groups = new Map<string, GroupableEntry[]>();
@@ -106,8 +106,8 @@ export function groupPresetEntries(
     for (const e of group) {
       byMinutes.set(e.sport, (byMinutes.get(e.sport) ?? 0) + e.durationMinutes);
     }
-    const sport: LoadSportGroup = byMinutes.has("strength")
-      ? "strength"
+    const sport: LoadSportGroup = byMinutes.has('strength')
+      ? 'strength'
       : ([...byMinutes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ??
         entry.sport);
     const beats = group.filter((e) => hasHeartRate(e.avgHeartRate));
@@ -128,7 +128,7 @@ export function groupPresetEntries(
         beatMinutes > 0
           ? beats.reduce(
               (sum, e) => sum + (e.avgHeartRate ?? 0) * e.durationMinutes,
-              0,
+              0
             ) / beatMinutes
           : null,
       linkKey: links[0] ?? null,
@@ -141,7 +141,7 @@ export function groupPresetEntries(
 export interface PlanSlot {
   id: string;
   day: string;
-  source: "runProgram" | "workoutPlan";
+  source: 'runProgram' | 'workoutPlan';
   sport: LoadSportGroup;
   label: string | null;
   programId: string | null;
@@ -176,13 +176,13 @@ export function matchPlan(
   slots: readonly PlanSlot[],
   entries: readonly CalendarEntry[],
   today: string,
-  maxHeartRate: number = DEFAULT_MAX_HEART_RATE,
+  maxHeartRate: number = DEFAULT_MAX_HEART_RATE
 ): { planned: PlannedItem[]; completed: CompletedItem[] } {
   const ordered = [...slots].sort(
-    (a, b) => compareDays(a.day, b.day) || a.id.localeCompare(b.id),
+    (a, b) => compareDays(a.day, b.day) || a.id.localeCompare(b.id)
   );
   const free = [...entries].sort(
-    (a, b) => compareDays(a.day, b.day) || a.id.localeCompare(b.id),
+    (a, b) => compareDays(a.day, b.day) || a.id.localeCompare(b.id)
   );
   const taken = new Map<string, string>(); // entry id -> slot id
   const matched = new Map<
@@ -239,16 +239,16 @@ export function matchPlan(
       : 0;
     let status: PlannedStatus;
     if (!found)
-      status = compareDays(slot.day, today) < 0 ? "missed" : "upcoming";
+      status = compareDays(slot.day, today) < 0 ? 'missed' : 'upcoming';
     else if (found.linked) {
       const covered = new Set(
-        found.entries.flatMap(keysOf).filter((k) => slot.linkKeys.includes(k)),
+        found.entries.flatMap(keysOf).filter((k) => slot.linkKeys.includes(k))
       ).size;
-      status = covered >= slot.linkKeys.length ? "done" : "partial";
+      status = covered >= slot.linkKeys.length ? 'done' : 'partial';
     } else if (slot.plannedMinutes != null && slot.plannedMinutes > 0) {
-      status = minutes / slot.plannedMinutes >= DONE_SHARE ? "done" : "partial";
+      status = minutes / slot.plannedMinutes >= DONE_SHARE ? 'done' : 'partial';
     } else {
-      status = "done";
+      status = 'done';
     }
     return {
       id: slot.id,
@@ -265,13 +265,13 @@ export function matchPlan(
           : Math.round(
               sessionLoad(
                 { durationMinutes: slot.plannedMinutes, avgHeartRate: null },
-                maxHeartRate,
-              ),
+                maxHeartRate
+              )
             ),
       status,
       completedMinutes: Math.round(minutes),
       completedLoad: Math.round(
-        (found?.entries ?? []).reduce((sum, e) => sum + loadOf(e), 0),
+        (found?.entries ?? []).reduce((sum, e) => sum + loadOf(e), 0)
       ),
       entryIds: (found?.entries ?? []).map((e) => e.id),
     };
@@ -289,7 +289,7 @@ export function matchPlan(
         : Math.round(entry.distanceKm * 100) / 100,
     avgHeartRate: hasHeartRate(entry.avgHeartRate) ? entry.avgHeartRate : null,
     load: Math.round(loadOf(entry)),
-    loadBasis: hasHeartRate(entry.avgHeartRate) ? "heartRate" : "estimated",
+    loadBasis: hasHeartRate(entry.avgHeartRate) ? 'heartRate' : 'estimated',
     plannedItemId: taken.get(entry.id) ?? null,
   }));
   return { planned, completed };
@@ -301,7 +301,7 @@ export function weeklyTotals(
   completed: readonly CompletedItem[],
   start: string,
   end: string,
-  firstDayOfWeek: number = 1,
+  firstDayOfWeek: number = 1
 ): CalendarWeekTotals[] {
   const weeks = new Map<string, CalendarWeekTotals>();
   for (
@@ -331,9 +331,9 @@ export function weeklyTotals(
     week.plannedSessions += 1;
     week.plannedMinutes += item.plannedMinutes ?? 0;
     week.plannedLoad += item.plannedLoad ?? 0;
-    if (item.status === "done") week.doneSessions += 1;
-    else if (item.status === "partial") week.partialSessions += 1;
-    else if (item.status === "missed") week.missedSessions += 1;
+    if (item.status === 'done') week.doneSessions += 1;
+    else if (item.status === 'partial') week.partialSessions += 1;
+    else if (item.status === 'missed') week.missedSessions += 1;
   }
   for (const item of completed) {
     const week = bucket(item.day);
@@ -355,7 +355,7 @@ export function sportLoadOf(
   completed: readonly CompletedItem[],
   start: string,
   end: string,
-  firstDayOfWeek: number = 1,
+  firstDayOfWeek: number = 1
 ): SportLoad {
   const weeks = new Map<string, LoadBySport>();
   for (
@@ -395,10 +395,10 @@ export function sportLoadOf(
 }
 
 function nextMonth(month: string): string {
-  const [year, m] = month.split("-").map(Number) as [number, number];
+  const [year, m] = month.split('-').map(Number) as [number, number];
   return m === 12
     ? `${year + 1}-01`
-    : `${year}-${String(m + 1).padStart(2, "0")}`;
+    : `${year}-${String(m + 1).padStart(2, '0')}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -408,7 +408,7 @@ function nextMonth(month: string): string {
 export interface ProgramPlanInput {
   programId: string;
   /** What the program's workouts are recorded as. */
-  activity: "run" | "walk";
+  activity: 'run' | 'walk';
   enabled: boolean;
   total: number;
   /** Index of the next workout due. */
@@ -437,15 +437,15 @@ export function programSlots(
   input: ProgramPlanInput,
   today: string,
   start: string,
-  end: string,
+  end: string
 ): PlanSlot[] {
   const { schedule } = input;
   const sport: LoadSportGroup =
-    input.activity === "walk" ? "walking" : "running";
+    input.activity === 'walk' ? 'walking' : 'running';
   const slot = (index: number, day: string): PlanSlot => ({
     id: `runProgram:${day}:${index}`,
     day,
-    source: "runProgram",
+    source: 'runProgram',
     sport,
     label: null,
     programId: input.programId,
@@ -489,7 +489,7 @@ export function programSlots(
 
   // Before today: the run days since the first day, then the completions.
   const completions = [...input.completions].sort(
-    (a, b) => compareDays(a.day, b.day) || a.index - b.index,
+    (a, b) => compareDays(a.day, b.day) || a.index - b.index
   );
   const lastPastDay = (() => {
     const yesterday = addDays(today, -1);
@@ -519,7 +519,7 @@ export function programSlots(
       const last = before.at(-1);
       const index = Math.min(
         input.total - 1,
-        last ? last.index + 1 : (completions[0]?.index ?? input.next),
+        last ? last.index + 1 : (completions[0]?.index ?? input.next)
       );
       open.push({ day, index });
     }
@@ -531,7 +531,7 @@ export function programSlots(
     const earlier = open.findIndex(
       (o) =>
         compareDays(o.day, done.day) < 0 &&
-        daysBetween(o.day, done.day) <= MATCH_WINDOW_DAYS,
+        daysBetween(o.day, done.day) <= MATCH_WINDOW_DAYS
     );
     const at = sameDay >= 0 ? sameDay : earlier;
     const day = at >= 0 ? open.splice(at, 1)[0]!.day : done.day;
@@ -563,7 +563,7 @@ export interface PlanAssignmentInput {
 export interface PlanTemplateInput {
   id: number | string;
   name: string;
-  scheduleType: "weekly" | "sequential";
+  scheduleType: 'weekly' | 'sequential';
   /** First and last day the plan runs; the end is open when null. */
   start: string;
   end: string | null;
@@ -572,18 +572,18 @@ export interface PlanTemplateInput {
 
 /** One session of a plan on one day: its assignments make a single item. */
 export function planSessionSlot(
-  template: Pick<PlanTemplateInput, "id" | "name">,
+  template: Pick<PlanTemplateInput, 'id' | 'name'>,
   day: string,
   sessionIndex: number | null,
-  assignments: readonly PlanAssignmentInput[],
+  assignments: readonly PlanAssignmentInput[]
 ): PlanSlot {
   const first = assignments[0];
   const known = assignments.filter((a) => a.minutes != null);
   return {
     id: `workoutPlan:${template.id}:${day}:${sessionIndex ?? 0}`,
     day,
-    source: "workoutPlan",
-    sport: first?.sport ?? "strength",
+    source: 'workoutPlan',
+    sport: first?.sport ?? 'strength',
     label: first?.sessionName ?? first?.name ?? template.name,
     programId: null,
     workoutNumber: null,
@@ -602,11 +602,11 @@ export function planSessionSlot(
 export function weeklyPlanSlots(
   templates: readonly PlanTemplateInput[],
   start: string,
-  end: string,
+  end: string
 ): PlanSlot[] {
   const slots: PlanSlot[] = [];
   for (const template of templates) {
-    if (template.scheduleType !== "weekly") continue;
+    if (template.scheduleType !== 'weekly') continue;
     const first =
       compareDays(template.start, start) > 0 ? template.start : start;
     const last =

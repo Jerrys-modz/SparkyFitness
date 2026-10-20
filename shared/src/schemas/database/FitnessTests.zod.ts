@@ -1,17 +1,17 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 export const fitnessTestsIdSchema = z.string();
 
 export const fitnessTestsSchema = z.object({
   id: fitnessTestsIdSchema,
   user_id: z.string(),
-  test_type: z.enum(["5k", "30min", "cooper"]),
+  test_type: z.enum(['5k', '30min', 'cooper']),
   test_date: z.coerce.date(),
   exercise_entry_id: z.string().nullable(),
   distance_meters: z.coerce.number(),
   duration_seconds: z.number(),
   split_distance_meters: z.coerce.number().nullable(),
-  surface: z.enum(["outdoor", "indoor"]),
+  surface: z.enum(['outdoor', 'indoor']),
   incline_percent: z.coerce.number().nullable(),
   incline_adjusted: z.boolean(),
   result_value: z.coerce.number(),
@@ -25,13 +25,13 @@ export const fitnessTestsSchema = z.object({
 export const fitnessTestsInitializerSchema = z.object({
   id: fitnessTestsIdSchema.optional(),
   user_id: z.string(),
-  test_type: z.enum(["5k", "30min", "cooper"]),
+  test_type: z.enum(['5k', '30min', 'cooper']),
   test_date: z.coerce.date(),
   exercise_entry_id: z.string().nullable().optional(),
   distance_meters: z.coerce.number(),
   duration_seconds: z.number(),
   split_distance_meters: z.coerce.number().nullable().optional(),
-  surface: z.enum(["outdoor", "indoor"]).optional().default("outdoor"),
+  surface: z.enum(['outdoor', 'indoor']).optional().default('outdoor'),
   incline_percent: z.coerce.number().nullable().optional(),
   incline_adjusted: z.boolean().optional().default(false),
   result_value: z.coerce.number(),
@@ -45,13 +45,13 @@ export const fitnessTestsInitializerSchema = z.object({
 export const fitnessTestsMutatorSchema = z.object({
   id: fitnessTestsIdSchema.optional(),
   user_id: z.string().optional(),
-  test_type: z.enum(["5k", "30min", "cooper"]).optional(),
+  test_type: z.enum(['5k', '30min', 'cooper']).optional(),
   test_date: z.coerce.date().optional(),
   exercise_entry_id: z.string().nullable().optional(),
   distance_meters: z.coerce.number().optional(),
   duration_seconds: z.number().optional(),
   split_distance_meters: z.coerce.number().nullable().optional(),
-  surface: z.enum(["outdoor", "indoor"]).optional(),
+  surface: z.enum(['outdoor', 'indoor']).optional(),
   incline_percent: z.coerce.number().nullable().optional(),
   incline_adjusted: z.boolean().optional(),
   result_value: z.coerce.number().optional(),
