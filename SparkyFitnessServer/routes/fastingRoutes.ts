@@ -15,6 +15,25 @@ import {
 import { authenticate } from '../middleware/authMiddleware.js';
 import checkPermissionMiddleware from '../middleware/checkPermissionMiddleware.js';
 const router = express.Router();
+
+// Logs the optional end-of-fast mood as a manual check-in stamped at the end
+// of the fast and dated in the user's timezone. Writes nothing (and loads no
+// timezone) when the fast ended without a mood value.
+async function saveFastingMoodCheckin(
+  userId: string,
+  moodValue: number | null,
+  notes: string | null | undefined,
+  endTime: string
+): Promise<void> {
+  if (moodValue === null) return;
+  const tz = await loadUserTimezone(userId);
+  await moodRepository.createCheckin(userId, {
+    moodValue,
+    notes: notes || null,
+    entryTimestamp: endTime,
+    entryDate: instantToDay(endTime, tz),
+  });
+}
 /**
  * @swagger
  * tags:
@@ -236,14 +255,12 @@ router.post('/end', async (req, res) => {
           .json({ error: 'start_time must be before end_time' });
       }
 
-      if (storedMoodValue !== null) {
-        await moodRepository.createCheckin(userId, {
-          moodValue: storedMoodValue,
-          notes: mood.notes || null,
-          entryTimestamp: end_time,
-          entryDate: instantToDay(end_time, tz),
-        });
-      }
+      await saveFastingMoodCheckin(
+        userId,
+        storedMoodValue,
+        mood?.notes,
+        end_time
+      );
 
       const durationMinutes = Math.max(
         0,
@@ -273,15 +290,12 @@ router.post('/end', async (req, res) => {
         .status(400)
         .json({ error: 'start_time must be before end_time' });
     }
-    if (storedMoodValue !== null) {
-      const moodTz = await loadUserTimezone(userId);
-      await moodRepository.createCheckin(userId, {
-        moodValue: storedMoodValue,
-        notes: mood.notes || null,
-        entryTimestamp: end_time,
-        entryDate: instantToDay(end_time, moodTz),
-      });
-    }
+    await saveFastingMoodCheckin(
+      userId,
+      storedMoodValue,
+      mood?.notes,
+      end_time
+    );
     const durationMinutes = Math.max(
       0,
       Math.round(

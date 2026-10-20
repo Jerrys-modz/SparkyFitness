@@ -959,7 +959,7 @@ describe('moodHandler', () => {
     );
   });
 
-  it('re-importing the same day upserts again and never creates a check-in', async () => {
+  it('routes every re-import of the same day to the import derived upsert', async () => {
     vi.mocked(moodRepository.upsertDerivedMood).mockResolvedValue({} as never);
     const entry = { type: 'Mood', value: '70' };
 
