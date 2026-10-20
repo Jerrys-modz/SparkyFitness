@@ -55,6 +55,8 @@ const CheckIn = () => {
     mood,
     moodNotes,
     moodTags,
+    energy,
+    focus,
     neck,
     placeholders,
     recentMeasurements,
@@ -71,6 +73,8 @@ const CheckIn = () => {
     setMood,
     setMoodNotes,
     setMoodTags,
+    setEnergy,
+    setFocus,
     setNeck,
     setSelectedDate,
     setSteps,
@@ -84,6 +88,7 @@ const CheckIn = () => {
     weight,
     handleSaveMood,
     isSavingMood,
+    isLoadingMood,
   } = useCheckInLogic(currentUserId);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -202,11 +207,16 @@ const CheckIn = () => {
             mood={mood}
             moodNotes={moodNotes}
             moodTags={moodTags}
+            energy={energy}
+            focus={focus}
             setMood={setMood}
             setMoodNotes={setMoodNotes}
             setMoodTags={setMoodTags}
+            setEnergy={setEnergy}
+            setFocus={setFocus}
             onSaveMood={handleSaveMood}
             isSavingMood={isSavingMood}
+            isLoadingMood={isLoadingMood}
           />
           <RecentActivity
             convertMeasurement={convertMeasurement}

@@ -186,7 +186,8 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
   // entries give context without being resubmitted.
   const { data: latestManualCustom = [] } =
     useLatestManualCustomEntriesOnOrBefore(selectedDate);
-  const { data: existingMood } = useMoodEntryByDate(selectedDate);
+  const { data: existingMood, isLoading: isLoadingMood } =
+    useMoodEntryByDate(selectedDate);
 
   const { data: recentCustom = [] } = useRecentCustomMeasurements();
   const endDate = todayInZone(timezone);
@@ -300,6 +301,9 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
     return existingMood?.notes || '';
   }, [existingMood?.notes]);
 
+  const derivedEnergy = existingMood?.energy_value ?? null;
+  const derivedFocus = existingMood?.focus_value ?? null;
+
   const derivedMoodTags = useMemo(() => {
     return existingMood?.mood_tags ?? [];
   }, [existingMood?.mood_tags]);
@@ -375,6 +379,14 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
   );
   const [moodTags, setMoodTags] = useDerivedState<string[]>(
     derivedMoodTags,
+    selectedDate
+  );
+  const [energy, setEnergy] = useDerivedState<number | null>(
+    derivedEnergy,
+    selectedDate
+  );
+  const [focus, setFocus] = useDerivedState<number | null>(
+    derivedFocus,
     selectedDate
   );
   const [customValues, setCustomValues] = useDerivedState<
@@ -593,7 +605,7 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
 
   const handleSaveMood = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUserId) return;
+    if (!currentUserId || isLoadingMood) return;
 
     try {
       const moodToSend = mood ?? 50;
@@ -603,6 +615,8 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
         notes: moodNotes,
         entryDate: selectedDate,
         moodTags,
+        energyValue: energy,
+        focusValue: focus,
       });
 
       toast({
@@ -841,6 +855,8 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
     mood,
     moodNotes,
     moodTags,
+    energy,
+    focus,
     neck,
     placeholders,
     recentMeasurements,
@@ -857,6 +873,8 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
     setMood,
     setMoodNotes,
     setMoodTags,
+    setEnergy,
+    setFocus,
     setNeck,
     setSelectedDate,
     setSteps,
@@ -870,5 +888,6 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
     weight,
     handleSaveMood,
     isSavingMood,
+    isLoadingMood,
   };
 };

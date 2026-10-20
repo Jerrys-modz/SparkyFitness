@@ -8,22 +8,32 @@ interface CheckInTopRowProps {
   mood: number;
   moodNotes: string;
   moodTags: string[];
+  energy: number | null;
+  focus: number | null;
   setMood: (value: number) => void;
   setMoodNotes: (value: string) => void;
   setMoodTags: (value: string[]) => void;
+  setEnergy: (value: number | null) => void;
+  setFocus: (value: number | null) => void;
   onSaveMood: (e: React.FormEvent) => Promise<void>;
   isSavingMood: boolean;
+  isLoadingMood: boolean;
 }
 
 export const CheckInTopRow = ({
   mood,
   moodNotes,
   moodTags,
+  energy,
+  focus,
   setMood,
   setMoodNotes,
   setMoodTags,
+  setEnergy,
+  setFocus,
   onSaveMood,
   isSavingMood,
+  isLoadingMood,
 }: CheckInTopRowProps) => {
   const { t } = useTranslation();
 
@@ -50,12 +60,20 @@ export const CheckInTopRow = ({
                   mood={mood}
                   notes={moodNotes}
                   moodTags={moodTags}
+                  energy={energy}
+                  focus={focus}
                   onMoodChange={setMood}
                   onNotesChange={setMoodNotes}
                   onTagsChange={setMoodTags}
+                  onEnergyChange={setEnergy}
+                  onFocusChange={setFocus}
                 />
                 <div className="flex justify-center pt-2">
-                  <Button type="submit" disabled={isSavingMood} size="sm">
+                  <Button
+                    type="submit"
+                    disabled={isSavingMood || isLoadingMood}
+                    size="sm"
+                  >
                     {isSavingMood
                       ? t('checkIn.saving', 'Saving...')
                       : t('checkIn.saveMood', 'Save Mood')}

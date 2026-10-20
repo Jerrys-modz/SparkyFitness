@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import MoodMeter from '@/pages/CheckIn/MoodMeter';
 
@@ -38,19 +38,31 @@ const stops = Array.from(
   (_, i) => MOOD_MIN + i * MOOD_STEP
 );
 
-const renderMeter = (mood = 50) => {
+const renderMeter = (
+  mood = 50,
+  ratings: { energy?: number | null; focus?: number | null } = {}
+) => {
   const onMoodChange = jest.fn();
+  const onEnergyChange = jest.fn();
+  const onFocusChange = jest.fn();
+  const onSubmit = jest.fn((e: React.FormEvent) => e.preventDefault());
   const { container } = render(
-    <MoodMeter
-      mood={mood}
-      notes=""
-      moodTags={[]}
-      onMoodChange={onMoodChange}
-      onNotesChange={jest.fn()}
-      onTagsChange={jest.fn()}
-    />
+    <form onSubmit={onSubmit}>
+      <MoodMeter
+        mood={mood}
+        notes=""
+        moodTags={[]}
+        energy={ratings.energy ?? null}
+        focus={ratings.focus ?? null}
+        onMoodChange={onMoodChange}
+        onNotesChange={jest.fn()}
+        onTagsChange={jest.fn()}
+        onEnergyChange={onEnergyChange}
+        onFocusChange={onFocusChange}
+      />
+    </form>
   );
-  return { container, onMoodChange };
+  return { container, onMoodChange, onEnergyChange, onFocusChange, onSubmit };
 };
 
 /** The nine legend faces: the only buttons in the meter carrying a `title`. */
@@ -186,5 +198,43 @@ describe('MoodMeter with a value from outside the picker', () => {
 
     // Clamping is for display: a day opened and saved untouched keeps its 100.
     expect(onMoodChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('MoodMeter energy, focus and journal', () => {
+  test('offers energy and focus as five optional taps each', () => {
+    renderMeter();
+    const energy = screen.getByRole('group', { name: 'Energy' });
+    expect(within(energy).getAllByRole('button')).toHaveLength(5);
+    expect(screen.getByText('Drained')).toBeInTheDocument();
+    expect(screen.getByText('Locked in')).toBeInTheDocument();
+  });
+
+  test('tapping a rating selects it without submitting the form', () => {
+    const { onEnergyChange, onSubmit } = renderMeter();
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Energy' })).getByRole(
+        'button',
+        { name: '4' }
+      )
+    );
+    expect(onEnergyChange).toHaveBeenCalledWith(4);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  test('tapping the selected rating again clears it', () => {
+    const { onFocusChange } = renderMeter(50, { focus: 2 });
+    const two = within(screen.getByRole('group', { name: 'Focus' })).getByRole(
+      'button',
+      { name: '2' }
+    );
+    expect(two).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(two);
+    expect(onFocusChange).toHaveBeenCalledWith(null);
+  });
+
+  test('labels the notes box as the journal', () => {
+    renderMeter();
+    expect(screen.getByLabelText('Journal (optional)')).toBeInTheDocument();
   });
 });

@@ -1,29 +1,57 @@
 import { getClient } from '../db/poolManager.js';
 import { log } from '../config/logging.js';
 
+const MOOD_ENTRY_COLUMNS =
+  'id, user_id, mood_value, energy_value, focus_value, mood_tags, notes, entry_date, created_at, updated_at';
+
+export interface MoodRatingsInput {
+  energyValue?: number | null;
+  focusValue?: number | null;
+}
+
+// A rating is "provided" when the key is present, even if null (null clears it).
+function ratingParams(ratings: MoodRatingsInput) {
+  return {
+    energy: ratings.energyValue ?? null,
+    energyProvided: ratings.energyValue !== undefined,
+    focus: ratings.focusValue ?? null,
+    focusProvided: ratings.focusValue !== undefined,
+  };
+}
+
 async function createOrUpdateMoodEntry(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  moodValue: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  notes: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  entryDate: any,
-  moodTags: string[] | null = null
+  userId: string,
+  moodValue: number,
+  notes: string | null | undefined,
+  entryDate: string | Date,
+  moodTags: string[] | null = null,
+  ratings: MoodRatingsInput = {}
 ) {
   const client = await getClient(userId); // User-specific operation
   try {
+    const r = ratingParams(ratings);
     const result = await client.query(
-      `INSERT INTO mood_entries (user_id, mood_value, mood_tags, notes, entry_date)
-       VALUES ($1, $2, COALESCE($3::text[], '{}'), $4, $5)
+      `INSERT INTO mood_entries (user_id, mood_value, mood_tags, notes, entry_date, energy_value, focus_value)
+       VALUES ($1, $2, COALESCE($3::text[], '{}'), $4, $5, $6::smallint, $8::smallint)
        ON CONFLICT (user_id, entry_date) DO UPDATE
        SET mood_value = EXCLUDED.mood_value,
            mood_tags = COALESCE($3::text[], mood_entries.mood_tags),
-           notes = EXCLUDED.notes,
+           notes = COALESCE(EXCLUDED.notes, mood_entries.notes),
+           energy_value = CASE WHEN $7 THEN EXCLUDED.energy_value ELSE mood_entries.energy_value END,
+           focus_value = CASE WHEN $9 THEN EXCLUDED.focus_value ELSE mood_entries.focus_value END,
            updated_at = NOW()
-       RETURNING id, user_id, mood_value, mood_tags, notes, entry_date, created_at, updated_at`,
-      [userId, moodValue, moodTags, notes, entryDate]
+       RETURNING ${MOOD_ENTRY_COLUMNS}`,
+      [
+        userId,
+        moodValue,
+        moodTags,
+        notes,
+        entryDate,
+        r.energy,
+        r.energyProvided,
+        r.focus,
+        r.focusProvided,
+      ]
     );
     return result.rows[0];
   } finally {
@@ -32,12 +60,9 @@ async function createOrUpdateMoodEntry(
 }
 
 async function getMoodEntriesByUserId(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  startDate: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  endDate: any
+  userId: string,
+  startDate: string,
+  endDate: string
 ) {
   const client = await getClient(userId); // User-specific operation
   try {
@@ -48,7 +73,7 @@ async function getMoodEntriesByUserId(
       endDate,
     });
     const result = await client.query(
-      `SELECT id, user_id, mood_value, mood_tags, notes, entry_date, created_at, updated_at
+      `SELECT ${MOOD_ENTRY_COLUMNS}
        FROM mood_entries
        WHERE user_id = $1 AND entry_date BETWEEN $2 AND $3
        ORDER BY entry_date DESC, created_at DESC`,
@@ -64,12 +89,12 @@ async function getMoodEntriesByUserId(
     client.release();
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getMoodEntryById(moodEntryId: any, userId: any) {
+
+async function getMoodEntryById(moodEntryId: string, userId: string) {
   const client = await getClient(userId); // User-specific operation
   try {
     const result = await client.query(
-      `SELECT id, user_id, mood_value, mood_tags, notes, entry_date, created_at, updated_at
+      `SELECT ${MOOD_ENTRY_COLUMNS}
        FROM mood_entries
        WHERE id = $1 AND user_id = $2`,
       [moodEntryId, userId]
@@ -81,35 +106,44 @@ async function getMoodEntryById(moodEntryId: any, userId: any) {
 }
 
 async function updateMoodEntry(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  moodEntryId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  moodValue: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  notes: any,
-  moodTags: string[] | null = null
+  moodEntryId: string,
+  userId: string,
+  moodValue: number | null,
+  notes: string | null | undefined,
+  moodTags: string[] | null = null,
+  ratings: MoodRatingsInput = {}
 ) {
   const client = await getClient(userId); // User-specific operation
   try {
+    const r = ratingParams(ratings);
     const result = await client.query(
       `UPDATE mood_entries
        SET mood_value = COALESCE($3, mood_value),
            notes = COALESCE($4, notes),
            mood_tags = COALESCE($5::text[], mood_tags),
+           energy_value = CASE WHEN $7 THEN $6::smallint ELSE energy_value END,
+           focus_value = CASE WHEN $9 THEN $8::smallint ELSE focus_value END,
            updated_at = NOW()
        WHERE id = $1 AND user_id = $2
-       RETURNING id, user_id, mood_value, mood_tags, notes, entry_date, created_at, updated_at`,
-      [moodEntryId, userId, moodValue, notes, moodTags]
+       RETURNING ${MOOD_ENTRY_COLUMNS}`,
+      [
+        moodEntryId,
+        userId,
+        moodValue,
+        notes,
+        moodTags,
+        r.energy,
+        r.energyProvided,
+        r.focus,
+        r.focusProvided,
+      ]
     );
     return result.rows[0];
   } finally {
     client.release();
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function deleteMoodEntry(moodEntryId: any, userId: any) {
+async function deleteMoodEntry(moodEntryId: string, userId: string) {
   const client = await getClient(userId); // User-specific operation
   try {
     const result = await client.query(
@@ -121,13 +155,12 @@ async function deleteMoodEntry(moodEntryId: any, userId: any) {
     client.release();
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getMoodEntryByDate(userId: any, entryDate: any) {
+async function getMoodEntryByDate(userId: string, entryDate: string) {
   const client = await getClient(userId); // User-specific operation
   try {
     log('debug', `Fetching mood entry for user ${userId} on date ${entryDate}`);
     const result = await client.query(
-      `SELECT id, user_id, mood_value, mood_tags, notes, entry_date, created_at, updated_at
+      `SELECT ${MOOD_ENTRY_COLUMNS}
        FROM mood_entries
        WHERE user_id = $1 AND entry_date = $2`,
       [userId, entryDate]

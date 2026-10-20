@@ -53,6 +53,8 @@ The `sparky_manage_checkin` tool supports the following actions:
 - **Description:** Logs the user's mood for a specific date.
 - **Parameters:**
     - `mood_value` (number): Mood score (typically 1-10).
+    - `energy_value` (integer 1-5, optional): Energy rating (1 = drained, 5 = energized).
+    - `focus_value` (integer 1-5, optional): Focus rating (1 = scattered, 5 = locked in).
     - `notes` (string, optional): Optional notes about the mood.
     - `entry_date` (string, YYYY-MM-DD): The date of the record.
 
