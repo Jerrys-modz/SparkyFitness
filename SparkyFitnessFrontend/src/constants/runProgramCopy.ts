@@ -60,14 +60,14 @@ export const PROGRAM_COPY: Readonly<Record<string, ProgramCopy>> = {
     description:
       'Beginner 10K: twelve weeks, three runs a week, starting from walking. You build up to running for an hour.',
     structure:
-      'Weeks 1 to 6 follow the beginner 5K build from short runs and walks to continuous running. Weeks 7 to 12 are three runs a week, with the long run growing from 30 to 60 minutes.',
+      'Weeks 1 to 6 follow the beginner 5K build from short runs and walks to continuous running. Weeks 7 to 12 are three runs a week. The long run grows from 30 to 60 minutes, and week 10 is lighter.',
   },
   faster10k: {
     name: 'Faster 10K',
     description:
       'Faster 10K: eight weeks of speed sessions, easy runs and tempo runs, for when you already run 10K.',
     structure:
-      'Each week has a speed session (fast and easy repeats), an easy run and a longer run. In weeks 5 to 7 the longer run is a tempo run of 20, 25 and then 30 minutes, and the last week eases off.',
+      'Each week has a speed session (fast repeats or hills), an easy run and a longer run. Week 4 is lighter. In weeks 5 to 7 the longer run is a tempo run of 20, 25 and then 30 minutes, and the last week eases off.',
   },
   tenKToHalf: {
     name: '10K to half marathon',
@@ -81,7 +81,7 @@ export const PROGRAM_COPY: Readonly<Record<string, ProgramCopy>> = {
     description:
       '10K to half marathon: ten weeks, four runs a week, with long runs building to about two hours. For when you can run 10K.',
     structure:
-      'Each week has two short runs, a middle run and a long run. The long run builds from 75 to 125 minutes, week 4 is lighter, and the last three weeks taper before race day. The final week has three shorter runs.',
+      'Each week has two short runs, a middle run and a long run. The long run builds from 65 to 115 minutes, weeks 4 and 8 are lighter, and the last two weeks taper before race day. The final week has three shorter runs.',
   },
   halfMarathon: {
     name: 'Half marathon',
@@ -95,7 +95,7 @@ export const PROGRAM_COPY: Readonly<Record<string, ProgramCopy>> = {
     description:
       'Half marathon: twelve weeks, four runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably.',
     structure:
-      'Each week has two easy runs, a middle run and a long run. The long run builds from 60 to 125 minutes, every fourth week is lighter, and the last two weeks taper before race day. The final week has three shorter runs.',
+      'Each week has two easy runs, a middle run and a long run. The long run builds from 50 to 115 minutes, every fourth week is lighter, and the last two weeks taper before race day. The final week has three shorter runs.',
   },
   fasterHalf: {
     name: 'Faster half marathon',
@@ -107,9 +107,9 @@ export const PROGRAM_COPY: Readonly<Record<string, ProgramCopy>> = {
   fasterHalf4: {
     name: 'Faster half marathon (4 runs a week)',
     description:
-      'Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run with tempo work. For when you have run a half marathon before.',
+      'Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run. For when you have run a half marathon before.',
     structure:
-      'Each week has a speed session, two easy runs and a long run. The long run builds from 80 to 120 minutes, week 4 is lighter, and the last three weeks taper before race day. The final week has three shorter runs.',
+      'Each week has a speed session, two easy runs and a long run. The long run builds from 70 to 110 minutes. Tempo runs of 25 and 30 minutes replace the speed session in weeks 6 and 8, week 4 is lighter, and the last three weeks taper before race day. The final week has three shorter runs.',
   },
   beginnerMarathon: {
     name: 'Beginner marathon',
@@ -121,9 +121,9 @@ export const PROGRAM_COPY: Readonly<Record<string, ProgramCopy>> = {
   beginnerMarathon4: {
     name: 'Beginner marathon (4 runs a week)',
     description:
-      'Beginner marathon: eighteen weeks, four runs a week, with long runs building to 2⅔ hours and a taper. For when you can run 10K.',
+      'Beginner marathon: eighteen weeks, four runs a week, with long runs building to 2½ hours and a taper. For when you can run 10K.',
     structure:
-      'Each week has two short runs, a middle run and a long run. The long run builds from 80 minutes to 2 hours 40 minutes, every fourth week is lighter, and the last three weeks taper before race day. The final week has three shorter runs.',
+      'Each week has two short runs, a middle run and a long run. The long run builds from 70 minutes to 2½ hours, every fourth week is lighter, and the last three weeks taper before race day. The final week has three shorter runs.',
   },
   marathon: {
     name: 'Marathon',
@@ -137,6 +137,6 @@ export const PROGRAM_COPY: Readonly<Record<string, ProgramCopy>> = {
     description:
       'Advanced marathon: sixteen weeks, five runs a week, with speed or tempo work and long runs building to three hours. For experienced runners.',
     structure:
-      'Most weeks have two easy runs, a speed or tempo session, a middle run and a long run. The long run builds from 90 minutes to three hours, every fourth week is lighter, and the last two weeks taper before race day.',
+      'Most weeks have two easy runs, a speed, hill or tempo session, a middle run and a long run. Most easy runs from week 3 end with strides. From week 9 the long run includes a block at marathon pace, except in the lighter weeks. The long run builds from 90 minutes to three hours, every fourth week is lighter, and the last two weeks taper before race day.',
   },
 };
