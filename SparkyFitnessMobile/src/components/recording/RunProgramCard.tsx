@@ -219,12 +219,12 @@ export function programDescription(t: TFunction, id: string): string {
     case 'beginnerMarathon4':
       return t('recordActivity.program.beginnerMarathon4Description', {
         defaultValue:
-          'Beginner marathon: eighteen weeks, four runs a week, with long runs building to 2⅔ hours and a taper. For when you can run 10K.',
+          'Beginner marathon: eighteen weeks, four runs a week, with long runs building to 2½ hours and a taper. For when you can run 10K.',
       });
     case 'fasterHalf4':
       return t('recordActivity.program.fasterHalf4Description', {
         defaultValue:
-          'Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run with tempo work. For when you have run a half marathon before.',
+          'Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run. For when you have run a half marathon before.',
       });
     default:
       return id;
