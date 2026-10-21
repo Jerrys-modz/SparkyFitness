@@ -36,6 +36,13 @@ describe('parseWatchRunPayload', () => {
     expect(plain?.estimatedDistanceMeters).toBeUndefined();
   });
 
+  test('reads the step count and ignores a bad one', () => {
+    expect(parseWatchRunPayload({ ...base, steps: 4210.4 })?.steps).toBe(4210);
+    expect(parseWatchRunPayload(base)?.steps).toBeUndefined();
+    expect(parseWatchRunPayload({ ...base, steps: 0 })?.steps).toBeUndefined();
+    expect(parseWatchRunPayload({ ...base, steps: -3 })?.steps).toBeUndefined();
+  });
+
   test('keeps good rows and drops malformed ones', () => {
     const parsed = parseWatchRunPayload(base);
     expect(parsed?.route).toHaveLength(2);

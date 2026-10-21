@@ -204,13 +204,31 @@ describe('cadence and stride from the phone', () => {
         finishedAt: outdoor.endedAt,
         activeSeconds: 950,
       },
-      3000
+      3000,
+      undefined
     );
     expect(createExerciseEntry).toHaveBeenCalledWith(
       expect.objectContaining({ avg_cadence: 168, stride_length_cm: 100 })
     );
     expect(created).toHaveBeenCalledWith('e1', form);
     expect(saved.form).toBe(form);
+  });
+
+  test('passes the watch step count through', async () => {
+    jest.mocked(measureWatchRunForm).mockResolvedValue(form);
+
+    await saveWatchRun(
+      { ...outdoor, steps: 3200 },
+      'km',
+      undefined,
+      jest.fn()
+    );
+
+    expect(measureWatchRunForm).toHaveBeenCalledWith(
+      expect.anything(),
+      3000,
+      3200
+    );
   });
 
   test('use the treadmill distance the wearer entered, which is what is stored', async () => {
@@ -225,7 +243,11 @@ describe('cadence and stride from the phone', () => {
     };
     await saveWatchRun(treadmill, 'km', undefined, jest.fn());
 
-    expect(measureWatchRunForm).toHaveBeenCalledWith(expect.anything(), 5000);
+    expect(measureWatchRunForm).toHaveBeenCalledWith(
+      expect.anything(),
+      5000,
+      undefined
+    );
     expect(createExerciseEntry).toHaveBeenCalledWith(
       expect.objectContaining({ distance: 5 })
     );
