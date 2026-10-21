@@ -31,6 +31,7 @@ export interface CompareResult {
   status: 'ok' | 'not_enough';
   n: number;
   needed: number; // 14 days / 8 weeks / 5 per yes-no group
+  reason?: 'tooFew' | 'noVariation'; // only when not_enough
   method?: 'pearson' | 'spearman' | 'difference';
   nEff?: number;
   r?: number;
@@ -157,7 +158,7 @@ interface Fit {
 function analyzePairs(input: PairInput): CompareResult {
   const pairs = pairUp(input, input.timing);
   const n = pairs.a.length;
-  if (n < input.needed) return notEnough(n, input.needed);
+  if (n < input.needed) return notEnough(n, input.needed, 'tooFew');
   if ((input.a.kind === 'binary') !== (input.b.kind === 'binary')) {
     return compareGroups(input, pairs);
   }
@@ -167,7 +168,7 @@ function analyzePairs(input: PairInput): CompareResult {
       ? 'spearman'
       : 'pearson';
   const fit = correlate(pairs, method);
-  if (!fit) return notEnough(n, input.needed);
+  if (!fit) return notEnough(n, input.needed, 'noVariation');
 
   const result: CompareResult = {
     status: 'ok',
@@ -235,8 +236,10 @@ function compareGroups(input: PairInput, pairs: Pairs): CompareResult {
     group.raw.push(outcome.raw[outcomeKeys[i]]);
   });
   const fewest = Math.min(yes.deviations.length, no.deviations.length);
-  if (fewest < PER_GROUP_NEEDED) return notEnough(fewest, PER_GROUP_NEEDED);
-  if (!sampleSd(deviations)) return notEnough(n, input.needed); // never varies
+  if (fewest < PER_GROUP_NEEDED) {
+    return notEnough(fewest, PER_GROUP_NEEDED, 'tooFew');
+  }
+  if (!sampleSd(deviations)) return notEnough(n, input.needed, 'noVariation');
 
   const nEffYes = meanEffectiveN(yes.deviations);
   const nEffNo = meanEffectiveN(no.deviations);
@@ -320,8 +323,19 @@ function strengthOf(r: number): CompareStrength {
   return 'strong';
 }
 
-function notEnough(n: number, needed: number): CompareResult {
-  return { status: 'not_enough', n, needed, checks: { ownNormal: true } };
+/** `tooFew`: below the minimum. `noVariation`: the minimum is met but a side never varies. */
+function notEnough(
+  n: number,
+  needed: number,
+  reason: NonNullable<CompareResult['reason']>
+): CompareResult {
+  return {
+    status: 'not_enough',
+    n,
+    needed,
+    reason,
+    checks: { ownNormal: true },
+  };
 }
 
 function valueAt(series: DaySeries, key: string): number | undefined {

@@ -138,6 +138,7 @@ describe('compare day analysis', () => {
       status: 'not_enough',
       n: 0,
       needed: 14,
+      reason: 'tooFew',
       checks: { ownNormal: true },
     };
 
@@ -179,6 +180,7 @@ describe('compare day analysis', () => {
       status: 'not_enough',
       n: 60,
       needed: 14,
+      reason: 'noVariation',
       checks: { ownNormal: true },
     });
     expect(
@@ -188,8 +190,14 @@ describe('compare day analysis', () => {
         timing: 0,
         start: START,
         end: END,
-      }).status
-    ).toBe('not_enough');
+      })
+    ).toEqual({
+      status: 'not_enough',
+      n: 60,
+      needed: 14,
+      reason: 'noVariation',
+      checks: { ownNormal: true },
+    });
   });
 
   test('analyzeDays links two series that move together and says positive', () => {
@@ -213,6 +221,7 @@ describe('compare day analysis', () => {
       sign: 'positive',
       strength: 'strong',
     });
+    expect(result.reason).toBeUndefined();
     expect(result.low).toBeGreaterThan(0);
     expect(result.checks.direction).toBeDefined();
     expect(result.checks.weekend).toBe('holds');
@@ -337,6 +346,7 @@ describe('compare day analysis', () => {
     });
     expect(result.r).toBeUndefined();
     expect(result.strength).toBeUndefined();
+    expect(result.reason).toBeUndefined();
     expect(result.low).toBeGreaterThan(0);
     // The bars show raw mood on each kind of day: about 8 apart.
     const gap = result.binary
@@ -362,6 +372,7 @@ describe('compare day analysis', () => {
       status: 'not_enough',
       n: 4,
       needed: 5,
+      reason: 'tooFew',
       checks: { ownNormal: true },
     });
   });
