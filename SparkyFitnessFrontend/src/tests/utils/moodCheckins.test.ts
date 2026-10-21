@@ -6,7 +6,7 @@ import {
   draftFromEntry,
   hasCheckinContent,
   type CheckinDraft,
-} from '@/utils/moodCheckins';
+} from '@workspace/shared';
 import type { MoodEntry } from '@/types/mood';
 
 const TZ = 'America/Chicago';
@@ -218,6 +218,7 @@ describe('checkinEditChanged', () => {
       checkinEditChanged(
         stored,
         { ...draftFromEntry(stored, TZ), tags: ['tired', 'calm'] },
+        DAY,
         TZ
       )
     ).toBe(false);
@@ -226,11 +227,11 @@ describe('checkinEditChanged', () => {
   test('is true once any field or the time changes', () => {
     const stored = entry();
     const untouched = draftFromEntry(stored, TZ);
-    expect(checkinEditChanged(stored, { ...untouched, focus: 2 }, TZ)).toBe(
-      true
-    );
     expect(
-      checkinEditChanged(stored, { ...untouched, time: '09:31' }, TZ)
+      checkinEditChanged(stored, { ...untouched, focus: 2 }, DAY, TZ)
+    ).toBe(true);
+    expect(
+      checkinEditChanged(stored, { ...untouched, time: '09:31' }, DAY, TZ)
     ).toBe(true);
   });
 });
