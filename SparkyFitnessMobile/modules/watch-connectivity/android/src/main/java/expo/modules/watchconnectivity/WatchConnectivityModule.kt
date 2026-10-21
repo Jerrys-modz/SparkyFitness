@@ -934,7 +934,6 @@ internal object WatchConnectivityHub {
           if (rawJson != null) enqueueInboundJson(context, rawJson)
           return
         }
-        val requestedAt = System.currentTimeMillis()
         if (mod != null) {
           mod.emitEvent(
             "onWorkoutStartRequested",
@@ -943,14 +942,6 @@ internal object WatchConnectivityHub {
               "serverId" to serverId
             )
           )
-          // If the phone app is backgrounded/frozen by Android and JS does not call
-          // startWorkout within 3 seconds, fall back to native HTTP session creation.
-          scope.launch {
-            delay(3_000L)
-            if (lastWorkoutArmedAtMs.get() < requestedAt) {
-              performHeadlessWorkoutStart(context, presetId, rawJson)
-            }
-          }
         } else {
           scope.launch {
             performHeadlessWorkoutStart(context, presetId, rawJson)
@@ -1565,7 +1556,7 @@ class WatchConnectivityModule : Module() {
       if (ctx != null) {
         WatchConnectivityHub.refreshNodes(ctx)
       }
-      WatchConnectivityHub.isPairedFlag.get() || WatchConnectivityHub.isSupportedFlag.get()
+      WatchConnectivityHub.isPairedFlag.get()
     }
 
     AsyncFunction("updateContext") { context: Map<String, Any?> ->

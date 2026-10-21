@@ -132,6 +132,8 @@ const withWearOs: ConfigPlugin = (config) => {
     if (!modConfig.modResults.contents.includes(WEAR_EMBED_GRADLE_MARKER)) {
       const snippet = `
 ${WEAR_EMBED_GRADLE_MARKER}
+def sparkyEmbedWearOsRelease = (project.findProperty("SPARKY_EMBED_WEAROS_RELEASE")?.toString() ?: System.getenv("SPARKY_EMBED_WEAROS_RELEASE"))?.toBoolean() == true
+
 tasks.register("embedWearOsReleaseApk", Copy) {
     dependsOn(":wearos:assembleRelease")
     from(rootProject.file("wearos/build/outputs/apk/release/wearos-release.apk"))
@@ -146,8 +148,10 @@ tasks.register("embedWearOsDebugApk", Copy) {
     rename { "android_wear_micro_apk.apk" }
 }
 
-tasks.matching { it.name == "mergeReleaseResources" || it.name == "generateReleaseResValues" }.configureEach {
-    dependsOn("embedWearOsReleaseApk")
+if (sparkyEmbedWearOsRelease) {
+    tasks.matching { it.name == "mergeReleaseResources" || it.name == "generateReleaseResValues" }.configureEach {
+        dependsOn("embedWearOsReleaseApk")
+    }
 }
 
 tasks.matching { it.name == "mergeDebugResources" || it.name == "generateDebugResValues" }.configureEach {

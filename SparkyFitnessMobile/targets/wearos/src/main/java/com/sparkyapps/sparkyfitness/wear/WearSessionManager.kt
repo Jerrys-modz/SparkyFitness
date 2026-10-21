@@ -2,9 +2,15 @@ package com.sparkyapps.sparkyfitness.wear
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -12,13 +18,15 @@ import android.hardware.SensorManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.os.Build
+import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import androidx.core.content.ContextCompat
 import com.google.android.gms.wearable.DataClient
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMapItem
-import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
@@ -39,9 +47,7 @@ import java.nio.charset.StandardCharsets
 import java.util.UUID
 
 class WearSessionManager private constructor(private val appContext: Context) :
-  WearSessionTransport,
-  MessageClient.OnMessageReceivedListener,
-  DataClient.OnDataChangedListener {
+  WearSessionTransport {
 
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -55,6 +61,16 @@ class WearSessionManager private constructor(private val appContext: Context) :
   val requestedPage: StateFlow<WatchPage?> = _requestedPage.asStateFlow()
 
   private var telemetryOwner: String = "watch"
+  private val seenCommandKeys = LinkedHashSet<String>()
+
+  private fun firstTime(key: String?): Boolean {
+    if (key.isNullOrEmpty()) return true
+    if (!seenCommandKeys.add(key)) return false
+    if (seenCommandKeys.size > 200) {
+      seenCommandKeys.remove(seenCommandKeys.first())
+    }
+    return true
+  }
 
   init {
     Haptics.init(appContext)
@@ -68,11 +84,6 @@ class WearSessionManager private constructor(private val appContext: Context) :
     runStore.session = this
     runStore.sensors = sensorsController
     runStore.checkInStore = checkInStore
-
-    try {
-      Wearable.getMessageClient(appContext).addListener(this)
-      Wearable.getDataClient(appContext).addListener(this)
-    } catch (_: Throwable) {}
 
     sensorsController.startPassiveStepCounter { stepsToday ->
       checkInStore.updateLiveSteps(stepsToday)
@@ -113,12 +124,12 @@ class WearSessionManager private constructor(private val appContext: Context) :
     }
   }
 
-  override fun onMessageReceived(event: MessageEvent) {
+  fun onMessageReceived(event: MessageEvent) {
     val raw = String(event.data, StandardCharsets.UTF_8)
     handleIncomingPayloadString(raw)
   }
 
-  override fun onDataChanged(events: DataEventBuffer) {
+  fun onDataChanged(events: DataEventBuffer) {
     for (event in events) {
       val item = event.dataItem
       val path = item.uri.path ?: continue
@@ -177,12 +188,22 @@ class WearSessionManager private constructor(private val appContext: Context) :
         }
       }
       type == "workoutStart" || type == "workoutPlanUpdate" -> {
+        val identity = if (type == "workoutStart") {
+          listOf(json.optString("sessionId"), json.optString("armedAt"))
+        } else {
+          listOf(json.optString("sessionId"), json.optString("revision"))
+        }
+        if (identity.all { it.isNotEmpty() } &&
+          !firstTime("$type:${identity.joinToString("|")}")) return
         val plan = ContextPayloadMapper.parseWorkoutPlan(json, allowEmpty = true) ?: return
         workoutStore.startOrUpdatePlan(plan)
         _requestedPage.value = WatchPage.WORKOUT
         bringAppToForeground()
       }
       type == "workoutStop" -> {
+        val identity = listOf(json.optString("sessionId"), json.optString("stoppedAt"))
+        if (identity.all { it.isNotEmpty() } &&
+          !firstTime("workoutStop:${identity.joinToString("|")}")) return
         workoutStore.discardWorkout(notifyPhone = false)
       }
       type == "setTargetsUpdate" || type == "setTargets" -> {
@@ -205,6 +226,8 @@ class WearSessionManager private constructor(private val appContext: Context) :
         }
       }
       type == "watchRunStart" || type == "runStart" -> {
+        val requestId = json.optString("requestId")
+        if (requestId.isNotEmpty() && !firstTime("runStart:$requestId")) return
         val req = ContextPayloadMapper.parseRunStartRequest(json) ?: return
         runStore.startRun(req)
         _requestedPage.value = WatchPage.WORKOUT
@@ -212,6 +235,8 @@ class WearSessionManager private constructor(private val appContext: Context) :
       }
       type == "watchRunControl" || type == "runControl" -> {
         val action = json.optString("action").ifEmpty { json.optString("control") }
+        val controlId = json.optString("controlId").takeIf { it.isNotEmpty() }
+        if (controlId != null && !firstTime("runControl:$controlId")) return
         if (action.isNotEmpty()) {
           runStore.handleRemoteControl(action, json)
         }
@@ -258,6 +283,12 @@ class WearSessionManager private constructor(private val appContext: Context) :
         val key = payload.optString("clientId").ifEmpty { UUID.randomUUID().toString() }
         enqueueDataItem(queueType, key, payload)
       }
+    }
+  }
+
+  override fun sendLiveOnly(payload: JSONObject) {
+    scope.launch(Dispatchers.IO) {
+      sendLiveMessage(payload)
     }
   }
 
@@ -367,7 +398,8 @@ class WatchSensorsController(
   private var lastLocation: Location? = null
   private var accumulatedDistanceMeters = 0.0
   private var accumulatedCalories = 0.0
-  private var latestHrBpm: Double = 110.0
+  private var reportedCalories = 0.0
+  private var latestHrBpm: Double? = null
 
   private val _gpsAccuracyMeters = MutableStateFlow<Double?>(null)
   val gpsAccuracyMeters: StateFlow<Double?> = _gpsAccuracyMeters.asStateFlow()
@@ -417,11 +449,13 @@ class WatchSensorsController(
     onLocationPoint: ((Double, Double, Long) -> Unit)? = null
   ) {
     stopWorkoutSensors()
+    WorkoutSensorForegroundService.start(context, enableGps)
     pendingHrSamples.clear()
     lastLocation = null
     accumulatedDistanceMeters = 0.0
     accumulatedCalories = 0.0
-    latestHrBpm = 110.0
+    reportedCalories = 0.0
+    latestHrBpm = null
     _gpsAccuracyMeters.value = null
     _currentSpeedMps.value = 0.0
 
@@ -444,9 +478,8 @@ class WatchSensorsController(
             synchronized(pendingHrSamples) {
               pendingHrSamples.add(HeartRateSample(t = iso, bpm = bpm))
             }
-            transport.sendMessageOrQueue(
-              OutboundPayloads.liveHeartRate(sessionId, exerciseEntryIdProvider(), bpm, nowMs),
-              "liveHeartRate"
+            transport.sendLiveOnly(
+              OutboundPayloads.liveHeartRate(sessionId, exerciseEntryIdProvider(), bpm, nowMs)
             )
             onHeartRate(bpm)
           }
@@ -469,6 +502,8 @@ class WatchSensorsController(
           copy
         }
         if (batch.isNotEmpty()) {
+          val energyDelta = (accumulatedCalories - reportedCalories).coerceAtLeast(0.0)
+          reportedCalories = accumulatedCalories
           if (sendAsRecordingHr) {
             val clientId = UUID.randomUUID().toString()
             transport.sendMessageOrQueue(
@@ -482,7 +517,7 @@ class WatchSensorsController(
                 sessionId = sessionId,
                 exerciseEntryId = exerciseEntryIdProvider(),
                 samples = batch,
-                activeEnergyKcal = accumulatedCalories.takeIf { it > 0 }
+                activeEnergyKcal = energyDelta.takeIf { it > 0 }
               )
             )
           }
@@ -493,7 +528,8 @@ class WatchSensorsController(
     calorieTickerJob = scope.launch {
       while (isActive) {
         delay(5000)
-        val kcalPerMin = ((latestHrBpm - 60.0).coerceAtLeast(25.0)) * 0.085
+        val hr = latestHrBpm ?: continue
+        val kcalPerMin = ((hr - 60.0).coerceAtLeast(25.0)) * 0.085
         accumulatedCalories += (kcalPerMin / 12.0)
         onCalories(accumulatedCalories)
       }
@@ -592,5 +628,157 @@ class WatchSensorsController(
     locationListener = null
     _gpsAccuracyMeters.value = null
     _currentSpeedMps.value = 0.0
+    WorkoutSensorForegroundService.stop(context)
+  }
+}
+
+class WorkoutSensorForegroundService : Service() {
+  private var wakeLock: PowerManager.WakeLock? = null
+
+  override fun onBind(intent: Intent?): IBinder? = null
+
+  override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    if (intent?.action == ACTION_STOP) {
+      stopForegroundService()
+      return START_NOT_STICKY
+    }
+    val enableGps = intent?.getBooleanExtra(EXTRA_ENABLE_GPS, false) ?: false
+    promoteToForeground(enableGps)
+    acquireWakeLock()
+    return START_STICKY
+  }
+
+  override fun onDestroy() {
+    releaseWakeLock()
+    super.onDestroy()
+  }
+
+  private fun promoteToForeground(enableGps: Boolean) {
+    try {
+      val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm != null) {
+        val channel = NotificationChannel(
+          CHANNEL_ID,
+          "Workout Tracking",
+          NotificationManager.IMPORTANCE_LOW
+        ).apply {
+          setShowBadge(false)
+        }
+        nm.createNotificationChannel(channel)
+      }
+      val launchIntent = Intent(this, MainActivity::class.java).apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+      }
+      val pi = PendingIntent.getActivity(
+        this,
+        0,
+        launchIntent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+      )
+      val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        Notification.Builder(this, CHANNEL_ID)
+      } else {
+        @Suppress("DEPRECATION")
+        Notification.Builder(this)
+      }
+      val notification = builder
+        .setContentTitle("SparkyFitness")
+        .setContentText(if (enableGps) "Recording run & heart rate" else "Recording workout")
+        .setSmallIcon(android.R.drawable.ic_menu_compass)
+        .setContentIntent(pi)
+        .setOngoing(true)
+        .build()
+
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        var fgsType = 0
+        val hasSensors = ContextCompat.checkSelfPermission(
+          this,
+          Manifest.permission.BODY_SENSORS
+        ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
+          this,
+          Manifest.permission.ACTIVITY_RECOGNITION
+        ) == PackageManager.PERMISSION_GRANTED
+        if (hasSensors && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+          fgsType = fgsType or ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
+        }
+        val hasLocation = ContextCompat.checkSelfPermission(
+          this,
+          Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
+          this,
+          Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        if (enableGps && hasLocation) {
+          fgsType = fgsType or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+        }
+        if (fgsType != 0) {
+          startForeground(NOTIFICATION_ID, notification, fgsType)
+        } else {
+          startForeground(NOTIFICATION_ID, notification)
+        }
+      } else {
+        startForeground(NOTIFICATION_ID, notification)
+      }
+    } catch (_: Throwable) {}
+  }
+
+  private fun acquireWakeLock() {
+    if (wakeLock?.isHeld == true) return
+    try {
+      val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
+      wakeLock = pm.newWakeLock(
+        PowerManager.PARTIAL_WAKE_LOCK,
+        "SparkyFitness:WearWorkoutSensors"
+      ).apply {
+        setReferenceCounted(false)
+        acquire(4 * 60 * 60 * 1000L)
+      }
+    } catch (_: Throwable) {}
+  }
+
+  private fun releaseWakeLock() {
+    try {
+      wakeLock?.let { if (it.isHeld) it.release() }
+    } catch (_: Throwable) {}
+    wakeLock = null
+  }
+
+  private fun stopForegroundService() {
+    releaseWakeLock()
+    try {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        stopForeground(STOP_FOREGROUND_REMOVE)
+      } else {
+        @Suppress("DEPRECATION")
+        stopForeground(true)
+      }
+    } catch (_: Throwable) {}
+    stopSelf()
+  }
+
+  companion object {
+    private const val CHANNEL_ID = "sparky_wear_workout_channel"
+    private const val NOTIFICATION_ID = 3052
+    private const val ACTION_START = "com.sparkyapps.sparkyfitness.wear.START_SENSORS"
+    private const val ACTION_STOP = "com.sparkyapps.sparkyfitness.wear.STOP_SENSORS"
+    private const val EXTRA_ENABLE_GPS = "enable_gps"
+
+    fun start(context: Context, enableGps: Boolean) {
+      try {
+        val appCtx = context.applicationContext
+        val intent = Intent(appCtx, WorkoutSensorForegroundService::class.java).apply {
+          action = ACTION_START
+          putExtra(EXTRA_ENABLE_GPS, enableGps)
+        }
+        ContextCompat.startForegroundService(appCtx, intent)
+      } catch (_: Throwable) {}
+    }
+
+    fun stop(context: Context) {
+      try {
+        val appCtx = context.applicationContext
+        appCtx.stopService(Intent(appCtx, WorkoutSensorForegroundService::class.java))
+      } catch (_: Throwable) {}
+    }
   }
 }

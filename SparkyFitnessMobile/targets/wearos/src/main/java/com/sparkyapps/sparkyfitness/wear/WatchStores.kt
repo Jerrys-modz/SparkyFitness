@@ -353,6 +353,7 @@ class CheckInStore(private val context: Context) {
       state = SyncState.QUEUED,
       ownerId = ownerId
     )
+    waterConsumedBaseline[tap.id] = _water.value?.takeIf { it.isToday }?.consumedMl ?: 0.0
     _pendingWaterTaps.value = _pendingWaterTaps.value + tap
     persistPendingWater()
     recomputeWaterState()
@@ -669,6 +670,14 @@ class CheckInStore(private val context: Context) {
 
     val previousUnit = _unit.value
     val nextCtx = ContextPayloadMapper.parseContext(obj, _watchContext.value)
+
+    for (ackedId in nextCtx.ackedClientIds) {
+      acknowledge(ackedId, true)
+    }
+    for (failedId in nextCtx.failedClientIds) {
+      acknowledge(failedId, false)
+    }
+
     _watchContext.value = nextCtx
     val effectiveUnit = nextCtx.effectiveWeightUnit
     _unit.value = effectiveUnit
@@ -703,13 +712,6 @@ class CheckInStore(private val context: Context) {
       if (!userEditedBodyFat) {
         _draftBodyFat.value = clampBodyFat(seedBf)
       }
-    }
-
-    for (ackedId in nextCtx.ackedClientIds) {
-      acknowledge(ackedId, true)
-    }
-    for (failedId in nextCtx.failedClientIds) {
-      acknowledge(failedId, false)
     }
 
     recomputeWaterState()
@@ -1771,13 +1773,62 @@ class WatchRunStore(private val context: Context) {
     Haptics.start()
   }
 
+  private val handledControlIds = LinkedHashSet<String>()
+
+  fun discardRun() {
+    tickerJob?.cancel()
+    sensors?.stopWorkoutSensors()
+    dismiss()
+  }
+
   fun handleRemoteControl(action: String, json: JSONObject? = null) {
+    val controlId = json?.optStringOrNull("controlId")
+    if (controlId != null && !handledControlIds.add(controlId)) return
+    if (handledControlIds.size > 200) {
+      handledControlIds.remove(handledControlIds.first())
+    }
     when (action) {
       "pause" -> pause()
       "resume" -> resume()
       "stop", "end", "finish" -> finish()
+      "discard" -> discardRun()
       "skip", "skipStep" -> skipStep()
       "lap" -> markLap()
+      "autoPauseOn", "autoPauseOff" -> {
+        val enabled = action == "autoPauseOn"
+        _settings.value = _settings.value.copy(autoPause = enabled)
+        if (!enabled && _autoPaused.value) {
+          _autoPaused.value = false
+          _phase.value = RunPhase.RUNNING
+        }
+        broadcastRunLive()
+      }
+      "voiceCuesOn", "voiceCuesOff" -> {
+        _settings.value = _settings.value.copy(voiceCues = action == "voiceCuesOn")
+        broadcastRunLive()
+      }
+      "paceAlertOn", "paceAlertOff" -> {
+        val enabled = action == "paceAlertOn"
+        _paceAlertEnabled.value = enabled
+        val cur = _settings.value
+        if (enabled && cur.paceBand == null) {
+          _settings.value = cur.copy(
+            paceBand = checkInStore?.watchContext?.value?.runPaceBand ?: WatchPaceBand.standard
+          )
+        }
+        broadcastRunLive()
+      }
+      "heartRateAlertOn", "heartRateAlertOff" -> {
+        val enabled = action == "heartRateAlertOn"
+        _heartRateAlertEnabled.value = enabled
+        val cur = _settings.value
+        if (enabled && cur.heartRateBand == null) {
+          _settings.value = cur.copy(
+            heartRateBand = checkInStore?.watchContext?.value?.runHeartRateBand ?: WatchHeartRateBand.standard
+          )
+        }
+        broadcastRunLive()
+      }
       "settings" -> {
         if (json != null) {
           val cur = _settings.value
@@ -1988,7 +2039,7 @@ class WatchRunStore(private val context: Context) {
       nextLabel = nextStep?.label,
       requestId = req.requestId
     )
-    session?.sendMessageOrQueue(payload, "runLive")
+    session?.sendLiveOnly(payload)
   }
 
   private fun checkPaceAndHrAlerts(elapsedSec: Int) {
@@ -2117,6 +2168,7 @@ interface WearSessionTransport {
   fun sendWeightCheckIn(payload: JSONObject, onResult: (Boolean) -> Unit)
   fun sendWorkoutStartRequest(payload: JSONObject, onResult: (Boolean) -> Unit)
   fun sendMessageOrQueue(payload: JSONObject, queueType: String)
+  fun sendLiveOnly(payload: JSONObject) {}
   fun sendWatchRunFinished(result: WatchRunResult)
   fun sendHeartRateBatch(batch: HeartRateBatch)
   fun clearQueuedWatchTransfers() {}
