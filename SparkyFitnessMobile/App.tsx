@@ -23,6 +23,7 @@ import { Uniwind, useUniwind, useCSSVariable } from 'uniwind';
 import { queryClient, serverConnectionQueryKey, serverConfigsQueryKey, useSyncHealthData, useCycleMode, useServerConnection, drainQuickActionNavigation, useControlRouteHandoff, useQuickActions, useWatchCheckInBridge, useWatchFastingBridge, useWatchPlanSync, useWatchRecordingBridge, useWatchSetTargetsSync, useWatchWorkoutBridge, useWatchWorkoutEdit, useWatchRunBridge, usePreferences } from './src/hooks';
 import { configureRunLiveActivity } from './src/services/runLiveActivity';
 import { useWatchWorkoutStart } from './src/hooks/useWatchWorkoutStart';
+import { useLiveWorkoutInputsCapture } from './src/hooks/useLiveWorkoutInputsCapture';
 import {
   useStartLiveWorkout,
   type StartLiveWorkoutNavigation,
@@ -135,6 +136,7 @@ import {
   SafeMeasurementsReport,
   SafeReportsSettings,
   SafeCardioSession,
+  SafeActivityShare,
   SafeRecordActivity,
   SafeRunSummary,
   SafeFamilyMembers,
@@ -155,6 +157,7 @@ import {
   SafeGlp1TitrationForm,
   SafeSymptomLog,
   SafeMoodLog,
+  SafeMoodDay,
   SafeSymptomHistory,
   SafeSymptomEpisodeDetail,
   SafeManageSymptoms,
@@ -298,6 +301,9 @@ function WatchWorkoutGate() {
     setTelemetryPending,
     handleWatchFinishedWorkout
   );
+  // A watch-started workout never opens the active-workout screen, which is
+  // what normally loads the history its targets are resolved from.
+  useLiveWorkoutInputsCapture(isServerConnected);
   useWatchSetTargetsSync(watchSupported);
   useWatchRecordingBridge(watchSupported);
   useWatchRunBridge(watchSupported, isServerConnected);
@@ -890,6 +896,11 @@ function AppContent() {
             options={createStackScreenOptions(t('screens.cardioSession', { defaultValue: 'Cardio Session' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
+            name="ActivityShare"
+            component={SafeActivityShare}
+            options={createStackScreenOptions(t('screens.activityShare', { defaultValue: 'Share Activity' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
             name="RecordActivity"
             component={SafeRecordActivity}
             options={createStackScreenOptions(t('screens.recordActivity', { defaultValue: 'Record Activity' }), { headerBackButtonDisplayMode: 'minimal' })}
@@ -1249,6 +1260,15 @@ function AppContent() {
           <Stack.Screen
             name="MoodLog"
             component={SafeMoodLog}
+            options={createStackScreenOptions(t('screens.moodLog', { defaultValue: 'Mood' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
+          <Stack.Screen
+            name="MoodDay"
+            component={SafeMoodDay}
             options={createStackScreenOptions(t('screens.moodLog', { defaultValue: 'Mood' }), {
               presentation: 'modal',
               headerBackButtonDisplayMode: 'minimal',

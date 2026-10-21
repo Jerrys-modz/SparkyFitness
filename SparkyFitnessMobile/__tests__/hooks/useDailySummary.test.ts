@@ -417,6 +417,8 @@ describe('useDailySummary', () => {
       });
 
       expect(result.current.summary?.waterFromFood).toBe(250);
+      // What a "remove a drink" can take off, sent to the Android widget.
+      expect(result.current.summary?.waterManual).toBe(500);
     });
 
     test('waterFromFood defaults to 0 on a server that predates the breakdown', async () => {
@@ -433,6 +435,8 @@ describe('useDailySummary', () => {
       });
 
       expect(result.current.summary?.waterFromFood).toBe(0);
+      // Unknown, not 0: the widget then leaves − on and the server decides.
+      expect(result.current.summary?.waterManual).toBeNull();
     });
 
     test('includes server-computed stepCalories from daily summary response', async () => {

@@ -415,6 +415,8 @@ export const ProviderCard = ({
       provider.hevy_connect_status === 'connected' ||
       provider.liftosaur_connect_status === 'connected';
 
+    // Polar's is the only token expiry shown: the other OAuth providers refresh their
+    // access tokens on their own, so their short expiry misleads users into reconnecting.
     switch (provider.provider_type) {
       case 'withings':
         return {
@@ -422,7 +424,7 @@ export const ProviderCard = ({
           disconnect: () => handleDisconnectWithings(),
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.withings_last_sync_at,
-          tokenExpires: provider.withings_token_expires,
+          tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
       case 'fitbit':
@@ -431,7 +433,7 @@ export const ProviderCard = ({
           disconnect: () => handleDisconnectFitbit(),
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.fitbit_last_sync_at,
-          tokenExpires: provider.fitbit_token_expires,
+          tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
       case 'oura':
@@ -440,7 +442,7 @@ export const ProviderCard = ({
           disconnect: () => handleDisconnectOura(),
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.oura_last_sync_at,
-          tokenExpires: provider.oura_token_expires,
+          tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
       case 'googlehealth':
@@ -449,7 +451,7 @@ export const ProviderCard = ({
           disconnect: () => handleDisconnectGoogleHealth(),
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.googlehealth_last_sync_at,
-          tokenExpires: null, // access tokens auto-refresh; showing 1h expiry misleads users
+          tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
       case 'polar':
@@ -467,7 +469,7 @@ export const ProviderCard = ({
           disconnect: () => handleDisconnectStrava(),
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.strava_last_sync_at,
-          tokenExpires: provider.strava_token_expires,
+          tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
       case 'coros_mcp':
@@ -476,7 +478,7 @@ export const ProviderCard = ({
           disconnect: () => handleDisconnectCoros(provider.id),
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.coros_last_sync_at,
-          tokenExpires: provider.coros_token_expires,
+          tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
       case 'garmin':
@@ -485,7 +487,7 @@ export const ProviderCard = ({
           disconnect: () => handleDisconnectGarmin(),
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.garmin_last_status_check,
-          tokenExpires: provider.garmin_token_expires,
+          tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
       case 'hevy':

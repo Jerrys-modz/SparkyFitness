@@ -16,8 +16,10 @@ import { addLog } from './LogService';
 import {
   learnFromIndoorEntry,
   learnFromOutdoorRecording,
+  measureOutdoorForm,
   type IndoorDistanceEstimate,
 } from './stepDistance';
+import { computeFormMetrics, type FormMetrics } from '../utils/stride';
 import { assignShoeToExerciseEntry, fetchShoes } from './api/shoesApi';
 import { findShoeThatReachedLimit } from './shoeWear';
 import type { ShoeResponse } from '@workspace/shared';
@@ -87,6 +89,49 @@ const INDOOR_ENTRY_NAMES: Record<RecordingActivity, string> = {
 
 const pad = (value: number) => String(value).padStart(2, '0');
 
+/**
+ * Cadence and stride from the phone's step count, best effort: a missing
+ * pedometer or a failed read just leaves the fields off the entry.
+ */
+async function measureForm(
+  session: RecordingSession,
+  indoor: boolean,
+  durationSeconds: number,
+  distanceKm: number | null,
+  indoorEstimate: IndoorDistanceEstimate | null
+): Promise<FormMetrics | null> {
+  try {
+    if (indoor) {
+      if (!indoorEstimate) return null;
+      return computeFormMetrics(
+        indoorEstimate.steps,
+        durationSeconds,
+        distanceKm != null ? distanceKm * METERS_PER_KM : null
+      );
+    }
+    if (session.finishedAt == null) return null;
+    return (
+      (await measureOutdoorForm(
+        {
+          activity: session.activity,
+          startedAt: session.startedAt,
+          finishedAt: session.finishedAt,
+          activeSeconds: durationSeconds,
+          ...(session.stepCounterAtStart != null && {
+            stepCounterAtStart: session.stepCounterAtStart,
+          }),
+          ...(session.hadPause === true && { paused: true }),
+        },
+        (distanceKm ?? 0) * METERS_PER_KM
+      )) ?? null
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    addLog(`[GPS Recording] Could not measure form: ${message}`, 'WARNING');
+    return null;
+  }
+}
+
 export interface SavedRecording {
   entryId: string;
   entryDate: string;
@@ -130,6 +175,13 @@ export async function saveRecordedActivity(
   let wornOutShoe: ShoeResponse | null = null;
   if (!entryId) {
     const exercise = await resolveRecordingExercise(session.activity);
+    const form = await measureForm(
+      session,
+      indoor,
+      durationSeconds,
+      distanceKm,
+      indoorEstimate
+    );
     const created = await createExerciseEntry({
       exercise_id: exercise.id,
       exercise_name: indoor
@@ -139,6 +191,12 @@ export async function saveRecordedActivity(
       entry_date: entryDate,
       entry_time: `${pad(started.getHours())}:${pad(started.getMinutes())}`,
       distance: distanceKm,
+      ...(form && {
+        avg_cadence: form.avgCadence,
+        ...(form.strideLengthCm != null && {
+          stride_length_cm: form.strideLengthCm,
+        }),
+      }),
       sets: buildActivitySetsPayload([], new Map(), 'kg', 'duration_distance', {
         durationSec: durationSeconds,
         distanceKm,

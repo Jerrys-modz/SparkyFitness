@@ -15,7 +15,7 @@ import {
   draftFromEntry,
   hasCheckinContent,
   type CheckinDraft,
-} from '@/utils/moodCheckins';
+} from '@workspace/shared';
 import MoodMeter from './MoodMeter';
 import { MoodCheckinList } from './MoodCheckinList';
 import HomeDashboardFasting from './HomeDashboardFasting';
@@ -148,7 +148,7 @@ export const CheckInTopRow = ({
     if (!canSave) return;
     if (editing) {
       // An edit that changes nothing sends nothing; it just leaves edit mode.
-      if (!checkinEditChanged(editing, draft, timezone)) {
+      if (!checkinEditChanged(editing, draft, editing.entry_date, timezone)) {
         setComposer(freshComposer(selectedDate, timezone));
         return;
       }

@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   BUILT_IN_MOODS,
+  MOOD_FACE_STEP,
+  moodFaceValue,
   moodValueToTag,
-  representativeMoodValue,
 } from '@workspace/shared';
 import type { CustomMood } from '@/types/mood';
 import { Slider } from '@/components/ui/slider';
@@ -92,10 +93,9 @@ const MOOD_MAX = 95;
  * A step is half the gap between two faces, so the stops in between are not
  * stray positions but the half-way marks: happy leaning excited, calm leaning
  * confident. That only reads as deliberate while a face lands on every second
- * stop, which is what `MOOD_FACE_STEP` keeps true.
+ * stop, which taking it from the shared `MOOD_FACE_STEP` keeps true.
  */
-const MOOD_STEP = 5;
-const MOOD_FACE_STEP = MOOD_STEP * 2;
+const MOOD_STEP = MOOD_FACE_STEP / 2;
 
 /** Into the range the picker can show. */
 const clampToScale = (value: number) =>
@@ -113,17 +113,11 @@ const THUMB_INSET_PX = 10;
  * the further right you went, since the bands are not evenly spread over 10-100.
  */
 const BAND_SCALE = BUILT_IN_MOODS.filter((m) => m.band != null).map((m) => {
-  // `representativeMoodValue` gives the band midpoint on the raw 0-100 scale,
-  // which the two end bands put where no stop can land: 8 for "sad" (0-15),
-  // below the minimum, and 93 for "excited" (85-100). Snap onto the grid the
-  // thumb travels so every face is a stop the thumb can rest on.
-  const value = clampToScale(
-    MOOD_MIN +
-      Math.round(
-        (representativeMoodValue([m.name]) - MOOD_MIN) / MOOD_FACE_STEP
-      ) *
-        MOOD_FACE_STEP
-  );
+  // The shared face value is already on the grid the thumb travels (10 for
+  // "sad" up to 90 for "excited", not the raw band midpoints 8 and 93), so
+  // every face is a stop the thumb can rest on, and the mobile picker writes
+  // the same value for it.
+  const value = moodFaceValue(m.name);
   return {
     ...m,
     value,

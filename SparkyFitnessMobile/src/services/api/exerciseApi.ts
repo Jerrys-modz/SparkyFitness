@@ -380,6 +380,9 @@ export interface CreateExerciseEntryPayload {
   entry_time?: string;
   distance?: number | null;
   avg_heart_rate?: number | null;
+  /** Steps per minute. */
+  avg_cadence?: number | null;
+  stride_length_cm?: number | null;
   notes?: string | null;
   sets?: {
     id?: number;

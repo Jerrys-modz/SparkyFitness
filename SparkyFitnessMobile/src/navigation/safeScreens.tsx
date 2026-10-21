@@ -99,6 +99,7 @@ import Glp1PenFormScreen from '../screens/Glp1PenFormScreen';
 import Glp1TitrationFormScreen from '../screens/Glp1TitrationFormScreen';
 import SymptomLogScreen from '../screens/SymptomLogScreen';
 import MoodLogScreen from '../screens/MoodLogScreen';
+import MoodDayScreen from '../screens/MoodDayScreen';
 import SymptomHistoryScreen from '../screens/SymptomHistoryScreen';
 import SymptomEpisodeDetailScreen from '../screens/SymptomEpisodeDetailScreen';
 import ManageSymptomsScreen from '../screens/ManageSymptomsScreen';
@@ -115,6 +116,7 @@ import SubstancesReportScreen from '../screens/SubstancesReportScreen';
 import MeasurementsReportScreen from '../screens/MeasurementsReportScreen';
 import ReportsSettingsScreen from '../screens/ReportsSettingsScreen';
 import CardioSessionScreen from '../screens/CardioSessionScreen';
+import ActivityShareScreen from '../screens/ActivityShareScreen';
 import RecordActivityScreen from '../screens/RecordActivityScreen';
 import RunSummaryScreen from '../screens/RunSummaryScreen';
 import FamilyMembersScreen from '../screens/FamilyMembersScreen';
@@ -234,6 +236,7 @@ export const SafeMeasurementsReport = withErrorBoundary(MeasurementsReportScreen
 export const SafeMoodReport = withErrorBoundary(MoodReportScreen, 'MoodReport', { canGoBack: true });
 export const SafeRunSummary = withErrorBoundary(RunSummaryScreen, 'RunSummary', { canGoBack: true });
 export const SafeCardioSession = withErrorBoundary(CardioSessionScreen, 'CardioSession', { canGoBack: true });
+export const SafeActivityShare = withErrorBoundary(ActivityShareScreen, 'ActivityShare', { canGoBack: true });
 export const SafeFamilyMembers = withErrorBoundary(FamilyMembersScreen, 'FamilyMembers', { canGoBack: true });
 export const SafeFamilyDiary = withErrorBoundary(FamilyDiaryScreen, 'FamilyDiary', { canGoBack: true });
 export const SafeFamilyMealDetail = withErrorBoundary(FamilyMealDetailScreen, 'FamilyMealDetail', { canGoBack: true });
@@ -253,6 +256,7 @@ export const SafeGlp1PenForm = withErrorBoundary(Glp1PenFormScreen, 'Glp1PenForm
 export const SafeGlp1TitrationForm = withErrorBoundary(Glp1TitrationFormScreen, 'Glp1TitrationForm', { canGoBack: true });
 
 export const SafeMoodLog = withErrorBoundary(MoodLogScreen, 'MoodLog', { canGoBack: true });
+export const SafeMoodDay = withErrorBoundary(MoodDayScreen, 'MoodDay', { canGoBack: true });
 export const SafeSymptomLog = withErrorBoundary(SymptomLogScreen, 'SymptomLog', { canGoBack: true });
 export const SafeSymptomHistory = withErrorBoundary(SymptomHistoryScreen, 'SymptomHistory', { canGoBack: true });
 export const SafeSymptomEpisodeDetail = withErrorBoundary(SymptomEpisodeDetailScreen, 'SymptomEpisodeDetail', { canGoBack: true });
