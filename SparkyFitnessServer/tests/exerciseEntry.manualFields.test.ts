@@ -162,7 +162,7 @@ describe('manual_fields on exercise entry writes', () => {
       if (/UPDATE exercise_entries SET/i.test(sql)) {
         return { rows: [{ id: 'entry-1' }], rowCount: 1 };
       }
-      return { rows: [{ ...syncedEntry, manual_fields: [] }], rowCount: 1 };
+      return { rows: [{ ...syncedEntry, manual_fields: null }], rowCount: 1 };
     });
 
     await exerciseEntryDb._createExerciseEntryWithClient(
@@ -180,7 +180,8 @@ describe('manual_fields on exercise entry writes', () => {
 
     const column = writtenColumns();
     expect(column('distance')).toBe(5.57);
-    expect(column('manual_fields')).toEqual([]);
+    // Nothing marked: the column stays NULL instead of an empty list.
+    expect(column('manual_fields')).toBeNull();
   });
 
   it('a diary edit adds the changed fields to manual_fields', async () => {

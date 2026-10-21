@@ -859,7 +859,8 @@ async function _updateExerciseEntryWithClient(
       mergedData.modality ?? null,
       ...telemetryParams,
       mergedData.record_timezone ?? null,
-      manualFields,
+      // NULL while nothing is marked, so an untouched row keeps its shape.
+      manualFields.length > 0 ? manualFields : null,
     ]
   );
   // The row can be deleted by a competing writer between the existence check
