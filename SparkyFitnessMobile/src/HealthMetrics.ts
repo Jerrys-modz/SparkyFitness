@@ -189,7 +189,9 @@ const ALL_HEALTH_METRICS: HealthMetric[] = [
   },
   {
     // Health Connect only. Each session is sent as a MindfulnessSession and
-    // upserted by its record id into mindfulness_sessions.
+    // upserted by its record id into mindfulness_sessions, so the rolling
+    // lookback can re-read sessions entered for an earlier day without
+    // duplicating them.
     id: 'mindfulness',
     labelKey: 'healthMetrics.mindfulness',
     defaultLabel: 'Mindfulness',
@@ -202,6 +204,7 @@ const ALL_HEALTH_METRICS: HealthMetric[] = [
     type: 'mindfulness',
     platforms: ['android'],
     category: 'Common',
+    rollingLookbackDays: 2,
   },
   {
     id: 'basalBodyTemperature',
