@@ -6,11 +6,15 @@ import type { ExerciseActivityQueryItem } from '@workspace/shared';
 import CardioSessionScreen from '../../src/screens/CardioSessionScreen';
 import { useCardioSessionDetail } from '../../src/hooks/useCardioSessionDetail';
 import { shareRouteAsGpx } from '../../src/services/gpxExport';
+import { saveActivityAsRoute } from '../../src/services/routeService';
 import { initializeI18n } from '../../src/localization/i18n';
 import type { RootStackScreenProps } from '../../src/types/navigation';
 
 jest.mock('../../src/services/gpxExport', () => ({
   shareRouteAsGpx: jest.fn(() => Promise.resolve(true)),
+}));
+jest.mock('../../src/services/routeService', () => ({
+  saveActivityAsRoute: jest.fn(),
 }));
 jest.mock('react-native-toast-message', () => ({
   __esModule: true,
@@ -365,6 +369,58 @@ describe('CardioSessionScreen', () => {
         expect.objectContaining({ type: 'error' })
       )
     );
+  });
+
+  it('saves the route and opens it', async () => {
+    jest
+      .mocked(saveActivityAsRoute)
+      .mockResolvedValueOnce({ id: 'r1' } as never);
+    const navigate = jest.fn();
+    mockDetail.mockReturnValue(detail());
+    const screen = render(
+      <CardioSessionScreen
+        {...({
+          ...props(),
+          navigation: { navigate },
+        } as unknown as RootStackScreenProps<'CardioSession'>)}
+      />
+    );
+    fireEvent.press(screen.getByTestId('save-as-route'));
+    await waitFor(() =>
+      expect(navigate).toHaveBeenCalledWith('RouteDetail', { id: 'r1' })
+    );
+    // The server names the route after the activity.
+    expect(saveActivityAsRoute).toHaveBeenCalledWith('run-1');
+    expect(Toast.show).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'success' })
+    );
+  });
+
+  it('says so when the route cannot be saved', async () => {
+    jest.mocked(saveActivityAsRoute).mockRejectedValueOnce(new Error('404'));
+    const navigate = jest.fn();
+    mockDetail.mockReturnValue(detail());
+    const screen = render(
+      <CardioSessionScreen
+        {...({
+          ...props(),
+          navigation: { navigate },
+        } as unknown as RootStackScreenProps<'CardioSession'>)}
+      />
+    );
+    fireEvent.press(screen.getByTestId('save-as-route'));
+    await waitFor(() =>
+      expect(Toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'error' })
+      )
+    );
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('offers no way to save a route without one', () => {
+    mockDetail.mockReturnValue(detail({ route: [] }));
+    const screen = render(<CardioSessionScreen {...props()} />);
+    expect(screen.queryByTestId('save-as-route')).toBeNull();
   });
 
   it('offers no export without a route', () => {

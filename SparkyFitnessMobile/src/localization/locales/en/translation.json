@@ -606,6 +606,8 @@
       "runProgramsActive": "{{name}} · {{progress}}",
       "personalRecords": "Personal records",
       "personalRecordsSubtitle": "Your best 1 km, 5 km, 10 km and more",
+      "routes": "Routes",
+      "routesSubtitle": "Draw, import and save routes to follow",
       "equipment": "Equipment",
       "equipmentSubtitle": "Shoes and other gear"
     },
@@ -643,7 +645,9 @@
     "runProgramWorkout": "Workout",
     "runProgramEdit": "Edit plan",
     "runProgramNew": "New plan",
-    "runProgramRace": "Plan a race"
+    "runProgramRace": "Plan a race",
+    "routes": "Routes",
+    "routeDraw": "Draw a route"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -8189,5 +8193,36 @@
       "lupin": "lupin",
       "sulphites": "sulphites"
     }
+  },
+  "routes": {
+    "addTitle": "Add a route",
+    "draw": "Draw on a map",
+    "importGpx": "Import a GPX file",
+    "importFailed": "Could not import that file",
+    "importFailedHint": "Choose a GPX file with a track or route in it.",
+    "loadFailed": "Could not load your routes.",
+    "loadOneFailed": "Could not load this route.",
+    "empty": "No routes yet. Draw one on a map, import a GPX file, or save a recorded run or walk from its details.",
+    "mapA11y": "Map of this route, from the green dot to the red ring",
+    "nameLabel": "Route name",
+    "namePlaceholder": "Name this route",
+    "climb": "{{climb}} climb",
+    "rename": "Rename",
+    "renameFailed": "Could not rename",
+    "shareGpx": "Share as GPX",
+    "shareFailed": "Could not share the route",
+    "deleteTitle": "Delete this route?",
+    "deleteMessage": "Recorded activities it was saved from are not affected.",
+    "deleteFailed": "Could not delete the route",
+    "saveFailed": "Could not save the route",
+    "drawHint": "Tap the map to add points",
+    "undo": "Undo",
+    "clear": "Clear",
+    "saveAsRoute": "Save as route",
+    "savedAsRoute": "Saved to Routes",
+    "saveAsRouteFailed": "Could not save the route",
+    "fileTooLarge": "That file is too large",
+    "fileTooLargeHint": "A route file can be up to 10 MB.",
+    "drawLimit": "That is as many points as a route can have here. Undo some or save this one."
   }
 }
