@@ -349,16 +349,35 @@ export const attachExerciseEntryWatchTelemetryRequestSchema = z
      * nothing on the entry to line up with.
      */
     durationMinutes: z.number().nonnegative().optional(),
+    /**
+     * Apple's time-in-zone for the whole workout, from the finished
+     * HKWorkout. When these five zones are usable they are stored as the
+     * device's zones and the series is not bucketed again. One post per
+     * workout: the server clears zones on the other exercises of the same
+     * session so the chart is not counted twice.
+     */
+    appleZones: z
+      .array(
+        z.object({
+          index: z.number().optional(),
+          minimumBpm: z.number().nullable().optional(),
+          maximumBpm: z.number().nullable().optional(),
+          seconds: z.number(),
+        }),
+      )
+      .max(8)
+      .optional(),
   })
   .strict()
   .refine(
     (body) =>
       body.hrSamples !== undefined ||
       body.activeEnergyKcal !== undefined ||
-      (body.durationMinutes !== undefined && body.durationMinutes > 0),
+      (body.durationMinutes !== undefined && body.durationMinutes > 0) ||
+      (body.appleZones !== undefined && body.appleZones.length > 0),
     {
       message:
-        "At least one of hrSamples, activeEnergyKcal, or durationMinutes is required.",
+        "At least one of hrSamples, activeEnergyKcal, durationMinutes, or appleZones is required.",
     },
   );
 
@@ -718,21 +737,21 @@ export const attachExerciseEntryLapsRequestSchema = z
           end_time: z.string().datetime({ offset: true }),
           distance_meters: z.number().nonnegative().max(1_000_000).optional(),
           avg_heart_rate: z.number().positive().max(300).optional(),
-        })
+        }),
       )
       .min(1)
       .max(1000)
       .refine(
         (laps) =>
           new Set(laps.map((lap) => lap.lap_index)).size === laps.length,
-        { message: "Each lap needs its own lap_index." }
+        { message: "Each lap needs its own lap_index." },
       )
       .refine(
         (laps) =>
           laps.every(
-            (lap) => Date.parse(lap.end_time) > Date.parse(lap.start_time)
+            (lap) => Date.parse(lap.end_time) > Date.parse(lap.start_time),
           ),
-        { message: "Every lap must end after it starts." }
+        { message: "Every lap must end after it starts." },
       ),
   })
   .strict();
@@ -760,7 +779,7 @@ export const attachExerciseEntryDistanceSeriesRequestSchema = z
         z.tuple([
           z.number().min(0).max(86400),
           z.number().min(0).max(1_000_000),
-        ])
+        ]),
       )
       .min(2)
       .max(1000)
@@ -776,7 +795,7 @@ export const attachExerciseEntryDistanceSeriesRequestSchema = z
         {
           message:
             "Active seconds and cumulative metres must not decrease from one row to the next.",
-        }
+        },
       ),
   })
   .strict();

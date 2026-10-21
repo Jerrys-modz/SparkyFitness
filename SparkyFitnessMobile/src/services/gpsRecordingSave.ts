@@ -10,6 +10,8 @@ import {
   elapsedSeconds,
   getHeartRateSamples,
   markRecordingSaved,
+  peekAppleWorkoutZones,
+  clearAppleWorkoutZones,
   type RecordingSession,
 } from './gpsRecordingService';
 import { addLog } from './LogService';
@@ -195,7 +197,7 @@ export async function saveRecordedActivity(
       ),
     });
   }
-  await attachWatchHeartRate(entryId);
+  await attachWatchHeartRate(entryId, session.id);
   return { entryId, entryDate, ...(wornOutShoe && { wornOutShoe }) };
 }
 
@@ -234,17 +236,28 @@ async function assignDefaultShoe(
  * Best effort: the activity and its route are already stored, so a failure
  * here is logged and never blocks the save.
  */
-async function attachWatchHeartRate(entryId: string): Promise<void> {
+async function attachWatchHeartRate(
+  entryId: string,
+  sessionId: string
+): Promise<void> {
   try {
     const samples = await getHeartRateSamples();
-    // The server needs two readings to measure any time in a zone.
-    if (samples.length < 2) return;
+    const appleZones = peekAppleWorkoutZones(sessionId);
+    // The server needs two readings to measure any time in a zone, unless
+    // Apple already summed the zones.
+    if (samples.length < 2 && !appleZones) return;
     await attachExerciseEntryWatchTelemetry(entryId, {
-      hrSamples: samples.map((sample) => ({
-        t: new Date(sample.t).toISOString(),
-        bpm: sample.bpm,
-      })),
+      ...(samples.length >= 2
+        ? {
+            hrSamples: samples.map((sample) => ({
+              t: new Date(sample.t).toISOString(),
+              bpm: sample.bpm,
+            })),
+          }
+        : {}),
+      ...(appleZones ? { appleZones } : {}),
     });
+    if (appleZones) clearAppleWorkoutZones(sessionId);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     addLog(

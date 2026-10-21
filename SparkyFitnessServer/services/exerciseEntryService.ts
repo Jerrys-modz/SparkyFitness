@@ -30,6 +30,8 @@ import {
 } from './workoutTelemetryDerivation.js';
 import {
   computeTimeInZones,
+  bucketsFromAppleWorkoutZones,
+  appleWorkoutZonesFromWire,
   observedMaxBpm,
   type HrSample,
 } from '@workspace/shared';
@@ -261,7 +263,9 @@ async function importExerciseEntriesFromCsv(
  * HealthKit/Health Connect/Garmin sync path (healthDataHandlers.ts's
  * persistWorkoutTelemetry), this never creates the entry itself, so it
  * recomputes the zone breakdown directly with the same hrZoneCalculator
- * rather than routing through that entry-creating function.
+ * rather than routing through that entry-creating function. Apple's own
+ * zone group, when the watch sends one, is stored instead: those seconds
+ * already include time below the first boundary, which the calculator drops.
  *
  * `activeEnergyKcal` overwrites `calories_burned`, which the server otherwise
  * derives from duration and sets. A watch on the wearer's wrist measured it;
@@ -273,7 +277,8 @@ async function attachWatchTelemetryToExerciseEntry(
   exerciseEntryId: string,
   hrSamples: HeartRateSampleRequest[] | undefined,
   activeEnergyKcal?: number,
-  durationMinutes?: number
+  durationMinutes?: number,
+  appleZones?: unknown
 ): Promise<void> {
   // Fail closed: family/delegate diary *read* can SELECT another user's
   // entry via RLS, but this route must not 204 after an UPDATE that
@@ -323,14 +328,21 @@ async function attachWatchTelemetryToExerciseEntry(
     fields.duration_minutes = Math.round(durationMinutes * 100) / 100;
   }
 
-  // Zones need the series; a calories-only post has nothing to bucket.
-  // Stale-snapshot rejection (and the zone write) happens under FOR UPDATE
-  // inside applyWatchTelemetryAtomically so two in-flight flushes cannot
-  // both pass the check against the same pre-lock row. The series write is
-  // the same hook: it runs only when that snapshot was accepted, and before
-  // the lock is released, so an older flush cannot store samples afterwards.
+  // Apple's finished-workout zones win over a fresh bucketing of the series.
+  // They are the whole session, so the write also clears the other exercises
+  // of that session; otherwise the workout chart would add them on top.
   let zones: WatchTelemetryZoneSpec[] | null = null;
-  if (hrSamples && hrSamples.length > 0) {
+  let sessionZones = false;
+  const deviceZones = bucketsFromAppleWorkoutZones(
+    appleWorkoutZonesFromWire(appleZones)
+  );
+  if (deviceZones) {
+    sessionZones = true;
+    zones = deviceZones.map((zone) => ({
+      ...zone,
+      zone_method: 'device' as const,
+    }));
+  } else if (hrSamples && hrSamples.length > 0) {
     const samples: HrSample[] = hrSamples;
     // The same resolution the sync path uses (healthDataHandlers.ts's
     // persistWorkoutTelemetry): the person's own max heart rate or their date
@@ -357,7 +369,8 @@ async function attachWatchTelemetryToExerciseEntry(
       fields,
       zones,
       () =>
-        storeHeartRateSeries(userId, actingUserId, exerciseEntryId, accepted)
+        storeHeartRateSeries(userId, actingUserId, exerciseEntryId, accepted),
+      sessionZones
     );
   } else {
     await exerciseEntryRepository.applyWatchTelemetryAtomically(
@@ -365,7 +378,9 @@ async function attachWatchTelemetryToExerciseEntry(
       userId,
       actingUserId,
       fields,
-      zones
+      zones,
+      undefined,
+      sessionZones
     );
   }
 }

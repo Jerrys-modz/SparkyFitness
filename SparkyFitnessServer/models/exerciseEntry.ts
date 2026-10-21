@@ -550,7 +550,13 @@ async function applyWatchTelemetryAtomically(
    * doing it after COMMIT let an older flush store samples the lock had
    * already rejected, or land them after a newer flush.
    */
-  onHrAccepted?: () => Promise<void>
+  onHrAccepted?: () => Promise<void>,
+  /**
+   * The zones are Apple's total for the whole workout, not this exercise.
+   * Drop the other exercises of the same session so a combined chart does
+   * not count that time again.
+   */
+  sessionZones = false
 ): Promise<void> {
   const client = await getClient(userId, actingUserId);
   try {
@@ -566,6 +572,7 @@ async function applyWatchTelemetryAtomically(
             max_heart_rate?: unknown;
             active_calories?: unknown;
             watch_telemetry_observed_at?: unknown;
+            exercise_preset_entry_id?: string | null;
           }
         | undefined;
       if (!entry) {
@@ -599,6 +606,19 @@ async function applyWatchTelemetryAtomically(
             seconds_in_zone: zone.seconds_in_zone,
             zone_method: zone.zone_method,
           }))
+        );
+      }
+      if (!skipHr && sessionZones && entry.exercise_preset_entry_id) {
+        await client.query(
+          `DELETE FROM exercise_entry_hr_zones
+           WHERE user_id = $1
+             AND exercise_entry_id IN (
+               SELECT id FROM exercise_entries
+               WHERE user_id = $1
+                 AND exercise_preset_entry_id = $2
+                 AND id <> $3
+             )`,
+          [userId, entry.exercise_preset_entry_id, id]
         );
       }
       if (!skipHr && onHrAccepted) {

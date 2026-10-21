@@ -33,6 +33,8 @@ jest.mock('../../src/services/gpsRecordingService', () => ({
   elapsedSeconds: jest.fn(() => 1500),
   markRecordingSaved: jest.fn(() => Promise.resolve()),
   getHeartRateSamples: jest.fn(() => Promise.resolve([])),
+  peekAppleWorkoutZones: jest.fn(() => null),
+  clearAppleWorkoutZones: jest.fn(),
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 jest.mock('../../src/services/stepDistance');

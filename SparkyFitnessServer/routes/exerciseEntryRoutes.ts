@@ -890,7 +890,8 @@ router.post('/:id/watch-telemetry', authenticate, async (req, res, next) => {
       id,
       parsed.data.hrSamples,
       parsed.data.activeEnergyKcal,
-      parsed.data.durationMinutes
+      parsed.data.durationMinutes,
+      parsed.data.appleZones
     );
     res.status(204).send();
   } catch (error) {

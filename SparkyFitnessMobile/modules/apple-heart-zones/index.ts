@@ -15,10 +15,28 @@ export interface AppleHeartZonesReading {
   zones: AppleHeartZoneReading[];
 }
 
+/** One finished workout's heart-rate zone group, as HealthKit reported it. */
+export interface AppleWorkoutZoneGroupReading {
+  uuid: string;
+  zones: Array<{
+    index: number;
+    minimumBpm?: number;
+    maximumBpm?: number;
+    seconds: number;
+  }>;
+}
+
 declare class AppleHeartZonesModuleType extends NativeModule {
   /** True on iOS 27+ where HealthKit can read preferred workout zones. */
   isAvailable(): boolean;
   preferredHeartRateZones(): Promise<AppleHeartZonesReading | null>;
+  /**
+   * Heart-rate zone groups for workouts already in Apple Health, keyed by
+   * the workout uuid. Empty when this OS cannot read them.
+   */
+  heartRateZonesForWorkouts(
+    uuids: string[]
+  ): Promise<AppleWorkoutZoneGroupReading[]>;
 }
 
 function loadAppleHeartZones(): AppleHeartZonesModuleType | null {

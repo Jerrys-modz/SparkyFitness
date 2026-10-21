@@ -5,9 +5,11 @@ import {
 } from '@kingstinct/react-native-healthkit';
 import {
   floorsFromAppleHeartRateZones,
+  appleWorkoutZonesFromWire,
   MAX_RESTING_HR,
   MIN_RESTING_HR,
   type AppleHeartRateZoneBound,
+  type AppleWorkoutZoneDuration,
 } from '@workspace/shared';
 
 import AppleHeartZonesModule from '../../modules/apple-heart-zones';
@@ -117,4 +119,38 @@ export async function readAppleHeartRateZones(options?: {
   const restingHeartRate =
     includeResting && authorized ? await latestRestingHeartRate() : null;
   return { floors, restingHeartRate };
+}
+
+/**
+ * Heart-rate zone groups for workouts already stored in Apple Health, keyed
+ * by workout uuid (compared case-insensitively). Empty when this device
+ * cannot read them. A failure is logged and treated as "no zones", so a
+ * sync still imports the workout and the server buckets the series.
+ */
+export async function readAppleWorkoutZoneGroups(
+  uuids: readonly string[]
+): Promise<Map<string, AppleWorkoutZoneDuration[]>> {
+  const found = new Map<string, AppleWorkoutZoneDuration[]>();
+  if (
+    !appleHeartZonesAvailable() ||
+    !AppleHeartZonesModule ||
+    uuids.length === 0
+  ) {
+    return found;
+  }
+  try {
+    const groups = await AppleHeartZonesModule.heartRateZonesForWorkouts([
+      ...uuids,
+    ]);
+    for (const group of groups ?? []) {
+      const zones = appleWorkoutZonesFromWire(group?.zones);
+      if (!zones || typeof group?.uuid !== 'string') continue;
+      found.set(group.uuid.toLowerCase(), zones);
+    }
+  } catch (error) {
+    addLog('Apple Health workout zones could not be read', 'ERROR', [
+      String(error),
+    ]);
+  }
+  return found;
 }
