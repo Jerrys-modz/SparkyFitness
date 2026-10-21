@@ -472,9 +472,14 @@ function CheckinComposer({
   const [now, setNow] = useState(() => new Date());
   // The device's today and the zone's today both count as today, and a new
   // check-in for today goes on the zone's own today, at the zone's clock, so
-  // its day and time are never a day apart.
+  // its day and time are never a day apart. Until a time is picked it stays
+  // on today past midnight too, so an untouched time is always "now".
   const zoneToday = todayInZone(tz);
-  const checkinDay = moodDayInZone(date, tz);
+  const [openedForToday] = useState(
+    () => editing === null && moodDayInZone(date, tz) === zoneToday
+  );
+  const followsToday = openedForToday && !timeTouched;
+  const checkinDay = followsToday ? zoneToday : moodDayInZone(date, tz);
   const isToday = checkinDay === zoneToday;
   const base: CheckinDraft = editing
     ? draftFromEntry(editing, tz)
@@ -517,12 +522,13 @@ function CheckinComposer({
         });
       } else {
         // An untouched time means "now" as the check-in is sent, not as it
-        // was when the screen opened.
+        // was when the screen opened or last re-rendered, and so does its day.
+        const sentDay = followsToday ? todayInZone(tz) : checkinDay;
         const sent = timeTouched
           ? draft
-          : { ...draft, time: defaultCheckinTime(checkinDay, tz) };
+          : { ...draft, time: defaultCheckinTime(sentDay, tz) };
         await createCheckin.mutateAsync(
-          buildCheckinCreateBody(sent, checkinDay, tz)
+          buildCheckinCreateBody(sent, sentDay, tz)
         );
       }
     } catch (error) {

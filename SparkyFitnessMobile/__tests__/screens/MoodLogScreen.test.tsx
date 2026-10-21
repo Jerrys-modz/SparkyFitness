@@ -9,6 +9,7 @@ import {
 } from '@testing-library/react-native';
 import Toast from 'react-native-toast-message';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { todayInZone } from '@workspace/shared';
 import MoodLogScreen from '../../src/screens/MoodLogScreen';
 import { initializeI18n } from '../../src/localization/i18n';
 import { ApiError } from '../../src/services/api/errors';
@@ -505,6 +506,49 @@ describe('MoodLogScreen check-in composer (several check-ins a day)', () => {
         jest.advanceTimersByTime(60_000);
       });
       expect(screen.getByLabelText('Time, 09:31')).toBeTruthy();
+    });
+
+    it('keeps an untouched new check-in on today across midnight', async () => {
+      // The device's day follows UTC here, like the user's zone.
+      const deviceToday = jest
+        .spyOn(dateUtils, 'getTodayDate')
+        .mockImplementation(() => todayInZone('UTC'));
+      jest.setSystemTime(new Date(`${DATE}T23:59:20Z`));
+      renderScreen();
+      expect(screen.getByLabelText('Time, 23:59')).toBeTruthy();
+      act(() => {
+        jest.advanceTimersByTime(60_000);
+      });
+      expect(screen.getByLabelText('Time, 00:00')).toBeTruthy();
+      expect(screen.queryByText(/Logging for/)).toBeNull();
+      fireEvent.press(screen.getByLabelText('Energy 4'));
+      await pressAndSettle(saveButton());
+      expect(mockCreateMutateAsync).toHaveBeenCalledWith({
+        energy_value: 4,
+        entry_date: '2026-10-15',
+        entry_timestamp: '2026-10-15T00:00:00.000Z',
+      });
+      deviceToday.mockRestore();
+    });
+
+    it('keeps a time picked before midnight on the day it was picked for', async () => {
+      const deviceToday = jest
+        .spyOn(dateUtils, 'getTodayDate')
+        .mockImplementation(() => todayInZone('UTC'));
+      jest.setSystemTime(new Date(`${DATE}T23:59:20Z`));
+      renderScreen();
+      fireEvent.press(screen.getByText('mock-time-sheet'));
+      act(() => {
+        jest.advanceTimersByTime(60_000);
+      });
+      fireEvent.press(screen.getByLabelText('Energy 4'));
+      await pressAndSettle(saveButton());
+      expect(mockCreateMutateAsync).toHaveBeenCalledWith({
+        energy_value: 4,
+        entry_date: DATE,
+        entry_timestamp: `${DATE}T08:15:00.000Z`,
+      });
+      deviceToday.mockRestore();
     });
 
     it('works an untouched time out again at save', async () => {
