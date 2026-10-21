@@ -224,7 +224,7 @@ Pełne przewodniki instalacji, opcje konfiguracji i dokumentację dla programist
 ## Współtwórcy
 
 <a href="https://github.com/CodeWithCJ/SparkyFitness/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%"/>
+  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%" alt="Współtwórcy SparkyFitness"/>
 </a>
 
 ## ⚠️ Znane problemy / funkcje w wersji beta ⚠️

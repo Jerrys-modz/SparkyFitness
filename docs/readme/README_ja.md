@@ -224,7 +224,7 @@ SparkyFitness（セルフホスト型フィットネストラッカー）のイ�
 ## コントリビューター
 
 <a href="https://github.com/CodeWithCJ/SparkyFitness/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%"/>
+  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%" alt="SparkyFitness のコントリビューター"/>
 </a>
 
 ## ⚠️ 既知の問題 / ベータ機能 ⚠️

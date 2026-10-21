@@ -224,7 +224,7 @@ SparkyFitness(셀프 호스팅 피트니스 트래커) 설치 방법을 보여�
 ## 기여자
 
 <a href="https://github.com/CodeWithCJ/SparkyFitness/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%"/>
+  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%" alt="SparkyFitness 기여자"/>
 </a>
 
 ## ⚠️ 알려진 문제 / 베타 기능 ⚠️

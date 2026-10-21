@@ -224,7 +224,7 @@ SparkyFitness (सेल्फ-होस्टेड फ़िटनेस ट�
 ## योगदानकर्ता
 
 <a href="https://github.com/CodeWithCJ/SparkyFitness/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%"/>
+  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%" alt="SparkyFitness के योगदानकर्ता"/>
 </a>
 
 ## ⚠️ ज्ञात समस्याएँ / बीटा सुविधाएँ ⚠️

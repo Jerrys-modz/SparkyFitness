@@ -224,7 +224,7 @@ _ملاحظة: للاطلاع على خيارات الإعداد الكاملة 
 ## المساهمون
 
 <a href="https://github.com/CodeWithCJ/SparkyFitness/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%"/>
+  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%" alt="المساهمون في SparkyFitness"/>
 </a>
 
 ## ⚠️ مشكلات معروفة / ميزات تجريبية ⚠️

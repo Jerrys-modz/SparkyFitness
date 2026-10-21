@@ -224,7 +224,7 @@ _注意：如需完整的組態選項、反向代理與其他安裝方式，請�
 ## 貢獻者
 
 <a href="https://github.com/CodeWithCJ/SparkyFitness/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%"/>
+  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%" alt="SparkyFitness 貢獻者"/>
 </a>
 
 ## ⚠️ 已知問題 / Beta 功能 ⚠️

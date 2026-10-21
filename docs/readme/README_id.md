@@ -224,7 +224,7 @@ Untuk panduan instalasi lengkap, opsi konfigurasi, dan dokumentasi pengembangan,
 ## Kontributor
 
 <a href="https://github.com/CodeWithCJ/SparkyFitness/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%"/>
+  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%" alt="Kontributor SparkyFitness"/>
 </a>
 
 ## ⚠️ Masalah yang Diketahui / Fitur Beta ⚠️

@@ -224,7 +224,7 @@ Bezoek onze [documentatiesite](https://codewithcj.github.io/SparkyFitness/) voor
 ## Bijdragers
 
 <a href="https://github.com/CodeWithCJ/SparkyFitness/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%"/>
+  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%" alt="Bijdragers aan SparkyFitness"/>
 </a>
 
 ## ⚠️ Bekende problemen / bètafuncties ⚠️

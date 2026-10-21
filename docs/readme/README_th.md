@@ -224,7 +224,7 @@ _หมายเหตุ: สำหรับตัวเลือกการ�
 ## ผู้ร่วมพัฒนา
 
 <a href="https://github.com/CodeWithCJ/SparkyFitness/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%"/>
+  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%" alt="ผู้ร่วมพัฒนา SparkyFitness"/>
 </a>
 
 ## ⚠️ ปัญหาที่ทราบแล้ว / ฟีเจอร์เบต้า ⚠️

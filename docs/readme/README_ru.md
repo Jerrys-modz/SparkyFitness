@@ -224,7 +224,7 @@ _Примечание: полный список параметров конфи
 ## Участники
 
 <a href="https://github.com/CodeWithCJ/SparkyFitness/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%"/>
+  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%" alt="Участники проекта SparkyFitness"/>
 </a>
 
 ## ⚠️ Известные проблемы / Бета-функции ⚠️

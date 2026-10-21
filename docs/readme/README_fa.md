@@ -224,7 +224,7 @@ _توجه: برای گزینه‌های کامل پیکربندی، reverse prox
 ## مشارکت‌کنندگان
 
 <a href="https://github.com/CodeWithCJ/SparkyFitness/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%"/>
+  <img src="https://contrib.rocks/image?repo=CodeWithCJ/SparkyFitness" width="100%" alt="مشارکت‌کنندگان SparkyFitness"/>
 </a>
 
 ## ⚠️ مشکلات شناخته‌شده / قابلیت‌های بتا ⚠️
