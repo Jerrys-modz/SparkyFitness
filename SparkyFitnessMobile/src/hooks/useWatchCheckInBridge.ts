@@ -684,7 +684,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
       try {
         await WatchConnectivity.setTelemetryOwner?.(workoutServerId ?? '');
         const activeCfg = await getActiveServerConfig();
-        if (activeCfg?.url) {
+        if (activeCfg?.url && activeCfg.id === workoutServerId) {
           await WatchConnectivity.setServerCredentials?.(
             normalizeUrl(activeCfg.url),
             {
@@ -693,7 +693,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
               'X-Meal-Model-Version': '2',
             }
           );
-        } else {
+        } else if (!activeCfg?.url) {
           await WatchConnectivity.clearServerCredentials?.();
         }
       } catch {
