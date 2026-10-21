@@ -326,7 +326,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           race={paceReferenceRace}
           onSave={setPaceReferenceRace}
           watch={
-            Platform.OS === 'ios'
+            Platform.OS === 'ios' || Platform.OS === 'android'
               ? {
                   value: paceReferenceOnWatch,
                   onChange: setPaceReferenceOnWatch,
@@ -440,7 +440,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           race={paceReferenceRace}
           onSave={setPaceReferenceRace}
           watch={
-            Platform.OS === 'ios'
+            Platform.OS === 'ios' || Platform.OS === 'android'
               ? {
                   value: paceReferenceOnWatch,
                   onChange: setPaceReferenceOnWatch,

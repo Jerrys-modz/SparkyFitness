@@ -1023,13 +1023,14 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    * malformed) since the last call. Resets to zero.
    */
   takeDroppedHeartRateBatchCount(): Promise<number>;
+  setServerCredentials?(
+    baseUrl: string,
+    headers: Record<string, string>
+  ): Promise<void>;
 }
 
-// iOS-only: WatchConnectivity has no Android equivalent, so this resolves to
-// null there and every caller must guard on it. Prefer the guarded hook in
-// src/hooks/useWatchCheckInBridge.ts over importing this module directly.
 const WatchConnectivityModule: WatchConnectivityModuleType | null =
-  Platform.OS === 'ios'
+  Platform.OS === 'ios' || Platform.OS === 'android'
     ? requireOptionalNativeModule<WatchConnectivityModuleType>(
         'WatchConnectivity'
       )

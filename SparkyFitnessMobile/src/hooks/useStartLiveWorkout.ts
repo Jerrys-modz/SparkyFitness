@@ -73,6 +73,8 @@ export interface StartLiveWorkoutArgs {
   workoutPlanAssignmentId?: number;
   workoutFormat?: WorkoutFormat;
   timeCapSeconds?: number | null;
+  /** True when initiated from the watch so phone-only modal prompts are bypassed. */
+  fromWatch?: boolean;
 }
 
 /**
@@ -380,7 +382,10 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
 
   const startLiveWorkout = useCallback(
     async (args: StartLiveWorkoutArgs) => {
-      if (!queryClient.getQueryData(serverConnectionQueryKey)) {
+      if (
+        !args.fromWatch &&
+        !queryClient.getQueryData(serverConnectionQueryKey)
+      ) {
         Alert.alert(
           t('liveWorkout.noServerTitle', {
             defaultValue: 'No Server Connected',
@@ -392,15 +397,17 @@ export function useStartLiveWorkout(navigation: StartLiveWorkoutNavigation): {
         );
         return;
       }
-      const prompted = promptForActiveWorkoutConflict(
-        queryClient,
-        {
-          onGoToWorkout: () => navigation.navigate('ActiveWorkout'),
-          onClearAndStart: () => runStart(args),
-        },
-        t
-      );
-      if (prompted) return;
+      if (!args.fromWatch) {
+        const prompted = promptForActiveWorkoutConflict(
+          queryClient,
+          {
+            onGoToWorkout: () => navigation.navigate('ActiveWorkout'),
+            onClearAndStart: () => runStart(args),
+          },
+          t
+        );
+        if (prompted) return;
+      }
       await runStart(args);
     },
     [queryClient, navigation, runStart, t]

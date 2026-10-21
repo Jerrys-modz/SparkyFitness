@@ -152,6 +152,7 @@
       "about": "About",
       "shareReport": "Share Diagnostic Report",
       "watch": "Apple Watch",
+      "wearOs": "Wear OS",
       "ai": "AI",
       "fasting": "Fasting",
       "goals": "Goals",
@@ -620,6 +621,7 @@
     "cardioSession": "Cardio Session",
     "activityShare": "Share Activity",
     "watchSettings": "Apple Watch",
+    "wearOsSettings": "Wear OS",
     "aiSettings": "AI",
     "fastingSettings": "Fasting Settings",
     "fasting": "Fasting",
@@ -1709,6 +1711,7 @@
     },
     "watch": {
       "title": "Apple Watch",
+      "wearOsTitle": "Wear OS",
       "description": "Status of the watch companion link. Check-ins captured on the watch are queued and delivered even when \"reachable\" is off, so a gray dot here does not mean data is lost.",
       "paired": "Watch paired",
       "notPaired": "No watch paired",
@@ -6250,6 +6253,7 @@
     "doubleTapTitle": "Double-tap to log a set",
     "rpeTitle": "Ask for effort (RPE) after each set",
     "rpeSubtitle": "After you log a set on the watch, turn the Digital Crown to pick how hard it was, from 1 to 10, then tap Save, or tap Skip.",
+    "rpeSubtitleWearOs": "After you log a set on the watch, turn the rotary crown or tap +/− to pick how hard it was, from 5 to 10, then tap Save, or tap Skip.",
     "doubleTapSubtitle": "Double-tap on a supported watch (Series 9, Ultra 2 or later, watchOS 11) logs the set on screen during a workout.",
     "pagesTitle": "Pages",
     "description": "Drag a page by its handle to change the order you swipe through them on your watch. Toggle a page off to hide it. The Workout page still appears while a workout is running.",
@@ -7261,6 +7265,7 @@
     "heartRateBand": {
       "title": "Heart rate alert",
       "description": "Needs your Apple Watch. Buzzes, and speaks with voice cues on, when your heart rate stays outside this range.",
+      "wearOsDescription": "Needs your Wear OS watch. Buzzes, and speaks with voice cues on, when your heart rate stays outside this range.",
       "lowest": "Lowest",
       "highest": "Highest",
       "value": "{{value}} bpm",
@@ -8143,6 +8148,7 @@
     "save": "Save",
     "clear": "Clear",
     "watch": "Also use on my Apple Watch",
+    "wearOs": "Also use on my Wear OS watch",
     "watchHint": "Holds the program workout offered on the watch to these ranges. Runs only."
   },
   "allergens": {

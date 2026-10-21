@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import WatchConnectivity, {
   type WatchWorkoutStartRequestedPayload,
 } from '../../modules/watch-connectivity';
@@ -20,7 +21,11 @@ import {
   getLoggedAssignmentIds,
   getUncompletedActivePlans,
 } from '../utils/workoutPlanSchedule';
-import type { StartLiveWorkoutArgs } from './useStartLiveWorkout';
+import { flushActiveWorkoutBeforeClear } from './useActiveWorkoutAutosave';
+import {
+  armWatchForActiveSession,
+  type StartLiveWorkoutArgs,
+} from './useStartLiveWorkout';
 
 type StartFn = (args: StartLiveWorkoutArgs) => Promise<void>;
 
@@ -32,17 +37,20 @@ type StartFn = (args: StartLiveWorkoutArgs) => Promise<void>;
  * The listener stays up while the server is offline. A tap that arrives
  * then is kept and run once the connection is back, instead of being
  * dropped because nothing was listening. A second delivery while that
- * preset's session is already live is ignored, so a queued copy or the
- * watch's retry does not open the "workout in progress" prompt.
+ * preset's session is already live re-arms the watch so a restarted watch
+ * app or retry still transitions into the live workout.
  */
 export function useWatchWorkoutStart(
   enabled: boolean,
   connected: boolean,
   start: StartFn
 ): void {
+  const { t } = useTranslation();
+  const tRef = useRef(t);
   const startRef = useRef(start);
   const connectedRef = useRef(connected);
   useEffect(() => {
+    tRef.current = t;
     startRef.current = start;
     connectedRef.current = connected;
   });
@@ -53,12 +61,14 @@ export function useWatchWorkoutStart(
     async (payload: WatchWorkoutStartRequestedPayload) => {
       const generation = generationRef.current;
       const presetId = Number(payload.presetId);
-      const serverId = payload.serverId;
-      // A queued tap from before this field, or from another account, must
-      // not start whatever preset now happens to have that id.
-      if (!Number.isFinite(presetId) || !serverId) return;
+      if (!Number.isFinite(presetId)) return;
       const activeServerId = await getActiveServerConfigId();
-      if (generation !== generationRef.current || activeServerId !== serverId)
+      const serverId = payload.serverId || activeServerId;
+      if (
+        !serverId ||
+        generation !== generationRef.current ||
+        activeServerId !== serverId
+      )
         return;
       const cached = queryClient.getQueryData<WorkoutPresetsResponse>(
         workoutPresetsQueryKey
@@ -68,6 +78,9 @@ export function useWatchWorkoutStart(
         try {
           preset = await getWorkoutPresetById(presetId);
         } catch {
+          if (!connectedRef.current) {
+            pendingRef.current = payload;
+          }
           return;
         }
       }
@@ -76,9 +89,12 @@ export function useWatchWorkoutStart(
         generation !== generationRef.current ||
         preset.exercises.length === 0 ||
         (await getActiveServerConfigId()) !== serverId ||
-        generation !== generationRef.current ||
-        (live.sessionId != null && live.sourcePresetId === preset.id)
+        generation !== generationRef.current
       ) {
+        return;
+      }
+      if (live.sessionId != null && live.sourcePresetId === preset.id) {
+        armWatchForActiveSession(tRef.current);
         return;
       }
       // A preset that is due today under an active plan counts toward that
@@ -110,10 +126,24 @@ export function useWatchWorkoutStart(
       const liveAfter = useActiveWorkoutStore.getState();
       if (
         (await getActiveServerConfigId()) !== serverId ||
-        generation !== generationRef.current ||
-        (liveAfter.sessionId != null && liveAfter.sourcePresetId === preset.id)
+        generation !== generationRef.current
       ) {
         return;
+      }
+      if (
+        liveAfter.sessionId != null &&
+        liveAfter.sourcePresetId === preset.id
+      ) {
+        armWatchForActiveSession(tRef.current);
+        return;
+      }
+      if (liveAfter.sessionId != null) {
+        try {
+          await flushActiveWorkoutBeforeClear(queryClient);
+        } catch {
+          // best effort
+        }
+        useActiveWorkoutStore.getState().clearWorkout();
       }
       const exercises = buildPresetStartExercisesPayload(preset).map(
         (exercise) =>
@@ -129,6 +159,7 @@ export function useWatchWorkoutStart(
         sourcePresetId: preset.id,
         workoutFormat: preset.workout_format ?? 'standard',
         timeCapSeconds: preset.time_cap_seconds ?? null,
+        fromWatch: true,
       });
     },
     []
@@ -140,7 +171,6 @@ export function useWatchWorkoutStart(
     const sub = watch.addListener('onWorkoutStartRequested', (payload) => {
       if (!connectedRef.current) {
         pendingRef.current = payload;
-        return;
       }
       void run(payload);
     });
