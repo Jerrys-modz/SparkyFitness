@@ -307,40 +307,50 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         self.builder = nil
         session.end()
         endingBuilder.endCollection(withEnd: endedAt) { [weak self] _, _ in
+            // The summary, and its effort picker, wait until the saved
+            // HKWorkout is in hand. Rating before that has nothing to relate,
+            // and the picker would still report success. Strength already
+            // waits; a run used to show the summary from endCollection.
+            let deliver = {
+                DispatchQueue.main.async {
+                    guard let self else {
+                        completion(WatchRunMetrics(), finalElapsed, nil)
+                        return
+                    }
+                    let result = save ? WatchRunResult(
+                        clientId: self.clientId,
+                        kind: self.runKind,
+                        place: self.runPlace,
+                        startedAt: self.startedAt,
+                        endedAt: endedAt,
+                        activeSeconds: finalElapsed,
+                        metrics: self.metrics,
+                        route: rows.route,
+                        heartRate: rows.heartRate,
+                        laps: rows.laps,
+                        lapDistances: rows.lapDistances,
+                        distanceSeries: self.distanceSeries,
+                        plan: self.plan,
+                        planCompleted: self.planCompleted(at: finalElapsed)
+                    ) : nil
+                    completion(self.metrics, finalElapsed, result)
+                }
+            }
             if save {
-                endingBuilder.finishWorkout { workout, _ in
-                    DispatchQueue.main.async { self?.lastSavedWorkout = workout }
-                    // The route can only be attached to a saved workout.
-                    if let workout, let endingRoute {
-                        endingRoute.finishRoute(with: workout, metadata: nil) { _, _ in }
+                endingBuilder.finishWorkout { [weak self] workout, _ in
+                    DispatchQueue.main.async {
+                        self?.lastSavedWorkout = workout
+                        // The route can only be attached to a saved workout.
+                        if let workout, let endingRoute {
+                            endingRoute.finishRoute(with: workout, metadata: nil) { _, _ in }
+                        }
+                        deliver()
                     }
                 }
             } else {
                 endingBuilder.discardWorkout()
                 endingRoute?.discard()
-            }
-            DispatchQueue.main.async {
-                guard let self else {
-                    completion(WatchRunMetrics(), finalElapsed, nil)
-                    return
-                }
-                let result = save ? WatchRunResult(
-                    clientId: self.clientId,
-                    kind: self.runKind,
-                    place: self.runPlace,
-                    startedAt: self.startedAt,
-                    endedAt: endedAt,
-                    activeSeconds: finalElapsed,
-                    metrics: self.metrics,
-                    route: rows.route,
-                    heartRate: rows.heartRate,
-                    laps: rows.laps,
-                    lapDistances: rows.lapDistances,
-                    distanceSeries: self.distanceSeries,
-                    plan: self.plan,
-                    planCompleted: self.planCompleted(at: finalElapsed)
-                ) : nil
-                completion(self.metrics, finalElapsed, result)
+                deliver()
             }
         }
     }
