@@ -28,6 +28,7 @@ export interface WatchCheckInPayload {
    * fat value the day already had.
    */
   bodyFatPercentage: number | null;
+  ownerId?: string;
 }
 
 /** One day of history relayed to the watch for its trend chart. */
@@ -46,6 +47,7 @@ export interface WatchWaterIntakePayload {
   /** Calendar day (`yyyy-MM-dd`) in the wearer's local timezone. */
   entryDate: string;
   containerId: number;
+  ownerId?: string;
 }
 
 /** A request from the watch to delete one logged drink. */
@@ -54,6 +56,7 @@ export interface WatchWaterDeletePayload {
   clientId: string;
   /** The `water_intake_entries` row id, as relayed in `waterLog` below. */
   entryId: string;
+  ownerId?: string;
 }
 
 /** A dose ticked, or un-ticked after a mistaken tap, on the Apple Watch. */
@@ -66,6 +69,7 @@ export interface WatchMedicationTakenPayload {
   scheduleId: string;
   /** False when the wearer un-ticked the dose; absent from older watch builds, which only ever tick. */
   taken?: boolean;
+  ownerId?: string;
 }
 
 /** One of today's scheduled dose slots, relayed to the watch's Medications page. */
@@ -727,11 +731,13 @@ export interface WatchFastStartRequestPayload {
   /** `FASTING_PRESETS` id, e.g. "16-8". */
   presetId: string;
   clientId: string;
+  ownerId?: string;
 }
 
 /** The wearer asked to end the running fast from the watch. */
 export interface WatchFastEndRequestPayload {
   clientId: string;
+  ownerId?: string;
 }
 
 /**
@@ -1027,6 +1033,7 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
     baseUrl: string,
     headers: Record<string, string>
   ): Promise<void>;
+  clearServerCredentials?(): Promise<void>;
 }
 
 const WatchConnectivityModule: WatchConnectivityModuleType | null =

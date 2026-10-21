@@ -549,7 +549,7 @@ object ContextPayloadMapper {
 }
 
 object OutboundPayloads {
-  fun checkIn(checkIn: CheckIn): JSONObject = JSONObject().apply {
+  fun checkIn(checkIn: CheckIn, ownerId: String? = null): JSONObject = JSONObject().apply {
     put("type", "checkIn")
     put("clientId", checkIn.id)
     put("entryDate", checkIn.entryDate)
@@ -557,19 +557,31 @@ object OutboundPayloads {
     if (checkIn.bodyFatPercentage != null) {
       put("bodyFatPercentage", checkIn.bodyFatPercentage)
     }
+    if (!ownerId.isNullOrEmpty()) put("ownerId", ownerId)
   }
 
-  fun waterTap(clientId: String, entryDate: String, containerId: Int): JSONObject = JSONObject().apply {
+  fun waterTap(
+    clientId: String,
+    entryDate: String,
+    containerId: Int,
+    ownerId: String? = null
+  ): JSONObject = JSONObject().apply {
     put("type", "waterIntake")
     put("clientId", clientId)
     put("entryDate", entryDate)
     put("containerId", containerId)
+    if (!ownerId.isNullOrEmpty()) put("ownerId", ownerId)
   }
 
-  fun waterDelete(clientId: String, entryId: String): JSONObject = JSONObject().apply {
+  fun waterDelete(
+    clientId: String,
+    entryId: String,
+    ownerId: String? = null
+  ): JSONObject = JSONObject().apply {
     put("type", "waterDelete")
     put("clientId", clientId)
     put("entryId", entryId)
+    if (!ownerId.isNullOrEmpty()) put("ownerId", ownerId)
   }
 
   fun medicationTaken(
@@ -577,7 +589,8 @@ object OutboundPayloads {
     entryDate: String,
     medicationId: String,
     scheduleId: String,
-    taken: Boolean
+    taken: Boolean,
+    ownerId: String? = null
   ): JSONObject = JSONObject().apply {
     put("type", "medicationTaken")
     put("clientId", clientId)
@@ -585,17 +598,20 @@ object OutboundPayloads {
     put("medicationId", medicationId)
     put("scheduleId", scheduleId)
     put("taken", taken)
+    if (!ownerId.isNullOrEmpty()) put("ownerId", ownerId)
   }
 
-  fun fastStart(presetId: String, clientId: String): JSONObject = JSONObject().apply {
+  fun fastStart(presetId: String, clientId: String, ownerId: String? = null): JSONObject = JSONObject().apply {
     put("type", "fastStart")
     put("presetId", presetId)
     put("clientId", clientId)
+    if (!ownerId.isNullOrEmpty()) put("ownerId", ownerId)
   }
 
-  fun fastEnd(clientId: String): JSONObject = JSONObject().apply {
+  fun fastEnd(clientId: String, ownerId: String? = null): JSONObject = JSONObject().apply {
     put("type", "fastEnd")
     put("clientId", clientId)
+    if (!ownerId.isNullOrEmpty()) put("ownerId", ownerId)
   }
 
   fun contextRequest(): JSONObject = JSONObject().apply {

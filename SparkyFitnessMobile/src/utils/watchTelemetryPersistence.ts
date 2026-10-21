@@ -107,6 +107,7 @@ export function settleWatchTelemetryPurges(): Promise<boolean> {
 export function notifyWatchTelemetryAccountSwitch(
   readConfigIds: WatchTelemetryPurgeIdReader
 ): void {
+  void WatchConnectivity?.clearServerCredentials?.();
   pendingIdReaders.push(readConfigIds);
   void settleWatchTelemetryPurges();
   onAccountSwitch?.();
@@ -448,6 +449,7 @@ export async function readWatchTelemetry(
 export async function deleteWatchTelemetryForConfig(
   ownerId: string
 ): Promise<void> {
+  void WatchConnectivity?.clearServerCredentials?.();
   // A write already queued for this config would recreate the buffer.
   await writeChain;
   await AsyncStorage.removeItem(bufferKey(ownerId));

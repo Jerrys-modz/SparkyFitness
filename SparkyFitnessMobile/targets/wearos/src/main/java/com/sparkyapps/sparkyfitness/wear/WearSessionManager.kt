@@ -91,7 +91,6 @@ class WearSessionManager private constructor(private val appContext: Context) :
   fun pullInitialDataItems() {
     scope.launch {
       checkInStore.pruneStaleDayData()
-      checkInStore.resendQueued()
     }
     scope.launch(Dispatchers.IO) {
       try {
@@ -121,9 +120,16 @@ class WearSessionManager private constructor(private val appContext: Context) :
 
   override fun onDataChanged(events: DataEventBuffer) {
     for (event in events) {
-      if (event.type != DataEvent.TYPE_CHANGED) continue
       val item = event.dataItem
       val path = item.uri.path ?: continue
+      if (event.type == DataEvent.TYPE_DELETED && path == PATH_CONTEXT) {
+        scope.launch {
+          checkInStore.clearAccountState(newOwnerId = null)
+          clearQueuedWatchTransfers()
+        }
+        continue
+      }
+      if (event.type != DataEvent.TYPE_CHANGED) continue
       if (path == PATH_CONTEXT) {
         val raw = DataMapItem.fromDataItem(item).dataMap.getString("json") ?: continue
         handleIncomingPayloadString(raw)
@@ -154,6 +160,10 @@ class WearSessionManager private constructor(private val appContext: Context) :
   private fun dispatchIncoming(json: JSONObject, raw: String) {
     val type = json.optString("type")
     when {
+      type == "accountCleared" -> {
+        checkInStore.clearAccountState(newOwnerId = null)
+        clearQueuedWatchTransfers()
+      }
       type == "context" || json.has("today") || json.has("caloriesConsumed") || json.has("waterConsumedMl") -> {
         checkInStore.applyRemoteContextJson(json, rawJson = raw)
       }
@@ -269,6 +279,17 @@ class WearSessionManager private constructor(private val appContext: Context) :
       if (!live) {
         enqueueDataItem("heartRateBatch", batch.clientId, payload)
       }
+    }
+  }
+
+  override fun clearQueuedWatchTransfers() {
+    scope.launch(Dispatchers.IO) {
+      try {
+        Wearable.getDataClient(appContext).deleteDataItems(
+          android.net.Uri.parse("wear://*$PREFIX_WATCH_TO_PHONE"),
+          DataClient.FILTER_PREFIX
+        ).await()
+      } catch (_: Throwable) {}
     }
   }
 

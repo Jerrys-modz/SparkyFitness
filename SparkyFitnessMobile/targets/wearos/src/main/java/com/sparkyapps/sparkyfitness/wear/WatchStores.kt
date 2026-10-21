@@ -162,6 +162,7 @@ class CheckInStore(private val context: Context) {
   private val _enabledPages = MutableStateFlow(WatchPage.defaultOrder)
   val enabledPages: StateFlow<List<WatchPage>> = _enabledPages.asStateFlow()
 
+  private var confirmedOwnerId: String? = null
   private var userEditedWeight = false
   private var userEditedBodyFat = false
   private var workoutPageActive = false
@@ -174,6 +175,10 @@ class CheckInStore(private val context: Context) {
     restorePersistedContext()
     recomputeWaterState()
   }
+
+  private fun activeOwnerId(): String? =
+    confirmedOwnerId?.takeIf { it.isNotEmpty() }
+      ?: _watchContext.value.workoutServerId?.takeIf { it.isNotEmpty() }
 
   fun setWorkoutPageActive(active: Boolean) {
     if (workoutPageActive != active) {
@@ -245,6 +250,7 @@ class CheckInStore(private val context: Context) {
   }
 
   fun saveWeight(includeBodyFat: Boolean = _hasBodyFatSeed.value) {
+    val ownerId = activeOwnerId() ?: return
     val u = _unit.value
     val displayVal = clampAndSnap(_draftWeight.value, u)
     val weightKg = u.toKg(displayVal)
@@ -270,7 +276,7 @@ class CheckInStore(private val context: Context) {
     userEditedBodyFat = false
     _syncState.value = SyncState.QUEUED
 
-    val payload = OutboundPayloads.checkIn(checkIn)
+    val payload = OutboundPayloads.checkIn(checkIn, ownerId = ownerId)
     session?.sendWeightCheckIn(payload) { deliveredLive ->
       scope.launch {
         _syncState.value = if (deliveredLive) SyncState.SAVED else SyncState.QUEUED
@@ -308,22 +314,25 @@ class CheckInStore(private val context: Context) {
   }
 
   fun resendQueued() {
+    val ownerId = confirmedOwnerId?.takeIf { it.isNotEmpty() } ?: return
     val today = CheckInDate.today()
     for (tap in _pendingWaterTaps.value) {
-      if (tap.day == today && tap.state == SyncState.QUEUED) {
+      if (tap.day == today && tap.state == SyncState.QUEUED && tap.ownerId == ownerId) {
         val payload = OutboundPayloads.waterTap(
           clientId = tap.id,
           entryDate = tap.day,
-          containerId = tap.containerId
+          containerId = tap.containerId,
+          ownerId = ownerId
         )
         session?.sendMessageOrQueue(payload, "waterIntake")
       }
     }
     for (del in _pendingWaterDeletes.value) {
-      if (del.day == today && del.state == SyncState.QUEUED) {
+      if (del.day == today && del.state == SyncState.QUEUED && del.ownerId == ownerId) {
         val payload = OutboundPayloads.waterDelete(
           clientId = del.id,
-          entryId = del.entryId
+          entryId = del.entryId,
+          ownerId = ownerId
         )
         session?.sendMessageOrQueue(payload, "waterDelete")
       }
@@ -331,6 +340,7 @@ class CheckInStore(private val context: Context) {
   }
 
   fun tapWaterContainer(container: WaterContainer) {
+    val ownerId = activeOwnerId() ?: return
     pruneStaleDayData()
     val today = CheckInDate.today()
     val tap = PendingWaterTap(
@@ -340,7 +350,8 @@ class CheckInStore(private val context: Context) {
       containerName = container.name,
       createdAtMs = System.currentTimeMillis(),
       day = today,
-      state = SyncState.QUEUED
+      state = SyncState.QUEUED,
+      ownerId = ownerId
     )
     _pendingWaterTaps.value = _pendingWaterTaps.value + tap
     persistPendingWater()
@@ -350,13 +361,15 @@ class CheckInStore(private val context: Context) {
     val payload = OutboundPayloads.waterTap(
       clientId = tap.id,
       entryDate = today,
-      containerId = container.id
+      containerId = container.id,
+      ownerId = ownerId
     )
     session?.sendMessageOrQueue(payload, "waterIntake")
     Haptics.click()
   }
 
   fun deleteWaterEntry(entry: WaterLogEntry) {
+    val ownerId = activeOwnerId() ?: return
     pruneStaleDayData()
     if (entry.id.startsWith("pending_")) {
       val tapId = entry.id.removePrefix("pending_")
@@ -375,7 +388,8 @@ class CheckInStore(private val context: Context) {
       volumeMl = entry.volumeMl,
       createdAtMs = System.currentTimeMillis(),
       day = CheckInDate.today(),
-      state = SyncState.QUEUED
+      state = SyncState.QUEUED,
+      ownerId = ownerId
     )
     _pendingWaterDeletes.value = _pendingWaterDeletes.value + del
     persistPendingWater()
@@ -384,7 +398,8 @@ class CheckInStore(private val context: Context) {
 
     val payload = OutboundPayloads.waterDelete(
       clientId = del.id,
-      entryId = entry.id
+      entryId = entry.id,
+      ownerId = ownerId
     )
     session?.sendMessageOrQueue(payload, "waterDelete")
     Haptics.click()
@@ -396,14 +411,16 @@ class CheckInStore(private val context: Context) {
   }
 
   fun retryFailedWaterTaps() {
+    val ownerId = activeOwnerId() ?: return
     var changed = false
     val updated = _pendingWaterTaps.value.map { tap ->
-      if (tap.state == SyncState.FAILED) {
+      if (tap.state == SyncState.FAILED && tap.ownerId == ownerId) {
         changed = true
         val payload = OutboundPayloads.waterTap(
           clientId = tap.id,
           entryDate = tap.day,
-          containerId = tap.containerId
+          containerId = tap.containerId,
+          ownerId = ownerId
         )
         session?.sendMessageOrQueue(payload, "waterIntake")
         tap.copy(state = SyncState.QUEUED)
@@ -533,6 +550,7 @@ class CheckInStore(private val context: Context) {
   }
 
   fun toggleMedication(dose: MedicationDose) {
+    val ownerId = activeOwnerId() ?: return
     val cur = _medications.value ?: return
     val list = cur.doses.toMutableList()
     val idx = list.indexOfFirst { it.id == dose.id }
@@ -547,21 +565,27 @@ class CheckInStore(private val context: Context) {
       entryDate = cur.day,
       medicationId = dose.medicationId,
       scheduleId = dose.scheduleId,
-      taken = nextTaken
+      taken = nextTaken,
+      ownerId = ownerId
     )
     session?.sendMessageOrQueue(payload, "medicationTaken")
     Haptics.success()
   }
 
   fun endFast() {
+    val ownerId = activeOwnerId() ?: return
     if (_fast.value == null) return
     _fast.value = null
     ComplicationUpdater.requestAll(context)
-    session?.sendMessageOrQueue(OutboundPayloads.fastEnd(UUID.randomUUID().toString()), "fastEnd")
+    session?.sendMessageOrQueue(
+      OutboundPayloads.fastEnd(UUID.randomUUID().toString(), ownerId = ownerId),
+      "fastEnd"
+    )
     Haptics.stop()
   }
 
   fun startFast(presetId: String, hours: Double) {
+    val ownerId = activeOwnerId() ?: return
     val nowMs = System.currentTimeMillis()
     val targetMs = nowMs + (hours * 3600_000.0).toLong()
     _fast.value = WatchFast(
@@ -571,7 +595,11 @@ class CheckInStore(private val context: Context) {
     )
     ComplicationUpdater.requestAll(context)
     session?.sendMessageOrQueue(
-      OutboundPayloads.fastStart(presetId = presetId, clientId = UUID.randomUUID().toString()),
+      OutboundPayloads.fastStart(
+        presetId = presetId,
+        clientId = UUID.randomUUID().toString(),
+        ownerId = ownerId
+      ),
       "fastStart"
     )
     Haptics.start()
@@ -589,7 +617,56 @@ class CheckInStore(private val context: Context) {
     }
   }
 
+  fun clearAccountState(newOwnerId: String? = null) {
+    confirmedOwnerId = newOwnerId?.takeIf { it.isNotEmpty() }
+    _watchContext.value = WatchContext.empty
+    _history.value = emptyList()
+    _water.value = null
+    _pendingWaterTaps.value = emptyList()
+    _pendingWaterDeletes.value = emptyList()
+    _effectiveWaterMl.value = 0.0
+    _queuedWaterMl.value = 0.0
+    _waterLogEntries.value = emptyList()
+    _waterSyncState.value = SyncState.SAVED
+    _waterContainers.value = emptyList()
+    _nutrition.value = null
+    _medications.value = null
+    _startableWorkouts.value = emptyList()
+    _scheduledWorkouts.value = emptyList()
+    _fast.value = null
+    _steps.value = null
+    _hasBodyFatSeed.value = false
+    userEditedWeight = false
+    userEditedBodyFat = false
+    waterConsumedBaseline.clear()
+    pendingCheckInDays.clear()
+    unconfirmedDays.clear()
+    val editor = prefs.edit()
+      .remove("last_context_json")
+      .remove("pending_water_taps")
+      .remove("pending_water_deletes")
+    if (confirmedOwnerId != null) {
+      editor.putString("context_owner_id", confirmedOwnerId)
+    } else {
+      editor.remove("context_owner_id")
+    }
+    editor.apply()
+    ComplicationUpdater.requestAll(context)
+  }
+
   fun applyRemoteContextJson(obj: JSONObject, rawJson: String? = null) {
+    val incomingOwner = obj.optStringOrNull("workoutServerId")?.takeIf { it.isNotEmpty() }
+    val storedOwner = prefs.getString("context_owner_id", null)?.takeIf { it.isNotEmpty() }
+    if (rawJson != null) {
+      if (incomingOwner == null || (storedOwner != null && incomingOwner != storedOwner)) {
+        clearAccountState(newOwnerId = incomingOwner)
+        session?.clearQueuedWatchTransfers()
+        if (incomingOwner == null) return
+      } else {
+        confirmedOwnerId = incomingOwner
+      }
+    }
+
     val previousUnit = _unit.value
     val nextCtx = ContextPayloadMapper.parseContext(obj, _watchContext.value)
     _watchContext.value = nextCtx
@@ -638,7 +715,18 @@ class CheckInStore(private val context: Context) {
     recomputeWaterState()
 
     if (rawJson != null) {
-      prefs.edit().putString("last_context_json", rawJson).apply()
+      if (incomingOwner != null) {
+        prefs.edit()
+          .putString("context_owner_id", incomingOwner)
+          .putString("last_context_json", rawJson)
+          .apply()
+        resendQueued()
+      } else {
+        prefs.edit()
+          .remove("context_owner_id")
+          .remove("last_context_json")
+          .apply()
+      }
     }
     ComplicationUpdater.requestAll(context)
   }
@@ -660,6 +748,7 @@ class CheckInStore(private val context: Context) {
             .put("createdAtMs", t.createdAtMs)
             .put("day", t.day)
             .put("state", t.state.name)
+            .put("ownerId", t.ownerId)
         )
       }
       val delArr = JSONArray()
@@ -672,6 +761,7 @@ class CheckInStore(private val context: Context) {
             .put("createdAtMs", d.createdAtMs)
             .put("day", d.day)
             .put("state", d.state.name)
+            .put("ownerId", d.ownerId)
         )
       }
       prefs.edit()
@@ -682,6 +772,14 @@ class CheckInStore(private val context: Context) {
   }
 
   private fun restorePersistedPendingWater() {
+    val persistedOwner = prefs.getString("context_owner_id", null)?.takeIf { it.isNotEmpty() }
+    if (persistedOwner == null) {
+      prefs.edit()
+        .remove("pending_water_taps")
+        .remove("pending_water_deletes")
+        .apply()
+      return
+    }
     val today = CheckInDate.today()
     try {
       val tapsRaw = prefs.getString("pending_water_taps", null)
@@ -691,7 +789,8 @@ class CheckInStore(private val context: Context) {
         for (i in 0 until arr.length()) {
           val o = arr.optJSONObject(i) ?: continue
           val day = o.optString("day")
-          if (day != today) continue
+          val itemOwner = o.optString("ownerId", "")
+          if (day != today || itemOwner != persistedOwner) continue
           val state = try {
             SyncState.valueOf(o.optString("state", "QUEUED"))
           } catch (_: Throwable) {
@@ -705,7 +804,8 @@ class CheckInStore(private val context: Context) {
               containerName = o.optString("containerName", ""),
               createdAtMs = o.optLong("createdAtMs", System.currentTimeMillis()),
               day = day,
-              state = state
+              state = state,
+              ownerId = itemOwner
             )
           )
         }
@@ -718,7 +818,8 @@ class CheckInStore(private val context: Context) {
         for (i in 0 until arr.length()) {
           val o = arr.optJSONObject(i) ?: continue
           val day = o.optString("day")
-          if (day != today) continue
+          val itemOwner = o.optString("ownerId", "")
+          if (day != today || itemOwner != persistedOwner) continue
           val state = try {
             SyncState.valueOf(o.optString("state", "QUEUED"))
           } catch (_: Throwable) {
@@ -731,7 +832,8 @@ class CheckInStore(private val context: Context) {
               volumeMl = o.optDouble("volumeMl", 0.0),
               createdAtMs = o.optLong("createdAtMs", System.currentTimeMillis()),
               day = day,
-              state = state
+              state = state,
+              ownerId = itemOwner
             )
           )
         }
@@ -741,9 +843,17 @@ class CheckInStore(private val context: Context) {
   }
 
   private fun restorePersistedContext() {
+    val persistedOwner = prefs.getString("context_owner_id", null)?.takeIf { it.isNotEmpty() } ?: run {
+      prefs.edit().remove("last_context_json").apply()
+      return
+    }
     val raw = prefs.getString("last_context_json", null) ?: return
     try {
       val json = JSONObject(raw)
+      if (json.optStringOrNull("workoutServerId") != persistedOwner) {
+        clearAccountState(newOwnerId = null)
+        return
+      }
       applyRemoteContextJson(json, rawJson = null)
     } catch (_: Throwable) {}
   }
@@ -2009,4 +2119,5 @@ interface WearSessionTransport {
   fun sendMessageOrQueue(payload: JSONObject, queueType: String)
   fun sendWatchRunFinished(result: WatchRunResult)
   fun sendHeartRateBatch(batch: HeartRateBatch)
+  fun clearQueuedWatchTransfers() {}
 }

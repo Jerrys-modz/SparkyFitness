@@ -50,7 +50,7 @@ class WearOsParityTest {
         assertEquals(225.0, dripCoffee.servingVolumeMl, 0.01)
         assertEquals("8 oz", dripCoffee.displayVolume)
 
-        // PendingWaterTap and PendingWaterDelete track optimistic hydration & deletions
+        // PendingWaterTap and PendingWaterDelete track optimistic hydration, deletions & ownerId
         val pendingTap = PendingWaterTap(
             id = "tap-1",
             volumeMl = dripCoffee.servingVolumeMl,
@@ -58,15 +58,23 @@ class WearOsParityTest {
             containerName = dripCoffee.name,
             createdAtMs = 1000L,
             day = today,
-            state = SyncState.QUEUED
+            state = SyncState.QUEUED,
+            ownerId = "server-cfg-1"
         )
         assertTrue(pendingTap.isToday)
         assertEquals("Drip Coffee", pendingTap.containerName)
+        assertEquals("server-cfg-1", pendingTap.ownerId)
 
-        val tapPayload = OutboundPayloads.waterTap(pendingTap.id, today, dripCoffee.id)
+        val tapPayload = OutboundPayloads.waterTap(
+            pendingTap.id,
+            today,
+            dripCoffee.id,
+            ownerId = pendingTap.ownerId
+        )
         assertEquals("waterIntake", tapPayload.getString("type"))
         assertEquals("tap-1", tapPayload.getString("clientId"))
         assertEquals(42, tapPayload.getInt("containerId"))
+        assertEquals("server-cfg-1", tapPayload.getString("ownerId"))
 
         val pendingDel = PendingWaterDelete(
             id = "del-1",
@@ -74,15 +82,38 @@ class WearOsParityTest {
             volumeMl = 500.0,
             createdAtMs = 2000L,
             day = today,
-            state = SyncState.QUEUED
+            state = SyncState.QUEUED,
+            ownerId = "server-cfg-1"
         )
         assertTrue(pendingDel.isToday)
         assertEquals(500.0, pendingDel.volumeMl, 0.01)
+        assertEquals("server-cfg-1", pendingDel.ownerId)
 
-        val delPayload = OutboundPayloads.waterDelete(pendingDel.id, pendingDel.entryId)
+        val delPayload = OutboundPayloads.waterDelete(
+            pendingDel.id,
+            pendingDel.entryId,
+            ownerId = pendingDel.ownerId
+        )
         assertEquals("waterDelete", delPayload.getString("type"))
         assertEquals("del-1", delPayload.getString("clientId"))
         assertEquals("srv-1", delPayload.getString("entryId"))
+        assertEquals("server-cfg-1", delPayload.getString("ownerId"))
+
+        val medPayload = OutboundPayloads.medicationTaken(
+            clientId = "med-1",
+            entryDate = today,
+            medicationId = "m-1",
+            scheduleId = "s-1",
+            taken = true,
+            ownerId = "server-cfg-1"
+        )
+        assertEquals("server-cfg-1", medPayload.getString("ownerId"))
+
+        val fastStartPayload = OutboundPayloads.fastStart("16-8", "fast-1", ownerId = "server-cfg-1")
+        assertEquals("server-cfg-1", fastStartPayload.getString("ownerId"))
+
+        val fastEndPayload = OutboundPayloads.fastEnd("fast-2", ownerId = "server-cfg-1")
+        assertEquals("server-cfg-1", fastEndPayload.getString("ownerId"))
     }
 
     @Test
@@ -92,6 +123,7 @@ class WearOsParityTest {
             put("weightUnit", "lbs")
             put("lastWeightKg", 81.6466)
             put("lastBodyFatPercentage", 16.5)
+            put("workoutServerId", "server-cfg-1")
             put("history", JSONArray().apply {
                 for (i in 1..7) {
                     put(JSONObject().apply {
@@ -106,6 +138,7 @@ class WearOsParityTest {
         val ctx = ContextPayloadMapper.parseContext(rawCtx, WatchContext.empty)
         assertEquals(WeightUnit.LBS, ctx.effectiveWeightUnit)
         assertEquals(16.5, ctx.lastBodyFatPercentage ?: 0.0, 0.01)
+        assertEquals("server-cfg-1", ctx.workoutServerId)
         assertEquals(7, ctx.history.size)
         assertEquals(16.1, ctx.history.first().bodyFatPercentage ?: 0.0, 0.01)
 
@@ -115,10 +148,11 @@ class WearOsParityTest {
             weightKg = 81.5,
             bodyFatPercentage = 16.2
         )
-        val payload = OutboundPayloads.checkIn(checkIn)
+        val payload = OutboundPayloads.checkIn(checkIn, ownerId = ctx.workoutServerId)
         assertEquals("checkIn", payload.getString("type"))
         assertEquals(81.5, payload.getDouble("weightKg"), 0.01)
         assertEquals(16.2, payload.getDouble("bodyFatPercentage"), 0.01)
+        assertEquals("server-cfg-1", payload.getString("ownerId"))
     }
 
     @Test

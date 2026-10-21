@@ -3,6 +3,9 @@ package expo.modules.watchconnectivity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
 import android.util.Log
 import androidx.wear.remote.interactions.RemoteActivityHelper
 import com.google.android.gms.common.ConnectionResult
@@ -27,12 +30,17 @@ import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.KeyStore
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 
 private const val TAG = "WatchConnectivity"
 private const val PREFS_NAME = "sparky_watch_connectivity"
@@ -40,6 +48,8 @@ private const val TELEMETRY_OWNER_KEY = "sparky.watchTelemetryOwner"
 private const val PAIRED_CACHE_KEY = "sparky.watchPairedCache"
 private const val SERVER_URL_KEY = "sparky.serverBaseUrl"
 private const val SERVER_HEADERS_KEY = "sparky.serverHeadersJson"
+private const val ENCRYPTED_HEADERS_KEY = "sparky.serverHeadersEncrypted"
+private const val CREDENTIALS_KEY_ALIAS = "sparky_watch_credentials_key"
 private const val LAST_CONTEXT_JSON_KEY = "sparky.lastContextJson"
 private const val HEART_RATE_QUEUE_LIMIT = 10_080
 private const val HEART_RATE_BATCH_BYTE_LIMIT = 1_048_576
@@ -93,17 +103,101 @@ internal object WatchConnectivityHub {
     refreshNodes(appCtx)
   }
 
+  private fun credentialsKey(): SecretKey {
+    val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+    (ks.getEntry(CREDENTIALS_KEY_ALIAS, null) as? KeyStore.SecretKeyEntry)?.let { return it.secretKey }
+    val spec = KeyGenParameterSpec.Builder(
+      CREDENTIALS_KEY_ALIAS,
+      KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+    )
+      .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+      .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+      .setKeySize(256)
+      .build()
+    return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore").run {
+      init(spec)
+      generateKey()
+    }
+  }
+
+  private fun encryptHeaders(headersJson: String): String {
+    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+    cipher.init(Cipher.ENCRYPT_MODE, credentialsKey())
+    val ct = cipher.doFinal(headersJson.toByteArray(Charsets.UTF_8))
+    val ivB64 = Base64.encodeToString(cipher.iv, Base64.NO_WRAP)
+    val ctB64 = Base64.encodeToString(ct, Base64.NO_WRAP)
+    return "$ivB64:$ctB64"
+  }
+
+  private fun decryptHeaders(blob: String): String {
+    val parts = blob.split(":", limit = 2)
+    require(parts.size == 2) { "Invalid encrypted headers format" }
+    val iv = Base64.decode(parts[0], Base64.NO_WRAP)
+    val ct = Base64.decode(parts[1], Base64.NO_WRAP)
+    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+    cipher.init(Cipher.DECRYPT_MODE, credentialsKey(), GCMParameterSpec(128, iv))
+    return String(cipher.doFinal(ct), Charsets.UTF_8)
+  }
+
   fun setServerCredentials(context: Context, baseUrl: String, headers: Map<String, Any?>) {
     val appCtx = context.applicationContext
+    if (baseUrl.isBlank() || headers.isEmpty()) {
+      clearServerCredentials(appCtx)
+      return
+    }
     val headersObj = JSONObject()
     for ((k, v) in headers) {
       if (v is String) headersObj.put(k, v)
     }
+    try {
+      val encrypted = encryptHeaders(headersObj.toString())
+      appCtx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .edit()
+        .remove(SERVER_HEADERS_KEY)
+        .putString(SERVER_URL_KEY, baseUrl.trimEnd('/'))
+        .putString(ENCRYPTED_HEADERS_KEY, encrypted)
+        .apply()
+    } catch (e: Throwable) {
+      Log.w(TAG, "Failed to encrypt server credentials: ${e.message}")
+      appCtx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .edit()
+        .remove(SERVER_URL_KEY)
+        .remove(SERVER_HEADERS_KEY)
+        .remove(ENCRYPTED_HEADERS_KEY)
+        .apply()
+    }
+  }
+
+  fun clearServerCredentials(context: Context) {
+    val appCtx = context.applicationContext
     appCtx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
       .edit()
-      .putString(SERVER_URL_KEY, baseUrl.trimEnd('/'))
-      .putString(SERVER_HEADERS_KEY, headersObj.toString())
+      .remove(SERVER_URL_KEY)
+      .remove(SERVER_HEADERS_KEY)
+      .remove(ENCRYPTED_HEADERS_KEY)
+      .remove(LAST_CONTEXT_JSON_KEY)
       .apply()
+    synchronized(inboundLock) {
+      inboundQueueFile(appCtx).delete()
+    }
+    try {
+      KeyStore.getInstance("AndroidKeyStore").apply {
+        load(null)
+        if (containsAlias(CREDENTIALS_KEY_ALIAS)) deleteEntry(CREDENTIALS_KEY_ALIAS)
+      }
+    } catch (e: Throwable) {
+      Log.w(TAG, "Failed to delete credentials key: ${e.message}")
+    }
+    scope.launch {
+      try {
+        val bytes = JSONObject().put("type", "accountCleared").toString().toByteArray(Charsets.UTF_8)
+        sendLiveBytes(appCtx, "/sparky/message", bytes)
+        Wearable.getDataClient(appCtx).deleteDataItems(
+          Uri.parse("wear://*/sparky/context"),
+          DataClient.FILTER_LITERAL
+        ).await()
+      } catch (_: Throwable) {}
+    }
   }
 
   fun refreshNodes(context: Context) {
@@ -148,11 +242,16 @@ internal object WatchConnectivityHub {
     val appCtx = context.applicationContext
     val cleaned = withoutNulls(payload).toMutableMap()
     cleaned["type"] = "context"
+    val contextOwner = (cleaned["workoutServerId"] as? String)?.trim() ?: ""
     val json = mapToJsonObject(cleaned).toString()
-    appCtx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-      .edit()
-      .putString(LAST_CONTEXT_JSON_KEY, json)
-      .apply()
+    val editor = appCtx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+    if (contextOwner.isNotEmpty()) {
+      editor.putString(TELEMETRY_OWNER_KEY, contextOwner)
+      editor.putString(LAST_CONTEXT_JSON_KEY, json)
+    } else {
+      editor.remove(LAST_CONTEXT_JSON_KEY)
+    }
+    editor.apply()
     publishRawContextJson(appCtx, json)
   }
 
@@ -314,7 +413,14 @@ internal object WatchConnectivityHub {
   ): Pair<Int, String?> {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     val baseUrl = prefs.getString(SERVER_URL_KEY, null)?.takeIf { it.isNotEmpty() } ?: return -1 to null
-    val headersRaw = prefs.getString(SERVER_HEADERS_KEY, null)
+    val headersRaw = prefs.getString(ENCRYPTED_HEADERS_KEY, null)?.let { blob ->
+      try {
+        decryptHeaders(blob)
+      } catch (e: Throwable) {
+        Log.w(TAG, "Failed to decrypt server credentials: ${e.message}")
+        null
+      }
+    }
     val conn = (URL("$baseUrl$endpoint").openConnection() as HttpURLConnection).apply {
       requestMethod = method
       connectTimeout = 10_000
@@ -560,10 +666,20 @@ internal object WatchConnectivityHub {
     }
   }
 
+  private fun activeOwnerId(context: Context): String {
+    return getTelemetryOwner(context)
+  }
+
   private fun routePayload(context: Context, payload: Map<String, Any?>, rawJson: String? = null) {
     val mod = activeModule
     when (payload["type"] as? String) {
       "checkIn" -> {
+        val payloadOwner = payload["ownerId"] as? String ?: ""
+        val activeOwner = activeOwnerId(context)
+        if (payloadOwner.isEmpty() || activeOwner.isEmpty() || payloadOwner != activeOwner) {
+          if (rawJson != null) enqueueInboundJson(context, rawJson)
+          return
+        }
         val clientId = payload["clientId"] as? String ?: ""
         val entryDate = payload["entryDate"] as? String ?: ""
         val weightKg = asDouble(payload["weightKg"]) ?: 0.0
@@ -572,7 +688,8 @@ internal object WatchConnectivityHub {
           val event = mutableMapOf<String, Any?>(
             "clientId" to clientId,
             "entryDate" to entryDate,
-            "weightKg" to weightKg
+            "weightKg" to weightKg,
+            "ownerId" to payloadOwner
           )
           bodyFat?.let { event["bodyFatPercentage"] = it }
           mod.emitEvent("onCheckIn", event)
@@ -605,6 +722,12 @@ internal object WatchConnectivityHub {
         }
       }
       "waterIntake" -> {
+        val payloadOwner = payload["ownerId"] as? String ?: ""
+        val activeOwner = activeOwnerId(context)
+        if (payloadOwner.isEmpty() || activeOwner.isEmpty() || payloadOwner != activeOwner) {
+          if (rawJson != null) enqueueInboundJson(context, rawJson)
+          return
+        }
         val clientId = payload["clientId"] as? String ?: ""
         val entryDate = payload["entryDate"] as? String ?: ""
         val containerId = asInt(payload["containerId"]) ?: 0
@@ -614,7 +737,8 @@ internal object WatchConnectivityHub {
             mapOf(
               "clientId" to clientId,
               "entryDate" to entryDate,
-              "containerId" to containerId
+              "containerId" to containerId,
+              "ownerId" to payloadOwner
             )
           )
         } else {
@@ -640,6 +764,12 @@ internal object WatchConnectivityHub {
         }
       }
       "waterDelete" -> {
+        val payloadOwner = payload["ownerId"] as? String ?: ""
+        val activeOwner = activeOwnerId(context)
+        if (payloadOwner.isEmpty() || activeOwner.isEmpty() || payloadOwner != activeOwner) {
+          if (rawJson != null) enqueueInboundJson(context, rawJson)
+          return
+        }
         val clientId = payload["clientId"] as? String ?: ""
         val entryId = payload["entryId"] as? String ?: ""
         if (mod != null) {
@@ -647,7 +777,8 @@ internal object WatchConnectivityHub {
             "onWaterDelete",
             mapOf(
               "clientId" to clientId,
-              "entryId" to entryId
+              "entryId" to entryId,
+              "ownerId" to payloadOwner
             )
           )
         } else {
@@ -668,6 +799,12 @@ internal object WatchConnectivityHub {
         }
       }
       "medicationTaken" -> {
+        val payloadOwner = payload["ownerId"] as? String ?: ""
+        val activeOwner = activeOwnerId(context)
+        if (payloadOwner.isEmpty() || activeOwner.isEmpty() || payloadOwner != activeOwner) {
+          if (rawJson != null) enqueueInboundJson(context, rawJson)
+          return
+        }
         if (mod != null) {
           mod.emitEvent(
             "onMedicationTaken",
@@ -676,7 +813,8 @@ internal object WatchConnectivityHub {
               "entryDate" to (payload["entryDate"] as? String ?: ""),
               "medicationId" to (payload["medicationId"] as? String ?: ""),
               "scheduleId" to (payload["scheduleId"] as? String ?: ""),
-              "taken" to (payload["taken"] as? Boolean ?: true)
+              "taken" to (payload["taken"] as? Boolean ?: true),
+              "ownerId" to payloadOwner
             )
           )
         } else if (rawJson != null) {
@@ -791,6 +929,11 @@ internal object WatchConnectivityHub {
       "workoutStartRequested" -> {
         val presetId = payload["presetId"] as? String ?: ""
         val serverId = payload["serverId"] as? String ?: ""
+        val activeOwner = activeOwnerId(context)
+        if (serverId.isEmpty() || activeOwner.isEmpty() || serverId != activeOwner) {
+          if (rawJson != null) enqueueInboundJson(context, rawJson)
+          return
+        }
         val requestedAt = System.currentTimeMillis()
         if (mod != null) {
           mod.emitEvent(
@@ -861,12 +1004,19 @@ internal object WatchConnectivityHub {
         )
       }
       "fastStart" -> {
+        val payloadOwner = payload["ownerId"] as? String ?: ""
+        val activeOwner = activeOwnerId(context)
+        if (payloadOwner.isEmpty() || activeOwner.isEmpty() || payloadOwner != activeOwner) {
+          if (rawJson != null) enqueueInboundJson(context, rawJson)
+          return
+        }
         if (mod != null) {
           mod.emitEvent(
             "onFastStartRequested",
             mapOf(
               "presetId" to (payload["presetId"] as? String ?: ""),
-              "clientId" to (payload["clientId"] as? String ?: "")
+              "clientId" to (payload["clientId"] as? String ?: ""),
+              "ownerId" to payloadOwner
             )
           )
         } else if (rawJson != null) {
@@ -874,10 +1024,19 @@ internal object WatchConnectivityHub {
         }
       }
       "fastEnd" -> {
+        val payloadOwner = payload["ownerId"] as? String ?: ""
+        val activeOwner = activeOwnerId(context)
+        if (payloadOwner.isEmpty() || activeOwner.isEmpty() || payloadOwner != activeOwner) {
+          if (rawJson != null) enqueueInboundJson(context, rawJson)
+          return
+        }
         if (mod != null) {
           mod.emitEvent(
             "onFastEndRequested",
-            mapOf("clientId" to (payload["clientId"] as? String ?: ""))
+            mapOf(
+              "clientId" to (payload["clientId"] as? String ?: ""),
+              "ownerId" to payloadOwner
+            )
           )
         } else if (rawJson != null) {
           enqueueInboundJson(context, rawJson)
@@ -928,12 +1087,17 @@ internal object WatchConnectivityHub {
   // ---- Heart-Rate Queue ----
 
   fun setTelemetryOwner(context: Context, ownerId: String) {
+    val appCtx = context.applicationContext
+    val previousOwner = getTelemetryOwner(appCtx)
     synchronized(hrLock) {
-      context.applicationContext
+      appCtx
         .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         .edit()
         .putString(TELEMETRY_OWNER_KEY, ownerId)
         .apply()
+    }
+    if (ownerId.isEmpty() || (previousOwner.isNotEmpty() && previousOwner != ownerId)) {
+      clearServerCredentials(appCtx)
     }
   }
 
@@ -1532,6 +1696,13 @@ class WatchConnectivityModule : Module() {
         if (!str.isNullOrBlank()) k to str else null
       }.toMap()
       WatchConnectivityHub.setServerCredentials(ctx, baseUrl, cleanHeaders)
+    }
+
+    AsyncFunction("clearServerCredentials") {
+      val ctx = appContext.reactContext
+      if (ctx != null) {
+        WatchConnectivityHub.clearServerCredentials(ctx)
+      }
     }
 
     AsyncFunction("pendingHeartRateBatches") {

@@ -161,7 +161,8 @@ data class PendingWaterTap(
   val containerName: String = "",
   val createdAtMs: Long,
   val day: String,
-  val state: SyncState
+  val state: SyncState,
+  val ownerId: String = ""
 ) {
   val isToday: Boolean get() = day == CheckInDate.today()
 }
@@ -172,7 +173,8 @@ data class PendingWaterDelete(
   val volumeMl: Double = 0.0,
   val createdAtMs: Long,
   val day: String,
-  val state: SyncState = SyncState.QUEUED
+  val state: SyncState = SyncState.QUEUED,
+  val ownerId: String = ""
 ) {
   val isToday: Boolean get() = day == CheckInDate.today()
 }
