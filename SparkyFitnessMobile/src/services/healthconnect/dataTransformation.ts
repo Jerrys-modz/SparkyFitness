@@ -691,6 +691,10 @@ const DIRECT_TRANSFORMERS: Record<string, DirectTransformer> = {
       startTime: rec.startTime as string,
       endTime: rec.endTime as string,
       duration_seconds: durationSeconds,
+      // /api/health-data rejects any type outside its complex-type list that
+      // has no `value`. The handler reads duration_seconds first and only
+      // falls back to value (minutes).
+      value: durationSeconds / 60,
       session_type: mapHealthConnectMindfulnessType(rec.mindfulnessSessionType),
       ...(notes ? { notes } : {}),
       ...extractTimezoneMetadata(rec),

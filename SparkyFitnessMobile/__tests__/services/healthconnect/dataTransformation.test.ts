@@ -104,6 +104,7 @@ describe('transformHealthRecords', () => {
             startTime: '2024-01-15T07:00:00.000Z',
             endTime: '2024-01-15T07:12:30.000Z',
             duration_seconds: 750,
+            value: 12.5,
             session_type: 'meditation',
             notes: 'Morning calm\nBody scan',
             record_utc_offset_minutes: 60,

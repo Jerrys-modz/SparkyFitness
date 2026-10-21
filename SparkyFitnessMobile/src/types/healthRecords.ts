@@ -314,6 +314,8 @@ export interface TransformedMindfulnessSession extends RecordTimezoneMetadata {
   startTime: string;
   endTime: string;
   duration_seconds: number;
+  /** Duration in minutes; required by the server's field check. */
+  value: number;
   session_type: MindfulnessSessionType;
   notes?: string;
 }
