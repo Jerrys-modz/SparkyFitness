@@ -1739,6 +1739,7 @@ class WatchRunStore(private val context: Context) {
     val baseStrideMeters = if (incoming.kind == "walk") 0.74 else 1.02
     val indoorStride = if (incoming.place == "indoor") baseStrideMeters * scale else 0.0
 
+    var lastSensorMeters = 0.0
     sensors?.startWorkoutSensors(
       sessionId = incoming.requestId,
       exerciseEntryIdProvider = { incoming.kind },
@@ -1756,8 +1757,13 @@ class WatchRunStore(private val context: Context) {
       },
       onDistance = { meters ->
         scope.launch {
-          _distanceMeters.value = meters
-          distanceSeries.add(listOf(_elapsedSeconds.value.toDouble(), meters))
+          val delta = (meters - lastSensorMeters).coerceAtLeast(0.0)
+          lastSensorMeters = meters
+          if (_phase.value == RunPhase.RUNNING) {
+            val next = _distanceMeters.value + delta
+            _distanceMeters.value = next
+            distanceSeries.add(listOf(_elapsedSeconds.value.toDouble(), next))
+          }
         }
       },
       onLocationPoint = { lat, lon, tsMs ->
@@ -2104,7 +2110,7 @@ class WatchRunStore(private val context: Context) {
 
         // Auto-pause check
         if (_settings.value.autoPause) {
-          val speed = sensors?.currentSpeedMps?.value ?: 1.0
+          val speed = sensors?.effectiveSpeedMps() ?: 1.0
           if (_phase.value == RunPhase.RUNNING) {
             if (speed < 0.45 && _elapsedSeconds.value > 10) {
               stationarySeconds += 1

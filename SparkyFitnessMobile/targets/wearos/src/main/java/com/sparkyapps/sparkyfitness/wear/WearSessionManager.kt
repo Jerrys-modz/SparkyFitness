@@ -406,6 +406,10 @@ class WatchSensorsController(
 
   private val _currentSpeedMps = MutableStateFlow(0.0)
   val currentSpeedMps: StateFlow<Double> = _currentSpeedMps.asStateFlow()
+  @Volatile private var lastSpeedUpdateMs = 0L
+
+  fun effectiveSpeedMps(staleAfterMs: Long = 5000L): Double =
+    if (System.currentTimeMillis() - lastSpeedUpdateMs > staleAfterMs) 0.0 else _currentSpeedMps.value
 
   fun startPassiveStepCounter(onStepsToday: (Int) -> Unit) {
     val sm = sensorManager ?: return
@@ -458,6 +462,7 @@ class WatchSensorsController(
     latestHrBpm = null
     _gpsAccuracyMeters.value = null
     _currentSpeedMps.value = 0.0
+    lastSpeedUpdateMs = 0L
 
     val sm = sensorManager
     val hasSensorsPerm = ContextCompat.checkSelfPermission(
@@ -552,6 +557,7 @@ class WatchSensorsController(
             val delta = prev.distanceTo(loc).toDouble()
             val dtSec = ((loc.time - prev.time) / 1000.0).coerceAtLeast(0.5)
             _currentSpeedMps.value = if (loc.hasSpeed()) loc.speed.toDouble() else (delta / dtSec)
+            lastSpeedUpdateMs = System.currentTimeMillis()
             if (delta in 0.5..100.0) {
               accumulatedDistanceMeters += delta
               onDistance(accumulatedDistanceMeters)
@@ -583,6 +589,7 @@ class WatchSensorsController(
               val distDelta = stepDelta * indoorStrideMeters
               val dtSec = ((nowMs - lastStepAtMs) / 1000.0).coerceAtLeast(0.5)
               _currentSpeedMps.value = distDelta / dtSec
+              lastSpeedUpdateMs = nowMs
               accumulatedDistanceMeters += distDelta
               onDistance(accumulatedDistanceMeters)
             }
@@ -628,6 +635,7 @@ class WatchSensorsController(
     locationListener = null
     _gpsAccuracyMeters.value = null
     _currentSpeedMps.value = 0.0
+    lastSpeedUpdateMs = 0L
     WorkoutSensorForegroundService.stop(context)
   }
 }
@@ -643,7 +651,9 @@ class WorkoutSensorForegroundService : Service() {
       return START_NOT_STICKY
     }
     val enableGps = intent?.getBooleanExtra(EXTRA_ENABLE_GPS, false) ?: false
-    promoteToForeground(enableGps)
+    if (!promoteToForeground(enableGps)) {
+      return START_NOT_STICKY
+    }
     acquireWakeLock()
     return START_STICKY
   }
@@ -653,8 +663,8 @@ class WorkoutSensorForegroundService : Service() {
     super.onDestroy()
   }
 
-  private fun promoteToForeground(enableGps: Boolean) {
-    try {
+  private fun promoteToForeground(enableGps: Boolean): Boolean {
+    return try {
       val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm != null) {
         val channel = NotificationChannel(
@@ -719,7 +729,12 @@ class WorkoutSensorForegroundService : Service() {
       } else {
         startForeground(NOTIFICATION_ID, notification)
       }
-    } catch (_: Throwable) {}
+      true
+    } catch (_: Throwable) {
+      releaseWakeLock()
+      stopSelf()
+      false
+    }
   }
 
   private fun acquireWakeLock() {

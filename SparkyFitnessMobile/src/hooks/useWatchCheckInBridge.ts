@@ -682,6 +682,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     try {
       const workoutServerId = await getActiveServerConfigId();
       try {
+        await WatchConnectivity.setTelemetryOwner?.(workoutServerId ?? '');
         const activeCfg = await getActiveServerConfig();
         if (activeCfg?.url) {
           await WatchConnectivity.setServerCredentials?.(

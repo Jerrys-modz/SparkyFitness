@@ -246,7 +246,6 @@ internal object WatchConnectivityHub {
     val json = mapToJsonObject(cleaned).toString()
     val editor = appCtx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
     if (contextOwner.isNotEmpty()) {
-      editor.putString(TELEMETRY_OWNER_KEY, contextOwner)
       editor.putString(LAST_CONTEXT_JSON_KEY, json)
     } else {
       editor.remove(LAST_CONTEXT_JSON_KEY)

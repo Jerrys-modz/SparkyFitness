@@ -137,14 +137,14 @@ def sparkyEmbedWearOsRelease = (project.findProperty("SPARKY_EMBED_WEAROS_RELEAS
 tasks.register("embedWearOsReleaseApk", Copy) {
     dependsOn(":wearos:assembleRelease")
     from(rootProject.file("wearos/build/outputs/apk/release/wearos-release.apk"))
-    into(project.file("src/main/res/raw"))
+    into(project.file("src/release/res/raw"))
     rename { "android_wear_micro_apk.apk" }
 }
 
 tasks.register("embedWearOsDebugApk", Copy) {
     dependsOn(":wearos:assembleDebug")
     from(rootProject.file("wearos/build/outputs/apk/debug/wearos-debug.apk"))
-    into(project.file("src/main/res/raw"))
+    into(project.file("src/debug/res/raw"))
     rename { "android_wear_micro_apk.apk" }
 }
 
