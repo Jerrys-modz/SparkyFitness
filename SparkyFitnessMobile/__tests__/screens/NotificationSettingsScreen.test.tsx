@@ -145,6 +145,36 @@ describe('NotificationSettingsScreen', () => {
     expect(mockRequestPermission).toHaveBeenCalledTimes(1);
   });
 
+  it('asks for OS permission before switching notifications on', async () => {
+    // Reminders are rescheduled when the toggle changes; switched on before
+    // permission is granted, that pass finds no permission and cancels them.
+    useAppPreferencesStore.setState({ notificationsEnabled: false });
+    const { getAllByRole } = renderScreen();
+
+    fireEvent(getAllByRole('switch')[MASTER_SWITCH_INDEX], 'valueChange', true);
+
+    await waitFor(() => {
+      expect(mockSetNotificationsEnabled).toHaveBeenCalledWith(true);
+    });
+    expect(mockRequestPermission.mock.invocationCallOrder[0]).toBeLessThan(
+      mockSetNotificationsEnabled.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('leaves notifications off when OS permission is denied', async () => {
+    mockRequestPermission.mockResolvedValue('denied');
+    useAppPreferencesStore.setState({ notificationsEnabled: false });
+    const { getAllByRole } = renderScreen();
+
+    fireEvent(getAllByRole('switch')[MASTER_SWITCH_INDEX], 'valueChange', true);
+
+    await waitFor(() => {
+      expect(mockRequestPermission).toHaveBeenCalledTimes(1);
+    });
+    await act(async () => {});
+    expect(mockSetNotificationsEnabled).not.toHaveBeenCalledWith(true);
+  });
+
   it('turning the master toggle off skips the OS permission request', async () => {
     const { getAllByRole } = renderScreen();
 

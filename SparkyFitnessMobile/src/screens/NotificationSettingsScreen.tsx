@@ -150,9 +150,12 @@ const NotificationSettingsScreen: React.FC<
       await setNotificationsEnabled(false);
       return;
     }
-    await setNotificationsEnabled(true);
-    await requestNotificationPermission();
+    // Ask first: switching on without permission would let reminders be
+    // rescheduled (and cancelled) before the grant arrives, and a denial
+    // would leave the toggle showing on. The banner explains a denial.
+    const status = await requestNotificationPermission();
     bannerRef.current?.refresh();
+    if (status === 'granted') await setNotificationsEnabled(true);
   }, []);
 
   const handleMedicationRemindersToggle = useCallback(
