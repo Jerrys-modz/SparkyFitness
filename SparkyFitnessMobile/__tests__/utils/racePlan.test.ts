@@ -75,7 +75,14 @@ describe('buildRacePlan', () => {
   });
 
   it('is saveable as a custom plan for every distance and level', () => {
-    for (const distance of ['5k', '10k', 'half', 'marathon'] as const) {
+    for (const distance of [
+      '5k',
+      '10k',
+      'half',
+      'marathon',
+      '50k',
+      '100k',
+    ] as const) {
       for (const level of ['new', 'some', 'regular', 'experienced'] as const) {
         for (const runDays of [
           [2, 0],
@@ -149,5 +156,42 @@ describe('buildRacePlan', () => {
     const plan = buildRacePlan({ ...base, raceDay: '2026-10-01' });
     expect(plan.workouts).toEqual([]);
     expect(plan.tooShort).toBe(true);
+    expect(plan.goalUsed).toBe(false);
+  });
+
+  it('uses a goal time for the race and stamps paces, and ignores one that cannot be right', () => {
+    const planned = buildRacePlan({
+      ...base,
+      distance: '10k',
+      goalSeconds: 50 * 60,
+    });
+    expect(planned.goalUsed).toBe(true);
+    expect(planned.raceMinutes).toBe(50);
+    const race = planned.workouts.at(-1)!;
+    expect(race.plan.steps.some((s) => s.kind === 'work' && s.pace)).toBe(true);
+    const easy = planned.workouts.find((w) => w.title === 'Easy run')!;
+    expect(easy.plan.steps.find((s) => s.kind === 'work')?.effort).toBe('easy');
+    const ignored = buildRacePlan({ ...base, goalSeconds: 30 });
+    expect(ignored.goalUsed).toBe(false);
+    expect(ignored.raceMinutes).not.toBe(0);
+  });
+
+  it('makes a trail long run a hike and replaces intervals with hills', () => {
+    const plan = buildRacePlan({
+      ...base,
+      distance: '50k',
+      surface: 'trail',
+      level: 'regular',
+      runDays: [1, 2, 4, 6],
+      raceDay: addDays(base.today, 7 * 20),
+      titles: { ...titles, hills: 'Hills' },
+    });
+    const long = plan.workouts.find((w) => w.title === 'Long run')!;
+    expect(long.plan.steps.some((s) => s.kind === 'recovery')).toBe(true);
+    expect(plan.workouts.some((w) => w.title === 'Hills')).toBe(true);
+    expect(plan.workouts.some((w) => w.title === 'Intervals')).toBe(false);
+    expect(
+      plan.workouts.at(-1)?.plan.steps.every((s) => s.seconds <= 180 * 60)
+    ).toBe(true);
   });
 });

@@ -1,5 +1,12 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -12,8 +19,10 @@ import {
   racePaceFromFiveK,
   RACE_DISTANCES,
   RACE_LEVELS,
+  RACE_SURFACES,
   type RaceDistance,
   type RaceLevel,
+  type RaceSurface,
 } from '@workspace/shared';
 import Button from '../components/ui/Button';
 import RecordingSwitchRow from '../components/recording/RecordingSwitchRow';
@@ -82,11 +91,14 @@ const RunProgramRaceScreen: React.FC<Props> = ({ navigation, route }) => {
   const [distance, setDistance] = useState<RaceDistance>(
     route?.params?.distance ?? '10k'
   );
+  const [surface, setSurface] = useState<RaceSurface>('road');
   const [level, setLevel] = useState<RaceLevel>('some');
   const [raceDay, setRaceDay] = useState<string>(
     () => route?.params?.raceDay ?? addDays(today, 7 * 12)
   );
   const [runDays, setRunDays] = useState<number[]>([2, 4, 0]);
+  const [goalHours, setGoalHours] = useState('');
+  const [goalMinutes, setGoalMinutes] = useState('');
   const [saving, setSaving] = useState(false);
   // The latest fitness test sets the level and the race-day pace, instead of
   // a guess from how much the person says they run.
@@ -127,10 +139,14 @@ const RunProgramRaceScreen: React.FC<Props> = ({ navigation, route }) => {
         return t('runPrograms.race.distance.half', {
           defaultValue: 'Half marathon',
         });
-      default:
+      case 'marathon':
         return t('runPrograms.race.distance.marathon', {
           defaultValue: 'Marathon',
         });
+      case '50k':
+        return t('runPrograms.race.distance.50k', { defaultValue: '50K' });
+      case '100k':
+        return t('runPrograms.race.distance.100k', { defaultValue: '100K' });
     }
   };
   const levelLabel = (id: RaceLevel): string => {
@@ -154,6 +170,18 @@ const RunProgramRaceScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   };
 
+  const goalSeconds = (() => {
+    if (goalHours.trim() === '' && goalMinutes.trim() === '') return undefined;
+    const hours = goalHours.trim() === '' ? 0 : Number(goalHours);
+    const minutes = goalMinutes.trim() === '' ? 0 : Number(goalMinutes);
+    if (!Number.isInteger(hours) || !Number.isInteger(minutes))
+      return undefined;
+    if (hours < 0 || hours > 48 || minutes < 0 || minutes > 59)
+      return undefined;
+    const seconds = hours * 3600 + minutes * 60;
+    return seconds > 0 ? seconds : undefined;
+  })();
+
   const plan = useMemo(
     () =>
       buildRacePlan({
@@ -163,6 +191,8 @@ const RunProgramRaceScreen: React.FC<Props> = ({ navigation, route }) => {
         today,
         runDays,
         racePaceSecondsPerKm: racePace,
+        surface,
+        ...(goalSeconds !== undefined ? { goalSeconds } : {}),
         titles: {
           easy: t('runPrograms.race.title.easy', { defaultValue: 'Easy run' }),
           long: t('runPrograms.race.title.long', { defaultValue: 'Long run' }),
@@ -172,6 +202,7 @@ const RunProgramRaceScreen: React.FC<Props> = ({ navigation, route }) => {
           intervals: t('runPrograms.race.title.intervals', {
             defaultValue: 'Intervals',
           }),
+          hills: t('runPrograms.race.title.hills', { defaultValue: 'Hills' }),
           shakeout: t('runPrograms.race.title.shakeout', {
             defaultValue: 'Shake-out run',
           }),
@@ -182,7 +213,17 @@ const RunProgramRaceScreen: React.FC<Props> = ({ navigation, route }) => {
         },
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [distance, planLevel, racePace, raceDay, today, runDays, t]
+    [
+      distance,
+      planLevel,
+      racePace,
+      raceDay,
+      today,
+      runDays,
+      surface,
+      goalSeconds,
+      t,
+    ]
   );
 
   const tooFewDays = runDays.length < 2;
@@ -200,6 +241,8 @@ const RunProgramRaceScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       const planKey = JSON.stringify([
         distance,
+        surface,
+        goalSeconds ?? null,
         plan.workouts,
         plan.startDay,
         plan.endDay,
@@ -330,6 +373,34 @@ const RunProgramRaceScreen: React.FC<Props> = ({ navigation, route }) => {
           />
         ) : null}
 
+        <Text className="text-text-primary text-sm font-semibold mt-2 mb-2">
+          {t('runPrograms.race.surfaceLabel', {
+            defaultValue: 'Road or trail',
+          })}
+        </Text>
+        <View className="flex-row flex-wrap">
+          {RACE_SURFACES.map((id) => (
+            <Chip
+              key={id}
+              label={t(
+                id === 'trail'
+                  ? 'runPrograms.race.surface.trail'
+                  : 'runPrograms.race.surface.road',
+                { defaultValue: id === 'trail' ? 'Trail' : 'Road' }
+              )}
+              selected={surface === id}
+              onPress={() => setSurface(id)}
+              testID={`race-surface-${id}`}
+            />
+          ))}
+        </View>
+        <Text className="text-text-muted text-xs mt-2">
+          {t('runPrograms.race.surfaceHint', {
+            defaultValue:
+              'A trail plan walks the steep parts of the long run and uses hills instead of flat intervals.',
+          })}
+        </Text>
+
         {fromTest ? (
           <Text
             className="text-text-secondary text-sm mt-3"
@@ -373,6 +444,43 @@ const RunProgramRaceScreen: React.FC<Props> = ({ navigation, route }) => {
         >
           {formatDayLabel(raceDay, 'long')}
         </Button>
+
+        <Text className="text-text-primary text-sm font-semibold mt-4 mb-2">
+          {t('runPrograms.race.goalLabel', {
+            defaultValue: 'Goal time (optional)',
+          })}
+        </Text>
+        <View className="flex-row items-center">
+          <TextInput
+            value={goalHours}
+            onChangeText={setGoalHours}
+            keyboardType="number-pad"
+            placeholder={t('runPrograms.race.goalHours', {
+              defaultValue: 'Hours',
+            })}
+            placeholderTextColor="#8a8a8a"
+            className="bg-surface text-text-primary rounded-lg px-3 py-2 w-24"
+            testID="race-goal-hours"
+          />
+          <Text className="text-text-secondary mx-2">:</Text>
+          <TextInput
+            value={goalMinutes}
+            onChangeText={setGoalMinutes}
+            keyboardType="number-pad"
+            placeholder={t('runPrograms.race.goalMinutes', {
+              defaultValue: 'Minutes',
+            })}
+            placeholderTextColor="#8a8a8a"
+            className="bg-surface text-text-primary rounded-lg px-3 py-2 w-28"
+            testID="race-goal-minutes"
+          />
+        </View>
+        <Text className="text-text-muted text-xs mt-2">
+          {t('runPrograms.race.goalHint', {
+            defaultValue:
+              'Leave this empty to use a typical pace for your level. A goal time sets the race length and the paces on each workout.',
+          })}
+        </Text>
 
         <Text className="text-text-primary text-sm font-semibold mt-4 mb-2">
           {t('runPrograms.race.daysLabel', {
@@ -433,18 +541,32 @@ const RunProgramRaceScreen: React.FC<Props> = ({ navigation, route }) => {
                 })}
               </Text>
               <Text className="text-text-muted text-xs mt-1">
-                {fromTest
-                  ? t('runPrograms.race.estimateFromTest', {
+                {plan.goalUsed
+                  ? t('runPrograms.race.estimateGoal', {
                       minutes: formatLocalizedNumber(plan.raceMinutes),
                       defaultValue:
-                        'Race day is planned at about {{minutes}} minutes, at the pace your fitness test points to; you can change it in the plan afterwards.',
+                        'Race day is {{minutes}} minutes, your goal time, and the workouts use the paces that implies.',
                     })
-                  : t('runPrograms.race.estimate', {
-                      minutes: formatLocalizedNumber(plan.raceMinutes),
-                      defaultValue:
-                        'Race day is planned at about {{minutes}} minutes at an easy pace; you can change it in the plan afterwards.',
-                    })}
+                  : fromTest
+                    ? t('runPrograms.race.estimateFromTest', {
+                        minutes: formatLocalizedNumber(plan.raceMinutes),
+                        defaultValue:
+                          'Race day is planned at about {{minutes}} minutes, at the pace your fitness test points to; you can change it in the plan afterwards.',
+                      })
+                    : t('runPrograms.race.estimate', {
+                        minutes: formatLocalizedNumber(plan.raceMinutes),
+                        defaultValue:
+                          'Race day is planned at about {{minutes}} minutes at an easy pace; you can change it in the plan afterwards.',
+                      })}
               </Text>
+              {goalSeconds !== undefined && !plan.goalUsed ? (
+                <Text className="text-text-secondary text-xs mt-1">
+                  {t('runPrograms.race.goalIgnored', {
+                    defaultValue:
+                      'That goal time is too fast or too slow to use, so the plan keeps a typical pace.',
+                  })}
+                </Text>
+              ) : null}
             </>
           )}
           {plan.tooShort && plan.workouts.length > 0 ? (

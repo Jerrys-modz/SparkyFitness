@@ -15,16 +15,16 @@ Training programs are personal. They are not available while you are acting on b
 
 ## Starting a program
 
-With no program yet, the page lists the built-in programs with a short description, how the weeks are laid out, and what week 1 looks like. They run from walking for fitness and return-to-running plans, through 5K and 10K plans, to half marathon and marathon plans.
+With no program yet, the page lists the built-in programs with a short description, how the weeks are laid out, and what week 1 looks like. They run from walking for fitness and return-to-running plans, through 5K and 10K plans, to half marathon, marathon, 50K and 100K plans, including a trail marathon and a trail 50K.
 
-Some programs come in two versions. Use **3 runs a week** or **4 runs a week** on the card to choose; the four-run version adds a short easy run so the long run is a smaller share of your week.
+Some programs come in more than one version. Use the runs-a-week choice on the card. Two runs keeps the long run and one other day. Four runs adds a short easy run so the long run is a smaller share of your week.
 
 1. Choose **Start program** on a program.
 2. Pick when the first workout is: **Start today**, or pick a later date and choose **Start on that date**.
 
 If you already have a program, choosing a different one asks first. Switching starts the new program at week 1 and switches it on; your place in the old one is not kept, but your run days, first day and goal date stay.
 
-The programs you made in the mobile app appear under **Your plans** and start the same way. Creating and editing your own plans, and the race plan builder, are in the mobile app only for now.
+The programs you made in the mobile app appear under **Your plans** and start the same way. Creating and editing your own plans, and the race plan builder, are in the mobile app only for now. The race plan builder covers 5K through 100K, on road or trail. An optional goal time sets how long race day is and the paces on each workout.
 
 ## Following the program
 

@@ -21,7 +21,10 @@ describe('equivalent5kPace', () => {
     expect(equivalent5kPace({ distanceKm: 5, seconds: 300 })).toBeNull();
     expect(equivalent5kPace({ distanceKm: 5, seconds: 6000 })).toBeNull();
     expect(equivalent5kPace({ distanceKm: 0.5, seconds: 120 })).toBeNull();
-    expect(equivalent5kPace({ distanceKm: 100, seconds: 36000 })).toBeNull();
+    expect(
+      equivalent5kPace({ distanceKm: 100, seconds: 36000 })
+    ).not.toBeNull();
+    expect(equivalent5kPace({ distanceKm: 120, seconds: 43200 })).toBeNull();
     expect(equivalent5kPace({ distanceKm: NaN, seconds: 1500 })).toBeNull();
   });
 });
