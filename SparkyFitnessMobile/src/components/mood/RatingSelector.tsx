@@ -1,7 +1,11 @@
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
+import { MOOD_RATING_MAX, MOOD_RATING_MIN } from '@workspace/shared';
 
-const RATINGS = [1, 2, 3, 4, 5] as const;
+const RATINGS = Array.from(
+  { length: MOOD_RATING_MAX - MOOD_RATING_MIN + 1 },
+  (_, i) => MOOD_RATING_MIN + i
+);
 
 interface RatingSelectorProps {
   label: string;

@@ -2,7 +2,9 @@ package com.sparkyapps.sparkyfitness.backgroundwater
 
 import android.app.Activity
 import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -61,9 +63,52 @@ fun enqueueLogWater(context: Context, fromTile: Boolean = false) {
 /** Owns the POST that [enqueueLogWater] queued, after its caller has gone. */
 class LogWaterWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
     override fun doWork(): Result {
-        report(applicationContext, logWater(applicationContext), inputData.getBoolean(KEY_FROM_TILE, false))
+        // Read before the request: an account change while it is out moves
+        // the widget's epoch on, and the widget then drops this total.
+        val accountEpoch = waterWidgetAccountEpoch(applicationContext)
+        val outcome = postWaterChange(applicationContext, 1)
+        if (outcome is WaterChangeOutcome.Changed) {
+            showTotalOnWaterWidget(applicationContext, outcome, accountEpoch)
+        }
+        report(applicationContext, resultFor(outcome), inputData.getBoolean(KEY_FROM_TILE, false))
         return Result.success()
     }
+}
+
+// The water widget (targets/android-widget) is reached by its receiver's
+// class name, so this code builds without it.
+private const val WATER_WIDGET_RECEIVER = "com.sparkyapps.sparkyfitness.widget.WaterWidgetReceiver"
+const val ACTION_WATER_TOTALS = "com.sparkyapps.sparkyfitness.widget.ACTION_WATER_TOTALS"
+const val EXTRA_TOTAL_ML = "totalMl"
+const val EXTRA_MANUAL_ML = "manualMl"
+const val EXTRA_ACCOUNT_EPOCH = "accountEpoch"
+
+/** Where the water widget keeps its snapshot and its account epoch (WaterWidgetStore). */
+const val WATER_WIDGET_PREFS = "SparkyWaterWidget"
+const val WATER_WIDGET_ACCOUNT_EPOCH = "accountEpoch"
+
+private fun waterWidgetAccountEpoch(context: Context): Long =
+    context.getSharedPreferences(WATER_WIDGET_PREFS, Context.MODE_PRIVATE)
+        .getLong(WATER_WIDGET_ACCOUNT_EPOCH, 0L)
+
+/** Lets a placed water widget show the total after a drink logged from the shortcut or the tile. */
+private fun showTotalOnWaterWidget(context: Context, outcome: WaterChangeOutcome.Changed, accountEpoch: Long) {
+    val total = outcome.totalMl ?: return
+    val intent = Intent(ACTION_WATER_TOTALS)
+        .setComponent(ComponentName(context.packageName, WATER_WIDGET_RECEIVER))
+        .putExtra(EXTRA_TOTAL_ML, total)
+        .putExtra(EXTRA_ACCOUNT_EPOCH, accountEpoch)
+    outcome.manualMl?.let { intent.putExtra(EXTRA_MANUAL_ML, it) }
+    try {
+        context.sendBroadcast(intent)
+    } catch (e: Exception) {
+        // No water widget in this build.
+    }
+}
+
+/** A logged drink, from the shortcut, the tile or the water widget, answers the tile's last failure. */
+fun clearWaterFailureNotice(context: Context) {
+    NotificationManagerCompat.from(context).cancel(FAILED_NOTIFICATION_ID)
 }
 
 private const val KEY_FROM_TILE = "from_tile"
@@ -82,8 +127,7 @@ private class LogWaterResult(val logged: Boolean, val message: String)
  * drops a Toast from an app in the background while they are off.
  */
 private fun report(context: Context, result: LogWaterResult, fromTile: Boolean) {
-    // A logged drink, from either side, answers the tile's last failure.
-    if (result.logged) NotificationManagerCompat.from(context).cancel(FAILED_NOTIFICATION_ID)
+    if (result.logged) clearWaterFailureNotice(context)
     if (!fromTile || !notify(context, result)) toast(context, result.message)
 }
 
@@ -143,20 +187,57 @@ private fun notify(context: Context, result: LogWaterResult): Boolean {
     }
 }
 
-private fun logWater(context: Context): LogWaterResult {
+private fun resultFor(outcome: WaterChangeOutcome): LogWaterResult {
+    return when (outcome) {
+        is WaterChangeOutcome.Changed -> LogWaterResult(true, "Logged 1 × ${outcome.containerLabel}")
+        WaterChangeOutcome.NotSignedIn ->
+            LogWaterResult(false, "Open SparkyFitness and sign in to a server first.")
+        WaterChangeOutcome.NoContainer ->
+            LogWaterResult(false, "Pick a water container in SparkyFitness first.")
+        WaterChangeOutcome.Expired ->
+            LogWaterResult(false, "Your SparkyFitness login expired. Open the app once to sign in again.")
+        is WaterChangeOutcome.Failed ->
+            LogWaterResult(false, "SparkyFitness could not log the water (error ${outcome.status})")
+        WaterChangeOutcome.Unreachable -> LogWaterResult(false, "SparkyFitness could not reach your server")
+    }
+}
+
+/** How a change to today's drinks went, for the shortcut, the tile and the water widget. */
+sealed class WaterChangeOutcome {
+    /**
+     * The server took it. [totalMl] is the day's water after the change and
+     * [manualMl] the part logged by hand, when the server reports them.
+     */
+    data class Changed(
+        val totalMl: Double?,
+        val manualMl: Double?,
+        val containerLabel: String,
+    ) : WaterChangeOutcome()
+    object NotSignedIn : WaterChangeOutcome()
+    object NoContainer : WaterChangeOutcome()
+    object Expired : WaterChangeOutcome()
+    data class Failed(val status: Int) : WaterChangeOutcome()
+    object Unreachable : WaterChangeOutcome()
+}
+
+/**
+ * Adds [drinks] of the dashboard's container to today's water, or removes
+ * them when negative (the server removes the newest drinks logged by hand).
+ * Blocking network call: run it off the main thread.
+ */
+fun postWaterChange(context: Context, drinks: Int): WaterChangeOutcome {
     return try {
-        val json = BackgroundWaterStore.load(context)
-            ?: return LogWaterResult(false, "Open SparkyFitness and sign in to a server first.")
+        val json = BackgroundWaterStore.load(context) ?: return WaterChangeOutcome.NotSignedIn
         val config = JSONObject(json)
         if (config.isNull("containerId") || config.isNull("containerName")) {
-            return LogWaterResult(false, "Pick a water container in SparkyFitness first.")
+            return WaterChangeOutcome.NoContainer
         }
         val baseUrl = config.getString("baseUrl")
         val containerName = config.getString("containerName")
         val volume = config.optString("volumeLabel", "")
         val body = JSONObject()
             .put("entry_date", SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()))
-            .put("change_drinks", 1)
+            .put("change_drinks", drinks)
             .put("container_id", config.getInt("containerId"))
 
         val connection = URL("$baseUrl/api/measurements/water-intake").openConnection() as HttpURLConnection
@@ -177,19 +258,33 @@ private fun logWater(context: Context): LogWaterResult {
             val status = connection.responseCode
             when {
                 status in 200..299 -> {
-                    val what = if (volume.isNotEmpty()) "$containerName ($volume)" else containerName
-                    LogWaterResult(true, "Logged 1 × $what")
+                    val totals = try {
+                        JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                    } catch (e: Exception) {
+                        null
+                    }
+                    WaterChangeOutcome.Changed(
+                        totalMl = totals?.optionalNumber("water_ml"),
+                        manualMl = totals?.optionalNumber("manual_ml"),
+                        containerLabel = if (volume.isNotEmpty()) "$containerName ($volume)" else containerName,
+                    )
                 }
-                status == 401 || status == 403 ->
-                    LogWaterResult(false, "Your SparkyFitness login expired. Open the app once to sign in again.")
-                else -> LogWaterResult(false, "SparkyFitness could not log the water (error $status)")
+                status == 401 || status == 403 -> WaterChangeOutcome.Expired
+                else -> WaterChangeOutcome.Failed(status)
             }
         } finally {
             connection.disconnect()
         }
     } catch (e: Exception) {
-        LogWaterResult(false, "SparkyFitness could not reach your server")
+        WaterChangeOutcome.Unreachable
     }
+}
+
+/** Absent, null and non-finite all read as unknown. */
+private fun JSONObject.optionalNumber(name: String): Double? {
+    if (!has(name) || isNull(name)) return null
+    val value = optDouble(name, Double.NaN)
+    return if (value.isFinite()) value else null
 }
 
 private fun toast(context: Context, message: String) {

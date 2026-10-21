@@ -133,6 +133,9 @@ export function buildDailySummary(
     waterConsumed: waterIntake.water_ml || 0,
     waterGoal: adjustedGoals?.water_goal_ml ?? goals.water_goal_ml ?? 2500,
     waterFromFood: Number(waterIntakeBreakdown?.food_ml) || 0,
+    waterManual: waterIntakeBreakdown
+      ? Number(waterIntakeBreakdown.manual_ml) || 0
+      : null,
     foodEntries,
     supplementTotals: supplements,
     exerciseEntries,

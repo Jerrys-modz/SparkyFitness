@@ -297,6 +297,8 @@ describe('exerciseStatsService', () => {
             calories_burned: 219,
             floors_climbed: '56',
             elevation_gain_meters: '181.9056',
+            avg_cadence: '168.4',
+            stride_length_cm: '104.26',
             source: 'HealthKit',
             notes: null,
           },
@@ -316,9 +318,12 @@ describe('exerciseStatsService', () => {
 
       expect(res.items[0].floorsClimbed).toBe(56);
       expect(res.items[0].elevationGainMeters).toBe(181.9);
+      expect(res.items[0].avgCadence).toBe(168);
+      expect(res.items[0].strideLengthCm).toBe(104.3);
       const sql = String(mockClient.query.mock.calls[1]?.[0]);
       expect(sql).toContain('floors_climbed');
       expect(sql).toContain('elevation_gain_meters');
+      expect(sql).toContain('avg_cadence');
     });
 
     it('leaves floors and elevation null when the source never measured them', async () => {
@@ -358,6 +363,8 @@ describe('exerciseStatsService', () => {
 
       expect(res.items[0].floorsClimbed).toBeNull();
       expect(res.items[0].elevationGainMeters).toBeNull();
+      expect(res.items[0].avgCadence).toBeNull();
+      expect(res.items[0].strideLengthCm).toBeNull();
     });
 
     it('does not treat a crunch or a strength session as cardio', async () => {

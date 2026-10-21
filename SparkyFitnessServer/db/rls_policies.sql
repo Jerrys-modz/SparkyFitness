@@ -51,6 +51,7 @@ BEGIN
     'run_programs',
     'shoes',
     'custom_run_programs',
+    'routes',
     'onboarding_data',
     'onboarding_status',
     'openfoodfacts_product_read_rate_limit',
@@ -765,6 +766,7 @@ SELECT create_owner_policy('pregnancy_checklist_state');
 SELECT create_owner_policy('health_appointments');
 SELECT create_owner_policy('run_programs');
 SELECT create_owner_policy('custom_run_programs');
+SELECT create_owner_policy('routes');
 
 -- User-defined mood tags. Mood is check-in data (mood_entries uses the check-in
 -- policy), and custom check-in definitions like custom_categories are shared with
