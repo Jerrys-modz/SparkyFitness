@@ -15,6 +15,13 @@ async function initializeDatabase(): Promise<void> {
   const client: PoolClient = await getSystemClient();
   let destroyClient = true;
   try {
+    // An instance that vanishes without closing its connection (node loss,
+    // network partition) keeps holding the lock until PostgreSQL notices the
+    // dead session. Server-side keepalives bound that to about a minute
+    // instead of the operating system default of hours.
+    await client.query(
+      'SET tcp_keepalives_idle = 30; SET tcp_keepalives_interval = 10; SET tcp_keepalives_count = 3'
+    );
     log('info', 'Waiting for the database initialization lock...');
     await client.query('SELECT pg_advisory_lock(hashtext($1))', [lockName]);
     await applyMigrations(client);
