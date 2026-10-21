@@ -264,7 +264,12 @@
       "ongoingWorkout": "Ongoing workout",
       "workoutTimer": "Workout timer",
       "fasting": "Fasting",
-      "hydration": "Hydration reminders"
+      "hydration": "Hydration reminders",
+      "moodCheckin": "Mood check-ins"
+    },
+    "moodCheckin": {
+      "title": "How are you feeling?",
+      "body": "Take a quick check-in: mood, energy and focus."
     },
     "actions": {
       "completeSet": "Complete Set",
@@ -1193,6 +1198,13 @@
     "waterReminderEnd": "End Time",
     "waterReminderEndAccessibility": "End time, {{time}}",
     "waterReminderInvalidWindow": "End time must be after start time.",
+    "moodCheckins": "Mood check-ins",
+    "moodCheckinReminders": "Check-in reminders",
+    "moodCheckinRemindersSubtitle": "A daily nudge to log how you feel",
+    "moodCheckinReminderTime": "Reminder {{number}}",
+    "moodCheckinReminderTimeAccessibility": "Reminder {{number}}, {{time}}",
+    "moodCheckinAddReminder": "Add reminder",
+    "moodCheckinRemoveReminder": "Remove reminder {{number}}",
     "enableNotifications": "Enable Notifications",
     "openSettings": "Open Settings",
     "permissionTitle": "Grant permissions",
@@ -5262,6 +5274,9 @@
     "focusHigh": "Locked in",
     "journalOptional": "Journal (optional)",
     "journalPlaceholder": "Any thoughts or feelings you'd like to add?",
+    "reminderOfferTitle": "Remind me daily?",
+    "reminderOfferBody": "Get a reminder each evening to check in. You can change the time or add more in Settings → App Settings → Notifications.",
+    "reminderOfferAccept": "Remind me",
     "ratingsUnsupported": "Your server doesn't save energy and focus yet. Update SparkyFitness to keep them.",
     "loggingForDate": "Logging for {{date}}",
     "chartTitle": "Mood over time",

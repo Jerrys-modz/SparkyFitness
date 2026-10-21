@@ -49,6 +49,7 @@ import { useMoodRatingsSupport } from '../hooks/useMoodRatingsSupport';
 import { usePreferences } from '../hooks/usePreferences';
 import { getApiErrorMessage } from '../services/api/errors';
 import type { MoodEntry } from '../services/api/moodApi';
+import { offerCheckinRemindersAfterLeaving } from '../services/offerCheckinReminders';
 import { getDeviceTimezone, getTodayDate } from '../utils/dateUtils';
 import { moodDayInZone } from '../utils/moodDay';
 import {
@@ -279,14 +280,20 @@ function LegacyMoodLog({
     if (!entryReady || saveMood.isPending) return;
     const sendEnergy = showRatings && energyOverride !== undefined;
     const sendFocus = showRatings && focusOverride !== undefined;
-    const saved = await saveMood.mutateAsync({
-      mood_value: moodValue,
-      mood_tags: tags,
-      notes,
-      entry_date: targetDate,
-      ...(sendEnergy && { energy_value: energyOverride }),
-      ...(sendFocus && { focus_value: focusOverride }),
-    });
+    let saved: Awaited<ReturnType<typeof saveMood.mutateAsync>>;
+    try {
+      saved = await saveMood.mutateAsync({
+        mood_value: moodValue,
+        mood_tags: tags,
+        notes,
+        entry_date: targetDate,
+        ...(sendEnergy && { energy_value: energyOverride }),
+        ...(sendFocus && { focus_value: focusOverride }),
+      });
+    } catch {
+      // useSaveMood already reports the failure; stay on the screen.
+      return;
+    }
     // An older server ignores the fields and its row has no energy_value key.
     // An empty (non-object) response tells us nothing, so it shows no notice.
     const savedIsRow = saved != null && typeof saved === 'object';
@@ -300,6 +307,9 @@ function LegacyMoodLog({
       });
     }
     navigation.goBack();
+    // Saving over the day's existing entry is an edit, and only a new
+    // check-in offers reminders, as in the composer.
+    if (!existing) offerCheckinRemindersAfterLeaving(t);
   };
 
   return (
@@ -540,6 +550,8 @@ function CheckinComposer({
     }
     // The single success point after a save.
     navigation.goBack();
+    // Only a new check-in prompts; an edit never does.
+    if (!editing) offerCheckinRemindersAfterLeaving(t);
   };
 
   // Set at once rather than on the next render, so a second confirm sent

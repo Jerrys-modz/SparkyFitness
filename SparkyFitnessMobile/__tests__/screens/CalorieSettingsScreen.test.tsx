@@ -286,7 +286,7 @@ describe('CalorieSettingsScreen', () => {
     const cases = [
       [
         'standard',
-        'Używa wyższej z wartości: szacowane PPM lub minimum kliniczne.',
+        'Używa wyższej z wartości: szacowany BMR lub minimum kliniczne.',
       ],
       [
         'custom',

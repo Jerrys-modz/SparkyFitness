@@ -36,7 +36,7 @@ export interface HealthMetric {
   category?: string;
   enabled?: boolean; // Set to false to temporarily disable a metric
   backgroundDeliveryFrequency?: BackgroundDeliveryFrequency; // Default: 'daily'
-  aggregationStrategy?: 'min-max-avg' | 'sum' | 'last';
+  aggregationStrategy?: 'min-max-avg' | 'min-max-time-avg' | 'sum' | 'last';
   readKind?: MetricReadKind; // Default derived by metricReadKind()
   // Day-aligned rolling lookback floor (in days) for raw reads, so records logged
   // after the fact — event time in the past, entered recently — are still picked up.
@@ -47,7 +47,10 @@ export const metricReadKind = (
   metric: Pick<HealthMetric, 'readKind' | 'aggregationStrategy'>
 ): MetricReadKind =>
   metric.readKind ??
-  (metric.aggregationStrategy === 'min-max-avg' ? 'min-max-avg-day' : 'raw');
+  (metric.aggregationStrategy === 'min-max-avg' ||
+  metric.aggregationStrategy === 'min-max-time-avg'
+    ? 'min-max-avg-day'
+    : 'raw');
 
 const ALL_HEALTH_METRICS: HealthMetric[] = [
   {
@@ -112,7 +115,7 @@ const ALL_HEALTH_METRICS: HealthMetric[] = [
     type: 'heart_rate',
     category: 'Common',
     backgroundDeliveryFrequency: 'hourly',
-    aggregationStrategy: 'min-max-avg',
+    aggregationStrategy: 'min-max-time-avg',
   },
   {
     id: 'weight',
