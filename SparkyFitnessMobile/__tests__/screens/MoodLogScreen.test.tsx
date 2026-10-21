@@ -850,6 +850,15 @@ describe('MoodLogScreen daily reminder offer', () => {
     expect(markCheckinReminderOfferShown).toHaveBeenCalledTimes(1);
   });
 
+  it("does not offer after editing the day's saved mood", async () => {
+    // The one-entry form edits the day's entry when one exists (logged on
+    // the web earlier, say); like the composer, only a new check-in offers.
+    mockEntry = savedEntry();
+    await save();
+    expect(hasShownCheckinReminderOffer).not.toHaveBeenCalled();
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
   it('does not offer again once shown', async () => {
     (hasShownCheckinReminderOffer as jest.Mock).mockResolvedValue(true);
     await save();

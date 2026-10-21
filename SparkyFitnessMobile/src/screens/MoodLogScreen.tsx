@@ -307,7 +307,9 @@ function LegacyMoodLog({
       });
     }
     navigation.goBack();
-    offerCheckinRemindersAfterLeaving(t);
+    // Saving over the day's existing entry is an edit, and only a new
+    // check-in offers reminders, as in the composer.
+    if (!existing) offerCheckinRemindersAfterLeaving(t);
   };
 
   return (
