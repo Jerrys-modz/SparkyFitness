@@ -37,8 +37,9 @@ export interface RunProgram {
    */
   custom?: { name: string };
   /**
-   * Set on the four-runs-a-week version of a program that also comes with
-   * three runs a week: the id of the three-run program it is a version of.
+   * Set on another version of a program: the id of the one the picker lists.
+   * A two-run version keeps the long run and one other day. A four-run
+   * version adds a short easy run.
    */
   variantOf?: string;
 }
@@ -205,10 +206,11 @@ const FASTER_5K_WEEKS: readonly (readonly Spec[])[] = [
   [speed(repeat(4, [run(180), walk(120)])), easy(25), tempo(25)],
 ];
 
-// Twelve weeks to a half marathon for someone who runs 30 minutes: an easy
-// run, a middle run and a long run each week, with an easier week every
-// fourth and a taper.
-const HALF_MARATHON_WEEKS = steadyWeeks([
+/** Two runs a week: the shorter day and the long run of each week. */
+const asTwo = (rows: readonly (readonly number[])[]): number[][] =>
+  rows.map((row) => [row[0] ?? 0, row[row.length - 1] ?? 0]);
+
+const HALF_MARATHON_ROWS = [
   [30, 30, 50],
   [30, 35, 55],
   [35, 40, 65],
@@ -221,7 +223,15 @@ const HALF_MARATHON_WEEKS = steadyWeeks([
   [45, 50, 115],
   [40, 40, 90],
   [25, 20, 30],
-]);
+] as const;
+
+// Twelve weeks to a half marathon for someone who runs 30 minutes: an easy
+// run, a middle run and a long run each week, with an easier week every
+// fourth and a taper.
+const HALF_MARATHON_WEEKS = steadyWeeks(HALF_MARATHON_ROWS);
+
+// The same half marathon on two days: the easy run and the long run.
+const HALF_MARATHON_2_WEEKS = steadyWeeks(asTwo(HALF_MARATHON_ROWS));
 
 // The four-run version of the half marathon: two easy runs, a middle run and a
 // long run each week, so the long run is a smaller share of the week.
@@ -240,10 +250,7 @@ const HALF_MARATHON_4_WEEKS = steadyWeeks([
   [25, 20, 30],
 ]);
 
-// Sixteen weeks to a marathon for someone who already runs a few times a
-// week: easy, middle, easy and long runs, long runs building to under three
-// hours, an easier week every fourth, and a three-week taper.
-const MARATHON_WEEKS = steadyWeeks([
+const MARATHON_ROWS = [
   [30, 40, 30, 70],
   [30, 40, 30, 80],
   [35, 45, 35, 90],
@@ -260,7 +267,15 @@ const MARATHON_WEEKS = steadyWeeks([
   [45, 60, 45, 165],
   [40, 50, 40, 120],
   [30, 25, 20],
-]);
+] as const;
+
+// Sixteen weeks to a marathon for someone who already runs a few times a
+// week: easy, middle, easy and long runs, long runs building to under three
+// hours, an easier week every fourth, and a three-week taper.
+const MARATHON_WEEKS = steadyWeeks(MARATHON_ROWS);
+
+// The same marathon on two days: one easy run and the long run.
+const MARATHON_2_WEEKS = steadyWeeks(asTwo(MARATHON_ROWS));
 
 /** The same workout three times: a week that repeats one session. */
 const thrice = (spec: Spec): Spec[] => Array(3).fill(spec);
@@ -535,6 +550,117 @@ const WALK_10K_WEEKS: readonly (readonly Spec[])[] = [
   walkWeek(repeat(2, [brisk(1200), stroll(120)]), 6300),
 ];
 
+/** A trail long run: 20 minutes of running and 5 of walking until `minutes` is used. */
+function hike(totalMinutes: number): Spec {
+  const pieces: Piece[] = [];
+  let left = totalMinutes * 60;
+  while (left > 0) {
+    const runFor = Math.min(20 * 60, left);
+    pieces.push(run(runFor));
+    left -= runFor;
+    if (left <= 0) break;
+    const walkFor = Math.min(5 * 60, left);
+    pieces.push(walk(walkFor));
+    left -= walkFor;
+  }
+  return rw(pieces);
+}
+
+const trailWeek = (
+  easyMin: number,
+  hillsCount: number,
+  longMin: number
+): Spec[] => [steady(easyMin), hills(hillsCount, 60, 120), hike(longMin)];
+
+// Fourteen weeks to a trail marathon for someone who runs on roads already:
+// an easy run, hill repeats, and a hike-run long run up to three hours.
+const TRAIL_MARATHON_WEEKS: readonly (readonly Spec[])[] = [
+  trailWeek(30, 6, 70),
+  trailWeek(35, 6, 85),
+  trailWeek(35, 8, 100),
+  trailWeek(30, 6, 80),
+  trailWeek(40, 8, 110),
+  trailWeek(40, 8, 125),
+  trailWeek(40, 10, 140),
+  trailWeek(35, 6, 110),
+  trailWeek(45, 10, 155),
+  trailWeek(45, 10, 170),
+  trailWeek(45, 8, 180),
+  trailWeek(40, 6, 140),
+  trailWeek(35, 6, 100),
+  trailWeek(30, 4, 50),
+];
+
+const FIFTY_K_ROWS = [
+  [45, 60, 90],
+  [45, 70, 110],
+  [50, 75, 130],
+  [40, 60, 100],
+  [50, 80, 150],
+  [55, 85, 170],
+  [55, 90, 190],
+  [45, 70, 140],
+  [60, 90, 210],
+  [60, 95, 225],
+  [60, 100, 240],
+  [50, 75, 180],
+  [55, 85, 200],
+  [45, 60, 150],
+  [40, 50, 90],
+  [30, 25, 40],
+] as const;
+
+// Sixteen weeks to a 50K for someone who has finished a marathon. Three runs
+// a week, long runs up to four hours, a lighter week every fourth, then a taper.
+const FIFTY_K_WEEKS = steadyWeeks(FIFTY_K_ROWS);
+const FIFTY_K_2_WEEKS = steadyWeeks(asTwo(FIFTY_K_ROWS));
+
+const HUNDRED_K_ROWS = [
+  [50, 70, 100],
+  [50, 80, 120],
+  [55, 90, 140],
+  [45, 70, 110],
+  [55, 100, 160],
+  [60, 110, 180],
+  [60, 120, 200],
+  [50, 90, 150],
+  [60, 120, 220],
+  [65, 130, 240],
+  [65, 140, 240],
+  [55, 100, 180],
+  [65, 140, 240],
+  [65, 130, 210],
+  [55, 100, 180],
+  [50, 80, 120],
+  [40, 60, 80],
+  [30, 25, 40],
+] as const;
+
+// Eighteen weeks to a 100K for someone who has finished a 50K. The long run
+// stays at four hours and the middle run grows into a second long day.
+const HUNDRED_K_WEEKS = steadyWeeks(HUNDRED_K_ROWS);
+const HUNDRED_K_2_WEEKS = steadyWeeks(asTwo(HUNDRED_K_ROWS));
+
+// Sixteen weeks to a trail 50K: easy run, hills, and a hike-run up to four hours.
+const TRAIL_50K_WEEKS: readonly (readonly Spec[])[] = [
+  trailWeek(35, 6, 90),
+  trailWeek(40, 6, 110),
+  trailWeek(40, 8, 130),
+  trailWeek(35, 6, 100),
+  trailWeek(45, 8, 150),
+  trailWeek(45, 8, 170),
+  trailWeek(45, 10, 190),
+  trailWeek(40, 6, 140),
+  trailWeek(50, 10, 210),
+  trailWeek(50, 10, 225),
+  trailWeek(50, 8, 240),
+  trailWeek(40, 6, 180),
+  trailWeek(45, 8, 200),
+  trailWeek(40, 6, 150),
+  trailWeek(35, 6, 90),
+  trailWeek(30, 4, 40),
+];
+
 function buildProgram(
   id: string,
   weeks: readonly (readonly Spec[])[],
@@ -568,6 +694,7 @@ export const RUN_PROGRAMS: readonly RunProgram[] = [
   buildProgram('tenKToHalf', TEN_K_TO_HALF_WEEKS),
   buildProgram('tenKToHalf4', TEN_K_TO_HALF_4_WEEKS, 'run', 'tenKToHalf'),
   buildProgram('halfMarathon', HALF_MARATHON_WEEKS),
+  buildProgram('halfMarathon2', HALF_MARATHON_2_WEEKS, 'run', 'halfMarathon'),
   buildProgram('halfMarathon4', HALF_MARATHON_4_WEEKS, 'run', 'halfMarathon'),
   buildProgram('fasterHalf', FASTER_HALF_WEEKS),
   buildProgram('fasterHalf4', FASTER_HALF_4_WEEKS, 'run', 'fasterHalf'),
@@ -579,7 +706,14 @@ export const RUN_PROGRAMS: readonly RunProgram[] = [
     'beginnerMarathon'
   ),
   buildProgram('marathon', MARATHON_WEEKS),
+  buildProgram('marathon2', MARATHON_2_WEEKS, 'run', 'marathon'),
   buildProgram('advancedMarathon', ADVANCED_MARATHON_WEEKS),
+  buildProgram('trailMarathon', TRAIL_MARATHON_WEEKS),
+  buildProgram('trail50k', TRAIL_50K_WEEKS),
+  buildProgram('fiftyK', FIFTY_K_WEEKS),
+  buildProgram('fiftyK2', FIFTY_K_2_WEEKS, 'run', 'fiftyK'),
+  buildProgram('hundredK', HUNDRED_K_WEEKS),
+  buildProgram('hundredK2', HUNDRED_K_2_WEEKS, 'run', 'hundredK'),
 ];
 
 /** What a program's workouts are recorded as; a program that is gone reads as a run. */

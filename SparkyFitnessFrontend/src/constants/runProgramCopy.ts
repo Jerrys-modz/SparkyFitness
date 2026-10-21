@@ -139,4 +139,60 @@ export const PROGRAM_COPY: Readonly<Record<string, ProgramCopy>> = {
     structure:
       'Most weeks have two easy runs, a speed or tempo session, a middle run and a long run. The long run builds from 90 minutes to three hours, every fourth week is lighter, and the last two weeks taper before race day.',
   },
+  halfMarathon2: {
+    name: 'Half marathon (2 runs a week)',
+    description:
+      'Half marathon: twelve weeks, two runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably but cannot train more often.',
+    structure:
+      'Each week has an easy run and a long run. The long run builds from 50 to 115 minutes, every fourth week is lighter, and the last week is short before race day.',
+  },
+  marathon2: {
+    name: 'Marathon (2 runs a week)',
+    description:
+      'Marathon: sixteen weeks, two runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly but cannot train more often.',
+    structure:
+      'Each week has an easy run and a long run. The long run builds from 70 minutes to 2¾ hours, every fourth week is lighter, and the last two weeks taper before race day.',
+  },
+  trailMarathon: {
+    name: 'Trail marathon',
+    description:
+      'Trail marathon: fourteen weeks, three runs a week, with hill repeats and a hike-run long run building to three hours. For when you already run on roads.',
+    structure:
+      'Each week has an easy run, hill repeats and a long run of 20 minutes running and 5 minutes walking. The long run builds from 70 minutes to three hours, and the last weeks taper before race day.',
+  },
+  trail50k: {
+    name: 'Trail 50K',
+    description:
+      'Trail 50K: sixteen weeks, three runs a week, with hill repeats and a hike-run long run building to four hours. For when you have finished a marathon.',
+    structure:
+      'Each week has an easy run, hill repeats and a long run of 20 minutes running and 5 minutes walking. The long run builds from 90 minutes to four hours, and the last weeks taper before race day.',
+  },
+  fiftyK: {
+    name: '50K',
+    description:
+      '50K: sixteen weeks, three runs a week, with long runs building to four hours and a taper. For when you have finished a marathon.',
+    structure:
+      'Each week has an easy run, a middle run and a long run. The long run builds from 90 minutes to four hours, every fourth week is lighter, and the last weeks taper before race day.',
+  },
+  fiftyK2: {
+    name: '50K (2 runs a week)',
+    description:
+      '50K: sixteen weeks, two runs a week, with long runs building to four hours and a taper. For when you have finished a marathon but cannot train more often.',
+    structure:
+      'Each week has an easy run and a long run. The long run builds from 90 minutes to four hours, every fourth week is lighter, and the last weeks taper before race day.',
+  },
+  hundredK: {
+    name: '100K',
+    description:
+      '100K: eighteen weeks, three runs a week, with long runs of up to four hours and a middle run that grows to 2 hours 20 minutes. For when you have finished a 50K.',
+    structure:
+      'Each week has an easy run, a middle run and a long run. The long run builds from 100 minutes to four hours, the middle run grows to 2 hours 20 minutes, every fourth week is lighter, and the last weeks taper before race day.',
+  },
+  hundredK2: {
+    name: '100K (2 runs a week)',
+    description:
+      '100K: eighteen weeks, two runs a week, with long runs building to four hours and a taper. For when you have finished a 50K but cannot train more often.',
+    structure:
+      'Each week has an easy run and a long run. The long run builds from 100 minutes to four hours, every fourth week is lighter, and the last weeks taper before race day.',
+  },
 };

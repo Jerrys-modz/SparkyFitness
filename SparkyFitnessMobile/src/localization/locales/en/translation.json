@@ -7125,6 +7125,14 @@
         "tenKToHalf4": "10K to half marathon (4 runs a week)",
         "fasterHalf4": "Faster half marathon (4 runs a week)",
         "beginnerMarathon4": "Beginner marathon (4 runs a week)",
+        "halfMarathon2": "Half marathon (2 runs a week)",
+        "marathon2": "Marathon (2 runs a week)",
+        "trailMarathon": "Trail marathon",
+        "trail50k": "Trail 50K",
+        "fiftyK": "50K",
+        "fiftyK2": "50K (2 runs a week)",
+        "hundredK": "100K",
+        "hundredK2": "100K (2 runs a week)",
         "walk10k": "Brisk walk 10K",
         "returnToRunning": "Return to running",
         "gentle5k": "Gentle 5K",
@@ -7136,6 +7144,14 @@
         "advancedMarathon": "Advanced marathon"
       },
       "beginner5kDescription": "Beginner 5K: nine weeks, three runs a week. You alternate running and walking, and build up to 30 minutes of running.",
+      "halfMarathon2Description": "Half marathon: twelve weeks, two runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably but cannot train more often.",
+      "marathon2Description": "Marathon: sixteen weeks, two runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly but cannot train more often.",
+      "trailMarathonDescription": "Trail marathon: fourteen weeks, three runs a week, with hill repeats and a hike-run long run building to three hours. For when you already run on roads.",
+      "trail50kDescription": "Trail 50K: sixteen weeks, three runs a week, with hill repeats and a hike-run long run building to four hours. For when you have finished a marathon.",
+      "fiftyKDescription": "50K: sixteen weeks, three runs a week, with long runs building to four hours and a taper. For when you have finished a marathon.",
+      "fiftyK2Description": "50K: sixteen weeks, two runs a week, with long runs building to four hours and a taper. For when you have finished a marathon but cannot train more often.",
+      "hundredKDescription": "100K: eighteen weeks, three runs a week, with long runs of up to four hours and a middle run that grows to 2 hours 20 minutes. For when you have finished a 50K.",
+      "hundredK2Description": "100K: eighteen weeks, two runs a week, with long runs building to four hours and a taper. For when you have finished a 50K but cannot train more often.",
       "workoutLabel": "{{name}} · Week {{week}}, run {{run}}",
       "workoutLabelWalk": "{{name}} · Week {{week}}, walk {{walk}}",
       "progress": "Workout {{done}} of {{total}} done · {{minutes}} min today",
@@ -7793,6 +7809,8 @@
     "runsPerWeekOption_one": "{{count}} run a week",
     "runsPerWeekOption_other": "{{count}} runs a week",
     "runsPerWeekHint": "A fourth run adds a short easy run, so the long run is a smaller share of your week.",
+    "runsPerWeekHintBoth": "Two runs keeps the long run and one other day. Four runs adds a short easy run, so the long run is a smaller share of the week.",
+    "runsPerWeekHintTwo": "Two runs keeps the long run and one other day, for a week you cannot train more often.",
     "weeksRuns": "{{weeks}} weeks, {{runs}} workouts a week",
     "guide": {
       "structure": {
@@ -7814,7 +7832,15 @@
         "tenKToHalf": "Each week has a short run, a middle run and a long run. The long run builds from 65 to 115 minutes, weeks 4 and 8 are lighter, and the last two weeks taper before race day.",
         "fasterHalf": "Each week has a speed session, an easy run and a long run. The long run builds from 70 to 110 minutes, tempo runs of 25 and 30 minutes replace the speed session in weeks 6 and 8, and the last two weeks taper.",
         "beginnerMarathon": "Each week has a short run, a middle run and a long run. The long run builds from 70 minutes to 2½ hours, every fourth week is lighter, and the last three weeks taper before race day.",
-        "advancedMarathon": "Most weeks have two easy runs, a speed or tempo session, a middle run and a long run. The long run builds from 90 minutes to three hours, every fourth week is lighter, and the last two weeks taper before race day."
+        "advancedMarathon": "Most weeks have two easy runs, a speed or tempo session, a middle run and a long run. The long run builds from 90 minutes to three hours, every fourth week is lighter, and the last two weeks taper before race day.",
+        "halfMarathon2": "Each week has an easy run and a long run. The long run builds from 50 to 115 minutes, every fourth week is lighter, and the last week is short before race day.",
+        "marathon2": "Each week has an easy run and a long run. The long run builds from 70 minutes to 2¾ hours, every fourth week is lighter, and the last two weeks taper before race day.",
+        "trailMarathon": "Each week has an easy run, hill repeats and a long run of 20 minutes running and 5 minutes walking. The long run builds from 70 minutes to three hours, and the last weeks taper before race day.",
+        "trail50k": "Each week has an easy run, hill repeats and a long run of 20 minutes running and 5 minutes walking. The long run builds from 90 minutes to four hours, and the last weeks taper before race day.",
+        "fiftyK": "Each week has an easy run, a middle run and a long run. The long run builds from 90 minutes to four hours, every fourth week is lighter, and the last weeks taper before race day.",
+        "fiftyK2": "Each week has an easy run and a long run. The long run builds from 90 minutes to four hours, every fourth week is lighter, and the last weeks taper before race day.",
+        "hundredK": "Each week has an easy run, a middle run and a long run. The long run builds from 100 minutes to four hours, the middle run grows to 2 hours 20 minutes, every fourth week is lighter, and the last weeks taper before race day.",
+        "hundredK2": "Each week has an easy run and a long run. The long run builds from 100 minutes to four hours, every fourth week is lighter, and the last weeks taper before race day."
       },
       "rest": {
         "title": "Rest days",
@@ -7824,7 +7850,8 @@
         "returnToRunning": "Leave a day or two between runs, for example Monday, Thursday and Saturday, and keep every run easy and conversational. Rest, walk or cycle gently on the other days. If anything hurts more as you go, drop back to the previous week.",
         "fourRun": "With four runs a week, take at least one full rest day and never run more than two days in a row. Keep the day before the long run easy or free, and rest or cross-train the day after it. Use the other days for rest, walking or low-impact cross-training.",
         "advanced": "With five runs a week, take two rest or cross-training days and avoid more than two runs in a row. Keep the speed or tempo session and the long run at least two days apart, keep the days either side of them easy, and rest more in the lighter weeks.",
-        "longDistance": "Keep the day before the long run easy or free, and take a rest day the day after it. Space the other runs so no two hard days sit together, and use spare days for rest, walking or low-impact cross-training."
+        "longDistance": "Keep the day before the long run easy or free, and take a rest day the day after it. Space the other runs so no two hard days sit together, and use spare days for rest, walking or low-impact cross-training.",
+        "twoRun": "With two runs a week, leave at least one full day between them, and two if you can. Keep the day before the long run free, and rest or walk the day after it."
       },
       "title": "How the plans work",
       "workout": {
@@ -8021,7 +8048,9 @@
         "5k": "5K",
         "10k": "10K",
         "half": "Half marathon",
-        "marathon": "Marathon"
+        "marathon": "Marathon",
+        "50k": "50K",
+        "100k": "100K"
       },
       "level": {
         "new": "New to running",
@@ -8034,6 +8063,7 @@
         "long": "Long run",
         "tempo": "Tempo run",
         "intervals": "Intervals",
+        "hills": "Hills",
         "shakeout": "Shake-out run",
         "race": "Race day: {{label}}"
       },
@@ -8052,6 +8082,18 @@
       "summaryTitle": "{{weeks}} weeks to race day",
       "summaryBody": "{{workouts}} workouts, the longest run about {{long}} minutes.",
       "estimate": "Race day is planned at about {{minutes}} minutes at an easy pace; you can change it in the plan afterwards.",
+      "estimateGoal": "Race day is {{minutes}} minutes, your goal time, and the workouts use the paces that implies.",
+      "goalIgnored": "That goal time is too fast or too slow to use, so the plan keeps a typical pace.",
+      "surfaceLabel": "Road or trail",
+      "surface": {
+        "road": "Road",
+        "trail": "Trail"
+      },
+      "surfaceHint": "A trail plan walks the steep parts of the long run and uses hills instead of flat intervals.",
+      "goalLabel": "Goal time (optional)",
+      "goalHours": "Hours",
+      "goalMinutes": "Minutes",
+      "goalHint": "Leave this empty to use a typical pace for your level. A goal time sets the race length and the paces on each workout.",
       "tooShort": "That is less time than we suggest: at least {{min}} weeks for this distance. Pick a later race day.",
       "tooFewDays": "Pick at least two days to run.",
       "create": "Create and start the plan",

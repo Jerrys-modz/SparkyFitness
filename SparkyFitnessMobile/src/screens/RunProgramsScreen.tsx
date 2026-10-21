@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { Alert, Platform, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import {
@@ -44,6 +45,27 @@ import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { formatLocalizedNumber } from '../localization';
 import type { RootStackScreenProps } from '../types/navigation';
 import { addDays, toLocalDateString } from '../utils/dateUtils';
+
+function versionHint(t: TFunction, counts: readonly number[]): string {
+  const hasTwo = counts.includes(2);
+  const hasFour = counts.includes(4);
+  if (hasTwo && hasFour) {
+    return t('runPrograms.runsPerWeekHintBoth', {
+      defaultValue:
+        'Two runs keeps the long run and one other day. Four runs adds a short easy run, so the long run is a smaller share of the week.',
+    });
+  }
+  if (hasTwo) {
+    return t('runPrograms.runsPerWeekHintTwo', {
+      defaultValue:
+        'Two runs keeps the long run and one other day, for a week you cannot train more often.',
+    });
+  }
+  return t('runPrograms.runsPerWeekHint', {
+    defaultValue:
+      'A fourth run adds a short easy run, so the long run is a smaller share of your week.',
+  });
+}
 
 type Props = RootStackScreenProps<'RunPrograms'>;
 
@@ -378,10 +400,10 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
                     }
                   />
                   <Text className="text-text-muted text-xs mt-1">
-                    {t('runPrograms.runsPerWeekHint', {
-                      defaultValue:
-                        'A fourth run adds a short easy run, so the long run is a smaller share of your week.',
-                    })}
+                    {versionHint(
+                      t,
+                      versions.map((v) => v.workoutsPerWeek)
+                    )}
                   </Text>
                 </View>
               ) : null}
