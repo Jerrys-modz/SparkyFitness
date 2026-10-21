@@ -393,3 +393,53 @@ export function observedMaxBpm(samples: readonly HrSample[]): number {
     0,
   );
 }
+
+/**
+ * One zone from Apple's preferred heart-rate configuration
+ * (`HKHealthStore.preferredWorkoutZoneConfiguration`). `minimumBpm` is null
+ * when HealthKit leaves that end open: the first zone usually has no lower
+ * bound, and the last zone has no upper bound.
+ */
+export interface AppleHeartRateZoneBound {
+  /** HealthKit's zone index. Used only to order the zones. */
+  index?: number;
+  minimumBpm: number | null;
+  maximumBpm?: number | null;
+}
+
+/**
+ * Five custom-zone floors from Apple's preferred heart-rate zones.
+ *
+ * Null unless Apple returned exactly five zones that become five ascending
+ * bpm floors. Apple's first zone usually has no lower bound (everything below
+ * the first boundary counts as zone 1); Sparky needs a real floor, so that
+ * zone starts at {@link MIN_CUSTOM_FLOOR_BPM}. Later zones use their minimum,
+ * rounded to a whole bpm. This does not invent a max heart rate: Apple does
+ * not share one.
+ */
+export function floorsFromAppleHeartRateZones(
+  zones: readonly AppleHeartRateZoneBound[] | null | undefined,
+): number[] | null {
+  if (!zones || zones.length !== HR_ZONE_COUNT) return null;
+  const indexed = zones.every((zone) => Number.isInteger(zone.index));
+  const ordered = indexed
+    ? [...zones].sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
+    : [...zones];
+
+  const floors: number[] = [];
+  for (let i = 0; i < ordered.length; i += 1) {
+    const zone = ordered[i];
+    if (!zone) return null;
+    const minimum = zone.minimumBpm;
+    let floor: number;
+    if (typeof minimum !== "number" || !Number.isFinite(minimum)) {
+      if (i !== 0) return null;
+      floor = MIN_CUSTOM_FLOOR_BPM;
+    } else {
+      floor = Math.round(minimum);
+      if (i === 0 && floor < MIN_CUSTOM_FLOOR_BPM) floor = MIN_CUSTOM_FLOOR_BPM;
+    }
+    floors.push(floor);
+  }
+  return customFloorsProblem(floors) === null ? floors : null;
+}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -32,6 +32,10 @@ import {
   useUpdateHeartRateZones,
 } from '../hooks/useHeartRateZones';
 import { addLog } from '../services/LogService';
+import {
+  appleHeartZonesAvailable,
+  readAppleHeartRateZones,
+} from '../services/appleHeartZones';
 import { formatLocalizedNumber } from '../localization';
 import { maxHrSourceLabel, methodName } from '../utils/heartRateZoneLabels';
 import type { RootStackScreenProps } from '../types/navigation';
@@ -84,7 +88,14 @@ const HeartRateZonesSettingsScreen: React.FC<
   // shows the saved settings (including once they arrive or are saved).
   const [edits, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
   const draft = edits ?? (zones ? draftFrom(zones) : null);
+  // The Health permission sheet can sit up for a while. Read the form as it
+  // is when the answer comes back, not as it was when the button was pressed.
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const importingRef = useRef(false);
+  const canImportApple = appleHeartZonesAvailable();
 
   const dirty =
     zones != null &&
@@ -171,6 +182,49 @@ const HeartRateZonesSettingsScreen: React.FC<
         },
       }
     );
+  };
+
+  const importApple = async () => {
+    const current = draftRef.current;
+    if (!current || importingRef.current) return;
+    importingRef.current = true;
+    setImporting(true);
+    setError(null);
+    try {
+      const imported = await readAppleHeartRateZones({
+        includeRestingHeartRate: current.restingHr === '',
+      });
+      if (!imported) {
+        setError(
+          t('heartRateZones.appleFailed', {
+            defaultValue:
+              "Apple Health didn't share five heart rate zones. Check that Health access is allowed, then try again.",
+          })
+        );
+        return;
+      }
+      const latest = draftRef.current ?? current;
+      setDraft({
+        ...latest,
+        method: 'custom',
+        floors: imported.floors.map(String),
+        restingHr:
+          latest.restingHr !== ''
+            ? latest.restingHr
+            : imported.restingHeartRate != null
+              ? String(imported.restingHeartRate)
+              : latest.restingHr,
+      });
+      Toast.show({
+        type: 'success',
+        text1: t('heartRateZones.appleImported', {
+          defaultValue: 'Apple Health zones filled in. Save to keep them.',
+        }),
+      });
+    } finally {
+      importingRef.current = false;
+      setImporting(false);
+    }
   };
 
   const reset = () => {
@@ -458,6 +512,39 @@ const HeartRateZonesSettingsScreen: React.FC<
                   'Changes apply to workouts you record or sync from now on. Time in zone already stored for past workouts is not recalculated.',
               })}
             </Text>
+
+            {canImportApple ? (
+              <>
+                <Pressable
+                  testID="heart-rate-zones-apple"
+                  accessibilityRole="button"
+                  disabled={importing || update.isPending}
+                  onPress={() => {
+                    void importApple();
+                  }}
+                  className="py-3 items-center active:opacity-70"
+                >
+                  <Text
+                    className="text-base font-semibold"
+                    style={{ color: accent }}
+                  >
+                    {importing
+                      ? t('heartRateZones.appleReading', {
+                          defaultValue: 'Reading Apple Health…',
+                        })
+                      : t('heartRateZones.appleImport', {
+                          defaultValue: 'Use Apple Health zones',
+                        })}
+                  </Text>
+                </Pressable>
+                <Text className="text-xs text-text-muted mb-2">
+                  {t('heartRateZones.appleHint', {
+                    defaultValue:
+                      'Fills in the zones from Apple Health as custom zones. Your max heart rate stays as it is, and an empty resting heart rate is filled in too. Save to keep them.',
+                  })}
+                </Text>
+              </>
+            ) : null}
 
             <Pressable
               testID="heart-rate-zones-reset"

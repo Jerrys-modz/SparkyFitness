@@ -8145,6 +8145,11 @@
       "mixed": "Zones were worked out with more than one method. Changing your zone settings does not change past workouts.",
       "device": "Zones set by your watch or device"
     },
+    "appleImport": "Use Apple Health zones",
+    "appleReading": "Reading Apple Health…",
+    "appleImported": "Apple Health zones filled in. Save to keep them.",
+    "appleHint": "Fills in the zones from Apple Health as custom zones. Your max heart rate stays as it is, and an empty resting heart rate is filled in too. Save to keep them.",
+    "appleFailed": "Apple Health didn't share five heart rate zones. Check that Health access is allowed, then try again.",
     "errors": {
       "maxRange": "Max heart rate must be between {{min}} and {{max}} bpm.",
       "restingRange": "Resting heart rate must be between {{min}} and {{max}} bpm.",
