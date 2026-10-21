@@ -200,6 +200,60 @@ describe('compare day analysis', () => {
     });
   });
 
+  // 63.6 averaged over 10 values and over 11 rounds to different floats; skipping
+  // every 4th day gives windows of both sizes.
+  const constantWithGaps = () => build((i) => (i % 4 === 0 ? undefined : 63.6));
+
+  test('a constant with gaps never varies on the correlation path', () => {
+    const noise = normal(14);
+    const caffeine = constantWithGaps();
+    const mood = build(() => 60 + 10 * noise());
+
+    expect(
+      analyzeDays({
+        a: { key: 'caffeine', values: caffeine },
+        b: { key: 'mood', values: mood },
+        timing: 1,
+        start: START,
+        end: END,
+      })
+    ).toEqual({
+      status: 'not_enough',
+      n: 45,
+      needed: 14,
+      reason: 'noVariation',
+      checks: { ownNormal: true },
+    });
+    expect(
+      Object.values(deviationsFromOwnNormal(caffeine, WINDOW)).every(
+        (deviation) => deviation === 0
+      )
+    ).toBe(true);
+  });
+
+  test('a constant with gaps never varies on the yes/no path', () => {
+    const meditated: DaySeries = {};
+    WINDOW.forEach((day, i) => {
+      meditated[day] = Math.floor(i / 3) % 2;
+    });
+
+    expect(
+      analyzeDays({
+        a: { key: 'meditated', values: meditated },
+        b: { key: 'caffeine', values: constantWithGaps() },
+        timing: 0,
+        start: START,
+        end: END,
+      })
+    ).toEqual({
+      status: 'not_enough',
+      n: 45,
+      needed: 14,
+      reason: 'noVariation',
+      checks: { ownNormal: true },
+    });
+  });
+
   test('analyzeDays links two series that move together and says positive', () => {
     const noise = normal(3);
     const a = build(() => 60 + 10 * noise());
@@ -284,6 +338,9 @@ describe('compare day analysis', () => {
 
     expect(ask(-1).linked).toBe(true);
     expect(ask(0).linked).toBe(false);
+    // The mirrored pairing for -1 is the second thing the day after: no link there.
+    expect(ask(-1).checks.direction).toBe('firstComesFirst');
+    expect(ask(0).checks.direction).toBeUndefined();
   });
 
   test('a shared slow drift is not a link once compared with the own normal', () => {
@@ -448,6 +505,29 @@ describe('compare day analysis', () => {
     expect(result.checks.direction).toBe('strongerOtherWay');
   });
 
+  test('direction check cannot tell when the mirrored pairing is linked but weaker', () => {
+    const noise = normal(15);
+    const b = build(() => 60 + 10 * noise());
+    // A depends a lot on B the same day and a little on B the day before.
+    const a = build((_, day) => {
+      const before = b[addDays(day, -1)];
+      return before === undefined
+        ? undefined
+        : 2 * b[day] + before + 5 * noise();
+    });
+
+    const result = analyzeDays({
+      a: { key: 'mood', values: a },
+      b: { key: 'sleepScore', values: b },
+      timing: 0,
+      start: START,
+      end: END,
+    });
+
+    expect(result.linked).toBe(true);
+    expect(result.checks.direction).toBe('cantTell');
+  });
+
   test('weekend check flags a link that only weekends explain', () => {
     const noise = normal(11);
     const a = build((_, day) => 50 + (isWeekend(day) ? 10 : 0) + noise());
@@ -463,6 +543,26 @@ describe('compare day analysis', () => {
 
     expect(result.linked).toBe(true);
     expect(result.checks.weekend).toBe('mayBeWeekends');
+  });
+
+  test('weekend check holds when every paired day is a weekday', () => {
+    const noise = normal(1);
+    // Slow waves keep the effective n near its floor, where one degree of freedom matters.
+    const a = build((i, day) =>
+      isWeekend(day) ? undefined : 60 + 10 * Math.sin(i / 4) + noise()
+    );
+    const b = build((i) => 70 + 10 * Math.sin(i / 4 + 0.35) + noise());
+
+    const result = analyzeDays({
+      a: { key: 'mood', values: a },
+      b: { key: 'sleepScore', values: b },
+      timing: 0,
+      start: START,
+      end: END,
+    });
+
+    expect(result.linked).toBe(true);
+    expect(result.checks.weekend).toBe('holds');
   });
 
   test('no checks unless linked', () => {

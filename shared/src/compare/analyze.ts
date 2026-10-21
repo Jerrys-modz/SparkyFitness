@@ -76,7 +76,13 @@ export function deviationsFromOwnNormal(
       const earlier = valueAt(series, addDays(day, -i));
       if (earlier !== undefined) before.push(earlier);
     }
-    if (before.length >= minValues) out[day] = value - mean(before);
+    if (before.length < minValues) continue;
+    // Means of different counts of one value can round apart; that noise is no deviation.
+    const deviation = value - mean(before);
+    out[day] =
+      Math.abs(deviation) <= 1e-9 * Math.max(1, Math.abs(value))
+        ? 0
+        : deviation;
   }
   return out;
 }
@@ -300,9 +306,10 @@ function weekendCheck(
   const x = method === 'spearman' ? ranks(pairs.a) : pairs.a;
   const y = method === 'spearman' ? ranks(pairs.b) : pairs.b;
   const w = pairs.aKeys.map((key) => (isWeekend(key) ? 1 : 0));
-  // null when every paired day is a weekday (or a weekend): nothing to control for.
-  const rxw = pearson(x, w) ?? 0;
-  const ryw = pearson(y, w) ?? 0;
+  const rxw = pearson(x, w);
+  const ryw = pearson(y, w);
+  // null when every paired day is a weekday (or every one a weekend): weekends cannot explain the link.
+  if (rxw === null || ryw === null) return 'holds';
   const scale = Math.sqrt((1 - rxw ** 2) * (1 - ryw ** 2));
   if (scale === 0) return 'mayBeWeekends';
   const partial = Math.max(-1, Math.min(1, (fit.r - rxw * ryw) / scale));
