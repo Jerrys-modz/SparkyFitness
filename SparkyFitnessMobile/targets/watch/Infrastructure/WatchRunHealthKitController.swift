@@ -170,6 +170,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     private static let distanceType = HKQuantityType(.distanceWalkingRunning)
     private static let energyType = HKQuantityType(.activeEnergyBurned)
     private static let heartRateType = HKQuantityType(.heartRate)
+    private static let stepType = HKQuantityType(.stepCount)
 
     /// Asks for what a run needs. `success` only means the prompt finished; a
     /// denied share still lets the recording run as a timer, so callers start
@@ -181,11 +182,12 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         }
         var share: Set<HKSampleType> = [
             HKObjectType.workoutType(), Self.distanceType, Self.energyType, Self.heartRateType,
-            HKSeriesType.workoutRoute(),
+            Self.stepType, HKSeriesType.workoutRoute(),
         ]
         if let effortType = WorkoutEffort.shareType { share.insert(effortType) }
         let read: Set<HKObjectType> = [
             HKObjectType.workoutType(), Self.distanceType, Self.energyType, Self.heartRateType,
+            Self.stepType,
         ]
         healthStore.requestAuthorization(toShare: share, read: read) { _, _ in
             DispatchQueue.main.async { completion() }
@@ -210,10 +212,15 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         do {
             let newSession = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
             let newBuilder = newSession.associatedWorkoutBuilder()
-            newBuilder.dataSource = HKLiveWorkoutDataSource(
+            let dataSource = HKLiveWorkoutDataSource(
                 healthStore: healthStore,
                 workoutConfiguration: configuration
             )
+            // So the finish message can carry a step count. Without it the
+            // phone only sees steps once Apple Health has synced, which is
+            // after the run is already filed.
+            dataSource.enableCollection(for: Self.stepType, predicate: nil)
+            newBuilder.dataSource = dataSource
             newSession.delegate = self
             newBuilder.delegate = self
 
@@ -305,6 +312,9 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         let endingRoute = routeBuilder
         let endedAt = Date()
         let rows = (route: routeRows, heartRate: heartRateRows, laps: lapMarks, lapDistances: lapDistances)
+        // Taken before the pedometer is stopped. The workout statistic, read
+        // after collection ends, replaces it when the builder has one.
+        let pedometerStepsAtEnd = indoorPedometerSteps(elapsed: finalElapsed, endedAt: endedAt)
         // A discarded run is gone at once. A saved one keeps its snapshot
         // until the store has queued the message for the phone, so a kill
         // between here and there still leaves the run to be sent on relaunch.
@@ -341,6 +351,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                     self.heldStart = self.startedAt
                     self.heldEnd = endedAt
                 }
+                let steps = Self.workoutStepCount(endingBuilder) ?? pedometerStepsAtEnd
                 let result = save ? WatchRunResult(
                     clientId: self.clientId,
                     kind: self.runKind,
@@ -355,7 +366,8 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                     lapDistances: rows.lapDistances,
                     distanceSeries: self.distanceSeries,
                     plan: self.plan,
-                    planCompleted: self.planCompleted(at: finalElapsed)
+                    planCompleted: self.planCompleted(at: finalElapsed),
+                    steps: steps
                 ) : nil
                 completion(self.metrics, finalElapsed, result)
             }
@@ -591,6 +603,25 @@ extension WatchRunHealthKitController {
 // MARK: - Auto-pause (indoor)
 
 extension WatchRunHealthKitController {
+    /// Pedometer steps over the moving time. The counter keeps running through
+    /// a pause, so the paused share is taken off. Nil outdoors, or when it
+    /// never reported. The workout statistic is preferred when it has a count.
+    private func indoorPedometerSteps(elapsed: TimeInterval, endedAt: Date) -> Int? {
+        guard runPlace == .indoor, pedometerSteps > 0 else { return nil }
+        let wall = endedAt.timeIntervalSince(startedAt)
+        guard wall > 0, elapsed > 0 else { return pedometerSteps }
+        let share = min(1, elapsed / wall)
+        let steps = Int((Double(pedometerSteps) * share).rounded())
+        return steps > 0 ? steps : nil
+    }
+
+    /// Steps the workout builder collected, pauses already left out.
+    fileprivate static func workoutStepCount(_ builder: HKLiveWorkoutBuilder) -> Int? {
+        guard let quantity = builder.statistics(for: stepType)?.sumQuantity() else { return nil }
+        let steps = Int(quantity.doubleValue(for: .count()).rounded())
+        return steps > 0 ? steps : nil
+    }
+
     /// Counts steps with the pedometer and judges them once a second. The
     /// pedometer keeps reporting while the workout session is paused, which is
     /// what lets a treadmill run resume itself. Without motion permission or a
@@ -767,12 +798,15 @@ extension WatchRunHealthKitController: HKWorkoutSessionDelegate {
             // Whatever was recorded is kept: the session is gone, but the
             // route, readings and figures are still here.
             let elapsed = self.builder?.elapsedTime ?? 0
+            let endedAt = Date()
+            let counted = self.builder.flatMap { Self.workoutStepCount($0) }
+                ?? self.indoorPedometerSteps(elapsed: elapsed, endedAt: endedAt)
             let result = elapsed >= WatchRunSnapshot.minimumKeptSeconds ? WatchRunResult(
                 clientId: self.clientId,
                 kind: self.runKind,
                 place: self.runPlace,
                 startedAt: self.startedAt,
-                endedAt: Date(),
+                endedAt: endedAt,
                 activeSeconds: elapsed,
                 metrics: self.metrics,
                 route: self.routeRows,
@@ -781,7 +815,8 @@ extension WatchRunHealthKitController: HKWorkoutSessionDelegate {
                 lapDistances: self.lapDistances,
                 distanceSeries: self.distanceSeries,
                 plan: self.plan,
-                planCompleted: self.planCompleted(at: elapsed)
+                planCompleted: self.planCompleted(at: elapsed),
+                steps: counted
             ) : nil
             self.session = nil
             self.builder = nil

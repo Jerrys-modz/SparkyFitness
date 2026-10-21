@@ -35,8 +35,9 @@ export interface SavedWatchRun {
 }
 
 /**
- * Best effort and never prompts: a phone that was not carried, or a step
- * source that fails, just leaves cadence and stride off the entry.
+ * Best effort and never prompts: no step count from the watch, a phone that
+ * was not carried, or a step source that fails, just leaves cadence and
+ * stride off the entry.
  */
 async function measureForm(
   payload: WatchRunPayload,
@@ -51,7 +52,8 @@ async function measureForm(
         finishedAt: payload.endedAt,
         activeSeconds: durationSeconds,
       },
-      distanceKm * METERS_PER_KM
+      distanceKm * METERS_PER_KM,
+      payload.steps
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

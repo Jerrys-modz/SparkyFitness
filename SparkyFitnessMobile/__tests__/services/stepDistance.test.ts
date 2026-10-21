@@ -242,6 +242,17 @@ describe('measureOutdoorForm', () => {
 });
 
 describe('measureWatchRunForm', () => {
+  it('uses the step count the watch already sent', async () => {
+    mockedHealthSteps.mockResolvedValue(10);
+    mockedSteps.mockResolvedValue(10);
+
+    expect(
+      await measureWatchRunForm(window({ activity: 'run' }), 4500, 5000)
+    ).toEqual({ avgCadence: 167, strideLengthCm: 90, steps: 5000 });
+    expect(mockedHealthSteps).not.toHaveBeenCalled();
+    expect(mockedSteps).not.toHaveBeenCalled();
+  });
+
   it('prefers the steps Apple Health holds, so the phone can be left behind', async () => {
     mockedHealthSteps.mockResolvedValue(5000);
     mockedSteps.mockResolvedValue(10);

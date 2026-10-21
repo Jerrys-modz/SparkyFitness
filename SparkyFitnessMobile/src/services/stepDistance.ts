@@ -168,32 +168,38 @@ export interface WatchRunForm extends FormMetrics {
 }
 
 /**
- * Cadence and stride length for a run the watch recorded, from the steps the
- * phone counted over the run's window. The phone only counts them if it was
- * carried, so a window with too few steps, or one whose steps do not fit the
+ * Cadence and stride length for a run the watch recorded. The watch's own
+ * step count is used when it sent one (an indoor run files before Apple
+ * Health has those steps). Otherwise Apple Health, then the phone's
+ * pedometer. A window with too few steps, or one whose steps do not fit the
  * distance (a stride no runner has), is ignored rather than trusted. Never
  * raises a permission prompt: filing a run in the background must not ask.
  */
 export async function measureWatchRunForm(
   window: StepWindow,
-  distanceMeters: number
+  distanceMeters: number,
+  knownSteps?: number | null
 ): Promise<WatchRunForm | null> {
-  // A watch run: Apple Health's steps (the watch writes them, so the phone
-  // can be left behind), else whatever the phone's pedometer counted.
-  const health = await getHealthStepsBetween(
-    window.startedAt,
-    window.finishedAt
-  );
+  if (!isStepActivity(window.activity)) return null;
+  // Already the moving-time count. A pause was taken off on the watch.
+  const reported =
+    knownSteps != null && knownSteps > 0 ? Math.round(knownSteps) : null;
+  const health =
+    reported == null
+      ? await getHealthStepsBetween(window.startedAt, window.finishedAt)
+      : null;
   const steps =
-    health != null
-      ? Math.round(
-          health *
-            activeShare(
-              window.activeSeconds,
-              (window.finishedAt - window.startedAt) / 1000
-            )
-        )
-      : await activeSteps(window, false);
+    reported != null
+      ? reported
+      : health != null
+        ? Math.round(
+            health *
+              activeShare(
+                window.activeSeconds,
+                (window.finishedAt - window.startedAt) / 1000
+              )
+          )
+        : await activeSteps(window, false);
   if (steps == null) return null;
   const metrics = computeFormMetrics(
     steps,

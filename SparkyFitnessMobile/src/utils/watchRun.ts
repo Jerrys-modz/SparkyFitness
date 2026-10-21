@@ -42,6 +42,11 @@ export interface WatchRunPayload {
   /** The saved route the wearer followed, when the run followed one. */
   routeId?: string;
   /**
+   * Steps over the moving time, counted on the watch. Absent on a run from an
+   * older watch build, which leaves the phone to ask Apple Health instead.
+   */
+  steps?: number;
+  /**
    * Set by the phone, never the watch: the treadmill figure the wearer entered
    * when a treadmill correction was taken off it to give `distanceMeters`.
    */
@@ -117,6 +122,7 @@ export function parseWatchRunPayload(raw: unknown): WatchRunPayload | null {
     ...(typeof p.routeId === 'string' && p.routeId
       ? { routeId: p.routeId }
       : {}),
+    ...(finite(p.steps) && p.steps > 0 ? { steps: Math.round(p.steps) } : {}),
   };
 }
 

@@ -405,6 +405,10 @@ struct WatchRunResult {
     /// The saved route the wearer was following, so the phone can link the
     /// filed run to it; nil when the run followed none.
     var routeId: String?
+    /// Steps over the moving time. The phone turns these into cadence and
+    /// stride. Nil when the watch could not count them (an older build, or a
+    /// run recovered after the app was killed).
+    var steps: Int? = nil
 
     /// The run with its distance (and the lap marks along it) multiplied by
     /// `factor`.
