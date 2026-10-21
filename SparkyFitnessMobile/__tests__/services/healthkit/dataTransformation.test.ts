@@ -230,6 +230,40 @@ describe('transformHealthRecords', () => {
       expect(sleepResult.bedtime).toBe('2024-01-15T22:00:00Z');
       expect(sleepResult.wake_time).toBe('2024-01-16T06:00:00Z');
       expect(sleepResult.stage_events).toHaveLength(1);
+      expect(sleepResult).not.toHaveProperty('avg_overnight_hrv');
+      expect(sleepResult).not.toHaveProperty('resting_heart_rate');
+    });
+
+    test('carries overnight HRV and resting heart rate onto the session', () => {
+      const records = [
+        {
+          type: 'SleepSession',
+          source: 'HealthKit',
+          timestamp: '2024-01-15T22:00:00Z',
+          entry_date: '2024-01-16',
+          bedtime: '2024-01-15T22:00:00Z',
+          wake_time: '2024-01-16T06:00:00Z',
+          duration_in_seconds: 28800,
+          time_asleep_in_seconds: 27000,
+          deep_sleep_seconds: 0,
+          light_sleep_seconds: 0,
+          rem_sleep_seconds: 0,
+          awake_sleep_seconds: 0,
+          stage_events: [],
+          avg_overnight_hrv: 42,
+          resting_heart_rate: 57,
+        },
+      ];
+      const result = transformHealthRecords(records, {
+        recordType: 'SleepSession',
+        unit: '',
+        type: 'sleep',
+      }) as AggregatedSleepSession[];
+
+      expect(result[0]).toMatchObject({
+        avg_overnight_hrv: 42,
+        resting_heart_rate: 57,
+      });
     });
   });
 
