@@ -264,3 +264,4 @@ export * from './utils/namedFoodPortions.ts';
 export * from './ai/modelFamilies.ts';
 export * from './utils/routeGeometry.ts';
 export * from './utils/routeGpx.ts';
+export * from './compare/stats.ts';
