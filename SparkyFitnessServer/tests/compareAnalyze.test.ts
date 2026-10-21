@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
   addDays,
   analyzeDays,
+  analyzeWeeks,
   COMPARE_METRIC_KEYS,
   COMPARE_METRICS,
   dayOfWeek,
@@ -10,6 +11,7 @@ import {
   pearson,
   type CompareMetricDef,
   type DaySeries,
+  weeklySeries,
 } from '@workspace/shared';
 
 // Seeded generator so the synthetic data is identical on every run.
@@ -583,5 +585,122 @@ describe('compare day analysis', () => {
     expect(result.strength).toBeUndefined();
     expect(result.sign).toBeUndefined();
     expect(result.checks).toEqual({ ownNormal: true });
+  });
+});
+
+describe('compare week analysis', () => {
+  // 2026-03-02 is a Monday; 30 weeks, the first 6 only history for the own normal.
+  const WEEK0 = addDays(START, -42);
+  const weekDays = daysFrom(WEEK0, 30 * 7);
+  const weekEnd = addDays(WEEK0, 30 * 7 - 1);
+  const weekStart = addDays(WEEK0, 42);
+
+  test("weeklySeries sums event minutes per week starting on the user's first day", () => {
+    const daily: DaySeries = {
+      '2026-03-02': 10, // Monday
+      '2026-03-04': 20,
+      '2026-03-08': 5, // Sunday, still the week that started 2026-03-02
+      '2026-03-09': 7, // next Monday
+    };
+    expect(weeklySeries(daily, 'meditationMinutes', 1)).toEqual({
+      '2026-03-02': 35,
+      '2026-03-09': 7,
+    });
+    // Weeks starting on Sunday put that Sunday with the days after it.
+    expect(weeklySeries(daily, 'meditationMinutes', 0)).toEqual({
+      '2026-03-01': 30,
+      '2026-03-08': 12,
+    });
+  });
+
+  test('weeklySeries needs 4 days for a weekly mean', () => {
+    const three: DaySeries = {
+      '2026-03-02': 50,
+      '2026-03-03': 60,
+      '2026-03-05': 70,
+    };
+    expect(weeklySeries(three, 'mood', 1)).toEqual({});
+    expect(weeklySeries({ ...three, '2026-03-07': 80 }, 'mood', 1)).toEqual({
+      '2026-03-02': 65,
+    });
+  });
+
+  test('weeklySeries counts yes days for a binary metric', () => {
+    const daily: DaySeries = {
+      '2026-03-02': 1,
+      '2026-03-03': 0,
+      '2026-03-04': 1,
+      '2026-03-09': 0,
+    };
+    expect(weeklySeries(daily, 'meditated', 1)).toEqual({
+      '2026-03-02': 2,
+      '2026-03-09': 0,
+    });
+  });
+
+  test('analyzeWeeks links weekly meditation to weekly mood across 24 weeks', () => {
+    const effect = normal(11);
+    const noise = normal(12);
+    const byWeek: Record<string, number> = {};
+    for (let w = 0; w < 30; w++) byWeek[addDays(WEEK0, w * 7)] = effect();
+    const week = (day: string) =>
+      byWeek[addDays(day, -((dayOfWeek(day) + 6) % 7))];
+    const minutes: DaySeries = {};
+    const mood: DaySeries = {};
+    for (const day of weekDays) {
+      minutes[day] = 30 + 8 * week(day) + noise();
+      mood[day] = 60 + 6 * week(day) + noise();
+    }
+    const result = analyzeWeeks({
+      a: { key: 'meditationMinutes', values: minutes },
+      b: { key: 'mood', values: mood },
+      timing: 0,
+      start: weekStart,
+      end: weekEnd,
+      firstDayOfWeek: 1,
+    });
+    expect(result.status).toBe('ok');
+    expect(result.needed).toBe(8);
+    expect(result.n).toBe(24);
+    expect(result.method).toBe('pearson');
+    expect(result.linked).toBe(true);
+    expect(result.sign).toBe('positive');
+    expect(result.checks.weekend).toBeUndefined();
+  });
+
+  test('analyzeWeeks is not_enough below 8 paired weeks', () => {
+    const noise = normal(21);
+    const a = build(() => 10 + noise());
+    const b = build(() => 50 + noise());
+    expect(
+      analyzeWeeks({
+        a: { key: 'meditationMinutes', values: a },
+        b: { key: 'mood', values: b },
+        timing: 0,
+        start: addDays(START, 14),
+        end: addDays(START, 40),
+        firstDayOfWeek: 1,
+      })
+    ).toEqual({
+      status: 'not_enough',
+      n: 4,
+      needed: 8,
+      reason: 'tooFew',
+      checks: { ownNormal: true },
+    });
+  });
+
+  test('analyzeWeeks rejects a metric not offered weekly', () => {
+    const series = build(() => 1);
+    expect(() =>
+      analyzeWeeks({
+        a: { key: 'meditationSessions7d', values: series },
+        b: { key: 'mood', values: series },
+        timing: 0,
+        start: START,
+        end: END,
+        firstDayOfWeek: 1,
+      })
+    ).toThrow(RangeError);
   });
 });

@@ -2,6 +2,7 @@
 // shared drift or trend does not read as a link. Pure and dependency-free.
 
 import { addDays, dayOfWeek, daysBetween } from '../utils/timezone.ts';
+import { weekStartOf } from '../utils/trainingConsistency.ts';
 import {
   COMPARE_METRICS,
   type CompareMetricKey,
@@ -57,15 +58,19 @@ export interface CompareResult {
 }
 
 const DAYS_NEEDED = 14;
+const WEEKS_NEEDED = 8;
+const DAYS_PER_WEEK = 7;
+const WEEKLY_MEAN_MIN_DAYS = 4;
 const PER_GROUP_NEEDED = 5;
 const ALPHA = 0.05;
 
-/** Each day's value minus the mean of the `window` days before it; a day with fewer than `minValues` of them drops out. */
+/** Each key's value minus the mean of the `window` keys before it, `stepDays` apart (a week's key is its start, so 7); one with fewer than `minValues` of them drops out. */
 export function deviationsFromOwnNormal(
   series: DaySeries,
   days: readonly string[],
   window = 14,
-  minValues = 7
+  minValues = 7,
+  stepDays = 1
 ): DaySeries {
   const out: DaySeries = {};
   for (const day of days) {
@@ -73,7 +78,7 @@ export function deviationsFromOwnNormal(
     if (value === undefined) continue;
     const before: number[] = [];
     for (let i = 1; i <= window; i++) {
-      const earlier = valueAt(series, addDays(day, -i));
+      const earlier = valueAt(series, addDays(day, -i * stepDays));
       if (earlier !== undefined) before.push(earlier);
     }
     if (before.length < minValues) continue;
@@ -110,6 +115,86 @@ export function analyzeDays(input: {
       return weekday === 0 || weekday === 6;
     },
   });
+}
+
+/**
+ * Pairs A in each week (keyed by its start day) with B in the week `timing` weeks later, both
+ * against their own previous weeks. A yes/no metric becomes its days-per-week count, so weeks
+ * always take the correlation path. Throws RangeError for a metric with no weekly form.
+ */
+export function analyzeWeeks(input: {
+  a: { key: CompareMetricKey; values: DaySeries };
+  b: { key: CompareMetricKey; values: DaySeries };
+  timing: 0 | 1;
+  start: string;
+  end: string;
+  firstDayOfWeek: number;
+}): CompareResult {
+  const first = weekStartOf(input.start, input.firstDayOfWeek);
+  const last = weekStartOf(input.end, input.firstDayOfWeek);
+  const weeks = weekRange(first, last);
+  // B can sit a week either side of A: the timing, and the mirrored pairing.
+  const around = weekRange(
+    addDays(first, -DAYS_PER_WEEK),
+    addDays(last, DAYS_PER_WEEK)
+  );
+  return analyzePairs({
+    keys: weeks,
+    a: weekSide(input.a, weeks, input.firstDayOfWeek),
+    b: weekSide(input.b, around, input.firstDayOfWeek),
+    timing: input.timing,
+    shift: (week, steps) => addDays(week, DAYS_PER_WEEK * steps),
+    needed: WEEKS_NEEDED,
+  });
+}
+
+/** One value per week start from every day given: a sum, a mean over at least 4 days, or the count of yes days. */
+export function weeklySeries(
+  daily: DaySeries,
+  key: CompareMetricKey,
+  firstDayOfWeek: number
+): Record<string, number> {
+  const rule = COMPARE_METRICS[key].weekly;
+  if (rule === null) throw new RangeError('not offered in week mode');
+  const byWeek: Record<string, number[]> = {};
+  for (const day of Object.keys(daily)) {
+    const value = valueAt(daily, day);
+    if (value === undefined) continue;
+    (byWeek[weekStartOf(day, firstDayOfWeek)] ??= []).push(value);
+  }
+  const out: Record<string, number> = {};
+  for (const [week, values] of Object.entries(byWeek)) {
+    if (rule === 'sum') out[week] = values.reduce((total, v) => total + v, 0);
+    else if (rule === 'daysYes')
+      out[week] = values.filter((v) => v === 1).length;
+    else if (values.length >= WEEKLY_MEAN_MIN_DAYS) out[week] = mean(values);
+  }
+  return out;
+}
+
+function weekSide(
+  metric: { key: CompareMetricKey; values: DaySeries },
+  weeks: readonly string[],
+  firstDayOfWeek: number
+): Side {
+  const def = COMPARE_METRICS[metric.key];
+  const raw = weeklySeries(metric.values, metric.key, firstDayOfWeek);
+  return {
+    key: metric.key,
+    // A yes/no metric is a count of days by now.
+    kind: def.kind === 'binary' ? 'continuous' : def.kind,
+    raw,
+    values: deviationsFromOwnNormal(raw, weeks, 6, 3, DAYS_PER_WEEK),
+  };
+}
+
+/** Week starts from first to last inclusive, a week apart. */
+function weekRange(first: string, last: string): string[] {
+  const weeks: string[] = [];
+  const count = Math.floor(daysBetween(first, last) / DAYS_PER_WEEK);
+  for (let i = 0; i <= count; i++)
+    weeks.push(addDays(first, i * DAYS_PER_WEEK));
+  return weeks;
 }
 
 /** A metric ready to pair: deviations from its own normal, or raw 0/1 for a yes/no metric. */
