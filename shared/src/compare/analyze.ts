@@ -59,6 +59,8 @@ export interface CompareResult {
 
 const DAYS_NEEDED = 14;
 const WEEKS_NEEDED = 8;
+const WEEK_NORMAL_WINDOW = 6;
+const WEEK_NORMAL_MIN = 3;
 const DAYS_PER_WEEK = 7;
 const WEEKLY_MEAN_MIN_DAYS = 4;
 const PER_GROUP_NEEDED = 5;
@@ -164,10 +166,21 @@ export function weeklySeries(
   }
   const out: Record<string, number> = {};
   for (const [week, values] of Object.entries(byWeek)) {
-    if (rule === 'sum') out[week] = values.reduce((total, v) => total + v, 0);
-    else if (rule === 'daysYes')
-      out[week] = values.filter((v) => v === 1).length;
-    else if (values.length >= WEEKLY_MEAN_MIN_DAYS) out[week] = mean(values);
+    switch (rule) {
+      case 'sum':
+        out[week] = values.reduce((total, v) => total + v, 0);
+        break;
+      case 'daysYes':
+        out[week] = values.filter((v) => v === 1).length;
+        break;
+      case 'mean':
+        if (values.length >= WEEKLY_MEAN_MIN_DAYS) out[week] = mean(values);
+        break;
+      default: {
+        const unhandled: never = rule;
+        throw new RangeError(`unknown weekly rule ${String(unhandled)}`);
+      }
+    }
   }
   return out;
 }
@@ -184,7 +197,13 @@ function weekSide(
     // A yes/no metric is a count of days by now.
     kind: def.kind === 'binary' ? 'continuous' : def.kind,
     raw,
-    values: deviationsFromOwnNormal(raw, weeks, 6, 3, DAYS_PER_WEEK),
+    values: deviationsFromOwnNormal(
+      raw,
+      weeks,
+      WEEK_NORMAL_WINDOW,
+      WEEK_NORMAL_MIN,
+      DAYS_PER_WEEK
+    ),
   };
 }
 
@@ -197,7 +216,7 @@ function weekRange(first: string, last: string): string[] {
   return weeks;
 }
 
-/** A metric ready to pair: deviations from its own normal, or raw 0/1 for a yes/no metric. */
+/** A metric ready to pair: deviations from its own normal, except in day mode a yes/no metric stays raw 0/1; week sides are always deviations (a yes/no metric as days per week). */
 interface Side {
   key: CompareMetricKey;
   kind: CompareMetricKind;

@@ -591,7 +591,7 @@ describe('compare day analysis', () => {
 describe('compare week analysis', () => {
   // 2026-03-02 is a Monday; 30 weeks, the first 6 only history for the own normal.
   const WEEK0 = addDays(START, -42);
-  const weekDays = daysFrom(WEEK0, 30 * 7);
+  const weekDays = daysFrom(WEEK0, 31 * 7); // one more week for timing 1
   const weekEnd = addDays(WEEK0, 30 * 7 - 1);
   const weekStart = addDays(WEEK0, 42);
 
@@ -642,7 +642,7 @@ describe('compare week analysis', () => {
     const effect = normal(11);
     const noise = normal(12);
     const byWeek: Record<string, number> = {};
-    for (let w = 0; w < 30; w++) byWeek[addDays(WEEK0, w * 7)] = effect();
+    for (let w = 0; w < 31; w++) byWeek[addDays(WEEK0, w * 7)] = effect();
     const week = (day: string) =>
       byWeek[addDays(day, -((dayOfWeek(day) + 6) % 7))];
     const minutes: DaySeries = {};
@@ -701,6 +701,99 @@ describe('compare week analysis', () => {
         end: END,
         firstDayOfWeek: 1,
       })
-    ).toThrow(RangeError);
+    ).toThrow(new RangeError('not offered in week mode'));
+  });
+
+  /** Daily series for 31 weeks from WEEK0 where `f(w, day)` gives the value in week w. */
+  function weekly(f: (w: number, day: string) => number): DaySeries {
+    const out: DaySeries = {};
+    weekDays.forEach((day, i) => {
+      out[day] = f(Math.floor(i / 7), day);
+    });
+    return out;
+  }
+  const span = { start: weekStart, end: weekEnd, firstDayOfWeek: 1 };
+
+  test('analyzeWeeks pairs B with the following week at timing 1', () => {
+    const effect = normal(31);
+    const noise = normal(32);
+    const e = Array.from({ length: 31 }, () => effect());
+    const a = weekly((w) => 30 + 8 * e[w] + noise());
+    // B in week w follows A in week w - 1.
+    const b = weekly((w) => 60 + 6 * e[w - 1 < 0 ? 0 : w - 1] + noise());
+    const run = (timing: 0 | 1) =>
+      analyzeWeeks({
+        a: { key: 'meditationMinutes', values: a },
+        b: { key: 'mood', values: b },
+        timing,
+        ...span,
+      });
+    const lagged = run(1);
+    expect(lagged.n).toBe(24);
+    expect(lagged.linked).toBe(true);
+    expect(run(0).linked).toBe(false);
+  });
+
+  test('analyzeWeeks treats a yes/no metric as days per week', () => {
+    const effect = normal(41);
+    const noise = normal(42);
+    const e = Array.from({ length: 31 }, () => effect());
+    const yesNo = weekly((w, day) =>
+      mulberry32(w * 1000 + dayOfWeek(day) + 7)() <
+      1 / (1 + Math.exp(-2 * e[w]))
+        ? 1
+        : 0
+    );
+    const mood = weekly((w) => 60 + 6 * e[w] + noise());
+    const energy = weekly((w) => Math.round(5 + 2 * e[w] + noise() / 3));
+    const withMood = analyzeWeeks({
+      a: { key: 'meditated', values: yesNo },
+      b: { key: 'mood', values: mood },
+      timing: 0,
+      ...span,
+    });
+    expect(withMood.method).toBe('pearson');
+    expect(withMood.binary).toBeUndefined();
+    const withEnergy = analyzeWeeks({
+      a: { key: 'meditated', values: yesNo },
+      b: { key: 'energy', values: energy },
+      timing: 0,
+      ...span,
+    });
+    expect(withEnergy.method).toBe('spearman');
+    expect(withEnergy.binary).toBeUndefined();
+  });
+
+  test('analyzeWeeks uses whole weeks around a mid-week span', () => {
+    const noise = normal(51);
+    const a = weekly(() => 10 + noise());
+    const b = weekly(() => 50 + noise());
+    // Sunday-first weeks: 2026-03-04 sits in the week of 03-01, 2026-04-14 in the week of 04-12.
+    const result = analyzeWeeks({
+      a: { key: 'meditationMinutes', values: a },
+      b: { key: 'mood', values: b },
+      timing: 0,
+      start: '2026-03-04',
+      end: '2026-04-14',
+      firstDayOfWeek: 0,
+    });
+    expect(result.n).toBe(7);
+  });
+
+  test('analyzeWeeks is not_enough when a side never varies', () => {
+    const noise = normal(61);
+    const result = analyzeWeeks({
+      a: { key: 'meditationMinutes', values: weekly(() => 20) },
+      b: { key: 'mood', values: weekly(() => 50 + noise()) },
+      timing: 0,
+      ...span,
+    });
+    expect(result).toEqual({
+      status: 'not_enough',
+      n: 24,
+      needed: 8,
+      reason: 'noVariation',
+      checks: { ownNormal: true },
+    });
   });
 });
