@@ -324,7 +324,7 @@ describe('effort rated on the watch', () => {
   });
 
   test('is saved on the diary entry of a run that is already filed', async () => {
-    mockedSave.mockResolvedValue('entry-1');
+    mockedSave.mockResolvedValue({ entryId: 'entry-1', form: null });
     await enqueueWatchRun(run('e1'));
     await processWatchRunQueue('km');
 
@@ -335,7 +335,7 @@ describe('effort rated on the watch', () => {
   });
 
   test('waits for a run that is not filed yet, then is saved with it', async () => {
-    mockedSave.mockResolvedValue('entry-2');
+    mockedSave.mockResolvedValue({ entryId: 'entry-2', form: null });
     await enqueueWatchRun(run('e2'));
 
     await receiveWatchRunEffort('e2', 4);
@@ -346,7 +346,7 @@ describe('effort rated on the watch', () => {
   });
 
   test('also rates the program workout the run completed', async () => {
-    mockedSave.mockResolvedValue('entry-3');
+    mockedSave.mockResolvedValue({ entryId: 'entry-3', form: null });
     await enqueueWatchRun(programRun('e3'));
     await processWatchRunQueue('km');
 
@@ -357,7 +357,7 @@ describe('effort rated on the watch', () => {
   });
 
   test('is saved once, not again by later passes', async () => {
-    mockedSave.mockResolvedValue('entry-4');
+    mockedSave.mockResolvedValue({ entryId: 'entry-4', form: null });
     await enqueueWatchRun(run('e4'));
     await processWatchRunQueue('km');
     await receiveWatchRunEffort('e4', 6);
@@ -368,7 +368,7 @@ describe('effort rated on the watch', () => {
   });
 
   test('a failure that may pass keeps the rating for the next pass', async () => {
-    mockedSave.mockResolvedValue('entry-5');
+    mockedSave.mockResolvedValue({ entryId: 'entry-5', form: null });
     await enqueueWatchRun(run('e5'));
     await processWatchRunQueue('km');
     jest
@@ -379,14 +379,14 @@ describe('effort rated on the watch', () => {
     expect(setExerciseEntryEffort).toHaveBeenCalledTimes(1);
 
     await enqueueWatchRun(run('e5b'));
-    mockedSave.mockResolvedValue('entry-5b');
+    mockedSave.mockResolvedValue({ entryId: 'entry-5b', form: null });
     await processWatchRunQueue('km');
     expect(setExerciseEntryEffort).toHaveBeenCalledTimes(2);
     expect(setExerciseEntryEffort).toHaveBeenLastCalledWith('entry-5', 8);
   });
 
   test('a rating the server will never accept is dropped, not retried', async () => {
-    mockedSave.mockResolvedValue('entry-6');
+    mockedSave.mockResolvedValue({ entryId: 'entry-6', form: null });
     await enqueueWatchRun(run('e6'));
     await processWatchRunQueue('km');
     jest
@@ -427,7 +427,7 @@ describe('treadmill correction on a wrist-entered distance', () => {
   it('files and learns from the corrected distance once', async () => {
     useAppPreferencesStore.getState().setTreadmillCorrectionEnabled(true);
     useAppPreferencesStore.getState().setTreadmillCorrectionPercent(4);
-    mockedSave.mockResolvedValue('entry-1');
+    mockedSave.mockResolvedValue({ entryId: 'entry-1', form: null });
     jest.mocked(learnWatchIndoorScale).mockClear();
 
     await enqueueWatchRun(typedOnWrist('t'));
@@ -448,7 +448,7 @@ describe('treadmill correction on a wrist-entered distance', () => {
     useAppPreferencesStore.getState().setTreadmillCorrectionEnabled(true);
     useAppPreferencesStore.getState().setTreadmillCorrectionPercent(4);
     mockedSave.mockRejectedValueOnce(new ApiError('offline', 503));
-    mockedSave.mockResolvedValue('entry-1');
+    mockedSave.mockResolvedValue({ entryId: 'entry-1', form: null });
 
     await enqueueWatchRun(typedOnWrist('r'));
     await processWatchRunQueue('km');
@@ -459,7 +459,7 @@ describe('treadmill correction on a wrist-entered distance', () => {
   });
 
   it('leaves a run alone while the correction is off', async () => {
-    mockedSave.mockResolvedValue('entry-1');
+    mockedSave.mockResolvedValue({ entryId: 'entry-1', form: null });
     await enqueueWatchRun(typedOnWrist('o'));
     await processWatchRunQueue('km');
 
