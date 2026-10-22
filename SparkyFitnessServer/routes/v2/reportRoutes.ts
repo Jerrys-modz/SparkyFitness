@@ -4,8 +4,16 @@ import onBehalfOfMiddleware from '../../middleware/onBehalfOfMiddleware.js';
 import checkPermissionMiddleware from '../../middleware/checkPermissionMiddleware.js';
 import alcoholWeekService from '../../services/alcoholWeekService.js';
 import hydrationNutritionRangeService from '../../services/hydrationNutritionRangeService.js';
+import requireSelfActor from '../../middleware/requireSelfMiddleware.js';
+import compareService from '../../services/compareService.js';
 import exerciseEntryRepository from '../../models/exerciseEntry.js';
-import { isDayString, type WorkoutDaysResponse } from '@workspace/shared';
+import {
+  CompareModeError,
+  compareQuerySchema,
+  isDayString,
+  type CompareResponse,
+  type WorkoutDaysResponse,
+} from '@workspace/shared';
 
 const router = express.Router();
 
@@ -204,5 +212,87 @@ const getWorkoutDaysHandler: RequestHandler = async (req, res, next) => {
 };
 
 router.get('/workout-days', getWorkoutDaysHandler);
+
+/**
+ * @swagger
+ * /v2/reports/compare:
+ *   get:
+ *     summary: Compare any two tracked things
+ *     description: Does A go with B? Pairs the two over the range by day (or by week) and reports how strongly they move together. Only available for your own account.
+ *     tags: [AI & Insights]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: a
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: First metric key.
+ *       - in: query
+ *         name: b
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Second metric key (must differ from a).
+ *       - in: query
+ *         name: mode
+ *         schema:
+ *           type: string
+ *           enum: [day, week]
+ *           default: day
+ *       - in: query
+ *         name: timing
+ *         schema:
+ *           type: integer
+ *           enum: [-1, 0, 1]
+ *           default: 0
+ *         description: Shift B against A by this many days (day mode only).
+ *       - in: query
+ *         name: start
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: end
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *     responses:
+ *       200:
+ *         description: The comparison result, or a not-enough-data answer. `through` (YYYY-MM-DD) is the last day included; today, or the current week in week mode, is left out until it is over.
+ *       400:
+ *         description: Validation error (unknown metric, same metric twice, span over 180 days or 366 in week mode, metric not offered weekly).
+ *       403:
+ *         description: Called on behalf of another account.
+ */
+const getCompareHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const queryResult = compareQuerySchema.safeParse(req.query);
+    if (!queryResult.success) {
+      res.status(400).json({
+        error: 'Validation error',
+        details: queryResult.error.flatten().fieldErrors,
+      });
+      return;
+    }
+    const body: CompareResponse = await compareService.getCompare(
+      req.userId,
+      queryResult.data
+    );
+    res.status(200).json(body);
+  } catch (error: unknown) {
+    // Only a metric asked for in a mode it has no form in is the caller's mistake.
+    if (error instanceof CompareModeError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    next(error);
+  }
+};
+
+router.get('/compare', requireSelfActor, getCompareHandler);
 
 export default router;
