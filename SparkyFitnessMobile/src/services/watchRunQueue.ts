@@ -257,6 +257,9 @@ async function tickOffProgram(
       `[Watch Run] Could not tick off the program workout: ${String(error)}`,
       'WARNING'
     );
+    // Nothing will be ticked off, so there is no program workout to rate and
+    // settlement must not wait for one.
+    await patchEffort(payload.clientId, { expectsProgram: false });
   }
 }
 

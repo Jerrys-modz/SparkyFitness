@@ -394,7 +394,7 @@ describe('effort rated on the watch', () => {
     );
     await enqueueWatchRun(programRun('e9'));
     await processWatchRunQueue('km');
-    expect(hasQueuedWatchRuns()).resolves.toBe(false);
+    await expect(hasQueuedWatchRuns()).resolves.toBe(false);
 
     await receiveWatchRunEffort('e9', 6);
 
@@ -427,5 +427,24 @@ describe('effort rated on the watch', () => {
 
     expect(Object.keys(await stored())).toEqual(['later']);
     now.mockRestore();
+  });
+
+  test('a program tick-off the server refuses leaves nothing waiting on the program', async () => {
+    mockedSave.mockResolvedValue('entry-12');
+    jest
+      .mocked(completeProgramWorkout)
+      .mockRejectedValueOnce(new ApiError('bad index', 400));
+    await enqueueWatchRun(programRun('e12'));
+    await processWatchRunQueue('km');
+
+    await receiveWatchRunEffort('e12', 5);
+
+    expect(setExerciseEntryEffort).toHaveBeenCalledWith('entry-12', 5);
+    expect(rateProgramWorkout).not.toHaveBeenCalled();
+    expect(
+      JSON.parse(
+        (await AsyncStorage.getItem('@SparkyFitness/watchRunEffort')) ?? '{}'
+      )
+    ).toEqual({});
   });
 });
