@@ -8,6 +8,7 @@ import { getAppLocale } from '../../localization';
 import { formatShortDate, getTodayDate } from '../../utils/dateUtils';
 import {
   COMPARE_SPANS,
+  MAX_CUSTOM_DAYS,
   type CompareMode,
   type CompareSpan,
 } from '../../utils/compareQuestion';
@@ -22,7 +23,6 @@ interface CompareSpanControlProps {
 }
 
 /** Week mode may look further back than day mode; compareWindow applies the same caps. */
-const MAX_CUSTOM_DAYS: Record<CompareMode, number> = { day: 180, week: 366 };
 
 const CompareSpanControl: React.FC<CompareSpanControlProps> = ({
   mode,

@@ -53,7 +53,11 @@ const SPAN_DAYS: Record<Exclude<CompareSpan, 'custom'>, number> = {
   '1y': 364,
 };
 
-const MAX_CUSTOM_DAYS: Record<CompareMode, number> = { day: 180, week: 366 };
+/** The longest custom span per mode; the server rejects anything longer. */
+export const MAX_CUSTOM_DAYS: Record<CompareMode, number> = {
+  day: 180,
+  week: 366,
+};
 
 /** The server leaves today out itself, so the window simply ends today. */
 export function compareWindow(
