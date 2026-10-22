@@ -3,10 +3,17 @@ import https from 'node:https';
 import type net from 'node:net';
 import axios, { isAxiosError } from 'axios';
 import { z } from 'zod';
-import type { RoutePoint } from '@workspace/shared';
+import {
+  ROUTE_GENERATE_MAX_WAYPOINTS,
+  type RoutePoint,
+} from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import pkg from '../../package.json' with { type: 'json' };
-import { mapValhallaLegs, type ValhallaLeg } from './valhallaManeuvers.js';
+import {
+  MAX_ROUTE_MANEUVERS,
+  mapValhallaLegs,
+  type ValhallaLeg,
+} from './valhallaManeuvers.js';
 import {
   RoutingProviderError,
   type RoutingActivity,
@@ -44,24 +51,38 @@ const COSTING: Record<RoutingActivity, 'pedestrian' | 'bicycle'> = {
 /** Valhalla error codes that mean "no route here" rather than "bad request". */
 const NO_ROUTE_ERROR_CODES = new Set([171, 442, 443, 444]);
 
+/**
+ * What one engine answer may cost. A polyline spends at least two characters
+ * on a point, so an unbounded string can expand into tens of millions of
+ * point objects on the server's only thread. These sit well above what the
+ * generate endpoint itself asks for: a leg per waypoint plus the start and
+ * the return, a point every few metres over 100 km, and a cue per turn.
+ */
+const MAX_ROUTE_LEGS = ROUTE_GENERATE_MAX_WAYPOINTS + 2;
+const MAX_LEG_SHAPE_CHARS = 400_000;
+const MAX_ROUTE_RESPONSE_BYTES = 8 * 1024 * 1024;
+
 const routeResponseSchema = z.object({
   trip: z.object({
     summary: z.object({ length: z.number() }),
     legs: z
       .array(
         z.object({
-          shape: z.string(),
-          maneuvers: z.array(
-            z.object({
-              type: z.number(),
-              instruction: z.string().optional(),
-              length: z.number().optional(),
-              begin_shape_index: z.number().optional(),
-            })
-          ),
+          shape: z.string().max(MAX_LEG_SHAPE_CHARS),
+          maneuvers: z
+            .array(
+              z.object({
+                type: z.number(),
+                instruction: z.string().optional(),
+                length: z.number().optional(),
+                begin_shape_index: z.number().optional(),
+              })
+            )
+            .max(MAX_ROUTE_MANEUVERS),
         })
       )
-      .min(1),
+      .min(1)
+      .max(MAX_ROUTE_LEGS),
   }),
 });
 
@@ -124,7 +145,7 @@ export function createValhallaProvider(
     // The key travels as `api_key`, the convention of hosted Valhalla
     // services; self-hosted engines ignore it.
     params: options.apiKey ? { api_key: options.apiKey } : undefined,
-    maxContentLength: 50 * 1024 * 1024,
+    maxContentLength: MAX_ROUTE_RESPONSE_BYTES,
     maxRedirects: 0,
   };
 

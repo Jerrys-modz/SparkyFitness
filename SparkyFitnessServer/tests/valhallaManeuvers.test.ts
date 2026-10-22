@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MAX_ROUTE_MANEUVERS,
+  MAX_ROUTE_POINTS,
   decodePolyline,
   mapValhallaLegs,
   maneuverTypeToCueKind,
@@ -160,5 +162,62 @@ describe('mapValhallaLegs', () => {
       ['arrive', 4],
     ]);
     expect(cues[1].distanceM).toBe(400);
+  });
+});
+
+describe('hostile engine answers', () => {
+  // '??' is the pair (0, 0) deltas: two characters per point, so a few
+  // megabytes of text would decode to millions of point objects.
+  const bomb = (points: number) => '??'.repeat(points);
+
+  it('refuses a polyline that decodes to more points than allowed, quickly', () => {
+    const started = performance.now();
+    expect(() => decodePolyline(bomb(3_000_000))).toThrow(RangeError);
+    // A few milliseconds when measured; the bound is generous for CI.
+    expect(performance.now() - started).toBeLessThan(5_000);
+  });
+
+  it('accepts a polyline at the limit', () => {
+    expect(decodePolyline(bomb(MAX_ROUTE_POINTS))).toHaveLength(
+      MAX_ROUTE_POINTS
+    );
+  });
+
+  it('refuses an endless run of continuation bytes', () => {
+    expect(() => decodePolyline('_'.repeat(5_000_000))).toThrow(RangeError);
+  });
+
+  it('counts points across legs, not per leg', () => {
+    const leg = {
+      shape: bomb(MAX_ROUTE_POINTS / 2 + 10),
+      maneuvers: [{ type: 1, begin_shape_index: 0 }],
+    };
+    expect(() => mapValhallaLegs([leg, leg, leg])).toThrow(RangeError);
+  });
+
+  it('joins many large legs without spreading them into one call', () => {
+    // Spreading 100,000 points into push() overflows the argument limit on
+    // some engines; a loop does not.
+    const leg = { shape: bomb(MAX_ROUTE_POINTS), maneuvers: [] };
+    expect(mapValhallaLegs([leg]).points).toHaveLength(MAX_ROUTE_POINTS);
+  });
+
+  it('refuses more maneuvers than allowed', () => {
+    const maneuvers = Array.from({ length: MAX_ROUTE_MANEUVERS + 1 }, () => ({
+      type: 8,
+      length: 0.001,
+      begin_shape_index: 0,
+    }));
+    expect(() =>
+      mapValhallaLegs([
+        {
+          shape: encode([
+            [1, 1],
+            [1.001, 1],
+          ]),
+          maneuvers,
+        },
+      ])
+    ).toThrow(RangeError);
   });
 });

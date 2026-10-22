@@ -56,8 +56,26 @@ export function maneuverTypeToCueKind(type: number): RouteCueKind | null {
   return type in CUE_KIND_BY_TYPE ? CUE_KIND_BY_TYPE[type] : 'straight';
 }
 
-/** Decodes an encoded polyline (Valhalla uses precision 6). */
-export function decodePolyline(encoded: string, precision = 6): RoutePoint[] {
+/**
+ * The most points one engine answer may decode to. A polyline spends at least
+ * two characters on a point, so a short string can otherwise expand into tens
+ * of millions of point objects; a route of 100 km at one point every few
+ * metres stays far under this.
+ */
+export const MAX_ROUTE_POINTS = 100_000;
+/** The most maneuvers one engine answer may carry across all its legs. */
+export const MAX_ROUTE_MANEUVERS = 10_000;
+
+/**
+ * Decodes an encoded polyline (Valhalla uses precision 6). Throws a
+ * `RangeError` for a truncated or malformed string, or one with more than
+ * `maxPoints` points.
+ */
+export function decodePolyline(
+  encoded: string,
+  precision = 6,
+  maxPoints = MAX_ROUTE_POINTS
+): RoutePoint[] {
   const factor = 10 ** precision;
   const points: RoutePoint[] = [];
   let index = 0;
@@ -75,11 +93,15 @@ export function decodePolyline(encoded: string, precision = 6): RoutePoint[] {
       byte = encoded.charCodeAt(index++) - 63;
       result |= (byte & 0x1f) << shift;
       shift += 5;
+      if (shift > 35) throw new RangeError('Malformed polyline');
     } while (byte >= 0x20);
     return result & 1 ? ~(result >> 1) : result >> 1;
   };
 
   while (index < encoded.length) {
+    if (points.length >= maxPoints) {
+      throw new RangeError('Route has too many points');
+    }
     lat += readValue();
     lon += readValue();
     points.push({ lat: lat / factor, lon: lon / factor });
@@ -106,10 +128,24 @@ export function mapValhallaLegs(legs: readonly ValhallaLeg[]): MappedRoute {
   const cues: RouteCue[] = [];
   let travelledM = 0;
 
+  let maneuverCount = 0;
+
   legs.forEach((leg, legIndex) => {
-    const shape = decodePolyline(leg.shape);
+    // Each leg is decoded against what is left of the total, so a long answer
+    // is refused before it is held, not after.
+    const shape = decodePolyline(
+      leg.shape,
+      6,
+      MAX_ROUTE_POINTS - Math.max(0, points.length - 1)
+    );
     const offset = legIndex === 0 ? 0 : points.length - 1;
-    points.push(...(legIndex === 0 ? shape : shape.slice(1)));
+    for (const point of legIndex === 0 ? shape : shape.slice(1)) {
+      points.push(point);
+    }
+    maneuverCount += leg.maneuvers.length;
+    if (maneuverCount > MAX_ROUTE_MANEUVERS) {
+      throw new RangeError('Route has too many maneuvers');
+    }
 
     for (const maneuver of leg.maneuvers) {
       const kind = maneuverTypeToCueKind(maneuver.type);

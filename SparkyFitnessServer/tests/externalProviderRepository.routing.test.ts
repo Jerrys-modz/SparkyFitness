@@ -35,6 +35,11 @@ describe('getActiveProviderWithKeyByType', () => {
     const [sql, params] = query.mock.calls[0];
     expect(params).toEqual(['user-1', 'valhalla']);
     expect(sql).toContain('(edp.user_id = $1) DESC');
+    // Then public before family-shared: sort_order is per owner, so it cannot
+    // decide between tiers.
+    expect(sql).toMatch(
+      /\(edp\.user_id = \$1\) DESC, edp\.is_public DESC, edp\.sort_order/
+    );
     expect(sql).toContain('edp.is_active = TRUE');
     // Public and family-shared rows follow the same visibility as the list.
     expect(sql).toContain('edp.is_public = TRUE');

@@ -851,7 +851,9 @@ export interface RoutingProviderRow {
 // The active provider of one type the user may use, with its decrypted key:
 // their own first, then an admin's public one, then a family member's shared
 // one (same visibility as getExternalDataProviders), ties broken by the
-// manual sort order. Backs routing resolution, which needs the key server-side.
+// manual sort order. `sort_order` is set separately in each owner's list, so
+// it only compares rows of the same tier and never ranks one owner's row
+// against another's. Backs routing resolution, which needs the key server-side.
 async function getActiveProviderWithKeyByType(
   userId: string,
   providerType: string
@@ -871,7 +873,7 @@ async function getActiveProviderWithKeyByType(
        AND edp.is_active = TRUE
        AND edp.provider_type = $2
        AND edp.base_url IS NOT NULL AND edp.base_url <> ''
-       ORDER BY (edp.user_id = $1) DESC, edp.sort_order ASC NULLS LAST, edp.created_at DESC
+       ORDER BY (edp.user_id = $1) DESC, edp.is_public DESC, edp.sort_order ASC NULLS LAST, edp.created_at DESC
        LIMIT 1`,
       [userId, providerType]
     );

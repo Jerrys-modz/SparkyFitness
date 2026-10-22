@@ -268,6 +268,33 @@ describe('Valhalla provider over HTTP (axios mocked)', () => {
     expect(String(failure.message)).not.toContain('super-secret-key');
   });
 
+  it('refuses an answer with an oversized shape or too many legs', async () => {
+    const leg = (shape: string) => ({
+      shape,
+      maneuvers: [{ type: 1, length: 1.11, begin_shape_index: 0 }],
+    });
+    const answer = (legs: unknown[]) => ({
+      data: { trip: { summary: { length: 1 }, legs } },
+    });
+    post.mockResolvedValue(answer([leg('?'.repeat(400_001))]));
+    await expect(engine().route(req)).rejects.toMatchObject({
+      kind: 'bad_response',
+    });
+    post.mockResolvedValue(
+      answer(Array.from({ length: 23 }, () => leg('_c`|@_gayB')))
+    );
+    await expect(engine().route(req)).rejects.toMatchObject({
+      kind: 'bad_response',
+    });
+    // Within the limits but decoding to too many points once joined.
+    post.mockResolvedValue(
+      answer(Array.from({ length: 22 }, () => leg('??'.repeat(200_000))))
+    );
+    await expect(engine().route(req)).rejects.toMatchObject({
+      kind: 'bad_response',
+    });
+  });
+
   it('rejects an unreadable response', async () => {
     post.mockResolvedValue({ data: { nope: true } });
     await expect(engine().route(req)).rejects.toMatchObject({
