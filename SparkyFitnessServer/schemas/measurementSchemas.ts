@@ -190,6 +190,25 @@ export const UpdateCheckInBodySchema = z
 
 export type UpdateCheckInBody = z.infer<typeof UpdateCheckInBodySchema>;
 
+/**
+ * A reference range whose low bound is above its high bound is a client error;
+ * the database check would otherwise reject it as a 500.
+ */
+const refRangeOrdered = (body: {
+  ref_range_low?: number | null;
+  ref_range_high?: number | null;
+}): boolean =>
+  body.ref_range_low === undefined ||
+  body.ref_range_low === null ||
+  body.ref_range_high === undefined ||
+  body.ref_range_high === null ||
+  body.ref_range_low <= body.ref_range_high;
+
+const refRangeOrderedIssue = {
+  message: 'ref_range_low must not exceed ref_range_high',
+  path: ['ref_range_low'],
+};
+
 export const CreateCustomCategoryBodySchema = z
   .object({
     name: requiredLegacyString('name'),
@@ -197,8 +216,12 @@ export const CreateCustomCategoryBodySchema = z
     frequency: requiredLegacyString('frequency'),
     measurement_type: requiredLegacyString('measurement_type'),
     data_type: nullableOptionalLegacyString,
+    is_lab: z.boolean().optional(),
+    ref_range_low: z.number().nullable().optional(),
+    ref_range_high: z.number().nullable().optional(),
   })
-  .loose();
+  .loose()
+  .refine(refRangeOrdered, refRangeOrderedIssue);
 
 export type CreateCustomCategoryBody = z.infer<
   typeof CreateCustomCategoryBodySchema
@@ -211,8 +234,12 @@ export const UpdateCustomCategoryBodySchema = z
     frequency: optionalLegacyString,
     measurement_type: optionalLegacyString,
     data_type: nullableOptionalLegacyString,
+    is_lab: z.boolean().optional(),
+    ref_range_low: z.number().nullable().optional(),
+    ref_range_high: z.number().nullable().optional(),
   })
-  .loose();
+  .loose()
+  .refine(refRangeOrdered, refRangeOrderedIssue);
 
 export type UpdateCustomCategoryBody = z.infer<
   typeof UpdateCustomCategoryBodySchema
