@@ -66,7 +66,7 @@ The routing endpoint allows 10 requests per person per 10 minutes. The editor se
 
 ### Saving over a route
 
-Saving an edited route replaces its line with `PATCH /api/v2/routes/:id`; its name, activity, source and creation date are kept, and the distance and climb are recomputed from the new line.
+Saving an edited route replaces its line with `PATCH /api/v2/routes/:id`; its name, activity, source, the exercise entry it was created from and creation date are kept, and the distance and climb are recomputed from the new line.
 
 ## Running Valhalla locally
 
