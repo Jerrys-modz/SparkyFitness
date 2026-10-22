@@ -19,7 +19,11 @@ import type {
   ExercisePersonalRecordItem,
   MatchedCourseGroup,
 } from '@workspace/shared';
-import { bodyWeightJoinSql, setLoadSql } from '../utils/exerciseLoadSql.js';
+import {
+  bodyWeightJoinSql,
+  cardioPredicateSql,
+  setLoadSql,
+} from '../utils/exerciseLoadSql.js';
 
 interface SqlRow {
   [key: string]: unknown;
@@ -505,23 +509,8 @@ async function queryExerciseActivities(
       params.push(minKm);
       whereClauses.push(`distance >= $${params.length}`);
     } else if (!request.category) {
-      // Word boundaries, not substrings: "crunch" contains "run" and was
-      // showing up as cardio. Strength is out even when an old row was
-      // stored with category Cardio, or when a gym session has a little
-      // distance from walking between sets. Past those exclusions, any
-      // positive distance counts: a synced paddle can reuse a "General"
-      // reps-only custom exercise and still carry a route.
-      whereClauses.push(`(
-        COALESCE(modality, '') NOT IN ('weight_reps', 'weight_duration', 'weight_distance')
-        AND LOWER(COALESCE(category, '')) NOT IN ('strength', 'powerlifting', 'olympic weightlifting', 'strongman')
-        AND LOWER(exercise_name) !~* '\\m(strength|crunch|sit-?up|plank)\\M'
-        AND (
-          COALESCE(modality, '') IN ('duration', 'duration_distance')
-          OR LOWER(COALESCE(category, '')) IN ('cardio', 'running', 'cycling', 'walking', 'swimming', 'endurance', 'garmin')
-          OR LOWER(exercise_name) ~* '\\m(run(ning|s)?|walk(ing|s)?|cycl(e|ing)|bike|biking|swim(ming)?|hik(e|ing)|treadmill|elliptical|rower|rowing|cardio|stairs?)\\M'
-          OR COALESCE(distance, 0) > 0
-        )
-      )`);
+      // See cardioPredicateSql for what counts as cardio.
+      whereClauses.push(cardioPredicateSql());
     }
     if (maxKm !== undefined) {
       params.push(maxKm);

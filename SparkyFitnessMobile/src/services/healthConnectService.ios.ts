@@ -29,6 +29,14 @@ try {
 
 export const initHealthConnect = HealthKit.initHealthConnect;
 export const requestHealthPermissions = HealthKit.requestHealthPermissions;
+// HealthKit never reveals which read permissions were granted, so a request
+// either covers everything asked for or nothing.
+export const requestGrantedHealthPermissions = async (
+  permissionsToRequest: PermissionRequest[]
+): Promise<PermissionRequest[]> =>
+  (await HealthKit.requestHealthPermissions(permissionsToRequest))
+    ? permissionsToRequest
+    : [];
 // HealthKit grants unlimited history with the normal read authorization — there is
 // no separate history permission to request (Android Health Connect counterpart).
 export const ensureHistoryReadPermission = async (): Promise<boolean> => true;
