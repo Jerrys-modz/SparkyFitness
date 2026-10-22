@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import RouteMap from '../components/exerciseStats/RouteMap';
+import RouteCueList from '../components/RouteCueList';
 import Button from '../components/ui/Button';
 import { usePreferences } from '../hooks/usePreferences';
 import { useScreenHeader } from '../hooks/useScreenHeader';
@@ -166,6 +167,7 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
                   : ''}
               </Text>
             </View>
+            <RouteCueList cues={route.cues} unit={unit} />
             <View className="mt-4 gap-2">
               {name === null ? (
                 <Button variant="secondary" onPress={() => setName(route.name)}>

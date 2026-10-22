@@ -178,6 +178,20 @@ describe.runIf(RUN)('routeRepository against Postgres', () => {
     expect((await getRoute(ALICE, mine.id))?.name).toBe('Loop');
   });
 
+  it('stores a generated route and reads it back with its cues', async () => {
+    const created = await createRoute(ALICE, {
+      ...draft,
+      source: 'generated',
+      cues: [
+        { index: 0, kind: 'depart' },
+        { index: 29, kind: 'arrive' },
+      ],
+    });
+    expect(created.source).toBe('generated');
+    expect(routeSchema.parse(created)).toEqual(created);
+    expect(created.cues.map((cue) => cue.kind)).toEqual(['depart', 'arrive']);
+  });
+
   it('renames, changes the activity and deletes', async () => {
     const created = await createRoute(ALICE, { ...draft, source: 'drawn' });
     const renamed = await updateRoute(ALICE, created.id, {
