@@ -199,7 +199,6 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       undefined,
       undefined,
       undefined,
-      undefined,
       101.5,
     ]);
     expect(calls[1][7]).toBeNull();
