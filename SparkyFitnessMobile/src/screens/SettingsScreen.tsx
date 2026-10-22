@@ -272,6 +272,16 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
               {isConnected && (
                 <SettingsRow
                   icon="calorie-settings"
+                  title={t('settings.rows.coaching', {
+                    defaultValue: 'Weekly Coaching',
+                  })}
+                  onPress={() => navigation.navigate('Coaching')}
+                  iconColor={catCalories}
+                />
+              )}
+              {isConnected && (
+                <SettingsRow
+                  icon="calorie-settings"
                   title={t('settings.rows.calories', {
                     defaultValue: 'Calories & BMR',
                   })}

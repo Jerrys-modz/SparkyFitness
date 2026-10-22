@@ -1,6 +1,11 @@
 import { apiCall } from '@/api/api';
 import { DEFAULT_GOALS, PREDEFINED_GOAL_KEYS } from '@/constants/goals';
 import type { ExpandedGoals, GoalPreset, WeeklyGoalPlan } from '@/types/goals';
+import type {
+  CoachingSettings,
+  CoachingTargets,
+  UpdateCoachingSettingsBody,
+} from '@workspace/shared';
 
 function flattenCustomNutrients<
   T extends { custom_nutrients?: Record<string, number> },
@@ -171,3 +176,16 @@ export const saveGoals = async (
     },
   });
 };
+
+export const saveCoachingSettings = async (
+  body: UpdateCoachingSettingsBody
+): Promise<CoachingSettings> =>
+  apiCall('/goals/coaching-settings', { method: 'PUT', body });
+
+export const acceptCoachingCheckIn = async (
+  calories: number
+): Promise<CoachingTargets> =>
+  apiCall('/goals/coaching-checkin/accept', {
+    method: 'POST',
+    body: { calories },
+  });

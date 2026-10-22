@@ -125,6 +125,7 @@ import {
   SafePasskeySettings,
   SafeAppSettings,
   SafeNotificationSettings,
+  SafeCoaching,
   SafeAbout,
   SafeWhatsNew,
   SafeOfflineQueue,
@@ -1167,6 +1168,11 @@ function AppContent() {
             name="NotificationSettings"
             component={SafeNotificationSettings}
             options={createStackScreenOptions(t('notifications.title', { defaultValue: 'Notifications' }), { headerBackTitle: t('settings.app', { defaultValue: 'App Settings' }) })}
+          />
+          <Stack.Screen
+            name="Coaching"
+            component={SafeCoaching}
+            options={createStackScreenOptions(t('coaching.title', { defaultValue: 'Weekly Coaching' }), { headerBackTitle: t('navigation.dashboard', { defaultValue: 'Dashboard' }) })}
           />
           <Stack.Screen
             name="About"

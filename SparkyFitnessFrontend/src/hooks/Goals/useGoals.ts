@@ -2,7 +2,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { goalKeys } from '@/api/keys/goals';
 
-import { loadGoals, saveGoals } from '@/api/Goals/goals';
+import {
+  acceptCoachingCheckIn,
+  loadGoals,
+  saveCoachingSettings,
+  saveGoals,
+} from '@/api/Goals/goals';
+import { reportKeys } from '@/api/keys/reports';
+import { useDailyProgressInvalidation } from '@/hooks/useInvalidateKeys';
+import type { UpdateCoachingSettingsBody } from '@workspace/shared';
 import {
   createGoalPreset,
   deleteGoalPreset,
@@ -252,6 +260,47 @@ export const useDeleteWeeklyPlanMutation = () => {
         'goals.goalsSettings.errorDeletingWeeklyPlan',
         'Failed to delete weekly plan.'
       ),
+    },
+  });
+};
+
+export const useSaveCoachingSettingsMutation = () => {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: (body: UpdateCoachingSettingsBody) =>
+      saveCoachingSettings(body),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: reportKeys.all }),
+    meta: {
+      errorMessage: t(
+        'coaching.settingsFailed',
+        'Could not save your coaching goal.'
+      ),
+    },
+  });
+};
+
+/** Accepting rewrites the goal timeline, so every cache that shows a goal is refreshed. */
+export const useAcceptCoachingCheckInMutation = () => {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  const invalidateDailyProgress = useDailyProgressInvalidation();
+
+  return useMutation({
+    mutationFn: (calories: number) => acceptCoachingCheckIn(calories),
+    onSuccess: () => {
+      invalidateDailyProgress();
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: goalKeys.all }),
+        queryClient.invalidateQueries({ queryKey: reportKeys.all }),
+      ]);
+    },
+    // A refused accept means the check-in moved on; show the new one.
+    onError: () => queryClient.invalidateQueries({ queryKey: reportKeys.all }),
+    meta: {
+      successMessage: t('coaching.accepted', 'Targets updated from today.'),
     },
   });
 };

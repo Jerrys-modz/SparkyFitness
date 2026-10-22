@@ -4,6 +4,7 @@ import { checkInKeys } from '@/api/keys/checkin';
 import { reportKeys } from '@/api/keys/reports';
 import {
   getExerciseDashboardData,
+  getCoachingCheckIn,
   getTrainingConsistency,
   getFitnessFatigue,
   getRunEstimates,
@@ -182,6 +183,18 @@ export const useRunEstimates = (userId?: string | null) => {
         'runEstimates.loadFailed',
         'Failed to load running estimates.'
       ),
+    },
+  });
+};
+
+export const useCoachingCheckIn = (userId?: string | null) => {
+  const { t } = useTranslation();
+  return useQuery({
+    queryKey: reportKeys.coachingCheckIn(userId ?? undefined),
+    queryFn: () => getCoachingCheckIn(userId ?? undefined),
+    enabled: !!userId,
+    meta: {
+      errorMessage: t('coaching.loadFailed', 'Could not load your check-in.'),
     },
   });
 };

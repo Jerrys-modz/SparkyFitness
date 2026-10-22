@@ -77,6 +77,7 @@ import ServerSettingsScreen from '../screens/ServerSettingsScreen';
 import PasskeySettingsScreen from '../screens/PasskeySettingsScreen';
 import AppSettingsScreen from '../screens/AppSettingsScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
+import CoachingScreen from '../screens/CoachingScreen';
 import AboutScreen from '../screens/AboutScreen';
 import WhatsNewScreen from '../screens/WhatsNewScreen';
 import OfflineQueueScreen from '../screens/OfflineQueueScreen';
@@ -227,6 +228,7 @@ export const SafeServerSettings = withErrorBoundary(ServerSettingsScreen, 'Serve
 export const SafePasskeySettings = withErrorBoundary(PasskeySettingsScreen, 'PasskeySettings', { canGoBack: true });
 export const SafeAppSettings = withErrorBoundary(AppSettingsScreen, 'AppSettings', { canGoBack: true });
 export const SafeNotificationSettings = withErrorBoundary(NotificationSettingsScreen, 'NotificationSettings', { canGoBack: true });
+export const SafeCoaching = withErrorBoundary(CoachingScreen, 'Coaching', { canGoBack: true });
 export const SafeAbout = withErrorBoundary(AboutScreen, 'About', { canGoBack: true });
 export const SafeWhatsNew = withErrorBoundary(WhatsNewScreen, 'WhatsNew', { canGoBack: true });
 export const SafeOfflineQueue = withErrorBoundary(OfflineQueueScreen, 'OfflineQueue', { canGoBack: true });
