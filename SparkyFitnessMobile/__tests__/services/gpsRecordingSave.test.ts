@@ -148,7 +148,7 @@ describe('saveRecordedActivity', () => {
     expect(entry).not.toHaveProperty('calories_burned');
     expect(entry.sets?.[0]).toMatchObject({ duration: 1500 });
 
-    expect(markRecordingSaved).toHaveBeenCalledWith('entry-1');
+    expect(markRecordingSaved).toHaveBeenCalledWith('entry-1', null);
     const [entryId, track] = mockedAttach.mock.calls[0];
     expect(entryId).toBe('entry-1');
     expect(track.points).toHaveLength(11);
@@ -186,13 +186,25 @@ describe('saveRecordedActivity', () => {
     expect(mockedAttach.mock.calls[0][0]).toBe('entry-9');
   });
 
+  it('returns the form saved with the first attempt when retrying', async () => {
+    const savedForm = { avgCadence: 160, strideLengthCm: 105 };
+    const saved = await saveRecordedActivity(
+      { ...session, savedEntryId: 'entry-9', savedForm },
+      points,
+      'km'
+    );
+
+    expect(saved.form).toEqual(savedForm);
+    expect(mockedCreateEntry).not.toHaveBeenCalled();
+  });
+
   it('keeps the entry id for a retry when the track upload fails', async () => {
     mockedAttach.mockRejectedValueOnce(new Error('offline'));
 
     await expect(saveRecordedActivity(session, points, 'km')).rejects.toThrow(
       'offline'
     );
-    expect(markRecordingSaved).toHaveBeenCalledWith('entry-1');
+    expect(markRecordingSaved).toHaveBeenCalledWith('entry-1', null);
   });
 
   it('attaches watch heart rate to the saved entry', async () => {
