@@ -8,6 +8,7 @@ import {
   weeklyTotals,
   loadSportGroup,
   sessionLoad,
+  percentMaxFloors,
   addDays,
   dayOfWeek,
   type CalendarEntry,
@@ -188,7 +189,7 @@ describe('matchPlan extra work and load', () => {
     const { completed } = matchPlan([], [withHr, without], TODAY, 190);
     const byId = Object.fromEntries(completed.map((c) => [c.id, c]));
     expect(byId.hr).toMatchObject({
-      load: Math.round(sessionLoad(withHr, 190)),
+      load: Math.round(sessionLoad(withHr, percentMaxFloors(190))),
       loadBasis: 'heartRate',
     });
     expect(byId.no).toMatchObject({ load: 80, loadBasis: 'estimated' });

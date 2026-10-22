@@ -24,7 +24,7 @@ router.use(requireSelfActor);
  *     tags: [Exercise]
  *     responses:
  *       200:
- *         description: `{ goals, progress }`; `goals` is null until one is set.
+ *         description: 'A { goals, progress } object; goals is null until one is set.'
  *   put:
  *     summary: Set or clear running goals
  *     description: Only fields present are changed; null clears one. A race name or distance needs a race day.

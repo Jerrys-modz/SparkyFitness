@@ -10,6 +10,11 @@ vi.mock('../models/reportRepository.js', () => ({
     getReadinessVitals: vi.fn(),
   },
 }));
+vi.mock('../services/heartRateZoneService.js', () => ({
+  default: {
+    resolveZonesForUser: vi.fn().mockResolvedValue({ maxHr: 190 }),
+  },
+}));
 vi.mock('../models/userRepository.js', () => ({
   default: { getUserProfile: vi.fn() },
 }));
