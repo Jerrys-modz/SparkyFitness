@@ -77,6 +77,10 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     var runId: String { clientId }
     private var startedAt = Date()
     private var runPlace: WatchRunPlace = .indoor
+    /// An indoor workout that has ended but is not yet written to Health.
+    private var heldBuilder: HKLiveWorkoutBuilder?
+    private var heldStart = Date()
+    private var heldEnd = Date()
     /// What goes to the phone: the accepted route and the heart-rate readings.
     private var routeRows: [[Double]] = []
     private var routeSegment = 0.0
@@ -297,6 +301,16 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     /// A rating waiting for `lastSavedWorkout`. Main queue only.
     private var pendingEffort: Int?
 
+    /// Keeps the workout HealthKit saved and writes a rating that was waiting
+    /// for it. Main queue only.
+    private func noteSavedWorkout(_ workout: HKWorkout?) {
+        lastSavedWorkout = workout
+        if let workout, let score = pendingEffort {
+            pendingEffort = nil
+            WorkoutEffort.save(score, for: workout, in: healthStore) { _ in }
+        }
+    }
+
     /// Attaches the wearer's 1-10 effort to the run just saved.
     /// A rating given before HealthKit returned the workout (the summary can
     /// appear on the timeout) is kept and written when the workout arrives.
@@ -331,6 +345,9 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         stopRoute()
         self.session = nil
         self.builder = nil
+        // An indoor run is asked for the treadmill's distance before it is
+        // written, so the workout waits (`finishHeld`) for the answer.
+        let hold = save && runPlace == .indoor
         session.end()
         endingBuilder.endCollection(withEnd: endedAt) { [weak self] _, _ in
             // The summary, and its effort picker, wait until the saved
@@ -346,14 +363,21 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                     guard !delivered.done else { return }
                     delivered.done = true
                     guard let self else {
+                        // Nobody is left to answer for the held workout: write it as measured.
+                        if hold { endingBuilder.finishWorkout { _, _ in } }
                         completion(WatchRunMetrics(), finalElapsed, nil)
                         return
                     }
-                    let steps = Self.workoutStepCount(endingBuilder) ?? pedometerStepsAtEnd
                     guard save else {
                         completion(self.metrics, finalElapsed, nil)
                         return
                     }
+                    if hold {
+                        self.heldBuilder = endingBuilder
+                        self.heldStart = self.startedAt
+                        self.heldEnd = endedAt
+                    }
+                    let steps = Self.workoutStepCount(endingBuilder) ?? pedometerStepsAtEnd
                     var result = WatchRunResult(
                         clientId: self.clientId,
                         kind: self.runKind,
@@ -375,16 +399,12 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                     completion(self.metrics, finalElapsed, result)
                 }
             }
-            if save {
+            if save && !hold {
                 endingBuilder.finishWorkout { [weak self] workout, _ in
                     // HealthKit's zone totals exist only on the saved workout.
                     let zones = workout.map { AppleWorkoutZones.heartRateZones(of: $0) } ?? []
                     DispatchQueue.main.async {
-                        self?.lastSavedWorkout = workout
-                        if let workout, let self, let score = self.pendingEffort {
-                            self.pendingEffort = nil
-                            WorkoutEffort.save(score, for: workout, in: self.healthStore) { _ in }
-                        }
+                        self?.noteSavedWorkout(workout)
                         // The route can only be attached to a saved workout.
                         if let workout, let endingRoute {
                             endingRoute.finishRoute(with: workout, metadata: nil) { _, _ in }
@@ -395,10 +415,44 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                 DispatchQueue.main.asyncAfter(deadline: .now() + Self.finishWorkoutTimeout) {
                     deliver([])
                 }
+            } else if hold {
+                // The workout is written by `finishHeld` once the treadmill's
+                // distance is known, so the summary does not wait for it and
+                // carries no Apple zones (they exist only after that write).
+                deliver([])
             } else {
                 endingBuilder.discardWorkout()
                 endingRoute?.discard()
                 deliver([])
+            }
+        }
+    }
+
+    /// Writes the indoor workout held by `end(save:)` once the treadmill
+    /// question is answered. HealthKit cannot lower distance it already
+    /// collected, so a larger final figure is topped up with a sample for the
+    /// difference; a smaller one leaves the measured distance as it was.
+    func finishHeld(distanceMeters: Double) {
+        guard let held = heldBuilder else { return }
+        heldBuilder = nil
+        let collected = held.statistics(for: Self.distanceType)?
+            .sumQuantity()?.doubleValue(for: .meter()) ?? 0
+        let missing = distanceMeters - collected
+        guard missing >= 1 else {
+            held.finishWorkout { [weak self] workout, _ in
+                DispatchQueue.main.async { self?.noteSavedWorkout(workout) }
+            }
+            return
+        }
+        let sample = HKQuantitySample(
+            type: Self.distanceType,
+            quantity: HKQuantity(unit: .meter(), doubleValue: missing),
+            start: heldStart,
+            end: heldEnd
+        )
+        held.add([sample]) { [weak self] _, _ in
+            held.finishWorkout { workout, _ in
+                DispatchQueue.main.async { self?.noteSavedWorkout(workout) }
             }
         }
     }

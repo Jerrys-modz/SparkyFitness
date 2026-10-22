@@ -798,6 +798,8 @@ final class WatchRunStore: ObservableObject {
             result.metrics.distanceMeters = meters
         }
         pendingResult = nil
+        // The Health workout was held for this answer: write it with the final figure.
+        healthKit.finishHeld(distanceMeters: result.metrics.distanceMeters)
         // Say the finish once the distance is settled (the machine's figure, if
         // given), and before the run is handed to the phone, as on the other
         // finish path: a cue confirmed behind the phone's filing is heard twice.
