@@ -8431,6 +8431,12 @@
     "metricNouns": {
       "meditated": "meditating"
     },
+    "logged": {
+      "weight": "weight",
+      "sleep": "sleep",
+      "workouts": "workouts",
+      "meditation": "meditation"
+    },
     "start": {
       "suggestions": "Try one of these",
       "recent": "Your recent questions"

@@ -368,6 +368,59 @@ describe('verdictCopy', () => {
     expect(c.detail).toContain('Log energy on 5 more days');
   });
 
+  test.each<[CompareQuestion['a'], string]>([
+    ['weightTrend', 'weight'],
+    ['bedtime', 'sleep'],
+    ['bedtimeConsistency', 'sleep'],
+    ['trainingLoad', 'workouts'],
+    ['workoutMinutes', 'workouts'],
+    ['cardioMinutes', 'workouts'],
+    ['strengthVolume', 'workouts'],
+    ['meditationSessions7d', 'meditation'],
+    ['meditationMinutes', 'meditation'],
+    ['meditated', 'meditation'],
+    ['timeAsleep', 'time asleep'],
+    ['caffeine', 'caffeine'],
+  ])('asks to log what %s is worked out from', (key, logged) => {
+    const q: CompareQuestion = { a: key, b: 'energy', choice: 'sameDay' };
+    const c = verdictCopy(
+      response(
+        { status: 'not_enough', reason: 'tooFew', n: 8, needed: 14 },
+        q,
+        values(8),
+        values(30)
+      ),
+      q,
+      '90d',
+      t
+    );
+    expect(c.detail).toContain(
+      `Log ${logged} on 6 more days, or pick a longer span.`
+    );
+  });
+
+  test('asks for more weeks of workouts by the week', () => {
+    const q: CompareQuestion = {
+      a: 'mood',
+      b: 'trainingLoad',
+      choice: 'nextWeek',
+    };
+    const c = verdictCopy(
+      response(
+        { status: 'not_enough', reason: 'tooFew', n: 5, needed: 8 },
+        q,
+        values(30),
+        values(5)
+      ),
+      q,
+      '6m',
+      t
+    );
+    expect(c.detail).toContain(
+      'Log workouts for 3 more weeks, or pick a longer span.'
+    );
+  });
+
   test('explains the own-normal history when many days are logged', () => {
     const c = verdictCopy(
       response(

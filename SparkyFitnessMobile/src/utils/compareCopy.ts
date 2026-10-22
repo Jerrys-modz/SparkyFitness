@@ -348,6 +348,34 @@ export function dotsAxisCaption(
   });
 }
 
+/**
+ * What the person logs to fill a metric in, for the "Log … on N more days"
+ * advice. Derived metrics name their source: weight trend comes from logged
+ * weight, bedtime from sleep, training load from workouts.
+ */
+function loggedThing(key: CompareMetricKey, t: Translator): string {
+  switch (key) {
+    case 'weightTrend':
+      return t('compareReport.logged.weight', { defaultValue: 'weight' });
+    case 'bedtime':
+    case 'bedtimeConsistency':
+      return t('compareReport.logged.sleep', { defaultValue: 'sleep' });
+    case 'trainingLoad':
+    case 'workoutMinutes':
+    case 'cardioMinutes':
+    case 'strengthVolume':
+      return t('compareReport.logged.workouts', { defaultValue: 'workouts' });
+    case 'meditationSessions7d':
+    case 'meditationMinutes':
+    case 'meditated':
+      return t('compareReport.logged.meditation', {
+        defaultValue: 'meditation',
+      });
+    default:
+      return plainLabel(key, t);
+  }
+}
+
 function units(count: number, mode: CompareMode, t: Translator): string {
   return mode === 'week'
     ? t('compareReport.verdict.weeks', {
@@ -471,7 +499,7 @@ export function verdictCopy(
         const aCount = Object.keys(response.a.values).length;
         const bCount = Object.keys(response.b.values).length;
         const weaker = aCount <= bCount ? q.a : q.b;
-        const weakerText = objectPhrase(weaker, t);
+        const weakerText = loggedThing(weaker, t);
         const missing = Math.max(result.needed - result.n, 1);
         parts.push(
           mode === 'week'
