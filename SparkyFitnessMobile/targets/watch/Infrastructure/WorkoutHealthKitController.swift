@@ -361,10 +361,6 @@ final class WorkoutHealthKitController: NSObject {
         }
     }
 
-    /// True when the last finished workout was saved and this watchOS can
-    /// attach an effort rating to it.
-    var canSaveEffort: Bool { lastSavedWorkout != nil && WorkoutEffort.isSupported }
-
     /// Attaches the wearer's 1-10 effort to the workout just saved.
     func saveEffort(_ score: Int, completion: @escaping (Bool) -> Void) {
         guard let workout = lastSavedWorkout else {

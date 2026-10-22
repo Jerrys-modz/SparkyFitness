@@ -153,7 +153,7 @@ export function sessionStats(
       label: t('exerciseStatistics.cardio.effort', { defaultValue: 'Effort' }),
       value: t('workoutEffort.value', {
         defaultValue: '{{rating}}/10',
-        rating: session.workoutEffort,
+        rating: formatLocalizedNumber(session.workoutEffort),
       }),
     });
   }

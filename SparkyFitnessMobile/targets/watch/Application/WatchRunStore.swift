@@ -860,9 +860,9 @@ final class WatchRunStore: ObservableObject {
         if let clientId = summary?.clientId {
             WatchSessionManager.shared.sendRunEffort(clientId: clientId, rating: score)
         }
-        guard healthKit.canSaveEffort else {
-            // Nothing to write to Health (older watchOS, or the Health session
-            // was lost); the phone still has the rating.
+        guard WorkoutEffort.isSupported else {
+            // Older watchOS has nothing to write to Health; the phone still
+            // has the rating.
             completion(true)
             return
         }

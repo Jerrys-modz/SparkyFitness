@@ -749,7 +749,7 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       summaryItems.push({
         value: t('workoutEffort.value', {
           defaultValue: '{{rating}}/10',
-          rating: effort,
+          rating: formatLocalizedNumber(effort),
         }),
         label: t('workoutDetail.summary.effort', { defaultValue: 'Effort' }),
       });

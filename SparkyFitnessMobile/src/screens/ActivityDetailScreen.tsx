@@ -437,7 +437,7 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       stats.push({
         value: t('workoutEffort.value', {
           defaultValue: '{{rating}}/10',
-          rating: session.workout_effort,
+          rating: formatLocalizedNumber(session.workout_effort),
         }),
         label: t('activityDetail.stats.effort', { defaultValue: 'Effort' }),
       });

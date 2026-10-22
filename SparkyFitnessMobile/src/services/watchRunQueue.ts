@@ -22,6 +22,12 @@ const QUEUE_KEY = '@SparkyFitness/watchRunQueue';
 /** Ids already filed, so a re-delivered message is not logged twice. */
 const DONE_KEY = '@SparkyFitness/watchRunDone';
 const MAX_DONE = 50;
+/**
+ * Ratings still waiting for their run to be filed. Much larger than the list
+ * of filed runs, because dropping one loses a rating that was never saved; a
+ * record is removed as soon as both of its saves have gone through.
+ */
+const MAX_PENDING_EFFORTS = 500;
 /** Effort ratings from the watch, waiting for their run's program workout. */
 const EFFORT_KEY = '@SparkyFitness/watchRunEffort';
 const RETRYABLE_CLIENT_STATUSES = new Set([401, 408, 429]);
@@ -70,7 +76,9 @@ const readEfforts = () => readJson<RunEfforts>(EFFORT_KEY, {});
 
 async function writeEfforts(efforts: RunEfforts): Promise<void> {
   // Insertion order, so the oldest entries go first.
-  const kept = Object.fromEntries(Object.entries(efforts).slice(-MAX_DONE));
+  const kept = Object.fromEntries(
+    Object.entries(efforts).slice(-MAX_PENDING_EFFORTS)
+  );
   await AsyncStorage.setItem(EFFORT_KEY, JSON.stringify(kept));
 }
 

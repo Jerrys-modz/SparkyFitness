@@ -1499,7 +1499,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
         if let sessionId {
             transfer(OutboundPayloads.workoutEffort(sessionId: sessionId, rating: score))
         }
-        guard workoutHealthKit.canSaveEffort else {
+        // Only an older watchOS skips the Health write. On watchOS 11+ with no
+        // saved workout yet, saveEffort reports failure so the wearer can retry.
+        guard WorkoutEffort.isSupported else {
             completion(true)
             return
         }

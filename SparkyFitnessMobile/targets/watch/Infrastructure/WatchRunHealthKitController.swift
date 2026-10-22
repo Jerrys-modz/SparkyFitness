@@ -223,6 +223,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             pausedByAutoPause = false
             clientId = UUID().uuidString
             lastSavedWorkout = nil
+            pendingEffort = nil
             routeRows = []
             routeSegment = 0
             heartRateRows = []
@@ -282,13 +283,16 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     /// queue only.
     private var lastSavedWorkout: HKWorkout?
 
-    /// True when the last run was saved and this watchOS can rate it.
-    var canSaveEffort: Bool { lastSavedWorkout != nil && WorkoutEffort.isSupported }
+    /// A rating waiting for `lastSavedWorkout`. Main queue only.
+    private var pendingEffort: Int?
 
     /// Attaches the wearer's 1-10 effort to the run just saved.
+    /// A rating given before HealthKit returned the workout (the summary can
+    /// appear on the timeout) is kept and written when the workout arrives.
     func saveEffort(_ score: Int, completion: @escaping (Bool) -> Void) {
         guard let workout = lastSavedWorkout else {
-            completion(false)
+            pendingEffort = score
+            completion(true)
             return
         }
         WorkoutEffort.save(score, for: workout, in: healthStore, completion: completion)
@@ -354,6 +358,10 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                 endingBuilder.finishWorkout { [weak self] workout, _ in
                     DispatchQueue.main.async {
                         self?.lastSavedWorkout = workout
+                        if let workout, let self, let score = self.pendingEffort {
+                            self.pendingEffort = nil
+                            WorkoutEffort.save(score, for: workout, in: self.healthStore) { _ in }
+                        }
                         // The route can only be attached to a saved workout.
                         if let workout, let endingRoute {
                             endingRoute.finishRoute(with: workout, metadata: nil) { _, _ in }
