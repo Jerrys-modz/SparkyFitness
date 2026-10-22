@@ -163,9 +163,9 @@ struct TrendView: View {
     private var trendSummary: some View {
         if let latest = fullTrend.last {
             HStack(spacing: 4) {
-                Text("Trend \(String(format: "%.1f", unit.fromKg(latest.weightKg)))")
+                Text(String(localized: "watch.trend.summary", defaultValue: "Trend \(String(format: "%.1f", unit.fromKg(latest.weightKg)))"))
                 if let rate = store.weeklyRateKg(trend: fullTrend) {
-                    Text("· \(String(format: "%+.1f", unit.fromKg(rate)))/wk")
+                    Text(String(localized: "watch.trend.perWeek", defaultValue: "· \(String(format: "%+.1f", unit.fromKg(rate)))/wk"))
                 }
             }
             .font(.caption2)
@@ -207,7 +207,7 @@ struct TrendView: View {
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
                     .foregroundStyle(.green.opacity(0.7))
                     .annotation(position: .top, alignment: .leading, spacing: 1) {
-                        Text("Goal")
+                        Text(String(localized: "watch.trend.goal", defaultValue: "Goal"))
                             .font(.system(size: 9))
                             .foregroundStyle(.green.opacity(0.9))
                     }
