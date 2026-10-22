@@ -93,6 +93,25 @@ describe('routes API', () => {
     expect(bad.status).toBe(400);
   });
 
+  it('saves a generated route but never lets a client claim gpx or activity', async () => {
+    vi.mocked(createRoute).mockResolvedValue(route as never);
+    const generated = await request(app)
+      .post('/api/v2/routes')
+      .send({ name: 'Loop', points, source: 'generated' });
+    expect(generated.status).toBe(201);
+    expect(createRoute).toHaveBeenCalledWith(
+      'test-user-id',
+      expect.objectContaining({ source: 'generated' }),
+      actingAs
+    );
+    for (const source of ['gpx', 'activity']) {
+      const res = await request(app)
+        .post('/api/v2/routes')
+        .send({ name: 'Loop', points, source });
+      expect(res.status).toBe(400);
+    }
+  });
+
   it('maps repository errors to statuses', async () => {
     vi.mocked(createRoute).mockRejectedValueOnce(
       new InvalidRouteError('short')
@@ -235,20 +254,30 @@ describe('routes API input limits', () => {
     expect((await post({ name: 'x', points: many })).status).toBe(400);
   });
 
-  it('rejects an unknown activity and ignores a client-chosen source', async () => {
+  it('rejects an unknown activity and a field that is not the owner’s to set', async () => {
     expect((await post({ name: 'x', points, activity: 'swim' })).status).toBe(
       400
     );
     vi.mocked(createRoute).mockResolvedValue(route as never);
-    await post({ name: 'x', points, source: 'activity', user_id: 'other' });
-    expect(createRoute).toHaveBeenCalledWith(
-      'test-user-id',
-      expect.objectContaining({ source: 'drawn' }),
-      actingAs
-    );
+    await post({ name: 'x', points, user_id: 'other' });
     expect(vi.mocked(createRoute).mock.calls[0]?.[1]).not.toHaveProperty(
       'user_id'
     );
+  });
+
+  it('lets a client choose drawn or generated as the source, nothing else', async () => {
+    vi.mocked(createRoute).mockResolvedValue(route as never);
+    for (const source of ['gpx', 'activity', 'magic']) {
+      expect((await post({ name: 'x', points, source })).status).toBe(400);
+    }
+    expect(createRoute).not.toHaveBeenCalled();
+    expect((await post({ name: 'x', points })).status).toBe(201);
+    expect(
+      (await post({ name: 'x', points, source: 'generated' })).status
+    ).toBe(201);
+    expect(
+      vi.mocked(createRoute).mock.calls.map((call) => call[1].source)
+    ).toEqual(['drawn', 'generated']);
   });
 
   it('cuts an imported name to 100 characters without splitting an emoji', async () => {

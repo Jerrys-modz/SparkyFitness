@@ -7,6 +7,7 @@ import {
 } from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import { addLog } from '../services/LogService';
+import { deleteWatchRunsForConfig } from '../services/watchRunQueue';
 import WatchConnectivity, {
   type WatchHeartRateSamplePayload,
 } from '../../modules/watch-connectivity';
@@ -451,6 +452,7 @@ export async function deleteWatchTelemetryForConfig(
   // A write already queued for this config would recreate the buffer.
   await writeChain;
   await AsyncStorage.removeItem(bufferKey(ownerId));
+  await deleteWatchRunsForConfig(ownerId);
   if (
     !WatchConnectivity ||
     typeof WatchConnectivity.pendingHeartRateBatches !== 'function'

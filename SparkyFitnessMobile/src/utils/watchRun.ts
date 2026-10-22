@@ -8,6 +8,8 @@ import type { RecordedPoint, RecordingActivity } from './gpsRecording';
 export interface WatchRunPayload {
   /** The id the watch stamped on its Apple Health workout. */
   clientId: string;
+  /** Server config id that was active when the run was accepted on the phone. */
+  ownerId?: string;
   kind: 'walk' | 'run';
   place: 'indoor' | 'outdoor';
   /** Epoch ms. */
@@ -113,6 +115,7 @@ export function parseWatchRunPayload(raw: unknown): WatchRunPayload | null {
       ? { estimatedDistanceMeters: p.estimatedDistanceMeters }
       : {}),
     ...(finite(p.steps) && p.steps > 0 ? { steps: Math.round(p.steps) } : {}),
+    ...(typeof p.ownerId === 'string' ? { ownerId: p.ownerId } : {}),
   };
 }
 

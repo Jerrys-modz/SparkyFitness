@@ -28,6 +28,7 @@ export interface WatchCheckInPayload {
    * fat value the day already had.
    */
   bodyFatPercentage: number | null;
+  ownerId?: string;
 }
 
 /** One day of history relayed to the watch for its trend chart. */
@@ -46,6 +47,7 @@ export interface WatchWaterIntakePayload {
   /** Calendar day (`yyyy-MM-dd`) in the wearer's local timezone. */
   entryDate: string;
   containerId: number;
+  ownerId?: string;
 }
 
 /** A request from the watch to delete one logged drink. */
@@ -54,6 +56,7 @@ export interface WatchWaterDeletePayload {
   clientId: string;
   /** The `water_intake_entries` row id, as relayed in `waterLog` below. */
   entryId: string;
+  ownerId?: string;
 }
 
 /** A dose ticked, or un-ticked after a mistaken tap, on the Apple Watch. */
@@ -66,6 +69,7 @@ export interface WatchMedicationTakenPayload {
   scheduleId: string;
   /** False when the wearer un-ticked the dose; absent from older watch builds, which only ever tick. */
   taken?: boolean;
+  ownerId?: string;
 }
 
 /** One of today's scheduled dose slots, relayed to the watch's Medications page. */
@@ -733,11 +737,13 @@ export interface WatchFastStartRequestPayload {
   /** `FASTING_PRESETS` id, e.g. "16-8". */
   presetId: string;
   clientId: string;
+  ownerId?: string;
 }
 
 /** The wearer asked to end the running fast from the watch. */
 export interface WatchFastEndRequestPayload {
   clientId: string;
+  ownerId?: string;
 }
 
 /**
@@ -747,6 +753,8 @@ export interface WatchFastEndRequestPayload {
  */
 export interface WatchRunFinishedPayload {
   clientId: string;
+  /** Server config id that was active when the run arrived on the phone. */
+  ownerId?: string;
   kind: string;
   place: string;
   startedAt: number;
@@ -1037,13 +1045,15 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    * malformed) since the last call. Resets to zero.
    */
   takeDroppedHeartRateBatchCount(): Promise<number>;
+  setServerCredentials?(
+    baseUrl: string,
+    headers: Record<string, string>
+  ): Promise<void>;
+  clearServerCredentials?(): Promise<void>;
 }
 
-// iOS-only: WatchConnectivity has no Android equivalent, so this resolves to
-// null there and every caller must guard on it. Prefer the guarded hook in
-// src/hooks/useWatchCheckInBridge.ts over importing this module directly.
 const WatchConnectivityModule: WatchConnectivityModuleType | null =
-  Platform.OS === 'ios'
+  Platform.OS === 'ios' || Platform.OS === 'android'
     ? requireOptionalNativeModule<WatchConnectivityModuleType>(
         'WatchConnectivity'
       )

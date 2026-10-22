@@ -39,9 +39,9 @@ export const STEP_METERS_PER_MILE = 1609.344;
 
 /**
  * How the steps are spoken: a run/walk plan says "Run" and "Walk", a speed
- * session says "Fast" and "Easy".
+ * session says "Fast" and "Easy", and a brisk walk says "Brisk" and "Easy".
  */
-export type IntervalStyle = 'runWalk' | 'fastEasy';
+export type IntervalStyle = 'runWalk' | 'fastEasy' | 'briskWalk';
 
 export interface IntervalStep {
   kind: IntervalStepKind;
@@ -417,7 +417,9 @@ export function isValidIntervalPlan(value: unknown): value is IntervalPlan {
   if (!value || typeof value !== 'object') return false;
   const plan = value as IntervalPlan;
   return (
-    (plan.style === 'runWalk' || plan.style === 'fastEasy') &&
+    (plan.style === 'runWalk' ||
+      plan.style === 'fastEasy' ||
+      plan.style === 'briskWalk') &&
     Array.isArray(plan.steps) &&
     plan.steps.length > 0 &&
     plan.steps.length <= 200 &&

@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import WatchConnectivity from '../../modules/watch-connectivity';
 import {
   acceptPendingWatchRuns,
+  deleteWatchRunsForConfig,
   enqueueWatchRun,
   hasQueuedWatchRuns,
   onWatchRunRetry,
@@ -18,6 +20,12 @@ import { ApiError } from '../../src/services/api/errors';
 import type { WatchRunPayload } from '../../src/utils/watchRun';
 import { learnWatchIndoorScale } from '../../src/services/watchIndoorScale';
 
+jest.mock('../../modules/watch-connectivity', () => ({
+  __esModule: true,
+  default: {
+    ackWatchRuns: jest.fn(() => Promise.resolve()),
+  },
+}));
 jest.mock('../../src/services/watchRunSave');
 jest.mock('../../src/services/watchIndoorScale', () => ({
   learnWatchIndoorScale: jest.fn(() => Promise.resolve()),
@@ -55,13 +63,17 @@ const run = (clientId: string): WatchRunPayload => ({
   planCompleted: false,
 });
 
+const ACTIVE_CONFIG_KEY = 'activeServerConfigId';
+
 beforeEach(async () => {
   jest.mocked(completeProgramWorkout).mockClear();
   jest.mocked(rateProgramWorkout).mockClear();
   jest.mocked(invalidateExerciseCache).mockClear();
   jest.mocked(setExerciseEntryEffort).mockReset();
   jest.mocked(setExerciseEntryEffort).mockResolvedValue(undefined);
+  jest.mocked(WatchConnectivity!.ackWatchRuns).mockClear();
   await AsyncStorage.clear();
+  await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-a');
   mockedSave.mockReset();
   onWatchRunRetry(null);
 });
@@ -480,6 +492,36 @@ describe('effort rated on the watch', () => {
     ).toEqual({});
   });
 
+  test('a rating waits for the server configuration its run was filed to', async () => {
+    mockedSave.mockResolvedValue({ entryId: 'entry-14', form: null });
+    await enqueueWatchRun(run('e14'));
+    await processWatchRunQueue('km');
+
+    await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-b');
+    await receiveWatchRunEffort('e14', 7);
+    expect(setExerciseEntryEffort).not.toHaveBeenCalled();
+
+    await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-a');
+    await processWatchRunQueue('km');
+    expect(setExerciseEntryEffort).toHaveBeenCalledWith('entry-14', 7);
+  });
+
+  test('deleting a configuration also drops the ratings filed to it', async () => {
+    mockedSave.mockResolvedValue({ entryId: 'entry-15', form: null });
+    await enqueueWatchRun(run('e15'));
+    await processWatchRunQueue('km');
+    await receiveWatchRunEffort('e15', 7);
+    jest.mocked(setExerciseEntryEffort).mockClear();
+    await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-b');
+    await receiveWatchRunEffort('e15', 8);
+
+    await deleteWatchRunsForConfig('config-a');
+
+    await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-a');
+    await processWatchRunQueue('km');
+    expect(setExerciseEntryEffort).not.toHaveBeenCalled();
+  });
+
   test('a rating that fails for a reason that may pass is retried later', async () => {
     jest.useFakeTimers();
     try {
@@ -504,4 +546,64 @@ describe('effort rated on the watch', () => {
       jest.useRealTimers();
     }
   });
+});
+
+test('does not file a run captured under one config after switching to another, and files it once its own config becomes active again', async () => {
+  mockedSave.mockResolvedValue({ entryId: 'entry-a', form: null });
+  await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-a');
+  await enqueueWatchRun(run('run-a'));
+
+  await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-b');
+  expect(await hasQueuedWatchRuns()).toBe(false);
+  expect(await processWatchRunQueue('km')).toEqual([]);
+  expect(mockedSave).not.toHaveBeenCalled();
+
+  await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-a');
+  expect(await hasQueuedWatchRuns()).toBe(true);
+  expect(await processWatchRunQueue('km')).toEqual(['2026-10-10']);
+  expect(mockedSave).toHaveBeenCalledTimes(1);
+  expect(mockedSave).toHaveBeenCalledWith(
+    expect.objectContaining({ clientId: 'run-a', ownerId: 'config-a' }),
+    'km',
+    undefined,
+    expect.any(Function),
+    null
+  );
+});
+
+test('keeps a run that arrives with no active config queued as unattributable rather than filing it to a later account', async () => {
+  mockedSave.mockResolvedValue({ entryId: 'entry-1', form: null });
+  await AsyncStorage.removeItem(ACTIVE_CONFIG_KEY);
+  await enqueueWatchRun(run('run-no-owner'));
+
+  await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-b');
+  expect(await hasQueuedWatchRuns()).toBe(false);
+  expect(await processWatchRunQueue('km')).toEqual([]);
+  expect(mockedSave).not.toHaveBeenCalled();
+});
+
+test('purges queued runs for a deleted or switched-away config without dropping another config', async () => {
+  mockedSave.mockResolvedValue({ entryId: 'entry-b', form: null });
+  await enqueueWatchRun({ ...run('run-a'), ownerId: 'config-a' });
+  await enqueueWatchRun({ ...run('run-b'), ownerId: 'config-b' });
+
+  await deleteWatchRunsForConfig('config-a');
+  expect(WatchConnectivity!.ackWatchRuns).toHaveBeenCalledWith([
+    'owner:config-a',
+  ]);
+
+  await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-a');
+  expect(await processWatchRunQueue('km')).toEqual([]);
+  expect(mockedSave).not.toHaveBeenCalled();
+
+  await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-b');
+  expect(await processWatchRunQueue('km')).toEqual(['2026-10-10']);
+  expect(mockedSave).toHaveBeenCalledTimes(1);
+  expect(mockedSave).toHaveBeenCalledWith(
+    expect.objectContaining({ clientId: 'run-b', ownerId: 'config-b' }),
+    'km',
+    undefined,
+    expect.any(Function),
+    null
+  );
 });
