@@ -5,6 +5,7 @@ import { invalidateOpenFoodFactsSession } from '../integrations/openfoodfacts/op
 import globalSettingsRepository from '../models/globalSettingsRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import { resolveIsAdminByUserId } from '../utils/adminCheck.js';
+import { canAccessUserData } from '../utils/permissionUtils.js';
 
 vi.mock('../models/externalProviderRepository.js');
 vi.mock('../models/globalSettingsRepository.js');
@@ -33,6 +34,9 @@ vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
 vi.mock('../utils/adminCheck.js', () => ({
   resolveIsAdminByUserId: vi.fn(),
 }));
+vi.mock('../utils/permissionUtils.js', () => ({
+  canAccessUserData: vi.fn(),
+}));
 
 const OWNER = 'owner-1';
 const VIEWER = 'viewer-2';
@@ -58,6 +62,7 @@ beforeEach(() => {
     productLanguage: 'en',
     backfillPending: false,
   });
+  vi.mocked(canAccessUserData).mockResolvedValue(true);
 });
 
 describe('getExternalDataProvidersForUser - non-owner credential redaction', () => {
@@ -102,6 +107,26 @@ describe('getExternalDataProvidersForUser - non-owner credential redaction', () 
     expect(row.app_key_tag).toBeUndefined();
     expect(row.visibility).toBe('public');
     expect(row.is_active).toBe(true);
+    expect(canAccessUserData).toHaveBeenCalledWith(
+      OWNER,
+      'share_external_providers',
+      VIEWER
+    );
+  });
+
+  it('throws Forbidden when viewer does not have share_external_providers access', async () => {
+    vi.mocked(canAccessUserData).mockResolvedValue(false);
+
+    await expect(
+      externalProviderService.getExternalDataProvidersForUser(VIEWER, OWNER)
+    ).rejects.toThrow(
+      'Forbidden: You do not have permission to access external data providers for this user.'
+    );
+    expect(canAccessUserData).toHaveBeenCalledWith(
+      OWNER,
+      'share_external_providers',
+      VIEWER
+    );
   });
 
   it('preserves non-OFF credentials when viewer is the owner', async () => {

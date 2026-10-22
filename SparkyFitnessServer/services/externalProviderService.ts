@@ -25,6 +25,7 @@ import {
 } from '../utils/outboundUrlPolicy.js';
 import { resolveIsAdminByUserId } from '../utils/adminCheck.js';
 import { resolveCorosMcpUrl } from '../integrations/coros/corosConstants.js';
+import { canAccessUserData } from '../utils/permissionUtils.js';
 import { ROUTING_PROVIDER_TYPE } from '@workspace/shared';
 
 // Provider types whose stored base_url is fetched server-side, making it an
@@ -298,12 +299,22 @@ async function getExternalDataProviders(
   }
 }
 async function getExternalDataProvidersForUser(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  authenticatedUserId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  targetUserId: any
+  authenticatedUserId: string,
+  targetUserId: string
 ) {
   try {
+    if (authenticatedUserId !== targetUserId) {
+      const hasPermission = await canAccessUserData(
+        targetUserId,
+        'share_external_providers',
+        authenticatedUserId
+      );
+      if (!hasPermission) {
+        throw new Error(
+          'Forbidden: You do not have permission to access external data providers for this user.'
+        );
+      }
+    }
     // RLS will enforce visibility (owner/family/public). Use the viewer-scoped repository call
     // to let the DB filter rows. Then map visibility for the response.
     const providers =
