@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import {
+  autocorrelation,
   correlationTest,
-  effectiveN,
-  lag1Autocorrelation,
+  effectiveNMultiLag,
   pearson,
   spearman,
   tCritical95,
@@ -77,15 +77,62 @@ describe('compare stats', () => {
     expect(w.p).toBeGreaterThan(0.0002185646084);
   });
 
-  test('lag-1 autocorrelation (standard estimator)', () =>
-    expect(lag1Autocorrelation([1, 2, 2.5, 2, 3, 3.5, 3, 4])).toBeCloseTo(
-      0.3308823529,
-      9
-    ));
+  test('lag-k autocorrelation (standard estimator)', () => {
+    const series = [1, 2, 2.5, 2, 3, 3.5, 3, 4];
+    expect(autocorrelation(series, 1)).toBeCloseTo(0.3308823529, 9);
+    expect(autocorrelation(series, 2)).toBeCloseTo(0.2107843137, 9);
+    expect(autocorrelation(series, 3)).toBeCloseTo(0.1495098039, 9);
+    // Too short for the lag, or never varying.
+    expect(autocorrelation([1, 2], 1)).toBe(0);
+    expect(autocorrelation(series, 7)).toBe(0);
+    expect(autocorrelation([3, 3, 3, 3], 1)).toBe(0);
+  });
 
-  test('effective n shrinks with autocorrelation, caps at n and floors at 4', () => {
-    expect(effectiveN(40, 0.5, 0.5)).toBeCloseTo((40 * 0.75) / 1.25, 9);
-    expect(effectiveN(40, -0.3, 0.6)).toBe(40);
-    expect(effectiveN(6, 0.99, 0.99)).toBe(4);
+  describe('effective n over several lags', () => {
+    // Two slow waves that move together; their lag-3 and lag-4 autocorrelations are negative
+    // in both, so those products still add to the carry-over.
+    const a = [
+      1.0, 1.4, 1.9, 1.7, 1.2, 0.8, 0.5, 0.9, 1.3, 1.8, 2.1, 1.6, 1.1, 0.7, 0.6,
+      1.0,
+    ];
+    const b = [
+      3.0, 3.3, 3.9, 3.6, 3.1, 2.7, 2.5, 2.8, 3.4, 3.7, 4.0, 3.5, 3.2, 2.6, 2.7,
+      3.1,
+    ];
+
+    test('n / (1 + 2 Σ ρa(k)·ρb(k)) up to min(maxLag, n/4) lags', () => {
+      // 16 values: 4 lags; Σ = 1.3200103275.
+      expect(effectiveNMultiLag(a, b, 14)).toBeCloseTo(4.3955794531, 9);
+      // maxLag 2 stops at lag 2; Σ = 0.3957854271.
+      expect(effectiveNMultiLag(a, b, 2)).toBeCloseTo(8.9307101436, 9);
+    });
+
+    test('unrelated day-to-day noise keeps nearly every day', () => {
+      // A fixed scramble: no carry-over from one value to the next.
+      const noise = (seed: number) =>
+        Array.from({ length: 200 }, (_, i) => {
+          const x = Math.sin((i + 1) * seed * 12.9898) * 43758.5453;
+          return x - Math.floor(x) - 0.5;
+        });
+      const n = effectiveNMultiLag(noise(1), noise(2), 14);
+      expect(n).toBeGreaterThan(180);
+      expect(n).toBeLessThanOrEqual(200);
+    });
+
+    test('a negative sum never raises it above n', () => {
+      // ρa(1) = −0.875 and ρb(1) = 0.625: 1 + 2Σ is below 0.
+      expect(
+        effectiveNMultiLag(
+          [1, -1, 1, -1, 1, -1, 1, -1],
+          [1, 2, 3, 4, 5, 6, 7, 8],
+          1
+        )
+      ).toBe(8);
+    });
+
+    test('floors at 4', () => {
+      // Five values, one lag: ρ(1) = 0.4 in both, 5 / 1.32 = 3.79.
+      expect(effectiveNMultiLag([1, 2, 3, 4, 5], [1, 2, 3, 4, 5], 14)).toBe(4);
+    });
   });
 });

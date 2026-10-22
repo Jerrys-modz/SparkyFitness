@@ -68,26 +68,38 @@ export function spearman(
   return pearson(ranks(x), ranks(y));
 }
 
-/** Lag-1 autocorrelation; 0 when n < 3 or the series is constant. */
-export function lag1Autocorrelation(xs: readonly number[]): number {
+/** Lag-k autocorrelation (the standard estimator: lagged products over the whole sum of squares); 0 when there are fewer than k + 2 values or the series is constant. */
+export function autocorrelation(xs: readonly number[], k: number): number {
   const n = xs.length;
-  if (n < 3) return 0;
+  if (k < 1 || n < k + 2) return 0;
   const m = mean(xs);
   let num = 0;
   let den = 0;
   for (let t = 0; t < n; t++) {
     den += (xs[t]! - m) ** 2;
-    if (t + 1 < n) num += (xs[t]! - m) * (xs[t + 1]! - m);
+    if (t + k < n) num += (xs[t]! - m) * (xs[t + k]! - m);
   }
   return den === 0 ? 0 : num / den;
 }
 
-/** Effective sample size when both series are autocorrelated; between 4 and n. */
-export function effectiveN(n: number, rhoA: number, rhoB: number): number {
-  const clamp = (r: number) => Math.min(Math.max(r, 0), 1 - 1e-9);
-  const prod = clamp(rhoA) * clamp(rhoB);
-  const adjusted = (n * (1 - prod)) / (1 + prod);
-  return Math.max(4, Math.min(n, adjusted));
+/**
+ * Effective sample size of two paired series whose days carry over into later days:
+ * n / (1 + 2·Σ ρa(k)·ρb(k)) over lags k = 1..K, K = min(maxLag, ⌊n/4⌋) and at least 1 (a
+ * truncated Bartlett sum). Between 4 and n: a negative sum never raises it above n.
+ */
+export function effectiveNMultiLag(
+  a: readonly number[],
+  b: readonly number[],
+  maxLag: number
+): number {
+  const n = a.length;
+  const lags = Math.max(1, Math.min(maxLag, Math.floor(n / 4)));
+  let sum = 0;
+  for (let k = 1; k <= lags; k++) {
+    sum += autocorrelation(a, k) * autocorrelation(b, k);
+  }
+  const inflation = Math.max(1, 1 + 2 * sum);
+  return Math.max(4, Math.min(n, n / inflation));
 }
 
 function logGamma(z: number): number {

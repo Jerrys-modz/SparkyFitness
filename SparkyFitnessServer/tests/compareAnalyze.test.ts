@@ -9,8 +9,7 @@ import {
   dayOfWeek,
   daySides,
   deviationsFromOwnNormal,
-  effectiveN,
-  lag1Autocorrelation,
+  effectiveNMultiLag,
   pearson,
   type CompareMetricDef,
   type DaySeries,
@@ -518,17 +517,13 @@ describe('compare day analysis', () => {
       end: END,
     });
 
-    // One effective n from the 0/1 flags and the deviations in day order; each group gets
-    // its share, nG × nEff / n, for Welch.
+    // One effective n from the 0/1 flags and the deviations in day order, carry-over counted
+    // up to 14 days back; each group gets its share, nG × nEff / n, for Welch.
     const deviations = deviationsFromOwnNormal(mood, WINDOW);
     const flags = WINDOW.map((day) => meditated[day]);
     const values = WINDOW.map((day) => deviations[day]);
     const n = WINDOW.length;
-    const nEff = effectiveN(
-      n,
-      lag1Autocorrelation(flags),
-      lag1Autocorrelation(values)
-    );
+    const nEff = effectiveNMultiLag(flags, values, 14);
     const yes = values.filter((_, i) => flags[i] === 1);
     const no = values.filter((_, i) => flags[i] === 0);
     const expected = welch(
@@ -763,6 +758,61 @@ describe('compare day analysis', () => {
     expect(result.sign).toBeUndefined();
     expect(result.checks).toEqual({ ownNormal: true });
   });
+
+  test('the effective n counts carry-over up to 14 days back', () => {
+    const noise = normal(18);
+    // Slow waves on both sides, so days resemble each other well beyond yesterday.
+    const a = build((i) => 60 + 5 * Math.sin(i / 4) + 2 * noise());
+    const b = build((i) => 70 + 5 * Math.sin(i / 5) + 2 * noise());
+
+    const result = analyzeDays({
+      a: { key: 'mood', values: a },
+      b: { key: 'sleepScore', values: b },
+      timing: 0,
+      start: START,
+      end: END,
+    });
+
+    const devA = deviationsFromOwnNormal(a, WINDOW);
+    const devB = deviationsFromOwnNormal(b, WINDOW);
+    const xs = WINDOW.map((day) => devA[day]);
+    const ys = WINDOW.map((day) => devB[day]);
+    expect(result.n).toBe(60);
+    expect(result.nEff).toBeCloseTo(effectiveNMultiLag(xs, ys, 14), 9);
+    // Lags past 6 still count here.
+    expect(result.nEff).not.toBeCloseTo(effectiveNMultiLag(xs, ys, 6), 3);
+  });
+
+  test('two unrelated slow-moving series rarely read as a Yes', () => {
+    // 300 runs of 90 days: two AR(0.6) series with no link at all.
+    const end = addDays(START, 89);
+    const ar = (noise: () => number) => {
+      let level = noise() / Math.sqrt(1 - 0.6 ** 2);
+      const out: DaySeries = {};
+      for (const day of daysFrom(FIRST, 112)) {
+        level = 0.6 * level + noise();
+        out[day] = 60 + 10 * level;
+      }
+      return out;
+    };
+    let answered = 0;
+    let yes = 0;
+    for (let trial = 0; trial < 300; trial++) {
+      const result = analyzeDays({
+        a: { key: 'mood', values: ar(normal(7000 + trial)) },
+        b: { key: 'sleepScore', values: ar(normal(17000 + trial)) },
+        timing: 0,
+        start: START,
+        end,
+      });
+      if (result.status !== 'ok') continue;
+      answered++;
+      if (result.linked) yes++;
+    }
+
+    expect(answered).toBe(300);
+    expect(yes / answered).toBeLessThanOrEqual(0.08);
+  });
 });
 
 describe('compare week analysis', () => {
@@ -956,6 +1006,42 @@ describe('compare week analysis', () => {
       firstDayOfWeek: 0,
     });
     expect(result.n).toBe(7);
+  });
+
+  test('analyzeWeeks counts carry-over up to 6 weeks back', () => {
+    // 52 weeks after 6 of history: 13 lags would fit, but weeks stop at 6.
+    const first = addDays(START, -42);
+    const noise = normal(81);
+    const a: DaySeries = {};
+    const b: DaySeries = {};
+    daysFrom(first, 59 * 7).forEach((day, i) => {
+      const week = Math.floor(i / 7);
+      a[day] = 30 + 8 * Math.sin(week / 3) + 3 * noise();
+      b[day] = 60 + 6 * Math.sin(week / 4) + 3 * noise();
+    });
+    const span = {
+      start: START,
+      end: addDays(START, 52 * 7 - 1),
+      firstDayOfWeek: 1,
+    };
+
+    const result = analyzeWeeks({
+      a: { key: 'meditationMinutes', values: a },
+      b: { key: 'mood', values: b },
+      timing: 0,
+      ...span,
+    });
+
+    const sides = weekSides({
+      a: { key: 'meditationMinutes', values: a },
+      b: { key: 'mood', values: b },
+      ...span,
+    });
+    const xs = sides.keys.map((week) => sides.a.values[week]);
+    const ys = sides.keys.map((week) => sides.b.values[week]);
+    expect(result.n).toBe(52);
+    expect(result.nEff).toBeCloseTo(effectiveNMultiLag(xs, ys, 6), 9);
+    expect(result.nEff).not.toBeCloseTo(effectiveNMultiLag(xs, ys, 13), 3);
   });
 
   test('analyzeWeeks is not_enough when a side never varies', () => {

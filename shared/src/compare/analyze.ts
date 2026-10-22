@@ -15,8 +15,7 @@ import {
 } from './metrics.ts';
 import {
   correlationTest,
-  effectiveN,
-  lag1Autocorrelation,
+  effectiveNMultiLag,
   mean,
   pearson,
   ranks,
@@ -72,6 +71,10 @@ export class CompareModeError extends RangeError {
 
 const DAYS_NEEDED = 14;
 const WEEKS_NEEDED = 8;
+// The own normal is the previous 14 days (at least 7 of them) or 6 weeks (at least 3); the
+// effective n counts carry-over as far back as that window reaches.
+const DAY_NORMAL_WINDOW = 14;
+const DAY_NORMAL_MIN = 7;
 const WEEK_NORMAL_WINDOW = 6;
 const WEEK_NORMAL_MIN = 3;
 const DAYS_PER_WEEK = 7;
@@ -83,8 +86,8 @@ const ALPHA = 0.05;
 export function deviationsFromOwnNormal(
   series: DaySeries,
   days: readonly string[],
-  window = 14,
-  minValues = 7,
+  window = DAY_NORMAL_WINDOW,
+  minValues = DAY_NORMAL_MIN,
   stepDays = 1
 ): DaySeries {
   const out: DaySeries = {};
@@ -162,6 +165,7 @@ export function analyzeDays(input: {
     timing: input.timing,
     shift: addDays,
     needed: DAYS_NEEDED,
+    maxLag: DAY_NORMAL_WINDOW,
     isWeekend: (day) => {
       const weekday = dayOfWeek(day);
       return weekday === 0 || weekday === 6;
@@ -187,6 +191,7 @@ export function analyzeWeeks(input: {
     timing: input.timing,
     shift: (week, steps) => addDays(week, DAYS_PER_WEEK * steps),
     needed: WEEKS_NEEDED,
+    maxLag: WEEK_NORMAL_WINDOW,
   });
 }
 
@@ -289,7 +294,10 @@ function daySide(metric: MetricInput, days: readonly string[]): CompareSide {
   return { key: metric.key, kind, raw: metric.values, values };
 }
 
-/** A's keys in order, each paired with B's key `timing` steps later; `shift` moves a key by whole steps. */
+/**
+ * A's keys in order, each paired with B's key `timing` steps later; `shift` moves a key by whole
+ * steps. `maxLag` is how many steps back the effective n counts carry-over: the own-normal window.
+ */
 interface PairInput {
   keys: readonly string[];
   a: CompareSide;
@@ -297,6 +305,7 @@ interface PairInput {
   timing: number;
   shift: (key: string, steps: number) => string;
   needed: number;
+  maxLag: number;
   isWeekend?: (key: string) => boolean;
 }
 
@@ -330,7 +339,7 @@ function analyzePairs(input: PairInput): CompareResult {
     input.a.kind === 'ordinal' || input.b.kind === 'ordinal'
       ? 'spearman'
       : 'pearson';
-  const fit = correlate(pairs, method);
+  const fit = correlate(pairs, method, input.maxLag);
   if (!fit) return notEnough(n, input.needed, 'noVariation');
 
   const result: CompareResult = {
@@ -386,18 +395,18 @@ function pairUp(input: PairInput, timing: number): Pairs {
   return pairs;
 }
 
-/** r with its effective n, p and 95% range; null when either side never varies. */
-function correlate(pairs: Pairs, method: CorrelationMethod): Fit | null {
+/** r with its effective n (carry-over up to `maxLag` steps back), p and 95% range; null when either side never varies. */
+function correlate(
+  pairs: Pairs,
+  method: CorrelationMethod,
+  maxLag: number
+): Fit | null {
   const r =
     method === 'spearman'
       ? spearman(pairs.a, pairs.b)
       : pearson(pairs.a, pairs.b);
   if (r === null) return null;
-  const nEff = effectiveN(
-    pairs.a.length,
-    lag1Autocorrelation(pairs.a),
-    lag1Autocorrelation(pairs.b)
-  );
+  const nEff = effectiveNMultiLag(pairs.a, pairs.b, maxLag);
   return { r, nEff, ...correlationTest(r, nEff) };
 }
 
@@ -429,7 +438,7 @@ function compareGroups(input: PairInput, pairs: Pairs): CompareResult {
       ? notEnough(yesCount, PER_GROUP_NEEDED, 'fewYes')
       : notEnough(noCount, PER_GROUP_NEEDED, 'fewNo');
   }
-  const fit = correlate(pairs, 'pearson');
+  const fit = correlate(pairs, 'pearson', input.maxLag);
   if (!fit) return notEnough(n, input.needed, 'noVariation');
 
   const share = (count: number) => Math.max(2, (count * fit.nEff) / n);
@@ -480,7 +489,9 @@ function directionCheck(
   // On A's keys: B one step later is (A_d, B_{d+1}); one step earlier is (B_d, A_{d+1}).
   const fitAt = (timing: number): Fit | null => {
     const shifted = pairUp(input, timing);
-    return shifted.a.length >= input.needed ? correlate(shifted, method) : null;
+    return shifted.a.length >= input.needed
+      ? correlate(shifted, method, input.maxLag)
+      : null;
   };
   if (input.timing !== 0) {
     const mirrored = fitAt(input.timing > 0 ? -1 : 1);
