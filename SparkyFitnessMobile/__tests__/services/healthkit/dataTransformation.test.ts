@@ -10,6 +10,7 @@ import type {
   TransformedRecord,
   TransformedExerciseSession,
   AggregatedSleepSession,
+  TransformedMindfulnessSession,
   TransformedNutritionEntry,
 } from '../../../src/types/healthRecords';
 import { atLocalTime } from '../../helpers/localTime';
@@ -1534,5 +1535,66 @@ describe('Nutrition correlation transformer', () => {
     ) as TransformedNutritionEntry[];
     expect(result).toHaveLength(1);
     expect(result[0].record_timezone).toBeUndefined();
+  });
+});
+
+describe('MindfulnessSession records', () => {
+  const metric = {
+    recordType: 'MindfulnessSession',
+    unit: 'min',
+    type: 'mindfulness',
+  };
+  const base = {
+    uuid: 'hk-uuid-1',
+    startTime: '2024-01-15T08:00:00Z',
+    endTime: '2024-01-15T08:15:00Z',
+    metadata: { HKTimeZone: 'America/New_York' },
+  };
+
+  test('maps a sample to a MindfulnessSession keyed by its uuid', () => {
+    const result = transformHealthRecords(
+      [base],
+      metric
+    ) as TransformedMindfulnessSession[];
+
+    expect(result).toEqual([
+      {
+        type: 'MindfulnessSession',
+        source: 'HealthKit',
+        source_id: 'hk-uuid-1',
+        timestamp: '2024-01-15T08:00:00Z',
+        startTime: '2024-01-15T08:00:00Z',
+        endTime: '2024-01-15T08:15:00Z',
+        duration_seconds: 900,
+        value: 15,
+        session_type: 'other',
+        record_timezone: 'America/New_York',
+      },
+    ]);
+  });
+
+  test('skips samples without a uuid or a positive duration', () => {
+    const result = transformHealthRecords(
+      [
+        { ...base, uuid: undefined },
+        { ...base, uuid: 'b', endTime: base.startTime },
+        { ...base, uuid: 'c', endTime: '2024-01-15T07:00:00Z' },
+      ],
+      metric
+    );
+    expect(result).toHaveLength(0);
+  });
+
+  test('skips sessions written by this app', () => {
+    setOwnBundleId('com.sparky.app');
+    try {
+      const result = transformHealthRecords(
+        [{ ...base, sourceBundleId: 'com.sparky.app' }],
+        metric
+      );
+      expect(result).toHaveLength(0);
+    } finally {
+      setOwnBundleId(null);
+    }
   });
 });

@@ -2,6 +2,7 @@ import { addLog } from '../LogService';
 import { attachWorkoutTelemetry } from '../shared/workoutTelemetryPayload';
 import {
   TransformedExerciseSession,
+  TransformedMindfulnessSession,
   TransformedNutritionEntry,
   SparkyMealType,
   AggregatedSleepSession,
@@ -587,6 +588,36 @@ const DIRECT_TRANSFORMERS: Record<string, DirectTransformer> = {
 
     if (!hasNutrient) return; // no recognized positive nutrients — drop the entry
     output.push(entry);
+  },
+
+  // HKCategoryTypeIdentifierMindfulSession carries no session type or notes, so
+  // every session is sent as 'other'. The sample uuid is the idempotency key.
+  MindfulnessSession: (rec, _record, _metricConfig, output) => {
+    if (isOwnRecord(rec)) return; // don't re-import sessions Sparky wrote
+
+    const uuid = rec.uuid as string | undefined;
+    if (!uuid) return;
+    if (!rec.startTime || !rec.endTime) return;
+
+    const start = new Date(rec.startTime as string).getTime();
+    const end = new Date(rec.endTime as string).getTime();
+    if (isNaN(start) || isNaN(end)) return;
+    const durationSeconds = Math.round((end - start) / 1000);
+    if (durationSeconds <= 0) return;
+
+    const session: TransformedMindfulnessSession = {
+      type: 'MindfulnessSession',
+      source: HEALTHKIT_SOURCE,
+      source_id: uuid,
+      timestamp: rec.startTime as string,
+      startTime: rec.startTime as string,
+      endTime: rec.endTime as string,
+      duration_seconds: durationSeconds,
+      value: durationSeconds / 60,
+      session_type: 'other',
+      ...extractTimezoneMetadata(rec),
+    };
+    output.push(session);
   },
 
   BloodPressure: createBloodPressureTransformer(

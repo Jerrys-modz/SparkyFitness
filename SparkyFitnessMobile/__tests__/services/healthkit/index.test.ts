@@ -1599,6 +1599,44 @@ describe('readHealthRecords', () => {
     });
   });
 
+  describe('MindfulnessSession records', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockIsHealthDataAvailable.mockResolvedValue(true);
+    });
+
+    test('keeps uuid, source and timezone for each session', async () => {
+      await initHealthConnect();
+
+      mockQueryCategorySamples.mockResolvedValue([
+        {
+          uuid: 'hk-uuid-1',
+          startDate: '2024-01-15T08:00:00Z',
+          endDate: '2024-01-15T08:15:00Z',
+          value: 0,
+          metadataTimeZone: 'Europe/Berlin',
+          sourceRevision: { source: { bundleIdentifier: 'com.calm.app' } },
+        },
+      ]);
+
+      const result = await readHealthRecords(
+        'MindfulnessSession',
+        new Date('2024-01-15T00:00:00Z'),
+        new Date('2024-01-15T23:59:59Z')
+      );
+
+      expect(result).toEqual([
+        {
+          uuid: 'hk-uuid-1',
+          startTime: '2024-01-15T08:00:00Z',
+          endTime: '2024-01-15T08:15:00Z',
+          metadata: { HKTimeZone: 'Europe/Berlin' },
+          sourceBundleId: 'com.calm.app',
+        },
+      ]);
+    });
+  });
+
   describe('BloodPressure records', () => {
     beforeEach(() => {
       jest.clearAllMocks();
