@@ -300,10 +300,9 @@ SparkyFitness uses a custom migration system that runs automatically on server s
 ### Migration Process
 
 The migration system:
-1. **Checks current database version** on startup
-2. **Applies pending migrations** in order
-3. **Tracks applied migrations** in the `migrations` table
-4. **Logs migration results** for debugging
+1. **Checks which migrations are applied** on startup
+2. **Applies pending migrations** in order, each file in one transaction together with its record in `system.schema_migrations`
+3. **Logs migration results** for debugging
 
 ### Migration Structure
 
@@ -333,27 +332,21 @@ Example: `20240315103000_add_exercise_tracking.sql`
 #### Backwards Compatibility
 - **Add columns** with default values to avoid breaking existing code
 - **Create new tables** rather than modifying existing ones when possible
-- **Use transactions** to ensure atomic migrations
 - **Test migrations** on development data first
 
 #### Transaction Management
-```sql
-BEGIN;
--- All migration statements here
--- If any statement fails, entire migration rolls back
-COMMIT;
-```
+Each migration file runs in one transaction with its `system.schema_migrations` record, so if any statement fails, nothing in the file is applied or recorded. A file therefore contains no `BEGIN;`/`COMMIT;` of its own; a test fails if it does. To commit steps separately, such as adding a constraint `NOT VALID` and validating it afterwards, write two migration files.
 
 #### Index Creation
 ```sql
--- Create indexes concurrently to avoid blocking
-CREATE INDEX CONCURRENTLY idx_food_entries_user_date 
+-- Plain CREATE INDEX: CONCURRENTLY cannot run inside a transaction
+CREATE INDEX IF NOT EXISTS idx_food_entries_user_date
 ON food_entries(user_id, created_at);
 ```
+Statements that cannot run inside a transaction block, such as `CREATE INDEX CONCURRENTLY` or `VACUUM`, are not supported in migrations; startup stops with an error naming the file.
 
 #### Data Migration
 ```sql
-BEGIN;
 -- Create new table
 CREATE TABLE new_table (id UUID PRIMARY KEY, ...);
 
@@ -363,8 +356,6 @@ SELECT ... FROM old_table;
 
 -- Drop old table (after verifying migration)
 -- DROP TABLE old_table;
-
-COMMIT;
 ```
 
 ### Rollback Strategy
@@ -387,11 +378,11 @@ While not automated, rollback migrations can be created:
 #### Migration Tracking Issues
 ```sql
 -- Check applied migrations
-SELECT * FROM migrations ORDER BY applied_at;
+SELECT * FROM system.schema_migrations ORDER BY applied_at;
 
 -- Manually mark migration as applied (if needed)
-INSERT INTO migrations (version, applied_at) 
-VALUES ('20240315142000', NOW());
+INSERT INTO system.schema_migrations (name)
+VALUES ('20240315142000_add_meal_planning.sql');
 ```
 
 #### Database State Issues
