@@ -44,7 +44,8 @@ const CompareScatterChart: React.FC<CompareScatterChartProps> = ({
   const { data, hasTrend } = useMemo(() => {
     const { mode, timing } = timingOf(question.choice);
     const dots = displayDots(pairedDots(response, mode, timing), question);
-    const line = trendLine(dots);
+    // A fitted line reads as a finding, so it is drawn only for a real link.
+    const line = response.result.linked === true ? trendLine(dots) : null;
     const sorted = [...dots].sort((p, q) => p.x - q.x);
     return {
       hasTrend: line !== null,

@@ -86,9 +86,11 @@ describe('CompareChart', () => {
     await initializeI18n('en');
   });
 
-  it('opens on the dots with a dashed trend line', () => {
+  it('opens on the dots with a dashed trend line for a real link', () => {
+    const r = response();
+    r.result = { ...r.result, linked: true };
     const { getByText, getAllByTestId, getByTestId } = render(
-      <CompareChart response={response()} question={Q} />
+      <CompareChart response={r} question={Q} />
     );
     expect(getByText('Each day as a dot')).toBeTruthy();
     expect(getByText('Mood vs. your usual')).toBeTruthy();
@@ -138,17 +140,29 @@ describe('CompareChart', () => {
     expect(getByTestId('cartesian-chart')).toBeTruthy();
   });
 
-  it('still draws dots when there is not enough data', () => {
+  it('still draws dots but no trend line when there is not enough data', () => {
     const r = response();
     r.result = { ...r.result, status: 'not_enough', reason: 'tooFew' };
-    const { getAllByTestId } = render(
+    const { getAllByTestId, queryByTestId } = render(
       <CompareChart response={r} question={Q} />
     );
     expect(getAllByTestId('scatter-mark')).toHaveLength(1);
+    expect(queryByTestId('line-mark')).toBeNull();
+  });
+
+  it('leaves the trend line out under "No clear link"', () => {
+    const r = response();
+    r.result = { ...r.result, method: 'pearson', linked: false };
+    const { getAllByTestId, queryByTestId } = render(
+      <CompareChart response={r} question={Q} />
+    );
+    expect(getAllByTestId('scatter-mark')).toHaveLength(1);
+    expect(queryByTestId('line-mark')).toBeNull();
   });
 
   it('leaves the trend line out when the dots have no spread to fit', () => {
     const r = response();
+    r.result = { ...r.result, linked: true };
     r.deviations.a = {
       '2026-10-01': 0,
       '2026-10-02': 0,
