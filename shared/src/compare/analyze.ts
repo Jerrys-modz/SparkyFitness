@@ -16,6 +16,8 @@ import {
 import {
   cautiousEffectiveN,
   correlationTest,
+  ALPHA,
+  isSignificant,
   mean,
   pearson,
   ranks,
@@ -61,7 +63,11 @@ export interface CompareResult {
   };
 }
 
-/** A metric asked for in a mode it has no form in (week mode without a weekly form); the route answers it with a 400. */
+/**
+ * A question asked out of range, which the route answers with a 400: a metric in a mode it has no
+ * form in (week mode without a weekly form), or a since-mode habitStart that is not before today
+ * or is older than the start limit.
+ */
 export class CompareModeError extends RangeError {
   constructor(message: string) {
     super(message);
@@ -80,7 +86,6 @@ const WEEK_NORMAL_MIN = 3;
 const DAYS_PER_WEEK = 7;
 const WEEKLY_MEAN_MIN_DAYS = 4;
 const PER_GROUP_NEEDED = 5;
-const ALPHA = 0.05;
 
 /** Each key's value minus the mean of the `window` keys before it, `stepDays` apart (a week's key is its start, so 7); one with fewer than `minValues` of them drops out. */
 export function deviationsFromOwnNormal(
@@ -348,7 +353,7 @@ function analyzePairs(input: PairInput): CompareResult {
     needed: input.needed,
     method,
     ...fit,
-    linked: isLinked(fit),
+    linked: isSignificant(fit),
     checks: { ownNormal: true },
   };
   if (!result.linked) return result;
@@ -356,11 +361,6 @@ function analyzePairs(input: PairInput): CompareResult {
   result.sign = fit.r > 0 ? 'positive' : 'negative';
   result.checks = checksFor(input, pairs, method, fit);
   return result;
-}
-
-/** A link only when p < 0.05 and the 95% range leaves out 0: at a small effective n the two can disagree. */
-function isLinked(test: { p: number; low: number; high: number }): boolean {
-  return test.p < ALPHA && (test.low > 0 || test.high < 0);
 }
 
 /** The checks shown under a Yes: which comes first, and (by day) whether weekends explain it. */
@@ -457,7 +457,7 @@ function compareGroups(input: PairInput, pairs: Pairs): CompareResult {
     p: test.p,
     low: test.low,
     high: test.high,
-    linked: isLinked(test),
+    linked: isSignificant(test),
     binary: {
       yesKey: (yesOnA ? input.a : input.b).key,
       yesMean: mean(yes.raw),
@@ -475,7 +475,7 @@ function compareGroups(input: PairInput, pairs: Pairs): CompareResult {
 }
 
 /**
- * Which comes first, from next-day pairings judged as the main answer is (isLinked, same
+ * Which comes first, from next-day pairings judged as the main answer is (isSignificant, same
  * effective n). Timing ±1: the mirrored pairing swaps which comes first, (B_d, A_{d+1}) for 1
  * and (A_d, B_{d+1}) for −1; unlinked, the first thing leads. Timing 0 tries both: A leads when
  * A on d goes with B on d + 1 and B on d does not go with A on d + 1; B leads when that second
@@ -496,14 +496,14 @@ function directionCheck(
   if (input.timing !== 0) {
     const mirrored = fitAt(input.timing > 0 ? -1 : 1);
     if (!mirrored) return 'cantTell';
-    if (!isLinked(mirrored)) return 'firstComesFirst';
+    if (!isSignificant(mirrored)) return 'firstComesFirst';
     return Math.abs(mirrored.r) > Math.abs(r) ? 'strongerOtherWay' : 'cantTell';
   }
   const aFirst = fitAt(1);
   const bFirst = fitAt(-1);
   if (!aFirst || !bFirst) return 'cantTell';
-  const aLeads = isLinked(aFirst);
-  const bLeads = isLinked(bFirst);
+  const aLeads = isSignificant(aFirst);
+  const bLeads = isSignificant(bFirst);
   if (aLeads && !bLeads) return 'firstComesFirst';
   if (bLeads && (!aLeads || Math.abs(bFirst.r) > Math.abs(aFirst.r))) {
     return 'strongerOtherWay';
@@ -563,7 +563,8 @@ function notEnough(
   };
 }
 
-function valueAt(series: DaySeries, key: string): number | undefined {
+/** The series' value on a key, when it has a finite one. */
+export function valueAt(series: DaySeries, key: string): number | undefined {
   const value: number | undefined = series[key];
   return value !== undefined && Number.isFinite(value) ? value : undefined;
 }

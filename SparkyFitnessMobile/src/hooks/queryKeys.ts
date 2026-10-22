@@ -1,4 +1,7 @@
-import type { CompareParams } from '../services/api/compareApi';
+import type {
+  CompareParams,
+  CompareSinceParams,
+} from '../services/api/compareApi';
 
 export const serverConnectionQueryKey = ['serverConnection'] as const;
 
@@ -459,3 +462,7 @@ export const routeQueryKey = (id: string) => ['routes', id] as const;
 /** One Compare answer: the two metrics, how they are paired, and the window. */
 export const compareQueryKey = (p: CompareParams) =>
   ['compare', p.a, p.b, p.mode, p.timing, p.start, p.end] as const;
+
+/** One since-a-habit-started answer: the habit, the outcome, the start and the line (null = the server's pick). */
+export const compareSinceQueryKey = (p: CompareSinceParams) =>
+  ['compare', 'since', p.a, p.b, p.habitStart, p.line] as const;

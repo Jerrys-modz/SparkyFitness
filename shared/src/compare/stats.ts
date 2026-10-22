@@ -1,6 +1,8 @@
 // Statistics for deciding whether two daily series are linked. Pure and dependency-free.
 
 export const Z_95 = 1.959963984540054;
+/** The significance level: a finding needs p below it. */
+export const ALPHA = 0.05;
 
 export function mean(xs: readonly number[]): number {
   if (xs.length === 0) return NaN;
@@ -228,6 +230,15 @@ export function correlationTest(
   return { p, low: Math.tanh(z - half), high: Math.tanh(z + half) };
 }
 
+/** A finding only when p < 0.05 and the 95% range leaves out 0: at a small effective n the two can disagree. */
+export function isSignificant(test: {
+  p: number;
+  low: number;
+  high: number;
+}): boolean {
+  return test.p < ALPHA && (test.low > 0 || test.high < 0);
+}
+
 /** Welch's t-test where each group's variance is divided by its effective n. */
 export function welch(
   a: readonly number[],
@@ -253,4 +264,60 @@ export function welch(
   const p = tTwoSidedP(diff / se, df);
   const margin = tCritical95(df) * se;
   return { diff, se, df, p, low: diff - margin, high: diff + margin };
+}
+
+/** The p-th quantile (p in [0, 1]) by linear interpolation between closest ranks, like numpy's default; null for an empty array. Sorts a copy. */
+export function percentile(xs: readonly number[], p: number): number | null {
+  if (xs.length === 0) return null;
+  const sorted = [...xs].sort((a, b) => a - b);
+  const h = (sorted.length - 1) * Math.min(Math.max(p, 0), 1);
+  const lo = Math.floor(h);
+  const hi = Math.ceil(h);
+  return sorted[lo]! + (h - lo) * (sorted[hi]! - sorted[lo]!);
+}
+
+/**
+ * How many independent days a single series' mean is worth: the smaller of the lag-1 count,
+ * n(1 − ρ)/(1 + ρ), and the multi-lag (Bartlett) count, n / (1 + 2·Σ ρ(k)) over lags
+ * k = 1..K, K = min(maxLag, ⌊n/4⌋) and at least 1. Between 2 and n (n itself below 2 values).
+ * The single-series form of cautiousEffectiveN: carried-over days must not look like new ones.
+ */
+export function cautiousEffectiveNForMean(
+  xs: readonly number[],
+  maxLag: number
+): number {
+  const n = xs.length;
+  if (n < 2) return n;
+  const rho = Math.min(Math.max(autocorrelation(xs, 1), 0), 1 - 1e-9);
+  const lag1 = (n * (1 - rho)) / (1 + rho);
+  const lags = Math.max(1, Math.min(maxLag, Math.floor(n / 4)));
+  let sum = 0;
+  for (let k = 1; k <= lags; k++) sum += autocorrelation(xs, k);
+  const multiLag = n / Math.max(1, 1 + 2 * sum);
+  return Math.max(2, Math.min(n, lag1, multiLag));
+}
+
+/** Ordinary least squares of y on x: the slope and its textbook standard error, sqrt((SSR/(n−2))/Sxx). Null with fewer than 3 points or no spread in x. */
+export function olsSlope(
+  xs: readonly number[],
+  ys: readonly number[]
+): { slope: number; se: number; n: number } | null {
+  const n = xs.length;
+  if (n < 3 || ys.length !== n) return null;
+  const mx = mean(xs);
+  const my = mean(ys);
+  let sxx = 0;
+  let sxy = 0;
+  for (let i = 0; i < n; i++) {
+    sxx += (xs[i]! - mx) ** 2;
+    sxy += (xs[i]! - mx) * (ys[i]! - my);
+  }
+  if (sxx === 0) return null;
+  const slope = sxy / sxx;
+  const intercept = my - slope * mx;
+  let ssr = 0;
+  for (let i = 0; i < n; i++) {
+    ssr += (ys[i]! - intercept - slope * xs[i]!) ** 2;
+  }
+  return { slope, se: Math.sqrt(ssr / (n - 2) / sxx), n };
 }

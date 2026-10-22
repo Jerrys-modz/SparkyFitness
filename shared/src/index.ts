@@ -271,4 +271,5 @@ export * from './utils/routeGpx.ts';
 export * from './compare/stats.ts';
 export * from './compare/metrics.ts';
 export * from './compare/analyze.ts';
+export * from './compare/since.ts';
 export * from './schemas/api/Compare.api.zod.ts';

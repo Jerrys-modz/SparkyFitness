@@ -6,7 +6,9 @@ import heartRateZoneService from './heartRateZoneService.js';
 import {
   addDays,
   analyzeDays,
+  analyzeSince,
   analyzeWeeks,
+  CompareModeError,
   compareDays,
   computeDailyWeightTrend,
   daySides,
@@ -18,6 +20,9 @@ import {
   resolveRecordZone,
   sampleSd,
   sessionLoad,
+  SINCE_START_MAX_DAYS_AGO,
+  SINCE_STRETCH_MAX_DAYS,
+  suggestedHabitStart,
   todayInZone,
   weekSides,
   weekStartOf,
@@ -25,6 +30,8 @@ import {
   type CompareQuery,
   type CompareResponse,
   type CompareResult,
+  type CompareSinceQuery,
+  type CompareSinceResponse,
   type CompareSides,
   type CompareTiming,
   type DaySeries,
@@ -55,6 +62,15 @@ const ROLLING_DAYS = 7;
 const MIN_CONSISTENCY_NIGHTS = 4;
 /** Weigh-ins this long before the range, so the trend is interpolated and smoothed across its start. */
 const WEIGHT_WARM_UP_DAYS = 30;
+/** Since mode's window: back to the oldest start allowed, plus 6 days of lead-in for a rolling metric. */
+const SINCE_WINDOW_DAYS = SINCE_START_MAX_DAYS_AGO + ROLLING_DAYS - 1;
+/**
+ * The habit reads two weeks past the oldest start allowed, so the whole week before that
+ * start's week is there to show whether the habit was already kept at the limit.
+ */
+const SINCE_HABIT_DAYS = SINCE_START_MAX_DAYS_AGO + 14;
+/** Before a start: a year of before stretch plus 6 days of lead-in for a rolling metric. */
+const SINCE_BEFORE_DAYS = SINCE_STRETCH_MAX_DAYS + ROLLING_DAYS - 1;
 const SECONDS_PER_HOUR = 3600;
 const MINUTES_PER_DAY = 24 * 60;
 /** Bedtime counts from 18:00, so 23:30 and 00:30 sit an hour apart. */
@@ -128,6 +144,100 @@ export async function getCompare(
     b: { key: query.b, values: between(sides.b.raw, first, last) },
     deviations: { a: sides.a.values, b: sides.b.values },
     through,
+    result,
+  };
+}
+
+/**
+ * How has B been since A started? The habit loads over the last two years and two weeks, the
+ * outcome over the last two years or far enough back to cover the year before the start;
+ * neither counts today.
+ */
+export async function getCompareSince(
+  userId: string,
+  query: CompareSinceQuery
+): Promise<CompareSinceResponse> {
+  const tz = await loadUserTimezone(userId);
+  const today = todayInZone(tz);
+  const yesterday = addDays(today, -1);
+  const oldest = addDays(today, -SINCE_START_MAX_DAYS_AGO);
+  const { habitStart } = query;
+  if (habitStart !== undefined) {
+    if (compareDays(habitStart, today) >= 0) {
+      throw new CompareModeError('habitStart must be before today');
+    }
+    if (compareDays(habitStart, oldest) < 0) {
+      throw new CompareModeError(
+        `habitStart can be at most ${SINCE_START_MAX_DAYS_AGO} days ago`
+      );
+    }
+  }
+  const firstDayOfWeek = await loadFirstDayOfWeek(userId);
+  const ctx: MetricContext = {
+    tz,
+    zoneFloors:
+      query.a === 'trainingLoad' || query.b === 'trainingLoad'
+        ? (await heartRateZoneService.resolveZonesForUser(userId)).floors
+        : percentMaxFloors(FALLBACK_MAX_HR),
+  };
+  const windowFrom = addDays(today, -SINCE_WINDOW_DAYS);
+  const outcomeFrom = (start: string | null) =>
+    start === null
+      ? windowFrom
+      : earliest(windowFrom, addDays(start, -SINCE_BEFORE_DAYS));
+  // The suggestion is held to `oldest` by the shared analysis, which reads the weeks before it.
+  const loadHabit = () =>
+    loadMetricDays(
+      userId,
+      query.a,
+      addDays(today, -SINCE_HABIT_DAYS),
+      yesterday,
+      ctx
+    );
+
+  let habit: DaySeries;
+  let outcome: DaySeries;
+  if (habitStart !== undefined) {
+    [habit, outcome] = await Promise.all([
+      loadHabit(),
+      loadMetricDays(userId, query.b, outcomeFrom(habitStart), yesterday, ctx),
+    ]);
+  } else {
+    // The suggested start sizes the outcome window, so the habit comes first.
+    habit = await loadHabit();
+    outcome = await loadMetricDays(
+      userId,
+      query.b,
+      outcomeFrom(suggestedHabitStart(habit, query.a, firstDayOfWeek, oldest)),
+      yesterday,
+      ctx
+    );
+  }
+
+  const result = analyzeSince({
+    habit: { key: query.a, values: habit },
+    outcome: { key: query.b, values: outcome },
+    start: habitStart ?? null,
+    line: query.line ?? null,
+    today,
+    firstDayOfWeek,
+  });
+
+  // Only the stretches that were compared; a stretch without days has no meaningful `from`.
+  const { before, since } = result;
+  if (!since) {
+    return {
+      mode: 'since',
+      habit: { key: query.a, values: {} },
+      outcome: { key: query.b, values: {} },
+      result,
+    };
+  }
+  const first = before && before.days > 0 ? before.from : since.from;
+  return {
+    mode: 'since',
+    habit: { key: query.a, values: between(habit, first, since.to) },
+    outcome: { key: query.b, values: between(outcome, first, since.to) },
     result,
   };
 }
@@ -485,4 +595,4 @@ function weekTiming(timing: number): 0 | 1 {
   throw new RangeError(`week mode supports timing 0 or 1 only, not ${timing}`);
 }
 
-export default { getCompare, loadMetricDays };
+export default { getCompare, getCompareSince, loadMetricDays };
