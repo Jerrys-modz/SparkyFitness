@@ -7,6 +7,8 @@ import {
   builtInBaseline,
   completeRunProgramWorkoutBodySchema,
   instantToDay,
+  exportRunPlanBodySchema,
+  findProgram,
   ProgramAdjustError,
   ProgramRealignStaleError,
   rateRunProgramWorkoutBodySchema,
@@ -19,6 +21,7 @@ import {
   upsertRunProgramBodySchema,
 } from '@workspace/shared';
 import { loadUserTimezone } from '../../utils/timezoneLoader.js';
+import { encodeFitWorkout } from '../../integrations/garminfit/fitWorkoutEncoder.js';
 import requireSelfActor from '../../middleware/requireSelfMiddleware.js';
 import {
   adjustRunProgram,
@@ -64,6 +67,41 @@ router.use(requireSelfActor);
  *       400:
  *         description: Invalid body or unknown program.
  */
+/**
+ * @swagger
+ * /v2/run-program/export/fit:
+ *   post:
+ *     summary: Export a planned workout as a FIT workout file
+ *     description: Returns a structured workout a Garmin watch can load.
+ *     tags: [Exercise]
+ *     responses:
+ *       200:
+ *         description: The FIT workout file.
+ *       400:
+ *         description: Invalid body.
+ */
+router.post('/export/fit', (req, res, next) => {
+  try {
+    const parsed = exportRunPlanBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Invalid request body',
+        details: parsed.error.format(),
+      });
+    }
+    const { name, activity, plan } = parsed.data;
+    const fit = encodeFitWorkout(plan, {
+      name,
+      sport: activity === 'walk' ? 'walking' : 'running',
+    });
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'attachment; filename="workout.fit"');
+    res.send(Buffer.from(fit));
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/', async (req, res, next) => {
   try {
     const program = await getRunProgram(req.userId, req.authenticatedUserId);

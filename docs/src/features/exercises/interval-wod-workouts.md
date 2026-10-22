@@ -149,3 +149,7 @@ To create an interval workout preset:
    - **Time Cap (minutes)**: Global time limit (for AMRAP and For Time).
 5. Add your exercises and target reps / weights.
 6. Save the preset. You can now launch it directly from the preset menu or schedule it into your sequential or weekly **Workout Plan**. The AI assistant and MCP tools can also create format presets, inspect timers, and record WOD scores directly.
+
+## Sending a planned workout to a Garmin watch
+
+A timed or distance interval plan can be exported as a FIT workout file with `POST /api/v2/run-program/export/fit`. Copy the downloaded `workout.fit` to the watch's `GARMIN/NewFiles` folder (or import it in Garmin Connect) and it appears as a structured workout with its warm-up, work and recovery steps, distance or time durations, and any pace or heart-rate range as the step target.

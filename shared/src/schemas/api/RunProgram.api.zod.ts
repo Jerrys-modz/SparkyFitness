@@ -240,13 +240,13 @@ export const adjustRunProgramBodySchema = z.object({
 export type AdjustRunProgramBody = z.infer<typeof adjustRunProgramBodySchema>;
 
 /** Race distances a realignment can name; the same ids the race plan builder uses. */
-export const realignDistanceSchema = z.enum(["5k", "10k", "half", "marathon"]);
+export const realignDistanceSchema = z.enum(['5k', '10k', 'half', 'marathon']);
 
 /** What realigning did to one workout of the plan as it stood before. */
 export const runProgramRealignChangeSchema = z.object({
-  kind: z.enum(["dropped", "merged", "repeated", "added"]),
+  kind: z.enum(['dropped', 'merged', 'repeated', 'added']),
   /** Why: a repeat of a workout in the same week, a lighter week folded into its neighbour, or time to spare. */
-  reason: z.enum(["repeat", "lighter", "shortest", "extraTime"]),
+  reason: z.enum(['repeat', 'lighter', 'shortest', 'extraTime']),
   /** 1-based week and run of the workout it concerns, as numbered before. */
   week: z.number().int().min(1).max(60),
   run: z.number().int().min(1).max(60),
@@ -298,36 +298,36 @@ export type RunProgramRealignPreview = z.infer<
 >;
 
 export const runProgramRealignOptionSchema = z.enum([
-  "later",
-  "lower",
-  "continue",
+  'later',
+  'lower',
+  'continue',
 ]);
 export type RunProgramRealignOption = z.infer<
   typeof runProgramRealignOptionSchema
 >;
 
-export const runProgramRealignResultSchema = z.discriminatedUnion("state", [
+export const runProgramRealignResultSchema = z.discriminatedUnion('state', [
   /** No goal day, no workout days, nothing left, or nothing to realign against. */
   z.object({
-    state: z.literal("unavailable"),
-    reason: z.enum(["noGoalDay", "noRunDays", "finished"]),
+    state: z.literal('unavailable'),
+    reason: z.enum(['noGoalDay', 'noRunDays', 'finished']),
   }),
-  z.object({ state: z.literal("fits") }),
+  z.object({ state: z.literal('fits') }),
   z.object({
-    state: z.literal("plan"),
+    state: z.literal('plan'),
     preview: runProgramRealignPreviewSchema,
   }),
   /** The goal day is not realistic for the distance; the person chooses what to do. */
   z.object({
-    state: z.literal("unrealistic"),
+    state: z.literal('unrealistic'),
     reasons: z
       .array(
         z.enum([
-          "noTimeLeft",
-          "taperDoesNotFit",
-          "tooMuchToDrop",
-          "tooFewWeeks",
-        ]),
+          'noTimeLeft',
+          'taperDoesNotFit',
+          'tooMuchToDrop',
+          'tooFewWeeks',
+        ])
       )
       .min(1),
     slots: z.number().int().min(0).max(400),
@@ -375,3 +375,31 @@ export const realignRunProgramResponseSchema = z.object({
 export type RealignRunProgramResponse = z.infer<
   typeof realignRunProgramResponseSchema
 >;
+
+/** A plan to send to a watch: a stored plan plus the optional per-step targets. */
+export const exportRunPlanBodySchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  activity: z.enum(['run', 'walk']).default('run'),
+  plan: z.object({
+    style: z.enum(['runWalk', 'fastEasy']),
+    steps: z
+      .array(
+        runProgramStepSchema.extend({
+          pace: z
+            .object({
+              minSecondsPerKm: z.number().min(60).max(3600),
+              maxSecondsPerKm: z.number().min(60).max(3600),
+            })
+            .optional(),
+          heartRate: z
+            .object({
+              minBpm: z.number().int().min(30).max(240),
+              maxBpm: z.number().int().min(30).max(240),
+            })
+            .optional(),
+        })
+      )
+      .min(1)
+      .max(200),
+  }),
+});

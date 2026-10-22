@@ -634,3 +634,33 @@ describe('POST /api/v2/run-program/realign', () => {
     expect(delegated.status).toBe(403);
   });
 });
+
+describe('POST /api/v2/run-program/export/fit', () => {
+  it('returns a FIT file for a valid plan', async () => {
+    const res = await request(app)
+      .post('/api/v2/run-program/export/fit')
+      .send({
+        name: '6 x 400 m',
+        plan: {
+          style: 'fastEasy',
+          steps: [{ kind: 'work', seconds: 100, meters: 400 }],
+        },
+      })
+      .buffer(true)
+      .parse((r: any, cb: any) => {
+        const chunks: Buffer[] = [];
+        r.on('data', (c: Buffer) => chunks.push(c));
+        r.on('end', () => cb(null, Buffer.concat(chunks)));
+      });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('application/octet-stream');
+    expect(res.body.subarray(8, 12).toString()).toBe('.FIT');
+  });
+
+  it('rejects an empty plan', async () => {
+    const res = await request(app)
+      .post('/api/v2/run-program/export/fit')
+      .send({ name: 'x', plan: { style: 'fastEasy', steps: [] } });
+    expect(res.status).toBe(400);
+  });
+});
