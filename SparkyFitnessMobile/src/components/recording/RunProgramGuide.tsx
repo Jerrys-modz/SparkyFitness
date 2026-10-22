@@ -103,6 +103,46 @@ export function programStructure(t: TFunction, id: string): string {
         defaultValue:
           'Each week has two short runs, a middle run and a long run. The long run builds from 70 minutes to 2½ hours, every fourth week is lighter, and the last three weeks taper before race day. The final week has three shorter runs.',
       });
+    case 'halfMarathon2':
+      return t('runPrograms.guide.structure.halfMarathon2', {
+        defaultValue:
+          'Each week has an easy run and a long run. The long run builds from 50 to 115 minutes, every fourth week is lighter, and the last week is short before race day.',
+      });
+    case 'marathon2':
+      return t('runPrograms.guide.structure.marathon2', {
+        defaultValue:
+          'Each week has an easy run and a long run. The long run builds from 70 minutes to 2¾ hours, every fourth week is lighter, and the last two weeks taper before race day.',
+      });
+    case 'trailMarathon':
+      return t('runPrograms.guide.structure.trailMarathon', {
+        defaultValue:
+          'Each week has an easy run, hill repeats and a long run of 20 minutes running and 5 minutes walking. The long run builds from 70 minutes to three hours, and the last weeks taper before race day.',
+      });
+    case 'trail50k':
+      return t('runPrograms.guide.structure.trail50k', {
+        defaultValue:
+          'Each week has an easy run, hill repeats and a long run of 20 minutes running and 5 minutes walking. The long run builds from 90 minutes to four hours, and the last weeks taper before race day.',
+      });
+    case 'fiftyK':
+      return t('runPrograms.guide.structure.fiftyK', {
+        defaultValue:
+          'Each week has an easy run, a middle run and a long run. The long run builds from 90 minutes to four hours, every fourth week is lighter, and the last weeks taper before race day.',
+      });
+    case 'fiftyK2':
+      return t('runPrograms.guide.structure.fiftyK2', {
+        defaultValue:
+          'Each week has an easy run and a long run. The long run builds from 90 minutes to four hours, every fourth week is lighter, and the last weeks taper before race day.',
+      });
+    case 'hundredK':
+      return t('runPrograms.guide.structure.hundredK', {
+        defaultValue:
+          'Each week has an easy run, a middle run and a long run. The long run builds from 100 minutes to four hours, the middle run grows to 2 hours 20 minutes, every fourth week is lighter, and the last weeks taper before race day.',
+      });
+    case 'hundredK2':
+      return t('runPrograms.guide.structure.hundredK2', {
+        defaultValue:
+          'Each week has an easy run and a long run. The long run builds from 100 minutes to four hours, every fourth week is lighter, and the last weeks taper before race day.',
+      });
     default:
       return '';
   }
@@ -150,10 +190,22 @@ export function programRest(t: TFunction, id: string): string {
         defaultValue:
           'With five runs a week, take two rest or cross-training days and avoid more than two runs in a row. Keep the speed or tempo session and the long run at least two days apart, keep the days either side of them easy, and rest more in the lighter weeks.',
       });
+    case 'halfMarathon2':
+    case 'marathon2':
+    case 'fiftyK2':
+    case 'hundredK2':
+      return t('runPrograms.guide.rest.twoRun', {
+        defaultValue:
+          'With two runs a week, leave at least one full day between them, and two if you can. Keep the day before the long run free, and rest or walk the day after it.',
+      });
     case 'halfMarathon':
     case 'tenKToHalf':
     case 'beginnerMarathon':
     case 'marathon':
+    case 'trailMarathon':
+    case 'trail50k':
+    case 'fiftyK':
+    case 'hundredK':
       return t('runPrograms.guide.rest.longDistance', {
         defaultValue:
           'Keep the day before the long run easy or free, and take a rest day the day after it. Space the other runs so no two hard days sit together, and use spare days for rest, walking or low-impact cross-training.',

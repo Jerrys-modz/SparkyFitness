@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import {
   customProgramId,
   findProgram,
@@ -16,6 +17,28 @@ import {
   programName,
   programStructure,
 } from '@/utils/runPrograms';
+
+/** What the 2-day and 4-day choices mean, depending on which versions exist. */
+function versionHint(t: TFunction, counts: readonly number[]): string {
+  const hasTwo = counts.includes(2);
+  const hasFour = counts.includes(4);
+  if (hasTwo && hasFour) {
+    return t(
+      'trainingPrograms.picker.runsPerWeekHintBoth',
+      'Two runs keeps the long run and one other day. Four runs adds a short easy run, so the long run is a smaller share of the week.'
+    );
+  }
+  if (hasTwo) {
+    return t(
+      'trainingPrograms.picker.runsPerWeekHintTwo',
+      'Two runs keeps the long run and one other day, for a week you cannot train more often.'
+    );
+  }
+  return t(
+    'trainingPrograms.picker.runsPerWeekHint',
+    'A fourth run adds a short easy run, so the long run is a smaller share of your week.'
+  );
+}
 
 interface TrainingProgramPickerProps {
   /** The program the person holds now (running or paused), if any. */
@@ -100,9 +123,9 @@ const TrainingProgramPicker = ({
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {t(
-                      'trainingPrograms.picker.runsPerWeekHint',
-                      'A fourth run adds a short easy run, so the long run is a smaller share of your week.'
+                    {versionHint(
+                      t,
+                      versions.map((v) => v.workoutsPerWeek)
                     )}
                   </p>
                 </div>

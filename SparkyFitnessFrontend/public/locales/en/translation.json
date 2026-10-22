@@ -9215,6 +9215,8 @@
       "outline": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of effort.",
       "outlineWalk": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of brisk walking.",
       "runsPerWeekHint": "A fourth run adds a short easy run, so the long run is a smaller share of your week.",
+      "runsPerWeekHintBoth": "Two runs keeps the long run and one other day. Four runs adds a short easy run, so the long run is a smaller share of the week.",
+      "runsPerWeekHintTwo": "Two runs keeps the long run and one other day, for a week you cannot train more often.",
       "start": "Start program",
       "weeksRuns": "{{weeks}} weeks, {{runs}} workouts a week",
       "runsPerWeekOption_one": "{{count}} run a week",
@@ -9266,6 +9268,16 @@
         "name": "Faster half marathon (4 runs a week)",
         "structure": "Each week has a speed session, two easy runs and a long run. The long run builds from 70 to 110 minutes. Tempo runs of 25 and 30 minutes replace the speed session in weeks 6 and 8, week 4 is lighter, and the last three weeks taper before race day. The final week has three shorter runs."
       },
+      "fiftyK": {
+        "description": "50K: sixteen weeks, three runs a week, with long runs building to four hours and a taper. For when you have finished a marathon.",
+        "name": "50K",
+        "structure": "Each week has an easy run, a middle run and a long run. The long run builds from 90 minutes to four hours, every fourth week is lighter, and the last weeks taper before race day."
+      },
+      "fiftyK2": {
+        "description": "50K: sixteen weeks, two runs a week, with long runs building to four hours and a taper. For when you have finished a marathon but cannot train more often.",
+        "name": "50K (2 runs a week)",
+        "structure": "Each week has an easy run and a long run. The long run builds from 90 minutes to four hours, every fourth week is lighter, and the last weeks taper before race day."
+      },
       "fiveToTenK": {
         "description": "5K to 10K: eight weeks, three runs a week, for when you can run 30 minutes. It builds to a 65 minute long run.",
         "name": "5K to 10K",
@@ -9281,15 +9293,35 @@
         "name": "Half marathon",
         "structure": "Each week has an easy run, a middle run and a long run. The long run builds from 50 to 115 minutes, every fourth week is lighter, and the last week is short before race day."
       },
+      "halfMarathon2": {
+        "description": "Half marathon: twelve weeks, two runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably but cannot train more often.",
+        "name": "Half marathon (2 runs a week)",
+        "structure": "Each week has an easy run and a long run. The long run builds from 50 to 115 minutes, every fourth week is lighter, and the last week is short before race day."
+      },
       "halfMarathon4": {
         "description": "Half marathon: twelve weeks, four runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably.",
         "name": "Half marathon (4 runs a week)",
         "structure": "Each week has two easy runs, a middle run and a long run. The long run builds from 50 to 115 minutes, every fourth week is lighter, and the last two weeks taper before race day. The final week has three shorter runs."
       },
+      "hundredK": {
+        "description": "100K: eighteen weeks, three runs a week, with long runs of up to four hours and a middle run that grows to 2 hours 20 minutes. For when you have finished a 50K.",
+        "name": "100K",
+        "structure": "Each week has an easy run, a middle run and a long run. The long run builds from 100 minutes to four hours, the middle run grows to 2 hours 20 minutes, every fourth week is lighter, and the last weeks taper before race day."
+      },
+      "hundredK2": {
+        "description": "100K: eighteen weeks, two runs a week, with long runs building to four hours and a taper. For when you have finished a 50K but cannot train more often.",
+        "name": "100K (2 runs a week)",
+        "structure": "Each week has an easy run and a long run. The long run builds from 100 minutes to four hours, every fourth week is lighter, and the last weeks taper before race day."
+      },
       "marathon": {
         "description": "Marathon: sixteen weeks, four runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly.",
         "name": "Marathon",
         "structure": "Most weeks have two easy runs, a middle run and a long run. The long run builds from 70 minutes to 2¾ hours, every fourth week is lighter, and the last two weeks taper before race day."
+      },
+      "marathon2": {
+        "description": "Marathon: sixteen weeks, two runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly but cannot train more often.",
+        "name": "Marathon (2 runs a week)",
+        "structure": "Each week has an easy run and a long run. The long run builds from 70 minutes to 2¾ hours, every fourth week is lighter, and the last two weeks taper before race day."
       },
       "returnToRunning": {
         "description": "Return to running: four weeks, three runs a week, for easing back in after a break. You build from one-minute runs to about 20 minutes of running. Leave a day or two between runs and keep the pace easy. If you are coming back from an injury, check with a physio or doctor first.",
@@ -9305,6 +9337,16 @@
         "description": "10K to half marathon: ten weeks, four runs a week, with long runs building to about two hours. For when you can run 10K.",
         "name": "10K to half marathon (4 runs a week)",
         "structure": "Each week has two short runs, a middle run and a long run. The long run builds from 65 to 115 minutes, weeks 4 and 8 are lighter, and the last two weeks taper before race day. The final week has three shorter runs."
+      },
+      "trail50k": {
+        "description": "Trail 50K: sixteen weeks, three runs a week, with hill repeats and a hike-run long run building to four hours. For when you have finished a marathon.",
+        "name": "Trail 50K",
+        "structure": "Each week has an easy run, hill repeats and a long run of 20 minutes running and 5 minutes walking. The long run builds from 90 minutes to four hours, and the last weeks taper before race day."
+      },
+      "trailMarathon": {
+        "description": "Trail marathon: fourteen weeks, three runs a week, with hill repeats and a hike-run long run building to three hours. For when you already run on roads.",
+        "name": "Trail marathon",
+        "structure": "Each week has an easy run, hill repeats and a long run of 20 minutes running and 5 minutes walking. The long run builds from 70 minutes to three hours, and the last weeks taper before race day."
       },
       "walk10k": {
         "description": "Brisk walk 10K: ten weeks, three walks a week, with no running. You build up to a 10K walk of about an hour and three quarters.",
