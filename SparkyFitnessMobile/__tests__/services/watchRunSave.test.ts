@@ -217,12 +217,7 @@ describe('cadence and stride from the phone', () => {
   test('passes the watch step count through', async () => {
     jest.mocked(measureWatchRunForm).mockResolvedValue(form);
 
-    await saveWatchRun(
-      { ...outdoor, steps: 3200 },
-      'km',
-      undefined,
-      jest.fn()
-    );
+    await saveWatchRun({ ...outdoor, steps: 3200 }, 'km', undefined, jest.fn());
 
     expect(measureWatchRunForm).toHaveBeenCalledWith(
       expect.anything(),
