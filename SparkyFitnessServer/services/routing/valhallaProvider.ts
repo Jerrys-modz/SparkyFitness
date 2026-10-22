@@ -88,6 +88,47 @@ const routeResponseSchema = z.object({
 
 const heightResponseSchema = z.object({ height: z.array(z.number()) });
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/**
+ * Whether an engine answer is small enough to be worth validating. The
+ * schema's own `.max()` limits do not bound the work: Zod visits every entry
+ * of an array and records an issue object for each bad one, so a body full of
+ * tiny bad entries costs gigabytes before the answer is refused. Counting
+ * first (array lengths and string lengths are constant time) is what keeps
+ * that bounded, whatever the body holds.
+ */
+function isBoundedRouteAnswer(data: unknown): boolean {
+  if (!isRecord(data) || !isRecord(data.trip)) return false;
+  const { legs } = data.trip;
+  if (!Array.isArray(legs) || legs.length > MAX_ROUTE_LEGS) return false;
+  let maneuvers = 0;
+  for (const leg of legs as unknown[]) {
+    if (!isRecord(leg)) continue;
+    if (
+      typeof leg.shape === 'string' &&
+      leg.shape.length > MAX_LEG_SHAPE_CHARS
+    ) {
+      return false;
+    }
+    if (Array.isArray(leg.maneuvers)) {
+      maneuvers += leg.maneuvers.length;
+      if (maneuvers > MAX_ROUTE_MANEUVERS) return false;
+    }
+  }
+  return true;
+}
+
+/** The elevation answer must hold exactly one height per point, so count that first. */
+function isBoundedHeightAnswer(data: unknown, pointCount: number): boolean {
+  return (
+    isRecord(data) &&
+    Array.isArray(data.height) &&
+    data.height.length === pointCount
+  );
+}
+
 const errorBodySchema = z.object({ error_code: z.number() });
 
 function failureFromAxios(error: unknown): RoutingProviderError {
@@ -160,6 +201,7 @@ export function createValhallaProvider(
         { encoded_polyline: shape, shape_format: 'polyline6', range: false },
         config
       );
+      if (!isBoundedHeightAnswer(response.data, pointCount)) return null;
       const parsed = heightResponseSchema.safeParse(response.data);
       if (!parsed.success || parsed.data.height.length !== pointCount) {
         return null;
@@ -200,8 +242,10 @@ export function createValhallaProvider(
         throw failure;
       }
 
-      const parsed = routeResponseSchema.safeParse(data);
-      if (!parsed.success) {
+      const parsed = isBoundedRouteAnswer(data)
+        ? routeResponseSchema.safeParse(data)
+        : null;
+      if (parsed === null || !parsed.success) {
         throw new RoutingProviderError(
           'bad_response',
           'The routing engine returned an unreadable route'

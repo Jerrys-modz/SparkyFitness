@@ -295,6 +295,54 @@ describe('Valhalla provider over HTTP (axios mocked)', () => {
     });
   });
 
+  // Zod records an issue object for every bad array entry, so validating
+  // first costs memory in proportion to the entries, not the bytes. The
+  // answer is counted before it is validated. Measured at a few milliseconds
+  // here; the bound is far above that for slow CI runners and far below the
+  // seconds (and gigabytes at 2.8M entries) the unguarded schema takes.
+  it('refuses an answer packed with tiny bad legs without validating them', async () => {
+    const tiny = {};
+    post.mockResolvedValue({
+      data: {
+        trip: {
+          summary: { length: 1 },
+          legs: Array.from({ length: 500_000 }, () => tiny),
+        },
+      },
+    });
+    const started = performance.now();
+    await expect(engine().route(req)).rejects.toMatchObject({
+      kind: 'bad_response',
+    });
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+
+  it('refuses an elevation answer longer than the route without validating it', async () => {
+    post.mockImplementation(async (url: string) => {
+      if (url.endsWith('/route')) {
+        return {
+          data: {
+            trip: {
+              summary: { length: 1.11 },
+              legs: [
+                {
+                  shape: '_c`|@_gayB_c`|@?',
+                  maneuvers: [{ type: 1, length: 1.11, begin_shape_index: 0 }],
+                },
+              ],
+            },
+          },
+        };
+      }
+      // Bad entries, so the schema would record an issue object for each.
+      return { data: { height: Array.from({ length: 2_000_000 }, () => 'x') } };
+    });
+    const started = performance.now();
+    const result = await engine().route(req);
+    expect(result.points.every((p) => p.alt === undefined)).toBe(true);
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+
   it('rejects an unreadable response', async () => {
     post.mockResolvedValue({ data: { nope: true } });
     await expect(engine().route(req)).rejects.toMatchObject({
