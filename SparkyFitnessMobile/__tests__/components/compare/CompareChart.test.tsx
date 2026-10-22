@@ -107,7 +107,46 @@ describe('CompareChart', () => {
     expect(getAllByTestId('line-mark')).toHaveLength(2);
     expect(queryByTestId('scatter-mark')).toBeNull();
     expect(getByText('Mood 5.8–8.1')).toBeTruthy();
-    expect(getByText('Meditation minutes 10.0–20.0')).toBeTruthy();
+    expect(getByText('Meditation minutes 10–20')).toBeTruthy();
+  });
+
+  it('shows bedtime as clock times and counts without decimals in the legend', () => {
+    const r = response();
+    r.a = {
+      key: 'bedtime',
+      values: { '2026-10-01': 255, '2026-10-02': 345, '2026-10-03': 300 },
+    };
+    r.b = {
+      key: 'steps',
+      values: { '2026-10-01': 8000, '2026-10-02': 12001.6, '2026-10-03': 9000 },
+    };
+    const { getByText } = render(
+      <CompareChart
+        response={r}
+        question={{ a: 'bedtime', b: 'steps', choice: 'sameWeek' }}
+      />
+    );
+    fireEvent.press(getByText('Over time'));
+    expect(getByText(/^Bedtime 10:15\sPM–11:45\sPM$/)).toBeTruthy();
+    expect(getByText('Steps 8,000–12,002')).toBeTruthy();
+  });
+
+  it('reads a bedtime past midnight as an early-morning time', () => {
+    const r = response();
+    r.a = {
+      key: 'bedtime',
+      values: { '2026-10-01': 330, '2026-10-02': 420 },
+    };
+    r.b = { key: 'calories', values: { '2026-10-01': 1850.4 } };
+    const { getByText } = render(
+      <CompareChart
+        response={r}
+        question={{ a: 'bedtime', b: 'calories', choice: 'sameDay' }}
+      />
+    );
+    fireEvent.press(getByText('Over time'));
+    expect(getByText(/^Bedtime 11:30\sPM–1:00\sAM$/)).toBeTruthy();
+    expect(getByText('Calories 1,850–1,850')).toBeTruthy();
   });
 
   it('says each week as a dot in week mode', () => {

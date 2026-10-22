@@ -1,6 +1,7 @@
 import type { CompareResponse, CompareResult } from '@workspace/shared';
 import i18n, { initializeI18n } from '../../src/localization/i18n';
 import {
+  compareValueText,
   questionParts,
   sentenceText,
   statsLine,
@@ -504,5 +505,26 @@ describe('statsLine', () => {
     expect(line).toBe(
       'difference 0.9 · 95% range 0.2 to 1.6 · p 0.012 · 62 days'
     );
+  });
+});
+
+describe('compareValueText', () => {
+  test('keeps one decimal on scales and averages', () => {
+    expect(compareValueText('mood', 58)).toBe('5.8');
+    expect(compareValueText('energy', 3.25)).toBe('3.3');
+    expect(compareValueText('timeAsleep', 7)).toBe('7.0');
+  });
+
+  test('shows counts and minutes whole', () => {
+    expect(compareValueText('steps', 8432.6)).toBe('8,433');
+    expect(compareValueText('workoutMinutes', 45.4)).toBe('45');
+    expect(compareValueText('meditationSessions7d', 3)).toBe('3');
+    expect(compareValueText('meditated', 4)).toBe('4');
+  });
+
+  test('shows bedtime as a clock time, wrapping past midnight', () => {
+    expect(compareValueText('bedtime', 255)).toMatch(/^10:15\sPM$/);
+    expect(compareValueText('bedtime', 390)).toMatch(/^12:30\sAM$/);
+    expect(compareValueText('bedtime', -30)).toMatch(/^5:30\sPM$/);
   });
 });

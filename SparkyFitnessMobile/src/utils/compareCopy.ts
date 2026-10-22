@@ -11,6 +11,7 @@ import {
 } from '../constants/compareMetrics';
 import type { Translator } from '../constants/reports';
 import { formatLocalizedNumber } from '../localization';
+import { formatTimeLabel } from './entryTimeDisplay';
 import {
   timingOf,
   type CompareMode,
@@ -604,6 +605,37 @@ function num(value: number, digits: number): string {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   });
+}
+
+/** Units whose values are counts or whole minutes, shown without decimals. */
+const WHOLE_UNITS: ReadonlySet<string> = new Set([
+  'steps',
+  'kcal',
+  'min',
+  'sessions',
+  'yes/no',
+]);
+const MINUTES_PER_DAY = 24 * 60;
+const BEDTIME_ORIGIN_MINUTES = 18 * 60;
+
+/**
+ * A metric's raw value as the person reads it: bedtime (minutes after 18:00)
+ * as a clock time in the app locale, counts and minutes as whole numbers,
+ * everything else to one decimal on its display scale (mood 1-10).
+ */
+export function compareValueText(key: CompareMetricKey, value: number): string {
+  if (key === 'bedtime') {
+    const minutes =
+      (((BEDTIME_ORIGIN_MINUTES + Math.round(value)) % MINUTES_PER_DAY) +
+        MINUTES_PER_DAY) %
+      MINUTES_PER_DAY;
+    const clock = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+    return formatTimeLabel(clock) ?? clock;
+  }
+  return num(
+    compareDisplayValue(key, value),
+    WHOLE_UNITS.has(COMPARE_METRICS[key].unit) ? 0 : 1
+  );
 }
 
 /**

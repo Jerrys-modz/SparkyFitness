@@ -5,11 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { CartesianChart, Line } from 'victory-native';
 import { useCSSVariable } from 'uniwind';
 
-import {
-  COMPARE_METRIC_LABELS,
-  compareDisplayValue,
-} from '../../constants/compareMetrics';
-import { formatLocalizedNumber } from '../../localization';
+import { COMPARE_METRIC_LABELS } from '../../constants/compareMetrics';
+import { compareValueText } from '../../utils/compareCopy';
 import {
   CHART_LABEL_FONT_SIZE,
   formatXLabel30d90d,
@@ -24,12 +21,6 @@ interface CompareOverTimeChartProps {
 }
 
 const CHART_HEIGHT = 200;
-
-const oneDecimal = (value: number): string =>
-  formatLocalizedNumber(value, {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  });
 
 const CompareOverTimeChart: React.FC<CompareOverTimeChartProps> = ({
   response,
@@ -73,8 +64,8 @@ const CompareOverTimeChart: React.FC<CompareOverTimeChartProps> = ({
       ? t('compareReport.chart.range', {
           defaultValue: '{{metric}} {{min}}–{{max}}',
           metric: COMPARE_METRIC_LABELS[item.key](t),
-          min: oneDecimal(compareDisplayValue(item.key, item.range.min)),
-          max: oneDecimal(compareDisplayValue(item.key, item.range.max)),
+          min: compareValueText(item.key, item.range.min),
+          max: compareValueText(item.key, item.range.max),
         })
       : COMPARE_METRIC_LABELS[item.key](t),
   }));
