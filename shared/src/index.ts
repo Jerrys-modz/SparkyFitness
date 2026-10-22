@@ -1,3 +1,4 @@
+export * from "./schemas/api/TrainingCalendar.api.zod.ts";
 export * from './schemas/api/AiServiceSettings.api.zod.ts';
 export * from './schemas/api/AlcoholWeek.api.zod.ts';
 export * from './schemas/api/VoiceTranscription.api.zod.ts';
@@ -182,6 +183,7 @@ export * from './cycle/content.ts';
 export * from './mood/index.ts';
 export * from './mood/checkins.ts';
 
+export * from "./utils/trainingCalendar.ts";
 export * from './schemas/database/CheckInPhotos.zod.ts';
 export * from './schemas/database/CycleDailyEntries.zod.ts';
 export * from './schemas/database/CycleSettings.zod.ts';

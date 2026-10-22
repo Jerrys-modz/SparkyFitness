@@ -86,7 +86,6 @@ export type RootStackParamList = {
   WorkoutPlans: undefined;
   WorkoutPlanForm: { template?: WorkoutPlanTemplate } | undefined;
   RunPrograms: undefined;
-  RunProgramCalendar: undefined;
   RunProgramWorkout: { index: number };
   RunProgramRace: undefined;
   RunProgramEdit: { id?: string; fromProgramId?: string } | undefined;
@@ -96,6 +95,7 @@ export type RootStackParamList = {
   /** `routeId` opens a saved route in the editor and saves over it. */
   RouteDraw: { routeId?: string } | undefined;
   RouteGenerate: undefined;
+  TrainingCalendar: undefined;
   WatchRunLive: undefined;
   MealPlanForm: { template?: MealPlanTemplate; initialMeal?: Meal } | undefined;
   // #2115, Phase 12: mobile-only water-container CRUD.
