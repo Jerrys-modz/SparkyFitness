@@ -3,6 +3,7 @@ import type { FormMetrics } from './stride';
 import {
   computeLaps,
   computeSplits,
+  withSplitHeartRate,
   METERS_PER_KM,
   METERS_PER_MILE,
   summarizeRecording,
@@ -88,6 +89,7 @@ export function buildRunSummary({
   points,
   lapMarks,
   avgHeartRate,
+  heartRateSamples,
   program,
   entryId,
   form,
@@ -98,13 +100,18 @@ export function buildRunSummary({
   points: readonly RecordedPoint[];
   lapMarks: readonly number[] | undefined;
   avgHeartRate: number | null;
+  /** Readings (epoch ms) that give each split its own average, when held. */
+  heartRateSamples?: readonly { t: number; bpm: number }[];
   program: RunSummaryParams['program'];
   entryId?: string | null;
   form?: RunSummaryParams['form'];
 }): RunSummaryParams {
   const unitMeters = distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
   const summary = summarizeRecording(points);
-  const splits = computeSplits(points, unitMeters);
+  const splits = withSplitHeartRate(
+    computeSplits(points, unitMeters),
+    heartRateSamples ?? []
+  );
   const laps =
     lapMarks && lapMarks.length > 0 ? computeLaps(points, lapMarks) : [];
   // Elevation permitting, a grade-adjusted pace for the whole run and for each
