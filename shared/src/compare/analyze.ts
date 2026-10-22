@@ -20,7 +20,6 @@ import {
   mean,
   pearson,
   ranks,
-  sampleSd,
   spearman,
   tTwoSidedP,
   welch,
@@ -37,14 +36,14 @@ export interface CompareResult {
   status: 'ok' | 'not_enough';
   n: number;
   needed: number; // 14 days / 8 weeks / 5 per yes-no group
-  reason?: 'tooFew' | 'noVariation'; // only when not_enough
+  reason?: 'tooFew' | 'noVariation' | 'fewYes' | 'fewNo'; // only when not_enough
   method?: 'pearson' | 'spearman' | 'difference';
   nEff?: number;
   r?: number;
   p?: number;
   low?: number;
   high?: number;
-  linked?: boolean; // p < 0.05
+  linked?: boolean; // p < 0.05 and the 95% range leaves out 0
   strength?: CompareStrength; // only when linked and method is pearson/spearman
   sign?: 'positive' | 'negative';
   binary?: {
@@ -57,6 +56,7 @@ export interface CompareResult {
   };
   checks: {
     ownNormal: true;
+    /** 'firstComesFirst': the thing on the earlier day leads — A for timing 0 and 1, B for timing −1. */
     direction?: CompareDirectionCheck;
     weekend?: CompareWeekendCheck;
   };
@@ -331,17 +331,36 @@ function analyzePairs(input: PairInput): CompareResult {
     needed: input.needed,
     method,
     ...fit,
-    linked: fit.p < ALPHA,
+    linked: isLinked(fit),
     checks: { ownNormal: true },
   };
   if (!result.linked) return result;
   result.strength = strengthOf(fit.r);
   result.sign = fit.r > 0 ? 'positive' : 'negative';
-  result.checks.direction = directionCheck(input, method, fit.r);
-  if (input.isWeekend) {
-    result.checks.weekend = weekendCheck(pairs, method, fit, input.isWeekend);
-  }
+  result.checks = checksFor(input, pairs, method, fit);
   return result;
+}
+
+/** A link only when p < 0.05 and the 95% range leaves out 0: at a small effective n the two can disagree. */
+function isLinked(test: { p: number; low: number; high: number }): boolean {
+  return test.p < ALPHA && (test.low > 0 || test.high < 0);
+}
+
+/** The checks shown under a Yes: which comes first, and (by day) whether weekends explain it. */
+function checksFor(
+  input: PairInput,
+  pairs: Pairs,
+  method: CorrelationMethod,
+  fit: Fit
+): CompareResult['checks'] {
+  const checks: CompareResult['checks'] = {
+    ownNormal: true,
+    direction: directionCheck(input, method, fit.r),
+  };
+  if (input.isWeekend) {
+    checks.weekend = weekendCheck(pairs, method, fit, input.isWeekend);
+  }
+  return checks;
 }
 
 function pairUp(input: PairInput, timing: number): Pairs {
@@ -374,7 +393,12 @@ function correlate(pairs: Pairs, method: CorrelationMethod): Fit | null {
   return { r, nEff, ...correlationTest(r, nEff) };
 }
 
-/** Yes days against no days: Welch on the other metric's deviations, each group with its own effective n. */
+/**
+ * Yes days against no days: Welch on the other metric's deviations. Consecutive days resemble
+ * each other, so the effective n comes from the whole run in day order, the 0/1 flags against
+ * the deviations (the point-biserial view, as on the correlation path), and each group gets its
+ * share of it. The checks after a Yes use the same point-biserial view.
+ */
 function compareGroups(input: PairInput, pairs: Pairs): CompareResult {
   const yesOnA = input.a.kind === 'binary';
   const flags = yesOnA ? pairs.a : pairs.b;
@@ -390,59 +414,82 @@ function compareGroups(input: PairInput, pairs: Pairs): CompareResult {
     group.deviations.push(deviations[i]!);
     group.raw.push(outcome.raw[outcomeKeys[i]!]!);
   });
-  const fewest = Math.min(yes.deviations.length, no.deviations.length);
-  if (fewest < PER_GROUP_NEEDED) {
-    return notEnough(fewest, PER_GROUP_NEEDED, 'tooFew');
+  const yesCount = yes.deviations.length;
+  const noCount = no.deviations.length;
+  if (Math.min(yesCount, noCount) < PER_GROUP_NEEDED) {
+    return yesCount <= noCount
+      ? notEnough(yesCount, PER_GROUP_NEEDED, 'fewYes')
+      : notEnough(noCount, PER_GROUP_NEEDED, 'fewNo');
   }
-  if (!sampleSd(deviations)) return notEnough(n, input.needed, 'noVariation');
+  const fit = correlate(pairs, 'pearson');
+  if (!fit) return notEnough(n, input.needed, 'noVariation');
 
-  const nEffYes = meanEffectiveN(yes.deviations);
-  const nEffNo = meanEffectiveN(no.deviations);
-  const test = welch(yes.deviations, no.deviations, nEffYes, nEffNo);
+  const share = (count: number) => Math.max(2, (count * fit.nEff) / n);
+  const test = welch(
+    yes.deviations,
+    no.deviations,
+    share(yesCount),
+    share(noCount)
+  );
   const result: CompareResult = {
     status: 'ok',
     n,
     needed: input.needed,
     method: 'difference',
-    nEff: nEffYes + nEffNo,
+    nEff: fit.nEff,
     p: test.p,
     low: test.low,
     high: test.high,
-    linked: test.p < ALPHA,
+    linked: isLinked(test),
     binary: {
       yesKey: (yesOnA ? input.a : input.b).key,
       yesMean: mean(yes.raw),
       noMean: mean(no.raw),
-      yesCount: yes.deviations.length,
-      noCount: no.deviations.length,
+      yesCount,
+      noCount,
       diff: test.diff,
     },
     checks: { ownNormal: true },
   };
-  if (result.linked) result.sign = test.diff > 0 ? 'positive' : 'negative';
+  if (!result.linked) return result;
+  result.sign = test.diff > 0 ? 'positive' : 'negative';
+  result.checks = checksFor(input, pairs, 'pearson', fit);
   return result;
 }
 
-/** Effective n for the mean of one sequence: with the second ρ at 1, effectiveN is n(1 − ρ)/(1 + ρ). */
-function meanEffectiveN(xs: readonly number[]): number {
-  return effectiveN(xs.length, lag1Autocorrelation(xs), 1);
-}
-
 /**
- * The mirrored pairing swaps which comes first: (B_d, A_{d+1}) when timing ≥ 0, else
- * (A_d, B_{d+1}). On A's keys that is B one step earlier, or one step later.
+ * Which comes first, from next-day pairings at the same effective-n standard. Timing ±1: the
+ * mirrored pairing swaps which comes first, (B_d, A_{d+1}) for 1 and (A_d, B_{d+1}) for −1;
+ * unlinked, the first thing leads. Timing 0 tries both: A leads when A on d goes with B on d + 1
+ * and B on d does not go with A on d + 1; B leads when that second pairing is linked and the
+ * first is not, or is weaker.
  */
 function directionCheck(
   input: PairInput,
   method: CorrelationMethod,
   r: number
 ): CompareDirectionCheck {
-  const mirrored = pairUp(input, input.timing >= 0 ? -1 : 1);
-  const fit =
-    mirrored.a.length >= input.needed ? correlate(mirrored, method) : null;
-  if (!fit) return 'cantTell';
-  if (fit.p >= ALPHA) return 'firstComesFirst';
-  return Math.abs(fit.r) > Math.abs(r) ? 'strongerOtherWay' : 'cantTell';
+  // On A's keys: B one step later is (A_d, B_{d+1}); one step earlier is (B_d, A_{d+1}).
+  const fitAt = (timing: number): Fit | null => {
+    const shifted = pairUp(input, timing);
+    return shifted.a.length >= input.needed ? correlate(shifted, method) : null;
+  };
+  if (input.timing !== 0) {
+    const mirrored = fitAt(input.timing > 0 ? -1 : 1);
+    if (!mirrored) return 'cantTell';
+    if (mirrored.p >= ALPHA) return 'firstComesFirst';
+    return Math.abs(mirrored.r) > Math.abs(r) ? 'strongerOtherWay' : 'cantTell';
+  }
+  const aFirst = fitAt(1);
+  const bFirst = fitAt(-1);
+  if (!aFirst || !bFirst) return 'cantTell';
+  const aLeads = aFirst.p < ALPHA;
+  const bLeads = bFirst.p < ALPHA;
+  if (aLeads && !bLeads) return 'firstComesFirst';
+  if (bLeads && (!aLeads || Math.abs(bFirst.r) > Math.abs(aFirst.r))) {
+    return 'strongerOtherWay';
+  }
+  return 'cantTell';
 }
 
 /** Partial correlation of the pairs controlling for A's key being a weekend, with df = nEff − 3. */
@@ -479,7 +526,10 @@ function strengthOf(r: number): CompareStrength {
   return 'strong';
 }
 
-/** `tooFew`: below the minimum. `noVariation`: the minimum is met but a side never varies. */
+/**
+ * `tooFew`: below the minimum. `noVariation`: the minimum is met but a side never varies.
+ * `fewYes` / `fewNo`: a yes/no group has under 5 days; `n` is that group's count.
+ */
 function notEnough(
   n: number,
   needed: number,

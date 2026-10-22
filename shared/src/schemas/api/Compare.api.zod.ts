@@ -72,7 +72,7 @@ export const compareResultSchema = z.object({
   status: z.enum(['ok', 'not_enough']),
   n: z.number(),
   needed: z.number(),
-  reason: z.enum(['tooFew', 'noVariation']).optional(),
+  reason: z.enum(['tooFew', 'noVariation', 'fewYes', 'fewNo']).optional(),
   method: z.enum(['pearson', 'spearman', 'difference']).optional(),
   nEff: z.number().optional(),
   r: z.number().optional(),
@@ -96,7 +96,10 @@ export const compareResultSchema = z.object({
     ownNormal: z.literal(true),
     direction: z
       .enum(['firstComesFirst', 'strongerOtherWay', 'cantTell'])
-      .optional(),
+      .optional()
+      .describe(
+        "'firstComesFirst': the thing on the earlier day leads — A for timing 0 and 1, B for timing −1. 'strongerOtherWay': the link is stronger with the other thing first. 'cantTell': neither order stands out."
+      ),
     weekend: z.enum(['holds', 'mayBeWeekends']).optional(),
   }),
 });
@@ -107,7 +110,11 @@ const metricSeries = z.object({ key: metricKey, values: dayValues });
 export const compareResponseSchema = z.object({
   a: metricSeries,
   b: metricSeries,
-  deviations: z.object({ a: dayValues, b: dayValues }),
+  deviations: z
+    .object({ a: dayValues, b: dayValues })
+    .describe(
+      "Each side's values as the analysis paired them: deviations from its own normal. In day mode a yes/no side's values are its raw 0/1 flags, not deviations."
+    ),
   result: compareResultSchema,
 });
 export type CompareResponse = z.infer<typeof compareResponseSchema>;

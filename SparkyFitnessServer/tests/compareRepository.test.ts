@@ -111,6 +111,29 @@ describe('compare response schema', () => {
       }).success
     ).toBe(true);
   });
+
+  it('says which yes/no group is short', () => {
+    for (const reason of ['fewYes', 'fewNo'] as const) {
+      expect(
+        compareResultSchema.safeParse({
+          status: 'not_enough',
+          n: 3,
+          needed: 5,
+          reason,
+          checks: { ownNormal: true },
+        }).success
+      ).toBe(true);
+    }
+  });
+
+  it('documents the direction check and the yes/no deviations', () => {
+    expect(
+      compareResultSchema.shape.checks.shape.direction.description
+    ).toMatch(/earlier day.*A for timing 0 and 1, B for timing −1/);
+    expect(compareResponseSchema.shape.deviations.description).toMatch(
+      /raw 0\/1/
+    );
+  });
 });
 
 describe('compareRepository', () => {

@@ -8,10 +8,12 @@ import {
   dayOfWeek,
   daySides,
   deviationsFromOwnNormal,
+  effectiveN,
   lag1Autocorrelation,
   pearson,
   type CompareMetricDef,
   type DaySeries,
+  welch,
   weeklySeries,
   weekSides,
 } from '@workspace/shared';
@@ -415,10 +417,50 @@ describe('compare day analysis', () => {
       : NaN;
     expect(gap).toBeGreaterThan(6);
     expect(gap).toBeLessThan(10);
-    expect(result.checks).toEqual({ ownNormal: true });
   });
 
-  test('binary side is not_enough with fewer than 5 days in a group', () => {
+  test('a yes/no Yes gets the same checks as a correlation', () => {
+    const { meditated, mood, end } = meditationData(20, 8);
+
+    const result = analyzeDays({
+      a: { key: 'meditated', values: meditated },
+      b: { key: 'mood', values: mood },
+      timing: 0,
+      start: START,
+      end,
+    });
+
+    expect(result.linked).toBe(true);
+    // Meditation on random days, mood higher that same day only: neither leads the other.
+    expect(result.checks).toEqual({
+      ownNormal: true,
+      direction: 'cantTell',
+      weekend: 'holds',
+    });
+  });
+
+  test('a yes/no Yes that only weekends explain is flagged', () => {
+    const uniform = mulberry32(20);
+    const noise = normal(21);
+    // Meditates mostly on weekends and mood is higher on weekends; meditating itself does nothing.
+    const meditated = build((_, day) =>
+      uniform() < (isWeekend(day) ? 0.85 : 0.15) ? 1 : 0
+    );
+    const mood = build((_, day) => 60 + (isWeekend(day) ? 6 : 0) + 5 * noise());
+
+    const result = analyzeDays({
+      a: { key: 'meditated', values: meditated },
+      b: { key: 'mood', values: mood },
+      timing: 0,
+      start: START,
+      end: END,
+    });
+
+    expect(result).toMatchObject({ method: 'difference', linked: true });
+    expect(result.checks.weekend).toBe('mayBeWeekends');
+  });
+
+  test('binary side says too few yes days when the yes group is under 5', () => {
     const { meditated, mood, end } = meditationData(4, 8);
 
     expect(
@@ -433,12 +475,32 @@ describe('compare day analysis', () => {
       status: 'not_enough',
       n: 4,
       needed: 5,
-      reason: 'tooFew',
+      reason: 'fewYes',
       checks: { ownNormal: true },
     });
   });
 
-  test('binary side shrinks each group by its own lag-1 autocorrelation', () => {
+  test('binary side says too few no days when the no group is under 5', () => {
+    const { meditated, mood, end } = meditationData(42, 8);
+
+    expect(
+      analyzeDays({
+        a: { key: 'meditated', values: meditated },
+        b: { key: 'mood', values: mood },
+        timing: 0,
+        start: START,
+        end,
+      })
+    ).toEqual({
+      status: 'not_enough',
+      n: 3,
+      needed: 5,
+      reason: 'fewNo',
+      checks: { ownNormal: true },
+    });
+  });
+
+  test('binary side counts independent days over the whole run, then shares them out by group size', () => {
     const noise = normal(13);
     // Mood moves in slow waves, so neighbouring days resemble each other.
     const mood = build((i) => 60 + 5 * Math.sin(i / 2) + 3 * noise());
@@ -455,18 +517,67 @@ describe('compare day analysis', () => {
       end: END,
     });
 
-    // Each group's n(1 - ρ)/(1 + ρ), ρ from its deviations in day order.
+    // One effective n from the 0/1 flags and the deviations in day order; each group gets
+    // its share, nG × nEff / n, for Welch.
     const deviations = deviationsFromOwnNormal(mood, WINDOW);
-    const shrunk = (flag: number) => {
-      const xs = WINDOW.filter((day) => meditated[day] === flag).map(
-        (day) => deviations[day]
-      );
-      const rho = Math.max(0, lag1Autocorrelation(xs));
-      return (xs.length * (1 - rho)) / (1 + rho);
-    };
+    const flags = WINDOW.map((day) => meditated[day]);
+    const values = WINDOW.map((day) => deviations[day]);
+    const n = WINDOW.length;
+    const nEff = effectiveN(
+      n,
+      lag1Autocorrelation(flags),
+      lag1Autocorrelation(values)
+    );
+    const yes = values.filter((_, i) => flags[i] === 1);
+    const no = values.filter((_, i) => flags[i] === 0);
+    const expected = welch(
+      yes,
+      no,
+      Math.max(2, (yes.length * nEff) / n),
+      Math.max(2, (no.length * nEff) / n)
+    );
     expect(result.method).toBe('difference');
-    expect(result.nEff).toBeCloseTo(shrunk(1) + shrunk(0), 6);
-    expect(result.nEff).toBeLessThan(result.n / 2);
+    expect(result.n).toBe(n);
+    expect(result.nEff).toBeCloseTo(nEff, 9);
+    expect(result.nEff).toBeLessThan(n / 2);
+    expect(result.p).toBeCloseTo(expected.p, 9);
+    expect(result.low).toBeCloseTo(expected.low, 9);
+    expect(result.high).toBeCloseTo(expected.high, 9);
+  });
+
+  test('a streaky habit and a slow-moving outcome that are unrelated rarely read as a Yes', () => {
+    // 400 runs of 30 days: a habit kept or skipped in long streaks (95% chance of doing the
+    // same as yesterday) against a mood that drifts slowly (AR(0.9)), with no link at all.
+    const end = addDays(START, 29);
+    let answered = 0;
+    let yes = 0;
+    for (let trial = 0; trial < 400; trial++) {
+      const uniform = mulberry32(500 + trial);
+      const noise = normal(9000 + trial);
+      let flag = uniform() < 0.5 ? 1 : 0;
+      let level = noise() / Math.sqrt(1 - 0.9 ** 2);
+      const meditated: DaySeries = {};
+      const mood: DaySeries = {};
+      for (const day of daysFrom(FIRST, 51)) {
+        if (uniform() > 0.95) flag = 1 - flag;
+        level = 0.9 * level + noise();
+        meditated[day] = flag;
+        mood[day] = 60 + 5 * level;
+      }
+      const result = analyzeDays({
+        a: { key: 'meditated', values: meditated },
+        b: { key: 'mood', values: mood },
+        timing: 0,
+        start: START,
+        end,
+      });
+      if (result.status !== 'ok') continue;
+      answered++;
+      if (result.linked) yes++;
+    }
+
+    expect(answered).toBeGreaterThan(200);
+    expect(yes / answered).toBeLessThanOrEqual(0.08);
   });
 
   test('direction check names the first thing when the mirrored pairing is not linked', () => {
@@ -486,7 +597,54 @@ describe('compare day analysis', () => {
     expect(result.checks.direction).toBe('firstComesFirst');
   });
 
-  test('direction check says the link is stronger the other way round when the mirrored pairing is stronger', () => {
+  test('direction check cannot tell when the mirrored pairing is linked but weaker', () => {
+    const noise = normal(15);
+    const x = build(() => 60 + 10 * noise());
+    // B the next day follows A a lot; A the next day follows B a little.
+    const b = build((_, day) => {
+      const before = x[addDays(day, -1)];
+      const after = x[addDays(day, 1)];
+      return before === undefined || after === undefined
+        ? undefined
+        : 2 * before + after + 5 * noise();
+    });
+
+    const result = analyzeDays({
+      a: { key: 'mood', values: x },
+      b: { key: 'sleepScore', values: b },
+      timing: 1,
+      start: START,
+      end: END,
+    });
+
+    expect(result.linked).toBe(true);
+    expect(result.checks.direction).toBe('cantTell');
+  });
+
+  test('same-day direction says A comes first when A leads B by a day', () => {
+    const noise = normal(16);
+    const a = build(() => 60 + 10 * noise());
+    // B depends a little on A the same day and a lot on A the day before.
+    const b = build((_, day) => {
+      const before = a[addDays(day, -1)];
+      return before === undefined
+        ? undefined
+        : a[day] + 2 * before + 5 * noise();
+    });
+
+    const result = analyzeDays({
+      a: { key: 'mood', values: a },
+      b: { key: 'sleepScore', values: b },
+      timing: 0,
+      start: START,
+      end: END,
+    });
+
+    expect(result.linked).toBe(true);
+    expect(result.checks.direction).toBe('firstComesFirst');
+  });
+
+  test('same-day direction says the link is stronger the other way round when B leads A by a day', () => {
     const noise = normal(10);
     const b = build(() => 60 + 10 * noise());
     // A depends a little on B the same day and a lot on B the day before.
@@ -509,16 +667,10 @@ describe('compare day analysis', () => {
     expect(result.checks.direction).toBe('strongerOtherWay');
   });
 
-  test('direction check cannot tell when the mirrored pairing is linked but weaker', () => {
-    const noise = normal(15);
-    const b = build(() => 60 + 10 * noise());
-    // A depends a lot on B the same day and a little on B the day before.
-    const a = build((_, day) => {
-      const before = b[addDays(day, -1)];
-      return before === undefined
-        ? undefined
-        : 2 * b[day] + before + 5 * noise();
-    });
+  test('same-day direction cannot tell when neither leads the other by a day', () => {
+    const noise = normal(17);
+    const a = build(() => 60 + 10 * noise());
+    const b = build((_, day) => a[day] + 5 * noise());
 
     const result = analyzeDays({
       a: { key: 'mood', values: a },
@@ -530,6 +682,28 @@ describe('compare day analysis', () => {
 
     expect(result.linked).toBe(true);
     expect(result.checks.direction).toBe('cantTell');
+  });
+
+  test('a p under 0.05 whose 95% range still reaches 0 is not a Yes', () => {
+    // 14 days of slow waves: the effective n sits at its floor of 4, where the t-test p and
+    // the Fisher range can disagree.
+    const noise = normal(174);
+    const a = build((i) => 60 + 10 * Math.sin(i / 3) + noise());
+    const b = build((_, day) => a[day] + 2 * noise());
+
+    const result = analyzeDays({
+      a: { key: 'mood', values: a },
+      b: { key: 'sleepScore', values: b },
+      timing: 0,
+      start: START,
+      end: addDays(START, 13),
+    });
+
+    expect(result).toMatchObject({ status: 'ok', n: 14, nEff: 4 });
+    expect(result.p).toBeLessThan(0.05);
+    expect(result.low).toBeLessThan(0);
+    expect(result.linked).toBe(false);
+    expect(result.checks).toEqual({ ownNormal: true });
   });
 
   test('weekend check flags a link that only weekends explain', () => {
