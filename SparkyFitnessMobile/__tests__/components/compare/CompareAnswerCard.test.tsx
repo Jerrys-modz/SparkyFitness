@@ -63,4 +63,32 @@ describe('CompareAnswerCard', () => {
     expect(getByText('Not enough days yet')).toBeTruthy();
     expect(queryByText(/95% range/)).toBeNull();
   });
+
+  it('shows a yes/no difference on the 1-10 scale for mood', () => {
+    const q: CompareQuestion = { a: 'meditated', b: 'mood', choice: 'sameDay' };
+    const { getByText } = render(
+      <CompareAnswerCard
+        response={response({
+          method: 'difference',
+          linked: true,
+          p: 0.01,
+          low: 3,
+          high: 15,
+          binary: {
+            yesKey: 'meditated',
+            yesMean: 72,
+            noMean: 63,
+            yesCount: 12,
+            noCount: 28,
+            diff: 9,
+          },
+        })}
+        question={q}
+        span="90d"
+      />
+    );
+    expect(
+      getByText('difference 0.9 · 95% range 0.3 to 1.5 · p 0.010 · 62 days')
+    ).toBeTruthy();
+  });
 });

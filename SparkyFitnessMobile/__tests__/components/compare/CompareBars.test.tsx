@@ -47,8 +47,74 @@ describe('CompareBars', () => {
     expect(getByText('Days without meditating')).toBeTruthy();
     expect(getByText('7.2 · 12 days')).toBeTruthy();
     expect(getByText('6.3 · 28 days')).toBeTruthy();
-    expect(getByText('0.6 vs. your usual')).toBeTruthy();
+    expect(getByText('+0.6 vs. your usual')).toBeTruthy();
     expect(queryByText(/72/)).toBeNull();
+  });
+
+  it('fills the larger mean to 100% and the other in proportion', () => {
+    const { getByTestId } = render(
+      <CompareBars
+        response={response({
+          yesKey: 'meditated',
+          yesMean: 72,
+          noMean: 36,
+          yesCount: 12,
+          noCount: 28,
+          diff: 3,
+        })}
+        question={Q}
+      />
+    );
+    expect(
+      getByTestId('compare-bar-yes', { includeHiddenElements: true }).props
+        .style
+    ).toEqual({
+      width: '100%',
+    });
+    expect(
+      getByTestId('compare-bar-no', { includeHiddenElements: true }).props.style
+    ).toEqual({ width: '50%' });
+  });
+
+  it('keeps both bars at 0% when both means are 0', () => {
+    const { getByTestId, getByText } = render(
+      <CompareBars
+        response={response({
+          yesKey: 'meditated',
+          yesMean: 0,
+          noMean: 0,
+          yesCount: 6,
+          noCount: 9,
+          diff: 0,
+        })}
+        question={Q}
+      />
+    );
+    expect(
+      getByTestId('compare-bar-yes', { includeHiddenElements: true }).props
+        .style
+    ).toEqual({ width: '0%' });
+    expect(
+      getByTestId('compare-bar-no', { includeHiddenElements: true }).props.style
+    ).toEqual({ width: '0%' });
+    expect(getByText('0.0 vs. your usual')).toBeTruthy();
+  });
+
+  it('shows a negative difference with its minus sign', () => {
+    const { getByText } = render(
+      <CompareBars
+        response={response({
+          yesKey: 'meditated',
+          yesMean: 63,
+          noMean: 72,
+          yesCount: 12,
+          noCount: 28,
+          diff: -6,
+        })}
+        question={Q}
+      />
+    );
+    expect(getByText(/^[-−]0\.6 vs\. your usual$/)).toBeTruthy();
   });
 
   it('renders nothing without a yes/no result', () => {

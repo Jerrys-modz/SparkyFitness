@@ -13,10 +13,11 @@ interface CompareBarsProps {
   question: CompareQuestion;
 }
 
-function oneDecimal(value: number): string {
+function oneDecimal(value: number, signed = false): string {
   return formatLocalizedNumber(value, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
+    ...(signed ? { signDisplay: 'exceptZero' as const } : {}),
   });
 }
 
@@ -58,7 +59,11 @@ const CompareBars: React.FC<CompareBarsProps> = ({ response, question }) => {
       {rows.map((row) => (
         <View key={row.id} className="mb-3">
           <Text className="text-text-secondary text-sm mb-1">{row.label}</Text>
-          <View className="h-3 rounded-full bg-progress-track overflow-hidden">
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            className="h-3 rounded-full bg-progress-track overflow-hidden"
+          >
             <View
               testID={`compare-bar-${row.id}`}
               className="h-3 rounded-full bg-accent-primary"
@@ -77,7 +82,7 @@ const CompareBars: React.FC<CompareBarsProps> = ({ response, question }) => {
       <Text className="text-text-muted text-xs">
         {t('compareReport.bars.diff', {
           defaultValue: '{{diff}} vs. your usual',
-          diff: oneDecimal(compareDisplayValue(outcome, binary.diff)),
+          diff: oneDecimal(compareDisplayValue(outcome, binary.diff), true),
         })}
       </Text>
     </View>

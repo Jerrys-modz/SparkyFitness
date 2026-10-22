@@ -86,8 +86,8 @@ const CompareChecksCard: React.FC<CompareChecksCardProps> = ({
 
   return (
     <View className="bg-surface rounded-xl p-4 my-2 shadow-sm">
-      {lines.map((line) => (
-        <Text key={line} className="text-text-secondary text-sm py-1">
+      {lines.map((line, index) => (
+        <Text key={index} className="text-text-secondary text-sm py-1">
           {line}
         </Text>
       ))}
