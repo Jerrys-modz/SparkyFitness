@@ -1,0 +1,110 @@
+import {
+  COMPARE_METRICS,
+  addDays,
+  daysBetween,
+  type CompareMetricKey,
+} from '@workspace/shared';
+
+export type CompareMode = 'day' | 'week';
+export type CompareTimingChoice =
+  'sameDay' | 'nextDay' | 'dayBefore' | 'sameWeek' | 'nextWeek';
+
+export interface CompareQuestion {
+  a: CompareMetricKey;
+  b: CompareMetricKey;
+  choice: CompareTimingChoice;
+}
+
+const TIMINGS: Record<
+  CompareTimingChoice,
+  { mode: CompareMode; timing: -1 | 0 | 1 }
+> = {
+  dayBefore: { mode: 'day', timing: -1 },
+  sameDay: { mode: 'day', timing: 0 },
+  nextDay: { mode: 'day', timing: 1 },
+  sameWeek: { mode: 'week', timing: 0 },
+  nextWeek: { mode: 'week', timing: 1 },
+};
+
+export function timingOf(choice: CompareTimingChoice): {
+  mode: CompareMode;
+  timing: -1 | 0 | 1;
+} {
+  return TIMINGS[choice];
+}
+
+export type CompareSpan = '30d' | '60d' | '90d' | '6m' | '1y' | 'custom';
+
+export const COMPARE_SPANS: Record<CompareMode, readonly CompareSpan[]> = {
+  day: ['30d', '60d', '90d', 'custom'],
+  week: ['6m', '1y', 'custom'],
+};
+
+export const DEFAULT_COMPARE_SPAN: Record<CompareMode, CompareSpan> = {
+  day: '90d',
+  week: '6m',
+};
+
+const SPAN_DAYS: Record<Exclude<CompareSpan, 'custom'>, number> = {
+  '30d': 30,
+  '60d': 60,
+  '90d': 90,
+  '6m': 182,
+  '1y': 364,
+};
+
+const MAX_CUSTOM_DAYS: Record<CompareMode, number> = { day: 180, week: 366 };
+
+/** The server leaves today out itself, so the window simply ends today. */
+export function compareWindow(
+  span: CompareSpan,
+  mode: CompareMode,
+  today: string,
+  custom?: { startDate: string; endDate: string } | null
+): { startDate: string; endDate: string } {
+  if (span === 'custom' && custom) {
+    const maxDays = MAX_CUSTOM_DAYS[mode];
+    const days = daysBetween(custom.startDate, custom.endDate) + 1;
+    return {
+      startDate:
+        days > maxDays
+          ? addDays(custom.endDate, -(maxDays - 1))
+          : custom.startDate,
+      endDate: custom.endDate,
+    };
+  }
+  const key = span === 'custom' ? DEFAULT_COMPARE_SPAN[mode] : span;
+  const days = SPAN_DAYS[key as Exclude<CompareSpan, 'custom'>];
+  return { startDate: addDays(today, -(days - 1)), endDate: today };
+}
+
+// Sleep is dated by the wake day, so caffeine "that night" is timing +1.
+export const SUGGESTED_QUESTIONS: readonly CompareQuestion[] = [
+  { a: 'timeAsleep', b: 'energy', choice: 'sameDay' },
+  { a: 'meditated', b: 'mood', choice: 'sameDay' },
+  { a: 'caffeine', b: 'timeAsleep', choice: 'nextDay' },
+  { a: 'trainingLoad', b: 'overnightHrv', choice: 'nextDay' },
+];
+
+const MAX_RECENT = 5;
+
+export function withRecentQuestion(
+  recent: readonly CompareQuestion[],
+  q: CompareQuestion
+): CompareQuestion[] {
+  const rest = recent.filter(
+    (r) => !(r.a === q.a && r.b === q.b && r.choice === q.choice)
+  );
+  return [q, ...rest].slice(0, MAX_RECENT);
+}
+
+export function isAskable(q: Partial<CompareQuestion>): q is CompareQuestion {
+  const { a, b, choice } = q;
+  if (!a || !b || !choice || a === b) return false;
+  if (timingOf(choice).mode === 'week') {
+    return (
+      COMPARE_METRICS[a].weekly !== null && COMPARE_METRICS[b].weekly !== null
+    );
+  }
+  return true;
+}

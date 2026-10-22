@@ -8316,5 +8316,41 @@
     "fileTooLarge": "That file is too large",
     "fileTooLargeHint": "A route file can be up to 10 MB.",
     "drawLimit": "That is as many points as a route can have here. Undo some or save this one."
+  },
+  "compareReport": {
+    "groups": {
+      "feelings": "How you felt",
+      "sleep": "Sleep",
+      "meditation": "Meditation",
+      "food": "Food",
+      "training": "Training",
+      "body": "Body"
+    },
+    "metrics": {
+      "mood": "Mood",
+      "energy": "Energy",
+      "focus": "Focus",
+      "timeAsleep": "Time asleep",
+      "sleepScore": "Sleep score",
+      "overnightHrv": "Overnight HRV",
+      "restingHeartRate": "Resting heart rate",
+      "bedtime": "Bedtime",
+      "bedtimeConsistency": "Bedtime consistency",
+      "meditationMinutes": "Meditation minutes",
+      "meditationSessions7d": "Meditation sessions (7 days)",
+      "meditated": "Meditated",
+      "calories": "Calories",
+      "protein": "Protein",
+      "carbs": "Carbs",
+      "fat": "Fat",
+      "caffeine": "Caffeine",
+      "alcohol": "Alcohol",
+      "workoutMinutes": "Workout minutes",
+      "cardioMinutes": "Cardio minutes",
+      "strengthVolume": "Strength volume",
+      "trainingLoad": "Training load",
+      "weightTrend": "Weight trend",
+      "steps": "Steps"
+    }
   }
 }

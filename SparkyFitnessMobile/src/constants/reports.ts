@@ -18,7 +18,10 @@ export const REPORT_KEYS = [
 
 export type ReportKey = (typeof REPORT_KEYS)[number];
 
-type Translator = (key: string, options: { defaultValue: string }) => string;
+export type Translator = (
+  key: string,
+  options: { defaultValue: string }
+) => string;
 
 /**
  * A report's name as the hub and the customize screen list it. Resolvers
