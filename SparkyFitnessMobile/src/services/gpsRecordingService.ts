@@ -232,6 +232,7 @@ let points: RecordedPoint[] = [];
 let snapshot: RecordingSnapshot = { session: null, points: [] };
 let heartRate: StoredHeartRate = { samples: [], batchIds: [] };
 /** Apple's zone group for the recording, held until the diary entry can take it. */
+let savedEntryForSession: { sessionId: string; entryId: string } | null = null;
 let appleZonesForSession: {
   sessionId: string;
   zones: AppleWorkoutZoneDuration[];
@@ -1646,7 +1647,17 @@ export function noteAppleWorkoutZones(
 
 /** The diary entry id for this recording, once Finish has created it. */
 export function savedRecordingEntryId(sessionId: string): string | null {
-  return session?.id === sessionId ? session.savedEntryId : null;
+  if (session?.id === sessionId && session.savedEntryId)
+    return session.savedEntryId;
+  return savedEntryForSession?.sessionId === sessionId
+    ? savedEntryForSession.entryId
+    : null;
+}
+
+/** Drops the remembered entry id once a late callback has used it. */
+export function clearSavedRecordingEntryId(sessionId: string): void {
+  if (savedEntryForSession?.sessionId === sessionId)
+    savedEntryForSession = null;
 }
 
 /**
@@ -1670,6 +1681,9 @@ export function clearAppleWorkoutZones(sessionId: string): void {
 export function markRecordingSaved(entryId: string): Promise<void> {
   return enqueue(async () => {
     if (!session) return;
+    // Kept outside the session, which is cleared right after the save, so
+    // Apple zones that arrive late can still find the diary entry.
+    savedEntryForSession = { sessionId: session.id, entryId };
     session = { ...session, savedEntryId: entryId };
     await persistSession();
     publish();

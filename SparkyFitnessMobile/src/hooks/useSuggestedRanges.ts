@@ -90,10 +90,13 @@ export function useSuggestedRanges(
           : null;
     // Without a date of birth or a max heart rate of their own there is only a
     // typical figure to go on, which is not worth suggesting a range from.
+    // Custom zones carry floors the person typed, so they need no max.
     const resolved = heartRateZones?.resolved;
     const knownMax =
       resolved &&
-      (resolved.max_hr_source === 'user' || resolved.max_hr_source === 'age');
+      (resolved.effective_method === 'custom' ||
+        resolved.max_hr_source === 'user' ||
+        resolved.max_hr_source === 'age');
     return {
       pace: fromRace
         ? { ...fromRace.pair, sessions: 0, race }
