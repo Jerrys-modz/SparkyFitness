@@ -207,6 +207,12 @@ export function parseOutboundHttpUrl(urlString: unknown): URL {
     );
   }
 
+  if (url.hash || (typeof urlString === 'string' && urlString.includes('#'))) {
+    throw new OutboundUrlShapeError(
+      'Outbound URL must not include a URL fragment.'
+    );
+  }
+
   return url;
 }
 

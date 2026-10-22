@@ -577,6 +577,16 @@ export interface WatchHeartRateBatchPayload {
    */
   durationMinutes?: number;
   /**
+   * Apple's time-in-zone for the whole workout. Present only on the batch
+   * sent after HealthKit finishes it. Five zones, each with `seconds`.
+   */
+  appleZones?: Array<{
+    index?: number;
+    minimumBpm?: number;
+    maximumBpm?: number;
+    seconds: number;
+  }>;
+  /**
    * Server config that was active when the phone received this batch. The
    * phone only applies a batch whose owner is the active config; a batch for
    * another config stays queued and is not posted or acked. Absent when no
@@ -618,6 +628,12 @@ export interface WatchSetTimerStartedPayload {
   startedAt: number;
   /** Epoch ms of the arm the timer belongs to. Absent from an older watch. */
   armedAt?: number;
+}
+
+/** How hard the wearer rated a finished strength workout, 1 to 10. */
+export interface WatchWorkoutEffortPayload {
+  sessionId: string;
+  rating: number;
 }
 
 export interface WatchWorkoutStopPayload {
@@ -724,6 +740,13 @@ export interface WatchRecordingHeartRatePayload {
   /** Dedupes a re-delivered queued batch. */
   clientId: string;
   samples: WatchHeartRateSamplePayload[];
+  /** Apple's zone group for the finished recording, when HealthKit had one. */
+  appleZones?: Array<{
+    index?: number;
+    minimumBpm?: number;
+    maximumBpm?: number;
+    seconds: number;
+  }>;
 }
 
 /** The wearer asked to start a fast from the watch's Fasting page. */
@@ -775,6 +798,13 @@ export interface WatchRunFinishedPayload {
   distanceScale?: number;
   /** What the watch showed before a treadmill distance was entered on the wrist. */
   estimatedDistanceMeters?: number;
+  /** Apple's heart-rate zone group, when the finished workout had one. */
+  appleZones?: Array<{
+    index?: number;
+    minimumBpm?: number;
+    maximumBpm?: number;
+    seconds: number;
+  }>;
 }
 
 /**
@@ -788,6 +818,12 @@ export interface WatchRunCuePayload {
   text: string;
   /** Say it now rather than after the cue being spoken. */
   interrupt: boolean;
+}
+
+/** How hard the wearer rated a finished watch run, 1 to 10. Matches a run by `clientId`. */
+export interface WatchRunEffortPayload {
+  clientId: string;
+  rating: number;
 }
 
 export interface WatchRunLivePayload {
@@ -896,6 +932,7 @@ export type WatchConnectivityEvents = {
   onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
   onLiveHeartRate: (payload: WatchLiveHeartRatePayload) => void;
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
+  onWorkoutEffort: (payload: WatchWorkoutEffortPayload) => void;
   onWorkoutDiscard: (payload: WatchWorkoutDiscardPayload) => void;
   onWorkoutStartRequested: (payload: WatchWorkoutStartRequestedPayload) => void;
   onWorkoutEdit: (payload: WatchWorkoutEditPayload) => void;
@@ -907,6 +944,7 @@ export type WatchConnectivityEvents = {
   onRunLive: (payload: WatchRunLivePayload) => void;
   onRunCue: (payload: WatchRunCuePayload) => void;
   onRunFinished: (payload: WatchRunFinishedPayload) => void;
+  onRunEffort: (payload: WatchRunEffortPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {

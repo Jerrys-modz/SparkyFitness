@@ -35,9 +35,15 @@ import {
 } from './dataTransformation';
 import { DIETARY_WRITE_IDENTIFIERS } from './writebackMappers';
 import {
+  WORKOUT_EFFORT_IDENTIFIER,
+  matchWorkoutEffort,
+  readWorkoutEffortSamples,
+} from './workoutEffort';
+import {
   collectWorkoutTelemetry,
   type WorkoutProxyLike,
 } from './workoutTelemetry';
+import { readAppleWorkoutZoneGroups } from '../appleHeartZones';
 import {
   createTelemetryRunContext,
   type TelemetryRunContext,
@@ -202,6 +208,8 @@ const SUPPORTED_HK_TYPES = new Set<string>([
  */
 const WORKOUT_TELEMETRY_READ_IDENTIFIERS: readonly string[] = [
   'HKWorkoutRouteTypeIdentifier',
+  // The person's own 1-10 rating of the workout, read by time window.
+  WORKOUT_EFFORT_IDENTIFIER,
   'HKQuantityTypeIdentifierStepCount',
   'HKQuantityTypeIdentifierHeartRate',
   'HKQuantityTypeIdentifierRunningSpeed',
@@ -1187,6 +1195,23 @@ const handleWorkout: RecordHandler = async (
     telemetryAllowed.add(w);
   }
 
+  // One read of the ratings covers every workout in the window.
+  const effortSamples =
+    filteredWorkouts.length > 0
+      ? await readWorkoutEffortSamples(
+          new Date(
+            Math.min(
+              ...filteredWorkouts.map((w) => new Date(w.startDate).getTime())
+            )
+          ),
+          new Date(
+            Math.max(
+              ...filteredWorkouts.map((w) => new Date(w.endDate).getTime())
+            )
+          )
+        )
+      : [];
+
   // Fetch statistics (calories, distance) for each workout. Bounded fan-out:
   // each workout issues several statistics queries plus, when telemetry is
   // allowed, a route read and per-workout sample queries, and every result is
@@ -1385,6 +1410,8 @@ const handleWorkout: RecordHandler = async (
       // budget on a backfill silently loses elevation/floors/strokes/elapsed time
       // as well, even though the budget exists only to cap the expensive reads.
       const telemetry: Record<string, number | null | undefined> = {};
+      const effort = matchWorkoutEffort(effortSamples, w);
+      if (effort != null) telemetry.workout_effort = effort;
       const gain = elevation.metadataElevationAscended?.quantity;
       const loss = elevation.metadataElevationDescended?.quantity;
       // The sample property when it carries a value, else the statistic read
@@ -1473,6 +1500,8 @@ const handleWorkout: RecordHandler = async (
     result.status === 'fulfilled' ? [result.value] : []
   );
 
+  await attachAppleZoneGroups(workoutsWithStats);
+
   // One summary line per run — the field-verifiable signal for #2191. See the
   // matching log in healthconnect/index.ts.
   const overBudget =
@@ -1486,6 +1515,29 @@ const handleWorkout: RecordHandler = async (
 
   return workoutsWithStats;
 };
+
+/**
+ * Copies Apple's heart-rate zone group onto each workout that has one.
+ * Own-watch workouts are still skipped later by the transformer; this only
+ * fills the field. A failure leaves the workout to be bucketed on the server.
+ */
+async function attachAppleZoneGroups(
+  records: Record<string, unknown>[]
+): Promise<void> {
+  const uuids = records.flatMap((record) =>
+    typeof record.uuid === 'string' && record.uuid.length > 0
+      ? [record.uuid]
+      : []
+  );
+  if (uuids.length === 0) return;
+  const groups = await readAppleWorkoutZoneGroups(uuids);
+  if (groups.size === 0) return;
+  for (const record of records) {
+    if (typeof record.uuid !== 'string') continue;
+    const zones = groups.get(record.uuid.toLowerCase());
+    if (zones) record.hr_zones = zones;
+  }
+}
 
 // Handler for BloodPressure records (requires merging systolic and diastolic samples)
 const handleBloodPressure: RecordHandler = async (

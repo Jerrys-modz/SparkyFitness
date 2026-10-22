@@ -1,4 +1,5 @@
 import {
+  summarizeWorkoutEffort,
   summarizeWorkoutHeartRate,
   CATEGORY_ICON_MAP,
   getWorkoutIcon,
@@ -6746,5 +6747,29 @@ describe('wodScoreFormat', () => {
     expect(wodScoreFormat({ workout_format: 'amrap' })).toBe('amrap');
     expect(wodScoreFormat({ format: 'for_time' })).toBe('for_time');
     expect(wodScoreFormat({})).toBeNull();
+  });
+});
+
+describe('summarizeWorkoutEffort', () => {
+  it('is null when no exercise carries a rating', () => {
+    expect(summarizeWorkoutEffort([])).toBeNull();
+    expect(summarizeWorkoutEffort([{ workout_effort: null }, {}])).toBeNull();
+  });
+
+  it('reads the rating from any exercise of the session', () => {
+    expect(
+      summarizeWorkoutEffort([{ workout_effort: null }, { workout_effort: 8 }])
+    ).toBe(8);
+  });
+
+  it('takes the highest if they ever differ, and ignores values outside 1-10', () => {
+    expect(
+      summarizeWorkoutEffort([
+        { workout_effort: 6 },
+        { workout_effort: 9 },
+        { workout_effort: 0 },
+        { workout_effort: 14 },
+      ])
+    ).toBe(9);
   });
 });

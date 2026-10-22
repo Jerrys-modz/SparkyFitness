@@ -210,6 +210,7 @@ export type RootStackParamList = {
   NutritionReport: undefined;
   SleepAnalytics: undefined;
   MoodReport: undefined;
+  CompareReport: undefined;
   CardioSession: {
     session: ExerciseActivityQueryItem;
     distanceUnit: 'km' | 'miles';
@@ -411,6 +412,7 @@ export type RootStackParamList = {
   DiarySettings: undefined;
   WorkoutSettings: undefined;
   WarmupSettings: undefined;
+  HeartRateZonesSettings: undefined;
   ServerSettings: undefined;
   PasskeySettings: undefined;
   AppSettings: undefined;

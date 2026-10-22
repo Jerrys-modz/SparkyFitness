@@ -9,7 +9,6 @@
 -- offer one routing service to everyone (is_public) and a person can share
 -- theirs through share_external_providers, like Mealie or Tandoor.
 
-BEGIN;
 
 INSERT INTO public.external_provider_types (id, display_name, description)
 VALUES (
@@ -29,4 +28,3 @@ SET categories = ARRAY['other'],
     supports_barcode = FALSE
 WHERE id = 'valhalla';
 
-COMMIT;

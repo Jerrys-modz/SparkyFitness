@@ -75,6 +75,7 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       hrSamples,
       undefined,
       undefined,
+      undefined,
       undefined
     );
   });
@@ -132,6 +133,7 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       hrSamples,
       87.4,
       undefined,
+      undefined,
       undefined
     );
   });
@@ -150,6 +152,7 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       ENTRY_ID,
       undefined,
       42,
+      undefined,
       undefined,
       undefined
     );
@@ -170,6 +173,7 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       undefined,
       undefined,
       12.5,
+      undefined,
       undefined
     );
   });
@@ -194,9 +198,10 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       undefined,
       undefined,
       undefined,
+      undefined,
       101.5,
     ]);
-    expect(calls[1][6]).toBeNull();
+    expect(calls[1][7]).toBeNull();
   });
 
   it('rejects a body carrying neither heart rate nor active energy', async () => {

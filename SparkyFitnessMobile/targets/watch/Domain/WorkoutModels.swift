@@ -275,6 +275,41 @@ struct HeartRateSample: Codable, Equatable {
     let bpm: Double
 }
 
+/// One zone from a finished HealthKit workout. Codable so a heart-rate batch
+/// can carry it; dictionaries of `Any` cannot.
+struct AppleZoneReading: Codable, Equatable {
+    var index: Int
+    var minimumBpm: Double?
+    var maximumBpm: Double?
+    var seconds: Double
+
+    static func parse(_ rows: [[String: Any]]) -> [AppleZoneReading] {
+        rows.compactMap { row in
+            guard let seconds = Self.number(row["seconds"]) else { return nil }
+            return AppleZoneReading(
+                index: Int(Self.number(row["index"]) ?? 0),
+                minimumBpm: Self.number(row["minimumBpm"]),
+                maximumBpm: Self.number(row["maximumBpm"]),
+                seconds: seconds
+            )
+        }
+    }
+
+    func payload() -> [String: Any] {
+        var row: [String: Any] = ["index": index, "seconds": seconds]
+        if let minimumBpm { row["minimumBpm"] = minimumBpm }
+        if let maximumBpm { row["maximumBpm"] = maximumBpm }
+        return row
+    }
+
+    private static func number(_ value: Any?) -> Double? {
+        if let value = value as? Double { return value }
+        if let value = value as? Int { return Double(value) }
+        if let value = value as? NSNumber { return value.doubleValue }
+        return nil
+    }
+}
+
 /// A batch of heart-rate samples for one exercise, tagged with whichever
 /// exercise was showing on screen when they were captured. Batched (rather
 /// than one message per sample) to keep the transfer rate sane over a
@@ -299,6 +334,9 @@ struct HeartRateBatch: Codable, Equatable {
     /// between its sets. Sent when the exercise is left and again at the end.
     /// Cumulative across return visits. Nil on a batch that is only samples.
     let durationMinutes: Double?
+    /// Apple's time-in-zone for the whole workout. Only the batch sent after
+    /// HealthKit finishes the workout carries it. Nil on every other batch.
+    var appleZones: [AppleZoneReading]? = nil
 }
 
 /// The wearer ended the workout on the watch. Carries no data of its own —

@@ -956,8 +956,48 @@ describe('dispatchAiRequest — text-only structured request shapes', () => {
     expect(body.stream).toBe(false);
     // Ollama takes format: 'json' and reads the schema from the prompt.
     expect(body.format).toBe('json');
+    expect(body.think).toBe(false);
     const message = (body.messages as { content: string }[])[0];
     expect(message.content).toContain('conforms to this JSON Schema');
+  });
+
+  it('ollama disables thinking and requests json format when parseJson is true', async () => {
+    const m = mockFetch(ollamaBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+        jsonSchema: undefined,
+        schemaName: undefined,
+        parseJson: true,
+      })
+    );
+    const { body } = captured(m);
+    expect(body.format).toBe('json');
+    expect(body.think).toBe(false);
+  });
+
+  it('ollama omits format and think for plain-text requests', async () => {
+    const m = mockFetch(ollamaBody('plain text'));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+        jsonSchema: undefined,
+        schemaName: undefined,
+      })
+    );
+    const { body } = captured(m);
+    expect(body.format).toBeUndefined();
+    expect(body.think).toBeUndefined();
   });
 
   it('ollama sends a bearer token when the provider has an api key', async () => {
@@ -1489,7 +1529,7 @@ describe('dispatchAiRequest — model defaulting', () => {
     expect(captured(m).body.model).toBe('gpt-4o-mini');
   });
 
-  it('ollama vision falls back to llava', async () => {
+  it('ollama vision falls back to gemma4', async () => {
     const m = mockFetch(ollamaBody(JSON.stringify(SAMPLE)));
     await dispatchAiRequest(
       baseRequest({
@@ -1503,7 +1543,7 @@ describe('dispatchAiRequest — model defaulting', () => {
         images: [IMG],
       })
     );
-    expect(captured(m).body.model).toBe('llava');
+    expect(captured(m).body.model).toBe('gemma4');
   });
 
   // Shared default: getDefaultModel also feeds normal, food-options, and
@@ -2204,6 +2244,46 @@ describe('dispatchAiRequest — image downscaling & oversized image handling', (
     const sentMeta = await sharp(sentBuffer).metadata();
     expect(sentMeta.width).toBe(2048);
     expect(sentMeta.height).toBe(1365);
+  });
+
+  it('downscales images to 1280px for ollama to fit consumer GPU VRAM', async () => {
+    const hugeJpeg = await sharp({
+      create: {
+        width: 3000,
+        height: 2000,
+        channels: 3,
+        background: { r: 100, g: 150, b: 200 },
+      },
+    })
+      .jpeg()
+      .toBuffer();
+
+    const m = mockFetch(ollamaBody(JSON.stringify(SAMPLE)));
+
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+        images: [
+          { base64: hugeJpeg.toString('base64'), mimeType: 'image/jpeg' },
+        ],
+      })
+    );
+
+    expect(result.ok).toBe(true);
+    const sentBody = captured(m).body as {
+      messages: Array<{ images?: string[] }>;
+    };
+    const sentBase64 = sentBody.messages[0].images?.[0];
+    expect(sentBase64).toBeDefined();
+    const sentBuffer = Buffer.from(sentBase64!, 'base64');
+    const sentMeta = await sharp(sentBuffer).metadata();
+    expect(sentMeta.width).toBe(1280);
+    expect(sentMeta.height).toBe(853);
   });
 
   it('translates OpenAI 400 patch-limit rejection into image_too_large category', async () => {

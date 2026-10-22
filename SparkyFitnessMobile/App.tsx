@@ -118,6 +118,7 @@ import {
   SafeDiarySettings,
   SafeWorkoutSettings,
   SafeWarmupSettings,
+  SafeHeartRateZonesSettings,
   SafeServerSettings,
   SafePasskeySettings,
   SafeAppSettings,
@@ -131,6 +132,7 @@ import {
   SafeNutritionReport,
   SafeSleepAnalytics,
   SafeMoodReport,
+  SafeCompareReport,
   SafeHydrationReport,
   SafeSubstancesReport,
   SafeMeasurementsReport,
@@ -462,6 +464,7 @@ function AppContent() {
         FoodScan: 'scan',
         FoodSearch: 'search',
         ChatSettings: 'settings/voice',
+        HeartRateZonesSettings: 'settings/heart-rate-zones',
         // Tapping the workout Live Activity opens its associated URL.
         ActiveWorkout: 'active-workout',
         // The run Live Activity opens the recording screen.
@@ -874,6 +877,11 @@ function AppContent() {
             options={createStackScreenOptions(t('screens.moodReport', { defaultValue: 'Mood' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
+            name="CompareReport"
+            component={SafeCompareReport}
+            options={createStackScreenOptions(t('screens.compareReport', { defaultValue: 'Compare' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
             name="HydrationReport"
             component={SafeHydrationReport}
             options={createStackScreenOptions(t('screens.hydrationReport', { defaultValue: 'Hydration' }), { headerBackButtonDisplayMode: 'minimal' })}
@@ -1132,6 +1140,11 @@ function AppContent() {
             name="WarmupSettings"
             component={SafeWarmupSettings}
             options={createStackScreenOptions(t('screens.warmupSettings', { defaultValue: 'Warm-up Calculator' }), { headerBackTitle: t('screens.workoutSettings', { defaultValue: 'Workout Settings' }) })}
+          />
+          <Stack.Screen
+            name="HeartRateZonesSettings"
+            component={SafeHeartRateZonesSettings}
+            options={createStackScreenOptions(t('screens.heartRateZonesSettings', { defaultValue: 'Heart Rate Zones' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
           />
           <Stack.Screen
             name="ServerSettings"
