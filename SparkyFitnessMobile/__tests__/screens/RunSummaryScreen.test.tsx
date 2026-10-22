@@ -118,6 +118,31 @@ it('shows heart rate and elevation only when there are some, and laps instead of
   expect(screen.queryByText('Splits')).toBeNull();
 });
 
+it('shows the average GAP and a GAP line on each split when the run had elevation', () => {
+  renderScreen(
+    params({
+      avgGapSeconds: 281,
+      splits: [
+        { ...split(1, 300), gapSeconds: 262 },
+        { ...split(2, 280), gapSeconds: 301 },
+        split(3, 150, true),
+      ],
+    })
+  );
+  expect(screen.getByText('Avg GAP')).toBeTruthy();
+  expect(screen.getByText('4:41')).toBeTruthy();
+  expect(screen.getByText('GAP 4:22 /km')).toBeTruthy();
+  expect(screen.getByText('GAP 5:01 /km')).toBeTruthy();
+  // A split with no grade-adjusted pace says nothing about it.
+  expect(screen.getAllByText(/^GAP /)).toHaveLength(2);
+});
+
+it('shows no GAP anywhere for a run without elevation', () => {
+  renderScreen(params());
+  expect(screen.queryByText('Avg GAP')).toBeNull();
+  expect(screen.queryByText(/^GAP /)).toBeNull();
+});
+
 it('shows program progress, what is next, and opens the program', () => {
   renderScreen(
     params({

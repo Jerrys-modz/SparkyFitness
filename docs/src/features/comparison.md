@@ -86,6 +86,7 @@ These are the projects most people compare SparkyFitness against when they want 
 | Workout presets & plan templates | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | GPS activity tracking with route maps | ✅ FIT import | ❌ | ❌ | ❌ | ❌ | ⭐ GPX & more |
 | Lap splits & activity telemetry | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Grade-adjusted pace & running dynamics | ✅ GAP, ground contact, oscillation, power from your watch | ❌ | ❌ | ❌ | ❌ | ? |
 | Personal records & 1RM progression | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Muscle-group recovery & variety scoring | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Health & Body** | | | | | | |
@@ -244,6 +245,7 @@ SparkyFitness is less a rival here than a destination: it **ingests from all of 
 | Food photo recognition | ✅ | ❌ | ❌ | 💰 Connect+ | ❌ |
 | Nutrition goals & macro reporting | ✅ | ❌ | 🟡 | 💰 Connect+ | 🟡 calorie budget retired in 2026 |
 | GPS activities, laps & route maps | ✅ | ✅ | ✅ | ⭐ | ✅ |
+| Grade-adjusted pace & running dynamics | ✅ imported from your watch | 🟡 running metrics, no grade-adjusted pace | ? | ⭐ own sensors | ? |
 | Strength training & set logging | ✅ | 🟡 workouts, not sets/reps | 🟡 | ✅ | ✅ |
 | Structured running programs | ✅ 16 built in, incl. a [Zone 2 base](/features/exercises/zone-2-program) | ? | ? | ✅ Garmin Coach (5K, 10K, half marathon) | ? |
 | Measures sleep stages, HRV, respiration | ❌ imports only | ⭐ own sensors | ⭐ own sensors | ⭐ own sensors | ✅ own sensors |

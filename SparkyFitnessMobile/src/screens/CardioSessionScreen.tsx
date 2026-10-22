@@ -6,7 +6,7 @@ import Toast from 'react-native-toast-message';
 
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useCardioSessionDetail } from '../hooks/useCardioSessionDetail';
-import { getAppLocale } from '../localization';
+import { formatLocalizedNumber, getAppLocale } from '../localization';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import {
@@ -14,11 +14,21 @@ import {
   METERS_PER_MILE,
   formatPace,
 } from '../utils/gpsRecording';
+import { summarizeRunningDynamics } from '@workspace/shared';
 import {
+  gradeAdjustedPaceOfTrack,
   paceSeriesFromDistance,
   paceSeriesFromTrack,
 } from '../utils/cardioSession';
-import { bpmText, sessionStats } from '../utils/cardioSessionStats';
+import {
+  bpmText,
+  resolveRunningDynamics,
+  runningDynamicsCharts,
+  sessionStats,
+  verticalOscillationDisplay,
+} from '../utils/cardioSessionStats';
+import Switch from '../components/ui/Switch';
+import RunningDynamicsChart from '../components/exerciseStats/RunningDynamicsChart';
 import Button from '../components/ui/Button';
 import { shareRouteAsGpx } from '../services/gpxExport';
 import { saveActivityAsRoute } from '../services/routeService';
@@ -77,7 +87,27 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
   });
 
   const detail = useCardioSessionDetail(session.id, session.entryDate);
-  const stats = sessionStats(t, session, distanceUnit);
+  const unitMeters = distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
+  const [showGap, setShowGap] = React.useState(false);
+  // Grade-adjusted pace needs elevation on the stored track; without it these
+  // are null and nothing about GAP is drawn.
+  const gradeAdjustedPaceSeconds = React.useMemo(
+    () => gradeAdjustedPaceOfTrack(detail.route, unitMeters),
+    [detail.route, unitMeters]
+  );
+  const dynamics = React.useMemo(
+    () =>
+      resolveRunningDynamics(session, summarizeRunningDynamics(detail.route)),
+    [session, detail.route]
+  );
+  const dynamicsCharts = React.useMemo(
+    () => runningDynamicsCharts(detail.route, distanceUnit),
+    [detail.route, distanceUnit]
+  );
+  const stats = sessionStats(t, session, distanceUnit, {
+    gradeAdjustedPaceSeconds,
+    dynamics,
+  });
   const exportGpx = async () => {
     try {
       await shareRouteAsGpx({
@@ -130,7 +160,6 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
     year: 'numeric',
   });
 
-  const unitMeters = distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
   const paceSeries = React.useMemo(
     () =>
       detail.route.length > 0
@@ -142,6 +171,103 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
     distanceUnit === 'miles'
       ? t('exerciseStatistics.cardio.perMile', { defaultValue: '/mi' })
       : t('exerciseStatistics.cardio.perKm', { defaultValue: '/km' });
+
+  const hasGradeAdjustedPace =
+    gradeAdjustedPaceSeconds != null &&
+    paceSeries.some((point) => point.gapSeconds != null);
+
+  // Each metric with a value gets a card: its average, the chart when the
+  // track has enough readings, and a plain-language note.
+  const dynamicsCards: {
+    key: string;
+    title: string;
+    average: string;
+    data: { elapsedMinutes: number; value: number }[];
+    fractionDigits: number;
+    note: string;
+  }[] = [];
+  if (dynamics.groundContactTimeMs != null) {
+    dynamicsCards.push({
+      key: 'groundContact',
+      title: t('exerciseStatistics.cardio.groundContactTime', {
+        defaultValue: 'Ground contact',
+      }),
+      average: t('exerciseStatistics.cardio.averageMs', {
+        defaultValue: 'Avg {{value}} ms',
+        value: formatLocalizedNumber(Math.round(dynamics.groundContactTimeMs)),
+      }),
+      data: dynamicsCharts.groundContact,
+      fractionDigits: 0,
+      note: t('exerciseStatistics.cardio.groundContactNote', {
+        defaultValue:
+          'How long each foot stays on the ground per step. Shorter often goes with faster running, but it varies between people and with pace, so compare your own runs. Not medical advice.',
+      }),
+    });
+  }
+  if (dynamics.verticalOscillationMm != null) {
+    const value = formatLocalizedNumber(
+      verticalOscillationDisplay(dynamics.verticalOscillationMm, distanceUnit),
+      { maximumFractionDigits: 1 }
+    );
+    dynamicsCards.push({
+      key: 'verticalOscillation',
+      title: t('exerciseStatistics.cardio.verticalOscillation', {
+        defaultValue: 'Vertical oscillation',
+      }),
+      average:
+        distanceUnit === 'miles'
+          ? t('exerciseStatistics.cardio.averageInches', {
+              defaultValue: 'Avg {{value}} in',
+              value,
+            })
+          : t('exerciseStatistics.cardio.averageCentimeters', {
+              defaultValue: 'Avg {{value}} cm',
+              value,
+            }),
+      data: dynamicsCharts.verticalOscillation,
+      fractionDigits: 1,
+      note: t('exerciseStatistics.cardio.verticalOscillationNote', {
+        defaultValue:
+          'How far your torso bounces up and down with each step. Less bounce means more of your effort goes forward, but it changes with pace and form. A guide, not a target.',
+      }),
+    });
+  }
+  if (dynamics.verticalRatioPercent != null) {
+    dynamicsCards.push({
+      key: 'verticalRatio',
+      title: t('exerciseStatistics.cardio.verticalRatio', {
+        defaultValue: 'Vertical ratio',
+      }),
+      average: t('exerciseStatistics.cardio.averagePercent', {
+        defaultValue: 'Avg {{value}}%',
+        value: formatLocalizedNumber(dynamics.verticalRatioPercent, {
+          maximumFractionDigits: 1,
+        }),
+      }),
+      data: dynamicsCharts.verticalRatio,
+      fractionDigits: 1,
+      note: t('exerciseStatistics.cardio.verticalRatioNote', {
+        defaultValue:
+          'Vertical oscillation as a percentage of your step length. Lower means less of each step goes up instead of forward. It is worked out from the two measurements, not measured separately.',
+      }),
+    });
+  }
+  if (dynamics.powerWatts != null) {
+    dynamicsCards.push({
+      key: 'power',
+      title: t('exerciseStatistics.cardio.power', { defaultValue: 'Power' }),
+      average: t('exerciseStatistics.cardio.averageWatts', {
+        defaultValue: 'Avg {{value}} W',
+        value: formatLocalizedNumber(Math.round(dynamics.powerWatts)),
+      }),
+      data: dynamicsCharts.power,
+      fractionDigits: 0,
+      note: t('exerciseStatistics.cardio.powerNote', {
+        defaultValue:
+          'The effort your watch or sensor estimates, in watts. Brands calculate it differently, so compare sessions from the same device.',
+      }),
+    });
+  }
 
   const peak = detail.heartRate.reduce((max, p) => Math.max(max, p.bpm), 0);
   const average =
@@ -258,8 +384,38 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
                 })}
               </Text>
             </View>
+            {hasGradeAdjustedPace ? (
+              <View className="flex-row items-center justify-between mb-2">
+                <Text className="text-text-primary text-sm">
+                  {t('exerciseStatistics.cardio.gradeAdjusted', {
+                    defaultValue: 'Grade adjusted',
+                  })}
+                </Text>
+                <Switch
+                  testID="grade-adjusted-toggle"
+                  value={showGap}
+                  onValueChange={setShowGap}
+                  accessibilityLabel={t(
+                    'exerciseStatistics.cardio.gradeAdjustedA11y',
+                    { defaultValue: 'Show grade adjusted pace on the chart' }
+                  )}
+                />
+              </View>
+            ) : null}
             <PaceChart
               data={paceSeries}
+              gradeAdjusted={
+                hasGradeAdjustedPace && showGap
+                  ? {
+                      paceLabel: t('exerciseStatistics.cardio.pace', {
+                        defaultValue: 'Pace',
+                      }),
+                      gapLabel: t('exerciseStatistics.cardio.gradeAdjusted', {
+                        defaultValue: 'Grade adjusted',
+                      }),
+                    }
+                  : undefined
+              }
               xAxisCaption={
                 distanceUnit === 'miles'
                   ? t('exerciseStatistics.cardio.milesAxis', {
@@ -270,8 +426,34 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
                     })
               }
             />
+            {hasGradeAdjustedPace && showGap ? (
+              <Text className="text-text-muted text-xs mt-2">
+                {t('exerciseStatistics.cardio.gradeAdjustedNote', {
+                  defaultValue:
+                    'Grade adjusted pace is the flat pace that would cost about the same effort, worked out from the elevation on your route (Minetti et al., 2002). It is an estimate and ignores wind, surface and fatigue.',
+                })}
+              </Text>
+            ) : null}
           </Card>
         ) : null}
+
+        {dynamicsCards.map((card) => (
+          <Card key={card.key} title={card.title}>
+            <Text className="text-text-secondary text-sm mb-2">
+              {card.average}
+            </Text>
+            {card.data.length >= 3 ? (
+              <RunningDynamicsChart
+                data={card.data}
+                fractionDigits={card.fractionDigits}
+                xAxisCaption={t('exerciseStatistics.cardio.minutesAxis', {
+                  defaultValue: 'Minutes from start',
+                })}
+              />
+            ) : null}
+            <Text className="text-text-muted text-xs mt-2">{card.note}</Text>
+          </Card>
+        ))}
 
         <Card
           title={t('exerciseStatistics.cardio.heartRate', {

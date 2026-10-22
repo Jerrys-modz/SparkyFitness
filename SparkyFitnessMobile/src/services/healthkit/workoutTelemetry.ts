@@ -294,6 +294,16 @@ export interface WorkoutTelemetryBundle {
   incomplete?: boolean;
 }
 
+/** Rescales a series to the stored unit, to a tenth so float noise stays off the wire. */
+const scaleSeries = (
+  points: readonly SeriesPoint[],
+  factor: number
+): SeriesPoint[] =>
+  points.map((point) => ({
+    t: point.t,
+    v: Math.round(point.v * factor * 10) / 10,
+  }));
+
 /**
  * Summary values derived from the series.
  *
@@ -393,6 +403,15 @@ export async function collectWorkoutTelemetry(
         speed: series.speed ? downsampleSeries(series.speed) : undefined,
         cad: series.cad ? downsampleSeries(series.cad) : undefined,
         power: series.power ? downsampleSeries(series.power) : undefined,
+        gct: series.gct ? downsampleSeries(series.gct) : undefined,
+        // Queried in centimetres and metres, stored in millimetres and
+        // centimetres like the workout-level averages.
+        vo: series.vo
+          ? downsampleSeries(scaleSeries(series.vo, 10))
+          : undefined,
+        stride: series.stride
+          ? downsampleSeries(scaleSeries(series.stride, 100))
+          : undefined,
       });
     }
 

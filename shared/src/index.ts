@@ -188,6 +188,9 @@ export * from './cycle/content.ts';
 export * from './mood/index.ts';
 export * from './mood/checkins.ts';
 
+export * from "./utils/gradeAdjustedPace.ts";
+export * from "./utils/runningDynamics.ts";
+export * from "./utils/gradeAdjustedTrack.ts";
 export * from "./schemas/database/FitnessTests.zod.ts";
 export * from "./utils/fitnessTest.ts";
 export * from "./utils/weightCoaching.ts";

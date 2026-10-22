@@ -329,6 +329,11 @@ export interface RecordedSplit {
   endT: number;
   /** True for the trailing stretch shorter than a full unit. */
   partial: boolean;
+  /**
+   * Grade-adjusted pace, seconds per display unit. Set only on the run
+   * summary, and only when the track had elevation to grade it with.
+   */
+  gapSeconds?: number | null;
 }
 
 /**

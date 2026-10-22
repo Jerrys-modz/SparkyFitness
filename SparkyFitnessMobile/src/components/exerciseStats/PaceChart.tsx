@@ -31,34 +31,57 @@ interface PaceChartProps {
   data: readonly PacePoint[];
   /** Caption under the x axis, naming the distance unit. */
   xAxisCaption: string;
+  /**
+   * Draws the grade-adjusted pace as a second line, over the stretches that
+   * have one. The caller only sets it for a track with elevation.
+   */
+  gradeAdjusted?: { paceLabel: string; gapLabel: string };
 }
 
 /**
  * Pace over distance. The line is drawn on negated pace so a faster stretch
  * sits higher on the chart, as in running apps; the axis labels undo it.
  */
-const PaceChart: React.FC<PaceChartProps> = ({ data, xAxisCaption }) => {
+const PaceChart: React.FC<PaceChartProps> = ({
+  data: allData,
+  xAxisCaption,
+  gradeAdjusted,
+}) => {
   const font = useChartFont(CHART_LABEL_FONT_SIZE);
-  const [lineColor, textMuted] = useCSSVariable([
+  const [lineColor, gapColor, textMuted] = useCSSVariable([
     '--color-accent-primary',
+    '--color-text-secondary',
     '--color-text-muted',
-  ]) as [string, string];
+  ]) as [string, string, string];
+
+  // Both lines are drawn over the same stretches, so a stretch with no
+  // grade-adjusted reading is left out rather than given the plain pace.
+  const data = useMemo(
+    () =>
+      gradeAdjusted
+        ? allData.filter((point) => point.gapSeconds != null)
+        : allData,
+    [allData, gradeAdjusted]
+  );
 
   const points = useMemo(
     () =>
       data.map((point) => ({
         distance: point.distance,
         pace: -point.paceSeconds,
+        gap: -(point.gapSeconds ?? point.paceSeconds),
       })),
     [data]
   );
 
   const yAxisScale = useMemo(() => {
-    const values = points.map((point) => point.pace);
+    const values = points.flatMap((point) =>
+      gradeAdjusted ? [point.pace, point.gap] : [point.pace]
+    );
     return values.length > 0
       ? computeNiceYAxisScale(Math.min(...values), Math.max(...values))
       : undefined;
-  }, [points]);
+  }, [points, gradeAdjusted]);
 
   const distanceDigits = useMemo(() => {
     if (data.length < 2) return 1;
@@ -72,7 +95,7 @@ const PaceChart: React.FC<PaceChartProps> = ({ data, xAxisCaption }) => {
         <CartesianChart
           data={points}
           xKey="distance"
-          yKeys={['pace']}
+          yKeys={['pace', 'gap']}
           domain={
             yAxisScale ? { y: [yAxisScale.min, yAxisScale.max] } : undefined
           }
@@ -97,18 +120,50 @@ const PaceChart: React.FC<PaceChartProps> = ({ data, xAxisCaption }) => {
           ]}
         >
           {({ points: chartPoints }) => (
-            <LineSeriesMark
-              points={chartPoints.pace}
-              color={lineColor}
-              strokeWidth={2}
-              curveType="linear"
-            />
+            <>
+              <LineSeriesMark
+                points={chartPoints.pace}
+                color={lineColor}
+                strokeWidth={2}
+                curveType="linear"
+              />
+              {gradeAdjusted ? (
+                <LineSeriesMark
+                  points={chartPoints.gap}
+                  color={gapColor}
+                  strokeWidth={2}
+                  curveType="linear"
+                />
+              ) : null}
+            </>
           )}
         </CartesianChart>
       </View>
       <Text className="text-text-muted text-xs text-center mt-1">
         {xAxisCaption}
       </Text>
+      {gradeAdjusted ? (
+        <View className="flex-row justify-center mt-1">
+          <View className="flex-row items-center mr-4">
+            <View
+              className="w-3 h-1 rounded-full mr-1"
+              style={{ backgroundColor: lineColor }}
+            />
+            <Text className="text-text-muted text-xs">
+              {gradeAdjusted.paceLabel}
+            </Text>
+          </View>
+          <View className="flex-row items-center">
+            <View
+              className="w-3 h-1 rounded-full mr-1"
+              style={{ backgroundColor: gapColor }}
+            />
+            <Text className="text-text-muted text-xs">
+              {gradeAdjusted.gapLabel}
+            </Text>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 };

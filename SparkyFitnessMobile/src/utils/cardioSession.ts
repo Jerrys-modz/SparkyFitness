@@ -1,12 +1,20 @@
 import type {
+  ElevationProfile,
   ExerciseActivityQueryItem,
   ExerciseEntryHrZones,
   StoredZoneMethod,
   GpsTrackPoint,
   IndividualSessionResponse,
+  TrackSample,
   WorkoutHeartRatePoint,
 } from '@workspace/shared';
-import { canEditGroupedWorkout } from '@workspace/shared';
+import {
+  buildElevationProfile,
+  canEditGroupedWorkout,
+  gradeAdjustedForSamples,
+  gradeAdjustedPace,
+  trackWindows,
+} from '@workspace/shared';
 import { haversineMeters } from './gpsRecording';
 import { toFiniteNumber } from './numericInput';
 import { distanceFromKm } from './unitConversions';
@@ -342,14 +350,18 @@ export interface PacePoint {
   distance: number;
   /** Seconds per display unit. */
   paceSeconds: number;
+  /**
+   * The flat pace that costs the same effort, in seconds per display unit.
+   * Absent when the track has no usable elevation for this stretch, so the
+   * chart never shows a grade-adjusted line it cannot back.
+   */
+  gapSeconds?: number;
 }
 
-/** Each pace reading spans at least this long, which smooths GPS jitter. */
-const PACE_WINDOW_SECONDS = 30;
-/** Readings slower than this (seconds per unit) are standing still. */
-const MAX_PACE_SECONDS = 3600;
 /** Points kept for the chart. */
 const MAX_PACE_POINTS = 400;
+/** Readings slower than this (seconds per unit) are standing still. */
+const MAX_PACE_SECONDS = 3600;
 
 /**
  * Pace along a recorded or imported route: for each stretch of at least
@@ -357,14 +369,37 @@ const MAX_PACE_POINTS = 400;
  * over it, plotted at the distance where it ended. Stretches that are
  * standing still are left out, so a red light is a gap and not a spike to an
  * hour per kilometer. Uses each point's own `dist` when the track carries it,
- * and falls back to the path length between fixes.
+ * and falls back to the path length between fixes. When the track carries
+ * altitude each reading also has its grade-adjusted pace.
  */
 export function paceSeriesFromTrack(
   points: readonly GpsTrackPoint[],
   unitMeters: number
 ): PacePoint[] {
   if (points.length < 2 || !(unitMeters > 0)) return [];
-  const samples: { t: number; meters: number }[] = [];
+  const samples = trackSamples(points);
+  return paceSeriesFromSamples(
+    samples,
+    unitMeters,
+    buildElevationProfile(samples)
+  );
+}
+
+/**
+ * Average grade-adjusted pace of a stored track in seconds per display unit,
+ * or null when it carries too little elevation to say.
+ */
+export function gradeAdjustedPaceOfTrack(
+  points: readonly GpsTrackPoint[],
+  unitMeters: number
+): number | null {
+  if (points.length < 2 || !(unitMeters > 0)) return null;
+  return gradeAdjustedForSamples(trackSamples(points), unitMeters)
+    .averageSecondsPerUnit;
+}
+
+function trackSamples(points: readonly GpsTrackPoint[]): TrackSample[] {
+  const samples: TrackSample[] = [];
   let running = 0;
   let previous: GpsTrackPoint | null = null;
   for (const point of points) {
@@ -378,10 +413,14 @@ export function paceSeriesFromTrack(
       running += haversineMeters(previous, point);
     }
     previous = point;
-    samples.push({ t, meters: running });
+    samples.push({
+      t,
+      meters: running,
+      altitude: point.alt,
+      verticalAccuracy: point.vacc,
+    });
   }
-
-  return paceSeriesFromSamples(samples, unitMeters);
+  return samples;
 }
 
 /**
@@ -397,30 +436,27 @@ export function paceSeriesFromDistance(
     .filter((row) => row.length >= 2)
     .map((row) => ({ t: row[0] * 1000, meters: row[1] }))
     .sort((a, b) => a.t - b.t);
-  return paceSeriesFromSamples(samples, unitMeters);
+  return paceSeriesFromSamples(samples, unitMeters, null);
 }
 
 function paceSeriesFromSamples(
-  samples: readonly { t: number; meters: number }[],
-  unitMeters: number
+  samples: readonly TrackSample[],
+  unitMeters: number,
+  profile: ElevationProfile | null
 ): PacePoint[] {
   const series: PacePoint[] = [];
-  let anchor = samples[0];
-  for (let i = 1; i < samples.length; i++) {
-    const sample = samples[i];
-    const seconds = (sample.t - anchor.t) / 1000;
-    if (seconds < PACE_WINDOW_SECONDS) continue;
-    const meters = sample.meters - anchor.meters;
-    if (meters > 0) {
-      const pace = seconds / (meters / unitMeters);
-      if (pace > 0 && pace <= MAX_PACE_SECONDS) {
-        series.push({
-          distance: sample.meters / unitMeters,
-          paceSeconds: pace,
-        });
-      }
-    }
-    anchor = sample;
+  for (const window of trackWindows(samples, profile)) {
+    const pace = window.seconds / (window.meters / unitMeters);
+    if (!(pace > 0 && pace <= MAX_PACE_SECONDS)) continue;
+    const gap =
+      window.gradePercent != null
+        ? gradeAdjustedPace(pace, window.gradePercent)
+        : null;
+    series.push({
+      distance: window.endMeters / unitMeters,
+      paceSeconds: pace,
+      ...(gap != null && { gapSeconds: gap }),
+    });
   }
 
   if (series.length <= MAX_PACE_POINTS) return series;

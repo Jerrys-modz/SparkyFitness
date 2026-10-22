@@ -299,6 +299,9 @@ describe('exerciseStatsService', () => {
             elevation_gain_meters: '181.9056',
             avg_cadence: '168.4',
             stride_length_cm: '104.26',
+            ground_contact_time_ms: '243.46',
+            vertical_oscillation_mm: '81.04',
+            avg_power_watts: '231.6',
             source: 'HealthKit',
             notes: null,
           },
@@ -320,6 +323,11 @@ describe('exerciseStatsService', () => {
       expect(res.items[0].elevationGainMeters).toBe(181.9);
       expect(res.items[0].avgCadence).toBe(168);
       expect(res.items[0].strideLengthCm).toBe(104.3);
+      expect(res.items[0].groundContactTimeMs).toBe(243.5);
+      expect(res.items[0].verticalOscillationMm).toBe(81);
+      // 81 mm over a 104.3 cm step: derived, not stored.
+      expect(res.items[0].verticalRatioPercent).toBe(7.8);
+      expect(res.items[0].avgPowerWatts).toBe(232);
       const sql = String(mockClient.query.mock.calls[1]?.[0]);
       expect(sql).toContain('floors_climbed');
       expect(sql).toContain('elevation_gain_meters');
@@ -365,6 +373,10 @@ describe('exerciseStatsService', () => {
       expect(res.items[0].elevationGainMeters).toBeNull();
       expect(res.items[0].avgCadence).toBeNull();
       expect(res.items[0].strideLengthCm).toBeNull();
+      expect(res.items[0].groundContactTimeMs).toBeNull();
+      expect(res.items[0].verticalOscillationMm).toBeNull();
+      expect(res.items[0].verticalRatioPercent).toBeNull();
+      expect(res.items[0].avgPowerWatts).toBeNull();
     });
 
     it('does not treat a crunch or a strength session as cardio', async () => {

@@ -216,9 +216,12 @@ export function downsampleHrSamples(
  * where the server needs them (heart rate), because an indoor workout has the
  * series but no track to hang it on.
  */
+export type MergeableSeriesKey =
+  'hr' | 'speed' | 'cad' | 'power' | 'gct' | 'vo' | 'stride';
+
 export function mergeSeriesIntoGpsPoints(
   points: readonly WorkoutGpsPoint[],
-  series: Partial<Record<'hr' | 'speed' | 'cad' | 'power', SeriesPoint[]>>
+  series: Partial<Record<MergeableSeriesKey, SeriesPoint[]>>
 ): WorkoutGpsPoint[] {
   if (points.length === 0) return [];
 
@@ -227,7 +230,7 @@ export function mergeSeriesIntoGpsPoints(
 
   for (const [key, samples] of Object.entries(series)) {
     if (!samples || samples.length === 0) continue;
-    const field = key as 'hr' | 'speed' | 'cad' | 'power';
+    const field = key as MergeableSeriesKey;
 
     // Both sides are time-ordered, so advance a single cursor instead of
     // searching the whole track for every sample.

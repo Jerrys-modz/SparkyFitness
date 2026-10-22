@@ -130,6 +130,31 @@ describe('deriveWorkoutTelemetry', () => {
     });
   });
 
+  it('averages running dynamics and ignores zero readings', () => {
+    const points: TelemetryGpsPoint[] = [
+      { t: at(0), lat: 0, lon: 0, gct: 240, vo: 80, stride: 100 },
+      { t: at(5), lat: 0, lon: 0, gct: 260, vo: 90, stride: 110 },
+      { t: at(10), lat: 0, lon: 0, gct: 0, vo: 0, stride: 0 },
+      { t: at(15), lat: 0, lon: 0 },
+    ];
+    expect(deriveWorkoutTelemetry(points, [])).toMatchObject({
+      ground_contact_time_ms: 250,
+      vertical_oscillation_mm: 85,
+      stride_length_cm: 105,
+    });
+  });
+
+  it('writes no running dynamics for a track that has none', () => {
+    const points: TelemetryGpsPoint[] = [
+      { t: at(0), lat: 0, lon: 0, speed: 2 },
+      { t: at(5), lat: 0, lon: 0, speed: 3 },
+    ];
+    const telemetry = deriveWorkoutTelemetry(points, []);
+    expect(telemetry).not.toHaveProperty('ground_contact_time_ms');
+    expect(telemetry).not.toHaveProperty('vertical_oscillation_mm');
+    expect(telemetry).not.toHaveProperty('stride_length_cm');
+  });
+
   it('omits keys it cannot derive rather than writing nulls', () => {
     // The caller spreads this over client-supplied values, so a null here
     // would blank a field the device actually reported.
