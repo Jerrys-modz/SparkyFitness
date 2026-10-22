@@ -99,7 +99,7 @@ describe('GET /api/v2/reports/compare', () => {
 
   it('400 for a metric not offered in week mode', async () => {
     const res = await request(app).get(
-      '/api/v2/reports/compare?a=mood&b=meditated7d&mode=week&start=2026-01-05&end=2026-06-28'
+      '/api/v2/reports/compare?a=mood&b=meditationSessions7d&mode=week&start=2026-01-05&end=2026-06-28'
     );
     expect(res.statusCode).toBe(400);
     expect(getCompare).not.toHaveBeenCalled();
