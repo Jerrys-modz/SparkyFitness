@@ -129,4 +129,22 @@ describe('useWatchFastingBridge', () => {
     expect(startFast).not.toHaveBeenCalled();
     expect(mockSendAck).not.toHaveBeenCalled();
   });
+
+  it('aborts startFast if the active server changes while fetchCurrentFast is pending', async () => {
+    (getActiveServerConfigId as jest.Mock)
+      .mockResolvedValueOnce('srv-1')
+      .mockResolvedValueOnce('srv-2');
+    (fetchCurrentFast as jest.Mock).mockResolvedValue(null);
+    renderHook(() => useWatchFastingBridge(true));
+    mockListeners.get('onFastStartRequested')?.({
+      presetId: '18-6',
+      clientId: 'c8',
+      ownerId: 'srv-1',
+    });
+    await waitFor(() =>
+      expect(getActiveServerConfigId).toHaveBeenCalledTimes(2)
+    );
+    expect(startFast).not.toHaveBeenCalled();
+    expect(mockSendAck).not.toHaveBeenCalled();
+  });
 });

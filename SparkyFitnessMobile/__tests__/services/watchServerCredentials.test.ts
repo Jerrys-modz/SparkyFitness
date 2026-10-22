@@ -85,7 +85,7 @@ describe('watchServerCredentials', () => {
       const ownerId = await syncWatchServerCredentials();
 
       expect(ownerId).toBe('srv-android');
-      expect(getActiveServerConfig).toHaveBeenCalledTimes(1);
+      expect(getActiveServerConfig).toHaveBeenCalled();
       expect(getActiveServerConfigId).not.toHaveBeenCalled();
       expect(WatchConnectivity?.setTelemetryOwner).toHaveBeenCalledWith(
         'srv-android'
@@ -99,6 +99,44 @@ describe('watchServerCredentials', () => {
         }
       );
       expect(WatchConnectivity?.clearServerCredentials).not.toHaveBeenCalled();
+    });
+
+    it('skips superseded credential writes when overlapping syncs run', async () => {
+      Object.defineProperty(Platform, 'OS', {
+        value: 'android',
+        configurable: true,
+      });
+      const cfgA = {
+        id: 'srv-a',
+        url: 'https://a.example.com',
+        proxyHeaders: [],
+      };
+      const cfgB = {
+        id: 'srv-b',
+        url: 'https://b.example.com',
+        proxyHeaders: [],
+      };
+      let currentCfg = cfgA;
+      (getActiveServerConfig as jest.Mock).mockImplementation(
+        async () => currentCfg
+      );
+
+      const first = syncWatchServerCredentials();
+      currentCfg = cfgB;
+      const second = syncWatchServerCredentials();
+
+      const [firstOwner, secondOwner] = await Promise.all([first, second]);
+      expect(firstOwner).toBe('srv-a');
+      expect(secondOwner).toBe('srv-b');
+      expect(WatchConnectivity?.setTelemetryOwner).toHaveBeenCalledTimes(1);
+      expect(WatchConnectivity?.setTelemetryOwner).toHaveBeenLastCalledWith(
+        'srv-b'
+      );
+      expect(WatchConnectivity?.setServerCredentials).toHaveBeenCalledTimes(1);
+      expect(WatchConnectivity?.setServerCredentials).toHaveBeenLastCalledWith(
+        'https://b.example.com',
+        expect.any(Object)
+      );
     });
 
     it('clears credentials on Android when no active server URL is present', async () => {
