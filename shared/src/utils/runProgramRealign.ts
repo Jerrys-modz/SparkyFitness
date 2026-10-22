@@ -1,26 +1,26 @@
-import { isCustomProgramId } from "../schemas/api/RunProgram.api.zod.ts";
+import { isCustomProgramId } from '../schemas/api/RunProgram.api.zod.ts';
 import type {
   RunProgramRealignChange,
   RunProgramRealignOption,
   RunProgramRealignPreview,
   RunProgramRealignResult,
   RunProgramResponse,
-} from "../schemas/api/RunProgram.api.zod.ts";
-import { ProgramAdjustError, adjustRunning } from "./runProgramAdjust.ts";
-import type { ProgramState } from "./runProgramAdjust.ts";
-import { suggestFromBreak } from "./runProgramBreak.ts";
+} from '../schemas/api/RunProgram.api.zod.ts';
+import { ProgramAdjustError, adjustRunning } from './runProgramAdjust.ts';
+import type { ProgramState } from './runProgramAdjust.ts';
+import { suggestFromBreak } from './runProgramBreak.ts';
 import {
   planMinutes,
   programActivity,
   runMinutes,
   type ProgramWorkout,
-} from "./runPrograms.ts";
-import type { RaceDistance } from "./racePlan.ts";
+} from './runPrograms.ts';
+import type { RaceDistance } from './racePlan.ts';
 import {
   countRunSlots,
   projectedFinishDay,
   type ProgramSchedule,
-} from "./runProgramSchedule.ts";
+} from './runProgramSchedule.ts';
 
 /**
  * Rebuilds the rest of a plan so it still ends on the goal day, the way a
@@ -51,16 +51,20 @@ const MAX_STRETCH_WEEKS = 2;
 const MAX_TAPER_WEEKS = 3;
 /** Fewest weeks before the goal day that suit each distance, while build is left. */
 export const MIN_WEEKS_LEFT: Record<RaceDistance, number> = {
-  "5k": 2,
-  "10k": 3,
+  '5k': 2,
+  '10k': 3,
   half: 5,
   marathon: 8,
+  '50k': 10,
+  '100k': 12,
 };
 const LOWER_DISTANCE: Record<RaceDistance, RaceDistance | null> = {
-  marathon: "half",
-  half: "10k",
-  "10k": "5k",
-  "5k": null,
+  '100k': '50k',
+  '50k': 'marathon',
+  marathon: 'half',
+  half: '10k',
+  '10k': '5k',
+  '5k': null,
 };
 
 export interface RealignInput {
@@ -77,7 +81,7 @@ export interface RealignInput {
   /** The local day the plan was last changed on. */
   lastAdjustedDay?: string | null;
   /** A walking program is not eased after a break. */
-  activity?: "run" | "walk";
+  activity?: 'run' | 'walk';
   /** The person's own plan: its week and day only number the workouts. */
   custom?: boolean;
   /** The race distance, when known; otherwise it is read from the longest run. */
@@ -94,13 +98,13 @@ export interface RealignPlan {
 }
 
 export type RealignOutcome =
-  | { state: "unavailable"; reason: "noGoalDay" | "noRunDays" | "finished" }
-  | { state: "fits" }
-  | ({ state: "plan" } & RealignPlan)
+  | { state: 'unavailable'; reason: 'noGoalDay' | 'noRunDays' | 'finished' }
+  | { state: 'fits' }
+  | ({ state: 'plan' } & RealignPlan)
   | {
-      state: "unrealistic";
+      state: 'unrealistic';
       reasons: (
-        "noTimeLeft" | "taperDoesNotFit" | "tooMuchToDrop" | "tooFewWeeks"
+        'noTimeLeft' | 'taperDoesNotFit' | 'tooMuchToDrop' | 'tooFewWeeks'
       )[];
       slots: number;
       workoutsLeft: number;
@@ -120,21 +124,21 @@ export type RealignOutcome =
 export function realignInputFromProgram(
   program: Pick<
     RunProgramResponse,
-    | "program_id"
-    | "workouts"
-    | "next_index"
-    | "run_days"
-    | "start_date"
-    | "end_date"
-    | "last_done_date"
-    | "activity"
+    | 'program_id'
+    | 'workouts'
+    | 'next_index'
+    | 'run_days'
+    | 'start_date'
+    | 'end_date'
+    | 'last_done_date'
+    | 'activity'
   >,
   options: {
     today: string;
     lastAdjustedDay?: string | null;
     distance?: RaceDistance | null;
     force?: boolean;
-  },
+  }
 ): RealignInput {
   return {
     workouts: program.workouts,
@@ -161,18 +165,18 @@ export class ProgramRealignStaleError extends ProgramAdjustError {}
 /** The race distance a plan builds towards, read from its longest run; null for a walking plan. */
 export function inferRealignDistance(
   workouts: readonly ProgramWorkout[],
-  activity: "run" | "walk" = "run",
+  activity: 'run' | 'walk' = 'run'
 ): RaceDistance | null {
-  if (activity === "walk") return null;
+  if (activity === 'walk') return null;
   const peak = workouts.reduce(
     (max, w) => Math.max(max, runMinutes(w.plan)),
-    0,
+    0
   );
   if (peak <= 0) return null;
-  if (peak <= 50) return "5k";
-  if (peak <= 90) return "10k";
-  if (peak <= 135) return "half";
-  return "marathon";
+  if (peak <= 50) return '5k';
+  if (peak <= 90) return '10k';
+  if (peak <= 135) return 'half';
+  return 'marathon';
 }
 
 interface Entry {
@@ -194,14 +198,14 @@ const fnv = (text: string): string => {
 
 const clone = (workout: ProgramWorkout): ProgramWorkout => ({
   ...workout,
-  plan: JSON.parse(JSON.stringify(workout.plan)) as ProgramWorkout["plan"],
+  plan: JSON.parse(JSON.stringify(workout.plan)) as ProgramWorkout['plan'],
 });
 
 /** Which week of the remaining workouts each belongs to. */
 function blockIds(
   remaining: readonly ProgramWorkout[],
   perWeek: number,
-  custom: boolean,
+  custom: boolean
 ): number[] {
   if (!custom) {
     let id = -1;
@@ -224,8 +228,8 @@ function blockIds(
 
 interface Drop {
   i: number;
-  kind: "dropped" | "merged";
-  reason: "repeat" | "lighter" | "shortest";
+  kind: 'dropped' | 'merged';
+  reason: 'repeat' | 'lighter' | 'shortest';
 }
 
 function chooseDrops(
@@ -233,13 +237,13 @@ function chooseDrops(
   protectedUntil: number,
   need: number,
   perWeek: number,
-  force: boolean,
+  force: boolean
 ): { drops: Drop[]; shortfall: number } {
   const alive = new Set(entries.map((e) => e.i));
   const drops: Drop[] = [];
   const minKeep = perWeek >= 3 ? 2 : 1;
   const blocks = [...new Set(entries.map((e) => e.block))].sort(
-    (a, b) => a - b,
+    (a, b) => a - b
   );
   const inBlock = (block: number) =>
     entries.filter((e) => e.block === block && alive.has(e.i));
@@ -266,7 +270,7 @@ function chooseDrops(
   }
   const isKey = (e: Entry) => keyOf.get(e.block)?.i === e.i;
 
-  const drop = (e: Entry, d: Omit<Drop, "i">) => {
+  const drop = (e: Entry, d: Omit<Drop, 'i'>) => {
     alive.delete(e.i);
     drops.push({ i: e.i, ...d });
     need--;
@@ -275,7 +279,7 @@ function chooseDrops(
   // Pass 1 and 2, a week at a time so the base weeks share the loss.
   const rounds = (
     pick: (members: Entry[]) => Entry | undefined,
-    reason: Drop["reason"],
+    reason: Drop['reason']
   ) => {
     let progressed = true;
     while (need > 0 && progressed) {
@@ -286,7 +290,7 @@ function chooseDrops(
         if (members.length <= minKeep) continue;
         const choice = pick(members.filter((e) => droppable(e) && !isKey(e)));
         if (choice) {
-          drop(choice, { kind: "dropped", reason });
+          drop(choice, { kind: 'dropped', reason });
           progressed = true;
         }
       }
@@ -300,15 +304,15 @@ function chooseDrops(
           o.i !== e.i &&
           alive.has(o.i) &&
           o.block === e.block &&
-          o.signature === e.signature,
-      ),
+          o.signature === e.signature
+      )
     );
-  }, "repeat");
+  }, 'repeat');
   // Then the shortest easy run.
   rounds(
     (candidates) =>
       [...candidates].sort((a, b) => a.minutes - b.minutes || a.i - b.i)[0],
-    "shortest",
+    'shortest'
   );
   // Then fold a lighter week into its neighbour by dropping its long run.
   if (need > 0) {
@@ -319,7 +323,7 @@ function chooseDrops(
     for (const key of lighter) {
       if (need <= 0) break;
       if (!droppable(key) || inBlock(key.block).length <= 1) continue;
-      drop(key, { kind: "merged", reason: "lighter" });
+      drop(key, { kind: 'merged', reason: 'lighter' });
     }
   }
   if (need > 0 && force) {
@@ -329,12 +333,12 @@ function chooseDrops(
         (a, b) =>
           Number(records.has(a.i)) - Number(records.has(b.i)) ||
           a.minutes - b.minutes ||
-          a.i - b.i,
+          a.i - b.i
       );
     for (const e of rest) {
       if (need <= 0) break;
       if (inBlock(e.block).length > 1)
-        drop(e, { kind: "dropped", reason: "shortest" });
+        drop(e, { kind: 'dropped', reason: 'shortest' });
     }
     // Last resort: weeks may empty out, and the workouts that carry the ease go.
     const left = entries
@@ -342,7 +346,7 @@ function chooseDrops(
       .sort((a, b) => a.minutes - b.minutes || a.i - b.i);
     for (const e of left) {
       if (need <= 0) break;
-      drop(e, { kind: "dropped", reason: "shortest" });
+      drop(e, { kind: 'dropped', reason: 'shortest' });
     }
   }
   return { drops, shortfall: Math.max(0, need) };
@@ -352,17 +356,17 @@ function chooseDrops(
 function stretch(
   entries: readonly Entry[],
   remaining: readonly ProgramWorkout[],
-  add: number,
+  add: number
 ): {
   order: { source: number; copy: boolean }[];
-  added: { source: number; kind: "added" | "repeated" }[];
+  added: { source: number; kind: 'added' | 'repeated' }[];
 } {
   const blocks = [...new Set(entries.map((e) => e.block))].sort(
-    (a, b) => a - b,
+    (a, b) => a - b
   );
   const members = (block: number) => entries.filter((e) => e.block === block);
   const after = new Map<number, number[]>();
-  const added: { source: number; kind: "added" | "repeated" }[] = [];
+  const added: { source: number; kind: 'added' | 'repeated' }[] = [];
   let left = add;
   let weeks = 0;
   // Whole base weeks again first.
@@ -378,7 +382,7 @@ function stretch(
     const last = group[group.length - 1];
     if (!last) break;
     after.set(last.i, [...(after.get(last.i) ?? []), ...group.map((g) => g.i)]);
-    for (const g of group) added.push({ source: g.i, kind: "added" });
+    for (const g of group) added.push({ source: g.i, kind: 'added' });
     left -= group.length;
     weeks++;
   }
@@ -393,7 +397,7 @@ function stretch(
         .sort((a, b) => a.minutes - b.minutes || a.i - b.i)[round];
       if (!pick) continue;
       after.set(pick.i, [...(after.get(pick.i) ?? []), pick.i]);
-      added.push({ source: pick.i, kind: "repeated" });
+      added.push({ source: pick.i, kind: 'repeated' });
       left--;
     }
   }
@@ -409,34 +413,34 @@ function stretch(
 const plural = (n: number, one: string, other: string): string =>
   `${n} ${n === 1 ? one : other}`;
 
-function describe(preview: Omit<RunProgramRealignPreview, "summary">): string {
+function describe(preview: Omit<RunProgramRealignPreview, 'summary'>): string {
   const parts: string[] = [];
   if (preview.dropped > 0) {
-    parts.push(`dropped ${plural(preview.dropped, "workout", "workouts")}`);
+    parts.push(`dropped ${plural(preview.dropped, 'workout', 'workouts')}`);
   }
   if (preview.merged > 0) {
     parts.push(
-      `folded ${plural(preview.merged, "lighter week", "lighter weeks")} into the next`,
+      `folded ${plural(preview.merged, 'lighter week', 'lighter weeks')} into the next`
     );
   }
   if (preview.added > 0) {
     parts.push(
-      `added ${plural(preview.added, "extra workout", "extra workouts")} (repeated base weeks)`,
+      `added ${plural(preview.added, 'extra workout', 'extra workouts')} (repeated base weeks)`
     );
   }
   if (preview.repeated > 0) {
     parts.push(
-      `repeated ${plural(preview.repeated, "base workout", "base workouts")}`,
+      `repeated ${plural(preview.repeated, 'base workout', 'base workouts')}`
     );
   }
   const head = parts.length
-    ? `Realigned to the goal day: ${parts.join(", ")}.`
-    : "Realigned to the goal day.";
+    ? `Realigned to the goal day: ${parts.join(', ')}.`
+    : 'Realigned to the goal day.';
   const kept =
-    preview.keptTail > 0 ? " The taper and the final workout are kept." : "";
+    preview.keptTail > 0 ? ' The taper and the final workout are kept.' : '';
   const eased = preview.eased
-    ? ` Eased the next ${plural(preview.eased.count, "workout", "workouts")} by ${Math.abs(preview.eased.percent)}% after ${preview.eased.daysAway} days away.`
-    : "";
+    ? ` Eased the next ${plural(preview.eased.count, 'workout', 'workouts')} by ${Math.abs(preview.eased.percent)}% after ${preview.eased.daysAway} days away.`
+    : '';
   return `${head}${kept}${eased}`.slice(0, 500);
 }
 
@@ -448,12 +452,12 @@ function describe(preview: Omit<RunProgramRealignPreview, "summary">): string {
 export function realignProgram(input: RealignInput): RealignOutcome {
   const { workouts, next, schedule, today, doneToday } = input;
   const total = workouts.length;
-  if (next >= total) return { state: "unavailable", reason: "finished" };
-  if (!schedule.endDay) return { state: "unavailable", reason: "noGoalDay" };
+  if (next >= total) return { state: 'unavailable', reason: 'finished' };
+  if (!schedule.endDay) return { state: 'unavailable', reason: 'noGoalDay' };
   const perWeek = schedule.runDays.length;
-  if (perWeek === 0) return { state: "unavailable", reason: "noRunDays" };
+  if (perWeek === 0) return { state: 'unavailable', reason: 'noRunDays' };
 
-  const activity = input.activity ?? "run";
+  const activity = input.activity ?? 'run';
   const custom = input.custom ?? false;
   const remaining = workouts.slice(next);
   const n = remaining.length;
@@ -472,7 +476,7 @@ export function realignProgram(input: RealignInput): RealignOutcome {
   let peakMinutes = -1;
   for (let i = 0; i < total - 1; i++) {
     const minutes = runMinutes(
-      workouts[i]?.plan ?? { style: "runWalk", steps: [] },
+      workouts[i]?.plan ?? { style: 'runWalk', steps: [] }
     );
     if (minutes >= peakMinutes) {
       peakMinutes = minutes;
@@ -481,16 +485,16 @@ export function realignProgram(input: RealignInput): RealignOutcome {
   }
   const lastBlock = blocks[n - 1] ?? 0;
   const firstTaperBlock = entries.find(
-    (e) => e.block >= lastBlock - (MAX_TAPER_WEEKS - 1),
+    (e) => e.block >= lastBlock - (MAX_TAPER_WEEKS - 1)
   );
   const tailStart = Math.min(
     n - 1,
-    Math.max(peakAt + 1 - next, 0, firstTaperBlock?.i ?? 0),
+    Math.max(peakAt + 1 - next, 0, firstTaperBlock?.i ?? 0)
   );
   const tail = n - tailStart;
 
   const breakOffer =
-    activity === "walk"
+    activity === 'walk'
       ? null
       : suggestFromBreak({
           lastDoneDay: input.lastDoneDay,
@@ -515,7 +519,7 @@ export function realignProgram(input: RealignInput): RealignOutcome {
   const finish = (
     sequence: ProgramWorkout[],
     changes: RunProgramRealignChange[],
-    spare: number,
+    spare: number
   ): RealignPlan => {
     // Number the rest from where the first remaining workout sat.
     const first = remaining[0];
@@ -532,14 +536,14 @@ export function realignProgram(input: RealignInput): RealignOutcome {
       };
     });
     let full: ProgramWorkout[] = [...workouts.slice(0, next), ...numbered];
-    let eased: RunProgramRealignPreview["eased"] = null;
+    let eased: RunProgramRealignPreview['eased'] = null;
     if (breakOffer) {
       const state: ProgramState = { workouts: full, next };
       try {
         const result = adjustRunning(
           state,
           breakOffer.percent,
-          breakOffer.count,
+          breakOffer.count
         );
         full = result.workouts;
         eased = {
@@ -551,7 +555,7 @@ export function realignProgram(input: RealignInput): RealignOutcome {
         if (!(error instanceof ProgramAdjustError)) throw error;
       }
     }
-    const count = (kind: RunProgramRealignChange["kind"]) =>
+    const count = (kind: RunProgramRealignChange['kind']) =>
       changes.filter((c) => c.kind === kind).length;
     const base = {
       token,
@@ -568,10 +572,10 @@ export function realignProgram(input: RealignInput): RealignOutcome {
         }),
       },
       changes: changes.slice(0, 100),
-      dropped: count("dropped"),
-      merged: count("merged"),
-      repeated: count("repeated"),
-      added: count("added"),
+      dropped: count('dropped'),
+      merged: count('merged'),
+      repeated: count('repeated'),
+      added: count('added'),
       spare,
       keptTail: tail,
       eased,
@@ -585,8 +589,8 @@ export function realignProgram(input: RealignInput): RealignOutcome {
 
   const changeFor = (
     index: number,
-    kind: RunProgramRealignChange["kind"],
-    reason: RunProgramRealignChange["reason"],
+    kind: RunProgramRealignChange['kind'],
+    reason: RunProgramRealignChange['reason']
   ): RunProgramRealignChange => {
     const w = remaining[index];
     return {
@@ -605,7 +609,7 @@ export function realignProgram(input: RealignInput): RealignOutcome {
       protectedUntil,
       need,
       perWeek,
-      force,
+      force
     );
     const gone = new Set(drops.map((d) => d.i));
     const sequence = remaining.filter((_, i) => !gone.has(i)).map(clone);
@@ -622,56 +626,56 @@ export function realignProgram(input: RealignInput): RealignOutcome {
   if (n <= slots) {
     const extra = slots - n;
     // A few spare days are normal; offer to fill only a week or more of room.
-    if (extra < perWeek || tailStart === 0) return { state: "fits" };
+    if (extra < perWeek || tailStart === 0) return { state: 'fits' };
     const add = Math.min(extra, MAX_REALIGN_STRETCH);
     const { order, added } = stretch(
       entries.filter((e) => e.i < tailStart),
       remaining,
-      add,
+      add
     );
-    if (added.length === 0) return { state: "fits" };
+    if (added.length === 0) return { state: 'fits' };
     const sequence = order.flatMap((o) => {
       const source = remaining[o.source];
       return source ? [clone(source)] : [];
     });
-    const changes = added.map((a) => changeFor(a.source, a.kind, "extraTime"));
+    const changes = added.map((a) => changeFor(a.source, a.kind, 'extraTime'));
     return {
-      state: "plan",
+      state: 'plan',
       ...finish(sequence, changes, extra - added.length),
     };
   }
 
   const need = n - slots;
-  const reasons: Extract<RealignOutcome, { state: "unrealistic" }>["reasons"] =
+  const reasons: Extract<RealignOutcome, { state: 'unrealistic' }>['reasons'] =
     [];
   let attempt: ReturnType<typeof compress> | null = null;
-  if (slots === 0) reasons.push("noTimeLeft");
-  else if (slots < tail) reasons.push("taperDoesNotFit");
+  if (slots === 0) reasons.push('noTimeLeft');
+  else if (slots < tail) reasons.push('taperDoesNotFit');
   else {
     attempt = compress(need, false);
     if (attempt.shortfall > 0 || need > MAX_REALIGN_DROPS) {
-      reasons.push("tooMuchToDrop");
+      reasons.push('tooMuchToDrop');
     }
     if (distance && tailStart > 0 && weeksLeft < MIN_WEEKS_LEFT[distance]) {
-      reasons.push("tooFewWeeks");
+      reasons.push('tooFewWeeks');
     }
   }
 
   const canForce = slots >= tail && slots > 0;
   if (reasons.length === 0 && attempt) {
-    return { state: "plan", ...attempt.plan };
+    return { state: 'plan', ...attempt.plan };
   }
   const forced = canForce ? compress(need, true) : null;
   if (input.force && forced && forced.shortfall === 0) {
-    return { state: "plan", ...forced.plan };
+    return { state: 'plan', ...forced.plan };
   }
   const lowerDistance = distance ? LOWER_DISTANCE[distance] : null;
   const options: RunProgramRealignOption[] = [];
-  if (beforeFinish) options.push("later");
-  if (lowerDistance) options.push("lower");
-  if (forced && forced.shortfall === 0) options.push("continue");
+  if (beforeFinish) options.push('later');
+  if (lowerDistance) options.push('lower');
+  if (forced && forced.shortfall === 0) options.push('continue');
   return {
-    state: "unrealistic",
+    state: 'unrealistic',
     reasons,
     slots,
     workoutsLeft: n,
@@ -686,12 +690,12 @@ export function realignProgram(input: RealignInput): RealignOutcome {
 
 /** The outcome as the API reports it: the preview without the rebuilt workouts. */
 export function toRealignResult(
-  outcome: RealignOutcome,
+  outcome: RealignOutcome
 ): RunProgramRealignResult {
   switch (outcome.state) {
-    case "plan":
-      return { state: "plan", preview: outcome.preview };
-    case "unrealistic": {
+    case 'plan':
+      return { state: 'plan', preview: outcome.preview };
+    case 'unrealistic': {
       const { continuePlan, ...rest } = outcome;
       return { ...rest, continuePreview: continuePlan?.preview ?? null };
     }
@@ -708,13 +712,13 @@ export function toRealignResult(
  */
 export function applyRealign(
   input: RealignInput,
-  token?: string,
+  token?: string
 ): { workouts: ProgramWorkout[]; next: number; summary: string } {
   const outcome = realignProgram(input);
-  if (outcome.state === "plan") {
+  if (outcome.state === 'plan') {
     if (token && token !== outcome.preview.token) {
       throw new ProgramRealignStaleError(
-        "The plan changed since you looked at it. Review the realignment again.",
+        'The plan changed since you looked at it. Review the realignment again.'
       );
     }
     return {
@@ -723,19 +727,19 @@ export function applyRealign(
       summary: outcome.preview.summary,
     };
   }
-  if (outcome.state === "unrealistic") {
+  if (outcome.state === 'unrealistic') {
     throw new ProgramAdjustError(
-      "The goal day is not realistic for this plan. Move the goal day, choose a shorter race, or realign anyway.",
+      'The goal day is not realistic for this plan. Move the goal day, choose a shorter race, or realign anyway.'
     );
   }
-  if (outcome.state === "unavailable") {
+  if (outcome.state === 'unavailable') {
     throw new ProgramAdjustError(
-      outcome.reason === "noGoalDay"
-        ? "Set a goal day first."
-        : outcome.reason === "noRunDays"
-          ? "Choose your workout days first."
-          : "The program is finished: nothing to realign.",
+      outcome.reason === 'noGoalDay'
+        ? 'Set a goal day first.'
+        : outcome.reason === 'noRunDays'
+          ? 'Choose your workout days first.'
+          : 'The program is finished: nothing to realign.'
     );
   }
-  throw new ProgramAdjustError("The plan already fits the goal day.");
+  throw new ProgramAdjustError('The plan already fits the goal day.');
 }

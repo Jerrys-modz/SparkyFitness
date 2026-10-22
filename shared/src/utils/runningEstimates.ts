@@ -1,5 +1,5 @@
 import { addDays, daysBetween } from './timezone.ts';
-import { DEFAULT_MAX_HEART_RATE } from './trainingLoad.ts';
+import { FALLBACK_MAX_HR } from './heartRateZones.ts';
 
 /** One logged run, as far as the estimates are concerned. */
 export interface RunForEstimate {
@@ -73,7 +73,7 @@ function averageGrade(run: RunForEstimate): number {
 export function vo2MaxFromRun(
   run: RunForEstimate,
   restingHeartRate: number = DEFAULT_RESTING_HEART_RATE,
-  maxHeartRate: number = DEFAULT_MAX_HEART_RATE
+  maxHeartRate: number = FALLBACK_MAX_HR
 ): number | null {
   if (!isUsableRun(run)) return null;
   const bpm = run.avgHeartRate;
@@ -167,7 +167,7 @@ export function computeRunningEstimates(
   } = {}
 ): RunningEstimates {
   const resting = options.restingHeartRate ?? DEFAULT_RESTING_HEART_RATE;
-  const max = options.maxHeartRate ?? DEFAULT_MAX_HEART_RATE;
+  const max = options.maxHeartRate ?? FALLBACK_MAX_HR;
 
   const vo2Start = addDays(today, -(VO2_WINDOW_DAYS - 1));
   const vo2Runs = runs

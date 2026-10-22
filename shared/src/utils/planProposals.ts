@@ -4,9 +4,9 @@ import {
   applyAdaptiveLoadFactorKg,
   decideAdaptiveAdjustment,
   type AdaptiveReason,
-} from "./adaptiveCoaching.ts";
-import { isWarmupSetType } from "./dropSetCalculator.ts";
-import type { ExerciseCoachingSignal } from "../schemas/api/WorkoutCoaching.api.zod.ts";
+} from './adaptiveCoaching.ts';
+import { isWarmupSetType } from './dropSetCalculator.ts';
+import type { ExerciseCoachingSignal } from '../schemas/api/WorkoutCoaching.api.zod.ts';
 
 /**
  * Deterministic proposals for the planned weights of a saved workout plan:
@@ -45,7 +45,7 @@ export interface PerformedSession {
   sets: PerformedSet[];
 }
 
-export type PlanProposalReason = AdaptiveReason | "hit_plan_twice" | "stalled";
+export type PlanProposalReason = AdaptiveReason | 'hit_plan_twice' | 'stalled';
 
 export interface PlanSetChange {
   setId: number | string;
@@ -58,7 +58,7 @@ export interface PlanProposal {
   exerciseId: string;
   exerciseName: string;
   /** `hold` changes nothing: it is advice, not an edit. */
-  kind: "increase" | "reduce" | "hold";
+  kind: 'increase' | 'reduce' | 'hold';
   reason: PlanProposalReason;
   /** Offer ranked alternatives (repeated pain in this exercise). */
   suggestAlternative: boolean;
@@ -72,16 +72,16 @@ export interface PlanProposalInput {
   signals: Readonly<Record<string, ExerciseCoachingSignal | null | undefined>>;
   /** Exercises the training review reports as stalled. */
   stalledExerciseIds: readonly string[];
-  unit: "kg" | "lbs";
+  unit: 'kg' | 'lbs';
 }
 
 /** Consecutive sessions that must meet the plan before it moves up. */
 export const PLAN_PROGRESSION_SESSIONS = 2;
-const WEIGHT_BASED_MODALITIES = new Set(["weight_reps"]);
+const WEIGHT_BASED_MODALITIES = new Set(['weight_reps']);
 const EPSILON = 0.001;
 
 function workingSets<T extends { setType?: string | null }>(
-  sets: readonly T[],
+  sets: readonly T[]
 ): T[] {
   return sets.filter((set) => !isWarmupSetType(set.setType));
 }
@@ -96,14 +96,14 @@ function plannedWorkingSets(assignment: PlanProposalAssignment) {
  */
 function metPlan(
   planned: readonly PlanProposalSet[],
-  session: PerformedSession,
+  session: PerformedSession
 ): boolean {
   const done = workingSets(session.sets)
     .filter((set) => Number(set.weight) > 0)
     .sort((a, b) => Number(b.weight) - Number(a.weight));
   if (done.length < planned.length) return false;
   const target = [...planned].sort(
-    (a, b) => Number(b.weight) - Number(a.weight),
+    (a, b) => Number(b.weight) - Number(a.weight)
   );
   return target.every((set, i) => {
     const got = done[i]!;
@@ -155,35 +155,35 @@ export function proposePlanChanges(input: PlanProposalInput): PlanProposal[] {
         .filter((change) => change.toKg !== change.fromKg);
 
     const adjustment = decideAdaptiveAdjustment(
-      input.signals[assignment.exerciseId],
+      input.signals[assignment.exerciseId]
     );
-    if (adjustment.kind === "reduce") {
+    if (adjustment.kind === 'reduce') {
       const setChanges = changesFor((w) =>
-        applyAdaptiveLoadFactorKg(w, adjustment.loadFactor, input.unit),
+        applyAdaptiveLoadFactorKg(w, adjustment.loadFactor, input.unit)
       );
       proposals.push({
         ...base,
-        kind: setChanges.length > 0 ? "reduce" : "hold",
+        kind: setChanges.length > 0 ? 'reduce' : 'hold',
         reason: adjustment.reason!,
         suggestAlternative: adjustment.suggestAlternative,
         setChanges,
       });
       continue;
     }
-    if (adjustment.kind === "hold") {
+    if (adjustment.kind === 'hold') {
       proposals.push({
         ...base,
-        kind: "hold",
+        kind: 'hold',
         reason: adjustment.reason!,
         suggestAlternative: false,
         setChanges: [],
       });
       continue;
     }
-    if (adjustment.kind === "increase") {
+    if (adjustment.kind === 'increase') {
       proposals.push({
         ...base,
-        kind: "increase",
+        kind: 'increase',
         reason: adjustment.reason!,
         suggestAlternative: false,
         setChanges: changesFor((w) => w + step),
@@ -194,8 +194,8 @@ export function proposePlanChanges(input: PlanProposalInput): PlanProposal[] {
     if (input.stalledExerciseIds.includes(assignment.exerciseId)) {
       proposals.push({
         ...base,
-        kind: "hold",
-        reason: "stalled",
+        kind: 'hold',
+        reason: 'stalled',
         suggestAlternative: false,
         setChanges: [],
       });
@@ -204,7 +204,7 @@ export function proposePlanChanges(input: PlanProposalInput): PlanProposal[] {
 
     const recent = (input.history[assignment.exerciseId] ?? []).slice(
       0,
-      PLAN_PROGRESSION_SESSIONS,
+      PLAN_PROGRESSION_SESSIONS
     );
     if (
       recent.length === PLAN_PROGRESSION_SESSIONS &&
@@ -217,8 +217,8 @@ export function proposePlanChanges(input: PlanProposalInput): PlanProposal[] {
     ) {
       proposals.push({
         ...base,
-        kind: "increase",
-        reason: "hit_plan_twice",
+        kind: 'increase',
+        reason: 'hit_plan_twice',
         suggestAlternative: false,
         setChanges: changesFor((w) => w + step),
       });

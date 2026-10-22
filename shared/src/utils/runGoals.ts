@@ -1,7 +1,7 @@
-import { classifyActivitySport } from "./activitySport.ts";
-import { weekStartOf } from "./trainingConsistency.ts";
-import { addDays, daysBetween } from "./timezone.ts";
-import type { RunGoalProgress } from "../schemas/api/RunGoals.api.zod.ts";
+import { classifyActivitySport } from './activitySport.ts';
+import { weekStartOf } from './trainingConsistency.ts';
+import { addDays, daysBetween } from './timezone.ts';
+import type { RunGoalProgress } from '../schemas/api/RunGoals.api.zod.ts';
 
 /** A logged exercise entry, as much of it as the weekly total needs. */
 export interface RunGoalEntry {
@@ -26,7 +26,7 @@ export function buildRunGoalProgress(
   entries: RunGoalEntry[],
   today: string,
   firstDayOfWeek: number,
-  goals: { weeklyDistanceKm: number | null; raceDate: string | null },
+  goals: { weeklyDistanceKm: number | null; raceDate: string | null }
 ): RunGoalProgress {
   const weekStart = weekStartOf(today, firstDayOfWeek);
   const weekEnd = addDays(weekStart, 6);
@@ -40,7 +40,7 @@ export function buildRunGoalProgress(
       category: entry.category,
       notes: entry.notes,
     });
-    if (sport !== "running") continue;
+    if (sport !== 'running') continue;
     meters += entry.distanceKm * 1000;
     runCount += 1;
   }

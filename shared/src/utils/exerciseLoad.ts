@@ -44,8 +44,8 @@ export function setVolumeKg(
 export const KG_PER_LB = 0.45359237;
 
 /** A kilogram figure in the lifter's unit, rounded to one decimal. */
-export function kgInUnit(kg: number, unit: "kg" | "lbs"): number {
-  const value = unit === "lbs" ? kg / KG_PER_LB : kg;
+export function kgInUnit(kg: number, unit: 'kg' | 'lbs'): number {
+  const value = unit === 'lbs' ? kg / KG_PER_LB : kg;
   return Math.round(value * 10) / 10;
 }
 
