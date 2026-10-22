@@ -22,6 +22,10 @@ function lowerFirst(text: string): string {
   return text.charAt(0).toLowerCase() + text.slice(1);
 }
 
+function upperFirst(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 /** The label in lower case, for the middle of a sentence. */
 function plainLabel(key: CompareMetricKey, t: Translator): string {
   return lowerFirst(COMPARE_METRIC_LABELS[key](t));
@@ -50,6 +54,39 @@ export function metricNoun(key: CompareMetricKey, t: Translator): string {
     });
   }
   return metricPhrase(key, t);
+}
+
+/**
+ * A metric named as a quantity. In week mode a yes/no habit is counted as
+ * days per week, so it reads "the number of days you meditated".
+ */
+function quantityPhrase(
+  key: CompareMetricKey,
+  mode: CompareMode,
+  t: Translator
+): string {
+  if (mode === 'week' && COMPARE_METRICS[key].kind === 'binary') {
+    return t('compareReport.phrase.daysYou', {
+      defaultValue: 'the number of days you {{verb}}',
+      verb: metricPhrase(key, t),
+    });
+  }
+  return metricPhrase(key, t);
+}
+
+/** Same as quantityPhrase, but a plain metric gets "your" in front. */
+function yourQuantityPhrase(
+  key: CompareMetricKey,
+  mode: CompareMode,
+  t: Translator
+): string {
+  if (mode === 'week' && COMPARE_METRICS[key].kind === 'binary') {
+    return quantityPhrase(key, mode, t);
+  }
+  return t('compareReport.phrase.your', {
+    defaultValue: 'your {{metric}}',
+    metric: plainLabel(key, t),
+  });
 }
 
 export function timingPhrase(q: CompareQuestion, t: Translator): string {
@@ -165,7 +202,11 @@ export function verdictCopy(
             ? t('compareReport.verdict.noVariationDetail', {
                 defaultValue:
                   "{{metric}} was the same every time over this span, so there's nothing to compare it with.",
-                metric: COMPARE_METRIC_LABELS[flat](t),
+                metric: upperFirst(
+                  mode === 'week' && COMPARE_METRICS[flat].kind === 'binary'
+                    ? quantityPhrase(flat, mode, t)
+                    : COMPARE_METRIC_LABELS[flat](t)
+                ),
               })
             : t('compareReport.verdict.noVariationGeneric', {
                 defaultValue: "One of these didn't change over this span.",
@@ -208,19 +249,23 @@ export function verdictCopy(
         const aCount = Object.keys(response.a.values).length;
         const bCount = Object.keys(response.b.values).length;
         const weaker = aCount <= bCount ? q.a : q.b;
+        const weakerText =
+          COMPARE_METRICS[weaker].kind === 'binary'
+            ? metricNoun(weaker, t)
+            : plainLabel(weaker, t);
         const missing = Math.max(result.needed - result.n, 1);
         parts.push(
           mode === 'week'
             ? t('compareReport.verdict.logWeeks', {
                 defaultValue:
                   'Log {{weaker}} for {{count}} more weeks, or pick a longer span.',
-                weaker: plainLabel(weaker, t),
+                weaker: weakerText,
                 count: missing,
               })
             : t('compareReport.verdict.logDays', {
                 defaultValue:
                   'Log {{weaker}} on {{count}} more days, or pick a longer span.',
-                weaker: plainLabel(weaker, t),
+                weaker: weakerText,
                 count: missing,
               })
         );
@@ -311,8 +356,8 @@ export function verdictCopy(
     };
   }
 
-  const a = metricPhrase(q.a, t);
-  const b = plainLabel(q.b, t);
+  const a = quantityPhrase(q.a, mode, t);
+  const b = yourQuantityPhrase(q.b, mode, t);
   const timing = timingPhrase(q, t);
   return {
     headline: t('compareReport.verdict.linkedHeadline', {
@@ -323,14 +368,14 @@ export function verdictCopy(
       result.sign === 'negative'
         ? t('compareReport.verdict.linkedNegative', {
             defaultValue:
-              'When {{a}} was higher than usual, your {{b}} {{timing}} was lower than usual.',
+              'When {{a}} was higher than usual, {{b}} {{timing}} was lower than usual.',
             a,
             b,
             timing,
           })
         : t('compareReport.verdict.linkedPositive', {
             defaultValue:
-              'When {{a}} was higher than usual, your {{b}} {{timing}} was higher than usual too.',
+              'When {{a}} was higher than usual, {{b}} {{timing}} was higher than usual too.',
             a,
             b,
             timing,

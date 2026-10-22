@@ -112,6 +112,57 @@ describe('suggested questions read naturally', () => {
   });
 });
 
+describe('week-mode habits read as days per week', () => {
+  const linked = { linked: true, strength: 'weak', sign: 'positive' } as const;
+
+  test('binary A', () => {
+    const q: CompareQuestion = {
+      a: 'meditated',
+      b: 'mood',
+      choice: 'sameWeek',
+    };
+    expect(verdictCopy(response(linked, q), q, '1y', t).detail).toBe(
+      'When the number of days you meditated was higher than usual, your mood the same week was higher than usual too.'
+    );
+    expect(sentenceText(q, t)).toBe(
+      'Does meditating go with mood the same week?'
+    );
+  });
+
+  test('binary B', () => {
+    const q: CompareQuestion = {
+      a: 'sleepScore',
+      b: 'meditated',
+      choice: 'sameWeek',
+    };
+    expect(verdictCopy(response(linked, q), q, '1y', t).detail).toBe(
+      "When last night's sleep score was higher than usual, the number of days you meditated the same week was higher than usual too."
+    );
+  });
+
+  test('noVariation names the habit as a count', () => {
+    const q: CompareQuestion = {
+      a: 'meditated',
+      b: 'mood',
+      choice: 'sameWeek',
+    };
+    const c = verdictCopy(
+      response(
+        { status: 'not_enough', reason: 'noVariation', n: 0 },
+        q,
+        values(20, () => 2),
+        values(20)
+      ),
+      q,
+      '1y',
+      t
+    );
+    expect(c.detail).toBe(
+      "The number of days you meditated was the same every time over this span, so there's nothing to compare it with."
+    );
+  });
+});
+
 describe('verdictCopy', () => {
   test('difference path hint wording', () => {
     const q: CompareQuestion = { a: 'meditated', b: 'mood', choice: 'sameDay' };

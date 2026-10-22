@@ -8353,7 +8353,9 @@
       "steps": "Steps"
     },
     "phrase": {
-      "lastNights": "last night's {{metric}}"
+      "lastNights": "last night's {{metric}}",
+      "daysYou": "the number of days you {{verb}}",
+      "your": "your {{metric}}"
     },
     "timing": {
       "sameDay": "the same day",
@@ -8376,8 +8378,8 @@
         "strong": "strong"
       },
       "linkedHeadline": "Yes, a {{strength}} link",
-      "linkedPositive": "When {{a}} was higher than usual, your {{b}} {{timing}} was higher than usual too.",
-      "linkedNegative": "When {{a}} was higher than usual, your {{b}} {{timing}} was lower than usual.",
+      "linkedPositive": "When {{a}} was higher than usual, {{b}} {{timing}} was higher than usual too.",
+      "linkedNegative": "When {{a}} was higher than usual, {{b}} {{timing}} was lower than usual.",
       "noLinkHeadline": "No clear link",
       "noLinkDetail": "Over these {{n}}, they didn't move together more than chance would explain.",
       "longerSpan": "A longer span makes a weak link easier to see.",
