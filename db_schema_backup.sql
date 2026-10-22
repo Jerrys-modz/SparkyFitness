@@ -3802,7 +3802,7 @@ CREATE TABLE public.routes (
     CONSTRAINT routes_distance_m_check CHECK ((distance_m >= (0)::double precision)),
     CONSTRAINT routes_elevation_gain_m_check CHECK (((elevation_gain_m IS NULL) OR (elevation_gain_m >= (0)::double precision))),
     CONSTRAINT routes_points_check CHECK ((jsonb_typeof(points) = 'array'::text)),
-    CONSTRAINT routes_source_check CHECK (((source)::text = ANY ((ARRAY['drawn'::character varying, 'gpx'::character varying, 'activity'::character varying])::text[])))
+    CONSTRAINT routes_source_check CHECK (((source)::text = ANY ((ARRAY['drawn'::character varying, 'gpx'::character varying, 'activity'::character varying, 'generated'::character varying])::text[])))
 );
 
 
