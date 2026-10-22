@@ -996,6 +996,17 @@ describe('FoodEntryAddScreen', () => {
         food_id: 'food-1',
         variant_id: 'variant-1',
       },
+      // What the diary shows if this entry has to wait in the offline queue.
+      offlinePreview: expect.objectContaining({
+        foodName: 'Greek Yogurt',
+        mealTypeName: 'breakfast',
+        nutrition: expect.objectContaining({
+          servingSize: 1,
+          servingUnit: 'cup',
+          calories: 100,
+          protein: 15,
+        }),
+      }),
     });
     expect(mockSetPendingMealIngredientSelection).not.toHaveBeenCalled();
   });
@@ -1220,6 +1231,7 @@ describe('FoodEntryAddScreen', () => {
         serving_unit: 'oz',
         calories: 120,
       }),
+      offlinePreview: expect.any(Object),
     });
     expect(screen.queryByText('Create Draft Unit')).toBeNull();
   });
@@ -1350,6 +1362,7 @@ describe('FoodEntryAddScreen', () => {
           food_id: 'saved-food-1',
           variant_id: 'saved-variant-oz',
         },
+        offlinePreview: expect.any(Object),
       });
     });
     expect(mockSaveFoodAsync).toHaveBeenCalledTimes(1);

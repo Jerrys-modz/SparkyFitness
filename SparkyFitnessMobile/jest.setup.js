@@ -292,6 +292,16 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
 
+// Mock expo-network (connectivity detection for the offline queue)
+jest.mock('expo-network', () => ({
+  getNetworkStateAsync: jest.fn().mockResolvedValue({
+    type: 'WIFI',
+    isConnected: true,
+    isInternetReachable: true,
+  }),
+  addNetworkStateListener: jest.fn(() => ({ remove: jest.fn() })),
+}));
+
 // Mock react-native-gesture-handler
 jest.mock('react-native-gesture-handler', () => {
   const View = require('react-native').View;

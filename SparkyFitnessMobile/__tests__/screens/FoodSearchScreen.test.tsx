@@ -318,6 +318,59 @@ describe('FoodSearchScreen', () => {
     expect(screen.getByText('Cheddar Cheese')).toBeTruthy();
   });
 
+  describe('without a connection', () => {
+    const cachedRecent = () =>
+      mockUseFoods.mockReturnValue({
+        recentFoods: [buildFood({ id: 'recent-1', name: 'Cached Oats' })],
+        topFoods: [],
+        isLoading: false,
+        isError: false,
+        refetch: jest.fn(),
+      } as any);
+
+    it('still lists the cached recent foods on the landing view', () => {
+      mockUseServerConnection.mockReturnValue({ isConnected: false } as any);
+      cachedRecent();
+
+      const screen = render(
+        <SafeAreaProvider initialMetrics={{ insets, frame }}>
+          <FoodSearchScreen navigation={navigation} route={route} />
+        </SafeAreaProvider>
+      );
+
+      expect(screen.getByText('Cached Oats')).toBeTruthy();
+      expect(
+        screen.queryByText('Connect to a server to search foods')
+      ).toBeNull();
+    });
+
+    it('says typed searches need a connection', () => {
+      mockUseServerConnection.mockReturnValue({ isConnected: false } as any);
+      cachedRecent();
+
+      const screen = renderSearching();
+
+      expect(
+        screen.getByText('Connect to a server to search foods')
+      ).toBeTruthy();
+      expect(screen.queryByText('Cached Oats')).toBeNull();
+    });
+
+    it('keeps the connect message when nothing is cached either', () => {
+      mockUseServerConnection.mockReturnValue({ isConnected: false } as any);
+
+      const screen = render(
+        <SafeAreaProvider initialMetrics={{ insets, frame }}>
+          <FoodSearchScreen navigation={navigation} route={route} />
+        </SafeAreaProvider>
+      );
+
+      expect(
+        screen.getByText('Connect to a server to search foods')
+      ).toBeTruthy();
+    });
+  });
+
   it('floats favorited foods to the top of Your Foods, and does so above the local cap', () => {
     // Eight results with the favorite ranked LAST by relevance. The local cap
     // (6) only bites when an online section also renders, so switch one on.
