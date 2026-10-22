@@ -163,12 +163,14 @@ export interface WatchTelemetrySessionState {
    * Apple's zone group for the whole session, kept so a later flush of the
    * series does not replace those seconds with a server recalculation.
    */
-  appleZones?: Array<{
-    index?: number;
-    minimumBpm?: number | null;
-    maximumBpm?: number | null;
-    seconds: number;
-  }> | null;
+  appleZones?:
+    | {
+        index?: number;
+        minimumBpm?: number | null;
+        maximumBpm?: number | null;
+        seconds: number;
+      }[]
+    | null;
   /** Exercise the zone group is posted on. The server clears the others. */
   appleZoneEntryId?: string | null;
 }
