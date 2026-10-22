@@ -231,8 +231,10 @@ let session: RecordingSession | null = null;
 let points: RecordedPoint[] = [];
 let snapshot: RecordingSnapshot = { session: null, points: [] };
 let heartRate: StoredHeartRate = { samples: [], batchIds: [] };
+/** Saved entry ids by recording, for Apple zones that arrive after the session is cleared. */
+const savedEntriesBySession = new Map<string, string>();
+const MAX_SAVED_ENTRY_IDS = 5;
 /** Apple's zone group for the recording, held until the diary entry can take it. */
-let savedEntryForSession: { sessionId: string; entryId: string } | null = null;
 let appleZonesForSession: {
   sessionId: string;
   zones: AppleWorkoutZoneDuration[];
@@ -1649,15 +1651,12 @@ export function noteAppleWorkoutZones(
 export function savedRecordingEntryId(sessionId: string): string | null {
   if (session?.id === sessionId && session.savedEntryId)
     return session.savedEntryId;
-  return savedEntryForSession?.sessionId === sessionId
-    ? savedEntryForSession.entryId
-    : null;
+  return savedEntriesBySession.get(sessionId) ?? null;
 }
 
 /** Drops the remembered entry id once a late callback has used it. */
 export function clearSavedRecordingEntryId(sessionId: string): void {
-  if (savedEntryForSession?.sessionId === sessionId)
-    savedEntryForSession = null;
+  savedEntriesBySession.delete(sessionId);
 }
 
 /**
@@ -1683,7 +1682,12 @@ export function markRecordingSaved(entryId: string): Promise<void> {
     if (!session) return;
     // Kept outside the session, which is cleared right after the save, so
     // Apple zones that arrive late can still find the diary entry.
-    savedEntryForSession = { sessionId: session.id, entryId };
+    savedEntriesBySession.delete(session.id);
+    savedEntriesBySession.set(session.id, entryId);
+    if (savedEntriesBySession.size > MAX_SAVED_ENTRY_IDS) {
+      const oldest = savedEntriesBySession.keys().next().value;
+      if (oldest !== undefined) savedEntriesBySession.delete(oldest);
+    }
     session = { ...session, savedEntryId: entryId };
     await persistSession();
     publish();
