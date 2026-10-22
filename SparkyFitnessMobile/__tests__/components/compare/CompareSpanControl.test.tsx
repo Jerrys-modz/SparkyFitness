@@ -28,6 +28,11 @@ jest.mock('../../../src/components/DateRangeSheet', () => {
 });
 
 describe('CompareSpanControl', () => {
+  beforeEach(() => {
+    mockPickedFrom = '2026-09-01';
+    mockPickedTo = '2026-09-20';
+  });
+
   beforeAll(async () => {
     await initializeI18n('en');
   });
@@ -85,5 +90,38 @@ describe('CompareSpanControl', () => {
     expect(picked.startDate <= picked.endDate).toBe(true);
     expect(picked.endDate <= getTodayDate()).toBe(true);
     expect(onSpanChange).toHaveBeenCalledWith('custom');
+  });
+
+  it('lets week mode keep up to 366 days but day mode only 180', () => {
+    mockPickedFrom = '2025-01-01';
+    mockPickedTo = '2026-01-01';
+    const onWeek = jest.fn();
+    const week = render(
+      <CompareSpanControl
+        mode="week"
+        span="6m"
+        custom={null}
+        onSpanChange={jest.fn()}
+        onCustomChange={onWeek}
+      />
+    );
+    fireEvent.press(week.getByText('Custom'));
+    expect(onWeek).toHaveBeenCalledWith({
+      startDate: '2025-01-01',
+      endDate: '2026-01-01',
+    });
+
+    const onDay = jest.fn();
+    const day = render(
+      <CompareSpanControl
+        mode="day"
+        span="90d"
+        custom={null}
+        onSpanChange={jest.fn()}
+        onCustomChange={onDay}
+      />
+    );
+    fireEvent.press(day.getByText('Custom'));
+    expect(onDay.mock.calls[0][0].startDate).toBe('2025-07-06');
   });
 });

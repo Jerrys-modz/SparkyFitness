@@ -21,18 +21,8 @@ interface CompareSpanControlProps {
   onCustomChange: (range: CustomRange) => void;
 }
 
-/**
- * Orders a picked range and keeps it from ending after today. Day mode also
- * takes the shared 180-day cut; week mode leaves length to `compareWindow`,
- * whose cap is the longer 366 days.
- */
-function boundRange(mode: CompareMode, from: string, to: string): CustomRange {
-  if (mode === 'day') return clampCustomRange(from, to);
-  const today = getTodayDate();
-  const [startDate, rawEnd] = from <= to ? [from, to] : [to, from];
-  const endDate = rawEnd > today ? today : rawEnd;
-  return { startDate: startDate > endDate ? endDate : startDate, endDate };
-}
+/** Week mode may look further back than day mode; compareWindow applies the same caps. */
+const MAX_CUSTOM_DAYS: Record<CompareMode, number> = { day: 180, week: 366 };
 
 const CompareSpanControl: React.FC<CompareSpanControlProps> = ({
   mode,
@@ -82,7 +72,9 @@ const CompareSpanControl: React.FC<CompareSpanControlProps> = ({
           defaultValue: 'Show this range',
         })}
         onConfirm={(from, to) => {
-          onCustomChange(boundRange(mode, from, to));
+          onCustomChange(
+            clampCustomRange(from, to, getTodayDate(), MAX_CUSTOM_DAYS[mode])
+          );
           onSpanChange('custom');
         }}
       />

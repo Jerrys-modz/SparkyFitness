@@ -16,6 +16,7 @@ import {
   type CompareMode,
   type CompareQuestion,
   type CompareSpan,
+  type CompareTimingChoice,
 } from './compareQuestion';
 
 function lowerFirst(text: string): string {
@@ -99,16 +100,20 @@ export function secondMetricPhrase(
     : plainLabel(key, t);
 }
 
-export function timingPhrase(q: CompareQuestion, t: Translator): string {
-  switch (q.choice) {
+/** The timing words that don't depend on which metrics are chosen. */
+export function genericTimingPhrase(
+  choice: CompareTimingChoice,
+  t: Translator
+): string {
+  switch (choice) {
     case 'sameDay':
-      return isSleepMetric(q.a)
-        ? t('compareReport.timing.thatDay', { defaultValue: 'that day' })
-        : t('compareReport.timing.sameDay', { defaultValue: 'the same day' });
+      return t('compareReport.timing.sameDay', {
+        defaultValue: 'the same day',
+      });
     case 'nextDay':
-      return isSleepMetric(q.b)
-        ? t('compareReport.timing.thatNight', { defaultValue: 'that night' })
-        : t('compareReport.timing.nextDay', { defaultValue: 'the next day' });
+      return t('compareReport.timing.nextDay', {
+        defaultValue: 'the next day',
+      });
     case 'dayBefore':
       return t('compareReport.timing.dayBefore', {
         defaultValue: 'the day before',
@@ -122,6 +127,16 @@ export function timingPhrase(q: CompareQuestion, t: Translator): string {
         defaultValue: 'the next week',
       });
   }
+}
+
+export function timingPhrase(q: CompareQuestion, t: Translator): string {
+  if (q.choice === 'sameDay' && isSleepMetric(q.a)) {
+    return t('compareReport.timing.thatDay', { defaultValue: 'that day' });
+  }
+  if (q.choice === 'nextDay' && isSleepMetric(q.b)) {
+    return t('compareReport.timing.thatNight', { defaultValue: 'that night' });
+  }
+  return genericTimingPhrase(q.choice, t);
 }
 
 export function sentenceText(q: CompareQuestion, t: Translator): string {

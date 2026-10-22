@@ -71,6 +71,20 @@ describe('CompareSentence', () => {
     expect(getByText('the same day')).toBeTruthy();
   });
 
+  it('announces each trigger with its current value', () => {
+    const { getByLabelText } = render(
+      <CompareSentence
+        question={{ a: 'timeAsleep', choice: 'sameDay' }}
+        onChange={jest.fn()}
+      />
+    );
+    expect(
+      getByLabelText("First thing: last night's time asleep")
+    ).toBeTruthy();
+    expect(getByLabelText('Second thing: something')).toBeTruthy();
+    expect(getByLabelText('When: the same day')).toBeTruthy();
+  });
+
   it('sets B when a metric is chosen for it', () => {
     const onChange = jest.fn();
     const { getByTestId } = render(

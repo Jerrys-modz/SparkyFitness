@@ -6,6 +6,7 @@ import { COMPARE_METRICS, type CompareMetricKey } from '@workspace/shared';
 import BottomSheetPicker, { type PickerSection } from '../BottomSheetPicker';
 import { compareMetricSections } from '../../constants/compareMetrics';
 import {
+  genericTimingPhrase,
   metricNoun,
   secondMetricPhrase,
   timingPhrase,
@@ -123,7 +124,7 @@ const CompareSentence: React.FC<CompareSentenceProps> = ({
       onPress={onPress}
       activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
+      accessibilityLabel={`${accessibilityLabel}: ${label}`}
       className="bg-raised rounded-lg px-2.5 py-1 mx-1 my-0.5"
     >
       <Text
@@ -174,14 +175,12 @@ const CompareSentence: React.FC<CompareSentenceProps> = ({
     defaultValue: 'When',
   });
   const choice = question.choice;
-  // Only the sleep/non-sleep nature of A and B shapes the phrase, so a stand-in
-  // keeps it readable before both are chosen.
-  const timingLabel = choice
-    ? timingPhrase(
-        { a: question.a ?? 'mood', b: question.b ?? 'mood', choice },
-        t
-      )
-    : t('compareReport.sentence.sometime', { defaultValue: 'some time' });
+  // Sleep variants ("that day") only make sense once both metrics are known.
+  const timingLabel = !choice
+    ? t('compareReport.sentence.sometime', { defaultValue: 'some time' })
+    : question.a && question.b
+      ? timingPhrase({ a: question.a, b: question.b, choice }, t)
+      : genericTimingPhrase(choice, t);
 
   return (
     <View className="flex-row flex-wrap items-center">
