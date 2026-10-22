@@ -197,4 +197,256 @@ describe('cycleRepository.deleteCycle', () => {
     );
     expect(rollbackCalls.length).toBe(1);
   });
+
+  it('updates preceding cycle boundary to next cycle when deleting an intermediate cycle', async () => {
+    mockClient.query
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            start_date: '2026-08-31',
+            end_date: '2026-09-27',
+            period_length: 5,
+            source: 'manual',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ start_date: '2026-09-28' }],
+      }) // nextRes
+      .mockResolvedValueOnce({ rowCount: 5 }) // UPDATE cycle_daily_entries
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'cycle-prev',
+            start_date: '2026-08-03',
+            end_date: '2026-08-30',
+          },
+        ],
+      }) // prevRes (contiguous abutting cycle)
+      .mockResolvedValueOnce({ rowCount: 1 }) // UPDATE cycles (prev)
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'cycle-mid' }] }) // DELETE
+      .mockResolvedValueOnce({}); // COMMIT
+
+    const ok = await cycleRepository.deleteCycle('user-1', 'cycle-mid');
+    expect(ok).toBe(true);
+
+    const prevUpdateCalls = mockClient.query.mock.calls.filter((c: unknown[]) =>
+      String(c[0]).includes('UPDATE cycles')
+    );
+    expect(prevUpdateCalls.length).toBe(1);
+    // Prev cycle 2026-08-03 should extend to day before 2026-09-28 -> end_date: 2026-09-27, length: 56
+    expect(prevUpdateCalls[0][1]).toEqual([
+      '2026-09-27',
+      56,
+      'cycle-prev',
+      'user-1',
+    ]);
+  });
+
+  it('sets preceding cycle end_date and cycle_length to null when deleting the last cycle', async () => {
+    mockClient.query
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            start_date: '2026-09-28',
+            end_date: null,
+            period_length: 5,
+            source: 'manual',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rowCount: 0, rows: [] }) // nextRes: none
+      .mockResolvedValueOnce({ rowCount: 5 }) // UPDATE cycle_daily_entries
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'cycle-prev',
+            start_date: '2026-08-31',
+            end_date: '2026-09-27',
+          },
+        ],
+      }) // prevRes
+      .mockResolvedValueOnce({ rowCount: 1 }) // UPDATE cycles (prev)
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'cycle-last' }] }) // DELETE
+      .mockResolvedValueOnce({}); // COMMIT
+
+    const ok = await cycleRepository.deleteCycle('user-1', 'cycle-last');
+    expect(ok).toBe(true);
+
+    const prevUpdateCalls = mockClient.query.mock.calls.filter((c: unknown[]) =>
+      String(c[0]).includes('UPDATE cycles')
+    );
+    expect(prevUpdateCalls.length).toBe(1);
+    expect(prevUpdateCalls[0][0]).toContain('end_date = NULL');
+    expect(prevUpdateCalls[0][1]).toEqual(['cycle-prev', 'user-1']);
+  });
+
+  it('does not alter preceding cycle when it has an explicit earlier gap', async () => {
+    mockClient.query
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            start_date: '2026-08-31',
+            end_date: null,
+            period_length: 5,
+            source: 'manual',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rowCount: 0, rows: [] }) // nextRes: none
+      .mockResolvedValueOnce({ rowCount: 5 }) // UPDATE cycle_daily_entries
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'cycle-prev',
+            start_date: '2026-06-01',
+            end_date: '2026-06-25', // earlier gap, not abutting 2026-08-30
+          },
+        ],
+      }) // prevRes
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'cycle-deleted' }] }) // DELETE
+      .mockResolvedValueOnce({}); // COMMIT
+
+    const ok = await cycleRepository.deleteCycle('user-1', 'cycle-deleted');
+    expect(ok).toBe(true);
+
+    const prevUpdateCalls = mockClient.query.mock.calls.filter((c: unknown[]) =>
+      String(c[0]).includes('UPDATE cycles')
+    );
+    expect(prevUpdateCalls.length).toBe(0);
+  });
+});
+
+describe('cycleRepository.createManualCycle', () => {
+  let mockClient: MockDbClient;
+  beforeEach(() => {
+    mockClient = {
+      query: vi.fn(),
+      release: vi.fn(),
+    };
+    // @ts-expect-error mock typing
+    getClient.mockResolvedValue(mockClient);
+  });
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('recalculates preceding cycle length when its end_date is shortened', async () => {
+    mockClient.query
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({ rowCount: 0, rows: [] }) // nextRes
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'cycle-new',
+            start_date: '2026-01-20',
+            end_date: null,
+            period_length: null,
+            cycle_length: null,
+          },
+        ],
+      }) // INSERT
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'cycle-prev',
+            start_date: '2026-01-01',
+            end_date: '2026-01-31',
+            cycle_length: 30,
+          },
+        ],
+      }) // prevRes
+      .mockResolvedValueOnce({ rowCount: 1 }) // UPDATE cycles (prev)
+      .mockResolvedValueOnce({}); // COMMIT
+
+    await cycleRepository.createManualCycle('user-1', {
+      start_date: '2026-01-20',
+    });
+
+    const prevUpdate = mockClient.query.mock.calls.find((c: unknown[]) =>
+      String(c[0]).includes('UPDATE cycles')
+    );
+    expect(prevUpdate).toBeDefined();
+    // newPrevEnd = 2026-01-19, newPrevLen = 19 (days between 2026-01-01 and 2026-01-20)
+    expect(prevUpdate![1]).toEqual(['2026-01-19', 19, 'cycle-prev', 'user-1']);
+  });
+});
+
+describe('cycleRepository.updateCycle', () => {
+  let mockClient: MockDbClient;
+  beforeEach(() => {
+    mockClient = {
+      query: vi.fn(),
+      release: vi.fn(),
+    };
+    // @ts-expect-error mock typing
+    getClient.mockResolvedValue(mockClient);
+  });
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('recomputes cycle_length against next cycle when start_date changes without explicit cycle_length', async () => {
+    mockClient.query
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'cycle-1',
+            start_date: '2026-08-01',
+            end_date: '2026-08-30',
+            period_length: 5,
+            cycle_length: 30,
+            source: 'manual',
+          },
+        ],
+      }) // oldRes
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ start_date: '2026-08-31' }],
+      }) // nextRes
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'cycle-1',
+            start_date: '2026-08-05',
+            end_date: '2026-08-30',
+            period_length: 5,
+            cycle_length: 26,
+            source: 'manual',
+          },
+        ],
+      }) // UPDATE cycles
+      .mockResolvedValueOnce({ rowCount: 5 }) // clear old daily entries
+      .mockResolvedValueOnce({ rowCount: 1 }) // upsert day 1
+      .mockResolvedValueOnce({ rowCount: 1 }) // upsert day 2
+      .mockResolvedValueOnce({ rowCount: 1 }) // upsert day 3
+      .mockResolvedValueOnce({ rowCount: 1 }) // upsert day 4
+      .mockResolvedValueOnce({ rowCount: 1 }) // upsert day 5
+      .mockResolvedValueOnce({}); // COMMIT
+
+    const updated = await cycleRepository.updateCycle('user-1', 'cycle-1', {
+      start_date: '2026-08-05',
+    });
+
+    expect(updated).toBeDefined();
+    const updateCycleCall = mockClient.query.mock.calls.find((c: unknown[]) =>
+      String(c[0]).includes('UPDATE cycles')
+    );
+    expect(updateCycleCall).toBeDefined();
+    // Parameter 6 ($6) is newCycleLength = daysBetween(2026-08-05, 2026-08-31) = 26
+    expect(updateCycleCall![1][5]).toBe(26);
+  });
 });

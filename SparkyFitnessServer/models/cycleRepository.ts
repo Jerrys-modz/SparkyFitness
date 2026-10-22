@@ -395,7 +395,7 @@ async function createManualCycle(
         await client.query(
           `UPDATE cycles
            SET end_date = $1,
-               cycle_length = COALESCE(cycle_length, $2),
+               cycle_length = $2,
                updated_at = NOW()
            WHERE id = $3 AND user_id = $4`,
           [newPrevEnd, newPrevLen, prev.id, userId]
@@ -460,10 +460,17 @@ async function updateCycle(
       data.cycle_length !== undefined
         ? data.cycle_length
         : oldCycle.cycle_length;
+    const hasExplicitCycleLength =
+      data.cycle_length !== undefined && data.cycle_length !== null;
+    const startDateChanged = newStartDate !== normalizeDay(oldCycle.start_date);
     let newEndDate =
       data.end_date !== undefined ? data.end_date : oldCycle.end_date;
 
-    if (newEndDate === undefined || newEndDate === null) {
+    if (
+      newEndDate === undefined ||
+      newEndDate === null ||
+      (!hasExplicitCycleLength && startDateChanged)
+    ) {
       const nextRes = await client.query(
         `SELECT start_date FROM cycles
          WHERE user_id = $1 AND id != $2 AND start_date > $3
@@ -472,13 +479,19 @@ async function updateCycle(
       );
       if (nextRes.rowCount && nextRes.rowCount > 0) {
         const nextStartStr = normalizeDay(nextRes.rows[0].start_date);
-        newEndDate = addDays(nextStartStr, -1);
-        if (!newCycleLength) {
+        if (newEndDate === undefined || newEndDate === null) {
+          newEndDate = addDays(nextStartStr, -1);
+        }
+        if (!hasExplicitCycleLength) {
           newCycleLength = daysBetween(newStartDate, nextStartStr);
         }
-      } else if (newCycleLength && newCycleLength > 0) {
+      } else if (
+        (newEndDate === undefined || newEndDate === null) &&
+        newCycleLength &&
+        newCycleLength > 0
+      ) {
         newEndDate = addDays(newStartDate, newCycleLength - 1);
-      } else {
+      } else if (newEndDate === undefined || newEndDate === null) {
         newEndDate = null;
       }
     }
@@ -611,14 +624,16 @@ async function deleteCycle(userId: string, cycleId: string): Promise<boolean> {
     // If an immediately preceding cycle exists whose end_date pointed to this cycle,
     // adjust its boundary to the next cycle (or open/null if no next cycle).
     const prevRes = await client.query(
-      `SELECT id, start_date, cycle_length FROM cycles
+      `SELECT id, start_date, end_date FROM cycles
        WHERE user_id = $1 AND id != $2 AND start_date < $3
        ORDER BY start_date DESC
        LIMIT 1`,
       [userId, cycleId, startDateStr]
     );
-    if (prevRes.rowCount && prevRes.rowCount > 0) {
-      const prev = prevRes.rows[0];
+    const prev = prevRes.rowCount ? prevRes.rows[0] : null;
+    const prevEnd = prev?.end_date ? normalizeDay(prev.end_date) : null;
+    const dayBeforeDeleted = addDays(startDateStr, -1);
+    if (prev && (prevEnd === null || prevEnd >= dayBeforeDeleted)) {
       const prevStartStr = normalizeDay(prev.start_date);
       if (nextRes.rowCount && nextRes.rowCount > 0) {
         const nextStartStr = normalizeDay(nextRes.rows[0].start_date);
