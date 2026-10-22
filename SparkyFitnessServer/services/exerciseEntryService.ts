@@ -278,7 +278,8 @@ async function attachWatchTelemetryToExerciseEntry(
   hrSamples: HeartRateSampleRequest[] | undefined,
   activeEnergyKcal?: number,
   durationMinutes?: number,
-  appleZones?: unknown
+  appleZones?: unknown,
+  strideLengthCm?: number | null
 ): Promise<void> {
   // Fail closed: family/delegate diary *read* can SELECT another user's
   // entry via RLS, but this route must not 204 after an UPDATE that
@@ -326,6 +327,9 @@ async function attachWatchTelemetryToExerciseEntry(
   }
   if (typeof durationMinutes === 'number' && durationMinutes > 0) {
     fields.duration_minutes = Math.round(durationMinutes * 100) / 100;
+  }
+  if (strideLengthCm !== undefined) {
+    fields.stride_length_cm = strideLengthCm;
   }
 
   // Apple's finished-workout zones win over a fresh bucketing of the series.

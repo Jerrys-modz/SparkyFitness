@@ -366,17 +366,23 @@ export const attachExerciseEntryWatchTelemetryRequestSchema = z
       )
       .max(8)
       .optional(),
+    /**
+     * Stride length of the entry, in cm; null clears it. Telemetry only: it
+     * leaves the duration and everything else on the entry alone.
+     */
+    strideLengthCm: z.number().positive().max(500).nullable().optional(),
   })
   .strict()
   .refine(
     (body) =>
       body.hrSamples !== undefined ||
       body.activeEnergyKcal !== undefined ||
+      body.strideLengthCm !== undefined ||
       (body.durationMinutes !== undefined && body.durationMinutes > 0) ||
       (body.appleZones !== undefined && body.appleZones.length > 0),
     {
       message:
-        'At least one of hrSamples, activeEnergyKcal, durationMinutes, or appleZones is required.',
+        'At least one of hrSamples, activeEnergyKcal, durationMinutes, strideLengthCm, or appleZones is required.',
     }
   );
 

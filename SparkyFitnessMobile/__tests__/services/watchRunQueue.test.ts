@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import WatchConnectivity from '../../modules/watch-connectivity';
 import {
   acceptPendingWatchRuns,
+  deleteWatchRunsForConfig,
   enqueueWatchRun,
   hasQueuedWatchRuns,
   onWatchRunRetry,
@@ -12,6 +14,12 @@ import { ApiError } from '../../src/services/api/errors';
 import type { WatchRunPayload } from '../../src/utils/watchRun';
 import { learnWatchIndoorScale } from '../../src/services/watchIndoorScale';
 
+jest.mock('../../modules/watch-connectivity', () => ({
+  __esModule: true,
+  default: {
+    ackWatchRuns: jest.fn(() => Promise.resolve()),
+  },
+}));
 jest.mock('../../src/services/watchRunSave');
 jest.mock('../../src/services/watchIndoorScale', () => ({
   learnWatchIndoorScale: jest.fn(() => Promise.resolve()),
@@ -42,15 +50,19 @@ const run = (clientId: string): WatchRunPayload => ({
   planCompleted: false,
 });
 
+const ACTIVE_CONFIG_KEY = 'activeServerConfigId';
+
 beforeEach(async () => {
   jest.mocked(completeProgramWorkout).mockClear();
+  jest.mocked(WatchConnectivity!.ackWatchRuns).mockClear();
   await AsyncStorage.clear();
+  await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-a');
   mockedSave.mockReset();
   onWatchRunRetry(null);
 });
 
 test('files a queued run once and ignores a re-delivered copy', async () => {
-  mockedSave.mockResolvedValue('entry-1');
+  mockedSave.mockResolvedValue({ entryId: 'entry-1', form: null });
   expect(await enqueueWatchRun(run('a'))).toBe(true);
   expect(await processWatchRunQueue('km')).toEqual(['2026-10-10']);
   expect(await enqueueWatchRun(run('a'))).toBe(false);
@@ -61,19 +73,42 @@ test('files a queued run once and ignores a re-delivered copy', async () => {
 test('keeps a run for a retry after a network failure, reusing the entry', async () => {
   await enqueueWatchRun(run('b'));
   mockedSave.mockImplementationOnce(async (_p, _u, _e, onEntryCreated) => {
-    await onEntryCreated('entry-9');
+    await onEntryCreated('entry-9', null);
     throw new Error('offline');
   });
   expect(await processWatchRunQueue('km')).toEqual([]);
 
-  mockedSave.mockResolvedValueOnce('entry-9');
+  mockedSave.mockResolvedValueOnce({ entryId: 'entry-9', form: null });
   expect(await processWatchRunQueue('km')).toEqual(['2026-10-10']);
   expect(mockedSave).toHaveBeenLastCalledWith(
     expect.objectContaining({ clientId: 'b' }),
     'km',
     'entry-9',
-    expect.any(Function)
+    expect.any(Function),
+    null
   );
+});
+
+test('keeps the form measured with the entry, hands it back on a retry and to the listener', async () => {
+  const form = { avgCadence: 168, strideLengthCm: 112.5, steps: 5000 };
+  await enqueueWatchRun(run('f'));
+  mockedSave.mockImplementationOnce(async (_p, _u, _e, onEntryCreated) => {
+    await onEntryCreated('entry-f', form);
+    throw new Error('offline');
+  });
+  expect(await processWatchRunQueue('km')).toEqual([]);
+
+  mockedSave.mockResolvedValueOnce({ entryId: 'entry-f', form });
+  const listener = jest.fn();
+  expect(await processWatchRunQueue('km', listener)).toEqual(['2026-10-10']);
+  expect(mockedSave).toHaveBeenLastCalledWith(
+    expect.objectContaining({ clientId: 'f' }),
+    'km',
+    'entry-f',
+    expect.any(Function),
+    form
+  );
+  expect(listener).toHaveBeenCalledWith(expect.anything(), 'entry-f', form);
 });
 
 test('drops a run the server will never accept', async () => {
@@ -122,7 +157,7 @@ test('files a run that arrives while another is being filed', async () => {
     await enqueueWatchRun(run('e'));
     return 'entry-d';
   });
-  mockedSave.mockResolvedValueOnce('entry-e');
+  mockedSave.mockResolvedValueOnce({ entryId: 'entry-e', form: null });
   const filed = processWatchRunQueue('km');
   // A second trigger while the first is running joins it.
   expect(await processWatchRunQueue('km')).toEqual(await filed);
@@ -165,7 +200,7 @@ describe('acceptPendingWatchRuns', () => {
 });
 
 test('ticks off the program workout a completed plan run followed', async () => {
-  mockedSave.mockResolvedValue('entry-1');
+  mockedSave.mockResolvedValue({ entryId: 'entry-1', form: null });
   await enqueueWatchRun({
     ...run('p1'),
     program: { id: 'beginner5k', index: 3 },
@@ -181,7 +216,7 @@ test('ticks off the program workout a completed plan run followed', async () => 
 });
 
 test('does not tick off a program run cut short', async () => {
-  mockedSave.mockResolvedValue('entry-1');
+  mockedSave.mockResolvedValue({ entryId: 'entry-1', form: null });
   await enqueueWatchRun({
     ...run('p2'),
     program: { id: 'beginner5k', index: 3 },
@@ -192,7 +227,7 @@ test('does not tick off a program run cut short', async () => {
 });
 
 test('a tick-off that fails for a reason that may pass keeps the run queued, then ticks it off', async () => {
-  mockedSave.mockResolvedValue('entry-1');
+  mockedSave.mockResolvedValue({ entryId: 'entry-1', form: null });
   await enqueueWatchRun({
     ...run('p3'),
     program: { id: 'beginner5k', index: 4 },
@@ -208,11 +243,11 @@ test('a tick-off that fails for a reason that may pass keeps the run queued, the
   expect(completeProgramWorkout).toHaveBeenCalledTimes(2);
   expect(listener).toHaveBeenCalledTimes(1);
   // The listener is told which diary entry the run was filed as.
-  expect(listener).toHaveBeenCalledWith(expect.anything(), 'entry-1');
+  expect(listener).toHaveBeenCalledWith(expect.anything(), 'entry-1', null);
 });
 
 test('a tick-off the server will never accept does not hold the run back', async () => {
-  mockedSave.mockResolvedValue('entry-1');
+  mockedSave.mockResolvedValue({ entryId: 'entry-1', form: null });
   await enqueueWatchRun({
     ...run('p4'),
     program: { id: 'beginner5k', index: 4 },
@@ -225,13 +260,13 @@ test('a tick-off the server will never accept does not hold the run back', async
 });
 
 test('a run queued as a pass is finishing is still filed by that pass', async () => {
-  mockedSave.mockResolvedValue('entry-1');
+  mockedSave.mockResolvedValue({ entryId: 'entry-1', form: null });
   await enqueueWatchRun(run('r1'));
   let release: () => void = () => {};
   mockedSave.mockImplementationOnce(
     () =>
       new Promise((resolve) => {
-        release = () => resolve('entry-1');
+        release = () => resolve({ entryId: 'entry-1', form: null });
       })
   );
   const first = processWatchRunQueue('km');
@@ -246,7 +281,7 @@ test('a run queued as a pass is finishing is still filed by that pass', async ()
 });
 
 test('tells a listener about each run it files, and survives the listener failing', async () => {
-  mockedSave.mockResolvedValue('entry-1');
+  mockedSave.mockResolvedValue({ entryId: 'entry-1', form: null });
   await enqueueWatchRun(run('l1'));
   await enqueueWatchRun(run('l2'));
   const seen: string[] = [];
@@ -260,7 +295,7 @@ test('tells a listener about each run it files, and survives the listener failin
 });
 
 test('learns the indoor factor from a treadmill distance entered on the wrist', async () => {
-  mockedSave.mockResolvedValue('entry-1');
+  mockedSave.mockResolvedValue({ entryId: 'entry-1', form: null });
   await enqueueWatchRun({
     ...run('t1'),
     place: 'indoor',
@@ -274,8 +309,68 @@ test('learns the indoor factor from a treadmill distance entered on the wrist', 
 
 test('learns nothing when the watch figure was kept', async () => {
   jest.mocked(learnWatchIndoorScale).mockClear();
-  mockedSave.mockResolvedValue('entry-1');
+  mockedSave.mockResolvedValue({ entryId: 'entry-1', form: null });
   await enqueueWatchRun({ ...run('t2'), place: 'indoor' });
   await processWatchRunQueue('km');
   expect(learnWatchIndoorScale).not.toHaveBeenCalled();
+});
+
+test('does not file a run captured under one config after switching to another, and files it once its own config becomes active again', async () => {
+  mockedSave.mockResolvedValue({ entryId: 'entry-a', form: null });
+  await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-a');
+  await enqueueWatchRun(run('run-a'));
+
+  await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-b');
+  expect(await hasQueuedWatchRuns()).toBe(false);
+  expect(await processWatchRunQueue('km')).toEqual([]);
+  expect(mockedSave).not.toHaveBeenCalled();
+
+  await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-a');
+  expect(await hasQueuedWatchRuns()).toBe(true);
+  expect(await processWatchRunQueue('km')).toEqual(['2026-10-10']);
+  expect(mockedSave).toHaveBeenCalledTimes(1);
+  expect(mockedSave).toHaveBeenCalledWith(
+    expect.objectContaining({ clientId: 'run-a', ownerId: 'config-a' }),
+    'km',
+    undefined,
+    expect.any(Function),
+    null
+  );
+});
+
+test('keeps a run that arrives with no active config queued as unattributable rather than filing it to a later account', async () => {
+  mockedSave.mockResolvedValue({ entryId: 'entry-1', form: null });
+  await AsyncStorage.removeItem(ACTIVE_CONFIG_KEY);
+  await enqueueWatchRun(run('run-no-owner'));
+
+  await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-b');
+  expect(await hasQueuedWatchRuns()).toBe(false);
+  expect(await processWatchRunQueue('km')).toEqual([]);
+  expect(mockedSave).not.toHaveBeenCalled();
+});
+
+test('purges queued runs for a deleted or switched-away config without dropping another config', async () => {
+  mockedSave.mockResolvedValue({ entryId: 'entry-b', form: null });
+  await enqueueWatchRun({ ...run('run-a'), ownerId: 'config-a' });
+  await enqueueWatchRun({ ...run('run-b'), ownerId: 'config-b' });
+
+  await deleteWatchRunsForConfig('config-a');
+  expect(WatchConnectivity!.ackWatchRuns).toHaveBeenCalledWith([
+    'owner:config-a',
+  ]);
+
+  await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-a');
+  expect(await processWatchRunQueue('km')).toEqual([]);
+  expect(mockedSave).not.toHaveBeenCalled();
+
+  await AsyncStorage.setItem(ACTIVE_CONFIG_KEY, 'config-b');
+  expect(await processWatchRunQueue('km')).toEqual(['2026-10-10']);
+  expect(mockedSave).toHaveBeenCalledTimes(1);
+  expect(mockedSave).toHaveBeenCalledWith(
+    expect.objectContaining({ clientId: 'run-b', ownerId: 'config-b' }),
+    'km',
+    undefined,
+    expect.any(Function),
+    null
+  );
 });

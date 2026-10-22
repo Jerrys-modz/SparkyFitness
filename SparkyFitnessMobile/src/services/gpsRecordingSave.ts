@@ -139,6 +139,8 @@ export interface SavedRecording {
   entryDate: string;
   /** Set when this run took the default pair to its retire-at distance. */
   wornOutShoe?: ShoeResponse;
+  /** Cadence and stride put on the entry; null when none was measured. */
+  form: FormMetrics | null;
 }
 
 /**
@@ -175,9 +177,11 @@ export async function saveRecordedActivity(
 
   let entryId = session.savedEntryId;
   let wornOutShoe: ShoeResponse | null = null;
+  // A retry reuses what the first save put on the entry.
+  let form: FormMetrics | null = entryId ? (session.savedForm ?? null) : null;
   if (!entryId) {
     const exercise = await resolveRecordingExercise(session.activity);
-    const form = await measureForm(
+    form = await measureForm(
       session,
       indoor,
       durationSeconds,
@@ -205,7 +209,7 @@ export async function saveRecordedActivity(
       }),
     });
     entryId = created.id;
-    await markRecordingSaved(entryId);
+    await markRecordingSaved(entryId, form);
     // Once, with the entry: a retry of a failed track upload must not teach
     // the same session twice. Best effort, never part of the save failing.
     try {
@@ -256,7 +260,7 @@ export async function saveRecordedActivity(
     });
   }
   await attachWatchHeartRate(entryId, session.id);
-  return { entryId, entryDate, ...(wornOutShoe && { wornOutShoe }) };
+  return { entryId, entryDate, form, ...(wornOutShoe && { wornOutShoe }) };
 }
 
 /**

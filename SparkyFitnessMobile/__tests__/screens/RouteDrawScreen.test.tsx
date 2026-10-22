@@ -7,6 +7,7 @@ import type { RootStackScreenProps } from '../../src/types/navigation';
 
 jest.mock('../../src/services/routeService', () => ({
   saveDrawnRoute: jest.fn(),
+  useRouteGenerationAvailable: () => ({ available: false, isLoading: false }),
 }));
 jest.mock('expo-location', () => ({
   getForegroundPermissionsAsync: jest

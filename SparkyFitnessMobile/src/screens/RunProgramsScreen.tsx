@@ -326,7 +326,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           race={paceReferenceRace}
           onSave={setPaceReferenceRace}
           watch={
-            Platform.OS === 'ios'
+            Platform.OS === 'ios' || Platform.OS === 'android'
               ? {
                   value: paceReferenceOnWatch,
                   onChange: setPaceReferenceOnWatch,
@@ -410,7 +410,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
                       weekOne: outline.firstWeek.join(', '),
                       peak: outline.peakRunMinutes,
                       defaultValue:
-                        'Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.',
+                        'Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of effort.',
                     })}
               </Text>
               <View className="mt-3">
@@ -440,7 +440,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           race={paceReferenceRace}
           onSave={setPaceReferenceRace}
           watch={
-            Platform.OS === 'ios'
+            Platform.OS === 'ios' || Platform.OS === 'android'
               ? {
                   value: paceReferenceOnWatch,
                   onChange: setPaceReferenceOnWatch,

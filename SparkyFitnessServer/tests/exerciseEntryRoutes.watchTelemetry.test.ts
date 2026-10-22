@@ -174,6 +174,31 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
     );
   });
 
+  it('forwards a stride length on its own, and null to clear it', async () => {
+    await request(app)
+      .post(`/exercise-entries/${ENTRY_ID}/watch-telemetry`)
+      .send({ strideLengthCm: 101.5 })
+      .expect(204);
+    await request(app)
+      .post(`/exercise-entries/${ENTRY_ID}/watch-telemetry`)
+      .send({ strideLengthCm: null })
+      .expect(204);
+
+    const calls = vi.mocked(
+      exerciseEntryService.attachWatchTelemetryToExerciseEntry
+    ).mock.calls;
+    expect(calls[0]).toEqual([
+      'user-123',
+      'actor-123',
+      ENTRY_ID,
+      undefined,
+      undefined,
+      undefined,
+      101.5,
+    ]);
+    expect(calls[1][6]).toBeNull();
+  });
+
   it('rejects a body carrying neither heart rate nor active energy', async () => {
     await request(app)
       .post(`/exercise-entries/${ENTRY_ID}/watch-telemetry`)

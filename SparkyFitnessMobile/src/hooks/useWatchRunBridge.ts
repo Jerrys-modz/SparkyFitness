@@ -19,6 +19,7 @@ import {
   processWatchRunQueue,
   onWatchRunRetry,
 } from '../services/watchRunQueue';
+import { settleWatchTelemetryPurges } from '../utils/watchTelemetryPersistence';
 import { announceWatchRun } from '../services/watchRunToast';
 import {
   resetWatchCueRelay,
@@ -54,10 +55,11 @@ export function useWatchRunBridge(
 
   const drain = useRef(async () => {
     if (!connectedRef.current) return;
+    if (!(await settleWatchTelemetryPurges())) return;
     const days = await processWatchRunQueue(
       unitRef.current,
-      (payload, entryId) =>
-        announceWatchRun(payload, unitRef.current, tRef.current, entryId)
+      (payload, entryId, form) =>
+        announceWatchRun(payload, unitRef.current, tRef.current, entryId, form)
     );
     for (const day of new Set(days)) invalidateExerciseCache(queryClient, day);
   });
@@ -163,7 +165,7 @@ export function useWatchRunBridge(
           'ERROR'
         )
       );
-  }, [enabled]);
+  }, [enabled, isServerConnected]);
 
   // Anything left from an earlier launch or an offline stretch.
   useEffect(() => {

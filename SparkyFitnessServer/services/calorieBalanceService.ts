@@ -21,6 +21,7 @@ import {
   MIN_CALORIE_SAFETY_FLOOR,
   resolveCalorieSafetyFloor,
   isAdaptiveEarnBackSuppressed,
+  isAdaptiveActivitySeparated,
 } from '@workspace/shared';
 
 /**
@@ -41,6 +42,7 @@ export interface CalorieBalanceUserProfile {
 }
 
 export interface CalorieBalanceUserPreferences {
+  adaptive_activity_separate?: boolean | null;
   timezone?: string | null;
   activity_level?: string | null;
   bmr_algorithm?: string | null;
@@ -402,7 +404,8 @@ export function computeCalorieBalance({
     bmr > 0 &&
     isAdaptiveEarnBackSuppressed(
       adjustmentMode,
-      userPreferences?.goal_mode_calculation_method
+      userPreferences?.goal_mode_calculation_method,
+      userPreferences?.adaptive_activity_separate
     )
       ? 'adaptive'
       : adjustmentMode;
@@ -415,7 +418,17 @@ export function computeCalorieBalance({
         ? adjustedGoalCalories
         : goalCalories,
     eatenCalories,
-    netCalories,
+    // The learned baseline already includes resting expenditure. Only today's
+    // resolved activity is earned back; BMR remains in the reporting statistics.
+    netCalories:
+      bmr > 0 &&
+      isAdaptiveActivitySeparated(
+        adjustmentMode,
+        userPreferences?.goal_mode_calculation_method,
+        userPreferences?.adaptive_activity_separate
+      )
+        ? eatenCalories - exerciseCaloriesBurned
+        : netCalories,
     exerciseCaloriesBurned,
     bmrCalories,
     exerciseCaloriePercentage,

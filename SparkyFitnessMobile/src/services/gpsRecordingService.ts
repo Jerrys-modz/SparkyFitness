@@ -23,6 +23,13 @@ import {
   type RecordingActivity,
 } from '../utils/gpsRecording';
 import { programSpokenCues } from '../utils/programCues';
+import { isStepActivity, type FormMetrics } from '../utils/stride';
+import { captureStepCounterBaseline } from './stepCounter';
+import {
+  INITIAL_AUTO_PAUSE_STATE,
+  stepAutoPause,
+  type AutoPauseState,
+} from '../utils/autoPause';
 import {
   type AppleWorkoutZoneDuration,
   advanceIntervalCursor,
@@ -43,13 +50,6 @@ import {
   type PaceAlertState,
   type PaceBand,
 } from '@workspace/shared';
-import { isStepActivity } from '../utils/stride';
-import { captureStepCounterBaseline } from './stepCounter';
-import {
-  INITIAL_AUTO_PAUSE_STATE,
-  stepAutoPause,
-  type AutoPauseState,
-} from '../utils/autoPause';
 import { fireImpactHaptic } from './haptics';
 import {
   checkInCue,
@@ -182,6 +182,11 @@ export interface RecordingSession {
   heartRateStepsOff?: boolean;
   /** Set once the diary entry exists, so a retried save never duplicates it. */
   savedEntryId: string | null;
+  /**
+   * The cadence and stride put on that entry, kept so a retry after a failed
+   * track upload can still show them instead of measuring again.
+   */
+  savedForm?: FormMetrics | null;
   /**
    * A treadmill or other indoor session: no location task and no route, just
    * the clock (and a paired watch's heart rate). Absent on sessions saved by
@@ -1676,8 +1681,14 @@ export function clearAppleWorkoutZones(sessionId: string): void {
     appleZonesForSession = null;
 }
 
-/** Records that the diary entry exists, so a retried save only re-sends the track. */
-export function markRecordingSaved(entryId: string): Promise<void> {
+/**
+ * Records that the diary entry exists, so a retried save only re-sends the
+ * track, along with the form metrics saved on it.
+ */
+export function markRecordingSaved(
+  entryId: string,
+  form: FormMetrics | null = null
+): Promise<void> {
   return enqueue(async () => {
     if (!session) return;
     // Kept outside the session, which is cleared right after the save, so
@@ -1688,7 +1699,7 @@ export function markRecordingSaved(entryId: string): Promise<void> {
       const oldest = savedEntriesBySession.keys().next().value;
       if (oldest !== undefined) savedEntriesBySession.delete(oldest);
     }
-    session = { ...session, savedEntryId: entryId };
+    session = { ...session, savedEntryId: entryId, savedForm: form };
     await persistSession();
     publish();
   });

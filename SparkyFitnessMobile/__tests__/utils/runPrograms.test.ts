@@ -4,10 +4,12 @@ import {
   planMinutes,
   PICKER_PROGRAMS,
   programActivity,
+  programOutline,
   programStatus,
   programVersions,
   RUN_PROGRAMS,
   isValidIntervalPlan,
+  runMinutes,
   runProgramWorkoutSchema,
 } from '@workspace/shared';
 
@@ -317,13 +319,14 @@ describe('program versions', () => {
 });
 
 describe('the walking program', () => {
-  test('is recorded as a walk, and is fast and easy steps with no running wording', () => {
+  test('is recorded as a walk, with brisk and easy steps and no running wording', () => {
     const p = findProgram('walkFit')!;
     expect(p.activity).toBe('walk');
     expect(programActivity('walkFit')).toBe('walk');
     expect(programActivity('beginner5k')).toBe('run');
     expect(programActivity('gone')).toBe('run');
-    for (const w of p.workouts) expect(w.plan.style).toBe('fastEasy');
+    for (const w of p.workouts) expect(w.plan.style).toBe('briskWalk');
+    expect(runProgramWorkoutSchema.parse(p.workouts[0])).toEqual(p.workouts[0]);
   });
 
   test('builds to half an hour of brisk walking and never repeats the first week', () => {
@@ -335,6 +338,49 @@ describe('the walking program', () => {
     expect(brisk(0)).toBe(12 * 60);
     expect(brisk(p.workouts.length - 1)).toBe(30 * 60);
     expect(brisk(p.workouts.length - 1)).toBeGreaterThan(brisk(0));
+  });
+
+  test('the card quotes brisk minutes for a walk and running minutes for a run', () => {
+    const outline = (id: string) => programOutline(findProgram(id)!);
+    expect(outline('walkFit')).toEqual({
+      firstWeek: [12, 12, 12],
+      peakRunMinutes: 30,
+    });
+    expect(outline('walk10k')).toMatchObject({
+      firstWeek: [30, 30, 40],
+      peakRunMinutes: 105,
+    });
+    expect(outline('halfMarathon')).toEqual({
+      firstWeek: [30, 30, 50],
+      peakRunMinutes: 115,
+    });
+    expect(outline('halfMarathon4').peakRunMinutes).toBe(115);
+    expect(outline('tenKToHalf4').peakRunMinutes).toBe(115);
+    expect(outline('fasterHalf').peakRunMinutes).toBe(110);
+    expect(outline('fasterHalf4').peakRunMinutes).toBe(110);
+    expect(outline('beginnerMarathon4').peakRunMinutes).toBe(150);
+    expect(outline('advancedMarathon').peakRunMinutes).toBe(180);
+    const easyDay = findProgram('faster5k')!.workouts[1].plan;
+    expect(runMinutes(easyDay)).toBe(30);
+    expect(runMinutes(findProgram('walkFit')!.workouts[0].plan)).toBe(12);
+  });
+
+  test('beginner 10k eases off in week 10 and still peaks at an hour', () => {
+    const p = findProgram('beginner10k')!;
+    const longest = (week: number) =>
+      Math.max(
+        ...p.workouts
+          .filter((w) => w.week === week)
+          .map((w) =>
+            w.plan.steps
+              .filter((s) => s.kind === 'work')
+              .reduce((sum, s) => sum + s.seconds, 0)
+          )
+      );
+    expect(longest(8)).toBe(40 * 60);
+    expect(longest(9)).toBe(30 * 60);
+    expect(longest(10)).toBe(50 * 60);
+    expect(longest(11)).toBe(60 * 60);
   });
 
   test('a stored program carries the activity', () => {

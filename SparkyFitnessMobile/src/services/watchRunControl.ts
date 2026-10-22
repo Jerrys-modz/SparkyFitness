@@ -27,7 +27,7 @@ export async function startRunOnWatch(options: {
   /** A heart-rate range to stay inside. */
   heartRateBand?: { minBpm: number; maxBpm: number };
 }): Promise<string> {
-  if (!WatchConnectivity) throw new Error('Apple Watch is not available');
+  if (!WatchConnectivity) throw new Error('Watch is not available');
   const requestId = newId();
   const requestedAt = Date.now();
   await WatchConnectivity.startRun({

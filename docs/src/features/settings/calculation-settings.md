@@ -127,7 +127,7 @@ Gain is deliberately much slower than loss. Muscle growth is limited by training
 - **Adaptive Method:** Applies the deficit to your Calculated Adaptive TDEE (falling back to BMR × activity multiplier if history is insufficient).
 - **Manual Method:** Applies the deficit to your manually entered calorie target.
 
-With the **Adaptive Method**, that baseline already represents the whole day's
+With the **Adaptive Method**, the default baseline represents the whole day's
 expenditure. **Dynamic Goal** and **Percentage Earn-Back** therefore do not add
 exercise, background-step calories, or BMR to this target again. Remaining calories
 are the calculated food target minus intake. Activity and net energy are still
@@ -136,6 +136,30 @@ reported separately. This also applies while Adaptive uses its fallback estimate
 **Manual Method**, Dynamic and Percentage Earn-Back continue to credit activity.
 If BMR cannot be calculated, the stored manual target and its earn-back behavior
 remain in use.
+
+### Count activity calories separately
+
+**Dynamic Goal + Adaptive Method** offers an optional **Count activity calories
+separately** switch. It is off by default. When enabled, SparkyFitness subtracts
+average historical activity calories from the raw full-day adaptive estimate,
+then applies the BMR-based plausibility limits to that baseline. Goal Mode and
+the selected safety floor apply to this baseline. Today's activity calories from
+steps and workouts are then credited once; BMR is not credited again, even when
+**Include Resting Calories** is enabled for net-energy reporting.
+
+Until there is enough food and weight history, the baseline uses **BMR × Activity
+Multiplier**. Choose the activity level to describe activity outside the steps
+and workouts you credit separately. Consistent food, weight, step and workout
+history matters: missing or exaggerated historical activity changes the learned
+baseline. Days without recorded activity contribute zero to the historical
+average rather than being omitted. The measured full-day Adaptive TDEE remains
+visible for reference; it is distinct from the baseline used for this option.
+
+On the web, press **Save Preferences** to apply a change; server-derived preview
+values use saved settings until refreshed. Mobile saves the switch immediately.
+Switching to another mode or the Manual Method preserves your choice but makes
+it inactive. Percentage Earn-Back continues to suppress extra activity credit
+under the Adaptive Method.
 
 Device Projection always uses the projected device TDEE as the live baseline for the selected Goal Mode; the calculation-method selector controls the saved non-device baseline and previews used by the other modes.
 

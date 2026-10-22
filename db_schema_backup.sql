@@ -3802,7 +3802,7 @@ CREATE TABLE public.routes (
     CONSTRAINT routes_distance_m_check CHECK ((distance_m >= (0)::double precision)),
     CONSTRAINT routes_elevation_gain_m_check CHECK (((elevation_gain_m IS NULL) OR (elevation_gain_m >= (0)::double precision))),
     CONSTRAINT routes_points_check CHECK ((jsonb_typeof(points) = 'array'::text)),
-    CONSTRAINT routes_source_check CHECK (((source)::text = ANY ((ARRAY['drawn'::character varying, 'gpx'::character varying, 'activity'::character varying])::text[])))
+    CONSTRAINT routes_source_check CHECK (((source)::text = ANY ((ARRAY['drawn'::character varying, 'gpx'::character varying, 'activity'::character varying, 'generated'::character varying])::text[])))
 );
 
 
@@ -4612,6 +4612,7 @@ CREATE TABLE public.user_preferences (
     adaptive_workout_suggestions boolean DEFAULT true NOT NULL,
     active_voice_ai_service_id uuid,
     voice_input_enabled boolean DEFAULT true NOT NULL,
+    adaptive_activity_separate boolean DEFAULT false NOT NULL,
     CONSTRAINT check_energy_unit CHECK (((energy_unit)::text = ANY ((ARRAY['kcal'::character varying, 'kJ'::character varying])::text[]))),
     CONSTRAINT logging_level_check CHECK ((logging_level = ANY (ARRAY['DEBUG'::text, 'INFO'::text, 'WARN'::text, 'ERROR'::text, 'SILENT'::text]))),
     CONSTRAINT user_preferences_caffeine_half_life_range CHECK (((caffeine_half_life_hours >= 2.0) AND (caffeine_half_life_hours <= 8.0))),
@@ -4736,6 +4737,13 @@ COMMENT ON COLUMN public.user_preferences.adaptive_workout_suggestions IS 'When 
 --
 
 COMMENT ON COLUMN public.user_preferences.voice_input_enabled IS 'Shows voice input in web and mobile chat. Disabling preserves the selected Voice configuration.';
+
+
+--
+-- Name: COLUMN user_preferences.adaptive_activity_separate; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.user_preferences.adaptive_activity_separate IS 'Opt-in for Dynamic + Adaptive: learn a baseline without recorded activity and credit daily activity separately.';
 
 
 --

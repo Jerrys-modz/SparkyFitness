@@ -280,6 +280,7 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
       './plugins/withBackgroundWater',
       './plugins/withQuickActionLaunchGuard',
       './plugins/withWorkoutNotification',
+      './plugins/withWearOs',
       './plugins/withEnrichedMarkdownNoMath',
       './plugins/withSceneLifecycle',
       [

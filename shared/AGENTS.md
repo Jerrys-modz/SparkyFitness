@@ -25,6 +25,7 @@ _Last updated: 2026-10-22_
 - `src/ai/`, `src/cycle/`, `src/medications/`, `src/mood/` - domain-specific helpers.
 - `src/types/` - shared plain TypeScript types that are not Zod-derived.
 - Routes: `src/schemas/api/Route.api.zod.ts` (points, turn cues, bodies), `src/utils/routeGeometry.ts` (distance, climb, simplify, bounds) and `src/utils/routeGpx.ts` (dependency-free GPX read/write).
+- `src/compare/` - compare any two tracked things: `stats.ts` (statistics), `metrics.ts` (metric catalog), `analyze.ts` (day and week-by-week analysis). The API contract is `src/schemas/api/Compare.api.zod.ts`.
 - `src/symptoms/` - generic symptom tracking: constants and enums (scales, templates, sections, option kinds), template section resolution (`resolveSections`), built-in symptoms and pick-lists, head/body region ids for the location maps, and custom-field validation. The API contract is `src/schemas/api/Symptoms.api.zod.ts`.
 
 ## Naming Convention

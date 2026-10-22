@@ -50,6 +50,7 @@ import {
   SafeRoutes,
   SafeRouteDetail,
   SafeRouteDraw,
+  SafeRouteGenerate,
   SafeRunProgramRace,
   SafeRunProgramWorkout,
   SafeMealPlanForm,
@@ -131,6 +132,7 @@ import {
   SafeNutritionReport,
   SafeSleepAnalytics,
   SafeMoodReport,
+  SafeCompareReport,
   SafeHydrationReport,
   SafeSubstancesReport,
   SafeMeasurementsReport,
@@ -466,6 +468,8 @@ function AppContent() {
         ActiveWorkout: 'active-workout',
         // The run Live Activity opens the recording screen.
         RecordActivity: 'record-activity',
+        // Route generation; without a routing provider the screen explains that.
+        RouteGenerate: 'routes/generate',
       },
     },
   }), []);
@@ -629,6 +633,11 @@ function AppContent() {
             name="RouteDraw"
             component={SafeRouteDraw}
             options={createStackScreenOptions(t('screens.routeDraw', { defaultValue: 'Draw a route' }), { headerBackTitle: t('screens.routes', { defaultValue: 'Routes' }) })}
+          />
+          <Stack.Screen
+            name="RouteGenerate"
+            component={SafeRouteGenerate}
+            options={createStackScreenOptions(t('screens.routeGenerate', { defaultValue: 'Generate a route' }), { headerBackTitle: t('screens.routes', { defaultValue: 'Routes' }) })}
           />
           <Stack.Screen
             name="PersonalRecords"
@@ -865,6 +874,11 @@ function AppContent() {
             name="MoodReport"
             component={SafeMoodReport}
             options={createStackScreenOptions(t('screens.moodReport', { defaultValue: 'Mood' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
+            name="CompareReport"
+            component={SafeCompareReport}
+            options={createStackScreenOptions(t('screens.compareReport', { defaultValue: 'Compare' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
             name="HydrationReport"

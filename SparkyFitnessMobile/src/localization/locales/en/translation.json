@@ -152,6 +152,7 @@
       "about": "About",
       "shareReport": "Share Diagnostic Report",
       "watch": "Apple Watch",
+      "wearOs": "Wear OS",
       "ai": "AI",
       "fasting": "Fasting",
       "goals": "Goals",
@@ -627,6 +628,7 @@
     "cardioSession": "Cardio Session",
     "activityShare": "Share Activity",
     "watchSettings": "Apple Watch",
+    "wearOsSettings": "Wear OS",
     "aiSettings": "AI",
     "fastingSettings": "Fasting Settings",
     "fasting": "Fasting",
@@ -655,7 +657,9 @@
     "runProgramRace": "Plan a race",
     "heartRateZonesSettings": "Heart Rate Zones",
     "routes": "Routes",
-    "routeDraw": "Draw a route"
+    "routeDraw": "Draw a route",
+    "routeGenerate": "Generate a route",
+    "compareReport": "Compare"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -926,7 +930,8 @@
       "title": "Permission Required",
       "backgroundAccess": "Background access permission is required for background sync. Please grant the permission in Health Connect settings.",
       "allTitle": "Permissions Required",
-      "allMessage": "Some permissions were not granted. Please enable all required health permissions in the {{settings}} to sync all data."
+      "allMessage": "Some permissions were not granted. Please enable all required health permissions in the {{settings}} to sync all data.",
+      "writebackMessage": "Every metric will sync. To write your data back, grant the missing permissions in {{settings}}."
     },
     "permissionError": {
       "title": "Permission Error",
@@ -1007,6 +1012,9 @@
   },
   "calorieSettings": {
     "adaptiveEarnBack": "Adaptive targets already include activity. Remaining calories are Target minus Eaten. Exercise earn-back applies only to Manual targets.",
+    "adaptiveActivitySeparate": "Count activity calories separately",
+    "adaptiveActivitySeparateHint": "Learn a baseline excluding historical activity and credit today’s steps and workouts once, without adding BMR again. This needs consistent food, weight, step and workout history. Until enough history is available, use BMR × your non-workout activity multiplier.",
+    "adaptiveActivitySeparateReporting": "BMR stays in Burned and Net Energy when Include Resting Calories is enabled. Only steps and workouts are added to your remaining calorie budget.",
     "restingEnergy": "Resting Energy",
     "bmr": "BMR",
     "title": "Calorie & BMR Settings",
@@ -1053,6 +1061,7 @@
       "eatenBurned": "Eaten − Burned",
       "projectedTotal": "Health Connect total calories (BMR + active calories fallback)",
       "dynamic": "Goal − Net Energy",
+      "dynamicActivitySeparated": "Goal − Eaten + Activity",
       "percentageWithBmr": "Goal − Eaten + BMR + {{percentage}}% of Exercise",
       "percentage": "Goal − Eaten + {{percentage}}% of Exercise",
       "tdee": "Projected TDEE × Goal Mode − Eaten",
@@ -1725,6 +1734,7 @@
     },
     "watch": {
       "title": "Apple Watch",
+      "wearOsTitle": "Wear OS",
       "description": "Status of the watch companion link. Check-ins captured on the watch are queued and delivered even when \"reachable\" is off, so a gray dot here does not mean data is lost.",
       "paired": "Watch paired",
       "notPaired": "No watch paired",
@@ -4424,6 +4434,16 @@
       "aiErrorMessage": "Check the selected Voice provider and try again.",
       "noSpeechTitle": "No speech detected",
       "noSpeechMessage": "Try again and speak closer to the microphone."
+    },
+    "attachments": {
+      "addPhoto": "Add photo",
+      "takePhoto": "Take Photo",
+      "chooseFromLibrary": "Choose from Library",
+      "removePhoto": "Remove photo",
+      "previewPhoto": "Preview photo",
+      "cameraPermission": "Camera permission needed",
+      "cameraPermissionBody": "Enable camera access to add a photo.",
+      "addFailed": "Could not add photo"
     }
   },
   "foodImagePicker": {
@@ -6269,6 +6289,7 @@
     "doubleTapTitle": "Double-tap to log a set",
     "rpeTitle": "Ask for effort (RPE) after each set",
     "rpeSubtitle": "After you log a set on the watch, turn the Digital Crown to pick how hard it was, from 1 to 10, then tap Save, or tap Skip.",
+    "rpeSubtitleWearOs": "After you log a set on the watch, turn the rotary crown or tap +/− to pick how hard it was, from 5 to 10, then tap Save, or tap Skip.",
     "doubleTapSubtitle": "Double-tap on a supported watch (Series 9, Ultra 2 or later, watchOS 11) logs the set on screen during a workout.",
     "pagesTitle": "Pages",
     "description": "Drag a page by its handle to change the order you swipe through them on your watch. Toggle a page off to hide it. The Workout page still appears while a workout is running.",
@@ -6514,6 +6535,13 @@
     "views": {
       "strength": "Strength",
       "cardio": "Cardio"
+    },
+    "runningForm": {
+      "title": "Running form",
+      "subtitle": "Steps per minute and stride length on your runs",
+      "average": "Average {{value}}",
+      "change": "{{value}} vs earlier runs",
+      "hint": "A treadmill run counts once its steps were measured."
     },
     "cardio": {
       "hint": "Tap a workout for its route and heart rate.",
@@ -7119,6 +7147,7 @@
       "run": "Run",
       "walk": "Walk",
       "fast": "Fast",
+      "brisk": "Brisk",
       "easy": "Easy",
       "byTime": "By time",
       "byDistance": "By distance",
@@ -7217,11 +7246,11 @@
       "advancedMarathonDescription": "Advanced marathon: sixteen weeks, five runs a week, with speed or tempo work and long runs building to three hours. For experienced runners.",
       "halfMarathon4Description": "Half marathon: twelve weeks, four runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably.",
       "tenKToHalf4Description": "10K to half marathon: ten weeks, four runs a week, with long runs building to about two hours. For when you can run 10K.",
-      "beginnerMarathon4Description": "Beginner marathon: eighteen weeks, four runs a week, with long runs building to 2⅔ hours and a taper. For when you can run 10K.",
-      "fasterHalf4Description": "Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run with tempo work. For when you have run a half marathon before.",
+      "beginnerMarathon4Description": "Beginner marathon: eighteen weeks, four runs a week, with long runs building to 2½ hours and a taper. For when you can run 10K.",
+      "fasterHalf4Description": "Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run. For when you have run a half marathon before.",
       "marathonDescription": "Marathon: sixteen weeks, four runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly.",
       "outlineWalk": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of brisk walking.",
-      "outline": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.",
+      "outline": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of effort.",
       "minutes": "{{minutes}} min",
       "workoutsDone": "{{done}} of {{total}} workouts",
       "optionLabel": "{{name}} · {{weeks}} weeks, {{runs}} workouts a week",
@@ -7280,6 +7309,7 @@
     "heartRateBand": {
       "title": "Heart rate alert",
       "description": "Needs your Apple Watch. Buzzes, and speaks with voice cues on, when your heart rate stays outside this range.",
+      "wearOsDescription": "Needs your Wear OS watch. Buzzes, and speaks with voice cues on, when your heart rate stays outside this range.",
       "lowest": "Lowest",
       "highest": "Highest",
       "value": "{{value}} bpm",
@@ -7481,7 +7511,9 @@
     "measurementsSubtitle": "Weight, body composition, tape measurements and steps",
     "insights": "What stood out",
     "substances": "Caffeine and alcohol",
-    "substancesSubtitle": "Daily caffeine, alcohol totals and week by week"
+    "substancesSubtitle": "Daily caffeine, alcohol totals and week by week",
+    "compare": "Compare",
+    "compareSubtitle": "How two things move together"
   },
   "nutritionReport": {
     "title": "Nutrition",
@@ -7824,19 +7856,19 @@
         "walkFit": "Weeks 1 to 4 alternate stretches of brisk walking (3 to 8 minutes) with 2 minutes of easy walking. Weeks 5 and 6 use two longer brisk stretches of 12 and 15 minutes. Weeks 7 and 8 are continuous brisk walks of 20 to 30 minutes.",
         "halfMarathon": "Each week has an easy run, a middle run and a long run. The long run builds from 50 to 115 minutes, every fourth week is lighter, and the last week is short before race day.",
         "marathon": "Most weeks have two easy runs, a middle run and a long run. The long run builds from 70 minutes to 2¾ hours, every fourth week is lighter, and the last two weeks taper before race day.",
-        "halfMarathon4": "Each week has two easy runs, a middle run and a long run. The long run builds from 60 to 125 minutes, every fourth week is lighter, and the last two weeks taper before race day. The final week has three shorter runs.",
-        "tenKToHalf4": "Each week has two short runs, a middle run and a long run. The long run builds from 75 to 125 minutes, week 4 is lighter, and the last three weeks taper before race day. The final week has three shorter runs.",
-        "fasterHalf4": "Each week has a speed session, two easy runs and a long run. The long run builds from 80 to 120 minutes, week 4 is lighter, and the last three weeks taper before race day. The final week has three shorter runs.",
-        "beginnerMarathon4": "Each week has two short runs, a middle run and a long run. The long run builds from 80 minutes to 2 hours 40 minutes, every fourth week is lighter, and the last three weeks taper before race day. The final week has three shorter runs.",
+        "halfMarathon4": "Each week has two easy runs, a middle run and a long run. The long run builds from 50 to 115 minutes, every fourth week is lighter, and the last two weeks taper before race day. The final week has three shorter runs.",
+        "tenKToHalf4": "Each week has two short runs, a middle run and a long run. The long run builds from 65 to 115 minutes, weeks 4 and 8 are lighter, and the last two weeks taper before race day. The final week has three shorter runs.",
+        "fasterHalf4": "Each week has a speed session, two easy runs and a long run. The long run builds from 70 to 110 minutes. Tempo runs of 25 and 30 minutes replace the speed session in weeks 6 and 8, week 4 is lighter, and the last three weeks taper before race day. The final week has three shorter runs.",
+        "beginnerMarathon4": "Each week has two short runs, a middle run and a long run. The long run builds from 70 minutes to 2½ hours, every fourth week is lighter, and the last three weeks taper before race day. The final week has three shorter runs.",
         "walk10k": "Each week has two walks of brisk stretches with short easy breaks and one long brisk walk. The long walk grows from 40 to 105 minutes, weeks 4 and 8 are lighter, and the last week ends with the 10K walk.",
         "returnToRunning": "Weeks 1 to 3 alternate short runs with walks, from 1-minute runs to 5-minute runs. Week 4 has three run/walk sessions with runs of 6, 10 and 12 minutes, adding up to 18, 20 and 22 minutes of running.",
         "gentle5k": "Every week repeats one run/walk session three times. The runs grow from 30 seconds to 5 minutes by week 8, then to two 10-minute runs, a 15 and a 10-minute run, and finally continuous runs of 25 and 30 minutes.",
-        "beginner10k": "Weeks 1 to 6 follow the beginner 5K build from short runs and walks to continuous running. Weeks 7 to 12 are three runs a week, with the long run growing from 30 to 60 minutes.",
-        "faster10k": "Each week has a speed session (fast and easy repeats), an easy run and a longer run. In weeks 5 to 7 the longer run is a tempo run of 20, 25 and then 30 minutes, and the last week eases off.",
+        "beginner10k": "Weeks 1 to 6 follow the beginner 5K build from short runs and walks to continuous running. Weeks 7 to 12 are three runs a week. The long run grows from 30 to 60 minutes, and week 10 is lighter.",
+        "faster10k": "Each week has a speed session (fast repeats or hills), an easy run and a longer run. Week 4 is lighter. In weeks 5 to 7 the longer run is a tempo run of 20, 25 and then 30 minutes, and the last week eases off.",
         "tenKToHalf": "Each week has a short run, a middle run and a long run. The long run builds from 65 to 115 minutes, weeks 4 and 8 are lighter, and the last two weeks taper before race day.",
         "fasterHalf": "Each week has a speed session, an easy run and a long run. The long run builds from 70 to 110 minutes, tempo runs of 25 and 30 minutes replace the speed session in weeks 6 and 8, and the last two weeks taper.",
         "beginnerMarathon": "Each week has a short run, a middle run and a long run. The long run builds from 70 minutes to 2½ hours, every fourth week is lighter, and the last three weeks taper before race day.",
-        "advancedMarathon": "Most weeks have two easy runs, a speed or tempo session, a middle run and a long run. The long run builds from 90 minutes to three hours, every fourth week is lighter, and the last two weeks taper before race day."
+        "advancedMarathon": "Most weeks have two easy runs, a speed, hill or tempo session, a middle run and a long run. Most easy runs from week 3 end with strides. From week 9 the long run includes a block at marathon pace, except in the lighter weeks. The long run builds from 90 minutes to three hours, every fourth week is lighter, and the last two weeks taper before race day."
       },
       "rest": {
         "title": "Rest days",
@@ -8165,6 +8197,7 @@
     "save": "Save",
     "clear": "Clear",
     "watch": "Also use on my Apple Watch",
+    "wearOs": "Also use on my Wear OS watch",
     "watchHint": "Holds the program workout offered on the watch to these ranges. Runs only."
   },
   "allergens": {
@@ -8243,6 +8276,58 @@
     "saveAsRoute": "Save as route",
     "savedAsRoute": "Saved to Routes",
     "saveAsRouteFailed": "Could not save the route",
+    "generateRoute": "Generate a loop or out-and-back",
+    "generateUnavailable": "Route generation needs a routing provider. Add one in Settings > External Providers on the web app. You can still draw a route on a map.",
+    "generate": "Generate",
+    "regenerate": "Try another direction",
+    "distanceLabel": "Distance",
+    "distanceRange": "Choose between {{min}} and {{max}} {{unit}}.",
+    "startFrom": "Starting at the green pin. Tap the map to move it.",
+    "startUnknown": "Waiting for your location. Or tap the map to choose a start.",
+    "useMyLocation": "My location",
+    "turnCount_one": "{{count}} turn",
+    "turnCount_other": "{{count}} turns",
+    "followRoads": "Follow roads",
+    "followRoadsNeedsProvider": "A routing provider is needed. Add one in Settings > External Providers on the web app.",
+    "followRoadsLimit": "Following roads takes up to {{max}} points. Undo a point to add another.",
+    "followRoadsTooMany": "Following roads takes up to {{max}} points. Undo points or turn Follow roads off to save.",
+    "findingRoute": "Finding a route",
+    "turns": "Turns",
+    "showFewerTurns": "Show fewer",
+    "showAllTurns_one": "Show all {{count}} turn",
+    "showAllTurns_other": "Show all {{count}} turns",
+    "activity": {
+      "run": "Run",
+      "walk": "Walk",
+      "ride": "Ride",
+      "hike": "Hike"
+    },
+    "shape": {
+      "loop": "Loop",
+      "outAndBack": "Out and back"
+    },
+    "generateError": {
+      "noRoute": "No route found there. Try another spot or a different distance.",
+      "rateLimited": "Too many route requests. Wait a few minutes and retry.",
+      "engineError": "The routing service had a problem. Try again shortly.",
+      "timeout": "The routing service took too long. Try again.",
+      "notConfigured": "No routing provider is set up. Add one in Settings > External Providers on the web app.",
+      "invalid": "Those points cannot be routed.",
+      "unknown": "Could not generate a route."
+    },
+    "cue": {
+      "depart": "Start",
+      "straight": "Continue straight",
+      "slight_left": "Bear left",
+      "left": "Turn left",
+      "sharp_left": "Sharp left",
+      "slight_right": "Bear right",
+      "right": "Turn right",
+      "sharp_right": "Sharp right",
+      "uturn": "Make a U-turn",
+      "arrive": "Arrive"
+    },
+    "goBack": "Go back",
     "fileTooLarge": "That file is too large",
     "fileTooLargeHint": "A route file can be up to 10 MB.",
     "drawLimit": "That is as many points as a route can have here. Undo some or save this one."
@@ -8295,6 +8380,205 @@
       "needsResting": "Heart rate reserve zones need a resting heart rate.",
       "customFloors": "Each zone must start above the one before it, from 30 to 250 bpm.",
       "saveFailed": "Could not save. Check the values and try again."
+    }
+  },
+  "compareReport": {
+    "groups": {
+      "feelings": "How you felt",
+      "sleep": "Sleep",
+      "meditation": "Meditation",
+      "food": "Food",
+      "training": "Training",
+      "body": "Body"
+    },
+    "metrics": {
+      "mood": "Mood",
+      "energy": "Energy",
+      "focus": "Focus",
+      "timeAsleep": "Time asleep",
+      "sleepScore": "Sleep score",
+      "overnightHrv": "Overnight HRV",
+      "restingHeartRate": "Resting heart rate",
+      "bedtime": "Bedtime",
+      "bedtimeConsistency": "Bedtime consistency",
+      "meditationMinutes": "Meditation minutes",
+      "meditationSessions7d": "Meditation sessions (7 days)",
+      "meditated": "Meditated",
+      "calories": "Calories",
+      "protein": "Protein",
+      "carbs": "Carbs",
+      "fat": "Fat",
+      "caffeine": "Caffeine",
+      "alcohol": "Alcohol",
+      "workoutMinutes": "Workout minutes",
+      "cardioMinutes": "Cardio minutes",
+      "strengthVolume": "Strength volume",
+      "trainingLoad": "Training load",
+      "weightTrend": "Weight trend",
+      "steps": "Steps"
+    },
+    "phrase": {
+      "lastNights": "last night's {{metric}}",
+      "daysYou": "the number of days you {{verb}}",
+      "your": "your {{metric}}",
+      "yourWhen": "your {{metric}} {{timing}}"
+    },
+    "timing": {
+      "sameDay": "the same day",
+      "thatDay": "that day",
+      "nextDay": "the next day",
+      "dayAfterYouWoke": "the day after you woke",
+      "thatNight": "that night",
+      "dayBefore": "the day before",
+      "nightBefore": "the night before",
+      "twoNightsBefore": "two nights before",
+      "sameNight": "the same night",
+      "nextNight": "the next night",
+      "sameWeek": "the same week",
+      "nextWeek": "the next week"
+    },
+    "yesNo": {
+      "onDays": "On days you {{yes}}",
+      "dayAfter": "The day after you {{yes}}",
+      "dayBefore": "The day before you {{yes}}",
+      "nightAfter": "The night after you {{yes}}",
+      "nightBefore": "The night before you {{yes}}",
+      "twoNightsBefore": "Two nights before you {{yes}}"
+    },
+    "verdict": {
+      "question": "Does {{a}} go with {{b}} {{timing}}?",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "weeks_one": "{{count}} week",
+      "weeks_other": "{{count}} weeks",
+      "strength": {
+        "weak": "weak",
+        "moderate": "moderate",
+        "strong": "strong"
+      },
+      "linkedHeadline": "Yes, a {{strength}} link",
+      "linkedPositive": "When {{a}} was {{aDirection}}, {{b}} {{timing}} was {{bDirection}} too.",
+      "linkedNegative": "When {{a}} was {{aDirection}}, {{b}} {{timing}} was {{bDirection}}.",
+      "noLinkHeadline": "No clear link",
+      "noLinkDetail": "Over these {{n}}, they didn't move together more than chance would explain.",
+      "longerSpan": "A longer span makes a weak link easier to see.",
+      "differenceHeadline": "Yes, a difference",
+      "difference": "{{when}}, {{outcome}} was {{direction}}.",
+      "noDifferenceHeadline": "No clear difference",
+      "noDifferenceDetail": "Over these {{n}}, your {{outcome}} wasn't different enough between the two kinds of day to rule out chance.",
+      "tooFewHeadline": "Not enough days yet",
+      "tooFewHeadlineWeeks": "Not enough weeks yet",
+      "tooFewDetail": "You have {{n}}; an answer needs {{needed}}.",
+      "logDays_one": "Log {{weaker}} on {{count}} more day, or pick a longer span.",
+      "logDays_other": "Log {{weaker}} on {{count}} more days, or pick a longer span.",
+      "logWeeks_one": "Log {{weaker}} for {{count}} more week, or pick a longer span.",
+      "logWeeks_other": "Log {{weaker}} for {{count}} more weeks, or pick a longer span.",
+      "needsHistory": "Each day is compared with your previous two weeks, so a day needs a week of history first.",
+      "fewYesHeadline": "Not enough days when you {{yes}} yet",
+      "fewYesDetail": "You have {{n}}; an answer needs {{needed}}. Try a longer span.",
+      "fewNoHeadline": "Not enough days without {{yesNoun}} yet",
+      "fewNoDetail": "You {{yes}} on almost every day here, so there's nothing to compare against. Try a longer span.",
+      "noVariationHeadline": "Nothing to compare yet",
+      "noVariationDetail": "{{metric}} was the same every time over this span, so there's nothing to compare it with.",
+      "noVariationGeneric": "One of these didn't change over this span.",
+      "longerSpanDifference": "A longer span makes a small difference easier to see."
+    },
+    "stats": {
+      "p": "p {{p}}",
+      "pTiny": "p < 0.001",
+      "correlation": "r {{r}} · 95% range {{low}} to {{high}} · {{p}} · {{n}}",
+      "difference": "difference {{diff}} · 95% range {{low}} to {{high}} · {{p}} · {{n}}",
+      "differenceMinutes": "difference {{diff}} min · 95% range {{low}} to {{high}} min · {{p}} · {{n}}"
+    },
+    "metricNouns": {
+      "meditated": "meditating"
+    },
+    "direction": {
+      "higher": "higher than usual",
+      "lower": "lower than usual",
+      "later": "later than usual",
+      "earlier": "earlier than usual"
+    },
+    "logged": {
+      "weight": "weight",
+      "sleep": "sleep",
+      "workouts": "workouts",
+      "meditation": "meditation"
+    },
+    "start": {
+      "suggestions": "Try one of these",
+      "recent": "Your recent questions"
+    },
+    "span": {
+      "30d": "30 days",
+      "60d": "60 days",
+      "90d": "90 days",
+      "6m": "6 months",
+      "1y": "1 year"
+    },
+    "sentence": {
+      "something": "something",
+      "sometime": "some time",
+      "does": "Does",
+      "goWith": "go with",
+      "questionMark": "?",
+      "firstTitle": "First thing",
+      "secondTitle": "Second thing",
+      "timingTitle": "When",
+      "dayByDay": "Day by day",
+      "weekByWeek": "Week by week",
+      "sameDay": "The same day",
+      "nextDay": "The next day",
+      "dayBefore": "The day before",
+      "sameWeek": "The same week",
+      "nextWeek": "The next week"
+    },
+    "bars": {
+      "yesDays": "Days you {{yes}}",
+      "noDays": "Days without {{yesNoun}}",
+      "otherDays": "Other days",
+      "otherNights": "Other nights",
+      "meanAndDays_one": "{{mean}} · {{count}} day",
+      "meanAndDays_other": "{{mean}} · {{count}} days",
+      "meanAndNights_one": "{{mean}} · {{count}} night",
+      "meanAndNights_other": "{{mean}} · {{count}} nights",
+      "diff": "{{diff}} vs. your usual",
+      "diffMinutes": "{{diff}} min vs. your usual"
+    },
+    "checks": {
+      "ownNormal": "✓ Compared with your own normal",
+      "notProof": "A link, not proof of cause",
+      "seemsFirst": "{{metric}} seems to come first",
+      "comesFirst": "{{metric}} comes first",
+      "otherWay": "The link is stronger the other way round",
+      "cantTell": "Can't tell which comes first",
+      "weekendHolds": "Still holds after accounting for weekends",
+      "weekendMay": "This may be a weekday-versus-weekend pattern"
+    },
+    "chart": {
+      "eachDay": "Each day as a dot",
+      "eachWeek": "Each week as a dot",
+      "overTime": "Over time",
+      "axis": "{{metric}} vs. your usual",
+      "axisYesNo": "{{metric}} (yes or no)",
+      "axisDaysYou": "Days you {{verb}} vs. your usual",
+      "range": "{{metric}} {{min}}–{{max}}",
+      "noDots": "No days with both yet",
+      "noDotsWeeks": "No weeks with both yet",
+      "noOverTime": "Nothing logged in this range",
+      "dotsLabel": "Each dot pairs {{a}} with {{b}}",
+      "overTimeLabel": "{{a}} and {{b}} over time, each scaled to its own range"
+    },
+    "screen": {
+      "tooOld": "Compare needs a newer SparkyFitness server. Update your server to use it.",
+      "loadFailed": "Couldn't load this comparison.",
+      "retry": "Retry"
+    },
+    "title": "Compare",
+    "answer": {
+      "throughYesterday": "Through yesterday",
+      "throughLastWeek": "Through last week",
+      "throughDate": "Through {{date}}"
     }
   }
 }
