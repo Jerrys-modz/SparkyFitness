@@ -41,7 +41,16 @@ jest.mock('../../src/services/routeService', () => ({
   removeRoute: jest.fn(() => Promise.resolve()),
   renameRoute: jest.fn(() => Promise.resolve()),
   shareRouteGpx: jest.fn(() => Promise.resolve()),
+  useRouteStops: jest.fn(() => ({
+    available: false,
+    stops: [],
+    isLoading: false,
+  })),
 }));
+jest.mock('../../src/services/segmentService', () => ({
+  useSegments: jest.fn(() => ({ segments: [] })),
+}));
+
 jest.mock('../../src/hooks/useWatchConnectivity', () => ({
   useWatchConnectivity: jest.fn(),
 }));
