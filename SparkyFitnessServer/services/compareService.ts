@@ -175,10 +175,10 @@ export async function getCompareSince(
   const firstDayOfWeek = await loadFirstDayOfWeek(userId);
   const ctx: MetricContext = {
     tz,
-    maxHeartRate:
+    zoneFloors:
       query.a === 'trainingLoad' || query.b === 'trainingLoad'
-        ? await loadMaxHeartRate(userId, tz)
-        : DEFAULT_MAX_HEART_RATE,
+        ? (await heartRateZoneService.resolveZonesForUser(userId)).floors
+        : percentMaxFloors(FALLBACK_MAX_HR),
   };
   const windowFrom = addDays(today, -SINCE_WINDOW_DAYS);
   const outcomeFrom = (start: string | null) =>
