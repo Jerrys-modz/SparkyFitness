@@ -166,6 +166,7 @@ export default defineConfig({
             { text: 'Running Trends', link: '/features/exercises/running-trends' },
             { text: 'Shoe Inventory', link: '/features/exercises/shoe-inventory' },
             { text: 'Route Generation', link: '/features/exercises/route-generation' },
+            { text: 'Segments', link: '/features/exercises/segments' },
             { text: 'Progression & Per-Set Ramp', link: '/features/exercises/progression-and-per-set-ramp' },
             { text: 'Bodyweight Exercises', link: '/features/exercises/bodyweight-exercises' },
             { text: 'Adaptive Coaching', link: '/features/exercises/adaptive-coaching' },
