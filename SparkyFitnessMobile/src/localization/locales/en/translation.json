@@ -8458,6 +8458,16 @@
       "cantTell": "Can't tell which comes first",
       "weekendHolds": "Still holds after accounting for weekends",
       "weekendMay": "This may be a weekday-versus-weekend pattern"
+    },
+    "chart": {
+      "eachDay": "Each day as a dot",
+      "eachWeek": "Each week as a dot",
+      "overTime": "Over time",
+      "axis": "{{metric}} vs. your usual",
+      "range": "{{metric}} {{min}}–{{max}}",
+      "noDots": "No days with both yet",
+      "noOverTime": "Nothing logged in this range",
+      "dotsLabel": "Each dot pairs {{a}} with {{b}}"
     }
   }
 }
