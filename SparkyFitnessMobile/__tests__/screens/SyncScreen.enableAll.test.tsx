@@ -6,6 +6,7 @@ import SyncScreen from '../../src/screens/SyncScreen';
 import { HEALTH_METRICS } from '../../src/HealthMetrics';
 import { initializeI18n } from '../../src/localization/i18n';
 import {
+  loadHealthPreference,
   requestGrantedHealthPermissions,
   saveHealthPreference,
 } from '../../src/services/healthConnectService';
@@ -114,6 +115,7 @@ jest.mock('../../src/components/Icon', () => {
 });
 
 const mockRequestGranted = requestGrantedHealthPermissions as jest.Mock;
+const mockLoadPreference = loadHealthPreference as jest.Mock;
 const mockSavePreference = saveHealthPreference as jest.Mock;
 
 const navigation = { navigate: jest.fn(), goBack: jest.fn() };
@@ -213,5 +215,48 @@ describe('SyncScreen Enable All Health Metrics', () => {
     expect(screen.getByLabelText('Enable All Health Metrics').props.value).toBe(
       true
     );
+  });
+});
+
+describe('SyncScreen Enable All with a declined write-back permission', () => {
+  let alertSpy: jest.SpyInstance;
+
+  beforeAll(async () => {
+    await initializeI18n('en');
+  });
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    mockLoadPreference.mockImplementation(
+      async (key: string) => key === 'writebackNutritionEnabled'
+    );
+    render(
+      <SyncScreen {...({ navigation, route: { params: {} } } as never)} />
+    );
+    await act(async () => {});
+  });
+
+  afterEach(() => {
+    alertSpy.mockRestore();
+    mockLoadPreference.mockReset();
+    mockLoadPreference.mockResolvedValue(false);
+  });
+
+  test('says only write-back was declined and keeps every read metric on', async () => {
+    mockRequestGranted.mockResolvedValue(allPermissions());
+
+    await pressEnableAll();
+
+    expect(alertSpy).toHaveBeenCalledTimes(1);
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Permissions Required',
+      expect.stringContaining('Every metric will sync')
+    );
+    for (const metric of HEALTH_METRICS) {
+      expect(savedPreference(metric.preferenceKey)).toBe(true);
+    }
+    expect(metricSwitch('Steps').props.value).toBe(true);
+    expect(metricSwitch('Heart Rate').props.value).toBe(true);
   });
 });
