@@ -163,6 +163,22 @@ describe('NumericInput arithmetic', () => {
     expect(onKeyDown).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    { isComposing: true, keyCode: 13 },
+    { isComposing: false, keyCode: 229 },
+  ])('preserves an expression during IME confirmation: %j', (composition) => {
+    render(<MathInput />);
+    const input = screen.getByLabelText('quantity');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '50+10' } });
+
+    fireEvent.keyDown(input, { key: 'Enter', ...composition });
+    expect(input).toHaveValue('50+10');
+
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: false, keyCode: 13 });
+    expect(input).toHaveValue('60');
+  });
+
   it('retains required, rounding and min/max constraints', () => {
     render(<MathInput max={100} />);
     const input = screen.getByLabelText('quantity');

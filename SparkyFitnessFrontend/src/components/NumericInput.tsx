@@ -149,7 +149,9 @@ export const NumericInput = ({
         if (
           allowExpressions &&
           event.key === 'Enter' &&
-          !event.defaultPrevented
+          !event.defaultPrevented &&
+          !event.nativeEvent.isComposing &&
+          event.keyCode !== 229
         )
           commitExpression();
       }}
