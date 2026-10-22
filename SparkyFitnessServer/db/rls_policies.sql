@@ -52,6 +52,8 @@ BEGIN
     'shoes',
     'custom_run_programs',
     'routes',
+    'segments',
+    'segment_efforts',
     'onboarding_data',
     'onboarding_status',
     'openfoodfacts_product_read_rate_limit',
@@ -768,6 +770,10 @@ SELECT create_owner_policy('health_appointments');
 SELECT create_owner_policy('run_programs');
 SELECT create_owner_policy('custom_run_programs');
 SELECT create_owner_policy('routes');
+-- Personal segments and the cached efforts matched against them (see migration
+-- 20261022130000_add_segments.sql). Tier 1, owner-only: never delegated or shared.
+SELECT create_owner_policy('segments');
+SELECT create_owner_policy('segment_efforts');
 
 -- User-defined mood tags. Mood is check-in data (mood_entries uses the check-in
 -- policy), and custom check-in definitions like custom_categories are shared with

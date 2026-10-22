@@ -186,6 +186,8 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     pregnancy_photos: 'owner',
     run_programs: 'owner',
     routes: 'owner',
+    segments: 'owner',
+    segment_efforts: 'owner',
     user_cycle_display_preferences: 'owner',
     user_fasting_preferences: 'owner',
     user_mood_display_preferences: 'owner',
