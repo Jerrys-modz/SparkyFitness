@@ -190,6 +190,7 @@ export * from './cycle/content.ts';
 export * from './mood/index.ts';
 export * from './mood/checkins.ts';
 
+export * from "./utils/stretchRoutines.ts";
 export * from "./utils/runProgramRealign.ts";
 export * from "./utils/gradeAdjustedPace.ts";
 export * from "./utils/runningDynamics.ts";

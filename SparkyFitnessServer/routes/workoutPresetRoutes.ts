@@ -1,11 +1,13 @@
 import express from 'express';
 import {
+  STRETCH_ROUTINES,
   workoutPresetCreateRequestSchema,
   workoutPresetUpdateRequestSchema,
 } from '@workspace/shared';
 import { authenticate } from '../middleware/authMiddleware.js';
 import { encodeFitStrengthWorkout } from '../integrations/garminfit/fitWorkoutEncoder.js';
 import workoutPresetService from '../services/workoutPresetService.js';
+import stretchRoutineService from '../services/stretchRoutineService.js';
 const router = express.Router();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function sendValidationError(res: any, message: any, error: any) {
@@ -60,6 +62,68 @@ router.post('/', authenticate, async (req, res, next) => {
     next(error);
   }
 });
+/**
+ * @swagger
+ * /workout-presets/starter-routines:
+ *   get:
+ *     summary: List starter stretching routines
+ *     tags: [Fitness & Workouts]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Available starter routines.
+ */
+router.get('/starter-routines', authenticate, (_req, res) => {
+  res.json(
+    STRETCH_ROUTINES.map(({ id, name, description, moves }) => ({
+      id,
+      name,
+      description,
+      move_count: moves.length,
+    }))
+  );
+});
+
+/**
+ * @swagger
+ * /workout-presets/starter-routines/{routineId}:
+ *   post:
+ *     summary: Add a starter stretching routine as a workout preset
+ *     tags: [Fitness & Workouts]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: routineId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       201:
+ *         description: The created workout preset.
+ *       404:
+ *         description: Unknown routine.
+ */
+router.post(
+  '/starter-routines/:routineId',
+  authenticate,
+  async (req, res, next) => {
+    try {
+      const preset = await stretchRoutineService.addStarterRoutine(
+        req.userId,
+        String(req.params.routineId)
+      );
+      if (!preset) {
+        return res.status(404).json({ error: 'Starter routine not found.' });
+      }
+      res.status(201).json(preset);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 /**
  * @swagger
  * /workout-presets:
