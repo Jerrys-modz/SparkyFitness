@@ -339,6 +339,11 @@ final class WatchSessionManager: NSObject, ObservableObject {
         return WatchRunOutbox.append(payload)
     }
 
+    /// Tells the phone how hard a finished run felt. Queued, like the run.
+    func sendRunEffort(clientId: String, rating: Int) {
+        transfer(OutboundPayloads.runEffort(clientId: clientId, rating: rating))
+    }
+
     /// Sends runs that were finished before the session had activated.
     private func flushRunOutbox() {
         guard isActivated else { return }
@@ -1499,6 +1504,20 @@ final class WatchSessionManager: NSObject, ObservableObject {
             appleZones: appleZones.map(AppleZoneReading.parse)
         )
         transfer(OutboundPayloads.heartRateBatch(batch))
+    }
+
+    /// Saves the wearer's 1-10 effort for the workout that just ended: to Health
+    /// (watchOS 11+) and, when the summary names its session, to the phone,
+    /// which files it with the workout in the diary.
+    func rateWorkoutEffort(_ score: Int, sessionId: String?, completion: @escaping (Bool) -> Void) {
+        if let sessionId {
+            transfer(OutboundPayloads.workoutEffort(sessionId: sessionId, rating: score))
+        }
+        guard workoutHealthKit.canSaveEffort else {
+            completion(true)
+            return
+        }
+        workoutHealthKit.saveEffort(score, completion: completion)
     }
 
     /// Ends the workout. The stop signal waits until HealthKit has finished

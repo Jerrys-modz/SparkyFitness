@@ -16,6 +16,7 @@ import {
   type AttachExerciseEntryDistanceSeriesRequest,
   type HeartRateSampleRequest,
   type SetExerciseEntryDistanceRequest,
+  type SetExerciseEntryEffortRequest,
 } from '@workspace/shared';
 import { getClient } from '../db/poolManager.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
@@ -808,6 +809,44 @@ async function setExerciseEntryDistance(
   }
 }
 
+/**
+ * Records how hard the person rated a workout. An entry that belongs to a
+ * preset session (a strength workout) carries it for every entry of that
+ * session, so the rating reads the same from whichever exercise is opened.
+ */
+async function setExerciseEntryEffort(
+  userId: string,
+  actingUserId: string,
+  exerciseEntryId: string,
+  body: SetExerciseEntryEffortRequest
+): Promise<void> {
+  const ownerId = await exerciseEntryRepository.getExerciseEntryOwnerId(
+    exerciseEntryId,
+    userId
+  );
+  if (!ownerId || ownerId !== userId) {
+    const error = new Error('Exercise entry not found.');
+    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
+    error.status = 404;
+    throw error;
+  }
+  const client = await getClient(userId, actingUserId);
+  try {
+    await client.query(
+      `UPDATE exercise_entries SET workout_effort = $2, updated_at = NOW()
+       WHERE user_id = $3
+         AND (id = $1
+           OR (exercise_preset_entry_id IS NOT NULL
+             AND exercise_preset_entry_id = (
+               SELECT exercise_preset_entry_id FROM exercise_entries
+               WHERE id = $1 AND user_id = $3)))`,
+      [exerciseEntryId, body.rating, userId]
+    );
+  } finally {
+    client.release();
+  }
+}
+
 export {
   importExerciseEntriesFromCsv,
   attachWatchTelemetryToExerciseEntry,
@@ -816,6 +855,7 @@ export {
   attachDistanceSeriesToExerciseEntry,
   getExerciseEntryDistanceSeries,
   setExerciseEntryDistance,
+  setExerciseEntryEffort,
 };
 export default {
   importExerciseEntriesFromCsv,
@@ -825,4 +865,5 @@ export default {
   attachDistanceSeriesToExerciseEntry,
   getExerciseEntryDistanceSeries,
   setExerciseEntryDistance,
+  setExerciseEntryEffort,
 };

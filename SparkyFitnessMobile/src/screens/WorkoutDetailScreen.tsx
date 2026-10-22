@@ -41,6 +41,7 @@ import {
   canReorderDraftExercises,
   exerciseFromSnapshot,
   parseSetWeight,
+  summarizeWorkoutEffort,
   summarizeWorkoutHeartRate,
 } from '../utils/workoutSession';
 import { formatLocalizedNumber } from '../localization';
@@ -739,6 +740,18 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           defaultValue: 'Max HR',
         }),
         icon: { name: 'heart-rate', color: heartRateColor },
+      });
+    }
+    // The person's own rating (from the watch's prompt or Apple Health), so
+    // it is shown from the saved session even while editing.
+    const effort = summarizeWorkoutEffort(session.exercises);
+    if (effort != null) {
+      summaryItems.push({
+        value: t('workoutEffort.value', {
+          defaultValue: '{{rating}}/10',
+          rating: effort,
+        }),
+        label: t('workoutDetail.summary.effort', { defaultValue: 'Effort' }),
       });
     }
     if (summaryItems.length === 0) return null;

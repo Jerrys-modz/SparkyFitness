@@ -147,6 +147,16 @@ export function sessionStats(
       value: bpmText(t, session.avgHeartRate),
     });
   }
+  if (session.workoutEffort != null) {
+    stats.push({
+      key: 'effort',
+      label: t('exerciseStatistics.cardio.effort', { defaultValue: 'Effort' }),
+      value: t('workoutEffort.value', {
+        defaultValue: '{{rating}}/10',
+        rating: session.workoutEffort,
+      }),
+    });
+  }
   if (session.caloriesBurned > 0) {
     stats.push({
       key: 'calories',

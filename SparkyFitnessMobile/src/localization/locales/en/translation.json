@@ -3987,7 +3987,8 @@
       "volume": "Volume",
       "calories": "Calories",
       "avgHeartRate": "Avg HR",
-      "maxHeartRate": "Max HR"
+      "maxHeartRate": "Max HR",
+      "effort": "Effort"
     },
     "errors": {
       "needsExercise": "Workout needs an exercise",
@@ -4028,7 +4029,8 @@
       "distance": "Distance",
       "avgHeartRate": "Avg Heart Rate",
       "steps": "Steps",
-      "pace": "Pace"
+      "pace": "Pace",
+      "effort": "Effort"
     },
     "labels": {
       "sets": "Sets",
@@ -6583,7 +6585,8 @@
       "underOneMinute": "<1 min",
       "exportGpx": "Export GPX",
       "exportGpxFailed": "Could not export the route",
-      "shareImage": "Share as image"
+      "shareImage": "Share as image",
+      "effort": "Effort"
     },
     "load": {
       "title": "Training Load",
@@ -8467,5 +8470,8 @@
       "customFloors": "Each zone must start above the one before it, from 30 to 250 bpm.",
       "saveFailed": "Could not save. Check the values and try again."
     }
+  },
+  "workoutEffort": {
+    "value": "{{rating}}/10"
   }
 }

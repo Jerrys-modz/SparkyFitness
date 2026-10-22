@@ -575,7 +575,7 @@ async function queryExerciseActivities(
       SELECT
         id, user_id, exercise_name, category, entry_date, entry_time,
         duration_minutes, distance, avg_heart_rate, calories_burned, source, notes,
-        floors_climbed, elevation_gain_meters,
+        floors_climbed, elevation_gain_meters, workout_effort,
         avg_cadence, stride_length_cm,
         EXISTS (
           SELECT 1 FROM public.exercise_entry_gps_points g
@@ -634,6 +634,10 @@ async function queryExerciseActivities(
           elevationGainMeters: positiveOrNull(row.elevation_gain_meters, 1),
           avgCadence: positiveOrNull(row.avg_cadence, 0),
           strideLengthCm: positiveOrNull(row.stride_length_cm, 1),
+          workoutEffort:
+            row.workout_effort !== null && row.workout_effort !== undefined
+              ? Number(row.workout_effort)
+              : null,
           source: row.source ? String(row.source) : null,
           notes: row.notes ? String(row.notes) : null,
           hasGpsTrack: row.has_gps_track === true,

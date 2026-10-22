@@ -172,10 +172,11 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             DispatchQueue.main.async { completion() }
             return
         }
-        let share: Set<HKSampleType> = [
+        var share: Set<HKSampleType> = [
             HKObjectType.workoutType(), Self.distanceType, Self.energyType, Self.heartRateType,
             HKSeriesType.workoutRoute(),
         ]
+        if let effortType = WorkoutEffort.shareType { share.insert(effortType) }
         let read: Set<HKObjectType> = [
             HKObjectType.workoutType(), Self.distanceType, Self.energyType, Self.heartRateType,
         ]
@@ -221,6 +222,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             indoorAutoPause.reset()
             pausedByAutoPause = false
             clientId = UUID().uuidString
+            lastSavedWorkout = nil
             routeRows = []
             routeSegment = 0
             heartRateRows = []
@@ -267,6 +269,31 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         persistSnapshot(force: true)
     }
 
+    /// Main-queue-only flag shared by the two callers of a run's delivery.
+    private final class DeliveryFlag {
+        var done = false
+    }
+
+    /// How long the summary waits for HealthKit to hand back the saved workout.
+    private static let finishWorkoutTimeout: TimeInterval = 10
+
+    /// The workout `end(save: true)` last saved, kept so the wearer can rate
+    /// its effort from the summary. Cleared when the next run starts. Main
+    /// queue only.
+    private var lastSavedWorkout: HKWorkout?
+
+    /// True when the last run was saved and this watchOS can rate it.
+    var canSaveEffort: Bool { lastSavedWorkout != nil && WorkoutEffort.isSupported }
+
+    /// Attaches the wearer's 1-10 effort to the run just saved.
+    func saveEffort(_ score: Int, completion: @escaping (Bool) -> Void) {
+        guard let workout = lastSavedWorkout else {
+            completion(false)
+            return
+        }
+        WorkoutEffort.save(score, for: workout, in: healthStore, completion: completion)
+    }
+
     /// Ends the session and writes the workout to Apple Health (`save`) or
     /// throws it away. `completion` runs on the main queue with the final
     /// figures and the active time.
@@ -288,19 +315,17 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         self.builder = nil
         session.end()
         endingBuilder.endCollection(withEnd: endedAt) { [weak self] _, _ in
-            let lock = NSLock()
-            var delivered = false
-            // HealthKit's zone totals exist only after finishWorkout. Wait for
-            // that, but not forever: a hung save must still file the run.
+            // The summary, and its effort picker, wait until the saved
+            // HKWorkout is in hand: rating before that has nothing to relate,
+            // and HealthKit's zone totals exist only after finishWorkout.
+            // Runs once. finishWorkout can hang or be dropped, and the run
+            // must still reach the phone, so a timeout calls it too; whichever
+            // comes second finds `delivered` set and does nothing.
+            let delivered = DeliveryFlag()
             let deliver: ([[String: Any]]) -> Void = { zones in
-                lock.lock()
-                if delivered {
-                    lock.unlock()
-                    return
-                }
-                delivered = true
-                lock.unlock()
                 DispatchQueue.main.async {
+                    guard !delivered.done else { return }
+                    delivered.done = true
                     guard let self else {
                         completion(WatchRunMetrics(), finalElapsed, nil)
                         return
@@ -330,14 +355,18 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                 }
             }
             if save {
-                endingBuilder.finishWorkout { workout, _ in
-                    if let workout, let endingRoute {
-                        endingRoute.finishRoute(with: workout, metadata: nil) { _, _ in }
-                    }
+                endingBuilder.finishWorkout { [weak self] workout, _ in
                     let zones = workout.map { AppleWorkoutZones.heartRateZones(of: $0) } ?? []
-                    deliver(zones)
+                    DispatchQueue.main.async {
+                        self?.lastSavedWorkout = workout
+                        // The route can only be attached to a saved workout.
+                        if let workout, let endingRoute {
+                            endingRoute.finishRoute(with: workout, metadata: nil) { _, _ in }
+                        }
+                        deliver(zones)
+                    }
                 }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Self.finishWorkoutTimeout) {
                     deliver([])
                 }
             } else {
