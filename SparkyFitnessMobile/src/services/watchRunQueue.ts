@@ -22,12 +22,6 @@ const QUEUE_KEY = '@SparkyFitness/watchRunQueue';
 /** Ids already filed, so a re-delivered message is not logged twice. */
 const DONE_KEY = '@SparkyFitness/watchRunDone';
 const MAX_DONE = 50;
-/**
- * Ratings still waiting for their run to be filed. Much larger than the list
- * of filed runs, because dropping one loses a rating that was never saved; a
- * record is removed as soon as both of its saves have gone through.
- */
-const MAX_PENDING_EFFORTS = 500;
 /** Effort ratings from the watch, waiting for their run's program workout. */
 const EFFORT_KEY = '@SparkyFitness/watchRunEffort';
 const RETRYABLE_CLIENT_STATUSES = new Set([401, 408, 429]);
@@ -75,11 +69,9 @@ type RunEfforts = Record<string, RunEffort>;
 const readEfforts = () => readJson<RunEfforts>(EFFORT_KEY, {});
 
 async function writeEfforts(efforts: RunEfforts): Promise<void> {
-  // Insertion order, so the oldest entries go first.
-  const kept = Object.fromEntries(
-    Object.entries(efforts).slice(-MAX_PENDING_EFFORTS)
-  );
-  await AsyncStorage.setItem(EFFORT_KEY, JSON.stringify(kept));
+  // Never trimmed: a record is a rating not yet saved. It is removed once both
+  // of its saves have gone through, or when its run is dropped for good.
+  await AsyncStorage.setItem(EFFORT_KEY, JSON.stringify(efforts));
 }
 
 function patchEffort(clientId: string, patch: Partial<RunEffort>) {
@@ -387,6 +379,13 @@ async function drainOnce(
           'ERROR'
         );
         await serial(() => update(clientId, () => null));
+        await serial(async () => {
+          const efforts = await readEfforts();
+          if (clientId in efforts) {
+            delete efforts[clientId];
+            await writeEfforts(efforts);
+          }
+        });
       } else {
         addLog(
           `[Watch Run] Will retry watch run ${clientId}: ${message}`,
