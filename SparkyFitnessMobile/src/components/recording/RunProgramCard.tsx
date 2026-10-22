@@ -397,6 +397,8 @@ interface Props {
   /** The days the workout shows in the Diary, and the first day it does. */
   schedule: RunSchedule;
   onSchedule: (change: ProgramScheduleChange) => void;
+  /** The race day from the person's running goals (YYYY-MM-DD), if one is set. */
+  raceDay?: string | null;
   /** Jump to any workout in the program (0-based index). */
   onPickWorkout: (index: number) => void;
   status: ProgramStatus | null;
@@ -426,9 +428,11 @@ const SectionHeading: React.FC<{ children: React.ReactNode }> = ({
 const InlineLink: React.FC<{
   onPress: () => void;
   children: string;
-}> = ({ onPress, children }) => (
+  testID?: string;
+}> = ({ onPress, children, testID }) => (
   <Pressable
     accessibilityRole="button"
+    testID={testID}
     onPress={onPress}
     hitSlop={8}
     className="mr-5"
@@ -446,6 +450,7 @@ const RunProgramCard: React.FC<Props> = ({
   now,
   schedule,
   onSchedule,
+  raceDay = null,
   onPickWorkout,
   status,
   loaded,
@@ -802,6 +807,17 @@ const RunProgramCard: React.FC<Props> = ({
                     defaultValue: 'Set a goal date',
                   })}
             </InlineLink>
+            {raceDay && raceDay > today && schedule.endDay !== raceDay ? (
+              <InlineLink
+                testID="run-program-use-race-day"
+                onPress={() => onSchedule({ endDay: raceDay })}
+              >
+                {t('recordActivity.program.goalUseRaceDay', {
+                  date: dayLabel(raceDay),
+                  defaultValue: 'Use race day ({{date}})',
+                })}
+              </InlineLink>
+            ) : null}
             {schedule.endDay ? (
               <InlineLink onPress={() => onSchedule({ endDay: null })}>
                 {t('recordActivity.program.goalClear', {

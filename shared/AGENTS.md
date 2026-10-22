@@ -5,6 +5,8 @@ _Last updated: 2026-10-22_
 *Last updated: 2026-10-16*
 *Last updated: 2026-10-19*
 *Last updated: 2026-10-18*
+*Last updated: 2026-10-19*
+*Last updated: 2026-10-19*
 
 `@workspace/shared` is a source-first TypeScript workspace library package for schemas, constants, and timezone/day helpers consumed by SparkyFitnessServer, SparkyFitnessFrontend, and SparkyFitnessMobile.
 

@@ -7491,7 +7491,8 @@
       "fiftyKDescription": "50K: sixteen weeks, three runs a week, with long runs building to four hours and a taper. For when you have finished a marathon.",
       "fiftyK2Description": "50K: sixteen weeks, two runs a week, with long runs building to four hours and a taper. For when you have finished a marathon but cannot train more often.",
       "hundredKDescription": "100K: eighteen weeks, three runs a week, with long runs of up to four hours and a middle run that grows to 2 hours 20 minutes. For when you have finished a 50K.",
-      "hundredK2Description": "100K: eighteen weeks, two runs a week, with long runs building to four hours and a taper. For when you have finished a 50K but cannot train more often."
+      "hundredK2Description": "100K: eighteen weeks, two runs a week, with long runs building to four hours and a taper. For when you have finished a 50K but cannot train more often.",
+      "goalUseRaceDay": "Use race day ({{date}})"
     },
     "watch": {
       "title": "Record with",
@@ -8411,6 +8412,38 @@
       "later": "Move my goal to {{date}}",
       "lower": "Plan a {{distance}} instead",
       "continue": "Continue anyway"
+    },
+    "goals": {
+      "title": "Running goals",
+      "intro": "Set a weekly distance to aim for and a race to count down to.",
+      "set": "Set a goal",
+      "edit": "Edit",
+      "none": "None",
+      "unit": {
+        "km": "km",
+        "miles": "mi"
+      },
+      "weeklyLabel": "Weekly distance ({{unit}})",
+      "weeklyProgress": "{{done}} of {{target}} {{unit}} this week",
+      "weeklyReached": "Weekly goal reached",
+      "weeklyNeeded_one": "{{amount}} {{unit}} today to reach it ({{count}} day left)",
+      "weeklyNeeded_other": "About {{amount}} {{unit}} a day to reach it ({{count}} days left)",
+      "raceNameLabel": "Race name",
+      "raceDefaultName": "Race day",
+      "raceDistanceLabel": "Race distance ({{unit}})",
+      "raceDateLabel": "Race day",
+      "pickDate": "Pick a date",
+      "clearRace": "Remove race",
+      "raceToday": "Race day is today",
+      "raceIn_one": "{{count}} day to go",
+      "raceIn_other": "{{count}} days to go",
+      "racePast_one": "{{count}} day ago",
+      "racePast_other": "{{count}} days ago",
+      "errors": {
+        "distance": "Enter a distance above zero, or leave it empty.",
+        "raceDay": "Pick the race day, or clear the race name and distance.",
+        "save": "Could not save your goals. Please try again."
+      }
     }
   },
   "speechVoice": {

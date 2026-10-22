@@ -156,6 +156,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `cycle_test_entries` | Ovulation and pregnancy test logs |
 | `pregnancies` | Pregnancy records (due date, status) |
 | `run_programs` | A person's run program, their place in it, its Diary schedule, goal date, adjustments to it and which diary entries its workouts were done as |
+| `run_goals` | A person's weekly running distance target and the race they are counting down to |
 | `custom_run_programs` | A person's own run or walk plans: a name, the activity and an ordered list of workouts, each a list of timed steps. Starting one copies it into `run_programs` |
 | `routes` | A person's saved routes: name, activity, source (drawn, GPX, activity), distance, elevation gain, a simplified track of points and optional turn cues |
 | `pregnancy_kick_sessions` | Fetal kick-counter sessions |
