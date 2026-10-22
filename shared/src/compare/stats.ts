@@ -228,6 +228,15 @@ export function correlationTest(
   return { p, low: Math.tanh(z - half), high: Math.tanh(z + half) };
 }
 
+/** A finding only when p < 0.05 and the 95% range leaves out 0: at a small effective n the two can disagree. */
+export function isSignificant(test: {
+  p: number;
+  low: number;
+  high: number;
+}): boolean {
+  return test.p < 0.05 && (test.low > 0 || test.high < 0);
+}
+
 /** Welch's t-test where each group's variance is divided by its effective n. */
 export function welch(
   a: readonly number[],
