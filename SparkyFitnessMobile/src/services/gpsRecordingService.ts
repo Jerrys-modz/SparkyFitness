@@ -43,6 +43,7 @@ import {
   planHasDistanceSteps,
   stepHeartRateAlert,
   stepPaceAlert,
+  zone2LiveBand,
   type HeartRateAlertState,
   type HeartRateBand,
   type IntervalCursor,
@@ -757,7 +758,17 @@ export function noteLiveHeartRate(
       );
       if (position && !position.done) {
         stepIndex = position.index;
-        if (!session.heartRateStepsOff) band = position.step.heartRate ?? band;
+        if (!session.heartRateStepsOff && position.step.heartRate) {
+          // A Zone 2 stretch is judged by the range loosened for settling and
+          // drift, so a long steady run is not nagged for a few beats.
+          band =
+            position.step.effort === 'zone2'
+              ? zone2LiveBand(
+                  position.step.heartRate,
+                  position.step.seconds - position.remaining
+                )
+              : position.step.heartRate;
+        }
       }
     }
     if (stepIndex !== heartRateAlertStep) {
