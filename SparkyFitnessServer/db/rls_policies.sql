@@ -822,7 +822,7 @@ USING (
   -- Admin-created global providers: all authenticated users can see them if active
   (is_public = TRUE AND is_active = TRUE AND authenticated_user_id() IS NOT NULL)
   -- Owner always sees their own providers
-  OR (is_public = FALSE AND current_user_id() = user_id)
+  OR (is_public = FALSE AND authenticated_user_id() = user_id)
   OR (
     -- Explicit family delegation: share_external_providers permission, non-strictly-private only, must be active
     is_public = FALSE AND is_active = TRUE AND has_family_access(user_id, 'share_external_providers') AND EXISTS (

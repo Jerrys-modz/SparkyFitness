@@ -9,6 +9,7 @@ import WatchConnectivity, {
 import {
   addHeartRateSamples,
   clearAppleWorkoutZones,
+  clearSavedRecordingEntryId,
   elapsedSeconds,
   finishRecording,
   hydrate,
@@ -253,7 +254,10 @@ export function useWatchRecordingBridge(enabled: boolean): void {
         const entryId = savedRecordingEntryId(payload.sessionId);
         if (!entryId || !peekAppleWorkoutZones(payload.sessionId)) return;
         void attachExerciseEntryWatchTelemetry(entryId, { appleZones: zones })
-          .then(() => clearAppleWorkoutZones(payload.sessionId))
+          .then(() => {
+            clearAppleWorkoutZones(payload.sessionId);
+            clearSavedRecordingEntryId(payload.sessionId);
+          })
           .catch((error: unknown) => logError('store apple zones', error));
       }
     );

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -93,7 +93,9 @@ const HeartRateZonesSettingsScreen: React.FC<
   // The Health permission sheet can sit up for a while. Read the form as it
   // is when the answer comes back, not as it was when the button was pressed.
   const draftRef = useRef(draft);
-  draftRef.current = draft;
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
   const importingRef = useRef(false);
   const canImportApple = appleHeartZonesAvailable();
 

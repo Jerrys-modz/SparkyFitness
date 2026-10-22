@@ -37,6 +37,7 @@ import {
 
 interface MetricContext {
   tz: string;
+  /** Lower bpm of each heart rate zone, for weighting a session's load. */
   zoneFloors: readonly number[];
 }
 

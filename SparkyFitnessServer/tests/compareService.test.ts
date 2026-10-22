@@ -6,31 +6,30 @@ import {
   computeDailyWeightTrend,
   dayOfWeek,
   deviationsFromOwnNormal,
+  percentMaxFloors,
   todayInZone,
   weeklySeries,
   type DaySeries,
-  percentMaxFloors,
 } from '@workspace/shared';
 import compareRepository from '../models/compareRepository.js';
 import reportRepository from '../models/reportRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import userRepository from '../models/userRepository.js';
-import heartRateZoneService from '../services/heartRateZoneService.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import { getCompare, loadMetricDays } from '../services/compareService.js';
 
-vi.mock('../services/heartRateZoneService.js', () => ({
-  default: {
-    resolveZonesForUser: vi.fn().mockResolvedValue({
-      maxHr: 180,
-      floors: [90, 108, 126, 144, 162],
-    }),
-  },
-}));
 vi.mock('../models/compareRepository.js');
 vi.mock('../models/reportRepository.js');
 vi.mock('../models/preferenceRepository.js');
 vi.mock('../models/userRepository.js');
+vi.mock('../models/heartRateZoneRepository.js', () => ({
+  getHeartRateZoneSettings: vi.fn().mockResolvedValue({
+    maxHeartRate: null,
+    restingHeartRate: null,
+    method: 'percent_max',
+    customFloors: null,
+  }),
+}));
 vi.mock('../utils/timezoneLoader.js', () => ({ loadUserTimezone: vi.fn() }));
 // Pin "today" without touching the clock: only the service's own call is replaced.
 vi.mock('@workspace/shared', async (importOriginal) => ({
@@ -726,11 +725,10 @@ describe('getCompare', () => {
     expect(response.deviations.a['2026-03-08']).toBeDefined();
   });
 
-  it('training load is scored against the person’s heart rate zones', async () => {
-    vi.mocked(heartRateZoneService.resolveZonesForUser).mockResolvedValue({
-      maxHr: 180,
-      floors: percentMaxFloors(180),
-    } as never);
+  it('training load is scored against the zones from the profile age', async () => {
+    vi.mocked(userRepository.getUserProfile).mockResolvedValue({
+      date_of_birth: '1986-06-01', // 40 on TODAY: max 185 (Nes)
+    });
     vi.mocked(compareRepository.getExerciseFirstDay).mockResolvedValue(
       '2026-01-01'
     );
@@ -747,16 +745,15 @@ describe('getCompare', () => {
       end: '2026-06-30',
     });
 
-    // 150 of 180 is 83% (×4); against the default 190 it would be ×3.
+    // 150 of 185 is 81% (×4); against the default 190 it would be ×3.
     expect(response.a.values['2026-06-10']).toBe(120);
     expect(response.a.values['2026-06-11']).toBe(0);
   });
 
-  it('training load as the second metric also uses the heart rate zones', async () => {
-    vi.mocked(heartRateZoneService.resolveZonesForUser).mockResolvedValue({
-      maxHr: 180,
-      floors: percentMaxFloors(180),
-    } as never);
+  it('training load as the second metric also uses the profile age', async () => {
+    vi.mocked(userRepository.getUserProfile).mockResolvedValue({
+      date_of_birth: '1986-06-01',
+    });
     vi.mocked(compareRepository.getExerciseFirstDay).mockResolvedValue(
       '2026-01-01'
     );

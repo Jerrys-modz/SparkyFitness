@@ -279,8 +279,8 @@ async function attachWatchTelemetryToExerciseEntry(
   hrSamples: HeartRateSampleRequest[] | undefined,
   activeEnergyKcal?: number,
   durationMinutes?: number,
-  strideLengthCm?: number | null,
-  appleZones?: unknown
+  appleZones?: unknown,
+  strideLengthCm?: number | null
 ): Promise<void> {
   // Fail closed: family/delegate diary *read* can SELECT another user's
   // entry via RLS, but this route must not 204 after an UPDATE that

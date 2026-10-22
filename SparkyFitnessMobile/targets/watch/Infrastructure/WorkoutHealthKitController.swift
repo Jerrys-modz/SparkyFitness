@@ -351,8 +351,8 @@ final class WorkoutHealthKitController: NSObject {
                     finishTail([])
                     return
                 }
-                DispatchQueue.main.async { self.lastSavedWorkout = workout }
                 self.storeAppleZones(from: workout)
+                DispatchQueue.main.async { self.lastSavedWorkout = workout }
                 self.readHeartRate(
                     matching: HKQuery.predicateForObjects(from: workout),
                     skipThrough: skipThrough

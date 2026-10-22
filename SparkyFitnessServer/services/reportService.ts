@@ -46,8 +46,8 @@ import {
 } from '@workspace/shared';
 import { userAge } from '../utils/dateHelpers.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
-import { loadFirstDayOfWeek } from '../utils/firstDayOfWeek.js';
 import heartRateZoneService from './heartRateZoneService.js';
+import { loadFirstDayOfWeek } from '../utils/firstDayOfWeek.js';
 import { parseJsonArrayField } from '../utils/exerciseJsonFields.js';
 
 interface CustomNutrientDefinition {

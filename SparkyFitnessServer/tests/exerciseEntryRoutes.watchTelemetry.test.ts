@@ -198,10 +198,11 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       undefined,
       undefined,
       undefined,
+      undefined,
       101.5,
       undefined,
     ]);
-    expect(calls[1][6]).toBeNull();
+    expect(calls[1][7]).toBeNull();
   });
 
   it('rejects a body carrying neither heart rate nor active energy', async () => {

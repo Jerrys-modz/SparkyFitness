@@ -346,11 +346,6 @@ export const attachExerciseEntryWatchTelemetryRequestSchema = z
      */
     durationMinutes: z.number().nonnegative().optional(),
     /**
-     * Stride length of the entry, in cm; null clears it. Telemetry only: it
-     * leaves the duration and everything else on the entry alone.
-     */
-    strideLengthCm: z.number().positive().max(500).nullable().optional(),
-    /**
      * Apple's time-in-zone for the whole workout, from the finished
      * HKWorkout. When these five zones are usable they are stored as the
      * device's zones and the series is not bucketed again. One post per
@@ -371,6 +366,11 @@ export const attachExerciseEntryWatchTelemetryRequestSchema = z
       )
       .max(8)
       .optional(),
+    /**
+     * Stride length of the entry, in cm; null clears it. Telemetry only: it
+     * leaves the duration and everything else on the entry alone.
+     */
+    strideLengthCm: z.number().positive().max(500).nullable().optional(),
   })
   .strict()
   .refine(
