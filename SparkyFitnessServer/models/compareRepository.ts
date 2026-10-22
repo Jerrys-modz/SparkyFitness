@@ -122,24 +122,16 @@ async function getMeditationDays(userId: string, from: string, to: string) {
   }));
 }
 
-async function firstDay(
-  userId: string,
-  table: 'mindfulness_sessions' | 'exercise_entries',
-  extraWhere = ''
-): Promise<string | null> {
+/** The earliest day with a meditation session, or null. Takes no range: it anchors "no record means 0". */
+async function getMeditationFirstDay(userId: string) {
   const rows = await query<{ day: string | null }>(
     userId,
     `SELECT TO_CHAR(MIN(entry_date), 'YYYY-MM-DD') AS day
-       FROM ${table}
-      WHERE user_id = $1${extraWhere}`,
+       FROM mindfulness_sessions
+      WHERE user_id = $1`,
     [userId]
   );
   return rows[0]?.day ?? null;
-}
-
-/** The earliest day with a meditation session, or null. Takes no range: it anchors "no record means 0". */
-async function getMeditationFirstDay(userId: string) {
-  return firstDay(userId, 'mindfulness_sessions');
 }
 
 async function getCardioMinuteDays(userId: string, from: string, to: string) {
@@ -177,11 +169,15 @@ async function getStrengthVolumeDays(userId: string, from: string, to: string) {
 
 /** The earliest day with any logged exercise, or null. Takes no range. */
 async function getExerciseFirstDay(userId: string) {
-  return firstDay(
+  const rows = await query<{ day: string | null }>(
     userId,
-    'exercise_entries',
-    " AND exercise_name != 'Active Calories'"
+    `SELECT TO_CHAR(MIN(entry_date), 'YYYY-MM-DD') AS day
+       FROM exercise_entries
+      WHERE user_id = $1
+        AND exercise_name != 'Active Calories'`,
+    [userId]
   );
+  return rows[0]?.day ?? null;
 }
 
 async function getCheckInDays(userId: string, from: string, to: string) {
