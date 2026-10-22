@@ -215,12 +215,7 @@ export function adherenceTier(pct: number): AdherenceTier {
   return 'poor';
 }
 
-export type AdherenceBarLevel =
-  | 'idle'
-  | 'full'
-  | 'partial'
-  | 'low'
-  | 'missed';
+export type AdherenceBarLevel = 'idle' | 'full' | 'partial' | 'low' | 'missed';
 
 export interface AdherenceBar {
   level: AdherenceBarLevel;
@@ -306,11 +301,7 @@ export function monthDoseTotal(
 }
 
 export type DayLogStatus =
-  | 'all_taken'
-  | 'partial'
-  | 'mostly_skipped'
-  | 'all_skipped'
-  | 'snoozed_only';
+  'all_taken' | 'partial' | 'mostly_skipped' | 'all_skipped' | 'snoozed_only';
 
 /**
  * Colours a day by completion ratio (taken + as-needed vs skipped), not by a single

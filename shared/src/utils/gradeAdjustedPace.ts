@@ -53,7 +53,7 @@ const nth = (values: readonly number[], index: number): number =>
 const clampGrade = (gradePercent: number): number =>
   Math.min(
     GAP_MAX_GRADE_PERCENT,
-    Math.max(-GAP_MAX_GRADE_PERCENT, gradePercent),
+    Math.max(-GAP_MAX_GRADE_PERCENT, gradePercent)
   );
 
 /** Cost of running a metre at a gradient, J per kg per metre (Minetti 2002). */
@@ -84,7 +84,7 @@ export function gradeAdjustmentFactor(gradePercent: number): number {
  */
 export function gradeAdjustedPace(
   paceSeconds: number,
-  gradePercent: number,
+  gradePercent: number
 ): number | null {
   if (!Number.isFinite(paceSeconds) || !(paceSeconds > 0)) return null;
   if (!Number.isFinite(gradePercent)) return null;
@@ -120,17 +120,17 @@ export interface ElevationProfile {
  * value). Callers hide GAP on null rather than showing the plain pace again.
  */
 export function buildElevationProfile(
-  samples: readonly ElevationSample[],
+  samples: readonly ElevationSample[]
 ): ElevationProfile | null {
   const xs: number[] = [];
   const ys: number[] = [];
   for (const sample of samples) {
     if (!Number.isFinite(sample.meters)) continue;
     const altitude = sample.altitude;
-    if (typeof altitude !== "number" || !Number.isFinite(altitude)) continue;
+    if (typeof altitude !== 'number' || !Number.isFinite(altitude)) continue;
     const accuracy = sample.verticalAccuracy;
     if (
-      typeof accuracy === "number" &&
+      typeof accuracy === 'number' &&
       (accuracy < 0 || accuracy > GAP_MAX_VERTICAL_ACCURACY_METERS)
     ) {
       continue;
@@ -218,7 +218,7 @@ export interface GradedWindow {
  */
 export function averageGradeAdjustedPace(
   windows: readonly GradedWindow[],
-  unitMeters: number,
+  unitMeters: number
 ): number | null {
   if (!(unitMeters > 0)) return null;
   let totalMeters = 0;

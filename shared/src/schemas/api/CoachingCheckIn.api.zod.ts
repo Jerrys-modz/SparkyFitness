@@ -1,22 +1,22 @@
-import { z } from "zod";
+import { z } from 'zod';
 import {
   COACHING_GOAL_DIRECTIONS,
   COACHING_MAX_RATE_KG_PER_WEEK,
-} from "../../utils/weightCoaching.ts";
+} from '../../utils/weightCoaching.ts';
 
 const dayString = z.iso.date();
 
 export const coachingGoalDirectionSchema = z.enum(COACHING_GOAL_DIRECTIONS);
 
 export const coachingReasonSchema = z.enum([
-  "insufficient-data",
-  "low-adherence",
-  "implausible-estimate",
-  "on-track",
-  "behind",
-  "ahead",
-  "drifting",
-  "off-target-intake",
+  'insufficient-data',
+  'low-adherence',
+  'implausible-estimate',
+  'on-track',
+  'behind',
+  'ahead',
+  'drifting',
+  'off-target-intake',
 ]);
 
 export const coachingSettingsSchema = z.object({
@@ -30,7 +30,7 @@ export type CoachingSettings = z.infer<typeof coachingSettingsSchema>;
 export const updateCoachingSettingsBodySchema = coachingSettingsSchema
   .partial()
   .refine((body) => Object.keys(body).length > 0, {
-    message: "At least one setting is required.",
+    message: 'At least one setting is required.',
   });
 export type UpdateCoachingSettingsBody = z.infer<
   typeof updateCoachingSettingsBodySchema
@@ -66,7 +66,7 @@ export const coachingCheckInResponseSchema = z.object({
         weightKg: z.number(),
         trendKg: z.number(),
         outlier: z.boolean(),
-      }),
+      })
     ),
     currentKg: z.number().nullable(),
     weeklyRateKg: z.number().nullable(),
@@ -81,7 +81,7 @@ export const coachingCheckInResponseSchema = z.object({
         date: dayString,
         kcal: z.number(),
         smoothedKcal: z.number(),
-      }),
+      })
     ),
   }),
   goal: z.object({
@@ -92,7 +92,7 @@ export const coachingCheckInResponseSchema = z.object({
   current: targetsSchema,
   suggested: targetsSchema.nullable(),
   changeKcal: z.number(),
-  limits: z.array(z.enum(["weekly-cap", "safety-floor", "uncertain-estimate"])),
+  limits: z.array(z.enum(['weekly-cap', 'safety-floor', 'uncertain-estimate'])),
   proteinFloorApplied: z.boolean(),
   actionable: z.boolean(),
   settings: coachingSettingsSchema,

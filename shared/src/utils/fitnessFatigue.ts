@@ -1,6 +1,6 @@
 import { addDays, daysBetween } from './timezone.ts';
+import { FALLBACK_MAX_HR, percentMaxFloors } from './heartRateZones.ts';
 import {
-  DEFAULT_MAX_HEART_RATE,
   MIN_HISTORY_DAYS,
   sessionLoad,
   type LoadSession,
@@ -51,16 +51,17 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 export function computeFitnessFatigue(
   sessions: readonly LoadSession[],
   today: string,
-  maxHeartRate: number = DEFAULT_MAX_HEART_RATE,
+  maxHeartRate: number = FALLBACK_MAX_HR,
   days: number = CURVE_DAYS
 ): FitnessFatigue {
   const first = addDays(today, -(days - 1));
+  const floors = percentMaxFloors(maxHeartRate);
   const daily = new Array<number>(days).fill(0);
   let earliest: string | null = null;
   for (const session of sessions) {
     if (session.day < first || session.day > today) continue;
     const index = daysBetween(first, session.day);
-    daily[index] = (daily[index] ?? 0) + sessionLoad(session, maxHeartRate);
+    daily[index] = (daily[index] ?? 0) + sessionLoad(session, floors);
     if (earliest === null || session.day < earliest) earliest = session.day;
   }
   if (earliest === null) return { points: [], today: null, status: 'noData' };

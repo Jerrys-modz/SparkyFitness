@@ -4,7 +4,7 @@ import {
   type ElevationProfile,
   type ElevationSample,
   type GradedWindow,
-} from "./gradeAdjustedPace.ts";
+} from './gradeAdjustedPace.ts';
 
 /**
  * Grade-adjusted pace over a whole track. The model and the gradient maths are
@@ -42,7 +42,7 @@ const MIN_MOVING_SPEED_MPS = 1000 / 3600;
  */
 export function trackWindows(
   samples: readonly TrackSample[],
-  profile: ElevationProfile | null,
+  profile: ElevationProfile | null
 ): TrackWindow[] {
   const windows: TrackWindow[] = [];
   let anchor = samples[0];
@@ -85,7 +85,7 @@ export interface GradeAdjustedResult {
 export function gradeAdjustedForSamples(
   samples: readonly TrackSample[],
   unitMeters: number,
-  ranges: readonly { fromMeters: number; toMeters: number }[] = [],
+  ranges: readonly { fromMeters: number; toMeters: number }[] = []
 ): GradeAdjustedResult {
   const none: GradeAdjustedResult = {
     averageSecondsPerUnit: null,
@@ -101,10 +101,10 @@ export function gradeAdjustedForSamples(
       averageGradeAdjustedPace(
         windows.filter(
           (window) =>
-            window.endMeters > fromMeters && window.endMeters <= toMeters,
+            window.endMeters > fromMeters && window.endMeters <= toMeters
         ),
-        unitMeters,
-      ),
+        unitMeters
+      )
     ),
   };
 }

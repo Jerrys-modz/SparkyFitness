@@ -1,4 +1,4 @@
-import type { GpsTrackPoint } from "../schemas/database/ExerciseEntryGpsPoints.zod.ts";
+import type { GpsTrackPoint } from '../schemas/database/ExerciseEntryGpsPoints.zod.ts';
 
 /**
  * Running dynamics a watch or sensor measures per stride: ground contact time,
@@ -17,14 +17,14 @@ const POWER_WATTS = { min: 1, max: 1500 };
 const MIN_READINGS = 3;
 
 export type RunningDynamicsKey =
-  | "groundContactTimeMs"
-  | "verticalOscillationMm"
-  | "strideLengthCm"
-  | "powerWatts";
+  | 'groundContactTimeMs'
+  | 'verticalOscillationMm'
+  | 'strideLengthCm'
+  | 'powerWatts';
 
 /** The measured metrics plus the ratio derived from two of them. */
 export type RunningDynamicsSeriesKey =
-  RunningDynamicsKey | "verticalRatioPercent";
+  RunningDynamicsKey | 'verticalRatioPercent';
 
 type Bounds = { min: number; max: number };
 
@@ -35,20 +35,20 @@ const BOUNDS: Record<RunningDynamicsKey, Bounds> = {
   powerWatts: POWER_WATTS,
 };
 
-const FIELD: Record<RunningDynamicsKey, "gct" | "vo" | "stride" | "power"> = {
-  groundContactTimeMs: "gct",
-  verticalOscillationMm: "vo",
-  strideLengthCm: "stride",
-  powerWatts: "power",
+const FIELD: Record<RunningDynamicsKey, 'gct' | 'vo' | 'stride' | 'power'> = {
+  groundContactTimeMs: 'gct',
+  verticalOscillationMm: 'vo',
+  strideLengthCm: 'stride',
+  powerWatts: 'power',
 };
 
 type DynamicsPoint = Pick<
   GpsTrackPoint,
-  "t" | "gct" | "vo" | "stride" | "power"
+  't' | 'gct' | 'vo' | 'stride' | 'power'
 >;
 
 const valid = (value: unknown, bounds: Bounds): value is number =>
-  typeof value === "number" &&
+  typeof value === 'number' &&
   Number.isFinite(value) &&
   value >= bounds.min &&
   value <= bounds.max;
@@ -60,7 +60,7 @@ const valid = (value: unknown, bounds: Bounds): value is number =>
  */
 export function verticalRatioPercent(
   verticalOscillationMm: number | null | undefined,
-  strideLengthCm: number | null | undefined,
+  strideLengthCm: number | null | undefined
 ): number | null {
   if (!valid(verticalOscillationMm, VERTICAL_OSCILLATION_MM)) return null;
   if (!valid(strideLengthCm, STRIDE_CM)) return null;
@@ -86,7 +86,7 @@ const round1 = (value: number) => Math.round(value * 10) / 10;
 
 /** Per-run averages of what the track's points carry; null for what they lack. */
 export function summarizeRunningDynamics(
-  points: readonly DynamicsPoint[],
+  points: readonly DynamicsPoint[]
 ): RunningDynamicsSummary {
   const average = (key: RunningDynamicsKey): number | null => {
     const field = FIELD[key];
@@ -101,16 +101,16 @@ export function summarizeRunningDynamics(
     }
     return count >= MIN_READINGS ? round1(sum / count) : null;
   };
-  const verticalOscillationMm = average("verticalOscillationMm");
-  const strideLengthCm = average("strideLengthCm");
+  const verticalOscillationMm = average('verticalOscillationMm');
+  const strideLengthCm = average('strideLengthCm');
   return {
-    groundContactTimeMs: average("groundContactTimeMs"),
+    groundContactTimeMs: average('groundContactTimeMs'),
     verticalOscillationMm,
     strideLengthCm,
-    powerWatts: average("powerWatts"),
+    powerWatts: average('powerWatts'),
     verticalRatioPercent: verticalRatioPercent(
       verticalOscillationMm,
-      strideLengthCm,
+      strideLengthCm
     ),
   };
 }
@@ -129,15 +129,15 @@ export interface RunningDynamicsReading {
  */
 export function runningDynamicsSeries(
   points: readonly DynamicsPoint[],
-  key: RunningDynamicsSeriesKey,
+  key: RunningDynamicsSeriesKey
 ): RunningDynamicsReading[] {
   const readings: { timestamp: number; value: number }[] = [];
   for (const point of points) {
     const value =
-      key === "verticalRatioPercent"
+      key === 'verticalRatioPercent'
         ? verticalRatioPercent(point.vo, point.stride)
         : point[FIELD[key]];
-    if (key === "verticalRatioPercent") {
+    if (key === 'verticalRatioPercent') {
       if (value == null) continue;
     } else if (!valid(value, BOUNDS[key])) {
       continue;

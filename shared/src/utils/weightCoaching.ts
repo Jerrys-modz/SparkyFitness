@@ -1,11 +1,11 @@
-import { ENERGY_DENSITY_KCAL_PER_KG } from "../constants/calorieConstants.ts";
+import { ENERGY_DENSITY_KCAL_PER_KG } from '../constants/calorieConstants.ts';
 import {
   addDays,
   compareDays,
   dayOfWeek,
   daysBetween,
   isDayString,
-} from "./timezone.ts";
+} from './timezone.ts';
 
 // Weekly weight coaching: turns the logged weight trend and logged intake into
 // an estimate of real expenditure, compares progress with the goal rate and
@@ -65,25 +65,25 @@ export const COACHING_RATE_TOLERANCE_FRACTION = 0.25;
 const Z_95 = 1.96;
 const DEFAULT_MACRO_SPLIT = { protein: 0.3, carbs: 0.4, fat: 0.3 } as const;
 
-export const COACHING_GOAL_DIRECTIONS = ["lose", "maintain", "gain"] as const;
+export const COACHING_GOAL_DIRECTIONS = ['lose', 'maintain', 'gain'] as const;
 export type CoachingGoalDirection = (typeof COACHING_GOAL_DIRECTIONS)[number];
 
 /** Why the check-in says what it says. Clients map each key to plain-language copy. */
 export type CoachingReason =
-  | "insufficient-data"
-  | "low-adherence"
-  | "implausible-estimate"
-  | "on-track"
-  | "behind"
-  | "ahead"
+  | 'insufficient-data'
+  | 'low-adherence'
+  | 'implausible-estimate'
+  | 'on-track'
+  | 'behind'
+  | 'ahead'
   /** A maintain goal whose weight is moving. */
-  | "drifting"
+  | 'drifting'
   /** The target is right for the estimated expenditure, so the weight is off because intake is not following it. */
-  | "off-target-intake";
+  | 'off-target-intake';
 
 /** What bound the suggested calories, beyond the estimate itself. */
 export type CoachingLimit =
-  "weekly-cap" | "safety-floor" | "uncertain-estimate";
+  'weekly-cap' | 'safety-floor' | 'uncertain-estimate';
 
 export interface CoachingWeighIn {
   /** YYYY-MM-DD. */
@@ -275,13 +275,13 @@ function fitWeights(points: readonly XY[]): WeightFit | null {
   if (points.length < 3) return null;
   const rough = theilSenLine(points);
   const residuals = points.map(
-    (p) => p.y - (rough.intercept + rough.slope * p.x),
+    (p) => p.y - (rough.intercept + rough.slope * p.x)
   );
   const centre = median(residuals);
   const mad = median(residuals.map((r) => Math.abs(r - centre)));
   const scale = Math.max(1.4826 * mad, COACHING_MIN_WEIGHT_SCALE_KG);
   const inlier = residuals.map(
-    (r) => Math.abs(r - centre) <= COACHING_OUTLIER_SIGMAS * scale,
+    (r) => Math.abs(r - centre) <= COACHING_OUTLIER_SIGMAS * scale
   );
   const kept = points.filter((_, i) => inlier[i]);
   const fit = leastSquares(kept);
@@ -292,7 +292,7 @@ function fitWeights(points: readonly XY[]): WeightFit | null {
 function dedupeWeighIns(
   weighIns: readonly CoachingWeighIn[],
   from: string,
-  to: string,
+  to: string
 ): CoachingWeighIn[] {
   const byDay = new Map<string, number>();
   for (const w of weighIns) {
@@ -322,7 +322,7 @@ function analyzeWindow(
   intakeIn: readonly CoachingIntakeDay[],
   endDay: string,
   /** A day still being logged: its intake is left out, since it is not a whole day yet. */
-  partialDay?: string,
+  partialDay?: string
 ): WindowAnalysis {
   const start = addDays(endDay, -(COACHING_WINDOW_DAYS - 1));
   const lastIntakeDay = partialDay === endDay ? addDays(endDay, -1) : endDay;
@@ -340,15 +340,15 @@ function analyzeWindow(
   }
   const flagged = [...intakeByDay.values()].filter(
     (d) =>
-      d.incomplete === true && Number.isFinite(d.calories) && d.calories > 0,
+      d.incomplete === true && Number.isFinite(d.calories) && d.calories > 0
   ).length;
   const logged = [...intakeByDay.values()].filter(
     (d) =>
-      d.incomplete !== true && Number.isFinite(d.calories) && d.calories > 0,
+      d.incomplete !== true && Number.isFinite(d.calories) && d.calories > 0
   );
   const usual = median(logged.map((d) => d.calories));
   const kept = logged.filter(
-    (d) => d.calories >= COACHING_INCOMPLETE_DAY_FRACTION * usual,
+    (d) => d.calories >= COACHING_INCOMPLETE_DAY_FRACTION * usual
   );
   const excludedDays = flagged + (logged.length - kept.length);
 
@@ -392,21 +392,21 @@ function analyzeWindow(
   const windowDays = first
     ? Math.max(
         0,
-        Math.min(COACHING_WINDOW_DAYS, daysBetween(first, lastIntakeDay) + 1),
+        Math.min(COACHING_WINDOW_DAYS, daysBetween(first, lastIntakeDay) + 1)
       )
     : 0;
   const spanDays =
     usedWeighIns.length > 1
       ? daysBetween(
           usedWeighIns[0]!.date,
-          usedWeighIns[usedWeighIns.length - 1]!.date,
+          usedWeighIns[usedWeighIns.length - 1]!.date
         )
       : 0;
   const adherence = windowDays > 0 ? Math.min(1, kept.length / windowDays) : 0;
   const missingLoggedDays = Math.max(0, COACHING_MIN_LOGGED_DAYS - kept.length);
   const missingWeighIns = Math.max(
     0,
-    COACHING_MIN_WEIGH_INS - usedWeighIns.length,
+    COACHING_MIN_WEIGH_INS - usedWeighIns.length
   );
   const missingSpanDays = Math.max(0, COACHING_MIN_WEIGH_SPAN_DAYS - spanDays);
   const quality: CoachingDataQuality = {
@@ -449,7 +449,7 @@ function analyzeWindow(
 export function buildExpenditureHistory(
   weighIns: readonly CoachingWeighIn[],
   intake: readonly CoachingIntakeDay[],
-  today: string,
+  today: string
 ): ExpenditureHistoryPoint[] {
   const raw: ExpenditureEstimate[] = [];
   for (let k = COACHING_HISTORY_POINTS - 1; k >= 0; k--) {
@@ -457,7 +457,7 @@ export function buildExpenditureHistory(
       weighIns,
       intake,
       addDays(today, -k * COACHING_HISTORY_STEP_DAYS),
-      today,
+      today
     );
     if (estimate) raw.push(estimate);
   }
@@ -473,13 +473,13 @@ export function buildExpenditureHistory(
 }
 
 function signOf(direction: CoachingGoalDirection): -1 | 0 | 1 {
-  return direction === "lose" ? -1 : direction === "gain" ? 1 : 0;
+  return direction === 'lose' ? -1 : direction === 'gain' ? 1 : 0;
 }
 
 /** Signed kg per week a goal asks for. */
 export function targetWeeklyChangeKg(
   direction: CoachingGoalDirection,
-  rateKgPerWeek: number,
+  rateKgPerWeek: number
 ): number {
   const rate = Number.isFinite(rateKgPerWeek)
     ? Math.min(Math.max(rateKgPerWeek, 0), COACHING_MAX_RATE_KG_PER_WEEK)
@@ -497,7 +497,7 @@ export function splitMacrosForCalories(
   current: CoachingTargets,
   calories: number,
   weightKg: number | null,
-  budgetOffsetKcal = 0,
+  budgetOffsetKcal = 0
 ): { targets: CoachingTargets; proteinFloorApplied: boolean } {
   const pKcal = 4 * current.protein;
   const cKcal = 4 * current.carbs;
@@ -534,12 +534,12 @@ export function splitMacrosForCalories(
 }
 
 export type CoachingDataNote =
-  | { kind: "logDays"; count: number }
-  | { kind: "weighIns"; count: number }
-  | { kind: "weighSpan"; count: number }
-  | { kind: "lowAdherence"; percent: number }
-  | { kind: "excludedDays"; count: number }
-  | { kind: "outliers"; count: number };
+  | { kind: 'logDays'; count: number }
+  | { kind: 'weighIns'; count: number }
+  | { kind: 'weighSpan'; count: number }
+  | { kind: 'lowAdherence'; percent: number }
+  | { kind: 'excludedDays'; count: number }
+  | { kind: 'outliers'; count: number };
 
 /**
  * What would make the estimate more reliable, most important first. Empty when
@@ -547,29 +547,29 @@ export type CoachingDataNote =
  */
 export function coachingDataNotes(
   quality: CoachingDataQuality,
-  reason: CoachingReason,
+  reason: CoachingReason
 ): CoachingDataNote[] {
   const notes: CoachingDataNote[] = [];
   if (quality.missingLoggedDays > 0) {
-    notes.push({ kind: "logDays", count: quality.missingLoggedDays });
+    notes.push({ kind: 'logDays', count: quality.missingLoggedDays });
   }
   if (quality.missingWeighIns > 0) {
-    notes.push({ kind: "weighIns", count: quality.missingWeighIns });
+    notes.push({ kind: 'weighIns', count: quality.missingWeighIns });
   }
   if (quality.missingSpanDays > 0) {
-    notes.push({ kind: "weighSpan", count: quality.missingSpanDays });
+    notes.push({ kind: 'weighSpan', count: quality.missingSpanDays });
   }
-  if (reason === "low-adherence") {
+  if (reason === 'low-adherence') {
     notes.push({
-      kind: "lowAdherence",
+      kind: 'lowAdherence',
       percent: Math.round(quality.adherence * 100),
     });
   }
   if (quality.excludedDays > 0) {
-    notes.push({ kind: "excludedDays", count: quality.excludedDays });
+    notes.push({ kind: 'excludedDays', count: quality.excludedDays });
   }
   if (quality.outlierWeighIns > 0) {
-    notes.push({ kind: "outliers", count: quality.outlierWeighIns });
+    notes.push({ kind: 'outliers', count: quality.outlierWeighIns });
   }
   return notes;
 }
@@ -584,7 +584,7 @@ export function isCoachingCheckInDay(today: string, weekday: number): boolean {
  * against the goal rate and, only when it is warranted, new targets.
  */
 export function buildWeightCoachingCheckIn(
-  input: WeightCoachingInput,
+  input: WeightCoachingInput
 ): WeightCoachingCheckIn {
   const { today, current, goal } = input;
   const target = targetWeeklyChangeKg(goal.direction, goal.rateKgPerWeek);
@@ -599,7 +599,7 @@ export function buildWeightCoachingCheckIn(
 
   const base: WeightCoachingCheckIn = {
     asOf: today,
-    reason: "insufficient-data",
+    reason: 'insufficient-data',
     dataQuality: analysis.quality,
     trend: {
       series: analysis.series,
@@ -630,28 +630,28 @@ export function buildWeightCoachingCheckIn(
     return base;
   }
   if (analysis.quality.adherence < COACHING_MIN_ADHERENCE) {
-    return { ...base, reason: "low-adherence" };
+    return { ...base, reason: 'low-adherence' };
   }
   if (
     smoothed < COACHING_EXPENDITURE_MIN_KCAL ||
     smoothed > COACHING_EXPENDITURE_MAX_KCAL
   ) {
-    return { ...base, reason: "implausible-estimate" };
+    return { ...base, reason: 'implausible-estimate' };
   }
 
   const rate = analysis.estimate.weeklyRateKg;
   const sign = signOf(goal.direction);
   const tolerance = Math.max(
     COACHING_RATE_TOLERANCE_KG,
-    COACHING_RATE_TOLERANCE_FRACTION * Math.abs(target),
+    COACHING_RATE_TOLERANCE_FRACTION * Math.abs(target)
   );
   const onTrack =
     sign === 0
       ? Math.abs(rate) <= tolerance
       : Math.abs(rate - target) <= tolerance;
-  if (onTrack) return { ...base, reason: "on-track" };
+  if (onTrack) return { ...base, reason: 'on-track' };
   const reason: CoachingReason =
-    sign === 0 ? "drifting" : (rate - target) * sign > 0 ? "ahead" : "behind";
+    sign === 0 ? 'drifting' : (rate - target) * sign > 0 ? 'ahead' : 'behind';
 
   // Calories that would produce the goal rate at this expenditure.
   const wanted = smoothed + (target * ENERGY_DENSITY_KCAL_PER_KG) / 7;
@@ -662,7 +662,7 @@ export function buildWeightCoachingCheckIn(
     const step = calories - current.calories;
     if (Math.abs(step) > maxStep) {
       calories = current.calories + Math.sign(step) * maxStep;
-      limits.push("weekly-cap");
+      limits.push('weekly-cap');
     }
   }
   // Weigh-in noise: the less certain the estimate, the less of the change is
@@ -675,19 +675,19 @@ export function buildWeightCoachingCheckIn(
     Math.max(
       0,
       (COACHING_MARGIN_NO_TRUST_KCAL - margin) /
-        (COACHING_MARGIN_NO_TRUST_KCAL - COACHING_MARGIN_FULL_TRUST_KCAL),
-    ),
+        (COACHING_MARGIN_NO_TRUST_KCAL - COACHING_MARGIN_FULL_TRUST_KCAL)
+    )
   );
   if (current.calories > 0 && confidence < 1) {
     calories = current.calories + (calories - current.calories) * confidence;
-    limits.push("uncertain-estimate");
+    limits.push('uncertain-estimate');
   }
   calories =
     Math.round(calories / COACHING_CALORIE_ROUNDING_KCAL) *
     COACHING_CALORIE_ROUNDING_KCAL;
   if (input.safetyFloorKcal !== null && calories < input.safetyFloorKcal) {
     calories = Math.ceil(input.safetyFloorKcal);
-    limits.push("safety-floor");
+    limits.push('safety-floor');
   }
 
   const changeKcal = calories - current.calories;
@@ -696,7 +696,7 @@ export function buildWeightCoachingCheckIn(
     // moving at the goal rate: what is eaten is not what the target says.
     return {
       ...base,
-      reason: targetStillRight ? "off-target-intake" : reason,
+      reason: targetStillRight ? 'off-target-intake' : reason,
       limits: targetStillRight ? [] : limits,
     };
   }
@@ -704,7 +704,7 @@ export function buildWeightCoachingCheckIn(
     current,
     calories,
     trendKg,
-    input.macroBudgetOffsetKcal ?? 0,
+    input.macroBudgetOffsetKcal ?? 0
   );
   return {
     ...base,

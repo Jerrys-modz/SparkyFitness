@@ -1,5 +1,5 @@
 import { addDays, daysBetween } from './timezone.ts';
-import { DEFAULT_MAX_HEART_RATE } from './trainingLoad.ts';
+import { FALLBACK_MAX_HR as DEFAULT_MAX_HEART_RATE } from './heartRateZones.ts';
 
 /** One logged run, as far as the estimates are concerned. */
 export interface RunForEstimate {
