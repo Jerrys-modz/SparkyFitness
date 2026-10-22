@@ -163,6 +163,12 @@ describe('getOuraRedirectUri helper', () => {
       getOuraRedirectUri(undefined, 'http://localhost:3000/malicious/callback')
     ).toBe('https://sparky.test/oura/callback');
   });
+
+  it('falls back to default if protocol is not http or https', () => {
+    expect(getOuraRedirectUri(undefined, 'foo://localhost/oura/callback')).toBe(
+      'https://sparky.test/oura/callback'
+    );
+  });
 });
 
 describe('POST /oura/sync', () => {

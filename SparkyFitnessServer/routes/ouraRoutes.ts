@@ -69,6 +69,10 @@ export function getOuraRedirectUri(
       }
     }
 
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return defaultRedirectUri;
+    }
+
     const reqOrigin = parsed.origin.replace(/\/$/, '');
     if (
       trustedOrigins.has(reqOrigin) ||
