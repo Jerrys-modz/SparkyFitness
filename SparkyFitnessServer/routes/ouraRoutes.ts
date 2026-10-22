@@ -13,6 +13,78 @@ import {
 } from '../services/providerSyncClaim.js';
 const router = express.Router();
 /**
+ * Resolves and validates the canonical Oura redirect URI.
+ * Normalizes trailing slashes on base URLs and validates client-requested redirect URIs.
+ */
+export function getOuraRedirectUri(
+  req?: express.Request,
+  requestedRedirectUri?: unknown
+): string {
+  const defaultOrigin = (
+    process.env.SPARKY_FITNESS_FRONTEND_URL || 'http://localhost:8080'
+  ).replace(/\/$/, '');
+  const defaultRedirectUri = `${defaultOrigin}/oura/callback`;
+
+  if (
+    typeof requestedRedirectUri !== 'string' ||
+    !requestedRedirectUri.trim()
+  ) {
+    if (req) {
+      const headerOrigin = req.header('origin');
+      if (headerOrigin) {
+        try {
+          const originUrl = new URL(headerOrigin);
+          return `${originUrl.origin.replace(/\/$/, '')}/oura/callback`;
+        } catch {
+          // ignore invalid header
+        }
+      }
+    }
+    return defaultRedirectUri;
+  }
+
+  try {
+    const parsed = new URL(requestedRedirectUri.trim());
+    if (parsed.pathname.replace(/\/$/, '') !== '/oura/callback') {
+      return defaultRedirectUri;
+    }
+
+    const trustedOrigins = new Set<string>();
+    trustedOrigins.add(defaultOrigin);
+    if (process.env.SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS) {
+      process.env.SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS.split(',')
+        .map((o) => o.trim().replace(/\/$/, ''))
+        .filter(Boolean)
+        .forEach((o) => trustedOrigins.add(o));
+    }
+
+    if (req) {
+      const headerOrigin = req.header('origin');
+      if (headerOrigin) {
+        try {
+          trustedOrigins.add(new URL(headerOrigin).origin.replace(/\/$/, ''));
+        } catch {
+          // ignore invalid header
+        }
+      }
+    }
+
+    const reqOrigin = parsed.origin.replace(/\/$/, '');
+    if (
+      trustedOrigins.has(reqOrigin) ||
+      parsed.hostname === 'localhost' ||
+      parsed.hostname === '127.0.0.1'
+    ) {
+      return `${reqOrigin}/oura/callback`;
+    }
+
+    return defaultRedirectUri;
+  } catch {
+    return defaultRedirectUri;
+  }
+}
+
+/**
  * @swagger
  * /integrations/oura/authorize:
  *   get:
@@ -33,9 +105,7 @@ router.get(
   async (req, res) => {
     try {
       const userId = req.userId;
-      const baseUrl =
-        process.env.SPARKY_FITNESS_FRONTEND_URL || 'http://localhost:8080';
-      const redirectUri = `${baseUrl}/oura/callback`;
+      const redirectUri = getOuraRedirectUri(req, req.query.redirect_uri);
       const authorizationUrl = await ouraIntegrationService.getAuthorizationUrl(
         userId,
         redirectUri
@@ -72,11 +142,9 @@ router.post(
           .status(400)
           .json({ message: 'Authorization code not received.' });
       }
-      const { code } = bodyResult.data;
+      const { code, redirect_uri } = bodyResult.data;
       const userId = req.userId;
-      const baseUrl =
-        process.env.SPARKY_FITNESS_FRONTEND_URL || 'http://localhost:8080';
-      const redirectUri = `${baseUrl}/oura/callback`;
+      const redirectUri = getOuraRedirectUri(req, redirect_uri);
       const result = await ouraIntegrationService.exchangeCodeForTokens(
         userId,
         code,

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 // @ts-expect-error TS(7016): no types for supertest
 import request from 'supertest';
 import express from 'express';
@@ -49,7 +49,7 @@ vi.mock('../models/globalSettingsRepository.js', () => ({
   isMockDataEnabled: vi.fn().mockResolvedValue(false),
 }));
 
-import ouraRoutes from '../routes/ouraRoutes.js';
+import ouraRoutes, { getOuraRedirectUri } from '../routes/ouraRoutes.js';
 import ouraIntegrationService from '../integrations/oura/ouraService.js';
 import ouraService from '../services/ouraService.js';
 
@@ -80,6 +80,17 @@ describe('GET /oura/authorize', () => {
       expect.stringContaining('/oura/callback')
     );
   });
+
+  it('honors a valid client-provided redirect_uri', async () => {
+    const res = await request(app)
+      .get('/oura/authorize?redirect_uri=http://localhost:8080/oura/callback')
+      .set('Origin', 'http://localhost:8080');
+    expect(res.statusCode).toBe(200);
+    expect(ouraIntegrationService.getAuthorizationUrl).toHaveBeenCalledWith(
+      'user-1',
+      'http://localhost:8080/oura/callback'
+    );
+  });
 });
 
 describe('POST /oura/callback', () => {
@@ -95,10 +106,62 @@ describe('POST /oura/callback', () => {
     );
   });
 
+  it('honors a client-provided redirect_uri in callback', async () => {
+    const res = await request(app).post('/oura/callback').send({
+      code: 'auth-code-1',
+      redirect_uri: 'http://localhost:8080/oura/callback',
+    });
+    expect(res.statusCode).toBe(200);
+    expect(ouraIntegrationService.exchangeCodeForTokens).toHaveBeenCalledWith(
+      'user-1',
+      'auth-code-1',
+      'http://localhost:8080/oura/callback'
+    );
+  });
+
   it('rejects a missing code with 400', async () => {
     const res = await request(app).post('/oura/callback').send({});
     expect(res.statusCode).toBe(400);
     expect(ouraIntegrationService.exchangeCodeForTokens).not.toHaveBeenCalled();
+  });
+});
+
+describe('getOuraRedirectUri helper', () => {
+  const origFrontendUrl = process.env.SPARKY_FITNESS_FRONTEND_URL;
+  const origExtraOrigins = process.env.SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS;
+
+  beforeEach(() => {
+    process.env.SPARKY_FITNESS_FRONTEND_URL = 'https://sparky.test/';
+    delete process.env.SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS;
+  });
+
+  afterAll(() => {
+    process.env.SPARKY_FITNESS_FRONTEND_URL = origFrontendUrl;
+    process.env.SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS = origExtraOrigins;
+  });
+
+  it('strips trailing slashes from default base URL', () => {
+    expect(getOuraRedirectUri()).toBe('https://sparky.test/oura/callback');
+  });
+
+  it('uses client-provided redirect_uri when origin is localhost', () => {
+    expect(
+      getOuraRedirectUri(undefined, 'http://localhost:3000/oura/callback')
+    ).toBe('http://localhost:3000/oura/callback');
+  });
+
+  it('uses client-provided redirect_uri when origin is in SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS', () => {
+    process.env.SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS =
+      'https://alt.sparky.test, https://other.sparky.test/';
+    expect(
+      getOuraRedirectUri(undefined, 'https://alt.sparky.test/oura/callback')
+    ).toBe('https://alt.sparky.test/oura/callback');
+  });
+
+  it('falls back to default if path is not /oura/callback', () => {
+    expect(
+      getOuraRedirectUri(undefined, 'http://localhost:3000/malicious/callback')
+    ).toBe('https://sparky.test/oura/callback');
   });
 });
 
