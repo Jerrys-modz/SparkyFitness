@@ -262,6 +262,16 @@ If your Apple Watch or Health Connect source records **VO2 max**, turn on VO2 ma
 
 After a program workout is saved, the summary asks how hard it was, from 1 (very easy) to 10 (all out), and keeps your answer with the program. A rating of 8 or more offers to repeat the workout, and 3 or less offers to skip the next one. Two hard or two easy workouts in a row get a note, and Sparky can see your recent ratings when you ask how your program is going. Nothing in the program changes unless you tap the button or agree to something Sparky suggests.
 
+## Cadence and stride length
+
+For a run, the app also works out your **cadence** (steps per minute while you were moving) and **stride length** (distance divided by steps) from your phone's step count, so you can check your form. They show on the activity in your diary and on the summary screen after you save, in steps per minute (spm) and metres, or feet with the miles setting. Treadmill runs count as well as outdoor ones.
+
+- **Phone recordings** use the steps over the recording. A paused outdoor recording shows cadence but no stride, because its GPS distance and step window do not line up.
+- **Runs recorded on the Apple Watch** use the steps your phone counted over the run, so they only appear if you carried the phone. If the phone counted too few steps, or too few for the distance covered, nothing is shown. The app never asks for Motion & Fitness access just to do this: if you have not allowed it, the run is saved without them.
+- **After correcting a treadmill distance** (see below), the stride length is worked out again from the corrected distance.
+
+**Library → Exercise statistics → Cardio** has a **Running form** card showing your latest cadence and stride length, the average for the range, how the latest run compares with the earlier ones, and a bar for each recent run. It follows the range chosen at the top of the screen.
+
 ## Personal records
 
 **Library → Personal records** lists your best efforts at 1 km, 1 mile, 5 km, 10 km, 15 km, the half marathon and the marathon, grouped by sport (running, walking, cycling and so on). Records come from your recorded and imported cardio activities, are only compared within one sport, and are the same ones the web Reports page shows.
@@ -270,7 +280,7 @@ When a run you just saved set one or more of them, the summary screen shows a **
 
 ## Correcting a treadmill distance
 
-A run recorded on the watch indoors has no route, so its distance is the watch's estimate from your arm and step motion, which can be off. On the summary screen (tap the "Run from your watch saved" message) a **Treadmill distance** card lets you enter what the machine showed. The distance, pace and lap distances update, and heart rate and calories are kept. Runs with a GPS route get their distance from the route and cannot be changed this way.
+A run recorded on the watch indoors has no route, so its distance is the watch's estimate from your arm and step motion, which can be off. On the summary screen (tap the "Run from your watch saved" message) a **Treadmill distance** card lets you enter what the machine showed. The distance, pace, lap distances and stride length update, and heart rate and calories are kept. Runs with a GPS route get their distance from the route and cannot be changed this way.
 
 ## Following a watch run on the phone
 

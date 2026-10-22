@@ -47,6 +47,11 @@ export interface WatchRunPayload {
     maximumBpm?: number | null;
     seconds: number;
   }[];
+  /**
+   * Steps over the moving time, counted on the watch. Absent on a run from an
+   * older watch build, which leaves the phone to ask Apple Health instead.
+   */
+  steps?: number;
 }
 
 /** Stands in for "no altitude": a property list cannot carry null. */
@@ -118,6 +123,7 @@ export function parseWatchRunPayload(raw: unknown): WatchRunPayload | null {
     ...(appleWorkoutZonesFromWire(p.appleZones)
       ? { appleZones: appleWorkoutZonesFromWire(p.appleZones) ?? undefined }
       : {}),
+    ...(finite(p.steps) && p.steps > 0 ? { steps: Math.round(p.steps) } : {}),
   };
 }
 

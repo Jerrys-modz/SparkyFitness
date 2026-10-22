@@ -404,6 +404,11 @@ struct WatchRunResult {
     /// watchOS cannot read one. Not scaled with distance.
     var appleZones: [[String: Any]] = []
 
+    /// Steps over the moving time. The phone turns these into cadence and
+    /// stride. Nil when the watch could not count them (an older build, or a
+    /// run recovered after the app was killed).
+    var steps: Int? = nil
+
     /// The run with its distance (and the lap marks along it) multiplied by
     /// `factor`.
     func scalingDistance(by factor: Double) -> WatchRunResult {
