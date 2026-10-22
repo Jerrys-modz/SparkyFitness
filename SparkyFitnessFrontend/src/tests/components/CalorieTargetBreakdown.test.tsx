@@ -103,6 +103,37 @@ beforeEach(() => {
 });
 
 describe('CalorieTargetBreakdown baseline label', () => {
+  it('explains removal of historical activity before clamping the separate baseline', () => {
+    const separateProps = {
+      ...defaultProps,
+      adaptiveActivitySeparate: true,
+      adaptiveTdeeData: {
+        ...defaultProps.adaptiveTdeeData,
+        rawTdee: 2800,
+        tdee: 2660,
+        rawActivityAdjustedTdee: 2300,
+        activityAdjustedTdee: 2300,
+        averageActivityCalories: 500,
+        activityDaysOfData: 28,
+        wasClamped: true,
+        clampMin: 1660,
+        clampMax: 2660,
+      },
+      previewResult: {
+        ...defaultProps.previewResult,
+        baselineTdee: 2300,
+        finalTarget: 2300,
+      },
+    };
+    render(<CalorieTargetBreakdown {...separateProps} />);
+
+    expect(screen.getByText(/2800 − 500 = 2300 kcal/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Today's steps and workouts are credited separately/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/28 days of activity history/)).toBeInTheDocument();
+  });
+
   it('uses translation keys for algorithm labels', () => {
     render(<CalorieTargetBreakdown {...defaultProps} />);
 
