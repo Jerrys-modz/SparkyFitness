@@ -103,6 +103,9 @@ jest.mock('../../src/hooks/usePreferences', () => ({
 jest.mock('../../src/hooks/useSuggestedRanges', () => ({
   useSuggestedRanges: () => ({ pace: null, heartRate: null, byEffort: null }),
 }));
+jest.mock('../../src/hooks/useHeartRateZones', () => ({
+  useHeartRateZones: () => ({ zones: undefined }),
+}));
 jest.mock('../../src/hooks/useScreenHeader', () => ({
   useScreenHeader: jest.fn(() => null),
 }));
