@@ -2091,6 +2091,7 @@ CREATE TABLE public.exercise_entries (
     watch_duration_minutes numeric,
     record_timezone text,
     shoe_id uuid,
+    manual_fields text[],
     CONSTRAINT exercise_entries_modality_check CHECK ((modality = ANY (ARRAY['weight_reps'::text, 'reps_only'::text, 'bodyweight_reps'::text, 'weight_duration'::text, 'weight_distance'::text, 'duration'::text, 'duration_distance'::text])))
 );
 
