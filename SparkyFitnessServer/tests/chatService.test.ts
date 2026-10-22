@@ -34,6 +34,11 @@ vi.mock('../models/preferenceRepository', () => ({
 vi.mock('../config/logging', () => ({
   log: vi.fn(),
 }));
+// Read by utils/outboundUrlPolicy's resolveAiNetworkPolicy. Default false
+// keeps these cases off the real database.
+vi.mock('../models/globalSettingsRepository.js', () => ({
+  isPrivateNetworkAiAllowed: vi.fn().mockResolvedValue(false),
+}));
 vi.mock('../utils/timezoneLoader', () => ({
   loadUserTimezone: vi.fn(async () => 'UTC'),
 }));

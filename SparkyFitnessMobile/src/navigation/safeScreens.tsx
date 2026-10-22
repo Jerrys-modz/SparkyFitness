@@ -21,6 +21,9 @@ import RunProgramsScreen from '../screens/RunProgramsScreen';
 import RunProgramCalendarScreen from '../screens/RunProgramCalendarScreen';
 import RunProgramRaceScreen from '../screens/RunProgramRaceScreen';
 import RunProgramEditScreen from '../screens/RunProgramEditScreen';
+import RoutesScreen from '../screens/RoutesScreen';
+import RouteDetailScreen from '../screens/RouteDetailScreen';
+import RouteDrawScreen from '../screens/RouteDrawScreen';
 import RunProgramWorkoutScreen from '../screens/RunProgramWorkoutScreen';
 import PersonalRecordsScreen from '../screens/PersonalRecordsScreen';
 import WatchRunLiveScreen from '../screens/WatchRunLiveScreen';
@@ -95,6 +98,7 @@ import Glp1PenFormScreen from '../screens/Glp1PenFormScreen';
 import Glp1TitrationFormScreen from '../screens/Glp1TitrationFormScreen';
 import SymptomLogScreen from '../screens/SymptomLogScreen';
 import MoodLogScreen from '../screens/MoodLogScreen';
+import MoodDayScreen from '../screens/MoodDayScreen';
 import SymptomHistoryScreen from '../screens/SymptomHistoryScreen';
 import SymptomEpisodeDetailScreen from '../screens/SymptomEpisodeDetailScreen';
 import ManageSymptomsScreen from '../screens/ManageSymptomsScreen';
@@ -131,6 +135,9 @@ export const SafeWatchRunLive = withErrorBoundary(WatchRunLiveScreen, 'WatchRunL
 export const SafePersonalRecords = withErrorBoundary(PersonalRecordsScreen, 'PersonalRecords', { canGoBack: true });
 export const SafeRunPrograms = withErrorBoundary(RunProgramsScreen, 'RunPrograms', { canGoBack: true });
 export const SafeRunProgramRace = withErrorBoundary(RunProgramRaceScreen, 'RunProgramRace', { canGoBack: true });
+export const SafeRoutes = withErrorBoundary(RoutesScreen, 'Routes', { canGoBack: true });
+export const SafeRouteDetail = withErrorBoundary(RouteDetailScreen, 'RouteDetail', { canGoBack: true });
+export const SafeRouteDraw = withErrorBoundary(RouteDrawScreen, 'RouteDraw', { canGoBack: true });
 export const SafeRunProgramEdit = withErrorBoundary(RunProgramEditScreen, 'RunProgramEdit', { canGoBack: true });
 export const SafeRunProgramCalendar = withErrorBoundary(RunProgramCalendarScreen, 'RunProgramCalendar', { canGoBack: true });
 export const SafeRunProgramWorkout = withErrorBoundary(RunProgramWorkoutScreen, 'RunProgramWorkout', { canGoBack: true });
@@ -247,6 +254,7 @@ export const SafeGlp1PenForm = withErrorBoundary(Glp1PenFormScreen, 'Glp1PenForm
 export const SafeGlp1TitrationForm = withErrorBoundary(Glp1TitrationFormScreen, 'Glp1TitrationForm', { canGoBack: true });
 
 export const SafeMoodLog = withErrorBoundary(MoodLogScreen, 'MoodLog', { canGoBack: true });
+export const SafeMoodDay = withErrorBoundary(MoodDayScreen, 'MoodDay', { canGoBack: true });
 export const SafeSymptomLog = withErrorBoundary(SymptomLogScreen, 'SymptomLog', { canGoBack: true });
 export const SafeSymptomHistory = withErrorBoundary(SymptomHistoryScreen, 'SymptomHistory', { canGoBack: true });
 export const SafeSymptomEpisodeDetail = withErrorBoundary(SymptomEpisodeDetailScreen, 'SymptomEpisodeDetail', { canGoBack: true });

@@ -538,6 +538,10 @@ Actions:
                 wakeTime = wake.toISOString();
               }
 
+              if (!bedtime || !wakeTime) {
+                throw new Error('Could not resolve bedtime and wake time.');
+              }
+
               await measurementService.processSleepEntry(userId, userId, {
                 entry_date: args.entry_date,
                 bedtime,

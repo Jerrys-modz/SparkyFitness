@@ -38,7 +38,7 @@ import {
   buildCheckinCreateBody,
   buildCheckinUpdateBody,
   type CheckinDraft,
-} from '@/utils/moodCheckins';
+} from '@workspace/shared';
 import { error as logError } from '@/utils/logging';
 import { getUserLoggingLevel } from '@/utils/userPreferences';
 import {

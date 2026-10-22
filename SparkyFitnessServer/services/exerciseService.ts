@@ -20,6 +20,7 @@ import { fileURLToPath } from 'url';
 import { resolveExerciseIdToUuid } from '../utils/uuidUtils.js';
 import { normalizeToStringArray } from '../utils/exerciseJsonFields.js';
 import { resolveTemplateStartDay } from '../utils/timezoneLoader.js';
+import { editedSyncFields } from '../utils/manualFields.js';
 import {
   deriveExerciseModality,
   canEditGroupedWorkout,
@@ -504,6 +505,13 @@ async function updateExerciseEntry(
     if (!existingEntry) {
       throw new Error('Exercise entry not found.');
     }
+    // A synced entry remembers which fields this edit changed, so the same
+    // workout sent again by the provider does not overwrite them. Taken from
+    // the request as sent, before the defaults and the calorie estimate below
+    // fill in the rest.
+    const manualFields = existingEntry.source_id
+      ? editedSyncFields(updateData, existingEntry)
+      : [];
     // If a new image is being uploaded or the image is being cleared, delete the old one
     if (
       (updateData.image_url || updateData.image_url === null) &&
@@ -596,7 +604,8 @@ async function updateExerciseEntry(
           updateData.entry_time === undefined
             ? (existingEntry.entry_time ?? null)
             : updateData.entry_time,
-      }
+      },
+      manualFields
     );
     if (!updatedEntry) {
       throw new Error('Exercise entry not found or not authorized to update.');

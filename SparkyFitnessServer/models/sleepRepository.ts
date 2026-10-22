@@ -35,6 +35,21 @@ export interface SleepEntryUpsertInput {
   [key: string]: unknown;
 }
 
+export interface SleepStageEventInput {
+  stage_type: string;
+  start_time: Date | string;
+  end_time: Date | string;
+  duration_in_seconds: number;
+  [key: string]: unknown;
+}
+
+/** An entry handed to processSleepEntry: the upsert fields plus its stage events. */
+export interface SleepEntryInput extends SleepEntryUpsertInput {
+  bedtime: Date | string;
+  wake_time: Date | string;
+  stage_events?: SleepStageEventInput[] | null;
+}
+
 export interface SleepEntryUpsertOptions {
   // When true, an incoming null HRV / resting heart rate keeps the stored value
   // instead of overwriting it. Only syncs that fetch these separately from the

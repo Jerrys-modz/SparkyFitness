@@ -164,6 +164,13 @@ export function moodValueToTag(value: number): string {
   return 'excited';
 }
 
+/** `moodValueToTag` for a value that may be absent (a check-in with no mood). */
+export function moodTagForValue(
+  value: number | null | undefined
+): string | null {
+  return value == null ? null : moodValueToTag(value);
+}
+
 /**
  * Representative 0-100 value for a set of tags (first banded tag wins). Used only
  * when a client sends tags without an explicit rating; the UI normally sets both.
@@ -215,6 +222,24 @@ export function clampStoredMoodValue(value: unknown): number | null {
   return Math.min(
     MOOD_VALUE_MAX,
     Math.max(MOOD_VALUE_MIN, Math.round(numeric))
+  );
+}
+
+/** The gap between two neighbouring faces' values on the mood pickers. */
+export const MOOD_FACE_STEP = 10;
+
+/**
+ * The value a picker writes for one of the nine banded faces: Sad 10, Angry 20,
+ * up to Excited 90. It is the band midpoint snapped onto the face grid, since
+ * the two end midpoints (8 and 93) sit off it. Every picker writes these, so a
+ * day averaged over check-ins from web and mobile lands in the same band. A tag
+ * with no band gives 50, like `representativeMoodValue`.
+ */
+export function moodFaceValue(name: string): number {
+  const midpoint = representativeMoodValue([name]);
+  return (
+    MOOD_VALUE_MIN +
+    Math.round((midpoint - MOOD_VALUE_MIN) / MOOD_FACE_STEP) * MOOD_FACE_STEP
   );
 }
 

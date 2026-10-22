@@ -91,6 +91,9 @@ export type RootStackParamList = {
   RunProgramRace: undefined;
   RunProgramEdit: { id?: string; fromProgramId?: string } | undefined;
   PersonalRecords: undefined;
+  Routes: undefined;
+  RouteDetail: { id: string };
+  RouteDraw: undefined;
   WatchRunLive: undefined;
   MealPlanForm: { template?: MealPlanTemplate; initialMeal?: Meal } | undefined;
   // #2115, Phase 12: mobile-only water-container CRUD.
@@ -433,7 +436,8 @@ export type RootStackParamList = {
         date?: string;
       }
     | undefined;
-  MoodLog: { date?: string } | undefined;
+  MoodLog: { date?: string; checkinId?: string } | undefined;
+  MoodDay: { date?: string } | undefined;
   SymptomHistory: { symptomId?: string } | undefined;
   SymptomEpisodeDetail: { entryId: string };
   ManageSymptoms: undefined;

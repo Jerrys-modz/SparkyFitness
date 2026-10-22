@@ -16,7 +16,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.Executors
 
@@ -27,11 +26,11 @@ class CalorieWidgetModule(reactContext: ReactApplicationContext) :
 
     // Snapshot writes and clears run one at a time in the order JS sent them,
     // so a write for the previous account cannot land after the clear. The
-    // single thread makes each reach the lock in that order; the lock keeps
-    // the next one out while a Glance state write is suspended.
+    // single thread makes each reach the lock in that order; the lock, shared
+    // with the water widget's buttons and worker, keeps the next one out
+    // while a Glance state write is suspended.
     private val snapshotExecutor = Executors.newSingleThreadExecutor()
     private val snapshotWrites = snapshotExecutor.asCoroutineDispatcher()
-    private val snapshotLock = Mutex()
 
     override fun getName(): String = NAME
 
@@ -45,7 +44,7 @@ class CalorieWidgetModule(reactContext: ReactApplicationContext) :
     fun setCalorieSnapshot(json: String, promise: Promise) {
         val ctx = reactApplicationContext
         moduleScope.launch(snapshotWrites) {
-            snapshotLock.withLock {
+            WidgetSnapshotLock.mutex.withLock {
                 try {
                     val prefs = ctx.getSharedPreferences(
                         CalorieWidgetReceiver.PREFS_NAME,
@@ -73,7 +72,7 @@ class CalorieWidgetModule(reactContext: ReactApplicationContext) :
     fun setMacroSnapshot(json: String, promise: Promise) {
         val ctx = reactApplicationContext
         moduleScope.launch(snapshotWrites) {
-            snapshotLock.withLock {
+            WidgetSnapshotLock.mutex.withLock {
                 try {
                     val prefs = ctx.getSharedPreferences(
                         MacroWidgetReceiver.PREFS_NAME,
@@ -98,7 +97,29 @@ class CalorieWidgetModule(reactContext: ReactApplicationContext) :
     }
 
     /**
-     * Erases both snapshots when the account changes. They carry no account,
+     * Stores the water widget's snapshot, keeping the taps it has not sent
+     * yet (WaterWidgetStore). Like the other writes it does not redraw: JS
+     * calls reloadWaterWidget after it.
+     */
+    @ReactMethod
+    fun setWaterSnapshot(json: String, promise: Promise) {
+        val ctx = reactApplicationContext
+        moduleScope.launch(snapshotWrites) {
+            WidgetSnapshotLock.mutex.withLock {
+                try {
+                    WaterWidgetStore.mergeFromAppLocked(ctx, json)
+                    promise.resolve(null)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    promise.reject("E_WRITE_FAILED", e)
+                }
+            }
+        }
+    }
+
+    /**
+     * Erases the snapshots when the account changes. They carry no account,
      * and the Quick Settings tile shows the calorie figure on the lock screen,
      * so the previous account's numbers must not outlive the switch.
      */
@@ -106,7 +127,7 @@ class CalorieWidgetModule(reactContext: ReactApplicationContext) :
     fun clearSnapshots(promise: Promise) {
         val ctx = reactApplicationContext
         moduleScope.launch(snapshotWrites) {
-            snapshotLock.withLock {
+            WidgetSnapshotLock.mutex.withLock {
                 try {
                     val failures = clearWidget(
                         ctx,
@@ -120,7 +141,7 @@ class CalorieWidgetModule(reactContext: ReactApplicationContext) :
                         MacroWidgetReceiver.PREFS_KEY_SNAPSHOT,
                         MacroWidget(),
                         MacroWidget.SNAPSHOT_STATE_KEY,
-                    )
+                    ) + clearWaterWidget(ctx)
                     if (failures.isEmpty()) {
                         promise.resolve(null)
                     } else {
@@ -139,6 +160,26 @@ class CalorieWidgetModule(reactContext: ReactApplicationContext) :
                 }
             }
         }
+    }
+
+    /**
+     * The water widget's snapshot goes like the others, and so do the taps it
+     * has not sent: they were made for the previous account.
+     */
+    private suspend fun clearWaterWidget(ctx: Context): List<Exception> {
+        val failures = mutableListOf<Exception>()
+        try {
+            WaterWidgetStore.onAccountChangedLocked(ctx)
+        } catch (e: Exception) {
+            failures += e
+        }
+        return failures + clearWidget(
+            ctx,
+            WaterWidgetReceiver.PREFS_NAME,
+            WaterWidgetReceiver.PREFS_KEY_SNAPSHOT,
+            WaterWidget(),
+            WaterWidget.SNAPSHOT_STATE_KEY,
+        )
     }
 
     /**
@@ -199,6 +240,9 @@ class CalorieWidgetModule(reactContext: ReactApplicationContext) :
                     WidgetLocale.bumpLocaleRenderRevision(ctx, id)
                 }
                 manager.getGlanceIds(MacroWidget::class.java).forEach { id ->
+                    WidgetLocale.bumpLocaleRenderRevision(ctx, id)
+                }
+                manager.getGlanceIds(WaterWidget::class.java).forEach { id ->
                     WidgetLocale.bumpLocaleRenderRevision(ctx, id)
                 }
 
@@ -267,6 +311,41 @@ class CalorieWidgetModule(reactContext: ReactApplicationContext) :
                     promise.reject(
                         "E_RELOAD_FAILED",
                         RuntimeException("$failures macro widget instance(s) failed to update", firstFailure),
+                    )
+                } else {
+                    promise.resolve(null)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                promise.reject("E_RELOAD_FAILED", e)
+            }
+        }
+    }
+
+    @ReactMethod
+    fun reloadWaterWidget(promise: Promise) {
+        val ctx = reactApplicationContext
+        moduleScope.launch {
+            try {
+                val manager = GlanceAppWidgetManager(ctx)
+                val widget = WaterWidget()
+                var failures = 0
+                var firstFailure: Exception? = null
+                manager.getGlanceIds(WaterWidget::class.java).forEach { id ->
+                    try {
+                        widget.update(ctx, id)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        failures++
+                        if (firstFailure == null) firstFailure = e
+                    }
+                }
+                if (failures > 0) {
+                    promise.reject(
+                        "E_RELOAD_FAILED",
+                        RuntimeException("$failures water widget instance(s) failed to update", firstFailure),
                     )
                 } else {
                     promise.resolve(null)

@@ -11,10 +11,7 @@ import '@testing-library/jest-dom';
 import { todayInZone, type MoodCheckinCreateBody } from '@workspace/shared';
 import { CheckInTopRow } from '@/pages/CheckIn/CheckInTopRow';
 import type { MoodEntry } from '@/types/mood';
-import {
-  buildCheckinCreateBody,
-  type CheckinDraft,
-} from '@/utils/moodCheckins';
+import { buildCheckinCreateBody, type CheckinDraft } from '@workspace/shared';
 
 let mockTimezone = 'UTC';
 

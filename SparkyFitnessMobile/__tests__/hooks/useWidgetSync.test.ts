@@ -54,6 +54,8 @@ jest.mock('../../src/services/CalorieWidgetBridge', () => ({
     reloadWidget: jest.fn(() => Promise.resolve()),
     setMacroSnapshot: jest.fn(() => Promise.resolve()),
     reloadMacroWidget: jest.fn(() => Promise.resolve()),
+    setWaterSnapshot: jest.fn(() => Promise.resolve()),
+    reloadWaterWidget: jest.fn(() => Promise.resolve()),
     clearSnapshots: jest.fn(() => Promise.resolve()),
     isAvailable: true,
   },
@@ -71,6 +73,9 @@ const androidReload = CalorieWidgetBridge.reloadWidget as jest.Mock;
 const androidSetMacroSnapshot =
   CalorieWidgetBridge.setMacroSnapshot as jest.Mock;
 const androidReloadMacro = CalorieWidgetBridge.reloadMacroWidget as jest.Mock;
+const androidSetWaterSnapshot =
+  CalorieWidgetBridge.setWaterSnapshot as jest.Mock;
+const androidReloadWater = CalorieWidgetBridge.reloadWaterWidget as jest.Mock;
 
 const flushWidgetPush = async () => {
   await Promise.resolve();
@@ -124,6 +129,8 @@ describe('useWidgetSync', () => {
     androidReload.mockReset().mockResolvedValue(undefined);
     androidSetMacroSnapshot.mockReset().mockResolvedValue(undefined);
     androidReloadMacro.mockReset().mockResolvedValue(undefined);
+    androidSetWaterSnapshot.mockReset().mockResolvedValue(undefined);
+    androidReloadWater.mockReset().mockResolvedValue(undefined);
     Object.defineProperty(Platform, 'OS', {
       get: () => 'ios',
       configurable: true,
@@ -468,6 +475,152 @@ describe('useWidgetSync', () => {
     expect(androidReloadMacro).toHaveBeenCalledTimes(1);
     expect(mockAddLog).toHaveBeenCalledWith(
       expect.stringContaining('Android macro widget push failed'),
+      'ERROR'
+    );
+  });
+
+  it('pushes the Android water snapshot with the drink when water info is given', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: () => 'android',
+      configurable: true,
+    });
+
+    renderHook(() =>
+      useWidgetSync(makeSummary(), { drinkMl: 250, unit: 'ml', canLog: true })
+    );
+    await flushWidgetPush();
+
+    expect(androidSetWaterSnapshot).toHaveBeenCalledTimes(1);
+    const payload = JSON.parse(
+      androidSetWaterSnapshot.mock.calls[0][0] as string
+    );
+    expect(payload).toMatchObject({
+      date: getTodayDate(),
+      consumedMl: 1500,
+      goalMl: 2500,
+      drinkMl: 250,
+      unit: 'ml',
+      canLog: true,
+    });
+    expect(androidReloadWater).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends a null drink for a container linked to a food, which hides the buttons', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: () => 'android',
+      configurable: true,
+    });
+
+    renderHook(() =>
+      useWidgetSync(makeSummary(), { drinkMl: null, unit: 'oz', canLog: true })
+    );
+    await flushWidgetPush();
+
+    const payload = JSON.parse(
+      androidSetWaterSnapshot.mock.calls[0][0] as string
+    );
+    expect(payload).toMatchObject({ drinkMl: null, unit: 'oz' });
+  });
+
+  it('does not push the Android water snapshot without the water details', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: () => 'android',
+      configurable: true,
+    });
+
+    renderHook(() => useWidgetSync(makeSummary()));
+    await flushWidgetPush();
+
+    expect(androidSetWaterSnapshot).not.toHaveBeenCalled();
+    expect(androidReloadWater).not.toHaveBeenCalled();
+  });
+
+  it('sends the manual part of the day to the Android water widget', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: () => 'android',
+      configurable: true,
+    });
+
+    renderHook(() =>
+      useWidgetSync(makeSummary({ waterManual: 750 }), {
+        drinkMl: 250,
+        unit: 'ml',
+        canLog: true,
+      })
+    );
+    await flushWidgetPush();
+
+    expect(
+      JSON.parse(androidSetWaterSnapshot.mock.calls[0][0] as string)
+    ).toMatchObject({ manualMl: 750 });
+  });
+
+  it('leaves the drink out while the containers load, so the widget keeps its buttons', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: () => 'android',
+      configurable: true,
+    });
+
+    renderHook(() =>
+      useWidgetSync(makeSummary(), { unit: 'ml', canLog: true })
+    );
+    await flushWidgetPush();
+
+    const payload = JSON.parse(
+      androidSetWaterSnapshot.mock.calls[0][0] as string
+    );
+    expect(payload).not.toHaveProperty('drinkMl');
+    expect(payload).toMatchObject({ unit: 'ml', canLog: true });
+  });
+
+  it('pushes the Android water snapshot again only when its figures change', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: () => 'android',
+      configurable: true,
+    });
+    const water = { drinkMl: 250, unit: 'ml', canLog: true };
+
+    const { rerender } = renderHook(
+      ({ summary }) => useWidgetSync(summary, water),
+      { initialProps: { summary: makeSummary() } }
+    );
+    await flushWidgetPush();
+
+    rerender({ summary: makeSummary({ fiber: { consumed: 22, goal: 30 } }) });
+    await flushWidgetPush();
+    expect(androidSetWaterSnapshot).toHaveBeenCalledTimes(1);
+
+    rerender({ summary: makeSummary({ waterConsumed: 1750 }) });
+    await flushWidgetPush();
+    expect(androidSetWaterSnapshot).toHaveBeenCalledTimes(2);
+    expect(
+      JSON.parse(androidSetWaterSnapshot.mock.calls[1][0] as string)
+    ).toMatchObject({ consumedMl: 1750 });
+  });
+
+  it('retries the Android water push alone after it fails', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      get: () => 'android',
+      configurable: true,
+    });
+    androidSetWaterSnapshot.mockRejectedValueOnce(new Error('water failed'));
+    const water = { drinkMl: 250, unit: 'ml', canLog: true };
+
+    const { rerender } = renderHook(
+      ({ summary }) => useWidgetSync(summary, water),
+      { initialProps: { summary: makeSummary() } }
+    );
+    await flushWidgetPush();
+
+    rerender({ summary: makeSummary() });
+    await flushWidgetPush();
+
+    expect(androidSetWaterSnapshot).toHaveBeenCalledTimes(2);
+    expect(androidReloadWater).toHaveBeenCalledTimes(1);
+    expect(androidSetSnapshot).toHaveBeenCalledTimes(1);
+    expect(androidSetMacroSnapshot).toHaveBeenCalledTimes(1);
+    expect(mockAddLog).toHaveBeenCalledWith(
+      expect.stringContaining('Android water widget push failed'),
       'ERROR'
     );
   });

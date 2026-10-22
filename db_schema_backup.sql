@@ -2091,6 +2091,7 @@ CREATE TABLE public.exercise_entries (
     watch_duration_minutes numeric,
     record_timezone text,
     shoe_id uuid,
+    manual_fields text[],
     CONSTRAINT exercise_entries_modality_check CHECK ((modality = ANY (ARRAY['weight_reps'::text, 'reps_only'::text, 'bodyweight_reps'::text, 'weight_duration'::text, 'weight_distance'::text, 'duration'::text, 'duration_distance'::text])))
 );
 
@@ -3780,6 +3781,32 @@ CREATE TABLE public.rate_limit (
 
 
 --
+-- Name: routes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.routes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    name character varying(100) NOT NULL,
+    activity character varying(10) DEFAULT 'run'::character varying NOT NULL,
+    source character varying(10) DEFAULT 'drawn'::character varying NOT NULL,
+    distance_m double precision DEFAULT 0 NOT NULL,
+    elevation_gain_m double precision,
+    points jsonb DEFAULT '[]'::jsonb NOT NULL,
+    cues jsonb DEFAULT '[]'::jsonb NOT NULL,
+    source_exercise_entry_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT routes_activity_check CHECK (((activity)::text = ANY ((ARRAY['run'::character varying, 'walk'::character varying, 'ride'::character varying, 'hike'::character varying])::text[]))),
+    CONSTRAINT routes_cues_check CHECK ((jsonb_typeof(cues) = 'array'::text)),
+    CONSTRAINT routes_distance_m_check CHECK ((distance_m >= (0)::double precision)),
+    CONSTRAINT routes_elevation_gain_m_check CHECK (((elevation_gain_m IS NULL) OR (elevation_gain_m >= (0)::double precision))),
+    CONSTRAINT routes_points_check CHECK ((jsonb_typeof(points) = 'array'::text)),
+    CONSTRAINT routes_source_check CHECK (((source)::text = ANY ((ARRAY['drawn'::character varying, 'gpx'::character varying, 'activity'::character varying])::text[])))
+);
+
+
+--
 -- Name: run_programs; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -4049,6 +4076,7 @@ CREATE TABLE public.symptom_entries (
     impact character varying(20),
     peak_severity numeric,
     severity_timeline jsonb DEFAULT '[]'::jsonb NOT NULL,
+    impact_timeline jsonb DEFAULT '[]'::jsonb NOT NULL,
     CONSTRAINT symptom_entries_episode_order_check CHECK (((ended_at IS NULL) OR (started_at IS NULL) OR (ended_at >= started_at))),
     CONSTRAINT symptom_entries_impact_check CHECK (((impact IS NULL) OR ((impact)::text = ANY ((ARRAY['none'::character varying, 'mild'::character varying, 'moderate'::character varying, 'severe'::character varying])::text[]))))
 );
@@ -6135,6 +6163,14 @@ ALTER TABLE ONLY public.rate_limit
 
 
 --
+-- Name: routes routes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.routes
+    ADD CONSTRAINT routes_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: run_programs run_programs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7340,6 +7376,20 @@ CREATE INDEX idx_pregnancy_photos_user_id ON public.pregnancy_photos USING btree
 --
 
 CREATE INDEX idx_rate_limit_last_request ON public.rate_limit USING btree (last_request);
+
+
+--
+-- Name: idx_routes_source_exercise_entry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_routes_source_exercise_entry ON public.routes USING btree (source_exercise_entry_id) WHERE (source_exercise_entry_id IS NOT NULL);
+
+
+--
+-- Name: idx_routes_user_updated; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_routes_user_updated ON public.routes USING btree (user_id, updated_at DESC);
 
 
 --
@@ -9246,6 +9296,22 @@ ALTER TABLE ONLY public.profiles
 
 
 --
+-- Name: routes routes_source_exercise_entry_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.routes
+    ADD CONSTRAINT routes_source_exercise_entry_id_fkey FOREIGN KEY (source_exercise_entry_id) REFERENCES public.exercise_entries(id) ON DELETE SET NULL;
+
+
+--
+-- Name: routes routes_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.routes
+    ADD CONSTRAINT routes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
 -- Name: run_programs run_programs_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -11007,6 +11073,13 @@ CREATE POLICY owner_policy ON public.pregnancy_photos USING ((user_id = public.a
 
 
 --
+-- Name: routes owner_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY owner_policy ON public.routes USING ((user_id = public.authenticated_user_id())) WITH CHECK ((user_id = public.authenticated_user_id()));
+
+
+--
 -- Name: run_programs owner_policy; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -11131,6 +11204,12 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.rate_limit ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: routes; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.routes ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: run_programs; Type: ROW SECURITY; Schema: public; Owner: -
@@ -12908,6 +12987,13 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.profiles TO sparky_app;
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.rate_limit TO sparky_app;
+
+
+--
+-- Name: TABLE routes; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.routes TO sparky_app;
 
 
 --
