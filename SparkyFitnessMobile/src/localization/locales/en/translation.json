@@ -120,6 +120,7 @@
       "dutch": "Nederlands",
       "brazilianPortuguese": "Português (Brasil)",
       "russian": "Русский",
+      "turkish": "Türkçe",
       "pickerHint": "Opens language selection menu",
       "changeFailed": "Couldn't change the language",
       "managedByIOS": "Managed by iOS",
@@ -263,14 +264,20 @@
       "ongoingWorkout": "Ongoing workout",
       "workoutTimer": "Workout timer",
       "fasting": "Fasting",
-      "hydration": "Hydration reminders"
+      "hydration": "Hydration reminders",
+      "moodCheckin": "Mood check-ins"
+    },
+    "moodCheckin": {
+      "title": "How are you feeling?",
+      "body": "Take a quick check-in: mood, energy and focus."
     },
     "actions": {
       "completeSet": "Complete Set",
       "logAsTaken": "Log as taken",
       "logAllAsTaken": "Log all as taken",
       "skip": "Skip",
-      "skipAll": "Skip all"
+      "skipAll": "Skip all",
+      "remindInMinutes": "Remind in {{minutes}}m"
     },
     "permission": {
       "notificationsOff": "Notifications off",
@@ -455,7 +462,8 @@
       "rir": "RIR",
       "fillFromPrevious": "Fill set {{setNumber}} from previous",
       "startTimer": "Start stopwatch",
-      "stopTimer": "Stop stopwatch"
+      "stopTimer": "Stop stopwatch",
+      "inputToolbar": "Set entry actions"
     },
     "columns": {
       "set": "Set",
@@ -602,7 +610,11 @@
       "runProgramsSubtitle": "Run and walk plans from Beginner 5K to marathon",
       "runProgramsActive": "{{name}} · {{progress}}",
       "personalRecords": "Personal records",
-      "personalRecordsSubtitle": "Your best 1 km, 5 km, 10 km and more"
+      "personalRecordsSubtitle": "Your best 1 km, 5 km, 10 km and more",
+      "routes": "Routes",
+      "routesSubtitle": "Draw, import and save routes to follow",
+      "equipment": "Equipment",
+      "equipmentSubtitle": "Shoes and other gear"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -611,12 +623,13 @@
     "progressPhotoTimelapse": "Time-lapse",
     "exerciseStatistics": "Exercise Statistics",
     "cardioSession": "Cardio Session",
+    "activityShare": "Share Activity",
     "watchSettings": "Apple Watch",
-    "allergenSettings": "Allergens",
     "aiSettings": "AI",
     "fastingSettings": "Fasting Settings",
     "fasting": "Fasting",
     "warmupSettings": "Warm-up Calculator",
+    "symptomEpisodeDetail": "Episode Details",
     "recordActivity": "Record Activity",
     "reports": "Reports",
     "nutritionReport": "Nutrition",
@@ -632,11 +645,31 @@
     "watchRunLive": "On your watch",
     "watchRunLiveRun": "Run on your watch",
     "watchWalkLive": "Walk on your watch",
+    "allergenSettings": "Allergens",
     "runProgramCalendar": "Program calendar",
     "runProgramWorkout": "Workout",
     "runProgramEdit": "Edit plan",
     "runProgramNew": "New plan",
-    "runProgramRace": "Plan a race"
+    "runProgramRace": "Plan a race",
+    "routes": "Routes",
+    "routeDraw": "Draw a route"
+  },
+  "activityShare": {
+    "title": "Share Activity",
+    "choosePhoto": "Choose photo",
+    "takePhoto": "Take photo",
+    "removePhoto": "Remove",
+    "transparentHint": "With no photo the image is a transparent PNG you can lay over a photo or video in another app.",
+    "cameraDenied": "Allow camera access in Settings to take a photo",
+    "noRoute": "This workout has no stored GPS route, so the layout shows stats only.",
+    "layout": "Layout",
+    "layoutClassic": "Classic",
+    "layoutRoute": "Route",
+    "layoutMinimal": "Minimal",
+    "textColor": "Color",
+    "customColor": "Custom color hex code",
+    "share": "Share image",
+    "shareFailed": "Could not create the image"
   },
   "healthMetrics": {
     "steps": "Steps",
@@ -648,6 +681,7 @@
     "nutrition": "Nutrition",
     "sleepSession": "Sleep Session",
     "stress": "Stress",
+    "mindfulness": "Mindfulness",
     "basalBodyTemperature": "Basal Body Temperature",
     "basalMetabolicRate": "Basal Metabolic Rate",
     "bloodGlucose": "Blood Glucose",
@@ -889,7 +923,8 @@
       "title": "Permission Required",
       "backgroundAccess": "Background access permission is required for background sync. Please grant the permission in Health Connect settings.",
       "allTitle": "Permissions Required",
-      "allMessage": "Some permissions were not granted. Please enable all required health permissions in the {{settings}} to sync all data."
+      "allMessage": "Some permissions were not granted. Please enable all required health permissions in the {{settings}} to sync all data.",
+      "writebackMessage": "Every metric will sync. To write your data back, grant the missing permissions in {{settings}}."
     },
     "permissionError": {
       "title": "Permission Error",
@@ -969,6 +1004,10 @@
     "yesterday": "Yesterday"
   },
   "calorieSettings": {
+    "adaptiveEarnBack": "Adaptive targets already include activity. Remaining calories are Target minus Eaten. Exercise earn-back applies only to Manual targets.",
+    "adaptiveActivitySeparate": "Count activity calories separately",
+    "adaptiveActivitySeparateHint": "Learn a baseline excluding historical activity and credit today’s steps and workouts once, without adding BMR again. This needs consistent food, weight, step and workout history. Until enough history is available, use BMR × your non-workout activity multiplier.",
+    "adaptiveActivitySeparateReporting": "BMR stays in Burned and Net Energy when Include Resting Calories is enabled. Only steps and workouts are added to your remaining calorie budget.",
     "restingEnergy": "Resting Energy",
     "bmr": "BMR",
     "title": "Calorie & BMR Settings",
@@ -1015,6 +1054,7 @@
       "eatenBurned": "Eaten − Burned",
       "projectedTotal": "Health Connect total calories (BMR + active calories fallback)",
       "dynamic": "Goal − Net Energy",
+      "dynamicActivitySeparated": "Goal − Eaten + Activity",
       "percentageWithBmr": "Goal − Eaten + BMR + {{percentage}}% of Exercise",
       "percentage": "Goal − Eaten + {{percentage}}% of Exercise",
       "tdee": "Projected TDEE × Goal Mode − Eaten",
@@ -1062,7 +1102,7 @@
   "dashboardSettings": {
     "updateFailed": "Failed to update setting.",
     "noCustomNutrients": "No custom nutrients",
-    "customNutrientsDescription": "Custom nutrients are created in the SparkyFitness web app. Once you add some, they will appear here so you can choose which show on your Dashboard.",
+    "customNutrientsDescription": "Add custom nutrients in Settings > Food Settings > Custom Nutrients. Once you add some, they will appear here so you can choose which show on your Dashboard.",
     "title": "Dashboard Settings",
     "description": "Drag a card by its handle to reorder your Dashboard. Toggle off to hide cards you do not use.",
     "calorieRing": "Calorie Summary",
@@ -1108,7 +1148,7 @@
     "updateFailed": "Failed to update setting.",
     "limitReached": "Limit reached",
     "noCustomNutrients": "No custom nutrients",
-    "customNutrientsDescription": "Custom nutrients are created in the SparkyFitness web app. Once you add some, they will appear here so you can choose which show on your Diary.",
+    "customNutrientsDescription": "Add custom nutrients in Settings > Food Settings > Custom Nutrients. Once you add some, they will appear here so you can choose which show on your Diary.",
     "title": "Diary Settings",
     "summary": "Diary Summary",
     "summarySubtitle": "Show calories and macronutrients",
@@ -1151,6 +1191,8 @@
     "hideMedicationNamesSubtitle": "Show a generic reminder instead of the medication name and dose.",
     "consolidateReminders": "Consolidate Reminders",
     "consolidateRemindersSubtitle": "Group medications scheduled for the same time into a single notification.",
+    "medicationSnoozeInterval": "Remind In",
+    "snoozeMinutesOption": "{{minutes}}m",
     "hydration": "Hydration",
     "waterReminders": "Water Reminders",
     "waterRemindersSubtitle": "Remind you to drink when you haven't logged water in a while.",
@@ -1161,6 +1203,13 @@
     "waterReminderEnd": "End Time",
     "waterReminderEndAccessibility": "End time, {{time}}",
     "waterReminderInvalidWindow": "End time must be after start time.",
+    "moodCheckins": "Mood check-ins",
+    "moodCheckinReminders": "Check-in reminders",
+    "moodCheckinRemindersSubtitle": "A daily nudge to log how you feel",
+    "moodCheckinReminderTime": "Reminder {{number}}",
+    "moodCheckinReminderTimeAccessibility": "Reminder {{number}}, {{time}}",
+    "moodCheckinAddReminder": "Add reminder",
+    "moodCheckinRemoveReminder": "Remove reminder {{number}}",
     "enableNotifications": "Enable Notifications",
     "openSettings": "Open Settings",
     "permissionTitle": "Grant permissions",
@@ -2853,6 +2902,20 @@
     "removeFailed": "Failed to remove photo"
   },
   "foodForm": {
+    "portions": {
+      "title": "Named portions",
+      "help": "Keep this food in grams or milliliters and add portions such as a packet or bottle.",
+      "remove": "Remove portion {{name}}",
+      "metricReference": "Select a gram or milliliter serving to define portion sizes.",
+      "metricReferenceRequired": "Select a gram or milliliter serving that matches your new portions.",
+      "name": "Portion name",
+      "namePlaceholder": "e.g. packet",
+      "equals": "1 portion =",
+      "amount": "Portion amount",
+      "confirm": "Add portion",
+      "add": "+ Add portion",
+      "saveFailed": "Could not save all portions. Try saving again."
+    },
     "scanNutritionLabel": "Scan nutrition label",
     "equivalentSizes": "Equivalent sizes",
     "selectUnit": "Select Unit",
@@ -2904,10 +2967,29 @@
     "notes": "Notes",
     "notesPlaceholder": "e.g. White rice, double chicken, no beans (supports markdown)"
   },
+  "exerciseEffort": {
+    "title": "Effort",
+    "lastAvg": "Avg RPE, last session",
+    "trendLabel_one": "Average RPE of your last {{count}} session",
+    "trendLabel_other": "Average RPE of your last {{count}} sessions",
+    "oneRmEffort": "Est. 1RM with effort",
+    "oneRmPlain": "From reps alone",
+    "oneRmNote": "Counts the reps you had left: RPE 8 is two more reps. Only sets with an RPE are used."
+  },
   "exerciseHistory": {
     "noSetData": "No set data",
     "loadError": "Couldn't load history.",
-    "empty": "No sessions logged yet."
+    "empty": "No sessions logged yet.",
+    "columns": {
+      "set": "Set",
+      "weightReps": "Weight & reps",
+      "timeDistance": "Time & distance",
+      "time": "Time",
+      "weightDistance": "Weight & distance",
+      "weightTime": "Weight & time",
+      "reps": "Reps",
+      "rpe": "RPE"
+    }
   },
   "foodFormPersistence": {
     "discardTitle": "Discard unsaved equivalents?",
@@ -3997,6 +4079,13 @@
       "retryTitle": "Retry with Open Food Facts",
       "retryDescription": "If no result is found, try Open Food Facts automatically."
     },
+    "nutrients": {
+      "title": "Nutrients",
+      "custom": "Custom Nutrients",
+      "customSubtitle": "Create and edit your own nutrients",
+      "display": "Nutrient Display",
+      "displaySubtitle": "Choose and order the nutrients shown in each view"
+    },
     "allergens": {
       "title": "Allergens",
       "subtitle": "Get warnings on foods and scans that contain allergens you track"
@@ -4605,6 +4694,15 @@
       "targetGoal": "Target Daily Goal",
       "averageVsTarget": "Average vs. Target",
       "percentOfGoal": "{{percent}}% of goal"
+    },
+    "topSources": {
+      "title": "Top Sources",
+      "allMeals": "All meals",
+      "clearDay": "Show whole period",
+      "empty": "No {{nutrient}} logged for this selection",
+      "loadFailed": "Failed to load food sources",
+      "share": "{{percent}}%",
+      "servingAmount": "{{quantity}} {{unit}}"
     }
   },
   "workoutPresetDetail": {
@@ -5173,14 +5271,49 @@
     "logTitle": "Mood",
     "overall": "Overall mood",
     "tags": "Moods",
-    "notesPlaceholder": "Add a note (optional)",
+    "energy": "Energy",
+    "energyLow": "Drained",
+    "energyHigh": "Energized",
+    "focus": "Focus",
+    "focusLow": "Scattered",
+    "focusHigh": "Locked in",
+    "journalOptional": "Journal (optional)",
+    "journalPlaceholder": "Any thoughts or feelings you'd like to add?",
+    "reminderOfferTitle": "Remind me daily?",
+    "reminderOfferBody": "Get a reminder each evening to check in. You can change the time or add more in Settings → App Settings → Notifications.",
+    "reminderOfferAccept": "Remind me",
+    "ratingsUnsupported": "Your server doesn't save energy and focus yet. Update SparkyFitness to keep them.",
     "loggingForDate": "Logging for {{date}}",
     "chartTitle": "Mood over time",
     "mostCommon": "Most common moods",
     "chartEmpty": "No mood logged for this period",
     "chartLoadFailed": "Failed to load mood data",
     "loadFailed": "Could not load this day's mood",
+    "serverCheckFailed": "Couldn't reach your server. Check your connection and try again.",
     "saveFailed": "Could not save mood",
+    "newCheckinTitle": "New check-in",
+    "editCheckinTitle": "Edit check-in",
+    "time": "Time",
+    "timeA11y": "Time, {{time}}",
+    "deleteCheckin": "Delete check-in",
+    "deleteCheckinConfirm": "Delete this check-in?",
+    "deleteCheckinMessage": "This removes the check-in and its journal entry.",
+    "deleteFailed": "Could not delete check-in",
+    "checkinNeedsContent": "Add a mood, energy, focus, a tag or a journal entry to save.",
+    "checkinMissing": "This check-in no longer exists.",
+    "dayTitle": "Mood",
+    "dayAverage": "Day average",
+    "checkinCount_one": "{{count}} check-in",
+    "checkinCount_other": "{{count}} check-ins",
+    "noCheckins": "No check-ins yet for this day.",
+    "addCheckin": "Add check-in",
+    "checkinRowA11y": "{{summary}}. Edit check-in.",
+    "checkinAtTime": "check-in at {{time}}",
+    "a11yListSeparator": ", ",
+    "energyA11y": "energy {{value}} of 5",
+    "focusA11y": "focus {{value}} of 5",
+    "energyOutOfFive": "Energy {{value}}/5",
+    "focusOutOfFive": "Focus {{value}}/5",
     "names": {
       "angry": "Angry",
       "anxious": "Anxious",
@@ -5386,6 +5519,7 @@
     "activeOngoing": "Active Ongoing Episodes",
     "noHistory": "No symptom logs found",
     "noHistoryDesc": "Logs and past episodes for the last 30 days will show here.",
+    "noHistoryForDay": "No symptoms were logged on this day.",
     "yourCustomSymptoms": "Your Custom Symptoms",
     "noCustomSymptoms": "No custom symptoms created yet.",
     "createFirst": "+ Create Custom Symptom",
@@ -5470,7 +5604,11 @@
       "helped": "Helped",
       "partly": "Partly",
       "didntHelp": "Didn't help",
-      "unknown": "Unsure"
+      "unknown": "Unsure",
+      "full": "full relief",
+      "partial": "partial relief",
+      "none": "no relief",
+      "unrated": "unrated"
     },
     "kinds": {
       "relief": "Relief / Non-drug",
@@ -5485,6 +5623,28 @@
       "dailyBody": "How are you feeling today? Tap to log any symptoms.",
       "nudgeTitle": "Episode still active?",
       "nudgeBody": "{{name}} has been running for {{hours}} hours. Is it still ongoing or ended?"
+    },
+    "chart": {
+      "summary_one": "Severity over the episode, {{count}} reading",
+      "summary_other": "Severity over the episode, {{count}} readings"
+    },
+    "calendar": {
+      "previous": "Previous month",
+      "next": "Next month",
+      "free": "Symptom-free",
+      "mild": "Mild to moderate",
+      "severe": "Severe",
+      "unknown": "No entry"
+    },
+    "detail": {
+      "edit": "Edit",
+      "notFound": "This entry is no longer available.",
+      "photoCount_one": "{{count}} photo attached",
+      "photoCount_other": "{{count}} photos attached"
+    },
+    "episode": {
+      "ongoing": "ongoing",
+      "peak": "peak {{n}}"
     }
   },
   "waterIntake": {
@@ -6101,6 +6261,7 @@
     "scanFood": "Scan food",
     "searchFood": "Log food",
     "logWater": "Log water",
+    "logWaterInBackground": "Log water without opening the app",
     "fasting": "Fasting",
     "waterLogged": "Water logged",
     "waterFailed": "Could not log water"
@@ -6299,6 +6460,7 @@
       "tooHard": "Holding weight: last time felt too hard.",
       "tooHardRepeated": "Lighter today: too hard two sessions running.",
       "highEffort": "Holding weight: your last sets were near max effort.",
+      "lowEffort": "A step heavier: your last sets were logged as easy.",
       "tooEasyRepeated": "A step heavier: too easy two sessions running."
     },
     "declined": "Using your usual suggestion.",
@@ -6355,6 +6517,13 @@
       "strength": "Strength",
       "cardio": "Cardio"
     },
+    "runningForm": {
+      "title": "Running form",
+      "subtitle": "Steps per minute and stride length on your runs",
+      "average": "Average {{value}}",
+      "change": "{{value}} vs earlier runs",
+      "hint": "A treadmill run counts once its steps were measured."
+    },
     "cardio": {
       "hint": "Tap a workout for its route and heart rate.",
       "empty": "No cardio workouts in this range",
@@ -6368,6 +6537,9 @@
       "floorsCount_one": "{{formattedCount}} floor",
       "floorsCount_other": "{{formattedCount}} floors",
       "elevationGain": "Elevation gain",
+      "cadence": "Avg cadence",
+      "spm": "{{value}} spm",
+      "strideLength": "Stride length",
       "calories": "{{value}} Cal",
       "minutes_one": "{{formattedCount}} min",
       "minutes_other": "{{formattedCount}} min",
@@ -6389,6 +6561,27 @@
       "zone": "Zone {{zone}}",
       "zoneFrom": "from {{bpm}} bpm",
       "minutesAxis": "Minutes from start",
+      "trends": {
+        "title": "Running, last 12 weeks",
+        "thisWeek": "This week",
+        "thisWeekAbove": "This week, {{percent}}% above your recent average",
+        "thisWeekBelow": "This week, {{percent}}% below your recent average",
+        "chartA11y": "Weekly running distance for the last 12 weeks",
+        "longestRun": "Longest run",
+        "efficiency": "Efficiency",
+        "raceTimes": "Race time estimates",
+        "race5k": "5K",
+        "race10k": "10K",
+        "raceHalf": "Half marathon",
+        "raceMarathon": "Marathon",
+        "basis1k": "1K",
+        "basis1mi": "mile",
+        "basis15k": "15K",
+        "yourRecord": "your record",
+        "fromBest": "from your {{distance}}",
+        "raceTimesHint": "Estimates scale your best efforts to each distance. They run optimistic for distances you have not trained for.",
+        "efficiencyHint": "Efficiency is distance per heartbeat on runs of 20 minutes or more, earlier weeks against recent ones. Higher means fitter at the same effort."
+      },
       "kilometersAxis": "Kilometers from start",
       "milesAxis": "Miles from start",
       "bestPace": "Best {{value}}",
@@ -6396,7 +6589,8 @@
       "perMile": "/mi",
       "underOneMinute": "<1 min",
       "exportGpx": "Export GPX",
-      "exportGpxFailed": "Could not export the route"
+      "exportGpxFailed": "Could not export the route",
+      "shareImage": "Share as image"
     },
     "load": {
       "title": "Training Load",
@@ -6437,6 +6631,20 @@
       "setsTitle": "Sets per muscle",
       "noSets": "No sets logged this week or last.",
       "loadFailed": "Could not load your training consistency."
+    },
+    "paceZones": {
+      "title": "Pace zones",
+      "perKm": "/km",
+      "perMile": "/mi",
+      "easy": "Easy",
+      "steady": "Steady",
+      "threshold": "Threshold",
+      "interval": "Interval",
+      "repetition": "Repetition",
+      "range": "{{fast}} – {{slow}} {{unit}}",
+      "fromEffort": "Built from your best recent run. Threshold pace is about {{pace}} {{unit}}.",
+      "fromTypical_one": "Estimated from your last {{formattedCount}} run, so less precise. A hard run of 3 km or more sharpens it.",
+      "fromTypical_other": "Estimated from your last {{formattedCount}} runs, so less precise. A hard run of 3 km or more sharpens it."
     }
   },
   "aiSettings": {
@@ -6457,54 +6665,97 @@
       }
     }
   },
-  "allergens": {
-    "trace": "trace: {{name}}",
-    "warningTitle": "Contains an allergen you track",
-    "traceWarningTitle": "May contain an allergen you track",
-    "mayContainTraces": "May contain traces of: {{names}}"
+  "customNutrients": {
+    "title": "Custom Nutrients",
+    "add": "Add custom nutrient",
+    "loading": "Loading custom nutrients...",
+    "loadFailed": "Failed to load custom nutrients",
+    "empty": "No custom nutrients yet",
+    "emptyHint": "Track anything the built-in nutrients do not cover, such as magnesium or omega-3.",
+    "description": "Tap a nutrient to edit its name, unit, or provider aliases.",
+    "editTitle": "Edit nutrient",
+    "createTitle": "Add nutrient",
+    "notFound": "Custom nutrient not found",
+    "name": "Nutrient name",
+    "namePlaceholder": "e.g., Magnesium",
+    "unit": "Unit",
+    "unitPlaceholder": "e.g., mg, µg, IU",
+    "aliases": "Provider aliases",
+    "aliasPlaceholder": "Type a name, then press return",
+    "aliasesHelp": "Names online food databases use for this nutrient. When you import a food, matching provider fields fill this nutrient.",
+    "required": "Nutrient name and unit are required.",
+    "saveFailed": "Failed to save custom nutrient",
+    "deleteFailed": "Failed to delete custom nutrient",
+    "delete": "Delete nutrient",
+    "deleteTitle": "Delete custom nutrient",
+    "deleteMessage": "Delete {{name}}? You can also remove it from past goals and diary entries.",
+    "deleteKeepHistory": "Delete, keep history",
+    "deleteAllHistory": "Delete and remove history"
   },
-  "allergenSettings": {
-    "title": "Allergens",
-    "description": "Add the allergens you want to be warned about. When a food contains one of these, a warning badge appears on foods and diary entries.",
-    "common": "Common allergens",
-    "custom": "Custom allergen",
-    "customPlaceholder": "e.g., lupin, molluscs…",
-    "tracked": "Your tracked allergens",
-    "empty": "No allergens tracked yet. Add some above to get warnings on foods.",
-    "remove": "Remove {{name}}",
-    "alreadyAdded": "Already added",
-    "alreadyAddedDescription": "{{name}} is already in your list.",
-    "errors": {
-      "error": "Error",
-      "updateFailed": "Failed to update allergens."
-    },
-    "sync": {
-      "title": "Sync from OpenFoodFacts",
-      "description": "Fetch allergen data for your saved OpenFoodFacts foods. Only needs to be done once.",
-      "button": "Sync allergens",
-      "complete": "Allergen sync complete",
-      "upToDate": "All your OpenFoodFacts foods already have allergen data.",
-      "result": "Updated {{updated}} of {{total}} food(s).",
-      "failed": "Sync failed",
-      "failedDescription": "Could not sync allergens. Please try again."
-    },
-    "names": {
-      "gluten": "gluten",
-      "wheat": "wheat",
-      "milk": "milk",
-      "eggs": "eggs",
-      "peanuts": "peanuts",
-      "treeNuts": "tree nuts",
-      "soy": "soy",
-      "fish": "fish",
-      "shellfish": "shellfish",
-      "crustaceans": "crustaceans",
-      "sesame": "sesame",
-      "celery": "celery",
-      "mustard": "mustard",
-      "lupin": "lupin",
-      "sulphites": "sulphites"
+  "nutrientDisplay": {
+    "title": "Nutrient Display",
+    "loading": "Loading nutrient display...",
+    "loadFailed": "Failed to load nutrient display",
+    "description": "Choose which nutrients this app shows in each place, and their order. Dashboard and Diary have their own settings.",
+    "groupPicker": "Show in",
+    "updateFailed": "Failed to update nutrient display.",
+    "moveUp": "Move {{name}} up",
+    "moveDown": "Move {{name}} down",
+    "show": "Show {{name}}",
+    "reset": "Reset to default",
+    "groups": {
+      "foodDatabase": "Food Database",
+      "reportTabular": "Report (Tabular)"
     }
+  },
+  "equipmentHub": {
+    "title": "Equipment",
+    "shoesSubtitle": "Running shoes and their mileage"
+  },
+  "shoes": {
+    "title": "Shoes",
+    "shoe": "Shoe",
+    "noShoe": "No shoe",
+    "add": "Add",
+    "addShoe": "Add shoe",
+    "editShoe": "Edit shoe",
+    "loadFailed": "Could not load your shoes.",
+    "notFound": "Shoe not found.",
+    "assignFailed": "Failed to assign shoe",
+    "empty": "No shoes yet",
+    "emptyHint": "Add a pair, then pick it on a run to start counting its mileage.",
+    "name": "Name",
+    "nameRequired": "Enter a name.",
+    "brand": "Brand",
+    "model": "Model",
+    "nickname": "Nickname",
+    "startingDistance": "Starting mileage ({{unit}})",
+    "startingInvalid": "Enter 0 or more.",
+    "retireAt": "Retire at ({{unit}})",
+    "retireInvalid": "Enter a distance above 0.",
+    "purchaseDate": "Purchase date",
+    "selectDate": "Select date",
+    "clearDate": "Clear date",
+    "purchasePrice": "Price",
+    "priceInvalid": "Enter 0 or more.",
+    "useAsDefault": "Use as my default pair",
+    "useAsDefaultHint": "New recorded runs, outdoor or indoor, are logged with your default pair.",
+    "retire": "Retire",
+    "retirePrompt": "This pair has reached its limit. Retire it?",
+    "limitReachedTitle": "Time for new shoes?",
+    "limitReachedMessage": "{{name}} has reached its mileage limit. Do you want to retire it?",
+    "reactivate": "Reactivate",
+    "retired": "Retired",
+    "retiredSection": "Retired",
+    "wornOut": "Worn out",
+    "ofLimit": "of {{limit}} {{unit}}",
+    "runCount_one": "{{count}} run",
+    "runCount_other": "{{count}} runs",
+    "lastUsed": "last used {{date}}",
+    "updateFailed": "Failed to update shoe",
+    "saveFailed": "Failed to save shoe",
+    "deleteTitle": "Delete this shoe?",
+    "deleteDescription": "Runs logged with this pair stay in your diary, but they will no longer be linked to a shoe."
   },
   "fastingSettings": {
     "title": "Fasting Settings",
@@ -6897,7 +7148,20 @@
         "faster5k": "Faster 5K",
         "walkFit": "Walk for fitness",
         "halfMarathon": "Half marathon",
-        "marathon": "Marathon"
+        "marathon": "Marathon",
+        "halfMarathon4": "Half marathon (4 runs a week)",
+        "tenKToHalf4": "10K to half marathon (4 runs a week)",
+        "fasterHalf4": "Faster half marathon (4 runs a week)",
+        "beginnerMarathon4": "Beginner marathon (4 runs a week)",
+        "walk10k": "Brisk walk 10K",
+        "returnToRunning": "Return to running",
+        "gentle5k": "Gentle 5K",
+        "beginner10k": "Beginner 10K",
+        "faster10k": "Faster 10K",
+        "tenKToHalf": "10K to half marathon",
+        "fasterHalf": "Faster half marathon",
+        "beginnerMarathon": "Beginner marathon",
+        "advancedMarathon": "Advanced marathon"
       },
       "beginner5kDescription": "Beginner 5K: nine weeks, three runs a week. You alternate running and walking, and build up to 30 minutes of running.",
       "workoutLabel": "{{name}} · Week {{week}}, run {{run}}",
@@ -6951,6 +7215,19 @@
       "faster5kDescription": "Faster 5K: six weeks of speed sessions, easy runs and tempo runs, for when you already run 5K.",
       "walkFitDescription": "Walk for fitness: eight weeks, three walks a week, with no running. You alternate brisk and easy walking and build up to 30 minutes of brisk walking.",
       "halfMarathonDescription": "Half marathon: twelve weeks, three runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably.",
+      "walk10kDescription": "Brisk walk 10K: ten weeks, three walks a week, with no running. You build up to a 10K walk of about an hour and three quarters.",
+      "returnToRunningDescription": "Return to running: four weeks, three runs a week, for easing back in after a break. You build from one-minute runs to about 20 minutes of running. Leave a day or two between runs and keep the pace easy. If you are coming back from an injury, check with a physio or doctor first.",
+      "gentle5kDescription": "Gentle 5K: twelve weeks, three runs a week. A slower start than Beginner 5K, with very short runs between long walks, building to 30 minutes of running.",
+      "beginner10kDescription": "Beginner 10K: twelve weeks, three runs a week, starting from walking. You build up to running for an hour.",
+      "faster10kDescription": "Faster 10K: eight weeks of speed sessions, easy runs and tempo runs, for when you already run 10K.",
+      "tenKToHalfDescription": "10K to half marathon: ten weeks, three runs a week, for when you can run 10K. Long runs build from 65 to 115 minutes.",
+      "fasterHalfDescription": "Faster half marathon: ten weeks of speed sessions, easy runs and long runs with tempo work, for when you have run a half marathon before.",
+      "beginnerMarathonDescription": "Beginner marathon: eighteen weeks, three runs a week, with long runs building to 2½ hours and a taper. For when you can run 10K.",
+      "advancedMarathonDescription": "Advanced marathon: sixteen weeks, five runs a week, with speed or tempo work and long runs building to three hours. For experienced runners.",
+      "halfMarathon4Description": "Half marathon: twelve weeks, four runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably.",
+      "tenKToHalf4Description": "10K to half marathon: ten weeks, four runs a week, with long runs building to about two hours. For when you can run 10K.",
+      "beginnerMarathon4Description": "Beginner marathon: eighteen weeks, four runs a week, with long runs building to 2⅔ hours and a taper. For when you can run 10K.",
+      "fasterHalf4Description": "Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run with tempo work. For when you have run a half marathon before.",
       "marathonDescription": "Marathon: sixteen weeks, four runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly.",
       "outlineWalk": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of brisk walking.",
       "outline": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.",
@@ -6991,6 +7268,10 @@
       "weak": "GPS weak",
       "none": "No GPS"
     },
+    "warmRanges": {
+      "title": "Warm-up and cool-down",
+      "off": "Off"
+    },
     "paceBand": {
       "title": "Pace alert",
       "description": "Buzzes, and speaks with voice cues on, when you stay outside your pace range.",
@@ -7001,7 +7282,9 @@
       "workTitle": "Fast stretch pace",
       "workDescription": "Alerts you when a fast stretch is outside this range.",
       "easyTitle": "Easy stretch pace",
-      "easyDescription": "Alerts you when an easy stretch is outside this range."
+      "easyDescription": "Alerts you when an easy stretch is outside this range.",
+      "warmTitle": "Warm-up and cool-down pace",
+      "warmDescription": "Alerts you when the warm-up or cool-down is outside this range."
     },
     "heartRateBand": {
       "title": "Heart rate alert",
@@ -7014,16 +7297,22 @@
       "workTitle": "Fast stretch heart rate",
       "workDescription": "Alerts you when your heart rate in a fast stretch is outside this range.",
       "easyTitle": "Easy stretch heart rate",
-      "easyDescription": "Alerts you when your heart rate in an easy stretch is outside this range."
+      "easyDescription": "Alerts you when your heart rate in an easy stretch is outside this range.",
+      "warmTitle": "Warm-up and cool-down heart rate",
+      "warmDescription": "Alerts you when your heart rate in the warm-up or cool-down is outside this range."
     },
     "suggestedRanges": {
       "title": "Suggested ranges",
-      "pace": "Pace: fast {{fast}}, easy {{easy}}",
+      "pace": "Pace: fast {{fast}}, easy {{easy}}, warm-up and cool-down {{warm}}",
       "paceSource_one": "Based on your last {{formattedCount}} session.",
       "paceSource_other": "Based on your last {{formattedCount}} sessions.",
-      "heartRate": "Heart rate: fast {{fast}}, easy {{easy}}",
+      "heartRate": "Heart rate: fast {{fast}}, easy {{easy}}, warm-up and cool-down {{warm}}",
       "heartRateSource": "From an estimated maximum of {{max}} bpm for your age.",
-      "use": "Use these"
+      "use": "Use these",
+      "tempo": "tempo {{range}}",
+      "marathonPace": "marathon pace {{range}}",
+      "strides": "strides {{range}}",
+      "paceSourceRace": "Based on your recent race: {{race}}."
     }
   },
   "goals": {
@@ -7042,9 +7331,13 @@
     },
     "adaptiveNoteToday": "Adaptive mode is on, so your calorie goal changes daily. Today it is {{calories}} kcal. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.",
     "adaptiveNote": "Adaptive mode is on, so your calorie goal changes daily. The baseline below sets how far above or below your estimated maintenance you aim to be; it is not a fixed daily target.",
+    "customNutrients": {
+      "notSet": "No goal"
+    },
     "sections": {
       "macros": "Calories & macros",
       "nutrients": "Other nutrients",
+      "customNutrients": "Custom nutrients",
       "activity": "Water & exercise",
       "meals": "Meal calorie distribution",
       "presets": "Goal presets",
@@ -7525,6 +7818,9 @@
     "startPickDate": "Pick a date",
     "startToday": "Start today",
     "intro": "Follow a plan that builds up week by week. Pick a program to see what it involves, then start it when you are ready.",
+    "runsPerWeekOption_one": "{{count}} run a week",
+    "runsPerWeekOption_other": "{{count}} runs a week",
+    "runsPerWeekHint": "A fourth run adds a short easy run, so the long run is a smaller share of your week.",
     "weeksRuns": "{{weeks}} weeks, {{runs}} workouts a week",
     "guide": {
       "structure": {
@@ -7533,7 +7829,30 @@
         "faster5k": "Each week has a speed session (fast and easy repeats), an easy run and a longer run. In weeks 1 to 3 the longer run is easy; in weeks 4 to 6 it becomes a tempo run of 15, 20 and then 25 minutes.",
         "walkFit": "Weeks 1 to 4 alternate stretches of brisk walking (3 to 8 minutes) with 2 minutes of easy walking. Weeks 5 and 6 use two longer brisk stretches of 12 and 15 minutes. Weeks 7 and 8 are continuous brisk walks of 20 to 30 minutes.",
         "halfMarathon": "Each week has an easy run, a middle run and a long run. The long run builds from 50 to 115 minutes, every fourth week is lighter, and the last week is short before race day.",
-        "marathon": "Most weeks have two easy runs, a middle run and a long run. The long run builds from 70 minutes to 2¾ hours, every fourth week is lighter, and the last two weeks taper before race day."
+        "marathon": "Most weeks have two easy runs, a middle run and a long run. The long run builds from 70 minutes to 2¾ hours, every fourth week is lighter, and the last two weeks taper before race day.",
+        "halfMarathon4": "Each week has two easy runs, a middle run and a long run. The long run builds from 60 to 125 minutes, every fourth week is lighter, and the last two weeks taper before race day. The final week has three shorter runs.",
+        "tenKToHalf4": "Each week has two short runs, a middle run and a long run. The long run builds from 75 to 125 minutes, week 4 is lighter, and the last three weeks taper before race day. The final week has three shorter runs.",
+        "fasterHalf4": "Each week has a speed session, two easy runs and a long run. The long run builds from 80 to 120 minutes, week 4 is lighter, and the last three weeks taper before race day. The final week has three shorter runs.",
+        "beginnerMarathon4": "Each week has two short runs, a middle run and a long run. The long run builds from 80 minutes to 2 hours 40 minutes, every fourth week is lighter, and the last three weeks taper before race day. The final week has three shorter runs.",
+        "walk10k": "Each week has two walks of brisk stretches with short easy breaks and one long brisk walk. The long walk grows from 40 to 105 minutes, weeks 4 and 8 are lighter, and the last week ends with the 10K walk.",
+        "returnToRunning": "Weeks 1 to 3 alternate short runs with walks, from 1-minute runs to 5-minute runs. Week 4 has three run/walk sessions with runs of 6, 10 and 12 minutes, adding up to 18, 20 and 22 minutes of running.",
+        "gentle5k": "Every week repeats one run/walk session three times. The runs grow from 30 seconds to 5 minutes by week 8, then to two 10-minute runs, a 15 and a 10-minute run, and finally continuous runs of 25 and 30 minutes.",
+        "beginner10k": "Weeks 1 to 6 follow the beginner 5K build from short runs and walks to continuous running. Weeks 7 to 12 are three runs a week, with the long run growing from 30 to 60 minutes.",
+        "faster10k": "Each week has a speed session (fast and easy repeats), an easy run and a longer run. In weeks 5 to 7 the longer run is a tempo run of 20, 25 and then 30 minutes, and the last week eases off.",
+        "tenKToHalf": "Each week has a short run, a middle run and a long run. The long run builds from 65 to 115 minutes, weeks 4 and 8 are lighter, and the last two weeks taper before race day.",
+        "fasterHalf": "Each week has a speed session, an easy run and a long run. The long run builds from 70 to 110 minutes, tempo runs of 25 and 30 minutes replace the speed session in weeks 6 and 8, and the last two weeks taper.",
+        "beginnerMarathon": "Each week has a short run, a middle run and a long run. The long run builds from 70 minutes to 2½ hours, every fourth week is lighter, and the last three weeks taper before race day.",
+        "advancedMarathon": "Most weeks have two easy runs, a speed or tempo session, a middle run and a long run. The long run builds from 90 minutes to three hours, every fourth week is lighter, and the last two weeks taper before race day."
+      },
+      "rest": {
+        "title": "Rest days",
+        "beginner": "Do not train on back-to-back days. Three workouts a week with a rest day between them, for example Monday, Wednesday and Saturday, gives your legs time to adapt. On rest days walk, stretch or do something gentle.",
+        "fiveToTenK": "Keep a rest day between the two steady runs, and put the long run a day or two after a rest day. Rest or cross-train (cycling, swimming, an easy walk) on the other days.",
+        "faster5k": "Give the speed session and the longer run an easy day or a rest day on each side. Never do them back to back. Spend the free days resting or cross-training gently.",
+        "returnToRunning": "Leave a day or two between runs, for example Monday, Thursday and Saturday, and keep every run easy and conversational. Rest, walk or cycle gently on the other days. If anything hurts more as you go, drop back to the previous week.",
+        "fourRun": "With four runs a week, take at least one full rest day and never run more than two days in a row. Keep the day before the long run easy or free, and rest or cross-train the day after it. Use the other days for rest, walking or low-impact cross-training.",
+        "advanced": "With five runs a week, take two rest or cross-training days and avoid more than two runs in a row. Keep the speed or tempo session and the long run at least two days apart, keep the days either side of them easy, and rest more in the lighter weeks.",
+        "longDistance": "Keep the day before the long run easy or free, and take a rest day the day after it. Space the other runs so no two hard days sit together, and use spare days for rest, walking or low-impact cross-training."
       },
       "title": "How the plans work",
       "workout": {
@@ -7551,6 +7870,14 @@
       "listen": {
         "title": "Listening to your body",
         "body": "Aches that settle after a day are normal; sharp or lasting pain is not, so stop and rest. If a week was too hard, repeat it or ask Sparky to ease the next workouts. Leave a rest day between workouts while you are starting out. This is general guidance, not medical advice: if you are unsure about starting a new exercise plan, check with your doctor first."
+      },
+      "efforts": {
+        "title": "Strides, hills, tempo and marathon pace",
+        "body": "A stride is a short, quick, relaxed effort of about 20 seconds, followed by a walk or jog back, done at the end of an easy run to loosen up. Hill repeats are hard efforts uphill with an easy walk or jog back down; pace does not matter on a hill, so judge them by effort. A tempo run is a steady stretch you could hold for about an hour, comfortably hard. Marathon pace is the pace you plan to hold on race day: practise it in the second half of long runs."
+      },
+      "pace": {
+        "title": "Pace ranges",
+        "body": "Enter a recent race time under Your race pace and the Record screen can suggest a pace range for each kind of stretch. They are estimates: heat, hills or a tired week will change them, so use them as a guide and go by effort when the two disagree."
       }
     },
     "start": "Start program",
@@ -7822,5 +8149,108 @@
     "takeRest": "Take a rest day or an easy session.",
     "ready": "You are rested and ready.",
     "explain": "Adds up how long and how hard your workouts were. Usual is your 4-week average. Bars show the last 4 weeks; green is this week."
+  },
+  "paceReference": {
+    "title": "Your race pace",
+    "intro": "Enter a recent race time to get pace ranges for easy runs, tempo, marathon pace, strides and fast stretches. Kept on this device.",
+    "race": {
+      "5k": "5K",
+      "10k": "10K",
+      "half": "Half marathon",
+      "halfShort": "Half",
+      "marathon": "Marathon",
+      "other": "{{km}} km"
+    },
+    "result": "{{race}} in {{time}}",
+    "finishTime": "Finish time",
+    "hours": "h",
+    "minutes": "min",
+    "seconds": "sec",
+    "invalid": "That time does not look right for this distance. Check the hours, minutes and seconds.",
+    "saved": "Saved: {{race}} in {{time}}.",
+    "save": "Save",
+    "clear": "Clear",
+    "watch": "Also use on my Apple Watch",
+    "watchHint": "Holds the program workout offered on the watch to these ranges. Runs only."
+  },
+  "allergens": {
+    "trace": "trace: {{name}}",
+    "warningTitle": "Contains an allergen you track",
+    "traceWarningTitle": "May contain an allergen you track",
+    "mayContainTraces": "May contain traces of: {{names}}"
+  },
+  "allergenSettings": {
+    "title": "Allergens",
+    "description": "Add the allergens you want to be warned about. When a food contains one of these, a warning badge appears on foods and diary entries.",
+    "common": "Common allergens",
+    "custom": "Custom allergen",
+    "customPlaceholder": "e.g., lupin, molluscs…",
+    "tracked": "Your tracked allergens",
+    "empty": "No allergens tracked yet. Add some above to get warnings on foods.",
+    "remove": "Remove {{name}}",
+    "alreadyAdded": "Already added",
+    "alreadyAddedDescription": "{{name}} is already in your list.",
+    "errors": {
+      "error": "Error",
+      "updateFailed": "Failed to update allergens."
+    },
+    "sync": {
+      "title": "Sync from OpenFoodFacts",
+      "description": "Fetch allergen data for your saved OpenFoodFacts foods. Only needs to be done once.",
+      "button": "Sync allergens",
+      "complete": "Allergen sync complete",
+      "upToDate": "All your OpenFoodFacts foods already have allergen data.",
+      "result": "Updated {{updated}} of {{total}} food(s).",
+      "failed": "Sync failed",
+      "failedDescription": "Could not sync allergens. Please try again."
+    },
+    "names": {
+      "gluten": "gluten",
+      "wheat": "wheat",
+      "milk": "milk",
+      "eggs": "eggs",
+      "peanuts": "peanuts",
+      "treeNuts": "tree nuts",
+      "soy": "soy",
+      "fish": "fish",
+      "shellfish": "shellfish",
+      "crustaceans": "crustaceans",
+      "sesame": "sesame",
+      "celery": "celery",
+      "mustard": "mustard",
+      "lupin": "lupin",
+      "sulphites": "sulphites"
+    }
+  },
+  "routes": {
+    "addTitle": "Add a route",
+    "draw": "Draw on a map",
+    "importGpx": "Import a GPX file",
+    "importFailed": "Could not import that file",
+    "importFailedHint": "Choose a GPX file with a track or route in it.",
+    "loadFailed": "Could not load your routes.",
+    "loadOneFailed": "Could not load this route.",
+    "empty": "No routes yet. Draw one on a map, import a GPX file, or save a recorded run or walk from its details.",
+    "mapA11y": "Map of this route, from the green dot to the red ring",
+    "nameLabel": "Route name",
+    "namePlaceholder": "Name this route",
+    "climb": "{{climb}} climb",
+    "rename": "Rename",
+    "renameFailed": "Could not rename",
+    "shareGpx": "Share as GPX",
+    "shareFailed": "Could not share the route",
+    "deleteTitle": "Delete this route?",
+    "deleteMessage": "Recorded activities it was saved from are not affected.",
+    "deleteFailed": "Could not delete the route",
+    "saveFailed": "Could not save the route",
+    "drawHint": "Tap the map to add points",
+    "undo": "Undo",
+    "clear": "Clear",
+    "saveAsRoute": "Save as route",
+    "savedAsRoute": "Saved to Routes",
+    "saveAsRouteFailed": "Could not save the route",
+    "fileTooLarge": "That file is too large",
+    "fileTooLargeHint": "A route file can be up to 10 MB.",
+    "drawLimit": "That is as many points as a route can have here. Undo some or save this one."
   }
 }

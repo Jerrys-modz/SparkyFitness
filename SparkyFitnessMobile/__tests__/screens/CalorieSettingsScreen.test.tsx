@@ -5,6 +5,14 @@ import CalorieSettingsScreen from '../../src/screens/CalorieSettingsScreen';
 
 const mockMutate = jest.fn();
 let mockPreferences: Record<string, unknown> = {};
+let mockBmr: number | undefined = 1750;
+
+jest.mock('../../src/hooks/useDailySummary', () => ({
+  useDailySummary: () => ({
+    summary:
+      mockBmr === undefined ? undefined : { calorieBalance: { bmr: mockBmr } },
+  }),
+}));
 
 jest.mock('../../src/hooks/usePreferences', () => ({
   usePreferences: () => ({ preferences: mockPreferences }),
@@ -81,6 +89,7 @@ describe('CalorieSettingsScreen', () => {
       await i18n.changeLanguage('en');
     });
     jest.clearAllMocks();
+    mockBmr = 1750;
     mockPreferences = {
       calorie_goal_adjustment_mode: 'adaptive',
       goal_mode: 'maintain',
@@ -122,6 +131,41 @@ describe('CalorieSettingsScreen', () => {
     expect(mockMutate).toHaveBeenCalledWith({ goal_mode: 'recomp' });
   });
 
+  it.each(['dynamic', 'percentage'])(
+    'explains why %s does not earn activity back on an Adaptive target',
+    (mode) => {
+      mockPreferences.calorie_goal_adjustment_mode = mode;
+      mockPreferences.goal_mode_calculation_method = 'adaptive';
+      const { getByText, queryByLabelText } = render(
+        <CalorieSettingsScreen navigation={navigation} route={route} />
+      );
+
+      expect(
+        getByText(
+          'Adaptive targets already include activity. Remaining calories are Target minus Eaten. Exercise earn-back applies only to Manual targets.'
+        )
+      ).toBeTruthy();
+      expect(getByText('Goal − Eaten')).toBeTruthy();
+      expect(queryByLabelText('Exercise Calories Applied')).toBeNull();
+    }
+  );
+
+  it.each([0, undefined])(
+    'keeps manual-fallback earn-back available when BMR is %s',
+    (bmr) => {
+      mockBmr = bmr;
+      mockPreferences.calorie_goal_adjustment_mode = 'percentage';
+      mockPreferences.goal_mode_calculation_method = 'adaptive';
+      mockPreferences.exercise_calorie_percentage = 50;
+      const { getByLabelText, getByText } = render(
+        <CalorieSettingsScreen navigation={navigation} route={route} />
+      );
+
+      expect(getByLabelText('Exercise Calories Applied')).toBeTruthy();
+      expect(getByText('Goal − Eaten + 50% of Exercise')).toBeTruthy();
+    }
+  );
+
   it('offers and saves Goal Mode calculation method on Android', () => {
     const { getByText } = render(
       <CalorieSettingsScreen navigation={navigation} route={route} />
@@ -133,6 +177,81 @@ describe('CalorieSettingsScreen', () => {
     fireEvent.press(getByText('Adaptive'));
     expect(mockMutate).toHaveBeenCalledWith({
       goal_mode_calculation_method: 'adaptive',
+    });
+  });
+
+  it.each([
+    ['dynamic', 'adaptive', true],
+    ['dynamic', 'manual', false],
+    ['percentage', 'adaptive', false],
+    ['adaptive', 'adaptive', false],
+    ['fixed', 'adaptive', false],
+    ['tdee', 'adaptive', false],
+  ])('shows separate activity only for %s with %s', (mode, method, visible) => {
+    mockPreferences.calorie_goal_adjustment_mode = mode;
+    mockPreferences.goal_mode_calculation_method = method;
+    const { queryByLabelText } = render(
+      <CalorieSettingsScreen navigation={navigation} route={route} />
+    );
+
+    expect(
+      queryByLabelText('Count activity calories separately') !== null
+    ).toBe(visible);
+  });
+
+  it('defaults separate activity off and saves the opt-in without changing the mode', () => {
+    mockPreferences.calorie_goal_adjustment_mode = 'dynamic';
+    mockPreferences.goal_mode_calculation_method = 'adaptive';
+    const { getByLabelText } = render(
+      <CalorieSettingsScreen navigation={navigation} route={route} />
+    );
+    const toggle = getByLabelText('Count activity calories separately');
+
+    expect(toggle.props.value).toBe(false);
+    fireEvent(toggle, 'valueChange', true);
+    expect(mockMutate).toHaveBeenCalledWith({
+      adaptive_activity_separate: true,
+    });
+  });
+
+  it('credits steps and workouts without BMR when separate activity is active', () => {
+    mockPreferences.calorie_goal_adjustment_mode = 'dynamic';
+    mockPreferences.goal_mode_calculation_method = 'adaptive';
+    mockPreferences.adaptive_activity_separate = true;
+    mockPreferences.include_bmr_in_net_calories = true;
+    const { getByText, getByLabelText, queryByText } = render(
+      <CalorieSettingsScreen navigation={navigation} route={route} />
+    );
+
+    expect(
+      getByLabelText('Count activity calories separately').props.value
+    ).toBe(true);
+    expect(getByText('Goal − Eaten + Activity')).toBeTruthy();
+    expect(getByText('Activity + BMR')).toBeTruthy();
+    expect(getByText(/BMR stays in Burned and Net Energy/)).toBeTruthy();
+    expect(
+      queryByText(
+        'Adaptive targets already include activity. Remaining calories are Target minus Eaten. Exercise earn-back applies only to Manual targets.'
+      )
+    ).toBeNull();
+    expect(
+      getByText(/consistent food, weight, step and workout history/)
+    ).toBeTruthy();
+  });
+
+  it('keeps a stored opt-in dormant in Percentage Earn-Back', () => {
+    mockPreferences.calorie_goal_adjustment_mode = 'percentage';
+    mockPreferences.goal_mode_calculation_method = 'adaptive';
+    mockPreferences.adaptive_activity_separate = true;
+    const { getByText, queryByLabelText } = render(
+      <CalorieSettingsScreen navigation={navigation} route={route} />
+    );
+
+    expect(getByText('Goal − Eaten')).toBeTruthy();
+    expect(queryByLabelText('Count activity calories separately')).toBeNull();
+    fireEvent.press(getByText('Manual'));
+    expect(mockMutate).toHaveBeenCalledWith({
+      goal_mode_calculation_method: 'manual',
     });
   });
 
@@ -242,7 +361,7 @@ describe('CalorieSettingsScreen', () => {
     const cases = [
       [
         'standard',
-        'Używa wyższej z wartości: szacowane PPM lub minimum kliniczne.',
+        'Używa wyższej z wartości: szacowany BMR lub minimum kliniczne.',
       ],
       [
         'custom',

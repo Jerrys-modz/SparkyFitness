@@ -51,6 +51,7 @@ import {
   useExerciseEntries,
 } from '@/hooks/Exercises/useExerciseEntries';
 import { useActiveWorkoutPlans } from '@/hooks/Exercises/useWorkoutPlans';
+import RunProgramBanner from './RunProgramBanner';
 import {
   useWorkoutPresets,
   workoutPresetByIdOptions,
@@ -745,6 +746,7 @@ const ExerciseCard = ({
         </div>
       </CardHeader>
       <CardContent>
+        <RunProgramBanner date={selectedDate} />
         {uncompletedActivePlans.map((plan: WorkoutPlanTemplate) => {
           const distinctSessions = getDistinctSessionsForPlan(plan);
           const currentAssignmentId =
@@ -981,7 +983,7 @@ const ExerciseCard = ({
         {/* Edit Exercise Entry Dialog */}
         {editingEntry && (
           <EditExerciseEntryDialog
-            key={editingEntry ? 'open' : 'close'}
+            key={editingEntry.id}
             entry={editingEntry as ExerciseEntry}
             open={!!editingEntry}
             onOpenChange={(open) => {

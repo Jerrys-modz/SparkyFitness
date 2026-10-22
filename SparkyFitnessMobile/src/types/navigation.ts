@@ -91,6 +91,9 @@ export type RootStackParamList = {
   RunProgramRace: undefined;
   RunProgramEdit: { id?: string; fromProgramId?: string } | undefined;
   PersonalRecords: undefined;
+  Routes: undefined;
+  RouteDetail: { id: string };
+  RouteDraw: undefined;
   WatchRunLive: undefined;
   MealPlanForm: { template?: MealPlanTemplate; initialMeal?: Meal } | undefined;
   // #2115, Phase 12: mobile-only water-container CRUD.
@@ -210,6 +213,10 @@ export type RootStackParamList = {
     distanceUnit: 'km' | 'miles';
     /** The diary entry this was opened from, when it can be edited in the app. */
     diaryEntry?: IndividualSessionResponse;
+  };
+  ActivityShare: {
+    session: ExerciseActivityQueryItem;
+    distanceUnit: 'km' | 'miles';
   };
   FoodForm:
     | {
@@ -388,7 +395,13 @@ export type RootStackParamList = {
   Goals: { presetId?: string; newPreset?: boolean } | undefined;
   WeeklyGoalPlanEdit: { planId?: string } | undefined;
   MealTypeSettings: undefined;
+  Equipment: undefined;
+  Shoes: undefined;
+  ShoeForm: { shoeId?: string };
   FoodSettings: undefined;
+  CustomNutrients: undefined;
+  CustomNutrientForm: { nutrientId?: string } | undefined;
+  NutrientDisplaySettings: undefined;
   AllergenSettings: undefined;
   DashboardSettings: undefined;
   HealthTrendsSettings: undefined;
@@ -423,8 +436,10 @@ export type RootStackParamList = {
         date?: string;
       }
     | undefined;
-  MoodLog: { date?: string } | undefined;
+  MoodLog: { date?: string; checkinId?: string } | undefined;
+  MoodDay: { date?: string } | undefined;
   SymptomHistory: { symptomId?: string } | undefined;
+  SymptomEpisodeDetail: { entryId: string };
   ManageSymptoms: undefined;
   SymptomDefinitionEditor: { definitionId?: string } | undefined;
 };

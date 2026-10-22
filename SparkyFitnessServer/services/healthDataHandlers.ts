@@ -5,6 +5,11 @@ import exerciseEntryDb, {
   EXERCISE_ENTRY_TELEMETRY_COLUMNS,
 } from '../models/exerciseEntry.js';
 import foodRepository from '../models/foodRepository.js';
+import type {
+  SleepEntryInput,
+  SleepEntryUpsertOptions,
+} from '../models/sleepRepository.js';
+import type { SleepUserProfile } from '../models/userRepository.js';
 import moodRepository from '../models/moodRepository.js';
 import waterContainerRepository from '../models/waterContainerRepository.js';
 import * as workoutTelemetryRepo from '../models/workoutTelemetryRepository.js';
@@ -26,8 +31,10 @@ import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
 import {
   BUILT_IN_MOODS,
+  instantForDay,
   instantHourMinute,
   instantToDay,
+  isDayString,
   MAX_HEALTH_TOTAL_CALORIES_PER_DAY,
   MIN_MEASURED_BMR_KCAL,
   MAX_MEASURED_BMR_KCAL,
@@ -415,6 +422,11 @@ async function ingestNutritionFoodEntry(
 
 // ── Registry types ─────────────────────────────────────────────────────────
 
+export interface SleepContext {
+  tz: string;
+  userProfile: SleepUserProfile | null | undefined;
+}
+
 /**
  * Per-request dependencies injected by processHealthData. processSleepEntry
  * and resolveCategory live in measurementService and are passed in rather
@@ -422,23 +434,16 @@ async function ingestNutritionFoodEntry(
  * swap in a request-scoped category resolver without touching handlers).
  */
 export interface HealthBatchContext {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  actingUserId: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getSleepContext: () => Promise<{ tz: string; userProfile: any }>;
+  userId: string;
+  actingUserId: string;
+  getSleepContext: () => Promise<SleepContext>;
   processSleepEntry: (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    userId: any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    actingUserId: any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    sleepEntryData: any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    sleepContext: { tz: string; userProfile: any }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ) => Promise<any>;
+    userId: string,
+    actingUserId: string,
+    sleepEntryData: SleepEntryInput,
+    sleepContext: SleepContext,
+    options?: SleepEntryUpsertOptions
+  ) => Promise<{ id: string } & Record<string, unknown>>;
   resolveCategory: (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     userId: any,
@@ -1205,6 +1210,26 @@ const bmrHandler: HealthTypeHandler = {
   handleBatch: checkInHandleBatch,
 };
 
+// Overnight HRV / resting heart rate ride along on Health Connect sleep
+// sessions. Only finite, positive numbers are kept; anything else is dropped so
+// the stored value is left alone rather than overwritten with junk.
+function positiveBiometrics(entry: {
+  avg_overnight_hrv?: unknown;
+  resting_heart_rate?: unknown;
+}): { avg_overnight_hrv?: number; resting_heart_rate?: number } {
+  const result: { avg_overnight_hrv?: number; resting_heart_rate?: number } =
+    {};
+  const hrv = entry.avg_overnight_hrv;
+  if (typeof hrv === 'number' && Number.isFinite(hrv) && hrv > 0) {
+    result.avg_overnight_hrv = hrv;
+  }
+  const rhr = entry.resting_heart_rate;
+  if (typeof rhr === 'number' && Number.isFinite(rhr) && rhr > 0) {
+    result.resting_heart_rate = rhr;
+  }
+  return result;
+}
+
 const sleepSessionHandler: HealthTypeHandler = {
   async handle(entry, ctx) {
     const { source = 'manual', timestamp } = entry;
@@ -1234,12 +1259,14 @@ const sleepSessionHandler: HealthTypeHandler = {
         awake_sleep_seconds: Number(entry.awake_sleep_seconds) || 0,
         record_timezone: entry.record_timezone,
         record_utc_offset_minutes: entry.record_utc_offset_minutes,
+        ...positiveBiometrics(entry),
       };
       const sleepEntryResult = await ctx.processSleepEntry(
         ctx.userId,
         ctx.actingUserId,
         sleepEntryData,
-        await ctx.getSleepContext()
+        await ctx.getSleepContext(),
+        { keepExistingBiometrics: true }
       );
       return { status: 'success', data: sleepEntryResult };
     } catch (sleepError) {
@@ -1421,8 +1448,24 @@ async function ensureCustomMoodsExist(
   }
 }
 
-// Mood has its own dedicated table (mood_entries), upserted on
-// (user_id, entry_date) — unlike Stress it does not go through
+// A record dated by day alone, as the CSV import sends it, has no time of its
+// own: resolveHealthEntryDate stamps it at UTC midnight, which is the evening
+// before for anyone west of UTC. Such a mood takes now for today and local noon
+// for a past day instead.
+async function importedMoodTimestamp(
+  entry: { date?: unknown; entry_date?: unknown; timestamp?: unknown },
+  ctx: HealthEntryContext
+): Promise<string | Date> {
+  const day = entry.date || entry.entry_date;
+  if (entry.timestamp || typeof day !== 'string' || !isDayString(day)) {
+    return ctx.entryTimestamp;
+  }
+  return instantForDay(ctx.parsedDate, await loadUserTimezone(ctx.userId));
+}
+
+// Mood has its own dedicated table (mood_entries), upserted as the day's
+// 'import' derived row on (user_id, entry_date, source) so a re-import never
+// touches manual check-ins — unlike Stress it does not go through
 // custom_measurements. mood_value is a 10-100 scale (see MoodMeter.tsx /
 // moodUtils.ts for the band->label mapping); mood_tags is an optional array
 // of free-form tag names, auto-creating any unrecognized custom mood.
@@ -1444,12 +1487,16 @@ const moodHandler: HealthTypeHandler = {
       if (moodTags && moodTags.length > 0) {
         await ensureCustomMoodsExist(ctx.userId, moodTags);
       }
-      const result = await moodRepository.createOrUpdateMoodEntry(
+      const result = await moodRepository.upsertDerivedMood(
         ctx.userId,
-        moodValue,
-        entry.notes ?? null,
-        ctx.parsedDate,
-        moodTags
+        'import',
+        {
+          moodValue,
+          notes: entry.notes ?? null,
+          moodTags,
+          entryDate: ctx.parsedDate,
+          entryTimestamp: await importedMoodTimestamp(entry, ctx),
+        }
       );
       return { status: 'success', data: result };
     } catch (moodError) {
