@@ -8395,14 +8395,13 @@
         "strong": "strong"
       },
       "linkedHeadline": "Yes, a {{strength}} link",
-      "linkedPositive": "When {{a}} was higher than usual, {{b}} {{timing}} was higher than usual too.",
-      "linkedNegative": "When {{a}} was higher than usual, {{b}} {{timing}} was lower than usual.",
+      "linkedPositive": "When {{a}} was {{aDirection}}, {{b}} {{timing}} was {{bDirection}} too.",
+      "linkedNegative": "When {{a}} was {{aDirection}}, {{b}} {{timing}} was {{bDirection}}.",
       "noLinkHeadline": "No clear link",
       "noLinkDetail": "Over these {{n}}, they didn't move together more than chance would explain.",
       "longerSpan": "A longer span makes a weak link easier to see.",
       "differenceHeadline": "Yes, a difference",
-      "differenceHigher": "{{when}}, {{outcome}} was higher than usual.",
-      "differenceLower": "{{when}}, {{outcome}} was lower than usual.",
+      "difference": "{{when}}, {{outcome}} was {{direction}}.",
       "noDifferenceHeadline": "No clear difference",
       "noDifferenceDetail": "Over these {{n}}, your {{outcome}} wasn't different enough between the two kinds of day to rule out chance.",
       "tooFewHeadline": "Not enough days yet",
@@ -8426,10 +8425,17 @@
       "p": "p {{p}}",
       "pTiny": "p < 0.001",
       "correlation": "r {{r}} · 95% range {{low}} to {{high}} · {{p}} · {{n}}",
-      "difference": "difference {{diff}} · 95% range {{low}} to {{high}} · {{p}} · {{n}}"
+      "difference": "difference {{diff}} · 95% range {{low}} to {{high}} · {{p}} · {{n}}",
+      "differenceMinutes": "difference {{diff}} min · 95% range {{low}} to {{high}} min · {{p}} · {{n}}"
     },
     "metricNouns": {
       "meditated": "meditating"
+    },
+    "direction": {
+      "higher": "higher than usual",
+      "lower": "lower than usual",
+      "later": "later than usual",
+      "earlier": "earlier than usual"
     },
     "logged": {
       "weight": "weight",

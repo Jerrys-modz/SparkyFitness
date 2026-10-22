@@ -5,7 +5,11 @@ import { useTranslation } from 'react-i18next';
 
 import { compareDisplayValue } from '../../constants/compareMetrics';
 import { formatLocalizedNumber } from '../../localization';
-import { compareValueText, yesNoWording } from '../../utils/compareCopy';
+import {
+  compareValueText,
+  signedMinutes,
+  yesNoWording,
+} from '../../utils/compareCopy';
 import type { CompareQuestion } from '../../utils/compareQuestion';
 
 interface CompareBarsProps {
@@ -87,10 +91,7 @@ const CompareBars: React.FC<CompareBarsProps> = ({ response, question }) => {
           ? // A bedtime difference is a span of minutes, not a time of day.
             t('compareReport.bars.diffMinutes', {
               defaultValue: '{{diff}} min vs. your usual',
-              diff: formatLocalizedNumber(binary.diff, {
-                maximumFractionDigits: 0,
-                signDisplay: 'exceptZero',
-              }),
+              diff: signedMinutes(binary.diff),
             })
           : t('compareReport.bars.diff', {
               defaultValue: '{{diff}} vs. your usual',

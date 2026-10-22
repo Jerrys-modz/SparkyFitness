@@ -501,6 +501,94 @@ describe('verdictCopy', () => {
   });
 });
 
+describe('bedtime reads later or earlier', () => {
+  const positive = {
+    method: 'pearson',
+    linked: true,
+    strength: 'weak',
+    sign: 'positive',
+  } as const;
+  const negative = { ...positive, sign: 'negative' } as const;
+
+  test('bedtime as the first thing', () => {
+    const q: CompareQuestion = { a: 'bedtime', b: 'energy', choice: 'nextDay' };
+    expect(verdictCopy(response(positive, q), q, '90d', t).detail).toBe(
+      "When last night's bedtime was later than usual, your energy the day after you woke was higher than usual too."
+    );
+    expect(verdictCopy(response(negative, q), q, '90d', t).detail).toBe(
+      "When last night's bedtime was later than usual, your energy the day after you woke was lower than usual."
+    );
+  });
+
+  test('bedtime as the second thing', () => {
+    const q: CompareQuestion = {
+      a: 'caffeine',
+      b: 'bedtime',
+      choice: 'sameDay',
+    };
+    expect(verdictCopy(response(positive, q), q, '90d', t).detail).toBe(
+      'When caffeine was higher than usual, your bedtime the night before was later than usual too.'
+    );
+    expect(verdictCopy(response(negative, q), q, '90d', t).detail).toBe(
+      'When caffeine was higher than usual, your bedtime the night before was earlier than usual.'
+    );
+  });
+
+  test('bedtime as the outcome of a yes/no habit', () => {
+    const q: CompareQuestion = {
+      a: 'meditated',
+      b: 'bedtime',
+      choice: 'nextDay',
+    };
+    const binary = {
+      yesKey: 'meditated' as const,
+      yesMean: 255,
+      noMean: 230,
+      yesCount: 12,
+      noCount: 28,
+      diff: 25,
+    };
+    expect(
+      verdictCopy(
+        response({ method: 'difference', linked: true, binary }, q),
+        q,
+        '90d',
+        t
+      ).detail
+    ).toBe(
+      'On days you meditated, your bedtime that night was later than usual.'
+    );
+    expect(
+      verdictCopy(
+        response(
+          {
+            method: 'difference',
+            linked: true,
+            binary: { ...binary, diff: -25 },
+          },
+          q
+        ),
+        q,
+        '90d',
+        t
+      ).detail
+    ).toBe(
+      'On days you meditated, your bedtime that night was earlier than usual.'
+    );
+  });
+
+  test('bedtime consistency is a spread, so it stays higher or lower', () => {
+    const q: CompareQuestion = {
+      a: 'bedtimeConsistency',
+      b: 'mood',
+      choice: 'sameDay',
+    };
+    expect(verdictCopy(response(negative, q), q, '90d', t).detail).toBe(
+      "When last night's bedtime consistency was higher than usual, your mood that day was lower than usual."
+    );
+  });
+});
+
 describe('statsLine', () => {
   const base: CompareResult = {
     status: 'ok',
@@ -532,6 +620,32 @@ describe('statsLine', () => {
     expect(
       statsLine({ ...base, status: 'not_enough', reason: 'tooFew' }, 'day', t)
     ).toBeNull();
+  });
+
+  test('a bedtime difference is in whole minutes', () => {
+    const line = statsLine(
+      {
+        ...base,
+        method: 'difference',
+        r: undefined,
+        low: 10.4,
+        high: 39.6,
+        binary: {
+          yesKey: 'meditated',
+          yesMean: 255,
+          noMean: 230,
+          yesCount: 12,
+          noCount: 28,
+          diff: 25,
+        },
+      },
+      'day',
+      t,
+      'bedtime'
+    );
+    expect(line).toBe(
+      'difference +25 min · 95% range 10 to 40 min · p 0.012 · 62 days'
+    );
   });
 
   test('difference shows mood on the 1-10 scale', () => {

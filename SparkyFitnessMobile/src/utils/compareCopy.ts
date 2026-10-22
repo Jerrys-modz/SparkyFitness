@@ -376,6 +376,42 @@ function loggedThing(key: CompareMetricKey, t: Translator): string {
   }
 }
 
+/**
+ * "higher than usual" / "lower than usual", except for bedtime, which is a
+ * time of day and so is later or earlier. Bedtime consistency is a spread in
+ * minutes and stays higher or lower.
+ */
+function directionPhrase(
+  key: CompareMetricKey,
+  up: boolean,
+  t: Translator
+): string {
+  if (key === 'bedtime') {
+    return up
+      ? t('compareReport.direction.later', {
+          defaultValue: 'later than usual',
+        })
+      : t('compareReport.direction.earlier', {
+          defaultValue: 'earlier than usual',
+        });
+  }
+  return up
+    ? t('compareReport.direction.higher', {
+        defaultValue: 'higher than usual',
+      })
+    : t('compareReport.direction.lower', {
+        defaultValue: 'lower than usual',
+      });
+}
+
+/** A signed span of whole minutes, e.g. "+25" for a bedtime difference. */
+export function signedMinutes(value: number): string {
+  return formatLocalizedNumber(value, {
+    maximumFractionDigits: 0,
+    signDisplay: 'exceptZero',
+  });
+}
+
 function units(count: number, mode: CompareMode, t: Translator): string {
   return mode === 'week'
     ? t('compareReport.verdict.weeks', {
@@ -572,18 +608,12 @@ export function verdictCopy(
       headline: t('compareReport.verdict.differenceHeadline', {
         defaultValue: 'Yes, a difference',
       }),
-      detail:
-        diff >= 0
-          ? t('compareReport.verdict.differenceHigher', {
-              defaultValue: '{{when}}, {{outcome}} was higher than usual.',
-              when: wording.when,
-              outcome: wording.outcome,
-            })
-          : t('compareReport.verdict.differenceLower', {
-              defaultValue: '{{when}}, {{outcome}} was lower than usual.',
-              when: wording.when,
-              outcome: wording.outcome,
-            }),
+      detail: t('compareReport.verdict.difference', {
+        defaultValue: '{{when}}, {{outcome}} was {{direction}}.',
+        when: wording.when,
+        outcome: wording.outcome,
+        direction: directionPhrase(yesKey === q.a ? q.b : q.a, diff >= 0, t),
+      }),
     };
   }
 
@@ -613,17 +643,21 @@ export function verdictCopy(
       result.sign === 'negative'
         ? t('compareReport.verdict.linkedNegative', {
             defaultValue:
-              'When {{a}} was higher than usual, {{b}} {{timing}} was lower than usual.',
+              'When {{a}} was {{aDirection}}, {{b}} {{timing}} was {{bDirection}}.',
             a,
             b,
             timing,
+            aDirection: directionPhrase(q.a, true, t),
+            bDirection: directionPhrase(q.b, false, t),
           })
         : t('compareReport.verdict.linkedPositive', {
             defaultValue:
-              'When {{a}} was higher than usual, {{b}} {{timing}} was higher than usual too.',
+              'When {{a}} was {{aDirection}}, {{b}} {{timing}} was {{bDirection}} too.',
             a,
             b,
             timing,
+            aDirection: directionPhrase(q.a, true, t),
+            bDirection: directionPhrase(q.b, true, t),
           }),
   };
 }
@@ -694,6 +728,18 @@ export function statsLine(
   const n = units(result.n, mode, t);
 
   if (result.method === 'difference' && result.binary) {
+    if (outcome === 'bedtime') {
+      // Bedtime is a time of day, so its difference is a span of whole minutes.
+      return t('compareReport.stats.differenceMinutes', {
+        defaultValue:
+          'difference {{diff}} min · 95% range {{low}} to {{high}} min · {{p}} · {{n}}',
+        diff: signedMinutes(result.binary.diff),
+        low: num(result.low, 0),
+        high: num(result.high, 0),
+        p,
+        n,
+      });
+    }
     const scale = (v: number) =>
       outcome ? compareDisplayValue(outcome, v) : v;
     return t('compareReport.stats.difference', {
