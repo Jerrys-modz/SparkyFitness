@@ -44,14 +44,29 @@ export function normalizeCalorieGoalAdjustmentMode(
   return mode === 'smart' ? 'tdee' : (mode as CalorieGoalAdjustmentMode);
 }
 
+/** Only Dynamic + Adaptive can replace historical activity with today's activity. */
+export function isAdaptiveActivitySeparated(
+  mode: string | null | undefined,
+  calculationMethod: string | null | undefined,
+  separateActivity?: boolean | null
+): boolean {
+  return (
+    separateActivity === true &&
+    normalizeCalorieGoalAdjustmentMode(mode) === 'dynamic' &&
+    calculationMethod === 'adaptive'
+  );
+}
+
 /** Adaptive full-day targets already contain the energy earn-back would add. */
 export function isAdaptiveEarnBackSuppressed(
   mode: string | null | undefined,
-  calculationMethod: string | null | undefined
+  calculationMethod: string | null | undefined,
+  separateActivity?: boolean | null
 ): boolean {
   const normalizedMode = normalizeCalorieGoalAdjustmentMode(mode);
   return (
     calculationMethod === 'adaptive' &&
+    !isAdaptiveActivitySeparated(mode, calculationMethod, separateActivity) &&
     (normalizedMode === 'dynamic' || normalizedMode === 'percentage')
   );
 }
