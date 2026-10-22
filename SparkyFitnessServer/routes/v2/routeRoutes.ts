@@ -24,6 +24,8 @@ import {
   getActivityTrack,
   getRoute,
   InvalidRouteError,
+  getRouteGhost,
+  listRouteRuns,
   listRoutes,
   RouteLimitError,
   updateRoute,
@@ -406,6 +408,72 @@ router.delete('/:id', async (req, res, next) => {
     );
     if (!deleted) return res.status(404).json({ error: 'Route not found' });
     res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /v2/routes/{id}/runs:
+ *   get:
+ *     summary: Runs and walks that followed a route
+ *     description: >
+ *       The diary entries linked to the route, newest first, each with its
+ *       day, duration, distance, pace and average heart rate.
+ *     tags: [Exercise]
+ *     responses:
+ *       200:
+ *         description: 'The runs: `{ runs: RouteRun[] }`.'
+ *       404:
+ *         description: Not found.
+ */
+router.get('/:id/runs', async (req, res, next) => {
+  try {
+    if (!isUuid(req.params.id)) {
+      return res.status(404).json({ error: 'Route not found' });
+    }
+    const runs = await listRouteRuns(
+      req.userId,
+      req.params.id,
+      req.authenticatedUserId
+    );
+    if (!runs) return res.status(404).json({ error: 'Route not found' });
+    res.json({ runs });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /v2/routes/{id}/ghost:
+ *   get:
+ *     summary: The best run over a route as a pace line
+ *     description: >
+ *       Active seconds the person's fastest run over the route had spent at
+ *       every 100 m of route progress, for a client to race. Read from that
+ *       run's GPS track; a run without one gets an even pace over its total
+ *       time (`source` says which). `ghost` is null before a first timed run.
+ *     tags: [Exercise]
+ *     responses:
+ *       200:
+ *         description: 'The pace line: `{ ghost: RouteGhost | null }`.'
+ *       404:
+ *         description: Not found.
+ */
+router.get('/:id/ghost', async (req, res, next) => {
+  try {
+    if (!isUuid(req.params.id)) {
+      return res.status(404).json({ error: 'Route not found' });
+    }
+    const result = await getRouteGhost(
+      req.userId,
+      req.params.id,
+      req.authenticatedUserId
+    );
+    if (!result) return res.status(404).json({ error: 'Route not found' });
+    res.json(result);
   } catch (error) {
     next(error);
   }

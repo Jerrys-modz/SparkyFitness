@@ -18,10 +18,12 @@ import {
   demoGuard,
   demoUploadGuard,
 } from '../middleware/demoGuardMiddleware.js';
+import { requireSelfActor } from '../middleware/requireSelfMiddleware.js';
 import { canAccessUserData } from '../utils/permissionUtils.js';
 import { isValidUuid } from '../utils/uuidUtils.js';
 import { fileURLToPath } from 'url';
 import {
+  attachEntryRouteBodySchema,
   attachExerciseEntryGpsTrackRequestSchema,
   attachExerciseEntryLapsRequestSchema,
   attachExerciseEntryDistanceSeriesRequestSchema,
@@ -911,6 +913,80 @@ router.post('/:id/watch-telemetry', authenticate, async (req, res, next) => {
     next(error);
   }
 });
+/**
+ * @swagger
+ * /exercise-entries/{id}/route:
+ *   post:
+ *     summary: Link an exercise entry to the saved route it followed
+ *     tags: [Fitness & Workouts]
+ *     description: >
+ *       Sets the entry's route so the route's history lists it. Send
+ *       `routeId: null` to clear the link. The route must be the person's own
+ *       and the call is refused in a delegated context, as routes are
+ *       owner-only.
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [routeId]
+ *             properties:
+ *               routeId:
+ *                 type: string
+ *                 format: uuid
+ *                 nullable: true
+ *     responses:
+ *       204:
+ *         description: Linked (or cleared).
+ *       400:
+ *         description: Invalid request body or exercise entry ID.
+ *       403:
+ *         description: Delegated context.
+ *       404:
+ *         description: Exercise entry or route not found.
+ */
+router.post(
+  '/:id/route',
+  authenticate,
+  requireSelfActor,
+  demoGuard,
+  async (req, res, next) => {
+    const { id } = req.params;
+    if (!id || typeof id !== 'string' || !isValidUuid(id)) {
+      return res.status(400).json({
+        error: 'Exercise Entry ID is required and must be a valid UUID.',
+      });
+    }
+    const parsed = attachEntryRouteBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.message });
+    }
+    try {
+      await exerciseEntryService.attachRouteToExerciseEntry(
+        req.userId,
+        req.originalUserId || req.userId,
+        id,
+        parsed.data.routeId
+      );
+      res.status(204).send();
+    } catch (error) {
+      if ((error as { status?: number }).status === 404) {
+        return res.status(404).json({ error: (error as Error).message });
+      }
+      next(error);
+    }
+  }
+);
 /**
  * @swagger
  * /exercise-entries/{id}/gps-track:

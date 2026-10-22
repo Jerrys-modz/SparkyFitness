@@ -9,7 +9,9 @@ import {
   deleteRoute,
   getActivityTrack,
   getRoute,
+  getRouteGhost,
   InvalidRouteError,
+  listRouteRuns,
   listRoutes,
   RouteLimitError,
   updateRoute,
@@ -19,7 +21,9 @@ vi.mock('../models/routeRepository.js', () => {
   class InvalidRouteError extends Error {}
   return {
     listRoutes: vi.fn(),
+    listRouteRuns: vi.fn(),
     getRoute: vi.fn(),
+    getRouteGhost: vi.fn(),
     createRoute: vi.fn(),
     updateRoute: vi.fn(),
     deleteRoute: vi.fn(),
@@ -382,5 +386,65 @@ describe('routes API input limits', () => {
     const res = await request(app).get('/api/v2/routes');
     expect(res.status).toBe(500);
     expect(JSON.stringify(res.body)).not.toContain('routeRoutes.ts');
+  });
+
+  it('lists the runs that followed a route', async () => {
+    const runs = [
+      {
+        entryId: ID,
+        date: '2026-10-16',
+        durationSeconds: 1500,
+        distanceM: 5000,
+        paceSecPerKm: 300,
+        avgHeartRate: 150,
+      },
+    ];
+    vi.mocked(listRouteRuns).mockResolvedValueOnce(runs);
+    const ok = await request(app).get(`/api/v2/routes/${ID}/runs`);
+    expect(ok.status).toBe(200);
+    expect(ok.body).toEqual({ runs });
+    expect(listRouteRuns).toHaveBeenCalledWith('test-user-id', ID, actingAs);
+
+    vi.mocked(listRouteRuns).mockResolvedValueOnce(null);
+    expect((await request(app).get(`/api/v2/routes/${ID}/runs`)).status).toBe(
+      404
+    );
+    expect((await request(app).get('/api/v2/routes/nope/runs')).status).toBe(
+      404
+    );
+  });
+
+  it('refuses the run list in a delegated context', async () => {
+    actingAs = 'someone-else';
+    const res = await request(app).get(`/api/v2/routes/${ID}/runs`);
+    expect(res.status).toBe(403);
+    expect(listRouteRuns).not.toHaveBeenCalled();
+  });
+
+  it('serves the best run as a pace line and 404s a route that is not theirs', async () => {
+    const ghost = {
+      entryId: 'e1',
+      durationSeconds: 1490,
+      intervalM: 100,
+      splits: [30, 60],
+      source: 'track' as const,
+    };
+    vi.mocked(getRouteGhost).mockResolvedValueOnce({ ghost });
+    const ok = await request(app).get(`/api/v2/routes/${ID}/ghost`);
+    expect(ok.status).toBe(200);
+    expect(ok.body).toEqual({ ghost });
+    expect(getRouteGhost).toHaveBeenCalledWith('test-user-id', ID, actingAs);
+
+    vi.mocked(getRouteGhost).mockResolvedValueOnce({ ghost: null });
+    const none = await request(app).get(`/api/v2/routes/${ID}/ghost`);
+    expect(none.body).toEqual({ ghost: null });
+
+    vi.mocked(getRouteGhost).mockResolvedValueOnce(null);
+    expect((await request(app).get(`/api/v2/routes/${ID}/ghost`)).status).toBe(
+      404
+    );
+    expect((await request(app).get('/api/v2/routes/nope/ghost')).status).toBe(
+      404
+    );
   });
 });

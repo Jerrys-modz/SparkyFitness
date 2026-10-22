@@ -57,8 +57,57 @@ export const routeSchema = z.object({
   points: z.array(routePointSchema),
   cues: z.array(routeCueSchema),
   sourceExerciseEntryId: z.string().nullable(),
+  /** Diary entries that followed this route. */
+  runCount: z.number().int().min(0),
+  /** Shortest logged time over the route, in seconds; null before a first run. */
+  bestDurationSeconds: z.number().int().nullable(),
+  /** Day (`YYYY-MM-DD`) of the newest run; null before a first run. */
+  lastRunDate: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
+});
+
+/** One diary entry that followed a route, as listed under the route. */
+export const routeRunSchema = z.object({
+  entryId: z.string(),
+  /** Calendar day (`YYYY-MM-DD`). */
+  date: z.string(),
+  durationSeconds: z.number().int().min(0),
+  distanceM: z.number().nullable(),
+  /** Seconds per kilometre; null when the entry has no distance. */
+  paceSecPerKm: z.number().nullable(),
+  avgHeartRate: z.number().nullable(),
+});
+
+export const routeRunsResponseSchema = z.object({
+  runs: z.array(routeRunSchema),
+});
+
+/** Metres of route between two ghost times. */
+export const ROUTE_GHOST_INTERVAL_M = 100;
+
+/**
+ * The best run over a route as a pace line: `splits[i]` is the active seconds
+ * the best run had spent when it reached `min((i + 1) * intervalM, route length)`
+ * metres along the route, so the last entry is its total time.
+ */
+export const routeGhostSchema = z.object({
+  entryId: z.string(),
+  durationSeconds: z.number().int().min(1),
+  intervalM: z.number().int().min(1),
+  splits: z.array(z.number().int().min(0)),
+  /** `track` is read off the run's own GPS timeline; `constant_pace` is an even pace over its total time. */
+  source: z.enum(['track', 'constant_pace']),
+});
+
+/** `ghost` is null while the route has no timed run. */
+export const routeGhostResponseSchema = z.object({
+  ghost: routeGhostSchema.nullable(),
+});
+
+/** Links an exercise entry to a route, or clears the link with `null`. */
+export const attachEntryRouteBodySchema = z.object({
+  routeId: z.guid().nullable(),
 });
 
 /** A route in a list: everything but the (large) points and cues. */
@@ -227,6 +276,11 @@ export type RouteCueKind = z.infer<typeof routeCueKindSchema>;
 export type RouteCue = z.infer<typeof routeCueSchema>;
 export type Route = z.infer<typeof routeSchema>;
 export type RouteSummary = z.infer<typeof routeSummarySchema>;
+export type RouteRun = z.infer<typeof routeRunSchema>;
+export type RouteGhost = z.infer<typeof routeGhostSchema>;
+export type RouteGhostResponse = z.infer<typeof routeGhostResponseSchema>;
+export type RouteRunsResponse = z.infer<typeof routeRunsResponseSchema>;
+export type AttachEntryRouteBody = z.infer<typeof attachEntryRouteBodySchema>;
 export type CreateRouteBody = z.infer<typeof createRouteBodySchema>;
 export type UpdateRouteBody = z.infer<typeof updateRouteBodySchema>;
 export type ImportGpxRouteBody = z.infer<typeof importGpxRouteBodySchema>;

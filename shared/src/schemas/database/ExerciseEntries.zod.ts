@@ -86,6 +86,7 @@ export const exerciseEntriesSchema = z.object({
   watch_telemetry_observed_at: z.date().nullable().optional(),
   watch_duration_minutes: z.number().nullable().optional(),
   manual_fields: z.array(z.string()).nullable().optional(),
+  route_id: z.string().nullable().optional(),
 });
 
 export const exerciseEntriesInitializerSchema = z.object({
@@ -170,6 +171,7 @@ export const exerciseEntriesInitializerSchema = z.object({
   watch_telemetry_observed_at: z.date().optional().nullable(),
   watch_duration_minutes: z.number().optional().nullable(),
   manual_fields: z.array(z.string()).nullable().optional(),
+  route_id: z.string().optional().nullable(),
 });
 
 export const exerciseEntriesMutatorSchema =
