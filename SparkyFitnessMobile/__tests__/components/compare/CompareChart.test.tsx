@@ -146,4 +146,30 @@ describe('CompareChart', () => {
     );
     expect(getAllByTestId('scatter-mark')).toHaveLength(1);
   });
+
+  it('leaves the trend line out when the dots have no spread to fit', () => {
+    const r = response();
+    r.deviations.a = {
+      '2026-10-01': 0,
+      '2026-10-02': 0,
+      '2026-10-03': 0,
+    };
+    const { getAllByTestId, queryByTestId } = render(
+      <CompareChart response={r} question={Q} />
+    );
+    expect(getAllByTestId('scatter-mark')).toHaveLength(1);
+    expect(queryByTestId('line-mark')).toBeNull();
+  });
+
+  it('labels the over-time chart for screen readers', () => {
+    const { getByText, getByLabelText } = render(
+      <CompareChart response={response()} question={Q} />
+    );
+    fireEvent.press(getByText('Over time'));
+    expect(
+      getByLabelText(
+        'Meditation minutes and Mood over time, each scaled to its own range'
+      )
+    ).toBeTruthy();
+  });
 });

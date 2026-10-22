@@ -14,6 +14,7 @@ export const REPORT_KEYS = [
   'measurements',
   'mood',
   'exercise',
+  'compare',
 ] as const;
 
 export type ReportKey = (typeof REPORT_KEYS)[number];
@@ -39,6 +40,7 @@ export const REPORT_LABELS: Record<ReportKey, (t: Translator) => string> = {
     t('reports.measurements', { defaultValue: 'Measurements' }),
   mood: (t) => t('reports.mood', { defaultValue: 'Mood' }),
   exercise: (t) => t('reports.exercise', { defaultValue: 'Exercise' }),
+  compare: (t) => t('reports.compare', { defaultValue: 'Compare' }),
 };
 
 /**

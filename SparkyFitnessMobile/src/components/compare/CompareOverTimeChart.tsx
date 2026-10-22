@@ -92,7 +92,16 @@ const CompareOverTimeChart: React.FC<CompareOverTimeChartProps> = ({
           </View>
         ))}
       </View>
-      <View style={{ height: CHART_HEIGHT }}>
+      <View
+        style={{ height: CHART_HEIGHT }}
+        accessible
+        accessibilityLabel={t('compareReport.chart.overTimeLabel', {
+          defaultValue:
+            '{{a}} and {{b}} over time, each scaled to its own range',
+          a: COMPARE_METRIC_LABELS[question.a](t),
+          b: COMPARE_METRIC_LABELS[question.b](t),
+        })}
+      >
         <CartesianChart
           data={data}
           xKey="index"
