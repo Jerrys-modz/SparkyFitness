@@ -791,7 +791,11 @@ function buildAnthropicRequest(ctx: BuildContext): BuiltRequest {
   };
 }
 
-function buildOllamaRequest(ctx: BuildContext): BuiltRequest {
+function buildOllamaRequest(
+  ctx: BuildContext,
+  parseJson: boolean
+): BuiltRequest {
+  const wantsJson = Boolean(ctx.jsonSchema) || parseJson;
   const prompt = ctx.jsonSchema
     ? `${ctx.prompt}\n\nRespond with a single JSON object that conforms to this JSON Schema:\n${JSON.stringify(toStrictJsonSchema(ctx.jsonSchema))}`
     : ctx.prompt;
@@ -812,8 +816,13 @@ function buildOllamaRequest(ctx: BuildContext): BuiltRequest {
       ...(ctx.temperature !== undefined && { temperature: ctx.temperature }),
     },
   };
-  if (ctx.jsonSchema) {
+  if (wantsJson) {
     body.format = 'json';
+    // Models that reason by default (e.g. gemma4, qwen3, qwen3.6, deepseek-r1)
+    // spend their context tokens generating reasoning traces before writing JSON.
+    // Disabling thinking via `think: false` allows the model to produce valid
+    // structured JSON within the token budget. Non-reasoning models safely ignore it.
+    body.think = false;
   }
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -841,7 +850,7 @@ function buildRequest(
     case 'anthropic':
       return buildAnthropicRequest(ctx);
     case 'ollama':
-      return buildOllamaRequest(ctx);
+      return buildOllamaRequest(ctx, parseJson);
   }
 }
 
