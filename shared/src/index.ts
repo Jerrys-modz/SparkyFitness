@@ -274,3 +274,7 @@ export * from './compare/stats.ts';
 export * from './compare/metrics.ts';
 export * from './compare/analyze.ts';
 export * from './schemas/api/Compare.api.zod.ts';
+export * from './schemas/api/FitnessFatigue.api.zod.ts';
+export * from './utils/fitnessFatigue.ts';
+export * from './utils/readiness.ts';
+export * from './utils/runningEstimates.ts';
