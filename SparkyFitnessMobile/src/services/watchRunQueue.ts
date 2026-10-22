@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ApiError } from './api/errors';
 import { addLog } from './LogService';
 import { saveWatchRun } from './watchRunSave';
+import type { WatchRunForm } from './stepDistance';
 import { completeProgramWorkout } from './runProgramService';
 import { toLocalDateString } from '../utils/dateUtils';
 import { parseWatchRunPayload, type WatchRunPayload } from '../utils/watchRun';
@@ -24,6 +25,8 @@ interface QueuedRun {
   payload: WatchRunPayload;
   /** Set once the entry exists, so a retry only repeats the later steps. */
   entryId?: string;
+  /** Cadence and stride measured with the entry, kept for the summary on a retry. */
+  form?: WatchRunForm | null;
 }
 
 async function readJson<T>(key: string, fallback: T): Promise<T> {
@@ -182,7 +185,11 @@ function scheduleRetry(): void {
  */
 export function processWatchRunQueue(
   distanceUnit: 'km' | 'miles',
-  onFiled?: (payload: WatchRunPayload, entryId: string) => void
+  onFiled?: (
+    payload: WatchRunPayload,
+    entryId: string,
+    form: WatchRunForm | null
+  ) => void
 ): Promise<string[]> {
   if (processing) {
     // A run queued just as the pass was finishing would otherwise wait for the
@@ -209,7 +216,11 @@ export function processWatchRunQueue(
 
 async function drainOnce(
   distanceUnit: 'km' | 'miles',
-  onFiled?: (payload: WatchRunPayload, entryId: string) => void
+  onFiled?: (
+    payload: WatchRunPayload,
+    entryId: string,
+    form: WatchRunForm | null
+  ) => void
 ): Promise<{ filed: string[]; needsRetry: boolean }> {
   const filed: string[] = [];
   let needsRetry = false;
@@ -223,14 +234,19 @@ async function drainOnce(
     const { clientId } = item.payload;
     attempted.add(clientId);
     try {
-      const entryId = await saveWatchRun(
+      const { entryId, form } = await saveWatchRun(
         item.payload,
         distanceUnit,
         item.entryId,
-        (created) =>
+        (created, measured) =>
           serial(() =>
-            update(clientId, (run) => ({ ...run, entryId: created }))
-          )
+            update(clientId, (run) => ({
+              ...run,
+              entryId: created,
+              form: measured,
+            }))
+          ),
+        item.form ?? null
       );
       await tickOffProgram(item.payload, entryId);
       // A treadmill distance entered on the wrist teaches the indoor factor.
@@ -256,7 +272,7 @@ async function drainOnce(
       filed.push(toLocalDateString(new Date(item.payload.startedAt)));
       // A listener failing (a toast, a navigation) never undoes a filed run.
       try {
-        onFiled?.(item.payload, entryId);
+        onFiled?.(item.payload, entryId, form);
       } catch (error) {
         addLog(
           `[Watch Run] Filed-run listener failed: ${String(error)}`,
