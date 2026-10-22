@@ -176,21 +176,4 @@ final class WatchRouteTrackerTests: XCTestCase {
         XCTAssertEqual(distances[40], 400, accuracy: 2)
         XCTAssertEqual(WatchRouteTracker.cumulativeDistances([]), [])
     }
-
-    func testProjectionKeepsTheRouteShape() {
-        let projection = WatchRouteProjection(points: lRoute().points)
-        XCTAssertEqual(projection.aspect, 1, accuracy: 0.02)
-        let start = projection.normalized(at(0, 0))
-        let corner = projection.normalized(at(0, 400))
-        let end = projection.normalized(at(400, 400))
-        XCTAssertEqual(start.x, 0, accuracy: 0.01)
-        XCTAssertEqual(start.y, 1, accuracy: 0.01) // south is down
-        XCTAssertEqual(corner.y, 0, accuracy: 0.01)
-        XCTAssertEqual(end.x, 1, accuracy: 0.01)
-    }
-
-    func testProjectionOfAStraightLineDoesNotDivideByZero() {
-        let projection = WatchRouteProjection(points: [at(0, 0), at(0, 100)])
-        XCTAssertTrue(projection.normalized(at(0, 50)).x.isFinite)
-    }
 }

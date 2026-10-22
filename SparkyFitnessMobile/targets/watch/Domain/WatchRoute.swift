@@ -257,37 +257,3 @@ struct WatchRouteTracker {
         return ((dx * dx + dy * dy).squareRoot(), t)
     }
 }
-
-/// Fits a route into a box for drawing. Coordinates come out as 0...1 in both
-/// axes with y pointing down (north is up); `aspect` is the width over height
-/// the route really has, so the caller draws it in a box of that shape and the
-/// line is not stretched.
-struct WatchRouteProjection {
-    let aspect: Double
-    private let minLat: Double
-    private let minLon: Double
-    private let width: Double
-    private let height: Double
-    private let cosLat: Double
-
-    init(points: [WatchRoutePoint]) {
-        let lats = points.map(\.lat)
-        let lons = points.map(\.lon)
-        minLat = lats.min() ?? 0
-        minLon = lons.min() ?? 0
-        let maxLat = lats.max() ?? 0
-        let maxLon = lons.max() ?? 0
-        cosLat = cos((minLat + maxLat) / 2 * .pi / 180)
-        // A route that is one point wide still needs a box to sit in.
-        width = max((maxLon - minLon) * cosLat, 1e-9)
-        height = max(maxLat - minLat, 1e-9)
-        aspect = width / height
-    }
-
-    func normalized(_ point: WatchRoutePoint) -> (x: Double, y: Double) {
-        (
-            (point.lon - minLon) * cosLat / width,
-            1 - (point.lat - minLat) / height
-        )
-    }
-}
