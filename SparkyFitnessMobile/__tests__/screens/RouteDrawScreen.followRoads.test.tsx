@@ -10,7 +10,7 @@ import RouteDrawScreen from '../../src/screens/RouteDrawScreen';
 import {
   generateRoutePreview,
   saveDrawnRoute,
-  useRouteGenerationAvailable,
+  useRouteGenerationCapabilities,
 } from '../../src/services/routeService';
 import { useScreenHeader } from '../../src/hooks/useScreenHeader';
 import { FOLLOW_ROADS_DEBOUNCE_MS } from '../../src/hooks/useFollowRoadsRoute';
@@ -29,7 +29,7 @@ jest.mock('../../src/hooks/useScreenHeader', () => ({
 jest.mock('../../src/services/routeService', () => ({
   generateRoutePreview: jest.fn(),
   saveDrawnRoute: jest.fn(),
-  useRouteGenerationAvailable: jest.fn(),
+  useRouteGenerationCapabilities: jest.fn(),
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 jest.mock('react-native-toast-message', () => ({
@@ -37,7 +37,23 @@ jest.mock('react-native-toast-message', () => ({
   default: { show: jest.fn() },
 }));
 
-const mockAvailable = useRouteGenerationAvailable as jest.Mock;
+const mockCapabilities = useRouteGenerationCapabilities as jest.Mock;
+
+const NO_STYLE = {
+  surface: false,
+  hilliness: false,
+  avoidSteps: false,
+  avoidBusyRoads: false,
+};
+const caps = (available: boolean, style: typeof NO_STYLE = NO_STYLE) => ({
+  capabilities: {
+    available,
+    maxAlternatives: 1,
+    style,
+    stops: false,
+  },
+  isLoading: false,
+});
 const mockGenerate = generateRoutePreview as jest.Mock;
 const mockSave = saveDrawnRoute as jest.Mock;
 const mockHeader = useScreenHeader as jest.Mock;
@@ -100,12 +116,12 @@ describe('RouteDrawScreen follow roads', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
-    mockAvailable.mockReturnValue({ available: true, isLoading: false });
+    mockCapabilities.mockReturnValue(caps(true));
   });
   afterEach(() => jest.useRealTimers());
 
   it('shows a disabled Follow roads row that says a routing provider is needed', () => {
-    mockAvailable.mockReturnValue({ available: false, isLoading: false });
+    mockCapabilities.mockReturnValue(caps(false));
     const utils = renderScreen();
     expect(utils.getByText('Follow roads')).toBeTruthy();
     expect(
@@ -120,7 +136,7 @@ describe('RouteDrawScreen follow roads', () => {
   });
 
   it('does not flash the disabled row while capabilities are loading', () => {
-    mockAvailable.mockReturnValue({ available: false, isLoading: true });
+    mockCapabilities.mockReturnValue({ ...caps(false), isLoading: true });
     const utils = renderScreen();
     expect(utils.queryByText('Follow roads')).toBeNull();
   });
@@ -132,7 +148,7 @@ describe('RouteDrawScreen follow roads', () => {
   });
 
   it('keeps working as before without a routing engine', () => {
-    mockAvailable.mockReturnValue({ available: false, isLoading: false });
+    mockCapabilities.mockReturnValue(caps(false));
     const utils = renderScreen();
     tapMap(utils, 40);
     tapMap(utils, 40.01);
@@ -243,5 +259,50 @@ describe('RouteDrawScreen follow roads', () => {
     await settle();
     fireEvent(utils.getByLabelText('Follow roads'), 'valueChange', false);
     expect(utils.getByTestId('map-polyline').props.coordinates).toHaveLength(2);
+  });
+
+  describe('route style while following roads', () => {
+    const FULL = {
+      surface: true,
+      hilliness: true,
+      avoidSteps: true,
+      avoidBusyRoads: true,
+    };
+
+    it('is hidden unless following roads and the engine supports some', () => {
+      mockCapabilities.mockReturnValue(caps(true));
+      const utils = renderScreen();
+      fireEvent(utils.getByLabelText('Follow roads'), 'valueChange', true);
+      expect(utils.queryByText('Route style')).toBeNull();
+
+      mockCapabilities.mockReturnValue(caps(true, FULL));
+      const other = renderScreen();
+      expect(other.queryByText('Route style')).toBeNull();
+      fireEvent(
+        other.getAllByLabelText('Follow roads')[0],
+        'valueChange',
+        true
+      );
+      expect(other.getByText('Route style')).toBeTruthy();
+    });
+
+    it('asks again with the chosen preferences', async () => {
+      mockCapabilities.mockReturnValue(caps(true, FULL));
+      mockGenerate.mockResolvedValue(snapped);
+      const utils = renderScreen();
+      fireEvent(utils.getByLabelText('Follow roads'), 'valueChange', true);
+      tapMap(utils, 40);
+      tapMap(utils, 40.004);
+      await settle();
+      expect(mockGenerate).toHaveBeenCalledTimes(1);
+      expect(mockGenerate.mock.calls[0][0].style).toBeUndefined();
+
+      fireEvent.press(utils.getByText('Trails'));
+      await settle();
+      expect(mockGenerate).toHaveBeenCalledTimes(2);
+      expect(mockGenerate.mock.calls[1][0].style).toMatchObject({
+        surface: 'trails',
+      });
+    });
   });
 });
