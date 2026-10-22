@@ -34,6 +34,7 @@ const BASE_URL_FETCHING_PROVIDER_TYPES = new Set([
   'mealie',
   'tandoor',
   'norish',
+  OPEN_FOOD_FACTS_PROVIDER_TYPE,
   ROUTING_PROVIDER_TYPE,
 ]);
 
@@ -83,7 +84,7 @@ async function validateFoodProviderBaseUrl(
     }
     if (error instanceof OutboundUrlShapeError) {
       throw badRequest(
-        'Provider base URL is invalid: it must be a well-formed http(s) URL without embedded credentials.'
+        'Provider base URL is invalid: it must be a well-formed http(s) URL without embedded credentials or URL fragments.'
       );
     }
     throw error;
@@ -744,6 +745,7 @@ export { deleteExternalDataProvider };
 export { getExternalProviderTypes };
 export { getAvailableOpenFoodFactsProvider };
 export { getAutomaticOpenFoodFactsProvider };
+export { validateFoodProviderBaseUrl };
 export default {
   getExternalDataProviders,
   getExternalDataProvidersForUser,
@@ -757,4 +759,5 @@ export default {
   getAvailableOpenFoodFactsProvider,
   getAutomaticOpenFoodFactsProvider,
   getExternalProviderTypes,
+  validateFoodProviderBaseUrl,
 };

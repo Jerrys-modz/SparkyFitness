@@ -505,6 +505,14 @@ describe('assertSecureOpenFoodFactsWriteBaseUrl', () => {
         'https://user:pass@off.example.test'
       )
     ).toThrow(/embedded credentials/);
+    expect(() =>
+      assertSecureOpenFoodFactsWriteBaseUrl(
+        'https://off.example.test/path#fragment'
+      )
+    ).toThrow(/fragment/);
+    expect(() =>
+      assertSecureOpenFoodFactsWriteBaseUrl('https://off.example.test/path#')
+    ).toThrow(/fragment/);
   });
 });
 

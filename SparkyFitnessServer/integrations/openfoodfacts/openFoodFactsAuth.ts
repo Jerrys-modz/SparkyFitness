@@ -2,6 +2,12 @@ import crypto from 'crypto';
 import { log } from '../../config/logging.js';
 import pkg from '../../package.json' with { type: 'json' };
 import { ENCRYPTION_KEY } from '../../security/encryption.js';
+import {
+  createGuardedFetch,
+  PUBLIC_ONLY_AI_NETWORK_POLICY,
+  resolveFoodProviderNetworkPolicy,
+} from '../../utils/outboundUrlPolicy.js';
+import { resolveIsAdminByUserId } from '../../utils/adminCheck.js';
 
 interface SessionCacheEntry {
   session: string | null;
@@ -113,6 +119,11 @@ export function assertSecureOpenFoodFactsWriteBaseUrl(
       'Open Food Facts contribution base URL must not include embedded credentials.'
     );
   }
+  if (parsed.hash || (url && url.includes('#'))) {
+    throw new InsecureOpenFoodFactsWriteUrlError(
+      'Open Food Facts contribution base URL must not include a URL fragment.'
+    );
+  }
   return normalized;
 }
 
@@ -195,10 +206,26 @@ function parseSessionCookie(response: Response): string | null {
   return null;
 }
 
+async function resolveOffFetch(
+  authenticatedUserId?: string
+): Promise<typeof fetch> {
+  if (!authenticatedUserId) {
+    return createGuardedFetch(PUBLIC_ONLY_AI_NETWORK_POLICY);
+  }
+  try {
+    const isAdmin = await resolveIsAdminByUserId(authenticatedUserId);
+    const policy = await resolveFoodProviderNetworkPolicy(isAdmin);
+    return policy.allowPrivateNetwork ? fetch : createGuardedFetch(policy);
+  } catch {
+    return createGuardedFetch(PUBLIC_ONLY_AI_NETWORK_POLICY);
+  }
+}
+
 async function loginToOpenFoodFacts(
   userId: string,
   password: string,
-  baseUrl: string = DEFAULT_OFF_BASE_URL
+  baseUrl: string = DEFAULT_OFF_BASE_URL,
+  authenticatedUserId?: string
 ): Promise<string | null> {
   if (!isSecureCredentialTarget(baseUrl)) {
     return null;
@@ -216,7 +243,8 @@ async function loginToOpenFoodFacts(
     controller.abort(new Error('Open Food Facts login timed out.'));
   }, LOGIN_TIMEOUT_MS);
   try {
-    const response = await fetch(`${baseUrl}/cgi/session.pl`, {
+    const fetchImpl = await resolveOffFetch(authenticatedUserId);
+    const response = await fetchImpl(`${baseUrl}/cgi/session.pl`, {
       method: 'POST',
       headers: {
         'User-Agent': USER_AGENT,
@@ -437,7 +465,8 @@ async function resolveOpenFoodFactsProvider(
       session = await loginToOpenFoodFacts(
         providerDetails.app_id,
         providerDetails.app_key,
-        baseUrl
+        baseUrl,
+        authenticatedUserId
       );
     } catch (error) {
       log('warn', `OpenFoodFacts login threw for ${key}:`, error);

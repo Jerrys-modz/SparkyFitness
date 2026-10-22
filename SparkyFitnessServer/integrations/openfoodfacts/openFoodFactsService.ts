@@ -19,6 +19,12 @@ import {
   OPENFOODFACTS_INTERACTIVE_PRODUCT_READ_MAX_WAIT_MS,
   withOpenFoodFactsProductReadPermit,
 } from '../../services/openFoodFactsProductReadRateLimitService.js';
+import {
+  createGuardedFetch,
+  PUBLIC_ONLY_AI_NETWORK_POLICY,
+  resolveFoodProviderNetworkPolicy,
+} from '../../utils/outboundUrlPolicy.js';
+import { resolveIsAdminByUserId } from '../../utils/adminCheck.js';
 const { name, version } = package$0;
 const USER_AGENT = `${name}/${version} (https://github.com/CodeWithCJ/SparkyFitness)`;
 const SEARCH_A_LICIOUS_URL = 'https://search.openfoodfacts.org/search';
@@ -45,10 +51,11 @@ function isTimeoutError(error: unknown): boolean {
 async function fetchWithTimeout(
   url: string,
   init: RequestInit = {},
-  timeoutMs: number = OFF_FETCH_TIMEOUT_MS
+  timeoutMs: number = OFF_FETCH_TIMEOUT_MS,
+  fetchImpl: typeof fetch = fetch
 ): Promise<Response> {
   try {
-    return await fetch(url, {
+    return await fetchImpl(url, {
       ...init,
       signal: AbortSignal.timeout(timeoutMs),
     });
@@ -63,6 +70,21 @@ async function fetchWithTimeout(
       });
     }
     throw error;
+  }
+}
+
+async function resolveOffFetch(
+  authenticatedUserId?: string
+): Promise<typeof fetch> {
+  if (!authenticatedUserId) {
+    return createGuardedFetch(PUBLIC_ONLY_AI_NETWORK_POLICY);
+  }
+  try {
+    const isAdmin = await resolveIsAdminByUserId(authenticatedUserId);
+    const policy = await resolveFoodProviderNetworkPolicy(isAdmin);
+    return policy.allowPrivateNetwork ? fetch : createGuardedFetch(policy);
+  } catch {
+    return createGuardedFetch(PUBLIC_ONLY_AI_NETWORK_POLICY);
   }
 }
 const OFF_FIELDS = [
@@ -300,6 +322,7 @@ async function fetchOpenFoodFacts(
     rateLimitProductRead?: boolean;
   } = {}
 ): Promise<Response> {
+  const fetchImpl = await resolveOffFetch(authenticatedUserId);
   const baseHeaders = { ...OFF_HEADERS };
 
   const headers = sessionCookie
@@ -330,7 +353,8 @@ async function fetchOpenFoodFacts(
           headers: requestHeaders,
           redirect: 'manual',
         },
-        remainingTimeoutMs
+        remainingTimeoutMs,
+        fetchImpl
       );
     };
 
@@ -705,7 +729,7 @@ async function searchOpenFoodFactsByBarcodeFields(
       }
       const errorText = await response.text();
       log('error', 'OpenFoodFacts Barcode Fields Search API error:', errorText);
-      throw new Error(`OpenFoodFacts API error: ${errorText}`);
+      throw new Error(`OpenFoodFacts API error (HTTP ${response.status})`);
     }
     let data = (await response.json()) as {
       status: number;
