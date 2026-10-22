@@ -2978,6 +2978,14 @@
       "appKeyLabel": "App Key:",
       "syncLabel": "Sync:"
     },
+    "routingProvider": {
+      "baseUrlLabel": "Valhalla server URL",
+      "apiKeyLabel": "API key (optional)",
+      "apiKeyPlaceholder": "Only for hosted services such as Stadia Maps",
+      "privacyNote": "The points of the routes you generate or draw with Follow roads (start, end and any waypoints in between) are sent to this server, which can see them. Use a server you trust, or run your own.",
+      "publicServerNote": "There is no default server. The public Valhalla server run by FOSSGIS is a demo for light personal testing, and its maintainers say it is not meant for production use by third parties, so do not point a shared server at it. Run your own Valhalla, use a hosted service (Stadia Maps, for one, offers a free plan for non-commercial use only) or a server whose operator has agreed. A sent API key is used only for this provider.",
+      "unlockNote": "Once this provider is active, route generation and Follow roads become available in the mobile app."
+    },
     "providerSpecificFields": {
       "appURL": "App URL",
       "eGHttpYourInstance": "e.g., http://your-{{provider_type}}-instance.com",

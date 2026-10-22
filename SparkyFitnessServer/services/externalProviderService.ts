@@ -25,6 +25,7 @@ import {
 } from '../utils/outboundUrlPolicy.js';
 import { resolveIsAdminByUserId } from '../utils/adminCheck.js';
 import { resolveCorosMcpUrl } from '../integrations/coros/corosConstants.js';
+import { ROUTING_PROVIDER_TYPE } from '@workspace/shared';
 
 // Provider types whose stored base_url is fetched server-side, making it an
 // SSRF surface. Their base_url is validated against the food-provider network
@@ -33,6 +34,7 @@ const BASE_URL_FETCHING_PROVIDER_TYPES = new Set([
   'mealie',
   'tandoor',
   'norish',
+  ROUTING_PROVIDER_TYPE,
 ]);
 
 // Reject a private/internal base_url for the self-hosted recipe providers.
@@ -44,14 +46,13 @@ const BASE_URL_FETCHING_PROVIDER_TYPES = new Set([
 // Reuses the same guard the AI-service URLs use, but surfaces a food-specific
 // message so the user isn't told about "AI service URL".
 async function validateFoodProviderBaseUrl(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  providerType: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  baseUrl: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  authenticatedUserId: any
+  providerType: string | null | undefined,
+  baseUrl: string | null | undefined,
+  authenticatedUserId: string
 ) {
-  if (!BASE_URL_FETCHING_PROVIDER_TYPES.has(providerType)) return;
+  if (!providerType || !BASE_URL_FETCHING_PROVIDER_TYPES.has(providerType)) {
+    return;
+  }
   if (baseUrl === undefined || baseUrl === null || baseUrl === '') return;
   // The provider services accept a scheme-less base_url and default it to
   // https:// (e.g. "mealie.example.com"). Normalize the same way before

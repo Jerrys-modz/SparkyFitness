@@ -50,6 +50,7 @@ export const createExternalProvider = async (
         'wger',
         'usda',
         'norish',
+        'valhalla',
       ].includes(payload.provider_type)
         ? null
         : payload.app_id || null,
@@ -61,6 +62,7 @@ export const createExternalProvider = async (
         'free-exercise-db',
         'yazio',
         'norish',
+        'valhalla',
         'openfoodfacts',
         'coros_mcp',
       ].includes(payload.provider_type)

@@ -110,7 +110,7 @@ export async function getRoute(
   }
 }
 
-export interface NewRoute extends Omit<CreateRouteBody, 'cues'> {
+export interface NewRoute extends Omit<CreateRouteBody, 'cues' | 'source'> {
   cues?: CreateRouteBody['cues'];
   source: RouteSource;
   sourceExerciseEntryId?: string | null;
