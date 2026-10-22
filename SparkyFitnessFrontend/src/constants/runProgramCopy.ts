@@ -69,6 +69,20 @@ export const PROGRAM_COPY: Readonly<Record<string, ProgramCopy>> = {
     structure:
       'Each week has a speed session (fast repeats or hills), an easy run and a longer run. Week 4 is lighter. In weeks 5 to 7 the longer run is a tempo run of 20, 25 and then 30 minutes, and the last week eases off.',
   },
+  zone2Base: {
+    name: 'Zone 2 base',
+    description:
+      'Zone 2 base: ten weeks, three easy runs a week held to your Zone 2 heart rate (or the talk test), building time in zone with a long run of up to 70 minutes. For when you can run 30 minutes.',
+    structure:
+      'Every run is easy, held to your Zone 2 heart rate range, or by the talk test without a heart rate. The long run builds to 70 minutes, and weeks 4, 8 and 10 include a zone check.',
+  },
+  zone2Base4: {
+    name: 'Zone 2 base (4 runs a week)',
+    description:
+      'Zone 2 base: ten weeks, four easy runs a week held to your Zone 2 heart rate (or the talk test), building time in zone with a long run of up to 70 minutes. For when you can run 30 minutes.',
+    structure:
+      'Every run is easy, held to your Zone 2 heart rate range, or by the talk test without a heart rate. A fourth run makes the long run a smaller share of the week, which builds to 70 minutes, and weeks 4, 8 and 10 include a zone check.',
+  },
   tenKToHalf: {
     name: '10K to half marathon',
     description:
