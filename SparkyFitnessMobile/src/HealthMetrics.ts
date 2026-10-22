@@ -188,8 +188,8 @@ const ALL_HEALTH_METRICS: HealthMetric[] = [
     enabled: false,
   },
   {
-    // Health Connect only. Each session is sent as a MindfulnessSession and
-    // upserted by its record id into mindfulness_sessions, so the rolling
+    // Health Connect and HealthKit. Each session is sent as a MindfulnessSession
+    // and upserted by its record id into mindfulness_sessions, so the rolling
     // lookback can re-read sessions entered for an earlier day without
     // duplicating them.
     id: 'mindfulness',
@@ -202,7 +202,7 @@ const ALL_HEALTH_METRICS: HealthMetric[] = [
     icon: require('../assets/icons/health-metrics/stress.png'),
     permissions: [{ accessType: 'read', recordType: 'MindfulnessSession' }],
     type: 'mindfulness',
-    platforms: ['android'],
+    platforms: ['android', 'ios'],
     category: 'Common',
     rollingLookbackDays: 2,
   },
