@@ -204,6 +204,23 @@ async function getCheckInDays(userId: string, from: string, to: string) {
   }));
 }
 
+/** Days with at least one food entry. Supplements alone do not make a food day: a vitamin-only day would read as a near-zero intake. */
+async function getFoodLoggedDays(
+  userId: string,
+  from: string,
+  to: string
+): Promise<string[]> {
+  const rows = await query<{ day: string }>(
+    userId,
+    `SELECT DISTINCT TO_CHAR(entry_date, 'YYYY-MM-DD') AS day
+       FROM food_entries
+      WHERE user_id = $1 AND entry_date BETWEEN $2 AND $3
+      ORDER BY day ASC`,
+    [userId, from, to]
+  );
+  return rows.map((r) => r.day);
+}
+
 export {
   getManualMoodDays,
   getMainSleepDays,
@@ -213,6 +230,7 @@ export {
   getStrengthVolumeDays,
   getExerciseFirstDay,
   getCheckInDays,
+  getFoodLoggedDays,
 };
 export default {
   getManualMoodDays,
@@ -223,4 +241,5 @@ export default {
   getStrengthVolumeDays,
   getExerciseFirstDay,
   getCheckInDays,
+  getFoodLoggedDays,
 };

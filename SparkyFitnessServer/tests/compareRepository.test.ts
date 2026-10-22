@@ -290,4 +290,20 @@ describe('compareRepository', () => {
       { day: '2026-01-02', weight: null, steps: null },
     ]);
   });
+
+  it('food logged days: days with a food entry, never supplements alone', async () => {
+    const out = await run([{ day: '2026-01-01' }, { day: '2026-01-03' }], () =>
+      compareRepository.getFoodLoggedDays('u1', '2026-01-01', '2026-01-31')
+    );
+    expect(sqlOf()).toContain(
+      "SELECT DISTINCT TO_CHAR(entry_date, 'YYYY-MM-DD') AS day"
+    );
+    expect(sqlOf()).toContain('FROM food_entries');
+    expect(sqlOf()).toContain(
+      'WHERE user_id = $1 AND entry_date BETWEEN $2 AND $3'
+    );
+    expect(sqlOf()).not.toContain('medication_entries');
+    expect(paramsOf()).toEqual(['u1', '2026-01-01', '2026-01-31']);
+    expect(out).toEqual(['2026-01-01', '2026-01-03']);
+  });
 });

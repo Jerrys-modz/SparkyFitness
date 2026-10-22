@@ -1,9 +1,8 @@
 import compareRepository from '../models/compareRepository.js';
 import reportRepository from '../models/reportRepository.js';
-import preferenceRepository from '../models/preferenceRepository.js';
-import userRepository from '../models/userRepository.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
-import { userAge } from '../utils/dateHelpers.js';
+import { loadFirstDayOfWeek } from '../utils/firstDayOfWeek.js';
+import { loadMaxHeartRate } from '../utils/maxHeartRate.js';
 import {
   addDays,
   analyzeDays,
@@ -13,7 +12,6 @@ import {
   daySides,
   daysInRange,
   DEFAULT_MAX_HEART_RATE,
-  estimateMaxHeartRate,
   instantHourMinute,
   instantHourMinuteInZone,
   resolveRecordZone,
@@ -43,8 +41,11 @@ interface MetricContext {
 
 /** History before the start in day mode: 14 days for the own normal, 7 for a rolling metric, 1 for timing. */
 const DAY_HISTORY_DAYS = 22;
-/** History before the first week in week mode: 6 weeks for the own normal, 1 for timing. */
-const WEEK_HISTORY_DAYS = 49;
+/**
+ * History before the first week in week mode: 6 weeks for the own normal, 1 for timing, and
+ * 6 days so a rolling metric has a value on every day of the first of those weeks.
+ */
+const WEEK_HISTORY_DAYS = 49 + 6;
 /** After the last week: B one week later, to the end of that week. */
 const WEEK_AFTER_DAYS = 13;
 /** Bedtime consistency and the session count look at the 7 days ending on the day. */
@@ -344,18 +345,26 @@ function trailingSessions(
   return out;
 }
 
-/** A day with a food (or supplement) row has its totals, a nutrient it lacks being 0; a day without one is missing. */
+/**
+ * A day with food logged has its totals, supplements included, and a nutrient it lacks is 0
+ * there. A day without food is missing, even with supplements: a vitamin-only day would read
+ * as a near-zero intake and track logging habits, not eating.
+ */
 async function loadFood(
   userId: string,
   key: FoodMetric,
   from: string,
   to: string
 ): Promise<DaySeries> {
-  const rows: NutritionTotalsRow[] =
-    await reportRepository.getDailyNutritionTotalsRange(userId, from, to);
+  const [rows, foodDays]: [NutritionTotalsRow[], string[]] = await Promise.all([
+    reportRepository.getDailyNutritionTotalsRange(userId, from, to),
+    compareRepository.getFoodLoggedDays(userId, from, to),
+  ]);
+  const logged = new Set(foodDays);
   const column = FOOD_COLUMNS[key];
   const out: DaySeries = {};
   for (const row of rows) {
+    if (!logged.has(row.entry_date)) continue;
     const value = Number(row[column] ?? 0);
     out[row.entry_date] = Number.isFinite(value) ? value : 0;
   }
@@ -450,24 +459,6 @@ function fetchRange(
     from: addDays(query.start, -DAY_HISTORY_DAYS),
     to: earliest(addDays(query.end, 1), addDays(today, -1)),
   };
-}
-
-/** The account's first day of the week (0 = Sunday), as the calendars use it. */
-async function loadFirstDayOfWeek(userId: string): Promise<number> {
-  const preferences = await preferenceRepository.getUserPreferences(userId);
-  const raw: unknown = preferences?.first_day_of_week;
-  return raw !== null && raw !== undefined ? Number(raw) : 0;
-}
-
-/** Max heart rate from the profile's age, or the default without one. */
-async function loadMaxHeartRate(userId: string, tz: string): Promise<number> {
-  const profile = await userRepository.getUserProfile(userId);
-  const dateOfBirth: unknown = profile?.date_of_birth;
-  const age =
-    typeof dateOfBirth === 'string' && dateOfBirth !== ''
-      ? userAge(dateOfBirth, tz)
-      : null;
-  return estimateMaxHeartRate(age);
 }
 
 function dayTiming(timing: number): CompareTiming {

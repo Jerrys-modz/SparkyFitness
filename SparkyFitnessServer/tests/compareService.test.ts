@@ -7,6 +7,7 @@ import {
   dayOfWeek,
   deviationsFromOwnNormal,
   todayInZone,
+  weeklySeries,
   type DaySeries,
 } from '@workspace/shared';
 import compareRepository from '../models/compareRepository.js';
@@ -317,6 +318,10 @@ describe('loadMetricDays: events', () => {
 
 describe('loadMetricDays: food, mood and body', () => {
   it('a day with no food logged has no calories, and caffeine is 0 on a logged day without caffeine', async () => {
+    vi.mocked(compareRepository.getFoodLoggedDays).mockResolvedValue([
+      '2026-06-01',
+      '2026-06-03',
+    ]);
     vi.mocked(reportRepository.getDailyNutritionTotalsRange).mockResolvedValue([
       { entry_date: '2026-06-01', calories: 2000, caffeine_mg: null },
       {
@@ -344,6 +349,29 @@ describe('loadMetricDays: food, mood and body', () => {
       USER,
       ...range
     );
+    expect(compareRepository.getFoodLoggedDays).toHaveBeenCalledWith(
+      USER,
+      ...range
+    );
+  });
+
+  it('a day with only supplements logged is missing for every food metric', async () => {
+    vi.mocked(compareRepository.getFoodLoggedDays).mockResolvedValue([
+      '2026-06-01',
+    ]);
+    // The totals list a supplement-only day too: a caffeine pill and a multivitamin.
+    vi.mocked(reportRepository.getDailyNutritionTotalsRange).mockResolvedValue([
+      { entry_date: '2026-06-01', calories: 2100, caffeine_mg: null },
+      { entry_date: '2026-06-02', calories: 5, caffeine_mg: 200 },
+    ]);
+    const range = ['2026-06-01', '2026-06-02'] as const;
+
+    expect(await loadMetricDays(USER, 'calories', ...range, CTX)).toEqual({
+      '2026-06-01': 2100,
+    });
+    expect(await loadMetricDays(USER, 'caffeine', ...range, CTX)).toEqual({
+      '2026-06-01': 0,
+    });
   });
 
   it('mood uses only manual check-ins', async () => {
@@ -481,7 +509,7 @@ describe('getCompare', () => {
       first_day_of_week: 1,
     });
     vi.mocked(compareRepository.getCheckInDays).mockResolvedValue(
-      stepsEveryDay('2026-01-12', '2026-06-14')
+      stepsEveryDay('2026-01-06', '2026-06-14')
     );
     const query = {
       a: 'steps',
@@ -494,10 +522,11 @@ describe('getCompare', () => {
 
     const response = await getCompare(USER, query);
 
-    // Monday weeks: 7 weeks before the week of the start, through the week after the end's.
+    // Monday weeks: 7 weeks (plus 6 days for a rolling metric) before the week of the
+    // start, through the week after the end's.
     expect(compareRepository.getCheckInDays).toHaveBeenCalledWith(
       USER,
-      '2026-01-12',
+      '2026-01-06',
       '2026-06-14'
     );
     const weeks = Object.keys(response.a.values);
@@ -556,7 +585,7 @@ describe('getCompare', () => {
       first_day_of_week: 1,
     });
     vi.mocked(compareRepository.getCheckInDays).mockResolvedValue(
-      stepsEveryDay('2026-05-11', TODAY)
+      stepsEveryDay('2026-05-05', TODAY)
     );
 
     const response = await getCompare(USER, {
@@ -571,7 +600,7 @@ describe('getCompare', () => {
     // This week began Monday 2026-10-19: load through the Sunday before.
     expect(compareRepository.getCheckInDays).toHaveBeenCalledWith(
       USER,
-      '2026-05-11',
+      '2026-05-05',
       '2026-10-18'
     );
     expect('2026-10-19' in response.a.values).toBe(false);
@@ -645,6 +674,29 @@ describe('getCompare', () => {
     // 150 of 180 is 83% (×4); against the default 190 it would be ×3.
     expect(response.a.values['2026-06-10']).toBe(120);
     expect(response.a.values['2026-06-11']).toBe(0);
+  });
+
+  it('training load as the second metric also uses the profile age', async () => {
+    vi.mocked(userRepository.getUserProfile).mockResolvedValue({
+      date_of_birth: '1986-06-01',
+    });
+    vi.mocked(compareRepository.getExerciseFirstDay).mockResolvedValue(
+      '2026-01-01'
+    );
+    vi.mocked(reportRepository.getTrainingLoadSessions).mockResolvedValue([
+      { day: '2026-06-10', durationMinutes: 30, avgHeartRate: 150 },
+    ]);
+
+    const response = await getCompare(USER, {
+      a: 'mood',
+      b: 'trainingLoad',
+      mode: 'day',
+      timing: 0,
+      start: '2026-06-01',
+      end: '2026-06-30',
+    });
+
+    expect(response.b.values['2026-06-10']).toBe(120);
   });
 
   describe('the deviations returned are the ones the analysis used', () => {
@@ -780,6 +832,13 @@ describe('getCompare', () => {
       expect(response.result).toEqual(result);
       const weeks = Object.keys(response.a.values);
       expect(weeks).toHaveLength(17);
+      // Both sides' values are weekly, on A's weeks: a mean of each week's days.
+      const onWeeks = (weekly: DaySeries) =>
+        Object.fromEntries(weeks.map((week) => [week, weekly[week]]));
+      expect(response.a.values).toEqual(onWeeks(weeklySeries(mood, 'mood', 0)));
+      expect(response.b.values).toEqual(
+        onWeeks(weeklySeries(stepsSeries, 'steps', 0))
+      );
       expect(Object.keys(response.deviations.a)).toEqual(weeks);
       expect(Object.keys(response.deviations.b)).toEqual([
         addDays(weekStart, -7),
