@@ -121,3 +121,72 @@ export const compareResponseSchema = z.object({
   result: compareResultSchema,
 });
 export type CompareResponse = z.infer<typeof compareResponseSchema>;
+
+export const compareSinceQuerySchema = z
+  .object({
+    a: metricKey.describe('The habit'),
+    b: metricKey.describe('The outcome'),
+    mode: z.literal('since'),
+    habitStart: dayString
+      .optional()
+      .describe(
+        'The day the habit started; when omitted the server suggests one'
+      ),
+    line: z.coerce
+      .number()
+      .finite()
+      .optional()
+      .describe("A line in the outcome's own scale; defaults to a natural one"),
+  })
+  .superRefine((q, ctx) => {
+    if (q.a === q.b) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['b'],
+        message: 'Pick two different things to compare',
+      });
+    }
+  });
+export type CompareSinceQuery = z.infer<typeof compareSinceQuerySchema>;
+
+const compareSinceStretchSchema = z
+  .object({
+    from: dayString,
+    to: dayString,
+    days: z.number(),
+    valueDays: z.number(),
+    mean: z.number().optional(),
+    p10: z.number().optional(),
+    p90: z.number().optional(),
+    shareAtOrAbove: z.number().optional(),
+  })
+  .describe(
+    'A stretch of days. With days 0 the stretch is empty and from may be later than to.'
+  );
+
+export const compareSinceResultSchema = z.object({
+  status: z.enum(['ok', 'not_enough']),
+  reason: z.enum(['fewBefore', 'fewSince', 'noStart']).optional(),
+  start: dayString.nullable(),
+  suggestedStart: dayString.nullable(),
+  before: compareSinceStretchSchema.optional(),
+  since: compareSinceStretchSchema.optional(),
+  line: z.number(),
+  diff: z.number().optional(),
+  low: z.number().optional(),
+  high: z.number().optional(),
+  p: z.number().optional(),
+  changed: z.boolean().optional(),
+  regularity: z.object({ weeksKept: z.number(), weeks: z.number() }).optional(),
+  alreadyChanging: z.boolean().optional(),
+});
+
+export const compareSinceResponseSchema = z.object({
+  mode: z.literal('since'),
+  habit: metricSeries,
+  outcome: metricSeries.describe(
+    'Raw daily values over the before and since stretches'
+  ),
+  result: compareSinceResultSchema,
+});
+export type CompareSinceResponse = z.infer<typeof compareSinceResponseSchema>;
