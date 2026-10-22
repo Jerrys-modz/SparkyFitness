@@ -1,7 +1,12 @@
 // Does A go with B? Each metric is first compared with its own recent normal, so a
 // shared drift or trend does not read as a link. Pure and dependency-free.
 
-import { addDays, dayOfWeek, daysBetween } from '../utils/timezone.ts';
+import {
+  addDays,
+  dayOfWeek,
+  daysBetween,
+  daysInRange,
+} from '../utils/timezone.ts';
 import { weekStartOf } from '../utils/trainingConsistency.ts';
 import {
   COMPARE_METRICS,
@@ -94,21 +99,58 @@ export function deviationsFromOwnNormal(
   return out;
 }
 
+/** One metric as given to the analysis: its daily series. */
+interface MetricInput {
+  key: CompareMetricKey;
+  values: DaySeries;
+}
+
+/**
+ * A metric ready to pair. `values` are deviations from its own normal, on the keys analysed
+ * only; in day mode a yes/no metric stays its raw 0/1. `raw` is the daily series given (day
+ * mode) or one value per week start (week mode).
+ */
+export interface CompareSide {
+  key: CompareMetricKey;
+  kind: CompareMetricKind;
+  raw: DaySeries;
+  values: DaySeries;
+}
+
+/** Both sides as the analysis pairs them. `keys` are A's: the days start..end, or the week starts; B's values reach one step either side. */
+export interface CompareSides {
+  keys: string[];
+  a: CompareSide;
+  b: CompareSide;
+}
+
+/** The sides analyzeDays pairs: A on the days start..end, B a day either side. */
+export function daySides(input: {
+  a: MetricInput;
+  b: MetricInput;
+  start: string;
+  end: string;
+}): CompareSides {
+  const days = daysInRange(input.start, input.end);
+  // B can sit a day either side of A: the timing, and the mirrored pairing.
+  const around = daysInRange(addDays(input.start, -1), addDays(input.end, 1));
+  return {
+    keys: days,
+    a: daySide(input.a, days),
+    b: daySide(input.b, around),
+  };
+}
+
 /** Pairs A on each day d in start..end with B on d + timing, both against their own normal. */
 export function analyzeDays(input: {
-  a: { key: CompareMetricKey; values: DaySeries };
-  b: { key: CompareMetricKey; values: DaySeries };
+  a: MetricInput;
+  b: MetricInput;
   timing: CompareTiming;
   start: string;
   end: string;
 }): CompareResult {
-  const days = dayRange(input.start, input.end);
-  // B can sit a day either side of A: the timing, and the mirrored pairing.
-  const around = dayRange(addDays(input.start, -1), addDays(input.end, 1));
   return analyzePairs({
-    keys: days,
-    a: daySide(input.a, days),
-    b: daySide(input.b, around),
+    ...daySides(input),
     timing: input.timing,
     shift: addDays,
     needed: DAYS_NEEDED,
@@ -125,13 +167,29 @@ export function analyzeDays(input: {
  * always take the correlation path. Throws RangeError for a metric with no weekly form.
  */
 export function analyzeWeeks(input: {
-  a: { key: CompareMetricKey; values: DaySeries };
-  b: { key: CompareMetricKey; values: DaySeries };
+  a: MetricInput;
+  b: MetricInput;
   timing: 0 | 1;
   start: string;
   end: string;
   firstDayOfWeek: number;
 }): CompareResult {
+  return analyzePairs({
+    ...weekSides(input),
+    timing: input.timing,
+    shift: (week, steps) => addDays(week, DAYS_PER_WEEK * steps),
+    needed: WEEKS_NEEDED,
+  });
+}
+
+/** The sides analyzeWeeks pairs: A in the weeks of start..end, B a week either side. Throws RangeError for a metric with no weekly form. */
+export function weekSides(input: {
+  a: MetricInput;
+  b: MetricInput;
+  start: string;
+  end: string;
+  firstDayOfWeek: number;
+}): CompareSides {
   const first = weekStartOf(input.start, input.firstDayOfWeek);
   const last = weekStartOf(input.end, input.firstDayOfWeek);
   const weeks = weekRange(first, last);
@@ -140,14 +198,11 @@ export function analyzeWeeks(input: {
     addDays(first, -DAYS_PER_WEEK),
     addDays(last, DAYS_PER_WEEK)
   );
-  return analyzePairs({
+  return {
     keys: weeks,
     a: weekSide(input.a, weeks, input.firstDayOfWeek),
     b: weekSide(input.b, around, input.firstDayOfWeek),
-    timing: input.timing,
-    shift: (week, steps) => addDays(week, DAYS_PER_WEEK * steps),
-    needed: WEEKS_NEEDED,
-  });
+  };
 }
 
 /** One value per week start from every day given: a sum, a mean over at least 4 days, or the count of yes days. */
@@ -186,10 +241,10 @@ export function weeklySeries(
 }
 
 function weekSide(
-  metric: { key: CompareMetricKey; values: DaySeries },
+  metric: MetricInput,
   weeks: readonly string[],
   firstDayOfWeek: number
-): Side {
+): CompareSide {
   const def = COMPARE_METRICS[metric.key];
   const raw = weeklySeries(metric.values, metric.key, firstDayOfWeek);
   return {
@@ -216,22 +271,12 @@ function weekRange(first: string, last: string): string[] {
   return weeks;
 }
 
-/** A metric ready to pair: deviations from its own normal, except in day mode a yes/no metric stays raw 0/1; week sides are always deviations (a yes/no metric as days per week). */
-interface Side {
-  key: CompareMetricKey;
-  kind: CompareMetricKind;
-  raw: DaySeries;
-  values: DaySeries;
-}
-
-function daySide(
-  metric: { key: CompareMetricKey; values: DaySeries },
-  days: readonly string[]
-): Side {
+/** A yes/no metric stays raw 0/1 by day; anything else is its deviation from its own normal. */
+function daySide(metric: MetricInput, days: readonly string[]): CompareSide {
   const kind = COMPARE_METRICS[metric.key].kind;
   const values =
     kind === 'binary'
-      ? metric.values
+      ? valuesOn(metric.values, days)
       : deviationsFromOwnNormal(metric.values, days);
   return { key: metric.key, kind, raw: metric.values, values };
 }
@@ -239,8 +284,8 @@ function daySide(
 /** A's keys in order, each paired with B's key `timing` steps later; `shift` moves a key by whole steps. */
 interface PairInput {
   keys: readonly string[];
-  a: Side;
-  b: Side;
+  a: CompareSide;
+  b: CompareSide;
   timing: number;
   shift: (key: string, steps: number) => string;
   needed: number;
@@ -454,10 +499,12 @@ function valueAt(series: DaySeries, key: string): number | undefined {
   return value !== undefined && Number.isFinite(value) ? value : undefined;
 }
 
-/** Every day from start to end inclusive; empty when end is before start. */
-function dayRange(start: string, end: string): string[] {
-  const days: string[] = [];
-  const count = daysBetween(start, end);
-  for (let i = 0; i <= count; i++) days.push(addDays(start, i));
-  return days;
+/** The series' values on the given keys only. */
+function valuesOn(series: DaySeries, keys: readonly string[]): DaySeries {
+  const out: DaySeries = {};
+  for (const key of keys) {
+    const value = valueAt(series, key);
+    if (value !== undefined) out[key] = value;
+  }
+  return out;
 }

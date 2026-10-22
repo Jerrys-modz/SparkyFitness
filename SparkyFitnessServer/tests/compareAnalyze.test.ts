@@ -6,12 +6,14 @@ import {
   COMPARE_METRIC_KEYS,
   COMPARE_METRICS,
   dayOfWeek,
+  daySides,
   deviationsFromOwnNormal,
   lag1Autocorrelation,
   pearson,
   type CompareMetricDef,
   type DaySeries,
   weeklySeries,
+  weekSides,
 } from '@workspace/shared';
 
 // Seeded generator so the synthetic data is identical on every run.
@@ -795,5 +797,84 @@ describe('compare week analysis', () => {
       reason: 'noVariation',
       checks: { ownNormal: true },
     });
+  });
+});
+
+describe('compare sides', () => {
+  test('daySides gives the deviations analyzeDays pairs on, B a day either side', () => {
+    const noise = normal(71);
+    const a = build(() => 50 + 10 * noise());
+    const b = build(() => 7 + noise());
+
+    const sides = daySides({
+      a: { key: 'mood', values: a },
+      b: { key: 'timeAsleep', values: b },
+      start: START,
+      end: END,
+    });
+
+    expect(sides.keys).toEqual(WINDOW);
+    expect(sides.a.values).toEqual(deviationsFromOwnNormal(a, WINDOW));
+    expect(sides.b.values).toEqual(
+      deviationsFromOwnNormal(b, daysFrom(addDays(START, -1), 62))
+    );
+    expect(sides.a.raw).toBe(a);
+  });
+
+  test('a yes/no day side stays raw 0/1, only on the days analysed', () => {
+    const noise = normal(72);
+    const flags = build((i) => i % 2);
+    const sides = daySides({
+      a: { key: 'meditated', values: flags },
+      b: { key: 'mood', values: build(() => 50 + 10 * noise()) },
+      start: START,
+      end: END,
+    });
+
+    expect(sides.a.values).toEqual(
+      Object.fromEntries(WINDOW.map((day) => [day, flags[day]]))
+    );
+  });
+
+  test('weekSides gives the weekly deviations analyzeWeeks pairs on', () => {
+    // 2026-01-19 is a Monday: 31 weeks of days, the first 6 history.
+    const first = addDays(START, -42);
+    const noise = normal(73);
+    const a: DaySeries = {};
+    const b: DaySeries = {};
+    daysFrom(first, 31 * 7).forEach((day, i) => {
+      if (i % 3 !== 0) a[day] = 10 + 5 * noise();
+      b[day] = 50 + 10 * noise();
+    });
+    const start = addDays(first, 44); // a Wednesday
+    const end = addDays(first, 30 * 7 - 3);
+
+    const sides = weekSides({
+      a: { key: 'meditationMinutes', values: a },
+      b: { key: 'mood', values: b },
+      start,
+      end,
+      firstDayOfWeek: 1,
+    });
+
+    const weeks = Array.from({ length: 24 }, (_, i) =>
+      addDays(first, 42 + 7 * i)
+    );
+    expect(sides.keys).toEqual(weeks);
+    const weeklyA = weeklySeries(a, 'meditationMinutes', 1);
+    const weeklyB = weeklySeries(b, 'mood', 1);
+    expect(sides.a.raw).toEqual(weeklyA);
+    expect(sides.a.values).toEqual(
+      deviationsFromOwnNormal(weeklyA, weeks, 6, 3, 7)
+    );
+    expect(sides.b.values).toEqual(
+      deviationsFromOwnNormal(
+        weeklyB,
+        [addDays(weeks[0], -7), ...weeks, addDays(weeks[23], 7)],
+        6,
+        3,
+        7
+      )
+    );
   });
 });

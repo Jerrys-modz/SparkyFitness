@@ -1,0 +1,483 @@
+import compareRepository from '../models/compareRepository.js';
+import reportRepository from '../models/reportRepository.js';
+import preferenceRepository from '../models/preferenceRepository.js';
+import userRepository from '../models/userRepository.js';
+import { loadUserTimezone } from '../utils/timezoneLoader.js';
+import { userAge } from '../utils/dateHelpers.js';
+import {
+  addDays,
+  analyzeDays,
+  analyzeWeeks,
+  compareDays,
+  computeDailyWeightTrend,
+  daySides,
+  daysInRange,
+  DEFAULT_MAX_HEART_RATE,
+  estimateMaxHeartRate,
+  instantHourMinute,
+  instantHourMinuteInZone,
+  resolveRecordZone,
+  sampleSd,
+  sessionLoad,
+  todayInZone,
+  weekSides,
+  weekStartOf,
+  type CompareMetricKey,
+  type CompareQuery,
+  type CompareResponse,
+  type CompareResult,
+  type CompareSides,
+  type CompareTiming,
+  type DaySeries,
+  type FoodVariantNutrientField,
+} from '@workspace/shared';
+
+// Compare: each metric's daily values from the user's own data, handed to the shared
+// analysis. Owner-only (the route enforces it); every read goes through a user-scoped
+// repository.
+
+interface MetricContext {
+  tz: string;
+  maxHeartRate: number;
+}
+
+/** History before the start in day mode: 14 days for the own normal, 7 for a rolling metric, 1 for timing. */
+const DAY_HISTORY_DAYS = 22;
+/** History before the first week in week mode: 6 weeks for the own normal, 1 for timing. */
+const WEEK_HISTORY_DAYS = 49;
+/** After the last week: B one week later, to the end of that week. */
+const WEEK_AFTER_DAYS = 13;
+/** Bedtime consistency and the session count look at the 7 days ending on the day. */
+const ROLLING_DAYS = 7;
+const MIN_CONSISTENCY_NIGHTS = 4;
+/** Weigh-ins this long before the range, so the trend is interpolated and smoothed across its start. */
+const WEIGHT_WARM_UP_DAYS = 30;
+const SECONDS_PER_HOUR = 3600;
+const MINUTES_PER_DAY = 24 * 60;
+/** Bedtime counts from 18:00, so 23:30 and 00:30 sit an hour apart. */
+const BEDTIME_ORIGIN_MINUTES = 18 * 60;
+
+type FoodMetric =
+  'calories' | 'protein' | 'carbs' | 'fat' | 'caffeine' | 'alcohol';
+
+const FOOD_COLUMNS = {
+  calories: 'calories',
+  protein: 'protein',
+  carbs: 'carbs',
+  fat: 'fat',
+  caffeine: 'caffeine_mg',
+  alcohol: 'alcohol_g',
+} as const satisfies Record<FoodMetric, FoodVariantNutrientField>;
+
+/** One day of reportRepository.getDailyNutritionTotalsRange; pg hands DATE back as its YYYY-MM-DD text. */
+type NutritionTotalsRow = { entry_date: string } & Partial<
+  Record<FoodVariantNutrientField, number | string | null>
+>;
+
+/**
+ * Does A go with B? Loads both metrics over the range plus the history the analysis needs,
+ * never counting today (or this week): steps, food and minutes all build up through the
+ * day, so an unfinished one would read as a dip.
+ */
+export async function getCompare(
+  userId: string,
+  query: CompareQuery
+): Promise<CompareResponse> {
+  const tz = await loadUserTimezone(userId);
+  const today = todayInZone(tz);
+  const firstDayOfWeek =
+    query.mode === 'week' ? await loadFirstDayOfWeek(userId) : 0;
+  const { from, to } = fetchRange(query, today, firstDayOfWeek);
+  const ctx: MetricContext = {
+    tz,
+    maxHeartRate:
+      query.a === 'trainingLoad' || query.b === 'trainingLoad'
+        ? await loadMaxHeartRate(userId, tz)
+        : DEFAULT_MAX_HEART_RATE,
+  };
+  const [aValues, bValues] = await Promise.all([
+    loadMetricDays(userId, query.a, from, to, ctx),
+    loadMetricDays(userId, query.b, from, to, ctx),
+  ]);
+
+  const metrics = {
+    a: { key: query.a, values: aValues },
+    b: { key: query.b, values: bValues },
+    start: query.start,
+    end: query.end,
+  };
+  let sides: CompareSides;
+  let result: CompareResult;
+  if (query.mode === 'week') {
+    const input = { ...metrics, firstDayOfWeek };
+    sides = weekSides(input);
+    result = analyzeWeeks({ ...input, timing: weekTiming(query.timing) });
+  } else {
+    sides = daySides(metrics);
+    result = analyzeDays({ ...metrics, timing: dayTiming(query.timing) });
+  }
+
+  // Raw values on the analysed days (or weeks); the deviations exactly as they were paired.
+  const first = sides.keys[0] ?? query.start;
+  const last = sides.keys[sides.keys.length - 1] ?? query.end;
+  return {
+    a: { key: query.a, values: between(sides.a.raw, first, last) },
+    b: { key: query.b, values: between(sides.b.raw, first, last) },
+    deviations: { a: sides.a.values, b: sides.b.values },
+    result,
+  };
+}
+
+/**
+ * One metric's value per day in from..to; a day without one is absent. Event metrics are 0
+ * on days without a record from the first record ever; food metrics are missing on days
+ * with nothing logged; everything else is missing when not recorded.
+ */
+export async function loadMetricDays(
+  userId: string,
+  key: CompareMetricKey,
+  from: string,
+  to: string,
+  ctx: MetricContext
+): Promise<DaySeries> {
+  if (compareDays(from, to) > 0) return {};
+  return between(await loadSeries(userId, key, from, to, ctx), from, to);
+}
+
+async function loadSeries(
+  userId: string,
+  key: CompareMetricKey,
+  from: string,
+  to: string,
+  ctx: MetricContext
+): Promise<DaySeries> {
+  switch (key) {
+    case 'mood':
+    case 'energy':
+    case 'focus': {
+      // Manual check-ins only, unlike the Mood report: Garmin's derived mood is inverted
+      // stress, which Garmin computes from HRV, so it would manufacture links with sleep.
+      const rows = await compareRepository.getManualMoodDays(userId, from, to);
+      return seriesOf(rows, (row) => row[key]);
+    }
+    case 'timeAsleep': {
+      const rows = await compareRepository.getMainSleepDays(userId, from, to);
+      return seriesOf(rows, (row) =>
+        row.timeAsleepSeconds === null
+          ? null
+          : row.timeAsleepSeconds / SECONDS_PER_HOUR
+      );
+    }
+    case 'sleepScore':
+    case 'overnightHrv':
+    case 'restingHeartRate': {
+      const rows = await compareRepository.getMainSleepDays(userId, from, to);
+      return seriesOf(rows, (row) => row[key]);
+    }
+    case 'bedtime':
+      return loadBedtimes(userId, from, to, ctx.tz);
+    case 'bedtimeConsistency':
+      return bedtimeConsistency(
+        await loadBedtimes(userId, from, to, ctx.tz),
+        from,
+        to
+      );
+    case 'meditationMinutes':
+    case 'meditated':
+    case 'meditationSessions7d':
+      return loadMeditation(userId, key, from, to);
+    case 'calories':
+    case 'protein':
+    case 'carbs':
+    case 'fat':
+    case 'caffeine':
+    case 'alcohol':
+      return loadFood(userId, key, from, to);
+    case 'workoutMinutes':
+    case 'trainingLoad': {
+      const [sessions, firstDay] = await Promise.all([
+        reportRepository.getTrainingLoadSessions(userId, from, to),
+        compareRepository.getExerciseFirstDay(userId),
+      ]);
+      const perDay: DaySeries = {};
+      for (const session of sessions) {
+        const value =
+          key === 'trainingLoad'
+            ? sessionLoad(session, ctx.maxHeartRate)
+            : session.durationMinutes;
+        perDay[session.day] = (perDay[session.day] ?? 0) + value;
+      }
+      return withEventZeros(perDay, firstDay, from, to);
+    }
+    case 'cardioMinutes': {
+      const [rows, firstDay] = await Promise.all([
+        compareRepository.getCardioMinuteDays(userId, from, to),
+        compareRepository.getExerciseFirstDay(userId),
+      ]);
+      return withEventZeros(
+        seriesOf(rows, (row) => row.minutes),
+        firstDay,
+        from,
+        to
+      );
+    }
+    case 'strengthVolume': {
+      const [rows, firstDay] = await Promise.all([
+        compareRepository.getStrengthVolumeDays(userId, from, to),
+        compareRepository.getExerciseFirstDay(userId),
+      ]);
+      return withEventZeros(
+        seriesOf(rows, (row) => row.volumeKg),
+        firstDay,
+        from,
+        to
+      );
+    }
+    case 'weightTrend':
+      return loadWeightTrend(userId, from, to);
+    case 'steps': {
+      const rows = await compareRepository.getCheckInDays(userId, from, to);
+      return seriesOf(rows, (row) => row.steps);
+    }
+    default: {
+      const unhandled: never = key;
+      throw new RangeError(`unknown compare metric ${String(unhandled)}`);
+    }
+  }
+}
+
+/** Bedtime as minutes after 18:00 on the clock where it was recorded: the record's zone or offset, else the profile zone. */
+async function loadBedtimes(
+  userId: string,
+  from: string,
+  to: string,
+  tz: string
+): Promise<DaySeries> {
+  const rows = await compareRepository.getMainSleepDays(userId, from, to);
+  return seriesOf(rows, (row) => {
+    if (row.bedtime === null) return null;
+    const zone = resolveRecordZone(
+      row.recordTimezone,
+      row.recordUtcOffsetMinutes
+    );
+    const { hour, minute } = zone
+      ? instantHourMinuteInZone(row.bedtime, zone)
+      : instantHourMinute(row.bedtime, tz);
+    return (
+      (hour * 60 + minute - BEDTIME_ORIGIN_MINUTES + MINUTES_PER_DAY) %
+      MINUTES_PER_DAY
+    );
+  });
+}
+
+/** The spread (sample SD) of bedtime over the 7 nights ending on each day, from 4 of them; only where all 7 were loaded. */
+function bedtimeConsistency(
+  bedtimes: DaySeries,
+  from: string,
+  to: string
+): DaySeries {
+  const out: DaySeries = {};
+  for (const day of daysInRange(addDays(from, ROLLING_DAYS - 1), to)) {
+    const nights = daysInRange(addDays(day, -(ROLLING_DAYS - 1)), day)
+      .map((night) => bedtimes[night])
+      .filter((value) => value !== undefined);
+    if (nights.length < MIN_CONSISTENCY_NIGHTS) continue;
+    const spread = sampleSd(nights);
+    if (spread !== null) out[day] = spread;
+  }
+  return out;
+}
+
+async function loadMeditation(
+  userId: string,
+  key: 'meditationMinutes' | 'meditated' | 'meditationSessions7d',
+  from: string,
+  to: string
+): Promise<DaySeries> {
+  const [rows, firstDay] = await Promise.all([
+    compareRepository.getMeditationDays(userId, from, to),
+    compareRepository.getMeditationFirstDay(userId),
+  ]);
+  if (key === 'meditationSessions7d') {
+    const sessions = withEventZeros(
+      seriesOf(rows, (row) => row.sessions),
+      firstDay,
+      from,
+      to
+    );
+    return trailingSessions(sessions, firstDay, from, to);
+  }
+  const minutes = withEventZeros(
+    seriesOf(rows, (row) => row.minutes),
+    firstDay,
+    from,
+    to
+  );
+  if (key === 'meditationMinutes') return minutes;
+  const meditated: DaySeries = {};
+  for (const [day, value] of Object.entries(minutes)) {
+    meditated[day] = value > 0 ? 1 : 0;
+  }
+  return meditated;
+}
+
+/**
+ * Sessions in the 7 days ending on each day. Days before the first session ever had none;
+ * a window reaching back to a day that was not loaded is unknown, so that day is absent.
+ */
+function trailingSessions(
+  sessions: DaySeries,
+  firstDay: string | null,
+  from: string,
+  to: string
+): DaySeries {
+  const out: DaySeries = {};
+  if (firstDay === null) return out;
+  for (const day of daysInRange(latest(firstDay, from), to)) {
+    const window = daysInRange(
+      latest(firstDay, addDays(day, -(ROLLING_DAYS - 1))),
+      day
+    );
+    if (window.some((d) => sessions[d] === undefined)) continue;
+    out[day] = window.reduce((total, d) => total + sessions[d], 0);
+  }
+  return out;
+}
+
+/** A day with a food (or supplement) row has its totals, a nutrient it lacks being 0; a day without one is missing. */
+async function loadFood(
+  userId: string,
+  key: FoodMetric,
+  from: string,
+  to: string
+): Promise<DaySeries> {
+  const rows: NutritionTotalsRow[] =
+    await reportRepository.getDailyNutritionTotalsRange(userId, from, to);
+  const column = FOOD_COLUMNS[key];
+  const out: DaySeries = {};
+  for (const row of rows) {
+    const value = Number(row[column] ?? 0);
+    out[row.entry_date] = Number.isFinite(value) ? value : 0;
+  }
+  return out;
+}
+
+/** The smoothed trend from weigh-ins, warmed up before the range; no value past the last weigh-in. */
+async function loadWeightTrend(
+  userId: string,
+  from: string,
+  to: string
+): Promise<DaySeries> {
+  const rows = await compareRepository.getCheckInDays(
+    userId,
+    addDays(from, -WEIGHT_WARM_UP_DAYS),
+    to
+  );
+  const samples = rows.flatMap((row) =>
+    row.weight === null ? [] : [{ date: row.day, weight: row.weight }]
+  );
+  const out: DaySeries = {};
+  for (const point of computeDailyWeightTrend(samples)) {
+    out[point.date] = point.trend;
+  }
+  return out;
+}
+
+/** Event metrics: 0 on each day from the first record ever (or from) through to without one. */
+function withEventZeros(
+  perDay: DaySeries,
+  firstDay: string | null,
+  from: string,
+  to: string
+): DaySeries {
+  const out: DaySeries = { ...perDay };
+  if (firstDay === null) return out;
+  for (const day of daysInRange(latest(firstDay, from), to)) out[day] ??= 0;
+  return out;
+}
+
+function seriesOf<Row extends { day: string }>(
+  rows: readonly Row[],
+  valueOf: (row: Row) => number | null
+): DaySeries {
+  const out: DaySeries = {};
+  for (const row of rows) {
+    const value = valueOf(row);
+    if (value !== null && Number.isFinite(value)) out[row.day] = value;
+  }
+  return out;
+}
+
+/** The series' days from first to last, in day order. */
+function between(series: DaySeries, first: string, last: string): DaySeries {
+  const out: DaySeries = {};
+  for (const day of Object.keys(series).sort()) {
+    if (compareDays(day, first) >= 0 && compareDays(day, last) <= 0) {
+      out[day] = series[day];
+    }
+  }
+  return out;
+}
+
+function latest(a: string, b: string): string {
+  return compareDays(a, b) >= 0 ? a : b;
+}
+
+function earliest(a: string, b: string): string {
+  return compareDays(a, b) <= 0 ? a : b;
+}
+
+/** The days to load: the range with the history the analysis needs, ending before today (day mode) or this week (week mode). */
+function fetchRange(
+  query: CompareQuery,
+  today: string,
+  firstDayOfWeek: number
+): { from: string; to: string } {
+  if (query.mode === 'week') {
+    const thisWeek = weekStartOf(today, firstDayOfWeek);
+    return {
+      from: addDays(
+        weekStartOf(query.start, firstDayOfWeek),
+        -WEEK_HISTORY_DAYS
+      ),
+      to: earliest(
+        addDays(weekStartOf(query.end, firstDayOfWeek), WEEK_AFTER_DAYS),
+        addDays(thisWeek, -1)
+      ),
+    };
+  }
+  return {
+    from: addDays(query.start, -DAY_HISTORY_DAYS),
+    to: earliest(addDays(query.end, 1), addDays(today, -1)),
+  };
+}
+
+/** The account's first day of the week (0 = Sunday), as the calendars use it. */
+async function loadFirstDayOfWeek(userId: string): Promise<number> {
+  const preferences = await preferenceRepository.getUserPreferences(userId);
+  const raw: unknown = preferences?.first_day_of_week;
+  return raw !== null && raw !== undefined ? Number(raw) : 0;
+}
+
+/** Max heart rate from the profile's age, or the default without one. */
+async function loadMaxHeartRate(userId: string, tz: string): Promise<number> {
+  const profile = await userRepository.getUserProfile(userId);
+  const dateOfBirth: unknown = profile?.date_of_birth;
+  const age =
+    typeof dateOfBirth === 'string' && dateOfBirth !== ''
+      ? userAge(dateOfBirth, tz)
+      : null;
+  return estimateMaxHeartRate(age);
+}
+
+function dayTiming(timing: number): CompareTiming {
+  if (timing === -1 || timing === 0 || timing === 1) return timing;
+  throw new RangeError(`timing must be -1, 0 or 1, not ${timing}`);
+}
+
+function weekTiming(timing: number): 0 | 1 {
+  if (timing === 0 || timing === 1) return timing;
+  throw new RangeError(`week mode supports timing 0 or 1 only, not ${timing}`);
+}
+
+export default { getCompare, loadMetricDays };
