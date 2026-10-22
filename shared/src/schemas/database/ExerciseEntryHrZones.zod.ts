@@ -1,5 +1,5 @@
-import { z } from "zod";
-import { storedZoneMethodSchema } from "../api/HeartRateZones.api.zod.ts";
+import { z } from 'zod';
+import { storedZoneMethodSchema } from '../api/HeartRateZones.api.zod.ts';
 
 export const exerciseEntryHrZonesIdSchema = z.string();
 

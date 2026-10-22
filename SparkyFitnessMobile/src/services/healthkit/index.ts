@@ -1,5 +1,7 @@
 import {
   requestAuthorization,
+  getRequestStatusForAuthorization,
+  AuthorizationRequestStatus,
   queryQuantitySamples,
   queryStatisticsCollectionForQuantity,
   isHealthDataAvailable,
@@ -316,43 +318,9 @@ export const initHealthConnect = async (): Promise<boolean> => {
   }
 };
 
-export const requestHealthPermissions = async (
+const healthKitAuthorizationTypes = (
   permissionsToRequest: PermissionRequest[]
-): Promise<boolean> => {
-  if (!isHealthKitAvailable) {
-    Alert.alert(
-      i18n.t('healthSync.alerts.healthAppUnavailableTitle', {
-        defaultValue: 'Health App Not Available',
-      }),
-      i18n.t('healthSync.alerts.healthAppUnavailableMessage', {
-        defaultValue:
-          'Please install the Apple Health app to sync your health data.',
-      })
-    );
-    return false;
-  }
-
-  const isSimulator =
-    Platform.OS === 'ios' &&
-    (Platform.constants as { simulator?: boolean })?.simulator === true;
-  if (
-    isSimulator &&
-    !(globalThis as Record<string, unknown>).FORCE_HEALTHKIT_ON_SIM
-  ) {
-    // Returning true here is a convenience for simulator runs, but callers log it as
-    // "permission granted" — say plainly that nothing was requested so the log is not
-    // read as evidence that HealthKit was asked.
-    addLog(
-      '[HealthKitService] Simulator: skipped the authorization request entirely (no sheet, no grant). Set FORCE_HEALTHKIT_ON_SIM to exercise the real path.',
-      'WARNING'
-    );
-    return true;
-  }
-
-  if (!permissionsToRequest || permissionsToRequest.length === 0) {
-    return true;
-  }
-
+): { toRead: string[]; toShare: string[] } => {
   const readPermissionsSet = new Set<string>();
   const writePermissionsSet = new Set<string>();
 
@@ -436,6 +404,80 @@ export const requestHealthPermissions = async (
 
   const toRead = Array.from(readPermissionsSet);
   const toShare = Array.from(writePermissionsSet);
+
+  return { toRead, toShare };
+};
+
+/**
+ * Whether any of these permissions includes a HealthKit type the user has never been
+ * asked about, e.g. one added to a metric in an app update. HealthKit only shows the
+ * sheet for such types, so re-requesting when this is true is safe. An unknown status
+ * or a failed check counts as true: a request with nothing new shows no sheet.
+ */
+export const hasUnrequestedHealthPermissions = async (
+  permissions: PermissionRequest[]
+): Promise<boolean> => {
+  if (!isHealthKitAvailable) {
+    return false;
+  }
+  const { toRead, toShare } = healthKitAuthorizationTypes(permissions);
+  if (toRead.length === 0 && toShare.length === 0) {
+    return false;
+  }
+  try {
+    const status = await getRequestStatusForAuthorization({
+      toRead: toRead as Parameters<typeof requestAuthorization>[0]['toRead'],
+      toShare: toShare as Parameters<typeof requestAuthorization>[0]['toShare'],
+    });
+    return status !== AuthorizationRequestStatus.unnecessary;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    addLog(
+      `[HealthKitService] Failed to check HealthKit authorization status: ${message}`,
+      'WARNING'
+    );
+    return true;
+  }
+};
+
+export const requestHealthPermissions = async (
+  permissionsToRequest: PermissionRequest[]
+): Promise<boolean> => {
+  if (!isHealthKitAvailable) {
+    Alert.alert(
+      i18n.t('healthSync.alerts.healthAppUnavailableTitle', {
+        defaultValue: 'Health App Not Available',
+      }),
+      i18n.t('healthSync.alerts.healthAppUnavailableMessage', {
+        defaultValue:
+          'Please install the Apple Health app to sync your health data.',
+      })
+    );
+    return false;
+  }
+
+  const isSimulator =
+    Platform.OS === 'ios' &&
+    (Platform.constants as { simulator?: boolean })?.simulator === true;
+  if (
+    isSimulator &&
+    !(globalThis as Record<string, unknown>).FORCE_HEALTHKIT_ON_SIM
+  ) {
+    // Returning true here is a convenience for simulator runs, but callers log it as
+    // "permission granted" — say plainly that nothing was requested so the log is not
+    // read as evidence that HealthKit was asked.
+    addLog(
+      '[HealthKitService] Simulator: skipped the authorization request entirely (no sheet, no grant). Set FORCE_HEALTHKIT_ON_SIM to exercise the real path.',
+      'WARNING'
+    );
+    return true;
+  }
+
+  if (!permissionsToRequest || permissionsToRequest.length === 0) {
+    return true;
+  }
+
+  const { toRead, toShare } = healthKitAuthorizationTypes(permissionsToRequest);
 
   if (toRead.length === 0 && toShare.length === 0) {
     // Every requested record type expanded to nothing — an unmapped record type, or one

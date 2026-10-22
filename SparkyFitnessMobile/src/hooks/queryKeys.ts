@@ -320,6 +320,12 @@ export const chatHistoryQueryKey = ['chatHistory'] as const;
 export const nutritionTrendsQueryKey = (startDate: string, endDate: string) =>
   ['nutritionTrends', startDate, endDate] as const;
 
+/** Every cached food-entry range, whatever its days. */
+export const foodEntriesRangeRootQueryKey = ['foodEntriesRange'] as const;
+
+export const foodEntriesRangeQueryKey = (startDate: string, endDate: string) =>
+  ['foodEntriesRange', startDate, endDate] as const;
+
 export const exerciseDashboardQueryKey = (startDate: string, endDate: string) =>
   ['exerciseDashboard', startDate, endDate] as const;
 
@@ -368,6 +374,18 @@ export const pregnancyPhotosQueryKey = ['pregnancyPhotos'] as const;
 export const moodEntriesRootQueryKey = ['moodEntries'] as const;
 export const moodEntriesQueryKey = (startDate: string, endDate: string) =>
   ['moodEntries', startDate, endDate] as const;
+export const moodRatingsSupportQueryKey = [
+  'moodEntries',
+  'ratingsSupport',
+] as const;
+export const moodCheckinsSupportQueryKey = [
+  'moodEntries',
+  'checkinsSupport',
+] as const;
+export const moodCheckinsQueryKey = (date: string) =>
+  ['moodEntries', 'checkins', date] as const;
+export const moodLegacyDayQueryKey = (date: string) =>
+  ['moodEntries', 'legacyDay', date] as const;
 export const customMoodsQueryKey = ['customMoods'] as const;
 
 export const symptomEntriesQueryKey = (fromDate: string, toDate: string) =>
@@ -423,3 +441,9 @@ export const runProgramQueryKey = ['runProgram'] as const;
 export const customRunProgramsQueryKey = ['customRunPrograms'] as const;
 
 export const heartRateZonesQueryKey = ['heartRateZones'] as const;
+
+/** The person's saved routes (summaries). */
+export const routesQueryKey = ['routes'] as const;
+
+/** One saved route with its points and cues. */
+export const routeQueryKey = (id: string) => ['routes', id] as const;

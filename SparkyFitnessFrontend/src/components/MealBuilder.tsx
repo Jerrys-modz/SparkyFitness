@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/TimeInput';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -1633,7 +1634,7 @@ const MealBuilder: React.FC<MealBuilderProps> = ({
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="entryTime">
+                  <Label id="entryTime-label">
                     {t('mealBuilder.entryTimeOptional', {
                       defaultValue: 'Time (optional)',
                     })}
@@ -1669,11 +1670,11 @@ const MealBuilder: React.FC<MealBuilderProps> = ({
                     </button>
                   </div>
                 </div>
-                <Input
+                <TimeInput
                   id="entryTime"
-                  type="time"
+                  aria-labelledby="entryTime-label"
                   value={entryTime}
-                  onChange={(e) => setEntryTime(e.target.value)}
+                  onChange={setEntryTime}
                 />
               </div>
             </div>

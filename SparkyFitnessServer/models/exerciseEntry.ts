@@ -13,6 +13,11 @@ import activityDetailsRepository from './activityDetailsRepository.js';
 import * as workoutTelemetryRepository from './workoutTelemetryRepository.js';
 import { bodyWeightJoinSql } from '../utils/exerciseLoadSql.js';
 import { assertSetWeightSign } from '../utils/setWeightSign.js';
+import {
+  mergeManualFields,
+  storedManualFields,
+  withoutManualFields,
+} from '../utils/manualFields.js';
 /**
  * Updates a daily calorie import, retaining entries created against shared exercises.
  * A matching exercise takes precedence; legacy matches require the same source.
@@ -650,7 +655,15 @@ async function _updateExerciseEntryWithClient(
   // inserts a replacement) passes returnNullIfMissing and gets null instead of
   // an exception. Callers acting on a user-chosen entry leave it unset, because
   // for them a missing row really is an error.
-  options: { returnNullIfMissing?: boolean } = {}
+  //
+  // preserveManualFields: a re-sent provider workout leaves the fields the
+  // user edited (manual_fields) alone. markManualFields: a diary edit records
+  // the fields it changed, so the next sync knows to keep them.
+  options: {
+    returnNullIfMissing?: boolean;
+    preserveManualFields?: boolean;
+    markManualFields?: readonly string[];
+  } = {}
 ) {
   // Fetch existing entry to get current snapshot values if not provided in updateData
   const existingEntryResult = await client.query(
@@ -664,6 +677,14 @@ async function _updateExerciseEntryWithClient(
     throw new Error('Exercise entry not found for update.');
   }
   const currentEntry = existingEntryResult.rows[0];
+  const currentManualFields = storedManualFields(currentEntry.manual_fields);
+  if (options.preserveManualFields) {
+    updateData = withoutManualFields(updateData, currentManualFields);
+  }
+  const manualFields = mergeManualFields(
+    currentManualFields,
+    options.markManualFields ?? []
+  );
   // Merge updateData with currentEntry to ensure all fields are present for the update statement
   // Prioritize updateData, then currentEntry, then defaults
   const mergedData = {
@@ -826,6 +847,7 @@ async function _updateExerciseEntryWithClient(
       modality = $31,
       ${telemetrySetClause},
       record_timezone = $${32 + EXERCISE_ENTRY_TELEMETRY_COLUMNS.length},
+      manual_fields = $${33 + EXERCISE_ENTRY_TELEMETRY_COLUMNS.length}::text[],
       updated_at = now()
     WHERE id = $28 AND user_id = $29
     RETURNING id`,
@@ -863,6 +885,8 @@ async function _updateExerciseEntryWithClient(
       mergedData.modality ?? null,
       ...telemetryParams,
       mergedData.record_timezone ?? null,
+      // NULL while nothing is marked, so an untouched row keeps its shape.
+      manualFields.length > 0 ? manualFields : null,
     ]
   );
   // The row can be deleted by a competing writer between the existence check
@@ -1023,7 +1047,9 @@ async function _createExerciseEntryWithClient(
         entryData,
         createdByUserId,
         entrySource,
-        { returnNullIfMissing: true }
+        // A source_id match is the same provider workout sent again: keep
+        // what the user corrected since the last sync.
+        { returnNullIfMissing: true, preserveManualFields: syncDuplicateCheck }
       );
       if (!updatedEntry) {
         // The writer that deleted the row is a delete-then-insert sync, so it
@@ -1050,7 +1076,10 @@ async function _createExerciseEntryWithClient(
             entryData,
             createdByUserId,
             entrySource,
-            { returnNullIfMissing: true }
+            {
+              returnNullIfMissing: true,
+              preserveManualFields: syncDuplicateCheck,
+            }
           );
         }
       }
@@ -1268,7 +1297,9 @@ async function updateExerciseEntry(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   actingUserId: any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  updateData: any
+  updateData: any,
+  // Fields this edit changed on a synced entry, kept on the next re-sync.
+  markManualFields: readonly string[] = []
 ) {
   const client = await getClient(userId);
   try {
@@ -1284,7 +1315,8 @@ async function updateExerciseEntry(
       userId,
       updateData,
       actingUserId,
-      updateData.source
+      updateData.source,
+      { markManualFields }
     );
     await client.query('COMMIT');
     return updatedEntry;

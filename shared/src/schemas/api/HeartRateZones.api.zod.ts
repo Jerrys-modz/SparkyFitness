@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 import {
   HR_ZONE_COUNT,
   HR_ZONE_METHODS,
@@ -7,16 +7,16 @@ import {
   MIN_MAX_HR,
   MIN_RESTING_HR,
   customFloorsProblem,
-} from "../../utils/heartRateZones.ts";
+} from '../../utils/heartRateZones.ts';
 
 export const hrZoneMethodSchema = z.enum(HR_ZONE_METHODS);
 
 /** Where the maximum heart rate in use came from. */
 export const maxHrSourceSchema = z.enum([
-  "user",
-  "age",
-  "observed",
-  "fallback",
+  'user',
+  'age',
+  'observed',
+  'fallback',
 ]);
 
 /** What the person saved. Null / default means "work it out". */
@@ -90,8 +90,8 @@ export const updateHeartRateZonesBodySchema = z
       const problem = customFloorsProblem(body.custom_floors);
       if (problem) {
         ctx.addIssue({
-          code: "custom",
-          path: ["custom_floors"],
+          code: 'custom',
+          path: ['custom_floors'],
           message: problem,
         });
       }
@@ -102,5 +102,5 @@ export type UpdateHeartRateZonesBody = z.infer<
 >;
 
 /** How a stored time-in-zone breakdown was worked out. */
-export const storedZoneMethodSchema = z.enum([...HR_ZONE_METHODS, "device"]);
+export const storedZoneMethodSchema = z.enum([...HR_ZONE_METHODS, 'device']);
 export type StoredZoneMethod = z.infer<typeof storedZoneMethodSchema>;

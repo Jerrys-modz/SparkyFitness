@@ -130,10 +130,10 @@ async def garmin_resume_login(request: Request):
 
         garmin = item["garmin"]
 
-        garmin.prompt_mfa = lambda: mfa_code
-        garmin.return_on_mfa = False
-
-        garmin.login()
+        # Answer the challenge this login is waiting on. Calling login() again
+        # would start a new sign-in, and Garmin would email the user a second
+        # code they never need.
+        garmin.resume_login(None, mfa_code)
 
         tokens = json.loads(garmin.client.dumps())
 

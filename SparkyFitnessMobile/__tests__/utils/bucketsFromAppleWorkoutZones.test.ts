@@ -12,6 +12,13 @@ const five = [
 ];
 
 describe('bucketsFromAppleWorkoutZones', () => {
+  it('rejects a zone with more than a week in it', () => {
+    const huge = five.map((zone, i) =>
+      i === 0 ? { ...zone, seconds: 8 * 24 * 3600 } : zone
+    );
+    expect(bucketsFromAppleWorkoutZones(huge)).toBeNull();
+  });
+
   it('keeps Apple zone 1, including an open lower bound, and drops empty zones', () => {
     expect(bucketsFromAppleWorkoutZones(five)).toEqual([
       {
