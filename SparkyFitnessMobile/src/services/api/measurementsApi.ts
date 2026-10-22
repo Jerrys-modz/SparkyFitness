@@ -19,6 +19,7 @@ import type {
   CustomCategory,
   CustomMeasurementEntry,
   LatestManualCustomEntry,
+  SaveCustomCategoryPayload,
   SaveCustomMeasurementPayload,
 } from '../../types/customMeasurements';
 import { reduceLatestManualEntries } from '../../utils/measurementHistory';
@@ -374,38 +375,37 @@ export const fetchCustomCategories = async (): Promise<CustomCategory[]> => {
   });
 };
 
-export const createCustomCategory = async (body: {
-  name: string;
-  display_name: string;
-  measurement_type: string;
-  frequency: string;
-  data_type: string;
-  is_lab?: boolean;
-  ref_range_low?: number | null;
-  ref_range_high?: number | null;
-}): Promise<CustomCategory> => {
+export const createCustomCategory = async (
+  payload: SaveCustomCategoryPayload
+): Promise<CustomCategory> => {
   return apiFetch<CustomCategory>({
     endpoint: '/api/measurements/custom-categories',
     serviceName: 'Measurements API',
     operation: 'create custom category',
     method: 'POST',
-    body,
+    body: payload,
   });
 };
 
 export const updateCustomCategory = async (
   id: string,
-  body: {
-    ref_range_low?: number | null;
-    ref_range_high?: number | null;
-  }
+  payload: Partial<SaveCustomCategoryPayload>
 ): Promise<CustomCategory> => {
   return apiFetch<CustomCategory>({
-    endpoint: `/api/measurements/custom-categories/${encodeURIComponent(id)}`,
+    endpoint: `/api/measurements/custom-categories/${id}`,
     serviceName: 'Measurements API',
     operation: 'update custom category',
     method: 'PUT',
-    body,
+    body: payload,
+  });
+};
+
+export const deleteCustomCategory = async (id: string): Promise<void> => {
+  return apiFetch<void>({
+    endpoint: `/api/measurements/custom-categories/${id}`,
+    serviceName: 'Measurements API',
+    operation: 'delete custom category',
+    method: 'DELETE',
   });
 };
 

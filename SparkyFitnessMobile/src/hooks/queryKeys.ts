@@ -159,8 +159,11 @@ export const customCategoriesQueryKey = ['customCategories'] as const;
 export const labHistoryRootQueryKey = ['labHistory'] as const;
 export const labHistoryQueryKey = (categoryId: string) =>
   [...labHistoryRootQueryKey, categoryId] as const;
+
+/** Root of every per-day custom-entry list; each row embeds its category info. */
+export const customMeasurementsRootQueryKey = ['customMeasurements'] as const;
 export const customMeasurementsByDateQueryKey = (date: string) =>
-  ['customMeasurements', date] as const;
+  [...customMeasurementsRootQueryKey, date] as const;
 
 /**
  * Per-field carry-forward lookup (newest value on or before the day). Separate
