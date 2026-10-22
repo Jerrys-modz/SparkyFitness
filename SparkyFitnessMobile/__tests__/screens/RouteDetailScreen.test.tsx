@@ -18,6 +18,10 @@ jest.mock('../../src/services/routeService', () => ({
   removeRoute: jest.fn(),
   shareRouteGpx: jest.fn(),
 }));
+let mockSegments: unknown[] = [];
+jest.mock('../../src/services/segmentService', () => ({
+  useSegments: jest.fn(() => ({ segments: mockSegments })),
+}));
 jest.mock('../../src/components/exerciseStats/RouteMap', () => {
   const { View } = require('react-native');
   return {
@@ -66,6 +70,7 @@ const route = (overrides: Partial<Route> = {}): Route => ({
 
 const refetch = jest.fn();
 const goBack = jest.fn();
+const navigate = jest.fn();
 const show = (state: Partial<ReturnType<typeof useRoute>> = {}) =>
   (useRoute as jest.Mock).mockReturnValue({
     route: route(),
@@ -78,7 +83,7 @@ const renderScreen = () =>
   render(
     <RouteDetailScreen
       {...({
-        navigation: { goBack },
+        navigation: { goBack, navigate },
         route: { key: 'k', name: 'RouteDetail', params: { id: 'r1' } },
       } as unknown as RootStackScreenProps<'RouteDetail'>)}
     />
@@ -90,6 +95,7 @@ beforeAll(async () => {
 beforeEach(() => {
   jest.clearAllMocks();
   mockUnit = 'km';
+  mockSegments = [];
   show();
 });
 
@@ -231,5 +237,45 @@ describe('RouteDetailScreen', () => {
       );
       expect(goBack).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('RouteDetailScreen segments', () => {
+  const segment = (overrides: Record<string, unknown> = {}) => ({
+    id: 's1',
+    name: 'Climb',
+    activity: 'run',
+    lengthM: 800,
+    sourceRouteId: 'r1',
+    sourceExerciseEntryId: null,
+    createdAt: '2026-03-01T10:00:00.000Z',
+    updatedAt: '2026-03-01T10:00:00.000Z',
+    start: { lat: 51.5, lon: -0.12 },
+    effortCount: 3,
+    bestSeconds: 214.4,
+    lastEffortDate: '2026-10-12',
+    ...overrides,
+  });
+
+  it('offers to create a segment when the route has none', () => {
+    const screen = renderScreen();
+    expect(screen.getByText(/Pick a stretch of this route/)).toBeTruthy();
+    fireEvent.press(screen.getByTestId('route-create-segment'));
+    expect(navigate).toHaveBeenCalledWith('SegmentCreate', { routeId: 'r1' });
+  });
+
+  it('lists this route’s segments with best time and count, not other routes’', () => {
+    mockSegments = [
+      segment(),
+      segment({ id: 's2', name: 'Elsewhere', sourceRouteId: 'other' }),
+      segment({ id: 's3', name: null, bestSeconds: null, effortCount: 0 }),
+    ];
+    const screen = renderScreen();
+    expect(screen.getByText('Climb')).toBeTruthy();
+    expect(screen.getByText('Best 3:34.4 · 3 efforts')).toBeTruthy();
+    expect(screen.queryByText('Elsewhere')).toBeNull();
+    expect(screen.getByText('No efforts yet')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('route-segment-s1'));
+    expect(navigate).toHaveBeenCalledWith('SegmentDetail', { id: 's1' });
   });
 });

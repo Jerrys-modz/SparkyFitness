@@ -125,6 +125,27 @@ const RoutesScreen: React.FC<Props> = ({ navigation }) => {
           paddingBottom: insets.bottom + 24,
         }}
       >
+        <View className="bg-surface rounded-xl overflow-hidden mb-4">
+          <Pressable
+            className="px-4 py-4 flex-row items-center justify-between"
+            onPress={() => navigation.navigate('Segments')}
+            style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+            accessibilityRole="button"
+            testID="routes-segments-link"
+          >
+            <View className="flex-1 mr-3">
+              <Text className="text-base font-semibold text-text-primary">
+                {t('screens.segments', { defaultValue: 'Segments' })}
+              </Text>
+              <Text className="text-sm text-text-secondary mt-0.5">
+                {t('routes.segmentsSubtitle', {
+                  defaultValue: 'Time yourself on stretches of your routes',
+                })}
+              </Text>
+            </View>
+            <Icon name="chevron-forward" size={20} color="#999" />
+          </Pressable>
+        </View>
         {isLoading || importing ? (
           <ActivityIndicator />
         ) : isError && routes.length === 0 ? (
