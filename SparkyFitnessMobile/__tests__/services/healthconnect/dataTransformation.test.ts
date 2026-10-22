@@ -73,6 +73,30 @@ describe('transformHealthRecords', () => {
         value: 72,
         type: 'heart_rate',
       });
+      expect(result[0]).not.toHaveProperty('timestamp');
+    });
+
+    test('carries each HeartRate sample time as timestamp', () => {
+      const t1 = atLocalTime('2024-01-15', '08:00');
+      const t2 = atLocalTime('2024-01-15', '08:01');
+      const records = [
+        {
+          startTime: t1,
+          samples: [
+            { time: t1, beatsPerMinute: 72 },
+            { time: t2, beatsPerMinute: 75 },
+          ],
+        },
+      ];
+      const result = transformHealthRecords(records, {
+        recordType: 'HeartRate',
+        unit: 'bpm',
+        type: 'heart_rate',
+      });
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toMatchObject({ value: 72, timestamp: t1 });
+      expect(result[1]).toMatchObject({ value: 75, timestamp: t2 });
     });
 
     test('transforms raw HeartRateVariabilityRmssd records via value transformer', () => {

@@ -105,6 +105,8 @@ function toEntryResponse(row: SymptomEntryWithDetails): SymptomEntryResponse {
   return {
     ...row,
     impact: row.impact as SymptomEntryResponse['impact'],
+    impact_timeline: (row.impact_timeline ??
+      []) as SymptomEntryResponse['impact_timeline'],
     logged_at: iso(row.logged_at) as string,
     started_at: iso(row.started_at),
     ended_at: iso(row.ended_at),
@@ -290,6 +292,10 @@ async function createEntry(userId: string, body: CreateSymptomEntryBody) {
       ];
     }
   }
+  // ...and its impact timeline at the first impact.
+  if (fields.impact && fields.started_at) {
+    write.impact_timeline = [{ at: fields.started_at, impact: fields.impact }];
+  }
 
   try {
     const row = await symptomRepository.createSymptomEntry(
@@ -368,6 +374,19 @@ async function updateEntry(
     }
   }
 
+  // The same for impact: a change on an episode is appended to its timeline
+  // instead of replacing the history.
+  if (
+    fields.impact &&
+    fields.impact !== existing.impact &&
+    (existing.started_at || startedAt)
+  ) {
+    write.impact_timeline = [
+      ...(existing.impact_timeline ?? []),
+      { at: new Date().toISOString(), impact: fields.impact },
+    ];
+  }
+
   try {
     const row = await symptomRepository.updateSymptomEntry(
       userId,
@@ -416,7 +435,8 @@ async function addSeverity(
     userId,
     id,
     body.severity,
-    body.at ?? null
+    body.at ?? null,
+    body.impact ?? null
   );
   if (!row) throw new SymptomNotFoundError('Symptom entry not found');
   return toEntryResponse(row);
