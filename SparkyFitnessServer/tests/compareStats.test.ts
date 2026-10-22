@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   autocorrelation,
+  cautiousEffectiveN,
   correlationTest,
   effectiveNMultiLag,
   pearson,
@@ -133,6 +134,22 @@ describe('compare stats', () => {
     test('floors at 4', () => {
       // Five values, one lag: ρ(1) = 0.4 in both, 5 / 1.32 = 3.79.
       expect(effectiveNMultiLag([1, 2, 3, 4, 5], [1, 2, 3, 4, 5], 14)).toBe(4);
+    });
+
+    test('the cautious count is the smaller of the lag-1 and the multi-lag counts', () => {
+      // Lag 1 alone: ρa(1) = 0.6420774648, ρb(1) = 0.6097206193, n(1 − ρaρb)/(1 + ρaρb) = 6.9969665574.
+      // Four lags carry over more (4.3955794531); two lags carry over less (8.9307101436).
+      expect(cautiousEffectiveN(a, b, 14)).toBeCloseTo(4.3955794531, 9);
+      expect(cautiousEffectiveN(a, b, 2)).toBeCloseTo(6.9969665574, 9);
+      // Both are n when the carry-over is negative, and both floor at 4.
+      expect(
+        cautiousEffectiveN(
+          [1, -1, 1, -1, 1, -1, 1, -1],
+          [1, 2, 3, 4, 5, 6, 7, 8],
+          1
+        )
+      ).toBe(8);
+      expect(cautiousEffectiveN([1, 2, 3, 4, 5], [1, 2, 3, 4, 5], 14)).toBe(4);
     });
   });
 });

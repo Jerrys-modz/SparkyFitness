@@ -14,8 +14,8 @@ import {
   type CompareMetricKind,
 } from './metrics.ts';
 import {
+  cautiousEffectiveN,
   correlationTest,
-  effectiveNMultiLag,
   mean,
   pearson,
   ranks,
@@ -55,7 +55,7 @@ export interface CompareResult {
   };
   checks: {
     ownNormal: true;
-    /** 'firstComesFirst': the thing on the earlier day leads — A for timing 0 and 1, B for timing −1. */
+    /** Timing 0: 'firstComesFirst' = A leads B by a day, 'strongerOtherWay' = B leads A by a day. Timing ±1: 'firstComesFirst' = the thing on the earlier day leads (A for 1, B for −1). */
     direction?: CompareDirectionCheck;
     weekend?: CompareWeekendCheck;
   };
@@ -395,7 +395,7 @@ function pairUp(input: PairInput, timing: number): Pairs {
   return pairs;
 }
 
-/** r with its effective n (carry-over up to `maxLag` steps back), p and 95% range; null when either side never varies. */
+/** r with its cautious effective n (carry-over up to `maxLag` steps back), p and 95% range; null when either side never varies. */
 function correlate(
   pairs: Pairs,
   method: CorrelationMethod,
@@ -406,7 +406,7 @@ function correlate(
       ? spearman(pairs.a, pairs.b)
       : pearson(pairs.a, pairs.b);
   if (r === null) return null;
-  const nEff = effectiveNMultiLag(pairs.a, pairs.b, maxLag);
+  const nEff = cautiousEffectiveN(pairs.a, pairs.b, maxLag);
   return { r, nEff, ...correlationTest(r, nEff) };
 }
 
@@ -475,11 +475,11 @@ function compareGroups(input: PairInput, pairs: Pairs): CompareResult {
 }
 
 /**
- * Which comes first, from next-day pairings at the same effective-n standard. Timing ±1: the
- * mirrored pairing swaps which comes first, (B_d, A_{d+1}) for 1 and (A_d, B_{d+1}) for −1;
- * unlinked, the first thing leads. Timing 0 tries both: A leads when A on d goes with B on d + 1
- * and B on d does not go with A on d + 1; B leads when that second pairing is linked and the
- * first is not, or is weaker.
+ * Which comes first, from next-day pairings judged as the main answer is (isLinked, same
+ * effective n). Timing ±1: the mirrored pairing swaps which comes first, (B_d, A_{d+1}) for 1
+ * and (A_d, B_{d+1}) for −1; unlinked, the first thing leads. Timing 0 tries both: A leads when
+ * A on d goes with B on d + 1 and B on d does not go with A on d + 1; B leads when that second
+ * pairing is linked and the first is not, or is weaker.
  */
 function directionCheck(
   input: PairInput,
@@ -496,14 +496,14 @@ function directionCheck(
   if (input.timing !== 0) {
     const mirrored = fitAt(input.timing > 0 ? -1 : 1);
     if (!mirrored) return 'cantTell';
-    if (mirrored.p >= ALPHA) return 'firstComesFirst';
+    if (!isLinked(mirrored)) return 'firstComesFirst';
     return Math.abs(mirrored.r) > Math.abs(r) ? 'strongerOtherWay' : 'cantTell';
   }
   const aFirst = fitAt(1);
   const bFirst = fitAt(-1);
   if (!aFirst || !bFirst) return 'cantTell';
-  const aLeads = aFirst.p < ALPHA;
-  const bLeads = bFirst.p < ALPHA;
+  const aLeads = isLinked(aFirst);
+  const bLeads = isLinked(bFirst);
   if (aLeads && !bLeads) return 'firstComesFirst';
   if (bLeads && (!aLeads || Math.abs(bFirst.r) > Math.abs(aFirst.r))) {
     return 'strongerOtherWay';

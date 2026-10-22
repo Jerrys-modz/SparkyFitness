@@ -129,7 +129,9 @@ describe('compare response schema', () => {
   it('documents the direction check and the yes/no deviations', () => {
     expect(
       compareResultSchema.shape.checks.shape.direction.description
-    ).toMatch(/earlier day.*A for timing 0 and 1, B for timing −1/);
+    ).toMatch(
+      /Timing 0: 'firstComesFirst' = A leads B by a day; 'strongerOtherWay' = B leads A by a day\./
+    );
     expect(compareResponseSchema.shape.deviations.description).toMatch(
       /raw 0\/1/
     );

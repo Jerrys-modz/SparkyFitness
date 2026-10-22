@@ -8,8 +8,9 @@ import {
   CompareModeError,
   dayOfWeek,
   daySides,
+  cautiousEffectiveN,
+  correlationTest,
   deviationsFromOwnNormal,
-  effectiveNMultiLag,
   pearson,
   type CompareMetricDef,
   type DaySeries,
@@ -517,13 +518,13 @@ describe('compare day analysis', () => {
       end: END,
     });
 
-    // One effective n from the 0/1 flags and the deviations in day order, carry-over counted
-    // up to 14 days back; each group gets its share, nG × nEff / n, for Welch.
+    // One effective n from the 0/1 flags and the deviations in day order, the cautious count
+    // with carry-over up to 14 days back; each group gets its share, nG × nEff / n, for Welch.
     const deviations = deviationsFromOwnNormal(mood, WINDOW);
     const flags = WINDOW.map((day) => meditated[day]);
     const values = WINDOW.map((day) => deviations[day]);
     const n = WINDOW.length;
-    const nEff = effectiveNMultiLag(flags, values, 14);
+    const nEff = cautiousEffectiveN(flags, values, 14);
     const yes = values.filter((_, i) => flags[i] === 1);
     const no = values.filter((_, i) => flags[i] === 0);
     const expected = welch(
@@ -541,6 +542,9 @@ describe('compare day analysis', () => {
     expect(result.high).toBeCloseTo(expected.high, 9);
   });
 
+  // Calibration: 4000 runs of this scenario on other seeds say Yes 4.84% of the time (119 of
+  // 2461 answered); these 400 seeded runs say Yes 5.15% (12 of 233). The bound is that 4.84%
+  // plus about 3 points.
   test('a streaky habit and a slow-moving outcome that are unrelated rarely read as a Yes', () => {
     // 400 runs of 30 days: a habit kept or skipped in long streaks (95% chance of doing the
     // same as yesterday) against a mood that drifts slowly (AR(0.9)), with no link at all.
@@ -573,7 +577,7 @@ describe('compare day analysis', () => {
     }
 
     expect(answered).toBeGreaterThan(200);
-    expect(yes / answered).toBeLessThanOrEqual(0.08);
+    expect(yes / answered).toBeLessThanOrEqual(0.078);
   });
 
   test('direction check names the first thing when the mirrored pairing is not linked', () => {
@@ -615,6 +619,44 @@ describe('compare day analysis', () => {
 
     expect(result.linked).toBe(true);
     expect(result.checks.direction).toBe('cantTell');
+  });
+
+  test('direction check needs the mirrored pairing to be a real link: p under 0.05 and a range that leaves out 0', () => {
+    // 14 days of slow waves, B following A a day later: the mirrored pairing (B on d against
+    // A on d + 1) has p under 0.05 at an effective n of 4, but its range still reaches 0.
+    const noise = normal(445);
+    const a = build((i) => 60 + 10 * Math.sin(i / 4) + noise());
+    const b = build((_, day) => {
+      const before = a[addDays(day, -1)];
+      return before === undefined ? undefined : before + 0.5 * noise();
+    });
+    const input = {
+      a: { key: 'mood' as const, values: a },
+      b: { key: 'sleepScore' as const, values: b },
+      start: START,
+      end: addDays(START, 13),
+    };
+
+    const result = analyzeDays({ ...input, timing: 1 });
+
+    const sides = daySides(input);
+    const xs: number[] = [];
+    const ys: number[] = [];
+    for (const day of sides.keys) {
+      const x = sides.a.values[day];
+      const y = sides.b.values[addDays(day, -1)];
+      if (x === undefined || y === undefined) continue;
+      xs.push(x);
+      ys.push(y);
+    }
+    const mirrored = correlationTest(
+      pearson(xs, ys) ?? NaN,
+      cautiousEffectiveN(xs, ys, 14)
+    );
+    expect(mirrored.p).toBeLessThan(0.05);
+    expect(mirrored.low).toBeLessThan(0);
+    expect(result.linked).toBe(true);
+    expect(result.checks.direction).toBe('firstComesFirst');
   });
 
   test('same-day direction says A comes first when A leads B by a day', () => {
@@ -778,11 +820,14 @@ describe('compare day analysis', () => {
     const xs = WINDOW.map((day) => devA[day]);
     const ys = WINDOW.map((day) => devB[day]);
     expect(result.n).toBe(60);
-    expect(result.nEff).toBeCloseTo(effectiveNMultiLag(xs, ys, 14), 9);
+    expect(result.nEff).toBeCloseTo(cautiousEffectiveN(xs, ys, 14), 9);
     // Lags past 6 still count here.
-    expect(result.nEff).not.toBeCloseTo(effectiveNMultiLag(xs, ys, 6), 3);
+    expect(result.nEff).not.toBeCloseTo(cautiousEffectiveN(xs, ys, 6), 3);
   });
 
+  // Calibration: 4000 runs of this scenario on other seeds say Yes 4.42% of the time (177 of
+  // 4000); these 300 seeded runs say Yes 4.00% (12 of 300). The bound is that 4.42% plus about
+  // 3 points.
   test('two unrelated slow-moving series rarely read as a Yes', () => {
     // 300 runs of 90 days: two AR(0.6) series with no link at all.
     const end = addDays(START, 89);
@@ -811,7 +856,7 @@ describe('compare day analysis', () => {
     }
 
     expect(answered).toBe(300);
-    expect(yes / answered).toBeLessThanOrEqual(0.08);
+    expect(yes / answered).toBeLessThanOrEqual(0.074);
   });
 });
 
@@ -1040,8 +1085,8 @@ describe('compare week analysis', () => {
     const xs = sides.keys.map((week) => sides.a.values[week]);
     const ys = sides.keys.map((week) => sides.b.values[week]);
     expect(result.n).toBe(52);
-    expect(result.nEff).toBeCloseTo(effectiveNMultiLag(xs, ys, 6), 9);
-    expect(result.nEff).not.toBeCloseTo(effectiveNMultiLag(xs, ys, 13), 3);
+    expect(result.nEff).toBeCloseTo(cautiousEffectiveN(xs, ys, 6), 9);
+    expect(result.nEff).not.toBeCloseTo(cautiousEffectiveN(xs, ys, 13), 3);
   });
 
   test('analyzeWeeks is not_enough when a side never varies', () => {

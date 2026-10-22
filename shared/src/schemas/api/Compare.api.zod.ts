@@ -98,7 +98,7 @@ export const compareResultSchema = z.object({
       .enum(['firstComesFirst', 'strongerOtherWay', 'cantTell'])
       .optional()
       .describe(
-        "'firstComesFirst': the thing on the earlier day leads — A for timing 0 and 1, B for timing −1. 'strongerOtherWay': the link is stronger with the other thing first. 'cantTell': neither order stands out."
+        "Timing 0: 'firstComesFirst' = A leads B by a day; 'strongerOtherWay' = B leads A by a day. Timing 1 or −1: 'firstComesFirst' = the thing on the earlier day leads (A for 1, B for −1); 'strongerOtherWay' = the link is stronger the other way round. 'cantTell': neither order stands out."
       ),
     weekend: z.enum(['holds', 'mayBeWeekends']).optional(),
   }),

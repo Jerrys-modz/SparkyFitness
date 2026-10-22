@@ -102,6 +102,28 @@ export function effectiveNMultiLag(
   return Math.max(4, Math.min(n, n / inflation));
 }
 
+/** Effective n from lag 1 alone: n(1 − ρa·ρb)/(1 + ρa·ρb), each ρ clamped at 0 or above; between 4 and n. */
+function effectiveNLag1(a: readonly number[], b: readonly number[]): number {
+  const n = a.length;
+  const clamp = (r: number) => Math.min(Math.max(r, 0), 1 - 1e-9);
+  const prod = clamp(autocorrelation(a, 1)) * clamp(autocorrelation(b, 1));
+  return Math.max(4, Math.min(n, (n * (1 - prod)) / (1 + prod)));
+}
+
+/**
+ * The effective n every comparison uses: the smaller of the lag-1 count and the multi-lag
+ * (Bartlett) count, between 4 and n. Lag 1 alone misses carry-over beyond yesterday over long
+ * spans; the multi-lag sum under-corrects over short ones, where its far lags are noisy. The
+ * smaller is never looser than either.
+ */
+export function cautiousEffectiveN(
+  a: readonly number[],
+  b: readonly number[],
+  maxLag: number
+): number {
+  return Math.min(effectiveNLag1(a, b), effectiveNMultiLag(a, b, maxLag));
+}
+
 function logGamma(z: number): number {
   const g = 7;
   const c = [
