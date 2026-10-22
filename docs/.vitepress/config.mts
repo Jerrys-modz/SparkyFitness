@@ -243,6 +243,7 @@ export default defineConfig({
             { text: 'Translations Guide', link: '/developer/translations' },
             { text: 'Database Security Tiers', link: '/developer/database-security-tiers' },
             { text: 'Food Provider Images', link: '/developer/food-provider-images' },
+            { text: 'Offline Logging (Mobile)', link: '/developer/offline-logging' },
             { text: 'Maintainer Image Tools', link: '/developer/maintainer-image-tools' },
           ],
         },

@@ -2,6 +2,7 @@
 
 *Last updated: 2026-10-22*
 *Last updated: 2026-10-19*
+*Last updated: 2026-10-17*
 
 This is the repo-root monorepo guide for SparkyFitness. Use it to choose the right package, understand shared repo-level rules, and find the next guide to read.
 
@@ -88,6 +89,7 @@ Cheap ways to learn things:
 - **Strict TypeScript Typing:** Never use `any` or `// eslint-disable-next-line @typescript-eslint/no-explicit-any` when creating new functions or editing existing code. When modifying existing files, proactively update legacy `any` declarations in the touched code to reflect their proper TypeScript data types, interfaces, or schemas from `@workspace/shared`. Do NOT copy legacy `any` parameter signatures forward when refactoring or extending service/repository files.
 - **Library Deletes vs Diary Snapshots:** `exercise_entries` and `food_entries` are self-contained snapshots, not pointers (`exercise_id` and `food_id` are `ON DELETE SET NULL`). Deleting an exercise or food from the library (`mode: 'delete'`) preserves past and current diary history, cascades from presets and plan templates, cleans up future scheduled workout plan entries (`entry_date >= today`), and cleans up empty parent preset entries. Only explicit `delete_with_history` (force delete) purges diary logs for that user. If an item is referenced by other users (`otherUserReferences > 0`), the backend falls back to hiding (`is_quick_exercise` / `is_quick_food`).
 - **Comprehensive Cache Invalidation:** When mutating library items (foods, exercises, presets, meals, plans), always invalidate the entire family of dependent query keys across library search, counts, templates, and daily diary summaries (`dailySummary` / `dailyProgress` / `exerciseEntries`) in both web and mobile.
+- **Offline-queued writes (mobile):** the mobile app can park a food entry, a single water press or a check-in while the server is unreachable and replay it later. Anything added to that queue needs an idempotency story on the server first (a client-minted `client_id` with a unique index, or a natural upsert) so a replay after a timeout never double-logs. See `docs/src/developer/offline-logging.md`.
 - **Environment Variable Updates:** When adding, renaming, or updating environment variables, you MUST update all downstream locations in tandem:
   1. `docker/.env.example` (and `docker/.env.simple.example` if it is a core mandatory variable).
   2. `docker/docker-compose.prod.yml` and `docker/docker-compose.dev.yml` (if consumed by container environments).

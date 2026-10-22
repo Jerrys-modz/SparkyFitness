@@ -1,9 +1,12 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   fetchLatestCheckInMeasurementsOnOrBefore,
   fetchMeasurements,
 } from '../services/api/measurementsApi';
 import { addLog } from '../services/LogService';
+import { overlayCheckIn } from '../services/offlineQueue/overlay';
+import { useOverlayItems } from './useOfflineOverlay';
 import { useRefetchOnFocus } from './useRefetchOnFocus';
 import {
   latestMeasurementsOnOrBeforeQueryKey,
@@ -27,8 +30,16 @@ export function useMeasurements({
 
   useRefetchOnFocus(query.refetch, enabled);
 
+  // A weight or body measurement still in the offline queue shows over the
+  // cached day.
+  const pending = useOverlayItems();
+  const measurements = useMemo(
+    () => overlayCheckIn(query.data, pending, date),
+    [query.data, pending, date]
+  );
+
   return {
-    measurements: query.data,
+    measurements,
     isLoading: query.isLoading,
     isError: query.isError,
     error: query.error,
