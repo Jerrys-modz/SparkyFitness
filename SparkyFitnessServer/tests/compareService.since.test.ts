@@ -271,6 +271,7 @@ describe('getCompareSince: response', () => {
   });
 
   it('trims values to the before stretch start through yesterday', async () => {
+    // 60 days since, so the before stretch is the 60 days before the start.
     const start = addDays(TODAY, -60);
     const from = addDays(TODAY, -736);
     seedHabit(from, YESTERDAY, start, addDays(TODAY, -300));
@@ -278,13 +279,33 @@ describe('getCompareSince: response', () => {
       USER,
       query({ habitStart: start })
     );
-    const first = result.before?.days ? result.before.from : result.since?.from;
-    const days = Object.keys(outcome.values).sort();
-    expect(days[0]).toBe(first);
-    expect(days[days.length - 1]).toBe(YESTERDAY);
-    expect(Object.keys(habit.values).every((d) => d >= (first ?? ''))).toBe(
-      true
+    const first = addDays(start, -60);
+    expect(result.before?.days).toBeGreaterThan(0);
+    expect(result.before?.from).toBe(first);
+    for (const values of [outcome.values, habit.values]) {
+      const days = Object.keys(values).sort();
+      expect(days[0]).toBe(first);
+      expect(days[days.length - 1]).toBe(YESTERDAY);
+    }
+  });
+
+  it('with an empty before stretch, trims values from the since stretch start', async () => {
+    // Mood records begin 3 days after the start, so nothing comes before it; the habit has
+    // values (0) from long before.
+    const start = addDays(TODAY, -60);
+    seedHabit(addDays(TODAY, -736), YESTERDAY, start, addDays(start, 3));
+    const { result, habit, outcome } = await getCompareSince(
+      USER,
+      query({ habitStart: start })
     );
-    expect(Object.keys(habit.values).every((d) => d <= YESTERDAY)).toBe(true);
+    expect(result).toMatchObject({ status: 'not_enough', reason: 'fewBefore' });
+    expect(result.before?.days).toBe(0);
+    expect(result.since?.from).toBe(start);
+    const habitDays = Object.keys(habit.values).sort();
+    expect(habitDays[0]).toBe(start);
+    expect(habitDays[habitDays.length - 1]).toBe(YESTERDAY);
+    const outcomeDays = Object.keys(outcome.values).sort();
+    expect(outcomeDays[0]).toBe(addDays(start, 3));
+    expect(outcomeDays[outcomeDays.length - 1]).toBe(YESTERDAY);
   });
 });
