@@ -13,6 +13,7 @@ import {
   rateProgramWorkout,
 } from '../../src/services/runProgramService';
 import { setExerciseEntryEffort } from '../../src/services/api/exerciseApi';
+import { invalidateExerciseCache } from '../../src/hooks/invalidateExerciseCache';
 import { ApiError } from '../../src/services/api/errors';
 import type { WatchRunPayload } from '../../src/utils/watchRun';
 import { learnWatchIndoorScale } from '../../src/services/watchIndoorScale';
@@ -29,6 +30,9 @@ jest.mock('../../src/services/api/exerciseApi', () => ({
   setExerciseEntryEffort: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
+jest.mock('../../src/hooks/invalidateExerciseCache', () => ({
+  invalidateExerciseCache: jest.fn(),
+}));
 
 const mockedSave = jest.mocked(saveWatchRun);
 
@@ -54,6 +58,7 @@ const run = (clientId: string): WatchRunPayload => ({
 beforeEach(async () => {
   jest.mocked(completeProgramWorkout).mockClear();
   jest.mocked(rateProgramWorkout).mockClear();
+  jest.mocked(invalidateExerciseCache).mockClear();
   jest.mocked(setExerciseEntryEffort).mockReset();
   jest.mocked(setExerciseEntryEffort).mockResolvedValue(undefined);
   await AsyncStorage.clear();
@@ -331,6 +336,10 @@ describe('effort rated on the watch', () => {
 
     expect(setExerciseEntryEffort).toHaveBeenCalledWith('entry-1', 7);
     expect(rateProgramWorkout).not.toHaveBeenCalled();
+    expect(invalidateExerciseCache).toHaveBeenCalledWith(
+      expect.anything(),
+      '2026-10-10'
+    );
   });
 
   test('waits for a run that is not filed yet, then is saved with it', async () => {

@@ -9,6 +9,8 @@ import {
   rateProgramWorkout,
 } from './runProgramService';
 import { setExerciseEntryEffort } from './api/exerciseApi';
+import { queryClient } from '../hooks/queryClient';
+import { invalidateExerciseCache } from '../hooks/invalidateExerciseCache';
 import { toLocalDateString } from '../utils/dateUtils';
 import { parseWatchRunPayload, type WatchRunPayload } from '../utils/watchRun';
 
@@ -66,6 +68,8 @@ interface RunEffort {
   rating?: number;
   /** The diary entry the run was filed as; set once it is filed. */
   entryId?: string;
+  /** The diary day of that entry, so its caches can be refreshed. */
+  day?: string;
   /** The program workout the run completed; set once it is ticked off. */
   program?: { id: string; index: number };
   /** True once filed if the run was a program workout, so it is rated too. */
@@ -126,6 +130,11 @@ async function settleEfforts(): Promise<boolean> {
         await tryRate(() => setExerciseEntryEffort(effort.entryId!, rating))
       ) {
         done.entrySaved = true;
+        // The diary and exercise screens hold the entry without the rating.
+        invalidateExerciseCache(
+          queryClient,
+          effort.day ?? toLocalDateString(new Date())
+        );
       } else {
         needsRetry = true;
       }
@@ -388,6 +397,7 @@ async function drainOnce(
       );
       await patchEffort(clientId, {
         entryId,
+        day: toLocalDateString(new Date(item.payload.startedAt)),
         expectsProgram: !!item.payload.program && item.payload.planCompleted,
       });
       await tickOffProgram(item.payload, entryId);
@@ -436,7 +446,12 @@ async function drainOnce(
           (run) => run.payload.clientId === clientId
         )?.entryId;
         await serial(() => update(clientId, () => null));
-        if (created) await patchEffort(clientId, { entryId: created });
+        if (created) {
+          await patchEffort(clientId, {
+            entryId: created,
+            day: toLocalDateString(new Date(item.payload.startedAt)),
+          });
+        }
       } else {
         addLog(
           `[Watch Run] Will retry watch run ${clientId}: ${message}`,
