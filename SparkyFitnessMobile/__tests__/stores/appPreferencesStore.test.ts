@@ -256,6 +256,7 @@ describe('appPreferencesStore', () => {
         'progressPhotos',
         'healthTrends',
         'mindfulness',
+        'labResults',
       ]);
     });
 
