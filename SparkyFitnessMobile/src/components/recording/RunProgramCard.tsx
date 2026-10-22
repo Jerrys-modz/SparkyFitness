@@ -123,6 +123,38 @@ export function programName(t: TFunction, id: string): string {
       return t('recordActivity.program.name.beginnerMarathon4', {
         defaultValue: 'Beginner marathon (4 runs a week)',
       });
+    case 'halfMarathon2':
+      return t('recordActivity.program.name.halfMarathon2', {
+        defaultValue: 'Half marathon (2 runs a week)',
+      });
+    case 'marathon2':
+      return t('recordActivity.program.name.marathon2', {
+        defaultValue: 'Marathon (2 runs a week)',
+      });
+    case 'trailMarathon':
+      return t('recordActivity.program.name.trailMarathon', {
+        defaultValue: 'Trail marathon',
+      });
+    case 'trail50k':
+      return t('recordActivity.program.name.trail50k', {
+        defaultValue: 'Trail 50K',
+      });
+    case 'fiftyK':
+      return t('recordActivity.program.name.fiftyK', {
+        defaultValue: '50K',
+      });
+    case 'fiftyK2':
+      return t('recordActivity.program.name.fiftyK2', {
+        defaultValue: '50K (2 runs a week)',
+      });
+    case 'hundredK':
+      return t('recordActivity.program.name.hundredK', {
+        defaultValue: '100K',
+      });
+    case 'hundredK2':
+      return t('recordActivity.program.name.hundredK2', {
+        defaultValue: '100K (2 runs a week)',
+      });
     default:
       return id;
   }
@@ -225,6 +257,46 @@ export function programDescription(t: TFunction, id: string): string {
       return t('recordActivity.program.fasterHalf4Description', {
         defaultValue:
           'Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run. For when you have run a half marathon before.',
+      });
+    case 'halfMarathon2':
+      return t('recordActivity.program.halfMarathon2Description', {
+        defaultValue:
+          'Half marathon: twelve weeks, two runs a week, with long runs building to about two hours. For when you run 30 minutes comfortably but cannot train more often.',
+      });
+    case 'marathon2':
+      return t('recordActivity.program.marathon2Description', {
+        defaultValue:
+          'Marathon: sixteen weeks, two runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly but cannot train more often.',
+      });
+    case 'trailMarathon':
+      return t('recordActivity.program.trailMarathonDescription', {
+        defaultValue:
+          'Trail marathon: fourteen weeks, three runs a week, with hill repeats and a hike-run long run building to three hours. For when you already run on roads.',
+      });
+    case 'trail50k':
+      return t('recordActivity.program.trail50kDescription', {
+        defaultValue:
+          'Trail 50K: sixteen weeks, three runs a week, with hill repeats and a hike-run long run building to four hours. For when you have finished a marathon.',
+      });
+    case 'fiftyK':
+      return t('recordActivity.program.fiftyKDescription', {
+        defaultValue:
+          '50K: sixteen weeks, three runs a week, with long runs building to four hours and a taper. For when you have finished a marathon.',
+      });
+    case 'fiftyK2':
+      return t('recordActivity.program.fiftyK2Description', {
+        defaultValue:
+          '50K: sixteen weeks, two runs a week, with long runs building to four hours and a taper. For when you have finished a marathon but cannot train more often.',
+      });
+    case 'hundredK':
+      return t('recordActivity.program.hundredKDescription', {
+        defaultValue:
+          '100K: eighteen weeks, three runs a week, with long runs of up to four hours and a middle run that grows to 2 hours 20 minutes. For when you have finished a 50K.',
+      });
+    case 'hundredK2':
+      return t('recordActivity.program.hundredK2Description', {
+        defaultValue:
+          '100K: eighteen weeks, two runs a week, with long runs building to four hours and a taper. For when you have finished a 50K but cannot train more often.',
       });
     default:
       return id;

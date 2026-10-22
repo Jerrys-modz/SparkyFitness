@@ -1,5 +1,7 @@
 import { addDays, compareDays, dayOfWeek } from './timezone.ts';
-import type { IntervalPlan, IntervalStep } from './runIntervals.ts';
+import { normalizePaceBand, type PaceBand } from './paceTargets.ts';
+import { racePaceZones } from './racePaceZones.ts';
+import type { IntervalPlan, IntervalStep, StepEffort } from './runIntervals.ts';
 
 /**
  * A plan for a race: from today to race day, on the weekdays the person runs,
@@ -8,14 +10,18 @@ import type { IntervalPlan, IntervalStep } from './runIntervals.ts';
  * come in through `titles`, and the dates through `today` and `raceDay`.
  */
 
-export type RaceDistance = '5k' | '10k' | 'half' | 'marathon';
+export type RaceDistance = '5k' | '10k' | 'half' | 'marathon' | '50k' | '100k';
 export type RaceLevel = 'new' | 'some' | 'regular' | 'experienced';
+/** Road is continuous running. Trail long runs are hike-run, and hills replace intervals. */
+export type RaceSurface = 'road' | 'trail';
 
 export const RACE_DISTANCES: readonly RaceDistance[] = [
   '5k',
   '10k',
   'half',
   'marathon',
+  '50k',
+  '100k',
 ];
 export const RACE_LEVELS: readonly RaceLevel[] = [
   'new',
@@ -23,12 +29,15 @@ export const RACE_LEVELS: readonly RaceLevel[] = [
   'regular',
   'experienced',
 ];
+export const RACE_SURFACES: readonly RaceSurface[] = ['road', 'trail'];
 
 const KM: Record<RaceDistance, number> = {
   '5k': 5,
   '10k': 10,
   half: 21.0975,
   marathon: 42.195,
+  '50k': 50,
+  '100k': 100,
 };
 
 /** Fewest weeks that make a sensible build for a distance and starting point. */
@@ -37,6 +46,8 @@ const MIN_WEEKS: Record<RaceDistance, Record<RaceLevel, number>> = {
   '10k': { new: 10, some: 8, regular: 6, experienced: 5 },
   half: { new: 14, some: 12, regular: 10, experienced: 8 },
   marathon: { new: 24, some: 18, regular: 14, experienced: 12 },
+  '50k': { new: 24, some: 20, regular: 16, experienced: 14 },
+  '100k': { new: 30, some: 26, regular: 22, experienced: 18 },
 };
 
 /** The most weeks a plan spans; a race further off starts later. */
@@ -56,6 +67,8 @@ const PEAK_LONG_MINUTES: Record<RaceDistance, number> = {
   '10k': 75,
   half: 110,
   marathon: 160,
+  '50k': 240,
+  '100k': 240,
 };
 
 /** Weeks of easing off at the end, the race week included. */
@@ -64,6 +77,8 @@ const TAPER_WEEKS: Record<RaceDistance, number> = {
   '10k': 1,
   half: 2,
   marathon: 3,
+  '50k': 3,
+  '100k': 3,
 };
 
 /** A guess at an easy-ish race pace, seconds per kilometre, by level. */
@@ -82,6 +97,8 @@ export interface RacePlanTitles {
   shakeout: string;
   /** "Race day: 10K" style, already put together. */
   race: string;
+  /** Used on a trail plan in place of intervals. Falls back to `intervals`. */
+  hills?: string;
 }
 
 export interface RacePlanInput {
@@ -93,6 +110,14 @@ export interface RacePlanInput {
   today: string;
   /** Weekdays to run on, 0 = Sunday. The race day's weekday is always added. */
   runDays: readonly number[];
+  /** Road unless set. Trail long runs walk the steep parts, and hills replace intervals. */
+  surface?: RaceSurface;
+  /**
+   * Finish time the person is aiming for, in seconds. When it is a possible
+   * time for the distance, the race is that long and the workouts carry the
+   * paces it implies. A time that cannot be right is ignored.
+   */
+  goalSeconds?: number;
   titles: RacePlanTitles;
 }
 
@@ -115,8 +140,10 @@ export interface RacePlan {
   tooShort: boolean;
   /** Minutes of the longest run in the plan, race excluded. */
   peakLongMinutes: number;
-  /** The race estimated at, in minutes. */
+  /** The race estimated at, in minutes. The goal time when one was accepted. */
   raceMinutes: number;
+  /** True when `goalSeconds` was a possible time and set the paces. */
+  goalUsed: boolean;
 }
 
 type Session = 'easy' | 'long' | 'tempo' | 'intervals' | 'shakeout' | 'race';
@@ -177,6 +204,62 @@ function intervals(repeats: number): IntervalPlan {
   return { style: 'fastEasy', steps };
 }
 
+function hillRepeats(count: number): IntervalPlan {
+  const steps: IntervalStep[] = [step('warmup', 10)];
+  for (let i = 0; i < count; i++) {
+    steps.push({ ...step('work', 1), effort: 'hill' });
+    steps.push(step('recovery', 2));
+  }
+  steps.push(step('cooldown', 10));
+  return { style: 'fastEasy', steps };
+}
+
+/** A long trail run: 20 minutes of running, then 5 of walking, until the time is used. */
+function hikeRun(minutes: number): IntervalPlan {
+  const steps: IntervalStep[] = [step('warmup', 5)];
+  let left = Math.max(0, minutes - 10) * 60;
+  while (left > 0) {
+    const runFor = Math.min(20 * 60, left);
+    steps.push({ ...step('work', runFor / 60), effort: 'easy' });
+    left -= runFor;
+    if (left <= 0) break;
+    const walkFor = Math.min(5 * 60, left);
+    steps.push(step('recovery', walkFor / 60));
+    left -= walkFor;
+  }
+  steps.push(step('cooldown', 5));
+  return { style: 'runWalk', steps };
+}
+
+/** Puts a pace on the work steps. Hills are left alone: pace means nothing uphill. */
+function stampPace(
+  plan: IntervalPlan,
+  band: PaceBand | undefined,
+  effort?: StepEffort
+): IntervalPlan {
+  if (!band) return plan;
+  return {
+    ...plan,
+    steps: plan.steps.map((s) =>
+      s.kind === 'work' && s.effort !== 'hill'
+        ? { ...s, pace: band, ...(effort && !s.effort ? { effort } : {}) }
+        : s
+    ),
+  };
+}
+
+const roundPace = (seconds: number): number => Math.round(seconds / 5) * 5;
+
+/** A narrow band around the goal pace, or undefined when it cannot be set. */
+function goalRaceBand(seconds: number, km: number): PaceBand | undefined {
+  const pace = seconds / km;
+  return (
+    normalizePaceBand({
+      minSecondsPerKm: roundPace(pace * 0.98),
+      maxSecondsPerKm: roundPace(pace * 1.04),
+    }) ?? undefined
+  );
+}
 function racePlan(raceMinutes: number, level: RaceLevel): IntervalPlan {
   // A step is at most four hours, so a very long race is cut into pieces.
   const pieces: IntervalStep[] = [];
@@ -232,16 +315,36 @@ export function buildRacePlan(input: RacePlanInput): RacePlan {
       tooShort: true,
       peakLongMinutes: 0,
       raceMinutes: 0,
+      goalUsed: false,
     };
   }
+  const surface = input.surface ?? 'road';
   const raceIndex = dates.length - 1;
   const blocks = Math.floor((offsets.at(-1) ?? 0) / 7) + 1;
   const minWeeks = MIN_WEEKS[distance][level];
   const taper = Math.min(TAPER_WEEKS[distance], Math.max(1, blocks - 1));
   const buildBlocks = Math.max(1, blocks - taper);
   const start = START_LONG_MINUTES[level];
-  const peak = Math.max(PEAK_LONG_MINUTES[distance], start);
-  const raceMinutes = Math.round((KM[distance] * RACE_PACE[level]) / 60);
+  const rawPeak = Math.max(PEAK_LONG_MINUTES[distance], start);
+  // A trail long run takes longer for the same climb, and no step passes four hours.
+  const peak = Math.min(
+    240,
+    surface === 'trail' ? roundTo(rawPeak * 1.15, 5) : rawPeak
+  );
+  const zones =
+    input.goalSeconds === undefined
+      ? null
+      : racePaceZones({
+          distanceKm: KM[distance],
+          seconds: input.goalSeconds,
+        });
+  const goalUsed = zones !== null;
+  const raceMinutes = goalUsed
+    ? Math.round((input.goalSeconds ?? 0) / 60)
+    : Math.round((KM[distance] * RACE_PACE[level]) / 60);
+  const raceBand = goalUsed
+    ? goalRaceBand(input.goalSeconds ?? 0, KM[distance])
+    : undefined;
 
   const longFor = (block: number): number => {
     if (block >= buildBlocks) {
@@ -301,28 +404,54 @@ export function buildRacePlan(input: RacePlanInput): RacePlan {
     switch (session) {
       case 'race':
         title = titles.race;
-        plan = racePlan(raceMinutes, level);
+        plan = stampPace(racePlan(raceMinutes, level), raceBand);
         break;
       case 'shakeout':
         title = titles.shakeout;
-        plan = easyRun(level === 'new' ? 15 : 20, null);
+        plan = stampPace(
+          easyRun(level === 'new' ? 15 : 20, null),
+          zones?.easy,
+          'easy'
+        );
         break;
       case 'long':
         title = titles.long;
-        plan = easyRun(Math.max(15, long), runWalk);
+        plan = stampPace(
+          surface === 'trail'
+            ? hikeRun(Math.max(15, long))
+            : easyRun(Math.max(15, long), runWalk),
+          zones?.easy,
+          'easy'
+        );
         peakLong = Math.max(peakLong, long);
         break;
       case 'tempo':
         title = titles.tempo;
-        plan = tempo(clamp(roundTo(long * 0.3, 5), 10, 25));
+        plan = stampPace(
+          tempo(clamp(roundTo(long * 0.3, 5), 10, 25)),
+          zones?.tempo,
+          'tempo'
+        );
         break;
       case 'intervals':
-        title = titles.intervals;
-        plan = intervals(4 + Math.min(4, Math.floor(progress * 4)));
+        if (surface === 'trail') {
+          title = titles.hills ?? titles.intervals;
+          plan = hillRepeats(6 + Math.min(4, Math.floor(progress * 4)));
+        } else {
+          title = titles.intervals;
+          plan = stampPace(
+            intervals(4 + Math.min(4, Math.floor(progress * 4))),
+            zones?.interval
+          );
+        }
         break;
       default:
         title = titles.easy;
-        plan = easyRun(Math.max(15, easyMinutes), runWalk);
+        plan = stampPace(
+          easyRun(Math.max(15, easyMinutes), runWalk),
+          zones?.easy,
+          'easy'
+        );
     }
     workouts.push({ title: title.slice(0, 40), plan });
   }
@@ -337,5 +466,6 @@ export function buildRacePlan(input: RacePlanInput): RacePlan {
     tooShort: blocks < minWeeks,
     peakLongMinutes: peakLong,
     raceMinutes,
+    goalUsed,
   };
 }

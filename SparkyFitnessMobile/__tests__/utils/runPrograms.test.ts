@@ -99,13 +99,21 @@ describe('every program', () => {
       'tenKToHalf',
       'tenKToHalf4',
       'halfMarathon',
+      'halfMarathon2',
       'halfMarathon4',
       'fasterHalf',
       'fasterHalf4',
       'beginnerMarathon',
       'beginnerMarathon4',
       'marathon',
+      'marathon2',
       'advancedMarathon',
+      'trailMarathon',
+      'trail50k',
+      'fiftyK',
+      'fiftyK2',
+      'hundredK',
+      'hundredK2',
     ]);
     for (const p of RUN_PROGRAMS) expect(findProgram(p.id)).toBe(p);
   });
@@ -123,13 +131,21 @@ describe('every program', () => {
     ['tenKToHalf', 10, 30],
     ['tenKToHalf4', 10, 39],
     ['halfMarathon', 12, 36],
+    ['halfMarathon2', 12, 24],
     ['halfMarathon4', 12, 47],
     ['fasterHalf', 10, 30],
     ['fasterHalf4', 10, 39],
     ['beginnerMarathon', 18, 54],
     ['beginnerMarathon4', 18, 71],
     ['marathon', 16, 63],
+    ['marathon2', 16, 32],
     ['advancedMarathon', 16, 78],
+    ['trailMarathon', 14, 42],
+    ['trail50k', 16, 48],
+    ['fiftyK', 16, 48],
+    ['fiftyK2', 16, 32],
+    ['hundredK', 18, 54],
+    ['hundredK2', 18, 36],
   ])('%s has %i weeks and %i workouts', (id, weeks, total) => {
     const p = findProgram(id)!;
     expect(p.weeks).toBe(weeks);
@@ -165,6 +181,8 @@ describe('every program', () => {
     expect(longest('tenKToHalf')).toBe(115 * 60);
     expect(longest('fasterHalf')).toBe(110 * 60);
     expect(longest('beginnerMarathon')).toBe(150 * 60);
+    expect(longest('fiftyK')).toBe(240 * 60);
+    expect(longest('hundredK')).toBe(240 * 60);
     // The advanced marathon's long runs are split into an easy part and a
     // marathon-pace block, so measure the whole workout without its warm-up
     // and cool-down.
@@ -296,12 +314,7 @@ describe('step efforts', () => {
 
 describe('program versions', () => {
   test('a four-run version names the three-run program it belongs to', () => {
-    for (const id of [
-      'tenKToHalf',
-      'halfMarathon',
-      'fasterHalf',
-      'beginnerMarathon',
-    ]) {
+    for (const id of ['tenKToHalf', 'fasterHalf', 'beginnerMarathon']) {
       const versions = programVersions(id);
       expect(versions.map((p) => p.id)).toEqual([id, `${id}4`]);
       expect(versions.map((p) => p.workoutsPerWeek)).toEqual([3, 4]);
@@ -309,6 +322,52 @@ describe('program versions', () => {
       expect(PICKER_PROGRAMS.map((p) => p.id)).not.toContain(`${id}4`);
       expect(PICKER_PROGRAMS.map((p) => p.id)).toContain(id);
     }
+  });
+
+  test('the half marathon offers two, three and four runs a week', () => {
+    const versions = programVersions('halfMarathon');
+    expect(versions.map((p) => p.id)).toEqual([
+      'halfMarathon2',
+      'halfMarathon',
+      'halfMarathon4',
+    ]);
+    expect(versions.map((p) => p.workoutsPerWeek)).toEqual([2, 3, 4]);
+    expect(findProgram('halfMarathon2')!.variantOf).toBe('halfMarathon');
+    expect(PICKER_PROGRAMS.map((p) => p.id)).not.toContain('halfMarathon2');
+  });
+
+  test('two-run versions and the ultra and trail plans are listed', () => {
+    expect(programVersions('marathon').map((p) => p.id)).toEqual([
+      'marathon2',
+      'marathon',
+    ]);
+    expect(programVersions('fiftyK').map((p) => p.workoutsPerWeek)).toEqual([
+      2, 3,
+    ]);
+    expect(programVersions('hundredK').map((p) => p.workoutsPerWeek)).toEqual([
+      2, 3,
+    ]);
+    const picker = PICKER_PROGRAMS.map((p) => p.id);
+    expect(picker).toEqual(
+      expect.arrayContaining([
+        'trailMarathon',
+        'trail50k',
+        'fiftyK',
+        'hundredK',
+      ])
+    );
+    expect(picker).not.toContain('fiftyK2');
+    expect(picker).not.toContain('hundredK2');
+    expect(picker).not.toContain('marathon2');
+  });
+
+  test('a trail long run walks between the running, and the middle day is hills', () => {
+    const long = findProgram('trail50k')!.workouts.find((w) => w.day === 2)!;
+    expect(long.plan.steps.some((s) => s.kind === 'recovery')).toBe(true);
+    const middle = findProgram('trailMarathon')!.workouts.find(
+      (w) => w.day === 1
+    )!;
+    expect(middle.plan.steps.some((s) => s.effort === 'hill')).toBe(true);
   });
 
   test('a program with no other version is its own only version', () => {

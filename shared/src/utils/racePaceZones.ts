@@ -3,7 +3,9 @@ import { normalizePaceBand, type PaceBand } from './paceTargets.ts';
 /**
  * Training pace ranges worked out from a recent race result. The race is
  * turned into an equivalent 5K pace with Riegel's formula, and each kind of
- * stretch is a band around that pace. They are starting points for a runner who
+ * stretch is a band around that pace. A goal time uses the same sum: the race
+ * has not been run yet, but the paces are worked out the same way. 100K is the
+ * longest distance this accepts. They are starting points for a runner who
  * has no better numbers, in seconds per kilometre, never applied without a tap.
  */
 
@@ -50,7 +52,7 @@ const roundPace = (seconds: number): number => Math.round(seconds / 5) * 5;
 export function equivalent5kPace(race: PaceReferenceRace): number | null {
   const { distanceKm, seconds } = race;
   if (!Number.isFinite(distanceKm) || !Number.isFinite(seconds)) return null;
-  if (distanceKm < 1 || distanceKm > 50 || seconds <= 0) return null;
+  if (distanceKm < 1 || distanceKm > 100 || seconds <= 0) return null;
   const racePace = seconds / distanceKm;
   if (racePace < FASTEST_RACE_PACE || racePace > SLOWEST_RACE_PACE) {
     return null;
