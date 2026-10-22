@@ -6,7 +6,7 @@ import { useCSSVariable } from 'uniwind';
 import {
   CHART_LABEL_FONT_SIZE,
   formatDateWithYear,
-  makeChartFont,
+  useChartFont,
 } from '../charts/chartFormatting';
 import LineSeriesMark from '../charts/LineSeriesMark';
 import TrendGoalLine from '../charts/TrendGoalLine';
@@ -18,8 +18,6 @@ interface LabHistoryChartProps {
   refRangeHigh: number | null;
 }
 
-const font = makeChartFont(CHART_LABEL_FONT_SIZE);
-
 /** A marker's results over time, with its reference range as dashed lines. */
 const LabHistoryChart: React.FC<LabHistoryChartProps> = ({
   points,
@@ -27,6 +25,7 @@ const LabHistoryChart: React.FC<LabHistoryChartProps> = ({
   refRangeHigh,
 }) => {
   const { t } = useTranslation();
+  const font = useChartFont(CHART_LABEL_FONT_SIZE);
   const [accentColor, textMuted] = useCSSVariable([
     '--color-accent-primary',
     '--color-text-muted',

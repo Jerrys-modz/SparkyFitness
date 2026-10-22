@@ -197,11 +197,11 @@ struct CheckInEntryView: View {
             // Shown in place of the delta until the number has been touched:
             // an untouched value is the last weight, so "since last" has
             // nothing to say yet.
-            Text("Tap number to adjust")
+            Text(String(localized: "watch.checkin.tapToAdjust", defaultValue: "Tap number to adjust"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         } else if crownArmed && activeValueUntouched {
-            Text("Turn the crown")
+            Text(String(localized: "watch.checkin.turnCrown", defaultValue: "Turn the crown"))
                 .font(.caption2)
                 .foregroundStyle(Color.accentColor)
         } else if let delta = weightDelta, active == .weight {

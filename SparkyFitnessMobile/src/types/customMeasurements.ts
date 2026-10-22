@@ -23,6 +23,9 @@ export interface SaveCustomCategoryPayload {
   measurement_type: string;
   frequency: CustomCategoryFrequency;
   data_type: CustomCategoryDataType;
+  is_lab?: boolean;
+  ref_range_low?: number | null;
+  ref_range_high?: number | null;
 }
 
 /**

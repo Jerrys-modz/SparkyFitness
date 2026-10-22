@@ -389,7 +389,7 @@ export const createCustomCategory = async (
 
 export const updateCustomCategory = async (
   id: string,
-  payload: SaveCustomCategoryPayload
+  payload: Partial<SaveCustomCategoryPayload>
 ): Promise<CustomCategory> => {
   return apiFetch<CustomCategory>({
     endpoint: `/api/measurements/custom-categories/${id}`,
