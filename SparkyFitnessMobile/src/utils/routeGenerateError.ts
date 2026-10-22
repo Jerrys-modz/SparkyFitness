@@ -21,7 +21,15 @@ export function routeGenerateErrorMessage(
   error: unknown,
   t: TFunction
 ): string {
-  switch (classifyRouteGenerateError(error)) {
+  return routeGenerateKindMessage(classifyRouteGenerateError(error), t);
+}
+
+/** The same sentence from an already classified failure. */
+export function routeGenerateKindMessage(
+  kind: RouteGenerateErrorKind,
+  t: TFunction
+): string {
+  switch (kind) {
     case 'noRoute':
       return t('routes.generateError.noRoute', {
         defaultValue:
