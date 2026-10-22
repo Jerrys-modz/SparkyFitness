@@ -51,7 +51,10 @@ import {
   formatCaloriesDisplay,
   formatServingSizeDisplay,
 } from '../utils/foodDetails';
-import { DECIMAL_INPUT_REGEX, parseDecimalInput } from '../utils/numericInput';
+import {
+  QUANTITY_INPUT_REGEX,
+  parseQuantityInput,
+} from '../utils/quantityExpression';
 import { mealIngredientDraftToFoodInfo } from '../types/foodInfo';
 import type { MealIngredientDraft } from '../types/meals';
 import type { FoodEntryMealUpdateData } from '../types/foodEntryMeals';
@@ -199,7 +202,7 @@ const EditLoggedMealScreen: React.FC<EditLoggedMealScreenProps> = ({
   const effectiveMealId = selectedMealId ?? meal?.meal_type_id ?? undefined;
   const effectiveQuantityText =
     quantityText ?? (meal ? String(meal.quantity) : '');
-  const quantity = parseDecimalInput(effectiveQuantityText) || 0;
+  const quantity = parseQuantityInput(effectiveQuantityText) || 0;
   const originalQuantity =
     meal?.quantity && meal.quantity > 0 ? meal.quantity : 1;
   // Rescale stored component quantities by the CHANGE in servings, not the raw
@@ -318,7 +321,7 @@ const EditLoggedMealScreen: React.FC<EditLoggedMealScreenProps> = ({
   ]) as [string, string];
 
   const updateQuantityText = (text: string) => {
-    if (DECIMAL_INPUT_REGEX.test(text)) {
+    if (QUANTITY_INPUT_REGEX.test(text)) {
       setQuantityText(text);
     }
   };
@@ -544,7 +547,7 @@ const EditLoggedMealScreen: React.FC<EditLoggedMealScreenProps> = ({
               onBlur={clampQuantity}
               onIncrement={() => adjustQuantity(1)}
               onDecrement={() => adjustQuantity(-1)}
-              keyboardType="decimal-pad"
+              allowExpressions
             />
             <Text className="text-text-primary text-base font-medium ml-2">
               {meal.unit}

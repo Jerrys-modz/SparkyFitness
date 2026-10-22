@@ -68,10 +68,11 @@ import {
   servingVariantKey,
 } from '../../utils/foodDetails';
 import { buildMealIngredientDraftFromSavedFood } from '../../utils/mealBuilderDraft';
+import { parseDecimalInput } from '../../utils/numericInput';
 import {
-  DECIMAL_INPUT_REGEX,
-  parseDecimalInput,
-} from '../../utils/numericInput';
+  QUANTITY_INPUT_REGEX,
+  parseQuantityInput,
+} from '../../utils/quantityExpression';
 import { useNativeIOSHeadersActive } from '../../services/nativeTabBarPreference';
 import { useScreenHeader } from '../../hooks/useScreenHeader';
 import { BarcodeField, BARCODE_REGEX } from './BarcodeField';
@@ -226,7 +227,7 @@ export function CreateFoodMode({
   );
   const [quantityText, setQuantityText] = useState(String(initialServingSize));
   const [quantityTouched, setQuantityTouched] = useState(false);
-  const quantity = parseDecimalInput(quantityText) || 0;
+  const quantity = parseQuantityInput(quantityText) || 0;
   const servings = formServingSize > 0 ? quantity / formServingSize : 0;
 
   const handleServingChange = (sizeStr: string, unit: string) => {
@@ -247,7 +248,7 @@ export function CreateFoodMode({
   );
 
   const updateQuantityText = (text: string) => {
-    if (DECIMAL_INPUT_REGEX.test(text)) {
+    if (QUANTITY_INPUT_REGEX.test(text)) {
       setQuantityText(text);
       setQuantityTouched(true);
     }
@@ -995,6 +996,7 @@ export function CreateFoodMode({
                   onBlur={clampQuantity}
                   onDecrement={() => adjustQuantity(-1)}
                   onIncrement={() => adjustQuantity(1)}
+                  allowExpressions
                 />
                 <Text className="text-text-primary text-base font-medium ml-2">
                   {formServingUnit}

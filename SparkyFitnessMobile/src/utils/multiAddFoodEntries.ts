@@ -1,7 +1,7 @@
 import type { CreateFoodEntryPayload } from '../services/api/foodEntriesApi';
 import type { FoodItem } from '../types/foods';
 
-import { parseDecimalInput } from './numericInput';
+import { parseQuantityInput } from './quantityExpression';
 
 /**
  * Upper bound on how many foods one multi-add batch may log. Keeps the
@@ -66,7 +66,7 @@ export interface MultiAddDraft {
   variant?: DraftVariantServing;
   /**
    * Raw quantity text from the review row. Locale-tolerant ("1,5" and "1.5"
-   * both parse) via parseDecimalInput; conversion rejects anything that does
+   * both parse) and arithmetic-aware ("1/2") via parseQuantityInput; conversion rejects anything that does
    * not parse to a positive finite number.
    */
   quantityText: string;
@@ -132,7 +132,7 @@ export function convertDraftToPayload(
   const { food } = draft;
   const key = multiAddKeyForFood(food);
 
-  const quantity = parseDecimalInput(draft.quantityText);
+  const quantity = parseQuantityInput(draft.quantityText);
   if (!Number.isFinite(quantity) || quantity <= 0) {
     return { status: 'invalid', key, reason: 'quantity' };
   }

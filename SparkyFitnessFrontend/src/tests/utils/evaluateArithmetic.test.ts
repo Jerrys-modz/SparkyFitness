@@ -1,4 +1,4 @@
-import { evaluateArithmetic } from '@/utils/evaluateArithmetic';
+import { evaluateArithmetic } from '@workspace/shared';
 
 describe('evaluateArithmetic', () => {
   it.each([
@@ -17,6 +17,7 @@ describe('evaluateArithmetic', () => {
     [' 1.25 + (3 / 4) ', 2],
     ['1e2/4', 25],
     ['0', 0],
+    [`${'('.repeat(90)}1${')'.repeat(90)}`, 1],
   ])('evaluates %s', (expression, expected) => {
     expect(evaluateArithmetic(expression)).toBeCloseTo(expected);
   });
@@ -46,6 +47,11 @@ describe('evaluateArithmetic', () => {
     '0x10',
     '1e',
     '1'.repeat(201),
+    `${'('.repeat(150)}1${')'.repeat(150)}`,
+    '１+２',
+    '2 3',
+    '1e+',
+    '--',
   ])('rejects invalid or non-finite input %s', (expression) => {
     expect(evaluateArithmetic(expression)).toBeUndefined();
   });

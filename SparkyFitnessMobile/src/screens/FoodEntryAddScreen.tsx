@@ -112,7 +112,11 @@ import {
 } from '../utils/foodDetails';
 import { buildMealIngredientDraft } from '../utils/mealBuilderDraft';
 import { persistExternalVariants } from '../utils/persistExternalVariants';
-import { DECIMAL_INPUT_REGEX, parseDecimalInput } from '../utils/numericInput';
+import { parseDecimalInput } from '../utils/numericInput';
+import {
+  QUANTITY_INPUT_REGEX,
+  parseQuantityInput,
+} from '../utils/quantityExpression';
 
 type FoodEntryAddScreenProps = RootStackScreenProps<'FoodEntryAdd'>;
 const EXTERNAL_DRAFT_VARIANT_ID = '__draft-external-unit__';
@@ -639,7 +643,7 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
   }, [activeItem, activeVariant.servingSize]);
 
   const [quantityText, setQuantityText] = useState(String(initialQuantity));
-  const quantity = parseDecimalInput(quantityText) || 0;
+  const quantity = parseQuantityInput(quantityText) || 0;
   const servings =
     displayValues.servingSize > 0 ? quantity / displayValues.servingSize : 0;
   const servingSizeRef = useRef(displayValues.servingSize);
@@ -809,7 +813,7 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
   );
 
   const updateQuantityText = (text: string) => {
-    if (DECIMAL_INPUT_REGEX.test(text)) {
+    if (QUANTITY_INPUT_REGEX.test(text)) {
       setQuantityText(text);
     }
   };
@@ -1621,6 +1625,7 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
               onBlur={clampQuantity}
               onDecrement={() => adjustQuantity(-1)}
               onIncrement={() => adjustQuantity(1)}
+              allowExpressions
             />
             {variantPickerOptions.length > 1 ? (
               <BottomSheetPicker

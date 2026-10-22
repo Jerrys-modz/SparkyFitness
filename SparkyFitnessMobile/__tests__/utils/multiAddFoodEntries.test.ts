@@ -115,6 +115,18 @@ describe('convertDraftToPayload', () => {
     expect(eu.status === 'ok' && eu.payload.quantity).toBe(1000.5);
   });
 
+  test('evaluates arithmetic and never converts an invalid expression', () => {
+    const sum = convertDraftToPayload(makeDraft({ quantityText: '1/2+1' }));
+    expect(sum.status === 'ok' && sum.payload.quantity).toBe(1.5);
+
+    for (const quantityText of ['2*', '1/0', '1-3', '0*5']) {
+      expect(convertDraftToPayload(makeDraft({ quantityText }))).toMatchObject({
+        status: 'invalid',
+        reason: 'quantity',
+      });
+    }
+  });
+
   test('a chosen variant overrides the default in the linked payload', () => {
     const conversion = convertDraftToPayload(
       makeDraft({

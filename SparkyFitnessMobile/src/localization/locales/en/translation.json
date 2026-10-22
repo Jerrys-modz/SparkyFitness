@@ -9655,5 +9655,10 @@
     "createFromActivity": "Create segment",
     "openFailed": "Could not open that run",
     "openFailedHint": "It may have been deleted from your diary."
+  },
+  "quantityExpression": {
+    "result": "= {{value}}",
+    "resultLabel": "Result: {{value}}",
+    "invalid": "Enter a valid calculation, such as 1/2 or 2*3."
   }
 }

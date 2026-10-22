@@ -307,3 +307,4 @@ export * from './schemas/api/FitnessFatigue.api.zod.ts';
 export * from './utils/fitnessFatigue.ts';
 export * from './utils/readiness.ts';
 export * from './utils/runningEstimates.ts';
+export * from './utils/evaluateArithmetic.ts';
