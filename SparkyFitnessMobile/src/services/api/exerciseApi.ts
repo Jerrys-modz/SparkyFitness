@@ -535,6 +535,24 @@ export const attachExerciseEntryWatchTelemetry = async (
 };
 
 /**
+ * Stores how hard the person rated a workout, 1 (easy) to 10 (maximal). For an
+ * entry of a strength session the server applies it to the whole session, so
+ * any one entry id is enough. Sending it again replaces it.
+ */
+export const setExerciseEntryEffort = async (
+  exerciseEntryId: string,
+  rating: number
+): Promise<void> => {
+  return apiFetch<void>({
+    endpoint: `/api/exercise-entries/${exerciseEntryId}/effort`,
+    serviceName: 'Exercise API',
+    operation: 'set exercise entry effort',
+    method: 'POST',
+    body: { rating },
+  });
+};
+
+/**
  * Stores a GPS track recorded on the phone (and its per-km or per-mile
  * splits) against an exercise entry that already exists. The server derives
  * lap stats and the speed/elevation summary from the points; sending the same

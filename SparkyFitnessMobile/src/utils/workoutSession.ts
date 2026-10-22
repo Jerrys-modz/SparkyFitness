@@ -2866,3 +2866,20 @@ export function summarizeWorkoutHeartRate(
     maxBpm: maxValues.length > 0 ? Math.max(...maxValues) : null,
   };
 }
+
+/**
+ * How hard the person rated a workout, 1 to 10, or null when they did not.
+ * A strength session stores the same rating on every exercise, so any one that
+ * carries it speaks for the session; the highest wins if they ever differ.
+ */
+export function summarizeWorkoutEffort(
+  exercises: readonly { workout_effort?: number | null }[]
+): number | null {
+  const ratings = exercises
+    .map((exercise) => exercise.workout_effort)
+    .filter(
+      (value): value is number =>
+        typeof value === 'number' && value >= 1 && value <= 10
+    );
+  return ratings.length > 0 ? Math.max(...ratings) : null;
+}

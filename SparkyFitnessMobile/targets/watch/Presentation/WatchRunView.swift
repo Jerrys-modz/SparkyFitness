@@ -241,6 +241,11 @@ struct WatchRunView: View {
                     if summary.metrics.activeEnergyKcal > 0 {
                         row(String(localized: "watch.run.row.active", defaultValue: "Active"), "\(Int(summary.metrics.activeEnergyKcal.rounded())) \(String(localized: "watch.unit.kcal", defaultValue: "kcal"))")
                     }
+                    if summary.saved {
+                        WorkoutEffortPicker { score, done in
+                            run.rateEffort(score, completion: done)
+                        }
+                    }
                     Text(String(localized: "watch.run.sentToPhone", defaultValue: "Sent to your iPhone. It shows up in SparkyFitness once the phone can reach the server."))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
