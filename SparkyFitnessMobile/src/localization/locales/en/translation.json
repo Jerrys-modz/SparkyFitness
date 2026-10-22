@@ -4426,6 +4426,16 @@
       "aiErrorMessage": "Check the selected Voice provider and try again.",
       "noSpeechTitle": "No speech detected",
       "noSpeechMessage": "Try again and speak closer to the microphone."
+    },
+    "attachments": {
+      "addPhoto": "Add photo",
+      "takePhoto": "Take Photo",
+      "chooseFromLibrary": "Choose from Library",
+      "removePhoto": "Remove photo",
+      "previewPhoto": "Preview photo",
+      "cameraPermission": "Camera permission needed",
+      "cameraPermissionBody": "Enable camera access to add a photo.",
+      "addFailed": "Could not add photo"
     }
   },
   "foodImagePicker": {
