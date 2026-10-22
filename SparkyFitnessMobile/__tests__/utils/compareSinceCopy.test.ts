@@ -280,6 +280,37 @@ describe('sinceVerdictCopy', () => {
     );
   });
 
+  test('a start under four weeks ago is about the days since, whichever stretch the server names', () => {
+    // Before is never longer than since, so a recent start leaves both short.
+    const recent = (
+      reason: 'fewBefore' | 'fewSince',
+      since: { days: number; valueDays: number }
+    ) =>
+      response({
+        ...short(reason, { days: 20, valueDays: 20 }),
+        before: {
+          from: '2026-03-12',
+          to: '2026-03-31',
+          days: 20,
+          valueDays: 20,
+        },
+        since: { from: '2026-04-01', to: '2026-04-20', ...since },
+      });
+    expect(
+      collect(
+        sinceVerdictCopy(recent('fewBefore', { days: 20, valueDays: 18 }), t)
+      )
+    ).toEqual({
+      headline: 'Not enough since Apr 1, 2026 yet',
+      detail: "It's been 20 days since then; an answer needs 28 days.",
+    });
+    expect(
+      collect(
+        sinceVerdictCopy(recent('fewSince', { days: 20, valueDays: 5 }), t)
+      ).detail
+    ).toBe("It's been 20 days since then; an answer needs 28 days.");
+  });
+
   test('no start asks the person to pick one', () => {
     const copy = collect(
       sinceVerdictCopy(
