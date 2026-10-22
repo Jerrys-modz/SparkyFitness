@@ -158,7 +158,10 @@
       "reports": "Reports",
       "heartRateZones": "Heart Rate Zones",
       "heartRateZonesSubtitle": "Max and resting heart rate, zone method",
-      "coaching": "Weekly Coaching"
+      "coaching": "Weekly Coaching",
+      "addMenu": "Add menu",
+      "profile": "Profile & Account",
+      "customMeasurements": "Custom Measurements"
     },
     "theme": {
       "title": "Theme",
@@ -672,7 +675,8 @@
     "labResults": "Lab results",
     "labResultDetail": "Lab result",
     "labResultAdd": "Add lab result",
-    "labReportImport": "Import report"
+    "labReportImport": "Import report",
+    "addMenuSettings": "Add menu"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -9108,5 +9112,17 @@
     "deleteMarkerMessage": "Delete {{name}} and all of its results? This cannot be undone.",
     "deleteMarkerFailed": "Could not delete the marker",
     "importedTag": "Imported"
+  },
+  "addMenuSettings": {
+    "reorder": "Reorder {{name}}",
+    "reorderHint": "Changes where this row sits in the + menu",
+    "reset": "Reset to default",
+    "cardsTitle": "Big buttons",
+    "cardsDescription": "The four buttons at the top of the + menu. Tap one to choose what goes there. Choosing something already placed swaps the two.",
+    "rowsTitle": "Rows",
+    "rowsDescription": "Everything else, listed under the buttons. Drag a row by its handle to move it. Toggle a row off to hide it.",
+    "chooseCard": "Choose a big button",
+    "slotLabel": "Big button {{number}}: {{name}}",
+    "slotHint": "Opens a list to choose what goes here"
   }
 }
