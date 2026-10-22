@@ -1651,7 +1651,10 @@
     "exerciseTotal2": "Exercise Total:",
     "primaryMuscles2": "Primary Muscles:",
     "secondaryMuscles2": "Secondary Muscles:",
-    "equipment2": "Equipment:"
+    "equipment2": "Equipment:",
+    "effort": "Effort",
+    "effortOutOf": "{{rating}}/10",
+    "effortValue": "Effort {{rating}}/10"
   },
   "foodSearchDialog": {
     "title": "Search and Add Food",
