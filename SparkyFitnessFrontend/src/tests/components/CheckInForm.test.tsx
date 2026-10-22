@@ -352,6 +352,32 @@ describe('CheckInForm', () => {
       ref_range_high: null,
     };
 
+    it('leaves lab markers out of the daily check-in', () => {
+      render(
+        <CheckInForm
+          {...defaultProps}
+          customCategories={[
+            numericCategory,
+            {
+              ...numericCategory,
+              id: 'lab-1',
+              name: 'hba1c',
+              display_name: 'HbA1c',
+              measurement_type: '%',
+              frequency: 'All',
+              is_lab: true,
+              ref_range_low: 4,
+              ref_range_high: 5.6,
+            },
+          ]}
+          customValues={{}}
+        />
+      );
+
+      expect(screen.getByLabelText('Chest (cm)')).toBeInTheDocument();
+      expect(screen.queryByLabelText(/HbA1c/)).not.toBeInTheDocument();
+    });
+
     it('shows a previous custom value as a placeholder, not an input value', () => {
       render(
         <CheckInForm
