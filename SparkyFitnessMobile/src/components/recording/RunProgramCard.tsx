@@ -20,6 +20,7 @@ import {
   planMinutes,
   programOutline,
   RUN_PROGRAMS,
+  runMinutes,
   type ProgramStatus,
   type ProgramWorkout,
   type RunProgram,
@@ -494,7 +495,7 @@ const RunProgramCard: React.FC<Props> = ({
             : status.program.activity === 'walk'
               ? t('recordActivity.program.pickOptionWalk', {
                   walk: workout.day + 1,
-                  minutes: planMinutes(workout.plan),
+                  minutes: runMinutes(workout.plan),
                   mark: index < status.done ? '✓ ' : '',
                   defaultValue: '{{mark}}Walk {{walk}} · {{minutes}} min',
                 })
