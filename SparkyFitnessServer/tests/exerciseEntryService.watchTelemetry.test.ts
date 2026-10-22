@@ -197,7 +197,6 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
         undefined,
         undefined,
         undefined,
-        undefined,
         appleZones
       );
 
@@ -250,7 +249,6 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
         entryId,
         undefined,
         312,
-        undefined,
         undefined,
         appleZones.slice(0, 4)
       );
