@@ -8,6 +8,7 @@ struct WatchRunView: View {
     @EnvironmentObject private var run: WatchRunStore
     @EnvironmentObject private var store: CheckInStore
     @State private var showingSettings = false
+    @State private var page = 0
 
     private var usesMiles: Bool { store.context.distanceUnit == "miles" }
 
@@ -17,10 +18,12 @@ struct WatchRunView: View {
             Color.clear
         case .running, .paused:
             if run.route != nil {
-                // Crown or swipe up for the route; the main page stays first.
-                TabView {
-                    live
-                    WatchRouteMapPage()
+                // Crown or swipe up for the route, then the whole route; the
+                // main page stays first. The maps only draw while selected.
+                TabView(selection: $page) {
+                    live.tag(0)
+                    WatchRouteMapPage(isActive: page == 1).tag(1)
+                    WatchRouteOverviewPage(isActive: page == 2).tag(2)
                 }
                 .tabViewStyle(.verticalPage)
             } else {
