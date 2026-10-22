@@ -6651,6 +6651,46 @@
       "fromEffort": "Built from your best recent run. Threshold pace is about {{pace}} {{unit}}.",
       "fromTypical_one": "Estimated from your last {{formattedCount}} run, so less precise. A hard run of 3 km or more sharpens it.",
       "fromTypical_other": "Estimated from your last {{formattedCount}} runs, so less precise. A hard run of 3 km or more sharpens it."
+    },
+    "runEstimates": {
+      "title": "Running Estimates",
+      "subtitle": "Estimated from your pace, heart rate, weight and climb. Not a measurement, so expect it to be off by several percent.",
+      "loadFailed": "Could not load your running estimates.",
+      "about": "≈ {{value}}",
+      "vo2Unit": "VO₂ max (ml/kg/min)",
+      "vo2Basis_one": "From {{count}} run in the last 6 weeks",
+      "vo2Basis_other": "From {{count}} runs in the last 6 weeks",
+      "watts": "≈ {{value}} W",
+      "powerUnit": "Running power ({{perKg}} W/kg)",
+      "powerBasis_one": "Average of {{count}} run in the last 4 weeks",
+      "powerBasis_other": "Average of {{count}} runs in the last 4 weeks"
+    },
+    "fitness": {
+      "level": {
+        "high": "Ready for a hard session.",
+        "moderate": "Fine for a normal session, but not your hardest.",
+        "low": "Not recovered. An easy day or rest is the better call.",
+        "noData": "Not enough to go on yet. Log workouts and sleep to see your readiness."
+      },
+      "form": {
+        "fresh": "Fresh: recent training is light against what you have built.",
+        "tired": "Tired: recent training is heavy against what you have built.",
+        "neutral": "Balanced: recent training matches what you have built.",
+        "learning": "Still learning your normal. Keep logging."
+      },
+      "factor": {
+        "form": "Training form",
+        "sleep": "Sleep",
+        "restingHeartRate": "Resting heart rate",
+        "hrv": "HRV"
+      },
+      "loadFailed": "Could not load your readiness.",
+      "outOf": "readiness out of 100",
+      "fitness": "Fitness",
+      "fatigue": "Fatigue",
+      "formLabel": "Form",
+      "title": "Readiness and Form",
+      "subtitle": "How ready you are today, from training form, sleep and resting heart rate."
     }
   },
   "aiSettings": {
@@ -8228,7 +8268,11 @@
     "spike": "A big jump: ease off",
     "takeRest": "Take a rest day or an easy session.",
     "ready": "You are rested and ready.",
-    "explain": "Adds up how long and how hard your workouts were. Usual is your 4-week average. Bars show the last 4 weeks; green is this week."
+    "explain": "Adds up how long and how hard your workouts were. Usual is your 4-week average. Bars show the last 4 weeks; green is this week.",
+    "readiness": "Readiness {{score}}",
+    "readinessHigh": "ready for a hard session",
+    "readinessModerate": "fine for a normal session",
+    "readinessLow": "go easy today"
   },
   "paceReference": {
     "title": "Your race pace",
