@@ -251,7 +251,9 @@ describe('SyncScreen Enable All with a declined write-back permission', () => {
     expect(alertSpy).toHaveBeenCalledTimes(1);
     expect(alertSpy).toHaveBeenCalledWith(
       'Permissions Required',
-      expect.stringContaining('Every metric will sync')
+      expect.stringMatching(
+        /^Every metric will sync\. To write your data back, grant the missing permissions in .+\.$/
+      )
     );
     for (const metric of HEALTH_METRICS) {
       expect(savedPreference(metric.preferenceKey)).toBe(true);

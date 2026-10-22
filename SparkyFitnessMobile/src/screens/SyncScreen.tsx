@@ -641,7 +641,7 @@ const SyncScreen: React.FC<SyncScreenProps> = ({ navigation }) => {
             onlyWritebackDeclined
               ? t('syncScreen.permissionRequired.writebackMessage', {
                   defaultValue:
-                    'Every metric will sync. Writing your data back to {{settings}} needs the permissions you left off.',
+                    'Every metric will sync. To write your data back, grant the missing permissions in {{settings}}.',
                   settings: healthSettingsName,
                 })
               : t('syncScreen.permissionRequired.allMessage', {

@@ -923,7 +923,7 @@
       "backgroundAccess": "Background access permission is required for background sync. Please grant the permission in Health Connect settings.",
       "allTitle": "Permissions Required",
       "allMessage": "Some permissions were not granted. Please enable all required health permissions in the {{settings}} to sync all data.",
-      "writebackMessage": "Every metric will sync. Writing your data back to {{settings}} needs the permissions you left off."
+      "writebackMessage": "Every metric will sync. To write your data back, grant the missing permissions in {{settings}}."
     },
     "permissionError": {
       "title": "Permission Error",
