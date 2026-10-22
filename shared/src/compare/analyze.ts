@@ -16,6 +16,7 @@ import {
 import {
   cautiousEffectiveN,
   correlationTest,
+  ALPHA,
   isSignificant,
   mean,
   pearson,
@@ -62,7 +63,11 @@ export interface CompareResult {
   };
 }
 
-/** A metric asked for in a mode it has no form in (week mode without a weekly form); the route answers it with a 400. */
+/**
+ * A question asked out of range, which the route answers with a 400: a metric in a mode it has no
+ * form in (week mode without a weekly form), or a since-mode habitStart that is not before today
+ * or is older than the start limit.
+ */
 export class CompareModeError extends RangeError {
   constructor(message: string) {
     super(message);
@@ -81,7 +86,6 @@ const WEEK_NORMAL_MIN = 3;
 const DAYS_PER_WEEK = 7;
 const WEEKLY_MEAN_MIN_DAYS = 4;
 const PER_GROUP_NEEDED = 5;
-const ALPHA = 0.05;
 
 /** Each key's value minus the mean of the `window` keys before it, `stepDays` apart (a week's key is its start, so 7); one with fewer than `minValues` of them drops out. */
 export function deviationsFromOwnNormal(

@@ -312,7 +312,8 @@ const getCompareHandler: RequestHandler = async (req, res, next) => {
     );
     res.status(200).json(body);
   } catch (error: unknown) {
-    // Only a metric asked for in a mode it has no form in is the caller's mistake.
+    // Only a question asked out of range is the caller's mistake: a metric in a mode it has no
+    // form in, or a since start that is not before today or is older than the start limit.
     if (error instanceof CompareModeError) {
       res.status(400).json({ error: error.message });
       return;

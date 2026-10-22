@@ -1,6 +1,8 @@
 // Statistics for deciding whether two daily series are linked. Pure and dependency-free.
 
 export const Z_95 = 1.959963984540054;
+/** The significance level: a finding needs p below it. */
+export const ALPHA = 0.05;
 
 export function mean(xs: readonly number[]): number {
   if (xs.length === 0) return NaN;
@@ -234,7 +236,7 @@ export function isSignificant(test: {
   low: number;
   high: number;
 }): boolean {
-  return test.p < 0.05 && (test.low > 0 || test.high < 0);
+  return test.p < ALPHA && (test.low > 0 || test.high < 0);
 }
 
 /** Welch's t-test where each group's variance is divided by its effective n. */
