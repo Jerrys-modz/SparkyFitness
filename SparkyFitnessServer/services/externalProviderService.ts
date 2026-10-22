@@ -25,7 +25,7 @@ import {
 } from '../utils/outboundUrlPolicy.js';
 import { resolveIsAdminByUserId } from '../utils/adminCheck.js';
 import { resolveCorosMcpUrl } from '../integrations/coros/corosConstants.js';
-import { ROUTING_PROVIDER_TYPE } from '@workspace/shared';
+import { ROUTING_PROVIDER_TYPE, STOPS_PROVIDER_TYPE } from '@workspace/shared';
 
 // Provider types whose stored base_url is fetched server-side, making it an
 // SSRF surface. Their base_url is validated against the food-provider network
@@ -35,6 +35,7 @@ const BASE_URL_FETCHING_PROVIDER_TYPES = new Set([
   'tandoor',
   'norish',
   ROUTING_PROVIDER_TYPE,
+  STOPS_PROVIDER_TYPE,
 ]);
 
 // Reject a private/internal base_url for the self-hosted recipe providers.
