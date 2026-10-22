@@ -44,6 +44,48 @@ it('sends the Record screen’s switches with the start request', async () => {
   expect(useWatchRunLiveStore.getState().pending?.requestId).toBe(requestId);
 });
 
+describe('following a saved route', () => {
+  const route = {
+    id: 'r1',
+    name: 'Loop',
+    points: [
+      { lat: 51.5, lon: -0.12 },
+      { lat: 51.501, lon: -0.12 },
+      { lat: 51.501, lon: -0.118 },
+    ],
+    cues: [],
+  };
+
+  it('sends the route with an outdoor start', async () => {
+    await startRunOnWatch({
+      kind: 'run',
+      place: 'outdoor',
+      autoPause: true,
+      voiceCues: false,
+      route,
+    });
+    const sent = module.startRun.mock.calls[0][0];
+    expect(sent.route.id).toBe('r1');
+    expect(sent.route.points).toHaveLength(6);
+    expect(sent.route.cues.map((c: { kind: string }) => c.kind)).toEqual([
+      'depart',
+      'right',
+      'arrive',
+    ]);
+  });
+
+  it('leaves the route out of an indoor start', async () => {
+    await startRunOnWatch({
+      kind: 'run',
+      place: 'indoor',
+      autoPause: true,
+      voiceCues: false,
+      route,
+    });
+    expect(module.startRun.mock.calls[0][0]).not.toHaveProperty('route');
+  });
+});
+
 it('sends the pace range with the start request when one is set', async () => {
   await startRunOnWatch({
     kind: 'run',
