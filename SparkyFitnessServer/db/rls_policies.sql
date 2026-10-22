@@ -51,6 +51,7 @@ BEGIN
     'run_programs',
     'shoes',
     'custom_run_programs',
+    'routes',
     'onboarding_data',
     'onboarding_status',
     'openfoodfacts_product_read_rate_limit',
@@ -58,6 +59,9 @@ BEGIN
     'profiles',
     'rate_limit',
     'sparky_chat_history',
+    'food_assistant_preferences',
+    'food_assistant_tasks',
+    'food_assistant_operations',
     'admin_activity_logs',
     'api_key',
     'user_goals',
@@ -617,6 +621,9 @@ USING (
 SELECT create_owner_policy('api_key', 'reference_id');
 SELECT create_owner_policy('user_oidc_links');
 SELECT create_owner_policy('sparky_chat_history');
+SELECT create_owner_policy('food_assistant_preferences');
+SELECT create_owner_policy('food_assistant_tasks');
+SELECT create_owner_policy('food_assistant_operations');
 
 -- Profiles: delegates can read (with any meaningful permission) but only owner can write.
 -- Delegates do not need to modify another user's profile to manage their diary.
@@ -759,6 +766,7 @@ SELECT create_owner_policy('pregnancy_checklist_state');
 SELECT create_owner_policy('health_appointments');
 SELECT create_owner_policy('run_programs');
 SELECT create_owner_policy('custom_run_programs');
+SELECT create_owner_policy('routes');
 
 -- User-defined mood tags. Mood is check-in data (mood_entries uses the check-in
 -- policy), and custom check-in definitions like custom_categories are shared with

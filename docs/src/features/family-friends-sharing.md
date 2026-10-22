@@ -4,6 +4,8 @@ Family & Friends Sharing in SparkyFitness allows you to connect with family memb
 
 The system is built with **least-privilege boundary isolation** using PostgreSQL Row-Level Security (RLS), ensuring that your private credentials and account settings are never shared.
 
+AI service model and reasoning settings remain private to their owner. An administrator can publish a shared configuration; family diary access does not grant access to personal AI credentials or settings.
+
 ---
 
 ## How to Set Up Sharing
@@ -35,6 +37,8 @@ SparkyFitness uses 7 granular permissions to determine exactly what a connected 
 | **View Exercise Library**<br>`can_view_exercise_library` | ❌ **No write privileges** | 📖 User's custom exercise database and workout presets (isolated to when context is switched).<br><br>❌ *Profile, dashboard layout, and onboarding data are **not** readable — this permission alone is insufficient.* |
 | **Share Integrations**<br>`share_external_providers` | ❌ **No write privileges** (cannot add, edit, or delete provider configurations — owner-only). | 📖 Allows the family & friends to use the owner's non-private search provider configurations (e.g., FatSecret, USDA, OpenFoodFacts, Canadian Nutrient File, Swedish Food Agency) to search for food and exercise items and add them to their own library.<br><br>❌ *Shared personal provider credentials are never used for Open Food Facts contributions. Manual contributions require the server-wide administrator gate and the food owner acting as themselves. The owner must review one product and separately confirm the packaging data and rights to their own photo for that exact preview; this sharing permission grants neither consent. Preview and confirmation product reads share the server-wide safety budget.*<br><br>❌ *Health integrations (Garmin, Fitbit, Withings, Google Health, Polar, Strava, COROS, Hevy, Liftosaur) are strictly private and **never** shared — this permission does not grant access to them.* |
 
+**Mood check-ins:** delegates with **Manage Check-in** or **View Reports** access see each of your mood check-ins for a day, including its journal text.
+
 ---
 
 ## Security & Boundary Isolation
@@ -44,11 +48,13 @@ Certain tables contain private user data that is **never** accessible to any fam
 * API Keys (`api_key` table)
 * OIDC SSO Connections (`user_oidc_links` table)
 * Personal AI Assistant Chat History (`sparky_chat_history` table)
+* Lasting food preferences, food task drafts and their operation history (`food_assistant_preferences`, `food_assistant_tasks`, `food_assistant_operations`). These belong to the signed-in person and are never delegated while viewing a family diary.
 * Voice recordings are transient and are never shared or stored as diary entries. AI transcription uses only the signed-in user's accessible AI configuration, never credentials from a switched family profile.
 * Personal Fasting Preferences and auto-calculation configuration (`user_fasting_preferences` table)
 * Cycle & Pregnancy hub data (`cycle_settings`, `cycle_daily_entries`, `cycles`, `user_cycle_display_preferences`, `cycle_test_entries`, `pregnancies`, `pregnancy_kick_sessions`, `pregnancy_contractions`, `pregnancy_photos`, `pregnancy_checklist_state`, `health_appointments` tables) — this reproductive-health data is **never** shared or delegated, even with `can_view_reports`. It is strictly owner-only. Bump photo *files* are owner-only too: they are excluded from the public uploads URLs and can only be fetched through an authenticated request by their owner.
 * Run program (`run_programs` table): your Beginner 5K program, your place in it, the days it shows in your Diary, its first day and your goal date, and any changes the AI assistant or you made to its workouts. A training plan is personal, so it is never shared or delegated.
 * Your own run plans (`custom_run_programs` table): plans you wrote yourself, with their names and workouts. They are personal, so they are never shared or delegated.
+* Your saved routes (`routes` table): routes you drew, imported or saved from a workout, with their points and turn cues. They are personal, so they are never shared or delegated.
 
 ### 2. Tier 2: Read-Only Profile & Settings Data
 The following data can be **read** by delegates who hold at least one of `can_manage_diary`, `can_manage_checkin`, `can_manage_medications`, `can_manage_symptoms`, or `can_view_reports` — but **only the account owner can modify it**:

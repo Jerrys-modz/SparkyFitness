@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 export const exerciseEntriesIdSchema = z.string();
 
@@ -85,6 +85,7 @@ export const exerciseEntriesSchema = z.object({
   water_estimated: z.number().nullable().optional(),
   watch_telemetry_observed_at: z.date().nullable().optional(),
   watch_duration_minutes: z.number().nullable().optional(),
+  manual_fields: z.array(z.string()).nullable().optional(),
 });
 
 export const exerciseEntriesInitializerSchema = z.object({
@@ -168,6 +169,7 @@ export const exerciseEntriesInitializerSchema = z.object({
   water_estimated: z.number().optional().nullable(),
   watch_telemetry_observed_at: z.date().optional().nullable(),
   watch_duration_minutes: z.number().optional().nullable(),
+  manual_fields: z.array(z.string()).nullable().optional(),
 });
 
 export const exerciseEntriesMutatorSchema =

@@ -170,7 +170,7 @@ describe('writeback directions in the refresh pass', () => {
 
     await migrateEnabledMetricPermissionsIfNeeded({
       ...baseArgs,
-      loadHealthPreference: jest.fn().mockResolvedValue(3),
+      loadHealthPreference: jest.fn().mockResolvedValue(4),
       saveHealthPreference: jest.fn().mockResolvedValue(undefined),
       requestHealthPermissions,
       extraPermissions: [{ accessType: 'write', recordType: 'Hydration' }],

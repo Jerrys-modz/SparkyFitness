@@ -99,7 +99,7 @@ private struct PersonalRecordBanner: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Label("New PR!", systemImage: "trophy.fill")
+            Label(String(localized: "watch.workout.newPr", defaultValue: "New PR!"), systemImage: "trophy.fill")
                 .font(.caption.weight(.bold))
             if !exercise.isEmpty {
                 Text(exercise).font(.caption2).lineLimit(1)
@@ -131,7 +131,7 @@ private struct WorkoutSummaryView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 6) {
-                Label("Workout done", systemImage: "checkmark.circle.fill")
+                Label(String(localized: "watch.workout.done", defaultValue: "Workout done"), systemImage: "checkmark.circle.fill")
                     .font(.headline)
                     .foregroundStyle(.green)
                 row("Time", duration)
@@ -151,7 +151,7 @@ private struct WorkoutSummaryView: View {
                 WorkoutEffortPicker { score, done in
                     session.rateWorkoutEffort(score, sessionId: summary.sessionId, completion: done)
                 }
-                Button("Done") { store.dismissSummary() }
+                Button(String(localized: "watch.common.done", defaultValue: "Done")) { store.dismissSummary() }
                     .padding(.top, 4)
             }
             .padding(.horizontal, 4)
@@ -233,7 +233,7 @@ private struct WaitingForWorkoutView: View {
                 Image(systemName: "figure.strengthtraining.traditional")
                     .font(.title2)
                     .foregroundStyle(.secondary)
-                Text("Start a workout on your phone")
+                Text(String(localized: "watch.workout.startOnPhone", defaultValue: "Start a workout on your phone"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -499,16 +499,16 @@ private struct ActiveWorkoutView: View {
         // Asked when Finish is tapped on a workout that changed from the saved
         // one it started from, as Hevy does. Only buttons close it.
         .alert(
-            "Update Workout?",
+            String(localized: "watch.workout.updatePresetTitle", defaultValue: "Update Workout?"),
             isPresented: Binding(
                 get: { store.askingPresetUpdate },
                 set: { _ in }
             )
         ) {
-            Button("Update") { finish(updatingPreset: true) }
-            Button("Keep Original", role: .cancel) { finish(updatingPreset: false) }
+            Button(String(localized: "watch.workout.updatePreset", defaultValue: "Update")) { finish(updatingPreset: true) }
+            Button(String(localized: "watch.workout.keepOriginal", defaultValue: "Keep Original"), role: .cancel) { finish(updatingPreset: false) }
         } message: {
-            Text("Save the changes you made to \"\(store.plan?.workoutName ?? "")\"?")
+            Text(String(localized: "watch.workout.updatePresetMessage", defaultValue: "Save the changes you made to \"\(store.plan?.workoutName ?? "")\"?"))
         }
         .onAppear {
             if pendingRpe == nil, let pending = store.pendingSetCompletion,
@@ -581,9 +581,9 @@ private struct WorkoutCompleteView: View {
     var body: some View {
         VStack(spacing: 8) {
             Spacer()
-            Text("Workout complete")
+            Text(String(localized: "watch.workout.complete", defaultValue: "Workout complete"))
                 .font(.headline)
-            Button("Finish") {
+            Button(String(localized: "watch.common.finish", defaultValue: "Finish")) {
                 Haptics.tap()
                 if !store.askPresetUpdateBeforeFinish() { session.endWorkout() }
             }
@@ -693,7 +693,7 @@ private struct ExerciseListView: View {
                         Haptics.tap()
                         addingExercise = true
                     } label: {
-                        Label("Add Exercise", systemImage: "plus")
+                        Label(String(localized: "watch.workout.addExercise", defaultValue: "Add Exercise"), systemImage: "plus")
                             .font(.caption)
                     }
                     .listRowBackground(WatchStyle.shape.fill(WatchStyle.fill))
@@ -707,7 +707,7 @@ private struct ExerciseListView: View {
                         Haptics.tap()
                         confirmingFinish = true
                     } label: {
-                        Label("Finish Workout", systemImage: "flag.checkered")
+                        Label(String(localized: "watch.workout.finishWorkout", defaultValue: "Finish Workout"), systemImage: "flag.checkered")
                             .font(.caption)
                     }
                     .listRowBackground(WatchStyle.shape.fill(WatchStyle.fill))
@@ -715,7 +715,7 @@ private struct ExerciseListView: View {
                         Haptics.tap()
                         confirmingDiscard = true
                     } label: {
-                        Label("Discard Workout", systemImage: "trash")
+                        Label(String(localized: "watch.workout.discardWorkout", defaultValue: "Discard Workout"), systemImage: "trash")
                             .font(.caption)
                     }
                     .listRowBackground(WatchStyle.shape.fill(WatchStyle.fill))
@@ -991,7 +991,7 @@ private struct CurrentSetView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                 if let partners = step.supersetWith {
-                    Text("Superset · \(partners)")
+                    Text(String(localized: "watch.workout.superset", defaultValue: "Superset · \(partners)"))
                         .font(.system(size: 9))
                         .foregroundStyle(supersetColor ?? Color.secondary)
                         .lineLimit(1)
@@ -1035,7 +1035,7 @@ private struct CurrentSetView: View {
             .onChange(of: crownValue) { noteCrownChange() }
 
             if crownField != nil {
-                Text("Crown or drag · tap again to type")
+                Text(String(localized: "watch.workout.crownHint", defaultValue: "Crown or drag · tap again to type"))
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
             }
@@ -1451,7 +1451,7 @@ private struct HoldStopwatch: View {
                     .minimumScaleFactor(0.5)
                 if elapsed == nil {
                     if let previous = store.previousDurationSec(forSetId: setId) {
-                        Text("Last \(Self.clock(previous))")
+                        Text(String(localized: "watch.workout.last", defaultValue: "Last \(Self.clock(previous))"))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
@@ -1607,7 +1607,7 @@ private struct RestView: View {
         VStack(spacing: 6) {
             VStack(spacing: 0) {
                 if store.restPausedRemaining != nil {
-                    Text("Paused")
+                    Text(String(localized: "watch.run.paused", defaultValue: "Paused"))
                         .font(.caption2)
                         .foregroundStyle(.orange)
                 }
@@ -1787,7 +1787,7 @@ struct NumericKeypadView: View {
                 }
             }
 
-            Button("OK") {
+            Button(String(localized: "watch.common.ok", defaultValue: "OK")) {
                 Haptics.tap()
                 // Nothing typed keeps the value shown in grey.
                 if let value = Double(entry) {

@@ -165,6 +165,11 @@ jest.mock('expo-notifications', () => {
     addNotificationResponseReceivedListener: jest.fn(() => ({
       remove: jest.fn(),
     })),
+    registerTaskAsync: jest.fn().mockResolvedValue(null),
+    BackgroundNotificationTaskResult: { NewData: 0, NoData: 1, Failed: 2 },
+    DEFAULT_ACTION_IDENTIFIER: 'expo.modules.notifications.actions.DEFAULT',
+    getLastNotificationResponse: jest.fn(() => null),
+    clearLastNotificationResponse: jest.fn(),
     AndroidImportance: { HIGH: 4, DEFAULT: 3, LOW: 2, MIN: 1, NONE: 0 },
     SchedulableTriggerInputTypes: {
       CALENDAR: 'calendar',

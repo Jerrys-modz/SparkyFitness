@@ -2,7 +2,12 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { planMinutes } from '@workspace/shared';
+import {
+  buildProgramTimeline,
+  itemsByDay,
+  planMinutes,
+  type TimelineItem,
+} from '@workspace/shared';
 import Button from '../components/ui/Button';
 import ProgramMonthGrid from '../components/recording/ProgramMonthGrid';
 import {
@@ -15,11 +20,6 @@ import { useRunProgram } from '../services/runProgramService';
 import { toLocalDateString } from '../utils/dateUtils';
 import { formatDayLabel } from '../utils/dayLabel';
 import { monthOf } from '../utils/monthGrid';
-import {
-  buildProgramTimeline,
-  itemsByDay,
-  type TimelineItem,
-} from '../utils/programTimeline';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type Props = RootStackScreenProps<'RunProgramCalendar'>;

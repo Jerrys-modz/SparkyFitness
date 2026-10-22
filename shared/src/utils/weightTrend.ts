@@ -1,4 +1,4 @@
-import { addDays, compareDays, daysBetween } from "./timezone.ts";
+import { addDays, compareDays, daysBetween } from './timezone.ts';
 
 // Smoothed weight trend: logged weights are linearly interpolated onto every
 // calendar day, then averaged over a trailing 7-day window. This is the same
@@ -44,7 +44,7 @@ export interface GoalForecast {
  * non-finite or non-positive weights are ignored. Output is sorted by date.
  */
 export function computeWeightTrend(
-  samples: readonly WeightSample[],
+  samples: readonly WeightSample[]
 ): WeightTrendPoint[] {
   const byDay = new Map<string, number>();
   for (const s of samples) {
@@ -87,7 +87,7 @@ export function computeWeightTrend(
 
 /** Current trend value and per-week rate of change from a computed trend. */
 export function summarizeWeightTrend(
-  points: readonly WeightTrendPoint[],
+  points: readonly WeightTrendPoint[]
 ): WeightTrendSummary | null {
   const last = points[points.length - 1];
   if (!last) return null;
@@ -121,12 +121,12 @@ function weeklyRateOf(points: readonly WeightTrendPoint[]): number | null {
 
 /** Why a goal forecast is, or is not, available. */
 export type GoalForecastStatus =
-  | "insufficient-data"
-  | "no-goal"
-  | "steady"
-  | "toward-goal"
-  | "away-from-goal"
-  | "too-far";
+  | 'insufficient-data'
+  | 'no-goal'
+  | 'steady'
+  | 'toward-goal'
+  | 'away-from-goal'
+  | 'too-far';
 
 export interface GoalForecastAssessment {
   status: GoalForecastStatus;
@@ -144,34 +144,34 @@ const FLAT_RATE_FRACTION_PER_WEEK = 0.0005;
  */
 export function assessGoalForecast(
   points: readonly WeightTrendPoint[],
-  target: number | null | undefined,
+  target: number | null | undefined
 ): GoalForecastAssessment {
   const last = points[points.length - 1];
   const rate = weeklyRateOf(points);
   if (!last || rate === null) {
-    return { status: "insufficient-data", forecast: null };
+    return { status: 'insufficient-data', forecast: null };
   }
   if (target == null || !Number.isFinite(target) || target <= 0) {
-    return { status: "no-goal", forecast: null };
+    return { status: 'no-goal', forecast: null };
   }
   if (Math.abs(rate) < last.trend * FLAT_RATE_FRACTION_PER_WEEK) {
-    return { status: "steady", forecast: null };
+    return { status: 'steady', forecast: null };
   }
 
   const remaining = target - last.trend;
   // Already at the target: nothing left to project.
-  if (remaining === 0) return { status: "steady", forecast: null };
+  if (remaining === 0) return { status: 'steady', forecast: null };
   if (Math.sign(remaining) !== Math.sign(rate)) {
-    return { status: "away-from-goal", forecast: null };
+    return { status: 'away-from-goal', forecast: null };
   }
 
   const daysRemaining = Math.ceil((remaining / rate) * 7);
-  if (daysRemaining <= 0) return { status: "steady", forecast: null };
+  if (daysRemaining <= 0) return { status: 'steady', forecast: null };
   if (daysRemaining > MAX_FORECAST_DAYS) {
-    return { status: "too-far", forecast: null };
+    return { status: 'too-far', forecast: null };
   }
   return {
-    status: "toward-goal",
+    status: 'toward-goal',
     forecast: { date: addDays(last.date, daysRemaining), daysRemaining },
   };
 }
@@ -183,7 +183,7 @@ export function assessGoalForecast(
  */
 export function forecastGoalDate(
   points: readonly WeightTrendPoint[],
-  target: number | null | undefined,
+  target: number | null | undefined
 ): GoalForecast | null {
   return assessGoalForecast(points, target).forecast;
 }
