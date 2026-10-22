@@ -16,6 +16,10 @@ The screen shows your five zones with their bpm ranges, and where your max heart
 | From the highest heart rate in the workout | No date of birth and no max set; used while splitting a single workout. |
 | A typical value | Nothing to go on, so 190 bpm. Add your date of birth or set your own. |
 
+On iPhone with iOS 27 or later, **Use Apple Health zones** reads the heart rate zones from Apple Health and fills them in as custom zones. It does not change your max heart rate. If resting heart rate is empty, it fills that from Apple Health too. Nothing is stored until you tap Save, and past workouts are not recalculated. The button is hidden on older iOS versions and on Android, because Apple only shares those zones with apps from iOS 27, and not as a normal Health sample.
+
+A workout that Apple Health already split into zones keeps Apple's time in each zone, instead of being worked out again from your settings. That covers a workout recorded in the Fitness app, a run recorded on Apple Watch, a workout recorded in Sparky on the watch, and a phone GPS recording whose watch workout was saved. The chart matches the Fitness app, including time below the first boundary, which Apple counts as zone 1. Those workouts say the zones were set by the device. This needs iOS 27 or watchOS 27. Anything Apple did not split still uses your settings. Past workouts are not rewritten.
+
 Max heart rate must be 100 to 250 bpm and resting heart rate 25 to 150 bpm. Leave max empty to go back to the date of birth estimate. **Reset to default** clears everything on the screen.
 
 ## Zone methods
@@ -48,6 +52,6 @@ Zone charts say which method the workout's zones were worked out with ("Zones: H
 
 ## For developers
 
-- Shared logic: `shared/src/utils/heartRateZones.ts`. `resolveHeartRateZones` turns settings and date of birth into the five zones; `heartRateZoneRange(resolved, zone)` returns the bpm range of zone N (the top zone ends at max heart rate); `computeTimeInZones` buckets a heart rate series.
+- Shared logic: `shared/src/utils/heartRateZones.ts`. `floorsFromAppleHeartRateZones` turns Apple's five preferred zones into custom floors (zone 1 with no lower bound starts at 30 bpm; any other count is ignored). The phone reads them with `modules/apple-heart-zones` on iOS 27. `bucketsFromAppleWorkoutZones` turns a finished workout's heart-rate zone group into stored rows (`zone_method` `device`) and keeps time below the first boundary as zone 1; the server uses that instead of `computeTimeInZones` when a sync or a watch post includes it. `resolveHeartRateZones` turns settings and date of birth into the five zones; `heartRateZoneRange(resolved, zone)` returns the bpm range of zone N (the top zone ends at max heart rate); `computeTimeInZones` buckets a heart rate series.
 - API: `GET` / `PUT /api/v2/heart-rate-zones` (owner-only; contract in `shared/src/schemas/api/HeartRateZones.api.zod.ts`).
 - Storage: `max_heart_rate`, `resting_heart_rate`, `hr_zone_method`, `hr_zone_custom_floors` on `user_preferences`; `zone_method` on `exercise_entry_hr_zones`.

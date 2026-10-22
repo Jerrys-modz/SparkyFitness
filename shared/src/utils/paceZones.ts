@@ -6,11 +6,7 @@
  */
 
 export type PaceZoneId =
-  | "easy"
-  | "steady"
-  | "threshold"
-  | "interval"
-  | "repetition";
+  'easy' | 'steady' | 'threshold' | 'interval' | 'repetition';
 
 /** Seconds per kilometre. `min` is the fastest pace in the zone, `max` the slowest. */
 export interface PaceZone {
@@ -21,11 +17,11 @@ export interface PaceZone {
 
 /** Slowest zone first, which is the order a runner reads them in. */
 export const PACE_ZONE_IDS: readonly PaceZoneId[] = [
-  "easy",
-  "steady",
-  "threshold",
-  "interval",
-  "repetition",
+  'easy',
+  'steady',
+  'threshold',
+  'interval',
+  'repetition',
 ];
 
 /**
@@ -36,11 +32,11 @@ export const PACE_ZONE_IDS: readonly PaceZoneId[] = [
  */
 const ZONE_EDGES = [0.8, 0.89, 0.97, 1.045, 1.145, 1.35] as const;
 const ZONES_FASTEST_FIRST: readonly PaceZoneId[] = [
-  "repetition",
-  "interval",
-  "threshold",
-  "steady",
-  "easy",
+  'repetition',
+  'interval',
+  'threshold',
+  'steady',
+  'easy',
 ];
 
 /** Riegel's exponent: how much a pace slows as the distance grows. */
@@ -64,11 +60,15 @@ const round5 = (seconds: number): number => Math.round(seconds / 5) * 5;
  */
 export function thresholdPaceFromEffort(
   distanceMeters: number,
-  seconds: number,
+  seconds: number
 ): number | null {
-  if (!Number.isFinite(distanceMeters) || !Number.isFinite(seconds)) return null;
+  if (!Number.isFinite(distanceMeters) || !Number.isFinite(seconds))
+    return null;
   if (seconds <= 0) return null;
-  if (distanceMeters < MIN_EFFORT_METERS || distanceMeters > MAX_EFFORT_METERS) {
+  if (
+    distanceMeters < MIN_EFFORT_METERS ||
+    distanceMeters > MAX_EFFORT_METERS
+  ) {
     return null;
   }
   const hourMeters =
@@ -86,7 +86,7 @@ export function thresholdPaceFromEffort(
  */
 export function paceZones(
   thresholdSecondsPerKm: number,
-  shift = 0,
+  shift = 0
 ): PaceZone[] | null {
   if (!Number.isFinite(thresholdSecondsPerKm)) return null;
   if (thresholdSecondsPerKm < MIN_THRESHOLD_SECONDS_PER_KM) return null;
@@ -110,7 +110,7 @@ export function paceZones(
 /** The zone a pace falls in, or null when it is faster or slower than all of them. */
 export function zoneForPace(
   zones: readonly PaceZone[],
-  secondsPerKm: number,
+  secondsPerKm: number
 ): PaceZoneId | null {
   if (!Number.isFinite(secondsPerKm)) return null;
   for (const zone of zones) {
@@ -127,7 +127,7 @@ export function zoneForPace(
 /** One zone by id. */
 export function paceZone(
   zones: readonly PaceZone[],
-  id: PaceZoneId,
+  id: PaceZoneId
 ): PaceZone | undefined {
   return zones.find((zone) => zone.id === id);
 }
@@ -142,9 +142,9 @@ export const ADVANCE_ZONE_SHIFT = -0.015;
  * the output of `suggestFromEffort`.
  */
 export function zoneShiftForEffort(
-  suggestion: "ease" | "advance" | null,
+  suggestion: 'ease' | 'advance' | null
 ): number {
-  if (suggestion === "ease") return EASE_ZONE_SHIFT;
-  if (suggestion === "advance") return ADVANCE_ZONE_SHIFT;
+  if (suggestion === 'ease') return EASE_ZONE_SHIFT;
+  if (suggestion === 'advance') return ADVANCE_ZONE_SHIFT;
   return 0;
 }

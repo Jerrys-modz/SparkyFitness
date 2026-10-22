@@ -5,13 +5,13 @@
  * and distance, which stop while paused, so a pause never eats into a step.
  */
 
-import { normalizePaceBand, type PaceBand } from "./paceTargets.ts";
+import { normalizePaceBand, type PaceBand } from './paceTargets.ts';
 import {
   normalizeHeartRateBand,
   type HeartRateBand,
-} from "./heartRateTargets.ts";
+} from './heartRateTargets.ts';
 
-export type IntervalStepKind = "warmup" | "work" | "recovery" | "cooldown";
+export type IntervalStepKind = 'warmup' | 'work' | 'recovery' | 'cooldown';
 
 /**
  * What a stretch is for, where its kind alone does not say: an easy run in a
@@ -20,22 +20,22 @@ export type IntervalStepKind = "warmup" | "work" | "recovery" | "cooldown";
  * one (recovery). It decides which pace and heart-rate range a step gets.
  */
 export type StepEffort =
-  "easy" | "stride" | "tempo" | "marathon" | "hill" | "zone2";
+  'easy' | 'stride' | 'tempo' | 'marathon' | 'hill' | 'zone2';
 
 export const STEP_EFFORTS: readonly StepEffort[] = [
-  "easy",
-  "stride",
-  "tempo",
-  "marathon",
-  "hill",
-  "zone2",
+  'easy',
+  'stride',
+  'tempo',
+  'marathon',
+  'hill',
+  'zone2',
 ];
 
 /**
  * The unit a distance step was set in, which is how it is shown and spoken:
  * metres (short track repeats, the default) or miles.
  */
-export type StepDistanceUnit = "m" | "mi";
+export type StepDistanceUnit = 'm' | 'mi';
 
 export const STEP_METERS_PER_MILE = 1609.344;
 
@@ -43,7 +43,7 @@ export const STEP_METERS_PER_MILE = 1609.344;
  * How the steps are spoken: a run/walk plan says "Run" and "Walk", a speed
  * session says "Fast" and "Easy".
  */
-export type IntervalStyle = "runWalk" | "fastEasy";
+export type IntervalStyle = 'runWalk' | 'fastEasy';
 
 export interface IntervalStep {
   kind: IntervalStepKind;
@@ -101,7 +101,7 @@ export const MAX_STEP_METERS = 50_000;
 export const EXPECTED_SECONDS_PER_METER = 0.36;
 
 export const isDistanceStep = (step: IntervalStep): boolean =>
-  typeof step.meters === "number" && step.meters > 0;
+  typeof step.meters === 'number' && step.meters > 0;
 
 /** Whether any step ends on distance, which needs GPS (or the watch's GPS). */
 export const planHasDistanceSteps = (plan: IntervalPlan): boolean =>
@@ -111,14 +111,14 @@ export const planHasDistanceSteps = (plan: IntervalPlan): boolean =>
 export function distanceStep(
   kind: IntervalStepKind,
   meters: number,
-  unit?: StepDistanceUnit,
+  unit?: StepDistanceUnit
 ): IntervalStep {
   const m = clamp(meters, MIN_STEP_METERS, MAX_STEP_METERS);
   return {
     kind,
     meters: m,
     seconds: clamp(m * EXPECTED_SECONDS_PER_METER, 5, MAX_PROGRAM_STEP_SECONDS),
-    ...(unit === "mi" ? { unit } : {}),
+    ...(unit === 'mi' ? { unit } : {}),
   };
 }
 
@@ -132,21 +132,21 @@ export function buildIntervalPlan(options: IntervalOptions): IntervalPlan {
   const work = clamp(options.workSeconds, 5, MAX_STEP_SECONDS);
   const workStep: IntervalStep =
     options.workMeters !== undefined && options.workMeters > 0
-      ? distanceStep("work", options.workMeters, options.workUnit)
-      : { kind: "work", seconds: work };
+      ? distanceStep('work', options.workMeters, options.workUnit)
+      : { kind: 'work', seconds: work };
   const recovery = clamp(options.recoverySeconds, 0, MAX_STEP_SECONDS);
   const warmup = clamp(options.warmupSeconds, 0, MAX_STEP_SECONDS);
   const cooldown = clamp(options.cooldownSeconds, 0, MAX_STEP_SECONDS);
   const steps: IntervalStep[] = [];
-  if (warmup > 0) steps.push({ kind: "warmup", seconds: warmup });
+  if (warmup > 0) steps.push({ kind: 'warmup', seconds: warmup });
   for (let round = 1; round <= rounds; round++) {
     steps.push({ ...workStep });
     const last = round === rounds;
     if (recovery > 0 && !(last && cooldown > 0)) {
-      steps.push({ kind: "recovery", seconds: recovery });
+      steps.push({ kind: 'recovery', seconds: recovery });
     }
   }
-  if (cooldown > 0) steps.push({ kind: "cooldown", seconds: cooldown });
+  if (cooldown > 0) steps.push({ kind: 'cooldown', seconds: cooldown });
   return { style: options.style, steps };
 }
 
@@ -163,9 +163,9 @@ const MIN = 60;
 // Custom covers anything else.
 export const INTERVAL_PRESETS: readonly IntervalPreset[] = [
   {
-    id: "beginnerRunWalk",
+    id: 'beginnerRunWalk',
     options: {
-      style: "runWalk",
+      style: 'runWalk',
       warmupSeconds: 5 * MIN,
       workSeconds: 60,
       recoverySeconds: 90,
@@ -174,9 +174,9 @@ export const INTERVAL_PRESETS: readonly IntervalPreset[] = [
     },
   },
   {
-    id: "runWalk2",
+    id: 'runWalk2',
     options: {
-      style: "runWalk",
+      style: 'runWalk',
       warmupSeconds: 5 * MIN,
       workSeconds: 2 * MIN,
       recoverySeconds: 2 * MIN,
@@ -185,9 +185,9 @@ export const INTERVAL_PRESETS: readonly IntervalPreset[] = [
     },
   },
   {
-    id: "runWalk5",
+    id: 'runWalk5',
     options: {
-      style: "runWalk",
+      style: 'runWalk',
       warmupSeconds: 5 * MIN,
       workSeconds: 5 * MIN,
       recoverySeconds: 2 * MIN,
@@ -196,9 +196,9 @@ export const INTERVAL_PRESETS: readonly IntervalPreset[] = [
     },
   },
   {
-    id: "short400",
+    id: 'short400',
     options: {
-      style: "fastEasy",
+      style: 'fastEasy',
       warmupSeconds: 10 * MIN,
       workSeconds: 90,
       recoverySeconds: 90,
@@ -207,9 +207,9 @@ export const INTERVAL_PRESETS: readonly IntervalPreset[] = [
     },
   },
   {
-    id: "threeMinutes",
+    id: 'threeMinutes',
     options: {
-      style: "fastEasy",
+      style: 'fastEasy',
       warmupSeconds: 10 * MIN,
       workSeconds: 3 * MIN,
       recoverySeconds: 2 * MIN,
@@ -218,9 +218,9 @@ export const INTERVAL_PRESETS: readonly IntervalPreset[] = [
     },
   },
   {
-    id: "fourByFour",
+    id: 'fourByFour',
     options: {
-      style: "fastEasy",
+      style: 'fastEasy',
       warmupSeconds: 10 * MIN,
       workSeconds: 4 * MIN,
       recoverySeconds: 3 * MIN,
@@ -229,9 +229,9 @@ export const INTERVAL_PRESETS: readonly IntervalPreset[] = [
     },
   },
   {
-    id: "sixBy400m",
+    id: 'sixBy400m',
     options: {
-      style: "fastEasy",
+      style: 'fastEasy',
       warmupSeconds: 10 * MIN,
       workSeconds: 90,
       workMeters: 400,
@@ -241,9 +241,9 @@ export const INTERVAL_PRESETS: readonly IntervalPreset[] = [
     },
   },
   {
-    id: "fiveBy1k",
+    id: 'fiveBy1k',
     options: {
-      style: "fastEasy",
+      style: 'fastEasy',
       warmupSeconds: 10 * MIN,
       workSeconds: 5 * MIN,
       workMeters: 1000,
@@ -310,7 +310,7 @@ export function advanceIntervalCursor(
   plan: IntervalPlan,
   cursor: IntervalCursor | null | undefined,
   activeSeconds: number,
-  activeMeters: number,
+  activeMeters: number
 ): { cursor: IntervalCursor; started: IntervalCursor[] } {
   const at = Math.max(0, activeSeconds);
   const meters = Math.max(0, activeMeters);
@@ -348,17 +348,17 @@ export function advanceIntervalCursor(
 export function intervalPosition(
   plan: IntervalPlan,
   activeSeconds: number,
-  progress?: { cursor: IntervalCursor | null | undefined; meters: number },
+  progress?: { cursor: IntervalCursor | null | undefined; meters: number }
 ): IntervalPosition | null {
   if (plan.steps.length === 0) return null;
   const at = Math.max(0, activeSeconds);
   const meters = Math.max(0, progress?.meters ?? 0);
   const { cursor } = advanceIntervalCursor(plan, progress?.cursor, at, meters);
-  const rounds = plan.steps.filter((s) => s.kind === "work").length;
+  const rounds = plan.steps.filter((s) => s.kind === 'work').length;
   const roundAt = (index: number) =>
     Math.max(
       1,
-      plan.steps.slice(0, index + 1).filter((s) => s.kind === "work").length,
+      plan.steps.slice(0, index + 1).filter((s) => s.kind === 'work').length
     );
   const step = plan.steps[cursor.index];
   if (!step) {
@@ -416,16 +416,16 @@ export function stepStartSeconds(plan: IntervalPlan, index: number): number {
 
 /** Checks a plan read back from storage or built by hand. */
 export function isValidIntervalPlan(value: unknown): value is IntervalPlan {
-  if (!value || typeof value !== "object") return false;
+  if (!value || typeof value !== 'object') return false;
   const plan = value as IntervalPlan;
   return (
-    (plan.style === "runWalk" || plan.style === "fastEasy") &&
+    (plan.style === 'runWalk' || plan.style === 'fastEasy') &&
     Array.isArray(plan.steps) &&
     plan.steps.length > 0 &&
     plan.steps.length <= 200 &&
     plan.steps.every(
       (step) =>
-        ["warmup", "work", "recovery", "cooldown"].includes(step.kind) &&
+        ['warmup', 'work', 'recovery', 'cooldown'].includes(step.kind) &&
         Number.isFinite(step.seconds) &&
         step.seconds > 0 &&
         step.seconds <= MAX_PROGRAM_STEP_SECONDS &&
@@ -433,18 +433,18 @@ export function isValidIntervalPlan(value: unknown): value is IntervalPlan {
           (Number.isFinite(step.meters) &&
             step.meters >= MIN_STEP_METERS &&
             step.meters <= MAX_STEP_METERS)) &&
-        (step.unit === undefined || step.unit === "m" || step.unit === "mi") &&
+        (step.unit === undefined || step.unit === 'm' || step.unit === 'mi') &&
         (step.effort === undefined || STEP_EFFORTS.includes(step.effort)) &&
         (step.pace === undefined || normalizePaceBand(step.pace) !== null) &&
         (step.heartRate === undefined ||
-          normalizeHeartRateBand(step.heartRate) !== null),
+          normalizeHeartRateBand(step.heartRate) !== null)
     )
   );
 }
 
 /** Whether the last step has begun, i.e. the person got through the plan. */
 export const lastStepStarted = (
-  intervals: { plan: IntervalPlan; cued: number } | undefined,
+  intervals: { plan: IntervalPlan; cued: number } | undefined
 ): boolean => !!intervals && intervals.cued >= intervals.plan.steps.length - 1;
 
 /**
@@ -466,7 +466,7 @@ export function applyPaceTargets(
     easy?: PaceBand | null;
     warm?: PaceBand | null;
     byEffort?: Partial<Record<StepEffort, PaceBand | null>>;
-  },
+  }
 ): IntervalPlan {
   const work = normalizePaceBand(targets.work);
   const easy = normalizePaceBand(targets.easy);
@@ -483,13 +483,13 @@ export function applyPaceTargets(
     ...plan,
     steps: plan.steps.map((step) => {
       let pace: PaceBand | null;
-      if (step.kind !== "work" && step.kind !== "recovery") {
+      if (step.kind !== 'work' && step.kind !== 'recovery') {
         pace = warm;
       } else {
-        const byKind = step.kind === "work" ? work : easy;
+        const byKind = step.kind === 'work' ? work : easy;
         if (step.effort && byEffort[step.effort]) {
           pace = byEffort[step.effort] ?? null;
-        } else if (step.effort && step.effort !== "easy") {
+        } else if (step.effort && step.effort !== 'easy') {
           pace = null;
         } else {
           pace = byKind;
@@ -513,7 +513,7 @@ export function applyHeartRateTargets(
     easy?: HeartRateBand | null;
     warm?: HeartRateBand | null;
     zone2?: HeartRateBand | null;
-  },
+  }
 ): IntervalPlan {
   const work = normalizeHeartRateBand(targets.work);
   const easy = normalizeHeartRateBand(targets.easy);
@@ -524,18 +524,18 @@ export function applyHeartRateTargets(
     ...plan,
     steps: plan.steps.map((step) => {
       let heartRate: HeartRateBand | null;
-      if (step.kind !== "work" && step.kind !== "recovery") {
+      if (step.kind !== 'work' && step.kind !== 'recovery') {
         heartRate = warm;
-      } else if (step.effort === "zone2") {
+      } else if (step.effort === 'zone2') {
         heartRate = zone2;
-      } else if (step.effort === "stride" || step.effort === "hill") {
+      } else if (step.effort === 'stride' || step.effort === 'hill') {
         // Heart rate lags a short effort, so strides and hill repeats get none.
         heartRate = null;
-      } else if (step.effort === "tempo" || step.effort === "marathon") {
+      } else if (step.effort === 'tempo' || step.effort === 'marathon') {
         // A tempo or marathon-pace effort is held to the hard range.
         heartRate = work;
       } else {
-        heartRate = step.kind === "work" ? work : easy;
+        heartRate = step.kind === 'work' ? work : easy;
       }
       return heartRate ? { ...step, heartRate } : step;
     }),

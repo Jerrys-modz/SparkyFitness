@@ -1,5 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  DEFAULT_CHECKIN_REMINDER_TIME,
+  normalizeCheckinReminderTimes,
+} from '../utils/checkinReminderTimes';
+import {
   DEFAULT_GUIDED_COUNTDOWN_SEC,
   DEFAULT_GUIDED_SPEECH_RATE,
   clampGuidedCountdownSec,
@@ -70,6 +74,11 @@ export const WATER_REMINDER_INTERVAL_OPTIONS = [1, 2, 3, 4] as const;
 export type WaterReminderIntervalHours =
   (typeof WATER_REMINDER_INTERVAL_OPTIONS)[number];
 
+/** Minutes before a snoozed ("Remind in") medication reminder fires again. */
+export const MEDICATION_REMINDER_SNOOZE_OPTIONS = [10, 15, 30, 60] as const;
+export type MedicationReminderSnoozeMinutes =
+  (typeof MEDICATION_REMINDER_SNOOZE_OPTIONS)[number];
+
 /** Factory default rest period between sets, in seconds. */
 export const DEFAULT_REST_SEC = 90;
 
@@ -100,10 +109,13 @@ export const PREFERENCE_DEFAULTS = {
   medicationReminderRepeats: true,
   medicationReminderHideNames: false,
   medicationReminderConsolidate: true,
+  medicationReminderSnoozeMinutes: 30 as MedicationReminderSnoozeMinutes,
   waterReminderEnabled: false,
   waterReminderIntervalHours: 2 as WaterReminderIntervalHours,
   waterReminderWindowStart: '08:00' as string,
   waterReminderWindowEnd: '22:00' as string,
+  checkinRemindersEnabled: false,
+  checkinReminderTimes: [DEFAULT_CHECKIN_REMINDER_TIME] as string[],
   liquidGlassTabBarEnabled: false,
   activeWorkoutMetricColumn: 'rpe' as ActiveWorkoutMetricColumn,
   diarySummaryVisible: false,
@@ -175,10 +187,13 @@ export type AppPreferencesData = {
   medicationReminderRepeats: boolean;
   medicationReminderHideNames: boolean;
   medicationReminderConsolidate: boolean;
+  medicationReminderSnoozeMinutes: MedicationReminderSnoozeMinutes;
   waterReminderEnabled: boolean;
   waterReminderIntervalHours: WaterReminderIntervalHours;
   waterReminderWindowStart: string;
   waterReminderWindowEnd: string;
+  checkinRemindersEnabled: boolean;
+  checkinReminderTimes: string[];
   liquidGlassTabBarEnabled: boolean;
   activeWorkoutMetricColumn: ActiveWorkoutMetricColumn;
   diarySummaryVisible: boolean;
@@ -286,9 +301,14 @@ export interface AppPreferencesState extends AppPreferencesData {
   setMedicationReminderRepeats: (value: boolean) => void;
   setMedicationReminderHideNames: (value: boolean) => void;
   setMedicationReminderConsolidate: (value: boolean) => void;
+  setMedicationReminderSnoozeMinutes: (
+    value: MedicationReminderSnoozeMinutes
+  ) => void;
   setWaterReminderEnabled: (value: boolean) => void;
   setWaterReminderIntervalHours: (value: WaterReminderIntervalHours) => void;
   setWaterReminderWindow: (start: string, end: string) => void;
+  setCheckinRemindersEnabled: (enabled: boolean) => void;
+  setCheckinReminderTimes: (times: string[]) => void;
   setLiquidGlassTabBarEnabled: (value: boolean) => void;
   setActiveWorkoutMetricColumn: (value: ActiveWorkoutMetricColumn) => void;
   setDiarySummaryVisible: (value: boolean) => void;
@@ -427,11 +447,17 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ medicationReminderHideNames: value }),
       setMedicationReminderConsolidate: (value) =>
         set({ medicationReminderConsolidate: value }),
+      setMedicationReminderSnoozeMinutes: (value) =>
+        set({ medicationReminderSnoozeMinutes: value }),
       setWaterReminderEnabled: (value) => set({ waterReminderEnabled: value }),
       setWaterReminderIntervalHours: (value) =>
         set({ waterReminderIntervalHours: value }),
       setWaterReminderWindow: (start, end) =>
         set({ waterReminderWindowStart: start, waterReminderWindowEnd: end }),
+      setCheckinRemindersEnabled: (enabled) =>
+        set({ checkinRemindersEnabled: enabled }),
+      setCheckinReminderTimes: (times) =>
+        set({ checkinReminderTimes: normalizeCheckinReminderTimes(times) }),
       setLiquidGlassTabBarEnabled: (value) =>
         set({ liquidGlassTabBarEnabled: value }),
       setActiveWorkoutMetricColumn: (value) =>
@@ -579,10 +605,13 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         medicationReminderRepeats: state.medicationReminderRepeats,
         medicationReminderHideNames: state.medicationReminderHideNames,
         medicationReminderConsolidate: state.medicationReminderConsolidate,
+        medicationReminderSnoozeMinutes: state.medicationReminderSnoozeMinutes,
         waterReminderEnabled: state.waterReminderEnabled,
         waterReminderIntervalHours: state.waterReminderIntervalHours,
         waterReminderWindowStart: state.waterReminderWindowStart,
         waterReminderWindowEnd: state.waterReminderWindowEnd,
+        checkinRemindersEnabled: state.checkinRemindersEnabled,
+        checkinReminderTimes: state.checkinReminderTimes,
         liquidGlassTabBarEnabled: state.liquidGlassTabBarEnabled,
         // Older persisted blobs without these keys backfill via the default
         // shallow merge — no version bump needed.

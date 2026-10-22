@@ -15,13 +15,13 @@ export const HR_ZONE_COUNT = 5;
 
 /** How the five zone floors are worked out. */
 export const HR_ZONE_METHODS = [
-  "percent_max",
-  "heart_rate_reserve",
-  "custom",
+  'percent_max',
+  'heart_rate_reserve',
+  'custom',
 ] as const;
 export type HrZoneMethod = (typeof HR_ZONE_METHODS)[number];
 
-export const DEFAULT_HR_ZONE_METHOD: HrZoneMethod = "percent_max";
+export const DEFAULT_HR_ZONE_METHOD: HrZoneMethod = 'percent_max';
 
 /** Zone floors as a fraction of max HR (percent of max) or of reserve (Karvonen). */
 export const HR_ZONE_FRACTIONS = [0.5, 0.6, 0.7, 0.8, 0.9] as const;
@@ -54,7 +54,7 @@ export const DEFAULT_HEART_RATE_ZONE_SETTINGS: HeartRateZoneSettings = {
 };
 
 /** Where the maximum heart rate in use came from. */
-export type MaxHrSource = "user" | "age" | "observed" | "fallback";
+export type MaxHrSource = 'user' | 'age' | 'observed' | 'fallback';
 
 export interface HeartRateZone {
   /** 1 (easiest) to 5 (hardest). */
@@ -93,7 +93,7 @@ export function estimateMaxHrFromAge(age: number): number {
  */
 export function ageFromDateOfBirth(
   dateOfBirth: string | Date | null | undefined,
-  today: string,
+  today: string
 ): number | null {
   if (!dateOfBirth) return null;
   const dob = dateOfBirth instanceof Date ? dateOfBirth : new Date(dateOfBirth);
@@ -114,7 +114,7 @@ export function ageFromDateOfBirth(
 
 /** Null when the five floors are fine, otherwise why not. */
 export function customFloorsProblem(
-  floors: readonly number[] | null | undefined,
+  floors: readonly number[] | null | undefined
 ): string | null {
   if (!floors || floors.length !== HR_ZONE_COUNT) {
     return `Custom zones need ${HR_ZONE_COUNT} floors.`;
@@ -129,7 +129,7 @@ export function customFloorsProblem(
       return `Zone floors must be whole numbers from ${MIN_CUSTOM_FLOOR_BPM} to ${MAX_CUSTOM_FLOOR_BPM} bpm.`;
     }
     if (previous !== null && floor <= previous) {
-      return "Each zone must start above the one before it.";
+      return 'Each zone must start above the one before it.';
     }
     previous = floor;
   }
@@ -147,7 +147,7 @@ interface MaxHrInput {
 
 function isValidMaxHr(value: number | null | undefined): value is number {
   return (
-    typeof value === "number" &&
+    typeof value === 'number' &&
     Number.isFinite(value) &&
     value >= MIN_MAX_HR &&
     value <= MAX_MAX_HR
@@ -156,7 +156,7 @@ function isValidMaxHr(value: number | null | undefined): value is number {
 
 function isValidRestingHr(value: number | null | undefined): value is number {
   return (
-    typeof value === "number" &&
+    typeof value === 'number' &&
     Number.isFinite(value) &&
     value >= MIN_RESTING_HR &&
     value <= MAX_RESTING_HR
@@ -173,21 +173,21 @@ export function resolveMaxHr(input: MaxHrInput): {
   source: MaxHrSource;
 } {
   if (isValidMaxHr(input.maxHeartRate)) {
-    return { maxHr: Math.round(input.maxHeartRate), source: "user" };
+    return { maxHr: Math.round(input.maxHeartRate), source: 'user' };
   }
   const age = ageFromDateOfBirth(input.dateOfBirth, input.today);
   if (age !== null) {
-    return { maxHr: estimateMaxHrFromAge(age), source: "age" };
+    return { maxHr: estimateMaxHrFromAge(age), source: 'age' };
   }
   const observed =
-    typeof input.observedMaxBpm === "number" &&
+    typeof input.observedMaxBpm === 'number' &&
     Number.isFinite(input.observedMaxBpm)
       ? input.observedMaxBpm
       : 0;
   if (observed > FALLBACK_MAX_HR) {
-    return { maxHr: observed, source: "observed" };
+    return { maxHr: observed, source: 'observed' };
   }
-  return { maxHr: FALLBACK_MAX_HR, source: "fallback" };
+  return { maxHr: FALLBACK_MAX_HR, source: 'fallback' };
 }
 
 /** Zone floors for percent-of-max-HR zones. */
@@ -198,10 +198,10 @@ export function percentMaxFloors(maxHr: number): number[] {
 /** Zone floors for heart-rate-reserve (Karvonen) zones: rest + fraction x (max - rest). */
 export function heartRateReserveFloors(
   maxHr: number,
-  restingHr: number,
+  restingHr: number
 ): number[] {
   return HR_ZONE_FRACTIONS.map((fraction) =>
-    Math.round(restingHr + (maxHr - restingHr) * fraction),
+    Math.round(restingHr + (maxHr - restingHr) * fraction)
   );
 }
 
@@ -230,7 +230,7 @@ export interface ResolveHeartRateZonesInput {
  * fall back to percent of max, and `effectiveMethod` says so.
  */
 export function resolveHeartRateZones(
-  input: ResolveHeartRateZonesInput,
+  input: ResolveHeartRateZonesInput
 ): ResolvedHeartRateZones {
   const settings = { ...DEFAULT_HEART_RATE_ZONE_SETTINGS, ...input.settings };
   const { maxHr, source } = resolveMaxHr({
@@ -243,16 +243,16 @@ export function resolveHeartRateZones(
     ? Math.round(settings.restingHeartRate)
     : null;
 
-  let effectiveMethod: HrZoneMethod = "percent_max";
+  let effectiveMethod: HrZoneMethod = 'percent_max';
   let floors = percentMaxFloors(maxHr);
-  if (settings.method === "heart_rate_reserve") {
+  if (settings.method === 'heart_rate_reserve') {
     if (restingHr !== null && restingHr < maxHr) {
-      effectiveMethod = "heart_rate_reserve";
+      effectiveMethod = 'heart_rate_reserve';
       floors = heartRateReserveFloors(maxHr, restingHr);
     }
-  } else if (settings.method === "custom") {
+  } else if (settings.method === 'custom') {
     if (customFloorsProblem(settings.customFloors) === null) {
-      effectiveMethod = "custom";
+      effectiveMethod = 'custom';
       floors = [...(settings.customFloors as number[])];
     }
   }
@@ -273,8 +273,8 @@ export function resolveHeartRateZones(
  * zone's upper end is their max heart rate. Null for a zone outside 1-5.
  */
 export function heartRateZoneRange(
-  resolved: Pick<ResolvedHeartRateZones, "zones" | "maxHr">,
-  zone: number,
+  resolved: Pick<ResolvedHeartRateZones, 'zones' | 'maxHr'>,
+  zone: number
 ): { lowerBpm: number; upperBpm: number } | null {
   const found = resolved.zones[zone - 1];
   if (!Number.isInteger(zone) || !found) return null;
@@ -287,7 +287,7 @@ export function heartRateZoneRange(
 /** Zone 1-5 for a reading, or 0 when it is below zone 1. */
 export function heartRateZoneFor(
   bpm: number,
-  floors: readonly number[],
+  floors: readonly number[]
 ): number {
   let index = 0;
   floors.forEach((floor, i) => {
@@ -336,7 +336,7 @@ const MAX_GAP_SECONDS = 60;
  */
 export function computeTimeInZones(
   samples: readonly HrSample[],
-  floors: readonly number[],
+  floors: readonly number[]
 ): HrZoneBucket[] {
   if (!Array.isArray(samples) || samples.length < 2) return [];
   if (
@@ -347,7 +347,7 @@ export function computeTimeInZones(
   }
 
   const ordered = samples
-    .filter((s) => Number.isFinite(s?.bpm) && typeof s?.t === "string")
+    .filter((s) => Number.isFinite(s?.bpm) && typeof s?.t === 'string')
     .map((s) => ({ ms: Date.parse(s.t), bpm: s.bpm }))
     .filter((s) => Number.isFinite(s.ms))
     .sort((a, b) => a.ms - b.ms);
@@ -390,6 +390,171 @@ export function computeTimeInZones(
 export function observedMaxBpm(samples: readonly HrSample[]): number {
   return samples.reduce(
     (max, s) => (Number.isFinite(s?.bpm) && s.bpm > max ? s.bpm : max),
-    0,
+    0
   );
+}
+
+/**
+ * One zone from Apple's preferred heart-rate configuration
+ * (`HKHealthStore.preferredWorkoutZoneConfiguration`). `minimumBpm` is null
+ * when HealthKit leaves that end open: the first zone usually has no lower
+ * bound, and the last zone has no upper bound.
+ */
+export interface AppleHeartRateZoneBound {
+  /** HealthKit's zone index. Used only to order the zones. */
+  index?: number;
+  minimumBpm: number | null;
+  maximumBpm?: number | null;
+}
+
+/**
+ * Five custom-zone floors from Apple's preferred heart-rate zones.
+ *
+ * Null unless Apple returned exactly five zones that become five ascending
+ * bpm floors. Apple's first zone usually has no lower bound (everything below
+ * the first boundary counts as zone 1); Sparky needs a real floor, so that
+ * zone starts at {@link MIN_CUSTOM_FLOOR_BPM}. Later zones use their minimum,
+ * rounded to a whole bpm. This does not invent a max heart rate: Apple does
+ * not share one.
+ */
+export function floorsFromAppleHeartRateZones(
+  zones: readonly AppleHeartRateZoneBound[] | null | undefined
+): number[] | null {
+  if (!zones || zones.length !== HR_ZONE_COUNT) return null;
+  const indexed = zones.every((zone) => Number.isInteger(zone.index));
+  const ordered = indexed
+    ? [...zones].sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
+    : [...zones];
+
+  const floors: number[] = [];
+  for (let i = 0; i < ordered.length; i += 1) {
+    const zone = ordered[i];
+    if (!zone) return null;
+    const minimum = zone.minimumBpm;
+    let floor: number;
+    if (typeof minimum !== 'number' || !Number.isFinite(minimum)) {
+      if (i !== 0) return null;
+      floor = MIN_CUSTOM_FLOOR_BPM;
+    } else {
+      floor = Math.round(minimum);
+      if (i === 0 && floor < MIN_CUSTOM_FLOOR_BPM) floor = MIN_CUSTOM_FLOOR_BPM;
+    }
+    floors.push(floor);
+  }
+  return customFloorsProblem(floors) === null ? floors : null;
+}
+
+/** A week in one zone: past this the payload is not a real workout (and would overflow the integer column). */
+const MAX_APPLE_ZONE_SECONDS = 7 * 24 * 60 * 60;
+
+/**
+ * One zone from a finished HealthKit workout's heart-rate zone group
+ * (`HKWorkout.zoneGroupsByType`). `seconds` is the time Apple already summed.
+ * A missing bound was left open: the first zone usually has no lower bound,
+ * and the last zone has no upper bound.
+ */
+export interface AppleWorkoutZoneDuration {
+  /** HealthKit's zone index. Used only to order the zones. */
+  index?: number;
+  minimumBpm: number | null;
+  maximumBpm?: number | null;
+  seconds: number;
+}
+
+/**
+ * Apple's time-in-zone for one workout, as rows for `exercise_entry_hr_zones`.
+ *
+ * Null unless there are exactly five zones that become five ascending floors.
+ * Unlike {@link computeTimeInZones}, time below the first boundary is kept:
+ * Apple counts it as zone 1. That zone is stored from
+ * {@link MIN_CUSTOM_FLOOR_BPM} when Apple left it open. The top zone has no
+ * upper bound. Seconds are rounded, and a zone with no time is omitted.
+ * This does not invent a max heart rate.
+ *
+ * An empty array means Apple returned five zones and none of them had time.
+ */
+export function bucketsFromAppleWorkoutZones(
+  zones: readonly AppleWorkoutZoneDuration[] | null | undefined
+): HrZoneBucket[] | null {
+  if (!zones || zones.length !== HR_ZONE_COUNT) return null;
+  const indexed = zones.every((zone) => Number.isInteger(zone.index));
+  const ordered = indexed
+    ? [...zones].sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
+    : [...zones];
+
+  const floors: Array<{ lower: number; seconds: number }> = [];
+  for (let i = 0; i < ordered.length; i += 1) {
+    const zone = ordered[i];
+    if (!zone) return null;
+    if (
+      !Number.isFinite(zone.seconds) ||
+      zone.seconds < 0 ||
+      zone.seconds > MAX_APPLE_ZONE_SECONDS
+    ) {
+      return null;
+    }
+    const minimum = zone.minimumBpm;
+    let floor: number;
+    if (typeof minimum !== 'number' || !Number.isFinite(minimum)) {
+      if (i !== 0) return null;
+      floor = MIN_CUSTOM_FLOOR_BPM;
+    } else {
+      floor = Math.round(minimum);
+      if (i === 0 && floor < MIN_CUSTOM_FLOOR_BPM) floor = MIN_CUSTOM_FLOOR_BPM;
+    }
+    const previous = floors[i - 1];
+    if (previous && floor <= previous.lower) return null;
+    floors.push({ lower: floor, seconds: zone.seconds });
+  }
+
+  const buckets: HrZoneBucket[] = [];
+  floors.forEach((zone, i) => {
+    const seconds = Math.round(zone.seconds);
+    if (seconds <= 0) return;
+    const next = floors[i + 1];
+    buckets.push({
+      zone_index: i + 1,
+      zone_lower_bpm: zone.lower,
+      zone_upper_bpm: next === undefined ? null : next.lower - 1,
+      seconds_in_zone: seconds,
+    });
+  });
+  return buckets;
+}
+
+/**
+ * The five zones from a watch or HealthKit payload, or null when they are
+ * not a usable heart-rate zone group. {@link bucketsFromAppleWorkoutZones}
+ * decides whether the bounds can be stored.
+ */
+export function appleWorkoutZonesFromWire(
+  value: unknown
+): AppleWorkoutZoneDuration[] | null {
+  if (!Array.isArray(value) || value.length !== HR_ZONE_COUNT) return null;
+  const zones: AppleWorkoutZoneDuration[] = [];
+  for (const row of value) {
+    if (!row || typeof row !== 'object') return null;
+    const zone = row as {
+      index?: unknown;
+      minimumBpm?: unknown;
+      maximumBpm?: unknown;
+      seconds?: unknown;
+    };
+    if (typeof zone.seconds !== 'number' || !Number.isFinite(zone.seconds)) {
+      return null;
+    }
+    zones.push({
+      index: typeof zone.index === 'number' ? zone.index : undefined,
+      minimumBpm:
+        typeof zone.minimumBpm === 'number' && Number.isFinite(zone.minimumBpm)
+          ? zone.minimumBpm
+          : null,
+      maximumBpm:
+        typeof zone.maximumBpm === 'number' && Number.isFinite(zone.maximumBpm)
+          ? zone.maximumBpm
+          : null,
+      seconds: zone.seconds,
+    });
+  }
+  return bucketsFromAppleWorkoutZones(zones) === null ? null : zones;
 }

@@ -3,6 +3,11 @@ import chatRepository from '../models/chatRepository.js';
 import { estimateFoodPhotoNutrition } from '../services/foodPhotoEstimationService.js';
 
 vi.mock('../models/chatRepository');
+// Read by utils/outboundUrlPolicy's resolveAiNetworkPolicy. Default false
+// keeps these cases off the real database.
+vi.mock('../models/globalSettingsRepository.js', () => ({
+  isPrivateNetworkAiAllowed: vi.fn().mockResolvedValue(false),
+}));
 vi.mock('../config/logging', () => ({ log: vi.fn() }));
 // Matching is a separate service with its own tests and its own DB access;
 // this file covers prompt building and provider dispatch.

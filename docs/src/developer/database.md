@@ -1,6 +1,6 @@
 # Database Schema & Migrations
 
-*Last updated: 2026-09-01*
+*Last updated: 2026-10-20*
 
 This document covers the database structure, schema design, and migration process for SparkyFitness.
 
@@ -131,7 +131,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 |-------|---------|
 | `fasting_logs` | Fasting timeline logs (start/end fast) |
 | `user_fasting_preferences` | Intermittent fasting targets, auto-calculation config, and alert timing |
-| `mood_entries` | Logged mood and energy levels |
+| `mood_entries` | Logged mood check-ins, several per day: optional mood, energy and focus ratings, tags and journal notes, with a timestamp and a `source` (`manual`, `garmin` or `import`) |
 | `mindfulness_sessions` | Logged mindfulness, meditation, and breathwork sessions |
 | `user_custom_moods` | User-defined mood tags (icon/color) |
 | `medications` | Custom medication inventory lists |
@@ -157,6 +157,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `pregnancies` | Pregnancy records (due date, status) |
 | `run_programs` | A person's run program, their place in it, its Diary schedule, goal date, adjustments to it and which diary entries its workouts were done as |
 | `custom_run_programs` | A person's own run or walk plans: a name, the activity and an ordered list of workouts, each a list of timed steps. Starting one copies it into `run_programs` |
+| `routes` | A person's saved routes: name, activity, source (drawn, GPX, activity), distance, elevation gain, a simplified track of points and optional turn cues |
 | `pregnancy_kick_sessions` | Fetal kick-counter sessions |
 | `pregnancy_contractions` | Contraction timer logs |
 | `pregnancy_photos` | Bump photo journal |
@@ -185,6 +186,9 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | Table | Purpose |
 |-------|---------|
 | `sparky_chat_history` | AI Assistant chat messages and history |
+| `food_assistant_preferences` | Explicit lasting food preferences, independently editable and forgettable |
+| `food_assistant_tasks` | Versioned food tasks, recoverable recipe ingredients and source evidence |
+| `food_assistant_operations` | Idempotent task operations and before/after checkpoints |
 | `ai_service_settings` | User-defined custom assistant configurations |
 
 ### Admin & System (Tier 1: Admin-Only or Public)

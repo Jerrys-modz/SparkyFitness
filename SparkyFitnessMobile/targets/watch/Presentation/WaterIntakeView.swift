@@ -116,7 +116,7 @@ struct WaterIntakeView: View {
                     // on, nothing logged" state, and the phone's own card hides
                     // that line.
                     if let fromFood = water?.fromFoodMl, fromFood > 0 {
-                        Text("Includes \(store.context.formattedWater(ml: fromFood)) from food")
+                        Text(String(localized: "watch.water.includesFood", defaultValue: "Includes \(store.context.formattedWater(ml: fromFood)) from food"))
                             .font(.system(size: 10, weight: .regular, design: .rounded))
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
@@ -189,7 +189,7 @@ struct WaterIntakeView: View {
                 Image(systemName: "list.bullet")
                     .font(.system(size: 15))
                     .foregroundStyle(.secondary)
-                Text("Log")
+                Text(String(localized: "watch.water.log", defaultValue: "Log"))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -198,7 +198,7 @@ struct WaterIntakeView: View {
             .background(Color.secondary.opacity(0.16), in: RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Today's logged drinks")
+        .accessibilityLabel(String(localized: "watch.water.loggedDrinks", defaultValue: "Today's logged drinks"))
     }
 
     private func containerSquare(_ container: WaterContainer, side: CGFloat) -> some View {
@@ -223,7 +223,7 @@ struct WaterIntakeView: View {
             .background(GoalPalette.water.opacity(0.16), in: RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Log \(container.name), \(container.displayVolume)")
+        .accessibilityLabel(String(localized: "watch.water.logContainer", defaultValue: "Log \(container.name), \(container.displayVolume)"))
     }
 
     private func tap(_ container: WaterContainer) {

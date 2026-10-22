@@ -162,6 +162,7 @@ export default defineConfig({
             { text: 'Interval & WOD Workouts', link: '/features/exercises/interval-wod-workouts' },
             { text: 'Guided Workouts', link: '/features/exercises/guided-workouts' },
             { text: 'GPS Activity Recording', link: '/features/exercises/gps-activity-recording' },
+            { text: 'Training Programs', link: '/features/exercises/training-programs' },
             { text: 'Running Trends', link: '/features/exercises/running-trends' },
             { text: 'Zone 2 Base Program', link: '/features/exercises/zone-2-program' },
             { text: 'Zone 2 Research Notes', link: '/features/exercises/zone-2-research' },

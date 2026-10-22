@@ -380,6 +380,9 @@ export interface CreateExerciseEntryPayload {
   entry_time?: string;
   distance?: number | null;
   avg_heart_rate?: number | null;
+  /** Steps per minute. */
+  avg_cadence?: number | null;
+  stride_length_cm?: number | null;
   notes?: string | null;
   sets?: {
     id?: number;
@@ -495,6 +498,16 @@ export const attachExerciseEntryWatchTelemetry = async (
     activeEnergyKcal?: number;
     /** Minutes the watch spent on this exercise. Replaces a zero duration. */
     durationMinutes?: number;
+    /**
+     * Apple's time-in-zone for the whole workout. Stored instead of
+     * bucketing the series. Sent on one exercise of the session.
+     */
+    appleZones?: Array<{
+      index?: number;
+      minimumBpm?: number | null;
+      maximumBpm?: number | null;
+      seconds: number;
+    }>;
   }
 ): Promise<void> => {
   return apiFetch<void>({
