@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   computeFitnessFatigue,
   computeReadiness,
+  percentMaxFloors,
   type LoadSession,
 } from '@workspace/shared';
 
@@ -29,34 +30,55 @@ describe('computeFitnessFatigue', () => {
   });
 
   it('covers every day up to today, oldest first', () => {
-    const { points } = computeFitnessFatigue([run(-3, 30)], TODAY, 190, 30);
+    const { points } = computeFitnessFatigue(
+      [run(-3, 30)],
+      TODAY,
+      percentMaxFloors(190),
+      30
+    );
     expect(points).toHaveLength(30);
     expect(points[0]?.day).toBe(day(-29));
     expect(points[29]?.day).toBe(TODAY);
   });
 
   it('is still learning in the first three weeks', () => {
-    const result = computeFitnessFatigue(steady(-10, 0), TODAY, 190);
+    const result = computeFitnessFatigue(
+      steady(-10, 0),
+      TODAY,
+      percentMaxFloors(190)
+    );
     expect(result.status).toBe('learning');
   });
 
   it('is tired after a hard block on top of an easy base', () => {
     const base = steady(-80, -8);
     const block = [-6, -5, -4, -3, -2, -1, 0].map((d) => run(d, 90, 175));
-    const result = computeFitnessFatigue([...base, ...block], TODAY, 190);
+    const result = computeFitnessFatigue(
+      [...base, ...block],
+      TODAY,
+      percentMaxFloors(190)
+    );
     expect(result.status).toBe('tired');
     expect(result.today!.form).toBeLessThan(0);
     expect(result.today!.fatigue).toBeGreaterThan(result.today!.fitness);
   });
 
   it('is fresh after a week of rest following a steady block', () => {
-    const result = computeFitnessFatigue(steady(-80, -8), TODAY, 190);
+    const result = computeFitnessFatigue(
+      steady(-80, -8),
+      TODAY,
+      percentMaxFloors(190)
+    );
     expect(result.status).toBe('fresh');
     expect(result.today!.form).toBeGreaterThan(0);
   });
 
   it('lets fatigue fall faster than fitness once training stops', () => {
-    const { points } = computeFitnessFatigue(steady(-80, -8), TODAY, 190);
+    const { points } = computeFitnessFatigue(
+      steady(-80, -8),
+      TODAY,
+      percentMaxFloors(190)
+    );
     const stop = points.find((p) => p.day === day(-8))!;
     const now = points[points.length - 1]!;
     expect(now.fatigue / stop.fatigue).toBeLessThan(now.fitness / stop.fitness);
@@ -69,8 +91,16 @@ describe('computeFitnessFatigue', () => {
 });
 
 describe('computeReadiness', () => {
-  const fresh = computeFitnessFatigue(steady(-80, -8), TODAY, 190);
-  const learning = computeFitnessFatigue(steady(-10, 0), TODAY, 190);
+  const fresh = computeFitnessFatigue(
+    steady(-80, -8),
+    TODAY,
+    percentMaxFloors(190)
+  );
+  const learning = computeFitnessFatigue(
+    steady(-10, 0),
+    TODAY,
+    percentMaxFloors(190)
+  );
 
   it('has no score without any data', () => {
     const result = computeReadiness({ fitnessFatigue: learning });

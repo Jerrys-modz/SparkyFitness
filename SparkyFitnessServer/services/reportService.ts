@@ -982,15 +982,13 @@ export { getExerciseDashboardData };
  * The person's estimated maximum heart rate, from the age on their profile
  * (a default without one), for weighting load by heart rate.
  */
-async function loadMaxHeartRate(
-  targetUserId: string,
-  timezone: string
-): Promise<number> {
-  const profile = await userRepository.getUserProfile(targetUserId);
-  const age = profile?.date_of_birth
-    ? userAge(profile.date_of_birth, timezone)
-    : null;
-  return estimateMaxHeartRate(age);
+async function loadMaxHeartRate(targetUserId: string): Promise<number> {
+  return (await heartRateZoneService.resolveZonesForUser(targetUserId)).maxHr;
+}
+
+/** The five zone floors the load maths weighs a session's heart rate against. */
+async function loadZoneFloors(targetUserId: string): Promise<number[]> {
+  return (await heartRateZoneService.resolveZonesForUser(targetUserId)).floors;
 }
 
 /**
@@ -1041,13 +1039,13 @@ async function getFitnessFatigue(
     const timezone = await loadUserTimezone(targetUserId);
     const today = todayInZone(timezone);
     const yesterday = addDays(today, -1);
-    const [sessions, maxHeartRate, vitals, sleepNeed] = await Promise.all([
+    const [sessions, zoneFloors, vitals, sleepNeed] = await Promise.all([
       reportRepository.getTrainingLoadSessions(
         targetUserId,
         addDays(today, -(CURVE_DAYS - 1)),
         today
       ),
-      loadMaxHeartRate(targetUserId, timezone),
+      loadZoneFloors(targetUserId),
       reportRepository.getReadinessVitals(
         targetUserId,
         today,
@@ -1056,7 +1054,7 @@ async function getFitnessFatigue(
       ),
       sleepScienceRepository.getDailyNeed(targetUserId, today),
     ]);
-    const fitnessFatigue = computeFitnessFatigue(sessions, today, maxHeartRate);
+    const fitnessFatigue = computeFitnessFatigue(sessions, today, zoneFloors);
     const readiness = computeReadiness({
       fitnessFatigue,
       ...vitals,
@@ -1079,7 +1077,7 @@ async function getFitnessFatigue(
  * VO2 max and average running power estimated from recent runs: the runs are
  * the cardio entries sport detection calls running, the resting heart rate is
  * the person's recent average from sleep (60 without one), the maximum comes
- * from the profile's age and the weight is the latest check-in on or before
+ * from the person's heart rate zones and the weight is the latest check-in on or before
  * today. Both figures are estimates from a model, not measurements.
  */
 async function getRunningEstimates(
@@ -1090,13 +1088,13 @@ async function getRunningEstimates(
     const timezone = await loadUserTimezone(targetUserId);
     const today = todayInZone(timezone);
     const yesterday = addDays(today, -1);
-    const [candidates, profile, vitals, weights] = await Promise.all([
+    const [candidates, maxHeartRate, vitals, weights] = await Promise.all([
       reportRepository.getRunCandidates(
         targetUserId,
         addDays(today, -(VO2_WINDOW_DAYS - 1)),
         today
       ),
-      userRepository.getUserProfile(targetUserId),
+      loadMaxHeartRate(targetUserId),
       reportRepository.getReadinessVitals(
         targetUserId,
         today,
@@ -1120,12 +1118,9 @@ async function getRunningEstimates(
           exerciseSourceId: candidate.exerciseSourceId,
         }).sport === 'running'
     );
-    const age = profile?.date_of_birth
-      ? userAge(profile.date_of_birth, timezone)
-      : null;
     return computeRunningEstimates(runs, today, {
       restingHeartRate: vitals.restingHeartRateBaseline,
-      maxHeartRate: estimateMaxHeartRate(age),
+      maxHeartRate,
       bodyWeightKg: bodyWeightOnDay(weights, today),
     });
   } catch (error) {
@@ -1140,7 +1135,7 @@ async function getRunningEstimates(
 
 export { getTrainingConsistency };
 export { getTrainingLoad };
-export { loadMaxHeartRate };
+export { loadMaxHeartRate, loadZoneFloors };
 export { getFitnessFatigue };
 export { getRunningEstimates };
 export default {

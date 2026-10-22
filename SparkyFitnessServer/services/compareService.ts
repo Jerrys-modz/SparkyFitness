@@ -2,7 +2,7 @@ import compareRepository from '../models/compareRepository.js';
 import reportRepository from '../models/reportRepository.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import { loadFirstDayOfWeek } from '../utils/firstDayOfWeek.js';
-import { loadMaxHeartRate } from '../utils/maxHeartRate.js';
+import heartRateZoneService from './heartRateZoneService.js';
 import {
   addDays,
   analyzeDays,
@@ -11,7 +11,8 @@ import {
   computeDailyWeightTrend,
   daySides,
   daysInRange,
-  DEFAULT_MAX_HEART_RATE,
+  FALLBACK_MAX_HR,
+  percentMaxFloors,
   instantHourMinute,
   instantHourMinuteInZone,
   resolveRecordZone,
@@ -36,7 +37,7 @@ import {
 
 interface MetricContext {
   tz: string;
-  maxHeartRate: number;
+  zoneFloors: readonly number[];
 }
 
 /** History before the start in day mode: 14 days for the own normal, 7 for a rolling metric, 1 for timing. */
@@ -91,10 +92,10 @@ export async function getCompare(
   const { from, to, through } = fetchRange(query, today, firstDayOfWeek);
   const ctx: MetricContext = {
     tz,
-    maxHeartRate:
+    zoneFloors:
       query.a === 'trainingLoad' || query.b === 'trainingLoad'
-        ? await loadMaxHeartRate(userId, tz)
-        : DEFAULT_MAX_HEART_RATE,
+        ? (await heartRateZoneService.resolveZonesForUser(userId)).floors
+        : percentMaxFloors(FALLBACK_MAX_HR),
   };
   const [aValues, bValues] = await Promise.all([
     loadMetricDays(userId, query.a, from, to, ctx),
@@ -205,7 +206,7 @@ async function loadSeries(
       for (const session of sessions) {
         const value =
           key === 'trainingLoad'
-            ? sessionLoad(session, ctx.maxHeartRate)
+            ? sessionLoad(session, ctx.zoneFloors)
             : session.durationMinutes;
         perDay[session.day] = (perDay[session.day] ?? 0) + value;
       }

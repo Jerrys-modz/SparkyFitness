@@ -495,20 +495,28 @@ export const CheckInForm: React.FC<CheckInFormProps> = ({
                       />
                     ) : (
                       <Input
-                        id={`custom-notes-${category.id}`}
-                        type="text"
-                        value={customNotes[category.id] || ''}
+                        id={`custom-${category.id}`}
+                        type={
+                          category.data_type === 'numeric' ? 'number' : 'text'
+                        }
+                        step={
+                          category.data_type === 'numeric' ? '0.01' : undefined
+                        }
+                        value={currentValue}
                         onChange={(e) => {
-                          setCustomNotes((prev) => ({
+                          setCustomValues((prev) => ({
                             ...prev,
                             [category.id]: e.target.value,
                           }));
                         }}
-                        placeholder={t(
-                          'checkIn.notesOptional',
-                          'Notes (optional)'
-                        )}
-                        className="mt-2"
+                        placeholder={
+                          offerPrevious
+                            ? String(previousValue)
+                            : t('checkIn.enterCustomCategory', {
+                                categoryName: categoryLabel.toLowerCase(),
+                                defaultValue: `Enter ${categoryLabel.toLowerCase()}`,
+                              })
+                        }
                       />
                     )}
                     <Input

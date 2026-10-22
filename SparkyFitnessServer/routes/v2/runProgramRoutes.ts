@@ -8,7 +8,6 @@ import {
   completeRunProgramWorkoutBodySchema,
   instantToDay,
   exportRunPlanBodySchema,
-  findProgram,
   ProgramAdjustError,
   ProgramRealignStaleError,
   rateRunProgramWorkoutBodySchema,

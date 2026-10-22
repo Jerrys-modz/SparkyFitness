@@ -75,6 +75,7 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       hrSamples,
       undefined,
       undefined,
+      undefined,
       undefined
     );
   });
@@ -132,6 +133,7 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       hrSamples,
       87.4,
       undefined,
+      undefined,
       undefined
     );
   });
@@ -150,6 +152,7 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       ENTRY_ID,
       undefined,
       42,
+      undefined,
       undefined,
       undefined
     );
@@ -170,6 +173,7 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       undefined,
       undefined,
       12.5,
+      undefined,
       undefined
     );
   });
@@ -195,6 +199,7 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       undefined,
       undefined,
       101.5,
+      undefined,
     ]);
     expect(calls[1][6]).toBeNull();
   });

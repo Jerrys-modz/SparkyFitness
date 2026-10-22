@@ -91,6 +91,7 @@ const PROPOSAL_REASONS: Record<PlanProposal['reason'], string> = {
   too_hard_repeated: 'it was rated too hard twice in a row',
   too_hard: 'it was rated too hard last time',
   high_effort: 'the logged effort was at or near failure',
+  low_effort: 'the logged effort was easy, with reps left in reserve',
   pain_reported: 'pain was reported in this exercise',
   pain_repeated: 'pain was reported in this exercise twice in a row',
   session_pain: 'pain was reported for the last session',

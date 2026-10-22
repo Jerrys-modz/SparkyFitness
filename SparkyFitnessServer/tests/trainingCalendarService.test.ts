@@ -6,7 +6,7 @@ vi.mock('../utils/timezoneLoader.js', () => ({
   loadUserTimezone: vi.fn().mockResolvedValue('UTC'),
 }));
 vi.mock('../services/reportService.js', () => ({
-  loadMaxHeartRate: vi.fn().mockResolvedValue(190),
+  loadZoneFloors: vi.fn().mockResolvedValue([95, 114, 133, 152, 171]),
 }));
 vi.mock('../models/preferenceRepository.js', () => ({
   default: {

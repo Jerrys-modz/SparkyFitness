@@ -52,13 +52,6 @@ import {
   type PaceAlertState,
   type PaceBand,
 } from '@workspace/shared';
-import { isStepActivity } from '../utils/stride';
-import { captureStepCounterBaseline } from './stepCounter';
-import {
-  INITIAL_AUTO_PAUSE_STATE,
-  stepAutoPause,
-  type AutoPauseState,
-} from '../utils/autoPause';
 import { fireImpactHaptic } from './haptics';
 import {
   checkInCue,

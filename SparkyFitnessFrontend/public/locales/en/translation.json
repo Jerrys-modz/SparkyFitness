@@ -9529,6 +9529,16 @@
         "description": "Walk for fitness: eight weeks, three walks a week, with no running. You alternate brisk and easy walking and build up to 30 minutes of brisk walking.",
         "name": "Walk for fitness",
         "structure": "Weeks 1 to 4 alternate stretches of brisk walking (3 to 8 minutes) with 2 minutes of easy walking. Weeks 5 and 6 use two longer brisk stretches of 12 and 15 minutes. Weeks 7 and 8 are continuous brisk walks of 20 to 30 minutes."
+      },
+      "zone2Base": {
+        "description": "Zone 2 base: ten weeks, three easy runs a week held to your Zone 2 heart rate (or the talk test), building time in zone with a long run of up to 70 minutes. For when you can run 30 minutes.",
+        "name": "Zone 2 base",
+        "structure": "Each week has a short run, a middle run and a long run, all easy and held to Zone 2. Time in zone grows from 100 to 155 minutes a week, the long run from 40 to 70 minutes, and weeks 4 and 8 are lighter. Weeks 6, 7 and 9 end the short run with four relaxed strides. The middle run of weeks 4, 8 and 10 is a zone check."
+      },
+      "zone2Base4": {
+        "description": "Zone 2 base: ten weeks, four easy runs a week held to your Zone 2 heart rate (or the talk test), building time in zone with a long run of up to 70 minutes. For when you can run 30 minutes.",
+        "name": "Zone 2 base (4 runs a week)",
+        "structure": "Each week has two short runs, a middle run and a long run, all easy and held to Zone 2. Time in zone grows from 130 to 190 minutes a week, the long run from 40 to 70 minutes, and weeks 4 and 8 are lighter. Weeks 6, 7 and 9 end the first run with four relaxed strides. The middle run of weeks 4, 8 and 10 is a zone check."
       }
     },
     "start": {

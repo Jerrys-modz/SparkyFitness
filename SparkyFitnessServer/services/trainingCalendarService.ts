@@ -4,7 +4,7 @@ import reportRepository, {
 import workoutPlanTemplateRepository from '../models/workoutPlanTemplateRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import { getRunProgram } from '../models/runProgramRepository.js';
-import { loadMaxHeartRate } from './reportService.js';
+import { loadZoneFloors } from './reportService.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import { log } from '../config/logging.js';
 import {
@@ -104,7 +104,7 @@ async function getTrainingCalendar(
         ? Number(rawFirstDay)
         : 0;
 
-    const [rows, templates, program, maxHeartRate, curveSessions] =
+    const [rows, templates, program, zoneFloors, curveSessions] =
       await Promise.all([
         reportRepository.getCalendarEntries(targetUserId, start, end),
         workoutPlanTemplateRepository.getPlanTemplatesForCalendar(
@@ -113,7 +113,7 @@ async function getTrainingCalendar(
           end
         ),
         getRunProgram(targetUserId, authenticatedUserId),
-        loadMaxHeartRate(targetUserId, timezone),
+        loadZoneFloors(targetUserId),
         reportRepository.getTrainingLoadSessions(
           targetUserId,
           addDays(today, -(CURVE_DAYS - 1)),
@@ -206,13 +206,8 @@ async function getTrainingCalendar(
     }
     slots.push(...sequentialPlanSlots(plans, entries, today, nextByPlan));
 
-    const { planned, completed } = matchPlan(
-      slots,
-      entries,
-      today,
-      maxHeartRate
-    );
-    const curve = computeFitnessFatigue(curveSessions, today, maxHeartRate);
+    const { planned, completed } = matchPlan(slots, entries, today, zoneFloors);
+    const curve = computeFitnessFatigue(curveSessions, today, zoneFloors);
 
     return {
       start,

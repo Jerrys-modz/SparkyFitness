@@ -155,6 +155,9 @@ describe('CheckInForm', () => {
         measurement_type: 'cm',
         frequency: 'Daily',
         data_type: 'numeric',
+        is_lab: false,
+        ref_range_low: null,
+        ref_range_high: null,
       },
       {
         id: 'sample-text',
@@ -163,6 +166,9 @@ describe('CheckInForm', () => {
         measurement_type: 'text',
         frequency: 'Daily',
         data_type: 'text',
+        is_lab: false,
+        ref_range_low: null,
+        ref_range_high: null,
       },
     ];
     const fieldIds = [

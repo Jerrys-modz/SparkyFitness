@@ -9,14 +9,24 @@ import {
   todayInZone,
   weeklySeries,
   type DaySeries,
+  percentMaxFloors,
 } from '@workspace/shared';
 import compareRepository from '../models/compareRepository.js';
 import reportRepository from '../models/reportRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import userRepository from '../models/userRepository.js';
+import heartRateZoneService from '../services/heartRateZoneService.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import { getCompare, loadMetricDays } from '../services/compareService.js';
 
+vi.mock('../services/heartRateZoneService.js', () => ({
+  default: {
+    resolveZonesForUser: vi.fn().mockResolvedValue({
+      maxHr: 180,
+      floors: [90, 108, 126, 144, 162],
+    }),
+  },
+}));
 vi.mock('../models/compareRepository.js');
 vi.mock('../models/reportRepository.js');
 vi.mock('../models/preferenceRepository.js');
@@ -30,7 +40,7 @@ vi.mock('@workspace/shared', async (importOriginal) => ({
 
 const USER = '00000000-0000-4000-a000-000000000001';
 const TODAY = '2026-10-21'; // a Wednesday
-const CTX = { tz: 'UTC', maxHeartRate: 190 };
+const CTX = { tz: 'UTC', zoneFloors: percentMaxFloors(190) };
 
 /** Every day from first to last inclusive. */
 function daysFrom(first: string, last: string): string[] {
@@ -124,7 +134,7 @@ describe('loadMetricDays: sleep', () => {
       'bedtime',
       '2026-06-01',
       '2026-06-05',
-      { tz: 'America/New_York', maxHeartRate: 190 }
+      { tz: 'America/New_York', zoneFloors: percentMaxFloors(190) }
     );
 
     expect(bedtime).toEqual({
@@ -269,7 +279,7 @@ describe('loadMetricDays: events', () => {
       { day: '2026-06-04', durationMinutes: 20, avgHeartRate: 100 },
     ]);
     const range = ['2026-06-01', '2026-06-05'] as const;
-    const ctx = { tz: 'UTC', maxHeartRate: 180 };
+    const ctx = { tz: 'UTC', zoneFloors: percentMaxFloors(180) };
 
     // 150 of 180 is 83% (×4) = 120; no heart rate counts ×2 = 80; 100 of 180 is ×1.
     expect(await loadMetricDays(USER, 'trainingLoad', ...range, ctx)).toEqual({
@@ -716,10 +726,11 @@ describe('getCompare', () => {
     expect(response.deviations.a['2026-03-08']).toBeDefined();
   });
 
-  it('training load is scored against the max heart rate from the profile age', async () => {
-    vi.mocked(userRepository.getUserProfile).mockResolvedValue({
-      date_of_birth: '1986-06-01', // 40 on TODAY: max 180
-    });
+  it('training load is scored against the person’s heart rate zones', async () => {
+    vi.mocked(heartRateZoneService.resolveZonesForUser).mockResolvedValue({
+      maxHr: 180,
+      floors: percentMaxFloors(180),
+    } as never);
     vi.mocked(compareRepository.getExerciseFirstDay).mockResolvedValue(
       '2026-01-01'
     );
@@ -741,10 +752,11 @@ describe('getCompare', () => {
     expect(response.a.values['2026-06-11']).toBe(0);
   });
 
-  it('training load as the second metric also uses the profile age', async () => {
-    vi.mocked(userRepository.getUserProfile).mockResolvedValue({
-      date_of_birth: '1986-06-01',
-    });
+  it('training load as the second metric also uses the heart rate zones', async () => {
+    vi.mocked(heartRateZoneService.resolveZonesForUser).mockResolvedValue({
+      maxHr: 180,
+      floors: percentMaxFloors(180),
+    } as never);
     vi.mocked(compareRepository.getExerciseFirstDay).mockResolvedValue(
       '2026-01-01'
     );
