@@ -15,6 +15,11 @@ interface NumericInputProps extends Omit<
 > {
   value: number | undefined | null;
   decimals?: number;
+  /**
+   * Enables arithmetic expressions and a text keyboard for entering operators.
+   * Outside a <form>, use onValidityChange to block custom save actions while an
+   * expression is invalid; otherwise they can save the last valid numeric value.
+   */
   allowExpressions?: boolean;
   onValidityChange?: (valid: boolean) => void;
   onValueChange: (value: number | undefined) => void;
