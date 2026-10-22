@@ -22,8 +22,6 @@ interface CompareSpanControlProps {
   onCustomChange: (range: CustomRange) => void;
 }
 
-/** Week mode may look further back than day mode; compareWindow applies the same caps. */
-
 const CompareSpanControl: React.FC<CompareSpanControlProps> = ({
   mode,
   span,
