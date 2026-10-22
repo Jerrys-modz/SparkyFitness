@@ -20,6 +20,7 @@ const EXPECTED_TOOLS = [
   'sparky_analyze_food_image',
   'sparky_analyze_trends',
   'sparky_check_engagement',
+  'sparky_compare_metrics',
   'sparky_daily_checkin_wizard',
   'sparky_detect_patterns',
   'sparky_generate_coaching_plan',

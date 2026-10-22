@@ -231,7 +231,7 @@ export function analyzeSince(input: {
  * regularity. A rolling one does not: its value on a day covers the 7 days ending there, so one
  * session a week reads as active every day.
  */
-function hasActiveDays(key: CompareMetricKey): boolean {
+export function hasActiveDays(key: CompareMetricKey): boolean {
   const def = COMPARE_METRICS[key];
   return !def.rolling && (def.missing === 'event' || def.kind === 'binary');
 }

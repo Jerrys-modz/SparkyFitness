@@ -1,9 +1,8 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import type { CompareResponse } from '@workspace/shared';
+import { compareDisplayValue, type CompareResponse } from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 
-import { compareDisplayValue } from '../../constants/compareMetrics';
 import { formatLocalizedNumber } from '../../localization';
 import {
   compareValueText,
