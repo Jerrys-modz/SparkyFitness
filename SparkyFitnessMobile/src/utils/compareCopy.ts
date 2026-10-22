@@ -89,6 +89,16 @@ function yourQuantityPhrase(
   });
 }
 
+/** The second metric in the question sentence: a noun for yes/no, else the plain label. */
+export function secondMetricPhrase(
+  key: CompareMetricKey,
+  t: Translator
+): string {
+  return COMPARE_METRICS[key].kind === 'binary'
+    ? metricNoun(key, t)
+    : plainLabel(key, t);
+}
+
 export function timingPhrase(q: CompareQuestion, t: Translator): string {
   switch (q.choice) {
     case 'sameDay':
@@ -118,10 +128,7 @@ export function sentenceText(q: CompareQuestion, t: Translator): string {
   return t('compareReport.verdict.question', {
     defaultValue: 'Does {{a}} go with {{b}} {{timing}}?',
     a: metricNoun(q.a, t),
-    b:
-      COMPARE_METRICS[q.b].kind === 'binary'
-        ? metricNoun(q.b, t)
-        : plainLabel(q.b, t),
+    b: secondMetricPhrase(q.b, t),
     timing: timingPhrase(q, t),
   });
 }
