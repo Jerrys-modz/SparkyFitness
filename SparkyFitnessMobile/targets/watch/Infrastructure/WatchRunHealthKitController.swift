@@ -41,6 +41,9 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     var onAutoPause: ((WatchAutoPause.Action) -> Void)?
     /// The accuracy radius (metres) of each GPS fix as it arrives, outdoors only.
     var onGpsAccuracy: ((Double) -> Void)?
+    /// The newest GPS fix as it arrives, outdoors only: what a followed route
+    /// is matched against. Position, accuracy radius (metres) and when it was taken.
+    var onLocation: ((WatchRoutePoint, Double, Date) -> Void)?
 
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
@@ -797,6 +800,9 @@ extension WatchRunHealthKitController {
         if let latest = locations.last {
             let accuracy = latest.horizontalAccuracy
             DispatchQueue.main.async { [weak self] in self?.onGpsAccuracy?(accuracy) }
+            let point = WatchRoutePoint(lat: latest.coordinate.latitude, lon: latest.coordinate.longitude)
+            let taken = latest.timestamp
+            DispatchQueue.main.async { [weak self] in self?.onLocation?(point, accuracy, taken) }
         }
         judgeMovement(locations)
         guard collectingRoute, let routeBuilder else { return }

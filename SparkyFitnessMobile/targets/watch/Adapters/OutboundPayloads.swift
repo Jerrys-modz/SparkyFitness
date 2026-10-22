@@ -43,6 +43,7 @@ enum OutboundPayloads {
         static let workoutEffort = "workoutEffort"
         static let runLive = "runLive"
         static let runCue = "runCue"
+        static let routeLibrary = "routeLibrary"
     }
 
     /// A morning check-in awaiting a server write.
@@ -290,6 +291,25 @@ enum OutboundPayloads {
             "id": id,
             "text": text,
             "interrupt": interrupt,
+        ]
+    }
+
+    /// What the watch's route library holds, for the phone's "On your watch"
+    /// state. `stored` is each route's id and the phone's `updatedAt` it was
+    /// stored at; `rejected` maps a route id the watch could not take to why
+    /// ("full" or "storage"). Queued like the other durable messages, since a
+    /// change made on a wrist out of range still has to reach the phone.
+    static func routeLibrary(
+        stored: [(id: String, updatedAt: Double)],
+        rejected: [String: String],
+        capacity: Int
+    ) -> [String: Any] {
+        [
+            "type": Kind.routeLibrary,
+            "routes": stored.map { ["id": $0.id, "updatedAt": $0.updatedAt] as [String: Any] },
+            "rejected": rejected.map { ["id": $0.key, "reason": $0.value] as [String: Any] },
+            "capacity": capacity,
+            "sentAt": Date().timeIntervalSince1970 * 1000,
         ]
     }
 

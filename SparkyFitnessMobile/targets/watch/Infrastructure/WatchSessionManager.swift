@@ -344,6 +344,13 @@ final class WatchSessionManager: NSObject, ObservableObject {
         transfer(OutboundPayloads.runEffort(clientId: clientId, rating: rating))
     }
 
+    /// Tells the phone which routes the watch holds. Queued (a later report
+    /// supersedes an earlier one, so a duplicate is harmless); deferred to
+    /// activation if the session is not up yet, where the library reports again.
+    func sendRouteLibrary(_ payload: [String: Any]) {
+        transfer(payload)
+    }
+
     /// Sends runs that were finished before the session had activated.
     private func flushRunOutbox() {
         guard isActivated else { return }
@@ -736,6 +743,14 @@ final class WatchSessionManager: NSObject, ObservableObject {
         case "runStart":
             if let request = ContextPayloadMapper.runStartRequest(from: payload) {
                 WatchRunStore.shared.startRequested(request)
+            }
+        case "routeSync":
+            if let sync = ContextPayloadMapper.routeSync(from: payload) {
+                WatchRouteLibraryStore.shared.apply(sync: sync)
+            }
+        case "routeRemove":
+            if let routeId = ContextPayloadMapper.routeRemoveId(from: payload) {
+                WatchRouteLibraryStore.shared.apply(remove: routeId)
             }
         case "runCueAck":
             if let id = payload["id"] as? String { pendingCues.removeValue(forKey: id) }
@@ -1684,6 +1699,9 @@ extension WatchSessionManager: WCSessionDelegate {
             // First: anything the wearer did before the session was usable.
             self.flushDeferredTransfers()
             self.flushRunOutbox()
+            // What the watch holds, so the phone's "On your watch" is true
+            // even after a reinstall or a phone-side reset.
+            WatchRouteLibraryStore.shared.report()
             // Before asking the phone for anything: whatever it last sent is
             // already available locally, and unlike `requestContext()` this
             // works with the phone nowhere in sight.
