@@ -11,6 +11,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Clipboard } from 'lucide-react';
 import { RoutingProviderFields } from './RoutingProviderFields';
+import { StopsProviderFields } from './StopsProviderFields';
 import { Trans, useTranslation } from 'react-i18next';
 import type { ExternalDataProvider } from './ExternalProviderSettings';
 import { toast } from '@/hooks/use-toast';
@@ -233,6 +234,15 @@ export const EditProviderForm = ({
           }
           onAppKeyChange={(value) =>
             setEditData((prev) => ({ ...prev, app_key: value }))
+          }
+        />
+      )}
+      {editData.provider_type === 'overpass' && (
+        <StopsProviderFields
+          idPrefix="edit"
+          baseUrl={editData.base_url}
+          onBaseUrlChange={(value) =>
+            setEditData((prev) => ({ ...prev, base_url: value }))
           }
         />
       )}
