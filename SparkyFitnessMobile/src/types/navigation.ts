@@ -98,6 +98,9 @@ export type RootStackParamList = {
   RouteDraw: { routeId?: string } | undefined;
   RouteGenerate: undefined;
   TrainingCalendar: undefined;
+  LabResults: undefined;
+  LabResultDetail: { categoryId: string };
+  LabResultAdd: { categoryId?: string };
   WatchRunLive: undefined;
   MealPlanForm: { template?: MealPlanTemplate; initialMeal?: Meal } | undefined;
   // #2115, Phase 12: mobile-only water-container CRUD.

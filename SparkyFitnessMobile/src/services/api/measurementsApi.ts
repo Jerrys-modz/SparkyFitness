@@ -380,6 +380,9 @@ export const createCustomCategory = async (body: {
   measurement_type: string;
   frequency: string;
   data_type: string;
+  is_lab?: boolean;
+  ref_range_low?: number | null;
+  ref_range_high?: number | null;
 }): Promise<CustomCategory> => {
   return apiFetch<CustomCategory>({
     endpoint: '/api/measurements/custom-categories',
@@ -423,6 +426,22 @@ export const fetchDailyVo2Max = async (
     operation: 'fetch daily VO2 max',
   });
   return response?.data ?? [];
+};
+
+/**
+ * Every entry of one category, newest first, with each row's id (so a result
+ * can be deleted) and notes. The range endpoint answers with narrower rows that
+ * have neither, so a history that needs them reads from here.
+ */
+export const fetchCustomEntriesForCategory = async (
+  categoryId: string,
+  limit = 1000
+): Promise<CustomMeasurementEntry[]> => {
+  return apiFetch<CustomMeasurementEntry[]>({
+    endpoint: `/api/measurements/custom-entries?category_id=${encodeURIComponent(categoryId)}&limit=${limit}&orderBy=entry_timestamp.desc`,
+    serviceName: 'Measurements API',
+    operation: 'fetch custom entries for category',
+  });
 };
 
 export const fetchCustomMeasurementsByDate = async (

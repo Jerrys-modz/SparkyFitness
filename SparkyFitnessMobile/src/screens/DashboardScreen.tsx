@@ -46,6 +46,7 @@ import CoachingDashboardCard from '../components/CoachingDashboardCard';
 import CoachingReminderReconciler from '../components/CoachingReminderReconciler';
 import SymptomsCard from '../components/SymptomsCard';
 import MoodCard from '../components/mood/MoodCard';
+import LabResultsCard from '../components/labs/LabResultsCard';
 import ProgressPhotosCard from '../components/ProgressPhotosCard';
 import TrainingLoadDashboardCard from '../components/TrainingLoadDashboardCard';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
@@ -70,6 +71,8 @@ import {
 import { useCheckInPhotoDates } from '../hooks/useCheckInPhotos';
 import {
   moodEntriesRootQueryKey,
+  customCategoriesQueryKey,
+  latestManualCustomEntriesRootQueryKey,
   trainingLoadRootQueryKey,
 } from '../hooks/queryKeys';
 import { useHeaderActionColors } from '../hooks/useHeaderActionColors';
@@ -393,6 +396,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const mindfulnessCardVisible = useAppPreferencesStore(
     (s) => s.mindfulnessCardVisible
   );
+  const labResultsCardVisible = useAppPreferencesStore(
+    (s) => s.labResultsCardVisible
+  );
   const trainingLoadCardVisible = useAppPreferencesStore(
     (s) => s.trainingLoadCardVisible
   );
@@ -437,6 +443,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       queryClient.invalidateQueries({ queryKey: ['mindfulness'] }),
       // MoodCard owns its own query.
       queryClient.invalidateQueries({ queryKey: moodEntriesRootQueryKey }),
+      // LabResultsCard reads the lab markers and their latest values.
+      queryClient.invalidateQueries({ queryKey: customCategoriesQueryKey }),
+      queryClient.invalidateQueries({
+        queryKey: latestManualCustomEntriesRootQueryKey,
+      }),
       // TrainingLoadDashboardCard owns its query, and a pull is not a focus.
       trainingLoadCardVisible
         ? queryClient.invalidateQueries({ queryKey: trainingLoadRootQueryKey })
@@ -918,6 +929,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             case 'coaching':
               return coachingCardVisible ? (
                 <CoachingDashboardCard key="coaching" navigation={navigation} />
+              ) : null;
+            case 'labResults':
+              return labResultsCardVisible ? (
+                <LabResultsCard key="labResults" navigation={navigation} />
               ) : null;
             case 'mindfulness':
               return mindfulnessCardVisible ? (
