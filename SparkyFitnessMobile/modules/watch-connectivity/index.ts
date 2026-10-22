@@ -747,6 +747,8 @@ export interface WatchFastEndRequestPayload {
  */
 export interface WatchRunFinishedPayload {
   clientId: string;
+  /** Server config id that was active when the run arrived on the phone. */
+  ownerId?: string;
   kind: string;
   place: string;
   startedAt: number;

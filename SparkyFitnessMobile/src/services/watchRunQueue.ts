@@ -1,7 +1,9 @@
 import { learnWatchIndoorScale } from './watchIndoorScale';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import WatchConnectivity from '../../modules/watch-connectivity';
 import { ApiError } from './api/errors';
 import { addLog } from './LogService';
+import { getActiveServerConfigId } from './storage';
 import { saveWatchRun } from './watchRunSave';
 import { completeProgramWorkout } from './runProgramService';
 import { toLocalDateString } from '../utils/dateUtils';
@@ -49,18 +51,46 @@ function serial<T>(task: () => Promise<T>): Promise<T> {
 /** Stores a run that just arrived. Returns false for a copy already handled. */
 export function enqueueWatchRun(payload: WatchRunPayload): Promise<boolean> {
   return serial(async () => {
-    const [queue, done] = await Promise.all([readQueue(), readDone()]);
+    const [queue, done, activeOwnerId] = await Promise.all([
+      readQueue(),
+      readDone(),
+      getActiveServerConfigId(),
+    ]);
     if (
       done.includes(payload.clientId) ||
       queue.some((item) => item.payload.clientId === payload.clientId)
     ) {
       return false;
     }
+    const ownerId =
+      payload.ownerId !== undefined ? payload.ownerId : (activeOwnerId ?? '');
     await AsyncStorage.setItem(
       QUEUE_KEY,
-      JSON.stringify([...queue, { payload }])
+      JSON.stringify([...queue, { payload: { ...payload, ownerId } }])
     );
     return true;
+  });
+}
+
+/**
+ * Purges queued runs belonging to `ownerId` from both the stored queue and the
+ * native queue when a server configuration is deleted or its signed-in account
+ * changes.
+ */
+export function deleteWatchRunsForConfig(ownerId: string): Promise<void> {
+  return serial(async () => {
+    if (!ownerId) return;
+    const queue = await readQueue();
+    const next = queue.filter((item) => item.payload.ownerId !== ownerId);
+    if (next.length !== queue.length) {
+      await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(next));
+    }
+    if (
+      WatchConnectivity &&
+      typeof WatchConnectivity.ackWatchRuns === 'function'
+    ) {
+      await WatchConnectivity.ackWatchRuns([`owner:${ownerId}`]);
+    }
   });
 }
 
@@ -217,8 +247,16 @@ async function drainOnce(
   // the loop, so it is never left waiting for another trigger.
   const attempted = new Set<string>();
   for (;;) {
-    const queue = await serial(readQueue);
-    const item = queue.find((run) => !attempted.has(run.payload.clientId));
+    const [queue, activeOwnerId] = await serial(() =>
+      Promise.all([readQueue(), getActiveServerConfigId()])
+    );
+    if (!activeOwnerId) break;
+    const item = queue.find(
+      (run) =>
+        !attempted.has(run.payload.clientId) &&
+        Boolean(run.payload.ownerId) &&
+        run.payload.ownerId === activeOwnerId
+    );
     if (!item) break;
     const { clientId } = item.payload;
     attempted.add(clientId);
@@ -284,7 +322,14 @@ async function drainOnce(
   return { filed, needsRetry };
 }
 
-/** Whether any run is still waiting to be filed. */
+/** Whether any run for the active server configuration is waiting to be filed. */
 export async function hasQueuedWatchRuns(): Promise<boolean> {
-  return (await serial(readQueue)).length > 0;
+  const [queue, activeOwnerId] = await serial(() =>
+    Promise.all([readQueue(), getActiveServerConfigId()])
+  );
+  if (!activeOwnerId) return false;
+  return queue.some(
+    (item) =>
+      Boolean(item.payload.ownerId) && item.payload.ownerId === activeOwnerId
+  );
 }

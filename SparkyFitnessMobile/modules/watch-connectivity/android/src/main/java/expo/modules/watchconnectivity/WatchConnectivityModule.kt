@@ -1067,7 +1067,7 @@ internal object WatchConnectivityHub {
         )
       }
       "runFinished" -> {
-        val event = normalizedRunEvent(payload)
+        val event = normalizedRunEvent(context, payload)
         rememberFinishedRun(context, event)
         activeModule?.emitEvent("onRunFinished", event)
       }
@@ -1276,9 +1276,15 @@ internal object WatchConnectivityHub {
     }
   }
 
-  private fun normalizedRunEvent(payload: Map<String, Any?>): Map<String, Any?> {
+  private fun normalizedRunEvent(
+    context: Context,
+    payload: Map<String, Any?>
+  ): Map<String, Any?> {
+    val ownerId = (payload["ownerId"] as? String)?.takeIf { it.isNotEmpty() }
+      ?: getTelemetryOwner(context)
     val event = mutableMapOf<String, Any?>(
       "clientId" to (payload["clientId"] as? String ?: ""),
+      "ownerId" to ownerId,
       "kind" to (payload["kind"] as? String ?: ""),
       "place" to (payload["place"] as? String ?: ""),
       "startedAt" to (asDouble(payload["startedAt"]) ?: 0.0),
@@ -1316,19 +1322,27 @@ internal object WatchConnectivityHub {
   }
 
   fun pendingWatchRuns(context: Context): List<Map<String, Any?>> {
+    val ownerId = getTelemetryOwner(context)
+    if (ownerId.isEmpty()) return emptyList()
     synchronized(runLock) {
       loadRunQueue(context)
-      return runQueue.toList()
+      return runQueue.filter { (it["ownerId"] as? String) == ownerId }
     }
   }
 
   fun ackWatchRuns(context: Context, clientIds: List<String>) {
     val ids = clientIds.toSet()
+    val purgedOwners = ids
+      .filter { it.startsWith("owner:") }
+      .map { it.removePrefix("owner:") }
+      .filter { it.isNotEmpty() }
+      .toSet()
     synchronized(runLock) {
       loadRunQueue(context)
       val next = runQueue.filter { row ->
         val id = row["clientId"] as? String ?: return@filter true
-        !ids.contains(id)
+        val ownerId = row["ownerId"] as? String ?: ""
+        !ids.contains(id) && (ownerId.isEmpty() || !purgedOwners.contains(ownerId))
       }.toMutableList()
       if (writeRunQueue(context, next)) {
         runQueue.clear()
