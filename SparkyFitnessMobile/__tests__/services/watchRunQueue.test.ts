@@ -17,6 +17,7 @@ import {
 import { setExerciseEntryEffort } from '../../src/services/api/exerciseApi';
 import { invalidateExerciseCache } from '../../src/hooks/invalidateExerciseCache';
 import { ApiError } from '../../src/services/api/errors';
+import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import type { WatchRunPayload } from '../../src/utils/watchRun';
 import { learnWatchIndoorScale } from '../../src/services/watchIndoorScale';
 
@@ -607,3 +608,38 @@ test('purges queued runs for a deleted or switched-away config without dropping 
     null
   );
 });
+describe('treadmill correction on a wrist-entered distance', () => {
+  const typedOnWrist = (clientId: string): WatchRunPayload => ({
+    place: 'indoor',
+    distanceMeters: 5200,
+    estimatedDistanceMeters: 4600,
+  afterEach(() => {
+    useAppPreferencesStore.getState().setTreadmillCorrectionEnabled(false);
+    useAppPreferencesStore.getState().setTreadmillCorrectionPercent(0);
+  it('files and learns from the corrected distance once', async () => {
+    useAppPreferencesStore.getState().setTreadmillCorrectionEnabled(true);
+    useAppPreferencesStore.getState().setTreadmillCorrectionPercent(4);
+    mockedSave.mockResolvedValue('entry-1');
+    jest.mocked(learnWatchIndoorScale).mockClear();
+    await enqueueWatchRun(typedOnWrist('t'));
+    const filed = mockedSave.mock.calls[0][0];
+    expect(filed.distanceMeters).toBeCloseTo(5000);
+    expect(filed.treadmillDisplayMeters).toBe(5200);
+    expect(learnWatchIndoorScale).toHaveBeenCalledWith(
+      'walk',
+      1,
+      4600,
+      expect.closeTo(5000)
+  it('does not read the setting again on a retry', async () => {
+    useAppPreferencesStore.getState().setTreadmillCorrectionEnabled(true);
+    useAppPreferencesStore.getState().setTreadmillCorrectionPercent(4);
+    mockedSave.mockRejectedValueOnce(new ApiError('offline', 503));
+    mockedSave.mockResolvedValue('entry-1');
+    await enqueueWatchRun(typedOnWrist('r'));
+    useAppPreferencesStore.getState().setTreadmillCorrectionPercent(10);
+    expect(mockedSave.mock.calls[1][0].distanceMeters).toBeCloseTo(5000);
+  it('leaves a run alone while the correction is off', async () => {
+    mockedSave.mockResolvedValue('entry-1');
+    await enqueueWatchRun(typedOnWrist('o'));
+    expect(mockedSave.mock.calls[0][0].distanceMeters).toBe(5200);
+    expect(mockedSave.mock.calls[0][0].treadmillDisplayMeters).toBeUndefined();

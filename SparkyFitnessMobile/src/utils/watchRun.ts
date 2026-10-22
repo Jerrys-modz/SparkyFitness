@@ -54,6 +54,11 @@ export interface WatchRunPayload {
     maximumBpm?: number | null;
     seconds: number;
   }[];
+  /**
+   * Set by the phone, never the watch: the treadmill figure the wearer entered
+   * when a treadmill correction was taken off it to give `distanceMeters`.
+   */
+  treadmillDisplayMeters?: number;
 }
 
 /** Stands in for "no altitude": a property list cannot carry null. */

@@ -14,6 +14,11 @@ import { setExerciseEntryEffort } from './api/exerciseApi';
 import { queryClient } from '../hooks/queryClient';
 import { invalidateExerciseCache } from '../hooks/invalidateExerciseCache';
 import { toLocalDateString } from '../utils/dateUtils';
+import {
+  getTreadmillCorrection,
+  whenPreferencesHydrated,
+} from '../stores/appPreferencesStore';
+import { correctWatchRunDistance } from '../utils/treadmillCorrection';
 import { parseWatchRunPayload, type WatchRunPayload } from '../utils/watchRun';
 
 /**
@@ -215,9 +220,22 @@ export function enqueueWatchRun(payload: WatchRunPayload): Promise<boolean> {
     }
     const ownerId =
       payload.ownerId !== undefined ? payload.ownerId : (activeOwnerId ?? '');
+    // A figure typed from the treadmill display is corrected once, here, and
+    // the stored payload carries the result: a retry or the summary never
+    // reads the setting again, so a change in between cannot correct twice.
+    // The setting may not be read from storage yet when a run arrives at launch.
+    await whenPreferencesHydrated();
     await AsyncStorage.setItem(
       QUEUE_KEY,
-      JSON.stringify([...queue, { payload: { ...payload, ownerId } }])
+      JSON.stringify([
+        ...queue,
+        {
+          payload: {
+            ...correctWatchRunDistance(payload, getTreadmillCorrection()),
+            ownerId,
+          },
+        },
+      ])
     );
     return true;
   });
