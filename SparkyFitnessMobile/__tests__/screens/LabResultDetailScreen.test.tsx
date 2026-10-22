@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { fireEvent, render } from '@testing-library/react-native';
 import LabResultDetailScreen from '../../src/screens/LabResultDetailScreen';
 import {
+  useDeleteLabMarker,
   useDeleteLabResult,
   useLabHistory,
   useLabMarkers,
@@ -12,14 +13,19 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 jest.mock('react-native-toast-message', () => ({ show: jest.fn() }));
+const mockHeaderConfigs: { right: unknown }[] = [];
 jest.mock('../../src/hooks/useScreenHeader', () => ({
-  useScreenHeader: () => null,
+  useScreenHeader: (config: { right: unknown }) => {
+    mockHeaderConfigs.push(config);
+    return null;
+  },
 }));
 jest.mock('../../src/hooks/useRefetchOnFocus', () => ({
   useRefetchOnFocus: jest.fn(),
 }));
 jest.mock('../../src/components/labs/LabHistoryChart', () => 'LabHistoryChart');
 jest.mock('../../src/hooks/useLabResults', () => ({
+  useDeleteLabMarker: jest.fn(),
   useDeleteLabResult: jest.fn(),
   useLabHistory: jest.fn(),
   useLabMarkers: jest.fn(),
@@ -58,6 +64,7 @@ const rows = [
 const navigation = { navigate: jest.fn(), goBack: jest.fn() } as never;
 const route = { params: { categoryId: 'cat-1' } } as never;
 const mutate = jest.fn();
+const deleteMarkerMutate = jest.fn();
 
 describe('LabResultDetailScreen', () => {
   beforeEach(() => {
@@ -70,6 +77,10 @@ describe('LabResultDetailScreen', () => {
       refetch: jest.fn(),
     } as never);
     jest.mocked(useDeleteLabResult).mockReturnValue({ mutate } as never);
+    jest
+      .mocked(useDeleteLabMarker)
+      .mockReturnValue({ mutate: deleteMarkerMutate } as never);
+    mockHeaderConfigs.length = 0;
   });
 
   it('shows the latest result, its status and every result', () => {
@@ -96,5 +107,39 @@ describe('LabResultDetailScreen', () => {
 
     // Newest first, so the first Delete is the 2026-09-12 result.
     expect(mutate).toHaveBeenCalledWith('e2', expect.anything());
+  });
+
+  it('tags imported results', () => {
+    jest.mocked(useLabHistory).mockReturnValue({
+      data: [{ ...rows[1], import_id: 'imp-1' }, rows[0]],
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    } as never);
+    const { getAllByText } = render(
+      <LabResultDetailScreen navigation={navigation} route={route} />
+    );
+    expect(getAllByText(/Imported/)).toHaveLength(1);
+  });
+
+  it('deletes the marker and its results from the header menu, then goes back', () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    render(<LabResultDetailScreen navigation={navigation} route={route} />);
+
+    const right = mockHeaderConfigs[mockHeaderConfigs.length - 1].right as {
+      kind: string;
+      items?: { onPress: () => void }[];
+    }[];
+    right.find((item) => item.kind === 'menu')!.items![0].onPress();
+
+    const buttons = alert.mock.calls[0][2]!;
+    buttons.find((b) => b.style === 'destructive')!.onPress!();
+    expect(deleteMarkerMutate).toHaveBeenCalledWith(
+      'cat-1',
+      expect.objectContaining({ onSuccess: expect.any(Function) })
+    );
+
+    deleteMarkerMutate.mock.calls[0][1].onSuccess();
+    expect((navigation as { goBack: jest.Mock }).goBack).toHaveBeenCalled();
   });
 });

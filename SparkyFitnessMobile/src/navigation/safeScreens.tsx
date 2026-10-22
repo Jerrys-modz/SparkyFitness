@@ -27,6 +27,7 @@ import RouteDetailScreen from '../screens/RouteDetailScreen';
 import RouteDrawScreen from '../screens/RouteDrawScreen';
 import RouteGenerateScreen from '../screens/RouteGenerateScreen';
 import RunProgramWorkoutScreen from '../screens/RunProgramWorkoutScreen';
+import LabReportImportScreen from '../screens/LabReportImportScreen';
 import LabResultAddScreen from '../screens/LabResultAddScreen';
 import LabResultDetailScreen from '../screens/LabResultDetailScreen';
 import LabResultsScreen from '../screens/LabResultsScreen';
@@ -146,6 +147,7 @@ export const SafeMealPlans = withErrorBoundary(MealPlansScreen, 'MealPlans', { c
 export const SafeWatchRunLive = withErrorBoundary(WatchRunLiveScreen, 'WatchRunLive', { canGoBack: true });
 export const SafeLabResults = withErrorBoundary(LabResultsScreen, 'LabResults', { canGoBack: true });
 export const SafeLabResultDetail = withErrorBoundary(LabResultDetailScreen, 'LabResultDetail', { canGoBack: true });
+export const SafeLabReportImport = withErrorBoundary(LabReportImportScreen, 'LabReportImport', { canGoBack: true });
 export const SafeLabResultAdd = withErrorBoundary(LabResultAddScreen, 'LabResultAdd', { canGoBack: true });
 export const SafePersonalRecords = withErrorBoundary(PersonalRecordsScreen, 'PersonalRecords', { canGoBack: true });
 export const SafeTrainingCalendar = withErrorBoundary(TrainingCalendarScreen, 'TrainingCalendar', { canGoBack: true });

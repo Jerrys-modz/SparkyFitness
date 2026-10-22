@@ -1,3 +1,4 @@
+export * from "./schemas/api/LabReportScan.api.zod.ts";
 export * from "./constants/labMarkers.ts";
 export * from "./schemas/api/FitnessTest.api.zod.ts";
 export * from "./schemas/api/CoachingCheckIn.api.zod.ts";

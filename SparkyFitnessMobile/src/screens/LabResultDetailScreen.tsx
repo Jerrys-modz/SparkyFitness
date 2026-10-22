@@ -16,6 +16,7 @@ import LabStatusBadge from '../components/labs/LabStatusBadge';
 import { useRefetchOnFocus } from '../hooks/useRefetchOnFocus';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import {
+  useDeleteLabMarker,
   useDeleteLabResult,
   useLabHistory,
   useLabMarkers,
@@ -43,21 +44,73 @@ const LabResultDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const marker = markers.find((m) => m.id === categoryId);
   const history = useLabHistory(categoryId);
   const deleteResult = useDeleteLabResult(categoryId);
+  const deleteMarker = useDeleteLabMarker();
   useRefetchOnFocus(() => void history.refetch(), true);
+
+  const confirmDeleteMarker = () => {
+    Alert.alert(
+      t('labs.deleteMarkerTitle', { defaultValue: 'Delete marker' }),
+      t('labs.deleteMarkerMessage', {
+        defaultValue:
+          'Delete {{name}} and all of its results? This cannot be undone.',
+        name: marker ? labMarkerName(marker) : '',
+      }),
+      [
+        {
+          text: t('common.cancel', { defaultValue: 'Cancel' }),
+          style: 'cancel',
+        },
+        {
+          text: t('common.delete', { defaultValue: 'Delete' }),
+          style: 'destructive',
+          onPress: () =>
+            deleteMarker.mutate(categoryId, {
+              onSuccess: () => navigation.goBack(),
+              onError: () =>
+                Toast.show({
+                  type: 'error',
+                  text1: t('labs.deleteMarkerFailed', {
+                    defaultValue: 'Could not delete the marker',
+                  }),
+                }),
+            }),
+        },
+      ]
+    );
+  };
 
   const header = useScreenHeader({
     title: marker
       ? labMarkerName(marker)
       : t('screens.labResultDetail', { defaultValue: 'Lab result' }),
     left: { kind: 'back' },
-    right: {
-      kind: 'icon',
-      ionicon: 'add-outline',
-      sfSymbol: 'plus',
-      role: 'primary',
-      accessibilityLabel: t('labs.add', { defaultValue: 'Add lab result' }),
-      onPress: () => navigation.navigate('LabResultAdd', { categoryId }),
-    },
+    right: [
+      {
+        kind: 'icon',
+        ionicon: 'add-outline',
+        sfSymbol: 'plus',
+        role: 'primary',
+        accessibilityLabel: t('labs.add', { defaultValue: 'Add lab result' }),
+        onPress: () => navigation.navigate('LabResultAdd', { categoryId }),
+      },
+      {
+        kind: 'menu',
+        accessibilityLabel: t('labs.moreActions', {
+          defaultValue: 'More actions',
+        }),
+        items: [
+          {
+            label: t('labs.deleteMarker', {
+              defaultValue: 'Delete marker and all results',
+            }),
+            sfSymbol: 'trash',
+            icon: 'trash',
+            onPress: () => confirmDeleteMarker(),
+          },
+        ],
+        identifier: 'lab-detail-menu',
+      },
+    ],
   });
 
   const entries = useMemo(() => history.data ?? [], [history.data]);
@@ -176,6 +229,9 @@ const LabResultDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                         </Text>
                         <Text className="text-text-muted text-xs mt-0.5">
                           {formatDateLabel(entry.entry_date, t, dateLocale)}
+                          {entry.import_id
+                            ? ` · ${t('labs.importedTag', { defaultValue: 'Imported' })}`
+                            : ''}
                           {entry.notes ? ` · ${entry.notes}` : ''}
                         </Text>
                       </View>
