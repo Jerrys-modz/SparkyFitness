@@ -416,6 +416,8 @@ export type RootStackParamList = {
   WatchSettings: undefined;
   AddMenuSettings: undefined;
   DiarySettings: undefined;
+  CustomCategories: undefined;
+  CustomCategoryEdit: { categoryId?: string } | undefined;
   WorkoutSettings: undefined;
   WarmupSettings: undefined;
   HeartRateZonesSettings: undefined;

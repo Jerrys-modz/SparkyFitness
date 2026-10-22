@@ -72,6 +72,8 @@ import AllergenSettingsScreen from '../screens/AllergenSettingsScreen';
 import DashboardSettingsScreen from '../screens/DashboardSettingsScreen';
 import HealthTrendsSettingsScreen from '../screens/HealthTrendsSettingsScreen';
 import WatchSettingsScreen from '../screens/WatchSettingsScreen';
+import CustomCategoriesScreen from '../screens/CustomCategoriesScreen';
+import CustomCategoryEditScreen from '../screens/CustomCategoryEditScreen';
 import AddMenuSettingsScreen from '../screens/AddMenuSettingsScreen';
 import DiarySettingsScreen from '../screens/DiarySettingsScreen';
 import WorkoutSettingsScreen from '../screens/WorkoutSettingsScreen';
@@ -230,6 +232,8 @@ export const SafeHealthTrendsSettings = withErrorBoundary(HealthTrendsSettingsSc
 export const SafeWatchSettings = withErrorBoundary(WatchSettingsScreen, 'WatchSettings', { canGoBack: true });
 export const SafeAddMenuSettings = withErrorBoundary(AddMenuSettingsScreen, 'AddMenuSettings', { canGoBack: true });
 export const SafeDiarySettings = withErrorBoundary(DiarySettingsScreen, 'DiarySettings', { canGoBack: true });
+export const SafeCustomCategories = withErrorBoundary(CustomCategoriesScreen, 'CustomCategories', { canGoBack: true });
+export const SafeCustomCategoryEdit = withErrorBoundary(CustomCategoryEditScreen, 'CustomCategoryEdit', { canGoBack: true });
 export const SafeWorkoutSettings = withErrorBoundary(WorkoutSettingsScreen, 'WorkoutSettings', { canGoBack: true });
 export const SafeTreadmillSettings = withErrorBoundary(TreadmillSettingsScreen, 'TreadmillSettings', { canGoBack: true });
 export const SafeWarmupSettings = withErrorBoundary(WarmupSettingsScreen, 'WarmupSettings', { canGoBack: true });
