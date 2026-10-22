@@ -441,6 +441,8 @@ export * from "./medications/contracts.ts";
 export * from "./medications/glp1.ts";
 export * from "./medications/injectionBodyMap.ts";
 export * from "./medications/schedules.ts";
+export * from "./medications/adherence.ts";
+export * from "./medications/subtype.ts";
 export * from "./medications/format.ts";
 export * from "./medications/symptoms.ts";
 export * from "./symptoms/index.ts";

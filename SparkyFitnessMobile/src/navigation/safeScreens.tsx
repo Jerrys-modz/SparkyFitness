@@ -93,7 +93,9 @@ import CycleHubScreen from '../screens/CycleHubScreen';
 import CycleLogModalScreen from '../screens/CycleLogModalScreen';
 import PregnancySetupScreen from '../screens/PregnancySetupScreen';
 import MedicationsListScreen from '../screens/MedicationsListScreen';
+import MedicationAdherenceScreen from '../screens/MedicationAdherenceScreen';
 import MedicationDetailScreen from '../screens/MedicationDetailScreen';
+import MedicationEntryEditScreen from '../screens/MedicationEntryEditScreen';
 import MedicationFormScreen from '../screens/MedicationFormScreen';
 import MedicationScheduleFormScreen from '../screens/MedicationScheduleFormScreen';
 import Glp1TrackerScreen from '../screens/Glp1TrackerScreen';
@@ -252,6 +254,8 @@ export const SafeCycleHub = withErrorBoundary(CycleHubScreen, 'CycleHub', { canG
 export const SafeCycleLogModal = withErrorBoundary(CycleLogModalScreen, 'CycleLogModal', { canGoBack: true });
 export const SafePregnancySetup = withErrorBoundary(PregnancySetupScreen, 'PregnancySetup', { canGoBack: true });
 export const SafeMedicationsList = withErrorBoundary(MedicationsListScreen, 'MedicationsList', { canGoBack: true });
+export const SafeMedicationAdherence = withErrorBoundary(MedicationAdherenceScreen, 'MedicationAdherence', { canGoBack: true });
+export const SafeMedicationEntryEdit = withErrorBoundary(MedicationEntryEditScreen, 'MedicationEntryEdit', { canGoBack: true });
 export const SafeMedicationDetail = withErrorBoundary(MedicationDetailScreen, 'MedicationDetail', { canGoBack: true });
 export const SafeMedicationForm = withErrorBoundary(MedicationFormScreen, 'MedicationForm', { canGoBack: true });
 export const SafeMedicationScheduleForm = withErrorBoundary(MedicationScheduleFormScreen, 'MedicationScheduleForm', { canGoBack: true });

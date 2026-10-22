@@ -122,6 +122,7 @@ export default defineConfig({
             { text: 'Feature Comparison', link: '/features/comparison' },
             { text: 'Features Index', link: '/features/' },
             { text: 'Check-in', link: '/features/check-in' },
+            { text: 'Medications & Supplements', link: '/features/medications' },
             { text: 'Reports', link: '/features/reports' },
             { text: 'Goals', link: '/features/goals' },
             { text: 'Family & Friends Sharing', link: '/features/family-friends-sharing' },
