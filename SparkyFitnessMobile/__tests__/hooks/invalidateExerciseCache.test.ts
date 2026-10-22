@@ -3,6 +3,7 @@ import {
   dailySummaryQueryKey,
   exerciseHistoryQueryKey,
   exerciseStatsQueryKeyRoot,
+  routesQueryKey,
   suggestedExercisesQueryKey,
   workoutSessionQueryKeyRoot,
 } from '../../src/hooks/queryKeys';
@@ -39,6 +40,9 @@ describe('invalidateExerciseCache', () => {
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: [...exerciseStatsQueryKeyRoot],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: [...routesQueryKey],
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ['activeWorkoutPlan'],

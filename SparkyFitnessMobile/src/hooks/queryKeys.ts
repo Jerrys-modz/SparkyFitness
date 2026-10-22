@@ -457,3 +457,11 @@ export const routeQueryKey = (id: string) => ['routes', id] as const;
 /** One Compare answer: the two metrics, how they are paired, and the window. */
 export const compareQueryKey = (p: CompareParams) =>
   ['compare', p.a, p.b, p.mode, p.timing, p.start, p.end] as const;
+
+/** The diary entries that followed one route. */
+export const routeRunsQueryKey = (id: string) =>
+  ['routes', id, 'runs'] as const;
+
+/** The best run over one route as a pace line. */
+export const routeGhostQueryKey = (id: string) =>
+  ['routes', id, 'ghost'] as const;

@@ -13,6 +13,7 @@ import {
   type RecordingSession,
 } from './gpsRecordingService';
 import { addLog } from './LogService';
+import { linkEntryToRoute } from './routeLink';
 import {
   learnFromIndoorEntry,
   learnFromOutdoorRecording,
@@ -256,6 +257,11 @@ export async function saveRecordedActivity(
           : computeSplits(points, unitMeters)
       ),
     });
+  }
+  // After the track, like it a step a retry repeats: the entry id is already
+  // kept on the session.
+  if (!indoor && session.routeId) {
+    await linkEntryToRoute(entryId, session.routeId);
   }
   await attachWatchHeartRate(entryId);
   return { entryId, entryDate, form, ...(wornOutShoe && { wornOutShoe }) };

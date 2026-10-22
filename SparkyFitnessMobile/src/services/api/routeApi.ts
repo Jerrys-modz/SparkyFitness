@@ -6,6 +6,8 @@ import type {
   Route,
   RouteFromActivityBody,
   RouteGenerateCapabilities,
+  RouteGhostResponse,
+  RouteRun,
   RouteSummary,
   UpdateRouteBody,
 } from '@workspace/shared';
@@ -103,4 +105,33 @@ export const generateRoute = (
     body,
     // A loop can cost the server a few engine calls.
     timeoutMs: 60_000,
+  });
+
+/** The diary entries that followed a route, newest first. */
+export const fetchRouteRuns = (id: string): Promise<{ runs: RouteRun[] }> =>
+  apiFetch<{ runs: RouteRun[] }>({
+    endpoint: `/api/v2/routes/${id}/runs`,
+    serviceName: SERVICE,
+    operation: 'fetch route runs',
+  });
+
+/** Links a diary entry to the route it followed (the server checks both). */
+export const attachExerciseEntryRoute = (
+  entryId: string,
+  routeId: string
+): Promise<void> =>
+  apiFetch<void>({
+    endpoint: `/api/exercise-entries/${encodeURIComponent(entryId)}/route`,
+    serviceName: SERVICE,
+    operation: 'link entry to route',
+    method: 'POST',
+    body: { routeId },
+  });
+
+/** The best run over a route as a pace line; `ghost` is null before a first timed run. */
+export const fetchRouteGhost = (id: string): Promise<RouteGhostResponse> =>
+  apiFetch<RouteGhostResponse>({
+    endpoint: `/api/v2/routes/${id}/ghost`,
+    serviceName: SERVICE,
+    operation: 'fetch route ghost',
   });

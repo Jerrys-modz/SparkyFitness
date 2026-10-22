@@ -112,6 +112,12 @@ import {
 } from '../utils/runSummary';
 import { toLocalDateString } from '../utils/dateUtils';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
+import {
+  useRoute as useSavedRoute,
+  useRouteGhost,
+} from '../services/routeService';
+import { formatRouteDistance } from '../utils/routeDisplay';
+import { ghostLead, raceLabel } from '../utils/routeRace';
 import { useShoeMutations } from '../hooks/useShoes';
 import { promptToRetireShoe } from '../utils/retireShoePrompt';
 import { fireSelectionHaptic } from '../services/haptics';
@@ -604,6 +610,24 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [isLive, hasIntervals, now]);
 
   const summary = useMemo(() => summarizeRecording(points), [points]);
+
+  // The saved route a phone run was started on: before Start it is named on
+  // the setup card, and while recording the best run over it is raced.
+  const startRouteId = route.params?.routeId ?? '';
+  const { route: startRoute } = useSavedRoute(startRouteId);
+  const liveRouteId = session?.routeId ?? '';
+  const { route: liveRoute } = useSavedRoute(liveRouteId);
+  const { ghost } = useRouteGhost(liveRouteId);
+  const raceLead =
+    session && liveRoute && session.status !== 'finished'
+      ? ghostLead(
+          ghost,
+          liveRoute.distanceM,
+          summary.distanceMeters,
+          elapsedSeconds(session, now)
+        )
+      : null;
+  const race = raceLabel(raceLead, t);
   const mapPoints = useMemo(
     () =>
       points.map((p) => ({
@@ -727,6 +751,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               intervalChoice === 'program' && programStatus && intervalPlan
                 ? { id: programStatus.program.id, index: programStatus.done }
                 : undefined,
+            routeId:
+              startRouteId && !indoor && activity !== 'ride'
+                ? startRouteId
+                : undefined,
             notification: notificationText(t, activity),
           });
         },
@@ -736,6 +764,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       ),
     [
       activity,
+      startRouteId,
       audioCues,
       checkInMinutes,
       autoPause,
@@ -934,6 +963,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
           program,
           entryId: saved.entryId,
           form: saved.form,
+          routeId: session.indoor ? null : (session.routeId ?? null),
         });
       } catch (error) {
         addLog(
@@ -1243,6 +1273,29 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               }}
             />
           </View>
+          {startRoute && !indoor && activity !== 'ride' && !onWatch ? (
+            <View
+              className="bg-surface rounded-xl p-4 mb-4"
+              testID="record-route"
+            >
+              <Text className="text-text-primary text-sm font-semibold">
+                {t('recordActivity.route.following', {
+                  name: startRoute.name,
+                  defaultValue: 'Running {{name}}',
+                })}
+              </Text>
+              <Text className="text-text-secondary text-xs mt-1">
+                {t('recordActivity.route.hint', {
+                  distance: formatRouteDistance(
+                    startRoute.distanceM,
+                    distanceUnit
+                  ),
+                  defaultValue:
+                    '{{distance}}. The run is added to this route’s history, and you race your best time on it.',
+                })}
+              </Text>
+            </View>
+          ) : null}
           <RunProgramSelect
             status={programStatus}
             loaded={programLoaded}
@@ -1566,6 +1619,20 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             {formatClock(active)}
           </Text>
         </View>
+        {race && !finished ? (
+          <View className="items-center mb-3">
+            <Text
+              className={
+                race.tone === 'ahead'
+                  ? 'text-text-success text-base font-semibold'
+                  : 'text-text-warning text-base font-semibold'
+              }
+              testID="record-route-race"
+            >
+              {race.text}
+            </Text>
+          </View>
+        ) : null}
         {session.intervals && intervalPos && !finished ? (
           <IntervalCard plan={session.intervals.plan} position={intervalPos} />
         ) : null}

@@ -200,7 +200,8 @@ export type RootStackParamList = {
   };
   ExerciseStatistics: undefined;
   /** `programWorkout` opens it with today's training-program workout chosen. */
-  RecordActivity: { programWorkout?: boolean } | undefined;
+  /** `routeId` records a phone run or walk over that saved route. */
+  RecordActivity: { programWorkout?: boolean; routeId?: string } | undefined;
   RunSummary: RunSummaryParams;
   Reports: undefined;
   HydrationReport: undefined;

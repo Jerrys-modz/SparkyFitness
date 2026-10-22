@@ -7335,6 +7335,10 @@
       "marathonPace": "marathon pace {{range}}",
       "strides": "strides {{range}}",
       "paceSourceRace": "Based on your recent race: {{race}}."
+    },
+    "route": {
+      "following": "Running {{name}}",
+      "hint": "{{distance}}. The run is added to this route’s history, and you race your best time on it."
     }
   },
   "goals": {
@@ -7834,7 +7838,10 @@
     "saveDistance": "Update",
     "distanceInvalid": "Enter the distance from the machine.",
     "distanceFailed": "Could not save the distance.",
-    "heartRate": "Heart rate"
+    "heartRate": "Heart rate",
+    "followedRoute": "Followed {{name}}",
+    "routeBest": "Route best, beating your {{time}}",
+    "viewRoute": "View route"
   },
   "runPrograms": {
     "startWhenTitle": "Start {{name}}",
@@ -8339,7 +8346,28 @@
     "fileTooLarge": "That file is too large",
     "fileTooLargeHint": "A route file can be up to 10 MB.",
     "followRoadsTooMany": "Following roads takes up to {{max}} points. Undo points or turn Follow roads off to save.",
-    "drawLimit": "That is as many points as a route can have here. Undo some or save this one."
+    "drawLimit": "That is as many points as a route can have here. Undo some or save this one.",
+    "ranTimes_one": "Ran {{count}} time",
+    "ranTimes_other": "Ran {{count}} times",
+    "startRun": "Record a run on this route",
+    "history": {
+      "title": "History",
+      "empty": "No runs yet. A run or walk recorded on this route is listed here.",
+      "runs": "Runs",
+      "best": "Best",
+      "last": "Last run",
+      "heartRate": "{{bpm}} bpm",
+      "openFailed": "Could not open that run",
+      "openFailedHint": "It may have been deleted from your diary.",
+      "trendSteady": "About the same as your recent runs",
+      "trendFaster": "{{time}} faster than your recent runs",
+      "trendSlower": "{{time}} slower than your recent runs"
+    },
+    "ghost": {
+      "even": "Even with your best time",
+      "ahead": "Ahead {{time}}",
+      "behind": "Behind {{time}}"
+    }
   },
   "compareReport": {
     "groups": {

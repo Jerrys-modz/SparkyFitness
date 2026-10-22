@@ -29,6 +29,7 @@ import { programStatus } from '@workspace/shared';
 import { saveRecordedActivity } from '../../src/services/gpsRecordingSave';
 import { useIndoorDistanceEstimate } from '../../src/hooks/useIndoorDistanceEstimate';
 import { useLiveHeartRateStore } from '../../src/stores/liveHeartRateStore';
+import { useRoute, useRouteGhost } from '../../src/services/routeService';
 import { initializeI18n } from '../../src/localization/i18n';
 import type { RecordedPoint } from '../../src/utils/gpsRecording';
 import type { RootStackScreenProps } from '../../src/types/navigation';
@@ -80,6 +81,10 @@ jest.mock('../../src/hooks/useWatchConnectivity', () => ({
     isPaired: false,
     isReachable: false,
   })),
+}));
+jest.mock('../../src/services/routeService', () => ({
+  useRoute: jest.fn(() => ({ route: undefined })),
+  useRouteGhost: jest.fn(() => ({ ghost: null, isLoading: false })),
 }));
 jest.mock('../../src/services/watchRunControl', () => ({
   startRunOnWatch: jest.fn(() => Promise.resolve('q1')),
@@ -1264,5 +1269,86 @@ describe('RecordActivityScreen', () => {
 
     expect(alert).toHaveBeenCalled();
     expect(discardRecording).not.toHaveBeenCalled();
+  });
+
+  describe('on a saved route', () => {
+    const savedRoute = {
+      id: 'r1',
+      name: 'Hill loop',
+      distanceM: 5000,
+    };
+    // 140 s per 500 m: 700 s at the 2.5 km the track covers.
+    const ghost = {
+      entryId: 'old',
+      durationSeconds: 1400,
+      intervalM: 500,
+      splits: Array.from({ length: 10 }, (_, i) => (i + 1) * 140),
+      source: 'track' as const,
+    };
+    const openOnRoute = async () => {
+      const screen = render(
+        <QueryClientProvider client={new QueryClient()}>
+          <RecordActivityScreen
+            {...({
+              navigation,
+              route: {
+                key: 'RecordActivity',
+                name: 'RecordActivity',
+                params: { routeId: 'r1' },
+              },
+            } as unknown as RootStackScreenProps<'RecordActivity'>)}
+          />
+        </QueryClientProvider>
+      );
+      await waitFor(() =>
+        expect(screen.queryByTestId('record-activity-loading')).toBeNull()
+      );
+      return screen;
+    };
+    afterEach(() => {
+      jest.mocked(useRoute).mockReturnValue({ route: undefined } as never);
+      jest
+        .mocked(useRouteGhost)
+        .mockReturnValue({ ghost: null, isLoading: false });
+    });
+
+    it('names the route and records the run over it', async () => {
+      state(null);
+      jest.mocked(useRoute).mockReturnValue({ route: savedRoute } as never);
+      const screen = await openOnRoute();
+      expect(screen.getByText('Running Hill loop')).toBeTruthy();
+
+      fireEvent.press(screen.getByText('Start'));
+      await waitFor(() => expect(startRecording).toHaveBeenCalled());
+      expect(jest.mocked(startRecording).mock.calls[0][0].routeId).toBe('r1');
+    });
+
+    it('shows no route card without a route and sends none', async () => {
+      state(null);
+      const screen = await renderScreen();
+      expect(screen.queryByTestId('record-route')).toBeNull();
+      fireEvent.press(screen.getByText('Start'));
+      await waitFor(() => expect(startRecording).toHaveBeenCalled());
+      expect(
+        jest.mocked(startRecording).mock.calls[0][0].routeId
+      ).toBeUndefined();
+    });
+
+    it('shows how far behind the best run you are while recording', async () => {
+      state(session({ routeId: 'r1' }), track);
+      jest.mocked(useRoute).mockReturnValue({ route: savedRoute } as never);
+      jest.mocked(useRouteGhost).mockReturnValue({ ghost, isLoading: false });
+      const screen = await renderScreen();
+      expect(screen.getByTestId('record-route-race').props.children).toMatch(
+        /^Behind 5\d s$/
+      );
+    });
+
+    it('shows nothing for a first run with no best time yet', async () => {
+      state(session({ routeId: 'r1' }), track);
+      jest.mocked(useRoute).mockReturnValue({ route: savedRoute } as never);
+      const screen = await renderScreen();
+      expect(screen.queryByTestId('record-route-race')).toBeNull();
+    });
   });
 });

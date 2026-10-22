@@ -8,15 +8,21 @@ import {
   renameRoute,
   shareRouteGpx,
   useRoute,
+  useRouteRuns,
 } from '../../src/services/routeService';
+import { openRunEntry } from '../../src/services/openRunEntry';
 import { initializeI18n } from '../../src/localization/i18n';
 import type { RootStackScreenProps } from '../../src/types/navigation';
 
 jest.mock('../../src/services/routeService', () => ({
   useRoute: jest.fn(),
+  useRouteRuns: jest.fn(),
   renameRoute: jest.fn(),
   removeRoute: jest.fn(),
   shareRouteGpx: jest.fn(),
+}));
+jest.mock('../../src/services/openRunEntry', () => ({
+  openRunEntry: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('../../src/components/exerciseStats/RouteMap', () => {
   const { View } = require('react-native');
@@ -63,6 +69,9 @@ const route = (overrides: Partial<Route> = {}): Route => ({
   ],
   cues: [],
   sourceExerciseEntryId: null,
+  runCount: 0,
+  bestDurationSeconds: null,
+  lastRunDate: null,
   createdAt: '2026-10-20T00:00:00.000Z',
   updatedAt: '2026-10-20T00:00:00.000Z',
   ...overrides,
@@ -70,6 +79,7 @@ const route = (overrides: Partial<Route> = {}): Route => ({
 
 const refetch = jest.fn();
 const goBack = jest.fn();
+const navigate = jest.fn();
 const show = (state: Partial<ReturnType<typeof useRoute>> = {}) =>
   (useRoute as jest.Mock).mockReturnValue({
     route: route(),
@@ -82,7 +92,7 @@ const renderScreen = () =>
   render(
     <RouteDetailScreen
       {...({
-        navigation: { goBack },
+        navigation: { goBack, navigate },
         route: { key: 'k', name: 'RouteDetail', params: { id: 'r1' } },
       } as unknown as RootStackScreenProps<'RouteDetail'>)}
     />
@@ -95,6 +105,12 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockUnit = 'km';
   show();
+  jest.mocked(useRouteRuns).mockReturnValue({
+    runs: [],
+    isLoading: false,
+    isError: false,
+    refetch,
+  });
 });
 
 describe('RouteDetailScreen', () => {
@@ -248,5 +264,108 @@ describe('RouteDetailScreen', () => {
     const withoutMap = renderScreen();
     expect(withoutMap.queryByText('Edit route on map')).toBeNull();
     mockCanShowMap = true;
+  });
+});
+
+describe('RouteDetailScreen history', () => {
+  const runs = [
+    {
+      entryId: 'e3',
+      date: '2026-10-16',
+      durationSeconds: 1450,
+      distanceM: 5000,
+      paceSecPerKm: 290,
+      avgHeartRate: 151,
+    },
+    {
+      entryId: 'e2',
+      date: '2026-10-09',
+      durationSeconds: 1500,
+      distanceM: null,
+      paceSecPerKm: null,
+      avgHeartRate: null,
+    },
+    {
+      entryId: 'e1',
+      date: '2026-10-02',
+      durationSeconds: 1510,
+      distanceM: 5000,
+      paceSecPerKm: 302,
+      avgHeartRate: null,
+    },
+  ];
+  const withRuns = () => {
+    show({
+      route: route({
+        runCount: 3,
+        bestDurationSeconds: 1450,
+        lastRunDate: '2026-10-16',
+      }),
+    });
+    jest.mocked(useRouteRuns).mockReturnValue({
+      runs,
+      isLoading: false,
+      isError: false,
+      refetch,
+    });
+  };
+
+  it('says there are no runs yet', () => {
+    const screen = renderScreen();
+    expect(screen.getByText('History')).toBeTruthy();
+    expect(screen.getByText(/No runs yet/)).toBeTruthy();
+    expect(screen.queryByTestId('route-history-count')).toBeNull();
+    expect(screen.queryByTestId('route-history-trend')).toBeNull();
+  });
+
+  it('shows the count, best time, last run, trend and the runs', () => {
+    withRuns();
+    const screen = renderScreen();
+    expect(screen.getByTestId('route-history-count').props.children).toBe(3);
+    expect(screen.getByTestId('route-history-best').props.children).toBe(
+      '24:10'
+    );
+    expect(screen.getByTestId('route-history-last')).toBeTruthy();
+    expect(screen.getByText(/faster than your recent runs/)).toBeTruthy();
+    expect(
+      screen.getByText('24:10 · 5.00 km · 4:50 /km · 151 bpm')
+    ).toBeTruthy();
+    expect(screen.getByTestId('route-run-e1')).toBeTruthy();
+  });
+
+  it('opens the entry of a run', async () => {
+    withRuns();
+    const screen = renderScreen();
+    fireEvent.press(screen.getByTestId('route-run-e2'));
+    await waitFor(() =>
+      expect(openRunEntry).toHaveBeenCalledWith(
+        expect.objectContaining({ goBack }),
+        'e2',
+        'km'
+      )
+    );
+  });
+
+  it('says so when a run cannot be opened', async () => {
+    withRuns();
+    jest.mocked(openRunEntry).mockRejectedValueOnce(new Error('gone'));
+    const screen = renderScreen();
+    fireEvent.press(screen.getByTestId('route-run-e2'));
+    await waitFor(() =>
+      expect(Toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({ text1: 'Could not open that run' })
+      )
+    );
+  });
+
+  it('starts a phone run over the route, but not for a ride', () => {
+    const screen = renderScreen();
+    fireEvent.press(screen.getByText('Record a run on this route'));
+    expect(navigate).toHaveBeenCalledWith('RecordActivity', { routeId: 'r1' });
+    screen.unmount();
+
+    show({ route: route({ activity: 'ride' }) });
+    const ride = renderScreen();
+    expect(ride.queryByText('Record a run on this route')).toBeNull();
   });
 });

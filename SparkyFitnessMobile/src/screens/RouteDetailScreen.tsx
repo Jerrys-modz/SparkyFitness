@@ -12,15 +12,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import RouteMap from '../components/exerciseStats/RouteMap';
 import RouteCueList from '../components/RouteCueList';
+import RouteHistoryCard from '../components/RouteHistoryCard';
 import Button from '../components/ui/Button';
 import { usePreferences } from '../hooks/usePreferences';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { addLog } from '../services/LogService';
+import { openRunEntry } from '../services/openRunEntry';
 import {
   removeRoute,
   renameRoute,
   shareRouteGpx,
   useRoute,
+  useRouteRuns,
 } from '../services/routeService';
 import { formatRouteClimb, formatRouteDistance } from '../utils/routeDisplay';
 import { canShowRouteMap } from '../utils/routeMapSupport';
@@ -34,6 +37,7 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { route, isLoading, isError, refetch } = useRoute(id);
+  const { runs } = useRouteRuns(id);
   const { preferences } = usePreferences();
   const unit = preferences?.default_distance_unit ?? 'km';
   const [name, setName] = useState<string | null>(null);
@@ -48,6 +52,21 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
   const fail = (text: string, error: unknown) => {
     addLog(`[Routes] ${text}: ${error}`, 'WARNING');
     Toast.show({ type: 'error', text1: text });
+  };
+
+  const openRun = (entryId: string) => {
+    void openRunEntry(navigation, entryId, unit).catch((error: unknown) => {
+      addLog(`[Routes] Could not open the run: ${error}`, 'WARNING');
+      Toast.show({
+        type: 'error',
+        text1: t('routes.history.openFailed', {
+          defaultValue: 'Could not open that run',
+        }),
+        text2: t('routes.history.openFailedHint', {
+          defaultValue: 'It may have been deleted from your diary.',
+        }),
+      });
+    });
   };
 
   const saveName = () => {
@@ -168,8 +187,25 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
                   : ''}
               </Text>
             </View>
+            <RouteHistoryCard
+              route={route}
+              runs={runs}
+              unit={unit}
+              onOpenRun={openRun}
+            />
             <RouteCueList cues={route.cues} unit={unit} />
             <View className="mt-4 gap-2">
+              {route.activity !== 'ride' ? (
+                <Button
+                  onPress={() =>
+                    navigation.navigate('RecordActivity', { routeId: id })
+                  }
+                >
+                  {t('routes.startRun', {
+                    defaultValue: 'Record a run on this route',
+                  })}
+                </Button>
+              ) : null}
               {canShowRouteMap() ? (
                 <Button
                   variant="secondary"

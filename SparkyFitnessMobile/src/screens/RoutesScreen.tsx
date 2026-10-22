@@ -163,6 +163,14 @@ const RoutesScreen: React.FC<Props> = ({ navigation }) => {
                   </Text>
                   <Text className="text-sm text-text-secondary mt-0.5">
                     {formatRouteDistance(route.distanceM, unit)}
+                    {route.runCount > 0
+                      ? ` · ${t('routes.ranTimes', {
+                          count: route.runCount,
+                          defaultValue: 'Ran {{count}} times',
+                          defaultValue_one: 'Ran {{count}} time',
+                          defaultValue_other: 'Ran {{count}} times',
+                        })}`
+                      : ''}
                   </Text>
                 </View>
                 <Icon name="chevron-forward" size={20} color="#999" />

@@ -44,6 +44,8 @@ export interface RunSummaryParams {
   form?: (FormMetrics & { steps?: number }) | null;
   /** The saved diary entry, so the screen can look up the records it set. */
   entryId?: string | null;
+  /** The saved route the run followed, for the route's name and best time. */
+  routeId?: string | null;
   /** True for a treadmill run, whose distance the person can correct. */
   editableDistance?: boolean;
   /**
@@ -72,6 +74,7 @@ export function buildRunSummary({
   avgHeartRate,
   program,
   entryId,
+  routeId,
   form,
 }: {
   activity: RecordingActivity;
@@ -82,6 +85,7 @@ export function buildRunSummary({
   avgHeartRate: number | null;
   program: RunSummaryParams['program'];
   entryId?: string | null;
+  routeId?: string | null;
   form?: RunSummaryParams['form'];
 }): RunSummaryParams {
   const unitMeters = distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
@@ -104,6 +108,7 @@ export function buildRunSummary({
     laps: lapMarks && lapMarks.length > 0 ? computeLaps(points, lapMarks) : [],
     program,
     entryId: entryId ?? null,
+    routeId: routeId ?? null,
     ...(form ? { form } : {}),
   };
 }

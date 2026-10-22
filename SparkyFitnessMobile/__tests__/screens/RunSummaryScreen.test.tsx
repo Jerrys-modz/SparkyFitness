@@ -15,6 +15,7 @@ import {
   setExerciseEntryStrideLength,
 } from '../../src/services/api/exerciseApi';
 import { usePersonalRecords } from '../../src/hooks/usePersonalRecords';
+import { useRouteRuns, useRoutes } from '../../src/services/routeService';
 import type { RunSummaryParams } from '../../src/utils/runSummary';
 
 jest.mock('../../src/hooks/useScreenHeader', () => ({
@@ -27,6 +28,10 @@ jest.mock('../../src/services/runProgramService', () => ({
 jest.mock('../../src/services/api/exerciseApi', () => ({
   setExerciseEntryDistance: jest.fn(() => Promise.resolve()),
   setExerciseEntryStrideLength: jest.fn(() => Promise.resolve()),
+}));
+jest.mock('../../src/services/routeService', () => ({
+  useRoutes: jest.fn(() => ({ routes: [] })),
+  useRouteRuns: jest.fn(() => ({ runs: [] })),
 }));
 jest.mock('../../src/hooks/usePersonalRecords', () => ({
   usePersonalRecords: jest.fn(() => ({ records: [] })),
@@ -434,5 +439,55 @@ describe('running form', () => {
 
       expect(setExerciseEntryStrideLength).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('followed route', () => {
+  const route = { id: 'r1', name: 'Hill loop' };
+  const run = (entryId: string, durationSeconds: number) => ({
+    entryId,
+    date: '2026-10-12',
+    durationSeconds,
+    distanceM: 5000,
+    paceSecPerKm: 300,
+    avgHeartRate: null,
+  });
+  const follow = (runs: ReturnType<typeof run>[]) => {
+    jest.mocked(useRoutes).mockReturnValue({ routes: [route] } as never);
+    jest.mocked(useRouteRuns).mockReturnValue({ runs } as never);
+  };
+  afterEach(() => {
+    jest.mocked(useRoutes).mockReturnValue({ routes: [] } as never);
+    jest.mocked(useRouteRuns).mockReturnValue({ runs: [] } as never);
+  });
+
+  it('shows nothing for a run that followed no route', () => {
+    renderScreen(params({ entryId: 'entry-1' }));
+    expect(screen.queryByText(/Followed/)).toBeNull();
+  });
+
+  it('says which route was followed and opens it', () => {
+    follow([run('entry-1', 1500)]);
+    renderScreen(params({ entryId: 'entry-1', routeId: 'r1' }));
+    expect(screen.getByText('Followed Hill loop')).toBeTruthy();
+    // The first run over a route has nothing to beat.
+    expect(screen.queryByText(/Route best/)).toBeNull();
+    fireEvent.press(screen.getByText('View route'));
+    expect(navigation.navigate).toHaveBeenCalledWith('RouteDetail', {
+      id: 'r1',
+    });
+  });
+
+  it('notes a route best when the run beats the previous best', () => {
+    follow([run('entry-1', 1400), run('old', 1500), run('older', 1600)]);
+    renderScreen(params({ entryId: 'entry-1', routeId: 'r1' }));
+    expect(screen.getByText('Route best, beating your 25:00')).toBeTruthy();
+  });
+
+  it('has no route best note for a slower run', () => {
+    follow([run('entry-1', 1700), run('old', 1500)]);
+    renderScreen(params({ entryId: 'entry-1', routeId: 'r1' }));
+    expect(screen.getByText('Followed Hill loop')).toBeTruthy();
+    expect(screen.queryByText(/Route best/)).toBeNull();
   });
 });

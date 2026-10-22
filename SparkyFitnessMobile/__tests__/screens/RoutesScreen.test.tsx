@@ -44,7 +44,12 @@ jest.mock('react-native-toast-message', () => ({
 
 const navigate = jest.fn();
 const refetch = jest.fn();
-const summary = (id: string, name: string, distanceM: number) => ({
+const summary = (
+  id: string,
+  name: string,
+  distanceM: number,
+  runCount = 0
+) => ({
   id,
   name,
   activity: 'run' as const,
@@ -52,6 +57,9 @@ const summary = (id: string, name: string, distanceM: number) => ({
   distanceM,
   elevationGainM: null,
   sourceExerciseEntryId: null,
+  runCount,
+  bestDurationSeconds: runCount > 0 ? 1500 : null,
+  lastRunDate: runCount > 0 ? '2026-10-16' : null,
   createdAt: '2026-10-20T00:00:00.000Z',
   updatedAt: '2026-10-20T00:00:00.000Z',
   start: { lat: 40, lon: -74 },
@@ -164,6 +172,20 @@ describe('RoutesScreen list', () => {
     const screen = renderScreen();
     expect(screen.getByText('Loop')).toBeTruthy();
     expect(screen.queryByText('Could not load your routes.')).toBeNull();
+  });
+
+  it('says how many times a route was run', () => {
+    mockRoutes({
+      routes: [
+        summary('r1', 'Loop', 5000, 3),
+        summary('r2', 'Hill', 12400, 1),
+        summary('r3', 'Park', 2000),
+      ],
+    });
+    const screen = renderScreen();
+    expect(screen.getByText(/Ran 3 times/)).toBeTruthy();
+    expect(screen.getByText(/Ran 1 time$/)).toBeTruthy();
+    expect(screen.getAllByText(/Ran \d+ time/)).toHaveLength(2);
   });
 
   it('lists routes with their distance and opens one', () => {

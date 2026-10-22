@@ -8,13 +8,17 @@ import {
   type GeneratedRoutePreview,
   type GenerateRouteBody,
   type Route,
+  type RouteGhost,
+  type RouteRun,
   type RouteSummary,
   type UpdateRouteBody,
 } from '@workspace/shared';
 import { queryClient } from '../hooks/queryClient';
 import {
   routeGenerationCapabilitiesQueryKey,
+  routeGhostQueryKey,
   routeQueryKey,
+  routeRunsQueryKey,
   routesQueryKey,
 } from '../hooks/queryKeys';
 import { shareGpxFile } from './gpxExport';
@@ -23,6 +27,8 @@ import {
   createRouteFromActivity,
   deleteRoute,
   fetchRoute,
+  fetchRouteGhost,
+  fetchRouteRuns,
   fetchRouteGenerationCapabilities,
   generateRoute,
   fetchRoutes,
@@ -87,6 +93,34 @@ export async function generateRoutePreview(
 ): Promise<GeneratedRoutePreview> {
   const { route } = await generateRoute(body);
   return route;
+}
+
+/** The runs and walks that followed a route, newest first. */
+export function useRouteRuns(id: string): {
+  runs: RouteRun[];
+  isLoading: boolean;
+  isError: boolean;
+  refetch: () => Promise<unknown>;
+} {
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: routeRunsQueryKey(id),
+    queryFn: async () => (await fetchRouteRuns(id)).runs,
+    enabled: id !== '',
+  });
+  return { runs: data ?? [], isLoading, isError, refetch };
+}
+
+/** The best run over a route as a pace line to race; null when it has none. */
+export function useRouteGhost(id: string): {
+  ghost: RouteGhost | null;
+  isLoading: boolean;
+} {
+  const { data, isLoading } = useQuery({
+    queryKey: routeGhostQueryKey(id),
+    queryFn: async () => (await fetchRouteGhost(id)).ghost,
+    enabled: id !== '',
+  });
+  return { ghost: data ?? null, isLoading };
 }
 
 const refreshRoutes = () =>

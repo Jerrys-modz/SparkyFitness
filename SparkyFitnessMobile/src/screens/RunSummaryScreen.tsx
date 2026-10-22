@@ -22,6 +22,7 @@ import {
   setExerciseEntryStrideLength,
 } from '../services/api/exerciseApi';
 import { addLog } from '../services/LogService';
+import { useRouteRuns, useRoutes } from '../services/routeService';
 import {
   rateProgramWorkout,
   setProgramPosition,
@@ -36,6 +37,7 @@ import { spmText, strideText } from '../utils/cardioSessionStats';
 import { computeFormMetrics } from '../utils/stride';
 import { parseDecimalInput } from '../utils/numericInput';
 import { distanceStandardLabel, recordsHeldBy } from '../utils/personalRecords';
+import { routeBestNote } from '../utils/routeHistory';
 import {
   formatClock,
   formatPace,
@@ -80,6 +82,18 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
   const newRecords = summary.entryId
     ? recordsHeldBy(records, summary.entryId)
     : [];
+
+  // The route this run followed, and whether it beat the best before it.
+  const followedRouteId = summary.routeId ?? '';
+  const { routes: savedRoutes } = useRoutes();
+  const { runs: routeRuns } = useRouteRuns(followedRouteId);
+  const followedRoute = followedRouteId
+    ? savedRoutes.find((saved) => saved.id === followedRouteId)
+    : undefined;
+  const routeNote =
+    followedRoute && summary.entryId
+      ? routeBestNote(routeRuns, summary.entryId)
+      : null;
 
   const done = () => navigation.goBack();
 
@@ -373,6 +387,36 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
                 {t('runSummary.saveDistance', { defaultValue: 'Update' })}
               </Button>
             </View>
+          </View>
+        ) : null}
+
+        {followedRoute ? (
+          <View className="bg-surface rounded-xl p-4 mb-4" testID="run-route">
+            <Text className="text-text-primary text-base font-bold">
+              {t('runSummary.followedRoute', {
+                name: followedRoute.name,
+                defaultValue: 'Followed {{name}}',
+              })}
+            </Text>
+            {routeNote?.isRouteBest ? (
+              <Text
+                className="text-text-secondary text-sm mt-1"
+                testID="run-route-best"
+              >
+                {t('runSummary.routeBest', {
+                  time: formatClock(routeNote.previousBestSeconds ?? 0),
+                  defaultValue: 'Route best, beating your {{time}}',
+                })}
+              </Text>
+            ) : null}
+            <Button
+              variant="link"
+              onPress={() =>
+                navigation.navigate('RouteDetail', { id: followedRoute.id })
+              }
+            >
+              {t('runSummary.viewRoute', { defaultValue: 'View route' })}
+            </Button>
           </View>
         ) : null}
 
