@@ -20,7 +20,7 @@ export type ReportKey = (typeof REPORT_KEYS)[number];
 
 export type Translator = (
   key: string,
-  options: { defaultValue: string }
+  options: { defaultValue: string; [param: string]: string | number }
 ) => string;
 
 /**

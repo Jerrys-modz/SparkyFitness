@@ -8351,6 +8351,62 @@
       "trainingLoad": "Training load",
       "weightTrend": "Weight trend",
       "steps": "Steps"
+    },
+    "phrase": {
+      "lastNights": "last night's {{metric}}"
+    },
+    "timing": {
+      "sameDay": "the same day",
+      "thatDay": "that day",
+      "nextDay": "the next day",
+      "thatNight": "that night",
+      "dayBefore": "the day before",
+      "sameWeek": "the same week",
+      "nextWeek": "the next week"
+    },
+    "verdict": {
+      "question": "Does {{a}} go with {{b}} {{timing}}?",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "weeks_one": "{{count}} week",
+      "weeks_other": "{{count}} weeks",
+      "strength": {
+        "weak": "weak",
+        "moderate": "moderate",
+        "strong": "strong"
+      },
+      "linkedHeadline": "Yes, a {{strength}} link",
+      "linkedPositive": "When {{a}} was higher than usual, your {{b}} {{timing}} was higher than usual too.",
+      "linkedNegative": "When {{a}} was higher than usual, your {{b}} {{timing}} was lower than usual.",
+      "noLinkHeadline": "No clear link",
+      "noLinkDetail": "Over these {{n}}, they didn't move together more than chance would explain.",
+      "longerSpan": "A longer span makes a weak link easier to see.",
+      "differenceHeadline": "Yes, a difference",
+      "differenceHigher": "On days you {{yes}}, your {{outcome}} was higher than usual.",
+      "differenceLower": "On days you {{yes}}, your {{outcome}} was lower than usual.",
+      "noDifferenceHeadline": "No clear difference",
+      "noDifferenceDetail": "Over these {{n}}, your {{outcome}} wasn't different enough between the two kinds of day to rule out chance.",
+      "tooFewHeadline": "Not enough days yet",
+      "tooFewHeadlineWeeks": "Not enough weeks yet",
+      "tooFewDetail": "You have {{n}}; an answer needs {{needed}}.",
+      "logDays_one": "Log {{weaker}} on {{count}} more day, or pick a longer span.",
+      "logDays_other": "Log {{weaker}} on {{count}} more days, or pick a longer span.",
+      "logWeeks_one": "Log {{weaker}} for {{count}} more week, or pick a longer span.",
+      "logWeeks_other": "Log {{weaker}} for {{count}} more weeks, or pick a longer span.",
+      "needsHistory": "Each day is compared with your previous two weeks, so a day needs a week of history first.",
+      "fewYesHeadline": "Not enough days with {{yes}} yet",
+      "fewYesDetail": "You have {{n}}; an answer needs {{needed}}. Try a longer span.",
+      "fewNoHeadline": "Not enough days without {{yes}} yet",
+      "fewNoDetail": "You {{yes}} on almost every day here, so there's nothing to compare against. Try a longer span.",
+      "noVariationHeadline": "Nothing to compare yet",
+      "noVariationDetail": "{{metric}} was the same every time over this span, so there's nothing to compare it with.",
+      "noVariationGeneric": "One of these didn't change over this span."
+    },
+    "stats": {
+      "p": "p {{p}}",
+      "pTiny": "p < 0.001",
+      "correlation": "r {{r}} · 95% range {{low}} to {{high}} · {{p}} · {{n}}",
+      "difference": "difference {{diff}} · 95% range {{low}} to {{high}} · {{p}} · {{n}}"
     }
   }
 }
