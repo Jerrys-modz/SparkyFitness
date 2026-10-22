@@ -13,22 +13,41 @@ import { describe, expect, it } from 'vitest';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.join(__dirname, '..', 'db', 'migrations');
 
-// Whole statements only: CASE ... END inside a query is not transaction control.
 const TRANSACTION_CONTROL =
-  /^\s*(?:(?:BEGIN|START\s+TRANSACTION|COMMIT|END|ROLLBACK|ABORT)(?:\s+(?:WORK|TRANSACTION|AND\s+(?:NO\s+)?CHAIN))*|SAVEPOINT\s+\w+|RELEASE(?:\s+SAVEPOINT)?\s+\w+)\s*;/im;
+  /^(?:(?:BEGIN|START\s+TRANSACTION|COMMIT|END|ROLLBACK|ABORT)(?:\s+(?:WORK|TRANSACTION|AND\s+(?:NO\s+)?CHAIN))*|SAVEPOINT\s+\w+|RELEASE(?:\s+SAVEPOINT)?\s+\w+)$/i;
 
-/** Blanks dollar-quoted bodies, where PL/pgSQL's own BEGIN and END belong. */
-function outsideDollarQuotes(sql: string): string {
-  return sql.replace(/\$(\w*)\$[\s\S]*?\$\1\$/g, '');
+/**
+ * The transaction-control statements in a file. Comments, quoted text and
+ * dollar-quoted bodies (where PL/pgSQL's own BEGIN and END belong) are removed
+ * first, then each statement is checked whole, so `CASE ... END` is not one.
+ */
+function transactionControl(sql: string): string[] {
+  return sql
+    .replace(
+      /--.*$|\/\*[\s\S]*?\*\/|\$(\w*)\$[\s\S]*?\$\1\$|'(?:[^']|'')*'|"(?:[^"]|"")*"/gm,
+      ' '
+    )
+    .split(';')
+    .map((statement) => statement.trim().replace(/\s+/g, ' '))
+    .filter((statement) => TRANSACTION_CONTROL.test(statement));
 }
 
 describe('migration files', () => {
+  it('finds transaction control by statement', () => {
+    expect(transactionControl('SELECT 1; COMMIT;')).toEqual(['COMMIT']);
+    expect(
+      transactionControl(
+        "-- don't\nSELECT CASE WHEN true THEN 'a;b' END;\n/* COMMIT; */"
+      )
+    ).toEqual([]);
+  });
+
   it.each(fs.readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')))(
     '%s leaves transaction control to the migration runner',
     (file) => {
       const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
 
-      expect(outsideDollarQuotes(sql)).not.toMatch(TRANSACTION_CONTROL);
+      expect(transactionControl(sql)).toEqual([]);
     }
   );
 });

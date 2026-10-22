@@ -380,7 +380,8 @@ While not automated, rollback migrations can be created:
 -- Check applied migrations
 SELECT * FROM system.schema_migrations ORDER BY applied_at;
 
--- Manually mark migration as applied (if needed)
+-- Manually mark migration as applied, only after confirming every change in
+-- the file is already in the database; startup never runs a recorded file
 INSERT INTO system.schema_migrations (name)
 VALUES ('20240315142000_add_meal_planning.sql');
 ```
