@@ -325,12 +325,15 @@ const RunProgramRaceScreen: React.FC<Props> = ({ navigation }) => {
           {RACE_SURFACES.map((id) => (
             <Chip
               key={id}
-              label={t(
+              label={
                 id === 'trail'
-                  ? 'runPrograms.race.surface.trail'
-                  : 'runPrograms.race.surface.road',
-                { defaultValue: id === 'trail' ? 'Trail' : 'Road' }
-              )}
+                  ? t('runPrograms.race.surface.trail', {
+                      defaultValue: 'Trail',
+                    })
+                  : t('runPrograms.race.surface.road', {
+                      defaultValue: 'Road',
+                    })
+              }
               selected={surface === id}
               onPress={() => setSurface(id)}
               testID={`race-surface-${id}`}
