@@ -385,4 +385,47 @@ describe('effort rated on the watch', () => {
       null
     );
   });
+  test('a run dropped after its entry exists still rates that entry, not the program', async () => {
+    mockedSave.mockImplementation(
+      async (_payload, _unit, _entryId, onCreated) => {
+        await onCreated?.('entry-9');
+        throw new ApiError('bad track', 400);
+      }
+    );
+    await enqueueWatchRun(programRun('e9'));
+    await processWatchRunQueue('km');
+    expect(hasQueuedWatchRuns()).resolves.toBe(false);
+
+    await receiveWatchRunEffort('e9', 6);
+
+    expect(setExerciseEntryEffort).toHaveBeenCalledWith('entry-9', 6);
+    expect(rateProgramWorkout).not.toHaveBeenCalled();
+    expect(
+      JSON.parse(
+        (await AsyncStorage.getItem('@SparkyFitness/watchRunEffort')) ?? '{}'
+      )
+    ).toEqual({});
+  });
+
+  test('a record that never got a rating expires, a rated one does not', async () => {
+    const now = jest.spyOn(Date, 'now');
+    const t0 = new Date(2026, 9, 10).getTime();
+    now.mockReturnValue(t0);
+    mockedSave.mockResolvedValue('entry-10');
+    await enqueueWatchRun(run('unrated'));
+    await processWatchRunQueue('km');
+    const stored = async () =>
+      JSON.parse(
+        (await AsyncStorage.getItem('@SparkyFitness/watchRunEffort')) ?? '{}'
+      );
+    expect(Object.keys(await stored())).toEqual(['unrated']);
+
+    now.mockReturnValue(t0 + 8 * 24 * 60 * 60 * 1000);
+    mockedSave.mockResolvedValue('entry-11');
+    await enqueueWatchRun(run('later'));
+    await processWatchRunQueue('km');
+
+    expect(Object.keys(await stored())).toEqual(['later']);
+    now.mockRestore();
+  });
 });

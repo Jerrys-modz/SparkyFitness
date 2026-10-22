@@ -24,6 +24,12 @@ const DONE_KEY = '@SparkyFitness/watchRunDone';
 const MAX_DONE = 50;
 /** Effort ratings from the watch, waiting for their run's program workout. */
 const EFFORT_KEY = '@SparkyFitness/watchRunEffort';
+/**
+ * How long a record that never got a rating is kept. The rating is sent right
+ * after the run but travels queued, so it can arrive late; after this it is
+ * not coming.
+ */
+const UNRATED_EFFORT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const RETRYABLE_CLIENT_STATUSES = new Set([401, 408, 429]);
 
 interface QueuedRun {
@@ -63,21 +69,36 @@ interface RunEffort {
   expectsProgram?: boolean;
   entrySaved?: boolean;
   programSaved?: boolean;
+  /** When the record was made; a record with no rating expires from it. */
+  createdAt?: number;
 }
 type RunEfforts = Record<string, RunEffort>;
 
 const readEfforts = () => readJson<RunEfforts>(EFFORT_KEY, {});
 
 async function writeEfforts(efforts: RunEfforts): Promise<void> {
-  // Never trimmed: a record is a rating not yet saved. It is removed once both
-  // of its saves have gone through, or when its run is dropped for good.
-  await AsyncStorage.setItem(EFFORT_KEY, JSON.stringify(efforts));
+  // A rated record is never trimmed: it is a rating not yet saved, removed once
+  // both of its saves have gone through. One that never got a rating only
+  // records where its run was filed, and expires.
+  const now = Date.now();
+  const kept = Object.fromEntries(
+    Object.entries(efforts).filter(
+      ([, effort]) =>
+        effort.rating != null ||
+        now - (effort.createdAt ?? 0) < UNRATED_EFFORT_TTL_MS
+    )
+  );
+  await AsyncStorage.setItem(EFFORT_KEY, JSON.stringify(kept));
 }
 
 function patchEffort(clientId: string, patch: Partial<RunEffort>) {
   return serial(async () => {
     const efforts = await readEfforts();
-    efforts[clientId] = { ...efforts[clientId], ...patch };
+    efforts[clientId] = {
+      createdAt: Date.now(),
+      ...efforts[clientId],
+      ...patch,
+    };
     await writeEfforts(efforts);
   });
 }
@@ -378,14 +399,14 @@ async function drainOnce(
           `[Watch Run] Dropped watch run ${clientId}: server rejected it (${status})`,
           'ERROR'
         );
+        // The entry may exist even though a later step was refused. Keep its
+        // id for a rating, but never mark the program as expected: the
+        // workout was not ticked off, so there is nothing to rate there.
+        const created = (await serial(readQueue)).find(
+          (run) => run.payload.clientId === clientId
+        )?.entryId;
         await serial(() => update(clientId, () => null));
-        await serial(async () => {
-          const efforts = await readEfforts();
-          if (clientId in efforts) {
-            delete efforts[clientId];
-            await writeEfforts(efforts);
-          }
-        });
+        if (created) await patchEffort(clientId, { entryId: created });
       } else {
         addLog(
           `[Watch Run] Will retry watch run ${clientId}: ${message}`,
