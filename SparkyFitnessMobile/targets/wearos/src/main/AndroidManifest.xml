@@ -66,7 +66,7 @@
         <service
             android:name="com.sparkyapps.sparkyfitness.wear.EnergyGoalComplicationService"
             android:exported="true"
-            android:icon="@android:drawable/ic_menu_compass"
+            android:icon="@drawable/ic_complication_calories"
             android:label="@string/complication_energy_label"
             android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
             <intent-filter>
@@ -83,7 +83,7 @@
         <service
             android:name="com.sparkyapps.sparkyfitness.wear.ProteinGoalComplicationService"
             android:exported="true"
-            android:icon="@android:drawable/ic_menu_compass"
+            android:icon="@drawable/ic_complication_protein"
             android:label="@string/complication_protein_label"
             android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
             <intent-filter>
@@ -100,7 +100,7 @@
         <service
             android:name="com.sparkyapps.sparkyfitness.wear.CarbsGoalComplicationService"
             android:exported="true"
-            android:icon="@android:drawable/ic_menu_compass"
+            android:icon="@drawable/ic_complication_carbs"
             android:label="@string/complication_carbs_label"
             android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
             <intent-filter>
@@ -117,7 +117,7 @@
         <service
             android:name="com.sparkyapps.sparkyfitness.wear.FatGoalComplicationService"
             android:exported="true"
-            android:icon="@android:drawable/ic_menu_compass"
+            android:icon="@drawable/ic_complication_fat"
             android:label="@string/complication_fat_label"
             android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
             <intent-filter>
@@ -134,7 +134,7 @@
         <service
             android:name="com.sparkyapps.sparkyfitness.wear.WaterGoalComplicationService"
             android:exported="true"
-            android:icon="@android:drawable/ic_menu_compass"
+            android:icon="@drawable/ic_complication_water"
             android:label="@string/complication_water_label"
             android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
             <intent-filter>
@@ -151,7 +151,7 @@
         <service
             android:name="com.sparkyapps.sparkyfitness.wear.FastingComplicationService"
             android:exported="true"
-            android:icon="@android:drawable/ic_lock_idle_alarm"
+            android:icon="@drawable/ic_complication_fasting"
             android:label="@string/complication_fasting_label"
             android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
             <intent-filter>
@@ -168,7 +168,7 @@
         <service
             android:name="com.sparkyapps.sparkyfitness.wear.StepsComplicationService"
             android:exported="true"
-            android:icon="@android:drawable/ic_menu_directions"
+            android:icon="@drawable/ic_complication_steps"
             android:label="@string/complication_steps_label"
             android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
             <intent-filter>

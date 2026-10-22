@@ -176,7 +176,7 @@ class CheckInStore(private val context: Context) {
     recomputeWaterState()
   }
 
-  private fun activeOwnerId(): String? =
+  internal fun activeOwnerId(): String? =
     confirmedOwnerId?.takeIf { it.isNotEmpty() }
       ?: _watchContext.value.workoutServerId?.takeIf { it.isNotEmpty() }
 
@@ -981,7 +981,7 @@ class WorkoutSessionStore(private val context: Context) {
     _startingPresetId.value = presetId
     _startErrorMessage.value = null
     startTimeoutJob?.cancel()
-    val serverId = checkInStore?.watchContext?.value?.workoutServerId
+    val serverId = checkInStore?.activeOwnerId()
     session?.sendWorkoutStartRequest(
       OutboundPayloads.workoutStartRequest(presetId, serverId)
     ) { delivered ->

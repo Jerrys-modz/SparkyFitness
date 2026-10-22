@@ -13,6 +13,7 @@ import { cancelFastGoalNotification } from './useFasting';
 import { fastingRootQueryKey } from './queryKeys';
 import { queryClient } from './queryClient';
 import { addLog } from '../services/LogService';
+import { isPayloadForActiveServer } from '../services/watchServerCredentials';
 
 /**
  * Starts or ends a fast when the wearer asks from the watch's Fasting page.
@@ -32,6 +33,7 @@ export function useWatchFastingBridge(enabled: boolean): void {
     };
 
     const onStart = async (payload: WatchFastStartRequestPayload) => {
+      if (!(await isPayloadForActiveServer(payload))) return;
       if (handledRef.current.has(payload.clientId)) return;
       handledRef.current.add(payload.clientId);
       try {
@@ -61,6 +63,7 @@ export function useWatchFastingBridge(enabled: boolean): void {
     };
 
     const onEnd = async (payload: WatchFastEndRequestPayload) => {
+      if (!(await isPayloadForActiveServer(payload))) return;
       if (handledRef.current.has(payload.clientId)) return;
       handledRef.current.add(payload.clientId);
       try {

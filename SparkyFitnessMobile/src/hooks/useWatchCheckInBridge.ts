@@ -62,13 +62,11 @@ import type { CheckInMeasurement } from '../types/measurements';
 import type { WorkoutPreset } from '../types/workoutPresets';
 import { useSuggestedExercises } from './useSuggestedExercises';
 import { useWorkoutPresets } from './useWorkoutPresets';
+import { getActiveServerConfigId } from '../services/storage';
 import {
-  getActiveServerConfig,
-  getActiveServerConfigId,
-  proxyHeadersToRecord,
-} from '../services/storage';
-import { getAuthHeaders } from '../services/api/authService';
-import { normalizeUrl } from '../utils/serverUrl';
+  isPayloadForActiveServer,
+  syncWatchServerCredentials,
+} from '../services/watchServerCredentials';
 import { useActiveWorkoutPlans } from './useActiveWorkoutPlan';
 import { scheduledWorkoutsForWatch } from '../utils/workoutPlanSchedule';
 import { useCurrentFast } from './useFasting';
@@ -581,10 +579,10 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const watchContainers: WatchContainerPayload[] = useMemo(
     () =>
       (containers ?? []).flatMap((container) => {
-        const servingVolumeMl = watchContainerServingVolumeMl(container);
-        if (!Number.isFinite(servingVolumeMl) || servingVolumeMl <= 0) {
-          return [];
-        }
+        const rawVolumeMl = watchContainerServingVolumeMl(container);
+        const servingVolumeMl = Number.isFinite(rawVolumeMl)
+          ? Math.max(0, rawVolumeMl)
+          : 0;
 
         return [
           {
@@ -680,25 +678,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     // ordering that sticks.
     const generation = ++pushGenerationRef.current;
     try {
-      const workoutServerId = await getActiveServerConfigId();
-      try {
-        await WatchConnectivity.setTelemetryOwner?.(workoutServerId ?? '');
-        const activeCfg = await getActiveServerConfig();
-        if (activeCfg?.url && activeCfg.id === workoutServerId) {
-          await WatchConnectivity.setServerCredentials?.(
-            normalizeUrl(activeCfg.url),
-            {
-              ...proxyHeadersToRecord(activeCfg.proxyHeaders),
-              ...getAuthHeaders(activeCfg),
-              'X-Meal-Model-Version': '2',
-            }
-          );
-        } else if (!activeCfg?.url) {
-          await WatchConnectivity.clearServerCredentials?.();
-        }
-      } catch {
-        // Best-effort credential cache for Android headless Wear OS service.
-      }
+      const workoutServerId = await syncWatchServerCredentials();
       const today = getTodayDate();
       const startDate = addDays(today, -(HISTORY_DAYS - 1));
       const range = await fetchMeasurementsRange(startDate, today);
@@ -976,13 +956,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const handleCheckIn = useCallback(
     async (payload: WatchCheckInPayload): Promise<void> => {
       if (!WatchConnectivity) return;
-      const activeOwnerId = await getActiveServerConfigId();
-      if (
-        !activeOwnerId ||
-        (payload.ownerId && payload.ownerId !== activeOwnerId)
-      ) {
-        return;
-      }
+      if (!(await isPayloadForActiveServer(payload))) return;
       await ensureAckStateHydrated();
       if (
         payload.clientId &&
@@ -1051,13 +1025,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const handleWaterTap = useCallback(
     async (payload: WatchWaterIntakePayload): Promise<void> => {
       if (!WatchConnectivity) return;
-      const activeOwnerId = await getActiveServerConfigId();
-      if (
-        !activeOwnerId ||
-        (payload.ownerId && payload.ownerId !== activeOwnerId)
-      ) {
-        return;
-      }
+      if (!(await isPayloadForActiveServer(payload))) return;
       await ensureAckStateHydrated();
       if (
         payload.clientId &&
@@ -1190,13 +1158,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const handleWaterDelete = useCallback(
     async (payload: WatchWaterDeletePayload): Promise<void> => {
       if (!WatchConnectivity) return;
-      const activeOwnerId = await getActiveServerConfigId();
-      if (
-        !activeOwnerId ||
-        (payload.ownerId && payload.ownerId !== activeOwnerId)
-      ) {
-        return;
-      }
+      if (!(await isPayloadForActiveServer(payload))) return;
       await ensureAckStateHydrated();
       if (
         payload.clientId &&
@@ -1282,13 +1244,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const processMedicationTaken = useCallback(
     async (payload: WatchMedicationTakenPayload): Promise<void> => {
       if (!WatchConnectivity) return;
-      const activeOwnerId = await getActiveServerConfigId();
-      if (
-        !activeOwnerId ||
-        (payload.ownerId && payload.ownerId !== activeOwnerId)
-      ) {
-        return;
-      }
+      if (!(await isPayloadForActiveServer(payload))) return;
       await ensureAckStateHydrated();
       if (
         payload.clientId &&

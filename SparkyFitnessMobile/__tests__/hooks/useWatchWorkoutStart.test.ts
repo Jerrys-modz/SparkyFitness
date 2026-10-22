@@ -209,21 +209,12 @@ describe('useWatchWorkoutStart plan link', () => {
     expect(start).not.toHaveBeenCalled();
   });
 
-  it('clears a different active session and starts the requested preset with fromWatch=true', async () => {
+  it('ignores a start request missing serverId', async () => {
     (fetchActiveWorkoutPlans as jest.Mock).mockResolvedValue([]);
-    useActiveWorkoutStore.setState({
-      sessionId: 'live-99',
-      sourcePresetId: 99,
-    });
     const start = jest.fn(async () => {});
     renderHook(() => useWatchWorkoutStart(true, true, start));
     handler?.({ presetId: '42', serverId: '' });
-    await waitFor(() => expect(start).toHaveBeenCalled());
-    expect(useActiveWorkoutStore.getState().sessionId).toBeNull();
-    expect(start.mock.calls[0]![0]).toMatchObject({
-      name: 'Upper',
-      sourcePresetId: 42,
-      fromWatch: true,
-    });
+    expect(getActiveServerConfigId).not.toHaveBeenCalled();
+    expect(start).not.toHaveBeenCalled();
   });
 });

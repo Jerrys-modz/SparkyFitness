@@ -21,7 +21,6 @@ import {
   getLoggedAssignmentIds,
   getUncompletedActivePlans,
 } from '../utils/workoutPlanSchedule';
-import { flushActiveWorkoutBeforeClear } from './useActiveWorkoutAutosave';
 import {
   armWatchForActiveSession,
   type StartLiveWorkoutArgs,
@@ -61,14 +60,12 @@ export function useWatchWorkoutStart(
     async (payload: WatchWorkoutStartRequestedPayload) => {
       const generation = generationRef.current;
       const presetId = Number(payload.presetId);
-      if (!Number.isFinite(presetId)) return;
+      const serverId = payload.serverId;
+      // A queued tap from before this field, or from another account, must
+      // not start whatever preset now happens to have that id.
+      if (!Number.isFinite(presetId) || !serverId) return;
       const activeServerId = await getActiveServerConfigId();
-      const serverId = payload.serverId || activeServerId;
-      if (
-        !serverId ||
-        generation !== generationRef.current ||
-        activeServerId !== serverId
-      )
+      if (generation !== generationRef.current || activeServerId !== serverId)
         return;
       const cached = queryClient.getQueryData<WorkoutPresetsResponse>(
         workoutPresetsQueryKey
@@ -78,9 +75,6 @@ export function useWatchWorkoutStart(
         try {
           preset = await getWorkoutPresetById(presetId);
         } catch {
-          if (!connectedRef.current) {
-            pendingRef.current = payload;
-          }
           return;
         }
       }
@@ -137,14 +131,6 @@ export function useWatchWorkoutStart(
         armWatchForActiveSession(tRef.current);
         return;
       }
-      if (liveAfter.sessionId != null) {
-        try {
-          await flushActiveWorkoutBeforeClear(queryClient);
-        } catch {
-          // best effort
-        }
-        useActiveWorkoutStore.getState().clearWorkout();
-      }
       const exercises = buildPresetStartExercisesPayload(preset).map(
         (exercise) =>
           assignmentId == null
@@ -159,7 +145,6 @@ export function useWatchWorkoutStart(
         sourcePresetId: preset.id,
         workoutFormat: preset.workout_format ?? 'standard',
         timeCapSeconds: preset.time_cap_seconds ?? null,
-        fromWatch: true,
       });
     },
     []
@@ -171,6 +156,7 @@ export function useWatchWorkoutStart(
     const sub = watch.addListener('onWorkoutStartRequested', (payload) => {
       if (!connectedRef.current) {
         pendingRef.current = payload;
+        return;
       }
       void run(payload);
     });
