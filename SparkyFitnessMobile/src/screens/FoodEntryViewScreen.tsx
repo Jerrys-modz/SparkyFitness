@@ -79,7 +79,11 @@ import {
   unitVariantToDisplayValues,
   nextQuantity,
 } from '../utils/foodDetails';
-import { DECIMAL_INPUT_REGEX, parseDecimalInput } from '../utils/numericInput';
+import { parseDecimalInput } from '../utils/numericInput';
+import {
+  QUANTITY_INPUT_REGEX,
+  parseQuantityInput,
+} from '../utils/quantityExpression';
 import VerifiedBadge from '../components/VerifiedBadge';
 
 type FoodEntryViewScreenProps = RootStackScreenProps<'FoodEntryView'>;
@@ -497,7 +501,7 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
     };
   }, [adjustedValues, activeVariant]);
 
-  const quantity = parseDecimalInput(quantityText) || 0;
+  const quantity = parseQuantityInput(quantityText) || 0;
   const editServings =
     displayValues.servingSize > 0 ? quantity / displayValues.servingSize : 0;
   const scaled = (value: number) => value * editServings;
@@ -596,7 +600,7 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
       (variant) => variant.id === resolvedLocalPickerVariantId
     );
     const convertedQuantity = convertEquivalentVariantQuantity(
-      parseDecimalInput(quantityText) || 0,
+      parseQuantityInput(quantityText) || 0,
       selectedVariant?.serving_size,
       resolvedVariant?.servingSize
     );
@@ -633,7 +637,7 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
   );
 
   const updateQuantityText = (text: string) => {
-    if (DECIMAL_INPUT_REGEX.test(text)) {
+    if (QUANTITY_INPUT_REGEX.test(text)) {
       updateEdit({ quantityText: text });
     }
   };
@@ -1041,7 +1045,7 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
                     onBlur={clampQuantity}
                     onIncrement={() => adjustQuantity(1)}
                     onDecrement={() => adjustQuantity(-1)}
-                    keyboardType="decimal-pad"
+                    allowExpressions
                   />
                   <Text className="text-text-primary text-base font-medium ml-2">
                     {formatServingUnit(displayValues.servingUnit)}

@@ -13,7 +13,10 @@ import StepperInput from './StepperInput';
 import { useUpdateFoodEntry } from '../hooks/useUpdateFoodEntry';
 import type { FoodEntry } from '../types/foodEntries';
 import { formatServingUnit } from '../utils/foodDetails';
-import { DECIMAL_INPUT_REGEX, parseDecimalInput } from '../utils/numericInput';
+import {
+  QUANTITY_INPUT_REGEX,
+  parseQuantityInput,
+} from '../utils/quantityExpression';
 
 export interface ServingAdjustSheetRef {
   present: (entry: FoodEntry) => void;
@@ -37,7 +40,7 @@ const ServingAdjustSheet = forwardRef<
     '--color-text-muted',
   ]) as [string, string];
 
-  const quantity = parseDecimalInput(quantityText) || 0;
+  const quantity = parseQuantityInput(quantityText) || 0;
   const totalCalories =
     entry && entry.serving_size > 0
       ? Math.round((entry.calories * quantity) / entry.serving_size)
@@ -87,7 +90,7 @@ const ServingAdjustSheet = forwardRef<
   };
 
   const updateQuantityText = (text: string) => {
-    if (DECIMAL_INPUT_REGEX.test(text)) {
+    if (QUANTITY_INPUT_REGEX.test(text)) {
       setQuantityText(text);
     }
   };
@@ -143,6 +146,7 @@ const ServingAdjustSheet = forwardRef<
                   onDecrement={() => adjustQuantity(-1)}
                   onIncrement={() => adjustQuantity(1)}
                   InputComponent={BottomSheetTextInput}
+                  allowExpressions
                 />
                 <Text className="text-text-secondary text-lg ml-3">
                   {formatServingUnit(entry.unit)}

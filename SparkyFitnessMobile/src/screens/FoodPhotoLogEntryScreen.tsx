@@ -27,7 +27,10 @@ import { fireSuccessHaptic } from '../services/haptics';
 import { getMealTypeDisplayLabel } from '../utils/mealNutrition';
 import { formatDateLabel, getTodayDate } from '../utils/dateUtils';
 import type { FoodDisplayValues } from '../utils/foodDetails';
-import { parseDecimalInput, DECIMAL_INPUT_REGEX } from '../utils/numericInput';
+import {
+  QUANTITY_INPUT_REGEX,
+  parseQuantityInput,
+} from '../utils/quantityExpression';
 import type { SaveFoodPayload } from '../services/api/foodsApi';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type {
@@ -124,7 +127,7 @@ const FoodPhotoLogEntryScreen: React.FC<Props> = ({ navigation, route }) => {
     // A grouped log has no meal-level multiplier: every ingredient already
     // carries the exact grams the user reviewed.
     if (isGrouped) return 1;
-    const parsed = parseDecimalInput(quantity);
+    const parsed = parseQuantityInput(quantity);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   }, [quantity, isGrouped]);
 
@@ -202,11 +205,11 @@ const FoodPhotoLogEntryScreen: React.FC<Props> = ({ navigation, route }) => {
   });
 
   const handleQuantityChange = (text: string) => {
-    if (text === '' || DECIMAL_INPUT_REGEX.test(text)) setQuantity(text);
+    if (text === '' || QUANTITY_INPUT_REGEX.test(text)) setQuantity(text);
   };
 
   const adjustQuantity = (delta: number) => {
-    const current = parseDecimalInput(quantity);
+    const current = parseQuantityInput(quantity);
     const base = Number.isFinite(current) && current > 0 ? current : 0;
     const next = Math.max(0, Math.round((base + delta) * 100) / 100);
     setQuantity(String(next));
@@ -278,7 +281,7 @@ const FoodPhotoLogEntryScreen: React.FC<Props> = ({ navigation, route }) => {
     }
 
     const { saveFoodPayload } = params;
-    const servingsValue = parseDecimalInput(quantity);
+    const servingsValue = parseQuantityInput(quantity);
     if (!Number.isFinite(servingsValue) || servingsValue <= 0) {
       Toast.show({
         type: 'error',
@@ -424,7 +427,7 @@ const FoodPhotoLogEntryScreen: React.FC<Props> = ({ navigation, route }) => {
               onChangeText={handleQuantityChange}
               onIncrement={() => adjustQuantity(1)}
               onDecrement={() => adjustQuantity(-1)}
-              keyboardType="decimal-pad"
+              allowExpressions
             />
           </View>
         )}

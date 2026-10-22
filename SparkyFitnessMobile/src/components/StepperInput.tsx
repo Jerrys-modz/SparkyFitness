@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import {
+  Platform,
+  Text,
   View,
   TextInput,
   TouchableOpacity,
@@ -7,8 +9,15 @@ import {
   type TextInputFocusEventData,
   type TextInputProps,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useCSSVariable } from 'uniwind';
 import Icon from './Icon';
+import { formatLocalizedNumber } from '../localization/i18n';
+import {
+  QUANTITY_INPUT_MAX_LENGTH,
+  describeQuantityInput,
+  formatQuantityResult,
+} from '../utils/quantityExpression';
 
 interface StepperDraftOptions {
   /** Committed value, shown whenever the field is not mid-edit. */
@@ -114,6 +123,15 @@ interface StepperInputProps {
   };
   /** Compact size for inline use in set rows */
   compact?: boolean;
+  /**
+   * Quantity fields: accept arithmetic such as `2*3` or `1/2`. Switches to a
+   * keyboard with operators, shows the evaluated result (or an inline error)
+   * under the field, and on blur replaces a valid expression with its result.
+   * An invalid expression keeps its text and skips `onBlur`, so a caller's
+   * clamp cannot overwrite it. The caller still parses with
+   * `parseQuantityInput`, which yields NaN for an invalid expression.
+   */
+  allowExpressions?: boolean;
 }
 
 type TextInputFocusEvent = NativeSyntheticEvent<TextInputFocusEventData>;
@@ -132,7 +150,9 @@ function StepperInput({
   inputRef,
   accessibilityLabels,
   compact = false,
+  allowExpressions = false,
 }: StepperInputProps) {
+  const { t } = useTranslation();
   const [accentColor, borderSubtle] = useCSSVariable([
     '--color-accent-primary',
     '--color-border-subtle',
@@ -145,13 +165,31 @@ function StepperInput({
   const fontSize = compact ? 16 : 20;
 
   const borderColor = isFocused ? accentColor : borderSubtle;
+  const expression = allowExpressions ? describeQuantityInput(value) : null;
+  // `numbers-and-punctuation` is the iOS keyboard that reaches + - * / ( ), one
+  // page away from the digits. Android has no such type, and its numeric
+  // keyboards hide the operators, so it keeps the default keyboard.
+  const effectiveKeyboardType = allowExpressions
+    ? Platform.OS === 'ios'
+      ? 'numbers-and-punctuation'
+      : 'default'
+    : keyboardType;
   const {
     onFocus: externalOnFocus,
     onBlur: externalOnBlur,
     ...restInputProps
   } = inputProps ?? {};
 
-  return (
+  const handleBlur = () => {
+    if (expression?.kind === 'expression') {
+      onChangeText(formatQuantityResult(expression.value));
+    } else if (expression?.kind === 'invalid') {
+      return;
+    }
+    onBlur?.();
+  };
+
+  const control = (
     <View
       className="flex-row items-center bg-raised rounded-lg overflow-hidden"
       style={{ borderWidth: 1, borderColor }}
@@ -181,10 +219,11 @@ function StepperInput({
         }}
         onBlur={(e: TextInputFocusEvent) => {
           setIsFocused(false);
-          onBlur?.();
+          handleBlur();
           externalOnBlur?.(e);
         }}
-        keyboardType={keyboardType}
+        keyboardType={effectiveKeyboardType}
+        maxLength={allowExpressions ? QUANTITY_INPUT_MAX_LENGTH : undefined}
         placeholder={placeholder}
         selectTextOnFocus={selectTextOnFocus}
         className="text-text-primary text-base text-center"
@@ -213,6 +252,46 @@ function StepperInput({
       >
         <Icon name="add" size={iconSize} color={accentColor} />
       </TouchableOpacity>
+    </View>
+  );
+
+  if (!expression) return control;
+
+  const shownResult =
+    expression.kind === 'expression'
+      ? formatLocalizedNumber(expression.value, { maximumFractionDigits: 3 })
+      : null;
+
+  // The wrapper is always rendered so the hint appearing or going away never
+  // remounts the TextInput (that would drop focus mid-typing).
+  return (
+    <View>
+      {control}
+      {shownResult !== null && (
+        <Text
+          className="text-xs mt-1 text-text-secondary"
+          accessibilityLiveRegion="polite"
+          accessibilityLabel={t('quantityExpression.resultLabel', {
+            defaultValue: 'Result: {{value}}',
+            value: shownResult,
+          })}
+        >
+          {t('quantityExpression.result', {
+            defaultValue: '= {{value}}',
+            value: shownResult,
+          })}
+        </Text>
+      )}
+      {expression.kind === 'invalid' && (
+        <Text
+          className="text-xs mt-1 text-text-danger-subtle"
+          accessibilityLiveRegion="polite"
+        >
+          {t('quantityExpression.invalid', {
+            defaultValue: 'Enter a valid calculation, such as 1/2 or 2*3.',
+          })}
+        </Text>
+      )}
     </View>
   );
 }

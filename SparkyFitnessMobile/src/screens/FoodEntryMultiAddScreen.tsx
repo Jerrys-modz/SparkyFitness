@@ -31,7 +31,10 @@ import { useFoodSearchSelection } from '../hooks/useFoodSearchSelection';
 import type { BasketRow } from '../hooks/useFoodSearchSelection';
 import { useDiaryDateStore } from '../stores/diaryDateStore';
 import { formatDateLabel } from '../utils/dateUtils';
-import { DECIMAL_INPUT_REGEX, parseDecimalInput } from '../utils/numericInput';
+import {
+  QUANTITY_INPUT_REGEX,
+  parseQuantityInput,
+} from '../utils/quantityExpression';
 import { formatServingUnit } from '../utils/foodDetails';
 import { getMealTypeDisplayLabel } from '../utils/mealNutrition';
 import type {
@@ -46,7 +49,7 @@ import type { MealType } from '../types/mealTypes';
 type FoodEntryMultiAddScreenProps = RootStackScreenProps<'FoodEntryMultiAdd'>;
 
 function rowQuantity(row: BasketRow): number {
-  return parseDecimalInput(row.quantityText);
+  return parseQuantityInput(row.quantityText);
 }
 
 /**
@@ -506,9 +509,10 @@ const FoodEntryMultiAddScreen: React.FC<FoodEntryMultiAddScreenProps> = ({
                             { defaultValue: 'Increase quantity' }
                           ),
                         }}
+                        allowExpressions
                         value={row.quantityText}
                         onChangeText={(text) => {
-                          if (DECIMAL_INPUT_REGEX.test(text)) {
+                          if (QUANTITY_INPUT_REGEX.test(text)) {
                             selection.updateDraft(row.key, {
                               quantityText: text,
                             });

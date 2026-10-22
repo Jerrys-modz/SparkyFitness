@@ -8598,5 +8598,10 @@
   },
   "workoutEffort": {
     "value": "{{rating}}/10"
+  },
+  "quantityExpression": {
+    "result": "= {{value}}",
+    "resultLabel": "Result: {{value}}",
+    "invalid": "Enter a valid calculation, such as 1/2 or 2*3."
   }
 }
