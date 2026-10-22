@@ -266,3 +266,4 @@ export * from './ai/modelFamilies.ts';
 export * from './utils/routeGeometry.ts';
 export * from './utils/routeGenerate.ts';
 export * from './utils/routeGpx.ts';
+export * from './utils/routeStops.ts';
