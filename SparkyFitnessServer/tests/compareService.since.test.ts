@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   addDays,
   CompareModeError,
+  dayOfWeek,
   todayInZone,
   type CompareSinceQuery,
 } from '@workspace/shared';
@@ -105,27 +106,26 @@ describe('getCompareSince: validation', () => {
 });
 
 describe('getCompareSince: fetch range', () => {
-  it('loads both metrics over 736 days back to yesterday for a recent start', async () => {
+  it('for a recent start, loads the outcome over 736 days back and the habit two weeks past the 730-day limit', async () => {
     await getCompareSince(USER, query({ habitStart: addDays(TODAY, -100) }));
-    const from = addDays(TODAY, -736);
     expect(compareRepository.getMeditationDays).toHaveBeenCalledWith(
       USER,
-      from,
+      addDays(TODAY, -744),
       YESTERDAY
     );
     expect(compareRepository.getManualMoodDays).toHaveBeenCalledWith(
       USER,
-      from,
+      addDays(TODAY, -736),
       YESTERDAY
     );
   });
 
-  it('loads the outcome further back for a start 500 days ago; the habit stays at 736', async () => {
+  it('loads the outcome further back for a start 500 days ago; the habit stays at 744', async () => {
     const start = addDays(TODAY, -500);
     await getCompareSince(USER, query({ habitStart: start }));
     expect(compareRepository.getMeditationDays).toHaveBeenCalledWith(
       USER,
-      addDays(TODAY, -736),
+      addDays(TODAY, -744),
       YESTERDAY
     );
     expect(compareRepository.getManualMoodDays).toHaveBeenCalledWith(
@@ -191,14 +191,69 @@ describe('getCompareSince: start and line', () => {
   });
 
   it('never suggests a start older than 730 days (R10)', async () => {
+    // A run whose records begin 736 days ago began before the limit, so it is not moved
+    // inside it: there is no suggestion.
     const old = addDays(TODAY, -736);
     vi.mocked(compareRepository.getMeditationFirstDay).mockResolvedValue(old);
     vi.mocked(compareRepository.getMeditationDays).mockResolvedValue(
       daysFrom(old, addDays(old, 27)).map(meditationRow)
     );
     const { result } = await getCompareSince(USER, query());
-    // The run's first days are older than a start may be, so the suggestion starts inside the limit.
-    expect(result.suggestedStart).toBe(addDays(TODAY, -730));
+    expect(result).toMatchObject({ reason: 'noStart', suggestedStart: null });
+  });
+
+  it('suggests a run whose records begin on the 730-day limit', async () => {
+    const limit = addDays(TODAY, -730);
+    seedHabit(limit, YESTERDAY, limit, addDays(TODAY, -736));
+    const { result } = await getCompareSince(USER, query());
+    expect(result.suggestedStart).toBe(limit);
+  });
+
+  it('gives no suggestion for a habit kept since before the limit', async () => {
+    // Daily meditation for three years: the habit was already kept 730 days ago, so the
+    // window's first run is no start, and no later week is one either.
+    const longAgo = addDays(TODAY, -1095);
+    seedHabit(longAgo, YESTERDAY, longAgo, addDays(TODAY, -736));
+    const { result, habit, outcome } = await getCompareSince(USER, query());
+    expect(result).toMatchObject({
+      status: 'not_enough',
+      reason: 'noStart',
+      start: null,
+      suggestedStart: null,
+    });
+    expect(habit.values).toEqual({});
+    expect(outcome.values).toEqual({});
+  });
+
+  it('a 7-day session count as the habit gets no suggestion and no regularity', async () => {
+    // One session every Monday: the 7-day count never drops to 0.
+    const first = addDays(TODAY, -400);
+    vi.mocked(compareRepository.getMeditationFirstDay).mockResolvedValue(first);
+    vi.mocked(compareRepository.getMeditationDays).mockImplementation(
+      async (_user, f, t) =>
+        daysFrom(first, YESTERDAY)
+          .filter((d) => d >= f && d <= t && dayOfWeek(d) === 1)
+          .map(meditationRow)
+    );
+    vi.mocked(compareRepository.getManualMoodDays).mockImplementation(
+      async (_user, f, t) =>
+        daysFrom(first, YESTERDAY)
+          .filter((d) => d >= f && d <= t)
+          .map((d) => moodRow(d, 5 + (dayOfWeek(d) % 3)))
+    );
+    const habitQuery = query({ a: 'meditationSessions7d' });
+
+    const suggested = await getCompareSince(USER, habitQuery);
+    expect(Object.values(suggested.habit.values)).toEqual([]);
+    expect(suggested.result.suggestedStart).toBeNull();
+
+    const picked = await getCompareSince(USER, {
+      ...habitQuery,
+      habitStart: addDays(TODAY, -100),
+    });
+    expect(picked.result.status).toBe('ok');
+    expect(picked.result).not.toHaveProperty('regularity');
+    expect(Object.values(picked.habit.values).every((v) => v === 1)).toBe(true);
   });
 });
 

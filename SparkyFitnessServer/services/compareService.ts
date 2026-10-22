@@ -20,6 +20,8 @@ import {
   resolveRecordZone,
   sampleSd,
   sessionLoad,
+  SINCE_START_MAX_DAYS_AGO,
+  SINCE_STRETCH_MAX_DAYS,
   suggestedHabitStart,
   todayInZone,
   weekSides,
@@ -60,12 +62,15 @@ const ROLLING_DAYS = 7;
 const MIN_CONSISTENCY_NIGHTS = 4;
 /** Weigh-ins this long before the range, so the trend is interpolated and smoothed across its start. */
 const WEIGHT_WARM_UP_DAYS = 30;
-/** The furthest back a habit start may be, and so the furthest back a suggestion may be. */
-const SINCE_MAX_START_DAYS = 730;
-/** Habit history loaded in since mode: the start limit plus 6 days for a rolling metric. */
-const SINCE_HABIT_DAYS = SINCE_MAX_START_DAYS + 6;
+/** Since mode's window: back to the oldest start allowed, plus 6 days of lead-in for a rolling metric. */
+const SINCE_WINDOW_DAYS = SINCE_START_MAX_DAYS_AGO + ROLLING_DAYS - 1;
+/**
+ * The habit reads two weeks past the oldest start allowed, so the whole week before that
+ * start's week is there to show whether the habit was already kept at the limit.
+ */
+const SINCE_HABIT_DAYS = SINCE_START_MAX_DAYS_AGO + 14;
 /** Before a start: a year of before stretch plus 6 days of lead-in for a rolling metric. */
-const SINCE_BEFORE_DAYS = 365 + 6;
+const SINCE_BEFORE_DAYS = SINCE_STRETCH_MAX_DAYS + ROLLING_DAYS - 1;
 const SECONDS_PER_HOUR = 3600;
 const MINUTES_PER_DAY = 24 * 60;
 /** Bedtime counts from 18:00, so 23:30 and 00:30 sit an hour apart. */
@@ -144,8 +149,9 @@ export async function getCompare(
 }
 
 /**
- * How has B been since A started? The habit loads over the last two years, the outcome far
- * enough back to cover the year before the start; neither counts today.
+ * How has B been since A started? The habit loads over the last two years and two weeks, the
+ * outcome over the last two years or far enough back to cover the year before the start;
+ * neither counts today.
  */
 export async function getCompareSince(
   userId: string,
@@ -154,7 +160,7 @@ export async function getCompareSince(
   const tz = await loadUserTimezone(userId);
   const today = todayInZone(tz);
   const yesterday = addDays(today, -1);
-  const oldest = addDays(today, -SINCE_MAX_START_DAYS);
+  const oldest = addDays(today, -SINCE_START_MAX_DAYS_AGO);
   const { habitStart } = query;
   if (habitStart !== undefined) {
     if (compareDays(habitStart, today) >= 0) {
@@ -162,7 +168,7 @@ export async function getCompareSince(
     }
     if (compareDays(habitStart, oldest) < 0) {
       throw new CompareModeError(
-        `habitStart can be at most ${SINCE_MAX_START_DAYS} days ago`
+        `habitStart can be at most ${SINCE_START_MAX_DAYS_AGO} days ago`
       );
     }
   }
@@ -174,16 +180,19 @@ export async function getCompareSince(
         ? await loadMaxHeartRate(userId, tz)
         : DEFAULT_MAX_HEART_RATE,
   };
-  const habitFrom = addDays(today, -SINCE_HABIT_DAYS);
+  const windowFrom = addDays(today, -SINCE_WINDOW_DAYS);
   const outcomeFrom = (start: string | null) =>
     start === null
-      ? habitFrom
-      : earliest(habitFrom, addDays(start, -SINCE_BEFORE_DAYS));
-  const loadHabit = async () =>
-    between(
-      await loadMetricDays(userId, query.a, habitFrom, yesterday, ctx),
-      oldest,
-      yesterday
+      ? windowFrom
+      : earliest(windowFrom, addDays(start, -SINCE_BEFORE_DAYS));
+  // The suggestion is held to `oldest` by the shared analysis, which reads the weeks before it.
+  const loadHabit = () =>
+    loadMetricDays(
+      userId,
+      query.a,
+      addDays(today, -SINCE_HABIT_DAYS),
+      yesterday,
+      ctx
     );
 
   let habit: DaySeries;
@@ -199,7 +208,7 @@ export async function getCompareSince(
     outcome = await loadMetricDays(
       userId,
       query.b,
-      outcomeFrom(suggestedHabitStart(habit, query.a, firstDayOfWeek)),
+      outcomeFrom(suggestedHabitStart(habit, query.a, firstDayOfWeek, oldest)),
       yesterday,
       ctx
     );

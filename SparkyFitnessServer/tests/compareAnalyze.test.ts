@@ -52,7 +52,7 @@ function nextDayOf(a: DaySeries, noise: () => number): DaySeries {
 const isWeekend = (day: string) => [0, 6].includes(dayOfWeek(day));
 
 describe('compare metric catalog', () => {
-  test('metric catalog follows the kind, missing and weekly rules', () => {
+  test('metric catalog follows the kind, missing, weekly and rolling rules', () => {
     const keysWhere = (pick: (def: CompareMetricDef) => boolean) =>
       COMPARE_METRIC_KEYS.filter((key) => pick(COMPARE_METRICS[key]));
 
@@ -87,6 +87,11 @@ describe('compare metric catalog', () => {
     ]);
     expect(keysWhere((m) => m.weekly === 'daysYes')).toEqual(['meditated']);
     expect(keysWhere((m) => m.weekly === null)).toEqual([
+      'meditationSessions7d',
+    ]);
+    // Read over the 7 days ending on the day: the bedtime spread and the session count.
+    expect(keysWhere((m) => m.rolling)).toEqual([
+      'bedtimeConsistency',
       'meditationSessions7d',
     ]);
     expect(COMPARE_METRICS.bedtime.unit).toBe('min-after-18:00');

@@ -57,9 +57,11 @@ const RUN_WEEKS = 3;
 const ACTIVE_DAYS_PER_WEEK = 4;
 const DAYS_PER_WEEK = 7;
 // The since stretch is at most the most recent year; each stretch needs 4 weeks and 14 values.
-const SINCE_MAX_DAYS = 365;
+export const SINCE_STRETCH_MAX_DAYS = 365;
 export const SINCE_STRETCH_MIN_DAYS = 28;
 export const SINCE_STRETCH_MIN_VALUES = 14;
+/** The oldest a start may be, in days before today; a suggested start is never older. */
+export const SINCE_START_MAX_DAYS_AGO = 730;
 // The effective n counts carry-over up to two weeks back, as day mode does.
 const MAX_LAG = 14;
 const TYPICAL_LOW = 0.1;
@@ -82,14 +84,24 @@ interface Stretch {
 }
 
 /**
- * The first active day (value > 0, or yes) of the first week of the earliest run of 3 weeks in a
- * row with at least 4 active days each, weeks starting on `firstDayOfWeek`. Null when there is no
- * such run, or the metric is not an event or yes/no one.
+ * When the habit started: the first active day (value > 0, or yes) of the first week of the
+ * earliest run of 3 weeks in a row with at least 4 active days each, weeks starting on
+ * `firstDayOfWeek`. Runs are looked for from the week holding `earliest` on. The earliest one is a
+ * start only when the week before it was not kept (fewer than 4 active days, or no records at
+ * all) and its first active day is not before `earliest`. Otherwise the habit began before
+ * `earliest`, so there is no suggestion, and no later run stands in for its start.
+ *
+ * The caller passes the habit through yesterday: today is never data, and a part-logged today
+ * must not complete a week. The habit must also reach back over the whole week before the week
+ * holding `earliest` (13 days before `earliest` covers it), or a habit already kept there reads
+ * as one with no records before the run. Null as well when there is no such run, or the metric
+ * is not an event or yes/no one, or is a rolling one (see `hasActiveDays`).
  */
 export function suggestedHabitStart(
   habit: DaySeries,
   key: CompareMetricKey,
-  firstDayOfWeek: number
+  firstDayOfWeek: number,
+  earliest: string
 ): string | null {
   if (!hasActiveDays(key)) return null;
   // Weeks in order, each with its active day count and its first active day.
@@ -103,11 +115,16 @@ export function suggestedHabitStart(
   }
   const kept = (week: string) =>
     (weeks.get(week)?.active ?? 0) >= ACTIVE_DAYS_PER_WEEK;
+  const firstWeek = weekStartOf(earliest, firstDayOfWeek);
   for (const [week, { first }] of weeks) {
+    if (compareDays(week, firstWeek) < 0) continue;
     const run = Array.from({ length: RUN_WEEKS }, (_, i) =>
       addDays(week, i * DAYS_PER_WEEK)
     );
-    if (run.every(kept)) return first;
+    if (!run.every(kept)) continue;
+    const startsHere =
+      !kept(addDays(week, -DAYS_PER_WEEK)) && compareDays(first, earliest) >= 0;
+    return startsHere ? first : null;
   }
   return null;
 }
@@ -118,6 +135,10 @@ export function suggestedHabitStart(
  * start, or from the outcome's first value if that is later. Each needs 28 days and 14 values;
  * when both fall short the answer is `fewSince`, as the before stretch is only as long as the
  * since one. Welch's test gives each stretch its own effective n. Today is never data.
+ *
+ * The suggestion is held to the last 730 days (`SINCE_START_MAX_DAYS_AGO`), so the habit should
+ * reach back two weeks further than that for `suggestedHabitStart` to see whether it was already
+ * kept there.
  */
 export function analyzeSince(input: {
   habit: { key: CompareMetricKey; values: DaySeries };
@@ -131,7 +152,8 @@ export function analyzeSince(input: {
   const suggestedStart = suggestedHabitStart(
     habit,
     input.habit.key,
-    input.firstDayOfWeek
+    input.firstDayOfWeek,
+    addDays(input.today, -SINCE_START_MAX_DAYS_AGO)
   );
   const start = input.start ?? suggestedStart;
   if (start === null) {
@@ -148,7 +170,7 @@ export function analyzeSince(input: {
   const yesterday = addDays(input.today, -1);
   const since = stretch(
     outcome,
-    laterOf(start, addDays(yesterday, 1 - SINCE_MAX_DAYS)),
+    laterOf(start, addDays(yesterday, 1 - SINCE_STRETCH_MAX_DAYS)),
     yesterday
   );
   const earliest = addDays(start, -since.days);
@@ -204,10 +226,14 @@ export function analyzeSince(input: {
   return result;
 }
 
-/** Only an event or yes/no habit has days it was done, so only it gets a suggested start and regularity. */
+/**
+ * Only an event or yes/no habit has days it was done, so only it gets a suggested start and
+ * regularity. A rolling one does not: its value on a day covers the 7 days ending there, so one
+ * session a week reads as active every day.
+ */
 function hasActiveDays(key: CompareMetricKey): boolean {
   const def = COMPARE_METRICS[key];
-  return def.missing === 'event' || def.kind === 'binary';
+  return !def.rolling && (def.missing === 'event' || def.kind === 'binary');
 }
 
 function isActive(habit: DaySeries, day: string): boolean {

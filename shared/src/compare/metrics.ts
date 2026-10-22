@@ -12,6 +12,12 @@ export interface CompareMetricDef {
   unit: string;
   missing: CompareMissingRule;
   weekly: CompareWeeklyRule;
+  /**
+   * The value on a day is read over the 7 days ending on it (a trailing window), not from that
+   * day alone, so a value above 0 does not mean the thing was done that day: a rolling habit has
+   * no suggested start and no regularity in since mode.
+   */
+  rolling: boolean;
 }
 
 export const COMPARE_METRIC_KEYS = [
@@ -43,9 +49,11 @@ export const COMPARE_METRIC_KEYS = [
 
 export type CompareMetricKey = (typeof COMPARE_METRIC_KEYS)[number];
 
-type Rules = Partial<Pick<CompareMetricDef, 'kind' | 'missing' | 'weekly'>>;
+type Rules = Partial<
+  Pick<CompareMetricDef, 'kind' | 'missing' | 'weekly' | 'rolling'>
+>;
 
-/** A continuous, plain metric averaged per week unless `rules` says otherwise. */
+/** A continuous, plain, day-by-day metric averaged per week unless `rules` says otherwise. */
 function metric(
   key: CompareMetricKey,
   group: CompareMetricDef['group'],
@@ -59,6 +67,7 @@ function metric(
     unit,
     missing: 'plain',
     weekly: 'mean',
+    rolling: false,
     ...rules,
   };
 }
@@ -76,13 +85,15 @@ export const COMPARE_METRICS: Record<CompareMetricKey, CompareMetricDef> = {
   overnightHrv: metric('overnightHrv', 'sleep', 'ms'),
   restingHeartRate: metric('restingHeartRate', 'sleep', 'bpm'),
   bedtime: metric('bedtime', 'sleep', 'min-after-18:00'),
-  bedtimeConsistency: metric('bedtimeConsistency', 'sleep', 'min'),
+  bedtimeConsistency: metric('bedtimeConsistency', 'sleep', 'min', {
+    rolling: true,
+  }),
   meditationMinutes: metric('meditationMinutes', 'meditation', 'min', EVENT),
   meditationSessions7d: metric(
     'meditationSessions7d',
     'meditation',
     'sessions',
-    { missing: 'event', weekly: null }
+    { missing: 'event', weekly: null, rolling: true }
   ),
   meditated: metric('meditated', 'meditation', 'yes/no', {
     kind: 'binary',

@@ -4,6 +4,7 @@ import {
   analyzeSince,
   cautiousEffectiveNForMean,
   compareDays,
+  dayOfWeek,
   daysBetween,
   daysInRange,
   mean,
@@ -22,6 +23,7 @@ const TODAY = '2026-09-01'; // a Tuesday
 const YESTERDAY = addDays(TODAY, -1);
 const START = '2026-05-04'; // a Monday; START..YESTERDAY is 120 days
 const BEFORE_FROM = addDays(START, -120);
+const EARLIEST = addDays(TODAY, -730); // the oldest start allowed, a Sunday
 
 /** A series on the days from..to; `f` gets the day's index from `from` and the day, and undefined leaves the day out. */
 function series(
@@ -117,7 +119,9 @@ describe('compare since: suggested start', () => {
     ];
     const habit = habitOn(active, '2026-05-18', YESTERDAY, 30);
 
-    expect(suggestedHabitStart(habit, 'workoutMinutes', 1)).toBe('2026-06-03');
+    expect(suggestedHabitStart(habit, 'workoutMinutes', 1, EARLIEST)).toBe(
+      '2026-06-03'
+    );
   });
 
   test("follows the person's first day of the week", () => {
@@ -132,22 +136,26 @@ describe('compare since: suggested start', () => {
     ];
     const habit = habitOn(active, '2026-06-01', YESTERDAY);
 
-    expect(suggestedHabitStart(habit, 'meditated', 1)).toBe('2026-06-04');
-    expect(suggestedHabitStart(habit, 'meditated', 0)).toBe('2026-06-07');
+    expect(suggestedHabitStart(habit, 'meditated', 1, EARLIEST)).toBe(
+      '2026-06-04'
+    );
+    expect(suggestedHabitStart(habit, 'meditated', 0, EARLIEST)).toBe(
+      '2026-06-07'
+    );
   });
 
   test('two qualifying weeks in a row are not a run', () => {
     const active = firstDaysOfWeeks('2026-06-01', [4, 4, 3, 4, 4, 0, 7, 7]);
     const habit = habitOn(active, '2026-06-01', YESTERDAY, 20);
 
-    expect(suggestedHabitStart(habit, 'cardioMinutes', 1)).toBeNull();
+    expect(suggestedHabitStart(habit, 'cardioMinutes', 1, EARLIEST)).toBeNull();
   });
 
   test.each<CompareMetricKey>(['steps', 'weightTrend', 'alcohol'])(
     'is never offered for %s, which is not an event or a yes/no',
     (key) => {
       const habit = series('2026-03-01', YESTERDAY, () => 8000);
-      expect(suggestedHabitStart(habit, key, 1)).toBeNull();
+      expect(suggestedHabitStart(habit, key, 1, EARLIEST)).toBeNull();
     }
   );
 
@@ -189,7 +197,9 @@ describe('compare since: suggested start', () => {
       TODAY,
     ];
     const habit = habitOn(active, '2026-08-15', TODAY);
-    expect(suggestedHabitStart(habit, 'meditated', 6)).toBe('2026-08-15');
+    expect(suggestedHabitStart(habit, 'meditated', 6, EARLIEST)).toBe(
+      '2026-08-15'
+    );
 
     const result = since({
       habit: { key: 'meditated', values: habit },
@@ -199,6 +209,135 @@ describe('compare since: suggested start', () => {
     });
     expect(result.suggestedStart).toBeNull();
     expect(result.reason).toBe('noStart');
+  });
+});
+
+describe('compare since: suggested start at the 730-day limit', () => {
+  // Monday weeks: the limit, Sunday 2024-09-01, ends the week of Monday 2024-08-26.
+  const OUTCOME = stepAtStart(addDays(EARLIEST, -400), 40, 0);
+
+  test('a habit already kept at the limit gets no suggestion', () => {
+    const from = addDays(EARLIEST, -400);
+    const habit = habitOn(daysInRange(from, YESTERDAY), from, YESTERDAY);
+
+    expect(suggestedHabitStart(habit, 'meditated', 1, EARLIEST)).toBeNull();
+    // analyzeSince holds the suggestion to the limit itself.
+    const result = since({
+      habit: { key: 'meditated', values: habit },
+      outcome: { key: 'mood', values: OUTCOME },
+      start: null,
+    });
+    expect(result).toMatchObject({
+      status: 'not_enough',
+      reason: 'noStart',
+      suggestedStart: null,
+    });
+  });
+
+  test('nor does a later run once the habit was kept at the limit', () => {
+    // Kept from before the limit, 4 weeks off, then kept again.
+    const lapse = addDays(EARLIEST, 99);
+    const back = addDays(lapse, 28);
+    const from = addDays(EARLIEST, -60);
+    const active = [
+      ...daysInRange(from, addDays(lapse, -1)),
+      ...daysInRange(back, YESTERDAY),
+    ];
+    const habit = habitOn(active, from, YESTERDAY, 30);
+
+    expect(
+      suggestedHabitStart(habit, 'workoutMinutes', 1, EARLIEST)
+    ).toBeNull();
+  });
+
+  test('a run that began just before the limit is not suggested', () => {
+    // Every day from Thursday 2024-08-29, three days before the limit: the run's first
+    // week holds the limit, but its first active day is older than a start may be.
+    const from = addDays(EARLIEST, -3);
+    const habit = habitOn(daysInRange(from, YESTERDAY), from, YESTERDAY);
+
+    expect(suggestedHabitStart(habit, 'meditated', 1, EARLIEST)).toBeNull();
+  });
+
+  test('a run after a week that was not kept is suggested, though there are records before the limit', () => {
+    // Weekends only (2 days a week) from before the limit, then every day from Wednesday
+    // 2025-03-05: its week has Wednesday to Sunday, the week before only the weekend.
+    const from = addDays(EARLIEST, -60);
+    const run = '2025-03-05';
+    const weekends = daysInRange(from, YESTERDAY).filter((day) =>
+      [0, 6].includes(dayOfWeek(day))
+    );
+    const active = [...weekends, ...daysInRange(run, YESTERDAY)];
+    const habit = habitOn(active, from, YESTERDAY);
+
+    expect(suggestedHabitStart(habit, 'meditated', 1, EARLIEST)).toBe(run);
+    const result = since({
+      habit: { key: 'meditated', values: habit },
+      outcome: { key: 'mood', values: OUTCOME },
+      start: null,
+    });
+    expect(result.suggestedStart).toBe(run);
+    expect(result.start).toBe(run);
+  });
+
+  test('a run at the very first record is suggested', () => {
+    // Records begin on Thursday 2024-09-05, mid-week: nothing before it at all.
+    const first = addDays(EARLIEST, 4);
+    const habit = habitOn(daysInRange(first, YESTERDAY), first, YESTERDAY);
+
+    expect(suggestedHabitStart(habit, 'meditated', 1, EARLIEST)).toBe(first);
+  });
+
+  test('a run whose records begin on the limit is suggested there', () => {
+    // Sunday weeks start on the limit itself.
+    const habit = habitOn(
+      daysInRange(EARLIEST, YESTERDAY),
+      EARLIEST,
+      YESTERDAY
+    );
+
+    expect(suggestedHabitStart(habit, 'meditated', 0, EARLIEST)).toBe(EARLIEST);
+  });
+});
+
+describe('compare since: rolling metrics', () => {
+  /**
+   * One session every Monday from Monday `from`, as the 7-day count the server builds: the
+   * 7 days ending on any day hold exactly one Monday, so the count is 1 every day.
+   */
+  function weeklySessionCount(from: string): DaySeries {
+    expect(dayOfWeek(from)).toBe(1);
+    return series(from, YESTERDAY, () => 1);
+  }
+
+  test('a 7-day session count gets no suggested start', () => {
+    const habit = weeklySessionCount('2026-01-05');
+    expect(Object.values(habit).every((v) => v > 0)).toBe(true);
+
+    expect(
+      suggestedHabitStart(habit, 'meditationSessions7d', 1, EARLIEST)
+    ).toBeNull();
+    expect(
+      since({
+        habit: { key: 'meditationSessions7d', values: habit },
+        outcome: { key: 'mood', values: stepAtStart(BEFORE_FROM, 41, 0) },
+        start: null,
+      }).reason
+    ).toBe('noStart');
+  });
+
+  test('a 7-day session count gets no regularity from a picked start', () => {
+    const result = since({
+      habit: {
+        key: 'meditationSessions7d',
+        values: weeklySessionCount('2026-01-05'),
+      },
+      outcome: { key: 'mood', values: stepAtStart(BEFORE_FROM, 42, 0) },
+      start: START,
+    });
+
+    expect(result.status).toBe('ok');
+    expect(result).not.toHaveProperty('regularity');
   });
 });
 
