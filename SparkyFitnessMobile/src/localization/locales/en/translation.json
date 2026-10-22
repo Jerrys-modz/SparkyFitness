@@ -8394,19 +8394,23 @@
       "logWeeks_one": "Log {{weaker}} for {{count}} more week, or pick a longer span.",
       "logWeeks_other": "Log {{weaker}} for {{count}} more weeks, or pick a longer span.",
       "needsHistory": "Each day is compared with your previous two weeks, so a day needs a week of history first.",
-      "fewYesHeadline": "Not enough days with {{yes}} yet",
+      "fewYesHeadline": "Not enough days when you {{yes}} yet",
       "fewYesDetail": "You have {{n}}; an answer needs {{needed}}. Try a longer span.",
-      "fewNoHeadline": "Not enough days without {{yes}} yet",
+      "fewNoHeadline": "Not enough days without {{yesNoun}} yet",
       "fewNoDetail": "You {{yes}} on almost every day here, so there's nothing to compare against. Try a longer span.",
       "noVariationHeadline": "Nothing to compare yet",
       "noVariationDetail": "{{metric}} was the same every time over this span, so there's nothing to compare it with.",
-      "noVariationGeneric": "One of these didn't change over this span."
+      "noVariationGeneric": "One of these didn't change over this span.",
+      "longerSpanDifference": "A longer span makes a small difference easier to see."
     },
     "stats": {
       "p": "p {{p}}",
       "pTiny": "p < 0.001",
       "correlation": "r {{r}} · 95% range {{low}} to {{high}} · {{p}} · {{n}}",
       "difference": "difference {{diff}} · 95% range {{low}} to {{high}} · {{p}} · {{n}}"
+    },
+    "metricNouns": {
+      "meditated": "meditating"
     }
   }
 }

@@ -7,7 +7,10 @@ import {
   timingPhrase,
   verdictCopy,
 } from '../../src/utils/compareCopy';
-import type { CompareQuestion } from '../../src/utils/compareQuestion';
+import {
+  SUGGESTED_QUESTIONS,
+  type CompareQuestion,
+} from '../../src/utils/compareQuestion';
 
 const t = ((key: string, options: Record<string, unknown>) =>
   i18n.t(key, options)) as never;
@@ -98,7 +101,40 @@ describe('phrases', () => {
   });
 });
 
+describe('suggested questions read naturally', () => {
+  test.each([
+    [0, "Does last night's time asleep go with energy that day?"],
+    [1, 'Does meditating go with mood the same day?'],
+    [2, 'Does caffeine go with time asleep that night?'],
+    [3, 'Does training load go with overnight HRV that night?'],
+  ])('question %i', (i, text) => {
+    expect(sentenceText(SUGGESTED_QUESTIONS[i], t)).toBe(text);
+  });
+});
+
 describe('verdictCopy', () => {
+  test('difference path hint wording', () => {
+    const q: CompareQuestion = { a: 'meditated', b: 'mood', choice: 'sameDay' };
+    const binary = {
+      yesKey: 'meditated' as const,
+      yesMean: 5,
+      noMean: 1,
+      yesCount: 9,
+      noCount: 30,
+      diff: 4,
+    };
+    const c = verdictCopy(
+      response({ method: 'difference', linked: false, binary }, q),
+      q,
+      '30d',
+      t
+    );
+    expect(c.detail).toContain(
+      'A longer span makes a small difference easier to see.'
+    );
+    expect(c.detail).not.toContain('weak link');
+  });
+
   test('linked positive', () => {
     const c = collect(
       verdictCopy(
@@ -302,7 +338,7 @@ describe('verdictCopy', () => {
         t
       )
     );
-    expect(few.headline).toBe('Not enough days with meditated yet');
+    expect(few.headline).toBe('Not enough days when you meditated yet');
     expect(few.detail).toBe(
       'You have 2 days; an answer needs 5 days. Try a longer span.'
     );
@@ -314,7 +350,7 @@ describe('verdictCopy', () => {
         t
       )
     );
-    expect(no.headline).toBe('Not enough days without meditated yet');
+    expect(no.headline).toBe('Not enough days without meditating yet');
     expect(no.detail).toBe(
       "You meditated on almost every day here, so there's nothing to compare against. Try a longer span."
     );

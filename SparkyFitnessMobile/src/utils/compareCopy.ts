@@ -38,6 +38,20 @@ export function metricPhrase(key: CompareMetricKey, t: Translator): string {
     : label;
 }
 
+/**
+ * The metric as a noun in a sentence. Yes/no metrics are labelled with a
+ * past-tense verb ("Meditated"), so they get a gerund here; every other
+ * metric reads as its plain phrase.
+ */
+export function metricNoun(key: CompareMetricKey, t: Translator): string {
+  if (key === 'meditated') {
+    return t('compareReport.metricNouns.meditated', {
+      defaultValue: 'meditating',
+    });
+  }
+  return metricPhrase(key, t);
+}
+
 export function timingPhrase(q: CompareQuestion, t: Translator): string {
   switch (q.choice) {
     case 'sameDay':
@@ -66,8 +80,11 @@ export function timingPhrase(q: CompareQuestion, t: Translator): string {
 export function sentenceText(q: CompareQuestion, t: Translator): string {
   return t('compareReport.verdict.question', {
     defaultValue: 'Does {{a}} go with {{b}} {{timing}}?',
-    a: metricPhrase(q.a, t),
-    b: plainLabel(q.b, t),
+    a: metricNoun(q.a, t),
+    b:
+      COMPARE_METRICS[q.b].kind === 'binary'
+        ? metricNoun(q.b, t)
+        : plainLabel(q.b, t),
     timing: timingPhrase(q, t),
   });
 }
@@ -158,7 +175,7 @@ export function verdictCopy(
       case 'fewYes':
         return {
           headline: t('compareReport.verdict.fewYesHeadline', {
-            defaultValue: 'Not enough days with {{yes}} yet',
+            defaultValue: 'Not enough days when you {{yes}} yet',
             yes: yesText,
           }),
           detail: t('compareReport.verdict.fewYesDetail', {
@@ -171,8 +188,8 @@ export function verdictCopy(
       case 'fewNo':
         return {
           headline: t('compareReport.verdict.fewNoHeadline', {
-            defaultValue: 'Not enough days without {{yes}} yet',
-            yes: yesText,
+            defaultValue: 'Not enough days without {{yesNoun}} yet',
+            yesNoun: yes ? metricNoun(yes, t) : '',
           }),
           detail: t('compareReport.verdict.fewNoDetail', {
             defaultValue:
@@ -230,11 +247,16 @@ export function verdictCopy(
     }
   }
 
+  const isDifference = result.method === 'difference';
   const hint = isLongestSpan(span, mode)
     ? ''
-    : ` ${t('compareReport.verdict.longerSpan', {
-        defaultValue: 'A longer span makes a weak link easier to see.',
-      })}`;
+    : isDifference
+      ? ` ${t('compareReport.verdict.longerSpanDifference', {
+          defaultValue: 'A longer span makes a small difference easier to see.',
+        })}`
+      : ` ${t('compareReport.verdict.longerSpan', {
+          defaultValue: 'A longer span makes a weak link easier to see.',
+        })}`;
 
   if (result.method === 'difference' && result.binary) {
     const { yesKey, diff } = result.binary;
