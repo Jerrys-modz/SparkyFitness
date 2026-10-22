@@ -533,10 +533,12 @@ const CalculationSettings = () => {
   // The safety floor clamps silently, so a goal mode that cannot be reached at
   // this activity level renders identically to one that can — at None (x1.0) every
   // deficit mode returns the same target. Surface the ceiling in the picker so the
-  // choice is informed rather than explained after the override. The ceiling depends
-  // only on the baseline and the floor, so it is the same for every mode.
+  // choice is informed rather than explained after the override. The current weekly
+  // target also exposes a ceiling under manual calculation, but percentage options
+  // only use that floor with the adaptive method.
   const deficitCeilingPercent = previewResult.maxFeasibleDeficitPercent;
   const isGoalModeUnreachable = (mode: GoalMode) =>
+    goalModeCalculationMethod === 'adaptive' &&
     deficitCeilingPercent != null &&
     getGoalModeAdjustment(mode, goalModeCustomPercentage) * 100 >
       deficitCeilingPercent + 1e-9;

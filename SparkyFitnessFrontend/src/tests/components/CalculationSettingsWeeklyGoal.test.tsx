@@ -52,6 +52,9 @@ describe('CalculationSettings weekly goal', () => {
     mockSave.mockClear();
     mockPreferences.calorieGoalAdjustmentMode = 'fixed';
     mockPreferences.weightUnit = 'kg';
+    mockPreferences.goalModeCalculationMethod = 'manual';
+    mockPreferences.calorieSafetyFloorMode = 'standard';
+    mockPreferences.calorieSafetyFloorValue = 1200;
   });
 
   it('shows the additive weekly adjustment in the device projection formula', () => {
@@ -77,6 +80,34 @@ describe('CalculationSettings weekly goal', () => {
       screen.getByText(
         /Weekly weight targets use your configured safety floor with either calculation method/
       )
+    ).toBeInTheDocument();
+  });
+
+  it('does not apply the weekly manual floor to percentage options in the picker', () => {
+    mockPreferences.calorieSafetyFloorMode = 'custom';
+    mockPreferences.calorieSafetyFloorValue = 1900;
+    render(<CalculationSettings />);
+    fireEvent.keyDown(screen.getByRole('combobox', { name: 'Goal Mode' }), {
+      key: 'ArrowDown',
+    });
+    expect(
+      screen.getByRole('option', { name: 'Cut (-15%)' })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryAllByRole('option', { name: /not reachable/ })
+    ).toHaveLength(0);
+  });
+
+  it('retains unreachable percentage labels when the adaptive method applies the floor', () => {
+    mockPreferences.goalModeCalculationMethod = 'adaptive';
+    mockPreferences.calorieSafetyFloorMode = 'custom';
+    mockPreferences.calorieSafetyFloorValue = 1900;
+    render(<CalculationSettings />);
+    fireEvent.keyDown(screen.getByRole('combobox', { name: 'Goal Mode' }), {
+      key: 'ArrowDown',
+    });
+    expect(
+      screen.getByRole('option', { name: 'Cut (-15%) — not reachable' })
     ).toBeInTheDocument();
   });
 

@@ -695,8 +695,8 @@ export interface CalorieTargetResult {
   /** Rate-of-change safety rating, thresholded per direction. */
   safetyZone: 'green' | 'yellow' | 'red';
   /**
-   * True when the adaptive safety floor overrode the requested target.
-   * Only ever true for `calculationMethod === "adaptive"`.
+   * True when the safety floor overrode the requested target under the adaptive
+   * calculation method or the weekly goal mode (including manual calculation).
    */
   wasClampedToFloor: boolean;
   /** Which floor bound: RMR, the flat absolute minimum, or a user override. */
@@ -708,10 +708,10 @@ export interface CalorieTargetResult {
   /**
    * Largest deficit, in percent, that still clears the safety floor.
    *
-   * Always present under the adaptive method, whether or not the current goal
-   * mode trips the floor, so the UI can mark unreachable modes *before* one is
-   * chosen rather than explaining the override afterwards. Null under manual,
-   * which never clamps, and when the baseline is unknown.
+   * Present for adaptive calculation and weekly goals when the floor is enabled
+   * and the baseline is known, even when the requested target clears the floor.
+   * Under manual calculation this ceiling applies only to weekly targets; a
+   * picker must not apply it to percentage options that bypass the floor.
    */
   maxFeasibleDeficitPercent: number | null;
 }
@@ -910,9 +910,8 @@ export function computeCalorieTarget({
       : null;
 
   // The largest deficit that still clears the floor. Computed whenever the floor
-  // could bind — not only once it has — so a goal-mode picker can say which modes
-  // are out of reach up front. Depends on the baseline and the floor, both of
-  // which are independent of the goal mode, so it is the same for every mode.
+  // could bind — not only once it has. Adaptive calculation applies this ceiling
+  // across modes; manual calculation applies it only to the weekly target.
   const maxFeasibleDeficitPercent =
     usesSafetyFloor && baselineTdee > 0 && effectiveSafetyFloor !== null
       ? Math.max(0, (1 - effectiveSafetyFloor / baselineTdee) * 100)
