@@ -82,6 +82,7 @@ describe('GET /oura/authorize', () => {
   });
 
   it('honors a valid client-provided redirect_uri', async () => {
+    process.env.SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS = 'http://localhost:8080';
     const res = await request(app)
       .get('/oura/authorize?redirect_uri=http://localhost:8080/oura/callback')
       .set('Origin', 'http://localhost:8080');
@@ -89,6 +90,21 @@ describe('GET /oura/authorize', () => {
     expect(ouraIntegrationService.getAuthorizationUrl).toHaveBeenCalledWith(
       'user-1',
       'http://localhost:8080/oura/callback'
+    );
+  });
+
+  it('falls back to default if client provides an untrusted redirect_uri', async () => {
+    const res = await request(app)
+      .get('/oura/authorize?redirect_uri=https://untrusted.test/oura/callback')
+      .set('Origin', 'https://untrusted.test');
+    expect(res.statusCode).toBe(200);
+    expect(ouraIntegrationService.getAuthorizationUrl).toHaveBeenCalledWith(
+      'user-1',
+      expect.stringContaining('/oura/callback')
+    );
+    expect(ouraIntegrationService.getAuthorizationUrl).not.toHaveBeenCalledWith(
+      'user-1',
+      'https://untrusted.test/oura/callback'
     );
   });
 });
@@ -107,6 +123,7 @@ describe('POST /oura/callback', () => {
   });
 
   it('honors a client-provided redirect_uri in callback', async () => {
+    process.env.SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS = 'http://localhost:8080';
     const res = await request(app).post('/oura/callback').send({
       code: 'auth-code-1',
       redirect_uri: 'http://localhost:8080/oura/callback',
@@ -144,28 +161,44 @@ describe('getOuraRedirectUri helper', () => {
     expect(getOuraRedirectUri()).toBe('https://sparky.test/oura/callback');
   });
 
-  it('uses client-provided redirect_uri when origin is localhost', () => {
-    expect(
-      getOuraRedirectUri(undefined, 'http://localhost:3000/oura/callback')
-    ).toBe('http://localhost:3000/oura/callback');
+  it('falls back to default if client-provided redirect_uri origin is untrusted', () => {
+    expect(getOuraRedirectUri('http://localhost:3000/oura/callback')).toBe(
+      'https://sparky.test/oura/callback'
+    );
+    expect(getOuraRedirectUri('https://untrusted.test/oura/callback')).toBe(
+      'https://sparky.test/oura/callback'
+    );
   });
 
   it('uses client-provided redirect_uri when origin is in SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS', () => {
     process.env.SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS =
-      'https://alt.sparky.test, https://other.sparky.test/';
-    expect(
-      getOuraRedirectUri(undefined, 'https://alt.sparky.test/oura/callback')
-    ).toBe('https://alt.sparky.test/oura/callback');
+      'https://alt.sparky.test, http://localhost:3000/';
+    expect(getOuraRedirectUri('https://alt.sparky.test/oura/callback')).toBe(
+      'https://alt.sparky.test/oura/callback'
+    );
+    expect(getOuraRedirectUri('http://localhost:3000/oura/callback')).toBe(
+      'http://localhost:3000/oura/callback'
+    );
+  });
+
+  it('uses client-provided redirect_uri when origin matches default frontend URL', () => {
+    expect(getOuraRedirectUri('https://sparky.test/oura/callback')).toBe(
+      'https://sparky.test/oura/callback'
+    );
   });
 
   it('falls back to default if path is not /oura/callback', () => {
+    process.env.SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS =
+      'https://alt.sparky.test';
     expect(
-      getOuraRedirectUri(undefined, 'http://localhost:3000/malicious/callback')
+      getOuraRedirectUri('https://alt.sparky.test/malicious/callback')
     ).toBe('https://sparky.test/oura/callback');
   });
 
   it('falls back to default if protocol is not http or https', () => {
-    expect(getOuraRedirectUri(undefined, 'foo://localhost/oura/callback')).toBe(
+    process.env.SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS =
+      'https://alt.sparky.test';
+    expect(getOuraRedirectUri('foo://alt.sparky.test/oura/callback')).toBe(
       'https://sparky.test/oura/callback'
     );
   });
