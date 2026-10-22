@@ -186,6 +186,52 @@ describe('routes API', () => {
       (await request(app).patch(`/api/v2/routes/${ID}`).send({})).status
     ).toBe(400);
 
+    const replaced = await request(app)
+      .patch(`/api/v2/routes/${ID}`)
+      .send({ points, cues: [] });
+    expect(replaced.status).toBe(200);
+    expect(vi.mocked(updateRoute).mock.calls.at(-1)?.[2]).toMatchObject({
+      points,
+    });
+    expect(
+      (await request(app).patch(`/api/v2/routes/${ID}`).send({ cues: [] }))
+        .status
+    ).toBe(400);
+    expect(
+      (
+        await request(app)
+          .patch(`/api/v2/routes/${ID}`)
+          .send({ points: [points[0]] })
+      ).status
+    ).toBe(400);
+
+    // A cue has to point at one of the new points.
+    const strayCue = await request(app)
+      .patch(`/api/v2/routes/${ID}`)
+      .send({ points, cues: [{ index: 2, kind: 'left' }] });
+    expect(strayCue.status).toBe(400);
+    expect(
+      (
+        await request(app)
+          .patch(`/api/v2/routes/${ID}`)
+          .send({ points, cues: [{ index: 1, kind: 'left' }] })
+      ).status
+    ).toBe(200);
+
+    // A line that is too short is the caller's mistake, not a server error.
+    vi.mocked(updateRoute).mockRejectedValueOnce(
+      new InvalidRouteError('A route needs to be at least 10 m long')
+    );
+    const tooShort = await request(app)
+      .patch(`/api/v2/routes/${ID}`)
+      .send({ points });
+    expect(tooShort.status).toBe(400);
+
+    vi.mocked(updateRoute).mockResolvedValueOnce(null);
+    expect(
+      (await request(app).patch(`/api/v2/routes/${ID}`).send({ points })).status
+    ).toBe(404);
+
     vi.mocked(deleteRoute).mockResolvedValueOnce(true);
     expect((await request(app).delete(`/api/v2/routes/${ID}`)).status).toBe(
       204
