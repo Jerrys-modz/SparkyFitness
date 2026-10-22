@@ -71,6 +71,10 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
   const snap = useFollowRoadsRoute(snapping, points);
   const snapped = snapping ? snap.preview : null;
   const atWaypointLimit = snapping && !canAddFollowRoadsPoint(points.length);
+  // Switching Follow roads on with more taps than it can route would save a
+  // line that skips some of them.
+  const overWaypointLimit =
+    snapping && points.length > ROUTE_FOLLOW_ROADS_MAX_POINTS;
 
   const distance = snapped ? snapped.distanceM : routeDistanceMeters(points);
   // Following roads saves what the engine returned, so wait until it matches
@@ -79,6 +83,7 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
     points.length >= 2 &&
     distance >= MIN_ROUTE_METERS &&
     name.trim() !== '' &&
+    !overWaypointLimit &&
     (!snapping || (snapped !== null && snap.isCurrent));
 
   const centerOnPerson = () => {
@@ -261,7 +266,15 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
                 </Button>
               </View>
             ) : null}
-            {atWaypointLimit ? (
+            {overWaypointLimit ? (
+              <Text className="text-text-secondary text-sm mt-2">
+                {t('routes.followRoadsTooMany', {
+                  defaultValue:
+                    'Following roads takes up to {{max}} points. Undo points or turn Follow roads off to save.',
+                  max: ROUTE_FOLLOW_ROADS_MAX_POINTS,
+                })}
+              </Text>
+            ) : atWaypointLimit ? (
               <Text className="text-text-secondary text-sm mt-2">
                 {t('routes.followRoadsLimit', {
                   defaultValue:

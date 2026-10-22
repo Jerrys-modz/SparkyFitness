@@ -8236,6 +8236,7 @@
     "followRoads": "Follow roads",
     "followRoadsNeedsProvider": "A routing provider is needed. Add one in Settings > External Providers on the web app.",
     "followRoadsLimit": "Following roads takes up to {{max}} points. Undo a point to add another.",
+    "followRoadsTooMany": "Following roads takes up to {{max}} points. Undo points or turn Follow roads off to save.",
     "findingRoute": "Finding a route",
     "turns": "Turns",
     "showFewerTurns": "Show fewer",

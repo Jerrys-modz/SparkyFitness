@@ -148,9 +148,11 @@ describe('useFollowRoadsRoute', () => {
 
   it('drops the preview when switched off', async () => {
     mockGenerate.mockResolvedValue(preview(1000));
+    // The taps are React state in the screen, so their identity is stable
+    // between renders; a fresh array each render would look like a new request.
+    const taps = [pt(0), pt(1)];
     const { result, rerender } = renderHook(
-      ({ enabled }: { enabled: boolean }) =>
-        useFollowRoadsRoute(enabled, [pt(0), pt(1)]),
+      ({ enabled }: { enabled: boolean }) => useFollowRoadsRoute(enabled, taps),
       { initialProps: { enabled: true } }
     );
     await advance(FOLLOW_ROADS_DEBOUNCE_MS);

@@ -211,6 +211,29 @@ describe('RouteDrawScreen follow roads', () => {
     );
   });
 
+  it('will not save a line that skips taps when Follow roads is switched on late', async () => {
+    mockGenerate.mockResolvedValue(snapped);
+    const utils = renderScreen();
+    fireEvent.changeText(utils.getByLabelText('Route name'), 'Long walk');
+    for (let i = 0; i < ROUTE_FOLLOW_ROADS_MAX_POINTS + 3; i++) {
+      tapMap(utils, 40 + i * 0.001);
+    }
+    // Drawn by hand, every tap is saved.
+    expect(lastHeader().right.disabled).toBe(false);
+
+    fireEvent(utils.getByLabelText('Follow roads'), 'valueChange', true);
+    await settle();
+    // The engine can route only some of them, so saving is blocked and the
+    // person is told why.
+    expect(lastHeader().right.disabled).toBe(true);
+    expect(
+      utils.getByText(/Undo points or turn Follow roads off to save/)
+    ).toBeTruthy();
+
+    fireEvent(utils.getByLabelText('Follow roads'), 'valueChange', false);
+    expect(lastHeader().right.disabled).toBe(false);
+  });
+
   it('saves the snapped line with its cues once it matches the taps', async () => {
     mockGenerate.mockResolvedValue(snapped);
     mockSave.mockResolvedValue({ id: 'route-1' });

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -117,7 +117,9 @@ const RouteGenerateScreen: React.FC<Props> = ({ navigation }) => {
   const distanceValid =
     Number.isFinite(distance) && distance >= range.min && distance <= range.max;
 
-  const locateMe = () => {
+  // Only refs and state setters inside, so it never changes and can sit in an
+  // effect's dependencies.
+  const locateMe = useCallback(() => {
     pickedStart.current = false;
     void (async () => {
       const permission = await Location.requestForegroundPermissionsAsync();
@@ -139,11 +141,11 @@ const RouteGenerateScreen: React.FC<Props> = ({ navigation }) => {
         0
       );
     })().catch(() => undefined);
-  };
+  }, []);
 
   useEffect(() => {
     if (available) locateMe();
-  }, [available]);
+  }, [available, locateMe]);
 
   useEffect(() => {
     if (!preview || preview.points.length < 2) return;
