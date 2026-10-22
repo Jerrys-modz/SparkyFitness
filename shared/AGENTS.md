@@ -23,7 +23,7 @@ _Last updated: 2026-10-20_
 - `src/nutrients/` - nutrient catalogs and the goal calculator used by web onboarding, the web Goals editor and mobile Goals (`nutrientCalculation.ts`: per-nutrient recommended values from age, sex, weight, calories and the saved algorithm choices; `nutrientAlgorithms.ts`: the algorithm enums and labels).
 - `src/ai/`, `src/cycle/`, `src/medications/`, `src/mood/` - domain-specific helpers.
 - `src/types/` - shared plain TypeScript types that are not Zod-derived.
-- Routes: `src/schemas/api/Route.api.zod.ts` (points, turn cues, bodies), `src/utils/routeGeometry.ts` (distance, climb, simplify, bounds), `src/utils/routeGpx.ts` (dependency-free GPX read/write), `src/utils/routeGenerate.ts` (generate and follow-roads request builders, error kinds, turn counts) and `src/constants/routingProviderTypes.ts` (the `valhalla` external provider type and its default public server URL).
+- Routes: `src/schemas/api/Route.api.zod.ts` (points, turn cues, bodies), `src/utils/routeGeometry.ts` (distance, climb, simplify, bounds), `src/utils/routeGpx.ts` (dependency-free GPX read/write), `src/utils/routeGenerate.ts` (generate and follow-roads request builders, error kinds, turn counts) and `src/constants/routingProviderTypes.ts` (the `valhalla` external provider type; there is deliberately no default server URL).
 - `src/symptoms/` - generic symptom tracking: constants and enums (scales, templates, sections, option kinds), template section resolution (`resolveSections`), built-in symptoms and pick-lists, head/body region ids for the location maps, and custom-field validation. The API contract is `src/schemas/api/Symptoms.api.zod.ts`.
 
 ## Naming Convention
