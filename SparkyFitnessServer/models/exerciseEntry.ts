@@ -392,6 +392,8 @@ export interface WatchTelemetryFields {
   duration_minutes?: number | null;
   /** High-water mark of `duration_minutes` reported by the watch. */
   watch_duration_minutes?: number | null;
+  /** Stride length in cm; null clears it. */
+  stride_length_cm?: number | null;
 }
 
 /**

@@ -652,14 +652,14 @@ describe('exerciseApi - createExerciseEntry / updateExerciseEntry', () => {
       });
     });
 
-    it('updates only the stride on the entry', async () => {
+    it('updates only the stride through the telemetry endpoint', async () => {
       await setExerciseEntryStrideLength('entry-1', 101.5);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://example.com/api/exercise-entries/entry-1',
+        'https://example.com/api/exercise-entries/entry-1/watch-telemetry',
         expect.objectContaining({
-          method: 'PUT',
-          body: JSON.stringify({ stride_length_cm: 101.5 }),
+          method: 'POST',
+          body: JSON.stringify({ strideLengthCm: 101.5 }),
         })
       );
     });
@@ -670,7 +670,7 @@ describe('exerciseApi - createExerciseEntry / updateExerciseEntry', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          body: JSON.stringify({ stride_length_cm: null }),
+          body: JSON.stringify({ strideLengthCm: null }),
         })
       );
     });

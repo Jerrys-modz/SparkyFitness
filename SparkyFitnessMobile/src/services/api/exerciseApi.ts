@@ -444,21 +444,16 @@ export const setExerciseEntryDistance = async (
 };
 
 /**
- * Sets the stride length of an entry alone. A partial update keeps everything
- * else on the entry, so this is how a corrected treadmill distance brings the
- * stride along; null clears a stride the new distance no longer supports.
+ * Sets the stride length of an entry alone, through the telemetry-only
+ * endpoint so the entry's duration and the rest of its fields are untouched.
+ * This is how a corrected treadmill distance brings the stride along; null
+ * clears a stride the new distance no longer supports.
  */
 export const setExerciseEntryStrideLength = async (
   id: string,
   strideLengthCm: number | null
 ): Promise<void> => {
-  await apiFetch<unknown>({
-    endpoint: `/api/exercise-entries/${encodeURIComponent(id)}`,
-    serviceName: 'Exercise API',
-    operation: 'set exercise entry stride length',
-    method: 'PUT',
-    body: { stride_length_cm: strideLengthCm },
-  });
+  return attachExerciseEntryWatchTelemetry(id, { strideLengthCm });
 };
 
 export const getWorkout = async (
@@ -516,6 +511,8 @@ export const attachExerciseEntryWatchTelemetry = async (
     activeEnergyKcal?: number;
     /** Minutes the watch spent on this exercise. Replaces a zero duration. */
     durationMinutes?: number;
+    /** Stride length in cm; null clears it. */
+    strideLengthCm?: number | null;
   }
 ): Promise<void> => {
   return apiFetch<void>({

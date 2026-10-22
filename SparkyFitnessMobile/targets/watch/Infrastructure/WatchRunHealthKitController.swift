@@ -59,6 +59,9 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     private var pedometer: CMPedometer?
     private var motionTimer: Timer?
     private var pedometerSteps = 0
+    /// True once a recovery restarted the pedometer: its count then covers
+    /// only the time since the relaunch, so it is never reported as the run's.
+    private var pedometerPartial = false
     /// True once the pedometer has delivered a reading (permission granted).
     private var pedometerLive = false
     private var runKind: WatchRunKind = .run
@@ -242,6 +245,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             newBuilder.beginCollection(withStart: now) { _, _ in
                 newBuilder.addMetadata(marker) { _, _ in }
             }
+            pedometerPartial = false
             if place == .outdoor { startRoute() } else { startMotion() }
             persistSnapshot(force: true)
             return true
@@ -424,10 +428,12 @@ extension WatchRunHealthKitController {
                 let recoveredBuilder = recovered.associatedWorkoutBuilder()
                 recovered.delegate = self
                 recoveredBuilder.delegate = self
-                recoveredBuilder.dataSource = HKLiveWorkoutDataSource(
+                let recoveredSource = HKLiveWorkoutDataSource(
                     healthStore: self.healthStore,
                     workoutConfiguration: recovered.workoutConfiguration
                 )
+                recoveredSource.enableCollection(for: Self.stepType, predicate: nil)
+                recoveredBuilder.dataSource = recoveredSource
                 self.session = recovered
                 self.builder = recoveredBuilder
                 self.clientId = snapshot.clientId
@@ -469,6 +475,8 @@ extension WatchRunHealthKitController {
                 } else {
                     self.startMotion()
                 }
+                // The pedometer restarted at zero above; its count is partial.
+                self.pedometerPartial = true
                 self.persistSnapshot(force: true)
                 completion(.resumed(WatchRunRecovery(
                     kind: kind,
@@ -545,7 +553,7 @@ extension WatchRunHealthKitController {
     /// a pause, so the paused share is taken off. Nil outdoors, or when it
     /// never reported. The workout statistic is preferred when it has a count.
     private func indoorPedometerSteps(elapsed: TimeInterval, endedAt: Date) -> Int? {
-        guard runPlace == .indoor, pedometerSteps > 0 else { return nil }
+        guard runPlace == .indoor, !pedometerPartial, pedometerSteps > 0 else { return nil }
         let wall = endedAt.timeIntervalSince(startedAt)
         guard wall > 0, elapsed > 0 else { return pedometerSteps }
         let share = min(1, elapsed / wall)
