@@ -537,3 +537,6 @@ export * from "./utils/runningEstimates.ts";
 export * from "./utils/runProgramLoad.ts";
 export * from "./nutrients/nutrientAlgorithms.ts";
 export * from "./nutrients/nutrientCalculation.ts";
+export * from "./utils/gradeAdjustedPace.ts";
+export * from "./utils/runningDynamics.ts";
+export * from "./utils/gradeAdjustedTrack.ts";

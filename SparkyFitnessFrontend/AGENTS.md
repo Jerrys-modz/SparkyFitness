@@ -3,6 +3,7 @@
 _Last updated: 2026-10-22_
 _Last updated: 2026-10-19_
 _Last updated: 2026-10-17_
+_Last updated: 2026-10-18_
 
 SparkyFitness Frontend is the React web app for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessFrontend/`.
 
@@ -118,6 +119,7 @@ When searching, ignore `node_modules/`, `dist/`, and every locale except `public
 - Stops provider (Overpass, stops along a route): the same pattern with `pages/Settings/StopsProviderFields.tsx` (base URL only, left empty with a placeholder, no key; notes on what is sent and that the public instance is for light use), wired in `ProviderSpecificFields` and `EditProviderForm`, with `overpass` added beside `valhalla` in `utils/settings.ts`, `externalProviderService.ts`, `ProviderCard.tsx` and `ExternalProviderList.tsx`; seeded by the server migration.
 - Heart rate zones: Settings → Profile & Account → Heart Rate Zones (`src/pages/Settings/HeartRateZoneSettings.tsx`, `src/hooks/Settings/useHeartRateZones.ts`, `src/api/Settings/heartRateZones.ts` over `GET`/`PUT /api/v2/heart-rate-zones`). Zone maths is shared (`@workspace/shared` `heartRateZones.ts`); labels are in `src/utils/heartRateZoneLabels.ts`. `ActivityHeartRateZonesChart` takes `zoneMethod` (from the stored `zone_method` of the workout's zone rows) and says which method the zones were worked out with; stored zones are never recomputed when settings change.
 - Weekly coaching check-in: `pages/Reports/CoachingCheckInCard.tsx` at the top of Reports > Nutrition, fed by `useCoachingCheckIn` (`hooks/Reports/useReports.ts`, `GET /reports/coaching-checkin`); the goal settings and Accept use `useSaveCoachingSettingsMutation` / `useAcceptCoachingCheckInMutation` (`hooks/Goals/useGoals.ts`), and the card is read-only while acting on behalf of someone. The maths and the data-note list come from the shared `weightCoaching.ts`.
+- Grade-adjusted pace and running dynamics on the activity report (`pages/Reports/ActivityReportVisualizer.tsx`, `full` variant): `processGpsPointsToChartData` in `utils/activityReportUtil.ts` adds `gradeAdjustedPace` (min/km, from the shared elevation profile; null on every point without usable elevation), `groundContactTime`, `verticalOscillation` (cm, inches with miles), `verticalRatio` and `power` to each `ChartDataPoint`. `ActivityPaceChart` draws the GAP line only when a point has one, `ActivityDynamicsChart` draws one metric with its plain-language note, and `ActivityStatsGrid`'s `extraStats` carries the Avg GAP and dynamics tiles from `gradeAdjustedAveragePace` / `resolveRunningDynamics`. The `outdoor` variant (cardio list) shows only the map and heart rate.
 - Chart issue: Recharts usage in the domain page plus `src/components/ExerciseCharts/` or `ZoomableChart.tsx`.
 
 ## Priority Rule

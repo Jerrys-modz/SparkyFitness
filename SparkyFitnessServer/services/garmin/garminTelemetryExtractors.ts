@@ -136,8 +136,74 @@ export interface ExtractedGpsPoint {
   respiration_rate_brpm: number | null;
   cadence: number | null;
   power_watts: number | null;
+  /** Milliseconds. */
+  ground_contact_time_ms: number | null;
+  /** Millimetres. */
+  vertical_oscillation_mm: number | null;
+  /** Centimetres per step. */
+  stride_length_cm: number | null;
   /** epoch ms, used only for windowing points to the right exercise entry; not persisted */
   timestampMs: number;
+}
+
+/**
+ * Garmin reports running dynamics in different units depending on the path:
+ * Connect's activity details name each metric's unit, our FIT importer writes
+ * its own. A recognised unit is converted exactly; with none, the magnitude
+ * decides (a vertical oscillation under 20 is centimetres, a stride under 5 is
+ * metres), because a real reading never sits in the overlap. Zero and values
+ * that would not fit the column are "no reading", not a measurement.
+ */
+const MM_PER_UNIT: Record<string, number> = {
+  millimeter: 1,
+  millimetre: 1,
+  mm: 1,
+  centimeter: 10,
+  centimetre: 10,
+  cm: 10,
+  meter: 1000,
+  metre: 1000,
+  m: 1000,
+};
+const MAX_DYNAMICS_VALUE = 9999;
+
+function dynamicsValue(value: number | null, scale = 1): number | null {
+  if (value === null) return null;
+  const scaled = value * scale;
+  if (!Number.isFinite(scaled) || scaled <= 0 || scaled > MAX_DYNAMICS_VALUE) {
+    return null;
+  }
+  return Math.round(scaled * 10) / 10;
+}
+
+export function toMillimeters(
+  value: number | null,
+  unitKey: string | null
+): number | null {
+  if (value === null) return null;
+  const known = unitKey ? MM_PER_UNIT[unitKey] : undefined;
+  return dynamicsValue(value, known ?? (value < 20 ? 10 : 1));
+}
+
+export function toCentimeters(
+  value: number | null,
+  unitKey: string | null
+): number | null {
+  if (value === null) return null;
+  const known = unitKey ? MM_PER_UNIT[unitKey] : undefined;
+  return dynamicsValue(
+    value,
+    known !== undefined ? known / 10 : value < 5 ? 100 : 1
+  );
+}
+
+export function toMilliseconds(
+  value: number | null,
+  unitKey: string | null
+): number | null {
+  if (value === null) return null;
+  const seconds = unitKey === 'second' || unitKey === 's';
+  return dynamicsValue(value, seconds ? 1000 : 1);
 }
 
 export interface ExtractedHrZone {
@@ -271,6 +337,13 @@ export function extractGarminGpsPoints(
           respiration_rate_brpm: firstInt(pt, ['respiration_rate_brpm']),
           cadence: firstInt(pt, ['cadence']),
           power_watts: firstNum(pt, ['power_watts']),
+          ground_contact_time_ms: dynamicsValue(
+            firstNum(pt, ['ground_contact_time_ms'])
+          ),
+          vertical_oscillation_mm: dynamicsValue(
+            firstNum(pt, ['vertical_oscillation_mm'])
+          ),
+          stride_length_cm: dynamicsValue(firstNum(pt, ['stride_length_cm'])),
           timestampMs: timestamp.getTime(),
         };
       }
@@ -306,6 +379,17 @@ export function extractGarminGpsPoints(
       'cadence'
     );
     const tsIdx = getMetricIdx('directTimestamp', 'timestamp');
+    const powerIdx = getMetricIdx('directPower', 'power');
+    const gctIdx = getMetricIdx('directGroundContactTime');
+    const voIdx = getMetricIdx('directVerticalOscillation');
+    const strideIdx = getMetricIdx('directStrideLength');
+    const unitKeyAt = (index: number): string | null => {
+      const desc = descriptors.find((d) => num(d.metricsIndex) === index);
+      return str(asRecord(desc?.unit)?.key)?.toLowerCase() ?? null;
+    };
+    const gctUnit = unitKeyAt(gctIdx);
+    const voUnit = unitKeyAt(voIdx);
+    const strideUnit = unitKeyAt(strideIdx);
 
     return activityDetailMetrics.flatMap((metricRow: UnknownRecord) => {
       const metrics = asArray<unknown>(metricRow.metrics);
@@ -331,7 +415,16 @@ export function extractGarminGpsPoints(
         heart_rate_bpm: hrIdx >= 0 ? int(metrics[hrIdx]) : null,
         respiration_rate_brpm: null,
         cadence: cadIdx >= 0 ? int(metrics[cadIdx]) : null,
-        power_watts: null,
+        power_watts:
+          powerIdx >= 0 ? dynamicsValue(num(metrics[powerIdx])) : null,
+        ground_contact_time_ms:
+          gctIdx >= 0 ? toMilliseconds(num(metrics[gctIdx]), gctUnit) : null,
+        vertical_oscillation_mm:
+          voIdx >= 0 ? toMillimeters(num(metrics[voIdx]), voUnit) : null,
+        stride_length_cm:
+          strideIdx >= 0
+            ? toCentimeters(num(metrics[strideIdx]), strideUnit)
+            : null,
         timestampMs: timestamp.getTime(),
       };
     });
@@ -353,6 +446,9 @@ export function extractGarminGpsPoints(
         respiration_rate_brpm: firstInt(pt, ['respiration']),
         cadence: firstInt(pt, ['cadence']),
         power_watts: firstNum(pt, ['power']),
+        ground_contact_time_ms: null,
+        vertical_oscillation_mm: null,
+        stride_length_cm: null,
         timestampMs: timestamp.getTime(),
       };
     });

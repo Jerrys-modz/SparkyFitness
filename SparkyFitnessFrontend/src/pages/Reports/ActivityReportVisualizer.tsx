@@ -1,4 +1,5 @@
 import { ActivityCadenceChart } from '@/components/ExerciseCharts/ActivityCadenceChart';
+import { ActivityDynamicsChart } from '@/components/ExerciseCharts/ActivityDynamicsChart';
 import { ActivityElevationChart } from '@/components/ExerciseCharts/ActivityElevationChart';
 import { ActivityHeartRateChart } from '@/components/ExerciseCharts/ActivityHeartRateChart';
 import { ActivityHeartRateZonesChart } from '@/components/ExerciseCharts/ActivityHeartRateZoneChart';
@@ -26,6 +27,8 @@ import {
   readActivityStatsFromRelational,
   formatDuration,
   formatPace,
+  gradeAdjustedAveragePace,
+  resolveRunningDynamics,
 } from '@/utils/activityReportUtil';
 import {
   convertMlToSelectedUnit,
@@ -244,6 +247,68 @@ const ActivityReportVisualizer = ({
   const elevationData = allChartData.filter(
     (data: ChartDataPoint) => data.elevation !== null
   );
+  const dynamicsCharts = (
+    [
+      {
+        dataKey: 'groundContactTime',
+        title: t(
+          'reports.activityReport.groundContactTimeMs',
+          'Ground Contact Time (ms)'
+        ),
+        note: t(
+          'reports.activityReport.groundContactNote',
+          'How long each foot stays on the ground per step. Shorter often goes with faster running, but it varies between people and with pace, so compare your own runs. Not medical advice.'
+        ),
+        color: '#0ea5e9',
+      },
+      {
+        dataKey: 'verticalOscillation',
+        title:
+          distanceUnit === 'miles'
+            ? t(
+                'reports.activityReport.verticalOscillationIn',
+                'Vertical Oscillation (in)'
+              )
+            : t(
+                'reports.activityReport.verticalOscillationCm',
+                'Vertical Oscillation (cm)'
+              ),
+        note: t(
+          'reports.activityReport.verticalOscillationNote',
+          'How far your torso bounces up and down with each step. Less bounce means more of your effort goes forward, but it changes with pace and form. A guide, not a target.'
+        ),
+        color: '#a855f7',
+      },
+      {
+        dataKey: 'verticalRatio',
+        title: t(
+          'reports.activityReport.verticalRatioPercent',
+          'Vertical Ratio (%)'
+        ),
+        note: t(
+          'reports.activityReport.verticalRatioNote',
+          'Vertical oscillation as a percentage of your step length. Lower means less of each step goes up instead of forward. It is worked out from the two measurements, not measured separately.'
+        ),
+        color: '#f59e0b',
+      },
+      {
+        dataKey: 'power',
+        title: t('reports.activityReport.powerWatts', 'Power (W)'),
+        note: t(
+          'reports.activityReport.powerNote',
+          'The effort your watch or sensor estimates, in watts. Brands calculate it differently, so compare sessions from the same device.'
+        ),
+        color: '#ef4444',
+      },
+    ] as const
+  )
+    .map((chart) => ({
+      ...chart,
+      data: allChartData.filter(
+        (point: ChartDataPoint) => point[chart.dataKey] != null
+      ),
+    }))
+    .filter((chart) => chart.data.length > 1);
 
   // Prefer the relational hr_zones table; only fall back to the raw provider blob for
   // activities synced before this table existed / before the backfill has run.
@@ -394,6 +459,62 @@ const ActivityReportVisualizer = ({
     stats.minElevation != null && stats.maxElevation != null
       ? `${stats.minElevation.toFixed(0)} / ${stats.maxElevation.toFixed(0)} m`
       : null;
+
+  // Grade adjusted pace needs elevation on the track, and the dynamics need a
+  // device that measured them; a tile for anything else is not drawn.
+  const gradeAdjustedAverage = gradeAdjustedAveragePace(
+    gpsPoints,
+    distanceUnit
+  );
+  const dynamics = resolveRunningDynamics(
+    exerciseEntry as Record<string, unknown> | undefined,
+    gpsPoints
+  );
+  const extraStats: { key: string; label: string; value: string }[] = [];
+  if (gradeAdjustedAverage != null) {
+    const value = formatPace(gradeAdjustedAverage, distanceUnit);
+    if (value) {
+      extraStats.push({
+        key: 'gap',
+        label: t('reports.activityReport.avgGap', 'Avg Grade Adjusted Pace'),
+        value,
+      });
+    }
+  }
+  if (dynamics.groundContactTimeMs != null) {
+    extraStats.push({
+      key: 'groundContact',
+      label: t('reports.activityReport.avgGroundContact', 'Avg Ground Contact'),
+      value: `${Math.round(dynamics.groundContactTimeMs)} ms`,
+    });
+  }
+  if (dynamics.verticalOscillationMm != null) {
+    extraStats.push({
+      key: 'verticalOscillation',
+      label: t(
+        'reports.activityReport.avgVerticalOscillation',
+        'Avg Vertical Oscillation'
+      ),
+      value:
+        distanceUnit === 'miles'
+          ? `${(dynamics.verticalOscillationMm / 25.4).toFixed(1)} in`
+          : `${(dynamics.verticalOscillationMm / 10).toFixed(1)} cm`,
+    });
+  }
+  if (dynamics.verticalRatioPercent != null) {
+    extraStats.push({
+      key: 'verticalRatio',
+      label: t('reports.activityReport.avgVerticalRatio', 'Avg Vertical Ratio'),
+      value: `${dynamics.verticalRatioPercent.toFixed(1)}%`,
+    });
+  }
+  if (dynamics.powerWatts != null) {
+    extraStats.push({
+      key: 'power',
+      label: t('reports.activityReport.avgPower', 'Avg Power'),
+      value: `${Math.round(dynamics.powerWatts)} W`,
+    });
+  }
 
   const weatherFormatted =
     stats.weatherTempCelsius != null || stats.weatherCondition
@@ -626,6 +747,7 @@ const ActivityReportVisualizer = ({
           elevationRange={elevationRangeFormatted}
           weather={weatherFormatted}
           gear={gearFormatted}
+          extraStats={extraStats}
         />
       </div>
 
@@ -683,6 +805,21 @@ const ActivityReportVisualizer = ({
             distanceUnit={distanceUnit}
           />
         )}
+
+        {dynamicsCharts.map((chart) => (
+          <ActivityDynamicsChart
+            key={chart.dataKey}
+            data={chart.data}
+            dataKey={chart.dataKey}
+            title={chart.title}
+            note={chart.note}
+            color={chart.color}
+            xAxisMode={effectiveXAxisMode}
+            getXAxisDataKey={getXAxisDataKey}
+            getXAxisLabel={getXAxisLabel}
+            distanceUnit={distanceUnit}
+          />
+        ))}
 
         {elevationData && elevationData.length > 0 && (
           <ActivityElevationChart

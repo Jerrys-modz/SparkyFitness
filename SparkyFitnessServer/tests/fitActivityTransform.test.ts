@@ -267,6 +267,46 @@ describe('transformFitActivity — unit behaviour', () => {
     expect(point.cadence).toBe(160);
   });
 
+  it('carries running dynamics through to the stored trackpoints', async () => {
+    const { extractGarminGpsPoints } =
+      await import('../services/garmin/garminTelemetryExtractors.js');
+    const messages = baseMessages({
+      sessionMesgs: [
+        {
+          startTime: new Date('2026-03-01T10:00:00Z'),
+          totalTimerTime: 1800,
+          totalCalories: 300,
+          sport: 'running',
+        },
+      ],
+      recordMesgs: [
+        {
+          timestamp: new Date('2026-03-01T10:00:00Z'),
+          power: 240,
+          stanceTime: 243.5,
+          verticalOscillation: 81.2,
+          stepLength: 1043,
+        },
+        // A record from a pod that dropped out carries none of them.
+        { timestamp: new Date('2026-03-01T10:00:01Z') },
+      ],
+    } as Partial<FitMessages>);
+    const result = transformFitActivity(messages, Buffer.from('x'));
+    if (!result.ok) throw new Error(result.reason);
+
+    const [first, second] = extractGarminGpsPoints({
+      details: result.detailData.details,
+    });
+    expect(first.power_watts).toBe(240);
+    expect(first.ground_contact_time_ms).toBe(243.5);
+    expect(first.vertical_oscillation_mm).toBe(81.2);
+    // The FIT step length is in millimetres, stored in centimetres.
+    expect(first.stride_length_cm).toBe(104.3);
+    expect(second.ground_contact_time_ms).toBeNull();
+    expect(second.vertical_oscillation_mm).toBeNull();
+    expect(second.stride_length_cm).toBeNull();
+  });
+
   it('normalizes camelCase sports to snake_case type keys', () => {
     const messages = baseMessages({
       sessionMesgs: [

@@ -337,7 +337,9 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
             unit={paceUnit}
           />
         </View>
-        {summary.elevationGainMeters >= 1 || summary.avgHeartRate != null ? (
+        {summary.elevationGainMeters >= 1 ||
+        summary.avgHeartRate != null ||
+        summary.avgGapSeconds != null ? (
           <View className="flex-row mb-3">
             {summary.elevationGainMeters >= 1 ? (
               <Stat
@@ -350,6 +352,15 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
                     ? t('recordActivity.unitFt', { defaultValue: 'ft' })
                     : t('recordActivity.unitM', { defaultValue: 'm' })
                 }
+              />
+            ) : null}
+            {summary.avgGapSeconds != null ? (
+              <Stat
+                label={t('runSummary.avgGap', {
+                  defaultValue: 'Avg GAP',
+                })}
+                value={formatPace(summary.avgGapSeconds)}
+                unit={paceUnit}
               />
             ) : null}
             {summary.avgHeartRate != null ? (
@@ -650,6 +661,14 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
                     unitMeters
                   )
                 )} ${paceUnit}`}
+                gap={
+                  row.gapSeconds != null
+                    ? t('runSummary.splitGap', {
+                        defaultValue: 'GAP {{pace}}',
+                        pace: `${formatPace(row.gapSeconds)} ${paceUnit}`,
+                      })
+                    : undefined
+                }
                 fraction={bars[i].fraction}
                 fastest={bars[i].fastest}
                 fastestLabel={fastestLabel}

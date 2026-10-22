@@ -176,6 +176,12 @@ export interface WorkoutGpsPoint {
   cad?: number | null;
   /** Watts. */
   power?: number | null;
+  /** Running ground contact time, milliseconds. */
+  gct?: number | null;
+  /** Running vertical oscillation, millimetres. */
+  vo?: number | null;
+  /** Running step length, centimetres. */
+  stride?: number | null;
   /** Cumulative METRES (the session-level `distance` above is kilometres). */
   dist?: number | null;
   /** Horizontal accuracy, metres. */

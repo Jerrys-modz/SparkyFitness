@@ -19,6 +19,12 @@ export interface TelemetryGpsPoint {
   hr?: number | null;
   cad?: number | null;
   power?: number | null;
+  /** Ground contact time, milliseconds. */
+  gct?: number | null;
+  /** Vertical oscillation, millimetres. */
+  vo?: number | null;
+  /** Step length, centimetres. */
+  stride?: number | null;
   dist?: number | null;
   hacc?: number | null;
   vacc?: number | null;
@@ -396,6 +402,12 @@ export function deriveWorkoutTelemetry(
   const speeds = gpsPoints.map((p) => p.speed).filter(isNum);
   const cadences = gpsPoints.map((p) => p.cad).filter(isNum);
   const powers = gpsPoints.map((p) => p.power).filter(isNum);
+  // Running dynamics: a zero is a sensor with no reading, not a gait.
+  const positive = (values: (number | null | undefined)[]) =>
+    values.filter(isNum).filter((v) => v > 0);
+  const groundContacts = positive(gpsPoints.map((p) => p.gct));
+  const oscillations = positive(gpsPoints.map((p) => p.vo));
+  const strides = positive(gpsPoints.map((p) => p.stride));
   // Smoothed, not raw: min/max must describe the same series gain/loss is
   // measured on, or the workout reports a floor it never actually reached.
   // Raw min on a real Apple Watch walk was 6.9 m against Apple's 8.8 m, an
@@ -415,6 +427,9 @@ export function deriveWorkoutTelemetry(
     max_cadence: round(max(cadences), 1),
     avg_power_watts: round(mean(powers), 1),
     max_power_watts: round(max(powers), 1),
+    ground_contact_time_ms: round(mean(groundContacts), 1),
+    vertical_oscillation_mm: round(mean(oscillations), 1),
+    stride_length_cm: round(mean(strides), 1),
     elevation_gain_meters: round(gain),
     elevation_loss_meters: round(loss),
     min_elevation_meters: round(min(altitudes)),

@@ -6,6 +6,7 @@ import {
   toPrSportGroup,
   activitySportLabel,
   PR_SPORT_GROUPS,
+  verticalRatioPercent,
 } from '@workspace/shared';
 import type { ActivitySport, SportConfidence } from '@workspace/shared';
 import type {
@@ -577,6 +578,7 @@ async function queryExerciseActivities(
         duration_minutes, distance, avg_heart_rate, calories_burned, source, notes,
         floors_climbed, elevation_gain_meters, workout_effort,
         avg_cadence, stride_length_cm,
+        ground_contact_time_ms, vertical_oscillation_mm, avg_power_watts,
         EXISTS (
           SELECT 1 FROM public.exercise_entry_gps_points g
           WHERE g.exercise_entry_id = exercise_entries.id
@@ -638,6 +640,13 @@ async function queryExerciseActivities(
             row.workout_effort !== null && row.workout_effort !== undefined
               ? Number(row.workout_effort)
               : null,
+          groundContactTimeMs: positiveOrNull(row.ground_contact_time_ms, 1),
+          verticalOscillationMm: positiveOrNull(row.vertical_oscillation_mm, 1),
+          verticalRatioPercent: verticalRatioPercent(
+            positiveOrNull(row.vertical_oscillation_mm, 1),
+            positiveOrNull(row.stride_length_cm, 1)
+          ),
+          avgPowerWatts: positiveOrNull(row.avg_power_watts, 0),
           source: row.source ? String(row.source) : null,
           notes: row.notes ? String(row.notes) : null,
           hasGpsTrack: row.has_gps_track === true,

@@ -358,6 +358,55 @@ describe('collectWorkoutTelemetry', () => {
     expect(bundle.telemetry?.avg_heart_rate).toBeUndefined();
   });
 
+  it('puts running dynamics on the trackpoints in the units the server stores', async () => {
+    const samples: Record<string, number> = {
+      HKQuantityTypeIdentifierRunningGroundContactTime: 245, // ms
+      HKQuantityTypeIdentifierRunningVerticalOscillation: 8.2, // cm
+      HKQuantityTypeIdentifierRunningStrideLength: 1.04, // m
+      HKQuantityTypeIdentifierRunningPower: 231, // W
+    };
+    mockQueryQuantitySamples.mockImplementation((identifier: string) =>
+      Promise.resolve(
+        identifier in samples
+          ? [{ startDate: at(0), quantity: samples[identifier] }]
+          : []
+      )
+    );
+    const workout = workoutWithRoutes([
+      { locations: [{ date: at(0), latitude: 1, longitude: 2 }] },
+    ]);
+
+    const bundle = await collectWorkoutTelemetry(workout, []);
+
+    expect(bundle.gps_points?.[0]).toMatchObject({
+      gct: 245,
+      vo: 82,
+      stride: 104,
+      power: 231,
+    });
+    // The workout-level averages use the same units.
+    expect(bundle.telemetry).toMatchObject({
+      ground_contact_time_ms: 245,
+      vertical_oscillation_mm: 82,
+      stride_length_cm: 104,
+      avg_power_watts: 231,
+    });
+  });
+
+  it('leaves the dynamics off trackpoints when the watch did not measure them', async () => {
+    mockQueryQuantitySamples.mockResolvedValue([]);
+    const workout = workoutWithRoutes([
+      { locations: [{ date: at(0), latitude: 1, longitude: 2 }] },
+    ]);
+
+    const bundle = await collectWorkoutTelemetry(workout, []);
+
+    const point = bundle.gps_points?.[0] ?? {};
+    expect(point).not.toHaveProperty('gct');
+    expect(point).not.toHaveProperty('vo');
+    expect(point).not.toHaveProperty('stride');
+  });
+
   it('includes laps built from the passed workout events', async () => {
     mockQueryQuantitySamples.mockResolvedValue([]);
     const workout = workoutWithRoutes([]);
