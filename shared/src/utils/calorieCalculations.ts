@@ -44,14 +44,29 @@ export function normalizeCalorieGoalAdjustmentMode(
   return mode === 'smart' ? 'tdee' : (mode as CalorieGoalAdjustmentMode);
 }
 
+/** Only Dynamic + Adaptive can replace historical activity with today's activity. */
+export function isAdaptiveActivitySeparated(
+  mode: string | null | undefined,
+  calculationMethod: string | null | undefined,
+  separateActivity?: boolean | null
+): boolean {
+  return (
+    separateActivity === true &&
+    normalizeCalorieGoalAdjustmentMode(mode) === 'dynamic' &&
+    calculationMethod === 'adaptive'
+  );
+}
+
 /** Adaptive full-day targets already contain the energy earn-back would add. */
 export function isAdaptiveEarnBackSuppressed(
   mode: string | null | undefined,
-  calculationMethod: string | null | undefined
+  calculationMethod: string | null | undefined,
+  separateActivity?: boolean | null
 ): boolean {
   const normalizedMode = normalizeCalorieGoalAdjustmentMode(mode);
   return (
     calculationMethod === 'adaptive' &&
+    !isAdaptiveActivitySeparated(mode, calculationMethod, separateActivity) &&
     (normalizedMode === 'dynamic' || normalizedMode === 'percentage')
   );
 }
@@ -375,19 +390,71 @@ export const MAX_GOAL_MODE_PERCENTAGE = 40;
 /** Input bound, not a recommended rate. Persist weekly changes in kilograms. */
 export const MAX_GOAL_MODE_WEEKLY_CHANGE_KG = 2;
 
-/** Parse a positive weekly magnitude without accepting empty or partial input. */
+export type WeeklyGoalRateUnit = 'kg' | 'g' | 'lbs' | 'st_lbs';
+
+const WEEKLY_GOAL_KG_PER_LB = 0.45359237;
+const WEEKLY_GOAL_LBS_PER_STONE = 14;
+
+/** Use the profile's weight display mode for the initial weekly rate. */
+export function getWeeklyGoalRateUnit(
+  profileUnit?: string
+): WeeklyGoalRateUnit {
+  return profileUnit === 'lbs' || profileUnit === 'st_lbs' ? profileUnit : 'kg';
+}
+
+/** Format a stored magnitude without changing its canonical kilogram value. */
+export function formatWeeklyGoalRate(
+  kg: number,
+  unit: WeeklyGoalRateUnit,
+  locale?: string
+): { amount: string; pounds: string } {
+  const magnitude = Math.abs(kg);
+  const pounds = magnitude / WEEKLY_GOAL_KG_PER_LB;
+  const stones = Math.floor(pounds / WEEKLY_GOAL_LBS_PER_STONE);
+  const format = (value: number, maximumFractionDigits: number) =>
+    new Intl.NumberFormat(locale, {
+      numberingSystem: 'latn',
+      maximumFractionDigits,
+      useGrouping: false,
+    }).format(value);
+  return {
+    amount:
+      unit === 'g'
+        ? format(magnitude * 1000, 0)
+        : unit === 'lbs'
+          ? format(pounds, 3)
+          : unit === 'st_lbs'
+            ? format(stones, 0)
+            : format(magnitude, 3),
+    pounds: format(pounds - stones * WEEKLY_GOAL_LBS_PER_STONE, 3),
+  };
+}
+
+/** Parse a positive weekly rate; imperial inputs use the stored gram precision. */
 export function parseWeeklyGoalRate(
   text: string,
-  unit: 'kg' | 'g'
+  unit: WeeklyGoalRateUnit,
+  poundsText: string = '0'
 ): number | null {
   const value = text.trim();
-  const pattern =
-    unit === 'g' ? /^\d+$/ : /^(?:\d+(?:[.,]\d{1,3})?|[.,]\d{1,3})$/;
+  const decimalPattern = /^(?:\d+(?:[.,]\d{1,3})?|[.,]\d{1,3})$/;
+  const pattern = unit === 'g' || unit === 'st_lbs' ? /^\d+$/ : decimalPattern;
   if (!pattern.test(value)) return null;
-  const kg = Number(value.replace(',', '.')) / (unit === 'g' ? 1000 : 1);
-  return Number.isFinite(kg) && kg > 0 && kg <= MAX_GOAL_MODE_WEEKLY_CHANGE_KG
-    ? kg
-    : null;
+  const amount = Number(value.replace(',', '.'));
+  let kg = unit === 'g' ? amount / 1000 : amount;
+  if (unit === 'lbs') kg = amount * WEEKLY_GOAL_KG_PER_LB;
+  if (unit === 'st_lbs') {
+    const poundsValue = poundsText.trim();
+    if (!decimalPattern.test(poundsValue)) return null;
+    const pounds = Number(poundsValue.replace(',', '.'));
+    if (pounds >= WEEKLY_GOAL_LBS_PER_STONE) return null;
+    kg = (amount * WEEKLY_GOAL_LBS_PER_STONE + pounds) * WEEKLY_GOAL_KG_PER_LB;
+  }
+  if (!Number.isFinite(kg) || kg <= 0 || kg > MAX_GOAL_MODE_WEEKLY_CHANGE_KG) {
+    return null;
+  }
+  const roundedKg = Math.round(kg * 1000) / 1000;
+  return roundedKg > 0 ? roundedKg : null;
 }
 
 /** Signed kcal added to the chosen baseline: negative cuts, positive adds. */

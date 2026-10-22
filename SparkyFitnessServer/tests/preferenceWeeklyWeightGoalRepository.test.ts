@@ -39,9 +39,9 @@ describe('weekly weight goal persistence', () => {
       }
       const [sql, params] = query.mock.calls[0];
       expect(sql).toContain('goal_mode_weekly_change_kg');
-      expect(params[56]).toBe(-0.501);
+      expect(params[57]).toBe(-0.501);
       if (operation === 'upsert') {
-        expect(sql).toContain('COALESCE($57::double precision, 0)');
+        expect(sql).toContain('COALESCE($58::double precision, 0)');
       }
     }
   );
@@ -62,8 +62,31 @@ describe('weekly weight goal persistence', () => {
       'goal_mode_custom_percentage = COALESCE($35, user_preferences.goal_mode_custom_percentage)'
     );
     expect(sql).toContain(
-      'goal_mode_weekly_change_kg = COALESCE($57, user_preferences.goal_mode_weekly_change_kg)'
+      'goal_mode_weekly_change_kg = COALESCE($58, user_preferences.goal_mode_weekly_change_kg)'
     );
-    expect(params[56]).toBeUndefined();
+    expect(params[57]).toBeUndefined();
   });
+
+  it.each(['update', 'upsert'] as const)(
+    'keeps weekly goals independent from adaptive activity separation on %s',
+    async (operation) => {
+      const preferences = {
+        goal_mode_weekly_change_kg: -0.454,
+        adaptive_activity_separate: true,
+      };
+      if (operation === 'update') {
+        await preferenceRepository.updateUserPreferences('user-1', preferences);
+      } else {
+        await preferenceRepository.upsertUserPreferences({
+          user_id: 'user-1',
+          ...preferences,
+        });
+      }
+      const [sql, params] = query.mock.calls[0];
+      expect(sql).toContain('adaptive_activity_separate = COALESCE($57,');
+      expect(sql).toContain('goal_mode_weekly_change_kg = COALESCE($58,');
+      expect(params[56]).toBe(true);
+      expect(params[57]).toBe(-0.454);
+    }
+  );
 });

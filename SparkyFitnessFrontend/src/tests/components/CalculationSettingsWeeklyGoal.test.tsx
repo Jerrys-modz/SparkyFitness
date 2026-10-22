@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import CalculationSettings from '@/pages/Settings/CalculationSettings';
 
@@ -51,6 +51,7 @@ describe('CalculationSettings weekly goal', () => {
   beforeEach(() => {
     mockSave.mockClear();
     mockPreferences.calorieGoalAdjustmentMode = 'fixed';
+    mockPreferences.weightUnit = 'kg';
   });
 
   it('shows the additive weekly adjustment in the device projection formula', () => {
@@ -87,5 +88,47 @@ describe('CalculationSettings weekly goal', () => {
     expect(save).toBeDisabled();
     fireEvent.change(amount, { target: { value: '0,5' } });
     expect(save).toBeEnabled();
+  });
+
+  it('keeps the percentage exercise earn-back formula after merging weekly goals', () => {
+    mockPreferences.calorieGoalAdjustmentMode = 'percentage';
+    render(<CalculationSettings />);
+    expect(
+      screen.getByText('Daily Goal - (Eaten - 100% of Exercise Burned)')
+    ).toBeInTheDocument();
+  });
+
+  it('uses the profile pounds unit and saves the edited weekly rate as signed kilograms', async () => {
+    mockPreferences.weightUnit = 'lbs';
+    render(<CalculationSettings />);
+    expect(
+      screen.getByRole('combobox', { name: 'Weekly amount unit' })
+    ).toHaveTextContent('lbs / week');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Weekly amount' }), {
+      target: { value: '1.5' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Preferences' }));
+    await waitFor(() =>
+      expect(mockSave).toHaveBeenCalledWith(
+        expect.objectContaining({ goalModeWeeklyChangeKg: -0.68 })
+      )
+    );
+  });
+
+  it('saves the exact kilogram rate after changing only its display unit', async () => {
+    render(<CalculationSettings />);
+    fireEvent.keyDown(
+      screen.getByRole('combobox', { name: 'Weekly amount unit' }),
+      {
+        key: 'ArrowDown',
+      }
+    );
+    fireEvent.click(screen.getByRole('option', { name: 'lbs / week' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save Preferences' }));
+    await waitFor(() =>
+      expect(mockSave).toHaveBeenCalledWith(
+        expect.objectContaining({ goalModeWeeklyChangeKg: -2 })
+      )
+    );
   });
 });

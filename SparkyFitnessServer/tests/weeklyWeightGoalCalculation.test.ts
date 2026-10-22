@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   computeCalorieTarget,
+  formatWeeklyGoalRate,
   getGoalModeDailyAdjustment,
+  getWeeklyGoalRateUnit,
   parseWeeklyGoalRate,
   userPreferencesMutatorSchema,
 } from '@workspace/shared';
@@ -29,6 +31,12 @@ describe('weekly weight goals', () => {
     ['500', 'g', 0.5],
     ['1', 'g', 0.001],
     ['2000', 'g', 2],
+    ['1', 'lbs', 0.454],
+    ['0,5', 'lbs', 0.227],
+    ['4.409', 'lbs', 2],
+    ['4.410', 'lbs', null],
+    ['0.001', 'lbs', null],
+    ['1e0', 'lbs', null],
     ['', 'kg', null],
     ['-', 'kg', null],
     ['0', 'kg', null],
@@ -40,6 +48,45 @@ describe('weekly weight goals', () => {
     ['-0.5', 'kg', null],
   ] as const)('parses a rate of %s %s as %s kg', (text, unit, expected) => {
     expect(parseWeeklyGoalRate(text, unit)).toBe(expected);
+  });
+
+  it('uses the profile weight unit with a kilogram fallback', () => {
+    expect(getWeeklyGoalRateUnit('kg')).toBe('kg');
+    expect(getWeeklyGoalRateUnit('lbs')).toBe('lbs');
+    expect(getWeeklyGoalRateUnit('st_lbs')).toBe('st_lbs');
+    expect(getWeeklyGoalRateUnit(undefined)).toBe('kg');
+    expect(getWeeklyGoalRateUnit('unknown')).toBe('kg');
+  });
+
+  it('parses stones and pounds as one bounded rate', () => {
+    expect(parseWeeklyGoalRate('0', 'st_lbs', '1')).toBe(0.454);
+    expect(parseWeeklyGoalRate('0', 'st_lbs', '0,5')).toBe(0.227);
+    expect(parseWeeklyGoalRate('1', 'st_lbs', '0')).toBeNull();
+    expect(parseWeeklyGoalRate('0.5', 'st_lbs', '0')).toBeNull();
+    expect(parseWeeklyGoalRate('0', 'st_lbs', '14')).toBeNull();
+    expect(parseWeeklyGoalRate('0', 'st_lbs', '')).toBeNull();
+    expect(parseWeeklyGoalRate('0', 'st_lbs', '-1')).toBeNull();
+  });
+
+  it('round trips every stored gram through each display unit without drift', () => {
+    for (const unit of ['kg', 'g', 'lbs', 'st_lbs'] as const) {
+      for (let grams = 1; grams <= 2000; grams += 1) {
+        const kg = grams / 1000;
+        const formatted = formatWeeklyGoalRate(-kg, unit, 'de-DE');
+        expect(
+          parseWeeklyGoalRate(formatted.amount, unit, formatted.pounds)
+        ).toBe(kg);
+      }
+    }
+  });
+
+  it.each(['ar', 'fa'])('keeps editable numbers parseable in %s', (locale) => {
+    for (const unit of ['kg', 'g', 'lbs', 'st_lbs'] as const) {
+      const formatted = formatWeeklyGoalRate(-0.5, unit, locale);
+      expect(
+        parseWeeklyGoalRate(formatted.amount, unit, formatted.pounds)
+      ).toBe(0.5);
+    }
   });
 
   it.each([NaN, Infinity, -Infinity])(

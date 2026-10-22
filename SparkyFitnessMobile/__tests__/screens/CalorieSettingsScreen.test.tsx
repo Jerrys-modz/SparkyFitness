@@ -179,6 +179,31 @@ describe('CalorieSettingsScreen', () => {
     });
   });
 
+  it.each(['lbs', 'st_lbs'])(
+    'uses the profile %s unit for weekly goal inputs and saves kilograms',
+    (weightUnit) => {
+      mockPreferences.goal_mode = 'weekly';
+      mockPreferences.goal_mode_weekly_change_kg = -0.5;
+      mockPreferences.default_weight_unit = weightUnit;
+      const { getByLabelText } = render(
+        <CalorieSettingsScreen navigation={navigation} route={route} />
+      );
+      const input = getByLabelText(
+        weightUnit === 'st_lbs'
+          ? 'Weekly weight change pounds'
+          : 'Weekly weight change amount'
+      );
+
+      expect(input.props.value).toBe('1.102');
+      fireEvent.changeText(input, '1');
+      fireEvent(input, 'blur');
+
+      expect(mockMutate).toHaveBeenCalledWith({
+        goal_mode_weekly_change_kg: -0.454,
+      });
+    }
+  );
+
   it('shows the weekly adjustment as calories added to a device projection', () => {
     mockPreferences.calorie_goal_adjustment_mode = 'tdee';
     mockPreferences.goal_mode = 'weekly';
@@ -318,6 +343,81 @@ describe('CalorieSettingsScreen', () => {
     fireEvent.press(getByText('Adaptive'));
     expect(mockMutate).toHaveBeenCalledWith({
       goal_mode_calculation_method: 'adaptive',
+    });
+  });
+
+  it.each([
+    ['dynamic', 'adaptive', true],
+    ['dynamic', 'manual', false],
+    ['percentage', 'adaptive', false],
+    ['adaptive', 'adaptive', false],
+    ['fixed', 'adaptive', false],
+    ['tdee', 'adaptive', false],
+  ])('shows separate activity only for %s with %s', (mode, method, visible) => {
+    mockPreferences.calorie_goal_adjustment_mode = mode;
+    mockPreferences.goal_mode_calculation_method = method;
+    const { queryByLabelText } = render(
+      <CalorieSettingsScreen navigation={navigation} route={route} />
+    );
+
+    expect(
+      queryByLabelText('Count activity calories separately') !== null
+    ).toBe(visible);
+  });
+
+  it('defaults separate activity off and saves the opt-in without changing the mode', () => {
+    mockPreferences.calorie_goal_adjustment_mode = 'dynamic';
+    mockPreferences.goal_mode_calculation_method = 'adaptive';
+    const { getByLabelText } = render(
+      <CalorieSettingsScreen navigation={navigation} route={route} />
+    );
+    const toggle = getByLabelText('Count activity calories separately');
+
+    expect(toggle.props.value).toBe(false);
+    fireEvent(toggle, 'valueChange', true);
+    expect(mockMutate).toHaveBeenCalledWith({
+      adaptive_activity_separate: true,
+    });
+  });
+
+  it('credits steps and workouts without BMR when separate activity is active', () => {
+    mockPreferences.calorie_goal_adjustment_mode = 'dynamic';
+    mockPreferences.goal_mode_calculation_method = 'adaptive';
+    mockPreferences.adaptive_activity_separate = true;
+    mockPreferences.include_bmr_in_net_calories = true;
+    const { getByText, getByLabelText, queryByText } = render(
+      <CalorieSettingsScreen navigation={navigation} route={route} />
+    );
+
+    expect(
+      getByLabelText('Count activity calories separately').props.value
+    ).toBe(true);
+    expect(getByText('Goal − Eaten + Activity')).toBeTruthy();
+    expect(getByText('Activity + BMR')).toBeTruthy();
+    expect(getByText(/BMR stays in Burned and Net Energy/)).toBeTruthy();
+    expect(
+      queryByText(
+        'Adaptive targets already include activity. Remaining calories are Target minus Eaten. Exercise earn-back applies only to Manual targets.'
+      )
+    ).toBeNull();
+    expect(
+      getByText(/consistent food, weight, step and workout history/)
+    ).toBeTruthy();
+  });
+
+  it('keeps a stored opt-in dormant in Percentage Earn-Back', () => {
+    mockPreferences.calorie_goal_adjustment_mode = 'percentage';
+    mockPreferences.goal_mode_calculation_method = 'adaptive';
+    mockPreferences.adaptive_activity_separate = true;
+    const { getByText, queryByLabelText } = render(
+      <CalorieSettingsScreen navigation={navigation} route={route} />
+    );
+
+    expect(getByText('Goal − Eaten')).toBeTruthy();
+    expect(queryByLabelText('Count activity calories separately')).toBeNull();
+    fireEvent.press(getByText('Manual'));
+    expect(mockMutate).toHaveBeenCalledWith({
+      goal_mode_calculation_method: 'manual',
     });
   });
 

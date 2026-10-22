@@ -29,6 +29,7 @@ import {
   MIN_CALORIE_SAFETY_FLOOR,
   convertEnergyValue,
   isAdaptiveEarnBackSuppressed,
+  isAdaptiveActivitySeparated,
   todayInZone,
   type CalorieSafetyFloorMode,
   type GoalMode,
@@ -48,6 +49,7 @@ function normalizePreferences(prefs: UserPreferences | undefined) {
     tdeeAllowNegativeAdjustment: prefs?.tdee_allow_negative_adjustment ?? false,
     goalMode: prefs?.goal_mode ?? 'maintain',
     goalModeCalculationMethod: prefs?.goal_mode_calculation_method ?? 'manual',
+    adaptiveActivitySeparate: prefs?.adaptive_activity_separate ?? false,
     goalModeCustomPercentage: prefs?.goal_mode_custom_percentage ?? 0,
     goalModeWeeklyChangeKg: prefs?.goal_mode_weekly_change_kg ?? 0,
     calorieSafetyFloorMode: prefs?.calorie_safety_floor_mode ?? 'standard',
@@ -224,9 +226,15 @@ const CalorieSettingsScreen: React.FC<CalorieSettingsScreenProps> = () => {
   const queryClient = useQueryClient();
   const { preferences } = usePreferences();
   const normalized = normalizePreferences(preferences);
+  const activitySeparated = isAdaptiveActivitySeparated(
+    normalized.mode,
+    normalized.goalModeCalculationMethod,
+    normalized.adaptiveActivitySeparate
+  );
   const adaptiveEarnBackConfigured = isAdaptiveEarnBackSuppressed(
     normalized.mode,
-    normalized.goalModeCalculationMethod
+    normalized.goalModeCalculationMethod,
+    normalized.adaptiveActivitySeparate
   );
   const { summary } = useDailySummary({
     date: preferences?.timezone
@@ -306,6 +314,7 @@ const CalorieSettingsScreen: React.FC<CalorieSettingsScreenProps> = () => {
       queryClient.invalidateQueries({ queryKey: ['familyDailySummary'] });
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       queryClient.invalidateQueries({ queryKey: ['goalsRange'] });
+      queryClient.invalidateQueries({ queryKey: ['nutritionTrends'] });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: preferencesQueryKey });
@@ -471,9 +480,13 @@ const CalorieSettingsScreen: React.FC<CalorieSettingsScreenProps> = () => {
     let remainingNote: string | null;
     switch (adaptiveEarnBackSuppressed ? 'adaptive' : mode) {
       case 'dynamic':
-        remainingFormula = t('calorieSettings.formulas.dynamic', {
-          defaultValue: 'Goal − Net Energy',
-        });
+        remainingFormula = activitySeparated
+          ? t('calorieSettings.formulas.dynamicActivitySeparated', {
+              defaultValue: 'Goal − Eaten + Activity',
+            })
+          : t('calorieSettings.formulas.dynamic', {
+              defaultValue: 'Goal − Net Energy',
+            });
         remainingNote = t('calorieSettings.notes.dynamic', {
           defaultValue: 'Goal grows as you move',
         });
@@ -530,6 +543,7 @@ const CalorieSettingsScreen: React.FC<CalorieSettingsScreenProps> = () => {
 
     return { burned, net, remainingFormula, remainingNote };
   }, [
+    activitySeparated,
     adaptiveEarnBackSuppressed,
     normalized.mode,
     normalized.includeBmrInNetCalories,
@@ -599,6 +613,44 @@ const CalorieSettingsScreen: React.FC<CalorieSettingsScreenProps> = () => {
               })}
             </Text>
           )}
+          {normalized.mode === 'dynamic' &&
+            normalized.goalModeCalculationMethod === 'adaptive' && (
+              <View className="mt-3">
+                <View className="flex-row items-center justify-between gap-3">
+                  <Text className="flex-1 text-base font-semibold text-text-primary">
+                    {t('calorieSettings.adaptiveActivitySeparate', {
+                      defaultValue: 'Count activity calories separately',
+                    })}
+                  </Text>
+                  <Switch
+                    value={normalized.adaptiveActivitySeparate}
+                    onValueChange={(value) =>
+                      mutation.mutate({ adaptive_activity_separate: value })
+                    }
+                    accessibilityLabel={t(
+                      'calorieSettings.adaptiveActivitySeparate',
+                      {
+                        defaultValue: 'Count activity calories separately',
+                      }
+                    )}
+                  />
+                </View>
+                <Text className="text-text-secondary text-sm mt-3">
+                  {t('calorieSettings.adaptiveActivitySeparateHint', {
+                    defaultValue:
+                      'Learn a baseline excluding historical activity and credit today’s steps and workouts once, without adding BMR again. This needs consistent food, weight, step and workout history. Until enough history is available, use BMR × your non-workout activity multiplier.',
+                  })}
+                </Text>
+                {activitySeparated && (
+                  <Text className="text-text-secondary text-sm mt-3">
+                    {t('calorieSettings.adaptiveActivitySeparateReporting', {
+                      defaultValue:
+                        'BMR stays in Burned and Net Energy when Include Resting Calories is enabled. Only steps and workouts are added to your remaining calorie budget.',
+                    })}
+                  </Text>
+                )}
+              </View>
+            )}
         </View>
 
         {/* Options */}
@@ -769,6 +821,7 @@ const CalorieSettingsScreen: React.FC<CalorieSettingsScreenProps> = () => {
           {normalized.goalMode === 'weekly' && (
             <WeeklyWeightGoalFields
               weeklyChangeKg={normalized.goalModeWeeklyChangeKg}
+              weightUnit={preferences?.default_weight_unit}
               energyUnit={normalized.energyUnit}
               onChange={(weeklyChangeKg) =>
                 mutation.mutate({ goal_mode_weekly_change_kg: weeklyChangeKg })

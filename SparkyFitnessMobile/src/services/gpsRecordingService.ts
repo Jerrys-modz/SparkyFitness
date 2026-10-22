@@ -23,7 +23,7 @@ import {
   type RecordingActivity,
 } from '../utils/gpsRecording';
 import { programSpokenCues } from '../utils/programCues';
-import { isStepActivity } from '../utils/stride';
+import { isStepActivity, type FormMetrics } from '../utils/stride';
 import { captureStepCounterBaseline } from './stepCounter';
 import {
   INITIAL_AUTO_PAUSE_STATE,
@@ -181,6 +181,11 @@ export interface RecordingSession {
   heartRateStepsOff?: boolean;
   /** Set once the diary entry exists, so a retried save never duplicates it. */
   savedEntryId: string | null;
+  /**
+   * The cadence and stride put on that entry, kept so a retry after a failed
+   * track upload can still show them instead of measuring again.
+   */
+  savedForm?: FormMetrics | null;
   /**
    * A treadmill or other indoor session: no location task and no route, just
    * the clock (and a paired watch's heart rate). Absent on sessions saved by
@@ -1630,11 +1635,17 @@ export async function getHeartRateSamples(): Promise<RecordedHeartRate[]> {
   return heartRate.samples.slice();
 }
 
-/** Records that the diary entry exists, so a retried save only re-sends the track. */
-export function markRecordingSaved(entryId: string): Promise<void> {
+/**
+ * Records that the diary entry exists, so a retried save only re-sends the
+ * track, along with the form metrics saved on it.
+ */
+export function markRecordingSaved(
+  entryId: string,
+  form: FormMetrics | null = null
+): Promise<void> {
   return enqueue(async () => {
     if (!session) return;
-    session = { ...session, savedEntryId: entryId };
+    session = { ...session, savedEntryId: entryId, savedForm: form };
     await persistSession();
     publish();
   });

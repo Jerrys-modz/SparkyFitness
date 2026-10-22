@@ -19,6 +19,7 @@ const weeklyWeightChangeSchema = z
   .multipleOf(0.001);
 
 export const userPreferencesSchema = z.object({
+  adaptive_activity_separate: z.boolean().optional(),
   voice_input_enabled: z.boolean().optional(),
   active_voice_ai_service_id: z.string().uuid().nullable().optional(),
   id: z.string(),
@@ -97,6 +98,7 @@ export const userPreferencesSchema = z.object({
 });
 
 export const userPreferencesInitializerSchema = z.object({
+  adaptive_activity_separate: z.boolean().optional(),
   voice_input_enabled: z.boolean().optional(),
   active_voice_ai_service_id: z.string().uuid().nullable().optional(),
   id: z.string().optional(),
@@ -181,6 +183,7 @@ export const userPreferencesInitializerSchema = z.object({
 });
 
 export const userPreferencesMutatorSchema = z.object({
+  adaptive_activity_separate: z.boolean().optional(),
   voice_input_enabled: z.boolean().optional(),
   active_voice_ai_service_id: z.string().uuid().nullable().optional(),
   id: z.string().optional(),

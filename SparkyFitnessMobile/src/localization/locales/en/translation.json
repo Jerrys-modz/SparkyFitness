@@ -923,7 +923,8 @@
       "title": "Permission Required",
       "backgroundAccess": "Background access permission is required for background sync. Please grant the permission in Health Connect settings.",
       "allTitle": "Permissions Required",
-      "allMessage": "Some permissions were not granted. Please enable all required health permissions in the {{settings}} to sync all data."
+      "allMessage": "Some permissions were not granted. Please enable all required health permissions in the {{settings}} to sync all data.",
+      "writebackMessage": "Every metric will sync. To write your data back, grant the missing permissions in {{settings}}."
     },
     "permissionError": {
       "title": "Permission Error",
@@ -1004,6 +1005,9 @@
   },
   "calorieSettings": {
     "adaptiveEarnBack": "Adaptive targets already include activity. Remaining calories are Target minus Eaten. Exercise earn-back applies only to Manual targets.",
+    "adaptiveActivitySeparate": "Count activity calories separately",
+    "adaptiveActivitySeparateHint": "Learn a baseline excluding historical activity and credit today’s steps and workouts once, without adding BMR again. This needs consistent food, weight, step and workout history. Until enough history is available, use BMR × your non-workout activity multiplier.",
+    "adaptiveActivitySeparateReporting": "BMR stays in Burned and Net Energy when Include Resting Calories is enabled. Only steps and workouts are added to your remaining calorie budget.",
     "restingEnergy": "Resting Energy",
     "bmr": "BMR",
     "title": "Calorie & BMR Settings",
@@ -1050,6 +1054,7 @@
       "eatenBurned": "Eaten − Burned",
       "projectedTotal": "Health Connect total calories (BMR + active calories fallback)",
       "dynamic": "Goal − Net Energy",
+      "dynamicActivitySeparated": "Goal − Eaten + Activity",
       "percentageWithBmr": "Goal − Eaten + BMR + {{percentage}}% of Exercise",
       "percentage": "Goal − Eaten + {{percentage}}% of Exercise",
       "tdee": "Projected TDEE × Goal Mode − Eaten",
@@ -1105,6 +1110,11 @@
       "unit": "Weekly rate unit",
       "kilograms": "kg",
       "grams": "g",
+      "pounds": "lb",
+      "stonePounds": "st / lb",
+      "stones": "st",
+      "poundsAmount": "Weekly weight change pounds",
+      "poundsHint": "Enter the remaining pounds, from 0 to less than 14.",
       "invalidRate": "Enter a rate above 0 and up to {{max}} kg per week.",
       "dailyAdjustment": "Estimated daily adjustment: {{sign}}{{amount}} {{unit}}",
       "estimateHint": "Your weekly goal is converted to a daily calorie adjustment. This is an estimate; your configured safety floor may limit weight loss."
@@ -6530,6 +6540,13 @@
     "views": {
       "strength": "Strength",
       "cardio": "Cardio"
+    },
+    "runningForm": {
+      "title": "Running form",
+      "subtitle": "Steps per minute and stride length on your runs",
+      "average": "Average {{value}}",
+      "change": "{{value}} vs earlier runs",
+      "hint": "A treadmill run counts once its steps were measured."
     },
     "cardio": {
       "hint": "Tap a workout for its route and heart rate.",

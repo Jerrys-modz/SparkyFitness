@@ -12,6 +12,7 @@ import {
   CHART_SCALE_MODES,
   DEFAULT_CHART_SCALE_MODE,
   type UserPreferencesMutator,
+  userPreferencesMutatorSchema,
 } from '@workspace/shared';
 
 /** The subset of preference fields `validateGoalMode` inspects. */
@@ -33,9 +34,26 @@ type CalorieSafetyFloorPreferenceInput = Partial<
 type ChartScaleModePreferenceInput = Partial<
   Pick<UserPreferencesMutator, 'chart_scale_mode'>
 >;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function validateTimezone(preferenceData: any) {
+
+function validateAdaptiveActivity(preferences: UserPreferencesMutator): void {
   if (
+    !userPreferencesMutatorSchema.shape.adaptive_activity_separate.safeParse(
+      preferences.adaptive_activity_separate
+    ).success
+  ) {
+    throw Object.assign(
+      new Error('adaptive_activity_separate must be a boolean.'),
+      {
+        status: 400,
+      }
+    );
+  }
+}
+async function validateTimezone(
+  preferenceData: Pick<UserPreferencesMutator, 'timezone'>
+) {
+  if (
+    preferenceData.timezone !== undefined &&
     preferenceData.timezone !== null &&
     !isValidTimeZone(preferenceData.timezone)
   ) {
@@ -181,6 +199,7 @@ function getDefaultPreferences() {
     voice_input_enabled: true,
     active_voice_ai_service_id: null,
     calorie_goal_adjustment_mode: 'dynamic',
+    adaptive_activity_separate: false,
     show_net_carbs: false,
     timezone: null,
     time_format: 'h:mm A',
@@ -191,14 +210,12 @@ function getDefaultPreferences() {
   };
 }
 async function updateUserPreferences(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  authenticatedUserId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  targetUserId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  preferenceData: any
+  authenticatedUserId: string,
+  targetUserId: string,
+  preferenceData: UserPreferencesMutator
 ) {
   try {
+    validateAdaptiveActivity(preferenceData);
     await validateTimezone(preferenceData);
     await validateTimeFormat(preferenceData);
     await validateGoalMode(preferenceData);
@@ -298,24 +315,24 @@ async function bootstrapUserTimezone(
 }
 
 async function upsertUserPreferences(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  authenticatedUserId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  preferenceData: any
+  authenticatedUserId: string,
+  preferenceData: UserPreferencesMutator
 ) {
   try {
+    validateAdaptiveActivity(preferenceData);
     await validateTimezone(preferenceData);
     await validateTimeFormat(preferenceData);
     await validateGoalMode(preferenceData);
     await validateCalorieSafetyFloor(preferenceData);
     await validateChartScaleMode(preferenceData);
-    preferenceData.user_id = authenticatedUserId; // Ensure user_id is set from authenticated user
     // Provide a default for calorie_goal_adjustment_mode if it's not present
     if (!preferenceData.calorie_goal_adjustment_mode) {
       preferenceData.calorie_goal_adjustment_mode = 'dynamic';
     }
-    const newPreferences =
-      await preferenceRepository.upsertUserPreferences(preferenceData);
+    const newPreferences = await preferenceRepository.upsertUserPreferences({
+      ...preferenceData,
+      user_id: authenticatedUserId,
+    });
     return newPreferences;
   } catch (error) {
     log(

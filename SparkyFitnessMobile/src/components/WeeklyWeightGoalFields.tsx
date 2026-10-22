@@ -4,8 +4,11 @@ import { useTranslation } from 'react-i18next';
 import {
   MAX_GOAL_MODE_WEEKLY_CHANGE_KG,
   convertEnergyValue,
+  formatWeeklyGoalRate,
   getGoalModeDailyAdjustment,
+  getWeeklyGoalRateUnit,
   parseWeeklyGoalRate,
+  type WeeklyGoalRateUnit,
 } from '@workspace/shared';
 
 import BottomSheetPicker from './BottomSheetPicker';
@@ -13,10 +16,16 @@ import FormInput from './FormInput';
 import { useAppLocale } from '../localization';
 
 type Direction = 'maintain' | 'lose' | 'gain';
-type RateUnit = 'kg' | 'g';
+
+interface RateDraft {
+  amount: string;
+  pounds: string;
+  canonicalKg: number | null;
+}
 
 interface WeeklyWeightGoalFieldsProps {
   weeklyChangeKg: number;
+  weightUnit?: string;
   energyUnit: 'kcal' | 'kJ';
   onChange: (weeklyChangeKg: number) => void;
 }
@@ -26,34 +35,62 @@ const directionOf = (value: number): Direction =>
 
 export default function WeeklyWeightGoalFields({
   weeklyChangeKg,
+  weightUnit,
   energyUnit,
   onChange,
 }: WeeklyWeightGoalFieldsProps) {
   const { t } = useTranslation();
   const locale = useAppLocale();
-  const formatRate = (kg: number, unit: RateUnit) =>
-    new Intl.NumberFormat(locale, {
-      maximumFractionDigits: unit === 'g' ? 0 : 3,
-      useGrouping: false,
-    }).format(Math.abs(kg) * (unit === 'g' ? 1000 : 1));
+  const profileUnit = getWeeklyGoalRateUnit(weightUnit);
+  const formatDraft = (kg: number, rateUnit: WeeklyGoalRateUnit): RateDraft => {
+    const formatted =
+      kg === 0
+        ? { amount: '', pounds: '' }
+        : formatWeeklyGoalRate(kg, rateUnit, locale);
+    return {
+      ...formatted,
+      pounds: rateUnit === 'st_lbs' ? formatted.pounds : '',
+      canonicalKg: Math.abs(kg),
+    };
+  };
 
   const [direction, setDirection] = useState<Direction>(() =>
     directionOf(weeklyChangeKg)
   );
-  const [unit, setUnit] = useState<RateUnit>('kg');
-  const [amount, setAmount] = useState(() =>
-    weeklyChangeKg === 0 ? '' : formatRate(weeklyChangeKg, 'kg')
+  const [unit, setUnit] = useState<WeeklyGoalRateUnit>(profileUnit);
+  const [draft, setDraft] = useState(() =>
+    formatDraft(weeklyChangeKg, profileUnit)
   );
+  const [followsProfile, setFollowsProfile] = useState(true);
+  const [syncedProfileUnit, setSyncedProfileUnit] = useState(profileUnit);
   const [invalid, setInvalid] = useState(false);
   const [syncedChange, setSyncedChange] = useState(weeklyChangeKg);
-  if (syncedChange !== weeklyChangeKg) {
+  if (syncedChange !== weeklyChangeKg || syncedProfileUnit !== profileUnit) {
+    const savedChanged = syncedChange !== weeklyChangeKg;
+    const nextUnit = followsProfile ? profileUnit : unit;
+    const kg =
+      draft.canonicalKg ??
+      parseWeeklyGoalRate(draft.amount, unit, draft.pounds);
     setSyncedChange(weeklyChangeKg);
-    setDirection(directionOf(weeklyChangeKg));
-    setAmount(weeklyChangeKg === 0 ? '' : formatRate(weeklyChangeKg, unit));
-    setInvalid(false);
+    setSyncedProfileUnit(profileUnit);
+    if (savedChanged) {
+      setDirection(directionOf(weeklyChangeKg));
+      setUnit(nextUnit);
+      setDraft(formatDraft(weeklyChangeKg, nextUnit));
+      setInvalid(false);
+    } else if (nextUnit !== unit) {
+      // Preserve invalid text in its current unit until it can be corrected.
+      if (kg !== null) {
+        setUnit(nextUnit);
+        setDraft(formatDraft(kg, nextUnit));
+      }
+    }
   }
 
-  const parsedKg = parseWeeklyGoalRate(amount, unit);
+  // Formatting a unit is presentation only. Keep its exact kilogram value until
+  // an input is edited, so a later blur or direction change cannot round it.
+  const parsedKg =
+    draft.canonicalKg ?? parseWeeklyGoalRate(draft.amount, unit, draft.pounds);
   const draftChangeKg =
     direction === 'maintain'
       ? 0
@@ -67,13 +104,13 @@ export default function WeeklyWeightGoalFields({
       if (weeklyChangeKg !== 0) onChange(0);
       return;
     }
-    const kg = parseWeeklyGoalRate(amount, unit);
-    if (kg === null) {
+    const kg = parsedKg;
+    if (kg === null || kg <= 0 || kg > MAX_GOAL_MODE_WEEKLY_CHANGE_KG) {
       setInvalid(true);
       return;
     }
     setInvalid(false);
-    setAmount(formatRate(kg, unit));
+    setDraft(formatDraft(kg, unit));
     const signed = kg * (nextDirection === 'lose' ? -1 : 1);
     if (signed !== weeklyChangeKg) onChange(signed);
   };
@@ -82,22 +119,33 @@ export default function WeeklyWeightGoalFields({
     const nextDirection = value as Direction;
     setDirection(nextDirection);
     // Choosing a direction from maintenance does not invent a rate.
-    if (nextDirection !== 'maintain' && amount.trim() === '') return;
+    if (
+      nextDirection !== 'maintain' &&
+      draft.amount.trim() === '' &&
+      draft.pounds.trim() === ''
+    ) {
+      if (unit === 'st_lbs') {
+        setDraft({ amount: '0', pounds: '', canonicalKg: null });
+      }
+      return;
+    }
     saveRate(nextDirection);
   };
 
   const handleUnitChange = (value: string) => {
-    const nextUnit = value as RateUnit;
+    const nextUnit = value as WeeklyGoalRateUnit;
     if (nextUnit === unit) return;
-    if (amount.trim() !== '') {
-      const kg = parseWeeklyGoalRate(amount, unit);
-      if (kg === null) {
+    if (draft.amount.trim() !== '' || draft.pounds.trim() !== '') {
+      if (parsedKg === null) {
         setInvalid(true);
         return;
       }
-      setAmount(formatRate(kg, nextUnit));
+      setDraft(formatDraft(parsedKg, nextUnit));
+    } else if (nextUnit === 'st_lbs') {
+      setDraft({ amount: '0', pounds: '', canonicalKg: null });
     }
     setUnit(nextUnit);
+    setFollowsProfile(false);
     setInvalid(false);
   };
 
@@ -158,9 +206,9 @@ export default function WeeklyWeightGoalFields({
           </Text>
           <View className="flex-row items-center gap-3">
             <FormInput
-              value={amount}
+              value={draft.amount}
               onChangeText={(text) => {
-                setAmount(text);
+                setDraft({ ...draft, amount: text, canonicalKg: null });
                 setInvalid(false);
               }}
               onBlur={() => saveRate(direction)}
@@ -176,6 +224,40 @@ export default function WeeklyWeightGoalFields({
                   'Enter a positive amount. The selected weight goal sets the direction.',
               })}
             />
+            {unit === 'st_lbs' && (
+              <>
+                <Text className="text-sm text-text-secondary">
+                  {t('calorieSettings.weeklyGoal.stones', {
+                    defaultValue: 'st',
+                  })}
+                </Text>
+                <FormInput
+                  value={draft.pounds}
+                  onChangeText={(text) => {
+                    setDraft({ ...draft, pounds: text, canonicalKg: null });
+                    setInvalid(false);
+                  }}
+                  onBlur={() => saveRate(direction)}
+                  keyboardType="decimal-pad"
+                  returnKeyType="done"
+                  maxLength={12}
+                  className="flex-1"
+                  accessibilityLabel={t(
+                    'calorieSettings.weeklyGoal.poundsAmount',
+                    {
+                      defaultValue: 'Weekly weight change pounds',
+                    }
+                  )}
+                  accessibilityHint={t(
+                    'calorieSettings.weeklyGoal.poundsHint',
+                    {
+                      defaultValue:
+                        'Enter the remaining pounds, from 0 to less than 14.',
+                    }
+                  )}
+                />
+              </>
+            )}
             <BottomSheetPicker
               value={unit}
               options={[
@@ -189,6 +271,18 @@ export default function WeeklyWeightGoalFields({
                   value: 'g',
                   label: t('calorieSettings.weeklyGoal.grams', {
                     defaultValue: 'g',
+                  }),
+                },
+                {
+                  value: 'lbs',
+                  label: t('calorieSettings.weeklyGoal.pounds', {
+                    defaultValue: 'lb',
+                  }),
+                },
+                {
+                  value: 'st_lbs',
+                  label: t('calorieSettings.weeklyGoal.stonePounds', {
+                    defaultValue: 'st / lb',
                   }),
                 },
               ]}

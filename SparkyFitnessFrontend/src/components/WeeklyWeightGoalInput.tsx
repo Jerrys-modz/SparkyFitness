@@ -1,8 +1,11 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   MAX_GOAL_MODE_WEEKLY_CHANGE_KG,
+  formatWeeklyGoalRate,
+  getWeeklyGoalRateUnit,
   parseWeeklyGoalRate,
+  type WeeklyGoalRateUnit,
 } from '@workspace/shared';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,65 +18,85 @@ import {
 } from '@/components/ui/select';
 
 type Direction = 'maintain' | 'lose' | 'gain';
-type RateUnit = 'kg' | 'g';
-
 interface WeeklyWeightGoalInputProps {
   value: number;
+  weightUnit?: string;
   onChange: (signedKg: number) => void;
   onValidityChange: (valid: boolean) => void;
   disabled?: boolean;
 }
 
+function getRateInput(kg: number, unit: WeeklyGoalRateUnit, locale: string) {
+  return kg === 0
+    ? { amount: unit === 'st_lbs' ? '0' : '', pounds: '' }
+    : formatWeeklyGoalRate(kg, unit, locale);
+}
+
 export function WeeklyWeightGoalInput({
   value,
+  weightUnit = 'kg',
   onChange,
   onValidityChange,
   disabled = false,
 }: WeeklyWeightGoalInputProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const id = useId();
+  const profileUnit = getWeeklyGoalRateUnit(weightUnit);
+  const locale = i18n.resolvedLanguage ?? i18n.language;
   const [direction, setDirection] = useState<Direction>(
     value < 0 ? 'lose' : value > 0 ? 'gain' : 'maintain'
   );
-  const [unit, setUnit] = useState<RateUnit>('kg');
-  const [amount, setAmount] = useState(
-    value === 0 ? '' : String(Math.abs(value))
+  const [unit, setUnit] = useState<WeeklyGoalRateUnit>(profileUnit);
+  const [rateKg, setRateKg] = useState(Math.abs(value));
+  const [rate, setRate] = useState(() =>
+    getRateInput(value, profileUnit, locale)
   );
   const [previousValue, setPreviousValue] = useState(value);
+  const [previousProfileUnit, setPreviousProfileUnit] = useState(profileUnit);
   const [lastReportedValue, setLastReportedValue] = useState(value);
-  // Refresh data loaded from the server without normalizing text during typing.
-  if (value !== previousValue) {
+  // Refresh external preferences without normalizing acknowledged edits while typing.
+  if (value !== previousValue || profileUnit !== previousProfileUnit) {
+    const externalValueChanged =
+      value !== previousValue && value !== lastReportedValue;
+    const profileUnitChanged = profileUnit !== previousProfileUnit;
+    const nextUnit = profileUnitChanged ? profileUnit : unit;
+    const nextRateKg = externalValueChanged ? Math.abs(value) : rateKg;
     setPreviousValue(value);
-    if (value !== lastReportedValue) {
+    setPreviousProfileUnit(profileUnit);
+    if (profileUnitChanged) setUnit(nextUnit);
+    if (externalValueChanged) {
       setLastReportedValue(value);
       setDirection(value < 0 ? 'lose' : value > 0 ? 'gain' : 'maintain');
-      setAmount(
-        value === 0
-          ? ''
-          : String(
-              unit === 'g'
-                ? Math.round(Math.abs(value) * 1000)
-                : Math.abs(value)
-            )
-      );
+      setRateKg(nextRateKg);
+    }
+    if (externalValueChanged || profileUnitChanged) {
+      setRate(getRateInput(nextRateKg, nextUnit, locale));
     }
   }
-  const parsedKg = parseWeeklyGoalRate(amount, unit);
+  const parsedKg = parseWeeklyGoalRate(rate.amount, unit, rate.pounds);
   const invalid = direction !== 'maintain' && parsedKg === null;
 
-  const emit = (nextDirection: Direction, text: string, nextUnit: RateUnit) => {
+  useEffect(() => {
+    onValidityChange(!invalid);
+  }, [invalid, onValidityChange]);
+
+  const emit = (nextDirection: Direction, kg: number) => {
     if (nextDirection === 'maintain') {
       setLastReportedValue(0);
-      onValidityChange(true);
       onChange(0);
       return;
     }
-    const kg = parseWeeklyGoalRate(text, nextUnit);
-    onValidityChange(kg !== null);
+    const signedKg = nextDirection === 'lose' ? -kg : kg;
+    setLastReportedValue(signedKg);
+    onChange(signedKg);
+  };
+
+  const editRate = (amount: string, pounds: string) => {
+    setRate({ amount, pounds });
+    const kg = parseWeeklyGoalRate(amount, unit, pounds);
     if (kg !== null) {
-      const signedKg = nextDirection === 'lose' ? -kg : kg;
-      setLastReportedValue(signedKg);
-      onChange(signedKg);
+      setRateKg(kg);
+      emit(direction, kg);
     }
   };
 
@@ -89,7 +112,8 @@ export function WeeklyWeightGoalInput({
             disabled={disabled}
             onValueChange={(value: Direction) => {
               setDirection(value);
-              emit(value, amount, unit);
+              if (value === 'maintain' || parsedKg !== null)
+                emit(value, rateKg);
             }}
           >
             <SelectTrigger id={`${id}-direction`}>
@@ -110,23 +134,57 @@ export function WeeklyWeightGoalInput({
         </div>
         {direction !== 'maintain' && (
           <>
-            <div>
-              <Label htmlFor={`${id}-amount`}>
-                {t('settings.goalMode.weeklyAmount', 'Weekly amount')}
-              </Label>
-              <Input
-                id={`${id}-amount`}
-                type="text"
-                inputMode="decimal"
-                value={amount}
-                disabled={disabled}
-                aria-invalid={invalid}
-                aria-describedby={`${id}-hint`}
-                onChange={(event) => {
-                  setAmount(event.target.value);
-                  emit(direction, event.target.value, unit);
-                }}
-              />
+            <div
+              className={
+                unit === 'st_lbs' ? 'grid grid-cols-2 gap-2' : undefined
+              }
+            >
+              <div>
+                <Label htmlFor={`${id}-amount`}>
+                  {unit === 'st_lbs'
+                    ? t(
+                        'settings.goalMode.stonesPerWeekLabel',
+                        'Stones per week'
+                      )
+                    : t('settings.goalMode.weeklyAmount', 'Weekly amount')}
+                </Label>
+                <Input
+                  id={`${id}-amount`}
+                  type="text"
+                  inputMode={
+                    unit === 'st_lbs' || unit === 'g' ? 'numeric' : 'decimal'
+                  }
+                  value={rate.amount}
+                  disabled={disabled}
+                  aria-invalid={invalid}
+                  aria-describedby={`${id}-hint`}
+                  onChange={(event) =>
+                    editRate(event.target.value, rate.pounds)
+                  }
+                />
+              </div>
+              {unit === 'st_lbs' && (
+                <div>
+                  <Label htmlFor={`${id}-pounds`}>
+                    {t(
+                      'settings.goalMode.poundsPerWeekLabel',
+                      'Pounds per week'
+                    )}
+                  </Label>
+                  <Input
+                    id={`${id}-pounds`}
+                    type="text"
+                    inputMode="decimal"
+                    value={rate.pounds}
+                    disabled={disabled}
+                    aria-invalid={invalid}
+                    aria-describedby={`${id}-hint`}
+                    onChange={(event) =>
+                      editRate(rate.amount, event.target.value)
+                    }
+                  />
+                </div>
+              )}
             </div>
             <div>
               <Label htmlFor={`${id}-unit`}>
@@ -135,16 +193,10 @@ export function WeeklyWeightGoalInput({
               <Select
                 value={unit}
                 disabled={disabled}
-                onValueChange={(value: RateUnit) => {
-                  const nextAmount =
-                    parsedKg === null
-                      ? amount
-                      : String(
-                          value === 'g' ? Math.round(parsedKg * 1000) : parsedKg
-                        );
+                onValueChange={(value: WeeklyGoalRateUnit) => {
                   setUnit(value);
-                  setAmount(nextAmount);
-                  emit(direction, nextAmount, value);
+                  // Reformat the canonical rate, never round it through display text.
+                  setRate(getRateInput(rateKg, value, locale));
                 }}
               >
                 <SelectTrigger id={`${id}-unit`}>
@@ -156,6 +208,15 @@ export function WeeklyWeightGoalInput({
                   </SelectItem>
                   <SelectItem value="g">
                     {t('settings.goalMode.gramsPerWeek', 'g / week')}
+                  </SelectItem>
+                  <SelectItem value="lbs">
+                    {t('settings.goalMode.lbsPerWeek', 'lbs / week')}
+                  </SelectItem>
+                  <SelectItem value="st_lbs">
+                    {t(
+                      'settings.goalMode.stonesPoundsPerWeek',
+                      'st + lbs / week'
+                    )}
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -171,9 +232,14 @@ export function WeeklyWeightGoalInput({
         {invalid
           ? t('settings.goalMode.weeklyInvalid', {
               defaultValue:
-                'Enter an amount from 1 to {{maxGrams}} g ({{maxKg}} kg) per week. Use whole grams or up to three decimal places in kg.',
+                'Enter a weekly amount between 1 g and {{maxKg}} kg ({{maxLbs}} lbs). Use whole grams or stones, and up to three decimal places in kg or lbs.',
               maxGrams: MAX_GOAL_MODE_WEEKLY_CHANGE_KG * 1000,
               maxKg: MAX_GOAL_MODE_WEEKLY_CHANGE_KG,
+              maxLbs: formatWeeklyGoalRate(
+                MAX_GOAL_MODE_WEEKLY_CHANGE_KG,
+                'lbs',
+                locale
+              ).amount,
             })
           : t(
               'settings.goalMode.weeklyHint',
