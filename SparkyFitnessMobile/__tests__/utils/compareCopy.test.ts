@@ -43,6 +43,7 @@ function response(
   return {
     a: { key: q.a, values: a },
     b: { key: q.b, values: b },
+    through: '2026-10-21',
     deviations: { a: {}, b: {} },
     result: {
       status: 'ok',

@@ -8,10 +8,14 @@ import type { CompareQuestion } from '../../../src/utils/compareQuestion';
 
 const Q: CompareQuestion = { a: 'timeAsleep', b: 'energy', choice: 'sameDay' };
 
-function response(result: Partial<CompareResult>): CompareResponse {
+function response(
+  result: Partial<CompareResult>,
+  through = '2026-10-21'
+): CompareResponse {
   return {
     a: { key: Q.a, values: {} },
     b: { key: Q.b, values: {} },
+    through,
     deviations: { a: {}, b: {} },
     result: {
       status: 'ok',
@@ -26,6 +30,21 @@ function response(result: Partial<CompareResult>): CompareResponse {
 describe('CompareAnswerCard', () => {
   beforeAll(async () => {
     await initializeI18n('en');
+    jest.useFakeTimers({
+      now: new Date(2026, 9, 22, 12),
+      doNotFake: [
+        'nextTick',
+        'setImmediate',
+        'setTimeout',
+        'clearTimeout',
+        'setInterval',
+        'clearInterval',
+      ],
+    });
+  });
+
+  afterAll(() => {
+    jest.useRealTimers();
   });
 
   it('shows the headline, detail and stats for an ok result', () => {
@@ -90,5 +109,35 @@ describe('CompareAnswerCard', () => {
     expect(
       getByText('difference 0.9 · 95% range 0.3 to 1.5 · p 0.010 · 62 days')
     ).toBeTruthy();
+  });
+
+  it('says the comparison runs through yesterday', () => {
+    const { getByText } = render(
+      <CompareAnswerCard response={response({})} question={Q} span="90d" />
+    );
+    expect(getByText('Through yesterday')).toBeTruthy();
+  });
+
+  it('says through last week in week mode when the last full week just ended', () => {
+    const q: CompareQuestion = { ...Q, choice: 'sameWeek' };
+    const { getByText } = render(
+      <CompareAnswerCard
+        response={response({}, '2026-10-18')}
+        question={q}
+        span="6m"
+      />
+    );
+    expect(getByText('Through last week')).toBeTruthy();
+  });
+
+  it('names the date when the comparison stops earlier', () => {
+    const { getByText } = render(
+      <CompareAnswerCard
+        response={response({}, '2026-09-30')}
+        question={Q}
+        span="custom"
+      />
+    );
+    expect(getByText('Through Sep 30')).toBeTruthy();
   });
 });

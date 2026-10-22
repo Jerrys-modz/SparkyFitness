@@ -20,6 +20,7 @@ const mockFetch = fetchCompare as jest.MockedFunction<typeof fetchCompare>;
 const response = {
   a: { key: 'timeAsleep', values: {} },
   b: { key: 'energy', values: {} },
+  through: '2026-10-21',
   deviations: { a: {}, b: {} },
   result: {
     status: 'not_enough',

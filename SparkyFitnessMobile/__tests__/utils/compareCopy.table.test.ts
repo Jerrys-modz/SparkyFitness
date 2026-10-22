@@ -18,6 +18,7 @@ function response(
   return {
     a: { key: q.a, values: { '2026-10-01': 1, '2026-10-02': 2 } },
     b: { key: q.b, values: { '2026-10-01': 1, '2026-10-02': 2 } },
+    through: '2026-10-21',
     deviations: { a: {}, b: {} },
     result: {
       status: 'ok',

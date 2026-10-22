@@ -8,6 +8,7 @@ jest.mock('../../src/services/api/apiClient', () => ({
 const okResponse = {
   a: { key: 'timeAsleep', values: { '2026-10-01': 420 } },
   b: { key: 'energy', values: { '2026-10-01': 3 } },
+  through: '2026-10-21',
   deviations: { a: { '2026-10-01': 1 }, b: { '2026-10-01': 0.5 } },
   result: {
     status: 'not_enough',

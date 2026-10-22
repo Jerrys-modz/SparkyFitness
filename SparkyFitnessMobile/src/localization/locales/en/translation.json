@@ -8512,6 +8512,11 @@
       "loadFailed": "Couldn't load this comparison.",
       "retry": "Retry"
     },
-    "title": "Compare"
+    "title": "Compare",
+    "answer": {
+      "throughYesterday": "Through yesterday",
+      "throughLastWeek": "Through last week",
+      "throughDate": "Through {{date}}"
+    }
   }
 }

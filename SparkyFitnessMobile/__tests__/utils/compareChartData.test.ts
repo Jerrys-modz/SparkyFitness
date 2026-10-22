@@ -17,6 +17,7 @@ function response(
   return {
     a: { key: 'meditationMinutes', values: valuesA },
     b: { key: 'mood', values: valuesB },
+    through: '2026-10-21',
     deviations: { a: devA, b: devB },
     result: { status: 'ok', n: 1, needed: 14, checks: { ownNormal: true } },
   } as CompareResponse;

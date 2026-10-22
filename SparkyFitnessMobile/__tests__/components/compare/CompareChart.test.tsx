@@ -67,6 +67,7 @@ function response(binary?: CompareResult['binary']): CompareResponse {
       key: Q.b,
       values: { '2026-10-01': 58, '2026-10-02': 81, '2026-10-03': 70 },
     },
+    through: '2026-10-21',
     deviations: {
       a: { '2026-10-01': -5, '2026-10-02': 5, '2026-10-03': 0 },
       b: { '2026-10-01': -12, '2026-10-02': 11, '2026-10-03': 1 },

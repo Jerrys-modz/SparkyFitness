@@ -3,6 +3,9 @@ import { Text, View } from 'react-native';
 import type { CompareResponse } from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 
+import { useAppLocale } from '../../localization/i18n';
+import { addDays, formatShortDate, getTodayDate } from '../../utils/dateUtils';
+
 import { statsLine, verdictCopy } from '../../utils/compareCopy';
 import {
   timingOf,
@@ -22,6 +25,7 @@ const CompareAnswerCard: React.FC<CompareAnswerCardProps> = ({
   span,
 }) => {
   const { t } = useTranslation();
+  const locale = useAppLocale();
   const { headline, detail } = verdictCopy(response, question, span, t);
   const { result } = response;
   const yesKey = result.binary?.yesKey;
@@ -33,6 +37,27 @@ const CompareAnswerCard: React.FC<CompareAnswerCardProps> = ({
         : question.a;
   const stats = statsLine(result, timingOf(question.choice).mode, t, outcome);
 
+  const today = getTodayDate();
+  const isWeekMode = timingOf(question.choice).mode === 'week';
+  // The server stops at the last finished week, so a week-mode end within the
+  // last 7 days is the end of last week.
+  const endsLastWeek =
+    isWeekMode &&
+    [1, 2, 3, 4, 5, 6, 7].some((n) => addDays(response.through, n) === today);
+  const through =
+    response.through === addDays(today, -1)
+      ? t('compareReport.answer.throughYesterday', {
+          defaultValue: 'Through yesterday',
+        })
+      : endsLastWeek
+        ? t('compareReport.answer.throughLastWeek', {
+            defaultValue: 'Through last week',
+          })
+        : t('compareReport.answer.throughDate', {
+            defaultValue: 'Through {{date}}',
+            date: formatShortDate(response.through, locale),
+          });
+
   return (
     <View className="bg-surface rounded-xl p-4 my-2 shadow-sm">
       <Text className="text-text-primary text-2xl font-bold">{headline}</Text>
@@ -40,6 +65,7 @@ const CompareAnswerCard: React.FC<CompareAnswerCardProps> = ({
       {stats ? (
         <Text className="text-text-muted text-xs mt-3">{stats}</Text>
       ) : null}
+      <Text className="text-text-muted text-xs mt-1">{through}</Text>
     </View>
   );
 };

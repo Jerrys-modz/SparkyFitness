@@ -12,6 +12,7 @@ function response(binary: CompareResult['binary']): CompareResponse {
   return {
     a: { key: Q.a, values: {} },
     b: { key: Q.b, values: {} },
+    through: '2026-10-21',
     deviations: { a: {}, b: {} },
     result: {
       status: 'ok',
