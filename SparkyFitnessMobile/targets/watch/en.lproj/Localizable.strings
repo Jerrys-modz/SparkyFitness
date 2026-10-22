@@ -106,6 +106,8 @@
 "watch.common.set" = "Set";
 "watch.checkin.skipBodyFat" = "Skip body fat";
 "watch.checkin.sinceLast" = "%@ %@ since last";
+"watch.checkin.tapToAdjust" = "Tap number to adjust";
+"watch.checkin.turnCrown" = "Turn the crown";
 "watch.checkin.replacing" = "· replacing";
 "watch.common.save" = "Save";
 "watch.checkin.bodyFatOptional" = "Body fat % (optional)";

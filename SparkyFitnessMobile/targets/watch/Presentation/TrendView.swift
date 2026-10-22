@@ -35,8 +35,40 @@ struct TrendView: View {
     /// whole page) because `digitalCrownRotation` only binds to Double.
     @State private var metricIndex: Double = 0
 
-    private var points: [HistoryPoint] { store.trendPoints() }
-    private var mean: [HistoryPoint] { store.rollingMean(points: points) }
+    /// Days drawn on the chart. The phone relays more history than this so the
+    /// trend is warmed up before the first visible day.
+    private static let displayDays = 14
+
+    private var allPoints: [HistoryPoint] { store.trendPoints() }
+
+    private var points: [HistoryPoint] {
+        let cutoff = CheckInDate.day(daysAgo: Self.displayDays - 1)
+        return allPoints.filter { $0.day >= cutoff }
+    }
+
+    /// Smoothed over the full history, then cut to what is on screen.
+    private var fullTrend: [HistoryPoint] { store.weightTrend(points: allPoints) }
+
+    private var mean: [HistoryPoint] {
+        let visible = Set(points.map(\.day))
+        return fullTrend.filter { visible.contains($0.day) }
+    }
+
+    /// Target weight in the display unit, only when it is close enough to the
+    /// data to share the chart. A goal 30 lb away would flatten every dot into
+    /// one line, so it is left off rather than squashing the corridor the
+    /// wearer is checking.
+    private var goalOnChart: Double? {
+        guard let goalKg = store.context.effectiveGoalWeightKg else { return nil }
+        let goal = unit.fromKg(goalKg)
+        let weights = points.map { unit.fromKg($0.weightKg) }
+        guard let low = weights.min(), let high = weights.max() else { return nil }
+        let reach = unit.fromKg(Self.goalReachKg)
+        return (goal >= low - reach && goal <= high + reach) ? goal : nil
+    }
+
+    /// How far outside the plotted weights a goal may sit and still be drawn.
+    private static let goalReachKg = 4.0
 
     /// Mirrors the phone's Settings → default weight unit. Stored/transmitted
     /// values (`points`, `store.lastCaptured`, etc.) stay kg throughout — this
@@ -45,7 +77,11 @@ struct TrendView: View {
 
     private var weightDomain: ClosedRange<Double> {
         let weights = points.map { unit.fromKg($0.weightKg) }
-        guard let min = weights.min(), let max = weights.max() else { return 0...1 }
+        guard var min = weights.min(), var max = weights.max() else { return 0...1 }
+        if let goal = goalOnChart {
+            min = Swift.min(min, goal)
+            max = Swift.max(max, goal)
+        }
         // Tight auto-scaling is what makes an outlier obvious at this size.
         let pad = unit.fromKg(1.0)
         return (min - pad)...(max + pad)
@@ -60,8 +96,9 @@ struct TrendView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             summaryRow
+            if currentMetric == .weight { trendSummary }
             metricContent
         }
         .padding(.horizontal, 4)
@@ -118,6 +155,27 @@ struct TrendView: View {
         }
     }
 
+    /// The smoothed weight and its weekly change, as numbers: the line alone
+    /// says "going down" but not whether that is today's scale noise or a real
+    /// 1.2 lb a week. Neutral colour on purpose — whether a loss is good
+    /// depends on the wearer's goal.
+    @ViewBuilder
+    private var trendSummary: some View {
+        if let latest = fullTrend.last {
+            HStack(spacing: 4) {
+                Text("Trend \(String(format: "%.1f", unit.fromKg(latest.weightKg)))")
+                if let rate = store.weeklyRateKg(trend: fullTrend) {
+                    Text("· \(String(format: "%+.1f", unit.fromKg(rate)))/wk")
+                }
+            }
+            .font(.caption2)
+            .monospacedDigit()
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+        }
+    }
+
     @ViewBuilder
     private var metricContent: some View {
         switch currentMetric {
@@ -144,12 +202,25 @@ struct TrendView: View {
 
     private var weightChart: some View {
         Chart {
+            if let goal = goalOnChart {
+                RuleMark(y: .value("Goal", goal))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                    .foregroundStyle(.green.opacity(0.7))
+                    .annotation(position: .top, alignment: .leading, spacing: 1) {
+                        Text("Goal")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.green.opacity(0.9))
+                    }
+            }
             ForEach(mean) { point in
                 if let date = point.date {
                     LineMark(x: .value("Day", date), y: .value("Mean", unit.fromKg(point.weightKg)))
-                        .lineStyle(StrokeStyle(lineWidth: 2))
+                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
                         .foregroundStyle(.tint)
-                        .interpolationMethod(.catmullRom)
+                        // Monotone, not catmullRom: the trend is already
+                        // smooth, and catmullRom overshoots between points,
+                        // drawing a wiggle the data doesn't contain.
+                        .interpolationMethod(.monotone)
                 }
             }
             ForEach(points) { point in
@@ -170,8 +241,10 @@ struct TrendView: View {
                                 // Matches what `symbolSize(60)` and
                                 // `symbolSize(16)` used to produce — those are
                                 // areas in points², so ~8.7pt and ~4.5pt across.
-                                diameter: isToday ? 9 : 4.5,
-                                color: isToday ? (unconfirmed ? .orange : .green) : .secondary,
+                                // Daily weigh-ins are scale noise: small and
+                                // faint so the trend line carries the chart.
+                                diameter: isToday ? 9 : 3.5,
+                                color: isToday ? (unconfirmed ? .orange : .green) : .secondary.opacity(0.7),
                                 hollow: unconfirmed
                             )
                         }
@@ -182,7 +255,7 @@ struct TrendView: View {
         .chartYScale(domain: weightDomain)
         .chartXAxis(.hidden)
         .chartYAxis { AxisMarks(values: .automatic(desiredCount: 2)) }
-        .frame(height: 96)
+        .frame(height: 88)
     }
 
     private var bodyFatChart: some View {

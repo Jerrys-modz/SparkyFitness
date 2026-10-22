@@ -362,7 +362,7 @@ final class CheckInStore: ObservableObject {
 
     /// History from the server, overlaid with anything captured locally that the
     /// server hasn't confirmed yet — so today's point appears immediately.
-    func trendPoints(limit: Int = 14) -> [HistoryPoint] {
+    func trendPoints() -> [HistoryPoint] {
         var byDay: [String: HistoryPoint] = [:]
         for point in context.history {
             byDay[point.day] = point
@@ -383,9 +383,7 @@ final class CheckInStore: ObservableObject {
                     ?? byDay[last.entryDate]?.bodyFatPercentage
             )
         }
-        return byDay.values
-            .sorted { $0.day < $1.day }
-            .suffix(limit)
+        return byDay.values.sorted { $0.day < $1.day }
     }
 
     /// True when today's point should be drawn hollow — captured here but not
@@ -394,19 +392,75 @@ final class CheckInStore: ObservableObject {
         pending.contains { $0.entryDate == day }
     }
 
-    /// Centred 7-day rolling mean. The wearer verifies the *shape* of the
-    /// corridor rather than re-reading the digits, which works on a
-    /// barely-awake brain.
-    func rollingMean(points: [HistoryPoint], window: Int = 7) -> [HistoryPoint] {
-        guard points.count >= 2 else { return [] }
-        let half = window / 2
+    /// Smoothed weight for each logged day: weigh-ins are linearly
+    /// interpolated onto every calendar day, then averaged over the trailing
+    /// `window` days. This is `computeWeightTrend` in `@workspace/shared`
+    /// (what the phone chart and the server's adaptive TDEE use), so the watch
+    /// and phone read the same for the same weigh-ins — keep the two in step.
+    ///
+    /// Two things the old centred, per-point mean got wrong: it counted
+    /// weigh-ins rather than days, so a skipped morning pulled far-apart
+    /// readings together; and a centred window collapses at the right edge,
+    /// so today's point (the one the wearer looks at) was averaged over only
+    /// four values and jumped around the most.
+    ///
+    /// `points` must be sorted ascending by day, as `trendPoints()` returns.
+    /// Pass the full history, not just the days on screen, so the line is
+    /// already settled where the visible window starts.
+    func weightTrend(points: [HistoryPoint], window: Int = 7) -> [HistoryPoint] {
+        guard points.count >= 2, let first = points.first else { return [] }
+        let offsets = points.compactMap { CheckInDate.dayOffset(from: first.day, to: $0.day) }
+        guard offsets.count == points.count, let span = offsets.last, span > 0 else { return [] }
+
+        var daily = [Double](repeating: 0, count: span + 1)
+        for index in points.indices {
+            let start = offsets[index]
+            daily[start] = points[index].weightKg
+            guard index + 1 < points.count else { continue }
+            let gap = offsets[index + 1] - start
+            guard gap > 1 else { continue }
+            let delta = points[index + 1].weightKg - points[index].weightKg
+            for step in 1..<gap {
+                daily[start + step] = points[index].weightKg + delta * Double(step) / Double(gap)
+            }
+        }
+
         return points.indices.map { index in
-            let lower = max(0, index - half)
-            let upper = min(points.count - 1, index + half)
-            let slice = points[lower...upper]
-            let mean = slice.reduce(0.0) { $0 + $1.weightKg } / Double(slice.count)
+            let end = offsets[index]
+            let slice = daily[max(0, end - window + 1)...end]
+            let mean = slice.reduce(0.0, +) / Double(slice.count)
             return HistoryPoint(day: points[index].day, weightKg: mean, bodyFatPercentage: nil)
         }
+    }
+
+    /// Change per week, in kg, over the last two weeks of `trend` — a
+    /// least-squares slope of trend against day. Port of `weeklyRateOf` in
+    /// `@workspace/shared` (same thresholds; keep them in step). Nil until
+    /// there are at least four weigh-ins spanning two weeks, so a thin history
+    /// shows no rate rather than a wild one.
+    ///
+    /// `trend` is `weightTrend`'s output over the full history, ascending.
+    func weeklyRateKg(trend: [HistoryPoint]) -> Double? {
+        guard let last = trend.last else { return nil }
+        let window = trend.filter {
+            (CheckInDate.dayOffset(from: $0.day, to: last.day) ?? Int.max) <= 14
+        }
+        guard window.count >= 4, let first = window.first else { return nil }
+        let xs = window.compactMap { CheckInDate.dayOffset(from: first.day, to: $0.day) }
+        guard xs.count == window.count, let span = xs.last, span >= 13 else { return nil }
+
+        let n = Double(window.count)
+        let meanX = xs.reduce(0.0) { $0 + Double($1) } / n
+        let meanY = window.reduce(0.0) { $0 + $1.weightKg } / n
+        var numerator = 0.0
+        var denominator = 0.0
+        for (index, point) in window.enumerated() {
+            let dx = Double(xs[index]) - meanX
+            numerator += dx * (point.weightKg - meanY)
+            denominator += dx * dx
+        }
+        guard denominator > 0 else { return nil }
+        return numerator / denominator * 7
     }
 
     // MARK: - Day rollover

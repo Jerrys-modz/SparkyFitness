@@ -487,6 +487,17 @@ struct WatchContext: Codable, Equatable {
     /// Learned correction for the watch's indoor distance. Nil until the
     /// phone has learned one, which reads as no correction.
     var indoorDistanceScale: IndoorDistanceScale? = nil
+    /// The profile's target weight in kg, for the trend chart's goal line.
+    /// Account configuration, so carried forward when a push omits it. The
+    /// phone sends 0 for "no goal" (a null would be stripped in transit);
+    /// read `effectiveGoalWeightKg`.
+    var goalWeightKg: Double? = nil
+
+    /// The target weight, or nil when none is set.
+    var effectiveGoalWeightKg: Double? {
+        guard let goalWeightKg, goalWeightKg > 0 else { return nil }
+        return goalWeightKg
+    }
 
     static let empty = WatchContext(
         today: nil,
@@ -678,6 +689,20 @@ enum CheckInDate {
 
     static func parse(_ value: String) -> Date? {
         formatter.date(from: value)
+    }
+
+    /// Whole calendar days from `start` to `end` (negative when `end` is
+    /// earlier). Nil if either string isn't a `yyyy-MM-dd` day.
+    static func dayOffset(from start: String, to end: String) -> Int? {
+        guard let from = parse(start), let to = parse(end) else { return nil }
+        return Calendar(identifier: .gregorian).dateComponents([.day], from: from, to: to).day
+    }
+
+    /// The day `days` before today, as `yyyy-MM-dd`. Day strings sort
+    /// lexicographically, so this works directly as a cut-off.
+    static func day(daysAgo days: Int) -> String {
+        let date = Calendar(identifier: .gregorian).date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        return formatter.string(from: date)
     }
 
     /// Short weekday + day + month for the entry screen header, e.g. "Mon 17 Aug".
