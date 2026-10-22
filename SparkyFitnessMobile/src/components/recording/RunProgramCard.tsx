@@ -464,7 +464,7 @@ const RunProgramCard: React.FC<Props> = ({
                       weekOne: outline.firstWeek.join(', '),
                       peak: outline.peakRunMinutes,
                       defaultValue:
-                        'Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.',
+                        'Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of effort.',
                     })}
               </Text>
             );

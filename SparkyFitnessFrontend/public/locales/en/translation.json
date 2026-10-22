@@ -9188,7 +9188,7 @@
     },
     "picker": {
       "current": "Current program",
-      "outline": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.",
+      "outline": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of effort.",
       "outlineWalk": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of brisk walking.",
       "runsPerWeekHint": "A fourth run adds a short easy run, so the long run is a smaller share of your week.",
       "start": "Start program",

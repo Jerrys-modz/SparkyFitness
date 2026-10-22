@@ -7203,7 +7203,7 @@
       "fasterHalf4Description": "Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run. For when you have run a half marathon before.",
       "marathonDescription": "Marathon: sixteen weeks, four runs a week, with long runs building to about 2¾ hours and a taper. For people who already run regularly.",
       "outlineWalk": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of brisk walking.",
-      "outline": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.",
+      "outline": "Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of effort.",
       "minutes": "{{minutes}} min",
       "workoutsDone": "{{done}} of {{total}} workouts",
       "optionLabel": "{{name}} · {{weeks}} weeks, {{runs}} workouts a week",
