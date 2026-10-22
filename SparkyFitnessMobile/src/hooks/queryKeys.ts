@@ -1,3 +1,5 @@
+import type { CompareParams } from '../services/api/compareApi';
+
 export const serverConnectionQueryKey = ['serverConnection'] as const;
 
 export const serverConfigsQueryKey = ['serverConfigs'] as const;
@@ -451,3 +453,7 @@ export const routeGenerationCapabilitiesQueryKey = [
 
 /** One saved route with its points and cues. */
 export const routeQueryKey = (id: string) => ['routes', id] as const;
+
+/** One Compare answer: the two metrics, how they are paired, and the window. */
+export const compareQueryKey = (p: CompareParams) =>
+  ['compare', p.a, p.b, p.mode, p.timing, p.start, p.end] as const;
