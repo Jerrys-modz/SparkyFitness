@@ -52,6 +52,11 @@ export interface WatchRunPayload {
    * older watch build, which leaves the phone to ask Apple Health instead.
    */
   steps?: number;
+  /**
+   * Set by the phone, never the watch: the treadmill figure the wearer entered
+   * when a treadmill correction was taken off it to give `distanceMeters`.
+   */
+  treadmillDisplayMeters?: number;
 }
 
 /** Stands in for "no altitude": a property list cannot carry null. */

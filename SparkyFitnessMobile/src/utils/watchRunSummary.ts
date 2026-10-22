@@ -64,8 +64,13 @@ export function watchRunSummary(
             scale: payload.distanceScale ?? 1,
             estimatedMeters:
               payload.estimatedDistanceMeters ?? payload.distanceMeters,
+            startedAt: payload.startedAt,
+            endedAt: payload.endedAt,
           },
         }
+      : {}),
+    ...(payload.treadmillDisplayMeters != null
+      ? { treadmillDisplayMeters: payload.treadmillDisplayMeters }
       : {}),
     // The watch's own figures, not re-derived from a thinned route.
     distanceMeters:

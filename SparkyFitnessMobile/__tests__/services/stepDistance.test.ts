@@ -9,6 +9,7 @@ import {
   learnFromOutdoorRecording,
   measureOutdoorForm,
   measureWatchRunForm,
+  learnFromWatchRun,
   type IndoorDistanceEstimate,
   type StepWindow,
 } from '../../src/services/stepDistance';
@@ -117,6 +118,58 @@ describe('learnFromIndoorEntry', () => {
     await learnFromIndoorEntry('walk', estimate, 0);
     await learnFromIndoorEntry('ride', estimate, 3.5);
 
+    expect(mockedLearn).not.toHaveBeenCalled();
+  });
+});
+
+describe('learnFromWatchRun', () => {
+  it('prefers the steps Apple Health holds, so the phone can be left behind', async () => {
+    mockedHealthSteps.mockResolvedValue(5200);
+
+    expect(await learnFromWatchRun(window({ activity: 'run' }), 5000)).toBe(
+      true
+    );
+
+    expect(mockedHealthSteps).toHaveBeenCalledWith(START, START + 30 * 60_000);
+    expect(mockedSteps).not.toHaveBeenCalled();
+    expect(mockedLearn).toHaveBeenCalledWith('run', 5200, 5000);
+  });
+
+  it('leaves paused time out of the Health steps', async () => {
+    mockedHealthSteps.mockResolvedValue(5200);
+
+    await learnFromWatchRun(
+      window({ activity: 'run', activeSeconds: 1200 }),
+      4000
+    );
+
+    expect(mockedLearn).toHaveBeenCalledWith('run', 3467, 4000);
+  });
+
+  it('learns from the phone’s steps over the run and the corrected distance, asking for access', async () => {
+    expect(await learnFromWatchRun(window({ activity: 'run' }), 5000)).toBe(
+      true
+    );
+
+    expect(mockedSteps).toHaveBeenCalledWith(START, START + 30 * 60_000, {
+      askForPermission: true,
+    });
+    expect(mockedLearn).toHaveBeenCalledWith('run', 3900, 5000);
+  });
+
+  it('learns nothing from a phone that was left behind', async () => {
+    mockedSteps.mockResolvedValue(5);
+
+    expect(await learnFromWatchRun(window(), 5000)).toBe(false);
+    expect(mockedLearn).not.toHaveBeenCalled();
+  });
+
+  it('learns nothing without a step reading, or from a ride', async () => {
+    mockedSteps.mockResolvedValue(null);
+    expect(await learnFromWatchRun(window(), 5000)).toBe(false);
+    expect(await learnFromWatchRun(window({ activity: 'ride' }), 5000)).toBe(
+      false
+    );
     expect(mockedLearn).not.toHaveBeenCalled();
   });
 });
