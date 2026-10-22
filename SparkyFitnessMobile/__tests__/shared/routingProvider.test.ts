@@ -22,6 +22,7 @@ describe('route generate capabilities', () => {
           avoidBusyRoads: false,
         },
         stops: false,
+        stopsSource: null,
         source: null,
       }
     );
