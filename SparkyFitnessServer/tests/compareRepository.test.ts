@@ -14,6 +14,7 @@ import {
   type CompareResult,
 } from '@workspace/shared';
 import type { z } from 'zod';
+import { cardioPredicateSql } from '../utils/exerciseLoadSql.js';
 import compareRepository from '../models/compareRepository.js';
 import { getClient } from '../db/poolManager.js';
 
@@ -113,24 +114,30 @@ describe('compare response schema', () => {
 });
 
 describe('compareRepository', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mockClient: any;
+  const query = vi.fn();
+  const release = vi.fn();
   const run = async (
     rows: Record<string, unknown>[],
     fn: () => Promise<unknown>
   ) => {
-    mockClient.query.mockResolvedValue({ rows });
+    query.mockResolvedValue({ rows });
     return fn();
   };
-  const sqlOf = () => mockClient.query.mock.calls[0][0] as string;
-  const paramsOf = () => mockClient.query.mock.calls[0][1] as unknown[];
+  const sqlOf = () => query.mock.calls[0]![0] as string;
+  const paramsOf = () => query.mock.calls[0]![1] as unknown[];
 
   beforeEach(() => {
-    mockClient = { query: vi.fn(), release: vi.fn() };
-    // @ts-expect-error mock typing
-    getClient.mockResolvedValue(mockClient);
+    vi.mocked(getClient).mockResolvedValue({ query, release } as never);
   });
   afterEach(() => vi.clearAllMocks());
+
+  it('releases the client when the query throws', async () => {
+    query.mockRejectedValue(new Error('boom'));
+    await expect(
+      compareRepository.getCheckInDays('u1', '2026-01-01', '2026-01-31')
+    ).rejects.toThrow('boom');
+    expect(release).toHaveBeenCalledTimes(1);
+  });
 
   it('mood: manual rows only, numbers mapped, nulls kept', async () => {
     const out = await run(
@@ -145,7 +152,7 @@ describe('compareRepository', () => {
     expect(out).toEqual([
       { day: '2026-01-01', mood: 4, energy: 3.5, focus: null },
     ]);
-    expect(mockClient.release).toHaveBeenCalled();
+    expect(release).toHaveBeenCalled();
   });
 
   it('sleep: longest sleep per day, mapped', async () => {
@@ -166,7 +173,11 @@ describe('compareRepository', () => {
     );
     expect(sqlOf()).toContain('user_id = $1');
     expect(sqlOf()).toContain('DISTINCT ON (entry_date)');
-    expect(sqlOf()).toContain('duration_in_seconds DESC');
+    expect(sqlOf()).toContain(
+      'ORDER BY entry_date, duration_in_seconds DESC, bedtime ASC, id'
+    );
+    // Null stays null, as the mobile sleep analytics shows it.
+    expect(sqlOf()).not.toContain('COALESCE(time_asleep_in_seconds');
     expect(sqlOf()).toContain("TO_CHAR(entry_date, 'YYYY-MM-DD')");
     expect(out).toEqual([
       {
@@ -182,6 +193,26 @@ describe('compareRepository', () => {
     ]);
   });
 
+  it('sleep: null time asleep stays null and a Date bedtime becomes ISO', async () => {
+    const out = (await run(
+      [
+        {
+          day: '2026-01-01',
+          time_asleep_seconds: null,
+          sleep_score: null,
+          overnight_hrv: null,
+          resting_heart_rate: null,
+          bedtime: new Date('2026-01-01T06:00:00.000Z'),
+          record_timezone: null,
+          record_utc_offset_minutes: null,
+        },
+      ],
+      () => compareRepository.getMainSleepDays('u1', '2026-01-01', '2026-01-31')
+    )) as { timeAsleepSeconds: number | null; bedtime: string | null }[];
+    expect(out[0]!.timeAsleepSeconds).toBeNull();
+    expect(out[0]!.bedtime).toBe('2026-01-01T06:00:00.000Z');
+  });
+
   it('meditation days and first day', async () => {
     const out = await run(
       [{ day: '2026-01-01', minutes: '12.5', sessions: '2' }],
@@ -192,7 +223,7 @@ describe('compareRepository', () => {
     expect(sqlOf()).toContain("TO_CHAR(entry_date, 'YYYY-MM-DD')");
     expect(out).toEqual([{ day: '2026-01-01', minutes: 12.5, sessions: 2 }]);
 
-    mockClient.query.mockClear();
+    query.mockClear();
     expect(
       await run([{ day: '2025-12-01' }], () =>
         compareRepository.getMeditationFirstDay('u1')
@@ -200,7 +231,7 @@ describe('compareRepository', () => {
     ).toBe('2025-12-01');
     expect(sqlOf()).toContain('MIN(entry_date)');
     expect(paramsOf()).toEqual(['u1']);
-    mockClient.query.mockClear();
+    query.mockClear();
     expect(
       await run([{ day: null }], () =>
         compareRepository.getMeditationFirstDay('u1')
@@ -213,7 +244,11 @@ describe('compareRepository', () => {
       compareRepository.getCardioMinuteDays('u1', '2026-01-01', '2026-01-31')
     );
     expect(sqlOf()).toContain('user_id = $1');
-    expect(sqlOf()).toContain("LOWER(category) = 'cardio'");
+    // The same classification as Exercise Statistics' Cardio view, so a
+    // Fitbit/Google workout stored under 'Other' still counts.
+    expect(sqlOf()).toContain(cardioPredicateSql());
+    expect(sqlOf()).toContain('COALESCE(distance, 0) > 0');
+    expect(sqlOf()).not.toContain("LOWER(category) = 'cardio'");
     expect(sqlOf()).toContain("exercise_name != 'Active Calories'");
     expect(sqlOf()).toContain("TO_CHAR(entry_date, 'YYYY-MM-DD')");
     expect(out).toEqual([{ day: '2026-01-02', minutes: 30 }]);
