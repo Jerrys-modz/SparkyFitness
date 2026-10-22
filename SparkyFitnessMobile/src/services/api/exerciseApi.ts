@@ -513,6 +513,16 @@ export const attachExerciseEntryWatchTelemetry = async (
     durationMinutes?: number;
     /** Stride length in cm; null clears it. */
     strideLengthCm?: number | null;
+    /**
+     * Apple's time-in-zone for the whole workout. Stored instead of
+     * bucketing the series. Sent on one exercise of the session.
+     */
+    appleZones?: {
+      index?: number;
+      minimumBpm?: number | null;
+      maximumBpm?: number | null;
+      seconds: number;
+    }[];
   }
 ): Promise<void> => {
   return apiFetch<void>({

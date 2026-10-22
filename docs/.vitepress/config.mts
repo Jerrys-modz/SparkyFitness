@@ -164,6 +164,8 @@ export default defineConfig({
             { text: 'GPS Activity Recording', link: '/features/exercises/gps-activity-recording' },
             { text: 'Training Programs', link: '/features/exercises/training-programs' },
             { text: 'Running Trends', link: '/features/exercises/running-trends' },
+            { text: 'Heart Rate Zones', link: '/features/exercises/heart-rate-zones' },
+            { text: 'Heart Rate Zones', link: '/features/exercises/heart-rate-zones' },
             { text: 'Shoe Inventory', link: '/features/exercises/shoe-inventory' },
             { text: 'Route Generation', link: '/features/exercises/route-generation' },
             { text: 'Progression & Per-Set Ramp', link: '/features/exercises/progression-and-per-set-ramp' },

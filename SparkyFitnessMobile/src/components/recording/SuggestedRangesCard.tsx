@@ -32,6 +32,8 @@ export interface SuggestedRangesCardProps {
     easy: HeartRateBand;
     warm: HeartRateBand;
     maxHeartRate: number;
+    maxHrSource: 'user' | 'age' | 'observed' | 'fallback';
+    zoneMethod: 'percent_max' | 'heart_rate_reserve' | 'custom';
   } | null;
   onUse: () => void;
 }
@@ -140,11 +142,27 @@ const SuggestedRangesCard: React.FC<SuggestedRangesCardProps> = ({
             })}
           </Text>
           <Text className="text-text-secondary text-xs mt-0.5">
-            {t('recordActivity.suggestedRanges.heartRateSource', {
-              max: heartRate.maxHeartRate,
-              defaultValue:
-                'From an estimated maximum of {{max}} bpm for your age.',
-            })}
+            {heartRate.zoneMethod === 'custom'
+              ? t('recordActivity.suggestedRanges.heartRateSourceCustom', {
+                  defaultValue: 'From your custom heart rate zones.',
+                })
+              : heartRate.zoneMethod === 'heart_rate_reserve'
+                ? t('recordActivity.suggestedRanges.heartRateSourceReserve', {
+                    max: heartRate.maxHeartRate,
+                    defaultValue:
+                      'From your heart rate reserve zones, with a maximum of {{max}} bpm.',
+                  })
+                : heartRate.maxHrSource === 'user'
+                  ? t('recordActivity.suggestedRanges.heartRateSourceUser', {
+                      max: heartRate.maxHeartRate,
+                      defaultValue:
+                        'From your maximum heart rate of {{max}} bpm.',
+                    })
+                  : t('recordActivity.suggestedRanges.heartRateSource', {
+                      max: heartRate.maxHeartRate,
+                      defaultValue:
+                        'From an estimated maximum of {{max}} bpm for your age.',
+                    })}
           </Text>
         </View>
       ) : null}

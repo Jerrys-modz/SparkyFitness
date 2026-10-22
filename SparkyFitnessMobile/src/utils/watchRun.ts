@@ -1,4 +1,5 @@
 import type { RecordedPoint, RecordingActivity } from './gpsRecording';
+import { appleWorkoutZonesFromWire } from '@workspace/shared';
 
 /**
  * A walk or run the watch recorded on its own, as it arrives over the watch
@@ -46,6 +47,13 @@ export interface WatchRunPayload {
    * older watch build, which leaves the phone to ask Apple Health instead.
    */
   steps?: number;
+  /** Apple's time in each heart-rate zone, when the finished workout had one. */
+  appleZones?: {
+    index?: number;
+    minimumBpm?: number | null;
+    maximumBpm?: number | null;
+    seconds: number;
+  }[];
 }
 
 /** Stands in for "no altitude": a property list cannot carry null. */
@@ -116,6 +124,9 @@ export function parseWatchRunPayload(raw: unknown): WatchRunPayload | null {
       : {}),
     ...(finite(p.steps) && p.steps > 0 ? { steps: Math.round(p.steps) } : {}),
     ...(typeof p.ownerId === 'string' ? { ownerId: p.ownerId } : {}),
+    ...(appleWorkoutZonesFromWire(p.appleZones)
+      ? { appleZones: appleWorkoutZonesFromWire(p.appleZones) ?? undefined }
+      : {}),
   };
 }
 

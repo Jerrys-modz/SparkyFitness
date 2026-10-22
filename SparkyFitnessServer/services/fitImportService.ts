@@ -123,6 +123,7 @@ async function persistFitEntry(
           exercise_entry_id: entry.id,
           entry_date: entryDate,
           ...zone,
+          zone_method: 'device',
         }))
       );
     }

@@ -1,4 +1,8 @@
-import { compareByEntryTime, earliestEntryTime } from '@workspace/shared';
+import {
+  compareByEntryTime,
+  earliestEntryTime,
+  type ExerciseEntryHrZonesInitializer,
+} from '@workspace/shared';
 import { getClient } from '../db/poolManager.js';
 import type { PoolClient } from 'pg';
 // @ts-expect-error TS(7016): Could not find a declaration file for module 'pg-f... Remove this comment to see the full error message
@@ -533,6 +537,7 @@ export type WatchTelemetryZoneSpec = {
   /** null for the open-ended top zone. */
   zone_upper_bpm: number | null;
   seconds_in_zone: number;
+  zone_method?: ExerciseEntryHrZonesInitializer['zone_method'];
 };
 
 /**
@@ -552,7 +557,13 @@ async function applyWatchTelemetryAtomically(
    * doing it after COMMIT let an older flush store samples the lock had
    * already rejected, or land them after a newer flush.
    */
-  onHrAccepted?: () => Promise<void>
+  onHrAccepted?: () => Promise<void>,
+  /**
+   * The zones are Apple's total for the whole workout, not this exercise.
+   * Drop the other exercises of the same session so a combined chart does
+   * not count that time again.
+   */
+  sessionZones = false
 ): Promise<void> {
   const client = await getClient(userId, actingUserId);
   try {
@@ -568,6 +579,7 @@ async function applyWatchTelemetryAtomically(
             max_heart_rate?: unknown;
             active_calories?: unknown;
             watch_telemetry_observed_at?: unknown;
+            exercise_preset_entry_id?: string | null;
           }
         | undefined;
       if (!entry) {
@@ -599,7 +611,21 @@ async function applyWatchTelemetryAtomically(
             zone_lower_bpm: zone.zone_lower_bpm,
             zone_upper_bpm: zone.zone_upper_bpm,
             seconds_in_zone: zone.seconds_in_zone,
+            zone_method: zone.zone_method,
           }))
+        );
+      }
+      if (!skipHr && sessionZones && entry.exercise_preset_entry_id) {
+        await client.query(
+          `DELETE FROM exercise_entry_hr_zones
+           WHERE user_id = $1
+             AND exercise_entry_id IN (
+               SELECT id FROM exercise_entries
+               WHERE user_id = $1
+                 AND exercise_preset_entry_id = $2
+                 AND id <> $3
+             )`,
+          [userId, entry.exercise_preset_entry_id, id]
         );
       }
       if (!skipHr && onHrAccepted) {

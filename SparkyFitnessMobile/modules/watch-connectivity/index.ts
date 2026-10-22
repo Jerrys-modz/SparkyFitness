@@ -577,6 +577,16 @@ export interface WatchHeartRateBatchPayload {
    */
   durationMinutes?: number;
   /**
+   * Apple's time-in-zone for the whole workout. Present only on the batch
+   * sent after HealthKit finishes it. Five zones, each with `seconds`.
+   */
+  appleZones?: Array<{
+    index?: number;
+    minimumBpm?: number;
+    maximumBpm?: number;
+    seconds: number;
+  }>;
+  /**
    * Server config that was active when the phone received this batch. The
    * phone only applies a batch whose owner is the active config; a batch for
    * another config stays queued and is not posted or acked. Absent when no
@@ -724,6 +734,13 @@ export interface WatchRecordingHeartRatePayload {
   /** Dedupes a re-delivered queued batch. */
   clientId: string;
   samples: WatchHeartRateSamplePayload[];
+  /** Apple's zone group for the finished recording, when HealthKit had one. */
+  appleZones?: Array<{
+    index?: number;
+    minimumBpm?: number;
+    maximumBpm?: number;
+    seconds: number;
+  }>;
 }
 
 /** The wearer asked to start a fast from the watch's Fasting page. */
@@ -775,6 +792,13 @@ export interface WatchRunFinishedPayload {
   distanceScale?: number;
   /** What the watch showed before a treadmill distance was entered on the wrist. */
   estimatedDistanceMeters?: number;
+  /** Apple's heart-rate zone group, when the finished workout had one. */
+  appleZones?: Array<{
+    index?: number;
+    minimumBpm?: number;
+    maximumBpm?: number;
+    seconds: number;
+  }>;
 }
 
 /**

@@ -302,41 +302,64 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         self.builder = nil
         session.end()
         endingBuilder.endCollection(withEnd: endedAt) { [weak self] _, _ in
+            let lock = NSLock()
+            var delivered = false
+            // HealthKit's zone totals exist only after finishWorkout. Wait for
+            // that, but not forever: a hung save must still file the run.
+            let deliver: ([[String: Any]]) -> Void = { zones in
+                lock.lock()
+                if delivered {
+                    lock.unlock()
+                    return
+                }
+                delivered = true
+                lock.unlock()
+                DispatchQueue.main.async {
+                    guard let self else {
+                        completion(WatchRunMetrics(), finalElapsed, nil)
+                        return
+                    }
+                    guard save else {
+                        completion(self.metrics, finalElapsed, nil)
+                        return
+                    }
+                    let steps = Self.workoutStepCount(endingBuilder) ?? pedometerStepsAtEnd
+                    var result = WatchRunResult(
+                        clientId: self.clientId,
+                        kind: self.runKind,
+                        place: self.runPlace,
+                        startedAt: self.startedAt,
+                        endedAt: endedAt,
+                        activeSeconds: finalElapsed,
+                        metrics: self.metrics,
+                        route: rows.route,
+                        heartRate: rows.heartRate,
+                        laps: rows.laps,
+                        lapDistances: rows.lapDistances,
+                        distanceSeries: self.distanceSeries,
+                        plan: self.plan,
+                        planCompleted: self.planCompleted(at: finalElapsed),
+                        steps: steps
+                    )
+                    result.appleZones = zones
+                    completion(self.metrics, finalElapsed, result)
+                }
+            }
             if save {
                 endingBuilder.finishWorkout { workout, _ in
-                    // The route can only be attached to a saved workout.
                     if let workout, let endingRoute {
                         endingRoute.finishRoute(with: workout, metadata: nil) { _, _ in }
                     }
+                    let zones = workout.map { AppleWorkoutZones.heartRateZones(of: $0) } ?? []
+                    deliver(zones)
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                    deliver([])
                 }
             } else {
                 endingBuilder.discardWorkout()
                 endingRoute?.discard()
-            }
-            DispatchQueue.main.async {
-                guard let self else {
-                    completion(WatchRunMetrics(), finalElapsed, nil)
-                    return
-                }
-                let steps = Self.workoutStepCount(endingBuilder) ?? pedometerStepsAtEnd
-                let result = save ? WatchRunResult(
-                    clientId: self.clientId,
-                    kind: self.runKind,
-                    place: self.runPlace,
-                    startedAt: self.startedAt,
-                    endedAt: endedAt,
-                    activeSeconds: finalElapsed,
-                    metrics: self.metrics,
-                    route: rows.route,
-                    heartRate: rows.heartRate,
-                    laps: rows.laps,
-                    lapDistances: rows.lapDistances,
-                    distanceSeries: self.distanceSeries,
-                    plan: self.plan,
-                    planCompleted: self.planCompleted(at: finalElapsed),
-                    steps: steps
-                ) : nil
-                completion(self.metrics, finalElapsed, result)
+                deliver([])
             }
         }
     }

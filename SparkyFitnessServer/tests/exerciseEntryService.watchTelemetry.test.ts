@@ -30,6 +30,14 @@ vi.mock('../utils/timezoneLoader', () => ({
 vi.mock('../models/userRepository', () => ({
   default: { getUserProfile: vi.fn() },
 }));
+vi.mock('../models/heartRateZoneRepository', () => ({
+  getHeartRateZoneSettings: vi.fn().mockResolvedValue({
+    maxHeartRate: null,
+    restingHeartRate: null,
+    method: 'percent_max',
+    customFloors: null,
+  }),
+}));
 vi.mock('../models/workoutTelemetryRepository', () => ({
   bulkInsertExerciseEntryHrZones: vi.fn(),
   replaceExerciseEntryHrZones: vi.fn(),
@@ -125,7 +133,9 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
         calories_burned: 312,
         active_calories: 312,
       },
-      null
+      null,
+      undefined,
+      false
     );
   });
 
@@ -165,8 +175,96 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
         active_calories: 200,
       }),
       expect.any(Array),
-      expect.any(Function)
+      expect.any(Function),
+      false
     );
+  });
+
+  describe('Apple zones', () => {
+    const appleZones = [
+      { index: 1, minimumBpm: null, maximumBpm: 100, seconds: 60 },
+      { index: 2, minimumBpm: 100, maximumBpm: 120, seconds: 0 },
+      { index: 3, minimumBpm: 120, maximumBpm: 140, seconds: 300 },
+      { index: 4, minimumBpm: 140, maximumBpm: 160, seconds: 120 },
+      { index: 5, minimumBpm: 160, maximumBpm: null, seconds: 30 },
+    ];
+
+    it('stores the zone group as device zones and replaces the session', async () => {
+      await attachWatchTelemetryToExerciseEntry(
+        userId,
+        userId,
+        entryId,
+        undefined,
+        undefined,
+        undefined,
+        appleZones
+      );
+
+      expect(
+        exerciseEntryRepository.applyWatchTelemetryAtomically
+      ).toHaveBeenCalledWith(
+        entryId,
+        userId,
+        userId,
+        {},
+        [
+          {
+            zone_index: 1,
+            zone_lower_bpm: 30,
+            zone_upper_bpm: 99,
+            seconds_in_zone: 60,
+            zone_method: 'device',
+          },
+          {
+            zone_index: 3,
+            zone_lower_bpm: 120,
+            zone_upper_bpm: 139,
+            seconds_in_zone: 300,
+            zone_method: 'device',
+          },
+          {
+            zone_index: 4,
+            zone_lower_bpm: 140,
+            zone_upper_bpm: 159,
+            seconds_in_zone: 120,
+            zone_method: 'device',
+          },
+          {
+            zone_index: 5,
+            zone_lower_bpm: 160,
+            zone_upper_bpm: null,
+            seconds_in_zone: 30,
+            zone_method: 'device',
+          },
+        ],
+        undefined,
+        true
+      );
+    });
+
+    it('ignores a zone group that is not five usable zones', async () => {
+      await attachWatchTelemetryToExerciseEntry(
+        userId,
+        userId,
+        entryId,
+        undefined,
+        312,
+        undefined,
+        appleZones.slice(0, 4)
+      );
+
+      expect(
+        exerciseEntryRepository.applyWatchTelemetryAtomically
+      ).toHaveBeenCalledWith(
+        entryId,
+        userId,
+        userId,
+        expect.objectContaining({ calories_burned: 312 }),
+        null,
+        undefined,
+        false
+      );
+    });
   });
 });
 

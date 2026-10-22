@@ -350,6 +350,27 @@ export const attachExerciseEntryWatchTelemetryRequestSchema = z
      * leaves the duration and everything else on the entry alone.
      */
     strideLengthCm: z.number().positive().max(500).nullable().optional(),
+    /**
+     * Apple's time-in-zone for the whole workout, from the finished
+     * HKWorkout. When these five zones are usable they are stored as the
+     * device's zones and the series is not bucketed again. One post per
+     * workout: the server clears zones on the other exercises of the same
+     * session so the chart is not counted twice.
+     */
+    appleZones: z
+      .array(
+        z.object({
+          index: z.number().int().min(0).max(20).optional(),
+          minimumBpm: z.number().min(0).max(300).nullable().optional(),
+          maximumBpm: z.number().min(0).max(300).nullable().optional(),
+          seconds: z
+            .number()
+            .nonnegative()
+            .max(7 * 24 * 60 * 60),
+        })
+      )
+      .max(8)
+      .optional(),
   })
   .strict()
   .refine(
@@ -357,10 +378,11 @@ export const attachExerciseEntryWatchTelemetryRequestSchema = z
       body.hrSamples !== undefined ||
       body.activeEnergyKcal !== undefined ||
       body.strideLengthCm !== undefined ||
-      (body.durationMinutes !== undefined && body.durationMinutes > 0),
+      (body.durationMinutes !== undefined && body.durationMinutes > 0) ||
+      (body.appleZones !== undefined && body.appleZones.length > 0),
     {
       message:
-        'At least one of hrSamples, activeEnergyKcal, durationMinutes, or strideLengthCm is required.',
+        'At least one of hrSamples, activeEnergyKcal, durationMinutes, strideLengthCm, or appleZones is required.',
     }
   );
 

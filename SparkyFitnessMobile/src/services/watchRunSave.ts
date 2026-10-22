@@ -187,11 +187,13 @@ async function attachTelemetry(
       : undefined;
   const activeEnergyKcal =
     payload.activeEnergyKcal > 0 ? payload.activeEnergyKcal : undefined;
-  if (!hrSamples && activeEnergyKcal === undefined) return;
+  if (!hrSamples && activeEnergyKcal === undefined && !payload.appleZones)
+    return;
   try {
     await attachExerciseEntryWatchTelemetry(entryId, {
       ...(hrSamples ? { hrSamples } : {}),
       ...(activeEnergyKcal !== undefined ? { activeEnergyKcal } : {}),
+      ...(payload.appleZones ? { appleZones: payload.appleZones } : {}),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
