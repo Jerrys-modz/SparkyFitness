@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -8,19 +8,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import MapView, { Marker, Polyline, type Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { useCSSVariable } from 'uniwind';
-import {
-  canAddFollowRoadsPoint,
-  ROUTE_FOLLOW_ROADS_MAX_POINTS,
-  countRouteTurns,
-  routeDistanceMeters,
-  type RoutePoint,
-} from '@workspace/shared';
+import { ROUTE_MAX_CUES, countRouteTurns } from '@workspace/shared';
 import Button from '../components/ui/Button';
 import Switch from '../components/ui/Switch';
 import { useFollowRoadsRoute } from '../hooks/useFollowRoadsRoute';
@@ -29,10 +23,30 @@ import { useScreenHeader } from '../hooks/useScreenHeader';
 import { addLog } from '../services/LogService';
 import {
   saveDrawnRoute,
+  saveRouteEdits,
+  useRoute,
   useRouteGenerationAvailable,
 } from '../services/routeService';
-import { routeGenerateErrorMessage } from '../utils/routeGenerateError';
+import {
+  EMPTY_EDITOR_STATE,
+  ROUTE_EDITOR_MAX_POINTS,
+  addPoint,
+  deletePoint,
+  emptyHistory,
+  hitTestLine,
+  insertPoint,
+  movePoint,
+  pushHistory,
+  redoHistory,
+  setLegStraight,
+  stateFromRoute,
+  undoHistory,
+  type EditorHistory,
+  type EditorState,
+} from '../utils/routeEditor';
+import { routeGenerateKindMessage } from '../utils/routeGenerateError';
 import { formatRouteDistance } from '../utils/routeDisplay';
+import { canShowRouteMap } from '../utils/routeMapSupport';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type Props = RootStackScreenProps<'RouteDraw'>;
@@ -45,43 +59,83 @@ const FALLBACK_REGION = {
   longitudeDelta: 40,
 };
 const MIN_ROUTE_METERS = 10;
-/** Every point is a tap, so this is far more than anyone draws by hand. */
-const MAX_DRAWN_POINTS = 500;
+const METERS_PER_DEGREE_LAT = 111320;
+/** A tap this close (share of the visible height) to the line adds a point on it. */
+const LINE_TAP_SHARE = 0.04;
 
 /**
- * Draw a route by tapping the map: each tap adds a point and the points are
- * joined by straight lines, so tap often around bends. When the person has a
- * routing provider, "Follow roads" turns the taps into ordered waypoints and
- * the engine's line (with its turn cues) replaces the straight ones.
+ * Draw or edit a route on the map. Tap to add points, tap the line to insert
+ * one on it, drag a point to move it, select a point to delete it. Undo, redo
+ * and clear cover every change. When the person has a routing provider,
+ * "Follow roads" snaps each stretch to roads or trails (a selected point can
+ * make the stretch before or after it straight); the engine's line, with its
+ * turn cues, replaces the straight ones. Without one every stretch is a
+ * straight line. With a `routeId` the saved route opens for editing and saving
+ * replaces its line.
  */
-const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
+const RouteDrawScreen: React.FC<Props> = ({ navigation, route: nav }) => {
+  const routeId = nav.params?.routeId;
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { preferences } = usePreferences();
   const unit = preferences?.default_distance_unit ?? 'km';
   const lineColor = useCSSVariable('--color-accent-primary') as string;
   const mapRef = useRef<MapView>(null);
-  const [points, setPoints] = useState<RoutePoint[]>([]);
+  const regionRef = useRef<Region>(FALLBACK_REGION);
+  const [history, setHistory] = useState<EditorHistory>(() =>
+    emptyHistory(EMPTY_EDITOR_STATE)
+  );
+  const editor = history.present;
+  const [selected, setSelected] = useState<number | null>(null);
+  const [satellite, setSatellite] = useState(false);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const [followRoads, setFollowRoads] = useState(false);
   const { available, isLoading: checkingCapabilities } =
     useRouteGenerationAvailable();
   const snapping = available && followRoads;
-  const snap = useFollowRoadsRoute(snapping, points);
-  const snapped = snapping ? snap.preview : null;
-  const atWaypointLimit = snapping && !canAddFollowRoadsPoint(points.length);
+  const saved = useRoute(routeId ?? '');
+  const snap = useFollowRoadsRoute(snapping, editor);
+  const line = snap.line;
+  const atPointLimit = editor.points.length >= ROUTE_EDITOR_MAX_POINTS;
 
-  const distance = snapped ? snapped.distanceM : routeDistanceMeters(points);
-  // Following roads saves what the engine returned, so wait until it matches
-  // the taps on screen.
+  // Open a saved route once it has loaded. Set during render, not in an
+  // effect, so the first frame already shows the route.
+  const [opened, setOpened] = useState(false);
+  if (saved.route && !opened) {
+    setOpened(true);
+    setHistory(emptyHistory(stateFromRoute(saved.route)));
+    setName(saved.route.name);
+    setFollowRoads(saved.route.cues.length > 0);
+  }
+  // Until a saved route has loaded, edits would be thrown away by opening it.
+  const editable = routeId === undefined || opened;
+  const savedPoints = saved.route?.points;
+  useEffect(() => {
+    if (!opened || !savedPoints) return;
+    mapRef.current?.fitToCoordinates(
+      savedPoints.map((p) => ({ latitude: p.lat, longitude: p.lon })),
+      {
+        edgePadding: { top: 60, right: 40, bottom: 320, left: 40 },
+        animated: false,
+      }
+    );
+  }, [opened, savedPoints]);
+
+  const edit = (change: (state: EditorState) => EditorState) =>
+    setHistory((current) => pushHistory(current, change(current.present)));
+
+  // Following roads saves what the engine returned, so wait until every
+  // snapped stretch has its routed line.
   const canSave =
-    points.length >= 2 &&
-    distance >= MIN_ROUTE_METERS &&
+    editable &&
+    editor.points.length >= 2 &&
+    line.distanceM >= MIN_ROUTE_METERS &&
     name.trim() !== '' &&
-    (!snapping || (snapped !== null && snap.isCurrent));
+    (!snapping || snap.isCurrent);
 
   const centerOnPerson = () => {
+    if (routeId) return;
     void (async () => {
       const permission = await Location.getForegroundPermissionsAsync();
       if (!permission.granted) return;
@@ -101,12 +155,20 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
 
   const save = () => {
     setSaving(true);
-    void saveDrawnRoute(
-      snapped
-        ? { name: name.trim(), points: snapped.points, cues: snapped.cues }
-        : { name: name.trim(), points }
-    )
-      .then((route) => navigation.replace('RouteDetail', { id: route.id }))
+    // A route keeps up to ROUTE_MAX_CUES cues; a line with more is saved
+    // without them rather than refused.
+    const cues = line.cues.length > ROUTE_MAX_CUES ? [] : line.cues;
+    const body = {
+      name: name.trim(),
+      points: line.points,
+      ...(cues.length > 0 || routeId ? { cues } : {}),
+    };
+    const done = routeId
+      ? saveRouteEdits(routeId, body).then(() => navigation.goBack())
+      : saveDrawnRoute(body).then((route) =>
+          navigation.replace('RouteDetail', { id: route.id })
+        );
+    void done
       .catch((error: unknown) => {
         addLog(`[Routes] Could not save a drawn route: ${error}`, 'WARNING');
         Toast.show({
@@ -120,7 +182,9 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const header = useScreenHeader({
-    title: t('screens.routeDraw', { defaultValue: 'Draw a route' }),
+    title: routeId
+      ? t('screens.routeEdit', { defaultValue: 'Edit route' })
+      : t('screens.routeDraw', { defaultValue: 'Draw a route' }),
     left: { kind: 'back' },
     right: {
       kind: 'primary',
@@ -130,14 +194,41 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
     },
   });
 
-  const coordinates = points.map((p) => ({
-    latitude: p.lat,
-    longitude: p.lon,
-  }));
-  const lineCoordinates = (snapped?.points ?? points).map((p) => ({
-    latitude: p.lat,
-    longitude: p.lon,
-  }));
+  const onMapPress = (latitude: number, longitude: number) => {
+    setSelected(null);
+    if (!editable || atPointLimit) return;
+    const point = { lat: latitude, lon: longitude };
+    const reach =
+      regionRef.current.latitudeDelta * METERS_PER_DEGREE_LAT * LINE_TAP_SHARE;
+    const hit = hitTestLine(line, point, reach);
+    if (hit) {
+      edit((state) => insertPoint(state, hit.leg, hit.point));
+    } else {
+      edit((state) => addPoint(state, point));
+    }
+  };
+
+  const lastIndex = editor.points.length - 1;
+  const selectedPoint = selected !== null ? editor.points[selected] : undefined;
+  const legBefore = selected !== null ? editor.legs[selected - 1] : undefined;
+  const legAfter = selected !== null ? editor.legs[selected] : undefined;
+
+  // An Android build without a Google Maps key draws a blank map, and the
+  // entry points are hidden there; this covers a stale link or screen state.
+  if (!canShowRouteMap()) {
+    return (
+      <>
+        {header}
+        <View className="flex-1 bg-background items-center justify-center px-6">
+          <Text className="text-text-secondary text-base text-center">
+            {t('routes.mapUnavailable', {
+              defaultValue: 'Routes cannot be drawn on a map in this build.',
+            })}
+          </Text>
+        </View>
+      </>
+    );
+  }
 
   return (
     <>
@@ -147,48 +238,76 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
           ref={mapRef}
           style={StyleSheet.absoluteFill}
           initialRegion={FALLBACK_REGION}
+          mapType={satellite ? 'hybrid' : 'standard'}
           onMapReady={centerOnPerson}
+          onRegionChangeComplete={(region) => {
+            regionRef.current = region;
+          }}
           onPress={(event) => {
-            if (atWaypointLimit) return;
             const { latitude, longitude } = event.nativeEvent.coordinate;
-            if (points.length >= MAX_DRAWN_POINTS) {
-              Toast.show({
-                type: 'info',
-                text1: t('routes.drawLimit', {
-                  defaultValue:
-                    'That is as many points as a route can have here. Undo some or save this one.',
-                }),
-              });
-              return;
-            }
-            setPoints((current) => [
-              ...current,
-              { lat: latitude, lon: longitude },
-            ]);
+            onMapPress(latitude, longitude);
           }}
           showsUserLocation
           toolbarEnabled={false}
         >
-          {lineCoordinates.length > 1 ? (
+          {line.legLines.map((leg, index) => (
             <Polyline
-              coordinates={lineCoordinates}
+              key={`leg-${index}`}
+              coordinates={leg.map((p) => ({
+                latitude: p.lat,
+                longitude: p.lon,
+              }))}
               strokeColor={lineColor}
               strokeWidth={4}
               lineCap="round"
               lineJoin="round"
+              lineDashPattern={
+                snapping && editor.legs[index]?.straight ? [10, 8] : undefined
+              }
             />
-          ) : null}
-          {/* Only the ends are marked: a marker per tap is a native view each. */}
-          {coordinates.map((coordinate, index) =>
-            index === 0 || index === coordinates.length - 1 ? (
-              <Marker
-                key={index}
-                coordinate={coordinate}
-                pinColor={index === 0 ? 'green' : 'red'}
-              />
-            ) : null
-          )}
+          ))}
+          {editor.points.map((point, index) => (
+            <Marker
+              key={index}
+              coordinate={{ latitude: point.lat, longitude: point.lon }}
+              draggable
+              onPress={(event) => {
+                event.stopPropagation();
+                setSelected(index);
+              }}
+              onDragEnd={(event) => {
+                const { latitude, longitude } = event.nativeEvent.coordinate;
+                edit((state) =>
+                  movePoint(state, index, { lat: latitude, lon: longitude })
+                );
+              }}
+              pinColor={
+                index === selected
+                  ? 'yellow'
+                  : index === 0
+                    ? 'green'
+                    : index === lastIndex
+                      ? 'red'
+                      : 'azure'
+              }
+              opacity={
+                index === 0 || index === lastIndex || index === selected
+                  ? 1
+                  : 0.7
+              }
+            />
+          ))}
         </MapView>
+        <View
+          className="absolute right-3 bg-surface rounded-xl"
+          style={{ top: 12 }}
+        >
+          <Button variant="secondary" onPress={() => setSatellite((v) => !v)}>
+            {satellite
+              ? t('routes.mapStandard', { defaultValue: 'Map' })
+              : t('routes.mapSatellite', { defaultValue: 'Satellite' })}
+          </Button>
+        </View>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           className="absolute left-0 right-0 bottom-0 bg-surface"
@@ -199,6 +318,25 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
             className="px-4 pt-3"
             style={{ paddingBottom: insets.bottom + 12 }}
           >
+            {routeId && !opened ? (
+              saved.isError ? (
+                <View className="flex-row items-center justify-between mb-3">
+                  <Text className="text-text-secondary text-sm flex-1 mr-3">
+                    {t('routes.loadOneFailed', {
+                      defaultValue: 'Could not load this route.',
+                    })}
+                  </Text>
+                  <Button
+                    variant="secondary"
+                    onPress={() => void saved.refetch()}
+                  >
+                    {t('common.retry', { defaultValue: 'Retry' })}
+                  </Button>
+                </View>
+              ) : (
+                <ActivityIndicator className="mb-3" />
+              )
+            ) : null}
             <TextInput
               className="border-b border-border-subtle text-text-primary py-1"
               style={{ fontSize: 16 }}
@@ -251,36 +389,93 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
                 </Text>
               </View>
             ) : null}
-            {snapping && snap.error ? (
-              <View className="flex-row items-center justify-between mt-2">
-                <Text className="text-text-secondary text-sm flex-1 mr-3">
-                  {routeGenerateErrorMessage(snap.error, t)}
+            {snapping && snap.errorKind ? (
+              <View className="mt-2" testID="route-snap-error">
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-text-secondary text-sm flex-1 mr-3">
+                    {routeGenerateKindMessage(snap.errorKind, t)}
+                  </Text>
+                  <Button variant="secondary" onPress={snap.retry}>
+                    {t('common.retry', { defaultValue: 'Retry' })}
+                  </Button>
+                </View>
+                <Text className="text-text-secondary text-sm mt-1">
+                  {t('routes.followRoadsUnrouted', {
+                    defaultValue:
+                      'Stretches without a road line show straight. Retry, or turn off Follow roads to save them straight.',
+                  })}
                 </Text>
-                <Button variant="secondary" onPress={snap.retry}>
-                  {t('common.retry', { defaultValue: 'Retry' })}
-                </Button>
               </View>
             ) : null}
-            {atWaypointLimit ? (
+            {atPointLimit ? (
               <Text className="text-text-secondary text-sm mt-2">
-                {t('routes.followRoadsLimit', {
+                {t('routes.editorPointLimit', {
                   defaultValue:
-                    'Following roads takes up to {{max}} points. Undo a point to add another.',
-                  max: ROUTE_FOLLOW_ROADS_MAX_POINTS,
+                    'A route takes up to {{max}} points. Delete a point to add another.',
+                  max: ROUTE_EDITOR_MAX_POINTS,
                 })}
               </Text>
+            ) : null}
+            {selectedPoint !== undefined && selected !== null ? (
+              <View className="flex-row flex-wrap gap-2 mt-3">
+                <Button
+                  variant="destructive"
+                  onPress={() => {
+                    edit((state) => deletePoint(state, selected));
+                    setSelected(null);
+                  }}
+                >
+                  {t('routes.deletePoint', { defaultValue: 'Delete point' })}
+                </Button>
+                {snapping && legBefore ? (
+                  <Button
+                    variant="secondary"
+                    onPress={() =>
+                      edit((state) =>
+                        setLegStraight(state, selected - 1, !legBefore.straight)
+                      )
+                    }
+                  >
+                    {legBefore.straight
+                      ? t('routes.followBefore', {
+                          defaultValue: 'Follow roads before',
+                        })
+                      : t('routes.straightBefore', {
+                          defaultValue: 'Straight before',
+                        })}
+                  </Button>
+                ) : null}
+                {snapping && legAfter ? (
+                  <Button
+                    variant="secondary"
+                    onPress={() =>
+                      edit((state) =>
+                        setLegStraight(state, selected, !legAfter.straight)
+                      )
+                    }
+                  >
+                    {legAfter.straight
+                      ? t('routes.followAfter', {
+                          defaultValue: 'Follow roads after',
+                        })
+                      : t('routes.straightAfter', {
+                          defaultValue: 'Straight after',
+                        })}
+                  </Button>
+                ) : null}
+              </View>
             ) : null}
             <View className="flex-row items-center justify-between mt-3">
               <View className="flex-1 mr-3 flex-row items-center">
                 <Text className="text-text-primary text-base font-semibold">
-                  {points.length < 2
+                  {editor.points.length < 2
                     ? t('routes.drawHint', {
                         defaultValue: 'Tap the map to add points',
                       })
-                    : formatRouteDistance(distance, unit)}
-                  {snapped
+                    : formatRouteDistance(line.distanceM, unit)}
+                  {snapping && line.cues.length > 0
                     ? ` · ${t('routes.turnCount', {
-                        count: countRouteTurns(snapped.cues),
+                        count: countRouteTurns(line.cues),
                         defaultValue: '{{count}} turns',
                         defaultValue_one: '{{count}} turn',
                         defaultValue_other: '{{count}} turns',
@@ -299,15 +494,31 @@ const RouteDrawScreen: React.FC<Props> = ({ navigation }) => {
               <View className="flex-row gap-2">
                 <Button
                   variant="secondary"
-                  disabled={points.length === 0}
-                  onPress={() => setPoints((current) => current.slice(0, -1))}
+                  disabled={history.past.length === 0}
+                  onPress={() => {
+                    setSelected(null);
+                    setHistory(undoHistory);
+                  }}
                 >
                   {t('routes.undo', { defaultValue: 'Undo' })}
                 </Button>
                 <Button
                   variant="secondary"
-                  disabled={points.length === 0}
-                  onPress={() => setPoints([])}
+                  disabled={history.future.length === 0}
+                  onPress={() => {
+                    setSelected(null);
+                    setHistory(redoHistory);
+                  }}
+                >
+                  {t('routes.redo', { defaultValue: 'Redo' })}
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={editor.points.length === 0}
+                  onPress={() => {
+                    setSelected(null);
+                    edit(() => EMPTY_EDITOR_STATE);
+                  }}
                 >
                   {t('routes.clear', { defaultValue: 'Clear' })}
                 </Button>

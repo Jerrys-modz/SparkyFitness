@@ -260,3 +260,42 @@ export function routeBounds(points: readonly RoutePoint[]): RouteBounds | null {
   }
   return bounds;
 }
+
+type LatLon = Pick<RoutePoint, 'lat' | 'lon'>;
+type Xy = { x: number; y: number };
+
+/**
+ * An equirectangular projection around `origin`, in metres. Accurate to a
+ * few centimetres over the distances a route spans, and far cheaper than
+ * great-circle maths for nearest-point searches.
+ */
+export function localProjector(origin: LatLon): (p: LatLon) => Xy {
+  const metresPerDegLat = (Math.PI * EARTH_RADIUS_M) / 180;
+  const metresPerDegLon = metresPerDegLat * Math.cos(toRad(origin.lat));
+  return (p) => ({
+    x: (p.lon - origin.lon) * metresPerDegLon,
+    y: (p.lat - origin.lat) * metresPerDegLat,
+  });
+}
+
+/** Distance from `p` to the segment `a`-`b`, and where along it (0 to 1). */
+export function distanceToSegment(
+  p: Xy,
+  a: Xy,
+  b: Xy
+): { distance: number; t: number } {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lengthSq = dx * dx + dy * dy;
+  const t =
+    lengthSq === 0
+      ? 0
+      : Math.max(
+          0,
+          Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSq)
+        );
+  return {
+    distance: Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy)),
+    t,
+  };
+}

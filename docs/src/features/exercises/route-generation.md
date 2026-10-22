@@ -52,6 +52,22 @@ If the provider's URL points at a private or LAN address, the usual rule for sel
 
 ---
 
+## Editing a route on the map
+
+In the mobile app, **Routes → Draw** and **Edit route on map** (on a saved route) open the route editor. Tap the map to add points, tap the line to insert a point on it, drag a point to move it, and select a point to delete it. Undo, Redo and Clear cover every change. The **Satellite** button switches the map to the platform's satellite imagery.
+
+With a routing engine configured, **Follow roads** snaps each stretch between points to roads or trails. Select a point and choose **Straight before** or **Straight after** to draw that stretch as a plain line (for a shortcut across a field, say). Moving a point re-routes only the stretches next to it, and stretches of a saved route you have not touched keep the line they had. Without a routing engine every stretch is a straight line.
+
+A route takes up to 100 points. A saved route opens thinned to at most 60 draggable points so it stays easy to handle; the stretches in between keep their saved line and turn cues until you edit them. **Edit route on map** and **Draw on a map** are only offered where the app can show a real map (on Android that needs a build with a Google Maps key).
+
+### Request limits
+
+The routing endpoint allows 10 requests per person per 10 minutes. The editor sends one request per run of consecutive snapped stretches (up to 20 stretches each), remembers every answer so undo, redo and switching back cost nothing, waits for you to stop editing before asking, and holds back at 8 requests per 10 minutes, leaving the rest for the Generate screen. If you reach that, or the server answers that you are over its limit, the stretches that are not routed yet are drawn straight with a message and a **Retry** button, and routing resumes on its own once the window frees up. Your points are never lost; Save is disabled until every snapped stretch has its road line, or you turn **Follow roads** off to save them straight. Drawing a long route point by point with **Follow roads** on spends a request for each pause, so it is cheaper to place the points first and switch **Follow roads** on afterwards.
+
+### Saving over a route
+
+Saving an edited route replaces its line with `PATCH /api/v2/routes/:id`; its name, activity, source and creation date are kept, and the distance and climb are recomputed from the new line.
+
 ## Running Valhalla locally
 
 Add a service to your Compose file (or run it alongside) using the community-maintained [gis-ops image](https://github.com/gis-ops/docker-valhalla). It downloads an OpenStreetMap extract on first start and builds its tiles, which can take a few minutes to a few hours depending on the area.
