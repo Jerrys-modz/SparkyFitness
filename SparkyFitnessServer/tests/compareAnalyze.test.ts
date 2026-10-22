@@ -5,6 +5,7 @@ import {
   analyzeWeeks,
   COMPARE_METRIC_KEYS,
   COMPARE_METRICS,
+  CompareModeError,
   dayOfWeek,
   daySides,
   deviationsFromOwnNormal,
@@ -868,7 +869,7 @@ describe('compare week analysis', () => {
 
   test('analyzeWeeks rejects a metric not offered weekly', () => {
     const series = build(() => 1);
-    expect(() =>
+    const run = () =>
       analyzeWeeks({
         a: { key: 'meditationSessions7d', values: series },
         b: { key: 'mood', values: series },
@@ -876,8 +877,9 @@ describe('compare week analysis', () => {
         start: START,
         end: END,
         firstDayOfWeek: 1,
-      })
-    ).toThrow(new RangeError('not offered in week mode'));
+      });
+    expect(run).toThrow(CompareModeError);
+    expect(run).toThrow('not offered in week mode');
   });
 
   /** Daily series for 31 weeks from WEEK0 where `f(w, day)` gives the value in week w. */

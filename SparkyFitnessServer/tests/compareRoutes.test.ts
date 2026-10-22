@@ -3,7 +3,7 @@ import { vi, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
-import type { CompareResponse } from '@workspace/shared';
+import { CompareModeError, type CompareResponse } from '@workspace/shared';
 import compareService from '../services/compareService.js';
 import reportRoutesV2 from '../routes/v2/reportRoutes.js';
 
@@ -100,11 +100,22 @@ describe('GET /api/v2/reports/compare', () => {
     expect(getCompare).not.toHaveBeenCalled();
   });
 
-  it('400 when the service raises a RangeError', async () => {
-    getCompare.mockRejectedValue(new RangeError('bad week'));
+  it('400 when the service rejects a metric for the mode', async () => {
+    getCompare.mockRejectedValue(
+      new CompareModeError('not offered in week mode')
+    );
     const res = await request(app).get(
       '/api/v2/reports/compare?a=timeAsleep&b=mood&start=2026-08-01&end=2026-09-30'
     );
     expect(res.statusCode).toBe(400);
+    expect(res.body).toEqual({ error: 'not offered in week mode' });
+  });
+
+  it('passes any other RangeError on to the error handler', async () => {
+    getCompare.mockRejectedValue(new RangeError('Invalid time value'));
+    const res = await request(app).get(
+      '/api/v2/reports/compare?a=timeAsleep&b=mood&start=2026-08-01&end=2026-09-30'
+    );
+    expect(res.statusCode).toBe(500);
   });
 });

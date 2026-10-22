@@ -8,6 +8,7 @@ import requireSelfActor from '../../middleware/requireSelfMiddleware.js';
 import compareService from '../../services/compareService.js';
 import exerciseEntryRepository from '../../models/exerciseEntry.js';
 import {
+  CompareModeError,
   compareQuerySchema,
   isDayString,
   type CompareResponse,
@@ -283,7 +284,8 @@ const getCompareHandler: RequestHandler = async (req, res, next) => {
     );
     res.status(200).json(body);
   } catch (error: unknown) {
-    if (error instanceof RangeError) {
+    // Only a metric asked for in a mode it has no form in is the caller's mistake.
+    if (error instanceof CompareModeError) {
       res.status(400).json({ error: error.message });
       return;
     }

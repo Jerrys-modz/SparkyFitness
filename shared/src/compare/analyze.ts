@@ -62,6 +62,14 @@ export interface CompareResult {
   };
 }
 
+/** A metric asked for in a mode it has no form in (week mode without a weekly form); the route answers it with a 400. */
+export class CompareModeError extends RangeError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CompareModeError';
+  }
+}
+
 const DAYS_NEEDED = 14;
 const WEEKS_NEEDED = 8;
 const WEEK_NORMAL_WINDOW = 6;
@@ -164,7 +172,7 @@ export function analyzeDays(input: {
 /**
  * Pairs A in each week (keyed by its start day) with B in the week `timing` weeks later, both
  * against their own previous weeks. A yes/no metric becomes its days-per-week count, so weeks
- * always take the correlation path. Throws RangeError for a metric with no weekly form.
+ * always take the correlation path. Throws CompareModeError for a metric with no weekly form.
  */
 export function analyzeWeeks(input: {
   a: MetricInput;
@@ -182,7 +190,7 @@ export function analyzeWeeks(input: {
   });
 }
 
-/** The sides analyzeWeeks pairs: A in the weeks of start..end, B a week either side. Throws RangeError for a metric with no weekly form. */
+/** The sides analyzeWeeks pairs: A in the weeks of start..end, B a week either side. Throws CompareModeError for a metric with no weekly form. */
 export function weekSides(input: {
   a: MetricInput;
   b: MetricInput;
@@ -205,14 +213,14 @@ export function weekSides(input: {
   };
 }
 
-/** One value per week start from every day given: a sum, a mean over at least 4 days, or the count of yes days. */
+/** One value per week start from every day given: a sum, a mean over at least 4 days, or the count of yes days. Throws CompareModeError for a metric with no weekly form. */
 export function weeklySeries(
   daily: DaySeries,
   key: CompareMetricKey,
   firstDayOfWeek: number
 ): Record<string, number> {
   const rule = COMPARE_METRICS[key].weekly;
-  if (rule === null) throw new RangeError('not offered in week mode');
+  if (rule === null) throw new CompareModeError('not offered in week mode');
   const byWeek: Record<string, number[]> = {};
   for (const day of Object.keys(daily)) {
     const value = valueAt(daily, day);
