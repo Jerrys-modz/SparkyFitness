@@ -12,3 +12,16 @@ export function formatDayLabel(
     day: 'numeric',
   });
 }
+
+/** A calendar day with its year, for dates far enough out that the year matters. */
+export const formatDateWithYear = (day: string): string => {
+  const parts = day.split('-');
+  if (parts.length < 3) return day;
+  const [year, month, d] = parts.map(Number);
+  const date = new Date(year, (month || 1) - 1, d || 1);
+  return date.toLocaleDateString(getAppLocale(), {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};

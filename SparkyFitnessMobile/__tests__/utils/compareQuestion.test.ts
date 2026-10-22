@@ -2,6 +2,7 @@ import { daysBetween } from '@workspace/shared';
 import {
   COMPARE_SPANS,
   DEFAULT_COMPARE_SPAN,
+  MAX_CUSTOM_DAYS,
   SUGGESTED_QUESTIONS,
   compareWindow,
   isAskable,
@@ -31,6 +32,7 @@ describe('timingOf', () => {
     expect(timingOf('nextDay')).toEqual({ mode: 'day', timing: 1 });
     expect(timingOf('sameWeek')).toEqual({ mode: 'week', timing: 0 });
     expect(timingOf('nextWeek')).toEqual({ mode: 'week', timing: 1 });
+    expect(timingOf('sinceHabit')).toEqual({ mode: 'since', timing: 0 });
   });
 });
 
@@ -39,6 +41,12 @@ describe('spans', () => {
     expect(COMPARE_SPANS.day).toEqual(['30d', '60d', '90d', 'custom']);
     expect(COMPARE_SPANS.week).toEqual(['6m', '1y', 'custom']);
     expect(DEFAULT_COMPARE_SPAN).toEqual({ day: '90d', week: '6m' });
+  });
+
+  test('since mode has no span', () => {
+    expect(Object.keys(COMPARE_SPANS)).toEqual(['day', 'week']);
+    expect(Object.keys(DEFAULT_COMPARE_SPAN)).toEqual(['day', 'week']);
+    expect(Object.keys(MAX_CUSTOM_DAYS)).toEqual(['day', 'week']);
   });
 });
 
@@ -164,6 +172,15 @@ describe('knownCompareQuestions', () => {
     ).toEqual([good]);
   });
 
+  test('keeps a since question', () => {
+    const since: CompareQuestion = {
+      a: 'meditated',
+      b: 'mood',
+      choice: 'sinceHabit',
+    };
+    expect(knownCompareQuestions([since])).toEqual([since]);
+  });
+
   test('reads anything that is not a list as no questions', () => {
     expect(knownCompareQuestions(undefined)).toEqual([]);
     expect(knownCompareQuestions({ a: 'mood' })).toEqual([]);
@@ -199,6 +216,18 @@ describe('isAskable', () => {
     );
     expect(isAskable({ a: 'mood', b: 'energy', choice: 'sameWeek' })).toBe(
       true
+    );
+  });
+
+  test('a since question takes any two different metrics and needs no start', () => {
+    expect(
+      isAskable({ a: 'meditationSessions7d', b: 'mood', choice: 'sinceHabit' })
+    ).toBe(true);
+    expect(
+      isAskable({ a: 'weightTrend', b: 'mood', choice: 'sinceHabit' })
+    ).toBe(true);
+    expect(isAskable({ a: 'mood', b: 'mood', choice: 'sinceHabit' })).toBe(
+      false
     );
   });
 });

@@ -1,6 +1,7 @@
 import type { CompareResponse, CompareResult } from '@workspace/shared';
 import i18n, { initializeI18n } from '../../src/localization/i18n';
 import {
+  compareAmountText,
   compareValueText,
   questionParts,
   sentenceText,
@@ -102,6 +103,12 @@ describe('phrases', () => {
       b: undefined,
       timing: undefined,
     });
+  });
+
+  test('since mode names a sleep metric plainly and its timing chip reads "Since"', () => {
+    expect(
+      questionParts({ a: 'timeAsleep', b: 'mood', choice: 'sinceHabit' }, t)
+    ).toEqual({ a: 'time asleep', b: 'mood', timing: 'Since' });
   });
 
   test('sentenceText', () => {
@@ -673,6 +680,24 @@ describe('statsLine', () => {
     expect(line).toBe(
       'difference 0.9 · 95% range 0.2 to 1.6 · p 0.012 · 62 days'
     );
+  });
+});
+
+describe('compareAmountText', () => {
+  test('an amount on the display scale, to the metric precision', () => {
+    expect(compareAmountText('mood', 8)).toBe('0.8');
+    expect(compareAmountText('timeAsleep', 0.44)).toBe('0.4');
+    expect(compareAmountText('steps', 1623.4)).toBe('1,623');
+  });
+
+  test('a signed difference', () => {
+    expect(compareAmountText('mood', 8, true)).toBe('+0.8');
+    expect(compareAmountText('energy', -0.5, true)).toBe('-0.5');
+    expect(compareAmountText('steps', 0, true)).toBe('0');
+  });
+
+  test('bedtime is a span of whole minutes, not a clock time', () => {
+    expect(compareAmountText('bedtime', -30.4, true)).toBe('-30');
   });
 });
 

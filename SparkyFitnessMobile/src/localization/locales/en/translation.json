@@ -8498,6 +8498,31 @@
       "noVariationGeneric": "One of these didn't change over this span.",
       "longerSpanDifference": "A longer span makes a small difference easier to see."
     },
+    "since": {
+      "question": "Since I started {{habit}} regularly, has {{outcome}} changed?",
+      "changedHeadline": "Yes, it changed",
+      "changedDetail": "Since {{start}}, your {{outcome}} averaged {{since}} vs {{before}} before ({{diff}}).",
+      "noChangeHeadline": "No clear change",
+      "noChangeDetail": "Since {{start}}, your {{outcome}} averaged {{since}} vs {{before}} before, not different enough to rule out chance.",
+      "minutesLater": "{{minutes}} min later",
+      "minutesEarlier": "{{minutes}} min earlier",
+      "fewBeforeHeadline": "Not enough before {{start}} yet",
+      "fewSinceHeadline": "Not enough since {{start}} yet",
+      "fewValuesDetail": "You have {{n}} with {{outcome}}; an answer needs {{needed}}.",
+      "shortSinceDetail": "It's been {{days}} since then; an answer needs {{needed}}.",
+      "shortBeforeDetail": "Your {{outcome}} records begin {{days}} before then; an answer needs {{needed}}.",
+      "noStartHeadline": "Pick the day you started",
+      "noStartDetail": "Then this compares your {{outcome}} before and since that day.",
+      "typicalRange": "Usually between {{low}} and {{high}} (before: {{beforeLow}}–{{beforeHigh}}).",
+      "aboveLine": "At or above {{line}} on {{since}} of days (before: {{before}}).",
+      "regularity_one": "You kept it up in {{weeksKept}} of {{count}} week since.",
+      "regularity_other": "You kept it up in {{weeksKept}} of {{count}} weeks since.",
+      "alreadyRising": "⚠ {{metric}} was already rising before you started.",
+      "alreadyFalling": "⚠ {{metric}} was already falling before you started.",
+      "alreadyLater": "⚠ {{metric}} was already getting later before you started.",
+      "alreadyEarlier": "⚠ {{metric}} was already getting earlier before you started.",
+      "caveat": "A lot can change over months; this shows a change since you started, not that {{habit}} caused it."
+    },
     "stats": {
       "p": "p {{p}}",
       "pTiny": "p < 0.001",
@@ -8546,7 +8571,13 @@
       "nextDay": "The next day",
       "dayBefore": "The day before",
       "sameWeek": "The same week",
-      "nextWeek": "The next week"
+      "nextWeek": "The next week",
+      "since": "Since",
+      "iStarted": "I started",
+      "regularlyHas": "regularly, has",
+      "changed": "changed?",
+      "sinceHabit": "Since a habit started",
+      "beforeVsSince": "Before vs. since"
     },
     "bars": {
       "yesDays": "Days you {{yes}}",

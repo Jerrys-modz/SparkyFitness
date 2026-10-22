@@ -27,7 +27,7 @@ function forMode(
   question: Partial<CompareQuestion>,
   mode: CompareMode
 ): Partial<CompareQuestion> {
-  if (mode === 'day') return question;
+  if (mode !== 'week') return question;
   const keep = (key?: CompareMetricKey) =>
     key && COMPARE_METRICS[key].weekly !== null ? key : undefined;
   return { ...question, a: keep(question.a), b: keep(question.b) };
@@ -107,6 +107,19 @@ const CompareSentence: React.FC<CompareSentenceProps> = ({
         },
       ],
     },
+    {
+      title: t('compareReport.sentence.sinceHabit', {
+        defaultValue: 'Since a habit started',
+      }),
+      options: [
+        {
+          value: 'sinceHabit',
+          label: t('compareReport.sentence.beforeVsSince', {
+            defaultValue: 'Before vs. since',
+          }),
+        },
+      ],
+    },
   ];
 
   const trigger = (
@@ -164,29 +177,52 @@ const CompareSentence: React.FC<CompareSentenceProps> = ({
   const timingLabel =
     parts.timing ??
     t('compareReport.sentence.sometime', { defaultValue: 'some time' });
+  const timingPicker = (
+    <BottomSheetPicker<CompareTimingChoice>
+      value={choice ?? 'sameDay'}
+      sections={timingSections}
+      title={timingTitle}
+      onSelect={chooseTiming}
+      renderTrigger={({ onPress }) =>
+        trigger(timingLabel, !!choice, onPress, timingTitle)
+      }
+    />
+  );
+  const words = (text: string) => (
+    <Text className="text-lg text-text-primary">{text}</Text>
+  );
+
+  // "Since I started [X] regularly, has [Y] changed?" The "Since" is the
+  // timing chip, so the person can switch back to day or week.
+  if (mode === 'since') {
+    return (
+      <View className="flex-row flex-wrap items-center">
+        {timingPicker}
+        {words(
+          t('compareReport.sentence.iStarted', { defaultValue: 'I started' })
+        )}
+        {metricPicker('a')}
+        {words(
+          t('compareReport.sentence.regularlyHas', {
+            defaultValue: 'regularly, has',
+          })
+        )}
+        {metricPicker('b')}
+        {words(
+          t('compareReport.sentence.changed', { defaultValue: 'changed?' })
+        )}
+      </View>
+    );
+  }
 
   return (
     <View className="flex-row flex-wrap items-center">
-      <Text className="text-lg text-text-primary">
-        {t('compareReport.sentence.does', { defaultValue: 'Does' })}
-      </Text>
+      {words(t('compareReport.sentence.does', { defaultValue: 'Does' }))}
       {metricPicker('a')}
-      <Text className="text-lg text-text-primary">
-        {t('compareReport.sentence.goWith', { defaultValue: 'go with' })}
-      </Text>
+      {words(t('compareReport.sentence.goWith', { defaultValue: 'go with' }))}
       {metricPicker('b')}
-      <BottomSheetPicker<CompareTimingChoice>
-        value={choice ?? 'sameDay'}
-        sections={timingSections}
-        title={timingTitle}
-        onSelect={chooseTiming}
-        renderTrigger={({ onPress }) =>
-          trigger(timingLabel, !!choice, onPress, timingTitle)
-        }
-      />
-      <Text className="text-lg text-text-primary">
-        {t('compareReport.sentence.questionMark', { defaultValue: '?' })}
-      </Text>
+      {timingPicker}
+      {words(t('compareReport.sentence.questionMark', { defaultValue: '?' }))}
     </View>
   );
 };

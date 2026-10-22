@@ -23,6 +23,7 @@ import {
   type CompareMode,
   type CompareQuestion,
   type CompareSpan,
+  type SpanMode,
 } from '../utils/compareQuestion';
 import type { CustomRange } from '../utils/trendRange';
 import type { RootStackScreenProps } from '../types/navigation';
@@ -42,17 +43,20 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
   const [question, setQuestion] = useState<Partial<CompareQuestion>>({});
   // Each mode remembers its own span, so flipping day/week/day keeps the pick.
   const [spans, setSpans] =
-    useState<Record<CompareMode, CompareSpan>>(DEFAULT_COMPARE_SPAN);
-  const [customs, setCustoms] = useState<
-    Record<CompareMode, CustomRange | null>
-  >({ day: null, week: null });
+    useState<Record<SpanMode, CompareSpan>>(DEFAULT_COMPARE_SPAN);
+  const [customs, setCustoms] = useState<Record<SpanMode, CustomRange | null>>({
+    day: null,
+    week: null,
+  });
   const today = useTodayOnFocus();
 
   const mode: CompareMode = question.choice
     ? timingOf(question.choice).mode
     : 'day';
-  const span = spans[mode];
-  const window = compareWindow(span, mode, today, customs[mode]);
+  // Since mode has no span; the day one is kept for the way back.
+  const spanMode: SpanMode = mode === 'since' ? 'day' : mode;
+  const span = spans[spanMode];
+  const window = compareWindow(span, spanMode, today, customs[spanMode]);
 
   const storedRecent = useAppPreferencesStore((s) => s.compareRecentQuestions);
   const recent = useMemo(
@@ -70,6 +74,7 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
   const lastRecorded = useRef<string | null>(null);
   useEffect(() => {
     if (!data || !isAskable(question)) return;
+    if (timingOf(question.choice).mode === 'since') return;
     const key = questionKey(question);
     if (lastRecorded.current === key) return;
     lastRecorded.current = key;
@@ -84,6 +89,8 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
   );
 
   const renderAnswer = (q: CompareQuestion) => {
+    // The since answer has a layout of its own, not this day/week one.
+    if (mode === 'since') return null;
     if (serverTooOld) {
       return notice(
         t('compareReport.screen.tooOld', {
@@ -128,19 +135,21 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
   return (
     <ReportScreenLayout header={header}>
       <CompareSentence question={question} onChange={setQuestion} />
-      <View className="mt-3">
-        <CompareSpanControl
-          mode={mode}
-          span={span}
-          custom={customs[mode]}
-          onSpanChange={(next) =>
-            setSpans((current) => ({ ...current, [mode]: next }))
-          }
-          onCustomChange={(range) =>
-            setCustoms((current) => ({ ...current, [mode]: range }))
-          }
-        />
-      </View>
+      {mode === 'since' ? null : (
+        <View className="mt-3">
+          <CompareSpanControl
+            mode={spanMode}
+            span={span}
+            custom={customs[spanMode]}
+            onSpanChange={(next) =>
+              setSpans((current) => ({ ...current, [spanMode]: next }))
+            }
+            onCustomChange={(range) =>
+              setCustoms((current) => ({ ...current, [spanMode]: range }))
+            }
+          />
+        </View>
+      )}
       {askable ? (
         renderAnswer(question)
       ) : (

@@ -148,6 +148,10 @@ function timingWords(
   t: Translator
 ): string {
   const { mode, timing } = timingOf(choice);
+  // Since mode's chip opens its own sentence: "Since I started …".
+  if (mode === 'since') {
+    return t('compareReport.sentence.since', { defaultValue: 'Since' });
+  }
   if (mode === 'week') {
     return timing === 1
       ? t('compareReport.timing.nextWeek', { defaultValue: 'the next week' })
@@ -163,7 +167,8 @@ function timingPhrase(q: CompareQuestion, t: Translator): string {
 /**
  * The three filled-in parts of the question sentence, for whichever are
  * chosen. The sleep timing words need both metrics, so until both are picked
- * the timing reads as plain days.
+ * the timing reads as plain days. In since mode the timing is the "Since" that
+ * opens the sentence.
  */
 export function questionParts(
   q: Partial<CompareQuestion>,
@@ -681,9 +686,27 @@ const MINUTES_PER_DAY = 24 * 60;
 const BEDTIME_ORIGIN_MINUTES = 18 * 60;
 
 /**
+ * An amount of a metric on its display scale (mood 1-10): counts and minutes
+ * whole, everything else to one decimal. Bedtime here is a span of whole
+ * minutes, not a clock time. `signed` shows a difference with its sign.
+ */
+export function compareAmountText(
+  key: CompareMetricKey,
+  value: number,
+  signed = false
+): string {
+  const digits =
+    key === 'bedtime' || WHOLE_UNITS.has(COMPARE_METRICS[key].unit) ? 0 : 1;
+  return formatLocalizedNumber(compareDisplayValue(key, value), {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+    ...(signed ? { signDisplay: 'exceptZero' as const } : {}),
+  });
+}
+
+/**
  * A metric's raw value as the person reads it: bedtime (minutes after 18:00)
- * as a clock time in the app locale, counts and minutes as whole numbers,
- * everything else to one decimal on its display scale (mood 1-10).
+ * as a clock time in the app locale, everything else as `compareAmountText`.
  */
 export function compareValueText(key: CompareMetricKey, value: number): string {
   if (key === 'bedtime') {
@@ -694,10 +717,17 @@ export function compareValueText(key: CompareMetricKey, value: number): string {
     const clock = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
     return formatTimeLabel(clock) ?? clock;
   }
-  return num(
-    compareDisplayValue(key, value),
-    WHOLE_UNITS.has(COMPARE_METRICS[key].unit) ? 0 : 1
-  );
+  return compareAmountText(key, value);
+}
+
+/** "p 0.012", or "p < 0.001" when it is that small. */
+export function pValueText(p: number, t: Translator): string {
+  return p < 0.001
+    ? t('compareReport.stats.pTiny', { defaultValue: 'p < 0.001' })
+    : t('compareReport.stats.p', {
+        defaultValue: 'p {{p}}',
+        p: num(p, 3),
+      });
 }
 
 /**
@@ -718,13 +748,7 @@ export function statsLine(
   ) {
     return null;
   }
-  const p =
-    result.p < 0.001
-      ? t('compareReport.stats.pTiny', { defaultValue: 'p < 0.001' })
-      : t('compareReport.stats.p', {
-          defaultValue: 'p {{p}}',
-          p: num(result.p, 3),
-        });
+  const p = pValueText(result.p, t);
   const n = units(result.n, mode, t);
 
   if (result.method === 'difference' && result.binary) {

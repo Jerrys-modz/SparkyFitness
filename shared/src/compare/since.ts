@@ -58,8 +58,8 @@ const ACTIVE_DAYS_PER_WEEK = 4;
 const DAYS_PER_WEEK = 7;
 // The since stretch is at most the most recent year; each stretch needs 4 weeks and 14 values.
 const SINCE_MAX_DAYS = 365;
-const STRETCH_MIN_DAYS = 28;
-const STRETCH_MIN_VALUES = 14;
+export const SINCE_STRETCH_MIN_DAYS = 28;
+export const SINCE_STRETCH_MIN_VALUES = 14;
 // The effective n counts carry-over up to two weeks back, as day mode does.
 const MAX_LAG = 14;
 const TYPICAL_LOW = 0.1;
@@ -234,7 +234,10 @@ function stretch(outcome: DaySeries, from: string, to: string): Stretch {
 }
 
 function isLongEnough(s: Stretch): boolean {
-  return s.days >= STRETCH_MIN_DAYS && s.values.length >= STRETCH_MIN_VALUES;
+  return (
+    s.days >= SINCE_STRETCH_MIN_DAYS &&
+    s.values.length >= SINCE_STRETCH_MIN_VALUES
+  );
 }
 
 function counts(s: Stretch): CompareSinceStretch {

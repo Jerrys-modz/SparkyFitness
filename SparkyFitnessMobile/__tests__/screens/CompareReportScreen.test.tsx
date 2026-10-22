@@ -141,6 +141,36 @@ describe('CompareReportScreen', () => {
     );
   });
 
+  it('drops the span control and the day/week answer in since mode, keeping the day span for the way back', () => {
+    mockUseCompare.mockReturnValue({ ...idle, data: okResponse });
+    const add = jest.fn();
+    useAppPreferencesStore.setState({ addCompareRecentQuestion: add });
+    const { getByTestId, getByText, queryByText, queryByTestId } =
+      renderScreen();
+    fireEvent.press(
+      getByTestId('compare-suggestion-timeAsleep-energy-sameDay')
+    );
+    fireEvent.press(getByText('30 days'));
+    add.mockClear();
+
+    fireEvent.press(screen.getByLabelText(/^When:/));
+    fireEvent.press(getByText('Before vs. since'));
+    expect(screen.getByLabelText('When: Since')).toBeTruthy();
+    expect(queryByText('30 days')).toBeNull();
+    expect(queryByText('Yes, a moderate link')).toBeNull();
+    expect(queryByTestId('compare-chart')).toBeNull();
+    expect(queryByTestId('compare-loading')).toBeNull();
+    expect(queryByText('Try one of these')).toBeNull();
+    expect(add).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByLabelText(/^When:/));
+    fireEvent.press(getByText('The same day'));
+    expect(mockUseCompare).toHaveBeenLastCalledWith(
+      SUGGESTION,
+      compareWindow('30d', 'day', getTodayDate())
+    );
+  });
+
   it('shows a spinner while the answer loads', () => {
     mockUseCompare.mockReturnValue({ ...idle, isLoading: true });
     const { getByTestId } = renderScreen();

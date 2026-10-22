@@ -118,7 +118,8 @@ export function compareMetricSections(
       return (
         def.group === group &&
         key !== exclude &&
-        (mode === 'day' || def.weekly !== null)
+        // Only week mode needs a weekly form; day and since read each day's value.
+        (mode !== 'week' || def.weekly !== null)
       );
     }).map((key) => ({ label: COMPARE_METRIC_LABELS[key](t), value: key })),
   })).filter((section) => section.options.length > 0);
