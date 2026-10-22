@@ -174,6 +174,7 @@ export default defineConfig({
             { text: 'Route Generation', link: '/features/exercises/route-generation' },
             { text: 'Grade-Adjusted Pace & Running Dynamics', link: '/features/exercises/grade-adjusted-pace-and-running-dynamics' },
             { text: 'Following a Route on Apple Watch', link: '/features/exercises/route-following-on-watch' },
+            { text: 'Segments', link: '/features/exercises/segments' },
             { text: 'Progression & Per-Set Ramp', link: '/features/exercises/progression-and-per-set-ramp' },
             { text: 'Bodyweight Exercises', link: '/features/exercises/bodyweight-exercises' },
             { text: 'Workout Effort', link: '/features/exercises/workout-effort' },

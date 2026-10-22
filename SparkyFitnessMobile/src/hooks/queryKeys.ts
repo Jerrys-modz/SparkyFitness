@@ -485,6 +485,16 @@ export const routeStopsQueryKey = (id: string) =>
 /** One saved route with its points and cues. */
 export const routeQueryKey = (id: string) => ['routes', id] as const;
 
+/** The person's segments (summaries). */
+export const segmentsQueryKey = ['segments'] as const;
+
+/** One segment with the person's efforts on it. */
+export const segmentQueryKey = (id: string) => ['segments', id] as const;
+
+/** The segments one activity ran, with new-best verdicts. */
+export const entrySegmentEffortsQueryKey = (entryId: string) =>
+  ['segments', 'entry', entryId] as const;
+
 /** One Compare answer: the two metrics, how they are paired, and the window. */
 export const compareQueryKey = (p: CompareParams) =>
   ['compare', p.a, p.b, p.mode, p.timing, p.start, p.end] as const;

@@ -10,6 +10,7 @@ import {
   trainingCalendarRootQueryKey,
   trainingLoadRootQueryKey,
   fitnessFatigueRootQueryKey,
+  segmentsQueryKey,
 } from './queryKeys';
 
 export function invalidateExerciseCache(
@@ -19,6 +20,8 @@ export function invalidateExerciseCache(
   void queryClient.invalidateQueries({
     queryKey: [...workoutLocationsQueryKey],
   });
+  // A saved or changed activity can add or replace segment efforts.
+  void queryClient.invalidateQueries({ queryKey: [...segmentsQueryKey] });
   void queryClient.invalidateQueries({
     queryKey: [...exerciseHistoryQueryKey],
   });

@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import Toast from 'react-native-toast-message';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/ui/Button';
@@ -23,6 +23,9 @@ import {
   setExerciseEntryStrideLength,
 } from '../services/api/exerciseApi';
 import { addLog } from '../services/LogService';
+import { useEntrySegmentEfforts } from '../services/segmentService';
+import { formatSegmentTime } from '../utils/segmentDisplay';
+import { formatRouteDistance } from '../utils/routeDisplay';
 import {
   rateProgramWorkout,
   setProgramPosition,
@@ -85,6 +88,12 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
   const newRecords = summary.entryId
     ? recordsHeldBy(records, summary.entryId)
     : [];
+
+  // The segments this run crossed, and whether any is a new best.
+  const { efforts: segmentEfforts } = useEntrySegmentEfforts(
+    summary.entryId ?? undefined
+  );
+  const newSegmentRecords = segmentEfforts.filter((e) => e.isNewPersonalBest);
 
   const done = () => navigation.goBack();
 
@@ -453,6 +462,65 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
                 {t('runSummary.saveDistance', { defaultValue: 'Update' })}
               </Button>
             </View>
+          </View>
+        ) : null}
+
+        {segmentEfforts.length > 0 ? (
+          <View
+            className="bg-surface rounded-xl p-4 mb-4"
+            accessibilityRole="summary"
+            testID="run-segments"
+          >
+            <Text className="text-text-primary text-base font-bold">
+              {newSegmentRecords.length > 0
+                ? t('runSummary.newSegmentPr', {
+                    count: newSegmentRecords.length,
+                    defaultValue: 'New segment PRs',
+                    defaultValue_one: 'New segment PR',
+                    defaultValue_other: 'New segment PRs',
+                  })
+                : t('runSummary.segments', { defaultValue: 'Segments' })}
+            </Text>
+            {segmentEfforts.map((effort) => (
+              <Pressable
+                key={effort.segmentId}
+                className="mt-2"
+                onPress={() =>
+                  navigation.navigate('SegmentDetail', { id: effort.segmentId })
+                }
+                accessibilityRole="button"
+                testID={`run-segment-${effort.segmentId}`}
+              >
+                <View className="flex-row justify-between">
+                  <Text className="text-text-secondary text-base flex-1 mr-3">
+                    {effort.segmentName ??
+                      t('segments.untitled', {
+                        distance: formatRouteDistance(
+                          effort.segmentLengthM,
+                          miles ? 'miles' : 'km'
+                        ),
+                        defaultValue: 'Segment · {{distance}}',
+                      })}
+                  </Text>
+                  <Text className="text-text-primary text-base font-semibold">
+                    {formatSegmentTime(effort.elapsedSeconds)}
+                  </Text>
+                </View>
+                {effort.isNewPersonalBest ? (
+                  <Text
+                    className="text-icon-success text-xs font-bold"
+                    testID={`run-segment-pr-${effort.segmentId}`}
+                  >
+                    {effort.previousBestSeconds !== null
+                      ? t('runSummary.segmentPrBeat', {
+                          time: formatSegmentTime(effort.previousBestSeconds),
+                          defaultValue: 'New PR, beating your {{time}}',
+                        })
+                      : t('runSummary.segmentPr', { defaultValue: 'New PR' })}
+                  </Text>
+                ) : null}
+              </Pressable>
+            ))}
           </View>
         ) : null}
 

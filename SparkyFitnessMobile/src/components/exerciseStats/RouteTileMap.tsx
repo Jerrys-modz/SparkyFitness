@@ -15,6 +15,11 @@ const MARKER_CENTER = { x: 0.5, y: 0.5 };
 
 interface RouteTileMapProps {
   points: readonly Pick<GpsTrackPoint, 'lat' | 'lon'>[];
+  /**
+   * A longer line to draw dashed under `points` (the whole route under a
+   * chosen stretch of it). The map frames both.
+   */
+  guide?: readonly Pick<GpsTrackPoint, 'lat' | 'lon'>[];
   accessibilityLabel: string;
   /** Stops to mark along the route, as small coloured dots. */
   stops?: readonly Pick<RouteStop, 'kind' | 'name' | 'lat' | 'lon'>[];
@@ -32,16 +37,18 @@ interface RouteTileMapProps {
  */
 const RouteTileMap: React.FC<RouteTileMapProps> = ({
   points,
+  guide,
   accessibilityLabel,
   stops,
 }) => {
   const { theme } = useUniwind();
   const isDark = theme === 'dark' || theme === 'amoled';
-  const [routeColor, startColor, finishColor] = useCSSVariable([
+  const [routeColor, startColor, finishColor, guideColor] = useCSSVariable([
     '--color-accent-primary',
     '--color-icon-success',
     '--color-heart-rate',
-  ]) as [string, string, string];
+    '--color-text-muted',
+  ]) as [string, string, string, string];
 
   const coordinates = useMemo(
     () =>
@@ -51,7 +58,20 @@ const RouteTileMap: React.FC<RouteTileMapProps> = ({
       })),
     [points]
   );
-  const region = useMemo(() => routeRegion(points), [points]);
+  const guideCoordinates = useMemo(
+    () =>
+      guide
+        ? usableRoutePoints(guide).map((p) => ({
+            latitude: p.lat,
+            longitude: p.lon,
+          }))
+        : [],
+    [guide]
+  );
+  const region = useMemo(
+    () => routeRegion(guide ? [...points, ...guide] : points),
+    [points, guide]
+  );
   const start = coordinates[0];
   const finish = coordinates[coordinates.length - 1];
   if (!region || !start || !finish) return null;
@@ -79,6 +99,16 @@ const RouteTileMap: React.FC<RouteTileMapProps> = ({
         importantForAccessibility="no-hide-descendants"
         accessibilityElementsHidden
       >
+        {guideCoordinates.length > 1 ? (
+          <Polyline
+            coordinates={guideCoordinates}
+            strokeColor={guideColor}
+            strokeWidth={4}
+            lineDashPattern={[8, 8]}
+            lineCap="round"
+            lineJoin="round"
+          />
+        ) : null}
         <Polyline
           coordinates={coordinates}
           strokeColor={routeColor}

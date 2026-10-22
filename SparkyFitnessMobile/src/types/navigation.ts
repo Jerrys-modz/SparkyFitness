@@ -105,6 +105,14 @@ export type RootStackParamList = {
   LabResultDetail: { categoryId: string };
   LabResultAdd: { categoryId?: string };
   LabReportImport: undefined;
+  Segments: undefined;
+  SegmentDetail: { id: string };
+  /** Cut from a saved route (`routeId`) or a recorded activity's track (`exerciseEntryId`). */
+  SegmentCreate: {
+    routeId?: string;
+    exerciseEntryId?: string;
+    activity?: 'run' | 'walk' | 'ride' | 'hike';
+  };
   WatchRunLive: undefined;
   MealPlanForm: { template?: MealPlanTemplate; initialMeal?: Meal } | undefined;
   // #2115, Phase 12: mobile-only water-container CRUD.

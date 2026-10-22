@@ -682,7 +682,9 @@
     "labResultAdd": "Add lab result",
     "labReportImport": "Import report",
     "addMenuSettings": "Add menu",
-    "compareReport": "Compare"
+    "compareReport": "Compare",
+    "segmentCreate": "New segment",
+    "segments": "Segments"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -8135,7 +8137,12 @@
     "distanceFailed": "Could not save the distance.",
     "heartRate": "Heart rate",
     "treadmillCorrected": "Machine showed {{shown}} {{unit}}; saved as {{saved}} {{unit}} with your treadmill correction.",
-    "treadmillCorrectionOn": "Your {{percent}} treadmill correction is taken off the figure you enter."
+    "treadmillCorrectionOn": "Your {{percent}} treadmill correction is taken off the figure you enter.",
+    "newSegmentPr_one": "New segment PR",
+    "newSegmentPr_other": "New segment PRs",
+    "segments": "Segments",
+    "segmentPrBeat": "New PR, beating your {{time}}",
+    "segmentPr": "New PR"
   },
   "runPrograms": {
     "startWhenTitle": "Start {{name}}",
@@ -8805,7 +8812,8 @@
     "fileTooLarge": "That file is too large",
     "fileTooLargeHint": "A route file can be up to 10 MB.",
     "followRoadsTooMany": "Following roads takes up to {{max}} points. Undo points or turn Follow roads off to save.",
-    "drawLimit": "That is as many points as a route can have here. Undo some or save this one."
+    "drawLimit": "That is as many points as a route can have here. Undo some or save this one.",
+    "segmentsSubtitle": "Time yourself on stretches of your routes"
   },
   "heartRateZones": {
     "title": "Heart Rate Zones",
@@ -9593,5 +9601,59 @@
       "throughLastWeek": "Through last week",
       "throughDate": "Through {{date}}"
     }
+  },
+  "segments": {
+    "create": {
+      "saved": "Segment saved. Looking for your past efforts…",
+      "saveFailed": "Could not save the segment",
+      "noLine": "There is no route to cut a segment from.",
+      "tooShort": "This route is too short for a segment (100 m at least).",
+      "mapA11y": "Map of the route with the chosen segment drawn over it",
+      "pick": "Drag the handles to choose the stretch",
+      "namePlaceholder": "Name (optional)",
+      "nameLabel": "Segment name",
+      "activityHint": "A ride segment is timed on rides only; the others on runs, walks and hikes.",
+      "save": "Save segment",
+      "rangeA11y": "Segment from {{start}} to {{end}} along the line. Drag a handle to change it.",
+      "startEarlier": "Move the start earlier",
+      "start": "Start",
+      "startLater": "Move the start later",
+      "endEarlier": "Move the end earlier",
+      "end": "End",
+      "endLater": "Move the end later",
+      "length": "Segment length {{distance}}"
+    },
+    "loadFailed": "Could not load your segments.",
+    "empty": "No segments yet. Open a route or a recorded run, choose \"Create segment\" and pick a stretch to time yourself on.",
+    "efforts_one": "{{count}} effort",
+    "efforts_other": "{{count}} efforts",
+    "noEfforts": "No efforts yet",
+    "bestTime": "Best {{time}}",
+    "lastEffort": "Last {{day}}",
+    "renameFailed": "Could not rename",
+    "searchDone_one": "Found {{count}} effort",
+    "searchDone_other": "Found {{count}} efforts",
+    "deleteTitle": "Delete this segment?",
+    "deleteMessage": "Your times on it are removed. The activities themselves are not affected.",
+    "deleteFailed": "Could not delete the segment",
+    "loadOneFailed": "Could not load this segment.",
+    "mapA11y": "Map of this segment, from the green dot to the red ring",
+    "best": "Best",
+    "count": "Efforts",
+    "last": "Last effort",
+    "overTime": "Your times over time",
+    "chartCaption": "Effort number, oldest first. Green dots are new records.",
+    "effortsTitle": "Efforts",
+    "noEffortsHint": "No efforts found yet. Runs and walks with a recorded GPS track that pass this stretch in the same direction are timed automatically.",
+    "bestBadge": "BEST",
+    "prBadge": "PR",
+    "findEfforts": "Find past efforts",
+    "untitled": "Segment · {{distance}}",
+    "onRoute": "Segments",
+    "onRouteEmpty": "Pick a stretch of this route to time yourself on it every time you run it.",
+    "createFromRoute": "Create segment",
+    "createFromActivity": "Create segment",
+    "openFailed": "Could not open that run",
+    "openFailedHint": "It may have been deleted from your diary."
   }
 }
