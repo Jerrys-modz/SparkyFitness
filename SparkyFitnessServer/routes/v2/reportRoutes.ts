@@ -10,8 +10,10 @@ import exerciseEntryRepository from '../../models/exerciseEntry.js';
 import {
   CompareModeError,
   compareQuerySchema,
+  compareSinceQuerySchema,
   isDayString,
   type CompareResponse,
+  type CompareSinceResponse,
   type WorkoutDaysResponse,
 } from '@workspace/shared';
 
@@ -239,8 +241,9 @@ router.get('/workout-days', getWorkoutDaysHandler);
  *         name: mode
  *         schema:
  *           type: string
- *           enum: [day, week]
+ *           enum: [day, week, since]
  *           default: day
+ *         description: "`since` compares the outcome before and since a habit started (A is the habit, B the outcome)."
  *       - in: query
  *         name: timing
  *         schema:
@@ -250,26 +253,51 @@ router.get('/workout-days', getWorkoutDaysHandler);
  *         description: Shift B against A by this many days (day mode only).
  *       - in: query
  *         name: start
- *         required: true
  *         schema:
  *           type: string
  *           format: date
+ *         description: First day of the range. Required for day and week mode; not used in since mode.
  *       - in: query
  *         name: end
- *         required: true
  *         schema:
  *           type: string
  *           format: date
+ *         description: Last day of the range. Required for day and week mode; not used in since mode.
+ *       - in: query
+ *         name: habitStart
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Since mode only, optional. The day the habit started (YYYY-MM-DD); must be before today and at most 730 days ago. When absent the server suggests one.
+ *       - in: query
+ *         name: line
+ *         schema:
+ *           type: number
+ *         description: Since mode only, optional. The line for "share of days at or above", in the outcome's own scale. Defaults to a sensible line for the outcome.
  *     responses:
  *       200:
- *         description: The comparison result, or a not-enough-data answer. `through` (YYYY-MM-DD) is the last day included; today, or the current week in week mode, is left out until it is over.
+ *         description: The comparison result, or a not-enough-data answer. `through` (YYYY-MM-DD) is the last day included; today, or the current week in week mode, is left out until it is over. In since mode the answer has `mode` 'since', the habit and outcome raw values over the before and since stretches, and the result - suggested start, before and since stretches, the difference with its 95% range and p, typical range, share at or above the line, regularity, and an already-changing warning.
  *       400:
- *         description: Validation error (unknown metric, same metric twice, span over 180 days or 366 in week mode, metric not offered weekly).
+ *         description: Validation error (unknown metric, same metric twice, span over 180 days or 366 in week mode, metric not offered weekly; in since mode, habitStart not before today or more than 730 days ago).
  *       403:
  *         description: Called on behalf of another account.
  */
 const getCompareHandler: RequestHandler = async (req, res, next) => {
   try {
+    if (req.query.mode === 'since') {
+      const sinceResult = compareSinceQuerySchema.safeParse(req.query);
+      if (!sinceResult.success) {
+        res.status(400).json({
+          error: 'Validation error',
+          details: sinceResult.error.flatten().fieldErrors,
+        });
+        return;
+      }
+      const sinceBody: CompareSinceResponse =
+        await compareService.getCompareSince(req.userId, sinceResult.data);
+      res.status(200).json(sinceBody);
+      return;
+    }
     const queryResult = compareQuerySchema.safeParse(req.query);
     if (!queryResult.success) {
       res.status(400).json({
