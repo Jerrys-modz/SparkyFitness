@@ -447,4 +447,29 @@ describe('effort rated on the watch', () => {
       )
     ).toEqual({});
   });
+
+  test('a rating that fails for a reason that may pass is retried later', async () => {
+    jest.useFakeTimers();
+    try {
+      mockedSave.mockResolvedValue('entry-13');
+      await enqueueWatchRun(run('e13'));
+      await processWatchRunQueue('km');
+      const again = jest.fn();
+      onWatchRunRetry(again);
+      jest
+        .mocked(setExerciseEntryEffort)
+        .mockRejectedValueOnce(new Error('offline'));
+
+      await receiveWatchRunEffort('e13', 8);
+      expect(again).not.toHaveBeenCalled();
+      await jest.advanceTimersByTimeAsync(30_000);
+      expect(again).toHaveBeenCalledTimes(1);
+
+      await processWatchRunQueue('km');
+      expect(setExerciseEntryEffort).toHaveBeenLastCalledWith('entry-13', 8);
+      expect(setExerciseEntryEffort).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

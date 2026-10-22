@@ -108,9 +108,11 @@ function patchEffort(clientId: string, patch: Partial<RunEffort>) {
  * and on its program workout when it completed one. Either needs the run to be
  * filed first, so a rating that arrives early waits here. A failure that may
  * pass keeps that part for the next pass; one the server will never accept is
- * logged and dropped.
+ * logged and dropped. Resolves true when some part is still waiting on a
+ * failure that may pass, so the caller can schedule another pass.
  */
-async function settleEfforts(): Promise<void> {
+async function settleEfforts(): Promise<boolean> {
+  let needsRetry = false;
   const efforts = await serial(readEfforts);
   for (const [clientId, effort] of Object.entries(efforts)) {
     const { rating } = effort;
@@ -121,12 +123,16 @@ async function settleEfforts(): Promise<void> {
         await tryRate(() => setExerciseEntryEffort(effort.entryId!, rating))
       ) {
         done.entrySaved = true;
+      } else {
+        needsRetry = true;
       }
     }
     if (effort.program && !effort.programSaved) {
       const { id, index } = effort.program;
       if (await tryRate(() => rateProgramWorkout(id, index, rating))) {
         done.programSaved = true;
+      } else {
+        needsRetry = true;
       }
     }
     const now = { ...effort, ...done };
@@ -139,6 +145,7 @@ async function settleEfforts(): Promise<void> {
       await writeEfforts(latest);
     });
   }
+  return needsRetry;
 }
 
 /** True when the call is finished with: it worked, or can never work. */
@@ -164,7 +171,11 @@ export function receiveWatchRunEffort(
   if (!clientId || !Number.isInteger(rating) || rating < 1 || rating > 10) {
     return Promise.resolve();
   }
-  return patchEffort(clientId, { rating }).then(settleEfforts);
+  return patchEffort(clientId, { rating })
+    .then(settleEfforts)
+    .then((needsRetry) => {
+      if (needsRetry) scheduleRetry();
+    });
 }
 
 /** Stores a run that just arrived. Returns false for a copy already handled. */
@@ -325,7 +336,7 @@ export function processWatchRunQueue(
       if (pass.needsRetry) needsRetry = true;
     } while (again);
     // After the loop: a rating that arrived before its run was ticked off.
-    await settleEfforts().catch(() => undefined);
+    if (await settleEfforts().catch(() => false)) needsRetry = true;
     return filed;
   })().finally(() => {
     processing = null;
