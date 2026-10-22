@@ -127,8 +127,9 @@ struct WatchRouteMapPage: View {
     }
 }
 
-/// The drawing. Everything that depends only on the route (the fit, the
-/// cumulative distances) is worked out once, not on every fix.
+/// The drawing. The fit and the cumulative distances come from the route alone;
+/// they are rebuilt with the view on each fix, which at the 2000-point cap is
+/// a few thousand floating-point operations.
 private struct RouteCanvas: View {
     let route: WatchRoute
     let progress: WatchRouteTracker.Snapshot?

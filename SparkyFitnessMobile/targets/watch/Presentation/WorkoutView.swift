@@ -172,6 +172,9 @@ private struct WaitingForWorkoutView: View {
     @EnvironmentObject private var checkIn: CheckInStore
     @EnvironmentObject private var session: WatchSessionManager
     @EnvironmentObject private var run: WatchRunStore
+    /// The singleton, not an environment object: a screen that renders this
+    /// view without injecting one (a preview, the screenshot harness) still works.
+    @ObservedObject private var routeLibrary = WatchRouteLibraryStore.shared
     /// Whether the Cardio choices are up.
     @State private var choosingCardio = false
     /// The preset just tapped. Blocks a second tap from starting two
@@ -206,13 +209,21 @@ private struct WaitingForWorkoutView: View {
         .sheet(isPresented: $choosingCardio) {
             CardioChoicesView(
                 plans: checkIn.context.runPlans ?? [],
+                routes: routeLibrary.routes,
                 usesMiles: checkIn.context.distanceUnit == "miles",
                 suggestedPace: checkIn.context.runPaceBand ?? .standard,
-                suggestedHeartRate: checkIn.context.runHeartRateBand ?? .standard
-            ) { kind, place, plan, alerts in
-                choosingCardio = false
-                run.start(kind, place: place, plan: plan, alerts: alerts)
-            }
+                suggestedHeartRate: checkIn.context.runHeartRateBand ?? .standard,
+                onChoose: { kind, place, plan, alerts in
+                    choosingCardio = false
+                    run.start(kind, place: place, plan: plan, alerts: alerts)
+                },
+                // A stored route needs nothing from the phone: the line and
+                // its turns are already on the watch.
+                onChooseRoute: { kind, route, alerts in
+                    choosingCardio = false
+                    run.start(kind, place: .outdoor, alerts: alerts, route: route)
+                }
+            )
         }
     }
 
@@ -2088,12 +2099,15 @@ private struct CardioChoicesView: View {
     /// Plans from the phone: the training-program workout due, then the
     /// built-in interval plans. Empty until the phone has said.
     let plans: [WatchRunPlan]
+    /// Routes the phone put on the watch ahead of time (`WatchRouteLibraryStore`).
+    let routes: [WatchRoute]
     let usesMiles: Bool
     /// Where the alert ranges start when turned on: what was last used on the
     /// phone, or a plain default.
     let suggestedPace: WatchPaceBand
     let suggestedHeartRate: WatchHeartRateBand
     let onChoose: (WatchRunKind, WatchRunPlace, WatchRunPlan?, WatchRunAlertSetup) -> Void
+    let onChooseRoute: (WatchRunKind, WatchRoute, WatchRunAlertSetup) -> Void
     /// This run's alerts. Fresh each time the sheet opens, so an alert never
     /// carries over to the next run.
     @State private var alerts = WatchRunAlertSetup.off
@@ -2112,6 +2126,19 @@ private struct CardioChoicesView: View {
                         HStack(spacing: WatchStyle.s(6)) {
                             tile(.run, place)
                             tile(.walk, place)
+                        }
+                    }
+                    if !routes.isEmpty {
+                        sectionTitle(String(localized: "watch.cardio.routes", defaultValue: "Routes"))
+                        ForEach(routes) { route in
+                            NavigationLink {
+                                RouteKindView(route: route, usesMiles: usesMiles) { kind in
+                                    onChooseRoute(kind, route, alerts)
+                                }
+                            } label: {
+                                routeRow(route)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                     if !plans.isEmpty {
@@ -2209,6 +2236,29 @@ private struct CardioChoicesView: View {
         .accessibilityLabel(kind.title(place))
     }
 
+    private func routeRow(_ route: WatchRoute) -> some View {
+        HStack(spacing: WatchStyle.s(8)) {
+            Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
+                .font(.system(size: WatchStyle.s(15), weight: .semibold))
+                .foregroundStyle(.cyan)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(route.name)
+                    .font(.system(size: WatchStyle.s(15), weight: .semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(routeDistance(route, usesMiles: usesMiles))
+                    .font(.system(size: WatchStyle.s(11)))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, WatchStyle.s(12))
+        .padding(.vertical, WatchStyle.s(10))
+        .background(WatchStyle.fill, in: WatchStyle.shape)
+        .contentShape(WatchStyle.shape)
+    }
+
     private func planRow(_ plan: WatchRunPlan) -> some View {
         HStack(spacing: WatchStyle.s(8)) {
             Image(systemName: plan.programId == nil ? "timer" : "calendar")
@@ -2224,6 +2274,48 @@ private struct CardioChoicesView: View {
         .padding(.vertical, WatchStyle.s(12))
         .background(WatchStyle.fill, in: WatchStyle.shape)
         .contentShape(WatchStyle.shape)
+    }
+}
+
+/// "5.20 km" / "3.23 mi" for a stored route's list row and title.
+private func routeDistance(_ route: WatchRoute, usesMiles: Bool) -> String {
+    let value = WatchRunMetrics.distanceText(route.lengthMeters, usesMiles: usesMiles)
+    return "\(value) \(usesMiles ? String(localized: "watch.unit.mi", defaultValue: "mi") : String(localized: "watch.unit.km", defaultValue: "km"))"
+}
+
+/// Run or walk a stored route. Outdoor only: indoors there is no GPS to
+/// follow a line with.
+private struct RouteKindView: View {
+    let route: WatchRoute
+    let usesMiles: Bool
+    let onChoose: (WatchRunKind) -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: WatchStyle.s(6)) {
+                Text(routeDistance(route, usesMiles: usesMiles))
+                    .font(.system(size: WatchStyle.s(12)))
+                    .foregroundStyle(.secondary)
+                ForEach([WatchRunKind.run, .walk], id: \.self) { kind in
+                    Button {
+                        Haptics.tap()
+                        onChoose(kind)
+                    } label: {
+                        Label(kind.title(.outdoor), systemImage: kind.symbol)
+                            .font(.system(size: WatchStyle.s(16), weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, WatchStyle.s(12))
+                            .padding(.vertical, WatchStyle.s(14))
+                            .background(Color.green.opacity(0.25), in: WatchStyle.shape)
+                            .contentShape(WatchStyle.shape)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, WatchStyle.s(2))
+        }
+        .navigationTitle(route.name)
     }
 }
 
