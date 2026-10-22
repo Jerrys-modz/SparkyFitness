@@ -440,6 +440,8 @@ export const runProgramQueryKey = ['runProgram'] as const;
 /** The person's own saved run programs. */
 export const customRunProgramsQueryKey = ['customRunPrograms'] as const;
 
+export const heartRateZonesQueryKey = ['heartRateZones'] as const;
+
 /** The person's saved routes (summaries). */
 export const routesQueryKey = ['routes'] as const;
 

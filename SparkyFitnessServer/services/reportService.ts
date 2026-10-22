@@ -28,7 +28,6 @@ import {
   resolveExerciseModality,
   buildTrainingConsistency,
   computeTrainingLoad,
-  estimateMaxHeartRate,
   LOAD_WEEKS,
   type TrainingLoad,
   weekStartOf,
@@ -37,6 +36,7 @@ import {
 } from '@workspace/shared';
 import { userAge } from '../utils/dateHelpers.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
+import heartRateZoneService from './heartRateZoneService.js';
 import { parseJsonArrayField } from '../utils/exerciseJsonFields.js';
 
 interface CustomNutrientDefinition {
@@ -976,8 +976,8 @@ export { getNutritionTrendsWithGoals };
 export { getExerciseDashboardData };
 /**
  * Acute against chronic training load over the last four weeks, from every
- * logged workout (cardio and strength). Max heart rate comes from the profile's
- * age when there is one.
+ * logged workout (cardio and strength). Intensity is judged against the person's
+ * heart rate zones (their own settings, else their date of birth).
  */
 async function getTrainingLoad(
   authenticatedUserId: string,
@@ -986,18 +986,15 @@ async function getTrainingLoad(
   try {
     const timezone = await loadUserTimezone(targetUserId);
     const today = todayInZone(timezone);
-    const [sessions, profile] = await Promise.all([
+    const [sessions, zones] = await Promise.all([
       reportRepository.getTrainingLoadSessions(
         targetUserId,
         addDays(today, -(LOAD_WEEKS * 7 - 1)),
         today
       ),
-      userRepository.getUserProfile(targetUserId),
+      heartRateZoneService.resolveZonesForUser(targetUserId),
     ]);
-    const age = profile?.date_of_birth
-      ? userAge(profile.date_of_birth, timezone)
-      : null;
-    return computeTrainingLoad(sessions, today, estimateMaxHeartRate(age));
+    return computeTrainingLoad(sessions, today, zones.floors);
   } catch (error) {
     log(
       'error',

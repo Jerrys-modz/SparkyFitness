@@ -506,11 +506,16 @@ public class WatchConnectivityModule: Module {
                 self?.sendEvent("onRecordingControl", event)
             }
             self.delegateHandler.onRecordingHeartRate = { [weak self] payload in
-                self?.sendEvent("onRecordingHeartRate", [
+                var event: [String: Any] = [
                     "sessionId": payload["sessionId"] as? String ?? "",
                     "clientId": payload["clientId"] as? String ?? "",
                     "samples": dictionaryArray(payload["samples"]),
-                ])
+                ]
+                let zones = dictionaryArray(payload["appleZones"])
+                if !zones.isEmpty {
+                    event["appleZones"] = zones
+                }
+                self?.sendEvent("onRecordingHeartRate", event)
             }
             self.delegateHandler.onRunLive = { [weak self] payload in
                 var event: [String: Any] = [
@@ -986,6 +991,10 @@ public class WatchConnectivityModule: Module {
         if let minutes = payload["durationMinutes"] as? Double {
             event["durationMinutes"] = minutes
         }
+        let zones = dictionaryArray(payload["appleZones"])
+        if !zones.isEmpty {
+            event["appleZones"] = zones
+        }
         if !telemetryOwnerId.isEmpty {
             event["ownerId"] = telemetryOwnerId
         }
@@ -1085,6 +1094,10 @@ public class WatchConnectivityModule: Module {
         }
         if let estimated = (payload["estimatedDistanceMeters"] as? NSNumber)?.doubleValue {
             event["estimatedDistanceMeters"] = estimated
+        }
+        let zones = dictionaryArray(payload["appleZones"])
+        if !zones.isEmpty {
+            event["appleZones"] = zones
         }
         return event
     }

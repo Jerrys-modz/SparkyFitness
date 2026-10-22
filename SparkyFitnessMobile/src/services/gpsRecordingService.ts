@@ -23,14 +23,8 @@ import {
   type RecordingActivity,
 } from '../utils/gpsRecording';
 import { programSpokenCues } from '../utils/programCues';
-import { isStepActivity } from '../utils/stride';
-import { captureStepCounterBaseline } from './stepCounter';
 import {
-  INITIAL_AUTO_PAUSE_STATE,
-  stepAutoPause,
-  type AutoPauseState,
-} from '../utils/autoPause';
-import {
+  type AppleWorkoutZoneDuration,
   advanceIntervalCursor,
   INITIAL_HEART_RATE_ALERT_STATE,
   INITIAL_INTERVAL_CURSOR,
@@ -49,6 +43,13 @@ import {
   type PaceAlertState,
   type PaceBand,
 } from '@workspace/shared';
+import { isStepActivity } from '../utils/stride';
+import { captureStepCounterBaseline } from './stepCounter';
+import {
+  INITIAL_AUTO_PAUSE_STATE,
+  stepAutoPause,
+  type AutoPauseState,
+} from '../utils/autoPause';
 import { fireImpactHaptic } from './haptics';
 import {
   checkInCue,
@@ -230,6 +231,11 @@ let session: RecordingSession | null = null;
 let points: RecordedPoint[] = [];
 let snapshot: RecordingSnapshot = { session: null, points: [] };
 let heartRate: StoredHeartRate = { samples: [], batchIds: [] };
+/** Apple's zone group for the recording, held until the diary entry can take it. */
+let appleZonesForSession: {
+  sessionId: string;
+  zones: AppleWorkoutZoneDuration[];
+} | null = null;
 let hydrated: Promise<void> | null = null;
 // Detector memory for auto-pause. Not persisted: after a relaunch it just
 // starts watching again.
@@ -1628,6 +1634,36 @@ export async function getHeartRateSamples(): Promise<RecordedHeartRate[]> {
   await queue.catch(() => undefined);
   await hydrate();
   return heartRate.samples.slice();
+}
+
+/** Remembers Apple's zone group until the saved entry can store it. */
+export function noteAppleWorkoutZones(
+  sessionId: string,
+  zones: AppleWorkoutZoneDuration[]
+): void {
+  appleZonesForSession = { sessionId, zones };
+}
+
+/** The diary entry id for this recording, once Finish has created it. */
+export function savedRecordingEntryId(sessionId: string): string | null {
+  return session?.id === sessionId ? session.savedEntryId : null;
+}
+
+/**
+ * Zones noted for this recording. Left in place so a late message and the
+ * save can both see them; `clearAppleWorkoutZones` drops them after a post.
+ */
+export function peekAppleWorkoutZones(
+  sessionId: string
+): AppleWorkoutZoneDuration[] | null {
+  return appleZonesForSession?.sessionId === sessionId
+    ? appleZonesForSession.zones
+    : null;
+}
+
+export function clearAppleWorkoutZones(sessionId: string): void {
+  if (appleZonesForSession?.sessionId === sessionId)
+    appleZonesForSession = null;
 }
 
 /** Records that the diary entry exists, so a retried save only re-sends the track. */

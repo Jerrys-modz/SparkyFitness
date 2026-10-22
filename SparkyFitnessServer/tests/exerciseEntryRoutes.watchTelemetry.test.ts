@@ -74,6 +74,7 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       ENTRY_ID,
       hrSamples,
       undefined,
+      undefined,
       undefined
     );
   });
@@ -130,6 +131,7 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       ENTRY_ID,
       hrSamples,
       87.4,
+      undefined,
       undefined
     );
   });
@@ -148,6 +150,7 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       ENTRY_ID,
       undefined,
       42,
+      undefined,
       undefined
     );
   });
@@ -166,7 +169,8 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       ENTRY_ID,
       undefined,
       undefined,
-      12.5
+      12.5,
+      undefined
     );
   });
 

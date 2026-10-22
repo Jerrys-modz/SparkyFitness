@@ -159,6 +159,20 @@ export interface WatchTelemetrySessionState {
   // session. The watch's last batch arrives after the live store is cleared,
   // and that is the ordinary path for a workout finished on the phone.
   attribution: WatchTelemetryAttribution | null;
+  /**
+   * Apple's zone group for the whole session, kept so a later flush of the
+   * series does not replace those seconds with a server recalculation.
+   */
+  appleZones?:
+    | {
+        index?: number;
+        minimumBpm?: number | null;
+        maximumBpm?: number | null;
+        seconds: number;
+      }[]
+    | null;
+  /** Exercise the zone group is posted on. The server clears the others. */
+  appleZoneEntryId?: string | null;
 }
 
 interface PersistedSession {
@@ -171,6 +185,8 @@ interface PersistedSession {
   unposted: boolean;
   endedAt: number | null;
   attribution: WatchTelemetryAttribution | null;
+  appleZones?: WatchTelemetrySessionState['appleZones'];
+  appleZoneEntryId?: string | null;
 }
 
 function toPersisted(session: WatchTelemetrySessionState): PersistedSession {
@@ -184,6 +200,8 @@ function toPersisted(session: WatchTelemetrySessionState): PersistedSession {
     unposted: session.unposted,
     endedAt: session.endedAt,
     attribution: session.attribution,
+    appleZones: session.appleZones ?? null,
+    appleZoneEntryId: session.appleZoneEntryId ?? null,
   };
 }
 
@@ -253,6 +271,13 @@ function fromPersisted(
   next.unposted = session.unposted === true;
   next.endedAt = session.endedAt ?? null;
   next.attribution = session.attribution ?? null;
+  next.appleZones = Array.isArray(session.appleZones)
+    ? session.appleZones
+    : null;
+  next.appleZoneEntryId =
+    typeof session.appleZoneEntryId === 'string'
+      ? session.appleZoneEntryId
+      : null;
   return next;
 }
 

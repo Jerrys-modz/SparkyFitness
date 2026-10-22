@@ -38,6 +38,7 @@ import {
   collectWorkoutTelemetry,
   type WorkoutProxyLike,
 } from './workoutTelemetry';
+import { readAppleWorkoutZoneGroups } from '../appleHeartZones';
 import {
   createTelemetryRunContext,
   type TelemetryRunContext,
@@ -1473,6 +1474,8 @@ const handleWorkout: RecordHandler = async (
     result.status === 'fulfilled' ? [result.value] : []
   );
 
+  await attachAppleZoneGroups(workoutsWithStats);
+
   // One summary line per run — the field-verifiable signal for #2191. See the
   // matching log in healthconnect/index.ts.
   const overBudget =
@@ -1486,6 +1489,29 @@ const handleWorkout: RecordHandler = async (
 
   return workoutsWithStats;
 };
+
+/**
+ * Copies Apple's heart-rate zone group onto each workout that has one.
+ * Own-watch workouts are still skipped later by the transformer; this only
+ * fills the field. A failure leaves the workout to be bucketed on the server.
+ */
+async function attachAppleZoneGroups(
+  records: Record<string, unknown>[]
+): Promise<void> {
+  const uuids = records.flatMap((record) =>
+    typeof record.uuid === 'string' && record.uuid.length > 0
+      ? [record.uuid]
+      : []
+  );
+  if (uuids.length === 0) return;
+  const groups = await readAppleWorkoutZoneGroups(uuids);
+  if (groups.size === 0) return;
+  for (const record of records) {
+    if (typeof record.uuid !== 'string') continue;
+    const zones = groups.get(record.uuid.toLowerCase());
+    if (zones) record.hr_zones = zones;
+  }
+}
 
 // Handler for BloodPressure records (requires merging systolic and diastolic samples)
 const handleBloodPressure: RecordHandler = async (
