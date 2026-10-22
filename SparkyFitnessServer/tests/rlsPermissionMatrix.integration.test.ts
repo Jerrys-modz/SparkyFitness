@@ -607,6 +607,12 @@ describe.runIf(RUN)('RLS permission matrix', () => {
         col: 'qual',
         mustContain: 'share_external_providers',
       },
+      {
+        table: 'external_data_providers',
+        policy: 'select_policy',
+        col: 'qual',
+        mustContain: 'authenticated_user_id() = user_id',
+      },
       // Bidirectional visibility (owner OR the family member sees the grant).
       {
         table: 'family_access',
