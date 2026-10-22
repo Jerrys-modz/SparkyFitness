@@ -5,6 +5,7 @@ _Last updated: 2026-10-19_
 _Last updated: 2026-10-17_
 _Last updated: 2026-10-18_
 _Last updated: 2026-10-16_
+_Last updated: 2026-10-06_
 
 SparkyFitness Frontend is the React web app for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessFrontend/`.
 
@@ -122,6 +123,7 @@ When searching, ignore `node_modules/`, `dist/`, and every locale except `public
 - Weekly coaching check-in: `pages/Reports/CoachingCheckInCard.tsx` at the top of Reports > Nutrition, fed by `useCoachingCheckIn` (`hooks/Reports/useReports.ts`, `GET /reports/coaching-checkin`); the goal settings and Accept use `useSaveCoachingSettingsMutation` / `useAcceptCoachingCheckInMutation` (`hooks/Goals/useGoals.ts`), and the card is read-only while acting on behalf of someone. The maths and the data-note list come from the shared `weightCoaching.ts`.
 - Grade-adjusted pace and running dynamics on the activity report (`pages/Reports/ActivityReportVisualizer.tsx`, `full` variant): `processGpsPointsToChartData` in `utils/activityReportUtil.ts` adds `gradeAdjustedPace` (min/km, from the shared elevation profile; null on every point without usable elevation), `groundContactTime`, `verticalOscillation` (cm, inches with miles), `verticalRatio` and `power` to each `ChartDataPoint`. `ActivityPaceChart` draws the GAP line only when a point has one, `ActivityDynamicsChart` draws one metric with its plain-language note, and `ActivityStatsGrid`'s `extraStats` carries the Avg GAP and dynamics tiles from `gradeAdjustedAveragePace` / `resolveRunningDynamics`. The `outdoor` variant (cardio list) shows only the map and heart rate.
 - Lab results: `pages/Reports/LabResultsReport.tsx` is the Reports > Lab Results tab (tab id `lab-results`, in `ReportsControls.tsx`; with no lab marker it shows a note pointing at the mobile app) and charts every custom category flagged `is_lab` (frequency `Daily`, so a repeated save replaces the day's result) with its reference range as a band (`ReferenceArea`, or a `ReferenceLine` for a one-sided range) and the latest value's Low / High / In range status from the shared `labRangeStatus`. Lab categories are left out of `CustomCategoryReport` and the daily `CheckInForm`; they are added on mobile (Library > Lab results, including report import). It reads the report's date range, so a marker with no result in it shows an empty state.
+- Nutrient insights (#172): `pages/Reports/NutrientInsightsCard.tsx` on Reports > Charts, driven by the pure helpers in `utils/nutrientInsights.ts` (deficiency status per goal direction, 0-100 nutrition score, `rankFoodSuggestions` over `useRecentAndTopFoodsQuery`). Frontend only; no server endpoint.
 - Chart issue: Recharts usage in the domain page plus `src/components/ExerciseCharts/` or `ZoomableChart.tsx`.
 
 ## Priority Rule
