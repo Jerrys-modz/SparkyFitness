@@ -658,6 +658,7 @@
     "heartRateZonesSettings": "Heart Rate Zones",
     "routes": "Routes",
     "routeDraw": "Draw a route",
+    "routeEdit": "Edit route",
     "routeGenerate": "Generate a route",
     "compareReport": "Compare"
   },
@@ -3995,7 +3996,8 @@
       "volume": "Volume",
       "calories": "Calories",
       "avgHeartRate": "Avg HR",
-      "maxHeartRate": "Max HR"
+      "maxHeartRate": "Max HR",
+      "effort": "Effort"
     },
     "errors": {
       "needsExercise": "Workout needs an exercise",
@@ -4036,7 +4038,8 @@
       "distance": "Distance",
       "avgHeartRate": "Avg Heart Rate",
       "steps": "Steps",
-      "pace": "Pace"
+      "pace": "Pace",
+      "effort": "Effort"
     },
     "labels": {
       "sets": "Sets",
@@ -6609,7 +6612,8 @@
       "underOneMinute": "<1 min",
       "exportGpx": "Export GPX",
       "exportGpxFailed": "Could not export the route",
-      "shareImage": "Share as image"
+      "shareImage": "Share as image",
+      "effort": "Effort"
     },
     "load": {
       "title": "Training Load",
@@ -8289,8 +8293,18 @@
     "turnCount_other": "{{count}} turns",
     "followRoads": "Follow roads",
     "followRoadsNeedsProvider": "A routing provider is needed. Add one in Settings > External Providers on the web app.",
-    "followRoadsLimit": "Following roads takes up to {{max}} points. Undo a point to add another.",
-    "followRoadsTooMany": "Following roads takes up to {{max}} points. Undo points or turn Follow roads off to save.",
+    "followRoadsUnrouted": "Stretches without a road line show straight. Retry, or turn off Follow roads to save them straight.",
+    "editorPointLimit": "A route takes up to {{max}} points. Delete a point to add another.",
+    "followBefore": "Follow roads before",
+    "followAfter": "Follow roads after",
+    "straightBefore": "Straight before",
+    "straightAfter": "Straight after",
+    "deletePoint": "Delete point",
+    "editLine": "Edit route on map",
+    "mapSatellite": "Satellite",
+    "mapStandard": "Map",
+    "mapUnavailable": "Routes cannot be drawn on a map in this build.",
+    "redo": "Redo",
     "findingRoute": "Finding a route",
     "turns": "Turns",
     "showFewerTurns": "Show fewer",
@@ -8330,6 +8344,7 @@
     "goBack": "Go back",
     "fileTooLarge": "That file is too large",
     "fileTooLargeHint": "A route file can be up to 10 MB.",
+    "followRoadsTooMany": "Following roads takes up to {{max}} points. Undo points or turn Follow roads off to save.",
     "drawLimit": "That is as many points as a route can have here. Undo some or save this one."
   },
   "heartRateZones": {
@@ -8580,5 +8595,8 @@
       "throughLastWeek": "Through last week",
       "throughDate": "Through {{date}}"
     }
+  },
+  "workoutEffort": {
+    "value": "{{rating}}/10"
   }
 }

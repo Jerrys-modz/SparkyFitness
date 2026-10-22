@@ -209,6 +209,8 @@ export interface WorkoutLapWindow {
  * omitted is derived server-side from the series where possible.
  */
 export interface WorkoutTelemetry {
+  /** The person's own 1 to 10 rating of the workout, from Apple Health. */
+  workout_effort?: number | null;
   avg_heart_rate?: number | null;
   max_heart_rate?: number | null;
   /** Metres per second. */
