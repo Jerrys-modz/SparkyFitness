@@ -8441,6 +8441,23 @@
       "dayBefore": "The day before",
       "sameWeek": "The same week",
       "nextWeek": "The next week"
+    },
+    "bars": {
+      "yesDays": "Days you {{yes}}",
+      "noDays": "Days without {{yesNoun}}",
+      "meanAndDays_one": "{{mean}} · {{count}} day",
+      "meanAndDays_other": "{{mean}} · {{count}} days",
+      "diff": "{{diff}} vs. your usual"
+    },
+    "checks": {
+      "ownNormal": "✓ Compared with your own normal",
+      "notProof": "A link, not proof of cause",
+      "seemsFirst": "{{metric}} seems to come first",
+      "comesFirst": "{{metric}} comes first",
+      "otherWay": "The link is stronger the other way round",
+      "cantTell": "Can't tell which comes first",
+      "weekendHolds": "Still holds after accounting for weekends",
+      "weekendMay": "This may be a weekday-versus-weekend pattern"
     }
   }
 }
