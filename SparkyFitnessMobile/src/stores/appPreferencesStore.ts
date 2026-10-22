@@ -1,5 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  DEFAULT_CHECKIN_REMINDER_TIME,
+  normalizeCheckinReminderTimes,
+} from '../utils/checkinReminderTimes';
+import {
   DEFAULT_GUIDED_COUNTDOWN_SEC,
   DEFAULT_GUIDED_SPEECH_RATE,
   clampGuidedCountdownSec,
@@ -110,6 +114,8 @@ export const PREFERENCE_DEFAULTS = {
   waterReminderIntervalHours: 2 as WaterReminderIntervalHours,
   waterReminderWindowStart: '08:00' as string,
   waterReminderWindowEnd: '22:00' as string,
+  checkinRemindersEnabled: false,
+  checkinReminderTimes: [DEFAULT_CHECKIN_REMINDER_TIME] as string[],
   liquidGlassTabBarEnabled: false,
   activeWorkoutMetricColumn: 'rpe' as ActiveWorkoutMetricColumn,
   diarySummaryVisible: false,
@@ -186,6 +192,8 @@ export type AppPreferencesData = {
   waterReminderIntervalHours: WaterReminderIntervalHours;
   waterReminderWindowStart: string;
   waterReminderWindowEnd: string;
+  checkinRemindersEnabled: boolean;
+  checkinReminderTimes: string[];
   liquidGlassTabBarEnabled: boolean;
   activeWorkoutMetricColumn: ActiveWorkoutMetricColumn;
   diarySummaryVisible: boolean;
@@ -299,6 +307,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setWaterReminderEnabled: (value: boolean) => void;
   setWaterReminderIntervalHours: (value: WaterReminderIntervalHours) => void;
   setWaterReminderWindow: (start: string, end: string) => void;
+  setCheckinRemindersEnabled: (enabled: boolean) => void;
+  setCheckinReminderTimes: (times: string[]) => void;
   setLiquidGlassTabBarEnabled: (value: boolean) => void;
   setActiveWorkoutMetricColumn: (value: ActiveWorkoutMetricColumn) => void;
   setDiarySummaryVisible: (value: boolean) => void;
@@ -444,6 +454,10 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ waterReminderIntervalHours: value }),
       setWaterReminderWindow: (start, end) =>
         set({ waterReminderWindowStart: start, waterReminderWindowEnd: end }),
+      setCheckinRemindersEnabled: (enabled) =>
+        set({ checkinRemindersEnabled: enabled }),
+      setCheckinReminderTimes: (times) =>
+        set({ checkinReminderTimes: normalizeCheckinReminderTimes(times) }),
       setLiquidGlassTabBarEnabled: (value) =>
         set({ liquidGlassTabBarEnabled: value }),
       setActiveWorkoutMetricColumn: (value) =>
@@ -596,6 +610,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         waterReminderIntervalHours: state.waterReminderIntervalHours,
         waterReminderWindowStart: state.waterReminderWindowStart,
         waterReminderWindowEnd: state.waterReminderWindowEnd,
+        checkinRemindersEnabled: state.checkinRemindersEnabled,
+        checkinReminderTimes: state.checkinReminderTimes,
         liquidGlassTabBarEnabled: state.liquidGlassTabBarEnabled,
         // Older persisted blobs without these keys backfill via the default
         // shallow merge — no version bump needed.

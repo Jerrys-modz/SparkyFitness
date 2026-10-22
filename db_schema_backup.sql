@@ -2091,6 +2091,7 @@ CREATE TABLE public.exercise_entries (
     watch_duration_minutes numeric,
     record_timezone text,
     shoe_id uuid,
+    manual_fields text[],
     CONSTRAINT exercise_entries_modality_check CHECK ((modality = ANY (ARRAY['weight_reps'::text, 'reps_only'::text, 'bodyweight_reps'::text, 'weight_duration'::text, 'weight_distance'::text, 'duration'::text, 'duration_distance'::text])))
 );
 
@@ -4075,6 +4076,7 @@ CREATE TABLE public.symptom_entries (
     impact character varying(20),
     peak_severity numeric,
     severity_timeline jsonb DEFAULT '[]'::jsonb NOT NULL,
+    impact_timeline jsonb DEFAULT '[]'::jsonb NOT NULL,
     CONSTRAINT symptom_entries_episode_order_check CHECK (((ended_at IS NULL) OR (started_at IS NULL) OR (ended_at >= started_at))),
     CONSTRAINT symptom_entries_impact_check CHECK (((impact IS NULL) OR ((impact)::text = ANY ((ARRAY['none'::character varying, 'mild'::character varying, 'moderate'::character varying, 'severe'::character varying])::text[]))))
 );

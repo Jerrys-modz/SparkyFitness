@@ -17,6 +17,12 @@ import * as dateUtils from '../../src/utils/dateUtils';
 import { getTodayDate } from '../../src/utils/dateUtils';
 import type { RootStackScreenProps } from '../../src/types/navigation';
 import type { MoodEntry } from '../../src/services/api/moodApi';
+import {
+  hasShownCheckinReminderOffer,
+  markCheckinReminderOfferShown,
+} from '../../src/services/checkinReminderOffer';
+import { requestNotificationPermission } from '../../src/services/notifications';
+import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 
 type ScreenProps = RootStackScreenProps<'MoodLog'>;
 
@@ -58,6 +64,15 @@ jest.mock('../../src/hooks/useMood', () => ({
     mutateAsync: mockDeleteMutateAsync,
     isPending: false,
   }),
+}));
+
+jest.mock('../../src/services/checkinReminderOffer', () => ({
+  hasShownCheckinReminderOffer: jest.fn(),
+  markCheckinReminderOfferShown: jest.fn(),
+}));
+
+jest.mock('../../src/services/notifications', () => ({
+  requestNotificationPermission: jest.fn(),
 }));
 
 let mockSupported: boolean | null = true;
@@ -778,5 +793,292 @@ describe('MoodLogScreen check-in composer (several check-ins a day)', () => {
       fireEvent.press(screen.getByRole('button', { name: 'Back' }));
       expect(mockNavigation.goBack).toHaveBeenCalled();
     });
+  });
+});
+
+describe('MoodLogScreen daily reminder offer', () => {
+  // Created per test: earlier suites restore their own Alert spies.
+  let alertSpy: jest.SpyInstance;
+
+  const setPrefs = (notifications: boolean, reminders: boolean) =>
+    useAppPreferencesStore.setState({
+      notificationsEnabled: notifications,
+      checkinRemindersEnabled: reminders,
+      checkinReminderTimes: ['08:00'],
+    });
+
+  const remindMe = async () => {
+    const buttons = alertSpy.mock.calls[0][2] ?? [];
+    await buttons.find((b) => b.text === 'Remind me')?.onPress?.();
+  };
+
+  const initialPrefs = useAppPreferencesStore.getState();
+
+  beforeAll(async () => {
+    await initializeI18n('en');
+  });
+
+  afterEach(() => {
+    useAppPreferencesStore.setState(initialPrefs, true);
+    alertSpy.mockRestore();
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    mockEntry = null;
+    mockSupported = true;
+    mockMutateAsync.mockResolvedValue({ energy_value: null });
+    (hasShownCheckinReminderOffer as jest.Mock).mockResolvedValue(false);
+    (markCheckinReminderOfferShown as jest.Mock).mockResolvedValue(undefined);
+    setPrefs(true, false);
+  });
+
+  const save = async () => {
+    renderScreen();
+    await pressSave();
+    await waitFor(() => expect(mockNavigation.goBack).toHaveBeenCalled());
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+
+  it('offers reminders once after the first check-in and marks it shown', async () => {
+    await save();
+    expect(alertSpy).toHaveBeenCalledTimes(1);
+    expect(alertSpy.mock.calls[0][0]).toBe('Remind me daily?');
+    expect(markCheckinReminderOfferShown).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not offer after editing the day's saved mood", async () => {
+    // The one-entry form edits the day's entry when one exists (logged on
+    // the web earlier, say); like the composer, only a new check-in offers.
+    mockEntry = savedEntry();
+    await save();
+    expect(hasShownCheckinReminderOffer).not.toHaveBeenCalled();
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not offer again once shown', async () => {
+    (hasShownCheckinReminderOffer as jest.Mock).mockResolvedValue(true);
+    await save();
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not offer when reminders are already on', async () => {
+    setPrefs(true, true);
+    await save();
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not offer when notifications are off', async () => {
+    setPrefs(false, false);
+    await save();
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  it('turns reminders on at 20:30 when accepted and permitted', async () => {
+    (requestNotificationPermission as jest.Mock).mockResolvedValue('granted');
+    await save();
+    await remindMe();
+    const state = useAppPreferencesStore.getState();
+    expect(state.checkinRemindersEnabled).toBe(true);
+    expect(state.checkinReminderTimes).toEqual(['20:30']);
+  });
+
+  it('leaves reminders off when permission is denied', async () => {
+    (requestNotificationPermission as jest.Mock).mockResolvedValue('denied');
+    await save();
+    await remindMe();
+    expect(useAppPreferencesStore.getState().checkinRemindersEnabled).toBe(
+      false
+    );
+  });
+
+  it('explains that notifications are off when permission is denied', async () => {
+    (requestNotificationPermission as jest.Mock).mockResolvedValue('denied');
+    await save();
+    await remindMe();
+    expect(Toast.show).toHaveBeenCalledWith(
+      expect.objectContaining({ text1: 'Notifications off' })
+    );
+    expect(useAppPreferencesStore.getState().checkinRemindersEnabled).toBe(
+      false
+    );
+  });
+
+  it('does not offer reminders when the save fails', async () => {
+    mockMutateAsync.mockRejectedValue(new Error('network'));
+    renderScreen();
+    fireEvent.press(screen.getByText('Save'));
+    await waitFor(() => expect(mockMutateAsync).toHaveBeenCalled());
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(mockNavigation.goBack).not.toHaveBeenCalled();
+    expect(hasShownCheckinReminderOffer).not.toHaveBeenCalled();
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  it('still leaves the screen when reading the offer flag fails', async () => {
+    (hasShownCheckinReminderOffer as jest.Mock).mockRejectedValue(
+      new Error('storage')
+    );
+    await save();
+    expect(mockNavigation.goBack).toHaveBeenCalled();
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  it('leaves the screen without waiting for the offer flag', async () => {
+    (hasShownCheckinReminderOffer as jest.Mock).mockReturnValue(
+      new Promise(() => {})
+    );
+    renderScreen();
+    await pressSave();
+    await waitFor(() => expect(mockNavigation.goBack).toHaveBeenCalled());
+  });
+
+  it('leaves reminders off when the permission request throws', async () => {
+    (requestNotificationPermission as jest.Mock).mockRejectedValue(
+      new Error('boom')
+    );
+    await save();
+    await expect(remindMe()).resolves.toBeUndefined();
+    expect(useAppPreferencesStore.getState().checkinRemindersEnabled).toBe(
+      false
+    );
+  });
+});
+
+describe('MoodLogScreen daily reminder offer on a server with several check-ins a day', () => {
+  let alertSpy: jest.SpyInstance;
+  const initialPrefs = useAppPreferencesStore.getState();
+
+  const remindMe = async () => {
+    const buttons = (alertSpy.mock.calls[0][2] ?? []) as AlertButton[];
+    await buttons.find((b) => b.text === 'Remind me')?.onPress?.();
+  };
+
+  const settle = async () => {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+
+  const saveNew = async () => {
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Happy'));
+    fireEvent.press(screen.getByText('Save'));
+    await waitFor(() => expect(mockCreateMutateAsync).toHaveBeenCalled());
+    await waitFor(() => expect(mockNavigation.goBack).toHaveBeenCalled());
+    await settle();
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    mockCheckinsSupport = { supported: true, isLoading: false };
+    mockCheckins = [];
+    mockTimezone = 'UTC';
+    mockCreateMutateAsync.mockResolvedValue(savedEntry());
+    mockUpdateMutateAsync.mockResolvedValue(savedEntry());
+    (hasShownCheckinReminderOffer as jest.Mock).mockResolvedValue(false);
+    (markCheckinReminderOfferShown as jest.Mock).mockResolvedValue(undefined);
+    useAppPreferencesStore.setState({
+      notificationsEnabled: true,
+      checkinRemindersEnabled: false,
+      checkinReminderTimes: ['08:00'],
+    });
+  });
+
+  afterEach(() => {
+    useAppPreferencesStore.setState(initialPrefs, true);
+    alertSpy.mockRestore();
+  });
+
+  it('opens a new check-in for today when the reminder tap passes no params', () => {
+    render(
+      <SafeAreaProvider
+        initialMetrics={{
+          insets: { top: 24, bottom: 48, left: 0, right: 0 },
+          frame,
+        }}
+      >
+        <MoodLogScreen
+          navigation={mockNavigation}
+          route={{ key: 'MoodLog-key', name: 'MoodLog', params: undefined }}
+        />
+      </SafeAreaProvider>
+    );
+    expect(screen.getByText('New check-in')).toBeTruthy();
+    expect(screen.queryByText('Edit check-in')).toBeNull();
+    expect(screen.queryByText(/Logging for/)).toBeNull();
+  });
+
+  it('offers reminders once after a new check-in and marks it shown', async () => {
+    await saveNew();
+    expect(alertSpy).toHaveBeenCalledTimes(1);
+    expect(alertSpy.mock.calls[0][0]).toBe('Remind me daily?');
+    expect(markCheckinReminderOfferShown).toHaveBeenCalledTimes(1);
+  });
+
+  it('never offers after an edit', async () => {
+    mockCheckins = [
+      savedEntry({
+        id: 'checkin-1',
+        entry_timestamp: `${DATE}T08:10:42.000Z`,
+      }),
+    ];
+    renderWithParams({ date: DATE, checkinId: 'checkin-1' });
+    fireEvent.press(screen.getByLabelText('Energy 4'));
+    fireEvent.press(screen.getByText('Save'));
+    await waitFor(() => expect(mockUpdateMutateAsync).toHaveBeenCalled());
+    await waitFor(() => expect(mockNavigation.goBack).toHaveBeenCalled());
+    await settle();
+    expect(hasShownCheckinReminderOffer).not.toHaveBeenCalled();
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  it('turns reminders on at 20:30 when accepted and permitted', async () => {
+    (requestNotificationPermission as jest.Mock).mockResolvedValue('granted');
+    await saveNew();
+    await remindMe();
+    const state = useAppPreferencesStore.getState();
+    expect(state.checkinRemindersEnabled).toBe(true);
+    expect(state.checkinReminderTimes).toEqual(['20:30']);
+  });
+
+  it('explains that notifications are off and leaves reminders off when denied', async () => {
+    (requestNotificationPermission as jest.Mock).mockResolvedValue('denied');
+    await saveNew();
+    await remindMe();
+    expect(Toast.show).toHaveBeenCalledWith(
+      expect.objectContaining({ text1: 'Notifications off' })
+    );
+    expect(useAppPreferencesStore.getState().checkinRemindersEnabled).toBe(
+      false
+    );
+  });
+
+  it('shows no offer when the create fails', async () => {
+    mockCreateMutateAsync.mockRejectedValue(new Error('network'));
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Happy'));
+    fireEvent.press(screen.getByText('Save'));
+    await waitFor(() => expect(mockCreateMutateAsync).toHaveBeenCalled());
+    await settle();
+    expect(mockNavigation.goBack).not.toHaveBeenCalled();
+    expect(hasShownCheckinReminderOffer).not.toHaveBeenCalled();
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  it('leaves the screen without waiting for the offer flag', async () => {
+    (hasShownCheckinReminderOffer as jest.Mock).mockReturnValue(
+      new Promise(() => {})
+    );
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Happy'));
+    fireEvent.press(screen.getByText('Save'));
+    await waitFor(() => expect(mockNavigation.goBack).toHaveBeenCalled());
   });
 });
