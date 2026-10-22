@@ -393,6 +393,22 @@ export const createCustomCategory = async (body: {
   });
 };
 
+export const updateCustomCategory = async (
+  id: string,
+  body: {
+    ref_range_low?: number | null;
+    ref_range_high?: number | null;
+  }
+): Promise<CustomCategory> => {
+  return apiFetch<CustomCategory>({
+    endpoint: `/api/measurements/custom-categories/${encodeURIComponent(id)}`,
+    serviceName: 'Measurements API',
+    operation: 'update custom category',
+    method: 'PUT',
+    body,
+  });
+};
+
 /**
  * One category's entries between two days, oldest first. Health-synced values
  * such as VO2 max are custom measurements, so a trend reads them here.
@@ -470,6 +486,7 @@ export const saveCustomMeasurement = async (
       entry_timestamp: payload.entry_timestamp,
       notes: payload.notes,
       source: payload.source,
+      import_id: payload.import_id,
     },
   });
 };

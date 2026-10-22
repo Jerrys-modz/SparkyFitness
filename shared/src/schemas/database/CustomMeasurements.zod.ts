@@ -17,6 +17,7 @@ export const customMeasurementsSchema = z.object({
   created_by_user_id: userIdSchema.nullable(),
   updated_by_user_id: userIdSchema.nullable(),
   source: z.string(),
+  import_id: z.string().nullable(),
 });
 
 export const customMeasurementsInitializerSchema = z.object({
@@ -33,6 +34,7 @@ export const customMeasurementsInitializerSchema = z.object({
   created_by_user_id: userIdSchema.optional().nullable(),
   updated_by_user_id: userIdSchema.optional().nullable(),
   source: z.string().optional(),
+  import_id: z.string().optional().nullable(),
 });
 
 export const customMeasurementsMutatorSchema = z.object({
@@ -49,6 +51,7 @@ export const customMeasurementsMutatorSchema = z.object({
   created_by_user_id: userIdSchema.optional().nullable(),
   updated_by_user_id: userIdSchema.optional().nullable(),
   source: z.string().optional(),
+  import_id: z.string().optional().nullable(),
 });
 
 export type DatabaseCustomMeasurements = z.infer<

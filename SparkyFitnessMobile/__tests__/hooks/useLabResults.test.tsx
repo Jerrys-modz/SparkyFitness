@@ -1,5 +1,13 @@
 import { renderHook, waitFor } from '@testing-library/react-native';
-import { useSaveLabResult } from '../../src/hooks/useLabResults';
+import {
+  useDeleteImportedLabResults,
+  useDeleteLabMarker,
+  useSaveLabResult,
+} from '../../src/hooks/useLabResults';
+import {
+  deleteImportedLabResults,
+  deleteLabMarker,
+} from '../../src/services/api/labReportApi';
 import {
   createCustomCategory,
   saveCustomMeasurement,
@@ -7,10 +15,15 @@ import {
 import { createQueryWrapper, createTestQueryClient } from './queryTestUtils';
 
 jest.mock('../../src/services/api/measurementsApi', () => ({
+  updateCustomCategory: jest.fn(),
   createCustomCategory: jest.fn(),
   deleteCustomMeasurement: jest.fn(),
   fetchCustomMeasurementsRange: jest.fn(),
   saveCustomMeasurement: jest.fn(),
+}));
+jest.mock('../../src/services/api/labReportApi', () => ({
+  deleteImportedLabResults: jest.fn(),
+  deleteLabMarker: jest.fn(),
 }));
 jest.mock('../../src/hooks/refreshHealthSyncCache', () => ({
   refreshHealthSyncCache: jest.fn(),
@@ -98,5 +111,35 @@ describe('useSaveLabResult', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(saveCustomMeasurement).not.toHaveBeenCalled();
+  });
+});
+
+describe('lab deletes', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('deletes the imported results and reports how many went', async () => {
+    jest
+      .mocked(deleteImportedLabResults)
+      .mockResolvedValue({ results: 12, markers: 3 });
+    const { result } = renderHook(() => useDeleteImportedLabResults(), {
+      wrapper: createQueryWrapper(createTestQueryClient()),
+    });
+
+    result.current.mutate();
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual({ results: 12, markers: 3 });
+  });
+
+  it('deletes one marker by id', async () => {
+    jest.mocked(deleteLabMarker).mockResolvedValue({ results: 4 });
+    const { result } = renderHook(() => useDeleteLabMarker(), {
+      wrapper: createQueryWrapper(createTestQueryClient()),
+    });
+
+    result.current.mutate('cat-9');
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(deleteLabMarker).toHaveBeenCalledWith('cat-9');
   });
 });
