@@ -14,12 +14,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.join(__dirname, '..', 'db', 'migrations');
 
 const TRANSACTION_CONTROL =
-  /^(?:(?:BEGIN|START\s+TRANSACTION|COMMIT|END|ROLLBACK|ABORT)(?:\s+(?:WORK|TRANSACTION|AND\s+(?:NO\s+)?CHAIN))*|SAVEPOINT\s+\w+|RELEASE(?:\s+SAVEPOINT)?\s+\w+)$/i;
+  /^(?:BEGIN|START\s+TRANSACTION|COMMIT|END|ROLLBACK|ABORT|SAVEPOINT|RELEASE|PREPARE\s+TRANSACTION)\b/i;
 
 /**
  * The transaction-control statements in a file. Comments, quoted text and
  * dollar-quoted bodies (where PL/pgSQL's own BEGIN and END belong) are removed
- * first, then each statement is checked whole, so `CASE ... END` is not one.
+ * first, then each statement is judged by its first word, so `CASE ... END` is
+ * not one and `ROLLBACK TO SAVEPOINT "a"` is.
  */
 function transactionControl(sql: string): string[] {
   return sql
@@ -40,6 +41,9 @@ describe('migration files', () => {
         "-- don't\nSELECT CASE WHEN true THEN 'a;b' END;\n/* COMMIT; */"
       )
     ).toEqual([]);
+    expect(
+      transactionControl('SAVEPOINT "a";\nROLLBACK TO SAVEPOINT "a";')
+    ).toHaveLength(2);
   });
 
   it.each(fs.readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')))(
