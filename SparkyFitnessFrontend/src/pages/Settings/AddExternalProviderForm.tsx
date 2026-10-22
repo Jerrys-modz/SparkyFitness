@@ -1,8 +1,4 @@
 import { useState } from 'react';
-import {
-  ROUTING_PROVIDER_DEFAULT_BASE_URL,
-  ROUTING_PROVIDER_TYPE,
-} from '@workspace/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -361,9 +357,7 @@ const AddExternalProviderForm = ({
                     base_url:
                       value === 'coros_mcp'
                         ? 'https://mcpus.coros.com/mcp'
-                        : value === ROUTING_PROVIDER_TYPE
-                          ? ROUTING_PROVIDER_DEFAULT_BASE_URL
-                          : '',
+                        : '',
                     garmin_connect_status: 'disconnected',
                     garmin_last_status_check: '',
                     garmin_token_expires: '',

@@ -2,10 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { ProviderSpecificFields } from '@/pages/Settings/ProviderSpecificFields';
 import type { ExternalDataProvider } from '@/pages/Settings/ExternalProviderSettings';
-import {
-  ROUTING_PROVIDER_DEFAULT_BASE_URL,
-  ROUTING_PROVIDER_TYPE,
-} from '@workspace/shared';
+import { ROUTING_PROVIDER_TYPE } from '@workspace/shared';
 import { validateProvider } from '@/utils/settings';
 
 function Harness({
@@ -38,15 +35,18 @@ function Harness({
 describe('Valhalla routing provider fields', () => {
   const base: Partial<ExternalDataProvider> = {
     provider_type: ROUTING_PROVIDER_TYPE,
-    base_url: ROUTING_PROVIDER_DEFAULT_BASE_URL,
+    base_url: '',
     app_key: '',
   };
 
-  it('shows the server URL prefilled and an optional API key', () => {
+  it('shows an empty server URL (there is no default server) and an optional API key', () => {
     render(<Harness initial={base} onChange={() => {}} />);
-    expect(
-      (screen.getByLabelText('Valhalla server URL') as HTMLInputElement).value
-    ).toBe('https://valhalla1.openstreetmap.de');
+    const url = screen.getByLabelText(
+      'Valhalla server URL'
+    ) as HTMLInputElement;
+    expect(url.value).toBe('');
+    // The placeholder is an example, not the public demo server.
+    expect(url.placeholder).not.toMatch(/openstreetmap\.de/);
     const key = screen.getByLabelText('API key (optional)');
     // The key is a password field and never shown in clear.
     expect(key.getAttribute('type')).toBe('password');
@@ -57,7 +57,10 @@ describe('Valhalla routing provider fields', () => {
     expect(
       screen.getByText(/are sent to this server, which can see them/)
     ).toBeTruthy();
-    expect(screen.getByText(/fair-use limits/)).toBeTruthy();
+    expect(screen.getByText(/There is no default server/)).toBeTruthy();
+    expect(
+      screen.getByText(/not meant for production use by third parties/)
+    ).toBeTruthy();
     expect(screen.getByText(/non-commercial use only/)).toBeTruthy();
   });
 

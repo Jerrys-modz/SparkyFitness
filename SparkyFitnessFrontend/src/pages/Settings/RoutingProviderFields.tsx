@@ -1,4 +1,3 @@
-import { ROUTING_PROVIDER_DEFAULT_BASE_URL } from '@workspace/shared';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from 'react-i18next';
@@ -12,10 +11,14 @@ interface RoutingProviderFieldsProps {
 }
 
 /**
- * The fields of a Valhalla routing provider: the server URL (the public
- * FOSSGIS server is suggested), an optional API key for hosted services, and
- * what sending route points to that server means.
+ * The fields of a Valhalla routing provider: the server URL (no default: the
+ * person adds a server they run or may use), an optional API key for hosted
+ * services, and what sending route points to that server means.
  */
+
+// Shown as a placeholder only; it is never saved or used as a default.
+const EXAMPLE_BASE_URL = 'https://valhalla.example.com';
+
 export const RoutingProviderFields = ({
   baseUrl,
   appKey,
@@ -35,7 +38,7 @@ export const RoutingProviderFields = ({
           type="text"
           value={baseUrl || ''}
           onChange={(e) => onBaseUrlChange(e.target.value)}
-          placeholder={ROUTING_PROVIDER_DEFAULT_BASE_URL}
+          placeholder={EXAMPLE_BASE_URL}
           autoComplete="off"
         />
       </div>
@@ -65,7 +68,7 @@ export const RoutingProviderFields = ({
         <p>
           {t(
             'settings.routingProvider.publicServerNote',
-            'The public server suggested here is shared and subject to fair-use limits, so it suits light use. For regular use, run your own Valhalla or use a hosted service. Stadia Maps, for one, offers a free plan for non-commercial use only. A sent API key is used only for this provider.'
+            'There is no default server. The public Valhalla server run by FOSSGIS is a demo for light personal testing, and its maintainers say it is not meant for production use by third parties, so do not point a shared server at it. Run your own Valhalla, use a hosted service (Stadia Maps, for one, offers a free plan for non-commercial use only) or a server whose operator has agreed. A sent API key is used only for this provider.'
           )}
         </p>
         <p>

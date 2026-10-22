@@ -5,8 +5,7 @@
 // `GET /api/v2/routes/generate/capabilities` report `available`.
 export const ROUTING_PROVIDER_TYPE = 'valhalla';
 
-// Suggested when someone adds the provider. The FOSSGIS-run public server is
-// free to try but shared, so the add-provider form says it is for light use
-// and that route points are sent to whichever server is chosen.
-export const ROUTING_PROVIDER_DEFAULT_BASE_URL =
-  'https://valhalla1.openstreetmap.de';
+// There is deliberately no default server URL. The public Valhalla demo server
+// run by FOSSGIS is for light personal testing: its maintainers say it is not
+// meant for production use by third parties. Each person (or the admin) adds
+// the server they run or have the right to use.

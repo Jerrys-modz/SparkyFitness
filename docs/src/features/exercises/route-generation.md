@@ -20,7 +20,7 @@ The server talks to engines through a small `RoutingProvider` interface, so anot
 
 1. In the web app, open **Settings → External Providers → Add**.
 2. Choose the type **Valhalla routing** and give it a name.
-3. Enter the **Valhalla server URL**. The form suggests the public FOSSGIS server, `https://valhalla1.openstreetmap.de`; change it to your own server or a hosted service if you prefer.
+3. Enter the **Valhalla server URL** of a server you run or have the right to use (see below). There is no default server: the box starts empty.
 4. Enter an **API key** only if the service needs one (hosted services such as [Stadia Maps](https://stadiamaps.com) do). It is sent as the `api_key` query parameter, stored encrypted like the keys of other providers, never shown to anyone else and never logged.
 5. Turn **Activate this provider** on and save.
 
@@ -32,13 +32,21 @@ The provider belongs to you, like any other. Sharing follows the usual rules for
 To plan a route, the SparkyFitness **server** sends the start, end and waypoints (and, to find elevation, the resulting line) to the server you choose, which can see them. Use a server you trust, or run your own (below). Your phone never contacts the routing server directly, and your saved routes are never sent.
 :::
 
-### The public and hosted options
+### Which server to use
 
-- **FOSSGIS public server** (`https://valhalla1.openstreetmap.de`): a shared server run for the OpenStreetMap community. It is free to try but subject to fair-use limits, so it suits light use. The limits are not documented here: figures such as about one request per second per user are secondhand reports that we have not verified against FOSSGIS's own terms, so check with FOSSGIS before relying on them. SparkyFitness identifies itself with a `User-Agent` starting `SparkyFitness/`, as public servers expect.
-- **Stadia Maps**: its free plan is for development and **non-commercial use only**; commercial use needs a paid plan. Check their [pricing and limits](https://docs.stadiamaps.com/limits/) for the current quotas.
-- **Your own Valhalla**: no limits except your hardware; see [Running Valhalla locally](#running-valhalla-locally).
+SparkyFitness does not suggest or default to any server. Pick one of these:
 
-A loop request costs up to three engine calls, which is another reason to keep to your own server for heavy use.
+- **Your own Valhalla** (recommended for a shared server): no limits except your hardware and nobody else sees your routes. See [Running Valhalla locally](#running-valhalla-locally).
+- **A hosted Valhalla service**, such as [Stadia Maps](https://stadiamaps.com): needs an API key. Its free plan is for development and **non-commercial use only**; commercial use needs a paid plan. Check their [pricing and limits](https://docs.stadiamaps.com/limits/) for the current quotas.
+- **A server whose operator has agreed** to your use.
+
+::: warning The public FOSSGIS Valhalla server is not for this
+FOSSGIS runs a public Valhalla demo server (`valhalla1.openstreetmap.de`) for the OpenStreetMap community. Its maintainers have said it is not meant for production use by third parties, it applies strict rate limits that all your users would share (they come from your server's one address), and some endpoints, elevation included, have been switched off at times. It is fine for a quick personal test on your own account; do not point a server that other people use at it. We last checked this against the [Valhalla announcement thread](https://github.com/valhalla/valhalla/discussions/3373); the current rules are FOSSGIS's to set, so check with them.
+:::
+
+SparkyFitness identifies itself with a `User-Agent` starting `SparkyFitness/`, as public servers expect.
+
+A loop request costs up to three engine calls, which is another reason to run your own server for regular use.
 
 If the provider's URL points at a private or LAN address, the usual rule for self-hosted providers applies: admins may, other users may not unless the operator allows it in **Admin → Global Provider Settings** (or `ALLOW_PRIVATE_NETWORK_FOOD_PROVIDERS=true`).
 

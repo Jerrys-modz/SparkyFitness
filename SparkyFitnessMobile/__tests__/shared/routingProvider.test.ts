@@ -1,16 +1,11 @@
 import {
-  ROUTING_PROVIDER_DEFAULT_BASE_URL,
   ROUTING_PROVIDER_TYPE,
   routeGenerateCapabilitiesSchema,
 } from '@workspace/shared';
 
 describe('routing provider constants', () => {
-  it('names the provider type seeded by the migration and the suggested URL', () => {
+  it('names the provider type seeded by the migration', () => {
     expect(ROUTING_PROVIDER_TYPE).toBe('valhalla');
-    expect(ROUTING_PROVIDER_DEFAULT_BASE_URL).toBe(
-      'https://valhalla1.openstreetmap.de'
-    );
-    expect(() => new URL(ROUTING_PROVIDER_DEFAULT_BASE_URL)).not.toThrow();
   });
 });
 
