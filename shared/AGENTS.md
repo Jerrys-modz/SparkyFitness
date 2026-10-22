@@ -1,8 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-21_
 _Last updated: 2026-10-22_
-*Last updated: 2026-10-16*
 
 `@workspace/shared` is a source-first TypeScript workspace library package for schemas, constants, and timezone/day helpers consumed by SparkyFitnessServer, SparkyFitnessFrontend, and SparkyFitnessMobile.
 
@@ -25,7 +23,7 @@ _Last updated: 2026-10-22_
 - `src/utils/heartRateZones.ts` - the single source of truth for heart rate zones: `resolveMaxHr` (own value, else Nes from date of birth, else observed max, else 190), `resolveHeartRateZones` (three methods: `percent_max`, `heart_rate_reserve` (Karvonen, needs resting HR) and `custom` floors; falls back to percent of max when the chosen method lacks input and says so in `effectiveMethod`), `heartRateZoneRange(resolved, zone)` (bpm range of zone 1-5; the top zone ends at max HR - the function for training programs that need "zone N in bpm"), `computeTimeInZones` (buckets a heart rate series), `percentMaxFloors` / `heartRateReserveFloors`, `floorsFromAppleHeartRateZones` (five custom floors from Apple's preferred zones; null unless there are exactly five, and a missing zone-1 minimum becomes 30 bpm), `bucketsFromAppleWorkoutZones` (a finished workout's five zone durations, keeping time below the first boundary as zone 1; empty when Apple reported no time, null when the group is not five ascending zones). `trainingLoad.ts` weights sessions by these zones. The API contract is `src/schemas/api/HeartRateZones.api.zod.ts`.
 - `src/nutrients/` - nutrient catalogs and the goal calculator used by web onboarding, the web Goals editor and mobile Goals (`nutrientCalculation.ts`: per-nutrient recommended values from age, sex, weight, calories and the saved algorithm choices; `nutrientAlgorithms.ts`: the algorithm enums and labels).
 - `src/utils/trainingCalendar.ts` - planned-against-completed matching for the training calendar (`matchPlan`, `programSlots`, `weeklyPlanSlots`, `weeklyTotals`, `sportLoadOf`) on top of `trainingLoad.ts`'s `sessionLoad`; contract `src/schemas/api/TrainingCalendar.api.zod.ts`.
-- `src/ai/`, `src/cycle/`, `src/medications/`, `src/mood/` - domain-specific helpers.
+- `src/ai/`, `src/cycle/`, `src/medications/`, `src/mood/` - domain-specific helpers. `src/medications/adherence.ts` is the one implementation of medication adherence for web and mobile (`computeAdherence`, `computeChecklistProgress`, `entryMatchesDue`, and the month-calendar helpers `tallyEntriesByDay`, `dayLogStatus`, `tallySymptomsByDay`); `subtype.ts` holds the All | Meds | Supplements filter rules. Both are pure, take timezone and data as arguments, and are tested in `SparkyFitnessServer/tests/medicationAdherence.test.ts` and `medicationSubtype.test.ts`.
 - `src/types/` - shared plain TypeScript types that are not Zod-derived.
 - Routes: `src/schemas/api/Route.api.zod.ts` (points, turn cues, bodies), `src/utils/routeGeometry.ts` (distance, climb, simplify, bounds, and the `localProjector` / `distanceToSegment` nearest-point helpers the route editor uses), `src/utils/routeGpx.ts` (dependency-free GPX read/write), `src/utils/routeGenerate.ts` (generate and follow-roads request builders, error kinds, turn counts) and `src/constants/routingProviderTypes.ts` (the `valhalla` external provider type and its default public server URL).
 - Routes: `src/schemas/api/Route.api.zod.ts` (points, turn cues, bodies), `src/utils/routeGeometry.ts` (distance, climb, simplify, bounds) and `src/utils/routeGpx.ts` (dependency-free GPX read/write).
