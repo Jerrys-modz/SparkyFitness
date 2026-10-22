@@ -241,6 +241,12 @@ async function deleteUserPreferences(
     throw error;
   }
 }
+const OWNER_ONLY_PREFERENCE_FIELDS = [
+  'max_heart_rate',
+  'resting_heart_rate',
+  'hr_zone_method',
+  'hr_zone_custom_floors',
+] as const;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getUserPreferences(authenticatedUserId: any, targetUserId: any) {
   try {
@@ -249,10 +255,18 @@ async function getUserPreferences(authenticatedUserId: any, targetUserId: any) {
     if (!preferences) {
       return getDefaultPreferences();
     }
-    return {
+    const result = {
       ...preferences,
       time_format: preferences.time_format ?? 'h:mm A',
     };
+    // Heart rate zone settings are owner-only: a switched delegate reads the
+    // rest of the preferences but never these.
+    if (authenticatedUserId && authenticatedUserId !== targetUserId) {
+      for (const field of OWNER_ONLY_PREFERENCE_FIELDS) {
+        delete result[field];
+      }
+    }
+    return result;
   } catch (error) {
     log(
       'error',

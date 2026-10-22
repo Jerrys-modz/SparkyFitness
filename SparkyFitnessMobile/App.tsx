@@ -464,6 +464,7 @@ function AppContent() {
         FoodScan: 'scan',
         FoodSearch: 'search',
         ChatSettings: 'settings/voice',
+        HeartRateZonesSettings: 'settings/heart-rate-zones',
         // Tapping the workout Live Activity opens its associated URL.
         ActiveWorkout: 'active-workout',
         // The run Live Activity opens the recording screen.
