@@ -5,6 +5,7 @@ import {
   SUGGESTED_QUESTIONS,
   compareWindow,
   isAskable,
+  knownCompareQuestions,
   timingOf,
   withRecentQuestion,
   type CompareQuestion,
@@ -141,6 +142,38 @@ describe('withRecentQuestion', () => {
     expect(out).toHaveLength(5);
     expect(out[0]).toEqual(next);
     expect(out).not.toContainEqual(five[4]);
+  });
+});
+
+describe('knownCompareQuestions', () => {
+  const good: CompareQuestion = { a: 'mood', b: 'energy', choice: 'nextDay' };
+
+  test('drops stored questions this build no longer knows', () => {
+    expect(
+      knownCompareQuestions([
+        good,
+        { a: 'vo2max', b: 'energy', choice: 'sameDay' },
+        { a: 'mood', b: 'stress', choice: 'sameDay' },
+        { a: 'mood', b: 'energy', choice: 'twoDaysLater' },
+        { a: 'mood', b: 'energy' },
+        null,
+        'mood',
+        { a: 'toString', b: 'energy', choice: 'sameDay' },
+        { a: 'mood', b: 'energy', choice: 'constructor' },
+      ])
+    ).toEqual([good]);
+  });
+
+  test('reads anything that is not a list as no questions', () => {
+    expect(knownCompareQuestions(undefined)).toEqual([]);
+    expect(knownCompareQuestions({ a: 'mood' })).toEqual([]);
+  });
+
+  test('withRecentQuestion leaves the unknown ones behind', () => {
+    const stale = [
+      { a: 'vo2max', b: 'energy', choice: 'sameDay' },
+    ] as unknown as CompareQuestion[];
+    expect(withRecentQuestion(stale, good)).toEqual([good]);
   });
 });
 

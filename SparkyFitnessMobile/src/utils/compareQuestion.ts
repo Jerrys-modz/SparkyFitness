@@ -92,11 +92,37 @@ export const SUGGESTED_QUESTIONS: readonly CompareQuestion[] = [
 
 const MAX_RECENT = 5;
 
+export function isCompareMetricKey(value: unknown): value is CompareMetricKey {
+  return typeof value === 'string' && Object.hasOwn(COMPARE_METRICS, value);
+}
+
+function isTimingChoice(value: unknown): value is CompareTimingChoice {
+  return typeof value === 'string' && Object.hasOwn(TIMINGS, value);
+}
+
+/**
+ * The stored questions this build still knows. Recents are persisted on the
+ * device, so a metric or timing renamed or removed since is dropped here
+ * rather than reaching the copy, which would throw on it.
+ */
+export function knownCompareQuestions(stored: unknown): CompareQuestion[] {
+  if (!Array.isArray(stored)) return [];
+  return stored.flatMap((item: unknown): CompareQuestion[] => {
+    if (typeof item !== 'object' || item === null) return [];
+    const { a, b, choice } = item as Record<string, unknown>;
+    return isCompareMetricKey(a) &&
+      isCompareMetricKey(b) &&
+      isTimingChoice(choice)
+      ? [{ a, b, choice }]
+      : [];
+  });
+}
+
 export function withRecentQuestion(
   recent: readonly CompareQuestion[],
   q: CompareQuestion
 ): CompareQuestion[] {
-  const rest = recent.filter(
+  const rest = knownCompareQuestions(recent).filter(
     (r) => !(r.a === q.a && r.b === q.b && r.choice === q.choice)
   );
   return [q, ...rest].slice(0, MAX_RECENT);

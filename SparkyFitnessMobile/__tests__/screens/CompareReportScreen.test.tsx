@@ -222,6 +222,20 @@ describe('CompareReportScreen', () => {
     expect(queryByText("Couldn't load this comparison.")).toBeNull();
   });
 
+  it('skips a stored recent question this build does not know', () => {
+    useAppPreferencesStore.setState({
+      compareRecentQuestions: [
+        { a: 'vo2max', b: 'energy', choice: 'sameDay' },
+        { a: 'mood', b: 'energy', choice: 'someday' },
+        { a: 'mood', b: 'energy', choice: 'sameDay' },
+      ] as unknown as CompareQuestion[],
+    });
+    const { getByText, getAllByTestId } = renderScreen();
+    expect(getByText('Your recent questions')).toBeTruthy();
+    expect(getAllByTestId(/^compare-recent-/)).toHaveLength(1);
+    expect(getByText('Does mood go with energy the same day?')).toBeTruthy();
+  });
+
   it('does not record a question that has no answer yet', () => {
     const { getByTestId } = renderScreen();
     fireEvent.press(

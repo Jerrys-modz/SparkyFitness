@@ -7,6 +7,7 @@ import BottomSheetPicker, { type PickerSection } from '../BottomSheetPicker';
 import { compareMetricSections } from '../../constants/compareMetrics';
 import { questionParts } from '../../utils/compareCopy';
 import {
+  isCompareMetricKey,
   timingOf,
   type CompareMode,
   type CompareQuestion,
@@ -20,9 +21,6 @@ interface CompareSentenceProps {
 
 type MetricValue = CompareMetricKey | '';
 type Slot = 'a' | 'b';
-
-const isMetricKey = (value: string): value is CompareMetricKey =>
-  value in COMPARE_METRICS;
 
 /** Drops a metric that has no weekly form once the question is by the week. */
 function forMode(
@@ -150,7 +148,7 @@ const CompareSentence: React.FC<CompareSentenceProps> = ({
         sections={compareMetricSections(t, mode)}
         title={title}
         onSelect={(value) => {
-          if (isMetricKey(value)) chooseMetric(slot, value);
+          if (isCompareMetricKey(value)) chooseMetric(slot, value);
         }}
         renderTrigger={({ onPress }) =>
           trigger(parts[slot] ?? something, !!key, onPress, title)

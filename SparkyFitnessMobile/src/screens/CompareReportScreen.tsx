@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 import { NavigationContext } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +19,7 @@ import {
   DEFAULT_COMPARE_SPAN,
   compareWindow,
   isAskable,
+  knownCompareQuestions,
   timingOf,
   type CompareMode,
   type CompareQuestion,
@@ -62,7 +63,11 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
   const span = spans[mode];
   const window = compareWindow(span, mode, today, customs[mode]);
 
-  const recent = useAppPreferencesStore((s) => s.compareRecentQuestions);
+  const storedRecent = useAppPreferencesStore((s) => s.compareRecentQuestions);
+  const recent = useMemo(
+    () => knownCompareQuestions(storedRecent),
+    [storedRecent]
+  );
   const addRecent = useAppPreferencesStore((s) => s.addCompareRecentQuestion);
 
   const { data, isLoading, isError, serverTooOld, refetch } = useCompare(
