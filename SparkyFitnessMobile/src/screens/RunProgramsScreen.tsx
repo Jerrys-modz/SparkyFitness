@@ -16,6 +16,7 @@ import RunProgramCard, {
   programDescription,
   programName,
 } from '../components/recording/RunProgramCard';
+import RunGoalsCard from '../components/recording/RunGoalsCard';
 import PaceReferenceCard from '../components/recording/PaceReferenceCard';
 import FitnessTestPanel from '../components/recording/FitnessTestPanel';
 import RunProgramCalendar from '../components/recording/RunProgramCalendar';
@@ -34,6 +35,7 @@ import ProgramActionRow, {
 import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
+import { useRunGoals } from '../hooks/useRunGoals';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { usePreferences } from '../hooks/usePreferences';
 import { useRefetchOnFocus } from '../hooks/useRefetchOnFocus';
@@ -94,6 +96,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
     doneDay,
     loaded,
   } = useRunProgram();
+  const goals = useRunGoals();
   const [now] = useState(() => Date.now());
   const today = toLocalDateString(new Date(now));
   const [chosenId, setChosenId] = useState('beginner5k');
@@ -355,6 +358,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           now={now}
           schedule={schedule}
           onSchedule={(next) => change(() => setProgramSchedule(next))}
+          raceDay={goals.data?.goals?.race_date ?? null}
           onPickWorkout={(index) => change(() => setProgramPosition(index))}
           status={status}
           loaded={loaded}
@@ -567,6 +571,16 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
     );
   }
 
+  const goalsCard = goals.data ? (
+    <RunGoalsCard
+      data={goals.data}
+      distanceUnit={goals.distanceUnit}
+      today={today}
+      saving={goals.isSaving}
+      onSave={goals.save}
+    />
+  ) : null;
+
   return (
     <>
       {header}
@@ -577,6 +591,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           paddingBottom: insets.bottom + 24,
         }}
       >
+        {goalsCard}
         {body}
       </ScrollView>
       <CalendarSheet

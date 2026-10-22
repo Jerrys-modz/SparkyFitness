@@ -1,3 +1,4 @@
+export * from "./schemas/api/RunGoals.api.zod.ts";
 export * from "./schemas/api/LabReportScan.api.zod.ts";
 export * from "./constants/labMarkers.ts";
 export * from "./schemas/api/FitnessTest.api.zod.ts";
@@ -190,6 +191,8 @@ export * from './cycle/content.ts';
 export * from './mood/index.ts';
 export * from './mood/checkins.ts';
 
+export * from "./schemas/database/RunGoals.zod.ts";
+export * from "./utils/runGoals.ts";
 export * from "./utils/stretchRoutines.ts";
 export * from "./utils/runProgramRealign.ts";
 export * from "./utils/gradeAdjustedPace.ts";

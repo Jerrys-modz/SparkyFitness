@@ -457,6 +457,8 @@ export const runProgramQueryKey = ['runProgram'] as const;
 /** The person's running fitness tests and the paces they gave (server-backed). */
 export const fitnessTestsQueryKey = ['fitnessTests'] as const;
 
+/** The person's weekly running distance target and race (server-backed). */
+export const runGoalsQueryKey = ['runGoals'] as const;
 /** The person's own saved run programs. */
 export const customRunProgramsQueryKey = ['customRunPrograms'] as const;
 
