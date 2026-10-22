@@ -645,7 +645,14 @@ describe('getCompare', () => {
       end: '2026-09-10',
     });
     expect(day.through).toBe('2026-09-10');
-    const week = await getCompare(USER, {
+  });
+
+  it('getCompare ends a weekly through on the last day of the final week asked for', async () => {
+    vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue({
+      first_day_of_week: 1,
+    });
+    // 2026-09-10 is a Thursday; its Monday-start week ends Sunday 2026-09-13.
+    const earlier = await getCompare(USER, {
       a: 'steps',
       b: 'weightTrend',
       mode: 'week',
@@ -653,7 +660,17 @@ describe('getCompare', () => {
       start: '2026-07-01',
       end: '2026-09-10',
     });
-    expect(week.through).toBe('2026-09-10');
+    expect(earlier.through).toBe('2026-09-13');
+    // An end inside the current week is capped at the day before it began.
+    const current = await getCompare(USER, {
+      a: 'steps',
+      b: 'weightTrend',
+      mode: 'week',
+      timing: 0,
+      start: '2026-07-01',
+      end: '2026-10-21',
+    });
+    expect(current.through).toBe('2026-10-18');
   });
 
   it('getCompare loads nothing for a range that has not happened yet', async () => {

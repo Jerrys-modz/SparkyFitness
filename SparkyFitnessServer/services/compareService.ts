@@ -440,7 +440,8 @@ function earliest(a: string, b: string): string {
 /**
  * The days to load: the range with the history the analysis needs, ending before today (day
  * mode) or this week (week mode). `through` is the last day the answer includes: that last
- * finished day, or the query's end if earlier.
+ * finished day, or the query's end (the end of the last week asked for, in week mode) if
+ * earlier.
  */
 function fetchRange(
   query: CompareQuery,
@@ -458,7 +459,10 @@ function fetchRange(
         addDays(weekStartOf(query.end, firstDayOfWeek), WEEK_AFTER_DAYS),
         lastFinished
       ),
-      through: earliest(query.end, lastFinished),
+      through: earliest(
+        addDays(weekStartOf(query.end, firstDayOfWeek), 6),
+        lastFinished
+      ),
     };
   }
   const lastFinished = addDays(today, -1);
