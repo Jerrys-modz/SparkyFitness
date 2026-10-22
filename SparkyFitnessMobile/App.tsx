@@ -43,9 +43,9 @@ import {
   SafeMealsLibrary,
   SafeMealPlans,
   SafePersonalRecords,
+  SafeTrainingCalendar,
   SafeWatchRunLive,
   SafeRunPrograms,
-  SafeRunProgramCalendar,
   SafeRunProgramEdit,
   SafeRoutes,
   SafeRouteDetail,
@@ -598,11 +598,6 @@ function AppContent() {
             options={createStackScreenOptions(t('screens.runPrograms', { defaultValue: 'Training programs' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
           />
           <Stack.Screen
-            name="RunProgramCalendar"
-            component={SafeRunProgramCalendar}
-            options={createStackScreenOptions(t('screens.runProgramCalendar', { defaultValue: 'Program calendar' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
-          />
-          <Stack.Screen
             name="RunProgramRace"
             component={SafeRunProgramRace}
             options={createStackScreenOptions(t('screens.runProgramRace', { defaultValue: 'Plan a race' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
@@ -615,7 +610,7 @@ function AppContent() {
           <Stack.Screen
             name="RunProgramWorkout"
             component={SafeRunProgramWorkout}
-            options={createStackScreenOptions(t('screens.runProgramWorkout', { defaultValue: 'Workout' }), { headerBackTitle: t('screens.runProgramCalendar', { defaultValue: 'Program calendar' }) })}
+            options={createStackScreenOptions(t('screens.runProgramWorkout', { defaultValue: 'Workout' }), { headerBackTitle: t('screens.trainingCalendar', { defaultValue: 'Training calendar' }) })}
           />
           <Stack.Screen
             name="Routes"
@@ -641,6 +636,11 @@ function AppContent() {
             name="PersonalRecords"
             component={SafePersonalRecords}
             options={createStackScreenOptions(t('screens.personalRecords', { defaultValue: 'Personal records' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="TrainingCalendar"
+            component={SafeTrainingCalendar}
+            options={createStackScreenOptions(t('screens.trainingCalendar', { defaultValue: 'Training calendar' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
           />
           <Stack.Screen
             name="WatchRunLive"

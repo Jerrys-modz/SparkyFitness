@@ -986,6 +986,17 @@ export { getMiniNutritionTrends };
 export { getNutritionTrendsWithGoals };
 export { getExerciseDashboardData };
 /**
+ * The person's maximum heart rate (their own setting, else the age formula),
+ * for weighting load by heart rate.
+ */
+async function loadMaxHeartRate(
+  targetUserId: string,
+  _timezone?: string
+): Promise<number> {
+  return (await heartRateZoneService.resolveZonesForUser(targetUserId)).maxHr;
+}
+
+/**
  * Acute against chronic training load over the last four weeks, from every
  * logged workout (cardio and strength). Intensity is judged against the person's
  * heart rate zones (their own settings, else their date of birth).
@@ -1033,13 +1044,13 @@ async function getFitnessFatigue(
     const timezone = await loadUserTimezone(targetUserId);
     const today = todayInZone(timezone);
     const yesterday = addDays(today, -1);
-    const [sessions, profile, vitals, sleepNeed] = await Promise.all([
+    const [sessions, maxHeartRate, vitals, sleepNeed] = await Promise.all([
       reportRepository.getTrainingLoadSessions(
         targetUserId,
         addDays(today, -(CURVE_DAYS - 1)),
         today
       ),
-      userRepository.getUserProfile(targetUserId),
+      loadMaxHeartRate(targetUserId, timezone),
       reportRepository.getReadinessVitals(
         targetUserId,
         today,
@@ -1048,14 +1059,7 @@ async function getFitnessFatigue(
       ),
       sleepScienceRepository.getDailyNeed(targetUserId, today),
     ]);
-    const age = profile?.date_of_birth
-      ? userAge(profile.date_of_birth, timezone)
-      : null;
-    const fitnessFatigue = computeFitnessFatigue(
-      sessions,
-      today,
-      age === null ? undefined : estimateMaxHrFromAge(age)
-    );
+    const fitnessFatigue = computeFitnessFatigue(sessions, today, maxHeartRate);
     const readiness = computeReadiness({
       fitnessFatigue,
       ...vitals,
@@ -1139,6 +1143,7 @@ async function getRunningEstimates(
 
 export { getTrainingConsistency };
 export { getTrainingLoad };
+export { loadMaxHeartRate };
 export { getFitnessFatigue };
 export { getRunningEstimates };
 export default {
