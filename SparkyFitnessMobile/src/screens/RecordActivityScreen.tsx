@@ -389,10 +389,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             );
             return preset ? buildIntervalPlan(preset.options) : undefined;
           })();
-    // A walk or ride has no running in it: its steps are Fast and Easy, so
-    // the card, the spoken cues and the watch never say "Run" during one.
+    // A walk or ride has no running in it, so a run/walk plan must not say "Run".
+    // A walk is named Brisk and Easy; a ride stays Fast and Easy.
     return plan && activity !== 'run' && plan.style === 'runWalk'
-      ? { ...plan, style: 'fastEasy' }
+      ? { ...plan, style: activity === 'walk' ? 'briskWalk' : 'fastEasy' }
       : plan;
   }, [intervalChoice, customIntervals, programWorkout, activity]);
   const workHeartRateBand = workHeartRate.band ?? DEFAULT_WORK_HEART_RATE_BAND;
