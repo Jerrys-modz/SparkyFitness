@@ -3,8 +3,11 @@ import {
   autocorrelation,
   cautiousEffectiveN,
   correlationTest,
+  cautiousEffectiveNForMean,
   effectiveNMultiLag,
+  olsSlope,
   pearson,
+  percentile,
   spearman,
   tCritical95,
   tTwoSidedP,
@@ -150,6 +153,99 @@ describe('compare stats', () => {
         )
       ).toBe(8);
       expect(cautiousEffectiveN([1, 2, 3, 4, 5], [1, 2, 3, 4, 5], 14)).toBe(4);
+    });
+  });
+});
+
+describe('single-series statistics', () => {
+  describe('percentile', () => {
+    const oneToTen = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+    test('interpolates linearly between closest ranks, like numpy', () => {
+      // numpy.percentile(range(1, 11), [10, 90]) = [1.9, 9.1]
+      expect(percentile(oneToTen, 0.1)).toBeCloseTo(1.9, 12);
+      expect(percentile(oneToTen, 0.9)).toBeCloseTo(9.1, 12);
+      expect(percentile(oneToTen, 0)).toBe(1);
+      expect(percentile(oneToTen, 1)).toBe(10);
+    });
+
+    test('sorts a copy and leaves the input alone', () => {
+      const xs = [3, 1, 2];
+      expect(percentile(xs, 0.5)).toBe(2);
+      expect(xs).toEqual([3, 1, 2]);
+    });
+
+    test('null for an empty array', () => {
+      expect(percentile([], 0.5)).toBeNull();
+    });
+  });
+
+  describe('cautiousEffectiveNForMean', () => {
+    // A seeded AR(0.7) series: x[t] = 0.7·x[t−1] + noise.
+    const noiseAt = (i: number) => {
+      const v = Math.sin((i + 1) * 12.9898) * 43758.5453;
+      return v - Math.floor(v) - 0.5;
+    };
+    const ar = Array.from({ length: 120 }, (_, i) => i).reduce<number[]>(
+      (acc, i) => {
+        acc.push(0.7 * (acc[i - 1] ?? 0) + noiseAt(i));
+        return acc;
+      },
+      []
+    );
+
+    test('iid-like noise keeps nearly every day', () => {
+      const noise = Array.from({ length: 200 }, (_, i) => noiseAt(i * 7919));
+      const n = cautiousEffectiveNForMean(noise, 14);
+      expect(n).toBeGreaterThan(150);
+      expect(n).toBeLessThanOrEqual(200);
+    });
+
+    test('a carried-over series is the smaller of the lag-1 and multi-lag counts', () => {
+      const n = ar.length;
+      const rho1 = Math.min(Math.max(autocorrelation(ar, 1), 0), 1 - 1e-9);
+      const lag1 = (n * (1 - rho1)) / (1 + rho1);
+      const lags = Math.max(1, Math.min(14, Math.floor(n / 4)));
+      let sum = 0;
+      for (let k = 1; k <= lags; k++) sum += autocorrelation(ar, k);
+      const multi = n / Math.max(1, 1 + 2 * sum);
+      const got = cautiousEffectiveNForMean(ar, 14);
+      expect(got).toBeLessThan(n);
+      expect(got).toBeCloseTo(Math.min(lag1, multi), 9);
+    });
+
+    test('stays between 2 and n', () => {
+      const ramp = Array.from({ length: 30 }, (_, i) => i);
+      expect(cautiousEffectiveNForMean(ramp, 14)).toBe(2);
+      expect(cautiousEffectiveNForMean([1, -1, 1, -1, 1, -1, 1, -1], 3)).toBe(
+        8
+      );
+      expect(cautiousEffectiveNForMean([5], 3)).toBe(1);
+    });
+  });
+
+  describe('olsSlope', () => {
+    test('an exact line has slope 2 and no standard error', () => {
+      const fit = olsSlope([1, 2, 3, 4], [3, 5, 7, 9]);
+      expect(fit?.slope).toBeCloseTo(2, 12);
+      expect(fit?.se).toBeCloseTo(0, 12);
+      expect(fit?.n).toBe(4);
+    });
+
+    test('matches scipy.stats.linregress on a noisy line', () => {
+      // linregress(1..8, [2.1, 3.9, 6.2, 7.8, 10.3, 11.9, 14.2, 15.8])
+      const fit = olsSlope(
+        [1, 2, 3, 4, 5, 6, 7, 8],
+        [2.1, 3.9, 6.2, 7.8, 10.3, 11.9, 14.2, 15.8]
+      );
+      expect(fit?.slope).toBeCloseTo(1.9880952380952381, 12);
+      expect(fit?.se).toBeCloseTo(0.03267490293688715, 12);
+      expect(fit?.n).toBe(8);
+    });
+
+    test('null with fewer than 3 points or no spread in x', () => {
+      expect(olsSlope([1, 2], [1, 2])).toBeNull();
+      expect(olsSlope([4, 4, 4], [1, 2, 3])).toBeNull();
     });
   });
 });
