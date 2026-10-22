@@ -29,6 +29,7 @@ import {
   importGpxRoute,
   updateRoute,
 } from './api/routeApi';
+import { removeRouteFromWatch } from './watchRouteSync';
 
 /** The person's saved routes, newest first, and whether they have loaded. */
 export function useRoutes(): {
@@ -55,6 +56,8 @@ export function useRoute(id: string): {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: routeQueryKey(id),
     queryFn: async () => (await fetchRoute(id)).route,
+    // An empty id is "no route chosen" (the Record screen's picker).
+    enabled: id.length > 0,
   });
   return { route: data, isLoading, isError, refetch };
 }
@@ -136,6 +139,8 @@ export async function renameRoute(
 
 export async function removeRoute(id: string): Promise<void> {
   await deleteRoute(id);
+  // A deleted route should not stay on the wrist; best effort, the delete stands.
+  void removeRouteFromWatch(id).catch(() => {});
   queryClient.setQueryData<RouteSummary[]>(routesQueryKey, (list) =>
     list?.filter((route) => route.id !== id)
   );
