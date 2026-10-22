@@ -185,28 +185,41 @@ describe('CompareReportScreen', () => {
     expect(refetch).toHaveBeenCalled();
   });
 
-  it('adds a loaded question to the recents once', () => {
+  it('adds each distinct loaded question to the recents once', () => {
+    const add = jest.fn();
+    useAppPreferencesStore.setState({ addCompareRecentQuestion: add });
     mockUseCompare.mockReturnValue({ ...idle, data: okResponse });
-    const { getByTestId, rerender } = renderScreen();
+    const { getByTestId, getByText } = renderScreen();
     fireEvent.press(
       getByTestId('compare-suggestion-timeAsleep-energy-sameDay')
     );
-    expect(useAppPreferencesStore.getState().compareRecentQuestions).toEqual([
-      SUGGESTION,
-    ]);
-    const add = jest.spyOn(
-      useAppPreferencesStore.getState(),
-      'addCompareRecentQuestion'
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(add).toHaveBeenLastCalledWith(SUGGESTION);
+
+    // A span change refetches the same question and hands back fresh data: no second call.
+    mockUseCompare.mockReturnValue({ ...idle, data: { ...okResponse } });
+    fireEvent.press(getByText('30 days'));
+    expect(add).toHaveBeenCalledTimes(1);
+
+    fireEvent.press(screen.getByLabelText(/^When:/));
+    fireEvent.press(getByText('The next day'));
+    expect(add).toHaveBeenCalledTimes(2);
+    expect(add).toHaveBeenLastCalledWith({ ...SUGGESTION, choice: 'nextDay' });
+  });
+
+  it('keeps the answer on screen when a refresh fails', () => {
+    mockUseCompare.mockReturnValue({
+      ...idle,
+      data: okResponse,
+      isError: true,
+    });
+    const { getByTestId, getByText, queryByText } = renderScreen();
+    fireEvent.press(
+      getByTestId('compare-suggestion-timeAsleep-energy-sameDay')
     );
-    rerender(
-      <CompareReportScreen
-        {...({
-          navigation: { navigate: jest.fn(), goBack: jest.fn() },
-          route: { params: undefined },
-        } as never)}
-      />
-    );
-    expect(add).not.toHaveBeenCalled();
+    expect(getByText('Yes, a moderate link')).toBeTruthy();
+    expect(getByTestId('compare-chart')).toBeTruthy();
+    expect(queryByText("Couldn't load this comparison.")).toBeNull();
   });
 
   it('does not record a question that has no answer yet', () => {

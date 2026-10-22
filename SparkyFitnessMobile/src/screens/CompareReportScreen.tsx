@@ -96,7 +96,8 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
         })
       );
     }
-    if (isError) {
+    // A failed background refresh keeps the answer already on screen.
+    if (isError && !data) {
       return notice(
         t('compareReport.screen.loadFailed', {
           defaultValue: "Couldn't load this comparison.",
