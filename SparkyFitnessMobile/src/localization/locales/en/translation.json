@@ -265,7 +265,12 @@
       "ongoingWorkout": "Ongoing workout",
       "workoutTimer": "Workout timer",
       "fasting": "Fasting",
-      "hydration": "Hydration reminders"
+      "hydration": "Hydration reminders",
+      "moodCheckin": "Mood check-ins"
+    },
+    "moodCheckin": {
+      "title": "How are you feeling?",
+      "body": "Take a quick check-in: mood, energy and focus."
     },
     "actions": {
       "completeSet": "Complete Set",
@@ -678,6 +683,7 @@
     "nutrition": "Nutrition",
     "sleepSession": "Sleep Session",
     "stress": "Stress",
+    "mindfulness": "Mindfulness",
     "basalBodyTemperature": "Basal Body Temperature",
     "basalMetabolicRate": "Basal Metabolic Rate",
     "bloodGlucose": "Blood Glucose",
@@ -919,7 +925,8 @@
       "title": "Permission Required",
       "backgroundAccess": "Background access permission is required for background sync. Please grant the permission in Health Connect settings.",
       "allTitle": "Permissions Required",
-      "allMessage": "Some permissions were not granted. Please enable all required health permissions in the {{settings}} to sync all data."
+      "allMessage": "Some permissions were not granted. Please enable all required health permissions in the {{settings}} to sync all data.",
+      "writebackMessage": "Every metric will sync. To write your data back, grant the missing permissions in {{settings}}."
     },
     "permissionError": {
       "title": "Permission Error",
@@ -1000,6 +1007,9 @@
   },
   "calorieSettings": {
     "adaptiveEarnBack": "Adaptive targets already include activity. Remaining calories are Target minus Eaten. Exercise earn-back applies only to Manual targets.",
+    "adaptiveActivitySeparate": "Count activity calories separately",
+    "adaptiveActivitySeparateHint": "Learn a baseline excluding historical activity and credit today’s steps and workouts once, without adding BMR again. This needs consistent food, weight, step and workout history. Until enough history is available, use BMR × your non-workout activity multiplier.",
+    "adaptiveActivitySeparateReporting": "BMR stays in Burned and Net Energy when Include Resting Calories is enabled. Only steps and workouts are added to your remaining calorie budget.",
     "restingEnergy": "Resting Energy",
     "bmr": "BMR",
     "title": "Calorie & BMR Settings",
@@ -1046,6 +1056,7 @@
       "eatenBurned": "Eaten − Burned",
       "projectedTotal": "Health Connect total calories (BMR + active calories fallback)",
       "dynamic": "Goal − Net Energy",
+      "dynamicActivitySeparated": "Goal − Eaten + Activity",
       "percentageWithBmr": "Goal − Eaten + BMR + {{percentage}}% of Exercise",
       "percentage": "Goal − Eaten + {{percentage}}% of Exercise",
       "tdee": "Projected TDEE × Goal Mode − Eaten",
@@ -1194,6 +1205,13 @@
     "waterReminderEnd": "End Time",
     "waterReminderEndAccessibility": "End time, {{time}}",
     "waterReminderInvalidWindow": "End time must be after start time.",
+    "moodCheckins": "Mood check-ins",
+    "moodCheckinReminders": "Check-in reminders",
+    "moodCheckinRemindersSubtitle": "A daily nudge to log how you feel",
+    "moodCheckinReminderTime": "Reminder {{number}}",
+    "moodCheckinReminderTimeAccessibility": "Reminder {{number}}, {{time}}",
+    "moodCheckinAddReminder": "Add reminder",
+    "moodCheckinRemoveReminder": "Remove reminder {{number}}",
     "enableNotifications": "Enable Notifications",
     "openSettings": "Open Settings",
     "permissionTitle": "Grant permissions",
@@ -5264,6 +5282,9 @@
     "focusHigh": "Locked in",
     "journalOptional": "Journal (optional)",
     "journalPlaceholder": "Any thoughts or feelings you'd like to add?",
+    "reminderOfferTitle": "Remind me daily?",
+    "reminderOfferBody": "Get a reminder each evening to check in. You can change the time or add more in Settings → App Settings → Notifications.",
+    "reminderOfferAccept": "Remind me",
     "ratingsUnsupported": "Your server doesn't save energy and focus yet. Update SparkyFitness to keep them.",
     "loggingForDate": "Logging for {{date}}",
     "chartTitle": "Mood over time",
@@ -6499,6 +6520,13 @@
     "views": {
       "strength": "Strength",
       "cardio": "Cardio"
+    },
+    "runningForm": {
+      "title": "Running form",
+      "subtitle": "Steps per minute and stride length on your runs",
+      "average": "Average {{value}}",
+      "change": "{{value}} vs earlier runs",
+      "hint": "A treadmill run counts once its steps were measured."
     },
     "cardio": {
       "hint": "Tap a workout for its route and heart rate.",

@@ -28,7 +28,6 @@ import {
   resolveExerciseModality,
   buildTrainingConsistency,
   computeTrainingLoad,
-  estimateMaxHeartRate,
   LOAD_WEEKS,
   type TrainingLoad,
   weekStartOf,
@@ -37,6 +36,8 @@ import {
 } from '@workspace/shared';
 import { userAge } from '../utils/dateHelpers.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
+import { loadFirstDayOfWeek } from '../utils/firstDayOfWeek.js';
+import { loadMaxHeartRate } from '../utils/maxHeartRate.js';
 import { parseJsonArrayField } from '../utils/exerciseJsonFields.js';
 
 interface CustomNutrientDefinition {
@@ -933,14 +934,7 @@ async function getTrainingConsistency(
   try {
     const timezone = await loadUserTimezone(targetUserId);
     const today = todayInZone(timezone);
-    // The account's first day of the week (0 = Sunday), like the calendars.
-    const preferences =
-      await preferenceRepository.getUserPreferences(targetUserId);
-    const rawFirstDay = preferences?.first_day_of_week;
-    const firstDayOfWeek =
-      rawFirstDay !== null && rawFirstDay !== undefined
-        ? Number(rawFirstDay)
-        : 0;
+    const firstDayOfWeek = await loadFirstDayOfWeek(targetUserId);
     const startDate = addDays(
       weekStartOf(today, firstDayOfWeek),
       -7 * (TRAINING_CONSISTENCY_WEEKS - 1)
@@ -986,18 +980,15 @@ async function getTrainingLoad(
   try {
     const timezone = await loadUserTimezone(targetUserId);
     const today = todayInZone(timezone);
-    const [sessions, profile] = await Promise.all([
+    const [sessions, maxHeartRate] = await Promise.all([
       reportRepository.getTrainingLoadSessions(
         targetUserId,
         addDays(today, -(LOAD_WEEKS * 7 - 1)),
         today
       ),
-      userRepository.getUserProfile(targetUserId),
+      loadMaxHeartRate(targetUserId, timezone),
     ]);
-    const age = profile?.date_of_birth
-      ? userAge(profile.date_of_birth, timezone)
-      : null;
-    return computeTrainingLoad(sessions, today, estimateMaxHeartRate(age));
+    return computeTrainingLoad(sessions, today, maxHeartRate);
   } catch (error) {
     log(
       'error',

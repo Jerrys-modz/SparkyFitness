@@ -86,31 +86,49 @@ export const initHealthConnect = async (): Promise<boolean> => {
   }
 };
 
+const uniquePermissionRequests = (
+  permissions: PermissionRequest[]
+): PermissionRequest[] =>
+  permissions.filter(
+    (permission, index, allPermissions) =>
+      allPermissions.findIndex(
+        (candidate) =>
+          candidate.recordType === permission.recordType &&
+          candidate.accessType === permission.accessType
+      ) === index
+  );
+
+/**
+ * Requests the permissions and returns the requested ones that came back
+ * granted. The person can decline some, and an older Health Connect can't
+ * grant record types it doesn't support, so callers that request many at once
+ * use this to keep what was granted.
+ */
+export const requestGrantedHealthPermissions = async (
+  permissionsToRequest: PermissionRequest[]
+): Promise<PermissionRequest[]> => {
+  const uniquePermissions = uniquePermissionRequests(permissionsToRequest);
+  // Cast to library's Permission type - our PermissionRequest interface is compatible
+  const grantedPermissions = (await requestPermission(
+    uniquePermissions as Parameters<typeof requestPermission>[0]
+  )) as GrantedPermission[];
+  return uniquePermissions.filter((requestedPerm) =>
+    grantedPermissions.some(
+      (grantedPerm) =>
+        grantedPerm.recordType === requestedPerm.recordType &&
+        grantedPerm.accessType === requestedPerm.accessType
+    )
+  );
+};
+
 export const requestHealthPermissions = async (
   permissionsToRequest: PermissionRequest[]
 ): Promise<boolean> => {
   try {
-    const uniquePermissions = permissionsToRequest.filter(
-      (permission, index, allPermissions) =>
-        allPermissions.findIndex(
-          (candidate) =>
-            candidate.recordType === permission.recordType &&
-            candidate.accessType === permission.accessType
-        ) === index
-    );
-
-    // Cast to library's Permission type - our PermissionRequest interface is compatible
-    const grantedPermissions = (await requestPermission(
-      uniquePermissions as Parameters<typeof requestPermission>[0]
-    )) as GrantedPermission[];
-
-    const allGranted = uniquePermissions.every((requestedPerm) =>
-      grantedPermissions.some(
-        (grantedPerm) =>
-          grantedPerm.recordType === requestedPerm.recordType &&
-          grantedPerm.accessType === requestedPerm.accessType
-      )
-    );
+    const uniquePermissions = uniquePermissionRequests(permissionsToRequest);
+    const grantedPermissions =
+      await requestGrantedHealthPermissions(uniquePermissions);
+    const allGranted = grantedPermissions.length === uniquePermissions.length;
 
     if (allGranted) {
       addLog(

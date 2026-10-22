@@ -1304,6 +1304,7 @@ internal object WatchConnectivityHub {
     )
     asDouble(payload["distanceScale"])?.let { event["distanceScale"] = it }
     asDouble(payload["estimatedDistanceMeters"])?.let { event["estimatedDistanceMeters"] = it }
+    asInt(payload["steps"])?.let { event["steps"] = it }
     return event
   }
 

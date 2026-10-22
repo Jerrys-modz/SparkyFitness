@@ -2091,6 +2091,7 @@ CREATE TABLE public.exercise_entries (
     watch_duration_minutes numeric,
     record_timezone text,
     shoe_id uuid,
+    manual_fields text[],
     CONSTRAINT exercise_entries_modality_check CHECK ((modality = ANY (ARRAY['weight_reps'::text, 'reps_only'::text, 'bodyweight_reps'::text, 'weight_duration'::text, 'weight_distance'::text, 'duration'::text, 'duration_distance'::text])))
 );
 
@@ -4075,6 +4076,7 @@ CREATE TABLE public.symptom_entries (
     impact character varying(20),
     peak_severity numeric,
     severity_timeline jsonb DEFAULT '[]'::jsonb NOT NULL,
+    impact_timeline jsonb DEFAULT '[]'::jsonb NOT NULL,
     CONSTRAINT symptom_entries_episode_order_check CHECK (((ended_at IS NULL) OR (started_at IS NULL) OR (ended_at >= started_at))),
     CONSTRAINT symptom_entries_impact_check CHECK (((impact IS NULL) OR ((impact)::text = ANY ((ARRAY['none'::character varying, 'mild'::character varying, 'moderate'::character varying, 'severe'::character varying])::text[]))))
 );
@@ -4610,6 +4612,7 @@ CREATE TABLE public.user_preferences (
     adaptive_workout_suggestions boolean DEFAULT true NOT NULL,
     active_voice_ai_service_id uuid,
     voice_input_enabled boolean DEFAULT true NOT NULL,
+    adaptive_activity_separate boolean DEFAULT false NOT NULL,
     CONSTRAINT check_energy_unit CHECK (((energy_unit)::text = ANY ((ARRAY['kcal'::character varying, 'kJ'::character varying])::text[]))),
     CONSTRAINT logging_level_check CHECK ((logging_level = ANY (ARRAY['DEBUG'::text, 'INFO'::text, 'WARN'::text, 'ERROR'::text, 'SILENT'::text]))),
     CONSTRAINT user_preferences_caffeine_half_life_range CHECK (((caffeine_half_life_hours >= 2.0) AND (caffeine_half_life_hours <= 8.0))),
@@ -4734,6 +4737,13 @@ COMMENT ON COLUMN public.user_preferences.adaptive_workout_suggestions IS 'When 
 --
 
 COMMENT ON COLUMN public.user_preferences.voice_input_enabled IS 'Shows voice input in web and mobile chat. Disabling preserves the selected Voice configuration.';
+
+
+--
+-- Name: COLUMN user_preferences.adaptive_activity_separate; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.user_preferences.adaptive_activity_separate IS 'Opt-in for Dynamic + Adaptive: learn a baseline without recorded activity and credit daily activity separately.';
 
 
 --

@@ -1,6 +1,7 @@
 import {
   initHealthConnect,
   requestHealthPermissions,
+  requestGrantedHealthPermissions,
   ensureHistoryReadPermission,
   getSyncStartDate,
   readHealthRecords,
@@ -208,6 +209,27 @@ describe('initHealthConnect', () => {
     const result = await initHealthConnect();
 
     expect(result).toBe(false);
+  });
+});
+
+describe('requestGrantedHealthPermissions', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('returns only the requested permissions that came back granted', async () => {
+    mockRequestPermission.mockResolvedValue([
+      { recordType: 'Steps', accessType: 'read' },
+      { recordType: 'Weight', accessType: 'write' },
+    ] as GrantedPermission[]);
+
+    const granted = await requestGrantedHealthPermissions([
+      { recordType: 'Steps', accessType: 'read' },
+      { recordType: 'Steps', accessType: 'read' },
+      { recordType: 'HeartRate', accessType: 'read' },
+    ]);
+
+    expect(granted).toEqual([{ recordType: 'Steps', accessType: 'read' }]);
   });
 });
 
