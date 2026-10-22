@@ -90,7 +90,18 @@ export function UpdateSeverityButton({
   const [impact, setImpact] = useState<SymptomImpact | null>(entry.impact);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        // Each opening starts from the episode as it is now, so a reading or
+        // effect saved since the last opening is not sent back as the old one.
+        if (next) {
+          setValue(entry.severity);
+          setImpact(entry.impact);
+        }
+        setOpen(next);
+      }}
+    >
       <PopoverTrigger asChild>
         <Button type="button" size="sm" variant="outline">
           {t('symptoms.episode.updateSeverity', 'Update severity')}

@@ -69,12 +69,15 @@ export default function SeverityChart({ entry, max }: SeverityChartProps) {
     .join(' ');
   // A server without impact_timeline still sends the current impact; show it
   // from the start, the same way a lone severity is drawn.
-  const impactPoints =
+  // Sorted by time: an effect changed through an edit is appended with the
+  // current time, which can come before a reading recorded for later.
+  const impactPoints = (
     entry.impact_timeline && entry.impact_timeline.length > 0
-      ? entry.impact_timeline
+      ? [...entry.impact_timeline]
       : entry.impact != null
         ? [{ at: startIso, impact: entry.impact }]
-        : [];
+        : []
+  ).sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
   const bandSegments = impactPoints.map((p, i) => {
     const from = Math.max(new Date(p.at).getTime(), start);
     const next = impactPoints[i + 1];
@@ -205,6 +208,15 @@ export default function SeverityChart({ entry, max }: SeverityChartProps) {
   return (
     <div className="space-y-1">
       {chart}
+      {/* The chart is one image to a screen reader, so the recorded levels and
+          their times are listed here as well as in the hover titles. */}
+      <ul className="sr-only" aria-label={impactLabel}>
+        {bandSegments.map((s) => (
+          <li key={s.at}>
+            {`${t(`symptoms.impact.${s.impact}`, s.impact)} · ${formatTime(s.at)}`}
+          </li>
+        ))}
+      </ul>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         <span>{impactLabel}</span>
         {SYMPTOM_IMPACT_LEVELS.map((level) => (
