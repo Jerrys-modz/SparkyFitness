@@ -119,6 +119,11 @@ export interface RacePlanInput {
    */
   goalSeconds?: number;
   titles: RacePlanTitles;
+  /**
+   * The pace to plan race day at, in seconds per kilometre, for example from a
+   * fitness test. Without it the race is planned at a guess for the level.
+   */
+  racePaceSecondsPerKm?: number;
 }
 
 export interface RacePlanWorkout {
@@ -295,6 +300,12 @@ function planDays(
   return out;
 }
 
+/** A pace worth planning a race at: faster than 2:30 or slower than 12:00 per km is not. */
+function usablePace(pace: number | undefined): number | null {
+  if (pace === undefined || !Number.isFinite(pace)) return null;
+  return pace >= 150 && pace <= 720 ? pace : null;
+}
+
 export function buildRacePlan(input: RacePlanInput): RacePlan {
   const { distance, level, raceDay, today, titles } = input;
   const days = new Set([...input.runDays, dayOfWeek(raceDay)]);
@@ -339,9 +350,12 @@ export function buildRacePlan(input: RacePlanInput): RacePlan {
           seconds: input.goalSeconds,
         });
   const goalUsed = zones !== null;
+  // A goal time sets the race; without one a fitness test's race pace does,
+  // and without that the level's usual pace.
+  const racePace = usablePace(input.racePaceSecondsPerKm) ?? RACE_PACE[level];
   const raceMinutes = goalUsed
     ? Math.round((input.goalSeconds ?? 0) / 60)
-    : Math.round((KM[distance] * RACE_PACE[level]) / 60);
+    : Math.round((KM[distance] * racePace) / 60);
   const raceBand = goalUsed
     ? goalRaceBand(input.goalSeconds ?? 0, KM[distance])
     : undefined;

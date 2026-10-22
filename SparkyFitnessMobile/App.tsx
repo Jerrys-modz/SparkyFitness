@@ -53,6 +53,8 @@ import {
   SafeRouteDraw,
   SafeRouteGenerate,
   SafeRunProgramRace,
+  SafeFitnessTest,
+  SafeFitnessTestResult,
   SafeRunProgramWorkout,
   SafeMealPlanForm,
   SafeWorkoutPlans,
@@ -609,6 +611,16 @@ function AppContent() {
             name="RunProgramRace"
             component={SafeRunProgramRace}
             options={createStackScreenOptions(t('screens.runProgramRace', { defaultValue: 'Plan a race' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
+          />
+          <Stack.Screen
+            name="FitnessTest"
+            component={SafeFitnessTest}
+            options={createStackScreenOptions(t('screens.fitnessTest', { defaultValue: 'Fitness tests' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
+          />
+          <Stack.Screen
+            name="FitnessTestResult"
+            component={SafeFitnessTestResult}
+            options={createStackScreenOptions(t('screens.fitnessTestResult', { defaultValue: 'Fitness test' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
             name="RunProgramEdit"

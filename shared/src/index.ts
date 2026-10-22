@@ -1,3 +1,4 @@
+export * from "./schemas/api/FitnessTest.api.zod.ts";
 export * from "./schemas/api/CoachingCheckIn.api.zod.ts";
 export * from "./schemas/api/ClientRequestId.api.zod.ts";
 export * from "./medications/adherence.ts";
@@ -187,6 +188,8 @@ export * from './cycle/content.ts';
 export * from './mood/index.ts';
 export * from './mood/checkins.ts';
 
+export * from "./schemas/database/FitnessTests.zod.ts";
+export * from "./utils/fitnessTest.ts";
 export * from "./utils/weightCoaching.ts";
 export * from "./utils/trainingCalendar.ts";
 export * from './schemas/database/CheckInPhotos.zod.ts';

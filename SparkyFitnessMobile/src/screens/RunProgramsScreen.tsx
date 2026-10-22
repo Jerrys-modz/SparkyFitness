@@ -17,6 +17,7 @@ import RunProgramCard, {
   programName,
 } from '../components/recording/RunProgramCard';
 import PaceReferenceCard from '../components/recording/PaceReferenceCard';
+import FitnessTestPanel from '../components/recording/FitnessTestPanel';
 import RunProgramCalendar from '../components/recording/RunProgramCalendar';
 import RunProgramGuide, {
   programStructure,
@@ -30,6 +31,8 @@ import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { usePreferences } from '../hooks/usePreferences';
+import { useRefetchOnFocus } from '../hooks/useRefetchOnFocus';
 import {
   restartProgram,
   setProgramEnabled,
@@ -40,6 +43,7 @@ import {
   useCustomRunPrograms,
   useRunProgram,
 } from '../services/runProgramService';
+import { useFitnessTests } from '../services/fitnessTestService';
 import { addLog } from '../services/LogService';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { formatLocalizedNumber } from '../localization';
@@ -87,6 +91,12 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   // Which version (3 or 4 runs a week) is picked on a card that has both.
   const [versionOf, setVersionOf] = useState<Record<string, string>>({});
   const { programs: customPrograms } = useCustomRunPrograms();
+  const { preferences } = usePreferences();
+  const distanceUnit =
+    (preferences?.default_distance_unit as 'km' | 'miles') ?? 'km';
+  const { latest: latestTest, refetch: refetchTests } = useFitnessTests();
+  // A test may have been added since this screen was last open.
+  useRefetchOnFocus(refetchTests, true);
   const paceReferenceRace = useAppPreferencesStore((s) => s.paceReferenceRace);
   const setPaceReferenceRace = useAppPreferencesStore(
     (s) => s.setPaceReferenceRace
@@ -276,10 +286,22 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
     </View>
   );
 
+  const fitnessPanel = (
+    <FitnessTestPanel
+      compact={Boolean(status)}
+      today={today}
+      unit={distanceUnit}
+      onOpenTests={() => navigation.navigate('FitnessTest')}
+      onPlanRace={() => navigation.navigate('RunProgramRace')}
+      onStartProgram={(id) => (status ? chooseProgram(id) : askStart(id))}
+    />
+  );
+
   let body: React.ReactNode = null;
   if (loaded && status) {
     body = (
       <>
+        {fitnessPanel}
         <RunProgramCard
           programId={storedId ?? chosenId}
           onChooseProgram={chooseProgram}
@@ -345,7 +367,9 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           programId={status.program.custom ? undefined : storedId}
         />
         <PaceReferenceCard
+          collapsible
           race={paceReferenceRace}
+          overriddenByTest={latestTest !== null}
           onSave={setPaceReferenceRace}
           watch={
             Platform.OS === 'ios' || Platform.OS === 'android'
@@ -362,6 +386,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   } else if (loaded) {
     body = (
       <>
+        {fitnessPanel}
         <Text className="text-text-secondary text-sm">
           {t('runPrograms.intro', {
             defaultValue:
@@ -460,6 +485,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
         })}
         <PaceReferenceCard
           race={paceReferenceRace}
+          overriddenByTest={latestTest !== null}
           onSave={setPaceReferenceRace}
           watch={
             Platform.OS === 'ios' || Platform.OS === 'android'

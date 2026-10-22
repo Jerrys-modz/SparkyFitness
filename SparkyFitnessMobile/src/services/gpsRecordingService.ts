@@ -44,6 +44,7 @@ import {
   stepHeartRateAlert,
   stepPaceAlert,
   zone2LiveBand,
+  type FitnessTestType,
   type HeartRateAlertState,
   type HeartRateBand,
   type IntervalCursor,
@@ -174,6 +175,8 @@ export interface RecordingSession {
   coaching?: CoachingState;
   /** The program workout this recording is, so finishing it can tick it off. */
   program?: { id: string; index: number };
+  /** The fitness test this recording is, so saving it can work out the result. */
+  fitnessTest?: FitnessTestType;
   /**
    * A pace band to stay inside: the phone buzzes, and speaks when voice cues
    * are on, after the pace has been outside it for a few seconds.
@@ -1137,6 +1140,8 @@ export interface StartRecordingOptions {
   indoor?: boolean;
   /** The program workout the plan came from, if any. */
   program?: { id: string; index: number };
+  /** The fitness test being run (5K, 30-minute run or Cooper), outdoors or on a treadmill. */
+  fitnessTest?: FitnessTestType;
   /** Text for the Android foreground-service notification. */
   notification: { title: string; body: string };
 }
@@ -1256,6 +1261,7 @@ export function startRecording(options: StartRecordingOptions): Promise<void> {
         ? { heartRateBand: normalizeHeartRateBand(options.heartRateBand)! }
         : {}),
       ...(options.program && intervals ? { program: options.program } : {}),
+      ...(options.fitnessTest ? { fitnessTest: options.fitnessTest } : {}),
       savedEntryId: null,
       ...(indoor && { indoor: true }),
       ...(stepCounterAtStart != null && { stepCounterAtStart }),

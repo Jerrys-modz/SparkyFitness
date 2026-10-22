@@ -34,11 +34,16 @@ import CheckInCard from '../components/recording/CheckInCard';
 import SegmentedControl from '../components/SegmentedControl';
 import { SplitRow, Stat } from '../components/recording/SplitRow';
 import RunProgramSelect from '../components/recording/RunProgramSelect';
+import FitnessTestCard, {
+  FitnessTestFinishedCard,
+} from '../components/recording/FitnessTestCard';
+import FitnessTestSetup from '../components/recording/FitnessTestSetup';
 import {
   programTitle,
   programWorkoutLabel,
 } from '../components/recording/RunProgramCard';
 import GpsSignalBadge from '../components/recording/GpsSignalBadge';
+import IndoorTestFields from '../components/recording/IndoorTestFields';
 import IntervalCard from '../components/recording/IntervalCard';
 import IntervalSetup, {
   DEFAULT_CUSTOM_INTERVALS,
@@ -92,6 +97,11 @@ import {
 import {
   applyHeartRateTargets,
   applyPaceTargets,
+  evaluateFitnessTest,
+  FIVE_K_METERS,
+  inclineSpeedFactor,
+  type FitnessTestMeasurement,
+  type FitnessTestResponse,
   type HeartRateBand,
   buildIntervalPlan,
   INTERVAL_PRESETS,
@@ -118,7 +128,16 @@ import { toLocalDateString } from '../utils/dateUtils';
 import { saveRecordedActivity } from '../services/gpsRecordingSave';
 import { useShoeMutations } from '../hooks/useShoes';
 import { promptToRetireShoe } from '../utils/retireShoePrompt';
-import { fireSelectionHaptic } from '../services/haptics';
+import { fireSelectionHaptic, fireSuccessHaptic } from '../services/haptics';
+import { saveFitnessTest } from '../services/fitnessTestService';
+import {
+  fitnessTestName,
+  fitnessTestProgress,
+  fitnessTestResultText,
+  measureFitnessTest,
+  measureIndoorTest,
+  parseClockText,
+} from '../utils/fitnessTest';
 import { addLog } from '../services/LogService';
 import {
   beginRecordingCues,
@@ -267,9 +286,14 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   // Outdoors or indoors (a treadmill: no GPS), chosen first; then, for a walk
   // or run with a paired watch, which device records it. A ride is
   // phone-only.
-  const [indoor, setIndoor] = useState(false);
+  // A fitness test opens with the surface the last one was run on.
+  const [indoor, setIndoor] = useState(route.params?.indoor === true);
   const [recordWith, setRecordWith] = useState<'phone' | 'watch'>('phone');
-  const watchAvailable = watchSupported && watchPaired && activity !== 'ride';
+  // A fitness test is a plain outdoor phone-GPS run: the measurement comes
+  // from the recording, so none of the other choices apply.
+  const fitnessTestParam = route.params?.fitnessTest ?? null;
+  const watchAvailable =
+    !fitnessTestParam && watchSupported && watchPaired && activity !== 'ride';
   const onWatch = watchAvailable && recordWith === 'watch';
   const [autoPause, setAutoPause] = useState(true);
   const [audioCues, setAudioCues] = useState(false);
@@ -495,10 +519,12 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       warm: choice(suggested.pace.warm),
       sessions: suggested.pace.sessions,
       race: suggested.pace.race,
+      fitnessTest: suggested.pace.fitnessTest,
       efforts,
     };
   }, [suggested.pace, suggested.byEffort, distanceUnit]);
-  // Tempo, stride and marathon-pace ranges come from the saved race; once it is
+  // Tempo, stride and marathon-pace ranges come from the latest fitness test or
+  // the saved race; once it is
   // cleared or the activity changes, the ranges applied from it no longer apply.
   useEffect(() => {
     setEffortPace(null);
@@ -549,8 +575,12 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   // While a recording is going, the header names it ("Outdoor run"), so the
   // screen always says what is being recorded.
   const liveTitle = session
-    ? recordingTitle(t, session.activity, session.indoor === true)
-    : t('screens.recordActivity', { defaultValue: 'Record Activity' });
+    ? session.fitnessTest
+      ? fitnessTestName(t, session.fitnessTest)
+      : recordingTitle(t, session.activity, session.indoor === true)
+    : fitnessTestParam
+      ? fitnessTestName(t, fitnessTestParam)
+      : t('screens.recordActivity', { defaultValue: 'Record Activity' });
   useScreenHeader({
     title: liveTitle,
     nativeTitle: liveTitle,
@@ -613,6 +643,28 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [isLive, hasIntervals, now]);
 
   const summary = useMemo(() => summarizeRecording(points), [points]);
+  // Tell the runner when a fitness test has reached its mark.
+  const testType = session?.fitnessTest ?? null;
+  const testComplete =
+    testType !== null &&
+    isLive &&
+    fitnessTestProgress(
+      testType,
+      elapsedSeconds(session!, now),
+      summary.distanceMeters
+    ).complete;
+  const cueTestComplete = Boolean(session?.audioCues);
+  useEffect(() => {
+    if (!testComplete) return;
+    fireSuccessHaptic();
+    if (cueTestComplete) {
+      speakRecordingCue(
+        t('fitnessTest.cue.complete', {
+          defaultValue: 'Test complete. Slow down and finish.',
+        })
+      );
+    }
+  }, [testComplete, cueTestComplete, t]);
   const mapPoints = useMemo(
     () =>
       points.map((p) => ({
@@ -672,6 +724,24 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       run(
         async () => {
           setPermissionProblem(null);
+          if (fitnessTestParam) {
+            setStartedHere(true);
+            await startRecording({
+              activity: 'run',
+              // The test is timed on the recording's own clock; auto-pause
+              // would take time out of it.
+              autoPause: false,
+              audioCues: audioCues
+                ? distanceUnit === 'miles'
+                  ? 'miles'
+                  : 'km'
+                : undefined,
+              indoor,
+              fitnessTest: fitnessTestParam,
+              notification: notificationText(t, 'run'),
+            });
+            return;
+          }
           if (onWatch) {
             const meta =
               intervalChoice === 'program' && programStatus
@@ -747,6 +817,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       activity,
       audioCues,
       checkInMinutes,
+      fitnessTestParam,
       autoPause,
       paceAlert,
       currentPaceBand,
@@ -893,6 +964,84 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
         ? (indoorDistance * unitMeters) / METERS_PER_KM
         : null;
 
+  // A treadmill test's extra answers, asked after Finish.
+  const [testTimeText, setTestTimeText] = useState<string | null>(null);
+  const [testSplitText, setTestSplitText] = useState('');
+  const [inclineText, setInclineText] = useState('1');
+  const [adjustForIncline, setAdjustForIncline] = useState(true);
+  const inclineValue =
+    inclineText.trim() === '' ? null : parseDecimalInput(inclineText);
+  const inclineInvalid =
+    inclineValue !== null && inclineSpeedFactor(inclineValue) === null;
+  const testIndoor = session?.indoor === true;
+  const testEnded = session?.status === 'finished';
+  const indoorTestResult = useMemo(() => {
+    if (!session || !testType || !testIndoor || !testEnded) return null;
+    const splitValue =
+      testSplitText.trim() === '' ? null : parseDecimalInput(testSplitText);
+    const typedTime =
+      testTimeText === null ? null : parseClockText(testTimeText);
+    if (testTimeText !== null && typedTime === null) {
+      return { ok: false as const, reason: 'badTime' as const };
+    }
+    return measureIndoorTest(testType, {
+      activeSeconds: elapsedSeconds(session),
+      distanceMeters:
+        indoorDistanceKm === null ? null : indoorDistanceKm * METERS_PER_KM,
+      timeSeconds: typedTime,
+      splitMeters:
+        splitValue === null || !Number.isFinite(splitValue)
+          ? null
+          : splitValue * unitMeters,
+      inclinePercent: inclineInvalid ? null : inclineValue,
+      adjustForIncline,
+    });
+  }, [
+    adjustForIncline,
+    inclineInvalid,
+    inclineValue,
+    indoorDistanceKm,
+    session,
+    testEnded,
+    testIndoor,
+    testSplitText,
+    testTimeText,
+    testType,
+    unitMeters,
+  ]);
+  const testMeasurement: FitnessTestMeasurement | null = useMemo(() => {
+    if (!testType || !testEnded) return null;
+    if (testIndoor) {
+      return indoorTestResult?.ok && !inclineInvalid
+        ? indoorTestResult.measurement
+        : null;
+    }
+    return measureFitnessTest(testType, points);
+  }, [
+    inclineInvalid,
+    indoorTestResult,
+    points,
+    testEnded,
+    testIndoor,
+    testType,
+  ]);
+  const testOutcome = useMemo(
+    () => (testMeasurement ? evaluateFitnessTest(testMeasurement) : null),
+    [testMeasurement]
+  );
+  // The same test as measured, to show what the incline correction changed.
+  const testRawOutcome = useMemo(
+    () =>
+      testMeasurement && testMeasurement.inclinePercent != null
+        ? evaluateFitnessTest({ ...testMeasurement, adjustForIncline: false })
+        : null,
+    [testMeasurement]
+  );
+  const testProblem =
+    testIndoor && indoorTestResult && !indoorTestResult.ok
+      ? indoorTestResult.reason
+      : null;
+
   const handleSave = useCallback(async () => {
     if (!session) return;
     setBusy(true);
@@ -901,10 +1050,36 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
         session,
         points,
         distanceUnit,
-        session.indoor ? indoorDistanceKm : null,
+        session.indoor
+          ? session.fitnessTest === '5k' && indoorDistanceKm === null
+            ? FIVE_K_METERS / METERS_PER_KM
+            : indoorDistanceKm
+          : null,
         session.indoor ? indoorEstimate : null,
         session.indoor === true && indoorDistanceText === null
       );
+      // A completed fitness test is filed against the saved activity. A
+      // failure throws like any save failure: the recording is kept, and the
+      // retry reuses the saved activity and replaces the test, never doubling it.
+      let savedTest: FitnessTestResponse | null = null;
+      if (session.fitnessTest && testMeasurement) {
+        savedTest = await saveFitnessTest({
+          test_type: testMeasurement.type,
+          test_date: toLocalDateString(new Date(session.startedAt)),
+          distance_meters: testMeasurement.distanceMeters,
+          duration_seconds: testMeasurement.durationSeconds,
+          split_distance_meters: testMeasurement.splitDistanceMeters ?? null,
+          exercise_entry_id: saved.entryId,
+          surface: session.indoor ? 'indoor' : 'outdoor',
+          incline_percent: session.indoor
+            ? (testMeasurement.inclinePercent ?? null)
+            : null,
+          incline_adjusted:
+            session.indoor === true &&
+            testMeasurement.inclinePercent != null &&
+            testMeasurement.adjustForIncline !== false,
+        });
+      }
       // Ticks a program workout off only if the plan was followed to its end; a run cut short can be tried again. The day is the one the run
       // started on, so a run saved after midnight still counts for its own day.
       let program: RunSummaryParams['program'] = null;
@@ -981,8 +1156,13 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
           'WARNING'
         )
       );
-      if (summaryParams) navigation.replace('RunSummary', summaryParams);
-      else navigation.goBack();
+      if (savedTest) {
+        navigation.replace('FitnessTestResult', { id: savedTest.id });
+      } else if (summaryParams) {
+        navigation.replace('RunSummary', summaryParams);
+      } else {
+        navigation.goBack();
+      }
     } catch (error) {
       addLog(`[GPS Recording] Save failed: ${error}`, 'ERROR');
       Toast.show({
@@ -1007,6 +1187,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     queryClient,
     session,
     t,
+    testMeasurement,
     updateShoe,
   ]);
 
@@ -1045,6 +1226,28 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             {t('recordActivity.countdown.cancel', { defaultValue: 'Cancel' })}
           </Button>
         </View>
+      );
+    }
+    if (!session && fitnessTestParam) {
+      return (
+        <FitnessTestSetup
+          type={fitnessTestParam}
+          indoor={indoor}
+          onIndoorChange={setIndoor}
+          suggestedFromLast={
+            route.params?.indoor !== undefined && route.params.indoor === indoor
+          }
+          audioCues={audioCues}
+          onAudioCuesChange={(value) => {
+            preferenceEdits.current.audioCues = true;
+            setAudioCues(value);
+            void setRecordingPreference('audioCues', value);
+          }}
+          busy={busy}
+          permissionProblem={permissionProblem}
+          onStart={handleStartPress}
+          onOpenSettings={() => void Linking.openSettings()}
+        />
       );
     }
     if (!session) {
@@ -1608,6 +1811,54 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             heartRateSource={watchAvailable}
           />
         ) : null}
+        {session.fitnessTest ? (
+          finished ? (
+            <FitnessTestFinishedCard
+              type={session.fitnessTest}
+              outcome={testOutcome}
+              unit={distanceUnit}
+              problem={testProblem}
+              adjustment={
+                testOutcome &&
+                testRawOutcome &&
+                testMeasurement?.inclinePercent != null &&
+                testMeasurement.adjustForIncline !== false &&
+                testRawOutcome.resultValue !== testOutcome.resultValue
+                  ? {
+                      incline: formatLocalizedNumber(
+                        testMeasurement.inclinePercent,
+                        { maximumFractionDigits: 1 }
+                      ),
+                      raw: fitnessTestResultText(
+                        t,
+                        {
+                          test_type: testOutcome.type,
+                          result_value: testRawOutcome.resultValue,
+                        },
+                        distanceUnit
+                      ),
+                      adjusted: fitnessTestResultText(
+                        t,
+                        {
+                          test_type: testOutcome.type,
+                          result_value: testOutcome.resultValue,
+                        },
+                        distanceUnit
+                      ),
+                    }
+                  : null
+              }
+            />
+          ) : (
+            <FitnessTestCard
+              type={session.fitnessTest}
+              activeSeconds={active}
+              distanceMeters={distance}
+              unit={distanceUnit}
+              indoor={indoorSession}
+            />
+          )
+        ) : null}
         {indoorSession ? null : (
           <>
             <View className="flex-row mb-3">
@@ -1818,11 +2069,28 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             ) : null}
           </View>
         ) : null}
+        {finished && indoorSession && session.fitnessTest ? (
+          <IndoorTestFields
+            type={session.fitnessTest}
+            unitLabel={unitLabel}
+            timeText={testTimeText ?? formatClock(active)}
+            onTimeChange={setTestTimeText}
+            splitText={testSplitText}
+            onSplitChange={setTestSplitText}
+            inclineText={inclineText}
+            onInclineChange={setInclineText}
+            adjustForIncline={adjustForIncline}
+            onAdjustChange={setAdjustForIncline}
+            inclineInvalid={inclineInvalid}
+          />
+        ) : null}
         {finished ? (
           <>
             <Button
               loading={busy}
-              disabled={indoorSession && indoorDistanceInvalid}
+              disabled={
+                indoorSession && (indoorDistanceInvalid || inclineInvalid)
+              }
               onPress={() => void handleSave()}
             >
               {t('recordActivity.save', { defaultValue: 'Save activity' })}

@@ -169,6 +169,7 @@ export default defineConfig({
             { text: 'Zone 2 Base Program', link: '/features/exercises/zone-2-program' },
             { text: 'Zone 2 Research Notes', link: '/features/exercises/zone-2-research' },
             { text: 'Heart Rate Zones', link: '/features/exercises/heart-rate-zones' },
+            { text: 'Fitness Tests', link: '/features/exercises/fitness-tests' },
             { text: 'Shoe Inventory', link: '/features/exercises/shoe-inventory' },
             { text: 'Route Generation', link: '/features/exercises/route-generation' },
             { text: 'Progression & Per-Set Ramp', link: '/features/exercises/progression-and-per-set-ramp' },

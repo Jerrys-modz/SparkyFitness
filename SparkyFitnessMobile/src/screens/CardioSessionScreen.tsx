@@ -27,6 +27,7 @@ import HeartRateChart from '../components/exerciseStats/HeartRateChart';
 import PaceChart from '../components/exerciseStats/PaceChart';
 import HeartRateZones from '../components/exerciseStats/HeartRateZones';
 import ProgramWorkoutBadge from '../components/recording/ProgramWorkoutBadge';
+import FitnessTestBadge from '../components/recording/FitnessTestBadge';
 import ShoePickerCard from '../components/ShoePickerCard';
 import type { RootStackScreenProps } from '../types/navigation';
 
@@ -166,6 +167,7 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
         <Text className="text-text-secondary text-sm mb-3">{dateText}</Text>
 
         <ProgramWorkoutBadge entryId={session.id} />
+        <FitnessTestBadge entryId={session.id} unit={distanceUnit} />
 
         {stats.length > 0 ? (
           <View className="bg-surface rounded-xl p-4 mb-4 shadow-sm flex-row flex-wrap">
