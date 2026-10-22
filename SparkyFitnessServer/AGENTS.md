@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-20_
+_Last updated: 2026-10-21_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -69,6 +69,7 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 - `routes/reportRoutes.ts` `GET /reports/training-consistency` - the consistency view (#59): `reportService.getTrainingConsistency` reads a fixed 26 weeks of exercise entries and hands them to the shared `buildTrainingConsistency`, so web and mobile show the same streak and weekly sets (`reports` permission)
 - `routes/reportRoutes.ts` `GET /reports/training-load` - acute (7 days) against chronic (4-week average) workout load (#250): `reportService.getTrainingLoad` reads every logged workout through `reportRepository.getTrainingLoadSessions` and the profile's age (for max heart rate), and hands them to the shared `computeTrainingLoad` (`reports` permission)
 - `routes/v2/reportRoutes.ts` - weekly alcohol rollup and the zero-padded hydration/caffeine/alcohol range used by the Trends charts (`reports` permission)
+- `routes/v2/reportRoutes.ts` `GET /compare` - does A go with B (`/api/v2/reports/compare`, owner-only via `requireSelfActor`): parses `compareQuerySchema`, `services/compareService.ts` (`getCompare`) loads both metrics through `models/compareRepository.ts` (today and the current week never counted) and hands them to the shared analysis in `../shared/src/compare/` (`stats.ts`, `metrics.ts` catalog, `analyze.ts` day/week pairing); week mode uses `utils/firstDayOfWeek.ts` and training load uses `utils/maxHeartRate.ts`; contract `../shared/src/schemas/api/Compare.api.zod.ts`
 - `routes/v2/nutritionKineticsRoutes.ts` - active-caffeine estimate and bedtime cutoff (`diary` permission)
 - `routes/v2/workoutCoachingRoutes.ts` - adaptive coaching (#1560): session feedback (`workout_feedback`), the per-user `adaptive_workout_suggestions` setting (owner-only write), and recent-history signals (`diary` permission). `GET /v2/exercises/:id/alternatives` (ranked substitutes) lives in `routes/v2/exerciseRoutes.ts`
 - `routes/v2/routeRoutes.ts` - the person's saved routes (`/api/v2/routes`: `GET` summaries, `POST` a drawn route from `points` (+ optional `cues`), `POST /import-gpx` with the file text, `POST /from-activity/:exerciseEntryId` from a recorded GPS track, `GET/PATCH/DELETE /:id`, `GET /:id/gpx` download; 200 per person); owner-only (`requireSelfActor`, `routes` owner policy). `models/routeRepository.ts` stores them; `utils/routePrep.ts` (`prepareRoute`) drops repeated points, measures distance and climb on the full track, thins to 2000 points and re-points cues. Geometry, GPX read/write and the contract are shared: `../shared/src/utils/routeGeometry.ts`, `routeGpx.ts`, `../shared/src/schemas/api/Route.api.zod.ts`

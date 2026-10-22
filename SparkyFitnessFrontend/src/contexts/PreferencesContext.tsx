@@ -133,6 +133,7 @@ interface PreferencesContextType {
   setChartScaleMode: (mode: ChartScaleMode) => void;
   goalMode: GoalMode;
   goalModeCalculationMethod: GoalModeCalculationMethod;
+  adaptiveActivitySeparate: boolean;
   goalModeCustomPercentage: number;
   calorieSafetyFloorMode: CalorieSafetyFloorMode;
   calorieSafetyFloorValue: number;
@@ -262,6 +263,7 @@ export interface DefaultPreferences {
   chart_scale_mode: ChartScaleMode;
   goal_mode: GoalMode;
   goal_mode_calculation_method: GoalModeCalculationMethod;
+  adaptive_activity_separate?: boolean;
   goal_mode_custom_percentage: number;
   calorie_safety_floor_mode: SharedUserPreferences['calorie_safety_floor_mode'];
   calorie_safety_floor_value: SharedUserPreferences['calorie_safety_floor_value'];
@@ -381,6 +383,8 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
   const [goalMode, setGoalModeState] = useState<GoalMode>('maintain');
   const [goalModeCalculationMethod, setGoalModeCalculationMethodState] =
     useState<GoalModeCalculationMethod>('manual');
+  const [adaptiveActivitySeparate, setAdaptiveActivitySeparateState] =
+    useState(false);
   const [goalModeCustomPercentage, setGoalModeCustomPercentageState] =
     useState<number>(0);
   const [calorieSafetyFloorMode, setCalorieSafetyFloorModeState] =
@@ -798,6 +802,9 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
         setGoalModeCalculationMethodState(
           data.goal_mode_calculation_method || 'manual'
         );
+        setAdaptiveActivitySeparateState(
+          data.adaptive_activity_separate ?? false
+        );
         setGoalModeCustomPercentageState(data.goal_mode_custom_percentage ?? 0);
         setCalorieSafetyFloorModeState(
           data.calorie_safety_floor_mode ?? 'standard'
@@ -999,6 +1006,8 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
         goal_mode: newPrefs?.goalMode ?? goalMode,
         goal_mode_calculation_method:
           newPrefs?.goalModeCalculationMethod ?? goalModeCalculationMethod,
+        adaptive_activity_separate:
+          newPrefs?.adaptiveActivitySeparate ?? adaptiveActivitySeparate,
         goal_mode_custom_percentage:
           newPrefs?.goalModeCustomPercentage ?? goalModeCustomPercentage,
         calorie_safety_floor_mode:
@@ -1079,6 +1088,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
       chartScaleMode,
       goalMode,
       goalModeCalculationMethod,
+      adaptiveActivitySeparate,
       goalModeCustomPercentage,
       calorieSafetyFloorMode,
       calorieSafetyFloorValue,
@@ -1376,6 +1386,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
       chartScaleMode,
       goalMode,
       goalModeCalculationMethod,
+      adaptiveActivitySeparate,
       goalModeCustomPercentage,
       calorieSafetyFloorMode,
       calorieSafetyFloorValue,
@@ -1486,6 +1497,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
       chartScaleMode,
       goalMode,
       goalModeCalculationMethod,
+      adaptiveActivitySeparate,
       goalModeCustomPercentage,
       calorieSafetyFloorMode,
       calorieSafetyFloorValue,

@@ -858,6 +858,10 @@ router.put(
  *               activeEnergyKcal:
  *                 type: number
  *                 description: Measured active energy for this entry, in kcal.
+ *               strideLengthCm:
+ *                 type: number
+ *                 nullable: true
+ *                 description: Stride length in cm; null clears it. Changes nothing else on the entry.
  *     responses:
  *       204:
  *         description: Telemetry attached.
@@ -890,7 +894,8 @@ router.post('/:id/watch-telemetry', authenticate, async (req, res, next) => {
       id,
       parsed.data.hrSamples,
       parsed.data.activeEnergyKcal,
-      parsed.data.durationMinutes
+      parsed.data.durationMinutes,
+      parsed.data.strideLengthCm
     );
     res.status(204).send();
   } catch (error) {
