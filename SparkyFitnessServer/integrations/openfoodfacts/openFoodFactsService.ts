@@ -1,6 +1,7 @@
 import {
   resolveOpenFoodFactsProvider,
   invalidateOpenFoodFactsSession,
+  resolveOffFetch,
   DEFAULT_OFF_BASE_URL,
 } from './openFoodFactsAuth.js';
 import type { OpenFoodFactsCredentialScope } from './openFoodFactsAuth.js';
@@ -19,12 +20,6 @@ import {
   OPENFOODFACTS_INTERACTIVE_PRODUCT_READ_MAX_WAIT_MS,
   withOpenFoodFactsProductReadPermit,
 } from '../../services/openFoodFactsProductReadRateLimitService.js';
-import {
-  createGuardedFetch,
-  PUBLIC_ONLY_AI_NETWORK_POLICY,
-  resolveFoodProviderNetworkPolicy,
-} from '../../utils/outboundUrlPolicy.js';
-import { resolveIsAdminByUserId } from '../../utils/adminCheck.js';
 const { name, version } = package$0;
 const USER_AGENT = `${name}/${version} (https://github.com/CodeWithCJ/SparkyFitness)`;
 const SEARCH_A_LICIOUS_URL = 'https://search.openfoodfacts.org/search';
@@ -73,20 +68,6 @@ async function fetchWithTimeout(
   }
 }
 
-async function resolveOffFetch(
-  authenticatedUserId?: string
-): Promise<typeof fetch> {
-  if (!authenticatedUserId) {
-    return createGuardedFetch(PUBLIC_ONLY_AI_NETWORK_POLICY);
-  }
-  try {
-    const isAdmin = await resolveIsAdminByUserId(authenticatedUserId);
-    const policy = await resolveFoodProviderNetworkPolicy(isAdmin);
-    return policy.allowPrivateNetwork ? fetch : createGuardedFetch(policy);
-  } catch {
-    return createGuardedFetch(PUBLIC_ONLY_AI_NETWORK_POLICY);
-  }
-}
 const OFF_FIELDS = [
   'product_name',
   'product_name_en',
@@ -322,16 +303,16 @@ async function fetchOpenFoodFacts(
     rateLimitProductRead?: boolean;
   } = {}
 ): Promise<Response> {
-  const fetchImpl = await resolveOffFetch(authenticatedUserId);
+  // The unauthenticated retry shares this request's deadline, so a 429/5xx
+  // answered near the end of the budget cannot double the wall-clock time.
+  const requestDeadline = Date.now() + timeoutMs;
+  const remainingBudget = Math.max(0, requestDeadline - Date.now());
+  const fetchImpl = await resolveOffFetch(authenticatedUserId, remainingBudget);
   const baseHeaders = { ...OFF_HEADERS };
 
   const headers = sessionCookie
     ? { ...baseHeaders, Cookie: `session=${sessionCookie}` }
     : baseHeaders;
-
-  // The unauthenticated retry shares this request's deadline, so a 429/5xx
-  // answered near the end of the budget cannot double the wall-clock time.
-  const requestDeadline = Date.now() + timeoutMs;
 
   const performGet = async (
     requestHeaders: Record<string, string>

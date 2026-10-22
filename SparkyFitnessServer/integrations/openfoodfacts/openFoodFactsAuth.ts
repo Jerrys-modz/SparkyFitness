@@ -206,16 +206,61 @@ function parseSessionCookie(response: Response): string | null {
   return null;
 }
 
-async function resolveOffFetch(
-  authenticatedUserId?: string
+export async function resolveOffFetch(
+  authenticatedUserId?: string,
+  signalOrTimeoutMs?: AbortSignal | number
 ): Promise<typeof fetch> {
   if (!authenticatedUserId) {
     return createGuardedFetch(PUBLIC_ONLY_AI_NETWORK_POLICY);
   }
+
+  const signal =
+    typeof signalOrTimeoutMs === 'number'
+      ? AbortSignal.timeout(Math.max(0, signalOrTimeoutMs))
+      : signalOrTimeoutMs;
+
+  if (signal?.aborted) {
+    return createGuardedFetch(PUBLIC_ONLY_AI_NETWORK_POLICY);
+  }
+
   try {
-    const isAdmin = await resolveIsAdminByUserId(authenticatedUserId);
-    const policy = await resolveFoodProviderNetworkPolicy(isAdmin);
-    return policy.allowPrivateNetwork ? fetch : createGuardedFetch(policy);
+    const resolutionPromise = (async () => {
+      const isAdmin = await resolveIsAdminByUserId(authenticatedUserId);
+      const policy = await resolveFoodProviderNetworkPolicy(isAdmin);
+      return policy.allowPrivateNetwork ? fetch : createGuardedFetch(policy);
+    })();
+
+    if (!signal) {
+      return await resolutionPromise;
+    }
+
+    return await new Promise<typeof fetch>((resolve) => {
+      let settled = false;
+      const onAbort = () => {
+        if (!settled) {
+          settled = true;
+          signal.removeEventListener('abort', onAbort);
+          resolve(createGuardedFetch(PUBLIC_ONLY_AI_NETWORK_POLICY));
+        }
+      };
+      signal.addEventListener('abort', onAbort, { once: true });
+
+      resolutionPromise
+        .then((res) => {
+          if (!settled) {
+            settled = true;
+            signal.removeEventListener('abort', onAbort);
+            resolve(res);
+          }
+        })
+        .catch(() => {
+          if (!settled) {
+            settled = true;
+            signal.removeEventListener('abort', onAbort);
+            resolve(createGuardedFetch(PUBLIC_ONLY_AI_NETWORK_POLICY));
+          }
+        });
+    });
   } catch {
     return createGuardedFetch(PUBLIC_ONLY_AI_NETWORK_POLICY);
   }
@@ -243,7 +288,10 @@ async function loginToOpenFoodFacts(
     controller.abort(new Error('Open Food Facts login timed out.'));
   }, LOGIN_TIMEOUT_MS);
   try {
-    const fetchImpl = await resolveOffFetch(authenticatedUserId);
+    const fetchImpl = await resolveOffFetch(
+      authenticatedUserId,
+      controller.signal
+    );
     const response = await fetchImpl(`${baseUrl}/cgi/session.pl`, {
       method: 'POST',
       headers: {

@@ -14,6 +14,7 @@ import { withOpenFoodFactsProductReadPermit } from '../services/openFoodFactsPro
 vi.mock('../integrations/openfoodfacts/openFoodFactsAuth.js', () => ({
   resolveOpenFoodFactsProvider: vi.fn(),
   invalidateOpenFoodFactsSession: vi.fn(),
+  resolveOffFetch: vi.fn(async () => fetch),
   DEFAULT_OFF_BASE_URL: 'https://world.openfoodfacts.org',
 }));
 vi.mock('../services/openFoodFactsProductReadRateLimitService.js', () => ({
