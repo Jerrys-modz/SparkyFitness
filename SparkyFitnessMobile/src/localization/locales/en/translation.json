@@ -8485,6 +8485,8 @@
       "eachWeek": "Each week as a dot",
       "overTime": "Over time",
       "axis": "{{metric}} vs. your usual",
+      "axisYesNo": "{{metric}} (yes or no)",
+      "axisDaysYou": "Days you {{verb}} vs. your usual",
       "range": "{{metric}} {{min}}–{{max}}",
       "noDots": "No days with both yet",
       "noOverTime": "Nothing logged in this range",

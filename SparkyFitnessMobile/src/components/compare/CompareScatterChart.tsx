@@ -7,6 +7,7 @@ import { CartesianChart, Line, Scatter } from 'victory-native';
 import { useCSSVariable } from 'uniwind';
 
 import { COMPARE_METRIC_LABELS } from '../../constants/compareMetrics';
+import { dotsAxisCaption } from '../../utils/compareCopy';
 import { formatLocalizedNumber } from '../../localization';
 import { CHART_LABEL_FONT_SIZE, useChartFont } from '../charts/chartFormatting';
 import {
@@ -41,8 +42,8 @@ const CompareScatterChart: React.FC<CompareScatterChartProps> = ({
     '--color-text-muted',
   ]) as [string, string];
 
+  const { mode, timing } = timingOf(question.choice);
   const { data, hasTrend } = useMemo(() => {
-    const { mode, timing } = timingOf(question.choice);
     const dots = displayDots(pairedDots(response, mode, timing), question);
     // A fitted line reads as a finding, so it is drawn only for a real link.
     const line = response.result.linked === true ? trendLine(dots) : null;
@@ -55,7 +56,7 @@ const CompareScatterChart: React.FC<CompareScatterChartProps> = ({
         trend: line ? line.slope * dot.x + line.intercept : dot.y,
       })),
     };
-  }, [response, question]);
+  }, [response, question, mode, timing]);
 
   const aLabel = COMPARE_METRIC_LABELS[question.a](t);
   const bLabel = COMPARE_METRIC_LABELS[question.b](t);
@@ -75,10 +76,7 @@ const CompareScatterChart: React.FC<CompareScatterChartProps> = ({
   return (
     <View className="bg-surface rounded-xl p-4 my-2 shadow-sm">
       <Text className="text-text-muted text-xs mb-1">
-        {t('compareReport.chart.axis', {
-          defaultValue: '{{metric}} vs. your usual',
-          metric: bLabel,
-        })}
+        {dotsAxisCaption(question.b, mode, t)}
       </Text>
       <View
         style={{ height: CHART_HEIGHT }}
@@ -127,10 +125,7 @@ const CompareScatterChart: React.FC<CompareScatterChartProps> = ({
         </CartesianChart>
       </View>
       <Text className="text-text-muted text-xs text-center mt-1">
-        {t('compareReport.chart.axis', {
-          defaultValue: '{{metric}} vs. your usual',
-          metric: aLabel,
-        })}
+        {dotsAxisCaption(question.a, mode, t)}
       </Text>
     </View>
   );

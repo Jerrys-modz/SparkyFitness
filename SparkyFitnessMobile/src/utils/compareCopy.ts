@@ -321,6 +321,32 @@ export function yesNoWording(
   };
 }
 
+/**
+ * The caption on one axis of the dots. By the day a yes/no habit is plotted
+ * as 0 or 1, not against its usual; by the week it is the days you did it.
+ */
+export function dotsAxisCaption(
+  key: CompareMetricKey,
+  mode: CompareMode,
+  t: Translator
+): string {
+  if (isYesNo(key)) {
+    return mode === 'week'
+      ? t('compareReport.chart.axisDaysYou', {
+          defaultValue: 'Days you {{verb}} vs. your usual',
+          verb: plainLabel(key, t),
+        })
+      : t('compareReport.chart.axisYesNo', {
+          defaultValue: '{{metric}} (yes or no)',
+          metric: COMPARE_METRIC_LABELS[key](t),
+        });
+  }
+  return t('compareReport.chart.axis', {
+    defaultValue: '{{metric}} vs. your usual',
+    metric: COMPARE_METRIC_LABELS[key](t),
+  });
+}
+
 function units(count: number, mode: CompareMode, t: Translator): string {
   return mode === 'week'
     ? t('compareReport.verdict.weeks', {

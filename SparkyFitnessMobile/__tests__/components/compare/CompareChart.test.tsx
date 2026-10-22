@@ -175,6 +175,40 @@ describe('CompareChart', () => {
     expect(queryByTestId('line-mark')).toBeNull();
   });
 
+  it('captions a yes/no side as yes or no by the day', () => {
+    const r = response();
+    r.result = { ...r.result, status: 'not_enough', reason: 'tooFew' };
+    const first = render(
+      <CompareChart
+        response={r}
+        question={{ a: 'meditated', b: 'mood', choice: 'sameDay' }}
+      />
+    );
+    expect(first.getByText('Meditated (yes or no)')).toBeTruthy();
+    expect(first.getByText('Mood vs. your usual')).toBeTruthy();
+    expect(first.queryByText('Meditated vs. your usual')).toBeNull();
+
+    const second = render(
+      <CompareChart
+        response={r}
+        question={{ a: 'mood', b: 'meditated', choice: 'nextDay' }}
+      />
+    );
+    expect(second.getByText('Meditated (yes or no)')).toBeTruthy();
+    expect(second.getByText('Mood vs. your usual')).toBeTruthy();
+  });
+
+  it('captions a yes/no side as days per week by the week', () => {
+    const { getByText, queryByText } = render(
+      <CompareChart
+        response={response()}
+        question={{ a: 'meditated', b: 'mood', choice: 'sameWeek' }}
+      />
+    );
+    expect(getByText('Days you meditated vs. your usual')).toBeTruthy();
+    expect(queryByText(/yes or no/)).toBeNull();
+  });
+
   it('labels the over-time chart for screen readers', () => {
     const { getByText, getByLabelText } = render(
       <CompareChart response={response()} question={Q} />
