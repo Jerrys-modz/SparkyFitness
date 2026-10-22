@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useCSSVariable } from 'uniwind';
+import type { CompareMetricKey, CompareSinceResponse } from '@workspace/shared';
 
 import { useScreenHeader } from '../hooks/useScreenHeader';
-import { useCompare } from '../hooks/useCompare';
+import { useCompare, useCompareSince } from '../hooks/useCompare';
 import { useTodayOnFocus } from '../hooks/useTodayOnFocus';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import ReportScreenLayout from '../components/reports/ReportScreenLayout';
@@ -14,8 +15,12 @@ import CompareStartState from '../components/compare/CompareStartState';
 import CompareAnswerCard from '../components/compare/CompareAnswerCard';
 import CompareChart from '../components/compare/CompareChart';
 import CompareChecksCard from '../components/compare/CompareChecksCard';
+import CompareSinceRows from '../components/compare/CompareSinceRows';
+import CompareSinceCard from '../components/compare/CompareSinceCard';
+import CompareSinceChart from '../components/compare/CompareSinceChart';
 import {
   DEFAULT_COMPARE_SPAN,
+  clampSinceStart,
   compareWindow,
   isAskable,
   knownCompareQuestions,
@@ -29,6 +34,15 @@ import type { CustomRange } from '../utils/trendRange';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type CompareReportScreenProps = RootStackScreenProps<'CompareReport'>;
+
+/** What both answer hooks report, for the shared loading, error and too-old states. */
+interface AnswerState {
+  data: unknown;
+  isLoading: boolean;
+  isError: boolean;
+  serverTooOld: boolean;
+  refetch: () => void;
+}
 
 const questionKey = (q: CompareQuestion) => `${q.a}|${q.b}|${q.choice}`;
 
@@ -48,6 +62,16 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
     day: null,
     week: null,
   });
+  // A since start belongs to its habit and a line to its outcome's scale, so
+  // each is set aside while a different metric is picked in that slot.
+  const [startPick, setStartPick] = useState<{
+    a: CompareMetricKey;
+    day: string;
+  } | null>(null);
+  const [linePick, setLinePick] = useState<{
+    b: CompareMetricKey;
+    line: number;
+  } | null>(null);
   const today = useTodayOnFocus();
 
   const mode: CompareMode = question.choice
@@ -57,6 +81,11 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
   const spanMode: SpanMode = mode === 'since' ? 'day' : mode;
   const span = spans[spanMode];
   const window = compareWindow(span, spanMode, today, customs[spanMode]);
+  const habitStart =
+    startPick && startPick.a === question.a
+      ? clampSinceStart(startPick.day, today)
+      : null;
+  const line = linePick && linePick.b === question.b ? linePick.line : null;
 
   const storedRecent = useAppPreferencesStore((s) => s.compareRecentQuestions);
   const recent = useMemo(
@@ -65,21 +94,30 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
   );
   const addRecent = useAppPreferencesStore((s) => s.addCompareRecentQuestion);
 
-  const { data, isLoading, isError, serverTooOld, refetch } = useCompare(
-    question,
-    window
-  );
+  const paired = useCompare(question, window);
+  const since = useCompareSince(question, habitStart, line);
 
+  // The since rows keep the last answer for this pair while a new start or
+  // line loads, so the suggested start and the line do not flicker away.
+  const [lastSince, setLastSince] = useState<CompareSinceResponse>();
+  if (since.data && since.data !== lastSince) setLastSince(since.data);
+  const rowsAnswer =
+    lastSince &&
+    lastSince.habit.key === question.a &&
+    lastSince.outcome.key === question.b
+      ? lastSince
+      : undefined;
+
+  const answered = mode === 'since' ? since.data : paired.data;
   const askable = isAskable(question);
   const lastRecorded = useRef<string | null>(null);
   useEffect(() => {
-    if (!data || !isAskable(question)) return;
-    if (timingOf(question.choice).mode === 'since') return;
+    if (!answered || !isAskable(question)) return;
     const key = questionKey(question);
     if (lastRecorded.current === key) return;
     lastRecorded.current = key;
     addRecent(question);
-  }, [data, question, addRecent]);
+  }, [answered, question, addRecent]);
 
   const notice = (text: string, action?: React.ReactNode) => (
     <View className="bg-surface rounded-xl p-4 my-2 shadow-sm items-center">
@@ -88,10 +126,9 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
     </View>
   );
 
-  const renderAnswer = (q: CompareQuestion) => {
-    // The since answer has a layout of its own, not this day/week one.
-    if (mode === 'since') return null;
-    if (serverTooOld) {
+  /** Too old, failed or still loading; null once there is an answer to show. */
+  const renderState = (state: AnswerState) => {
+    if (state.serverTooOld) {
       return notice(
         t('compareReport.screen.tooOld', {
           defaultValue:
@@ -100,13 +137,13 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
       );
     }
     // A failed background refresh keeps the answer already on screen.
-    if (isError && !data) {
+    if (state.isError && !state.data) {
       return notice(
         t('compareReport.screen.loadFailed', {
           defaultValue: "Couldn't load this comparison.",
         }),
         <TouchableOpacity
-          onPress={refetch}
+          onPress={state.refetch}
           accessibilityRole="button"
           className="mt-3 px-4 py-2 rounded-lg bg-raised"
         >
@@ -116,21 +153,59 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
         </TouchableOpacity>
       );
     }
-    if (isLoading || !data) {
+    if (state.isLoading || !state.data) {
       return (
         <View className="py-8 items-center" testID="compare-loading">
           <ActivityIndicator color={accent} />
         </View>
       );
     }
+    return null;
+  };
+
+  const renderAnswer = (q: CompareQuestion) => {
+    const state = renderState(paired);
+    if (state || !paired.data) return state;
     return (
       <>
-        <CompareAnswerCard response={data} question={q} span={span} />
-        <CompareChart response={data} question={q} />
-        <CompareChecksCard result={data.result} question={q} mode={mode} />
+        <CompareAnswerCard response={paired.data} question={q} span={span} />
+        <CompareChart response={paired.data} question={q} />
+        <CompareChecksCard
+          result={paired.data.result}
+          question={q}
+          mode={mode}
+        />
       </>
     );
   };
+
+  const renderSinceAnswer = () => {
+    const state = renderState(since);
+    if (state || !since.data) return state;
+    return (
+      <>
+        <CompareSinceCard response={since.data} />
+        <CompareSinceChart response={since.data} />
+      </>
+    );
+  };
+
+  const renderSince = (q: CompareQuestion) => (
+    <>
+      <View className="mt-3">
+        <CompareSinceRows
+          response={rowsAnswer}
+          outcome={q.b}
+          today={today}
+          habitStart={habitStart}
+          line={line}
+          onStartChange={(day) => setStartPick({ a: q.a, day })}
+          onLineChange={(value) => setLinePick({ b: q.b, line: value })}
+        />
+      </View>
+      {renderSinceAnswer()}
+    </>
+  );
 
   return (
     <ReportScreenLayout header={header}>
@@ -151,7 +226,11 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
         </View>
       )}
       {askable ? (
-        renderAnswer(question)
+        mode === 'since' ? (
+          renderSince(question)
+        ) : (
+          renderAnswer(question)
+        )
       ) : (
         <View className="mt-4">
           <CompareStartState recent={recent} onPick={setQuestion} />

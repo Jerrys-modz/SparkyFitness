@@ -25,3 +25,12 @@ export const formatDateWithYear = (day: string): string => {
     year: 'numeric',
   });
 };
+
+/** "Mar 2026" for a YYYY-MM-DD calendar day, for an axis that spans months. */
+export function formatMonthYear(day: string): string {
+  const [year, month, d] = day.split('-').map(Number);
+  return new Date(year, (month || 1) - 1, d || 1).toLocaleDateString(
+    getAppLocale(),
+    { month: 'short', year: 'numeric' }
+  );
+}

@@ -4,9 +4,11 @@ import {
   DEFAULT_COMPARE_SPAN,
   MAX_CUSTOM_DAYS,
   SUGGESTED_QUESTIONS,
+  clampSinceStart,
   compareWindow,
   isAskable,
   knownCompareQuestions,
+  sinceStartBounds,
   timingOf,
   withRecentQuestion,
   type CompareQuestion,
@@ -229,5 +231,23 @@ describe('isAskable', () => {
     expect(isAskable({ a: 'mood', b: 'mood', choice: 'sinceHabit' })).toBe(
       false
     );
+  });
+});
+
+describe('since start bounds', () => {
+  test('run from 730 days back to yesterday', () => {
+    expect(sinceStartBounds(TODAY)).toEqual({
+      min: '2024-10-21',
+      max: '2026-10-20',
+    });
+    expect(daysBetween(sinceStartBounds(TODAY).min, TODAY)).toBe(730);
+  });
+
+  test('keep a picked start inside them', () => {
+    expect(clampSinceStart('2026-04-01', TODAY)).toBe('2026-04-01');
+    expect(clampSinceStart('2024-10-21', TODAY)).toBe('2024-10-21');
+    expect(clampSinceStart('2024-10-20', TODAY)).toBe('2024-10-21');
+    expect(clampSinceStart(TODAY, TODAY)).toBe('2026-10-20');
+    expect(clampSinceStart('2026-12-01', TODAY)).toBe('2026-10-20');
   });
 });

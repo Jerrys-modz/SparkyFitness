@@ -685,6 +685,13 @@ const WHOLE_UNITS: ReadonlySet<string> = new Set([
 const MINUTES_PER_DAY = 24 * 60;
 const BEDTIME_ORIGIN_MINUTES = 18 * 60;
 
+/** Decimals a metric is shown with: counts and minutes whole, everything else one. */
+export function compareDigits(key: CompareMetricKey): 0 | 1 {
+  return key === 'bedtime' || WHOLE_UNITS.has(COMPARE_METRICS[key].unit)
+    ? 0
+    : 1;
+}
+
 /**
  * An amount of a metric on its display scale (mood 1-10): counts and minutes
  * whole, everything else to one decimal. Bedtime here is a span of whole
@@ -695,8 +702,7 @@ export function compareAmountText(
   value: number,
   signed = false
 ): string {
-  const digits =
-    key === 'bedtime' || WHOLE_UNITS.has(COMPARE_METRICS[key].unit) ? 0 : 1;
+  const digits = compareDigits(key);
   return formatLocalizedNumber(compareDisplayValue(key, value), {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,

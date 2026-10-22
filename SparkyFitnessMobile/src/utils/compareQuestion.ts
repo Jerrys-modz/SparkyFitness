@@ -1,6 +1,7 @@
 import {
   COMPARE_METRICS,
   addDays,
+  compareDays,
   daysBetween,
   type CompareMetricKey,
 } from '@workspace/shared';
@@ -81,6 +82,25 @@ export function compareWindow(
   const key = span === 'custom' ? DEFAULT_COMPARE_SPAN[mode] : span;
   const days = SPAN_DAYS[key as Exclude<CompareSpan, 'custom'>];
   return { startDate: addDays(today, -(days - 1)), endDate: today };
+}
+
+/** The oldest start the server takes, in days back from today. */
+const SINCE_MAX_START_DAYS = 730;
+
+/** The days a since question can start on: 730 days back to yesterday. */
+export function sinceStartBounds(today: string): { min: string; max: string } {
+  return {
+    min: addDays(today, -SINCE_MAX_START_DAYS),
+    max: addDays(today, -1),
+  };
+}
+
+/** A picked start kept inside those bounds, so one that has aged out is not refused. */
+export function clampSinceStart(day: string, today: string): string {
+  const { min, max } = sinceStartBounds(today);
+  if (compareDays(day, min) < 0) return min;
+  if (compareDays(day, max) > 0) return max;
+  return day;
 }
 
 // Sleep is dated by the wake day, so caffeine "that night" is timing +1.

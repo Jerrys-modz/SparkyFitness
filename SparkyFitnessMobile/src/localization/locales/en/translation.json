@@ -8521,7 +8521,17 @@
       "alreadyFalling": "⚠ {{metric}} was already falling before you started.",
       "alreadyLater": "⚠ {{metric}} was already getting later before you started.",
       "alreadyEarlier": "⚠ {{metric}} was already getting earlier before you started.",
-      "caveat": "A lot can change over months; this shows a change since you started, not that {{habit}} caused it."
+      "caveat": "A lot can change over months; this shows a change since you started, not that {{habit}} caused it.",
+      "startLabel": "Since",
+      "startTitle": "Start date",
+      "suggested": "(suggested)",
+      "pickDate": "Pick a date",
+      "lineLabel": "Line: {{metric}} ≥",
+      "lineTitle": "{{metric}} at or above",
+      "chartBefore": "Before",
+      "chartSince": "Since",
+      "chartLine": "Line {{line}}",
+      "chartLabel": "{{metric}} over time, before and since {{start}}"
     },
     "stats": {
       "p": "p {{p}}",
