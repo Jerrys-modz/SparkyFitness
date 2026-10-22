@@ -406,7 +406,13 @@ export const createExerciseEntryRequestSchema = z
     weather_humidity_percentage: z.coerce.number().nullable().optional(),
     gear_name: z.string().nullable().optional(),
     gear_external_id: z.string().nullable().optional(),
-    workout_effort: z.coerce.number().int().min(1).max(10).nullable().optional(),
+    workout_effort: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10)
+      .nullable()
+      .optional(),
     steps: z.coerce.number().nullable().optional(),
     water_estimated: z.coerce.number().nullable().optional(),
     moving_time_seconds: z.coerce.number().nullable().optional(),

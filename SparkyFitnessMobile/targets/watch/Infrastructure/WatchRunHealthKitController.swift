@@ -269,6 +269,14 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         persistSnapshot(force: true)
     }
 
+    /// Main-queue-only flag shared by the two callers of a run's delivery.
+    private final class DeliveryFlag {
+        var done = false
+    }
+
+    /// How long the summary waits for HealthKit to hand back the saved workout.
+    private static let finishWorkoutTimeout: TimeInterval = 10
+
     /// The workout `end(save: true)` last saved, kept so the wearer can rate
     /// its effort from the summary. Cleared when the next run starts. Main
     /// queue only.
@@ -311,8 +319,14 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             // HKWorkout is in hand. Rating before that has nothing to relate,
             // and the picker would still report success. Strength already
             // waits; a run used to show the summary from endCollection.
+            // Runs once. finishWorkout can hang or be dropped, and the run
+            // must still reach the phone, so a timeout calls it too; whichever
+            // comes second finds `delivered` set and does nothing.
+            let delivered = DeliveryFlag()
             let deliver = {
                 DispatchQueue.main.async {
+                    guard !delivered.done else { return }
+                    delivered.done = true
                     guard let self else {
                         completion(WatchRunMetrics(), finalElapsed, nil)
                         return
@@ -346,6 +360,9 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
                         }
                         deliver()
                     }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + Self.finishWorkoutTimeout) {
+                    deliver()
                 }
             } else {
                 endingBuilder.discardWorkout()

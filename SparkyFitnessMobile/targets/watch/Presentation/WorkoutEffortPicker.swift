@@ -18,6 +18,8 @@ struct WorkoutEffortPicker: View {
     @State private var position: Double = 5
     @State private var selected = false
     @State private var saved = false
+    /// True while the write is in flight, so a second tap cannot send it twice.
+    @State private var saving = false
     @FocusState private var crownFocused: Bool
 
     private var rating: Int { min(max(Int(position.rounded()), 1), 10) }
@@ -47,7 +49,7 @@ struct WorkoutEffortPicker: View {
                 .foregroundStyle(.secondary)
             if saved {
                 Label(
-                    String(localized: "watch.effort.saved", defaultValue: "Saved to Health"),
+                    String(localized: "watch.effort.saved", defaultValue: "Saved"),
                     systemImage: "checkmark"
                 )
                 .font(.caption.weight(.semibold))
@@ -71,6 +73,7 @@ struct WorkoutEffortPicker: View {
                 Button(action: Haptics.tapping(saveRating)) {
                     Text(String(localized: "watch.rpe.save", defaultValue: "Save"))
                 }
+                .disabled(saving)
             }
         }
         .padding(.top, 4)
@@ -106,7 +109,12 @@ struct WorkoutEffortPicker: View {
     }
 
     private func saveRating() {
+        guard !saving else { return }
         deselect()
-        save(rating) { saved = $0 }
+        saving = true
+        save(rating) { ok in
+            saving = false
+            saved = ok
+        }
     }
 }

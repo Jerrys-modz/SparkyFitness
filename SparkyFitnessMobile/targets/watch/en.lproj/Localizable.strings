@@ -159,7 +159,7 @@
 "watch.workout.discardConfirm" = "Discard workout?";
 "watch.workout.updatePresetTitle" = "Update Workout?";
 "watch.effort.title" = "How hard was that?";
-"watch.effort.saved" = "Saved to Health";
+"watch.effort.saved" = "Saved";
 "watch.effort.band.easy" = "Easy";
 "watch.effort.band.moderate" = "Moderate";
 "watch.effort.band.hard" = "Hard";
