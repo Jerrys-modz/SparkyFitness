@@ -8374,6 +8374,52 @@
       "useTestDescription": "Uses your {{test}} on {{date}} for your level and race-day pace.",
       "fromTest": "Starting level: {{level}}. Race-day pace about {{pace}}.",
       "estimateFromTest": "Race day is planned at about {{minutes}} minutes, at the pace your fitness test points to; you can change it in the plan afterwards."
+    },
+    "realign": {
+      "title": "Realign your plan",
+      "titleMore": "You have time to spare",
+      "titleTight": "Your goal date is too tight",
+      "titleForced": "Continue anyway",
+      "intro": "You have missed some time. Realigning rebuilds the rest of your plan so you still finish on your goal date, keeping your long runs, the taper and the final workout.",
+      "introMore": "You have more days before your goal than workouts. Repeating some base weeks gives you a steadier build and still ends on your goal date.",
+      "introForced": "This drops as many workouts as it takes to end on your goal date. It is a lot to skip, so the build will be thinner than planned. The taper and the final workout are still kept.",
+      "what": "week {{week}}, run {{run}} · {{minutes}} min",
+      "before_one": "Now: {{count}} workout left, ending {{date}}.",
+      "before_other": "Now: {{count}} workouts left, ending {{date}}.",
+      "after_one": "After: {{count}} workout, ending {{date}}.",
+      "after_other": "After: {{count}} workouts, ending {{date}}.",
+      "changes": "What changes",
+      "changesMore": "What it adds",
+      "change": {
+        "droppedRepeat": "Drop {{what}}: it repeats another run that week",
+        "droppedShortest": "Drop {{what}}: the shortest run of that week",
+        "merged": "Fold {{what}} into the next week: a lighter week joins it",
+        "added": "Do {{what}} again, as an extra base week",
+        "repeated": "Repeat {{what}}"
+      },
+      "eased_one": "You have been away {{days}} days, so the running in your next {{count}} workout is eased by {{percent}}%.",
+      "eased_other": "You have been away {{days}} days, so the running in your next {{count}} workouts is eased by {{percent}}%.",
+      "kept": "The taper and the final workout stay exactly as they are.",
+      "spare_one": "{{count}} workout day before your goal stays empty: only so much is added at once.",
+      "spare_other": "{{count}} workout days before your goal stay empty: only so much is added at once.",
+      "accept": "Realign plan",
+      "notNow": "Not now",
+      "back": "Back",
+      "done": "Your plan was realigned",
+      "error": "Could not realign your plan",
+      "tight_one": "Only {{count}} workout day is left before your goal date and {{left}} workouts remain.",
+      "tight_other": "Only {{count}} workout days are left before your goal date and {{left}} workouts remain.",
+      "reason": {
+        "noTimeLeft": "There is no workout day left before your goal date.",
+        "taperDoesNotFit": "There is no longer room for the taper and the final workout.",
+        "tooMuchToDrop": "Fitting everything in would mean dropping a lot of your build.",
+        "tooFewWeeks_one": "{{count}} week is too short a build for this race.",
+        "tooFewWeeks_other": "{{count}} weeks is too short a build for this race."
+      },
+      "choose": "Nothing changes until you choose:",
+      "later": "Move my goal to {{date}}",
+      "lower": "Plan a {{distance}} instead",
+      "continue": "Continue anyway"
     }
   },
   "speechVoice": {

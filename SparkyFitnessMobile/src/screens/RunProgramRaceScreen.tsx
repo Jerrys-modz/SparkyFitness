@@ -81,17 +81,21 @@ const Chip: React.FC<{
  * weekdays you can run, and it writes a plan that builds up to the day, with
  * easy weeks and a taper, and starts it on the calendar.
  */
-const RunProgramRaceScreen: React.FC<Props> = ({ navigation }) => {
+const RunProgramRaceScreen: React.FC<Props> = ({ navigation, route }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { enabled, status } = useRunProgram();
   const [now] = useState(() => Date.now());
   const today = toLocalDateString(new Date(now));
   const calendarRef = useRef<CalendarSheetRef>(null);
-  const [distance, setDistance] = useState<RaceDistance>('10k');
+  const [distance, setDistance] = useState<RaceDistance>(
+    route?.params?.distance ?? '10k'
+  );
   const [surface, setSurface] = useState<RaceSurface>('road');
   const [level, setLevel] = useState<RaceLevel>('some');
-  const [raceDay, setRaceDay] = useState<string>(() => addDays(today, 7 * 12));
+  const [raceDay, setRaceDay] = useState<string>(
+    () => route?.params?.raceDay ?? addDays(today, 7 * 12)
+  );
   const [runDays, setRunDays] = useState<number[]>([2, 4, 0]);
   const [goalHours, setGoalHours] = useState('');
   const [goalMinutes, setGoalMinutes] = useState('');

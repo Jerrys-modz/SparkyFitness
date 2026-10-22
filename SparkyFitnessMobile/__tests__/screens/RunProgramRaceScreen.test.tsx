@@ -63,12 +63,12 @@ jest.mock('../../src/components/CalendarSheet', () => {
 });
 
 const goBack = jest.fn();
-const renderScreen = () =>
+const renderScreen = (params?: { distance?: string; raceDay?: string }) =>
   render(
     <RunProgramRaceScreen
       {...({
         navigation: { goBack, navigate: jest.fn() },
-        route: { key: 'r', name: 'RunProgramRace' },
+        route: { key: 'r', name: 'RunProgramRace', params },
       } as never)}
     />
   );
@@ -122,6 +122,16 @@ describe('RunProgramRaceScreen', () => {
       endDay: '2026-12-13',
     });
     await waitFor(() => expect(goBack).toHaveBeenCalled());
+  });
+
+  it('opens on the distance and race day it was given, as from a realignment', () => {
+    renderScreen({ distance: '5k', raceDay: '2026-12-13' });
+    expect(
+      screen.getByTestId('race-distance-5k').props.accessibilityState.selected
+    ).toBe(true);
+    expect(
+      screen.getByTestId('race-distance-10k').props.accessibilityState.selected
+    ).toBe(false);
   });
 
   it('will not create a plan for a race that is too close', () => {
