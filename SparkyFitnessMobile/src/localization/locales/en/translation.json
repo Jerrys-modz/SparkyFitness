@@ -655,7 +655,8 @@
     "runProgramRace": "Plan a race",
     "routes": "Routes",
     "routeDraw": "Draw a route",
-    "routeGenerate": "Generate a route"
+    "routeGenerate": "Generate a route",
+    "compareReport": "Compare"
   },
   "activityShare": {
     "title": "Share Activity",
@@ -7504,7 +7505,9 @@
     "measurementsSubtitle": "Weight, body composition, tape measurements and steps",
     "insights": "What stood out",
     "substances": "Caffeine and alcohol",
-    "substancesSubtitle": "Daily caffeine, alcohol totals and week by week"
+    "substancesSubtitle": "Daily caffeine, alcohol totals and week by week",
+    "compare": "Compare",
+    "compareSubtitle": "How two things move together"
   },
   "nutritionReport": {
     "title": "Nutrition",
@@ -8322,5 +8325,204 @@
     "fileTooLarge": "That file is too large",
     "fileTooLargeHint": "A route file can be up to 10 MB.",
     "drawLimit": "That is as many points as a route can have here. Undo some or save this one."
+  },
+  "compareReport": {
+    "groups": {
+      "feelings": "How you felt",
+      "sleep": "Sleep",
+      "meditation": "Meditation",
+      "food": "Food",
+      "training": "Training",
+      "body": "Body"
+    },
+    "metrics": {
+      "mood": "Mood",
+      "energy": "Energy",
+      "focus": "Focus",
+      "timeAsleep": "Time asleep",
+      "sleepScore": "Sleep score",
+      "overnightHrv": "Overnight HRV",
+      "restingHeartRate": "Resting heart rate",
+      "bedtime": "Bedtime",
+      "bedtimeConsistency": "Bedtime consistency",
+      "meditationMinutes": "Meditation minutes",
+      "meditationSessions7d": "Meditation sessions (7 days)",
+      "meditated": "Meditated",
+      "calories": "Calories",
+      "protein": "Protein",
+      "carbs": "Carbs",
+      "fat": "Fat",
+      "caffeine": "Caffeine",
+      "alcohol": "Alcohol",
+      "workoutMinutes": "Workout minutes",
+      "cardioMinutes": "Cardio minutes",
+      "strengthVolume": "Strength volume",
+      "trainingLoad": "Training load",
+      "weightTrend": "Weight trend",
+      "steps": "Steps"
+    },
+    "phrase": {
+      "lastNights": "last night's {{metric}}",
+      "daysYou": "the number of days you {{verb}}",
+      "your": "your {{metric}}",
+      "yourWhen": "your {{metric}} {{timing}}"
+    },
+    "timing": {
+      "sameDay": "the same day",
+      "thatDay": "that day",
+      "nextDay": "the next day",
+      "dayAfterYouWoke": "the day after you woke",
+      "thatNight": "that night",
+      "dayBefore": "the day before",
+      "nightBefore": "the night before",
+      "twoNightsBefore": "two nights before",
+      "sameNight": "the same night",
+      "nextNight": "the next night",
+      "sameWeek": "the same week",
+      "nextWeek": "the next week"
+    },
+    "yesNo": {
+      "onDays": "On days you {{yes}}",
+      "dayAfter": "The day after you {{yes}}",
+      "dayBefore": "The day before you {{yes}}",
+      "nightAfter": "The night after you {{yes}}",
+      "nightBefore": "The night before you {{yes}}",
+      "twoNightsBefore": "Two nights before you {{yes}}"
+    },
+    "verdict": {
+      "question": "Does {{a}} go with {{b}} {{timing}}?",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "weeks_one": "{{count}} week",
+      "weeks_other": "{{count}} weeks",
+      "strength": {
+        "weak": "weak",
+        "moderate": "moderate",
+        "strong": "strong"
+      },
+      "linkedHeadline": "Yes, a {{strength}} link",
+      "linkedPositive": "When {{a}} was {{aDirection}}, {{b}} {{timing}} was {{bDirection}} too.",
+      "linkedNegative": "When {{a}} was {{aDirection}}, {{b}} {{timing}} was {{bDirection}}.",
+      "noLinkHeadline": "No clear link",
+      "noLinkDetail": "Over these {{n}}, they didn't move together more than chance would explain.",
+      "longerSpan": "A longer span makes a weak link easier to see.",
+      "differenceHeadline": "Yes, a difference",
+      "difference": "{{when}}, {{outcome}} was {{direction}}.",
+      "noDifferenceHeadline": "No clear difference",
+      "noDifferenceDetail": "Over these {{n}}, your {{outcome}} wasn't different enough between the two kinds of day to rule out chance.",
+      "tooFewHeadline": "Not enough days yet",
+      "tooFewHeadlineWeeks": "Not enough weeks yet",
+      "tooFewDetail": "You have {{n}}; an answer needs {{needed}}.",
+      "logDays_one": "Log {{weaker}} on {{count}} more day, or pick a longer span.",
+      "logDays_other": "Log {{weaker}} on {{count}} more days, or pick a longer span.",
+      "logWeeks_one": "Log {{weaker}} for {{count}} more week, or pick a longer span.",
+      "logWeeks_other": "Log {{weaker}} for {{count}} more weeks, or pick a longer span.",
+      "needsHistory": "Each day is compared with your previous two weeks, so a day needs a week of history first.",
+      "fewYesHeadline": "Not enough days when you {{yes}} yet",
+      "fewYesDetail": "You have {{n}}; an answer needs {{needed}}. Try a longer span.",
+      "fewNoHeadline": "Not enough days without {{yesNoun}} yet",
+      "fewNoDetail": "You {{yes}} on almost every day here, so there's nothing to compare against. Try a longer span.",
+      "noVariationHeadline": "Nothing to compare yet",
+      "noVariationDetail": "{{metric}} was the same every time over this span, so there's nothing to compare it with.",
+      "noVariationGeneric": "One of these didn't change over this span.",
+      "longerSpanDifference": "A longer span makes a small difference easier to see."
+    },
+    "stats": {
+      "p": "p {{p}}",
+      "pTiny": "p < 0.001",
+      "correlation": "r {{r}} · 95% range {{low}} to {{high}} · {{p}} · {{n}}",
+      "difference": "difference {{diff}} · 95% range {{low}} to {{high}} · {{p}} · {{n}}",
+      "differenceMinutes": "difference {{diff}} min · 95% range {{low}} to {{high}} min · {{p}} · {{n}}"
+    },
+    "metricNouns": {
+      "meditated": "meditating"
+    },
+    "direction": {
+      "higher": "higher than usual",
+      "lower": "lower than usual",
+      "later": "later than usual",
+      "earlier": "earlier than usual"
+    },
+    "logged": {
+      "weight": "weight",
+      "sleep": "sleep",
+      "workouts": "workouts",
+      "meditation": "meditation"
+    },
+    "start": {
+      "suggestions": "Try one of these",
+      "recent": "Your recent questions"
+    },
+    "span": {
+      "30d": "30 days",
+      "60d": "60 days",
+      "90d": "90 days",
+      "6m": "6 months",
+      "1y": "1 year"
+    },
+    "sentence": {
+      "something": "something",
+      "sometime": "some time",
+      "does": "Does",
+      "goWith": "go with",
+      "questionMark": "?",
+      "firstTitle": "First thing",
+      "secondTitle": "Second thing",
+      "timingTitle": "When",
+      "dayByDay": "Day by day",
+      "weekByWeek": "Week by week",
+      "sameDay": "The same day",
+      "nextDay": "The next day",
+      "dayBefore": "The day before",
+      "sameWeek": "The same week",
+      "nextWeek": "The next week"
+    },
+    "bars": {
+      "yesDays": "Days you {{yes}}",
+      "noDays": "Days without {{yesNoun}}",
+      "otherDays": "Other days",
+      "otherNights": "Other nights",
+      "meanAndDays_one": "{{mean}} · {{count}} day",
+      "meanAndDays_other": "{{mean}} · {{count}} days",
+      "meanAndNights_one": "{{mean}} · {{count}} night",
+      "meanAndNights_other": "{{mean}} · {{count}} nights",
+      "diff": "{{diff}} vs. your usual",
+      "diffMinutes": "{{diff}} min vs. your usual"
+    },
+    "checks": {
+      "ownNormal": "✓ Compared with your own normal",
+      "notProof": "A link, not proof of cause",
+      "seemsFirst": "{{metric}} seems to come first",
+      "comesFirst": "{{metric}} comes first",
+      "otherWay": "The link is stronger the other way round",
+      "cantTell": "Can't tell which comes first",
+      "weekendHolds": "Still holds after accounting for weekends",
+      "weekendMay": "This may be a weekday-versus-weekend pattern"
+    },
+    "chart": {
+      "eachDay": "Each day as a dot",
+      "eachWeek": "Each week as a dot",
+      "overTime": "Over time",
+      "axis": "{{metric}} vs. your usual",
+      "axisYesNo": "{{metric}} (yes or no)",
+      "axisDaysYou": "Days you {{verb}} vs. your usual",
+      "range": "{{metric}} {{min}}–{{max}}",
+      "noDots": "No days with both yet",
+      "noDotsWeeks": "No weeks with both yet",
+      "noOverTime": "Nothing logged in this range",
+      "dotsLabel": "Each dot pairs {{a}} with {{b}}",
+      "overTimeLabel": "{{a}} and {{b}} over time, each scaled to its own range"
+    },
+    "screen": {
+      "tooOld": "Compare needs a newer SparkyFitness server. Update your server to use it.",
+      "loadFailed": "Couldn't load this comparison.",
+      "retry": "Retry"
+    },
+    "title": "Compare",
+    "answer": {
+      "throughYesterday": "Through yesterday",
+      "throughLastWeek": "Through last week",
+      "throughDate": "Through {{date}}"
+    }
   }
 }
