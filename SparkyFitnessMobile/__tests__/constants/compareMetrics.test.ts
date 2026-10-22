@@ -77,6 +77,14 @@ describe('compareMetricSections', () => {
     expect(day).toHaveLength(COMPARE_METRIC_KEYS.length);
   });
 
+  test('since mode offers every metric, weekly form or not', () => {
+    const values = compareMetricSections(t, 'since').flatMap((s) =>
+      s.options.map((o) => o.value)
+    );
+    expect(values).toContain('meditationSessions7d');
+    expect(values).toHaveLength(COMPARE_METRIC_KEYS.length);
+  });
+
   test('exclude removes a metric', () => {
     const values = compareMetricSections(t, 'day', 'mood').flatMap((s) =>
       s.options.map((o) => o.value)

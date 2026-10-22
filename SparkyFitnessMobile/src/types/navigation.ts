@@ -93,7 +93,8 @@ export type RootStackParamList = {
   PersonalRecords: undefined;
   Routes: undefined;
   RouteDetail: { id: string };
-  RouteDraw: undefined;
+  /** `routeId` opens a saved route in the editor and saves over it. */
+  RouteDraw: { routeId?: string } | undefined;
   RouteGenerate: undefined;
   WatchRunLive: undefined;
   MealPlanForm: { template?: MealPlanTemplate; initialMeal?: Meal } | undefined;
@@ -411,6 +412,7 @@ export type RootStackParamList = {
   DiarySettings: undefined;
   WorkoutSettings: undefined;
   WarmupSettings: undefined;
+  HeartRateZonesSettings: undefined;
   ServerSettings: undefined;
   PasskeySettings: undefined;
   AppSettings: undefined;

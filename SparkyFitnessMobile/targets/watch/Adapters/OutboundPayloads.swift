@@ -39,6 +39,8 @@ enum OutboundPayloads {
         static let fastStart = "fastStart"
         static let fastEnd = "fastEnd"
         static let runFinished = "runFinished"
+        static let runEffort = "runEffort"
+        static let workoutEffort = "workoutEffort"
         static let runLive = "runLive"
         static let runCue = "runCue"
         static let routeLibrary = "routeLibrary"
@@ -240,6 +242,9 @@ enum OutboundPayloads {
         if let minutes = batch.durationMinutes, minutes > 0 {
             payload["durationMinutes"] = minutes
         }
+        if let zones = batch.appleZones, !zones.isEmpty {
+            payload["appleZones"] = zones.map { $0.payload() }
+        }
         return payload
     }
 
@@ -262,14 +267,19 @@ enum OutboundPayloads {
     static func recordingHeartRate(
         sessionId: String,
         clientId: String,
-        samples: [HeartRateSample]
+        samples: [HeartRateSample],
+        appleZones: [[String: Any]]? = nil
     ) -> [String: Any] {
-        [
+        var payload: [String: Any] = [
             "type": Kind.recordingHeartRate,
             "sessionId": sessionId,
             "clientId": clientId,
             "samples": samples.map { ["t": $0.t, "bpm": $0.bpm] },
         ]
+        if let appleZones, !appleZones.isEmpty {
+            payload["appleZones"] = appleZones
+        }
+        return payload
     }
 
     /// A spoken cue for the phone to say instead of the watch, so it comes out
@@ -351,6 +361,26 @@ enum OutboundPayloads {
         return payload
     }
 
+    /// How hard the wearer rated a finished strength workout (1-10). Queued,
+    /// and matched to the workout by the session id the plan carried.
+    static func workoutEffort(sessionId: String, rating: Int) -> [String: Any] {
+        [
+            "type": Kind.workoutEffort,
+            "sessionId": sessionId,
+            "rating": rating,
+        ]
+    }
+
+    /// How hard the wearer rated a finished run (1-10), sent after the run
+    /// itself. Queued like `runFinished`, and matched to it by `clientId`.
+    static func runEffort(clientId: String, rating: Int) -> [String: Any] {
+        [
+            "type": Kind.runEffort,
+            "clientId": clientId,
+            "rating": rating,
+        ]
+    }
+
     /// A walk or run recorded on the wrist alone, sent once when it finishes.
     /// The route and heart rate are thinned to what the connection can carry.
     static func runFinished(_ result: WatchRunResult) -> [String: Any] {
@@ -384,6 +414,9 @@ enum OutboundPayloads {
                 payload["programId"] = programId
                 payload["programIndex"] = index
             }
+        }
+        if !result.appleZones.isEmpty {
+            payload["appleZones"] = result.appleZones
         }
         return payload
     }

@@ -336,7 +336,7 @@ router.post('/generate', async (req, res, next) => {
  *       404:
  *         description: Not found.
  *   patch:
- *     summary: Rename a route or change its activity
+ *     summary: Rename a route, change its activity or replace its line (points and cues)
  *     tags: [Exercise]
  *     responses:
  *       200:
@@ -390,7 +390,7 @@ router.patch('/:id', async (req, res, next) => {
     if (!route) return res.status(404).json({ error: 'Route not found' });
     res.json({ route });
   } catch (error) {
-    next(error);
+    if (!sendRouteError(res, error)) next(error);
   }
 });
 

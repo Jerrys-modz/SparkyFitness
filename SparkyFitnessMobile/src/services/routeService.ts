@@ -46,7 +46,7 @@ export function useRoutes(): {
   return { routes: data ?? [], isLoading, isError, refetch };
 }
 
-/** One saved route with its points and cues. */
+/** One saved route with its points and cues; an empty id fetches nothing. */
 export function useRoute(id: string): {
   route: Route | undefined;
   isLoading: boolean;
@@ -133,6 +133,20 @@ export async function renameRoute(
   patch: UpdateRouteBody
 ): Promise<Route> {
   const { route } = await updateRoute(id, patch);
+  await refreshRoutes();
+  return route;
+}
+
+/**
+ * Saves an edited line (and optionally a new name) over a saved route. The
+ * server recomputes distance and climb, and the cached route is replaced.
+ */
+export async function saveRouteEdits(
+  id: string,
+  patch: UpdateRouteBody
+): Promise<Route> {
+  const { route } = await updateRoute(id, patch);
+  queryClient.setQueryData(routeQueryKey(id), route);
   await refreshRoutes();
   return route;
 }

@@ -34,4 +34,16 @@ describe('CompareStartState', () => {
     fireEvent.press(getByText('Does meditating go with mood the same day?'));
     expect(onPick).toHaveBeenCalledWith(SUGGESTED_QUESTIONS[1]);
   });
+
+  it('reads a since question as the since sentence', () => {
+    const recent = [
+      { a: 'meditated', b: 'mood', choice: 'sinceHabit' } as const,
+    ];
+    const { getByText } = render(
+      <CompareStartState recent={recent} onPick={jest.fn()} />
+    );
+    expect(
+      getByText('Since I started meditating regularly, has mood changed?')
+    ).toBeTruthy();
+  });
 });

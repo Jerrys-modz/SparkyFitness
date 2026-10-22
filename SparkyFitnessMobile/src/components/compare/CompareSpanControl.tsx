@@ -9,13 +9,13 @@ import { formatShortDate, getTodayDate } from '../../utils/dateUtils';
 import {
   COMPARE_SPANS,
   MAX_CUSTOM_DAYS,
-  type CompareMode,
   type CompareSpan,
+  type SpanMode,
 } from '../../utils/compareQuestion';
 import { clampCustomRange, type CustomRange } from '../../utils/trendRange';
 
 interface CompareSpanControlProps {
-  mode: CompareMode;
+  mode: SpanMode;
   span: CompareSpan;
   custom: CustomRange | null;
   onSpanChange: (span: CompareSpan) => void;

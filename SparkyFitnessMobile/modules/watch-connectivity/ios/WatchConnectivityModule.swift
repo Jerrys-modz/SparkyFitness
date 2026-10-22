@@ -33,6 +33,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onLiveHeartRate: (([String: Any]) -> Void)?
     /// The wearer ended the workout on the watch.
     var onWorkoutStop: (([String: Any]) -> Void)?
+    /// How hard the wearer rated a finished strength workout (1-10).
+    var onWorkoutEffort: (([String: Any]) -> Void)?
     var onWorkoutDiscard: (([String: Any]) -> Void)?
     /// The wearer picked a saved workout on the watch. The phone starts it.
     var onWorkoutStartRequested: (([String: Any]) -> Void)?
@@ -51,6 +53,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onRunCue: (([String: Any]) -> Void)?
     /// A walk or run recorded on the watch alone, sent when it finished.
     var onRunFinished: (([String: Any]) -> Void)?
+    /// How hard the wearer rated a finished run (1-10).
+    var onRunEffort: (([String: Any]) -> Void)?
     /// Which routes the watch holds, and which it turned away.
     var onRouteLibrary: (([String: Any]) -> Void)?
 
@@ -129,6 +133,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onLiveHeartRate?(payload)
         case "workoutStop":
             onWorkoutStop?(payload)
+        case "workoutEffort":
+            onWorkoutEffort?(payload)
         case "workoutDiscard":
             onWorkoutDiscard?(payload)
         case "workoutStartRequested":
@@ -151,6 +157,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onRunCue?(payload)
         case "runFinished":
             onRunFinished?(payload)
+        case "runEffort":
+            onRunEffort?(payload)
         case "routeLibrary":
             onRouteLibrary?(payload)
         default:
@@ -307,6 +315,7 @@ public class WatchConnectivityModule: Module {
             "onHeartRateBatch",
             "onLiveHeartRate",
             "onWorkoutStop",
+            "onWorkoutEffort",
             "onWorkoutDiscard",
             "onWorkoutStartRequested",
             "onWorkoutEdit",
@@ -318,6 +327,7 @@ public class WatchConnectivityModule: Module {
             "onRunLive",
             "onRunCue",
             "onRunFinished",
+            "onRunEffort",
             "onRouteLibrary"
         )
 
@@ -463,6 +473,12 @@ public class WatchConnectivityModule: Module {
                     "at": at,
                 ])
             }
+            self.delegateHandler.onWorkoutEffort = { [weak self] payload in
+                self?.sendEvent("onWorkoutEffort", [
+                    "sessionId": payload["sessionId"] as? String ?? "",
+                    "rating": payload["rating"] as? Int ?? 0,
+                ])
+            }
             self.delegateHandler.onWorkoutStop = { [weak self] payload in
                 self?.sendEvent("onWorkoutStop", [
                     "sessionId": payload["sessionId"] as? String ?? "",
@@ -511,11 +527,16 @@ public class WatchConnectivityModule: Module {
                 self?.sendEvent("onRecordingControl", event)
             }
             self.delegateHandler.onRecordingHeartRate = { [weak self] payload in
-                self?.sendEvent("onRecordingHeartRate", [
+                var event: [String: Any] = [
                     "sessionId": payload["sessionId"] as? String ?? "",
                     "clientId": payload["clientId"] as? String ?? "",
                     "samples": dictionaryArray(payload["samples"]),
-                ])
+                ]
+                let zones = dictionaryArray(payload["appleZones"])
+                if !zones.isEmpty {
+                    event["appleZones"] = zones
+                }
+                self?.sendEvent("onRecordingHeartRate", event)
             }
             self.delegateHandler.onRunLive = { [weak self] payload in
                 var event: [String: Any] = [
@@ -553,6 +574,12 @@ public class WatchConnectivityModule: Module {
                 let event = self.normalizedRunEvent(payload)
                 self.rememberFinishedRun(event)
                 self.sendEvent("onRunFinished", event)
+            }
+            self.delegateHandler.onRunEffort = { [weak self] payload in
+                self?.sendEvent("onRunEffort", [
+                    "clientId": payload["clientId"] as? String ?? "",
+                    "rating": payload["rating"] as? Int ?? 0,
+                ])
             }
             self.delegateHandler.onRouteLibrary = { [weak self] payload in
                 let routes: [[String: Any]] = dictionaryArray(payload["routes"]).compactMap { row in
@@ -1024,6 +1051,10 @@ public class WatchConnectivityModule: Module {
         if let minutes = payload["durationMinutes"] as? Double {
             event["durationMinutes"] = minutes
         }
+        let zones = dictionaryArray(payload["appleZones"])
+        if !zones.isEmpty {
+            event["appleZones"] = zones
+        }
         if !telemetryOwnerId.isEmpty {
             event["ownerId"] = telemetryOwnerId
         }
@@ -1123,6 +1154,10 @@ public class WatchConnectivityModule: Module {
         }
         if let estimated = (payload["estimatedDistanceMeters"] as? NSNumber)?.doubleValue {
             event["estimatedDistanceMeters"] = estimated
+        }
+        let zones = dictionaryArray(payload["appleZones"])
+        if !zones.isEmpty {
+            event["appleZones"] = zones
         }
         return event
     }

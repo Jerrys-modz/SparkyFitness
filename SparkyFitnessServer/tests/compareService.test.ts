@@ -6,6 +6,7 @@ import {
   computeDailyWeightTrend,
   dayOfWeek,
   deviationsFromOwnNormal,
+  percentMaxFloors,
   todayInZone,
   weeklySeries,
   type DaySeries,
@@ -21,6 +22,14 @@ vi.mock('../models/compareRepository.js');
 vi.mock('../models/reportRepository.js');
 vi.mock('../models/preferenceRepository.js');
 vi.mock('../models/userRepository.js');
+vi.mock('../models/heartRateZoneRepository.js', () => ({
+  getHeartRateZoneSettings: vi.fn().mockResolvedValue({
+    maxHeartRate: null,
+    restingHeartRate: null,
+    method: 'percent_max',
+    customFloors: null,
+  }),
+}));
 vi.mock('../utils/timezoneLoader.js', () => ({ loadUserTimezone: vi.fn() }));
 // Pin "today" without touching the clock: only the service's own call is replaced.
 vi.mock('@workspace/shared', async (importOriginal) => ({
@@ -30,7 +39,7 @@ vi.mock('@workspace/shared', async (importOriginal) => ({
 
 const USER = '00000000-0000-4000-a000-000000000001';
 const TODAY = '2026-10-21'; // a Wednesday
-const CTX = { tz: 'UTC', maxHeartRate: 190 };
+const CTX = { tz: 'UTC', zoneFloors: percentMaxFloors(190) };
 
 /** Every day from first to last inclusive. */
 function daysFrom(first: string, last: string): string[] {
@@ -124,7 +133,7 @@ describe('loadMetricDays: sleep', () => {
       'bedtime',
       '2026-06-01',
       '2026-06-05',
-      { tz: 'America/New_York', maxHeartRate: 190 }
+      { tz: 'America/New_York', zoneFloors: percentMaxFloors(190) }
     );
 
     expect(bedtime).toEqual({
@@ -269,7 +278,7 @@ describe('loadMetricDays: events', () => {
       { day: '2026-06-04', durationMinutes: 20, avgHeartRate: 100 },
     ]);
     const range = ['2026-06-01', '2026-06-05'] as const;
-    const ctx = { tz: 'UTC', maxHeartRate: 180 };
+    const ctx = { tz: 'UTC', zoneFloors: percentMaxFloors(180) };
 
     // 150 of 180 is 83% (×4) = 120; no heart rate counts ×2 = 80; 100 of 180 is ×1.
     expect(await loadMetricDays(USER, 'trainingLoad', ...range, ctx)).toEqual({
@@ -716,9 +725,9 @@ describe('getCompare', () => {
     expect(response.deviations.a['2026-03-08']).toBeDefined();
   });
 
-  it('training load is scored against the max heart rate from the profile age', async () => {
+  it('training load is scored against the zones from the profile age', async () => {
     vi.mocked(userRepository.getUserProfile).mockResolvedValue({
-      date_of_birth: '1986-06-01', // 40 on TODAY: max 180
+      date_of_birth: '1986-06-01', // 40 on TODAY: max 185 (Nes)
     });
     vi.mocked(compareRepository.getExerciseFirstDay).mockResolvedValue(
       '2026-01-01'
@@ -736,7 +745,7 @@ describe('getCompare', () => {
       end: '2026-06-30',
     });
 
-    // 150 of 180 is 83% (×4); against the default 190 it would be ×3.
+    // 150 of 185 is 81% (×4); against the default 190 it would be ×3.
     expect(response.a.values['2026-06-10']).toBe(120);
     expect(response.a.values['2026-06-11']).toBe(0);
   });

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import WatchConnectivity, {
   type WatchRunCuePayload,
+  type WatchRunEffortPayload,
   type WatchRunFinishedPayload,
   type WatchRunLivePayload,
 } from '../../modules/watch-connectivity';
@@ -18,6 +19,7 @@ import {
   enqueueWatchRun,
   processWatchRunQueue,
   onWatchRunRetry,
+  receiveWatchRunEffort,
 } from '../services/watchRunQueue';
 import { settleWatchTelemetryPurges } from '../utils/watchTelemetryPersistence';
 import { announceWatchRun } from '../services/watchRunToast';
@@ -135,6 +137,25 @@ export function useWatchRunBridge(
               'ERROR'
             )
           );
+      }
+    );
+    return () => sub.remove();
+  }, [enabled]);
+
+  // How hard the wearer said a run was, asked on the wrist after it ends. It
+  // rates the run's program workout, in place of the Diary asking later.
+  useEffect(() => {
+    if (!enabled || !WatchConnectivity) return;
+    const sub = WatchConnectivity.addListener(
+      'onRunEffort',
+      (payload: WatchRunEffortPayload) => {
+        void receiveWatchRunEffort(payload.clientId, payload.rating).catch(
+          (error: unknown) =>
+            addLog(
+              `[Watch Run] Could not store the run effort: ${String(error)}`,
+              'WARNING'
+            )
+        );
       }
     );
     return () => sub.remove();

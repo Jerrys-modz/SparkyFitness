@@ -1,10 +1,16 @@
-import type { CompareResponse } from '@workspace/shared';
+import type {
+  CompareMetricKey,
+  CompareResponse,
+  CompareSinceResponse,
+  CompareSinceResult,
+} from '@workspace/shared';
 
 import {
   displayDots,
   overTimeData,
   pairedDots,
   scaledSeries,
+  sinceChartData,
   trendLine,
 } from '../../src/utils/compareChartData';
 
@@ -147,5 +153,130 @@ describe('displayDots', () => {
     expect(displayDots(dots, { a: 'energy', b: 'mood' })).toEqual([
       { key: '2026-10-01', x: 20, y: 3 },
     ]);
+  });
+});
+
+describe('sinceChartData', () => {
+  const stretch = (from: string, to: string, days: number) => ({
+    from,
+    to,
+    days,
+    valueDays: days,
+  });
+
+  function sinceResponse(
+    result: Partial<CompareSinceResult>,
+    values: Record<string, number>,
+    outcome: CompareMetricKey = 'mood'
+  ): CompareSinceResponse {
+    return {
+      mode: 'since',
+      habit: { key: 'workoutMinutes', values: {} },
+      outcome: { key: outcome, values },
+      result: {
+        status: 'ok',
+        start: '2026-09-04',
+        suggestedStart: '2026-09-04',
+        before: stretch('2026-09-01', '2026-09-03', 3),
+        since: stretch('2026-09-04', '2026-09-06', 3),
+        line: 70,
+        ...result,
+      },
+    };
+  }
+
+  it('lays the outcome on a day axis from before to since, in display scale', () => {
+    const data = sinceChartData(
+      sinceResponse(
+        {},
+        { '2026-09-01': 60, '2026-09-03': 70, '2026-09-05': 80 }
+      )
+    );
+    expect(data.rows.map((r) => r.day)).toEqual([
+      '2026-09-01',
+      '2026-09-02',
+      '2026-09-03',
+      '2026-09-04',
+      '2026-09-05',
+      '2026-09-06',
+    ]);
+    expect(data.rows.map((r) => r.index)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(data.rows.map((r) => r.value)).toEqual([6, null, 7, null, 8, null]);
+    expect(data.rows.every((r) => r.line === 7)).toBe(true);
+    expect(data.line).toBe(7);
+    expect(data.before).toEqual({ from: 0, to: 2 });
+    expect(data.since).toEqual({ from: 3, to: 5 });
+    expect(data.start).toBe(3);
+  });
+
+  it('skips an empty before stretch and starts at the since one', () => {
+    const data = sinceChartData(
+      sinceResponse(
+        { before: stretch('2026-09-04', '2026-09-03', 0) },
+        { '2026-09-05': 80 }
+      )
+    );
+    expect(data.rows.map((r) => r.day)).toEqual([
+      '2026-09-04',
+      '2026-09-05',
+      '2026-09-06',
+    ]);
+    expect(data.before).toBeNull();
+    expect(data.since).toEqual({ from: 0, to: 2 });
+    expect(data.start).toBe(0);
+  });
+
+  it('marks a start older than the since stretch, leaving the gap unshaded', () => {
+    const data = sinceChartData(
+      sinceResponse(
+        {
+          start: '2026-09-02',
+          before: stretch('2026-08-30', '2026-09-01', 3),
+          since: stretch('2026-09-04', '2026-09-06', 3),
+        },
+        { '2026-09-03': 50 }
+      )
+    );
+    expect(data.rows).toHaveLength(8);
+    expect(data.start).toBe(3);
+    expect(data.before).toEqual({ from: 0, to: 2 });
+    expect(data.since).toEqual({ from: 5, to: 7 });
+  });
+
+  it('has nothing to draw without a since stretch', () => {
+    const data = sinceChartData(
+      sinceResponse(
+        {
+          status: 'not_enough',
+          reason: 'noStart',
+          start: null,
+          suggestedStart: null,
+          before: undefined,
+          since: undefined,
+          line: 0,
+        },
+        {}
+      )
+    );
+    expect(data).toEqual({
+      rows: [],
+      before: null,
+      since: null,
+      start: null,
+      line: null,
+    });
+  });
+
+  it('draws no line for a yes/no outcome', () => {
+    const data = sinceChartData(
+      sinceResponse(
+        { line: 1 },
+        { '2026-09-01': 1, '2026-09-04': 0 },
+        'meditated'
+      )
+    );
+    expect(data.line).toBeNull();
+    expect(data.rows.every((r) => r.line === null)).toBe(true);
+    expect(data.rows[0].value).toBe(1);
   });
 });

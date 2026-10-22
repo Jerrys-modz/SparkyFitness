@@ -29,7 +29,6 @@
 -- any name that is still shared is renamed again from the rows as they stand.
 -- One category per user and name is then enforced.
 
-BEGIN;
 
 -- Sleep entries
 
@@ -199,4 +198,3 @@ END $$;
 CREATE UNIQUE INDEX IF NOT EXISTS custom_categories_user_name_key
   ON public.custom_categories (user_id, name);
 
-COMMIT;

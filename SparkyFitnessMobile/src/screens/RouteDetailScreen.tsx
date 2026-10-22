@@ -31,6 +31,7 @@ import {
   sendRouteToWatch,
 } from '../services/watchRouteSync';
 import { formatRouteClimb, formatRouteDistance } from '../utils/routeDisplay';
+import { canShowRouteMap } from '../utils/routeMapSupport';
 import type { RootStackScreenProps } from '../types/navigation';
 
 type Props = RootStackScreenProps<'RouteDetail'>;
@@ -283,6 +284,16 @@ const RouteDetailScreen: React.FC<Props> = ({ navigation, route: nav }) => {
             </View>
             <RouteCueList cues={route.cues} unit={unit} />
             <View className="mt-4 gap-2">
+              {canShowRouteMap() ? (
+                <Button
+                  variant="secondary"
+                  onPress={() =>
+                    navigation.navigate('RouteDraw', { routeId: id })
+                  }
+                >
+                  {t('routes.editLine', { defaultValue: 'Edit route on map' })}
+                </Button>
+              ) : null}
               {watchPaired ? (
                 <Button onPress={start} disabled={busy}>
                   {t('routes.watch.start', {
