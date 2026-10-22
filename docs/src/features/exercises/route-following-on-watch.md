@@ -32,7 +32,9 @@ A route is sent with at most 2,000 points (a longer one is thinned, keeping its 
 ## During the run
 
 - **Main page:** a strip under the clock shows the next turn and the distance to it. It turns red with a warning when you are off the route.
-- **Route page** (swipe up or turn the Digital Crown): the route drawn north-up with the part you have covered greyed out, a dot for you, a ring on the next turn and the distance left. It is drawn on the watch, so it works without a signal.
+- **Route page** (swipe up or turn the Digital Crown): Apple Maps close around you, turned so the way ahead points up and following you as you move. The route ahead is bold cyan, the part you have covered is grey, the next turn is a marker with its arrow, and the distance left and next instruction sit underneath. The map stays pulled back far enough to keep the next turn on screen.
+- **Overview page** (one more swipe up): the whole route on one map, north up, with your dot on it.
+- **Maps and your privacy:** the maps are Apple Maps. The watch asks Apple for map tiles for the area on screen, as the Maps app does, and for nothing else; SparkyFitness has no map server of its own and sends no route or position anywhere to draw them. Without a signal the map is blank but the route and your dot still draw. The map only runs while its page is showing and is switched off when the screen dims, so it does not add GPS use.
 - **Turns:** the watch buzzes about 50 m before a turn and, with voice cues on, says "In 50 m, turn left". A route without turn instructions (a GPX track) gets them worked out from its shape.
 - **Off route:** farther than 40 m from the line for more than 6 seconds buzzes and says so; getting back on the line buzzes again. A bad GPS fix (accuracy worse than 50 m) is ignored.
 - **Finish:** within 25 m of the end the watch says you have reached it.
