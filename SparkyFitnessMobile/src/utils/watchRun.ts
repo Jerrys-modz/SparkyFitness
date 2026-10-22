@@ -41,12 +41,12 @@ export interface WatchRunPayload {
    */
   estimatedDistanceMeters?: number;
   /** Apple's time in each heart-rate zone, when the finished workout had one. */
-  appleZones?: Array<{
+  appleZones?: {
     index?: number;
     minimumBpm?: number | null;
     maximumBpm?: number | null;
     seconds: number;
-  }>;
+  }[];
 }
 
 /** Stands in for "no altitude": a property list cannot carry null. */

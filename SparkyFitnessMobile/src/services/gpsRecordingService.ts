@@ -23,15 +23,8 @@ import {
   type RecordingActivity,
 } from '../utils/gpsRecording';
 import { programSpokenCues } from '../utils/programCues';
-import type { AppleWorkoutZoneDuration } from '@workspace/shared';
-import { isStepActivity } from '../utils/stride';
-import { captureStepCounterBaseline } from './stepCounter';
 import {
-  INITIAL_AUTO_PAUSE_STATE,
-  stepAutoPause,
-  type AutoPauseState,
-} from '../utils/autoPause';
-import {
+  type AppleWorkoutZoneDuration,
   advanceIntervalCursor,
   INITIAL_HEART_RATE_ALERT_STATE,
   INITIAL_INTERVAL_CURSOR,
@@ -50,6 +43,13 @@ import {
   type PaceAlertState,
   type PaceBand,
 } from '@workspace/shared';
+import { isStepActivity } from '../utils/stride';
+import { captureStepCounterBaseline } from './stepCounter';
+import {
+  INITIAL_AUTO_PAUSE_STATE,
+  stepAutoPause,
+  type AutoPauseState,
+} from '../utils/autoPause';
 import { fireImpactHaptic } from './haptics';
 import {
   checkInCue,
