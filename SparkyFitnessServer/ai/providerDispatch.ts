@@ -306,14 +306,11 @@ const MAX_VISION_IMAGE_DIMENSION = 2048;
 // consumer GPU VRAM.
 const LOCAL_MAX_VISION_IMAGE_DIMENSION = 1280;
 
-function resolveMaxImageDimension(
-  serviceType: string,
-  family: ProviderFamily
-): number {
+function resolveMaxImageDimension(family: ProviderFamily): number {
   if (process.env.TEST_MAX_VISION_IMAGE_DIMENSION) {
     return Number(process.env.TEST_MAX_VISION_IMAGE_DIMENSION);
   }
-  if (family === 'ollama' || requiresCustomUrl(serviceType)) {
+  if (family === 'ollama') {
     return LOCAL_MAX_VISION_IMAGE_DIMENSION;
   }
   return MAX_VISION_IMAGE_DIMENSION;
@@ -1479,7 +1476,7 @@ export async function dispatchAiRequest(
   // to convert the image stays HEIC and we fail loud below rather than shipping
   // bytes the provider might reject.
   if (hasImages) {
-    const maxDimension = resolveMaxImageDimension(serviceType, family);
+    const maxDimension = resolveMaxImageDimension(family);
     images = await normalizeImagesForDispatch(images, maxDimension);
     if (images.some((img) => HEIC_MIME_TYPES.has(img.mimeType))) {
       return {
