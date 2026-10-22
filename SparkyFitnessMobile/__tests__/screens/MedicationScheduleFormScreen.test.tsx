@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert } from 'react-native';
-import { act, fireEvent, render } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   pressAction,
@@ -238,6 +238,7 @@ const NULL_DISCRIMINATORS = {
 };
 
 const createMutate = jest.fn();
+const createMutateAsync = jest.fn();
 const updateMutate = jest.fn();
 const deleteMutate = jest.fn();
 
@@ -267,6 +268,7 @@ describe('MedicationScheduleFormScreen', () => {
     setDetail(buildMedication());
     mockUseCreateSchedule.mockReturnValue({
       mutate: createMutate,
+      mutateAsync: createMutateAsync,
       isPending: false,
     } as unknown as ReturnType<typeof useCreateMedicationSchedule>);
     mockUseUpdateSchedule.mockReturnValue({
@@ -308,6 +310,21 @@ describe('MedicationScheduleFormScreen', () => {
     const options = createMutate.mock.calls[0][1];
     act(() => options.onSuccess());
     expect(mockNavigation.goBack).toHaveBeenCalled();
+  });
+
+  it('creates one schedule per dose when a frequency preset is applied', async () => {
+    createMutateAsync.mockResolvedValue({});
+    const screen = renderScreen({ medicationId: 'med-1' });
+
+    fireEvent.press(screen.getByText('3x daily'));
+    pressAction(screen, mockNavigation, 'Save');
+
+    await waitFor(() => expect(createMutateAsync).toHaveBeenCalledTimes(3));
+    expect(
+      createMutateAsync.mock.calls.map(([arg]) => arg.body.time_of_day)
+    ).toEqual(['09:00', '15:00', '21:00']);
+    expect(createMutate).not.toHaveBeenCalled();
+    await waitFor(() => expect(mockNavigation.goBack).toHaveBeenCalled());
   });
 
   it('rejects a weekly schedule with no days, then sends the picked days sorted', () => {
