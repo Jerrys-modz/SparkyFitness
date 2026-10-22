@@ -8495,6 +8495,7 @@
       "axisDaysYou": "Days you {{verb}} vs. your usual",
       "range": "{{metric}} {{min}}–{{max}}",
       "noDots": "No days with both yet",
+      "noDotsWeeks": "No weeks with both yet",
       "noOverTime": "Nothing logged in this range",
       "dotsLabel": "Each dot pairs {{a}} with {{b}}",
       "overTimeLabel": "{{a}} and {{b}} over time, each scaled to its own range"

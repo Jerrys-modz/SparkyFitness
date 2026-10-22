@@ -65,9 +65,13 @@ const CompareScatterChart: React.FC<CompareScatterChartProps> = ({
     return (
       <View className="bg-surface rounded-xl p-4 my-2 shadow-sm">
         <Text className="text-text-muted text-sm text-center">
-          {t('compareReport.chart.noDots', {
-            defaultValue: 'No days with both yet',
-          })}
+          {mode === 'week'
+            ? t('compareReport.chart.noDotsWeeks', {
+                defaultValue: 'No weeks with both yet',
+              })
+            : t('compareReport.chart.noDots', {
+                defaultValue: 'No days with both yet',
+              })}
         </Text>
       </View>
     );

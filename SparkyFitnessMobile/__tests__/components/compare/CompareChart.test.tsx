@@ -248,6 +248,18 @@ describe('CompareChart', () => {
     expect(queryByText(/yes or no/)).toBeNull();
   });
 
+  it('says no days or no weeks when nothing pairs up', () => {
+    const r = response();
+    r.deviations = { a: {}, b: {} };
+    const day = render(<CompareChart response={r} question={Q} />);
+    expect(day.getByText('No days with both yet')).toBeTruthy();
+    const week = render(
+      <CompareChart response={r} question={{ ...Q, choice: 'sameWeek' }} />
+    );
+    expect(week.getByText('No weeks with both yet')).toBeTruthy();
+    expect(week.queryByText('No days with both yet')).toBeNull();
+  });
+
   it('labels the over-time chart for screen readers', () => {
     const { getByText, getByLabelText } = render(
       <CompareChart response={response()} question={Q} />
