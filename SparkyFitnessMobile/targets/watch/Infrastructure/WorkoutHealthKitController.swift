@@ -86,6 +86,20 @@ final class WorkoutHealthKitController: NSObject {
     static let sessionMetadataKey = "SparkyFitnessSessionId"
 
     private var heartRateType: HKQuantityType { HKQuantityType(.heartRate) }
+    /// Apple's zone totals for the workout just finished. Consumed by the
+    /// batch that carries the tail, so a periodic batch cannot take them.
+    private var pendingAppleZones: [[String: Any]]?
+
+    func storeAppleZones(from workout: HKWorkout) {
+        let zones = AppleWorkoutZones.heartRateZones(of: workout)
+        pendingAppleZones = zones.isEmpty ? nil : zones
+    }
+
+    func consumeAppleZones() -> [[String: Any]]? {
+        let zones = pendingAppleZones
+        pendingAppleZones = nil
+        return zones
+    }
     private var activeEnergyType: HKQuantityType { HKQuantityType(.activeEnergyBurned) }
 
     private override init() {
@@ -337,6 +351,7 @@ final class WorkoutHealthKitController: NSObject {
                     finishTail([])
                     return
                 }
+                self.storeAppleZones(from: workout)
                 DispatchQueue.main.async { self.lastSavedWorkout = workout }
                 self.readHeartRate(
                     matching: HKQuery.predicateForObjects(from: workout),
@@ -420,6 +435,7 @@ final class WorkoutHealthKitController: NSObject {
                 deliver(nil)
                 return
             }
+            self.storeAppleZones(from: workout)
             self.readHeartRate(
                 matching: HKQuery.predicateForObjects(from: workout),
                 skipThrough: sentThrough

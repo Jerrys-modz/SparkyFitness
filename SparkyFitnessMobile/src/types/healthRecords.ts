@@ -1,7 +1,10 @@
 import { HealthMetric } from '../HealthMetrics';
 import { SleepStageEvent } from './mobileHealthData';
 import type { RecordSyncError } from '../services/api/healthDataApi';
-import type { MindfulnessSessionType } from '@workspace/shared';
+import type {
+  AppleWorkoutZoneDuration,
+  MindfulnessSessionType,
+} from '@workspace/shared';
 
 // ==========================================
 // RAW INPUT TYPES (for aggregation functions)
@@ -151,6 +154,8 @@ export interface TransformedExerciseSession extends RecordTimezoneMetadata {
   hr_samples?: WorkoutHrSample[];
   laps?: WorkoutLapWindow[];
   telemetry?: WorkoutTelemetry;
+  /** Apple's time in each heart-rate zone, when the workout carried a zone group. */
+  hr_zones?: AppleWorkoutZoneDuration[];
 }
 
 /**

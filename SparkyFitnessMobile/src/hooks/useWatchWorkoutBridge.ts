@@ -29,6 +29,7 @@ import {
 } from '../services/api/exerciseApi';
 import { ApiError } from '../services/api/errors';
 import { addLog } from '../services/LogService';
+import { appleWorkoutZonesFromWire } from '@workspace/shared';
 import i18n from '../localization/i18n';
 import { queryClient } from './queryClient';
 import { invalidateExerciseCache } from './invalidateExerciseCache';
@@ -689,6 +690,12 @@ export function useWatchWorkoutBridge(
           session.unposted = true;
         }
       }
+      const appleZones = appleWorkoutZonesFromWire(payload.appleZones);
+      if (appleZones && owned.has(payload.exerciseEntryId)) {
+        session.appleZones = appleZones;
+        session.appleZoneEntryId = payload.exerciseEntryId;
+        session.unposted = true;
+      }
       syncPendingRef.current();
       persistHeartRate();
       // Arrived after the workout already ended, so nothing else is coming to
@@ -799,7 +806,19 @@ export function useWatchWorkoutBridge(
         ...session.energy.keys(),
         ...session.durations.keys(),
       ]);
-      for (const exerciseEntryId of entryIds) {
+      if (
+        session.appleZones &&
+        session.appleZoneEntryId &&
+        !entryIds.has(session.appleZoneEntryId)
+      ) {
+        entryIds.add(session.appleZoneEntryId);
+      }
+      const ordered = [...entryIds];
+      if (session.appleZones && session.appleZoneEntryId) {
+        const target = session.appleZoneEntryId;
+        ordered.sort((a, b) => (a === target ? 1 : b === target ? -1 : 0));
+      }
+      for (const exerciseEntryId of ordered) {
         const samples = session.samples.get(exerciseEntryId) ?? [];
         const kcal = session.energy.get(exerciseEntryId);
         const minutes = session.durations.get(exerciseEntryId);
@@ -809,9 +828,19 @@ export function useWatchWorkoutBridge(
         const hrSamples = samples.length >= 2 ? samples : undefined;
         const durationMinutes =
           minutes != null && minutes > 0 ? minutes : undefined;
+        const appleZones =
+          session.appleZones && exerciseEntryId === session.appleZoneEntryId
+            ? session.appleZones
+            : undefined;
         // All absent means there is nothing to say; the server rejects that
         // body, so don't spend a request discovering it.
-        if (!hrSamples && kcal == null && durationMinutes == null) continue;
+        if (
+          !hrSamples &&
+          kcal == null &&
+          durationMinutes == null &&
+          !appleZones
+        )
+          continue;
         // Discarded while an earlier entry of this session was posting.
         if (discardedSessionsRef.current.has(sessionId)) break;
         try {
@@ -819,6 +848,7 @@ export function useWatchWorkoutBridge(
             ...(hrSamples ? { hrSamples } : {}),
             ...(kcal != null ? { activeEnergyKcal: kcal } : {}),
             ...(durationMinutes != null ? { durationMinutes } : {}),
+            ...(appleZones ? { appleZones } : {}),
           });
         } catch (error) {
           const status =

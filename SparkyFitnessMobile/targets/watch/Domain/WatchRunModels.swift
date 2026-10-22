@@ -400,6 +400,9 @@ struct WatchRunResult {
     /// What the watch showed before the wearer entered the treadmill's
     /// distance; nil when nothing was entered. The phone learns from the pair.
     var estimatedDistanceMeters: Double?
+    /// Apple's heart-rate zone group for the saved workout. Empty when this
+    /// watchOS cannot read one. Not scaled with distance.
+    var appleZones: [[String: Any]] = []
     /// Steps over the moving time. The phone turns these into cadence and
     /// stride. Nil when the watch could not count them (an older build, or a
     /// run recovered after the app was killed).

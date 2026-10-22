@@ -241,6 +241,9 @@ enum OutboundPayloads {
         if let minutes = batch.durationMinutes, minutes > 0 {
             payload["durationMinutes"] = minutes
         }
+        if let zones = batch.appleZones, !zones.isEmpty {
+            payload["appleZones"] = zones.map { $0.payload() }
+        }
         return payload
     }
 
@@ -263,14 +266,19 @@ enum OutboundPayloads {
     static func recordingHeartRate(
         sessionId: String,
         clientId: String,
-        samples: [HeartRateSample]
+        samples: [HeartRateSample],
+        appleZones: [[String: Any]]? = nil
     ) -> [String: Any] {
-        [
+        var payload: [String: Any] = [
             "type": Kind.recordingHeartRate,
             "sessionId": sessionId,
             "clientId": clientId,
             "samples": samples.map { ["t": $0.t, "bpm": $0.bpm] },
         ]
+        if let appleZones, !appleZones.isEmpty {
+            payload["appleZones"] = appleZones
+        }
+        return payload
     }
 
     /// A spoken cue for the phone to say instead of the watch, so it comes out
@@ -386,6 +394,9 @@ enum OutboundPayloads {
                 payload["programId"] = programId
                 payload["programIndex"] = index
             }
+        }
+        if !result.appleZones.isEmpty {
+            payload["appleZones"] = result.appleZones
         }
         return payload
     }

@@ -263,11 +263,17 @@ final class WatchSessionManager: NSObject, ObservableObject {
 
     /// Heart-rate readings for the phone's GPS recording, queued like the
     /// workout's batches: a phone out of range mid-run is normal.
-    func sendRecordingHeartRate(sessionId: String, clientId: String, samples: [HeartRateSample]) {
+    func sendRecordingHeartRate(
+        sessionId: String,
+        clientId: String,
+        samples: [HeartRateSample],
+        appleZones: [[String: Any]]? = nil
+    ) {
         transfer(OutboundPayloads.recordingHeartRate(
             sessionId: sessionId,
             clientId: clientId,
-            samples: samples
+            samples: samples,
+            appleZones: appleZones
         ))
     }
 
@@ -1056,7 +1062,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
         durationMinutes: Double? = nil
     ) {
         let minutes = (durationMinutes ?? 0) > 0 ? durationMinutes : nil
-        guard !samples.isEmpty || minutes != nil else { return }
+        let appleZones = workoutHealthKit.consumeAppleZones()
+        guard !samples.isEmpty || minutes != nil || appleZones != nil else { return }
         transfer(
             OutboundPayloads.heartRateBatch(
                 HeartRateBatch(
@@ -1065,7 +1072,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
                     exerciseEntryId: exerciseEntryId,
                     samples: samples,
                     activeEnergyKcal: nil,
-                    durationMinutes: minutes
+                    durationMinutes: minutes,
+                    appleZones: appleZones.map(AppleZoneReading.parse)
                 )
             )
         )
@@ -1185,7 +1193,11 @@ final class WatchSessionManager: NSObject, ObservableObject {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 if let closing {
-                    self.sendHeartRateBatch(samples, exerciseEntryId: closing.id)
+                    self.sendHeartRateBatch(
+                        samples,
+                        exerciseEntryId: closing.id,
+                        appleZones: self.workoutHealthKit.consumeAppleZones()
+                    )
                     if timedOut, let abandonedSessionId {
                         self.parkLateTail(sessionId: abandonedSessionId, exerciseEntryId: closing.id)
                     }
@@ -1456,7 +1468,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
     private func sendHeartRateBatch(
         _ samples: [HeartRateSample],
         exerciseEntryId: String,
-        durationMinutes: Double? = nil
+        durationMinutes: Double? = nil,
+        appleZones: [[String: Any]]? = nil
     ) {
         guard let sessionId = workoutStore.plan?.sessionId else { return }
         // `max(0, ...)` because the running total should only ever climb, but
@@ -1474,7 +1487,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // The one place that can see both halves of a batch, and so the only
         // place that can tell an empty one from an energy-only one. Callers
         // hand over whatever the buffer held, including nothing.
-        guard !samples.isEmpty || (energyDelta ?? 0) > 0 || (durationMinutes ?? 0) > 0 else {
+        guard !samples.isEmpty || (energyDelta ?? 0) > 0 || (durationMinutes ?? 0) > 0 || appleZones != nil else {
             return
         }
         workoutStore.persistSnapshot(
@@ -1487,7 +1500,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
             exerciseEntryId: exerciseEntryId,
             samples: samples,
             activeEnergyKcal: energyDelta,
-            durationMinutes: (durationMinutes ?? 0) > 0 ? durationMinutes : nil
+            durationMinutes: (durationMinutes ?? 0) > 0 ? durationMinutes : nil,
+            appleZones: appleZones.map(AppleZoneReading.parse)
         )
         transfer(OutboundPayloads.heartRateBatch(batch))
     }
@@ -1617,7 +1631,11 @@ final class WatchSessionManager: NSObject, ObservableObject {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 if let closing {
-                    self.sendHeartRateBatch(samples, exerciseEntryId: closing.id)
+                    self.sendHeartRateBatch(
+                        samples,
+                        exerciseEntryId: closing.id,
+                        appleZones: self.workoutHealthKit.consumeAppleZones()
+                    )
                     if timedOut, let stopSessionId {
                         self.parkLateTail(sessionId: stopSessionId, exerciseEntryId: closing.id)
                     }

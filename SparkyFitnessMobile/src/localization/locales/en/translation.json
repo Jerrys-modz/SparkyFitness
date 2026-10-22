@@ -156,7 +156,9 @@
       "ai": "AI",
       "fasting": "Fasting",
       "goals": "Goals",
-      "reports": "Reports"
+      "reports": "Reports",
+      "heartRateZones": "Heart Rate Zones",
+      "heartRateZonesSubtitle": "Max and resting heart rate, zone method"
     },
     "theme": {
       "title": "Theme",
@@ -653,6 +655,7 @@
     "runProgramEdit": "Edit plan",
     "runProgramNew": "New plan",
     "runProgramRace": "Plan a race",
+    "heartRateZonesSettings": "Heart Rate Zones",
     "routes": "Routes",
     "routeDraw": "Draw a route",
     "routeEdit": "Edit route",
@@ -7334,7 +7337,10 @@
       "tempo": "tempo {{range}}",
       "marathonPace": "marathon pace {{range}}",
       "strides": "strides {{range}}",
-      "paceSourceRace": "Based on your recent race: {{race}}."
+      "paceSourceRace": "Based on your recent race: {{race}}.",
+      "heartRateSourceUser": "From your maximum heart rate of {{max}} bpm.",
+      "heartRateSourceReserve": "From your heart rate reserve zones, with a maximum of {{max}} bpm.",
+      "heartRateSourceCustom": "From your custom heart rate zones."
     }
   },
   "goals": {
@@ -8340,6 +8346,56 @@
     "fileTooLargeHint": "A route file can be up to 10 MB.",
     "followRoadsTooMany": "Following roads takes up to {{max}} points. Undo points or turn Follow roads off to save.",
     "drawLimit": "That is as many points as a route can have here. Undo some or save this one."
+  },
+  "heartRateZones": {
+    "title": "Heart Rate Zones",
+    "description": "Your zones decide how time in each heart rate zone is counted for new workouts, how training load is judged and what ranges are suggested for runs.",
+    "yourZones": "Your zones",
+    "maxHrSummary": "Max heart rate {{max}} bpm. {{source}}.",
+    "zoneRange": "{{lower}}–{{upper}} bpm",
+    "zoneRangeOpen": "{{lower}}+ bpm",
+    "fellBack": "Your chosen method needs more information, so zones are shown as % of max heart rate.",
+    "maxHr": "Max heart rate (bpm)",
+    "maxHrHint": "Leave empty to work it out from your date of birth.",
+    "restingHr": "Resting heart rate (bpm)",
+    "customFloors": "Where each zone starts (bpm)",
+    "floorLabel": "Zone {{zone}} starts at (bpm)",
+    "historyNote": "Changes apply to workouts you record or sync from now on. Time in zone already stored for past workouts is not recalculated.",
+    "reset": "Reset to default",
+    "saved": "Heart rate zones saved",
+    "loadFailed": "Could not load your zones. Tap to retry.",
+    "method": {
+      "title": "How zones are worked out",
+      "percentMax": "% of max heart rate",
+      "heartRateReserve": "Heart rate reserve",
+      "custom": "Custom zones",
+      "percentMaxHint": "Zones start at 50, 60, 70, 80 and 90% of your max heart rate.",
+      "heartRateReserveHint": "Zones are 50, 60, 70, 80 and 90% of the gap between your resting and max heart rate (Karvonen). Needs a resting heart rate.",
+      "customHint": "Set the bpm where each zone starts. Time below zone 1 is not counted."
+    },
+    "source": {
+      "user": "You set it",
+      "age": "From your date of birth",
+      "observed": "From the highest heart rate in the workout",
+      "fallback": "A typical value; add your date of birth or set your own"
+    },
+    "chart": {
+      "method": "Zones: {{method}}. Changing your zone settings does not change past workouts.",
+      "mixed": "Zones were worked out with more than one method. Changing your zone settings does not change past workouts.",
+      "device": "Zones set by your watch or device"
+    },
+    "appleImport": "Use Apple Health zones",
+    "appleReading": "Reading Apple Health…",
+    "appleImported": "Apple Health zones filled in. Save to keep them.",
+    "appleHint": "Fills in the zones from Apple Health as custom zones. Your max heart rate stays as it is, and an empty resting heart rate is filled in too. Save to keep them.",
+    "appleFailed": "Apple Health didn't share five heart rate zones. Check that Health access is allowed, then try again.",
+    "errors": {
+      "maxRange": "Max heart rate must be between {{min}} and {{max}} bpm.",
+      "restingRange": "Resting heart rate must be between {{min}} and {{max}} bpm.",
+      "needsResting": "Heart rate reserve zones need a resting heart rate.",
+      "customFloors": "Each zone must start above the one before it, from 30 to 250 bpm.",
+      "saveFailed": "Could not save. Check the values and try again."
+    }
   },
   "compareReport": {
     "groups": {
