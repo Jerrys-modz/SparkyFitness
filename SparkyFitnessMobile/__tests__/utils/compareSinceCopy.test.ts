@@ -232,6 +232,38 @@ describe('sinceVerdictCopy', () => {
     );
   });
 
+  test('a start more than a year ago speaks of the last year and the year before the start', () => {
+    // Since covers only the last 365 days, so it no longer begins at the start.
+    const longAgo = {
+      start: '2025-03-01',
+      suggestedStart: null,
+      before: { ...OK.before!, from: '2024-03-01', to: '2025-02-28' },
+      since: { ...OK.since!, from: '2025-10-21', to: '2026-10-20' },
+    };
+    expect(collect(sinceVerdictCopy(response(longAgo), t))).toEqual({
+      headline: 'Yes, it changed',
+      detail:
+        'Over the last year, your mood averaged 6.6 vs 5.8 in the year before you started (+0.8).',
+    });
+    expect(
+      collect(
+        sinceVerdictCopy(
+          response({
+            ...longAgo,
+            changed: false,
+            since: { ...longAgo.since, mean: 59 },
+            diff: 1,
+          }),
+          t
+        )
+      )
+    ).toEqual({
+      headline: 'No clear change',
+      detail:
+        'Over the last year, your mood averaged 5.9 vs 5.8 in the year before you started, not different enough to rule out chance.',
+    });
+  });
+
   test('too few values before the start', () => {
     expect(
       collect(

@@ -82,8 +82,6 @@ export const formatTooltipDate = (day: string): string => {
   });
 };
 
-export { formatDateWithYear } from '../../utils/dayLabel';
-
 /** Formats chart tick values according to the active application locale. */
 export const formatChartYLabel = (value: number): string =>
   value >= 1000

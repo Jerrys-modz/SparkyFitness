@@ -205,31 +205,47 @@ export function sinceVerdictCopy(
           since: averageText(key, since.mean),
           before: averageText(key, before.mean),
         };
+  // A start over a year ago: the server compares the last year with the year before the start.
+  const lastYear = since !== undefined && since.from !== result.start;
 
   if (result.changed && averages && diff !== undefined) {
+    const change = { ...averages, diff: changeText(key, diff, t) };
     return {
       headline: t('compareReport.since.changedHeadline', {
         defaultValue: 'Yes, it changed',
       }),
-      detail: t('compareReport.since.changedDetail', {
-        defaultValue:
-          'Since {{start}}, your {{outcome}} averaged {{since}} vs {{before}} before ({{diff}}).',
-        ...averages,
-        diff: changeText(key, diff, t),
-      }),
+      detail: lastYear
+        ? t('compareReport.since.changedDetailLastYear', {
+            defaultValue:
+              'Over the last year, your {{outcome}} averaged {{since}} vs {{before}} in the year before you started ({{diff}}).',
+            ...change,
+          })
+        : t('compareReport.since.changedDetail', {
+            defaultValue:
+              'Since {{start}}, your {{outcome}} averaged {{since}} vs {{before}} before ({{diff}}).',
+            ...change,
+          }),
     };
+  }
+  let detail = '';
+  if (averages) {
+    detail = lastYear
+      ? t('compareReport.since.noChangeDetailLastYear', {
+          defaultValue:
+            'Over the last year, your {{outcome}} averaged {{since}} vs {{before}} in the year before you started, not different enough to rule out chance.',
+          ...averages,
+        })
+      : t('compareReport.since.noChangeDetail', {
+          defaultValue:
+            'Since {{start}}, your {{outcome}} averaged {{since}} vs {{before}} before, not different enough to rule out chance.',
+          ...averages,
+        });
   }
   return {
     headline: t('compareReport.since.noChangeHeadline', {
       defaultValue: 'No clear change',
     }),
-    detail: averages
-      ? t('compareReport.since.noChangeDetail', {
-          defaultValue:
-            'Since {{start}}, your {{outcome}} averaged {{since}} vs {{before}} before, not different enough to rule out chance.',
-          ...averages,
-        })
-      : '',
+    detail,
   };
 }
 

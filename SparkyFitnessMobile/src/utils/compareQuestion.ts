@@ -1,5 +1,6 @@
 import {
   COMPARE_METRICS,
+  SINCE_START_MAX_DAYS_AGO,
   addDays,
   compareDays,
   daysBetween,
@@ -84,13 +85,10 @@ export function compareWindow(
   return { startDate: addDays(today, -(days - 1)), endDate: today };
 }
 
-/** The oldest start the server takes, in days back from today. */
-const SINCE_MAX_START_DAYS = 730;
-
-/** The days a since question can start on: 730 days back to yesterday. */
+/** The days a since question can start on: as far back as the server takes (730 days) to yesterday. */
 export function sinceStartBounds(today: string): { min: string; max: string } {
   return {
-    min: addDays(today, -SINCE_MAX_START_DAYS),
+    min: addDays(today, -SINCE_START_MAX_DAYS_AGO),
     max: addDays(today, -1),
   };
 }

@@ -1,3 +1,4 @@
+import { dayToPickerDate, isDayString } from '@workspace/shared';
 import { getAppLocale } from '../localization';
 
 /** "Wed, Oct 14" (or "Wed, October 14") for a YYYY-MM-DD calendar day. */
@@ -13,13 +14,10 @@ export function formatDayLabel(
   });
 }
 
-/** A calendar day with its year, for dates far enough out that the year matters. */
+/** A calendar day with its year, for dates far enough out that the year matters; anything else as it is. */
 export const formatDateWithYear = (day: string): string => {
-  const parts = day.split('-');
-  if (parts.length < 3) return day;
-  const [year, month, d] = parts.map(Number);
-  const date = new Date(year, (month || 1) - 1, d || 1);
-  return date.toLocaleDateString(getAppLocale(), {
+  if (!isDayString(day)) return day;
+  return dayToPickerDate(day).toLocaleDateString(getAppLocale(), {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -28,9 +26,8 @@ export const formatDateWithYear = (day: string): string => {
 
 /** "Mar 2026" for a YYYY-MM-DD calendar day, for an axis that spans months. */
 export function formatMonthYear(day: string): string {
-  const [year, month, d] = day.split('-').map(Number);
-  return new Date(year, (month || 1) - 1, d || 1).toLocaleDateString(
-    getAppLocale(),
-    { month: 'short', year: 'numeric' }
-  );
+  return dayToPickerDate(day).toLocaleDateString(getAppLocale(), {
+    month: 'short',
+    year: 'numeric',
+  });
 }
