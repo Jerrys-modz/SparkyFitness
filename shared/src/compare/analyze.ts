@@ -387,8 +387,8 @@ function compareGroups(input: PairInput, pairs: Pairs): CompareResult {
   const no = { deviations: [] as number[], raw: [] as number[] };
   flags.forEach((flag, i) => {
     const group = flag > 0 ? yes : no;
-    group.deviations.push(deviations[i]);
-    group.raw.push(outcome.raw[outcomeKeys[i]]);
+    group.deviations.push(deviations[i]!);
+    group.raw.push(outcome.raw[outcomeKeys[i]!]!);
   });
   const fewest = Math.min(yes.deviations.length, no.deviations.length);
   if (fewest < PER_GROUP_NEEDED) {

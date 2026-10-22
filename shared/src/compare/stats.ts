@@ -24,14 +24,14 @@ function sampleVariance(xs: readonly number[]): number {
 
 /** 1-based ranks, with tied values sharing their average rank. */
 export function ranks(xs: readonly number[]): number[] {
-  const order = xs.map((_, i) => i).sort((a, b) => xs[a] - xs[b]);
+  const order = xs.map((_, i) => i).sort((a, b) => xs[a]! - xs[b]!);
   const out = new Array<number>(xs.length);
   let i = 0;
   while (i < order.length) {
     let j = i;
-    while (j + 1 < order.length && xs[order[j + 1]] === xs[order[i]]) j++;
+    while (j + 1 < order.length && xs[order[j + 1]!] === xs[order[i]!]) j++;
     const avg = (i + j) / 2 + 1;
-    for (let k = i; k <= j; k++) out[order[k]] = avg;
+    for (let k = i; k <= j; k++) out[order[k]!] = avg;
     i = j + 1;
   }
   return out;
@@ -50,8 +50,8 @@ export function pearson(
   let sxx = 0;
   let syy = 0;
   for (let i = 0; i < n; i++) {
-    const dx = x[i] - mx;
-    const dy = y[i] - my;
+    const dx = x[i]! - mx;
+    const dy = y[i]! - my;
     sxy += dx * dy;
     sxx += dx * dx;
     syy += dy * dy;
@@ -76,8 +76,8 @@ export function lag1Autocorrelation(xs: readonly number[]): number {
   let num = 0;
   let den = 0;
   for (let t = 0; t < n; t++) {
-    den += (xs[t] - m) ** 2;
-    if (t + 1 < n) num += (xs[t] - m) * (xs[t + 1] - m);
+    den += (xs[t]! - m) ** 2;
+    if (t + 1 < n) num += (xs[t]! - m) * (xs[t + 1]! - m);
   }
   return den === 0 ? 0 : num / den;
 }
@@ -101,9 +101,9 @@ function logGamma(z: number): number {
     return Math.log(Math.PI / Math.sin(Math.PI * z)) - logGamma(1 - z);
   }
   const zz = z - 1;
-  let a = c[0];
+  let a = c[0]!;
   const t = zz + g + 0.5;
-  for (let i = 1; i < g + 2; i++) a += c[i] / (zz + i);
+  for (let i = 1; i < g + 2; i++) a += c[i]! / (zz + i);
   return (
     0.5 * Math.log(2 * Math.PI) + (zz + 0.5) * Math.log(t) - t + Math.log(a)
   );
