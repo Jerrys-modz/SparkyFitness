@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-20_
+_Last updated: 2026-10-22_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -251,6 +251,8 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 - Use `pnpm run test:coverage` after broad service, route, repository, middleware, or auth refactors
 
 ## Quick Routing
+
+- Weekly weight-change calorie goals: `services/preferenceService.ts` validates the signed `goal_mode_weekly_change_kg` preference (negative loses, positive gains; active only for `goal_mode = 'weekly'`), `models/preferenceRepository.ts` persists it, and `services/goalService.ts` plus `services/calorieBalanceService.ts` pass it to the shared calorie adjustment functions. Device Projection applies the daily weekly-rate adjustment once to device TDEE; percentage goals keep their existing behavior.
 
 - Startup, env, or deployment issue:
   inspect `index.ts`, `SparkyFitnessServer.ts`, `utils/secretLoader.ts`, `utils/preflightChecks.ts`, and `config/logging.ts`

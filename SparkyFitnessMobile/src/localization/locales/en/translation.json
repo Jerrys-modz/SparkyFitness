@@ -1053,6 +1053,7 @@
       "percentageWithBmr": "Goal − Eaten + BMR + {{percentage}}% of Exercise",
       "percentage": "Goal − Eaten + {{percentage}}% of Exercise",
       "tdee": "Projected TDEE × Goal Mode − Eaten",
+      "tdeeWeekly": "Projected TDEE + Weekly Goal Adjustment − Eaten",
       "adaptive": "Goal − Eaten",
       "fixed": "Goal − Eaten"
     },
@@ -1060,11 +1061,13 @@
       "dynamic": "Goal grows as you move",
       "tdee": "The projection converges with the device total at midnight",
       "adaptive": "Goal = Adaptive TDEE",
+      "adaptiveWeekly": "Goal = Adaptive TDEE + Weekly Goal Adjustment",
       "fixed": "Activity does not change your budget"
     },
     "externalFormula": "formula",
     "goalMode": {
       "title": "Goal Mode",
+      "weekly": "Weekly weight change",
       "description": "Adjusts your calorie target for maintenance, a deficit, or a surplus.",
       "deviceProjectionDescription": "This percentage is applied directly to the projected device TDEE.",
       "maintain": "Maintain (0%)",
@@ -1089,6 +1092,22 @@
       "standardDescription": "Uses the higher of your estimated RMR and the clinical minimum.",
       "customDescription": "Replaces the standard floor with your chosen minimum. Health recommendations remain visible.",
       "disabledDescription": "Stops automatic target clamping. Health warnings remain visible."
+    },
+    "weeklyGoal": {
+      "description": "Choose how much weight you want to lose or gain each week, or keep your weight stable.",
+      "direction": "Weight goal",
+      "maintain": "Keep weight stable",
+      "lose": "Lose weight",
+      "gain": "Gain weight",
+      "rate": "Weight change per week",
+      "amount": "Weekly weight change amount",
+      "amountHint": "Enter a positive amount. The selected weight goal sets the direction.",
+      "unit": "Weekly rate unit",
+      "kilograms": "kg",
+      "grams": "g",
+      "invalidRate": "Enter a rate above 0 and up to {{max}} kg per week.",
+      "dailyAdjustment": "Estimated daily adjustment: {{sign}}{{amount}} {{unit}}",
+      "estimateHint": "Your weekly goal is converted to a daily calorie adjustment. This is an estimate; your configured safety floor may limit weight loss."
     },
     "useExternalBmr": "Use measured BMR from check-ins and synced devices",
     "useExternalBmrHint": "Off by default — your chosen formula is always used until you turn this on. When enabled, a BMR recorded on a check-in or synced from a smart scale or health provider replaces the formula for that day, provided it is physiologically plausible for you.",

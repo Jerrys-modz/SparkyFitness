@@ -131,6 +131,147 @@ describe('CalorieSettingsScreen', () => {
     expect(mockMutate).toHaveBeenCalledWith({ goal_mode: 'recomp' });
   });
 
+  it('offers weekly weight changes without overwriting the saved percentage', () => {
+    mockPreferences.goal_mode_custom_percentage = -15;
+    const { getByText } = render(
+      <CalorieSettingsScreen navigation={navigation} route={route} />
+    );
+
+    fireEvent.press(getByText('Weekly weight change'));
+
+    expect(mockMutate).toHaveBeenCalledWith({ goal_mode: 'weekly' });
+  });
+
+  it('converts grams to the signed weekly kilogram preference', () => {
+    mockPreferences.goal_mode = 'weekly';
+    mockPreferences.goal_mode_weekly_change_kg = -0.5;
+    const { getByLabelText, getByText, getByDisplayValue } = render(
+      <CalorieSettingsScreen navigation={navigation} route={route} />
+    );
+
+    expect(getByDisplayValue('0.5')).toBeTruthy();
+    fireEvent.press(getByText('g'));
+    expect(getByDisplayValue('500')).toBeTruthy();
+    expect(mockMutate).not.toHaveBeenCalled();
+
+    const input = getByLabelText('Weekly weight change amount');
+    fireEvent.changeText(input, '250');
+    fireEvent(input, 'blur');
+
+    expect(mockMutate).toHaveBeenCalledWith({
+      goal_mode_weekly_change_kg: -0.25,
+    });
+  });
+
+  it('accepts a decimal comma for a weekly weight gain', () => {
+    mockPreferences.goal_mode = 'weekly';
+    mockPreferences.goal_mode_weekly_change_kg = 0.5;
+    const { getByLabelText } = render(
+      <CalorieSettingsScreen navigation={navigation} route={route} />
+    );
+    const input = getByLabelText('Weekly weight change amount');
+
+    fireEvent.changeText(input, '0,25');
+    fireEvent(input, 'blur');
+
+    expect(mockMutate).toHaveBeenCalledWith({
+      goal_mode_weekly_change_kg: 0.25,
+    });
+  });
+
+  it('shows the weekly adjustment as calories added to a device projection', () => {
+    mockPreferences.calorie_goal_adjustment_mode = 'tdee';
+    mockPreferences.goal_mode = 'weekly';
+    mockPreferences.goal_mode_weekly_change_kg = -0.5;
+    const { getByText } = render(
+      <CalorieSettingsScreen navigation={navigation} route={route} />
+    );
+
+    expect(getByText('Estimated daily adjustment: −429 kcal')).toBeTruthy();
+    expect(
+      getByText('Projected TDEE + Weekly Goal Adjustment − Eaten')
+    ).toBeTruthy();
+  });
+
+  it('includes the weekly offset when explaining an adaptive goal', () => {
+    mockPreferences.goal_mode = 'weekly';
+    mockPreferences.goal_mode_weekly_change_kg = 0.5;
+    const { getByText } = render(
+      <CalorieSettingsScreen navigation={navigation} route={route} />
+    );
+
+    expect(
+      getByText(/Goal = Adaptive TDEE \+ Weekly Goal Adjustment/)
+    ).toBeTruthy();
+  });
+
+  it('keeps the amount when changing from weight loss to weight gain', () => {
+    mockPreferences.goal_mode = 'weekly';
+    mockPreferences.goal_mode_weekly_change_kg = -0.5;
+    const { getByText } = render(
+      <CalorieSettingsScreen navigation={navigation} route={route} />
+    );
+
+    fireEvent.press(getByText('Gain weight'));
+
+    expect(mockMutate).toHaveBeenCalledWith({
+      goal_mode_weekly_change_kg: 0.5,
+    });
+  });
+
+  it('saves zero and hides the rate input for weight maintenance', () => {
+    mockPreferences.goal_mode = 'weekly';
+    mockPreferences.goal_mode_weekly_change_kg = -0.5;
+    const { getByText, queryByLabelText } = render(
+      <CalorieSettingsScreen navigation={navigation} route={route} />
+    );
+
+    fireEvent.press(getByText('Keep weight stable'));
+
+    expect(mockMutate).toHaveBeenCalledWith({
+      goal_mode_weekly_change_kg: 0,
+    });
+    expect(queryByLabelText('Weekly weight change amount')).toBeNull();
+  });
+
+  it('requires an explicit rate when switching from maintenance to loss', () => {
+    mockPreferences.goal_mode = 'weekly';
+    mockPreferences.goal_mode_weekly_change_kg = 0;
+    const { getByLabelText, getByText } = render(
+      <CalorieSettingsScreen navigation={navigation} route={route} />
+    );
+
+    fireEvent.press(getByText('Lose weight'));
+    expect(mockMutate).not.toHaveBeenCalled();
+    const input = getByLabelText('Weekly weight change amount');
+    fireEvent.changeText(input, '0.4');
+    fireEvent(input, 'blur');
+
+    expect(mockMutate).toHaveBeenCalledWith({
+      goal_mode_weekly_change_kg: -0.4,
+    });
+  });
+
+  it.each(['', '0', '-0.5', '2.001', 'Infinity', '1.2.3'])(
+    'does not save an invalid weekly rate: %s',
+    (value) => {
+      mockPreferences.goal_mode = 'weekly';
+      mockPreferences.goal_mode_weekly_change_kg = -0.5;
+      const { getByLabelText, getByText } = render(
+        <CalorieSettingsScreen navigation={navigation} route={route} />
+      );
+      const input = getByLabelText('Weekly weight change amount');
+
+      fireEvent.changeText(input, value);
+      fireEvent(input, 'blur');
+
+      expect(mockMutate).not.toHaveBeenCalled();
+      expect(
+        getByText('Enter a rate above 0 and up to 2 kg per week.')
+      ).toBeTruthy();
+    }
+  );
+
   it.each(['dynamic', 'percentage'])(
     'explains why %s does not earn activity back on an Adaptive target',
     (mode) => {

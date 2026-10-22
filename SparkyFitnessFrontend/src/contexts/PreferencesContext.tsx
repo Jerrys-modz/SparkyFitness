@@ -134,6 +134,7 @@ interface PreferencesContextType {
   goalMode: GoalMode;
   goalModeCalculationMethod: GoalModeCalculationMethod;
   goalModeCustomPercentage: number;
+  goalModeWeeklyChangeKg: number;
   calorieSafetyFloorMode: CalorieSafetyFloorMode;
   calorieSafetyFloorValue: number;
   standardDrinkGrams: number;
@@ -263,6 +264,7 @@ export interface DefaultPreferences {
   goal_mode: GoalMode;
   goal_mode_calculation_method: GoalModeCalculationMethod;
   goal_mode_custom_percentage: number;
+  goal_mode_weekly_change_kg: number;
   calorie_safety_floor_mode: SharedUserPreferences['calorie_safety_floor_mode'];
   calorie_safety_floor_value: SharedUserPreferences['calorie_safety_floor_value'];
   standard_drink_grams?: number;
@@ -382,6 +384,8 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
   const [goalModeCalculationMethod, setGoalModeCalculationMethodState] =
     useState<GoalModeCalculationMethod>('manual');
   const [goalModeCustomPercentage, setGoalModeCustomPercentageState] =
+    useState<number>(0);
+  const [goalModeWeeklyChangeKg, setGoalModeWeeklyChangeKgState] =
     useState<number>(0);
   const [calorieSafetyFloorMode, setCalorieSafetyFloorModeState] =
     useState<CalorieSafetyFloorMode>('standard');
@@ -799,6 +803,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
           data.goal_mode_calculation_method || 'manual'
         );
         setGoalModeCustomPercentageState(data.goal_mode_custom_percentage ?? 0);
+        setGoalModeWeeklyChangeKgState(data.goal_mode_weekly_change_kg ?? 0);
         setCalorieSafetyFloorModeState(
           data.calorie_safety_floor_mode ?? 'standard'
         );
@@ -1001,6 +1006,8 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
           newPrefs?.goalModeCalculationMethod ?? goalModeCalculationMethod,
         goal_mode_custom_percentage:
           newPrefs?.goalModeCustomPercentage ?? goalModeCustomPercentage,
+        goal_mode_weekly_change_kg:
+          newPrefs?.goalModeWeeklyChangeKg ?? goalModeWeeklyChangeKg,
         calorie_safety_floor_mode:
           newPrefs?.calorieSafetyFloorMode ?? calorieSafetyFloorMode,
         calorie_safety_floor_value:
@@ -1080,6 +1087,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
       goalMode,
       goalModeCalculationMethod,
       goalModeCustomPercentage,
+      goalModeWeeklyChangeKg,
       calorieSafetyFloorMode,
       calorieSafetyFloorValue,
       standardDrinkGrams,
@@ -1377,6 +1385,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
       goalMode,
       goalModeCalculationMethod,
       goalModeCustomPercentage,
+      goalModeWeeklyChangeKg,
       calorieSafetyFloorMode,
       calorieSafetyFloorValue,
       standardDrinkGrams,
@@ -1487,6 +1496,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
       goalMode,
       goalModeCalculationMethod,
       goalModeCustomPercentage,
+      goalModeWeeklyChangeKg,
       calorieSafetyFloorMode,
       calorieSafetyFloorValue,
       standardDrinkGrams,

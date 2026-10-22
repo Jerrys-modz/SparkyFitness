@@ -69,6 +69,7 @@ interface CalorieTargetBreakdownProps {
   goalMode: string;
   goalModeCalculationMethod: string;
   goalModeCustomPercentage: number;
+  goalModeWeeklyChangeKg?: number;
   calorieGoalAdjustmentMode: string;
   rawManualGoal: number;
   adjustedManualGoal: number;
@@ -94,6 +95,7 @@ export const CalorieTargetBreakdown: React.FC<CalorieTargetBreakdownProps> = ({
   goalMode,
   goalModeCalculationMethod,
   goalModeCustomPercentage,
+  goalModeWeeklyChangeKg = 0,
   calorieGoalAdjustmentMode,
   rawManualGoal,
   adjustedManualGoal,
@@ -1173,8 +1175,16 @@ export const CalorieTargetBreakdown: React.FC<CalorieTargetBreakdownProps> = ({
                  modes ("Deficit (--10%) = --200 kcal"). */
               <span>
                 {goalModeLabel} {adjustmentLabel} (
-                {`${adjustmentSign}${Math.abs(Math.round(deficitPct * 100))}`}
-                %) ={' '}
+                {goalMode === 'weekly'
+                  ? t('settings.goalMode.weeklyRate', {
+                      defaultValue: '{{rate}} kg / week',
+                      rate:
+                        goalModeWeeklyChangeKg > 0
+                          ? `+${goalModeWeeklyChangeKg}`
+                          : String(goalModeWeeklyChangeKg),
+                    })
+                  : `${adjustmentSign}${Math.abs(Math.round(deficitPct * 100))}%`}
+                ) ={' '}
                 {`${adjustmentSign}${Math.abs(
                   Math.round(
                     convertEnergy(calculatedDeficitAmount, 'kcal', energyUnit)
@@ -1234,7 +1244,7 @@ export const CalorieTargetBreakdown: React.FC<CalorieTargetBreakdownProps> = ({
               </li>
             </ul>
           </div>
-          {isAdaptiveMethod && (
+          {(isAdaptiveMethod || goalMode === 'weekly') && (
             <div className="text-sm text-gray-500 italic mt-0.5">
               {/* computeCalorieTarget already decided this; re-deriving it here
                   drifts if the rounding or floor rules change. */}

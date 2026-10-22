@@ -102,6 +102,58 @@ beforeEach(() => {
   });
 });
 
+describe('CalorieTargetBreakdown weekly weight goal', () => {
+  it('explains safety-floor clamping for weekly goals using the manual baseline', () => {
+    render(
+      <CalorieTargetBreakdown
+        {...defaultProps}
+        goalMode="weekly"
+        goalModeCalculationMethod="manual"
+        goalModeWeeklyChangeKg={-2}
+        previewResult={{
+          ...defaultProps.previewResult,
+          target: 480,
+          finalTarget: 1800,
+          appliedDeficit: 1714,
+          wasClampedToFloor: true,
+          clampedFloorSource: 'rmr',
+        }}
+      />
+    );
+    expect(
+      screen.getByText(
+        '⚠️ Daily budget was automatically raised to the safety-floor limit.'
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('explains the weekly loss target as weight rather than a percentage', () => {
+    render(
+      <CalorieTargetBreakdown
+        {...defaultProps}
+        {...{ goalModeWeeklyChangeKg: -0.5 }}
+        goalMode="weekly"
+        previewResult={{
+          ...defaultProps.previewResult,
+          target: 1765,
+          finalTarget: 1800,
+          appliedDeficit: 429,
+          projectedWeeklyChangeKg: -0.46,
+          wasClampedToFloor: true,
+          clampedFloorSource: 'rmr',
+        }}
+      />
+    );
+
+    expect(screen.getByText(/Weekly weight change Deficit/)).toHaveTextContent(
+      '-0.5 kg / week'
+    );
+    expect(
+      screen.queryByText(/Weekly weight change Deficit \(-0%\)/)
+    ).toBeNull();
+  });
+});
+
 describe('CalorieTargetBreakdown baseline label', () => {
   it('uses translation keys for algorithm labels', () => {
     render(<CalorieTargetBreakdown {...defaultProps} />);

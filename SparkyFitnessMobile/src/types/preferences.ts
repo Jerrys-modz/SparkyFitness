@@ -38,6 +38,8 @@ export interface UserPreferences {
   goal_mode?: GoalMode;
   goal_mode_calculation_method?: GoalModeCalculationMethod;
   goal_mode_custom_percentage?: number;
+  /** Signed kilograms per week: negative for loss, positive for gain. */
+  goal_mode_weekly_change_kg?: number;
   auto_scale_open_food_facts_imports?: boolean;
   auto_scale_online_imports?: boolean;
   barcode_fallback_open_food_facts?: boolean;

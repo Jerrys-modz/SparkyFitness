@@ -359,11 +359,55 @@ export function setsDistanceKm(
 }
 
 export type GoalMode =
-  'maintain' | 'recomp' | 'cut' | 'high_cut' | 'lean_bulk' | 'bulk' | 'manual';
+  | 'maintain'
+  | 'recomp'
+  | 'cut'
+  | 'high_cut'
+  | 'lean_bulk'
+  | 'bulk'
+  | 'manual'
+  | 'weekly';
 export type GoalModeCalculationMethod = 'adaptive' | 'manual';
 
 /** Largest magnitude, in percent, that a manual goal-mode adjustment may take in either direction. */
 export const MAX_GOAL_MODE_PERCENTAGE = 40;
+
+/** Input bound, not a recommended rate. Persist weekly changes in kilograms. */
+export const MAX_GOAL_MODE_WEEKLY_CHANGE_KG = 2;
+
+/** Parse a positive weekly magnitude without accepting empty or partial input. */
+export function parseWeeklyGoalRate(
+  text: string,
+  unit: 'kg' | 'g'
+): number | null {
+  const value = text.trim();
+  const pattern =
+    unit === 'g' ? /^\d+$/ : /^(?:\d+(?:[.,]\d{1,3})?|[.,]\d{1,3})$/;
+  if (!pattern.test(value)) return null;
+  const kg = Number(value.replace(',', '.')) / (unit === 'g' ? 1000 : 1);
+  return Number.isFinite(kg) && kg > 0 && kg <= MAX_GOAL_MODE_WEEKLY_CHANGE_KG
+    ? kg
+    : null;
+}
+
+/** Signed kcal added to the chosen baseline: negative cuts, positive adds. */
+export function getGoalModeDailyAdjustment(
+  goalMode: string,
+  customPercentage: number,
+  baselineTdee: number,
+  weeklyChangeKg: number = 0
+): number {
+  if (goalMode === 'weekly') {
+    const safeRate = Number.isFinite(weeklyChangeKg)
+      ? Math.max(
+          -MAX_GOAL_MODE_WEEKLY_CHANGE_KG,
+          Math.min(MAX_GOAL_MODE_WEEKLY_CHANGE_KG, weeklyChangeKg)
+        )
+      : 0;
+    return (safeRate * ENERGY_DENSITY_KCAL_PER_KG) / 7;
+  }
+  return -baselineTdee * getGoalModeAdjustment(goalMode, customPercentage);
+}
 
 /**
  * Whether a measured BMR may be used in place of a formula estimate.
@@ -473,8 +517,10 @@ export function goalModeFromPrimaryGoal(primaryGoal: string): GoalMode {
 /** True for goal modes that target weight gain rather than loss. */
 export function isGainGoalMode(
   goalMode: string,
-  customPercentage: number = 0
+  customPercentage: number = 0,
+  weeklyChangeKg: number = 0
 ): boolean {
+  if (goalMode === 'weekly') return weeklyChangeKg > 0;
   return getGoalModeAdjustment(goalMode, customPercentage) < 0;
 }
 
@@ -682,6 +728,7 @@ export function computeCalorieTarget({
   goalMode,
   calculationMethod,
   customPercentage,
+  weeklyChangeKg = 0,
   bmr,
   activityLevelMultiplier,
   adaptiveTdee,
@@ -702,6 +749,7 @@ export function computeCalorieTarget({
   goalMode: string;
   calculationMethod: string;
   customPercentage: number;
+  weeklyChangeKg?: number;
   bmr: number;
   activityLevelMultiplier: number;
   adaptiveTdee: number | null;
@@ -729,9 +777,6 @@ export function computeCalorieTarget({
     calculateBmrFn,
     measuredBmr
   );
-  // Signed: positive is a deficit, negative is a surplus.
-  const deficitPercent = getGoalModeAdjustment(goalMode, customPercentage);
-
   let baselineTdee = currentGoalCalories;
   let insufficientHistory = false;
 
@@ -750,8 +795,14 @@ export function computeCalorieTarget({
     }
   }
 
-  const calculatedTarget = baselineTdee * (1 - deficitPercent);
-  const isGainGoal = deficitPercent < 0;
+  const dailyAdjustment = getGoalModeDailyAdjustment(
+    goalMode,
+    customPercentage,
+    baselineTdee,
+    weeklyChangeKg
+  );
+  const calculatedTarget = baselineTdee + dailyAdjustment;
+  const isGainGoal = dailyAdjustment > 0;
   const isBelowRmr = calculatedTarget < rmr;
 
   const absoluteFloorValue = getClinicalCalorieMinimum(gender);
@@ -766,8 +817,10 @@ export function computeCalorieTarget({
     calorieSafetyFloorValue,
     recommendedSafetyFloor
   );
+  const usesSafetyFloor =
+    calculationMethod === 'adaptive' || goalMode === 'weekly';
   const wasClampedToFloor =
-    calculationMethod === 'adaptive' &&
+    usesSafetyFloor &&
     effectiveSafetyFloor !== null &&
     calculatedTarget < effectiveSafetyFloor;
   const finalTarget = wasClampedToFloor
@@ -794,9 +847,7 @@ export function computeCalorieTarget({
   // are out of reach up front. Depends on the baseline and the floor, both of
   // which are independent of the goal mode, so it is the same for every mode.
   const maxFeasibleDeficitPercent =
-    calculationMethod === 'adaptive' &&
-    baselineTdee > 0 &&
-    effectiveSafetyFloor !== null
+    usesSafetyFloor && baselineTdee > 0 && effectiveSafetyFloor !== null
       ? Math.max(0, (1 - effectiveSafetyFloor / baselineTdee) * 100)
       : null;
 
@@ -824,7 +875,7 @@ export function computeCalorieTarget({
     target: Math.round(calculatedTarget),
     rmr: Math.round(rmr),
     baselineTdee: Math.round(baselineTdee),
-    appliedDeficit: Math.round(baselineTdee * deficitPercent),
+    appliedDeficit: Math.round(-dailyAdjustment) || 0,
     isBelowRmr,
     isBelowAbsoluteFloor,
     absoluteFloorValue,
