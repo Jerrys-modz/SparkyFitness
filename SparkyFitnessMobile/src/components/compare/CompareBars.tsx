@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { compareDisplayValue } from '../../constants/compareMetrics';
 import { formatLocalizedNumber } from '../../localization';
-import { yesNoWording } from '../../utils/compareCopy';
+import { compareValueText, yesNoWording } from '../../utils/compareCopy';
 import type { CompareQuestion } from '../../utils/compareQuestion';
 
 interface CompareBarsProps {
@@ -13,11 +13,11 @@ interface CompareBarsProps {
   question: CompareQuestion;
 }
 
-function oneDecimal(value: number, signed = false): string {
+function signedOneDecimal(value: number): string {
   return formatLocalizedNumber(value, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
-    ...(signed ? { signDisplay: 'exceptZero' as const } : {}),
+    signDisplay: 'exceptZero',
   });
 }
 
@@ -39,12 +39,14 @@ const CompareBars: React.FC<CompareBarsProps> = ({ response, question }) => {
       id: 'yes',
       label: wording.yesLabel,
       mean: yesMean,
+      text: compareValueText(outcome, binary.yesMean),
       count: binary.yesCount,
     },
     {
       id: 'no',
       label: wording.noLabel,
       mean: noMean,
+      text: compareValueText(outcome, binary.noMean),
       count: binary.noCount,
     },
   ];
@@ -69,22 +71,31 @@ const CompareBars: React.FC<CompareBarsProps> = ({ response, question }) => {
             {wording.nights
               ? t('compareReport.bars.meanAndNights', {
                   defaultValue: '{{mean}} · {{count}} nights',
-                  mean: oneDecimal(row.mean),
+                  mean: row.text,
                   count: row.count,
                 })
               : t('compareReport.bars.meanAndDays', {
                   defaultValue: '{{mean}} · {{count}} days',
-                  mean: oneDecimal(row.mean),
+                  mean: row.text,
                   count: row.count,
                 })}
           </Text>
         </View>
       ))}
       <Text className="text-text-muted text-xs">
-        {t('compareReport.bars.diff', {
-          defaultValue: '{{diff}} vs. your usual',
-          diff: oneDecimal(compareDisplayValue(outcome, binary.diff), true),
-        })}
+        {outcome === 'bedtime'
+          ? // A bedtime difference is a span of minutes, not a time of day.
+            t('compareReport.bars.diffMinutes', {
+              defaultValue: '{{diff}} min vs. your usual',
+              diff: formatLocalizedNumber(binary.diff, {
+                maximumFractionDigits: 0,
+                signDisplay: 'exceptZero',
+              }),
+            })
+          : t('compareReport.bars.diff', {
+              defaultValue: '{{diff}} vs. your usual',
+              diff: signedOneDecimal(compareDisplayValue(outcome, binary.diff)),
+            })}
       </Text>
     </View>
   );

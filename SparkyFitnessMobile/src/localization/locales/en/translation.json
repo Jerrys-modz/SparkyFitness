@@ -8474,7 +8474,8 @@
       "meanAndDays_other": "{{mean}} · {{count}} days",
       "meanAndNights_one": "{{mean}} · {{count}} night",
       "meanAndNights_other": "{{mean}} · {{count}} nights",
-      "diff": "{{diff}} vs. your usual"
+      "diff": "{{diff}} vs. your usual",
+      "diffMinutes": "{{diff}} min vs. your usual"
     },
     "checks": {
       "ownNormal": "✓ Compared with your own normal",

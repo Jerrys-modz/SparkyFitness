@@ -210,6 +210,42 @@ describe('CompareBars', () => {
     expect(getByText(noMean)).toBeTruthy();
   });
 
+  it('shows a bedtime outcome as clock times and its difference in minutes', () => {
+    const { getByText } = render(
+      <CompareBars
+        response={response({
+          yesKey: 'meditated',
+          yesMean: 255,
+          noMean: 230,
+          yesCount: 12,
+          noCount: 28,
+          diff: 25,
+        })}
+        question={{ a: 'meditated', b: 'bedtime', choice: 'sameDay' }}
+      />
+    );
+    expect(getByText(/^10:15\sPM · 12 nights$/)).toBeTruthy();
+    expect(getByText(/^9:50\sPM · 28 nights$/)).toBeTruthy();
+    expect(getByText('+25 min vs. your usual')).toBeTruthy();
+  });
+
+  it('signs an earlier bedtime as minus minutes', () => {
+    const { getByText } = render(
+      <CompareBars
+        response={response({
+          yesKey: 'meditated',
+          yesMean: 230,
+          noMean: 242,
+          yesCount: 12,
+          noCount: 28,
+          diff: -12.4,
+        })}
+        question={{ a: 'meditated', b: 'bedtime', choice: 'sameDay' }}
+      />
+    );
+    expect(getByText(/^[-−]12 min vs\. your usual$/)).toBeTruthy();
+  });
+
   it('renders nothing without a yes/no result', () => {
     const { toJSON } = render(
       <CompareBars response={response(undefined)} question={Q} />
