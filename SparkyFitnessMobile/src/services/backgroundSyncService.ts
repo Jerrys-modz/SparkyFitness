@@ -6,6 +6,7 @@ import { runWriteback } from './writeback';
 import { addLog, _flushBuffer } from './LogService';
 import { HEALTH_METRICS } from '../HealthMetrics';
 import {
+  initHealthConnect,
   loadHealthPreference,
   healthReadProvider,
   resetDatabaseInaccessibleCount,
@@ -206,6 +207,8 @@ const runBackgroundSync = async (
     );
     return;
   }
+
+  await initHealthConnect();
 
   const outcomes = await collectHealthData(
     healthReadProvider,

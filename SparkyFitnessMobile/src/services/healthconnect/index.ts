@@ -962,11 +962,46 @@ const aggregateByDeviceZone = async (
     })) as unknown as PeriodBucket[];
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    addLog(
-      `[HealthConnectService] aggregateGroupByPeriod(${spec.recordType}) failed: ${message}`,
-      'ERROR'
-    );
-    return { records: [], error: message };
+    if (isClientUnavailableError(error)) {
+      clientUnavailableCount++;
+      if (await tryReconnectOnce()) {
+        try {
+          buckets = (await aggregateGroupByPeriod({
+            recordType: spec.recordType as Parameters<
+              typeof aggregateGroupByPeriod
+            >[0]['recordType'],
+            timeRangeFilter: {
+              operator: 'between',
+              startTime: startDate.toISOString(),
+              endTime: endDate.toISOString(),
+            },
+            timeRangeSlicer: { period: 'DAYS', length: 1 },
+          })) as unknown as PeriodBucket[];
+        } catch (retryError) {
+          const retryMessage =
+            retryError instanceof Error
+              ? retryError.message
+              : String(retryError);
+          addLog(
+            `[HealthConnectService] aggregateGroupByPeriod(${spec.recordType}) failed after reconnect: ${retryMessage}`,
+            'ERROR'
+          );
+          return { records: [], error: retryMessage };
+        }
+      } else {
+        addLog(
+          `[HealthConnectService] aggregateGroupByPeriod(${spec.recordType}) failed: ${message}`,
+          'ERROR'
+        );
+        return { records: [], error: message };
+      }
+    } else {
+      addLog(
+        `[HealthConnectService] aggregateGroupByPeriod(${spec.recordType}) failed: ${message}`,
+        'ERROR'
+      );
+      return { records: [], error: message };
+    }
   }
 
   const results: AggregatedHealthRecord[] = [];

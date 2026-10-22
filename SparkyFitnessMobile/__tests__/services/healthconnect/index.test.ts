@@ -3175,6 +3175,40 @@ describe('dead Health Connect client is reconnected, not abandoned (#2191)', () 
     expect(mockInitialize).not.toHaveBeenCalled();
     expect(getClientUnavailableCount()).toBe(0);
   });
+
+  test('reconnects and retries when aggregateGroupByPeriod hits a dead client', async () => {
+    mockReadRecords.mockResolvedValue(offsetlessProbeResult());
+    mockAggregateGroupByPeriod
+      .mockRejectedValueOnce(deadClient())
+      .mockResolvedValueOnce([
+        periodBucket(2024, 1, 15, { COUNT_TOTAL: 5000 }),
+      ]);
+
+    const result = await getAggregatedStepsByDateDetailed(
+      localMidnight(2024, 1, 15),
+      localEndOfDay(2024, 1, 15)
+    );
+
+    expect(mockInitialize).toHaveBeenCalledTimes(1);
+    expect(result.records).toHaveLength(1);
+    expect(result.records[0].value).toBe(5000);
+    expect(result.error).toBeUndefined();
+  });
+
+  test('surfaces aggregateGroupByPeriod error and tracks count when client remains dead after reconnect', async () => {
+    mockReadRecords.mockResolvedValue(offsetlessProbeResult());
+    mockAggregateGroupByPeriod.mockRejectedValue(deadClient());
+
+    const result = await getAggregatedStepsByDateDetailed(
+      localMidnight(2024, 1, 15),
+      localEndOfDay(2024, 1, 15)
+    );
+
+    expect(mockInitialize).toHaveBeenCalledTimes(1);
+    expect(getClientUnavailableCount()).toBe(1);
+    expect(result.records).toHaveLength(0);
+    expect(result.error).toContain('client is not initialized');
+  });
 });
 
 describe('telemetry cache commits only after a successful upload (PR #2218 review)', () => {

@@ -186,6 +186,7 @@ jest.mock('../../src/services/healthConnectService', () => {
   };
 
   return {
+    initHealthConnect: jest.fn().mockResolvedValue(true),
     loadHealthPreference: jest.fn(),
     resetDatabaseInaccessibleCount: jest.fn(),
     getDatabaseInaccessibleCount: jest.fn().mockReturnValue(0),
@@ -228,6 +229,7 @@ const storage = require('../../src/services/storage') as {
 };
 const healthService = {
   ...(require('../../src/services/healthConnectService') as {
+    initHealthConnect: jest.Mock;
     loadHealthPreference: jest.Mock;
     readHealthRecords: jest.Mock;
     readMinMaxAvgByDayDetailed: jest.Mock;
@@ -541,6 +543,16 @@ describe('performBackgroundSync (via triggerManualSync)', () => {
       await triggerManualSync();
 
       expect(logsMatching('Health Connect was unavailable')).toHaveLength(0);
+    });
+
+    test('initializes Health Connect before collecting health data', async () => {
+      storage.loadLastSyncedTime.mockResolvedValue(null);
+      healthService.loadHealthPreference.mockResolvedValue(true);
+      healthService.getAggregatedStepsByDate.mockResolvedValue([]);
+
+      await triggerManualSync();
+
+      expect(healthService.initHealthConnect).toHaveBeenCalled();
     });
   });
 
