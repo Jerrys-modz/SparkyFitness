@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { todayInZone } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import goalService from '../../services/goalService.js';
+import { buildGoalTimelinePayload } from '../../utils/goalTimelinePayload.js';
 import goalRepository from '../../models/goalRepository.js';
 import nutrientGoalPreferenceService from '../../services/nutrientGoalPreferenceService.js';
 import { ERRORS, formatZodError } from './errors.js';
@@ -193,58 +194,34 @@ Actions:
                 args.protein !== undefined ||
                 args.carbs !== undefined ||
                 args.fat !== undefined;
-              // Build base payload with required fields, using existing goals as defaults
-              const payload: any = {
-                p_start_date: startDate,
-                p_cascade: true,
-                p_calories: args.calories ?? existingGoals.calories,
-                p_protein: args.protein ?? existingGoals.protein,
-                p_carbs: args.carbs ?? existingGoals.carbs,
-                p_fat: args.fat ?? existingGoals.fat,
-                p_water_goal_ml:
-                  args.water_goal_ml ?? existingGoals.water_goal_ml,
-                p_saturated_fat:
-                  args.saturated_fat ?? existingGoals.saturated_fat,
-                p_polyunsaturated_fat:
-                  args.polyunsaturated_fat ?? existingGoals.polyunsaturated_fat,
-                p_monounsaturated_fat:
-                  args.monounsaturated_fat ?? existingGoals.monounsaturated_fat,
-                p_trans_fat: args.trans_fat ?? existingGoals.trans_fat,
-                p_cholesterol: args.cholesterol ?? existingGoals.cholesterol,
-                p_sodium: args.sodium ?? existingGoals.sodium,
-                p_potassium: args.potassium ?? existingGoals.potassium,
-                p_dietary_fiber:
-                  args.dietary_fiber ?? existingGoals.dietary_fiber,
-                p_sugars: args.sugars ?? existingGoals.sugars,
-                p_vitamin_a: args.vitamin_a ?? existingGoals.vitamin_a,
-                p_vitamin_c: args.vitamin_c ?? existingGoals.vitamin_c,
-                p_calcium: args.calcium ?? existingGoals.calcium,
-                p_iron: args.iron ?? existingGoals.iron,
-                p_caffeine_mg: args.caffeine_mg ?? existingGoals.caffeine_mg,
-                p_alcohol_g: args.alcohol_g ?? existingGoals.alcohol_g,
-                // Preserve custom nutrients if not provided
-                custom_nutrients:
-                  args.custom_nutrients ?? existingGoals.custom_nutrients,
-                // No tool parameters exist for these; manageGoalTimeline would
-                // otherwise zero the exercise targets and clear the meal/macro
-                // distribution (cleanNumber), unlike the web UI which always sends them.
-                p_target_exercise_calories_burned:
-                  existingGoals.target_exercise_calories_burned,
-                p_target_exercise_duration_minutes:
-                  existingGoals.target_exercise_duration_minutes,
-                p_breakfast_percentage: existingGoals.breakfast_percentage,
-                p_lunch_percentage: existingGoals.lunch_percentage,
-                p_dinner_percentage: existingGoals.dinner_percentage,
-                p_snacks_percentage: existingGoals.snacks_percentage,
-                custom_meal_percentages: existingGoals.custom_meal_percentages,
-                ...(macroGramsGiven
-                  ? {}
-                  : {
-                      p_protein_percentage: existingGoals.protein_percentage,
-                      p_carbs_percentage: existingGoals.carbs_percentage,
-                      p_fat_percentage: existingGoals.fat_percentage,
-                    }),
-              };
+              const payload = buildGoalTimelinePayload(
+                startDate,
+                existingGoals,
+                {
+                  p_calories: args.calories,
+                  p_protein: args.protein,
+                  p_carbs: args.carbs,
+                  p_fat: args.fat,
+                  p_water_goal_ml: args.water_goal_ml,
+                  p_saturated_fat: args.saturated_fat,
+                  p_polyunsaturated_fat: args.polyunsaturated_fat,
+                  p_monounsaturated_fat: args.monounsaturated_fat,
+                  p_trans_fat: args.trans_fat,
+                  p_cholesterol: args.cholesterol,
+                  p_sodium: args.sodium,
+                  p_potassium: args.potassium,
+                  p_dietary_fiber: args.dietary_fiber,
+                  p_sugars: args.sugars,
+                  p_vitamin_a: args.vitamin_a,
+                  p_vitamin_c: args.vitamin_c,
+                  p_calcium: args.calcium,
+                  p_iron: args.iron,
+                  p_caffeine_mg: args.caffeine_mg,
+                  p_alcohol_g: args.alcohol_g,
+                  custom_nutrients: args.custom_nutrients,
+                },
+                { keepMacroPercentages: !macroGramsGiven }
+              );
               await goalService.manageGoalTimeline(userId, payload);
               return formatConfirmation(
                 `Goals set successfully starting from ${startDate}.`

@@ -7,6 +7,10 @@ import {
 } from '../../constants/calorieConstants.ts';
 import { CHART_SCALE_MODES } from '../../constants/chartConstants.ts';
 import { HR_ZONE_METHODS } from '../../utils/heartRateZones.ts';
+import {
+  COACHING_GOAL_DIRECTIONS,
+  COACHING_MAX_RATE_KG_PER_WEEK,
+} from '../../utils/weightCoaching.ts';
 
 export const SUPPORTED_TIME_FORMATS = ['HH:mm', 'h:mm A', 'h:mm a'] as const;
 
@@ -74,6 +78,12 @@ export const userPreferencesSchema = z.object({
   chart_scale_mode: z.enum(CHART_SCALE_MODES),
   // Manually added (#1560; ts-to-zod precedent: UserWaterContainers.zod.ts).
   adaptive_workout_suggestions: z.boolean(),
+  coaching_goal_direction: z.enum(COACHING_GOAL_DIRECTIONS),
+  coaching_rate_kg_per_week: z
+    .number()
+    .min(0)
+    .max(COACHING_MAX_RATE_KG_PER_WEEK),
+  coaching_check_in_weekday: z.number().int().min(0).max(6),
   measurement_decimal_places: z.number().int().min(0),
   // Manually added (file is ts-to-zod generated; precedent: MealFoods.zod.ts). Keep on regen.
   use_external_bmr: z.boolean(),
@@ -163,6 +173,13 @@ export const userPreferencesInitializerSchema = z.object({
     .optional(),
   chart_scale_mode: z.enum(CHART_SCALE_MODES).optional(),
   adaptive_workout_suggestions: z.boolean().optional(),
+  coaching_goal_direction: z.enum(COACHING_GOAL_DIRECTIONS).optional(),
+  coaching_rate_kg_per_week: z
+    .number()
+    .min(0)
+    .max(COACHING_MAX_RATE_KG_PER_WEEK)
+    .optional(),
+  coaching_check_in_weekday: z.number().int().min(0).max(6).optional(),
   measurement_decimal_places: z.number().int().min(0).optional(),
   use_external_bmr: z.boolean().optional(),
   active_ai_service_id: z.string().uuid().nullable().optional(),
@@ -255,6 +272,13 @@ export const userPreferencesMutatorSchema = z.object({
     .optional(),
   chart_scale_mode: z.enum(CHART_SCALE_MODES).optional(),
   adaptive_workout_suggestions: z.boolean().optional(),
+  coaching_goal_direction: z.enum(COACHING_GOAL_DIRECTIONS).optional(),
+  coaching_rate_kg_per_week: z
+    .number()
+    .min(0)
+    .max(COACHING_MAX_RATE_KG_PER_WEEK)
+    .optional(),
+  coaching_check_in_weekday: z.number().int().min(0).max(6).optional(),
   measurement_decimal_places: z.number().int().min(0).optional(),
   use_external_bmr: z.boolean().optional(),
   active_ai_service_id: z.string().uuid().nullable().optional(),

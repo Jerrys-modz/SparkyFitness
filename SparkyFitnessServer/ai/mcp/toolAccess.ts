@@ -108,6 +108,7 @@ export const MCP_TOOL_READ_ACCESS: Readonly<Record<string, ToolReadAccess>> = {
   sparky_generate_coaching_plan: 'read',
   sparky_check_engagement: 'read',
   sparky_get_logging_streak: 'read',
+  sparky_get_coaching_checkin: 'read',
   sparky_get_contextual_nudge: 'read',
   // vision: both only ask the user's AI provider, like POST /api/foods/scan-label
   sparky_analyze_food_image: 'read',

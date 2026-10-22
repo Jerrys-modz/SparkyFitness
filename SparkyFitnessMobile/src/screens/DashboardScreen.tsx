@@ -42,6 +42,8 @@ import Icon from '../components/Icon';
 import MacroCard from '../components/MacroCard';
 import MedicationsCard from '../components/MedicationsCard';
 import { MindfulnessCard } from '../components/mindfulness/MindfulnessCard';
+import CoachingDashboardCard from '../components/CoachingDashboardCard';
+import CoachingReminderReconciler from '../components/CoachingReminderReconciler';
 import SymptomsCard from '../components/SymptomsCard';
 import MoodCard from '../components/mood/MoodCard';
 import ProgressPhotosCard from '../components/ProgressPhotosCard';
@@ -384,6 +386,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   );
   const healthTrendsCardVisible = useAppPreferencesStore(
     (s) => s.healthTrendsCardVisible
+  );
+  const coachingCardVisible = useAppPreferencesStore(
+    (s) => s.coachingCardVisible
   );
   const mindfulnessCardVisible = useAppPreferencesStore(
     (s) => s.mindfulnessCardVisible
@@ -910,6 +915,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   navigation={navigation}
                 />
               ) : null;
+            case 'coaching':
+              return coachingCardVisible ? (
+                <CoachingDashboardCard key="coaching" navigation={navigation} />
+              ) : null;
             case 'mindfulness':
               return mindfulnessCardVisible ? (
                 <MindfulnessCard
@@ -942,6 +951,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             cannot cancel a chain when reminders are switched off. It owns its
             own queries, so it needs nothing from the rendered state. */}
         <HydrationReminderReconciler />
+        <CoachingReminderReconciler />
         {renderedContent}
         <CalendarSheet
           ref={calendarRef}
@@ -956,6 +966,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   return (
     <View className="flex-1 bg-background">
       <HydrationReminderReconciler />
+      <CoachingReminderReconciler />
       {(!isConnectionLoading && isConnected) || hasCachedSummary ? (
         <DateNavigator
           title={t('navigation.dashboard', { defaultValue: 'Dashboard' })}

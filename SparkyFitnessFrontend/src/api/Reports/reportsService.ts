@@ -2,6 +2,7 @@ import { apiCall } from '@/api/api';
 import { ExerciseDashboardData, ReportResponse } from '@/types/reports';
 import type {
   AlcoholWeekResponse,
+  CoachingCheckInResponse,
   HydrationNutritionRangeResponse,
   FitnessFatigueResponse,
   RunningEstimatesResponse,
@@ -79,6 +80,17 @@ export const getRunEstimates = async (
   if (userId) params.append('userId', userId);
   const query = params.toString();
   return apiCall(`/reports/run-estimates${query ? `?${query}` : ''}`, {
+    method: 'GET',
+  });
+};
+
+export const getCoachingCheckIn = async (
+  userId?: string
+): Promise<CoachingCheckInResponse> => {
+  const params = new URLSearchParams();
+  if (userId) params.append('userId', userId);
+  const query = params.toString();
+  return apiCall(`/reports/coaching-checkin${query ? `?${query}` : ''}`, {
     method: 'GET',
   });
 };
