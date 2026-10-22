@@ -2,7 +2,12 @@ import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
 
 import CompareSentence from '../../../src/components/compare/CompareSentence';
-import { initializeI18n } from '../../../src/localization/i18n';
+import i18n, { initializeI18n } from '../../../src/localization/i18n';
+import { sentenceText } from '../../../src/utils/compareCopy';
+import type { CompareQuestion } from '../../../src/utils/compareQuestion';
+
+const t = ((key: string, options: Record<string, unknown>) =>
+  i18n.t(key, options)) as never;
 
 jest.mock('../../../src/components/BottomSheetPicker', () => {
   const React = require('react');
@@ -69,6 +74,37 @@ describe('CompareSentence', () => {
     expect(getByText('meditating')).toBeTruthy();
     expect(getByText('mood')).toBeTruthy();
     expect(getByText('the same day')).toBeTruthy();
+  });
+
+  it.each<CompareQuestion>([
+    { a: 'timeAsleep', b: 'energy', choice: 'nextDay' },
+    { a: 'caffeine', b: 'timeAsleep', choice: 'sameDay' },
+    { a: 'timeAsleep', b: 'sleepScore', choice: 'dayBefore' },
+    { a: 'meditated', b: 'timeAsleep', choice: 'nextDay' },
+    { a: 'mood', b: 'meditated', choice: 'dayBefore' },
+    { a: 'timeAsleep', b: 'mood', choice: 'sameWeek' },
+    { a: 'calories', b: 'overnightHrv', choice: 'nextWeek' },
+  ])('chips read exactly like the sentence for %j', (question) => {
+    const { getByLabelText } = render(
+      <CompareSentence question={question} onChange={jest.fn()} />
+    );
+    const chip = (name: string) =>
+      String(
+        getByLabelText(new RegExp(`^${name}: `)).props.accessibilityLabel
+      ).slice(name.length + 2);
+    expect(
+      `Does ${chip('First thing')} go with ${chip('Second thing')} ${chip('When')}?`
+    ).toBe(sentenceText(question, t));
+  });
+
+  it('names a sleep metric plainly once the question is by the week', () => {
+    const { getByLabelText } = render(
+      <CompareSentence
+        question={{ a: 'timeAsleep', choice: 'sameWeek' }}
+        onChange={jest.fn()}
+      />
+    );
+    expect(getByLabelText('First thing: time asleep')).toBeTruthy();
   });
 
   it('announces each trigger with its current value', () => {

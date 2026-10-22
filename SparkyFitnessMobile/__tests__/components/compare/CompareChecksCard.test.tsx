@@ -105,6 +105,42 @@ describe('CompareChecksCard', () => {
     ).toBeTruthy();
   });
 
+  it.each<[CompareQuestion, CompareMode, string]>([
+    [
+      { a: 'timeAsleep', b: 'energy', choice: 'nextDay' },
+      'day',
+      'Time asleep comes first',
+    ],
+    [
+      { a: 'caffeine', b: 'timeAsleep', choice: 'dayBefore' },
+      'day',
+      'Time asleep comes first',
+    ],
+    [
+      { a: 'timeAsleep', b: 'energy', choice: 'sameDay' },
+      'day',
+      'Time asleep seems to come first',
+    ],
+    [
+      { a: 'mood', b: 'meditated', choice: 'dayBefore' },
+      'day',
+      'Meditating comes first',
+    ],
+    [
+      { a: 'sleepScore', b: 'mood', choice: 'nextWeek' },
+      'week',
+      'Sleep score comes first',
+    ],
+  ])('names the metric that leads plainly for %j', (q, mode, line) => {
+    const { getByText, queryByText } = renderCard(
+      result(true, { direction: 'firstComesFirst' }),
+      q,
+      mode
+    );
+    expect(getByText(line)).toBeTruthy();
+    expect(queryByText(/last night/i)).toBeNull();
+  });
+
   it("says it can't tell", () => {
     const { getByText } = renderCard(result(true, { direction: 'cantTell' }));
     expect(getByText("Can't tell which comes first")).toBeTruthy();

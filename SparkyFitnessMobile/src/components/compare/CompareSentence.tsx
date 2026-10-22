@@ -5,12 +5,7 @@ import { COMPARE_METRICS, type CompareMetricKey } from '@workspace/shared';
 
 import BottomSheetPicker, { type PickerSection } from '../BottomSheetPicker';
 import { compareMetricSections } from '../../constants/compareMetrics';
-import {
-  genericTimingPhrase,
-  metricNoun,
-  secondMetricPhrase,
-  timingPhrase,
-} from '../../utils/compareCopy';
+import { questionParts } from '../../utils/compareCopy';
 import {
   timingOf,
   type CompareMode,
@@ -52,6 +47,8 @@ const CompareSentence: React.FC<CompareSentenceProps> = ({
   const something = t('compareReport.sentence.something', {
     defaultValue: 'something',
   });
+  // The chips read exactly as sentenceText does once every part is chosen.
+  const parts = questionParts(question, t);
 
   const chooseMetric = (slot: Slot, key: CompareMetricKey) => {
     const other: Slot = slot === 'a' ? 'b' : 'a';
@@ -156,16 +153,7 @@ const CompareSentence: React.FC<CompareSentenceProps> = ({
           if (isMetricKey(value)) chooseMetric(slot, value);
         }}
         renderTrigger={({ onPress }) =>
-          trigger(
-            key
-              ? slot === 'a'
-                ? metricNoun(key, t)
-                : secondMetricPhrase(key, t)
-              : something,
-            !!key,
-            onPress,
-            title
-          )
+          trigger(parts[slot] ?? something, !!key, onPress, title)
         }
       />
     );
@@ -175,12 +163,9 @@ const CompareSentence: React.FC<CompareSentenceProps> = ({
     defaultValue: 'When',
   });
   const choice = question.choice;
-  // Sleep variants ("that day") only make sense once both metrics are known.
-  const timingLabel = !choice
-    ? t('compareReport.sentence.sometime', { defaultValue: 'some time' })
-    : question.a && question.b
-      ? timingPhrase({ a: question.a, b: question.b, choice }, t)
-      : genericTimingPhrase(choice, t);
+  const timingLabel =
+    parts.timing ??
+    t('compareReport.sentence.sometime', { defaultValue: 'some time' });
 
   return (
     <View className="flex-row flex-wrap items-center">

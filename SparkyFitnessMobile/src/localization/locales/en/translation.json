@@ -8358,16 +8358,30 @@
     "phrase": {
       "lastNights": "last night's {{metric}}",
       "daysYou": "the number of days you {{verb}}",
-      "your": "your {{metric}}"
+      "your": "your {{metric}}",
+      "yourWhen": "your {{metric}} {{timing}}"
     },
     "timing": {
       "sameDay": "the same day",
       "thatDay": "that day",
       "nextDay": "the next day",
+      "dayAfterYouWoke": "the day after you woke",
       "thatNight": "that night",
       "dayBefore": "the day before",
+      "nightBefore": "the night before",
+      "twoNightsBefore": "two nights before",
+      "sameNight": "the same night",
+      "nextNight": "the next night",
       "sameWeek": "the same week",
       "nextWeek": "the next week"
+    },
+    "yesNo": {
+      "onDays": "On days you {{yes}}",
+      "dayAfter": "The day after you {{yes}}",
+      "dayBefore": "The day before you {{yes}}",
+      "nightAfter": "The night after you {{yes}}",
+      "nightBefore": "The night before you {{yes}}",
+      "twoNightsBefore": "Two nights before you {{yes}}"
     },
     "verdict": {
       "question": "Does {{a}} go with {{b}} {{timing}}?",
@@ -8387,8 +8401,8 @@
       "noLinkDetail": "Over these {{n}}, they didn't move together more than chance would explain.",
       "longerSpan": "A longer span makes a weak link easier to see.",
       "differenceHeadline": "Yes, a difference",
-      "differenceHigher": "On days you {{yes}}, your {{outcome}} was higher than usual.",
-      "differenceLower": "On days you {{yes}}, your {{outcome}} was lower than usual.",
+      "differenceHigher": "{{when}}, {{outcome}} was higher than usual.",
+      "differenceLower": "{{when}}, {{outcome}} was lower than usual.",
       "noDifferenceHeadline": "No clear difference",
       "noDifferenceDetail": "Over these {{n}}, your {{outcome}} wasn't different enough between the two kinds of day to rule out chance.",
       "tooFewHeadline": "Not enough days yet",
@@ -8448,8 +8462,12 @@
     "bars": {
       "yesDays": "Days you {{yes}}",
       "noDays": "Days without {{yesNoun}}",
+      "otherDays": "Other days",
+      "otherNights": "Other nights",
       "meanAndDays_one": "{{mean}} · {{count}} day",
       "meanAndDays_other": "{{mean}} · {{count}} days",
+      "meanAndNights_one": "{{mean}} · {{count}} night",
+      "meanAndNights_other": "{{mean}} · {{count}} nights",
       "diff": "{{diff}} vs. your usual"
     },
     "checks": {

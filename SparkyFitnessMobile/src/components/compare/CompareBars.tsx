@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { compareDisplayValue } from '../../constants/compareMetrics';
 import { formatLocalizedNumber } from '../../localization';
-import { metricNoun, metricPhrase } from '../../utils/compareCopy';
+import { yesNoWording } from '../../utils/compareCopy';
 import type { CompareQuestion } from '../../utils/compareQuestion';
 
 interface CompareBarsProps {
@@ -33,22 +33,17 @@ const CompareBars: React.FC<CompareBarsProps> = ({ response, question }) => {
   const widthPercent = (value: number) =>
     largest > 0 ? Math.round((Math.abs(value) / largest) * 100) : 0;
 
+  const wording = yesNoWording(question, binary.yesKey, t);
   const rows = [
     {
       id: 'yes',
-      label: t('compareReport.bars.yesDays', {
-        defaultValue: 'Days you {{yes}}',
-        yes: metricPhrase(binary.yesKey, t),
-      }),
+      label: wording.yesLabel,
       mean: yesMean,
       count: binary.yesCount,
     },
     {
       id: 'no',
-      label: t('compareReport.bars.noDays', {
-        defaultValue: 'Days without {{yesNoun}}',
-        yesNoun: metricNoun(binary.yesKey, t),
-      }),
+      label: wording.noLabel,
       mean: noMean,
       count: binary.noCount,
     },
@@ -71,11 +66,17 @@ const CompareBars: React.FC<CompareBarsProps> = ({ response, question }) => {
             />
           </View>
           <Text className="text-text-primary text-sm font-semibold mt-1">
-            {t('compareReport.bars.meanAndDays', {
-              defaultValue: '{{mean}} · {{count}} days',
-              mean: oneDecimal(row.mean),
-              count: row.count,
-            })}
+            {wording.nights
+              ? t('compareReport.bars.meanAndNights', {
+                  defaultValue: '{{mean}} · {{count}} nights',
+                  mean: oneDecimal(row.mean),
+                  count: row.count,
+                })
+              : t('compareReport.bars.meanAndDays', {
+                  defaultValue: '{{mean}} · {{count}} days',
+                  mean: oneDecimal(row.mean),
+                  count: row.count,
+                })}
           </Text>
         </View>
       ))}

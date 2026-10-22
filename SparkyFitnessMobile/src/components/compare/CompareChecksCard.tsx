@@ -4,7 +4,7 @@ import type { CompareResult } from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 
 import type { Translator } from '../../constants/reports';
-import { metricNoun } from '../../utils/compareCopy';
+import { metricName } from '../../utils/compareCopy';
 import {
   timingOf,
   type CompareMode,
@@ -15,10 +15,6 @@ interface CompareChecksCardProps {
   result: CompareResult;
   question: CompareQuestion;
   mode: CompareMode;
-}
-
-function upperFirst(text: string): string {
-  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function directionLine(
@@ -34,8 +30,8 @@ function directionLine(
     });
   }
   const { timing } = timingOf(question.choice);
-  const a = upperFirst(metricNoun(question.a, t));
-  const b = upperFirst(metricNoun(question.b, t));
+  const a = metricName(question.a, t);
+  const b = metricName(question.b, t);
   if (timing === 0) {
     return t('compareReport.checks.seemsFirst', {
       defaultValue: '{{metric}} seems to come first',

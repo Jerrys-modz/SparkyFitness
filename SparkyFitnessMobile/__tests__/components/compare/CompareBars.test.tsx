@@ -117,6 +117,99 @@ describe('CompareBars', () => {
     expect(getByText(/^[-−]0\.6 vs\. your usual$/)).toBeTruthy();
   });
 
+  // The yes/no side is dated by the day; a sleep outcome by the wake day.
+  it.each<[CompareQuestion, string, string, string]>([
+    [
+      { a: 'meditated', b: 'mood', choice: 'dayBefore' },
+      'The day before you meditated',
+      'Other days',
+      '6.3 · 28 days',
+    ],
+    [
+      { a: 'meditated', b: 'mood', choice: 'sameDay' },
+      'Days you meditated',
+      'Days without meditating',
+      '6.3 · 28 days',
+    ],
+    [
+      { a: 'meditated', b: 'mood', choice: 'nextDay' },
+      'The day after you meditated',
+      'Other days',
+      '6.3 · 28 days',
+    ],
+    [
+      { a: 'mood', b: 'meditated', choice: 'dayBefore' },
+      'The day after you meditated',
+      'Other days',
+      '6.3 · 28 days',
+    ],
+    [
+      { a: 'mood', b: 'meditated', choice: 'sameDay' },
+      'Days you meditated',
+      'Days without meditating',
+      '6.3 · 28 days',
+    ],
+    [
+      { a: 'mood', b: 'meditated', choice: 'nextDay' },
+      'The day before you meditated',
+      'Other days',
+      '6.3 · 28 days',
+    ],
+    [
+      { a: 'meditated', b: 'timeAsleep', choice: 'dayBefore' },
+      'Two nights before you meditated',
+      'Other nights',
+      '63.0 · 28 nights',
+    ],
+    [
+      { a: 'meditated', b: 'timeAsleep', choice: 'sameDay' },
+      'The night before you meditated',
+      'Other nights',
+      '63.0 · 28 nights',
+    ],
+    [
+      { a: 'meditated', b: 'timeAsleep', choice: 'nextDay' },
+      'The night after you meditated',
+      'Other nights',
+      '63.0 · 28 nights',
+    ],
+    [
+      { a: 'timeAsleep', b: 'meditated', choice: 'dayBefore' },
+      'The night after you meditated',
+      'Other nights',
+      '63.0 · 28 nights',
+    ],
+    [
+      { a: 'timeAsleep', b: 'meditated', choice: 'sameDay' },
+      'The night before you meditated',
+      'Other nights',
+      '63.0 · 28 nights',
+    ],
+    [
+      { a: 'timeAsleep', b: 'meditated', choice: 'nextDay' },
+      'Two nights before you meditated',
+      'Other nights',
+      '63.0 · 28 nights',
+    ],
+  ])('labels %j by its timing', (question, yes, no, noMean) => {
+    const { getByText } = render(
+      <CompareBars
+        response={response({
+          yesKey: 'meditated',
+          yesMean: 72,
+          noMean: 63,
+          yesCount: 12,
+          noCount: 28,
+          diff: 6,
+        })}
+        question={question}
+      />
+    );
+    expect(getByText(yes)).toBeTruthy();
+    expect(getByText(no)).toBeTruthy();
+    expect(getByText(noMean)).toBeTruthy();
+  });
+
   it('renders nothing without a yes/no result', () => {
     const { toJSON } = render(
       <CompareBars response={response(undefined)} question={Q} />

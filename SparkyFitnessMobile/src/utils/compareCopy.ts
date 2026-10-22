@@ -27,125 +27,298 @@ function upperFirst(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+function isYesNo(key: CompareMetricKey): boolean {
+  return COMPARE_METRICS[key].kind === 'binary';
+}
+
 /** The label in lower case, for the middle of a sentence. */
 function plainLabel(key: CompareMetricKey, t: Translator): string {
   return lowerFirst(COMPARE_METRIC_LABELS[key](t));
 }
 
-/** "last night's time asleep" for sleep metrics, else the label in lower case. */
-export function metricPhrase(key: CompareMetricKey, t: Translator): string {
-  const label = plainLabel(key, t);
-  return isSleepMetric(key)
-    ? t('compareReport.phrase.lastNights', {
-        defaultValue: "last night's {{metric}}",
-        metric: label,
-      })
-    : label;
-}
-
 /**
- * The metric as a noun in a sentence. Yes/no metrics are labelled with a
- * past-tense verb ("Meditated"), so they get a gerund here; every other
- * metric reads as its plain phrase.
+ * A yes/no habit as a noun. Its label is a past-tense verb ("Meditated"), so
+ * it reads as a gerund here ("meditating").
  */
-export function metricNoun(key: CompareMetricKey, t: Translator): string {
+function habitNoun(key: CompareMetricKey, t: Translator): string {
   if (key === 'meditated') {
     return t('compareReport.metricNouns.meditated', {
       defaultValue: 'meditating',
     });
   }
-  return metricPhrase(key, t);
+  return plainLabel(key, t);
 }
 
 /**
- * A metric named as a quantity. In week mode a yes/no habit is counted as
- * days per week, so it reads "the number of days you meditated".
+ * The question's first thing. A yes/no habit is a noun; a sleep metric is
+ * last night's by the day, because the timing words are counted from that
+ * night, and plain by the week.
+ */
+function subjectPhrase(
+  key: CompareMetricKey,
+  mode: CompareMode,
+  t: Translator
+): string {
+  if (isYesNo(key)) return habitNoun(key, t);
+  if (mode === 'day' && isSleepMetric(key)) {
+    return t('compareReport.phrase.lastNights', {
+      defaultValue: "last night's {{metric}}",
+      metric: plainLabel(key, t),
+    });
+  }
+  return plainLabel(key, t);
+}
+
+/** The question's second thing: a yes/no habit as a noun, else the plain label. */
+function objectPhrase(key: CompareMetricKey, t: Translator): string {
+  return isYesNo(key) ? habitNoun(key, t) : plainLabel(key, t);
+}
+
+/** A metric named on its own at the start of a line: "Time asleep", "Meditating". */
+export function metricName(key: CompareMetricKey, t: Translator): string {
+  return upperFirst(objectPhrase(key, t));
+}
+
+type Phrase = (t: Translator) => string;
+type Step = 'before' | 'same' | 'after';
+type SleepSides = 'neither' | 'first' | 'second' | 'both';
+
+function stepOf(days: number): Step {
+  if (days < 0) return 'before';
+  return days > 0 ? 'after' : 'same';
+}
+
+function sleepSides(a: CompareMetricKey, b: CompareMetricKey): SleepSides {
+  if (isSleepMetric(a)) return isSleepMetric(b) ? 'both' : 'first';
+  return isSleepMetric(b) ? 'second' : 'neither';
+}
+
+/**
+ * When the second thing is measured, counted from the first, by which side is
+ * a sleep metric. A pairs with B on day d + timing, and sleep is dated by the
+ * day you woke, so a sleep metric's day is the night before it.
+ */
+const DAY_TIMING: Record<SleepSides, Record<Step, Phrase>> = {
+  neither: {
+    before: (t) =>
+      t('compareReport.timing.dayBefore', { defaultValue: 'the day before' }),
+    same: (t) =>
+      t('compareReport.timing.sameDay', { defaultValue: 'the same day' }),
+    after: (t) =>
+      t('compareReport.timing.nextDay', { defaultValue: 'the next day' }),
+  },
+  first: {
+    before: (t) =>
+      t('compareReport.timing.dayBefore', { defaultValue: 'the day before' }),
+    same: (t) =>
+      t('compareReport.timing.thatDay', { defaultValue: 'that day' }),
+    after: (t) =>
+      t('compareReport.timing.dayAfterYouWoke', {
+        defaultValue: 'the day after you woke',
+      }),
+  },
+  second: {
+    before: (t) =>
+      t('compareReport.timing.twoNightsBefore', {
+        defaultValue: 'two nights before',
+      }),
+    same: (t) =>
+      t('compareReport.timing.nightBefore', {
+        defaultValue: 'the night before',
+      }),
+    after: (t) =>
+      t('compareReport.timing.thatNight', { defaultValue: 'that night' }),
+  },
+  both: {
+    before: (t) =>
+      t('compareReport.timing.nightBefore', {
+        defaultValue: 'the night before',
+      }),
+    same: (t) =>
+      t('compareReport.timing.sameNight', { defaultValue: 'the same night' }),
+    after: (t) =>
+      t('compareReport.timing.nextNight', { defaultValue: 'the next night' }),
+  },
+};
+
+function timingWords(
+  choice: CompareTimingChoice,
+  sides: SleepSides,
+  t: Translator
+): string {
+  const { mode, timing } = timingOf(choice);
+  if (mode === 'week') {
+    return timing === 1
+      ? t('compareReport.timing.nextWeek', { defaultValue: 'the next week' })
+      : t('compareReport.timing.sameWeek', { defaultValue: 'the same week' });
+  }
+  return DAY_TIMING[sides][stepOf(timing)](t);
+}
+
+function timingPhrase(q: CompareQuestion, t: Translator): string {
+  return timingWords(q.choice, sleepSides(q.a, q.b), t);
+}
+
+/**
+ * The three filled-in parts of the question sentence, for whichever are
+ * chosen. The sleep timing words need both metrics, so until both are picked
+ * the timing reads as plain days.
+ */
+export function questionParts(
+  q: Partial<CompareQuestion>,
+  t: Translator
+): { a?: string; b?: string; timing?: string } {
+  const mode = q.choice ? timingOf(q.choice).mode : 'day';
+  return {
+    a: q.a ? subjectPhrase(q.a, mode, t) : undefined,
+    b: q.b ? objectPhrase(q.b, t) : undefined,
+    timing: q.choice
+      ? timingWords(q.choice, q.a && q.b ? sleepSides(q.a, q.b) : 'neither', t)
+      : undefined,
+  };
+}
+
+export function sentenceText(q: CompareQuestion, t: Translator): string {
+  return t('compareReport.verdict.question', {
+    defaultValue: 'Does {{a}} go with {{b}} {{timing}}?',
+    a: subjectPhrase(q.a, timingOf(q.choice).mode, t),
+    b: objectPhrase(q.b, t),
+    timing: timingPhrase(q, t),
+  });
+}
+
+/**
+ * A metric named as a quantity in a verdict. By the week a yes/no habit is
+ * counted as days, so it reads "the number of days you meditated".
  */
 function quantityPhrase(
   key: CompareMetricKey,
   mode: CompareMode,
   t: Translator
 ): string {
-  if (mode === 'week' && COMPARE_METRICS[key].kind === 'binary') {
+  if (mode === 'week' && isYesNo(key)) {
     return t('compareReport.phrase.daysYou', {
       defaultValue: 'the number of days you {{verb}}',
-      verb: metricPhrase(key, t),
+      verb: plainLabel(key, t),
     });
   }
-  return metricPhrase(key, t);
+  return subjectPhrase(key, mode, t);
 }
 
-/** Same as quantityPhrase, but a plain metric gets "your" in front. */
+/** Same as quantityPhrase for the second thing, with "your" in front of a plain metric. */
 function yourQuantityPhrase(
   key: CompareMetricKey,
   mode: CompareMode,
   t: Translator
 ): string {
-  if (mode === 'week' && COMPARE_METRICS[key].kind === 'binary') {
-    return quantityPhrase(key, mode, t);
-  }
+  if (mode === 'week' && isYesNo(key)) return quantityPhrase(key, mode, t);
   return t('compareReport.phrase.your', {
     defaultValue: 'your {{metric}}',
     metric: plainLabel(key, t),
   });
 }
 
-/** The second metric in the question sentence: a noun for yes/no, else the plain label. */
-export function secondMetricPhrase(
-  key: CompareMetricKey,
+/** How a yes/no comparison by the day is worded, from the days of the habit. */
+export interface YesNoWording {
+  /** Opens the verdict: "On days you meditated", "The day after you meditated". */
+  when: string;
+  /** The outcome, with its night when it is a sleep metric: "your time asleep that night". */
+  outcome: string;
+  /** The bar for the habit's days, and the bar for the rest. */
+  yesLabel: string;
+  noLabel: string;
+  /** A sleep outcome is counted in nights rather than days. */
+  nights: boolean;
+}
+
+/**
+ * The outcome is measured on the habit's day plus `offset`: the timing when
+ * the habit is the first thing, minus it when the habit is the second.
+ */
+export function yesNoWording(
+  q: CompareQuestion,
+  yesKey: CompareMetricKey,
   t: Translator
-): string {
-  return COMPARE_METRICS[key].kind === 'binary'
-    ? metricNoun(key, t)
-    : plainLabel(key, t);
-}
+): YesNoWording {
+  const outcomeKey = yesKey === q.a ? q.b : q.a;
+  const { timing } = timingOf(q.choice);
+  const step = stepOf(yesKey === q.a ? timing : -timing);
+  const yes = plainLabel(yesKey, t);
 
-/** The timing words that don't depend on which metrics are chosen. */
-export function genericTimingPhrase(
-  choice: CompareTimingChoice,
-  t: Translator
-): string {
-  switch (choice) {
-    case 'sameDay':
-      return t('compareReport.timing.sameDay', {
-        defaultValue: 'the same day',
-      });
-    case 'nextDay':
-      return t('compareReport.timing.nextDay', {
-        defaultValue: 'the next day',
-      });
-    case 'dayBefore':
-      return t('compareReport.timing.dayBefore', {
-        defaultValue: 'the day before',
-      });
-    case 'sameWeek':
-      return t('compareReport.timing.sameWeek', {
-        defaultValue: 'the same week',
-      });
-    case 'nextWeek':
-      return t('compareReport.timing.nextWeek', {
-        defaultValue: 'the next week',
-      });
+  if (isSleepMetric(outcomeKey)) {
+    // Dated by the day you woke, so the night is counted from the habit's day.
+    const yesLabel =
+      step === 'after'
+        ? t('compareReport.yesNo.nightAfter', {
+            defaultValue: 'The night after you {{yes}}',
+            yes,
+          })
+        : step === 'same'
+          ? t('compareReport.yesNo.nightBefore', {
+              defaultValue: 'The night before you {{yes}}',
+              yes,
+            })
+          : t('compareReport.yesNo.twoNightsBefore', {
+              defaultValue: 'Two nights before you {{yes}}',
+              yes,
+            });
+    return {
+      when: t('compareReport.yesNo.onDays', {
+        defaultValue: 'On days you {{yes}}',
+        yes,
+      }),
+      outcome: t('compareReport.phrase.yourWhen', {
+        defaultValue: 'your {{metric}} {{timing}}',
+        metric: plainLabel(outcomeKey, t),
+        timing: DAY_TIMING.second[step](t),
+      }),
+      yesLabel,
+      noLabel: t('compareReport.bars.otherNights', {
+        defaultValue: 'Other nights',
+      }),
+      nights: true,
+    };
   }
-}
 
-export function timingPhrase(q: CompareQuestion, t: Translator): string {
-  if (q.choice === 'sameDay' && isSleepMetric(q.a)) {
-    return t('compareReport.timing.thatDay', { defaultValue: 'that day' });
-  }
-  if (q.choice === 'nextDay' && isSleepMetric(q.b)) {
-    return t('compareReport.timing.thatNight', { defaultValue: 'that night' });
-  }
-  return genericTimingPhrase(q.choice, t);
-}
-
-export function sentenceText(q: CompareQuestion, t: Translator): string {
-  return t('compareReport.verdict.question', {
-    defaultValue: 'Does {{a}} go with {{b}} {{timing}}?',
-    a: metricNoun(q.a, t),
-    b: secondMetricPhrase(q.b, t),
-    timing: timingPhrase(q, t),
+  const outcome = t('compareReport.phrase.your', {
+    defaultValue: 'your {{metric}}',
+    metric: plainLabel(outcomeKey, t),
   });
+  if (step === 'same') {
+    return {
+      when: t('compareReport.yesNo.onDays', {
+        defaultValue: 'On days you {{yes}}',
+        yes,
+      }),
+      outcome,
+      yesLabel: t('compareReport.bars.yesDays', {
+        defaultValue: 'Days you {{yes}}',
+        yes,
+      }),
+      noLabel: t('compareReport.bars.noDays', {
+        defaultValue: 'Days without {{yesNoun}}',
+        yesNoun: habitNoun(yesKey, t),
+      }),
+      nights: false,
+    };
+  }
+  const shifted =
+    step === 'after'
+      ? t('compareReport.yesNo.dayAfter', {
+          defaultValue: 'The day after you {{yes}}',
+          yes,
+        })
+      : t('compareReport.yesNo.dayBefore', {
+          defaultValue: 'The day before you {{yes}}',
+          yes,
+        });
+  return {
+    when: shifted,
+    outcome,
+    yesLabel: shifted,
+    noLabel: t('compareReport.bars.otherDays', { defaultValue: 'Other days' }),
+    nights: false,
+  };
 }
 
 function units(count: number, mode: CompareMode, t: Translator): string {
@@ -181,8 +354,8 @@ function strengthWord(
 }
 
 function binaryKey(q: CompareQuestion): CompareMetricKey | null {
-  if (COMPARE_METRICS[q.a].kind === 'binary') return q.a;
-  if (COMPARE_METRICS[q.b].kind === 'binary') return q.b;
+  if (isYesNo(q.a)) return q.a;
+  if (isYesNo(q.b)) return q.b;
   return null;
 }
 
@@ -208,7 +381,7 @@ export function verdictCopy(
   if (result.status === 'not_enough') {
     const needed = units(result.needed, mode, t);
     const yes = binaryKey(q);
-    const yesText = yes ? metricPhrase(yes, t) : '';
+    const yesText = yes ? plainLabel(yes, t) : '';
     switch (result.reason) {
       case 'noVariation': {
         const flat = allEqual(response.a.values)
@@ -225,7 +398,7 @@ export function verdictCopy(
                 defaultValue:
                   "{{metric}} was the same every time over this span, so there's nothing to compare it with.",
                 metric: upperFirst(
-                  mode === 'week' && COMPARE_METRICS[flat].kind === 'binary'
+                  mode === 'week' && isYesNo(flat)
                     ? quantityPhrase(flat, mode, t)
                     : COMPARE_METRIC_LABELS[flat](t)
                 ),
@@ -252,7 +425,7 @@ export function verdictCopy(
         return {
           headline: t('compareReport.verdict.fewNoHeadline', {
             defaultValue: 'Not enough days without {{yesNoun}} yet',
-            yesNoun: yes ? metricNoun(yes, t) : '',
+            yesNoun: yes ? habitNoun(yes, t) : '',
           }),
           detail: t('compareReport.verdict.fewNoDetail', {
             defaultValue:
@@ -271,10 +444,7 @@ export function verdictCopy(
         const aCount = Object.keys(response.a.values).length;
         const bCount = Object.keys(response.b.values).length;
         const weaker = aCount <= bCount ? q.a : q.b;
-        const weakerText =
-          COMPARE_METRICS[weaker].kind === 'binary'
-            ? metricNoun(weaker, t)
-            : plainLabel(weaker, t);
+        const weakerText = objectPhrase(weaker, t);
         const missing = Math.max(result.needed - result.n, 1);
         parts.push(
           mode === 'week'
@@ -342,7 +512,7 @@ export function verdictCopy(
           }) + hint,
       };
     }
-    const yes = metricPhrase(yesKey, t);
+    const wording = yesNoWording(q, yesKey, t);
     return {
       headline: t('compareReport.verdict.differenceHeadline', {
         defaultValue: 'Yes, a difference',
@@ -350,16 +520,14 @@ export function verdictCopy(
       detail:
         diff >= 0
           ? t('compareReport.verdict.differenceHigher', {
-              defaultValue:
-                'On days you {{yes}}, your {{outcome}} was higher than usual.',
-              yes,
-              outcome,
+              defaultValue: '{{when}}, {{outcome}} was higher than usual.',
+              when: wording.when,
+              outcome: wording.outcome,
             })
           : t('compareReport.verdict.differenceLower', {
-              defaultValue:
-                'On days you {{yes}}, your {{outcome}} was lower than usual.',
-              yes,
-              outcome,
+              defaultValue: '{{when}}, {{outcome}} was lower than usual.',
+              when: wording.when,
+              outcome: wording.outcome,
             }),
     };
   }

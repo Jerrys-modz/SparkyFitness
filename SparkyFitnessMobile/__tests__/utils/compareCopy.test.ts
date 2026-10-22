@@ -1,10 +1,9 @@
 import type { CompareResponse, CompareResult } from '@workspace/shared';
 import i18n, { initializeI18n } from '../../src/localization/i18n';
 import {
-  metricPhrase,
+  questionParts,
   sentenceText,
   statsLine,
-  timingPhrase,
   verdictCopy,
 } from '../../src/utils/compareCopy';
 import {
@@ -65,33 +64,42 @@ afterAll(() => {
 });
 
 describe('phrases', () => {
-  test('metricPhrase', () => {
-    expect(metricPhrase('timeAsleep', t)).toBe("last night's time asleep");
-    expect(metricPhrase('overnightHrv', t)).toMatch(/^last night's/);
-    expect(metricPhrase('energy', t)).toBe('energy');
-    expect(metricPhrase('calories', t)).toBe('calories');
+  test("a sleep metric is last night's by the day and plain by the week", () => {
+    expect(questionParts({ a: 'timeAsleep', choice: 'sameDay' }, t).a).toBe(
+      "last night's time asleep"
+    );
+    expect(
+      questionParts({ a: 'overnightHrv', choice: 'nextDay' }, t).a
+    ).toMatch(/^last night's/);
+    expect(questionParts({ a: 'timeAsleep', choice: 'sameWeek' }, t).a).toBe(
+      'time asleep'
+    );
+    expect(questionParts({ a: 'energy' }, t).a).toBe('energy');
+    expect(questionParts({ b: 'timeAsleep' }, t).b).toBe('time asleep');
+    expect(questionParts({ b: 'meditated' }, t).b).toBe('meditating');
   });
 
-  test('timingPhrase', () => {
+  test('the timing reads as plain days until both metrics are picked', () => {
     expect(
-      timingPhrase({ a: 'caffeine', b: 'timeAsleep', choice: 'nextDay' }, t)
-    ).toBe('that night');
-    expect(timingPhrase(DAY_Q, t)).toBe('that day');
-    expect(
-      timingPhrase({ a: 'calories', b: 'energy', choice: 'sameDay' }, t)
+      questionParts({ a: 'timeAsleep', choice: 'sameDay' }, t).timing
     ).toBe('the same day');
     expect(
-      timingPhrase({ a: 'calories', b: 'energy', choice: 'nextDay' }, t)
-    ).toBe('the next day');
+      questionParts({ a: 'timeAsleep', b: 'energy', choice: 'sameDay' }, t)
+        .timing
+    ).toBe('that day');
     expect(
-      timingPhrase({ a: 'calories', b: 'energy', choice: 'dayBefore' }, t)
-    ).toBe('the day before');
-    expect(
-      timingPhrase({ a: 'calories', b: 'energy', choice: 'sameWeek' }, t)
+      questionParts({ a: 'calories', b: 'energy', choice: 'sameWeek' }, t)
+        .timing
     ).toBe('the same week');
     expect(
-      timingPhrase({ a: 'calories', b: 'energy', choice: 'nextWeek' }, t)
+      questionParts({ a: 'calories', b: 'energy', choice: 'nextWeek' }, t)
+        .timing
     ).toBe('the next week');
+    expect(questionParts({}, t)).toEqual({
+      a: undefined,
+      b: undefined,
+      timing: undefined,
+    });
   });
 
   test('sentenceText', () => {
@@ -136,7 +144,7 @@ describe('week-mode habits read as days per week', () => {
       choice: 'sameWeek',
     };
     expect(verdictCopy(response(linked, q), q, '1y', t).detail).toBe(
-      "When last night's sleep score was higher than usual, the number of days you meditated the same week was higher than usual too."
+      'When sleep score was higher than usual, the number of days you meditated the same week was higher than usual too.'
     );
   });
 
