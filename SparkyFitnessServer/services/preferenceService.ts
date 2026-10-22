@@ -247,8 +247,10 @@ const OWNER_ONLY_PREFERENCE_FIELDS = [
   'hr_zone_method',
   'hr_zone_custom_floors',
 ] as const;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getUserPreferences(authenticatedUserId: any, targetUserId: any) {
+async function getUserPreferences(
+  authenticatedUserId: string | undefined,
+  targetUserId: string
+) {
   try {
     const preferences =
       await preferenceRepository.getUserPreferences(targetUserId);
