@@ -956,8 +956,48 @@ describe('dispatchAiRequest — text-only structured request shapes', () => {
     expect(body.stream).toBe(false);
     // Ollama takes format: 'json' and reads the schema from the prompt.
     expect(body.format).toBe('json');
+    expect(body.think).toBe(false);
     const message = (body.messages as { content: string }[])[0];
     expect(message.content).toContain('conforms to this JSON Schema');
+  });
+
+  it('ollama disables thinking and requests json format when parseJson is true', async () => {
+    const m = mockFetch(ollamaBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+        jsonSchema: undefined,
+        schemaName: undefined,
+        parseJson: true,
+      })
+    );
+    const { body } = captured(m);
+    expect(body.format).toBe('json');
+    expect(body.think).toBe(false);
+  });
+
+  it('ollama omits format and think for plain-text requests', async () => {
+    const m = mockFetch(ollamaBody('plain text'));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+        jsonSchema: undefined,
+        schemaName: undefined,
+      })
+    );
+    const { body } = captured(m);
+    expect(body.format).toBeUndefined();
+    expect(body.think).toBeUndefined();
   });
 
   it('ollama sends a bearer token when the provider has an api key', async () => {
