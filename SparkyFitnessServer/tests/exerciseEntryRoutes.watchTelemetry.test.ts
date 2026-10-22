@@ -74,6 +74,7 @@ describe('POST /exercise-entries/:id/watch-telemetry', () => {
       ENTRY_ID,
       hrSamples,
       undefined,
+      undefined,
       undefined
     );
   });
