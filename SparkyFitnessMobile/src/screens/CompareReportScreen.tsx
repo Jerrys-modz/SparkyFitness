@@ -1,11 +1,11 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
-import { NavigationContext } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useCSSVariable } from 'uniwind';
 
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useCompare } from '../hooks/useCompare';
+import { useTodayOnFocus } from '../hooks/useTodayOnFocus';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import ReportScreenLayout from '../components/reports/ReportScreenLayout';
 import CompareSentence from '../components/compare/CompareSentence';
@@ -14,7 +14,6 @@ import CompareStartState from '../components/compare/CompareStartState';
 import CompareAnswerCard from '../components/compare/CompareAnswerCard';
 import CompareChart from '../components/compare/CompareChart';
 import CompareChecksCard from '../components/compare/CompareChecksCard';
-import { getTodayDate } from '../utils/dateUtils';
 import {
   DEFAULT_COMPARE_SPAN,
   compareWindow,
@@ -47,15 +46,7 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
   const [customs, setCustoms] = useState<
     Record<CompareMode, CustomRange | null>
   >({ day: null, week: null });
-  const [today, setToday] = useState(getTodayDate);
-  const navigation = useContext(NavigationContext);
-  useEffect(() => {
-    if (!navigation) return;
-    return navigation.addListener('focus', () => {
-      const now = getTodayDate();
-      setToday((current) => (current === now ? current : now));
-    });
-  }, [navigation]);
+  const today = useTodayOnFocus();
 
   const mode: CompareMode = question.choice
     ? timingOf(question.choice).mode
