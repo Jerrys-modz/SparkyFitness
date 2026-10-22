@@ -39,6 +39,11 @@ export interface WatchRunPayload {
    * on the wrist; absent when they kept the watch's figure.
    */
   estimatedDistanceMeters?: number;
+  /**
+   * Steps over the moving time, counted on the watch. Absent on a run from an
+   * older watch build, which leaves the phone to ask Apple Health instead.
+   */
+  steps?: number;
 }
 
 /** Stands in for "no altitude": a property list cannot carry null. */
@@ -107,6 +112,7 @@ export function parseWatchRunPayload(raw: unknown): WatchRunPayload | null {
     ...(finite(p.estimatedDistanceMeters) && p.estimatedDistanceMeters > 0
       ? { estimatedDistanceMeters: p.estimatedDistanceMeters }
       : {}),
+    ...(finite(p.steps) && p.steps > 0 ? { steps: Math.round(p.steps) } : {}),
   };
 }
 
