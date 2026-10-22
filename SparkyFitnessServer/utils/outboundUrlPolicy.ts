@@ -273,7 +273,9 @@ function assertLiteralHostnameAllowed(
   }
 }
 
-function createGuardedLookup(policy: AiNetworkPolicy): net.LookupFunction {
+export function createGuardedLookup(
+  policy: AiNetworkPolicy
+): net.LookupFunction {
   return (hostname, options, callback) => {
     resolveHostnameForOutboundConnection(hostname, policy)
       .then((address) => {

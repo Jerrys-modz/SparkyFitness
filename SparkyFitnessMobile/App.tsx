@@ -50,6 +50,7 @@ import {
   SafeRoutes,
   SafeRouteDetail,
   SafeRouteDraw,
+  SafeRouteGenerate,
   SafeRunProgramRace,
   SafeRunProgramWorkout,
   SafeMealPlanForm,
@@ -628,6 +629,11 @@ function AppContent() {
             name="RouteDraw"
             component={SafeRouteDraw}
             options={createStackScreenOptions(t('screens.routeDraw', { defaultValue: 'Draw a route' }), { headerBackTitle: t('screens.routes', { defaultValue: 'Routes' }) })}
+          />
+          <Stack.Screen
+            name="RouteGenerate"
+            component={SafeRouteGenerate}
+            options={createStackScreenOptions(t('screens.routeGenerate', { defaultValue: 'Generate a route' }), { headerBackTitle: t('screens.routes', { defaultValue: 'Routes' }) })}
           />
           <Stack.Screen
             name="PersonalRecords"

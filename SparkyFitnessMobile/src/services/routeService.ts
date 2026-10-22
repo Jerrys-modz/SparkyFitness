@@ -5,18 +5,26 @@ import {
   ROUTE_MAX_GPX_CHARS,
   serializeGpx,
   type CreateRouteBody,
+  type GeneratedRoutePreview,
+  type GenerateRouteBody,
   type Route,
   type RouteSummary,
   type UpdateRouteBody,
 } from '@workspace/shared';
 import { queryClient } from '../hooks/queryClient';
-import { routeQueryKey, routesQueryKey } from '../hooks/queryKeys';
+import {
+  routeGenerationCapabilitiesQueryKey,
+  routeQueryKey,
+  routesQueryKey,
+} from '../hooks/queryKeys';
 import { shareGpxFile } from './gpxExport';
 import {
   createRoute,
   createRouteFromActivity,
   deleteRoute,
   fetchRoute,
+  fetchRouteGenerationCapabilities,
+  generateRoute,
   fetchRoutes,
   importGpxRoute,
   updateRoute,
@@ -51,15 +59,58 @@ export function useRoute(id: string): {
   return { route: data, isLoading, isError, refetch };
 }
 
+const CAPABILITIES_STALE_MS = 10 * 60 * 1000;
+
+/**
+ * Whether the server has a routing engine, so screens can hide route
+ * generation when it does not. Cached for ten minutes; a failed check counts as
+ * unavailable (and is not retried) so the feature stays hidden rather than
+ * half working.
+ */
+export function useRouteGenerationAvailable(): {
+  available: boolean;
+  isLoading: boolean;
+} {
+  const { data, isLoading } = useQuery({
+    queryKey: routeGenerationCapabilitiesQueryKey,
+    queryFn: fetchRouteGenerationCapabilities,
+    staleTime: CAPABILITIES_STALE_MS,
+    retry: false,
+  });
+  return { available: data?.available === true, isLoading };
+}
+
+/** Asks the routing engine for a preview route. Nothing is saved. */
+export async function generateRoutePreview(
+  body: GenerateRouteBody
+): Promise<GeneratedRoutePreview> {
+  const { route } = await generateRoute(body);
+  return route;
+}
+
 const refreshRoutes = () =>
   queryClient.invalidateQueries({ queryKey: routesQueryKey });
 
 export async function saveDrawnRoute(
-  input: Omit<CreateRouteBody, 'activity'> & Partial<CreateRouteBody>
+  input: Pick<CreateRouteBody, 'name' | 'points'> & Partial<CreateRouteBody>
 ): Promise<Route> {
   const { route } = await createRoute(input);
   await refreshRoutes();
   return route;
+}
+
+/** Saves a generated preview as it came back, with its turn cues. */
+export async function saveGeneratedRoute(
+  preview: GeneratedRoutePreview,
+  name: string
+): Promise<Route> {
+  return saveDrawnRoute({
+    name,
+    activity: preview.activity,
+    points: preview.points,
+    cues: preview.cues,
+    source: 'generated',
+  });
 }
 
 /**
