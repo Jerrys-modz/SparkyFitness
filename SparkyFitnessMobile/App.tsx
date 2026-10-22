@@ -145,6 +145,7 @@ import {
   SafeNutritionReport,
   SafeSleepAnalytics,
   SafeMoodReport,
+  SafeCompareReport,
   SafeHydrationReport,
   SafeSubstancesReport,
   SafeMeasurementsReport,
@@ -937,6 +938,11 @@ function AppContent() {
             name="MoodReport"
             component={SafeMoodReport}
             options={createStackScreenOptions(t('screens.moodReport', { defaultValue: 'Mood' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
+            name="CompareReport"
+            component={SafeCompareReport}
+            options={createStackScreenOptions(t('screens.compareReport', { defaultValue: 'Compare' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
             name="HydrationReport"

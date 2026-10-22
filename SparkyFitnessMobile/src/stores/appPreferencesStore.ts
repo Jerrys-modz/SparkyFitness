@@ -53,6 +53,10 @@ import {
   clampTreadmillPercent,
   type TreadmillCorrection,
 } from '../utils/treadmillCorrection';
+import {
+  withRecentQuestion,
+  type CompareQuestion,
+} from '../utils/compareQuestion';
 
 const STORE_KEY = '@SparkyFitness/app-preferences';
 const STORE_VERSION = 1;
@@ -169,6 +173,7 @@ export const PREFERENCE_DEFAULTS = {
   hiddenReports: [] as ReportKey[],
   reportDefaultRange: DEFAULT_REPORT_RANGE as TrendRange,
   hiddenReportSections: [] as ReportSectionKey[],
+  compareRecentQuestions: [] as CompareQuestion[],
   reportNutrientOrder: [] as string[],
   shownReportNutrients: [...DEFAULT_REPORT_NUTRIENTS] as string[],
   foodSearchOwnershipFilter: 'all' as OwnershipFilter,
@@ -286,6 +291,9 @@ export type AppPreferencesData = {
   reportDefaultRange: TrendRange;
   /** Sections turned off inside a report, namespaced by report (`sleep.stages`). */
   hiddenReportSections: ReportSectionKey[];
+  /** Recent Compare questions, newest first (at most five). */
+  compareRecentQuestions: CompareQuestion[];
+  addCompareRecentQuestion: (q: CompareQuestion) => void;
   /** Order of the nutrients the Nutrition report can average; unknown ones follow in catalog order. */
   reportNutrientOrder: string[];
   /** Nutrients (standard keys or custom names) the Nutrition report's "Your nutrients" card shows. */
@@ -600,6 +608,13 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
           hiddenReports: withMembership(state.hiddenReports, key, isHidden),
         })),
       setReportDefaultRange: (value) => set({ reportDefaultRange: value }),
+      addCompareRecentQuestion: (q) =>
+        set((state) => ({
+          compareRecentQuestions: withRecentQuestion(
+            state.compareRecentQuestions,
+            q
+          ),
+        })),
       setReportSectionHidden: (key, isHidden) =>
         set((state) => ({
           hiddenReportSections: withMembership(
@@ -745,6 +760,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         hiddenReports: state.hiddenReports,
         reportDefaultRange: state.reportDefaultRange,
         hiddenReportSections: state.hiddenReportSections,
+        compareRecentQuestions: state.compareRecentQuestions,
         reportNutrientOrder: state.reportNutrientOrder,
         shownReportNutrients: state.shownReportNutrients,
         foodSearchOwnershipFilter: state.foodSearchOwnershipFilter,
