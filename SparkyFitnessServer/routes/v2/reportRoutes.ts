@@ -262,7 +262,7 @@ router.get('/workout-days', getWorkoutDaysHandler);
  *           format: date
  *     responses:
  *       200:
- *         description: The comparison result, or a not-enough-data answer.
+ *         description: The comparison result, or a not-enough-data answer. `through` (YYYY-MM-DD) is the last day included; today, or the current week in week mode, is left out until it is over.
  *       400:
  *         description: Validation error (unknown metric, same metric twice, span over 180 days or 366 in week mode, metric not offered weekly).
  *       403:

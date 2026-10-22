@@ -115,6 +115,9 @@ export const compareResponseSchema = z.object({
     .describe(
       "Each side's values as the analysis paired them: deviations from its own normal. In day mode a yes/no side's values are its raw 0/1 flags, not deviations."
     ),
+  through: dayString.describe(
+    "Last day included; today — or the current week — is left out until it's over"
+  ),
   result: compareResultSchema,
 });
 export type CompareResponse = z.infer<typeof compareResponseSchema>;

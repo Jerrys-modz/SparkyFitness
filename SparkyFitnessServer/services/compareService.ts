@@ -88,7 +88,7 @@ export async function getCompare(
   const today = todayInZone(tz);
   const firstDayOfWeek =
     query.mode === 'week' ? await loadFirstDayOfWeek(userId) : 0;
-  const { from, to } = fetchRange(query, today, firstDayOfWeek);
+  const { from, to, through } = fetchRange(query, today, firstDayOfWeek);
   const ctx: MetricContext = {
     tz,
     maxHeartRate:
@@ -125,6 +125,7 @@ export async function getCompare(
     a: { key: query.a, values: between(sides.a.raw, first, last) },
     b: { key: query.b, values: between(sides.b.raw, first, last) },
     deviations: { a: sides.a.values, b: sides.b.values },
+    through,
     result,
   };
 }
@@ -436,14 +437,18 @@ function earliest(a: string, b: string): string {
   return compareDays(a, b) <= 0 ? a : b;
 }
 
-/** The days to load: the range with the history the analysis needs, ending before today (day mode) or this week (week mode). */
+/**
+ * The days to load: the range with the history the analysis needs, ending before today (day
+ * mode) or this week (week mode). `through` is the last day the answer includes: that last
+ * finished day, or the query's end if earlier.
+ */
 function fetchRange(
   query: CompareQuery,
   today: string,
   firstDayOfWeek: number
-): { from: string; to: string } {
+): { from: string; to: string; through: string } {
   if (query.mode === 'week') {
-    const thisWeek = weekStartOf(today, firstDayOfWeek);
+    const lastFinished = addDays(weekStartOf(today, firstDayOfWeek), -1);
     return {
       from: addDays(
         weekStartOf(query.start, firstDayOfWeek),
@@ -451,13 +456,16 @@ function fetchRange(
       ),
       to: earliest(
         addDays(weekStartOf(query.end, firstDayOfWeek), WEEK_AFTER_DAYS),
-        addDays(thisWeek, -1)
+        lastFinished
       ),
+      through: earliest(query.end, lastFinished),
     };
   }
+  const lastFinished = addDays(today, -1);
   return {
     from: addDays(query.start, -DAY_HISTORY_DAYS),
-    to: earliest(addDays(query.end, 1), addDays(today, -1)),
+    to: earliest(addDays(query.end, 1), lastFinished),
+    through: earliest(query.end, lastFinished),
   };
 }
 

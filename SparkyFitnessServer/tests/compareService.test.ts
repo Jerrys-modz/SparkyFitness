@@ -608,6 +608,54 @@ describe('getCompare', () => {
     expect('2026-10-19' in response.deviations.a).toBe(false);
   });
 
+  it('getCompare says it runs through yesterday in day mode', async () => {
+    const response = await getCompare(USER, {
+      a: 'steps',
+      b: 'weightTrend',
+      mode: 'day',
+      timing: 0,
+      start: '2026-09-22',
+      end: TODAY,
+    });
+    expect(response.through).toBe('2026-10-20');
+  });
+
+  it('getCompare says it runs through the day before this week in week mode', async () => {
+    vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue({
+      first_day_of_week: 1,
+    });
+    const response = await getCompare(USER, {
+      a: 'steps',
+      b: 'weightTrend',
+      mode: 'week',
+      timing: 0,
+      start: '2026-07-01',
+      end: TODAY,
+    });
+    expect(response.through).toBe('2026-10-18');
+  });
+
+  it('getCompare caps through at an end earlier than yesterday', async () => {
+    const day = await getCompare(USER, {
+      a: 'steps',
+      b: 'weightTrend',
+      mode: 'day',
+      timing: 0,
+      start: '2026-08-01',
+      end: '2026-09-10',
+    });
+    expect(day.through).toBe('2026-09-10');
+    const week = await getCompare(USER, {
+      a: 'steps',
+      b: 'weightTrend',
+      mode: 'week',
+      timing: 0,
+      start: '2026-07-01',
+      end: '2026-09-10',
+    });
+    expect(week.through).toBe('2026-09-10');
+  });
+
   it('getCompare loads nothing for a range that has not happened yet', async () => {
     const response = await getCompare(USER, {
       a: 'mood',

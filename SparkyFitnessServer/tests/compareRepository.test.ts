@@ -101,6 +101,7 @@ describe('compare response schema', () => {
         a: { key: 'mood', values: { '2026-01-01': 3 } },
         b: { key: 'steps', values: {} },
         deviations: { a: {}, b: {} },
+        through: '2026-01-31',
         result: {
           status: 'not_enough',
           n: 0,
@@ -110,6 +111,25 @@ describe('compare response schema', () => {
         },
       }).success
     ).toBe(true);
+  });
+
+  it('documents the through day and requires it', () => {
+    expect(compareResponseSchema.shape.through.description).toMatch(
+      /Last day included; today — or the current week — is left out until it's over/
+    );
+    expect(
+      compareResponseSchema.safeParse({
+        a: { key: 'mood', values: {} },
+        b: { key: 'steps', values: {} },
+        deviations: { a: {}, b: {} },
+        result: {
+          status: 'not_enough',
+          n: 0,
+          needed: 14,
+          checks: { ownNormal: true },
+        },
+      }).success
+    ).toBe(false);
   });
 
   it('says which yes/no group is short', () => {
@@ -255,6 +275,8 @@ describe('compareRepository', () => {
       )
     ).toBe('2025-12-01');
     expect(sqlOf()).toContain('MIN(entry_date)');
+    expect(sqlOf()).toContain('FROM mindfulness_sessions');
+    expect(sqlOf()).toMatch(/WHERE user_id = \$1\s*$/);
     expect(paramsOf()).toEqual(['u1']);
     query.mockClear();
     expect(
@@ -298,6 +320,11 @@ describe('compareRepository', () => {
       )
     ).toBe('2025-11-03');
     expect(sqlOf()).toContain('MIN(entry_date)');
+    expect(sqlOf()).toContain('FROM exercise_entries');
+    expect(sqlOf()).toMatch(
+      /WHERE user_id = \$1\s+AND exercise_name != 'Active Calories'\s*$/
+    );
+    expect(paramsOf()).toEqual(['u1']);
   });
 
   it('check-ins map weight and steps', async () => {
