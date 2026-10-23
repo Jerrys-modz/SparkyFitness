@@ -1,17 +1,17 @@
 # Google Health Integration
 
-The Google Health integration allows you to sync fitness metrics, sleep data, and health measurements from your Google Health account directly to SparkyFitness. There are two ways SparkyFitness can sync data with Health Connect. 
+The Google Health integration allows you to sync fitness metrics, sleep data, and health measurements from your Google Health account directly to SparkyFitness. There are two ways SparkyFitness can sync health data:
 
 ## Mobile App
 
-The [Mobile App](/mobile-app/mobile-app) allows you to sync your data from Health Connect without creating a Google Cloud project.
+The [Mobile App](/mobile-app/mobile-app) allows you to sync your data directly via **Android Health Connect** without creating a Google Cloud project.
 
 
 ## Google Cloud project
 
 ### Prerequisites
-- A Google account with a compatible wearable (Fitbit, Wear OS, or third-party device that syncs to Google Health Connect)
-- A Google Cloud project (free tier is sufficient)
+- A Google account with a compatible wearable (Fitbit, Wear OS, or third-party device that syncs to Health Connect or Fitbit). For Fitbit devices, ensure your Fitbit account has been migrated or linked to your Google Account.
+- A Google Cloud project with the **Google Health API** enabled (free tier is sufficient)
 
 ---
 

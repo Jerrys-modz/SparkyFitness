@@ -23,7 +23,7 @@ The below reports are available when using SparkyFitness in a web browser.
 | **[Sleep](#sleep)** | Sleep insights | Wearable / health sync |
 | **[Stress](#stress)** | Stress and mood trends | Wearable / health sync |
 | **[Medications](#medications)** | Medication adherence, symptoms, and reporting for your health professionals | Medication and symptom logs |
-| **[Table View](#table)** | Raw daily data, ready for export  | Everything above |
+| **[Table View](#table)** | Raw food diary, exercise, body measurement, and custom measurement data, ready for export | Food diary, exercise entries, body measurements (including synced metrics), and custom measurement categories |
 
 > [!TIP]
 > Reports always show information from the **active profile**. If someone has given you **view reports** access in [Family & Friends Sharing](/features/family-friends-sharing), you can view their reports by selecting their profile from the top right corner.

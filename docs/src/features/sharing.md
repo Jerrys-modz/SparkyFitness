@@ -4,7 +4,7 @@ SparkyFitness gives you several ways to share your data: with people you trust, 
 
 ## Share with people
 
-**Family & friends**: invite family members and friends to view or log data on your behalf. Each invitation has its own permission level, from read-only access to full diary management (including managing your symptoms). Set up invitations under **Settings → Profile & Account → Family Access**, and see the full permission matrix in [Family & Friends Sharing](/features/family-friends-sharing).
+**Family & friends**: invite family members and friends to view or log data on your behalf. Each invitation has its own permission level, from read-only access to full diary management (including managing your symptoms). Set up invitations under **Settings → Family Access**, and see the full permission matrix in [Family & Friends Sharing](/features/family-friends-sharing).
 
 **Public sharing**: individual foods and exercises can be shared with everyone:
 

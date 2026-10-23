@@ -4,7 +4,7 @@ The **Measurements** tab of the [Check-In](/features/check-in) page is where you
 
 ## Built-in fields
 
-Each field has a **Use Last** button that fills in your previous value, so logging daily takes seconds:
+For **Weight**, **Height**, **Neck**, **Waist**, **Hips**, and **Body Fat %**, a **Use Last** button appears whenever the field is empty and a previous value exists, so logging daily takes seconds:
 
 | Field | Notes |
 | --- | --- |
@@ -25,7 +25,7 @@ Fill in whatever you have: you don't need to complete every field. Press **Save 
 The built-in fields don't cover everything you track. Create your own categories under **Settings → Wellness → Custom Categories**:
 
 - Give each category a name, a unit, and a type (**numeric** or **text**)
-- Every category then appears on the Measurements tab with its own input and **Use Last** button
+- Every category then appears on the Measurements tab with its own input (and a **Use Last** button when empty if a previous value exists)
 - Numeric entries can carry a short note (for example, the machine or circumstances of the reading)
 - Each custom category gets its own trend chart in Reports
 
