@@ -317,9 +317,9 @@ function resolveLanguageLabel(rawLanguage?: string | null): string {
       return `${displayName} (${tag})`;
     }
   } catch {
-    // Fall through to raw value when Intl.DisplayNames rejects a non-BCP47 tag.
+    // Fall through to English when Intl.DisplayNames rejects a non-BCP47 tag.
   }
-  return trimmed;
+  return 'English';
 }
 
 function buildPrompt(

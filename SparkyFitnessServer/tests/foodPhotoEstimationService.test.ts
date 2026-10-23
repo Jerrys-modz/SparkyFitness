@@ -434,6 +434,22 @@ describe('estimateFoodPhotoNutrition', () => {
       const prompt = googlePromptText(capturedBody(m));
       expect(prompt).toContain('in English,');
     });
+
+    it.each([['zz'], ['invalid_tag_12345']])(
+      'falls back to English when user language tag %s is unknown or invalid',
+      async (language) => {
+        mockGetUserPreferences.mockResolvedValue({ language });
+        const m = mockFetch(googleBody(sampleEstimate));
+        await estimateFoodPhotoNutrition({
+          base64Image: TEST_BASE64,
+          mimeType: TEST_MIME,
+          userId: TEST_USER_ID,
+        });
+        const prompt = googlePromptText(capturedBody(m));
+        expect(prompt).toContain('in English,');
+        expect(prompt).not.toContain(language);
+      }
+    );
   });
 
   describe('dispatch category → food-photo code mapping', () => {
