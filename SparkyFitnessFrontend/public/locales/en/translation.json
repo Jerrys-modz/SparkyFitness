@@ -9596,6 +9596,13 @@
       "daysUsed": "{{days}} ({{before}} before, {{since}} since)",
       "dates": "{{from}} – {{to}}",
       "usualRange": "{{low}}–{{high}}",
+      "months": {
+        "title": "Month by month",
+        "month": "Month",
+        "started": "Started",
+        "atOrAbove": "At or above {{line}}",
+        "valueDays": "Days with a value"
+      },
       "table": {
         "title": "Before and since",
         "dates": "Dates",
