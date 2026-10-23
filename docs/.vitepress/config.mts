@@ -222,6 +222,7 @@ export default defineConfig({
           text: 'Mobile Application',
           items: [
             { text: 'Mobile App Guide', link: '/mobile-app/mobile-app' },
+            { text: 'Watch Apps (Apple Watch & Wear OS)', link: '/mobile-app/watch-apps' },
             { text: 'Proxy Setup', link: '/mobile-app/proxy-setup' },
             { text: 'Troubleshooting', link: '/mobile-app/troubleshooting' },
           ],
