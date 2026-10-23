@@ -33,10 +33,8 @@ export const useCompare = (query: CompareQuery | null) => {
 /**
  * The same pair read at the other timings, for the "other timings" rows. They
  * wait until the main answer has settled (`mainSettled`), so the asked timing
- * loads first. A failed row shows "Couldn't load" in its row and has no toast
- * of its own here, but `apiCall` still toasts every HTTP or network error
- * itself and has no quiet option. The app's retry policy (`main.tsx`) retries
- * a network or server error once and a 4xx never, which caps that noise.
+ * loads first. They are asked quietly: a failed row shows "Couldn't load" in
+ * its row instead of a toast, so a bad moment never stacks up three of them.
  */
 export const useCompareTimings = (
   base: CompareQuery | null,
@@ -53,7 +51,7 @@ export const useCompareTimings = (
         queryKey: query
           ? reportKeys.compare(query, userId)
           : (['reports', 'compare', 'idle', timing] as const),
-        queryFn: () => getCompare(query!),
+        queryFn: () => getCompare(query!, { quiet: true }),
         enabled: query !== null && mainSettled,
         staleTime: COMPARE_STALE_MS,
       };

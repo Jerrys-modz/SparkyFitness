@@ -74,6 +74,14 @@ describe('useCompareTimings asks only the other timings', () => {
     expect(askedTimings()).toEqual([-1, 1]);
   });
 
+  it('asks the other timings quietly, so a failed row does not toast', async () => {
+    renderHook(() => useCompareTimings(base, true), { wrapper });
+    await waitFor(() => expect(mockedGetCompare).toHaveBeenCalledTimes(2));
+    for (const [, options] of mockedGetCompare.mock.calls) {
+      expect(options).toEqual({ quiet: true });
+    }
+  });
+
   it('by week, asks only timing 1', async () => {
     const week = { ...base, mode: 'week', timing: 0 } as const;
     const { result } = renderHook(() => useCompareTimings(week, true), {

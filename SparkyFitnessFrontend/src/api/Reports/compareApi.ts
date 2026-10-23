@@ -8,9 +8,13 @@ import {
   type CompareResponse,
 } from '@workspace/shared';
 
-/** Whether two tracked things go together, over a window of days or weeks. */
+/**
+ * Whether two tracked things go together, over a window of days or weeks.
+ * `quiet` leaves a failure to the caller, with no toast.
+ */
 export const getCompare = async (
-  query: CompareQuery
+  query: CompareQuery,
+  { quiet = false }: { quiet?: boolean } = {}
 ): Promise<CompareResponse> => {
   const response = await apiCall('/v2/reports/compare', {
     method: 'GET',
@@ -22,6 +26,7 @@ export const getCompare = async (
       start: query.start,
       end: query.end,
     },
+    ...(quiet ? { suppressErrorToast: true } : {}),
   });
   return compareResponseSchema.parse(response);
 };

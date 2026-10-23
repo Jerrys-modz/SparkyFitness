@@ -33,6 +33,15 @@ const query = {
 describe('getCompare', () => {
   beforeEach(() => jest.clearAllMocks());
 
+  it('a quiet request asks apiCall not to toast its errors', async () => {
+    mockedApiCall.mockResolvedValue(valid);
+    await getCompare(query, { quiet: true });
+    expect(mockedApiCall).toHaveBeenCalledWith(
+      '/v2/reports/compare',
+      expect.objectContaining({ suppressErrorToast: true })
+    );
+  });
+
   it('sends every field as a query param and returns the parsed response', async () => {
     mockedApiCall.mockResolvedValue(valid);
     const out = await getCompare(query);
