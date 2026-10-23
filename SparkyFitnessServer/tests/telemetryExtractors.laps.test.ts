@@ -244,26 +244,31 @@ describe('activityDetailMetrics cadence resolves across provider shapes', () => 
 });
 
 describe('extractGarminGpsPoints coordinate validation and geoPolylineDTO cross-check', () => {
-  it('drops points with (0, 0) coordinates or missing coordinates', () => {
+  it('sanitizes points with (0, 0) coordinates or missing coordinates to 0 without dropping telemetry', () => {
     const payload = {
       details: {
         metricDescriptors: [
           { key: 'directTimestamp', metricsIndex: 0 },
           { key: 'directLatitude', metricsIndex: 1 },
           { key: 'directLongitude', metricsIndex: 2 },
+          { key: 'directHeartRate', metricsIndex: 3 },
         ],
         activityDetailMetrics: [
-          { metrics: [1785225600000, 0, 0] },
-          { metrics: [1785225601000, null, 10] },
-          { metrics: [1785225602000, 51.4, null] },
-          { metrics: [1785225603000, 51.4, 7.0] },
+          { metrics: [1785225600000, 0, 0, 140] },
+          { metrics: [1785225601000, null, 10, 142] },
+          { metrics: [1785225602000, 51.4, null, 145] },
+          { metrics: [1785225603000, 51.4, 7.0, 148] },
         ],
       },
     };
     const results = extractGarminGpsPoints(payload);
-    expect(results).toHaveLength(1);
-    expect(results[0].latitude).toBe(51.4);
-    expect(results[0].longitude).toBe(7.0);
+    expect(results).toHaveLength(4);
+    expect(results[0].latitude).toBe(0);
+    expect(results[0].longitude).toBe(0);
+    expect(results[0].heart_rate_bpm).toBe(140);
+    expect(results[3].latitude).toBe(51.4);
+    expect(results[3].longitude).toBe(7.0);
+    expect(results[3].heart_rate_bpm).toBe(148);
   });
 
   it('prefers unshifted coordinates from geoPolylineDTO when timestamps match', () => {
@@ -291,7 +296,24 @@ describe('extractGarminGpsPoints coordinate validation and geoPolylineDTO cross-
     expect(results[0].heart_rate_bpm).toBe(140);
   });
 
-  it('drops out-of-range coordinates (> 90 lat or > 180 lon)', () => {
+  it('safely skips null entries in polyline without throwing', () => {
+    const payload = {
+      details: {
+        geoPolylineDTO: {
+          polyline: [
+            null,
+            { time: 1785225600000, lat: 51.4219, lon: 7.028 },
+            null,
+          ],
+        },
+      },
+    };
+    const results = extractGarminGpsPoints(payload);
+    expect(results).toHaveLength(1);
+    expect(results[0].latitude).toBeCloseTo(51.4219, 4);
+  });
+
+  it('sanitizes out-of-range coordinates (> 90 lat or > 180 lon) to 0', () => {
     const results = extractGarminGpsPoints({
       gps_points: [
         { timestamp: '2026-07-29T08:00:00Z', latitude: 91, longitude: 10 },
@@ -299,8 +321,11 @@ describe('extractGarminGpsPoints coordinate validation and geoPolylineDTO cross-
         { timestamp: '2026-07-29T08:00:02Z', latitude: 51.4, longitude: 7.0 },
       ],
     });
-    expect(results).toHaveLength(1);
-    expect(results[0].latitude).toBe(51.4);
+    expect(results).toHaveLength(3);
+    expect(results[0].latitude).toBe(0);
+    expect(results[1].longitude).toBe(0);
+    expect(results[2].latitude).toBe(51.4);
+    expect(results[2].longitude).toBe(7.0);
   });
 });
 

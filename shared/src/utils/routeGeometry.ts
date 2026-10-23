@@ -313,14 +313,15 @@ export function filterGpsTrackOutliers<T extends { lat: number; lon: number }>(
 ): T[] {
   const valid = points.filter(
     (p) =>
-      p.lat !== 0 &&
-      p.lon !== 0 &&
+      Number.isFinite(p.lat) &&
+      Number.isFinite(p.lon) &&
+      !(p.lat === 0 && p.lon === 0) &&
       p.lat >= -90 &&
       p.lat <= 90 &&
       p.lon >= -180 &&
       p.lon <= 180
   );
-  if (valid.length <= 4) return valid;
+  if (valid.length < 3) return valid;
 
   const sortedLats = valid.map((p) => p.lat).sort((a, b) => a - b);
   const sortedLons = valid.map((p) => p.lon).sort((a, b) => a - b);
