@@ -40,7 +40,7 @@ It stores and manages health data on infrastructure you control, without relying
 
 - Nutrition, exercise, hydration, sleep, fasting, mood and body measurement tracking
 - Goal setting and daily check-ins
-- Apple Watch and Wear OS apps: goals, water, weight, fasting, medications, workouts and watch face complications
+- [Apple Watch and Wear OS apps](https://codewithcj.github.io/SparkyFitness/mobile-app/watch-apps): goals, water, weight, fasting, medications, workouts and watch face complications
 - Interactive charts and long-term reports
 - Multiple user profiles and family access
 - Light and dark themes

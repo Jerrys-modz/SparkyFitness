@@ -7,7 +7,7 @@ SparkyFitness has a companion app for **Apple Watch** (watchOS) and for **Wear O
 - **Apple Watch:** pair the watch with your iPhone. The SparkyFitness watch app comes with the iPhone app.
 - **Wear OS:** the watch app comes with the Android app on a paired Wear OS watch. Open it on the watch once so it can reach the phone.
 
-The watch gets everything from the phone, so keep the phone app signed in. If the phone is out of range, check-ins you make on the watch (water, weight, fasting, doses, finished sets) are queued and delivered when it is back.
+The watch gets everything from the phone, so keep the phone app signed in. If the phone is out of range, check-ins you make on the watch (water, weight, fasting, doses, finished sets) are queued and normally delivered when it is back. If a delivery fails, open the app on both devices and try again.
 
 ## Pages
 
