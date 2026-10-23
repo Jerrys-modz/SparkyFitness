@@ -20,8 +20,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import ZoomableChart from '@/components/ZoomableChart';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { ChartErrorBoundary } from '@/pages/Errors/ChartErrorFallback';
-import { compareShownAmountText, compareValueText } from './compareCopy';
+import {
+  compareShownAmountText,
+  compareValueText,
+  isYesNo,
+} from './compareCopy';
 import { COMPARE_METRIC_LABELS } from './compareMetricLabels';
+import { percentText } from './compareSinceCopy';
 
 interface CompareSinceChartProps {
   response: CompareSinceResponse;
@@ -37,6 +42,10 @@ const COLOR_VALUE = '#8884d8';
 const COLOR_BEFORE = '#64748b';
 const COLOR_SINCE = '#14b8a6';
 const MUTED = 'hsl(var(--muted-foreground))';
+/** Past this many days the axis names months with their year, as on the phone. */
+const SHORT_AXIS_DAYS = 120;
+/** A yes/no outcome is drawn on 0-1: each day 0 or 1, each mean a share of days. */
+const YES_NO_TICKS = [0, 0.25, 0.5, 0.75, 1];
 
 interface TooltipProps {
   active?: boolean;
@@ -46,7 +55,8 @@ interface TooltipProps {
 /**
  * The outcome day by day, the before and since stretches shaded apart with
  * their averages, a marker where the start day begins and the line dashed
- * across. Nothing until there is a since stretch; a yes/no outcome has no line.
+ * across. Nothing until there is a since stretch, and a note when no day has a
+ * value; a yes/no outcome has no line and reads its axis as shares of days.
  */
 export const CompareSinceChart = ({ response }: CompareSinceChartProps) => {
   const { t } = useTranslation();
@@ -54,20 +64,43 @@ export const CompareSinceChart = ({ response }: CompareSinceChartProps) => {
   const chart = useMemo(() => sinceChartData(response), [response]);
   const { rows, before, since, start, line } = chart;
   if (rows.length === 0) return null;
+  if (!rows.some((row) => row.value !== null)) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-center text-sm text-muted-foreground">
+            {t('compareReport.chart.noOverTime', {
+              defaultValue: 'Nothing logged in this range',
+            })}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const key = response.outcome.key;
+  const yesNo = isYesNo(key);
   const metric = COMPARE_METRIC_LABELS[key](t);
+  const dayFormat = rows.length > SHORT_AXIS_DAYS ? 'MMM yyyy' : 'MMM dd';
   const formatDay = (index: number) => {
     const day = rows[index]?.day;
-    return day ? formatDateInUserTimezone(day, 'MMM dd') : '';
+    return day ? formatDateInUserTimezone(day, dayFormat) : '';
   };
   // Chart values are already on the display scale; only bedtime needs a clock.
-  const shown = (value: number | null) =>
-    value === null
-      ? '–'
-      : key === 'bedtime'
-        ? compareValueText(key, value, timeFormat)
-        : compareShownAmountText(key, value);
+  const shown = (value: number) =>
+    key === 'bedtime'
+      ? compareValueText(key, value, timeFormat)
+      : compareShownAmountText(key, value);
+  // A yes/no tick (or mean) is a share of days, and a yes/no day is Yes or No.
+  const axisText = (value: number) =>
+    yesNo ? percentText(value) : shown(value);
+  const dayText = (value: number | null) => {
+    if (value === null) return '–';
+    if (!yesNo) return shown(value);
+    return value >= 0.5
+      ? t('compareReport.days.yes', { defaultValue: 'Yes' })
+      : t('compareReport.days.no', { defaultValue: 'No' });
+  };
   const title = metric;
 
   const stretches = [
@@ -96,7 +129,7 @@ export const CompareSinceChart = ({ response }: CompareSinceChartProps) => {
           {formatDateInUserTimezone(row.day, 'PP')}
         </p>
         <p>
-          {metric}: {shown(row.value)}
+          {metric}: {dayText(row.value)}
         </p>
       </div>
     );
@@ -149,9 +182,10 @@ export const CompareSinceChart = ({ response }: CompareSinceChartProps) => {
                       fontSize={10}
                       stroke={MUTED}
                       tick={{ fill: MUTED }}
-                      tickFormatter={shown}
+                      tickFormatter={axisText}
                       width={48}
-                      domain={['auto', 'auto']}
+                      domain={yesNo ? [0, 1] : ['auto', 'auto']}
+                      ticks={yesNo ? YES_NO_TICKS : undefined}
                     />
                     <Tooltip content={renderTooltip} />
                     {stretches.map(
@@ -202,6 +236,8 @@ export const CompareSinceChart = ({ response }: CompareSinceChartProps) => {
                     {line !== null && (
                       <ReferenceLine
                         y={line}
+                        // A line no day reaches still shows, widening the axis.
+                        ifOverflow="extendDomain"
                         stroke={MUTED}
                         strokeDasharray="6 4"
                         label={{

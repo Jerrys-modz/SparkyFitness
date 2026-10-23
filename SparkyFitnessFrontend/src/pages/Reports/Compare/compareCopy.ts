@@ -36,7 +36,8 @@ function upperFirst(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function isYesNo(key: CompareMetricKey): boolean {
+/** A yes/no metric: a day is yes or no, and an average is the share of days it was yes. */
+export function isYesNo(key: CompareMetricKey): boolean {
   return COMPARE_METRICS[key].kind === 'binary';
 }
 

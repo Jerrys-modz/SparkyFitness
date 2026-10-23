@@ -242,6 +242,25 @@ describe('sinceVerdictCopy', () => {
     expect(later.detail).toMatch(/\(45 min later\)\.$/);
   });
 
+  test('a bedtime verdict follows the 12/24-hour setting', () => {
+    const copy = sinceVerdictCopy(
+      response(
+        {
+          before: { ...OK.before!, mean: 330 },
+          since: { ...OK.since!, mean: 300 },
+          diff: -30,
+        },
+        'bedtime'
+      ),
+      t,
+      formatDay,
+      'HH:mm'
+    );
+    expect(copy.detail).toBe(
+      'Since Apr 1, 2026, your bedtime averaged 23:00 vs 23:30 before (30 min earlier).'
+    );
+  });
+
   test('a yes/no outcome reads as a share of days', () => {
     const copy = sinceVerdictCopy(
       response(

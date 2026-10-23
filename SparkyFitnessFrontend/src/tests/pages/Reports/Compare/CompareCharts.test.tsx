@@ -16,12 +16,15 @@ jest.mock('react-i18next', () =>
 );
 
 let mockTimeFormat: string | undefined;
+const showDay = (d: string) => d;
+let mockFormatDate: (d: string, format?: string) => string = showDay;
 
 jest.mock('@/contexts/PreferencesContext', () => ({
   usePreferences: () => ({
     timezone: 'UTC',
     timeFormat: mockTimeFormat,
-    formatDateInUserTimezone: (d: string) => d,
+    formatDateInUserTimezone: (d: string, format?: string) =>
+      mockFormatDate(d, format),
   }),
 }));
 
@@ -42,14 +45,21 @@ type Format = (value: number) => string;
 interface AxisProps {
   tickFormatter?: Format;
   allowDecimals?: boolean;
+  ticks?: number[];
+  domain?: (number | string)[];
 }
 type TooltipFormat = (value: number, name: string) => [string, string];
+type TooltipContent = (props: {
+  active?: boolean;
+  payload?: { payload?: { day: string; value: number | null } }[];
+}) => ReactNode;
 
 let scatterData: Dot[] = [];
 let lineKeys: string[] = [];
 let xAxis: AxisProps = {};
 let yAxis: AxisProps = {};
 let tooltipFormat: TooltipFormat | undefined;
+let tooltipContent: TooltipContent | undefined;
 interface RefProps {
   x?: number;
   y?: number;
@@ -58,6 +68,7 @@ interface RefProps {
   label?: string | { value?: string };
   strokeDasharray?: string;
   segment?: { x: number; y: number }[];
+  ifOverflow?: string;
 }
 let refAreas: RefProps[] = [];
 let refLines: RefProps[] = [];
@@ -95,8 +106,15 @@ jest.mock('recharts', () => {
       return null;
     },
     CartesianGrid: () => null,
-    Tooltip: ({ formatter }: { formatter?: TooltipFormat }) => {
+    Tooltip: ({
+      formatter,
+      content,
+    }: {
+      formatter?: TooltipFormat;
+      content?: TooltipContent;
+    }) => {
       tooltipFormat = formatter;
+      tooltipContent = content;
       return null;
     },
   };
@@ -143,9 +161,11 @@ beforeEach(() => {
   xAxis = {};
   yAxis = {};
   tooltipFormat = undefined;
+  tooltipContent = undefined;
   refAreas = [];
   refLines = [];
   mockTimeFormat = undefined;
+  mockFormatDate = showDay;
 });
 
 describe('CompareDotsChart', () => {
@@ -388,6 +408,85 @@ describe('CompareSinceChart', () => {
     render(<CompareSinceChart response={sinceResponse('meditated', 0)} />);
     expect(refLines.some((l) => l.y !== undefined)).toBe(false);
     expect(refLines.some((l) => l.x === 3)).toBe(true);
+  });
+
+  test('the dashed line stays drawn when it lies outside the data', () => {
+    // A line of 10 sits above every day (the most is 8), so it widens the axis.
+    render(<CompareSinceChart response={sinceResponse('mood', 100)} />);
+    const dashed = refLines.find((l) => l.y === 10);
+    expect(dashed?.ifOverflow).toBe('extendDomain');
+  });
+
+  test('a yes/no outcome reads its axis as shares and its days as Yes or No', () => {
+    render(<CompareSinceChart response={sinceResponse('meditated', 0)} />);
+    expect(yAxis.domain).toEqual([0, 1]);
+    expect(yAxis.ticks).toEqual([0, 0.25, 0.5, 0.75, 1]);
+    expect(yAxis.ticks?.map((v) => yAxis.tickFormatter?.(v))).toEqual([
+      '0%',
+      '25%',
+      '50%',
+      '75%',
+      '100%',
+    ]);
+    render(
+      <>
+        {tooltipContent?.({
+          active: true,
+          payload: [{ payload: { day: '2026-10-03', value: 1 } }],
+        })}
+        {tooltipContent?.({
+          active: true,
+          payload: [{ payload: { day: '2026-10-01', value: 0 } }],
+        })}
+      </>
+    );
+    expect(screen.getByText('Meditated: Yes')).toBeInTheDocument();
+    expect(screen.getByText('Meditated: No')).toBeInTheDocument();
+  });
+
+  test('a scaled outcome keeps its own axis and tooltip amounts', () => {
+    render(<CompareSinceChart response={sinceResponse('mood', 70)} />);
+    expect(yAxis.ticks).toBeUndefined();
+    expect(yAxis.tickFormatter?.(6.5)).toBe('6.5');
+    render(
+      <>
+        {tooltipContent?.({
+          active: true,
+          payload: [{ payload: { day: '2026-10-03', value: 7 } }],
+        })}
+      </>
+    );
+    expect(screen.getByText('Mood: 7.0')).toBeInTheDocument();
+  });
+
+  test('past 120 days the axis names months with their year', () => {
+    mockFormatDate = (d, format) => `${format}:${d}`;
+    const { unmount } = render(
+      <CompareSinceChart response={sinceResponse('mood', 70)} />
+    );
+    expect(xAxis.tickFormatter?.(0)).toBe('MMM dd:2026-10-01');
+    unmount();
+
+    const long = sinceResponse('mood', 70);
+    long.outcome.values = { '2026-01-05': 50, '2026-05-01': 70 };
+    long.result = {
+      ...long.result,
+      start: '2026-04-01',
+      before: { ...long.result.before!, from: '2026-01-01', to: '2026-03-31' },
+      since: { ...long.result.since!, from: '2026-04-01', to: '2026-06-30' },
+    };
+    render(<CompareSinceChart response={long} />);
+    expect(xAxis.tickFormatter?.(0)).toBe('MMM yyyy:2026-01-01');
+  });
+
+  test('says nothing was logged when no day has a value', () => {
+    const empty = sinceResponse('mood', 70);
+    empty.outcome.values = {};
+    render(<CompareSinceChart response={empty} />);
+    expect(
+      screen.getByText('Nothing logged in this range')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
 
   test('renders nothing without a since stretch', () => {

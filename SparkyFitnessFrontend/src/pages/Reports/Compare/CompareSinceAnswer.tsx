@@ -106,13 +106,16 @@ const StretchTable = ({ response }: CompareSinceAnswerProps) => {
 /**
  * The left column of a since answer: the verdict and the caveat (always), then,
  * once there is an answer, the before-and-since table, the kept-up line and how
- * sure.
+ * sure. One element, so it fills one cell of the page's two-column grid.
  */
 export const CompareSinceAnswer = ({ response }: CompareSinceAnswerProps) => {
   const { t } = useTranslation();
-  const { formatDateInUserTimezone } = usePreferences();
-  const { headline, detail } = sinceVerdictCopy(response, t, (d) =>
-    formatDateInUserTimezone(d, 'PP')
+  const { formatDateInUserTimezone, timeFormat } = usePreferences();
+  const { headline, detail } = sinceVerdictCopy(
+    response,
+    t,
+    (d) => formatDateInUserTimezone(d, 'PP'),
+    timeFormat
   );
   const alreadyChanging = sinceAlreadyChangingLine(response, t);
   const caveat = sinceCaveat(
@@ -123,7 +126,7 @@ export const CompareSinceAnswer = ({ response }: CompareSinceAnswerProps) => {
   const regularity = ok ? sinceRegularityLine(response.result, t) : null;
 
   return (
-    <>
+    <div className="space-y-6">
       <Card>
         <CardContent className="pt-6">
           <h2 className="text-2xl font-bold">{headline}</h2>
@@ -147,6 +150,6 @@ export const CompareSinceAnswer = ({ response }: CompareSinceAnswerProps) => {
           <CompareHowSure lines={sinceHowSureLines(response, t)} />
         </>
       )}
-    </>
+    </div>
   );
 };

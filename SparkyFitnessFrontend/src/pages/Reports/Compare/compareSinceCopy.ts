@@ -52,7 +52,8 @@ function days(count: number, t: Translator): string {
   });
 }
 
-function percentText(share: number, signed = false): string {
+/** A share as a whole percent ("62%"); `signed` shows a difference with its sign. */
+export function percentText(share: number, signed = false): string {
   return formatNumber(share, {
     style: 'percent',
     maximumFractionDigits: 0,
@@ -183,12 +184,14 @@ function notEnoughCopy(
 
 /**
  * The headline and detail of a since answer. `formatDay` words a start date
- * for the person ("Apr 1, 2026").
+ * for the person ("Apr 1, 2026"); `timeFormat` (the 12/24-hour setting) words
+ * a bedtime average.
  */
 export function sinceVerdictCopy(
   response: CompareSinceResponse,
   t: Translator,
-  formatDay: (day: string) => string
+  formatDay: (day: string) => string,
+  timeFormat?: string
 ): { headline: string; detail: string } {
   const { result } = response;
   const key = response.outcome.key;
@@ -219,8 +222,8 @@ export function sinceVerdictCopy(
       : {
           start,
           outcome,
-          since: averageText(key, since.mean),
-          before: averageText(key, before.mean),
+          since: averageText(key, since.mean, timeFormat),
+          before: averageText(key, before.mean, timeFormat),
         };
   // A start over a year ago: the server compares the last year with the year before the start.
   const lastYear = since !== undefined && since.from !== result.start;

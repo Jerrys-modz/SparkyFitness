@@ -14,7 +14,7 @@ jest.mock('react-i18next', () =>
 jest.mock('@/contexts/PreferencesContext', () => ({
   usePreferences: () => ({
     timezone: 'UTC',
-    timeFormat: '24h',
+    timeFormat: 'HH:mm',
     formatDateInUserTimezone: (d: string) => d,
   }),
 }));
@@ -152,6 +152,38 @@ describe('CompareSinceAnswer', () => {
     expect(screen.getByText('Average')).toBeInTheDocument();
     expect(screen.queryByText('Usually between')).not.toBeInTheDocument();
     expect(screen.queryByText(/At or above/)).not.toBeInTheDocument();
+  });
+
+  test('the answer column is one element, so the page grid keeps the chart beside it', () => {
+    const { container } = render(
+      <CompareSinceAnswer response={response({})} />
+    );
+    expect(container.childElementCount).toBe(1);
+    expect(container.firstElementChild).toHaveClass('space-y-6');
+    expect(container.firstElementChild).toHaveTextContent('Yes, it changed');
+    expect(container.firstElementChild).toHaveTextContent('Before and since');
+    expect(container.firstElementChild).toHaveTextContent('How sure is this?');
+  });
+
+  test('a bedtime verdict follows the 12/24-hour setting', () => {
+    render(
+      <CompareSinceAnswer
+        response={response(
+          {
+            before: { ...OK.before!, mean: 330 },
+            since: { ...OK.since!, mean: 300 },
+            diff: -30,
+            line: 300,
+          },
+          'bedtime'
+        )}
+      />
+    );
+    expect(
+      screen.getByText(
+        'Since 2026-04-01, your bedtime averaged 23:00 vs 23:30 before (30 min earlier).'
+      )
+    ).toBeInTheDocument();
   });
 
   test('the already-changing warning shows only when the server flags it', () => {
