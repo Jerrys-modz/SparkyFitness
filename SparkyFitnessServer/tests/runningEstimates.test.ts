@@ -93,6 +93,23 @@ describe('computeRunningEstimates', () => {
     expect(result.vo2Max?.to).toBe(day(-3));
   });
 
+  it('lists the VO2 max per run day, oldest first, with a median for two runs on one day', () => {
+    const result = computeRunningEstimates(
+      [
+        run(-3, { avgHeartRate: 155 }),
+        run(-20, { avgHeartRate: 165 }),
+        run(-3, { avgHeartRate: 165 }),
+      ],
+      TODAY,
+      { restingHeartRate: 60, maxHeartRate: 190 }
+    );
+    expect(result.vo2Max?.runs).toBe(3);
+    expect(result.vo2Max?.series?.map((point) => point.day)).toEqual([
+      day(-20),
+      day(-3),
+    ]);
+  });
+
   it('gives no VO2 max from a single run', () => {
     const result = computeRunningEstimates([run(-3)], TODAY, {
       bodyWeightKg: 70,
