@@ -722,14 +722,20 @@ const EditExerciseEntryDialog = ({
       const durationEdited =
         durationInput !== '' && durationInput !== seedDurationInput(entry);
 
-      const totalDuration =
-        setsChanged && !durationEdited
-          ? derivedSetsDuration
-          : durationInput !== ''
-            ? Number(durationInput)
-            : cardioForm
-              ? 0
-              : derivedSetsDuration;
+      // Untimed strength sets derive 0 minutes; that is no information, so
+      // keep the stored duration unless every set was removed.
+      const usesDerivedDuration =
+        setsChanged &&
+        !durationEdited &&
+        (derivedSetsDuration > 0 || sets.length === 0);
+
+      const totalDuration = usesDerivedDuration
+        ? derivedSetsDuration
+        : durationInput !== ''
+          ? Number(durationInput)
+          : cardioForm
+            ? 0
+            : derivedSetsDuration;
 
       const caloriesEdited = caloriesBurnedInput !== initialCaloriesInput;
       const storedCalories =
@@ -766,7 +772,7 @@ const EditExerciseEntryDialog = ({
         stepsInput === (seededSteps !== '' ? seededSteps : (entry.steps ?? ''));
 
       const durationMinutes =
-        durationUntouched && !setsChanged
+        durationUntouched && !usesDerivedDuration
           ? entry.duration_minutes
           : totalDuration;
       const distanceKm = distanceUntouched

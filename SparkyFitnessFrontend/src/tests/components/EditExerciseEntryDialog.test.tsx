@@ -431,4 +431,25 @@ describe('EditExerciseEntryDialog calories after changing sets', () => {
     const { data } = await saveEntry();
     expect(data.calories_burned).toBe(0);
   });
+
+  it('keeps the stored duration when added strength sets carry no timing', async () => {
+    renderDialog(
+      makeEntry({
+        duration_minutes: 45,
+        calories_burned: 200,
+        sets: [{ ...cardioSet, duration: null, distance: null, rest_time: 0 }],
+        exercise_snapshot: {
+          id: 'ex-1',
+          name: 'Bench Press',
+          category: 'Strength',
+          modality: 'weight_reps',
+        },
+      } as unknown as Partial<ExerciseEntry>)
+    );
+
+    fireEvent.click(screen.getByText('Add Set'));
+    const { data } = await saveEntry();
+    expect(data.duration_minutes).toBe(45);
+    expect(data.calories_burned).toBeUndefined();
+  });
 });
