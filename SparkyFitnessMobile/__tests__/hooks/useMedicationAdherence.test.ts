@@ -78,6 +78,7 @@ describe('useMedicationAdherence', () => {
     expect(mockUseMedicationEntries).toHaveBeenCalledWith({
       fromDate: '2026-10-01',
       toDate: '2026-10-14',
+      keepPrevious: true,
     });
   });
 

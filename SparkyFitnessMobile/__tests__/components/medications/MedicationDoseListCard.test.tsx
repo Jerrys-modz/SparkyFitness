@@ -51,6 +51,7 @@ function renderCard(
       prnMedications={[ibuprofen]}
       dayEntries={[]}
       dose={dose}
+      isToday
       onOpenMedication={onOpenMedication}
       {...props}
     />
@@ -70,6 +71,12 @@ describe('MedicationDoseListCard', () => {
     expect(screen.getByText('As needed')).toBeTruthy();
     expect(screen.getByText('Lisinopril')).toBeTruthy();
     expect(screen.getByText('Ibuprofen')).toBeTruthy();
+  });
+
+  it('uses a date-neutral due label on other days', () => {
+    const screen = renderCard({ isToday: false });
+    expect(screen.getByText('Due')).toBeTruthy();
+    expect(screen.queryByText('Due today')).toBeNull();
   });
 
   it('logs and skips a due dose through the shared dose actions', () => {
