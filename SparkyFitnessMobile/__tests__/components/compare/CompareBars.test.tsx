@@ -48,7 +48,11 @@ describe('CompareBars', () => {
     expect(getByText('Days without meditating')).toBeTruthy();
     expect(getByText('7.2 · 12 days')).toBeTruthy();
     expect(getByText('6.3 · 28 days')).toBeTruthy();
-    expect(getByText('+0.6 vs. your usual')).toBeTruthy();
+    expect(
+      getByText(
+        '0.6 higher than on days without meditating (each measured against your own normal)'
+      )
+    ).toBeTruthy();
     expect(queryByText(/72/)).toBeNull();
   });
 
@@ -98,10 +102,14 @@ describe('CompareBars', () => {
     expect(
       getByTestId('compare-bar-no', { includeHiddenElements: true }).props.style
     ).toEqual({ width: '0%' });
-    expect(getByText('0.0 vs. your usual')).toBeTruthy();
+    expect(
+      getByText(
+        'About the same as on days without meditating (each measured against your own normal)'
+      )
+    ).toBeTruthy();
   });
 
-  it('shows a negative difference with its minus sign', () => {
+  it('words a negative difference as lower, without a sign', () => {
     const { getByText } = render(
       <CompareBars
         response={response({
@@ -115,7 +123,11 @@ describe('CompareBars', () => {
         question={Q}
       />
     );
-    expect(getByText(/^[-−]0\.6 vs\. your usual$/)).toBeTruthy();
+    expect(
+      getByText(
+        '0.6 lower than on days without meditating (each measured against your own normal)'
+      )
+    ).toBeTruthy();
   });
 
   // The yes/no side is dated by the day; a sleep outcome by the wake day.
@@ -227,10 +239,14 @@ describe('CompareBars', () => {
     );
     expect(getByText(/^10:15\sPM · 12 nights$/)).toBeTruthy();
     expect(getByText(/^9:50\sPM · 28 nights$/)).toBeTruthy();
-    expect(getByText('+25 min vs. your usual')).toBeTruthy();
+    expect(
+      getByText(
+        '25 min later than on other nights (each measured against your own normal)'
+      )
+    ).toBeTruthy();
   });
 
-  it('signs an earlier bedtime as minus minutes', () => {
+  it('words an earlier bedtime in minutes, without a sign', () => {
     const { getByText } = render(
       <CompareBars
         response={response({
@@ -244,7 +260,11 @@ describe('CompareBars', () => {
         question={{ a: 'meditated', b: 'bedtime', choice: 'sameDay' }}
       />
     );
-    expect(getByText(/^[-−]12 min vs\. your usual$/)).toBeTruthy();
+    expect(
+      getByText(
+        '12 min earlier than on other nights (each measured against your own normal)'
+      )
+    ).toBeTruthy();
   });
 
   it('renders nothing without a yes/no result', () => {

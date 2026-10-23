@@ -286,7 +286,7 @@ describe('verdictCopy', () => {
     );
     expect(up.headline).toBe('Yes, a difference');
     expect(up.detail).toBe(
-      'On days you meditated, your mood was higher than usual.'
+      'On days you meditated, your mood was higher than on days without meditating.'
     );
     const down = collect(
       verdictCopy(
@@ -303,7 +303,9 @@ describe('verdictCopy', () => {
         t
       )
     );
-    expect(down.detail).toContain('lower than usual');
+    expect(down.detail).toBe(
+      'On days you meditated, your mood was lower than on days without meditating.'
+    );
     const none = collect(
       verdictCopy(
         response({ method: 'difference', linked: false, binary }, q),
@@ -564,7 +566,7 @@ describe('bedtime reads later or earlier', () => {
         t
       ).detail
     ).toBe(
-      'On days you meditated, your bedtime that night was later than usual.'
+      'On days you meditated, your bedtime that night was later than on other nights.'
     );
     expect(
       verdictCopy(
@@ -581,7 +583,7 @@ describe('bedtime reads later or earlier', () => {
         t
       ).detail
     ).toBe(
-      'On days you meditated, your bedtime that night was earlier than usual.'
+      'On days you meditated, your bedtime that night was earlier than on other nights.'
     );
   });
 
