@@ -1,10 +1,5 @@
-import {
-  compareDigits,
-  type CompareMetricKey,
-  type CompareSinceResult,
-} from '@workspace/shared';
-
-import { compareValueText } from './compareCopy';
+import { compareDigits, type CompareMetricKey } from './metrics.ts';
+import type { CompareSinceResult } from './since.ts';
 
 /** A line the person can pick: `value` in the metric's stored scale, `label` as they read it. */
 export interface SinceLineOption {
@@ -81,16 +76,17 @@ function roundSteps(
 /**
  * The lines offered for a since answer's outcome, ascending, always including
  * the one in use. A step that would read the same as it is left out, so no two
- * options look alike.
+ * options look alike. `label` words a value on the display scale.
  */
 export function sinceLineOptions(
   key: CompareMetricKey,
   current: number,
+  label: (value: number) => string,
   result?: Pick<CompareSinceResult, 'before' | 'since'>
 ): SinceLineOption[] {
-  const currentLabel = compareValueText(key, current);
+  const currentLabel = label(current);
   const steps = (FIXED_STEPS[key] ?? roundSteps(key, current, result))
-    .map((value) => ({ value, label: compareValueText(key, value) }))
+    .map((value) => ({ value, label: label(value) }))
     .filter(
       (option) => option.value === current || option.label !== currentLabel
     );
