@@ -566,6 +566,37 @@ describe('CompareSinceMonthTable', () => {
     expect(rows[0]).toHaveTextContent('—');
   });
 
+  test('a start more than a year ago says when it started and that the months between are left out', () => {
+    const longAgo = sinceResponse(
+      'meditated',
+      'mood',
+      { '2025-03-20': 1, '2026-01-05': 1 },
+      { '2025-03-10': 60, '2025-03-20': 70, '2026-01-05': 80 }
+    );
+    longAgo.result = {
+      ...longAgo.result,
+      start: '2025-03-15',
+      before: { from: '2024-03-15', to: '2025-03-14', days: 365, valueDays: 1 },
+      since: { from: '2025-10-21', to: '2026-10-20', days: 365, valueDays: 1 },
+    };
+    render(<CompareSinceMonthTable response={longAgo} />);
+    expect(
+      screen.getByText(
+        'You started on fmt:2025-03-15. The months between the before and since stretches are left out.'
+      )
+    ).toBeInTheDocument();
+    expect(bodyRows()[0]).toHaveTextContent('fmt:2024-03-01');
+  });
+
+  test('a start within the last year has no left-out months line', () => {
+    render(
+      <CompareSinceMonthTable
+        response={sinceResponse('meditated', 'mood', {}, { '2026-06-17': 80 })}
+      />
+    );
+    expect(screen.queryByText(/are left out/)).not.toBeInTheDocument();
+  });
+
   test('a yes/no outcome leaves out the line column', () => {
     render(
       <CompareSinceMonthTable

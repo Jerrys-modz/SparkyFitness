@@ -20,6 +20,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import ZoomableChart from '@/components/ZoomableChart';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { ChartErrorBoundary } from '@/pages/Errors/ChartErrorFallback';
+import { TOOLTIP_STYLE } from './compareChartTheme';
 import {
   compareShownAmountText,
   compareValueText,
@@ -32,12 +33,6 @@ interface CompareSinceChartProps {
   response: CompareSinceResponse;
 }
 
-const TOOLTIP_STYLE = {
-  backgroundColor: 'hsl(var(--background))',
-  border: '1px solid hsl(var(--border))',
-  borderRadius: '6px',
-  color: 'hsl(var(--foreground))',
-};
 const COLOR_VALUE = '#8884d8';
 const COLOR_BEFORE = '#64748b';
 const COLOR_SINCE = '#14b8a6';

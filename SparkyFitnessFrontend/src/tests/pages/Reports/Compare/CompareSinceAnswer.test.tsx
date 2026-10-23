@@ -125,6 +125,13 @@ describe('CompareSinceAnswer', () => {
     expect(screen.queryByText('How sure is this?')).not.toBeInTheDocument();
   });
 
+  test("the table's row-label column is named for screen readers", () => {
+    render(<CompareSinceAnswer response={response({})} />);
+    expect(
+      screen.getByRole('columnheader', { name: 'Stretch' })
+    ).toBeInTheDocument();
+  });
+
   test('a yes/no outcome table has no usual or line column', () => {
     render(
       <CompareSinceAnswer

@@ -1,5 +1,4 @@
 import {
-  COMPARE_METRICS,
   type CompareMetricKey,
   type CompareQuestion,
   type CompareSinceResponse,
@@ -12,6 +11,7 @@ import {
   compareAmountText,
   compareValueText,
   formatNumber,
+  isYesNo,
   metricName,
   pPlainWords,
   questionParts,
@@ -39,10 +39,6 @@ function sinceParts(
 
 function responseKeys(response: CompareSinceResponse): SinceKeys {
   return { a: response.habit.key, b: response.outcome.key };
-}
-
-function isYesNo(key: CompareMetricKey): boolean {
-  return COMPARE_METRICS[key].kind === 'binary';
 }
 
 function days(count: number, t: Translator): string {

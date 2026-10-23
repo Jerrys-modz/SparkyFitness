@@ -9574,8 +9574,6 @@
       "shortBeforeDetail": "Your {{outcome}} records begin {{days}} before then; an answer needs {{needed}}.",
       "noStartHeadline": "Pick the day you started",
       "noStartDetail": "Then this compares your {{outcome}} before and since that day.",
-      "typicalRange": "Usually between {{low}} and {{high}} (before: {{beforeLow}}–{{beforeHigh}}).",
-      "aboveLine": "At or above {{line}} on {{since}} of days (before: {{before}}).",
       "regularity_one": "You kept it up in {{weeksKept}} of {{count}} week since.",
       "regularity_other": "You kept it up in {{weeksKept}} of {{count}} weeks since.",
       "alreadyRising": "⚠ {{metric}} was already rising before you started.",
@@ -9601,7 +9599,8 @@
         "month": "Month",
         "started": "Started",
         "atOrAbove": "At or above {{line}}",
-        "valueDays": "Days with a value"
+        "valueDays": "Days with a value",
+        "gap": "You started on {{start}}. The months between the before and since stretches are left out."
       },
       "table": {
         "title": "Before and since",
@@ -9609,7 +9608,8 @@
         "days": "Days with a value",
         "average": "Average",
         "usual": "Usually between",
-        "atOrAbove": "At or above {{line}}"
+        "atOrAbove": "At or above {{line}}",
+        "stretch": "Stretch"
       }
     },
     "stats": {

@@ -30,6 +30,7 @@ const mockGetCompareSince = jest.fn();
 // When set, the page's "today"; otherwise the real day in the zone.
 let mockToday: string | null = null;
 let mockActingOnBehalf = false;
+let mockActiveUserId = 'user-1';
 
 // Every key the page asks for, so the last test can check en/translation.json
 // says the same English.
@@ -72,7 +73,7 @@ jest.mock('@/api/Reports/compareApi', () => ({
 }));
 
 jest.mock('@/hooks/useAuth', () => ({
-  useAuth: () => ({ user: { activeUserId: 'user-1' } }),
+  useAuth: () => ({ user: { activeUserId: mockActiveUserId } }),
 }));
 
 jest.mock('@/contexts/ActiveUserContext', () => ({
@@ -198,6 +199,7 @@ beforeAll(() => {
 describe('CompareReport', () => {
   beforeEach(() => {
     mockActingOnBehalf = false;
+    mockActiveUserId = 'user-1';
     window.localStorage.clear();
     mockGetCompare.mockReset();
     mockGetCompare.mockResolvedValue(RESPONSE);
@@ -312,6 +314,29 @@ describe('CompareReport', () => {
     expect(
       asked().filter((q) => q.mode === 'day' && q.start === week.startDate)
     ).toEqual([]);
+  });
+
+  it('a trip through since mode keeps the day span', async () => {
+    renderWithClient(<CompareReport />);
+    fireEvent.click(
+      screen.getByTestId('compare-suggestion-meditated-mood-sameDay')
+    );
+    await screen.findByTestId('answer-card');
+    fireEvent.click(screen.getByRole('button', { name: '30 days' }));
+
+    pickTiming('Before vs. since');
+    await screen.findByTestId('since-answer');
+    expect(screen.queryByRole('button', { name: '30 days' })).toBeNull();
+
+    // Back to day: still 30 days, not the day default.
+    pickTiming('The next day');
+    expect(pressed('30 days')).toBe('true');
+    expect(pressed('90 days')).toBe('false');
+    await screen.findByTestId('answer-card');
+
+    // Day to week still starts the span over.
+    pickTiming('The same week');
+    expect(pressed('6 months')).toBe('true');
   });
 
   it('a timing-row pick switches the question and shows the answer for that timing', async () => {
@@ -539,9 +564,16 @@ describe('CompareReport', () => {
     test('the month table shows only when the answer is ok', async () => {
       mockGetCompareSince.mockResolvedValue({
         ...SINCE_OK,
-        result: { status: 'notEnoughData' },
+        result: {
+          status: 'not_enough',
+          reason: 'fewSince',
+          start: '2026-09-01',
+          suggestedStart: '2026-09-01',
+          line: 70,
+        },
       });
       await startSince();
+      expect(screen.getByTestId('since-chart')).toBeInTheDocument();
       expect(screen.queryByTestId('since-month-table')).toBeNull();
     });
 
@@ -554,10 +586,29 @@ describe('CompareReport', () => {
       );
     });
 
-    test('acting on behalf sends no since request', () => {
+    test('acting on behalf sends no since request', async () => {
+      window.localStorage.setItem(
+        'sparky.compareRecentQuestions.v1.user-1',
+        JSON.stringify([SINCE_RECENT])
+      );
+      const { rerender } = renderWithClient(<CompareReport />);
+      fireEvent.click(screen.getByTestId(recentId));
+      await screen.findByTestId('since-answer');
+      const callsBefore = mockGetCompareSince.mock.calls.length;
+      expect(callsBefore).toBeGreaterThan(0);
+
+      // Acting on behalf switches the active user, which would key a new
+      // since request for the same question if the page still asked.
       mockActingOnBehalf = true;
-      renderWithClient(<CompareReport />);
-      expect(mockGetCompareSince).not.toHaveBeenCalled();
+      mockActiveUserId = 'user-2';
+      rerender(<CompareReport />);
+      expect(
+        screen.getByText('Compare shows only your own data')
+      ).toBeInTheDocument();
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(mockGetCompareSince.mock.calls.length).toBe(callsBefore);
     });
 
     test('the start state lists a recent since question', () => {

@@ -46,7 +46,13 @@ const StretchTable = ({ response }: CompareSinceAnswerProps) => {
         <table className="w-full text-left text-sm">
           <thead className="text-xs text-muted-foreground">
             <tr>
-              <th className={CELL} />
+              <th className={CELL}>
+                <span className="sr-only">
+                  {t('compareReport.since.table.stretch', {
+                    defaultValue: 'Stretch',
+                  })}
+                </span>
+              </th>
               <th className={CELL}>
                 {t('compareReport.since.table.dates', {
                   defaultValue: 'Dates',

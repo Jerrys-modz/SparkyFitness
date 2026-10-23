@@ -1,26 +1,23 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ColumnDef, SortingState } from '@tanstack/react-table';
-import { COMPARE_METRICS, type CompareSinceResponse } from '@workspace/shared';
+import {
+  COMPARE_METRICS,
+  type CompareSinceResponse,
+  sinceCoversLastYear,
+} from '@workspace/shared';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable } from '@/components/ui/DataTable';
 import type { DataTableFeatures } from '@/components/ui/dataTableFeatures';
 import { usePreferences } from '@/contexts/PreferencesContext';
-import {
-  compareAmountText,
-  compareValueText,
-  formatNumber,
-  metricName,
-} from './compareCopy';
+import { compareAmountText, compareValueText, metricName } from './compareCopy';
+import { percentText } from './compareSinceCopy';
 import { sinceMonthRows, type SinceMonthRow } from './compareSinceTables';
 
 interface CompareSinceMonthTableProps {
   response: CompareSinceResponse;
 }
-
-const percent = (share: number) =>
-  formatNumber(share, { style: 'percent', maximumFractionDigits: 0 });
 
 export const CompareSinceMonthTable = ({
   response,
@@ -32,6 +29,11 @@ export const CompareSinceMonthTable = ({
   ]);
 
   const rows = useMemo(() => sinceMonthRows(response), [response]);
+  // With a start over a year ago, since is only the last year, so the months
+  // between the stretches have no rows: say when it started and why.
+  const { start } = response.result;
+  const startedLongAgo =
+    start !== null && sinceCoversLastYear(response.result) ? start : null;
 
   const columns = useMemo<ColumnDef<DataTableFeatures, SinceMonthRow>[]>(() => {
     const habitKey = response.habit.key;
@@ -92,7 +94,7 @@ export const CompareSinceMonthTable = ({
           const mean = row.original.outcomeMean;
           if (mean === null) return '—';
           return yesNoOutcome
-            ? percent(mean)
+            ? percentText(mean)
             : compareValueText(outcomeKey, mean, timeFormat);
         },
       },
@@ -108,7 +110,7 @@ export const CompareSinceMonthTable = ({
         cell: ({ row }) =>
           row.original.shareAtOrAbove === null
             ? '—'
-            : percent(row.original.shareAtOrAbove),
+            : percentText(row.original.shareAtOrAbove),
       });
     }
     columns.push({
@@ -139,6 +141,15 @@ export const CompareSinceMonthTable = ({
           sorting={sorting}
           onSortingChange={setSorting}
         />
+        {startedLongAgo && (
+          <p className="mt-3 text-sm text-muted-foreground">
+            {t('compareReport.since.months.gap', {
+              defaultValue:
+                'You started on {{start}}. The months between the before and since stretches are left out.',
+              start: formatDateInUserTimezone(startedLongAgo, 'PP'),
+            })}
+          </p>
+        )}
       </CardContent>
     </Card>
   );

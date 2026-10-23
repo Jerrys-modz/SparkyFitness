@@ -12,6 +12,7 @@ import {
   type CompareQuestion,
   type CompareSinceResponse,
   type CompareSpan,
+  type CompareSpanMode,
 } from '@workspace/shared';
 import { Button } from '@/components/ui/button';
 import { usePreferences } from '@/contexts/PreferencesContext';
@@ -53,6 +54,9 @@ export const CompareReport = () => {
   const [question, setQuestion] = useState<Partial<CompareQuestion>>({});
   const [span, setSpan] = useState<CompareSpan>(DEFAULT_COMPARE_SPAN.day);
   const [custom, setCustom] = useState<CustomRange | null>(null);
+  // The mode the span and custom range were picked for. Since mode has no
+  // span, so it keeps the day or week one for the way back.
+  const [spanMode, setSpanMode] = useState<CompareSpanMode>('day');
   // A since start belongs to its habit and a line to its outcome's scale, so
   // each is set aside while a different metric is picked in that slot.
   const [startPick, setStartPick] = useState<{
@@ -69,11 +73,12 @@ export const CompareReport = () => {
   const isSince = mode === 'since';
   const today = todayInZone(timezone);
 
-  // A span valid by day (30 days) is not valid by week, so a change of mode
-  // starts over. Since mode has no span of its own.
+  // A span valid by day (30 days) is not valid by week, so a change between
+  // day and week starts over; a trip through since mode keeps it.
   const applyQuestion = (next: Partial<CompareQuestion>) => {
     const nextMode = modeOf(next);
-    if (nextMode !== mode && nextMode !== 'since') {
+    if (nextMode !== 'since' && nextMode !== spanMode) {
+      setSpanMode(nextMode);
       setSpan(DEFAULT_COMPARE_SPAN[nextMode]);
       setCustom(null);
     }
@@ -82,9 +87,7 @@ export const CompareReport = () => {
 
   const { answer, timings } = useCompareQuestion(
     question,
-    isActingOnBehalf
-      ? null
-      : compareWindow(span, isSince ? 'day' : mode, today, custom)
+    isActingOnBehalf ? null : compareWindow(span, spanMode, today, custom)
   );
 
   const habitStart =
