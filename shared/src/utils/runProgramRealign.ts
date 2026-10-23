@@ -10,7 +10,6 @@ import { ProgramAdjustError, adjustRunning } from './runProgramAdjust.ts';
 import type { ProgramState } from './runProgramAdjust.ts';
 import { suggestFromBreak } from './runProgramBreak.ts';
 import {
-  builtInBaseline,
   planMinutes,
   programActivity,
   runMinutes,
@@ -87,7 +86,7 @@ export interface RealignInput {
   force?: boolean;
   /**
    * Whether spare time may be filled with repeated workouts. False once the
-   * plan has been stretched, so an accepted stretch is not offered again.
+   * adjustment log records a stretch, so an accepted one is not offered again.
    */
   stretchable?: boolean;
 }
@@ -134,6 +133,7 @@ export function realignInputFromProgram(
     | 'end_date'
     | 'last_done_date'
     | 'activity'
+    | 'adjustment_log'
   >,
   options: {
     today: string;
@@ -162,24 +162,14 @@ export function realignInputFromProgram(
   };
 }
 
-/**
- * A stretch repeats workouts and leaves the plan longer than it was written
- * (or with identical workouts, for a person's own plan), so a plan that shows
- * either has already been stretched and gets no second offer.
- */
-function isStretchable(
-  program: Pick<RunProgramResponse, 'program_id' | 'workouts' | 'next_index'>
-): boolean {
-  if (!isCustomProgramId(program.program_id)) {
-    return builtInBaseline(program.program_id, program.workouts) !== undefined;
-  }
-  const seen = new Set<string>();
-  for (const w of program.workouts.slice(program.next_index)) {
-    const signature = JSON.stringify(w.plan.steps);
-    if (seen.has(signature)) return false;
-    seen.add(signature);
-  }
-  return true;
+/** Written in the summary of an applied stretch; the adjustment log is how a later realignment knows. */
+export const REALIGN_STRETCH_NOTE = 'Filled spare time with repeated workouts.';
+
+/** A plan whose log already records an accepted stretch gets no second offer. */
+function isStretchable(program: Pick<RunProgramResponse, 'adjustment_log'>) {
+  return !program.adjustment_log.some((entry) =>
+    entry.summary.includes(REALIGN_STRETCH_NOTE)
+  );
 }
 
 /** Thrown when a confirmed realignment no longer matches the plan the person saw. */
@@ -459,12 +449,14 @@ function describe(preview: Omit<RunProgramRealignPreview, 'summary'>): string {
   const head = parts.length
     ? `Realigned to the goal day: ${parts.join(', ')}.`
     : 'Realigned to the goal day.';
+  const stretched =
+    preview.added + preview.repeated > 0 ? ` ${REALIGN_STRETCH_NOTE}` : '';
   const kept =
     preview.keptTail > 0 ? ' The taper and the final workout are kept.' : '';
   const eased = preview.eased
     ? ` Eased the next ${plural(preview.eased.count, 'workout', 'workouts')} by ${Math.abs(preview.eased.percent)}% after ${preview.eased.daysAway} days away.`
     : '';
-  return `${head}${kept}${eased}`.slice(0, 500);
+  return `${head}${stretched}${kept}${eased}`.slice(0, 500);
 }
 
 /**

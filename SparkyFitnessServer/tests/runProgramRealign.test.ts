@@ -352,24 +352,64 @@ describe('realignProgram: more time than workouts', () => {
     expect(realignProgram(input(half, 39)).state).toBe('plan');
   });
 
+  const fromProgram = (
+    workouts: ProgramWorkout[],
+    adjustment_log: { at: string; summary: string; source: 'user' }[],
+    programId = 'halfMarathon',
+    slots = 80
+  ) =>
+    realignInputFromProgram(
+      {
+        program_id: programId,
+        workouts,
+        next_index: 0,
+        run_days: runDays,
+        start_date: null,
+        end_date: endForSlots(slots),
+        last_done_date: null,
+        activity: 'run',
+        adjustment_log,
+      },
+      { today }
+    );
+
   it('does not offer a second stretch once one has been accepted', () => {
     const first = plan(realignProgram(input(half, 80)));
-    const stored = (workouts: ProgramWorkout[]) =>
-      realignInputFromProgram(
-        {
-          program_id: 'halfMarathon',
-          workouts,
-          next_index: 0,
-          run_days: runDays,
-          start_date: null,
-          end_date: endForSlots(80),
-          last_done_date: null,
-          activity: 'run',
-        },
-        { today }
-      );
-    expect(realignProgram(stored(half)).state).toBe('plan');
-    expect(realignProgram(stored(first.workouts)).state).toBe('fits');
+    const log = [
+      {
+        at: '2026-11-01T10:00:00Z',
+        summary: first.preview.summary,
+        source: 'user' as const,
+      },
+    ];
+    expect(realignProgram(fromProgram(half, [])).state).toBe('plan');
+    expect(realignProgram(fromProgram(first.workouts, log)).state).toBe('fits');
+  });
+
+  it('still stretches a plan that was only compressed earlier', () => {
+    const squeezed = plan(realignProgram(input(half, 30)));
+    const log = [
+      {
+        at: '2026-11-01T10:00:00Z',
+        summary: squeezed.preview.summary,
+        source: 'user' as const,
+      },
+    ];
+    expect(squeezed.workouts.length).not.toBe(half.length);
+    expect(realignProgram(fromProgram(squeezed.workouts, log)).state).toBe(
+      'plan'
+    );
+  });
+
+  it('still stretches a custom plan that repeats a workout', () => {
+    const repeating = half.map((w, i) =>
+      i < 2 ? { ...half[0]!, week: w.week, day: w.day } : w
+    );
+    const outcome = realignProgram({
+      ...fromProgram(repeating, [], 'custom:abc'),
+      custom: true,
+    });
+    expect(outcome.state).toBe('plan');
   });
 });
 
