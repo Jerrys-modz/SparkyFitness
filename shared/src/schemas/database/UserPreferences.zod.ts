@@ -6,11 +6,18 @@ import {
   MIN_CALORIE_SAFETY_FLOOR,
 } from '../../constants/calorieConstants.ts';
 import { CHART_SCALE_MODES } from '../../constants/chartConstants.ts';
+import { MAX_GOAL_MODE_WEEKLY_CHANGE_KG } from '../../utils/calorieCalculations.ts';
 import { HR_ZONE_METHODS } from '../../utils/heartRateZones.ts';
 
 export const SUPPORTED_TIME_FORMATS = ['HH:mm', 'h:mm A', 'h:mm a'] as const;
 
 const externalDataProvidersIdSchema = z.any();
+
+const weeklyWeightChangeSchema = z
+  .number()
+  .min(-MAX_GOAL_MODE_WEEKLY_CHANGE_KG)
+  .max(MAX_GOAL_MODE_WEEKLY_CHANGE_KG)
+  .multipleOf(0.001);
 
 export const userPreferencesSchema = z.object({
   adaptive_activity_separate: z.boolean().optional(),
@@ -62,9 +69,11 @@ export const userPreferencesSchema = z.object({
     'lean_bulk',
     'bulk',
     'manual',
+    'weekly',
   ]),
   goal_mode_calculation_method: z.enum(['adaptive', 'manual']),
   goal_mode_custom_percentage: z.number().int().min(-40).max(40),
+  goal_mode_weekly_change_kg: weeklyWeightChangeSchema.default(0),
   calorie_safety_floor_mode: z.enum(CALORIE_SAFETY_FLOOR_MODES),
   calorie_safety_floor_value: z
     .number()
@@ -150,10 +159,12 @@ export const userPreferencesInitializerSchema = z.object({
       'lean_bulk',
       'bulk',
       'manual',
+      'weekly',
     ])
     .optional(),
   goal_mode_calculation_method: z.enum(['adaptive', 'manual']).optional(),
   goal_mode_custom_percentage: z.number().int().min(-40).max(40).optional(),
+  goal_mode_weekly_change_kg: weeklyWeightChangeSchema.optional(),
   calorie_safety_floor_mode: z.enum(CALORIE_SAFETY_FLOOR_MODES).optional(),
   calorie_safety_floor_value: z
     .number()
@@ -242,10 +253,12 @@ export const userPreferencesMutatorSchema = z.object({
       'lean_bulk',
       'bulk',
       'manual',
+      'weekly',
     ])
     .optional(),
   goal_mode_calculation_method: z.enum(['adaptive', 'manual']).optional(),
   goal_mode_custom_percentage: z.number().int().min(-40).max(40).optional(),
+  goal_mode_weekly_change_kg: weeklyWeightChangeSchema.optional(),
   calorie_safety_floor_mode: z.enum(CALORIE_SAFETY_FLOOR_MODES).optional(),
   calorie_safety_floor_value: z
     .number()

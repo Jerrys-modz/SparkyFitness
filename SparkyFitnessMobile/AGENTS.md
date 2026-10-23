@@ -1,7 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-21_
-_Last updated: 2026-10-22_
+_Last updated: 2026-10-23_
 
 SparkyFitness Mobile is a React Native 0.86 + Expo SDK 57 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
 
@@ -432,6 +431,7 @@ const androidService = require('../../src/services/healthConnectService.ts');
 - Chat/voice settings bug: inspect `ChatScreen`, `ChatSettingsScreen`, `components/chat/`, `useVoicePreferencesRefresh`, `aiSettingsApi`, `preferencesApi`, and `voiceTranscriptionApi`; settings and contracts also have web/server consumers.
 - Shoe inventory bug: inspect `EquipmentScreen` (Library > Equipment, the hub a new kind of gear adds a row to), `ShoesScreen` / `ShoeFormScreen`, `components/ShoePickerCard.tsx` (the picker on `CardioSessionScreen` and, for cardio entries, `ActivityDetailScreen`), `hooks/useShoes.ts`, `services/api/shoesApi.ts`, and `assignDefaultShoe` in `services/gpsRecordingSave.ts` (a newly created recorded run, outdoor or indoor, is linked to the default pair, best effort and only on first create). When a run takes a pair to its retire-at distance, `services/shoeWear.ts` (`findShoeThatReachedLimit`) reports it: `saveRecordedActivity` returns it as `wornOutShoe` and `ShoePickerCard` checks after a pick, and both ask through `utils/retireShoePrompt.ts`. Distances are stored in km and edited in the app's distance unit; mileage is derived on the server from the linked entries, so every assignment invalidates `shoesQueryKey` and the cardio session caches.
 - Settings/diagnostics bug: inspect settings screens, `SettingsRow`, haptics/theme/sounds/notification services, diagnostics services, `DevTools`, and screen error boundaries.
+- Calorie goal mode: `CalorieSettingsScreen` keeps existing percentage modes and offers `weekly`; `WeeklyWeightGoalFields` edits direction plus kg/g/lb or stone + pounds per week, initially using the profile weight unit, saved in `goal_mode_weekly_change_kg` (negative loss, positive gain, zero maintenance). The shared weekly-rate helpers format/parse inputs without changing stored kilograms on unit-only switches, and `getGoalModeDailyAdjustment` supplies the estimated daily calorie offset. Actual targets and safety-floor limits come from the server; preference changes invalidate all daily summaries and goal caches.
 
 ## Priority Rule
 

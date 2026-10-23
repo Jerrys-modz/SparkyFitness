@@ -4,6 +4,7 @@ import {
   isValidTimeZone,
   SUPPORTED_TIME_FORMATS,
   MAX_GOAL_MODE_PERCENTAGE,
+  MAX_GOAL_MODE_WEEKLY_CHANGE_KG,
   CALORIE_SAFETY_FLOOR_MODES,
   MIN_CALORIE_SAFETY_FLOOR,
   MAX_CALORIE_SAFETY_FLOOR,
@@ -18,7 +19,10 @@ import {
 type GoalModePreferenceInput = Partial<
   Pick<
     UserPreferencesMutator,
-    'goal_mode' | 'goal_mode_calculation_method' | 'goal_mode_custom_percentage'
+    | 'goal_mode'
+    | 'goal_mode_calculation_method'
+    | 'goal_mode_custom_percentage'
+    | 'goal_mode_weekly_change_kg'
   >
 >;
 type CalorieSafetyFloorPreferenceInput = Partial<
@@ -85,6 +89,7 @@ async function validateGoalMode(preferenceData: GoalModePreferenceInput) {
       'lean_bulk',
       'bulk',
       'manual',
+      'weekly',
     ];
     if (!validGoalModes.includes(preferenceData.goal_mode)) {
       throw Object.assign(
@@ -117,6 +122,22 @@ async function validateGoalMode(preferenceData: GoalModePreferenceInput) {
       throw Object.assign(
         new Error(
           `Invalid goal_mode_custom_percentage: '${preferenceData.goal_mode_custom_percentage}'. Must be an integer between -${MAX_GOAL_MODE_PERCENTAGE} and ${MAX_GOAL_MODE_PERCENTAGE}.`
+        ),
+        { status: 400 }
+      );
+    }
+  }
+  if (preferenceData.goal_mode_weekly_change_kg !== undefined) {
+    const rate = preferenceData.goal_mode_weekly_change_kg;
+    if (
+      typeof rate !== 'number' ||
+      !Number.isFinite(rate) ||
+      Math.abs(rate) > MAX_GOAL_MODE_WEEKLY_CHANGE_KG ||
+      Math.round(rate * 1000) / 1000 !== rate
+    ) {
+      throw Object.assign(
+        new Error(
+          `Invalid goal_mode_weekly_change_kg: '${rate}'. Must be a number between -${MAX_GOAL_MODE_WEEKLY_CHANGE_KG} and ${MAX_GOAL_MODE_WEEKLY_CHANGE_KG}, with at most three decimal places.`
         ),
         { status: 400 }
       );
@@ -185,6 +206,7 @@ function getDefaultPreferences() {
     calorie_safety_floor_mode: 'standard',
     calorie_safety_floor_value: DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
     chart_scale_mode: DEFAULT_CHART_SCALE_MODE,
+    goal_mode_weekly_change_kg: 0,
   };
 }
 async function updateUserPreferences(

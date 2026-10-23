@@ -72,6 +72,7 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
     goalModeCalculationMethod,
     adaptiveActivitySeparate,
     goalModeCustomPercentage,
+    goalModeWeeklyChangeKg,
     calorieSafetyFloorMode,
     calorieSafetyFloorValue,
     activityLevel,
@@ -293,6 +294,7 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
     goalMode,
     calculationMethod: goalModeCalculationMethod,
     customPercentage: goalModeCustomPercentage,
+    weeklyChangeKg: goalModeWeeklyChangeKg,
     bmr,
     activityLevelMultiplier: activityMultiplier,
     adaptiveTdee: getAdaptiveTdeeForGoal(adaptiveTdeeData, activitySeparated),
@@ -837,6 +839,7 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
               goalMode={goalMode}
               goalModeCalculationMethod={goalModeCalculationMethod}
               goalModeCustomPercentage={goalModeCustomPercentage}
+              goalModeWeeklyChangeKg={goalModeWeeklyChangeKg}
               calorieGoalAdjustmentMode={calorieGoalAdjustmentMode}
               rawManualGoal={rawManualGoal}
               adjustedManualGoal={adjustedManualGoal}
