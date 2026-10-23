@@ -439,6 +439,12 @@ enum WatchRunRecoveryOutcome {
 }
 
 extension WatchRunHealthKitController {
+    /// Writes the snapshot now, for a route-tracker change that no throttled
+    /// write follows (a fix taken while paused).
+    func persistRouteProgress() {
+        persistSnapshot(force: true)
+    }
+
     fileprivate func persistSnapshot(force: Bool = false) {
         guard session != nil else { return }
         let now = Date()

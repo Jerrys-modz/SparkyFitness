@@ -280,6 +280,15 @@ final class WatchRunStore: ObservableObject {
         }
     }
 
+    /// Hands the tracker's place, and a cue held for the resume, to the run
+    /// snapshot, so a relaunch carries on from both.
+    private func publishRouteProgress() {
+        guard let tracker = routeTracker else { return }
+        var state = tracker.state
+        state.pendingCue = heldRouteCue
+        healthKit.routeProgress = state
+    }
+
     /// Takes a GPS fix. The map and the next cue follow every usable fix; the
     /// buzzes and spoken lines only come while the run is going, so a paused
     /// wearer is not nagged.
@@ -287,13 +296,16 @@ final class WatchRunStore: ObservableObject {
         guard phase == .running || phase == .paused, var tracker = routeTracker else { return }
         guard let update = tracker.update(lat: point.lat, lon: point.lon, accuracy: accuracy, at: date) else { return }
         routeTracker = tracker
-        healthKit.routeProgress = tracker.state
         routePosition = point
         routeProgress = update.snapshot
         var events = update.events
         if phase == .paused {
             // The tracker has marked a turn announced; keep it for the resume.
             for case .approachingCue(let routeCue) in events { heldRouteCue = routeCue }
+            // Route collection is off while paused, so no running-fix write
+            // follows; save the tracker now or a relaunch restores the pre-pause place.
+            publishRouteProgress()
+            healthKit.persistRouteProgress()
             return
         }
         guard phase == .running else { return }
@@ -304,6 +316,7 @@ final class WatchRunStore: ObservableObject {
                 events.insert(.approachingCue(held), at: 0)
             }
         }
+        publishRouteProgress()
         for event in events {
             switch event {
             case .approachingCue(let routeCue):
@@ -358,7 +371,10 @@ final class WatchRunStore: ObservableObject {
                     if let savedRouteProgress, var tracker = self.routeTracker {
                         tracker.restore(savedRouteProgress)
                         self.routeTracker = tracker
-                        self.healthKit.routeProgress = tracker.state
+                        if savedRouteProgress.routeId == tracker.route.id {
+                            self.heldRouteCue = savedRouteProgress.pendingCue
+                        }
+                        self.publishRouteProgress()
                     }
                     // The recovered builder may still read 0 for a moment, so the
                     // snapshot's time is the floor. The plan's place comes back

@@ -104,6 +104,9 @@ struct WatchRouteTracker {
         var isOffRoute: Bool
         var hasArrived: Bool
         var announced: [Int]
+        /// A turn cue announced while paused and not yet said. Optional so
+        /// a state saved before this existed still decodes.
+        var pendingCue: WatchRouteCue?
     }
 
     var state: State {
@@ -112,7 +115,8 @@ struct WatchRouteTracker {
             progressMeters: progressMeters,
             isOffRoute: isOffRoute,
             hasArrived: hasArrived,
-            announced: announced.sorted()
+            announced: announced.sorted(),
+            pendingCue: nil
         )
     }
 
