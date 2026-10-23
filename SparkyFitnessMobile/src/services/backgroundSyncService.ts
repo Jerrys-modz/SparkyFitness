@@ -208,7 +208,14 @@ const runBackgroundSync = async (
     return;
   }
 
-  await initHealthConnect();
+  const healthConnectInitialized = await initHealthConnect();
+  if (!healthConnectInitialized) {
+    await addLog(
+      '[Background Sync] Health provider initialization failed — skipping health reads and timestamp update; will retry next cycle. Check provider availability and health permissions in Settings.',
+      'WARNING'
+    );
+    return;
+  }
 
   const outcomes = await collectHealthData(
     healthReadProvider,

@@ -463,6 +463,18 @@ const tryReconnectOnce = async (): Promise<boolean> => {
   return inFlightReconnect;
 };
 
+/** Retries a native aggregation once using the run's shared reconnect attempt. */
+const withClientRecovery = async <T>(read: () => Promise<T>): Promise<T> => {
+  try {
+    return await read();
+  } catch (error) {
+    if (!isClientUnavailableError(error)) throw error;
+    clientUnavailableCount++;
+    if (!(await tryReconnectOnce())) throw error;
+    return read();
+  }
+};
+
 export const readHealthRecordsDetailed = async (
   recordType: string,
   startDate: Date,
@@ -956,59 +968,26 @@ const aggregateByDeviceZone = async (
   type PeriodBucket = { result: unknown; startTime: string; endTime: string };
   let buckets: PeriodBucket[];
   try {
-    buckets = (await aggregateGroupByPeriod({
-      recordType: spec.recordType as Parameters<
-        typeof aggregateGroupByPeriod
-      >[0]['recordType'],
-      timeRangeFilter: {
-        operator: 'between',
-        startTime: startDate.toISOString(),
-        endTime: endDate.toISOString(),
-      },
-      timeRangeSlicer: { period: 'DAYS', length: 1 },
-    })) as unknown as PeriodBucket[];
+    buckets = (await withClientRecovery(() =>
+      aggregateGroupByPeriod({
+        recordType: spec.recordType as Parameters<
+          typeof aggregateGroupByPeriod
+        >[0]['recordType'],
+        timeRangeFilter: {
+          operator: 'between',
+          startTime: startDate.toISOString(),
+          endTime: endDate.toISOString(),
+        },
+        timeRangeSlicer: { period: 'DAYS', length: 1 },
+      })
+    )) as unknown as PeriodBucket[];
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (isClientUnavailableError(error)) {
-      clientUnavailableCount++;
-      if (await tryReconnectOnce()) {
-        try {
-          buckets = (await aggregateGroupByPeriod({
-            recordType: spec.recordType as Parameters<
-              typeof aggregateGroupByPeriod
-            >[0]['recordType'],
-            timeRangeFilter: {
-              operator: 'between',
-              startTime: startDate.toISOString(),
-              endTime: endDate.toISOString(),
-            },
-            timeRangeSlicer: { period: 'DAYS', length: 1 },
-          })) as unknown as PeriodBucket[];
-        } catch (retryError) {
-          const retryMessage =
-            retryError instanceof Error
-              ? retryError.message
-              : String(retryError);
-          addLog(
-            `[HealthConnectService] aggregateGroupByPeriod(${spec.recordType}) failed after reconnect: ${retryMessage}`,
-            'ERROR'
-          );
-          return { records: [], error: retryMessage };
-        }
-      } else {
-        addLog(
-          `[HealthConnectService] aggregateGroupByPeriod(${spec.recordType}) failed: ${message}`,
-          'ERROR'
-        );
-        return { records: [], error: message };
-      }
-    } else {
-      addLog(
-        `[HealthConnectService] aggregateGroupByPeriod(${spec.recordType}) failed: ${message}`,
-        'ERROR'
-      );
-      return { records: [], error: message };
-    }
+    addLog(
+      `[HealthConnectService] aggregateGroupByPeriod(${spec.recordType}) failed: ${message}`,
+      'ERROR'
+    );
+    return { records: [], error: message };
   }
 
   const results: AggregatedHealthRecord[] = [];
@@ -1056,17 +1035,19 @@ const aggregateByRecordOffsets = async (
     };
     let buckets: DurationBucket[];
     try {
-      buckets = (await aggregateGroupByDuration({
-        recordType: spec.recordType as Parameters<
-          typeof aggregateGroupByDuration
-        >[0]['recordType'],
-        timeRangeFilter: {
-          operator: 'between',
-          startTime: new Date(segment.startMs).toISOString(),
-          endTime: new Date(segment.endMs).toISOString(),
-        },
-        timeRangeSlicer: { duration: 'DAYS', length: 1 },
-      })) as unknown as DurationBucket[];
+      buckets = (await withClientRecovery(() =>
+        aggregateGroupByDuration({
+          recordType: spec.recordType as Parameters<
+            typeof aggregateGroupByDuration
+          >[0]['recordType'],
+          timeRangeFilter: {
+            operator: 'between',
+            startTime: new Date(segment.startMs).toISOString(),
+            endTime: new Date(segment.endMs).toISOString(),
+          },
+          timeRangeSlicer: { duration: 'DAYS', length: 1 },
+        })
+      )) as unknown as DurationBucket[];
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       addLog(
