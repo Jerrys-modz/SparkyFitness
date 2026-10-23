@@ -127,6 +127,7 @@ const saveEntry = async () => {
     data: {
       distance: number | null;
       duration_minutes: number;
+      calories_burned?: number;
       avg_heart_rate: number | null;
       steps: number | null;
       sets: Array<{
@@ -323,5 +324,44 @@ describe('EditExerciseEntryDialog untouched fields', () => {
 
     const { data } = await saveEntry();
     expect(data.duration_minutes).toBe(3);
+  });
+});
+
+describe('EditExerciseEntryDialog calories after changing sets', () => {
+  beforeEach(() => {
+    mockUpdateExerciseEntry.mockClear();
+    mockUpdateExerciseEntry.mockResolvedValue(undefined);
+    mockDistanceUnit = 'km';
+  });
+
+  const strengthEntry = () =>
+    makeEntry({
+      duration_minutes: 2,
+      calories_burned: 20,
+      distance: null,
+      sets: [{ ...cardioSet, duration: null, distance: null, rest_time: 120 }],
+      exercise_snapshot: {
+        id: 'ex-1',
+        name: 'Bench Press',
+        category: 'Strength',
+        modality: 'weight_reps',
+      },
+    } as unknown as Partial<ExerciseEntry>);
+
+  it('lets the server re-estimate when a set is added', async () => {
+    renderDialog(strengthEntry());
+
+    fireEvent.click(screen.getByText('Add Set'));
+    const { data } = await saveEntry();
+    expect(data.calories_burned).toBeUndefined();
+    expect(data.duration_minutes).toBeGreaterThan(2);
+  });
+
+  it('sends the stored calories when the sets are untouched', async () => {
+    renderDialog(strengthEntry());
+
+    const { data } = await saveEntry();
+    expect(data.calories_burned).toBe(20);
+    expect(data.duration_minutes).toBe(2);
   });
 });
