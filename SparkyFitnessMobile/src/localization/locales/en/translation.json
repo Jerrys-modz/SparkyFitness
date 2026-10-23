@@ -4037,6 +4037,7 @@
       "calories": "Calories",
       "distance": "Distance",
       "avgHeartRate": "Avg Heart Rate",
+      "caloriesCounted": "Counted in daily total",
       "steps": "Steps",
       "pace": "Pace",
       "effort": "Effort"

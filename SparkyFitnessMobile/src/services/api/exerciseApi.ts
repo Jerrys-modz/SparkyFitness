@@ -375,6 +375,8 @@ export interface CreateExerciseEntryPayload {
   duration_minutes: number;
   /** Omit to let the server estimate from the exercise and duration. */
   calories_burned?: number;
+  /** Counted in the daily total instead of `calories_burned`; null clears it. */
+  calories_applied?: number | null;
   entry_date: string;
   /** Local start time, `HH:MM` (24h). */
   entry_time?: string;

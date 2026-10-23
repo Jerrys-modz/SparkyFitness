@@ -94,6 +94,7 @@ import type { UpdatePresetSessionRequest } from '@workspace/shared';
 import {
   canEditGroupedWorkout,
   effectiveLoadKg,
+  entryCaloriesCounted,
   isBodyweightModality,
   resolveExerciseModality,
 } from '@workspace/shared';
@@ -677,7 +678,7 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           return sum + (isNaN(cal) ? 0 : cal);
         }, 0)
       : session.exercises.reduce(
-          (sum, ex) => sum + (ex.calories_burned ?? 0),
+          (sum, ex) => sum + entryCaloriesCounted(ex),
           0
         );
 

@@ -475,6 +475,31 @@ describe('workoutSession', () => {
   });
 
   describe('getSessionCalories', () => {
+    it('counts calories_applied instead of calories_burned, including 0', () => {
+      expect(
+        getSessionCalories(
+          makeIndividual({ calories_burned: 425, calories_applied: 0 })
+        )
+      ).toBe(0);
+      const preset = makePreset({
+        exercises: [
+          {
+            exercise_id: 'ex-1',
+            calories_burned: 475,
+            calories_applied: 100,
+            sets: [],
+          } as any,
+          {
+            exercise_id: 'ex-2',
+            calories_burned: 50,
+            calories_applied: null,
+            sets: [],
+          } as any,
+        ],
+      });
+      expect(getSessionCalories(preset)).toBe(150);
+    });
+
     it('sums exercise calories for preset sessions', () => {
       const session = makePreset({
         exercises: [

@@ -60,7 +60,13 @@ import { canEditGroupedWorkout } from '@workspace/shared';
 type Props = RootStackScreenProps<'ActivityDetail'>;
 
 type EditableField =
-  'name' | 'duration' | 'calories' | 'distance' | 'avgHeartRate' | 'notes';
+  | 'name'
+  | 'duration'
+  | 'calories'
+  | 'caloriesApplied'
+  | 'distance'
+  | 'avgHeartRate'
+  | 'notes';
 
 const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { t, i18n: translationI18n } = useTranslation();
@@ -155,6 +161,7 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     setDuration,
     setDistance,
     setCalories,
+    setCaloriesApplied,
     setAvgHeartRate,
     setDate,
     setNotes,
@@ -304,6 +311,7 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       exercise_name: submission.exerciseName,
       duration_minutes: submission.durationMinutes,
       calories_burned: submission.caloriesBurned,
+      calories_applied: submission.caloriesApplied,
       entry_date: submission.entryDate,
       distance: submission.distanceKm,
       avg_heart_rate: submission.avgHeartRate,
@@ -321,6 +329,7 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         name: submission.exerciseName,
         notes: submission.notes,
         calories_burned: submission.caloriesBurned,
+        calories_applied: submission.caloriesApplied,
         duration_minutes: submission.durationMinutes,
         distance: submission.distanceKm,
         avg_heart_rate: submission.avgHeartRate,
@@ -402,6 +411,21 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         keyboardType: 'decimal-pad',
       });
     }
+    if (isEditing || session.calories_applied != null) {
+      stats.push({
+        value: isEditing
+          ? formState.caloriesApplied || '-'
+          : formatLocalizedNumber(session.calories_applied ?? 0, {
+              maximumFractionDigits: 1,
+            }),
+        label: t('activityDetail.stats.caloriesCounted', {
+          defaultValue: 'Counted in daily total',
+        }),
+        editKey: 'caloriesApplied',
+        editSuffix: 'cal',
+        keyboardType: 'decimal-pad',
+      });
+    }
     if (isEditing || (session.distance != null && session.distance > 0)) {
       stats.push({
         value: isEditing
@@ -467,6 +491,8 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         return formState.duration;
       case 'calories':
         return formState.calories;
+      case 'caloriesApplied':
+        return formState.caloriesApplied ?? '';
       case 'distance':
         return formState.distance;
       case 'avgHeartRate':
@@ -486,6 +512,9 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         break;
       case 'calories':
         setCalories(value);
+        break;
+      case 'caloriesApplied':
+        setCaloriesApplied(value);
         break;
       case 'distance':
         setDistance(value);
