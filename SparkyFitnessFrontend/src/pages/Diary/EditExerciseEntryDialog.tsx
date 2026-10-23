@@ -1254,7 +1254,7 @@ const EditExerciseEntryDialog = ({
                   {entry.calorie_link_id
                     ? t(
                         'exercise.editExerciseEntryDialog.caloriesAppliedLinkedHint',
-                        'This session is linked to a synced workout, so the counted calories come from that link. Change or remove the link instead.'
+                        'Counted calories come from the workout link. Manage that link from the manual workout.'
                       )
                     : t(
                         'exercise.editExerciseEntryDialog.caloriesAppliedHint',

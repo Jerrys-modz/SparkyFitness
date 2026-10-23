@@ -412,9 +412,11 @@ async function setCalorieLink(
   const client = await getClient(userId, actingUserId);
   try {
     await client.query('BEGIN');
+    const session = await loadWorkoutEntries(client, userId, entryId, false);
     await lockCalorieLinkParticipantsWithClient(client, userId, [
       entryId,
       body.synced_entry_id,
+      ...session.map((row) => row.id),
     ]);
     const workout = await loadWorkoutEntries(client, userId, entryId, true);
     const existingLinkId = workout.find(
