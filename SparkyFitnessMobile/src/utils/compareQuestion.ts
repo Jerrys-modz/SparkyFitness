@@ -1,10 +1,22 @@
 import {
   COMPARE_METRICS,
+  COMPARE_SPAN_DAYS,
+  DEFAULT_COMPARE_SPAN,
+  MAX_CUSTOM_DAYS,
   SINCE_START_MAX_DAYS_AGO,
   addDays,
   compareDays,
   daysBetween,
   type CompareMetricKey,
+  type CompareSpan,
+} from '@workspace/shared';
+
+// The span presets, default and limits are shared with the endpoint and the AI tool.
+export {
+  COMPARE_SPANS,
+  DEFAULT_COMPARE_SPAN,
+  MAX_CUSTOM_DAYS,
+  type CompareSpan,
 } from '@workspace/shared';
 
 export type CompareMode = 'day' | 'week' | 'since';
@@ -36,32 +48,6 @@ export function timingOf(choice: CompareTimingChoice): CompareTiming {
   return TIMINGS[choice];
 }
 
-export type CompareSpan = '30d' | '60d' | '90d' | '6m' | '1y' | 'custom';
-
-export const COMPARE_SPANS: Record<SpanMode, readonly CompareSpan[]> = {
-  day: ['30d', '60d', '90d', 'custom'],
-  week: ['6m', '1y', 'custom'],
-};
-
-export const DEFAULT_COMPARE_SPAN: Record<SpanMode, CompareSpan> = {
-  day: '90d',
-  week: '6m',
-};
-
-const SPAN_DAYS: Record<Exclude<CompareSpan, 'custom'>, number> = {
-  '30d': 30,
-  '60d': 60,
-  '90d': 90,
-  '6m': 182,
-  '1y': 364,
-};
-
-/** The longest custom span per mode; the server rejects anything longer. */
-export const MAX_CUSTOM_DAYS: Record<SpanMode, number> = {
-  day: 180,
-  week: 366,
-};
-
 /** The server leaves today out itself, so the window simply ends today. */
 export function compareWindow(
   span: CompareSpan,
@@ -81,7 +67,7 @@ export function compareWindow(
     };
   }
   const key = span === 'custom' ? DEFAULT_COMPARE_SPAN[mode] : span;
-  const days = SPAN_DAYS[key as Exclude<CompareSpan, 'custom'>];
+  const days = COMPARE_SPAN_DAYS[key];
   return { startDate: addDays(today, -(days - 1)), endDate: today };
 }
 

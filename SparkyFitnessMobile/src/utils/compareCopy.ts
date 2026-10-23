@@ -1,14 +1,14 @@
 import {
+  bedtimeClock,
   COMPARE_METRICS,
+  compareDigits,
+  compareDisplayValue,
+  isSleepMetric,
   type CompareMetricKey,
   type CompareResponse,
   type CompareResult,
 } from '@workspace/shared';
-import {
-  COMPARE_METRIC_LABELS,
-  compareDisplayValue,
-  isSleepMetric,
-} from '../constants/compareMetrics';
+import { COMPARE_METRIC_LABELS } from '../constants/compareMetrics';
 import type { Translator } from '../constants/reports';
 import { formatLocalizedNumber } from '../localization';
 import { formatTimeLabel } from './entryTimeDisplay';
@@ -674,24 +674,6 @@ function num(value: number, digits: number): string {
   });
 }
 
-/** Units whose values are counts or whole minutes, shown without decimals. */
-const WHOLE_UNITS: ReadonlySet<string> = new Set([
-  'steps',
-  'kcal',
-  'min',
-  'sessions',
-  'yes/no',
-]);
-const MINUTES_PER_DAY = 24 * 60;
-const BEDTIME_ORIGIN_MINUTES = 18 * 60;
-
-/** Decimals a metric is shown with: counts and minutes whole, everything else one. */
-export function compareDigits(key: CompareMetricKey): 0 | 1 {
-  return key === 'bedtime' || WHOLE_UNITS.has(COMPARE_METRICS[key].unit)
-    ? 0
-    : 1;
-}
-
 /**
  * An amount of a metric on its display scale (mood 1-10): counts and minutes
  * whole, everything else to one decimal. Bedtime here is a span of whole
@@ -716,11 +698,7 @@ export function compareAmountText(
  */
 export function compareValueText(key: CompareMetricKey, value: number): string {
   if (key === 'bedtime') {
-    const minutes =
-      (((BEDTIME_ORIGIN_MINUTES + Math.round(value)) % MINUTES_PER_DAY) +
-        MINUTES_PER_DAY) %
-      MINUTES_PER_DAY;
-    const clock = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+    const clock = bedtimeClock(value);
     return formatTimeLabel(clock) ?? clock;
   }
   return compareAmountText(key, value);

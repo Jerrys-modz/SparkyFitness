@@ -113,3 +113,45 @@ export const COMPARE_METRICS: Record<CompareMetricKey, CompareMetricDef> = {
   weightTrend: metric('weightTrend', 'body', 'kg'),
   steps: metric('steps', 'body', 'steps'),
 };
+
+/** Sleep metrics are dated by the day the person woke, so a sleep metric's day is the night before it. */
+export function isSleepMetric(key: CompareMetricKey): boolean {
+  return COMPARE_METRICS[key].group === 'sleep';
+}
+
+/** Mood is stored 10-100 and shown 1-10; every other metric shows as stored. */
+export function compareDisplayValue(
+  key: CompareMetricKey,
+  value: number
+): number {
+  return key === 'mood' ? value / 10 : value;
+}
+
+/** Units whose values are counts or whole minutes, shown without decimals. */
+const WHOLE_UNITS: ReadonlySet<string> = new Set([
+  'steps',
+  'kcal',
+  'min',
+  'sessions',
+  'yes/no',
+]);
+
+/** Decimals a metric is shown with: counts and minutes whole, everything else one. */
+export function compareDigits(key: CompareMetricKey): 0 | 1 {
+  return key === 'bedtime' || WHOLE_UNITS.has(COMPARE_METRICS[key].unit)
+    ? 0
+    : 1;
+}
+
+/** Bedtime counts from 18:00, so 23:30 and 00:30 sit an hour apart. */
+export const BEDTIME_ORIGIN_MINUTES = 18 * 60;
+const MINUTES_PER_DAY = 24 * 60;
+
+/** A bedtime value (minutes after 18:00) as a 24-hour "HH:MM" clock time. */
+export function bedtimeClock(value: number): string {
+  const minutes =
+    (((BEDTIME_ORIGIN_MINUTES + Math.round(value)) % MINUTES_PER_DAY) +
+      MINUTES_PER_DAY) %
+    MINUTES_PER_DAY;
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+}

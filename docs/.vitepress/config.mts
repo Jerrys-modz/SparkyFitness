@@ -263,6 +263,7 @@ export default defineConfig({
             { text: 'Exercise MCP', link: '/developer/mcp/exercise' },
             { text: 'Check-in MCP', link: '/developer/mcp/checkin' },
             { text: 'Coach MCP', link: '/developer/mcp/coach' },
+            { text: 'Compare MCP', link: '/developer/mcp/compare' },
             { text: 'Engagement MCP', link: '/developer/mcp/engagement' },
             { text: 'Vision MCP', link: '/developer/mcp/vision' },
           ],

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { COMPARE_METRIC_KEYS, COMPARE_METRICS } from '../../compare/metrics.ts';
+import { MAX_CUSTOM_DAYS } from '../../compare/spans.ts';
 import { daysBetween, isDayString } from '../../utils/timezone.ts';
 
 const dayString = z
@@ -7,9 +8,6 @@ const dayString = z
   .refine(isDayString, { message: 'Expected YYYY-MM-DD' });
 
 const metricKey = z.enum(COMPARE_METRIC_KEYS);
-
-const MAX_DAY_SPAN = 180;
-const MAX_WEEK_SPAN = 366;
 
 export const compareQuerySchema = z
   .object({
@@ -57,7 +55,7 @@ export const compareQuerySchema = z
     }
     // Span counts both ends: start === end is 1 day.
     const span = daysBetween(q.start, q.end) + 1;
-    const limit = q.mode === 'week' ? MAX_WEEK_SPAN : MAX_DAY_SPAN;
+    const limit = MAX_CUSTOM_DAYS[q.mode];
     if (span > limit) {
       ctx.addIssue({
         code: 'custom',
