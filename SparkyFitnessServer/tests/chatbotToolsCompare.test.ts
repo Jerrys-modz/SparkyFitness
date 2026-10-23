@@ -839,3 +839,61 @@ describe('sparky_compare_metrics wording', () => {
     );
   });
 });
+
+describe('sparky_compare_metrics fields from another action', () => {
+  it('ignores day/week fields sent with a since question', async () => {
+    svc.getCompareSince.mockResolvedValue({
+      mode: 'since',
+      habit: { key: 'meditated', values: {} },
+      outcome: { key: 'mood', values: {} },
+      result: {
+        status: 'not_enough',
+        reason: 'noStart',
+        start: null,
+        suggestedStart: null,
+        line: 70,
+      },
+    } satisfies CompareSinceResponse);
+
+    const result = (await run({
+      action: 'since',
+      a: 'meditated',
+      b: 'mood',
+      by: 'day',
+      timing: 'same_day',
+      end_date: '2026-10-01',
+    })) as string;
+
+    expect(result.startsWith('# Since: Meditated and Mood')).toBe(true);
+    expect(svc.getCompareSince).toHaveBeenCalledWith('user-1', {
+      a: 'meditated',
+      b: 'mood',
+      mode: 'since',
+    });
+  });
+
+  it('ignores a habit start sent with a compare question', async () => {
+    svc.getCompare.mockResolvedValue(
+      response({
+        status: 'not_enough',
+        n: 0,
+        needed: 14,
+        reason: 'tooFew',
+        checks: { ownNormal: true },
+      })
+    );
+
+    const result = (await run({
+      action: 'compare',
+      a: 'timeAsleep',
+      b: 'mood',
+      habit_start_date: '2026-05-01',
+    })) as string;
+
+    expect(result.startsWith('# Compare: Time asleep and Mood')).toBe(true);
+    expect(svc.getCompare).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ mode: 'day', start: '2026-07-25' })
+    );
+  });
+});

@@ -4,9 +4,11 @@ import {
   bedtimeClock,
   COMPARE_METRIC_KEYS,
   COMPARE_METRICS,
+  COMPARE_SPAN_DAYS,
   compareDigits,
   compareDisplayValue,
   CompareModeError,
+  DEFAULT_COMPARE_SPAN,
   hasActiveDays,
   compareQuerySchema,
   compareSinceQuerySchema,
@@ -26,6 +28,7 @@ import { ERRORS, formatZodError } from './errors.js';
 import { normalizeActionArgs } from './dates.js';
 import {
   COMPARE_TOOL_ACTIONS,
+  COMPARE_TOOL_FIELDS,
   compareToolInput,
   compareToolSchema,
   type CompareToolInput,
@@ -39,8 +42,6 @@ import {
 
 const VALID_ACTIONS = [...COMPARE_TOOL_ACTIONS];
 
-/** The default range: the 90 days (26 weeks by week) ending on end_date, as in the app. */
-const DEFAULT_SPAN_DAYS = { day: 90, week: 182 } as const;
 /** How far back each day (or week) is measured against, in the shared analysis. */
 const OWN_NORMAL = { day: 'previous 14 days', week: 'previous 6 weeks' };
 
@@ -626,6 +627,24 @@ const TOOL_FIELD_NAMES: Record<string, string> = {
   habitStart: 'habit_start_date',
 };
 
+/** Drops fields that belong to another action, so `timing` sent with `since` is not an error. */
+function ownFields(args: unknown): unknown {
+  if (!args || typeof args !== 'object' || Array.isArray(args)) return args;
+  const record = args as Record<string, unknown>;
+  const action = record.action;
+  if (
+    typeof action !== 'string' ||
+    !Object.hasOwn(COMPARE_TOOL_FIELDS, action)
+  ) {
+    return args;
+  }
+  const fields =
+    COMPARE_TOOL_FIELDS[action as keyof typeof COMPARE_TOOL_FIELDS];
+  return Object.fromEntries(
+    Object.entries(record).filter(([key]) => fields.includes(key))
+  );
+}
+
 function inferAction(args: Record<string, unknown>): string | undefined {
   if (args.habit_start_date !== undefined) return 'since';
   if (args.a !== undefined || args.b !== undefined) return 'compare';
@@ -647,7 +666,10 @@ async function runCompare(
     timing = 1;
   }
   const end = args.end_date ?? todayInZone(tz);
-  const start = args.start_date ?? addDays(end, -(DEFAULT_SPAN_DAYS[mode] - 1));
+  // The app's default span: 90 days, or 26 weeks by week, ending on end_date.
+  const start =
+    args.start_date ??
+    addDays(end, -(COMPARE_SPAN_DAYS[DEFAULT_COMPARE_SPAN[mode]] - 1));
   const parsed = compareQuerySchema.safeParse({
     a,
     b,
@@ -694,7 +716,9 @@ export function buildCompareTools(userId: string, tz: string) {
       inputSchema: compareToolInput,
       execute: async (rawArgs) => {
         const parsed = compareToolSchema.safeParse(
-          normalizeActionArgs(rawArgs, tz, VALID_ACTIONS, inferAction)
+          ownFields(
+            normalizeActionArgs(rawArgs, tz, VALID_ACTIONS, inferAction)
+          )
         );
         if (!parsed.success) {
           return formatZodError(parsed.error, TOOL_FIELD_NAMES);

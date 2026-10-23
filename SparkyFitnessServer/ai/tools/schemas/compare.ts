@@ -45,6 +45,18 @@ const listMetricsSchema = z
   })
   .strict();
 
+/**
+ * The fields each action reads. The published schema is flat, so a model can send a field of
+ * another action (`timing` with `since`); the handler keeps only these before the strict parse.
+ */
+export const COMPARE_TOOL_FIELDS: Readonly<
+  Record<(typeof COMPARE_TOOL_ACTIONS)[number], readonly string[]>
+> = {
+  compare: Object.keys(compareSchema.shape),
+  since: Object.keys(sinceSchema.shape),
+  list_metrics: Object.keys(listMetricsSchema.shape),
+};
+
 export const compareToolSchema = z.discriminatedUnion('action', [
   compareSchema,
   sinceSchema,
