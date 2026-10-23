@@ -3,6 +3,7 @@ import {
   extractGarminLaps,
   extractGarminGpsPoints,
   extractGarminHrZones,
+  findGroupForTimestamp,
 } from '../services/garmin/garminTelemetryExtractors.js';
 import { extractStravaLaps } from '../integrations/strava/stravaTelemetryExtractors.js';
 
@@ -260,5 +261,25 @@ describe('extractGarminHrZones keeps a zero-indexed zone 1', () => {
       hr_in_timezones: [{ zoneLowBoundary: 90, secsInZone: 120 }],
     });
     expect(zones).toHaveLength(0);
+  });
+});
+
+describe('findGroupForTimestamp', () => {
+  it('locates group in small and large lists', () => {
+    const smallGroups = [
+      { id: '1', startMs: 1000, endMs: 2000 },
+      { id: '2', startMs: 3000, endMs: 4000 },
+    ];
+    expect(findGroupForTimestamp(smallGroups, 1500)?.id).toBe('1');
+    expect(findGroupForTimestamp(smallGroups, 3500)?.id).toBe('2');
+    expect(findGroupForTimestamp(smallGroups, 5000)?.id).toBe('1');
+
+    const largeGroups = Array.from({ length: 25 }, (_, i) => ({
+      id: String(i),
+      startMs: i * 1000,
+      endMs: i * 1000 + 500,
+    }));
+    expect(findGroupForTimestamp(largeGroups, 10200)?.id).toBe('10');
+    expect(findGroupForTimestamp(largeGroups, 20100)?.id).toBe('20');
   });
 });

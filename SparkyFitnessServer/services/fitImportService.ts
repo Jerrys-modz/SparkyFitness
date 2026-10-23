@@ -301,6 +301,58 @@ async function persistFitStrengthWorkout(
     const activityDetailMetrics =
       transformed.detailData.details.activityDetailMetrics || [];
 
+    // Pre-index heart-rate samples by timestamp so each group's window is
+    // resolved with two binary searches instead of a full rescan of every
+    // metric. The rescan is O(groups x metrics) synchronous work (up to
+    // 10_000 groups x 100_000 metrics), which blocks the event loop for the
+    // whole import; this keeps it at O(metrics log metrics) per file.
+    const hrSampleTimestamps: number[] = [];
+    const hrPrefixSum: number[] = [0];
+    if (hrIndex !== -1 && timestampIndex !== -1) {
+      const samples: Array<{ ts: number; hr: number }> = [];
+      for (const metric of activityDetailMetrics) {
+        const metricTimestamp = metric.metrics?.[timestampIndex];
+        const heartRate = metric.metrics?.[hrIndex];
+        if (
+          typeof metricTimestamp === 'number' &&
+          typeof heartRate === 'number'
+        ) {
+          samples.push({ ts: metricTimestamp, hr: heartRate });
+        }
+      }
+      samples.sort((a, b) => a.ts - b.ts);
+      for (const sample of samples) {
+        hrSampleTimestamps.push(sample.ts);
+        hrPrefixSum.push(hrPrefixSum[hrPrefixSum.length - 1] + sample.hr);
+      }
+    }
+    const lowerBoundTs = (target: number): number => {
+      let low = 0;
+      let high = hrSampleTimestamps.length;
+      while (low < high) {
+        const mid = (low + high) >> 1;
+        if (hrSampleTimestamps[mid] < target) {
+          low = mid + 1;
+        } else {
+          high = mid;
+        }
+      }
+      return low;
+    };
+    const upperBoundTs = (target: number): number => {
+      let low = 0;
+      let high = hrSampleTimestamps.length;
+      while (low < high) {
+        const mid = (low + high) >> 1;
+        if (hrSampleTimestamps[mid] <= target) {
+          low = mid + 1;
+        } else {
+          high = mid;
+        }
+      }
+      return low;
+    };
+
     const entryTime =
       typeof transformed.detailData.activity.startTimeLocal === 'string' &&
       transformed.detailData.activity.startTimeLocal.length >= 16
@@ -319,31 +371,14 @@ async function persistFitStrengthWorkout(
       }
 
       let perExerciseAvgHeartRate: number | null = null;
-      if (
-        hrIndex !== -1 &&
-        timestampIndex !== -1 &&
-        group.startTime &&
-        group.endTime
-      ) {
-        let heartRateSum = 0;
-        let heartRateCount = 0;
-        for (const metric of activityDetailMetrics) {
-          const metricTimestamp = metric.metrics?.[timestampIndex];
-          const heartRate = metric.metrics?.[hrIndex];
-          if (
-            metricTimestamp !== null &&
-            metricTimestamp !== undefined &&
-            heartRate !== null &&
-            heartRate !== undefined &&
-            metricTimestamp >= group.startTime &&
-            metricTimestamp <= group.endTime
-          ) {
-            heartRateSum += heartRate;
-            heartRateCount++;
-          }
-        }
-        if (heartRateCount > 0) {
-          perExerciseAvgHeartRate = Math.round(heartRateSum / heartRateCount);
+      if (group.startTime && group.endTime && hrSampleTimestamps.length > 0) {
+        const from = lowerBoundTs(group.startTime);
+        const to = upperBoundTs(group.endTime);
+        const sampleCount = to - from;
+        if (sampleCount > 0) {
+          perExerciseAvgHeartRate = Math.round(
+            (hrPrefixSum[to] - hrPrefixSum[from]) / sampleCount
+          );
         }
       }
 

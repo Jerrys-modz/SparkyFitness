@@ -371,8 +371,7 @@ function lookupExerciseTitle(
   if (!category) return null;
   const cat = String(category);
   if (exerciseName !== null && exerciseName !== undefined) {
-    const specific = index.byCategoryAndName.get(`${cat}_${exerciseName}`);
-    if (specific) return specific;
+    return index.byCategoryAndName.get(`${cat}_${exerciseName}`) ?? null;
   }
   return index.byCategory.get(cat) ?? null;
 }

@@ -753,4 +753,52 @@ describe('transformFitActivity — strength workout transformation', () => {
     expect(mapGarminExerciseCategory('warmUp')).toBe('general');
     expect(mapGarminExerciseCategory('WARM_UP')).toBe('general');
   });
+
+  it('does not incorrectly fall back to category-only title when a specific subtype is requested', () => {
+    const messages: FitMessages = {
+      fileIdMesgs: [
+        { serialNumber: 100, timeCreated: new Date('2026-10-23T14:51:07Z') },
+      ],
+      sessionMesgs: [
+        {
+          startTime: new Date('2026-10-23T14:51:07Z'),
+          totalTimerTime: 300,
+          sport: 'training',
+          subSport: 'strengthTraining',
+        },
+      ],
+      exerciseTitleMesgs: [
+        {
+          exerciseCategory: 'benchPress',
+          exerciseName: 1,
+          wktStepName: 'Custom Flat Bench',
+        },
+      ],
+      setMesgs: [
+        {
+          timestamp: new Date('2026-10-23T14:52:00Z'),
+          duration: 30,
+          category: ['benchPress'],
+          categorySubtype: [8], // inclineBarbellBenchPress
+          reps: 8,
+          weight: 60,
+          setType: 1, // active
+        },
+      ],
+    };
+
+    const result = transformFitActivity(
+      messages,
+      Buffer.from('synthetic-strength-buffer-2')
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('Expected successful transform');
+
+    const sw = result.strengthWorkout;
+    expect(sw).toBeDefined();
+    expect(sw!.groupedExercises).toHaveLength(1);
+    // Subtype 8 must resolve via Profile.types to 'Incline Barbell Bench Press',
+    // NOT fall back to 'Custom Flat Bench' (which was registered for subtype 1)
+    expect(sw!.groupedExercises[0].name).toBe('Incline Barbell Bench Press');
+  });
 });
