@@ -161,9 +161,6 @@ The **Table** tab gives you the raw data behind everything above:
 - **Download (CSV):** every table has a download button, so you can export your food diary, exercise entries, body measurements, or custom measurement data to use in a spreadsheet or any other tool.
 
 
-- - -
-
-
 ## Related pages
 
 - [Meals & Food Diary](/features/diary/meals)
