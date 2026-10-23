@@ -53,6 +53,7 @@ The numbers come from your logs and your scale. If either is incomplete or wrong
 The AI assistant and the [MCP server](/developer/mcp/coach) can read the same check-in with `sparky_get_coaching_checkin`. It is read-only; accepting happens in the app.
 
 ---
+The destination weight and the desired weekly pace are separate settings. Under [Calculation Settings → Goal Mode](/features/settings/calculation-settings#_4-goal-mode-caloric-deficits), select **Weekly weight change** to choose maintenance, loss, or gain in kg or g per week. The weekly pace adjusts the calorie target; it does not change the saved destination weight.
 
 ## Nutrient Goal Direction (Minimum / Maximum / Target)
 

@@ -176,8 +176,7 @@ def clean_garmin_data(data):
             return None
         return cleaned_dict
     elif isinstance(data, list):
-        cleaned_list = [clean_garmin_data(item) for item in data]
-        return [item for item in cleaned_list if item is not None]
+        return [clean_garmin_data(item) for item in data]
     elif isinstance(data, str):
         # Attempt to parse string as JSON, handling non-standard escapes
         try:

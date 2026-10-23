@@ -5,6 +5,7 @@ import { useCSSVariable } from 'uniwind';
 import type { MedicationEntry, MedicationEntryStatus } from '@workspace/shared';
 import Icon from '../Icon';
 import { usePreferences } from '../../hooks/usePreferences';
+import { withAlpha } from '../../utils/colors';
 import { formatDateToTimeLabel } from '../../utils/entryTimeDisplay';
 import { injectionSiteLabel } from '../../utils/medicationLocalization';
 import {
@@ -133,7 +134,7 @@ const MedicationDayLog: React.FC<MedicationDayLogProps> = ({
                     </Text>
                     <View
                       className="ml-2 rounded-full px-2 py-0.5"
-                      style={{ backgroundColor: `${chipColor}26` }}
+                      style={{ backgroundColor: withAlpha(chipColor, 0.15) }}
                     >
                       <Text
                         className="text-xs font-semibold"

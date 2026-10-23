@@ -4,7 +4,8 @@ import { fireEvent, render } from '@testing-library/react-native';
 import CompareSentence from '../../../src/components/compare/CompareSentence';
 import i18n, { initializeI18n } from '../../../src/localization/i18n';
 import { sentenceText } from '../../../src/utils/compareCopy';
-import type { CompareQuestion } from '../../../src/utils/compareQuestion';
+import { sinceSentence } from '../../../src/utils/compareSinceCopy';
+import type { CompareQuestion } from '@workspace/shared';
 
 const t = ((key: string, options: Record<string, unknown>) =>
   i18n.t(key, options)) as never;
@@ -149,6 +150,72 @@ describe('CompareSentence', () => {
     expect(onChange).toHaveBeenCalledWith({
       a: 'mood',
       b: 'timeAsleep',
+      choice: 'sameDay',
+    });
+  });
+
+  it.each<CompareQuestion>([
+    { a: 'meditated', b: 'mood', choice: 'sinceHabit' },
+    { a: 'caffeine', b: 'timeAsleep', choice: 'sinceHabit' },
+  ])('since chips read exactly like the since sentence for %j', (question) => {
+    const { getByLabelText } = render(
+      <CompareSentence question={question} onChange={jest.fn()} />
+    );
+    const chip = (name: string) =>
+      String(
+        getByLabelText(new RegExp(`^${name}: `)).props.accessibilityLabel
+      ).slice(name.length + 2);
+    expect(
+      `${chip('When')} I started ${chip('First thing')} regularly, has ${chip('Second thing')} changed?`
+    ).toBe(sinceSentence(question, t));
+  });
+
+  it('offers since a habit started in the timing picker', () => {
+    const onChange = jest.fn();
+    const { getByTestId, getByText } = render(
+      <CompareSentence
+        question={{ a: 'meditated', b: 'mood', choice: 'sameDay' }}
+        onChange={onChange}
+      />
+    );
+    expect(getByText('Before vs. since')).toBeTruthy();
+    fireEvent.press(getByTestId('When-sinceHabit'));
+    expect(onChange).toHaveBeenCalledWith({
+      a: 'meditated',
+      b: 'mood',
+      choice: 'sinceHabit',
+    });
+  });
+
+  it('keeps a metric with no weekly form when since a habit started is chosen', () => {
+    const onChange = jest.fn();
+    const { getByTestId } = render(
+      <CompareSentence
+        question={{ a: 'meditationSessions7d', b: 'mood', choice: 'sameDay' }}
+        onChange={onChange}
+      />
+    );
+    fireEvent.press(getByTestId('When-sinceHabit'));
+    expect(onChange).toHaveBeenCalledWith({
+      a: 'meditationSessions7d',
+      b: 'mood',
+      choice: 'sinceHabit',
+    });
+  });
+
+  it('lets a since question switch back to day by day', () => {
+    const onChange = jest.fn();
+    const { getByTestId, queryByText } = render(
+      <CompareSentence
+        question={{ a: 'meditated', b: 'mood', choice: 'sinceHabit' }}
+        onChange={onChange}
+      />
+    );
+    expect(queryByText('Does')).toBeNull();
+    fireEvent.press(getByTestId('When-sameDay'));
+    expect(onChange).toHaveBeenCalledWith({
+      a: 'meditated',
+      b: 'mood',
       choice: 'sameDay',
     });
   });

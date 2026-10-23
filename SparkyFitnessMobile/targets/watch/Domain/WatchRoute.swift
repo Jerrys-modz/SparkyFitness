@@ -95,6 +95,40 @@ struct WatchRouteTracker {
 
     var totalMeters: Double { cumulative.last ?? 0 }
 
+    /// What a relaunched run needs to carry on where the tracker was, rather
+    /// than matching the next fix from the start (which, on a route that
+    /// shares geometry with an earlier leg, can jump backward).
+    struct State: Codable, Equatable {
+        var routeId: String
+        var progressMeters: Double
+        var isOffRoute: Bool
+        var hasArrived: Bool
+        var announced: [Int]
+        /// A turn cue announced while paused and not yet said. Optional so
+        /// a state saved before this existed still decodes.
+        var pendingCue: WatchRouteCue?
+    }
+
+    var state: State {
+        State(
+            routeId: route.id,
+            progressMeters: progressMeters,
+            isOffRoute: isOffRoute,
+            hasArrived: hasArrived,
+            announced: announced.sorted(),
+            pendingCue: nil
+        )
+    }
+
+    /// Takes back a saved `state`; ignored when it belongs to another route.
+    mutating func restore(_ state: State) {
+        guard state.routeId == route.id else { return }
+        progressMeters = max(0, min(state.progressMeters, totalMeters))
+        isOffRoute = state.isOffRoute
+        hasArrived = state.hasArrived
+        announced = announced.union(state.announced.filter { anchoredCues.indices.contains($0) })
+    }
+
     /// Nil when the route has no line to follow.
     init?(route: WatchRoute) {
         guard route.points.count >= 2 else { return nil }

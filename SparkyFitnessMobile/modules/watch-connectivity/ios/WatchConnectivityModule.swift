@@ -267,6 +267,9 @@ public class WatchConnectivityModule: Module {
     private var runQueueLoaded = false
     private let runQueueLimit = 50
     private let runAccess = DispatchQueue(label: "sparky.watch.runQueue")
+    /// The newest `routeLibrary` report, held for a listener that attaches late.
+    private var latestRouteLibraryReport: [String: Any]?
+    private let routeLibraryLock = NSLock()
 
     /// Opens the watch app for the workout the phone just started, the same
     /// way the system Workout app does. Without it the queued plan waits
@@ -590,12 +593,14 @@ public class WatchConnectivityModule: Module {
                     guard let id = row["id"] as? String, !id.isEmpty else { return nil }
                     return ["id": id, "reason": row["reason"] as? String ?? ""]
                 }
-                self?.sendEvent("onRouteLibrary", [
+                let report: [String: Any] = [
                     "routes": routes,
                     "rejected": rejected,
                     "capacity": (payload["capacity"] as? NSNumber)?.intValue ?? 0,
                     "sentAt": (payload["sentAt"] as? NSNumber)?.doubleValue ?? 0,
-                ])
+                ]
+                self?.rememberRouteLibrary(report)
+                self?.sendEvent("onRouteLibrary", report)
             }
             self.delegateHandler.activate()
         }
@@ -827,6 +832,15 @@ public class WatchConnectivityModule: Module {
                     return self.deleteHeartRateBatchFile(batch.fileName)
                 }
             }
+        }
+
+        /// The watch's latest route library report, for a report that arrived
+        /// before the hook attached its `onRouteLibrary` listener. Each report
+        /// is a full snapshot, so only the latest is kept.
+        AsyncFunction("latestRouteLibrary") { () -> [String: Any]? in
+            self.routeLibraryLock.lock()
+            defer { self.routeLibraryLock.unlock() }
+            return self.latestRouteLibraryReport
         }
 
         /// Runs that arrived before JavaScript was listening. JS drains these
@@ -1160,6 +1174,17 @@ public class WatchConnectivityModule: Module {
             event["appleZones"] = zones
         }
         return event
+    }
+
+    private func rememberRouteLibrary(_ report: [String: Any]) {
+        routeLibraryLock.lock()
+        defer { routeLibraryLock.unlock() }
+        if let sentAt = report["sentAt"] as? Double,
+           let held = latestRouteLibraryReport?["sentAt"] as? Double,
+           sentAt > 0, sentAt < held {
+            return
+        }
+        latestRouteLibraryReport = report
     }
 
     /// Caller holds `runAccess` only through `rememberFinishedRun`.

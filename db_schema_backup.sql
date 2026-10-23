@@ -4628,6 +4628,7 @@ CREATE TABLE public.user_preferences (
     resting_heart_rate smallint,
     hr_zone_method text DEFAULT 'percent_max'::text NOT NULL,
     hr_zone_custom_floors smallint[],
+    goal_mode_weekly_change_kg double precision DEFAULT 0 NOT NULL,
     CONSTRAINT check_energy_unit CHECK (((energy_unit)::text = ANY ((ARRAY['kcal'::character varying, 'kJ'::character varying])::text[]))),
     CONSTRAINT logging_level_check CHECK ((logging_level = ANY (ARRAY['DEBUG'::text, 'INFO'::text, 'WARN'::text, 'ERROR'::text, 'SILENT'::text]))),
     CONSTRAINT user_preferences_caffeine_half_life_range CHECK (((caffeine_half_life_hours >= 2.0) AND (caffeine_half_life_hours <= 8.0))),
@@ -4642,7 +4643,8 @@ CREATE TABLE public.user_preferences (
     CONSTRAINT user_preferences_standard_drink_grams_range CHECK (((standard_drink_grams > (0)::numeric) AND (standard_drink_grams <= (50)::numeric))),
     CONSTRAINT user_preferences_time_format_check CHECK ((time_format = ANY (ARRAY['HH:mm'::text, 'h:mm A'::text, 'h:mm a'::text]))),
     CONSTRAINT user_preferences_timezone_not_empty CHECK (((timezone IS NULL) OR (timezone <> ''::text))),
-    CONSTRAINT user_preferences_weekly_alcohol_limit_positive CHECK (((weekly_alcohol_limit_g IS NULL) OR (weekly_alcohol_limit_g > (0)::numeric)))
+    CONSTRAINT user_preferences_weekly_alcohol_limit_positive CHECK (((weekly_alcohol_limit_g IS NULL) OR (weekly_alcohol_limit_g > (0)::numeric))),
+    CONSTRAINT user_preferences_weekly_weight_goal_range CHECK ((((goal_mode_weekly_change_kg >= ('-2'::integer)::double precision) AND (goal_mode_weekly_change_kg <= (2)::double precision)) AND (abs(((goal_mode_weekly_change_kg * (1000)::double precision) - round((goal_mode_weekly_change_kg * (1000)::double precision)))) < (0.000001)::double precision)))
 );
 
 
@@ -4791,6 +4793,13 @@ COMMENT ON COLUMN public.user_preferences.hr_zone_method IS 'How the five zone f
 --
 
 COMMENT ON COLUMN public.user_preferences.hr_zone_custom_floors IS 'Five ascending bpm floors, zone 1 first, used when hr_zone_method is custom.';
+
+
+--
+-- Name: COLUMN user_preferences.goal_mode_weekly_change_kg; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.user_preferences.goal_mode_weekly_change_kg IS 'Signed kilograms per week for goal_mode=weekly: negative loses, positive gains, zero maintains. Stored to gram precision; does not change existing percentage goals.';
 
 
 --

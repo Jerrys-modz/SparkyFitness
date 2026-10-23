@@ -65,7 +65,11 @@ export function buildRouteSync(
   return { route: payload, updatedAt: routeRevision(route.updatedAt) };
 }
 
-/** The record after the watch's report; a report older than the last is ignored. */
+/**
+ * The record after the watch's report. The watch keeps its rejections only in
+ * memory, so a report after a relaunch carries none; a rejection the phone
+ * already holds stays until the route is reported, re-sent or removed.
+ */
 export function applyLibraryReport(
   record: WatchRouteRecord,
   report: WatchRouteLibraryPayload
@@ -73,6 +77,9 @@ export function applyLibraryReport(
   const reported: Record<string, number> = {};
   for (const row of report.routes) reported[row.id] = row.updatedAt;
   const rejected: WatchRouteRecord['rejected'] = {};
+  for (const [id, reason] of Object.entries(record.rejected)) {
+    if (!(id in reported)) rejected[id] = reason;
+  }
   for (const row of report.rejected) {
     rejected[row.id] = row.reason === 'full' ? 'full' : 'storage';
   }

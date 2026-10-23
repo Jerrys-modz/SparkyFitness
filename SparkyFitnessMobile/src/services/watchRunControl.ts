@@ -39,6 +39,9 @@ export async function startRunOnWatch(options: {
     options.route && options.place === 'outdoor'
       ? toWatchRoutePayload(options.route)
       : null;
+  if (options.route && options.place === 'outdoor' && !route) {
+    throw new Error('The selected route has no line to follow');
+  }
   await WatchConnectivity.startRun({
     requestId,
     kind: options.kind,

@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react-native';
 
 import CompareStartState from '../../../src/components/compare/CompareStartState';
 import { initializeI18n } from '../../../src/localization/i18n';
-import { SUGGESTED_QUESTIONS } from '../../../src/utils/compareQuestion';
+import { SUGGESTED_QUESTIONS } from '@workspace/shared';
 
 describe('CompareStartState', () => {
   beforeAll(async () => {
@@ -33,5 +33,17 @@ describe('CompareStartState', () => {
     expect(onPick).toHaveBeenCalledWith(recent[0]);
     fireEvent.press(getByText('Does meditating go with mood the same day?'));
     expect(onPick).toHaveBeenCalledWith(SUGGESTED_QUESTIONS[1]);
+  });
+
+  it('reads a since question as the since sentence', () => {
+    const recent = [
+      { a: 'meditated', b: 'mood', choice: 'sinceHabit' } as const,
+    ];
+    const { getByText } = render(
+      <CompareStartState recent={recent} onPick={jest.fn()} />
+    );
+    expect(
+      getByText('Since I started meditating regularly, has mood changed?')
+    ).toBeTruthy();
   });
 });

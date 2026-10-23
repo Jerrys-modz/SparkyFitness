@@ -1,7 +1,16 @@
-import { addDays, type CompareResponse } from '@workspace/shared';
+import {
+  addDays,
+  compareDays,
+  daysBetween,
+  daysInRange,
+} from '../utils/timezone.ts';
+import type {
+  CompareResponse,
+  CompareSinceResponse,
+} from '../schemas/api/Compare.api.zod.ts';
+import { COMPARE_METRICS, compareDisplayValue } from './metrics.ts';
 
-import { compareDisplayValue } from '../constants/compareMetrics';
-import type { CompareMode, CompareQuestion } from './compareQuestion';
+import type { CompareMode, CompareQuestion } from './question.ts';
 
 export interface CompareDot {
   key: string;
@@ -86,8 +95,8 @@ export function overTimeData(response: CompareResponse): {
   return {
     rows: keys.map((key, i) => ({
       key,
-      a: a[i].scaled,
-      b: b[i].scaled,
+      a: a[i]?.scaled ?? null,
+      b: b[i]?.scaled ?? null,
     })),
     aRange: rangeOf(aValues),
     bRange: rangeOf(bValues),
@@ -104,4 +113,70 @@ export function displayDots(
     x: compareDisplayValue(question.a, dot.x),
     y: compareDisplayValue(question.b, dot.y),
   }));
+}
+
+/** A stretch of a since chart as day indexes on its axis, inclusive. */
+interface SinceSpan {
+  from: number;
+  to: number;
+}
+
+export interface SinceChartData {
+  /** One row a day from the first stretch to yesterday; value and line on the display scale. */
+  rows: {
+    index: number;
+    day: string;
+    value: number | null;
+    line: number | null;
+  }[];
+  before: SinceSpan | null;
+  since: SinceSpan | null;
+  /** The start day's index, when it is on the axis. */
+  start: number | null;
+  /** The line on the display scale; a yes/no outcome has none. */
+  line: number | null;
+}
+
+/**
+ * The outcome day by day over the before and since stretches. A stretch with
+ * no days is left out: its `from` can be later than its `to`. Nothing to draw
+ * without a since stretch (no start yet).
+ */
+export function sinceChartData(response: CompareSinceResponse): SinceChartData {
+  const { result, outcome } = response;
+  const { before, since } = result;
+  if (!since || since.days === 0) {
+    return { rows: [], before: null, since: null, start: null, line: null };
+  }
+  const first = before && before.days > 0 ? before.from : since.from;
+  const index = (day: string) => daysBetween(first, day);
+  const span = (stretch: typeof before): SinceSpan | null =>
+    stretch && stretch.days > 0
+      ? { from: index(stretch.from), to: index(stretch.to) }
+      : null;
+  const line =
+    COMPARE_METRICS[outcome.key].kind === 'binary'
+      ? null
+      : compareDisplayValue(outcome.key, result.line);
+  const rows = daysInRange(first, since.to).map((day, i) => {
+    const raw = outcome.values[day];
+    return {
+      index: i,
+      day,
+      value: raw === undefined ? null : compareDisplayValue(outcome.key, raw),
+      line,
+    };
+  });
+  const { start } = result;
+  const onAxis =
+    start !== null &&
+    compareDays(start, first) >= 0 &&
+    compareDays(start, since.to) <= 0;
+  return {
+    rows,
+    before: span(before),
+    since: span(since),
+    start: onAxis ? index(start) : null,
+    line,
+  };
 }

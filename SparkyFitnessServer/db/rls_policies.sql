@@ -641,6 +641,8 @@ CREATE POLICY modify_policy ON public.profiles FOR ALL TO PUBLIC USING (authenti
 -- voice_input_enabled and active_voice_ai_service_id follow these existing
 -- owner-write/delegate-read preference policies. Reading
 -- a provider selection does not grant access to its private ai_service_settings row.
+-- Weekly weight goals are ordinary calculation preferences on this row: the
+-- existing profile-read and owner-write policies cover them without new grants.
 -- adaptive_activity_separate inherits the existing preference read/write rules.
 CREATE POLICY select_policy ON public.user_preferences FOR SELECT TO PUBLIC USING (has_profile_read_access(user_id));
 CREATE POLICY modify_policy ON public.user_preferences FOR ALL TO PUBLIC

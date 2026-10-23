@@ -527,14 +527,20 @@ async function updateExerciseEntry(
       }
     }
     // If calories_burned is not provided, calculate it using the calorieCalculationService
+    // An edit that changes the sets usually omits exercise_id (the entry keeps
+    // its library link), so fall back to the stored one or adding a set never
+    // re-estimates. A partial update without sets keeps its stored calories.
+    const estimateExerciseId =
+      updateData.exercise_id ??
+      (updateData.sets ? existingEntry.exercise_id : undefined);
     if (
-      updateData.exercise_id &&
+      estimateExerciseId &&
       updateData.duration_minutes !== null &&
       updateData.duration_minutes !== undefined &&
       updateData.calories_burned === undefined
     ) {
       const exercise = await exerciseDb.getExerciseById(
-        updateData.exercise_id,
+        estimateExerciseId,
         authenticatedUserId
       );
       let estimated = existingEntry.calories_burned ?? 0;
@@ -549,7 +555,7 @@ async function updateExerciseEntry(
       } else {
         log(
           'warn',
-          `Exercise ${updateData.exercise_id} not found. Cannot auto-calculate calories_burned.`
+          `Exercise ${estimateExerciseId} not found. Cannot auto-calculate calories_burned.`
         );
       }
       // A watch-measured figure (active_calories) beats the formula, same
@@ -2464,17 +2470,32 @@ async function getActivityDetailsByExerciseEntryIdAndProvider(
           );
       }
     }
+    const normalize = (p: unknown) =>
+      typeof p === 'string' ? p.trim().toLowerCase() : '';
+    const req = normalize(providerName);
+    const matchesProvider = (stored: unknown) => {
+      const s = normalize(stored);
+      if (s === req) return true;
+      if (
+        (s === 'garmin' || s === 'garmin_fit') &&
+        (req === 'garmin' || req === 'garmin_fit')
+      ) {
+        return true;
+      }
+      return false;
+    };
+
     // Find the full_activity_data and full_workout_data for the given provider
     const activityData = activityDetails.find(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (detail: any) =>
-        detail.provider_name === providerName &&
+        matchesProvider(detail.provider_name) &&
         detail.detail_type === 'full_activity_data'
     );
     const workoutData = activityDetails.find(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (detail: any) =>
-        detail.provider_name === providerName &&
+        matchesProvider(detail.provider_name) &&
         detail.detail_type === 'full_workout_data'
     );
     // Return a composite object containing both, if they exist

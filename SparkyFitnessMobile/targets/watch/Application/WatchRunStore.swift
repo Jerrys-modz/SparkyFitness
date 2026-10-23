@@ -63,6 +63,9 @@ final class WatchRunStore: ObservableObject {
     /// The latest usable fix, for the "you are here" dot.
     @Published private(set) var routePosition: WatchRoutePoint?
     private var routeTracker: WatchRouteTracker?
+    /// A turn cue the tracker announced while the run was paused. Said on the
+    /// first fix after the run resumes, if that turn is still ahead.
+    private var heldRouteCue: WatchRouteCue?
     /// Index of the plan step already announced (-1 before the first).
     private var cuedStep = -1
     /// The distance step whose "to go" cue was said, so it is said once.
@@ -263,9 +266,11 @@ final class WatchRunStore: ObservableObject {
     /// no line to follow is treated as none.
     private func followRoute(_ route: WatchRoute?) {
         routeTracker = route.flatMap { WatchRouteTracker(route: $0) }
+        healthKit.routeProgress = nil
         self.route = routeTracker == nil ? nil : route
         routeProgress = nil
         routePosition = nil
+        heldRouteCue = nil
         if let route = self.route {
             WatchRouteStorage.save(route)
         } else {
@@ -273,6 +278,15 @@ final class WatchRunStore: ObservableObject {
             // A removal the phone sent while this route was being followed.
             WatchRouteLibraryStore.shared.runEnded()
         }
+    }
+
+    /// Hands the tracker's place, and a cue held for the resume, to the run
+    /// snapshot, so a relaunch carries on from both.
+    private func publishRouteProgress() {
+        guard let tracker = routeTracker else { return }
+        var state = tracker.state
+        state.pendingCue = heldRouteCue
+        healthKit.routeProgress = state
     }
 
     /// Takes a GPS fix. The map and the next cue follow every usable fix; the
@@ -284,8 +298,32 @@ final class WatchRunStore: ObservableObject {
         routeTracker = tracker
         routePosition = point
         routeProgress = update.snapshot
+        var events = update.events
+        if phase == .paused {
+            // The tracker has marked a turn announced; keep it for the resume.
+            var newlyHeld = false
+            for case .approachingCue(let routeCue) in events {
+                heldRouteCue = routeCue
+                newlyHeld = true
+            }
+            // Route collection is off while paused, so no running-fix write
+            // follows. Routine fixes ride the throttle (pause() already wrote
+            // one); a newly held cue is forced so a relaunch keeps it.
+            publishRouteProgress()
+            healthKit.persistRouteProgress(force: newlyHeld)
+            return
+        }
         guard phase == .running else { return }
-        for event in update.events {
+        if let held = heldRouteCue {
+            heldRouteCue = nil
+            let alreadyAnnounced = events.contains { $0 == .approachingCue(held) }
+            if !alreadyAnnounced, update.snapshot.nextCue?.cue == held {
+                events.insert(.approachingCue(held), at: 0)
+            }
+        }
+        publishRouteProgress()
+        healthKit.persistRouteProgress()
+        for event in events {
             switch event {
             case .approachingCue(let routeCue):
                 Haptics.routeCue()
@@ -319,6 +357,9 @@ final class WatchRunStore: ObservableObject {
                 self.recovering = false
                 switch outcome {
                 case .none:
+                    // No run to carry on: a removal held back for a route that
+                    // was being followed when the app died can go now.
+                    WatchRouteLibraryStore.shared.runEnded()
                     completion(false)
                 case .resumed(let recovery):
                     self.kind = recovery.kind
@@ -330,7 +371,17 @@ final class WatchRunStore: ObservableObject {
                     self.lapCount = recovery.lapCount
                     self.plan = self.healthKit.plan
                     self.settings = self.healthKit.settings
+                    let savedRouteProgress = self.healthKit.routeProgress
                     self.followRoute(recovery.place == .outdoor ? WatchRouteStorage.load() : nil)
+                    // Carry on from where the tracker was, not from the start.
+                    if let savedRouteProgress, var tracker = self.routeTracker {
+                        tracker.restore(savedRouteProgress)
+                        self.routeTracker = tracker
+                        if savedRouteProgress.routeId == tracker.route.id {
+                            self.heldRouteCue = savedRouteProgress.pendingCue
+                        }
+                        self.publishRouteProgress()
+                    }
                     // The recovered builder may still read 0 for a moment, so the
                     // snapshot's time is the floor. The plan's place comes back
                     // from the snapshot, so the step the run is in now is not

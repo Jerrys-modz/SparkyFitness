@@ -1,15 +1,18 @@
-import { daysBetween } from '@workspace/shared';
 import {
+  clampSinceStart,
   COMPARE_SPANS,
-  DEFAULT_COMPARE_SPAN,
-  SUGGESTED_QUESTIONS,
+  type CompareQuestion,
   compareWindow,
+  daysBetween,
+  DEFAULT_COMPARE_SPAN,
   isAskable,
   knownCompareQuestions,
+  MAX_CUSTOM_DAYS,
+  sinceStartBounds,
+  SUGGESTED_QUESTIONS,
   timingOf,
   withRecentQuestion,
-  type CompareQuestion,
-} from '../../src/utils/compareQuestion';
+} from '@workspace/shared';
 
 const TODAY = '2026-10-21';
 
@@ -31,6 +34,7 @@ describe('timingOf', () => {
     expect(timingOf('nextDay')).toEqual({ mode: 'day', timing: 1 });
     expect(timingOf('sameWeek')).toEqual({ mode: 'week', timing: 0 });
     expect(timingOf('nextWeek')).toEqual({ mode: 'week', timing: 1 });
+    expect(timingOf('sinceHabit')).toEqual({ mode: 'since', timing: 0 });
   });
 });
 
@@ -39,6 +43,12 @@ describe('spans', () => {
     expect(COMPARE_SPANS.day).toEqual(['30d', '60d', '90d', 'custom']);
     expect(COMPARE_SPANS.week).toEqual(['6m', '1y', 'custom']);
     expect(DEFAULT_COMPARE_SPAN).toEqual({ day: '90d', week: '6m' });
+  });
+
+  test('since mode has no span', () => {
+    expect(Object.keys(COMPARE_SPANS)).toEqual(['day', 'week']);
+    expect(Object.keys(DEFAULT_COMPARE_SPAN)).toEqual(['day', 'week']);
+    expect(Object.keys(MAX_CUSTOM_DAYS)).toEqual(['day', 'week']);
   });
 });
 
@@ -164,6 +174,15 @@ describe('knownCompareQuestions', () => {
     ).toEqual([good]);
   });
 
+  test('keeps a since question', () => {
+    const since: CompareQuestion = {
+      a: 'meditated',
+      b: 'mood',
+      choice: 'sinceHabit',
+    };
+    expect(knownCompareQuestions([since])).toEqual([since]);
+  });
+
   test('reads anything that is not a list as no questions', () => {
     expect(knownCompareQuestions(undefined)).toEqual([]);
     expect(knownCompareQuestions({ a: 'mood' })).toEqual([]);
@@ -200,5 +219,35 @@ describe('isAskable', () => {
     expect(isAskable({ a: 'mood', b: 'energy', choice: 'sameWeek' })).toBe(
       true
     );
+  });
+
+  test('a since question takes any two different metrics and needs no start', () => {
+    expect(
+      isAskable({ a: 'meditationSessions7d', b: 'mood', choice: 'sinceHabit' })
+    ).toBe(true);
+    expect(
+      isAskable({ a: 'weightTrend', b: 'mood', choice: 'sinceHabit' })
+    ).toBe(true);
+    expect(isAskable({ a: 'mood', b: 'mood', choice: 'sinceHabit' })).toBe(
+      false
+    );
+  });
+});
+
+describe('since start bounds', () => {
+  test('run from 730 days back to yesterday', () => {
+    expect(sinceStartBounds(TODAY)).toEqual({
+      min: '2024-10-21',
+      max: '2026-10-20',
+    });
+    expect(daysBetween(sinceStartBounds(TODAY).min, TODAY)).toBe(730);
+  });
+
+  test('keep a picked start inside them', () => {
+    expect(clampSinceStart('2026-04-01', TODAY)).toBe('2026-04-01');
+    expect(clampSinceStart('2024-10-21', TODAY)).toBe('2024-10-21');
+    expect(clampSinceStart('2024-10-20', TODAY)).toBe('2024-10-21');
+    expect(clampSinceStart(TODAY, TODAY)).toBe('2026-10-20');
+    expect(clampSinceStart('2026-12-01', TODAY)).toBe('2026-10-20');
   });
 });

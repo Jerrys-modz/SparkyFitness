@@ -3,10 +3,8 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { sentenceText } from '../../utils/compareCopy';
-import {
-  SUGGESTED_QUESTIONS,
-  type CompareQuestion,
-} from '../../utils/compareQuestion';
+import { sinceSentence } from '../../utils/compareSinceCopy';
+import { SUGGESTED_QUESTIONS, type CompareQuestion } from '@workspace/shared';
 
 interface CompareStartStateProps {
   recent: readonly CompareQuestion[];
@@ -30,7 +28,7 @@ const CompareStartState: React.FC<CompareStartStateProps> = ({
         onPress={() => onPick(q)}
       >
         <Text className="text-base text-text-primary">
-          {sentenceText(q, t)}
+          {q.choice === 'sinceHabit' ? sinceSentence(q, t) : sentenceText(q, t)}
         </Text>
       </TouchableOpacity>
     ));

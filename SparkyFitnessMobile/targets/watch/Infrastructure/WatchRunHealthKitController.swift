@@ -99,6 +99,10 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     var lapCount: Int { lapMarks.count }
     /// The plan this run follows, if any. The store reads it for the live step.
     private(set) var plan: WatchRunPlan?
+    /// Where the route tracker stands, kept in the snapshot. The store sets it
+    /// after each fix and reads it back after a recovery.
+    var routeProgress: WatchRouteTracker.State?
+    fileprivate var lastRouteProgressPersistedAt = Date.distantPast
     /// Where the plan's current step began, kept in the snapshot.
     private var planCursor = WatchRunPlan.Cursor.start
     /// Where the plan's current step began, for the voice coach.
@@ -243,6 +247,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             pendingEffort = nil
             routeRows = []
             routeSegment = 0
+            routeProgress = nil
             heartRateRows = []
             lapMarks = []
             lapDistances = []
@@ -488,6 +493,17 @@ enum WatchRunRecoveryOutcome {
 }
 
 extension WatchRunHealthKitController {
+    /// Writes the snapshot after the store has published new route progress.
+    /// The controller's own write for the same fix can run first (the store
+    /// handles the fix on a later task), so this has its own throttle; `force`
+    /// is for a paused fix, which no other write follows.
+    func persistRouteProgress(force: Bool = false) {
+        let now = Date()
+        guard force || now.timeIntervalSince(lastRouteProgressPersistedAt) >= Self.persistInterval else { return }
+        lastRouteProgressPersistedAt = now
+        persistSnapshot(force: true)
+    }
+
     fileprivate func persistSnapshot(force: Bool = false) {
         guard session != nil else { return }
         let now = Date()
@@ -511,7 +527,8 @@ extension WatchRunHealthKitController {
             distanceSeries: distanceSeries,
             plan: plan,
             planCursor: plan == nil ? nil : planCursor,
-            settings: settings
+            settings: settings,
+            routeProgress: routeProgress
         ))
     }
 
@@ -568,6 +585,7 @@ extension WatchRunHealthKitController {
                 self.plan = snapshot.plan
                 // An older snapshot has no cursor; its plan was timed, so the
                 // clock alone places it again.
+                self.routeProgress = snapshot.routeProgress
                 self.planCursor = snapshot.planCursor
                     ?? snapshot.plan?.advance(.start, elapsed: snapshot.elapsed, meters: 0)
                     ?? .start

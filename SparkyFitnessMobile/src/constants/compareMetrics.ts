@@ -1,11 +1,11 @@
 import {
-  COMPARE_METRICS,
   COMPARE_METRIC_KEYS,
+  COMPARE_METRICS,
   type CompareMetricDef,
   type CompareMetricKey,
+  type CompareMode,
 } from '@workspace/shared';
 import type { PickerSection } from '../components/BottomSheetPicker';
-import type { CompareMode } from '../utils/compareQuestion';
 import type { Translator } from './reports';
 
 export const COMPARE_GROUP_LABELS: Record<
@@ -94,18 +94,6 @@ export const COMPARE_METRIC_LABELS: Record<
   steps: (t) => t('compareReport.metrics.steps', { defaultValue: 'Steps' }),
 };
 
-export function isSleepMetric(key: CompareMetricKey): boolean {
-  return COMPARE_METRICS[key].group === 'sleep';
-}
-
-/** Mood is stored 10-100 and shown 1-10; every other metric shows as stored. */
-export function compareDisplayValue(
-  key: CompareMetricKey,
-  value: number
-): number {
-  return key === 'mood' ? value / 10 : value;
-}
-
 export function compareMetricSections(
   t: Translator,
   mode: CompareMode,
@@ -118,7 +106,8 @@ export function compareMetricSections(
       return (
         def.group === group &&
         key !== exclude &&
-        (mode === 'day' || def.weekly !== null)
+        // Only week mode needs a weekly form; day and since read each day's value.
+        (mode !== 'week' || def.weekly !== null)
       );
     }).map((key) => ({ label: COMPARE_METRIC_LABELS[key](t), value: key })),
   })).filter((section) => section.options.length > 0);

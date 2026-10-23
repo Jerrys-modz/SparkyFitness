@@ -350,7 +350,13 @@ async function getUserGoalsForRange(
       // Must always run when bmr > 0 — even for 'maintain' — so that
       // calculationMethod='adaptive' replaces the stored goal with the
       // adaptive TDEE baseline (matches CalculationSettings preview).
-      if (bmr > 0) {
+      // A weekly offset on a saved manual baseline does not need a BMR estimate.
+      // Keep the existing prerequisite for adaptive full-day budgeting.
+      const hasWeeklyManualBaseline =
+        goalMode === 'weekly' &&
+        goalModeCalculationMethod === 'manual' &&
+        goalCalories > 0;
+      if (bmr > 0 || hasWeeklyManualBaseline) {
         const tz = userPreferences?.timezone || 'UTC';
         const age = userProfile
           ? (userAge(userProfile.date_of_birth ?? '', tz) ?? 30)
@@ -359,6 +365,7 @@ async function getUserGoalsForRange(
           goalMode,
           calculationMethod: goalModeCalculationMethod,
           customPercentage: goalModeCustomPercentage,
+          weeklyChangeKg: userPreferences?.goal_mode_weekly_change_kg ?? 0,
           bmr,
           activityLevelMultiplier: activityMultiplier,
           adaptiveTdee: adaptiveTdeeData

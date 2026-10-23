@@ -1,16 +1,18 @@
-import type { CompareResponse, CompareResult } from '@workspace/shared';
+import {
+  type CompareQuestion,
+  type CompareResponse,
+  type CompareResult,
+  SUGGESTED_QUESTIONS,
+} from '@workspace/shared';
 import i18n, { initializeI18n } from '../../src/localization/i18n';
 import {
+  compareAmountText,
   compareValueText,
   questionParts,
   sentenceText,
   statsLine,
   verdictCopy,
 } from '../../src/utils/compareCopy';
-import {
-  SUGGESTED_QUESTIONS,
-  type CompareQuestion,
-} from '../../src/utils/compareQuestion';
 
 const t = ((key: string, options: Record<string, unknown>) =>
   i18n.t(key, options)) as never;
@@ -102,6 +104,12 @@ describe('phrases', () => {
       b: undefined,
       timing: undefined,
     });
+  });
+
+  test('since mode names a sleep metric plainly and its timing chip reads "Since"', () => {
+    expect(
+      questionParts({ a: 'timeAsleep', b: 'mood', choice: 'sinceHabit' }, t)
+    ).toEqual({ a: 'time asleep', b: 'mood', timing: 'Since' });
   });
 
   test('sentenceText', () => {
@@ -279,7 +287,7 @@ describe('verdictCopy', () => {
     );
     expect(up.headline).toBe('Yes, a difference');
     expect(up.detail).toBe(
-      'On days you meditated, your mood was higher than usual.'
+      'On days you meditated, your mood was higher than on days without meditating.'
     );
     const down = collect(
       verdictCopy(
@@ -296,7 +304,9 @@ describe('verdictCopy', () => {
         t
       )
     );
-    expect(down.detail).toContain('lower than usual');
+    expect(down.detail).toBe(
+      'On days you meditated, your mood was lower than on days without meditating.'
+    );
     const none = collect(
       verdictCopy(
         response({ method: 'difference', linked: false, binary }, q),
@@ -557,7 +567,7 @@ describe('bedtime reads later or earlier', () => {
         t
       ).detail
     ).toBe(
-      'On days you meditated, your bedtime that night was later than usual.'
+      'On days you meditated, your bedtime that night was later than on other nights.'
     );
     expect(
       verdictCopy(
@@ -574,7 +584,7 @@ describe('bedtime reads later or earlier', () => {
         t
       ).detail
     ).toBe(
-      'On days you meditated, your bedtime that night was earlier than usual.'
+      'On days you meditated, your bedtime that night was earlier than on other nights.'
     );
   });
 
@@ -673,6 +683,24 @@ describe('statsLine', () => {
     expect(line).toBe(
       'difference 0.9 · 95% range 0.2 to 1.6 · p 0.012 · 62 days'
     );
+  });
+});
+
+describe('compareAmountText', () => {
+  test('an amount on the display scale, to the metric precision', () => {
+    expect(compareAmountText('mood', 8)).toBe('0.8');
+    expect(compareAmountText('timeAsleep', 0.44)).toBe('0.4');
+    expect(compareAmountText('steps', 1623.4)).toBe('1,623');
+  });
+
+  test('a signed difference', () => {
+    expect(compareAmountText('mood', 8, true)).toBe('+0.8');
+    expect(compareAmountText('energy', -0.5, true)).toBe('-0.5');
+    expect(compareAmountText('steps', 0, true)).toBe('0');
+  });
+
+  test('bedtime is a span of whole minutes, not a clock time', () => {
+    expect(compareAmountText('bedtime', -30.4, true)).toBe('-30');
   });
 });
 

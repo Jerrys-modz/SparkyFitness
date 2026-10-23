@@ -393,4 +393,38 @@ export function routesAreDistinct(
     routeOverlapFraction(b, a, toleranceM)
   );
   return overlap < maxOverlap;
+/**
+ * Filters out invalid GPS points (Null Island, out-of-range coordinates)
+ * and extreme distance outliers (> maxRadiusMeters, default 500 km from the workout's median center).
+ *
+ * This guards against corrupted coordinate columns, sensor glitches, or stale first fixes
+ * that draw straight lines across continents.
+ */
+export function filterGpsTrackOutliers<T extends { lat: number; lon: number }>(
+  points: readonly T[],
+  maxRadiusMeters = 500_000
+): T[] {
+  const valid = points.filter(
+    (p) =>
+      Number.isFinite(p.lat) &&
+      Number.isFinite(p.lon) &&
+      !(p.lat === 0 && p.lon === 0) &&
+      p.lat >= -90 &&
+      p.lat <= 90 &&
+      p.lon >= -180 &&
+      p.lon <= 180
+  );
+  if (valid.length < 3) return valid;
+
+  const sortedLats = valid.map((p) => p.lat).sort((a, b) => a - b);
+  const sortedLons = valid.map((p) => p.lon).sort((a, b) => a - b);
+  const mid = Math.floor(valid.length / 2);
+  const medianPoint: LatLon = {
+    lat: sortedLats[mid] as number,
+    lon: sortedLons[mid] as number,
+  };
+
+  return valid.filter(
+    (p) => haversineMeters(medianPoint, p) <= maxRadiusMeters
+  );
 }

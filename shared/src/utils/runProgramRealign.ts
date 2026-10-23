@@ -88,6 +88,11 @@ export interface RealignInput {
   distance?: RaceDistance | null;
   /** Realign even where the cap on dropped workouts would stop it. */
   force?: boolean;
+  /**
+   * Whether spare time may be filled with repeated workouts. False once the
+   * adjustment log records a stretch, so an accepted one is not offered again.
+   */
+  stretchable?: boolean;
 }
 
 export interface RealignPlan {
@@ -132,6 +137,7 @@ export function realignInputFromProgram(
     | 'end_date'
     | 'last_done_date'
     | 'activity'
+    | 'adjustment_log'
   >,
   options: {
     today: string;
@@ -156,7 +162,18 @@ export function realignInputFromProgram(
     custom: isCustomProgramId(program.program_id),
     distance: options.distance ?? null,
     force: options.force ?? false,
+    stretchable: isStretchable(program),
   };
+}
+
+/** Written in the summary of an applied stretch; the adjustment log is how a later realignment knows. */
+export const REALIGN_STRETCH_NOTE = 'Filled spare time with repeated workouts.';
+
+/** A plan whose log already records an accepted stretch gets no second offer. */
+function isStretchable(program: Pick<RunProgramResponse, 'adjustment_log'>) {
+  return !program.adjustment_log.some((entry) =>
+    entry.summary.includes(REALIGN_STRETCH_NOTE)
+  );
 }
 
 /** Thrown when a confirmed realignment no longer matches the plan the person saw. */
@@ -436,12 +453,14 @@ function describe(preview: Omit<RunProgramRealignPreview, 'summary'>): string {
   const head = parts.length
     ? `Realigned to the goal day: ${parts.join(', ')}.`
     : 'Realigned to the goal day.';
+  const stretched =
+    preview.added + preview.repeated > 0 ? ` ${REALIGN_STRETCH_NOTE}` : '';
   const kept =
     preview.keptTail > 0 ? ' The taper and the final workout are kept.' : '';
   const eased = preview.eased
     ? ` Eased the next ${plural(preview.eased.count, 'workout', 'workouts')} by ${Math.abs(preview.eased.percent)}% after ${preview.eased.daysAway} days away.`
     : '';
-  return `${head}${kept}${eased}`.slice(0, 500);
+  return `${head}${stretched}${kept}${eased}`.slice(0, 500);
 }
 
 /**
@@ -626,7 +645,9 @@ export function realignProgram(input: RealignInput): RealignOutcome {
   if (n <= slots) {
     const extra = slots - n;
     // A few spare days are normal; offer to fill only a week or more of room.
-    if (extra < perWeek || tailStart === 0) return { state: 'fits' };
+    if (extra < perWeek || tailStart === 0 || input.stretchable === false) {
+      return { state: 'fits' };
+    }
     const add = Math.min(extra, MAX_REALIGN_STRETCH);
     const { order, added } = stretch(
       entries.filter((e) => e.i < tailStart),
