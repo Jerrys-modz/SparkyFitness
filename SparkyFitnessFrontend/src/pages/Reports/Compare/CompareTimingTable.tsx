@@ -1,6 +1,10 @@
 import { Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { CompareQuestion, CompareTimingChoice } from '@workspace/shared';
+import {
+  timingOf,
+  type CompareQuestion,
+  type CompareTimingChoice,
+} from '@workspace/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { metricName, timingLabel } from './compareCopy';
@@ -31,9 +35,13 @@ export const CompareTimingTable = ({
           defaultValue: "Couldn't load",
         });
       case 'not_enough':
-        return t('compareReport.timing.notEnough', {
-          defaultValue: 'Not enough days',
-        });
+        return timingOf(question.choice).mode === 'week'
+          ? t('compareReport.timing.notEnoughWeeks', {
+              defaultValue: 'Not enough weeks',
+            })
+          : t('compareReport.timing.notEnough', {
+              defaultValue: 'Not enough days',
+            });
       case 'ok':
         return row.linked
           ? t('compareReport.timing.linked', { defaultValue: 'Linked' })

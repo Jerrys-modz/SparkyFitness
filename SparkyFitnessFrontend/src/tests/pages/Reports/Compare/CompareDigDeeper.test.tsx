@@ -164,6 +164,26 @@ describe('CompareTimingTable', () => {
     expect(screen.getByText('+0.42')).toBeInTheDocument();
   });
 
+  test('a week timing short of data says weeks, not days', () => {
+    render(
+      <CompareTimingTable
+        question={{ ...DAY_Q, choice: 'sameWeek' }}
+        rows={[
+          row('sameWeek', 0, { isAsked: true, strength: 0.42 }),
+          row('nextWeek', 1, {
+            status: 'not_enough',
+            strength: null,
+            method: null,
+            linked: false,
+          }),
+        ]}
+        onPickTiming={jest.fn()}
+      />
+    );
+    expect(screen.getByText('Not enough weeks')).toBeInTheDocument();
+    expect(screen.queryByText('Not enough days')).not.toBeInTheDocument();
+  });
+
   test('a loading timing shows a spinner', () => {
     render(
       <CompareTimingTable

@@ -9471,6 +9471,7 @@
       "linked": "Linked",
       "noLink": "No clear link",
       "notEnough": "Not enough days",
+      "notEnoughWeeks": "Not enough weeks",
       "loadFailed": "Couldn't load",
       "loading": "Loading",
       "metricWhen": "{{metric}} {{timing}}"
