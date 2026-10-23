@@ -53,10 +53,6 @@ import {
   clampTreadmillPercent,
   type TreadmillCorrection,
 } from '../utils/treadmillCorrection';
-import {
-  withRecentQuestion,
-  type CompareQuestion,
-} from '../utils/compareQuestion';
 
 const STORE_KEY = '@SparkyFitness/app-preferences';
 const STORE_VERSION = 1;

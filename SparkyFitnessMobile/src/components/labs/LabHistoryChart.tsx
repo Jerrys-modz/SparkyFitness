@@ -3,11 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 import { CartesianChart } from 'victory-native';
 import { useCSSVariable } from 'uniwind';
-import {
-  CHART_LABEL_FONT_SIZE,
-  formatDateWithYear,
-  useChartFont,
-} from '../charts/chartFormatting';
+import { CHART_LABEL_FONT_SIZE, useChartFont } from '../charts/chartFormatting';
+import { formatDateWithYear } from '../../utils/dayLabel';
 import LineSeriesMark from '../charts/LineSeriesMark';
 import TrendGoalLine from '../charts/TrendGoalLine';
 import type { LabHistoryPoint } from '../../utils/labResults';
