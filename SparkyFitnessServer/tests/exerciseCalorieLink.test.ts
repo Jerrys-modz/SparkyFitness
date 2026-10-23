@@ -9,6 +9,7 @@ import { getClient } from '../db/poolManager.js';
 import {
   clearCalorieLink,
   clearCalorieLinkOfEntryWithClient,
+  clearCalorieLinksOfEntriesWithClient,
   getCalorieLinkSuggestions,
   reapplyCalorieLinkWithClient,
   setCalorieLink,
@@ -472,5 +473,22 @@ describe('clearCalorieLinkOfEntryWithClient', () => {
       'calories_applied = NULL'
     );
     expect(query.mock.calls[0]![1]).toEqual(['u1', 'm1']);
+  });
+});
+
+describe('clearCalorieLinksOfEntriesWithClient', () => {
+  it('clears every link touched by a bulk delete', async () => {
+    const query = vi.fn(async (_sql: string, _params?: unknown[]) => ({
+      rows: [],
+    }));
+    await clearCalorieLinksOfEntriesWithClient(
+      { query } as never,
+      'u1',
+      ['s1', 's2']
+    );
+    expect(String(query.mock.calls[0]![0])).toContain(
+      'calories_applied = NULL'
+    );
+    expect(query.mock.calls[0]![1]).toEqual(['u1', ['s1', 's2']]);
   });
 });

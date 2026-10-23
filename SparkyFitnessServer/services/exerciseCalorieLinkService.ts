@@ -448,6 +448,28 @@ export async function clearCalorieLinkOfEntryWithClient(
   );
 }
 
+/** Same cleanup for every entry a bulk delete is about to remove. */
+export async function clearCalorieLinksOfEntriesWithClient(
+  client: PoolClient,
+  userId: string,
+  entryIds: readonly string[]
+): Promise<void> {
+  if (entryIds.length === 0) return;
+  await client.query(
+    `UPDATE exercise_entries
+     SET calories_applied = NULL, calorie_link_id = NULL,
+         calorie_link_resolution = NULL, updated_at = NOW()
+     WHERE user_id = $1
+       AND calorie_link_id IN (
+         SELECT calorie_link_id FROM exercise_entries
+         WHERE user_id = $1
+           AND id = ANY($2::uuid[])
+           AND calorie_link_id IS NOT NULL
+       )`,
+    [userId, entryIds]
+  );
+}
+
 /**
  * Same cleanup for a whole logged session, whose child rows are removed by
  * cascade when the preset entry goes. Runs before that delete.

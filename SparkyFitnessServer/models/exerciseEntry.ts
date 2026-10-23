@@ -21,6 +21,7 @@ import {
 import {
   clearCalorieLinkOfEntryWithClient,
   clearCalorieLinksForPresetEntryWithClient,
+  clearCalorieLinksOfEntriesWithClient,
   lockCalorieLinkParticipantsWithClient,
   reapplyCalorieLinkWithClient,
 } from '../services/exerciseCalorieLinkService.js';
@@ -2051,6 +2052,10 @@ async function deleteExerciseEntriesByEntrySourceAndDateWithClient(
   );
   const entryIds = entryIdsResult.rows.map((row: { id: string }) => row.id);
   if (entryIds.length > 0) {
+    // A resync deletes the synced side in bulk. Clear the link first so the
+    // logged workout that stays behind counts its own estimate again.
+    await lockCalorieLinkParticipantsWithClient(client, userId, entryIds);
+    await clearCalorieLinksOfEntriesWithClient(client, userId, entryIds);
     // Delete associated activity details
     await client.query(
       'DELETE FROM exercise_entry_activity_details WHERE exercise_entry_id = ANY($1::uuid[])',
