@@ -527,10 +527,12 @@ async function updateExerciseEntry(
       }
     }
     // If calories_burned is not provided, calculate it using the calorieCalculationService
-    // An edit usually omits exercise_id (the entry keeps its library link), so
-    // fall back to the stored one; otherwise adding a set never re-estimates.
+    // An edit that changes the sets usually omits exercise_id (the entry keeps
+    // its library link), so fall back to the stored one or adding a set never
+    // re-estimates. A partial update without sets keeps its stored calories.
     const estimateExerciseId =
-      updateData.exercise_id ?? existingEntry.exercise_id;
+      updateData.exercise_id ??
+      (updateData.sets ? existingEntry.exercise_id : undefined);
     if (
       estimateExerciseId &&
       updateData.duration_minutes !== null &&
