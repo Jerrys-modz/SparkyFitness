@@ -1,5 +1,6 @@
 import {
   triggerManualSync,
+  performBackgroundSync,
   flushPendingHealthSyncCacheRefresh,
 } from '../../src/services/backgroundSyncService';
 import {
@@ -348,6 +349,7 @@ describe('performBackgroundSync (via triggerManualSync)', () => {
     // identity default so per-test mockReturnValue overrides cannot leak forward
     // (the real aggregateByDay returns [] for empty input, matching identity here).
     healthService.aggregateByDay.mockImplementation((data: unknown[]) => data);
+    healthService.initHealthConnect.mockResolvedValue(true);
     api.syncHealthData.mockResolvedValue(undefined);
     storage.savePendingHealthSyncCacheRefresh.mockResolvedValue(undefined);
     storage.consumePendingHealthSyncCacheRefresh.mockResolvedValue(false);
@@ -545,18 +547,46 @@ describe('performBackgroundSync (via triggerManualSync)', () => {
       expect(logsMatching('Health Connect was unavailable')).toHaveLength(0);
     });
 
-    test('initializes Health Connect before collecting health data', async () => {
-      storage.loadLastSyncedTime.mockResolvedValue(null);
+    test.each(['manual-sync', 'healthDataSync'])(
+      'initializes Health Connect before collecting health data for %s',
+      async (taskId) => {
+        storage.loadLastSyncedTime.mockResolvedValue(null);
+        healthService.loadHealthPreference.mockResolvedValue(true);
+        healthService.getAggregatedStepsByDate.mockResolvedValue([]);
+        setAppState('background');
+
+        await performBackgroundSync(taskId);
+
+        expect(
+          healthService.initHealthConnect.mock.invocationCallOrder[0]
+        ).toBeLessThan(
+          healthService.getAggregatedStepsByDate.mock.invocationCallOrder[0]
+        );
+      }
+    );
+
+    test('leaves the sync cursor unchanged and skips reads when initialization fails', async () => {
+      storage.loadLastSyncedTime.mockResolvedValue('2024-01-14T14:30:00Z');
       healthService.loadHealthPreference.mockResolvedValue(true);
-      healthService.getAggregatedStepsByDate.mockResolvedValue([]);
+      healthService.initHealthConnect.mockResolvedValue(false);
+      setAppState('background');
 
-      await triggerManualSync();
+      await performBackgroundSync('healthDataSync');
 
-      expect(
-        healthService.initHealthConnect.mock.invocationCallOrder[0]
-      ).toBeLessThan(
-        healthService.getAggregatedStepsByDate.mock.invocationCallOrder[0]
-      );
+      expect(healthService.readCumulativeByDay).not.toHaveBeenCalled();
+      expect(healthService.readHealthRecords).not.toHaveBeenCalled();
+      expect(healthService.readMinMaxAvgByDayDetailed).not.toHaveBeenCalled();
+      expect(api.syncHealthData).not.toHaveBeenCalled();
+      expect(storage.saveLastSyncedTime).not.toHaveBeenCalled();
+      expect(logsMatching('initialization failed')).toHaveLength(1);
+    });
+
+    test('does not initialize Health Connect when no metrics are enabled', async () => {
+      healthService.loadHealthPreference.mockResolvedValue(false);
+
+      await performBackgroundSync('healthDataSync');
+
+      expect(healthService.initHealthConnect).not.toHaveBeenCalled();
     });
   });
 
