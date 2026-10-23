@@ -35,6 +35,7 @@ import {
 } from '@workspace/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateTimeInput } from '@/components/ui/TimeInput';
 import { Label } from '@/components/ui/label';
 import {
   Card,
@@ -1241,13 +1242,16 @@ export default function TodayMedications({
               </p>
             )}
             <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">
+              <Label
+                id="medication-taken-at-label"
+                className="text-xs text-muted-foreground"
+              >
                 {t('medications.today.takenAt', 'Taken at')}
               </Label>
-              <Input
-                type="datetime-local"
+              <DateTimeInput
+                aria-labelledby="medication-taken-at-label"
                 value={editTime}
-                onChange={(e) => setEditTime(e.target.value)}
+                onChange={setEditTime}
               />
             </div>
             {editingEntry?.entry_type === 'injection' && (

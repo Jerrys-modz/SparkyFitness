@@ -11,6 +11,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/TimeInput';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -102,6 +103,22 @@ const RAW_PROVIDER_TYPES = [
   'full_workout_data',
   'fit_file_data',
 ];
+
+// The form shows some stored values rounded: distance to one decimal in the
+// user's unit, duration to two decimals. These are the values it starts with,
+// so saving can tell a field the user left alone from one they edited.
+const seedDistanceInput = (
+  entry: ExerciseEntry,
+  toDisplayUnit: (km: number) => number
+): number | '' =>
+  entry.distance !== undefined && entry.distance !== null
+    ? Number(toDisplayUnit(entry.distance).toFixed(1))
+    : '';
+
+const seedDurationInput = (entry: ExerciseEntry): number | '' =>
+  entry.duration_minutes != null
+    ? Math.round(Number(entry.duration_minutes) * 100) / 100
+    : '';
 
 function extractTelemetry(entry: ExerciseEntry, activityData: unknown) {
   const e = entry as Record<string, unknown>;
@@ -314,19 +331,15 @@ const EditExerciseEntryDialog = ({
   const [caloriesBurnedInput, setCaloriesBurnedInput] = useState<number | ''>(
     entry.calories_burned || ''
   );
-  const [distanceInput, setDistanceInput] = useState<number | ''>(
-    entry.distance !== undefined && entry.distance !== null
-      ? Number(convertDistance(entry.distance, 'km', distanceUnit).toFixed(1))
-      : ''
+  const [distanceInput, setDistanceInput] = useState<number | ''>(() =>
+    seedDistanceInput(entry, (km) => convertDistance(km, 'km', distanceUnit))
   );
   const [shoeId, setShoeId] = useState<string | null>(entry.shoe_id ?? null);
   const [avgHeartRateInput, setAvgHeartRateInput] = useState<number | ''>(
     entry.avg_heart_rate != null ? entry.avg_heart_rate : ''
   );
-  const [durationInput, setDurationInput] = useState<number | ''>(
-    entry.duration_minutes != null
-      ? Math.round(Number(entry.duration_minutes) * 100) / 100
-      : ''
+  const [durationInput, setDurationInput] = useState<number | ''>(() =>
+    seedDurationInput(entry)
   );
   const providerDumps = useMemo<RawActivityDetailItem[]>(
     () =>
@@ -565,7 +578,7 @@ const EditExerciseEntryDialog = ({
     if (extracted.windSpeed !== '') setWindSpeedInput(extracted.windSpeed);
     if (extracted.humidity !== '') setHumidityInput(extracted.humidity);
     if (entry.duration_minutes != null && entry.duration_minutes > 0) {
-      setDurationInput(Math.round(Number(entry.duration_minutes) * 100) / 100);
+      setDurationInput(seedDurationInput(entry));
     }
   }, [open, entry, activityData, activityDataFetched]);
 
@@ -713,6 +726,33 @@ const EditExerciseEntryDialog = ({
           ? caloriesBurnedInput
           : Math.round((caloriesPerHour / 60) * totalDuration);
 
+      // A field still showing its starting value goes back as stored, not as
+      // its rounded display value: for a synced workout the server would
+      // count the rounding as the user's edit and keep the field from every
+      // later sync. An empty duration keeps deriving from the sets.
+      const distanceUntouched =
+        distanceInput ===
+        seedDistanceInput(entry, (km) =>
+          convertDistance(km, 'km', distanceUnit)
+        );
+      const seededDuration = seedDurationInput(entry);
+      const durationUntouched =
+        seededDuration !== '' && durationInput === seededDuration;
+      const avgHeartRateUntouched =
+        avgHeartRateInput === (entry.avg_heart_rate ?? '');
+      const seededSteps = extractTelemetry(entry, activityData).steps;
+      const stepsUntouched =
+        stepsInput === (seededSteps !== '' ? seededSteps : (entry.steps ?? ''));
+
+      const durationMinutes = durationUntouched
+        ? entry.duration_minutes
+        : totalDuration;
+      const distanceKm = distanceUntouched
+        ? (entry.distance ?? null)
+        : distanceInput === ''
+          ? null
+          : convertDistance(Number(distanceInput), distanceUnit, 'km');
+
       // Cardio performance also lives on its single backing set (issue
       // #1903): duration in seconds + distance in km, no between-set rest.
       // These agree with the entry-level totals below by construction. A
@@ -722,11 +762,8 @@ const EditExerciseEntryDialog = ({
             duration:
               durationInput === ''
                 ? null
-                : Math.round(Number(durationInput) * 60),
-            distance:
-              distanceInput === ''
-                ? null
-                : convertDistance(Number(distanceInput), distanceUnit, 'km'),
+                : Math.round(Number(durationMinutes) * 60),
+            distance: distanceKm,
             rest_time: 0,
           }
         : null;
@@ -734,7 +771,7 @@ const EditExerciseEntryDialog = ({
       await updateExerciseEntry({
         id: entry.id,
         data: {
-          duration_minutes: totalDuration,
+          duration_minutes: durationMinutes,
           calories_burned: caloriesBurned,
           notes,
           entry_time: entryTime || null,
@@ -745,12 +782,12 @@ const EditExerciseEntryDialog = ({
           })),
           imageFile,
           image_url: imageUrl,
-          distance:
-            distanceInput === ''
-              ? null
-              : convertDistance(Number(distanceInput), distanceUnit, 'km'),
-          avg_heart_rate:
-            avgHeartRateInput === '' ? 0 : Number(avgHeartRateInput),
+          distance: distanceKm,
+          avg_heart_rate: avgHeartRateUntouched
+            ? (entry.avg_heart_rate ?? null)
+            : avgHeartRateInput === ''
+              ? 0
+              : Number(avgHeartRateInput),
           max_heart_rate:
             maxHeartRateInput === '' ? null : Number(maxHeartRateInput),
           avg_respiration_brpm:
@@ -786,7 +823,11 @@ const EditExerciseEntryDialog = ({
             tempCelsiusInput === '' ? null : Number(tempCelsiusInput),
           weather_condition: weatherCondInput || null,
           gear_name: gearNameInput || null,
-          steps: stepsInput === '' ? null : Number(stepsInput),
+          steps: stepsUntouched
+            ? (entry.steps ?? null)
+            : stepsInput === ''
+              ? null
+              : Number(stepsInput),
           water_estimated:
             waterEstimatedInput === '' ? null : Number(waterEstimatedInput),
           moving_time_seconds:
@@ -1001,7 +1042,7 @@ const EditExerciseEntryDialog = ({
           {/* Start Time (optional) */}
           <div className="space-y-1.5 max-w-[280px]">
             <div className="flex items-center justify-between">
-              <Label htmlFor="entryTime" className="text-sm">
+              <Label id="entryTime-label" className="text-sm">
                 {t(
                   'diary.editExerciseEntryDialog.startTimeOptional',
                   'Start Time (optional)'
@@ -1040,11 +1081,11 @@ const EditExerciseEntryDialog = ({
                 </button>
               </div>
             </div>
-            <Input
+            <TimeInput
               id="entryTime"
-              type="time"
+              aria-labelledby="entryTime-label"
               value={entryTime}
-              onChange={(e) => setEntryTime(e.target.value)}
+              onChange={setEntryTime}
               className="text-sm h-9"
             />
           </div>

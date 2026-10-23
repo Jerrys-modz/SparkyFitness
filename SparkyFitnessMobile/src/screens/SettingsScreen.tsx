@@ -1,6 +1,12 @@
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  ActivityIndicator,
+  Platform,
+} from 'react-native';
 import Toast from 'react-native-toast-message';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -368,9 +374,15 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
               {hasPairedWatch && (
                 <SettingsRow
                   icon="watch-settings"
-                  title={t('settings.rows.watch', {
-                    defaultValue: 'Apple Watch',
-                  })}
+                  title={
+                    Platform.OS === 'android'
+                      ? t('settings.rows.wearOs', {
+                          defaultValue: 'Wear OS',
+                        })
+                      : t('settings.rows.watch', {
+                          defaultValue: 'Apple Watch',
+                        })
+                  }
                   onPress={() => navigation.navigate('WatchSettings')}
                   iconColor={catSlate}
                 />

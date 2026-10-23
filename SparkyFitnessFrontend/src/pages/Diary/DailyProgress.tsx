@@ -51,8 +51,10 @@ import {
   normalizeCalorieGoalAdjustmentMode,
   resolveCalorieSafetyFloor,
   DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
+  isAdaptiveActivitySeparated,
 } from '@workspace/shared';
 import { CalorieTargetBreakdown } from '@/components/CalorieTargetBreakdown';
+import { getAdaptiveTdeeForGoal } from '@/utils/adaptiveTdee';
 import { useNutrientGoalPreferences } from '@/hooks/Settings/useNutrientGoalPreferences';
 
 const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
@@ -68,7 +70,9 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
     bodyFatAlgorithm,
     goalMode,
     goalModeCalculationMethod,
+    adaptiveActivitySeparate,
     goalModeCustomPercentage,
+    goalModeWeeklyChangeKg,
     calorieSafetyFloorMode,
     calorieSafetyFloorValue,
     activityLevel,
@@ -281,13 +285,19 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
         : Math.max(adaptiveGoalFloor, adaptiveGoal);
   }
 
+  const activitySeparated = isAdaptiveActivitySeparated(
+    calorieGoalAdjustmentMode,
+    goalModeCalculationMethod,
+    adaptiveActivitySeparate
+  );
   const previewResult = computeCalorieTarget({
     goalMode,
     calculationMethod: goalModeCalculationMethod,
     customPercentage: goalModeCustomPercentage,
+    weeklyChangeKg: goalModeWeeklyChangeKg,
     bmr,
     activityLevelMultiplier: activityMultiplier,
-    adaptiveTdee: adaptiveTdeeData ? adaptiveTdeeData.tdee : null,
+    adaptiveTdee: getAdaptiveTdeeForGoal(adaptiveTdeeData, activitySeparated),
     adaptiveTdeeFallback: adaptiveTdeeData ? adaptiveTdeeData.isFallback : true,
     adaptiveTdeeDaysOfData: adaptiveTdeeData
       ? (adaptiveTdeeData.daysOfData ?? 0)
@@ -812,6 +822,7 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
           {/* Calorie Math Breakdown Dropdown */}
           <div className="pt-3 border-t border-border/40 space-y-2.5">
             <CalorieTargetBreakdown
+              adaptiveActivitySeparate={adaptiveActivitySeparate}
               asDialog
               previewResult={previewResult}
               adaptiveTdeeData={adaptiveTdeeData}
@@ -828,6 +839,7 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
               goalMode={goalMode}
               goalModeCalculationMethod={goalModeCalculationMethod}
               goalModeCustomPercentage={goalModeCustomPercentage}
+              goalModeWeeklyChangeKg={goalModeWeeklyChangeKg}
               calorieGoalAdjustmentMode={calorieGoalAdjustmentMode}
               rawManualGoal={rawManualGoal}
               adjustedManualGoal={adjustedManualGoal}

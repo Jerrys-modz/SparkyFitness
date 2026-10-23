@@ -6,6 +6,7 @@ import {
   heartRateAlertCue,
   paceAlertCue,
   intervalCue,
+  intervalStepName,
   intervalToGoCue,
   spokenDuration,
   splitCue,
@@ -116,6 +117,13 @@ describe('distance steps', () => {
         style: 'fastEasy',
       })
     ).toBe('Fast. 400 meters.');
+  });
+
+  it('calls a brisk walk Brisk and Easy, never Run', () => {
+    expect(intervalStepName(tt, 'work', 'briskWalk')).toBe('Brisk');
+    expect(intervalStepName(tt, 'recovery', 'briskWalk')).toBe('Easy');
+    expect(intervalStepName(tt, 'work', 'runWalk')).toBe('Run');
+    expect(intervalStepName(tt, 'work', 'fastEasy')).toBe('Fast');
   });
 
   it('says the last tenth of a mile on a step set in miles', () => {

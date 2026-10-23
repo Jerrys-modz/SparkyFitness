@@ -360,16 +360,18 @@ export async function _bulkInsertExerciseEntryHrZonesWithClient(
       zone.zone_lower_bpm ?? null,
       zone.zone_upper_bpm ?? null,
       zone.seconds_in_zone,
+      zone.zone_method ?? null,
     ]);
     const query = format(
       `INSERT INTO exercise_entry_hr_zones
-        (user_id, exercise_entry_id, entry_date, zone_index, zone_lower_bpm, zone_upper_bpm, seconds_in_zone)
+        (user_id, exercise_entry_id, entry_date, zone_index, zone_lower_bpm, zone_upper_bpm, seconds_in_zone, zone_method)
        VALUES %L
        ON CONFLICT (exercise_entry_id, zone_index) DO UPDATE SET
          entry_date = EXCLUDED.entry_date,
          zone_lower_bpm = EXCLUDED.zone_lower_bpm,
          zone_upper_bpm = EXCLUDED.zone_upper_bpm,
-         seconds_in_zone = EXCLUDED.seconds_in_zone
+         seconds_in_zone = EXCLUDED.seconds_in_zone,
+         zone_method = EXCLUDED.zone_method
        RETURNING *`,
       values
     );

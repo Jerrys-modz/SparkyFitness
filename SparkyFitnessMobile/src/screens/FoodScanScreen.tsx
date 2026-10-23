@@ -844,48 +844,55 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
     return <View />;
   }
 
-  if (!permission.granted) {
-    return (
-      <View
-        className="flex-1 justify-center items-center px-6"
-        style={
-          Platform.OS === 'android' ? { paddingTop: insets.top } : undefined
-        }
-      >
-        <Text className="text-text-primary text-base text-center mb-4">
-          {t('foodScan.permission.camera', {
-            defaultValue: 'We need your permission to show the camera',
-          })}
-        </Text>
-        <Button
-          onPress={requestPermission}
-          title={t('foodScan.permission.grant', {
-            defaultValue: 'Grant Permission',
-          })}
-        />
-      </View>
-    );
-  }
-
   return (
     <View className="flex-1 flex-col justify-center">
-      <CameraView
-        ref={cameraRef}
-        onBarcodeScanned={
-          scanMode === 'barcode' && !scanned ? handleBarcodeScanned : undefined
-        }
-        barcodeScannerSettings={
-          scanMode === 'barcode'
-            ? {
-                barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'],
-              }
-            : undefined
-        }
-        style={StyleSheet.absoluteFill}
-        enableTorch={flashlight}
-      />
+      {permission.granted ? (
+        <CameraView
+          ref={cameraRef}
+          onBarcodeScanned={
+            scanMode === 'barcode' && !scanned
+              ? handleBarcodeScanned
+              : undefined
+          }
+          barcodeScannerSettings={
+            scanMode === 'barcode'
+              ? {
+                  barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'],
+                }
+              : undefined
+          }
+          style={StyleSheet.absoluteFill}
+          enableTorch={flashlight}
+        />
+      ) : null}
 
-      {scanMode === 'barcode' &&
+      {!permission.granted &&
+      !capturedPhoto &&
+      !labelProcessing &&
+      !loading &&
+      !manualEntryVisible ? (
+        <View
+          className="items-center px-6"
+          style={
+            Platform.OS === 'android' ? { paddingTop: insets.top } : undefined
+          }
+        >
+          <Text className="text-text-primary text-base text-center mb-4">
+            {t('foodScan.permission.camera', {
+              defaultValue: 'We need your permission to show the camera',
+            })}
+          </Text>
+          <Button
+            onPress={requestPermission}
+            title={t('foodScan.permission.grant', {
+              defaultValue: 'Grant Permission',
+            })}
+          />
+        </View>
+      ) : null}
+
+      {permission.granted &&
+      scanMode === 'barcode' &&
       !notFoundBarcode &&
       !lookupError &&
       !loading &&
@@ -964,27 +971,29 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
         >
           <Icon name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setFlashlight(!flashlight)}
-          accessibilityRole="button"
-          accessibilityLabel={
-            flashlight
-              ? t('foodScan.accessibility.flashlightOff', {
-                  defaultValue: 'Turn flashlight off',
-                })
-              : t('foodScan.accessibility.flashlightOn', {
-                  defaultValue: 'Turn flashlight on',
-                })
-          }
-          className="bg-black/50 rounded-full p-2"
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Icon
-            name={flashlight ? 'flashlight-on' : 'flashlight-off'}
-            size={22}
-            color={flashlight ? accentPrimary : '#fff'}
-          />
-        </TouchableOpacity>
+        {permission.granted ? (
+          <TouchableOpacity
+            onPress={() => setFlashlight(!flashlight)}
+            accessibilityRole="button"
+            accessibilityLabel={
+              flashlight
+                ? t('foodScan.accessibility.flashlightOff', {
+                    defaultValue: 'Turn flashlight off',
+                  })
+                : t('foodScan.accessibility.flashlightOn', {
+                    defaultValue: 'Turn flashlight on',
+                  })
+            }
+            className="bg-black/50 rounded-full p-2"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Icon
+              name={flashlight ? 'flashlight-on' : 'flashlight-off'}
+              size={22}
+              color={flashlight ? accentPrimary : '#fff'}
+            />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {loading || labelProcessing ? (
@@ -1104,7 +1113,8 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
         </View>
       ) : null}
 
-      {scanMode === 'photo' &&
+      {permission.granted &&
+      scanMode === 'photo' &&
       !capturedPhoto &&
       !loading &&
       !manualEntryVisible &&
@@ -1221,7 +1231,8 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
                       'foodScan.accessibility.takeLabelPhoto',
                       { defaultValue: 'Take nutrition label photo' }
                     )}
-                    className="w-20 h-20 rounded-full border-4 border-white items-center justify-center"
+                    disabled={!permission.granted}
+                    className={`w-20 h-20 rounded-full border-4 border-white items-center justify-center ${permission.granted ? '' : 'opacity-40'}`}
                     activeOpacity={0.7}
                   >
                     <View className="w-16 h-16 rounded-full bg-white" />
@@ -1266,8 +1277,8 @@ const FoodScanScreen: React.FC<FoodScanScreenProps> = ({
                         'foodScan.accessibility.takeMealPhoto',
                         { defaultValue: 'Take meal photo' }
                       )}
-                      disabled={!photoModeAvailable}
-                      className={`w-20 h-20 rounded-full border-4 border-white items-center justify-center ${photoModeAvailable ? '' : 'opacity-40'}`}
+                      disabled={!permission.granted || !photoModeAvailable}
+                      className={`w-20 h-20 rounded-full border-4 border-white items-center justify-center ${permission.granted && photoModeAvailable ? '' : 'opacity-40'}`}
                       activeOpacity={0.7}
                     >
                       <View className="w-16 h-16 rounded-full bg-white" />

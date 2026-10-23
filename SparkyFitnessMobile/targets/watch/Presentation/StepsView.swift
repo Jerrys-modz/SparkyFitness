@@ -15,7 +15,7 @@ struct StepsView: View {
     var body: some View {
         let progress = steps.map { min(1, Double($0) / Double(goal)) } ?? 0
         VStack(spacing: 6) {
-            Text("Steps")
+            Text(String(localized: "watch.steps.title", defaultValue: "Steps"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
             ZStack {

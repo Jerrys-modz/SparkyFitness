@@ -335,6 +335,7 @@ describe('estimateUnitConversion', () => {
     // Ollama gets format: 'json' with the schema spelled out in the prompt,
     // rather than the schema as `format` — see buildOllamaRequest.
     expect(body.format).toBe('json');
+    expect(body.think).toBe(false);
     const message = (body.messages as { content: string }[])[0];
     expect(message.content).toContain('conforms to this JSON Schema');
   });
