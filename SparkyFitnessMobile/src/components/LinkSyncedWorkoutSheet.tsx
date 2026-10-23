@@ -219,7 +219,14 @@ const LinkSyncedWorkoutSheet = forwardRef<
         activeOpacity={0.7}
         accessibilityRole="radio"
         accessibilityState={{ selected: isSelected }}
-        accessibilityLabel={candidate.name ?? details}
+        accessibilityLabel={[
+          candidate.name ||
+            t('calorieLink.workoutFallback', { defaultValue: 'Workout' }),
+          candidate.start_time,
+          candidate.source,
+        ]
+          .filter(Boolean)
+          .join(', ')}
         testID={`link-candidate-${candidate.id}`}
       >
         <View className="flex-1 pr-3">
@@ -356,18 +363,20 @@ const LinkSyncedWorkoutSheet = forwardRef<
               >
                 {t('calorieLink.link', { defaultValue: 'Link workouts' })}
               </Button>
-              {data.link && (
-                <Button
-                  variant="outline"
-                  onPress={handleUnlink}
-                  disabled={busy}
-                  loading={clearLink.isPending}
-                >
-                  {t('calorieLink.unlink', { defaultValue: 'Unlink' })}
-                </Button>
-              )}
             </View>
           </>
+        )}
+        {data?.link && (
+          <View className="mt-4" style={{ gap: 8 }}>
+            <Button
+              variant="outline"
+              onPress={handleUnlink}
+              disabled={busy}
+              loading={clearLink.isPending}
+            >
+              {t('calorieLink.unlink', { defaultValue: 'Unlink' })}
+            </Button>
+          </View>
         )}
       </BottomSheetScrollView>
     </BottomSheetModal>

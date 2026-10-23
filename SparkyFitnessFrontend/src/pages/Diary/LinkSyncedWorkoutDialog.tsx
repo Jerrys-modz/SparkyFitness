@@ -188,7 +188,10 @@ const LinkSyncedWorkoutDialog: React.FC<LinkSyncedWorkoutDialogProps> = ({
                       {[
                         candidate.source,
                         candidate.start_time,
-                        `${Math.round(candidate.duration_minutes)} min`,
+                        t('exercise.calorieLink.minutes', {
+                          value: Math.round(candidate.duration_minutes),
+                          defaultValue: '{{value}} min',
+                        }),
                         show(candidate.calories_burned),
                       ]
                         .filter(Boolean)

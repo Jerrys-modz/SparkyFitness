@@ -71,6 +71,7 @@ describe('LinkSyncedWorkoutSheet', () => {
     const { view, onLinkChange } = renderSheet();
 
     expect(view.getByText('Same session')).toBeTruthy();
+    expect(view.getByLabelText('Other workout, 09:55, Garmin')).toBeTruthy();
     fireEvent.press(view.getByText('Link workouts'));
 
     await waitFor(() => expect(mockSetLink).toHaveBeenCalledTimes(1));
@@ -132,5 +133,18 @@ describe('LinkSyncedWorkoutSheet', () => {
     expect(
       view.getByText('No synced workouts found for this day.')
     ).toBeTruthy();
+  });
+
+  it('can unlink when the synced workout is no longer a candidate', async () => {
+    mockSuggestions = {
+      manual_total_calories: 475,
+      link: { resolution: 'sparkyfitness', synced_entry_id: null },
+      candidates: [],
+    };
+    const { view, onLinkChange } = renderSheet();
+
+    fireEvent.press(view.getByText('Unlink'));
+    await waitFor(() => expect(mockClearLink).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onLinkChange).toHaveBeenCalledWith(null, {}));
   });
 });

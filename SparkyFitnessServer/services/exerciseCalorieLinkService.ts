@@ -232,6 +232,133 @@ async function clearLinkWithClient(
   );
 }
 
+interface LinkedCalorieRow {
+  id: string;
+  source: string | null;
+  calories_burned: number;
+  calories_applied: number | null;
+  calorie_link_resolution: CalorieLinkResolution | null;
+}
+
+/**
+ * After an ordinary edit changes an estimate, rewrite `calories_applied` on
+ * both sides from the stored resolution. The link stays authoritative: a
+ * calories_applied sent with the edit is not kept.
+ */
+export async function reapplyCalorieLinkWithClient(
+  client: PoolClient,
+  userId: string,
+  linkId: string
+): Promise<void> {
+  const result = await client.query<LinkedCalorieRow>(
+    `SELECT id,
+            source,
+            calories_burned::float8 AS calories_burned,
+            calories_applied::float8 AS calories_applied,
+            calorie_link_resolution
+     FROM exercise_entries
+     WHERE user_id = $1 AND calorie_link_id = $2::uuid
+     ORDER BY sort_order ASC NULLS LAST, created_at ASC
+     FOR UPDATE`,
+    [userId, linkId]
+  );
+  const rows = result.rows;
+  const resolution = rows.find(
+    (row) => row.calorie_link_resolution
+  )?.calorie_link_resolution;
+  if (!resolution) return;
+  const manual = rows.filter(
+    (row) => (row.source ?? '').toLowerCase() === 'manual'
+  );
+  const synced = rows.filter(
+    (row) => (row.source ?? '').toLowerCase() !== 'manual'
+  );
+  if (manual.length === 0 || synced.length === 0) return;
+
+  const estimates = manual.map((row) => Number(row.calories_burned) || 0);
+  const resolved = resolveLinkedCalories({
+    manualTotal: estimates.reduce((sum, value) => sum + value, 0),
+    syncedTotal: synced.reduce(
+      (sum, row) => sum + (Number(row.calories_burned) || 0),
+      0
+    ),
+    resolution,
+    customCalories: manual.reduce(
+      (sum, row) => sum + (Number(row.calories_applied) || 0),
+      0
+    ),
+  });
+  const applied =
+    resolved.manualCounted === null
+      ? manual.map(() => null)
+      : distributeCountedCalories(estimates, resolved.manualCounted);
+
+  for (const [index, row] of manual.entries()) {
+    await client.query(
+      `UPDATE exercise_entries
+       SET calories_applied = $3, updated_at = NOW()
+       WHERE id = $1 AND user_id = $2`,
+      [row.id, userId, applied[index] ?? null]
+    );
+  }
+  for (const row of synced) {
+    await client.query(
+      `UPDATE exercise_entries
+       SET calories_applied = $3, updated_at = NOW()
+       WHERE id = $1 AND user_id = $2`,
+      [row.id, userId, resolved.syncedCounted]
+    );
+  }
+}
+
+/**
+ * Drop a link before one of its entries is deleted, so the survivor counts its
+ * own estimate again. A no-op when the entry is not linked.
+ */
+export async function clearCalorieLinkOfEntryWithClient(
+  client: PoolClient,
+  userId: string,
+  entryId: string
+): Promise<void> {
+  await client.query(
+    `UPDATE exercise_entries
+     SET calories_applied = NULL, calorie_link_id = NULL,
+         calorie_link_resolution = NULL, updated_at = NOW()
+     WHERE user_id = $1
+       AND calorie_link_id = (
+         SELECT calorie_link_id
+         FROM exercise_entries
+         WHERE id = $2 AND user_id = $1
+       )
+       AND calorie_link_id IS NOT NULL`,
+    [userId, entryId]
+  );
+}
+
+/**
+ * Same cleanup for a whole logged session, whose child rows are removed by
+ * cascade when the preset entry goes. Runs before that delete.
+ */
+export async function clearCalorieLinksForPresetEntryWithClient(
+  client: PoolClient,
+  userId: string,
+  presetEntryId: string
+): Promise<void> {
+  await client.query(
+    `UPDATE exercise_entries
+     SET calories_applied = NULL, calorie_link_id = NULL,
+         calorie_link_resolution = NULL, updated_at = NOW()
+     WHERE user_id = $1
+       AND calorie_link_id IN (
+         SELECT calorie_link_id FROM exercise_entries
+         WHERE user_id = $1
+           AND exercise_preset_entry_id = $2
+           AND calorie_link_id IS NOT NULL
+       )`,
+    [userId, presetEntryId]
+  );
+}
+
 async function setCalorieLink(
   userId: string,
   actingUserId: string,

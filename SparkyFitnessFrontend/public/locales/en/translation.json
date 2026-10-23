@@ -1141,6 +1141,7 @@
       "sameSession": "Same session",
       "sameTime": "Overlaps in time",
       "workoutFallback": "Workout",
+      "minutes": "{{value}} min",
       "countHeading": "Count in the daily total",
       "sparkyfitness": "This workout ({{value}})",
       "synced": "The synced workout ({{value}})",

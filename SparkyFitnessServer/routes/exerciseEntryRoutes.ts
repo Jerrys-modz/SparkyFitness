@@ -391,6 +391,10 @@ router.post(
           exercise_name,
           duration_minutes,
           calories_burned,
+          calories_applied:
+            entryData.calories_applied === ''
+              ? null
+              : entryData.calories_applied,
           entry_date,
           entry_time,
           notes,
@@ -770,6 +774,18 @@ router.put(
       // Same contract as distance: an empty string clears the override, so the
       // entry's own estimate counts again.
       updateData.calories_applied = null;
+    }
+    if (
+      updateData.calories_applied !== null &&
+      updateData.calories_applied !== undefined
+    ) {
+      const applied = Number(updateData.calories_applied);
+      if (!Number.isFinite(applied) || applied < 0) {
+        return res
+          .status(400)
+          .json({ error: 'calories_applied must be a number of 0 or more.' });
+      }
+      updateData.calories_applied = applied;
     }
     // Extract new fields from updateData
     const { distance, avg_heart_rate } = updateData;

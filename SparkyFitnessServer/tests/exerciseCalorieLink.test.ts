@@ -8,7 +8,9 @@ import {
 import { getClient } from '../db/poolManager.js';
 import {
   clearCalorieLink,
+  clearCalorieLinkOfEntryWithClient,
   getCalorieLinkSuggestions,
+  reapplyCalorieLinkWithClient,
   setCalorieLink,
 } from '../services/exerciseCalorieLinkService.js';
 
@@ -368,5 +370,107 @@ describe('clearCalorieLink', () => {
       status: 404,
     });
     expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+  });
+});
+
+describe('reapplyCalorieLinkWithClient', () => {
+  const fakeClient = (rows: Row[]) => {
+    const calls: unknown[][] = [];
+    return {
+      calls,
+      client: {
+        query: vi.fn(async (sql: string, params?: unknown[]) => {
+          calls.push([String(sql), params]);
+          return String(sql).includes('SELECT') ? { rows } : { rows: [] };
+        }),
+      },
+    };
+  };
+
+  it('recomputes both sides from the stored resolution after estimates change', async () => {
+    const { client: fake, calls } = fakeClient([
+      {
+        id: 'a',
+        source: 'manual',
+        calories_burned: 200,
+        calories_applied: 100,
+        calorie_link_resolution: 'average',
+      },
+      {
+        id: 'b',
+        source: 'manual',
+        calories_burned: 200,
+        calories_applied: 100,
+        calorie_link_resolution: 'average',
+      },
+      {
+        id: 's1',
+        source: 'Garmin',
+        calories_burned: 500,
+        calories_applied: 0,
+        calorie_link_resolution: 'average',
+      },
+    ]);
+
+    await reapplyCalorieLinkWithClient(fake as never, 'u1', 'link-1');
+
+    const writes = calls.filter(([sql]) =>
+      String(sql).trimStart().startsWith('UPDATE')
+    );
+    expect(writes.map((call) => call[1])).toEqual([
+      ['a', 'u1', 225],
+      ['b', 'u1', 225],
+      ['s1', 'u1', 0],
+    ]);
+  });
+
+  it('keeps a custom total and redistributes it across the new estimates', async () => {
+    const { client: fake, calls } = fakeClient([
+      {
+        id: 'a',
+        source: 'manual',
+        calories_burned: 100,
+        calories_applied: 90,
+        calorie_link_resolution: 'custom',
+      },
+      {
+        id: 'b',
+        source: 'manual',
+        calories_burned: 100,
+        calories_applied: 30,
+        calorie_link_resolution: 'custom',
+      },
+      {
+        id: 's1',
+        source: 'Garmin',
+        calories_burned: 400,
+        calories_applied: 0,
+        calorie_link_resolution: 'custom',
+      },
+    ]);
+
+    await reapplyCalorieLinkWithClient(fake as never, 'u1', 'link-1');
+
+    const writes = calls.filter(([sql]) =>
+      String(sql).trimStart().startsWith('UPDATE')
+    );
+    expect(writes.map((call) => call[1])).toEqual([
+      ['a', 'u1', 60],
+      ['b', 'u1', 60],
+      ['s1', 'u1', 0],
+    ]);
+  });
+});
+
+describe('clearCalorieLinkOfEntryWithClient', () => {
+  it('clears every row that shares the entry link before that entry is deleted', async () => {
+    const query = vi.fn(async (_sql: string, _params?: unknown[]) => ({
+      rows: [],
+    }));
+    await clearCalorieLinkOfEntryWithClient({ query } as never, 'u1', 'm1');
+    expect(String(query.mock.calls[0]![0])).toContain(
+      'calories_applied = NULL'
+    );
+    expect(query.mock.calls[0]![1]).toEqual(['u1', 'm1']);
   });
 });
