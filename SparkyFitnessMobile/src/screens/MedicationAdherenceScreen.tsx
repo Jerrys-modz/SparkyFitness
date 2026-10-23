@@ -331,7 +331,7 @@ const MedicationAdherenceScreen: React.FC<MedicationAdherenceScreenProps> = ({
           defaultValue: "Everything you've taken or skipped on this date.",
         })}
         entries={dayEntries}
-        isLoading={false}
+        isLoading={adherence.isPlaceholderData}
         onEdit={handleEdit}
         onDelete={handleDelete}
         busy={isDeleting}
