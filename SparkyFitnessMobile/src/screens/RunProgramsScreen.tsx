@@ -17,6 +17,10 @@ import RunProgramCard, {
 } from '../components/recording/RunProgramCard';
 import PaceReferenceCard from '../components/recording/PaceReferenceCard';
 import RunProgramCalendar from '../components/recording/RunProgramCalendar';
+import RunProgramRealignCard, {
+  realignIsOffered,
+  realignOutcomeFor,
+} from '../components/recording/RunProgramRealignCard';
 import RunProgramGuide, {
   programStructure,
 } from '../components/recording/RunProgramGuide';
@@ -30,6 +34,7 @@ import CalendarSheet, {
 } from '../components/CalendarSheet';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import {
+  applyProgramRealign,
   restartProgram,
   setProgramEnabled,
   setProgramSchedule,
@@ -54,8 +59,15 @@ type Props = RootStackScreenProps<'RunPrograms'>;
 const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { status, enabled, lastAdjustment, schedule, doneDay, loaded } =
-    useRunProgram();
+  const {
+    program,
+    status,
+    enabled,
+    lastAdjustment,
+    schedule,
+    doneDay,
+    loaded,
+  } = useRunProgram();
   const [now] = useState(() => Date.now());
   const today = toLocalDateString(new Date(now));
   const [chosenId, setChosenId] = useState('beginner5k');
@@ -99,6 +111,32 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
       });
     },
     [t]
+  );
+
+  // Accepting a realignment rewrites the rest of the plan; a failure is shown
+  // here and the card is worked out again from the server's copy.
+  const realign = useCallback(
+    async (token: string, force: boolean) => {
+      try {
+        await applyProgramRealign({ token, force, today });
+        Toast.show({
+          type: 'success',
+          text1: t('runPrograms.realign.done', {
+            defaultValue: 'Your plan was realigned',
+          }),
+        });
+      } catch (error) {
+        addLog(`[Run Program] Could not realign the plan: ${error}`, 'WARNING');
+        Toast.show({
+          type: 'error',
+          text1: t('runPrograms.realign.error', {
+            defaultValue: 'Could not realign your plan',
+          }),
+          text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
+        });
+      }
+    },
+    [t, today]
   );
 
   // Starting asks when the first workout is: today, or a date from the calendar.
@@ -254,6 +292,14 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
     </View>
   );
 
+  // The realign card sits under the program card; while it is offering a fix
+  // the Schedule's own "skip workouts" shortcut would be a second, competing one.
+  const realignOffered =
+    program !== null &&
+    program !== undefined &&
+    enabled &&
+    realignIsOffered(realignOutcomeFor(program, today));
+
   let body: React.ReactNode = null;
   if (loaded && status) {
     body = (
@@ -283,6 +329,22 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           onRestart={() => change(restartProgram)}
           onSkip={() => change(skipProgramWorkout)}
         />
+        {program && enabled ? (
+          <RunProgramRealignCard
+            program={program}
+            today={today}
+            onAccept={realign}
+            onMoveGoal={(day) =>
+              change(() => setProgramSchedule({ endDay: day }))
+            }
+            onPlanShorter={(distance) =>
+              navigation.navigate('RunProgramRace', {
+                distance,
+                raceDay: schedule.endDay ?? undefined,
+              })
+            }
+          />
+        ) : null}
         <View className="bg-surface rounded-xl px-4 mt-4">
           <ProgramActionList>
             <ProgramActionRow
@@ -317,7 +379,11 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           schedule={schedule}
           doneDay={doneDay}
           today={today}
-          onCatchUp={(next) => change(() => setProgramPosition(next))}
+          onCatchUp={
+            realignOffered
+              ? undefined
+              : (next) => change(() => setProgramPosition(next))
+          }
         />
         <RunProgramGuide
           programId={status.program.custom ? undefined : storedId}

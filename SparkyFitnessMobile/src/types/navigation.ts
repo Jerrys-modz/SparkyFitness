@@ -10,6 +10,7 @@ import type {
   MedicationEntry,
   MindfulnessSessionResponse,
   PresetSessionResponse,
+  RaceDistance,
   SharedPregnancy,
   WorkoutFormat,
 } from '@workspace/shared';
@@ -89,7 +90,7 @@ export type RootStackParamList = {
   RunPrograms: undefined;
   RunProgramCalendar: undefined;
   RunProgramWorkout: { index: number };
-  RunProgramRace: undefined;
+  RunProgramRace: { distance?: RaceDistance; raceDay?: string } | undefined;
   RunProgramEdit: { id?: string; fromProgramId?: string } | undefined;
   PersonalRecords: undefined;
   Routes: undefined;

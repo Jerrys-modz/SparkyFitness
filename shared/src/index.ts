@@ -259,6 +259,7 @@ export * from './schemas/database/Routes.zod.ts';
 export * from './constants/routingProviderTypes.ts';
 export * from './utils/runProgramAdjust.ts';
 export * from './utils/runProgramBreak.ts';
+export * from './utils/runProgramRealign.ts';
 export * from './utils/runProgramEffort.ts';
 export * from './utils/runProgramPending.ts';
 export * from './utils/trainingLoad.ts';
