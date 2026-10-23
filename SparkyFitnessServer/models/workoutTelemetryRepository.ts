@@ -17,6 +17,7 @@ import {
   ExerciseEntryHrZones,
   ExerciseEntryHrZonesInitializer,
   GpsTrackPoint,
+  filterGpsTrackOutliers,
 } from '@workspace/shared';
 
 /**
@@ -234,6 +235,7 @@ export async function _bulkInsertExerciseEntryGpsPointsWithClient(
   }
   for (const group of byEntry.values()) {
     group.points.sort((a, b) => a.t.localeCompare(b.t));
+    group.points = filterGpsTrackOutliers(group.points);
   }
 
   {
@@ -270,7 +272,12 @@ export async function getGpsPointsForExerciseEntry(
       'SELECT * FROM exercise_entry_gps_points WHERE exercise_entry_id = $1',
       [exerciseEntryId]
     )) as { rows: ExerciseEntryGpsPoints[] };
-    return res.rows[0] ?? null;
+    const row = res.rows[0];
+    if (!row) return null;
+    return {
+      ...row,
+      points: filterGpsTrackOutliers(row.points || []),
+    };
   } finally {
     client.release();
   }
