@@ -411,4 +411,24 @@ describe('EditExerciseEntryDialog calories after changing sets', () => {
     const { data } = await saveEntry();
     expect(data.calories_burned).toBe(0);
   });
+
+  it('sends a stored zero back when the sets are untouched', async () => {
+    renderDialog(
+      makeEntry({
+        calories_burned: 0,
+        sets: [
+          { ...cardioSet, duration: null, distance: null, rest_time: 120 },
+        ],
+        exercise_snapshot: {
+          id: 'ex-1',
+          name: 'Bench Press',
+          category: 'Strength',
+          modality: 'weight_reps',
+        },
+      } as unknown as Partial<ExerciseEntry>)
+    );
+
+    const { data } = await saveEntry();
+    expect(data.calories_burned).toBe(0);
+  });
 });

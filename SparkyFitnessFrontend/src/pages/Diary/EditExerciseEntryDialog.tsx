@@ -332,8 +332,17 @@ const EditExerciseEntryDialog = ({
     seedDistanceInput(entry, (km) => convertDistance(km, 'km', distanceUnit))
   );
   const [shoeId, setShoeId] = useState<string | null>(entry.shoe_id ?? null);
+  // Only the fields the calorie estimate and the duration are derived from;
+  // notes, RPE and the like must not count as a change to the sets.
   const setsSignature = (rows: readonly SortableSet[]) =>
-    JSON.stringify(rows.map(({ _dndId, ...set }) => set));
+    JSON.stringify(
+      rows.map(({ reps, weight, duration, rest_time }) => [
+        reps,
+        weight,
+        duration,
+        rest_time,
+      ])
+    );
   const [initialSetsSignature] = useState(() => setsSignature(sets));
   const [initialCaloriesInput] = useState(entry.calories_burned || '');
 
@@ -723,12 +732,20 @@ const EditExerciseEntryDialog = ({
               : derivedSetsDuration;
 
       const caloriesEdited = caloriesBurnedInput !== initialCaloriesInput;
-      const caloriesBurned =
-        caloriesBurnedInput === ''
+      const storedCalories =
+        entry.calories_burned != null ? Number(entry.calories_burned) : null;
+      // Untouched calories go back as stored (a stored 0 shows as a blank
+      // input but is still the saved value) unless the sets changed, which
+      // makes them stale and lets the server re-estimate. Typed values,
+      // including 0, are the user's override; clearing the field asks for
+      // an estimate.
+      const caloriesBurned = caloriesEdited
+        ? caloriesBurnedInput === ''
           ? undefined
-          : setsChanged && !caloriesEdited
-            ? undefined
-            : caloriesBurnedInput;
+          : caloriesBurnedInput
+        : setsChanged
+          ? undefined
+          : (storedCalories ?? undefined);
 
       // A field still showing its starting value goes back as stored, not as
       // its rounded display value: for a synced workout the server would
