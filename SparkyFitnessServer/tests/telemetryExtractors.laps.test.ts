@@ -243,6 +243,92 @@ describe('activityDetailMetrics cadence resolves across provider shapes', () => 
   });
 });
 
+describe('extractGarminGpsPoints coordinate validation and geoPolylineDTO cross-check', () => {
+  it('sanitizes points with (0, 0) coordinates or missing coordinates to 0 without dropping telemetry', () => {
+    const payload = {
+      details: {
+        metricDescriptors: [
+          { key: 'directTimestamp', metricsIndex: 0 },
+          { key: 'directLatitude', metricsIndex: 1 },
+          { key: 'directLongitude', metricsIndex: 2 },
+          { key: 'directHeartRate', metricsIndex: 3 },
+        ],
+        activityDetailMetrics: [
+          { metrics: [1785225600000, 0, 0, 140] },
+          { metrics: [1785225601000, null, 10, 142] },
+          { metrics: [1785225602000, 51.4, null, 145] },
+          { metrics: [1785225603000, 51.4, 7.0, 148] },
+        ],
+      },
+    };
+    const results = extractGarminGpsPoints(payload);
+    expect(results).toHaveLength(4);
+    expect(results[0].latitude).toBe(0);
+    expect(results[0].longitude).toBe(0);
+    expect(results[0].heart_rate_bpm).toBe(140);
+    expect(results[3].latitude).toBe(51.4);
+    expect(results[3].longitude).toBe(7.0);
+    expect(results[3].heart_rate_bpm).toBe(148);
+  });
+
+  it('prefers unshifted coordinates from geoPolylineDTO when timestamps match', () => {
+    const payload = {
+      details: {
+        metricDescriptors: [
+          { key: 'directTimestamp', metricsIndex: 0 },
+          { key: 'directLatitude', metricsIndex: 1 },
+          { key: 'directLongitude', metricsIndex: 2 },
+          { key: 'directHeartRate', metricsIndex: 3 },
+        ],
+        activityDetailMetrics: [
+          // Simulated shifted row where lat/lon got shifted into wrong columns:
+          { metrics: [1785225600000, 7.028, 2.733, 140] },
+        ],
+        geoPolylineDTO: {
+          polyline: [{ time: 1785225600000, lat: 51.4219, lon: 7.028 }],
+        },
+      },
+    };
+    const results = extractGarminGpsPoints(payload);
+    expect(results).toHaveLength(1);
+    expect(results[0].latitude).toBeCloseTo(51.4219, 4);
+    expect(results[0].longitude).toBeCloseTo(7.028, 3);
+    expect(results[0].heart_rate_bpm).toBe(140);
+  });
+
+  it('safely skips null entries in polyline without throwing', () => {
+    const payload = {
+      details: {
+        geoPolylineDTO: {
+          polyline: [
+            null,
+            { time: 1785225600000, lat: 51.4219, lon: 7.028 },
+            null,
+          ],
+        },
+      },
+    };
+    const results = extractGarminGpsPoints(payload);
+    expect(results).toHaveLength(1);
+    expect(results[0].latitude).toBeCloseTo(51.4219, 4);
+  });
+
+  it('sanitizes out-of-range coordinates (> 90 lat or > 180 lon) to 0', () => {
+    const results = extractGarminGpsPoints({
+      gps_points: [
+        { timestamp: '2026-07-29T08:00:00Z', latitude: 91, longitude: 10 },
+        { timestamp: '2026-07-29T08:00:01Z', latitude: 10, longitude: 185 },
+        { timestamp: '2026-07-29T08:00:02Z', latitude: 51.4, longitude: 7.0 },
+      ],
+    });
+    expect(results).toHaveLength(3);
+    expect(results[0].latitude).toBe(0);
+    expect(results[1].longitude).toBe(0);
+    expect(results[2].latitude).toBe(51.4);
+    expect(results[2].longitude).toBe(7.0);
+  });
+});
+
 describe('extractGarminHrZones keeps a zero-indexed zone 1', () => {
   it('does not drop zone 0 when zones are 0-indexed', () => {
     const zones = extractGarminHrZones({

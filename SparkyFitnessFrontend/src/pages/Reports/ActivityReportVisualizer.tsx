@@ -38,7 +38,10 @@ import WorkoutSessionBreakdown from '@/components/ExerciseCharts/WorkoutSessionB
 import ActivityReportMap from './ActivityReportMap';
 import WorkoutReportVisualizer from './WorkoutReportVisualizer';
 import { ChartDataPoint } from '@/types/reports';
-import { buildWorkoutHeartRateSeries } from '@workspace/shared';
+import {
+  buildWorkoutHeartRateSeries,
+  filterGpsTrackOutliers,
+} from '@workspace/shared';
 
 interface ActivityReportVisualizerProps {
   exerciseEntryId: string;
@@ -463,12 +466,11 @@ const ActivityReportVisualizer = ({
     t('common.workout', 'Workout');
 
   if (variant === 'outdoor') {
-    const mapPolyline =
+    const rawPolyline =
       gpsPoints && gpsPoints.length > 0
-        ? gpsPoints
-            .filter((p) => p.lat !== 0 && p.lon !== 0)
-            .map((p) => ({ lat: p.lat, lon: p.lon }))
+        ? gpsPoints.map((p) => ({ lat: p.lat, lon: p.lon }))
         : activityData?.activity?.details?.geoPolylineDTO?.polyline || [];
+    const mapPolyline = filterGpsTrackOutliers(rawPolyline);
     return (
       <div className="space-y-4">
         {mapPolyline.length > 0 ? (
@@ -589,12 +591,11 @@ const ActivityReportVisualizer = ({
       )}
 
       {(() => {
-        const mapPolyline =
+        const rawPolyline =
           gpsPoints && gpsPoints.length > 0
-            ? gpsPoints
-                .filter((p) => p.lat !== 0 && p.lon !== 0)
-                .map((p) => ({ lat: p.lat, lon: p.lon }))
+            ? gpsPoints.map((p) => ({ lat: p.lat, lon: p.lon }))
             : activityData?.activity?.details?.geoPolylineDTO?.polyline || [];
+        const mapPolyline = filterGpsTrackOutliers(rawPolyline);
         if (mapPolyline.length === 0) return null;
         return (
           <div className="mb-8">
