@@ -5,6 +5,7 @@ import {
   COMPARE_SPANS,
   compareDays,
   compareWindow,
+  daysBetween,
   type CompareSpan,
   dayToPickerDate,
   localDateToDay,
@@ -23,6 +24,25 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 interface CustomRange {
   startDate: string;
   endDate: string;
+}
+
+/**
+ * A picked range made exactly the one `compareWindow` will query: the end
+ * kept (never past today), the start never past it, and a span over the
+ * mode's limit pulled in from the start.
+ */
+export function clampCustomRange(
+  range: CustomRange,
+  today: string,
+  maxDays: number
+): CustomRange {
+  const endDate = compareDays(range.endDate, today) > 0 ? today : range.endDate;
+  let startDate =
+    compareDays(range.startDate, endDate) > 0 ? endDate : range.startDate;
+  if (daysBetween(startDate, endDate) + 1 > maxDays) {
+    startDate = addDays(endDate, -(maxDays - 1));
+  }
+  return { startDate, endDate };
 }
 
 interface CompareSpanControlProps {
@@ -89,7 +109,14 @@ export function CompareSpanControl({
             defaultMonth={dayToPickerDate(day)}
             onSelect={(date) => {
               if (!date) return;
-              onChange('custom', { ...current, [which]: localDateToDay(date) });
+              onChange(
+                'custom',
+                clampCustomRange(
+                  { ...current, [which]: localDateToDay(date) },
+                  today,
+                  MAX_CUSTOM_DAYS[mode]
+                )
+              );
             }}
             disabled={(date) => {
               const d = localDateToDay(date);

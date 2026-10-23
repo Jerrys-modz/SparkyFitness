@@ -4,7 +4,10 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { SUGGESTED_QUESTIONS, type CompareQuestion } from '@workspace/shared';
 import { CompareSentence } from '@/pages/Reports/Compare/CompareSentence';
-import { CompareSpanControl } from '@/pages/Reports/Compare/CompareSpanControl';
+import {
+  clampCustomRange,
+  CompareSpanControl,
+} from '@/pages/Reports/Compare/CompareSpanControl';
 import { CompareStartState } from '@/pages/Reports/Compare/CompareStartState';
 
 // Every key the controls ask for, so the last test can check en/translation.json
@@ -219,6 +222,92 @@ describe('CompareSpanControl', () => {
     expect(screen.getByRole('button', { name: /End date/ })).toHaveTextContent(
       'fmt:2026-10-01'
     );
+  });
+});
+
+describe('custom range bounds', () => {
+  const today = '2026-10-22';
+
+  test('an end that makes the span too long moves the start', () => {
+    // 180 days is the day limit: 2026-04-25 .. 2026-10-21 is exactly 180.
+    expect(
+      clampCustomRange(
+        { startDate: '2026-04-25', endDate: '2026-10-22' },
+        today,
+        180
+      )
+    ).toEqual({ startDate: '2026-04-26', endDate: '2026-10-22' });
+    expect(
+      clampCustomRange(
+        { startDate: '2026-04-25', endDate: '2026-10-21' },
+        today,
+        180
+      )
+    ).toEqual({ startDate: '2026-04-25', endDate: '2026-10-21' });
+  });
+
+  test('the end never passes today and the start never passes the end', () => {
+    expect(
+      clampCustomRange(
+        { startDate: '2026-10-01', endDate: '2026-11-30' },
+        today,
+        180
+      )
+    ).toEqual({ startDate: '2026-10-01', endDate: today });
+    expect(
+      clampCustomRange(
+        { startDate: '2026-10-30', endDate: '2026-10-22' },
+        today,
+        180
+      )
+    ).toEqual({ startDate: today, endDate: today });
+  });
+
+  test('picking a later end in the calendar sends the clamped range', () => {
+    const onChange = jest.fn();
+    render(
+      <CompareSpanControl
+        mode="day"
+        span="custom"
+        custom={{ startDate: '2026-04-20', endDate: '2026-10-01' }}
+        today={today}
+        onChange={onChange}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /End date/ }));
+    // Today is the last pickable end; dates after it are disabled.
+    const day = (n: string) =>
+      screen
+        .getAllByRole('gridcell')
+        .map((c) => c.querySelector('button'))
+        .find((b) => b?.textContent === n && !b.closest('[data-outside]'));
+    expect(day('23')?.hasAttribute('disabled')).toBe(true);
+    fireEvent.click(day('21') as HTMLElement);
+    expect(onChange).toHaveBeenCalledWith('custom', {
+      startDate: '2026-04-25',
+      endDate: '2026-10-21',
+    });
+  });
+
+  test('the start picker disables days past the limit', () => {
+    render(
+      <CompareSpanControl
+        mode="day"
+        span="custom"
+        custom={{ startDate: '2026-04-25', endDate: '2026-10-21' }}
+        today={today}
+        onChange={jest.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Start date/ }));
+    const cells = screen.getAllByRole('gridcell');
+    const btn = (n: string) =>
+      cells
+        .map((c) => c.querySelector('button'))
+        .find((b) => b?.textContent === n && !b.closest('[data-outside]'));
+    // April 24 is 181 days back from Oct 21; April 25 is the earliest.
+    expect(btn('24')?.hasAttribute('disabled')).toBe(true);
+    expect(btn('25')?.hasAttribute('disabled')).toBe(false);
   });
 });
 
