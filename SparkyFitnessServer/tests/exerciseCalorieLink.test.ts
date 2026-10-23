@@ -481,11 +481,10 @@ describe('clearCalorieLinksOfEntriesWithClient', () => {
     const query = vi.fn(async (_sql: string, _params?: unknown[]) => ({
       rows: [],
     }));
-    await clearCalorieLinksOfEntriesWithClient(
-      { query } as never,
-      'u1',
-      ['s1', 's2']
-    );
+    await clearCalorieLinksOfEntriesWithClient({ query } as never, 'u1', [
+      's1',
+      's2',
+    ]);
     expect(String(query.mock.calls[0]![0])).toContain(
       'calories_applied = NULL'
     );
