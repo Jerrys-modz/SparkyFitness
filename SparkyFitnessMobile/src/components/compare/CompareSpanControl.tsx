@@ -11,7 +11,7 @@ import {
   MAX_CUSTOM_DAYS,
   type CompareSpan,
   type SpanMode,
-} from '../../utils/compareQuestion';
+} from '@workspace/shared';
 import { clampCustomRange, type CustomRange } from '../../utils/trendRange';
 
 interface CompareSpanControlProps {

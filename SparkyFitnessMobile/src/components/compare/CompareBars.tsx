@@ -1,6 +1,10 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { compareDisplayValue, type CompareResponse } from '@workspace/shared';
+import {
+  compareDisplayValue,
+  type CompareQuestion,
+  type CompareResponse,
+} from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -8,7 +12,6 @@ import {
   yesNoDifferenceText,
   yesNoWording,
 } from '../../utils/compareCopy';
-import type { CompareQuestion } from '../../utils/compareQuestion';
 
 interface CompareBarsProps {
   response: CompareResponse;

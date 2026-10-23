@@ -1,10 +1,13 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
-import type { CompareResponse, CompareResult } from '@workspace/shared';
+import {
+  type CompareQuestion,
+  type CompareResponse,
+  type CompareResult,
+} from '@workspace/shared';
 
 import CompareBars from '../../../src/components/compare/CompareBars';
 import { initializeI18n } from '../../../src/localization/i18n';
-import type { CompareQuestion } from '../../../src/utils/compareQuestion';
 
 const Q: CompareQuestion = { a: 'meditated', b: 'mood', choice: 'sameDay' };
 

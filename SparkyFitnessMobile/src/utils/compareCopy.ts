@@ -3,22 +3,20 @@ import {
   COMPARE_METRICS,
   compareDigits,
   compareDisplayValue,
-  isSleepMetric,
   type CompareMetricKey,
+  type CompareMode,
+  type CompareQuestion,
   type CompareResponse,
   type CompareResult,
+  type CompareSpan,
+  type CompareTimingChoice,
+  isSleepMetric,
+  timingOf,
 } from '@workspace/shared';
 import { COMPARE_METRIC_LABELS } from '../constants/compareMetrics';
 import type { Translator } from '../constants/reports';
 import { formatLocalizedNumber } from '../localization';
 import { formatTimeLabel } from './entryTimeDisplay';
-import {
-  timingOf,
-  type CompareMode,
-  type CompareQuestion,
-  type CompareSpan,
-  type CompareTimingChoice,
-} from './compareQuestion';
 
 function lowerFirst(text: string): string {
   return text.charAt(0).toLowerCase() + text.slice(1);

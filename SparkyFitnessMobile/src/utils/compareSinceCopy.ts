@@ -1,9 +1,10 @@
 import {
   COMPARE_METRICS,
+  type CompareMetricKey,
+  type CompareQuestion,
+  type CompareSinceResponse,
   SINCE_STRETCH_MIN_DAYS,
   SINCE_STRETCH_MIN_VALUES,
-  type CompareMetricKey,
-  type CompareSinceResponse,
 } from '@workspace/shared';
 import type { Translator } from '../constants/reports';
 import { formatLocalizedNumber } from '../localization';
@@ -14,7 +15,6 @@ import {
   pValueText,
   questionParts,
 } from './compareCopy';
-import type { CompareQuestion } from './compareQuestion';
 import { formatDateWithYear } from './dayLabel';
 
 type SinceKeys = Pick<CompareQuestion, 'a' | 'b'>;

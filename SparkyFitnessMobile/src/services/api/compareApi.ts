@@ -1,11 +1,11 @@
 import {
-  compareResponseSchema,
-  compareSinceResponseSchema,
   type CompareMetricKey,
   type CompareResponse,
+  compareResponseSchema,
   type CompareSinceResponse,
+  compareSinceResponseSchema,
+  type SpanMode,
 } from '@workspace/shared';
-import type { SpanMode } from '../../utils/compareQuestion';
 import { apiFetch } from './apiClient';
 
 export interface CompareParams {
