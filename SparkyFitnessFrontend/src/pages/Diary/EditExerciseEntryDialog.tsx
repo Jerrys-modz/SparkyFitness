@@ -715,7 +715,7 @@ const EditExerciseEntryDialog = ({
         durationInput !== '' && durationInput !== seedDurationInput(entry);
 
       const totalDuration =
-        setsChanged && !durationEdited && derivedSetsDuration > 0
+        setsChanged && !durationEdited
           ? derivedSetsDuration
           : durationInput !== ''
             ? Number(durationInput)

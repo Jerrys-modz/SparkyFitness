@@ -364,4 +364,17 @@ describe('EditExerciseEntryDialog calories after changing sets', () => {
     expect(data.calories_burned).toBe(20);
     expect(data.duration_minutes).toBe(2);
   });
+
+  it('derives zero duration when every set is removed', async () => {
+    const { container } = renderDialog(strengthEntry());
+
+    fireEvent.click(
+      container.ownerDocument
+        .querySelector('svg.lucide-trash-2')!
+        .closest('button')!
+    );
+    const { data } = await saveEntry();
+    expect(data.duration_minutes).toBe(0);
+    expect(data.calories_burned).toBeUndefined();
+  });
 });
