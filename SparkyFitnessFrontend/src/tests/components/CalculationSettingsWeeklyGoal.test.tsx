@@ -52,6 +52,8 @@ jest.mock('@/hooks/CheckIn/useCheckIn', () => ({
 describe('CalculationSettings weekly goal', () => {
   beforeEach(() => {
     mockSave.mockClear();
+    mockPreferences.energyUnit = 'kcal';
+    mockPreferences.goalModeWeeklyChangeKg = -2;
     mockPreferences.calorieGoalAdjustmentMode = 'fixed';
     mockPreferences.weightUnit = 'kg';
     mockPreferences.goalModeCalculationMethod = 'manual';
@@ -147,6 +149,51 @@ describe('CalculationSettings weekly goal', () => {
     expect(save).toBeDisabled();
     fireEvent.change(amount, { target: { value: '0,5' } });
     expect(save).toBeEnabled();
+  });
+
+  it('preserves an edited weekly rate when the energy unit changes', async () => {
+    const { rerender } = render(<CalculationSettings />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Weekly amount' }), {
+      target: { value: '0.5' },
+    });
+    mockPreferences.energyUnit = 'kJ';
+    rerender(<CalculationSettings />);
+    expect(screen.getByRole('textbox', { name: 'Weekly amount' })).toHaveValue(
+      '0.5'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save Preferences' }));
+    await waitFor(() =>
+      expect(mockSave).toHaveBeenCalledWith(
+        expect.objectContaining({ goalModeWeeklyChangeKg: -0.5 })
+      )
+    );
+  });
+
+  it('keeps invalid weekly input unsaved when the energy unit changes', () => {
+    const { rerender } = render(<CalculationSettings />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Weekly amount' }), {
+      target: { value: '' },
+    });
+    mockPreferences.energyUnit = 'kJ';
+    rerender(<CalculationSettings />);
+    expect(screen.getByRole('textbox', { name: 'Weekly amount' })).toHaveValue(
+      ''
+    );
+    expect(
+      screen.getByRole('button', { name: 'Save Preferences' })
+    ).toBeDisabled();
+  });
+
+  it('synchronizes a newly saved weekly rate into the form', () => {
+    const { rerender } = render(<CalculationSettings />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Weekly amount' }), {
+      target: { value: '0.5' },
+    });
+    mockPreferences.goalModeWeeklyChangeKg = -0.75;
+    rerender(<CalculationSettings />);
+    expect(screen.getByRole('textbox', { name: 'Weekly amount' })).toHaveValue(
+      '0.75'
+    );
   });
 
   it('keeps the percentage exercise earn-back formula after merging weekly goals', () => {

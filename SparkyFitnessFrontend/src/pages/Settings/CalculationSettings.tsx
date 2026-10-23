@@ -297,10 +297,6 @@ const CalculationSettings = () => {
       setGoalModeCustomPercentage(contextGoalModeCustomPercentage);
       setCustomPercentageInput(String(contextGoalModeCustomPercentage));
     }
-    if (contextGoalModeWeeklyChangeKg !== undefined) {
-      setGoalModeWeeklyChangeKg(contextGoalModeWeeklyChangeKg);
-      setWeeklyRateValid(true);
-    }
     if (contextCalorieSafetyFloorMode !== undefined) {
       setCalorieSafetyFloorMode(contextCalorieSafetyFloorMode);
     }
@@ -337,12 +333,18 @@ const CalculationSettings = () => {
     contextGoalModeCalculationMethod,
     contextAdaptiveActivitySeparate,
     contextGoalModeCustomPercentage,
-    contextGoalModeWeeklyChangeKg,
     contextCalorieSafetyFloorMode,
     contextCalorieSafetyFloorValue,
     convertEnergy,
     energyUnit,
   ]);
+
+  useEffect(() => {
+    if (contextGoalModeWeeklyChangeKg !== undefined) {
+      setGoalModeWeeklyChangeKg(contextGoalModeWeeklyChangeKg);
+      setWeeklyRateValid(true);
+    }
+  }, [contextGoalModeWeeklyChangeKg]);
 
   const handleSave = async () => {
     if (goalMode === 'weekly' && !weeklyRateValid) return;
