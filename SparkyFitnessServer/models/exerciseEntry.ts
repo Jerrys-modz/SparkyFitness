@@ -18,6 +18,12 @@ import {
   storedManualFields,
   withoutManualFields,
 } from '../utils/manualFields.js';
+import {
+  clearCalorieLinkOfEntryWithClient,
+  clearCalorieLinksForPresetEntryWithClient,
+  lockCalorieLinkParticipantsWithClient,
+  reapplyCalorieLinkWithClient,
+} from '../services/exerciseCalorieLinkService.js';
 /**
  * Updates a daily calorie import, retaining entries created against shared exercises.
  * A matching exercise takes precedence; legacy matches require the same source.
@@ -292,6 +298,7 @@ export const EXERCISE_ENTRY_TELEMETRY_COLUMNS = [
   'gear_name',
   'gear_external_id',
   'workout_effort',
+  'calories_applied',
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -668,6 +675,10 @@ async function _updateExerciseEntryWithClient(
     markManualFields?: readonly string[];
   } = {}
 ) {
+  // A link created after an unlocked read would be ignored, and locking one
+  // side before the other deadlocks. Take the entry and its link first, then
+  // reread.
+  await lockCalorieLinkParticipantsWithClient(client, userId, [id]);
   // Fetch existing entry to get current snapshot values if not provided in updateData
   const existingEntryResult = await client.query(
     'SELECT * FROM exercise_entries WHERE id = $1 AND user_id = $2',
@@ -799,8 +810,12 @@ async function _updateExerciseEntryWithClient(
   // `undefined` key present in updateData (e.g. a metric Garmin didn't compute for this
   // activity type) silently blank out a previously-synced value.
   for (const column of EXERCISE_ENTRY_TELEMETRY_COLUMNS) {
+    // A live link owns calories_applied. The estimate may change; the link is
+    // reapplied below from the stored resolution, not from this request.
+    const linkOwnsApplied =
+      column === 'calories_applied' && currentEntry.calorie_link_id;
     mergedData[column] =
-      updateData[column] !== undefined
+      !linkOwnsApplied && updateData[column] !== undefined
         ? updateData[column]
         : currentEntry[column];
   }
@@ -937,6 +952,13 @@ async function _updateExerciseEntryWithClient(
       );
       await client.query(setsQuery);
     }
+  }
+  if (currentEntry.calorie_link_id) {
+    await reapplyCalorieLinkWithClient(
+      client,
+      userId,
+      currentEntry.calorie_link_id
+    );
   }
   return _getExerciseEntryByIdWithClient(client, id);
 }
@@ -1383,6 +1405,11 @@ async function deleteExerciseEntriesByPresetEntryIdWithClient(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   presetEntryId: any
 ) {
+  await clearCalorieLinksForPresetEntryWithClient(
+    client,
+    userId,
+    presetEntryId
+  );
   await client.query(
     `DELETE FROM exercise_entries
      WHERE user_id = $1 AND exercise_preset_entry_id = $2`,
@@ -1397,6 +1424,7 @@ async function _deleteExerciseEntryWithClient(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   id: any
 ) {
+  await clearCalorieLinkOfEntryWithClient(client, userId, id);
   const result = await client.query(
     'DELETE FROM exercise_entries WHERE id = $1 AND user_id = $2 RETURNING id',
     [id, userId]
@@ -1531,11 +1559,17 @@ async function _reconcileExerciseEntrySetsWithClient(
 async function deleteExerciseEntry(id: any, userId: any) {
   const client = await getClient(userId);
   try {
+    await client.query('BEGIN');
+    await clearCalorieLinkOfEntryWithClient(client, userId, id);
     const result = await client.query(
       'DELETE FROM exercise_entries WHERE id = $1 AND user_id = $2 RETURNING id',
       [id, userId]
     );
+    await client.query('COMMIT');
     return result.rowCount > 0;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
   } finally {
     client.release();
   }
@@ -2183,10 +2217,10 @@ async function getDailyExerciseCalorieSplitRange(
   try {
     const result = await client.query(
       `SELECT TO_CHAR(entry_date, 'YYYY-MM-DD') AS entry_date,
-              COALESCE(SUM(calories_burned) FILTER (
+              COALESCE(SUM(COALESCE(calories_applied, calories_burned)) FILTER (
                 WHERE exercise_name = 'Active Calories'
                   AND exercise_preset_entry_id IS NULL), 0)::float8 AS active_calories,
-              COALESCE(SUM(calories_burned) FILTER (
+              COALESCE(SUM(COALESCE(calories_applied, calories_burned)) FILTER (
                 WHERE exercise_name IS DISTINCT FROM 'Active Calories'
                    OR exercise_preset_entry_id IS NOT NULL), 0)::float8 AS other_calories,
               COALESCE(SUM(steps), 0)::int AS activity_steps
