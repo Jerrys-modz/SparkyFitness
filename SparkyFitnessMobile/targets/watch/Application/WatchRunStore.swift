@@ -63,6 +63,9 @@ final class WatchRunStore: ObservableObject {
     /// The latest usable fix, for the "you are here" dot.
     @Published private(set) var routePosition: WatchRoutePoint?
     private var routeTracker: WatchRouteTracker?
+    /// A turn cue the tracker announced while the run was paused. Said on the
+    /// first fix after the run resumes, if that turn is still ahead.
+    private var heldRouteCue: WatchRouteCue?
     /// Index of the plan step already announced (-1 before the first).
     private var cuedStep = -1
     /// The distance step whose "to go" cue was said, so it is said once.
@@ -266,6 +269,7 @@ final class WatchRunStore: ObservableObject {
         self.route = routeTracker == nil ? nil : route
         routeProgress = nil
         routePosition = nil
+        heldRouteCue = nil
         if let route = self.route {
             WatchRouteStorage.save(route)
         } else {
@@ -284,8 +288,21 @@ final class WatchRunStore: ObservableObject {
         routeTracker = tracker
         routePosition = point
         routeProgress = update.snapshot
+        var events = update.events
+        if phase == .paused {
+            // The tracker has marked a turn announced; keep it for the resume.
+            for case .approachingCue(let routeCue) in events { heldRouteCue = routeCue }
+            return
+        }
         guard phase == .running else { return }
-        for event in update.events {
+        if let held = heldRouteCue {
+            heldRouteCue = nil
+            let alreadyAnnounced = events.contains { $0 == .approachingCue(held) }
+            if !alreadyAnnounced, update.snapshot.nextCue?.cue == held {
+                events.insert(.approachingCue(held), at: 0)
+            }
+        }
+        for event in events {
             switch event {
             case .approachingCue(let routeCue):
                 Haptics.routeCue()

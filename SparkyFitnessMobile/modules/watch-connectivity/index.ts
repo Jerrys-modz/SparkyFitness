@@ -1119,6 +1119,11 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    * `ackWatchRuns` says the phone has stored them.
    */
   pendingWatchRuns(): Promise<WatchRunFinishedPayload[]>;
+  /**
+   * The newest `routeLibrary` report received this launch, or null. For a
+   * report that arrived before `onRouteLibrary` had a listener. iOS only.
+   */
+  latestRouteLibrary?(): Promise<WatchRouteLibraryPayload | null>;
   ackWatchRuns(clientIds: string[]): Promise<void>;
   /**
    * Server config that owns batches received after this call. Persisted

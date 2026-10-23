@@ -74,6 +74,19 @@ describe('following a saved route', () => {
     ]);
   });
 
+  it('refuses an outdoor start whose route has no line to follow', async () => {
+    await expect(
+      startRunOnWatch({
+        kind: 'run',
+        place: 'outdoor',
+        autoPause: true,
+        voiceCues: false,
+        route: { ...route, points: [route.points[0]], cues: [] },
+      })
+    ).rejects.toThrow();
+    expect(module.startRun).not.toHaveBeenCalled();
+  });
+
   it('leaves the route out of an indoor start', async () => {
     await startRunOnWatch({
       kind: 'run',

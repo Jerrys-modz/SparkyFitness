@@ -145,6 +145,25 @@ describe('applyLibraryReport', () => {
     );
     expect(next.sent).toEqual({ r1: REV });
     expect(next.reported).toEqual({ r1: REV });
-    expect(next.rejected).toEqual({ r2: 'full', r3: 'storage' });
+    expect(next.rejected).toEqual({
+      gone: 'full',
+      r2: 'full',
+      r3: 'storage',
+    });
+  });
+
+  it('keeps a rejection a later report no longer carries, until the route is reported', () => {
+    const record: WatchRouteRecord = {
+      sent: { r1: REV, r2: REV },
+      reported: {},
+      rejected: { r1: 'full', r2: 'storage' },
+    };
+    const next = applyLibraryReport(record, {
+      routes: [{ id: 'r2', updatedAt: REV }],
+      rejected: [],
+      capacity: 10,
+      sentAt: 6,
+    });
+    expect(next.rejected).toEqual({ r1: 'full' });
   });
 });
