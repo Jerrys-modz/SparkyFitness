@@ -696,5 +696,13 @@ describe('transformFitActivity — strength workout transformation', () => {
       secondary: ['triceps', 'shoulders'],
     });
     expect(mapGarminExerciseCategory('benchPress')).toBe('strength');
+
+    // Cardio categories must not be classified as strength
+    expect(mapGarminExerciseCategory('RUN')).toBe('cardio');
+    expect(mapGarminExerciseCategory('bike')).toBe('cardio');
+    expect(mapGarminExerciseCategory('plyo')).toBe('plyometrics');
+    expect(mapGarminExerciseCategory('olympic_lift')).toBe(
+      'olympic weightlifting'
+    );
   });
 });

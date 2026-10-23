@@ -328,9 +328,12 @@ async function persistFitStrengthWorkout(
         exercise_preset_entry_id: newPresetEntry.id,
         avg_heart_rate: perExerciseAvgHeartRate,
         source_id: `${sourceId}_${exerciseSortOrder}`,
-        steps: transformed.entryData.steps ?? 0,
+        steps: exerciseSortOrder === 0 ? (transformed.entryData.steps ?? 0) : 0,
         sort_order: exerciseSortOrder,
-        training_load: transformed.entryData.training_load ?? null,
+        training_load:
+          exerciseSortOrder === 0
+            ? (transformed.entryData.training_load ?? null)
+            : null,
       };
 
       const { entry: newEntry } =

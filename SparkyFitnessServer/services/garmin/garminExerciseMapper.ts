@@ -118,9 +118,6 @@ export function mapGarminExerciseCategory(rawCategory: unknown): string {
     .replace(/[\s-]+/g, '_');
 
   const uppercaseKey = normalized.toUpperCase();
-  if (GARMIN_CATEGORY_TO_MUSCLES[uppercaseKey]) {
-    return 'strength';
-  }
 
   // Yoga
   if (normalized.includes('yoga')) {
@@ -133,12 +130,14 @@ export function mapGarminExerciseCategory(rawCategory: unknown): string {
   }
 
   // Plyometrics
-  if (normalized.includes('plyometrics')) {
+  if (normalized.includes('plyometrics') || normalized.includes('plyo')) {
     return 'plyometrics';
   }
 
-  // Cardio indicators
+  // Cardio indicators (including RUN, BIKE)
   if (
+    uppercaseKey === 'RUN' ||
+    uppercaseKey === 'BIKE' ||
     GARMIN_CARDIO_CATEGORY_INDICATORS.some((indicator) =>
       normalized.includes(indicator)
     )
@@ -153,6 +152,11 @@ export function mapGarminExerciseCategory(rawCategory: unknown): string {
     normalized.includes('weight_lifting')
   ) {
     if (normalized.includes('olympic')) return 'olympic weightlifting';
+  }
+
+  // Known Garmin strength category from the muscle map (excluding warm up)
+  if (GARMIN_CATEGORY_TO_MUSCLES[uppercaseKey] && uppercaseKey !== 'WARM_UP') {
+    return 'strength';
   }
 
   // Strength

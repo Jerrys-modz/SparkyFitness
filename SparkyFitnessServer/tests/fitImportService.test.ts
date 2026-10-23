@@ -133,6 +133,17 @@ function encodeStrengthFit() {
     categorySubtype: [0],
     setType: 'active',
   });
+  encoder.writeMesg({
+    mesgNum: Profile.MesgNum.SET,
+    timestamp: Utils.convertDateToDateTime(new Date(start.getTime() + 60000)),
+    startTime: Utils.convertDateToDateTime(new Date(start.getTime() + 60000)),
+    duration: 30,
+    repetitions: 12,
+    weight: 15,
+    category: ['tricepsExtension'],
+    categorySubtype: [0],
+    setType: 'active',
+  });
   return Buffer.from(encoder.close());
 }
 
@@ -344,12 +355,13 @@ describe('importFitFiles', () => {
     ).toHaveBeenCalled();
     expect(
       exerciseEntryRepository._createExerciseEntryWithClient
-    ).toHaveBeenCalledWith(
+    ).toHaveBeenNthCalledWith(
+      1,
       mockClient,
       'user-1',
       expect.objectContaining({
         training_load: 2.58,
-        calories_burned: 59,
+        calories_burned: 30,
         exercise_preset_entry_id: 'preset-entry-1',
         sets: expect.arrayContaining([
           expect.objectContaining({
@@ -358,6 +370,22 @@ describe('importFitFiles', () => {
             set_type: 'Working Set',
           }),
         ]),
+      }),
+      'actor-1',
+      'garmin_fit',
+      'preset-entry-1',
+      { skipDuplicateCheck: true }
+    );
+    expect(
+      exerciseEntryRepository._createExerciseEntryWithClient
+    ).toHaveBeenNthCalledWith(
+      2,
+      mockClient,
+      'user-1',
+      expect.objectContaining({
+        training_load: null,
+        calories_burned: 30,
+        exercise_preset_entry_id: 'preset-entry-1',
       }),
       'actor-1',
       'garmin_fit',
