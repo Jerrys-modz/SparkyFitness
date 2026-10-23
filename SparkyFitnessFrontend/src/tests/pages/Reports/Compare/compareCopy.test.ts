@@ -12,6 +12,7 @@ import {
   checkLines,
   compareAmountText,
   compareValueText,
+  dotsAxisCaption,
   howSureLines,
   metricName,
   questionParts,
@@ -1598,6 +1599,24 @@ describe('compareValueText', () => {
     expect(compareValueText('bedtime', 255)).toMatch(/^10:15\sPM$/);
     expect(compareValueText('bedtime', 390)).toMatch(/^12:30\sAM$/);
     expect(compareValueText('bedtime', -30)).toMatch(/^5:30\sPM$/);
+  });
+});
+
+describe('dotsAxisCaption', () => {
+  test('a continuous metric reads against its usual', () => {
+    expect(dotsAxisCaption('energy', 'day', t)).toBe('Energy vs. your usual');
+  });
+
+  test('a yes/no habit by day is yes or no', () => {
+    expect(dotsAxisCaption('meditated', 'day', t)).toBe(
+      'Meditated (yes or no)'
+    );
+  });
+
+  test('a yes/no habit by week is the days you did it', () => {
+    expect(dotsAxisCaption('meditated', 'week', t)).toBe(
+      'Days you meditated vs. your usual'
+    );
   });
 });
 

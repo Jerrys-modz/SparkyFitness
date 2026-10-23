@@ -26,6 +26,12 @@ interface CompareOverTimeChartProps {
   question: CompareQuestion;
 }
 
+const TOOLTIP_STYLE = {
+  backgroundColor: 'hsl(var(--background))',
+  border: '1px solid hsl(var(--border))',
+  borderRadius: '6px',
+  color: 'hsl(var(--foreground))',
+};
 const COLOR_A = '#8884d8';
 const COLOR_B = '#f97316';
 
@@ -88,7 +94,7 @@ export const CompareOverTimeChart = ({
       { name: bLabel, key: question.b, raw: response.b.values[day] },
     ];
     return (
-      <div className="rounded-md border bg-background p-2 text-xs shadow-sm">
+      <div className="p-2 text-xs shadow-sm" style={TOOLTIP_STYLE}>
         <p className="mb-1 font-medium">{formatDay(day)}</p>
         {lines.map((line) => (
           <p key={line.name}>
@@ -146,10 +152,15 @@ export const CompareOverTimeChart = ({
                   debounce={100}
                 >
                   <LineChart data={rows}>
-                    <CartesianGrid strokeDasharray="3 3" />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="hsl(var(--border))"
+                    />
                     <XAxis
                       dataKey="key"
                       fontSize={10}
+                      stroke="hsl(var(--muted-foreground))"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
                       tickFormatter={formatDay}
                       minTickGap={24}
                     />
@@ -158,6 +169,8 @@ export const CompareOverTimeChart = ({
                       ticks={[0, 0.5, 1]}
                       tickFormatter={() => ''}
                       width={8}
+                      stroke="hsl(var(--muted-foreground))"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
                     />
                     <Tooltip content={renderTooltip} />
                     <Line

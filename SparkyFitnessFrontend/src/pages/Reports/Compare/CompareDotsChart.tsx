@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import {
   COMPARE_METRICS,
+  compareDigits,
   type CompareQuestion,
   type CompareResponse,
   displayDots,
@@ -32,6 +33,12 @@ interface CompareDotsChartProps {
 }
 
 const DOT_COLOR = '#8884d8';
+const TOOLTIP_STYLE = {
+  backgroundColor: 'hsl(var(--background))',
+  border: '1px solid hsl(var(--border))',
+  borderRadius: '6px',
+  color: 'hsl(var(--foreground))',
+};
 const oneDecimal = (value: number): string => value.toFixed(1);
 
 export const CompareDotsChart = ({
@@ -124,12 +131,17 @@ export const CompareDotsChart = ({
                   <ScatterChart
                     margin={{ top: 8, right: 16, bottom: 8, left: 0 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="hsl(var(--border))"
+                    />
                     <XAxis
                       type="number"
                       dataKey="x"
                       name={aLabel}
                       fontSize={10}
+                      stroke="hsl(var(--muted-foreground))"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
                       domain={['auto', 'auto']}
                       tickFormatter={oneDecimal}
                     />
@@ -138,10 +150,25 @@ export const CompareDotsChart = ({
                       dataKey="y"
                       name={bLabel}
                       fontSize={10}
+                      stroke="hsl(var(--muted-foreground))"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
                       domain={['auto', 'auto']}
                       tickFormatter={oneDecimal}
                     />
-                    <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+                    <Tooltip
+                      cursor={{ strokeDasharray: '3 3' }}
+                      contentStyle={TOOLTIP_STYLE}
+                      labelStyle={{ color: 'hsl(var(--foreground))' }}
+                      itemStyle={{ color: 'hsl(var(--foreground))' }}
+                      formatter={(value, name) => {
+                        const key = name === aLabel ? question.a : question.b;
+                        // The dots are already on the display scale.
+                        return [
+                          Number(value).toFixed(compareDigits(key)),
+                          name,
+                        ];
+                      }}
+                    />
                     <Scatter data={dots} fill={DOT_COLOR} />
                     {trend && (
                       <ReferenceLine
