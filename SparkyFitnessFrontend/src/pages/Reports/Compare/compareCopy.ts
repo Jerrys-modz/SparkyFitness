@@ -4,7 +4,6 @@ import {
   COMPARE_METRICS,
   compareDigits,
   compareDisplayValue,
-  type CompareMetricDef,
   type CompareMetricKey,
   type CompareMode,
   type CompareQuestion,
@@ -15,96 +14,18 @@ import {
   isSleepMetric,
   timingOf,
 } from '@workspace/shared';
+import { COMPARE_METRIC_LABELS } from './compareMetricLabels';
 
-/**
- * The Compare wording, the website's copy of the phone's
- * `SparkyFitnessMobile/src/utils/compareCopy.ts` for day and week questions:
- * the same English, the same `compareReport.*` keys and the same wake-day
- * dating of sleep.
- */
+// The Compare wording, the website's copy of the phone's
+// `SparkyFitnessMobile/src/utils/compareCopy.ts` for day and week questions:
+// the same English, the same `compareReport.*` keys and the same wake-day
+// dating of sleep.
 
 /** react-i18next's `t`, as the wording calls it. */
 export type Translator = (
   key: string,
   options: { defaultValue: string } & Record<string, unknown>
 ) => string;
-
-export const COMPARE_GROUP_LABELS: Record<
-  CompareMetricDef['group'],
-  (t: Translator) => string
-> = {
-  feelings: (t) =>
-    t('compareReport.groups.feelings', { defaultValue: 'How you felt' }),
-  sleep: (t) => t('compareReport.groups.sleep', { defaultValue: 'Sleep' }),
-  meditation: (t) =>
-    t('compareReport.groups.meditation', { defaultValue: 'Meditation' }),
-  food: (t) => t('compareReport.groups.food', { defaultValue: 'Food' }),
-  training: (t) =>
-    t('compareReport.groups.training', { defaultValue: 'Training' }),
-  body: (t) => t('compareReport.groups.body', { defaultValue: 'Body' }),
-};
-
-export const COMPARE_METRIC_LABELS: Record<
-  CompareMetricKey,
-  (t: Translator) => string
-> = {
-  mood: (t) => t('compareReport.metrics.mood', { defaultValue: 'Mood' }),
-  energy: (t) => t('compareReport.metrics.energy', { defaultValue: 'Energy' }),
-  focus: (t) => t('compareReport.metrics.focus', { defaultValue: 'Focus' }),
-  timeAsleep: (t) =>
-    t('compareReport.metrics.timeAsleep', { defaultValue: 'Time asleep' }),
-  sleepScore: (t) =>
-    t('compareReport.metrics.sleepScore', { defaultValue: 'Sleep score' }),
-  overnightHrv: (t) =>
-    t('compareReport.metrics.overnightHrv', { defaultValue: 'Overnight HRV' }),
-  restingHeartRate: (t) =>
-    t('compareReport.metrics.restingHeartRate', {
-      defaultValue: 'Resting heart rate',
-    }),
-  bedtime: (t) =>
-    t('compareReport.metrics.bedtime', { defaultValue: 'Bedtime' }),
-  bedtimeConsistency: (t) =>
-    t('compareReport.metrics.bedtimeConsistency', {
-      defaultValue: 'Bedtime consistency',
-    }),
-  meditationMinutes: (t) =>
-    t('compareReport.metrics.meditationMinutes', {
-      defaultValue: 'Meditation minutes',
-    }),
-  meditationSessions7d: (t) =>
-    t('compareReport.metrics.meditationSessions7d', {
-      defaultValue: 'Meditation sessions (7 days)',
-    }),
-  meditated: (t) =>
-    t('compareReport.metrics.meditated', { defaultValue: 'Meditated' }),
-  calories: (t) =>
-    t('compareReport.metrics.calories', { defaultValue: 'Calories' }),
-  protein: (t) =>
-    t('compareReport.metrics.protein', { defaultValue: 'Protein' }),
-  carbs: (t) => t('compareReport.metrics.carbs', { defaultValue: 'Carbs' }),
-  fat: (t) => t('compareReport.metrics.fat', { defaultValue: 'Fat' }),
-  caffeine: (t) =>
-    t('compareReport.metrics.caffeine', { defaultValue: 'Caffeine' }),
-  alcohol: (t) =>
-    t('compareReport.metrics.alcohol', { defaultValue: 'Alcohol' }),
-  workoutMinutes: (t) =>
-    t('compareReport.metrics.workoutMinutes', {
-      defaultValue: 'Workout minutes',
-    }),
-  cardioMinutes: (t) =>
-    t('compareReport.metrics.cardioMinutes', {
-      defaultValue: 'Cardio minutes',
-    }),
-  strengthVolume: (t) =>
-    t('compareReport.metrics.strengthVolume', {
-      defaultValue: 'Strength volume',
-    }),
-  trainingLoad: (t) =>
-    t('compareReport.metrics.trainingLoad', { defaultValue: 'Training load' }),
-  weightTrend: (t) =>
-    t('compareReport.metrics.weightTrend', { defaultValue: 'Weight trend' }),
-  steps: (t) => t('compareReport.metrics.steps', { defaultValue: 'Steps' }),
-};
 
 function lowerFirst(text: string): string {
   return text.charAt(0).toLowerCase() + text.slice(1);
@@ -228,12 +149,23 @@ const DAY_TIMING: Record<SleepSides, Record<Step, Phrase>> = {
   },
 };
 
+/**
+ * The timing words for a day or week choice. The website asks day and week
+ * questions only for now: nothing passes `sinceHabit` here, and since-mode
+ * wording ("Since I started …") comes in a later change. A since choice throws
+ * rather than reading as "the same day".
+ */
 function timingWords(
   choice: CompareTimingChoice,
   sides: SleepSides,
   t: Translator
 ): string {
   const { mode, timing } = timingOf(choice);
+  if (mode === 'since') {
+    throw new Error(
+      'Compare wording covers day and week questions; since questions are not worded yet'
+    );
+  }
   if (mode === 'week') {
     return timing === 1
       ? t('compareReport.timing.nextWeek', { defaultValue: 'the next week' })
@@ -244,7 +176,8 @@ function timingWords(
 
 /**
  * The timing words alone for a pair, as the sentence says them: "that night",
- * "the next day", "the same week".
+ * "the next day", "the same week". Day and week choices only (see
+ * `timingWords`).
  */
 export function timingLabel(
   choice: CompareTimingChoice,
@@ -795,7 +728,7 @@ export function compareValueText(key: CompareMetricKey, value: number): string {
 /** "p = 0.012", or "p < 0.001" when it is that small. */
 function pValueText(p: number, t: Translator): string {
   return p < 0.001
-    ? t('compareReport.howSure.pTiny', { defaultValue: 'p < 0.001' })
+    ? t('compareReport.stats.pTiny', { defaultValue: 'p < 0.001' })
     : t('compareReport.howSure.pValue', {
         defaultValue: 'p = {{p}}',
         p: fixed(p, 3),
@@ -837,7 +770,11 @@ function pPlainWords(p: number, t: Translator): string {
  * How many days (or weeks) were used, and, when neighbouring ones resemble
  * each other, how many separate ones they count as (the effective n).
  */
-function usedText(result: CompareResult, mode: CompareMode, t: Translator) {
+function usedText(
+  result: CompareResult,
+  mode: CompareMode,
+  t: Translator
+): string {
   const n = units(result.n, mode, t);
   const separate =
     result.nEff === undefined ? undefined : Math.round(result.nEff);
@@ -858,6 +795,61 @@ function usedText(result: CompareResult, mode: CompareMode, t: Translator) {
           '{{n}} (count as about {{count}} separate day, because neighbouring days resemble each other)',
         n,
         count: separate,
+      });
+}
+
+/**
+ * A yes/no difference in words. `binary.diff` is the mean of the habit days
+ * minus the mean of the other days, each day measured against the person's own
+ * normal, so it is the gap between the two kinds of day, not a distance from
+ * usual. The other days are named as the bars name them: "days without
+ * meditating", "other days" or "other nights".
+ */
+function differenceText(
+  q: CompareQuestion,
+  binary: NonNullable<CompareResult['binary']>,
+  t: Translator
+): string {
+  const outcome = binary.yesKey === q.a ? q.b : q.a;
+  const others = lowerFirst(yesNoWording(q, binary.yesKey, t).noLabel);
+  const shown = compareDisplayValue(outcome, binary.diff);
+  // Rounds to zero at the precision shown: "+0.0 higher" would mislead.
+  if (Math.abs(shown) < 0.5 / 10 ** compareDigits(outcome)) {
+    return t('compareReport.howSure.differenceSame', {
+      defaultValue:
+        'About the same as on {{others}} (each measured against your own normal)',
+      others,
+    });
+  }
+  const diff = compareAmountText(outcome, binary.diff, true);
+  // A bedtime difference is a span of minutes, later or earlier.
+  if (outcome === 'bedtime') {
+    return shown > 0
+      ? t('compareReport.howSure.differenceLater', {
+          defaultValue:
+            '{{diff}} min later than on {{others}} (each measured against your own normal)',
+          diff,
+          others,
+        })
+      : t('compareReport.howSure.differenceEarlier', {
+          defaultValue:
+            '{{diff}} min earlier than on {{others}} (each measured against your own normal)',
+          diff,
+          others,
+        });
+  }
+  return shown > 0
+    ? t('compareReport.howSure.differenceHigher', {
+        defaultValue:
+          '{{diff}} higher than on {{others}} (each measured against your own normal)',
+        diff,
+        others,
+      })
+    : t('compareReport.howSure.differenceLower', {
+        defaultValue:
+          '{{diff}} lower than on {{others}} (each measured against your own normal)',
+        diff,
+        others,
       });
 }
 
@@ -892,46 +884,28 @@ export function howSureLines(
       low: compareAmountText(outcome, low),
       high: compareAmountText(outcome, high),
     };
-    const diff = compareAmountText(outcome, result.binary.diff, true);
-    const label = t('compareReport.howSure.difference', {
-      defaultValue: 'Difference',
-    });
-    // A bedtime difference is a span of minutes, not a time of day.
-    if (outcome === 'bedtime') {
-      lines.push(
-        {
-          label,
-          value: t('compareReport.howSure.differenceMinutes', {
-            defaultValue: '{{diff}} min vs. your usual',
-            diff,
-          }),
-        },
-        {
-          label: likelyBetween,
-          value: t('compareReport.howSure.rangeMinutes', {
-            defaultValue: '{{low}} to {{high}} min',
-            ...range,
-          }),
-        }
-      );
-    } else {
-      lines.push(
-        {
-          label,
-          value: t('compareReport.howSure.differenceValue', {
-            defaultValue: '{{diff}} vs. your usual',
-            diff,
-          }),
-        },
-        {
-          label: likelyBetween,
-          value: t('compareReport.howSure.range', {
-            defaultValue: '{{low}} to {{high}}',
-            ...range,
-          }),
-        }
-      );
-    }
+    lines.push(
+      {
+        label: t('compareReport.howSure.difference', {
+          defaultValue: 'Difference',
+        }),
+        value: differenceText(q, result.binary, t),
+      },
+      {
+        label: likelyBetween,
+        // A bedtime difference is a span of minutes, not a time of day.
+        value:
+          outcome === 'bedtime'
+            ? t('compareReport.howSure.rangeMinutes', {
+                defaultValue: '{{low}} to {{high}} min',
+                ...range,
+              })
+            : t('compareReport.howSure.range', {
+                defaultValue: '{{low}} to {{high}}',
+                ...range,
+              }),
+      }
+    );
   } else {
     if (result.r === undefined) return [];
     lines.push(

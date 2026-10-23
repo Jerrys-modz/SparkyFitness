@@ -10,8 +10,6 @@ import {
 import { translateForTest } from '@/tests/mocks/reactI18next';
 import {
   checkLines,
-  COMPARE_GROUP_LABELS,
-  COMPARE_METRIC_LABELS,
   compareAmountText,
   compareValueText,
   howSureLines,
@@ -23,6 +21,10 @@ import {
   verdictCopy,
   yesNoWording,
 } from '@/pages/Reports/Compare/compareCopy';
+import {
+  COMPARE_GROUP_LABELS,
+  COMPARE_METRIC_LABELS,
+} from '@/pages/Reports/Compare/compareMetricLabels';
 
 // Every key the module asks for, with the English it passed, so the last test
 // can check en/translation.json says the same thing.
@@ -174,6 +176,15 @@ describe('phrases', () => {
 });
 
 describe('timingLabel', () => {
+  test('refuses a since choice rather than reading it as the same day', () => {
+    expect(() => timingLabel('sinceHabit', 'meditated', 'mood', t)).toThrow(
+      /since questions are not worded yet/
+    );
+    expect(() =>
+      questionParts({ a: 'meditated', b: 'mood', choice: 'sinceHabit' }, t)
+    ).toThrow(/since questions are not worded yet/);
+  });
+
   test('lists the three day timings for caffeine → time asleep as two nights before / the night before / that night', () => {
     expect(
       (['dayBefore', 'sameDay', 'nextDay'] as const).map((choice) =>
@@ -1107,6 +1118,14 @@ describe('howSureLines', () => {
     b: 'mood',
     choice: 'sameDay',
   };
+  const yesNoBinary: NonNullable<CompareResult['binary']> = {
+    yesKey: 'meditated',
+    yesMean: 60,
+    noMean: 50,
+    yesCount: 9,
+    noCount: 30,
+    diff: 5.5,
+  };
   const difference: CompareResult = {
     ...base,
     method: 'difference',
@@ -1114,14 +1133,7 @@ describe('howSureLines', () => {
     strength: undefined,
     low: 2,
     high: 16,
-    binary: {
-      yesKey: 'meditated',
-      yesMean: 60,
-      noMean: 50,
-      yesCount: 9,
-      noCount: 30,
-      diff: 5.5,
-    },
+    binary: yesNoBinary,
   };
 
   function valueOf(lines: { label: string; value: string }[], label: string) {
@@ -1231,8 +1243,90 @@ describe('howSureLines', () => {
       'How unusual',
       'Days used',
     ]);
-    expect(valueOf(lines, 'Difference')).toBe('+0.6 vs. your usual');
+    expect(valueOf(lines, 'Difference')).toBe(
+      '+0.6 higher than on days without meditating (each measured against your own normal)'
+    );
     expect(valueOf(lines, 'Likely between')).toBe('0.2 to 1.6');
+  });
+
+  test('a negative difference keeps its sign and reads lower', () => {
+    expect(
+      valueOf(
+        howSureLines(
+          {
+            ...difference,
+            low: -16,
+            high: -2,
+            sign: 'negative',
+            binary: { ...yesNoBinary, diff: -5.5 },
+          },
+          yesNoQ,
+          t
+        ),
+        'Difference'
+      )
+    ).toBe(
+      '-0.6 lower than on days without meditating (each measured against your own normal)'
+    );
+  });
+
+  test('a shifted or sleep outcome names the other days as the bars do', () => {
+    expect(
+      valueOf(
+        howSureLines(
+          difference,
+          { a: 'meditated', b: 'mood', choice: 'nextDay' },
+          t
+        ),
+        'Difference'
+      )
+    ).toBe(
+      '+0.6 higher than on other days (each measured against your own normal)'
+    );
+    expect(
+      valueOf(
+        howSureLines(
+          {
+            ...difference,
+            binary: { ...yesNoBinary, diff: -0.4 },
+          },
+          { a: 'meditated', b: 'timeAsleep', choice: 'nextDay' },
+          t
+        ),
+        'Difference'
+      )
+    ).toBe(
+      '-0.4 lower than on other nights (each measured against your own normal)'
+    );
+  });
+
+  test('a difference that rounds to zero reads as about the same', () => {
+    expect(
+      valueOf(
+        howSureLines(
+          { ...difference, binary: { ...yesNoBinary, diff: 0.3 } },
+          yesNoQ,
+          t
+        ),
+        'Difference'
+      )
+    ).toBe(
+      'About the same as on days without meditating (each measured against your own normal)'
+    );
+  });
+
+  test('a difference is never called a distance from usual', () => {
+    for (const diff of [-25, -5.5, 0, 0.3, 5.5, 25]) {
+      for (const b of ['mood', 'bedtime', 'timeAsleep'] as const) {
+        const lines = howSureLines(
+          { ...difference, binary: { ...yesNoBinary, diff } },
+          { a: 'meditated', b, choice: 'sameDay' },
+          t
+        );
+        expect(valueOf(lines, 'Difference')).toBeDefined();
+        for (const line of lines) expect(line.value).not.toMatch(/usual/);
+      }
+    }
   });
 
   test('a bedtime difference is in whole minutes', () => {
@@ -1258,8 +1352,34 @@ describe('howSureLines', () => {
       q,
       t
     );
-    expect(valueOf(lines, 'Difference')).toBe('+25 min vs. your usual');
+    expect(valueOf(lines, 'Difference')).toBe(
+      '+25 min later than on other nights (each measured against your own normal)'
+    );
     expect(valueOf(lines, 'Likely between')).toBe('10 to 40 min');
+    expect(
+      valueOf(
+        howSureLines(
+          {
+            ...difference,
+            low: -39.6,
+            high: -10.4,
+            binary: {
+              yesKey: 'meditated',
+              yesMean: 230,
+              noMean: 255,
+              yesCount: 12,
+              noCount: 28,
+              diff: -25,
+            },
+          },
+          q,
+          t
+        ),
+        'Difference'
+      )
+    ).toBe(
+      '-25 min earlier than on other nights (each measured against your own normal)'
+    );
   });
 
   test('not enough is empty', () => {
@@ -1278,6 +1398,17 @@ describe('howSureLines', () => {
     ).toEqual([]);
   });
 
+  test.each(['p', 'low', 'high'] as const)(
+    'an ok result missing %s is empty',
+    (field) => {
+      const missing = { ...base, [field]: undefined };
+      expect(howSureLines(missing, DAY_Q, t)).toEqual([]);
+      expect(
+        howSureLines({ ...difference, [field]: undefined }, yesNoQ, t)
+      ).toEqual([]);
+    }
+  );
+
   test('never says fluke', () => {
     const fixtures: [CompareResult, CompareQuestion][] = [];
     for (const p of [0, 0.0004, 0.001, 0.012, 0.02, 0.3, 0.49, 0.5, 0.64, 1]) {
@@ -1287,6 +1418,10 @@ describe('howSureLines', () => {
         DAY_Q,
       ]);
       fixtures.push([{ ...difference, p }, yesNoQ]);
+      fixtures.push([
+        { ...difference, p, binary: { ...yesNoBinary, diff: -25 } },
+        { a: 'meditated', b: 'bedtime', choice: 'nextDay' },
+      ]);
       fixtures.push([
         { ...base, p, n: 20, nEff: 9 },
         { a: 'calories', b: 'steps', choice: 'nextWeek' },

@@ -9511,14 +9511,16 @@
       "strengthValue": "r = {{r}} ({{word}})",
       "noClearLink": "no clear link",
       "difference": "Difference",
-      "differenceValue": "{{diff}} vs. your usual",
-      "differenceMinutes": "{{diff}} min vs. your usual",
+      "differenceHigher": "{{diff}} higher than on {{others}} (each measured against your own normal)",
+      "differenceLower": "{{diff}} lower than on {{others}} (each measured against your own normal)",
+      "differenceLater": "{{diff}} min later than on {{others}} (each measured against your own normal)",
+      "differenceEarlier": "{{diff}} min earlier than on {{others}} (each measured against your own normal)",
+      "differenceSame": "About the same as on {{others}} (each measured against your own normal)",
       "likelyBetween": "Likely between",
       "range": "{{low}} to {{high}}",
       "rangeMinutes": "{{low}} to {{high}} min",
       "howUnusual": "How unusual",
       "pValue": "p = {{p}}",
-      "pTiny": "p < 0.001",
       "pRare": "With no real link, a result this strong would show up less than 1 time in {{n}} ({{p}})",
       "pAbout": "With no real link, a result this strong would show up about 1 time in {{n}} ({{p}})",
       "pCommon": "Results like this are common with no real link ({{p}})",
@@ -9528,6 +9530,9 @@
       "separateDays_other": "{{n}} (count as about {{count}} separate days, because neighbouring days resemble each other)",
       "separateWeeks_one": "{{n}} (count as about {{count}} separate week, because neighbouring weeks resemble each other)",
       "separateWeeks_other": "{{n}} (count as about {{count}} separate weeks, because neighbouring weeks resemble each other)"
+    },
+    "stats": {
+      "pTiny": "p < 0.001"
     },
     "direction": {
       "higher": "higher than usual",
