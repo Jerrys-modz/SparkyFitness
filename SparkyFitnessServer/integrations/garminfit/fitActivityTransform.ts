@@ -17,6 +17,10 @@ const SEMICIRCLES_TO_DEGREES = 180 / 2 ** 31;
 // A valid-but-pathological file must not exhaust memory or write enormous JSONB.
 const MAX_RECORD_COUNT = 100_000;
 const MAX_SET_COUNT = 10_000;
+// The strength parser resolves exercise titles per set message, so an uncapped
+// title or step count makes decode cost quadratic in adversarial files.
+const MAX_EXERCISE_TITLE_COUNT = 1_000;
+const MAX_WORKOUT_STEP_COUNT = 1_000;
 const MAX_DETAIL_DATA_BYTES = 10 * 1024 * 1024;
 // Sports where FIT cadence is strides/min (one leg); steps/min doubles it.
 const DOUBLED_CADENCE_SPORTS = new Set(['running', 'walking', 'hiking']);
@@ -332,51 +336,72 @@ function buildHrZones(
   }));
 }
 
+interface ExerciseTitleIndex {
+  byCategoryAndName: Map<string, string>;
+  byCategory: Map<string, string>;
+}
+
+function buildExerciseTitleIndex(
+  exerciseTitles: unknown[]
+): ExerciseTitleIndex {
+  const byCategoryAndName = new Map<string, string>();
+  const byCategory = new Map<string, string>();
+  for (const t of exerciseTitles as Array<Record<string, unknown>>) {
+    if (typeof t.wktStepName === 'string' && t.wktStepName.trim().length > 0) {
+      const name = t.wktStepName.trim();
+      const cat = String(t.exerciseCategory ?? '');
+      if (cat) {
+        if (!byCategory.has(cat)) {
+          byCategory.set(cat, name);
+        }
+        if (t.exerciseName !== null && t.exerciseName !== undefined) {
+          byCategoryAndName.set(`${cat}_${t.exerciseName}`, name);
+        }
+      }
+    }
+  }
+  return { byCategoryAndName, byCategory };
+}
+
+function lookupExerciseTitle(
+  index: ExerciseTitleIndex,
+  category: unknown,
+  exerciseName: unknown
+): string | null {
+  if (!category) return null;
+  const cat = String(category);
+  if (exerciseName !== null && exerciseName !== undefined) {
+    const specific = index.byCategoryAndName.get(`${cat}_${exerciseName}`);
+    if (specific) return specific;
+  }
+  return index.byCategory.get(cat) ?? null;
+}
+
 function resolveExerciseName(
   categoryRaw: unknown,
   subTypeRaw: unknown,
   wktStepIndex: number | null,
   workoutSteps: unknown[],
-  exerciseTitles: unknown[]
+  titleIndex: ExerciseTitleIndex
 ): { name: string; category: string } {
   const categoryStr = Array.isArray(categoryRaw) ? categoryRaw[0] : categoryRaw;
   const subTypeNum = Array.isArray(subTypeRaw) ? subTypeRaw[0] : subTypeRaw;
 
-  // 1. If wktStepIndex is present, check workoutStepMesgs and exerciseTitleMesgs
+  // 1. If wktStepIndex is present, check workoutStepMesgs and indexed exerciseTitleMesgs
   if (wktStepIndex !== null && workoutSteps[wktStepIndex]) {
     const step = workoutSteps[wktStepIndex] as Record<string, unknown>;
     const stepCategory =
       (step.exerciseCategory as string | undefined) ?? categoryStr;
     const stepNameNum = (step.exerciseName as number | undefined) ?? subTypeNum;
 
-    const titleMatch = (exerciseTitles as Array<Record<string, unknown>>).find(
-      (t) => {
-        if (t.wktStepName) {
-          if (
-            t.exerciseCategory &&
-            stepCategory &&
-            t.exerciseCategory === stepCategory
-          ) {
-            if (
-              stepNameNum !== null &&
-              stepNameNum !== undefined &&
-              t.exerciseName !== null &&
-              t.exerciseName !== undefined
-            ) {
-              return t.exerciseName === stepNameNum;
-            }
-            return true;
-          }
-        }
-        return false;
-      }
+    const titleMatch = lookupExerciseTitle(
+      titleIndex,
+      stepCategory,
+      stepNameNum
     );
-    if (
-      typeof titleMatch?.wktStepName === 'string' &&
-      titleMatch.wktStepName.trim().length > 0
-    ) {
+    if (titleMatch) {
       return {
-        name: titleMatch.wktStepName.trim(),
+        name: titleMatch,
         category: typeof stepCategory === 'string' ? stepCategory : 'strength',
       };
     }
@@ -392,33 +417,13 @@ function resolveExerciseName(
     }
   }
 
-  // 2. Direct match in exerciseTitles by category/subtype
-  if (exerciseTitles.length > 0) {
-    const match = (exerciseTitles as Array<Record<string, unknown>>).find(
-      (t) => {
-        if (categoryStr && t.exerciseCategory === categoryStr) {
-          if (
-            subTypeNum !== null &&
-            subTypeNum !== undefined &&
-            t.exerciseName !== null &&
-            t.exerciseName !== undefined
-          ) {
-            return t.exerciseName === subTypeNum;
-          }
-          return true;
-        }
-        return false;
-      }
-    );
-    if (
-      typeof match?.wktStepName === 'string' &&
-      match.wktStepName.trim().length > 0
-    ) {
-      return {
-        name: match.wktStepName.trim(),
-        category: typeof categoryStr === 'string' ? categoryStr : 'strength',
-      };
-    }
+  // 2. Direct match in indexed exerciseTitles by category/subtype
+  const directMatch = lookupExerciseTitle(titleIndex, categoryStr, subTypeNum);
+  if (directMatch) {
+    return {
+      name: directMatch,
+      category: typeof categoryStr === 'string' ? categoryStr : 'strength',
+    };
   }
 
   // 3. Profile.types lookup
@@ -496,6 +501,7 @@ function parseStrengthSets(
   const exerciseTitles =
     (messages as unknown as { exerciseTitleMesgs?: unknown[] })
       .exerciseTitleMesgs ?? [];
+  const titleIndex = buildExerciseTitleIndex(exerciseTitles);
   const workoutMesgs =
     (
       messages as unknown as {
@@ -545,7 +551,7 @@ function parseStrengthSets(
         set.categorySubtype,
         wktStepIndex,
         workoutSteps,
-        exerciseTitles
+        titleIndex
       );
 
     if (!currentGroup || currentGroup.name !== resolvedName) {
@@ -659,6 +665,24 @@ function transformFitActivity(
     return {
       ok: false,
       reason: `File contains ${setCount} set messages (limit ${MAX_SET_COUNT}).`,
+    };
+  }
+  const exerciseTitleCount =
+    (messages as unknown as { exerciseTitleMesgs?: unknown[] })
+      .exerciseTitleMesgs?.length ?? 0;
+  if (exerciseTitleCount > MAX_EXERCISE_TITLE_COUNT) {
+    return {
+      ok: false,
+      reason: `File contains ${exerciseTitleCount} exercise title messages (limit ${MAX_EXERCISE_TITLE_COUNT}).`,
+    };
+  }
+  const workoutStepCount =
+    (messages as unknown as { workoutStepMesgs?: unknown[] }).workoutStepMesgs
+      ?.length ?? 0;
+  if (workoutStepCount > MAX_WORKOUT_STEP_COUNT) {
+    return {
+      ok: false,
+      reason: `File contains ${workoutStepCount} workout step messages (limit ${MAX_WORKOUT_STEP_COUNT}).`,
     };
   }
 

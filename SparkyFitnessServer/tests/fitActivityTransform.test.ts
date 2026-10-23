@@ -574,6 +574,35 @@ describe('transformFitActivity — unit behaviour', () => {
     expect(result.reason).toMatch(/10000/);
   });
 
+  it('rejects files above the exercise title cap', () => {
+    const title = {
+      wktStepName: 'Bench Press',
+      exerciseCategory: 'benchPress',
+    };
+    const result = transformFitActivity(
+      baseMessages({
+        exerciseTitleMesgs: new Array(1_001).fill(title),
+      } as unknown as Partial<FitMessages>),
+      Buffer.from('x')
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected rejection');
+    expect(result.reason).toMatch(/1000/);
+  });
+
+  it('rejects files above the workout step cap', () => {
+    const step = { wktStepName: 'Step 1' };
+    const result = transformFitActivity(
+      baseMessages({
+        workoutStepMesgs: new Array(1_001).fill(step),
+      } as unknown as Partial<FitMessages>),
+      Buffer.from('x')
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected rejection');
+    expect(result.reason).toMatch(/1000/);
+  });
+
   it('rejects files whose decoded detail data exceeds the size cap', () => {
     const messages = baseMessages({
       sportMesgs: [{ name: 'x'.repeat(11 * 1024 * 1024) }],
