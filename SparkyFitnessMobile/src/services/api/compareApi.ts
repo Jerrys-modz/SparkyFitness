@@ -4,14 +4,14 @@ import {
   compareResponseSchema,
   type CompareSinceResponse,
   compareSinceResponseSchema,
-  type SpanMode,
+  type CompareSpanMode,
 } from '@workspace/shared';
 import { apiFetch } from './apiClient';
 
 export interface CompareParams {
   a: CompareMetricKey;
   b: CompareMetricKey;
-  mode: SpanMode;
+  mode: CompareSpanMode;
   timing: -1 | 0 | 1;
   start: string;
   end: string;

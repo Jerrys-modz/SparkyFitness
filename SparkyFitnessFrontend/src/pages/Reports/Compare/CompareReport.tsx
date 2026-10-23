@@ -8,6 +8,7 @@ import {
   todayInZone,
   type CompareQuestion,
   type CompareSpan,
+  type CompareSpanMode,
 } from '@workspace/shared';
 import { Button } from '@/components/ui/button';
 import { usePreferences } from '@/contexts/PreferencesContext';
@@ -28,10 +29,8 @@ import type { CustomRange } from './compareCustomRange';
 import { loadRecentQuestions, saveRecentQuestion } from './compareRecents';
 import { timingRows } from './compareTables';
 
-type SpanMode = 'day' | 'week';
-
 // Since-habit questions are not offered on the web yet, so anything else is a day question.
-const modeOf = (question: Partial<CompareQuestion>): SpanMode =>
+const modeOf = (question: Partial<CompareQuestion>): CompareSpanMode =>
   question.choice && timingOf(question.choice).mode === 'week' ? 'week' : 'day';
 
 export const CompareReport = () => {

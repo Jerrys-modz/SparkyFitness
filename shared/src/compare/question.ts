@@ -10,7 +10,6 @@ import {
 import { addDays, compareDays, daysBetween } from '../utils/timezone.ts';
 
 export type CompareMode = 'day' | 'week' | 'since';
-export type SpanMode = CompareSpanMode;
 export type CompareTimingChoice =
   'sameDay' | 'nextDay' | 'dayBefore' | 'sameWeek' | 'nextWeek' | 'sinceHabit';
 
@@ -22,7 +21,7 @@ export interface CompareQuestion {
 
 /** How a choice pairs the two: by the day or week with a lag, or before vs. since a start. */
 export type CompareChoiceTiming =
-  { mode: SpanMode; timing: -1 | 0 | 1 } | { mode: 'since'; timing: 0 };
+  { mode: CompareSpanMode; timing: -1 | 0 | 1 } | { mode: 'since'; timing: 0 };
 
 const TIMINGS: Record<CompareTimingChoice, CompareChoiceTiming> = {
   dayBefore: { mode: 'day', timing: -1 },
@@ -40,7 +39,7 @@ export function timingOf(choice: CompareTimingChoice): CompareChoiceTiming {
 /** The server leaves today out itself, so the window simply ends today. */
 export function compareWindow(
   span: CompareSpan,
-  mode: SpanMode,
+  mode: CompareSpanMode,
   today: string,
   custom?: { startDate: string; endDate: string } | null
 ): { startDate: string; endDate: string } {

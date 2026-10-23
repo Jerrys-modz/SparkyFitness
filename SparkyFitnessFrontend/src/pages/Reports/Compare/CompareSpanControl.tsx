@@ -9,7 +9,7 @@ import {
   dayToPickerDate,
   localDateToDay,
   MAX_CUSTOM_DAYS,
-  type SpanMode,
+  type CompareSpanMode,
 } from '@workspace/shared';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -23,7 +23,7 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import { clampCustomRange, type CustomRange } from './compareCustomRange';
 
 interface CompareSpanControlProps {
-  mode: SpanMode;
+  mode: CompareSpanMode;
   span: CompareSpan;
   custom: CustomRange | null;
   today: string;

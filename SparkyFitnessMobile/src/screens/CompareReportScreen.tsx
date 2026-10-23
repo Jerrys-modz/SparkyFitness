@@ -13,7 +13,7 @@ import {
   DEFAULT_COMPARE_SPAN,
   isAskable,
   knownCompareQuestions,
-  type SpanMode,
+  type CompareSpanMode,
   timingOf,
 } from '@workspace/shared';
 
@@ -58,8 +58,10 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
   const [question, setQuestion] = useState<Partial<CompareQuestion>>({});
   // Each mode remembers its own span, so flipping day/week/day keeps the pick.
   const [spans, setSpans] =
-    useState<Record<SpanMode, CompareSpan>>(DEFAULT_COMPARE_SPAN);
-  const [customs, setCustoms] = useState<Record<SpanMode, CustomRange | null>>({
+    useState<Record<CompareSpanMode, CompareSpan>>(DEFAULT_COMPARE_SPAN);
+  const [customs, setCustoms] = useState<
+    Record<CompareSpanMode, CustomRange | null>
+  >({
     day: null,
     week: null,
   });
@@ -79,7 +81,7 @@ const CompareReportScreen: React.FC<CompareReportScreenProps> = () => {
     ? timingOf(question.choice).mode
     : 'day';
   // Since mode has no span; the day one is kept for the way back.
-  const spanMode: SpanMode = mode === 'since' ? 'day' : mode;
+  const spanMode: CompareSpanMode = mode === 'since' ? 'day' : mode;
   const span = spans[spanMode];
   const window = compareWindow(span, spanMode, today, customs[spanMode]);
   const habitStart =
