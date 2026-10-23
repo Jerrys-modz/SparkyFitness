@@ -2577,6 +2577,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
               ...s,
               notes: null,
               rpe: null,
+              rir: null,
               completed_at: null,
               is_pr: false,
             }))
@@ -2604,7 +2605,13 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         // stamps here or the edit would still treat them as performed.
         const completedSetIds = { ...state.completedSetIds };
         const prSetIds = { ...state.prSetIds };
+        // A running set timer was started on the old exercise; keeping it
+        // would write that time as the new exercise's duration on stop.
+        const setTimerStartedAt = { ...state.setTimerStartedAt };
         let clearedCompletion = false;
+        for (const id of replaced?.sets.map((s) => String(s.id)) ?? []) {
+          delete setTimerStartedAt[id];
+        }
         for (const id of preservedIds) {
           if (completedSetIds[id] != null) clearedCompletion = true;
           delete completedSetIds[id];
@@ -2632,6 +2639,7 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
           ),
           exerciseConfigs,
           declinedAdaptive,
+          setTimerStartedAt,
         });
       },
 
