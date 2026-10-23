@@ -26,7 +26,7 @@ import {
 import { resolveIsAdminByUserId } from '../utils/adminCheck.js';
 import { resolveCorosMcpUrl } from '../integrations/coros/corosConstants.js';
 import { canAccessUserData } from '../utils/permissionUtils.js';
-import { ROUTING_PROVIDER_TYPE } from '@workspace/shared';
+import { ROUTING_PROVIDER_TYPE, STOPS_PROVIDER_TYPE } from '@workspace/shared';
 
 // Provider types whose stored base_url is fetched server-side, making it an
 // SSRF surface. Their base_url is validated against the food-provider network
@@ -37,6 +37,7 @@ const BASE_URL_FETCHING_PROVIDER_TYPES = new Set([
   'norish',
   OPEN_FOOD_FACTS_PROVIDER_TYPE,
   ROUTING_PROVIDER_TYPE,
+  STOPS_PROVIDER_TYPE,
 ]);
 
 // Reject a private/internal base_url for the self-hosted recipe providers.

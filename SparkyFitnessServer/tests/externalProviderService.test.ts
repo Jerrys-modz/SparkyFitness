@@ -1423,3 +1423,53 @@ describe('createExternalDataProvider / updateExternalDataProvider - Open Food Fa
     expect(update).not.toHaveBeenCalled();
   });
 });
+
+describe('createExternalDataProvider - Overpass stops provider', () => {
+  const create = vi.mocked(
+    externalProviderRepository.createExternalDataProvider
+  );
+  const overpass = (base_url: string) => ({
+    provider_name: 'Stops',
+    provider_type: 'overpass',
+    base_url,
+    is_active: true,
+  });
+
+  beforeEach(() => {
+    create.mockResolvedValue({ id: 'new-2' });
+    vi.mocked(resolveIsAdminByUserId).mockResolvedValue(false);
+  });
+
+  it('stores the base URL for a public server', async () => {
+    await externalProviderService.createExternalDataProvider(
+      OWNER,
+      overpass('https://8.8.8.8/api/interpreter')
+    );
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: OWNER,
+        provider_type: 'overpass',
+        base_url: 'https://8.8.8.8/api/interpreter',
+      })
+    );
+  });
+
+  it('refuses an internal address from a non-admin, as for Mealie', async () => {
+    await expect(
+      externalProviderService.createExternalDataProvider(
+        OWNER,
+        overpass('http://10.0.0.5/api/interpreter')
+      )
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('lets an admin point at a LAN Overpass', async () => {
+    vi.mocked(resolveIsAdminByUserId).mockResolvedValue(true);
+    await externalProviderService.createExternalDataProvider(
+      OWNER,
+      overpass('http://10.0.0.5/api/interpreter')
+    );
+    expect(create).toHaveBeenCalled();
+  });
+});
