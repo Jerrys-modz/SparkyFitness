@@ -441,6 +441,7 @@ export const createExerciseEntryRequestSchema = z
       .max(10)
       .nullable()
       .optional(),
+    calories_applied: z.coerce.number().min(0).nullable().optional(),
     steps: z.coerce.number().nullable().optional(),
     water_estimated: z.coerce.number().nullable().optional(),
     moving_time_seconds: z.coerce.number().nullable().optional(),
@@ -527,6 +528,8 @@ export const exerciseEntryResponseSchema = z.object({
   gear_external_id: z.string().nullable().optional(),
   workout_effort: z.number().int().min(1).max(10).nullable().optional(),
   shoe_id: z.string().nullable().optional(),
+  /** Calories the daily balance counts instead of `calories_burned`; null counts the estimate. */
+  calories_applied: z.number().nullable().optional(),
   water_estimated: z.number().nullable().optional(),
   moving_time_seconds: z.number().nullable().optional(),
   elapsed_time_seconds: z.number().nullable().optional(),

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-10-23_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -281,6 +281,8 @@ When searching, ignore noisy/generated directories unless you explicitly need th
   For an indoor run's pace chart, `POST`/`GET /exercise-entries/:id/distance-series` (`attachDistanceSeriesToExerciseEntry`, `getExerciseEntryDistanceSeries`, table `exercise_entry_distance_series`, rows of `[active seconds, metres]`; `setExerciseEntryDistance` rescales them with the laps).
 - Correcting the distance of an entry with no GPS track (a treadmill run, from the summary screen):
   inspect `POST /exercise-entries/:id/distance` in `routes/exerciseEntryRoutes.ts`, `services/exerciseEntryService.ts`'s `setExerciseEntryDistance` and `setExerciseEntryDistanceRequestSchema` in `shared/src/schemas/api/ExerciseEntries.api.zod.ts`. It changes only the entry's `distance`, its sets' distance and any laps (`distance_meters` and speed scaled by new over old distance), in one transaction, so measured heart rate and energy are kept; an entry with a GPS track is refused with 409.
+- Workout counted twice in the calorie balance (a logged workout plus the same session synced from a watch, #2353):
+  `exercise_entries.calories_applied` (nullable, >= 0) replaces `calories_burned` in the balance when set, 0 included; `calories_burned` stays as the stored estimate. It is a telemetry column, so create and update carry it and a sync that omits it keeps it. Both balance paths read it: `caloriesCounted` in `services/calorieBalanceService.ts` (the Diary tree) and the `COALESCE(calories_applied, calories_burned)` sums in `getDailyExerciseCalorieSplitRange` (Reports, Dashboard, adaptive). No client UI sets it yet.
 - Water, hydration, caffeine, or alcohol issue:
   inspect `services/hydrationTotalsService.ts` (the single owner of the daily water formula), `services/measurementService.ts` (the container "+/-" path and the container->food link), `services/caffeineKineticsService.ts` / `services/alcoholWeekService.ts`, `models/waterContainerRepository.ts`, and the shared maths in `../shared/src/nutrients/`
 - Self-service "delete synced data by source" issue:

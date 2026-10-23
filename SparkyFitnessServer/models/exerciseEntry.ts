@@ -292,6 +292,7 @@ export const EXERCISE_ENTRY_TELEMETRY_COLUMNS = [
   'gear_name',
   'gear_external_id',
   'workout_effort',
+  'calories_applied',
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2183,10 +2184,10 @@ async function getDailyExerciseCalorieSplitRange(
   try {
     const result = await client.query(
       `SELECT TO_CHAR(entry_date, 'YYYY-MM-DD') AS entry_date,
-              COALESCE(SUM(calories_burned) FILTER (
+              COALESCE(SUM(COALESCE(calories_applied, calories_burned)) FILTER (
                 WHERE exercise_name = 'Active Calories'
                   AND exercise_preset_entry_id IS NULL), 0)::float8 AS active_calories,
-              COALESCE(SUM(calories_burned) FILTER (
+              COALESCE(SUM(COALESCE(calories_applied, calories_burned)) FILTER (
                 WHERE exercise_name IS DISTINCT FROM 'Active Calories'
                    OR exercise_preset_entry_id IS NOT NULL), 0)::float8 AS other_calories,
               COALESCE(SUM(steps), 0)::int AS activity_steps

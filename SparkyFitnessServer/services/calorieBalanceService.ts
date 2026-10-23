@@ -182,6 +182,18 @@ export function resolveDeviceProjectionSnapshot({
 }
 
 /**
+ * What an entry adds to the balance: the applied override when the person set one
+ * (0 included), otherwise the entry's own estimate. `calories_burned` is never
+ * rewritten, so the estimate survives next to the figure that is counted.
+ */
+export function caloriesCounted(entry: {
+  calories_burned?: number | null;
+  calories_applied?: number | null;
+}): number {
+  return entry.calories_applied ?? entry.calories_burned ?? 0;
+}
+
+/**
  * Splits a day's exercise sessions into the three sums the balance needs.
  *
  * The device's "Active Calories" summary is kept apart from logged workouts because it
@@ -198,7 +210,7 @@ export function extractExerciseStats(
 
   for (const session of sessions) {
     if (session.type === 'individual') {
-      const cal = session.calories_burned || 0;
+      const cal = caloriesCounted(session);
       if (session.name === ACTIVE_CALORIES_EXERCISE_NAME) {
         activeCalories += cal;
       } else {
@@ -207,7 +219,7 @@ export function extractExerciseStats(
       activitySteps += session.steps || 0;
     } else {
       for (const exercise of session.exercises) {
-        otherCalories += exercise.calories_burned || 0;
+        otherCalories += caloriesCounted(exercise);
         activitySteps += exercise.steps || 0;
       }
     }
