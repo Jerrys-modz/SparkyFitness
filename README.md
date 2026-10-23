@@ -32,6 +32,7 @@ SparkyFitness is a self-hosted fitness tracking platform made up of:
 - A backend server (API + data storage)
 - A web-based frontend
 - Native mobile apps for iOS and Android
+- Companion apps for Apple Watch and Wear OS
 
 It stores and manages health data on infrastructure you control, without relying on third party services.
 
@@ -39,6 +40,7 @@ It stores and manages health data on infrastructure you control, without relying
 
 - Nutrition, exercise, hydration, sleep, fasting, mood and body measurement tracking
 - Goal setting and daily check-ins
+- Apple Watch and Wear OS apps: goals, water, weight, fasting, medications, workouts and watch face complications
 - Interactive charts and long-term reports
 - Multiple user profiles and family access
 - Light and dark themes

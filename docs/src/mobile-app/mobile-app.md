@@ -34,6 +34,10 @@ The Android version is available as a google play store beta. You can join the b
 
 Overnight HRV and resting heart rate appear on sleep entries when HRV and Resting Heart Rate sync are enabled.
 
+## Watch apps
+
+The mobile app has companion apps for Apple Watch and Wear OS. See [Watch Apps](/mobile-app/watch-apps).
+
 ## Screenshot (iOS)
 
 ![Mobile App](/appdashboard.png)
