@@ -60,8 +60,7 @@ function roundSteps(
   const rough = (high - low) / STEPS_ACROSS;
   const step =
     key === 'bedtime'
-      ? (BEDTIME_STEPS.find((s) => s >= rough) ??
-        BEDTIME_STEPS[BEDTIME_STEPS.length - 1])
+      ? (BEDTIME_STEPS.find((s) => s >= rough) ?? BEDTIME_STEPS[2])
       : Math.max(minStep, roundStep(rough));
   const first = tidy(Math.max(0, Math.floor(low / step) * step));
   const last = tidy(Math.ceil(high / step) * step);
