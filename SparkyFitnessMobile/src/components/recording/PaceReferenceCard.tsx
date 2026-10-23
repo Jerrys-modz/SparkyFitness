@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import {
   equivalent5kPace,
@@ -207,9 +207,15 @@ const PaceReferenceCard: React.FC<PaceReferenceCardProps> = ({
         <View className="-mx-4 -mb-4">
           <RecordingSwitchRow
             testID="pace-reference-watch"
-            title={t('paceReference.watch', {
-              defaultValue: 'Also use on my Apple Watch',
-            })}
+            title={
+              Platform.OS === 'android'
+                ? t('paceReference.wearOs', {
+                    defaultValue: 'Also use on my Wear OS watch',
+                  })
+                : t('paceReference.watch', {
+                    defaultValue: 'Also use on my Apple Watch',
+                  })
+            }
             description={t('paceReference.watchHint', {
               defaultValue:
                 'Holds the program workout offered on the watch to these ranges. Runs only.',

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  distanceToSegment,
   haversineMeters,
+  localProjector,
   parseGpx,
   routeDistanceMeters,
   routeElevationGainMeters,
@@ -377,4 +379,21 @@ describe('parseGpx at the largest accepted size', () => {
     for (const gpx of shapes) expect(parseGpx(gpx).points).toEqual([]);
     expect(Date.now() - started).toBeLessThan(15_000);
   }, 60_000);
+
+  it('finds the nearest spot on a segment in local metres', () => {
+    const origin = { lat: 40, lon: -74 };
+    const project = localProjector(origin);
+    const a = project(origin);
+    const b = project({ lat: 40.001, lon: -74 });
+    const beside = project({ lat: 40.0005, lon: -73.9999 });
+    const hit = distanceToSegment(beside, a, b);
+    expect(hit.t).toBeCloseTo(0.5, 2);
+    expect(hit.distance).toBeGreaterThan(8);
+    expect(hit.distance).toBeLessThan(9.5);
+    // Past either end the nearest spot is the end, and a zero-length segment is a point.
+    expect(distanceToSegment(project({ lat: 40.002, lon: -74 }), a, b).t).toBe(
+      1
+    );
+    expect(distanceToSegment(beside, a, a).t).toBe(0);
+  });
 });

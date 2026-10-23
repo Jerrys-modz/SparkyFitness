@@ -93,7 +93,9 @@ export type RootStackParamList = {
   PersonalRecords: undefined;
   Routes: undefined;
   RouteDetail: { id: string };
-  RouteDraw: undefined;
+  /** `routeId` opens a saved route in the editor and saves over it. */
+  RouteDraw: { routeId?: string } | undefined;
+  RouteGenerate: undefined;
   WatchRunLive: undefined;
   MealPlanForm: { template?: MealPlanTemplate; initialMeal?: Meal } | undefined;
   // #2115, Phase 12: mobile-only water-container CRUD.
@@ -208,6 +210,7 @@ export type RootStackParamList = {
   NutritionReport: undefined;
   SleepAnalytics: undefined;
   MoodReport: undefined;
+  CompareReport: undefined;
   CardioSession: {
     session: ExerciseActivityQueryItem;
     distanceUnit: 'km' | 'miles';
@@ -409,6 +412,7 @@ export type RootStackParamList = {
   DiarySettings: undefined;
   WorkoutSettings: undefined;
   WarmupSettings: undefined;
+  HeartRateZonesSettings: undefined;
   ServerSettings: undefined;
   PasskeySettings: undefined;
   AppSettings: undefined;

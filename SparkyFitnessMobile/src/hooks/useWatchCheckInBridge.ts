@@ -28,6 +28,7 @@ import {
   updateEntry,
 } from '../services/api/medicationsApi';
 import {
+  caffeineActiveQueryKey,
   medicationsListQueryKey,
   medicationEntriesQueryKey,
   measurementsQueryKey,
@@ -41,14 +42,17 @@ import { getTodayDate, addDays, getDeviceTimezone } from '../utils/dateUtils';
 import { medicationsForWatch } from '../utils/watchMedications';
 import { entryMatchesDose } from '../utils/medications';
 import { invalidateMedicationEntryCaches } from './invalidateMedicationEntryCaches';
-import { getServingVolume } from '../utils/unitConversions';
 import { formatTimeLabel } from '../utils/entryTimeDisplay';
 import { addLog } from '../services/LogService';
 import { queryClient } from './queryClient';
 import { usePreferences } from './usePreferences';
-import { watchWaterFromFoodMl } from '../utils/watchWater';
+import {
+  watchContainerDisplayUnit,
+  watchContainerServingVolumeMl,
+  watchWaterFromFoodMl,
+} from '../utils/watchWater';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
-import { useDailySummary } from './useDailySummary';
+import { useDailySummary, type DailySummaryRawData } from './useDailySummary';
 import { WATCH_PAGE_KEYS } from '../constants/watchPages';
 import { resolveKeyOrder } from '../utils/reorderUtils';
 import { buildWatchGoalNutrients, shownInOrder } from '../utils/watchNutrients';
@@ -59,6 +63,10 @@ import type { WorkoutPreset } from '../types/workoutPresets';
 import { useSuggestedExercises } from './useSuggestedExercises';
 import { useWorkoutPresets } from './useWorkoutPresets';
 import { getActiveServerConfigId } from '../services/storage';
+import {
+  isPayloadForActiveServer,
+  syncWatchServerCredentials,
+} from '../services/watchServerCredentials';
 import { useActiveWorkoutPlans } from './useActiveWorkoutPlan';
 import { scheduledWorkoutsForWatch } from '../utils/workoutPlanSchedule';
 import { useCurrentFast } from './useFasting';
@@ -571,24 +579,21 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const watchContainers: WatchContainerPayload[] = useMemo(
     () =>
       (containers ?? []).flatMap((container) => {
-        // For standard containers, getServingVolume computes the volume per serving.
-        // For food-linked containers, fall back to the linked variant's water volume or container volume.
-        const servingVolumeMl =
-          getServingVolume(container) ??
-          (container.linked_variant_water_ml != null
-            ? Number(container.linked_variant_water_ml)
-            : container.volume || 0);
+        const rawVolumeMl = watchContainerServingVolumeMl(container);
+        const servingVolumeMl = Number.isFinite(rawVolumeMl)
+          ? Math.max(0, rawVolumeMl)
+          : 0;
 
         return [
           {
             id: container.id,
             name: container.name,
             servingVolumeMl,
-            unit: container.unit,
+            unit: watchContainerDisplayUnit(container, waterDisplayUnit),
           },
         ];
       }),
-    [containers]
+    [containers, waterDisplayUnit]
   );
 
   // Bundled so the day check below is one decision rather than sixteen. The
@@ -673,7 +678,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
     // ordering that sticks.
     const generation = ++pushGenerationRef.current;
     try {
-      const workoutServerId = await getActiveServerConfigId();
+      const workoutServerId = await syncWatchServerCredentials();
       const today = getTodayDate();
       const startDate = addDays(today, -(HISTORY_DAYS - 1));
       const range = await fetchMeasurementsRange(startDate, today);
@@ -951,6 +956,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const handleCheckIn = useCallback(
     async (payload: WatchCheckInPayload): Promise<void> => {
       if (!WatchConnectivity) return;
+      if (!(await isPayloadForActiveServer(payload))) return;
       await ensureAckStateHydrated();
       if (
         payload.clientId &&
@@ -1019,6 +1025,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const handleWaterTap = useCallback(
     async (payload: WatchWaterIntakePayload): Promise<void> => {
       if (!WatchConnectivity) return;
+      if (!(await isPayloadForActiveServer(payload))) return;
       await ensureAckStateHydrated();
       if (
         payload.clientId &&
@@ -1064,13 +1071,29 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         handledWaterClientIdsRef.current.add(payload.clientId);
 
       try {
-        await changeWaterIntake({
+        const response = await changeWaterIntake({
           entryDate: payload.entryDate,
           // One tap = one full serving of that container, same as the phone's
           // own +/- button.
           changeDrinks: 1,
           containerId: payload.containerId,
         });
+
+        if (response && typeof response.water_ml === 'number') {
+          queryClient.setQueryData<DailySummaryRawData>(
+            dailySummaryQueryKey(payload.entryDate),
+            (old) => {
+              if (!old) return old;
+              return {
+                ...old,
+                waterIntake: {
+                  ...old.waterIntake,
+                  water_ml: response.water_ml,
+                },
+              };
+            }
+          );
+        }
 
         // Acknowledged both ways: immediately when the watch is reachable,
         // and durably through the context push. A retry of a tap that
@@ -1086,14 +1109,19 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         await persistAckState();
         await WatchConnectivity.sendAck(payload.clientId, true);
 
-        queryClient.invalidateQueries({
-          queryKey: dailySummaryQueryKey(payload.entryDate),
-        });
-        // The tap also created a new log row, which the watch's log view
-        // reads — refetch so the next push carries it.
-        await queryClient.invalidateQueries({
-          queryKey: waterIntakeLogQueryKey(payload.entryDate),
-        });
+        // Awaited so the next context push carries both the updated day total
+        // (including food-linked container calories/water) and the new log row.
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: dailySummaryQueryKey(payload.entryDate),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: waterIntakeLogQueryKey(payload.entryDate),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: caffeineActiveQueryKey(payload.entryDate),
+          }),
+        ]);
 
         addLog(
           `Watch water tap logged for ${payload.entryDate}: container ${payload.containerId}`,
@@ -1130,6 +1158,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const handleWaterDelete = useCallback(
     async (payload: WatchWaterDeletePayload): Promise<void> => {
       if (!WatchConnectivity) return;
+      if (!(await isPayloadForActiveServer(payload))) return;
       await ensureAckStateHydrated();
       if (
         payload.clientId &&
@@ -1167,12 +1196,17 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         await persistAckState();
         await WatchConnectivity.sendAck(payload.clientId, true);
 
-        queryClient.invalidateQueries({
-          queryKey: dailySummaryQueryKey(today),
-        });
-        await queryClient.invalidateQueries({
-          queryKey: waterIntakeLogQueryKey(today),
-        });
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: dailySummaryQueryKey(today),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: waterIntakeLogQueryKey(today),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: caffeineActiveQueryKey(today),
+          }),
+        ]);
 
         addLog(`Watch deleted water log entry ${payload.entryId}`, 'INFO');
         await pushContextRef.current();
@@ -1210,6 +1244,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
   const processMedicationTaken = useCallback(
     async (payload: WatchMedicationTakenPayload): Promise<void> => {
       if (!WatchConnectivity) return;
+      if (!(await isPayloadForActiveServer(payload))) return;
       await ensureAckStateHydrated();
       if (
         payload.clientId &&

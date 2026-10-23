@@ -1,8 +1,11 @@
 import type {
   CreateRouteBody,
+  GeneratedRoutePreview,
+  GenerateRouteBody,
   ImportGpxRouteBody,
   Route,
   RouteFromActivityBody,
+  RouteGenerateCapabilities,
   RouteSummary,
   UpdateRouteBody,
 } from '@workspace/shared';
@@ -26,7 +29,7 @@ export const fetchRoute = (id: string): Promise<{ route: Route }> =>
   });
 
 export const createRoute = (
-  body: Omit<CreateRouteBody, 'activity'> & Partial<CreateRouteBody>
+  body: Pick<CreateRouteBody, 'name' | 'points'> & Partial<CreateRouteBody>
 ): Promise<{ route: Route }> =>
   apiFetch<{ route: Route }>({
     endpoint: '/api/v2/routes',
@@ -77,4 +80,27 @@ export const deleteRoute = (id: string): Promise<void> =>
     serviceName: SERVICE,
     operation: 'delete route',
     method: 'DELETE',
+  });
+
+/** Whether the server has a routing engine; cheap and not rate limited. */
+export const fetchRouteGenerationCapabilities =
+  (): Promise<RouteGenerateCapabilities> =>
+    apiFetch<RouteGenerateCapabilities>({
+      endpoint: '/api/v2/routes/generate/capabilities',
+      serviceName: SERVICE,
+      operation: 'check route generation',
+    });
+
+/** A preview route from the routing engine; nothing is saved. */
+export const generateRoute = (
+  body: GenerateRouteBody
+): Promise<{ route: GeneratedRoutePreview }> =>
+  apiFetch<{ route: GeneratedRoutePreview }>({
+    endpoint: '/api/v2/routes/generate',
+    serviceName: SERVICE,
+    operation: 'generate route',
+    method: 'POST',
+    body,
+    // A loop can cost the server a few engine calls.
+    timeoutMs: 60_000,
   });

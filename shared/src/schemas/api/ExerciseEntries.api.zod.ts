@@ -345,16 +345,44 @@ export const attachExerciseEntryWatchTelemetryRequestSchema = z
      * nothing on the entry to line up with.
      */
     durationMinutes: z.number().nonnegative().optional(),
+    /**
+     * Apple's time-in-zone for the whole workout, from the finished
+     * HKWorkout. When these five zones are usable they are stored as the
+     * device's zones and the series is not bucketed again. One post per
+     * workout: the server clears zones on the other exercises of the same
+     * session so the chart is not counted twice.
+     */
+    appleZones: z
+      .array(
+        z.object({
+          index: z.number().int().min(0).max(20).optional(),
+          minimumBpm: z.number().min(0).max(300).nullable().optional(),
+          maximumBpm: z.number().min(0).max(300).nullable().optional(),
+          seconds: z
+            .number()
+            .nonnegative()
+            .max(7 * 24 * 60 * 60),
+        })
+      )
+      .max(8)
+      .optional(),
+    /**
+     * Stride length of the entry, in cm; null clears it. Telemetry only: it
+     * leaves the duration and everything else on the entry alone.
+     */
+    strideLengthCm: z.number().positive().max(500).nullable().optional(),
   })
   .strict()
   .refine(
     (body) =>
       body.hrSamples !== undefined ||
       body.activeEnergyKcal !== undefined ||
-      (body.durationMinutes !== undefined && body.durationMinutes > 0),
+      body.strideLengthCm !== undefined ||
+      (body.durationMinutes !== undefined && body.durationMinutes > 0) ||
+      (body.appleZones !== undefined && body.appleZones.length > 0),
     {
       message:
-        'At least one of hrSamples, activeEnergyKcal, or durationMinutes is required.',
+        'At least one of hrSamples, activeEnergyKcal, durationMinutes, strideLengthCm, or appleZones is required.',
     }
   );
 
@@ -406,6 +434,13 @@ export const createExerciseEntryRequestSchema = z
     weather_humidity_percentage: z.coerce.number().nullable().optional(),
     gear_name: z.string().nullable().optional(),
     gear_external_id: z.string().nullable().optional(),
+    workout_effort: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10)
+      .nullable()
+      .optional(),
     steps: z.coerce.number().nullable().optional(),
     water_estimated: z.coerce.number().nullable().optional(),
     moving_time_seconds: z.coerce.number().nullable().optional(),
@@ -490,6 +525,7 @@ export const exerciseEntryResponseSchema = z.object({
   weather_humidity_percentage: z.number().nullable().optional(),
   gear_name: z.string().nullable().optional(),
   gear_external_id: z.string().nullable().optional(),
+  workout_effort: z.number().int().min(1).max(10).nullable().optional(),
   shoe_id: z.string().nullable().optional(),
   water_estimated: z.number().nullable().optional(),
   moving_time_seconds: z.number().nullable().optional(),
@@ -744,6 +780,17 @@ export const setExerciseEntryDistanceRequestSchema = z
   .strict();
 export type SetExerciseEntryDistanceRequest = z.infer<
   typeof setExerciseEntryDistanceRequestSchema
+>;
+
+// How hard the person rated a finished workout, 1 (easy) to 10 (maximal).
+// A strength session stores it on every exercise entry of the session.
+export const setExerciseEntryEffortRequestSchema = z
+  .object({
+    rating: z.number().int().min(1).max(10),
+  })
+  .strict();
+export type SetExerciseEntryEffortRequest = z.infer<
+  typeof setExerciseEntryEffortRequestSchema
 >;
 
 // Distance against active time for an entry with no route, for its pace chart.

@@ -55,6 +55,7 @@ const androidPermissions = [
   'android.permission.health.READ_LEAN_BODY_MASS',
   'android.permission.health.READ_INTERMENSTRUAL_BLEEDING',
   'android.permission.health.READ_MENSTRUATION',
+  'android.permission.health.READ_MINDFULNESS',
   'android.permission.health.READ_OVULATION_TEST',
   'android.permission.health.READ_OXYGEN_SATURATION',
   'android.permission.health.READ_POWER',
@@ -279,6 +280,7 @@ export default ({ config }: ConfigContext): Partial<ExpoConfig> => {
       './plugins/withBackgroundWater',
       './plugins/withQuickActionLaunchGuard',
       './plugins/withWorkoutNotification',
+      './plugins/withWearOs',
       './plugins/withEnrichedMarkdownNoMath',
       './plugins/withSceneLifecycle',
       [

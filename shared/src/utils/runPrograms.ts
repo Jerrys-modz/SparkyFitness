@@ -61,8 +61,8 @@ interface Spec {
 const RUN_WALK: Shape = { style: 'runWalk', warmup: 300, cooldown: 300 };
 const SPEED: Shape = { style: 'fastEasy', warmup: 600, cooldown: 600 };
 const EASY: Shape = { style: 'fastEasy', warmup: 300, cooldown: 300 };
-// Brisk walking and easy walking, named Fast and Easy so nothing says "run".
-const WALKING: Shape = { style: 'fastEasy', warmup: 300, cooldown: 300 };
+// Brisk walking and easy walking. Named Brisk and Easy so a walk never says "run".
+const WALKING: Shape = { style: 'briskWalk', warmup: 300, cooldown: 300 };
 
 /** A warm-up, the given run/walk pieces (work/recovery steps), a cool-down. */
 function workout(spec: Spec): IntervalPlan {
@@ -266,7 +266,8 @@ const MARATHON_WEEKS = steadyWeeks([
 const thrice = (spec: Spec): Spec[] => Array(3).fill(spec);
 
 // Twelve weeks from nothing to 10K: the beginner 5K ramp from run/walk to
-// continuous running, then longer runs to an hour. Three runs a week.
+// continuous running, then longer runs to an hour, with a lighter tenth week.
+// Three runs a week.
 const BEGINNER_10K_WEEKS: readonly (readonly Spec[])[] = [
   thrice(rw(repeat(8, [run(60), walk(90)]))),
   thrice(rw(repeat(6, [run(90), walk(120)]))),
@@ -288,8 +289,8 @@ const BEGINNER_10K_WEEKS: readonly (readonly Spec[])[] = [
     [25, 25, 30],
     [28, 30, 35],
     [30, 30, 40],
-    [30, 35, 45],
-    [30, 35, 55],
+    [25, 25, 30],
+    [30, 35, 50],
     [25, 30, 60],
   ]),
 ];
@@ -659,29 +660,46 @@ export function planMinutes(plan: IntervalPlan): number {
   return Math.round(plan.steps.reduce((sum, s) => sum + s.seconds, 0) / 60);
 }
 
-/** Whole minutes of running (work steps) in a plan, walking and warm-up left out. */
+/**
+ * Whole minutes of the effort. A fast/easy plan counts its easy stretches too,
+ * so an easy run is not zero. Warm-up, cool-down, and the easy walking of a
+ * brisk-walk plan are left out.
+ */
 export function runMinutes(plan: IntervalPlan): number {
+  const easyCounts = plan.style === 'fastEasy';
   return Math.round(
     plan.steps
-      .filter((s) => s.kind === 'work')
+      .filter((s) => s.kind === 'work' || (easyCounts && s.kind === 'recovery'))
       .reduce((sum, s) => sum + s.seconds, 0) / 60
   );
 }
 
 export interface ProgramOutline {
-  /** Total minutes of each workout in week 1, in order. */
+  /** Minutes of each week-1 workout, warm-up and cool-down left out. A walk counts brisk time only. */
   firstWeek: number[];
-  /** Minutes of running in the biggest workout, where it builds to. */
+  /** The same minutes in the biggest workout: where the program builds to. */
   peakRunMinutes: number;
+}
+
+/** Minutes the card quotes, so week 1 and the peak use one unit. */
+function quotedMinutes(program: RunProgram, plan: IntervalPlan): number {
+  const countRecovery = program.activity !== 'walk';
+  return Math.round(
+    plan.steps
+      .filter(
+        (s) => s.kind === 'work' || (countRecovery && s.kind === 'recovery')
+      )
+      .reduce((sum, s) => sum + s.seconds, 0) / 60
+  );
 }
 
 /** A glance at a program: what week 1 looks like and what it builds to. */
 export function programOutline(program: RunProgram): ProgramOutline {
   const first = program.workouts.filter((w) => w.week === 0);
   return {
-    firstWeek: first.map((w) => planMinutes(w.plan)),
+    firstWeek: first.map((w) => quotedMinutes(program, w.plan)),
     peakRunMinutes: program.workouts.reduce(
-      (max, w) => Math.max(max, runMinutes(w.plan)),
+      (max, w) => Math.max(max, quotedMinutes(program, w.plan)),
       0
     ),
   };

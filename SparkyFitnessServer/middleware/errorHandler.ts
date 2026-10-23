@@ -1,20 +1,45 @@
+import type { NextFunction, Request, Response } from 'express';
 import { log } from '../config/logging.js';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const errorHandler = (err: any, _req: any, res: any, _next: any) => {
+import { describeError, isInternalError } from '../utils/errors.js';
+
+interface ErrorFields {
+  name?: unknown;
+  message?: unknown;
+  code?: unknown;
+  type?: unknown;
+  stack?: unknown;
+  status?: unknown;
+  statusCode?: unknown;
+}
+
+const errorHandler = (
+  err: unknown,
+  req: Request,
+  res: Response,
+  _next: NextFunction
+) => {
+  const error: ErrorFields =
+    typeof err === 'object' && err !== null ? (err as ErrorFields) : {};
+  // The query string can carry credentials, such as a password reset token.
+  const path = req.originalUrl.split('?')[0];
   log(
     'error',
-    `Error caught by centralized handler: ${err.message}`,
-    err.stack
+    `Error caught by centralized handler on ${req.method} ${path}: ${describeError(err)}`,
+    error.stack
+  );
+  const explicitStatus = [error.status, error.statusCode].find(
+    (status): status is number => typeof status === 'number'
   );
   // Default to 500 Internal Server Error
-  let statusCode = err.status || err.statusCode || 500;
-  let message = err.message || 'Internal Server Error';
-  let code: string | undefined =
-    typeof err.code === 'string' ? err.code : undefined;
+  let statusCode = explicitStatus ?? 500;
+  let message =
+    (typeof error.message === 'string' && error.message) ||
+    'Internal Server Error';
+  let code = typeof error.code === 'string' ? error.code : undefined;
 
   if (
-    err.name === 'PayloadTooLargeError' ||
-    err.type === 'entity.too.large' ||
+    error.name === 'PayloadTooLargeError' ||
+    error.type === 'entity.too.large' ||
     statusCode === 413
   ) {
     statusCode = 413;
@@ -22,7 +47,7 @@ const errorHandler = (err: any, _req: any, res: any, _next: any) => {
     message = 'Request payload too large. Please reduce the image size.';
   } else {
     // Handle specific error types if needed (e.g., database errors, validation errors)
-    switch (err.name) {
+    switch (error.name) {
       case 'UnauthorizedError':
         statusCode = 401;
         message = 'Unauthorized: Invalid or missing token.';
@@ -34,13 +59,20 @@ const errorHandler = (err: any, _req: any, res: any, _next: any) => {
         break;
       case 'ValidationError':
         statusCode = 400;
-        message = err.message;
         break;
       default:
-        if (err.code === '23505') {
+        if (error.code === '23505') {
           statusCode = 409;
           message =
             'Conflict: A resource with this unique identifier already exists.';
+        } else if (
+          statusCode >= 500 &&
+          process.env.NODE_ENV !== 'development' &&
+          isInternalError(err)
+        ) {
+          // The full error is in the log line above.
+          message = 'Internal Server Error';
+          code = undefined;
         }
         break;
     }
@@ -48,7 +80,7 @@ const errorHandler = (err: any, _req: any, res: any, _next: any) => {
   res.status(statusCode).json({
     error: message,
     code,
-    details: process.env.NODE_ENV === 'development' ? err.stack : undefined, // Only send stack in development
+    details: process.env.NODE_ENV === 'development' ? error.stack : undefined, // Only send stack in development
   });
 };
 export default errorHandler;

@@ -1,4 +1,5 @@
 import type { GpsTrackPoint } from '@workspace/shared';
+import type { FormMetrics } from './stride';
 import {
   computeLaps,
   computeSplits,
@@ -36,6 +37,11 @@ export interface RunSummaryParams {
   laps: RecordedSplit[];
   /** An indoor session's `[active seconds, metres]` rows, for the pace chart. */
   distanceSeries?: number[][];
+  /**
+   * Cadence and stride the phone measured, when it could. `steps` is present
+   * for a run whose distance can be corrected, so the stride can follow it.
+   */
+  form?: (FormMetrics & { steps?: number }) | null;
   /** The saved diary entry, so the screen can look up the records it set. */
   entryId?: string | null;
   /** True for a treadmill run, whose distance the person can correct. */
@@ -66,6 +72,7 @@ export function buildRunSummary({
   avgHeartRate,
   program,
   entryId,
+  form,
 }: {
   activity: RecordingActivity;
   entryDate: string;
@@ -75,6 +82,7 @@ export function buildRunSummary({
   avgHeartRate: number | null;
   program: RunSummaryParams['program'];
   entryId?: string | null;
+  form?: RunSummaryParams['form'];
 }): RunSummaryParams {
   const unitMeters = distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
   const summary = summarizeRecording(points);
@@ -96,6 +104,7 @@ export function buildRunSummary({
     laps: lapMarks && lapMarks.length > 0 ? computeLaps(points, lapMarks) : [],
     program,
     entryId: entryId ?? null,
+    ...(form ? { form } : {}),
   };
 }
 
