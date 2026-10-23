@@ -2,6 +2,7 @@ import { betterAuth } from 'better-auth';
 import { APIError } from 'better-auth/api';
 import pg from 'pg';
 import { log } from './config/logging.js';
+import { handleConnectionLoss } from './db/poolManager.js';
 import bcrypt from 'bcryptjs';
 import { syncUserGroups } from './utils/oidcGroupSync.js';
 import userRepository from './models/userRepository.js';
@@ -95,6 +96,7 @@ const authPool = new Pool({
 authPool.on('error', (err) => {
   log('error', 'Unexpected error on idle Better Auth client', err);
 });
+handleConnectionLoss(authPool, 'Better Auth');
 // Persistent array reference for trusted providers
 // Mutation of this array will be visible to Better Auth since it holds the reference
 // @ts-expect-error
