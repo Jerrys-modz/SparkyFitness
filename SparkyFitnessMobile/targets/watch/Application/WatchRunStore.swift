@@ -338,6 +338,9 @@ final class WatchRunStore: ObservableObject {
                 self.recovering = false
                 switch outcome {
                 case .none:
+                    // No run to carry on: a removal held back for a route that
+                    // was being followed when the app died can go now.
+                    WatchRouteLibraryStore.shared.runEnded()
                     completion(false)
                 case .resumed(let recovery):
                     self.kind = recovery.kind
