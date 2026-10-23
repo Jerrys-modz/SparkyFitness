@@ -13,6 +13,8 @@ import {
 import {
   COMPARE_METRICS,
   compareDigits,
+  type CompareMetricKey,
+  type CompareMode,
   type CompareQuestion,
   type CompareResponse,
   displayDots,
@@ -24,8 +26,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ZoomableChart from '@/components/ZoomableChart';
 import { ChartErrorBoundary } from '@/pages/Errors/ChartErrorFallback';
 import { CompareBars } from './CompareBars';
-import { dotsAxisCaption } from './compareCopy';
+import { compareShownAmountText, dotsAxisCaption } from './compareCopy';
 import { COMPARE_METRIC_LABELS } from './compareMetricLabels';
+import { hasDeviation } from './compareTables';
 
 interface CompareDotsChartProps {
   response: CompareResponse;
@@ -39,7 +42,13 @@ const TOOLTIP_STYLE = {
   borderRadius: '6px',
   color: 'hsl(var(--foreground))',
 };
-const oneDecimal = (value: number): string => value.toFixed(1);
+// The dots are already on the display scale, so they are formatted as shown
+// amounts to the metric's precision and never rescaled. A deviation is signed;
+// a yes/no side by day is its 0/1 flag, which is not.
+const dotText =
+  (key: CompareMetricKey, mode: CompareMode) =>
+  (value: number): string =>
+    compareShownAmountText(key, value, hasDeviation(key, mode));
 
 export const CompareDotsChart = ({
   response,
@@ -143,7 +152,8 @@ export const CompareDotsChart = ({
                       stroke="hsl(var(--muted-foreground))"
                       tick={{ fill: 'hsl(var(--muted-foreground))' }}
                       domain={['auto', 'auto']}
-                      tickFormatter={oneDecimal}
+                      allowDecimals={compareDigits(question.a) > 0}
+                      tickFormatter={dotText(question.a, mode)}
                     />
                     <YAxis
                       type="number"
@@ -153,7 +163,8 @@ export const CompareDotsChart = ({
                       stroke="hsl(var(--muted-foreground))"
                       tick={{ fill: 'hsl(var(--muted-foreground))' }}
                       domain={['auto', 'auto']}
-                      tickFormatter={oneDecimal}
+                      allowDecimals={compareDigits(question.b) > 0}
+                      tickFormatter={dotText(question.b, mode)}
                     />
                     <Tooltip
                       cursor={{ strokeDasharray: '3 3' }}
@@ -162,11 +173,7 @@ export const CompareDotsChart = ({
                       itemStyle={{ color: 'hsl(var(--foreground))' }}
                       formatter={(value, name) => {
                         const key = name === aLabel ? question.a : question.b;
-                        // The dots are already on the display scale.
-                        return [
-                          Number(value).toFixed(compareDigits(key)),
-                          name,
-                        ];
+                        return [dotText(key, mode)(Number(value)), name];
                       }}
                     />
                     <Scatter data={dots} fill={DOT_COLOR} />

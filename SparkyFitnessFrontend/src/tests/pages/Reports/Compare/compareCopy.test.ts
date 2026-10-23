@@ -11,12 +11,14 @@ import { translateForTest } from '@/tests/mocks/reactI18next';
 import {
   checkLines,
   compareAmountText,
+  compareShownAmountText,
   compareValueText,
   dotsAxisCaption,
   howSureLines,
   metricName,
   questionParts,
   sentenceText,
+  subjectName,
   timingLabel,
   type Translator,
   verdictCopy,
@@ -1581,6 +1583,21 @@ describe('compareAmountText', () => {
   });
 });
 
+describe('compareShownAmountText', () => {
+  test('an amount already on the display scale is never rescaled', () => {
+    // Mood 0.8 on the 1-10 scale stays 0.8; compareAmountText would make it 0.1.
+    expect(compareShownAmountText('mood', 0.8, true)).toBe('+0.8');
+    expect(compareShownAmountText('mood', 6.25)).toBe('6.3');
+  });
+
+  test('to the metric precision, signed when asked, in the app language', () => {
+    expect(compareShownAmountText('steps', 1234, true)).toBe('+1,234');
+    expect(compareShownAmountText('steps', 1234)).toBe('1,234');
+    expect(compareShownAmountText('timeAsleep', -0.44, true)).toBe('-0.4');
+    expect(compareShownAmountText('energy', 0, true)).toBe('0.0');
+  });
+});
+
 describe('compareValueText', () => {
   test('keeps one decimal on scales and averages', () => {
     expect(compareValueText('mood', 58)).toBe('5.8');
@@ -1599,6 +1616,29 @@ describe('compareValueText', () => {
     expect(compareValueText('bedtime', 255)).toMatch(/^10:15\sPM$/);
     expect(compareValueText('bedtime', 390)).toMatch(/^12:30\sAM$/);
     expect(compareValueText('bedtime', -30)).toMatch(/^5:30\sPM$/);
+  });
+
+  test('shows bedtime in the 24-hour or 12-hour setting when given', () => {
+    expect(compareValueText('bedtime', 255, 'HH:mm')).toBe('22:15');
+    expect(compareValueText('bedtime', 390, 'HH:mm')).toBe('00:30');
+    expect(compareValueText('bedtime', 255, 'h:mm A')).toBe('10:15 PM');
+    expect(compareValueText('bedtime', 390, 'h:mm a')).toBe('12:30 am');
+    // Other metrics ignore it.
+    expect(compareValueText('mood', 58, 'HH:mm')).toBe('5.8');
+  });
+});
+
+describe('subjectName', () => {
+  test("a sleep metric by the day is last night's", () => {
+    expect(subjectName('timeAsleep', 'day', t)).toBe(
+      "Last night's time asleep"
+    );
+  });
+
+  test('plain by the week, and a habit is its noun', () => {
+    expect(subjectName('timeAsleep', 'week', t)).toBe('Time asleep');
+    expect(subjectName('meditated', 'day', t)).toBe('Meditating');
+    expect(subjectName('caffeine', 'day', t)).toBe('Caffeine');
   });
 });
 

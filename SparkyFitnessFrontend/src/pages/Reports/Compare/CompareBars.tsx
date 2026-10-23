@@ -5,6 +5,7 @@ import {
   type CompareResponse,
 } from '@workspace/shared';
 import { Card, CardContent } from '@/components/ui/card';
+import { usePreferences } from '@/contexts/PreferencesContext';
 import { compareValueText, yesNoWording } from './compareCopy';
 
 interface CompareBarsProps {
@@ -14,6 +15,7 @@ interface CompareBarsProps {
 
 export const CompareBars = ({ response, question }: CompareBarsProps) => {
   const { t } = useTranslation();
+  const { timeFormat } = usePreferences();
   const binary = response.result.binary;
   if (!binary) return null;
 
@@ -30,7 +32,7 @@ export const CompareBars = ({ response, question }: CompareBarsProps) => {
       id: 'yes',
       label: wording.yesLabel,
       mean: yesMean,
-      text: compareValueText(outcome, binary.yesMean),
+      text: compareValueText(outcome, binary.yesMean, timeFormat),
       count: binary.yesCount,
       color: 'bg-[#8884d8]',
     },
@@ -38,7 +40,7 @@ export const CompareBars = ({ response, question }: CompareBarsProps) => {
       id: 'no',
       label: wording.noLabel,
       mean: noMean,
-      text: compareValueText(outcome, binary.noMean),
+      text: compareValueText(outcome, binary.noMean, timeFormat),
       count: binary.noCount,
       color: 'bg-muted-foreground/60',
     },

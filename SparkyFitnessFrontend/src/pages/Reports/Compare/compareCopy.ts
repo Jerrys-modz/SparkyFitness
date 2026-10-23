@@ -14,6 +14,7 @@ import {
   isSleepMetric,
   timingOf,
 } from '@workspace/shared';
+import { formatTimeOfDayString } from '@/utils/timeFormatters';
 import { COMPARE_METRIC_LABELS } from './compareMetricLabels';
 
 // The Compare wording, the website's copy of the phone's
@@ -85,6 +86,19 @@ function objectPhrase(key: CompareMetricKey, t: Translator): string {
 /** A metric named on its own at the start of a line: "Time asleep", "Meditating". */
 export function metricName(key: CompareMetricKey, t: Translator): string {
   return upperFirst(objectPhrase(key, t));
+}
+
+/**
+ * The question's first thing named on its own, as the sentence names it: a
+ * sleep metric by the day is "Last night's time asleep", because a day's sleep
+ * is the night before it.
+ */
+export function subjectName(
+  key: CompareMetricKey,
+  mode: CompareMode,
+  t: Translator
+): string {
+  return upperFirst(subjectPhrase(key, mode, t));
 }
 
 type Phrase = (t: Translator) => string;
@@ -684,17 +698,18 @@ function fixed(value: number, digits: number): string {
 }
 
 /**
- * An amount of a metric on its display scale (mood 1-10): counts and minutes
- * whole, everything else to one decimal. Bedtime here is a span of whole
- * minutes, not a clock time. `signed` shows a difference with its sign.
+ * An amount already on its display scale (a chart dot, mood 1-10), to the
+ * metric's precision: counts and minutes whole, everything else to one
+ * decimal. It never converts the scale again. `signed` shows a difference
+ * with its sign.
  */
-export function compareAmountText(
+export function compareShownAmountText(
   key: CompareMetricKey,
-  value: number,
+  shown: number,
   signed = false
 ): string {
   const digits = compareDigits(key);
-  return formatNumber(compareDisplayValue(key, value), {
+  return formatNumber(shown, {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
     ...(signed ? { signDisplay: 'exceptZero' as const } : {}),
@@ -702,13 +717,32 @@ export function compareAmountText(
 }
 
 /**
- * A metric's raw value as the person reads it: bedtime (minutes after 18:00)
- * as a clock time in the app's language, everything else as
- * `compareAmountText`.
+ * An amount of a metric on its stored scale, shown on its display scale
+ * (mood 1-10). Bedtime here is a span of whole minutes, not a clock time.
+ * `signed` shows a difference with its sign.
  */
-export function compareValueText(key: CompareMetricKey, value: number): string {
+export function compareAmountText(
+  key: CompareMetricKey,
+  value: number,
+  signed = false
+): string {
+  return compareShownAmountText(key, compareDisplayValue(key, value), signed);
+}
+
+/**
+ * A metric's raw value as the person reads it: bedtime (minutes after 18:00)
+ * as a clock time, everything else as `compareAmountText`. The clock follows
+ * `timeFormat` (the person's 12/24-hour setting) when given, else the app's
+ * language.
+ */
+export function compareValueText(
+  key: CompareMetricKey,
+  value: number,
+  timeFormat?: string
+): string {
   if (key === 'bedtime') {
     const clock = bedtimeClock(value);
+    if (timeFormat) return formatTimeOfDayString(clock, timeFormat);
     // A fixed non-DST date, so the clock time never shifts.
     const date = new Date(
       2000,

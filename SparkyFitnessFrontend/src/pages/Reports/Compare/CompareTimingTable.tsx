@@ -70,12 +70,11 @@ export const CompareTimingTable = ({
           >
             <span className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-sm font-medium">
-                {`${metricName(question.b, t)} ${timingLabel(
-                  row.choice,
-                  question.a,
-                  question.b,
-                  t
-                )}`}
+                {t('compareReport.timing.metricWhen', {
+                  defaultValue: '{{metric}} {{timing}}',
+                  metric: metricName(question.b, t),
+                  timing: timingLabel(row.choice, question.a, question.b, t),
+                })}
               </span>
               {row.isAsked && (
                 <span className="rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">

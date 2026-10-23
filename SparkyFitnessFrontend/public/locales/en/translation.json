@@ -9472,7 +9472,8 @@
       "noLink": "No clear link",
       "notEnough": "Not enough days",
       "loadFailed": "Couldn't load",
-      "loading": "Loading"
+      "loading": "Loading",
+      "metricWhen": "{{metric}} {{timing}}"
     },
     "yesNo": {
       "onDays": "On days you {{yes}}",
@@ -9644,7 +9645,9 @@
       "no": "No",
       "count_one": "{{count}} day",
       "count_other": "{{count}} days",
-      "daysDeviation": "{{amount}} days"
+      "daysDeviation": "{{amount}} days",
+      "minutesDeviation": "{{amount}} min",
+      "metricWhen": "{{metric}} ({{timing}})"
     }
   }
 }

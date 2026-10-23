@@ -13,9 +13,12 @@ jest.mock('react-i18next', () =>
   jest.requireActual('@/tests/mocks/reactI18next')
 );
 
+let mockTimeFormat: string | undefined;
+
 jest.mock('@/contexts/PreferencesContext', () => ({
   usePreferences: () => ({
     timezone: 'UTC',
+    timeFormat: mockTimeFormat,
     formatDateInUserTimezone: (d: string) => d,
   }),
 }));
@@ -33,8 +36,18 @@ interface Dot {
   x: number;
   y: number;
 }
+type Format = (value: number) => string;
+interface AxisProps {
+  tickFormatter?: Format;
+  allowDecimals?: boolean;
+}
+type TooltipFormat = (value: number, name: string) => [string, string];
+
 let scatterData: Dot[] = [];
 let lineKeys: string[] = [];
+let xAxis: AxisProps = {};
+let yAxis: AxisProps = {};
+let tooltipFormat: TooltipFormat | undefined;
 
 jest.mock('recharts', () => {
   const Passthrough = ({ children }: { children?: ReactNode }) => (
@@ -53,10 +66,19 @@ jest.mock('recharts', () => {
       return null;
     },
     ReferenceLine: () => <div data-testid="trend" />,
-    XAxis: () => null,
-    YAxis: () => null,
+    XAxis: (props: AxisProps) => {
+      xAxis = props;
+      return null;
+    },
+    YAxis: (props: AxisProps) => {
+      yAxis = props;
+      return null;
+    },
     CartesianGrid: () => null,
-    Tooltip: () => null,
+    Tooltip: ({ formatter }: { formatter?: TooltipFormat }) => {
+      tooltipFormat = formatter;
+      return null;
+    },
   };
 });
 
@@ -98,6 +120,10 @@ const DEV = {
 beforeEach(() => {
   scatterData = [];
   lineKeys = [];
+  xAxis = {};
+  yAxis = {};
+  tooltipFormat = undefined;
+  mockTimeFormat = undefined;
 });
 
 describe('CompareDotsChart', () => {
@@ -119,6 +145,46 @@ describe('CompareDotsChart', () => {
       />
     );
     expect(screen.queryByTestId('trend')).not.toBeInTheDocument();
+  });
+
+  test('axes and tooltip read the dots as signed amounts on the display scale', () => {
+    const q: CompareQuestion = { a: 'steps', b: 'mood', choice: 'sameDay' };
+    render(
+      <CompareDotsChart
+        response={response(
+          { linked: false },
+          q,
+          // Mood deviations are stored ×10; the dots show them on 1-10.
+          { a: { '2026-10-01': 1234 }, b: { '2026-10-01': 8 } }
+        )}
+        question={q}
+      />
+    );
+    expect(scatterData).toEqual([{ key: '2026-10-01', x: 1234, y: 0.8 }]);
+    // Steps are whole, and the ticks say so instead of "1234.0".
+    expect(xAxis.tickFormatter?.(1234)).toBe('+1,234');
+    expect(xAxis.tickFormatter?.(0)).toBe('0');
+    expect(xAxis.allowDecimals).toBe(false);
+    // Mood is already on the display scale: 0.8 stays 0.8, never 0.1.
+    expect(yAxis.tickFormatter?.(0.8)).toBe('+0.8');
+    expect(yAxis.tickFormatter?.(-1.5)).toBe('-1.5');
+    expect(yAxis.allowDecimals).toBe(true);
+    expect(tooltipFormat?.(1234, 'Steps')).toEqual(['+1,234', 'Steps']);
+    expect(tooltipFormat?.(-0.5, 'Mood')).toEqual(['-0.5', 'Mood']);
+  });
+
+  test('a yes/no side by day is a 0/1 flag, not a signed deviation', () => {
+    render(
+      <CompareDotsChart
+        response={response({ status: 'not_enough' }, YES_NO_Q, {
+          a: { '2026-10-01': 1 },
+          b: { '2026-10-01': 0.5 },
+        })}
+        question={YES_NO_Q}
+      />
+    );
+    expect(xAxis.tickFormatter?.(1)).toBe('1');
+    expect(yAxis.tickFormatter?.(0.5)).toBe('+0.5');
   });
 
   test('shows the empty state with no dots', () => {
@@ -158,6 +224,39 @@ describe('CompareDotsChart', () => {
     expect(screen.queryByTestId('scatter')).not.toBeInTheDocument();
     expect(screen.getByText(/· 1 day$/)).toBeInTheDocument();
   });
+
+  test('bars show a bedtime as a clock time in the 12/24-hour setting', () => {
+    const q: CompareQuestion = {
+      a: 'meditated',
+      b: 'bedtime',
+      choice: 'sameDay',
+    };
+    const binaryResponse = response(
+      {
+        linked: true,
+        binary: {
+          yesKey: 'meditated',
+          yesMean: 240,
+          noMean: 300,
+          diff: -60,
+          yesCount: 10,
+          noCount: 12,
+        },
+      },
+      q,
+      DEV
+    );
+    mockTimeFormat = 'HH:mm';
+    const { unmount } = render(
+      <CompareDotsChart response={binaryResponse} question={q} />
+    );
+    expect(screen.getByText('22:00 · 10 nights')).toBeInTheDocument();
+    expect(screen.getByText('23:00 · 12 nights')).toBeInTheDocument();
+    unmount();
+    mockTimeFormat = 'h:mm A';
+    render(<CompareDotsChart response={binaryResponse} question={q} />);
+    expect(screen.getByText('10:00 PM · 10 nights')).toBeInTheDocument();
+  });
 });
 
 describe('CompareOverTimeChart', () => {
@@ -168,6 +267,15 @@ describe('CompareOverTimeChart', () => {
     expect(lineKeys).toEqual(['a', 'b']);
     expect(screen.getByText(/^Energy/)).toBeInTheDocument();
     expect(screen.getByText(/Time asleep/)).toBeInTheDocument();
+  });
+
+  test('the legend shows a bedtime range in the 12/24-hour setting', () => {
+    const q: CompareQuestion = { a: 'bedtime', b: 'energy', choice: 'sameDay' };
+    const bedtimes = response({}, q, DEV);
+    bedtimes.a.values = { '2026-10-01': 240, '2026-10-02': 300 };
+    mockTimeFormat = 'HH:mm';
+    render(<CompareOverTimeChart response={bedtimes} question={q} />);
+    expect(screen.getByText('Bedtime 22:00–23:00')).toBeInTheDocument();
   });
 
   test('shows the empty state when nothing is logged', () => {

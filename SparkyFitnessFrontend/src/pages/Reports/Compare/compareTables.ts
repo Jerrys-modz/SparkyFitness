@@ -6,6 +6,7 @@ import {
   pairedDots,
   timingOf,
   type CompareMetricKey,
+  type CompareMode,
   type CompareQuestion,
   type CompareResponse,
   type CompareResult,
@@ -22,8 +23,20 @@ export interface CompareDayRow {
 }
 
 /**
- * One row per paired day (or week start), newest first. A yes/no side by day
- * has no deviation: its "deviation" is the raw 0/1 flag.
+ * Whether a side has a "vs. your usual" deviation. A yes/no side by day has
+ * none: its "deviation" is the raw 0/1 flag. By week it is a day count, which
+ * does have one.
+ */
+export function hasDeviation(
+  key: CompareMetricKey,
+  mode: CompareMode
+): boolean {
+  return !(mode === 'day' && COMPARE_METRICS[key].kind === 'binary');
+}
+
+/**
+ * One row per paired day (or week start), newest first. A side without a
+ * deviation (`hasDeviation`) has a null one.
  */
 export function dayRows(
   response: CompareResponse,
@@ -33,8 +46,6 @@ export function dayRows(
   if (chosen.mode === 'since') return [];
   const { mode, timing } = chosen;
   const shift = mode === 'week' ? 7 * timing : timing;
-  const noDev = (key: CompareMetricKey) =>
-    mode === 'day' && COMPARE_METRICS[key].kind === 'binary';
   const rows: CompareDayRow[] = [];
   for (const dot of pairedDots(response, mode, timing)) {
     const bKey = addDays(dot.key, shift);
@@ -45,9 +56,9 @@ export function dayRows(
       aKey: dot.key,
       bKey,
       aRaw,
-      aDev: noDev(q.a) ? null : dot.x,
+      aDev: hasDeviation(q.a, mode) ? dot.x : null,
       bRaw,
-      bDev: noDev(q.b) ? null : dot.y,
+      bDev: hasDeviation(q.b, mode) ? dot.y : null,
     });
   }
   return rows.sort((p, r) => (p.aKey < r.aKey ? 1 : p.aKey > r.aKey ? -1 : 0));

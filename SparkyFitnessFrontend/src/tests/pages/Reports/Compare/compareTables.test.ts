@@ -5,6 +5,7 @@ import type {
 } from '@workspace/shared';
 import {
   dayRows,
+  hasDeviation,
   timingBarWidths,
   timingRows,
   type CompareTimingRow,
@@ -115,6 +116,15 @@ describe('dayRows', () => {
       '2026-10-02',
       '2026-10-01',
     ]);
+  });
+});
+
+describe('hasDeviation', () => {
+  it('leaves out only a yes/no side by day', () => {
+    expect(hasDeviation('meditated', 'day')).toBe(false);
+    expect(hasDeviation('meditated', 'week')).toBe(true);
+    expect(hasDeviation('energy', 'day')).toBe(true);
+    expect(hasDeviation('bedtime', 'week')).toBe(true);
   });
 });
 

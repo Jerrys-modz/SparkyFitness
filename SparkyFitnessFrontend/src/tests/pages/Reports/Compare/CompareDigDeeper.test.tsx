@@ -36,12 +36,19 @@ jest.mock('react-i18next', () => {
   };
 });
 
+let mockTimeFormat: string | undefined;
+
 jest.mock('@/contexts/PreferencesContext', () => ({
   usePreferences: () => ({
     timezone: 'UTC',
+    timeFormat: mockTimeFormat,
     formatDateInUserTimezone: (d: string) => `fmt:${d}`,
   }),
 }));
+
+beforeEach(() => {
+  mockTimeFormat = undefined;
+});
 
 const DAY_Q: CompareQuestion = {
   a: 'focus',
@@ -248,15 +255,116 @@ describe('CompareDaysTable', () => {
     expect(within(rows[1]!).getByText('7.0')).toBeInTheDocument();
     expect(within(rows[1]!).getByText(/10:00/)).toBeInTheDocument();
     expect(within(rows[1]!).getByText('+1.0')).toBeInTheDocument();
-    // Headers carry the timing words on B.
+    // A bedtime deviation is a span of minutes.
+    expect(within(rows[1]!).getByText('+30 min')).toBeInTheDocument();
+    expect(within(rows[0]!).getByText('-30 min')).toBeInTheDocument();
+    // Headers carry the timing words on B, and a sleep A by day is last night's.
+    const table = within(screen.getByRole('table'));
+    expect(
+      table.getByText('Mood (the day after you woke)')
+    ).toBeInTheDocument();
+    expect(
+      table.getByText('Mood (the day after you woke) vs. your usual')
+    ).toBeInTheDocument();
+    expect(table.getByText("Last night's bedtime")).toBeInTheDocument();
+    expect(
+      table.getByText("Last night's bedtime vs. your usual")
+    ).toBeInTheDocument();
+  });
+
+  test('bedtime follows the 12/24-hour setting', () => {
+    const q: CompareQuestion = { a: 'bedtime', b: 'mood', choice: 'nextDay' };
+    const parts = {
+      aValues: { '2026-10-01': 240 },
+      bValues: { '2026-10-02': 70 },
+      devA: { '2026-10-01': 30 },
+      devB: { '2026-10-02': 10 },
+    };
+    mockTimeFormat = 'HH:mm';
+    const { unmount } = render(
+      <CompareDaysTable question={q} response={response(q, parts)} />
+    );
+    expect(within(bodyRows()[0]!).getByText('22:00')).toBeInTheDocument();
+    unmount();
+    mockTimeFormat = 'h:mm A';
+    render(<CompareDaysTable question={q} response={response(q, parts)} />);
+    expect(within(bodyRows()[0]!).getByText('10:00 PM')).toBeInTheDocument();
+  });
+
+  test('sleep on B the same day is the night before', () => {
+    const q: CompareQuestion = {
+      a: 'caffeine',
+      b: 'timeAsleep',
+      choice: 'sameDay',
+    };
+    render(
+      <CompareDaysTable
+        question={q}
+        response={response(q, {
+          aValues: { '2026-10-01': 200 },
+          bValues: { '2026-10-01': 7.1 },
+          devA: { '2026-10-01': 50 },
+          devB: { '2026-10-01': -0.4 },
+        })}
+      />
+    );
+    const table = within(screen.getByRole('table'));
+    expect(
+      table.getByText('Time asleep (the night before)')
+    ).toBeInTheDocument();
+    expect(
+      table.getByText('Time asleep (the night before) vs. your usual')
+    ).toBeInTheDocument();
+    expect(table.getByText('Caffeine')).toBeInTheDocument();
+  });
+
+  test("sleep on A the same day is last night's, and B is that day", () => {
+    const q: CompareQuestion = {
+      a: 'timeAsleep',
+      b: 'energy',
+      choice: 'sameDay',
+    };
+    render(
+      <CompareDaysTable
+        question={q}
+        response={response(q, {
+          aValues: { '2026-10-01': 7.1 },
+          bValues: { '2026-10-01': 3 },
+          devA: { '2026-10-01': -0.4 },
+          devB: { '2026-10-01': 0.5 },
+        })}
+      />
+    );
+    const table = within(screen.getByRole('table'));
+    expect(table.getByText("Last night's time asleep")).toBeInTheDocument();
+    expect(table.getByText('Energy (that day)')).toBeInTheDocument();
+  });
+
+  test('two sleep metrics the same day share the same night', () => {
+    const q: CompareQuestion = {
+      a: 'timeAsleep',
+      b: 'sleepScore',
+      choice: 'sameDay',
+    };
+    render(
+      <CompareDaysTable
+        question={q}
+        response={response(q, {
+          aValues: { '2026-10-01': 7.1 },
+          bValues: { '2026-10-01': 80 },
+          devA: { '2026-10-01': -0.4 },
+          devB: { '2026-10-01': 2 },
+        })}
+      />
+    );
     expect(
       within(screen.getByRole('table')).getByText(
-        'Mood (the day after you woke)'
+        'Sleep score (the same night)'
       )
     ).toBeInTheDocument();
   });
 
-  test('a yes/no side by day shows Yes/No and a dash for its deviation', () => {
+  test('a yes/no side by day shows Yes/No and has no vs-usual column', () => {
     const q: CompareQuestion = {
       a: 'meditated',
       b: 'energy',
@@ -276,8 +384,15 @@ describe('CompareDaysTable', () => {
     const rows = bodyRows();
     expect(within(rows[0]!).getByText('No')).toBeInTheDocument();
     expect(within(rows[1]!).getByText('Yes')).toBeInTheDocument();
-    expect(within(rows[0]!).getByText('—')).toBeInTheDocument();
+    expect(within(rows[0]!).queryByText('—')).not.toBeInTheDocument();
     expect(within(rows[0]!).getByText('-0.5')).toBeInTheDocument();
+    // Day, Meditating, Energy, Energy vs. your usual. Neither side is sleep and
+    // the timing is the same day, so B carries no timing words.
+    const table = within(screen.getByRole('table'));
+    expect(table.getAllByRole('columnheader')).toHaveLength(4);
+    expect(table.queryByText('Meditating vs. your usual')).toBeNull();
+    expect(table.getByText('Energy')).toBeInTheDocument();
+    expect(table.getByText('Energy vs. your usual')).toBeInTheDocument();
   });
 
   test('a yes/no side by week is a day count with a signed deviation', () => {
@@ -303,6 +418,10 @@ describe('CompareDaysTable', () => {
     expect(within(rows[1]!).getByText('3 days')).toBeInTheDocument();
     expect(within(rows[1]!).getByText('+1.5 days')).toBeInTheDocument();
     expect(within(rows[1]!).queryByText('Yes')).not.toBeInTheDocument();
+    // By week the habit keeps its vs-usual column.
+    expect(
+      within(screen.getByRole('table')).getAllByRole('columnheader')
+    ).toHaveLength(5);
   });
 
   test('by week the day column reads "Week of"', () => {
