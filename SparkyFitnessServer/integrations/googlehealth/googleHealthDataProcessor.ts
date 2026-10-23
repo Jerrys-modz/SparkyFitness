@@ -176,6 +176,30 @@ function extractDate(
 // Google data type: daily-resting-heart-rate
 // Response: dataPoints[].dailyRestingHeartRate.beatsPerMinute
 // ──────────────────────────────────────────────────────────────────────────────
+function readDailyRestingHeartRate(
+  point: Record<string, unknown>
+): number | null {
+  const bpm = (
+    point.dailyRestingHeartRate as { beatsPerMinute?: unknown } | undefined
+  )?.beatsPerMinute;
+  if (bpm === null || bpm === undefined) return null;
+  return bpm as number;
+}
+
+// Daily resting heart rate keyed by the same date processGoogleHeartRate stores it under.
+function dailyRestingHeartRateByDate(
+  data: GoogleDataResult | null | undefined,
+  tz: string
+): Map<string, number> {
+  const byDate = new Map<string, number>();
+  for (const point of data?.dataPoints ?? []) {
+    const entryDate = extractDate(point as Record<string, unknown>, tz);
+    const bpm = readDailyRestingHeartRate(point as Record<string, unknown>);
+    if (entryDate && bpm !== null) byDate.set(entryDate, bpm);
+  }
+  return byDate;
+}
+
 async function processGoogleHeartRate(
   userId: UserId,
   createdByUserId: UserId,
@@ -190,13 +214,11 @@ async function processGoogleHeartRate(
   for (const point of points) {
     const entryDate = extractDate(point as Record<string, unknown>, tz);
     if (!entryDate) continue;
-    const hr = point.dailyRestingHeartRate as
-      { beatsPerMinute?: unknown } | undefined;
-    const bpm = hr?.beatsPerMinute;
-    if (bpm === null || bpm === undefined) continue;
+    const bpm = readDailyRestingHeartRate(point as Record<string, unknown>);
+    if (bpm === null) continue;
     await upsertCustomMeasurementLogic(userId, createdByUserId, {
       categoryName: 'Resting Heart Rate',
-      value: bpm as number,
+      value: bpm,
       unit: 'bpm',
       entryDate,
       entryHour: 0,
@@ -434,6 +456,30 @@ async function processGoogleProfile(
 // Google data type: daily-heart-rate-variability
 // Response: dataPoints[].dailyHeartRateVariability.averageHeartRateVariabilityMilliseconds
 // ──────────────────────────────────────────────────────────────────────────────
+function readDailyHrv(point: Record<string, unknown>): number | null {
+  const rmssd = (
+    point.dailyHeartRateVariability as
+      { averageHeartRateVariabilityMilliseconds?: unknown } | undefined
+  )?.averageHeartRateVariabilityMilliseconds;
+  if (rmssd === null || rmssd === undefined) return null;
+  return parseFloat(rmssd as string);
+}
+
+// Daily HRV (RMSSD) keyed by the same date processGoogleHRV stores it under.
+function dailyHrvByDate(
+  data: GoogleDataResult | null | undefined,
+  tz: string
+): Map<string, number> {
+  const byDate = new Map<string, number>();
+  for (const point of data?.dataPoints ?? []) {
+    const entryDate = extractDate(point as Record<string, unknown>, tz);
+    const hrv = readDailyHrv(point as Record<string, unknown>);
+    if (entryDate && hrv !== null && !Number.isNaN(hrv))
+      byDate.set(entryDate, hrv);
+  }
+  return byDate;
+}
+
 async function processGoogleHRV(
   userId: UserId,
   createdByUserId: UserId,
@@ -448,14 +494,11 @@ async function processGoogleHRV(
   for (const point of points) {
     const entryDate = extractDate(point as Record<string, unknown>, tz);
     if (!entryDate) continue;
-    const rmssd = (
-      point.dailyHeartRateVariability as
-        { averageHeartRateVariabilityMilliseconds?: unknown } | undefined
-    )?.averageHeartRateVariabilityMilliseconds;
-    if (rmssd === null || rmssd === undefined) continue;
+    const rmssd = readDailyHrv(point as Record<string, unknown>);
+    if (rmssd === null) continue;
     await upsertCustomMeasurementLogic(userId, createdByUserId, {
       categoryName: 'HRV',
-      value: parseFloat(rmssd as string),
+      value: rmssd,
       unit: 'ms',
       entryDate,
       entryHour: 0,
@@ -570,11 +613,17 @@ async function processGoogleActiveZoneMinutes(
 // Response: dataPoints[].sleep.{summary, stages[], interval}
 // Stages: AWAKE, LIGHT, DEEP, REM
 // ──────────────────────────────────────────────────────────────────────────────
+interface SleepBiometricsByDate {
+  hrvByDate?: Map<string, number>;
+  restingHrByDate?: Map<string, number>;
+}
+
 async function processGoogleSleep(
   userId: UserId,
   createdByUserId: UserId,
   data: GoogleDataResult,
-  tz = 'UTC'
+  tz = 'UTC',
+  biometrics: SleepBiometricsByDate = {}
 ) {
   const points = data?.dataPoints;
   if (!points || points.length === 0) {
@@ -712,7 +761,12 @@ async function processGoogleSleep(
     const result = await sleepRepository.upsertSleepEntry(
       userId,
       createdByUserId,
-      entryData
+      {
+        ...entryData,
+        avg_overnight_hrv: biometrics.hrvByDate?.get(sleepDate),
+        resting_heart_rate: biometrics.restingHrByDate?.get(sleepDate),
+      },
+      { keepExistingBiometrics: true }
     );
 
     if (result?.id && stages.length > 0) {
@@ -1309,6 +1363,8 @@ export { processGoogleHRV };
 export { processGoogleRespiratoryRate };
 export { processGoogleActiveZoneMinutes };
 export { processGoogleSleep };
+export { dailyHrvByDate, dailyRestingHeartRateByDate };
+export type { SleepBiometricsByDate };
 export { processGoogleActivities };
 export { processGoogleBodyFat };
 export { processGoogleWater };
@@ -1319,6 +1375,8 @@ export { processGoogleDistance };
 export { processGoogleFloors };
 export { processGoogleCalories };
 export default {
+  dailyHrvByDate,
+  dailyRestingHeartRateByDate,
   processGoogleHeartRate,
   processGoogleSteps,
   processGoogleWeight,

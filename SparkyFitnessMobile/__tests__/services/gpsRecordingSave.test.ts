@@ -21,6 +21,7 @@ import {
 import {
   learnFromIndoorEntry,
   learnFromOutdoorRecording,
+  measureOutdoorForm,
 } from '../../src/services/stepDistance';
 import type { RecordedPoint } from '../../src/utils/gpsRecording';
 import type { RecordingSession } from '../../src/services/gpsRecordingService';
@@ -33,6 +34,8 @@ jest.mock('../../src/services/gpsRecordingService', () => ({
   elapsedSeconds: jest.fn(() => 1500),
   markRecordingSaved: jest.fn(() => Promise.resolve()),
   getHeartRateSamples: jest.fn(() => Promise.resolve([])),
+  peekAppleWorkoutZones: jest.fn(() => null),
+  clearAppleWorkoutZones: jest.fn(),
 }));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 jest.mock('../../src/services/stepDistance');
@@ -45,6 +48,7 @@ const mockedTelemetry = jest.mocked(attachExerciseEntryWatchTelemetry);
 const mockedHeartRate = jest.mocked(getHeartRateSamples);
 const mockedLearnIndoor = jest.mocked(learnFromIndoorEntry);
 const mockedLearnOutdoor = jest.mocked(learnFromOutdoorRecording);
+const mockedMeasureForm = jest.mocked(measureOutdoorForm);
 const mockedFetchShoes = jest.mocked(fetchShoes);
 const mockedAssignShoe = jest.mocked(assignShoeToExerciseEntry);
 const mockedWornOut = jest.mocked(findShoeThatReachedLimit);
@@ -130,7 +134,10 @@ describe('saveRecordedActivity', () => {
   it('logs the entry, then attaches the route and per-km splits', async () => {
     const saved = await saveRecordedActivity(session, points, 'km');
 
-    expect(saved).toEqual({ entryId: 'entry-1', entryDate: '2026-10-06' });
+    expect(saved).toMatchObject({
+      entryId: 'entry-1',
+      entryDate: '2026-10-06',
+    });
     const entry = mockedCreateEntry.mock.calls[0][0];
     expect(entry).toMatchObject({
       exercise_id: 'ex-1',
@@ -143,7 +150,7 @@ describe('saveRecordedActivity', () => {
     expect(entry).not.toHaveProperty('calories_burned');
     expect(entry.sets?.[0]).toMatchObject({ duration: 1500 });
 
-    expect(markRecordingSaved).toHaveBeenCalledWith('entry-1');
+    expect(markRecordingSaved).toHaveBeenCalledWith('entry-1', null);
     const [entryId, track] = mockedAttach.mock.calls[0];
     expect(entryId).toBe('entry-1');
     expect(track.points).toHaveLength(11);
@@ -181,13 +188,25 @@ describe('saveRecordedActivity', () => {
     expect(mockedAttach.mock.calls[0][0]).toBe('entry-9');
   });
 
+  it('returns the form saved with the first attempt when retrying', async () => {
+    const savedForm = { avgCadence: 160, strideLengthCm: 105 };
+    const saved = await saveRecordedActivity(
+      { ...session, savedEntryId: 'entry-9', savedForm },
+      points,
+      'km'
+    );
+
+    expect(saved.form).toEqual(savedForm);
+    expect(mockedCreateEntry).not.toHaveBeenCalled();
+  });
+
   it('keeps the entry id for a retry when the track upload fails', async () => {
     mockedAttach.mockRejectedValueOnce(new Error('offline'));
 
     await expect(saveRecordedActivity(session, points, 'km')).rejects.toThrow(
       'offline'
     );
-    expect(markRecordingSaved).toHaveBeenCalledWith('entry-1');
+    expect(markRecordingSaved).toHaveBeenCalledWith('entry-1', null);
   });
 
   it('attaches watch heart rate to the saved entry', async () => {
@@ -219,7 +238,9 @@ describe('saveRecordedActivity', () => {
     ]);
     mockedTelemetry.mockRejectedValueOnce(new Error('offline'));
 
-    await expect(saveRecordedActivity(session, points, 'km')).resolves.toEqual({
+    await expect(
+      saveRecordedActivity(session, points, 'km')
+    ).resolves.toMatchObject({
       entryId: 'entry-1',
       entryDate: '2026-10-06',
     });
@@ -232,7 +253,10 @@ describe('saveRecordedActivity for an indoor session', () => {
   it('logs the entered distance and sends no route', async () => {
     const saved = await saveRecordedActivity(indoor, [], 'km', 5.2);
 
-    expect(saved).toEqual({ entryId: 'entry-1', entryDate: '2026-10-06' });
+    expect(saved).toMatchObject({
+      entryId: 'entry-1',
+      entryDate: '2026-10-06',
+    });
     expect(mockedCreateEntry).toHaveBeenCalledWith(
       expect.objectContaining({
         exercise_name: 'Indoor Running',
@@ -322,6 +346,35 @@ describe('learning a stride while saving', () => {
     );
   });
 
+  it('logs cadence and stride measured from the step count', async () => {
+    mockedMeasureForm.mockResolvedValueOnce({
+      avgCadence: 168,
+      strideLengthCm: 104.2,
+    });
+
+    const saved = await saveRecordedActivity(
+      { ...session, activity: 'run' },
+      points,
+      'km'
+    );
+
+    expect(mockedCreateEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ avg_cadence: 168, stride_length_cm: 104.2 })
+    );
+    // Handed back so the summary can show the same numbers.
+    expect(saved.form).toEqual({ avgCadence: 168, strideLengthCm: 104.2 });
+  });
+
+  it('logs the run without form metrics when the phone cannot measure them', async () => {
+    mockedMeasureForm.mockRejectedValueOnce(new Error('no pedometer'));
+
+    await saveRecordedActivity({ ...session, activity: 'run' }, points, 'km');
+
+    const payload = mockedCreateEntry.mock.calls[0][0];
+    expect(payload).not.toHaveProperty('avg_cadence');
+    expect(payload).not.toHaveProperty('stride_length_cm');
+  });
+
   it('teaches the app from the GPS distance of an outdoor recording', async () => {
     await saveRecordedActivity({ ...session, activity: 'run' }, points, 'km');
 
@@ -352,7 +405,9 @@ describe('learning a stride while saving', () => {
   it('never fails the save', async () => {
     mockedLearnOutdoor.mockRejectedValueOnce(new Error('storage full'));
 
-    await expect(saveRecordedActivity(session, points, 'km')).resolves.toEqual({
+    await expect(
+      saveRecordedActivity(session, points, 'km')
+    ).resolves.toMatchObject({
       entryId: 'entry-1',
       entryDate: '2026-10-06',
     });

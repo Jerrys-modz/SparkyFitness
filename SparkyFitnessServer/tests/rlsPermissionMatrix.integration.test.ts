@@ -185,6 +185,7 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     pregnancy_kick_sessions: 'owner',
     pregnancy_photos: 'owner',
     run_programs: 'owner',
+    routes: 'owner',
     user_cycle_display_preferences: 'owner',
     user_fasting_preferences: 'owner',
     user_mood_display_preferences: 'owner',
@@ -605,6 +606,12 @@ describe.runIf(RUN)('RLS permission matrix', () => {
         policy: 'select_policy',
         col: 'qual',
         mustContain: 'share_external_providers',
+      },
+      {
+        table: 'external_data_providers',
+        policy: 'select_policy',
+        col: 'qual',
+        mustContain: 'authenticated_user_id() = user_id',
       },
       // Bidirectional visibility (owner OR the family member sees the grant).
       {

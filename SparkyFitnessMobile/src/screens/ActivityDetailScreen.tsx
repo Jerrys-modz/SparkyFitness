@@ -433,6 +433,15 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         keyboardType: 'numeric',
       });
     }
+    if (session.workout_effort != null) {
+      stats.push({
+        value: t('workoutEffort.value', {
+          defaultValue: '{{rating}}/10',
+          rating: formatLocalizedNumber(session.workout_effort),
+        }),
+        label: t('activityDetail.stats.effort', { defaultValue: 'Effort' }),
+      });
+    }
     if (session.steps != null && session.steps > 0) {
       stats.push({
         value: formatLocalizedNumber(session.steps),

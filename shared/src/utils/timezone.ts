@@ -86,6 +86,14 @@ export function daysBetween(a: string, b: string): number {
   return Math.round((ub - ua) / 86_400_000);
 }
 
+/** Every day from `start` to `end` inclusive; empty when `end` precedes `start`. */
+export function daysInRange(start: string, end: string): string[] {
+  const days: string[] = [];
+  const count = daysBetween(start, end);
+  for (let i = 0; i <= count; i++) days.push(addDays(start, i));
+  return days;
+}
+
 // ---------------------------------------------------------------------------
 // Timezone-aware operations
 // ---------------------------------------------------------------------------
@@ -503,6 +511,21 @@ export function localDateTimeToUtc(localDateTimeStr: string, tz: string): Date {
   }
 
   return new Date(resultMs);
+}
+
+/**
+ * The instant to stamp on something logged for `day` without a time of its
+ * own: `now` when `day` is today in `tz`, otherwise local noon of `day`. Either
+ * way the instant falls on `day` in `tz`, which `now` alone would not for a
+ * backdated entry.
+ */
+export function instantForDay(
+  day: string,
+  tz: string,
+  now: Date = new Date()
+): Date {
+  if (instantToDay(now, tz) === day) return now;
+  return localDateTimeToUtc(`${day}T12:00`, tz);
 }
 
 /**

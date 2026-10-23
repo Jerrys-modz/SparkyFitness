@@ -918,8 +918,6 @@
       "activeCalories": "Aktivní kalorie: {{activeCaloriesFromExercise}} {{energyUnit}}",
       "stepsCalories": "Kroky: {{dailySteps}} = {{stepsCalories}} {{energyUnit}}",
       "bmrCalories": "BMR: {{bmr}} {{energyUnit}}",
-      "bmrSourceMeasured": "Naměřeno",
-      "bmrSourceAlgorithm": "Algoritmus",
       "totalCaloriesBurned": "Celkem: {{totalCaloriesBurned}} {{energyUnit}}",
       "goal": "cíl",
       "caloriesBurnedBreakdownTitle": "Rozdělení spálených kalorií",
@@ -2220,7 +2218,6 @@
       "safetyFloorStandardHint": "Použije vyšší hodnotu z odhadovaného RMR a klinického minima (1 200 kcal pro ženy, 1 500 kcal pro muže).",
       "safetyFloorValueLabel": "Vlastní minimum",
       "awaitingCalibrationTitle": "Čeká se na kalibraci adaptivního TDEE",
-      "modeUnreachableSuffix": "nelze dosáhnout",
       "customPercentageUnreachable": "Požadovaný deficit je vyšší než přibližně {{percent}} %, což je maximum povolené bezpečným minimem; cíl bude zvýšen na toto minimum.",
       "deficitCeilingHintEstimated": "Při vaší současné úrovni aktivity lze dosáhnout nejvýše přibližně {{percent}} % deficitu. U vyššího deficitu bude cíl zvýšen na bezpečné minimum.",
       "deficitCeilingHintMeasured": "Podle naměřeného TDEE lze dosáhnout nejvýše přibližně {{percent}} % deficitu. U vyššího deficitu bude cíl zvýšen na bezpečné minimum.",
@@ -3078,7 +3075,6 @@
     "editingTemporarilyUnavailable": "Úprava údajů potraviny je kvůli změnám databáze dočasně nedostupná."
   },
   "checkIn": {
-    "howAreYouFeelingToday": "Jak se dnes cítíte?",
     "neutral": "Neutrální",
     "anyThoughtsOrFeelings": "Nějaké myšlenky nebo pocity, které byste chtěli přidat?",
     "sleepTracking": "Sledování spánku",
@@ -3159,17 +3155,13 @@
     "failedToLoadRecentCustom": "Nedávná vlastní měření se nepodařilo načíst.",
     "failedToLoadRecentStandard": "Nedávná standardní měření se nepodařilo načíst.",
     "failedToSaveCustomMeasurement": "Vlastní měření se nepodařilo uložit.",
-    "failedToSaveMood": "Náladu se nepodařilo uložit.",
     "failedToUpdateMeasurement": "Měření se nepodařilo aktualizovat.",
     "level": "úroveň",
     "measurementUpdatedSuccessfully": "Měření bylo úspěšně aktualizováno.",
-    "moodSaved": "Nálada uložena",
-    "moodSavedSuccessfully": "Nálada byla úspěšně uložena.",
     "muscleMass": "Svalová hmota",
     "recentFasts": "Nedávné půsty",
     "recentFastsDescription": "Poslední záznamy a stav půstu.",
     "recentMeasurementsDescription": "Vaše nejnovější záznamy včetně měření, dokončených půstů a synchronizovaných zdravotních údajů.",
-    "saveMood": "Uložit náladu",
     "stressLevel": "Úroveň stresu",
     "tabs": {
       "fasting": "Půst a nálada",
@@ -5263,7 +5255,6 @@
   "mood": {
     "dailyMood": "Denní nálada",
     "date": "Datum",
-    "deletedSuccessfully": "Záznam nálady byl smazán.",
     "failedAddCustom": "Náladu se nepodařilo přidat.",
     "failedDeleteCustom": "Náladu se nepodařilo odebrat.",
     "failedLoadPrefs": "Nastavení nálad se nepodařilo načíst.",
@@ -5271,17 +5262,13 @@
     "failedToDelete": "Záznam nálady se nepodařilo smazat.",
     "failedToLoadCustom": "Nálady se nepodařilo načíst.",
     "failedToLoadEntries": "Záznamy nálady se nepodařilo načíst.",
-    "failedToLoadEntry": "Záznam nálady se nepodařilo načíst.",
     "failedToSave": "Záznam nálady se nepodařilo uložit.",
     "failedToUpdate": "Záznam nálady se nepodařilo aktualizovat.",
     "intensityTrend": "Celkový vývoj nálady v čase",
     "mood": "Nálada",
     "moodValue": "Hodnota nálady",
     "mostCommon": "Nejčastější nálady",
-    "noMoodData": "Pro toto období nejsou k dispozici žádné údaje o náladě.",
-    "notes": "Poznámky: ",
-    "savedSuccessfully": "Záznam nálady byl uložen.",
-    "updatedSuccessfully": "Záznam nálady byl aktualizován."
+    "noMoodData": "Pro toto období nejsou k dispozici žádné údaje o náladě."
   },
   "preferences": {
     "resetError": "Předvolby se nepodařilo obnovit"
