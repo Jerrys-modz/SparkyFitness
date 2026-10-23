@@ -241,10 +241,12 @@ interface LinkedCalorieRow {
 }
 
 /**
- * Hold these entries, and any calorie link they already belong to, until the
- * transaction ends. Entry keys are taken before link keys, both in sorted
- * order, so an edit, a link and an unlink cannot deadlock or overwrite each
- * other. Callers must already be inside a transaction.
+ * Hold these entries, and any calorie link they belong to, until the
+ * transaction ends. Entry keys are taken first, in sorted order. Link keys
+ * are then taken one at a time, smallest first, and the entries are re-read
+ * after every wait: a relink can replace the id while this transaction was
+ * blocked, and the replacement has to be locked before any write. Callers
+ * must already be inside a transaction.
  */
 export async function lockCalorieLinkParticipantsWithClient(
   client: PoolClient,
@@ -257,22 +259,28 @@ export async function lockCalorieLinkParticipantsWithClient(
       `exercise-entry:${id}`,
     ]);
   }
-  const peek = await client.query<{ calorie_link_id: string | null }>(
-    `SELECT calorie_link_id FROM exercise_entries
-     WHERE user_id = $1 AND id = ANY($2::uuid[])`,
-    [userId, ids]
-  );
-  const linkIds = [
-    ...new Set(
-      peek.rows
-        .map((row) => row.calorie_link_id)
-        .filter((id): id is string => Boolean(id))
-    ),
-  ].sort();
-  for (const linkId of linkIds) {
+  const held = new Set<string>();
+  for (;;) {
+    const peek = await client.query<{ calorie_link_id: string | null }>(
+      `SELECT calorie_link_id FROM exercise_entries
+       WHERE user_id = $1 AND id = ANY($2::uuid[])`,
+      [userId, ids]
+    );
+    const pending = [
+      ...new Set(
+        peek.rows
+          .map((row) => row.calorie_link_id)
+          .filter((id): id is string => Boolean(id))
+      ),
+    ]
+      .filter((id) => !held.has(id))
+      .sort();
+    const next = pending[0];
+    if (!next) return;
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
-      `calorie-link:${linkId}`,
+      `calorie-link:${next}`,
     ]);
+    held.add(next);
   }
 }
 

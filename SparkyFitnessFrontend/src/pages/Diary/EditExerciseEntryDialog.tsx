@@ -1227,6 +1227,7 @@ const EditExerciseEntryDialog = ({
                     type="number"
                     min={0}
                     value={caloriesAppliedInput}
+                    disabled={Boolean(entry.calorie_link_id)}
                     onChange={(e) =>
                       setCaloriesAppliedInput(
                         e.target.value === '' ? '' : Number(e.target.value)
@@ -1238,7 +1239,7 @@ const EditExerciseEntryDialog = ({
                     )}
                     className="pr-8"
                   />
-                  {caloriesAppliedInput !== '' && (
+                  {caloriesAppliedInput !== '' && !entry.calorie_link_id && (
                     <Button
                       variant="ghost"
                       size="icon"
@@ -1250,10 +1251,15 @@ const EditExerciseEntryDialog = ({
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {t(
-                    'exercise.editExerciseEntryDialog.caloriesAppliedHint',
-                    'Use 0 when a watch workout already counts this session. The calories burned estimate is kept.'
-                  )}
+                  {entry.calorie_link_id
+                    ? t(
+                        'exercise.editExerciseEntryDialog.caloriesAppliedLinkedHint',
+                        'This session is linked to a synced workout, so the counted calories come from that link. Change or remove the link instead.'
+                      )
+                    : t(
+                        'exercise.editExerciseEntryDialog.caloriesAppliedHint',
+                        'Use 0 when a watch workout already counts this session. The calories burned estimate is kept.'
+                      )}
                 </p>
               </div>
 

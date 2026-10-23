@@ -1179,6 +1179,7 @@
       "caloriesAppliedLabel": "Calories counted in daily total (optional)",
       "caloriesAppliedPlaceholder": "Blank counts the calories burned above",
       "caloriesAppliedHint": "Use 0 when a watch workout already counts this session. The calories burned estimate is kept.",
+      "caloriesAppliedLinkedHint": "This session is linked to a synced workout, so the counted calories come from that link. Change or remove the link instead.",
       "distanceLabel": "Distance",
       "distancePlaceholder": "Enter distance in {{distanceUnit}}",
       "avgHeartRateLabel": "Average Heart Rate (bpm)",
