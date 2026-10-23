@@ -154,8 +154,13 @@ export function mapGarminExerciseCategory(rawCategory: unknown): string {
     if (normalized.includes('olympic')) return 'olympic weightlifting';
   }
 
-  // Known Garmin strength category from the muscle map (excluding warm up)
-  if (GARMIN_CATEGORY_TO_MUSCLES[uppercaseKey] && uppercaseKey !== 'WARM_UP') {
+  // Warm up
+  if (uppercaseKey === 'WARM_UP') {
+    return 'general';
+  }
+
+  // Known Garmin strength category from the muscle map
+  if (GARMIN_CATEGORY_TO_MUSCLES[uppercaseKey]) {
     return 'strength';
   }
 

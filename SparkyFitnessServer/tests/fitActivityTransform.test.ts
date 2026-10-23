@@ -721,5 +721,7 @@ describe('transformFitActivity — strength workout transformation', () => {
     expect(mapGarminExerciseCategory('olympic_lift')).toBe(
       'olympic weightlifting'
     );
+    expect(mapGarminExerciseCategory('warmUp')).toBe('general');
+    expect(mapGarminExerciseCategory('WARM_UP')).toBe('general');
   });
 });
