@@ -4840,6 +4840,7 @@
     "exerciseProgressTab": "Exercise Progress",
     "sleepTab": "Sleep",
     "tableTab": "Table View",
+    "compareTab": "Compare",
     "customMeasurementsTitle": "Custom Measurements",
     "errorLoadingReports": "Failed to load reports.",
     "noData": "No Data",
@@ -9403,6 +9404,8 @@
   },
   "compareReport": {
     "loadFailed": "Couldn't load this comparison",
+    "loading": "Loading comparison...",
+    "onlyYourOwnData": "Compare shows only your own data",
     "groups": {
       "feelings": "How you felt",
       "sleep": "Sleep",

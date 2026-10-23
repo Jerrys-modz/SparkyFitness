@@ -1,8 +1,8 @@
 import { useQueries, useQuery } from '@tanstack/react-query';
-import type { CompareQuery } from '@workspace/shared';
+import type { CompareQuery, CompareQuestion } from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 import { reportKeys } from '@/api/keys/reports';
-import { getCompare } from '@/api/Reports/compareApi';
+import { compareQueryFor, getCompare } from '@/api/Reports/compareApi';
 import { useAuth } from '@/hooks/useAuth';
 
 // Short enough that coming back to the tab after logging something refetches.
@@ -50,4 +50,19 @@ export const useCompareTimings = (base: CompareQuery | null) => {
     }),
   });
   return timings.map((timing, i) => ({ timing, query: results[i]! }));
+};
+
+/**
+ * A picked question read over a window: the asked timing plus the other
+ * timings. `window` is null when nothing may be asked (acting on behalf), so
+ * no request fires.
+ */
+export const useCompareQuestion = (
+  question: Partial<CompareQuestion>,
+  window: { startDate: string; endDate: string } | null
+) => {
+  const query = window ? compareQueryFor(question, window) : null;
+  const answer = useCompare(query);
+  const timings = useCompareTimings(query);
+  return { answer, timings };
 };
