@@ -614,7 +614,7 @@ export function programVersions(id: string): RunProgram[] {
  */
 export function builtInBaseline(
   programId: string,
-  workouts: readonly ProgramWorkout[],
+  workouts: readonly ProgramWorkout[]
 ): ProgramWorkout[] | undefined {
   const program = findProgram(programId);
   return program && program.workouts.length === workouts.length
