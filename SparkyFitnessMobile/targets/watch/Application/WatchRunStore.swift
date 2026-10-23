@@ -301,11 +301,16 @@ final class WatchRunStore: ObservableObject {
         var events = update.events
         if phase == .paused {
             // The tracker has marked a turn announced; keep it for the resume.
-            for case .approachingCue(let routeCue) in events { heldRouteCue = routeCue }
+            var newlyHeld = false
+            for case .approachingCue(let routeCue) in events {
+                heldRouteCue = routeCue
+                newlyHeld = true
+            }
             // Route collection is off while paused, so no running-fix write
-            // follows; save the tracker now or a relaunch restores the pre-pause place.
+            // follows. Routine fixes ride the throttle (pause() already wrote
+            // one); a newly held cue is forced so a relaunch keeps it.
             publishRouteProgress()
-            healthKit.persistRouteProgress(force: true)
+            healthKit.persistRouteProgress(force: newlyHeld)
             return
         }
         guard phase == .running else { return }
