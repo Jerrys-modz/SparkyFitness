@@ -1244,30 +1244,33 @@ describe('howSureLines', () => {
       'Days used',
     ]);
     expect(valueOf(lines, 'Difference')).toBe(
-      '+0.6 higher than on days without meditating (each measured against your own normal)'
+      '0.6 higher than on days without meditating (each measured against your own normal)'
     );
     expect(valueOf(lines, 'Likely between')).toBe('0.2 to 1.6');
   });
 
-  test('a negative difference keeps its sign and reads lower', () => {
+  test('a negative difference reads lower with no sign, and its range keeps its signs', () => {
+    const lines = howSureLines(
+      {
+        ...difference,
+        low: -16,
+        high: -2,
+        sign: 'negative',
+        binary: { ...yesNoBinary, diff: -5.5 },
+      },
+      yesNoQ,
+      t
+    );
+    expect(valueOf(lines, 'Difference')).toBe(
+      '0.6 lower than on days without meditating (each measured against your own normal)'
+    );
+    expect(valueOf(lines, 'Likely between')).toBe('-1.6 to -0.2');
     expect(
       valueOf(
-        howSureLines(
-          {
-            ...difference,
-            low: -16,
-            high: -2,
-            sign: 'negative',
-            binary: { ...yesNoBinary, diff: -5.5 },
-          },
-          yesNoQ,
-          t
-        ),
-        'Difference'
+        howSureLines({ ...difference, low: -3, high: 12 }, yesNoQ, t),
+        'Likely between'
       )
-    ).toBe(
-      '-0.6 lower than on days without meditating (each measured against your own normal)'
-    );
+    ).toBe('-0.3 to 1.2');
   });
 
   test('a shifted or sleep outcome names the other days as the bars do', () => {
@@ -1281,7 +1284,7 @@ describe('howSureLines', () => {
         'Difference'
       )
     ).toBe(
-      '+0.6 higher than on other days (each measured against your own normal)'
+      '0.6 higher than on other days (each measured against your own normal)'
     );
     expect(
       valueOf(
@@ -1296,7 +1299,7 @@ describe('howSureLines', () => {
         'Difference'
       )
     ).toBe(
-      '-0.4 lower than on other nights (each measured against your own normal)'
+      '0.4 lower than on other nights (each measured against your own normal)'
     );
   });
 
@@ -1323,7 +1326,7 @@ describe('howSureLines', () => {
           { a: 'meditated', b, choice: 'sameDay' },
           t
         );
-        expect(valueOf(lines, 'Difference')).toBeDefined();
+        expect(valueOf(lines, 'Difference')).toMatch(/^(\d|About)/);
         for (const line of lines) expect(line.value).not.toMatch(/usual/);
       }
     }
@@ -1353,7 +1356,7 @@ describe('howSureLines', () => {
       t
     );
     expect(valueOf(lines, 'Difference')).toBe(
-      '+25 min later than on other nights (each measured against your own normal)'
+      '25 min later than on other nights (each measured against your own normal)'
     );
     expect(valueOf(lines, 'Likely between')).toBe('10 to 40 min');
     expect(
@@ -1378,7 +1381,7 @@ describe('howSureLines', () => {
         'Difference'
       )
     ).toBe(
-      '-25 min earlier than on other nights (each measured against your own normal)'
+      '25 min earlier than on other nights (each measured against your own normal)'
     );
   });
 

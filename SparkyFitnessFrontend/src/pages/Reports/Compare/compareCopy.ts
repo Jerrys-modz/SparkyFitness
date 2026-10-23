@@ -813,7 +813,7 @@ function differenceText(
   const outcome = binary.yesKey === q.a ? q.b : q.a;
   const others = lowerFirst(yesNoWording(q, binary.yesKey, t).noLabel);
   const shown = compareDisplayValue(outcome, binary.diff);
-  // Rounds to zero at the precision shown: "+0.0 higher" would mislead.
+  // Rounds to zero at the precision shown: "0.0 higher" would mislead.
   if (Math.abs(shown) < 0.5 / 10 ** compareDigits(outcome)) {
     return t('compareReport.howSure.differenceSame', {
       defaultValue:
@@ -821,7 +821,8 @@ function differenceText(
       others,
     });
   }
-  const diff = compareAmountText(outcome, binary.diff, true);
+  // The direction word carries the sign, so the amount is shown without one.
+  const diff = compareAmountText(outcome, Math.abs(binary.diff));
   // A bedtime difference is a span of minutes, later or earlier.
   if (outcome === 'bedtime') {
     return shown > 0
