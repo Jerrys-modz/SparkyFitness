@@ -58,6 +58,10 @@ interface AddCompItem {
   fullWidth?: boolean;
 }
 
+/** A tab stays highlighted on its own sub-pages (e.g. /exercises/training-programs). */
+const isTabActive = (pathname: string, tab: string): boolean =>
+  pathname === tab || (tab !== '/' && pathname.startsWith(`${tab}/`));
+
 interface MainLayoutProps {
   onShowAboutDialog: () => void;
   onShowNewReleaseDialog: () => void;
@@ -476,7 +480,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           <div className="flex items-center gap-1">
             <img
               src="/images/SparkyFitness.webp"
-              alt="SparkyFitness Logo"
+              alt={t('mainLayout.sparkyFitnessLogo', 'SparkyFitness Logo')}
               width={54}
               height={72}
             />
@@ -564,7 +568,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
               key={value}
               variant="ghost"
               className={`relative flex items-center gap-2 hover:bg-background/50 transition-all ${
-                location.pathname === value
+                isTabActive(location.pathname, value)
                   ? 'bg-background shadow-sm text-foreground'
                   : 'text-muted-foreground'
               }`}
@@ -601,8 +605,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
                 key={value}
                 variant="ghost"
                 className={`flex flex-col items-center gap-1 py-2 ${
-                  location.pathname ===
-                  (value === 'Add' ? location.pathname : value)
+                  value === 'Add' || isTabActive(location.pathname, value)
                     ? 'text-primary'
                     : ''
                 }`}
@@ -670,7 +673,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
                 className="cursor-pointer underline bg-transparent border-0 p-0 text-inherit font-normal text-sm"
                 onClick={onShowAboutDialog}
               >
-                SparkyFitness v{appVersion?.version ?? ''}
+                {t('nav.sparkyFitnessV', 'SparkyFitness v{{version}}', {
+                  version: appVersion?.version ?? '',
+                })}
               </button>
               <span>•</span>
               <button
@@ -689,7 +694,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
               className="cursor-pointer underline bg-transparent border-0 p-0 text-inherit font-normal text-sm"
               onClick={onShowAboutDialog}
             >
-              SparkyFitness v{appVersion?.version ?? ''}
+              {t('nav.sparkyFitnessV', 'SparkyFitness v{{version}}', {
+                version: appVersion?.version ?? '',
+              })}
             </button>
             <span>•</span>
             <button

@@ -1,4 +1,8 @@
-import { compareByEntryTime, earliestEntryTime } from '@workspace/shared';
+import {
+  compareByEntryTime,
+  earliestEntryTime,
+  type ExerciseEntryHrZonesInitializer,
+} from '@workspace/shared';
 import { getClient } from '../db/poolManager.js';
 import type { PoolClient } from 'pg';
 // @ts-expect-error TS(7016): Could not find a declaration file for module 'pg-f... Remove this comment to see the full error message
@@ -9,6 +13,11 @@ import activityDetailsRepository from './activityDetailsRepository.js';
 import * as workoutTelemetryRepository from './workoutTelemetryRepository.js';
 import { bodyWeightJoinSql } from '../utils/exerciseLoadSql.js';
 import { assertSetWeightSign } from '../utils/setWeightSign.js';
+import {
+  mergeManualFields,
+  storedManualFields,
+  withoutManualFields,
+} from '../utils/manualFields.js';
 /**
  * Updates a daily calorie import, retaining entries created against shared exercises.
  * A matching exercise takes precedence; legacy matches require the same source.
@@ -282,6 +291,7 @@ export const EXERCISE_ENTRY_TELEMETRY_COLUMNS = [
   'weather_humidity_percentage',
   'gear_name',
   'gear_external_id',
+  'workout_effort',
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -387,6 +397,8 @@ export interface WatchTelemetryFields {
   duration_minutes?: number | null;
   /** High-water mark of `duration_minutes` reported by the watch. */
   watch_duration_minutes?: number | null;
+  /** Stride length in cm; null clears it. */
+  stride_length_cm?: number | null;
 }
 
 /**
@@ -526,6 +538,7 @@ export type WatchTelemetryZoneSpec = {
   /** null for the open-ended top zone. */
   zone_upper_bpm: number | null;
   seconds_in_zone: number;
+  zone_method?: ExerciseEntryHrZonesInitializer['zone_method'];
 };
 
 /**
@@ -538,7 +551,20 @@ async function applyWatchTelemetryAtomically(
   userId: string,
   actingUserId: string,
   proposed: WatchTelemetryFields,
-  zones: WatchTelemetryZoneSpec[] | null
+  zones: WatchTelemetryZoneSpec[] | null,
+  /**
+   * Runs before COMMIT, while this entry's row lock is still held, and only
+   * when the heart-rate snapshot was accepted. The series write belongs here:
+   * doing it after COMMIT let an older flush store samples the lock had
+   * already rejected, or land them after a newer flush.
+   */
+  onHrAccepted?: () => Promise<void>,
+  /**
+   * The zones are Apple's total for the whole workout, not this exercise.
+   * Drop the other exercises of the same session so a combined chart does
+   * not count that time again.
+   */
+  sessionZones = false
 ): Promise<void> {
   const client = await getClient(userId, actingUserId);
   try {
@@ -554,6 +580,7 @@ async function applyWatchTelemetryAtomically(
             max_heart_rate?: unknown;
             active_calories?: unknown;
             watch_telemetry_observed_at?: unknown;
+            exercise_preset_entry_id?: string | null;
           }
         | undefined;
       if (!entry) {
@@ -585,8 +612,25 @@ async function applyWatchTelemetryAtomically(
             zone_lower_bpm: zone.zone_lower_bpm,
             zone_upper_bpm: zone.zone_upper_bpm,
             seconds_in_zone: zone.seconds_in_zone,
+            zone_method: zone.zone_method,
           }))
         );
+      }
+      if (!skipHr && sessionZones && entry.exercise_preset_entry_id) {
+        await client.query(
+          `DELETE FROM exercise_entry_hr_zones
+           WHERE user_id = $1
+             AND exercise_entry_id IN (
+               SELECT id FROM exercise_entries
+               WHERE user_id = $1
+                 AND exercise_preset_entry_id = $2
+                 AND id <> $3
+             )`,
+          [userId, entry.exercise_preset_entry_id, id]
+        );
+      }
+      if (!skipHr && onHrAccepted) {
+        await onHrAccepted();
       }
       await client.query('COMMIT');
     } catch (error) {
@@ -614,7 +658,15 @@ async function _updateExerciseEntryWithClient(
   // inserts a replacement) passes returnNullIfMissing and gets null instead of
   // an exception. Callers acting on a user-chosen entry leave it unset, because
   // for them a missing row really is an error.
-  options: { returnNullIfMissing?: boolean } = {}
+  //
+  // preserveManualFields: a re-sent provider workout leaves the fields the
+  // user edited (manual_fields) alone. markManualFields: a diary edit records
+  // the fields it changed, so the next sync knows to keep them.
+  options: {
+    returnNullIfMissing?: boolean;
+    preserveManualFields?: boolean;
+    markManualFields?: readonly string[];
+  } = {}
 ) {
   // Fetch existing entry to get current snapshot values if not provided in updateData
   const existingEntryResult = await client.query(
@@ -628,6 +680,14 @@ async function _updateExerciseEntryWithClient(
     throw new Error('Exercise entry not found for update.');
   }
   const currentEntry = existingEntryResult.rows[0];
+  const currentManualFields = storedManualFields(currentEntry.manual_fields);
+  if (options.preserveManualFields) {
+    updateData = withoutManualFields(updateData, currentManualFields);
+  }
+  const manualFields = mergeManualFields(
+    currentManualFields,
+    options.markManualFields ?? []
+  );
   // Merge updateData with currentEntry to ensure all fields are present for the update statement
   // Prioritize updateData, then currentEntry, then defaults
   const mergedData = {
@@ -790,6 +850,7 @@ async function _updateExerciseEntryWithClient(
       modality = $31,
       ${telemetrySetClause},
       record_timezone = $${32 + EXERCISE_ENTRY_TELEMETRY_COLUMNS.length},
+      manual_fields = $${33 + EXERCISE_ENTRY_TELEMETRY_COLUMNS.length}::text[],
       updated_at = now()
     WHERE id = $28 AND user_id = $29
     RETURNING id`,
@@ -827,6 +888,8 @@ async function _updateExerciseEntryWithClient(
       mergedData.modality ?? null,
       ...telemetryParams,
       mergedData.record_timezone ?? null,
+      // NULL while nothing is marked, so an untouched row keeps its shape.
+      manualFields.length > 0 ? manualFields : null,
     ]
   );
   // The row can be deleted by a competing writer between the existence check
@@ -987,7 +1050,9 @@ async function _createExerciseEntryWithClient(
         entryData,
         createdByUserId,
         entrySource,
-        { returnNullIfMissing: true }
+        // A source_id match is the same provider workout sent again: keep
+        // what the user corrected since the last sync.
+        { returnNullIfMissing: true, preserveManualFields: syncDuplicateCheck }
       );
       if (!updatedEntry) {
         // The writer that deleted the row is a delete-then-insert sync, so it
@@ -1014,7 +1079,10 @@ async function _createExerciseEntryWithClient(
             entryData,
             createdByUserId,
             entrySource,
-            { returnNullIfMissing: true }
+            {
+              returnNullIfMissing: true,
+              preserveManualFields: syncDuplicateCheck,
+            }
           );
         }
       }
@@ -1232,7 +1300,9 @@ async function updateExerciseEntry(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   actingUserId: any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  updateData: any
+  updateData: any,
+  // Fields this edit changed on a synced entry, kept on the next re-sync.
+  markManualFields: readonly string[] = []
 ) {
   const client = await getClient(userId);
   try {
@@ -1248,7 +1318,8 @@ async function updateExerciseEntry(
       userId,
       updateData,
       actingUserId,
-      updateData.source
+      updateData.source,
+      { markManualFields }
     );
     await client.query('COMMIT');
     return updatedEntry;
@@ -1602,7 +1673,6 @@ async function getExerciseEntriesByDate(userId: any, selectedDate: any) {
         preset.exercises.sort(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (a: any, b: any) =>
-            compareByEntryTime(a.entry_time, b.entry_time) ||
             (a.sort_order || 0) - (b.sort_order || 0) ||
             // @ts-expect-error TS(2362): The left-hand side of an arithmetic operation must... Remove this comment to see the full error message
             new Date(a.created_at) - new Date(b.created_at)

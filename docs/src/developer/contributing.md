@@ -207,7 +207,7 @@ const userRepository = {
 #### Migration Guidelines
 - **Version control**: All schema changes through migrations
 - **Backwards compatibility**: Ensure migrations don't break existing data
-- **Transaction wrapping**: Wrap migrations in transactions
+- **Transactions**: Each migration file already runs in one transaction; do not add `BEGIN;`/`COMMIT;`, and use two files to commit steps separately
 - **Rollback scripts**: Provide rollback capabilities
 
 #### Naming Conventions

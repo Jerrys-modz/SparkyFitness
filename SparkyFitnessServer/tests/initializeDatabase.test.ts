@@ -14,6 +14,9 @@ vi.mock('../utils/applyRlsPolicies.js', () => ({
   applyRlsPolicies: applyPolicies,
 }));
 
+const keepalives =
+  'SET tcp_keepalives_idle = 30; SET tcp_keepalives_interval = 10; SET tcp_keepalives_count = 3';
+
 beforeEach(() => {
   vi.resetAllMocks();
   connect.mockResolvedValue(client);
@@ -27,31 +30,32 @@ describe('database initialization', () => {
     await initializeDatabase();
 
     expect(connect).toHaveBeenCalledExactlyOnceWith();
-    expect(client.query).toHaveBeenCalledTimes(2);
+    expect(client.query).toHaveBeenCalledTimes(3);
+    expect(client.query).toHaveBeenNthCalledWith(1, keepalives);
     expect(client.query).toHaveBeenNthCalledWith(
-      1,
+      2,
       'SELECT pg_advisory_lock(hashtext($1))',
       ['sparkyfitness:schema-initialization']
     );
     expect(migrate).toHaveBeenCalledExactlyOnceWith(client);
     expect(applyPolicies).toHaveBeenCalledExactlyOnceWith(client);
     expect(client.query).toHaveBeenNthCalledWith(
-      2,
+      3,
       'SELECT pg_advisory_unlock(hashtext($1)) AS unlocked',
       ['sparkyfitness:schema-initialization']
     );
     expect(client.release).toHaveBeenCalledExactlyOnceWith(false);
 
-    expect(client.query.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(client.query.mock.invocationCallOrder[1]).toBeLessThan(
       migrate.mock.invocationCallOrder[0]!
     );
     expect(migrate.mock.invocationCallOrder[0]).toBeLessThan(
       applyPolicies.mock.invocationCallOrder[0]!
     );
     expect(applyPolicies.mock.invocationCallOrder[0]).toBeLessThan(
-      client.query.mock.invocationCallOrder[1]!
+      client.query.mock.invocationCallOrder[2]!
     );
-    expect(client.query.mock.invocationCallOrder[1]).toBeLessThan(
+    expect(client.query.mock.invocationCallOrder[2]).toBeLessThan(
       client.release.mock.invocationCallOrder[0]!
     );
   });
@@ -65,10 +69,12 @@ describe('database initialization', () => {
     const lockRequested = new Promise<void>((resolve) => {
       markLockRequested = resolve;
     });
-    client.query.mockImplementationOnce(() => {
-      markLockRequested();
-      return lock;
-    });
+    client.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockImplementationOnce(() => {
+        markLockRequested();
+        return lock;
+      });
 
     const initialization = initializeDatabase();
     try {
@@ -76,7 +82,7 @@ describe('database initialization', () => {
 
       expect(migrate).not.toHaveBeenCalled();
       expect(applyPolicies).not.toHaveBeenCalled();
-      expect(client.query).toHaveBeenCalledTimes(1);
+      expect(client.query).toHaveBeenCalledTimes(2);
       expect(client.release).not.toHaveBeenCalled();
     } finally {
       grantLock();
@@ -102,22 +108,28 @@ describe('database initialization', () => {
   });
 
   it.each([
-    { stage: 'lock', queries: 1, migrations: 0, policies: 0 },
-    { stage: 'migrations', queries: 1, migrations: 1, policies: 0 },
-    { stage: 'policies', queries: 1, migrations: 1, policies: 1 },
-    { stage: 'unlock', queries: 2, migrations: 1, policies: 1 },
+    { stage: 'keepalives', queries: 1, migrations: 0, policies: 0 },
+    { stage: 'lock', queries: 2, migrations: 0, policies: 0 },
+    { stage: 'migrations', queries: 2, migrations: 1, policies: 0 },
+    { stage: 'policies', queries: 2, migrations: 1, policies: 1 },
+    { stage: 'unlock', queries: 3, migrations: 1, policies: 1 },
   ])(
     'stops and discards the connection when $stage fails',
     async ({ stage, queries, migrations, policies }) => {
       const error = new Error(`${stage} failed`);
-      if (stage === 'lock') {
+      if (stage === 'keepalives') {
         client.query.mockRejectedValueOnce(error);
+      } else if (stage === 'lock') {
+        client.query
+          .mockResolvedValueOnce({ rows: [] })
+          .mockRejectedValueOnce(error);
       } else if (stage === 'migrations') {
         migrate.mockRejectedValueOnce(error);
       } else if (stage === 'policies') {
         applyPolicies.mockRejectedValueOnce(error);
       } else {
         client.query
+          .mockResolvedValueOnce({ rows: [] })
           .mockResolvedValueOnce({ rows: [] })
           .mockRejectedValueOnce(error);
       }
@@ -140,13 +152,14 @@ describe('database initialization', () => {
     async ({ rows }) => {
       client.query
         .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows });
 
       await expect(initializeDatabase()).rejects.toThrow(
         'Failed to release the schema initialization lock.'
       );
 
-      expect(client.query).toHaveBeenCalledTimes(2);
+      expect(client.query).toHaveBeenCalledTimes(3);
       expect(migrate).toHaveBeenCalledExactlyOnceWith(client);
       expect(applyPolicies).toHaveBeenCalledExactlyOnceWith(client);
       expect(client.release).toHaveBeenCalledExactlyOnceWith(true);

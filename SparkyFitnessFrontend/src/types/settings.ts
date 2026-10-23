@@ -2,6 +2,8 @@ export interface UserPreferencesChat {
   auto_clear_history: string;
   active_ai_service_id?: string | null;
   active_vision_ai_service_id?: string | null;
+  active_voice_ai_service_id?: string | null;
+  voice_input_enabled?: boolean;
 }
 
 export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -94,6 +96,10 @@ export interface ProfileFormState {
 
 export interface AdaptiveTdeeResult {
   tdee: number;
+  activityAdjustedTdee?: number;
+  rawActivityAdjustedTdee?: number;
+  averageActivityCalories?: number;
+  activityDaysOfData?: number;
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
   weightTrend?: number;
   isFallback: boolean;

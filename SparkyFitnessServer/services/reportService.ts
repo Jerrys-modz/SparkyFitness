@@ -27,12 +27,17 @@ import {
   epleyOneRepMaxKg,
   resolveExerciseModality,
   buildTrainingConsistency,
+  computeTrainingLoad,
+  LOAD_WEEKS,
+  type TrainingLoad,
   weekStartOf,
   TRAINING_CONSISTENCY_WEEKS,
   type TrainingConsistency,
 } from '@workspace/shared';
 import { userAge } from '../utils/dateHelpers.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
+import heartRateZoneService from './heartRateZoneService.js';
+import { loadFirstDayOfWeek } from '../utils/firstDayOfWeek.js';
 import { parseJsonArrayField } from '../utils/exerciseJsonFields.js';
 
 interface CustomNutrientDefinition {
@@ -929,14 +934,7 @@ async function getTrainingConsistency(
   try {
     const timezone = await loadUserTimezone(targetUserId);
     const today = todayInZone(timezone);
-    // The account's first day of the week (0 = Sunday), like the calendars.
-    const preferences =
-      await preferenceRepository.getUserPreferences(targetUserId);
-    const rawFirstDay = preferences?.first_day_of_week;
-    const firstDayOfWeek =
-      rawFirstDay !== null && rawFirstDay !== undefined
-        ? Number(rawFirstDay)
-        : 0;
+    const firstDayOfWeek = await loadFirstDayOfWeek(targetUserId);
     const startDate = addDays(
       weekStartOf(today, firstDayOfWeek),
       -7 * (TRAINING_CONSISTENCY_WEEKS - 1)
@@ -970,11 +968,44 @@ export { getReportsData };
 export { getMiniNutritionTrends };
 export { getNutritionTrendsWithGoals };
 export { getExerciseDashboardData };
+/**
+ * Acute against chronic training load over the last four weeks, from every
+ * logged workout (cardio and strength). Intensity is judged against the person's
+ * heart rate zones (their own settings, else their date of birth).
+ */
+async function getTrainingLoad(
+  authenticatedUserId: string,
+  targetUserId: string
+): Promise<TrainingLoad> {
+  try {
+    const timezone = await loadUserTimezone(targetUserId);
+    const today = todayInZone(timezone);
+    const [sessions, zones] = await Promise.all([
+      reportRepository.getTrainingLoadSessions(
+        targetUserId,
+        addDays(today, -(LOAD_WEEKS * 7 - 1)),
+        today
+      ),
+      heartRateZoneService.resolveZonesForUser(targetUserId),
+    ]);
+    return computeTrainingLoad(sessions, today, zones.floors);
+  } catch (error) {
+    log(
+      'error',
+      `Error building training load for user ${targetUserId} by ${authenticatedUserId}:`,
+      error
+    );
+    throw error;
+  }
+}
+
 export { getTrainingConsistency };
+export { getTrainingLoad };
 export default {
   getReportsData,
   getMiniNutritionTrends,
   getNutritionTrendsWithGoals,
   getExerciseDashboardData,
   getTrainingConsistency,
+  getTrainingLoad,
 };

@@ -11,6 +11,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/TimeInput';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -80,6 +81,8 @@ import {
   toSetTableModality,
 } from '@/constants/exercises';
 import { CardioLog } from '../Exercises/CardioLog';
+import { ShoeSelect } from '@/components/Shoes/ShoeSelect';
+import { useAssignShoeMutation } from '@/hooks/Shoes/useShoes';
 import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -100,6 +103,22 @@ const RAW_PROVIDER_TYPES = [
   'full_workout_data',
   'fit_file_data',
 ];
+
+// The form shows some stored values rounded: distance to one decimal in the
+// user's unit, duration to two decimals. These are the values it starts with,
+// so saving can tell a field the user left alone from one they edited.
+const seedDistanceInput = (
+  entry: ExerciseEntry,
+  toDisplayUnit: (km: number) => number
+): number | '' =>
+  entry.distance !== undefined && entry.distance !== null
+    ? Number(toDisplayUnit(entry.distance).toFixed(1))
+    : '';
+
+const seedDurationInput = (entry: ExerciseEntry): number | '' =>
+  entry.duration_minutes != null
+    ? Math.round(Number(entry.duration_minutes) * 100) / 100
+    : '';
 
 function extractTelemetry(entry: ExerciseEntry, activityData: unknown) {
   const e = entry as Record<string, unknown>;
@@ -312,18 +331,15 @@ const EditExerciseEntryDialog = ({
   const [caloriesBurnedInput, setCaloriesBurnedInput] = useState<number | ''>(
     entry.calories_burned || ''
   );
-  const [distanceInput, setDistanceInput] = useState<number | ''>(
-    entry.distance !== undefined && entry.distance !== null
-      ? Number(convertDistance(entry.distance, 'km', distanceUnit).toFixed(1))
-      : ''
+  const [distanceInput, setDistanceInput] = useState<number | ''>(() =>
+    seedDistanceInput(entry, (km) => convertDistance(km, 'km', distanceUnit))
   );
+  const [shoeId, setShoeId] = useState<string | null>(entry.shoe_id ?? null);
   const [avgHeartRateInput, setAvgHeartRateInput] = useState<number | ''>(
     entry.avg_heart_rate != null ? entry.avg_heart_rate : ''
   );
-  const [durationInput, setDurationInput] = useState<number | ''>(
-    entry.duration_minutes != null
-      ? Math.round(Number(entry.duration_minutes) * 100) / 100
-      : ''
+  const [durationInput, setDurationInput] = useState<number | ''>(() =>
+    seedDurationInput(entry)
   );
   const providerDumps = useMemo<RawActivityDetailItem[]>(
     () =>
@@ -562,12 +578,13 @@ const EditExerciseEntryDialog = ({
     if (extracted.windSpeed !== '') setWindSpeedInput(extracted.windSpeed);
     if (extracted.humidity !== '') setHumidityInput(extracted.humidity);
     if (entry.duration_minutes != null && entry.duration_minutes > 0) {
-      setDurationInput(Math.round(Number(entry.duration_minutes) * 100) / 100);
+      setDurationInput(seedDurationInput(entry));
     }
   }, [open, entry, activityData, activityDataFetched]);
 
   const { mutateAsync: updateExerciseEntry, isPending: loading } =
     useUpdateExerciseEntryMutation();
+  const { mutateAsync: assignShoe } = useAssignShoeMutation();
   const queryClient = useQueryClient();
 
   const handleCopyRawData = async () => {
@@ -709,6 +726,33 @@ const EditExerciseEntryDialog = ({
           ? caloriesBurnedInput
           : Math.round((caloriesPerHour / 60) * totalDuration);
 
+      // A field still showing its starting value goes back as stored, not as
+      // its rounded display value: for a synced workout the server would
+      // count the rounding as the user's edit and keep the field from every
+      // later sync. An empty duration keeps deriving from the sets.
+      const distanceUntouched =
+        distanceInput ===
+        seedDistanceInput(entry, (km) =>
+          convertDistance(km, 'km', distanceUnit)
+        );
+      const seededDuration = seedDurationInput(entry);
+      const durationUntouched =
+        seededDuration !== '' && durationInput === seededDuration;
+      const avgHeartRateUntouched =
+        avgHeartRateInput === (entry.avg_heart_rate ?? '');
+      const seededSteps = extractTelemetry(entry, activityData).steps;
+      const stepsUntouched =
+        stepsInput === (seededSteps !== '' ? seededSteps : (entry.steps ?? ''));
+
+      const durationMinutes = durationUntouched
+        ? entry.duration_minutes
+        : totalDuration;
+      const distanceKm = distanceUntouched
+        ? (entry.distance ?? null)
+        : distanceInput === ''
+          ? null
+          : convertDistance(Number(distanceInput), distanceUnit, 'km');
+
       // Cardio performance also lives on its single backing set (issue
       // #1903): duration in seconds + distance in km, no between-set rest.
       // These agree with the entry-level totals below by construction. A
@@ -718,11 +762,8 @@ const EditExerciseEntryDialog = ({
             duration:
               durationInput === ''
                 ? null
-                : Math.round(Number(durationInput) * 60),
-            distance:
-              distanceInput === ''
-                ? null
-                : convertDistance(Number(distanceInput), distanceUnit, 'km'),
+                : Math.round(Number(durationMinutes) * 60),
+            distance: distanceKm,
             rest_time: 0,
           }
         : null;
@@ -730,7 +771,7 @@ const EditExerciseEntryDialog = ({
       await updateExerciseEntry({
         id: entry.id,
         data: {
-          duration_minutes: totalDuration,
+          duration_minutes: durationMinutes,
           calories_burned: caloriesBurned,
           notes,
           entry_time: entryTime || null,
@@ -741,12 +782,12 @@ const EditExerciseEntryDialog = ({
           })),
           imageFile,
           image_url: imageUrl,
-          distance:
-            distanceInput === ''
-              ? null
-              : convertDistance(Number(distanceInput), distanceUnit, 'km'),
-          avg_heart_rate:
-            avgHeartRateInput === '' ? 0 : Number(avgHeartRateInput),
+          distance: distanceKm,
+          avg_heart_rate: avgHeartRateUntouched
+            ? (entry.avg_heart_rate ?? null)
+            : avgHeartRateInput === ''
+              ? 0
+              : Number(avgHeartRateInput),
           max_heart_rate:
             maxHeartRateInput === '' ? null : Number(maxHeartRateInput),
           avg_respiration_brpm:
@@ -782,7 +823,11 @@ const EditExerciseEntryDialog = ({
             tempCelsiusInput === '' ? null : Number(tempCelsiusInput),
           weather_condition: weatherCondInput || null,
           gear_name: gearNameInput || null,
-          steps: stepsInput === '' ? null : Number(stepsInput),
+          steps: stepsUntouched
+            ? (entry.steps ?? null)
+            : stepsInput === ''
+              ? null
+              : Number(stepsInput),
           water_estimated:
             waterEstimatedInput === '' ? null : Number(waterEstimatedInput),
           moving_time_seconds:
@@ -832,6 +877,10 @@ const EditExerciseEntryDialog = ({
           ],
         },
       });
+
+      if (isCardio && shoeId !== (entry.shoe_id ?? null)) {
+        await assignShoe({ exerciseEntryId: entry.id, shoeId });
+      }
 
       info(
         loggingLevel,
@@ -905,6 +954,19 @@ const EditExerciseEntryDialog = ({
               className="bg-muted"
             />
           </div>
+
+          {isCardio && (
+            <div className="space-y-2">
+              <Label htmlFor="exercise-entry-shoe">
+                {t('shoes.shoe', 'Shoe')}
+              </Label>
+              <ShoeSelect
+                id="exercise-entry-shoe"
+                value={shoeId}
+                onChange={setShoeId}
+              />
+            </div>
+          )}
 
           {/* ── Cardio log or strength sets ── */}
           {cardioForm ? (
@@ -980,8 +1042,11 @@ const EditExerciseEntryDialog = ({
           {/* Start Time (optional) */}
           <div className="space-y-1.5 max-w-[280px]">
             <div className="flex items-center justify-between">
-              <Label htmlFor="entryTime" className="text-sm">
-                Start Time (optional)
+              <Label id="entryTime-label" className="text-sm">
+                {t(
+                  'diary.editExerciseEntryDialog.startTimeOptional',
+                  'Start Time (optional)'
+                )}
               </Label>
               <div className="flex items-center gap-1.5">
                 <button
@@ -989,10 +1054,13 @@ const EditExerciseEntryDialog = ({
                   onClick={() => setEntryTime('')}
                   disabled={!entryTime}
                   className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-3 py-1 text-sm font-medium text-muted-foreground shadow-sm hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-40 disabled:pointer-events-none"
-                  title="Clear time"
+                  title={t(
+                    'diary.editExerciseEntryDialog.clearTime',
+                    'Clear time'
+                  )}
                 >
                   <X className="h-4 w-4" />
-                  Clear
+                  {t('diary.editExerciseEntryDialog.clear', 'Clear')}
                 </button>
                 <button
                   type="button"
@@ -1003,18 +1071,21 @@ const EditExerciseEntryDialog = ({
                     );
                   }}
                   className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-3 py-1 text-sm font-medium text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
-                  title="Set to current local time"
+                  title={t(
+                    'diary.editExerciseEntryDialog.setToCurrentLocalTime',
+                    'Set to current local time'
+                  )}
                 >
                   <Clock className="h-4 w-4" />
-                  Now
+                  {t('diary.editExerciseEntryDialog.now', 'Now')}
                 </button>
               </div>
             </div>
-            <Input
+            <TimeInput
               id="entryTime"
-              type="time"
+              aria-labelledby="entryTime-label"
               value={entryTime}
-              onChange={(e) => setEntryTime(e.target.value)}
+              onChange={setEntryTime}
               className="text-sm h-9"
             />
           </div>
@@ -1126,7 +1197,10 @@ const EditExerciseEntryDialog = ({
                           e.target.value === '' ? '' : Number(e.target.value)
                         )
                       }
-                      placeholder="Auto-calculated from sets"
+                      placeholder={t(
+                        'diary.editExerciseEntryDialog.autoCalculatedFromSets',
+                        'Auto-calculated from sets'
+                      )}
                     />
                   </div>
 
@@ -1175,11 +1249,21 @@ const EditExerciseEntryDialog = ({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm font-semibold text-rose-500">
                     <Heart className="w-4.5 h-4.5" />
-                    <span>Heart Rate & Respiration</span>
+                    <span>
+                      {t(
+                        'diary.editExerciseEntryDialog.heartRateRespiration',
+                        'Heart Rate & Respiration'
+                      )}
+                    </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <Label className="text-xs">Max HR (bpm)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.maxHRBpm',
+                          'Max HR (bpm)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={maxHeartRateInput}
@@ -1193,7 +1277,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Avg Respiration (brpm)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.avgRespirationBrpm',
+                          'Avg Respiration (brpm)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={avgRespirationInput}
@@ -1207,7 +1296,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Max Respiration (brpm)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.maxRespirationBrpm',
+                          'Max Respiration (brpm)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={maxRespirationInput}
@@ -1227,11 +1321,21 @@ const EditExerciseEntryDialog = ({
                 <div className="space-y-2 pt-2.5 border-t border-border/40">
                   <div className="flex items-center gap-2 text-sm font-semibold text-amber-500">
                     <Zap className="w-4.5 h-4.5" />
-                    <span>Speed, Cadence & Power</span>
+                    <span>
+                      {t(
+                        'diary.editExerciseEntryDialog.speedCadencePower',
+                        'Speed, Cadence & Power'
+                      )}
+                    </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <Label className="text-xs">Avg Speed (m/s)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.avgSpeedMS',
+                          'Avg Speed (m/s)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -1246,7 +1350,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Max Speed (m/s)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.maxSpeedMS',
+                          'Max Speed (m/s)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -1261,7 +1370,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Avg Moving Speed (m/s)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.avgMovingSpeedMS',
+                          'Avg Moving Speed (m/s)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -1276,7 +1390,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Avg Cadence (spm/rpm)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.avgCadenceSpmRpm',
+                          'Avg Cadence (spm/rpm)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={avgCadenceInput}
@@ -1290,7 +1409,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Max Cadence</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.maxCadence',
+                          'Max Cadence'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={maxCadenceInput}
@@ -1304,7 +1428,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Avg Power (W)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.avgPowerW',
+                          'Avg Power (W)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={avgPowerWattsInput}
@@ -1318,7 +1447,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Max Power (W)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.maxPowerW',
+                          'Max Power (W)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={maxPowerWattsInput}
@@ -1332,7 +1466,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Norm Power (W)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.normPowerW',
+                          'Norm Power (W)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={normPowerInput}
@@ -1346,7 +1485,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">TSS Score</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.tssScore',
+                          'TSS Score'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.1"
@@ -1367,11 +1511,21 @@ const EditExerciseEntryDialog = ({
                 <div className="space-y-2 pt-2 border-t border-border/40">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-500">
                     <Footprints className="w-3.5 h-3.5" />
-                    <span>Running Dynamics</span>
+                    <span>
+                      {t(
+                        'diary.editExerciseEntryDialog.runningDynamics',
+                        'Running Dynamics'
+                      )}
+                    </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <Label className="text-xs">Ground Contact (ms)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.groundContactMs',
+                          'Ground Contact (ms)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={groundContactInput}
@@ -1385,7 +1539,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Vert Oscillation (mm)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.vertOscillationMm',
+                          'Vert Oscillation (mm)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.1"
@@ -1400,7 +1559,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Stride Length (cm)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.strideLengthCm',
+                          'Stride Length (cm)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.1"
@@ -1421,11 +1585,21 @@ const EditExerciseEntryDialog = ({
                 <div className="space-y-2 pt-2.5 border-t border-border/40">
                   <div className="flex items-center gap-2 text-sm font-semibold text-emerald-500">
                     <Mountain className="w-4.5 h-4.5" />
-                    <span>Elevation & Swimming</span>
+                    <span>
+                      {t(
+                        'diary.editExerciseEntryDialog.elevationSwimming',
+                        'Elevation & Swimming'
+                      )}
+                    </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <Label className="text-xs">Elevation Gain (m)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.elevationGainM',
+                          'Elevation Gain (m)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.1"
@@ -1440,7 +1614,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Elevation Loss (m)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.elevationLossM',
+                          'Elevation Loss (m)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.1"
@@ -1455,7 +1634,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Min Elevation (m)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.minElevationM',
+                          'Min Elevation (m)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.1"
@@ -1470,7 +1654,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Max Elevation (m)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.maxElevationM',
+                          'Max Elevation (m)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.1"
@@ -1485,7 +1674,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Floors Climbed</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.floorsClimbed',
+                          'Floors Climbed'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={floorsClimbedInput}
@@ -1499,7 +1693,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Stroke Count</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.strokeCount',
+                          'Stroke Count'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={strokeCountInput}
@@ -1513,7 +1712,9 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Steps</Label>
+                      <Label className="text-xs">
+                        {t('diary.editExerciseEntryDialog.steps', 'Steps')}
+                      </Label>
                       <Input
                         type="number"
                         value={stepsInput}
@@ -1527,7 +1728,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Est. Water Loss (mL)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.estWaterLossML',
+                          'Est. Water Loss (mL)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={waterEstimatedInput}
@@ -1547,11 +1753,21 @@ const EditExerciseEntryDialog = ({
                 <div className="space-y-2 pt-2 border-t border-border/40">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-purple-500">
                     <Clock className="w-3.5 h-3.5" />
-                    <span>Time & Calorie Breakdown</span>
+                    <span>
+                      {t(
+                        'diary.editExerciseEntryDialog.timeCalorieBreakdown',
+                        'Time & Calorie Breakdown'
+                      )}
+                    </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <Label className="text-xs">Moving Time (sec)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.movingTimeSec',
+                          'Moving Time (sec)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={movingTimeInput}
@@ -1565,7 +1781,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Elapsed Time (sec)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.elapsedTimeSec',
+                          'Elapsed Time (sec)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={elapsedTimeInput}
@@ -1579,7 +1800,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Active Calories (kcal)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.activeCaloriesKcal',
+                          'Active Calories (kcal)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={activeCaloriesInput}
@@ -1593,7 +1819,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Resting Calories (kcal)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.restingCaloriesKcal',
+                          'Resting Calories (kcal)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={restingCaloriesInput}
@@ -1613,11 +1844,21 @@ const EditExerciseEntryDialog = ({
                 <div className="space-y-2 pt-2 border-t border-border/40">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-orange-500">
                     <Gauge className="w-3.5 h-3.5" />
-                    <span>Training Load & Performance</span>
+                    <span>
+                      {t(
+                        'diary.editExerciseEntryDialog.trainingLoadPerformance',
+                        'Training Load & Performance'
+                      )}
+                    </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <Label className="text-xs">Training Load</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.trainingLoad',
+                          'Training Load'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={trainingLoadInput}
@@ -1631,7 +1872,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Aerobic Effect (0-5)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.aerobicEffect05',
+                          'Aerobic Effect (0-5)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.1"
@@ -1646,7 +1892,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Anaerobic Effect (0-5)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.anaerobicEffect05',
+                          'Anaerobic Effect (0-5)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.1"
@@ -1661,7 +1912,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">VO2 Max Estimate</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.vO2MaxEstimate',
+                          'VO2 Max Estimate'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.1"
@@ -1682,11 +1938,21 @@ const EditExerciseEntryDialog = ({
                 <div className="space-y-2 pt-2 border-t border-border/40">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-cyan-500">
                     <Sun className="w-3.5 h-3.5" />
-                    <span>Environment & Gear</span>
+                    <span>
+                      {t(
+                        'diary.editExerciseEntryDialog.environmentGear',
+                        'Environment & Gear'
+                      )}
+                    </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <Label className="text-xs">Avg Temp (°C)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.avgTempC',
+                          'Avg Temp (°C)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.1"
@@ -1701,7 +1967,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Weather Temp (°C)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.weatherTempC',
+                          'Weather Temp (°C)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.1"
@@ -1716,17 +1987,30 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Weather Condition</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.weatherCondition',
+                          'Weather Condition'
+                        )}
+                      </Label>
                       <Input
                         type="text"
                         value={weatherCondInput}
                         onChange={(e) => setWeatherCondInput(e.target.value)}
-                        placeholder="e.g. Sunny"
+                        placeholder={t(
+                          'diary.editExerciseEntryDialog.eGSunny',
+                          'e.g. Sunny'
+                        )}
                         className="h-8 text-xs"
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Wind Speed (m/s)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.windSpeedMS',
+                          'Wind Speed (m/s)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.1"
@@ -1741,7 +2025,12 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Humidity (%)</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.humidity',
+                          'Humidity (%)'
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         value={humidityInput}
@@ -1755,12 +2044,20 @@ const EditExerciseEntryDialog = ({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Gear Name</Label>
+                      <Label className="text-xs">
+                        {t(
+                          'diary.editExerciseEntryDialog.gearName',
+                          'Gear Name'
+                        )}
+                      </Label>
                       <Input
                         type="text"
                         value={gearNameInput}
                         onChange={(e) => setGearNameInput(e.target.value)}
-                        placeholder="e.g. Nike Pegasus 40"
+                        placeholder={t(
+                          'diary.editExerciseEntryDialog.eGNikePegasus40',
+                          'e.g. Nike Pegasus 40'
+                        )}
                         className="h-8 text-xs"
                       />
                     </div>
@@ -1847,7 +2144,10 @@ const EditExerciseEntryDialog = ({
                           ? URL.createObjectURL(imageFile)
                           : imageUrl || ''
                       }
-                      alt="Exercise"
+                      alt={t(
+                        'diary.editExerciseEntryDialog.exercise',
+                        'Exercise'
+                      )}
                       className="h-full w-full object-cover rounded-md"
                     />
                     <Button

@@ -188,3 +188,60 @@ describe('entry distance contract on individual update', () => {
     expect(updatedDistance()).toBe(7.5);
   });
 });
+
+describe('manual_fields on individual update', () => {
+  const syncedEntry = {
+    id: 'entry-1',
+    exercise_id: exerciseId,
+    entry_date: '2026-10-09',
+    duration_minutes: 66,
+    calories_burned: 546,
+    notes: null,
+    image_url: null,
+    distance: 5.57,
+    avg_heart_rate: null,
+    steps: 6836,
+    sort_order: 0,
+    exercise_name: 'Running',
+    superset_group: null,
+    entry_time: null,
+    source: 'Health Connect',
+    source_id: 'hc-run-1',
+  };
+
+  const markedFields = () =>
+    vi.mocked(exerciseEntryDb.updateExerciseEntry).mock.calls[0][4];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // @ts-expect-error TS(2339): mockResolvedValue on mocked fn
+    exerciseEntryDb.updateExerciseEntry.mockResolvedValue({ id: 'entry-1' });
+  });
+
+  it('marks only the fields the edit changed on a synced entry', async () => {
+    // @ts-expect-error TS(2339): mockResolvedValue on mocked fn
+    exerciseEntryDb.getExerciseEntryById.mockResolvedValue(syncedEntry);
+
+    await exerciseService.updateExerciseEntry('user-1', 'actor-1', 'entry-1', {
+      distance: 6.25,
+      duration_minutes: 66,
+    });
+
+    expect(markedFields()).toEqual(['distance']);
+  });
+
+  it('marks nothing on an entry that did not come from a sync', async () => {
+    // @ts-expect-error TS(2339): mockResolvedValue on mocked fn
+    exerciseEntryDb.getExerciseEntryById.mockResolvedValue({
+      ...syncedEntry,
+      source: 'manual',
+      source_id: null,
+    });
+
+    await exerciseService.updateExerciseEntry('user-1', 'actor-1', 'entry-1', {
+      distance: 6.25,
+    });
+
+    expect(markedFields()).toEqual([]);
+  });
+});

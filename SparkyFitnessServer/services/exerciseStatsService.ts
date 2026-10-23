@@ -19,7 +19,11 @@ import type {
   ExercisePersonalRecordItem,
   MatchedCourseGroup,
 } from '@workspace/shared';
-import { bodyWeightJoinSql, setLoadSql } from '../utils/exerciseLoadSql.js';
+import {
+  bodyWeightJoinSql,
+  cardioPredicateSql,
+  setLoadSql,
+} from '../utils/exerciseLoadSql.js';
 
 interface SqlRow {
   [key: string]: unknown;
@@ -92,6 +96,19 @@ function formatTimeDuration(totalSeconds: number): string {
     return `${hrs}:${formattedMins}:${formattedSecs}`;
   }
   return `${formattedMins}:${formattedSecs}`;
+}
+
+/**
+ * A stored measurement as a number rounded to `decimals`, or null when the
+ * column is empty or not above zero. A zero from a source that never measured
+ * floors or ascent would otherwise show as "0 floors" on every activity.
+ */
+function positiveOrNull(value: unknown, decimals: number): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = parseFloat(String(value));
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  const factor = 10 ** decimals;
+  return Math.round(parsed * factor) / factor;
 }
 
 /**
@@ -492,23 +509,8 @@ async function queryExerciseActivities(
       params.push(minKm);
       whereClauses.push(`distance >= $${params.length}`);
     } else if (!request.category) {
-      // Word boundaries, not substrings: "crunch" contains "run" and was
-      // showing up as cardio. Strength is out even when an old row was
-      // stored with category Cardio, or when a gym session has a little
-      // distance from walking between sets. Past those exclusions, any
-      // positive distance counts: a synced paddle can reuse a "General"
-      // reps-only custom exercise and still carry a route.
-      whereClauses.push(`(
-        COALESCE(modality, '') NOT IN ('weight_reps', 'weight_duration', 'weight_distance')
-        AND LOWER(COALESCE(category, '')) NOT IN ('strength', 'powerlifting', 'olympic weightlifting', 'strongman')
-        AND LOWER(exercise_name) !~* '\\m(strength|crunch|sit-?up|plank)\\M'
-        AND (
-          COALESCE(modality, '') IN ('duration', 'duration_distance')
-          OR LOWER(COALESCE(category, '')) IN ('cardio', 'running', 'cycling', 'walking', 'swimming', 'endurance', 'garmin')
-          OR LOWER(exercise_name) ~* '\\m(run(ning|s)?|walk(ing|s)?|cycl(e|ing)|bike|biking|swim(ming)?|hik(e|ing)|treadmill|elliptical|rower|rowing|cardio|stairs?)\\M'
-          OR COALESCE(distance, 0) > 0
-        )
-      )`);
+      // See cardioPredicateSql for what counts as cardio.
+      whereClauses.push(cardioPredicateSql());
     }
     if (maxKm !== undefined) {
       params.push(maxKm);
@@ -562,6 +564,8 @@ async function queryExerciseActivities(
       SELECT
         id, user_id, exercise_name, category, entry_date, entry_time,
         duration_minutes, distance, avg_heart_rate, calories_burned, source, notes,
+        floors_climbed, elevation_gain_meters, workout_effort,
+        avg_cadence, stride_length_cm,
         EXISTS (
           SELECT 1 FROM public.exercise_entry_gps_points g
           WHERE g.exercise_entry_id = exercise_entries.id
@@ -615,6 +619,14 @@ async function queryExerciseActivities(
           avgHeartRate: row.avg_heart_rate
             ? Math.round(parseFloat(String(row.avg_heart_rate)))
             : null,
+          floorsClimbed: positiveOrNull(row.floors_climbed, 0),
+          elevationGainMeters: positiveOrNull(row.elevation_gain_meters, 1),
+          avgCadence: positiveOrNull(row.avg_cadence, 0),
+          strideLengthCm: positiveOrNull(row.stride_length_cm, 1),
+          workoutEffort:
+            row.workout_effort !== null && row.workout_effort !== undefined
+              ? Number(row.workout_effort)
+              : null,
           source: row.source ? String(row.source) : null,
           notes: row.notes ? String(row.notes) : null,
           hasGpsTrack: row.has_gps_track === true,
@@ -733,6 +745,12 @@ async function getPersonalRecordMatrix(
     }
 
     for (const sportGroup of PR_SPORT_GROUPS) {
+      // The bands are running distances. A sport with no distance standard of
+      // its own (skiing, rowing machines, anything classified as 'other') would
+      // otherwise be ranked against them: a fast downhill run becomes a
+      // marathon record. Such efforts only ever surface as the single
+      // best-effort card below.
+      if (sportGroup === 'other') continue;
       for (const [stdKey, stdConfig] of standardEntries) {
         const candidate = bestBySportAndStandard.get(`${sportGroup}:${stdKey}`);
         if (!candidate) continue;

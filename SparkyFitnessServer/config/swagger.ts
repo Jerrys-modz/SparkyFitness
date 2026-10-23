@@ -6,6 +6,7 @@ import {
   CHART_SCALE_MODES,
   MAX_CALORIE_SAFETY_FLOOR,
   MIN_CALORIE_SAFETY_FLOOR,
+  MAX_GOAL_MODE_WEEKLY_CHANGE_KG,
 } from '@workspace/shared';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -588,6 +589,11 @@ const options = {
               format: 'uuid',
               description: 'The ID of the exercise performed.',
             },
+            exercise_name: {
+              type: 'string',
+              description:
+                'Name stored on this entry. Optional on create; when omitted the library exercise name is used.',
+            },
             duration_minutes: {
               type: 'number',
               description: 'The duration of the exercise in minutes.',
@@ -967,14 +973,42 @@ const options = {
             user_id: { type: 'string', format: 'uuid' },
             mood_value: {
               type: 'integer',
-              description: 'Mood value (e.g., 1-5 or 0-10)',
+              nullable: true,
+              description:
+                'Null for a check-in that only records energy, focus, notes or tags. ' +
+                'Mood intensity on a 10-100 scale, banded 10-15 Sad, 16-25 Angry, ' +
+                '26-35 Worried, 36-45 Neutral, 46-55 Thoughtful, 56-65 Calm, ' +
+                '66-75 Confident, 76-85 Happy, 86-100 Excited',
+            },
+            energy_value: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 5,
+              nullable: true,
+            },
+            focus_value: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 5,
+              nullable: true,
             },
             notes: { type: 'string', nullable: true },
             entry_date: { type: 'string', format: 'date' },
+            entry_timestamp: {
+              type: 'string',
+              format: 'date-time',
+              description: 'When the check-in happened.',
+            },
+            source: {
+              type: 'string',
+              enum: ['manual', 'garmin', 'import'],
+              description:
+                "'manual' for check-ins a person or the AI logged; 'garmin' and 'import' for moods derived from synced data.",
+            },
             created_at: { type: 'string', format: 'date-time' },
             updated_at: { type: 'string', format: 'date-time' },
           },
-          required: ['mood_value', 'entry_date'],
+          required: ['entry_date'],
         },
         SleepEntry: {
           type: 'object',
@@ -1162,6 +1196,7 @@ const options = {
               type: 'integer',
               nullable: true,
             },
+            target_steps: { type: 'integer', nullable: true },
           },
         },
         GoalPreset: {
@@ -1185,11 +1220,48 @@ const options = {
           type: 'object',
           properties: {
             user_id: { type: 'string', format: 'uuid' },
+            voice_input_enabled: {
+              type: 'boolean',
+              default: true,
+              description:
+                'Show voice dictation in web and mobile chat. Turning this off preserves the selected voice configuration. Omitted values are unchanged on update.',
+            },
+            active_voice_ai_service_id: {
+              type: 'string',
+              format: 'uuid',
+              nullable: true,
+              description:
+                'Explicit audio-capable AI configuration for voice transcription. Null selects system recognition, never the chat provider. Omitted values are unchanged on update.',
+            },
             language: { type: 'string' },
             theme: { type: 'string' },
             timezone: { type: 'string' },
             unit_system: { type: 'string', enum: ['metric', 'imperial'] },
             meal_calorie_distribution: { type: 'object' },
+            goal_mode: {
+              type: 'string',
+              enum: [
+                'maintain',
+                'recomp',
+                'cut',
+                'high_cut',
+                'lean_bulk',
+                'bulk',
+                'manual',
+                'weekly',
+              ],
+              description:
+                'Weekly uses goal_mode_weekly_change_kg; all other modes retain their percentage-based behavior.',
+            },
+            goal_mode_weekly_change_kg: {
+              type: 'number',
+              minimum: -MAX_GOAL_MODE_WEEKLY_CHANGE_KG,
+              maximum: MAX_GOAL_MODE_WEEKLY_CHANGE_KG,
+              multipleOf: 0.001,
+              default: 0,
+              description:
+                'Signed kg/week: negative loses, positive gains, zero maintains. Used only in weekly goal mode. Omitted values are unchanged on update.',
+            },
             calorie_safety_floor_mode: {
               type: 'string',
               enum: ['standard', 'custom', 'disabled'],

@@ -228,6 +228,140 @@ final class WatchSessionManager: NSObject, ObservableObject {
         )
     }
 
+    private var lastRecordingLiveHeartRateAt: Date?
+
+    /// The current reading for the phone's GPS recording, sent as the same
+    /// live-only message the strength workout uses (an empty
+    /// `exerciseEntryId`, since a recording has none). Dropped when the phone
+    /// cannot be reached right now: the batches carry the readings for the
+    /// diary.
+    func sendRecordingLiveHeartRate(sessionId: String, bpm: Double, measuredAt: Date) {
+        guard Date().timeIntervalSince(measuredAt) <= Self.liveHeartRateMaxAge else { return }
+        guard WCSession.isSupported(), isActivated, WCSession.default.isReachable, bpm > 0 else { return }
+        let now = Date()
+        if let last = lastRecordingLiveHeartRateAt, now.timeIntervalSince(last) < Self.liveHeartRateInterval {
+            return
+        }
+        lastRecordingLiveHeartRateAt = now
+        WCSession.default.sendMessage(
+            OutboundPayloads.liveHeartRate(
+                sessionId: sessionId,
+                exerciseEntryId: "",
+                bpm: bpm,
+                at: measuredAt
+            ),
+            replyHandler: nil,
+            errorHandler: nil
+        )
+    }
+
+    /// Pause, resume or finish for the phone's GPS recording. Queued when the
+    /// phone is out of reach, like every other message that must not be lost.
+    func sendRecordingControl(sessionId: String, action: String) {
+        transfer(OutboundPayloads.recordingControl(sessionId: sessionId, action: action))
+    }
+
+    /// Heart-rate readings for the phone's GPS recording, queued like the
+    /// workout's batches: a phone out of range mid-run is normal.
+    func sendRecordingHeartRate(
+        sessionId: String,
+        clientId: String,
+        samples: [HeartRateSample],
+        appleZones: [[String: Any]]? = nil
+    ) {
+        transfer(OutboundPayloads.recordingHeartRate(
+            sessionId: sessionId,
+            clientId: clientId,
+            samples: samples,
+            appleZones: appleZones
+        ))
+    }
+
+    /// The live view's figures for a wrist-only run: a message while the phone
+    /// is reachable, at most every couple of seconds unless `force`d (a status
+    /// change), and dropped otherwise. Never queued.
+    func sendRunLive(_ payload: [String: Any], force: Bool = false) {
+        guard WCSession.isSupported(), isActivated, WCSession.default.isReachable else { return }
+        let now = Date()
+        if !force, let last = lastRunLiveAt, now.timeIntervalSince(last) < Self.runLiveInterval {
+            return
+        }
+        lastRunLiveAt = now
+        WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+    }
+
+    private static let runLiveInterval: TimeInterval = 2
+
+    /// Cues handed to the phone that it has not confirmed yet, each with what
+    /// to do if it never does.
+    private var pendingCues: [String: () -> Void] = [:]
+    private static let cueAckTimeout: TimeInterval = 2
+
+    /// Asks the phone to say a cue (its headphones are the ones in the wearer's
+    /// ears). Returns false when the phone cannot be reached right now, so the
+    /// caller speaks it on the watch; otherwise `fallback` runs if the phone
+    /// does not confirm in time or the send fails.
+    func relayRunCue(_ text: String, interrupt: Bool, fallback: @escaping () -> Void) -> Bool {
+        guard WCSession.isSupported(), isActivated, WCSession.default.isReachable else { return false }
+        let id = UUID().uuidString
+        pendingCues[id] = fallback
+        WCSession.default.sendMessage(
+            OutboundPayloads.runCue(id: id, text: text, interrupt: interrupt),
+            replyHandler: nil
+        ) { [weak self] _ in
+            Task { @MainActor in self?.failCue(id) }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.cueAckTimeout) { [weak self] in
+            self?.failCue(id)
+        }
+        return true
+    }
+
+    /// Runs the cue's fallback unless the phone already confirmed it.
+    private func failCue(_ id: String) {
+        guard let fallback = pendingCues.removeValue(forKey: id) else { return }
+        fallback()
+    }
+    private var lastRunLiveAt: Date?
+
+    /// Hands a finished wrist-only walk or run to the phone to file in the
+    /// diary. Returns true once the message is durably queued: `transferUserInfo`
+    /// accepted it, or it is on disk until activation can hand it over. False
+    /// when it could not be kept, so the caller leaves the recovery snapshot.
+    @discardableResult
+    func sendRunFinished(_ result: WatchRunResult) -> Bool {
+        let payload = OutboundPayloads.runFinished(result)
+        guard WCSession.isSupported() else { return false }
+        if isActivated {
+            transfer(payload)
+            return true
+        }
+        return WatchRunOutbox.append(payload)
+    }
+
+    /// Tells the phone how hard a finished run felt. Queued, like the run.
+    func sendRunEffort(clientId: String, rating: Int) {
+        transfer(OutboundPayloads.runEffort(clientId: clientId, rating: rating))
+    }
+
+    /// Tells the phone which routes the watch holds. Queued (a later report
+    /// supersedes an earlier one, so a duplicate is harmless); deferred to
+    /// activation if the session is not up yet, where the library reports again.
+    func sendRouteLibrary(_ payload: [String: Any]) {
+        transfer(payload)
+    }
+
+    /// Sends runs that were finished before the session had activated.
+    private func flushRunOutbox() {
+        guard isActivated else { return }
+        let queued = WatchRunOutbox.load()
+        guard !queued.isEmpty else { return }
+        for payload in queued {
+            transfer(payload)
+        }
+        WatchRunOutbox.clear()
+    }
+
     /// Hands a check-in to the system for delivery. Returns the state to show:
     /// `.queued` always, because even a reachable phone hasn't written to the
     /// server yet — the ack flips it to `.saved`.
@@ -240,11 +374,34 @@ final class WatchSessionManager: NSObject, ObservableObject {
         return .queued
     }
 
+    /// Asks the phone to start a fast. Queued, so a phone out of reach gets it
+    /// when it comes back.
+    func requestStartFast(presetId: String) {
+        transfer(OutboundPayloads.fastStart(presetId: presetId, clientId: UUID().uuidString))
+    }
+
+    /// Asks the phone to end the running fast.
+    func requestEndFast() {
+        transfer(OutboundPayloads.fastEnd(clientId: UUID().uuidString))
+    }
+
     /// Asks the phone to start one saved workout. Queued like a check-in: the
     /// phone is often in a bag, and a tap that vanishes is the bug.
     func requestWorkoutStart(presetId: String, serverId: String?) {
         guard WCSession.isSupported() else { return }
         transfer(OutboundPayloads.workoutStartRequest(presetId: presetId, serverId: serverId))
+    }
+
+    /// Asks the phone to change the running workout. Queued like a logged set:
+    /// the phone is often in a bag, and an edit that vanishes would leave the
+    /// wrist and the phone disagreeing about the workout.
+    func sendWorkoutEdit(_ action: WorkoutEditAction) {
+        guard WCSession.isSupported(), let sessionId = workoutStore.plan?.sessionId else { return }
+        transfer(OutboundPayloads.workoutEdit(
+            sessionId: sessionId,
+            clientId: UUID().uuidString,
+            action: action
+        ))
     }
 
     /// Tells the phone whether to write a finished workout's changes into its
@@ -345,6 +502,55 @@ final class WatchSessionManager: NSObject, ObservableObject {
         }
     }
 
+    /// Asks the phone to log one dose as taken, or to remove that log when `undo`. Acknowledged like a
+    /// water tap: the phone reports the `clientId` immediately when reachable
+    /// and again in every context push.
+    func sendMedicationTap(_ dose: MedicationDose, clientId: String, undo: Bool = false) {
+        guard WCSession.isSupported() else { return }
+        transfer(OutboundPayloads.medicationTaken(
+            MedicationTap(
+                id: clientId,
+                entryDate: CheckInDate.today(),
+                medicationId: dose.medicationId,
+                scheduleId: dose.scheduleId,
+                taken: !undo
+            )
+        ))
+    }
+
+    /// Re-sends every tick still waiting on the phone, under its original id.
+    /// The phone reads the day's entries before writing, so a tick that did
+    /// land is recognised and re-acknowledged rather than logged twice.
+    func resendQueuedMedicationTaps() {
+        guard isActivated else { return }
+        for tap in store.queuedMedicationTaps {
+            resend(tap)
+        }
+    }
+
+    /// Re-sends every tick the phone reported as failed, under its original id.
+    func retryFailedMedicationTaps() {
+        for tap in store.retryableMedicationTaps {
+            store.markMedicationTap(tap.id, .queued)
+            resend(tap)
+        }
+    }
+
+    /// Sent under the day the wearer ticked it, not today's: a tick queued at
+    /// 23:58 and resent after midnight still belongs to the earlier day.
+    private func resend(_ tap: PendingMedicationTap) {
+        guard WCSession.isSupported() else { return }
+        transfer(OutboundPayloads.medicationTaken(
+            MedicationTap(
+                id: tap.id,
+                entryDate: tap.day,
+                medicationId: tap.medicationId,
+                scheduleId: tap.scheduleId,
+                taken: !tap.isUndo
+            )
+        ))
+    }
+
     /// Re-publishes both complications' shared-storage snapshots from the
     /// context the watch already holds.
     ///
@@ -378,10 +584,18 @@ final class WatchSessionManager: NSObject, ObservableObject {
                     calories: nutrition.calorieProgress,
                     protein: nutrition.protein.progress,
                     carbs: nutrition.carbs.progress,
-                    fat: nutrition.fat.progress
+                    fat: nutrition.fat.progress,
+                    proteinGrams: MacroGrams(consumed: nutrition.protein.consumed, goal: nutrition.protein.goal),
+                    carbsGrams: MacroGrams(consumed: nutrition.carbs.consumed, goal: nutrition.carbs.goal),
+                    fatGrams: MacroGrams(consumed: nutrition.fat.consumed, goal: nutrition.fat.goal)
                 ),
                 for: nutrition.day
             )
+        }
+
+        if context.fastSynced == true { ComplicationPublisher.publish(fast: context.fast) }
+        if let steps = context.steps, steps.isToday {
+            ComplicationPublisher.publish(steps: steps.count, goal: context.stepGoal ?? 10_000, for: steps.day)
         }
 
         if let water = context.water, water.isToday {
@@ -475,6 +689,13 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // field: the two water figures already travel for the Water page's
         // bottle, and a third field carrying their ratio would be a second
         // version of the same truth to keep in step.
+        if incoming.fastSynced == true { ComplicationPublisher.publish(fast: incoming.fast) }
+        if let steps = incoming.steps {
+            ComplicationPublisher.publish(steps: steps.count, goal: incoming.stepGoal ?? 10_000, for: steps.day)
+        } else if payload["steps"] != nil {
+            // The phone said it has no steps; an earlier count must not outlive that.
+            ComplicationPublisher.clearSteps()
+        }
         if let water = incoming.water {
             ComplicationPublisher.publish(
                 waterProgress: incoming.waterProgress(ml: water.consumedMl) ?? 0,
@@ -500,6 +721,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         let state: SyncState = ack.ok ? .saved : .failed
         store.markWaterTap(ack.clientId, state)
         store.markWaterDelete(ack.clientId, state)
+        store.markMedicationTap(ack.clientId, state)
     }
 
     /// The single entry point for everything inbound, whichever transport
@@ -514,6 +736,30 @@ final class WatchSessionManager: NSObject, ObservableObject {
         case "intervalTiming": handle(intervalTiming: payload)
         case "setTargets": handle(setTargets: payload)
         case "workoutPlanUpdate": handle(workoutPlanUpdate: payload)
+        case "recordingState":
+            if let update = ContextPayloadMapper.recordingUpdate(from: payload) {
+                RecordingStore.shared.apply(update)
+            }
+        case "runStart":
+            if let request = ContextPayloadMapper.runStartRequest(from: payload) {
+                WatchRunStore.shared.startRequested(request)
+            }
+        case "routeSync":
+            if let sync = ContextPayloadMapper.routeSync(from: payload) {
+                WatchRouteLibraryStore.shared.apply(sync: sync)
+            }
+        case "routeRemove":
+            if let routeId = ContextPayloadMapper.routeRemoveId(from: payload) {
+                WatchRouteLibraryStore.shared.apply(remove: routeId)
+            }
+        case "runCueAck":
+            if let id = payload["id"] as? String { pendingCues.removeValue(forKey: id) }
+        case "runControl":
+            if let control = ContextPayloadMapper.runControl(from: payload) {
+                WatchRunStore.shared.applyRemote(
+                    runId: control.runId, action: control.action, controlId: control.controlId
+                )
+            }
         default: break
         }
     }
@@ -533,6 +779,9 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // A redelivered `workoutStart` for the session already running must
         // not stop HealthKit and restart the plan from set 1.
         if workoutStore.plan?.sessionId == plan.sessionId { return }
+        // A wrist-only run already holds the watch's one workout session; a
+        // second would end one of them. The workout carries on on the phone.
+        if WatchRunStore.shared.isActive { return }
 
         // Recovery may still be reattaching the previous HealthKit session.
         // Queue the plan and let that finish (and stop the old session)
@@ -685,6 +934,25 @@ final class WatchSessionManager: NSObject, ObservableObject {
     private func recoverLiveWorkoutIfNeeded() {
         retryPendingTails()
         hkRecovery = .running
+        // A wrist-only run left going is claimed first: only it has a
+        // snapshot to say the Health session is its own. Otherwise the
+        // strength-workout path below would end it as a leftover.
+        WatchRunStore.shared.recoverIfNeeded { [weak self] claimed in
+            guard let self else { return }
+            if claimed {
+                self.hkRecovery = .finished
+                // A workout start that arrived during recovery cannot run
+                // beside the recovered run; drop it so later starts are not
+                // held back waiting for it.
+                self.pendingPlan = nil
+                self.collectionInFlight = false
+            } else {
+                self.recoverStrengthWorkoutIfNeeded()
+            }
+        }
+    }
+
+    private func recoverStrengthWorkoutIfNeeded() {
         // A finish that was cut off is completed before anything else. It is
         // older than any queued plan, and resuming it would restart a workout
         // the wearer already ended.
@@ -809,7 +1077,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
         durationMinutes: Double? = nil
     ) {
         let minutes = (durationMinutes ?? 0) > 0 ? durationMinutes : nil
-        guard !samples.isEmpty || minutes != nil else { return }
+        let appleZones = workoutHealthKit.consumeAppleZones()
+        guard !samples.isEmpty || minutes != nil || appleZones != nil else { return }
         transfer(
             OutboundPayloads.heartRateBatch(
                 HeartRateBatch(
@@ -818,7 +1087,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
                     exerciseEntryId: exerciseEntryId,
                     samples: samples,
                     activeEnergyKcal: nil,
-                    durationMinutes: minutes
+                    durationMinutes: minutes,
+                    appleZones: appleZones.map(AppleZoneReading.parse)
                 )
             )
         )
@@ -938,7 +1208,11 @@ final class WatchSessionManager: NSObject, ObservableObject {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 if let closing {
-                    self.sendHeartRateBatch(samples, exerciseEntryId: closing.id)
+                    self.sendHeartRateBatch(
+                        samples,
+                        exerciseEntryId: closing.id,
+                        appleZones: self.workoutHealthKit.consumeAppleZones()
+                    )
                     if timedOut, let abandonedSessionId {
                         self.parkLateTail(sessionId: abandonedSessionId, exerciseEntryId: closing.id)
                     }
@@ -1142,6 +1416,19 @@ final class WatchSessionManager: NSObject, ObservableObject {
         return isActivated
     }
 
+    /// Tells the phone the wearer un-logged a set here. Queued like
+    /// `sendSetCompleted`, so one made out of range still arrives.
+    @discardableResult
+    func sendSetUncompleted(_ step: WorkoutStep) -> Bool {
+        guard let sessionId = workoutStore.plan?.sessionId else { return false }
+        transfer(OutboundPayloads.setUncompleted(
+            clientId: UUID().uuidString,
+            sessionId: sessionId,
+            setId: step.plannedSet.setId
+        ))
+        return isActivated
+    }
+
     /// Sends a Save or Skip that was stored because the session was not
     /// active yet. No-op until activation, and until the wearer has chosen.
     func retryPendingSetCompletion() {
@@ -1196,7 +1483,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
     private func sendHeartRateBatch(
         _ samples: [HeartRateSample],
         exerciseEntryId: String,
-        durationMinutes: Double? = nil
+        durationMinutes: Double? = nil,
+        appleZones: [[String: Any]]? = nil
     ) {
         guard let sessionId = workoutStore.plan?.sessionId else { return }
         // `max(0, ...)` because the running total should only ever climb, but
@@ -1214,7 +1502,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // The one place that can see both halves of a batch, and so the only
         // place that can tell an empty one from an energy-only one. Callers
         // hand over whatever the buffer held, including nothing.
-        guard !samples.isEmpty || (energyDelta ?? 0) > 0 || (durationMinutes ?? 0) > 0 else {
+        guard !samples.isEmpty || (energyDelta ?? 0) > 0 || (durationMinutes ?? 0) > 0 || appleZones != nil else {
             return
         }
         workoutStore.persistSnapshot(
@@ -1227,9 +1515,26 @@ final class WatchSessionManager: NSObject, ObservableObject {
             exerciseEntryId: exerciseEntryId,
             samples: samples,
             activeEnergyKcal: energyDelta,
-            durationMinutes: (durationMinutes ?? 0) > 0 ? durationMinutes : nil
+            durationMinutes: (durationMinutes ?? 0) > 0 ? durationMinutes : nil,
+            appleZones: appleZones.map(AppleZoneReading.parse)
         )
         transfer(OutboundPayloads.heartRateBatch(batch))
+    }
+
+    /// Saves the wearer's 1-10 effort for the workout that just ended: to Health
+    /// (watchOS 11+) and, when the summary names its session, to the phone,
+    /// which files it with the workout in the diary.
+    func rateWorkoutEffort(_ score: Int, sessionId: String?, completion: @escaping (Bool) -> Void) {
+        if let sessionId {
+            transfer(OutboundPayloads.workoutEffort(sessionId: sessionId, rating: score))
+        }
+        // Only an older watchOS skips the Health write. On watchOS 11+ with no
+        // saved workout yet, saveEffort reports failure so the wearer can retry.
+        guard WorkoutEffort.isSupported else {
+            completion(true)
+            return
+        }
+        workoutHealthKit.saveEffort(score, completion: completion)
     }
 
     /// Ends the workout. The stop signal waits until HealthKit has finished
@@ -1341,7 +1646,11 @@ final class WatchSessionManager: NSObject, ObservableObject {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 if let closing {
-                    self.sendHeartRateBatch(samples, exerciseEntryId: closing.id)
+                    self.sendHeartRateBatch(
+                        samples,
+                        exerciseEntryId: closing.id,
+                        appleZones: self.workoutHealthKit.consumeAppleZones()
+                    )
                     if timedOut, let stopSessionId {
                         self.parkLateTail(sessionId: stopSessionId, exerciseEntryId: closing.id)
                     }
@@ -1389,6 +1698,10 @@ extension WatchSessionManager: WCSessionDelegate {
             self.isReachable = reachable
             // First: anything the wearer did before the session was usable.
             self.flushDeferredTransfers()
+            self.flushRunOutbox()
+            // What the watch holds, so the phone's "On your watch" is true
+            // even after a reinstall or a phone-side reset.
+            WatchRouteLibraryStore.shared.report()
             // Before asking the phone for anything: whatever it last sent is
             // already available locally, and unlike `requestContext()` this
             // works with the phone nowhere in sight.
@@ -1398,6 +1711,7 @@ extension WatchSessionManager: WCSessionDelegate {
             self.retryPendingSetCompletion()
             self.resendQueuedWaterTaps()
             self.resendQueuedWaterDeletes()
+            self.resendQueuedMedicationTaps()
             self.requestContext()
         }
     }
@@ -1410,6 +1724,7 @@ extension WatchSessionManager: WCSessionDelegate {
                 self.retryPending()
                 self.resendQueuedWaterTaps()
                 self.resendQueuedWaterDeletes()
+                self.resendQueuedMedicationTaps()
                 self.requestContext()
             }
         }

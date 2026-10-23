@@ -3,6 +3,11 @@ import chatRepository from '../models/chatRepository.js';
 import { estimateFoodPhotoNutrition } from '../services/foodPhotoEstimationService.js';
 
 vi.mock('../models/chatRepository');
+// Read by utils/outboundUrlPolicy's resolveAiNetworkPolicy. Default false
+// keeps these cases off the real database.
+vi.mock('../models/globalSettingsRepository.js', () => ({
+  isPrivateNetworkAiAllowed: vi.fn().mockResolvedValue(false),
+}));
 vi.mock('../config/logging', () => ({ log: vi.fn() }));
 // Matching is a separate service with its own tests and its own DB access;
 // this file covers prompt building and provider dispatch.
@@ -407,6 +412,30 @@ describe('estimateFoodPhotoNutrition', () => {
       const result = await estimate();
       expect(result.success).toBe(false);
       if (!result.success) expect(result.code).toBe('UPSTREAM_ERROR');
+    });
+
+    it('maps an openai patch limit 400 → IMAGE_TOO_LARGE', async () => {
+      mockOpenAi();
+      mockFetch(
+        JSON.stringify({
+          error: {
+            message:
+              'The image you provided requires 48960 patches after processing, exceeding the limit of 30000. Please resize the image and try again.',
+            type: 'invalid_request_error',
+            param: 'messages',
+            code: 'invalid_value',
+          },
+        }),
+        { ok: false, status: 400 }
+      );
+      const result = await estimate();
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.code).toBe('IMAGE_TOO_LARGE');
+        expect(result.error).toBe(
+          'The image is too large for AI analysis. Please try another photo.'
+        );
+      }
     });
 
     it('maps an openai refusal → CONTENT_BLOCKED', async () => {

@@ -9,6 +9,7 @@ import {
 import { OutboundUrlBlockedError } from '../utils/outboundUrlPolicy.js';
 import { resetLearnedRejections } from '../ai/modelCapabilities.js';
 import convert from 'heic-convert';
+import sharp from 'sharp';
 
 // Fixed "JPEG" bytes returned by the mocked transcoder. Declared via vi.hoisted
 // so the hoisted vi.mock('heic-convert') factory below can reference it.
@@ -522,6 +523,86 @@ describe('dispatchAiRequest — preconditions', () => {
 });
 
 describe('dispatchAiRequest — text-only structured request shapes', () => {
+  it.each(['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6-sol'])(
+    'uses Responses with strict structured output for %s',
+    async (model) => {
+      const m = mockFetch({
+        status: 'completed',
+        output: [
+          {
+            type: 'message',
+            content: [{ type: 'output_text', text: JSON.stringify(SAMPLE) }],
+          },
+        ],
+      });
+      const result = await dispatchAiRequest(
+        baseRequest({
+          provider: makeProvider({ model_name: model }),
+          temperature: 0,
+        })
+      );
+      const { url, body } = captured(m);
+      expect(url).toBe('https://api.openai.com/v1/responses');
+      expect(body.reasoning).toEqual({ effort: 'medium' });
+      expect(body.temperature).toBeUndefined();
+      expect(body.messages).toBeUndefined();
+      expect(body.text).toMatchObject({
+        format: { type: 'json_schema', name: SCHEMA_NAME, strict: true },
+      });
+      expect(result).toMatchObject({ ok: true, json: SAMPLE });
+    }
+  );
+
+  it('classifies filtered Responses output as refused, without accepting partial text', async () => {
+    mockFetch({
+      status: 'incomplete',
+      incomplete_details: { reason: 'content_filter' },
+      output_text: JSON.stringify(SAMPLE),
+    });
+    const result = await dispatchAiRequest(
+      baseRequest({ provider: makeProvider({ model_name: 'gpt-6-astra' }) })
+    );
+    expect(result).toMatchObject({ ok: false, category: 'refused' });
+  });
+  it('extracts answer JSON without reasoning or provider tool content', async () => {
+    mockFetch({
+      output: [
+        {
+          type: 'reasoning',
+          text: 'private reasoning',
+          content: [{ type: 'reasoning_text', text: 'private analysis' }],
+        },
+        { type: 'web_search_call', text: 'search metadata' },
+        {
+          type: 'message',
+          role: 'assistant',
+          content: [
+            { type: 'reasoning_text', text: 'not an answer' },
+            { type: 'output_text', text: JSON.stringify(SAMPLE) },
+          ],
+        },
+      ],
+    });
+    const result = await dispatchAiRequest(
+      baseRequest({ provider: makeProvider({ model_name: 'gpt-6-astra' }) })
+    );
+    expect(result).toMatchObject({
+      ok: true,
+      json: SAMPLE,
+      text: JSON.stringify(SAMPLE),
+    });
+  });
+  it('does not parse partial Responses output as a successful result', async () => {
+    mockFetch({
+      status: 'incomplete',
+      incomplete_details: { reason: 'max_output_tokens' },
+      output_text: JSON.stringify(SAMPLE),
+    });
+    const result = await dispatchAiRequest(
+      baseRequest({ provider: makeProvider({ model_name: 'gpt-6-astra' }) })
+    );
+    expect(result).toMatchObject({ ok: false, category: 'truncated' });
+  });
   it('openai sends strict json_schema with a strict-transformed schema', async () => {
     const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
     await dispatchAiRequest(baseRequest());
@@ -537,9 +618,9 @@ describe('dispatchAiRequest — text-only structured request shapes', () => {
     expect(rf.json_schema.strict).toBe(true);
     // Strict transform: additionalProperties:false everywhere, propertyOrdering gone.
     expect(rf.json_schema.schema.additionalProperties).toBe(false);
-    expect(rf.json_schema.schema.properties?.nested?.additionalProperties).toBe(
-      false
-    );
+    expect(rf.json_schema.schema.properties?.nested).toMatchObject({
+      additionalProperties: false,
+    });
     expect(rf.json_schema.schema.propertyOrdering).toBeUndefined();
     // Text-only: content is a plain string, not an array of blocks.
     const messages = body.messages as Array<{ content: unknown }>;
@@ -729,6 +810,44 @@ describe('dispatchAiRequest — text-only structured request shapes', () => {
     expect(messages[0].content).toBe('Do the thing.');
   });
 
+  it('DeepSeek OpenAI-compatible endpoints use json_object with schema in prompt', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'openai_compatible',
+          custom_url: 'https://api.deepseek.com/v1',
+        }),
+        images: [IMG],
+      })
+    );
+    const { url, body } = captured(m);
+    expect(url).toBe('https://api.deepseek.com/v1/chat/completions');
+    expect(body.response_format).toEqual({ type: 'json_object' });
+    const content = (
+      body.messages as Array<{ content: Array<Record<string, unknown>> }>
+    )[0].content;
+    const textPart = content.find((part) => part.type === 'text') as {
+      text: string;
+    };
+    expect(textPart.text).toContain(JSON.stringify(toStrictJsonSchema(SCHEMA)));
+    expect(content.some((part) => part.type === 'image_url')).toBe(true);
+  });
+
+  it('does not treat lookalike domains as DeepSeek', async () => {
+    const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'openai_compatible',
+          custom_url: 'https://api.deepseek.com.evil.example/v1',
+        }),
+      })
+    );
+    const { body } = captured(m);
+    expect((body.response_format as { type: string }).type).toBe('json_schema');
+  });
+
   it('custom uses the user-supplied URL as-is and strict json_schema', async () => {
     const m = mockFetch(openAiBody(JSON.stringify(SAMPLE)));
     await dispatchAiRequest(
@@ -793,7 +912,9 @@ describe('dispatchAiRequest — text-only structured request shapes', () => {
     };
     expect(format.type).toBe('json_schema');
     expect(format.schema.additionalProperties).toBe(false);
-    expect(format.schema.properties?.nested?.additionalProperties).toBe(false);
+    expect(format.schema.properties?.nested).toMatchObject({
+      additionalProperties: false,
+    });
   });
 
   it('anthropic sends no output_config when no schema is requested', async () => {
@@ -835,8 +956,48 @@ describe('dispatchAiRequest — text-only structured request shapes', () => {
     expect(body.stream).toBe(false);
     // Ollama takes format: 'json' and reads the schema from the prompt.
     expect(body.format).toBe('json');
+    expect(body.think).toBe(false);
     const message = (body.messages as { content: string }[])[0];
     expect(message.content).toContain('conforms to this JSON Schema');
+  });
+
+  it('ollama disables thinking and requests json format when parseJson is true', async () => {
+    const m = mockFetch(ollamaBody(JSON.stringify(SAMPLE)));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+        jsonSchema: undefined,
+        schemaName: undefined,
+        parseJson: true,
+      })
+    );
+    const { body } = captured(m);
+    expect(body.format).toBe('json');
+    expect(body.think).toBe(false);
+  });
+
+  it('ollama omits format and think for plain-text requests', async () => {
+    const m = mockFetch(ollamaBody('plain text'));
+    await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+        jsonSchema: undefined,
+        schemaName: undefined,
+      })
+    );
+    const { body } = captured(m);
+    expect(body.format).toBeUndefined();
+    expect(body.think).toBeUndefined();
   });
 
   it('ollama sends a bearer token when the provider has an api key', async () => {
@@ -1368,7 +1529,7 @@ describe('dispatchAiRequest — model defaulting', () => {
     expect(captured(m).body.model).toBe('gpt-4o-mini');
   });
 
-  it('ollama vision falls back to llava', async () => {
+  it('ollama vision falls back to gemma4', async () => {
     const m = mockFetch(ollamaBody(JSON.stringify(SAMPLE)));
     await dispatchAiRequest(
       baseRequest({
@@ -1382,7 +1543,7 @@ describe('dispatchAiRequest — model defaulting', () => {
         images: [IMG],
       })
     );
-    expect(captured(m).body.model).toBe('llava');
+    expect(captured(m).body.model).toBe('gemma4');
   });
 
   // Shared default: getDefaultModel also feeds normal, food-options, and
@@ -1821,10 +1982,48 @@ describe('dispatchAiRequest — 429 rate-limit retry', () => {
 });
 
 describe('toStrictJsonSchema', () => {
+  it('strictly transforms nested unions, definitions and tuple items while retaining boolean schemas', () => {
+    const strict = toStrictJsonSchema({
+      type: 'object',
+      properties: {
+        choice: {
+          anyOf: [
+            {
+              type: 'object',
+              properties: { allowed: true },
+              propertyOrdering: ['allowed'],
+            },
+            { type: 'null' },
+          ],
+        },
+        list: {
+          type: 'array',
+          items: [{ type: ['object', 'null'], properties: {} }, false],
+        },
+      },
+      $defs: { nested: { type: 'object', properties: {} } },
+    });
+    expect(strict).toMatchObject({
+      additionalProperties: false,
+      properties: {
+        choice: {
+          anyOf: [
+            { additionalProperties: false, properties: { allowed: true } },
+            { type: 'null' },
+          ],
+        },
+        list: { items: [{ additionalProperties: false }, false] },
+      },
+      $defs: { nested: { additionalProperties: false } },
+    });
+    expect(JSON.stringify(strict)).not.toContain('propertyOrdering');
+  });
   it('adds additionalProperties:false to every object node and strips propertyOrdering', () => {
     const strict = toStrictJsonSchema(SCHEMA);
     expect(strict.additionalProperties).toBe(false);
-    expect(strict.properties?.nested?.additionalProperties).toBe(false);
+    expect(strict.properties?.nested).toMatchObject({
+      additionalProperties: false,
+    });
     expect(strict.propertyOrdering).toBeUndefined();
   });
 
@@ -2003,6 +2202,116 @@ describe('dispatchAiRequest — Perplexity 403 deprecation handling', () => {
         'Perplexity has retired the OpenAI-compatible Chat Completions API'
       );
       expect(result.detail).toContain('Use OpenRouter with a Perplexity model');
+    }
+  });
+});
+
+describe('dispatchAiRequest — image downscaling & oversized image handling', () => {
+  it('automatically downscales an oversized image before dispatching to provider', async () => {
+    const hugeJpeg = await sharp({
+      create: {
+        width: 3000,
+        height: 2000,
+        channels: 3,
+        background: { r: 100, g: 150, b: 200 },
+      },
+    })
+      .jpeg()
+      .toBuffer();
+
+    const m = mockFetch({
+      choices: [{ message: { content: '{"ok": true}' } }],
+    });
+
+    const result = await dispatchAiRequest(
+      baseRequest({
+        images: [
+          { base64: hugeJpeg.toString('base64'), mimeType: 'image/jpeg' },
+        ],
+      })
+    );
+
+    expect(result.ok).toBe(true);
+    const sentBody = captured(m).body as {
+      messages: Array<{
+        content: Array<{ type: string; image_url?: { url: string } }>;
+      }>;
+    };
+    const imageUrl = sentBody.messages[0].content[0].image_url?.url;
+    expect(imageUrl).toBeDefined();
+    const sentBase64 = imageUrl!.replace(/^data:image\/jpeg;base64,/, '');
+    const sentBuffer = Buffer.from(sentBase64, 'base64');
+    const sentMeta = await sharp(sentBuffer).metadata();
+    expect(sentMeta.width).toBe(2048);
+    expect(sentMeta.height).toBe(1365);
+  });
+
+  it('downscales images to 1280px for ollama to fit consumer GPU VRAM', async () => {
+    const hugeJpeg = await sharp({
+      create: {
+        width: 3000,
+        height: 2000,
+        channels: 3,
+        background: { r: 100, g: 150, b: 200 },
+      },
+    })
+      .jpeg()
+      .toBuffer();
+
+    const m = mockFetch(ollamaBody(JSON.stringify(SAMPLE)));
+
+    const result = await dispatchAiRequest(
+      baseRequest({
+        provider: makeProvider({
+          service_type: 'ollama',
+          api_key: undefined,
+          custom_url: 'http://localhost:11434',
+        }),
+        networkPolicy: PRIVATE_NETWORK_POLICY,
+        images: [
+          { base64: hugeJpeg.toString('base64'), mimeType: 'image/jpeg' },
+        ],
+      })
+    );
+
+    expect(result.ok).toBe(true);
+    const sentBody = captured(m).body as {
+      messages: Array<{ images?: string[] }>;
+    };
+    const sentBase64 = sentBody.messages[0].images?.[0];
+    expect(sentBase64).toBeDefined();
+    const sentBuffer = Buffer.from(sentBase64!, 'base64');
+    const sentMeta = await sharp(sentBuffer).metadata();
+    expect(sentMeta.width).toBe(1280);
+    expect(sentMeta.height).toBe(853);
+  });
+
+  it('translates OpenAI 400 patch-limit rejection into image_too_large category', async () => {
+    mockFetch(
+      {
+        error: {
+          message:
+            'The image you provided requires 48960 patches after processing, exceeding the limit of 30000. Please resize the image and try again.',
+          type: 'invalid_request_error',
+          param: 'messages',
+          code: 'invalid_value',
+        },
+      },
+      { ok: false, status: 400 }
+    );
+
+    const result = await dispatchAiRequest(
+      baseRequest({
+        images: [{ base64: 'abc', mimeType: 'image/jpeg' }],
+      })
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.category).toBe('image_too_large');
+      expect(result.detail).toBe(
+        'The image is too large for AI analysis. Please try another photo.'
+      );
     }
   });
 });

@@ -13,6 +13,7 @@ import {
   updateWorkout,
   deleteWorkout,
   attachExerciseEntryWatchTelemetry,
+  setExerciseEntryEffort,
 } from '../../src/services/api/exerciseApi';
 import { addLog } from '../../src/services/LogService';
 import {
@@ -31,6 +32,7 @@ jest.mock('../../src/services/api/exerciseApi', () => ({
   updateWorkout: jest.fn(),
   deleteWorkout: jest.fn(),
   attachExerciseEntryWatchTelemetry: jest.fn(),
+  setExerciseEntryEffort: jest.fn(),
 }));
 
 jest.mock('../../src/hooks/invalidateExerciseCache', () => ({
@@ -90,6 +92,9 @@ const mockAttachTelemetry =
   attachExerciseEntryWatchTelemetry as jest.MockedFunction<
     typeof attachExerciseEntryWatchTelemetry
   >;
+const mockSetEffort = setExerciseEntryEffort as jest.MockedFunction<
+  typeof setExerciseEntryEffort
+>;
 const mockAddLog = addLog as jest.MockedFunction<typeof addLog>;
 const mockStopWorkout = (
   jest.requireMock('../../modules/watch-connectivity') as {
@@ -449,6 +454,105 @@ describe('useWatchWorkoutBridge', () => {
 
     expect(getStore().completedSetIds['101']).toBeDefined();
     expect(mockUpdateWorkout).toHaveBeenCalledTimes(1);
+  });
+
+  it('un-logs the matching set and ignores a re-delivered transfer on onSetUncompleted', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'client-1',
+        sessionId: 'session-1',
+        setId: '101',
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(getStore().completedSetIds['101']).toBeDefined();
+
+    await act(async () => {
+      fire('onSetUncompleted', {
+        clientId: 'client-2',
+        sessionId: 'session-1',
+        setId: '101',
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(getStore().completedSetIds['101']).toBeUndefined();
+
+    // Logged again on the phone; the same transfer arriving twice must not
+    // undo that second log.
+    act(() => {
+      getStore().completeSet('101', Date.now());
+    });
+    await act(async () => {
+      fire('onSetUncompleted', {
+        clientId: 'client-2',
+        sessionId: 'session-1',
+        setId: '101',
+      });
+      await Promise.resolve();
+    });
+    expect(getStore().completedSetIds['101']).toBeDefined();
+  });
+
+  it('applies an un-log that arrived before the set was logged', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+
+    await act(async () => {
+      fire('onSetUncompleted', {
+        clientId: 'client-9',
+        sessionId: 'session-1',
+        setId: '101',
+      });
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      fire('onSetCompleted', {
+        clientId: 'client-1',
+        sessionId: 'session-1',
+        setId: '101',
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(getStore().completedSetIds['101']).toBeDefined();
+
+    await act(async () => {
+      fire('onSetUncompleted', {
+        clientId: 'client-9',
+        sessionId: 'session-1',
+        setId: '101',
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(getStore().completedSetIds['101']).toBeUndefined();
+  });
+
+  it('ignores an un-log for a session that is not live', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+      getStore().completeSet('101', Date.now());
+    });
+
+    await act(async () => {
+      fire('onSetUncompleted', {
+        clientId: 'client-3',
+        sessionId: 'some-other-session',
+        setId: '101',
+      });
+      await Promise.resolve();
+    });
+    expect(getStore().completedSetIds['101']).toBeDefined();
   });
 
   it.each([
@@ -2701,5 +2805,96 @@ describe('useWatchWorkoutBridge across sessions, failures and watch finishes', (
       await Promise.resolve();
     });
     expect(onWatchFinished).not.toHaveBeenCalled();
+  });
+});
+
+describe('useWatchWorkoutBridge workout effort from the watch', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockSetEffort.mockReset();
+    mockSetEffort.mockResolvedValue(undefined);
+    mockAttachTelemetry.mockResolvedValue(undefined);
+    act(() => {
+      getStore().clearWorkout();
+    });
+  });
+
+  const batch = () =>
+    fire('onHeartRateBatch', {
+      clientId: 'hr-effort-1',
+      sessionId: 'session-1',
+      exerciseEntryId: 'ex-uuid-1',
+      samples: [
+        { t: '2026-09-17T10:00:00.000Z', bpm: 120 },
+        { t: '2026-09-17T10:00:10.000Z', bpm: 128 },
+      ],
+    });
+
+  it("files the rating on one of the session's entries once the workout has ended", async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    act(() => {
+      batch();
+    });
+    await act(async () => {
+      getStore().clearWorkout();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      fire('onWorkoutEffort', { sessionId: 'session-1', rating: 8 });
+      await Promise.resolve();
+    });
+
+    expect(mockSetEffort).toHaveBeenCalledTimes(1);
+    expect(mockSetEffort).toHaveBeenCalledWith('ex-uuid-1', 8);
+  });
+
+  it('holds a rating that arrives while the workout is still live, then files it', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    act(() => {
+      batch();
+    });
+
+    await act(async () => {
+      fire('onWorkoutEffort', { sessionId: 'session-1', rating: 6 });
+      await Promise.resolve();
+    });
+    expect(mockSetEffort).not.toHaveBeenCalled();
+
+    await act(async () => {
+      getStore().clearWorkout();
+      fire('onWorkoutStop', { sessionId: 'session-1' });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mockSetEffort).toHaveBeenCalledWith('ex-uuid-1', 6);
+  });
+
+  it('ignores a rating outside 1-10', async () => {
+    renderHook(() => useWatchWorkoutBridge(true));
+    act(() => {
+      getStore().startWorkout(makeSession());
+    });
+    act(() => {
+      batch();
+    });
+    await act(async () => {
+      getStore().clearWorkout();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      fire('onWorkoutEffort', { sessionId: 'session-1', rating: 0 });
+      fire('onWorkoutEffort', { sessionId: 'session-1', rating: 11 });
+      await Promise.resolve();
+    });
+
+    expect(mockSetEffort).not.toHaveBeenCalled();
   });
 });

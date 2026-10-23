@@ -20,12 +20,20 @@ jest.mock('react-i18next', () => ({
   },
 }));
 
+const KM_PER_MILE = 1.609344;
+let mockDistanceUnit: 'km' | 'miles' = 'km';
+
 jest.mock('@/contexts/PreferencesContext', () => ({
   usePreferences: () => ({
     loggingLevel: 'SILENT',
     weightUnit: 'kg',
-    distanceUnit: 'km',
-    convertDistance: (value: number) => value,
+    distanceUnit: mockDistanceUnit,
+    convertDistance: (value: number, from: string, to: string) =>
+      from === to
+        ? value
+        : from === 'km'
+          ? value / KM_PER_MILE
+          : value * KM_PER_MILE,
     timezone: 'UTC',
   }),
 }));
@@ -63,6 +71,14 @@ jest.mock('@/components/ExerciseHistoryDisplay', () => ({
 jest.mock('@/components/ExerciseActivityDetailsEditor', () => ({
   __esModule: true,
   default: () => <div data-testid="activity-details" />,
+}));
+
+jest.mock('@/hooks/Shoes/useShoes', () => ({
+  useAssignShoeMutation: () => ({ mutateAsync: jest.fn() }),
+}));
+
+jest.mock('@/components/Shoes/ShoeSelect', () => ({
+  ShoeSelect: () => <div data-testid="shoe-select" />,
 }));
 
 const cardioSet = {
@@ -111,6 +127,8 @@ const saveEntry = async () => {
     data: {
       distance: number | null;
       duration_minutes: number;
+      avg_heart_rate: number | null;
+      steps: number | null;
       sets: Array<{
         duration?: number | null;
         distance?: number | null;
@@ -207,5 +225,103 @@ describe('EditExerciseEntryDialog cardio set write', () => {
     // No cardio override lands on a strength set: rest survives, distance
     // stays absent on the set.
     expect(data.sets[0]).toMatchObject({ rest_time: 90, distance: null });
+  });
+});
+
+describe('EditExerciseEntryDialog untouched fields', () => {
+  beforeEach(() => {
+    mockUpdateExerciseEntry.mockClear();
+    mockUpdateExerciseEntry.mockResolvedValue(undefined);
+    mockDistanceUnit = 'km';
+  });
+
+  // A synced workout stores values with more precision than the form shows.
+  // Saving without touching them must send the stored values, or the server
+  // records the rounding as the user's edit.
+  const syncedEntry = () =>
+    makeEntry({
+      distance: 5.234,
+      duration_minutes: 30.4567,
+      avg_heart_rate: null,
+      steps: null,
+    } as unknown as Partial<ExerciseEntry>);
+
+  it('sends the stored values for fields the user left alone', async () => {
+    renderDialog(syncedEntry());
+
+    const { data } = await saveEntry();
+    expect(data.distance).toBe(5.234);
+    expect(data.duration_minutes).toBe(30.4567);
+    expect(data.avg_heart_rate).toBeNull();
+    expect(data.steps).toBeNull();
+  });
+
+  it('sends the input for a field the user changed', async () => {
+    renderDialog(syncedEntry());
+
+    fireEvent.change(screen.getByDisplayValue('5.2'), {
+      target: { value: '6' },
+    });
+    const { data } = await saveEntry();
+    expect(data.distance).toBe(6);
+    expect(data.duration_minutes).toBe(30.4567);
+  });
+
+  it('writes the stored values into the single cardio set too', async () => {
+    renderDialog(syncedEntry());
+
+    const { data } = await saveEntry();
+    expect(data.sets[0]).toMatchObject({
+      duration: Math.round(30.4567 * 60),
+      distance: 5.234,
+    });
+  });
+
+  it('keeps the stored distance when the form shows it in miles', async () => {
+    mockDistanceUnit = 'miles';
+    renderDialog(syncedEntry());
+
+    const { data } = await saveEntry();
+    expect(data.distance).toBe(5.234);
+  });
+
+  it('converts a distance the user changed in miles', async () => {
+    mockDistanceUnit = 'miles';
+    renderDialog(syncedEntry());
+
+    fireEvent.change(screen.getByDisplayValue('3.3'), {
+      target: { value: '4' },
+    });
+    const { data } = await saveEntry();
+    expect(data.distance).toBeCloseTo(4 * KM_PER_MILE, 6);
+  });
+
+  it('still derives an empty duration from the sets', async () => {
+    renderDialog(
+      makeEntry({
+        duration_minutes: null,
+        distance: null,
+        sets: [
+          { ...cardioSet, duration: null, distance: null, rest_time: 90 },
+          {
+            ...cardioSet,
+            id: 8,
+            set_number: 2,
+            duration: null,
+            distance: null,
+            rest_time: 90,
+          },
+        ],
+        exercise_snapshot: {
+          id: 'ex-1',
+          name: 'Bench Press',
+          category: 'Strength',
+          modality: 'weight_reps',
+        },
+      } as unknown as Partial<ExerciseEntry>)
+    );
+
+    const { data } = await saveEntry();
+    expect(data.duration_minutes).toBe(3);
   });
 });
