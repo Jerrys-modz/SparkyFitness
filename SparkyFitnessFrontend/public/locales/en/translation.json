@@ -9507,6 +9507,7 @@
       "longerSpanDifference": "A longer span makes a small difference easier to see."
     },
     "howSure": {
+      "title": "How sure is this?",
       "strength": "Strength",
       "strengthValue": "r = {{r}} ({{word}})",
       "noClearLink": "no clear link",
@@ -9546,13 +9547,37 @@
       "workouts": "workouts",
       "meditation": "meditation"
     },
+    "answer": {
+      "throughYesterday": "Through yesterday",
+      "throughLastWeek": "Through last week",
+      "throughDate": "Through {{date}}"
+    },
+    "chart": {
+      "eachDay": "Each day as a dot",
+      "eachWeek": "Each week as a dot",
+      "overTime": "Over time",
+      "axis": "{{metric}} vs. your usual",
+      "axisYesNo": "{{metric}} (yes or no)",
+      "axisDaysYou": "Days you {{verb}} vs. your usual",
+      "range": "{{metric}} {{min}}–{{max}}",
+      "noDots": "No days with both yet",
+      "noDotsWeeks": "No weeks with both yet",
+      "noOverTime": "Nothing logged in this range",
+      "dotsLabel": "Each dot pairs {{a}} with {{b}}",
+      "overTimeLabel": "{{a}} and {{b}} over time, each scaled to its own range"
+    },
     "bars": {
       "yesDays": "Days you {{yes}}",
       "noDays": "Days without {{yesNoun}}",
       "otherDays": "Other days",
-      "otherNights": "Other nights"
+      "otherNights": "Other nights",
+      "meanAndDays_one": "{{mean}} · {{count}} day",
+      "meanAndDays_other": "{{mean}} · {{count}} days",
+      "meanAndNights_one": "{{mean}} · {{count}} night",
+      "meanAndNights_other": "{{mean}} · {{count}} nights"
     },
     "checks": {
+      "title": "Checks",
       "ownNormal": "✓ Compared with your own normal",
       "notProof": "A link, not proof of cause",
       "seemsFirst": "{{metric}} seems to come first",
