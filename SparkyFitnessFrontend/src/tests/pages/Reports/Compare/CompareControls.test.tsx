@@ -4,10 +4,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { SUGGESTED_QUESTIONS, type CompareQuestion } from '@workspace/shared';
 import { CompareSentence } from '@/pages/Reports/Compare/CompareSentence';
-import {
-  clampCustomRange,
-  CompareSpanControl,
-} from '@/pages/Reports/Compare/CompareSpanControl';
+import { CompareSpanControl } from '@/pages/Reports/Compare/CompareSpanControl';
+import { clampCustomRange } from '@/pages/Reports/Compare/compareCustomRange';
 import { CompareStartState } from '@/pages/Reports/Compare/CompareStartState';
 
 // Every key the controls ask for, so the last test can check en/translation.json
