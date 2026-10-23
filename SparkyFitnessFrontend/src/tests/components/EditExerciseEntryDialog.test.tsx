@@ -390,7 +390,7 @@ describe('EditExerciseEntryDialog calories after changing sets', () => {
 
     fireEvent.click(
       container.ownerDocument
-        .querySelectorAll('svg.lucide-trash-2')[1]
+        .querySelectorAll('svg.lucide-trash-2')[1]!
         .closest('button')!
     );
     const { data } = await saveEntry();
