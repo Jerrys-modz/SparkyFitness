@@ -10,6 +10,7 @@ import { ProgramAdjustError, adjustRunning } from './runProgramAdjust.ts';
 import type { ProgramState } from './runProgramAdjust.ts';
 import { suggestFromBreak } from './runProgramBreak.ts';
 import {
+  builtInBaseline,
   planMinutes,
   programActivity,
   runMinutes,
@@ -84,6 +85,11 @@ export interface RealignInput {
   distance?: RaceDistance | null;
   /** Realign even where the cap on dropped workouts would stop it. */
   force?: boolean;
+  /**
+   * Whether spare time may be filled with repeated workouts. False once the
+   * plan has been stretched, so an accepted stretch is not offered again.
+   */
+  stretchable?: boolean;
 }
 
 export interface RealignPlan {
@@ -152,7 +158,28 @@ export function realignInputFromProgram(
     custom: isCustomProgramId(program.program_id),
     distance: options.distance ?? null,
     force: options.force ?? false,
+    stretchable: isStretchable(program),
   };
+}
+
+/**
+ * A stretch repeats workouts and leaves the plan longer than it was written
+ * (or with identical workouts, for a person's own plan), so a plan that shows
+ * either has already been stretched and gets no second offer.
+ */
+function isStretchable(
+  program: Pick<RunProgramResponse, 'program_id' | 'workouts' | 'next_index'>
+): boolean {
+  if (!isCustomProgramId(program.program_id)) {
+    return builtInBaseline(program.program_id, program.workouts) !== undefined;
+  }
+  const seen = new Set<string>();
+  for (const w of program.workouts.slice(program.next_index)) {
+    const signature = JSON.stringify(w.plan.steps);
+    if (seen.has(signature)) return false;
+    seen.add(signature);
+  }
+  return true;
 }
 
 /** Thrown when a confirmed realignment no longer matches the plan the person saw. */
@@ -622,7 +649,9 @@ export function realignProgram(input: RealignInput): RealignOutcome {
   if (n <= slots) {
     const extra = slots - n;
     // A few spare days are normal; offer to fill only a week or more of room.
-    if (extra < perWeek || tailStart === 0) return { state: 'fits' };
+    if (extra < perWeek || tailStart === 0 || input.stretchable === false) {
+      return { state: 'fits' };
+    }
     const add = Math.min(extra, MAX_REALIGN_STRETCH);
     const { order, added } = stretch(
       entries.filter((e) => e.i < tailStart),

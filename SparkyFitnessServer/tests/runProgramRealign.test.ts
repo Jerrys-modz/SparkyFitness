@@ -11,6 +11,7 @@ import {
   numberCustomWorkouts,
   ProgramAdjustError,
   ProgramRealignStaleError,
+  realignInputFromProgram,
   realignProgram,
   runMinutes,
   runProgramRealignResultSchema,
@@ -349,6 +350,26 @@ describe('realignProgram: more time than workouts', () => {
   it('only stretches when a whole week of room is spare', () => {
     expect(realignProgram(input(half, 38)).state).toBe('fits');
     expect(realignProgram(input(half, 39)).state).toBe('plan');
+  });
+
+  it('does not offer a second stretch once one has been accepted', () => {
+    const first = plan(realignProgram(input(half, 80)));
+    const stored = (workouts: ProgramWorkout[]) =>
+      realignInputFromProgram(
+        {
+          program_id: 'halfMarathon',
+          workouts,
+          next_index: 0,
+          run_days: runDays,
+          start_date: null,
+          end_date: endForSlots(80),
+          last_done_date: null,
+          activity: 'run',
+        },
+        { today }
+      );
+    expect(realignProgram(stored(half)).state).toBe('plan');
+    expect(realignProgram(stored(first.workouts)).state).toBe('fits');
   });
 });
 
