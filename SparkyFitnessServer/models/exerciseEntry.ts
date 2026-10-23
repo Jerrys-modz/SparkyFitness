@@ -1438,6 +1438,7 @@ async function _deleteExerciseEntryWithClient(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   id: any
 ) {
+  await lockCalorieLinkParticipantsWithClient(client, userId, [id]);
   await clearCalorieLinkOfEntryWithClient(client, userId, id);
   const result = await client.query(
     'DELETE FROM exercise_entries WHERE id = $1 AND user_id = $2 RETURNING id',
@@ -1574,6 +1575,7 @@ async function deleteExerciseEntry(id: any, userId: any) {
   const client = await getClient(userId);
   try {
     await client.query('BEGIN');
+    await lockCalorieLinkParticipantsWithClient(client, userId, [id]);
     await clearCalorieLinkOfEntryWithClient(client, userId, id);
     const result = await client.query(
       'DELETE FROM exercise_entries WHERE id = $1 AND user_id = $2 RETURNING id',

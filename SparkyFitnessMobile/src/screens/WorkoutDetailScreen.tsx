@@ -686,7 +686,16 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     const totalCalories = isEditing
       ? formState.exercises.reduce((sum, ex) => {
           const cal = parseDecimalInput(ex.calories ?? '');
-          return sum + (isNaN(cal) ? 0 : cal);
+          const saved = session.exercises.find(
+            (entry) => entry.id === ex.serverId
+          );
+          return (
+            sum +
+            entryCaloriesCounted({
+              calories_burned: isNaN(cal) ? 0 : cal,
+              calories_applied: saved?.calories_applied,
+            })
+          );
         }, 0)
       : session.exercises.reduce(
           (sum, ex) => sum + entryCaloriesCounted(ex),
