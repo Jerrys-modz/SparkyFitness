@@ -10,6 +10,7 @@ import type { CompareTimingRow } from '@/pages/Reports/Compare/compareTables';
 // Every key the sections ask for, so the last test can check
 // en/translation.json says the same English.
 const defaultsByKey = new Map<string, string>();
+const pluralByKey = new Map<string, { one: string; other: string }>();
 
 jest.mock('react-i18next', () => {
   const actual = jest.requireActual('@/tests/mocks/reactI18next');
@@ -24,6 +25,11 @@ jest.mock('react-i18next', () => {
       ) => {
         const def = typeof a === 'string' ? a : a?.['defaultValue'];
         if (typeof def === 'string') defaultsByKey.set(key, def);
+        const one = typeof a === 'object' ? a['defaultValue_one'] : undefined;
+        const other =
+          typeof a === 'object' ? a['defaultValue_other'] : undefined;
+        if (typeof one === 'string' && typeof other === 'string')
+          pluralByKey.set(key, { one, other });
         return actual.translateForTest(key, a, b);
       },
     }),
@@ -274,6 +280,31 @@ describe('CompareDaysTable', () => {
     expect(within(rows[0]!).getByText('-0.5')).toBeInTheDocument();
   });
 
+  test('a yes/no side by week is a day count with a signed deviation', () => {
+    const q: CompareQuestion = {
+      a: 'meditated',
+      b: 'energy',
+      choice: 'sameWeek',
+    };
+    render(
+      <CompareDaysTable
+        question={q}
+        response={response(q, {
+          aValues: { '2026-10-05': 3, '2026-10-12': 1 },
+          bValues: { '2026-10-05': 4, '2026-10-12': 3 },
+          devA: { '2026-10-05': 1.5, '2026-10-12': -1 },
+          devB: { '2026-10-05': 0.5, '2026-10-12': -0.5 },
+        })}
+      />
+    );
+    const rows = bodyRows();
+    expect(within(rows[0]!).getByText('1 day')).toBeInTheDocument();
+    expect(within(rows[0]!).getByText('-1.0 days')).toBeInTheDocument();
+    expect(within(rows[1]!).getByText('3 days')).toBeInTheDocument();
+    expect(within(rows[1]!).getByText('+1.5 days')).toBeInTheDocument();
+    expect(within(rows[1]!).queryByText('Yes')).not.toBeInTheDocument();
+  });
+
   test('by week the day column reads "Week of"', () => {
     const q: CompareQuestion = {
       a: 'timeAsleep',
@@ -316,15 +347,22 @@ describe('en/translation.json', () => {
               : undefined,
           json
         );
-    const keys = [...defaultsByKey].filter(
-      ([k]) =>
-        k.startsWith('compareReport.timing.') ||
-        k.startsWith('compareReport.days.')
-    );
+    const keys = [...defaultsByKey]
+      .filter(([k]) => !pluralByKey.has(k))
+      .filter(
+        ([k]) =>
+          k.startsWith('compareReport.timing.') ||
+          k.startsWith('compareReport.days.')
+      );
     expect(keys.length).toBeGreaterThan(10);
     const mismatches = keys
       .filter(([key, def]) => leaf(key) !== def)
       .map(([key, def]) => `${key}: ${String(leaf(key))} != ${def}`);
+    for (const [key, { one, other }] of pluralByKey) {
+      if (leaf(`${key}_one`) !== one) mismatches.push(`${key}_one`);
+      if (leaf(`${key}_other`) !== other) mismatches.push(`${key}_other`);
+    }
+    expect(pluralByKey.size).toBeGreaterThan(0);
     expect(mismatches).toEqual([]);
   });
 });

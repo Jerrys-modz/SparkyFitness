@@ -68,7 +68,7 @@ export const CompareTimingTable = ({
                 : 'hover:bg-muted/50'
             )}
           >
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-sm font-medium">
                 {`${metricName(question.b, t)} ${timingLabel(
                   row.choice,
@@ -84,19 +84,19 @@ export const CompareTimingTable = ({
                   })}
                 </span>
               )}
-            </div>
-            <div className="mt-2 flex items-center gap-3">
-              <div
+            </span>
+            <span className="mt-2 flex items-center gap-3">
+              <span
                 aria-hidden="true"
-                className="h-2 flex-1 overflow-hidden rounded-full bg-muted"
+                className="block h-2 flex-1 overflow-hidden rounded-full bg-muted"
               >
-                <div
-                  className="h-2 rounded-full bg-primary"
+                <span
+                  className="block h-2 rounded-full bg-primary"
                   style={{
                     width: `${Math.round((widths[index] ?? 0) * 100)}%`,
                   }}
                 />
-              </div>
+              </span>
               <span className="w-14 text-right text-sm tabular-nums">
                 {timingStrengthText(question, row, i18n.language)}
               </span>
@@ -113,7 +113,7 @@ export const CompareTimingTable = ({
                   statusText(row)
                 )}
               </span>
-            </div>
+            </span>
           </button>
         ))}
         <p className="pt-1 text-xs text-muted-foreground">

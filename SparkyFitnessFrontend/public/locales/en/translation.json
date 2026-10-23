@@ -9635,7 +9635,10 @@
       "weekOf": "Week of {{date}}",
       "vsUsual": "{{metric}} vs. your usual",
       "yes": "Yes",
-      "no": "No"
+      "no": "No",
+      "count_one": "{{count}} day",
+      "count_other": "{{count}} days",
+      "daysDeviation": "{{amount}} days"
     }
   }
 }

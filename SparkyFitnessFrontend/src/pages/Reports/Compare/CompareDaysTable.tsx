@@ -29,7 +29,7 @@ export const CompareDaysTable = ({
   response,
   question,
 }: CompareDaysTableProps) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { formatDateInUserTimezone } = usePreferences();
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'day', desc: true },
@@ -41,12 +41,24 @@ export const CompareDaysTable = ({
   const bTiming = chosen.mode === 'since' ? 0 : chosen.timing;
 
   const columns = useMemo<ColumnDef<DataTableFeatures, CompareDayRow>[]>(() => {
-    const yesNo = (key: CompareMetricKey, value: number) =>
-      COMPARE_METRICS[key].kind === 'binary'
-        ? value >= 0.5
-          ? t('compareReport.days.yes', { defaultValue: 'Yes' })
-          : t('compareReport.days.no', { defaultValue: 'No' })
-        : compareValueText(key, value);
+    const yesNo = (key: CompareMetricKey, value: number) => {
+      if (COMPARE_METRICS[key].kind !== 'binary') {
+        return compareValueText(key, value);
+      }
+      // By week a habit's value is the count of days you did it.
+      if (isWeek) {
+        const count = Math.round(value);
+        return t('compareReport.days.count', {
+          count,
+          defaultValue: '{{count}} days',
+          defaultValue_one: '{{count}} day',
+          defaultValue_other: '{{count}} days',
+        });
+      }
+      return value >= 0.5
+        ? t('compareReport.days.yes', { defaultValue: 'Yes' })
+        : t('compareReport.days.no', { defaultValue: 'No' });
+    };
     const vsUsual = (key: CompareMetricKey, suffix: string) =>
       t('compareReport.days.vsUsual', {
         defaultValue: '{{metric}} vs. your usual',
@@ -56,8 +68,22 @@ export const CompareDaysTable = ({
       bTiming === 0
         ? ''
         : ` (${timingLabel(question.choice, question.a, question.b, t)})`;
-    const devCell = (key: CompareMetricKey, dev: number | null) =>
-      dev === null ? '—' : compareAmountText(key, dev, true);
+    const devCell = (key: CompareMetricKey, dev: number | null) => {
+      if (dev === null) return '—';
+      if (isWeek && COMPARE_METRICS[key].kind === 'binary') {
+        // Days against your usual weeks, so a fraction is real.
+        const amount = new Intl.NumberFormat(i18n.language, {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+          signDisplay: 'exceptZero',
+        }).format(dev);
+        return t('compareReport.days.daysDeviation', {
+          defaultValue: '{{amount}} days',
+          amount,
+        });
+      }
+      return compareAmountText(key, dev, true);
+    };
     const devSort = (dev: number | null) => dev ?? Number.NEGATIVE_INFINITY;
 
     return [
@@ -102,7 +128,7 @@ export const CompareDaysTable = ({
         cell: ({ row }) => devCell(question.b, row.original.bDev),
       },
     ];
-  }, [question, isWeek, bTiming, t, formatDateInUserTimezone]);
+  }, [question, isWeek, bTiming, t, i18n.language, formatDateInUserTimezone]);
 
   return (
     <Card>
