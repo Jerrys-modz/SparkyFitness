@@ -397,6 +397,44 @@ function loggedThing(key: CompareMetricKey, t: Translator): string {
 }
 
 /**
+ * The sentence after a yes/no "Yes": the habit's days against the other days, which is what
+ * the analysis compares (as on the phone). Not "than usual": a habit kept on most days is the
+ * usual, so its days can sit near usual while the other days fall below it.
+ */
+function differenceSentence(
+  outcomeKey: CompareMetricKey,
+  up: boolean,
+  wording: YesNoWording,
+  t: Translator
+): string {
+  const values = {
+    when: wording.when,
+    outcome: wording.outcome,
+    others: lowerFirst(wording.noLabel),
+  };
+  if (outcomeKey === 'bedtime') {
+    return up
+      ? t('compareReport.verdict.differenceLater', {
+          defaultValue: '{{when}}, {{outcome}} was later than on {{others}}.',
+          ...values,
+        })
+      : t('compareReport.verdict.differenceEarlier', {
+          defaultValue: '{{when}}, {{outcome}} was earlier than on {{others}}.',
+          ...values,
+        });
+  }
+  return up
+    ? t('compareReport.verdict.differenceHigher', {
+        defaultValue: '{{when}}, {{outcome}} was higher than on {{others}}.',
+        ...values,
+      })
+    : t('compareReport.verdict.differenceLower', {
+        defaultValue: '{{when}}, {{outcome}} was lower than on {{others}}.',
+        ...values,
+      });
+}
+
+/**
  * "higher than usual" / "lower than usual", except for bedtime, which is a
  * time of day and so is later or earlier. Bedtime consistency is a spread in
  * minutes and stays higher or lower.
@@ -626,12 +664,12 @@ export function verdictCopy(
       headline: t('compareReport.verdict.differenceHeadline', {
         defaultValue: 'Yes, a difference',
       }),
-      detail: t('compareReport.verdict.difference', {
-        defaultValue: '{{when}}, {{outcome}} was {{direction}}.',
-        when: wording.when,
-        outcome: wording.outcome,
-        direction: directionPhrase(yesKey === q.a ? q.b : q.a, diff >= 0, t),
-      }),
+      detail: differenceSentence(
+        yesKey === q.a ? q.b : q.a,
+        diff >= 0,
+        wording,
+        t
+      ),
     };
   }
 
