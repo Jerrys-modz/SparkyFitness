@@ -54,6 +54,18 @@ final class WatchRunStore: ObservableObject {
     /// The plan this run follows, if any. The page works out the live step
     /// from it each second; the store only cues the changes.
     @Published private(set) var plan: WatchRunPlan?
+    /// The saved route this run follows, outdoors only; nil otherwise. The
+    /// phone sends it with the start request and it is kept on disk (see
+    /// `WatchRouteStorage`) so a relaunch carries on following it.
+    @Published private(set) var route: WatchRoute?
+    /// Where the latest GPS fix stands against `route`; nil until the first usable fix.
+    @Published private(set) var routeProgress: WatchRouteTracker.Snapshot?
+    /// The latest usable fix, for the "you are here" dot.
+    @Published private(set) var routePosition: WatchRoutePoint?
+    private var routeTracker: WatchRouteTracker?
+    /// A turn cue the tracker announced while the run was paused. Said on the
+    /// first fix after the run resumes, if that turn is still ahead.
+    private var heldRouteCue: WatchRouteCue?
     /// Index of the plan step already announced (-1 before the first).
     private var cuedStep = -1
     /// The distance step whose "to go" cue was said, so it is said once.
@@ -119,6 +131,9 @@ final class WatchRunStore: ObservableObject {
         healthKit.onAutoPause = { [weak self] action in
             Task { @MainActor in self?.applyAutoPause(action) }
         }
+        healthKit.onLocation = { [weak self] point, accuracy, date in
+            Task { @MainActor in self?.routeFix(point, accuracy: accuracy, at: date) }
+        }
         healthKit.onGpsAccuracy = { [weak self] accuracy in
             Task { @MainActor in
                 self?.gpsAccuracy = accuracy
@@ -140,7 +155,7 @@ final class WatchRunStore: ObservableObject {
         handledRequests = Array((handledRequests + [request.requestId]).suffix(20))
         guard abs(Date().timeIntervalSince(request.requestedAt)) <= 120 else { return }
         guard canStart else { return }
-        start(request.kind, place: request.place, plan: request.plan, settings: request.settings)
+        start(request.kind, place: request.place, plan: request.plan, settings: request.settings, route: request.route)
         // After `start`, which clears it for a run begun on the wrist.
         if phase == .running { requestId = request.requestId }
     }
@@ -188,7 +203,8 @@ final class WatchRunStore: ObservableObject {
         place: WatchRunPlace,
         plan: WatchRunPlan? = nil,
         settings: WatchRunSettings? = nil,
-        alerts: WatchRunAlertSetup = .off
+        alerts: WatchRunAlertSetup = .off,
+        route: WatchRoute? = nil
     ) {
         guard canStart else { return }
         // Distance steps follow the watch's GPS distance; indoors there is
@@ -202,6 +218,8 @@ final class WatchRunStore: ObservableObject {
             chosen.heartRateBand = alerts.heartRate
         }
         requestId = nil
+        // Indoors there is no GPS to follow a route with.
+        followRoute(place == .outdoor ? route : nil)
         self.settings = chosen
         self.kind = kind
         self.place = place
@@ -236,7 +254,89 @@ final class WatchRunStore: ObservableObject {
                     self.phase = .idle
                     self.requestId = nil
                     self.plan = nil
+                    self.followRoute(nil)
                 }
+            }
+        }
+    }
+
+    // MARK: - Route
+
+    /// Starts following `route`, or stops following one when nil. A route with
+    /// no line to follow is treated as none.
+    private func followRoute(_ route: WatchRoute?) {
+        routeTracker = route.flatMap { WatchRouteTracker(route: $0) }
+        healthKit.routeProgress = nil
+        self.route = routeTracker == nil ? nil : route
+        routeProgress = nil
+        routePosition = nil
+        heldRouteCue = nil
+        if let route = self.route {
+            WatchRouteStorage.save(route)
+        } else {
+            WatchRouteStorage.clear()
+            // A removal the phone sent while this route was being followed.
+            WatchRouteLibraryStore.shared.runEnded()
+        }
+    }
+
+    /// Hands the tracker's place, and a cue held for the resume, to the run
+    /// snapshot, so a relaunch carries on from both.
+    private func publishRouteProgress() {
+        guard let tracker = routeTracker else { return }
+        var state = tracker.state
+        state.pendingCue = heldRouteCue
+        healthKit.routeProgress = state
+    }
+
+    /// Takes a GPS fix. The map and the next cue follow every usable fix; the
+    /// buzzes and spoken lines only come while the run is going, so a paused
+    /// wearer is not nagged.
+    private func routeFix(_ point: WatchRoutePoint, accuracy: Double, at date: Date) {
+        guard phase == .running || phase == .paused, var tracker = routeTracker else { return }
+        guard let update = tracker.update(lat: point.lat, lon: point.lon, accuracy: accuracy, at: date) else { return }
+        routeTracker = tracker
+        routePosition = point
+        routeProgress = update.snapshot
+        var events = update.events
+        if phase == .paused {
+            // The tracker has marked a turn announced; keep it for the resume.
+            var newlyHeld = false
+            for case .approachingCue(let routeCue) in events {
+                heldRouteCue = routeCue
+                newlyHeld = true
+            }
+            // Route collection is off while paused, so no running-fix write
+            // follows. Routine fixes ride the throttle (pause() already wrote
+            // one); a newly held cue is forced so a relaunch keeps it.
+            publishRouteProgress()
+            healthKit.persistRouteProgress(force: newlyHeld)
+            return
+        }
+        guard phase == .running else { return }
+        if let held = heldRouteCue {
+            heldRouteCue = nil
+            let alreadyAnnounced = events.contains { $0 == .approachingCue(held) }
+            if !alreadyAnnounced, update.snapshot.nextCue?.cue == held {
+                events.insert(.approachingCue(held), at: 0)
+            }
+        }
+        publishRouteProgress()
+        healthKit.persistRouteProgress()
+        for event in events {
+            switch event {
+            case .approachingCue(let routeCue):
+                Haptics.routeCue()
+                cue(routeCue.spoken(distanceMeters: update.snapshot.nextCue?.distanceMeters ?? 0, inMiles: usesMiles))
+            case .wentOffRoute:
+                Haptics.offRoute()
+                cue(String(localized: "watch.route.offRouteSpoken", defaultValue: "You are off the route."))
+            case .backOnRoute:
+                Haptics.onRoute()
+                cue(String(localized: "watch.route.backOn", defaultValue: "Back on route."))
+            case .arrived:
+                Haptics.onRoute()
+                cue(String(localized: "watch.route.arrived", defaultValue: "You have reached the end of the route."))
             }
         }
     }
@@ -257,6 +357,9 @@ final class WatchRunStore: ObservableObject {
                 self.recovering = false
                 switch outcome {
                 case .none:
+                    // No run to carry on: a removal held back for a route that
+                    // was being followed when the app died can go now.
+                    WatchRouteLibraryStore.shared.runEnded()
                     completion(false)
                 case .resumed(let recovery):
                     self.kind = recovery.kind
@@ -268,6 +371,17 @@ final class WatchRunStore: ObservableObject {
                     self.lapCount = recovery.lapCount
                     self.plan = self.healthKit.plan
                     self.settings = self.healthKit.settings
+                    let savedRouteProgress = self.healthKit.routeProgress
+                    self.followRoute(recovery.place == .outdoor ? WatchRouteStorage.load() : nil)
+                    // Carry on from where the tracker was, not from the start.
+                    if let savedRouteProgress, var tracker = self.routeTracker {
+                        tracker.restore(savedRouteProgress)
+                        self.routeTracker = tracker
+                        if savedRouteProgress.routeId == tracker.route.id {
+                            self.heldRouteCue = savedRouteProgress.pendingCue
+                        }
+                        self.publishRouteProgress()
+                    }
                     // The recovered builder may still read 0 for a moment, so the
                     // snapshot's time is the floor. The plan's place comes back
                     // from the snapshot, so the step the run is in now is not
@@ -294,6 +408,7 @@ final class WatchRunStore: ObservableObject {
                     self.phase = recovery.paused ? .paused : .running
                     completion(true)
                 case .salvaged(let unscaled):
+                    self.followRoute(nil)
                     // The Health session was lost; the run itself was not.
                     let scale = Self.scale(for: unscaled.kind, place: unscaled.place)
                     var result = unscaled.scalingDistance(by: scale)
@@ -707,6 +822,7 @@ final class WatchRunStore: ObservableObject {
     func dismissSummary() {
         stopStepTimer()
         stopLiveTimer()
+        followRoute(nil)
         requestId = nil
         plan = nil
         lapCount = 0
@@ -719,6 +835,7 @@ final class WatchRunStore: ObservableObject {
         guard phase == .running || phase == .paused else { return }
         stopStepTimer()
         stopLiveTimer()
+        followRoute(nil)
         // Finish tapped while the Health prompts were still up: nothing was
         // ever recorded, so there is nothing to save.
         guard healthKit.hasLiveSession else {
@@ -827,6 +944,7 @@ final class WatchRunStore: ObservableObject {
         guard phase == .running || phase == .paused else { return }
         stopStepTimer()
         stopLiveTimer()
+        followRoute(nil)
         autoPaused = false
         guard let result else {
             requestId = nil

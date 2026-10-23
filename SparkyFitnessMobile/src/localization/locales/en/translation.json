@@ -6961,6 +6961,11 @@
     }
   },
   "recordActivity": {
+    "route": {
+      "title": "Route",
+      "none": "No route",
+      "watchHint": "Your watch shows the line and buzzes at each turn."
+    },
     "checkIn": {
       "title": "Spoken updates",
       "description": "Hear your time, distance and average pace every few minutes.",
@@ -8255,6 +8260,24 @@
   },
   "routes": {
     "addTitle": "Add a route",
+    "watch": {
+      "title": "Run it without your phone",
+      "hint": "Keep a copy on your watch, then start it from Cardio on the watch with the phone left behind.",
+      "start": "Start on watch",
+      "send": "Send to watch",
+      "sendAgain": "Send again",
+      "remove": "Remove from watch",
+      "sent": "Sent to your watch",
+      "pending": "Sent. Waiting for your watch to confirm.",
+      "onWatch": "On your watch",
+      "outdated": "Out of date, send again",
+      "full": "Your watch is full. Remove a route from it, then send this one again.",
+      "sendFailed": "Could not send the route to your watch",
+      "removeFailed": "Could not remove the route from your watch",
+      "startFailed": "Could not start on your watch",
+      "startTitle": "Start on your watch",
+      "startMessage": "Your watch follows the route and buzzes at each turn."
+    },
     "draw": "Draw on a map",
     "importGpx": "Import a GPX file",
     "importFailed": "Could not import that file",

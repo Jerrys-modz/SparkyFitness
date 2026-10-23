@@ -865,6 +865,58 @@ export interface WatchRunStartPlanStep {
   hrMax?: number;
 }
 
+/**
+ * A saved route for the watch to follow. `points` is flat
+ * `[lat, lon, lat, lon, …]` in millionths of a degree (integers keep the
+ * property list small: ~20 KB for the 2000-point maximum). `cues` are turn
+ * instructions anchored to a point index; the watch words them from `kind`
+ * unless `text` is given. See `toWatchRoutePayload` in `src/utils/watchRoute.ts`.
+ */
+export interface WatchRoutePayload {
+  id: string;
+  name: string;
+  points: number[];
+  cues: {
+    index: number;
+    kind:
+      | 'depart'
+      | 'straight'
+      | 'slight_left'
+      | 'left'
+      | 'sharp_left'
+      | 'slight_right'
+      | 'right'
+      | 'sharp_right'
+      | 'uturn'
+      | 'arrive';
+    text?: string;
+  }[];
+}
+
+/**
+ * A saved route for the watch's own library (`routeSync`). Same wire shape as
+ * the route of a `runStart`; `updatedAt` is the route's `updatedAt` in epoch
+ * ms, which the watch uses to keep the newest copy.
+ */
+export interface WatchRouteSyncPayload {
+  route: WatchRoutePayload;
+  updatedAt: number;
+}
+
+/**
+ * What the watch's route library holds (`routeLibrary`): each stored route
+ * with the `updatedAt` it was stored at, the ids it turned away (`full` when
+ * the library is at `capacity`, `storage` when the file could not be written)
+ * and the cap.
+ */
+export interface WatchRouteLibraryPayload {
+  routes: { id: string; updatedAt: number }[];
+  rejected: { id: string; reason: string }[];
+  capacity: number;
+  /** Epoch ms on the watch when it was sent; a stale queued copy is ignored. */
+  sentAt: number;
+}
+
 /** Asks the watch to start recording a walk or run itself. */
 export interface WatchRunStartPayload {
   requestId: string;
@@ -893,6 +945,8 @@ export interface WatchRunStartPayload {
     doneText?: string;
     steps: WatchRunStartPlanStep[];
   };
+  /** An outdoor run only: a saved route to follow. Rides this one request, so it reaches the watch exactly when the run does. */
+  route?: WatchRoutePayload;
 }
 
 export type WatchRunControlAction =
@@ -945,6 +999,7 @@ export type WatchConnectivityEvents = {
   onRunCue: (payload: WatchRunCuePayload) => void;
   onRunFinished: (payload: WatchRunFinishedPayload) => void;
   onRunEffort: (payload: WatchRunEffortPayload) => void;
+  onRouteLibrary: (payload: WatchRouteLibraryPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {
@@ -964,6 +1019,14 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
   startWorkout(plan: WatchWorkoutStartPayload): Promise<void>;
   /** Starts a walk or run on the watch and opens its app. */
   startRun(request: WatchRunStartPayload): Promise<void>;
+  /**
+   * Puts a route in the watch's library (queued, delivered once). The watch
+   * answers with `onRouteLibrary`, which is how the caller learns it arrived
+   * or that the library was full.
+   */
+  sendRoute(sync: WatchRouteSyncPayload): Promise<void>;
+  /** Takes a route out of the watch's library (queued). */
+  removeRoute(routeId: string): Promise<void>;
   /** Pause, resume, lap, finish or discard for the run on the watch, or a switch change (`autoPauseOn`/`Off`, `voiceCuesOn`/`Off`, `paceAlertOn`/`Off`, `heartRateAlertOn`/`Off`). */
   sendRunControl(control: WatchRunControlPayload): Promise<void>;
   /** Tells the watch the phone is saying cue `id`, so it stays quiet. */
@@ -1056,6 +1119,11 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    * `ackWatchRuns` says the phone has stored them.
    */
   pendingWatchRuns(): Promise<WatchRunFinishedPayload[]>;
+  /**
+   * The newest `routeLibrary` report received this launch, or null. For a
+   * report that arrived before `onRouteLibrary` had a listener. iOS only.
+   */
+  latestRouteLibrary?(): Promise<WatchRouteLibraryPayload | null>;
   ackWatchRuns(clientIds: string[]): Promise<void>;
   /**
    * Server config that owns batches received after this call. Persisted

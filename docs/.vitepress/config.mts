@@ -167,6 +167,7 @@ export default defineConfig({
             { text: 'Heart Rate Zones', link: '/features/exercises/heart-rate-zones' },
             { text: 'Shoe Inventory', link: '/features/exercises/shoe-inventory' },
             { text: 'Route Generation', link: '/features/exercises/route-generation' },
+            { text: 'Following a Route on Apple Watch', link: '/features/exercises/route-following-on-watch' },
             { text: 'Progression & Per-Set Ramp', link: '/features/exercises/progression-and-per-set-ramp' },
             { text: 'Bodyweight Exercises', link: '/features/exercises/bodyweight-exercises' },
             { text: 'Workout Effort', link: '/features/exercises/workout-effort' },

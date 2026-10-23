@@ -55,6 +55,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
     var onRunFinished: (([String: Any]) -> Void)?
     /// How hard the wearer rated a finished run (1-10).
     var onRunEffort: (([String: Any]) -> Void)?
+    /// Which routes the watch holds, and which it turned away.
+    var onRouteLibrary: (([String: Any]) -> Void)?
 
     /// The newest `setTargets` update sent before the session finished
     /// activating. Apple only queues `transferUserInfo` on an activated
@@ -157,6 +159,8 @@ private class WatchSessionDelegateHandler: NSObject, WCSessionDelegate {
             onRunFinished?(payload)
         case "runEffort":
             onRunEffort?(payload)
+        case "routeLibrary":
+            onRouteLibrary?(payload)
         default:
             break
         }
@@ -263,6 +267,9 @@ public class WatchConnectivityModule: Module {
     private var runQueueLoaded = false
     private let runQueueLimit = 50
     private let runAccess = DispatchQueue(label: "sparky.watch.runQueue")
+    /// The newest `routeLibrary` report, held for a listener that attaches late.
+    private var latestRouteLibraryReport: [String: Any]?
+    private let routeLibraryLock = NSLock()
 
     /// Opens the watch app for the workout the phone just started, the same
     /// way the system Workout app does. Without it the queued plan waits
@@ -323,7 +330,8 @@ public class WatchConnectivityModule: Module {
             "onRunLive",
             "onRunCue",
             "onRunFinished",
-            "onRunEffort"
+            "onRunEffort",
+            "onRouteLibrary"
         )
 
         OnCreate {
@@ -576,6 +584,24 @@ public class WatchConnectivityModule: Module {
                     "rating": payload["rating"] as? Int ?? 0,
                 ])
             }
+            self.delegateHandler.onRouteLibrary = { [weak self] payload in
+                let routes: [[String: Any]] = dictionaryArray(payload["routes"]).compactMap { row in
+                    guard let id = row["id"] as? String, !id.isEmpty else { return nil }
+                    return ["id": id, "updatedAt": (row["updatedAt"] as? NSNumber)?.doubleValue ?? 0]
+                }
+                let rejected: [[String: Any]] = dictionaryArray(payload["rejected"]).compactMap { row in
+                    guard let id = row["id"] as? String, !id.isEmpty else { return nil }
+                    return ["id": id, "reason": row["reason"] as? String ?? ""]
+                }
+                let report: [String: Any] = [
+                    "routes": routes,
+                    "rejected": rejected,
+                    "capacity": (payload["capacity"] as? NSNumber)?.intValue ?? 0,
+                    "sentAt": (payload["sentAt"] as? NSNumber)?.doubleValue ?? 0,
+                ]
+                self?.rememberRouteLibrary(report)
+                self?.sendEvent("onRouteLibrary", report)
+            }
             self.delegateHandler.activate()
         }
 
@@ -689,6 +715,23 @@ public class WatchConnectivityModule: Module {
             )
         }
 
+        /// Puts a saved route in the watch's library, for runs without the
+        /// phone. Queued only, never also sent live: a live copy that lands
+        /// after a later `routeRemove` would bring the route back. The watch
+        /// keeps the newest `updatedAt` and answers with `routeLibrary`.
+        AsyncFunction("sendRoute") { (sync: [String: Any]) -> Void in
+            guard WCSession.isSupported() else { return }
+            var payload = sync.compactMapValues(withoutNulls)
+            payload["type"] = "routeSync"
+            WCSession.default.transferUserInfo(payload)
+        }
+
+        /// Takes a route out of the watch's library. Queued, like `sendRoute`.
+        AsyncFunction("removeRoute") { (routeId: String) -> Void in
+            guard WCSession.isSupported() else { return }
+            WCSession.default.transferUserInfo(["type": "routeRemove", "routeId": routeId])
+        }
+
         /// Pause, resume, lap, finish or discard for the run going on the
         /// watch. Queued as well as sent live so a finish is not lost.
         AsyncFunction("sendRunControl") { (control: [String: Any]) -> Void in
@@ -789,6 +832,15 @@ public class WatchConnectivityModule: Module {
                     return self.deleteHeartRateBatchFile(batch.fileName)
                 }
             }
+        }
+
+        /// The watch's latest route library report, for a report that arrived
+        /// before the hook attached its `onRouteLibrary` listener. Each report
+        /// is a full snapshot, so only the latest is kept.
+        AsyncFunction("latestRouteLibrary") { () -> [String: Any]? in
+            self.routeLibraryLock.lock()
+            defer { self.routeLibraryLock.unlock() }
+            return self.latestRouteLibraryReport
         }
 
         /// Runs that arrived before JavaScript was listening. JS drains these
@@ -1122,6 +1174,17 @@ public class WatchConnectivityModule: Module {
             event["appleZones"] = zones
         }
         return event
+    }
+
+    private func rememberRouteLibrary(_ report: [String: Any]) {
+        routeLibraryLock.lock()
+        defer { routeLibraryLock.unlock() }
+        if let sentAt = report["sentAt"] as? Double,
+           let held = latestRouteLibraryReport?["sentAt"] as? Double,
+           sentAt > 0, sentAt < held {
+            return
+        }
+        latestRouteLibraryReport = report
     }
 
     /// Caller holds `runAccess` only through `rememberFinishedRun`.
