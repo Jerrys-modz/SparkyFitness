@@ -745,15 +745,15 @@ const EditExerciseEntryDialog = ({
       const storedCalories =
         entry.calories_burned != null ? Number(entry.calories_burned) : null;
       // Untouched calories go back as stored (a stored 0 shows as a blank
-      // input but is still the saved value) unless the sets changed, which
-      // makes them stale and lets the server re-estimate. Typed values,
-      // including 0, are the user's override; clearing the field asks for
-      // an estimate.
+      // input but is still the saved value) unless the sets or the duration
+      // changed, which makes them stale and lets the server re-estimate.
+      // Typed values, including 0, are the user's override; clearing the
+      // field asks for an estimate.
       const caloriesBurned = caloriesEdited
         ? caloriesBurnedInput === ''
           ? undefined
           : caloriesBurnedInput
-        : setsChanged
+        : setsChanged || durationEdited
           ? undefined
           : (storedCalories ?? undefined);
 

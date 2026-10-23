@@ -21,6 +21,7 @@ import {
 import {
   clearCalorieLinkOfEntryWithClient,
   clearCalorieLinksForPresetEntryWithClient,
+  lockCalorieLinkParticipantsWithClient,
   reapplyCalorieLinkWithClient,
 } from '../services/exerciseCalorieLinkService.js';
 /**
@@ -674,6 +675,10 @@ async function _updateExerciseEntryWithClient(
     markManualFields?: readonly string[];
   } = {}
 ) {
+  // A link created after an unlocked read would be ignored, and locking one
+  // side before the other deadlocks. Take the entry and its link first, then
+  // reread.
+  await lockCalorieLinkParticipantsWithClient(client, userId, [id]);
   // Fetch existing entry to get current snapshot values if not provided in updateData
   const existingEntryResult = await client.query(
     'SELECT * FROM exercise_entries WHERE id = $1 AND user_id = $2',

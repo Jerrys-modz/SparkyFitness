@@ -241,6 +241,42 @@ interface LinkedCalorieRow {
 }
 
 /**
+ * Hold these entries, and any calorie link they already belong to, until the
+ * transaction ends. Entry keys are taken before link keys, both in sorted
+ * order, so an edit, a link and an unlink cannot deadlock or overwrite each
+ * other. Callers must already be inside a transaction.
+ */
+export async function lockCalorieLinkParticipantsWithClient(
+  client: PoolClient,
+  userId: string,
+  entryIds: readonly string[]
+): Promise<void> {
+  const ids = [...new Set(entryIds)].sort();
+  for (const id of ids) {
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+      `exercise-entry:${id}`,
+    ]);
+  }
+  const peek = await client.query<{ calorie_link_id: string | null }>(
+    `SELECT calorie_link_id FROM exercise_entries
+     WHERE user_id = $1 AND id = ANY($2::uuid[])`,
+    [userId, ids]
+  );
+  const linkIds = [
+    ...new Set(
+      peek.rows
+        .map((row) => row.calorie_link_id)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ].sort();
+  for (const linkId of linkIds) {
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+      `calorie-link:${linkId}`,
+    ]);
+  }
+}
+
+/**
  * After an ordinary edit changes an estimate, rewrite `calories_applied` on
  * both sides from the stored resolution. The link stays authoritative: a
  * calories_applied sent with the edit is not kept.
@@ -368,6 +404,10 @@ async function setCalorieLink(
   const client = await getClient(userId, actingUserId);
   try {
     await client.query('BEGIN');
+    await lockCalorieLinkParticipantsWithClient(client, userId, [
+      entryId,
+      body.synced_entry_id,
+    ]);
     const workout = await loadWorkoutEntries(client, userId, entryId, true);
     const existingLinkId = workout.find(
       (row) => row.calorie_link_id
@@ -458,6 +498,7 @@ async function clearCalorieLink(
   const client = await getClient(userId, actingUserId);
   try {
     await client.query('BEGIN');
+    await lockCalorieLinkParticipantsWithClient(client, userId, [entryId]);
     const workout = await loadWorkoutEntries(client, userId, entryId, true);
     const linkId = workout.find((row) => row.calorie_link_id)?.calorie_link_id;
     if (!linkId) {

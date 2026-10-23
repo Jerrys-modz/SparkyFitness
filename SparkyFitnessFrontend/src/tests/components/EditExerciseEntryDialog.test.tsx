@@ -129,7 +129,6 @@ const saveEntry = async () => {
       duration_minutes: number;
       calories_burned?: number;
       avg_heart_rate: number | null;
-      calories_burned: number;
       calories_applied: number | null;
       steps: number | null;
       sets: Array<{

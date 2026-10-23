@@ -382,6 +382,18 @@ router.post(
         ); // Permission check
         if (!hasPermission) return res.status(403).json({ error: 'Forbidden' });
       }
+      let caloriesApplied = entryData.calories_applied;
+      if (caloriesApplied === '') {
+        caloriesApplied = null;
+      } else if (caloriesApplied !== null && caloriesApplied !== undefined) {
+        const applied = Number(caloriesApplied);
+        if (!Number.isFinite(applied) || applied < 0) {
+          return res
+            .status(400)
+            .json({ error: 'calories_applied must be a number of 0 or more.' });
+        }
+        caloriesApplied = applied;
+      }
       const newEntry = await exerciseService.createExerciseEntry(
         targetUserId,
 
@@ -391,10 +403,7 @@ router.post(
           exercise_name,
           duration_minutes,
           calories_burned,
-          calories_applied:
-            entryData.calories_applied === ''
-              ? null
-              : entryData.calories_applied,
+          calories_applied: caloriesApplied,
           entry_date,
           entry_time,
           notes,
