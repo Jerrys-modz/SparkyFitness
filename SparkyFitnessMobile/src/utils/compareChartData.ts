@@ -1,6 +1,7 @@
 import {
   COMPARE_METRICS,
   addDays,
+  compareDisplayValue,
   compareDays,
   daysBetween,
   daysInRange,
@@ -8,7 +9,6 @@ import {
   type CompareSinceResponse,
 } from '@workspace/shared';
 
-import { compareDisplayValue } from '../constants/compareMetrics';
 import type { CompareMode, CompareQuestion } from './compareQuestion';
 
 export interface CompareDot {

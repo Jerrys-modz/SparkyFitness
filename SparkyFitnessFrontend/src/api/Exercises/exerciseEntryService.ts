@@ -11,8 +11,6 @@ import {
   UpdateExerciseEntryRequest,
   exerciseProgressResponseSchema,
   ExerciseProgressResponse,
-  exerciseSnapshotResponseSchema,
-  ExerciseSnapshotResponse,
   PresetSessionResponse,
   presetSessionResponseSchema,
   calorieLinkSuggestionsResponseSchema,
@@ -20,7 +18,6 @@ import {
   SetCalorieLinkRequest,
 } from '@workspace/shared';
 import z from 'zod';
-import { parseJsonArray } from './exerciseService';
 
 /** Synced workouts that may be the same session as this logged workout. */
 export const fetchCalorieLinkSuggestions = async (
@@ -277,29 +274,6 @@ export const getExerciseHistory = async (
     }
   );
   return response;
-};
-
-export const fetchExerciseDetails = async (
-  exerciseId: string
-): Promise<ExerciseSnapshotResponse> => {
-  const response = await apiCall(`/exercises/${exerciseId}`, {
-    method: 'GET',
-  });
-
-  const parsedResponse = { ...response };
-  const arrayFields = [
-    'images',
-    'primary_muscles',
-    'secondary_muscles',
-    'equipment',
-    'instructions',
-  ];
-
-  arrayFields.forEach((field) => {
-    parsedResponse[field] = parseJsonArray(parsedResponse[field]) || [];
-  });
-
-  return exerciseSnapshotResponseSchema.parse(parsedResponse);
 };
 
 export const fetchExerciseEntryById = async (

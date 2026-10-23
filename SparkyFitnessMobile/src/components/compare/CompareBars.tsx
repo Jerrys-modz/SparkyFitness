@@ -1,13 +1,11 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import type { CompareResponse } from '@workspace/shared';
+import { compareDisplayValue, type CompareResponse } from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 
-import { compareDisplayValue } from '../../constants/compareMetrics';
-import { formatLocalizedNumber } from '../../localization';
 import {
   compareValueText,
-  signedMinutes,
+  yesNoDifferenceText,
   yesNoWording,
 } from '../../utils/compareCopy';
 import type { CompareQuestion } from '../../utils/compareQuestion';
@@ -15,14 +13,6 @@ import type { CompareQuestion } from '../../utils/compareQuestion';
 interface CompareBarsProps {
   response: CompareResponse;
   question: CompareQuestion;
-}
-
-function signedOneDecimal(value: number): string {
-  return formatLocalizedNumber(value, {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-    signDisplay: 'exceptZero',
-  });
 }
 
 const CompareBars: React.FC<CompareBarsProps> = ({ response, question }) => {
@@ -87,16 +77,7 @@ const CompareBars: React.FC<CompareBarsProps> = ({ response, question }) => {
         </View>
       ))}
       <Text className="text-text-muted text-xs">
-        {outcome === 'bedtime'
-          ? // A bedtime difference is a span of minutes, not a time of day.
-            t('compareReport.bars.diffMinutes', {
-              defaultValue: '{{diff}} min vs. your usual',
-              diff: signedMinutes(binary.diff),
-            })
-          : t('compareReport.bars.diff', {
-              defaultValue: '{{diff}} vs. your usual',
-              diff: signedOneDecimal(compareDisplayValue(outcome, binary.diff)),
-            })}
+        {yesNoDifferenceText(question, binary, t)}
       </Text>
     </View>
   );

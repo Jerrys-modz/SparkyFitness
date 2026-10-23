@@ -541,6 +541,38 @@ export function extractGarminTelemetryFields(
 export function findGroupForTimestamp<
   T extends { startMs: number | null; endMs: number | null },
 >(groups: T[], timestampMs: number): T | undefined {
+  if (groups.length === 0) return undefined;
+  if (groups.length <= 16) {
+    const match = groups.find(
+      (g) =>
+        g.startMs !== null &&
+        g.endMs !== null &&
+        timestampMs >= g.startMs &&
+        timestampMs <= g.endMs
+    );
+    return match ?? groups[0];
+  }
+
+  // Binary search candidate interval when groups are chronologically ordered
+  let low = 0;
+  let high = groups.length - 1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    const g = groups[mid];
+    if (g.startMs !== null && g.endMs !== null) {
+      if (timestampMs >= g.startMs && timestampMs <= g.endMs) {
+        return g;
+      }
+      if (timestampMs < g.startMs) {
+        high = mid - 1;
+      } else {
+        low = mid + 1;
+      }
+    } else {
+      break;
+    }
+  }
+
   const match = groups.find(
     (g) =>
       g.startMs !== null &&

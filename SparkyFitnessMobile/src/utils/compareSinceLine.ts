@@ -1,6 +1,10 @@
-import type { CompareMetricKey, CompareSinceResult } from '@workspace/shared';
+import {
+  compareDigits,
+  type CompareMetricKey,
+  type CompareSinceResult,
+} from '@workspace/shared';
 
-import { compareDigits, compareValueText } from './compareCopy';
+import { compareValueText } from './compareCopy';
 
 /** A line the person can pick: `value` in the metric's stored scale, `label` as they read it. */
 export interface SinceLineOption {

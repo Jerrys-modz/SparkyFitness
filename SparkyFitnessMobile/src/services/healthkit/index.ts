@@ -264,6 +264,7 @@ export const HEALTHKIT_TYPE_MAP: Record<string, string> = {
   LeanBodyMass: 'HKQuantityTypeIdentifierLeanBodyMass',
   SleepSession: 'HKCategoryTypeIdentifierSleepAnalysis',
   Stress: 'HKCategoryTypeIdentifierMindfulSession', // Map Stress to MindfulSession for HealthKit
+  MindfulnessSession: 'HKCategoryTypeIdentifierMindfulSession',
   Workout: 'HKWorkoutTypeIdentifier', // Map Workout to HKWorkoutTypeIdentifier for HealthKit
   CervicalMucus: 'HKCategoryTypeIdentifierCervicalMucusQuality',
   // The route is its own HealthKit type; mapping it to the workout type would
@@ -1102,6 +1103,51 @@ const handleStress: RecordHandler = async (identifier, startDate, endDate) => {
     endTime: s.endDate,
     value: 1, // MindfulSession doesn't have a direct stress level, so we record its presence
   }));
+};
+
+// Handler for MindfulnessSession records. Unlike Stress (presence only), each
+// sample keeps its uuid and source so the server can upsert it by id.
+const handleMindfulnessSession: RecordHandler = async (
+  identifier,
+  startDate,
+  endDate
+) => {
+  const samples = await queryCategorySamples(
+    identifier as Parameters<typeof queryCategorySamples>[0],
+    {
+      ascending: false,
+      limit: 0,
+      filter: { date: { startDate, endDate } },
+    }
+  );
+
+  return samples
+    .filter((s) => isInDateRange(new Date(s.startDate), startDate, endDate))
+    .map((s) => {
+      const sample = s as unknown as {
+        uuid?: string;
+        metadata?: Record<string, unknown>;
+        metadataTimeZone?: string;
+        sourceRevision?: { source?: { bundleIdentifier?: string } };
+      };
+      const flatTz = sample.metadataTimeZone;
+      const metadata =
+        sample.metadata || flatTz
+          ? {
+              ...sample.metadata,
+              ...(flatTz && !sample.metadata?.HKTimeZone
+                ? { HKTimeZone: flatTz }
+                : {}),
+            }
+          : undefined;
+      return {
+        uuid: sample.uuid,
+        startTime: s.startDate,
+        endTime: s.endDate,
+        metadata,
+        sourceBundleId: sample.sourceRevision?.source?.bundleIdentifier,
+      };
+    });
 };
 
 // Handler for reproductive health category types
@@ -1997,6 +2043,7 @@ const handleNutrition: RecordHandler = async (
 const RECORD_HANDLERS: Record<string, RecordHandler> = {
   SleepSession: handleSleepSession,
   Stress: handleStress,
+  MindfulnessSession: handleMindfulnessSession,
   IntermenstrualBleeding: handleReproductiveHealth,
   MenstruationFlow: handleReproductiveHealth,
   OvulationTest: handleReproductiveHealth,
@@ -2109,6 +2156,7 @@ const probeWorkoutEarliest = async (now: Date): Promise<Date | null> => {
 const CATEGORY_PROBE_TYPES = new Set([
   'SleepSession',
   'Stress',
+  'MindfulnessSession',
   'IntermenstrualBleeding',
   'MenstruationFlow',
   'OvulationTest',

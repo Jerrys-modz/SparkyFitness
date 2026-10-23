@@ -85,6 +85,7 @@ These are the projects most people compare SparkyFitness against when they want 
 | Workout presets & plan templates | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | GPS activity tracking with route maps | ✅ FIT import | ❌ | ❌ | ❌ | ❌ | ⭐ GPX & more |
 | Lap splits & activity telemetry | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Race-date training plan that rebuilds itself after missed weeks | ✅ | ? | ? | ? | ? | ? |
 | Personal records & 1RM progression | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Muscle-group recovery & variety scoring | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Health & Body** | | | | | | |

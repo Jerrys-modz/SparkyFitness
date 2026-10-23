@@ -16,6 +16,49 @@ vi.mock('../services/bmrService.js', () => ({
 
 const BMR = 2000;
 
+describe('weekly goal on device projection', () => {
+  test('applies the configured floor to a weekly goal with a manual calculation baseline', () => {
+    const balance = computeCalorieBalance(
+      inputs({
+        adjustedGoalCalories: 2200,
+        deviceTotalCalories: 2200,
+        deviceTotalDayFraction: 1,
+        userPreferences: {
+          calorie_goal_adjustment_mode: 'tdee',
+          goal_mode: 'weekly',
+          goal_mode_calculation_method: 'manual',
+          goal_mode_weekly_change_kg: -2,
+          calorie_safety_floor_mode: 'custom',
+          calorie_safety_floor_value: 1500,
+        },
+      })
+    );
+    expect(balance.goal).toBe(1500);
+  });
+
+  test.each([-0.5, 0, 0.25])(
+    'applies %s kg/week once to device TDEE',
+    (rate) => {
+      const balance = computeCalorieBalance(
+        inputs({
+          adjustedGoalCalories: 2200,
+          eatenCalories: 1000,
+          deviceTotalCalories: 3000,
+          deviceTotalDayFraction: 1,
+          userPreferences: {
+            calorie_goal_adjustment_mode: 'tdee',
+            goal_mode: 'weekly',
+            goal_mode_weekly_change_kg: rate,
+          },
+        })
+      );
+      const expectedTarget = Math.round(3000 + (rate * 6000) / 7);
+      expect(balance.goal).toBe(expectedTarget);
+      expect(balance.remaining).toBe(expectedTarget - 1000);
+    }
+  );
+});
+
 beforeEach(() => {
   vi.mocked(bmrService.calculateBmr).mockReturnValue(BMR);
 });

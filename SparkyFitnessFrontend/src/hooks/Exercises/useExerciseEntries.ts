@@ -9,15 +9,13 @@ import {
   createPresetSession,
   logWorkoutPreset,
   deleteExercisePresetEntry,
-  fetchExerciseDetails,
   getExerciseHistory,
   fetchWorkoutLocations,
   fetchCalorieLinkSuggestions,
   setCalorieLink,
   clearCalorieLink,
 } from '@/api/Exercises/exerciseEntryService';
-import { exerciseEntryKeys, exerciseKeys } from '@/api/keys/exercises';
-import i18n from '@/i18n';
+import { exerciseEntryKeys } from '@/api/keys/exercises';
 import { dailyProgressKeys } from '@/api/keys/diary';
 import { shoeKeys } from '@/api/keys/shoes';
 import {
@@ -218,18 +216,6 @@ export const useDeleteExercisePresetEntryMutation = () => {
   });
 };
 
-export const exerciseDetailsOptions = (exerciseId: string) => ({
-  queryKey: exerciseKeys.detail(exerciseId),
-  queryFn: () => fetchExerciseDetails(exerciseId),
-  staleTime: 1000 * 60 * 60,
-  enabled: !!exerciseId,
-  meta: {
-    errorMessage: i18n.t(
-      'exercise.failedToFetchDetails',
-      'Could not fetch exercise details. Please try again.'
-    ),
-  },
-});
 export { fetchExerciseProgressionStats };
 
 // --- Calorie link (a logged workout and the same session synced from a watch) ---

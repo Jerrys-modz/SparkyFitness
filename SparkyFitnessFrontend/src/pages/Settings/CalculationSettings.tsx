@@ -57,7 +57,9 @@ import {
 import { useDiaryGoals } from '@/hooks/Diary/useFoodEntries';
 import { useMostRecentMeasurement } from '@/hooks/CheckIn/useCheckIn';
 import { CalorieTargetBreakdown } from '@/components/CalorieTargetBreakdown';
+import { WeeklyWeightGoalInput } from '@/components/WeeklyWeightGoalInput';
 import { getAdaptiveTdeeForGoal } from '@/utils/adaptiveTdee';
+import { formatWeeklyGoalRateWithUnit } from '@/utils/weeklyWeightGoal';
 import {
   getBmrAlgorithmLabel,
   getBodyFatAlgorithmLabel,
@@ -84,6 +86,7 @@ import {
   isAdaptiveEarnBackSuppressed,
   isAdaptiveActivitySeparated,
   ADAPTIVE_TDEE_GOAL_MIN_DAYS,
+  ENERGY_DENSITY_KCAL_PER_KG,
 } from '@workspace/shared';
 
 /**
@@ -109,7 +112,7 @@ const isCalorieGoalAdjustmentMode = (
 const toSelectableMode = normalizeCalorieGoalAdjustmentMode;
 
 const CalculationSettings = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const invalidateDiary = useDiaryInvalidation();
   const {
     energyUnit,
@@ -133,6 +136,7 @@ const CalculationSettings = () => {
     goalModeCalculationMethod: contextGoalModeCalculationMethod,
     adaptiveActivitySeparate: contextAdaptiveActivitySeparate,
     goalModeCustomPercentage: contextGoalModeCustomPercentage,
+    goalModeWeeklyChangeKg: contextGoalModeWeeklyChangeKg,
     calorieSafetyFloorMode: contextCalorieSafetyFloorMode,
     calorieSafetyFloorValue: contextCalorieSafetyFloorValue,
     weightUnit,
@@ -167,6 +171,10 @@ const CalculationSettings = () => {
   );
   const [goalModeCustomPercentage, setGoalModeCustomPercentage] =
     useState<number>(contextGoalModeCustomPercentage ?? 0);
+  const [goalModeWeeklyChangeKg, setGoalModeWeeklyChangeKg] = useState<number>(
+    contextGoalModeWeeklyChangeKg ?? 0
+  );
+  const [weeklyRateValid, setWeeklyRateValid] = useState(true);
   // Mirrors the input's raw text so a partially typed '-' survives keystrokes.
   const [customPercentageInput, setCustomPercentageInput] = useState<string>(
     String(contextGoalModeCustomPercentage ?? 0)
@@ -331,7 +339,15 @@ const CalculationSettings = () => {
     energyUnit,
   ]);
 
+  useEffect(() => {
+    if (contextGoalModeWeeklyChangeKg !== undefined) {
+      setGoalModeWeeklyChangeKg(contextGoalModeWeeklyChangeKg);
+      setWeeklyRateValid(true);
+    }
+  }, [contextGoalModeWeeklyChangeKg]);
+
   const handleSave = async () => {
+    if (goalMode === 'weekly' && !weeklyRateValid) return;
     setIsSaving(true);
     try {
       await saveAllPreferences({
@@ -354,6 +370,7 @@ const CalculationSettings = () => {
         goalModeCalculationMethod: goalModeCalculationMethod,
         adaptiveActivitySeparate,
         goalModeCustomPercentage: goalModeCustomPercentage,
+        goalModeWeeklyChangeKg,
         calorieSafetyFloorMode,
         calorieSafetyFloorValue,
       });
@@ -492,6 +509,7 @@ const CalculationSettings = () => {
     goalMode,
     calculationMethod: goalModeCalculationMethod,
     customPercentage: goalModeCustomPercentage,
+    weeklyChangeKg: goalModeWeeklyChangeKg,
     bmr,
     activityLevelMultiplier: activityMultiplier,
     adaptiveTdee: getAdaptiveTdeeForGoal(
@@ -518,15 +536,22 @@ const CalculationSettings = () => {
   // The safety floor clamps silently, so a goal mode that cannot be reached at
   // this activity level renders identically to one that can — at None (x1.0) every
   // deficit mode returns the same target. Surface the ceiling in the picker so the
-  // choice is informed rather than explained after the override. The ceiling depends
-  // only on the baseline and the floor, so it is the same for every mode.
+  // choice is informed rather than explained after the override. The current weekly
+  // target also exposes a ceiling under manual calculation, but percentage options
+  // only use that floor with the adaptive method.
   const deficitCeilingPercent = previewResult.maxFeasibleDeficitPercent;
   const isGoalModeUnreachable = (mode: GoalMode) =>
+    goalModeCalculationMethod === 'adaptive' &&
     deficitCeilingPercent != null &&
     getGoalModeAdjustment(mode, goalModeCustomPercentage) * 100 >
       deficitCeilingPercent + 1e-9;
 
-  const deficitPct = getGoalModeAdjustment(goalMode, goalModeCustomPercentage);
+  const deficitPct =
+    goalMode === 'weekly'
+      ? previewResult.baselineTdee > 0
+        ? previewResult.appliedDeficit / previewResult.baselineTdee
+        : 0
+      : getGoalModeAdjustment(goalMode, goalModeCustomPercentage);
 
   // Measured adaptive TDEE, shown only when the same sufficiency test used by
   // computeCalorieTarget passes; constant across goal modes and methods.
@@ -565,7 +590,10 @@ const CalculationSettings = () => {
   }
 
   const getCoachingAdvice = () => {
-    if (goalMode === 'maintain') {
+    if (
+      goalMode === 'maintain' ||
+      (goalMode === 'weekly' && goalModeWeeklyChangeKg === 0)
+    ) {
       return {
         title: t(
           'settings.goalMode.coaching.maintenanceTitle',
@@ -1188,10 +1216,15 @@ const CalculationSettings = () => {
                               { pct: exerciseCaloriePercentage }
                             )
                           : calorieGoalAdjustmentMode === 'tdee'
-                            ? t(
-                                'settings.calculationExplanation.remainingTdee',
-                                'Projected TDEE × Goal Mode − Eaten'
-                              )
+                            ? goalMode === 'weekly'
+                              ? t(
+                                  'settings.calculationExplanation.remainingTdeeWeekly',
+                                  'Projected TDEE + Weekly adjustment − Eaten'
+                                )
+                              : t(
+                                  'settings.calculationExplanation.remainingTdee',
+                                  'Projected TDEE × Goal Mode − Eaten'
+                                )
                             : calorieGoalAdjustmentMode === 'adaptive'
                               ? t(
                                   'settings.calculationExplanation.remainingAdaptive',
@@ -1259,7 +1292,7 @@ const CalculationSettings = () => {
             <span className="block mt-1">
               {t(
                 'settings.goalMode.deviceProjectionHint',
-                'In Device Projection mode, this percentage is applied directly to the projected device TDEE.'
+                'In Device Projection mode, this adjustment is applied directly to the projected device TDEE.'
               )}
             </span>
           )}
@@ -1274,12 +1307,16 @@ const CalculationSettings = () => {
               value={goalMode}
               onValueChange={(value: GoalMode) => {
                 setGoalMode(value);
+                setWeeklyRateValid(true);
               }}
             >
               <SelectTrigger id="goal-mode-select">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="weekly">
+                  {t('settings.goalMode.weekly', 'Weekly weight change')}
+                </SelectItem>
                 <SelectItem value="maintain">
                   {t('settings.goalMode.modeMaintain', 'Maintain (0%)')}
                 </SelectItem>
@@ -1330,17 +1367,30 @@ const CalculationSettings = () => {
                     only feeds the baseline while history is insufficient; once
                     adaptive is calibrated the baseline is measured expenditure
                     and the setting no longer enters the calculation. */}
-                {previewResult.insufficientHistory
-                  ? t(
-                      'settings.goalMode.deficitCeilingHintEstimated',
-                      'At your current activity level the deepest reachable deficit is about {{percent}}%. Deeper modes are raised to your safety floor.',
-                      { percent: deficitCeilingPercent.toFixed(0) }
-                    )
-                  : t(
-                      'settings.goalMode.deficitCeilingHintMeasured',
-                      'Based on your measured TDEE, the deepest reachable deficit is about {{percent}}%. Deeper modes are raised to your safety floor.',
-                      { percent: deficitCeilingPercent.toFixed(0) }
-                    )}
+                {goalMode === 'weekly'
+                  ? t('settings.goalMode.weeklyCeilingHintWithUnit', {
+                      defaultValue:
+                        'At this baseline and safety floor, the largest projected loss is about {{rate}} per week. Larger requests are limited by the safety floor.',
+                      rate: formatWeeklyGoalRateWithUnit(
+                        (previewResult.baselineTdee *
+                          deficitCeilingPercent *
+                          7) /
+                          (100 * ENERGY_DENSITY_KCAL_PER_KG),
+                        weightUnit,
+                        i18n.resolvedLanguage ?? i18n.language
+                      ),
+                    })
+                  : previewResult.insufficientHistory
+                    ? t(
+                        'settings.goalMode.deficitCeilingHintEstimated',
+                        'At your current activity level the deepest reachable deficit is about {{percent}}%. Deeper modes are raised to your safety floor.',
+                        { percent: deficitCeilingPercent.toFixed(0) }
+                      )
+                    : t(
+                        'settings.goalMode.deficitCeilingHintMeasured',
+                        'Based on your measured TDEE, the deepest reachable deficit is about {{percent}}%. Deeper modes are raised to your safety floor.',
+                        { percent: deficitCeilingPercent.toFixed(0) }
+                      )}
               </p>
             )}
           </div>
@@ -1372,6 +1422,17 @@ const CalculationSettings = () => {
             </Select>
           </div>
         </div>
+
+        {goalMode === 'weekly' && (
+          <WeeklyWeightGoalInput
+            key={contextGoalModeWeeklyChangeKg ?? 0}
+            value={goalModeWeeklyChangeKg}
+            weightUnit={weightUnit}
+            onChange={setGoalModeWeeklyChangeKg}
+            onValidityChange={setWeeklyRateValid}
+            disabled={isSaving}
+          />
+        )}
 
         {/* Custom Percentage Input (visible only for Manual mode) */}
         {calorieGoalAdjustmentMode === 'dynamic' &&
@@ -1477,10 +1538,15 @@ const CalculationSettings = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="calorie-safety-floor-mode">
-                {t(
-                  'settings.goalMode.safetyFloorModeLabel',
-                  'Adaptive Safety Floor'
-                )}
+                {goalMode === 'weekly'
+                  ? t(
+                      'settings.goalMode.weeklySafetyFloorModeLabel',
+                      'Calorie safety floor'
+                    )
+                  : t(
+                      'settings.goalMode.safetyFloorModeLabel',
+                      'Adaptive Safety Floor'
+                    )}
               </Label>
               <Select
                 value={calorieSafetyFloorMode}
@@ -1646,16 +1712,9 @@ const CalculationSettings = () => {
                       )
                     )
                   )}`}{' '}
-                  {getEnergyUnitString(energyUnit)} (
-                  {Math.abs(
-                    Math.round(
-                      getGoalModeAdjustment(
-                        goalMode,
-                        goalModeCustomPercentage
-                      ) * 100
-                    )
-                  )}
-                  %)
+                  {getEnergyUnitString(energyUnit)}
+                  {goalMode !== 'weekly' &&
+                    ` (${Math.abs(Math.round(deficitPct * 100))}%)`}
                 </span>
               </div>
               <div className="hidden md:block text-muted-foreground">→</div>
@@ -1699,20 +1758,27 @@ const CalculationSettings = () => {
               <div className="pt-2 border-t border-border/60 text-sm flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
                   <span className="text-muted-foreground">
-                    {previewResult.isGainGoal
+                    {goalMode === 'weekly'
                       ? t(
-                          'settings.goalMode.projectedWeeklyGain',
-                          'Projected weekly gain:'
+                          'settings.goalMode.projectedWeeklyChange',
+                          'Projected weekly change:'
                         )
-                      : t(
-                          'settings.goalMode.projectedWeeklyLoss',
-                          'Projected weekly loss:'
-                        )}
+                      : previewResult.isGainGoal
+                        ? t(
+                            'settings.goalMode.projectedWeeklyGain',
+                            'Projected weekly gain:'
+                          )
+                        : t(
+                            'settings.goalMode.projectedWeeklyLoss',
+                            'Projected weekly loss:'
+                          )}
                   </span>
                   <span className="font-semibold">
                     ~
                     {formatProjectedLoss(
-                      Math.abs(previewResult.projectedWeeklyChangeKg)
+                      goalMode === 'weekly'
+                        ? previewResult.projectedWeeklyChangeKg
+                        : Math.abs(previewResult.projectedWeeklyChangeKg)
                     )}
                   </span>
                   <span className="text-muted-foreground">
@@ -1761,6 +1827,7 @@ const CalculationSettings = () => {
                 goalMode={goalMode}
                 goalModeCalculationMethod={goalModeCalculationMethod}
                 goalModeCustomPercentage={goalModeCustomPercentage}
+                goalModeWeeklyChangeKg={goalModeWeeklyChangeKg}
                 calorieGoalAdjustmentMode={calorieGoalAdjustmentMode}
                 rawManualGoal={rawManualGoal}
                 adjustedManualGoal={currentGoalBase}
@@ -1917,10 +1984,15 @@ const CalculationSettings = () => {
                   )}
                 </p>
                 <p className="text-sm text-amber-700/80 dark:text-amber-400/70 leading-relaxed">
-                  {t(
-                    'settings.goalMode.manualFloorWarning',
-                    'The Manual calculation method does not apply this floor — it warns instead of overriding.'
-                  )}
+                  {goalMode === 'weekly'
+                    ? t(
+                        'settings.goalMode.weeklyFloorApplies',
+                        'Weekly weight targets use your configured safety floor with either calculation method.'
+                      )
+                    : t(
+                        'settings.goalMode.manualFloorWarning',
+                        'The Manual calculation method does not apply this floor — it warns instead of overriding.'
+                      )}
                 </p>
               </div>
             </div>
@@ -2222,7 +2294,10 @@ const CalculationSettings = () => {
         </div>
       </div>
 
-      <Button onClick={handleSave} disabled={isSaving}>
+      <Button
+        onClick={handleSave}
+        disabled={isSaving || (goalMode === 'weekly' && !weeklyRateValid)}
+      >
         <Save className="h-4 w-4 mr-2" />
         {isSaving
           ? t('common.saving', 'Saving...')

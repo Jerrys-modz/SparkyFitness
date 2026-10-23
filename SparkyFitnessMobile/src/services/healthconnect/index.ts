@@ -430,10 +430,12 @@ const readHealthRecordsFallback = async (
  */
 let clientUnavailableCount = 0;
 let reconnectAttemptedThisRun = false;
+let inFlightReconnect: Promise<boolean> | null = null;
 
 export function resetClientUnavailableState(): void {
   clientUnavailableCount = 0;
   reconnectAttemptedThisRun = false;
+  inFlightReconnect = null;
 }
 
 export function getClientUnavailableCount(): number {
@@ -442,10 +444,12 @@ export function getClientUnavailableCount(): number {
 
 /**
  * Reconnects once per run and reports whether a retry is worth attempting.
- * A second caller in the same run gets false — the first attempt already
- * settled it, and the client does not become available by asking twice.
+ * Concurrent callers in the same run await the in-flight attempt; a caller
+ * arriving after that attempt has settled gets false (the client does not
+ * become available by asking twice).
  */
 const tryReconnectOnce = async (): Promise<boolean> => {
+  if (inFlightReconnect) return inFlightReconnect;
   if (reconnectAttemptedThisRun) return false;
   reconnectAttemptedThisRun = true;
 
@@ -453,7 +457,22 @@ const tryReconnectOnce = async (): Promise<boolean> => {
     '[HealthConnectService] Health Connect client is unavailable — reconnecting once before giving up.',
     'WARNING'
   );
-  return initHealthConnect();
+  inFlightReconnect = initHealthConnect().finally(() => {
+    inFlightReconnect = null;
+  });
+  return inFlightReconnect;
+};
+
+/** Retries a native aggregation once using the run's shared reconnect attempt. */
+const withClientRecovery = async <T>(read: () => Promise<T>): Promise<T> => {
+  try {
+    return await read();
+  } catch (error) {
+    if (!isClientUnavailableError(error)) throw error;
+    clientUnavailableCount++;
+    if (!(await tryReconnectOnce())) throw error;
+    return read();
+  }
 };
 
 export const readHealthRecordsDetailed = async (
@@ -949,17 +968,19 @@ const aggregateByDeviceZone = async (
   type PeriodBucket = { result: unknown; startTime: string; endTime: string };
   let buckets: PeriodBucket[];
   try {
-    buckets = (await aggregateGroupByPeriod({
-      recordType: spec.recordType as Parameters<
-        typeof aggregateGroupByPeriod
-      >[0]['recordType'],
-      timeRangeFilter: {
-        operator: 'between',
-        startTime: startDate.toISOString(),
-        endTime: endDate.toISOString(),
-      },
-      timeRangeSlicer: { period: 'DAYS', length: 1 },
-    })) as unknown as PeriodBucket[];
+    buckets = (await withClientRecovery(() =>
+      aggregateGroupByPeriod({
+        recordType: spec.recordType as Parameters<
+          typeof aggregateGroupByPeriod
+        >[0]['recordType'],
+        timeRangeFilter: {
+          operator: 'between',
+          startTime: startDate.toISOString(),
+          endTime: endDate.toISOString(),
+        },
+        timeRangeSlicer: { period: 'DAYS', length: 1 },
+      })
+    )) as unknown as PeriodBucket[];
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     addLog(
@@ -1014,17 +1035,19 @@ const aggregateByRecordOffsets = async (
     };
     let buckets: DurationBucket[];
     try {
-      buckets = (await aggregateGroupByDuration({
-        recordType: spec.recordType as Parameters<
-          typeof aggregateGroupByDuration
-        >[0]['recordType'],
-        timeRangeFilter: {
-          operator: 'between',
-          startTime: new Date(segment.startMs).toISOString(),
-          endTime: new Date(segment.endMs).toISOString(),
-        },
-        timeRangeSlicer: { duration: 'DAYS', length: 1 },
-      })) as unknown as DurationBucket[];
+      buckets = (await withClientRecovery(() =>
+        aggregateGroupByDuration({
+          recordType: spec.recordType as Parameters<
+            typeof aggregateGroupByDuration
+          >[0]['recordType'],
+          timeRangeFilter: {
+            operator: 'between',
+            startTime: new Date(segment.startMs).toISOString(),
+            endTime: new Date(segment.endMs).toISOString(),
+          },
+          timeRangeSlicer: { duration: 'DAYS', length: 1 },
+        })
+      )) as unknown as DurationBucket[];
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       addLog(

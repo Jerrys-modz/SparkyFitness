@@ -101,7 +101,23 @@ This setting determines **how physical activity changes your calorie budget** th
 
 ## 4. Goal Mode & Caloric Deficits
 
-**Goal Mode** applies a body composition percentage-based adjustment to your baseline maintenance. The sign works the way you would expect: **positive adds calories, negative cuts them.**
+**Goal Mode** adjusts your baseline calorie target. Select **Weekly weight change** to enter a desired weekly change directly, or keep one of the existing percentage-based modes.
+
+### Weekly Weight Change
+
+Choose **Maintain**, **Lose weight**, or **Gain weight**. The weekly entry starts in your profile's weight unit: kilograms, pounds, or stone and pounds. You can also choose grams; for example, **500 g/week** and **0.5 kg/week** represent the same setting. Changing only the display unit keeps the saved rate unchanged. Maintain uses a zero adjustment. Existing percentage goals stay selected until you explicitly switch modes.
+
+SparkyFitness converts the signed weekly change into a daily calorie adjustment using the same energy-density assumption as its Adaptive TDEE and projected weight-change calculations:
+
+`daily adjustment = weekly change in kg × energy density (kcal/kg) ÷ 7`
+
+Loss subtracts calories; gain adds them. The daily adjustment stays the same when the baseline changes. The requested weekly rate is an estimate, not a guarantee of measured weight change. The configured safety floor still limits weekly targets with either calculation method, so the effective projected change can be smaller than the requested rate. The input accepts up to 2 kg (2,000 g, about 4.409 lb) in either direction per week, to gram precision; this is an input limit, not a recommended rate. Pound and stone/pound entries are converted to kilograms and rounded to the nearest gram for storage. For example, 1 lb/week is stored as 0.454 kg/week.
+
+This choice works with Adaptive Goal, Dynamic Goal, Fixed Goal, Percentage Earn-Back, and Device Projection. The selected calculation method still determines the non-device baseline, while each goal adjustment mode keeps its existing handling of activity. Device Projection applies the weekly daily adjustment once to its projected device TDEE.
+
+### Percentage-Based Modes
+
+The existing presets and custom percentage remain available. **Positive adds calories, negative cuts them.** Switching back to them restores percentage-based behavior; the saved weekly amount is ignored until Weekly weight change is selected again.
 
 | Goal Mode              | Adjustment            | Target Purpose                                     |
 | :--------------------- | :-------------------- | :------------------------------------------------ |
@@ -175,10 +191,10 @@ SparkyFitness shows two recommended safety limits for calorie goals:
 > [!IMPORTANT]
 > **Adaptive Safety Floor:**
 >
-> - **Standard (default):** The higher of your estimated RMR and the sex-specific clinical minimum is enforced. If an Adaptive target falls below it, SparkyFitness raises the target and explains which limit bound.
+> - **Standard (default):** The higher of your estimated RMR and the sex-specific clinical minimum is enforced. If an Adaptive or Weekly weight change target falls below it, SparkyFitness raises the target and explains which limit bound.
 > - **Custom minimum:** Replaces the Standard floor with a calorie value you choose. This can be below or above the recommended limits; those recommendations and health warnings remain visible.
-> - **Disabled:** Does not automatically raise Adaptive targets. The calculated target is used as-is, while recommended limits and health warnings remain visible.
-> - Under the **Manual** method, the target is **not automatically raised**, but a prominent warning banner is displayed warning you that your budget is in an unsafe range.
+> - **Disabled:** Does not automatically raise Adaptive or Weekly weight change targets. The calculated target is used as-is, while recommended limits and health warnings remain visible.
+> - Under the **Manual** method, percentage-based targets are **not automatically raised**, but a prominent warning banner is displayed warning you that your budget is in an unsafe range. **Weekly weight change** targets use the configured floor with either calculation method.
 
 Under the Adaptive method the floor applies whenever the calculated target falls below it. That is almost always a deficit, but a surplus can trip it too: if your entire maintenance sits below the clinical minimum, even a gain goal is raised to that minimum.
 

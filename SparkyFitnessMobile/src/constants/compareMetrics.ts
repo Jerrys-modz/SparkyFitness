@@ -94,18 +94,6 @@ export const COMPARE_METRIC_LABELS: Record<
   steps: (t) => t('compareReport.metrics.steps', { defaultValue: 'Steps' }),
 };
 
-export function isSleepMetric(key: CompareMetricKey): boolean {
-  return COMPARE_METRICS[key].group === 'sleep';
-}
-
-/** Mood is stored 10-100 and shown 1-10; every other metric shows as stored. */
-export function compareDisplayValue(
-  key: CompareMetricKey,
-  value: number
-): number {
-  return key === 'mood' ? value / 10 : value;
-}
-
 export function compareMetricSections(
   t: Translator,
   mode: CompareMode,

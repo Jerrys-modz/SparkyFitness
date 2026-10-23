@@ -1,8 +1,9 @@
+import { describe, expect, it } from 'vitest';
 import {
   filterEntriesBySubtype,
   filterMedsBySubtype,
   isEntryVisibleForSubtype,
-} from '@/pages/Medications/medicationUtils';
+} from '@workspace/shared';
 
 type Row = { id: string; is_supplement?: boolean };
 

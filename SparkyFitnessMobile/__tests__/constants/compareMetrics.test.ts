@@ -1,11 +1,13 @@
-import { COMPARE_METRIC_KEYS } from '@workspace/shared';
+import {
+  COMPARE_METRIC_KEYS,
+  compareDisplayValue,
+  isSleepMetric,
+} from '@workspace/shared';
 import i18n, { initializeI18n } from '../../src/localization/i18n';
 import {
   COMPARE_GROUP_LABELS,
   COMPARE_METRIC_LABELS,
-  compareDisplayValue,
   compareMetricSections,
-  isSleepMetric,
 } from '../../src/constants/compareMetrics';
 
 const t = (key: string, options: { defaultValue: string }) =>
