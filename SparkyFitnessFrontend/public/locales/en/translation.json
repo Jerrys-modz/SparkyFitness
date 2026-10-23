@@ -9406,6 +9406,9 @@
     "loadFailed": "Couldn't load this comparison",
     "loading": "Loading comparison...",
     "onlyYourOwnData": "Compare shows only your own data",
+    "screen": {
+      "retry": "Retry"
+    },
     "groups": {
       "feelings": "How you felt",
       "sleep": "Sleep",

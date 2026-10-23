@@ -30,8 +30,18 @@ export const useCompare = (query: CompareQuery | null) => {
   });
 };
 
-/** The same pair read at the other timings, for the "other timings" rows. A failed row stays quiet. */
-export const useCompareTimings = (base: CompareQuery | null) => {
+/**
+ * The same pair read at the other timings, for the "other timings" rows. They
+ * wait until the main answer has settled (`mainSettled`), so the asked timing
+ * loads first. A failed row shows "Couldn't load" in its row and has no toast
+ * of its own here, but `apiCall` still toasts every HTTP or network error
+ * itself and has no quiet option. The app's retry policy (`main.tsx`) retries
+ * a network or server error once and a 4xx never, which caps that noise.
+ */
+export const useCompareTimings = (
+  base: CompareQuery | null,
+  mainSettled: boolean
+) => {
   const { user } = useAuth();
   const userId = user?.activeUserId;
   const all: readonly Timing[] = base?.mode === 'week' ? [0, 1] : [-1, 0, 1];
@@ -44,7 +54,7 @@ export const useCompareTimings = (base: CompareQuery | null) => {
           ? reportKeys.compare(query, userId)
           : (['reports', 'compare', 'idle', timing] as const),
         queryFn: () => getCompare(query!),
-        enabled: query !== null,
+        enabled: query !== null && mainSettled,
         staleTime: COMPARE_STALE_MS,
       };
     }),
@@ -53,9 +63,9 @@ export const useCompareTimings = (base: CompareQuery | null) => {
 };
 
 /**
- * A picked question read over a window: the asked timing plus the other
- * timings. `window` is null when nothing may be asked (acting on behalf), so
- * no request fires.
+ * A picked question read over a window: the asked timing, then the other
+ * timings once it has an answer or an error. `window` is null when nothing
+ * may be asked (acting on behalf), so no request fires.
  */
 export const useCompareQuestion = (
   question: Partial<CompareQuestion>,
@@ -63,6 +73,6 @@ export const useCompareQuestion = (
 ) => {
   const query = window ? compareQueryFor(question, window) : null;
   const answer = useCompare(query);
-  const timings = useCompareTimings(query);
+  const timings = useCompareTimings(query, answer.isSuccess || answer.isError);
   return { answer, timings };
 };

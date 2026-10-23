@@ -9,9 +9,11 @@ import {
   type CompareQuestion,
   type CompareSpan,
 } from '@workspace/shared';
+import { Button } from '@/components/ui/button';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { useCompareQuestion } from '@/hooks/Reports/useCompare';
+import { useAuth } from '@/hooks/useAuth';
 import { CompareAnswerCard } from './CompareAnswerCard';
 import { CompareChecks } from './CompareChecks';
 import { CompareDaysTable } from './CompareDaysTable';
@@ -36,6 +38,8 @@ export const CompareReport = () => {
   const { t } = useTranslation();
   const { timezone } = usePreferences();
   const { isActingOnBehalf } = useActiveUser();
+  // The same id the queries are keyed by; recents are kept per account.
+  const userId = useAuth().user?.activeUserId;
   const [question, setQuestion] = useState<Partial<CompareQuestion>>({});
   const [span, setSpan] = useState<CompareSpan>(DEFAULT_COMPARE_SPAN.day);
   const [custom, setCustom] = useState<CustomRange | null>(null);
@@ -65,8 +69,8 @@ export const CompareReport = () => {
     const key = `${askable.a}|${askable.b}|${askable.choice}`;
     if (savedKey.current === key) return;
     savedKey.current = key;
-    saveRecentQuestion(askable);
-  }, [askable, response]);
+    saveRecentQuestion(userId, askable);
+  }, [askable, response, userId]);
 
   if (isActingOnBehalf) {
     return (
@@ -113,7 +117,7 @@ export const CompareReport = () => {
 
       {!askable && (
         <CompareStartState
-          recent={loadRecentQuestions()}
+          recent={loadRecentQuestions(userId)}
           onPick={(picked) => applyQuestion(picked)}
         />
       )}
@@ -121,10 +125,21 @@ export const CompareReport = () => {
       {askable && answer.isLoading && (
         <div>{t('compareReport.loading', 'Loading comparison...')}</div>
       )}
-      {askable && answer.isError && (
-        <p className="text-sm text-destructive">
-          {t('compareReport.loadFailed', "Couldn't load this comparison")}
-        </p>
+      {/* A failed background refresh keeps the answer already on screen. */}
+      {askable && answer.isError && !response && (
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-destructive">
+            {t('compareReport.loadFailed', "Couldn't load this comparison")}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={answer.isFetching}
+            onClick={() => void answer.refetch()}
+          >
+            {t('compareReport.screen.retry', 'Retry')}
+          </Button>
+        </div>
       )}
 
       {askable && response && (
