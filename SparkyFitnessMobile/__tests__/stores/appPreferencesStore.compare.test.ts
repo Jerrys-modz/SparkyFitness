@@ -4,7 +4,7 @@ import {
   PREFERENCE_DEFAULTS,
   __resetAppPreferencesStoreForTests,
 } from '../../src/stores/appPreferencesStore';
-import type { CompareQuestion } from '../../src/utils/compareQuestion';
+import type { CompareQuestion } from '@workspace/shared';
 
 describe('appPreferencesStore compare recents', () => {
   beforeEach(async () => {

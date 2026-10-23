@@ -10,6 +10,7 @@ import {
   Table as TableIcon,
   Pill,
   HeartPulse,
+  GitCompareArrows,
 } from 'lucide-react';
 
 interface ReportsControlsProps {
@@ -19,6 +20,7 @@ interface ReportsControlsProps {
   onEndDateChange: (date: string) => void;
   activeTab: string;
   onTabChange: (tab: string) => void;
+  showDateRange: boolean;
 }
 
 const ReportsControls = ({
@@ -28,6 +30,7 @@ const ReportsControls = ({
   onEndDateChange,
   activeTab,
   onTabChange,
+  showDateRange,
 }: ReportsControlsProps) => {
   const { t } = useTranslation();
 
@@ -77,6 +80,11 @@ const ReportsControls = ({
       label: t('reports.tableTab', 'Table'),
       icon: TableIcon,
     },
+    {
+      id: 'compare',
+      label: t('reports.compareTab', 'Compare'),
+      icon: GitCompareArrows,
+    },
   ];
 
   return (
@@ -105,18 +113,22 @@ const ReportsControls = ({
         })}
       </div>
 
-      {/* Vertical Divider (Desktop Only) */}
-      <div className="hidden lg:block w-px h-6 bg-border" />
+      {showDateRange && (
+        <>
+          {/* Vertical Divider (Desktop Only) */}
+          <div className="hidden lg:block w-px h-6 bg-border" />
 
-      {/* Secondary Filter: Date Picker */}
-      <div className="shrink-0">
-        <DateRangePickerWithPresets
-          startDate={startDate}
-          endDate={endDate}
-          onStartDateChange={onStartDateChange}
-          onEndDateChange={onEndDateChange}
-        />
-      </div>
+          {/* Secondary Filter: Date Picker */}
+          <div className="shrink-0">
+            <DateRangePickerWithPresets
+              startDate={startDate}
+              endDate={endDate}
+              onStartDateChange={onStartDateChange}
+              onEndDateChange={onEndDateChange}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 };

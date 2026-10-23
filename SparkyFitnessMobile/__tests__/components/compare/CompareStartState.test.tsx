@@ -3,7 +3,7 @@ import { fireEvent, render } from '@testing-library/react-native';
 
 import CompareStartState from '../../../src/components/compare/CompareStartState';
 import { initializeI18n } from '../../../src/localization/i18n';
-import { SUGGESTED_QUESTIONS } from '../../../src/utils/compareQuestion';
+import { SUGGESTED_QUESTIONS } from '@workspace/shared';
 
 describe('CompareStartState', () => {
   beforeAll(async () => {

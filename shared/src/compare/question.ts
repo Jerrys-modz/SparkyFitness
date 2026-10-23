@@ -1,27 +1,15 @@
+import { SINCE_START_MAX_DAYS_AGO } from './since.ts';
+import { COMPARE_METRICS, type CompareMetricKey } from './metrics.ts';
 import {
-  COMPARE_METRICS,
   COMPARE_SPAN_DAYS,
   DEFAULT_COMPARE_SPAN,
   MAX_CUSTOM_DAYS,
-  SINCE_START_MAX_DAYS_AGO,
-  addDays,
-  compareDays,
-  daysBetween,
-  type CompareMetricKey,
   type CompareSpan,
-} from '@workspace/shared';
-
-// The span presets, default and limits are shared with the endpoint and the AI tool.
-export {
-  COMPARE_SPANS,
-  DEFAULT_COMPARE_SPAN,
-  MAX_CUSTOM_DAYS,
-  type CompareSpan,
-} from '@workspace/shared';
+  type CompareSpanMode,
+} from './spans.ts';
+import { addDays, compareDays, daysBetween } from '../utils/timezone.ts';
 
 export type CompareMode = 'day' | 'week' | 'since';
-/** The modes read over a span of days; since mode runs from its start date instead. */
-export type SpanMode = Exclude<CompareMode, 'since'>;
 export type CompareTimingChoice =
   'sameDay' | 'nextDay' | 'dayBefore' | 'sameWeek' | 'nextWeek' | 'sinceHabit';
 
@@ -32,10 +20,10 @@ export interface CompareQuestion {
 }
 
 /** How a choice pairs the two: by the day or week with a lag, or before vs. since a start. */
-type CompareTiming =
-  { mode: SpanMode; timing: -1 | 0 | 1 } | { mode: 'since'; timing: 0 };
+export type CompareChoiceTiming =
+  { mode: CompareSpanMode; timing: -1 | 0 | 1 } | { mode: 'since'; timing: 0 };
 
-const TIMINGS: Record<CompareTimingChoice, CompareTiming> = {
+const TIMINGS: Record<CompareTimingChoice, CompareChoiceTiming> = {
   dayBefore: { mode: 'day', timing: -1 },
   sameDay: { mode: 'day', timing: 0 },
   nextDay: { mode: 'day', timing: 1 },
@@ -44,14 +32,14 @@ const TIMINGS: Record<CompareTimingChoice, CompareTiming> = {
   sinceHabit: { mode: 'since', timing: 0 },
 };
 
-export function timingOf(choice: CompareTimingChoice): CompareTiming {
+export function timingOf(choice: CompareTimingChoice): CompareChoiceTiming {
   return TIMINGS[choice];
 }
 
 /** The server leaves today out itself, so the window simply ends today. */
 export function compareWindow(
   span: CompareSpan,
-  mode: SpanMode,
+  mode: CompareSpanMode,
   today: string,
   custom?: { startDate: string; endDate: string } | null
 ): { startDate: string; endDate: string } {

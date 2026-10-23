@@ -4,18 +4,18 @@ import {
   normalizeCheckinReminderTimes,
 } from '../utils/checkinReminderTimes';
 import {
-  DEFAULT_GUIDED_COUNTDOWN_SEC,
-  DEFAULT_GUIDED_SPEECH_RATE,
   clampGuidedCountdownSec,
   clampGuidedSpeechRate,
-} from '@workspace/shared';
-import {
+  type CompareQuestion,
+  DEFAULT_GUIDED_COUNTDOWN_SEC,
+  DEFAULT_GUIDED_SPEECH_RATE,
   DEFAULT_WARMUP_DUMBBELL_ROUNDING,
   DEFAULT_WARMUP_METHOD,
   DEFAULT_WARMUP_PLATE_ROUNDING,
   normalizeWarmupMethod,
   type PaceReferenceRace,
   type WarmupMethodStep,
+  withRecentQuestion,
 } from '@workspace/shared';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -43,10 +43,6 @@ import {
 import type { LanguagePreference } from '../localization';
 import type { TrendRange } from '../utils/trendRange';
 import type { OwnershipFilter } from '../utils/shareStatus';
-import {
-  withRecentQuestion,
-  type CompareQuestion,
-} from '../utils/compareQuestion';
 
 const STORE_KEY = '@SparkyFitness/app-preferences';
 const STORE_VERSION = 1;

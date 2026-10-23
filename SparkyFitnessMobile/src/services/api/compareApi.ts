@@ -1,17 +1,17 @@
 import {
-  compareResponseSchema,
-  compareSinceResponseSchema,
   type CompareMetricKey,
   type CompareResponse,
+  compareResponseSchema,
   type CompareSinceResponse,
+  compareSinceResponseSchema,
+  type CompareSpanMode,
 } from '@workspace/shared';
-import type { SpanMode } from '../../utils/compareQuestion';
 import { apiFetch } from './apiClient';
 
 export interface CompareParams {
   a: CompareMetricKey;
   b: CompareMetricKey;
-  mode: SpanMode;
+  mode: CompareSpanMode;
   timing: -1 | 0 | 1;
   start: string;
   end: string;

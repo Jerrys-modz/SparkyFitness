@@ -5,7 +5,7 @@ import CompareSentence from '../../../src/components/compare/CompareSentence';
 import i18n, { initializeI18n } from '../../../src/localization/i18n';
 import { sentenceText } from '../../../src/utils/compareCopy';
 import { sinceSentence } from '../../../src/utils/compareSinceCopy';
-import type { CompareQuestion } from '../../../src/utils/compareQuestion';
+import type { CompareQuestion } from '@workspace/shared';
 
 const t = ((key: string, options: Record<string, unknown>) =>
   i18n.t(key, options)) as never;

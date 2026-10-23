@@ -1,18 +1,18 @@
-import { daysBetween } from '@workspace/shared';
 import {
-  COMPARE_SPANS,
-  DEFAULT_COMPARE_SPAN,
-  MAX_CUSTOM_DAYS,
-  SUGGESTED_QUESTIONS,
   clampSinceStart,
+  COMPARE_SPANS,
+  type CompareQuestion,
   compareWindow,
+  daysBetween,
+  DEFAULT_COMPARE_SPAN,
   isAskable,
   knownCompareQuestions,
+  MAX_CUSTOM_DAYS,
   sinceStartBounds,
+  SUGGESTED_QUESTIONS,
   timingOf,
   withRecentQuestion,
-  type CompareQuestion,
-} from '../../src/utils/compareQuestion';
+} from '@workspace/shared';
 
 const TODAY = '2026-10-21';
 

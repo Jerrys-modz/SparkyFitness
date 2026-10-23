@@ -1,4 +1,9 @@
-import type { CompareResponse, CompareResult } from '@workspace/shared';
+import {
+  type CompareQuestion,
+  type CompareResponse,
+  type CompareResult,
+  SUGGESTED_QUESTIONS,
+} from '@workspace/shared';
 import i18n, { initializeI18n } from '../../src/localization/i18n';
 import {
   compareAmountText,
@@ -8,10 +13,6 @@ import {
   statsLine,
   verdictCopy,
 } from '../../src/utils/compareCopy';
-import {
-  SUGGESTED_QUESTIONS,
-  type CompareQuestion,
-} from '../../src/utils/compareQuestion';
 
 const t = ((key: string, options: Record<string, unknown>) =>
   i18n.t(key, options)) as never;

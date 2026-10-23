@@ -1,10 +1,13 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
-import type { CompareResponse, CompareResult } from '@workspace/shared';
+import {
+  type CompareQuestion,
+  type CompareResponse,
+  type CompareResult,
+} from '@workspace/shared';
 
 import CompareChart from '../../../src/components/compare/CompareChart';
 import { initializeI18n } from '../../../src/localization/i18n';
-import type { CompareQuestion } from '../../../src/utils/compareQuestion';
 
 // The global victory-native mock drops CartesianChart's children; render the
 // render-prop with plotted points and mark each series as an identifiable View.

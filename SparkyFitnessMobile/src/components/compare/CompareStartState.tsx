@@ -4,10 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { sentenceText } from '../../utils/compareCopy';
 import { sinceSentence } from '../../utils/compareSinceCopy';
-import {
-  SUGGESTED_QUESTIONS,
-  type CompareQuestion,
-} from '../../utils/compareQuestion';
+import { SUGGESTED_QUESTIONS, type CompareQuestion } from '@workspace/shared';
 
 interface CompareStartStateProps {
   recent: readonly CompareQuestion[];

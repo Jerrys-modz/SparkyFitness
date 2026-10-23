@@ -49,6 +49,7 @@ import { ChartErrorBoundary } from '../Errors/ChartErrorFallback';
 import { CustomCategoriesResponse } from '@workspace/shared';
 import { useDailyGoalsRange } from '@/hooks/Goals/useGoals';
 import { useSearchParams } from 'react-router-dom';
+import { CompareReport } from '@/pages/Reports/Compare/CompareReport';
 
 const Reports = () => {
   const { t } = useTranslation();
@@ -432,13 +433,21 @@ const Reports = () => {
           onEndDateChange={handleEndDateChange}
           activeTab={activeTab}
           onTabChange={handleTabChange}
+          showDateRange={activeTab !== 'compare'}
         />
       ) : (
         <div>
           {t('reports.loadingDateControls', 'Loading date controls...')}
         </div>
       )}
-      {loading ? (
+      {activeTab === 'compare' ? (
+        // Compare keeps its own range and queries, so it never waits on the other tabs.
+        <div className="w-full animate-in fade-in duration-500">
+          <ChartErrorBoundary>
+            <CompareReport />
+          </ChartErrorBoundary>
+        </div>
+      ) : loading ? (
         <div>{t('reports.loadingReports', 'Loading reports...')}</div>
       ) : (
         <div className="w-full animate-in fade-in duration-500">
