@@ -284,7 +284,13 @@ const CaffeineCard: React.FC<CaffeineCardProps> = ({
               defaultValue: 'Back under {{threshold}}mg from {{time}}',
             })
               .replace('{{threshold}}', String(kinetics.threshold_mg))
-              .replace('{{time}}', clockLabel(crossingAt))
+              .replace(
+                '{{time}}',
+                new Date(crossingAt).getTime() >=
+                  dayStartMs + 24 * 60 * 60 * 1000
+                  ? `${t('caffeine.tomorrow', { defaultValue: 'Tomorrow' })}, ${clockLabel(crossingAt)}`
+                  : clockLabel(crossingAt)
+              )
           : t('caffeine.underThreshold', {
               defaultValue: 'Stays under {{threshold}}mg tonight',
             }).replace('{{threshold}}', String(kinetics.threshold_mg))}

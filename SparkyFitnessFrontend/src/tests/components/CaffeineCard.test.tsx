@@ -430,6 +430,36 @@ describe('CaffeineCard Component', () => {
     expect(screen.getByText('Yesterday Coffee 22h ago:')).toBeInTheDocument();
   });
 
+  it('excludes future doses after reference time from recent doses strip', () => {
+    // Reference instant: 2026-09-05 08:00 (baseData nowMs mock).
+    // Dose at 2026-09-05 14:00 is in the future.
+    mockUseActiveCaffeineQuery.mockReturnValue({
+      data: {
+        ...baseData,
+        doses: [
+          {
+            at: '2026-09-05T07:30:00.000Z',
+            mg: 100,
+            name: 'Past Coffee',
+          },
+          {
+            at: '2026-09-05T14:00:00.000Z',
+            mg: 80,
+            name: 'Future Afternoon Coffee',
+          },
+        ],
+      },
+      isLoading: false,
+    } as never);
+
+    render(<CaffeineCard date="2026-09-05" />);
+
+    expect(screen.getByText('Past Coffee:')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Future Afternoon Coffee:')
+    ).not.toBeInTheDocument();
+  });
+
   it('shows under threshold tonight when crossing occurred prior to viewed day', () => {
     // A dose 2 days ago crossed threshold and decayed back on that day.
     // On 2026-09-05, no dose was logged today.

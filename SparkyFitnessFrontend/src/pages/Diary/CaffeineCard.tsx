@@ -237,7 +237,9 @@ export const CaffeineCard = ({ date, userId }: CaffeineCardProps) => {
     if (!data?.doses || data.doses.length === 0) return [];
     const fortyEightHoursMs = 48 * 60 * 60 * 1000;
     const windowStart = referenceMs - fortyEightHoursMs;
-    const windowEnd = windowMs ? windowMs.end : referenceMs;
+    const windowEnd = windowMs
+      ? Math.min(windowMs.end, referenceMs)
+      : referenceMs;
     return data.doses.filter((dose) => {
       const doseMs = new Date(dose.at).getTime();
       return doseMs >= windowStart && doseMs <= windowEnd;
