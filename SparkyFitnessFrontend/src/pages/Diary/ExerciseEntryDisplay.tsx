@@ -31,6 +31,7 @@ import {
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  entryCaloriesCounted,
   resolveExerciseModality,
   setsDurationMinutes,
 } from '@workspace/shared';
@@ -133,7 +134,7 @@ const ExerciseEntryDisplay: React.FC<ExerciseEntryDisplayProps> = ({
     setsDuration > 0 ? setsDuration : exerciseEntry.duration_minutes || 0
   );
 
-  const caloriesDisplay = `${Math.round(convertEnergy(exerciseEntry.calories_burned || 0, 'kcal', energyUnit))} ${getEnergyUnitString(energyUnit)}`;
+  const caloriesDisplay = `${Math.round(convertEnergy(entryCaloriesCounted(exerciseEntry), 'kcal', energyUnit))} ${getEnergyUnitString(energyUnit)}`;
 
   const hasSets =
     exerciseEntry.sets &&

@@ -762,6 +762,11 @@ router.put(
       // derive-from-sets/preserve instead of clearing.
       updateData.distance = null;
     }
+    if (updateData.calories_applied === '') {
+      // Same contract as distance: an empty string clears the override, so the
+      // entry's own estimate counts again.
+      updateData.calories_applied = null;
+    }
     // Extract new fields from updateData
     const { distance, avg_heart_rate } = updateData;
     if (updateData.entry_time === '') {

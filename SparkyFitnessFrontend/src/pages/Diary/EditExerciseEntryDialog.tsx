@@ -331,6 +331,10 @@ const EditExerciseEntryDialog = ({
   const [caloriesBurnedInput, setCaloriesBurnedInput] = useState<number | ''>(
     entry.calories_burned || ''
   );
+  // What the daily balance counts instead of the estimate; blank counts the estimate.
+  const [caloriesAppliedInput, setCaloriesAppliedInput] = useState<number | ''>(
+    entry.calories_applied ?? ''
+  );
   const [distanceInput, setDistanceInput] = useState<number | ''>(() =>
     seedDistanceInput(entry, (km) => convertDistance(km, 'km', distanceUnit))
   );
@@ -773,6 +777,8 @@ const EditExerciseEntryDialog = ({
         data: {
           duration_minutes: durationMinutes,
           calories_burned: caloriesBurned,
+          calories_applied:
+            caloriesAppliedInput === '' ? null : Number(caloriesAppliedInput),
           notes,
           entry_time: entryTime || null,
           sets: sets.map(({ _dndId, ...set }) => ({
@@ -1176,6 +1182,50 @@ const EditExerciseEntryDialog = ({
                   </div>
                 </div>
               )}
+
+              {/* Calories counted in the daily total — any entry */}
+              <div className="space-y-1.5">
+                <Label htmlFor="calories-applied" className="text-sm">
+                  {t(
+                    'exercise.editExerciseEntryDialog.caloriesAppliedLabel',
+                    'Calories counted in daily total (optional)'
+                  )}
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="calories-applied"
+                    type="number"
+                    min={0}
+                    value={caloriesAppliedInput}
+                    onChange={(e) =>
+                      setCaloriesAppliedInput(
+                        e.target.value === '' ? '' : Number(e.target.value)
+                      )
+                    }
+                    placeholder={t(
+                      'exercise.editExerciseEntryDialog.caloriesAppliedPlaceholder',
+                      'Blank counts the calories burned above'
+                    )}
+                    className="pr-8"
+                  />
+                  {caloriesAppliedInput !== '' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setCaloriesAppliedInput('')}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    'exercise.editExerciseEntryDialog.caloriesAppliedHint',
+                    'Use 0 when a watch workout already counts this session. The calories burned estimate is kept.'
+                  )}
+                </p>
+              </div>
 
               {/* Duration & Avg heart rate — strength only */}
               {!cardioForm && (

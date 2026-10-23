@@ -57,6 +57,7 @@ import {
   workoutPresetByIdOptions,
 } from '@/hooks/Exercises/useWorkoutPresets';
 import {
+  entryCaloriesCounted,
   isCardioModality,
   resolveExerciseCalories,
   resolveExerciseModality,
@@ -552,7 +553,7 @@ const ExerciseCard = ({
         // Calories — keep the device-wide "Active Calories" summary separate
         // from logged workouts so the total can be deduped, not summed (the
         // summary already includes the workouts it overlaps with).
-        const cal = entry.calories_burned;
+        const cal = entryCaloriesCounted(entry);
         if (cal && !isNaN(cal)) {
           if (entry.exercise_snapshot?.name === 'Active Calories') {
             activeCalories += cal;

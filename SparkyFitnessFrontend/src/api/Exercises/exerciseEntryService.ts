@@ -183,6 +183,11 @@ export const updateExerciseEntry = async (
       formData.append('distance', '');
     }
 
+    // And for calories_applied: null means "count the estimate again".
+    if (entryData.calories_applied === null) {
+      formData.append('calories_applied', '');
+    }
+
     return apiCall(`/exercise-entries/${entryId}`, {
       method: 'PUT',
       body: formData,

@@ -27,7 +27,11 @@ import {
   formatTimeOfDayString,
 } from '@/utils/timeFormatters';
 import { Exercise, ExerciseEntry, PresetSessionEntry } from '@/types/exercises';
-import { earliestEntryTime, setsDurationMinutes } from '@workspace/shared';
+import {
+  earliestEntryTime,
+  entryCaloriesCounted,
+  setsDurationMinutes,
+} from '@workspace/shared';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import WorkoutFeedbackPanel from './WorkoutFeedbackPanel';
 
@@ -113,7 +117,7 @@ const ExercisePresetEntryDisplay: React.FC<ExercisePresetEntryDisplayProps> = ({
   const totalCalories = Math.round(
     convertEnergy(
       presetEntry.exercises?.reduce(
-        (sum, ex) => sum + (ex.calories_burned || 0),
+        (sum, ex) => sum + entryCaloriesCounted(ex),
         0
       ) ?? 0,
       'kcal',
