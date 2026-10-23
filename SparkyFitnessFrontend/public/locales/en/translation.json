@@ -9400,5 +9400,162 @@
       "titleRun": "Week {{week}}, run {{run}}",
       "titleWalk": "Week {{week}}, walk {{walk}}"
     }
+  },
+  "compareReport": {
+    "loadFailed": "Couldn't load this comparison",
+    "groups": {
+      "feelings": "How you felt",
+      "sleep": "Sleep",
+      "meditation": "Meditation",
+      "food": "Food",
+      "training": "Training",
+      "body": "Body"
+    },
+    "metrics": {
+      "mood": "Mood",
+      "energy": "Energy",
+      "focus": "Focus",
+      "timeAsleep": "Time asleep",
+      "sleepScore": "Sleep score",
+      "overnightHrv": "Overnight HRV",
+      "restingHeartRate": "Resting heart rate",
+      "bedtime": "Bedtime",
+      "bedtimeConsistency": "Bedtime consistency",
+      "meditationMinutes": "Meditation minutes",
+      "meditationSessions7d": "Meditation sessions (7 days)",
+      "meditated": "Meditated",
+      "calories": "Calories",
+      "protein": "Protein",
+      "carbs": "Carbs",
+      "fat": "Fat",
+      "caffeine": "Caffeine",
+      "alcohol": "Alcohol",
+      "workoutMinutes": "Workout minutes",
+      "cardioMinutes": "Cardio minutes",
+      "strengthVolume": "Strength volume",
+      "trainingLoad": "Training load",
+      "weightTrend": "Weight trend",
+      "steps": "Steps"
+    },
+    "metricNouns": {
+      "meditated": "meditating"
+    },
+    "phrase": {
+      "lastNights": "last night's {{metric}}",
+      "daysYou": "the number of days you {{verb}}",
+      "your": "your {{metric}}",
+      "yourWhen": "your {{metric}} {{timing}}"
+    },
+    "timing": {
+      "sameDay": "the same day",
+      "thatDay": "that day",
+      "nextDay": "the next day",
+      "dayAfterYouWoke": "the day after you woke",
+      "thatNight": "that night",
+      "dayBefore": "the day before",
+      "nightBefore": "the night before",
+      "twoNightsBefore": "two nights before",
+      "sameNight": "the same night",
+      "nextNight": "the next night",
+      "sameWeek": "the same week",
+      "nextWeek": "the next week"
+    },
+    "yesNo": {
+      "onDays": "On days you {{yes}}",
+      "dayAfter": "The day after you {{yes}}",
+      "dayBefore": "The day before you {{yes}}",
+      "nightAfter": "The night after you {{yes}}",
+      "nightBefore": "The night before you {{yes}}",
+      "twoNightsBefore": "Two nights before you {{yes}}"
+    },
+    "verdict": {
+      "question": "Does {{a}} go with {{b}} {{timing}}?",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "weeks_one": "{{count}} week",
+      "weeks_other": "{{count}} weeks",
+      "strength": {
+        "weak": "weak",
+        "moderate": "moderate",
+        "strong": "strong"
+      },
+      "linkedHeadline": "Yes, a {{strength}} link",
+      "linkedPositive": "When {{a}} was {{aDirection}}, {{b}} {{timing}} was {{bDirection}} too.",
+      "linkedNegative": "When {{a}} was {{aDirection}}, {{b}} {{timing}} was {{bDirection}}.",
+      "noLinkHeadline": "No clear link",
+      "noLinkDetail": "Over these {{n}}, they didn't move together more than chance would explain.",
+      "longerSpan": "A longer span makes a weak link easier to see.",
+      "differenceHeadline": "Yes, a difference",
+      "difference": "{{when}}, {{outcome}} was {{direction}}.",
+      "noDifferenceHeadline": "No clear difference",
+      "noDifferenceDetail": "Over these {{n}}, your {{outcome}} wasn't different enough between the two kinds of day to rule out chance.",
+      "tooFewHeadline": "Not enough days yet",
+      "tooFewHeadlineWeeks": "Not enough weeks yet",
+      "tooFewDetail": "You have {{n}}; an answer needs {{needed}}.",
+      "logDays_one": "Log {{weaker}} on {{count}} more day, or pick a longer span.",
+      "logDays_other": "Log {{weaker}} on {{count}} more days, or pick a longer span.",
+      "logWeeks_one": "Log {{weaker}} for {{count}} more week, or pick a longer span.",
+      "logWeeks_other": "Log {{weaker}} for {{count}} more weeks, or pick a longer span.",
+      "needsHistory": "Each day is compared with your previous two weeks, so a day needs a week of history first.",
+      "fewYesHeadline": "Not enough days when you {{yes}} yet",
+      "fewYesDetail": "You have {{n}}; an answer needs {{needed}}. Try a longer span.",
+      "fewNoHeadline": "Not enough days without {{yesNoun}} yet",
+      "fewNoDetail": "You {{yes}} on almost every day here, so there's nothing to compare against. Try a longer span.",
+      "noVariationHeadline": "Nothing to compare yet",
+      "noVariationDetail": "{{metric}} was the same every time over this span, so there's nothing to compare it with.",
+      "noVariationGeneric": "One of these didn't change over this span.",
+      "longerSpanDifference": "A longer span makes a small difference easier to see."
+    },
+    "howSure": {
+      "strength": "Strength",
+      "strengthValue": "r = {{r}} ({{word}})",
+      "noClearLink": "no clear link",
+      "difference": "Difference",
+      "differenceValue": "{{diff}} vs. your usual",
+      "differenceMinutes": "{{diff}} min vs. your usual",
+      "likelyBetween": "Likely between",
+      "range": "{{low}} to {{high}}",
+      "rangeMinutes": "{{low}} to {{high}} min",
+      "howUnusual": "How unusual",
+      "pValue": "p = {{p}}",
+      "pTiny": "p < 0.001",
+      "pRare": "With no real link, a result this strong would show up less than 1 time in {{n}} ({{p}})",
+      "pAbout": "With no real link, a result this strong would show up about 1 time in {{n}} ({{p}})",
+      "pCommon": "Results like this are common with no real link ({{p}})",
+      "daysUsed": "Days used",
+      "weeksUsed": "Weeks used",
+      "separateDays_one": "{{n}} (count as about {{count}} separate day, because neighbouring days resemble each other)",
+      "separateDays_other": "{{n}} (count as about {{count}} separate days, because neighbouring days resemble each other)",
+      "separateWeeks_one": "{{n}} (count as about {{count}} separate week, because neighbouring weeks resemble each other)",
+      "separateWeeks_other": "{{n}} (count as about {{count}} separate weeks, because neighbouring weeks resemble each other)"
+    },
+    "direction": {
+      "higher": "higher than usual",
+      "lower": "lower than usual",
+      "later": "later than usual",
+      "earlier": "earlier than usual"
+    },
+    "logged": {
+      "weight": "weight",
+      "sleep": "sleep",
+      "workouts": "workouts",
+      "meditation": "meditation"
+    },
+    "bars": {
+      "yesDays": "Days you {{yes}}",
+      "noDays": "Days without {{yesNoun}}",
+      "otherDays": "Other days",
+      "otherNights": "Other nights"
+    },
+    "checks": {
+      "ownNormal": "✓ Compared with your own normal",
+      "notProof": "A link, not proof of cause",
+      "seemsFirst": "{{metric}} seems to come first",
+      "comesFirst": "{{metric}} comes first",
+      "otherWay": "The link is stronger the other way round",
+      "cantTell": "Can't tell which comes first",
+      "weekendHolds": "Still holds after accounting for weekends",
+      "weekendMay": "This may be a weekday-versus-weekend pattern"
+    }
   }
 }
