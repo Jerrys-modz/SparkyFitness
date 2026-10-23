@@ -95,6 +95,9 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     var lapCount: Int { lapMarks.count }
     /// The plan this run follows, if any. The store reads it for the live step.
     private(set) var plan: WatchRunPlan?
+    /// Where the route tracker stands, kept in the snapshot. The store sets it
+    /// after each fix and reads it back after a recovery.
+    var routeProgress: WatchRouteTracker.State?
     /// Where the plan's current step began, kept in the snapshot.
     private var planCursor = WatchRunPlan.Cursor.start
     /// Where the plan's current step began, for the voice coach.
@@ -239,6 +242,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             pendingEffort = nil
             routeRows = []
             routeSegment = 0
+            routeProgress = nil
             heartRateRows = []
             lapMarks = []
             lapDistances = []
@@ -458,7 +462,8 @@ extension WatchRunHealthKitController {
             distanceSeries: distanceSeries,
             plan: plan,
             planCursor: plan == nil ? nil : planCursor,
-            settings: settings
+            settings: settings,
+            routeProgress: routeProgress
         ))
     }
 
@@ -515,6 +520,7 @@ extension WatchRunHealthKitController {
                 self.plan = snapshot.plan
                 // An older snapshot has no cursor; its plan was timed, so the
                 // clock alone places it again.
+                self.routeProgress = snapshot.routeProgress
                 self.planCursor = snapshot.planCursor
                     ?? snapshot.plan?.advance(.start, elapsed: snapshot.elapsed, meters: 0)
                     ?? .start

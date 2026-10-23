@@ -266,6 +266,7 @@ final class WatchRunStore: ObservableObject {
     /// no line to follow is treated as none.
     private func followRoute(_ route: WatchRoute?) {
         routeTracker = route.flatMap { WatchRouteTracker(route: $0) }
+        healthKit.routeProgress = nil
         self.route = routeTracker == nil ? nil : route
         routeProgress = nil
         routePosition = nil
@@ -286,6 +287,7 @@ final class WatchRunStore: ObservableObject {
         guard phase == .running || phase == .paused, var tracker = routeTracker else { return }
         guard let update = tracker.update(lat: point.lat, lon: point.lon, accuracy: accuracy, at: date) else { return }
         routeTracker = tracker
+        healthKit.routeProgress = tracker.state
         routePosition = point
         routeProgress = update.snapshot
         var events = update.events
@@ -347,7 +349,14 @@ final class WatchRunStore: ObservableObject {
                     self.lapCount = recovery.lapCount
                     self.plan = self.healthKit.plan
                     self.settings = self.healthKit.settings
+                    let savedRouteProgress = self.healthKit.routeProgress
                     self.followRoute(recovery.place == .outdoor ? WatchRouteStorage.load() : nil)
+                    // Carry on from where the tracker was, not from the start.
+                    if let savedRouteProgress, var tracker = self.routeTracker {
+                        tracker.restore(savedRouteProgress)
+                        self.routeTracker = tracker
+                        self.healthKit.routeProgress = tracker.state
+                    }
                     // The recovered builder may still read 0 for a moment, so the
                     // snapshot's time is the floor. The plan's place comes back
                     // from the snapshot, so the step the run is in now is not
