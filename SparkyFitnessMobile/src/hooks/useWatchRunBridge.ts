@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import WatchConnectivity, {
   type WatchRunCuePayload,
+  type WatchRunEffortPayload,
   type WatchRunFinishedPayload,
   type WatchRunLivePayload,
 } from '../../modules/watch-connectivity';
@@ -18,7 +19,9 @@ import {
   enqueueWatchRun,
   processWatchRunQueue,
   onWatchRunRetry,
+  receiveWatchRunEffort,
 } from '../services/watchRunQueue';
+import { settleWatchTelemetryPurges } from '../utils/watchTelemetryPersistence';
 import { announceWatchRun } from '../services/watchRunToast';
 import {
   resetWatchCueRelay,
@@ -54,6 +57,7 @@ export function useWatchRunBridge(
 
   const drain = useRef(async () => {
     if (!connectedRef.current) return;
+    if (!(await settleWatchTelemetryPurges())) return;
     const days = await processWatchRunQueue(
       unitRef.current,
       (payload, entryId, form) =>
@@ -138,6 +142,25 @@ export function useWatchRunBridge(
     return () => sub.remove();
   }, [enabled]);
 
+  // How hard the wearer said a run was, asked on the wrist after it ends. It
+  // rates the run's program workout, in place of the Diary asking later.
+  useEffect(() => {
+    if (!enabled || !WatchConnectivity) return;
+    const sub = WatchConnectivity.addListener(
+      'onRunEffort',
+      (payload: WatchRunEffortPayload) => {
+        void receiveWatchRunEffort(payload.clientId, payload.rating).catch(
+          (error: unknown) =>
+            addLog(
+              `[Watch Run] Could not store the run effort: ${String(error)}`,
+              'WARNING'
+            )
+        );
+      }
+    );
+    return () => sub.remove();
+  }, [enabled]);
+
   // A run can arrive while the app is not running. The native queue kept it;
   // store it before anything tries to file it, and only then tell native it
   // can drop its copy.
@@ -163,7 +186,7 @@ export function useWatchRunBridge(
           'ERROR'
         )
       );
-  }, [enabled]);
+  }, [enabled, isServerConnected]);
 
   // Anything left from an earlier launch or an offline stretch.
   useEffect(() => {

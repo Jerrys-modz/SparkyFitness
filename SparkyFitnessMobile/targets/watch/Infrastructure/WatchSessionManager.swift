@@ -263,11 +263,17 @@ final class WatchSessionManager: NSObject, ObservableObject {
 
     /// Heart-rate readings for the phone's GPS recording, queued like the
     /// workout's batches: a phone out of range mid-run is normal.
-    func sendRecordingHeartRate(sessionId: String, clientId: String, samples: [HeartRateSample]) {
+    func sendRecordingHeartRate(
+        sessionId: String,
+        clientId: String,
+        samples: [HeartRateSample],
+        appleZones: [[String: Any]]? = nil
+    ) {
         transfer(OutboundPayloads.recordingHeartRate(
             sessionId: sessionId,
             clientId: clientId,
-            samples: samples
+            samples: samples,
+            appleZones: appleZones
         ))
     }
 
@@ -331,6 +337,18 @@ final class WatchSessionManager: NSObject, ObservableObject {
             return true
         }
         return WatchRunOutbox.append(payload)
+    }
+
+    /// Tells the phone how hard a finished run felt. Queued, like the run.
+    func sendRunEffort(clientId: String, rating: Int) {
+        transfer(OutboundPayloads.runEffort(clientId: clientId, rating: rating))
+    }
+
+    /// Tells the phone which routes the watch holds. Queued (a later report
+    /// supersedes an earlier one, so a duplicate is harmless); deferred to
+    /// activation if the session is not up yet, where the library reports again.
+    func sendRouteLibrary(_ payload: [String: Any]) {
+        transfer(payload)
     }
 
     /// Sends runs that were finished before the session had activated.
@@ -726,6 +744,14 @@ final class WatchSessionManager: NSObject, ObservableObject {
             if let request = ContextPayloadMapper.runStartRequest(from: payload) {
                 WatchRunStore.shared.startRequested(request)
             }
+        case "routeSync":
+            if let sync = ContextPayloadMapper.routeSync(from: payload) {
+                WatchRouteLibraryStore.shared.apply(sync: sync)
+            }
+        case "routeRemove":
+            if let routeId = ContextPayloadMapper.routeRemoveId(from: payload) {
+                WatchRouteLibraryStore.shared.apply(remove: routeId)
+            }
         case "runCueAck":
             if let id = payload["id"] as? String { pendingCues.removeValue(forKey: id) }
         case "runControl":
@@ -1051,7 +1077,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
         durationMinutes: Double? = nil
     ) {
         let minutes = (durationMinutes ?? 0) > 0 ? durationMinutes : nil
-        guard !samples.isEmpty || minutes != nil else { return }
+        let appleZones = workoutHealthKit.consumeAppleZones()
+        guard !samples.isEmpty || minutes != nil || appleZones != nil else { return }
         transfer(
             OutboundPayloads.heartRateBatch(
                 HeartRateBatch(
@@ -1060,7 +1087,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
                     exerciseEntryId: exerciseEntryId,
                     samples: samples,
                     activeEnergyKcal: nil,
-                    durationMinutes: minutes
+                    durationMinutes: minutes,
+                    appleZones: appleZones.map(AppleZoneReading.parse)
                 )
             )
         )
@@ -1180,7 +1208,11 @@ final class WatchSessionManager: NSObject, ObservableObject {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 if let closing {
-                    self.sendHeartRateBatch(samples, exerciseEntryId: closing.id)
+                    self.sendHeartRateBatch(
+                        samples,
+                        exerciseEntryId: closing.id,
+                        appleZones: self.workoutHealthKit.consumeAppleZones()
+                    )
                     if timedOut, let abandonedSessionId {
                         self.parkLateTail(sessionId: abandonedSessionId, exerciseEntryId: closing.id)
                     }
@@ -1451,7 +1483,8 @@ final class WatchSessionManager: NSObject, ObservableObject {
     private func sendHeartRateBatch(
         _ samples: [HeartRateSample],
         exerciseEntryId: String,
-        durationMinutes: Double? = nil
+        durationMinutes: Double? = nil,
+        appleZones: [[String: Any]]? = nil
     ) {
         guard let sessionId = workoutStore.plan?.sessionId else { return }
         // `max(0, ...)` because the running total should only ever climb, but
@@ -1469,7 +1502,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
         // The one place that can see both halves of a batch, and so the only
         // place that can tell an empty one from an energy-only one. Callers
         // hand over whatever the buffer held, including nothing.
-        guard !samples.isEmpty || (energyDelta ?? 0) > 0 || (durationMinutes ?? 0) > 0 else {
+        guard !samples.isEmpty || (energyDelta ?? 0) > 0 || (durationMinutes ?? 0) > 0 || appleZones != nil else {
             return
         }
         workoutStore.persistSnapshot(
@@ -1482,9 +1515,26 @@ final class WatchSessionManager: NSObject, ObservableObject {
             exerciseEntryId: exerciseEntryId,
             samples: samples,
             activeEnergyKcal: energyDelta,
-            durationMinutes: (durationMinutes ?? 0) > 0 ? durationMinutes : nil
+            durationMinutes: (durationMinutes ?? 0) > 0 ? durationMinutes : nil,
+            appleZones: appleZones.map(AppleZoneReading.parse)
         )
         transfer(OutboundPayloads.heartRateBatch(batch))
+    }
+
+    /// Saves the wearer's 1-10 effort for the workout that just ended: to Health
+    /// (watchOS 11+) and, when the summary names its session, to the phone,
+    /// which files it with the workout in the diary.
+    func rateWorkoutEffort(_ score: Int, sessionId: String?, completion: @escaping (Bool) -> Void) {
+        if let sessionId {
+            transfer(OutboundPayloads.workoutEffort(sessionId: sessionId, rating: score))
+        }
+        // Only an older watchOS skips the Health write. On watchOS 11+ with no
+        // saved workout yet, saveEffort reports failure so the wearer can retry.
+        guard WorkoutEffort.isSupported else {
+            completion(true)
+            return
+        }
+        workoutHealthKit.saveEffort(score, completion: completion)
     }
 
     /// Ends the workout. The stop signal waits until HealthKit has finished
@@ -1596,7 +1646,11 @@ final class WatchSessionManager: NSObject, ObservableObject {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 if let closing {
-                    self.sendHeartRateBatch(samples, exerciseEntryId: closing.id)
+                    self.sendHeartRateBatch(
+                        samples,
+                        exerciseEntryId: closing.id,
+                        appleZones: self.workoutHealthKit.consumeAppleZones()
+                    )
                     if timedOut, let stopSessionId {
                         self.parkLateTail(sessionId: stopSessionId, exerciseEntryId: closing.id)
                     }
@@ -1645,6 +1699,9 @@ extension WatchSessionManager: WCSessionDelegate {
             // First: anything the wearer did before the session was usable.
             self.flushDeferredTransfers()
             self.flushRunOutbox()
+            // What the watch holds, so the phone's "On your watch" is true
+            // even after a reinstall or a phone-side reset.
+            WatchRouteLibraryStore.shared.report()
             // Before asking the phone for anything: whatever it last sent is
             // already available locally, and unlike `requestContext()` this
             // works with the phone nowhere in sight.

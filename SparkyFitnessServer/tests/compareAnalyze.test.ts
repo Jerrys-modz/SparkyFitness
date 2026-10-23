@@ -18,25 +18,7 @@ import {
   weeklySeries,
   weekSides,
 } from '@workspace/shared';
-
-// Seeded generator so the synthetic data is identical on every run.
-function mulberry32(seed: number): () => number {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-// Standard normal draws (Box-Muller) from a seeded uniform source.
-function normal(seed: number): () => number {
-  const uniform = mulberry32(seed);
-  return () =>
-    Math.sqrt(-2 * Math.log(1 - uniform())) * Math.cos(2 * Math.PI * uniform());
-}
+import { mulberry32, normal } from './helpers/seededRandom.js';
 
 const START = '2026-03-02';
 const END = addDays(START, 59); // a 60-day window
@@ -70,7 +52,7 @@ function nextDayOf(a: DaySeries, noise: () => number): DaySeries {
 const isWeekend = (day: string) => [0, 6].includes(dayOfWeek(day));
 
 describe('compare metric catalog', () => {
-  test('metric catalog follows the kind, missing and weekly rules', () => {
+  test('metric catalog follows the kind, missing, weekly and rolling rules', () => {
     const keysWhere = (pick: (def: CompareMetricDef) => boolean) =>
       COMPARE_METRIC_KEYS.filter((key) => pick(COMPARE_METRICS[key]));
 
@@ -105,6 +87,11 @@ describe('compare metric catalog', () => {
     ]);
     expect(keysWhere((m) => m.weekly === 'daysYes')).toEqual(['meditated']);
     expect(keysWhere((m) => m.weekly === null)).toEqual([
+      'meditationSessions7d',
+    ]);
+    // Read over the 7 days ending on the day: the bedtime spread and the session count.
+    expect(keysWhere((m) => m.rolling)).toEqual([
+      'bedtimeConsistency',
       'meditationSessions7d',
     ]);
     expect(COMPARE_METRICS.bedtime.unit).toBe('min-after-18:00');

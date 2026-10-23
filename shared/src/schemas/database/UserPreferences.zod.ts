@@ -7,6 +7,7 @@ import {
 } from '../../constants/calorieConstants.ts';
 import { CHART_SCALE_MODES } from '../../constants/chartConstants.ts';
 import { MAX_GOAL_MODE_WEEKLY_CHANGE_KG } from '../../utils/calorieCalculations.ts';
+import { HR_ZONE_METHODS } from '../../utils/heartRateZones.ts';
 
 export const SUPPORTED_TIME_FORMATS = ['HH:mm', 'h:mm A', 'h:mm a'] as const;
 
@@ -95,6 +96,11 @@ export const userPreferencesSchema = z.object({
   weekly_alcohol_limit_g: z.number().positive().nullable().optional(),
   caffeine_half_life_hours: z.number().min(2).max(8),
   target_bedtime: z.string(),
+  // Heart rate zones (owner-written, delegate-readable like the rest of the row).
+  max_heart_rate: z.number().int().min(100).max(250).nullable(),
+  resting_heart_rate: z.number().int().min(25).max(150).nullable(),
+  hr_zone_method: z.enum(HR_ZONE_METHODS),
+  hr_zone_custom_floors: z.array(z.number().int()).length(5).nullable(),
 });
 
 export const userPreferencesInitializerSchema = z.object({
@@ -180,6 +186,15 @@ export const userPreferencesInitializerSchema = z.object({
   weekly_alcohol_limit_g: z.number().positive().nullable().optional(),
   caffeine_half_life_hours: z.number().min(2).max(8).optional(),
   target_bedtime: z.string().optional(),
+  // Heart rate zones (owner-written, delegate-readable like the rest of the row).
+  max_heart_rate: z.number().int().min(100).max(250).nullable().optional(),
+  resting_heart_rate: z.number().int().min(25).max(150).nullable().optional(),
+  hr_zone_method: z.enum(HR_ZONE_METHODS).optional(),
+  hr_zone_custom_floors: z
+    .array(z.number().int())
+    .length(5)
+    .nullable()
+    .optional(),
 });
 
 export const userPreferencesMutatorSchema = z.object({
@@ -265,6 +280,15 @@ export const userPreferencesMutatorSchema = z.object({
   weekly_alcohol_limit_g: z.number().positive().nullable().optional(),
   caffeine_half_life_hours: z.number().min(2).max(8).optional(),
   target_bedtime: z.string().optional(),
+  // Heart rate zones (owner-written, delegate-readable like the rest of the row).
+  max_heart_rate: z.number().int().min(100).max(250).nullable().optional(),
+  resting_heart_rate: z.number().int().min(25).max(150).nullable().optional(),
+  hr_zone_method: z.enum(HR_ZONE_METHODS).optional(),
+  hr_zone_custom_floors: z
+    .array(z.number().int())
+    .length(5)
+    .nullable()
+    .optional(),
 });
 
 export type UserPreferences = z.infer<typeof userPreferencesSchema>;

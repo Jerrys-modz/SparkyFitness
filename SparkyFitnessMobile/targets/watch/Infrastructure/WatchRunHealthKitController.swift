@@ -41,6 +41,9 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     var onAutoPause: ((WatchAutoPause.Action) -> Void)?
     /// The accuracy radius (metres) of each GPS fix as it arrives, outdoors only.
     var onGpsAccuracy: ((Double) -> Void)?
+    /// The newest GPS fix as it arrives, outdoors only: what a followed route
+    /// is matched against. Position, accuracy radius (metres) and when it was taken.
+    var onLocation: ((WatchRoutePoint, Double, Date) -> Void)?
 
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
@@ -92,6 +95,10 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     var lapCount: Int { lapMarks.count }
     /// The plan this run follows, if any. The store reads it for the live step.
     private(set) var plan: WatchRunPlan?
+    /// Where the route tracker stands, kept in the snapshot. The store sets it
+    /// after each fix and reads it back after a recovery.
+    var routeProgress: WatchRouteTracker.State?
+    fileprivate var lastRouteProgressPersistedAt = Date.distantPast
     /// Where the plan's current step began, kept in the snapshot.
     private var planCursor = WatchRunPlan.Cursor.start
     /// Where the plan's current step began, for the voice coach.
@@ -176,10 +183,11 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             DispatchQueue.main.async { completion() }
             return
         }
-        let share: Set<HKSampleType> = [
+        var share: Set<HKSampleType> = [
             HKObjectType.workoutType(), Self.distanceType, Self.energyType, Self.heartRateType,
             Self.stepType, HKSeriesType.workoutRoute(),
         ]
+        if let effortType = WorkoutEffort.shareType { share.insert(effortType) }
         let read: Set<HKObjectType> = [
             HKObjectType.workoutType(), Self.distanceType, Self.energyType, Self.heartRateType,
             Self.stepType,
@@ -231,8 +239,11 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
             indoorAutoPause.reset()
             pausedByAutoPause = false
             clientId = UUID().uuidString
+            lastSavedWorkout = nil
+            pendingEffort = nil
             routeRows = []
             routeSegment = 0
+            routeProgress = nil
             heartRateRows = []
             lapMarks = []
             lapDistances = []
@@ -278,6 +289,34 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         persistSnapshot(force: true)
     }
 
+    /// Main-queue-only flag shared by the two callers of a run's delivery.
+    private final class DeliveryFlag {
+        var done = false
+    }
+
+    /// How long the summary waits for HealthKit to hand back the saved workout.
+    private static let finishWorkoutTimeout: TimeInterval = 10
+
+    /// The workout `end(save: true)` last saved, kept so the wearer can rate
+    /// its effort from the summary. Cleared when the next run starts. Main
+    /// queue only.
+    private var lastSavedWorkout: HKWorkout?
+
+    /// A rating waiting for `lastSavedWorkout`. Main queue only.
+    private var pendingEffort: Int?
+
+    /// Attaches the wearer's 1-10 effort to the run just saved.
+    /// A rating given before HealthKit returned the workout (the summary can
+    /// appear on the timeout) is kept and written when the workout arrives.
+    func saveEffort(_ score: Int, completion: @escaping (Bool) -> Void) {
+        guard let workout = lastSavedWorkout else {
+            pendingEffort = score
+            completion(true)
+            return
+        }
+        WorkoutEffort.save(score, for: workout, in: healthStore, completion: completion)
+    }
+
     /// Ends the session and writes the workout to Apple Health (`save`) or
     /// throws it away. `completion` runs on the main queue with the final
     /// figures and the active time.
@@ -302,41 +341,73 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
         self.builder = nil
         session.end()
         endingBuilder.endCollection(withEnd: endedAt) { [weak self] _, _ in
-            if save {
-                endingBuilder.finishWorkout { workout, _ in
-                    // The route can only be attached to a saved workout.
-                    if let workout, let endingRoute {
-                        endingRoute.finishRoute(with: workout, metadata: nil) { _, _ in }
+            // The summary, and its effort picker, wait until the saved
+            // HKWorkout is in hand. Rating before that has nothing to relate,
+            // and the picker would still report success. Strength already
+            // waits; a run used to show the summary from endCollection.
+            // Runs once. finishWorkout can hang or be dropped, and the run
+            // must still reach the phone, so a timeout calls it too; whichever
+            // comes second finds `delivered` set and does nothing. HealthKit's
+            // zone totals exist only after finishWorkout, so the timeout path
+            // delivers without them.
+            let delivered = DeliveryFlag()
+            let deliver: ([[String: Any]]) -> Void = { zones in
+                DispatchQueue.main.async {
+                    guard !delivered.done else { return }
+                    delivered.done = true
+                    guard let self else {
+                        completion(WatchRunMetrics(), finalElapsed, nil)
+                        return
                     }
+                    guard save else {
+                        completion(self.metrics, finalElapsed, nil)
+                        return
+                    }
+                    let steps = Self.workoutStepCount(endingBuilder) ?? pedometerStepsAtEnd
+                    var result = WatchRunResult(
+                        clientId: self.clientId,
+                        kind: self.runKind,
+                        place: self.runPlace,
+                        startedAt: self.startedAt,
+                        endedAt: endedAt,
+                        activeSeconds: finalElapsed,
+                        metrics: self.metrics,
+                        route: rows.route,
+                        heartRate: rows.heartRate,
+                        laps: rows.laps,
+                        lapDistances: rows.lapDistances,
+                        distanceSeries: self.distanceSeries,
+                        plan: self.plan,
+                        planCompleted: self.planCompleted(at: finalElapsed),
+                        steps: steps
+                    )
+                    result.appleZones = zones
+                    completion(self.metrics, finalElapsed, result)
+                }
+            }
+            if save {
+                endingBuilder.finishWorkout { [weak self] workout, _ in
+                    let zones = workout.map { AppleWorkoutZones.heartRateZones(of: $0) } ?? []
+                    DispatchQueue.main.async {
+                        self?.lastSavedWorkout = workout
+                        if let workout, let self, let score = self.pendingEffort {
+                            self.pendingEffort = nil
+                            WorkoutEffort.save(score, for: workout, in: self.healthStore) { _ in }
+                        }
+                        // The route can only be attached to a saved workout.
+                        if let workout, let endingRoute {
+                            endingRoute.finishRoute(with: workout, metadata: nil) { _, _ in }
+                        }
+                        deliver(zones)
+                    }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + Self.finishWorkoutTimeout) {
+                    deliver([])
                 }
             } else {
                 endingBuilder.discardWorkout()
                 endingRoute?.discard()
-            }
-            DispatchQueue.main.async {
-                guard let self else {
-                    completion(WatchRunMetrics(), finalElapsed, nil)
-                    return
-                }
-                let steps = Self.workoutStepCount(endingBuilder) ?? pedometerStepsAtEnd
-                let result = save ? WatchRunResult(
-                    clientId: self.clientId,
-                    kind: self.runKind,
-                    place: self.runPlace,
-                    startedAt: self.startedAt,
-                    endedAt: endedAt,
-                    activeSeconds: finalElapsed,
-                    metrics: self.metrics,
-                    route: rows.route,
-                    heartRate: rows.heartRate,
-                    laps: rows.laps,
-                    lapDistances: rows.lapDistances,
-                    distanceSeries: self.distanceSeries,
-                    plan: self.plan,
-                    planCompleted: self.planCompleted(at: finalElapsed),
-                    steps: steps
-                ) : nil
-                completion(self.metrics, finalElapsed, result)
+                deliver([])
             }
         }
     }
@@ -369,6 +440,17 @@ enum WatchRunRecoveryOutcome {
 }
 
 extension WatchRunHealthKitController {
+    /// Writes the snapshot after the store has published new route progress.
+    /// The controller's own write for the same fix can run first (the store
+    /// handles the fix on a later task), so this has its own throttle; `force`
+    /// is for a paused fix, which no other write follows.
+    func persistRouteProgress(force: Bool = false) {
+        let now = Date()
+        guard force || now.timeIntervalSince(lastRouteProgressPersistedAt) >= Self.persistInterval else { return }
+        lastRouteProgressPersistedAt = now
+        persistSnapshot(force: true)
+    }
+
     fileprivate func persistSnapshot(force: Bool = false) {
         guard session != nil else { return }
         let now = Date()
@@ -392,7 +474,8 @@ extension WatchRunHealthKitController {
             distanceSeries: distanceSeries,
             plan: plan,
             planCursor: plan == nil ? nil : planCursor,
-            settings: settings
+            settings: settings,
+            routeProgress: routeProgress
         ))
     }
 
@@ -449,6 +532,7 @@ extension WatchRunHealthKitController {
                 self.plan = snapshot.plan
                 // An older snapshot has no cursor; its plan was timed, so the
                 // clock alone places it again.
+                self.routeProgress = snapshot.routeProgress
                 self.planCursor = snapshot.planCursor
                     ?? snapshot.plan?.advance(.start, elapsed: snapshot.elapsed, meters: 0)
                     ?? .start
@@ -681,6 +765,9 @@ extension WatchRunHealthKitController {
         if let latest = locations.last {
             let accuracy = latest.horizontalAccuracy
             DispatchQueue.main.async { [weak self] in self?.onGpsAccuracy?(accuracy) }
+            let point = WatchRoutePoint(lat: latest.coordinate.latitude, lon: latest.coordinate.longitude)
+            let taken = latest.timestamp
+            DispatchQueue.main.async { [weak self] in self?.onLocation?(point, accuracy, taken) }
         }
         judgeMovement(locations)
         guard collectingRoute, let routeBuilder else { return }

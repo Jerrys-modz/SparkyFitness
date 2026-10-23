@@ -38,6 +38,7 @@ const mockT = jest.fn(
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (...args: Parameters<typeof mockT>) => mockT(...args),
+    i18n: { language: 'en', resolvedLanguage: 'en' },
   }),
   initReactI18next: {
     type: '3rdParty',
@@ -103,6 +104,33 @@ beforeEach(() => {
 });
 
 describe('CalorieTargetBreakdown weekly weight goal', () => {
+  it.each([
+    { weightUnit: 'lbs', kg: -0.5, rate: '-1.102 lbs / week' },
+    { weightUnit: 'st_lbs', kg: -0.5, rate: '-0 st 1.102 lbs / week' },
+    { weightUnit: 'lbs', kg: 0.5, rate: '+1.102 lbs / week' },
+    { weightUnit: 'st_lbs', kg: 0.5, rate: '+0 st 1.102 lbs / week' },
+    { weightUnit: 'st_lbs', kg: 0, rate: '0 st 0 lbs / week' },
+    { weightUnit: 'kg', kg: -0.25, rate: '-0.25 kg / week' },
+  ])(
+    'shows a $weightUnit weekly target of $kg kg using the preferred weight unit',
+    ({ weightUnit, kg, rate }) => {
+      mockUsePreferences.mockReturnValue({
+        energyUnit: 'kcal',
+        convertEnergy: (value: number) => value,
+        weightUnit,
+      });
+      render(
+        <CalorieTargetBreakdown
+          {...defaultProps}
+          goalMode="weekly"
+          goalModeWeeklyChangeKg={kg}
+        />
+      );
+
+      expect(screen.getByText(/Weekly weight change/)).toHaveTextContent(rate);
+    }
+  );
+
   it('explains safety-floor clamping for weekly goals using the manual baseline', () => {
     render(
       <CalorieTargetBreakdown

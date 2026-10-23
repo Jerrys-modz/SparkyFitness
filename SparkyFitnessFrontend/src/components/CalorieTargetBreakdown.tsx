@@ -12,6 +12,7 @@ import {
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { getEnergyUnitString } from '@/utils/nutritionCalculations';
 import { CONVERSION_FACTORS, kgToLbs } from '@/utils/unitConversions';
+import { formatWeeklyGoalRateWithUnit } from '@/utils/weeklyWeightGoal';
 import {
   getBmrAlgorithmLabel,
   getBodyFatAlgorithmLabel,
@@ -109,7 +110,7 @@ export const CalorieTargetBreakdown: React.FC<CalorieTargetBreakdownProps> = ({
   bmrSource,
   adaptiveActivitySeparate = false,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { energyUnit, convertEnergy, weightUnit = 'kg' } = usePreferences();
   const bmrAlgorithmLabel = getBmrAlgorithmLabel(t, bmrAlgorithm);
   const bodyFatAlgorithmLabel = getBodyFatAlgorithmLabel(t, bodyFatAlgorithm);
@@ -1252,12 +1253,19 @@ export const CalorieTargetBreakdown: React.FC<CalorieTargetBreakdownProps> = ({
               <span>
                 {goalModeLabel} {adjustmentLabel} (
                 {goalMode === 'weekly'
-                  ? t('settings.goalMode.weeklyRate', {
-                      defaultValue: '{{rate}} kg / week',
-                      rate:
-                        goalModeWeeklyChangeKg > 0
-                          ? `+${goalModeWeeklyChangeKg}`
-                          : String(goalModeWeeklyChangeKg),
+                  ? t('settings.goalMode.weeklyRateWithUnit', {
+                      defaultValue: '{{rate}} / week',
+                      rate: `${
+                        goalModeWeeklyChangeKg < 0
+                          ? '-'
+                          : goalModeWeeklyChangeKg > 0
+                            ? '+'
+                            : ''
+                      }${formatWeeklyGoalRateWithUnit(
+                        goalModeWeeklyChangeKg,
+                        weightUnit,
+                        i18n.resolvedLanguage ?? i18n.language
+                      )}`,
                     })
                   : `${adjustmentSign}${Math.abs(Math.round(deficitPct * 100))}%`}
                 ) ={' '}

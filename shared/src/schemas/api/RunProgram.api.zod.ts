@@ -29,7 +29,7 @@ export const runProgramStepSchema = z.object({
 });
 
 export const runProgramPlanSchema = z.object({
-  style: z.enum(['runWalk', 'fastEasy']),
+  style: z.enum(['runWalk', 'fastEasy', 'briskWalk']),
   steps: z.array(runProgramStepSchema).min(1).max(200),
 });
 

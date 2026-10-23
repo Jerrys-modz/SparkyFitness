@@ -59,6 +59,7 @@ import { useMostRecentMeasurement } from '@/hooks/CheckIn/useCheckIn';
 import { CalorieTargetBreakdown } from '@/components/CalorieTargetBreakdown';
 import { WeeklyWeightGoalInput } from '@/components/WeeklyWeightGoalInput';
 import { getAdaptiveTdeeForGoal } from '@/utils/adaptiveTdee';
+import { formatWeeklyGoalRateWithUnit } from '@/utils/weeklyWeightGoal';
 import {
   getBmrAlgorithmLabel,
   getBodyFatAlgorithmLabel,
@@ -111,7 +112,7 @@ const isCalorieGoalAdjustmentMode = (
 const toSelectableMode = normalizeCalorieGoalAdjustmentMode;
 
 const CalculationSettings = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const invalidateDiary = useDiaryInvalidation();
   const {
     energyUnit,
@@ -1365,15 +1366,17 @@ const CalculationSettings = () => {
                     adaptive is calibrated the baseline is measured expenditure
                     and the setting no longer enters the calculation. */}
                 {goalMode === 'weekly'
-                  ? t('settings.goalMode.weeklyCeilingHint', {
+                  ? t('settings.goalMode.weeklyCeilingHintWithUnit', {
                       defaultValue:
-                        'At this baseline and safety floor, the largest projected loss is about {{rate}} kg per week. Larger requests are limited by the safety floor.',
-                      rate: (
+                        'At this baseline and safety floor, the largest projected loss is about {{rate}} per week. Larger requests are limited by the safety floor.',
+                      rate: formatWeeklyGoalRateWithUnit(
                         (previewResult.baselineTdee *
                           deficitCeilingPercent *
                           7) /
-                        (100 * ENERGY_DENSITY_KCAL_PER_KG)
-                      ).toFixed(2),
+                          (100 * ENERGY_DENSITY_KCAL_PER_KG),
+                        weightUnit,
+                        i18n.resolvedLanguage ?? i18n.language
+                      ),
                     })
                   : previewResult.insufficientHistory
                     ? t(

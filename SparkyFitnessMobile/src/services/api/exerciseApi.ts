@@ -511,6 +511,16 @@ export const attachExerciseEntryWatchTelemetry = async (
     activeEnergyKcal?: number;
     /** Minutes the watch spent on this exercise. Replaces a zero duration. */
     durationMinutes?: number;
+    /**
+     * Apple's time-in-zone for the whole workout. Stored instead of
+     * bucketing the series. Sent on one exercise of the session.
+     */
+    appleZones?: {
+      index?: number;
+      minimumBpm?: number | null;
+      maximumBpm?: number | null;
+      seconds: number;
+    }[];
     /** Stride length in cm; null clears it. */
     strideLengthCm?: number | null;
   }
@@ -521,6 +531,24 @@ export const attachExerciseEntryWatchTelemetry = async (
     operation: 'attach exercise entry watch telemetry',
     method: 'POST',
     body: telemetry,
+  });
+};
+
+/**
+ * Stores how hard the person rated a workout, 1 (easy) to 10 (maximal). For an
+ * entry of a strength session the server applies it to the whole session, so
+ * any one entry id is enough. Sending it again replaces it.
+ */
+export const setExerciseEntryEffort = async (
+  exerciseEntryId: string,
+  rating: number
+): Promise<void> => {
+  return apiFetch<void>({
+    endpoint: `/api/exercise-entries/${exerciseEntryId}/effort`,
+    serviceName: 'Exercise API',
+    operation: 'set exercise entry effort',
+    method: 'POST',
+    body: { rating },
   });
 };
 

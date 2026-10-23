@@ -9,6 +9,9 @@ jest.mock('@kingstinct/react-native-healthkit', () => ({
   queryWorkoutSamples: jest.fn(),
   queryCorrelationSamples: jest.fn(),
 }));
+jest.mock('../../../src/services/appleHeartZones', () => ({
+  readAppleWorkoutZoneGroups: jest.fn(),
+}));
 jest.mock('../../../src/services/LogService', () => ({ addLog: jest.fn() }));
 jest.mock('react-native', () => ({
   Platform: { OS: 'ios' },

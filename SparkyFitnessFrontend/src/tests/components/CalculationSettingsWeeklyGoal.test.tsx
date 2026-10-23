@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import CalculationSettings from '@/pages/Settings/CalculationSettings';
+import { kgToLbs } from '@/utils/unitConversions';
 
 const mockSave = jest.fn();
 const mockPreferences = {
@@ -18,7 +19,8 @@ const mockPreferences = {
   saveAllPreferences: mockSave,
   setEnergyUnit: jest.fn(),
   convertEnergy: (value: number) => value,
-  convertWeight: (value: number) => value,
+  convertWeight: (value: number, from: string, to: string) =>
+    from === 'kg' && to === 'lbs' ? kgToLbs(value) : value,
   getEnergyUnitString: () => 'kcal',
 };
 
@@ -56,6 +58,32 @@ describe('CalculationSettings weekly goal', () => {
     mockPreferences.calorieSafetyFloorMode = 'standard';
     mockPreferences.calorieSafetyFloorValue = 1200;
   });
+
+  it.each([
+    ['kg', '0.467 kg per week'],
+    ['lbs', '1.029 lbs per week'],
+    ['st_lbs', '0 st 1.029 lbs per week'],
+  ])('shows the weekly loss ceiling in %s', (weightUnit, expectedRate) => {
+    mockPreferences.weightUnit = weightUnit;
+    mockPreferences.calorieSafetyFloorMode = 'custom';
+    mockPreferences.calorieSafetyFloorValue = 1600;
+    render(<CalculationSettings />);
+
+    expect(
+      screen.getByText(/the largest projected loss is about/)
+    ).toHaveTextContent(expectedRate);
+  });
+
+  it.each(['lbs', 'st_lbs'])(
+    'keeps a valid -2 kg weekly preview negative in %s',
+    (weightUnit) => {
+      mockPreferences.weightUnit = weightUnit;
+      mockPreferences.calorieSafetyFloorMode = 'disabled';
+      render(<CalculationSettings />);
+
+      expect(screen.getByText('~-4.4 lbs')).toBeInTheDocument();
+    }
+  );
 
   it('shows the additive weekly adjustment in the device projection formula', () => {
     mockPreferences.calorieGoalAdjustmentMode = 'tdee';

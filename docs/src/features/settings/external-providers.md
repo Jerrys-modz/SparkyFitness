@@ -25,6 +25,7 @@ SparkyFitness supports integration with the following health and fitness data pr
 - Fatsecret
 - Nutritionix
 - Mealie
+- [Valhalla routing](/features/exercises/route-generation) (route generation and Follow roads; a base URL and an optional API key)
 - Tandoor
 - Strava (partially tested)
 - [COROS](/features/settings/coros)
