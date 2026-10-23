@@ -399,4 +399,16 @@ describe('EditExerciseEntryDialog calories after changing sets', () => {
     expect(data.sets).toHaveLength(1);
     expect(data.sets[0]).toMatchObject({ duration: 1800 });
   });
+
+  it('keeps an explicitly entered zero-calorie override', async () => {
+    renderDialog(strengthEntry());
+
+    fireEvent.click(screen.getByText('Add Set'));
+    fireEvent.click(screen.getByText('Advanced'));
+    fireEvent.change(screen.getByDisplayValue('20'), {
+      target: { value: '0' },
+    });
+    const { data } = await saveEntry();
+    expect(data.calories_burned).toBe(0);
+  });
 });

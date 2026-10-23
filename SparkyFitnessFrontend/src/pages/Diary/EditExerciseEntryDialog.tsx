@@ -724,7 +724,7 @@ const EditExerciseEntryDialog = ({
 
       const caloriesEdited = caloriesBurnedInput !== initialCaloriesInput;
       const caloriesBurned =
-        caloriesBurnedInput === '' || caloriesBurnedInput === 0
+        caloriesBurnedInput === ''
           ? undefined
           : setsChanged && !caloriesEdited
             ? undefined
