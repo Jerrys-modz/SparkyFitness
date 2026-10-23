@@ -4,6 +4,7 @@ import {
   workoutPresetUpdateRequestSchema,
 } from '@workspace/shared';
 import { authenticate } from '../middleware/authMiddleware.js';
+import { encodeFitStrengthWorkout } from '../integrations/garminfit/fitWorkoutEncoder.js';
 import workoutPresetService from '../services/workoutPresetService.js';
 const router = express.Router();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -225,6 +226,48 @@ router.get('/:id', authenticate, async (req, res, next) => {
     next(error);
   }
 });
+/**
+ * @swagger
+ * /workout-presets/{id}/export/fit:
+ *   get:
+ *     summary: Export a workout preset as a FIT workout file
+ *     tags: [Fitness & Workouts]
+ *     description: Returns the preset's sets, weights and rests as a structured workout a Garmin watch can load.
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: The FIT workout file.
+ *       404:
+ *         description: Workout preset not found.
+ */
+router.get('/:id/export/fit', authenticate, async (req, res, next) => {
+  try {
+    const preset = await workoutPresetService.getWorkoutPresetById(
+      req.userId,
+      req.params.id
+    );
+    const fit = encodeFitStrengthWorkout(preset);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'attachment; filename="workout.fit"');
+    res.send(Buffer.from(fit));
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === 'Workout preset not found.'
+    ) {
+      return res.status(404).json({ error: error.message });
+    }
+    next(error);
+  }
+});
+
 /**
  * @swagger
  * /workout-presets/{id}:

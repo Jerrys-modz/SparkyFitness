@@ -236,3 +236,31 @@ export const adjustRunProgramBodySchema = z.object({
   count: z.number().int().min(1).max(9),
 });
 export type AdjustRunProgramBody = z.infer<typeof adjustRunProgramBodySchema>;
+
+/** A plan to send to a watch: a stored plan plus the optional per-step targets. */
+export const exportRunPlanBodySchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  activity: z.enum(["run", "walk"]).default("run"),
+  plan: z.object({
+    style: z.enum(["runWalk", "fastEasy"]),
+    steps: z
+      .array(
+        runProgramStepSchema.extend({
+          pace: z
+            .object({
+              minSecondsPerKm: z.number().min(60).max(3600),
+              maxSecondsPerKm: z.number().min(60).max(3600),
+            })
+            .optional(),
+          heartRate: z
+            .object({
+              minBpm: z.number().int().min(30).max(240),
+              maxBpm: z.number().int().min(30).max(240),
+            })
+            .optional(),
+        }),
+      )
+      .min(1)
+      .max(200),
+  }),
+});
