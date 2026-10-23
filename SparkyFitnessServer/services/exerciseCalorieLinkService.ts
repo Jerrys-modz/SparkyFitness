@@ -240,25 +240,96 @@ interface LinkedCalorieRow {
   calorie_link_resolution: CalorieLinkResolution | null;
 }
 
+async function lockKeys(
+  client: PoolClient,
+  keys: readonly string[]
+): Promise<void> {
+  for (const key of keys) {
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [key]);
+  }
+}
+
+/** The session row, before any of its exercises. Matches the grouped-edit order. */
+async function lockPresetRows(
+  client: PoolClient,
+  userId: string,
+  entryIds: readonly string[]
+): Promise<void> {
+  if (entryIds.length === 0) return;
+  const presets = await client.query<{ id: string }>(
+    `SELECT DISTINCT exercise_preset_entry_id AS id
+     FROM exercise_entries
+     WHERE user_id = $1
+       AND id = ANY($2::uuid[])
+       AND exercise_preset_entry_id IS NOT NULL
+     ORDER BY 1`,
+    [userId, entryIds]
+  );
+  for (const row of presets.rows) {
+    await client.query(
+      'SELECT id FROM exercise_preset_entries WHERE id = $1 AND user_id = $2 FOR UPDATE',
+      [row.id, userId]
+    );
+  }
+}
+
 /**
- * Hold these entries, and any calorie link they belong to, until the
- * transaction ends. Entry keys are taken first, in sorted order. Link keys
- * are then taken one at a time, smallest first, and the entries are re-read
- * after every wait: a relink can replace the id while this transaction was
- * blocked, and the replacement has to be locked before any write. Callers
- * must already be inside a transaction.
+ * The anchor entries, every exercise in their session, and every row that
+ * already shares their calorie link. Caller holds the session row and the
+ * per-user allocation lock, so this set cannot change underneath the write.
+ */
+async function allocateEntryIds(
+  client: PoolClient,
+  userId: string,
+  entryIds: readonly string[]
+): Promise<string[]> {
+  const found = await client.query<{ id: string }>(
+    `SELECT id FROM exercise_entries
+     WHERE user_id = $1
+       AND (
+         id = ANY($2::uuid[])
+         OR (
+           exercise_preset_entry_id IS NOT NULL
+           AND exercise_preset_entry_id IN (
+             SELECT exercise_preset_entry_id FROM exercise_entries
+             WHERE user_id = $1 AND id = ANY($2::uuid[])
+               AND exercise_preset_entry_id IS NOT NULL
+           )
+         )
+         OR (
+           calorie_link_id IS NOT NULL
+           AND calorie_link_id IN (
+             SELECT calorie_link_id FROM exercise_entries
+             WHERE user_id = $1 AND id = ANY($2::uuid[])
+               AND calorie_link_id IS NOT NULL
+           )
+         )
+       )`,
+    [userId, entryIds]
+  );
+  return [...new Set([...entryIds, ...found.rows.map((row) => row.id)])].sort();
+}
+
+/**
+ * Serialize a link change with every other one for this user, then hold the
+ * entries it will rewrite and the link they belong to. Order is the session
+ * row, the per-user allocation lock, entry keys sorted, then link keys
+ * smallest-first. Link ids are re-read after every wait so a relink cannot
+ * be applied without the new lock. Callers must already be in a transaction.
  */
 export async function lockCalorieLinkParticipantsWithClient(
   client: PoolClient,
   userId: string,
   entryIds: readonly string[]
 ): Promise<void> {
-  const ids = [...new Set(entryIds)].sort();
-  for (const id of ids) {
-    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
-      `exercise-entry:${id}`,
-    ]);
-  }
+  const requested = [...new Set(entryIds)].filter((id) => Boolean(id));
+  await lockPresetRows(client, userId, requested);
+  await lockKeys(client, [`calorie-alloc:${userId}`]);
+  const ids = await allocateEntryIds(client, userId, requested);
+  await lockKeys(
+    client,
+    ids.map((id) => `exercise-entry:${id}`)
+  );
   const held = new Set<string>();
   for (;;) {
     const peek = await client.query<{ calorie_link_id: string | null }>(
@@ -277,9 +348,7 @@ export async function lockCalorieLinkParticipantsWithClient(
       .sort();
     const next = pending[0];
     if (!next) return;
-    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
-      `calorie-link:${next}`,
-    ]);
+    await lockKeys(client, [`calorie-link:${next}`]);
     held.add(next);
   }
 }
@@ -412,11 +481,9 @@ async function setCalorieLink(
   const client = await getClient(userId, actingUserId);
   try {
     await client.query('BEGIN');
-    const session = await loadWorkoutEntries(client, userId, entryId, false);
     await lockCalorieLinkParticipantsWithClient(client, userId, [
       entryId,
       body.synced_entry_id,
-      ...session.map((row) => row.id),
     ]);
     const workout = await loadWorkoutEntries(client, userId, entryId, true);
     const existingLinkId = workout.find(
