@@ -14,7 +14,19 @@ import {
   GarminTokenPayload,
   GarminLoginResponseDto,
 } from '../../types/garmin.js';
+import {
+  openGarminMfaState,
+  sealGarminMfaState,
+  type GarminMfaState,
+} from './garminMfaState.js';
 import { addDays } from '@workspace/shared';
+
+/** The Garmin service's login reply; a pending sign-in arrives unsealed. */
+interface GarminServiceLoginResponse {
+  status?: string;
+  tokens?: GarminTokenPayload;
+  client_state?: GarminMfaState;
+}
 
 const GARMIN_MICROSERVICE_URL =
   process.env.GARMIN_MICROSERVICE_URL || 'http://localhost:8000'; // Default for local dev
@@ -109,8 +121,9 @@ async function garminLogin(
   email: string,
   password: string
 ): Promise<GarminLoginResponseDto> {
+  let data: GarminServiceLoginResponse;
   try {
-    const response = await postWithRetry<GarminLoginResponseDto>(
+    const response = await postWithRetry<GarminServiceLoginResponse>(
       `${GARMIN_MICROSERVICE_URL}/auth/garmin/login`,
       {
         user_id: userId,
@@ -118,12 +131,19 @@ async function garminLogin(
         password: password,
       }
     );
-    return response.data; // Should contain tokens or MFA status
+    data = response.data;
   } catch (error: unknown) {
     const { detail, errorData } = formatGarminMicroserviceError(error);
     log('error', `Error during Garmin login for user ${userId}:`, errorData);
     throw new Error(`Failed to login to Garmin: ${detail}`, { cause: error });
   }
+  if (data.status === 'needs_mfa' && data.client_state) {
+    return {
+      status: 'needs_mfa',
+      client_state: await sealGarminMfaState(userId, data.client_state),
+    };
+  }
+  return { status: data.status, tokens: data.tokens };
 }
 
 async function garminResumeLogin(
@@ -131,14 +151,18 @@ async function garminResumeLogin(
   clientState: string,
   mfaCode: string
 ): Promise<GarminLoginResponseDto> {
+  const state = await openGarminMfaState(userId, clientState);
   try {
+    // No retries: the code may already have reached Garmin, and sending it
+    // again cannot succeed.
     const response = await postWithRetry<GarminLoginResponseDto>(
       `${GARMIN_MICROSERVICE_URL}/auth/garmin/resume_login`,
       {
         user_id: userId,
-        client_state: clientState,
+        client_state: state,
         mfa_code: mfaCode,
-      }
+      },
+      0
     );
     return response.data; // Should contain tokens
   } catch (error: unknown) {

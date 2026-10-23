@@ -103,10 +103,10 @@ router.post(
         email,
         password
       );
+      // The reply holds Garmin tokens or a sealed sign-in; log only its status.
       log(
         'info',
-        `Garmin login microservice response for user ${userId}:`,
-        result
+        `Garmin login microservice status for user ${userId}: ${result.status}`
       );
       if (result.status === 'success' && result.tokens) {
         log(
@@ -141,7 +141,9 @@ router.post(
  *           schema:
  *             type: object
  *             properties:
- *               client_state: { type: 'string' }
+ *               client_state:
+ *                 type: string
+ *                 description: The sealed sign-in that /login returned with needs_mfa. It expires after 5 minutes.
  *               mfa_code: { type: 'string' }
  *             required: [client_state, mfa_code]
  *     responses:
@@ -168,8 +170,7 @@ router.post(
       );
       log(
         'info',
-        `Garmin resume login microservice response for user ${userId}:`,
-        result
+        `Garmin resume login microservice status for user ${userId}: ${result.status}`
       );
       if (result.status === 'success' && result.tokens) {
         log(
