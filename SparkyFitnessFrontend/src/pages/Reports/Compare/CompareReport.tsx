@@ -25,6 +25,7 @@ import { CompareSentence } from './CompareSentence';
 import { CompareSpanControl } from './CompareSpanControl';
 import { CompareStartState } from './CompareStartState';
 import { CompareTimingTable } from './CompareTimingTable';
+import { howSureLines } from './compareCopy';
 import type { CustomRange } from './compareCustomRange';
 import { loadRecentQuestions, saveRecentQuestion } from './compareRecents';
 import { timingRows } from './compareTables';
@@ -150,7 +151,9 @@ export const CompareReport = () => {
                 question={askable}
                 span={span}
               />
-              <CompareHowSure response={response} question={askable} />
+              <CompareHowSure
+                lines={howSureLines(response.result, askable, t)}
+              />
               <CompareChecks response={response} question={askable} />
             </div>
             <div className="space-y-6">
