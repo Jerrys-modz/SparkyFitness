@@ -8525,7 +8525,10 @@
       "noLinkDetail": "Over these {{n}}, they didn't move together more than chance would explain.",
       "longerSpan": "A longer span makes a weak link easier to see.",
       "differenceHeadline": "Yes, a difference",
-      "difference": "{{when}}, {{outcome}} was {{direction}}.",
+      "differenceHigher": "{{when}}, {{outcome}} was higher than on {{others}}.",
+      "differenceLower": "{{when}}, {{outcome}} was lower than on {{others}}.",
+      "differenceLater": "{{when}}, {{outcome}} was later than on {{others}}.",
+      "differenceEarlier": "{{when}}, {{outcome}} was earlier than on {{others}}.",
       "noDifferenceHeadline": "No clear difference",
       "noDifferenceDetail": "Over these {{n}}, your {{outcome}} wasn't different enough between the two kinds of day to rule out chance.",
       "tooFewHeadline": "Not enough days yet",
@@ -8646,9 +8649,7 @@
       "meanAndDays_one": "{{mean}} · {{count}} day",
       "meanAndDays_other": "{{mean}} · {{count}} days",
       "meanAndNights_one": "{{mean}} · {{count}} night",
-      "meanAndNights_other": "{{mean}} · {{count}} nights",
-      "diff": "{{diff}} vs. your usual",
-      "diffMinutes": "{{diff}} min vs. your usual"
+      "meanAndNights_other": "{{mean}} · {{count}} nights"
     },
     "checks": {
       "ownNormal": "✓ Compared with your own normal",
@@ -8684,6 +8685,13 @@
       "throughYesterday": "Through yesterday",
       "throughLastWeek": "Through last week",
       "throughDate": "Through {{date}}"
+    },
+    "howSure": {
+      "differenceHigher": "{{diff}} higher than on {{others}} (each measured against your own normal)",
+      "differenceLower": "{{diff}} lower than on {{others}} (each measured against your own normal)",
+      "differenceLater": "{{diff}} min later than on {{others}} (each measured against your own normal)",
+      "differenceEarlier": "{{diff}} min earlier than on {{others}} (each measured against your own normal)",
+      "differenceSame": "About the same as on {{others}} (each measured against your own normal)"
     }
   },
   "workoutEffort": {
