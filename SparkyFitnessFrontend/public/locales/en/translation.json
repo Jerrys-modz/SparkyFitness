@@ -9458,7 +9458,15 @@
       "sameNight": "the same night",
       "nextNight": "the next night",
       "sameWeek": "the same week",
-      "nextWeek": "the next week"
+      "nextWeek": "the next week",
+      "title": "Does timing matter?",
+      "note": "Looking at several timings makes one 'yes' by chance more likely. Trust the timing you meant to ask about.",
+      "yourQuestion": "Your question",
+      "linked": "Linked",
+      "noLink": "No clear link",
+      "notEnough": "Not enough days",
+      "loadFailed": "Couldn't load",
+      "loading": "Loading"
     },
     "yesNo": {
       "onDays": "On days you {{yes}}",
@@ -9619,6 +9627,15 @@
     "start": {
       "suggestions": "Try one of these",
       "recent": "Your recent questions"
+    },
+    "days": {
+      "title": "Every day used",
+      "day": "Day",
+      "week": "Week",
+      "weekOf": "Week of {{date}}",
+      "vsUsual": "{{metric}} vs. your usual",
+      "yes": "Yes",
+      "no": "No"
     }
   }
 }

@@ -1,6 +1,7 @@
 import {
   addDays,
   COMPARE_METRICS,
+  compareDigits,
   compareDisplayValue,
   pairedDots,
   timingOf,
@@ -133,4 +134,24 @@ export function timingBarWidths(rows: CompareTimingRow[]): number[] {
     }
     return Math.min(1, Math.abs(r.strength));
   });
+}
+
+/**
+ * A timing row's strength as text, signed: r to two decimals for a
+ * correlation, the gap on the outcome's display scale (already converted by
+ * `timingRows`) for a difference.
+ */
+export function timingStrengthText(
+  q: CompareQuestion,
+  row: CompareTimingRow,
+  locale?: string
+): string {
+  if (row.strength === null) return '';
+  const outcome = COMPARE_METRICS[q.a].kind === 'binary' ? q.b : q.a;
+  const digits = row.method === 'difference' ? compareDigits(outcome) : 2;
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+    signDisplay: 'exceptZero',
+  }).format(row.strength);
 }
