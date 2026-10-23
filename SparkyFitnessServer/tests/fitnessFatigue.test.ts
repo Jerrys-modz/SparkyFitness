@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MIN_BASELINE_NIGHTS,
   computeFitnessFatigue,
   computeReadiness,
   type LoadSession,
@@ -133,5 +134,66 @@ describe('computeReadiness', () => {
       sleepNeedHours: 6,
     });
     expect(result.factors.sleep).toBe(100);
+  });
+
+  describe('watch baselines', () => {
+    const base = {
+      fitnessFatigue: fresh,
+      sleepHours: 8,
+      restingHeartRate: 52,
+      restingHeartRateBaseline: 52,
+    };
+
+    it('leaves HRV out when the baseline has too few nights', () => {
+      const result = computeReadiness({
+        ...base,
+        hrv: 20,
+        hrvBaseline: 70,
+        hrvBaselineNights: MIN_BASELINE_NIGHTS - 1,
+      });
+      expect(result.factors.hrv).toBeUndefined();
+      expect(result.vitals?.hrv).toBeUndefined();
+      expect(result.level).toBe('high');
+    });
+
+    it('leaves resting heart rate out when the baseline has too few nights', () => {
+      const result = computeReadiness({
+        ...base,
+        restingHeartRate: 80,
+        restingHeartRateBaselineNights: 2,
+      });
+      expect(result.factors.restingHeartRate).toBeUndefined();
+      expect(result.level).toBe('high');
+    });
+
+    it('still caps the score on a real HRV drop with enough nights', () => {
+      const result = computeReadiness({
+        ...base,
+        hrv: 41,
+        hrvBaseline: 68,
+        hrvBaselineNights: MIN_BASELINE_NIGHTS,
+      });
+      expect(result.factors.hrv).toBe(0);
+      expect(result.score).toBe(69);
+      expect(result.level).toBe('moderate');
+      expect(result.weakest).toBe('hrv');
+      expect(result.vitals?.hrv).toEqual({
+        current: 41,
+        baseline: 68,
+        nights: MIN_BASELINE_NIGHTS,
+      });
+    });
+
+    it('leaves the factor out when there is no baseline', () => {
+      const result = computeReadiness({ ...base, hrv: 41, hrvBaseline: null });
+      expect(result.factors.hrv).toBeUndefined();
+      expect(result.vitals?.hrv).toBeUndefined();
+    });
+
+    it('trusts a baseline whose night count is unknown', () => {
+      const result = computeReadiness({ ...base, hrv: 41, hrvBaseline: 68 });
+      expect(result.factors.hrv).toBe(0);
+      expect(result.vitals?.hrv).toEqual({ current: 41, baseline: 68 });
+    });
   });
 });

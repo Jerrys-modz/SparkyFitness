@@ -9138,6 +9138,12 @@
       "sleep": "Sleep",
       "restingHeartRate": "Resting heart rate",
       "hrv": "HRV"
+    },
+    "vital": {
+      "hrv": "{{current}} ms against your usual {{baseline}} ms",
+      "hrvNights": "{{current}} ms against your usual {{baseline}} ms (median of {{count}} nights)",
+      "restingHeartRate": "{{current}} bpm against your usual {{baseline}} bpm",
+      "restingHeartRateNights": "{{current}} bpm against your usual {{baseline}} bpm (median of {{count}} nights)"
     }
   },
   "runEstimates": {
