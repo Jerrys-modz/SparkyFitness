@@ -16,6 +16,7 @@ const FIT_EPOCH_MS = 631065600000;
 const SEMICIRCLES_TO_DEGREES = 180 / 2 ** 31;
 // A valid-but-pathological file must not exhaust memory or write enormous JSONB.
 const MAX_RECORD_COUNT = 100_000;
+const MAX_SET_COUNT = 10_000;
 const MAX_DETAIL_DATA_BYTES = 10 * 1024 * 1024;
 // Sports where FIT cadence is strides/min (one leg); steps/min doubles it.
 const DOUBLED_CADENCE_SPORTS = new Set(['running', 'walking', 'hiking']);
@@ -651,6 +652,13 @@ function transformFitActivity(
     return {
       ok: false,
       reason: `File contains ${records.length} data records (limit ${MAX_RECORD_COUNT}).`,
+    };
+  }
+  const setCount = messages.setMesgs?.length ?? 0;
+  if (setCount > MAX_SET_COUNT) {
+    return {
+      ok: false,
+      reason: `File contains ${setCount} set messages (limit ${MAX_SET_COUNT}).`,
     };
   }
 

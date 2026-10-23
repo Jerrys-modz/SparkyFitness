@@ -557,6 +557,23 @@ describe('transformFitActivity — unit behaviour', () => {
     expect(result.reason).toMatch(/100000/);
   });
 
+  it('rejects files above the set cap', () => {
+    const set = {
+      timestamp: new Date('2026-03-01T10:00:00Z'),
+      duration: 30,
+      repetitions: 10,
+    };
+    const result = transformFitActivity(
+      baseMessages({
+        setMesgs: new Array(10_001).fill(set),
+      } as Partial<FitMessages>),
+      Buffer.from('x')
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected rejection');
+    expect(result.reason).toMatch(/10000/);
+  });
+
   it('rejects files whose decoded detail data exceeds the size cap', () => {
     const messages = baseMessages({
       sportMesgs: [{ name: 'x'.repeat(11 * 1024 * 1024) }],

@@ -154,6 +154,56 @@ async function persistFitStrengthWorkout(
   source = FIT_SOURCE,
   sourceId = transformed.sourceId
 ): Promise<PersistedFitEntry> {
+  // Resolve exercises, template preset, and preset exercise templates outside
+  // the transaction. getOrCreateGarminExercise and workoutPresetRepository each
+  // check out connections from the pool, so executing them before acquiring a client
+  // prevents concurrent imports from exhausting the pool and deadlocking.
+  const exercisesByGroupName = new Map<string, { id: string; name: string }>();
+  for (const group of transformed.strengthWorkout?.groupedExercises || []) {
+    if (!exercisesByGroupName.has(group.name)) {
+      exercisesByGroupName.set(
+        group.name,
+        await getOrCreateGarminExercise(
+          targetUserId,
+          group.name,
+          group.category
+        )
+      );
+    }
+  }
+
+  const workoutName =
+    transformed.strengthWorkout?.workoutName ||
+    transformed.activityName ||
+    'Garmin Workout Session';
+  let workoutPreset = await workoutPresetRepository.getWorkoutPresetByName(
+    targetUserId,
+    workoutName
+  );
+  if (!workoutPreset) {
+    workoutPreset = await workoutPresetRepository.createWorkoutPreset({
+      user_id: targetUserId,
+      name: workoutName,
+      description: `Imported Garmin FIT workout: ${workoutName}`,
+      is_public: false,
+    });
+  }
+  let presetSortOrder = 0;
+  for (const group of transformed.strengthWorkout?.groupedExercises || []) {
+    const presetExercise = exercisesByGroupName.get(group.name);
+    if (presetExercise) {
+      await workoutPresetRepository.addExerciseToWorkoutPreset(
+        targetUserId,
+        workoutPreset.id,
+        presetExercise.id,
+        null,
+        group.sets,
+        presetSortOrder
+      );
+    }
+    presetSortOrder++;
+  }
+
   const client = await getClient(targetUserId, actingUserId);
   try {
     await client.query('BEGIN');
@@ -183,23 +233,7 @@ async function persistFitStrengthWorkout(
       [targetUserId, source, sourceId, `${sourceId}_%`]
     );
 
-    // 2. Look up or create workout preset
-    const workoutName =
-      transformed.strengthWorkout?.workoutName ||
-      transformed.activityName ||
-      'Garmin Workout Session';
-    let workoutPreset = await workoutPresetRepository.getWorkoutPresetByName(
-      targetUserId,
-      workoutName
-    );
-    if (!workoutPreset) {
-      workoutPreset = await workoutPresetRepository.createWorkoutPreset({
-        user_id: targetUserId,
-        name: workoutName,
-        description: `Imported Garmin FIT workout: ${workoutName}`,
-        is_public: false,
-      });
-    }
+    // 2. Workout preset and exercises resolved before checkout (see above)
 
     // 3. Create exercise preset entry
     const exercisePresetEntryData = {
@@ -274,11 +308,8 @@ async function persistFitStrengthWorkout(
         : null;
 
     for (const group of transformed.strengthWorkout?.groupedExercises || []) {
-      const exercise = await getOrCreateGarminExercise(
-        targetUserId,
-        group.name,
-        group.category
-      );
+      const exercise = exercisesByGroupName.get(group.name);
+      if (!exercise) continue;
 
       let perExerciseCalories = 0;
       if (totalActiveDuration > 0 && totalCalories > 0) {
@@ -356,15 +387,6 @@ async function persistFitStrengthWorkout(
           startMs: group.startTime,
           endMs: group.endTime,
         });
-
-        await workoutPresetRepository.addExerciseToWorkoutPreset(
-          targetUserId,
-          workoutPreset.id,
-          exercise.id,
-          null,
-          group.sets,
-          exerciseSortOrder
-        );
       }
       exerciseSortOrder++;
     }
