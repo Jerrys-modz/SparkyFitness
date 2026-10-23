@@ -440,6 +440,9 @@ describe('running dynamics on Garmin Connect activity details', () => {
     expect(point.vertical_oscillation_mm).toBeNull();
     expect(point.stride_length_cm).toBeNull();
     expect(point.power_watts).toBeNull();
+  });
+});
+
 describe('findGroupForTimestamp', () => {
   it('locates group in small and large lists', () => {
     const smallGroups = [

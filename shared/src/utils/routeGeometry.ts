@@ -393,6 +393,8 @@ export function routesAreDistinct(
     routeOverlapFraction(b, a, toleranceM)
   );
   return overlap < maxOverlap;
+}
+
 /**
  * Filters out invalid GPS points (Null Island, out-of-range coordinates)
  * and extreme distance outliers (> maxRadiusMeters, default 500 km from the workout's median center).
