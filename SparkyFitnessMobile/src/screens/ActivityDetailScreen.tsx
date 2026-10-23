@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { View, Text, TouchableOpacity } from 'react-native';
 import FadeView from '../components/FadeView';
 import EditableSetList from '../components/EditableSetList';
+import LinkSyncedWorkoutSheet, {
+  type LinkSyncedWorkoutSheetRef,
+} from '../components/LinkSyncedWorkoutSheet';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -83,11 +86,13 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const weightUnit = (preferences?.default_weight_unit as 'kg' | 'lbs') ?? 'kg';
 
   const calendarSheetRef = useRef<CalendarSheetRef>(null);
+  const linkSheetRef = useRef<LinkSyncedWorkoutSheetRef>(null);
 
-  const [accentPrimary, borderSubtle] = useCSSVariable([
+  const [accentPrimary, borderSubtle, textMuted] = useCSSVariable([
     '--color-accent-primary',
     '--color-border-subtle',
-  ]) as [string, string];
+    '--color-text-muted',
+  ]) as [string, string, string];
   const usesNativeHeader = useNativeIOSHeadersActive();
 
   const { getImageSource } = useExerciseImageSource();
@@ -97,6 +102,11 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const entryDate = session.entry_date ?? '';
   const normalizedDate = normalizeDate(entryDate);
   const { name, duration, calories } = getWorkoutSummary(session, t);
+
+  // Only a workout logged in the app can be linked to a synced one.
+  const canLinkSynced =
+    session.source === 'manual' &&
+    session.exercise_snapshot?.name !== 'Active Calories';
 
   const firstImage = session.exercise_snapshot?.images?.[0];
   const firstImageSource = firstImage ? getImageSource(firstImage) : null;
@@ -771,6 +781,28 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* Stats grid */}
         {renderStatsGrid()}
 
+        {!isEditing && canLinkSynced && (
+          <TouchableOpacity
+            className="bg-surface rounded-xl px-4 py-3 mt-4 shadow-sm flex-row items-center"
+            onPress={() => linkSheetRef.current?.present()}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            testID="link-synced-workout"
+          >
+            <Icon name="link" size={16} color={accentPrimary} />
+            <Text className="flex-1 ml-2 text-base text-text-primary">
+              {session.calorie_link_resolution
+                ? t('calorieLink.linked', {
+                    defaultValue: 'Linked to a synced workout',
+                  })
+                : t('calorieLink.action', {
+                    defaultValue: 'Link a synced workout',
+                  })}
+            </Text>
+            <Icon name="chevron-forward" size={16} color={textMuted} />
+          </TouchableOpacity>
+        )}
+
         {!isEditing && isCardioModality(modality) && (
           <View className="mt-4">
             <ShoePickerCard exerciseEntryId={session.id} />
@@ -956,6 +988,21 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         selectedDate={isEditing ? formState.entryDate : normalizedDate}
         onSelectDate={setDate}
       />
+
+      {canLinkSynced && (
+        <LinkSyncedWorkoutSheet
+          ref={linkSheetRef}
+          entryId={session.id}
+          entryDate={normalizedDate}
+          onLinkChange={(resolution, applied) =>
+            setSession((current) => ({
+              ...current,
+              calorie_link_resolution: resolution,
+              calories_applied: applied[current.id] ?? null,
+            }))
+          }
+        />
+      )}
     </View>
   );
 };

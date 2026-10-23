@@ -27,6 +27,7 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import EditExerciseEntryDialog from './EditExerciseEntryDialog';
+import LinkSyncedWorkoutDialog from './LinkSyncedWorkoutDialog';
 import ExercisePlaybackModal from '@/pages/Diary/ExercisePlaybackModal';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { debug, info, error } from '@/utils/logging';
@@ -99,7 +100,8 @@ const ExerciseCard = ({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { activeUserId } = useActiveUser();
+  const { activeUserId, hasWritePermission } = useActiveUser();
+  const canLinkWorkouts = hasWritePermission('diary');
   const { loggingLevel, energyUnit, convertEnergy, getEnergyUnitString } =
     usePreferences();
   debug(
@@ -114,6 +116,7 @@ const ExerciseCard = ({
   const [addDialogIntent, setAddDialogIntent] = useState<'log' | 'playback'>(
     'log'
   );
+  const [linkEntryId, setLinkEntryId] = useState<string | null>(null);
   const [editingEntry, setEditingEntry] = useState<ExerciseEntry | null>(null); // Use ExerciseEntry from service
   const [isPlaybackModalOpen, setIsPlaybackModalOpen] = useState(false); // State for playback modal
   const [exerciseToPlay, setExerciseToPlay] = useState<Exercise | null>(null); // State for exercise to play
@@ -909,6 +912,7 @@ const ExerciseCard = ({
                     handleDeleteExerciseEntry={handleDeleteExerciseEntry} // Pass the individual exercise entry delete handler
                     handleEdit={handleEdit}
                     handleEditExerciseDatabase={handleEditExerciseDatabase}
+                    onLink={canLinkWorkouts ? setLinkEntryId : undefined}
                     setExerciseToPlay={setExerciseToPlay}
                     setIsPlaybackModalOpen={setIsPlaybackModalOpen}
                     energyUnit={energyUnit}
@@ -926,6 +930,7 @@ const ExerciseCard = ({
                     handleEdit={handleEdit}
                     handleDelete={handleDeleteExerciseEntry} // Pass the handler for individual entries
                     handleEditExerciseDatabase={handleEditExerciseDatabase}
+                    onLink={canLinkWorkouts ? setLinkEntryId : undefined}
                     setExerciseToPlay={setExerciseToPlay}
                     setIsPlaybackModalOpen={setIsPlaybackModalOpen}
                     energyUnit={energyUnit}
@@ -979,6 +984,20 @@ const ExerciseCard = ({
               </div>
             </div>
           </div>
+        )}
+
+        {linkEntryId && (
+          <LinkSyncedWorkoutDialog
+            key={linkEntryId}
+            entryId={linkEntryId}
+            open
+            onOpenChange={(open) => {
+              if (!open) setLinkEntryId(null);
+            }}
+            energyUnit={energyUnit}
+            convertEnergy={convertEnergy}
+            getEnergyUnitString={getEnergyUnitString}
+          />
         )}
 
         {/* Edit Exercise Entry Dialog */}

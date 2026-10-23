@@ -293,6 +293,8 @@ export const EXERCISE_ENTRY_TELEMETRY_COLUMNS = [
   'gear_external_id',
   'workout_effort',
   'calories_applied',
+  'calorie_link_id',
+  'calorie_link_resolution',
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

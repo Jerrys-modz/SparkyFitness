@@ -21,6 +21,9 @@ import type {
   ExerciseEntryResponse,
   AttachExerciseEntryGpsTrackRequest,
   AttachExerciseEntryLapsRequest,
+  CalorieLinkSuggestionsResponse,
+  SetCalorieLinkRequest,
+  SetCalorieLinkResponse,
   Pagination,
 } from '@workspace/shared';
 
@@ -424,6 +427,45 @@ export const updateExerciseEntry = async (
     operation: 'update exercise entry',
     method: 'PUT',
     body: payload,
+  });
+};
+
+/**
+ * Synced workouts that may be the same session as a workout logged in the app.
+ * `entryId` can be the entry or any entry of a strength session.
+ */
+export const fetchCalorieLinkSuggestions = async (
+  entryId: string
+): Promise<CalorieLinkSuggestionsResponse> => {
+  return apiFetch<CalorieLinkSuggestionsResponse>({
+    endpoint: `/api/exercise-entries/${encodeURIComponent(entryId)}/calorie-link/suggestions`,
+    serviceName: 'Exercise API',
+    operation: 'fetch calorie link suggestions',
+    method: 'GET',
+  });
+};
+
+/** Links a workout to a synced one so the session's calories count once. */
+export const setCalorieLink = async (
+  entryId: string,
+  body: SetCalorieLinkRequest
+): Promise<SetCalorieLinkResponse> => {
+  return apiFetch<SetCalorieLinkResponse>({
+    endpoint: `/api/exercise-entries/${encodeURIComponent(entryId)}/calorie-link`,
+    serviceName: 'Exercise API',
+    operation: 'link synced workout',
+    method: 'PUT',
+    body,
+  });
+};
+
+/** Removes the link; each side counts its own calories again. */
+export const clearCalorieLink = async (entryId: string): Promise<void> => {
+  return apiFetch<void>({
+    endpoint: `/api/exercise-entries/${encodeURIComponent(entryId)}/calorie-link`,
+    serviceName: 'Exercise API',
+    operation: 'unlink synced workout',
+    method: 'DELETE',
   });
 };
 
