@@ -25,6 +25,7 @@ import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { addLog } from '../services/LogService';
 import type { RootStackScreenProps } from '../types/navigation';
+import { getAppLocale } from '../localization';
 import { formatDateLabel, getTodayDate } from '../utils/dateUtils';
 
 type MedicationAdherenceScreenProps =
@@ -33,8 +34,8 @@ type MedicationAdherenceScreenProps =
 const MedicationAdherenceScreen: React.FC<MedicationAdherenceScreenProps> = ({
   navigation,
 }) => {
-  const { t, i18n } = useTranslation();
-  const dateLocale = i18n.language.startsWith('pl') ? 'pl-PL' : 'en-US';
+  const { t } = useTranslation();
+  const dateLocale = getAppLocale();
   const insets = useSafeAreaInsets();
   const usesNativeHeader = useNativeIOSHeadersActive();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
@@ -235,13 +236,26 @@ const MedicationAdherenceScreen: React.FC<MedicationAdherenceScreenProps> = ({
 
       {cards.medications && (
         <MedicationDoseListCard
-          title={t('medications.today.medicationsTitle', {
-            defaultValue: "Today's medications",
-          })}
-          emptyDueText={t('medications.today.noMedicationDoses', {
-            defaultValue:
-              'No scheduled doses today, log any medication as-needed below.',
-          })}
+          title={
+            isToday
+              ? t('medications.today.medicationsTitle', {
+                  defaultValue: "Today's medications",
+                })
+              : t('medications.today.medicationsTitleDay', {
+                  defaultValue: 'Medications',
+                })
+          }
+          emptyDueText={
+            isToday
+              ? t('medications.today.noMedicationDoses', {
+                  defaultValue:
+                    'No scheduled doses today, log any medication as-needed below.',
+                })
+              : t('medications.today.noMedicationDosesDay', {
+                  defaultValue:
+                    'No scheduled doses on this day, log any medication as-needed below.',
+                })
+          }
           emptyPrnText={t('medications.today.noPrnMedications', {
             defaultValue:
               'No as-needed or non-scheduled medications configured.',
@@ -250,18 +264,32 @@ const MedicationAdherenceScreen: React.FC<MedicationAdherenceScreenProps> = ({
           prnMedications={medicationPrns}
           dayEntries={dayEntries}
           dose={dose}
+          isToday={isToday}
           onOpenMedication={openMedication}
         />
       )}
       {cards.supplements && (
         <MedicationDoseListCard
-          title={t('medications.today.supplementsTitle', {
-            defaultValue: "Today's supplements",
-          })}
-          emptyDueText={t('medications.today.noSupplementDoses', {
-            defaultValue:
-              'No scheduled doses today, log any supplement as-needed below.',
-          })}
+          title={
+            isToday
+              ? t('medications.today.supplementsTitle', {
+                  defaultValue: "Today's supplements",
+                })
+              : t('medications.today.supplementsTitleDay', {
+                  defaultValue: 'Supplements',
+                })
+          }
+          emptyDueText={
+            isToday
+              ? t('medications.today.noSupplementDoses', {
+                  defaultValue:
+                    'No scheduled doses today, log any supplement as-needed below.',
+                })
+              : t('medications.today.noSupplementDosesDay', {
+                  defaultValue:
+                    'No scheduled doses on this day, log any supplement as-needed below.',
+                })
+          }
           emptyPrnText={t('medications.today.noPrnSupplements', {
             defaultValue:
               'No as-needed or non-scheduled supplements configured.',
@@ -270,6 +298,7 @@ const MedicationAdherenceScreen: React.FC<MedicationAdherenceScreenProps> = ({
           prnMedications={supplementPrns}
           dayEntries={dayEntries}
           dose={dose}
+          isToday={isToday}
           onOpenMedication={openMedication}
         />
       )}

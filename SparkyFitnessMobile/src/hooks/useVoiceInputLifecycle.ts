@@ -4,7 +4,10 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuiEvent } from '@assistant-ui/react-native';
 
 export type VoiceCancellationReason =
-  'background' | 'blur' | 'unmount' | 'run-start';
+  | 'background'
+  | 'blur'
+  | 'unmount'
+  | 'run-start';
 
 /** Voice capture is foreground-only, including while its permission dialog is pending. */
 export function useVoiceInputLifecycle(

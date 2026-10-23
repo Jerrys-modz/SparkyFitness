@@ -18,6 +18,8 @@ interface MedicationDoseListCardProps {
   /** The selected day's entries, for the as-needed counts. */
   dayEntries: MedicationEntry[];
   dose: ReturnType<typeof useLogDose>;
+  /** Whether the selected day is today, so the "Due" label stays date-neutral otherwise. */
+  isToday: boolean;
   onOpenMedication: (medicationId: string) => void;
 }
 
@@ -33,6 +35,7 @@ const MedicationDoseListCard: React.FC<MedicationDoseListCardProps> = ({
   prnMedications,
   dayEntries,
   dose,
+  isToday,
   onOpenMedication,
 }) => {
   const { t } = useTranslation();
@@ -45,7 +48,9 @@ const MedicationDoseListCard: React.FC<MedicationDoseListCardProps> = ({
       </Text>
 
       <Text className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-1">
-        {t('medications.today.dueToday', { defaultValue: 'Due today' })}
+        {isToday
+          ? t('medications.today.dueToday', { defaultValue: 'Due today' })
+          : t('medications.today.dueDay', { defaultValue: 'Due' })}
       </Text>
       {dueDoses.length === 0 ? (
         <Text className="text-sm text-text-muted py-2">{emptyDueText}</Text>

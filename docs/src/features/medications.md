@@ -62,7 +62,7 @@ Mobile does not yet include the web page's GLP-1 daily check-in on this screen; 
 ## 6. Privacy & Family Delegation
 
 * All data stays in your own database.
-* Managing another person's medications uses the `medications` permission. Symptom dots on the calendar need the separate `symptoms` permission and are simply left off without it.
+* Managing another person's medications uses the `medications` permission. Symptom dots on the calendar need the separate `symptoms` permission or **View Reports**, and are simply left off without one of them.
 * Reproductive-health data is never delegated and never appears in medication views.
 
 See [Family & Friends Sharing](./family-friends-sharing.md) for how permissions are granted.

@@ -14,7 +14,11 @@ import {
 } from '../services/backfillCheckpoint';
 
 export type BackfillRunnerStatus =
-  'loading' | 'idle' | 'running' | 'interrupted' | 'done';
+  | 'loading'
+  | 'idle'
+  | 'running'
+  | 'interrupted'
+  | 'done';
 
 // The checkpoint is the source of truth for the resting state: every outcome
 // that leaves a resumable checkpoint lands on 'interrupted', a done checkpoint

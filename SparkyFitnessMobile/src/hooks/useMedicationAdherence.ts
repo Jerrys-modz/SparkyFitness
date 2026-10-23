@@ -30,6 +30,9 @@ export function useMedicationAdherence(
   const entriesQuery = useMedicationEntries({
     fromDate: addDays(selectedDate, -(DEFAULT_ADHERENCE_WINDOW_DAYS - 1)),
     toDate: selectedDate,
+    // Picking another day must not blank the screen: that would unmount the calendar
+    // and lose its medication filter.
+    keepPrevious: true,
   });
 
   const medications = useMemo(
