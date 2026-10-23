@@ -430,10 +430,12 @@ const readHealthRecordsFallback = async (
  */
 let clientUnavailableCount = 0;
 let reconnectAttemptedThisRun = false;
+let inFlightReconnect: Promise<boolean> | null = null;
 
 export function resetClientUnavailableState(): void {
   clientUnavailableCount = 0;
   reconnectAttemptedThisRun = false;
+  inFlightReconnect = null;
 }
 
 export function getClientUnavailableCount(): number {
@@ -442,10 +444,12 @@ export function getClientUnavailableCount(): number {
 
 /**
  * Reconnects once per run and reports whether a retry is worth attempting.
- * A second caller in the same run gets false — the first attempt already
- * settled it, and the client does not become available by asking twice.
+ * Concurrent callers in the same run await the in-flight attempt; a caller
+ * arriving after that attempt has settled gets false (the client does not
+ * become available by asking twice).
  */
 const tryReconnectOnce = async (): Promise<boolean> => {
+  if (inFlightReconnect) return inFlightReconnect;
   if (reconnectAttemptedThisRun) return false;
   reconnectAttemptedThisRun = true;
 
@@ -453,7 +457,10 @@ const tryReconnectOnce = async (): Promise<boolean> => {
     '[HealthConnectService] Health Connect client is unavailable — reconnecting once before giving up.',
     'WARNING'
   );
-  return initHealthConnect();
+  inFlightReconnect = initHealthConnect().finally(() => {
+    inFlightReconnect = null;
+  });
+  return inFlightReconnect;
 };
 
 export const readHealthRecordsDetailed = async (

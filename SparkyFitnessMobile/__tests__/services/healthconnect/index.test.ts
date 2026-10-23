@@ -3209,6 +3209,40 @@ describe('dead Health Connect client is reconnected, not abandoned (#2191)', () 
     expect(result.records).toHaveLength(0);
     expect(result.error).toContain('client is not initialized');
   });
+
+  test('concurrent aggregate reads share the in-flight reconnect attempt', async () => {
+    mockReadRecords.mockResolvedValue(offsetlessProbeResult());
+    let resolveInit!: (val: boolean) => void;
+    const initPromise = new Promise<boolean>((resolve) => {
+      resolveInit = resolve;
+    });
+    mockInitialize.mockImplementation(() => initPromise);
+    mockAggregateGroupByPeriod
+      .mockRejectedValueOnce(deadClient())
+      .mockRejectedValueOnce(deadClient())
+      .mockResolvedValueOnce([periodBucket(2024, 1, 15, { COUNT_TOTAL: 5000 })])
+      .mockResolvedValueOnce([
+        periodBucket(2024, 1, 16, { COUNT_TOTAL: 7000 }),
+      ]);
+
+    const stepsPromise = getAggregatedStepsByDateDetailed(
+      localMidnight(2024, 1, 15),
+      localEndOfDay(2024, 1, 15)
+    );
+    const stepsPromise2 = getAggregatedStepsByDateDetailed(
+      localMidnight(2024, 1, 16),
+      localEndOfDay(2024, 1, 16)
+    );
+
+    await new Promise((r) => setTimeout(r, 10));
+    resolveInit(true);
+
+    const [steps1, steps2] = await Promise.all([stepsPromise, stepsPromise2]);
+
+    expect(mockInitialize).toHaveBeenCalledTimes(1);
+    expect(steps1.records[0].value).toBe(5000);
+    expect(steps2.records[0].value).toBe(7000);
+  });
 });
 
 describe('telemetry cache commits only after a successful upload (PR #2218 review)', () => {

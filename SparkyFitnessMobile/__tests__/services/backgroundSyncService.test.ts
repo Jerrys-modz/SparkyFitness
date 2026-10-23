@@ -552,7 +552,11 @@ describe('performBackgroundSync (via triggerManualSync)', () => {
 
       await triggerManualSync();
 
-      expect(healthService.initHealthConnect).toHaveBeenCalled();
+      expect(
+        healthService.initHealthConnect.mock.invocationCallOrder[0]
+      ).toBeLessThan(
+        healthService.getAggregatedStepsByDate.mock.invocationCallOrder[0]
+      );
     });
   });
 
