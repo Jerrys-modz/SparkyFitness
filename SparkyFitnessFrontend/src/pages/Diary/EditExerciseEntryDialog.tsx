@@ -708,8 +708,7 @@ const EditExerciseEntryDialog = ({
       // Adding or changing sets makes the stored duration and calorie figures
       // stale: re-derive the duration from the sets and let the server
       // re-estimate the calories, unless the user typed their own.
-      const setsChanged =
-        !cardioForm && setsSignature(sets) !== initialSetsSignature;
+      const setsChanged = setsSignature(sets) !== initialSetsSignature;
       const derivedSetsDuration = setsDurationMinutes(sets);
       const durationEdited =
         durationInput !== '' && durationInput !== seedDurationInput(entry);

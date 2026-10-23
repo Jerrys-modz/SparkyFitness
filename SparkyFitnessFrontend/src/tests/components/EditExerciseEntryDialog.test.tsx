@@ -377,4 +377,26 @@ describe('EditExerciseEntryDialog calories after changing sets', () => {
     expect(data.duration_minutes).toBe(0);
     expect(data.calories_burned).toBeUndefined();
   });
+
+  it('recalculates the total when a two-set cardio entry drops to one set', async () => {
+    const { container } = renderDialog(
+      makeEntry({
+        sets: [
+          cardioSet,
+          { ...cardioSet, id: 8, set_number: 2, duration: 600, distance: 1.5 },
+        ],
+      })
+    );
+
+    fireEvent.click(
+      container.ownerDocument
+        .querySelectorAll('svg.lucide-trash-2')[1]
+        .closest('button')!
+    );
+    const { data } = await saveEntry();
+    expect(data.calories_burned).toBeUndefined();
+    expect(data.duration_minutes).toBe(30);
+    expect(data.sets).toHaveLength(1);
+    expect(data.sets[0]).toMatchObject({ duration: 1800 });
+  });
 });
