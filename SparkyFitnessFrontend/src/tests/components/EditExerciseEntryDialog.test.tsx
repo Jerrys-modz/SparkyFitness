@@ -127,6 +127,7 @@ const saveEntry = async () => {
     data: {
       distance: number | null;
       duration_minutes: number;
+      calories_burned?: number;
       avg_heart_rate: number | null;
       steps: number | null;
       sets: Array<{
@@ -323,5 +324,132 @@ describe('EditExerciseEntryDialog untouched fields', () => {
 
     const { data } = await saveEntry();
     expect(data.duration_minutes).toBe(3);
+  });
+});
+
+describe('EditExerciseEntryDialog calories after changing sets', () => {
+  beforeEach(() => {
+    mockUpdateExerciseEntry.mockClear();
+    mockUpdateExerciseEntry.mockResolvedValue(undefined);
+    mockDistanceUnit = 'km';
+  });
+
+  const strengthEntry = () =>
+    makeEntry({
+      duration_minutes: 2,
+      calories_burned: 20,
+      distance: null,
+      sets: [{ ...cardioSet, duration: null, distance: null, rest_time: 120 }],
+      exercise_snapshot: {
+        id: 'ex-1',
+        name: 'Bench Press',
+        category: 'Strength',
+        modality: 'weight_reps',
+      },
+    } as unknown as Partial<ExerciseEntry>);
+
+  it('lets the server re-estimate when a set is added', async () => {
+    renderDialog(strengthEntry());
+
+    fireEvent.click(screen.getByText('Add Set'));
+    const { data } = await saveEntry();
+    expect(data.calories_burned).toBeUndefined();
+    expect(data.duration_minutes).toBeGreaterThan(2);
+  });
+
+  it('sends the stored calories when the sets are untouched', async () => {
+    renderDialog(strengthEntry());
+
+    const { data } = await saveEntry();
+    expect(data.calories_burned).toBe(20);
+    expect(data.duration_minutes).toBe(2);
+  });
+
+  it('derives zero duration when every set is removed', async () => {
+    const { container } = renderDialog(strengthEntry());
+
+    fireEvent.click(
+      container.ownerDocument
+        .querySelector('svg.lucide-trash-2')!
+        .closest('button')!
+    );
+    const { data } = await saveEntry();
+    expect(data.duration_minutes).toBe(0);
+    expect(data.calories_burned).toBeUndefined();
+  });
+
+  it('recalculates the total when a two-set cardio entry drops to one set', async () => {
+    const { container } = renderDialog(
+      makeEntry({
+        sets: [
+          cardioSet,
+          { ...cardioSet, id: 8, set_number: 2, duration: 600, distance: 1.5 },
+        ],
+      })
+    );
+
+    fireEvent.click(
+      container.ownerDocument
+        .querySelectorAll('svg.lucide-trash-2')[1]!
+        .closest('button')!
+    );
+    const { data } = await saveEntry();
+    expect(data.calories_burned).toBeUndefined();
+    expect(data.duration_minutes).toBe(30);
+    expect(data.sets).toHaveLength(1);
+    expect(data.sets[0]).toMatchObject({ duration: 1800 });
+  });
+
+  it('keeps an explicitly entered zero-calorie override', async () => {
+    renderDialog(strengthEntry());
+
+    fireEvent.click(screen.getByText('Add Set'));
+    fireEvent.click(screen.getByText('Advanced'));
+    fireEvent.change(screen.getByDisplayValue('20'), {
+      target: { value: '0' },
+    });
+    const { data } = await saveEntry();
+    expect(data.calories_burned).toBe(0);
+  });
+
+  it('sends a stored zero back when the sets are untouched', async () => {
+    renderDialog(
+      makeEntry({
+        calories_burned: 0,
+        sets: [
+          { ...cardioSet, duration: null, distance: null, rest_time: 120 },
+        ],
+        exercise_snapshot: {
+          id: 'ex-1',
+          name: 'Bench Press',
+          category: 'Strength',
+          modality: 'weight_reps',
+        },
+      } as unknown as Partial<ExerciseEntry>)
+    );
+
+    const { data } = await saveEntry();
+    expect(data.calories_burned).toBe(0);
+  });
+
+  it('keeps the stored duration when added strength sets carry no timing', async () => {
+    renderDialog(
+      makeEntry({
+        duration_minutes: 45,
+        calories_burned: 200,
+        sets: [{ ...cardioSet, duration: null, distance: null, rest_time: 0 }],
+        exercise_snapshot: {
+          id: 'ex-1',
+          name: 'Bench Press',
+          category: 'Strength',
+          modality: 'weight_reps',
+        },
+      } as unknown as Partial<ExerciseEntry>)
+    );
+
+    fireEvent.click(screen.getByText('Add Set'));
+    const { data } = await saveEntry();
+    expect(data.duration_minutes).toBe(45);
+    expect(data.calories_burned).toBeUndefined();
   });
 });

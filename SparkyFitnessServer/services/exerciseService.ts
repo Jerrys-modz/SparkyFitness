@@ -527,14 +527,20 @@ async function updateExerciseEntry(
       }
     }
     // If calories_burned is not provided, calculate it using the calorieCalculationService
+    // An edit that changes the sets usually omits exercise_id (the entry keeps
+    // its library link), so fall back to the stored one or adding a set never
+    // re-estimates. A partial update without sets keeps its stored calories.
+    const estimateExerciseId =
+      updateData.exercise_id ??
+      (updateData.sets ? existingEntry.exercise_id : undefined);
     if (
-      updateData.exercise_id &&
+      estimateExerciseId &&
       updateData.duration_minutes !== null &&
       updateData.duration_minutes !== undefined &&
       updateData.calories_burned === undefined
     ) {
       const exercise = await exerciseDb.getExerciseById(
-        updateData.exercise_id,
+        estimateExerciseId,
         authenticatedUserId
       );
       let estimated = existingEntry.calories_burned ?? 0;
@@ -549,7 +555,7 @@ async function updateExerciseEntry(
       } else {
         log(
           'warn',
-          `Exercise ${updateData.exercise_id} not found. Cannot auto-calculate calories_burned.`
+          `Exercise ${estimateExerciseId} not found. Cannot auto-calculate calories_burned.`
         );
       }
       // A watch-measured figure (active_calories) beats the formula, same
