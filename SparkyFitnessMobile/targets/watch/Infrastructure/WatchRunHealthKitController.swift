@@ -98,6 +98,7 @@ final class WatchRunHealthKitController: NSObject, CLLocationManagerDelegate {
     /// Where the route tracker stands, kept in the snapshot. The store sets it
     /// after each fix and reads it back after a recovery.
     var routeProgress: WatchRouteTracker.State?
+    fileprivate var lastRouteProgressPersistedAt = Date.distantPast
     /// Where the plan's current step began, kept in the snapshot.
     private var planCursor = WatchRunPlan.Cursor.start
     /// Where the plan's current step began, for the voice coach.
@@ -439,9 +440,14 @@ enum WatchRunRecoveryOutcome {
 }
 
 extension WatchRunHealthKitController {
-    /// Writes the snapshot now, for a route-tracker change that no throttled
-    /// write follows (a fix taken while paused).
-    func persistRouteProgress() {
+    /// Writes the snapshot after the store has published new route progress.
+    /// The controller's own write for the same fix can run first (the store
+    /// handles the fix on a later task), so this has its own throttle; `force`
+    /// is for a paused fix, which no other write follows.
+    func persistRouteProgress(force: Bool = false) {
+        let now = Date()
+        guard force || now.timeIntervalSince(lastRouteProgressPersistedAt) >= Self.persistInterval else { return }
+        lastRouteProgressPersistedAt = now
         persistSnapshot(force: true)
     }
 

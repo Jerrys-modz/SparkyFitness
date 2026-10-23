@@ -305,7 +305,7 @@ final class WatchRunStore: ObservableObject {
             // Route collection is off while paused, so no running-fix write
             // follows; save the tracker now or a relaunch restores the pre-pause place.
             publishRouteProgress()
-            healthKit.persistRouteProgress()
+            healthKit.persistRouteProgress(force: true)
             return
         }
         guard phase == .running else { return }
@@ -317,6 +317,7 @@ final class WatchRunStore: ObservableObject {
             }
         }
         publishRouteProgress()
+        healthKit.persistRouteProgress()
         for event in events {
             switch event {
             case .approachingCue(let routeCue):
