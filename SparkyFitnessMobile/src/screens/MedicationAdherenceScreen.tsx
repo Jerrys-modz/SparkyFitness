@@ -234,74 +234,80 @@ const MedicationAdherenceScreen: React.FC<MedicationAdherenceScreenProps> = ({
       />
       <MedicationChecklistCard progress={checklist} isToday={isToday} />
 
-      {cards.medications && (
-        <MedicationDoseListCard
-          title={
-            isToday
-              ? t('medications.today.medicationsTitle', {
-                  defaultValue: "Today's medications",
-                })
-              : t('medications.today.medicationsTitleDay', {
-                  defaultValue: 'Medications',
-                })
-          }
-          emptyDueText={
-            isToday
-              ? t('medications.today.noMedicationDoses', {
-                  defaultValue:
-                    'No scheduled doses today, log any medication as-needed below.',
-                })
-              : t('medications.today.noMedicationDosesDay', {
-                  defaultValue:
-                    'No scheduled doses on this day, log any medication as-needed below.',
-                })
-          }
-          emptyPrnText={t('medications.today.noPrnMedications', {
-            defaultValue:
-              'No as-needed or non-scheduled medications configured.',
-          })}
-          dueDoses={medicationDues}
-          prnMedications={medicationPrns}
-          dayEntries={dayEntries}
-          dose={dose}
-          isToday={isToday}
-          onOpenMedication={openMedication}
-        />
-      )}
-      {cards.supplements && (
-        <MedicationDoseListCard
-          title={
-            isToday
-              ? t('medications.today.supplementsTitle', {
-                  defaultValue: "Today's supplements",
-                })
-              : t('medications.today.supplementsTitleDay', {
-                  defaultValue: 'Supplements',
-                })
-          }
-          emptyDueText={
-            isToday
-              ? t('medications.today.noSupplementDoses', {
-                  defaultValue:
-                    'No scheduled doses today, log any supplement as-needed below.',
-                })
-              : t('medications.today.noSupplementDosesDay', {
-                  defaultValue:
-                    'No scheduled doses on this day, log any supplement as-needed below.',
-                })
-          }
-          emptyPrnText={t('medications.today.noPrnSupplements', {
-            defaultValue:
-              'No as-needed or non-scheduled supplements configured.',
-          })}
-          dueDoses={supplementDues}
-          prnMedications={supplementPrns}
-          dayEntries={dayEntries}
-          dose={dose}
-          isToday={isToday}
-          onOpenMedication={openMedication}
-        />
-      )}
+      {/* While another day's entries stand in, logging would act on the wrong list. */}
+      <View
+        pointerEvents={adherence.isPlaceholderData ? 'none' : 'auto'}
+        style={adherence.isPlaceholderData ? { opacity: 0.5 } : undefined}
+      >
+        {cards.medications && (
+          <MedicationDoseListCard
+            title={
+              isToday
+                ? t('medications.today.medicationsTitle', {
+                    defaultValue: "Today's medications",
+                  })
+                : t('medications.today.medicationsTitleDay', {
+                    defaultValue: 'Medications',
+                  })
+            }
+            emptyDueText={
+              isToday
+                ? t('medications.today.noMedicationDoses', {
+                    defaultValue:
+                      'No scheduled doses today, log any medication as-needed below.',
+                  })
+                : t('medications.today.noMedicationDosesDay', {
+                    defaultValue:
+                      'No scheduled doses on this day, log any medication as-needed below.',
+                  })
+            }
+            emptyPrnText={t('medications.today.noPrnMedications', {
+              defaultValue:
+                'No as-needed or non-scheduled medications configured.',
+            })}
+            dueDoses={medicationDues}
+            prnMedications={medicationPrns}
+            dayEntries={dayEntries}
+            dose={dose}
+            isToday={isToday}
+            onOpenMedication={openMedication}
+          />
+        )}
+        {cards.supplements && (
+          <MedicationDoseListCard
+            title={
+              isToday
+                ? t('medications.today.supplementsTitle', {
+                    defaultValue: "Today's supplements",
+                  })
+                : t('medications.today.supplementsTitleDay', {
+                    defaultValue: 'Supplements',
+                  })
+            }
+            emptyDueText={
+              isToday
+                ? t('medications.today.noSupplementDoses', {
+                    defaultValue:
+                      'No scheduled doses today, log any supplement as-needed below.',
+                  })
+                : t('medications.today.noSupplementDosesDay', {
+                    defaultValue:
+                      'No scheduled doses on this day, log any supplement as-needed below.',
+                  })
+            }
+            emptyPrnText={t('medications.today.noPrnSupplements', {
+              defaultValue:
+                'No as-needed or non-scheduled supplements configured.',
+            })}
+            dueDoses={supplementDues}
+            prnMedications={supplementPrns}
+            dayEntries={dayEntries}
+            dose={dose}
+            isToday={isToday}
+            onOpenMedication={openMedication}
+          />
+        )}
+      </View>
 
       <MedicationLogCalendar
         medications={medications}
