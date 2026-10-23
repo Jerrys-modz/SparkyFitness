@@ -3461,6 +3461,9 @@
     "startCascadingPlan": "Start 6-Month Cascading Plan"
   },
   "common": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "tomorrow": "Tomorrow",
     "add": "Add",
     "source": "Source",
     "saving": "Saving...",
