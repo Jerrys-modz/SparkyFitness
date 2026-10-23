@@ -15,6 +15,8 @@ export type HealthTrendSeries<TPoint> = {
   data: TPoint[];
   isLoading: boolean;
   isError: boolean;
+  /** The points are estimated from logged runs, not measured. */
+  isEstimate?: boolean;
 };
 
 /** The VO2 max reading for a day, in ml/kg/min. */

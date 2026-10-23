@@ -52,6 +52,8 @@ export const vo2MaxEstimateSchema = z.object({
   runs: z.number().int().min(1),
   from: day,
   to: day,
+  /** Per run day, oldest first; absent from older servers. */
+  series: z.array(z.object({ day, value: z.number() })).optional(),
 });
 
 export const runningPowerSchema = z.object({
