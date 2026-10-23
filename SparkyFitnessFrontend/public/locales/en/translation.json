@@ -9586,6 +9586,39 @@
       "cantTell": "Can't tell which comes first",
       "weekendHolds": "Still holds after accounting for weekends",
       "weekendMay": "This may be a weekday-versus-weekend pattern"
+    },
+    "dayOnly": "{{metric}} can only be compared by day",
+    "sentence": {
+      "something": "something",
+      "sometime": "some time",
+      "does": "Does",
+      "goWith": "go with",
+      "questionMark": "?",
+      "firstTitle": "First thing",
+      "secondTitle": "Second thing",
+      "timingTitle": "When",
+      "dayByDay": "Day by day",
+      "weekByWeek": "Week by week",
+      "sameDay": "The same day",
+      "nextDay": "The next day",
+      "dayBefore": "The day before",
+      "sameWeek": "The same week",
+      "nextWeek": "The next week"
+    },
+    "span": {
+      "30d": "30 days",
+      "60d": "60 days",
+      "90d": "90 days",
+      "6m": "6 months",
+      "1y": "1 year",
+      "custom": "Custom",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "to": "to"
+    },
+    "start": {
+      "suggestions": "Try one of these",
+      "recent": "Your recent questions"
     }
   }
 }
