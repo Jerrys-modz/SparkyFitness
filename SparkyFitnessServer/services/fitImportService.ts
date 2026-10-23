@@ -7,8 +7,11 @@ import { transformFitActivity } from '../integrations/garminfit/fitActivityTrans
 import type {
   FitDetailData,
   FitEntryData,
+  FitTransformResult,
 } from '../integrations/garminfit/fitActivityTransform.js';
 import exerciseEntryRepository from '../models/exerciseEntry.js';
+import exercisePresetEntryRepository from '../models/exercisePresetEntryRepository.js';
+import workoutPresetRepository from '../models/workoutPresetRepository.js';
 import activityDetailsRepository from '../models/activityDetailsRepository.js';
 import * as workoutTelemetryRepo from '../models/workoutTelemetryRepository.js';
 import { getOrCreateGarminExercise } from './garminService.js';
@@ -18,6 +21,7 @@ import {
   extractGarminGpsPoints,
   extractGarminHrZones,
   extractGarminTelemetryFields,
+  findGroupForTimestamp,
 } from './garmin/garminTelemetryExtractors.js';
 
 // Distinct from the Connect sync's 'garmin' so its range-delete-and-recreate
@@ -139,6 +143,304 @@ async function persistFitEntry(
 }
 
 /**
+ * Persists a strength workout from a FIT file as an exercise preset entry (workout session),
+ * distinct exercise entries with their sets, reps, and weights, full activity detail, and full workout detail.
+ */
+async function persistFitStrengthWorkout(
+  targetUserId: string,
+  actingUserId: string,
+  transformed: Extract<FitTransformResult, { ok: true }>,
+  entryDate: string,
+  source = FIT_SOURCE,
+  sourceId = transformed.sourceId
+): Promise<PersistedFitEntry> {
+  const client = await getClient(targetUserId, actingUserId);
+  try {
+    await client.query('BEGIN');
+
+    // 1. Detect if entries or preset entries already exist with this source and source_id
+    const existingResult = await client.query(
+      'SELECT id, exercise_preset_entry_id FROM exercise_entries WHERE user_id = $1 AND source = $2 AND (source_id = $3 OR source_id LIKE $4)',
+      [targetUserId, source, sourceId, `${sourceId}_%`]
+    );
+    const isUpdate = existingResult.rows.length > 0;
+    const existingPresetIds = new Set<string>();
+    for (const row of existingResult.rows) {
+      if (row.exercise_preset_entry_id) {
+        existingPresetIds.add(row.exercise_preset_entry_id);
+      }
+    }
+
+    // Clean up previous preset entries or loose entries for this file
+    if (existingPresetIds.size > 0) {
+      await client.query(
+        'DELETE FROM exercise_preset_entries WHERE id = ANY($1::uuid[]) AND user_id = $2',
+        [Array.from(existingPresetIds), targetUserId]
+      );
+    }
+    await client.query(
+      'DELETE FROM exercise_entries WHERE user_id = $1 AND source = $2 AND (source_id = $3 OR source_id LIKE $4)',
+      [targetUserId, source, sourceId, `${sourceId}_%`]
+    );
+
+    // 2. Look up or create workout preset
+    const workoutName =
+      transformed.strengthWorkout?.workoutName ||
+      transformed.activityName ||
+      'Garmin Workout Session';
+    let workoutPreset = await workoutPresetRepository.getWorkoutPresetByName(
+      targetUserId,
+      workoutName
+    );
+    if (!workoutPreset) {
+      workoutPreset = await workoutPresetRepository.createWorkoutPreset({
+        user_id: targetUserId,
+        name: workoutName,
+        description: `Imported Garmin FIT workout: ${workoutName}`,
+        is_public: false,
+      });
+    }
+
+    // 3. Create exercise preset entry
+    const exercisePresetEntryData = {
+      user_id: targetUserId,
+      workout_preset_id: workoutPreset.id,
+      name: workoutName,
+      description: `Logged session of ${workoutName}`,
+      entry_date: entryDate,
+      created_by_user_id: actingUserId,
+      notes: transformed.entryData.notes,
+      source,
+    };
+    const newPresetEntry =
+      await exercisePresetEntryRepository.createExercisePresetEntryWithClient(
+        client,
+        targetUserId,
+        exercisePresetEntryData,
+        actingUserId
+      );
+
+    // 4. Save activity details for the preset entry
+    await activityDetailsRepository._createActivityDetailWithClient(client, {
+      exercise_preset_entry_id: newPresetEntry.id,
+      provider_name: source,
+      detail_type: 'full_activity_data',
+      detail_data: transformed.detailData,
+      created_by_user_id: actingUserId,
+      updated_by_user_id: actingUserId,
+    });
+    if (transformed.strengthWorkout?.workoutData) {
+      await activityDetailsRepository._createActivityDetailWithClient(client, {
+        exercise_preset_entry_id: newPresetEntry.id,
+        provider_name: source,
+        detail_type: 'full_workout_data',
+        detail_data: transformed.strengthWorkout.workoutData,
+        created_by_user_id: actingUserId,
+        updated_by_user_id: actingUserId,
+      });
+    }
+
+    // 5. Process grouped exercises
+    let exerciseSortOrder = 0;
+    const createdGroups: Array<{
+      id: string;
+      startMs: number | null;
+      endMs: number | null;
+    }> = [];
+    let firstCreatedEntry: { id: string; [key: string]: unknown } | null = null;
+
+    const totalActiveDuration =
+      transformed.strengthWorkout?.groupedExercises.reduce(
+        (sum, g) => sum + g.activeDuration,
+        0
+      ) || 0;
+    const totalCalories = transformed.entryData.calories_burned || 0;
+
+    const metricDescriptors =
+      transformed.detailData.details.metricDescriptors || [];
+    const hrIndex = metricDescriptors.findIndex(
+      (d) => d.key === 'directHeartRate'
+    );
+    const timestampIndex = metricDescriptors.findIndex(
+      (d) => d.key === 'directTimestamp'
+    );
+    const activityDetailMetrics =
+      transformed.detailData.details.activityDetailMetrics || [];
+
+    const entryTime =
+      typeof transformed.detailData.activity.startTimeLocal === 'string' &&
+      transformed.detailData.activity.startTimeLocal.length >= 16
+        ? transformed.detailData.activity.startTimeLocal.substring(11, 16)
+        : null;
+
+    for (const group of transformed.strengthWorkout?.groupedExercises || []) {
+      const exercise = await getOrCreateGarminExercise(
+        targetUserId,
+        group.name,
+        group.category
+      );
+
+      let perExerciseCalories = 0;
+      if (totalActiveDuration > 0 && totalCalories > 0) {
+        perExerciseCalories = Math.round(
+          (group.activeDuration / totalActiveDuration) * totalCalories
+        );
+      }
+
+      let perExerciseAvgHeartRate: number | null = null;
+      if (
+        hrIndex !== -1 &&
+        timestampIndex !== -1 &&
+        group.startTime &&
+        group.endTime
+      ) {
+        let heartRateSum = 0;
+        let heartRateCount = 0;
+        for (const metric of activityDetailMetrics) {
+          const metricTimestamp = metric.metrics?.[timestampIndex];
+          const heartRate = metric.metrics?.[hrIndex];
+          if (
+            metricTimestamp !== null &&
+            metricTimestamp !== undefined &&
+            heartRate !== null &&
+            heartRate !== undefined &&
+            metricTimestamp >= group.startTime &&
+            metricTimestamp <= group.endTime
+          ) {
+            heartRateSum += heartRate;
+            heartRateCount++;
+          }
+        }
+        if (heartRateCount > 0) {
+          perExerciseAvgHeartRate = Math.round(heartRateSum / heartRateCount);
+        }
+      }
+
+      const exerciseEntryData = {
+        exercise_id: exercise.id,
+        duration_minutes: group.totalDuration / 60,
+        work_time_seconds: group.activeDuration || null,
+        calories_burned: perExerciseCalories,
+        entry_date: entryDate,
+        entry_time: entryTime,
+        notes: `Garmin Exercise: ${exercise.name}`,
+        sets: group.sets,
+        exercise_preset_entry_id: newPresetEntry.id,
+        avg_heart_rate: perExerciseAvgHeartRate,
+        source_id: `${sourceId}_${exerciseSortOrder}`,
+        steps: transformed.entryData.steps ?? 0,
+        sort_order: exerciseSortOrder,
+        training_load: transformed.entryData.training_load ?? null,
+      };
+
+      const { entry: newEntry } =
+        await exerciseEntryRepository._createExerciseEntryWithClient(
+          client,
+          targetUserId,
+          exerciseEntryData,
+          actingUserId,
+          source,
+          newPresetEntry.id,
+          { skipDuplicateCheck: true }
+        );
+
+      if (newEntry && newEntry.id) {
+        if (!firstCreatedEntry) {
+          firstCreatedEntry = newEntry;
+        }
+        createdGroups.push({
+          id: newEntry.id,
+          startMs: group.startTime,
+          endMs: group.endTime,
+        });
+
+        await workoutPresetRepository.addExerciseToWorkoutPreset(
+          targetUserId,
+          workoutPreset.id,
+          exercise.id,
+          null,
+          group.sets,
+          exerciseSortOrder
+        );
+      }
+      exerciseSortOrder++;
+    }
+
+    // 6. Attach telemetry across created groups
+    const detailRecord = transformed.detailData as unknown as Record<
+      string,
+      unknown
+    >;
+    const laps = extractGarminLaps(detailRecord);
+    const gpsPoints = extractGarminGpsPoints(detailRecord);
+    const hrZones = extractGarminHrZones(detailRecord);
+
+    if (createdGroups.length > 0) {
+      if (laps.length > 0) {
+        const lapRows = laps.map((lap) => {
+          const group = findGroupForTimestamp(createdGroups, lap.startMs);
+          const { startMs: _startMs, endMs: _endMs, ...lapFields } = lap;
+          return {
+            user_id: targetUserId,
+            exercise_entry_id: (group ?? createdGroups[0]).id,
+            entry_date: entryDate,
+            ...lapFields,
+          };
+        });
+        await workoutTelemetryRepo._bulkInsertExerciseEntryLapsWithClient(
+          client,
+          targetUserId,
+          lapRows
+        );
+      }
+
+      if (gpsPoints.length > 0) {
+        const gpsRows = gpsPoints.map((pt) => {
+          const group = findGroupForTimestamp(createdGroups, pt.timestampMs);
+          const { timestampMs: _timestampMs, ...ptFields } = pt;
+          return {
+            user_id: targetUserId,
+            exercise_entry_id: (group ?? createdGroups[0]).id,
+            entry_date: entryDate,
+            ...ptFields,
+          };
+        });
+        await workoutTelemetryRepo._bulkInsertExerciseEntryGpsPointsWithClient(
+          client,
+          targetUserId,
+          gpsRows
+        );
+      }
+
+      if (hrZones.length > 0) {
+        await workoutTelemetryRepo._bulkInsertExerciseEntryHrZonesWithClient(
+          client,
+          targetUserId,
+          hrZones.map((zone) => ({
+            user_id: targetUserId,
+            exercise_entry_id: createdGroups[0].id,
+            entry_date: entryDate,
+            ...zone,
+            zone_method: 'device',
+          }))
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    return {
+      entry: firstCreatedEntry || { id: newPresetEntry.id },
+      operation: isUpdate ? 'updated' : 'created',
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
  * Imports a single in-memory FIT buffer as an exercise diary entry with full telemetry.
  */
 export async function importFitBuffer(
@@ -183,37 +485,60 @@ export async function importFitBuffer(
       transformed.entryDate ??
       instantToDay(transformed.startTime, await loadUserTimezone(targetUserId));
 
-    // Exercise rows keep source 'garmin' so a FIT "Tennis" and a linked
-    // Garmin Connect "Tennis" share one exercise (lookup is by name first).
-    const exercise = await getOrCreateGarminExercise(
-      targetUserId,
-      transformed.sport,
-      transformed.sport
-    );
-
     const source = options?.source || FIT_SOURCE;
     const sourceId = options?.sourceIdOverride || transformed.sourceId;
 
-    const { entry, operation } = await persistFitEntry(
-      targetUserId,
-      actingUserId,
-      {
-        ...transformed.entryData,
-        source_id: sourceId,
-        exercise_id: exercise.id,
-        entry_date: entryDate,
-      },
-      transformed.detailData,
-      entryDate,
-      source
-    );
+    let entry: { id: string; [key: string]: unknown };
+    let operation: 'created' | 'updated';
+
+    if (
+      transformed.kind === 'strength' &&
+      transformed.strengthWorkout &&
+      transformed.strengthWorkout.groupedExercises.length > 0
+    ) {
+      const persisted = await persistFitStrengthWorkout(
+        targetUserId,
+        actingUserId,
+        transformed,
+        entryDate,
+        source,
+        sourceId
+      );
+      entry = persisted.entry;
+      operation = persisted.operation;
+    } else {
+      // Exercise rows keep source 'garmin' so a FIT "Tennis" and a linked
+      // Garmin Connect "Tennis" share one exercise (lookup is by name first).
+      const exercise = await getOrCreateGarminExercise(
+        targetUserId,
+        transformed.sport,
+        transformed.sport
+      );
+
+      const persisted = await persistFitEntry(
+        targetUserId,
+        actingUserId,
+        {
+          ...transformed.entryData,
+          source_id: sourceId,
+          exercise_id: exercise.id,
+          entry_date: entryDate,
+        },
+        transformed.detailData,
+        entryDate,
+        source
+      );
+      entry = persisted.entry;
+      operation = persisted.operation;
+    }
 
     const result: ImportFitFileResult = {
       fileName,
       status: operation,
       exerciseEntryId: entry.id,
       entryDate,
-      activityName: transformed.activityName,
+      activityName:
+        transformed.strengthWorkout?.workoutName || transformed.activityName,
       sport: transformed.sport,
     };
     if (warnings.length > 0) {

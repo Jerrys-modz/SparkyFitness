@@ -93,6 +93,7 @@ export function mapGarminCategoryToMuscles(rawCategory: unknown): {
     return { primary: [], secondary: [] };
   }
   const normalized = rawCategory
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
     .trim()
     .toUpperCase()
     .replace(/[\s-]+/g, '_');
@@ -110,7 +111,16 @@ export function mapGarminExerciseCategory(rawCategory: unknown): string {
     return 'general';
   }
 
-  const normalized = rawCategory.trim().toLowerCase();
+  const normalized = rawCategory
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+
+  const uppercaseKey = normalized.toUpperCase();
+  if (GARMIN_CATEGORY_TO_MUSCLES[uppercaseKey]) {
+    return 'strength';
+  }
 
   // Yoga
   if (normalized.includes('yoga')) {

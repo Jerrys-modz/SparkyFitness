@@ -2464,17 +2464,32 @@ async function getActivityDetailsByExerciseEntryIdAndProvider(
           );
       }
     }
+    const normalize = (p: unknown) =>
+      typeof p === 'string' ? p.trim().toLowerCase() : '';
+    const req = normalize(providerName);
+    const matchesProvider = (stored: unknown) => {
+      const s = normalize(stored);
+      if (s === req) return true;
+      if (
+        (s === 'garmin' || s === 'garmin_fit') &&
+        (req === 'garmin' || req === 'garmin_fit')
+      ) {
+        return true;
+      }
+      return false;
+    };
+
     // Find the full_activity_data and full_workout_data for the given provider
     const activityData = activityDetails.find(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (detail: any) =>
-        detail.provider_name === providerName &&
+        matchesProvider(detail.provider_name) &&
         detail.detail_type === 'full_activity_data'
     );
     const workoutData = activityDetails.find(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (detail: any) =>
-        detail.provider_name === providerName &&
+        matchesProvider(detail.provider_name) &&
         detail.detail_type === 'full_workout_data'
     );
     // Return a composite object containing both, if they exist
