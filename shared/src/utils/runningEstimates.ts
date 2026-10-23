@@ -113,6 +113,12 @@ export function runningPowerWatts(
   return watts;
 }
 
+/** The VO2 max one day's runs imply. */
+export interface RunVo2Max {
+  day: string;
+  value: number;
+}
+
 export interface Vo2MaxEstimate {
   /** ml/kg/min, one decimal. */
   value: number;
@@ -121,6 +127,8 @@ export interface Vo2MaxEstimate {
   /** First and last day of those runs. */
   from: string;
   to: string;
+  /** What each run day implies (median if several), oldest first, for a trend. */
+  series?: RunVo2Max[];
 }
 
 export interface RunPower {
@@ -184,6 +192,14 @@ export function computeRunningEstimates(
       runs: vo2Runs.length,
       from: days[0] ?? vo2Start,
       to: days[days.length - 1] ?? today,
+      series: [...new Set(days)].map((day) => ({
+        day,
+        value: round1(
+          median(
+            vo2Runs.filter((run) => run.day === day).map((run) => run.value)
+          )
+        ),
+      })),
     };
   }
 

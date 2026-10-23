@@ -111,6 +111,7 @@ export function useHealthTrends({
 
   const {
     vo2MaxData,
+    isEstimate: isVo2MaxEstimate,
     isLoading: isVo2MaxLoading,
     isError: isVo2MaxError,
     refetch: refetchVo2Max,
@@ -174,6 +175,7 @@ export function useHealthTrends({
     },
     vo2max: {
       data: vo2MaxData,
+      isEstimate: isVo2MaxEstimate,
       isLoading: isVo2MaxLoading,
       isError: isVo2MaxError,
     },

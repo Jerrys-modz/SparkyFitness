@@ -5240,7 +5240,9 @@
     "vo2max": {
       "title": "VO2 max",
       "loadFailed": "Failed to load VO2 max data",
-      "empty": "No VO2 max data for this period"
+      "empty": "No VO2 max data for this period",
+      "estimateTitle": "VO2 max (estimated)",
+      "estimateNote": "Estimated from your logged runs. Not a measurement; a synced reading replaces it."
     }
   },
   "exerciseLibrary": {
@@ -6967,7 +6969,13 @@
       "fatigue": "Fatigue",
       "formLabel": "Form",
       "title": "Readiness and Form",
-      "subtitle": "How ready you are today, from training form, sleep and resting heart rate."
+      "subtitle": "How ready you are today, from training form, sleep and resting heart rate.",
+      "vital": {
+        "hrv": "{{current}} ms against your usual {{baseline}} ms",
+        "hrvNights": "{{current}} ms against your usual {{baseline}} ms (median of {{count}} nights)",
+        "restingHeartRate": "{{current}} bpm against your usual {{baseline}} bpm",
+        "restingHeartRateNights": "{{current}} bpm against your usual {{baseline}} bpm (median of {{count}} nights)"
+      }
     }
   },
   "aiSettings": {
@@ -8350,7 +8358,23 @@
       "dayA11y_other": "{{date}}, {{formattedCount}} workouts"
     },
     "calendarScreen": {
-      "minutes": "{{minutes}} min"
+      "minutes": "{{minutes}} min",
+      "noProgram": "Start a training program to see its calendar.",
+      "progress": "{{done}} of {{total}} workouts done",
+      "doneOn": "Done {{date}}",
+      "done": "Done",
+      "dueOn": "Next · {{date}}",
+      "notScheduled": "Not scheduled",
+      "legendDone": "Done",
+      "legendAhead": "Due or to come",
+      "noWorkoutsDay": "No program workout on this day.",
+      "pickDays_one": "{{count}} more workout is not on the calendar yet. Pick your workout days on the program screen to see when each one falls.",
+      "pickDays_other": "{{count}} more workouts are not on the calendar yet. Pick your workout days on the program screen to see when each one falls.",
+      "pastGoal_one": "{{count}} workout does not fit before your goal date.",
+      "pastGoal_other": "{{count}} workouts do not fit before your goal date.",
+      "allWorkouts": "All workouts",
+      "today": "Today",
+      "due": "Next"
     },
     "detail": {
       "workoutTitle": "Week {{week}}, run {{run}}",
@@ -9561,7 +9585,8 @@
       "noVariationHeadline": "Nothing to compare yet",
       "noVariationDetail": "{{metric}} was the same every time over this span, so there's nothing to compare it with.",
       "noVariationGeneric": "One of these didn't change over this span.",
-      "longerSpanDifference": "A longer span makes a small difference easier to see."
+      "longerSpanDifference": "A longer span makes a small difference easier to see.",
+      "difference": "{{when}}, {{outcome}} was {{direction}}."
     },
     "since": {
       "question": "Since I started {{habit}} regularly, has {{outcome}} changed?",
@@ -9664,7 +9689,9 @@
       "meanAndDays_one": "{{mean}} · {{count}} day",
       "meanAndDays_other": "{{mean}} · {{count}} days",
       "meanAndNights_one": "{{mean}} · {{count}} night",
-      "meanAndNights_other": "{{mean}} · {{count}} nights"
+      "meanAndNights_other": "{{mean}} · {{count}} nights",
+      "diff": "{{diff}} vs. your usual",
+      "diffMinutes": "{{diff}} min vs. your usual"
     },
     "checks": {
       "ownNormal": "✓ Compared with your own normal",

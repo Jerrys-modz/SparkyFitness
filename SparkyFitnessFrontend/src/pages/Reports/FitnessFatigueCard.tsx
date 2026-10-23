@@ -48,8 +48,8 @@ const FitnessFatigueCard = ({ data }: FitnessFatigueCardProps) => {
     ReadinessFactor,
     number,
   ][];
-  const number = (value: number) =>
-    new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(
+  const number = (value: number, digits = 0) =>
+    new Intl.NumberFormat(undefined, { maximumFractionDigits: digits }).format(
       value
     );
   const statusKey: Record<FormStatus, string | null> = {
@@ -97,27 +97,53 @@ const FitnessFatigueCard = ({ data }: FitnessFatigueCardProps) => {
 
         {factors.length > 0 ? (
           <ul className="space-y-1 text-sm">
-            {factors.map(([factor, score]) => (
-              <li key={factor} className="flex justify-between">
-                <span
-                  className={
-                    factor === readiness.weakest
-                      ? 'font-semibold'
-                      : 'text-muted-foreground'
-                  }
-                >
-                  {t(`fitnessFatigue.factor.${factor}`, {
-                    defaultValue: {
-                      form: 'Training form',
-                      sleep: 'Sleep',
-                      restingHeartRate: 'Resting heart rate',
-                      hrv: 'HRV',
-                    }[factor],
-                  })}
-                </span>
-                <span className="text-muted-foreground">{number(score)}</span>
-              </li>
-            ))}
+            {factors.map(([factor, score]) => {
+              const vital =
+                factor === 'hrv' || factor === 'restingHeartRate'
+                  ? readiness.vitals?.[factor]
+                  : undefined;
+              const unit = factor === 'hrv' ? 'hrv' : 'restingHeartRate';
+              return (
+                <li key={factor}>
+                  <div className="flex justify-between">
+                    <span
+                      className={
+                        factor === readiness.weakest
+                          ? 'font-semibold'
+                          : 'text-muted-foreground'
+                      }
+                    >
+                      {t(`fitnessFatigue.factor.${factor}`, {
+                        defaultValue: {
+                          form: 'Training form',
+                          sleep: 'Sleep',
+                          restingHeartRate: 'Resting heart rate',
+                          hrv: 'HRV',
+                        }[factor],
+                      })}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {number(score)}
+                    </span>
+                  </div>
+                  {vital ? (
+                    <p className="text-xs text-muted-foreground">
+                      {t(
+                        vital.nights === undefined
+                          ? `fitnessFatigue.vital.${unit}`
+                          : `fitnessFatigue.vital.${unit}Nights`,
+                        {
+                          current: number(vital.current, 1),
+                          baseline: number(vital.baseline, 1),
+                          count: vital.nights,
+                          defaultValue: `{{current}} ${unit === 'hrv' ? 'ms' : 'bpm'} against your usual {{baseline}} ${unit === 'hrv' ? 'ms' : 'bpm'}${vital.nights === undefined ? '' : ' (median of {{count}} nights)'}`,
+                        }
+                      )}
+                    </p>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         ) : null}
 

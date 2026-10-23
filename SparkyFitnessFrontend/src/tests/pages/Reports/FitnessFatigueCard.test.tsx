@@ -5,9 +5,15 @@ import FitnessFatigueCard from '@/pages/Reports/FitnessFatigueCard';
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, options?: string | { defaultValue?: string }) => {
+    t: (
+      key: string,
+      options?: string | ({ defaultValue?: string } & Record<string, unknown>)
+    ) => {
       if (typeof options === 'string') return options;
-      return options?.defaultValue ?? key;
+      return (options?.defaultValue ?? key).replace(
+        /\{\{(\w+)\}\}/g,
+        (_, name: string) => String(options?.[name])
+      );
     },
   }),
 }));
@@ -80,5 +86,24 @@ describe('FitnessFatigueCard', () => {
   it('renders nothing before the data loads', () => {
     const { container } = render(<FitnessFatigueCard data={undefined} />);
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it('shows the HRV reading against the usual one, and nothing without it', () => {
+    const { rerender } = render(
+      <FitnessFatigueCard
+        data={response({
+          factors: { form: 90, hrv: 0 },
+          vitals: { hrv: { current: 41, baseline: 68, nights: 9 } },
+        })}
+      />
+    );
+    expect(
+      screen.getByText('41 ms against your usual 68 ms (median of 9 nights)')
+    ).toBeInTheDocument();
+
+    rerender(
+      <FitnessFatigueCard data={response({ factors: { form: 90, hrv: 0 } })} />
+    );
+    expect(screen.queryByText(/against your usual/)).not.toBeInTheDocument();
   });
 });

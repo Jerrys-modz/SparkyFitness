@@ -65,8 +65,10 @@ const vitals = {
   sleepHours: null,
   restingHeartRate: null,
   restingHeartRateBaseline: 60,
+  restingHeartRateBaselineNights: 14,
   hrv: null,
   hrvBaseline: null,
+  hrvBaselineNights: 0,
 };
 
 describe('getRunningEstimates', () => {

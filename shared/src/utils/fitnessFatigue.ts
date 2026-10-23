@@ -55,6 +55,7 @@ export function computeFitnessFatigue(
   days: number = CURVE_DAYS
 ): FitnessFatigue {
   const first = addDays(today, -(days - 1));
+  const floors = percentMaxFloors(maxHeartRate);
   const daily = new Array<number>(days).fill(0);
   let earliest: string | null = null;
   for (const session of sessions) {

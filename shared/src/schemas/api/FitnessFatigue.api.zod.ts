@@ -31,10 +31,24 @@ export const readinessFactorSchema = z.enum([
   'hrv',
 ]);
 
+/** Today's resting heart rate or HRV against the person's own baseline. */
+export const readinessVitalSchema = z.object({
+  current: z.number(),
+  baseline: z.number(),
+  nights: z.number().int().min(0).optional(),
+});
+
 export const readinessSchema = z.object({
   score: z.number().min(0).max(100).nullable(),
   level: z.enum(['noData', 'low', 'moderate', 'high']),
   factors: z.partialRecord(readinessFactorSchema, z.number().min(0).max(100)),
+  /** Raw numbers behind the watch factors; absent from older servers. */
+  vitals: z
+    .object({
+      restingHeartRate: readinessVitalSchema.optional(),
+      hrv: readinessVitalSchema.optional(),
+    })
+    .optional(),
   weakest: readinessFactorSchema.nullable(),
 });
 
@@ -52,6 +66,8 @@ export const vo2MaxEstimateSchema = z.object({
   runs: z.number().int().min(1),
   from: day,
   to: day,
+  /** Per run day, oldest first; absent from older servers. */
+  series: z.array(z.object({ day, value: z.number() })).optional(),
 });
 
 export const runningPowerSchema = z.object({

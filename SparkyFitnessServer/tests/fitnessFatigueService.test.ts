@@ -49,8 +49,10 @@ const noVitals = {
   sleepHours: null,
   restingHeartRate: null,
   restingHeartRateBaseline: null,
+  restingHeartRateBaselineNights: 0,
   hrv: null,
   hrvBaseline: null,
+  hrvBaselineNights: 0,
 };
 
 describe('getFitnessFatigue', () => {

@@ -934,16 +934,64 @@ interface ReadinessVitals {
   sleepHours: number | null;
   restingHeartRate: number | null;
   restingHeartRateBaseline: number | null;
+  /** Nights the resting heart rate baseline is the median of. */
+  restingHeartRateBaselineNights: number;
   hrv: number | null;
   hrvBaseline: number | null;
+  /** Nights the HRV baseline is the median of. */
+  hrvBaselineNights: number;
 }
 
 const toNumberOrNull = (value: string | number | null | undefined) =>
   value === null || value === undefined ? null : Number(value);
 
+/** The sleep_entries columns the readiness vitals read. */
+type SleepVitalColumn = 'resting_heart_rate' | 'avg_overnight_hrv';
+
+/**
+ * The newest reading of one sleep vital (nights ending `today` or the day
+ * before) and the median of the same vital over the nights from `baselineStart`
+ * up to `yesterday`, taken only from the source that recorded the newest one:
+ * integrations measure HRV differently (SDNN against RMSSD), so a baseline mixed
+ * across sources would be compared with a number it cannot be compared with.
+ */
+async function getSleepVital(
+  client: Awaited<ReturnType<typeof getClient>>,
+  column: SleepVitalColumn,
+  userId: string,
+  today: string,
+  yesterday: string,
+  baselineStart: string
+): Promise<{ value: number | null; baseline: number | null; nights: number }> {
+  const latest = await client.query(
+    `SELECT ${column} AS value, source
+     FROM sleep_entries
+     WHERE user_id = $1 AND entry_date BETWEEN $2 AND $3 AND ${column} > 0
+     ORDER BY entry_date DESC, wake_time DESC
+     LIMIT 1`,
+    [userId, yesterday, today]
+  );
+  const row = latest.rows[0];
+  if (!row) return { value: null, baseline: null, nights: 0 };
+  // The median keeps one noisy night from moving the baseline.
+  const baseline = await client.query(
+    `SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${column}) AS baseline,
+            COUNT(*) AS nights
+     FROM sleep_entries
+     WHERE user_id = $1 AND entry_date >= $2 AND entry_date < $3
+       AND source = $4 AND ${column} > 0`,
+    [userId, baselineStart, yesterday, row.source]
+  );
+  return {
+    value: toNumberOrNull(row.value),
+    baseline: toNumberOrNull(baseline.rows[0]?.baseline),
+    nights: Number(baseline.rows[0]?.nights ?? 0),
+  };
+}
+
 /**
  * The latest night's sleep, resting heart rate and HRV (nights ending `today`
- * or the day before) and the average of the 14 nights before that, which the
+ * or the day before) and the median of the 14 nights before that, which the
  * readiness score compares them with. Any of them can be null.
  */
 async function getReadinessVitals(
@@ -955,30 +1003,37 @@ async function getReadinessVitals(
   const client = await getClient(userId);
   try {
     const latest = await client.query(
-      `SELECT COALESCE(time_asleep_in_seconds, duration_in_seconds) / 3600.0 AS sleep_hours,
-              resting_heart_rate,
-              avg_overnight_hrv
+      `SELECT COALESCE(time_asleep_in_seconds, duration_in_seconds) / 3600.0 AS sleep_hours
        FROM sleep_entries
        WHERE user_id = $1 AND entry_date BETWEEN $2 AND $3
        ORDER BY entry_date DESC, wake_time DESC
        LIMIT 1`,
       [userId, yesterday, today]
     );
-    const baseline = await client.query(
-      `SELECT AVG(resting_heart_rate) AS resting_heart_rate,
-              AVG(avg_overnight_hrv) AS hrv
-       FROM sleep_entries
-       WHERE user_id = $1 AND entry_date >= $2 AND entry_date < $3`,
-      [userId, baselineStart, yesterday]
+    const rhr = await getSleepVital(
+      client,
+      'resting_heart_rate',
+      userId,
+      today,
+      yesterday,
+      baselineStart
     );
-    const row = latest.rows[0];
-    const base = baseline.rows[0];
+    const hrv = await getSleepVital(
+      client,
+      'avg_overnight_hrv',
+      userId,
+      today,
+      yesterday,
+      baselineStart
+    );
     return {
-      sleepHours: toNumberOrNull(row?.sleep_hours),
-      restingHeartRate: toNumberOrNull(row?.resting_heart_rate),
-      restingHeartRateBaseline: toNumberOrNull(base?.resting_heart_rate),
-      hrv: toNumberOrNull(row?.avg_overnight_hrv),
-      hrvBaseline: toNumberOrNull(base?.hrv),
+      sleepHours: toNumberOrNull(latest.rows[0]?.sleep_hours),
+      restingHeartRate: rhr.value,
+      restingHeartRateBaseline: rhr.baseline,
+      restingHeartRateBaselineNights: rhr.nights,
+      hrv: hrv.value,
+      hrvBaseline: hrv.baseline,
+      hrvBaselineNights: hrv.nights,
     };
   } finally {
     client.release();

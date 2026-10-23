@@ -7,6 +7,17 @@ export type ReadinessLevel = 'noData' | 'low' | 'moderate' | 'high';
 
 export type ReadinessFactor = 'form' | 'sleep' | 'restingHeartRate' | 'hrv';
 
+/** Nights of history a resting heart rate or HRV baseline needs before it counts. */
+export const MIN_BASELINE_NIGHTS = 5;
+
+/** The raw numbers behind a resting heart rate or HRV factor. */
+export interface ReadinessVital {
+  current: number;
+  baseline: number;
+  /** Nights the baseline was built from, when known. */
+  nights?: number;
+}
+
 export interface ReadinessInput {
   /** From `computeFitnessFatigue`. */
   fitnessFatigue: FitnessFatigue;
@@ -16,9 +27,12 @@ export interface ReadinessInput {
   /** Today's resting heart rate and the person's recent average (bpm). */
   restingHeartRate?: number | null;
   restingHeartRateBaseline?: number | null;
+  /** Nights behind each baseline; fewer than `MIN_BASELINE_NIGHTS` leaves the factor out. Unknown counts as enough. */
+  restingHeartRateBaselineNights?: number | null;
   /** Last night's heart rate variability and the recent average (ms). */
   hrv?: number | null;
   hrvBaseline?: number | null;
+  hrvBaselineNights?: number | null;
 }
 
 export interface Readiness {
@@ -27,6 +41,8 @@ export interface Readiness {
   level: ReadinessLevel;
   /** Each factor's 0 to 100 sub-score, only for the ones with data. */
   factors: Partial<Record<ReadinessFactor, number>>;
+  /** Today's value against the baseline for the watch factors that were scored. */
+  vitals?: Partial<Record<'restingHeartRate' | 'hrv', ReadinessVital>>;
   /** The factor pulling the score down the most; null when all are high. */
   weakest: ReadinessFactor | null;
 }
@@ -45,10 +61,27 @@ const HIGH_FROM = 70;
 const VITAL_FACTORS: ReadinessFactor[] = ['restingHeartRate', 'hrv'];
 const VITAL_WARNING_BELOW = 40;
 
+/** A baseline built from too few nights is noise; an unknown count is trusted. */
+const enoughNights = (nights: number | null | undefined) =>
+  nights == null || nights >= MIN_BASELINE_NIGHTS;
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
 const clamp = (n: number, low = 0, high = 100) =>
   Math.min(high, Math.max(low, n));
 const present = (n: number | null | undefined): n is number =>
   n != null && Number.isFinite(n) && n > 0;
+
+function vital(
+  current: number,
+  baseline: number,
+  nights: number | null | undefined
+): ReadinessVital {
+  return {
+    current: round1(current),
+    baseline: round1(baseline),
+    ...(nights == null ? {} : { nights }),
+  };
+}
 
 /** Form as a share of fitness: -20% or worse scores 0, +10% or better 100. */
 function formScore(fitnessFatigue: FitnessFatigue): number | null {
@@ -95,10 +128,17 @@ export function computeReadiness(input: ReadinessInput): Readiness {
       : DEFAULT_SLEEP_NEED_HOURS;
     factors.sleep = Math.round(clamp((input.sleepHours / need) * 100));
   }
+  const vitals: NonNullable<Readiness['vitals']> = {};
   if (
     present(input.restingHeartRate) &&
-    present(input.restingHeartRateBaseline)
+    present(input.restingHeartRateBaseline) &&
+    enoughNights(input.restingHeartRateBaselineNights)
   ) {
+    vitals.restingHeartRate = vital(
+      input.restingHeartRate,
+      input.restingHeartRateBaseline,
+      input.restingHeartRateBaselineNights
+    );
     factors.restingHeartRate = Math.round(
       restingHeartRateScore(
         input.restingHeartRate,
@@ -106,7 +146,12 @@ export function computeReadiness(input: ReadinessInput): Readiness {
       )
     );
   }
-  if (present(input.hrv) && present(input.hrvBaseline)) {
+  if (
+    present(input.hrv) &&
+    present(input.hrvBaseline) &&
+    enoughNights(input.hrvBaselineNights)
+  ) {
+    vitals.hrv = vital(input.hrv, input.hrvBaseline, input.hrvBaselineNights);
     factors.hrv = Math.round(hrvScore(input.hrv, input.hrvBaseline));
   }
 
@@ -134,6 +179,7 @@ export function computeReadiness(input: ReadinessInput): Readiness {
     score,
     level,
     factors,
+    ...(Object.keys(vitals).length > 0 ? { vitals } : {}),
     weakest: (factors[lowest] ?? 100) < HIGH_FROM ? lowest : null,
   };
 }
