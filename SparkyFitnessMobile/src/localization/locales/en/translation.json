@@ -662,23 +662,6 @@
     "routeGenerate": "Generate a route",
     "compareReport": "Compare"
   },
-  "activityShare": {
-    "title": "Share Activity",
-    "choosePhoto": "Choose photo",
-    "takePhoto": "Take photo",
-    "removePhoto": "Remove",
-    "transparentHint": "With no photo the image is a transparent PNG you can lay over a photo or video in another app.",
-    "cameraDenied": "Allow camera access in Settings to take a photo",
-    "noRoute": "This workout has no stored GPS route, so the layout shows stats only.",
-    "layout": "Layout",
-    "layoutClassic": "Classic",
-    "layoutRoute": "Route",
-    "layoutMinimal": "Minimal",
-    "textColor": "Color",
-    "customColor": "Custom color hex code",
-    "share": "Share image",
-    "shareFailed": "Could not create the image"
-  },
   "healthMetrics": {
     "steps": "Steps",
     "calories": "Active Calories",
@@ -2999,15 +2982,6 @@
     "equivalentUnitsUpdated_other": "Saved · {{formattedCount}} equivalent units updated",
     "notes": "Notes",
     "notesPlaceholder": "e.g. White rice, double chicken, no beans (supports markdown)"
-  },
-  "exerciseEffort": {
-    "title": "Effort",
-    "lastAvg": "Avg RPE, last session",
-    "trendLabel_one": "Average RPE of your last {{count}} session",
-    "trendLabel_other": "Average RPE of your last {{count}} sessions",
-    "oneRmEffort": "Est. 1RM with effort",
-    "oneRmPlain": "From reps alone",
-    "oneRmNote": "Counts the reps you had left: RPE 8 is two more reps. Only sets with an RPE are used."
   },
   "exerciseHistory": {
     "noSetData": "No set data",
@@ -6563,13 +6537,6 @@
       "strength": "Strength",
       "cardio": "Cardio"
     },
-    "runningForm": {
-      "title": "Running form",
-      "subtitle": "Steps per minute and stride length on your runs",
-      "average": "Average {{value}}",
-      "change": "{{value}} vs earlier runs",
-      "hint": "A treadmill run counts once its steps were measured."
-    },
     "cardio": {
       "hint": "Tap a workout for its route and heart rate.",
       "empty": "No cardio workouts in this range",
@@ -6658,6 +6625,19 @@
         "spike": "A big jump from your usual. Ramping up this fast raises the risk of injury, so ease off."
       }
     },
+    "runEstimates": {
+      "title": "Running Estimates",
+      "subtitle": "Estimated from your pace, heart rate, weight and climb. Not a measurement, so expect it to be off by several percent.",
+      "loadFailed": "Could not load your running estimates.",
+      "about": "≈ {{value}}",
+      "vo2Unit": "VO₂ max (ml/kg/min)",
+      "vo2Basis_one": "From {{count}} run in the last 6 weeks",
+      "vo2Basis_other": "From {{count}} runs in the last 6 weeks",
+      "watts": "≈ {{value}} W",
+      "powerUnit": "Running power ({{perKg}} W/kg)",
+      "powerBasis_one": "Average of {{count}} run in the last 4 weeks",
+      "powerBasis_other": "Average of {{count}} runs in the last 4 weeks"
+    },
     "consistency": {
       "title": "Training Consistency",
       "subtitle_one": "Last {{formattedCount}} week, {{first}} to {{last}}",
@@ -6679,6 +6659,33 @@
       "noSets": "No sets logged this week or last.",
       "loadFailed": "Could not load your training consistency."
     },
+    "fitness": {
+      "level": {
+        "high": "Ready for a hard session.",
+        "moderate": "Fine for a normal session, but not your hardest.",
+        "low": "Not recovered. An easy day or rest is the better call.",
+        "noData": "Not enough to go on yet. Log workouts and sleep to see your readiness."
+      },
+      "form": {
+        "fresh": "Fresh: recent training is light against what you have built.",
+        "tired": "Tired: recent training is heavy against what you have built.",
+        "neutral": "Balanced: recent training matches what you have built.",
+        "learning": "Still learning your normal. Keep logging."
+      },
+      "factor": {
+        "form": "Training form",
+        "sleep": "Sleep",
+        "restingHeartRate": "Resting heart rate",
+        "hrv": "HRV"
+      },
+      "loadFailed": "Could not load your readiness.",
+      "outOf": "readiness out of 100",
+      "fitness": "Fitness",
+      "fatigue": "Fatigue",
+      "formLabel": "Form",
+      "title": "Readiness and Form",
+      "subtitle": "How ready you are today, from training form, sleep and resting heart rate."
+    },
     "paceZones": {
       "title": "Pace zones",
       "perKm": "/km",
@@ -6692,6 +6699,13 @@
       "fromEffort": "Built from your best recent run. Threshold pace is about {{pace}} {{unit}}.",
       "fromTypical_one": "Estimated from your last {{formattedCount}} run, so less precise. A hard run of 3 km or more sharpens it.",
       "fromTypical_other": "Estimated from your last {{formattedCount}} runs, so less precise. A hard run of 3 km or more sharpens it."
+    },
+    "runningForm": {
+      "title": "Running form",
+      "subtitle": "Steps per minute and stride length on your runs",
+      "average": "Average {{value}}",
+      "change": "{{value}} vs earlier runs",
+      "hint": "A treadmill run counts once its steps were measured."
     }
   },
   "aiSettings": {
@@ -6711,98 +6725,6 @@
         "description": "Read nutrition labels with Apple Intelligence on this device. If it cannot read a label, the server AI provider is used instead."
       }
     }
-  },
-  "customNutrients": {
-    "title": "Custom Nutrients",
-    "add": "Add custom nutrient",
-    "loading": "Loading custom nutrients...",
-    "loadFailed": "Failed to load custom nutrients",
-    "empty": "No custom nutrients yet",
-    "emptyHint": "Track anything the built-in nutrients do not cover, such as magnesium or omega-3.",
-    "description": "Tap a nutrient to edit its name, unit, or provider aliases.",
-    "editTitle": "Edit nutrient",
-    "createTitle": "Add nutrient",
-    "notFound": "Custom nutrient not found",
-    "name": "Nutrient name",
-    "namePlaceholder": "e.g., Magnesium",
-    "unit": "Unit",
-    "unitPlaceholder": "e.g., mg, µg, IU",
-    "aliases": "Provider aliases",
-    "aliasPlaceholder": "Type a name, then press return",
-    "aliasesHelp": "Names online food databases use for this nutrient. When you import a food, matching provider fields fill this nutrient.",
-    "required": "Nutrient name and unit are required.",
-    "saveFailed": "Failed to save custom nutrient",
-    "deleteFailed": "Failed to delete custom nutrient",
-    "delete": "Delete nutrient",
-    "deleteTitle": "Delete custom nutrient",
-    "deleteMessage": "Delete {{name}}? You can also remove it from past goals and diary entries.",
-    "deleteKeepHistory": "Delete, keep history",
-    "deleteAllHistory": "Delete and remove history"
-  },
-  "nutrientDisplay": {
-    "title": "Nutrient Display",
-    "loading": "Loading nutrient display...",
-    "loadFailed": "Failed to load nutrient display",
-    "description": "Choose which nutrients this app shows in each place, and their order. Dashboard and Diary have their own settings.",
-    "groupPicker": "Show in",
-    "updateFailed": "Failed to update nutrient display.",
-    "moveUp": "Move {{name}} up",
-    "moveDown": "Move {{name}} down",
-    "show": "Show {{name}}",
-    "reset": "Reset to default",
-    "groups": {
-      "foodDatabase": "Food Database",
-      "reportTabular": "Report (Tabular)"
-    }
-  },
-  "equipmentHub": {
-    "title": "Equipment",
-    "shoesSubtitle": "Running shoes and their mileage"
-  },
-  "shoes": {
-    "title": "Shoes",
-    "shoe": "Shoe",
-    "noShoe": "No shoe",
-    "add": "Add",
-    "addShoe": "Add shoe",
-    "editShoe": "Edit shoe",
-    "loadFailed": "Could not load your shoes.",
-    "notFound": "Shoe not found.",
-    "assignFailed": "Failed to assign shoe",
-    "empty": "No shoes yet",
-    "emptyHint": "Add a pair, then pick it on a run to start counting its mileage.",
-    "name": "Name",
-    "nameRequired": "Enter a name.",
-    "brand": "Brand",
-    "model": "Model",
-    "nickname": "Nickname",
-    "startingDistance": "Starting mileage ({{unit}})",
-    "startingInvalid": "Enter 0 or more.",
-    "retireAt": "Retire at ({{unit}})",
-    "retireInvalid": "Enter a distance above 0.",
-    "purchaseDate": "Purchase date",
-    "selectDate": "Select date",
-    "clearDate": "Clear date",
-    "purchasePrice": "Price",
-    "priceInvalid": "Enter 0 or more.",
-    "useAsDefault": "Use as my default pair",
-    "useAsDefaultHint": "New recorded runs, outdoor or indoor, are logged with your default pair.",
-    "retire": "Retire",
-    "retirePrompt": "This pair has reached its limit. Retire it?",
-    "limitReachedTitle": "Time for new shoes?",
-    "limitReachedMessage": "{{name}} has reached its mileage limit. Do you want to retire it?",
-    "reactivate": "Reactivate",
-    "retired": "Retired",
-    "retiredSection": "Retired",
-    "wornOut": "Worn out",
-    "ofLimit": "of {{limit}} {{unit}}",
-    "runCount_one": "{{count}} run",
-    "runCount_other": "{{count}} runs",
-    "lastUsed": "last used {{date}}",
-    "updateFailed": "Failed to update shoe",
-    "saveFailed": "Failed to save shoe",
-    "deleteTitle": "Delete this shoe?",
-    "deleteDescription": "Runs logged with this pair stay in your diary, but they will no longer be linked to a shoe."
   },
   "fastingSettings": {
     "title": "Fasting Settings",
@@ -8207,31 +8129,60 @@
     "spike": "A big jump: ease off",
     "takeRest": "Take a rest day or an easy session.",
     "ready": "You are rested and ready.",
-    "explain": "Adds up how long and how hard your workouts were. Usual is your 4-week average. Bars show the last 4 weeks; green is this week."
+    "explain": "Adds up how long and how hard your workouts were. Usual is your 4-week average. Bars show the last 4 weeks; green is this week.",
+    "readiness": "Readiness {{score}}",
+    "readinessHigh": "ready for a hard session",
+    "readinessModerate": "fine for a normal session",
+    "readinessLow": "go easy today"
   },
-  "paceReference": {
-    "title": "Your race pace",
-    "intro": "Enter a recent race time to get pace ranges for easy runs, tempo, marathon pace, strides and fast stretches. Kept on this device.",
-    "race": {
-      "5k": "5K",
-      "10k": "10K",
-      "half": "Half marathon",
-      "halfShort": "Half",
-      "marathon": "Marathon",
-      "other": "{{km}} km"
-    },
-    "result": "{{race}} in {{time}}",
-    "finishTime": "Finish time",
-    "hours": "h",
-    "minutes": "min",
-    "seconds": "sec",
-    "invalid": "That time does not look right for this distance. Check the hours, minutes and seconds.",
-    "saved": "Saved: {{race}} in {{time}}.",
-    "save": "Save",
-    "clear": "Clear",
-    "watch": "Also use on my Apple Watch",
-    "wearOs": "Also use on my Wear OS watch",
-    "watchHint": "Holds the program workout offered on the watch to these ranges. Runs only."
+  "equipmentHub": {
+    "title": "Equipment",
+    "shoesSubtitle": "Running shoes and their mileage"
+  },
+  "shoes": {
+    "title": "Shoes",
+    "shoe": "Shoe",
+    "noShoe": "No shoe",
+    "add": "Add",
+    "addShoe": "Add shoe",
+    "editShoe": "Edit shoe",
+    "loadFailed": "Could not load your shoes.",
+    "notFound": "Shoe not found.",
+    "assignFailed": "Failed to assign shoe",
+    "empty": "No shoes yet",
+    "emptyHint": "Add a pair, then pick it on a run to start counting its mileage.",
+    "name": "Name",
+    "nameRequired": "Enter a name.",
+    "brand": "Brand",
+    "model": "Model",
+    "nickname": "Nickname",
+    "startingDistance": "Starting mileage ({{unit}})",
+    "startingInvalid": "Enter 0 or more.",
+    "retireAt": "Retire at ({{unit}})",
+    "retireInvalid": "Enter a distance above 0.",
+    "purchaseDate": "Purchase date",
+    "selectDate": "Select date",
+    "clearDate": "Clear date",
+    "purchasePrice": "Price",
+    "priceInvalid": "Enter 0 or more.",
+    "useAsDefault": "Use as my default pair",
+    "useAsDefaultHint": "New recorded runs, outdoor or indoor, are logged with your default pair.",
+    "retire": "Retire",
+    "retirePrompt": "This pair has reached its limit. Retire it?",
+    "limitReachedTitle": "Time for new shoes?",
+    "limitReachedMessage": "{{name}} has reached its mileage limit. Do you want to retire it?",
+    "reactivate": "Reactivate",
+    "retired": "Retired",
+    "retiredSection": "Retired",
+    "wornOut": "Worn out",
+    "ofLimit": "of {{limit}} {{unit}}",
+    "runCount_one": "{{count}} run",
+    "runCount_other": "{{count}} runs",
+    "lastUsed": "last used {{date}}",
+    "updateFailed": "Failed to update shoe",
+    "saveFailed": "Failed to save shoe",
+    "deleteTitle": "Delete this shoe?",
+    "deleteDescription": "Runs logged with this pair stay in your diary, but they will no longer be linked to a shoe."
   },
   "allergens": {
     "trace": "trace: {{name}}",
@@ -8281,6 +8232,99 @@
       "lupin": "lupin",
       "sulphites": "sulphites"
     }
+  },
+  "customNutrients": {
+    "title": "Custom Nutrients",
+    "add": "Add custom nutrient",
+    "loading": "Loading custom nutrients...",
+    "loadFailed": "Failed to load custom nutrients",
+    "empty": "No custom nutrients yet",
+    "emptyHint": "Track anything the built-in nutrients do not cover, such as magnesium or omega-3.",
+    "description": "Tap a nutrient to edit its name, unit, or provider aliases.",
+    "editTitle": "Edit nutrient",
+    "createTitle": "Add nutrient",
+    "notFound": "Custom nutrient not found",
+    "name": "Nutrient name",
+    "namePlaceholder": "e.g., Magnesium",
+    "unit": "Unit",
+    "unitPlaceholder": "e.g., mg, µg, IU",
+    "aliases": "Provider aliases",
+    "aliasPlaceholder": "Type a name, then press return",
+    "aliasesHelp": "Names online food databases use for this nutrient. When you import a food, matching provider fields fill this nutrient.",
+    "required": "Nutrient name and unit are required.",
+    "saveFailed": "Failed to save custom nutrient",
+    "deleteFailed": "Failed to delete custom nutrient",
+    "delete": "Delete nutrient",
+    "deleteTitle": "Delete custom nutrient",
+    "deleteMessage": "Delete {{name}}? You can also remove it from past goals and diary entries.",
+    "deleteKeepHistory": "Delete, keep history",
+    "deleteAllHistory": "Delete and remove history"
+  },
+  "nutrientDisplay": {
+    "title": "Nutrient Display",
+    "loading": "Loading nutrient display...",
+    "loadFailed": "Failed to load nutrient display",
+    "description": "Choose which nutrients this app shows in each place, and their order. Dashboard and Diary have their own settings.",
+    "groupPicker": "Show in",
+    "updateFailed": "Failed to update nutrient display.",
+    "moveUp": "Move {{name}} up",
+    "moveDown": "Move {{name}} down",
+    "show": "Show {{name}}",
+    "reset": "Reset to default",
+    "groups": {
+      "foodDatabase": "Food Database",
+      "reportTabular": "Report (Tabular)"
+    }
+  },
+  "paceReference": {
+    "title": "Your race pace",
+    "intro": "Enter a recent race time to get pace ranges for easy runs, tempo, marathon pace, strides and fast stretches. Kept on this device.",
+    "race": {
+      "5k": "5K",
+      "10k": "10K",
+      "half": "Half marathon",
+      "halfShort": "Half",
+      "marathon": "Marathon",
+      "other": "{{km}} km"
+    },
+    "result": "{{race}} in {{time}}",
+    "finishTime": "Finish time",
+    "hours": "h",
+    "minutes": "min",
+    "seconds": "sec",
+    "invalid": "That time does not look right for this distance. Check the hours, minutes and seconds.",
+    "saved": "Saved: {{race}} in {{time}}.",
+    "save": "Save",
+    "clear": "Clear",
+    "watch": "Also use on my Apple Watch",
+    "wearOs": "Also use on my Wear OS watch",
+    "watchHint": "Holds the program workout offered on the watch to these ranges. Runs only."
+  },
+  "activityShare": {
+    "title": "Share Activity",
+    "choosePhoto": "Choose photo",
+    "takePhoto": "Take photo",
+    "removePhoto": "Remove",
+    "transparentHint": "With no photo the image is a transparent PNG you can lay over a photo or video in another app.",
+    "cameraDenied": "Allow camera access in Settings to take a photo",
+    "noRoute": "This workout has no stored GPS route, so the layout shows stats only.",
+    "layout": "Layout",
+    "layoutClassic": "Classic",
+    "layoutRoute": "Route",
+    "layoutMinimal": "Minimal",
+    "textColor": "Color",
+    "customColor": "Custom color hex code",
+    "share": "Share image",
+    "shareFailed": "Could not create the image"
+  },
+  "exerciseEffort": {
+    "title": "Effort",
+    "lastAvg": "Avg RPE, last session",
+    "trendLabel_one": "Average RPE of your last {{count}} session",
+    "trendLabel_other": "Average RPE of your last {{count}} sessions",
+    "oneRmEffort": "Est. 1RM with effort",
+    "oneRmPlain": "From reps alone",
+    "oneRmNote": "Counts the reps you had left: RPE 8 is two more reps. Only sets with an RPE are used."
   },
   "routes": {
     "addTitle": "Add a route",
