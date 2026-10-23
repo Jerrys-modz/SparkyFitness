@@ -20,7 +20,10 @@ import Button from '../components/ui/Button';
 import WorkoutFormExerciseList, {
   type WorkoutFormExerciseListHandle,
 } from '../components/WorkoutFormExerciseList';
-import { useSetEditAccessoryBar } from '../components/SetRowChrome';
+import {
+  SET_ACCESSORY_BAR_HEIGHT,
+  useSetEditAccessoryBar,
+} from '../components/SetRowChrome';
 import ActiveWorkoutExerciseCard from '../components/ActiveWorkoutExerciseCard';
 import ActionSheet, {
   type ActionSheetItem,
@@ -38,6 +41,7 @@ import {
   canReorderDraftExercises,
   exerciseFromSnapshot,
   parseSetWeight,
+  summarizeWorkoutEffort,
   summarizeWorkoutHeartRate,
 } from '../utils/workoutSession';
 import { formatLocalizedNumber } from '../localization';
@@ -738,6 +742,18 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         icon: { name: 'heart-rate', color: heartRateColor },
       });
     }
+    // The person's own rating (from the watch's prompt or Apple Health), so
+    // it is shown from the saved session even while editing.
+    const effort = summarizeWorkoutEffort(session.exercises);
+    if (effort != null) {
+      summaryItems.push({
+        value: t('workoutEffort.value', {
+          defaultValue: '{{rating}}/10',
+          rating: formatLocalizedNumber(effort),
+        }),
+        label: t('workoutDetail.summary.effort', { defaultValue: 'Effort' }),
+      });
+    }
     if (summaryItems.length === 0) return null;
 
     // A wrapping three-column grid rather than one divided row. The row was
@@ -888,7 +904,8 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         contentContainerStyle={{
           paddingBottom: insets.bottom + 20 + activeWorkoutBarPadding,
         }}
-        bottomOffset={20}
+        // Clear of the set-entry bar riding on top of the keyboard.
+        bottomOffset={SET_ACCESSORY_BAR_HEIGHT + 16}
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior={
           usesNativeHeader ? 'automatic' : undefined

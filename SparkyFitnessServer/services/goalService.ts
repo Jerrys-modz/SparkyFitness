@@ -7,6 +7,7 @@ import exerciseEntryRepository from '../models/exerciseEntry.js';
 import bmrService from './bmrService.js';
 import goalPresetService from './goalPresetService.js';
 import adaptiveTdeeService from './AdaptiveTdeeService.js';
+import type { AdaptiveTdeeResult } from './AdaptiveTdeeService.js';
 import { userAge } from '../utils/dateHelpers.js';
 import { log } from '../config/logging.js';
 import { addDays, format, getDay, isAfter, parseISO } from 'date-fns';
@@ -21,6 +22,7 @@ import {
   DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
   ACTIVITY_MULTIPLIERS,
   isUsableMeasuredBmr,
+  isAdaptiveActivitySeparated,
 } from '@workspace/shared';
 import customNutrientService from './customNutrientService.js';
 import { DEFAULT_GOALS } from '../constants/goals.js';
@@ -132,7 +134,7 @@ async function getUserGoalsForRange(
   }
 
   let waterEstimatedMap: Record<string, number> = {};
-  let adaptiveTdeeMap: Record<string, any> = {};
+  let adaptiveTdeeMap: Record<string, AdaptiveTdeeResult> = {};
   if (adjust && userPreferences) {
     const adjustmentMode =
       userPreferences.calorie_goal_adjustment_mode || 'dynamic';
@@ -297,6 +299,7 @@ async function getUserGoalsForRange(
         tdee: number;
         isFallback: boolean;
         daysOfData: number;
+        activityAdjustedTdee?: number;
       } | null = null;
       if (
         adjustmentMode === 'adaptive' ||
@@ -347,7 +350,13 @@ async function getUserGoalsForRange(
       // Must always run when bmr > 0 — even for 'maintain' — so that
       // calculationMethod='adaptive' replaces the stored goal with the
       // adaptive TDEE baseline (matches CalculationSettings preview).
-      if (bmr > 0) {
+      // A weekly offset on a saved manual baseline does not need a BMR estimate.
+      // Keep the existing prerequisite for adaptive full-day budgeting.
+      const hasWeeklyManualBaseline =
+        goalMode === 'weekly' &&
+        goalModeCalculationMethod === 'manual' &&
+        goalCalories > 0;
+      if (bmr > 0 || hasWeeklyManualBaseline) {
         const tz = userPreferences?.timezone || 'UTC';
         const age = userProfile
           ? (userAge(userProfile.date_of_birth ?? '', tz) ?? 30)
@@ -356,9 +365,18 @@ async function getUserGoalsForRange(
           goalMode,
           calculationMethod: goalModeCalculationMethod,
           customPercentage: goalModeCustomPercentage,
+          weeklyChangeKg: userPreferences?.goal_mode_weekly_change_kg ?? 0,
           bmr,
           activityLevelMultiplier: activityMultiplier,
-          adaptiveTdee: adaptiveTdeeData ? adaptiveTdeeData.tdee : null,
+          adaptiveTdee: adaptiveTdeeData
+            ? isAdaptiveActivitySeparated(
+                adjustmentMode,
+                goalModeCalculationMethod,
+                userPreferences?.adaptive_activity_separate
+              )
+              ? (adaptiveTdeeData.activityAdjustedTdee ?? adaptiveTdeeData.tdee)
+              : adaptiveTdeeData.tdee
+            : null,
           adaptiveTdeeFallback: adaptiveTdeeData
             ? (adaptiveTdeeData.isFallback ?? true)
             : true,

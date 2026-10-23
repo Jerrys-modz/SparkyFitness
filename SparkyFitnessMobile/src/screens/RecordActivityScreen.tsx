@@ -94,8 +94,10 @@ import {
   intervalPosition,
   type IntervalOptions,
   type IntervalPlan,
+  type PaceBand,
   type RunProgramResponse,
   zoneShiftForEffort,
+  type StepEffort,
 } from '@workspace/shared';
 import {
   completeProgramWorkout,
@@ -132,6 +134,9 @@ import {
   summarizeRecording,
   type RecordingActivity,
 } from '../utils/gpsRecording';
+import BottomSheetPicker from '../components/BottomSheetPicker';
+import { useRoute, useRoutes } from '../services/routeService';
+import { formatRouteDistance } from '../utils/routeDisplay';
 import type { RootStackScreenProps } from '../types/navigation';
 
 /** A starting band: 5:00 to 5:30 per km, 8:00 to 8:50 per mile. */
@@ -265,6 +270,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const [recordWith, setRecordWith] = useState<'phone' | 'watch'>('phone');
   const watchAvailable = watchSupported && watchPaired && activity !== 'ride';
   const onWatch = watchAvailable && recordWith === 'watch';
+  // A saved route for the watch to follow, for an outdoor walk or run (optional).
+  const [routeId, setRouteId] = useState('');
+  const { routes: savedRoutes } = useRoutes();
+  const routeChoiceShown = onWatch && !indoor;
+  const { route: chosenRoute } = useRoute(routeChoiceShown ? routeId : '');
   const [autoPause, setAutoPause] = useState(true);
   const [audioCues, setAudioCues] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState(0);
@@ -338,6 +348,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
     if (preset?.options.style === 'runWalk') setIntervalChoice('off');
   }, [activity, intervalChoice]);
   // Optional pace ranges for a plan's fast and easy stretches, this run only.
+  // Paces for tempo, marathon-pace and stride stretches, set from a recent race.
+  const [effortPace, setEffortPace] = useState<Partial<
+    Record<StepEffort, PaceBand>
+  > | null>(null);
   const [workPace, setWorkPace] = useState<PaceTargetChoice>({
     enabled: false,
     band: null,
@@ -383,10 +397,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             );
             return preset ? buildIntervalPlan(preset.options) : undefined;
           })();
-    // A walk or ride has no running in it: its steps are Fast and Easy, so
-    // the card, the spoken cues and the watch never say "Run" during one.
+    // A walk or ride has no running in it, so a run/walk plan must not say "Run".
+    // A walk is named Brisk and Easy; a ride stays Fast and Easy.
     return plan && activity !== 'run' && plan.style === 'runWalk'
-      ? { ...plan, style: 'fastEasy' }
+      ? { ...plan, style: activity === 'walk' ? 'briskWalk' : 'fastEasy' }
       : plan;
   }, [intervalChoice, customIntervals, programWorkout, activity]);
   const workHeartRateBand = workHeartRate.band ?? DEFAULT_WORK_HEART_RATE_BAND;
@@ -422,6 +436,9 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               warm: warmPace.enabled
                 ? paceBandPerKm(warmBand, distanceUnit)
                 : null,
+              byEffort: workPace.enabled
+                ? (effortPace ?? undefined)
+                : undefined,
             }),
             {
               work: workHeartRate.enabled ? workHeartRateBand : null,
@@ -435,6 +452,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       workPace.enabled,
       easyPace.enabled,
       warmPace.enabled,
+      effortPace,
       workBand,
       easyBand,
       warmBand,
@@ -465,19 +483,32 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       fastest: Math.round((band.minSecondsPerKm * perUnit) / 5) * 5,
       slowest: Math.round((band.maxSecondsPerKm * perUnit) / 5) * 5,
     });
+    const efforts: Record<string, ReturnType<typeof choice>> = {};
+    for (const effort of ['tempo', 'marathon', 'stride'] as const) {
+      const band = suggested.byEffort?.[effort];
+      if (band) efforts[effort] = choice(band);
+    }
     return {
       work: choice(suggested.pace.work),
       easy: choice(suggested.pace.easy),
       warm: choice(suggested.pace.warm),
       sessions: suggested.pace.sessions,
+      race: suggested.pace.race,
+      efforts,
     };
-  }, [suggested.pace, distanceUnit]);
+  }, [suggested.pace, suggested.byEffort, distanceUnit]);
+  // Tempo, stride and marathon-pace ranges come from the saved race; once it is
+  // cleared or the activity changes, the ranges applied from it no longer apply.
+  useEffect(() => {
+    setEffortPace(null);
+  }, [suggested.byEffort]);
   const suggestedHeartRate = watchAvailable ? suggested.heartRate : null;
   const useSuggestedRangesNow = () => {
     if (suggestedPaceChoice) {
       setWorkPace({ enabled: true, band: suggestedPaceChoice.work });
       setEasyPace({ enabled: true, band: suggestedPaceChoice.easy });
       setWarmPace({ enabled: true, band: suggestedPaceChoice.warm });
+      setEffortPace(suggested.byEffort);
     }
     if (suggestedHeartRate) {
       setWorkHeartRate({ enabled: true, band: suggestedHeartRate.work });
@@ -641,6 +672,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
         async () => {
           setPermissionProblem(null);
           if (onWatch) {
+            // A route that has not loaded must not quietly become a run with
+            // no route.
+            if (routeChoiceShown && routeId && !chosenRoute) {
+              throw new Error('The chosen route has not loaded yet');
+            }
             const meta =
               intervalChoice === 'program' && programStatus
                 ? {
@@ -673,6 +709,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               plan: intervalPlan
                 ? buildWatchStartPlan(t, intervalPlan, meta)
                 : undefined,
+              ...(chosenRoute ? { route: chosenRoute } : {}),
             });
             navigation.navigate('WatchRunLive');
             return;
@@ -726,6 +763,9 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       intervalPlan,
       navigation,
       onWatch,
+      chosenRoute,
+      routeChoiceShown,
+      routeId,
       programStatus,
       run,
       t,
@@ -910,6 +950,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
           ),
           program,
           entryId: saved.entryId,
+          form: saved.form,
         });
       } catch (error) {
         addLog(
@@ -1100,6 +1141,38 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
                 ]}
                 activeKey={recordWith}
                 onSelect={setRecordWith}
+              />
+            </View>
+          ) : null}
+          {routeChoiceShown && savedRoutes.length > 0 ? (
+            <View className="bg-surface rounded-xl p-4 mt-4">
+              <Text className="text-text-primary text-sm font-semibold mb-1">
+                {t('recordActivity.route.title', { defaultValue: 'Route' })}
+              </Text>
+              <Text className="text-text-secondary text-xs mb-2">
+                {t('recordActivity.route.watchHint', {
+                  defaultValue:
+                    'Your watch shows the line and buzzes at each turn.',
+                })}
+              </Text>
+              <BottomSheetPicker<string>
+                value={routeId}
+                title={t('recordActivity.route.title', {
+                  defaultValue: 'Route',
+                })}
+                options={[
+                  {
+                    label: t('recordActivity.route.none', {
+                      defaultValue: 'No route',
+                    }),
+                    value: '',
+                  },
+                  ...savedRoutes.map((saved) => ({
+                    label: `${saved.name} · ${formatRouteDistance(saved.distanceM, distanceUnit)}`,
+                    value: saved.id,
+                  })),
+                ]}
+                onSelect={setRouteId}
               />
             </View>
           ) : null}

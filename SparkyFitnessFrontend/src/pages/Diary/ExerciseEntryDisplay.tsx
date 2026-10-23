@@ -261,6 +261,17 @@ const ExerciseEntryDisplay: React.FC<ExerciseEntryDisplayProps> = ({
                   <span>{formatDistance(exerciseEntry.distance)}</span>
                 </>
               )}
+              {exerciseEntry.workout_effort != null && (
+                <>
+                  <span className="text-gray-300 dark:text-gray-600">·</span>
+                  <span>
+                    {t('exerciseCard.effortValue', {
+                      defaultValue: 'Effort {{rating}}/10',
+                      rating: exerciseEntry.workout_effort,
+                    })}
+                  </span>
+                </>
+              )}
               <span className="text-gray-300 dark:text-gray-600">·</span>
               <span className="text-orange-600 dark:text-orange-400 font-medium">
                 {caloriesDisplay}

@@ -1,10 +1,10 @@
 import type { ExerciseActivityQueryItem } from '@workspace/shared';
 import {
-  estimateMaxHeartRate,
   referencePace,
   suggestedHeartRateRanges,
   suggestedPaceRanges,
   warmPaceFromEasy,
+  suggestedPaceRangesFromRace,
 } from '../../src/utils/suggestedRanges';
 
 const session = (
@@ -32,35 +32,31 @@ const session = (
 
 const TODAY = '2026-10-13';
 
-describe('estimateMaxHeartRate', () => {
-  it('uses the Tanaka formula', () => {
-    expect(estimateMaxHeartRate(30)).toBe(187);
-    expect(estimateMaxHeartRate(50)).toBe(173);
-  });
-
-  it('gives nothing for an age that cannot be right', () => {
-    expect(estimateMaxHeartRate(0)).toBeNull();
-    expect(estimateMaxHeartRate(150)).toBeNull();
-    expect(estimateMaxHeartRate(Number.NaN)).toBeNull();
-  });
-});
-
 describe('suggestedHeartRateRanges', () => {
-  it('puts easy in a conversational zone and fast near threshold, in 5 bpm steps', () => {
-    expect(suggestedHeartRateRanges(190)).toEqual({
-      warm: { minBpm: 95, maxBpm: 125 },
+  it('puts warm-up in zone 1, easy in zone 2 and fast in zone 4, in 5 bpm steps', () => {
+    // Floors for a max of 190: 50..90%.
+    expect(suggestedHeartRateRanges([95, 114, 133, 152, 171])).toEqual({
+      warm: { minBpm: 95, maxBpm: 115 },
       easy: { minBpm: 115, maxBpm: 135 },
-      work: { minBpm: 155, maxBpm: 175 },
+      work: { minBpm: 150, maxBpm: 170 },
     });
   });
 
-  it('keeps both ranges ordered and inside the band the alert accepts', () => {
-    const { warm, easy, work } = suggestedHeartRateRanges(172);
-    expect(warm.minBpm).toBeLessThan(warm.maxBpm);
-    expect(warm.maxBpm).toBeLessThanOrEqual(easy.maxBpm);
-    expect(easy.minBpm).toBeLessThan(easy.maxBpm);
-    expect(work.minBpm).toBeLessThan(work.maxBpm);
-    expect(easy.maxBpm).toBeLessThanOrEqual(work.minBpm);
+  it('follows custom zone floors', () => {
+    expect(suggestedHeartRateRanges([100, 120, 140, 160, 180])).toEqual({
+      warm: { minBpm: 100, maxBpm: 120 },
+      easy: { minBpm: 120, maxBpm: 140 },
+      work: { minBpm: 160, maxBpm: 180 },
+    });
+  });
+
+  it('keeps every range ordered, even when floors sit close together', () => {
+    const { warm, easy, work } = suggestedHeartRateRanges([
+      100, 101, 102, 103, 104,
+    ]);
+    for (const band of [warm, easy, work]) {
+      expect(band.minBpm).toBeLessThan(band.maxBpm);
+    }
   });
 });
 
@@ -178,5 +174,38 @@ describe('warmPaceFromEasy', () => {
       warmPaceFromEasy({ minSecondsPerKm: 500, maxSecondsPerKm: 700 })
         .maxSecondsPerKm
     ).toBeLessThanOrEqual(1200);
+  });
+});
+
+describe('suggestedPaceRangesFromRace', () => {
+  const race = { distanceKm: 5, seconds: 1500 };
+
+  it('gives interval and easy ranges, and one for each effort a plan can ask for', () => {
+    const ranges = suggestedPaceRangesFromRace(race, 'run')!;
+    expect(ranges.pair.work).toEqual({
+      minSecondsPerKm: 290,
+      maxSecondsPerKm: 310,
+    });
+    expect(ranges.pair.easy).toEqual({
+      minSecondsPerKm: 360,
+      maxSecondsPerKm: 405,
+    });
+    expect(Object.keys(ranges.byEffort).sort()).toEqual([
+      'easy',
+      'marathon',
+      'stride',
+      'tempo',
+    ]);
+  });
+
+  it('has none for a walk or a ride, which a running race says nothing about', () => {
+    expect(suggestedPaceRangesFromRace(race, 'walk')).toBeNull();
+    expect(suggestedPaceRangesFromRace(race, 'ride')).toBeNull();
+  });
+
+  it('has none for a result that cannot be right', () => {
+    expect(
+      suggestedPaceRangesFromRace({ distanceKm: 5, seconds: 60 }, 'run')
+    ).toBeNull();
   });
 });

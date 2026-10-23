@@ -168,9 +168,52 @@ describe('heartRateZoneRows', () => {
         seconds_in_zone: seconds,
       }) as ExerciseEntryHrZones;
     expect(heartRateZoneRows([zone(2, 300), zone(1, 100)])).toEqual([
-      { zone: 1, lowerBpm: 110, upperBpm: null, seconds: 100, share: 0.25 },
-      { zone: 2, lowerBpm: 120, upperBpm: null, seconds: 300, share: 0.75 },
+      {
+        zone: 1,
+        lowerBpm: 110,
+        upperBpm: null,
+        seconds: 100,
+        share: 0.25,
+        method: null,
+      },
+      {
+        zone: 2,
+        lowerBpm: 120,
+        upperBpm: null,
+        seconds: 300,
+        share: 0.75,
+        method: null,
+      },
     ]);
+  });
+
+  it('carries the method the zones were stored with, and flags a mixed workout', () => {
+    const stored = (
+      index: number,
+      method: ExerciseEntryHrZones['zone_method']
+    ) =>
+      ({
+        zone_index: index,
+        zone_lower_bpm: 100,
+        zone_upper_bpm: null,
+        seconds_in_zone: 60,
+        zone_method: method,
+      }) as ExerciseEntryHrZones;
+    expect(heartRateZoneRows([stored(1, 'heart_rate_reserve')])[0].method).toBe(
+      'heart_rate_reserve'
+    );
+    expect(
+      combinedHeartRateZoneRows([
+        [stored(1, 'percent_max')],
+        [stored(1, 'custom')],
+      ])[0].method
+    ).toBe('mixed');
+    expect(
+      combinedHeartRateZoneRows([
+        [stored(1, 'percent_max')],
+        [stored(1, 'percent_max')],
+      ])[0].method
+    ).toBe('percent_max');
   });
 });
 
@@ -195,15 +238,43 @@ describe('combinedHeartRateZoneRows', () => {
         [zone(2, 500, null, null), zone(3, 100, 140, 160)],
       ])
     ).toEqual([
-      { zone: 1, lowerBpm: 100, upperBpm: 120, seconds: 100, share: 0.1 },
-      { zone: 2, lowerBpm: 120, upperBpm: 140, seconds: 800, share: 0.8 },
-      { zone: 3, lowerBpm: 140, upperBpm: 160, seconds: 100, share: 0.1 },
+      {
+        zone: 1,
+        lowerBpm: 100,
+        upperBpm: 120,
+        seconds: 100,
+        share: 0.1,
+        method: null,
+      },
+      {
+        zone: 2,
+        lowerBpm: 120,
+        upperBpm: 140,
+        seconds: 800,
+        share: 0.8,
+        method: null,
+      },
+      {
+        zone: 3,
+        lowerBpm: 140,
+        upperBpm: 160,
+        seconds: 100,
+        share: 0.1,
+        method: null,
+      },
     ]);
   });
 
   it('ignores negative seconds and is empty for no entries', () => {
     expect(combinedHeartRateZoneRows([[zone(1, -50, 100)]])).toEqual([
-      { zone: 1, lowerBpm: 100, upperBpm: null, seconds: 0, share: 0 },
+      {
+        zone: 1,
+        lowerBpm: 100,
+        upperBpm: null,
+        seconds: 0,
+        share: 0,
+        method: null,
+      },
     ]);
     expect(combinedHeartRateZoneRows([])).toEqual([]);
   });

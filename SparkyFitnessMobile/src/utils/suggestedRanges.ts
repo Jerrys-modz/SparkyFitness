@@ -5,9 +5,12 @@ import {
   PACE_BAND_FASTEST_SECONDS_PER_KM,
   PACE_BAND_SLOWEST_SECONDS_PER_KM,
   classifyActivitySport,
+  racePaceZones,
   type ExerciseActivityQueryItem,
   type HeartRateBand,
   type PaceBand,
+  type PaceReferenceRace,
+  type StepEffort,
 } from '@workspace/shared';
 import type { RecordingActivity } from './gpsRecording';
 
@@ -24,14 +27,6 @@ export interface SuggestedPair<T> {
   warm: T;
 }
 
-/**
- * Heart-rate fractions of the maximum: warm-up and cool-down are an easy
- * zone 1, easy is a conversational zone 2, fast is a hard tempo effort.
- */
-const WARM_HEART_RATE_FRACTION = [0.5, 0.65] as const;
-const EASY_HEART_RATE_FRACTION = [0.6, 0.72] as const;
-const WORK_HEART_RATE_FRACTION = [0.82, 0.92] as const;
-
 /** Heart rate rounded to the 5 bpm the steppers move by. */
 const roundToFive = (value: number): number => Math.round(value / 5) * 5;
 
@@ -42,27 +37,26 @@ const clampBpm = (value: number): number =>
   );
 
 /**
- * Maximum heart rate from age, by the Tanaka formula (208 - 0.7 x age), which
- * holds up better than 220 - age at both ends. Null for an age that cannot be
- * right. It is a population estimate: a measured maximum is better.
+ * The warm-up, easy and fast heart-rate ranges for someone with these zone
+ * floors (bpm, zone 1 first; `resolveHeartRateZones` in `@workspace/shared`).
+ * Warm-up and cool-down are an easy zone 1, easy is a conversational zone 2
+ * and fast is a hard zone 4, so a person who has set their own max heart rate
+ * or zones gets ranges that match the zones they see everywhere else.
  */
-export function estimateMaxHeartRate(age: number): number | null {
-  if (!Number.isFinite(age) || age < 10 || age > 100) return null;
-  return Math.round(208 - 0.7 * age);
-}
-
-/** The warm-up, easy and fast heart-rate ranges for someone with `maxHeartRate`. */
 export function suggestedHeartRateRanges(
-  maxHeartRate: number
+  zoneFloors: readonly number[]
 ): SuggestedPair<HeartRateBand> {
-  const band = ([low, high]: readonly [number, number]): HeartRateBand => ({
-    minBpm: clampBpm(roundToFive(maxHeartRate * low)),
-    maxBpm: clampBpm(roundToFive(maxHeartRate * high)),
-  });
+  const band = (low: number, high: number): HeartRateBand => {
+    const minBpm = clampBpm(roundToFive(low));
+    return {
+      minBpm,
+      maxBpm: clampBpm(Math.max(roundToFive(high), minBpm + 5)),
+    };
+  };
   return {
-    warm: band(WARM_HEART_RATE_FRACTION),
-    easy: band(EASY_HEART_RATE_FRACTION),
-    work: band(WORK_HEART_RATE_FRACTION),
+    warm: band(zoneFloors[0], zoneFloors[1]),
+    easy: band(zoneFloors[1], zoneFloors[2]),
+    work: band(zoneFloors[3], zoneFloors[4]),
   };
 }
 
@@ -160,6 +154,40 @@ export function warmPaceFromEasy(easy: PaceBand): PaceBand {
   return {
     minSecondsPerKm: roundPace(easy.minSecondsPerKm),
     maxSecondsPerKm: roundPace(easy.maxSecondsPerKm * 2),
+  };
+}
+
+/** What a recent race gives: fast and easy ranges, and one for each effort a plan can ask for. */
+export interface RacePaceRanges {
+  pair: SuggestedPair<PaceBand>;
+  /** Ranges for each effort a plan can ask for. Hill repeats get none: pace means nothing uphill. */
+  byEffort: Partial<Record<Exclude<StepEffort, 'hill'>, PaceBand>>;
+}
+
+/**
+ * Pace ranges from a recent race result, for a run: the plan's fast stretches
+ * get the interval range (about 5K pace) and its easy ones the easy range, and
+ * tempo, marathon-pace and stride efforts get their own. Null for a walk or
+ * ride, or a result that cannot be right.
+ */
+export function suggestedPaceRangesFromRace(
+  race: PaceReferenceRace,
+  activity: RecordingActivity
+): RacePaceRanges | null {
+  if (activity !== 'run') return null;
+  const zones = racePaceZones(race);
+  if (!zones?.interval || !zones.easy) return null;
+  const byEffort: RacePaceRanges['byEffort'] = { easy: zones.easy };
+  if (zones.tempo) byEffort.tempo = zones.tempo;
+  if (zones.marathon) byEffort.marathon = zones.marathon;
+  if (zones.stride) byEffort.stride = zones.stride;
+  return {
+    pair: {
+      work: zones.interval,
+      easy: zones.easy,
+      warm: warmPaceFromEasy(zones.easy),
+    },
+    byEffort,
   };
 }
 

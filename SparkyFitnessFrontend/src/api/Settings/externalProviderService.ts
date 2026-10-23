@@ -50,6 +50,7 @@ export const createExternalProvider = async (
         'wger',
         'usda',
         'norish',
+        'valhalla',
       ].includes(payload.provider_type)
         ? null
         : payload.app_id || null,
@@ -61,6 +62,7 @@ export const createExternalProvider = async (
         'free-exercise-db',
         'yazio',
         'norish',
+        'valhalla',
         'openfoodfacts',
         'coros_mcp',
       ].includes(payload.provider_type)
@@ -229,9 +231,13 @@ export const handleManualSyncFitbit = async (
 
 export const handleConnectOura = async () => {
   try {
-    const response = await apiCall(`/integrations/oura/authorize`, {
-      method: 'GET',
-    });
+    const redirectUri = `${window.location.origin}/oura/callback`;
+    const response = await apiCall(
+      `/integrations/oura/authorize?redirect_uri=${encodeURIComponent(redirectUri)}`,
+      {
+        method: 'GET',
+      }
+    );
     if (response && response.authUrl) {
       window.location.href = response.authUrl;
     } else {
