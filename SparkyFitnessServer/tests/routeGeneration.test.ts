@@ -501,6 +501,7 @@ describe('route generation endpoints', () => {
       },
       stops: false,
       source: 'provider',
+      stopsSource: null,
     });
     vi.mocked(providerLookup).mockResolvedValue(null);
     res = await request(app).get('/api/v2/routes/generate/capabilities');
@@ -515,6 +516,7 @@ describe('route generation endpoints', () => {
         avoidBusyRoads: false,
       },
       stops: false,
+      stopsSource: null,
     });
   });
 

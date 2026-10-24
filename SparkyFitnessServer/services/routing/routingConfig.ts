@@ -8,6 +8,8 @@ import externalProviderRepository, {
 } from '../../models/externalProviderRepository.js';
 import { describeError } from '../../utils/errors.js';
 import { resolveProviderEndpoint } from '../providerEndpoint.js';
+import { resolveStopsProvider } from '../routeStopsConfig.js';
+import { isStopsEndpointBusy } from '../routeStopsService.js';
 import type { RoutingProvider } from './routingProvider.js';
 import { createValhallaProvider } from './valhallaProvider.js';
 
@@ -64,13 +66,23 @@ export async function resolveRoutingProvider(
 }
 
 /**
- * What this person's routing engine supports, as `GET /generate/capabilities`
- * reports it. Stops are not looked up yet, so that is always false.
+ * What this person's routing engine and stops lookup support, as
+ * `GET /generate/capabilities` reports it. The two are independent: stops
+ * follow the Overpass provider, not the routing one.
  */
 export async function getRouteGenerateCapabilities(
   userId: string
 ): Promise<RouteGenerateCapabilities> {
-  const resolved = await resolveRoutingProvider(userId);
+  const [resolved, resolvedStops] = await Promise.all([
+    resolveRoutingProvider(userId),
+    resolveStopsProvider(userId),
+  ]);
+  // An endpoint that asked us to slow down is left out for a moment, so the
+  // screen simply offers no stops rather than failing.
+  const stops =
+    resolvedStops && !isStopsEndpointBusy(resolvedStops.url)
+      ? resolvedStops
+      : null;
   return {
     available: resolved !== null,
     maxAlternatives: resolved
@@ -84,7 +96,8 @@ export async function getRouteGenerateCapabilities(
           avoidSteps: false,
           avoidBusyRoads: false,
         },
-    stops: false,
+    stops: stops !== null,
     source: resolved ? resolved.source : null,
+    stopsSource: stops ? stops.source : null,
   };
 }
