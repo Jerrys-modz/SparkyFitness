@@ -12,9 +12,15 @@ export interface SplitSample {
  * when every point carries it (the watch's figure matches the distance saved on
  * the entry); otherwise sums the straight lines between fixes. Null when the
  * track has no usable timestamps or covers no distance.
+ *
+ * `maxSpeedMps` is the fastest the sport can plausibly go. On the straight-line
+ * path a segment faster than that is a GPS glitch (a jump and its return would
+ * otherwise both count as distance and make a split too fast), so its distance
+ * is dropped. The device's own distance is trusted as recorded.
  */
 export function samplesFromGpsPoints(
-  points: readonly GpsTrackPoint[]
+  points: readonly GpsTrackPoint[],
+  maxSpeedMps = Infinity
 ): SplitSample[] | null {
   const timed: { seconds: number; point: GpsTrackPoint }[] = [];
   for (const point of points) {
@@ -41,8 +47,13 @@ export function samplesFromGpsPoints(
     if (deviceDistance) {
       cumulative = (point.dist as number) - (first.point.dist as number);
     } else if (i > 0) {
-      const before = timed[i - 1]?.point;
-      if (before) cumulative += haversineMeters(before, point);
+      const before = timed[i - 1];
+      if (before) {
+        const meters = haversineMeters(before.point, point);
+        if (meters / (seconds - before.seconds) <= maxSpeedMps) {
+          cumulative += meters;
+        }
+      }
     }
     samples.push({ seconds: seconds - first.seconds, meters: cumulative });
   });

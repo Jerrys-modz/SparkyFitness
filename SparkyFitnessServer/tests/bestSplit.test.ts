@@ -66,6 +66,22 @@ describe('samplesFromGpsPoints', () => {
     expect(samples?.[1]?.meters).toBeCloseTo(1112, -1);
   });
 
+  it('drops a glitch jump and its return when given a speed ceiling', () => {
+    // A fix 0.004 degrees (about 445 m) away for one 3 s sample, then back.
+    const track = [
+      { t: '2026-07-01T07:00:00Z', lat: 50, lon: 4 },
+      { t: '2026-07-01T07:00:03Z', lat: 50.004, lon: 4 },
+      { t: '2026-07-01T07:00:06Z', lat: 50, lon: 4 },
+      { t: '2026-07-01T07:00:36Z', lat: 50.0027, lon: 4 },
+    ];
+    const unfiltered = samplesFromGpsPoints(track);
+    const filtered = samplesFromGpsPoints(track, 12);
+    expect(unfiltered?.[2]?.meters).toBeGreaterThan(800);
+    expect(filtered?.[2]?.meters).toBe(0);
+    // The real 300 m over 30 s (10 m/s) is kept.
+    expect(filtered?.[3]?.meters).toBeCloseTo(300, -1);
+  });
+
   it('is null for a track with no time or distance', () => {
     expect(
       samplesFromGpsPoints([{ t: 'not a date', lat: 50, lon: 4 }])

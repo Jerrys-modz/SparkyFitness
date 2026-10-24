@@ -792,6 +792,60 @@ describe('exerciseStatsService', () => {
       expect(tenK?.bestTimeSeconds).toBe(Math.round(10 * 60 * 5));
     });
 
+    it('measures a track once and reuses the split until the track changes', async () => {
+      const start = Date.parse('2026-08-01T07:00:00Z');
+      const points = [0, 1, 2, 3, 4, 5, 6].map((km) => ({
+        t: new Date(start + km * 300 * 1000).toISOString(),
+        lat: 50,
+        lon: 4,
+        dist: km * 1000,
+      }));
+      const row = {
+        id: 'cached-run',
+        exercise_name: 'Cached Run',
+        category: 'cardio',
+        notes: null,
+        entry_date: new Date('2026-08-01'),
+        duration_minutes: 30,
+        distance: 6,
+        provider_name: 'garmin',
+        detail_data: { activityType: { typeKey: 'running' } },
+        exercise_source_id: null,
+        has_gps_track: true,
+        has_distance_series: false,
+        track_version: '2026-08-01 07:30:00+00:7/',
+      };
+      mockClient.query.mockResolvedValueOnce({ rows: [row] });
+      mockClient.query.mockResolvedValueOnce({
+        rows: [{ exercise_entry_id: 'cached-run', points }],
+      });
+      mockClient.query.mockResolvedValueOnce({ rows: [] });
+      const first =
+        await exerciseStatsService.getPersonalRecordMatrix('user-123');
+      expect(mockClient.query).toHaveBeenCalledTimes(3);
+
+      // Same track version: no track query this time.
+      mockClient.query.mockClear();
+      mockClient.query.mockResolvedValueOnce({ rows: [row] });
+      mockClient.query.mockResolvedValueOnce({ rows: [] });
+      const second =
+        await exerciseStatsService.getPersonalRecordMatrix('user-123');
+      expect(mockClient.query).toHaveBeenCalledTimes(2);
+      expect(second.cardioPRs).toEqual(first.cardioPRs);
+
+      // A changed track is measured again.
+      mockClient.query.mockClear();
+      mockClient.query.mockResolvedValueOnce({
+        rows: [{ ...row, track_version: '2026-08-02 08:00:00+00:7/' }],
+      });
+      mockClient.query.mockResolvedValueOnce({
+        rows: [{ exercise_entry_id: 'cached-run', points }],
+      });
+      mockClient.query.mockResolvedValueOnce({ rows: [] });
+      await exerciseStatsService.getPersonalRecordMatrix('user-123');
+      expect(mockClient.query).toHaveBeenCalledTimes(3);
+    });
+
     it('labels the no-banded-records fallback with the entry sport', async () => {
       mockClient.query.mockResolvedValueOnce({ rows: [] });
       mockClient.query.mockResolvedValueOnce({
@@ -870,7 +924,7 @@ describe('exerciseStatsService', () => {
             exercise_name: 'River Loop',
             category: 'running',
             activity_count: '3',
-            avg_distance_km: 8.0,
+            avg_distance_km: 6.67, // the SQL average, dragged down by the short run
           },
         ],
       });

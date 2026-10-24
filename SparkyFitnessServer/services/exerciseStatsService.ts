@@ -48,6 +48,40 @@ interface SqlRow {
 const UNTRACKED_MIN_RATIO = 0.98;
 const UNTRACKED_MAX_RATIO = 1.05;
 
+/**
+ * Fastest plausible speed per sport group, in metres per second (the same
+ * ceilings the mobile recorder rejects glitches with). A straight-line segment
+ * faster than this in a stored track is a GPS jump, not movement.
+ */
+const MAX_SPEED_MPS: Record<string, number> = {
+  run: 12,
+  walk: 7,
+  ride: 30,
+  swim: 5,
+};
+
+/**
+ * Best split per standard, remembered per activity. Measuring a split reads and
+ * walks a whole track, so it is done once and reused until the track changes:
+ * the key carries the track's last update and size, and the sport group the
+ * speed ceiling came from. A value is seconds, or null when the activity does
+ * not cover the distance. In memory and bounded, oldest evicted first; a
+ * restart just recomputes.
+ */
+const SPLIT_CACHE_MAX_ENTRIES = 20000;
+const splitCache = new Map<string, Record<string, number | null>>();
+
+function rememberSplits(
+  key: string,
+  splits: Record<string, number | null>
+): void {
+  if (splitCache.size >= SPLIT_CACHE_MAX_ENTRIES) {
+    const oldest = splitCache.keys().next().value;
+    if (oldest !== undefined) splitCache.delete(oldest);
+  }
+  splitCache.set(key, splits);
+}
+
 /** Activities whose tracks are loaded per query when looking for best splits. */
 const TRACK_BATCH_SIZE = 25;
 
@@ -74,6 +108,8 @@ interface PrCandidateRow {
   exercise_source_id: string | null;
   has_gps_track?: boolean;
   has_distance_series?: boolean;
+  /** Identifies the stored track revision, for the split cache. */
+  track_version?: string | null;
 }
 
 type PrTimeBasis = NonNullable<ExercisePersonalRecordItem['timeBasis']>;
@@ -716,7 +752,13 @@ async function getPersonalRecordMatrix(
                SELECT 1 FROM public.exercise_entry_distance_series ds
                WHERE ds.exercise_entry_id = ee.id
                  AND jsonb_array_length(ds.points) > 0
-             ) AS has_distance_series
+             ) AS has_distance_series,
+             (SELECT g.updated_at::text || ':' || jsonb_array_length(g.points)
+                FROM public.exercise_entry_gps_points g
+               WHERE g.exercise_entry_id = ee.id) || '/' ||
+             COALESCE((SELECT ds.updated_at::text || ':' || jsonb_array_length(ds.points)
+                FROM public.exercise_entry_distance_series ds
+               WHERE ds.exercise_entry_id = ee.id), '') AS track_version
       FROM public.exercise_entries ee
       LEFT JOIN public.exercises x ON x.id = ee.exercise_id
       LEFT JOIN LATERAL (
@@ -767,18 +809,33 @@ async function getPersonalRecordMatrix(
       classified.push({ row, sport, confidence, sportGroup, distKm, durSecs });
     }
 
-    // Measured splits, for the activities that have a track or a distance
-    // series. Loaded in small batches so a long history never holds every
-    // track in memory at once.
-    const samplesById = new Map<string, SplitSample[]>();
-    const withTelemetry = classified.filter(
-      ({ row }) =>
-        row.has_gps_track === true || row.has_distance_series === true
-    );
-    for (let i = 0; i < withTelemetry.length; i += TRACK_BATCH_SIZE) {
-      const batch = withTelemetry.slice(i, i + TRACK_BATCH_SIZE);
+    // Measured splits for the activities that have a track or a distance
+    // series. Ones already measured come from the cache; the rest have their
+    // tracks loaded in small batches, so a long history never holds every track
+    // in memory at once, and are cached for the next request.
+    const splitsById = new Map<string, Record<string, number | null>>();
+    const cacheKeys = new Map<string, string>();
+    const misses: typeof classified = [];
+    for (const item of classified) {
+      const { row, sportGroup } = item;
+      if (row.has_gps_track !== true && row.has_distance_series !== true) {
+        continue;
+      }
+      const id = String(row.id);
+      const cacheKey = `${id}:${sportGroup}:${row.track_version ?? ''}`;
+      cacheKeys.set(id, cacheKey);
+      // Without a track version (nothing to tell revisions apart) never cache.
+      const cached = row.track_version ? splitCache.get(cacheKey) : undefined;
+      if (cached) splitsById.set(id, cached);
+      else misses.push(item);
+    }
+    for (let i = 0; i < misses.length; i += TRACK_BATCH_SIZE) {
+      const batch = misses.slice(i, i + TRACK_BATCH_SIZE);
       const ids = batch.map(({ row }) => String(row.id));
-      const gps = new Map<string, SplitSample[]>();
+      const groupById = new Map(
+        batch.map(({ row, sportGroup }) => [String(row.id), sportGroup])
+      );
+      const samplesById = new Map<string, SplitSample[]>();
       if (batch.some(({ row }) => row.has_gps_track === true)) {
         const gpsResult = await client.query(
           `SELECT exercise_entry_id, points
@@ -787,13 +844,16 @@ async function getPersonalRecordMatrix(
           [ids]
         );
         for (const track of gpsResult.rows as SqlRow[]) {
-          const samples = samplesFromGpsPoints(track.points as GpsTrackPoint[]);
-          if (samples) gps.set(String(track.exercise_entry_id), samples);
+          const id = String(track.exercise_entry_id);
+          const samples = samplesFromGpsPoints(
+            track.points as GpsTrackPoint[],
+            MAX_SPEED_MPS[groupById.get(id) ?? 'run']
+          );
+          if (samples) samplesById.set(id, samples);
         }
       }
       // An indoor run has a distance series instead of a track.
-      const needsSeries = ids.filter((id) => !gps.has(id));
-      const series = new Map<string, SplitSample[]>();
+      const needsSeries = ids.filter((id) => !samplesById.has(id));
       if (
         needsSeries.length > 0 &&
         batch.some(({ row }) => row.has_distance_series === true)
@@ -808,12 +868,23 @@ async function getPersonalRecordMatrix(
           const samples = samplesFromDistanceSeries(
             row.points as [number, number][]
           );
-          if (samples) series.set(String(row.exercise_entry_id), samples);
+          if (samples) samplesById.set(String(row.exercise_entry_id), samples);
         }
       }
       for (const id of ids) {
-        const samples = gps.get(id) ?? series.get(id);
-        if (samples) samplesById.set(id, samples);
+        const samples = samplesById.get(id);
+        if (!samples) continue;
+        const splits: Record<string, number | null> = {};
+        for (const [stdKey, standardKm] of Object.entries(
+          STANDARD_DISTANCE_KM
+        )) {
+          splits[stdKey] = bestSplitSeconds(samples, standardKm * 1000);
+        }
+        splitsById.set(id, splits);
+        const cacheKey = cacheKeys.get(id);
+        const version = batch.find(({ row }) => String(row.id) === id)?.row
+          .track_version;
+        if (cacheKey && version) rememberSplits(cacheKey, splits);
       }
     }
 
@@ -829,15 +900,13 @@ async function getPersonalRecordMatrix(
       distKm,
       durSecs,
     } of classified) {
-      const samples = samplesById.get(String(row.id));
+      const splits = splitsById.get(String(row.id));
       for (const [stdKey] of standardEntries) {
         const standardKm = STANDARD_DISTANCE_KM[stdKey];
         if (standardKm === undefined) continue;
         let seconds: number | null = null;
         let basis: PrTimeBasis = 'best_split';
-        if (samples) {
-          seconds = bestSplitSeconds(samples, standardKm * 1000);
-        }
+        if (splits) seconds = splits[stdKey] ?? null;
         if (
           seconds === null &&
           distKm >= standardKm * UNTRACKED_MIN_RATIO &&
@@ -1126,15 +1195,30 @@ async function getMatchedCourses(
           measured.push({ distKm: dKm, paceSecs: (dMins * 60) / dKm });
         }
       }
+      // The reference is the median of the measured distances, not the SQL
+      // average: a few shortened runs drag the average away from every real run
+      // of the course and leave nothing comparable.
+      const sortedDistances = measured
+        .map((m) => m.distKm)
+        .sort((x, y) => x - y);
+      const referenceKm =
+        sortedDistances.length === 0
+          ? avgDistKm
+          : sortedDistances.length % 2 === 1
+            ? (sortedDistances[(sortedDistances.length - 1) / 2] as number)
+            : ((sortedDistances[sortedDistances.length / 2 - 1] as number) +
+                (sortedDistances[sortedDistances.length / 2] as number)) /
+              2;
       let comparable = measured.filter(
         ({ distKm }) =>
-          Math.abs(distKm - avgDistKm) <= avgDistKm * COURSE_DISTANCE_TOLERANCE
+          Math.abs(distKm - referenceKm) <=
+          referenceKm * COURSE_DISTANCE_TOLERANCE
       );
       if (comparable.length === 0 && measured.length > 0) {
         // A course whose runs are all different lengths: use the one nearest
-        // the average rather than showing no time.
+        // the reference rather than showing no time.
         const nearest = measured.reduce((best, m) =>
-          Math.abs(m.distKm - avgDistKm) < Math.abs(best.distKm - avgDistKm)
+          Math.abs(m.distKm - referenceKm) < Math.abs(best.distKm - referenceKm)
             ? m
             : best
         );
@@ -1158,7 +1242,7 @@ async function getMatchedCourses(
         totalDistanceMeters: Math.round(avgDistKm * 1000),
         avgDistanceFormatted: convertDistance(avgDistKm, unitSystem),
         activityCount: parseInt(String(row.activity_count), 10),
-        bestTimeSeconds: Math.round(bestPaceSecs * avgDistKm),
+        bestTimeSeconds: Math.round(bestPaceSecs * referenceKm),
         bestPaceFormatted: formatPace(bestPaceSecs, unitSystem),
         recentActivities,
       });
