@@ -58,9 +58,6 @@ export const stopsRateLimiter = createUserRateLimiter(
   STOPS_RATE_LIMIT_WINDOW_MS
 );
 
-const NO_STOPS_PROVIDER =
-  'Stops along a route need an Overpass provider. Add one in Settings > External Providers.';
-
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function isUuid(value: string): boolean {
@@ -379,7 +376,12 @@ router.post('/generate', async (req, res, next) => {
 router.post('/stops', async (req, res, next) => {
   try {
     const endpoint = await resolveStopsProvider(req.userId);
-    if (!endpoint) return res.status(503).json({ error: NO_STOPS_PROVIDER });
+    if (!endpoint) {
+      return res.status(503).json({
+        error:
+          'Stops along a route need an Overpass provider. Add one in Settings > External Providers.',
+      });
+    }
     const parsed = routeStopsBodySchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
@@ -426,7 +428,12 @@ router.get('/:id/stops', async (req, res, next) => {
       return res.status(404).json({ error: 'Route not found' });
     }
     const endpoint = await resolveStopsProvider(req.userId);
-    if (!endpoint) return res.status(503).json({ error: NO_STOPS_PROVIDER });
+    if (!endpoint) {
+      return res.status(503).json({
+        error:
+          'Stops along a route need an Overpass provider. Add one in Settings > External Providers.',
+      });
+    }
     const retryAfter = stopsRateLimiter.hit(req.userId);
     if (retryAfter > 0) {
       res.set('Retry-After', String(retryAfter));
