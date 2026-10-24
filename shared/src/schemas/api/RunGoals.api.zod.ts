@@ -1,5 +1,5 @@
-import { z } from "zod";
-import { runDayStringSchema } from "./RunProgram.api.zod.ts";
+import { z } from 'zod';
+import { runDayStringSchema } from './RunProgram.api.zod.ts';
 
 export const runGoalsSchema = z.object({
   /** Kilometres to run in a week, or null for no target. */
@@ -53,8 +53,8 @@ export const upsertRunGoalsBodySchema = z
     (body) =>
       body.race_date !== null || (!body.race_name && !body.race_distance_km),
     {
-      message: "A race name or distance needs a race day.",
-      path: ["race_date"],
-    },
+      message: 'A race name or distance needs a race day.',
+      path: ['race_date'],
+    }
   );
 export type UpsertRunGoalsBody = z.infer<typeof upsertRunGoalsBodySchema>;
