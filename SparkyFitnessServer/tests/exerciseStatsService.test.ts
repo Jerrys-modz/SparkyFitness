@@ -792,6 +792,59 @@ describe('exerciseStatsService', () => {
       expect(tenK?.bestTimeSeconds).toBe(Math.round(10 * 60 * 5));
     });
 
+    // A GPS track that stops short of a standard must not hide a distance
+    // series that covers it.
+    it('falls back to the distance series for a standard the GPS track does not cover', async () => {
+      const start = Date.parse('2026-08-05T07:00:00Z');
+      // 3 km of GPS (device distance), but the series covers the full 5 km.
+      const gps = [0, 1, 2, 3].map((km) => ({
+        t: new Date(start + km * 360 * 1000).toISOString(),
+        lat: 50,
+        lon: 4,
+        dist: km * 1000,
+      }));
+      const series: [number, number][] = [0, 1, 2, 3, 4, 5].map((km) => [
+        km * 300,
+        km * 1000,
+      ]);
+      mockClient.query.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'mixed-run',
+            exercise_name: 'Mixed Run',
+            category: 'cardio',
+            notes: null,
+            entry_date: new Date('2026-08-05'),
+            duration_minutes: 25,
+            distance: 5,
+            provider_name: 'garmin',
+            detail_data: { activityType: { typeKey: 'running' } },
+            exercise_source_id: null,
+            has_gps_track: true,
+            has_distance_series: true,
+            track_version: 'mixed-1',
+          },
+        ],
+      });
+      mockClient.query.mockResolvedValueOnce({
+        rows: [{ exercise_entry_id: 'mixed-run', points: gps }],
+      });
+      mockClient.query.mockResolvedValueOnce({
+        rows: [{ exercise_entry_id: 'mixed-run', points: series }],
+      });
+      mockClient.query.mockResolvedValueOnce({ rows: [] });
+
+      const res =
+        await exerciseStatsService.getPersonalRecordMatrix('user-123');
+
+      const oneK = res.cardioPRs.find((p) => p.distanceStandard === '1k');
+      const fiveK = res.cardioPRs.find((p) => p.distanceStandard === '5k');
+      // GPS (6:00/km) decides the standard it covers, the series (5:00/km) the rest.
+      expect(oneK?.bestTimeSeconds).toBe(360);
+      expect(fiveK?.bestTimeSeconds).toBe(25 * 60);
+      expect(fiveK?.timeBasis).toBe('best_split');
+    });
+
     it('measures a track once and reuses the split until the track changes', async () => {
       const start = Date.parse('2026-08-01T07:00:00Z');
       const points = [0, 1, 2, 3, 4, 5, 6].map((km) => ({

@@ -82,6 +82,15 @@ function rememberSplits(
   splitCache.set(key, splits);
 }
 
+/**
+ * Upper bound on the stored size of an empty jsonb array. `pg_column_size` reads
+ * the stored size without detoasting the value (`jsonb_array_length` would
+ * detoast every track just to be asked "is it empty"). An empty array is a 4
+ * byte container header plus a 1 or 4 byte varlena header, 8 bytes at most; the
+ * smallest non-empty one adds an entry and its value, 11 bytes at least.
+ */
+const EMPTY_JSONB_ARRAY_MAX_BYTES = 8;
+
 /** Activities whose tracks are loaded per query when looking for best splits. */
 const TRACK_BATCH_SIZE = 25;
 
@@ -746,17 +755,17 @@ async function getPersonalRecordMatrix(
              EXISTS (
                SELECT 1 FROM public.exercise_entry_gps_points g
                WHERE g.exercise_entry_id = ee.id
-                 AND jsonb_array_length(g.points) > 0
+                 AND pg_column_size(g.points) > ${EMPTY_JSONB_ARRAY_MAX_BYTES}
              ) AS has_gps_track,
              EXISTS (
                SELECT 1 FROM public.exercise_entry_distance_series ds
                WHERE ds.exercise_entry_id = ee.id
-                 AND jsonb_array_length(ds.points) > 0
+                 AND pg_column_size(ds.points) > ${EMPTY_JSONB_ARRAY_MAX_BYTES}
              ) AS has_distance_series,
-             (SELECT g.updated_at::text || ':' || jsonb_array_length(g.points)
+             COALESCE((SELECT g.updated_at::text || ':' || pg_column_size(g.points)
                 FROM public.exercise_entry_gps_points g
-               WHERE g.exercise_entry_id = ee.id) || '/' ||
-             COALESCE((SELECT ds.updated_at::text || ':' || jsonb_array_length(ds.points)
+               WHERE g.exercise_entry_id = ee.id), '') || '/' ||
+             COALESCE((SELECT ds.updated_at::text || ':' || pg_column_size(ds.points)
                 FROM public.exercise_entry_distance_series ds
                WHERE ds.exercise_entry_id = ee.id), '') AS track_version
       FROM public.exercise_entries ee
@@ -835,7 +844,8 @@ async function getPersonalRecordMatrix(
       const groupById = new Map(
         batch.map(({ row, sportGroup }) => [String(row.id), sportGroup])
       );
-      const samplesById = new Map<string, SplitSample[]>();
+      const gpsById = new Map<string, SplitSample[]>();
+      const seriesById = new Map<string, SplitSample[]>();
       if (batch.some(({ row }) => row.has_gps_track === true)) {
         const gpsResult = await client.query(
           `SELECT exercise_entry_id, points
@@ -849,36 +859,40 @@ async function getPersonalRecordMatrix(
             track.points as GpsTrackPoint[],
             MAX_SPEED_MPS[groupById.get(id) ?? 'run']
           );
-          if (samples) samplesById.set(id, samples);
+          if (samples) gpsById.set(id, samples);
         }
       }
-      // An indoor run has a distance series instead of a track.
-      const needsSeries = ids.filter((id) => !samplesById.has(id));
-      if (
-        needsSeries.length > 0 &&
-        batch.some(({ row }) => row.has_distance_series === true)
-      ) {
+      // An indoor run has a distance series instead of a track. It is read for
+      // every activity that has one, not only those without a usable track: a
+      // track that stops short of a standard can still be covered by the series.
+      if (batch.some(({ row }) => row.has_distance_series === true)) {
         const seriesResult = await client.query(
           `SELECT exercise_entry_id, points
            FROM public.exercise_entry_distance_series
            WHERE exercise_entry_id = ANY($1::uuid[])`,
-          [needsSeries]
+          [ids]
         );
         for (const row of seriesResult.rows as SqlRow[]) {
           const samples = samplesFromDistanceSeries(
             row.points as [number, number][]
           );
-          if (samples) samplesById.set(String(row.exercise_entry_id), samples);
+          if (samples) seriesById.set(String(row.exercise_entry_id), samples);
         }
       }
       for (const id of ids) {
-        const samples = samplesById.get(id);
-        if (!samples) continue;
+        const gps = gpsById.get(id);
+        const series = seriesById.get(id);
+        if (!gps && !series) continue;
+        // The track decides a standard when it yields a split; the series only
+        // answers the standards the track does not cover.
         const splits: Record<string, number | null> = {};
         for (const [stdKey, standardKm] of Object.entries(
           STANDARD_DISTANCE_KM
         )) {
-          splits[stdKey] = bestSplitSeconds(samples, standardKm * 1000);
+          const meters = standardKm * 1000;
+          splits[stdKey] =
+            (gps ? bestSplitSeconds(gps, meters) : null) ??
+            (series ? bestSplitSeconds(series, meters) : null);
         }
         splitsById.set(id, splits);
         const cacheKey = cacheKeys.get(id);
