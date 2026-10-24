@@ -53,6 +53,8 @@ export const createExternalProvider = async (
         'norish',
         'valhalla',
         'open_meteo',
+
+        'overpass',
       ].includes(payload.provider_type)
         ? null
         : payload.app_id || null,
@@ -66,6 +68,8 @@ export const createExternalProvider = async (
         'norish',
         'valhalla',
         'open_meteo',
+
+        'overpass',
         'openfoodfacts',
         'coros_mcp',
       ].includes(payload.provider_type)

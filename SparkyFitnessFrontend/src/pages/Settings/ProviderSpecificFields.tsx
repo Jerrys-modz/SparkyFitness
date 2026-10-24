@@ -15,6 +15,8 @@ import type { ExternalDataProvider } from './ExternalProviderSettings';
 import { RoutingProviderFields } from './RoutingProviderFields';
 import { WeatherProviderFields } from './WeatherProviderFields';
 
+import { StopsProviderFields } from './StopsProviderFields';
+
 // Developer dashboards where each OAuth provider's Client ID/Secret and callback
 // URL are configured. Kept in sync with the per-provider text in EditProviderForm.
 const OAUTH_DASHBOARD_LABELS =
@@ -172,6 +174,16 @@ export const ProviderSpecificFields = ({
           }
           onAppKeyChange={(value) =>
             setProvider((prev) => ({ ...prev, app_key: value }))
+          }
+        />
+      )}
+
+      {provider.provider_type === 'overpass' && (
+        <StopsProviderFields
+          idPrefix="new"
+          baseUrl={provider.base_url}
+          onBaseUrlChange={(value) =>
+            setProvider((prev) => ({ ...prev, base_url: value }))
           }
         />
       )}

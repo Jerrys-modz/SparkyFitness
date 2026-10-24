@@ -7,6 +7,8 @@ export const providerRequirements: Record<string, string[]> = {
   norish: ['base_url', 'app_key'],
   valhalla: ['base_url'],
   open_meteo: ['base_url'],
+
+  overpass: ['base_url'],
   nutritionix: ['app_id', 'app_key'],
   fatsecret: ['app_id', 'app_key'],
   withings: ['app_id', 'app_key'],
@@ -54,6 +56,8 @@ const PROVIDERS_WITHOUT_APP_ID = [
   'norish',
   'valhalla',
   'open_meteo',
+
+  'overpass',
   'free-exercise-db',
   'wger',
   'liftosaur',
