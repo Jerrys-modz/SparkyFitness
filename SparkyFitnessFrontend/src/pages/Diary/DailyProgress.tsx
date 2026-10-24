@@ -90,7 +90,7 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
     calorie_safety_floor_value: calorieSafetyFloorValue,
     activity_level: activityLevel,
     calorie_goal_adjustment_mode: dayCalorieGoalAdjustmentMode,
-  } = withCalorieRuleDefaults(summaryData?.calorieInputs.rules);
+  } = withCalorieRuleDefaults(summaryData?.calorieInputs?.rules);
 
   // `smart` computes identically to `tdee` server-side and arrives with a populated
   // `tdeeProjection`, but it has no UI of its own — so the untranslated value fell
@@ -112,7 +112,13 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
     return <DailyProgressSkeleton />;
   }
 
-  if (summaryError || !summaryData?.calorieBalance) {
+  // An older server sends no calorieInputs; show the summary error rather
+  // than crash on it.
+  if (
+    summaryError ||
+    !summaryData?.calorieBalance ||
+    !summaryData.calorieInputs
+  ) {
     return (
       <Card className="h-full">
         <CardContent className="pt-6 pb-4">

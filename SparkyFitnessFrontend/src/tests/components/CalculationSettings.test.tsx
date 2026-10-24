@@ -22,7 +22,7 @@ const defaultCalorieInputs: CalorieInputs = {
   neckCm: null,
   hipsCm: null,
 };
-let mockCalorieInputs = defaultCalorieInputs;
+let mockCalorieInputs: CalorieInputs | undefined = defaultCalorieInputs;
 
 jest.mock('@/contexts/PreferencesContext', () => ({
   usePreferences: () => ({
@@ -224,6 +224,17 @@ it('explains an unset past setting with its default, not with today', () => {
   expect(
     screen.getByText('Adaptive baseline (activity excluded):')
   ).toBeInTheDocument();
+});
+
+it('shows the summary error, not a crash, when an older server sends no calorie inputs', () => {
+  mockCalorieInputs = undefined;
+  render(
+    <MemoryRouter>
+      <DailyProgress selectedDate="2026-10-22" />
+    </MemoryRouter>
+  );
+
+  expect(screen.getByText('Daily summary unavailable')).toBeInTheDocument();
 });
 
 it('uses full-day TDEE for an unsaved move away from Dynamic while preserving the opt-in', async () => {
