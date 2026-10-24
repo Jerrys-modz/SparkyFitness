@@ -182,6 +182,7 @@ export default defineConfig({
             { text: 'Workout Effort', link: '/features/exercises/workout-effort' },
             { text: 'Adaptive Coaching', link: '/features/exercises/adaptive-coaching' },
             { text: 'Training Consistency', link: '/features/exercises/training-consistency' },
+            { text: 'Weekly Muscle Volume & Deload', link: '/features/exercises/weekly-muscle-volume' },
             { text: 'Warm-Up Sets', link: '/features/exercises/warm-up-sets' },
           ],
         },

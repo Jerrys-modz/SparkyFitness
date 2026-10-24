@@ -188,3 +188,43 @@ describe('reportService.getTrainingConsistency', () => {
     expect(result.weeks[result.weeks.length - 1]!.weekStart).toBe('2026-09-27');
   });
 });
+
+describe('reportService.getStrengthVolume', () => {
+  beforeEach(() => {
+    vi.mocked(preferenceRepository.getUserPreferences).mockResolvedValue({
+      first_day_of_week: 1,
+    } as never);
+    vi.mocked(reportRepository.getBodyWeightReadings).mockResolvedValue([]);
+    vi.mocked(reportRepository.getRecoveryReadings).mockResolvedValue([]);
+  });
+
+  it('builds this/last week volume from entries and reads only', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-02T12:00:00Z'));
+    vi.mocked(reportRepository.getExerciseEntries).mockResolvedValue([
+      {
+        ...entry('2026-09-29', ['Chest'], 12),
+        exercise_modality: 'weight_reps',
+      },
+      {
+        ...entry('2026-09-30', ['Chest'], 3),
+        exercise_name: 'Active Calories',
+      },
+    ] as never);
+    const result = await reportService.getStrengthVolume(USER, USER);
+    expect(result.range).toEqual({ min: 10, max: 20 });
+    expect(result.thisWeekStart).toBe('2026-09-28');
+    expect(result.muscles[0]).toMatchObject({
+      muscle: 'Chest',
+      thisWeek: 12,
+      thisWeekStatus: 'inRange',
+    });
+    expect(result.deload.status).toBe('notEnoughData');
+    expect(reportRepository.getExerciseEntries).toHaveBeenCalledWith(
+      USER,
+      '2026-08-24',
+      '2026-10-02'
+    );
+    vi.useRealTimers();
+  });
+});

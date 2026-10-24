@@ -25,6 +25,23 @@ import {
   useAvailableEquipment,
   useAvailableExercises,
   useAvailableMuscleGroups,
+  useStrengthVolume,
+  useWorkoutDays,
+} from '@/hooks/Reports/useReports';
+import TrainingConsistencyCard from './TrainingConsistencyCard';
+import StrengthVolumeCard from './StrengthVolumeCard';
+import MuscleGroupRecoveryTracker from './MuscleGroupRecoveryTracker';
+import { PrProgressionChart } from './PrProgressionChart';
+import ExerciseVarietyScore from './ExerciseVarietyScore';
+import SetPerformanceAnalysisChart from './SetPerformanceAnalysisChart';
+import { usePreferences } from '@/contexts/PreferencesContext';
+import { useActiveUser } from '@/contexts/ActiveUserContext';
+import { parseISO } from 'date-fns';
+import { useExerciseProgressQueries } from '@/hooks/Exercises/useExercises';
+import {
+  useAvailableEquipment,
+  useAvailableExercises,
+  useAvailableMuscleGroups,
 } from '@/hooks/Exercises/useExerciseSearch';
 import { ExerciseDashboardData } from '@/types/reports';
 import {
@@ -182,6 +199,8 @@ const ExerciseReportsDashboard = ({
   const { data: trainingConsistency } = useTrainingConsistency(activeUserId);
   const { data: fitnessFatigue } = useFitnessFatigue(activeUserId);
   const { data: runEstimates } = useRunEstimates(activeUserId);
+
+  const { data: strengthVolume } = useStrengthVolume(activeUserId);
 
   const { data: statsSummary } = useExerciseStatsSummary(
     statsInterval,
@@ -876,6 +895,7 @@ const ExerciseReportsDashboard = ({
           <FitnessFatigueCard data={fitnessFatigue} />
           <RunEstimatesCard data={runEstimates} />
           <TrainingConsistencyCard data={trainingConsistency} />
+          <StrengthVolumeCard data={strengthVolume} />
         </div>
 
         {/* Right Side: Workout Heatmap Calendar */}

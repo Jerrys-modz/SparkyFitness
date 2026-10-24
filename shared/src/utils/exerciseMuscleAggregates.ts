@@ -5,13 +5,16 @@ export interface MuscleSet {
   reps?: number | null;
   weight?: number | null;
   duration?: number | null;
+  rpe?: number | null;
+  rir?: number | null;
 }
 
 export interface MuscleEntry {
   entry_date?: string;
   exercise_name?: string;
-  exercises?: { primary_muscles?: unknown } | null;
+  exercises?: { primary_muscles?: unknown; secondary_muscles?: unknown } | null;
   exercise_primary_muscles?: unknown;
+  exercise_secondary_muscles?: unknown;
   sets?: MuscleSet[] | null;
 }
 
@@ -64,6 +67,15 @@ export function primaryMusclesOf(entry: MuscleEntry): string[] {
     return asMuscleNames(parseJsonArray(nested));
   }
   return asMuscleNames(parseJsonArray(entry.exercise_primary_muscles));
+}
+
+/** Secondary muscles, read from the same two shapes as `primaryMusclesOf`. */
+export function secondaryMusclesOf(entry: MuscleEntry): string[] {
+  const nested = entry.exercises?.secondary_muscles;
+  if (nested !== undefined && nested !== null) {
+    return asMuscleNames(parseJsonArray(nested));
+  }
+  return asMuscleNames(parseJsonArray(entry.exercise_secondary_muscles));
 }
 
 export function calculateMuscleGroupRecovery(
