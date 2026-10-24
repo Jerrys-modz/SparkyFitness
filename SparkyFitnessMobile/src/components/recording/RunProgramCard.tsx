@@ -529,6 +529,8 @@ const RunProgramCard: React.FC<Props> = ({
       })
     : '';
   const today = toLocalDateString(new Date(now));
+  // Goal dates (the race day) are judged in the account timezone.
+  const goalToday = accountToday ?? today;
   const hasStart = !!schedule.startDay;
   const futureStart = hasStart && (schedule.startDay as string) > today;
   const dayLabel = (day: string): string => formatDayLabel(day);
@@ -719,7 +721,7 @@ const RunProgramCard: React.FC<Props> = ({
                   })}
             </InlineLink>
             {raceDay &&
-            raceDay > (accountToday ?? today) &&
+            raceDay > goalToday &&
             schedule.endDay !== raceDay ? (
               <InlineLink
                 testID="run-program-use-race-day"
@@ -807,9 +809,9 @@ const RunProgramCard: React.FC<Props> = ({
       </View>
       <CalendarSheet
         ref={goalCalendarRef}
-        selectedDate={schedule.endDay ?? addDays(today, 28)}
+        selectedDate={schedule.endDay ?? addDays(goalToday, 28)}
         onSelectDate={(day) =>
-          onSchedule({ endDay: day <= today ? null : day })
+          onSchedule({ endDay: day <= goalToday ? null : day })
         }
       />
       <CalendarSheet
