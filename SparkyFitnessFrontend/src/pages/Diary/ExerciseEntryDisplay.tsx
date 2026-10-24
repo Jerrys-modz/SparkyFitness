@@ -17,7 +17,11 @@ import {
 import { Edit, Trash2, Settings, Play, Link2 } from 'lucide-react';
 import { formatWeight } from '@/utils/numberFormatting';
 import { usePreferences } from '@/contexts/PreferencesContext';
-import { carryDistanceFromKm, carryDistanceUnitLabel } from '@workspace/shared';
+import {
+  carryDistanceFromKm,
+  carryDistanceUnitLabel,
+  isAppLoggedWorkoutSource,
+} from '@workspace/shared';
 import { formatMinutesToHHMM } from '@/utils/timeFormatters';
 import { ExerciseEntry, Exercise } from '@/types/exercises';
 import {
@@ -424,7 +428,7 @@ const ExerciseEntryDisplay: React.FC<ExerciseEntryDisplayProps> = ({
           />
         )}
         {onLink &&
-          exerciseEntry.source === 'manual' &&
+          isAppLoggedWorkoutSource(exerciseEntry.source) &&
           !exerciseEntry.exercise_preset_entry_id &&
           !isActiveCalories && (
             <ActionButton

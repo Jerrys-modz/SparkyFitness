@@ -98,6 +98,7 @@ import {
   canEditGroupedWorkout,
   effectiveLoadKg,
   entryCaloriesCounted,
+  isAppLoggedWorkoutSource,
   isBodyweightModality,
   resolveExerciseModality,
 } from '@workspace/shared';
@@ -186,8 +187,9 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const canEdit = canEditGroupedWorkout(session.source);
   // Linking works on the whole session, so any of its exercises will do. Only
   // a workout logged in the app can be linked to a synced one.
-  const linkEntryId =
-    session.exercises[0]?.source === 'manual' ? session.exercises[0].id : null;
+  const linkEntryId = isAppLoggedWorkoutSource(session.exercises[0]?.source)
+    ? session.exercises[0].id
+    : null;
   const isLinked = session.exercises.some((ex) => !!ex.calorie_link_resolution);
   const entryDate = session.entry_date ?? '';
   const normalizedDate = normalizeDate(entryDate);
@@ -686,7 +688,16 @@ const WorkoutDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     const totalCalories = isEditing
       ? formState.exercises.reduce((sum, ex) => {
           const cal = parseDecimalInput(ex.calories ?? '');
-          return sum + (isNaN(cal) ? 0 : cal);
+          const saved = session.exercises.find(
+            (entry) => entry.id === ex.serverId
+          );
+          return (
+            sum +
+            entryCaloriesCounted({
+              calories_burned: isNaN(cal) ? 0 : cal,
+              calories_applied: saved?.calories_applied,
+            })
+          );
         }, 0)
       : session.exercises.reduce(
           (sum, ex) => sum + entryCaloriesCounted(ex),

@@ -2,6 +2,7 @@ import { vi, beforeEach, describe, expect, it } from 'vitest';
 import {
   CALORIE_LINK_MATCH_SLACK_MS,
   distributeCountedCalories,
+  isAppLoggedWorkoutSource,
   matchCalorieLink,
   resolveLinkedCalories,
 } from '@workspace/shared';
@@ -191,7 +192,7 @@ describe('getCalorieLinkSuggestions', () => {
     answer([
       [/FROM exercise_entry_sets/, [{ completed_at: at }]],
       [
-        /source <> 'manual'/,
+        /NOT IN \('manual', 'sparky'\)/,
         [
           syncedRow({
             id: 's-early',
@@ -489,5 +490,18 @@ describe('clearCalorieLinksOfEntriesWithClient', () => {
       'calories_applied = NULL'
     );
     expect(query.mock.calls[0]![1]).toEqual(['u1', ['s1', 's2']]);
+  });
+});
+
+describe('isAppLoggedWorkoutSource', () => {
+  it('treats manual and in-app workout flow entries as app-logged', () => {
+    expect(isAppLoggedWorkoutSource('manual')).toBe(true);
+    expect(isAppLoggedWorkoutSource('Sparky')).toBe(true);
+  });
+
+  it('rejects provider-synced and missing sources', () => {
+    expect(isAppLoggedWorkoutSource('HealthKit')).toBe(false);
+    expect(isAppLoggedWorkoutSource('garmin')).toBe(false);
+    expect(isAppLoggedWorkoutSource(null)).toBe(false);
   });
 });

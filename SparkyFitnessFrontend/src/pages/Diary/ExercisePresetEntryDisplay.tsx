@@ -31,6 +31,7 @@ import { Exercise, ExerciseEntry, PresetSessionEntry } from '@/types/exercises';
 import {
   earliestEntryTime,
   entryCaloriesCounted,
+  isAppLoggedWorkoutSource,
   setsDurationMinutes,
 } from '@workspace/shared';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
@@ -80,8 +81,9 @@ const ExercisePresetEntryDisplay: React.FC<ExercisePresetEntryDisplayProps> = ({
 
   // Linking works on the whole session, so any of its exercises will do.
   const linkableEntry = presetEntry.exercises?.[0];
-  const linkableEntryId =
-    linkableEntry?.source === 'manual' ? linkableEntry.id : null;
+  const linkableEntryId = isAppLoggedWorkoutSource(linkableEntry?.source)
+    ? (linkableEntry?.id ?? null)
+    : null;
 
   const toggleExpansion = useCallback(() => {
     setIsExpanded((prev) => !prev);

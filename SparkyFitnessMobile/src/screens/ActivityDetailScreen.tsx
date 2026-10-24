@@ -59,7 +59,10 @@ import { addLog } from '../services/LogService';
 import type { RootStackScreenProps } from '../types/navigation';
 import type { WorkoutDraftSet } from '../types/drafts';
 import type { ExerciseEntrySetResponse } from '@workspace/shared';
-import { canEditGroupedWorkout } from '@workspace/shared';
+import {
+  canEditGroupedWorkout,
+  isAppLoggedWorkoutSource,
+} from '@workspace/shared';
 
 type Props = RootStackScreenProps<'ActivityDetail'>;
 
@@ -106,7 +109,7 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
   // Only a workout logged in the app can be linked to a synced one.
   const canLinkSynced =
-    session.source === 'manual' &&
+    isAppLoggedWorkoutSource(session.source) &&
     session.exercise_snapshot?.name !== 'Active Calories';
 
   const firstImage = session.exercise_snapshot?.images?.[0];

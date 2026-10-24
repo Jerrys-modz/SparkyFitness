@@ -578,6 +578,9 @@ async function applyWatchTelemetryAtomically(
   try {
     await client.query('BEGIN');
     try {
+      // Advisory locks before the row lock. Taking the row first and then
+      // waiting on a link another transaction already holds deadlocks.
+      await lockCalorieLinkParticipantsWithClient(client, userId, [id]);
       const locked = await client.query(
         'SELECT * FROM exercise_entries WHERE id = $1 AND user_id = $2 FOR UPDATE',
         [id, userId]
@@ -589,6 +592,7 @@ async function applyWatchTelemetryAtomically(
             active_calories?: unknown;
             watch_telemetry_observed_at?: unknown;
             exercise_preset_entry_id?: string | null;
+            calorie_link_id?: string | null;
           }
         | undefined;
       if (!entry) {
@@ -639,6 +643,15 @@ async function applyWatchTelemetryAtomically(
       }
       if (!skipHr && onHrAccepted) {
         await onHrAccepted();
+      }
+      // Measured calories replace the estimate. A linked workout has to
+      // recount both sides from that new estimate before this transaction ends.
+      if (fields.calories_burned !== undefined && entry.calorie_link_id) {
+        await reapplyCalorieLinkWithClient(
+          client,
+          userId,
+          entry.calorie_link_id
+        );
       }
       await client.query('COMMIT');
     } catch (error) {
@@ -1425,6 +1438,7 @@ async function _deleteExerciseEntryWithClient(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   id: any
 ) {
+  await lockCalorieLinkParticipantsWithClient(client, userId, [id]);
   await clearCalorieLinkOfEntryWithClient(client, userId, id);
   const result = await client.query(
     'DELETE FROM exercise_entries WHERE id = $1 AND user_id = $2 RETURNING id',
@@ -1561,6 +1575,7 @@ async function deleteExerciseEntry(id: any, userId: any) {
   const client = await getClient(userId);
   try {
     await client.query('BEGIN');
+    await lockCalorieLinkParticipantsWithClient(client, userId, [id]);
     await clearCalorieLinkOfEntryWithClient(client, userId, id);
     const result = await client.query(
       'DELETE FROM exercise_entries WHERE id = $1 AND user_id = $2 RETURNING id',
