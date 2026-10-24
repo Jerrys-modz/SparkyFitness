@@ -98,7 +98,7 @@ export interface DailyExerciseEntry {
     rest_time?: number; // seconds
     notes?: string;
   }[];
-  [key: string]: string | number | boolean | object | undefined;
+  [key: string]: string | number | boolean | object | null | undefined;
 }
 
 export interface ExerciseDashboardData extends ExerciseDashboardSummary {
