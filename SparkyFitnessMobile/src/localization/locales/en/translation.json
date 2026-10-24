@@ -6769,6 +6769,7 @@
       },
       "kilometersAxis": "Kilometers from start",
       "milesAxis": "Miles from start",
+      "splits": "Splits",
       "bestPace": "Best {{value}}",
       "perKm": "/km",
       "perMile": "/mi",
@@ -7287,6 +7288,13 @@
     "currentPace": "Pace",
     "elevationGain": "Elevation gain",
     "splits": "Splits",
+    "splitsTable": {
+      "km": "Km",
+      "mi": "Mi",
+      "pace": "Pace",
+      "elev": "Elev",
+      "hr": "HR"
+    },
     "laps": "Laps",
     "lap": "Lap",
     "lapLabel": "Lap {{number}}",
