@@ -1,6 +1,7 @@
 import pg from 'pg';
 import { log } from '../config/logging.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { requestConnectRetry, retryOnConnectionError } from './connectRetry.js';
 const { Pool, types } = pg;
 
 export const dbContextStorage = new AsyncLocalStorage<{
@@ -83,6 +84,8 @@ function _getRawAppPool() {
 /**
  * Borrows a client with RLS context set for the target user and authenticated actor.
  * The caller must release it in a finally block; failed context setup discards it.
+ * Connection errors while acquiring or setting the context are retried for a
+ * few seconds; the caller's own statements are never retried.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getClient(
@@ -94,24 +97,28 @@ async function getClient(
       'userId is required for getClient to ensure RLS is applied.'
     );
   }
-  const client = await _getRawAppPool().connect();
   const store = dbContextStorage.getStore();
   const actualAuthUserId =
     authenticatedUserId || store?.authenticatedUserId || userId;
-  try {
-    await client.query('SELECT public.set_app_context($1, $2)', [
-      userId,
-      actualAuthUserId,
-    ]);
-    return client;
-  } catch (error) {
-    client.release(true);
-    throw error;
-  }
+  return retryOnConnectionError(async () => {
+    const client = await _getRawAppPool().connect();
+    try {
+      await client.query('SELECT public.set_app_context($1, $2)', [
+        userId,
+        actualAuthUserId,
+      ]);
+      return client;
+    } catch (error) {
+      client.release(true);
+      throw error;
+    }
+  }, requestConnectRetry);
 }
 async function getSystemClient() {
-  const client = await _getRawOwnerPool().connect();
-  return client;
+  return retryOnConnectionError(
+    async () => _getRawOwnerPool().connect(),
+    requestConnectRetry
+  );
 }
 // node-pg counters for the app pool, for the admin-only dev tools. Guards
 // against an uninitialized pool.
