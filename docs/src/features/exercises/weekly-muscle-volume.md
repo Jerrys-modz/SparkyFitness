@@ -38,9 +38,9 @@ A muscle listed as both primary and secondary for one exercise counts once, as p
 
 Why these numbers (they are named constants, `WEEKLY_HARD_SETS_MIN` and `WEEKLY_HARD_SETS_MAX`, in `shared/src/utils/muscleVolume.ts`):
 
-- **10 as the minimum.** The Schoenfeld, Ogborn and Krieger (2017) dose-response meta-analysis found clearly more growth at 10 or more weekly sets per muscle than at fewer than 5 or 5 to 9.
+- **10 as the minimum.** In the Schoenfeld, Ogborn and Krieger (2017) dose-response meta-analysis, muscle growth rose with weekly sets per muscle, with the clearest gains at 10 or more. The authors read 10 as the point where gains were seen; the formal comparison between the fewer-than-5, 5-to-9 and 10-or-more bands was a trend, not a firm cutoff, so treat 10 as a guide.
 - **20 as the maximum.** Later meta-regressions show returns shrinking well before this point, and the common coaching view is that most people's recoverable limit sits around or above 20 sets per muscle, where extra volume mostly adds fatigue.
-- **Near-effort only.** Sets stopped within about four reps of failure give most of the growth stimulus; sets stopped far short of it add little (see the Refalo et al., 2023 meta-analysis on proximity to failure). That is why sets logged easier than RPE 6 or with more than 4 RIR are left out.
+- **Near-effort only.** Sets stopped within about four reps of failure are generally treated as the ones that count, and sets stopped far short of it as warm-up-like work. The Refalo et al. (2023) meta-analysis on proximity to failure found no evidence that training to failure beats stopping short of it for growth (a very small, borderline edge for failure); it does not say how far short is too far, so the four-rep line is a convention. That is why sets logged easier than RPE 6 or with more than 4 RIR are left out.
 - **Half a set for secondary muscles.** A common convention for fractional counting; the results are not sensitive to the exact fraction.
 
 This is a guide for training a muscle to grow, not a prescription. A muscle you only want to maintain can sit lower, and advanced lifters may tolerate more. A muscle you trained in the last four weeks but not last week shows as Under with 0 sets.

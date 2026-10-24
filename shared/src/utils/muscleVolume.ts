@@ -26,10 +26,10 @@ export const SECONDARY_MUSCLE_SET_WEIGHT = 0.5;
 /**
  * A set is "hard" when it ends within four reps of failure: RPE 6 or higher,
  * or 4 or fewer reps in reserve. Sets stopped further from failure add little
- * stimulus per set (Refalo et al. 2023 found similar growth from sets taken
- * to failure and sets stopped a few reps short, while sets stopped far from
- * failure are generally treated as warm-up-like work), so a set logged easier
- * than this does not count. A set with no RPE or RIR
+ * stimulus per set (Refalo et al. 2023 found no evidence that sets taken to
+ * failure beat sets stopped short of it; the four-rep line is a convention,
+ * and sets stopped far from failure are generally treated as warm-up-like
+ * work), so a set logged easier than this does not count. A set with no RPE or RIR
  * is assumed to be a normal working set and counts.
  */
 export const HARD_SET_MIN_RPE = 6;
@@ -39,9 +39,9 @@ export const HARD_SET_MAX_RIR = 4;
  * Weekly hard sets per muscle that are worth aiming for. Below the minimum is
  * flagged as under-trained, above the maximum as over-trained.
  *
- * Minimum 10: Schoenfeld, Ogborn and Krieger (2017) pooled studies and found
- * clearly more muscle growth at 10 or more weekly sets per muscle than at
- * fewer than 5 or 5-9. Maximum 20: the same line of research, and the later
+ * Minimum 10: Schoenfeld, Ogborn and Krieger (2017) pooled studies and saw
+ * muscle growth rise with weekly sets, clearest at 10 or more (the formal
+ * comparison between volume bands was only a trend, so 10 is a guide). Maximum 20: the same line of research, and the later
  * meta-regressions, show returns shrinking well before this point, and the
  * coaching convention (maximum recoverable volume) puts most people's limit
  * near or above 20 sets, where more volume mostly adds fatigue. This is a
