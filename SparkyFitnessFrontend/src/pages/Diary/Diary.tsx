@@ -384,6 +384,12 @@ const Diary = () => {
             selectedDate={selectedDate}
             dayTotals={dayTotals as unknown as DayTotals}
             goals={effectiveGoals}
+            calorieBudget={
+              summaryData?.calorieBalance
+                ? summaryData.calorieBalance.eaten +
+                  summaryData.calorieBalance.remaining
+                : undefined
+            }
             energyUnit={energyUnit}
             convertEnergy={convertEnergy}
             customNutrients={customNutrients}
@@ -481,6 +487,7 @@ const Diary = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     effectiveGoals,
+    summaryData?.calorieBalance,
     visibleMealTypes,
     selectedDate,
     dayTotals,

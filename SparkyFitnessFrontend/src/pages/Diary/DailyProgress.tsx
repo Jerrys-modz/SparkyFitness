@@ -48,6 +48,7 @@ import {
   ADAPTIVE_TDEE_GOAL_MIN_DAYS,
   calculateBmr,
   computeExerciseCredited,
+  computeCalorieProgress,
   normalizeCalorieGoalAdjustmentMode,
   resolveCalorieSafetyFloor,
   DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
@@ -233,14 +234,9 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
   const effectiveRemaining = isTargetBand
     ? Math.round(effectiveTargetGoal - display.eaten + exerciseBonus)
     : display.remaining;
-  const effectiveProgress =
-    isTargetBand && effectiveTargetGoal > 0
-      ? Math.max(
-          0,
-          ((effectiveTargetGoal - effectiveRemaining) / effectiveTargetGoal) *
-            100
-        )
-      : calorieProgress;
+  const effectiveProgress = isTargetBand
+    ? computeCalorieProgress(display.eaten, effectiveRemaining)
+    : calorieProgress;
 
   const displayWeight = weightData?.weight || 70;
   const displayHeight = heightData?.height || 170;
