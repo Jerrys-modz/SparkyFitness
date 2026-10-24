@@ -66,6 +66,7 @@ export default defineConfig({
         items: [
           { text: 'Feature Comparison', link: '/features/comparison' },
           { text: 'Diary & Nutrition', link: '/features/diary/meals' },
+          { text: 'Reports', link: '/features/reports' }, 
           { text: 'Exercise Logging', link: '/features/exercises/exercise-search' },
           { text: 'Food Database', link: '/features/food/food-search' },
           { text: 'AI Nutrition Assistant', link: '/features/ai-assistant' },
@@ -228,6 +229,7 @@ export default defineConfig({
           text: 'Mobile Application',
           items: [
             { text: 'Mobile App Guide', link: '/mobile-app/mobile-app' },
+            { text: 'Watch Apps (Apple Watch & Wear OS)', link: '/mobile-app/watch-apps' },
             { text: 'Proxy Setup', link: '/mobile-app/proxy-setup' },
             { text: 'Troubleshooting', link: '/mobile-app/troubleshooting' },
           ],

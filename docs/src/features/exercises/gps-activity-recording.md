@@ -280,8 +280,6 @@ If your Apple Watch or Health Connect source records **VO2 max**, turn on VO2 ma
 ## Not included yet
 
 - Live Activity and lock-screen stats.
-- Tracking with the watch's own GPS, on Apple Watch or Wear OS, so the phone can stay behind.
-- Wear OS controls and heart rate.
 
 After a program workout is saved, the summary asks how hard it was, from 1 (very easy) to 10 (all out), and keeps your answer with the program. A rating of 8 or more offers to repeat the workout, and 3 or less offers to skip the next one. Two hard or two easy workouts in a row get a note, and Sparky can see your recent ratings when you ask how your program is going. Nothing in the program changes unless you tap the button or agree to something Sparky suggests.
 
