@@ -36,7 +36,8 @@ function dynamicBodyValues(response: string): string[] {
   const code = response
     .replace(/\/\/[^\n]*/g, '')
     .replace(/'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`[^`$]*`/g, "''")
-    .replace(/publicErrorMessage\([^()]*\)/g, "''");
+    // Only with no fallback or a literal one: a dynamic fallback is sent as is.
+    .replace(/publicErrorMessage\(\s*[\w$.]+\s*(?:,\s*'')?\s*\)/g, "''");
   const body = code.match(/\.(?:json|send)\(([\s\S]*)$/)?.[1];
   if (body === undefined) return [];
   return (
@@ -87,6 +88,7 @@ describe('hand-written 5xx responses', () => {
     'res.status(502).json({ error })',
     'res.status(500).json(result)',
     'res.status(500).send(String(err))',
+    'res.status(500).json({ error: publicErrorMessage(error, error.message) })',
   ])('flags %s', (response) => {
     expect(dynamicBodyValues(response)).not.toEqual([]);
   });
@@ -94,6 +96,7 @@ describe('hand-written 5xx responses', () => {
   it.each([
     "res.status(500).json({ error: 'Failed to fetch' })",
     "res.status(500).json({ message: 'Failed', error: publicErrorMessage(error) })",
+    "res.status(500).json({ error: publicErrorMessage(error, 'Sync failed.') })",
     "res.status(503).json({ ok: false, code: 'DB_DOWN' })",
     'res.status(500).end()',
   ])('accepts %s', (response) => {
