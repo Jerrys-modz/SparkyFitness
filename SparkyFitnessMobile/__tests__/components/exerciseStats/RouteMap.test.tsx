@@ -105,4 +105,21 @@ describe('RouteMap', () => {
     expect(screen.queryByTestId('map-view', HIDDEN)).toBeNull();
     expect(screen.getByLabelText('Route').props.testID).toBeUndefined();
   });
+
+  it('marks stops on a real map, and ignores them on the plain line', () => {
+    const stops = [
+      { kind: 'water' as const, name: null, lat: 51.501, lon: -0.119 },
+    ];
+    const onMap = render(
+      <RouteMap points={ROUTE} accessibilityLabel="Route" stops={stops} />
+    );
+    expect(onMap.getAllByTestId('route-stop-marker', HIDDEN)).toHaveLength(1);
+
+    mockCanShowRouteMap.mockReturnValue(false);
+    const plain = render(
+      <RouteMap points={ROUTE} accessibilityLabel="Route" stops={stops} />
+    );
+    expect(plain.queryByTestId('route-stop-marker', HIDDEN)).toBeNull();
+    expect(plain.queryByTestId('map-view', HIDDEN)).toBeNull();
+  });
 });
