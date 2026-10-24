@@ -10,6 +10,7 @@ vi.mock('../services/exerciseStatsService.js', () => ({
   default: {
     getPersonalRecordMatrix: vi.fn(),
     getMatchedCourses: vi.fn(),
+    getBestEfforts: vi.fn(),
   },
 }));
 vi.mock('../utils/permissionUtils.js', () => ({
@@ -89,5 +90,20 @@ describe.each([
     const res = await request(app).get(`${path}?unitSystem=Imperial`);
     expect(res.status).toBe(400);
     expect(exerciseStatsService[serviceMethod]).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /exercise-stats/best-efforts', () => {
+  it('returns the board for the authenticated user', async () => {
+    const board = { efforts: [], runsAnalyzed: 0, truncated: false };
+    (
+      exerciseStatsService.getBestEfforts as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(board);
+    const res = await request(app).get('/exercise-stats/best-efforts');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(board);
+    expect(exerciseStatsService.getBestEfforts).toHaveBeenCalledWith(
+      'user-123'
+    );
   });
 });
