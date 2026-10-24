@@ -468,7 +468,7 @@ export function computeCalorieBalance({
     tdeeAdjustment,
   });
 
-  const progress = computeCalorieProgress(goalCalories, remaining);
+  const progress = computeCalorieProgress(eatenCalories, remaining);
 
   return {
     eaten: Math.round(eatenCalories),
