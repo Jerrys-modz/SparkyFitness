@@ -82,6 +82,27 @@ function fetchDirect(url: string): Promise<GitHubRawRelease> {
   });
 }
 
+/**
+ * SPARKY_FITNESS_DISABLE_VERSION_CHECK=true switches the GitHub release check
+ * off entirely: no request leaves the server and the app behaves as if it is
+ * on the latest version. For deployments where updates are managed outside
+ * the app (Renovate, Watchtower, a package manager) or that must not call
+ * out to api.github.com.
+ */
+function isVersionCheckDisabled(): boolean {
+  return process.env.SPARKY_FITNESS_DISABLE_VERSION_CHECK === 'true';
+}
+
+function localVersionFallback(currentVersion: string): GitHubReleaseResponse {
+  return {
+    version: `v${currentVersion}`,
+    releaseNotes: '',
+    publishedAt: new Date().toISOString(),
+    htmlUrl: '',
+    isNewVersionAvailable: false,
+  };
+}
+
 // Function to get the application version from package.json
 function getAppVersion(): string {
   try {
@@ -98,6 +119,15 @@ async function getLatestGitHubRelease(
   bypassCache = false
 ): Promise<GitHubReleaseResponse> {
   const currentVersion = getAppVersion();
+
+  if (isVersionCheckDisabled()) {
+    log(
+      'debug',
+      'GitHub release check is disabled (SPARKY_FITNESS_DISABLE_VERSION_CHECK=true); reporting the local version.'
+    );
+    return localVersionFallback(currentVersion);
+  }
+
   const now = Date.now();
 
   const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
@@ -182,13 +212,7 @@ async function getLatestGitHubRelease(
     );
 
     // Graceful fallback: assume no update is available so the app functions normally
-    return {
-      version: `v${currentVersion}`,
-      releaseNotes: '',
-      publishedAt: new Date().toISOString(),
-      htmlUrl: '',
-      isNewVersionAvailable: false,
-    };
+    return localVersionFallback(currentVersion);
   }
 }
 
