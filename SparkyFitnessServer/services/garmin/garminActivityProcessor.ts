@@ -809,11 +809,15 @@ export async function processGarminWorkoutDefinition(
               // converting unconditionally stored ~45% of the true load for
               // accounts configured in kilograms. WorkoutReportVisualizer.tsx
               // reads the same DTO shape and must stay in sync with this.
-              const stepWeightKg = individualStep.weightValue
-                ? individualStep.weightUnit?.unitKey === 'pound'
-                  ? individualStep.weightValue * 0.453592
-                  : individualStep.weightValue
-                : 0;
+              // Garmin sends weightValue -1 when a step has no weight set, so
+              // anything that is not a positive number means "no weight".
+              const rawStepWeight = individualStep.weightValue;
+              const stepWeightKg =
+                typeof rawStepWeight === 'number' && rawStepWeight > 0
+                  ? individualStep.weightUnit?.unitKey === 'pound'
+                    ? rawStepWeight * 0.453592
+                    : rawStepWeight
+                  : 0;
 
               const sets = [
                 {
