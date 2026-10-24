@@ -51,6 +51,12 @@ const UNTRACKED_MAX_RATIO = 1.05;
 /** Activities whose tracks are loaded per query when looking for best splits. */
 const TRACK_BATCH_SIZE = 25;
 
+/** Distance spread within which activities of one course are comparable. */
+const COURSE_DISTANCE_TOLERANCE = 0.05;
+
+/** Most activities of one course read when looking for its best time. */
+const COURSE_MAX_ACTIVITIES = 500;
+
 /** Most activities one PR request will look at. */
 const PR_MAX_ACTIVITIES = 5000;
 
@@ -1052,8 +1058,7 @@ async function getMatchedCourses(
         exercise_name,
         category,
         COUNT(id) as activity_count,
-        AVG(distance) as avg_distance_km,
-        MIN(duration_minutes) as min_duration
+        AVG(distance) as avg_distance_km
       FROM public.exercise_entries
       WHERE user_id = $1 
         AND distance > 0.5 
@@ -1071,54 +1076,74 @@ async function getMatchedCourses(
 
     for (const row of coursesResult.rows) {
       const avgDistKm = parseFloat(String(row.avg_distance_km || '0'));
-      const minDurMins = parseFloat(String(row.min_duration || '0'));
       const courseKey = String(row.course_key);
 
-      const recentSql = `
+      // Every activity of the course, newest first: the recent list shows the
+      // first few, the best time is found across all of them.
+      const activitiesSql = `
         SELECT id, exercise_name, entry_date, duration_minutes, distance, avg_heart_rate
         FROM public.exercise_entries
         WHERE user_id = $1 AND LOWER(exercise_name) = $2
         ORDER BY entry_date DESC
-        LIMIT 5
+        LIMIT ${COURSE_MAX_ACTIVITIES}
       `;
-      const recentRes = await client.query(recentSql, [
+      const activitiesRes = await client.query(activitiesSql, [
         targetUserId,
         courseKey,
       ]);
 
-      const recentActivities = recentRes.rows.map((act: SqlRow) => {
-        const dKm = parseFloat(String(act.distance || '0'));
-        const dMins = parseFloat(String(act.duration_minutes || '0'));
-        const roundedDMins = Math.round(dMins * 10) / 10;
-        const paceSecs = dKm > 0 ? Math.round((dMins * 60) / dKm) : 0;
-        return {
-          activityId: String(act.id),
-          activityName: String(act.exercise_name || 'Activity'),
-          entryDate:
-            act.entry_date instanceof Date
-              ? toDayString(act.entry_date)
-              : String(act.entry_date),
-          durationMinutes: roundedDMins,
-          avgPaceFormatted: formatPace(paceSecs, unitSystem),
-          avgHeartRate: act.avg_heart_rate
-            ? Math.round(parseFloat(String(act.avg_heart_rate)))
-            : null,
-        };
-      });
+      const recentActivities = activitiesRes.rows
+        .slice(0, 5)
+        .map((act: SqlRow) => {
+          const dKm = parseFloat(String(act.distance || '0'));
+          const dMins = parseFloat(String(act.duration_minutes || '0'));
+          const roundedDMins = Math.round(dMins * 10) / 10;
+          const paceSecs = dKm > 0 ? Math.round((dMins * 60) / dKm) : 0;
+          return {
+            activityId: String(act.id),
+            activityName: String(act.exercise_name || 'Activity'),
+            entryDate:
+              act.entry_date instanceof Date
+                ? toDayString(act.entry_date)
+                : String(act.entry_date),
+            durationMinutes: roundedDMins,
+            avgPaceFormatted: formatPace(paceSecs, unitSystem),
+            avgHeartRate: act.avg_heart_rate
+              ? Math.round(parseFloat(String(act.avg_heart_rate)))
+              : null,
+          };
+        });
 
-      // bestPace: find the best (fastest) pace across recent activities
-      // using each activity's own duration and distance so it's a real pace
-      let bestPaceSecs = 0;
-      for (const act of recentRes.rows) {
+      // A course is matched by name, so its activities can differ in length (a
+      // shortened loop, an extended one). The best time is only compared across
+      // activities close to the course's own distance, as the pace over that
+      // distance, so a short version can never post a faster "course time".
+      const measured: { distKm: number; paceSecs: number }[] = [];
+      for (const act of activitiesRes.rows) {
         const dKm = parseFloat(String(act.distance || '0'));
         const dMins = parseFloat(String(act.duration_minutes || '0'));
-        if (dKm > 0) {
-          const pace = Math.round((dMins * 60) / dKm);
-          if (bestPaceSecs === 0 || pace < bestPaceSecs) {
-            bestPaceSecs = pace;
-          }
+        if (dKm > 0 && dMins > 0) {
+          measured.push({ distKm: dKm, paceSecs: (dMins * 60) / dKm });
         }
       }
+      let comparable = measured.filter(
+        ({ distKm }) =>
+          Math.abs(distKm - avgDistKm) <= avgDistKm * COURSE_DISTANCE_TOLERANCE
+      );
+      if (comparable.length === 0 && measured.length > 0) {
+        // A course whose runs are all different lengths: use the one nearest
+        // the average rather than showing no time.
+        const nearest = measured.reduce((best, m) =>
+          Math.abs(m.distKm - avgDistKm) < Math.abs(best.distKm - avgDistKm)
+            ? m
+            : best
+        );
+        comparable = [nearest];
+      }
+      const bestPaceSecs =
+        comparable.length > 0
+          ? Math.round(Math.min(...comparable.map((m) => m.paceSecs)))
+          : 0;
 
       courses.push({
         courseId: `course-${courseKey.replace(/\s+/g, '-')}`,
@@ -1133,7 +1158,7 @@ async function getMatchedCourses(
         totalDistanceMeters: Math.round(avgDistKm * 1000),
         avgDistanceFormatted: convertDistance(avgDistKm, unitSystem),
         activityCount: parseInt(String(row.activity_count), 10),
-        bestTimeSeconds: Math.round(minDurMins * 60),
+        bestTimeSeconds: Math.round(bestPaceSecs * avgDistKm),
         bestPaceFormatted: formatPace(bestPaceSecs, unitSystem),
         recentActivities,
       });

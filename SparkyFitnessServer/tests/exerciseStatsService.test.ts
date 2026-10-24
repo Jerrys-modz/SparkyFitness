@@ -860,6 +860,95 @@ describe('exerciseStatsService', () => {
       expect(mockClient.release).toHaveBeenCalled();
     });
 
+    // A course is matched by name, so a shortened version of the loop must not
+    // post a faster "course time" than the full loop.
+    it('does not let a shorter run of the same name set the course time', async () => {
+      mockClient.query.mockResolvedValueOnce({
+        rows: [
+          {
+            course_key: 'river loop',
+            exercise_name: 'River Loop',
+            category: 'running',
+            activity_count: '3',
+            avg_distance_km: 8.0,
+          },
+        ],
+      });
+      mockClient.query.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'full',
+            exercise_name: 'River Loop',
+            entry_date: new Date('2026-07-24'),
+            duration_minutes: 40, // 5:00 /km over 8 km
+            distance: 8.0,
+            avg_heart_rate: 150,
+          },
+          {
+            id: 'cut-short',
+            exercise_name: 'River Loop',
+            entry_date: new Date('2026-07-20'),
+            duration_minutes: 20, // only 4 km
+            distance: 4.0,
+            avg_heart_rate: 150,
+          },
+          {
+            id: 'faster-full',
+            exercise_name: 'River Loop',
+            entry_date: new Date('2026-06-01'),
+            duration_minutes: 38,
+            distance: 8.0,
+            avg_heart_rate: 150,
+          },
+        ],
+      });
+
+      const res = await exerciseStatsService.getMatchedCourses('user-123');
+
+      expect(res.courses[0].bestTimeSeconds).toBe(38 * 60);
+      expect(res.courses[0].bestPaceFormatted).toBe('4:45 /km');
+    });
+
+    it('finds the best time across more than the five most recent runs', async () => {
+      mockClient.query.mockResolvedValueOnce({
+        rows: [
+          {
+            course_key: 'hill loop',
+            exercise_name: 'Hill Loop',
+            category: 'running',
+            activity_count: '7',
+            avg_distance_km: 5.0,
+          },
+        ],
+      });
+      const recent = Array.from({ length: 6 }, (_, i) => ({
+        id: `recent-${i}`,
+        exercise_name: 'Hill Loop',
+        entry_date: new Date(`2026-07-${20 - i}`),
+        duration_minutes: 30,
+        distance: 5.0,
+        avg_heart_rate: 150,
+      }));
+      mockClient.query.mockResolvedValueOnce({
+        rows: [
+          ...recent,
+          {
+            id: 'old-best',
+            exercise_name: 'Hill Loop',
+            entry_date: new Date('2025-01-01'),
+            duration_minutes: 25,
+            distance: 5.0,
+            avg_heart_rate: 150,
+          },
+        ],
+      });
+
+      const res = await exerciseStatsService.getMatchedCourses('user-123');
+
+      expect(res.courses[0].recentActivities.length).toBe(5);
+      expect(res.courses[0].bestTimeSeconds).toBe(25 * 60);
+    });
+
     it('no longer labels every course as running', async () => {
       mockClient.query.mockResolvedValueOnce({
         rows: [
