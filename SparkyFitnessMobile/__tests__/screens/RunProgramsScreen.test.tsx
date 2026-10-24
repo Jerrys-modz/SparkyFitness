@@ -21,6 +21,7 @@ import {
 } from '../../src/services/runProgramService';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useRunGoals } from '../../src/hooks/useRunGoals';
+import { usePreferences } from '../../src/hooks/usePreferences';
 
 const metrics = {
   insets: { top: 0, bottom: 0, left: 0, right: 0 },
@@ -48,6 +49,9 @@ jest.mock('../../src/services/runProgramService', () => ({
   setProgramSchedule: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('../../src/hooks/useRunGoals', () => ({ useRunGoals: jest.fn() }));
+jest.mock('../../src/hooks/usePreferences', () => ({
+  usePreferences: jest.fn(() => ({ preferences: { timezone: 'UTC' } })),
+}));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 jest.mock('../../src/hooks/useScreenHeader', () => ({
   useScreenHeader: () => null,
@@ -472,6 +476,57 @@ describe('RunProgramsScreen', () => {
       withRaceDay(addDays(today, -1));
       renderScreen(RunProgramsProps());
       expect(screen.queryByTestId('run-program-use-race-day')).toBeNull();
+    });
+
+    describe('across timezones', () => {
+      // 2026-10-20 12:00 UTC: already the 21st in Kiritimati, still the 20th
+      // in Pago Pago, so the account day differs from most device days.
+      const freezeClock = () =>
+        jest.useFakeTimers({
+          now: new Date('2026-10-20T12:00:00Z'),
+          doNotFake: [
+            'setTimeout',
+            'clearTimeout',
+            'setInterval',
+            'clearInterval',
+            'setImmediate',
+            'clearImmediate',
+            'nextTick',
+            'queueMicrotask',
+            'requestAnimationFrame',
+            'cancelAnimationFrame',
+            'performance',
+          ],
+        });
+      const inZone = (timezone: string) =>
+        jest
+          .mocked(usePreferences)
+          .mockReturnValue({ preferences: { timezone } } as never);
+      afterEach(() => {
+        jest.useRealTimers();
+        inZone('UTC');
+      });
+
+      it('does not offer a race day that is today in the account timezone', () => {
+        freezeClock();
+        inZone('Pacific/Kiritimati');
+        running(null);
+        withRaceDay('2026-10-21');
+        renderScreen(RunProgramsProps());
+        expect(screen.queryByTestId('run-program-use-race-day')).toBeNull();
+      });
+
+      it('offers a race day that is still ahead in the account timezone', () => {
+        freezeClock();
+        inZone('Pacific/Pago_Pago');
+        running(null);
+        withRaceDay('2026-10-21');
+        renderScreen(RunProgramsProps());
+        fireEvent.press(screen.getByTestId('run-program-use-race-day'));
+        expect(setProgramSchedule).toHaveBeenCalledWith({
+          endDay: '2026-10-21',
+        });
+      });
     });
   });
 });
