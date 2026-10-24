@@ -6,6 +6,8 @@ import {
   importGpxRouteBodySchema,
   parseGpx,
   routeFromActivityBodySchema,
+  routeStopsBodySchema,
+  routeStopsResponseSchema,
   serializeGpx,
   updateRouteBodySchema,
 } from '@workspace/shared';
@@ -16,6 +18,8 @@ import {
   getRouteGenerateCapabilities,
   resolveRoutingProvider,
 } from '../../services/routing/routingConfig.js';
+import { resolveStopsProvider } from '../../services/routeStopsConfig.js';
+import { getStopsAlongRoute } from '../../services/routeStopsService.js';
 import { RoutingProviderError } from '../../services/routing/routingProvider.js';
 import { createUserRateLimiter } from '../../utils/userRateLimiter.js';
 import {
@@ -45,6 +49,17 @@ export const generateRateLimiter = createUserRateLimiter(
   GENERATE_RATE_LIMIT_MAX,
   GENERATE_RATE_LIMIT_WINDOW_MS
 );
+
+/** Cached lookups are cheap; this only stops one account flooding the endpoint. */
+export const STOPS_RATE_LIMIT_MAX = 60;
+export const STOPS_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+export const stopsRateLimiter = createUserRateLimiter(
+  STOPS_RATE_LIMIT_MAX,
+  STOPS_RATE_LIMIT_WINDOW_MS
+);
+
+const NO_STOPS_PROVIDER =
+  'Stops along a route need an Overpass provider. Add one in Settings > External Providers.';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -220,20 +235,21 @@ router.post('/from-activity/:exerciseEntryId', async (req, res, next) => {
  * @swagger
  * /v2/routes/generate/capabilities:
  *   get:
- *     summary: Whether route generation is available to the person
+ *     summary: What route generation and stops lookup are available to the person
  *     description: >
- *       Generation needs a routing provider: the Valhalla routing provider the
- *       person (or the admin, as a public provider, or a family member who
- *       shared theirs) added in Settings > External Providers. Clients use this
- *       to show or hide the feature and only the style controls the engine
- *       supports.
+ *       Generation needs a routing provider and stops need an Overpass
+ *       provider: the one the person (or the admin, as a public provider, or a
+ *       family member who shared theirs) added in Settings > External
+ *       Providers. Clients use this to show or hide each feature and only the
+ *       style controls the engine supports.
  *     tags: [Exercise]
  *     responses:
  *       200:
  *         description: >
  *           `{ available, maxAlternatives, style: { surface, hilliness,
- *           avoidSteps, avoidBusyRoads }, stops, source }`. `stops` is false.
- *           `source` is `provider` when `available`, else null.
+ *           avoidSteps, avoidBusyRoads }, stops, source, stopsSource }`.
+ *           `source` is `provider` when `available`, else null; `stopsSource`
+ *           is `provider` when `stops`, else null.
  */
 router.get('/generate/capabilities', async (req, res, next) => {
   try {
@@ -335,6 +351,99 @@ router.post('/generate', async (req, res, next) => {
       return res.status(422).json({ error: error.message });
     }
     if (!sendRouteError(res, error)) next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /v2/routes/stops:
+ *   post:
+ *     summary: Stops along a route that is not saved
+ *     description: >
+ *       Drinking water, toilets, cafes and viewpoints within 150 m of the
+ *       given line, from the Overpass provider the person (or the admin, or a
+ *       family member who shared theirs) added in Settings > External
+ *       Providers. The area around the line is sent to that server. Answers
+ *       are cached for days. Any failure answers `status: "no_data"`.
+ *     tags: [Exercise]
+ *     responses:
+ *       200:
+ *         description: '`{ status, stops, truncated }`.'
+ *       400:
+ *         description: Invalid body.
+ *       429:
+ *         description: Too many requests.
+ *       503:
+ *         description: The person has no Overpass provider.
+ */
+router.post('/stops', async (req, res, next) => {
+  try {
+    const endpoint = await resolveStopsProvider(req.userId);
+    if (!endpoint) return res.status(503).json({ error: NO_STOPS_PROVIDER });
+    const parsed = routeStopsBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: 'Invalid request body',
+        details: parsed.error.format(),
+      });
+    }
+    const retryAfter = stopsRateLimiter.hit(req.userId);
+    if (retryAfter > 0) {
+      res.set('Retry-After', String(retryAfter));
+      return res
+        .status(429)
+        .json({ error: 'Too many requests. Try again shortly.' });
+    }
+    const stops = await getStopsAlongRoute(endpoint, parsed.data.points);
+    res.json(routeStopsResponseSchema.parse(stops));
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
+ * /v2/routes/{id}/stops:
+ *   get:
+ *     summary: Stops along a saved route
+ *     description: >
+ *       As `POST /v2/routes/stops`, for a route the person saved. One
+ *       Overpass query per route is cached for days.
+ *     tags: [Exercise]
+ *     responses:
+ *       200:
+ *         description: '`{ status, stops, truncated }`.'
+ *       404:
+ *         description: Not found.
+ *       429:
+ *         description: Too many requests.
+ *       503:
+ *         description: The person has no Overpass provider.
+ */
+router.get('/:id/stops', async (req, res, next) => {
+  try {
+    if (!isUuid(req.params.id)) {
+      return res.status(404).json({ error: 'Route not found' });
+    }
+    const endpoint = await resolveStopsProvider(req.userId);
+    if (!endpoint) return res.status(503).json({ error: NO_STOPS_PROVIDER });
+    const retryAfter = stopsRateLimiter.hit(req.userId);
+    if (retryAfter > 0) {
+      res.set('Retry-After', String(retryAfter));
+      return res
+        .status(429)
+        .json({ error: 'Too many requests. Try again shortly.' });
+    }
+    const route = await getRoute(
+      req.userId,
+      req.params.id,
+      req.authenticatedUserId
+    );
+    if (!route) return res.status(404).json({ error: 'Route not found' });
+    const stops = await getStopsAlongRoute(endpoint, route.points);
+    res.json(routeStopsResponseSchema.parse(stops));
+  } catch (error) {
+    next(error);
   }
 });
 
