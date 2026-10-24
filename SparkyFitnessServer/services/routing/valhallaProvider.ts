@@ -15,6 +15,10 @@ import {
   type ValhallaLeg,
 } from './valhallaManeuvers.js';
 import {
+  trailShareFromEdges,
+  valhallaCostingOptions,
+} from './valhallaCosting.js';
+import {
   RoutingProviderError,
   type RoutingActivity,
   type RoutingProvider,
@@ -129,6 +133,16 @@ function isBoundedHeightAnswer(data: unknown, pointCount: number): boolean {
   );
 }
 
+const traceResponseSchema = z.object({
+  edges: z.array(
+    z.object({
+      length: z.number().optional(),
+      use: z.string().optional(),
+      surface: z.string().optional(),
+    })
+  ),
+});
+
 const errorBodySchema = z.object({ error_code: z.number() });
 
 function failureFromAxios(error: unknown): RoutingProviderError {
@@ -217,8 +231,44 @@ export function createValhallaProvider(
     }
   }
 
+  /** Best effort: no surface data just means no "more trail" label. */
+  async function fetchTrailShare(
+    shape: string,
+    costing: string
+  ): Promise<number | null> {
+    try {
+      const response = await axios.post(
+        `${base}/trace_attributes`,
+        {
+          encoded_polyline: shape,
+          shape_match: 'edge_walk',
+          costing,
+          filters: {
+            attributes: ['edge.length', 'edge.use', 'edge.surface'],
+            action: 'include',
+          },
+        },
+        config
+      );
+      const parsed = traceResponseSchema.safeParse(response.data);
+      return parsed.success ? trailShareFromEdges(parsed.data.edges) : null;
+    } catch {
+      log('debug', 'Routing engine returned no surface data');
+      return null;
+    }
+  }
+
   return {
     kind: 'valhalla',
+    capabilities: {
+      style: {
+        surface: true,
+        hilliness: true,
+        avoidSteps: true,
+        avoidBusyRoads: true,
+      },
+      maxAlternatives: 3,
+    },
     async route(request: RoutingRequest): Promise<RoutingResult> {
       const last = request.locations.length - 1;
       const body = {
@@ -230,6 +280,10 @@ export function createValhallaProvider(
           type: i === 0 || i === last ? 'break' : 'through',
         })),
         costing: COSTING[request.activity],
+        costing_options: valhallaCostingOptions(
+          request.activity,
+          request.style
+        ),
         directions_options: { units: 'kilometers', language: 'en-US' },
       };
 
@@ -273,10 +327,19 @@ export function createValhallaProvider(
         }
       }
 
+      let trailShare: number | null | undefined;
+      if (request.measureSurface && legs.length === 1) {
+        trailShare = await fetchTrailShare(
+          legs[0].shape,
+          COSTING[request.activity]
+        );
+      }
+
       return {
         points,
         cues: mapped.cues,
         distanceM: parsed.data.trip.summary.length * 1000,
+        trailShare,
       };
     },
   };
