@@ -5,6 +5,7 @@ import type {
   ImportGpxRouteBody,
   Route,
   RouteFromActivityBody,
+  RouteStopsResponse,
   RouteSummary,
   UpdateRouteBody,
 } from '@workspace/shared';
@@ -82,7 +83,7 @@ export const deleteRoute = (id: string): Promise<void> =>
   });
 
 /**
- * What the server offers for generating routes. Older
+ * What the server offers for generating routes and looking up stops. Older
  * servers send only `available`; read the answer with
  * `resolveRouteGenerateCapabilities`.
  */
@@ -105,4 +106,12 @@ export const generateRoute = (
     body,
     // A loop can cost the server a few engine calls, several candidates more.
     timeoutMs: 90_000,
+  });
+
+/** Stops near a saved route; the server answers `no_data` on any failure. */
+export const fetchRouteStops = (id: string): Promise<RouteStopsResponse> =>
+  apiFetch<RouteStopsResponse>({
+    endpoint: `/api/v2/routes/${id}/stops`,
+    serviceName: SERVICE,
+    operation: 'fetch route stops',
   });

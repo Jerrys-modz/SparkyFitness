@@ -17,6 +17,7 @@ jest.mock('../../src/services/routeService', () => ({
   renameRoute: jest.fn(),
   removeRoute: jest.fn(),
   shareRouteGpx: jest.fn(),
+  useRouteStops: () => ({ stops: null, isLoading: false, available: false }),
 }));
 jest.mock('../../src/components/exerciseStats/RouteMap', () => {
   const { View } = require('react-native');

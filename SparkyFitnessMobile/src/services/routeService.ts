@@ -12,6 +12,7 @@ import {
   type GenerateRouteResponse,
   type Route,
   type RouteGenerateCapabilities,
+  type RouteStopsResponse,
   type RouteSummary,
   type UpdateRouteBody,
 } from '@workspace/shared';
@@ -19,6 +20,7 @@ import { queryClient } from '../hooks/queryClient';
 import {
   routeGenerationCapabilitiesQueryKey,
   routeQueryKey,
+  routeStopsQueryKey,
   routesQueryKey,
 } from '../hooks/queryKeys';
 import { shareGpxFile } from './gpxExport';
@@ -27,6 +29,7 @@ import {
   createRouteFromActivity,
   deleteRoute,
   fetchRoute,
+  fetchRouteStops,
   fetchRouteGenerationCapabilities,
   generateRoute,
   fetchRoutes,
@@ -69,7 +72,7 @@ export function useRoute(id: string): {
 const CAPABILITIES_STALE_MS = 10 * 60 * 1000;
 
 /**
- * What the server's routing engine supports, so screens show
+ * What the server's routing engine and stops lookup support, so screens show
  * only what works. Cached for ten minutes; a failed check reads as nothing
  * supported (and is not retried) so a feature stays hidden rather than half
  * working, and an older server's shorter answer reads as the same.
@@ -114,6 +117,33 @@ export async function generateRoutePreview(
 ): Promise<GeneratedRoutePreview> {
   const { route } = await generateRoute(body);
   return route;
+}
+
+/** The server caches a route's stops for days, so keep them for a day here. */
+const STOPS_STALE_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Stops along a saved route, or null while loading, when the person has no
+ * stops provider, or on any failure (shown as no data, never as an error).
+ */
+export function useRouteStops(id: string): {
+  stops: RouteStopsResponse | null;
+  isLoading: boolean;
+  available: boolean;
+} {
+  const { capabilities } = useRouteGenerationCapabilities();
+  const { data, isLoading } = useQuery({
+    queryKey: routeStopsQueryKey(id),
+    queryFn: () => fetchRouteStops(id),
+    enabled: capabilities.stops,
+    staleTime: STOPS_STALE_MS,
+    retry: false,
+  });
+  return {
+    stops: data ?? null,
+    isLoading: capabilities.stops && isLoading,
+    available: capabilities.stops,
+  };
 }
 
 const refreshRoutes = () =>

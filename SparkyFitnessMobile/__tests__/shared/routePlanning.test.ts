@@ -2,15 +2,18 @@ import {
   DEFAULT_ROUTE_STYLE,
   buildFollowRoadsRequest,
   buildLoopRequest,
+  countRouteStops,
   followRoadsKey,
   generateRouteBodySchema,
   generateRouteResponseSchema,
   hasRouteStyleControls,
   isDefaultRouteStyle,
   labelRouteOptions,
+  locateStopsAlongRoute,
   resolveRouteGenerateCapabilities,
   restrictRouteStyle,
   routeOverlapFraction,
+  routeStopsBodySchema,
   routesAreDistinct,
   type RoutePoint,
 } from '@workspace/shared';
@@ -242,6 +245,7 @@ describe('route generate contract', () => {
       },
       stops: false,
       source: null,
+      stopsSource: null,
     });
     expect(resolveRouteGenerateCapabilities('nonsense').available).toBe(false);
     expect(resolveRouteGenerateCapabilities(null).available).toBe(false);
@@ -306,5 +310,75 @@ describe('route generate contract', () => {
     expect(
       generateRouteResponseSchema.safeParse({ route, options: [] }).success
     ).toBe(false);
+  });
+
+  it('requires at least two points to look up stops', () => {
+    expect(
+      routeStopsBodySchema.safeParse({ points: [{ lat: 1, lon: 1 }] }).success
+    ).toBe(false);
+    expect(
+      routeStopsBodySchema.safeParse({
+        points: [
+          { lat: 1, lon: 1 },
+          { lat: 1.1, lon: 1 },
+        ],
+      }).success
+    ).toBe(true);
+  });
+});
+
+describe('stops along a route', () => {
+  const route = line([40, -74], [40.02, -74]);
+
+  it('measures distance from the start and from the route, in route order', () => {
+    const stops = locateStopsAlongRoute(
+      route,
+      [
+        { kind: 'cafe', name: 'Far end', lat: 40.0199, lon: -74.0005 },
+        { kind: 'water', name: null, lat: 40.01, lon: -74.001 },
+        { kind: 'toilets', name: 'Too far', lat: 40.01, lon: -74.01 },
+      ],
+      150
+    );
+    expect(stops.map((s) => s.kind)).toEqual(['water', 'cafe']);
+    expect(stops[0].distanceFromStartM).toBeGreaterThan(1050);
+    expect(stops[0].distanceFromStartM).toBeLessThan(1170);
+    expect(stops[0].offRouteM).toBeGreaterThan(60);
+    expect(stops[0].offRouteM).toBeLessThan(100);
+    expect(stops[1].distanceFromStartM).toBeGreaterThan(2150);
+  });
+
+  it('uses the right pass of a route that doubles back', () => {
+    const outAndBack = [
+      ...line([40, -74], [40.02, -74]),
+      ...line([40.02, -74], [40, -74]),
+    ];
+    const [stop] = locateStopsAlongRoute(
+      outAndBack,
+      [{ kind: 'cafe', name: null, lat: 40.0101, lon: -74 }],
+      150
+    );
+    // Nearest to the outward pass: the first of two equally near points.
+    expect(stop?.distanceFromStartM).toBeLessThan(1200);
+  });
+
+  it('finds nothing on a route without a length', () => {
+    expect(
+      locateStopsAlongRoute(
+        [route[0] as RoutePoint],
+        [{ kind: 'cafe', name: null, lat: 40, lon: -74 }],
+        150
+      )
+    ).toEqual([]);
+  });
+
+  it('counts stops by kind', () => {
+    expect(
+      countRouteStops([
+        { kind: 'water' },
+        { kind: 'water' },
+        { kind: 'viewpoint' },
+      ])
+    ).toEqual({ water: 2, toilets: 0, cafe: 0, viewpoint: 1 });
   });
 });

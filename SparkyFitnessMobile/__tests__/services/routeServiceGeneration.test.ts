@@ -5,10 +5,12 @@ import {
   saveGeneratedRoute,
   useRouteGenerationAvailable,
   useRouteGenerationCapabilities,
+  useRouteStops,
 } from '../../src/services/routeService';
 import {
   createRoute,
   fetchRouteGenerationCapabilities,
+  fetchRouteStops,
   generateRoute,
 } from '../../src/services/api/routeApi';
 import { queryClient } from '../../src/hooks/queryClient';
@@ -27,6 +29,7 @@ jest.mock('../../src/services/api/routeApi', () => ({
   fetchRoute: jest.fn(),
   fetchRoutes: jest.fn(),
   fetchRouteGenerationCapabilities: jest.fn(),
+  fetchRouteStops: jest.fn(),
   generateRoute: jest.fn(),
   importGpxRoute: jest.fn(),
   updateRoute: jest.fn(),
@@ -34,6 +37,7 @@ jest.mock('../../src/services/api/routeApi', () => ({
 
 const mockCapabilities = fetchRouteGenerationCapabilities as jest.Mock;
 const mockGenerate = generateRoute as jest.Mock;
+const mockStops = fetchRouteStops as jest.Mock;
 const mockCreate = createRoute as jest.Mock;
 
 const previewRoute = {
@@ -117,6 +121,7 @@ describe('route generation service', () => {
         },
         stops: true,
         source: null,
+        stopsSource: null,
       });
     });
 
@@ -139,6 +144,57 @@ describe('route generation service', () => {
       const first = result.current.capabilities;
       rerender({});
       expect(result.current.capabilities).toBe(first);
+    });
+  });
+
+  describe('useRouteStops', () => {
+    const render = () => {
+      const client = createTestQueryClient();
+      return renderHook(() => useRouteStops('route-1'), {
+        wrapper: createQueryWrapper(client),
+      });
+    };
+    const answer = {
+      status: 'ok' as const,
+      stops: [
+        {
+          kind: 'cafe' as const,
+          name: null,
+          lat: 1,
+          lon: 2,
+          distanceFromStartM: 100,
+          offRouteM: 10,
+        },
+      ],
+      truncated: false,
+    };
+
+    it('does not ask when the server has no stops lookup', async () => {
+      mockCapabilities.mockResolvedValue({ available: true, stops: false });
+      const { result } = render();
+      await waitFor(() => expect(mockCapabilities).toHaveBeenCalled());
+      expect(result.current.available).toBe(false);
+      expect(mockStops).not.toHaveBeenCalled();
+    });
+
+    it('loads the stops once the server offers them', async () => {
+      mockCapabilities.mockResolvedValue({ available: false, stops: true });
+      mockStops.mockResolvedValue(answer);
+      const { result } = render();
+      await waitFor(() => expect(result.current.stops).toEqual(answer));
+      expect(result.current.available).toBe(true);
+      expect(result.current.isLoading).toBe(false);
+      expect(mockStops).toHaveBeenCalledWith('route-1');
+    });
+
+    it('shows no stops, not an error, when the request fails', async () => {
+      mockCapabilities.mockResolvedValue({ available: true, stops: true });
+      mockStops.mockRejectedValue(new Error('429'));
+      const { result } = render();
+      await waitFor(() => expect(mockStops).toHaveBeenCalled());
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.stops).toBeNull();
+      expect(mockStops).toHaveBeenCalledTimes(1);
     });
   });
 
