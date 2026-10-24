@@ -3,6 +3,7 @@ import {
   tierForBpm,
   tierGradientStops,
   tierThresholds,
+  zoneStroke,
 } from '@/utils/heartRateZoneTiers';
 
 // Percent-of-max floors for a max of 190 (50/60/70/80/90%)
@@ -46,5 +47,18 @@ describe('heartRateZoneTiers', () => {
   it('ignores thresholds outside the range', () => {
     const stops = tierGradientStops(60, 100, thresholds);
     expect(new Set(stops.map((s) => s.color))).toEqual(new Set(['#06b6d4']));
+  });
+
+  it('uses a solid stroke for a flat line and the gradient otherwise', () => {
+    expect(zoneStroke(tierGradientStops(90, 90, thresholds), 'g')).toBe(
+      '#06b6d4'
+    );
+    expect(zoneStroke(tierGradientStops(60, 100, thresholds), 'g')).toBe(
+      '#06b6d4'
+    );
+    expect(zoneStroke(tierGradientStops(100, 180, thresholds), 'g')).toBe(
+      'url(#g)'
+    );
+    expect(zoneStroke([], 'g')).toBe('none');
   });
 });

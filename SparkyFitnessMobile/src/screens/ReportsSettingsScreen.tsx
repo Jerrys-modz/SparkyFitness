@@ -220,10 +220,6 @@ const SECTION_LABELS: Record<
     t('reportsSettings.sections.insights', { defaultValue: 'What stood out' }),
   'heartRate.overview': (t) =>
     t('reportsSettings.sections.overview', { defaultValue: 'Key figures' }),
-  'heartRate.timeline': (t) =>
-    t('reportsSettings.sections.heartRateTimeline', {
-      defaultValue: '24-hour timeline',
-    }),
   'heartRate.restingHrChart': (t) =>
     t('reportsSettings.sections.restingHrChart', {
       defaultValue: 'Resting heart rate chart',

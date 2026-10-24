@@ -109,8 +109,7 @@ const ReportsScreen: React.FC<ReportsScreenProps> = ({ navigation }) => {
       icon: 'heart-rate',
       title: t('reports.heartRate', { defaultValue: 'Heart Rate' }),
       subtitle: t('reports.heartRateSubtitle', {
-        defaultValue:
-          '24-hour timeline, resting HR trends and zone distribution',
+        defaultValue: 'Resting HR trends and zone distribution',
       }),
       onPress: () => navigation.navigate('HeartRateReport'),
     },

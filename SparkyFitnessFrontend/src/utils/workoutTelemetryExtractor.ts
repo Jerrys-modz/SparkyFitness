@@ -113,6 +113,10 @@ export const extractWorkoutHeartRateSeries = (
       entry_time:
         typeof workout.entry_time === 'string' ? workout.entry_time : null,
       duration_minutes: workout.duration_minutes,
+      record_timezone:
+        typeof workout['record_timezone'] === 'string'
+          ? workout['record_timezone']
+          : null,
     };
     const wearSeries: WorkoutHeartRatePoint[] = buildWorkoutHeartRateSeries(
       hrSampleBuckets,

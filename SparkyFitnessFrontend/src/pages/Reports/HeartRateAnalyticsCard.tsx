@@ -53,6 +53,7 @@ import {
   foldZonesIntoTiers,
   tierGradientStops,
   tierThresholds,
+  zoneStroke,
 } from '@/utils/heartRateZoneTiers';
 import { formatTimeOfDayString } from '@/utils/timeFormatters';
 import {
@@ -366,7 +367,10 @@ const WorkoutHeartRateItem: React.FC<{
                 <Line
                   type="monotone"
                   dataKey="bpm"
-                  stroke={`url(#workoutHrGradient-${workout.id})`}
+                  stroke={zoneStroke(
+                    pointsGradientStops,
+                    `workoutHrGradient-${workout.id}`
+                  )}
                   strokeWidth={2.8}
                   dot={false}
                   activeDot={{
@@ -1882,7 +1886,10 @@ const HeartRateAnalyticsCard: React.FC<HeartRateAnalyticsCardProps> = ({
                           type="monotone"
                           dataKey="bpm"
                           name={t('heartRate.heartRateBpm', 'Heart Rate')}
-                          stroke="url(#rangeHeartRateZoneGradient)"
+                          stroke={zoneStroke(
+                            rangeGradientStops,
+                            'rangeHeartRateZoneGradient'
+                          )}
                           strokeWidth={2.2}
                           dot={isDetailed ? false : { r: 3.5, fill: '#f43f5e' }}
                           activeDot={{
@@ -2298,7 +2305,10 @@ const HeartRateAnalyticsCard: React.FC<HeartRateAnalyticsCardProps> = ({
                       <Line
                         type="monotone"
                         dataKey="bpm"
-                        stroke="url(#dayHeartRateZoneGradient)"
+                        stroke={zoneStroke(
+                          dayGradientStops,
+                          'dayHeartRateZoneGradient'
+                        )}
                         strokeWidth={2.2}
                         dot={false}
                         activeDot={{

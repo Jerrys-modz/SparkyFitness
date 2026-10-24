@@ -11,8 +11,6 @@ import {
  * here starts from the person's own floors (`resolveHeartRateZones`), never a
  * fixed bpm.
  */
-export const HR_TIER_COUNT = HEART_RATE_ZONE_COLORS.length;
-
 /** The three bpm values where Moderate, Vigorous and Peak begin. */
 export type TierThresholds = readonly [number, number, number];
 
@@ -83,4 +81,19 @@ export function tierGradientStops(
     });
   stops.push({ offset: 1, color: color(tierForBpm(minBpm, thresholds)) });
   return stops;
+}
+
+/**
+ * The `stroke` for a line colored by `stops`. A gradient does not paint a path
+ * with no height (a flat series), so a single-color result is used directly.
+ */
+export function zoneStroke(
+  stops: readonly GradientStop[],
+  gradientId: string
+): string {
+  const first = stops[0];
+  if (!first) return 'none';
+  return stops.every((stop) => stop.color === first.color)
+    ? first.color
+    : `url(#${gradientId})`;
 }

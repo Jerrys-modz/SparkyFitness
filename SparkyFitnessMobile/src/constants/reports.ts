@@ -128,7 +128,6 @@ export const MOOD_SECTIONS = [
 export const HEART_RATE_SECTIONS = [
   'heartRate.overview',
   'heartRate.insights',
-  'heartRate.timeline',
   'heartRate.restingHrChart',
   'heartRate.zones',
 ] as const;

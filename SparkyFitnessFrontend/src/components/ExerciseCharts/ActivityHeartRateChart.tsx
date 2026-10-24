@@ -21,6 +21,7 @@ import {
   fallbackZoneFloors,
   tierGradientStops,
   tierThresholds,
+  zoneStroke,
 } from '@/utils/heartRateZoneTiers';
 import { HEART_RATE_ZONE_COLORS } from '@workspace/shared';
 
@@ -195,7 +196,7 @@ export const ActivityHeartRateChart = ({
                 <Line
                   type="monotone"
                   dataKey="heartRate"
-                  stroke="url(#activityHrZoneGrad)"
+                  stroke={zoneStroke(gradientStops, 'activityHrZoneGrad')}
                   name={t('reports.activityReport.heartRateBpm')}
                   dot={false}
                   strokeWidth={2.5}
