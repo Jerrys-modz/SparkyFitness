@@ -82,6 +82,60 @@ const inputs = (
   ...overrides,
 });
 
+describe('food budget progress', () => {
+  test.each([
+    ['dynamic', 100, 1256, 49],
+    ['percentage', 50, 915.5, 57],
+    ['fixed', 100, 575, 68],
+    ['adaptive', 100, 575, 68],
+  ] as const)(
+    '%s credits only the configured activity in progress',
+    (mode, percentage, remaining, progress) => {
+      const balance = computeCalorieBalance(
+        inputs({
+          adjustedGoalCalories: 1800,
+          eatenCalories: 1225,
+          backgroundStepCalories: 681,
+          userPreferences: {
+            calorie_goal_adjustment_mode: mode,
+            exercise_calorie_percentage: percentage,
+          },
+        })
+      );
+
+      expect(balance.eaten).toBe(1225);
+      expect(balance.burned).toBe(681);
+      expect(balance.remaining).toBe(Math.round(remaining));
+      expect(balance.goal).toBe(1800);
+      expect(balance.progress).toBe(progress);
+    }
+  );
+
+  test('activity cannot erase food progress when burn exceeds intake', () => {
+    const balance = computeCalorieBalance(
+      inputs({
+        adjustedGoalCalories: 1800,
+        eatenCalories: 500,
+        backgroundStepCalories: 1000,
+      })
+    );
+    expect(balance.remaining).toBe(2300);
+    expect(balance.progress).toBe(18);
+  });
+
+  test('preserves overflow after the activity-adjusted budget is exceeded', () => {
+    const balance = computeCalorieBalance(
+      inputs({
+        adjustedGoalCalories: 1800,
+        eatenCalories: 3000,
+        backgroundStepCalories: 600,
+      })
+    );
+    expect(balance.remaining).toBe(-600);
+    expect(balance.progress).toBe(125);
+  });
+});
+
 describe('resolveExerciseCalories via computeCalorieBalance', () => {
   /**
    * Aug 11 from issue #2094: a 641 kcal logged workout, a 774 kcal device summary, and
@@ -576,6 +630,32 @@ describe('extractExerciseStats', () => {
       activeCalories: 774,
       otherCalories: 641,
       activitySteps: 4000,
+    });
+  });
+
+  test('counts calories_applied instead of the estimate, including zero', () => {
+    const sessions = [
+      {
+        type: 'individual',
+        name: 'Other workout',
+        calories_burned: 425,
+        calories_applied: null,
+        steps: 0,
+      },
+      {
+        type: 'preset',
+        name: 'Strength',
+        exercises: [
+          { calories_burned: 475, calories_applied: 0, steps: 0 },
+          { calories_burned: 100, calories_applied: 60, steps: 0 },
+        ],
+      },
+    ] as unknown as ExerciseSessionResponse[];
+
+    expect(extractExerciseStats(sessions)).toEqual({
+      activeCalories: 0,
+      otherCalories: 485,
+      activitySteps: 0,
     });
   });
 

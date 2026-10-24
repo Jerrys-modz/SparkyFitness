@@ -2093,6 +2093,11 @@ CREATE TABLE public.exercise_entries (
     shoe_id uuid,
     manual_fields text[],
     workout_effort smallint,
+    calories_applied numeric,
+    calorie_link_id uuid,
+    calorie_link_resolution text,
+    CONSTRAINT chk_exercise_entries_calorie_link_resolution CHECK (((calorie_link_resolution IS NULL) OR (calorie_link_resolution = ANY (ARRAY['sparkyfitness'::text, 'synced'::text, 'higher'::text, 'lower'::text, 'average'::text, 'custom'::text])))),
+    CONSTRAINT chk_exercise_entries_calories_applied CHECK (((calories_applied IS NULL) OR (calories_applied >= (0)::numeric))),
     CONSTRAINT chk_exercise_entries_workout_effort CHECK (((workout_effort IS NULL) OR ((workout_effort >= 1) AND (workout_effort <= 10)))),
     CONSTRAINT exercise_entries_modality_check CHECK ((modality = ANY (ARRAY['weight_reps'::text, 'reps_only'::text, 'bodyweight_reps'::text, 'weight_duration'::text, 'weight_distance'::text, 'duration'::text, 'duration_distance'::text])))
 );
@@ -7020,6 +7025,13 @@ CREATE INDEX idx_daily_sleep_need_lookup ON public.daily_sleep_need USING btree 
 --
 
 CREATE INDEX idx_day_classification_user ON public.day_classification_cache USING btree (user_id);
+
+
+--
+-- Name: idx_exercise_entries_calorie_link_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_exercise_entries_calorie_link_id ON public.exercise_entries USING btree (calorie_link_id) WHERE (calorie_link_id IS NOT NULL);
 
 
 --
