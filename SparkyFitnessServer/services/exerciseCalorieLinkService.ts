@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import type { PoolClient } from 'pg';
 import {
   distributeCountedCalories,
+  isAppLoggedWorkoutSource,
   localDateTimeToUtc,
   matchCalorieLink,
   resolveLinkedCalories,
@@ -87,7 +88,7 @@ async function loadWorkoutEntries(
   if (result.rows.length === 0) {
     throw new CalorieLinkError('Exercise entry not found.', 404);
   }
-  if (result.rows.some((row) => row.source !== 'manual')) {
+  if (result.rows.some((row) => !isAppLoggedWorkoutSource(row.source))) {
     throw new CalorieLinkError(
       'Only workouts logged in SparkyFitness can be linked.',
       400
@@ -167,7 +168,7 @@ async function getCalorieLinkSuggestions(
        FROM exercise_entries
        WHERE user_id = $1
          AND entry_date = $2::date
-         AND source IS NOT NULL AND source <> 'manual'
+         AND source IS NOT NULL AND lower(source) NOT IN ('manual', 'sparky')
          AND source_id IS NOT NULL
          AND exercise_preset_entry_id IS NULL
          AND exercise_name IS DISTINCT FROM 'Active Calories'
@@ -380,12 +381,8 @@ export async function reapplyCalorieLinkWithClient(
     (row) => row.calorie_link_resolution
   )?.calorie_link_resolution;
   if (!resolution) return;
-  const manual = rows.filter(
-    (row) => (row.source ?? '').toLowerCase() === 'manual'
-  );
-  const synced = rows.filter(
-    (row) => (row.source ?? '').toLowerCase() !== 'manual'
-  );
+  const manual = rows.filter((row) => isAppLoggedWorkoutSource(row.source));
+  const synced = rows.filter((row) => !isAppLoggedWorkoutSource(row.source));
   if (manual.length === 0 || synced.length === 0) return;
 
   const estimates = manual.map((row) => Number(row.calories_burned) || 0);
@@ -525,7 +522,7 @@ async function setCalorieLink(
       throw new CalorieLinkError('Synced workout not found.', 404);
     }
     if (
-      synced.source === 'manual' ||
+      isAppLoggedWorkoutSource(synced.source) ||
       !synced.source ||
       !synced.source_id ||
       workout.some((row) => row.id === synced.id)
