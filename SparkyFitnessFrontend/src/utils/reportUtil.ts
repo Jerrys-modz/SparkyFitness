@@ -21,6 +21,7 @@ import {
 import {
   CheckInMeasurementsResponse,
   CustomMeasurementsResponse,
+  entryCaloriesCounted,
 } from '@workspace/shared';
 import { CustomCategoriesResponse } from '@workspace/shared';
 import type { DailyCalorieBalanceRow } from '@workspace/shared';
@@ -366,7 +367,8 @@ export const exportFoodDiary = async ({
       return entries.reduce(
         (total, entry) => {
           const customSource = entry.custom_nutrients as
-            Record<string, number> | undefined;
+            | Record<string, number>
+            | undefined;
 
           const customNutrientTotals = customNutrients.reduce(
             (acc: Record<string, number>, nutrient) => {
@@ -481,7 +483,8 @@ export const exportFoodDiary = async ({
           const alcoholG = Number(entry.alcohol_g || 0);
 
           const customSource = entry.custom_nutrients as
-            Record<string, number> | undefined;
+            | Record<string, number>
+            | undefined;
 
           csvRows.push([
             formatDateInUserTimezone(entry.entry_date, 'MMM dd, yyyy'), // Format date for display
@@ -670,7 +673,7 @@ export const exportExerciseEntries = async ({
       entry.exercises.name,
       entry.duration_minutes.toString(),
       Math.round(
-        convertEnergy(entry.calories_burned, 'kcal', energyUnit)
+        convertEnergy(entryCaloriesCounted(entry), 'kcal', energyUnit)
       ).toString(),
       entry.sets.map((set) => set.set_number).join('; ') || '', // Display set numbers
       entry.sets.map((set) => set.reps).join('; ') || '', // Display reps for each set

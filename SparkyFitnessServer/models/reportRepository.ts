@@ -559,6 +559,7 @@ async function getExerciseEntries(
          TO_CHAR(ee.entry_date, 'YYYY-MM-DD') AS entry_date,
          ee.duration_minutes,
          ee.calories_burned,
+         ee.calories_applied,
          ee.notes,
          ee.exercise_id,
          ee.exercise_name,
