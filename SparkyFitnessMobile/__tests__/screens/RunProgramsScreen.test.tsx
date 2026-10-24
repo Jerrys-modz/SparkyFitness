@@ -474,6 +474,21 @@ describe('RunProgramsScreen', () => {
       expect(screen.queryByTestId('run-program-use-race-day')).toBeNull();
     });
 
+    it('does not offer a race day before the program starts', () => {
+      mockedUse.mockReturnValue({
+        status: programStatus({ programId: 'beginner5k', next: 3 })!,
+        enabled: true,
+        lastAdjustment: null,
+        schedule: { days: [], startDay: addDays(today, 30), endDay: null },
+        doneDay: null,
+        loaded: true,
+        refetch: jest.fn(),
+      } as never);
+      withRaceDay(addDays(today, 10));
+      renderScreen(RunProgramsProps());
+      expect(screen.queryByTestId('run-program-use-race-day')).toBeNull();
+    });
+
     it('does not offer a race day that has passed, or none', () => {
       running(null);
       withRaceDay(addDays(today, -1));

@@ -729,7 +729,10 @@ const RunProgramCard: React.FC<Props> = ({
                     defaultValue: 'Set a goal date',
                   })}
             </InlineLink>
-            {raceDay && raceDay > goalToday && schedule.endDay !== raceDay ? (
+            {raceDay &&
+            raceDay > goalToday &&
+            (!schedule.startDay || raceDay >= schedule.startDay) &&
+            schedule.endDay !== raceDay ? (
               <InlineLink
                 testID="run-program-use-race-day"
                 onPress={() => onSchedule({ endDay: raceDay })}
