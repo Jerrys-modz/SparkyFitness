@@ -100,10 +100,11 @@ async function lookupSource(
     context.preferences.auto_scale_open_food_facts_imports ?? true,
     context.preferences.barcode_fallback_open_food_facts !== false,
   ]);
+  // The route enriches foods in place; each response must own its copy.
   const cached = sourceResults.get(key);
-  if (cached) return cached;
+  if (cached) return structuredClone(cached);
   const pending = inFlightSources.get(key);
-  if (pending) return pending;
+  if (pending) return structuredClone(await pending);
 
   const lookup = fetchSource(barcode, userId, actorId, provider, context).then(
     (candidate) => {
@@ -113,7 +114,7 @@ async function lookupSource(
   );
   if (inFlightSources.size < 1000) inFlightSources.set(key, lookup);
   try {
-    return await lookup;
+    return structuredClone(await lookup);
   } finally {
     if (inFlightSources.get(key) === lookup) inFlightSources.delete(key);
   }

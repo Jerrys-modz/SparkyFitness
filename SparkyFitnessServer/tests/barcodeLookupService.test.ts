@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BarcodeLookupOptions } from '../services/foodCoreService.js';
+import {
+  applyCustomNutrientMatches,
+  buildAliasIndex,
+} from '../utils/foodUtils.js';
 let getBarcodeAlternatives: typeof import('../services/barcodeLookupService.js').getBarcodeAlternatives;
 const mocks = vi.hoisted(() => ({
   providers: vi.fn(),
@@ -91,6 +95,100 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('barcode alternatives', () => {
+  const nutrientFood = () => ({
+    ...food(),
+    default_variant: {
+      ...food().default_variant,
+      provider_nutrients: { Magnesium: 42 },
+      provider_nutrient_units: { Magnesium: 'mg' },
+    },
+  });
+  const enrich = (
+    result: Awaited<ReturnType<typeof getBarcodeAlternatives>>,
+    name: string
+  ) => {
+    const foods = result.results.flatMap((candidate) =>
+      candidate.food ? [candidate.food] : []
+    );
+    applyCustomNutrientMatches(
+      foods,
+      buildAliasIndex([{ name, aliases: ['Magnesium'], unit: 'mg' }])
+    );
+  };
+  it('keeps fresh response enrichment out of the cached source after a nutrient rename or deletion', async () => {
+    mocks.providers.mockResolvedValue([firstProvider]);
+    mocks.lookup.mockResolvedValue({ source: 'usda', food: nutrientFood() });
+    const initial = await getBarcodeAlternatives(barcode, 'target', 'actor');
+    enrich(initial, 'Old magnesium');
+    expect(initial.results[0]?.food?.default_variant?.custom_nutrients).toEqual(
+      {
+        'Old magnesium': 42,
+      }
+    );
+
+    const renamed = await getBarcodeAlternatives(barcode, 'target', 'actor');
+    enrich(renamed, 'Renamed magnesium');
+    expect(renamed.results[0]?.food?.default_variant?.custom_nutrients).toEqual(
+      {
+        'Renamed magnesium': 42,
+      }
+    );
+    const deleted = await getBarcodeAlternatives(barcode, 'target', 'actor');
+    expect(
+      deleted.results[0]?.food?.default_variant?.custom_nutrients
+    ).toBeUndefined();
+    expect(mocks.lookup).toHaveBeenCalledOnce();
+  });
+  it('does not retain mutations made to a cache hit in later deliveries', async () => {
+    mocks.providers.mockResolvedValue([firstProvider]);
+    mocks.lookup.mockResolvedValue({ source: 'usda', food: nutrientFood() });
+    await getBarcodeAlternatives(barcode, 'target', 'actor');
+    const cached = await getBarcodeAlternatives(barcode, 'target', 'actor');
+    enrich(cached, 'Personal magnesium');
+    const providerNutrients =
+      cached.results[0]?.food?.default_variant?.provider_nutrients;
+    if (!providerNutrients) throw new Error('Provider nutrients missing');
+    providerNutrients.Magnesium = 999;
+
+    const next = await getBarcodeAlternatives(barcode, 'target', 'actor');
+    expect(
+      next.results[0]?.food?.default_variant?.custom_nutrients
+    ).toBeUndefined();
+    expect(next.results[0]?.food?.default_variant?.provider_nutrients).toEqual({
+      Magnesium: 42,
+    });
+    expect(mocks.lookup).toHaveBeenCalledOnce();
+  });
+  it('gives callers sharing one in-flight lookup independent enrichment objects', async () => {
+    mocks.providers.mockResolvedValue([firstProvider]);
+    let complete!: (value: {
+      source: string;
+      food: ReturnType<typeof nutrientFood>;
+    }) => void;
+    mocks.lookup.mockReturnValue(
+      new Promise((resolve) => {
+        complete = resolve;
+      })
+    );
+    const initial = getBarcodeAlternatives(barcode, 'target', 'actor');
+    const joined = getBarcodeAlternatives(barcode, 'target', 'actor');
+    await vi.waitFor(() => {
+      expect(mocks.local).toHaveBeenCalledTimes(2);
+      expect(mocks.lookup).toHaveBeenCalledOnce();
+    });
+    complete({ source: 'usda', food: nutrientFood() });
+    const [first, second] = await Promise.all([initial, joined]);
+    enrich(second, 'Second response magnesium');
+
+    expect(
+      first.results[0]?.food?.default_variant?.custom_nutrients
+    ).toBeUndefined();
+    const cached = await getBarcodeAlternatives(barcode, 'target', 'actor');
+    expect(
+      cached.results[0]?.food?.default_variant?.custom_nutrients
+    ).toBeUndefined();
+    expect(mocks.lookup).toHaveBeenCalledOnce();
+  });
   it('includes local and every source, preserves successful matches on another source error', async () => {
     mocks.local.mockResolvedValue({ ...food('local'), id: 'local-id' });
     mocks.lookup.mockImplementation(
