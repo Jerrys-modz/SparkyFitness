@@ -6804,6 +6804,37 @@
       "fromEffort": "Built from your best recent run. Threshold pace is about {{pace}} {{unit}}.",
       "fromTypical_one": "Estimated from your last {{formattedCount}} run, so less precise. A hard run of 3 km or more sharpens it.",
       "fromTypical_other": "Estimated from your last {{formattedCount}} runs, so less precise. A hard run of 3 km or more sharpens it."
+    },
+    "volume": {
+      "title": "Weekly Muscle Volume",
+      "subtitle": "Hard sets per muscle against {{min}} to {{max}} a week. A set counts 1 for its main muscles and 0.5 for helper muscles; warm-ups and sets logged as easy are left out.",
+      "thisWeek": "This week",
+      "lastWeek": "Last week",
+      "noSets": "No hard sets logged in the last few weeks.",
+      "loadFailed": "Could not load your weekly muscle volume.",
+      "status": {
+        "under": "Under",
+        "inRange": "In range",
+        "over": "Over",
+        "building": "Building"
+      },
+      "deload": {
+        "title": "Consider a lighter week",
+        "intro": "Next week ({{weekStart}}), try about {{setsMin}} to {{setsMax}}% of your usual sets at {{loadMin}} to {{loadMax}}% of your usual weights.",
+        "targets": "Hard sets per muscle",
+        "adviceOnly": "This is a suggestion only. Nothing in your plans or programs has been changed.",
+        "ok": "No deload needed right now.",
+        "notEnoughData": "Log a few weeks of strength training to get a deload suggestion.",
+        "recentlyDeloaded": "You trained lighter last week, so no deload is suggested."
+      },
+      "reason": {
+        "e1rm_dropping": "Estimated max is down {{value}}% from its peak: {{items}}.",
+        "e1rm_stalled": "No new estimated max for two or more weeks: {{items}}.",
+        "rpe_rising": "The same weights feel harder ({{items}}).",
+        "high_volume": "Two weeks in a row above {{max}} sets for {{items}}.",
+        "readiness_low": "Training readiness is {{value}}% below your recent baseline.",
+        "hrv_low": "Overnight HRV is {{value}}% below your recent baseline."
+      }
     }
   },
   "aiSettings": {
@@ -7843,7 +7874,8 @@
       "caffeineSummary": "Caffeine summary",
       "alcoholChart": "Alcohol chart",
       "alcoholSummary": "Alcohol summary",
-      "substancesWeekly": "Week by week"
+      "substancesWeekly": "Week by week",
+      "strengthVolume": "Weekly muscle volume"
     },
     "hydrationSections": "Hydration report",
     "measurementsSections": "Measurements report",

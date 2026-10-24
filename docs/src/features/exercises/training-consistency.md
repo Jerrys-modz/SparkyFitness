@@ -13,7 +13,7 @@ A view of how regularly you train, built from the workouts you have already logg
 - **Longest.** Your longest run of such weeks within the last 26 weeks.
 - **This week.** Distinct days you trained this week.
 - **Training calendar (mobile).** One column per week, with the weekday names down the side, month names above, and a filled square for each day you trained. Weeks start on the first day of the week you chose in your preferences (Sunday if you have not chosen one). The web Reports page already has a twelve-month workout calendar higher up the page, and shows a bar for each of the last 12 weeks here.
-- **Sets per muscle.** Working sets for each primary muscle this week against last week. Warm-up sets are not counted, and a set counts for every primary muscle of its exercise, the same way the muscle heat map counts them.
+- **Sets per muscle.** Working sets for each primary muscle this week against last week. Warm-up sets are not counted, and a set counts for every primary muscle of its exercise, the same way the muscle heat map counts them. For hard sets with a target range, including secondary muscles, see [Weekly Muscle Volume and Deload Suggestions](/features/exercises/weekly-muscle-volume).
 
 ## Good to know
 

@@ -6,6 +6,7 @@ export const EXERCISE_STATS_ACTIONS = [
   'query_activities',
   'personal_records',
   'matched_courses',
+  'strength_volume',
 ] as const;
 
 const intervalSchema = z.enum([
@@ -70,11 +71,18 @@ const matchedCoursesSchema = z
   })
   .strict();
 
+const strengthVolumeSchema = z
+  .object({
+    action: z.literal('strength_volume'),
+  })
+  .strict();
+
 export const exerciseStatsSchema = z.discriminatedUnion('action', [
   statsSummarySchema,
   queryActivitiesSchema,
   personalRecordsSchema,
   matchedCoursesSchema,
+  strengthVolumeSchema,
 ]);
 
 export type ExerciseStatsInput = z.infer<typeof exerciseStatsSchema>;

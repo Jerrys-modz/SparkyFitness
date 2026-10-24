@@ -52,6 +52,14 @@ jest.mock('../../src/hooks/useTrainingConsistency', () => ({
   }),
 }));
 
+jest.mock('../../src/hooks/useStrengthVolume', () => ({
+  useStrengthVolume: () => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+  }),
+}));
+
 const mockTrainingLoad = jest.fn();
 jest.mock('../../src/hooks/useTrainingLoad', () => ({
   useTrainingLoad: () => mockTrainingLoad(),

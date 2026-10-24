@@ -5,6 +5,7 @@ import { reportKeys } from '@/api/keys/reports';
 import {
   getExerciseDashboardData,
   getTrainingConsistency,
+  getStrengthVolume,
   getAlcoholWeekReport,
   getHydrationNutritionRange,
   getWorkoutDays,
@@ -149,6 +150,21 @@ export const useTrainingConsistency = (userId?: string | null) => {
       errorMessage: t(
         'trainingConsistency.loadFailed',
         'Failed to load training consistency.'
+      ),
+    },
+  });
+};
+
+export const useStrengthVolume = (userId?: string | null) => {
+  const { t } = useTranslation();
+  return useQuery({
+    queryKey: reportKeys.strengthVolume(userId ?? undefined),
+    queryFn: () => getStrengthVolume(userId ?? undefined),
+    enabled: !!userId,
+    meta: {
+      errorMessage: t(
+        'strengthVolume.loadFailed',
+        'Failed to load weekly muscle volume.'
       ),
     },
   });

@@ -33,6 +33,12 @@ import {
   weekStartOf,
   TRAINING_CONSISTENCY_WEEKS,
   type TrainingConsistency,
+  buildMuscleVolume,
+  suggestDeload,
+  DELOAD_HISTORY_WEEKS,
+  WEEKLY_HARD_SETS_MIN,
+  WEEKLY_HARD_SETS_MAX,
+  type StrengthVolume,
 } from '@workspace/shared';
 import { userAge } from '../utils/dateHelpers.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
@@ -999,7 +1005,66 @@ async function getTrainingLoad(
   }
 }
 
+/**
+ * Weekly hard sets per muscle for this and last week, and whether a lighter
+ * week is worth taking. Reads a fixed window of recent weeks in the user's
+ * timezone and week start; it changes nothing.
+ */
+async function getStrengthVolume(
+  authenticatedUserId: string,
+  targetUserId: string
+): Promise<StrengthVolume> {
+  try {
+    const timezone = await loadUserTimezone(targetUserId);
+    const today = todayInZone(timezone);
+    const firstDayOfWeek = await loadFirstDayOfWeek(targetUserId);
+    const startDate = addDays(
+      weekStartOf(today, firstDayOfWeek),
+      -7 * (DELOAD_HISTORY_WEEKS - 1)
+    );
+    const [allEntries, bodyWeights, recovery] = await Promise.all([
+      reportRepository.getExerciseEntries(targetUserId, startDate, today),
+      reportRepository.getBodyWeightReadings(targetUserId, startDate, today),
+      reportRepository.getRecoveryReadings(
+        targetUserId,
+        addDays(today, -35),
+        today
+      ),
+    ]);
+    // Synced calorie summaries are logged as exercise entries but are not
+    // workouts.
+    const entries = allEntries.filter(
+      (entry: { exercise_name?: string }) =>
+        entry.exercise_name !== 'Active Calories'
+    );
+    const volume = buildMuscleVolume(entries, today, firstDayOfWeek);
+    return {
+      today,
+      firstDayOfWeek,
+      thisWeekStart: volume.thisWeekStart,
+      lastWeekStart: volume.lastWeekStart,
+      range: { min: WEEKLY_HARD_SETS_MIN, max: WEEKLY_HARD_SETS_MAX },
+      muscles: volume.rows,
+      deload: suggestDeload({
+        entries,
+        today,
+        firstDayOfWeek,
+        bodyWeights,
+        recovery,
+      }),
+    };
+  } catch (error) {
+    log(
+      'error',
+      `Error building strength volume for user ${targetUserId} by ${authenticatedUserId}:`,
+      error
+    );
+    throw error;
+  }
+}
+
 export { getTrainingConsistency };
+export { getStrengthVolume };
 export { getTrainingLoad };
 export default {
   getReportsData,
@@ -1007,5 +1072,6 @@ export default {
   getNutritionTrendsWithGoals,
   getExerciseDashboardData,
   getTrainingConsistency,
+  getStrengthVolume,
   getTrainingLoad,
 };

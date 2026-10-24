@@ -1,6 +1,7 @@
 import type {
   ExerciseDashboardSummary,
   TrainingConsistency,
+  StrengthVolume,
   TrainingLoad,
 } from '@workspace/shared';
 import { apiFetch } from './apiClient';
@@ -59,6 +60,13 @@ export const fetchTrainingConsistency = (): Promise<TrainingConsistency> =>
     endpoint: '/api/reports/training-consistency',
     serviceName: 'Reports API',
     operation: 'fetch training consistency',
+  });
+
+export const fetchStrengthVolume = (): Promise<StrengthVolume> =>
+  apiFetch<StrengthVolume>({
+    endpoint: '/api/reports/strength-volume',
+    serviceName: 'Reports API',
+    operation: 'fetch strength volume',
   });
 
 export const fetchTrainingLoad = (): Promise<TrainingLoad> =>

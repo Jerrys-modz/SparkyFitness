@@ -9,10 +9,15 @@ vi.mock('../services/exerciseStatsService.js', () => ({
   },
 }));
 
+vi.mock('../services/reportService.js', () => ({
+  default: { getStrengthVolume: vi.fn() },
+}));
+
 vi.mock('../config/logging.js', () => ({
   log: vi.fn(),
 }));
 
+import reportService from '../services/reportService.js';
 import exerciseStatsService from '../services/exerciseStatsService.js';
 import { buildExerciseStatsTools } from '../ai/tools/exerciseStatsTools.js';
 import { toolOpts } from './helpers/toolExecutionOptions.js';
@@ -230,6 +235,50 @@ describe('sparky_get_exercise_stats', () => {
       '# Matched Courses\n\n' +
         '**River Loop** (4 activities) — avg 5.0 km, best pace 5:00/km\n  ID: c1'
     );
+  });
+
+  it('renders weekly hard sets and a deload suggestion as advice only', async () => {
+    (
+      reportService as unknown as {
+        getStrengthVolume: ReturnType<typeof vi.fn>;
+      }
+    ).getStrengthVolume.mockResolvedValue({
+      today: '2026-10-02',
+      firstDayOfWeek: 1,
+      thisWeekStart: '2026-09-28',
+      lastWeekStart: '2026-09-21',
+      range: { min: 10, max: 20 },
+      muscles: [
+        {
+          muscle: 'Chest',
+          thisWeek: 12,
+          lastWeek: 8,
+          thisWeekStatus: 'inRange',
+          lastWeekStatus: 'under',
+        },
+      ],
+      deload: {
+        status: 'suggest',
+        score: 2,
+        reasons: [{ code: 'e1rm_dropping', items: ['Squat'], value: 10 }],
+        plan: {
+          weekStart: '2026-10-05',
+          setsPercent: { min: 50, max: 60 },
+          loadPercent: { min: 90, max: 100 },
+          muscleTargets: [],
+        },
+      },
+    });
+    const result = (await getTool().execute!(
+      { action: 'strength_volume' },
+      opts
+    )) as string;
+    expect(result).toContain(
+      '- Chest: 12 this week (inRange), 8 last week (under)'
+    );
+    expect(result).toContain('50-60% of sets and 90-100% of working loads');
+    expect(result).toContain('- e1rm_dropping (Squat)');
+    expect(result).toContain('advice only');
   });
 
   it('returns DB_ERROR when the service throws', async () => {
