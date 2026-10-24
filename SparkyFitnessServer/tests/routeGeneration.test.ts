@@ -404,6 +404,23 @@ describe('Valhalla provider over HTTP (axios mocked)', () => {
     expect(performance.now() - started).toBeLessThan(1_000);
   });
 
+  it('refuses a surface answer with too many edges without validating it', async () => {
+    post.mockImplementation(async (url: string) => {
+      if (url.endsWith('/route')) return routeAnswer;
+      if (url.endsWith('/trace_attributes')) {
+        // Bad entries, so the schema would record an issue object for each.
+        return {
+          data: { edges: Array.from({ length: 2_000_000 }, () => 'x') },
+        };
+      }
+      throw axiosError('ECONNREFUSED');
+    });
+    const started = performance.now();
+    const result = await engine().route({ ...req, measureSurface: true });
+    expect(result.trailShare).toBeNull();
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+
   it('refuses an elevation answer longer than the route without validating it', async () => {
     post.mockImplementation(async (url: string) => {
       if (url.endsWith('/route')) {

@@ -134,6 +134,14 @@ describe('route alternatives', () => {
     expect(response.options.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('does not try further headings once the engine is failing', async () => {
+    const calls: RoutingRequest[] = [];
+    await expect(
+      generateRoute(fakeProvider({ calls, failWhen: () => true }), loop())
+    ).rejects.toMatchObject({ kind: 'unreachable' });
+    expect(calls).toHaveLength(3);
+  });
+
   it('fails with the engine error when every heading fails', async () => {
     await expect(
       generateRoute(fakeProvider({ failWhen: () => true }), loop())

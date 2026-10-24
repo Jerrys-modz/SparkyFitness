@@ -134,6 +134,7 @@ async function generateLoopCandidates(
   const measureSurface = count > 1;
   const accepted: Candidate[] = [];
   let firstFailure: unknown;
+  let engineFailing = false;
 
   const attempt = async (offset: number): Promise<Candidate | null> => {
     try {
@@ -151,6 +152,7 @@ async function generateLoopCandidates(
     } catch (error) {
       if (error instanceof RoutingProviderError) {
         firstFailure ??= error;
+        if (error.kind !== 'no_route') engineFailing = true;
         return null;
       }
       throw error;
@@ -173,7 +175,8 @@ async function generateLoopCandidates(
     accept(candidate);
   }
   for (const offset of offsets.slice(count)) {
-    if (accepted.length >= count) break;
+    // Another heading only helps when the engine merely found no route.
+    if (accepted.length >= count || engineFailing) break;
     accept(await attempt(offset));
   }
 
