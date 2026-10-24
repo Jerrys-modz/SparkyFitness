@@ -46,7 +46,10 @@ vi.mock('../models/mealType.js', () => ({ default: {} }));
 
 const UID = 'user-1';
 
-function buildWorkoutData(weightUnitKey: string | undefined) {
+function buildWorkoutData(
+  weightUnitKey: string | undefined,
+  weightValue = 100
+) {
   return {
     workoutName: 'Strength Plan',
     workoutSegments: [
@@ -58,7 +61,7 @@ function buildWorkoutData(weightUnitKey: string | undefined) {
             category: 'BENCH_PRESS',
             stepType: { stepTypeKey: 'Working Set' },
             endConditionValue: 5,
-            weightValue: 100,
+            weightValue,
             ...(weightUnitKey
               ? { weightUnit: { unitKey: weightUnitKey } }
               : {}),
@@ -107,59 +110,24 @@ describe('processGarminWorkoutDefinition set weights', () => {
     await processGarminWorkoutDefinition(UID, buildWorkoutData(undefined));
     expect(capturedSetWeight()).toBe(100);
   });
-});
 
-// Garmin sends weightValue -1.0 on workout steps that have no weight set.
-function buildNoWeightWorkout(weightUnitKey: string) {
-  return {
-    workoutName: 'Bodyweight Plan',
-    workoutSegments: [
-      {
-        workoutSteps: [
-          {
-            type: 'ExecutableStepDTO',
-            exerciseName: 'PUSH_UP',
-            category: 'PUSH_UP',
-            stepType: { stepTypeKey: 'interval' },
-            endConditionValue: 10,
-            weightValue: -1.0,
-            weightUnit: { unitKey: weightUnitKey },
-          },
-        ],
-      },
-    ],
-  };
-}
-
-describe('processGarminWorkoutDefinition with Garmin "no weight" placeholder', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(exerciseRepository.findExerciseByNameAndUserId).mockResolvedValue(
-      { id: 'exercise-1', name: 'Push Up', category: 'strength' }
-    );
-    vi.mocked(workoutPresetRepository.getWorkoutPresetByName).mockResolvedValue(
-      { id: 33 }
-    );
-    // Mirror the real repository: it validates the sets against the
-    // exercise's modality before inserting. Garmin-created exercises are
-    // never bodyweight, so use weight_reps here.
-    vi.mocked(
-      workoutPresetRepository.addExerciseToWorkoutPreset
-    ).mockImplementation(async (_u, _p, _e, _i, sets) => {
-      assertSetWeightSign(sets, 'weight_reps');
-      return 'preset-exercise-1';
-    });
-  });
-
+  // Garmin sends weightValue -1.0 on steps that have no weight set.
   it.each(['kilogram', 'pound'])(
-    'stores weight 0 and does not throw for weightValue -1 (%s)',
+    'stores weight 0 and passes the weight-sign check for weightValue -1 (%s)',
     async (unitKey) => {
+      // Mirror the real repository, which validates the sets against the
+      // exercise's modality; Garmin-created exercises are weight_reps.
+      vi.mocked(
+        workoutPresetRepository.addExerciseToWorkoutPreset
+      ).mockImplementation(async (_u, _p, _e, _i, sets) => {
+        assertSetWeightSign(sets, 'weight_reps');
+        return 'preset-exercise-1';
+      });
+
       await expect(
-        processGarminWorkoutDefinition(UID, buildNoWeightWorkout(unitKey))
+        processGarminWorkoutDefinition(UID, buildWorkoutData(unitKey, -1))
       ).resolves.not.toThrow();
-      const sets = vi.mocked(workoutPresetRepository.addExerciseToWorkoutPreset)
-        .mock.calls[0][4];
-      expect(sets[0].weight).toBe(0);
+      expect(capturedSetWeight()).toBe(0);
     }
   );
 });

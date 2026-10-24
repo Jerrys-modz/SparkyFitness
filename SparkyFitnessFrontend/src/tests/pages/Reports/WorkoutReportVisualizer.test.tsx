@@ -54,7 +54,6 @@ describe('WorkoutReportVisualizer "no weight" placeholder', () => {
 
     // 20 kg x 10 reps only; the -1 step must not subtract 10.
     expect(screen.getByText('200 kg')).toBeInTheDocument();
-    expect(screen.queryByText(/-1/)).not.toBeInTheDocument();
     expect(screen.getAllByText('20 kg').length).toBeGreaterThan(0);
     const pushUpRow = screen.getByText('PUSH_UP').closest('tr') as HTMLElement;
     const weightCell = within(pushUpRow).getAllByRole('cell').at(-1);

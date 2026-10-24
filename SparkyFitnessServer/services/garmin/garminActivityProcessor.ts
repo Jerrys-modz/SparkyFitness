@@ -1,6 +1,7 @@
 import type { PoolClient } from 'pg';
 import { log } from '../../config/logging.js';
 import { getClient } from '../../db/poolManager.js';
+import { describeError } from '../../utils/errors.js';
 import exerciseEntryRepository from '../../models/exerciseEntry.js';
 import exercisePresetEntryRepository from '../../models/exercisePresetEntryRepository.js';
 import workoutPresetRepository from '../../models/workoutPresetRepository.js';
@@ -258,16 +259,6 @@ export async function processActivitiesAndWorkouts(
       }
     }
 
-    // Process standalone Workouts (definitions)
-    if (workouts && Array.isArray(workouts)) {
-      for (const workoutData of workouts) {
-        await processGarminWorkoutDefinition(
-          userId,
-          workoutData as GarminWorkoutDefinitionDto
-        );
-        processedCount++;
-      }
-    }
     await client.query('COMMIT');
   } catch (error) {
     await client.query('ROLLBACK');
@@ -275,7 +266,30 @@ export async function processActivitiesAndWorkouts(
   } finally {
     client.release();
   }
-  return { processedEntries: processedCount };
+
+  // Workout definitions are library rows written outside the transaction, so
+  // a failure here must not roll back the activities committed above. Each
+  // definition is isolated so one bad workout neither hides the committed
+  // activities from the caller nor skips the definitions after it.
+  let failedDefinitions = 0;
+  if (workouts && Array.isArray(workouts)) {
+    for (const workoutData of workouts) {
+      try {
+        await processGarminWorkoutDefinition(
+          userId,
+          workoutData as GarminWorkoutDefinitionDto
+        );
+        processedCount++;
+      } catch (error) {
+        failedDefinitions++;
+        log(
+          'error',
+          `[garminActivityProcessor] Failed to process Garmin workout definition for user ${userId}: ${describeError(error)}`
+        );
+      }
+    }
+  }
+  return { processedEntries: processedCount, failedDefinitions };
 }
 
 export async function processGarminWorkoutSession(
