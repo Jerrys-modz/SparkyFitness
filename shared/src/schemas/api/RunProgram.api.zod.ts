@@ -266,11 +266,11 @@ export const runProgramRealignPreviewSchema = z.object({
   before: z.object({
     workouts: z.number().int().min(0),
     /** The day the last workout falls on today, goal day ignored. */
-    finishDay: dayString.nullable(),
+    finishDay: runDayStringSchema.nullable(),
   }),
   after: z.object({
     workouts: z.number().int().min(0),
-    finishDay: dayString.nullable(),
+    finishDay: runDayStringSchema.nullable(),
   }),
   changes: z.array(runProgramRealignChangeSchema).max(100),
   dropped: z.number().int().min(0),
@@ -333,7 +333,7 @@ export const runProgramRealignResultSchema = z.discriminatedUnion('state', [
     weeksLeft: z.number().int().min(0),
     distance: realignDistanceSchema.nullable(),
     /** The day the whole remaining plan would end on if the goal moved. */
-    laterDay: dayString.nullable(),
+    laterDay: runDayStringSchema.nullable(),
     /** The next shorter race, if there is one. */
     lowerDistance: realignDistanceSchema.nullable(),
     options: z.array(runProgramRealignOptionSchema),
@@ -357,7 +357,7 @@ export const realignRunProgramBodySchema = z.object({
   /** The race distance, when the plan does not make it clear. */
   distance: realignDistanceSchema.optional(),
   /** The person's local day. */
-  today: dayString.optional(),
+  today: runDayStringSchema.optional(),
   /** The `token` of the preview the person saw; a changed plan is refused. */
   token: z.string().max(100).optional(),
 });
