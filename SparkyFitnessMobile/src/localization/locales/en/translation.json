@@ -6450,7 +6450,7 @@
       "kilometersAxis": "Kilometers from start",
       "milesAxis": "Miles from start",
       "splits": "Splits",
-    "bestPace": "Best {{value}}",
+      "bestPace": "Best {{value}}",
       "perKm": "/km",
       "perMile": "/mi",
       "underOneMinute": "<1 min",
