@@ -12,6 +12,7 @@ import FormInput from '../components/FormInput';
 import Button from '../components/ui/Button';
 import SafeImage from '../components/SafeImage';
 import ProgramWorkoutBadge from '../components/recording/ProgramWorkoutBadge';
+import ShoePickerCard from '../components/ShoePickerCard';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import {
@@ -432,6 +433,15 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         keyboardType: 'numeric',
       });
     }
+    if (session.workout_effort != null) {
+      stats.push({
+        value: t('workoutEffort.value', {
+          defaultValue: '{{rating}}/10',
+          rating: formatLocalizedNumber(session.workout_effort),
+        }),
+        label: t('activityDetail.stats.effort', { defaultValue: 'Effort' }),
+      });
+    }
     if (session.steps != null && session.steps > 0) {
       stats.push({
         value: formatLocalizedNumber(session.steps),
@@ -731,6 +741,12 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* Stats grid */}
         {renderStatsGrid()}
+
+        {!isEditing && isCardioModality(modality) && (
+          <View className="mt-4">
+            <ShoePickerCard exerciseEntryId={session.id} />
+          </View>
+        )}
 
         {/* Sets section */}
         {isEditing ? (

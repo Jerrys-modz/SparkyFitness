@@ -2,6 +2,7 @@ import { log } from '../../config/logging.js';
 import measurementService from '../measurementService.js';
 import moodRepository from '../../models/moodRepository.js';
 import sleepRepository from '../../models/sleepRepository.js';
+import type { SleepEntryInput } from '../../models/sleepRepository.js';
 import foodRepository from '../../models/food.js';
 import foodEntryRepository from '../../models/foodEntry.js';
 import mealTypeRepository from '../../models/mealType.js';
@@ -12,7 +13,11 @@ import { num, str, toUtcInstant } from './garminTelemetryExtractors.js';
 // Shared with the generic /api/health-data workout path; Garmin keeps the
 // default 'replace' mode because it re-fetches the whole day on every sync.
 import { upsertSamplesByDay } from '../healthMetricSampleWriter.js';
-import { localDateTimeToUtc, instantToDay } from '@workspace/shared';
+import {
+  localDateTimeToUtc,
+  instantToDay,
+  instantForDay,
+} from '@workspace/shared';
 
 interface ActivityWindow {
   id: string;
@@ -195,12 +200,13 @@ export async function processGarminHealthAndWellnessData(
 
         if (derived_mood_value !== null && derived_mood_value !== undefined) {
           try {
-            await moodRepository.createOrUpdateMoodEntry(
-              userId,
-              derived_mood_value,
-              derived_mood_notes,
-              date
-            );
+            await moodRepository.upsertDerivedMood(userId, 'garmin', {
+              moodValue: derived_mood_value,
+              notes: derived_mood_notes,
+              entryDate: date,
+              // A daily value: now for today, local noon for a past day.
+              entryTimestamp: instantForDay(date, userTz),
+            });
             processedResults.push({
               type: 'derived_mood_value',
               status: 'success',
@@ -941,6 +947,11 @@ export async function processGarminHealthAndWellnessData(
   }
 }
 
+/** A bedtime or wake time that `new Date()` reads as a real instant. */
+const isSleepInstant = (value: unknown): value is string | Date =>
+  (typeof value === 'string' || value instanceof Date) &&
+  !Number.isNaN(new Date(value).getTime());
+
 export async function processGarminSleepData(
   userId: string,
   actingUserId: string,
@@ -964,10 +975,23 @@ export async function processGarminSleepData(
 
   for (const sleepEntry of sleepDataArray) {
     try {
+      // routes.py skips a night without both times; one that slips through
+      // fails here, with the others still processed, instead of reaching the
+      // upsert as an Invalid Date.
+      if (
+        !isSleepInstant(sleepEntry.bedtime) ||
+        !isSleepInstant(sleepEntry.wake_time)
+      ) {
+        throw new Error(
+          'Garmin sleep entry is missing a valid bedtime or wake_time.'
+        );
+      }
       const result = await measurementService.processSleepEntry(
         userId,
         actingUserId,
-        sleepEntry
+        // The rest is shaped by the Garmin service's sleep mapper, which
+        // isn't typed yet.
+        sleepEntry as SleepEntryInput
       );
       processedResults.push({ status: 'success', data: result });
     } catch (error: unknown) {

@@ -14,11 +14,15 @@ export const REPORT_KEYS = [
   'measurements',
   'mood',
   'exercise',
+  'compare',
 ] as const;
 
 export type ReportKey = (typeof REPORT_KEYS)[number];
 
-type Translator = (key: string, options: { defaultValue: string }) => string;
+export type Translator = (
+  key: string,
+  options: { defaultValue: string; [param: string]: string | number }
+) => string;
 
 /**
  * A report's name as the hub and the customize screen list it. Resolvers
@@ -36,6 +40,7 @@ export const REPORT_LABELS: Record<ReportKey, (t: Translator) => string> = {
     t('reports.measurements', { defaultValue: 'Measurements' }),
   mood: (t) => t('reports.mood', { defaultValue: 'Mood' }),
   exercise: (t) => t('reports.exercise', { defaultValue: 'Exercise' }),
+  compare: (t) => t('reports.compare', { defaultValue: 'Compare' }),
 };
 
 /**

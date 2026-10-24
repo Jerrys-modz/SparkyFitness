@@ -1,11 +1,18 @@
 import type { TFunction } from 'i18next';
-import { METERS_PER_KM, METERS_PER_MILE } from './gpsRecording';
-import type {
-  IntervalStep,
-  HeartRateAlertKind,
-  IntervalStyle,
-  PaceAlertKind,
+import { formatClock, METERS_PER_KM, METERS_PER_MILE } from './gpsRecording';
+import { formatLocalizedNumber } from '../localization';
+import {
+  STEP_METERS_PER_MILE,
+  type HeartRateAlertKind,
+  type IntervalStep,
+  type IntervalStyle,
+  type PaceAlertKind,
+  type StepDistanceUnit,
 } from '@workspace/shared';
+
+/** Miles to two decimals at most: 0.25, 0.5, 1, 1.5. */
+const stepMiles = (meters: number): number =>
+  Math.round((meters / STEP_METERS_PER_MILE) * 100) / 100;
 
 /**
  * The words spoken during a GPS recording. Pure and given `t`, so it runs under
@@ -79,6 +86,27 @@ export function spokenDistance(
         defaultValue_one: '{{count}} kilometer',
         defaultValue_other: '{{count}} kilometers',
       });
+}
+
+/**
+ * An interval step's distance, said aloud in the unit it was set in:
+ * "400 meters", "1.5 kilometers" from a kilometer up, or "0.25 miles".
+ */
+export function spokenStepDistance(
+  t: TFunction,
+  meters: number,
+  unit?: StepDistanceUnit
+): string {
+  if (unit === 'mi') return spokenDistance(t, stepMiles(meters), 'miles');
+  if (meters >= 1000) {
+    return spokenDistance(t, Math.round(meters / 100) / 10, 'km');
+  }
+  return t('recordActivity.cues.meters', {
+    count: Math.round(meters),
+    defaultValue: '{{count}} meters',
+    defaultValue_one: '{{count}} meter',
+    defaultValue_other: '{{count}} meters',
+  });
 }
 
 /**
@@ -207,7 +235,7 @@ export function finishCue(
   });
 }
 
-/** The word for a step: "Run" and "Walk", or "Fast" and "Easy". */
+/** The word for a step: "Run" and "Walk", "Fast" and "Easy", or "Brisk" and "Easy". */
 export function intervalStepName(
   t: TFunction,
   kind: IntervalStep['kind'],
@@ -221,9 +249,13 @@ export function intervalStepName(
         defaultValue: 'Cool down',
       });
     case 'work':
-      return style === 'runWalk'
-        ? t('recordActivity.intervals.run', { defaultValue: 'Run' })
-        : t('recordActivity.intervals.fast', { defaultValue: 'Fast' });
+      if (style === 'runWalk') {
+        return t('recordActivity.intervals.run', { defaultValue: 'Run' });
+      }
+      if (style === 'briskWalk') {
+        return t('recordActivity.intervals.brisk', { defaultValue: 'Brisk' });
+      }
+      return t('recordActivity.intervals.fast', { defaultValue: 'Fast' });
     case 'recovery':
       return style === 'runWalk'
         ? t('recordActivity.intervals.walk', { defaultValue: 'Walk' })
@@ -231,15 +263,68 @@ export function intervalStepName(
   }
 }
 
-/** Said when an interval step begins: what to do and for how long. */
+/** Said when an interval step begins: what to do and for how long or how far. */
 export function intervalCue(
   t: TFunction,
   options: { step: IntervalStep; style: IntervalStyle }
 ): string {
+  const { step } = options;
   return t('recordActivity.cues.interval', {
-    name: intervalStepName(t, options.step.kind, options.style),
-    time: spokenDuration(t, options.step.seconds),
+    name: intervalStepName(t, step.kind, options.style),
+    time:
+      step.meters !== undefined && step.meters > 0
+        ? spokenStepDistance(t, step.meters, step.unit)
+        : spokenDuration(t, step.seconds),
     defaultValue: '{{name}}. {{time}}.',
+  });
+}
+
+/**
+ * An interval step's distance on screen, in the unit it was set in: "400 m",
+ * "1.5 km" from a kilometer up, or "0.25 mi".
+ */
+export function stepDistanceText(
+  t: TFunction,
+  meters: number,
+  unit?: StepDistanceUnit
+): string {
+  if (unit === 'mi') {
+    return `${formatLocalizedNumber(stepMiles(meters), {
+      maximumFractionDigits: 2,
+    })} ${t('recordActivity.unitMi', { defaultValue: 'mi' })}`;
+  }
+  if (meters >= 1000) {
+    return `${formatLocalizedNumber(Math.round(meters / 100) / 10, {
+      maximumFractionDigits: 1,
+    })} ${t('recordActivity.unitKm', { defaultValue: 'km' })}`;
+  }
+  return `${formatLocalizedNumber(Math.round(meters))} ${t(
+    'recordActivity.unitM',
+    { defaultValue: 'm' }
+  )}`;
+}
+
+/** A step's length as shown: its distance, or its time as m:ss. */
+export function stepLengthText(t: TFunction, step: IntervalStep): string {
+  return step.meters !== undefined && step.meters > 0
+    ? stepDistanceText(t, step.meters, step.unit)
+    : formatClock(step.seconds);
+}
+
+/**
+ * How close to the end of a distance step the "to go" cue is said: 100 m,
+ * or a tenth of a mile on a step set in miles.
+ */
+export const stepToGoMeters = (unit?: StepDistanceUnit): number =>
+  unit === 'mi' ? STEP_METERS_PER_MILE / 10 : 100;
+/** Steps shorter than this get no "to go" cue: it would follow the start too soon. */
+export const STEP_TO_GO_MIN_METERS = 300;
+
+/** Said near the end of a distance step: "100 meters to go." or "0.1 miles to go." */
+export function intervalToGoCue(t: TFunction, unit?: StepDistanceUnit): string {
+  return t('recordActivity.cues.intervalToGo', {
+    distance: spokenStepDistance(t, stepToGoMeters(unit), unit),
+    defaultValue: '{{distance}} to go.',
   });
 }
 
@@ -428,6 +513,37 @@ export function programStartCue(
         defaultValue: 'Eased for today.',
       })}`
     : base;
+}
+
+/** "Workout 4. 30 minutes." for a workout of the person's own plan. */
+export function customProgramStartCue(
+  t: TFunction,
+  options: { number: number; title?: string; totalSeconds: number }
+): string {
+  return t('recordActivity.cues.customProgramStart', {
+    workout: options.title || `${options.number}`,
+    time: spokenDuration(t, options.totalSeconds),
+    defaultValue: 'Workout {{workout}}. {{time}}.',
+  });
+}
+
+/** Said at the end of a workout of the person's own plan. */
+export function customProgramDoneCue(
+  t: TFunction,
+  options: { done: number; total: number }
+): string {
+  if (options.done >= options.total) {
+    return t('recordActivity.cues.programComplete', {
+      defaultValue: 'Program complete. Well done.',
+    });
+  }
+  return t('recordActivity.cues.customProgramDone', {
+    done: options.done,
+    total: options.total,
+    next: options.done + 1,
+    defaultValue:
+      'Workout {{done}} of {{total}} done. Next up, workout {{next}}.',
+  });
 }
 
 /**

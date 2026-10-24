@@ -27,6 +27,8 @@ final class WatchRunStore: ObservableObject {
         let elapsed: TimeInterval
         let metrics: WatchRunMetrics
         let saved: Bool
+        /// The run's id, so an effort rating can be matched to it on the phone.
+        var clientId: String? = nil
     }
 
     @Published private(set) var phase: Phase = .idle
@@ -52,8 +54,22 @@ final class WatchRunStore: ObservableObject {
     /// The plan this run follows, if any. The page works out the live step
     /// from it each second; the store only cues the changes.
     @Published private(set) var plan: WatchRunPlan?
+    /// The saved route this run follows, outdoors only; nil otherwise. The
+    /// phone sends it with the start request and it is kept on disk (see
+    /// `WatchRouteStorage`) so a relaunch carries on following it.
+    @Published private(set) var route: WatchRoute?
+    /// Where the latest GPS fix stands against `route`; nil until the first usable fix.
+    @Published private(set) var routeProgress: WatchRouteTracker.Snapshot?
+    /// The latest usable fix, for the "you are here" dot.
+    @Published private(set) var routePosition: WatchRoutePoint?
+    private var routeTracker: WatchRouteTracker?
+    /// A turn cue the tracker announced while the run was paused. Said on the
+    /// first fix after the run resumes, if that turn is still ahead.
+    private var heldRouteCue: WatchRouteCue?
     /// Index of the plan step already announced (-1 before the first).
     private var cuedStep = -1
+    /// The distance step whose "to go" cue was said, so it is said once.
+    private var toGoCuedStep = -1
     /// Which coaching cues (step warnings, halfway, check-ins) were said.
     private var coaching = WatchCoachingState()
     private var stepTimer: Timer?
@@ -115,6 +131,9 @@ final class WatchRunStore: ObservableObject {
         healthKit.onAutoPause = { [weak self] action in
             Task { @MainActor in self?.applyAutoPause(action) }
         }
+        healthKit.onLocation = { [weak self] point, accuracy, date in
+            Task { @MainActor in self?.routeFix(point, accuracy: accuracy, at: date) }
+        }
         healthKit.onGpsAccuracy = { [weak self] accuracy in
             Task { @MainActor in
                 self?.gpsAccuracy = accuracy
@@ -136,7 +155,7 @@ final class WatchRunStore: ObservableObject {
         handledRequests = Array((handledRequests + [request.requestId]).suffix(20))
         guard abs(Date().timeIntervalSince(request.requestedAt)) <= 120 else { return }
         guard canStart else { return }
-        start(request.kind, place: request.place, plan: request.plan, settings: request.settings)
+        start(request.kind, place: request.place, plan: request.plan, settings: request.settings, route: request.route)
         // After `start`, which clears it for a run begun on the wrist.
         if phase == .running { requestId = request.requestId }
     }
@@ -184,9 +203,13 @@ final class WatchRunStore: ObservableObject {
         place: WatchRunPlace,
         plan: WatchRunPlan? = nil,
         settings: WatchRunSettings? = nil,
-        alerts: WatchRunAlertSetup = .off
+        alerts: WatchRunAlertSetup = .off,
+        route: WatchRoute? = nil
     ) {
         guard canStart else { return }
+        // Distance steps follow the watch's GPS distance; indoors there is
+        // only a motion estimate, so the phone does not offer them there.
+        let plan = place == .indoor && plan?.hasDistanceSteps == true ? nil : plan
         var chosen = settings ?? defaultSettings
         // A run begun on the wrist takes its alerts from the start screen; one
         // the phone asked for carries its own.
@@ -195,6 +218,8 @@ final class WatchRunStore: ObservableObject {
             chosen.heartRateBand = alerts.heartRate
         }
         requestId = nil
+        // Indoors there is no GPS to follow a route with.
+        followRoute(place == .outdoor ? route : nil)
         self.settings = chosen
         self.kind = kind
         self.place = place
@@ -207,6 +232,7 @@ final class WatchRunStore: ObservableObject {
         heartRateAlertState = .initial
         heartRateAlertStep = nil
         recentPace.reset()
+        toGoCuedStep = -1
         summary = nil
         metrics = WatchRunMetrics()
         gpsAccuracy = nil
@@ -228,7 +254,89 @@ final class WatchRunStore: ObservableObject {
                     self.phase = .idle
                     self.requestId = nil
                     self.plan = nil
+                    self.followRoute(nil)
                 }
+            }
+        }
+    }
+
+    // MARK: - Route
+
+    /// Starts following `route`, or stops following one when nil. A route with
+    /// no line to follow is treated as none.
+    private func followRoute(_ route: WatchRoute?) {
+        routeTracker = route.flatMap { WatchRouteTracker(route: $0) }
+        healthKit.routeProgress = nil
+        self.route = routeTracker == nil ? nil : route
+        routeProgress = nil
+        routePosition = nil
+        heldRouteCue = nil
+        if let route = self.route {
+            WatchRouteStorage.save(route)
+        } else {
+            WatchRouteStorage.clear()
+            // A removal the phone sent while this route was being followed.
+            WatchRouteLibraryStore.shared.runEnded()
+        }
+    }
+
+    /// Hands the tracker's place, and a cue held for the resume, to the run
+    /// snapshot, so a relaunch carries on from both.
+    private func publishRouteProgress() {
+        guard let tracker = routeTracker else { return }
+        var state = tracker.state
+        state.pendingCue = heldRouteCue
+        healthKit.routeProgress = state
+    }
+
+    /// Takes a GPS fix. The map and the next cue follow every usable fix; the
+    /// buzzes and spoken lines only come while the run is going, so a paused
+    /// wearer is not nagged.
+    private func routeFix(_ point: WatchRoutePoint, accuracy: Double, at date: Date) {
+        guard phase == .running || phase == .paused, var tracker = routeTracker else { return }
+        guard let update = tracker.update(lat: point.lat, lon: point.lon, accuracy: accuracy, at: date) else { return }
+        routeTracker = tracker
+        routePosition = point
+        routeProgress = update.snapshot
+        var events = update.events
+        if phase == .paused {
+            // The tracker has marked a turn announced; keep it for the resume.
+            var newlyHeld = false
+            for case .approachingCue(let routeCue) in events {
+                heldRouteCue = routeCue
+                newlyHeld = true
+            }
+            // Route collection is off while paused, so no running-fix write
+            // follows. Routine fixes ride the throttle (pause() already wrote
+            // one); a newly held cue is forced so a relaunch keeps it.
+            publishRouteProgress()
+            healthKit.persistRouteProgress(force: newlyHeld)
+            return
+        }
+        guard phase == .running else { return }
+        if let held = heldRouteCue {
+            heldRouteCue = nil
+            let alreadyAnnounced = events.contains { $0 == .approachingCue(held) }
+            if !alreadyAnnounced, update.snapshot.nextCue?.cue == held {
+                events.insert(.approachingCue(held), at: 0)
+            }
+        }
+        publishRouteProgress()
+        healthKit.persistRouteProgress()
+        for event in events {
+            switch event {
+            case .approachingCue(let routeCue):
+                Haptics.routeCue()
+                cue(routeCue.spoken(distanceMeters: update.snapshot.nextCue?.distanceMeters ?? 0, inMiles: usesMiles))
+            case .wentOffRoute:
+                Haptics.offRoute()
+                cue(String(localized: "watch.route.offRouteSpoken", defaultValue: "You are off the route."))
+            case .backOnRoute:
+                Haptics.onRoute()
+                cue(String(localized: "watch.route.backOn", defaultValue: "Back on route."))
+            case .arrived:
+                Haptics.onRoute()
+                cue(String(localized: "watch.route.arrived", defaultValue: "You have reached the end of the route."))
             }
         }
     }
@@ -249,6 +357,9 @@ final class WatchRunStore: ObservableObject {
                 self.recovering = false
                 switch outcome {
                 case .none:
+                    // No run to carry on: a removal held back for a route that
+                    // was being followed when the app died can go now.
+                    WatchRouteLibraryStore.shared.runEnded()
                     completion(false)
                 case .resumed(let recovery):
                     self.kind = recovery.kind
@@ -260,16 +371,31 @@ final class WatchRunStore: ObservableObject {
                     self.lapCount = recovery.lapCount
                     self.plan = self.healthKit.plan
                     self.settings = self.healthKit.settings
+                    let savedRouteProgress = self.healthKit.routeProgress
+                    self.followRoute(recovery.place == .outdoor ? WatchRouteStorage.load() : nil)
+                    // Carry on from where the tracker was, not from the start.
+                    if let savedRouteProgress, var tracker = self.routeTracker {
+                        tracker.restore(savedRouteProgress)
+                        self.routeTracker = tracker
+                        if savedRouteProgress.routeId == tracker.route.id {
+                            self.heldRouteCue = savedRouteProgress.pendingCue
+                        }
+                        self.publishRouteProgress()
+                    }
                     // The recovered builder may still read 0 for a moment, so the
-                    // snapshot's time is the floor: the step the run is in now is
-                    // not announced again.
+                    // snapshot's time is the floor. The plan's place comes back
+                    // from the snapshot, so the step the run is in now is not
+                    // announced again.
                     let resumedAt = max(self.healthKit.elapsed, recovery.elapsed)
-                    self.cuedStep = self.plan?.position(at: resumedAt)?.index ?? -1
+                    self.cuedStep = self.healthKit.planPosition()?.index ?? -1
+                    self.toGoCuedStep = self.cuedStep
                     self.coaching = WatchCoachingState.resumed(
                         at: resumedAt,
                         plan: self.plan,
                         checkInMinutes: self.settings.checkInMinutes ?? 0,
-                        distanceMeters: self.place == .indoor ? nil : self.metrics.distanceMeters
+                        distanceMeters: self.place == .indoor ? nil : self.metrics.distanceMeters,
+                        cursor: self.healthKit.planCursorValue,
+                        planMeters: self.metrics.distanceMeters
                     )
                     self.startStepTimer()
                     self.startLiveTimer()
@@ -282,6 +408,7 @@ final class WatchRunStore: ObservableObject {
                     self.phase = recovery.paused ? .paused : .running
                     completion(true)
                 case .salvaged(let unscaled):
+                    self.followRoute(nil)
                     // The Health session was lost; the run itself was not.
                     let scale = Self.scale(for: unscaled.kind, place: unscaled.place)
                     var result = unscaled.scalingDistance(by: scale)
@@ -298,7 +425,8 @@ final class WatchRunStore: ObservableObject {
                         place: result.place,
                         elapsed: result.activeSeconds,
                         metrics: result.metrics,
-                        saved: true
+                        saved: true,
+                        clientId: result.clientId
                     )
                     self.phase = .finished
                     completion(false)
@@ -330,8 +458,8 @@ final class WatchRunStore: ObservableObject {
     /// older: a pause or resume is about now.
     /// What follows a program workout that reached its last step, from the
     /// phone; nil for any other run or one stopped early.
-    private func programDoneText(elapsed: TimeInterval) -> String? {
-        guard let plan, plan.programId != nil, plan.completed(at: elapsed) else { return nil }
+    private func programDoneText(completed: Bool) -> String? {
+        guard let plan, plan.programId != nil, completed else { return nil }
         return plan.doneText
     }
 
@@ -409,7 +537,7 @@ final class WatchRunStore: ObservableObject {
         let elapsed = healthKit.elapsed
         var band = settings.heartRateBand
         var stepIndex: Int?
-        if let plan, let position = plan.position(at: elapsed), !position.finished {
+        if let plan, let position = currentPlanPosition(), !position.finished {
             stepIndex = position.index
             // Switching the alert off silences a step's own range too.
             if settings.heartRateStepsOff != true {
@@ -436,7 +564,7 @@ final class WatchRunStore: ObservableObject {
         // run's range, if there is one.
         var band = settings.paceBand
         var stepIndex: Int?
-        if let plan, let position = plan.position(at: elapsed), !position.finished {
+        if let plan, let position = currentPlanPosition(), !position.finished {
             stepIndex = position.index
             if settings.paceStepsOff != true {
                 band = plan.steps[position.index].pace ?? band
@@ -497,7 +625,7 @@ final class WatchRunStore: ObservableObject {
     private func pushLive(force: Bool = false, ended: Bool = false) {
         guard ended || phase == .running || phase == .paused else { return }
         let elapsed = healthKit.elapsed
-        let position = plan?.position(at: elapsed)
+        let position = healthKit.planPosition()
         let step = (position?.finished ?? true) ? nil : position
         WatchSessionManager.shared.sendRunLive(
             OutboundPayloads.runLive(
@@ -514,8 +642,14 @@ final class WatchRunStore: ObservableObject {
                 heartRate: metrics.heartRate,
                 energyKcal: metrics.activeEnergyKcal,
                 lapCount: lapCount,
-                stepLabel: step?.label,
-                stepRemaining: step?.remaining,
+                // A distance step has nothing for the phone to count down, so
+                // its metres left ride in the label, refreshed with each update.
+                stepLabel: step.map { step in
+                    step.remainingMeters.map {
+                        "\(step.label) · \(WatchRunPlan.distance($0, inMiles: step.inMiles))"
+                    } ?? step.label
+                },
+                stepRemaining: step?.remainingMeters == nil ? step?.remaining : nil,
                 nextLabel: step?.next,
                 requestId: requestId
             ),
@@ -543,12 +677,15 @@ final class WatchRunStore: ObservableObject {
     }
 
     /// Announces a plan step when it begins: a tap, the words if Voice cues
-    /// is on, and a lap mark so the saved run is cut at the step. Time is the
-    /// builder's active clock, so a pause never eats into a step.
+    /// is on, and a lap mark so the saved run is cut at the step. Steps follow
+    /// the builder's active clock and recorded distance, so a pause never eats
+    /// into a step.
     private func cueStepIfDue() {
-        guard phase == .running, let plan,
-              let position = plan.position(at: healthKit.elapsed),
-              position.index != cuedStep else { return }
+        guard phase == .running, let plan, let position = healthKit.planPosition() else { return }
+        guard position.index != cuedStep else {
+            cueToGoIfDue(plan, position)
+            return
+        }
         let first = cuedStep < 0
         cuedStep = position.index
         Haptics.step()
@@ -561,7 +698,10 @@ final class WatchRunStore: ObservableObject {
         } else {
             // The first step of a program workout comes with its place in the
             // program, in one cue: a second would cut the first off.
-            let step = WatchRunCues.stepText(label: position.label, seconds: plan.steps[position.index].seconds)
+            let planStep = plan.steps[position.index]
+            let step = planStep.isDistance
+                ? WatchRunCues.stepText(label: position.label, meters: planStep.meters ?? 0, inMiles: planStep.inMiles)
+                : WatchRunCues.stepText(label: position.label, seconds: planStep.seconds)
             let intro = first ? plan.startText : nil
             WatchRunCues.shared.speak(intro.map { "\($0) \(step)" } ?? step, interrupt: true)
         }
@@ -581,6 +721,8 @@ final class WatchRunStore: ObservableObject {
             plan: plan,
             checkInMinutes: checkInMinutes,
             distanceMeters: place == .indoor ? nil : metrics.distanceMeters,
+            cursor: plan == nil ? nil : healthKit.planCursorValue,
+            planMeters: metrics.distanceMeters,
             state: coaching
         )
         coaching = result.state
@@ -606,6 +748,23 @@ final class WatchRunStore: ObservableObject {
                 )
             )
         }
+    }
+
+    /// "100 meters to go" (or "0.1 miles to go"), once per distance step long enough for it.
+    private func cueToGoIfDue(_ plan: WatchRunPlan, _ position: WatchRunPlan.Position) {
+        guard settings.voiceCues, !position.finished,
+              position.index != toGoCuedStep,
+              let left = position.remainingMeters, left > 0,
+              left <= WatchRunCues.toGoMeters(inMiles: position.inMiles),
+              (plan.steps[position.index].meters ?? 0) >= WatchRunCues.toGoMinimumStep
+        else { return }
+        toGoCuedStep = position.index
+        WatchRunCues.shared.speak(WatchRunCues.toGoText(inMiles: position.inMiles), interrupt: true)
+    }
+
+    /// Where the plan stands now, for the run screen.
+    func currentPlanPosition() -> WatchRunPlan.Position? {
+        healthKit.planPosition()
     }
 
     private var usesMiles: Bool {
@@ -663,6 +822,7 @@ final class WatchRunStore: ObservableObject {
     func dismissSummary() {
         stopStepTimer()
         stopLiveTimer()
+        followRoute(nil)
         requestId = nil
         plan = nil
         lapCount = 0
@@ -675,6 +835,7 @@ final class WatchRunStore: ObservableObject {
         guard phase == .running || phase == .paused else { return }
         stopStepTimer()
         stopLiveTimer()
+        followRoute(nil)
         // Finish tapped while the Health prompts were still up: nothing was
         // ever recorded, so there is nothing to save.
         guard healthKit.hasLiveSession else {
@@ -717,7 +878,7 @@ final class WatchRunStore: ObservableObject {
                         seconds: elapsed,
                         usesMiles: self.usesMiles
                     )
-                    self.cue(self.programDoneText(elapsed: elapsed).map { "\(finished) \($0)" } ?? finished)
+                    self.cue(self.programDoneText(completed: scaled?.planCompleted ?? false).map { "\(finished) \($0)" } ?? finished)
                 }
                 // The Health workout is stamped so the phone's import skips
                 // it; this message is how the run reaches the diary.
@@ -730,7 +891,7 @@ final class WatchRunStore: ObservableObject {
                     WatchRunSnapshotStore.clear()
                 }
                 if save {
-                    self.summary = Summary(kind: ending, place: endingPlace, elapsed: elapsed, metrics: metrics, saved: true)
+                    self.summary = Summary(kind: ending, place: endingPlace, elapsed: elapsed, metrics: metrics, saved: true, clientId: scaled?.clientId)
                     self.phase = .finished
                 } else {
                     self.requestId = nil
@@ -763,13 +924,13 @@ final class WatchRunStore: ObservableObject {
             seconds: pendingElapsed,
             usesMiles: usesMiles
         )
-        cue(programDoneText(elapsed: pendingElapsed).map { "\(finished) \($0)" } ?? finished)
+        cue(programDoneText(completed: result.planCompleted).map { "\(finished) \($0)" } ?? finished)
         // The snapshot stays until the message is durably queued.
         if WatchSessionManager.shared.sendRunFinished(result) {
             WatchRunSnapshotStore.clear()
         }
         metrics = result.metrics
-        summary = Summary(kind: result.kind, place: result.place, elapsed: pendingElapsed, metrics: result.metrics, saved: true)
+        summary = Summary(kind: result.kind, place: result.place, elapsed: pendingElapsed, metrics: result.metrics, saved: true, clientId: result.clientId)
         phase = .finished
     }
 
@@ -783,6 +944,7 @@ final class WatchRunStore: ObservableObject {
         guard phase == .running || phase == .paused else { return }
         stopStepTimer()
         stopLiveTimer()
+        followRoute(nil)
         autoPaused = false
         guard let result else {
             requestId = nil
@@ -803,8 +965,25 @@ final class WatchRunStore: ObservableObject {
             place: result.place,
             elapsed: result.activeSeconds,
             metrics: scaled.metrics,
-            saved: true
+            saved: true,
+            clientId: scaled.clientId
         )
         phase = .finished
+    }
+
+    /// Saves the wearer's 1-10 effort for the run just finished: to Apple
+    /// Health when its workout was saved (watchOS 11+), and to the phone, which
+    /// files it against the training program when the run was one.
+    func rateEffort(_ score: Int, completion: @escaping (Bool) -> Void) {
+        if let clientId = summary?.clientId {
+            WatchSessionManager.shared.sendRunEffort(clientId: clientId, rating: score)
+        }
+        guard WorkoutEffort.isSupported else {
+            // Older watchOS has nothing to write to Health; the phone still
+            // has the rating.
+            completion(true)
+            return
+        }
+        healthKit.saveEffort(score, completion: completion)
     }
 }
