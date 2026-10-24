@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
 import type {
   DeloadReason,
+  DeloadStatus,
   StrengthVolume,
   VolumeStatus,
 } from '@workspace/shared';
@@ -30,24 +31,87 @@ const StrengthVolumeCard: React.FC<StrengthVolumeCardProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  const statusLabel = (status: VolumeStatus) =>
-    t(`exerciseStatistics.volume.status.${status}`, { defaultValue: status });
+  const statusLabel = (status: VolumeStatus) => {
+    switch (status) {
+      case 'under':
+        return t('exerciseStatistics.volume.status.under', {
+          defaultValue: 'Under',
+        });
+      case 'inRange':
+        return t('exerciseStatistics.volume.status.inRange', {
+          defaultValue: 'In range',
+        });
+      case 'over':
+        return t('exerciseStatistics.volume.status.over', {
+          defaultValue: 'Over',
+        });
+      case 'building':
+        return t('exerciseStatistics.volume.status.building', {
+          defaultValue: 'Building',
+        });
+    }
+  };
 
-  const reasonText = (reason: DeloadReason, max: number) =>
-    t(`exerciseStatistics.volume.reason.${reason.code}`, {
-      value:
-        reason.code === 'rpe_rising' || reason.value == null
-          ? reason.value
-          : formatLocalizedNumber(reason.value),
-      items:
-        reason.code === 'high_volume'
-          ? reason.items
-              .map((item) => localizeExerciseTaxonomyValue(t, 'muscle', item))
-              .join(', ')
-          : reason.items.join(', '),
-      max: formatLocalizedNumber(max),
-      defaultValue: reason.code,
-    });
+  const deloadStatusText = (status: DeloadStatus) =>
+    status === 'notEnoughData'
+      ? t('exerciseStatistics.volume.deload.notEnoughData', {
+          defaultValue:
+            'Log a few weeks of strength training to get a deload suggestion.',
+        })
+      : status === 'recentlyDeloaded'
+        ? t('exerciseStatistics.volume.deload.recentlyDeloaded', {
+            defaultValue:
+              'You trained lighter last week, so no deload is suggested.',
+          })
+        : t('exerciseStatistics.volume.deload.ok', {
+            defaultValue: 'No deload needed right now.',
+          });
+
+  const reasonText = (reason: DeloadReason, max: number) => {
+    const value =
+      reason.value == null ? '' : formatLocalizedNumber(reason.value);
+    const items = reason.items.join(', ');
+    switch (reason.code) {
+      case 'e1rm_dropping':
+        return t('exerciseStatistics.volume.reason.e1rm_dropping', {
+          value,
+          items,
+          defaultValue:
+            'Estimated max is down {{value}}% from its peak: {{items}}.',
+        });
+      case 'e1rm_stalled':
+        return t('exerciseStatistics.volume.reason.e1rm_stalled', {
+          items,
+          defaultValue:
+            'No new estimated max for two or more weeks: {{items}}.',
+        });
+      case 'rpe_rising':
+        return t('exerciseStatistics.volume.reason.rpe_rising', {
+          items,
+          defaultValue: 'The same weights feel harder ({{items}}).',
+        });
+      case 'high_volume':
+        return t('exerciseStatistics.volume.reason.high_volume', {
+          max: formatLocalizedNumber(max),
+          items: reason.items
+            .map((item) => localizeExerciseTaxonomyValue(t, 'muscle', item))
+            .join(', '),
+          defaultValue: 'Two weeks in a row above {{max}} sets for {{items}}.',
+        });
+      case 'readiness_low':
+        return t('exerciseStatistics.volume.reason.readiness_low', {
+          value,
+          defaultValue:
+            'Training readiness is {{value}}% below your recent baseline.',
+        });
+      case 'hrv_low':
+        return t('exerciseStatistics.volume.reason.hrv_low', {
+          value,
+          defaultValue:
+            'Overnight HRV is {{value}}% below your recent baseline.',
+        });
+    }
+  };
 
   const renderBody = () => {
     if (isLoading) return <StatusView inline loading />;
@@ -172,9 +236,7 @@ const StrengthVolumeCard: React.FC<StrengthVolumeCardProps> = ({
             </>
           ) : (
             <Text className="text-text-secondary text-sm">
-              {t(`exerciseStatistics.volume.deload.${deload.status}`, {
-                defaultValue: 'No deload needed right now.',
-              })}
+              {deloadStatusText(deload.status)}
             </Text>
           )}
         </View>
