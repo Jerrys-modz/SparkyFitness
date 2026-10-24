@@ -708,7 +708,7 @@ const RunProgramCard: React.FC<Props> = ({
                     'Optional, for example a race day. The schedule below says whether the program fits before it.',
                 })}
           </Text>
-          <View className="flex-row mt-2">
+          <View className="flex-row flex-wrap mt-2">
             <InlineLink onPress={() => goalCalendarRef.current?.present()}>
               {schedule.endDay
                 ? t('recordActivity.program.goalChange', {
@@ -718,7 +718,9 @@ const RunProgramCard: React.FC<Props> = ({
                     defaultValue: 'Set a goal date',
                   })}
             </InlineLink>
-            {raceDay && raceDay > (accountToday ?? today) && schedule.endDay !== raceDay ? (
+            {raceDay &&
+            raceDay > (accountToday ?? today) &&
+            schedule.endDay !== raceDay ? (
               <InlineLink
                 testID="run-program-use-race-day"
                 onPress={() => onSchedule({ endDay: raceDay })}
