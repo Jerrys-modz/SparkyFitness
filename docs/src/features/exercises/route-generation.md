@@ -46,7 +46,7 @@ FOSSGIS runs a public Valhalla demo server (`valhalla1.openstreetmap.de`) for th
 
 SparkyFitness identifies itself with a `User-Agent` starting `SparkyFitness/`, as public servers expect.
 
-A loop request costs up to three engine calls, and asking for alternatives (below) costs up to three times that, which is another reason to run your own server for regular use.
+A loop request costs up to three engine calls (more with a route style that measures surface, which adds elevation and surface lookups), and asking for alternatives (below) costs up to three times that, which is another reason to run your own server for regular use.
 
 If the provider's URL points at a private or LAN address, the usual rule for self-hosted providers applies: admins may, other users may not unless the operator allows it in **Admin → Global Provider Settings** (or `ALLOW_PRIVATE_NETWORK_FOOD_PROVIDERS=true`).
 
@@ -154,7 +154,7 @@ A loop request with `alternatives` above 1 returns up to that many **distinct** 
 
 Each option is labelled **Flatter**, **More trail** or **Shorter** only when its numbers back it up: Flatter needs the flattest option to climb at least 20% and 15 m less than the steepest; More trail needs at least 20% of its length on paths or unpaved ways and 15 percentage points more than any other; Shorter needs to be at least 5% and 200 m shorter than the longest. A label goes to one option, and an option gets one label. The share on paths comes from the routing engine's own surface data when it can be read; without it there is simply no More trail label.
 
-Asking for three options costs up to three times as many engine calls (the headings run in parallel).
+Asking for three options costs up to three times as many engine calls (the first headings run in parallel). If fewer than three distinct loops come back, up to five headings are tried in all; the extra ones run one after another, each with its own resize requests, and stop early if the engine is failing rather than just finding no route.
 
 ## Route style
 
