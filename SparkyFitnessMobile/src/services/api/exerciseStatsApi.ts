@@ -1,4 +1,5 @@
 import type {
+  BestEffortsResponse,
   ExerciseActivityQueryResponse,
   ExercisePRMatrixResponse,
   ExerciseEntryGpsPoints,
@@ -112,4 +113,12 @@ export const fetchPersonalRecords = (
     endpoint: `/api/exercise-stats/prs?unitSystem=${unitSystem}`,
     serviceName: SERVICE,
     operation: 'fetch personal records',
+  });
+
+/** The fastest 1 km, mile, 5 km, 10 km and half marathon found inside any run. */
+export const fetchBestEfforts = (): Promise<BestEffortsResponse> =>
+  apiFetch<BestEffortsResponse>({
+    endpoint: '/api/exercise-stats/best-efforts',
+    serviceName: SERVICE,
+    operation: 'fetch best efforts',
   });

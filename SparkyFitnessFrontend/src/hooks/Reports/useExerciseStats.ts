@@ -4,7 +4,9 @@ import {
   queryExerciseActivities,
   loadExercisePRs,
   loadMatchedCourses,
+  loadBestEfforts,
 } from '@/api/Reports/exerciseStatsService';
+import { reportKeys } from '@/api/keys/reports';
 
 export const useExerciseStatsSummary = (
   interval: 'day' | 'week' | 'month' | 'year' = 'month',
@@ -84,3 +86,15 @@ export const useMatchedCourses = (
 };
 
 export { queryExerciseActivities };
+
+/**
+ * The fastest stretch of each distance found inside any run. Keyed under the
+ * reports family, so the exercise invalidation reloads it after a workout is
+ * saved, edited or deleted.
+ */
+export const useBestEfforts = (userId?: string) => {
+  return useQuery({
+    queryKey: reportKeys.bestEfforts(userId),
+    queryFn: () => loadBestEfforts(userId),
+  });
+};
