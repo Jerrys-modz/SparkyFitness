@@ -20,13 +20,16 @@ export type CalorieLinkResolution = (typeof CALORIE_LINK_RESOLUTIONS)[number];
 
 /**
  * Whether a workout was logged in SparkyFitness itself (typed in, or started
- * from the app's workout flow) rather than synced from a watch or provider.
+ * from the app's workout flow, or logged on the web with no source) rather
+ * than synced from a watch or provider.
  */
 export function isAppLoggedWorkoutSource(
   source: string | null | undefined
 ): boolean {
   const normalized = (source ?? '').trim().toLowerCase();
-  return normalized === 'manual' || normalized === 'sparky';
+  return (
+    normalized === '' || normalized === 'manual' || normalized === 'sparky'
+  );
 }
 
 /** A set time this far outside the synced workout's window still matches. */

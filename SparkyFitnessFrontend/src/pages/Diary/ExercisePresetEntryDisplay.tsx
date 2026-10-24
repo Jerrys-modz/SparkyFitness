@@ -81,9 +81,10 @@ const ExercisePresetEntryDisplay: React.FC<ExercisePresetEntryDisplayProps> = ({
 
   // Linking works on the whole session, so any of its exercises will do.
   const linkableEntry = presetEntry.exercises?.[0];
-  const linkableEntryId = isAppLoggedWorkoutSource(linkableEntry?.source)
-    ? (linkableEntry?.id ?? null)
-    : null;
+  const linkableEntryId =
+    linkableEntry && isAppLoggedWorkoutSource(linkableEntry.source)
+      ? linkableEntry.id
+      : null;
 
   const toggleExpansion = useCallback(() => {
     setIsExpanded((prev) => !prev);

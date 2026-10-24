@@ -497,11 +497,12 @@ describe('isAppLoggedWorkoutSource', () => {
   it('treats manual and in-app workout flow entries as app-logged', () => {
     expect(isAppLoggedWorkoutSource('manual')).toBe(true);
     expect(isAppLoggedWorkoutSource('Sparky')).toBe(true);
+    expect(isAppLoggedWorkoutSource(null)).toBe(true);
+    expect(isAppLoggedWorkoutSource('')).toBe(true);
   });
 
-  it('rejects provider-synced and missing sources', () => {
+  it('rejects provider-synced sources', () => {
     expect(isAppLoggedWorkoutSource('HealthKit')).toBe(false);
     expect(isAppLoggedWorkoutSource('garmin')).toBe(false);
-    expect(isAppLoggedWorkoutSource(null)).toBe(false);
   });
 });
