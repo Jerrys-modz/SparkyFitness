@@ -52,12 +52,22 @@ function limitCues(cues: RouteCue[]): RouteCue[] {
   return significant.slice(0, ROUTE_MAX_CUES);
 }
 
+/**
+ * Whether the engine is still worth asking for surface data, shared by every
+ * attempt of one request. A measurement that comes back empty (most costly
+ * when it times out) turns it off, so a slow trace endpoint is paid for once
+ * rather than on every resize and fallback heading.
+ */
+interface SurfaceMeasurement {
+  enabled: boolean;
+}
+
 async function generateLoop(
   provider: RoutingProvider,
   body: Extract<GenerateRouteBody, { mode: 'loop' }>,
   bearing: number,
   style: RoutingRequest['style'],
-  measureSurface: boolean
+  surface: SurfaceMeasurement
 ): Promise<RoutingResult> {
   const plan = body.shape === 'out_and_back' ? planOutAndBack : planLoop;
   let windingFactor = INITIAL_WINDING_FACTOR;
@@ -74,8 +84,9 @@ async function generateLoop(
       locations,
       activity: body.activity,
       style,
-      measureSurface,
+      measureSurface: surface.enabled,
     });
+    if (result.trailShare === null) surface.enabled = false;
     const error = Math.abs(result.distanceM - body.distanceM);
     if (!best || error < Math.abs(best.distanceM - body.distanceM)) {
       best = result;
@@ -131,7 +142,7 @@ async function generateLoopCandidates(
 ): Promise<Candidate[]> {
   const base = body.bearingDeg ?? Math.random() * 360;
   const offsets = body.bearingDeg === undefined ? OPEN_OFFSETS : PINNED_OFFSETS;
-  const measureSurface = count > 1;
+  const surface: SurfaceMeasurement = { enabled: count > 1 };
   const accepted: Candidate[] = [];
   let firstFailure: unknown;
   let engineFailing = false;
@@ -143,7 +154,7 @@ async function generateLoopCandidates(
         body,
         (base + offset + 360) % 360,
         style,
-        measureSurface
+        surface
       );
       return {
         route: toPreview(result, body),
