@@ -63,8 +63,9 @@ export const HIGH_VOLUME_MIN_MUSCLES = 2;
  * Recovery signals compare the last 7 days with the 28 days before them.
  * Readiness (a 0-100 device score) is low at 15% under its baseline. Overnight
  * HRV is noisy day to day, so it is low when the 7-day mean falls more than
- * half a baseline standard deviation below the baseline mean, the "smallest
- * worthwhile change" used in HRV-guided training research (Plews et al. 2013).
+ * half a baseline standard deviation below the baseline mean, an
+ * individual "smallest worthwhile change" on rolling HRV averages, the
+ * approach in Plews and colleagues' HRV monitoring work (2012-2013).
  */
 export const RECOVERY_RECENT_DAYS = 7;
 export const RECOVERY_BASELINE_DAYS = 28;
