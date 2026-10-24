@@ -407,9 +407,17 @@ export const EditProviderForm = ({
                 <Trans
                   i18nKey="settings.editProviderForm.forMoreInformationClientCredentials2"
                   defaults={
-                    'For more information & client credentials, see <link>saganos/yazio_public_api</link>.'
+                    'For more information & client credentials, see <1>saganos/yazio_public_api</1>.'
                   }
                   components={{
+                    1: (
+                      <a
+                        href="https://github.com/saganos/yazio_public_api"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-red-800 dark:text-red-200 underline font-medium"
+                      />
+                    ),
                     link: (
                       <a
                         href="https://github.com/saganos/yazio_public_api"

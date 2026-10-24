@@ -6639,7 +6639,8 @@
     "estimatedTimes": "Some dose times were estimated",
     "legendCurve": "Active caffeine",
     "legendThreshold": "{{threshold}}mg threshold",
-    "unitMg": "mg"
+    "unitMg": "mg",
+    "tomorrow": "Tomorrow"
   },
   "guidedWorkout": {
     "cue": {

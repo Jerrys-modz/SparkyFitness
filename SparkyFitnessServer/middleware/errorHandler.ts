@@ -1,6 +1,9 @@
 import type { NextFunction, Request, Response } from 'express';
 import { log } from '../config/logging.js';
+import { isConnectionError } from '../db/connectRetry.js';
 import { describeError, isInternalError } from '../utils/errors.js';
+
+const unavailableRetryAfterSeconds = 5;
 
 interface ErrorFields {
   name?: unknown;
@@ -30,6 +33,18 @@ const errorHandler = (
   const explicitStatus = [error.status, error.statusCode].find(
     (status): status is number => typeof status === 'number'
   );
+  // An unreachable database (restart, failover, outage) is temporary: tell
+  // the client to come back instead of reporting a server fault.
+  if (
+    isConnectionError(err) &&
+    (explicitStatus === undefined || explicitStatus >= 500)
+  ) {
+    res.set('Retry-After', String(unavailableRetryAfterSeconds));
+    res
+      .status(503)
+      .json({ error: 'Service temporarily unavailable. Please try again.' });
+    return;
+  }
   // Default to 500 Internal Server Error
   let statusCode = explicitStatus ?? 500;
   let message =
