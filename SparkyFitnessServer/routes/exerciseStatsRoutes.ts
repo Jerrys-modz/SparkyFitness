@@ -244,6 +244,67 @@ router.get('/prs', authenticate, async (req, res, next) => {
 
 /**
  * @swagger
+ * /exercise-stats/best-efforts:
+ *   get:
+ *     summary: Fastest 1 km, 1 mile, 5 km, 10 km and half marathon found inside any run
+ *     tags: [Exercise Stats]
+ *     description: >
+ *       Searches the stored GPS tracks (or the distance series of a run with no
+ *       route) for the fastest contiguous stretch of each distance, so a quick
+ *       kilometre inside a long run counts. A stretch never spans a pause or a
+ *       gap in the recording. Distances are returned in metres; the client
+ *       formats them in the person's unit. At most the 1000 most recent
+ *       qualifying runs are searched; `truncated` says when there were more.
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         schema: { type: string, format: uuid }
+ *         description: Target user; defaults to the authenticated user. Requires reports permission for anyone else.
+ *     responses:
+ *       200:
+ *         description: One item per distance the runs reach, shortest first.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/BestEffortsResponse'
+ *       400:
+ *         description: Target User ID is required.
+ *       403:
+ *         description: Forbidden — no reports permission for the requested user.
+ */
+router.get('/best-efforts', authenticate, async (req, res, next) => {
+  try {
+    const targetUserId = (req.query.userId as string) || req.userId;
+
+    if (!targetUserId) {
+      return res.status(400).json({ error: 'Target User ID is required.' });
+    }
+
+    if (req.query.userId && req.query.userId !== req.userId) {
+      const hasPermission = await canAccessUserData(
+        req.query.userId as string,
+        'reports',
+        req.authenticatedUserId || req.userId
+      );
+      if (!hasPermission) {
+        return res.status(403).json({
+          error:
+            'Forbidden: You do not have permission to view best efforts for this user.',
+        });
+      }
+    }
+
+    const bestEfforts = await exerciseStatsService.getBestEfforts(targetUserId);
+    res.status(200).json(bestEfforts);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @swagger
  * /exercise-stats/matched-courses:
  *   get:
  *     summary: Get grouped matched courses and repeated loop activities
