@@ -121,7 +121,15 @@ describe('a Garmin sign-in waiting for its MFA code', () => {
     });
     const error = await garminConnectService
       .garminResumeLogin('user-1', sealed, '123456')
-      .catch((caught: unknown) => caught);
+      .then(
+        () => null,
+        (caught: unknown) => caught
+      );
+    expect(error).toBeInstanceOf(Error);
+    expect(error).toHaveProperty(
+      'message',
+      'Failed to complete Garmin MFA: down'
+    );
     expect(error).not.toHaveProperty('statusCode');
   });
 });
