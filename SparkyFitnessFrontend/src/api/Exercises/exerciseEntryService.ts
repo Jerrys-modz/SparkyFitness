@@ -11,13 +11,10 @@ import {
   UpdateExerciseEntryRequest,
   exerciseProgressResponseSchema,
   ExerciseProgressResponse,
-  exerciseSnapshotResponseSchema,
-  ExerciseSnapshotResponse,
   PresetSessionResponse,
   presetSessionResponseSchema,
 } from '@workspace/shared';
 import z from 'zod';
-import { parseJsonArray } from './exerciseService';
 
 /** The user's own previously logged workout locations, most recent first. */
 export const fetchWorkoutLocations = async (): Promise<string[]> => {
@@ -235,29 +232,6 @@ export const getExerciseHistory = async (
     }
   );
   return response;
-};
-
-export const fetchExerciseDetails = async (
-  exerciseId: string
-): Promise<ExerciseSnapshotResponse> => {
-  const response = await apiCall(`/exercises/${exerciseId}`, {
-    method: 'GET',
-  });
-
-  const parsedResponse = { ...response };
-  const arrayFields = [
-    'images',
-    'primary_muscles',
-    'secondary_muscles',
-    'equipment',
-    'instructions',
-  ];
-
-  arrayFields.forEach((field) => {
-    parsedResponse[field] = parseJsonArray(parsedResponse[field]) || [];
-  });
-
-  return exerciseSnapshotResponseSchema.parse(parsedResponse);
 };
 
 export const fetchExerciseEntryById = async (

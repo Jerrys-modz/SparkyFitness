@@ -1,5 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import type { CompareResponse, CompareSinceResponse } from '@workspace/shared';
+import {
+  type CompareQuestion,
+  type CompareResponse,
+  type CompareSinceResponse,
+  isAskable,
+  timingOf,
+} from '@workspace/shared';
 import {
   fetchCompare,
   fetchCompareSince,
@@ -7,11 +13,6 @@ import {
   type CompareSinceParams,
 } from '../services/api/compareApi';
 import { ApiError } from '../services/api/errors';
-import {
-  isAskable,
-  timingOf,
-  type CompareQuestion,
-} from '../utils/compareQuestion';
 import { compareQueryKey, compareSinceQueryKey } from './queryKeys';
 import { useRefetchOnFocus } from './useRefetchOnFocus';
 

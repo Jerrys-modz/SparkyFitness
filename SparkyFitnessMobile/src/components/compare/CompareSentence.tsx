@@ -1,18 +1,19 @@
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { COMPARE_METRICS, type CompareMetricKey } from '@workspace/shared';
+import {
+  COMPARE_METRICS,
+  type CompareMetricKey,
+  type CompareMode,
+  type CompareQuestion,
+  type CompareTimingChoice,
+  isCompareMetricKey,
+  timingOf,
+} from '@workspace/shared';
 
 import BottomSheetPicker, { type PickerSection } from '../BottomSheetPicker';
 import { compareMetricSections } from '../../constants/compareMetrics';
 import { questionParts } from '../../utils/compareCopy';
-import {
-  isCompareMetricKey,
-  timingOf,
-  type CompareMode,
-  type CompareQuestion,
-  type CompareTimingChoice,
-} from '../../utils/compareQuestion';
 
 interface CompareSentenceProps {
   question: Partial<CompareQuestion>;

@@ -1,7 +1,8 @@
-import type {
-  CompareMetricKey,
-  CompareSinceResponse,
-  CompareSinceResult,
+import {
+  type CompareMetricKey,
+  type CompareQuestion,
+  type CompareSinceResponse,
+  type CompareSinceResult,
 } from '@workspace/shared';
 import i18n, { initializeI18n } from '../../src/localization/i18n';
 import {
@@ -10,7 +11,6 @@ import {
   sinceSentence,
   sinceVerdictCopy,
 } from '../../src/utils/compareSinceCopy';
-import type { CompareQuestion } from '../../src/utils/compareQuestion';
 
 const t = ((key: string, options: Record<string, unknown>) =>
   i18n.t(key, options)) as never;

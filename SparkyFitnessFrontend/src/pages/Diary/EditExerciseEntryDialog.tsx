@@ -45,10 +45,7 @@ import {
   activityDetailsOptions as fetchActivityDetailsOptions,
   useActivityDetailsQuery,
 } from '@/hooks/Exercises/useExercises';
-import {
-  useUpdateExerciseEntryMutation,
-  exerciseDetailsOptions,
-} from '@/hooks/Exercises/useExerciseEntries';
+import { useUpdateExerciseEntryMutation } from '@/hooks/Exercises/useExerciseEntries';
 import {
   DndContext,
   closestCenter,
@@ -335,6 +332,20 @@ const EditExerciseEntryDialog = ({
     seedDistanceInput(entry, (km) => convertDistance(km, 'km', distanceUnit))
   );
   const [shoeId, setShoeId] = useState<string | null>(entry.shoe_id ?? null);
+  // Only the fields the calorie estimate and the duration are derived from;
+  // notes, RPE and the like must not count as a change to the sets.
+  const setsSignature = (rows: readonly SortableSet[]) =>
+    JSON.stringify(
+      rows.map(({ reps, weight, duration, rest_time }) => [
+        reps,
+        weight,
+        duration,
+        rest_time,
+      ])
+    );
+  const [initialSetsSignature] = useState(() => setsSignature(sets));
+  const [initialCaloriesInput] = useState(entry.calories_burned || '');
+
   const [avgHeartRateInput, setAvgHeartRateInput] = useState<number | ''>(
     entry.avg_heart_rate != null ? entry.avg_heart_rate : ''
   );
@@ -703,28 +714,44 @@ const EditExerciseEntryDialog = ({
   const handleSave = async () => {
     info(loggingLevel, 'EditExerciseEntryDialog: saving entry:', entry.id);
     try {
-      // An entry whose library exercise has been deleted keeps its snapshot but
-      // has nothing left to look up, so skip the fetch and fall back.
-      const exerciseData = entry.exercise_id
-        ? await queryClient.fetchQuery(
-            exerciseDetailsOptions(entry.exercise_id)
-          )
-        : null;
-      const caloriesPerHour =
-        (exerciseData as { calories_per_hour?: number })?.calories_per_hour ||
-        300;
+      // Adding or changing sets makes the stored duration and calorie figures
+      // stale: re-derive the duration from the sets and let the server
+      // re-estimate the calories, unless the user typed their own.
+      const setsChanged = setsSignature(sets) !== initialSetsSignature;
+      const derivedSetsDuration = setsDurationMinutes(sets);
+      const durationEdited =
+        durationInput !== '' && durationInput !== seedDurationInput(entry);
 
-      const totalDuration =
-        durationInput !== ''
+      // Untimed strength sets derive 0 minutes; that is no information, so
+      // keep the stored duration unless every set was removed.
+      const usesDerivedDuration =
+        setsChanged &&
+        !durationEdited &&
+        (derivedSetsDuration > 0 || sets.length === 0);
+
+      const totalDuration = usesDerivedDuration
+        ? derivedSetsDuration
+        : durationInput !== ''
           ? Number(durationInput)
           : cardioForm
             ? 0
-            : setsDurationMinutes(sets);
+            : derivedSetsDuration;
 
-      const caloriesBurned =
-        caloriesBurnedInput !== '' && caloriesBurnedInput !== 0
-          ? caloriesBurnedInput
-          : Math.round((caloriesPerHour / 60) * totalDuration);
+      const caloriesEdited = caloriesBurnedInput !== initialCaloriesInput;
+      const storedCalories =
+        entry.calories_burned != null ? Number(entry.calories_burned) : null;
+      // Untouched calories go back as stored (a stored 0 shows as a blank
+      // input but is still the saved value) unless the sets changed, which
+      // makes them stale and lets the server re-estimate. Typed values,
+      // including 0, are the user's override; clearing the field asks for
+      // an estimate.
+      const caloriesBurned = caloriesEdited
+        ? caloriesBurnedInput === ''
+          ? undefined
+          : caloriesBurnedInput
+        : setsChanged
+          ? undefined
+          : (storedCalories ?? undefined);
 
       // A field still showing its starting value goes back as stored, not as
       // its rounded display value: for a synced workout the server would
@@ -744,9 +771,10 @@ const EditExerciseEntryDialog = ({
       const stepsUntouched =
         stepsInput === (seededSteps !== '' ? seededSteps : (entry.steps ?? ''));
 
-      const durationMinutes = durationUntouched
-        ? entry.duration_minutes
-        : totalDuration;
+      const durationMinutes =
+        durationUntouched && !usesDerivedDuration
+          ? entry.duration_minutes
+          : totalDuration;
       const distanceKm = distanceUntouched
         ? (entry.distance ?? null)
         : distanceInput === ''
@@ -772,7 +800,9 @@ const EditExerciseEntryDialog = ({
         id: entry.id,
         data: {
           duration_minutes: durationMinutes,
-          calories_burned: caloriesBurned,
+          ...(caloriesBurned !== undefined && {
+            calories_burned: caloriesBurned,
+          }),
           notes,
           entry_time: entryTime || null,
           sets: sets.map(({ _dndId, ...set }) => ({

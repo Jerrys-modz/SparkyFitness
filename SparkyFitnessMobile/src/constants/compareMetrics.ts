@@ -1,11 +1,11 @@
 import {
-  COMPARE_METRICS,
   COMPARE_METRIC_KEYS,
+  COMPARE_METRICS,
   type CompareMetricDef,
   type CompareMetricKey,
+  type CompareMode,
 } from '@workspace/shared';
 import type { PickerSection } from '../components/BottomSheetPicker';
-import type { CompareMode } from '../utils/compareQuestion';
 import type { Translator } from './reports';
 
 export const COMPARE_GROUP_LABELS: Record<
