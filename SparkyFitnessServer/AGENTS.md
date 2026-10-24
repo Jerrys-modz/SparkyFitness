@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-10-23_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -173,6 +173,7 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 - `getClient(...)` sets `public.set_app_context(...)`; that is what makes row-level security work correctly
 - Use `getSystemClient()` only for admin, migration, startup, or policy-management work that intentionally bypasses RLS
 - Always release database clients in a `finally` block
+- `getClient`, `getSystemClient` and Better Auth's pool retry connection errors for up to 10 s (`db/connectRetry.ts`, off under `NODE_ENV=test` unless a test calls `enableRequestConnectRetry()`); only the acquire is retried, never a statement. A connection error that still reaches `middleware/errorHandler.ts` answers 503 with `Retry-After`
 - To learn a table's current shape, read `../shared/src/schemas/database/<Table>.zod.ts` (one small Zod file per table) instead of reading `../db_schema_backup.sql` or reconstructing it from the 185 migration files
 - New migrations belong in `db/migrations/` and must use `YYYYMMDDHHMMSS_description.sql`
 - **Never manually edit `../db_schema_backup.sql`** — after merge, CI regenerates it from the migrations and opens an automated sync PR (`.github/workflows/schema-backup.yml`). Do not commit copies generated from a local database.
