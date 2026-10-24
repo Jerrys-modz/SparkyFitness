@@ -38,6 +38,7 @@ jest.mock('../../src/services/routeService', () => ({
     isError: false,
     refetch: jest.fn(),
   })),
+  useRouteStops: () => ({ stops: null, isLoading: false, available: false }),
   removeRoute: jest.fn(() => Promise.resolve()),
   renameRoute: jest.fn(() => Promise.resolve()),
   shareRouteGpx: jest.fn(() => Promise.resolve()),

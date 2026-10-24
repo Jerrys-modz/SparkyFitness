@@ -9,8 +9,6 @@
 -- offer one endpoint to everyone (is_public) and a person can share theirs
 -- through share_external_providers, like the Valhalla routing provider.
 
-BEGIN;
-
 INSERT INTO public.external_provider_types (id, display_name, description)
 VALUES (
   'overpass',
@@ -28,5 +26,3 @@ SET categories = ARRAY['other'],
     is_strictly_private = FALSE,
     supports_barcode = FALSE
 WHERE id = 'overpass';
-
-COMMIT;
