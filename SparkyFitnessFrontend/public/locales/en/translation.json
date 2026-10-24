@@ -8452,6 +8452,38 @@
     "noSets": "No sets logged this week or last.",
     "loadFailed": "Failed to load training consistency."
   },
+  "strengthVolume": {
+    "title": "Weekly Muscle Volume",
+    "subtitle": "Hard sets per muscle against {{min}} to {{max}} a week. A set counts for 1 on its main muscles and 0.5 on helper muscles; warm-ups and sets logged as easy are left out.",
+    "muscle": "Muscle",
+    "thisWeek": "This week",
+    "lastWeek": "Last week",
+    "noSets": "No hard sets logged in the last few weeks.",
+    "status": {
+      "under": "Under",
+      "inRange": "In range",
+      "over": "Over",
+      "building": "Building"
+    },
+    "deload": {
+      "title": "Consider a lighter week",
+      "intro": "Next week ({{weekStart}}), try about {{setsMin}} to {{setsMax}}% of your usual sets at {{loadMin}} to {{loadMax}}% of your usual weights.",
+      "targets": "Hard sets per muscle",
+      "adviceOnly": "This is a suggestion only. Nothing in your plans or programs has been changed.",
+      "ok": "No deload needed right now.",
+      "notEnoughData": "Log a few weeks of strength training to get a deload suggestion.",
+      "recentlyDeloaded": "You trained lighter last week, so no deload is suggested."
+    },
+    "reason": {
+      "e1rm_dropping": "Estimated max is down {{value}}% from its peak: {{items}}.",
+      "e1rm_stalled": "No new estimated max for two or more weeks: {{items}}.",
+      "rpe_rising": "The same weights feel harder ({{items}}).",
+      "high_volume": "Two weeks in a row above {{max}} sets for {{items}}.",
+      "readiness_low": "Training readiness is {{value}}% below your recent baseline.",
+      "hrv_low": "Overnight HRV is {{value}}% below your recent baseline."
+    },
+    "loadFailed": "Failed to load weekly muscle volume."
+  },
   "foodAssistant": {
     "state": "Food preferences and tasks",
     "error": "Could not update assistant state. Refresh to read the latest version.",

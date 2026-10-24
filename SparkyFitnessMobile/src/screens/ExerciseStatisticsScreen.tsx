@@ -13,6 +13,7 @@ import {
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useExerciseDashboard } from '../hooks/useExerciseDashboard';
 import { useTrainingConsistency } from '../hooks/useTrainingConsistency';
+import { useStrengthVolume } from '../hooks/useStrengthVolume';
 import { useCardioSessions } from '../hooks/useCardioSessions';
 import { useRunningTrends } from '../hooks/useRunningTrends';
 import { usePaceZones } from '../hooks/usePaceZones';
@@ -32,6 +33,7 @@ import RunningFormCard from '../components/exerciseStats/RunningFormCard';
 import CardioSessionList from '../components/exerciseStats/CardioSessionList';
 import RunningTrendsCard from '../components/exerciseStats/RunningTrendsCard';
 import TrainingConsistencyCard from '../components/exerciseStats/TrainingConsistencyCard';
+import StrengthVolumeCard from '../components/exerciseStats/StrengthVolumeCard';
 import PaceZonesCard from '../components/exerciseStats/PaceZonesCard';
 import TrainingLoadCard from '../components/exerciseStats/TrainingLoadCard';
 import { useTrainingLoad } from '../hooks/useTrainingLoad';
@@ -139,6 +141,7 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
 
   const { data, isLoading } = useExerciseDashboard(range, customRange);
   const consistency = useTrainingConsistency();
+  const strengthVolume = useStrengthVolume();
   const trainingLoad = useTrainingLoad();
   const cardio = useCardioSessions(range, view === 'cardio', customRange);
   const running = useRunningTrends(view === 'cardio');
@@ -514,6 +517,14 @@ const ExerciseStatisticsScreen: React.FC<ExerciseStatisticsScreenProps> = ({
             data={consistency.data}
             isLoading={consistency.isLoading}
             isError={consistency.isError}
+          />
+        ) : null}
+
+        {isSectionShown('exercise.volume') ? (
+          <StrengthVolumeCard
+            data={strengthVolume.data}
+            isLoading={strengthVolume.isLoading}
+            isError={strengthVolume.isError}
           />
         ) : null}
 

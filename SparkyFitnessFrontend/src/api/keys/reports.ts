@@ -27,6 +27,8 @@ export const reportKeys = {
     ] as const,
   trainingConsistency: (userId?: string) =>
     ['reports', 'trainingConsistency', { userId }] as const,
+  strengthVolume: (userId?: string) =>
+    ['reports', 'strengthVolume', { userId }] as const,
   alcoholWeek: (date: string, userId?: string) =>
     ['reports', 'alcoholWeek', date, { userId }] as const,
   hydrationNutritionRange: (

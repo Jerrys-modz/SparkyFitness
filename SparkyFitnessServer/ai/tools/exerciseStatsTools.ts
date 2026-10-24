@@ -4,9 +4,11 @@ import type {
   ExerciseActivityQueryResponse,
   ExercisePRMatrixResponse,
   MatchedCoursesResponse,
+  StrengthVolume,
 } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import exerciseStatsService from '../../services/exerciseStatsService.js';
+import reportService from '../../services/reportService.js';
 import { ERRORS, formatZodError } from './errors.js';
 import { formatList } from './formatting.js';
 import {
@@ -43,11 +45,44 @@ function formatSummary(summary: ExerciseStatsSummaryResponse): string {
   return lines.join('\n');
 }
 
+function formatStrengthVolume(volume: StrengthVolume): string {
+  const { range, deload } = volume;
+  const lines = [
+    `# Weekly hard sets per muscle (target ${range.min}-${range.max}; week of ${volume.thisWeekStart} vs ${volume.lastWeekStart})`,
+    '',
+  ];
+  if (volume.muscles.length === 0) {
+    lines.push('No hard sets logged in the last few weeks.');
+  }
+  for (const row of volume.muscles) {
+    lines.push(
+      `- ${row.muscle}: ${row.thisWeek} this week (${row.thisWeekStatus}), ${row.lastWeek} last week (${row.lastWeekStatus})`
+    );
+  }
+  lines.push('', '## Deload');
+  if (deload.status === 'suggest' && deload.plan) {
+    lines.push(
+      `Suggested: a lighter week starting ${deload.plan.weekStart} at ${deload.plan.setsPercent.min}-${deload.plan.setsPercent.max}% of sets and ${deload.plan.loadPercent.min}-${deload.plan.loadPercent.max}% of working loads.`,
+      'Reasons:'
+    );
+    for (const reason of deload.reasons) {
+      const items = reason.items.length ? ` (${reason.items.join(', ')})` : '';
+      lines.push(`- ${reason.code}${items}`);
+    }
+    lines.push(
+      'This is advice only; do not change a plan or program without the user confirming.'
+    );
+  } else {
+    lines.push(`No deload suggested (${deload.status}).`);
+  }
+  return lines.join('\n');
+}
+
 export function buildExerciseStatsTools(userId: string, tz: string) {
   return {
     sparky_get_exercise_stats: tool({
       description:
-        'Read exercise analytics: aggregated stats over an interval (stats_summary), advanced activity search (query_activities), personal records / best efforts (personal_records), and matched course groupings (matched_courses). Read-only.',
+        'Read exercise analytics: aggregated stats over an interval (stats_summary), advanced activity search (query_activities), personal records / best efforts (personal_records), and matched course groupings (matched_courses), and weekly hard sets per muscle for this and last week against a 10-20 range plus a deload suggestion (strength_volume). Read-only: a deload suggestion never changes a plan.',
       inputSchema: exerciseStatsInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -134,6 +169,13 @@ export function buildExerciseStatsTools(userId: string, tz: string) {
                 (c) =>
                   `**${c.courseName}** (${c.activityCount} activities) — avg ${c.avgDistanceFormatted} ${args.unit_system === 'imperial' ? 'mi' : 'km'}, best pace ${c.bestPaceFormatted}\n  ID: ${c.courseId}`
               );
+            }
+            case 'strength_volume': {
+              const volume = await reportService.getStrengthVolume(
+                userId,
+                userId
+              );
+              return formatStrengthVolume(volume);
             }
             default:
               return ERRORS.INVALID_ACTION(
