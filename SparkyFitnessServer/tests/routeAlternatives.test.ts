@@ -144,7 +144,7 @@ describe('route alternatives', () => {
         shape: (req) => req.locations.slice(0, 2).map((l) => ({ ...l })),
       }),
       loop({ bearingDeg: 0 })
-    ).catch(() => undefined);
+    );
     const measured = calls.filter((c) => c.measureSurface);
     // Only the parallel first attempts ask; the resizes and fallbacks do not.
     expect(measured.length).toBeLessThanOrEqual(3);
