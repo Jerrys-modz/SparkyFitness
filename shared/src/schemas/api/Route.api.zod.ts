@@ -154,7 +154,8 @@ export const routeStyleSchema = z.object({
 /**
  * What the server offers this person. Every field after `available` is absent
  * from older servers, so a missing one reads as "not supported". `stops` is
- * reported as unsupported until a stops lookup exists.
+ * independent of `available`: it follows the Overpass provider, not the
+ * routing one.
  */
 export const routeGenerateCapabilitiesSchema = z.object({
   available: z.boolean(),
@@ -178,7 +179,11 @@ export const routeGenerateCapabilitiesSchema = z.object({
       avoidSteps: false,
       avoidBusyRoads: false,
     }),
-  /** Whether stops (water, toilets, cafes, viewpoints) can be looked up. */
+  /**
+   * Whether stops (water, toilets, cafes, viewpoints) can be looked up: true
+   * when the person has an Overpass provider available (their own, the
+   * admin's public one or a family member's shared one).
+   */
   stops: z.boolean().default(false),
   /**
    * Where the routing engine comes from: a routing provider the person (or the
@@ -186,6 +191,8 @@ export const routeGenerateCapabilitiesSchema = z.object({
    * false.
    */
   source: z.enum(['provider']).nullable().default(null),
+  /** The same for the stops lookup: `provider` when `stops` is true. */
+  stopsSource: z.enum(['provider']).nullable().default(null),
 });
 
 const generateBaseSchema = z.object({
@@ -266,6 +273,42 @@ export const generateRouteResponseSchema = z.object({
   options: z.array(generatedRouteOptionSchema).min(1),
 });
 
+export const routeStopKindSchema = z.enum([
+  'water',
+  'toilets',
+  'cafe',
+  'viewpoint',
+]);
+
+export const routeStopSchema = z.object({
+  kind: routeStopKindSchema,
+  name: z.string().nullable(),
+  lat: z.number().min(-90).max(90),
+  lon: z.number().min(-180).max(180),
+  /** Metres along the route to the point nearest the stop. */
+  distanceFromStartM: z.number().min(0),
+  /** Metres from the route to the stop. */
+  offRouteM: z.number().min(0),
+});
+
+/**
+ * `no_data` covers every failure and an empty corridor alike; `busy` means the
+ * Overpass server asked us to slow down, so try again in a little while.
+ */
+export const routeStopsResponseSchema = z.object({
+  status: z.enum(['ok', 'no_data', 'busy']),
+  stops: z.array(routeStopSchema),
+  truncated: z.boolean(),
+});
+
+/** Stops along a route that is not saved (for example a generated preview). */
+export const routeStopsBodySchema = z.object({
+  points: z
+    .array(routePointSchema.pick({ lat: true, lon: true }))
+    .min(2)
+    .max(ROUTE_MAX_STORED_POINTS),
+});
+
 export type RoutePoint = z.infer<typeof routePointSchema>;
 export type RouteCueKind = z.infer<typeof routeCueKindSchema>;
 export type RouteCue = z.infer<typeof routeCueSchema>;
@@ -286,3 +329,7 @@ export type RouteSurface = z.infer<typeof routeSurfaceSchema>;
 export type RouteHilliness = z.infer<typeof routeHillinessSchema>;
 export type RouteOptionLabel = z.infer<typeof routeOptionLabelSchema>;
 export type GeneratedRouteOption = z.infer<typeof generatedRouteOptionSchema>;
+export type RouteStopKind = z.infer<typeof routeStopKindSchema>;
+export type RouteStop = z.infer<typeof routeStopSchema>;
+export type RouteStopsResponse = z.infer<typeof routeStopsResponseSchema>;
+export type RouteStopsBody = z.infer<typeof routeStopsBodySchema>;
