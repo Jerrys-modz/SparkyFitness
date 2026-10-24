@@ -59,5 +59,9 @@ describe('WorkoutReportVisualizer "no weight" placeholder', () => {
     const pushUpRow = screen.getByText('PUSH_UP').closest('tr') as HTMLElement;
     const weightCell = within(pushUpRow).getAllByRole('cell').at(-1);
     expect(weightCell).toHaveTextContent('N/A');
+
+    // Only the weighted step gets a personal-record card.
+    expect(screen.getByText(/PRs - BENCH_PRESS/)).toBeInTheDocument();
+    expect(screen.queryByText(/PRs - PUSH_UP/)).not.toBeInTheDocument();
   });
 });

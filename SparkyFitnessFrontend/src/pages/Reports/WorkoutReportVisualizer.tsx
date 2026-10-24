@@ -151,15 +151,13 @@ const WorkoutReportVisualizer = ({
   const today = formatDateToYYYYMMDD(new Date());
 
   allExecutableSteps.forEach((step) => {
-    if (step.exerciseName) {
+    if (step.exerciseName && hasStepWeight(step)) {
       const exerciseName = step.exerciseName;
-      const weight = hasStepWeight(step)
-        ? convertWeight(
-            step.weightValue,
-            step.weightUnit?.unitKey === 'pound' ? 'lbs' : 'kg',
-            'kg'
-          )
-        : 0;
+      const weight = convertWeight(
+        step.weightValue,
+        step.weightUnit?.unitKey === 'pound' ? 'lbs' : 'kg',
+        'kg'
+      );
       const reps = step.endConditionValue || 0;
       const oneRM = weight * (1 + reps / 30);
 
