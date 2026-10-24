@@ -2,7 +2,7 @@ import express from 'express';
 import { savePlateInventoryBodySchema } from '@workspace/shared';
 import { authenticate } from '../../middleware/authMiddleware.js';
 import onBehalfOfMiddleware from '../../middleware/onBehalfOfMiddleware.js';
-import checkPermissionMiddleware from '../../middleware/checkPermissionMiddleware.js';
+import requireSelfActor from '../../middleware/requireSelfMiddleware.js';
 import {
   deletePlateInventory,
   getPlateInventory,
@@ -13,7 +13,7 @@ const router = express.Router();
 
 router.use(authenticate);
 router.use(onBehalfOfMiddleware);
-router.use(checkPermissionMiddleware('diary'));
+router.use(requireSelfActor);
 
 /**
  * @swagger
@@ -27,7 +27,7 @@ router.use(checkPermissionMiddleware('diary'));
  *       200:
  *         description: The saved inventory, or null in `inventory` until one is saved
  *       403:
- *         description: Missing diary permission
+ *         description: Not the owner of this inventory
  *       500:
  *         description: Internal server error
  */
@@ -88,7 +88,7 @@ router.get('/', async (req, res, next) => {
  *       400:
  *         description: Invalid request body
  *       403:
- *         description: Missing diary permission
+ *         description: Not the owner of this inventory
  *       500:
  *         description: Internal server error
  */
@@ -128,7 +128,7 @@ router.put('/', async (req, res, next) => {
  *       404:
  *         description: No inventory saved
  *       403:
- *         description: Missing diary permission
+ *         description: Not the owner of this inventory
  *       500:
  *         description: Internal server error
  */

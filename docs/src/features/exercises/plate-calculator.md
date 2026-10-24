@@ -32,4 +32,4 @@ The calculator finds every weight your plates can make, so it still gets it righ
 
 ## Sharing
 
-The plate inventory is part of your exercise diary. People you have given **Manage Diary** access to can use and edit it when they log workouts for you.
+The plate inventory is private to you: nobody you share your diary with can read or change it. Someone logging workouts on your behalf sees the calculator with the standard preset for your weight unit instead of your own plates.
