@@ -20,6 +20,9 @@ their own clearly labelled basis. Missing nutrients are shown as unknown.
 
 Choose a source to use its product in the current add-food flow, then review
 and save it normally. Merely viewing alternatives does not import a food.
+Saving a different provider product creates a separate library food, even if
+another food already has the same barcode. Saving the same provider product
+again reuses its existing food.
 Provider errors and missing products are shown separately, so one unavailable
 source does not hide another provider's match. Changing the source does not
 silently replace custom foods or past diary entries.

@@ -57,6 +57,7 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 ## Source Map
 
 - Barcode lookup retains the local/default/fallback behavior in `foodCoreService.ts`. `services/barcodeLookupService.ts` collects accessible source matches on demand; `routes/v2/barcodeRoutes.ts` exposes the read-only alternatives endpoint. Source comparison does not persist routing settings or preferences.
+- Alternative source lookups abort product requests after 12 seconds. Only normalized external matches/misses are cached for 30 seconds per account, profile, barcode, provider and nutrition settings; repeated in-flight lookups share work. Provider availability, preferences and saved local foods are checked on every request, and errors remain retryable.
 
 - Food assistant state: owner-only preferences, recoverable tasks and operation history use `FoodAssistant.api.zod.ts` / `FoodAssistant.zod.ts` in shared. Server: `routes/v2/foodAssistantRoutes.ts`, `services/foodAssistantService.ts`, `models/foodAssistantRepository.ts`, `ai/tools/foodAssistantTools.ts`. Web: `src/components/ai/FoodAssistantState.tsx`, `src/api/Chatbot/foodAssistantService.ts`.
 

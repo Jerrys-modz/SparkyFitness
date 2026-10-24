@@ -15,6 +15,12 @@ import foodCoreService, {
   type BarcodeLookupOptions,
 } from './foodCoreService.js';
 import { normalizeFoodForResponse } from './foodProviderDetailService.js';
+import { TtlCache } from '../utils/ttlCache.js';
+
+// Only normalized external results are cached. Provider access, active-profile
+// preferences and saved foods are reloaded for every request below.
+const sourceResults = new TtlCache<BarcodeCandidate>(30000, 1000);
+const inFlightSources = new Map<string, Promise<BarcodeCandidate>>();
 
 const providerRowSchema = z.object({
   id: z.string().uuid(),
@@ -82,6 +88,45 @@ async function lookupSource(
   provider: BarcodeProvider,
   context: LookupContext
 ): Promise<BarcodeCandidate> {
+  const key = JSON.stringify([
+    actorId,
+    userId,
+    barcode,
+    provider.id,
+    provider.type,
+    provider.name,
+    provider.isFallback,
+    context.preferences.language || 'en',
+    context.preferences.auto_scale_open_food_facts_imports ?? true,
+    context.preferences.barcode_fallback_open_food_facts !== false,
+  ]);
+  const cached = sourceResults.get(key);
+  if (cached) return cached;
+  const pending = inFlightSources.get(key);
+  if (pending) return pending;
+
+  const lookup = fetchSource(barcode, userId, actorId, provider, context).then(
+    (candidate) => {
+      if (candidate.status !== 'error') sourceResults.set(key, candidate);
+      return candidate;
+    }
+  );
+  if (inFlightSources.size < 1000) inFlightSources.set(key, lookup);
+  try {
+    return await lookup;
+  } finally {
+    if (inFlightSources.get(key) === lookup) inFlightSources.delete(key);
+  }
+}
+
+async function fetchSource(
+  barcode: string,
+  userId: string,
+  actorId: string,
+  provider: BarcodeProvider,
+  context: LookupContext
+): Promise<BarcodeCandidate> {
+  const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const result = await Promise.race([
@@ -96,15 +141,17 @@ async function lookupSource(
           skipFallback: !provider.isFallback,
           ignoreDefaultProvider: true,
           preferences: context.preferences,
+          signal: controller.signal,
         }
       ),
       new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(
-          () => reject(new Error('Barcode source timed out')),
-          12000
-        );
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(new Error('Barcode source timed out'));
+        }, 12000);
       }),
     ]);
+    if (controller.signal.aborted) throw new Error('Barcode source timed out');
     const food = result.food
       ? NormalizedFoodSchema.parse(
           normalizeFoodForResponse({ ...result.food, barcode })
