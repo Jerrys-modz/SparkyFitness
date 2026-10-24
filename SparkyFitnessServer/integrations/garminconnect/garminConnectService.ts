@@ -116,6 +116,21 @@ function formatGarminMicroserviceError(error: unknown): {
   return { detail, errorData: errorData ?? codeDetail ?? detail };
 }
 
+/**
+ * Rethrows a Garmin service failure with its message, keeping a 4xx status
+ * (a wrong password or code is 401, Garmin's rate limit 429) so the error
+ * handler answers with it instead of a 500.
+ */
+function garminServiceError(message: string, error: unknown): Error {
+  const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+  return Object.assign(
+    new Error(message, { cause: error }),
+    status !== undefined && status >= 400 && status < 500
+      ? { statusCode: status }
+      : {}
+  );
+}
+
 async function garminLogin(
   userId: string,
   email: string,
@@ -135,7 +150,7 @@ async function garminLogin(
   } catch (error: unknown) {
     const { detail, errorData } = formatGarminMicroserviceError(error);
     log('error', `Error during Garmin login for user ${userId}:`, errorData);
-    throw new Error(`Failed to login to Garmin: ${detail}`, { cause: error });
+    throw garminServiceError(`Failed to login to Garmin: ${detail}`, error);
   }
   if (data.status === 'needs_mfa' && data.client_state) {
     return {
@@ -168,9 +183,7 @@ async function garminResumeLogin(
   } catch (error: unknown) {
     const { detail, errorData } = formatGarminMicroserviceError(error);
     log('error', `Error during Garmin MFA for user ${userId}:`, errorData);
-    throw new Error(`Failed to complete Garmin MFA: ${detail}`, {
-      cause: error,
-    });
+    throw garminServiceError(`Failed to complete Garmin MFA: ${detail}`, error);
   }
 }
 

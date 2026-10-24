@@ -93,4 +93,48 @@ describe('a Garmin sign-in waiting for its MFA code', () => {
     ).rejects.toThrow('Failed to complete Garmin MFA: boom');
     expect(post).toHaveBeenCalledTimes(2); // the login, then one resume
   });
+
+  it.each([
+    [401, 'Invalid MFA code.'],
+    [429, 'Too many requests.'],
+  ])('keeps the Garmin service status %i', async (status, detail) => {
+    const sealed = await startSignIn();
+    post.mockRejectedValue({
+      isAxiosError: true,
+      message: `Request failed with status code ${status}`,
+      response: { status, data: { detail } },
+    });
+    await expect(
+      garminConnectService.garminResumeLogin('user-1', sealed, '123456')
+    ).rejects.toMatchObject({
+      statusCode: status,
+      message: `Failed to complete Garmin MFA: ${detail}`,
+    });
+  });
+
+  it('answers a failed Garmin service with a 500, not its status', async () => {
+    const sealed = await startSignIn();
+    post.mockRejectedValue({
+      isAxiosError: true,
+      message: 'Request failed with status code 503',
+      response: { status: 503, data: { detail: 'down' } },
+    });
+    const error = await garminConnectService
+      .garminResumeLogin('user-1', sealed, '123456')
+      .catch((caught: unknown) => caught);
+    expect(error).not.toHaveProperty('statusCode');
+  });
+});
+
+describe('a refused Garmin sign-in', () => {
+  it('keeps the Garmin service status', async () => {
+    post.mockRejectedValue({
+      isAxiosError: true,
+      message: 'Request failed with status code 401',
+      response: { status: 401, data: { detail: 'Invalid credentials.' } },
+    });
+    await expect(
+      garminConnectService.garminLogin('user-1', 'e', 'wrong')
+    ).rejects.toMatchObject({ statusCode: 401 });
+  });
 });
