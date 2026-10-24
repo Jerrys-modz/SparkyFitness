@@ -1161,17 +1161,19 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         })()}
       />
 
-      <PlateCalculatorSheet
-        visible={plateCalc != null}
-        onClose={() => setPlateCalc(null)}
-        targetWeight={
-          plateCalc?.weightKg != null
-            ? storedWeightInUnit(plateCalc.weightKg, weightUnit)
-            : null
-        }
-        weightUnit={weightUnit}
-        equipment={plateCalc?.equipment}
-      />
+      {plateCalc != null && (
+        <PlateCalculatorSheet
+          visible
+          onClose={() => setPlateCalc(null)}
+          targetWeight={
+            plateCalc?.weightKg != null
+              ? storedWeightInUnit(plateCalc.weightKg, weightUnit)
+              : null
+          }
+          weightUnit={weightUnit}
+          equipment={plateCalc?.equipment}
+        />
+      )}
 
       <WorkoutReorderList
         visible={reorderVisible}

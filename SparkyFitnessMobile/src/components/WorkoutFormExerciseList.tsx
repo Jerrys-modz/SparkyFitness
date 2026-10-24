@@ -952,13 +952,15 @@ const WorkoutFormExerciseList = forwardRef<
         }}
       />
 
-      <PlateCalculatorSheet
-        visible={plateCalc != null}
-        onClose={() => setPlateCalc(null)}
-        targetWeight={plateCalc?.targetWeight ?? null}
-        weightUnit={weightUnit}
-        equipment={plateCalc?.equipment}
-      />
+      {plateCalc != null && (
+        <PlateCalculatorSheet
+          visible
+          onClose={() => setPlateCalc(null)}
+          targetWeight={plateCalc?.targetWeight ?? null}
+          weightUnit={weightUnit}
+          equipment={plateCalc?.equipment}
+        />
+      )}
 
       <WorkoutReorderList
         visible={reorderVisible}
