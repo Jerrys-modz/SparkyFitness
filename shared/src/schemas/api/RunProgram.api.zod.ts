@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 /** Seconds per kilometre; `min` is the fastest pace allowed. */
 export const runProgramPaceSchema = z
@@ -16,20 +16,20 @@ export const runProgramHeartRateSchema = z
   .refine((band) => band.maxBpm - band.minBpm >= 10);
 
 export const runProgramStepSchema = z.object({
-  kind: z.enum(["warmup", "work", "recovery", "cooldown"]),
+  kind: z.enum(['warmup', 'work', 'recovery', 'cooldown']),
   seconds: z.number().int().min(1).max(14400),
   meters: z.number().int().min(50).max(50000).optional(),
-  unit: z.enum(["m", "mi"]).optional(),
+  unit: z.enum(['m', 'mi']).optional(),
   /** A pace to hold in this step; only the person's own programs set one. */
   pace: runProgramPaceSchema.optional(),
   /** A heart-rate range to hold in this step; only the person's own programs set one. */
   heartRate: runProgramHeartRateSchema.optional(),
   /** What the stretch is for (an easy run, a stride, a tempo or marathon-pace effort, a hill repeat); picks its pace range. */
-  effort: z.enum(["easy", "stride", "tempo", "marathon", "hill"]).optional(),
+  effort: z.enum(['easy', 'stride', 'tempo', 'marathon', 'hill']).optional(),
 });
 
 export const runProgramPlanSchema = z.object({
-  style: z.enum(["runWalk", "fastEasy"]),
+  style: z.enum(['runWalk', 'fastEasy', 'briskWalk']),
   steps: z.array(runProgramStepSchema).min(1).max(200),
 });
 
@@ -45,7 +45,7 @@ export const runProgramAdjustmentSchema = z.object({
   /** ISO timestamp. */
   at: z.string(),
   summary: z.string().max(500),
-  source: z.enum(["user", "assistant"]),
+  source: z.enum(['user', 'assistant']),
 });
 export type RunProgramAdjustment = z.infer<typeof runProgramAdjustmentSchema>;
 
@@ -71,7 +71,7 @@ export type RunProgramCompletion = z.infer<typeof runProgramCompletionSchema>;
 
 /** A real calendar day: 2026-02-31 matches the shape but is not a date. */
 const isRealDay = (value: string): boolean => {
-  const [y, m, d] = value.split("-").map(Number);
+  const [y, m, d] = value.split('-').map(Number);
   if (y === undefined || m === undefined || d === undefined) return false;
   const date = new Date(Date.UTC(y, m - 1, d));
   return (
@@ -83,11 +83,11 @@ const isRealDay = (value: string): boolean => {
 export const runDayStringSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .refine(isRealDay, { message: "Not a real calendar day." });
+  .refine(isRealDay, { message: 'Not a real calendar day.' });
 const weekday = z.number().int().min(0).max(6);
 
 /** What a program's workouts are recorded as. */
-export const runProgramActivitySchema = z.enum(["run", "walk"]);
+export const runProgramActivitySchema = z.enum(['run', 'walk']);
 
 export const runProgramResponseSchema = z.object({
   id: z.string(),
@@ -119,7 +119,7 @@ export const runProgramResponseSchema = z.object({
 export type RunProgramResponse = z.infer<typeof runProgramResponseSchema>;
 
 /** The prefix of a person's own program in `program_id`: `custom:<id>`. */
-export const CUSTOM_PROGRAM_PREFIX = "custom:";
+export const CUSTOM_PROGRAM_PREFIX = 'custom:';
 
 /** Most workouts in a person's own program: every one needs a week (0 to 51) and day (0 to 6). */
 export const MAX_CUSTOM_PROGRAM_WORKOUTS = 52 * 7;
@@ -143,7 +143,7 @@ export const customRunProgramInputSchema = z.object({
       z.object({
         plan: runProgramPlanSchema,
         title: z.string().trim().min(1).max(40).optional(),
-      }),
+      })
     )
     .min(1)
     .max(MAX_CUSTOM_PROGRAM_WORKOUTS),
@@ -194,9 +194,9 @@ export const upsertRunProgramBodySchema = z
     (body) =>
       !body.start_date || !body.end_date || body.end_date >= body.start_date,
     {
-      message: "The goal day cannot be before the first day.",
-      path: ["end_date"],
-    },
+      message: 'The goal day cannot be before the first day.',
+      path: ['end_date'],
+    }
   );
 export type UpsertRunProgramBody = z.infer<typeof upsertRunProgramBodySchema>;
 
@@ -232,7 +232,144 @@ export const adjustRunProgramBodySchema = z.object({
     .int()
     .min(-30)
     .max(10)
-    .refine((value) => value !== 0, { message: "Give a non-zero percent." }),
+    .refine((value) => value !== 0, { message: 'Give a non-zero percent.' }),
   count: z.number().int().min(1).max(9),
 });
 export type AdjustRunProgramBody = z.infer<typeof adjustRunProgramBodySchema>;
+
+/** Race distances a realignment can name; the same ids the race plan builder uses. */
+export const realignDistanceSchema = z.enum(['5k', '10k', 'half', 'marathon']);
+
+/** What realigning did to one workout of the plan as it stood before. */
+export const runProgramRealignChangeSchema = z.object({
+  kind: z.enum(['dropped', 'merged', 'repeated', 'added']),
+  /** Why: a repeat of a workout in the same week, a lighter week folded into its neighbour, or time to spare. */
+  reason: z.enum(['repeat', 'lighter', 'shortest', 'extraTime']),
+  /** 1-based week and run of the workout it concerns, as numbered before. */
+  week: z.number().int().min(1).max(60),
+  run: z.number().int().min(1).max(60),
+  /** Whole minutes the workout takes. */
+  minutes: z.number().int().min(0).max(1000),
+  /** The workout's own name, for plans that have one. */
+  title: z.string().max(40).optional(),
+});
+export type RunProgramRealignChange = z.infer<
+  typeof runProgramRealignChangeSchema
+>;
+
+/** What a realignment would do, without the workouts themselves. */
+export const runProgramRealignPreviewSchema = z.object({
+  /** Changes with the plan it was worked out against; send it back to confirm the same preview. */
+  token: z.string().max(100),
+  /** Workout days left from today to the goal day. */
+  slots: z.number().int().min(0).max(400),
+  before: z.object({
+    workouts: z.number().int().min(0),
+    /** The day the last workout falls on today, goal day ignored. */
+    finishDay: dayString.nullable(),
+  }),
+  after: z.object({
+    workouts: z.number().int().min(0),
+    finishDay: dayString.nullable(),
+  }),
+  changes: z.array(runProgramRealignChangeSchema).max(100),
+  dropped: z.number().int().min(0),
+  merged: z.number().int().min(0),
+  repeated: z.number().int().min(0),
+  added: z.number().int().min(0),
+  /** Workout days left empty because the stretch is capped. */
+  spare: z.number().int().min(0),
+  /** The taper and final workouts that were kept as they are. */
+  keptTail: z.number().int().min(0),
+  /** The return-to-running ease applied on top, if the person has been away. */
+  eased: z
+    .object({
+      daysAway: z.number().int().min(0),
+      percent: z.number().int().min(-30).max(10),
+      count: z.number().int().min(1).max(9),
+    })
+    .nullable(),
+  summary: z.string().max(500),
+});
+export type RunProgramRealignPreview = z.infer<
+  typeof runProgramRealignPreviewSchema
+>;
+
+export const runProgramRealignOptionSchema = z.enum([
+  'later',
+  'lower',
+  'continue',
+]);
+export type RunProgramRealignOption = z.infer<
+  typeof runProgramRealignOptionSchema
+>;
+
+export const runProgramRealignResultSchema = z.discriminatedUnion('state', [
+  /** No goal day, no workout days, nothing left, or nothing to realign against. */
+  z.object({
+    state: z.literal('unavailable'),
+    reason: z.enum(['noGoalDay', 'noRunDays', 'finished']),
+  }),
+  z.object({ state: z.literal('fits') }),
+  z.object({
+    state: z.literal('plan'),
+    preview: runProgramRealignPreviewSchema,
+  }),
+  /** The goal day is not realistic for the distance; the person chooses what to do. */
+  z.object({
+    state: z.literal('unrealistic'),
+    reasons: z
+      .array(
+        z.enum([
+          'noTimeLeft',
+          'taperDoesNotFit',
+          'tooMuchToDrop',
+          'tooFewWeeks',
+        ])
+      )
+      .min(1),
+    slots: z.number().int().min(0).max(400),
+    workoutsLeft: z.number().int().min(0),
+    weeksLeft: z.number().int().min(0),
+    distance: realignDistanceSchema.nullable(),
+    /** The day the whole remaining plan would end on if the goal moved. */
+    laterDay: dayString.nullable(),
+    /** The next shorter race, if there is one. */
+    lowerDistance: realignDistanceSchema.nullable(),
+    options: z.array(runProgramRealignOptionSchema),
+    /** What "continue anyway" would do: the same realignment without the usual cap. */
+    continuePreview: runProgramRealignPreviewSchema.nullable(),
+  }),
+]);
+export type RunProgramRealignResult = z.infer<
+  typeof runProgramRealignResultSchema
+>;
+
+/**
+ * Rebuilds the rest of the plan to finish on the goal day. With `confirmed`
+ * false (the default) it only reports what would change; nothing is saved
+ * until it is sent again with `confirmed` true.
+ */
+export const realignRunProgramBodySchema = z.object({
+  confirmed: z.boolean().optional(),
+  /** Realign even when the usual cap on dropped workouts would be exceeded. */
+  force: z.boolean().optional(),
+  /** The race distance, when the plan does not make it clear. */
+  distance: realignDistanceSchema.optional(),
+  /** The person's local day. */
+  today: dayString.optional(),
+  /** The `token` of the preview the person saw; a changed plan is refused. */
+  token: z.string().max(100).optional(),
+});
+export type RealignRunProgramBody = z.infer<typeof realignRunProgramBodySchema>;
+
+export const realignRunProgramResponseSchema = z.object({
+  realign: runProgramRealignResultSchema,
+  /** True when the plan was changed. */
+  applied: z.boolean(),
+  /** The program as it now stands, when it was changed. */
+  program: runProgramResponseSchema.nullable(),
+});
+export type RealignRunProgramResponse = z.infer<
+  typeof realignRunProgramResponseSchema
+>;

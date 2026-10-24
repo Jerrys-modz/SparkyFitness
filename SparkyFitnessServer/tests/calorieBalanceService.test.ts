@@ -16,6 +16,49 @@ vi.mock('../services/bmrService.js', () => ({
 
 const BMR = 2000;
 
+describe('weekly goal on device projection', () => {
+  test('applies the configured floor to a weekly goal with a manual calculation baseline', () => {
+    const balance = computeCalorieBalance(
+      inputs({
+        adjustedGoalCalories: 2200,
+        deviceTotalCalories: 2200,
+        deviceTotalDayFraction: 1,
+        userPreferences: {
+          calorie_goal_adjustment_mode: 'tdee',
+          goal_mode: 'weekly',
+          goal_mode_calculation_method: 'manual',
+          goal_mode_weekly_change_kg: -2,
+          calorie_safety_floor_mode: 'custom',
+          calorie_safety_floor_value: 1500,
+        },
+      })
+    );
+    expect(balance.goal).toBe(1500);
+  });
+
+  test.each([-0.5, 0, 0.25])(
+    'applies %s kg/week once to device TDEE',
+    (rate) => {
+      const balance = computeCalorieBalance(
+        inputs({
+          adjustedGoalCalories: 2200,
+          eatenCalories: 1000,
+          deviceTotalCalories: 3000,
+          deviceTotalDayFraction: 1,
+          userPreferences: {
+            calorie_goal_adjustment_mode: 'tdee',
+            goal_mode: 'weekly',
+            goal_mode_weekly_change_kg: rate,
+          },
+        })
+      );
+      const expectedTarget = Math.round(3000 + (rate * 6000) / 7);
+      expect(balance.goal).toBe(expectedTarget);
+      expect(balance.remaining).toBe(expectedTarget - 1000);
+    }
+  );
+});
+
 beforeEach(() => {
   vi.mocked(bmrService.calculateBmr).mockReturnValue(BMR);
 });
@@ -37,6 +80,60 @@ const inputs = (
   measurements: { weight: 80, height: 180 },
   dayFraction: 1,
   ...overrides,
+});
+
+describe('food budget progress', () => {
+  test.each([
+    ['dynamic', 100, 1256, 49],
+    ['percentage', 50, 915.5, 57],
+    ['fixed', 100, 575, 68],
+    ['adaptive', 100, 575, 68],
+  ] as const)(
+    '%s credits only the configured activity in progress',
+    (mode, percentage, remaining, progress) => {
+      const balance = computeCalorieBalance(
+        inputs({
+          adjustedGoalCalories: 1800,
+          eatenCalories: 1225,
+          backgroundStepCalories: 681,
+          userPreferences: {
+            calorie_goal_adjustment_mode: mode,
+            exercise_calorie_percentage: percentage,
+          },
+        })
+      );
+
+      expect(balance.eaten).toBe(1225);
+      expect(balance.burned).toBe(681);
+      expect(balance.remaining).toBe(Math.round(remaining));
+      expect(balance.goal).toBe(1800);
+      expect(balance.progress).toBe(progress);
+    }
+  );
+
+  test('activity cannot erase food progress when burn exceeds intake', () => {
+    const balance = computeCalorieBalance(
+      inputs({
+        adjustedGoalCalories: 1800,
+        eatenCalories: 500,
+        backgroundStepCalories: 1000,
+      })
+    );
+    expect(balance.remaining).toBe(2300);
+    expect(balance.progress).toBe(18);
+  });
+
+  test('preserves overflow after the activity-adjusted budget is exceeded', () => {
+    const balance = computeCalorieBalance(
+      inputs({
+        adjustedGoalCalories: 1800,
+        eatenCalories: 3000,
+        backgroundStepCalories: 600,
+      })
+    );
+    expect(balance.remaining).toBe(-600);
+    expect(balance.progress).toBe(125);
+  });
 });
 
 describe('resolveExerciseCalories via computeCalorieBalance', () => {
@@ -533,6 +630,32 @@ describe('extractExerciseStats', () => {
       activeCalories: 774,
       otherCalories: 641,
       activitySteps: 4000,
+    });
+  });
+
+  test('counts calories_applied instead of the estimate, including zero', () => {
+    const sessions = [
+      {
+        type: 'individual',
+        name: 'Other workout',
+        calories_burned: 425,
+        calories_applied: null,
+        steps: 0,
+      },
+      {
+        type: 'preset',
+        name: 'Strength',
+        exercises: [
+          { calories_burned: 475, calories_applied: 0, steps: 0 },
+          { calories_burned: 100, calories_applied: 60, steps: 0 },
+        ],
+      },
+    ] as unknown as ExerciseSessionResponse[];
+
+    expect(extractExerciseStats(sessions)).toEqual({
+      activeCalories: 0,
+      otherCalories: 485,
+      activitySteps: 0,
     });
   });
 

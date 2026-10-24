@@ -7,11 +7,12 @@ import {
   screen,
   within,
 } from '@testing-library/react-native';
-import { addDays, programStatus } from '@workspace/shared';
+import { addDays, findProgram, programStatus } from '@workspace/shared';
 import { toLocalDateString } from '../../src/utils/dateUtils';
 import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
 import RunProgramsScreen from '../../src/screens/RunProgramsScreen';
 import {
+  applyProgramRealign,
   setProgramEnabled,
   setProgramPosition,
   setProgramSchedule,
@@ -19,6 +20,7 @@ import {
   useCustomRunPrograms,
   useRunProgram,
 } from '../../src/services/runProgramService';
+import { storedBeginnerProgram } from '../helpers/runProgramFixture';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useRunGoals } from '../../src/hooks/useRunGoals';
 import { usePreferences } from '../../src/hooks/usePreferences';
@@ -47,6 +49,7 @@ jest.mock('../../src/services/runProgramService', () => ({
   restartProgram: jest.fn(() => Promise.resolve()),
   skipProgramWorkout: jest.fn(() => Promise.resolve()),
   setProgramSchedule: jest.fn(() => Promise.resolve()),
+  applyProgramRealign: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('../../src/hooks/useRunGoals', () => ({ useRunGoals: jest.fn() }));
 jest.mock('../../src/hooks/usePreferences', () => ({
@@ -527,6 +530,84 @@ describe('RunProgramsScreen', () => {
           endDay: '2026-10-21',
         });
       });
+    });
+  });
+
+  describe('realigning the plan', () => {
+    const today = toLocalDateString(new Date());
+    // The goal day that leaves `slots` workout days from today (every weekday).
+    const behind = (slots: number) =>
+      storedBeginnerProgram({
+        program_id: 'halfMarathon',
+        workouts: findProgram('halfMarathon')!.workouts,
+        next_index: 3,
+        run_days: [0, 1, 2, 3, 4, 5, 6],
+        end_date: addDays(today, slots - 1),
+        last_done_date: addDays(today, -2),
+      });
+    const use = (program: ReturnType<typeof behind>, enabled = true) =>
+      mockedUse.mockReturnValue({
+        program,
+        status: programStatus({ programId: 'halfMarathon', next: 3 }),
+        enabled,
+        lastAdjustment: null,
+        schedule: {
+          days: program.run_days,
+          startDay: null,
+          endDay: program.end_date,
+        },
+        doneDay: program.last_done_date,
+        loaded: true,
+        refetch: jest.fn(),
+      } as never);
+
+    it('offers a realignment when the plan no longer fits, and applies it on Accept', async () => {
+      use(behind(31));
+      renderScreen(RunProgramsProps());
+      expect(screen.getByTestId('run-program-realign')).toBeTruthy();
+      expect(applyProgramRealign).not.toHaveBeenCalled();
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('run-program-realign-accept'));
+      });
+      expect(applyProgramRealign).toHaveBeenCalledWith({
+        token: expect.any(String),
+        force: false,
+        today,
+      });
+    });
+
+    it('does not also offer to skip workouts while it offers a realignment', () => {
+      use(behind(31));
+      renderScreen(RunProgramsProps());
+      expect(screen.getByTestId('run-program-realign')).toBeTruthy();
+      expect(screen.queryByTestId('run-program-catch-up')).toBeNull();
+    });
+
+    it('has no card while the plan fits', () => {
+      use(behind(33));
+      renderScreen(RunProgramsProps());
+      expect(screen.queryByTestId('run-program-realign')).toBeNull();
+    });
+
+    it('moves the goal day or opens the race planner from an unrealistic goal', () => {
+      use(behind(24));
+      const props = RunProgramsProps();
+      renderScreen(props);
+      fireEvent.press(screen.getByTestId('run-program-realign-lower'));
+      expect(props.navigation.navigate).toHaveBeenCalledWith('RunProgramRace', {
+        distance: '10k',
+        raceDay: addDays(today, 23),
+      });
+      fireEvent.press(screen.getByTestId('run-program-realign-later'));
+      expect(setProgramSchedule).toHaveBeenCalledWith({
+        endDay: addDays(today, 32),
+      });
+    });
+
+    it('stays out of the way while the program is switched off', () => {
+      use(behind(31), false);
+      renderScreen(RunProgramsProps());
+      expect(screen.queryByTestId('run-program-realign')).toBeNull();
     });
   });
 });

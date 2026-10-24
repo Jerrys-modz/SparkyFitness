@@ -26,7 +26,7 @@ struct GoalSummaryView: View {
                 headlineRow
                 macroRows
                 if nutrition == nil {
-                    Text("Open SparkyFitness on your phone to sync today's numbers.")
+                    Text(String(localized: "watch.goals.openPhoneToSync", defaultValue: "Open SparkyFitness on your phone to sync today's numbers."))
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

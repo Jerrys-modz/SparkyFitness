@@ -235,7 +235,7 @@ export function finishCue(
   });
 }
 
-/** The word for a step: "Run" and "Walk", or "Fast" and "Easy". */
+/** The word for a step: "Run" and "Walk", "Fast" and "Easy", or "Brisk" and "Easy". */
 export function intervalStepName(
   t: TFunction,
   kind: IntervalStep['kind'],
@@ -249,9 +249,13 @@ export function intervalStepName(
         defaultValue: 'Cool down',
       });
     case 'work':
-      return style === 'runWalk'
-        ? t('recordActivity.intervals.run', { defaultValue: 'Run' })
-        : t('recordActivity.intervals.fast', { defaultValue: 'Fast' });
+      if (style === 'runWalk') {
+        return t('recordActivity.intervals.run', { defaultValue: 'Run' });
+      }
+      if (style === 'briskWalk') {
+        return t('recordActivity.intervals.brisk', { defaultValue: 'Brisk' });
+      }
+      return t('recordActivity.intervals.fast', { defaultValue: 'Fast' });
     case 'recovery':
       return style === 'runWalk'
         ? t('recordActivity.intervals.walk', { defaultValue: 'Walk' })

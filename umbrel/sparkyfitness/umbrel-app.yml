@@ -2,7 +2,7 @@ manifestVersion: 1
 id: sparkyfitness
 category: files
 name: SparkyFitness
-version: "v1.8.0"
+version: "v1.9.0"
 tagline: Self-hosted nutrition, exercise, and body metrics tracker
 description: >-
   🥗 SparkyFitness is a self-hosted alternative to MyFitnessPal for tracking
@@ -40,31 +40,31 @@ description: >-
   Online food databases and AI features are off until you add your own
   credentials in the app's settings; nothing is sent anywhere by default.
 releaseNotes: >-
-  - Refresh food information from data provider API
+  - **Adaptive calorie budgets:** Dynamic Goal and Percentage Earn-Back no longer add activity calories or optional BMR credit to an Adaptive target a second time. Remaining calories may be lower after upgrading because these duplicate credits are removed. Recorded activity remains visible, and Manual targets retain their existing earn-back behavior.
 
-  - Add Umbrel App Store package and release automation
+  - Supplement barcode scanning
 
-  - Draw cardio routes over a map
+  - Add Lock Screen widgets and controls for calories, water, fasting and food- #133
 
-  - Let one instance run the scheduled jobs when scaled out
+  - Add a warm-up set generator to the active workout
 
-  - Run scheduled jobs on one replica when server.replicas > 1
+  - Log a mood check-in and show it on the dashboard
 
-  - Add Calories graph to Health Trends and make Sleep graph consistent with other graphs
+  - Add an iOS water widget with a log-a-drink button
 
-  - Rest chime through silent mode, wrist buzz at rest end
+  - Fill in a supplement from a photo of its label
 
-  - Derive versions from Conventional Commits with release-please
+  - Celebrate personal records on the watch
 
-  - Share sign-in rate limits across server instances
+  - Log effort (RPE) after a set
 
-  - Open the watch app on the workout page when a workout starts
+  - Show the exercise, set, and target on the workout Live Activity
 
-  - Tap feedback on every watch button
+  - Feat (Mobile): add fasting settings and fasting report
 
-  - Let admins turn off passkey login
+  - Create and edit workout plans
 
-  Full release notes: https://github.com/CodeWithCJ/SparkyFitness/releases/tag/v1.8.0
+  Full release notes: https://github.com/CodeWithCJ/SparkyFitness/releases/tag/v1.9.0
 
 developer: CodeWithCJ
 website: https://codewithcj.github.io/SparkyFitness/

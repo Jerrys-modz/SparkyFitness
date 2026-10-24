@@ -13,6 +13,7 @@ import {
   METERS_PER_MILE,
 } from '../utils/gpsRecording';
 import { programSummary } from '../utils/runProgramSummary';
+import type { WatchRunForm } from './stepDistance';
 import type { WatchRunPayload } from '../utils/watchRun';
 import { watchRunSummary } from '../utils/watchRunSummary';
 
@@ -26,7 +27,8 @@ export function announceWatchRun(
   payload: WatchRunPayload,
   distanceUnit: 'km' | 'miles',
   t: TFunction,
-  entryId?: string
+  entryId?: string,
+  form?: WatchRunForm | null
 ): void {
   const stored =
     queryClient.getQueryData<RunProgramResponse>(runProgramQueryKey);
@@ -42,7 +44,8 @@ export function announceWatchRun(
           payload.program.index
         )
       : null,
-    entryId
+    entryId,
+    form
   );
   const unitMeters = distanceUnit === 'miles' ? METERS_PER_MILE : METERS_PER_KM;
   const unit =

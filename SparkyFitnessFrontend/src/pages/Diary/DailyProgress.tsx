@@ -48,12 +48,16 @@ import {
   ADAPTIVE_TDEE_GOAL_MIN_DAYS,
   calculateBmr,
   computeExerciseCredited,
+  computeCalorieProgress,
   normalizeCalorieGoalAdjustmentMode,
   resolveCalorieSafetyFloor,
   DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
+  isAdaptiveActivitySeparated,
 } from '@workspace/shared';
 import { CalorieTargetBreakdown } from '@/components/CalorieTargetBreakdown';
+import { getAdaptiveTdeeForGoal } from '@/utils/adaptiveTdee';
 import { useNutrientGoalPreferences } from '@/hooks/Settings/useNutrientGoalPreferences';
+import { getCalorieBudget } from '@/utils/calorieBudget';
 
 const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
   const { t } = useTranslation();
@@ -68,7 +72,9 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
     bodyFatAlgorithm,
     goalMode,
     goalModeCalculationMethod,
+    adaptiveActivitySeparate,
     goalModeCustomPercentage,
+    goalModeWeeklyChangeKg,
     calorieSafetyFloorMode,
     calorieSafetyFloorValue,
     activityLevel,
@@ -220,23 +226,14 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
       ? Math.round(convertEnergy(calorieGoalPref.targetMax, 'kcal', energyUnit))
       : undefined;
 
-  // When a calorie target range is set, the upper bound (targetMax) serves as the budget ceiling.
-  const effectiveTargetGoal = isTargetBand ? targetMaxConverted! : display.goal;
-  const exerciseBonus = Math.max(
-    0,
-    display.remaining - (display.goal - display.eaten)
-  );
+  const calorieBudget = getCalorieBudget(calorieBalance, calorieGoalPref);
+  const targetRemaining = calorieBudget - eatenCalories;
   const effectiveRemaining = isTargetBand
-    ? Math.round(effectiveTargetGoal - display.eaten + exerciseBonus)
+    ? Math.round(convertEnergy(targetRemaining, 'kcal', energyUnit))
     : display.remaining;
-  const effectiveProgress =
-    isTargetBand && effectiveTargetGoal > 0
-      ? Math.max(
-          0,
-          ((effectiveTargetGoal - effectiveRemaining) / effectiveTargetGoal) *
-            100
-        )
-      : calorieProgress;
+  const effectiveProgress = isTargetBand
+    ? computeCalorieProgress(eatenCalories, targetRemaining)
+    : calorieProgress;
 
   const displayWeight = weightData?.weight || 70;
   const displayHeight = heightData?.height || 170;
@@ -281,13 +278,19 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
         : Math.max(adaptiveGoalFloor, adaptiveGoal);
   }
 
+  const activitySeparated = isAdaptiveActivitySeparated(
+    calorieGoalAdjustmentMode,
+    goalModeCalculationMethod,
+    adaptiveActivitySeparate
+  );
   const previewResult = computeCalorieTarget({
     goalMode,
     calculationMethod: goalModeCalculationMethod,
     customPercentage: goalModeCustomPercentage,
+    weeklyChangeKg: goalModeWeeklyChangeKg,
     bmr,
     activityLevelMultiplier: activityMultiplier,
-    adaptiveTdee: adaptiveTdeeData ? adaptiveTdeeData.tdee : null,
+    adaptiveTdee: getAdaptiveTdeeForGoal(adaptiveTdeeData, activitySeparated),
     adaptiveTdeeFallback: adaptiveTdeeData ? adaptiveTdeeData.isFallback : true,
     adaptiveTdeeDaysOfData: adaptiveTdeeData
       ? (adaptiveTdeeData.daysOfData ?? 0)
@@ -812,6 +815,7 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
           {/* Calorie Math Breakdown Dropdown */}
           <div className="pt-3 border-t border-border/40 space-y-2.5">
             <CalorieTargetBreakdown
+              adaptiveActivitySeparate={adaptiveActivitySeparate}
               asDialog
               previewResult={previewResult}
               adaptiveTdeeData={adaptiveTdeeData}
@@ -828,6 +832,7 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
               goalMode={goalMode}
               goalModeCalculationMethod={goalModeCalculationMethod}
               goalModeCustomPercentage={goalModeCustomPercentage}
+              goalModeWeeklyChangeKg={goalModeWeeklyChangeKg}
               calorieGoalAdjustmentMode={calorieGoalAdjustmentMode}
               rawManualGoal={rawManualGoal}
               adjustedManualGoal={adjustedManualGoal}

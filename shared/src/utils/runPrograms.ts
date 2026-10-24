@@ -1,10 +1,10 @@
-import { isCustomProgramId } from "../schemas/api/RunProgram.api.zod.ts";
+import { isCustomProgramId } from '../schemas/api/RunProgram.api.zod.ts';
 import type {
   IntervalPlan,
   IntervalStep,
   IntervalStyle,
   StepEffort,
-} from "./runIntervals.ts";
+} from './runIntervals.ts';
 
 /**
  * Multi-week run programs: an ordered list of workouts, each one an interval
@@ -26,7 +26,7 @@ export interface RunProgram {
   /** Stable id, also the translation key suffix. */
   id: string;
   /** What the person records for its workouts: a walking program is recorded as a walk. */
-  activity: "run" | "walk";
+  activity: 'run' | 'walk';
   workouts: ProgramWorkout[];
   weeks: number;
   workoutsPerWeek: number;
@@ -44,7 +44,7 @@ export interface RunProgram {
 }
 
 /** A run (work) or walk (recovery) piece, with what the stretch is for when its kind does not say. */
-type Piece = readonly ["run" | "walk", number, StepEffort?];
+type Piece = readonly ['run' | 'walk', number, StepEffort?];
 
 /** How a workout is wrapped: warm-up, cool-down and what the steps are called. */
 interface Shape {
@@ -58,37 +58,37 @@ interface Spec {
   shape: Shape;
 }
 
-const RUN_WALK: Shape = { style: "runWalk", warmup: 300, cooldown: 300 };
-const SPEED: Shape = { style: "fastEasy", warmup: 600, cooldown: 600 };
-const EASY: Shape = { style: "fastEasy", warmup: 300, cooldown: 300 };
-// Brisk walking and easy walking, named Fast and Easy so nothing says "run".
-const WALKING: Shape = { style: "fastEasy", warmup: 300, cooldown: 300 };
+const RUN_WALK: Shape = { style: 'runWalk', warmup: 300, cooldown: 300 };
+const SPEED: Shape = { style: 'fastEasy', warmup: 600, cooldown: 600 };
+const EASY: Shape = { style: 'fastEasy', warmup: 300, cooldown: 300 };
+// Brisk walking and easy walking. Named Brisk and Easy so a walk never says "run".
+const WALKING: Shape = { style: 'briskWalk', warmup: 300, cooldown: 300 };
 
 /** A warm-up, the given run/walk pieces (work/recovery steps), a cool-down. */
 function workout(spec: Spec): IntervalPlan {
   const steps: IntervalStep[] = [
-    { kind: "warmup", seconds: spec.shape.warmup },
+    { kind: 'warmup', seconds: spec.shape.warmup },
   ];
   for (const [kind, seconds, effort] of spec.pieces) {
     // The runs of a run/walk plan are easy running, so they get an easy pace.
     const stepEffort =
       effort ??
-      (kind === "run" && spec.shape.style === "runWalk" ? "easy" : undefined);
+      (kind === 'run' && spec.shape.style === 'runWalk' ? 'easy' : undefined);
     steps.push({
-      kind: kind === "run" ? "work" : "recovery",
+      kind: kind === 'run' ? 'work' : 'recovery',
       seconds,
       ...(stepEffort ? { effort: stepEffort } : {}),
     });
   }
-  steps.push({ kind: "cooldown", seconds: spec.shape.cooldown });
+  steps.push({ kind: 'cooldown', seconds: spec.shape.cooldown });
   return { style: spec.shape.style, steps };
 }
 
 const repeat = (count: number, pieces: readonly Piece[]): Piece[] =>
   Array.from({ length: count }, () => pieces).flat();
 
-const run = (seconds: number): Piece => ["run", seconds];
-const walk = (seconds: number): Piece => ["walk", seconds];
+const run = (seconds: number): Piece => ['run', seconds];
+const walk = (seconds: number): Piece => ['walk', seconds];
 
 /** Run/walk workout with the usual 5 minute walks either side. */
 const rw = (pieces: readonly Piece[]): Spec => ({ pieces, shape: RUN_WALK });
@@ -104,35 +104,35 @@ const easy = (minutes: number): Spec => ({
 
 /** A continuous tempo effort of `minutes`: comfortably hard, with a long warm-up and cool-down. */
 const tempo = (minutes: number): Spec =>
-  speed([["run", minutes * 60, "tempo"]]);
+  speed([['run', minutes * 60, 'tempo']]);
 /** An easy run of `minutes` that ends with `count` strides: 20 seconds quick and relaxed, then a walk or jog back. */
 const stridesRun = (minutes: number, count = 6): Spec => ({
   pieces: [
     walk(minutes * 60),
-    ...repeat(count, [["run", 20, "stride"], walk(70)]),
+    ...repeat(count, [['run', 20, 'stride'], walk(70)]),
   ],
   shape: EASY,
 });
 /** Hill repeats: `count` hard efforts of `upSeconds` uphill, each followed by an easy walk or jog back down. */
 const hills = (count: number, upSeconds: number, downSeconds: number): Spec =>
-  speed(repeat(count, [["run", upSeconds, "hill"], walk(downSeconds)]));
+  speed(repeat(count, [['run', upSeconds, 'hill'], walk(downSeconds)]));
 /** A long run: easy, then `paceMinutes` at marathon pace, then easy again. */
 const marathonPaceLong = (
   easyFirst: number,
   paceMinutes: number,
-  easyLast: number,
+  easyLast: number
 ): Spec => ({
   pieces: [
     walk(easyFirst * 60),
-    ["run", paceMinutes * 60, "marathon"],
+    ['run', paceMinutes * 60, 'marathon'],
     walk(easyLast * 60),
   ],
   shape: EASY,
 });
 
 /** A walking workout: brisk pieces (work steps) between easy walking. */
-const brisk = (seconds: number): Piece => ["run", seconds];
-const stroll = (seconds: number): Piece => ["walk", seconds];
+const brisk = (seconds: number): Piece => ['run', seconds];
+const stroll = (seconds: number): Piece => ['walk', seconds];
 const walking = (pieces: readonly Piece[]): Spec => ({
   pieces,
   shape: WALKING,
@@ -164,7 +164,7 @@ const BEGINNER_5K_WEEKS: readonly (readonly Spec[])[] = [
   Array(3).fill(rw(repeat(6, [run(90), walk(120)]))),
   Array(3).fill(rw(repeat(2, [run(90), walk(90), run(180), walk(180)]))),
   Array(3).fill(
-    rw([run(180), walk(90), run(300), walk(150), run(180), walk(90), run(300)]),
+    rw([run(180), walk(90), run(300), walk(150), run(180), walk(90), run(300)])
   ),
   [
     rw([run(300), walk(180), run(300), walk(180), run(300)]),
@@ -266,13 +266,14 @@ const MARATHON_WEEKS = steadyWeeks([
 const thrice = (spec: Spec): Spec[] => Array(3).fill(spec);
 
 // Twelve weeks from nothing to 10K: the beginner 5K ramp from run/walk to
-// continuous running, then longer runs to an hour. Three runs a week.
+// continuous running, then longer runs to an hour, with a lighter tenth week.
+// Three runs a week.
 const BEGINNER_10K_WEEKS: readonly (readonly Spec[])[] = [
   thrice(rw(repeat(8, [run(60), walk(90)]))),
   thrice(rw(repeat(6, [run(90), walk(120)]))),
   thrice(rw(repeat(2, [run(90), walk(90), run(180), walk(180)]))),
   thrice(
-    rw([run(180), walk(90), run(300), walk(150), run(180), walk(90), run(300)]),
+    rw([run(180), walk(90), run(300), walk(150), run(180), walk(90), run(300)])
   ),
   [
     rw([run(300), walk(180), run(300), walk(180), run(300)]),
@@ -288,8 +289,8 @@ const BEGINNER_10K_WEEKS: readonly (readonly Spec[])[] = [
     [25, 25, 30],
     [28, 30, 35],
     [30, 30, 40],
-    [30, 35, 45],
-    [30, 35, 55],
+    [25, 25, 30],
+    [30, 35, 50],
     [25, 30, 60],
   ]),
 ];
@@ -430,7 +431,7 @@ const advancedWeek = (
   quality: Spec,
   middleMinutes: number,
   long: Spec,
-  easyRun: Spec = easy(40),
+  easyRun: Spec = easy(40)
 ): Spec[] => [easyRun, quality, easy(40), easy(middleMinutes), long];
 
 // Sixteen weeks to a marathon for someone who runs five days a week: a speed,
@@ -444,7 +445,7 @@ const ADVANCED_MARATHON_WEEKS: readonly (readonly Spec[])[] = [
     speed(repeat(4, [run(360), walk(120)])),
     65,
     easy(110),
-    stridesRun(40),
+    stridesRun(40)
   ),
   advancedWeek(speed(repeat(8, [run(90), walk(90)])), 50, easy(80)),
   advancedWeek(hills(10, 75, 135), 70, easy(120), stridesRun(40)),
@@ -453,21 +454,21 @@ const ADVANCED_MARATHON_WEEKS: readonly (readonly Spec[])[] = [
     speed(repeat(5, [run(300), walk(120)])),
     75,
     easy(140),
-    stridesRun(40),
+    stridesRun(40)
   ),
   advancedWeek(tempo(20), 55, easy(100)),
   advancedWeek(
     speed(repeat(4, [run(480), walk(150)])),
     75,
     marathonPaceLong(80, 40, 30),
-    stridesRun(40),
+    stridesRun(40)
   ),
   advancedWeek(tempo(30), 80, marathonPaceLong(90, 40, 30), stridesRun(40)),
   advancedWeek(
     speed(repeat(3, [run(720), walk(180)])),
     80,
     marathonPaceLong(90, 50, 30),
-    stridesRun(40),
+    stridesRun(40)
   ),
   advancedWeek(speed(repeat(6, [run(180), walk(90)])), 60, easy(110)),
   advancedWeek(tempo(35), 80, marathonPaceLong(100, 50, 30), stridesRun(40)),
@@ -475,7 +476,7 @@ const ADVANCED_MARATHON_WEEKS: readonly (readonly Spec[])[] = [
     speed(repeat(4, [run(480), walk(150)])),
     75,
     marathonPaceLong(80, 40, 30),
-    stridesRun(40),
+    stridesRun(40)
   ),
   advancedWeek(speed(repeat(5, [run(240), walk(120)])), 60, easy(100)),
   [easy(30), speed(repeat(3, [run(180), walk(120)])), easy(20)],
@@ -538,11 +539,11 @@ const WALK_10K_WEEKS: readonly (readonly Spec[])[] = [
 function buildProgram(
   id: string,
   weeks: readonly (readonly Spec[])[],
-  activity: RunProgram["activity"] = "run",
-  variantOf?: string,
+  activity: RunProgram['activity'] = 'run',
+  variantOf?: string
 ): RunProgram {
   const workouts = weeks.flatMap((days, week) =>
-    days.map((spec, day) => ({ week, day, plan: workout(spec) })),
+    days.map((spec, day) => ({ week, day, plan: workout(spec) }))
   );
   return {
     id,
@@ -556,35 +557,35 @@ function buildProgram(
 
 /** Easiest first: the order the picker lists them. */
 export const RUN_PROGRAMS: readonly RunProgram[] = [
-  buildProgram("walkFit", WALK_FIT_WEEKS, "walk"),
-  buildProgram("walk10k", WALK_10K_WEEKS, "walk"),
-  buildProgram("returnToRunning", RETURN_TO_RUNNING_WEEKS),
-  buildProgram("gentle5k", GENTLE_5K_WEEKS),
-  buildProgram("beginner5k", BEGINNER_5K_WEEKS),
-  buildProgram("fiveToTenK", FIVE_TO_TEN_K_WEEKS),
-  buildProgram("faster5k", FASTER_5K_WEEKS),
-  buildProgram("beginner10k", BEGINNER_10K_WEEKS),
-  buildProgram("faster10k", FASTER_10K_WEEKS),
-  buildProgram("tenKToHalf", TEN_K_TO_HALF_WEEKS),
-  buildProgram("tenKToHalf4", TEN_K_TO_HALF_4_WEEKS, "run", "tenKToHalf"),
-  buildProgram("halfMarathon", HALF_MARATHON_WEEKS),
-  buildProgram("halfMarathon4", HALF_MARATHON_4_WEEKS, "run", "halfMarathon"),
-  buildProgram("fasterHalf", FASTER_HALF_WEEKS),
-  buildProgram("fasterHalf4", FASTER_HALF_4_WEEKS, "run", "fasterHalf"),
-  buildProgram("beginnerMarathon", BEGINNER_MARATHON_WEEKS),
+  buildProgram('walkFit', WALK_FIT_WEEKS, 'walk'),
+  buildProgram('walk10k', WALK_10K_WEEKS, 'walk'),
+  buildProgram('returnToRunning', RETURN_TO_RUNNING_WEEKS),
+  buildProgram('gentle5k', GENTLE_5K_WEEKS),
+  buildProgram('beginner5k', BEGINNER_5K_WEEKS),
+  buildProgram('fiveToTenK', FIVE_TO_TEN_K_WEEKS),
+  buildProgram('faster5k', FASTER_5K_WEEKS),
+  buildProgram('beginner10k', BEGINNER_10K_WEEKS),
+  buildProgram('faster10k', FASTER_10K_WEEKS),
+  buildProgram('tenKToHalf', TEN_K_TO_HALF_WEEKS),
+  buildProgram('tenKToHalf4', TEN_K_TO_HALF_4_WEEKS, 'run', 'tenKToHalf'),
+  buildProgram('halfMarathon', HALF_MARATHON_WEEKS),
+  buildProgram('halfMarathon4', HALF_MARATHON_4_WEEKS, 'run', 'halfMarathon'),
+  buildProgram('fasterHalf', FASTER_HALF_WEEKS),
+  buildProgram('fasterHalf4', FASTER_HALF_4_WEEKS, 'run', 'fasterHalf'),
+  buildProgram('beginnerMarathon', BEGINNER_MARATHON_WEEKS),
   buildProgram(
-    "beginnerMarathon4",
+    'beginnerMarathon4',
     BEGINNER_MARATHON_4_WEEKS,
-    "run",
-    "beginnerMarathon",
+    'run',
+    'beginnerMarathon'
   ),
-  buildProgram("marathon", MARATHON_WEEKS),
-  buildProgram("advancedMarathon", ADVANCED_MARATHON_WEEKS),
+  buildProgram('marathon', MARATHON_WEEKS),
+  buildProgram('advancedMarathon', ADVANCED_MARATHON_WEEKS),
 ];
 
 /** What a program's workouts are recorded as; a program that is gone reads as a run. */
-export function programActivity(id: string): RunProgram["activity"] {
-  return findProgram(id)?.activity ?? "run";
+export function programActivity(id: string): RunProgram['activity'] {
+  return findProgram(id)?.activity ?? 'run';
 }
 
 export function findProgram(id: string): RunProgram | null {
@@ -593,7 +594,7 @@ export function findProgram(id: string): RunProgram | null {
 
 /** The programs the picker lists: every built-in one that is not another's variant. */
 export const PICKER_PROGRAMS: readonly RunProgram[] = RUN_PROGRAMS.filter(
-  (program) => !program.variantOf,
+  (program) => !program.variantOf
 );
 
 /**
@@ -602,8 +603,23 @@ export const PICKER_PROGRAMS: readonly RunProgram[] = RUN_PROGRAMS.filter(
  */
 export function programVersions(id: string): RunProgram[] {
   return RUN_PROGRAMS.filter(
-    (program) => program.id === id || program.variantOf === id,
+    (program) => program.id === id || program.variantOf === id
   ).sort((a, b) => a.workoutsPerWeek - b.workoutsPerWeek);
+}
+
+/**
+ * The built-in workouts a stored copy is measured against when it is adjusted,
+ * or undefined once the copy has a different length (a realignment dropped or
+ * added workouts, so the positions no longer line up).
+ */
+export function builtInBaseline(
+  programId: string,
+  workouts: readonly ProgramWorkout[]
+): ProgramWorkout[] | undefined {
+  const program = findProgram(programId);
+  return program && program.workouts.length === workouts.length
+    ? program.workouts
+    : undefined;
 }
 
 /** Where a person stands in a program. */
@@ -647,7 +663,7 @@ export function programStatus(progress: ProgramProgress): ProgramStatus | null {
 /** Moves on from workout `index`, but only if it is the one due. */
 export function advanceProgress(
   progress: ProgramProgress,
-  completedIndex: number,
+  completedIndex: number
 ): ProgramProgress {
   return completedIndex === progress.next
     ? { ...progress, next: progress.next + 1 }
@@ -659,30 +675,47 @@ export function planMinutes(plan: IntervalPlan): number {
   return Math.round(plan.steps.reduce((sum, s) => sum + s.seconds, 0) / 60);
 }
 
-/** Whole minutes of running (work steps) in a plan, walking and warm-up left out. */
+/**
+ * Whole minutes of the effort. A fast/easy plan counts its easy stretches too,
+ * so an easy run is not zero. Warm-up, cool-down, and the easy walking of a
+ * brisk-walk plan are left out.
+ */
 export function runMinutes(plan: IntervalPlan): number {
+  const easyCounts = plan.style === 'fastEasy';
   return Math.round(
     plan.steps
-      .filter((s) => s.kind === "work")
-      .reduce((sum, s) => sum + s.seconds, 0) / 60,
+      .filter((s) => s.kind === 'work' || (easyCounts && s.kind === 'recovery'))
+      .reduce((sum, s) => sum + s.seconds, 0) / 60
   );
 }
 
 export interface ProgramOutline {
-  /** Total minutes of each workout in week 1, in order. */
+  /** Minutes of each week-1 workout, warm-up and cool-down left out. A walk counts brisk time only. */
   firstWeek: number[];
-  /** Minutes of running in the biggest workout, where it builds to. */
+  /** The same minutes in the biggest workout: where the program builds to. */
   peakRunMinutes: number;
+}
+
+/** Minutes the card quotes, so week 1 and the peak use one unit. */
+function quotedMinutes(program: RunProgram, plan: IntervalPlan): number {
+  const countRecovery = program.activity !== 'walk';
+  return Math.round(
+    plan.steps
+      .filter(
+        (s) => s.kind === 'work' || (countRecovery && s.kind === 'recovery')
+      )
+      .reduce((sum, s) => sum + s.seconds, 0) / 60
+  );
 }
 
 /** A glance at a program: what week 1 looks like and what it builds to. */
 export function programOutline(program: RunProgram): ProgramOutline {
   const first = program.workouts.filter((w) => w.week === 0);
   return {
-    firstWeek: first.map((w) => planMinutes(w.plan)),
+    firstWeek: first.map((w) => quotedMinutes(program, w.plan)),
     peakRunMinutes: program.workouts.reduce(
-      (max, w) => Math.max(max, runMinutes(w.plan)),
-      0,
+      (max, w) => Math.max(max, quotedMinutes(program, w.plan)),
+      0
     ),
   };
 }
@@ -694,7 +727,7 @@ export interface StoredRunProgram {
   workouts: ProgramWorkout[];
   /** The person's own program's name and activity; null for a built-in one. */
   name?: string | null;
-  activity?: RunProgram["activity"] | null;
+  activity?: RunProgram['activity'] | null;
 }
 
 /**
@@ -711,7 +744,7 @@ export function storedProgramStatus(stored: StoredRunProgram): ProgramStatus {
     weeks,
     workoutsPerWeek: workouts.filter((w) => w.week === 0).length,
     ...(isCustomProgramId(stored.program_id) && {
-      custom: { name: stored.name ?? "" },
+      custom: { name: stored.name ?? '' },
     }),
   };
   const total = workouts.length;
@@ -732,7 +765,7 @@ export function storedProgramStatus(stored: StoredRunProgram): ProgramStatus {
  * program.
  */
 export function numberCustomWorkouts(
-  workouts: readonly { plan: IntervalPlan; title?: string }[],
+  workouts: readonly { plan: IntervalPlan; title?: string }[]
 ): ProgramWorkout[] {
   return workouts.map((workout, index) => ({
     week: Math.floor(index / 7),

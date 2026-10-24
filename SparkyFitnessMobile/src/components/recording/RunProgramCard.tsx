@@ -20,6 +20,8 @@ import {
   planMinutes,
   programOutline,
   RUN_PROGRAMS,
+  runMinutes,
+  type IntervalPlan,
   type ProgramStatus,
   type ProgramWorkout,
   type RunProgram,
@@ -29,6 +31,11 @@ import {
 /** A program's name: the person's own for a custom one, else the built-in's. */
 export function programTitle(t: TFunction, program: RunProgram): string {
   return program.custom?.name || programName(t, program.id);
+}
+
+/** Walking programs quote brisk time; run programs quote the whole workout. */
+function workoutMinutes(program: RunProgram, plan: IntervalPlan): number {
+  return program.activity === 'walk' ? runMinutes(plan) : planMinutes(plan);
 }
 
 /** "Workout 4" or the person's own name for a workout of a custom program. */
@@ -219,12 +226,12 @@ export function programDescription(t: TFunction, id: string): string {
     case 'beginnerMarathon4':
       return t('recordActivity.program.beginnerMarathon4Description', {
         defaultValue:
-          'Beginner marathon: eighteen weeks, four runs a week, with long runs building to 2⅔ hours and a taper. For when you can run 10K.',
+          'Beginner marathon: eighteen weeks, four runs a week, with long runs building to 2½ hours and a taper. For when you can run 10K.',
       });
     case 'fasterHalf4':
       return t('recordActivity.program.fasterHalf4Description', {
         defaultValue:
-          'Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run with tempo work. For when you have run a half marathon before.',
+          'Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run. For when you have run a half marathon before.',
       });
     default:
       return id;
@@ -472,7 +479,7 @@ const RunProgramCard: React.FC<Props> = ({
                       weekOne: outline.firstWeek.join(', '),
                       peak: outline.peakRunMinutes,
                       defaultValue:
-                        'Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.',
+                        'Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of effort.',
                     })}
               </Text>
             );
@@ -495,20 +502,20 @@ const RunProgramCard: React.FC<Props> = ({
           label: status.program.custom
             ? t('recordActivity.program.pickOptionCustom', {
                 title: customWorkoutTitle(t, workout),
-                minutes: planMinutes(workout.plan),
+                minutes: workoutMinutes(status.program, workout.plan),
                 mark: index < status.done ? '✓ ' : '',
                 defaultValue: '{{mark}}{{title}} · {{minutes}} min',
               })
             : status.program.activity === 'walk'
               ? t('recordActivity.program.pickOptionWalk', {
                   walk: workout.day + 1,
-                  minutes: planMinutes(workout.plan),
+                  minutes: workoutMinutes(status.program, workout.plan),
                   mark: index < status.done ? '✓ ' : '',
                   defaultValue: '{{mark}}Walk {{walk}} · {{minutes}} min',
                 })
               : t('recordActivity.program.pickOption', {
                   run: workout.day + 1,
-                  minutes: planMinutes(workout.plan),
+                  minutes: workoutMinutes(status.program, workout.plan),
                   mark: index < status.done ? '✓ ' : '',
                   defaultValue: '{{mark}}Run {{run}} · {{minutes}} min',
                 }),
@@ -555,7 +562,9 @@ const RunProgramCard: React.FC<Props> = ({
           : t('recordActivity.program.progress', {
               done: status.done,
               total: status.total,
-              minutes: status.workout ? planMinutes(status.workout.plan) : 0,
+              minutes: status.workout
+                ? workoutMinutes(status.program, status.workout.plan)
+                : 0,
               defaultValue:
                 'Workout {{done}} of {{total}} done · {{minutes}} min today',
             })}

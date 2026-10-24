@@ -27,6 +27,21 @@ enum Haptics {
         play(.notification)
     }
 
+    /// A turn on the followed route is coming up.
+    static func routeCue() {
+        play(.notification)
+    }
+
+    /// The wearer has left the followed route.
+    static func offRoute() {
+        play(.failure)
+    }
+
+    /// Back on the route, or at its end.
+    static func onRoute() {
+        play(.success)
+    }
+
     /// The pace has left the wearer's range. Down means ease off, up means
     /// speed up, so it can be read without looking.
     static func pace(tooFast: Bool) {

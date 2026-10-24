@@ -33,6 +33,7 @@ import RecordingVoiceCard from '../components/recording/RecordingVoiceCard';
 import CheckInCard from '../components/recording/CheckInCard';
 import SegmentedControl from '../components/SegmentedControl';
 import { SplitRow, Stat } from '../components/recording/SplitRow';
+import SplitsTable from '../components/recording/SplitsTable';
 import RunProgramSelect from '../components/recording/RunProgramSelect';
 import {
   programTitle,
@@ -134,6 +135,9 @@ import {
   summarizeRecording,
   type RecordingActivity,
 } from '../utils/gpsRecording';
+import BottomSheetPicker from '../components/BottomSheetPicker';
+import { useRoute, useRoutes } from '../services/routeService';
+import { formatRouteDistance } from '../utils/routeDisplay';
 import type { RootStackScreenProps } from '../types/navigation';
 
 /** A starting band: 5:00 to 5:30 per km, 8:00 to 8:50 per mile. */
@@ -267,6 +271,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const [recordWith, setRecordWith] = useState<'phone' | 'watch'>('phone');
   const watchAvailable = watchSupported && watchPaired && activity !== 'ride';
   const onWatch = watchAvailable && recordWith === 'watch';
+  // A saved route for the watch to follow, for an outdoor walk or run (optional).
+  const [routeId, setRouteId] = useState('');
+  const { routes: savedRoutes } = useRoutes();
+  const routeChoiceShown = onWatch && !indoor;
+  const { route: chosenRoute } = useRoute(routeChoiceShown ? routeId : '');
   const [autoPause, setAutoPause] = useState(true);
   const [audioCues, setAudioCues] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState(0);
@@ -389,10 +398,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             );
             return preset ? buildIntervalPlan(preset.options) : undefined;
           })();
-    // A walk or ride has no running in it: its steps are Fast and Easy, so
-    // the card, the spoken cues and the watch never say "Run" during one.
+    // A walk or ride has no running in it, so a run/walk plan must not say "Run".
+    // A walk is named Brisk and Easy; a ride stays Fast and Easy.
     return plan && activity !== 'run' && plan.style === 'runWalk'
-      ? { ...plan, style: 'fastEasy' }
+      ? { ...plan, style: activity === 'walk' ? 'briskWalk' : 'fastEasy' }
       : plan;
   }, [intervalChoice, customIntervals, programWorkout, activity]);
   const workHeartRateBand = workHeartRate.band ?? DEFAULT_WORK_HEART_RATE_BAND;
@@ -626,10 +635,6 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
         : [],
     [points, session?.status, session?.finishedAt, lapMarks]
   );
-  const splitBarsFor = useMemo(
-    () => splitBars(splits, unitMeters),
-    [splits, unitMeters]
-  );
   const lapBarsFor = useMemo(
     () => splitBars(laps, unitMeters),
     [laps, unitMeters]
@@ -664,6 +669,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
         async () => {
           setPermissionProblem(null);
           if (onWatch) {
+            // A route that has not loaded must not quietly become a run with
+            // no route.
+            if (routeChoiceShown && routeId && !chosenRoute) {
+              throw new Error('The chosen route has not loaded yet');
+            }
             const meta =
               intervalChoice === 'program' && programStatus
                 ? {
@@ -696,6 +706,7 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
               plan: intervalPlan
                 ? buildWatchStartPlan(t, intervalPlan, meta)
                 : undefined,
+              ...(chosenRoute ? { route: chosenRoute } : {}),
             });
             navigation.navigate('WatchRunLive');
             return;
@@ -749,6 +760,9 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       intervalPlan,
       navigation,
       onWatch,
+      chosenRoute,
+      routeChoiceShown,
+      routeId,
       programStatus,
       run,
       t,
@@ -922,17 +936,18 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
       // failed, or the person would be told to try again for no reason.
       let summaryParams: RunSummaryParams | null = null;
       try {
+        const heartRateSamples = await getHeartRateSamples().catch(() => []);
         summaryParams = buildRunSummary({
           activity: session.activity,
           entryDate: saved.entryDate,
           distanceUnit,
           points,
           lapMarks: session.laps,
-          avgHeartRate: averageHeartRate(
-            await getHeartRateSamples().catch(() => [])
-          ),
+          avgHeartRate: averageHeartRate(heartRateSamples),
+          heartRateSamples,
           program,
           entryId: saved.entryId,
+          form: saved.form,
         });
       } catch (error) {
         addLog(
@@ -1123,6 +1138,38 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
                 ]}
                 activeKey={recordWith}
                 onSelect={setRecordWith}
+              />
+            </View>
+          ) : null}
+          {routeChoiceShown && savedRoutes.length > 0 ? (
+            <View className="bg-surface rounded-xl p-4 mt-4">
+              <Text className="text-text-primary text-sm font-semibold mb-1">
+                {t('recordActivity.route.title', { defaultValue: 'Route' })}
+              </Text>
+              <Text className="text-text-secondary text-xs mb-2">
+                {t('recordActivity.route.watchHint', {
+                  defaultValue:
+                    'Your watch shows the line and buzzes at each turn.',
+                })}
+              </Text>
+              <BottomSheetPicker<string>
+                value={routeId}
+                title={t('recordActivity.route.title', {
+                  defaultValue: 'Route',
+                })}
+                options={[
+                  {
+                    label: t('recordActivity.route.none', {
+                      defaultValue: 'No route',
+                    }),
+                    value: '',
+                  },
+                  ...savedRoutes.map((saved) => ({
+                    label: `${saved.name} · ${formatRouteDistance(saved.distanceM, distanceUnit)}`,
+                    value: saved.id,
+                  })),
+                ]}
+                onSelect={setRouteId}
               />
             </View>
           ) : null}
@@ -1664,28 +1711,11 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
             <Text className="text-text-primary text-base font-bold mb-2">
               {t('recordActivity.splits', { defaultValue: 'Splits' })}
             </Text>
-            {splits.map((split, i) => (
-              <SplitRow
-                key={split.index}
-                label={`${
-                  split.partial
-                    ? number(split.distanceMeters / unitMeters)
-                    : String(split.index)
-                } ${unitLabel}`}
-                pace={`${formatPace(
-                  paceSecondsPerUnit(
-                    split.distanceMeters,
-                    split.durationSeconds,
-                    unitMeters
-                  )
-                )} ${paceUnit}`}
-                fraction={splitBarsFor[i].fraction}
-                fastest={splitBarsFor[i].fastest}
-                fastestLabel={t('recordActivity.fastest', {
-                  defaultValue: 'Fastest',
-                })}
-              />
-            ))}
+            <SplitsTable
+              splits={splits}
+              unitMeters={unitMeters}
+              unit={distanceUnit}
+            />
           </View>
         ) : null}
         {finished && indoorSession ? (
