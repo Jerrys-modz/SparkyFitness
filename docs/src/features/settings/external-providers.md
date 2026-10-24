@@ -26,6 +26,7 @@ SparkyFitness supports integration with the following health and fitness data pr
 - Nutritionix
 - Mealie
 - [Valhalla routing](/features/exercises/route-generation) (route generation and Follow roads; a base URL and an optional API key)
+- [Overpass (route stops)](/features/exercises/route-generation#stops-along-a-route) (drinking water, toilets, cafes and viewpoints along a saved route; a base URL you fill in yourself, no key)
 - Tandoor
 - Strava (partially tested)
 - [COROS](/features/settings/coros)

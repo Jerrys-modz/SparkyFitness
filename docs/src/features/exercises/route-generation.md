@@ -2,7 +2,7 @@
 
 SparkyFitness can generate a run, walk, ride or hike route for you: a loop or out-and-back of a distance you choose, or a route through points you pick. The result is a preview with turn-by-turn cues; saving it adds it to your saved routes.
 
-Route generation is **optional and off until a routing provider is added**. Route options and route style are part of the same feature and come with the Valhalla provider. SparkyFitness doesn't ship a routing engine and the server needs no extra container or environment variable: you add a Valhalla routing service as an external provider, the same way you add Mealie or Hevy. Until one is added, the app reports the feature as unavailable.
+Route generation is **optional and off until a routing provider is added**. Route options, route style and stops along a route are part of the same feature: options and style come with the Valhalla provider, and stops need a second provider (Overpass, below). SparkyFitness doesn't ship a routing engine and the server needs no extra container or environment variable: you add a Valhalla routing service as an external provider, the same way you add Mealie or Hevy. Until one is added, the app reports the feature as unavailable.
 
 ---
 
@@ -116,12 +116,13 @@ Returns what this server offers:
     "avoidSteps": true,
     "avoidBusyRoads": true
   },
-  "stops": false,
-  "source": "provider"
+  "stops": true,
+  "source": "provider",
+  "stopsSource": "provider"
 }
 ```
 
-The answer is for the signed-in person. `source` is `"provider"` when the routing engine comes from a routing provider (their own, a public one or a shared one) and `null` when `available` is false, which means there is no routing provider. With the Valhalla provider `maxAlternatives` is 3 and every `style` field is true; with no routing provider they read 1 and false. `stops` is always false for now.
+The answer is for the signed-in person. `source` is `"provider"` when the routing engine comes from a routing provider (their own, a public one or a shared one) and `null` when `available` is false, which means there is no routing provider. With the Valhalla provider `maxAlternatives` is 3 and every `style` field is true; with no routing provider they read 1 and false. `stops` and `stopsSource` follow the **Overpass** provider independently of the routing one, and read `false` and `null` while the Overpass server has asked the SparkyFitness server to slow down (see below), so a client simply stops offering stops for a moment. Older servers send only `available`; clients read a missing field as "not supported".
 
 ### `POST /api/v2/routes/generate`
 
@@ -160,3 +161,49 @@ Asking for three options costs up to three times as many engine calls (the headi
 `style` is `{ surface: "any" | "trails" | "roads", hilliness: "any" | "flat" | "hilly", avoidSteps: boolean, avoidBusyRoads: boolean }`. The server keeps only what the provider supports (all of them, for Valhalla) and sends the rest as Valhalla `costing_options`; preferences change which route the engine picks, they don't guarantee one. Steps are never on a cycling route, so `avoidSteps` does nothing for a ride. A request without a style is sent to the engine exactly as before.
 
 ---
+
+## Stops along a route
+
+Drinking water, toilets, cafes and viewpoints within 150 m of a saved route, from [OpenStreetMap](https://www.openstreetmap.org/) data, shown in the route's detail screen as a list and, on a real map, as coloured dots. Private or closed facilities and drinking water marked as not drinkable are left out. Map data is from OpenStreetMap contributors.
+
+### Add an Overpass provider
+
+Stops are off until you add an Overpass server, the same way as the routing provider:
+
+1. In the web app, open **Settings → External Providers → Add**.
+2. Choose the type **Overpass (route stops)** and give it a name.
+3. Enter the **Overpass API URL**. **Nothing is filled in for you**: use a server you run or are allowed to use. An Overpass API URL usually ends in `/api/interpreter`.
+4. Turn **Activate this provider** on and save.
+
+It works at once, with no restart and no environment variable. Sharing follows the usual external provider rules (own provider first, then an admin's public one, then a family member's shared one), and a private or LAN address follows the same rule as the routing provider.
+
+::: warning The area around your route goes to that server
+To look up stops, the SparkyFitness **server** sends a corridor query built from your route's line (a thinned version of its points) to the Overpass server you choose, which can see it. Use a server you trust.
+:::
+
+### The public Overpass instance is for light use only
+
+The public instance (`overpass-api.de`) is a shared, volunteer-run service. Its documentation asks users to stay under about **10,000 requests and 1 GB of downloads a day**, and every user of a SparkyFitness server (or of anything else using the same server) counts toward that. We read those figures on the Overpass documentation's usage page (<https://dev.overpass-api.de/overpass-doc/en/preface/commons.html>). The OpenStreetMap wiki is also said to ask apps to use a fraction of those numbers, to identify themselves, to avoid parallel requests and to pause after a 429 or 406 answer; we could not re-check that wiki text, so treat it as secondhand. For more than a person or two, or any regular use, **host your own Overpass instance** or use a private or paid one, and put its URL here.
+
+SparkyFitness is deliberately gentle either way:
+
+- Each request carries a `User-Agent` starting `SparkyFitness/`.
+- One query per route, cached on the server for 7 days (a failure for 5 minutes). Lookups to one Overpass server run **one at a time**, with at most five waiting; more read as busy.
+- After a **429** or **406** answer nothing more is sent to that server for **30 seconds**. During that time stops report `busy` and the capabilities answer says `stops: false`, so the app just stops offering stops for a moment.
+- At most 20 queries a minute per Overpass server, whoever asks. Routes over 120 km are not looked up.
+- A query asks for at most 300 elements, with a 12 second server-side timeout, a 15 second client timeout and a 2 MB response cap. At most 1,000 elements of an answer are read, at most 150 stops returned, and a name is cut to 80 characters.
+
+The cache is in the server's memory, so it is empty after a restart. No database table is involved.
+
+### Stops API
+
+Both endpoints are owner-only, limited to 60 requests per user per 10 minutes, and answer `503` when the person has no Overpass provider.
+
+- `GET /api/v2/routes/{id}/stops` for a route the person saved (`404` for any other).
+- `POST /api/v2/routes/stops` with `{ "points": [{ "lat", "lon" }, ...] }` (2 to 2,000 points) for a route that isn't saved.
+
+The answer is `{ "status": "ok" | "no_data" | "busy", "stops": [{ kind, name, lat, lon, distanceFromStartM, offRouteM }], "truncated": boolean }`, with `kind` one of `water`, `toilets`, `cafe`, `viewpoint`, in route order. Every failure (unreachable, timeout, unreadable answer) is a `200` with `no_data`, never an error; `busy` means the Overpass server's budget is used up or it asked us to slow down.
+
+### Running Overpass yourself
+
+The [Overpass API installation guide](https://wiki.openstreetmap.org/wiki/Overpass_API/Installation) covers self-hosting; a regional extract is much smaller than the planet. Add it in Settings with its `/api/interpreter` URL.
