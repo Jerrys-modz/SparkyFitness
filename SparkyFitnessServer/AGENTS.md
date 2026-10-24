@@ -87,7 +87,7 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 - `utils/uploadsPath.ts` - the uploads root plus the resolver and containment guard for stored `file_path` values; use it instead of re-deriving `SPARKY_FITNESS_CUSTOM_UPLOADS_DIRECTORY`
 - `utils/oauthState.ts` - server-issued single-use OAuth `state` nonces for provider linking (`issueOAuthState`, `persistOAuthState`, `claimOAuthState`); use it instead of hand-rolling a state value
 - `utils/outboundHttp.ts` - process-wide outbound HTTP defaults, applied from `index.ts`: the axios request timeout and the per-address-family connect attempt timeout (`net.setDefaultAutoSelectFamilyAttemptTimeout`). Both are fixed constants on purpose - do not add env overrides, and read the sizing note there before changing either, because the two values interact
-- `utils/errors.ts` - `ValidationError` plus `describeError(error)`; prefer it over `error.message` when logging any caught value, because an `AggregateError` or a non-Error throw renders as an empty string
+- `utils/errors.ts` - `ValidationError` plus `describeError(error)`; prefer it over `error.message` when logging any caught value, because an `AggregateError` or a non-Error throw renders as an empty string; and `publicErrorMessage(error)` for the error text of a hand-written 5xx response (it hides database and system errors the way the shared error handler does)
 - `middleware/requireSelfMiddleware.ts` - `requireSelfActor`, which rejects a switched/delegated context outright; attach per-route to account-linking routes
 - `integrations/` - provider adapters and ingest pipelines
 - `schemas/` - Zod route schemas
@@ -175,6 +175,7 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 - `getClient(...)` sets `public.set_app_context(...)`; that is what makes row-level security work correctly
 - Use `getSystemClient()` only for admin, migration, startup, or policy-management work that intentionally bypasses RLS
 - Always release database clients in a `finally` block
+- `getClient`, `getSystemClient` and Better Auth's pool retry connection errors for up to 10 s (`db/connectRetry.ts`, off under `NODE_ENV=test` unless a test calls `enableRequestConnectRetry()`); only the acquire is retried, never a statement. A connection error that still reaches `middleware/errorHandler.ts` answers 503 with `Retry-After`
 - To learn a table's current shape, read `../shared/src/schemas/database/<Table>.zod.ts` (one small Zod file per table) instead of reading `../db_schema_backup.sql` or reconstructing it from the 185 migration files
 - New migrations belong in `db/migrations/` and must use `YYYYMMDDHHMMSS_description.sql`
 - **Never manually edit `../db_schema_backup.sql`** — after merge, CI regenerates it from the migrations and opens an automated sync PR (`.github/workflows/schema-backup.yml`). Do not commit copies generated from a local database.
