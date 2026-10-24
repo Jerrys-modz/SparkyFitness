@@ -214,7 +214,14 @@ async function createFood(authenticatedUserId: string, foodData: FoodInput) {
         foodData.barcode,
         authenticatedUserId
       );
-      if (existingFood) {
+      // A selected provider product has its own identity. Another source's
+      // barcode match must not replace that choice or overwrite a custom food.
+      const hasProviderIdentity =
+        !!foodData.provider_type && !!foodData.provider_external_id;
+      const sameProviderIdentity =
+        existingFood?.provider_type === foodData.provider_type &&
+        existingFood?.provider_external_id === foodData.provider_external_id;
+      if (existingFood && (!hasProviderIdentity || sameProviderIdentity)) {
         return refreshExistingExternalFoodMetadata(
           authenticatedUserId,
           existingFood,
@@ -994,40 +1001,65 @@ async function updateFoodEntriesSnapshot(
 // local food library and load preferences. `credentialUserId` is the real
 // authenticated actor whose stored provider secrets and OpenFoodFacts session
 // are used, so a delegate can't decrypt a family member's provider keys.
+export interface BarcodeLookupOptions {
+  skipLocal?: boolean;
+  skipFallback?: boolean;
+  ignoreDefaultProvider?: boolean;
+  surfaceErrors?: boolean;
+  preferences?: {
+    language?: string | null;
+    default_barcode_provider_id?: string | null;
+    barcode_fallback_open_food_facts?: boolean | null;
+    auto_scale_open_food_facts_imports?: boolean | null;
+  };
+}
+
 async function lookupBarcode(
   barcode: string,
   userId: string,
   providerId: string | undefined,
   // Defaults to the data-context user for non-delegated callers; routes pass
   // the real authenticated actor so a delegate can't use a family member's keys.
-  credentialUserId: string = userId
+  credentialUserId: string = userId,
+  options: BarcodeLookupOptions = {}
 ) {
   // Providers are tried in turn, each failure caught so the next can run.
-  // Capture the first failure carrying an HTTP status (a surfaceable
-  // misconfiguration, e.g. FatSecret's IP error) to report instead of a
-  // misleading "not found" if every provider fails.
+  // Strict single-source callers need to distinguish an unavailable provider
+  // from a successful search with no match. Legacy callers only surface errors
+  // carrying an HTTP status (e.g. FatSecret's IP misconfiguration).
   let surfaceableError: ProviderError | null = null;
   const captureSurfaceable = (err: unknown) => {
-    const candidate = err as ProviderError | null;
+    // Provider errors can include request URLs, response bodies and credentials.
+    // Expose only a neutral error when the caller asks for strict reporting.
+    const candidate = options.surfaceErrors
+      ? Object.assign(new Error('Barcode provider lookup failed.'), {
+          status: 502,
+        })
+      : (err as ProviderError | null);
     if (!surfaceableError && candidate?.status) {
       surfaceableError = candidate;
     }
+    return options.surfaceErrors ? candidate : err;
   };
   try {
-    const localFood = await foodRepository.findFoodByBarcode(barcode, userId);
+    const localFood = options.skipLocal
+      ? null
+      : await foodRepository.findFoodByBarcode(barcode, userId);
     if (localFood) {
       return { source: 'local', food: localFood };
     }
     // Load user preferences once for provider resolution, language, and auto-scale
-    const userPreferences = await preferenceService.getUserPreferences(
-      userId,
-      userId
-    );
+    const userPreferences =
+      options.preferences ??
+      (await preferenceService.getUserPreferences(userId, userId));
     // Resolve the barcode provider (explicit param or user preference)
     let provider = null;
     try {
       const resolvedProviderId =
-        providerId || userPreferences?.default_barcode_provider_id;
+        providerId ||
+        (options.ignoreDefaultProvider
+          ? undefined
+          : userPreferences?.default_barcode_provider_id);
       if (resolvedProviderId) {
         const details =
           await externalProviderService.getExternalDataProviderDetails(
@@ -1042,12 +1074,23 @@ async function lookupBarcode(
       log(
         'warn',
         `Barcode provider resolution failed for user ${userId}:`,
-        providerError
+        options.surfaceErrors
+          ? captureSurfaceable(providerError)
+          : providerError
       );
     }
     const language = userPreferences?.language || 'en';
     const autoScale =
       userPreferences?.auto_scale_open_food_facts_imports ?? true;
+    if (
+      options.surfaceErrors &&
+      ((provider?.provider_type === 'usda' && !provider.app_key) ||
+        ((provider?.provider_type === 'fatsecret' ||
+          provider?.provider_type === 'yazio') &&
+          (!provider.app_id || !provider.app_key)))
+    ) {
+      captureSurfaceable(new Error('Missing required provider credentials.'));
+    }
     let triedOpenFoodFacts = false;
     // Try FatSecret if provider is configured
     if (
@@ -1056,11 +1099,18 @@ async function lookupBarcode(
       provider.app_key
     ) {
       try {
-        const fatSecretData = await searchFatSecretByBarcode(
-          barcode,
-          provider.app_id,
-          provider.app_key
-        );
+        const fatSecretData = options.surfaceErrors
+          ? await searchFatSecretByBarcode(
+              barcode,
+              provider.app_id,
+              provider.app_key,
+              true
+            )
+          : await searchFatSecretByBarcode(
+              barcode,
+              provider.app_id,
+              provider.app_key
+            );
         if (fatSecretData && fatSecretData.food) {
           fatSecretData.food.barcode = barcode;
           return {
@@ -1070,8 +1120,11 @@ async function lookupBarcode(
           };
         }
       } catch (fsError) {
-        log('warn', `FatSecret barcode lookup failed for ${barcode}:`, fsError);
-        captureSurfaceable(fsError);
+        log(
+          'warn',
+          `FatSecret barcode lookup failed for ${barcode}:`,
+          captureSurfaceable(fsError)
+        );
       }
     }
     // Try USDA if provider is configured
@@ -1107,8 +1160,11 @@ async function lookupBarcode(
           };
         }
       } catch (usdaError) {
-        log('warn', `USDA barcode lookup failed for ${barcode}:`, usdaError);
-        captureSurfaceable(usdaError);
+        log(
+          'warn',
+          `USDA barcode lookup failed for ${barcode}:`,
+          captureSurfaceable(usdaError)
+        );
       }
     }
     // Try YAZIO if provider is configured. This uses YAZIO's private product
@@ -1133,8 +1189,11 @@ async function lookupBarcode(
           };
         }
       } catch (yazioError) {
-        log('warn', `YAZIO barcode lookup failed for ${barcode}:`, yazioError);
-        captureSurfaceable(yazioError);
+        log(
+          'warn',
+          `YAZIO barcode lookup failed for ${barcode}:`,
+          captureSurfaceable(yazioError)
+        );
       }
     }
     // Try OpenFoodFacts if it is the configured primary provider
@@ -1166,13 +1225,13 @@ async function lookupBarcode(
         log(
           'warn',
           `OpenFoodFacts barcode lookup failed for ${barcode}:`,
-          error
+          captureSurfaceable(error)
         );
-        captureSurfaceable(error);
       }
     }
     // Fall back to OpenFoodFacts if not already tried and user preference allows it
     if (
+      !options.skipFallback &&
       !triedOpenFoodFacts &&
       userPreferences?.barcode_fallback_open_food_facts !== false
     ) {
@@ -1201,7 +1260,9 @@ async function lookupBarcode(
           log(
             'debug',
             'OpenFoodFacts fallback provider resolution failed:',
-            fallbackError
+            options.surfaceErrors
+              ? captureSurfaceable(fallbackError)
+              : fallbackError
           );
         }
       }
@@ -1231,9 +1292,8 @@ async function lookupBarcode(
         log(
           'warn',
           `OpenFoodFacts lookup failed for barcode ${barcode}:`,
-          error
+          captureSurfaceable(error)
         );
-        captureSurfaceable(error);
       }
     }
     // Every provider failed: report a misconfiguration rather than "not found".

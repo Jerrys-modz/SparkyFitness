@@ -18,6 +18,20 @@ import { useAddFoodEntryMeal } from '../../src/hooks/useAddFoodEntryMeal';
 import { setPendingMealIngredientSelection } from '../../src/services/mealBuilderSelection';
 import { setPendingMealPlanSelection } from '../../src/services/mealPlanSelection';
 import { buildMealIngredientDraft } from '../../src/utils/mealBuilderDraft';
+import type { BarcodeLookupContext } from '../../src/utils/barcodeFoods';
+import type { FoodInfoItem } from '../../src/types/foodInfo';
+
+const mockBarcodeSources = jest.fn();
+jest.mock('../../src/components/BarcodeSources', () => ({
+  __esModule: true,
+  default: (props: {
+    context: BarcodeLookupContext;
+    onSelect: (item: FoodInfoItem, context: BarcodeLookupContext) => void;
+  }) => {
+    mockBarcodeSources(props);
+    return null;
+  },
+}));
 
 const mockPop = jest.fn((count: number) => ({
   type: 'POP',
@@ -28,6 +42,7 @@ const mockPopToTop = jest.fn(() => ({ type: 'POP_TO_TOP' }));
 const mockNavigation = {
   goBack: jest.fn(),
   navigate: jest.fn(),
+  replace: jest.fn(),
   setParams: jest.fn(),
   dispatch: jest.fn(),
   setOptions: jest.fn(),
@@ -442,6 +457,69 @@ describe('FoodEntryAddScreen', () => {
       invalidateCache: mockInvalidateMealCache,
     }));
   });
+
+  it.each(['meal-builder', 'meal-plan', undefined] as const)(
+    'switches barcode source with a fresh item and preserves %s return context',
+    (pickerMode) => {
+      const barcodeLookup: BarcodeLookupContext = {
+        barcode: '1234567890123',
+        providerId: 'local',
+      };
+      const mealPlanTarget = {
+        dayOfWeek: 2,
+        mealTypeId: 'meal-1',
+        mealTypeName: 'Breakfast',
+      };
+      renderScreen({
+        item: baseLocalItem,
+        barcodeLookup,
+        date: '2026-04-23',
+        mealTypeId: 'meal-1',
+        pickerMode,
+        returnDepth: 2,
+        mealPlanTarget,
+        entryNotes: 'Keep my note',
+        entryTime: '08:15',
+      });
+      const nextItem: FoodInfoItem = {
+        ...baseExternalItem,
+        provider_type: 'example',
+        provider_external_id: 'external-1',
+        originalItem: {
+          name: baseExternalItem.name,
+          brand: null,
+          is_custom: false,
+          default_variant: {
+            serving_size: 1,
+            serving_unit: 'bar',
+            calories: 200,
+            protein: 20,
+            carbs: 22,
+            fat: 7,
+            is_default: true,
+          },
+        },
+      };
+      const nextContext = { ...barcodeLookup, providerId: 'provider-two' };
+      const props = mockBarcodeSources.mock.calls.at(-1)?.[0] as {
+        onSelect: (item: FoodInfoItem, context: BarcodeLookupContext) => void;
+      };
+      props.onSelect(nextItem, nextContext);
+      expect(mockNavigation.replace).toHaveBeenCalledWith('FoodEntryAdd', {
+        item: nextItem,
+        barcodeLookup: nextContext,
+        date: '2026-04-23',
+        mealTypeId: 'meal-1',
+        pickerMode,
+        returnDepth: 2,
+        mealPlanTarget,
+        entryNotes: 'Keep my note',
+        entryTime: '08:15',
+      });
+      expect(mockSaveFoodAsync).not.toHaveBeenCalled();
+      expect(mockAddEntry).not.toHaveBeenCalled();
+    }
+  );
 
   it('stores a pending ingredient and pops back for local foods in meal-builder mode', async () => {
     const screen = renderScreen({

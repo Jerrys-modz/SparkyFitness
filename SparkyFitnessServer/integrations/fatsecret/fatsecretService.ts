@@ -335,7 +335,8 @@ async function getFatSecretAccessToken(
 async function searchFatSecretByBarcode(
   barcode: string,
   clientId: string,
-  clientSecret: string
+  clientSecret: string,
+  surfaceErrors = false
 ) {
   try {
     // Specifically request barcode scope for this call
@@ -360,6 +361,14 @@ async function searchFatSecretByBarcode(
       },
     });
     if (!response.ok) {
+      if (surfaceErrors && response.status !== 404) {
+        throw Object.assign(
+          new Error(
+            `FatSecret barcode lookup failed (HTTP ${response.status}).`
+          ),
+          { status: 502 }
+        );
+      }
       if (response.status === 404) {
         const alt = altBarcode(barcode);
 
@@ -380,7 +389,19 @@ async function searchFatSecretByBarcode(
           });
           if (altResponse.ok) {
             const data = await altResponse.json();
+            if (surfaceErrors) {
+              if (data.error && String(data.error.code) === '211') return null;
+              assertNoFatSecretApiError(data);
+            }
             return data;
+          }
+          if (surfaceErrors && altResponse.status !== 404) {
+            throw Object.assign(
+              new Error(
+                `FatSecret barcode lookup failed (HTTP ${altResponse.status}).`
+              ),
+              { status: 502 }
+            );
           }
         }
         return null;

@@ -1,5 +1,6 @@
 import express, { RequestHandler } from 'express';
 import openFoodFactsContributionRoutes from './openFoodFactsContributionRoutes.js';
+import barcodeRoutes from './barcodeRoutes.js';
 import {
   BarcodeResponseSchema,
   NormalizedFoodSchema,
@@ -25,6 +26,7 @@ const router = express.Router();
 
 router.use(checkPermissionMiddleware('diary'));
 router.use(openFoodFactsContributionRoutes);
+router.use(barcodeRoutes);
 
 // --- Barcode endpoint ---
 

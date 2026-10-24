@@ -150,6 +150,10 @@ describe('FoodScanScreen', () => {
           id: 'food-1',
           barcode: '012345678905',
         }),
+        barcodeLookup: expect.objectContaining({
+          barcode: '012345678905',
+          providerId: 'local',
+        }),
       })
     );
   });
