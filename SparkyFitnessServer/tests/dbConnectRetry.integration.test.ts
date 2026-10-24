@@ -37,7 +37,6 @@ async function isDbReachable(): Promise<boolean> {
 /** Forwards TCP to PostgreSQL until stopped; stopping drops every connection. */
 function createProxy() {
   const sockets = new Set<net.Socket>();
-  const upstreamPorts = new Set<number>();
   let server: net.Server | undefined;
   let port = 0;
 
@@ -45,7 +44,6 @@ function createProxy() {
     const upstream = net.connect(target.port, target.host);
     sockets.add(downstream);
     sockets.add(upstream);
-    upstream.on('connect', () => upstreamPorts.add(upstream.localPort!));
     const close = () => {
       downstream.destroy();
       upstream.destroy();
@@ -64,7 +62,6 @@ function createProxy() {
     get port() {
       return port;
     },
-    upstreamPorts,
     async start() {
       server = net.createServer(handle);
       await new Promise<void>((resolve) =>
@@ -77,7 +74,6 @@ function createProxy() {
       server = undefined;
       for (const socket of sockets) socket.destroy();
       sockets.clear();
-      upstreamPorts.clear();
       await new Promise<void>((resolve) =>
         stopping ? stopping.close(() => resolve()) : resolve()
       );
@@ -92,7 +88,12 @@ describe.runIf(reachable)('database connection loss (real PostgreSQL)', () => {
   const savedEnv = {
     host: process.env.SPARKY_FITNESS_DB_HOST,
     port: process.env.SPARKY_FITNESS_DB_PORT,
+    appName: process.env.PGAPPNAME,
   };
+  // pg reads PGAPPNAME for every new connection, which tags this file's
+  // backends. Client ports can't identify them: CI reaches PostgreSQL through
+  // Docker's port forwarding, which changes the port the server sees.
+  const appName = `connect-retry-${crypto.randomUUID()}`;
   let admin: pg.Client;
   let poolManager: typeof import('../db/poolManager.js');
   let authModule: typeof import('../auth.js');
@@ -102,6 +103,7 @@ describe.runIf(reachable)('database connection loss (real PostgreSQL)', () => {
     // Pools read these at module load.
     process.env.SPARKY_FITNESS_DB_HOST = '127.0.0.1';
     process.env.SPARKY_FITNESS_DB_PORT = String(proxy.port);
+    process.env.PGAPPNAME = appName;
     poolManager = await import('../db/poolManager.js');
     (await import('../db/connectRetry.js')).enableRequestConnectRetry();
     authModule = await import('../auth.js');
@@ -115,6 +117,8 @@ describe.runIf(reachable)('database connection loss (real PostgreSQL)', () => {
     await poolManager?.endPool();
     process.env.SPARKY_FITNESS_DB_HOST = savedEnv.host;
     process.env.SPARKY_FITNESS_DB_PORT = savedEnv.port;
+    if (savedEnv.appName === undefined) delete process.env.PGAPPNAME;
+    else process.env.PGAPPNAME = savedEnv.appName;
     await proxy.stop();
   });
 
@@ -123,21 +127,57 @@ describe.runIf(reachable)('database connection loss (real PostgreSQL)', () => {
     const { rows } = await admin.query<{ terminated: number }>(
       `SELECT count(*) FILTER (WHERE pg_terminate_backend(pid))::int AS terminated
        FROM pg_stat_activity
-       WHERE client_port = ANY($1::int[])`,
-      [[...proxy.upstreamPorts]]
+       WHERE application_name = $1 AND pid <> pg_backend_pid()`,
+      [appName]
     );
     return rows[0]!.terminated;
   }
 
+  /**
+   * Like Promise.all, but releases every client that was acquired before
+   * surfacing a failure, so a failed test can't hold the shared pools.
+   */
+  async function settleClients(
+    acquires: Promise<unknown>[]
+  ): Promise<unknown[]> {
+    const settled = await Promise.allSettled(acquires);
+    for (const result of settled) {
+      if (result.status === 'fulfilled') {
+        (result.value as { release?: () => void } | null)?.release?.();
+      }
+    }
+    const failed = settled.find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected'
+    );
+    if (failed) throw failed.reason;
+    return settled.map(
+      (result) => (result as PromiseFulfilledResult<unknown>).value
+    );
+  }
+
   async function borrowAndRelease(count: number) {
-    const clients = await Promise.all(
+    await settleClients(
       Array.from({ length: count }, (_, index) =>
         index % 2
           ? poolManager.getSystemClient()
           : poolManager.getClient(crypto.randomUUID())
       )
     );
-    for (const client of clients) client.release();
+  }
+
+  /**
+   * Drops every connection, then waits until each pool has seen its idle
+   * clients close. Until then a pool can hand out a client whose socket is
+   * already gone, which no connect retry can catch.
+   */
+  async function stopDatabase() {
+    await proxy.stop();
+    const authPool = authModule.auth.options.database as pg.Pool;
+    await vi.waitFor(() => {
+      expect(poolManager.getRawOwnerPool().idleCount).toBe(0);
+      expect(poolManager.getPoolStats().idleCount).toBe(0);
+      expect(authPool.idleCount).toBe(0);
+    });
   }
 
   it('serves new requests after its pooled backends are terminated', async () => {
@@ -188,10 +228,10 @@ describe.runIf(reachable)('database connection loss (real PostgreSQL)', () => {
 
   it('rides out a database outage shorter than the retry bound', async () => {
     await borrowAndRelease(4);
-    await proxy.stop();
+    await stopDatabase();
 
     const started = Date.now();
-    const pending = Promise.all([
+    const pending = settleClients([
       poolManager.getClient(crypto.randomUUID()),
       poolManager.getSystemClient(),
       // Better Auth acquires through its own pool's connect().
@@ -204,23 +244,15 @@ describe.runIf(reachable)('database connection loss (real PostgreSQL)', () => {
     ]);
     setTimeout(() => void proxy.start(), 3000);
 
-    const [appClient, systemClient, session] = await pending;
+    const [, , session] = await pending;
     const elapsed = Date.now() - started;
-    appClient.release();
-    systemClient.release();
     expect(session).toBeNull();
     expect(elapsed).toBeGreaterThanOrEqual(2900);
     expect(elapsed).toBeLessThan(10_000);
   }, 20_000);
 
   it('gives up after the retry bound when the database stays away', async () => {
-    await proxy.stop();
-    // A client returned to the pool a moment before its connection dropped
-    // is handed out until the pool sees the close; only getClient()
-    // detects that case, through its context query.
-    await vi.waitFor(() =>
-      expect(poolManager.getRawOwnerPool().idleCount).toBe(0)
-    );
+    await stopDatabase();
     try {
       const started = Date.now();
       await expect(poolManager.getSystemClient()).rejects.toMatchObject({
