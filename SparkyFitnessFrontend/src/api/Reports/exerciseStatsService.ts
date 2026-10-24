@@ -1,5 +1,6 @@
 import { apiCall } from '@/api/api';
 import type {
+  BestEffortsResponse,
   ExerciseStatsSummaryResponse,
   ExerciseActivityQueryResponse,
   ExercisePRMatrixResponse,
@@ -78,4 +79,16 @@ export const loadMatchedCourses = async (
   return await apiCall(`/exercise-stats/matched-courses?${params.toString()}`, {
     method: 'GET',
   });
+};
+
+export const loadBestEfforts = async (
+  userId?: string
+): Promise<BestEffortsResponse> => {
+  const params = new URLSearchParams();
+  if (userId) params.append('userId', userId);
+  const query = params.toString();
+  return await apiCall(
+    `/exercise-stats/best-efforts${query ? `?${query}` : ''}`,
+    { method: 'GET' }
+  );
 };
