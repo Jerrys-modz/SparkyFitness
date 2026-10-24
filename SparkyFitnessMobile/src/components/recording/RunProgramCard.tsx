@@ -303,6 +303,8 @@ interface Props {
   lastAdjustment?: RunProgramAdjustment | null;
   /** Epoch ms "now", from the screen, to judge whether a change is recent. */
   now: number;
+  /** Today in the account timezone, for the race day comparison; defaults to the device day. */
+  accountToday?: string;
   /** The days the workout shows in the Diary, and the first day it does. */
   schedule: RunSchedule;
   onSchedule: (change: ProgramScheduleChange) => void;
@@ -357,6 +359,7 @@ const RunProgramCard: React.FC<Props> = ({
   onChooseProgram,
   lastAdjustment = null,
   now,
+  accountToday,
   schedule,
   onSchedule,
   raceDay = null,
@@ -715,7 +718,7 @@ const RunProgramCard: React.FC<Props> = ({
                     defaultValue: 'Set a goal date',
                   })}
             </InlineLink>
-            {raceDay && raceDay > today && schedule.endDay !== raceDay ? (
+            {raceDay && raceDay > (accountToday ?? today) && schedule.endDay !== raceDay ? (
               <InlineLink
                 testID="run-program-use-race-day"
                 onPress={() => onSchedule({ endDay: raceDay })}

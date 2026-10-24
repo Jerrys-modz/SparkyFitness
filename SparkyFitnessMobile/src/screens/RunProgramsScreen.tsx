@@ -45,6 +45,8 @@ import { addLog } from '../services/LogService';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { formatLocalizedNumber } from '../localization';
 import type { RootStackScreenProps } from '../types/navigation';
+import { isValidTimeZone, todayInZone } from '@workspace/shared';
+import { usePreferences } from '../hooks/usePreferences';
 import { addDays, toLocalDateString } from '../utils/dateUtils';
 
 type Props = RootStackScreenProps<'RunPrograms'>;
@@ -61,6 +63,13 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   const goals = useRunGoals();
   const [now] = useState(() => Date.now());
   const today = toLocalDateString(new Date(now));
+  // The race day is compared in the account timezone, like the goals service.
+  const { preferences } = usePreferences();
+  const accountToday = todayInZone(
+    preferences?.timezone && isValidTimeZone(preferences.timezone)
+      ? preferences.timezone
+      : 'UTC'
+  );
   const [chosenId, setChosenId] = useState('beginner5k');
   const storedId = status?.program.id;
   const startCalendarRef = useRef<CalendarSheetRef>(null);
@@ -269,6 +278,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           schedule={schedule}
           onSchedule={(next) => change(() => setProgramSchedule(next))}
           raceDay={goals.data?.goals?.race_date ?? null}
+          accountToday={accountToday}
           onPickWorkout={(index) => change(() => setProgramPosition(index))}
           status={status}
           loaded={loaded}
@@ -461,7 +471,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
     <RunGoalsCard
       data={goals.data}
       distanceUnit={goals.distanceUnit}
-      today={today}
+      today={accountToday}
       saving={goals.isSaving}
       onSave={goals.save}
     />
