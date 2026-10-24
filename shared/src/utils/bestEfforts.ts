@@ -48,6 +48,15 @@ export const GPS_EFFORT_OPTIONS: BestEffortOptions = {
   maxSpeedMps: 12,
 };
 
+/**
+ * No pause or jump exclusion: the elapsed time of the stretch as recorded.
+ * Personal records use this, so a record time matches the recorded clock.
+ */
+export const UNGUARDED_EFFORT_OPTIONS: BestEffortOptions = {
+  maxGapSeconds: Number.POSITIVE_INFINITY,
+  maxSpeedMps: Number.POSITIVE_INFINITY,
+};
+
 /** Defaults for a distance series on active time, which is sampled more coarsely. */
 export const DISTANCE_SERIES_EFFORT_OPTIONS: BestEffortOptions = {
   maxGapSeconds: 60,
@@ -228,31 +237,59 @@ export function bestEffortsFromSamples(
 }
 
 /**
- * Samples from stored GPS trackpoints: ISO instants and the path length by
- * great-circle legs. Points with no usable time or position are skipped.
+ * Samples from stored GPS trackpoints: ISO instants and the distance covered.
+ * Uses the device's own cumulative distance when every point carries it (a
+ * watch's figure matches the distance saved on the entry); otherwise sums the
+ * great-circle legs between fixes, dropping any leg faster than
+ * `maxSpeedMps`. Points with no usable time or position are
+ * skipped and a repeated timestamp is one reading, so the first stands.
  */
 export function effortSamplesFromGpsTrack(
-  points: readonly Pick<GpsTrackPoint, 't' | 'lat' | 'lon'>[]
+  points: readonly Pick<GpsTrackPoint, 't' | 'lat' | 'lon' | 'dist'>[],
+  maxSpeedMps = Number.POSITIVE_INFINITY
 ): EffortSample[] {
   const timed = points
-    .map((p) => ({ ms: Date.parse(p.t), lat: p.lat, lon: p.lon }))
+    .map((p) => ({
+      ms: Date.parse(p.t),
+      lat: p.lat,
+      lon: p.lon,
+      dist: p.dist,
+    }))
     .filter(
       (p) =>
         Number.isFinite(p.ms) &&
         Number.isFinite(p.lat) &&
         Number.isFinite(p.lon)
     )
-    .sort((a, b) => a.ms - b.ms);
+    .sort((a, b) => a.ms - b.ms)
+    .filter(
+      (p, i, all) => i === 0 || p.ms !== (all[i - 1] as { ms: number }).ms
+    );
+  const first = timed[0];
+  if (!first) return [];
+
+  const deviceDistance = timed.every(
+    (p, i) =>
+      typeof p.dist === 'number' &&
+      Number.isFinite(p.dist) &&
+      (i === 0 || p.dist >= ((timed[i - 1] as { dist: number }).dist ?? 0))
+  );
+
   const samples: EffortSample[] = [];
   let meters = 0;
-  let previous: (typeof timed)[number] | null = null;
-  for (const p of timed) {
-    // Repeated timestamps are one reading; keep the first.
-    if (previous && p.ms === previous.ms) continue;
-    if (previous) meters += haversineMeters(previous, p);
+  timed.forEach((p, i) => {
+    const before = timed[i - 1];
+    if (deviceDistance) {
+      meters = (p.dist as number) - (first.dist as number);
+    } else if (before) {
+      const leg = haversineMeters(before, p);
+      // A leg faster than the sport can go is a GPS jump (a jump and its
+      // return would both count as distance), so its distance is dropped.
+      // The device's own distance is trusted as recorded.
+      if (leg / ((p.ms - before.ms) / 1000) <= maxSpeedMps) meters += leg;
+    }
     samples.push({ seconds: p.ms / 1000, meters });
-    previous = p;
-  }
+  });
   return samples;
 }
 

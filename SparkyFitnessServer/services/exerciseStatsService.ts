@@ -8,6 +8,8 @@ import {
   effortSamplesFromDistanceSeries,
   effortSamplesFromGpsTrack,
   fasterEffort,
+  fastestEffort,
+  UNGUARDED_EFFORT_OPTIONS,
   BEST_EFFORT_METERS,
   DISTANCE_SERIES_EFFORT_OPTIONS,
   GPS_EFFORT_OPTIONS,
@@ -16,6 +18,7 @@ import {
 } from '@workspace/shared';
 import type {
   ActivitySport,
+  EffortSample,
   GpsTrackPoint,
   PrSportGroup,
   SportConfidence,
@@ -39,12 +42,6 @@ import {
   cardioPredicateSql,
   setLoadSql,
 } from '../utils/exerciseLoadSql.js';
-import {
-  bestSplitSeconds,
-  samplesFromDistanceSeries,
-  samplesFromGpsPoints,
-} from '../utils/bestSplit.js';
-import type { SplitSample } from '../utils/bestSplit.js';
 
 interface SqlRow {
   [key: string]: unknown;
@@ -107,6 +104,21 @@ const EMPTY_JSONB_ARRAY_MAX_BYTES = 8;
 
 /** Activities whose tracks are loaded per query when looking for best splits. */
 const TRACK_BATCH_SIZE = 25;
+
+/** Samples that cover some distance; a track that never moves has no stretch to measure. */
+const hasDistance = (samples: readonly EffortSample[]): boolean =>
+  samples.length >= 2 &&
+  ((samples[samples.length - 1] as EffortSample).meters ?? 0) > 0;
+
+/**
+ * The fastest stretch of `meters` on the recorded clock (no pause or jump
+ * exclusion), in seconds, or null when the activity never covers that far.
+ */
+const recordSeconds = (
+  samples: readonly EffortSample[],
+  meters: number
+): number | null =>
+  fastestEffort(samples, meters, UNGUARDED_EFFORT_OPTIONS)?.seconds ?? null;
 
 /** Distance spread within which activities of one course are comparable. */
 const COURSE_DISTANCE_TOLERANCE = 0.05;
@@ -861,8 +873,8 @@ async function getPersonalRecordMatrix(
           MAX_SPEED_MPS[sportGroup],
         ])
       );
-      const gpsById = new Map<string, SplitSample[]>();
-      const seriesById = new Map<string, SplitSample[]>();
+      const gpsById = new Map<string, EffortSample[]>();
+      const seriesById = new Map<string, EffortSample[]>();
       if (batch.some(({ row }) => row.has_gps_track === true)) {
         const gpsResult = await client.query(
           `SELECT exercise_entry_id, points
@@ -872,11 +884,11 @@ async function getPersonalRecordMatrix(
         );
         for (const track of gpsResult.rows as SqlRow[]) {
           const id = String(track.exercise_entry_id);
-          const samples = samplesFromGpsPoints(
+          const samples = effortSamplesFromGpsTrack(
             track.points as GpsTrackPoint[],
             speedCeilingById.get(id)
           );
-          if (samples) gpsById.set(id, samples);
+          if (hasDistance(samples)) gpsById.set(id, samples);
         }
       }
       // An indoor run has a distance series instead of a track. It is read for
@@ -890,10 +902,12 @@ async function getPersonalRecordMatrix(
           [ids]
         );
         for (const row of seriesResult.rows as SqlRow[]) {
-          const samples = samplesFromDistanceSeries(
+          const samples = effortSamplesFromDistanceSeries(
             row.points as [number, number][]
           );
-          if (samples) seriesById.set(String(row.exercise_entry_id), samples);
+          if (hasDistance(samples)) {
+            seriesById.set(String(row.exercise_entry_id), samples);
+          }
         }
       }
       for (const id of ids) {
@@ -908,8 +922,8 @@ async function getPersonalRecordMatrix(
         )) {
           const meters = standardKm * 1000;
           splits[stdKey] =
-            (gps ? bestSplitSeconds(gps, meters) : null) ??
-            (series ? bestSplitSeconds(series, meters) : null);
+            (gps ? recordSeconds(gps, meters) : null) ??
+            (series ? recordSeconds(series, meters) : null);
         }
         splitsById.set(id, splits);
         const cacheKey = cacheKeys.get(id);
