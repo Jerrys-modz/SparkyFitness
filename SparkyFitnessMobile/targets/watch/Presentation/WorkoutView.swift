@@ -2127,9 +2127,21 @@ private struct CardioChoicesView: View {
                     alertsRow
                     ForEach([WatchRunPlace.outdoor, .indoor], id: \.self) { place in
                         sectionTitle(place.label)
-                        HStack(spacing: WatchStyle.s(6)) {
+                        // Two columns, so every tile is the size of a Run or
+                        // Walk one. Indoor has three, leaving the last cell
+                        // empty rather than stretching a tile across.
+                        LazyVGrid(
+                            columns: [
+                                GridItem(.flexible(), spacing: WatchStyle.s(6)),
+                                GridItem(.flexible()),
+                            ],
+                            spacing: WatchStyle.s(6)
+                        ) {
                             tile(.run, place)
                             tile(.walk, place)
+                            if place == .indoor {
+                                tile(.jumpRope, place)
+                            }
                         }
                     }
                     if !routes.isEmpty {
@@ -2227,9 +2239,11 @@ private struct CardioChoicesView: View {
                 Image(systemName: kind.symbol)
                     .font(.system(size: WatchStyle.s(22), weight: .semibold))
                     .foregroundStyle(.green)
-                Text(kind == .run ? String(localized: "watch.activity.run", defaultValue: "Run") : String(localized: "watch.activity.walk", defaultValue: "Walk"))
+                Text(kind.shortLabel)
                     .font(.system(size: WatchStyle.s(15), weight: .semibold))
                     .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
             .frame(height: WatchStyle.s(64))

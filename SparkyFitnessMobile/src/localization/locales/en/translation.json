@@ -649,6 +649,7 @@
     "personalRecords": "Personal records",
     "watchRunLive": "On your watch",
     "watchRunLiveRun": "Run on your watch",
+    "watchRunLiveJumpRope": "Jump Rope on your watch",
     "watchWalkLive": "Walk on your watch",
     "allergenSettings": "Allergens",
     "runProgramCalendar": "Program calendar",
@@ -7250,7 +7251,8 @@
     "activity": {
       "walk": "Walk",
       "run": "Run",
-      "ride": "Ride"
+      "ride": "Ride",
+      "jumpRope": "Jump Rope"
     },
     "permission": {
       "denied": "SparkyFitness needs location access to record your route. You can allow it in Settings.",
@@ -7520,7 +7522,8 @@
       "outdoorWalk": "Outdoor walk",
       "indoorWalk": "Indoor walk",
       "outdoorRide": "Outdoor ride",
-      "indoorRide": "Indoor ride"
+      "indoorRide": "Indoor ride",
+      "jumpRope": "Jump Rope"
     },
     "gps": {
       "good": "GPS good",
@@ -8069,6 +8072,7 @@
     "runSaved": "Run saved",
     "walkSaved": "Walk saved",
     "rideSaved": "Ride saved",
+    "jumpRopeSaved": "Jump Rope saved",
     "avgHeartRate": "Avg heart rate",
     "programDone": "Program complete",
     "programProgress": "Workout {{done}} of {{total}} done",
@@ -8090,6 +8094,7 @@
     "advanceSuggestion": "Two easy workouts in a row. You could skip the next one and move on.",
     "watchRunSaved": "Run from your watch saved",
     "watchWalkSaved": "Walk from your watch saved",
+    "watchJumpRopeSaved": "Jump Rope from your watch saved",
     "tapForSummary": "Tap to see the summary",
     "newRecords_one": "New personal record",
     "newRecords_other": "New personal records",
@@ -8499,6 +8504,7 @@
     "autoPaused": "Auto-paused",
     "walking": "Walking on your watch",
     "running": "Running on your watch",
+    "jumpingRope": "Jumping rope on your watch",
     "next": "Next: {{step}}",
     "calories": "Calories",
     "kcal": "kcal",
