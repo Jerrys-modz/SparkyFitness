@@ -419,3 +419,79 @@ export function suggestBar<T extends { kind: BarKind }>(
     bars[0]!
   );
 }
+
+/** What a person owns, in the shape the calculator and both editors use. */
+export interface PlateInventoryConfig {
+  unit: PlateUnit;
+  bars: PlateBar[];
+  plates: PlateDenomination[];
+  collarsEnabled: boolean;
+  /** Weight of one collar. */
+  collarWeight: number;
+}
+
+/** A starting inventory from the standard kg or lb preset. */
+export function presetInventory(unit: PlateUnit): PlateInventoryConfig {
+  const preset = PLATE_PRESETS[unit];
+  return {
+    unit,
+    bars: preset.bars.map((bar) => ({ ...bar, id: `preset-${bar.kind}` })),
+    plates: preset.plates.map((plate) => ({ ...plate })),
+    collarsEnabled: false,
+    collarWeight: preset.collarWeight,
+  };
+}
+
+/** The calculator input for loading `bar` from `inventory`. */
+export function plateCalcInputFor(
+  inventory: PlateInventoryConfig,
+  bar: Pick<PlateBar, 'weight'>,
+  targetWeight: number,
+  targetUnit: PlateUnit
+): PlateCalcInput {
+  return {
+    targetWeight,
+    targetUnit,
+    inventoryUnit: inventory.unit,
+    barWeight: bar.weight,
+    plates: inventory.plates,
+    collarWeight: inventory.collarsEnabled ? inventory.collarWeight : 0,
+  };
+}
+
+/** The shape the API returns and accepts for a saved inventory. */
+export interface StoredPlateInventory {
+  weight_unit: PlateUnit;
+  bars: PlateBar[];
+  plates: PlateDenomination[];
+  collars_enabled: boolean;
+  collar_weight: number;
+}
+
+/** A saved inventory as a config, or the preset for `fallbackUnit` when none is saved. */
+export function inventoryConfigFrom(
+  stored: StoredPlateInventory | null | undefined,
+  fallbackUnit: PlateUnit
+): PlateInventoryConfig {
+  if (!stored) return presetInventory(fallbackUnit);
+  return {
+    unit: stored.weight_unit,
+    bars: stored.bars,
+    plates: stored.plates,
+    collarsEnabled: stored.collars_enabled,
+    collarWeight: stored.collar_weight,
+  };
+}
+
+/** The body for saving a config. */
+export function inventoryConfigToBody(
+  config: PlateInventoryConfig
+): StoredPlateInventory {
+  return {
+    weight_unit: config.unit,
+    bars: config.bars,
+    plates: config.plates,
+    collars_enabled: config.collarsEnabled,
+    collar_weight: config.collarWeight,
+  };
+}

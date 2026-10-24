@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-23_
+_Last updated: 2026-10-24_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -78,6 +78,7 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 - `routes/v2/heartRateZoneRoutes.ts` - the person's heart rate zone settings (`GET`/`PUT /api/v2/heart-rate-zones`; max and resting heart rate, `percent_max` / `heart_rate_reserve` / `custom` method, custom floors; `reset: true` restores defaults). Owner-only (`requireSelfActor`, also on reads). Logic in `services/heartRateZoneService.ts` over `models/heartRateZoneRepository.ts` (columns on `user_preferences`); `resolveZonesForUser(userId, observedMaxBpm?)` is what stored time in zone (`healthDataHandlers.persistWorkoutTelemetry`, `exerciseEntryService.attachWatchTelemetryToExerciseEntry`) and training load use. Zone maths is `../shared/src/utils/heartRateZones.ts`; the contract is `../shared/src/schemas/api/HeartRateZones.api.zod.ts`. Stored `exercise_entry_hr_zones` rows carry `zone_method` (`device` for Garmin) and are never recomputed when settings change.
 - `routes/v2/mindfulnessRoutes.ts` - mindfulness & meditation sessions tracking (`checkin` permission): day summaries (`/day-summary`), session logs and telemetry (`/entries`, `/entries/:id`). Logic lives in `models/mindfulnessRepository.ts`; the request/response contract is `../shared/src/schemas/api/Mindfulness.api.zod.ts`
 - `routes/v2/shoeRoutes.ts` - running-shoe inventory (`diary` permission): CRUD on `/api/v2/shoes` and `PUT /shoes/assignments/:exerciseEntryId` to link or unlink a diary entry (`exercise_entries.shoe_id`). Logic lives in `models/shoeRepository.ts`; mileage is `starting_distance_km` plus the sum of linked entries' `distance` (km); the contract is `../shared/src/schemas/api/Shoes.api.zod.ts`
+- `routes/v2/plateInventoryRoutes.ts` - plate calculator inventory (`diary` permission): `GET/PUT/DELETE /api/v2/plate-inventory`, one `plate_inventories` row per user (unit, bars and plates as JSON, collar weight), validated by the shared `savePlateInventoryBodySchema`; `models/plateInventoryRepository.ts` upserts on `user_id`. The search itself lives in `shared/src/utils/plateCalculator.ts` and is tested in `tests/plateCalculator.test.ts`.
 - `routes/auth/` - auth-specific route fragments mounted through `routes/authRoutes.ts`
 - `services/` - business logic and orchestration
 - `models/` - PostgreSQL repositories and persistence helpers

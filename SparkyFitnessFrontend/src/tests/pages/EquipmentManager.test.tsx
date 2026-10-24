@@ -18,8 +18,18 @@ jest.mock('@/hooks/Shoes/useShoes', () => ({
   useDeleteShoeMutation: () => ({ mutate: jest.fn() }),
 }));
 
+jest.mock('@/hooks/PlateInventory/usePlateInventory', () => ({
+  usePlateInventory: () => ({ data: null, isLoading: false }),
+  useSavePlateInventoryMutation: () => ({
+    mutateAsync: jest.fn(),
+    isPending: false,
+  }),
+  useResetPlateInventoryMutation: () => ({ mutate: jest.fn() }),
+}));
+
 jest.mock('@/contexts/PreferencesContext', () => ({
   usePreferences: () => ({
+    weightUnit: 'kg',
     distanceUnit: 'km',
     convertDistance: (value: number) => value,
   }),
@@ -60,6 +70,23 @@ describe('Shoes page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCanWrite = true;
+  });
+
+  it('lists the standard bars and plates until the person saves their own', () => {
+    (useShoes as jest.Mock).mockReturnValue({ data: [], isLoading: false });
+    renderWithClient(<EquipmentManager />);
+    expect(screen.getByText('Plates & bars')).toBeTruthy();
+    expect(screen.getByText(/Using the standard set/)).toBeTruthy();
+    expect(screen.getByText(/Barbell 20 kg/)).toBeTruthy();
+    expect(screen.getByText(/25 kg × 2/)).toBeTruthy();
+  });
+
+  it('hides the plate editor from a read-only delegate', () => {
+    mockCanWrite = false;
+    (useShoes as jest.Mock).mockReturnValue({ data: [], isLoading: false });
+    renderWithClient(<EquipmentManager />);
+    expect(screen.getByText('Plates & bars')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
   });
 
   it('shows the empty state when there are no shoes', () => {

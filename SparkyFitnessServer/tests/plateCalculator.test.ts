@@ -5,6 +5,8 @@ import {
   isValidPlateWeight,
   normalizePlates,
   PLATE_PRESETS,
+  plateCalcInputFor,
+  presetInventory,
   suggestBar,
   usesBarbell,
   type PlateDenomination,
@@ -270,5 +272,40 @@ describe('plate helpers', () => {
     expect(suggestBar(['trap bar'], bars)?.kind).toBe('trap');
     expect(suggestBar(['barbell'], [])).toBeNull();
     expect(suggestBar(['trap bar'], [bars[0]!])?.kind).toBe('barbell');
+  });
+});
+
+describe('inventory helpers', () => {
+  it('builds a kg and a lb preset with ids and no collars counted', () => {
+    const kg = presetInventory('kg');
+    expect(kg.plates.map((p) => p.weight)).toEqual([
+      25, 20, 15, 10, 5, 2.5, 1.25, 0.5,
+    ]);
+    expect(kg.bars.map((b) => b.weight)).toEqual([20, 15, 7.5, 25]);
+    expect(new Set(kg.bars.map((b) => b.id)).size).toBe(kg.bars.length);
+    expect(kg.collarsEnabled).toBe(false);
+    const lb = presetInventory('lbs');
+    expect(lb.plates.map((p) => p.weight)).toEqual([
+      45, 35, 25, 10, 5, 2.5, 1.25,
+    ]);
+    expect(lb.bars[0]!.weight).toBe(45);
+  });
+
+  it('only counts collars when the inventory says so', () => {
+    const inventory = { ...presetInventory('kg'), collarWeight: 2.5 };
+    const bar = inventory.bars[0]!;
+    expect(
+      calculatePlateLoad(plateCalcInputFor(inventory, bar, 100, 'kg')).load
+        ?.totalWeight
+    ).toBe(100);
+    expect(
+      calculatePlateLoad(plateCalcInputFor(inventory, bar, 100, 'kg'))
+        .collarsWeight
+    ).toBe(0);
+    const withCollars = { ...inventory, collarsEnabled: true };
+    expect(
+      calculatePlateLoad(plateCalcInputFor(withCollars, bar, 100, 'kg'))
+        .collarsWeight
+    ).toBe(5);
   });
 });
