@@ -1627,7 +1627,12 @@ export function useCustomFoodForm({
     if (barcode && !isProviderImport) {
       try {
         const lookup = await queryClient.fetchQuery(
-          searchBarcodeV2Options(barcode, undefined, user?.id)
+          searchBarcodeV2Options(
+            barcode,
+            undefined,
+            user?.id,
+            user?.activeUserId
+          )
         );
         if (
           lookup?.source === 'local' &&

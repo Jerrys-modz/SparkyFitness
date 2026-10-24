@@ -12,6 +12,7 @@ import { useBarcodeSearchResult } from '@/hooks/Foods/useBarcodeSearchResult';
 interface BarcodeSearchResultProps {
   barcode: string;
   accountId: string;
+  profileId: string;
   response: BarcodeLookupResponse;
   onUseFood: (candidate: BarcodeCandidate) => void;
 }
@@ -92,6 +93,7 @@ function SourceSummary({ candidate }: { candidate: BarcodeCandidate }) {
 export function BarcodeSearchResult({
   barcode,
   accountId,
+  profileId,
   response,
   onUseFood,
 }: BarcodeSearchResultProps) {
@@ -103,7 +105,7 @@ export function BarcodeSearchResult({
     expanded,
     setExpanded,
     alternatives,
-  } = useBarcodeSearchResult(barcode, accountId, response);
+  } = useBarcodeSearchResult(barcode, accountId, profileId, response);
   const candidates = alternatives.data?.results ?? [];
   const withOriginal =
     original &&

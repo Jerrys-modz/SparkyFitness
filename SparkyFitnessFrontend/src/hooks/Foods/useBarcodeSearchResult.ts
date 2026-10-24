@@ -25,13 +25,14 @@ function lookupCandidate(
 export function useBarcodeSearchResult(
   barcode: string,
   accountId: string,
+  profileId: string,
   response: BarcodeLookupResponse
 ) {
   const [original] = useState(() => lookupCandidate(response));
   const [selected, setSelected] = useState(original);
   const [expanded, setExpanded] = useState(false);
   const alternatives = useQuery({
-    queryKey: barcodeKeys.alternatives(accountId, barcode),
+    queryKey: barcodeKeys.alternatives(accountId, barcode, profileId),
     queryFn: () => getBarcodeAlternatives(barcode),
     enabled: expanded,
     staleTime: 5 * 60 * 1000,

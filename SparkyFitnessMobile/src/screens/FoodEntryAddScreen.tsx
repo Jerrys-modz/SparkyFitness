@@ -1617,7 +1617,7 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
                 returnDepth: route.params.returnDepth,
                 mealPlanTarget,
                 entryNotes,
-                entryTime,
+                entryTime: entryTimeTouched.current ? entryTime : undefined,
               });
             }}
           />

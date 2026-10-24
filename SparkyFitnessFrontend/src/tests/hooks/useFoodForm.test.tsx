@@ -15,7 +15,7 @@ let mockAutoScaleOnlineImports = false;
 
 jest.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: { id: 'user-1' },
+    user: { id: 'user-1', activeUserId: 'profile-1' },
   }),
 }));
 
@@ -195,7 +195,12 @@ describe('useCustomFoodForm', () => {
     expect(result.current.showBarcodeConflictConfirmation).toBe(true);
     expect(mockFetchQuery).toHaveBeenCalledWith(
       expect.objectContaining({
-        queryKey: expect.arrayContaining(['lookup', '1234567890123', 'user-1']),
+        queryKey: expect.arrayContaining([
+          'lookup',
+          '1234567890123',
+          'user-1',
+          'profile-1',
+        ]),
       })
     );
   });

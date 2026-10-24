@@ -28,13 +28,16 @@ interface LookupContext {
   preferences: NonNullable<BarcodeLookupOptions['preferences']>;
 }
 
-async function loadContext(actorId: string): Promise<LookupContext> {
+async function loadContext(
+  userId: string,
+  actorId: string
+): Promise<LookupContext> {
   const [rawProviders, preferences] = await Promise.all([
     externalProviderService.getExternalDataProviders(
       actorId,
       actorId
     ) as Promise<unknown>,
-    preferenceService.getUserPreferences(actorId, actorId),
+    preferenceService.getUserPreferences(actorId, userId),
   ]);
   const providers: BarcodeProvider[] = [];
   for (const raw of Array.isArray(rawProviders)
@@ -150,7 +153,7 @@ export async function getBarcodeAlternatives(
   userId: string,
   actorId: string = userId
 ): Promise<BarcodeAlternativesResponse> {
-  const context = await loadContext(actorId);
+  const context = await loadContext(userId, actorId);
   const local = await localCandidate(barcode, userId);
   const results = new Array<BarcodeCandidate>(context.providers.length);
   let next = 0;

@@ -52,7 +52,8 @@ const barcodeHandler: RequestHandler<{ barcode: string }> = async (
       req.userId,
       // Absent means "use the user's default provider", so preserve undefined.
       providerId === undefined ? undefined : String(providerId),
-      req.authenticatedUserId
+      req.authenticatedUserId,
+      { includeProviderMetadata: true }
     );
 
     // Ensure barcode is preserved on the food when present

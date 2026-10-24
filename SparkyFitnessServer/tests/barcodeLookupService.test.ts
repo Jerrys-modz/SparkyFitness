@@ -106,6 +106,63 @@ describe('barcode alternatives', () => {
     const result = await getBarcodeAlternatives(barcode, 'target', 'actor');
     expect(result.results).toHaveLength(3);
   });
+  it.each([true, false])(
+    'uses the active profile language, scaling and fallback setting (%s) with actor credentials',
+    async (fallbackEnabled) => {
+      const actorPreferences = {
+        language: 'en',
+        auto_scale_open_food_facts_imports: true,
+        barcode_fallback_open_food_facts: !fallbackEnabled,
+      };
+      const profilePreferences = {
+        language: 'de',
+        auto_scale_open_food_facts_imports: false,
+        barcode_fallback_open_food_facts: fallbackEnabled,
+      };
+      mocks.preferences.mockImplementation(
+        async (_actorId: string, targetId: string) =>
+          targetId === 'target' ? profilePreferences : actorPreferences
+      );
+      mocks.providers.mockResolvedValue([
+        {
+          id: A,
+          provider_name: 'Actor USDA',
+          provider_type: 'usda',
+          is_active: true,
+          supports_barcode: true,
+        },
+      ]);
+
+      const result = await getBarcodeAlternatives(barcode, 'target', 'actor');
+
+      expect(mocks.providers).toHaveBeenCalledWith('actor', 'actor');
+      expect(mocks.preferences).toHaveBeenCalledWith('actor', 'target');
+      expect(result.results.map((candidate) => candidate.providerId)).toEqual(
+        fallbackEnabled ? [A, 'openfoodfacts-fallback'] : [A]
+      );
+      expect(mocks.lookup).toHaveBeenCalledTimes(fallbackEnabled ? 2 : 1);
+      expect(mocks.lookup).toHaveBeenCalledWith(
+        barcode,
+        'target',
+        A,
+        'actor',
+        expect.objectContaining({ preferences: profilePreferences })
+      );
+      if (fallbackEnabled) {
+        expect(mocks.lookup).toHaveBeenCalledWith(
+          barcode,
+          'target',
+          undefined,
+          'actor',
+          expect.objectContaining({
+            preferences: profilePreferences,
+            skipFallback: false,
+            ignoreDefaultProvider: true,
+          })
+        );
+      }
+    }
+  );
   it('uses only actor-accessible active barcode providers and profile-visible local foods', async () => {
     mocks.providers.mockResolvedValue([
       {

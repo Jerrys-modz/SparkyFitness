@@ -32,7 +32,10 @@ import {
 } from '../middleware/imageUpload.js';
 import { resolveImageInput, toImageArray } from '../utils/imageLocalizer.js';
 import { resolveTemplateStartDay } from '../utils/timezoneLoader.js';
-import { alcoholGramsForServing } from '@workspace/shared';
+import {
+  alcoholGramsForServing,
+  BARCODE_FALLBACK_PROVIDER_ID,
+} from '@workspace/shared';
 
 /** A food row as returned by the repository. */
 interface FoodRow {
@@ -1006,6 +1009,7 @@ export interface BarcodeLookupOptions {
   skipFallback?: boolean;
   ignoreDefaultProvider?: boolean;
   surfaceErrors?: boolean;
+  includeProviderMetadata?: boolean;
   preferences?: {
     language?: string | null;
     default_barcode_provider_id?: string | null;
@@ -1028,6 +1032,10 @@ async function lookupBarcode(
   // from a successful search with no match. Legacy callers only surface errors
   // carrying an HTTP status (e.g. FatSecret's IP misconfiguration).
   let surfaceableError: ProviderError | null = null;
+  const sourceMetadata = (sourceId: string, sourceName: string) =>
+    options.includeProviderMetadata
+      ? { providerId: sourceId, providerName: sourceName }
+      : {};
   const captureSurfaceable = (err: unknown) => {
     // Provider errors can include request URLs, response bodies and credentials.
     // Expose only a neutral error when the caller asks for strict reporting.
@@ -1046,7 +1054,11 @@ async function lookupBarcode(
       ? null
       : await foodRepository.findFoodByBarcode(barcode, userId);
     if (localFood) {
-      return { source: 'local', food: localFood };
+      return {
+        source: 'local',
+        food: localFood,
+        ...sourceMetadata('local', 'Saved food'),
+      };
     }
     // Load user preferences once for provider resolution, language, and auto-scale
     const userPreferences =
@@ -1117,6 +1129,10 @@ async function lookupBarcode(
             source: 'fatsecret',
             food: mapFatSecretFood(fatSecretData),
             barcode_raw: fatSecretData,
+            ...sourceMetadata(
+              provider.id,
+              provider.provider_name ?? 'FatSecret'
+            ),
           };
         }
       } catch (fsError) {
@@ -1157,6 +1173,7 @@ async function lookupBarcode(
             source: 'usda',
             food: mapUsdaBarcodeProduct(match),
             barcode_raw: match,
+            ...sourceMetadata(provider.id, provider.provider_name ?? 'USDA'),
           };
         }
       } catch (usdaError) {
@@ -1186,6 +1203,7 @@ async function lookupBarcode(
             source: 'yazio',
             food: yazioFood,
             barcode_raw: yazioFood,
+            ...sourceMetadata(provider.id, provider.provider_name ?? 'YAZIO'),
           };
         }
       } catch (yazioError) {
@@ -1218,6 +1236,10 @@ async function lookupBarcode(
               source: 'openfoodfacts',
               food,
               barcode_raw: offData.product,
+              ...sourceMetadata(
+                provider.id,
+                provider.provider_name ?? 'Open Food Facts'
+              ),
             };
           }
         }
@@ -1281,10 +1303,27 @@ async function lookupBarcode(
             language,
           });
           if (food.name) {
+            let fallbackName = 'Open Food Facts';
+            if (options.includeProviderMetadata && offProvider) {
+              try {
+                const details =
+                  await externalProviderService.getExternalDataProviderDetails(
+                    credentialUserId,
+                    offProvider.id
+                  );
+                fallbackName = details?.provider_name || fallbackName;
+              } catch {
+                // Display metadata must not discard a successful product match.
+              }
+            }
             return {
               source: 'openfoodfacts',
               food,
               barcode_raw: offData.product,
+              ...sourceMetadata(
+                offProvider?.id ?? BARCODE_FALLBACK_PROVIDER_ID,
+                fallbackName
+              ),
             };
           }
         }

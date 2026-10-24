@@ -8,6 +8,57 @@ jest.mock('@/api/Foods/foodService', () => ({
   getFoodDetailsV2: jest.fn(),
 }));
 
+beforeEach(() => jest.resetAllMocks());
+
+it('keeps the same account and barcode separate across active profiles', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  jest
+    .mocked(searchBarcodeV2)
+    .mockResolvedValueOnce({ source: 'profile-a-result', food: null })
+    .mockResolvedValueOnce({ source: 'profile-b-result', food: null });
+
+  const first = await client.fetchQuery(
+    searchBarcodeV2Options(
+      '1234567890123',
+      'provider-a',
+      'account-a',
+      'profile-a'
+    )
+  );
+  const second = await client.fetchQuery(
+    searchBarcodeV2Options(
+      '1234567890123',
+      'provider-a',
+      'account-a',
+      'profile-b'
+    )
+  );
+  expect([first.source, second.source]).toEqual([
+    'profile-a-result',
+    'profile-b-result',
+  ]);
+  expect(searchBarcodeV2).toHaveBeenCalledTimes(2);
+  expect(searchBarcodeV2).toHaveBeenNthCalledWith(
+    2,
+    '1234567890123',
+    'provider-a'
+  );
+  expect(
+    await client.fetchQuery(
+      searchBarcodeV2Options(
+        '1234567890123',
+        'provider-a',
+        'account-a',
+        'profile-a'
+      )
+    )
+  ).toEqual(first);
+  expect(searchBarcodeV2).toHaveBeenCalledTimes(2);
+  client.clear();
+});
+
 it('keeps lookup results separate by signed-in account and selected provider', async () => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },

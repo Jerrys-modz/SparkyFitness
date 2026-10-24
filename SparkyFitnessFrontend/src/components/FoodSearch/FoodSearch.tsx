@@ -212,6 +212,7 @@ const EnhancedFoodSearch = ({
     if (searchTerm.trim()) {
       barcodeRequest.current += 1;
       setScannedBarcode(null);
+      setIsOnlineLoading(false);
     }
   }, [searchTerm]);
   const [meals, setMeals] = useState<Meal[]>([]);
@@ -987,7 +988,7 @@ const EnhancedFoodSearch = ({
 
     try {
       const data = await queryClient.fetchQuery(
-        searchBarcodeV2Options(barcode, providerId, accountId)
+        searchBarcodeV2Options(barcode, providerId, accountId, profileId)
       );
       if (requestId !== barcodeRequest.current) return;
       const configuredProvider = foodDataProviders.find(
@@ -1494,6 +1495,7 @@ const EnhancedFoodSearch = ({
               key={`${scannedBarcode.accountId}-${scannedBarcode.profileId}-${scannedBarcode.requestId}`}
               barcode={scannedBarcode.barcode}
               accountId={scannedBarcode.accountId}
+              profileId={scannedBarcode.profileId}
               response={scannedBarcode.response}
               onUseFood={handleBarcodeFoodUse}
             />

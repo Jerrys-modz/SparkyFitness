@@ -59,6 +59,7 @@ const renderResult = (initial = response(), accountId = 'account-a') => {
       <BarcodeSearchResult
         barcode="1234567890123"
         accountId={accountId}
+        profileId={accountId}
         response={initial}
         onUseFood={onUseFood}
       />
@@ -191,6 +192,7 @@ describe('BarcodeSearchResult', () => {
           key={accountId}
           barcode="1234567890123"
           accountId={accountId}
+          profileId={accountId}
           response={{ source: 'none', food: null }}
           onUseFood={jest.fn()}
         />
@@ -204,6 +206,43 @@ describe('BarcodeSearchResult', () => {
     await act(async () => finishOldRequest({ results: [candidate()] }));
     expect(screen.queryByText('Yogurt A')).not.toBeInTheDocument();
     expect(screen.getByText('Account B yogurt')).toBeInTheDocument();
+    client.clear();
+  });
+
+  it('loads alternatives for the new profile without relying on a global cache clear', async () => {
+    const profileAResult = candidate();
+    const profileBResult = candidate({
+      providerId: 'provider-b',
+      providerName: 'Source B',
+      food: { ...candidate().food!, name: 'Profile B yogurt' },
+    });
+    jest
+      .mocked(getBarcodeAlternatives)
+      .mockResolvedValueOnce({ results: [profileAResult] })
+      .mockResolvedValueOnce({ results: [profileBResult] });
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const view = (profileId: string) => (
+      <QueryClientProvider client={client}>
+        <BarcodeSearchResult
+          key={profileId}
+          barcode="1234567890123"
+          accountId="account-a"
+          profileId={profileId}
+          response={{ source: 'none', food: null }}
+          onUseFood={jest.fn()}
+        />
+      </QueryClientProvider>
+    );
+    const { rerender } = render(view('profile-a'));
+    fireEvent.click(screen.getByRole('button', { name: 'Other sources' }));
+    expect(await screen.findByText('Yogurt A')).toBeInTheDocument();
+    rerender(view('profile-b'));
+    fireEvent.click(screen.getByRole('button', { name: 'Other sources' }));
+    expect(await screen.findByText('Profile B yogurt')).toBeInTheDocument();
+    expect(screen.queryByText('Yogurt A')).not.toBeInTheDocument();
+    expect(getBarcodeAlternatives).toHaveBeenCalledTimes(2);
     client.clear();
   });
 });
