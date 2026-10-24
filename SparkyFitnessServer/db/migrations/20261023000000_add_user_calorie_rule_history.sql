@@ -35,13 +35,7 @@ CREATE OR REPLACE FUNCTION public.record_calorie_rule_change() RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  -- An unknown zone would make AT TIME ZONE fail the whole preference update.
-  -- Case-insensitive, because the server accepts any casing Intl accepts.
-  zone TEXT := COALESCE(
-    (SELECT name FROM pg_timezone_names
-     WHERE lower(name) = lower(NEW.timezone) LIMIT 1),
-    'UTC'
-  );
+  zone TEXT;
 BEGIN
   IF TG_OP = 'INSERT' THEN
     -- A preferences row created again after a delete. With no history its
@@ -74,6 +68,14 @@ BEGIN
       SELECT 1 FROM public.user_calorie_rule_history WHERE user_id = OLD.user_id
     );
   END IF;
+
+  -- An unknown zone would make AT TIME ZONE fail the whole preference update.
+  -- Case-insensitive, because the server accepts any casing Intl accepts.
+  zone := COALESCE(
+    (SELECT name FROM pg_timezone_names
+     WHERE lower(name) = lower(NEW.timezone) LIMIT 1),
+    'UTC'
+  );
 
   -- A change applies from today in the user's zone; a second change on the
   -- same day replaces the first.
