@@ -1,5 +1,6 @@
 import goalRepository from '../models/goalRepository.js';
 import weeklyGoalPlanRepository from '../models/weeklyGoalPlanRepository.js';
+import calorieMaintenancePeriodRepository from '../models/calorieMaintenancePeriodRepository.js';
 import userRepository from '../models/userRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import measurementRepository from '../models/measurementRepository.js';
@@ -12,7 +13,7 @@ import type { AdaptiveTdeeResult } from './AdaptiveTdeeService.js';
 import { ageOnDay } from '../utils/dateHelpers.js';
 import { log } from '../config/logging.js';
 import { addDays, format, getDay, isAfter, parseISO } from 'date-fns';
-import { localDateToDay } from '@workspace/shared';
+import { localDateToDay, maintenancePeriodOnDay } from '@workspace/shared';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import {
   todayInZone,
@@ -138,6 +139,17 @@ async function getUserGoalsForRange(
     ? await loadPreferencesByDay(userId, userPreferences, startDate, endDate)
     : () => null;
 
+  // Refeed days and diet breaks: those days are worked out as Goal Mode
+  // Maintain, so the deficit comes back on its own when the period ends.
+  const maintenancePeriods = adjust
+    ? await calorieMaintenancePeriodRepository.getCalorieMaintenancePeriods(
+        userId,
+        userId,
+        startDate,
+        endDate
+      )
+    : [];
+
   let waterEstimatedMap: Record<string, number> = {};
   let adaptiveTdeeMap: Record<string, AdaptiveTdeeResult> = {};
   if (adjust && userPreferences) {
@@ -247,7 +259,9 @@ async function getUserGoalsForRange(
         parseFloat(String(processedGoals.calories ?? '')) || 2000;
       const adjustmentMode =
         dayPreferences?.calorie_goal_adjustment_mode || 'dynamic';
-      const goalMode = dayPreferences?.goal_mode || 'maintain';
+      const goalMode = maintenancePeriodOnDay(maintenancePeriods, dateStr)
+        ? 'maintain'
+        : dayPreferences?.goal_mode || 'maintain';
       const goalModeCalculationMethod =
         dayPreferences?.goal_mode_calculation_method || 'manual';
       const goalModeCustomPercentage =

@@ -173,6 +173,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `user_nutrient_display_preferences` | Nutrient column display preferences |
 | `user_meal_visibilities` | Visibility settings for meals |
 | `user_goals` | Active daily calorie/macro goals |
+| `calorie_maintenance_periods` | Refeed days and diet breaks: days whose calorie target uses Goal Mode Maintain |
 | `user_custom_nutrients` | Custom nutrient definitions |
 | `user_nutrient_goal_preferences` | Per-user minimum/maximum/target goal direction override per nutrient (predefined or custom) |
 | `user_water_containers` | Configured container sizes |

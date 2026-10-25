@@ -23,6 +23,7 @@ DECLARE
 BEGIN
   FOR table_name IN SELECT unnest(ARRAY[
     'ai_service_settings',
+    'calorie_maintenance_periods',
     'check_in_measurements',
     'check_in_photos',
     'custom_categories',
@@ -655,6 +656,9 @@ WITH CHECK (authenticated_user_id() = user_id);
 
 SELECT create_diary_policy('user_goals');
 SELECT create_diary_policy('weekly_goal_plans');
+-- Refeed days and diet breaks change the calorie target of the days they cover,
+-- so they follow the goals' rules: a delegate who sees the diary sees the same target.
+SELECT create_diary_policy('calorie_maintenance_periods');
 -- user_water_containers now references foods / food_variants / meal_types
 -- (linked_food_id, linked_variant_id, linked_meal_type_id -- #2115). No
 -- policy change needed: both sides are diary-scoped -- this table is

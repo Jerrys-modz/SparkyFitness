@@ -100,6 +100,7 @@ import mindfulnessRoutesV2 from './routes/v2/mindfulnessRoutes.js';
 import heartRateZoneRoutesV2 from './routes/v2/heartRateZoneRoutes.js';
 import runProgramRoutesV2 from './routes/v2/runProgramRoutes.js';
 import runGoalRoutesV2 from './routes/v2/runGoalRoutes.js';
+import calorieMaintenancePeriodRoutesV2 from './routes/v2/calorieMaintenancePeriodRoutes.js';
 import shoeRoutesV2 from './routes/v2/shoeRoutes.js';
 import routeRoutesV2 from './routes/v2/routeRoutes.js';
 import backupRoutes from './routes/backupRoutes.js';
@@ -794,6 +795,10 @@ app.use('/api/v2/mindfulness', mindfulnessRoutesV2);
 app.use('/api/v2/heart-rate-zones', heartRateZoneRoutesV2);
 app.use('/api/v2/run-program', runProgramRoutesV2);
 app.use('/api/v2/run-goals', runGoalRoutesV2);
+app.use(
+  '/api/v2/calorie-maintenance-periods',
+  calorieMaintenancePeriodRoutesV2
+);
 app.use('/api/v2/shoes', shoeRoutesV2);
 app.use('/api/v2/routes', routeRoutesV2);
 app.use('/api/workout-presets', workoutPresetRoutes);
