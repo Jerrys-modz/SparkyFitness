@@ -556,3 +556,59 @@ describe('passive diary rows', () => {
     expect(grouped[0]).toMatchObject({ name: 'Bench', durationMinutes: 30 });
   });
 });
+
+describe('a logged preset against its planned session', () => {
+  const preset = (
+    id: string,
+    sport: CalendarEntry['sport'],
+    minutes: number
+  ) => ({
+    ...entry(id, -1, { name: id, sport, durationMinutes: minutes }),
+    presetEntryId: 'p1',
+    presetName: 'Day 5 Lower (5 Day)',
+  });
+
+  it('is a strength session even when its exercises read as other', () => {
+    const [one] = groupPresetEntries([preset('Leg press', 'other', 34)]);
+    expect(one?.sport).toBe('strength');
+    const [many] = groupPresetEntries([
+      preset('Leg press', 'other', 20),
+      preset('Calf raise', 'other', 14),
+    ]);
+    expect(many?.sport).toBe('strength');
+  });
+
+  it('is a run when the cardio outweighs the rest', () => {
+    const [grouped] = groupPresetEntries([
+      preset('Run', 'running', 30),
+      preset('Squat', 'other', 10),
+    ]);
+    expect(grouped?.sport).toBe('running');
+  });
+
+  it('completes the planned strength session', () => {
+    const [logged] = groupPresetEntries([preset('Leg press', 'other', 34)]);
+    const result = matchPlan(
+      [slot('lower', -1, { sport: 'strength', label: 'Day 5 Lower (5 Day)' })],
+      [logged!],
+      TODAY
+    );
+    expect(result.planned[0]?.status).toBe('done');
+    expect(result.completed[0]?.plannedItemId).toBe('lower');
+  });
+
+  it('matches by name on the day whatever sport it was filed under', () => {
+    const result = matchPlan(
+      [slot('lower', -1, { sport: 'strength', label: 'Day 5 Lower (5 Day)' })],
+      [
+        entry('e', -1, {
+          name: ' day 5 lower (5 day) ',
+          sport: 'other',
+          durationMinutes: 34,
+        }),
+      ],
+      TODAY
+    );
+    expect(result.planned[0]?.status).toBe('done');
+  });
+});

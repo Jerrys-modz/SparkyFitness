@@ -103,8 +103,26 @@ export interface GroupableEntry extends CalendarEntry {
  * The exercises of one logged workout preset are one session, not one per
  * exercise: they merge into a single entry named after the preset, with the
  * summed time and distance and a minutes-weighted average heart rate. Its
- * sport is strength when any exercise is, else the one with the most minutes.
+ * sport is strength, unless the cardio exercises in it outweigh the rest: a
+ * logged preset is a strength-style session, and its exercises (a leg press,
+ * a stair climber) often classify as other.
  */
+function presetSport(group: readonly GroupableEntry[]): LoadSportGroup {
+  const minutes = new Map<LoadSportGroup, number>();
+  for (const e of group) {
+    minutes.set(e.sport, (minutes.get(e.sport) ?? 0) + e.durationMinutes);
+  }
+  const cardio = (['running', 'cycling', 'walking'] as const)
+    .map((sport) => [sport, minutes.get(sport) ?? 0] as const)
+    .sort((a, b) => b[1] - a[1]);
+  const rest = (minutes.get('strength') ?? 0) + (minutes.get('other') ?? 0);
+  const total = cardio.reduce((sum, [, m]) => sum + m, 0);
+  return total > rest && cardio[0] ? cardio[0][0] : 'strength';
+}
+
+const sameName = (a: string | null, b: string | null) =>
+  !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+
 export function groupPresetEntries(
   entries: readonly GroupableEntry[],
 ): CalendarEntry[] {
@@ -125,16 +143,12 @@ export function groupPresetEntries(
   }
   return out.map((entry) => {
     const group = [...groups.values()].find((g) => g[0]?.id === entry.id);
-    if (!group || group.length === 1) return entry;
-    const minutes = group.reduce((sum, e) => sum + e.durationMinutes, 0);
-    const byMinutes = new Map<LoadSportGroup, number>();
-    for (const e of group) {
-      byMinutes.set(e.sport, (byMinutes.get(e.sport) ?? 0) + e.durationMinutes);
+    if (!group) return entry;
+    if (group.length === 1) {
+      return { ...entry, sport: presetSport(group) };
     }
-    const sport: LoadSportGroup = byMinutes.has("strength")
-      ? "strength"
-      : ([...byMinutes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ??
-        entry.sport);
+    const minutes = group.reduce((sum, e) => sum + e.durationMinutes, 0);
+    const sport = presetSport(group);
     const beats = group.filter((e) => hasHeartRate(e.avgHeartRate));
     const beatMinutes = beats.reduce((sum, e) => sum + e.durationMinutes, 0);
     const distances = group.filter((e) => e.distanceKm != null);
@@ -236,7 +250,10 @@ export function matchPlan(
     if (matched.has(slot.id)) continue;
     for (const entry of free) {
       if (taken.has(entry.id) || entry.linkKey) continue;
-      if (entry.day === slot.day && entry.sport === slot.sport) {
+      if (
+        entry.day === slot.day &&
+        (entry.sport === slot.sport || sameName(entry.name, slot.label))
+      ) {
         take(slot, entry, false);
       }
     }
