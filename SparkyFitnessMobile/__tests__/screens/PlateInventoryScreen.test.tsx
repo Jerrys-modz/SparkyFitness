@@ -13,9 +13,26 @@ jest.mock('../../src/hooks/usePlateInventory', () => ({
   usePlateInventory: jest.fn(),
   usePlateInventoryMutations: jest.fn(),
 }));
-jest.mock('../../src/hooks/useScreenHeader', () => ({
-  useScreenHeader: () => null,
-}));
+// Renders the header's primary action as a plain Save button.
+jest.mock('../../src/hooks/useScreenHeader', () => {
+  const { Pressable, Text } = require('react-native');
+  return {
+    useScreenHeader: (config: {
+      right?: { label?: string; onPress: () => void; disabled?: boolean }[];
+    }) => {
+      const action = config.right?.[0];
+      return action ? (
+        <Pressable
+          onPress={action.onPress}
+          disabled={action.disabled}
+          accessibilityRole="button"
+        >
+          <Text>{action.label}</Text>
+        </Pressable>
+      ) : null;
+    },
+  };
+});
 jest.mock('../../src/services/nativeTabBarPreference', () => ({
   useNativeIOSHeadersActive: () => false,
 }));

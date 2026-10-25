@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -80,15 +80,20 @@ const SectionTitle: React.FC<{ title: string }> = ({ title }) => (
   </Text>
 );
 
+type PlateInventoryMutations = ReturnType<typeof usePlateInventoryMutations>;
+
 const PlateInventoryForm: React.FC<{
   initial: PlateInventoryConfig;
   hasSaved: boolean;
   onDone: () => void;
-}> = ({ initial, hasSaved, onDone }) => {
+  mutations: PlateInventoryMutations;
+  /** The header's Save button calls whatever the form last put here. */
+  saveRef: React.MutableRefObject<(() => void) | null>;
+}> = ({ initial, hasSaved, onDone, mutations, saveRef }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
-  const { saveMutation, resetMutation } = usePlateInventoryMutations();
+  const { saveMutation, resetMutation } = mutations;
   const [draft, setDraft] = useState<Draft>(() => toDraft(initial));
   const [error, setError] = useState<string | null>(null);
   const isBusy = saveMutation.isPending || resetMutation.isPending;
@@ -158,6 +163,13 @@ const PlateInventoryForm: React.FC<{
       }
     );
   };
+
+  useEffect(() => {
+    saveRef.current = handleSave;
+    return () => {
+      saveRef.current = null;
+    };
+  });
 
   const handleReset = () => {
     Alert.alert(
@@ -464,14 +476,6 @@ const PlateInventoryForm: React.FC<{
 
       {error && <Text className="text-sm text-red-500 mb-3">{error}</Text>}
 
-      <Button
-        variant="primary"
-        onPress={handleSave}
-        loading={saveMutation.isPending}
-        disabled={isBusy}
-      >
-        {t('common.save', { defaultValue: 'Save' })}
-      </Button>
       {hasSaved && (
         <View className="mt-3">
           <Button variant="outline" onPress={handleReset} disabled={isBusy}>
@@ -493,9 +497,23 @@ const PlateInventoryScreen: React.FC<Props> = ({ navigation }) => {
   const { inventory, hasSaved, isLoading, isError, refetch } =
     usePlateInventory(weightUnit);
 
+  const mutations = usePlateInventoryMutations();
+  const saveRef = useRef<(() => void) | null>(null);
+  const ready = !isLoading && !isError;
+
   const header = useScreenHeader({
     title: t('plates.title', { defaultValue: 'Plates & bars' }),
     left: { kind: 'back' },
+    right: [
+      {
+        kind: 'primary',
+        label: t('common.save', { defaultValue: 'Save' }),
+        onPress: () => saveRef.current?.(),
+        busy: mutations.saveMutation.isPending,
+        disabled: !ready || mutations.resetMutation.isPending,
+        identifier: 'plate-inventory-save',
+      },
+    ],
   });
 
   return (
@@ -524,6 +542,8 @@ const PlateInventoryScreen: React.FC<Props> = ({ navigation }) => {
           initial={inventory}
           hasSaved={hasSaved}
           onDone={() => navigation.goBack()}
+          mutations={mutations}
+          saveRef={saveRef}
         />
       )}
     </View>
