@@ -165,6 +165,11 @@ jest.mock('expo-notifications', () => {
     addNotificationResponseReceivedListener: jest.fn(() => ({
       remove: jest.fn(),
     })),
+    registerTaskAsync: jest.fn().mockResolvedValue(null),
+    BackgroundNotificationTaskResult: { NewData: 0, NoData: 1, Failed: 2 },
+    DEFAULT_ACTION_IDENTIFIER: 'expo.modules.notifications.actions.DEFAULT',
+    getLastNotificationResponse: jest.fn(() => null),
+    clearLastNotificationResponse: jest.fn(),
     AndroidImportance: { HIGH: 4, DEFAULT: 3, LOW: 2, MIN: 1, NONE: 0 },
     SchedulableTriggerInputTypes: {
       CALENDAR: 'calendar',
@@ -463,14 +468,31 @@ jest.mock('react-native-keyboard-controller', () => {
     KeyboardAwareScrollView: React.forwardRef(({ children, ...props }, ref) =>
       React.createElement(ScrollView, { ...props, ref }, children)
     ),
+    // `offset` stays on the host View so tests can assert where a sticky view
+    // parks while the keyboard is closed.
     KeyboardStickyView: React.forwardRef(
-      ({ children, offset: _offset, enabled: _enabled, ...props }, ref) =>
+      ({ children, enabled: _enabled, ...props }, ref) =>
         React.createElement(View, { ...props, ref }, children)
     ),
-    // Keyboard-closed shared values; tests render with the rail expanded.
+    // Keyboard-closed shared values.
     useReanimatedKeyboardAnimation: () => ({
       height: { value: 0 },
       progress: { value: 0 },
+    }),
+    // Reports the keyboard up, like KeyboardController.isVisible below, so a
+    // focused set's sticky bar is reachable; a test that needs the keyboard
+    // down swaps the implementation and restores it afterwards.
+    useKeyboardState: jest.fn((selector) => {
+      const state = {
+        isVisible: true,
+        height: 300,
+        duration: 250,
+        timestamp: 0,
+        target: -1,
+        type: 'default',
+        appearance: 'light',
+      };
+      return selector ? selector(state) : state;
     }),
     // isVisible defaults to true so the Android IME-retry path in
     // focusSetCellInput stays quiet unless a test opts in.
@@ -718,7 +740,18 @@ jest.mock('react-native-maps', () => {
   };
   return {
     __esModule: true,
-    default: piece('map-view'),
+    default: React.forwardRef(({ children, ...props }, ref) => {
+      // The camera methods screens call through a ref.
+      React.useImperativeHandle(ref, () => ({
+        animateToRegion: jest.fn(),
+        fitToCoordinates: jest.fn(),
+      }));
+      return React.createElement(
+        View,
+        { testID: 'map-view', ...props },
+        children
+      );
+    }),
     Polyline: piece('map-polyline'),
     Marker: piece('map-marker'),
   };

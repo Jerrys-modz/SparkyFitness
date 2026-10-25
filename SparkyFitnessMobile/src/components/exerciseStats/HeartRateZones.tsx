@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { View, Text } from 'react-native';
 import { formatLocalizedNumber } from '../../localization';
 import type { HeartRateZoneRow } from '../../utils/cardioSession';
+import { zoneMethodLabel } from '../../utils/heartRateZoneLabels';
 
 /** Easy to hard, zone 1 to 5; later zones reuse the last color. */
 const ZONE_COLORS = ['#94a3b8', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444'];
@@ -11,8 +12,17 @@ const HeartRateZones: React.FC<{ zones: readonly HeartRateZoneRow[] }> = ({
   zones,
 }) => {
   const { t } = useTranslation();
+  const methodLabel = zoneMethodLabel(t, zones[0]?.method ?? null);
   return (
     <View>
+      {methodLabel ? (
+        <Text
+          testID="heart-rate-zones-method"
+          className="text-text-muted text-xs mb-2.5"
+        >
+          {methodLabel}
+        </Text>
+      ) : null}
       {zones.map((zone) => {
         const minutes = Math.round(zone.seconds / 60);
         const color =

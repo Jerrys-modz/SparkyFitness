@@ -6,6 +6,8 @@ Follow this checklist whenever you add or change a server database migration —
 
 - [ ] Create the migration in `SparkyFitnessServer/db/migrations/` named `YYYYMMDDHHMMSS_description.sql`.
 - [ ] Do not invent alternate migration mechanisms; server startup applies pending migrations and then reapplies RLS policies.
+- [ ] The runner applies each file and records it in `system.schema_migrations` inside one transaction, so a file contains no `BEGIN;`/`COMMIT;` of its own (`tests/migrationFiles.test.ts` fails otherwise). To commit steps separately (for example `NOT VALID`, then `VALIDATE CONSTRAINT`), write two migration files.
+- [ ] Never use a statement that cannot run inside a transaction block, such as `CREATE INDEX CONCURRENTLY` or `VACUUM`. Startup refuses such a file with an error naming it.
 
 ## 2. Update Row-Level Security (required for every new table)
 

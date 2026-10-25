@@ -2701,7 +2701,7 @@ describe('activeWorkoutStore', () => {
         tags: [],
       };
 
-      it('swaps the exercise in place and resets to one default set', () => {
+      it('swaps the exercise in place and keeps the sets when the modality matches', () => {
         useActiveWorkoutStore
           .getState()
           .replaceExercise('ex-uuid-1', replacement);
@@ -2710,11 +2710,24 @@ describe('activeWorkoutStore', () => {
         expect(entry.id).toBe('ex-uuid-1'); // entry id (position) preserved
         expect(entry.exercise_id).toBe('ex-9');
         expect(entry.exercise_snapshot?.name).toBe('Overhead Press');
+        expect(
+          entry.sets.map((s) => [s.id, s.weight, s.reps, s.set_type])
+        ).toEqual([
+          [101, 60, 10, 'working'],
+          [102, 70, 8, 'working'],
+        ]);
+        expect(state.session!.exercises[1].id).toBe('ex-uuid-2'); // sibling untouched
+        expect(state.hasUnsavedChanges).toBe(true);
+      });
+
+      it('resets to one default set when the modality changes', () => {
+        useActiveWorkoutStore
+          .getState()
+          .replaceExercise('ex-uuid-1', { ...replacement, category: 'Cardio' });
+        const entry = useActiveWorkoutStore.getState().session!.exercises[0];
         expect(entry.sets).toHaveLength(1);
         expect(entry.sets[0].id).toBe(-1);
         expect(entry.sets[0].set_type).toBe('normal');
-        expect(state.session!.exercises[1].id).toBe('ex-uuid-2'); // sibling untouched
-        expect(state.hasUnsavedChanges).toBe(true);
       });
 
       it('forgets a declined adaptive suggestion for the replaced entry', () => {
@@ -2744,7 +2757,7 @@ describe('activeWorkoutStore', () => {
         });
       });
 
-      it('prunes completions for the replaced sets and repoints the cursor', async () => {
+      it('clears completions on the kept sets and repoints the cursor', async () => {
         useActiveWorkoutStore.getState().completeActiveSet(); // 101 done, cursor 102
         await flushPromises();
         useActiveWorkoutStore
@@ -2752,8 +2765,8 @@ describe('activeWorkoutStore', () => {
           .replaceExercise('ex-uuid-1', replacement);
         const state = useActiveWorkoutStore.getState();
         expect(state.completedSetIds['101']).toBeUndefined();
-        expect(state.activeSetId).toBe('-1');
-        expect(state.steps.map((s) => s.setId)).toEqual(['-1', '201']);
+        expect(state.activeSetId).toBe('101');
+        expect(state.steps.map((s) => s.setId)).toEqual(['101', '102', '201']);
       });
 
       it('is a no-op for an unknown entry id', () => {
@@ -3157,6 +3170,92 @@ describe('activeWorkoutStore', () => {
       expect(ids).toContain(101);
       expect(ids).toContain(102);
       expect(new Set(ids).size).toBe(ids.length);
+    });
+  });
+
+  describe('per-set map identity across session rebuilds', () => {
+    const SENT_ENTRY_IDS = ['ex-uuid-1', 'ex-uuid-2'];
+
+    beforeEach(async () => {
+      useActiveWorkoutStore.getState().startWorkout(makeSession());
+      useActiveWorkoutStore.getState().completeActiveSet(); // 101 done
+      await flushPromises();
+      useActiveWorkoutStore.setState({ prSetIds: { '101': true } });
+    });
+
+    it('keeps completedSetIds and prSetIds across a value-only set edit', () => {
+      const before = useActiveWorkoutStore.getState();
+      before.updateSetField('102', { weight: 72.5 });
+
+      const after = useActiveWorkoutStore.getState();
+      expect(after.session).not.toBe(before.session);
+      expect(after.completedSetIds).toBe(before.completedSetIds);
+      expect(after.prSetIds).toBe(before.prSetIds);
+    });
+
+    it('replaces them when an edit removes a logged set', () => {
+      const before = useActiveWorkoutStore.getState();
+      before.deleteSet('101');
+
+      const after = useActiveWorkoutStore.getState();
+      expect(after.completedSetIds).not.toBe(before.completedSetIds);
+      expect(after.completedSetIds).toEqual({});
+      expect(after.prSetIds).toEqual({});
+    });
+
+    it('keeps them and the render keys when a save echoes the same ids', () => {
+      const before = useActiveWorkoutStore.getState();
+      before.applyServerSession(
+        makeSession(),
+        before.sessionRevision,
+        SENT_ENTRY_IDS
+      );
+
+      const after = useActiveWorkoutStore.getState();
+      expect(after.hasUnsavedChanges).toBe(false);
+      expect(after.completedSetIds).toBe(before.completedSetIds);
+      expect(after.prSetIds).toBe(before.prSetIds);
+      expect(after.setRenderKeys).toBe(before.setRenderKeys);
+    });
+
+    it('keeps them when a response is grafted under newer edits', () => {
+      const sentRevision = useActiveWorkoutStore.getState().sessionRevision;
+      useActiveWorkoutStore.getState().updateSetField('102', { reps: 6 });
+      const before = useActiveWorkoutStore.getState();
+
+      before.applyServerSession(makeSession(), sentRevision, SENT_ENTRY_IDS);
+
+      const after = useActiveWorkoutStore.getState();
+      expect(after.hasUnsavedChanges).toBe(true);
+      expect(after.session?.exercises[0].sets[1].reps).toBe(6);
+      expect(after.completedSetIds).toBe(before.completedSetIds);
+      expect(after.prSetIds).toBe(before.prSetIds);
+      expect(after.setRenderKeys).toBe(before.setRenderKeys);
+    });
+
+    it('re-keys them when the server assigns new ids', () => {
+      const before = useActiveWorkoutStore.getState();
+      const response = makeSession();
+      response.exercises[0].sets[0].id = 501;
+      before.applyServerSession(
+        response,
+        before.sessionRevision,
+        SENT_ENTRY_IDS
+      );
+
+      const after = useActiveWorkoutStore.getState();
+      expect(after.completedSetIds).toEqual({ '501': FIXED_NOW });
+      expect(after.prSetIds).toEqual({ '501': true });
+    });
+
+    it('keeps them across a reconcile that leaves the set ids alone', () => {
+      const before = useActiveWorkoutStore.getState();
+      before.reconcileWithSession(makeSession());
+
+      const after = useActiveWorkoutStore.getState();
+      expect(after.completedSetIds).toBe(before.completedSetIds);
+      expect(after.prSetIds).toBe(before.prSetIds);
+      expect(after.setRenderKeys).toBe(before.setRenderKeys);
     });
   });
 

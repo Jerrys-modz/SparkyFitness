@@ -20,6 +20,9 @@ import {
   getDueDosesForDate,
   formatDose,
   formatStrengthPerUnit,
+  filterEntriesBySubtype,
+  filterMedsBySubtype,
+  type MedSubtype,
 } from '@workspace/shared';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,12 +43,7 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import type { MedicationDetail } from '@/types/medications';
 import Glp1Coach from './Glp1Coach';
 import AddMedicationDialog, { MedTypeIcon } from './AddMedicationDialog';
-import {
-  countMedicationNutrients,
-  filterEntriesBySubtype,
-  filterMedsBySubtype,
-  type MedSubtype,
-} from './medicationUtils';
+import { countMedicationNutrients } from './medicationUtils';
 import ScheduleManager from './ScheduleManager';
 import TodayMedications from './TodayMedications';
 import SymptomsHub from '../Symptoms/SymptomsHub';

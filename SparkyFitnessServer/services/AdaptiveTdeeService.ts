@@ -4,7 +4,10 @@ import measurementRepository from '../models/measurementRepository.js';
 import reportRepository from '../models/reportRepository.js';
 import userRepository from '../models/userRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
+import calorieRuleHistoryRepository from '../models/calorieRuleHistoryRepository.js';
+import { preferencesOnDay } from './calorieRuleHistoryService.js';
 import bmrService from './bmrService.js';
+import { getAdaptiveActivityCalories } from './adaptiveActivityService.js';
 import { log } from '../config/logging.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import {
@@ -13,14 +16,21 @@ import {
   ENERGY_DENSITY_KCAL_PER_KG,
   ADAPTIVE_TDEE_CLAMP_KCAL,
   isUsableMeasuredBmr,
+  isAdaptiveActivitySeparated,
 } from '@workspace/shared';
-const tdeeCache = new NodeCache({ stdTTL: 3600 }); // 1 hour cache
+// Synced and imported measurements do not call clearUserTdeeCache, so the TTL
+// bounds how long a stale result is served after a sync.
+const TDEE_CACHE_TTL_SECONDS = 300;
+const tdeeCache = new NodeCache({ stdTTL: TDEE_CACHE_TTL_SECONDS });
 interface UserProfile {
   date_of_birth?: string | null;
   gender?: string | null;
 }
 
 interface UserPreferences {
+  calorie_goal_adjustment_mode?: string | null;
+  goal_mode_calculation_method?: string | null;
+  adaptive_activity_separate?: boolean | null;
   bmr_algorithm?: string | null;
   activity_level?: string | null;
   use_external_bmr?: boolean | null;
@@ -57,6 +67,12 @@ interface DailyDataEntry {
 }
 
 interface AdaptiveTdeeResult {
+  /** Mean resolved activity on the same qualifying food-log days. */
+  averageActivityCalories?: number;
+  /** Learned non-recorded-activity baseline before and after plausibility capping. */
+  rawActivityAdjustedTdee?: number;
+  activityAdjustedTdee?: number;
+  activityDaysOfData?: number;
   tdee: number;
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
   weightTrend?: number | null;
@@ -95,6 +111,7 @@ function computeAdaptiveTdeeFromData(
     latestMeasurement: LatestMeasurement | null;
     checkInMeasurements: CheckInMeasurement[];
     nutritionData: NutritionDataEntry[];
+    activityCaloriesByDate?: ReadonlyMap<string, number>;
   },
   calculationDateStr: string
 ): AdaptiveTdeeResult {
@@ -322,6 +339,23 @@ function computeAdaptiveTdeeFromData(
   const maxTdee = fallbackTdee + ADAPTIVE_TDEE_CLAMP_KCAL;
   const minTdee = Math.max(0, fallbackTdee - ADAPTIVE_TDEE_CLAMP_KCAL);
   const adaptiveTdee = Math.min(Math.max(rawAdaptiveTdee, minTdee), maxTdee);
+  const separateActivity = isAdaptiveActivitySeparated(
+    preferences?.calorie_goal_adjustment_mode,
+    preferences?.goal_mode_calculation_method,
+    preferences?.adaptive_activity_separate
+  );
+  const averageActivityCalories = separateActivity
+    ? calculationWindow
+        .filter((day) => day.calories >= 200)
+        .reduce((sum, day) => {
+          const calories = data.activityCaloriesByDate?.get(day.dateStr) ?? 0;
+          return sum + (Number.isFinite(calories) ? Math.max(0, calories) : 0);
+        }, 0) / calorieDays
+    : 0;
+  // Remove recorded activity from the raw energy-balance estimate FIRST. The
+  // full-day cap may already have removed some of that energy, so subtracting
+  // from the capped total would understate the learned baseline a second time.
+  const rawActivityAdjustedTdee = rawAdaptiveTdee - averageActivityCalories;
   // Whether the clamp actually moved the number. When it did, the displayed TDEE
   // is not `intake + weight term` and the arithmetic on screen would not
   // reconcile, so the UI has to say the cap bound rather than leave the reader to
@@ -369,6 +403,16 @@ function computeAdaptiveTdeeFromData(
   }
 
   return {
+    ...(separateActivity
+      ? {
+          averageActivityCalories: Math.round(averageActivityCalories),
+          rawActivityAdjustedTdee: Math.round(rawActivityAdjustedTdee),
+          activityAdjustedTdee: Math.round(
+            Math.min(Math.max(rawActivityAdjustedTdee, minTdee), maxTdee)
+          ),
+          activityDaysOfData: calorieDays,
+        }
+      : {}),
     tdee: Math.round(adaptiveTdee),
     confidence,
     weightTrend: Math.round(endWeightTrend * 10) / 10,
@@ -429,13 +473,19 @@ async function calculateAdaptiveTdee(
     // Fetch all necessary data in parallel
     const [
       userProfile,
-      userPreferences,
+      currentPreferences,
+      calorieRuleHistory,
       checkInMeasurements,
       nutritionData,
       latestMeasurement,
     ] = await Promise.all([
       userRepository.getUserProfile(userId),
       preferenceRepository.getUserPreferences(userId),
+      calorieRuleHistoryRepository.getCalorieRuleHistory(
+        userId,
+        endDateStr,
+        endDateStr
+      ),
       measurementRepository.getCheckInMeasurementsByDateRange(
         userId,
         startDateStr,
@@ -444,6 +494,10 @@ async function calculateAdaptiveTdee(
       reportRepository.getNutritionData(userId, startDateStr, endDateStr, []),
       measurementRepository.getLatestMeasurement(userId),
     ]);
+    // The settings in force on the calculation day, not today's (#1795).
+    const userPreferences =
+      currentPreferences &&
+      preferencesOnDay(currentPreferences, calorieRuleHistory, endDateStr);
 
     const result = computeAdaptiveTdeeFromData(
       {
@@ -452,10 +506,25 @@ async function calculateAdaptiveTdee(
         latestMeasurement,
         checkInMeasurements: checkInMeasurements || [],
         nutritionData: nutritionData || [],
+        activityCaloriesByDate: isAdaptiveActivitySeparated(
+          userPreferences?.calorie_goal_adjustment_mode,
+          userPreferences?.goal_mode_calculation_method,
+          userPreferences?.adaptive_activity_separate
+        )
+          ? await getAdaptiveActivityCalories(
+              userId,
+              startDateStr,
+              endDateStr,
+              checkInMeasurements || []
+            )
+          : undefined,
       },
       calculationDateStr
     );
-    tdeeCache.set(cacheKey, result);
+    // Activity edits/imports do not invalidate the legacy food/weight cache.
+    // Keep separated estimates fresh without coupling every importer to this service.
+    if (result.activityAdjustedTdee === undefined)
+      tdeeCache.set(cacheKey, result);
     return result;
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
@@ -506,12 +575,18 @@ async function calculateAdaptiveTdeeRange(
     const [
       userProfile,
       userPreferences,
+      calorieRuleHistory,
       checkInMeasurements,
       nutritionData,
       latestMeasurement,
     ] = await Promise.all([
       userRepository.getUserProfile(userId),
       preferenceRepository.getUserPreferences(userId),
+      calorieRuleHistoryRepository.getCalorieRuleHistory(
+        userId,
+        startDateStr,
+        endDateStr
+      ),
       measurementRepository.getCheckInMeasurementsByDateRange(
         userId,
         fetchStartDateStr,
@@ -526,6 +601,26 @@ async function calculateAdaptiveTdeeRange(
       measurementRepository.getLatestMeasurement(userId),
     ]);
 
+    // Each day uses the settings in force on it, not today's (#1795).
+    const preferencesOn = (dateStr: string) =>
+      userPreferences &&
+      preferencesOnDay(userPreferences, calorieRuleHistory, dateStr);
+    const activityCaloriesByDate = days.some((day) => {
+      const dayPreferences = preferencesOn(format(day, 'yyyy-MM-dd'));
+      return isAdaptiveActivitySeparated(
+        dayPreferences?.calorie_goal_adjustment_mode,
+        dayPreferences?.goal_mode_calculation_method,
+        dayPreferences?.adaptive_activity_separate
+      );
+    })
+      ? await getAdaptiveActivityCalories(
+          userId,
+          fetchStartDateStr,
+          endDateStr,
+          checkInMeasurements || []
+        )
+      : undefined;
+
     for (const day of days) {
       const dateStr = format(day, 'yyyy-MM-dd');
       if (results[dateStr]) continue;
@@ -533,16 +628,18 @@ async function calculateAdaptiveTdeeRange(
       const result = computeAdaptiveTdeeFromData(
         {
           profile: userProfile,
-          preferences: userPreferences,
+          preferences: preferencesOn(dateStr),
           latestMeasurement,
           checkInMeasurements: checkInMeasurements || [],
           nutritionData: nutritionData || [],
+          activityCaloriesByDate,
         },
         dateStr
       );
 
       const cacheKey = `adaptive_tdee_${userId}_${dateStr}`;
-      tdeeCache.set(cacheKey, result);
+      if (result.activityAdjustedTdee === undefined)
+        tdeeCache.set(cacheKey, result);
       results[dateStr] = result;
     }
 

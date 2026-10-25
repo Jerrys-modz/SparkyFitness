@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { View, Text, TouchableOpacity } from 'react-native';
 import FadeView from '../components/FadeView';
 import EditableSetList from '../components/EditableSetList';
+import LinkSyncedWorkoutSheet, {
+  type LinkSyncedWorkoutSheetRef,
+} from '../components/LinkSyncedWorkoutSheet';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -56,12 +59,21 @@ import { addLog } from '../services/LogService';
 import type { RootStackScreenProps } from '../types/navigation';
 import type { WorkoutDraftSet } from '../types/drafts';
 import type { ExerciseEntrySetResponse } from '@workspace/shared';
-import { canEditGroupedWorkout } from '@workspace/shared';
+import {
+  canEditGroupedWorkout,
+  isAppLoggedWorkoutSource,
+} from '@workspace/shared';
 
 type Props = RootStackScreenProps<'ActivityDetail'>;
 
 type EditableField =
-  'name' | 'duration' | 'calories' | 'distance' | 'avgHeartRate' | 'notes';
+  | 'name'
+  | 'duration'
+  | 'calories'
+  | 'caloriesApplied'
+  | 'distance'
+  | 'avgHeartRate'
+  | 'notes';
 
 const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { t, i18n: translationI18n } = useTranslation();
@@ -78,11 +90,13 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const weightUnit = (preferences?.default_weight_unit as 'kg' | 'lbs') ?? 'kg';
 
   const calendarSheetRef = useRef<CalendarSheetRef>(null);
+  const linkSheetRef = useRef<LinkSyncedWorkoutSheetRef>(null);
 
-  const [accentPrimary, borderSubtle] = useCSSVariable([
+  const [accentPrimary, borderSubtle, textMuted] = useCSSVariable([
     '--color-accent-primary',
     '--color-border-subtle',
-  ]) as [string, string];
+    '--color-text-muted',
+  ]) as [string, string, string];
   const usesNativeHeader = useNativeIOSHeadersActive();
 
   const { getImageSource } = useExerciseImageSource();
@@ -92,6 +106,11 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const entryDate = session.entry_date ?? '';
   const normalizedDate = normalizeDate(entryDate);
   const { name, duration, calories } = getWorkoutSummary(session, t);
+
+  // Only a workout logged in the app can be linked to a synced one.
+  const canLinkSynced =
+    isAppLoggedWorkoutSource(session.source) &&
+    session.exercise_snapshot?.name !== 'Active Calories';
 
   const firstImage = session.exercise_snapshot?.images?.[0];
   const firstImageSource = firstImage ? getImageSource(firstImage) : null;
@@ -156,6 +175,7 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     setDuration,
     setDistance,
     setCalories,
+    setCaloriesApplied,
     setAvgHeartRate,
     setDate,
     setNotes,
@@ -305,6 +325,7 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       exercise_name: submission.exerciseName,
       duration_minutes: submission.durationMinutes,
       calories_burned: submission.caloriesBurned,
+      calories_applied: submission.caloriesApplied,
       entry_date: submission.entryDate,
       distance: submission.distanceKm,
       avg_heart_rate: submission.avgHeartRate,
@@ -322,6 +343,7 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         name: submission.exerciseName,
         notes: submission.notes,
         calories_burned: submission.caloriesBurned,
+        calories_applied: submission.caloriesApplied,
         duration_minutes: submission.durationMinutes,
         distance: submission.distanceKm,
         avg_heart_rate: submission.avgHeartRate,
@@ -403,6 +425,21 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         keyboardType: 'decimal-pad',
       });
     }
+    if (isEditing || session.calories_applied != null) {
+      stats.push({
+        value: isEditing
+          ? formState.caloriesApplied || '-'
+          : formatLocalizedNumber(session.calories_applied ?? 0, {
+              maximumFractionDigits: 1,
+            }),
+        label: t('activityDetail.stats.caloriesCounted', {
+          defaultValue: 'Counted in daily total',
+        }),
+        editKey: 'caloriesApplied',
+        editSuffix: 'cal',
+        keyboardType: 'decimal-pad',
+      });
+    }
     if (isEditing || (session.distance != null && session.distance > 0)) {
       stats.push({
         value: isEditing
@@ -434,6 +471,15 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         keyboardType: 'numeric',
       });
     }
+    if (session.workout_effort != null) {
+      stats.push({
+        value: t('workoutEffort.value', {
+          defaultValue: '{{rating}}/10',
+          rating: formatLocalizedNumber(session.workout_effort),
+        }),
+        label: t('activityDetail.stats.effort', { defaultValue: 'Effort' }),
+      });
+    }
     if (session.steps != null && session.steps > 0) {
       stats.push({
         value: formatLocalizedNumber(session.steps),
@@ -459,6 +505,8 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         return formState.duration;
       case 'calories':
         return formState.calories;
+      case 'caloriesApplied':
+        return formState.caloriesApplied ?? '';
       case 'distance':
         return formState.distance;
       case 'avgHeartRate':
@@ -478,6 +526,9 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         break;
       case 'calories':
         setCalories(value);
+        break;
+      case 'caloriesApplied':
+        setCaloriesApplied(value);
         break;
       case 'distance':
         setDistance(value);
@@ -737,6 +788,28 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* Stats grid */}
         {renderStatsGrid()}
 
+        {!isEditing && canLinkSynced && (
+          <TouchableOpacity
+            className="bg-surface rounded-xl px-4 py-3 mt-4 shadow-sm flex-row items-center"
+            onPress={() => linkSheetRef.current?.present()}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            testID="link-synced-workout"
+          >
+            <Icon name="link" size={16} color={accentPrimary} />
+            <Text className="flex-1 ml-2 text-base text-text-primary">
+              {session.calorie_link_resolution
+                ? t('calorieLink.linked', {
+                    defaultValue: 'Linked to a synced workout',
+                  })
+                : t('calorieLink.action', {
+                    defaultValue: 'Link a synced workout',
+                  })}
+            </Text>
+            <Icon name="chevron-forward" size={16} color={textMuted} />
+          </TouchableOpacity>
+        )}
+
         {!isEditing && isCardioModality(modality) && (
           <View className="mt-4">
             <ShoePickerCard exerciseEntryId={session.id} />
@@ -922,6 +995,21 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         selectedDate={isEditing ? formState.entryDate : normalizedDate}
         onSelectDate={setDate}
       />
+
+      {canLinkSynced && (
+        <LinkSyncedWorkoutSheet
+          ref={linkSheetRef}
+          entryId={session.id}
+          entryDate={normalizedDate}
+          onLinkChange={(resolution, applied) =>
+            setSession((current) => ({
+              ...current,
+              calorie_link_resolution: resolution,
+              calories_applied: applied[current.id] ?? null,
+            }))
+          }
+        />
+      )}
     </View>
   );
 };
