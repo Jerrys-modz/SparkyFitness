@@ -111,6 +111,9 @@ export function SetTypeMenu({
   onDelete,
   onGenerateDropSets,
   onOpenPlateCalculator,
+  currentSide,
+  onSelectSide,
+  onAddOtherSide,
 }: {
   anchor: AnchorRect | null;
   /** The target set's current type; null/undefined reads as 'normal'. */
@@ -121,6 +124,12 @@ export function SetTypeMenu({
   onGenerateDropSets?: () => void;
   /** Offered for barbell-style exercises; opens the plate calculator. */
   onOpenPlateCalculator?: () => void;
+  /** The set's side; null/undefined reads as both sides. */
+  currentSide?: 'left' | 'right' | null;
+  /** Set the side (null = both). Callers that omit it get no side items. */
+  onSelectSide?: (side: 'left' | 'right' | null) => void;
+  /** Insert a copy of the set for the opposite side. */
+  onAddOtherSide?: () => void;
 }) {
   const { t } = useTranslation();
   const typeLabels: Record<string, string> = {
@@ -136,6 +145,31 @@ export function SetTypeMenu({
     label: `${type === current ? '✓ ' : ''}${typeLabels[type] ?? type}`,
     onPress: () => onSelect(type),
   }));
+  if (onSelectSide) {
+    const sideLabels = {
+      both: t('workout.sideBoth', { defaultValue: 'Both sides' }),
+      left: t('workout.sideLeft', { defaultValue: 'Left side' }),
+      right: t('workout.sideRight', { defaultValue: 'Right side' }),
+    };
+    const side = currentSide ?? null;
+    (['both', 'left', 'right'] as const).forEach((key) => {
+      const value = key === 'both' ? null : key;
+      items.push({
+        key: `side-${key}`,
+        // i18n-audit-ignore-next-line hardcoded-ui-text -- checkmark is a UI glyph; translated semantic label follows.
+        label: `${value === side ? '✓ ' : ''}${sideLabels[key]}`,
+        onPress: () => onSelectSide(value),
+      });
+    });
+  }
+  if (onAddOtherSide) {
+    items.push({
+      key: 'add-other-side',
+      label: t('workout.addOtherSide', { defaultValue: 'Add other side' }),
+      icon: 'add-circle',
+      onPress: onAddOtherSide,
+    });
+  }
   if (onGenerateDropSets) {
     items.push({
       key: 'generate-dropsets',

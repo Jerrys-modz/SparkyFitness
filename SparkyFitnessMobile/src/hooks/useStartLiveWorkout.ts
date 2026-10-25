@@ -136,6 +136,7 @@ export function buildWatchWorkoutStartPayload(
           targetDistanceKm: target?.distanceKm ?? null,
           restSeconds: restSecBySetId.get(setId) ?? 0,
           setType: set.set_type ?? null,
+          side: set.side ?? null,
         };
       }),
     })),

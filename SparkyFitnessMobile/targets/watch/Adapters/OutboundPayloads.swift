@@ -154,6 +154,13 @@ enum OutboundPayloads {
             payload["action"] = "setSetType"
             payload["setId"] = setId
             payload["setType"] = type
+        case .setSetSide(let setId, let side):
+            payload["action"] = "setSetSide"
+            payload["setId"] = setId
+            payload["side"] = side
+        case .addOtherSide(let setId):
+            payload["action"] = "addOtherSide"
+            payload["setId"] = setId
         case .addExercise(let exerciseId):
             payload["action"] = "addExercise"
             payload["exerciseId"] = exerciseId
