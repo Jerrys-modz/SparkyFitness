@@ -40,17 +40,18 @@ export const ActivityHeartRateChart = ({
 }: ActivityHeartRateChartProps) => {
   const { t } = useTranslation();
   const { timeFormat } = usePreferences();
-  const { resolved, isDefault } = useResolvedHeartRateZones();
+  const { resolved, isDefault, displayZones, bands } =
+    useResolvedHeartRateZones();
 
   // Color edges follow the person's own zones, not fixed bpm values
-  const edges = useMemo(() => zoneEdges(resolved.floors), [resolved]);
+  const edges = useMemo(() => zoneEdges(bands), [bands]);
   const gradientStops = useMemo(() => {
     const values = data
       .map((p) => Number(p.heartRate))
       .filter((v) => Number.isFinite(v) && v > 0);
     if (values.length === 0) return [];
-    return zoneGradientStops(Math.min(...values), Math.max(...values), edges);
-  }, [data, edges]);
+    return zoneGradientStops(Math.min(...values), Math.max(...values), bands);
+  }, [data, bands]);
 
   return (
     <ZoomableChart title={t('reports.activityReport.heartRateBpm')}>
@@ -60,7 +61,11 @@ export const ActivityHeartRateChart = ({
             <CardTitle className="text-sm font-semibold">
               {t('reports.activityReport.heartRateBpm', 'Heart Rate (bpm)')}
             </CardTitle>
-            <HeartRateZoneLegend resolved={resolved} isDefault={isDefault} />
+            <HeartRateZoneLegend
+              resolved={resolved}
+              displayZones={displayZones}
+              isDefault={isDefault}
+            />
           </CardHeader>
           <CardContent
             className={`grow ${isMaximized ? 'min-h-0 h-full' : ''}`}

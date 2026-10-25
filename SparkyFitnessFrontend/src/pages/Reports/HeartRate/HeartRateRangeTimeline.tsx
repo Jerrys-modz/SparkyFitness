@@ -324,6 +324,7 @@ const HeartRateRangeTimeline: React.FC<HeartRateRangeTimelineProps> = ({
           {/* Zone Color Code Legend */}
           <HeartRateZoneLegend
             resolved={data.zones.resolved}
+            displayZones={data.zones.displayZones}
             isDefault={data.zones.isDefault}
             showSource
             className="pt-1"

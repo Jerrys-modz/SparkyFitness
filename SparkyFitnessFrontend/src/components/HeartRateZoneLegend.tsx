@@ -1,13 +1,20 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  heartRateZoneBands,
+  heartRateDisplayBands,
+  type HrZoneDisplayCount,
   type ResolvedHeartRateZones,
 } from '@workspace/shared';
-import { maxHrSourceLabel, zoneMethodName } from '@/utils/heartRateZoneLabels';
+import {
+  displayBandLabel,
+  maxHrSourceLabel,
+  zoneMethodName,
+} from '@/utils/heartRateZoneLabels';
 
 interface HeartRateZoneLegendProps {
   resolved: ResolvedHeartRateZones;
+  /** Five zones (default) or four tiers. */
+  displayZones?: HrZoneDisplayCount;
   /** True until the person's own zones have loaded. */
   isDefault?: boolean;
   /** Add the line saying where the zones come from. */
@@ -18,12 +25,13 @@ interface HeartRateZoneLegendProps {
 /** The person's five zones, each with its color and bpm range. */
 export const HeartRateZoneLegend = ({
   resolved,
+  displayZones = 5,
   isDefault = false,
   showSource = false,
   className = '',
 }: HeartRateZoneLegendProps) => {
   const { t } = useTranslation();
-  const bands = heartRateZoneBands(resolved.zones);
+  const bands = heartRateDisplayBands(resolved.zones, displayZones);
 
   return (
     <div
@@ -33,18 +41,15 @@ export const HeartRateZoneLegend = ({
       <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
         {bands.map((band) => (
           <span
-            key={band.zone}
+            key={band.index}
             className="flex items-center gap-1.5"
-            data-testid={`heart-rate-zone-legend-${band.zone}`}
+            data-testid={`heart-rate-zone-legend-${band.index}`}
           >
             <span
               className="w-2 h-2 rounded-full"
               style={{ backgroundColor: band.color }}
             />
-            {t('settings.heartRateZones.zone', {
-              defaultValue: 'Zone {{zone}}',
-              zone: band.zone,
-            })}
+            {displayBandLabel(t, band)}
             <span className="font-normal">
               {band.upperBpm === null
                 ? t('settings.heartRateZones.zoneRangeOpen', {

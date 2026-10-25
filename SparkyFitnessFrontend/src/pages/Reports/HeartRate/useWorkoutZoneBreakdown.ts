@@ -4,7 +4,8 @@ import { useResolvedHeartRateZones } from '@/hooks/Settings/useHeartRateZones';
 import { useWorkoutHrZones } from '@/hooks/useGenericHealth';
 import { zoneEdges, zoneGradientStops } from '@/utils/heartRateZoneBands';
 import { extractWorkoutHeartRateSeries } from '@/utils/workoutTelemetryExtractor';
-import { computeTimeInZones, heartRateZoneBands } from '@workspace/shared';
+import { displayBandLabel } from '@/utils/heartRateZoneLabels';
+import { computeTimeInZones } from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 
 interface WorkoutZoneBreakdownInput {
@@ -24,10 +25,10 @@ export const useWorkoutZoneBreakdown = ({
   // zones). Stored rows keep the zones they were worked out with; only the
   // fallback from raw readings uses the zones as they are now.
   const resolvedZones = useResolvedHeartRateZones();
-  const zoneFloors = resolvedZones.resolved.floors;
-  const edges = useMemo(() => zoneEdges(zoneFloors), [zoneFloors]);
+  const { bands } = resolvedZones;
+  const edges = useMemo(() => zoneEdges(bands), [bands]);
 
-  const zones = useMemo(() => {
+  const breakdown = useMemo(() => {
     const secondsByZone = [0, 0, 0, 0, 0];
     const add = (zone: number, seconds: number) => {
       if (Number.isInteger(zone) && zone >= 1 && zone <= 5 && seconds > 0) {
@@ -54,32 +55,41 @@ export const useWorkoutZoneBreakdown = ({
             t: new Date(p.timestamp).toISOString(),
             bpm: p.bpm,
           })),
-          zoneFloors
+          resolvedZones.resolved.floors
         ).forEach((b) => add(b.zone_index, b.seconds_in_zone));
       }
     }
 
     const totalSecs = secondsByZone.reduce((a, b) => a + b, 0);
-    if (totalSecs <= 0) return [];
-    return heartRateZoneBands(resolvedZones.resolved.zones).map((band) => {
-      const secs = secondsByZone[band.zone - 1] ?? 0;
+    if (totalSecs <= 0) return { rows: [], minutesByZone: [0, 0, 0, 0, 0] };
+    const minutesByZone = secondsByZone.map((secs) => Math.round(secs / 60));
+    // Time is summed over the zones in each band, so four tiers add up too
+    const rows = bands.map((band) => {
+      const secs = band.zones.reduce(
+        (sum, zone) => sum + (secondsByZone[zone - 1] ?? 0),
+        0
+      );
       return {
-        name: t('settings.heartRateZones.zone', {
-          defaultValue: 'Zone {{zone}}',
-          zone: band.zone,
-        }),
+        name: displayBandLabel(t, band),
         pct: Math.round((secs / totalSecs) * 100),
         mins: Math.round(secs / 60),
         color: band.color,
       };
     });
-  }, [workoutHrZones, activityDetails, points, zoneFloors, resolvedZones, t]);
+    return { rows, minutesByZone };
+  }, [workoutHrZones, activityDetails, points, bands, resolvedZones, t]);
 
   const pointsGradientStops = useMemo(() => {
     const values = points.map((p) => p.bpm).filter((v) => v > 0);
     if (values.length === 0) return [];
-    return zoneGradientStops(Math.min(...values), Math.max(...values), edges);
-  }, [points, edges]);
+    return zoneGradientStops(Math.min(...values), Math.max(...values), bands);
+  }, [points, bands]);
 
-  return { zones, edges, resolvedZones, pointsGradientStops };
+  return {
+    zones: breakdown.rows,
+    minutesByZone: breakdown.minutesByZone,
+    edges,
+    resolvedZones,
+    pointsGradientStops,
+  };
 };

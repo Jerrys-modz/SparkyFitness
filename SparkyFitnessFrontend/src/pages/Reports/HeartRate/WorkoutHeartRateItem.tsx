@@ -90,7 +90,7 @@ const WorkoutHeartRateItem: React.FC<{
         ? `${workout['entry_time']} (${durMinutes} min)`
         : `${durMinutes} min`;
 
-  const { zones, edges, resolvedZones, pointsGradientStops } =
+  const { zones, minutesByZone, edges, resolvedZones, pointsGradientStops } =
     useWorkoutZoneBreakdown({
       workoutHrZones,
       activityDetails,
@@ -98,8 +98,8 @@ const WorkoutHeartRateItem: React.FC<{
     });
 
   // Zone 3 counts once, zones 4 and 5 count twice
-  const moderateMins = zones[2]?.mins ?? 0;
-  const vigorousMins = (zones[3]?.mins ?? 0) + (zones[4]?.mins ?? 0);
+  const moderateMins = minutesByZone[2] ?? 0;
+  const vigorousMins = (minutesByZone[3] ?? 0) + (minutesByZone[4] ?? 0);
   const activeZoneMinutes = moderateMins + vigorousMins * 2;
 
   if (!hasHeartRate) {
@@ -272,6 +272,7 @@ const WorkoutHeartRateItem: React.FC<{
           {/* Zone Legend */}
           <HeartRateZoneLegend
             resolved={resolvedZones.resolved}
+            displayZones={resolvedZones.displayZones}
             isDefault={resolvedZones.isDefault}
           />
         </div>

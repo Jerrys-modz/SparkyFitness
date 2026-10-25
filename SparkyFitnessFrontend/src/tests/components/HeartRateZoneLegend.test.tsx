@@ -49,6 +49,21 @@ describe('HeartRateZoneLegend', () => {
     ).toBe('/settings?tab=heart-rate-zones');
   });
 
+  it('shows the four tiers when chosen', () => {
+    render(
+      <MemoryRouter>
+        <HeartRateZoneLegend resolved={resolved} displayZones={4} />
+      </MemoryRouter>
+    );
+    expect(
+      screen.getByTestId('heart-rate-zone-legend-1').textContent
+    ).toContain('Light128–151 bpm');
+    expect(
+      screen.getByTestId('heart-rate-zone-legend-4').textContent
+    ).toContain('Peak176+ bpm');
+    expect(screen.queryByTestId('heart-rate-zone-legend-5')).toBeNull();
+  });
+
   it('says so while the zones are the defaults', () => {
     render(
       <MemoryRouter>

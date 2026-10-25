@@ -321,6 +321,7 @@ const HeartRateReportScreen: React.FC<HeartRateReportScreenProps> = ({
           </Text>
           <HeartRateZoneRanges
             resolved={resolvedZones}
+            displayZones={zones?.settings.display_zones ?? 5}
             isDefault={!zones}
             onOpenSettings={() => navigation.navigate('HeartRateZonesSettings')}
           />

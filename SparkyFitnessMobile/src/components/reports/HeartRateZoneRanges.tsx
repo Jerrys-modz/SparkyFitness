@@ -2,14 +2,21 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text, TouchableOpacity, View } from 'react-native';
 import {
-  heartRateZoneBands,
+  heartRateDisplayBands,
+  type HrZoneDisplayCount,
   type ResolvedHeartRateZones,
 } from '@workspace/shared';
 import { formatLocalizedNumber } from '../../localization';
-import { maxHrSourceLabel, methodName } from '../../utils/heartRateZoneLabels';
+import {
+  displayBandLabel,
+  maxHrSourceLabel,
+  methodName,
+} from '../../utils/heartRateZoneLabels';
 
 interface HeartRateZoneRangesProps {
   resolved: ResolvedHeartRateZones;
+  /** Five zones or four tiers. */
+  displayZones: HrZoneDisplayCount;
   /** True until the person's own zones have loaded. */
   isDefault: boolean;
   onOpenSettings: () => void;
@@ -22,18 +29,19 @@ interface HeartRateZoneRangesProps {
  */
 const HeartRateZoneRanges: React.FC<HeartRateZoneRangesProps> = ({
   resolved,
+  displayZones,
   isDefault,
   onOpenSettings,
 }) => {
   const { t } = useTranslation();
-  const bands = heartRateZoneBands(resolved.zones);
+  const bands = heartRateDisplayBands(resolved.zones, displayZones);
 
   return (
     <View testID="heart-rate-zone-ranges">
       {bands.map((band, i) => (
         <View
-          key={band.zone}
-          testID={`heart-rate-zone-row-${band.zone}`}
+          key={band.index}
+          testID={`heart-rate-zone-row-${band.index}`}
           className={`flex-row items-center justify-between py-1.5 ${
             i < bands.length - 1 ? 'border-b border-border-subtle' : ''
           }`}
@@ -44,10 +52,7 @@ const HeartRateZoneRanges: React.FC<HeartRateZoneRangesProps> = ({
               style={{ backgroundColor: band.color }}
             />
             <Text className="text-text-primary text-sm font-medium">
-              {t('exerciseStatistics.cardio.zone', {
-                defaultValue: 'Zone {{zone}}',
-                zone: band.zone,
-              })}
+              {displayBandLabel(t, band)}
             </Text>
           </View>
           <Text className="text-text-secondary text-xs">

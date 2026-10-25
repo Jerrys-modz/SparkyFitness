@@ -41,6 +41,7 @@ const reserveZones: HeartRateZonesResponse = {
     resting_heart_rate: 68,
     method: 'heart_rate_reserve',
     custom_floors: null,
+    display_zones: 5,
   },
   resolved: {
     max_hr: 188,
@@ -105,6 +106,20 @@ describe('HeartRateReportScreen zones', () => {
     expect(getByTestId('heart-rate-zone-source').props.children).toContain(
       'Heart rate reserve'
     );
+  });
+
+  it('folds into four tiers when the person chose them', () => {
+    mockUseHeartRateZones.mockReturnValue({
+      zones: {
+        ...reserveZones,
+        settings: { ...reserveZones.settings, display_zones: 4 },
+      },
+    });
+    const { getByText, queryByTestId } = renderScreen();
+    expect(getByText('Light')).toBeTruthy();
+    expect(getByText('128–151 bpm')).toBeTruthy();
+    expect(getByText('Peak')).toBeTruthy();
+    expect(queryByTestId('heart-rate-zone-row-5')).toBeNull();
   });
 
   it('follows a change of settings', () => {

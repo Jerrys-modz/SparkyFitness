@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   defaultHeartRateZones,
+  heartRateDisplayBands,
   type HeartRateZonesResponse,
   type ResolvedHeartRateZones,
   type UpdateHeartRateZonesBody,
@@ -54,7 +55,8 @@ export const useUpdateHeartRateZonesMutation = () => {
 /**
  * The person's resolved zones for a chart or legend. Until their zones load
  * (or when the request fails) this is the shared default, `isDefault` true,
- * so a report can say the zones are not confirmed yet.
+ * so a report can say the zones are not confirmed yet. `bands` is what to
+ * draw: five zones, or four tiers if the person chose that.
  */
 export const useResolvedHeartRateZones = () => {
   const { data, isSuccess } = useHeartRateZones();
@@ -74,6 +76,12 @@ export const useResolvedHeartRateZones = () => {
           })),
         }
       : defaultHeartRateZones();
-    return { resolved, isDefault: !isSuccess };
+    const displayZones = data?.settings.display_zones ?? 5;
+    return {
+      resolved,
+      isDefault: !isSuccess,
+      displayZones,
+      bands: heartRateDisplayBands(resolved.zones, displayZones),
+    };
   }, [data, isSuccess]);
 };

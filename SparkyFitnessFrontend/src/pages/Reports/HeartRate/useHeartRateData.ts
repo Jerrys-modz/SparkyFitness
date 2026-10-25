@@ -8,7 +8,7 @@ import {
 } from '@/hooks/useGenericHealth';
 import { DailyExerciseEntry } from '@/types/reports';
 import { dayStringToMs, msToDayString } from '@/utils/heartRateWindow';
-import { zoneEdges, zoneGradientStops } from '@/utils/heartRateZoneBands';
+import { zoneGradientStops } from '@/utils/heartRateZoneBands';
 import { formatTimeOfDayString } from '@/utils/timeFormatters';
 import { useTranslation } from 'react-i18next';
 import type { HeartRateWindow } from './useHeartRateWindow';
@@ -62,7 +62,7 @@ export const useHeartRateData = (
 
   // The person's own zones decide where the line changes color
   const zones = useResolvedHeartRateZones();
-  const edges = useMemo(() => zoneEdges(zones.resolved.floors), [zones]);
+  const { bands } = zones;
 
   // Query health metric continuous samples across the entire selected date range
   const { data: hrSampleBuckets = [] } = useHealthMetricSamples(
@@ -803,7 +803,7 @@ export const useHeartRateData = (
   const gradientFor = (values: Array<number | null | undefined>) => {
     const real = values.filter((v): v is number => typeof v === 'number');
     if (real.length === 0) return [];
-    return zoneGradientStops(Math.min(...real), Math.max(...real), edges);
+    return zoneGradientStops(Math.min(...real), Math.max(...real), bands);
   };
   const rangeGradientStops = gradientFor(rangeChartPoints.map((p) => p.bpm));
 
