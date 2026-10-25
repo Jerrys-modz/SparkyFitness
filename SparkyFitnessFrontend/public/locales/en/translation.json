@@ -3731,7 +3731,7 @@
       "adaptiveTdeeExpenditure": "Adaptive TDEE (Expenditure)",
       "adaptiveManualGoal": "Adaptive Manual Calorie Goal",
       "targetSafeRange": "✓ Target is in safe range above metabolic safety floor.",
-      "weightTrendTerm": "Weight trend: {{start}} → {{end}} ({{change}} across all {{days}} days of the window) = {{daily}} {{massUnit}}/day — 7-day averages of your logged weights, not the readings themselves, with missing days filled in between the ones either side",
+      "weightTrendTerm": "Weight trend: {{start}} → {{end}} ({{change}} over the {{days}} days between the window’s first and last day) = {{daily}} {{massUnit}}/day — 7-day averages of your logged weights, not the readings themselves, with missing days filled in between the ones either side",
       "weightTrendCalories": "Energy from that trend: −({{daily}} {{massUnit}}/day × {{kcalPerUnit}} kcal/{{massUnit}}) ≈ {{value}}",
       "tdeeSum": "({{intake}} {{sign}} {{delta}})",
       "adaptiveClamped": "Raw estimate of {{raw}} {{unit}} was capped to {{capped}} {{unit}}, the plausibility limit of ±{{band}} {{unit}} around your BMR-based estimate ({{min}}–{{max}} {{unit}}).",
