@@ -29,7 +29,7 @@ async function getCalorieRuleHistory(
             WHERE user_id = $1 AND effective_date <= $2::date),
            '-infinity'::date
          )
-       ORDER BY effective_date`,
+       ORDER BY user_calorie_rule_history.effective_date`,
       [userId, startDate, endDate]
     );
     return result.rows as CalorieRuleHistoryRow[];
