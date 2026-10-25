@@ -131,6 +131,7 @@ async function syncGarminData(
 
   let totalProcessedHealth = 0;
   let totalProcessedActivities = 0;
+  let totalFailedDefinitions = 0;
   let totalProcessedNutrition = 0;
   let lastHealthResult: Record<string, unknown> | null = null;
   const healthErrors: string[] = [];
@@ -190,6 +191,7 @@ async function syncGarminData(
         tz
       );
       totalProcessedActivities += actResult.processedEntries;
+      totalFailedDefinitions += actResult.failedDefinitions;
     } catch (activitiesError: unknown) {
       const errMsg =
         activitiesError instanceof Error
@@ -249,7 +251,16 @@ async function syncGarminData(
   } else {
     results.activities = {
       processedEntries: totalProcessedActivities,
-      ...(activityErrors.length > 0 ? { partialErrors: activityErrors } : {}),
+      ...(activityErrors.length > 0 || totalFailedDefinitions > 0
+        ? {
+            partialErrors: [
+              ...activityErrors,
+              ...(totalFailedDefinitions > 0
+                ? [`${totalFailedDefinitions} workout definition(s) failed`]
+                : []),
+            ],
+          }
+        : {}),
     };
   }
 
