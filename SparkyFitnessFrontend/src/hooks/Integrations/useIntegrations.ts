@@ -302,6 +302,8 @@ interface SyncIntervalsVariables {
   providerId?: string;
   startDate?: string;
   endDate?: string;
+  saveMockData?: boolean;
+  dataSource?: string;
 }
 
 export const useSyncIntervalsMutation = () => {
@@ -311,24 +313,32 @@ export const useSyncIntervalsMutation = () => {
   const invalidateDiary = useDiaryInvalidation();
 
   return useMutation({
-    mutationFn: ({ providerId, startDate, endDate }: SyncIntervalsVariables) =>
-      syncIntervalsData(providerId, startDate, endDate),
+    mutationFn: ({
+      providerId,
+      startDate,
+      endDate,
+      ...mock
+    }: SyncIntervalsVariables) =>
+      syncIntervalsData(providerId, startDate, endDate, mock),
     onSuccess: (data: IntervalsSyncResult) => {
       queryClient.invalidateQueries({
         queryKey: externalProviderKeys.lists(),
       });
       invalidateDiary();
       toast({
+        // Some activities could not be saved; the next sync covering their day retries them.
+        variant: data?.activitiesFailed ? 'destructive' : 'default',
         title: t(
           'integrations.intervalsSyncSuccessTitle',
           'Intervals.icu synced successfully'
         ),
         description: t(
           'integrations.intervalsSyncDetails',
-          'Synced: {{activitiesImported}} activities ({{activitiesSkipped}} skipped), {{wellnessDays}} wellness days.',
+          'Synced: {{activitiesImported}} activities ({{activitiesSkipped}} skipped, {{activitiesFailed}} failed), {{wellnessDays}} wellness days.',
           {
             activitiesImported: data?.activitiesImported ?? 0,
             activitiesSkipped: data?.activitiesSkipped ?? 0,
+            activitiesFailed: data?.activitiesFailed ?? 0,
             wellnessDays: data?.wellnessDays ?? 0,
           }
         ),

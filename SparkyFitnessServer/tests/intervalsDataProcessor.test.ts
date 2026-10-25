@@ -69,7 +69,7 @@ describe('processIntervalsActivities', () => {
   it('maps an activity to an exercise entry keyed by the Intervals id', async () => {
     const result = await processIntervalsActivities(UID, UID, [run()], false);
 
-    expect(result).toEqual({ imported: 1, skipped: 0, removed: 0 });
+    expect(result).toEqual({ imported: 1, skipped: 0, failed: 0, removed: 0 });
     expect(exerciseRepository.createExercise).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Morning Run', category: 'Cardio' })
     );
@@ -101,7 +101,7 @@ describe('processIntervalsActivities', () => {
       false
     );
 
-    expect(result).toEqual({ imported: 0, skipped: 2, removed: 0 });
+    expect(result).toEqual({ imported: 0, skipped: 2, failed: 0, removed: 0 });
     expect(exerciseEntryRepository.createExerciseEntry).not.toHaveBeenCalled();
   });
 
@@ -116,7 +116,7 @@ describe('processIntervalsActivities', () => {
       true
     );
 
-    expect(result).toEqual({ imported: 1, skipped: 1, removed: 0 });
+    expect(result).toEqual({ imported: 1, skipped: 1, failed: 0, removed: 0 });
     // Skipped on the "Garmin is active" rule alone: nothing stored to heal against.
     expect(exerciseEntryRepository.deleteExerciseEntry).not.toHaveBeenCalled();
   });
@@ -167,7 +167,7 @@ describe('processIntervalsActivities', () => {
       false
     );
 
-    expect(result).toEqual({ imported: 1, skipped: 1, removed: 1 });
+    expect(result).toEqual({ imported: 1, skipped: 1, failed: 0, removed: 1 });
     expect(exerciseEntryRepository.deleteExerciseEntry).toHaveBeenCalledTimes(
       1
     );
@@ -198,7 +198,7 @@ describe('processIntervalsActivities', () => {
       'garmin',
       ['111', '111_0', '222', '222_0', '333', '333_0']
     );
-    expect(result).toEqual({ imported: 1, skipped: 2, removed: 0 });
+    expect(result).toEqual({ imported: 1, skipped: 2, failed: 0, removed: 0 });
     expect(
       vi.mocked(exerciseEntryRepository.createExerciseEntry).mock.calls[0]![1]
     ).toMatchObject({ source_id: 'c' });
@@ -221,12 +221,12 @@ describe('processIntervalsActivities', () => {
       'garmin',
       ['444', '444_0']
     );
-    expect(result).toEqual({ imported: 2, skipped: 1, removed: 0 });
+    expect(result).toEqual({ imported: 2, skipped: 1, failed: 0, removed: 0 });
 
     vi.clearAllMocks();
     await expect(
       processIntervalsActivities(UID, UID, uploads, true)
-    ).resolves.toEqual({ imported: 2, skipped: 1, removed: 0 });
+    ).resolves.toEqual({ imported: 2, skipped: 1, failed: 0, removed: 0 });
   });
 
   it('skips an activity that starts in the same minute as a Garmin entry', async () => {
@@ -263,7 +263,7 @@ describe('processIntervalsActivities', () => {
       '2026-10-14',
       '2026-10-14'
     );
-    expect(result).toEqual({ imported: 1, skipped: 1, removed: 0 });
+    expect(result).toEqual({ imported: 1, skipped: 1, failed: 0, removed: 0 });
     expect(
       vi.mocked(exerciseEntryRepository.createExerciseEntry).mock.calls[0]![1]
     ).toMatchObject({ source_id: 'b' });
@@ -281,7 +281,7 @@ describe('processIntervalsActivities', () => {
       false
     );
 
-    expect(result).toEqual({ imported: 1, skipped: 0, removed: 0 });
+    expect(result).toEqual({ imported: 1, skipped: 0, failed: 1, removed: 0 });
   });
 });
 

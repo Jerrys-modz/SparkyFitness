@@ -1284,9 +1284,12 @@ export const EditProviderForm = ({
               <SelectItem value="manual">
                 {t('settings.editProviderForm.manual', 'Manual')}
               </SelectItem>
-              <SelectItem value="hourly">
-                {t('settings.editProviderForm.hourly', 'Hourly')}
-              </SelectItem>
+              {/* Intervals.icu syncs once a day, so hourly would not apply. */}
+              {editData.provider_type !== 'intervals' && (
+                <SelectItem value="hourly">
+                  {t('settings.editProviderForm.hourly', 'Hourly')}
+                </SelectItem>
+              )}
               <SelectItem value="daily">
                 {t('settings.editProviderForm.daily', 'Daily')}
               </SelectItem>

@@ -1,3 +1,4 @@
+import i18n from 'i18next';
 import { ExternalDataProvider } from '@/pages/Settings/ExternalProviderSettings';
 import { apiCall, HttpApiError } from '@/api/api';
 import { DataProvider } from '@/types/settings';
@@ -659,7 +660,10 @@ const fetchIntervalsStatus = async (
 export const handleDisconnectIntervals = async (providerId?: string) => {
   if (
     !confirm(
-      'Are you sure you want to disconnect from Intervals.icu? This will deactivate the integration until you re-enable it.'
+      i18n.t(
+        'integrations.intervalsDisconnectConfirm',
+        'Are you sure you want to disconnect from Intervals.icu? This will deactivate the integration until you re-enable it.'
+      )
     )
   )
     return;

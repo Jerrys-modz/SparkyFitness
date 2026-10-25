@@ -21,11 +21,16 @@ vi.mock('../integrations/intervals/intervalsDataProcessor.js', () => ({
   default: {
     processIntervalsActivities: vi
       .fn()
-      .mockResolvedValue({ imported: 2, skipped: 1, removed: 1 }),
+      .mockResolvedValue({ imported: 2, skipped: 1, failed: 0, removed: 1 }),
     processIntervalsWellness: vi.fn().mockResolvedValue(3),
   },
 }));
 vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
+vi.mock('../utils/diagnosticLogger.js', () => ({
+  logRawResponse: vi.fn(),
+  loadRawBundle: vi.fn(),
+}));
+import { loadRawBundle, logRawResponse } from '../utils/diagnosticLogger.js';
 
 const providerRow = {
   id: 'provider-1',
@@ -71,6 +76,7 @@ describe('intervalsService.syncIntervalsData', () => {
       success: true,
       activitiesImported: 2,
       activitiesSkipped: 1,
+      activitiesFailed: 0,
       activitiesRemoved: 1,
       wellnessDays: 3,
     });
@@ -153,6 +159,66 @@ describe('intervalsService.syncIntervalsData', () => {
       intervalsService.syncIntervalsData('user-1', 'user-1')
     ).rejects.toBe(unauthorized);
     expect(intervalsErrorStatus(unauthorized)).toBe(401);
+  });
+
+  it('offers each raw response to the capture logger', async () => {
+    vi.mocked(axios.get)
+      .mockResolvedValueOnce({ data: [{ id: 'i1' }] })
+      .mockResolvedValueOnce({ data: [{ id: '2026-10-01' }] });
+
+    await intervalsService.syncIntervalsData('user-1', 'user-1', 'provider-1');
+
+    expect(logRawResponse).toHaveBeenCalledWith('intervals', 'raw_activities', [
+      { id: 'i1' },
+    ]);
+    expect(logRawResponse).toHaveBeenCalledWith('intervals', 'raw_wellness', [
+      { id: '2026-10-01' },
+    ]);
+  });
+
+  it('replays a captured bundle without calling Intervals', async () => {
+    vi.mocked(loadRawBundle).mockReturnValue({
+      responses: {
+        raw_activities: { data: [{ id: 'i9' }] },
+        raw_wellness: { data: [{ id: '2026-10-02', weight: 70 }] },
+      },
+    });
+
+    await intervalsService.syncIntervalsData(
+      'user-1',
+      'user-1',
+      'provider-1',
+      null,
+      null,
+      { dataSource: 'local' }
+    );
+
+    expect(axios.get).not.toHaveBeenCalled();
+    expect(
+      intervalsDataProcessor.processIntervalsActivities
+    ).toHaveBeenCalledWith('user-1', 'user-1', [{ id: 'i9' }], false);
+    expect(
+      intervalsDataProcessor.processIntervalsWellness
+    ).toHaveBeenCalledWith('user-1', 'user-1', [
+      { id: '2026-10-02', weight: 70 },
+    ]);
+  });
+
+  it('refuses to replay when no bundle was captured', async () => {
+    vi.mocked(loadRawBundle).mockReturnValue(null);
+
+    await expect(
+      intervalsService.syncIntervalsData(
+        'user-1',
+        'user-1',
+        undefined,
+        null,
+        null,
+        {
+          dataSource: 'local',
+        }
+      )
+    ).rejects.toThrow('Raw diagnostic bundle not found');
   });
 
   it('refuses to sync without stored credentials', async () => {

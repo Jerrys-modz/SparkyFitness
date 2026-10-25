@@ -142,7 +142,12 @@ async function processIntervalsActivities(
   createdByUserId: string,
   activities: IntervalsActivity[],
   garminActive: boolean
-): Promise<{ imported: number; skipped: number; removed: number }> {
+): Promise<{
+  imported: number;
+  skipped: number;
+  failed: number;
+  removed: number;
+}> {
   const { skip: duplicates, stale } = await findGarminDuplicates(
     userId,
     activities,
@@ -154,6 +159,7 @@ async function processIntervalsActivities(
   }
   let imported = 0;
   let skipped = 0;
+  let failed = 0;
   for (const activity of activities) {
     // Strava-sourced activities come back as empty stubs (Strava's API terms).
     if (
@@ -217,13 +223,14 @@ async function processIntervalsActivities(
       );
       imported += 1;
     } catch (error) {
+      failed += 1;
       log(
         'error',
         `[intervalsDataProcessor] Error processing activity ${activity.id}: ${errorMessage(error)}`
       );
     }
   }
-  return { imported, skipped, removed: stale.length };
+  return { imported, skipped, failed, removed: stale.length };
 }
 
 async function processIntervalsWellness(

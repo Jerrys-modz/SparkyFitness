@@ -18,8 +18,8 @@ The Intervals.icu integration imports activities and daily wellness data from [I
 1. Go to **Settings → External Providers**.
 2. Click **Add New Data Provider** and select **Intervals.icu**.
 3. Enter your **Athlete ID** and **API Key**.
-4. Click **Save**. SparkyFitness imports yesterday and today right away.
-5. To sync automatically, edit the provider and set **Sync Frequency** to anything other than **Manual**.
+4. Turn on **Activate this provider** and click **Add Provider**. SparkyFitness imports yesterday and today right away.
+5. To sync automatically, edit the provider and set **Sync Frequency** to **Daily**.
 
 ---
 
@@ -57,5 +57,5 @@ Not imported: sleep (Intervals.icu has no bedtime), nutrition, fitness/fatigue/f
 
 > [!IMPORTANT]
 > **Strictly Private**:
-> * Intervals.icu credentials and data are strictly private (`is_strictly_private = TRUE`) and are **never** shared with family or friends through account sharing permissions.
+> * Intervals.icu credentials and data are strictly private (`is_strictly_private = TRUE`) and are **never** shared with family or friends through account sharing permissions. Only the account owner can sync, view the status of, or disconnect the integration.
 > * The Athlete ID and API Key are encrypted at rest using AES-256-GCM.

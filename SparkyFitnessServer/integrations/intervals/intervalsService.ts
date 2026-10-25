@@ -9,6 +9,8 @@ import axios, { AxiosError } from 'axios';
 import { getSystemClient } from '../../db/poolManager.js';
 import { decrypt, ENCRYPTION_KEY } from '../../security/encryption.js';
 import { log } from '../../config/logging.js';
+import { setMockDataContext } from '../../utils/mockDataContext.js';
+import { loadRawBundle, logRawResponse } from '../../utils/diagnosticLogger.js';
 import { loadUserTimezone } from '../../utils/timezoneLoader.js';
 import { addDays, todayInZone } from '@workspace/shared';
 import intervalsDataProcessor, {
@@ -43,6 +45,7 @@ export interface IntervalsSyncResult {
   success: boolean;
   activitiesImported: number;
   activitiesSkipped: number;
+  activitiesFailed: number;
   activitiesRemoved: number;
   wellnessDays: number;
 }
@@ -176,8 +179,19 @@ async function syncIntervalsData(
   createdByUserId: string,
   providerId?: string,
   startDate?: string | null,
-  endDate?: string | null
+  endDate?: string | null,
+  mock: { dataSource?: string; saveMockData?: boolean } = {}
 ): Promise<IntervalsSyncResult> {
+  setMockDataContext(mock);
+  // 'local' replays the responses a capture saved instead of calling Intervals.
+  const replay =
+    mock.dataSource === 'local' ? loadRawBundle('intervals') : undefined;
+  if (replay !== undefined && !replay?.responses) {
+    throw new Error(
+      'Raw diagnostic bundle not found. Run a sync with "Sync and save ' +
+        'this sync\'s raw responses" selected first to capture one.'
+    );
+  }
   const creds = await getIntervalsCredentials(userId, providerId);
   const today = todayInZone(await loadUserTimezone(userId));
   const oldest = startDate ?? addDays(today, -1);
@@ -188,12 +202,14 @@ async function syncIntervalsData(
   );
 
   // `newest` is compared as a timestamp; without the time the last day is cut off.
-  const activities = await intervalsGet<IntervalsActivity[]>(
-    creds,
-    '/activities',
-    { oldest, newest: `${newest}T23:59:59` }
-  );
-  const { imported, skipped, removed } =
+  const activities: IntervalsActivity[] = replay
+    ? (replay.responses.raw_activities?.data ?? [])
+    : await intervalsGet<IntervalsActivity[]>(creds, '/activities', {
+        oldest,
+        newest: `${newest}T23:59:59`,
+      });
+  logRawResponse('intervals', 'raw_activities', activities);
+  const { imported, skipped, failed, removed } =
     await intervalsDataProcessor.processIntervalsActivities(
       userId,
       createdByUserId,
@@ -201,11 +217,14 @@ async function syncIntervalsData(
       await hasActiveGarminProvider(userId)
     );
 
-  const wellness = await intervalsGet<IntervalsWellness[]>(creds, '/wellness', {
-    oldest,
-    newest,
-    fields: WELLNESS_FIELDS,
-  });
+  const wellness: IntervalsWellness[] = replay
+    ? (replay.responses.raw_wellness?.data ?? [])
+    : await intervalsGet<IntervalsWellness[]>(creds, '/wellness', {
+        oldest,
+        newest,
+        fields: WELLNESS_FIELDS,
+      });
+  logRawResponse('intervals', 'raw_wellness', wellness);
   const wellnessDays = await intervalsDataProcessor.processIntervalsWellness(
     userId,
     createdByUserId,
@@ -226,12 +245,13 @@ async function syncIntervalsData(
 
   log(
     'info',
-    `[intervalsService] Intervals.icu sync done for user ${userId}: ${imported} activities imported, ${skipped} skipped, ${removed} earlier copies removed as Garmin duplicates, ${wellnessDays} wellness days.`
+    `[intervalsService] Intervals.icu sync done for user ${userId}: ${imported} activities imported, ${skipped} skipped, ${failed} failed, ${removed} earlier copies removed as Garmin duplicates, ${wellnessDays} wellness days.`
   );
   return {
     success: true,
     activitiesImported: imported,
     activitiesSkipped: skipped,
+    activitiesFailed: failed,
     activitiesRemoved: removed,
     wellnessDays,
   };

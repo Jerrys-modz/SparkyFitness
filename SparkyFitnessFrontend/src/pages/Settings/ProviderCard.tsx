@@ -311,7 +311,12 @@ export const ProviderCard = ({
         });
         break;
       case 'intervals':
-        syncIntervalsData({ providerId: provider.id, startDate, endDate });
+        syncIntervalsData({
+          providerId: provider.id,
+          startDate,
+          endDate,
+          ...mock,
+        });
         break;
     }
   };

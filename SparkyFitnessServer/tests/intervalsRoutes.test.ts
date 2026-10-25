@@ -38,6 +38,18 @@ vi.mock('../integrations/intervals/intervalsService.js', () => ({
 
 vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
 
+vi.mock('../middleware/requireSelfMiddleware.js', () => ({
+  default: (_req: express.Request, _res: express.Response, next: () => void) =>
+    next(),
+}));
+
+vi.mock('../utils/mockDataOptions.js', () => ({
+  resolveMockDataOptions: vi.fn().mockResolvedValue({
+    dataSource: undefined,
+    saveMockData: false,
+  }),
+}));
+
 vi.mock('../services/providerSyncClaim.js', async (importActual) => ({
   ...(await importActual<typeof import('../services/providerSyncClaim.js')>()),
   startProviderSync: vi.fn(async (_target, sync) => ({ running: sync() })),
@@ -63,6 +75,7 @@ describe('intervalsRoutes', () => {
         success: true,
         activitiesImported: 3,
         activitiesSkipped: 0,
+        activitiesFailed: 0,
         activitiesRemoved: 0,
         wellnessDays: 5,
       });
@@ -84,7 +97,8 @@ describe('intervalsRoutes', () => {
         USER,
         PROVIDER,
         '2026-10-01',
-        '2026-10-05'
+        '2026-10-05',
+        { dataSource: undefined, saveMockData: false }
       );
     });
 
@@ -93,6 +107,7 @@ describe('intervalsRoutes', () => {
         success: true,
         activitiesImported: 0,
         activitiesSkipped: 0,
+        activitiesFailed: 0,
         activitiesRemoved: 0,
         wellnessDays: 0,
       });
@@ -125,6 +140,14 @@ describe('intervalsRoutes', () => {
         'Invalid calendar date',
       ],
       [
+        { startDate: '2026-13-01', endDate: '2026-13-02' },
+        'Invalid calendar date',
+      ],
+      [
+        { startDate: '2020-01-01' },
+        'startDate and endDate must be sent together',
+      ],
+      [
         { startDate: '2026-10-05', endDate: '2026-10-01' },
         'startDate must be before or equal to endDate',
       ],
@@ -147,6 +170,7 @@ describe('intervalsRoutes', () => {
         success: true,
         activitiesImported: 0,
         activitiesSkipped: 0,
+        activitiesFailed: 0,
         activitiesRemoved: 0,
         wellnessDays: 0,
       });

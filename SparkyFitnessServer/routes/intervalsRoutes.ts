@@ -7,6 +7,8 @@ import { log } from '../config/logging.js';
 import { publicErrorMessage } from '../utils/errors.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 import checkPermissionMiddleware from '../middleware/checkPermissionMiddleware.js';
+import requireSelfActor from '../middleware/requireSelfMiddleware.js';
+import { resolveMockDataOptions } from '../utils/mockDataOptions.js';
 import {
   SYNC_ALREADY_RUNNING_RESPONSE,
   syncClaimTarget,
@@ -21,10 +23,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const calendarDateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
-  .refine(
-    (val) => new Date(`${val}T00:00:00Z`).toISOString().startsWith(val),
-    'Invalid calendar date'
-  );
+  .refine((val) => {
+    // An impossible date such as 2026-13-01 is an Invalid Date, whose toISOString throws.
+    const date = new Date(`${val}T00:00:00Z`);
+    return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(val);
+  }, 'Invalid calendar date');
 
 const providerIdSchema = z
   .string()
@@ -36,6 +39,13 @@ const syncBodySchema = z
     providerId: providerIdSchema,
     startDate: calendarDateSchema.nullable().optional(),
     endDate: calendarDateSchema.nullable().optional(),
+    // Developer tooling; honoured only for admins while mock data is enabled.
+    dataSource: z.string().optional(),
+    saveMockData: z.boolean().optional(),
+  })
+  .refine((d) => !d.startDate === !d.endDate, {
+    message: 'startDate and endDate must be sent together',
+    path: ['endDate'],
   })
   .refine((d) => !d.startDate || !d.endDate || d.startDate <= d.endDate, {
     message: 'startDate must be before or equal to endDate',
@@ -91,6 +101,7 @@ function badRequest(res: express.Response, error: z.ZodError) {
 router.post(
   '/sync',
   authMiddleware.authenticate,
+  requireSelfActor,
   checkPermissionMiddleware('diary'),
   async (req, res) => {
     const parsed = syncBodySchema.safeParse(req.body ?? {});
@@ -98,6 +109,10 @@ router.post(
     const userId = req.userId as string;
     const { providerId, startDate, endDate } = parsed.data;
     try {
+      const mock = await resolveMockDataOptions(
+        parsed.data,
+        req.authenticatedUserId
+      );
       const started = await startProviderSync(
         syncClaimTarget(userId, 'intervals', providerId),
         () =>
@@ -106,7 +121,8 @@ router.post(
             userId,
             providerId,
             startDate,
-            endDate
+            endDate,
+            mock
           )
       );
       if (!started) {
@@ -147,6 +163,7 @@ router.post(
 router.get(
   '/status',
   authMiddleware.authenticate,
+  requireSelfActor,
   checkPermissionMiddleware('diary'),
   async (req, res) => {
     const parsed = providerBodySchema.safeParse(req.query);
@@ -186,6 +203,7 @@ router.get(
 router.post(
   '/disconnect',
   authMiddleware.authenticate,
+  requireSelfActor,
   checkPermissionMiddleware('diary'),
   async (req, res) => {
     const parsed = providerBodySchema.safeParse(req.body ?? {});
