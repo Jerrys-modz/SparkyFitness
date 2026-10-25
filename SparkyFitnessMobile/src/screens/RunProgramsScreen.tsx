@@ -56,7 +56,6 @@ import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { formatLocalizedNumber } from '../localization';
 import type { RootStackScreenProps } from '../types/navigation';
 import { isValidTimeZone, todayInZone } from '@workspace/shared';
-import { usePreferences } from '../hooks/usePreferences';
 import { addDays, toLocalDateString } from '../utils/dateUtils';
 
 function versionHint(t: TFunction, counts: readonly number[]): string {
@@ -115,7 +114,6 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
   // Which version (3 or 4 runs a week) is picked on a card that has both.
   const [versionOf, setVersionOf] = useState<Record<string, string>>({});
   const { programs: customPrograms } = useCustomRunPrograms();
-  const { preferences } = usePreferences();
   const distanceUnit =
     (preferences?.default_distance_unit as 'km' | 'miles') ?? 'km';
   const { latest: latestTest, refetch: refetchTests } = useFitnessTests();
