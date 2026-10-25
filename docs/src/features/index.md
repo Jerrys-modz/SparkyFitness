@@ -26,6 +26,7 @@ SparkyFitness tracks the parts of your life that move your body and your health:
 - [Reports](/features/reports): charts, tables, and exports for nutrition, water, exercise, measurements, sleep, fasting, and more
 - [Measurements](/features/measurements): log body metrics and custom categories, then watch the trends
 - [Training Consistency](/features/exercises/training-consistency): how regularly you train
+- [Weekly Muscle Volume & Deload](/features/exercises/weekly-muscle-volume): hard sets per muscle against a target range, and when a lighter week helps
 - [Cycle Hub](/features/cycle-hub/): cycle tracking, trying-to-conceive, and pregnancy modes
 
 ## Manage your food & exercise library

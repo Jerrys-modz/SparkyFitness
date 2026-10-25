@@ -7,6 +7,7 @@ import {
   getTrainingConsistency,
   getFitnessFatigue,
   getRunEstimates,
+  getStrengthVolume,
   getAlcoholWeekReport,
   getHydrationNutritionRange,
   getWorkoutDays,
@@ -181,6 +182,20 @@ export const useRunEstimates = (userId?: string | null) => {
       errorMessage: t(
         'runEstimates.loadFailed',
         'Failed to load running estimates.'
+      ),
+    },
+  });
+};
+export const useStrengthVolume = (userId?: string | null) => {
+  const { t } = useTranslation();
+  return useQuery({
+    queryKey: reportKeys.strengthVolume(userId ?? undefined),
+    queryFn: () => getStrengthVolume(userId ?? undefined),
+    enabled: !!userId,
+    meta: {
+      errorMessage: t(
+        'strengthVolume.loadFailed',
+        'Failed to load weekly muscle volume.'
       ),
     },
   });

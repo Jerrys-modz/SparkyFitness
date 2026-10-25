@@ -665,6 +665,57 @@ async function getBodyWeightReadings(
     client.release();
   }
 }
+/**
+ * Daily readiness score (device training readiness) and overnight HRV for the
+ * deload suggestion. Days with neither are left out; a person with no device
+ * data gets an empty list.
+ */
+async function getRecoveryReadings(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<
+  { day: string; readinessScore: number | null; overnightHrv: number | null }[]
+> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `SELECT day,
+              MAX(readiness) AS readiness,
+              MAX(hrv) AS hrv
+         FROM (
+           SELECT TO_CHAR(entry_date, 'YYYY-MM-DD') AS day,
+                  training_readiness_score AS readiness,
+                  NULL::numeric AS hrv
+             FROM daily_health_metrics
+            WHERE user_id = $1 AND entry_date BETWEEN $2 AND $3
+           UNION ALL
+           SELECT TO_CHAR(entry_date, 'YYYY-MM-DD') AS day,
+                  NULL::numeric AS readiness,
+                  avg_overnight_hrv AS hrv
+             FROM sleep_entries
+            WHERE user_id = $1 AND entry_date BETWEEN $2 AND $3
+         ) readings
+        GROUP BY day
+       HAVING MAX(readiness) IS NOT NULL OR MAX(hrv) IS NOT NULL
+        ORDER BY day`,
+      [userId, startDate, endDate]
+    );
+    return result.rows.map(
+      (row: {
+        day: string;
+        readiness: string | number | null;
+        hrv: string | number | null;
+      }) => ({
+        day: row.day,
+        readinessScore: row.readiness === null ? null : Number(row.readiness),
+        overnightHrv: row.hrv === null ? null : Number(row.hrv),
+      })
+    );
+  } finally {
+    client.release();
+  }
+}
 async function getExerciseNames(
   userId: string,
   muscle?: string | null,
@@ -1195,6 +1246,7 @@ export { getCustomMeasurementsData };
 export { getMiniNutritionTrends };
 export { getExerciseEntries };
 export { getBodyWeightReadings };
+export { getRecoveryReadings };
 export { getExerciseNames };
 export { getDailyNutritionTotalsRange };
 export default {
@@ -1211,6 +1263,7 @@ export default {
   getRunCandidates,
   getRunSessions,
   getBodyWeightReadings,
+  getRecoveryReadings,
   getExerciseNames,
   getDailyNutritionTotalsRange,
 };

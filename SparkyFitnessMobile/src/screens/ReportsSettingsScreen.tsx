@@ -92,6 +92,10 @@ const SECTION_LABELS: Record<
     t('reportsSettings.sections.trainingConsistency', {
       defaultValue: 'Training consistency',
     }),
+  'exercise.volume': (t) =>
+    t('reportsSettings.sections.strengthVolume', {
+      defaultValue: 'Weekly muscle volume',
+    }),
   'exercise.load': (t) =>
     t('reportsSettings.sections.trainingLoad', {
       defaultValue: 'Training load',

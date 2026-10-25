@@ -6,6 +6,7 @@ import type {
   FitnessFatigueResponse,
   RunningEstimatesResponse,
   TrainingConsistency,
+  StrengthVolume,
   WorkoutDaysResponse,
 } from '@workspace/shared';
 
@@ -79,6 +80,16 @@ export const getRunEstimates = async (
   if (userId) params.append('userId', userId);
   const query = params.toString();
   return apiCall(`/reports/run-estimates${query ? `?${query}` : ''}`, {
+    method: 'GET',
+  });
+};
+export const getStrengthVolume = async (
+  userId?: string
+): Promise<StrengthVolume> => {
+  const params = new URLSearchParams();
+  if (userId) params.append('userId', userId);
+  const query = params.toString();
+  return apiCall(`/reports/strength-volume${query ? `?${query}` : ''}`, {
     method: 'GET',
   });
 };

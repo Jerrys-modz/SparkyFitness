@@ -91,6 +91,7 @@ export const EXERCISE_SECTIONS = [
   'exercise.setsPerMuscle',
   'exercise.heatMap',
   'exercise.consistency',
+  'exercise.volume',
   'exercise.load',
   'exercise.analysis',
 ] as const;

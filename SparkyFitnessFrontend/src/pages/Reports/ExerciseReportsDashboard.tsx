@@ -8,11 +8,13 @@ import {
   useTrainingConsistency,
   useFitnessFatigue,
   useRunEstimates,
+  useStrengthVolume,
   useWorkoutDays,
 } from '@/hooks/Reports/useReports';
 import TrainingConsistencyCard from './TrainingConsistencyCard';
 import FitnessFatigueCard from './FitnessFatigueCard';
 import RunEstimatesCard from './RunEstimatesCard';
+import StrengthVolumeCard from './StrengthVolumeCard';
 import MuscleGroupRecoveryTracker from './MuscleGroupRecoveryTracker';
 import { PrProgressionChart } from './PrProgressionChart';
 import ExerciseVarietyScore from './ExerciseVarietyScore';
@@ -184,6 +186,7 @@ const ExerciseReportsDashboard = ({
   const { data: trainingConsistency } = useTrainingConsistency(activeUserId);
   const { data: fitnessFatigue } = useFitnessFatigue(activeUserId);
   const { data: runEstimates } = useRunEstimates(activeUserId);
+  const { data: strengthVolume } = useStrengthVolume(activeUserId);
 
   const { data: statsSummary } = useExerciseStatsSummary(
     statsInterval,
@@ -879,6 +882,7 @@ const ExerciseReportsDashboard = ({
           <FitnessFatigueCard data={fitnessFatigue} />
           <RunEstimatesCard data={runEstimates} />
           <TrainingConsistencyCard data={trainingConsistency} />
+          <StrengthVolumeCard data={strengthVolume} />
         </div>
 
         {/* Right Side: Workout Heatmap Calendar */}
