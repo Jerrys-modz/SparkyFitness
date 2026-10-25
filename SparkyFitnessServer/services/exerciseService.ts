@@ -990,35 +990,6 @@ async function getOrCreateActiveCaloriesExercise(userId: any) {
     throw error;
   }
 }
-async function upsertExerciseEntryData(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  exerciseId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  caloriesBurned: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  date: any
-) {
-  try {
-    // @ts-expect-error TS(2554): Expected 5 arguments, but got 4.
-    const entry = await exerciseEntryDb.upsertExerciseEntryData(
-      userId,
-      exerciseId,
-      caloriesBurned,
-      date
-    );
-    return entry;
-  } catch (error) {
-    log(
-      'error',
-      `Error upserting exercise entry data for user ${userId}, exercise ${exerciseId}:`,
-      error
-    );
-    throw error;
-  }
-}
-
 interface FreeExerciseDBResult {
   totalCount: number;
   exercises: {
@@ -2735,7 +2706,6 @@ async function importExercisesFromJson(
 }
 export { getExerciseById };
 export { getOrCreateActiveCaloriesExercise };
-export { upsertExerciseEntryData };
 export { getExercisesWithPagination };
 export { searchExercises };
 export { searchExercisesPaginated };
@@ -2774,7 +2744,6 @@ export { getGroupedWorkoutSessionById };
 export default {
   getExerciseById,
   getOrCreateActiveCaloriesExercise,
-  upsertExerciseEntryData,
   getExercisesWithPagination,
   searchExercises,
   searchExercisesPaginated,
