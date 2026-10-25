@@ -1,15 +1,16 @@
 import {
-  COMPARE_METRICS,
   addDays,
   compareDays,
   daysBetween,
   daysInRange,
-  type CompareResponse,
-  type CompareSinceResponse,
-} from '@workspace/shared';
+} from '../utils/timezone.ts';
+import type {
+  CompareResponse,
+  CompareSinceResponse,
+} from '../schemas/api/Compare.api.zod.ts';
+import { COMPARE_METRICS, compareDisplayValue } from './metrics.ts';
 
-import { compareDisplayValue } from '../constants/compareMetrics';
-import type { CompareMode, CompareQuestion } from './compareQuestion';
+import type { CompareMode, CompareQuestion } from './question.ts';
 
 export interface CompareDot {
   key: string;
@@ -94,8 +95,8 @@ export function overTimeData(response: CompareResponse): {
   return {
     rows: keys.map((key, i) => ({
       key,
-      a: a[i].scaled,
-      b: b[i].scaled,
+      a: a[i]?.scaled ?? null,
+      b: b[i]?.scaled ?? null,
     })),
     aRange: rangeOf(aValues),
     bRange: rangeOf(bValues),

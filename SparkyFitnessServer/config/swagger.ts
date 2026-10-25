@@ -6,6 +6,7 @@ import {
   CHART_SCALE_MODES,
   MAX_CALORIE_SAFETY_FLOOR,
   MIN_CALORIE_SAFETY_FLOOR,
+  MAX_GOAL_MODE_WEEKLY_CHANGE_KG,
 } from '@workspace/shared';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -1237,6 +1238,30 @@ const options = {
             timezone: { type: 'string' },
             unit_system: { type: 'string', enum: ['metric', 'imperial'] },
             meal_calorie_distribution: { type: 'object' },
+            goal_mode: {
+              type: 'string',
+              enum: [
+                'maintain',
+                'recomp',
+                'cut',
+                'high_cut',
+                'lean_bulk',
+                'bulk',
+                'manual',
+                'weekly',
+              ],
+              description:
+                'Weekly uses goal_mode_weekly_change_kg; all other modes retain their percentage-based behavior.',
+            },
+            goal_mode_weekly_change_kg: {
+              type: 'number',
+              minimum: -MAX_GOAL_MODE_WEEKLY_CHANGE_KG,
+              maximum: MAX_GOAL_MODE_WEEKLY_CHANGE_KG,
+              multipleOf: 0.001,
+              default: 0,
+              description:
+                'Signed kg/week: negative loses, positive gains, zero maintains. Used only in weekly goal mode. Omitted values are unchanged on update.',
+            },
             calorie_safety_floor_mode: {
               type: 'string',
               enum: ['standard', 'custom', 'disabled'],
@@ -1494,7 +1519,17 @@ const options = {
               type: 'string',
               description: 'Display label, e.g. "Half Marathon (21.1 km)".',
             },
-            bestTimeSeconds: { type: 'number' },
+            timeBasis: {
+              type: 'string',
+              enum: ['best_split', 'activity_pace'],
+              description:
+                'How bestTimeSeconds was found. best_split: the fastest stretch of exactly the standard distance, measured inside the activity from its GPS track or distance series. activity_pace: an activity with no measured split that nearly matches the distance, scaled to it by its average pace. Absent on older servers.',
+            },
+            bestTimeSeconds: {
+              type: 'number',
+              description:
+                'Time for the standard distance itself, never a longer activity total.',
+            },
             formattedTime: {
               type: 'string',
               description: 'e.g. "1:42:15".',

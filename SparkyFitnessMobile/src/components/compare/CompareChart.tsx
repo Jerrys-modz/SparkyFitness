@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
-import type { CompareResponse } from '@workspace/shared';
+import {
+  type CompareQuestion,
+  type CompareResponse,
+  timingOf,
+} from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 
-import { timingOf, type CompareQuestion } from '../../utils/compareQuestion';
 import SegmentedControl from '../SegmentedControl';
 import CompareBars from './CompareBars';
 import CompareOverTimeChart from './CompareOverTimeChart';

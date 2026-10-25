@@ -1,24 +1,22 @@
 import {
+  bedtimeClock,
   COMPARE_METRICS,
+  compareDigits,
+  compareDisplayValue,
   type CompareMetricKey,
+  type CompareMode,
+  type CompareQuestion,
   type CompareResponse,
   type CompareResult,
-} from '@workspace/shared';
-import {
-  COMPARE_METRIC_LABELS,
-  compareDisplayValue,
+  type CompareSpan,
+  type CompareTimingChoice,
   isSleepMetric,
-} from '../constants/compareMetrics';
+  timingOf,
+} from '@workspace/shared';
+import { COMPARE_METRIC_LABELS } from '../constants/compareMetrics';
 import type { Translator } from '../constants/reports';
 import { formatLocalizedNumber } from '../localization';
 import { formatTimeLabel } from './entryTimeDisplay';
-import {
-  timingOf,
-  type CompareMode,
-  type CompareQuestion,
-  type CompareSpan,
-  type CompareTimingChoice,
-} from './compareQuestion';
 
 function lowerFirst(text: string): string {
   return text.charAt(0).toLowerCase() + text.slice(1);
@@ -409,6 +407,102 @@ function directionPhrase(
       });
 }
 
+/**
+ * The sentence after a yes/no "Yes": the habit's days against the other days, which is what
+ * the analysis compares. Not "than usual": a habit kept on most days is the usual, so its days
+ * can sit near usual while the other days fall below it.
+ */
+function differenceSentence(
+  outcomeKey: CompareMetricKey,
+  up: boolean,
+  wording: YesNoWording,
+  t: Translator
+): string {
+  const values = {
+    when: wording.when,
+    outcome: wording.outcome,
+    others: lowerFirst(wording.noLabel),
+  };
+  if (outcomeKey === 'bedtime') {
+    return up
+      ? t('compareReport.verdict.differenceLater', {
+          defaultValue: '{{when}}, {{outcome}} was later than on {{others}}.',
+          ...values,
+        })
+      : t('compareReport.verdict.differenceEarlier', {
+          defaultValue: '{{when}}, {{outcome}} was earlier than on {{others}}.',
+          ...values,
+        });
+  }
+  return up
+    ? t('compareReport.verdict.differenceHigher', {
+        defaultValue: '{{when}}, {{outcome}} was higher than on {{others}}.',
+        ...values,
+      })
+    : t('compareReport.verdict.differenceLower', {
+        defaultValue: '{{when}}, {{outcome}} was lower than on {{others}}.',
+        ...values,
+      });
+}
+
+/**
+ * A yes/no habit's difference for the bars: how far the habit's days sat from the other days,
+ * each measured against the person's own normal (the analysis's `binary.diff`). The direction
+ * word carries the sign, so the amount is unsigned.
+ */
+export function yesNoDifferenceText(
+  q: CompareQuestion,
+  binary: NonNullable<CompareResult['binary']>,
+  t: Translator
+): string {
+  const outcomeKey = binary.yesKey === q.a ? q.b : q.a;
+  const others = lowerFirst(yesNoWording(q, binary.yesKey, t).noLabel);
+  const same = () =>
+    t('compareReport.howSure.differenceSame', {
+      defaultValue:
+        'About the same as on {{others}} (each measured against your own normal)',
+      others,
+    });
+  if (outcomeKey === 'bedtime') {
+    // A bedtime difference is a span of minutes, not a time of day.
+    const minutes = Math.round(Math.abs(binary.diff));
+    if (minutes === 0) return same();
+    const diff = formatLocalizedNumber(minutes, { maximumFractionDigits: 0 });
+    return binary.diff > 0
+      ? t('compareReport.howSure.differenceLater', {
+          defaultValue:
+            '{{diff}} min later than on {{others}} (each measured against your own normal)',
+          diff,
+          others,
+        })
+      : t('compareReport.howSure.differenceEarlier', {
+          defaultValue:
+            '{{diff}} min earlier than on {{others}} (each measured against your own normal)',
+          diff,
+          others,
+        });
+  }
+  const shown = Math.abs(compareDisplayValue(outcomeKey, binary.diff));
+  if (Math.round(shown * 10) === 0) return same();
+  const diff = formatLocalizedNumber(shown, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+  return binary.diff > 0
+    ? t('compareReport.howSure.differenceHigher', {
+        defaultValue:
+          '{{diff}} higher than on {{others}} (each measured against your own normal)',
+        diff,
+        others,
+      })
+    : t('compareReport.howSure.differenceLower', {
+        defaultValue:
+          '{{diff}} lower than on {{others}} (each measured against your own normal)',
+        diff,
+        others,
+      });
+}
+
 /** A signed span of whole minutes, e.g. "+25" for a bedtime difference. */
 export function signedMinutes(value: number): string {
   return formatLocalizedNumber(value, {
@@ -613,12 +707,12 @@ export function verdictCopy(
       headline: t('compareReport.verdict.differenceHeadline', {
         defaultValue: 'Yes, a difference',
       }),
-      detail: t('compareReport.verdict.difference', {
-        defaultValue: '{{when}}, {{outcome}} was {{direction}}.',
-        when: wording.when,
-        outcome: wording.outcome,
-        direction: directionPhrase(yesKey === q.a ? q.b : q.a, diff >= 0, t),
-      }),
+      detail: differenceSentence(
+        yesKey === q.a ? q.b : q.a,
+        diff >= 0,
+        wording,
+        t
+      ),
     };
   }
 
@@ -674,24 +768,6 @@ function num(value: number, digits: number): string {
   });
 }
 
-/** Units whose values are counts or whole minutes, shown without decimals. */
-const WHOLE_UNITS: ReadonlySet<string> = new Set([
-  'steps',
-  'kcal',
-  'min',
-  'sessions',
-  'yes/no',
-]);
-const MINUTES_PER_DAY = 24 * 60;
-const BEDTIME_ORIGIN_MINUTES = 18 * 60;
-
-/** Decimals a metric is shown with: counts and minutes whole, everything else one. */
-export function compareDigits(key: CompareMetricKey): 0 | 1 {
-  return key === 'bedtime' || WHOLE_UNITS.has(COMPARE_METRICS[key].unit)
-    ? 0
-    : 1;
-}
-
 /**
  * An amount of a metric on its display scale (mood 1-10): counts and minutes
  * whole, everything else to one decimal. Bedtime here is a span of whole
@@ -716,11 +792,7 @@ export function compareAmountText(
  */
 export function compareValueText(key: CompareMetricKey, value: number): string {
   if (key === 'bedtime') {
-    const minutes =
-      (((BEDTIME_ORIGIN_MINUTES + Math.round(value)) % MINUTES_PER_DAY) +
-        MINUTES_PER_DAY) %
-      MINUTES_PER_DAY;
-    const clock = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+    const clock = bedtimeClock(value);
     return formatTimeLabel(clock) ?? clock;
   }
   return compareAmountText(key, value);

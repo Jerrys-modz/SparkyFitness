@@ -7,8 +7,10 @@ import type {
   FoodPhotoEstimateResponse,
   FoodPhotoLogItem,
   IndividualSessionResponse,
+  MedicationEntry,
   MindfulnessSessionResponse,
   PresetSessionResponse,
+  RaceDistance,
   SharedPregnancy,
   WorkoutFormat,
 } from '@workspace/shared';
@@ -88,7 +90,7 @@ export type RootStackParamList = {
   RunPrograms: undefined;
   RunProgramCalendar: undefined;
   RunProgramWorkout: { index: number };
-  RunProgramRace: undefined;
+  RunProgramRace: { distance?: RaceDistance; raceDay?: string } | undefined;
   RunProgramEdit: { id?: string; fromProgramId?: string } | undefined;
   PersonalRecords: undefined;
   Routes: undefined;
@@ -210,6 +212,7 @@ export type RootStackParamList = {
   NutritionReport: undefined;
   SleepAnalytics: undefined;
   MoodReport: undefined;
+  HeartRateReport: undefined;
   CompareReport: undefined;
   CardioSession: {
     session: ExerciseActivityQueryItem;
@@ -420,6 +423,8 @@ export type RootStackParamList = {
   About: undefined;
   WhatsNew: undefined;
   MedicationsList: undefined;
+  MedicationAdherence: undefined;
+  MedicationEntryEdit: { entry: MedicationEntry };
   MedicationDetail: { medicationId: string };
   MedicationForm: {
     medicationId?: string;

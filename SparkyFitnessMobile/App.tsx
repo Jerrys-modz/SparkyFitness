@@ -132,6 +132,7 @@ import {
   SafeNutritionReport,
   SafeSleepAnalytics,
   SafeMoodReport,
+  SafeHeartRateReport,
   SafeCompareReport,
   SafeHydrationReport,
   SafeSubstancesReport,
@@ -151,6 +152,8 @@ import {
   SafeCycleLogModal,
   SafePregnancySetup,
   SafeMedicationsList,
+  SafeMedicationAdherence,
+  SafeMedicationEntryEdit,
   SafeMedicationDetail,
   SafeMedicationForm,
   SafeMedicationScheduleForm,
@@ -878,6 +881,11 @@ function AppContent() {
             options={createStackScreenOptions(t('screens.moodReport', { defaultValue: 'Mood' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
+            name="HeartRateReport"
+            component={SafeHeartRateReport}
+            options={createStackScreenOptions(t('screens.heartRateReport', { defaultValue: 'Heart Rate' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
             name="CompareReport"
             component={SafeCompareReport}
             options={createStackScreenOptions(t('screens.compareReport', { defaultValue: 'Compare' }), { headerBackButtonDisplayMode: 'minimal' })}
@@ -1218,6 +1226,20 @@ function AppContent() {
             name="MedicationsList"
             component={SafeMedicationsList}
             options={createStackScreenOptions(t('screens.medications', { defaultValue: 'Medications' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
+            name="MedicationAdherence"
+            component={SafeMedicationAdherence}
+            options={createStackScreenOptions(t('medications.adherence.screenTitle', { defaultValue: 'Adherence' }), { headerBackTitle: t('screens.medications', { defaultValue: 'Medications' }) })}
+          />
+          <Stack.Screen
+            name="MedicationEntryEdit"
+            component={SafeMedicationEntryEdit}
+            options={createStackScreenOptions(t('medications.entryEdit.title', { defaultValue: 'Edit logged dose' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
           />
           <Stack.Screen
             name="MedicationDetail"

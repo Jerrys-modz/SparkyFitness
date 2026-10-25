@@ -46,22 +46,21 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 /**
  * Exponentially weighted fitness (42-day) and fatigue (7-day) from daily load,
  * the same model behind most fitness / fatigue / form charts. Pure; `today` and
- * the days are local YYYY-MM-DD. Days with no session count as zero load.
+ * the days are local YYYY-MM-DD. `zoneFloors` are the person's resolved heart rate zone floors, the same ones the training load uses. Days with no session count as zero load.
  */
 export function computeFitnessFatigue(
   sessions: readonly LoadSession[],
   today: string,
-  maxHeartRate: number = FALLBACK_MAX_HR,
+  zoneFloors: readonly number[] = percentMaxFloors(FALLBACK_MAX_HR),
   days: number = CURVE_DAYS
 ): FitnessFatigue {
   const first = addDays(today, -(days - 1));
-  const floors = percentMaxFloors(maxHeartRate);
   const daily = new Array<number>(days).fill(0);
   let earliest: string | null = null;
   for (const session of sessions) {
     if (session.day < first || session.day > today) continue;
     const index = daysBetween(first, session.day);
-    daily[index] = (daily[index] ?? 0) + sessionLoad(session, floors);
+    daily[index] = (daily[index] ?? 0) + sessionLoad(session, zoneFloors);
     if (earliest === null || session.day < earliest) earliest = session.day;
   }
   if (earliest === null) return { points: [], today: null, status: 'noData' };

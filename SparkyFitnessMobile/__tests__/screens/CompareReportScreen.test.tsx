@@ -2,9 +2,11 @@ import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import {
   addDays,
+  type CompareQuestion,
   type CompareResponse,
   type CompareSinceResponse,
   type CompareSinceResult,
+  compareWindow,
 } from '@workspace/shared';
 
 import CompareReportScreen from '../../src/screens/CompareReportScreen';
@@ -14,10 +16,6 @@ import {
 } from '../../src/stores/appPreferencesStore';
 import { initializeI18n } from '../../src/localization/i18n';
 import { getTodayDate } from '../../src/utils/dateUtils';
-import {
-  compareWindow,
-  type CompareQuestion,
-} from '../../src/utils/compareQuestion';
 
 const mockUseCompare = jest.fn();
 const mockUseCompareSince = jest.fn();

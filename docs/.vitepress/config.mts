@@ -66,6 +66,7 @@ export default defineConfig({
         items: [
           { text: 'Feature Comparison', link: '/features/comparison' },
           { text: 'Diary & Nutrition', link: '/features/diary/meals' },
+          { text: 'Reports', link: '/features/reports' }, 
           { text: 'Exercise Logging', link: '/features/exercises/exercise-search' },
           { text: 'Food Database', link: '/features/food/food-search' },
           { text: 'AI Nutrition Assistant', link: '/features/ai-assistant' },
@@ -122,6 +123,7 @@ export default defineConfig({
             { text: 'Feature Comparison', link: '/features/comparison' },
             { text: 'Features Index', link: '/features/' },
             { text: 'Check-in', link: '/features/check-in' },
+            { text: 'Medications & Supplements', link: '/features/medications' },
             { text: 'Reports', link: '/features/reports' },
             { text: 'Goals', link: '/features/goals' },
             { text: 'Family & Friends Sharing', link: '/features/family-friends-sharing' },
@@ -221,6 +223,7 @@ export default defineConfig({
           text: 'Mobile Application',
           items: [
             { text: 'Mobile App Guide', link: '/mobile-app/mobile-app' },
+            { text: 'Watch Apps (Apple Watch & Wear OS)', link: '/mobile-app/watch-apps' },
             { text: 'Proxy Setup', link: '/mobile-app/proxy-setup' },
             { text: 'Troubleshooting', link: '/mobile-app/troubleshooting' },
           ],
@@ -263,6 +266,7 @@ export default defineConfig({
             { text: 'Exercise MCP', link: '/developer/mcp/exercise' },
             { text: 'Check-in MCP', link: '/developer/mcp/checkin' },
             { text: 'Coach MCP', link: '/developer/mcp/coach' },
+            { text: 'Compare MCP', link: '/developer/mcp/compare' },
             { text: 'Engagement MCP', link: '/developer/mcp/engagement' },
             { text: 'Vision MCP', link: '/developer/mcp/vision' },
           ],

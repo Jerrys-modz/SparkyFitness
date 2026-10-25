@@ -5,12 +5,12 @@ import {
   COMPARE_METRICS,
   type CompareMetricKey,
   type CompareSinceResponse,
+  sinceStartBounds,
 } from '@workspace/shared';
 
 import BottomSheetPicker from '../BottomSheetPicker';
 import CalendarSheet, { type CalendarSheetRef } from '../CalendarSheet';
 import { compareValueText, metricName } from '../../utils/compareCopy';
-import { sinceStartBounds } from '../../utils/compareQuestion';
 import { sinceLineOptions } from '../../utils/compareSinceLine';
 import { formatDateWithYear } from '../../utils/dayLabel';
 

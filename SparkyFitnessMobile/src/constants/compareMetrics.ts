@@ -1,11 +1,11 @@
 import {
-  COMPARE_METRICS,
   COMPARE_METRIC_KEYS,
+  COMPARE_METRICS,
   type CompareMetricDef,
   type CompareMetricKey,
+  type CompareMode,
 } from '@workspace/shared';
 import type { PickerSection } from '../components/BottomSheetPicker';
-import type { CompareMode } from '../utils/compareQuestion';
 import type { Translator } from './reports';
 
 export const COMPARE_GROUP_LABELS: Record<
@@ -93,18 +93,6 @@ export const COMPARE_METRIC_LABELS: Record<
     t('compareReport.metrics.weightTrend', { defaultValue: 'Weight trend' }),
   steps: (t) => t('compareReport.metrics.steps', { defaultValue: 'Steps' }),
 };
-
-export function isSleepMetric(key: CompareMetricKey): boolean {
-  return COMPARE_METRICS[key].group === 'sleep';
-}
-
-/** Mood is stored 10-100 and shown 1-10; every other metric shows as stored. */
-export function compareDisplayValue(
-  key: CompareMetricKey,
-  value: number
-): number {
-  return key === 'mood' ? value / 10 : value;
-}
 
 export function compareMetricSections(
   t: Translator,

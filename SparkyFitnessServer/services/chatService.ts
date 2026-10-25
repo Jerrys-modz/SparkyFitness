@@ -1822,7 +1822,7 @@ const KEYWORD_RULES: { category: ChatToolCategorySlug; keywords: RegExp }[] = [
   {
     category: 'reports',
     keywords:
-      /\b(report|reports|summar(?:y|ies|ize|ise|ized|ised|izing)|progress|tdee|chart|charts|analytics|recap|overview|trends?|graphs?|stats?|statistics|analy(?:ze|sis|tics)|averages?|compare|comparison|how (?:am|did|was|have) i|dashboard|daily\s+summary|calorie\s+balance|calories\s+remaining|net\s+calories)\b/i,
+      /\b(report|reports|summar(?:y|ies|ize|ise|ized|ised|izing)|progress|tdee|chart|charts|analytics|recap|overview|trends?|graphs?|stats?|statistics|analy(?:ze|sis|tics)|averages?|compare|comparison|correlat\w*|how (?:am|did|was|have) i|dashboard|daily\s+summary|calorie\s+balance|calories\s+remaining|net\s+calories)\b/i,
   },
   {
     category: 'coaching',
@@ -1949,7 +1949,7 @@ Available domains:
 - food: logging meals, lookup foods/nutrition, tracking water intake, favorites, meal plans, custom nutrients, water containers, allergens, and barcode lookup.
 - checkin: logging daily check-ins, weight, height, body fat, other body measurements, progress photos, and sleep-science analytics.
 - goals: viewing or changing goals/targets.
-- reports: viewing progress charts, summaries, TDEE, reports, or the daily dashboard.
+- reports: viewing progress charts, summaries, TDEE, reports, the daily dashboard, whether two tracked things go together (e.g. does sleep go with mood), or whether something changed since a habit started.
 - coaching: general coaching advice, guidance, tips, or motivation.
 - vision: analyzing food photos or scanning nutrition labels.
 - profile: changing settings, preferences, timezone, habits, profile details, connected integrations, or synced-data.

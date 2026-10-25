@@ -643,6 +643,7 @@
     "hydrationReport": "Hydration",
     "measurementsReport": "Measurements",
     "substancesReport": "Caffeine and alcohol",
+    "heartRateReport": "Heart Rate",
     "runSummary": "Activity saved",
     "runPrograms": "Training programs",
     "personalRecords": "Personal records",
@@ -1049,6 +1050,7 @@
       "percentageWithBmr": "Goal − Eaten + BMR + {{percentage}}% of Exercise",
       "percentage": "Goal − Eaten + {{percentage}}% of Exercise",
       "tdee": "Projected TDEE × Goal Mode − Eaten",
+      "tdeeWeekly": "Projected TDEE + Weekly Goal Adjustment − Eaten",
       "adaptive": "Goal − Eaten",
       "fixed": "Goal − Eaten"
     },
@@ -1056,11 +1058,13 @@
       "dynamic": "Goal grows as you move",
       "tdee": "The projection converges with the device total at midnight",
       "adaptive": "Goal = Adaptive TDEE",
+      "adaptiveWeekly": "Goal = Adaptive TDEE + Weekly Goal Adjustment",
       "fixed": "Activity does not change your budget"
     },
     "externalFormula": "formula",
     "goalMode": {
       "title": "Goal Mode",
+      "weekly": "Weekly weight change",
       "description": "Adjusts your calorie target for maintenance, a deficit, or a surplus.",
       "deviceProjectionDescription": "This percentage is applied directly to the projected device TDEE.",
       "maintain": "Maintain (0%)",
@@ -1085,6 +1089,27 @@
       "standardDescription": "Uses the higher of your estimated RMR and the clinical minimum.",
       "customDescription": "Replaces the standard floor with your chosen minimum. Health recommendations remain visible.",
       "disabledDescription": "Stops automatic target clamping. Health warnings remain visible."
+    },
+    "weeklyGoal": {
+      "description": "Choose how much weight you want to lose or gain each week, or keep your weight stable.",
+      "direction": "Weight goal",
+      "maintain": "Keep weight stable",
+      "lose": "Lose weight",
+      "gain": "Gain weight",
+      "rate": "Weight change per week",
+      "amount": "Weekly weight change amount",
+      "amountHint": "Enter a positive amount. The selected weight goal sets the direction.",
+      "unit": "Weekly rate unit",
+      "kilograms": "kg",
+      "grams": "g",
+      "pounds": "lb",
+      "stonePounds": "st / lb",
+      "stones": "st",
+      "poundsAmount": "Weekly weight change pounds",
+      "poundsHint": "Enter the remaining pounds, from 0 to less than 14.",
+      "invalidRate": "Enter a rate above 0 and up to {{max}} kg per week.",
+      "dailyAdjustment": "Estimated daily adjustment: {{sign}}{{amount}} {{unit}}",
+      "estimateHint": "Your weekly goal is converted to a daily calorie adjustment. This is an estimate; your configured safety floor may limit weight loss."
     },
     "useExternalBmr": "Use measured BMR from check-ins and synced devices",
     "useExternalBmrHint": "Off by default — your chosen formula is always used until you turn this on. When enabled, a BMR recorded on a check-in or synced from a smart scale or health provider replaces the formula for that day, provided it is physiologically plausible for you.",
@@ -1665,6 +1690,117 @@
         "right_hip": "Right Hip",
         "unknown": "Unknown"
       }
+    },
+    "adherence": {
+      "screenTitle": "Adherence",
+      "openTitle": "Adherence & log",
+      "openSubtitle": "Checklist, streaks, month calendar and dose history",
+      "openA11y": "Open adherence overview and dose log",
+      "title": "Adherence overview",
+      "loading": "Loading adherence...",
+      "loadFailed": "Failed to load adherence.",
+      "noMedications": "Add a medication to start tracking adherence.",
+      "dosesToday": "Doses today",
+      "doses": "Doses",
+      "windowAdherence_one": "{{count}}-day adherence",
+      "windowAdherence_other": "{{count}}-day adherence",
+      "perfectDays_one": "Perfect days ({{count}}d)",
+      "perfectDays_other": "Perfect days ({{count}}d)",
+      "ringA11y_one": "{{pct}} percent adherence over {{count}} day",
+      "ringA11y_other": "{{pct}} percent adherence over {{count}} days",
+      "ringLabel_one": "{{count}}-day",
+      "ringLabel_other": "{{count}}-day",
+      "lastDays_one": "Last {{count}} day",
+      "lastDays_other": "Last {{count}} days",
+      "streak_one": "{{count}}-day streak",
+      "streak_other": "{{count}}-day streak",
+      "barPrn_one": "{{date}}: {{count}} as-needed dose",
+      "barPrn_other": "{{date}}: {{count}} as-needed doses",
+      "barNone": "{{date}}: no doses",
+      "barTaken": "{{date}}: {{taken}} of {{due}} taken",
+      "viewingDate": "Viewing {{date}}",
+      "backToToday": "Back to today"
+    },
+    "checklist": {
+      "titleToday": "Today's Checklist",
+      "title": "Medication Checklist",
+      "noneToday": "No scheduled doses for today.",
+      "noneDay": "No scheduled doses for this day.",
+      "loggedToday_one": "{{completed}} of {{count}} dose logged today.",
+      "loggedToday_other": "{{completed}} of {{count}} doses logged today.",
+      "loggedDay_one": "{{completed}} of {{count}} dose logged for this day.",
+      "loggedDay_other": "{{completed}} of {{count}} doses logged for this day."
+    },
+    "today": {
+      "dueToday": "Due today",
+      "asNeeded": "As needed",
+      "medicationsTitle": "Today's medications",
+      "medicationsTitleDay": "Medications",
+      "supplementsTitle": "Today's supplements",
+      "supplementsTitleDay": "Supplements",
+      "dueDay": "Due",
+      "noMedicationDoses": "No scheduled doses today, log any medication as-needed below.",
+      "noSupplementDoses": "No scheduled doses today, log any supplement as-needed below.",
+      "noMedicationDosesDay": "No scheduled doses on this day, log any medication as-needed below.",
+      "noSupplementDosesDay": "No scheduled doses on this day, log any supplement as-needed below.",
+      "noPrnMedications": "No as-needed or non-scheduled medications configured.",
+      "noPrnSupplements": "No as-needed or non-scheduled supplements configured.",
+      "loggedActivity": "Logged today",
+      "loggedActivityDescription": "Everything you've taken or skipped on this date.",
+      "loadingHistory": "Loading history…",
+      "prnTaken": "As needed",
+      "snoozed": "Snoozed"
+    },
+    "calendar": {
+      "title": "Medication Log Calendar",
+      "titleAll": "Log Calendar",
+      "titleSupplements": "Supplement Log Calendar",
+      "empty": "Add a medication to see its log calendar here.",
+      "filterTitle": "Show",
+      "allEntries": "All",
+      "allMedications": "All medications",
+      "allSupplements": "All supplements",
+      "monthTotal_one": "{{count}} dose logged in {{month}}",
+      "monthTotal_other": "{{count}} doses logged in {{month}}",
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "allTaken": "All doses taken",
+      "partialTaken": "Partially taken",
+      "mostlySkipped": "Mostly skipped",
+      "allSkipped": "All doses skipped",
+      "snoozedOnly": "Snoozed only",
+      "sideEffect": "Side-effect symptom",
+      "generalSymptom": "General symptom",
+      "tooltipTaken_one": "{{count}} taken",
+      "tooltipTaken_other": "{{count}} taken",
+      "tooltipPrn_one": "{{count}} as needed",
+      "tooltipPrn_other": "{{count}} as needed",
+      "tooltipSkipped_one": "{{count}} skipped",
+      "tooltipSkipped_other": "{{count}} skipped",
+      "tooltipSnoozed_one": "{{count}} snoozed",
+      "tooltipSnoozed_other": "{{count}} snoozed",
+      "tooltipSymptoms": "Symptoms: {{names}}"
+    },
+    "dayLog": {
+      "titleDay": "Logged on {{date}}",
+      "empty": "Nothing logged for this day.",
+      "unknownMedication": "Medication",
+      "editA11y": "Edit {{name}}",
+      "deleteA11y": "Delete {{name}}",
+      "deleteTitle": "Delete entry",
+      "deleteMessage": "Delete this logged dose of {{name}}?",
+      "deleted": "{{name}} entry deleted",
+      "deleteFailed": "Failed to delete {{name}} entry"
+    },
+    "entryEdit": {
+      "title": "Edit logged dose",
+      "takenAt": "Taken at",
+      "setTime": "Set time",
+      "status": "Status",
+      "noSite": "No site",
+      "saved": "Dose updated",
+      "saveFailed": "Failed to save: {{error}}",
+      "site": "Injection site"
     }
   },
   "scheduleSummary": {
@@ -4002,6 +4138,32 @@
       "deleteWorkout": "Delete Workout"
     }
   },
+  "calorieLink": {
+    "action": "Link a synced workout",
+    "linked": "Linked to a synced workout",
+    "title": "Link a synced workout",
+    "description": "If a watch or health app recorded this session too, link the two so its calories count once. Both estimates are kept.",
+    "loading": "Looking for synced workouts...",
+    "loadError": "Could not load synced workouts.",
+    "none": "No synced workouts found for this day.",
+    "workoutFallback": "Workout",
+    "minutes": "{{value}} min",
+    "calories": "{{value}} cal",
+    "sameSession": "Same session",
+    "sameTime": "Overlaps in time",
+    "countHeading": "Count in the daily total",
+    "sparkyfitness": "This workout ({{value}})",
+    "synced": "The synced workout ({{value}})",
+    "higher": "The higher of the two ({{value}})",
+    "lower": "The lower of the two ({{value}})",
+    "average": "The average ({{value}})",
+    "custom": "A custom total",
+    "customLabel": "Total for the session (cal)",
+    "link": "Link workouts",
+    "unlink": "Unlink",
+    "linkError": "Failed to link the workouts.",
+    "unlinkError": "Failed to unlink the workouts."
+  },
   "activityDetail": {
     "errors": {
       "saveFailed": "Failed to save activity"
@@ -4011,6 +4173,7 @@
       "calories": "Calories",
       "distance": "Distance",
       "avgHeartRate": "Avg Heart Rate",
+      "caloriesCounted": "Counted in daily total",
       "steps": "Steps",
       "pace": "Pace",
       "effort": "Effort"
@@ -4997,6 +5160,13 @@
     },
     "allTrendsHidden": "All graphs are hidden. Choose which to show in Dashboard Settings.",
     "noTrendData": "No data to graph yet.",
+    "heartRate": {
+      "title": "Resting Heart Rate",
+      "avgLabel": "AVG",
+      "rangeLabel": "RANGE",
+      "loadFailed": "Failed to load heart rate data",
+      "empty": "No heart rate data for this period"
+    },
     "vo2max": {
       "title": "VO2 max",
       "estimateTitle": "VO2 max (estimated)",
@@ -6378,7 +6548,8 @@
     "estimatedTimes": "Some dose times were estimated",
     "legendCurve": "Active caffeine",
     "legendThreshold": "{{threshold}}mg threshold",
-    "unitMg": "mg"
+    "unitMg": "mg",
+    "tomorrow": "Tomorrow"
   },
   "guidedWorkout": {
     "cue": {
@@ -6575,6 +6746,7 @@
       },
       "kilometersAxis": "Kilometers from start",
       "milesAxis": "Miles from start",
+      "splits": "Splits",
       "bestPace": "Best {{value}}",
       "perKm": "/km",
       "perMile": "/mi",
@@ -7054,6 +7226,13 @@
     "currentPace": "Pace",
     "elevationGain": "Elevation gain",
     "splits": "Splits",
+    "splitsTable": {
+      "km": "Km",
+      "mi": "Mi",
+      "pace": "Pace",
+      "elev": "Elev",
+      "hr": "HR"
+    },
     "laps": "Laps",
     "lap": "Lap",
     "lapLabel": "Lap {{number}}",
@@ -7199,7 +7378,8 @@
       "switchMessage": "You will start the new program at week 1. Your place in the current one is not kept.",
       "switchConfirm": "Switch",
       "startDayPast": "Started {{date}}. Your next workout is scheduled from today.",
-      "customWorkoutLabel": "{{name}} · {{workout}}"
+      "customWorkoutLabel": "{{name}} · {{workout}}",
+      "goalUseRaceDay": "Use race day ({{date}})"
     },
     "watch": {
       "title": "Record with",
@@ -7452,7 +7632,33 @@
     "substances": "Caffeine and alcohol",
     "substancesSubtitle": "Daily caffeine, alcohol totals and week by week",
     "compare": "Compare",
-    "compareSubtitle": "How two things move together"
+    "compareSubtitle": "How two things move together",
+    "heartRate": "Heart Rate",
+    "heartRateSubtitle": "Resting HR trends and zone distribution",
+    "details": "View report details",
+    "heartRateChangeVsPrevious": "{{change}} bpm vs previous period",
+    "averageRestingHr": "Average Resting Heart Rate",
+    "restingHrRange": "Resting HR Range",
+    "heartRateRecovery1Min": "1-Min Recovery",
+    "heartRateRecoveryHint": "Heart rate drop 1 minute post-exercise",
+    "recordedDays": "Recorded Days",
+    "daysRatio": "{{daysWithData}} of {{totalDays}} days",
+    "heartRateLoadFailed": "Failed to load heart rate data",
+    "heartRateEmpty": "No heart rate data recorded for this period",
+    "restingHeartRateTrend": "Resting Heart Rate Trend",
+    "heartRateZones": "Heart Rate Intensity Zones",
+    "zoneLight": "Light",
+    "zoneLightRange": "< {{max}} bpm · Warm-up & active recovery",
+    "zoneModerate": "Moderate",
+    "zoneModerateRange": "{{min}} - {{max}} bpm · Aerobic & fat burn",
+    "zoneVigorous": "Vigorous",
+    "zoneVigorousRange": "{{min}} - {{max}} bpm · Cardio endurance",
+    "zonePeak": "Peak",
+    "zonePeakRange": "{{min}}+ bpm · Maximum effort & anaerobic",
+    "heartRateSummary": "Heart Rate Summary",
+    "heartRateInsights": "Resting Heart Rate Insights",
+    "insightAthletic": "Your average resting heart rate is in the athletic range (<60 bpm), reflecting strong cardiovascular efficiency.",
+    "insightNormal": "A typical healthy adult resting heart rate ranges from 60 to 100 bpm. Lower rates generally reflect higher cardiovascular fitness."
   },
   "nutritionReport": {
     "title": "Nutrition",
@@ -7637,7 +7843,9 @@
       "caffeineSummary": "Caffeine summary",
       "alcoholChart": "Alcohol chart",
       "alcoholSummary": "Alcohol summary",
-      "substancesWeekly": "Week by week"
+      "substancesWeekly": "Week by week",
+      "restingHrChart": "Resting heart rate chart",
+      "heartRateZones": "Intensity zones"
     },
     "hydrationSections": "Hydration report",
     "measurementsSections": "Measurements report",
@@ -7645,7 +7853,8 @@
     "nutrientsDescription": "Pick the vitamins, minerals and other nutrients the Nutrition report averages under Your nutrients, and drag to set their order. Custom nutrients are included.",
     "nutrientReorderHint": "Changes where this nutrient sits in the report",
     "substancesSections": "Caffeine and alcohol report",
-    "exerciseSections": "Exercise report"
+    "exerciseSections": "Exercise report",
+    "heartRateSections": "Heart rate report"
   },
   "hydrationReport": {
     "title": "Hydration",
@@ -7898,6 +8107,38 @@
       "setUp": "Set up a program"
     },
     "partOfProgram": "Part of your training program",
+    "goals": {
+      "title": "Running goals",
+      "intro": "Set a weekly distance to aim for and a race to count down to.",
+      "set": "Set a goal",
+      "edit": "Edit",
+      "none": "None",
+      "unit": {
+        "km": "km",
+        "miles": "mi"
+      },
+      "weeklyLabel": "Weekly distance ({{unit}})",
+      "weeklyProgress": "{{done}} of {{target}} {{unit}} this week",
+      "weeklyReached": "Weekly goal reached",
+      "weeklyNeeded_one": "{{amount}} {{unit}} today to reach it ({{count}} day left)",
+      "weeklyNeeded_other": "About {{amount}} {{unit}} a day to reach it ({{count}} days left)",
+      "raceNameLabel": "Race name",
+      "raceDefaultName": "Race day",
+      "raceDistanceLabel": "Race distance ({{unit}})",
+      "raceDateLabel": "Race day",
+      "pickDate": "Pick a date",
+      "clearRace": "Remove race",
+      "raceToday": "Race day is today",
+      "raceIn_one": "{{count}} day to go",
+      "raceIn_other": "{{count}} days to go",
+      "racePast_one": "{{count}} day ago",
+      "racePast_other": "{{count}} days ago",
+      "errors": {
+        "distance": "Enter a distance above zero, or leave it empty.",
+        "raceDay": "Pick the race day, or clear the race name and distance.",
+        "save": "Could not save your goals. Please try again."
+      }
+    },
     "openCalendar": "Open the program calendar",
     "openCalendarHint": "Every workout on a month view",
     "monthGrid": {
@@ -8049,6 +8290,52 @@
       "tooFewDays": "Pick at least two days to run.",
       "create": "Create and start the plan",
       "open": "Plan a race"
+    },
+    "realign": {
+      "title": "Realign your plan",
+      "titleMore": "You have time to spare",
+      "titleTight": "Your goal date is too tight",
+      "titleForced": "Continue anyway",
+      "intro": "You have missed some time. Realigning rebuilds the rest of your plan so you still finish on your goal date, keeping your long runs, the taper and the final workout.",
+      "introMore": "You have more days before your goal than workouts. Repeating some base weeks gives you a steadier build and still ends on your goal date.",
+      "introForced": "This drops as many workouts as it takes to end on your goal date. It is a lot to skip, so the build will be thinner than planned. The taper and the final workout are still kept.",
+      "what": "week {{week}}, run {{run}} · {{minutes}} min",
+      "before_one": "Now: {{count}} workout left, ending {{date}}.",
+      "before_other": "Now: {{count}} workouts left, ending {{date}}.",
+      "after_one": "After: {{count}} workout, ending {{date}}.",
+      "after_other": "After: {{count}} workouts, ending {{date}}.",
+      "changes": "What changes",
+      "changesMore": "What it adds",
+      "change": {
+        "droppedRepeat": "Drop {{what}}: it repeats another run that week",
+        "droppedShortest": "Drop {{what}}: the shortest run of that week",
+        "merged": "Fold {{what}} into the next week: a lighter week joins it",
+        "added": "Do {{what}} again, as an extra base week",
+        "repeated": "Repeat {{what}}"
+      },
+      "eased_one": "You have been away {{days}} days, so the running in your next {{count}} workout is eased by {{percent}}%.",
+      "eased_other": "You have been away {{days}} days, so the running in your next {{count}} workouts is eased by {{percent}}%.",
+      "kept": "The taper and the final workout stay exactly as they are.",
+      "spare_one": "{{count}} workout day before your goal stays empty: only so much is added at once.",
+      "spare_other": "{{count}} workout days before your goal stay empty: only so much is added at once.",
+      "accept": "Realign plan",
+      "notNow": "Not now",
+      "back": "Back",
+      "done": "Your plan was realigned",
+      "error": "Could not realign your plan",
+      "tight_one": "Only {{count}} workout day is left before your goal date and {{left}} workouts remain.",
+      "tight_other": "Only {{count}} workout days are left before your goal date and {{left}} workouts remain.",
+      "reason": {
+        "noTimeLeft": "There is no workout day left before your goal date.",
+        "taperDoesNotFit": "There is no longer room for the taper and the final workout.",
+        "tooMuchToDrop": "Fitting everything in would mean dropping a lot of your build.",
+        "tooFewWeeks_one": "{{count}} week is too short a build for this race.",
+        "tooFewWeeks_other": "{{count}} weeks is too short a build for this race."
+      },
+      "choose": "Nothing changes until you choose:",
+      "later": "Move my goal to {{date}}",
+      "lower": "Plan a {{distance}} instead",
+      "continue": "Continue anyway"
     }
   },
   "speechVoice": {
@@ -8366,6 +8653,24 @@
     "useMyLocation": "My location",
     "turnCount_one": "{{count}} turn",
     "turnCount_other": "{{count}} turns",
+    "style": {
+      "title": "Route style",
+      "surface": "Surface",
+      "hills": "Hills",
+      "any": "Any",
+      "trails": "Trails",
+      "roads": "Roads",
+      "flat": "Flatter",
+      "hilly": "Hillier",
+      "avoidSteps": "Avoid steps",
+      "avoidBusyRoads": "Avoid busy roads"
+    },
+    "option": {
+      "title": "Option {{n}}",
+      "flatter": "Flatter",
+      "moreTrail": "More trail",
+      "shorter": "Shorter"
+    },
     "followRoads": "Follow roads",
     "followRoadsNeedsProvider": "A routing provider is needed. Add one in Settings > External Providers on the web app.",
     "followRoadsUnrouted": "Stretches without a road line show straight. Retry, or turn off Follow roads to save them straight.",
@@ -8553,7 +8858,10 @@
       "noLinkDetail": "Over these {{n}}, they didn't move together more than chance would explain.",
       "longerSpan": "A longer span makes a weak link easier to see.",
       "differenceHeadline": "Yes, a difference",
-      "difference": "{{when}}, {{outcome}} was {{direction}}.",
+      "differenceHigher": "{{when}}, {{outcome}} was higher than on {{others}}.",
+      "differenceLower": "{{when}}, {{outcome}} was lower than on {{others}}.",
+      "differenceLater": "{{when}}, {{outcome}} was later than on {{others}}.",
+      "differenceEarlier": "{{when}}, {{outcome}} was earlier than on {{others}}.",
       "noDifferenceHeadline": "No clear difference",
       "noDifferenceDetail": "Over these {{n}}, your {{outcome}} wasn't different enough between the two kinds of day to rule out chance.",
       "tooFewHeadline": "Not enough days yet",
@@ -8674,9 +8982,7 @@
       "meanAndDays_one": "{{mean}} · {{count}} day",
       "meanAndDays_other": "{{mean}} · {{count}} days",
       "meanAndNights_one": "{{mean}} · {{count}} night",
-      "meanAndNights_other": "{{mean}} · {{count}} nights",
-      "diff": "{{diff}} vs. your usual",
-      "diffMinutes": "{{diff}} min vs. your usual"
+      "meanAndNights_other": "{{mean}} · {{count}} nights"
     },
     "checks": {
       "ownNormal": "✓ Compared with your own normal",
@@ -8712,6 +9018,13 @@
       "throughYesterday": "Through yesterday",
       "throughLastWeek": "Through last week",
       "throughDate": "Through {{date}}"
+    },
+    "howSure": {
+      "differenceHigher": "{{diff}} higher than on {{others}} (each measured against your own normal)",
+      "differenceLower": "{{diff}} lower than on {{others}} (each measured against your own normal)",
+      "differenceLater": "{{diff}} min later than on {{others}} (each measured against your own normal)",
+      "differenceEarlier": "{{diff}} min earlier than on {{others}} (each measured against your own normal)",
+      "differenceSame": "About the same as on {{others}} (each measured against your own normal)"
     }
   },
   "workoutEffort": {

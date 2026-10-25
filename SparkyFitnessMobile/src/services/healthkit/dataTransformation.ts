@@ -648,6 +648,12 @@ const DIRECT_TRANSFORMERS: Record<string, DirectTransformer> = {
     if (sleepRec.record_utc_offset_minutes != null) {
       session.record_utc_offset_minutes = sleepRec.record_utc_offset_minutes;
     }
+    if (typeof sleepRec.avg_overnight_hrv === 'number') {
+      session.avg_overnight_hrv = sleepRec.avg_overnight_hrv;
+    }
+    if (typeof sleepRec.resting_heart_rate === 'number') {
+      session.resting_heart_rate = sleepRec.resting_heart_rate;
+    }
     output.push(session);
   },
 

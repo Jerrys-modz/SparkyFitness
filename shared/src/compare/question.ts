@@ -1,15 +1,15 @@
+import { SINCE_START_MAX_DAYS_AGO } from './since.ts';
+import { COMPARE_METRICS, type CompareMetricKey } from './metrics.ts';
 import {
-  COMPARE_METRICS,
-  SINCE_START_MAX_DAYS_AGO,
-  addDays,
-  compareDays,
-  daysBetween,
-  type CompareMetricKey,
-} from '@workspace/shared';
+  COMPARE_SPAN_DAYS,
+  DEFAULT_COMPARE_SPAN,
+  MAX_CUSTOM_DAYS,
+  type CompareSpan,
+  type CompareSpanMode,
+} from './spans.ts';
+import { addDays, compareDays, daysBetween } from '../utils/timezone.ts';
 
 export type CompareMode = 'day' | 'week' | 'since';
-/** The modes read over a span of days; since mode runs from its start date instead. */
-export type SpanMode = Exclude<CompareMode, 'since'>;
 export type CompareTimingChoice =
   'sameDay' | 'nextDay' | 'dayBefore' | 'sameWeek' | 'nextWeek' | 'sinceHabit';
 
@@ -20,10 +20,10 @@ export interface CompareQuestion {
 }
 
 /** How a choice pairs the two: by the day or week with a lag, or before vs. since a start. */
-type CompareTiming =
-  { mode: SpanMode; timing: -1 | 0 | 1 } | { mode: 'since'; timing: 0 };
+export type CompareChoiceTiming =
+  { mode: CompareSpanMode; timing: -1 | 0 | 1 } | { mode: 'since'; timing: 0 };
 
-const TIMINGS: Record<CompareTimingChoice, CompareTiming> = {
+const TIMINGS: Record<CompareTimingChoice, CompareChoiceTiming> = {
   dayBefore: { mode: 'day', timing: -1 },
   sameDay: { mode: 'day', timing: 0 },
   nextDay: { mode: 'day', timing: 1 },
@@ -32,40 +32,14 @@ const TIMINGS: Record<CompareTimingChoice, CompareTiming> = {
   sinceHabit: { mode: 'since', timing: 0 },
 };
 
-export function timingOf(choice: CompareTimingChoice): CompareTiming {
+export function timingOf(choice: CompareTimingChoice): CompareChoiceTiming {
   return TIMINGS[choice];
 }
-
-export type CompareSpan = '30d' | '60d' | '90d' | '6m' | '1y' | 'custom';
-
-export const COMPARE_SPANS: Record<SpanMode, readonly CompareSpan[]> = {
-  day: ['30d', '60d', '90d', 'custom'],
-  week: ['6m', '1y', 'custom'],
-};
-
-export const DEFAULT_COMPARE_SPAN: Record<SpanMode, CompareSpan> = {
-  day: '90d',
-  week: '6m',
-};
-
-const SPAN_DAYS: Record<Exclude<CompareSpan, 'custom'>, number> = {
-  '30d': 30,
-  '60d': 60,
-  '90d': 90,
-  '6m': 182,
-  '1y': 364,
-};
-
-/** The longest custom span per mode; the server rejects anything longer. */
-export const MAX_CUSTOM_DAYS: Record<SpanMode, number> = {
-  day: 180,
-  week: 366,
-};
 
 /** The server leaves today out itself, so the window simply ends today. */
 export function compareWindow(
   span: CompareSpan,
-  mode: SpanMode,
+  mode: CompareSpanMode,
   today: string,
   custom?: { startDate: string; endDate: string } | null
 ): { startDate: string; endDate: string } {
@@ -81,7 +55,7 @@ export function compareWindow(
     };
   }
   const key = span === 'custom' ? DEFAULT_COMPARE_SPAN[mode] : span;
-  const days = SPAN_DAYS[key as Exclude<CompareSpan, 'custom'>];
+  const days = COMPARE_SPAN_DAYS[key];
   return { startDate: addDays(today, -(days - 1)), endDate: today };
 }
 
