@@ -36,6 +36,7 @@ import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
 import { useRunGoals } from '../hooks/useRunGoals';
+import { usePreferences } from '../hooks/usePreferences';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useRefetchOnFocus } from '../hooks/useRefetchOnFocus';
 import {
