@@ -1803,7 +1803,9 @@ CREATE TABLE public.check_in_measurements (
     bone_mass_kg numeric(5,2),
     body_water_percentage numeric(5,2),
     bmr numeric(6,1),
-    CONSTRAINT check_in_measurements_bmr_check CHECK (((bmr IS NULL) OR ((bmr >= (600)::numeric) AND (bmr <= (6000)::numeric))))
+    resting_heart_rate smallint,
+    CONSTRAINT check_in_measurements_bmr_check CHECK (((bmr IS NULL) OR ((bmr >= (600)::numeric) AND (bmr <= (6000)::numeric)))),
+    CONSTRAINT check_in_measurements_resting_heart_rate_check CHECK (((resting_heart_rate IS NULL) OR ((resting_heart_rate >= 25) AND (resting_heart_rate <= 250))))
 );
 
 
@@ -5167,7 +5169,9 @@ CREATE TABLE public.vitals_entries (
     device_name text,
     external_id text,
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    pulse_bpm smallint,
+    CONSTRAINT vitals_entries_pulse_bpm_check CHECK (((pulse_bpm IS NULL) OR ((pulse_bpm >= 25) AND (pulse_bpm <= 250))))
 );
 
 
