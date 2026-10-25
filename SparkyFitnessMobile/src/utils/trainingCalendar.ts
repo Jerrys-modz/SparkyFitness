@@ -1,4 +1,5 @@
 import type {
+  CalendarWeekTotals,
   CompletedItem,
   LoadBySport,
   LoadSportGroup,
@@ -6,6 +7,7 @@ import type {
   PlannedStatus,
   TrainingCalendarResponse,
 } from '@workspace/shared';
+import type { IconName } from '../components/Icon';
 import {
   LOAD_SPORT_GROUPS,
   addDays,
@@ -115,4 +117,108 @@ export function currentSplits(
     (m) => m.month === today.slice(0, 7)
   );
   return { week: week?.bySport, month: month?.bySport };
+}
+
+/** Most marks drawn on a day before "+N". */
+export const MAX_DAY_MARKS = 3;
+/** Past weeks listed before "Show earlier weeks". */
+export const RECENT_PAST_WEEKS = 2;
+/** How far ahead an empty day still reads as a rest day. */
+export const REST_DAY_AHEAD_DAYS = 14;
+
+export const SPORT_ICONS: Record<LoadSportGroup, IconName> = {
+  running: 'exercise-running',
+  cycling: 'exercise-cycling',
+  walking: 'exercise-walking',
+  strength: 'exercise-weights',
+  other: 'exercise',
+};
+
+export interface DayMark {
+  key: string;
+  sport: LoadSportGroup;
+  /** A planned item's status, or `extra` for work nothing was planned for. */
+  status: PlannedStatus | 'extra';
+}
+
+/** What a day's cell draws: planned items first, then unplanned work. */
+export function dayMarks(items: DayItems): DayMark[] {
+  return [
+    ...items.planned.map((item): DayMark => ({
+      key: item.id,
+      sport: item.sport,
+      status: item.status,
+    })),
+    ...items.completed
+      .filter((item) => item.plannedItemId === null)
+      .map((item): DayMark => ({
+        key: item.id,
+        sport: item.sport,
+        status: 'extra',
+      })),
+  ];
+}
+
+export interface WeekSummary {
+  /** Planned sessions done (or partly done), or every session when none were planned. */
+  done: number;
+  planned: number;
+}
+
+/** The small total at the end of a week's row; null for a week with nothing. */
+export function weekSummary(
+  week: CalendarWeekTotals | undefined
+): WeekSummary | null {
+  if (!week) return null;
+  if (week.plannedSessions > 0) {
+    return {
+      done: week.doneSessions + week.partialSessions,
+      planned: week.plannedSessions,
+    };
+  }
+  return week.completedSessions > 0
+    ? { done: week.completedSessions, planned: 0 }
+    : null;
+}
+
+/**
+ * The weeks as the list shows them: the week that holds today first (else the
+ * latest week before it, else the first), then the most recent weeks before it,
+ * then the weeks ahead. Older past weeks come back apart, to be collapsed.
+ */
+export function orderWeeks(
+  weeks: readonly CalendarWeekTotals[],
+  today: string
+): { visible: CalendarWeekTotals[]; earlier: CalendarWeekTotals[] } {
+  const sorted = [...weeks].sort((a, b) => a.start.localeCompare(b.start));
+  if (sorted.length === 0) return { visible: [], earlier: [] };
+  let pivot = -1;
+  sorted.forEach((w, i) => {
+    if (w.start <= today) pivot = i;
+  });
+  if (pivot < 0) pivot = 0;
+  const past = sorted.slice(0, pivot).reverse();
+  return {
+    visible: [
+      sorted[pivot]!,
+      ...past.slice(0, RECENT_PAST_WEEKS),
+      ...sorted.slice(pivot + 1),
+    ],
+    earlier: past.slice(RECENT_PAST_WEEKS),
+  };
+}
+
+/** Segment sizes (sessions) for a week's progress bar. */
+export function weekProgress(week: CalendarWeekTotals) {
+  const planned = week.plannedSessions;
+  const done = Math.min(week.doneSessions, planned);
+  const partial = Math.min(week.partialSessions, planned - done);
+  const missed = Math.min(week.missedSessions, planned - done - partial);
+  return {
+    planned,
+    done,
+    partial,
+    missed,
+    rest: planned - done - partial - missed,
+  };
 }
