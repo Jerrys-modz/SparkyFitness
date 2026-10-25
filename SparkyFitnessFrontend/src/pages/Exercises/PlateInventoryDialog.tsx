@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
 import {
-  BAR_KINDS,
   inventoryConfigToBody,
   presetInventory,
   savePlateInventoryBodySchema,
@@ -22,13 +21,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   barLabel,
   formatPlateWeight,
@@ -273,28 +265,6 @@ const PlateInventoryForm: React.FC<Omit<PlateInventoryDialogProps, 'open'>> = ({
                 placeholder={barLabel(t, { name: null, kind: bar.kind })}
                 onChange={(e) => updateBar(bar.id, { name: e.target.value })}
               />
-            </div>
-            <div className="w-32 space-y-1">
-              <Label htmlFor={`bar-kind-${bar.id}`} className="text-xs">
-                {t('plates.barType', 'Type')}
-              </Label>
-              <Select
-                value={bar.kind}
-                onValueChange={(value) =>
-                  updateBar(bar.id, { kind: value as BarKind })
-                }
-              >
-                <SelectTrigger id={`bar-kind-${bar.id}`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {BAR_KINDS.map((kind) => (
-                    <SelectItem key={kind} value={kind}>
-                      {barLabel(t, { name: null, kind })}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             <div className="w-24 space-y-1">
               <Label htmlFor={`bar-weight-${bar.id}`} className="text-xs">

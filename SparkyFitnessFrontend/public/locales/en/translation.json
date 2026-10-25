@@ -9699,7 +9699,6 @@
     "addPlate": "Add plate",
     "removePlate": "Remove plate {{weight}}",
     "barName": "Name",
-    "barType": "Type",
     "addBar": "Add bar",
     "removeBar": "Remove bar {{name}}",
     "collarsCount": "Collars count",

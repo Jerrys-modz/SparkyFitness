@@ -4,7 +4,6 @@ import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import {
-  BAR_KINDS,
   PLATE_PAIRS_MAX,
   presetInventory,
   savePlateInventoryBodySchema,
@@ -405,32 +404,6 @@ const PlateInventoryForm: React.FC<{
                     })}
                   />
                 </View>
-              </View>
-              <Text className="text-xs text-text-muted mt-3 mb-1">
-                {t('plates.barType', { defaultValue: 'Type' })}
-              </Text>
-              <View className="flex-row flex-wrap gap-2">
-                {BAR_KINDS.map((kind) => (
-                  <Pressable
-                    key={kind}
-                    onPress={() => updateBar(bar.id, { kind })}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: bar.kind === kind }}
-                    className={`rounded-lg px-3 py-1 ${
-                      bar.kind === kind ? 'bg-accent-primary' : 'bg-raised'
-                    }`}
-                  >
-                    <Text
-                      className={`text-xs ${
-                        bar.kind === kind
-                          ? 'text-white font-semibold'
-                          : 'text-text-primary'
-                      }`}
-                    >
-                      {barLabel(t, { name: null, kind })}
-                    </Text>
-                  </Pressable>
-                ))}
               </View>
             </View>
           );

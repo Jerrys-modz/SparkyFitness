@@ -8919,7 +8919,6 @@
     "calculatorShort": "Calculator",
     "barCard": "Bar {{number}}: {{name}}",
     "removeBarShort": "Remove",
-    "barWeightUnit": "Weight ({{unit}})",
-    "barType": "Type"
+    "barWeightUnit": "Weight ({{unit}})"
   }
 }
