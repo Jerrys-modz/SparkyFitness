@@ -91,7 +91,7 @@ describe.runIf(RUN)('calorie rule history', () => {
         `SELECT ${CALORIE_RULE_FIELDS.join(', ')}, effective_date::text AS effective_date
          FROM public.user_calorie_rule_history
          WHERE user_id = $1
-         ORDER BY effective_date`,
+         ORDER BY user_calorie_rule_history.effective_date`,
         [userId]
       )
     ).rows;
