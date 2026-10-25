@@ -1982,6 +1982,12 @@
   },
   "workout": {
     "addDropSets": "Add {{sets}} drop sets (-{{percent}}%)",
+    "addOtherSide": "Add other side",
+    "sideBoth": "Both sides",
+    "sideLeft": "Left side",
+    "sideLeftShort": "L",
+    "sideRight": "Right side",
+    "sideRightShort": "R",
     "couldNotSave": "Could not save your workout",
     "dismissLocation": "Dismiss location",
     "gymLocation": "Gym / Location",

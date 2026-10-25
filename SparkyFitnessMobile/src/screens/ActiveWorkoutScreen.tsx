@@ -866,6 +866,14 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     }
     return null;
   }, [setTypeMenu, session]);
+  const setSideCurrent = useMemo(() => {
+    if (setTypeMenu == null || session == null) return null;
+    for (const exercise of session.exercises) {
+      const set = exercise.sets.find((s) => String(s.id) === setTypeMenu.setId);
+      if (set) return set.side ?? null;
+    }
+    return null;
+  }, [setTypeMenu, session]);
 
   const { handleDiscard } = useActiveWorkoutDiscard({
     sessionId,
@@ -1176,6 +1184,20 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
             setSetTypeMenu(null);
           };
         })()}
+        currentSide={setSideCurrent}
+        onSelectSide={(side) => {
+          const setId = setTypeMenu?.setId;
+          if (setId != null) {
+            useActiveWorkoutStore.getState().updateSetField(setId, { side });
+          }
+        }}
+        onAddOtherSide={() => {
+          const setId = setTypeMenu?.setId;
+          if (setId != null) {
+            useActiveWorkoutStore.getState().addOtherSideSet(setId);
+          }
+          setSetTypeMenu(null);
+        }}
         onGenerateDropSets={(() => {
           const setId = setTypeMenu?.setId;
           if (setId == null) return undefined;

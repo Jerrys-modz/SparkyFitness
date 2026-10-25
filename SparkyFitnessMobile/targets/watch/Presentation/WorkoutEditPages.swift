@@ -14,6 +14,7 @@ struct SetOptionsPage: View {
 
     @EnvironmentObject private var session: WatchSessionManager
     @State private var choosingType = false
+    @State private var choosingSide = false
     @State private var confirmingDelete = false
 
     var body: some View {
@@ -26,6 +27,14 @@ struct SetOptionsPage: View {
                 Haptics.tap()
                 choosingType = true
             }
+            Button(String(localized: "watch.workout.side", defaultValue: "Side")) {
+                Haptics.tap()
+                choosingSide = true
+            }
+            Button(String(localized: "watch.workout.addOtherSide", defaultValue: "Add Other Side")) {
+                Haptics.tap()
+                session.sendWorkoutEdit(.addOtherSide(setId: step.plannedSet.setId))
+            }
             Button(String(localized: "watch.workout.deleteSet", defaultValue: "Delete Set")) {
                 Haptics.tap()
                 confirmingDelete = true
@@ -36,6 +45,11 @@ struct SetOptionsPage: View {
         .sheet(isPresented: $choosingType) {
             SetTypeSheet(current: step.plannedSet.setType) { type in
                 session.sendWorkoutEdit(.setSetType(setId: step.plannedSet.setId, type: type))
+            }
+        }
+        .sheet(isPresented: $choosingSide) {
+            SetSideSheet(current: step.plannedSet.side) { side in
+                session.sendWorkoutEdit(.setSetSide(setId: step.plannedSet.setId, side: side))
             }
         }
         .confirmationDialog(
@@ -85,6 +99,43 @@ private struct SetTypeSheet: View {
                 }
             }
             .navigationTitle(String(localized: "watch.workout.setType", defaultValue: "Set Type"))
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+}
+
+private struct SetSideSheet: View {
+    let current: String?
+    let onPick: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    private var sides: [(id: String, name: String)] {
+        [
+            ("both", String(localized: "watch.workout.sideBoth", defaultValue: "Both sides")),
+            ("left", String(localized: "watch.workout.sideLeft", defaultValue: "Left")),
+            ("right", String(localized: "watch.workout.sideRight", defaultValue: "Right")),
+        ]
+    }
+
+    var body: some View {
+        NavigationStack {
+            List(sides, id: \.id) { side in
+                Button {
+                    Haptics.tap()
+                    onPick(side.id)
+                    dismiss()
+                } label: {
+                    HStack {
+                        Text(side.name)
+                        Spacer(minLength: 0)
+                        if (current ?? "both").lowercased() == side.id {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+            .navigationTitle(String(localized: "watch.workout.side", defaultValue: "Side"))
             .navigationBarTitleDisplayMode(.inline)
         }
     }
