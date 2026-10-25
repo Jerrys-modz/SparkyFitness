@@ -15,6 +15,7 @@ import RunProgramCard, {
   programDescription,
   programName,
 } from '../components/recording/RunProgramCard';
+import RunGoalsCard from '../components/recording/RunGoalsCard';
 import PaceReferenceCard from '../components/recording/PaceReferenceCard';
 import RunProgramCalendar from '../components/recording/RunProgramCalendar';
 import RunProgramRealignCard, {
@@ -32,6 +33,7 @@ import ProgramActionRow, {
 import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
+import { useRunGoals } from '../hooks/useRunGoals';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import {
   applyProgramRealign,
@@ -48,6 +50,8 @@ import { addLog } from '../services/LogService';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { formatLocalizedNumber } from '../localization';
 import type { RootStackScreenProps } from '../types/navigation';
+import { isValidTimeZone, todayInZone } from '@workspace/shared';
+import { usePreferences } from '../hooks/usePreferences';
 import { addDays, toLocalDateString } from '../utils/dateUtils';
 
 type Props = RootStackScreenProps<'RunPrograms'>;
@@ -68,8 +72,16 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
     doneDay,
     loaded,
   } = useRunProgram();
+  const goals = useRunGoals();
   const [now] = useState(() => Date.now());
   const today = toLocalDateString(new Date(now));
+  // The race day is compared in the account timezone, like the goals service.
+  const { preferences } = usePreferences();
+  const accountToday = todayInZone(
+    preferences?.timezone && isValidTimeZone(preferences.timezone)
+      ? preferences.timezone
+      : 'UTC'
+  );
   const [chosenId, setChosenId] = useState('beginner5k');
   const storedId = status?.program.id;
   const startCalendarRef = useRef<CalendarSheetRef>(null);
@@ -311,6 +323,8 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           now={now}
           schedule={schedule}
           onSchedule={(next) => change(() => setProgramSchedule(next))}
+          raceDay={goals.data?.goals?.race_date ?? null}
+          accountToday={accountToday}
           onPickWorkout={(index) => change(() => setProgramPosition(index))}
           status={status}
           loaded={loaded}
@@ -519,6 +533,16 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
     );
   }
 
+  const goalsCard = goals.data ? (
+    <RunGoalsCard
+      data={goals.data}
+      distanceUnit={goals.distanceUnit}
+      today={accountToday}
+      saving={goals.isSaving}
+      onSave={goals.save}
+    />
+  ) : null;
+
   return (
     <>
       {header}
@@ -529,6 +553,7 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
           paddingBottom: insets.bottom + 24,
         }}
       >
+        {goalsCard}
         {body}
       </ScrollView>
       <CalendarSheet

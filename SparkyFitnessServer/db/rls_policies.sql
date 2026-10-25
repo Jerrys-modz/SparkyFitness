@@ -49,6 +49,7 @@ BEGIN
     'mood_entries',
     'mindfulness_sessions',
     'run_programs',
+    'run_goals',
     'shoes',
     'custom_run_programs',
     'routes',
@@ -779,6 +780,7 @@ SELECT create_owner_policy('pregnancy_photos');
 SELECT create_owner_policy('pregnancy_checklist_state');
 SELECT create_owner_policy('health_appointments');
 SELECT create_owner_policy('run_programs');
+SELECT create_owner_policy('run_goals');
 SELECT create_owner_policy('custom_run_programs');
 SELECT create_owner_policy('routes');
 
