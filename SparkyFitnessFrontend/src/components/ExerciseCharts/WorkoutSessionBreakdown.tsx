@@ -8,6 +8,7 @@ import { useGroupedWorkoutSession } from '@/hooks/Exercises/useExercises';
 import {
   svgClassToSchemaName,
   type ExerciseEntryResponse,
+  volumeMultiplier,
 } from '@workspace/shared';
 import { localizeMuscle } from '@/utils/exerciseTaxonomy';
 import './WorkoutSessionBodyMap.css';
@@ -127,6 +128,7 @@ export const WorkoutSessionBreakdown = ({
               duration?: number | null;
               rest_time?: number | null;
               set_type?: string | null;
+              side?: 'left' | 'right' | null;
             }>
           | undefined) ?? [];
 
@@ -140,7 +142,15 @@ export const WorkoutSessionBreakdown = ({
           restSeconds: set?.rest_time || 0,
           reps,
           weightKg,
-          volumeKg: reps * weightKg,
+          // The exercise's load convention counts per-hand weights and
+          // per-side reps in volume (#3157).
+          volumeKg:
+            reps *
+            weightKg *
+            volumeMultiplier(
+              snapshot?.['load_convention'] as string,
+              set?.side
+            ),
           setType: set?.set_type || 'Working Set',
         });
         setCounter++;

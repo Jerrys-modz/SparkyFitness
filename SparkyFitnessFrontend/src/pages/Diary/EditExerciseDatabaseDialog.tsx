@@ -39,6 +39,7 @@ import {
   resolveCanonicalOrCustomEquipment,
 } from '@workspace/shared';
 import { resolveExerciseImageSrc } from '@/utils/exercises';
+import ExerciseLoadConventionField from '@/pages/Exercises/ExerciseLoadConventionField';
 import { TagInput } from '@/components/ui/TagInput';
 import { localizeMuscle, localizeEquipment } from '@/utils/exerciseTaxonomy';
 
@@ -82,6 +83,7 @@ const EditExerciseDatabaseDialog: React.FC<EditExerciseDatabaseDialogProps> = ({
       name: exerciseToEdit.name || '',
       category: exerciseToEdit.category || '',
       modality: exerciseToEdit.modality,
+      load_convention: exerciseToEdit.load_convention ?? 'total',
       calories_per_hour: exerciseToEdit.calories_per_hour || 0,
       description: exerciseToEdit.description || '',
       level: exerciseToEdit.level?.toLowerCase() || '',
@@ -208,6 +210,16 @@ const EditExerciseDatabaseDialog: React.FC<EditExerciseDatabaseDialogProps> = ({
               </SelectContent>
             </Select>
           </div>
+
+          <ExerciseLoadConventionField
+            id="diary-load-convention"
+            modality={resolveExerciseModality(
+              formData.modality,
+              formData.category
+            )}
+            value={formData.load_convention ?? 'total'}
+            onChange={(val) => handleFieldChange('load_convention', val)}
+          />
 
           {/* Calories */}
           <div className="grid grid-cols-4 items-center gap-4">

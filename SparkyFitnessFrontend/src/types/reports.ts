@@ -94,6 +94,7 @@ export interface DailyExerciseEntry {
     set_type: string;
     reps: number | null;
     weight: number | null;
+    side?: 'left' | 'right' | null;
     duration?: number; // seconds
     rest_time?: number; // seconds
     notes?: string;
