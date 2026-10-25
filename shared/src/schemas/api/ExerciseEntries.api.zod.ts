@@ -94,6 +94,9 @@ export const exerciseSnapshotResponseSchema = z
 export const entryExerciseSnapshotResponseSchema =
   exerciseSnapshotResponseSchema.extend({ id: z.string().nullable() });
 
+/** Which side a single-arm or single-leg set was done on. null = both. */
+export const setSideSchema = z.enum(['left', 'right']);
+
 /** A single set within an exercise entry */
 export const exerciseEntrySetResponseSchema = z.object({
   id: z.number(),
@@ -109,6 +112,8 @@ export const exerciseEntrySetResponseSchema = z.object({
   completed_at: z.string().nullable(),
   is_pr: z.boolean(),
   rir: z.number().nullable().optional(),
+  // Optional: servers from before side tracking omit it.
+  side: setSideSchema.nullable().optional(),
   // Km. Optional: pre-distance servers omit it.
   distance: z.number().nullable().optional(),
   // Progression & Equipment Fields
@@ -161,6 +166,7 @@ export const exerciseEntrySetRequestSchema = z
     notes: z.string().nullable().optional(),
     rpe: z.number().nullable().optional(),
     rir: z.number().min(RIR_MIN).max(RIR_MAX).nullable().optional(),
+    side: setSideSchema.nullable().optional(),
     completed_at: z.iso.datetime().nullable().optional(),
     is_pr: z.boolean().optional(),
     // Km; only meaningful on duration_distance sets.

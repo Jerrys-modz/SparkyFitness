@@ -30,6 +30,9 @@ import {
   type SetTableModality,
 } from '@/constants/exercises';
 
+const nextSetSide = (side: string | null | undefined) =>
+  side === 'left' ? 'right' : side === 'right' ? null : 'left';
+
 interface SortableSetItemProps {
   id: string;
   set: SortableSetData;
@@ -47,6 +50,8 @@ interface SortableSetItemProps {
   modality: SetTableModality;
   /** Diary entries record RIR; presets don't, so they leave this off. */
   showRir?: boolean;
+  /** Diary entries record which side a single-arm / single-leg set was on. */
+  showSide?: boolean;
 }
 
 export const SortableSetItem = React.memo(
@@ -61,6 +66,7 @@ export const SortableSetItem = React.memo(
     weightUnit,
     modality,
     showRir = false,
+    showSide = false,
   }: SortableSetItemProps) => {
     const { t } = useTranslation();
     const { distanceUnit } = usePreferences();
@@ -269,6 +275,32 @@ export const SortableSetItem = React.memo(
 
             {/* Actions — hidden until row hover */}
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              {showSide && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    'h-7 w-7 text-[11px] font-semibold',
+                    set.side && 'text-blue-500 opacity-100'
+                  )}
+                  aria-label={t('workout.side.label', 'Side')}
+                  title={t('workout.side.label', 'Side')}
+                  onClick={() =>
+                    onSetChange(
+                      exerciseIndex,
+                      setIndex,
+                      'side',
+                      nextSetSide(set.side)
+                    )
+                  }
+                >
+                  {set.side === 'left'
+                    ? t('workout.side.leftShort', 'L')
+                    : set.side === 'right'
+                      ? t('workout.side.rightShort', 'R')
+                      : t('workout.side.bothShort', 'LR')}
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
