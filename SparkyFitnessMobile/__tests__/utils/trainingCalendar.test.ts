@@ -15,7 +15,14 @@ import {
   weekSummary,
 } from '../../src/utils/trainingCalendar';
 
-const none = { running: 0, cycling: 0, walking: 0, strength: 0, other: 0 };
+const none = {
+  running: 0,
+  cycling: 0,
+  walking: 0,
+  cardio: 0,
+  strength: 0,
+  other: 0,
+};
 
 describe('trainingCalendar helpers', () => {
   it('asks the month grid from the first day of the week', () => {
@@ -105,6 +112,8 @@ const week = (
   completedMinutes: 0,
   plannedLoad: 0,
   completedLoad: 0,
+  matchedMinutes: 0,
+  matchedLoad: 0,
   completedDistanceKm: 0,
   ...overrides,
 });

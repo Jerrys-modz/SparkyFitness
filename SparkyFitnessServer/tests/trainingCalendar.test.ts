@@ -3,6 +3,7 @@ import {
   matchPlan,
   groupPresetEntries,
   isPassiveEntry,
+  classifyActivitySport,
   programSlots,
   sportLoadOf,
   weeklyPlanSlots,
@@ -240,6 +241,8 @@ describe('weeklyTotals and sportLoadOf', () => {
       completedMinutes: 80,
       plannedLoad: 200,
       completedLoad: 60 + 100,
+      matchedMinutes: 30,
+      matchedLoad: 60,
       completedDistanceKm: 5,
     });
   });
@@ -279,10 +282,10 @@ describe('weeklyTotals and sportLoadOf', () => {
 });
 
 describe('loadSportGroup', () => {
-  it('folds the sport taxonomy into the five groups', () => {
+  it('folds the sport taxonomy into the load groups', () => {
     expect(loadSportGroup('hiking')).toBe('walking');
-    expect(loadSportGroup('swimming')).toBe('other');
-    expect(loadSportGroup('fitness_equipment')).toBe('other');
+    expect(loadSportGroup('swimming')).toBe('cardio');
+    expect(loadSportGroup('fitness_equipment')).toBe('cardio');
     expect(loadSportGroup('strength')).toBe('strength');
   });
 });
@@ -614,5 +617,45 @@ describe('a logged preset against its planned session', () => {
       TODAY
     );
     expect(result.planned[0]?.status).toBe('done');
+  });
+});
+
+describe('cardio that is not a run, ride or walk', () => {
+  it('folds gym machines, swimming and rowing into cardio', () => {
+    expect(loadSportGroup('fitness_equipment')).toBe('cardio');
+    expect(loadSportGroup('swimming')).toBe('cardio');
+    expect(loadSportGroup('rowing')).toBe('cardio');
+    expect(loadSportGroup('hiking')).toBe('walking');
+    expect(loadSportGroup('other')).toBe('other');
+  });
+
+  it('reads a stair climber as cardio', () => {
+    const sport = classifyActivitySport({
+      exerciseName: 'Stair Climbing',
+    }).sport;
+    expect(loadSportGroup(sport)).toBe('cardio');
+  });
+
+  it('keeps matched time and load apart from unplanned and unmeasured work', () => {
+    const { planned, completed } = matchPlan(
+      [
+        slot('timed', -1, { plannedMinutes: 30 }),
+        slot('untimed', -2, { plannedMinutes: null, sport: 'strength' }),
+      ],
+      [
+        entry('a', -1, { durationMinutes: 30 }),
+        entry('b', -2, { sport: 'strength', durationMinutes: 45 }),
+        entry('c', 0, { sport: 'cardio', durationMinutes: 20 }),
+      ],
+      TODAY
+    );
+    const week = weeklyTotals(planned, completed, day(-6), day(0), 1).find(
+      (w) => w.start === '2026-10-12'
+    );
+    expect(week).toMatchObject({
+      plannedMinutes: 30,
+      completedMinutes: 95,
+      matchedMinutes: 30,
+    });
   });
 });
