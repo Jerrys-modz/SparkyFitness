@@ -254,6 +254,19 @@ describe('calorie estimate on individual update', () => {
     expect(savedCalories()).toBe(120);
   });
 
+  it('keeps the stored calories when the locked entry has moved to another exercise', async () => {
+    await exerciseService.updateExerciseEntry('user-1', 'actor-1', 'entry-1', {
+      duration_minutes: 12,
+      sets: [{ set_number: 1, reps: 10, weight: 60 }],
+    });
+    const { updateData } = resolvedUpdate({
+      ...existingEntry,
+      exercise_id: 'another-exercise',
+    });
+    expect(updateData.calories_burned).toBe(123);
+    expect(updateData.exercise_id).toBe('another-exercise');
+  });
+
   it('keeps the stored calories on a partial update with no sets or exercise_id', async () => {
     await exerciseService.updateExerciseEntry('user-1', 'actor-1', 'entry-1', {
       duration_minutes: 12,

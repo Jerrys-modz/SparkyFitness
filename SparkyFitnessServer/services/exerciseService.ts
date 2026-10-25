@@ -557,7 +557,13 @@ async function updateExerciseEntry(
     // the values read here.
     const resolveUpdate = (existingEntry: Record<string, unknown>) => {
       let caloriesBurned = updateData.calories_burned;
-      if (estimateCalories) {
+      // The estimate is for the exercise read above; if another edit has
+      // since moved the entry to a different one, keep the stored calories.
+      if (
+        estimateCalories &&
+        (updateData.exercise_id !== undefined ||
+          existingEntry.exercise_id === estimateExerciseId)
+      ) {
         // A watch-measured figure (active_calories) beats the formula, same
         // rule as the grouped-session edit path.
         caloriesBurned = resolveEditedCaloriesBurned(
