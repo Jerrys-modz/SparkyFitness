@@ -704,6 +704,7 @@ export const ProviderCard = ({
               'norish',
               'valhalla',
               'overpass',
+              'open_meteo',
               'free-exercise-db',
               'wger',
             ].includes(provider.provider_type) && (

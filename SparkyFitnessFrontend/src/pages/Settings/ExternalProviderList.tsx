@@ -243,6 +243,7 @@ const ExternalProviderList = ({
         editData.provider_type === 'norish' ||
         editData.provider_type === 'valhalla' ||
         editData.provider_type === 'overpass' ||
+        editData.provider_type === 'open_meteo' ||
         editData.provider_type === 'free-exercise-db' ||
         editData.provider_type === 'openfoodfacts' ||
         editData.provider_type === 'coros_mcp'

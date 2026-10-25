@@ -3197,6 +3197,14 @@
         "needsResting": "Heart rate reserve zones need a resting heart rate.",
         "customFloors": "Each zone must start above the one before it, from 30 to 250 bpm."
       }
+    },
+    "weatherProvider": {
+      "baseUrlLabel": "Open-Meteo server URL",
+      "apiKeyLabel": "API key (optional)",
+      "apiKeyPlaceholder": "Only for Open-Meteo's commercial service",
+      "privacyNote": "The time a GPS-recorded activity started and its start place, rounded to two decimals (about 1 km), are sent to this server, which can see them. Use a server you trust, or run your own. With no weather provider, nothing is looked up or sent.",
+      "freeTierNote": "There is no default server. Open-Meteo's free service ({{url}}; its archive for older activities is served from archive-api.open-meteo.com) is for non-commercial use only. For commercial use, use its paid service (customer-api.open-meteo.com) with an API key, or run your own Open-Meteo server. A sent API key is used only for this provider.",
+      "resultNote": "Once this provider is active, new GPS-recorded activities get the temperature and conditions at their start. Activities that already have weather (such as from Garmin) keep it."
     }
   },
   "admin": {
