@@ -5,7 +5,7 @@ import {
   fetchCustomMeasurementsRange,
   fetchDailyVo2Max,
 } from '../services/api/measurementsApi';
-import { VO2_MIN_RUNS, type RunningEstimatesResponse } from '@workspace/shared';
+import type { RunningEstimatesResponse } from '@workspace/shared';
 import { useRunEstimates } from './useRunEstimates';
 import { useRefetchOnFocus } from './useRefetchOnFocus';
 import { vo2MaxRangeQueryKey } from './queryKeys';
@@ -44,18 +44,19 @@ async function customVo2Max(
 }
 
 /**
- * The run-based estimate as chart points inside the window. Empty with fewer
- * qualifying run days than an estimate needs, so a lone point never shows.
+ * The run-based estimate as chart points inside the window. Whether there is
+ * an estimate at all is the server's call (it needs enough qualifying runs),
+ * and its series is one point per day, so two runs on one day are one point
+ * here: the point count is not gated.
  */
 export function estimatedVo2MaxPoints(
   estimate: RunningEstimatesResponse['vo2Max'] | undefined,
   startDate: string,
   endDate: string
 ): Vo2MaxDataPoint[] {
-  const points = (estimate?.series ?? [])
+  return (estimate?.series ?? [])
     .filter((point) => point.day >= startDate && point.day <= endDate)
     .map((point) => ({ day: point.day, vo2max: point.value }));
-  return points.length >= VO2_MIN_RUNS ? points : [];
 }
 
 interface UseVo2MaxRangeOptions {
