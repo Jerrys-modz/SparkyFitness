@@ -26,6 +26,26 @@ jest.mock('../../src/components/recording/ProgramWorkoutBadge', () => ({
   __esModule: true,
   default: () => null,
 }));
+jest.mock('../../src/hooks/useBestEfforts', () => ({
+  useBestEfforts: () => ({
+    efforts: [
+      {
+        id: '1k',
+        distanceMeters: 1000,
+        seconds: 250,
+        activityId: 'run-1',
+        activityName: 'Morning Run',
+        achievedAt: '2026-09-26',
+        startMeters: 0,
+        endMeters: 1000,
+      },
+    ],
+    runsAnalyzed: 1,
+    truncated: false,
+    isLoading: false,
+    isError: false,
+  }),
+}));
 jest.mock('../../src/hooks/useCardioSessionDetail', () => ({
   useCardioSessionDetail: jest.fn(),
 }));
@@ -138,6 +158,37 @@ describe('CardioSessionScreen', () => {
     expect(screen.getAllByText('Pace').length).toBeGreaterThan(1);
     expect(screen.getByTestId('pace-chart')).toBeTruthy();
     expect(screen.getByText('Best 4:10 /km')).toBeTruthy();
+  });
+
+  it('shows the fastest kilometre of a run and marks it as the best ever', () => {
+    // 4 m/s for 20 minutes, a fix every 10 s: 4800 m.
+    const route = Array.from({ length: 121 }, (_, i) => ({
+      t: new Date(Date.UTC(2026, 8, 26, 7, 0, i * 10)).toISOString(),
+      lat: 51.5 + (i * 40) / 111_194.9,
+      lon: -0.1,
+    }));
+    mockDetail.mockReturnValue(detail({ route }));
+    const screen = render(<CardioSessionScreen {...props()} />);
+    expect(screen.getByText('Fastest stretches in this run')).toBeTruthy();
+    expect(screen.getByText('Fastest 1 km')).toBeTruthy();
+    expect(screen.getByText('Your best ever')).toBeTruthy();
+  });
+
+  it('leaves the best efforts out for a ride', () => {
+    const route = Array.from({ length: 121 }, (_, i) => ({
+      t: new Date(Date.UTC(2026, 8, 26, 7, 0, i * 10)).toISOString(),
+      lat: 51.5 + (i * 40) / 111_194.9,
+      lon: -0.1,
+    }));
+    mockDetail.mockReturnValue(detail({ route }));
+    const ride = {
+      ...SESSION,
+      id: 'ride-1',
+      exerciseName: 'Bike Ride',
+      category: 'cycling',
+    } as ExerciseActivityQueryItem;
+    const screen = render(<CardioSessionScreen {...props(ride)} />);
+    expect(screen.queryByTestId('run-best-efforts')).toBeNull();
   });
 
   it('leaves out the pace card when the route is too short to read a pace from', () => {

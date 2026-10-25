@@ -1079,4 +1079,95 @@ describe('exerciseStatsService', () => {
       expect(res.courses[0].sport).toBe('walking');
     });
   });
+  describe('getBestEfforts', () => {
+    // A straight line north at 4 m/s, one point a second: 0.0000899 degrees is 10 m.
+    const track = (seconds: number) =>
+      Array.from({ length: seconds + 1 }, (_, i) => ({
+        t: new Date(Date.UTC(2026, 0, 1, 8, 0, i)).toISOString(),
+        lat: 50 + (i * 4 * 0.0000899) / 10,
+        lon: 4,
+      }));
+
+    it('keeps the fastest stretch per distance across runs and skips non-runs', async () => {
+      mockClient.query
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: 'run-slow',
+              exercise_name: 'Morning Run',
+              category: 'running',
+              notes: null,
+              entry_date: '2026-01-01',
+              provider_name: null,
+              detail_data: null,
+              exercise_source_id: null,
+            },
+            {
+              id: 'ride',
+              exercise_name: 'Bike Ride',
+              category: 'cycling',
+              notes: null,
+              entry_date: '2026-01-02',
+              provider_name: null,
+              detail_data: null,
+              exercise_source_id: null,
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ exercise_entry_id: 'run-slow', points: track(400) }],
+        })
+        .mockResolvedValueOnce({ rows: [] });
+
+      const result = await exerciseStatsService.getBestEfforts('user-1');
+
+      expect(result.runsAnalyzed).toBe(1);
+      expect(result.truncated).toBe(false);
+      expect(result.efforts.map((e) => e.id)).toEqual(['1k']);
+      expect(result.efforts[0]).toMatchObject({
+        activityId: 'run-slow',
+        achievedAt: '2026-01-01',
+      });
+      expect(result.efforts[0]?.seconds).toBeCloseTo(250, 0);
+      expect(mockClient.release).toHaveBeenCalled();
+    });
+
+    it('falls back to the distance series for a run with no route', async () => {
+      mockClient.query
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: 'treadmill',
+              exercise_name: 'Treadmill Run',
+              category: 'running',
+              notes: null,
+              entry_date: '2026-02-01',
+              provider_name: null,
+              detail_data: null,
+              exercise_source_id: null,
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              exercise_entry_id: 'treadmill',
+              points: [0, 1, 2, 3, 4, 5, 6].map((i) => [i * 50, i * 200]),
+            },
+          ],
+        });
+      const result = await exerciseStatsService.getBestEfforts('user-1');
+      expect(result.efforts[0]?.id).toBe('1k');
+    });
+
+    it('is empty when no run has data', async () => {
+      mockClient.query.mockResolvedValueOnce({ rows: [] });
+      expect(await exerciseStatsService.getBestEfforts('user-1')).toEqual({
+        efforts: [],
+        runsAnalyzed: 0,
+        truncated: false,
+      });
+    });
+  });
 });

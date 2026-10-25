@@ -216,6 +216,14 @@ export const exerciseHistoryResetQueryKey = ['exerciseHistoryReset'] as const;
 
 export const exerciseStatsQueryKeyRoot = ['exerciseStats'] as const;
 
+/**
+ * The all-time best-efforts board. It sits under the exercise stats root so
+ * the exercise cache invalidation reloads it when a workout is saved, edited
+ * or deleted.
+ */
+export const bestEffortsQueryKey = () =>
+  [...exerciseStatsQueryKeyRoot, 'bestEfforts'] as const;
+
 export const exerciseStatsQueryKey = (
   exerciseId: string,
   excludePresetEntryId?: string,
