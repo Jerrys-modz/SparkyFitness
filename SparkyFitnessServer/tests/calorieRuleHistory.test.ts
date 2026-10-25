@@ -67,6 +67,17 @@ describe('calorie rules on a day', () => {
     expect(calorieRulesOnDay(history, '2026-10-22')?.goal_mode).toBe('bulk');
   });
 
+  // A database whose default collation ignores punctuation sorts the text
+  // '-infinity' after real dates.
+  it('takes the same rows in any order', () => {
+    const unordered = [history[2], history[1], history[0]];
+    expect(calorieRulesOnDay(unordered, '2026-01-01')?.goal_mode).toBe(
+      'maintain'
+    );
+    expect(calorieRulesOnDay(unordered, '2026-10-19')?.goal_mode).toBe('cut');
+    expect(calorieRulesOnDay(unordered, '2026-10-22')?.goal_mode).toBe('bulk');
+  });
+
   it('keeps the current preferences when no change was recorded', () => {
     const current = { ...rules, goal_mode: 'cut', timezone: 'UTC' };
 
