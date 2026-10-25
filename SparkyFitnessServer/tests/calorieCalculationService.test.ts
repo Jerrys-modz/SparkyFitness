@@ -91,6 +91,43 @@ describe('estimateCaloriesBurnedPerHour', () => {
     expect(withWarmup).toBe(calsForMet(4.5));
   });
 
+  // Volume counting (#3157) is about how many kilograms a session moved. The
+  // estimate rates a session by its intensity, a ratio of weights from the same
+  // sets, and its length by the logged time, so neither the weight per hand nor
+  // the side of a set changes the rating.
+  it('rates the same lift alike whether the logged weight is one dumbbell or the total', async () => {
+    const oneDumbbell = Array.from({ length: 3 }, () => ({
+      reps: 8,
+      weight: 50,
+    }));
+    const bothDumbbells = oneDumbbell.map((set) => ({ ...set, weight: 100 }));
+    const perHand = await estimateCaloriesBurnedPerHour(
+      strengthExercise,
+      USER_ID,
+      oneDumbbell
+    );
+    const total = await estimateCaloriesBurnedPerHour(
+      strengthExercise,
+      USER_ID,
+      bothDumbbells
+    );
+    expect(perHand).toBe(total);
+    expect(perHand).toBe(calsForMet(5.5));
+  });
+
+  it('rates left and right sets the same as the same sets with no side', async () => {
+    const unsided = Array.from({ length: 4 }, () => ({ reps: 8, weight: 30 }));
+    const bySide = unsided.map((set, index) => ({
+      ...set,
+      side: index % 2 === 0 ? 'left' : 'right',
+    }));
+    expect(
+      await estimateCaloriesBurnedPerHour(strengthExercise, USER_ID, bySide)
+    ).toBe(
+      await estimateCaloriesBurnedPerHour(strengthExercise, USER_ID, unsided)
+    );
+  });
+
   it('falls back to the category MET when reps exceed the Brzycki validity range', async () => {
     const result = await estimateCaloriesBurnedPerHour(
       strengthExercise,
