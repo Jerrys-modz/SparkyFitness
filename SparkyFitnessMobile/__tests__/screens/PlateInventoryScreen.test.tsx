@@ -13,9 +13,26 @@ jest.mock('../../src/hooks/usePlateInventory', () => ({
   usePlateInventory: jest.fn(),
   usePlateInventoryMutations: jest.fn(),
 }));
-jest.mock('../../src/hooks/useScreenHeader', () => ({
-  useScreenHeader: () => null,
-}));
+// Renders the header's primary action as a plain Save button.
+jest.mock('../../src/hooks/useScreenHeader', () => {
+  const { Pressable, Text } = require('react-native');
+  return {
+    useScreenHeader: (config: {
+      right?: { label?: string; onPress: () => void; disabled?: boolean }[];
+    }) => {
+      const action = config.right?.[0];
+      return action ? (
+        <Pressable
+          onPress={action.onPress}
+          disabled={action.disabled}
+          accessibilityRole="button"
+        >
+          <Text>{action.label}</Text>
+        </Pressable>
+      ) : null;
+    },
+  };
+});
 jest.mock('../../src/services/nativeTabBarPreference', () => ({
   useNativeIOSHeadersActive: () => false,
 }));
@@ -130,6 +147,16 @@ describe('PlateInventoryScreen', () => {
     fireEvent.press(screen.getByText('Save'));
     expect(save).not.toHaveBeenCalled();
     expect(screen.getByText(/Check the weights and pairs/)).toBeTruthy();
+  });
+
+  it('numbers each bar so several of the same type stay distinguishable', () => {
+    renderScreen();
+    fireEvent.press(screen.getByText('Add bar'));
+    fireEvent.press(screen.getByText('Add bar'));
+    expect(screen.getByText('5. Other bar')).toBeTruthy();
+    expect(screen.getByText('6. Other bar')).toBeTruthy();
+    fireEvent.changeText(screen.getAllByLabelText('Name')[5]!, 'Test 2');
+    expect(screen.getByText('6. Test 2')).toBeTruthy();
   });
 
   it('offers a reset only when something is saved', () => {

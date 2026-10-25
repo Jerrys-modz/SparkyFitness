@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import {
-  BAR_KINDS,
   PLATE_PAIRS_MAX,
   presetInventory,
   savePlateInventoryBodySchema,
@@ -81,15 +80,20 @@ const SectionTitle: React.FC<{ title: string }> = ({ title }) => (
   </Text>
 );
 
+type PlateInventoryMutations = ReturnType<typeof usePlateInventoryMutations>;
+
 const PlateInventoryForm: React.FC<{
   initial: PlateInventoryConfig;
   hasSaved: boolean;
   onDone: () => void;
-}> = ({ initial, hasSaved, onDone }) => {
+  mutations: PlateInventoryMutations;
+  /** The header's Save button calls whatever the form last put here. */
+  saveRef: React.MutableRefObject<(() => void) | null>;
+}> = ({ initial, hasSaved, onDone, mutations, saveRef }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
-  const { saveMutation, resetMutation } = usePlateInventoryMutations();
+  const { saveMutation, resetMutation } = mutations;
   const [draft, setDraft] = useState<Draft>(() => toDraft(initial));
   const [error, setError] = useState<string | null>(null);
   const isBusy = saveMutation.isPending || resetMutation.isPending;
@@ -159,6 +163,13 @@ const PlateInventoryForm: React.FC<{
       }
     );
   };
+
+  useEffect(() => {
+    saveRef.current = handleSave;
+    return () => {
+      saveRef.current = null;
+    };
+  });
 
   const handleReset = () => {
     Alert.alert(
@@ -330,78 +341,85 @@ const PlateInventoryForm: React.FC<{
             unit: draft.unit,
           })}
         />
-        {draft.bars.map((bar) => (
-          <View key={bar.id} className="mb-4">
-            <View className="flex-row items-center">
-              <View className="flex-1 mr-2">
-                <FormInput
-                  value={bar.name}
-                  onChangeText={(text) => updateBar(bar.id, { name: text })}
-                  maxLength={60}
-                  placeholder={barLabel(t, { name: null, kind: bar.kind })}
-                  accessibilityLabel={t('plates.barName', {
-                    defaultValue: 'Name',
-                  })}
-                />
-              </View>
-              <View style={{ width: 90 }}>
-                <FormInput
-                  value={bar.weight}
-                  onChangeText={(text) => updateBar(bar.id, { weight: text })}
-                  keyboardType="decimal-pad"
-                  maxLength={8}
-                  accessibilityLabel={t('plates.barWeightLabel', {
-                    defaultValue: 'Bar weight',
-                  })}
-                />
-              </View>
-              <Pressable
-                disabled={draft.bars.length <= 1}
-                onPress={() =>
-                  patch({ bars: draft.bars.filter((b) => b.id !== bar.id) })
-                }
-                accessibilityRole="button"
-                accessibilityState={{ disabled: draft.bars.length <= 1 }}
-                accessibilityLabel={t('plates.removeBar', {
-                  defaultValue: 'Remove bar {{name}}',
-                  name: barLabel(t, bar),
-                })}
-                className="w-10 h-10 items-center justify-center"
-              >
+        {draft.bars.map((bar, index) => {
+          const title =
+            bar.name.trim() || barLabel(t, { name: null, kind: bar.kind });
+          const canRemove = draft.bars.length > 1;
+          return (
+            <View
+              key={bar.id}
+              className="border border-border-subtle rounded-xl p-3 mb-3"
+              accessibilityLabel={t('plates.barCard', {
+                defaultValue: 'Bar {{number}}: {{name}}',
+                number: index + 1,
+                name: title,
+              })}
+            >
+              <View className="flex-row items-center justify-between mb-2">
                 <Text
-                  className={`text-lg ${
-                    draft.bars.length <= 1 ? 'text-text-muted' : 'text-red-500'
-                  }`}
+                  className="flex-1 text-base font-semibold text-text-primary"
+                  numberOfLines={1}
                 >
-                  ✕
+                  {index + 1}. {title}
                 </Text>
-              </Pressable>
-            </View>
-            <View className="flex-row flex-wrap gap-2 mt-2">
-              {BAR_KINDS.map((kind) => (
                 <Pressable
-                  key={kind}
-                  onPress={() => updateBar(bar.id, { kind })}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: bar.kind === kind }}
-                  className={`rounded-lg px-3 py-1 ${
-                    bar.kind === kind ? 'bg-accent-primary' : 'bg-raised'
-                  }`}
+                  disabled={!canRemove}
+                  onPress={() =>
+                    patch({ bars: draft.bars.filter((b) => b.id !== bar.id) })
+                  }
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !canRemove }}
+                  accessibilityLabel={t('plates.removeBar', {
+                    defaultValue: 'Remove bar {{name}}',
+                    name: title,
+                  })}
+                  hitSlop={8}
                 >
                   <Text
-                    className={`text-xs ${
-                      bar.kind === kind
-                        ? 'text-white font-semibold'
-                        : 'text-text-primary'
+                    className={`text-sm ${
+                      canRemove ? 'text-red-500' : 'text-text-muted'
                     }`}
                   >
-                    {barLabel(t, { name: null, kind })}
+                    {t('plates.removeBarShort', { defaultValue: 'Remove' })}
                   </Text>
                 </Pressable>
-              ))}
+              </View>
+              <View className="flex-row">
+                <View className="flex-1 mr-2">
+                  <Text className="text-xs text-text-muted mb-1">
+                    {t('plates.barName', { defaultValue: 'Name' })}
+                  </Text>
+                  <FormInput
+                    value={bar.name}
+                    onChangeText={(text) => updateBar(bar.id, { name: text })}
+                    maxLength={60}
+                    placeholder={barLabel(t, { name: null, kind: bar.kind })}
+                    accessibilityLabel={t('plates.barName', {
+                      defaultValue: 'Name',
+                    })}
+                  />
+                </View>
+                <View style={{ width: 110 }}>
+                  <Text className="text-xs text-text-muted mb-1">
+                    {t('plates.barWeightUnit', {
+                      defaultValue: 'Weight ({{unit}})',
+                      unit: draft.unit,
+                    })}
+                  </Text>
+                  <FormInput
+                    value={bar.weight}
+                    onChangeText={(text) => updateBar(bar.id, { weight: text })}
+                    keyboardType="decimal-pad"
+                    maxLength={8}
+                    accessibilityLabel={t('plates.barWeightLabel', {
+                      defaultValue: 'Bar weight',
+                    })}
+                  />
+                </View>
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
         <Button
           variant="outline"
           onPress={() =>
@@ -458,14 +476,6 @@ const PlateInventoryForm: React.FC<{
 
       {error && <Text className="text-sm text-red-500 mb-3">{error}</Text>}
 
-      <Button
-        variant="primary"
-        onPress={handleSave}
-        loading={saveMutation.isPending}
-        disabled={isBusy}
-      >
-        {t('common.save', { defaultValue: 'Save' })}
-      </Button>
       {hasSaved && (
         <View className="mt-3">
           <Button variant="outline" onPress={handleReset} disabled={isBusy}>
@@ -487,9 +497,23 @@ const PlateInventoryScreen: React.FC<Props> = ({ navigation }) => {
   const { inventory, hasSaved, isLoading, isError, refetch } =
     usePlateInventory(weightUnit);
 
+  const mutations = usePlateInventoryMutations();
+  const saveRef = useRef<(() => void) | null>(null);
+  const ready = !isLoading && !isError;
+
   const header = useScreenHeader({
     title: t('plates.title', { defaultValue: 'Plates & bars' }),
     left: { kind: 'back' },
+    right: [
+      {
+        kind: 'primary',
+        label: t('common.save', { defaultValue: 'Save' }),
+        onPress: () => saveRef.current?.(),
+        busy: mutations.saveMutation.isPending,
+        disabled: !ready || mutations.resetMutation.isPending,
+        identifier: 'plate-inventory-save',
+      },
+    ],
   });
 
   return (
@@ -518,6 +542,8 @@ const PlateInventoryScreen: React.FC<Props> = ({ navigation }) => {
           initial={inventory}
           hasSaved={hasSaved}
           onDone={() => navigation.goBack()}
+          mutations={mutations}
+          saveRef={saveRef}
         />
       )}
     </View>
