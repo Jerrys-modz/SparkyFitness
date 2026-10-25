@@ -689,6 +689,17 @@ async function applyWatchTelemetryAtomically(
   }
 }
 
+/**
+ * Builds an edit from the entry as stored once the edit holds the entry's
+ * lock, for a caller that fills in the fields the request left out. Filled in
+ * from a read taken before the lock, they would write back values another
+ * writer (a watch upload, another edit) has changed since.
+ */
+type ResolveExerciseEntryUpdate = (currentEntry: Record<string, unknown>) => {
+  updateData: Record<string, unknown>;
+  markManualFields: readonly string[];
+};
+
 async function _updateExerciseEntryWithClient(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   client: any,
@@ -713,6 +724,7 @@ async function _updateExerciseEntryWithClient(
     returnNullIfMissing?: boolean;
     preserveManualFields?: boolean;
     markManualFields?: readonly string[];
+    resolveUpdate?: ResolveExerciseEntryUpdate;
   } = {}
 ) {
   // A link created after an unlocked read would be ignored, and locking one
@@ -731,14 +743,15 @@ async function _updateExerciseEntryWithClient(
     throw new Error('Exercise entry not found for update.');
   }
   const currentEntry = existingEntryResult.rows[0];
+  let markManualFields = options.markManualFields ?? [];
+  if (options.resolveUpdate) {
+    ({ updateData, markManualFields } = options.resolveUpdate(currentEntry));
+  }
   const currentManualFields = storedManualFields(currentEntry.manual_fields);
   if (options.preserveManualFields) {
     updateData = withoutManualFields(updateData, currentManualFields);
   }
-  const manualFields = mergeManualFields(
-    currentManualFields,
-    options.markManualFields ?? []
-  );
+  const manualFields = mergeManualFields(currentManualFields, markManualFields);
   // Merge updateData with currentEntry to ensure all fields are present for the update statement
   // Prioritize updateData, then currentEntry, then defaults
   const mergedData = {
@@ -1364,7 +1377,8 @@ async function updateExerciseEntry(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   updateData: any,
   // Fields this edit changed on a synced entry, kept on the next re-sync.
-  markManualFields: readonly string[] = []
+  markManualFields: readonly string[] = [],
+  resolveUpdate?: ResolveExerciseEntryUpdate
 ) {
   const client = await getClient(userId);
   try {
@@ -1381,7 +1395,7 @@ async function updateExerciseEntry(
       updateData,
       actingUserId,
       updateData.source,
-      { markManualFields }
+      { markManualFields, resolveUpdate }
     );
     await client.query('COMMIT');
     return updatedEntry;
