@@ -187,15 +187,17 @@ describe('estimate fallback', () => {
     expect(result.current.isEstimate).toBe(false);
   });
 
-  test('keeps only run days inside the window and needs two of them', () => {
+  test('keeps only run days inside the window, even a single one', () => {
     const series = [
       { day: addDays(today, -60), value: 47 },
       { day: addDays(today, -20), value: 48 },
     ];
     const start = addDays(today, -29);
+    // One qualifying day left in the window is still a valid estimate (two
+    // runs on that day make one point), so it is not hidden.
     expect(
       estimatedVo2MaxPoints(estimate(series).vo2Max, start, today)
-    ).toEqual([]);
+    ).toEqual([{ day: addDays(today, -20), vo2max: 48 }]);
     expect(estimatedVo2MaxPoints(null, start, today)).toEqual([]);
     expect(
       estimatedVo2MaxPoints(estimate(series).vo2Max, addDays(today, -89), today)

@@ -60,8 +60,9 @@ describe('adaptive activity separation', () => {
 
   it('uses the same qualifying food days for the activity average', () => {
     const inputs = data();
-    inputs.nutritionData[90].calories = 199;
-    inputs.activityCaloriesByDate.set(date, 10000);
+    // The last day of the window is the day before the calculation date.
+    inputs.nutritionData[89].calories = 199;
+    inputs.activityCaloriesByDate.set(days[89], 10000);
     const result = computeAdaptiveTdeeFromData(inputs, date);
     expect(result.averageActivityCalories).toBe(900);
     expect(result.activityDaysOfData).toBe(27);

@@ -1,4 +1,5 @@
 import { getClient } from '../db/poolManager.js';
+import { log } from '../config/logging.js';
 import {
   evaluateFitnessTest,
   fitnessTestPacesSchema,
@@ -8,6 +9,9 @@ import {
 
 /** Dates as YYYY-MM-DD text: the driver would turn a DATE into a JS Date in the server's time zone. */
 const COLUMNS = "*, to_char(test_date, 'YYYY-MM-DD') AS test_day";
+
+/** Rows read from the database per query while listing tests. */
+const FITNESS_TEST_PAGE = 50;
 
 /** Most tests returned in one list. */
 export const MAX_FITNESS_TESTS_LISTED = 50;
@@ -49,7 +53,11 @@ function mapRow(row: Record<string, unknown>): FitnessTestResponse | null {
 function mapRows(rows: Record<string, unknown>[]): FitnessTestResponse[] {
   return rows.flatMap((row) => {
     const mapped = mapRow(row);
-    return mapped ? [mapped] : [];
+    if (!mapped) {
+      log('warn', `Skipping fitness test ${String(row.id)}: unreadable paces`);
+      return [];
+    }
+    return [mapped];
   });
 }
 
@@ -59,16 +67,25 @@ export async function listFitnessTests(
   authenticatedUserId?: string,
   limit: number = MAX_FITNESS_TESTS_LISTED
 ): Promise<FitnessTestResponse[]> {
+  const wanted = Math.min(Math.max(1, limit), MAX_FITNESS_TESTS_LISTED);
   const client = await getClient(userId, authenticatedUserId);
   try {
-    const result = await client.query(
-      `SELECT ${COLUMNS} FROM fitness_tests
-        WHERE user_id = $1
-        ORDER BY test_date DESC, created_at DESC
-        LIMIT $2`,
-      [userId, Math.min(Math.max(1, limit), MAX_FITNESS_TESTS_LISTED)]
-    );
-    return mapRows(result.rows);
+    // Rows whose paces do not parse are dropped after the query, so read
+    // further pages until enough readable tests are collected: a run of bad
+    // newest rows must not hide the older valid ones.
+    const tests: FitnessTestResponse[] = [];
+    for (let offset = 0; tests.length < wanted; offset += FITNESS_TEST_PAGE) {
+      const result = await client.query(
+        `SELECT ${COLUMNS} FROM fitness_tests
+          WHERE user_id = $1
+          ORDER BY test_date DESC, created_at DESC
+          LIMIT $2 OFFSET $3`,
+        [userId, FITNESS_TEST_PAGE, offset]
+      );
+      tests.push(...mapRows(result.rows));
+      if (result.rows.length < FITNESS_TEST_PAGE) break;
+    }
+    return tests.slice(0, wanted);
   } finally {
     client.release();
   }

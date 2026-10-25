@@ -37,7 +37,6 @@ import CalendarSheet, {
 } from '../components/CalendarSheet';
 import { useRunGoals } from '../hooks/useRunGoals';
 import { useScreenHeader } from '../hooks/useScreenHeader';
-import { usePreferences } from '../hooks/usePreferences';
 import { useRefetchOnFocus } from '../hooks/useRefetchOnFocus';
 import {
   applyProgramRealign,
@@ -344,7 +343,6 @@ const RunProgramsScreen: React.FC<Props> = ({ navigation }) => {
       onStartProgram={(id) => (status ? chooseProgram(id) : askStart(id))}
     />
   );
-
   // The realign card sits under the program card; while it is offering a fix
   // the Schedule's own "skip workouts" shortcut would be a second, competing one.
   const realignOffered =

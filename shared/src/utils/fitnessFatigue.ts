@@ -11,6 +11,11 @@ export const FITNESS_TIME_CONSTANT = 42;
 export const FATIGUE_TIME_CONSTANT = 7;
 /** Days of history the curve is built from. */
 export const CURVE_DAYS = 90;
+/**
+ * Extra days accumulated before the curve starts (2 x the fitness constant), so
+ * an established trainer does not begin the window at zero fitness.
+ */
+export const WARMUP_DAYS = 2 * FITNESS_TIME_CONSTANT;
 
 export interface FitnessFatiguePoint {
   /** The person's local day, YYYY-MM-DD. */
@@ -46,7 +51,10 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 /**
  * Exponentially weighted fitness (42-day) and fatigue (7-day) from daily load,
  * the same model behind most fitness / fatigue / form charts. Pure; `today` and
- * the days are local YYYY-MM-DD. Days with no session count as zero load.
+ * the days are local YYYY-MM-DD. `zoneFloors` are the person's resolved heart
+ * rate zone floors, the same ones the training load uses. The curve is built
+ * over `days + WARMUP_DAYS` and only the last `days` points are returned. Days
+ * with no session count as zero load.
  */
 export function computeFitnessFatigue(
   sessions: readonly LoadSession[],
@@ -54,8 +62,9 @@ export function computeFitnessFatigue(
   zoneFloors: readonly number[] = percentMaxFloors(FALLBACK_MAX_HR),
   days: number = CURVE_DAYS
 ): FitnessFatigue {
-  const first = addDays(today, -(days - 1));
-  const daily = new Array<number>(days).fill(0);
+  const total = days + WARMUP_DAYS;
+  const first = addDays(today, -(total - 1));
+  const daily = new Array<number>(total).fill(0);
   let earliest: string | null = null;
   for (const session of sessions) {
     if (session.day < first || session.day > today) continue;
@@ -69,7 +78,7 @@ export function computeFitnessFatigue(
   const fatigueDecay = Math.exp(-1 / FATIGUE_TIME_CONSTANT);
   let fitness = 0;
   let fatigue = 0;
-  const points: FitnessFatiguePoint[] = daily.map((load, i) => {
+  const all: FitnessFatiguePoint[] = daily.map((load, i) => {
     fitness = fitness * fitnessDecay + load * (1 - fitnessDecay);
     fatigue = fatigue * fatigueDecay + load * (1 - fatigueDecay);
     return {
@@ -81,6 +90,7 @@ export function computeFitnessFatigue(
     };
   });
 
+  const points = all.slice(-days);
   const last = points[points.length - 1] ?? null;
   let status: FormStatus = 'neutral';
   if (daysBetween(earliest, today) < MIN_HISTORY_DAYS) status = 'learning';

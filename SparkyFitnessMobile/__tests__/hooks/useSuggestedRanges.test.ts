@@ -11,6 +11,13 @@ const mockSessions: { current: ExerciseActivityQueryItem[] } = { current: [] };
 jest.mock('../../src/hooks/useCardioSessions', () => ({
   useCardioSessions: () => ({ sessions: mockSessions.current }),
 }));
+const mockTests: { current: FitnessTestResponse[] } = { current: [] };
+jest.mock('../../src/services/fitnessTestService', () => ({
+  useFitnessTests: () => ({
+    tests: mockTests.current,
+    latest: mockTests.current[0] ?? null,
+  }),
+}));
 const mockZones: {
   current: {
     resolved: {
@@ -23,13 +30,6 @@ const mockZones: {
 } = { current: null };
 jest.mock('../../src/hooks/useHeartRateZones', () => ({
   useHeartRateZones: () => ({ zones: mockZones.current }),
-}));
-const mockTests: { current: FitnessTestResponse[] } = { current: [] };
-jest.mock('../../src/services/fitnessTestService', () => ({
-  useFitnessTests: () => ({
-    tests: mockTests.current,
-    latest: mockTests.current[0] ?? null,
-  }),
 }));
 jest.mock('../../src/utils/dateUtils', () => ({
   getTodayDate: () => '2026-10-13',

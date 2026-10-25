@@ -71,7 +71,7 @@ describe('HeartRateZoneLegend', () => {
       </MemoryRouter>
     );
     expect(screen.getByTestId('heart-rate-zone-source').textContent).toMatch(
-      /until your own load/
+      /until your own zones load/
     );
   });
 });

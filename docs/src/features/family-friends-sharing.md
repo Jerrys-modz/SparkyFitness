@@ -60,6 +60,8 @@ Certain tables contain private user data that is **never** accessible to any fam
 * Your saved routes (`routes` table): routes you drew, imported or saved from a workout, with their points and turn cues. They are personal, so they are never shared or delegated.
 * Running fitness tests (`fitness_tests` table): your 5K time trials, 30-minute runs and Cooper tests (outdoors or on a treadmill), their results and the training paces each one gave. They are personal training data, so they are never shared or delegated, and they are not available while you act on behalf of someone else.
 * Your segments and your times on them (`segments` and `segment_efforts` tables): timed stretches of your routes and runs, and the efforts matched to them. They are personal, so they are never shared or delegated; a delegate acting for you cannot open them.
+* Running fitness tests (`fitness_tests` table): your 5K time trials, 30-minute runs and Cooper tests (outdoors or on a treadmill), their results and the training paces each one gave. They are personal training data, so they are never shared or delegated, and they are not available while you act on behalf of someone else.
+* Your saved routes (`routes` table): routes you drew, imported or saved from a workout, with their points and turn cues. They are personal, so they are never shared or delegated.
 
 ### 2. Tier 2: Read-Only Profile & Settings Data
 The following data can be **read** by delegates who hold at least one of `can_manage_diary`, `can_manage_checkin`, `can_manage_medications`, `can_manage_symptoms`, or `can_view_reports` — but **only the account owner can modify it**:

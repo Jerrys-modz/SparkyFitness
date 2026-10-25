@@ -73,7 +73,7 @@ export const HeartRateZoneLegend = ({
           {isDefault
             ? t(
                 'heartRate.zoneSourceDefault',
-                'Typical zones (% of a 190 bpm max) until your own load.'
+                'Typical zones (% of a 190 bpm max) until your own zones load.'
               )
             : t('heartRate.zoneSource', {
                 defaultValue:

@@ -1137,6 +1137,34 @@ async function getCustomMeasurementsByDateRange(
     client.release();
   }
 }
+/**
+ * Serializes writes to Daily and Hourly readings of each category and day
+ * until the surrounding transaction ends, so two overlapping writes for one
+ * slot cannot both find it empty and both insert. A unique index cannot do
+ * this: frequency belongs to the category, and the readings of an "All"
+ * category legitimately share a day. Locks are taken in one fixed order so
+ * two overlapping batches cannot deadlock.
+ */
+async function lockCustomMeasurementDaysWithClient(
+  client: PoolClient,
+  userId: string,
+  categoryIds: string[],
+  entryDates: string[]
+): Promise<void> {
+  // The date is cast in SQL so every spelling of a day takes the same lock.
+  await client.query(
+    `SELECT pg_advisory_xact_lock(lock_key)
+     FROM (
+       SELECT DISTINCT hashtext(
+                'custom-measurement:' || $1 || ':' || category_id || ':' || entry_date
+              ) AS lock_key
+       FROM unnest($2::uuid[], $3::date[]) AS slot(category_id, entry_date)
+       ORDER BY lock_key
+     ) ordered`,
+    [userId, categoryIds, entryDates]
+  );
+}
+
 async function upsertCustomMeasurement(
   userId: string,
   actingUserId: string,
@@ -1152,6 +1180,7 @@ async function upsertCustomMeasurement(
   importId?: string | null
 ) {
   const client = await getClient(actingUserId); // User-specific operation, using actingUserId for RLS context
+  let inTransaction = false;
   try {
     let query;
     let values;
@@ -1209,6 +1238,14 @@ async function upsertCustomMeasurement(
         importId ?? null,
       ];
     } else {
+      await client.query('BEGIN');
+      inTransaction = true;
+      await lockCustomMeasurementDaysWithClient(
+        client,
+        userId,
+        [categoryId],
+        [entryDate]
+      );
       // For 'Daily' and 'Hourly', check if an entry already exists for the given user, category, date, hour (if applicable) and source
       let existingEntryQuery = `
         SELECT id FROM custom_measurements
@@ -1272,7 +1309,11 @@ async function upsertCustomMeasurement(
       }
     }
     const result = await client.query(query, values);
+    if (inTransaction) await client.query('COMMIT');
     return result.rows[0];
+  } catch (error) {
+    if (inTransaction) await client.query('ROLLBACK').catch(() => {});
+    throw error;
   } finally {
     client.release();
   }
@@ -1385,6 +1426,12 @@ async function bulkUpsertCustomMeasurements(
     // JS (mirrors the per-record existence SELECT semantics).
     const existingByKey = new Map<string, Record<string, unknown>>();
     if (keyedWinnerIndexes.length > 0) {
+      await lockCustomMeasurementDaysWithClient(
+        client,
+        userId,
+        keyedWinnerIndexes.map((i) => prepared[i].categoryId),
+        keyedWinnerIndexes.map((i) => prepared[i].entryDate)
+      );
       const categoryIds = [
         ...new Set(keyedWinnerIndexes.map((i) => prepared[i].categoryId)),
       ];
@@ -1744,6 +1791,7 @@ export { getCheckInMeasurementsByDateRange };
 export { getCustomMeasurementsByDateRange };
 export { getCustomCategoryOwnerId };
 export { upsertCustomMeasurement };
+export { lockCustomMeasurementDaysWithClient };
 export { deleteCustomMeasurement };
 export { getCustomMeasurementOwnerId };
 export { getLatestMeasurement };

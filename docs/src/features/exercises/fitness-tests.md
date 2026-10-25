@@ -1,6 +1,6 @@
 # Fitness Tests
 
-A fitness test is one hard, measured run. Run it in the mobile app with your phone's GPS and SparkyFitness works out your threshold pace and a full set of training paces from it. Those paces then set your [pace zones](/features/exercises/gps-activity-recording#pace-zones), the suggested ranges on the Record screen, and the plans you start from the training programs screen.
+A fitness test is one hard, measured run. Run it in the mobile app, either outdoors with your phone's GPS or indoors on a treadmill (no GPS needed), and SparkyFitness works out your threshold pace and a full set of training paces from it. Those paces then set your [pace zones](/features/exercises/gps-activity-recording#pace-zones), the suggested ranges on the Record screen, and the plans you start from the training programs screen.
 
 Tests work outdoors with your phone's GPS and indoors on a treadmill. They are recorded as an ordinary run (an outdoor run, or an indoor run), saved to your diary, and marked as a fitness test on the activity.
 

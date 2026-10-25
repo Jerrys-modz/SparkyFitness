@@ -2584,6 +2584,37 @@ CREATE TABLE public.fasting_logs (
 
 
 --
+-- Name: fitness_tests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fitness_tests (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    test_type character varying(10) NOT NULL,
+    test_date date NOT NULL,
+    exercise_entry_id uuid,
+    distance_meters numeric(9,1) NOT NULL,
+    duration_seconds integer NOT NULL,
+    split_distance_meters numeric(9,1),
+    result_value numeric(9,1) NOT NULL,
+    threshold_pace_seconds_per_km integer NOT NULL,
+    equivalent_5k_seconds integer NOT NULL,
+    paces jsonb DEFAULT '{}'::jsonb NOT NULL,
+    surface character varying(10) DEFAULT 'outdoor'::character varying NOT NULL,
+    incline_percent numeric(3,1),
+    incline_adjusted boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT fitness_tests_distance_meters_check CHECK ((distance_meters > (0)::numeric)),
+    CONSTRAINT fitness_tests_duration_seconds_check CHECK ((duration_seconds > 0)),
+    CONSTRAINT fitness_tests_incline_percent_check CHECK (((incline_percent IS NULL) OR ((incline_percent >= (0)::numeric) AND (incline_percent <= (15)::numeric)))),
+    CONSTRAINT fitness_tests_split_distance_meters_check CHECK (((split_distance_meters IS NULL) OR (split_distance_meters >= (0)::numeric))),
+    CONSTRAINT fitness_tests_surface_check CHECK (((surface)::text = ANY ((ARRAY['outdoor'::character varying, 'indoor'::character varying])::text[]))),
+    CONSTRAINT fitness_tests_test_type_check CHECK (((test_type)::text = ANY ((ARRAY['5k'::character varying, '30min'::character varying, 'cooper'::character varying])::text[])))
+);
+
+
+--
 -- Name: food_assistant_operations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -4779,6 +4810,7 @@ CREATE TABLE public.user_preferences (
     hr_zone_method text DEFAULT 'percent_max'::text NOT NULL,
     hr_zone_custom_floors smallint[],
     goal_mode_weekly_change_kg double precision DEFAULT 0 NOT NULL,
+    hr_zone_display_count smallint DEFAULT 5 NOT NULL,
     CONSTRAINT check_energy_unit CHECK (((energy_unit)::text = ANY ((ARRAY['kcal'::character varying, 'kJ'::character varying])::text[]))),
     CONSTRAINT logging_level_check CHECK ((logging_level = ANY (ARRAY['DEBUG'::text, 'INFO'::text, 'WARN'::text, 'ERROR'::text, 'SILENT'::text]))),
     CONSTRAINT user_preferences_caffeine_half_life_range CHECK (((caffeine_half_life_hours >= 2.0) AND (caffeine_half_life_hours <= 8.0))),
@@ -4786,6 +4818,7 @@ CREATE TABLE public.user_preferences (
     CONSTRAINT user_preferences_calorie_safety_floor_value_check CHECK (((calorie_safety_floor_value >= 800) AND (calorie_safety_floor_value <= 5000))),
     CONSTRAINT user_preferences_chart_scale_mode_check CHECK ((chart_scale_mode = ANY (ARRAY['time'::text, 'point'::text]))),
     CONSTRAINT user_preferences_hr_zone_custom_floors_check CHECK (((hr_zone_custom_floors IS NULL) OR (array_length(hr_zone_custom_floors, 1) = 5))),
+    CONSTRAINT user_preferences_hr_zone_display_count_check CHECK ((hr_zone_display_count = ANY (ARRAY[4, 5]))),
     CONSTRAINT user_preferences_hr_zone_method_check CHECK ((hr_zone_method = ANY (ARRAY['percent_max'::text, 'heart_rate_reserve'::text, 'custom'::text]))),
     CONSTRAINT user_preferences_max_heart_rate_check CHECK (((max_heart_rate IS NULL) OR ((max_heart_rate >= 100) AND (max_heart_rate <= 250)))),
     CONSTRAINT user_preferences_openfoodfacts_product_language_check CHECK ((openfoodfacts_product_language ~ '^[a-z]{2}$'::text)),
@@ -4950,6 +4983,13 @@ COMMENT ON COLUMN public.user_preferences.hr_zone_custom_floors IS 'Five ascendi
 --
 
 COMMENT ON COLUMN public.user_preferences.goal_mode_weekly_change_kg IS 'Signed kilograms per week for goal_mode=weekly: negative loses, positive gains, zero maintains. Stored to gram precision; does not change existing percentage goals.';
+
+
+--
+-- Name: COLUMN user_preferences.hr_zone_display_count; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.user_preferences.hr_zone_display_count IS 'Heart rate bands shown in reports and settings: 5 zones or 4 tiers (zones 1-2 merged as Light). Storage and training load always use five zones.';
 
 
 --
@@ -5968,6 +6008,14 @@ ALTER TABLE ONLY public.external_provider_types
 
 ALTER TABLE ONLY public.fasting_logs
     ADD CONSTRAINT fasting_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: fitness_tests fitness_tests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fitness_tests
+    ADD CONSTRAINT fitness_tests_pkey PRIMARY KEY (id);
 
 
 --
@@ -7319,6 +7367,13 @@ CREATE INDEX idx_external_data_providers_is_public ON public.external_data_provi
 
 
 --
+-- Name: idx_fitness_tests_user_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_fitness_tests_user_date ON public.fitness_tests USING btree (user_id, test_date DESC, created_at DESC);
+
+
+--
 -- Name: idx_food_entries_food_entry_meal_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8002,6 +8057,13 @@ CREATE UNIQUE INDEX unique_active_pregnancy ON public.pregnancies USING btree (u
 --
 
 CREATE UNIQUE INDEX unique_backup_settings_row ON public.backup_settings USING btree (((id IS NOT NULL)));
+
+
+--
+-- Name: uq_fitness_tests_exercise_entry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_fitness_tests_exercise_entry ON public.fitness_tests USING btree (exercise_entry_id) WHERE (exercise_entry_id IS NOT NULL);
 
 
 --
@@ -8866,6 +8928,22 @@ ALTER TABLE ONLY public.family_access
 
 ALTER TABLE ONLY public.fasting_logs
     ADD CONSTRAINT fasting_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: fitness_tests fitness_tests_exercise_entry_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fitness_tests
+    ADD CONSTRAINT fitness_tests_exercise_entry_id_fkey FOREIGN KEY (exercise_entry_id) REFERENCES public.exercise_entries(id) ON DELETE SET NULL;
+
+
+--
+-- Name: fitness_tests fitness_tests_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fitness_tests
+    ADD CONSTRAINT fitness_tests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --
@@ -10500,6 +10578,12 @@ ALTER TABLE public.family_access ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fasting_logs ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: fitness_tests; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fitness_tests ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: food_assistant_operations; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -11273,6 +11357,13 @@ CREATE POLICY owner_policy ON public.cycle_test_entries USING ((user_id = public
 --
 
 CREATE POLICY owner_policy ON public.cycles USING ((user_id = public.authenticated_user_id())) WITH CHECK ((user_id = public.authenticated_user_id()));
+
+
+--
+-- Name: fitness_tests owner_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY owner_policy ON public.fitness_tests USING ((user_id = public.authenticated_user_id())) WITH CHECK ((user_id = public.authenticated_user_id()));
 
 
 --
@@ -12997,6 +13088,13 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.family_access TO sparky_app;
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.fasting_logs TO sparky_app;
+
+
+--
+-- Name: TABLE fitness_tests; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.fitness_tests TO sparky_app;
 
 
 --

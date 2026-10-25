@@ -3,6 +3,7 @@ import {
   MIN_BASELINE_NIGHTS,
   computeFitnessFatigue,
   computeReadiness,
+  WARMUP_DAYS,
   percentMaxFloors,
   type LoadSession,
 } from '@workspace/shared';
@@ -225,5 +226,21 @@ describe('computeReadiness', () => {
       expect(result.factors.hrv).toBe(0);
       expect(result.vitals?.hrv).toEqual({ current: 41, baseline: 68 });
     });
+  });
+});
+
+describe('computeFitnessFatigue warm-up', () => {
+  it('starts an established trainer near steady state, not at zero', () => {
+    // The same load every day, so fitness and fatigue both converge to it.
+    const history = Array.from({ length: 90 + WARMUP_DAYS }, (_, i) =>
+      run(-i, 40)
+    );
+    const { points, today } = computeFitnessFatigue(history, TODAY);
+    expect(points).toHaveLength(90);
+    expect(points[0]?.fitness).toBeGreaterThan(0);
+    // Form is within 5% of fitness, not the ~-12% a zero start would leave.
+    expect(Math.abs((today?.form ?? 99) / (today?.fitness ?? 1))).toBeLessThan(
+      0.05
+    );
   });
 });
