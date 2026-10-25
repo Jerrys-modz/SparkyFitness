@@ -11,6 +11,9 @@ import adaptiveTdeeService from '../services/AdaptiveTdeeService.js';
 vi.mock('../models/calorieRuleHistoryRepository.js', () => ({
   default: { getCalorieRuleHistory: async () => [] },
 }));
+vi.mock('../models/calorieMaintenancePeriodRepository.js', () => ({
+  default: { getCalorieMaintenancePeriods: async () => [] },
+}));
 vi.mock('../models/goalRepository.js');
 vi.mock('../models/weeklyGoalPlanRepository.js');
 vi.mock('../models/goalPresetRepository.js');

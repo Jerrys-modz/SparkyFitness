@@ -24,6 +24,9 @@ vi.mock('../models/goalPresetRepository.js');
 vi.mock('../models/userRepository.js');
 vi.mock('../models/preferenceRepository.js');
 vi.mock('../models/calorieRuleHistoryRepository.js');
+vi.mock('../models/calorieMaintenancePeriodRepository.js', () => ({
+  default: { getCalorieMaintenancePeriods: async () => [] },
+}));
 vi.mock('../models/measurementRepository.js');
 vi.mock('../models/exerciseEntry.js');
 vi.mock('../services/bmrService.js');
