@@ -3915,6 +3915,25 @@ CREATE TABLE public.routes (
 
 
 --
+-- Name: run_goals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.run_goals (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    weekly_distance_km numeric(6,1),
+    race_name character varying(100),
+    race_date date,
+    race_distance_km numeric(6,2),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_run_goals_race_has_date CHECK (((race_date IS NOT NULL) OR ((race_name IS NULL) AND (race_distance_km IS NULL)))),
+    CONSTRAINT run_goals_race_distance_km_check CHECK (((race_distance_km IS NULL) OR ((race_distance_km > (0)::numeric) AND (race_distance_km <= (1000)::numeric)))),
+    CONSTRAINT run_goals_weekly_distance_km_check CHECK (((weekly_distance_km IS NULL) OR ((weekly_distance_km > (0)::numeric) AND (weekly_distance_km <= (1000)::numeric))))
+);
+
+
+--
 -- Name: run_programs; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -6368,6 +6387,14 @@ ALTER TABLE ONLY public.routes
 
 
 --
+-- Name: run_goals run_goals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.run_goals
+    ADD CONSTRAINT run_goals_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: run_programs run_programs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6621,6 +6648,14 @@ ALTER TABLE ONLY public.exercise_entry_laps
 
 ALTER TABLE ONLY public.health_metric_samples
     ADD CONSTRAINT uq_health_metric_samples UNIQUE (user_id, metric, entry_date, source_provider);
+
+
+--
+-- Name: run_goals uq_run_goals_user; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.run_goals
+    ADD CONSTRAINT uq_run_goals_user UNIQUE (user_id);
 
 
 --
@@ -9546,6 +9581,14 @@ ALTER TABLE ONLY public.routes
 
 
 --
+-- Name: run_goals run_goals_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.run_goals
+    ADD CONSTRAINT run_goals_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
 -- Name: run_programs run_programs_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -11329,6 +11372,13 @@ CREATE POLICY owner_policy ON public.routes USING ((user_id = public.authenticat
 
 
 --
+-- Name: run_goals owner_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY owner_policy ON public.run_goals USING ((user_id = public.authenticated_user_id())) WITH CHECK ((user_id = public.authenticated_user_id()));
+
+
+--
 -- Name: run_programs owner_policy; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -11459,6 +11509,12 @@ ALTER TABLE public.rate_limit ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.routes ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: run_goals; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.run_goals ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: run_programs; Type: ROW SECURITY; Schema: public; Owner: -
@@ -13263,6 +13319,13 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.rate_limit TO sparky_app;
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.routes TO sparky_app;
+
+
+--
+-- Name: TABLE run_goals; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.run_goals TO sparky_app;
 
 
 --
