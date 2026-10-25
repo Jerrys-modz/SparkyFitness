@@ -42,6 +42,7 @@ import { FastingSettings } from './FastingSettings';
 import { GuidedWorkoutSettings } from './GuidedWorkoutSettings';
 import CycleSettings from './CycleSettings';
 import { PreferenceSettings } from './PreferenceSettings';
+import { HeartRateZoneSettings } from './HeartRateZoneSettings';
 import { ProfileInformation } from './ProfileInformation';
 import { DataManagementSettings } from './DataManagementSettings';
 import { DataImportSettings } from './DataImportSettings';
@@ -175,6 +176,12 @@ const Settings = () => {
               className="border rounded-lg mb-4"
             >
               <PreferenceSettings />
+            </AccordionItem>
+            <AccordionItem
+              value="heart-rate-zones"
+              className="border rounded-lg mb-4"
+            >
+              <HeartRateZoneSettings />
             </AccordionItem>
             <AccordionItem
               value="family-access"

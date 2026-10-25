@@ -1,4 +1,8 @@
-import { compareByEntryTime, earliestEntryTime } from '@workspace/shared';
+import {
+  compareByEntryTime,
+  earliestEntryTime,
+  type ExerciseEntryHrZonesInitializer,
+} from '@workspace/shared';
 import { getClient } from '../db/poolManager.js';
 import type { PoolClient } from 'pg';
 // @ts-expect-error TS(7016): Could not find a declaration file for module 'pg-f... Remove this comment to see the full error message
@@ -9,6 +13,18 @@ import activityDetailsRepository from './activityDetailsRepository.js';
 import * as workoutTelemetryRepository from './workoutTelemetryRepository.js';
 import { bodyWeightJoinSql } from '../utils/exerciseLoadSql.js';
 import { assertSetWeightSign } from '../utils/setWeightSign.js';
+import {
+  mergeManualFields,
+  storedManualFields,
+  withoutManualFields,
+} from '../utils/manualFields.js';
+import {
+  clearCalorieLinkOfEntryWithClient,
+  clearCalorieLinksForPresetEntryWithClient,
+  clearCalorieLinksOfEntriesWithClient,
+  lockCalorieLinkParticipantsWithClient,
+  reapplyCalorieLinkWithClient,
+} from '../services/exerciseCalorieLinkService.js';
 /**
  * Updates a daily calorie import, retaining entries created against shared exercises.
  * A matching exercise takes precedence; legacy matches require the same source.
@@ -28,11 +44,8 @@ async function upsertExerciseEntryData(
   const sourceValue = source || 'Health Data';
   const sourceLabel =
     sourceValue === 'HealthKit' ? 'Apple Health' : sourceValue;
-  const client = await getClient(userId);
-  let existingEntry;
   let exerciseName = 'Unknown Exercise'; // Default value
   try {
-    // Fetch exercise name
     const exercise = await exerciseRepository.getExerciseById(
       exerciseId,
       userId
@@ -49,98 +62,127 @@ async function upsertExerciseEntryData(
         `Exercise with ID ${exerciseId} not found for user ${userId}. Using default name.`
       );
     }
-    const result = await client.query(
-      `SELECT id, calories_burned FROM exercise_entries
-       WHERE user_id = $1 AND entry_date = $3
-         AND (exercise_id = $2 OR (
-           $4 = 'Active Calories' AND exercise_name = $4 AND source = $5
-           AND duration_minutes = 0 AND exercise_preset_entry_id IS NULL
-           AND source_id IS NULL
-         ))
-       ORDER BY (exercise_id = $2) DESC, created_at, id LIMIT 1`,
-      [userId, exerciseId, date, exerciseName, sourceValue]
-    );
-    existingEntry = result.rows[0];
   } catch (error) {
-    log(
-      'error',
-      'Error checking for existing active calories exercise entry or fetching exercise name:',
-      error
-    );
+    log('error', 'Error fetching active calories exercise name:', error);
     throw new Error(
       // @ts-expect-error TS(2571): Object is of type 'unknown'.
       `Failed to check existing active calories exercise entry or fetch exercise name: ${error.message}`,
       { cause: error }
     );
+  }
+  const client = await getClient(userId);
+  try {
+    await client.query('BEGIN');
+    // Look up and write the day's entry under one lock, or two overlapping
+    // imports (two devices, or a retry on another server) both find no entry
+    // and both insert one. exercise_entries has no unique key to catch that.
+    // Keyed by day, not exercise or source: the legacy match below lets one
+    // entry answer for several exercise ids and sources.
+    await acquireActiveCaloriesLockWithClient(client, userId, date);
+    let existingEntry;
+    try {
+      const existingResult = await client.query(
+        `SELECT id, calories_burned FROM exercise_entries
+         WHERE user_id = $1 AND entry_date = $3
+           AND (exercise_id = $2 OR (
+             $4 = 'Active Calories' AND exercise_name = $4 AND source = $5
+             AND duration_minutes = 0 AND exercise_preset_entry_id IS NULL
+             AND source_id IS NULL
+           ))
+         ORDER BY (exercise_id = $2) DESC, created_at, id LIMIT 1`,
+        [userId, exerciseId, date, exerciseName, sourceValue]
+      );
+      existingEntry = existingResult.rows[0];
+    } catch (error) {
+      log(
+        'error',
+        'Error checking for existing active calories exercise entry:',
+        error
+      );
+      throw new Error(
+        // @ts-expect-error TS(2571): Object is of type 'unknown'.
+        `Failed to check existing active calories exercise entry or fetch exercise name: ${error.message}`,
+        { cause: error }
+      );
+    }
+    let result;
+    if (existingEntry) {
+      log(
+        'info',
+        `Existing active calories entry found for ${date}, updating calories from ${existingEntry.calories_burned} to ${caloriesBurned}.`
+      );
+      try {
+        const updateResult = await client.query(
+          'UPDATE exercise_entries SET calories_burned = $1, notes = $2, updated_by_user_id = $3, exercise_name = $4, source = $5, exercise_id = $7, updated_at = now() WHERE id = $6 RETURNING *',
+          [
+            caloriesBurned,
+            `Active calories logged from ${sourceLabel} (updated).`,
+            createdByUserId,
+            exerciseName,
+            sourceValue,
+            existingEntry.id,
+            exerciseId,
+          ]
+        );
+        result = updateResult.rows[0];
+      } catch (error) {
+        log('error', 'Error updating active calories exercise entry:', error);
+        throw new Error(
+          // @ts-expect-error TS(2571): Object is of type 'unknown'.
+          `Failed to update active calories exercise entry: ${error.message}`,
+          { cause: error }
+        );
+      }
+    } else {
+      log(
+        'info',
+        `No existing active calories entry found for ${date}, inserting new entry.`
+      );
+      try {
+        const insertResult = await client.query(
+          `INSERT INTO exercise_entries (user_id, exercise_id, entry_date, calories_burned, duration_minutes, notes, created_by_user_id, exercise_name, source)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+          [
+            userId,
+            exerciseId,
+            date,
+            caloriesBurned,
+            0,
+            `Active calories logged from ${sourceLabel}.`,
+            createdByUserId,
+            exerciseName,
+            sourceValue,
+          ]
+        );
+        result = insertResult.rows[0];
+      } catch (error) {
+        log('error', 'Error inserting active calories exercise entry:', error);
+        throw new Error(
+          // @ts-expect-error TS(2571): Object is of type 'unknown'.
+          `Failed to insert active calories exercise entry: ${error.message}`,
+          { cause: error }
+        );
+      }
+    }
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
   } finally {
     client.release();
   }
-  let result;
-  if (existingEntry) {
-    log(
-      'info',
-      `Existing active calories entry found for ${date}, updating calories from ${existingEntry.calories_burned} to ${caloriesBurned}.`
-    );
-    const updateClient = await getClient(userId);
-    try {
-      const updateResult = await updateClient.query(
-        'UPDATE exercise_entries SET calories_burned = $1, notes = $2, updated_by_user_id = $3, exercise_name = $4, source = $5, exercise_id = $7, updated_at = now() WHERE id = $6 RETURNING *',
-        [
-          caloriesBurned,
-          `Active calories logged from ${sourceLabel} (updated).`,
-          createdByUserId,
-          exerciseName,
-          sourceValue,
-          existingEntry.id,
-          exerciseId,
-        ]
-      );
-      result = updateResult.rows[0];
-    } catch (error) {
-      log('error', 'Error updating active calories exercise entry:', error);
-      throw new Error(
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        `Failed to update active calories exercise entry: ${error.message}`,
-        { cause: error }
-      );
-    } finally {
-      updateClient.release();
-    }
-  } else {
-    log(
-      'info',
-      `No existing active calories entry found for ${date}, inserting new entry.`
-    );
-    const insertClient = await getClient(userId);
-    try {
-      const insertResult = await insertClient.query(
-        `INSERT INTO exercise_entries (user_id, exercise_id, entry_date, calories_burned, duration_minutes, notes, created_by_user_id, exercise_name, source)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-        [
-          userId,
-          exerciseId,
-          date,
-          caloriesBurned,
-          0,
-          `Active calories logged from ${sourceLabel}.`,
-          createdByUserId,
-          exerciseName,
-          sourceValue,
-        ]
-      );
-      result = insertResult.rows[0];
-    } catch (error) {
-      log('error', 'Error inserting active calories exercise entry:', error);
-      throw new Error(
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        `Failed to insert active calories exercise entry: ${error.message}`,
-        { cause: error }
-      );
-    } finally {
-      insertClient.release();
-    }
-  }
-  return result;
+}
+async function acquireActiveCaloriesLockWithClient(
+  client: PoolClient,
+  userId: string,
+  date: string
+): Promise<void> {
+  // Cast in SQL so every spelling of the same day takes the same lock.
+  await client.query(
+    "SELECT pg_advisory_xact_lock(hashtext('active-calories:' || $1 || ':' || $2::date))",
+    [userId, date]
+  );
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function _getExerciseEntryByIdWithClient(client: any, id: any) {
@@ -282,6 +324,8 @@ export const EXERCISE_ENTRY_TELEMETRY_COLUMNS = [
   'weather_humidity_percentage',
   'gear_name',
   'gear_external_id',
+  'workout_effort',
+  'calories_applied',
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -387,6 +431,8 @@ export interface WatchTelemetryFields {
   duration_minutes?: number | null;
   /** High-water mark of `duration_minutes` reported by the watch. */
   watch_duration_minutes?: number | null;
+  /** Stride length in cm; null clears it. */
+  stride_length_cm?: number | null;
 }
 
 /**
@@ -526,6 +572,7 @@ export type WatchTelemetryZoneSpec = {
   /** null for the open-ended top zone. */
   zone_upper_bpm: number | null;
   seconds_in_zone: number;
+  zone_method?: ExerciseEntryHrZonesInitializer['zone_method'];
 };
 
 /**
@@ -545,12 +592,21 @@ async function applyWatchTelemetryAtomically(
    * doing it after COMMIT let an older flush store samples the lock had
    * already rejected, or land them after a newer flush.
    */
-  onHrAccepted?: () => Promise<void>
+  onHrAccepted?: () => Promise<void>,
+  /**
+   * The zones are Apple's total for the whole workout, not this exercise.
+   * Drop the other exercises of the same session so a combined chart does
+   * not count that time again.
+   */
+  sessionZones = false
 ): Promise<void> {
   const client = await getClient(userId, actingUserId);
   try {
     await client.query('BEGIN');
     try {
+      // Advisory locks before the row lock. Taking the row first and then
+      // waiting on a link another transaction already holds deadlocks.
+      await lockCalorieLinkParticipantsWithClient(client, userId, [id]);
       const locked = await client.query(
         'SELECT * FROM exercise_entries WHERE id = $1 AND user_id = $2 FOR UPDATE',
         [id, userId]
@@ -561,6 +617,8 @@ async function applyWatchTelemetryAtomically(
             max_heart_rate?: unknown;
             active_calories?: unknown;
             watch_telemetry_observed_at?: unknown;
+            exercise_preset_entry_id?: string | null;
+            calorie_link_id?: string | null;
           }
         | undefined;
       if (!entry) {
@@ -592,11 +650,34 @@ async function applyWatchTelemetryAtomically(
             zone_lower_bpm: zone.zone_lower_bpm,
             zone_upper_bpm: zone.zone_upper_bpm,
             seconds_in_zone: zone.seconds_in_zone,
+            zone_method: zone.zone_method,
           }))
+        );
+      }
+      if (!skipHr && sessionZones && entry.exercise_preset_entry_id) {
+        await client.query(
+          `DELETE FROM exercise_entry_hr_zones
+           WHERE user_id = $1
+             AND exercise_entry_id IN (
+               SELECT id FROM exercise_entries
+               WHERE user_id = $1
+                 AND exercise_preset_entry_id = $2
+                 AND id <> $3
+             )`,
+          [userId, entry.exercise_preset_entry_id, id]
         );
       }
       if (!skipHr && onHrAccepted) {
         await onHrAccepted();
+      }
+      // Measured calories replace the estimate. A linked workout has to
+      // recount both sides from that new estimate before this transaction ends.
+      if (fields.calories_burned !== undefined && entry.calorie_link_id) {
+        await reapplyCalorieLinkWithClient(
+          client,
+          userId,
+          entry.calorie_link_id
+        );
       }
       await client.query('COMMIT');
     } catch (error) {
@@ -624,8 +705,20 @@ async function _updateExerciseEntryWithClient(
   // inserts a replacement) passes returnNullIfMissing and gets null instead of
   // an exception. Callers acting on a user-chosen entry leave it unset, because
   // for them a missing row really is an error.
-  options: { returnNullIfMissing?: boolean } = {}
+  //
+  // preserveManualFields: a re-sent provider workout leaves the fields the
+  // user edited (manual_fields) alone. markManualFields: a diary edit records
+  // the fields it changed, so the next sync knows to keep them.
+  options: {
+    returnNullIfMissing?: boolean;
+    preserveManualFields?: boolean;
+    markManualFields?: readonly string[];
+  } = {}
 ) {
+  // A link created after an unlocked read would be ignored, and locking one
+  // side before the other deadlocks. Take the entry and its link first, then
+  // reread.
+  await lockCalorieLinkParticipantsWithClient(client, userId, [id]);
   // Fetch existing entry to get current snapshot values if not provided in updateData
   const existingEntryResult = await client.query(
     'SELECT * FROM exercise_entries WHERE id = $1 AND user_id = $2',
@@ -638,6 +731,14 @@ async function _updateExerciseEntryWithClient(
     throw new Error('Exercise entry not found for update.');
   }
   const currentEntry = existingEntryResult.rows[0];
+  const currentManualFields = storedManualFields(currentEntry.manual_fields);
+  if (options.preserveManualFields) {
+    updateData = withoutManualFields(updateData, currentManualFields);
+  }
+  const manualFields = mergeManualFields(
+    currentManualFields,
+    options.markManualFields ?? []
+  );
   // Merge updateData with currentEntry to ensure all fields are present for the update statement
   // Prioritize updateData, then currentEntry, then defaults
   const mergedData = {
@@ -749,8 +850,12 @@ async function _updateExerciseEntryWithClient(
   // `undefined` key present in updateData (e.g. a metric Garmin didn't compute for this
   // activity type) silently blank out a previously-synced value.
   for (const column of EXERCISE_ENTRY_TELEMETRY_COLUMNS) {
+    // A live link owns calories_applied. The estimate may change; the link is
+    // reapplied below from the stored resolution, not from this request.
+    const linkOwnsApplied =
+      column === 'calories_applied' && currentEntry.calorie_link_id;
     mergedData[column] =
-      updateData[column] !== undefined
+      !linkOwnsApplied && updateData[column] !== undefined
         ? updateData[column]
         : currentEntry[column];
   }
@@ -800,6 +905,7 @@ async function _updateExerciseEntryWithClient(
       modality = $31,
       ${telemetrySetClause},
       record_timezone = $${32 + EXERCISE_ENTRY_TELEMETRY_COLUMNS.length},
+      manual_fields = $${33 + EXERCISE_ENTRY_TELEMETRY_COLUMNS.length}::text[],
       updated_at = now()
     WHERE id = $28 AND user_id = $29
     RETURNING id`,
@@ -837,6 +943,8 @@ async function _updateExerciseEntryWithClient(
       mergedData.modality ?? null,
       ...telemetryParams,
       mergedData.record_timezone ?? null,
+      // NULL while nothing is marked, so an untouched row keeps its shape.
+      manualFields.length > 0 ? manualFields : null,
     ]
   );
   // The row can be deleted by a competing writer between the existence check
@@ -884,6 +992,13 @@ async function _updateExerciseEntryWithClient(
       );
       await client.query(setsQuery);
     }
+  }
+  if (currentEntry.calorie_link_id) {
+    await reapplyCalorieLinkWithClient(
+      client,
+      userId,
+      currentEntry.calorie_link_id
+    );
   }
   return _getExerciseEntryByIdWithClient(client, id);
 }
@@ -997,7 +1112,9 @@ async function _createExerciseEntryWithClient(
         entryData,
         createdByUserId,
         entrySource,
-        { returnNullIfMissing: true }
+        // A source_id match is the same provider workout sent again: keep
+        // what the user corrected since the last sync.
+        { returnNullIfMissing: true, preserveManualFields: syncDuplicateCheck }
       );
       if (!updatedEntry) {
         // The writer that deleted the row is a delete-then-insert sync, so it
@@ -1024,7 +1141,10 @@ async function _createExerciseEntryWithClient(
             entryData,
             createdByUserId,
             entrySource,
-            { returnNullIfMissing: true }
+            {
+              returnNullIfMissing: true,
+              preserveManualFields: syncDuplicateCheck,
+            }
           );
         }
       }
@@ -1242,7 +1362,9 @@ async function updateExerciseEntry(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   actingUserId: any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  updateData: any
+  updateData: any,
+  // Fields this edit changed on a synced entry, kept on the next re-sync.
+  markManualFields: readonly string[] = []
 ) {
   const client = await getClient(userId);
   try {
@@ -1258,7 +1380,8 @@ async function updateExerciseEntry(
       userId,
       updateData,
       actingUserId,
-      updateData.source
+      updateData.source,
+      { markManualFields }
     );
     await client.query('COMMIT');
     return updatedEntry;
@@ -1322,6 +1445,11 @@ async function deleteExerciseEntriesByPresetEntryIdWithClient(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   presetEntryId: any
 ) {
+  await clearCalorieLinksForPresetEntryWithClient(
+    client,
+    userId,
+    presetEntryId
+  );
   await client.query(
     `DELETE FROM exercise_entries
      WHERE user_id = $1 AND exercise_preset_entry_id = $2`,
@@ -1336,6 +1464,8 @@ async function _deleteExerciseEntryWithClient(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   id: any
 ) {
+  await lockCalorieLinkParticipantsWithClient(client, userId, [id]);
+  await clearCalorieLinkOfEntryWithClient(client, userId, id);
   const result = await client.query(
     'DELETE FROM exercise_entries WHERE id = $1 AND user_id = $2 RETURNING id',
     [id, userId]
@@ -1470,11 +1600,18 @@ async function _reconcileExerciseEntrySetsWithClient(
 async function deleteExerciseEntry(id: any, userId: any) {
   const client = await getClient(userId);
   try {
+    await client.query('BEGIN');
+    await lockCalorieLinkParticipantsWithClient(client, userId, [id]);
+    await clearCalorieLinkOfEntryWithClient(client, userId, id);
     const result = await client.query(
       'DELETE FROM exercise_entries WHERE id = $1 AND user_id = $2 RETURNING id',
       [id, userId]
     );
+    await client.query('COMMIT');
     return result.rowCount > 0;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
   } finally {
     client.release();
   }
@@ -1956,6 +2093,10 @@ async function deleteExerciseEntriesByEntrySourceAndDateWithClient(
   );
   const entryIds = entryIdsResult.rows.map((row: { id: string }) => row.id);
   if (entryIds.length > 0) {
+    // A resync deletes the synced side in bulk. Clear the link first so the
+    // logged workout that stays behind counts its own estimate again.
+    await lockCalorieLinkParticipantsWithClient(client, userId, entryIds);
+    await clearCalorieLinksOfEntriesWithClient(client, userId, entryIds);
     // Delete associated activity details
     await client.query(
       'DELETE FROM exercise_entry_activity_details WHERE exercise_entry_id = ANY($1::uuid[])',
@@ -2040,7 +2181,7 @@ async function getDailyExerciseTotalsRange(
       `SELECT entry_date,
               COUNT(*)::int AS entry_count,
               SUM(COALESCE(duration_minutes, 0)) AS duration_minutes,
-              SUM(COALESCE(calories_burned, 0)) AS calories_burned,
+              SUM(COALESCE(calories_applied, calories_burned, 0)) AS calories_burned,
               SUM(COALESCE(distance, 0)) AS distance,
               SUM(COALESCE(steps, 0)) AS steps
        FROM exercise_entries
@@ -2122,10 +2263,10 @@ async function getDailyExerciseCalorieSplitRange(
   try {
     const result = await client.query(
       `SELECT TO_CHAR(entry_date, 'YYYY-MM-DD') AS entry_date,
-              COALESCE(SUM(calories_burned) FILTER (
+              COALESCE(SUM(COALESCE(calories_applied, calories_burned)) FILTER (
                 WHERE exercise_name = 'Active Calories'
                   AND exercise_preset_entry_id IS NULL), 0)::float8 AS active_calories,
-              COALESCE(SUM(calories_burned) FILTER (
+              COALESCE(SUM(COALESCE(calories_applied, calories_burned)) FILTER (
                 WHERE exercise_name IS DISTINCT FROM 'Active Calories'
                    OR exercise_preset_entry_id IS NOT NULL), 0)::float8 AS other_calories,
               COALESCE(SUM(steps), 0)::int AS activity_steps

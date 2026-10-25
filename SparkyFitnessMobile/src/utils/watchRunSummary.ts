@@ -22,7 +22,8 @@ export function watchRunSummary(
   payload: WatchRunPayload,
   distanceUnit: 'km' | 'miles',
   program: RunSummaryParams['program'],
-  entryId?: string | null
+  entryId?: string | null,
+  form?: RunSummaryParams['form']
 ): RunSummaryParams {
   const avgHeartRate = mean(payload.heartRate.map(([, bpm]) => bpm));
   const points = watchRunPoints(payload);
@@ -33,8 +34,10 @@ export function watchRunSummary(
     points,
     lapMarks: payload.laps,
     avgHeartRate,
+    heartRateSamples: payload.heartRate.map(([t, bpm]) => ({ t, bpm })),
     program,
     entryId,
+    form,
   });
   const laps: RecordedSplit[] =
     points.length >= 2

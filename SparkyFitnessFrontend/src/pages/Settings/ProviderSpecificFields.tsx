@@ -12,6 +12,7 @@ import {
 import { Clipboard } from 'lucide-react';
 import { useTranslation, Trans } from 'react-i18next';
 import type { ExternalDataProvider } from './ExternalProviderSettings';
+import { RoutingProviderFields } from './RoutingProviderFields';
 
 // Developer dashboards where each OAuth provider's Client ID/Secret and callback
 // URL are configured. Kept in sync with the per-provider text in EditProviderForm.
@@ -102,6 +103,25 @@ export const ProviderSpecificFields = ({
     return `${window.location.origin}/${provider.provider_type}/callback`;
   };
 
+  const yazioMoreInfoText = t(
+    'settings.foodExerciseDataProviders.yazio.moreInfoLink',
+    'For more information & client credentials, see <1>saganos/yazio_public_api</1>.'
+  );
+  const yazioHasRepoLink =
+    yazioMoreInfoText.includes('saganos/yazio_public_api') ||
+    yazioMoreInfoText.includes('<1>') ||
+    yazioMoreInfoText.includes('<link>');
+  const yazioRepoLinkElement = (
+    <a
+      href="https://github.com/saganos/yazio_public_api"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-red-800 dark:text-red-200 underline font-medium"
+    >
+      saganos/yazio_public_api
+    </a>
+  );
+
   return (
     <>
       {needsBaseUrl && (
@@ -124,6 +144,20 @@ export const ProviderSpecificFields = ({
             autoComplete="off"
           />
         </div>
+      )}
+
+      {provider.provider_type === 'valhalla' && (
+        <RoutingProviderFields
+          idPrefix="new"
+          baseUrl={provider.base_url}
+          appKey={provider.app_key}
+          onBaseUrlChange={(value) =>
+            setProvider((prev) => ({ ...prev, base_url: value }))
+          }
+          onAppKeyChange={(value) =>
+            setProvider((prev) => ({ ...prev, app_key: value }))
+          }
+        />
       )}
 
       {needsAppId && (
@@ -329,24 +363,27 @@ export const ProviderSpecificFields = ({
                     1: <strong />,
                     3: <strong />,
                     5: <strong />,
+                    strong: <strong />,
+                    strong2: <strong />,
+                    strong3: <strong />,
                   }}
                 />
               </p>
               <p className="text-sm text-red-700 dark:text-red-300">
-                <Trans
-                  i18nKey="settings.foodExerciseDataProviders.yazio.moreInfoLink"
-                  defaults="For more information & client credentials, see <1>saganos/yazio_public_api</1>."
-                  components={{
-                    1: (
-                      <a
-                        href="https://github.com/saganos/yazio_public_api"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-red-800 dark:text-red-200 underline font-medium"
-                      />
-                    ),
-                  }}
-                />
+                {yazioHasRepoLink ? (
+                  <Trans
+                    i18nKey="settings.foodExerciseDataProviders.yazio.moreInfoLink"
+                    defaults="For more information & client credentials, see <1>saganos/yazio_public_api</1>."
+                    components={{
+                      1: yazioRepoLinkElement,
+                      link: yazioRepoLinkElement,
+                    }}
+                  />
+                ) : (
+                  <>
+                    {yazioMoreInfoText} {yazioRepoLinkElement}.
+                  </>
+                )}
               </p>
             </div>
           </div>

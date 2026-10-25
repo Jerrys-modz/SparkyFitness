@@ -3,6 +3,7 @@ import { apiCall } from '@/api/api';
 interface IntegrationPayload {
   code: string;
   state: string | null;
+  redirect_uri?: string;
 }
 export const linkFitbitAccount = async (
   data: IntegrationPayload

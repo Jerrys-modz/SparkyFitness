@@ -1,19 +1,19 @@
 import {
   FOOD_VARIANT_NUTRIENT_FIELDS,
   type FoodVariantNutrientField,
-} from "../constants/foodVariantNutrients.ts";
+} from '../constants/foodVariantNutrients.ts';
 import {
   getConversionFactor,
   getUnitCategory,
-} from "./servingSizeConversions.ts";
+} from './servingSizeConversions.ts';
 
 export interface FoodPortionDefinition {
   name: string;
   amount: number;
-  unit: "g" | "ml";
+  unit: 'g' | 'ml';
 }
 
-type AmountField = FoodVariantNutrientField | "water_ml";
+type AmountField = FoodVariantNutrientField | 'water_ml';
 
 export type FoodPortionSource = Partial<Record<AmountField, number | null>> & {
   serving_size: number;
@@ -21,8 +21,8 @@ export type FoodPortionSource = Partial<Record<AmountField, number | null>> & {
   custom_nutrients?: Record<string, string | number> | null;
   abv_percent?: number | null;
   glycemic_index?: string | null;
-  source?: "manual" | "ai_estimate" | "imported";
-  ai_confidence?: "high" | "medium" | "low" | null;
+  source?: 'manual' | 'ai_estimate' | 'imported';
+  ai_confidence?: 'high' | 'medium' | 'low' | null;
 };
 
 export type NamedFoodPortion<T extends FoodPortionSource = FoodPortionSource> =
@@ -34,21 +34,21 @@ export type NamedFoodPortion<T extends FoodPortionSource = FoodPortionSource> =
     carbs: number;
     fat: number;
     custom_nutrients?: Record<string, number>;
-    abv_percent?: T["abv_percent"];
-    glycemic_index?: T["glycemic_index"];
-    source: "manual" | "ai_estimate";
-    ai_confidence: "high" | "medium" | "low" | null;
+    abv_percent?: T['abv_percent'];
+    glycemic_index?: T['glycemic_index'];
+    source: 'manual' | 'ai_estimate';
+    ai_confidence: 'high' | 'medium' | 'low' | null;
   };
 
 /** The known amount of a portion is entered in metric weight or volume. */
-export function getFoodPortionUnit(unit: string): "g" | "ml" | null {
+export function getFoodPortionUnit(unit: string): 'g' | 'ml' | null {
   const category = getUnitCategory(unit);
-  return category === "weight" ? "g" : category === "volume" ? "ml" : null;
+  return category === 'weight' ? 'g' : category === 'volume' ? 'ml' : null;
 }
 
 /** Read the explicit metric context already supported by saved serving units. */
 export function parseNamedFoodPortion(
-  servingUnit: string,
+  servingUnit: string
 ): FoodPortionDefinition | null {
   const match = servingUnit
     .trim()
@@ -57,7 +57,7 @@ export function parseNamedFoodPortion(
   const name = match[1]!.trim();
   const amount = Number(match[2]);
   if (!name || !Number.isFinite(amount) || amount <= 0) return null;
-  return { name, amount, unit: match[3] as "g" | "ml" };
+  return { name, amount, unit: match[3] as 'g' | 'ml' };
 }
 
 /**
@@ -67,9 +67,9 @@ export function parseNamedFoodPortion(
  */
 export function buildNamedFoodPortion<T extends FoodPortionSource>(
   source: T,
-  definition: FoodPortionDefinition,
+  definition: FoodPortionDefinition
 ): NamedFoodPortion<T> | null {
-  const name = definition.name.trim().replace(/\s+/g, " ");
+  const name = definition.name.trim().replace(/\s+/g, ' ');
   const { amount, unit } = definition;
   if (
     !name ||
@@ -79,7 +79,7 @@ export function buildNamedFoodPortion<T extends FoodPortionSource>(
     amount <= 0 ||
     !Number.isFinite(source.serving_size) ||
     source.serving_size <= 0 ||
-    (unit !== "g" && unit !== "ml")
+    (unit !== 'g' && unit !== 'ml')
   ) {
     return null;
   }
@@ -97,11 +97,11 @@ export function buildNamedFoodPortion<T extends FoodPortionSource>(
     fat: 0,
     abv_percent: source.abv_percent,
     glycemic_index: source.glycemic_index,
-    source: source.source === "ai_estimate" ? "ai_estimate" : "manual",
+    source: source.source === 'ai_estimate' ? 'ai_estimate' : 'manual',
     ai_confidence:
-      source.source === "ai_estimate" ? (source.ai_confidence ?? null) : null,
+      source.source === 'ai_estimate' ? (source.ai_confidence ?? null) : null,
   };
-  for (const field of [...FOOD_VARIANT_NUTRIENT_FIELDS, "water_ml"] as const) {
+  for (const field of [...FOOD_VARIANT_NUTRIENT_FIELDS, 'water_ml'] as const) {
     const value = source[field];
     if (value == null) continue;
     const scaled = value * ratio;
@@ -122,7 +122,7 @@ export function buildNamedFoodPortion<T extends FoodPortionSource>(
 /** Classify saved servings before changing their reference; custom nutrition stays independent. */
 export function isCalculatedFoodPortion(
   source: FoodPortionSource,
-  variant: FoodPortionSource,
+  variant: FoodPortionSource
 ): boolean {
   const definition = parseNamedFoodPortion(variant.serving_unit);
   const expected = definition && buildNamedFoodPortion(source, definition);
@@ -131,11 +131,11 @@ export function isCalculatedFoodPortion(
     Math.abs(left - right) <=
     Math.max(1, Math.abs(left), Math.abs(right)) * 0.00001;
   if (
-    ![...FOOD_VARIANT_NUTRIENT_FIELDS, "water_ml"].every((field) =>
+    ![...FOOD_VARIANT_NUTRIENT_FIELDS, 'water_ml'].every((field) =>
       equalAmount(
         Number(expected[field as keyof typeof expected] ?? 0),
-        Number(variant[field as keyof FoodPortionSource] ?? 0),
-      ),
+        Number(variant[field as keyof FoodPortionSource] ?? 0)
+      )
     )
   )
     return false;
@@ -148,8 +148,8 @@ export function isCalculatedFoodPortion(
       (name) =>
         !equalAmount(
           Number(expected.custom_nutrients?.[name] ?? 0),
-          Number(variant.custom_nutrients?.[name] ?? 0),
-        ),
+          Number(variant.custom_nutrients?.[name] ?? 0)
+        )
     )
   )
     return false;

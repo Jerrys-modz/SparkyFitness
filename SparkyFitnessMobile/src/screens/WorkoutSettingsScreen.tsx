@@ -271,6 +271,17 @@ const WorkoutSettingsScreen: React.FC<WorkoutSettingsScreenProps> = ({
           }
         />
 
+        <SettingsRow
+          title={t('settings.rows.heartRateZones', {
+            defaultValue: 'Heart Rate Zones',
+          })}
+          subtitle={t('settings.rows.heartRateZonesSubtitle', {
+            defaultValue: 'Max and resting heart rate, zone method',
+          })}
+          subtitleNumberOfLines={0}
+          onPress={() => navigation.navigate('HeartRateZonesSettings')}
+        />
+
         <GuidedWorkoutSettingsSection />
       </ScrollView>
 

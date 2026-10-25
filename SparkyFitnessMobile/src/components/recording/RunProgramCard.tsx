@@ -20,6 +20,8 @@ import {
   planMinutes,
   programOutline,
   RUN_PROGRAMS,
+  runMinutes,
+  type IntervalPlan,
   type ProgramStatus,
   type ProgramWorkout,
   type RunProgram,
@@ -29,6 +31,11 @@ import {
 /** A program's name: the person's own for a custom one, else the built-in's. */
 export function programTitle(t: TFunction, program: RunProgram): string {
   return program.custom?.name || programName(t, program.id);
+}
+
+/** Walking programs quote brisk time; run programs quote the whole workout. */
+function workoutMinutes(program: RunProgram, plan: IntervalPlan): number {
+  return program.activity === 'walk' ? runMinutes(plan) : planMinutes(plan);
 }
 
 /** "Workout 4" or the person's own name for a workout of a custom program. */
@@ -219,12 +226,12 @@ export function programDescription(t: TFunction, id: string): string {
     case 'beginnerMarathon4':
       return t('recordActivity.program.beginnerMarathon4Description', {
         defaultValue:
-          'Beginner marathon: eighteen weeks, four runs a week, with long runs building to 2⅔ hours and a taper. For when you can run 10K.',
+          'Beginner marathon: eighteen weeks, four runs a week, with long runs building to 2½ hours and a taper. For when you can run 10K.',
       });
     case 'fasterHalf4':
       return t('recordActivity.program.fasterHalf4Description', {
         defaultValue:
-          'Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run with tempo work. For when you have run a half marathon before.',
+          'Faster half marathon: ten weeks, four runs a week, with a speed session, easy runs and a long run. For when you have run a half marathon before.',
       });
     default:
       return id;
@@ -303,9 +310,13 @@ interface Props {
   lastAdjustment?: RunProgramAdjustment | null;
   /** Epoch ms "now", from the screen, to judge whether a change is recent. */
   now: number;
+  /** Today in the account timezone, for the race day comparison; defaults to the device day. */
+  accountToday?: string;
   /** The days the workout shows in the Diary, and the first day it does. */
   schedule: RunSchedule;
   onSchedule: (change: ProgramScheduleChange) => void;
+  /** The race day from the person's running goals (YYYY-MM-DD), if one is set. */
+  raceDay?: string | null;
   /** Jump to any workout in the program (0-based index). */
   onPickWorkout: (index: number) => void;
   status: ProgramStatus | null;
@@ -335,9 +346,11 @@ const SectionHeading: React.FC<{ children: React.ReactNode }> = ({
 const InlineLink: React.FC<{
   onPress: () => void;
   children: string;
-}> = ({ onPress, children }) => (
+  testID?: string;
+}> = ({ onPress, children, testID }) => (
   <Pressable
     accessibilityRole="button"
+    testID={testID}
     onPress={onPress}
     hitSlop={8}
     className="mr-5"
@@ -353,8 +366,10 @@ const RunProgramCard: React.FC<Props> = ({
   onChooseProgram,
   lastAdjustment = null,
   now,
+  accountToday,
   schedule,
   onSchedule,
+  raceDay = null,
   onPickWorkout,
   status,
   loaded,
@@ -464,7 +479,7 @@ const RunProgramCard: React.FC<Props> = ({
                       weekOne: outline.firstWeek.join(', '),
                       peak: outline.peakRunMinutes,
                       defaultValue:
-                        'Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of running.',
+                        'Week 1: workouts of {{weekOne}} minutes. Builds to {{peak}} minutes of effort.',
                     })}
               </Text>
             );
@@ -487,20 +502,20 @@ const RunProgramCard: React.FC<Props> = ({
           label: status.program.custom
             ? t('recordActivity.program.pickOptionCustom', {
                 title: customWorkoutTitle(t, workout),
-                minutes: planMinutes(workout.plan),
+                minutes: workoutMinutes(status.program, workout.plan),
                 mark: index < status.done ? '✓ ' : '',
                 defaultValue: '{{mark}}{{title}} · {{minutes}} min',
               })
             : status.program.activity === 'walk'
               ? t('recordActivity.program.pickOptionWalk', {
                   walk: workout.day + 1,
-                  minutes: planMinutes(workout.plan),
+                  minutes: workoutMinutes(status.program, workout.plan),
                   mark: index < status.done ? '✓ ' : '',
                   defaultValue: '{{mark}}Walk {{walk}} · {{minutes}} min',
                 })
               : t('recordActivity.program.pickOption', {
                   run: workout.day + 1,
-                  minutes: planMinutes(workout.plan),
+                  minutes: workoutMinutes(status.program, workout.plan),
                   mark: index < status.done ? '✓ ' : '',
                   defaultValue: '{{mark}}Run {{run}} · {{minutes}} min',
                 }),
@@ -521,6 +536,8 @@ const RunProgramCard: React.FC<Props> = ({
       })
     : '';
   const today = toLocalDateString(new Date(now));
+  // Goal dates (the race day) are judged in the account timezone.
+  const goalToday = accountToday ?? today;
   const hasStart = !!schedule.startDay;
   const futureStart = hasStart && (schedule.startDay as string) > today;
   const dayLabel = (day: string): string => formatDayLabel(day);
@@ -545,7 +562,9 @@ const RunProgramCard: React.FC<Props> = ({
           : t('recordActivity.program.progress', {
               done: status.done,
               total: status.total,
-              minutes: status.workout ? planMinutes(status.workout.plan) : 0,
+              minutes: status.workout
+                ? workoutMinutes(status.program, status.workout.plan)
+                : 0,
               defaultValue:
                 'Workout {{done}} of {{total}} done · {{minutes}} min today',
             })}
@@ -700,7 +719,7 @@ const RunProgramCard: React.FC<Props> = ({
                     'Optional, for example a race day. The schedule below says whether the program fits before it.',
                 })}
           </Text>
-          <View className="flex-row mt-2">
+          <View className="flex-row flex-wrap mt-2">
             <InlineLink onPress={() => goalCalendarRef.current?.present()}>
               {schedule.endDay
                 ? t('recordActivity.program.goalChange', {
@@ -710,6 +729,20 @@ const RunProgramCard: React.FC<Props> = ({
                     defaultValue: 'Set a goal date',
                   })}
             </InlineLink>
+            {raceDay &&
+            raceDay > goalToday &&
+            (!schedule.startDay || raceDay >= schedule.startDay) &&
+            schedule.endDay !== raceDay ? (
+              <InlineLink
+                testID="run-program-use-race-day"
+                onPress={() => onSchedule({ endDay: raceDay })}
+              >
+                {t('recordActivity.program.goalUseRaceDay', {
+                  date: dayLabel(raceDay),
+                  defaultValue: 'Use race day ({{date}})',
+                })}
+              </InlineLink>
+            ) : null}
             {schedule.endDay ? (
               <InlineLink onPress={() => onSchedule({ endDay: null })}>
                 {t('recordActivity.program.goalClear', {
@@ -786,9 +819,9 @@ const RunProgramCard: React.FC<Props> = ({
       </View>
       <CalendarSheet
         ref={goalCalendarRef}
-        selectedDate={schedule.endDay ?? addDays(today, 28)}
+        selectedDate={schedule.endDay ?? addDays(goalToday, 28)}
         onSelectDate={(day) =>
-          onSchedule({ endDay: day <= today ? null : day })
+          onSchedule({ endDay: day <= goalToday ? null : day })
         }
       />
       <CalendarSheet

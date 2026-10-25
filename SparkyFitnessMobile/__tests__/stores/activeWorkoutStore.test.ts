@@ -2701,7 +2701,7 @@ describe('activeWorkoutStore', () => {
         tags: [],
       };
 
-      it('swaps the exercise in place and resets to one default set', () => {
+      it('swaps the exercise in place and keeps the sets when the modality matches', () => {
         useActiveWorkoutStore
           .getState()
           .replaceExercise('ex-uuid-1', replacement);
@@ -2710,11 +2710,24 @@ describe('activeWorkoutStore', () => {
         expect(entry.id).toBe('ex-uuid-1'); // entry id (position) preserved
         expect(entry.exercise_id).toBe('ex-9');
         expect(entry.exercise_snapshot?.name).toBe('Overhead Press');
+        expect(
+          entry.sets.map((s) => [s.id, s.weight, s.reps, s.set_type])
+        ).toEqual([
+          [101, 60, 10, 'working'],
+          [102, 70, 8, 'working'],
+        ]);
+        expect(state.session!.exercises[1].id).toBe('ex-uuid-2'); // sibling untouched
+        expect(state.hasUnsavedChanges).toBe(true);
+      });
+
+      it('resets to one default set when the modality changes', () => {
+        useActiveWorkoutStore
+          .getState()
+          .replaceExercise('ex-uuid-1', { ...replacement, category: 'Cardio' });
+        const entry = useActiveWorkoutStore.getState().session!.exercises[0];
         expect(entry.sets).toHaveLength(1);
         expect(entry.sets[0].id).toBe(-1);
         expect(entry.sets[0].set_type).toBe('normal');
-        expect(state.session!.exercises[1].id).toBe('ex-uuid-2'); // sibling untouched
-        expect(state.hasUnsavedChanges).toBe(true);
       });
 
       it('forgets a declined adaptive suggestion for the replaced entry', () => {
@@ -2744,7 +2757,7 @@ describe('activeWorkoutStore', () => {
         });
       });
 
-      it('prunes completions for the replaced sets and repoints the cursor', async () => {
+      it('clears completions on the kept sets and repoints the cursor', async () => {
         useActiveWorkoutStore.getState().completeActiveSet(); // 101 done, cursor 102
         await flushPromises();
         useActiveWorkoutStore
@@ -2752,8 +2765,8 @@ describe('activeWorkoutStore', () => {
           .replaceExercise('ex-uuid-1', replacement);
         const state = useActiveWorkoutStore.getState();
         expect(state.completedSetIds['101']).toBeUndefined();
-        expect(state.activeSetId).toBe('-1');
-        expect(state.steps.map((s) => s.setId)).toEqual(['-1', '201']);
+        expect(state.activeSetId).toBe('101');
+        expect(state.steps.map((s) => s.setId)).toEqual(['101', '102', '201']);
       });
 
       it('is a no-op for an unknown entry id', () => {

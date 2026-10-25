@@ -12,6 +12,8 @@ import measurementRepository from '../models/measurementRepository.js';
 import waterContainerRepository from '../models/waterContainerRepository.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
 import * as mindfulnessRepository from '../models/mindfulnessRepository.js';
+import moodRepository from '../models/moodRepository.js';
+import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import type { WaterContainerResponse } from '@workspace/shared';
 
 vi.mock('../models/measurementRepository.js', () => ({
@@ -29,6 +31,17 @@ vi.mock('../models/waterContainerRepository.js', () => ({
 }));
 vi.mock('../models/genericHealthRepository.js', () => ({
   upsertDailyHealthMetrics: vi.fn(),
+}));
+vi.mock('../models/moodRepository.js', () => ({
+  default: {
+    upsertDerivedMood: vi.fn(),
+    createCheckin: vi.fn(),
+    listCustomMoods: vi.fn().mockResolvedValue([]),
+    createCustomMood: vi.fn(),
+  },
+}));
+vi.mock('../utils/timezoneLoader.js', () => ({
+  loadUserTimezone: vi.fn().mockResolvedValue('UTC'),
 }));
 vi.mock('../models/mindfulnessRepository.js', () => ({
   createMindfulnessSession: vi.fn(),
@@ -909,5 +922,96 @@ describe('daily summary readings (resting heart rate, VO2 max)', () => {
         vo2_max: 43.3,
       },
     ]);
+  });
+});
+
+describe('moodHandler', () => {
+  const handler = HEALTH_TYPE_HANDLERS.Mood;
+  const ctx = {
+    userId: 'user-123',
+    actingUserId: 'acting-456',
+    parsedDate: '2026-10-05',
+    entryTimestamp: '2026-10-05T10:00:00.000Z',
+    entryHour: 10,
+    resolveCategory: vi.fn(),
+  } as unknown as HealthEntryContext;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("stores the import as the day's derived import row", async () => {
+    const row = { id: 'mood-1', source: 'import' };
+    vi.mocked(moodRepository.upsertDerivedMood).mockResolvedValue(row as never);
+
+    const result = await handler.handle(
+      { type: 'Mood', value: '70', notes: 'ok', mood_tags: ['Happy'] },
+      ctx
+    );
+
+    expect(result).toEqual({ status: 'success', data: row });
+    expect(moodRepository.upsertDerivedMood).toHaveBeenCalledWith(
+      'user-123',
+      'import',
+      {
+        moodValue: 70,
+        notes: 'ok',
+        moodTags: ['Happy'],
+        entryDate: '2026-10-05',
+        entryTimestamp: '2026-10-05T10:00:00.000Z',
+      }
+    );
+  });
+
+  it('stamps a record dated by day alone at local noon, not UTC midnight', async () => {
+    vi.mocked(moodRepository.upsertDerivedMood).mockResolvedValue({} as never);
+    vi.mocked(loadUserTimezone).mockResolvedValueOnce('America/Chicago');
+
+    // A CSV row: resolveHealthEntryDate stamps a day-only date at UTC
+    // midnight, which is the evening before in Chicago.
+    await handler.handle(
+      { type: 'Mood', value: '70', date: '2026-10-05' },
+      { ...ctx, entryTimestamp: '2026-10-05T00:00:00.000Z' }
+    );
+
+    expect(
+      vi.mocked(moodRepository.upsertDerivedMood).mock.calls[0]![2]
+        .entryTimestamp
+    ).toEqual(new Date('2026-10-05T17:00:00.000Z'));
+  });
+
+  it('keeps the time a record carries of its own', async () => {
+    vi.mocked(moodRepository.upsertDerivedMood).mockResolvedValue({} as never);
+
+    await handler.handle(
+      {
+        type: 'Mood',
+        value: '70',
+        date: '2026-10-05',
+        timestamp: '2026-10-05T10:00:00Z',
+      },
+      ctx
+    );
+
+    expect(
+      vi.mocked(moodRepository.upsertDerivedMood).mock.calls[0]![2]
+        .entryTimestamp
+    ).toBe('2026-10-05T10:00:00.000Z');
+    expect(loadUserTimezone).not.toHaveBeenCalled();
+  });
+
+  it('routes every re-import of the same day to the import derived upsert', async () => {
+    vi.mocked(moodRepository.upsertDerivedMood).mockResolvedValue({} as never);
+    const entry = { type: 'Mood', value: '70' };
+
+    await handler.handle(entry, ctx);
+    await handler.handle(entry, ctx);
+
+    expect(moodRepository.upsertDerivedMood).toHaveBeenCalledTimes(2);
+    for (const call of vi.mocked(moodRepository.upsertDerivedMood).mock.calls) {
+      expect(call[1]).toBe('import');
+      expect(call[2].entryDate).toBe('2026-10-05');
+    }
+    expect(moodRepository.createCheckin).not.toHaveBeenCalled();
   });
 });

@@ -3,6 +3,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NumericInput } from '@/components/NumericInput';
+import { TimeInput } from '@/components/ui/TimeInput';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -750,7 +752,10 @@ const MealBuilder: React.FC<MealBuilderProps> = ({
     });
   };
 
+  const [isConsumedQuantityValid, setIsConsumedQuantityValid] = useState(true);
+
   const handleSaveMeal = async () => {
+    if (source === 'food-diary' && !isConsumedQuantityValid) return;
     // One normalization for every payload built below: an empty or
     // whitespace-only note is the absence of a note, not an empty string.
     const normalizedMealNotes = mealNotes.trim() || null;
@@ -1615,13 +1620,22 @@ const MealBuilder: React.FC<MealBuilderProps> = ({
                     { servingUnit }
                   )}
                 </Label>
-                <Input
+                <NumericInput
                   id="consumedQuantity"
-                  type="number"
+                  allowExpressions
+                  onValidityChange={setIsConsumedQuantityValid}
+                  decimals={3}
+                  required
                   step="any"
                   min="0"
-                  value={consumedQuantity}
-                  onChange={(e) => setConsumedQuantity(e.target.value)}
+                  value={
+                    consumedQuantity === ''
+                      ? undefined
+                      : Number(consumedQuantity)
+                  }
+                  onValueChange={(value) =>
+                    setConsumedQuantity(value?.toString() ?? '')
+                  }
                   placeholder="1"
                 />
                 <p className="text-xs text-muted-foreground">
@@ -1633,7 +1647,7 @@ const MealBuilder: React.FC<MealBuilderProps> = ({
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="entryTime">
+                  <Label id="entryTime-label">
                     {t('mealBuilder.entryTimeOptional', {
                       defaultValue: 'Time (optional)',
                     })}
@@ -1669,11 +1683,11 @@ const MealBuilder: React.FC<MealBuilderProps> = ({
                     </button>
                   </div>
                 </div>
-                <Input
+                <TimeInput
                   id="entryTime"
-                  type="time"
+                  aria-labelledby="entryTime-label"
                   value={entryTime}
-                  onChange={(e) => setEntryTime(e.target.value)}
+                  onChange={setEntryTime}
                 />
               </div>
             </div>
@@ -1887,7 +1901,10 @@ const MealBuilder: React.FC<MealBuilderProps> = ({
         <Button variant="outline" onClick={onCancel}>
           {t('common.cancel', 'Cancel')}
         </Button>
-        <Button onClick={handleSaveMeal}>
+        <Button
+          onClick={handleSaveMeal}
+          disabled={source === 'food-diary' && !isConsumedQuantityValid}
+        >
           {source === 'food-diary'
             ? t('mealBuilder.updateEntryButton', 'Update Entry')
             : t('mealBuilder.saveMealButton', 'Save Meal')}

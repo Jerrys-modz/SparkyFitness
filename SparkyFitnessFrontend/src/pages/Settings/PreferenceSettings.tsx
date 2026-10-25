@@ -4,6 +4,7 @@ import {
 } from '@/utils/languageUtils'; // Import language utilities
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/TimeInput';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -416,14 +417,14 @@ export const PreferenceSettings = () => {
             />
           </div>
           <div>
-            <Label htmlFor="target_bedtime">
+            <Label id="target_bedtime-label">
               {t('settings.preferences.targetBedtime', 'Target Bedtime')}
             </Label>
-            <Input
+            <TimeInput
               id="target_bedtime"
-              type="time"
+              aria-labelledby="target_bedtime-label"
               value={targetBedtime}
-              onChange={(e) => setTargetBedtime(e.target.value)}
+              onChange={setTargetBedtime}
             />
           </div>
           <div>

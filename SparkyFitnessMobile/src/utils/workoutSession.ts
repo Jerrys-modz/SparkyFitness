@@ -24,6 +24,7 @@ import {
   decideAdaptiveAdjustment,
   distributeProgressionReps,
   effectiveLoadKg,
+  entryCaloriesCounted,
   evaluateProgression,
   isBodyweightModality,
   isCardioModality,
@@ -202,9 +203,12 @@ export function getFirstImage(session: ExerciseSessionResponse): string | null {
 
 export function getSessionCalories(session: ExerciseSessionResponse): number {
   if (session.type === 'preset') {
-    return session.exercises.reduce((sum, e) => sum + e.calories_burned, 0);
+    return session.exercises.reduce(
+      (sum, e) => sum + entryCaloriesCounted(e),
+      0
+    );
   }
-  return session.calories_burned || 0;
+  return entryCaloriesCounted(session);
 }
 
 // --- Exercise stats (single-pass over sessions array) ---
@@ -235,7 +239,7 @@ export function calculateExerciseStats(
       const isActiveCals =
         session.exercise_snapshot?.name === 'Active Calories';
       if (isActiveCals) {
-        activeCalories += session.calories_burned || 0;
+        activeCalories += entryCaloriesCounted(session);
       } else {
         otherExerciseCalories += sessionCals;
         durationMinutes += session.duration_minutes ?? 0;
@@ -2865,4 +2869,21 @@ export function summarizeWorkoutHeartRate(
     avgBpm,
     maxBpm: maxValues.length > 0 ? Math.max(...maxValues) : null,
   };
+}
+
+/**
+ * How hard the person rated a workout, 1 to 10, or null when they did not.
+ * A strength session stores the same rating on every exercise, so any one that
+ * carries it speaks for the session; the highest wins if they ever differ.
+ */
+export function summarizeWorkoutEffort(
+  exercises: readonly { workout_effort?: number | null }[]
+): number | null {
+  const ratings = exercises
+    .map((exercise) => exercise.workout_effort)
+    .filter(
+      (value): value is number =>
+        typeof value === 'number' && value >= 1 && value <= 10
+    );
+  return ratings.length > 0 ? Math.max(...ratings) : null;
 }

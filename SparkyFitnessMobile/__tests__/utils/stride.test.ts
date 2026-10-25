@@ -1,6 +1,7 @@
 import {
   activeShare,
   blendStride,
+  computeFormMetrics,
   DEFAULT_STRIDE_METERS,
   estimateDistanceMeters,
   isStepActivity,
@@ -141,5 +142,26 @@ describe('calibrateFromKnownDistance', () => {
   it('refuses a sample too short or implausible to learn from', () => {
     expect(calibrateFromKnownDistance(100, 5000, null)).toBeNull();
     expect(calibrateFromKnownDistance(5000, 50, null)).toBeNull();
+  });
+});
+
+describe('computeFormMetrics', () => {
+  it('works out cadence and stride from steps, time and distance', () => {
+    // 4,000 steps in 30 minutes over 4 km.
+    expect(computeFormMetrics(4000, 1800, 4000)).toEqual({
+      avgCadence: 133,
+      strideLengthCm: 100,
+    });
+  });
+
+  it('leaves stride out without a distance, or with an implausible one', () => {
+    expect(computeFormMetrics(4000, 1800, null)?.strideLengthCm).toBeNull();
+    expect(computeFormMetrics(4000, 1800, 20_000)?.strideLengthCm).toBeNull();
+  });
+
+  it('has nothing to say from a handful of steps or a nonsense cadence', () => {
+    expect(computeFormMetrics(50, 600, 400)).toBeNull();
+    expect(computeFormMetrics(1000, 1800, 1000)).toBeNull();
+    expect(computeFormMetrics(4000, 0, 4000)).toBeNull();
   });
 });
