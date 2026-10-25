@@ -617,7 +617,9 @@
       "routes": "Routes",
       "routesSubtitle": "Draw, import and save routes to follow",
       "equipment": "Equipment",
-      "equipmentSubtitle": "Shoes and other gear"
+      "equipmentSubtitle": "Shoes and other gear",
+      "shoppingList": "Shopping list",
+      "shoppingListSubtitle": "Things to buy on your next shop"
     },
     "sleep": "Sleep",
     "healthTrendsSettings": "Health Trends",
@@ -9181,6 +9183,29 @@
       "differenceEarlier": "{{diff}} min earlier than on {{others}} (each measured against your own normal)",
       "differenceSame": "About the same as on {{others}} (each measured against your own normal)"
     }
+  },
+  "shoppingList": {
+    "title": "Shopping List",
+    "name": "Item",
+    "namePlaceholder": "Add an item",
+    "quantity": "Quantity",
+    "quantityPlaceholder": "Qty",
+    "quantityInvalid": "Enter a quantity greater than 0.",
+    "unit": "Unit",
+    "unitPlaceholder": "Unit",
+    "add": "Add",
+    "empty": "Your list is empty",
+    "emptyHint": "Add what you need to buy above.",
+    "checkedSection": "Checked ({{total}})",
+    "clearChecked": "Clear",
+    "clearTitle": "Clear checked items?",
+    "clearDescription": "This removes every checked item from your list.",
+    "deleteItem": "Delete {{name}}",
+    "loadFailed": "Could not load your shopping list.",
+    "addFailed": "Failed to add item",
+    "updateFailed": "Failed to update item",
+    "deleteFailed": "Failed to delete item",
+    "clearFailed": "Failed to clear checked items"
   },
   "workoutEffort": {
     "value": "{{rating}}/10"
