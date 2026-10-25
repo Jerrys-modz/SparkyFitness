@@ -7,7 +7,7 @@ import type {
   CompletedItem,
   PlannedItem,
 } from '@workspace/shared';
-import { addDays, weekStartOf } from '@workspace/shared';
+import { LOAD_SPORT_GROUPS, addDays, weekStartOf } from '@workspace/shared';
 import DayMarks from '../components/trainingCalendar/DayMarks';
 import WeekProgressBar from '../components/trainingCalendar/WeekProgressBar';
 import StatusView from '../components/StatusView';
@@ -44,7 +44,7 @@ type Props = RootStackScreenProps<'TrainingCalendar'>;
 type ViewMode = 'month' | 'week';
 
 const EMPTY_DAY: DayItems = { planned: [], completed: [] };
-const SPORTS = ['running', 'cycling', 'walking', 'strength', 'other'] as const;
+const SPORTS = LOAD_SPORT_GROUPS;
 /** Width of the week total at the end of each row of the grid. */
 const WEEK_TOTAL_WIDTH = 44;
 
@@ -376,10 +376,18 @@ const TrainingCalendarScreen: React.FC<Props> = ({ navigation }) => {
         <Text className="text-text-secondary text-xs">
           {week.plannedMinutes > 0
             ? t('trainingCalendar.totals.minutes', {
-                done: formatLocalizedNumber(Math.round(week.completedMinutes)),
+                done: formatLocalizedNumber(Math.round(week.matchedMinutes)),
                 planned: formatLocalizedNumber(Math.round(week.plannedMinutes)),
                 defaultValue: 'Time {{done}} of {{planned}} min',
-              })
+              }) +
+              (week.completedMinutes - week.matchedMinutes >= 1
+                ? ` ${t('trainingCalendar.totals.minutesExtra', {
+                    extra: formatLocalizedNumber(
+                      Math.round(week.completedMinutes - week.matchedMinutes)
+                    ),
+                    defaultValue: '(+{{extra}} min extra)',
+                  })}`
+                : '')
             : t('trainingCalendar.totals.minutesDone', {
                 done: formatLocalizedNumber(Math.round(week.completedMinutes)),
                 defaultValue: 'Time {{done}} min',
@@ -400,10 +408,18 @@ const TrainingCalendarScreen: React.FC<Props> = ({ navigation }) => {
           <Text className="text-text-secondary text-xs">
             {week.plannedLoad > 0
               ? t('trainingCalendar.totals.load', {
-                  done: formatLocalizedNumber(Math.round(week.completedLoad)),
+                  done: formatLocalizedNumber(Math.round(week.matchedLoad)),
                   planned: formatLocalizedNumber(Math.round(week.plannedLoad)),
                   defaultValue: 'Training load {{done}} of {{planned}}',
-                })
+                }) +
+                (week.completedLoad - week.matchedLoad >= 1
+                  ? ` ${t('trainingCalendar.totals.loadExtra', {
+                      extra: formatLocalizedNumber(
+                        Math.round(week.completedLoad - week.matchedLoad)
+                      ),
+                      defaultValue: '(+{{extra}} extra)',
+                    })}`
+                  : '')
               : t('trainingCalendar.totals.loadDone', {
                   done: formatLocalizedNumber(Math.round(week.completedLoad)),
                   defaultValue: 'Training load {{done}}',

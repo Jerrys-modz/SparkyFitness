@@ -14,6 +14,8 @@ export function sportLoadLabel(t: TFunction, sport: LoadSportGroup): string {
       return t('trainingCalendar.sport.cycling', { defaultValue: 'Cycling' });
     case 'walking':
       return t('trainingCalendar.sport.walking', { defaultValue: 'Walking' });
+    case 'cardio':
+      return t('trainingCalendar.sport.cardio', { defaultValue: 'Cardio' });
     case 'strength':
       return t('trainingCalendar.sport.strength', { defaultValue: 'Strength' });
     default:

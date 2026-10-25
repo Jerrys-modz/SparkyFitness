@@ -32,15 +32,19 @@ export const MATCH_WINDOW_DAYS = 3;
 /** Folds the full sport taxonomy into the groups load is split by. */
 export function loadSportGroup(sport: ActivitySport): LoadSportGroup {
   switch (sport) {
-    case "running":
-      return "running";
-    case "cycling":
-      return "cycling";
-    case "walking":
-    case "hiking":
-      return "walking";
-    case "strength":
-      return "strength";
+    case 'running':
+      return 'running';
+    case 'cycling':
+      return 'cycling';
+    case 'walking':
+    case 'hiking':
+      return 'walking';
+    case 'swimming':
+    case 'rowing':
+    case 'fitness_equipment':
+      return 'cardio';
+    case 'strength':
+      return 'strength';
     default:
       return "other";
   }
@@ -112,7 +116,7 @@ function presetSport(group: readonly GroupableEntry[]): LoadSportGroup {
   for (const e of group) {
     minutes.set(e.sport, (minutes.get(e.sport) ?? 0) + e.durationMinutes);
   }
-  const cardio = (['running', 'cycling', 'walking'] as const)
+  const cardio = (['running', 'cycling', 'walking', 'cardio'] as const)
     .map((sport) => [sport, minutes.get(sport) ?? 0] as const)
     .sort((a, b) => b[1] - a[1]);
   const rest = (minutes.get('strength') ?? 0) + (minutes.get('other') ?? 0);
@@ -361,12 +365,17 @@ export function weeklyTotals(
       completedSessions: 0,
       plannedMinutes: 0,
       completedMinutes: 0,
+      matchedMinutes: 0,
       plannedLoad: 0,
       completedLoad: 0,
+      matchedLoad: 0,
       completedDistanceKm: 0,
     });
   }
   const bucket = (day: string) => weeks.get(weekStartOf(day, firstDayOfWeek));
+  const measured = new Set(
+    planned.filter((item) => item.plannedMinutes != null).map((item) => item.id)
+  );
   for (const item of planned) {
     const week = bucket(item.day);
     if (!week) continue;
@@ -385,6 +394,10 @@ export function weeklyTotals(
     week.completedLoad += item.load;
     week.completedDistanceKm += item.distanceKm ?? 0;
     if (item.plannedItemId === null) week.extraSessions += 1;
+    else if (measured.has(item.plannedItemId)) {
+      week.matchedMinutes += item.minutes;
+      week.matchedLoad += item.load;
+    }
   }
   return [...weeks.values()].map((week) => ({
     ...week,

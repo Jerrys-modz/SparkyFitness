@@ -9,7 +9,14 @@ jest.mock('../../src/utils/dateUtils', () => ({
   getTodayDate: () => '2026-10-14',
 }));
 
-const none = { running: 0, cycling: 0, walking: 0, strength: 0, other: 0 };
+const none = {
+  running: 0,
+  cycling: 0,
+  walking: 0,
+  cardio: 0,
+  strength: 0,
+  other: 0,
+};
 const data = {
   start: '2026-08-13',
   end: '2026-10-14',

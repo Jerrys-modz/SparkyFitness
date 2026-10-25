@@ -22,6 +22,7 @@ export const SPORT_COLORS: Record<LoadSportGroup, string> = {
   running: '#e4572e',
   cycling: '#2e86ab',
   walking: '#58a55c',
+  cardio: '#2a9d8f',
   strength: '#7b5ea7',
   other: '#8a8f98',
 };
@@ -130,6 +131,7 @@ export const SPORT_ICONS: Record<LoadSportGroup, IconName> = {
   running: 'exercise-running',
   cycling: 'exercise-cycling',
   walking: 'exercise-walking',
+  cardio: 'exercise-stair',
   strength: 'exercise-weights',
   other: 'exercise',
 };
