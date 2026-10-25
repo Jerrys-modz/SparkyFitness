@@ -9291,7 +9291,11 @@
       "extra_one": "{{count}} extra",
       "extra_other": "{{count}} extra",
       "minutes": "Time {{done}} of {{planned}} min",
-      "load": "Load {{done}} of {{planned}}"
+      "load": "Training load {{done}} of {{planned}}",
+      "sessionsLogged_one": "{{count}} session logged",
+      "sessionsLogged_other": "{{count}} sessions logged",
+      "minutesDone": "Time {{done}} min",
+      "loadDone": "Training load {{done}}"
     },
     "loadFailed": "Could not load your training calendar.",
     "refreshFailed": "Could not refresh. Showing the last result.",
@@ -9303,6 +9307,25 @@
     "previous": "Previous",
     "next": "Next",
     "distanceKm": "{{value}} km",
-    "distanceMiles": "{{value}} mi"
+    "distanceMiles": "{{value}} mi",
+    "restDay": "Rest day",
+    "hideEarlier": "Hide earlier weeks",
+    "loadHelpA11y": "What is training load?",
+    "progressA11y": "{{done}} done, {{partial}} partly done, {{missed}} missed, of {{planned}} planned",
+    "markA11y": "{{sport}}, {{status}}",
+    "extraA11y": "extra, not planned",
+    "moreA11y_one": "{{count}} more session",
+    "moreA11y_other": "{{count}} more sessions",
+    "dayA11y": "{{date}}: {{marks}}",
+    "dayA11yNone": "{{date}}, nothing planned or logged",
+    "weekTotalA11y": "{{done}} of {{planned}} planned sessions done",
+    "weekTotalShort": "{{done}}/{{planned}}",
+    "weekLoggedA11y_one": "{{count}} session logged",
+    "weekLoggedA11y_other": "{{count}} sessions logged",
+    "weekEmptyA11y": "No sessions this week",
+    "more_one": "+{{count}}",
+    "more_other": "+{{count}}",
+    "showEarlier_one": "Show earlier week ({{count}})",
+    "showEarlier_other": "Show earlier weeks ({{count}})"
   }
 }
