@@ -885,6 +885,7 @@
     "foodLog": "Food Log",
     "wellness": "Wellness",
     "symptoms": "Symptoms",
+    "shoppingList": "Shopping List",
     "sparkyFitnessV": "SparkyFitness v{{version}}"
   },
   "nutrition": {
@@ -9258,6 +9259,30 @@
     "powerUnit": "Running power ({{perKg}} W/kg)",
     "powerBasis_one": "Average of {{count}} run in the last 4 weeks",
     "powerBasis_other": "Average of {{count}} runs in the last 4 weeks"
+  },
+  "shoppingList": {
+    "title": "Shopping List",
+    "subtitle": "Keep track of what you need to buy. Only you can see this list.",
+    "name": "Item",
+    "namePlaceholder": "Add an item",
+    "quantity": "Quantity",
+    "unit": "Unit",
+    "note": "Note",
+    "add": "Add",
+    "editItem": "Edit item",
+    "edit": "Edit {{name}}",
+    "remove": "Remove {{name}}",
+    "toggle": "Mark {{name}} as bought",
+    "checkedSection": "Bought ({{count}})",
+    "clearChecked": "Clear bought items",
+    "emptyTitle": "Your list is empty",
+    "emptyDescription": "Add the things you need to buy and tick them off as you shop.",
+    "ownerOnly": "The shopping list is private to its owner.",
+    "failedToLoad": "Failed to load your shopping list.",
+    "failedToAdd": "Failed to add the item.",
+    "failedToSave": "Failed to save the item.",
+    "failedToDelete": "Failed to remove the item.",
+    "failedToClear": "Failed to clear the checked items."
   },
   "shoes": {
     "title": "Shoes",

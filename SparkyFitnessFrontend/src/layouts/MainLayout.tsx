@@ -25,6 +25,7 @@ import {
   BookOpen, // Used for the docs link
   Languages, // Used for the translation link
   HeartPulse, // Used for the delegate-only Symptoms page
+  ShoppingCart,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -150,6 +151,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         },
         { value: 'goals', label: t('nav.goals', 'Goals'), icon: Target },
         {
+          value: 'shopping-list',
+          label: t('nav.shoppingList', 'Shopping List'),
+          icon: ShoppingCart,
+        },
+        {
           value: 'foodlog',
           label: t('nav.foodLog', 'Food Log'),
           icon: Salad,
@@ -264,6 +270,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           icon: Dumbbell,
         },
         { value: '/goals', label: t('nav.goals'), icon: Target },
+        {
+          value: '/shopping-list',
+          label: t('nav.shoppingList', 'Shopping List'),
+          icon: ShoppingCart,
+        },
         { value: '/settings', label: t('nav.settings'), icon: SettingsIcon }
       );
     } else {
