@@ -192,6 +192,7 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     food_assistant_preferences: 'owner',
     food_assistant_tasks: 'owner',
     food_assistant_operations: 'owner',
+    plate_inventories: 'owner',
     // diary
     exercise_entries: 'diary',
     exercise_preset_entries: 'diary',
@@ -201,7 +202,6 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     goal_presets: 'diary',
     meal_plans: 'diary',
     shoes: 'diary',
-    plate_inventories: 'diary',
     user_allergen_preferences: 'diary',
     user_custom_nutrients: 'diary',
     user_goals: 'diary',
