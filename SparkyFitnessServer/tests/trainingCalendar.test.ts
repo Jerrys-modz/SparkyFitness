@@ -3,6 +3,7 @@ import {
   matchPlan,
   groupPresetEntries,
   isPassiveEntry,
+  classifyActivitySport,
   programSlots,
   sportLoadOf,
   weeklyPlanSlots,
@@ -240,6 +241,8 @@ describe('weeklyTotals and sportLoadOf', () => {
       completedMinutes: 80,
       plannedLoad: 200,
       completedLoad: 60 + 100,
+      matchedMinutes: 30,
+      matchedLoad: 60,
       completedDistanceKm: 5,
     });
   });
@@ -279,10 +282,10 @@ describe('weeklyTotals and sportLoadOf', () => {
 });
 
 describe('loadSportGroup', () => {
-  it('folds the sport taxonomy into the five groups', () => {
+  it('folds the sport taxonomy into the load groups', () => {
     expect(loadSportGroup('hiking')).toBe('walking');
-    expect(loadSportGroup('swimming')).toBe('other');
-    expect(loadSportGroup('fitness_equipment')).toBe('other');
+    expect(loadSportGroup('swimming')).toBe('cardio');
+    expect(loadSportGroup('fitness_equipment')).toBe('cardio');
     expect(loadSportGroup('strength')).toBe('strength');
   });
 });
@@ -558,5 +561,101 @@ describe('passive diary rows', () => {
     ]);
     expect(grouped).toHaveLength(1);
     expect(grouped[0]).toMatchObject({ name: 'Bench', durationMinutes: 30 });
+  });
+});
+
+describe('a logged preset against its planned session', () => {
+  const preset = (
+    id: string,
+    sport: CalendarEntry['sport'],
+    minutes: number
+  ) => ({
+    ...entry(id, -1, { name: id, sport, durationMinutes: minutes }),
+    presetEntryId: 'p1',
+    presetName: 'Day 5 Lower (5 Day)',
+  });
+
+  it('is a strength session even when its exercises read as other', () => {
+    const [one] = groupPresetEntries([preset('Leg press', 'other', 34)]);
+    expect(one?.sport).toBe('strength');
+    const [many] = groupPresetEntries([
+      preset('Leg press', 'other', 20),
+      preset('Calf raise', 'other', 14),
+    ]);
+    expect(many?.sport).toBe('strength');
+  });
+
+  it('is a run when the cardio outweighs the rest', () => {
+    const [grouped] = groupPresetEntries([
+      preset('Run', 'running', 30),
+      preset('Squat', 'other', 10),
+    ]);
+    expect(grouped?.sport).toBe('running');
+  });
+
+  it('completes the planned strength session', () => {
+    const [logged] = groupPresetEntries([preset('Leg press', 'other', 34)]);
+    const result = matchPlan(
+      [slot('lower', -1, { sport: 'strength', label: 'Day 5 Lower (5 Day)' })],
+      [logged!],
+      TODAY
+    );
+    expect(result.planned[0]?.status).toBe('done');
+    expect(result.completed[0]?.plannedItemId).toBe('lower');
+  });
+
+  it('matches by name on the day whatever sport it was filed under', () => {
+    const result = matchPlan(
+      [slot('lower', -1, { sport: 'strength', label: 'Day 5 Lower (5 Day)' })],
+      [
+        entry('e', -1, {
+          name: ' day 5 lower (5 day) ',
+          sport: 'other',
+          durationMinutes: 34,
+        }),
+      ],
+      TODAY
+    );
+    expect(result.planned[0]?.status).toBe('done');
+  });
+});
+
+describe('cardio that is not a run, ride or walk', () => {
+  it('folds gym machines, swimming and rowing into cardio', () => {
+    expect(loadSportGroup('fitness_equipment')).toBe('cardio');
+    expect(loadSportGroup('swimming')).toBe('cardio');
+    expect(loadSportGroup('rowing')).toBe('cardio');
+    expect(loadSportGroup('hiking')).toBe('walking');
+    expect(loadSportGroup('other')).toBe('other');
+  });
+
+  it('reads a stair climber as cardio', () => {
+    const sport = classifyActivitySport({
+      exerciseName: 'Stair Climbing',
+    }).sport;
+    expect(loadSportGroup(sport)).toBe('cardio');
+  });
+
+  it('keeps matched time and load apart from unplanned and unmeasured work', () => {
+    const { planned, completed } = matchPlan(
+      [
+        slot('timed', -1, { plannedMinutes: 30 }),
+        slot('untimed', -2, { plannedMinutes: null, sport: 'strength' }),
+      ],
+      [
+        entry('a', -1, { durationMinutes: 30 }),
+        entry('b', -2, { sport: 'strength', durationMinutes: 45 }),
+        entry('c', 0, { sport: 'cardio', durationMinutes: 20 }),
+      ],
+      TODAY
+    );
+    const week = weeklyTotals(planned, completed, day(-6), day(0), 1).find(
+      (w) => w.start === '2026-10-12'
+    );
+    expect(week).toMatchObject({
+      plannedMinutes: 30,
+      completedMinutes: 95,
+      matchedMinutes: 30,
+    });
   });
 });

@@ -6,11 +6,16 @@ import {
 
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
-/** The sport groups training load is split by. */
+/**
+ * The sport groups training load is split by. `cardio` is the rest of the
+ * endurance work: gym cardio machines such as a stair climber or elliptical,
+ * swimming and rowing.
+ */
 export const LOAD_SPORT_GROUPS = [
   'running',
   'cycling',
   'walking',
+  'cardio',
   'strength',
   'other',
 ] as const;
@@ -98,8 +103,16 @@ export const calendarWeekTotalsSchema = z.object({
   completedSessions: z.number().int(),
   plannedMinutes: z.number(),
   completedMinutes: z.number(),
+  /**
+   * Minutes and load of the completed work that counted for a planned item
+   * with a planned length, so they compare with `plannedMinutes` and
+   * `plannedLoad`; the rest of `completedMinutes` and `completedLoad` is
+   * extra or unmeasured work.
+   */
+  matchedMinutes: z.number(),
   plannedLoad: z.number(),
   completedLoad: z.number(),
+  matchedLoad: z.number(),
   completedDistanceKm: z.number(),
 });
 export type CalendarWeekTotals = z.infer<typeof calendarWeekTotalsSchema>;

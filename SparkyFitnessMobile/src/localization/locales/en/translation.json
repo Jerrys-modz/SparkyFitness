@@ -9073,6 +9073,7 @@
       "running": "Running",
       "cycling": "Cycling",
       "walking": "Walking",
+      "cardio": "Cardio",
       "strength": "Strength",
       "other": "Other"
     },
@@ -9100,7 +9101,9 @@
       "sessionsLogged_one": "{{count}} session logged",
       "sessionsLogged_other": "{{count}} sessions logged",
       "minutesDone": "Time {{done}} min",
-      "loadDone": "Training load {{done}}"
+      "loadDone": "Training load {{done}}",
+      "minutesExtra": "(+{{extra}} min extra)",
+      "loadExtra": "(+{{extra}} extra)"
     },
     "loadFailed": "Could not load your training calendar.",
     "refreshFailed": "Could not refresh. Showing the last result.",
