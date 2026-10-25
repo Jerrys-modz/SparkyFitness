@@ -11,6 +11,7 @@ import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { endPool } from '../db/poolManager.js';
+import habitRepository from '../models/habitRepository.js';
 import measurementRepository from '../models/measurementRepository.js';
 import { raceWrites } from './helpers/raceGate.js';
 
@@ -168,6 +169,18 @@ describe.runIf(RUN)('one custom measurement reading per slot', () => {
     expect(rows.map((r) => r.entry_date)).toEqual(['2026-09-20', '2026-09-21']);
     // Each batch writes both days together, so both days hold its value.
     expect(rows[0].value).toBe(rows[1].value);
+  });
+
+  it('keeps one habit log when two logs for the day overlap', async () => {
+    const habit = await createCategory('Stretch', 'Daily');
+
+    await raceWrites(gate, db, 'custom_measurements', [
+      () => habitRepository.upsertHabitLog(userId, habit, '2026-09-20', 'true'),
+      () =>
+        habitRepository.upsertHabitLog(userId, habit, '2026-09-20', 'false'),
+    ]);
+
+    expect(await readings(habit)).toHaveLength(1);
   });
 
   it('still records every reading of an All category', async () => {
