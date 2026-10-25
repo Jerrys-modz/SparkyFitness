@@ -125,6 +125,7 @@ services:
 
       # --- Integrations ---
       GARMIN_MICROSERVICE_URL: ${GARMIN_MICROSERVICE_URL:-http://sparkyfitness-garmin:${GARMIN_SERVICE_PORT:-8000}} # Garmin microservice URL
+      GARMIN_SCHEDULED_LOOKBACK_DAYS: ${GARMIN_SCHEDULED_LOOKBACK_DAYS:-3} # Days before today the hourly Garmin sync re-pulls (0 = today only)
 
       # --- Outbound Proxy Settings (optional) ---
       HTTP_PROXY: ${HTTP_PROXY:-} # Optional forward proxy for the server's outbound requests

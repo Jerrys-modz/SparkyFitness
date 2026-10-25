@@ -125,6 +125,7 @@ const noProxy = ref("localhost,127.0.0.1,sparkyfitness-garmin");
 const garminUrl = ref("http://sparkyfitness-garmin:8000");
 const garminPort = ref("8000");
 const garminIsCn = ref(false);
+const garminLookbackDays = ref("3");
 
 // UI State
 const copied = ref(false);
@@ -234,6 +235,7 @@ function applyPreset(preset: "simple" | "full") {
     enableOutboundProxy.value = false;
     enableGarmin.value = false;
     garminIsCn.value = false;
+    garminLookbackDays.value = "3";
     realIpHeader.value = "none";
     trustedProxies.value = "";
   } else if (preset === "full") {
@@ -256,6 +258,7 @@ function applyPreset(preset: "simple" | "full") {
     enableOutboundProxy.value = true;
     enableGarmin.value = true;
     garminIsCn.value = false;
+    garminLookbackDays.value = "3";
   }
 }
 
@@ -431,6 +434,11 @@ GARMIN_SERVICE_PORT=${garminPort.value}
 `;
     if (garminIsCn.value) {
       out += `GARMIN_SERVICE_IS_CN=true\n`;
+    }
+    // Only written when changed: the server defaults to 3 days on its own.
+    const lookback = garminLookbackDays.value.trim();
+    if (lookback && lookback !== "3") {
+      out += `GARMIN_SCHEDULED_LOOKBACK_DAYS=${lookback}\n`;
     }
   }
 
@@ -1434,6 +1442,23 @@ onMounted(() => {
                 <code>8000</code>.</span
               >
             </div>
+          </div>
+          <div class="form-group" style="margin-top: 12px">
+            <label
+              >Scheduled sync look-back (days)
+              <code class="var-badge">GARMIN_SCHEDULED_LOOKBACK_DAYS</code></label
+            >
+            <input
+              v-model="garminLookbackDays"
+              type="text"
+              class="text-input"
+              placeholder="3"
+            />
+            <span class="field-hint"
+              >How many days before today the hourly sync re-pulls, so a watch
+              that reaches Garmin Connect late still corrects the day. Default:
+              <code>3</code>; <code>0</code> requests today only.</span
+            >
           </div>
           <div class="checkbox-group" style="margin-top: 12px">
             <label class="checkbox-label">

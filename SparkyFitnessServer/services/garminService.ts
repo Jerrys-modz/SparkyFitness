@@ -99,8 +99,11 @@ function resolveScheduledLookbackDays(): number {
   if (raw === undefined || raw.trim() === '') {
     return DEFAULT_SCHEDULED_LOOKBACK_DAYS;
   }
-  const parsed = Number(raw.trim());
+  const value = raw.trim();
+  const parsed = Number(value);
+  // Plain decimal digits only: Number() would also accept "0x10" or "1e1".
   if (
+    !/^\d+$/.test(value) ||
     !Number.isInteger(parsed) ||
     parsed < 0 ||
     parsed > MAX_SCHEDULED_LOOKBACK_DAYS

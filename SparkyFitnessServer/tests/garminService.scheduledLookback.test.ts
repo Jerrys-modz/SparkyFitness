@@ -96,7 +96,7 @@ describe('Garmin syncGarminData - scheduled sync look-back window', () => {
     expect(requestedRange()).toEqual({ start: today, end: today });
   });
 
-  it.each(['abc', '-2', '31', '1.5'])(
+  it.each(['abc', '-2', '31', '1.5', '0x10', '1e1', '+2'])(
     'falls back to the default when the value is %s',
     async (value) => {
       process.env[ENV_NAME] = value;
