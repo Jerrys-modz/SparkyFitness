@@ -136,4 +136,13 @@ describe('getRunningEstimates', () => {
     const configured = await getRunningEstimates('u1', 'u1');
     expect(configured.vo2Max?.value).not.toBe(unset.vo2Max?.value);
   });
+
+  it('ignores a weight logged after today', async () => {
+    repo.getBodyWeightReadings.mockResolvedValue([
+      { date: addDays(today, 5), weightKg: 70 },
+    ]);
+    repo.getRunCandidates.mockResolvedValue([candidate(), candidate()]);
+    const result = await getRunningEstimates('u1', 'u1');
+    expect(result.power).toBeNull();
+  });
 });

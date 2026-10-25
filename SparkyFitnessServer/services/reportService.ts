@@ -1126,7 +1126,11 @@ async function getRunningEstimates(
     return computeRunningEstimates(runs, today, {
       restingHeartRate: vitals.restingHeartRateBaseline ?? zones.restingHr,
       maxHeartRate: zones.maxHr,
-      bodyWeightKg: bodyWeightOnDay(weights, today),
+      // bodyWeightOnDay falls back to a later reading; power only wants one on or before today.
+      bodyWeightKg: bodyWeightOnDay(
+        weights.filter((reading) => reading.date <= today),
+        today
+      ),
     });
   } catch (error) {
     log(
