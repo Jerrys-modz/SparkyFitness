@@ -34,7 +34,14 @@ app.use(express.json());
 app.use('/api/reports', reportRoutes);
 app.use(errorHandler);
 
-const none = { running: 0, cycling: 0, walking: 0, strength: 0, other: 0 };
+const none = {
+  running: 0,
+  cycling: 0,
+  walking: 0,
+  cardio: 0,
+  strength: 0,
+  other: 0,
+};
 const body = {
   start: '2026-10-12',
   end: '2026-10-18',

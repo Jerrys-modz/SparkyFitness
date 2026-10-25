@@ -22,7 +22,14 @@ jest.mock('../../src/utils/dateUtils', () => ({
   getTodayDate: () => '2026-10-14',
 }));
 
-const none = { running: 0, cycling: 0, walking: 0, strength: 0, other: 0 };
+const none = {
+  running: 0,
+  cycling: 0,
+  walking: 0,
+  cardio: 0,
+  strength: 0,
+  other: 0,
+};
 const planned = (
   id: string,
   day: string,
@@ -40,6 +47,8 @@ const planned = (
   status,
   completedMinutes: status === 'done' ? 40 : status === 'partial' ? 20 : 0,
   completedLoad: 0,
+  matchedMinutes: 0,
+  matchedLoad: 0,
   entryIds: [],
 });
 const data = {
@@ -79,6 +88,8 @@ const data = {
       completedMinutes: 90,
       plannedLoad: 320,
       completedLoad: 140,
+      matchedMinutes: 90,
+      matchedLoad: 80,
       completedDistanceKm: 5,
     },
   ],
@@ -164,6 +175,7 @@ test('shows the legend with the sports', () => {
   renderScreen();
   expect(screen.getByTestId('calendar-legend')).toBeTruthy();
   expect(screen.getAllByText('Running').length).toBeGreaterThan(0);
+  expect(screen.getAllByText('Cardio').length).toBeGreaterThan(0);
   expect(screen.getAllByText('Extra').length).toBeGreaterThan(0);
 });
 
@@ -185,8 +197,12 @@ test('totals the week planned against completed', () => {
   renderScreen();
   expect(screen.getByText(/2 of 4 planned sessions/)).toBeTruthy();
   expect(screen.getByText(/1 extra/)).toBeTruthy();
+  // Only the minutes and load that counted for a planned item are compared with
+  // the plan; the rest shows as extra.
   expect(screen.getByText(/Time 90 of 160 min/)).toBeTruthy();
-  expect(screen.getByText(/Training load 140 of 320/)).toBeTruthy();
+  expect(
+    screen.getByText(/Training load 80 of 320 \(\+60 extra\)/)
+  ).toBeTruthy();
 });
 
 const unplannedWeek = {
@@ -201,6 +217,8 @@ const unplannedWeek = {
   completedMinutes: 233,
   plannedLoad: 0,
   completedLoad: 432,
+  matchedMinutes: 0,
+  matchedLoad: 0,
   completedDistanceKm: 0,
 };
 
@@ -327,4 +345,12 @@ test('a workout plan item opens nothing', () => {
   renderScreen();
   fireEvent.press(screen.getByTestId('planned-Pull'));
   expect(navigate).not.toHaveBeenCalled();
+});
+
+test('shows time and load against the plan with the extra work apart', () => {
+  state();
+  renderScreen();
+  expect(
+    screen.getByText(/Training load 80 of 320 \(\+60 extra\)/)
+  ).toBeTruthy();
 });
