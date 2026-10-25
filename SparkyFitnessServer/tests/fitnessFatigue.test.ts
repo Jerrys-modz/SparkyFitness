@@ -231,10 +231,16 @@ describe('computeReadiness', () => {
 
 describe('computeFitnessFatigue warm-up', () => {
   it('starts an established trainer near steady state, not at zero', () => {
-    const history = steady(-(90 + WARMUP_DAYS), 0);
+    // The same load every day, so fitness and fatigue both converge to it.
+    const history = Array.from({ length: 90 + WARMUP_DAYS }, (_, i) =>
+      run(-i, 40)
+    );
     const { points, today } = computeFitnessFatigue(history, TODAY);
     expect(points).toHaveLength(90);
     expect(points[0]?.fitness).toBeGreaterThan(0);
-    expect(Math.abs(today?.form ?? 99)).toBeLessThan(1);
+    // Form is within 5% of fitness, not the ~-12% a zero start would leave.
+    expect(Math.abs((today?.form ?? 99) / (today?.fitness ?? 1))).toBeLessThan(
+      0.05
+    );
   });
 });
