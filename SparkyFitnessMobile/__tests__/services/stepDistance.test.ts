@@ -7,9 +7,9 @@ import {
   estimateIndoorDistance,
   learnFromIndoorEntry,
   learnFromOutdoorRecording,
+  learnFromWatchRun,
   measureOutdoorForm,
   measureWatchRunForm,
-  learnFromWatchRun,
   type IndoorDistanceEstimate,
   type StepWindow,
 } from '../../src/services/stepDistance';

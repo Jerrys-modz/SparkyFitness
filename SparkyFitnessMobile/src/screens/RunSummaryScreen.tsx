@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import Toast from 'react-native-toast-message';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/ui/Button';
@@ -23,9 +23,6 @@ import {
   setExerciseEntryStrideLength,
 } from '../services/api/exerciseApi';
 import { addLog } from '../services/LogService';
-import { useEntrySegmentEfforts } from '../services/segmentService';
-import { formatSegmentTime } from '../utils/segmentDisplay';
-import { formatRouteDistance } from '../utils/routeDisplay';
 import {
   rateProgramWorkout,
   setProgramPosition,
@@ -89,12 +86,6 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
     ? recordsHeldBy(records, summary.entryId)
     : [];
 
-  // The segments this run crossed, and whether any is a new best.
-  const { efforts: segmentEfforts } = useEntrySegmentEfforts(
-    summary.entryId ?? undefined
-  );
-  const newSegmentRecords = segmentEfforts.filter((e) => e.isNewPersonalBest);
-
   const done = () => navigation.goBack();
 
   const [rating, setRating] = useState<number | null>(null);
@@ -113,6 +104,18 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
   const [distanceText, setDistanceText] = useState('');
   const [savingDistance, setSavingDistance] = useState(false);
   const [distanceSaved, setDistanceSaved] = useState(false);
+  // What the machine showed when a correction was taken off it: from the watch
+  // (typed on the wrist, corrected when the run was filed) or from here.
+  const taught = useRef(false);
+  const [displayedMeters, setDisplayedMeters] = useState<number | null>(
+    summary.treadmillDisplayMeters ?? null
+  );
+  const treadmillCorrectionEnabled = useAppPreferencesStore(
+    (s) => s.treadmillCorrectionEnabled
+  );
+  const treadmillCorrectionPercent = useAppPreferencesStore(
+    (s) => s.treadmillCorrectionPercent
+  );
   // Stride is distance over steps, so a corrected distance moves it too.
   const [strideLengthCm, setStrideLengthCm] = useState(
     summary.form?.strideLengthCm ?? null
@@ -133,18 +136,6 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
       );
     }
   };
-  // What the machine showed when a correction was taken off it: from the watch
-  // (typed on the wrist, corrected when the run was filed) or from here.
-  const taught = useRef(false);
-  const [displayedMeters, setDisplayedMeters] = useState<number | null>(
-    summary.treadmillDisplayMeters ?? null
-  );
-  const treadmillCorrectionEnabled = useAppPreferencesStore(
-    (s) => s.treadmillCorrectionEnabled
-  );
-  const treadmillCorrectionPercent = useAppPreferencesStore(
-    (s) => s.treadmillCorrectionPercent
-  );
   const distanceScale =
     summary.distanceMeters > 0 ? distanceMeters / summary.distanceMeters : 1;
   const saveDistance = async () => {
@@ -171,8 +162,8 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       await setExerciseEntryDistance(summary.entryId, km);
       setDistanceMeters(km * METERS_PER_KM);
-      await followStride(summary.entryId, km);
       setDisplayedMeters(corrected.applied ? corrected.displayedMeters : null);
+      await followStride(summary.entryId, km);
       // The watch's indoor estimate and the stride learn from the machine's
       // figure, once per run: a run whose figure was typed on the wrist has
       // already taught the scale when it was filed, and pressing Update again
@@ -347,9 +338,7 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
             unit={paceUnit}
           />
         </View>
-        {summary.elevationGainMeters >= 1 ||
-        summary.avgHeartRate != null ||
-        summary.avgGapSeconds != null ? (
+        {summary.elevationGainMeters >= 1 || summary.avgHeartRate != null ? (
           <View className="flex-row mb-3">
             {summary.elevationGainMeters >= 1 ? (
               <Stat
@@ -362,15 +351,6 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
                     ? t('recordActivity.unitFt', { defaultValue: 'ft' })
                     : t('recordActivity.unitM', { defaultValue: 'm' })
                 }
-              />
-            ) : null}
-            {summary.avgGapSeconds != null ? (
-              <Stat
-                label={t('runSummary.avgGap', {
-                  defaultValue: 'Avg GAP',
-                })}
-                value={formatPace(summary.avgGapSeconds)}
-                unit={paceUnit}
               />
             ) : null}
             {summary.avgHeartRate != null ? (
@@ -462,65 +442,6 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
                 {t('runSummary.saveDistance', { defaultValue: 'Update' })}
               </Button>
             </View>
-          </View>
-        ) : null}
-
-        {segmentEfforts.length > 0 ? (
-          <View
-            className="bg-surface rounded-xl p-4 mb-4"
-            accessibilityRole="summary"
-            testID="run-segments"
-          >
-            <Text className="text-text-primary text-base font-bold">
-              {newSegmentRecords.length > 0
-                ? t('runSummary.newSegmentPr', {
-                    count: newSegmentRecords.length,
-                    defaultValue: 'New segment PRs',
-                    defaultValue_one: 'New segment PR',
-                    defaultValue_other: 'New segment PRs',
-                  })
-                : t('runSummary.segments', { defaultValue: 'Segments' })}
-            </Text>
-            {segmentEfforts.map((effort) => (
-              <Pressable
-                key={effort.segmentId}
-                className="mt-2"
-                onPress={() =>
-                  navigation.navigate('SegmentDetail', { id: effort.segmentId })
-                }
-                accessibilityRole="button"
-                testID={`run-segment-${effort.segmentId}`}
-              >
-                <View className="flex-row justify-between">
-                  <Text className="text-text-secondary text-base flex-1 mr-3">
-                    {effort.segmentName ??
-                      t('segments.untitled', {
-                        distance: formatRouteDistance(
-                          effort.segmentLengthM,
-                          miles ? 'miles' : 'km'
-                        ),
-                        defaultValue: 'Segment · {{distance}}',
-                      })}
-                  </Text>
-                  <Text className="text-text-primary text-base font-semibold">
-                    {formatSegmentTime(effort.elapsedSeconds)}
-                  </Text>
-                </View>
-                {effort.isNewPersonalBest ? (
-                  <Text
-                    className="text-icon-success text-xs font-bold"
-                    testID={`run-segment-pr-${effort.segmentId}`}
-                  >
-                    {effort.previousBestSeconds !== null
-                      ? t('runSummary.segmentPrBeat', {
-                          time: formatSegmentTime(effort.previousBestSeconds),
-                          defaultValue: 'New PR, beating your {{time}}',
-                        })
-                      : t('runSummary.segmentPr', { defaultValue: 'New PR' })}
-                  </Text>
-                ) : null}
-              </Pressable>
-            ))}
           </View>
         ) : null}
 
@@ -720,14 +641,6 @@ const RunSummaryScreen: React.FC<Props> = ({ navigation, route }) => {
                         unitMeters
                       )
                     )} ${paceUnit}`}
-                    gap={
-                      row.gapSeconds != null
-                        ? t('runSummary.splitGap', {
-                            defaultValue: 'GAP {{pace}}',
-                            pace: `${formatPace(row.gapSeconds)} ${paceUnit}`,
-                          })
-                        : undefined
-                    }
                     fraction={bars[i].fraction}
                     fastest={bars[i].fastest}
                     fastestLabel={fastestLabel}

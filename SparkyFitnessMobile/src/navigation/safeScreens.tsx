@@ -86,6 +86,8 @@ import WorkoutSettingsScreen from '../screens/WorkoutSettingsScreen';
 import WarmupSettingsScreen from '../screens/WarmupSettingsScreen';
 import HeartRateZonesSettingsScreen from '../screens/HeartRateZonesSettingsScreen';
 import TreadmillSettingsScreen from '../screens/TreadmillSettingsScreen';
+import TreadmillSettingsScreen from '../screens/TreadmillSettingsScreen';
+import HeartRateZonesSettingsScreen from '../screens/HeartRateZonesSettingsScreen';
 import ServerSettingsScreen from '../screens/ServerSettingsScreen';
 import PasskeySettingsScreen from '../screens/PasskeySettingsScreen';
 import AppSettingsScreen from '../screens/AppSettingsScreen';

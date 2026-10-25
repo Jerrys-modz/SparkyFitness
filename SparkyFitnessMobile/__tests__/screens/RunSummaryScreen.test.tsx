@@ -18,7 +18,6 @@ import { usePersonalRecords } from '../../src/hooks/usePersonalRecords';
 import { learnWatchIndoorScale } from '../../src/services/watchIndoorScale';
 import { learnFromWatchRun } from '../../src/services/stepDistance';
 import { useAppPreferencesStore } from '../../src/stores/appPreferencesStore';
-import { useEntrySegmentEfforts } from '../../src/services/segmentService';
 import type { RunSummaryParams } from '../../src/utils/runSummary';
 
 jest.mock('../../src/hooks/useScreenHeader', () => ({
@@ -37,9 +36,6 @@ jest.mock('../../src/services/stepDistance', () => ({
 }));
 jest.mock('../../src/services/watchIndoorScale', () => ({
   learnWatchIndoorScale: jest.fn(() => Promise.resolve()),
-}));
-jest.mock('../../src/services/segmentService', () => ({
-  useEntrySegmentEfforts: jest.fn(() => ({ efforts: [], isLoading: false })),
 }));
 jest.mock('../../src/hooks/usePersonalRecords', () => ({
   usePersonalRecords: jest.fn(() => ({ records: [] })),
@@ -120,31 +116,6 @@ it('shows heart rate and elevation only when there are some, and laps instead of
   expect(screen.getByText('Elevation gain')).toBeTruthy();
   expect(screen.getByText('Laps')).toBeTruthy();
   expect(screen.queryByText('Splits')).toBeNull();
-});
-
-it('shows the average GAP and a GAP line on each split when the run had elevation', () => {
-  renderScreen(
-    params({
-      avgGapSeconds: 281,
-      splits: [
-        { ...split(1, 300), gapSeconds: 262 },
-        { ...split(2, 280), gapSeconds: 301 },
-        split(3, 150, true),
-      ],
-    })
-  );
-  expect(screen.getByText('Avg GAP')).toBeTruthy();
-  expect(screen.getByText('4:41')).toBeTruthy();
-  // Each split's grade-adjusted pace sits in the table's GAP column.
-  expect(screen.getByText('GAP')).toBeTruthy();
-  expect(screen.getByText('4:22')).toBeTruthy();
-  expect(screen.getByText('5:01')).toBeTruthy();
-});
-
-it('shows no GAP anywhere for a run without elevation', () => {
-  renderScreen(params());
-  expect(screen.queryByText('Avg GAP')).toBeNull();
-  expect(screen.queryByText('GAP')).toBeNull();
 });
 
 it('shows program progress, what is next, and opens the program', () => {
@@ -377,104 +348,6 @@ describe('treadmill distance', () => {
   });
 });
 
-describe('running form', () => {
-  it('shows nothing when the phone could not measure it', () => {
-    renderScreen(params());
-    expect(screen.queryByText('Avg cadence')).toBeNull();
-    expect(screen.queryByText('Stride length')).toBeNull();
-  });
-
-  it('shows cadence in spm and stride in metres', () => {
-    renderScreen(params({ form: { avgCadence: 168, strideLengthCm: 112.5 } }));
-    expect(screen.getByText('Avg cadence')).toBeTruthy();
-    expect(screen.getByText('168 spm')).toBeTruthy();
-    expect(screen.getByText('Stride length')).toBeTruthy();
-    expect(screen.getByText('1.13 m')).toBeTruthy();
-  });
-
-  it('shows stride in feet with the miles setting', () => {
-    renderScreen(
-      params({
-        distanceUnit: 'miles',
-        form: { avgCadence: 168, strideLengthCm: 112.5 },
-      })
-    );
-    expect(screen.getByText('3.69 ft')).toBeTruthy();
-  });
-
-  it('shows cadence alone when there is no stride', () => {
-    renderScreen(params({ form: { avgCadence: 160, strideLengthCm: null } }));
-    expect(screen.getByText('160 spm')).toBeTruthy();
-    expect(screen.queryByText('Stride length')).toBeNull();
-  });
-
-  describe('after the treadmill distance is corrected', () => {
-    // 3000 steps in 20 minutes.
-    const treadmill = () =>
-      params({
-        entryId: 'entry-1',
-        editableDistance: true,
-        distanceMeters: 4000,
-        activeSeconds: 1200,
-        form: { avgCadence: 150, strideLengthCm: 133.3, steps: 3000 },
-      });
-    const correct = async (km: string) => {
-      fireEvent.changeText(
-        screen.getByLabelText('Distance from the treadmill in km'),
-        km
-      );
-      fireEvent.press(screen.getByText('Update'));
-      await screen.findByText('Distance updated.');
-    };
-
-    it('works the stride out again and updates the entry', async () => {
-      renderScreen(treadmill());
-      await correct('3');
-
-      expect(setExerciseEntryStrideLength).toHaveBeenCalledWith('entry-1', 100);
-      expect(screen.getByText('1 m')).toBeTruthy();
-      expect(screen.getByText('150 spm')).toBeTruthy();
-    });
-
-    it('clears a stride the new distance cannot support', async () => {
-      renderScreen(treadmill());
-      // 20 km in 3000 steps is a 6.7 m stride.
-      await correct('20');
-
-      expect(setExerciseEntryStrideLength).toHaveBeenCalledWith(
-        'entry-1',
-        null
-      );
-      expect(screen.queryByText('Stride length')).toBeNull();
-    });
-
-    it('keeps the correction when the stride update fails', async () => {
-      jest
-        .mocked(setExerciseEntryStrideLength)
-        .mockRejectedValueOnce(new Error('offline'));
-      renderScreen(treadmill());
-      await correct('3');
-
-      expect(screen.getByText('3.00')).toBeTruthy();
-    });
-
-    it('leaves the stride alone when the steps are not known', async () => {
-      renderScreen(
-        params({
-          entryId: 'entry-1',
-          editableDistance: true,
-          distanceMeters: 4000,
-          activeSeconds: 1200,
-          form: { avgCadence: 150, strideLengthCm: 133.3 },
-        })
-      );
-      await correct('3');
-
-      expect(setExerciseEntryStrideLength).not.toHaveBeenCalled();
-    });
-  });
-});
-
 describe('treadmill correction', () => {
   const treadmill = (overrides: Partial<RunSummaryParams> = {}) =>
     params({
@@ -605,76 +478,100 @@ describe('treadmill correction', () => {
   });
 });
 
-describe('segments crossed by the run', () => {
-  const effort = (overrides: Record<string, unknown> = {}) => ({
-    segmentId: 'seg-1',
-    segmentName: 'Park hill',
-    segmentLengthM: 800,
-    entryId: 'entry-1',
-    date: '2026-10-12',
-    startedAt: '2026-10-12T08:00:00.000Z',
-    elapsedSeconds: 214.4,
-    avgSpeedMps: 3.7,
-    isBest: false,
-    isPersonalRecord: false,
-    isNewPersonalBest: false,
-    previousBestSeconds: null,
-    ...overrides,
-  });
-  const crossed = (efforts: ReturnType<typeof effort>[]) =>
-    jest
-      .mocked(useEntrySegmentEfforts)
-      .mockReturnValue({ efforts, isLoading: false } as never);
-  afterEach(() =>
-    jest
-      .mocked(useEntrySegmentEfforts)
-      .mockReturnValue({ efforts: [], isLoading: false } as never)
-  );
-
-  it('shows nothing when the run crossed no segment, and asks only for a saved entry', () => {
-    renderScreen(params({ entryId: 'entry-1' }));
-    expect(screen.queryByTestId('run-segments')).toBeNull();
-    expect(useEntrySegmentEfforts).toHaveBeenCalledWith('entry-1');
-    renderScreen(params({ entryId: undefined }));
-    expect(useEntrySegmentEfforts).toHaveBeenLastCalledWith(undefined);
+describe('running form', () => {
+  it('shows nothing when the phone could not measure it', () => {
+    renderScreen(params());
+    expect(screen.queryByText('Avg cadence')).toBeNull();
+    expect(screen.queryByText('Stride length')).toBeNull();
   });
 
-  it('lists a line per segment with its time', () => {
-    crossed([
-      effort(),
-      effort({ segmentId: 'seg-2', segmentName: null, elapsedSeconds: 61 }),
-    ]);
-    renderScreen(params({ entryId: 'entry-1' }));
-    expect(screen.getByText('Segments')).toBeTruthy();
-    expect(screen.getByText('Park hill')).toBeTruthy();
-    expect(screen.getByText('3:34.4')).toBeTruthy();
-    expect(screen.getByText('Segment · 0.80 km')).toBeTruthy();
-    expect(screen.getByText('1:01.0')).toBeTruthy();
-    expect(screen.queryByText(/New segment PR/)).toBeNull();
+  it('shows cadence in spm and stride in metres', () => {
+    renderScreen(params({ form: { avgCadence: 168, strideLengthCm: 112.5 } }));
+    expect(screen.getByText('Avg cadence')).toBeTruthy();
+    expect(screen.getByText('168 spm')).toBeTruthy();
+    expect(screen.getByText('Stride length')).toBeTruthy();
+    expect(screen.getByText('1.13 m')).toBeTruthy();
   });
 
-  it('calls out a new segment PR and what it beat', () => {
-    crossed([
-      effort({ isNewPersonalBest: true, previousBestSeconds: 220 }),
-      effort({ segmentId: 'seg-2', segmentName: 'Bridge' }),
-    ]);
-    renderScreen(params({ entryId: 'entry-1' }));
-    expect(screen.getByText('New segment PR')).toBeTruthy();
-    expect(screen.getByText('New PR, beating your 3:40.0')).toBeTruthy();
-    expect(screen.queryByTestId('run-segment-pr-seg-2')).toBeNull();
+  it('shows stride in feet with the miles setting', () => {
+    renderScreen(
+      params({
+        distanceUnit: 'miles',
+        form: { avgCadence: 168, strideLengthCm: 112.5 },
+      })
+    );
+    expect(screen.getByText('3.69 ft')).toBeTruthy();
   });
 
-  it('says PRs for more than one and opens a segment', () => {
-    crossed([
-      effort({ isNewPersonalBest: true }),
-      effort({ segmentId: 'seg-2', isNewPersonalBest: true }),
-    ]);
-    renderScreen(params({ entryId: 'entry-1' }));
-    expect(screen.getByText('New segment PRs')).toBeTruthy();
-    expect(screen.getAllByText('New PR')).toHaveLength(2);
-    fireEvent.press(screen.getByTestId('run-segment-seg-2'));
-    expect(navigation.navigate).toHaveBeenCalledWith('SegmentDetail', {
-      id: 'seg-2',
+  it('shows cadence alone when there is no stride', () => {
+    renderScreen(params({ form: { avgCadence: 160, strideLengthCm: null } }));
+    expect(screen.getByText('160 spm')).toBeTruthy();
+    expect(screen.queryByText('Stride length')).toBeNull();
+  });
+
+  describe('after the treadmill distance is corrected', () => {
+    // 3000 steps in 20 minutes.
+    const treadmill = () =>
+      params({
+        entryId: 'entry-1',
+        editableDistance: true,
+        distanceMeters: 4000,
+        activeSeconds: 1200,
+        form: { avgCadence: 150, strideLengthCm: 133.3, steps: 3000 },
+      });
+    const correct = async (km: string) => {
+      fireEvent.changeText(
+        screen.getByLabelText('Distance from the treadmill in km'),
+        km
+      );
+      fireEvent.press(screen.getByText('Update'));
+      await screen.findByText('Distance updated.');
+    };
+
+    it('works the stride out again and updates the entry', async () => {
+      renderScreen(treadmill());
+      await correct('3');
+
+      expect(setExerciseEntryStrideLength).toHaveBeenCalledWith('entry-1', 100);
+      expect(screen.getByText('1 m')).toBeTruthy();
+      expect(screen.getByText('150 spm')).toBeTruthy();
+    });
+
+    it('clears a stride the new distance cannot support', async () => {
+      renderScreen(treadmill());
+      // 20 km in 3000 steps is a 6.7 m stride.
+      await correct('20');
+
+      expect(setExerciseEntryStrideLength).toHaveBeenCalledWith(
+        'entry-1',
+        null
+      );
+      expect(screen.queryByText('Stride length')).toBeNull();
+    });
+
+    it('keeps the correction when the stride update fails', async () => {
+      jest
+        .mocked(setExerciseEntryStrideLength)
+        .mockRejectedValueOnce(new Error('offline'));
+      renderScreen(treadmill());
+      await correct('3');
+
+      expect(screen.getByText('3.00')).toBeTruthy();
+    });
+
+    it('leaves the stride alone when the steps are not known', async () => {
+      renderScreen(
+        params({
+          entryId: 'entry-1',
+          editableDistance: true,
+          distanceMeters: 4000,
+          activeSeconds: 1200,
+          form: { avgCadence: 150, strideLengthCm: 133.3 },
+        })
+      );
+      await correct('3');
+
+      expect(setExerciseEntryStrideLength).not.toHaveBeenCalled();
     });
   });
 });

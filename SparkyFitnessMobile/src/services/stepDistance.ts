@@ -100,10 +100,9 @@ export async function learnFromIndoorEntry(
 
 /**
  * Learns from a treadmill run the watch recorded, once the person has entered
- * what the machine showed. The watch sends no step count of its own, so the
- * steps come from Apple Health over the run's window (the watch writes them
- * there, and the phone can be left on the treadmill), falling back to the
- * phone's pedometer. A window with too few steps teaches nothing. Asks for
+ * what the machine showed. The steps come from Apple Health over the run's
+ * window (the watch writes them there, and the phone can be left on the
+ * treadmill), falling back to the phone's pedometer. A window with too few steps teaches nothing. Asks for
  * Motion & Fitness only on that fallback, since the person has just acted on
  * the run. Returns whether a stride was learned.
  */
