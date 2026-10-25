@@ -11,6 +11,7 @@ import { useExerciseDashboard } from '../../src/hooks/useExerciseDashboard';
 import { usePreferences } from '../../src/hooks/usePreferences';
 import { useCardioSessions } from '../../src/hooks/useCardioSessions';
 import { useRunningTrends } from '../../src/hooks/useRunningTrends';
+import { useBestEfforts } from '../../src/hooks/useBestEfforts';
 import {
   useAppPreferencesStore,
   __resetAppPreferencesStoreForTests,
@@ -88,6 +89,9 @@ jest.mock('../../src/hooks/useCardioSessions', () => ({
 jest.mock('../../src/hooks/useRunningTrends', () => ({
   useRunningTrends: jest.fn(),
 }));
+jest.mock('../../src/hooks/useBestEfforts', () => ({
+  useBestEfforts: jest.fn(),
+}));
 jest.mock('../../src/hooks/usePreferences', () => ({
   usePreferences: jest.fn(() => ({
     preferences: { default_weight_unit: 'kg' },
@@ -136,6 +140,9 @@ const mockUseCardioSessions = useCardioSessions as jest.MockedFunction<
 >;
 const mockUseRunningTrends = useRunningTrends as jest.MockedFunction<
   typeof useRunningTrends
+>;
+const mockUseBestEfforts = useBestEfforts as jest.MockedFunction<
+  typeof useBestEfforts
 >;
 const mockUsePreferences = usePreferences as jest.MockedFunction<
   typeof usePreferences
@@ -224,6 +231,13 @@ describe('ExerciseStatisticsScreen', () => {
     navigation.navigate.mockReset();
     mockGender = null;
     mockUseCardioSessions.mockReturnValue(cardioResult());
+    mockUseBestEfforts.mockReturnValue({
+      efforts: [],
+      runsAnalyzed: 0,
+      truncated: false,
+      isLoading: false,
+      isError: false,
+    });
     mockUseRunningTrends.mockReturnValue({
       trends: null,
       raceTimes: [],
@@ -389,6 +403,39 @@ describe('ExerciseStatisticsScreen', () => {
     // Too far to extrapolate a marathon from a 5K.
     expect(screen.queryByText('Marathon')).toBeNull();
     expect(screen.getByText('Half marathon')).toBeTruthy();
+  });
+
+  it('shows the best efforts board above the cardio list once a run has set one', () => {
+    mockUseBestEfforts.mockReturnValue({
+      efforts: [
+        {
+          id: '5k',
+          distanceMeters: 5000,
+          seconds: 1500,
+          activityId: 'run-1',
+          activityName: 'Morning Run',
+          achievedAt: '2026-09-26',
+          startMeters: 0,
+          endMeters: 5000,
+        },
+      ],
+      runsAnalyzed: 3,
+      truncated: false,
+      isLoading: false,
+      isError: false,
+    });
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    fireEvent.press(screen.getByText('Cardio'));
+
+    expect(screen.getByText('Best efforts')).toBeTruthy();
+    expect(screen.getByText('25:00')).toBeTruthy();
+  });
+
+  it('leaves the best efforts out when no run has set one', () => {
+    const screen = render(<ExerciseStatisticsScreen {...props} />);
+    fireEvent.press(screen.getByText('Cardio'));
+
+    expect(screen.queryByText('Best efforts')).toBeNull();
   });
 
   it('leaves the trends out when there are no runs', () => {

@@ -56,6 +56,7 @@ import {
   useExerciseStatsSummary,
   useExercisePRs,
   useMatchedCourses,
+  useBestEfforts,
   queryExerciseActivities,
 } from '@/hooks/Reports/useExerciseStats';
 import {
@@ -69,6 +70,7 @@ import { useRunningTrends } from '@/hooks/Reports/useRunningTrends';
 import { RunningTrendsCard } from '@/components/ExerciseCharts/RunningTrendsCard';
 import { FitnessTestsCard } from '@/components/ExerciseCharts/FitnessTestsCard';
 import { useFitnessTests } from '@/hooks/Exercises/useFitnessTests';
+import { BestEffortsCard } from '@/components/ExerciseCharts/BestEffortsCard';
 
 interface ExerciseReportsDashboardProps {
   exerciseDashboardData: ExerciseDashboardData | undefined;
@@ -204,6 +206,7 @@ const ExerciseReportsDashboard = ({
       prMatrix ? predictRaceTimes(runningEfforts(prMatrix.cardioPRs)) : [],
     [prMatrix]
   );
+  const { data: bestEfforts } = useBestEfforts(activeUserId ?? undefined);
   const { data: matchedCourses } = useMatchedCourses(
     activeUserId ?? undefined,
     unitSystem
@@ -945,6 +948,15 @@ const ExerciseReportsDashboard = ({
               formatWeekLabel={(weekStart) =>
                 formatDateInUserTimezone(weekStart, 'MMM d')
               }
+            />
+          )}
+          {bestEfforts && bestEfforts.efforts.length > 0 && (
+            <BestEffortsCard
+              efforts={bestEfforts.efforts}
+              distanceUnit={distanceUnit === 'miles' ? 'miles' : 'km'}
+              runsAnalyzed={bestEfforts.runsAnalyzed}
+              truncated={bestEfforts.truncated}
+              formatDay={(day) => formatDateInUserTimezone(day, 'MMM d, yyyy')}
             />
           )}
           <CardioSessionList

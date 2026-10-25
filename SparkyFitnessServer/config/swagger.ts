@@ -1630,6 +1630,32 @@ const options = {
             },
           },
         },
+        BestEffortsResponse: {
+          type: 'object',
+          properties: {
+            efforts: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: {
+                    type: 'string',
+                    enum: ['1k', '1mi', '5k', '10k', 'half_marathon'],
+                  },
+                  distanceMeters: { type: 'number' },
+                  seconds: { type: 'number' },
+                  activityId: { type: 'string' },
+                  activityName: { type: 'string' },
+                  achievedAt: { type: 'string', description: 'YYYY-MM-DD' },
+                  startMeters: { type: 'number' },
+                  endMeters: { type: 'number' },
+                },
+              },
+            },
+            runsAnalyzed: { type: 'number' },
+            truncated: { type: 'boolean' },
+          },
+        },
       },
     },
     paths: {

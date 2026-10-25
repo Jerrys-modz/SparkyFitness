@@ -4,12 +4,22 @@ import {
   daysBetween,
   classifyActivitySport,
   toPrSportGroup,
+  bestEffortsFromSamples,
+  effortSamplesFromDistanceSeries,
+  effortSamplesFromGpsTrack,
+  fasterEffort,
+  fastestEffort,
+  UNGUARDED_EFFORT_OPTIONS,
+  BEST_EFFORT_METERS,
+  DISTANCE_SERIES_EFFORT_OPTIONS,
+  GPS_EFFORT_OPTIONS,
   activitySportLabel,
   PR_SPORT_GROUPS,
   verticalRatioPercent,
 } from '@workspace/shared';
 import type {
   ActivitySport,
+  EffortSample,
   GpsTrackPoint,
   PrSportGroup,
   SportConfidence,
@@ -24,18 +34,15 @@ import type {
   ExerciseActivityQueryItem,
   ExercisePersonalRecordItem,
   MatchedCourseGroup,
+  BestEffortBoardItem,
+  BestEffortsResponse,
+  ExerciseEntryGpsPoints,
 } from '@workspace/shared';
 import {
   bodyWeightJoinSql,
   cardioPredicateSql,
   setLoadSql,
 } from '../utils/exerciseLoadSql.js';
-import {
-  bestSplitSeconds,
-  samplesFromDistanceSeries,
-  samplesFromGpsPoints,
-} from '../utils/bestSplit.js';
-import type { SplitSample } from '../utils/bestSplit.js';
 
 interface SqlRow {
   [key: string]: unknown;
@@ -98,6 +105,21 @@ const EMPTY_JSONB_ARRAY_MAX_BYTES = 8;
 
 /** Activities whose tracks are loaded per query when looking for best splits. */
 const TRACK_BATCH_SIZE = 25;
+
+/** Samples that cover some distance; a track that never moves has no stretch to measure. */
+const hasDistance = (samples: readonly EffortSample[]): boolean =>
+  samples.length >= 2 &&
+  ((samples[samples.length - 1] as EffortSample).meters ?? 0) > 0;
+
+/**
+ * The fastest stretch of `meters` on the recorded clock (no pause or jump
+ * exclusion), in seconds, or null when the activity never covers that far.
+ */
+const recordSeconds = (
+  samples: readonly EffortSample[],
+  meters: number
+): number | null =>
+  fastestEffort(samples, meters, UNGUARDED_EFFORT_OPTIONS)?.seconds ?? null;
 
 /** Distance spread within which activities of one course are comparable. */
 const COURSE_DISTANCE_TOLERANCE = 0.05;
@@ -860,8 +882,8 @@ async function getPersonalRecordMatrix(
           MAX_SPEED_MPS[sportGroup],
         ])
       );
-      const gpsById = new Map<string, SplitSample[]>();
-      const seriesById = new Map<string, SplitSample[]>();
+      const gpsById = new Map<string, EffortSample[]>();
+      const seriesById = new Map<string, EffortSample[]>();
       if (batch.some(({ row }) => row.has_gps_track === true)) {
         const gpsResult = await client.query(
           `SELECT exercise_entry_id, points
@@ -871,11 +893,11 @@ async function getPersonalRecordMatrix(
         );
         for (const track of gpsResult.rows as SqlRow[]) {
           const id = String(track.exercise_entry_id);
-          const samples = samplesFromGpsPoints(
+          const samples = effortSamplesFromGpsTrack(
             track.points as GpsTrackPoint[],
             speedCeilingById.get(id)
           );
-          if (samples) gpsById.set(id, samples);
+          if (hasDistance(samples)) gpsById.set(id, samples);
         }
       }
       // An indoor run has a distance series instead of a track. It is read for
@@ -889,10 +911,12 @@ async function getPersonalRecordMatrix(
           [ids]
         );
         for (const row of seriesResult.rows as SqlRow[]) {
-          const samples = samplesFromDistanceSeries(
+          const samples = effortSamplesFromDistanceSeries(
             row.points as [number, number][]
           );
-          if (samples) seriesById.set(String(row.exercise_entry_id), samples);
+          if (hasDistance(samples)) {
+            seriesById.set(String(row.exercise_entry_id), samples);
+          }
         }
       }
       for (const id of ids) {
@@ -907,8 +931,8 @@ async function getPersonalRecordMatrix(
         )) {
           const meters = standardKm * 1000;
           splits[stdKey] =
-            (gps ? bestSplitSeconds(gps, meters) : null) ??
-            (series ? bestSplitSeconds(series, meters) : null);
+            (gps ? recordSeconds(gps, meters) : null) ??
+            (series ? recordSeconds(series, meters) : null);
         }
         splitsById.set(id, splits);
         const cacheKey = cacheKeys.get(id);
@@ -1284,7 +1308,158 @@ async function getMatchedCourses(
   }
 }
 
+/** Runs read per query, so a long history never loads every track at once. */
+const BEST_EFFORT_BATCH = 25;
+/** Runs searched per request; a longer history is flagged as truncated. */
+const BEST_EFFORT_MAX_RUNS = 1000;
+/** The shortest best-effort distance is 1 km; a little slack for rounded totals. */
+const BEST_EFFORT_MIN_ENTRY_KM = 0.9;
+
+/**
+ * The fastest stretch of 1 km, 1 mile, 5 km, 10 km and a half marathon found
+ * inside any of the person's runs, newest runs first. Computed on request from
+ * the stored GPS tracks (or the distance series of a run with no route), so it
+ * needs no table of its own and always reflects an edited or deleted run.
+ */
+async function getBestEfforts(
+  targetUserId: string
+): Promise<BestEffortsResponse> {
+  const client = await getClient(targetUserId);
+  try {
+    const best = new Map<string, BestEffortBoardItem>();
+    let runsAnalyzed = 0;
+    let truncated = false;
+
+    for (let offset = 0; ; offset += BEST_EFFORT_BATCH) {
+      const entries = await client.query(
+        `SELECT ee.id, ee.exercise_name, ee.category, ee.notes, ee.entry_date,
+                d.provider_name, d.detail_data,
+                x.source_id AS exercise_source_id
+         FROM public.exercise_entries ee
+         LEFT JOIN public.exercises x ON x.id = ee.exercise_id
+         LEFT JOIN LATERAL (
+           SELECT provider_name, detail_data
+           FROM public.exercise_entry_activity_details
+           WHERE exercise_entry_id = ee.id
+           ORDER BY CASE WHEN detail_type LIKE '%activity_data%' THEN 0 ELSE 1 END
+           LIMIT 1
+         ) d ON TRUE
+         WHERE ee.user_id = $1
+           AND ee.distance >= $2
+           AND ee.exercise_name != 'Active Calories'
+           AND (
+             EXISTS (SELECT 1 FROM public.exercise_entry_gps_points g
+                     WHERE g.exercise_entry_id = ee.id)
+             OR EXISTS (SELECT 1 FROM public.exercise_entry_distance_series s
+                        WHERE s.exercise_entry_id = ee.id)
+           )
+         ORDER BY ee.entry_date DESC, ee.id
+         LIMIT $3 OFFSET $4`,
+        [targetUserId, BEST_EFFORT_MIN_ENTRY_KM, BEST_EFFORT_BATCH, offset]
+      );
+      const rows = entries.rows as (PrCandidateRow & {
+        entry_date: Date | string;
+      })[];
+      if (rows.length === 0) break;
+
+      const runs = rows.filter(
+        (row) =>
+          toPrSportGroup(
+            classifyActivitySport({
+              exerciseName: row.exercise_name,
+              category: row.category,
+              notes: row.notes,
+              providerName: row.provider_name,
+              detailData: row.detail_data,
+              exerciseSourceId: row.exercise_source_id,
+            }).sport
+          ) === 'run'
+      );
+
+      if (runs.length > 0) {
+        if (runsAnalyzed >= BEST_EFFORT_MAX_RUNS) {
+          truncated = true;
+          break;
+        }
+        const ids = runs.map((row) => row.id);
+        const gps = await client.query(
+          `SELECT exercise_entry_id, points
+           FROM public.exercise_entry_gps_points
+           WHERE exercise_entry_id = ANY($1::uuid[])`,
+          [ids]
+        );
+        const series = await client.query(
+          `SELECT exercise_entry_id, points
+           FROM public.exercise_entry_distance_series
+           WHERE exercise_entry_id = ANY($1::uuid[])`,
+          [ids]
+        );
+        const gpsById = new Map<string, ExerciseEntryGpsPoints['points']>();
+        for (const row of gps.rows as SqlRow[]) {
+          gpsById.set(
+            String(row.exercise_entry_id),
+            row.points as ExerciseEntryGpsPoints['points']
+          );
+        }
+        const seriesById = new Map<string, [number, number][]>();
+        for (const row of series.rows as SqlRow[]) {
+          seriesById.set(
+            String(row.exercise_entry_id),
+            row.points as [number, number][]
+          );
+        }
+
+        for (const run of runs) {
+          const track = gpsById.get(String(run.id));
+          const seriesRows = seriesById.get(String(run.id));
+          const efforts = track?.length
+            ? bestEffortsFromSamples(
+                effortSamplesFromGpsTrack(track),
+                GPS_EFFORT_OPTIONS
+              )
+            : seriesRows?.length
+              ? bestEffortsFromSamples(
+                  effortSamplesFromDistanceSeries(seriesRows),
+                  DISTANCE_SERIES_EFFORT_OPTIONS
+                )
+              : null;
+          if (!efforts) continue;
+          runsAnalyzed++;
+          const achievedAt =
+            run.entry_date instanceof Date
+              ? toDayString(run.entry_date)
+              : String(run.entry_date);
+          for (const effort of efforts) {
+            best.set(
+              effort.id,
+              fasterEffort(best.get(effort.id), {
+                id: effort.id,
+                distanceMeters: effort.distanceMeters,
+                seconds: effort.seconds,
+                activityId: String(run.id),
+                activityName: run.exercise_name || 'Run',
+                achievedAt,
+                startMeters: effort.startMeters,
+                endMeters: effort.endMeters,
+              })
+            );
+          }
+        }
+      }
+      if (rows.length < BEST_EFFORT_BATCH) break;
+    }
+
+    const efforts = [...best.values()].sort(
+      (a, b) => BEST_EFFORT_METERS[a.id] - BEST_EFFORT_METERS[b.id]
+    );
+    return { efforts, runsAnalyzed, truncated };
+  } finally {
+    client.release();
+  }
+}
+
 export default {
+  getBestEfforts,
   getExerciseStatsSummary,
   queryExerciseActivities,
   getPersonalRecordMatrix,

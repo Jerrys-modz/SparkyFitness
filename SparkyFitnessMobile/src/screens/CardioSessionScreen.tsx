@@ -6,6 +6,7 @@ import Toast from 'react-native-toast-message';
 
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useCardioSessionDetail } from '../hooks/useCardioSessionDetail';
+import { useBestEfforts } from '../hooks/useBestEfforts';
 import { formatLocalizedNumber, getAppLocale } from '../localization';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
@@ -30,6 +31,7 @@ import {
 } from '../utils/cardioSessionStats';
 import Switch from '../components/ui/Switch';
 import RunningDynamicsChart from '../components/exerciseStats/RunningDynamicsChart';
+import { isRunSession, runBestEfforts } from '../utils/bestEfforts';
 import Button from '../components/ui/Button';
 import { shareRouteAsGpx } from '../services/gpxExport';
 import { saveActivityAsRoute } from '../services/routeService';
@@ -37,6 +39,7 @@ import RouteMap from '../components/exerciseStats/RouteMap';
 import HeartRateChart from '../components/exerciseStats/HeartRateChart';
 import PaceChart from '../components/exerciseStats/PaceChart';
 import SplitsTable from '../components/recording/SplitsTable';
+import RunBestEfforts from '../components/exerciseStats/RunBestEfforts';
 import HeartRateZones from '../components/exerciseStats/HeartRateZones';
 import ProgramWorkoutBadge from '../components/recording/ProgramWorkoutBadge';
 import FitnessTestBadge from '../components/recording/FitnessTestBadge';
@@ -176,6 +179,12 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
         : [],
     [detail.route, detail.heartRate, unitMeters]
   );
+  const isRun = isRunSession(session);
+  const runEfforts = React.useMemo(
+    () => (isRun ? runBestEfforts(detail.route, detail.distanceSeries) : []),
+    [isRun, detail.route, detail.distanceSeries]
+  );
+  const board = useBestEfforts(isRun && runEfforts.length > 0);
   const paceUnitLabel =
     distanceUnit === 'miles'
       ? t('exerciseStatistics.cardio.perMile', { defaultValue: '/mi' })
@@ -389,6 +398,15 @@ const CardioSessionScreen: React.FC<CardioSessionScreenProps> = ({
             </Text>
           )}
         </Card>
+
+        {runEfforts.length > 0 ? (
+          <RunBestEfforts
+            efforts={runEfforts}
+            distanceUnit={distanceUnit}
+            board={board.efforts}
+            activityId={session.id}
+          />
+        ) : null}
 
         {paceSeries.length >= 2 ? (
           <Card

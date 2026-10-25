@@ -7859,6 +7859,22 @@
         "fromBest": "from your {{distance}}",
         "raceTimesHint": "Estimates scale your best efforts to each distance. They run optimistic for distances you have not trained for."
       },
+      "bestEfforts": {
+        "title": "Best efforts",
+        "subtitle": "Your fastest stretch of each distance, found inside any run.",
+        "empty": "Record or sync a run with a GPS route of at least 1 km to see your best efforts.",
+        "hint_one": "Searched {{count}} run with a route. A stretch never spans a pause or a gap in the recording.",
+        "hint_other": "Searched {{count}} runs with a route. A stretch never spans a pause or a gap in the recording.",
+        "truncated_one": "Searched your {{count}} most recent run with a route.",
+        "truncated_other": "Searched your {{count}} most recent runs with a route.",
+        "d1k": "1 km",
+        "d1mi": "1 mile",
+        "d5k": "5 km",
+        "d10k": "10 km",
+        "dHalf": "Half marathon",
+        "perKm": "/km",
+        "perMile": "/mi"
+      },
       "sessionsTitle": "Sessions",
       "sessionsHint": "Tap a workout for its route and heart rate.",
       "noSessions": "No cardio workouts in this date range.",
