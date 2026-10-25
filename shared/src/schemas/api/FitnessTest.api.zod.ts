@@ -1,15 +1,15 @@
-import { z } from "zod";
+import { z } from 'zod';
 import {
   FITNESS_TEST_SURFACES,
   FITNESS_TEST_TYPES,
   MAX_INCLINE_PERCENT,
-} from "../../utils/fitnessTest.ts";
-import { isDayString } from "../../utils/timezone.ts";
+} from '../../utils/fitnessTest.ts';
+import { isDayString } from '../../utils/timezone.ts';
 
 const dayString = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .refine(isDayString, { message: "Not a real calendar day." });
+  .refine(isDayString, { message: 'Not a real calendar day.' });
 
 export const fitnessTestTypeSchema = z.enum(FITNESS_TEST_TYPES);
 export const fitnessTestSurfaceSchema = z.enum(FITNESS_TEST_SURFACES);
@@ -26,10 +26,10 @@ export const fitnessTestPacesSchema = z.object({
   zones: z
     .array(
       z.object({
-        id: z.enum(["easy", "steady", "threshold", "interval", "repetition"]),
+        id: z.enum(['easy', 'steady', 'threshold', 'interval', 'repetition']),
         minSecondsPerKm: z.number(),
         maxSecondsPerKm: z.number(),
-      }),
+      })
     )
     .min(1)
     .max(5),
@@ -60,7 +60,7 @@ export const createFitnessTestBodySchema = z
     /** The recorded activity the test was run as. */
     exercise_entry_id: z.string().uuid().nullable().optional(),
     /** Outdoors with GPS (the default), or indoors on a treadmill. */
-    surface: fitnessTestSurfaceSchema.optional().default("outdoor"),
+    surface: fitnessTestSurfaceSchema.optional().default('outdoor'),
     /** Treadmill incline, percent; indoor tests only. */
     incline_percent: z
       .number()
@@ -71,9 +71,9 @@ export const createFitnessTestBodySchema = z
     /** Correct the result for the incline (the default when one is given). */
     incline_adjusted: z.boolean().optional().default(true),
   })
-  .refine((body) => body.surface === "indoor" || body.incline_percent == null, {
-    message: "An incline only applies to an indoor test.",
-    path: ["incline_percent"],
+  .refine((body) => body.surface === 'indoor' || body.incline_percent == null, {
+    message: 'An incline only applies to an indoor test.',
+    path: ['incline_percent'],
   });
 export type CreateFitnessTestBody = z.input<typeof createFitnessTestBodySchema>;
 
