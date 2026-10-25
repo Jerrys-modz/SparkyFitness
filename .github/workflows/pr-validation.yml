@@ -218,7 +218,7 @@ jobs:
                 ...(aiMissing
                   ? [
                       '',
-                      '**AI assistance (pick one):** this helps maintainers choose review depth. It is not a judgment on AI use.',
+                      '**AI assistance (pick one):',
                       '',
                       ...aiMissingOptions.map(o => `- [ ] ${o.text}`),
                     ]
