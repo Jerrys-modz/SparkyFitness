@@ -52,6 +52,7 @@ BEGIN
     'run_goals',
     'shoes',
     'custom_run_programs',
+    'fitness_tests',
     'routes',
     'onboarding_data',
     'onboarding_status',
@@ -783,6 +784,8 @@ SELECT create_owner_policy('health_appointments');
 SELECT create_owner_policy('run_programs');
 SELECT create_owner_policy('run_goals');
 SELECT create_owner_policy('custom_run_programs');
+-- Running fitness tests (5K, 30-minute run, Cooper) and the paces they gave: personal training data, owner-only.
+SELECT create_owner_policy('fitness_tests');
 SELECT create_owner_policy('routes');
 
 -- User-defined mood tags. Mood is check-in data (mood_entries uses the check-in

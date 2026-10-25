@@ -356,6 +356,11 @@ export const trainingLoadRootQueryKey = ['trainingLoad'] as const;
 export const trainingLoadQueryKey = (today: string) =>
   [...trainingLoadRootQueryKey, today] as const;
 
+export const runEstimatesQueryKey = (today: string) =>
+  ['runEstimates', today] as const;
+export const fitnessFatigueQueryKey = (today: string) =>
+  ['fitnessFatigue', today] as const;
+
 export const cardioSessionsQueryKey = (
   startDate: string,
   endDate: string,
@@ -455,6 +460,8 @@ export const runningRecordsQueryKey = () =>
 
 /** The person's run program and place in it (server-backed). */
 export const runProgramQueryKey = ['runProgram'] as const;
+/** The person's running fitness tests and the paces they gave (server-backed). */
+export const fitnessTestsQueryKey = ['fitnessTests'] as const;
 
 /** The person's weekly running distance target and race (server-backed). */
 export const runGoalsQueryKey = ['runGoals'] as const;

@@ -15,6 +15,7 @@ import FormInput from '../components/FormInput';
 import Button from '../components/ui/Button';
 import SafeImage from '../components/SafeImage';
 import ProgramWorkoutBadge from '../components/recording/ProgramWorkoutBadge';
+import FitnessTestBadge from '../components/recording/FitnessTestBadge';
 import ShoePickerCard from '../components/ShoePickerCard';
 import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
@@ -780,6 +781,9 @@ const ActivityDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         </View>
 
         {!isEditing && <ProgramWorkoutBadge entryId={session.id} />}
+        {!isEditing && (
+          <FitnessTestBadge entryId={session.id} unit={distanceUnit} />
+        )}
 
         {/* Stats grid */}
         {renderStatsGrid()}
