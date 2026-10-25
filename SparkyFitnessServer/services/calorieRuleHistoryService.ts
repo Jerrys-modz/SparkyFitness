@@ -5,7 +5,7 @@ import type { CalorieRuleHistoryRow } from '../models/calorieRuleHistoryReposito
 /**
  * The calorie settings in force on `day`: the latest history row on or before
  * it, else null (no change recorded before that day, so the current settings
- * apply). `history` is oldest first.
+ * apply). `history` may be in any order.
  */
 export function calorieRulesOnDay(
   history: readonly CalorieRuleHistoryRow[],
@@ -13,8 +13,16 @@ export function calorieRulesOnDay(
 ): CalorieRuleHistoryRow | null {
   let found: CalorieRuleHistoryRow | null = null;
   for (const row of history) {
-    if (row.effective_date !== '-infinity' && row.effective_date > day) break;
-    found = row;
+    if (row.effective_date === '-infinity') {
+      found ??= row;
+    } else if (
+      row.effective_date <= day &&
+      (!found ||
+        found.effective_date === '-infinity' ||
+        row.effective_date > found.effective_date)
+    ) {
+      found = row;
+    }
   }
   return found;
 }
