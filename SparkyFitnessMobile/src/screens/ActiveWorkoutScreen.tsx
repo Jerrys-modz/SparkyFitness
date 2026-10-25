@@ -20,6 +20,7 @@ import {
   calculateWarmupSets,
   findDropSetBaseIndex,
   findWarmupBaseIndex,
+  usesBarbell,
 } from '@workspace/shared';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -40,6 +41,8 @@ import {
   type SetInputField,
 } from '../components/SetRowChrome';
 import { MetricColumnMenu, SetTypeMenu } from '../components/WorkoutMenus';
+import PlateCalculatorSheet from '../components/PlateCalculatorSheet';
+import { storedWeightInUnit } from '../utils/unitConversions';
 import {
   ActiveWorkoutCompactRestRow,
   COMPACT_REST_ROW_HEIGHT,
@@ -810,6 +813,11 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     },
     []
   );
+  // The set the plate calculator is open for (its weight is kg, as stored).
+  const [plateCalc, setPlateCalc] = useState<{
+    weightKg: number | null;
+    equipment: readonly string[] | null;
+  } | null>(null);
   const setTypeCurrent = useMemo(() => {
     if (setTypeMenu == null || session == null) return null;
     for (const exercise of session.exercises) {
@@ -1107,6 +1115,27 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
               .updateSetField(setId, { set_type: type });
           }
         }}
+        onOpenPlateCalculator={(() => {
+          const setId = setTypeMenu?.setId;
+          if (setId == null) return undefined;
+          const ex = session.exercises.find((e) =>
+            e.sets.some((s) => String(s.id) === setId)
+          );
+          const equipment = ex?.exercise_snapshot?.equipment ?? null;
+          if (!ex || !usesBarbell(equipment)) return undefined;
+          const set = ex.sets.find((s) => String(s.id) === setId);
+          const weightKg = Number(
+            set?.weight ?? plannedSetValues[setId]?.weight
+          );
+          return () => {
+            setPlateCalc({
+              weightKg:
+                Number.isFinite(weightKg) && weightKg > 0 ? weightKg : null,
+              equipment,
+            });
+            setSetTypeMenu(null);
+          };
+        })()}
         onGenerateDropSets={(() => {
           const setId = setTypeMenu?.setId;
           if (setId == null) return undefined;
@@ -1132,6 +1161,20 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
           };
         })()}
       />
+
+      {plateCalc != null && (
+        <PlateCalculatorSheet
+          visible
+          onClose={() => setPlateCalc(null)}
+          targetWeight={
+            plateCalc?.weightKg != null
+              ? storedWeightInUnit(plateCalc.weightKg, weightUnit)
+              : null
+          }
+          weightUnit={weightUnit}
+          equipment={plateCalc?.equipment}
+        />
+      )}
 
       <WorkoutReorderList
         visible={reorderVisible}

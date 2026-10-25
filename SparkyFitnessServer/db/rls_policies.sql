@@ -51,6 +51,7 @@ BEGIN
     'run_programs',
     'run_goals',
     'shoes',
+    'plate_inventories',
     'custom_run_programs',
     'routes',
     'fitness_tests',
@@ -709,6 +710,8 @@ SELECT create_checkin_policy('custom_measurements');
 SELECT create_diary_policy('exercise_entries');
 -- Running shoes belong to the exercise diary, so diary delegates manage them.
 SELECT create_diary_policy('shoes');
+-- Plate inventories are the person's own gear: owner-only, no delegates.
+SELECT create_owner_policy('plate_inventories');
 -- Custom policy for exercise_entries to allow access if linked to an owned exercise_preset_entry
 CREATE POLICY select_exercise_preset_entry_linked_policy ON public.exercise_entries FOR SELECT TO PUBLIC
 USING (
