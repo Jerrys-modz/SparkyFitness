@@ -9767,6 +9767,8 @@
     "brushEnd": "Window end",
     "legendSleep": "Sleep",
     "legendWorkout": "Workout",
-    "legendElevated": "Elevated outside exercise"
+    "legendElevated": "Elevated outside exercise",
+    "vsSevenDayAvg": "{{diff}} bpm vs 7d avg",
+    "minIntoWorkout": "{{min}} min into workout"
   }
 }

@@ -112,11 +112,10 @@ const RestingHrTrendSection: React.FC<RestingHrTrendSectionProps> = ({
               data={restingHrTrendStats.points}
               margin={{ top: 12, right: 16, left: 0, bottom: 4 }}
               onClick={(e) => {
-                const chartEvent = e as unknown as {
-                  activePayload?: Array<{ payload?: { date?: string } }>;
-                };
-                const clickedDate =
-                  chartEvent?.activePayload?.[0]?.payload?.date;
+                const idx = Number(e?.activeTooltipIndex);
+                const clickedDate = Number.isInteger(idx)
+                  ? restingHrTrendStats.points[idx]?.date
+                  : undefined;
                 if (clickedDate) {
                   setDayWindow({ start: clickedDate, end: clickedDate });
                 }

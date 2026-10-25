@@ -228,8 +228,15 @@ const WorkoutHeartRateItem: React.FC<{
                     fontSize: '12px',
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                   }}
-                  formatter={(val) => [`${val ?? 0} bpm`, 'Heart Rate']}
-                  labelFormatter={(label) => `${label} min into workout`}
+                  formatter={(val) => [
+                    `${val ?? 0} bpm`,
+                    t('heartRate.heartRateBpm', 'Heart Rate'),
+                  ]}
+                  labelFormatter={(label) =>
+                    t('heartRate.minIntoWorkout', '{{min}} min into workout', {
+                      min: label,
+                    })
+                  }
                 />
                 {thresholds.map((bpm) => (
                   <ReferenceLine

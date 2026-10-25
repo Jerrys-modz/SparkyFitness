@@ -514,7 +514,12 @@ export const useHeartRateData = (
         ? Math.round(((sleepingAvg - daytimeAvg) / daytimeAvg) * 100)
         : null;
 
+    // The seven days before the focused day, not the whole report range
+    const sevenDaysBefore = msToDayString(
+      dayStringToMs(focusedDate) - 7 * 24 * 60 * 60 * 1000
+    );
     const validRhrs = mergedRestingHeartRateData
+      .filter((r) => r.date >= sevenDaysBefore && r.date < focusedDate)
       .map((r) => r.resting_heart_rate)
       .filter((v): v is number => v !== null && v > 0);
     const avgRhr7d =
@@ -707,7 +712,7 @@ export const useHeartRateData = (
       entry.count += 1;
       byDate.set(p.date, entry);
     });
-    return Array.from(byDate.entries())
+    const daily = Array.from(byDate.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, e]) => ({
         timestamp: new Date(`${date}T12:00:00`).getTime(),
@@ -719,6 +724,9 @@ export const useHeartRateData = (
         workoutName: null as string | null,
         elevatedBpm: null as number | null,
       }));
+    // Consecutive days are about 24h apart; a longer jump means a missing day,
+    // so the line breaks there instead of joining the two days
+    return withGapBreaks(daily, 36 * 60 * 60 * 1000);
   }, [windowPoints]);
 
   // Daily averages over the whole report range, drawn in the brush strip
@@ -882,8 +890,10 @@ export const useHeartRateData = (
         ticks.push(lo + h * 3600000);
       }
     } else {
-      const stride = Math.max(1, Math.ceil(rangeChartPoints.length / 10));
-      rangeChartPoints.forEach((p, i) => {
+      // Label recorded days only, not the empty points that break the line
+      const recorded = rangeChartPoints.filter((p) => p.bpm !== null);
+      const stride = Math.max(1, Math.ceil(recorded.length / 10));
+      recorded.forEach((p, i) => {
         if (i % stride === 0) ticks.push(p.timestamp);
       });
     }

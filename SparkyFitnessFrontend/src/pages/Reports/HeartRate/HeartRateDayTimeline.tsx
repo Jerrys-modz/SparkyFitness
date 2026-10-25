@@ -68,9 +68,12 @@ const HeartRateDayTimeline: React.FC<HeartRateDayTimelineProps> = ({
                         : 'text-amber-600 dark:text-amber-400 font-semibold'
                     }
                   >
-                    {timelineStats.rhrDiff <= 0
-                      ? `${timelineStats.rhrDiff} bpm vs 7d avg`
-                      : `+${timelineStats.rhrDiff} bpm vs 7d avg`}
+                    {t('heartRate.vsSevenDayAvg', '{{diff}} bpm vs 7d avg', {
+                      diff:
+                        timelineStats.rhrDiff > 0
+                          ? `+${timelineStats.rhrDiff}`
+                          : timelineStats.rhrDiff,
+                    })}
                   </span>
                 ) : (
                   t('heartRate.dailyRestingBaseline', 'Daily resting baseline')
@@ -90,7 +93,10 @@ const HeartRateDayTimeline: React.FC<HeartRateDayTimelineProps> = ({
               <div className="text-xs text-muted-foreground mt-1">
                 {timelineStats.maxTime
                   ? t('heartRate.recordedAt', 'at {{time}}', {
-                      time: timelineStats.maxTime,
+                      time: formatTimeOfDayString(
+                        timelineStats.maxTime,
+                        timeFormat
+                      ),
                     })
                   : t('heartRate.highestReading', 'Highest reading')}
               </div>
@@ -401,7 +407,10 @@ const HeartRateDayTimeline: React.FC<HeartRateDayTimelineProps> = ({
                   'Elevated HR outside exercise – {{bpm}} bpm at {{time}}',
                   {
                     bpm: timelineStats.elevatedSpike.bpm,
-                    time: timelineStats.elevatedSpike.time,
+                    time: formatTimeOfDayString(
+                      timelineStats.elevatedSpike.time,
+                      timeFormat
+                    ),
                   }
                 )}
               </span>
