@@ -367,8 +367,7 @@ export const exportFoodDiary = async ({
       return entries.reduce(
         (total, entry) => {
           const customSource = entry.custom_nutrients as
-            | Record<string, number>
-            | undefined;
+            Record<string, number> | undefined;
 
           const customNutrientTotals = customNutrients.reduce(
             (acc: Record<string, number>, nutrient) => {
@@ -483,8 +482,7 @@ export const exportFoodDiary = async ({
           const alcoholG = Number(entry.alcohol_g || 0);
 
           const customSource = entry.custom_nutrients as
-            | Record<string, number>
-            | undefined;
+            Record<string, number> | undefined;
 
           csvRows.push([
             formatDateInUserTimezone(entry.entry_date, 'MMM dd, yyyy'), // Format date for display
