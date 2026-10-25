@@ -38,6 +38,7 @@ import {
   type RunningEstimates,
   computeReadiness,
   CURVE_DAYS,
+  WARMUP_DAYS,
   type FitnessFatigue,
   type Readiness,
   estimateMaxHrFromAge,
@@ -1047,7 +1048,7 @@ async function getFitnessFatigue(
     const [sessions, zones, vitals, sleepNeed] = await Promise.all([
       reportRepository.getTrainingLoadSessions(
         targetUserId,
-        addDays(today, -(CURVE_DAYS - 1)),
+        addDays(today, -(CURVE_DAYS + WARMUP_DAYS - 1)),
         today
       ),
       heartRateZoneService.resolveZonesForUser(targetUserId),
