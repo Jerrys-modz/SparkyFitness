@@ -78,6 +78,18 @@ async function processHealthChunk(
 }
 
 /**
+ * How many days before today the hourly scheduled sync re-requests.
+ *
+ * A watch that only reaches Garmin Connect after a day's last scheduled pull
+ * (phone in a drawer, no Bluetooth contact overnight) would otherwise leave
+ * that day frozen at a partial figure, because the scheduled sync used to ask
+ * for today only. Re-pulling a short window each run lets the next hourly
+ * sync correct it; the per-chunk upserts are idempotent so the extra days
+ * are cheap.
+ */
+const SCHEDULED_SYNC_LOOKBACK_DAYS = 3;
+
+/**
  * Main orchestrator for syncing all Garmin telemetry and health data streams for a given user.
  * Processes and persists data incrementally chunk-by-chunk to prevent memory bloating, socket timeouts,
  * and loss of partial sync progress.
@@ -103,7 +115,7 @@ async function syncGarminData(
     startDate = addDays(today, -7);
   } else if (syncType === 'scheduled') {
     endDate = today;
-    startDate = today;
+    startDate = addDays(today, -SCHEDULED_SYNC_LOOKBACK_DAYS);
   } else {
     throw new Error("Invalid syncType. Must be 'manual' or 'scheduled'.");
   }
