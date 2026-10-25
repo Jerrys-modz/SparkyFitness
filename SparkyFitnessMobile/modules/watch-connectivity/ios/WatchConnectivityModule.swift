@@ -508,7 +508,7 @@ public class WatchConnectivityModule: Module {
                     "clientId": payload["clientId"] as? String ?? "",
                     "action": payload["action"] as? String ?? "",
                 ]
-                for key in ["exerciseEntryId", "setId", "exerciseId", "setType"] {
+                for key in ["exerciseEntryId", "setId", "exerciseId", "setType", "side"] {
                     if let value = payload[key] as? String { event[key] = value }
                 }
                 self?.sendEvent("onWorkoutEdit", event)

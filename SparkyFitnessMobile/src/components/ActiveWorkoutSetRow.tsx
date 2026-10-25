@@ -787,7 +787,13 @@ function ActiveWorkoutSetRow({
     }
   })();
 
-  const setLabel = setTypeLetter(set.set_type) ?? String(displayNumber);
+  const sideLetter =
+    set.side === 'left'
+      ? t('workout.sideLeftShort', { defaultValue: 'L' })
+      : set.side === 'right'
+        ? t('workout.sideRightShort', { defaultValue: 'R' })
+        : '';
+  const setLabel = `${setTypeLetter(set.set_type) ?? String(displayNumber)}${sideLetter}`;
 
   const setIndicator = (
     <Text

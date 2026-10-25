@@ -400,6 +400,8 @@ export interface WatchPlannedSetPayload {
   restSeconds: number;
   /** `normal` | `warmup` | `drop` … drives the watch's "Warmup 1/2" label. */
   setType?: string | null;
+  /** `left` | `right` for a single-arm / single-leg set; absent = both sides. */
+  side?: 'left' | 'right' | null;
 }
 
 /**
@@ -654,15 +656,23 @@ export interface WatchWorkoutEditPayload {
   sessionId: string;
   clientId: string;
   action:
-    'addSet' | 'deleteSet' | 'setSetType' | 'addExercise' | 'deleteExercise';
+    | 'addSet'
+    | 'deleteSet'
+    | 'setSetType'
+    | 'setSetSide'
+    | 'addOtherSide'
+    | 'addExercise'
+    | 'deleteExercise';
   /** For `addSet` and `deleteExercise`. */
   exerciseEntryId?: string;
-  /** For `deleteSet` and `setSetType`. */
+  /** For `deleteSet`, `setSetType`, `setSetSide` and `addOtherSide`. */
   setId?: string;
   /** For `addExercise`: the library exercise to add. */
   exerciseId?: string;
   /** For `setSetType`: `normal`, `warmup`, `drop` or `failure`. */
   setType?: string;
+  /** For `setSetSide`: `left`, `right` or `both`. */
+  side?: string;
 }
 
 /** The wearer's answer to the watch's "update this workout?" question, asked

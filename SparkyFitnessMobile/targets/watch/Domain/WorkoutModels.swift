@@ -38,6 +38,10 @@ struct PlannedSet: Codable, Equatable, Identifiable {
     /// A loaded hold: the weight box stays beside the timer even when no
     /// weight is planned yet.
     var weighted: Bool? = nil
+    /// `left` or `right` for a single-arm / single-leg set; nil means both
+    /// sides together. Optional so an older phone, or a snapshot saved before
+    /// this existed, still decodes.
+    var side: String? = nil
 
     var id: String { setId }
 }
@@ -188,7 +192,13 @@ struct WorkoutStep: Identifiable, Equatable {
         case "failure": kind = "Failure"
         default: kind = "Set"
         }
-        return "\(kind) \(setNumber)/\(setCount)"
+        let sideSuffix: String
+        switch plannedSet.side?.lowercased() {
+        case "left": sideSuffix = " · L"
+        case "right": sideSuffix = " · R"
+        default: sideSuffix = ""
+        }
+        return "\(kind) \(setNumber)/\(setCount)\(sideSuffix)"
     }
 }
 
@@ -212,6 +222,10 @@ enum WorkoutEditAction: Equatable {
     case addSet(exerciseEntryId: String)
     case deleteSet(setId: String)
     case setSetType(setId: String, type: String)
+    /// `side` is `left`, `right` or `both`.
+    case setSetSide(setId: String, side: String)
+    /// Copy a set for the opposite side, right after it.
+    case addOtherSide(setId: String)
     case addExercise(exerciseId: String)
     case deleteExercise(exerciseEntryId: String)
 }
