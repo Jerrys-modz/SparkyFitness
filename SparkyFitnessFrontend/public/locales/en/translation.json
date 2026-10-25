@@ -3153,6 +3153,10 @@
       "publicApiDocsDescription": "Allow Swagger API docs (/api/api-docs) to be accessed without requiring user authentication.",
       "devTools": "Developer Diagnostic Tools",
       "devToolsDescription": "Enable MCP and diagnostic database inspection tools for admins.",
+      "versionCheck": "Check for New Releases",
+      "versionCheckDescription": "Ask GitHub (api.github.com) for the latest release and tell users when a newer version is available. Turn this off if updates are managed outside the app or the server should not contact GitHub.",
+      "versionCheckUpdated": "Release check setting updated successfully.",
+      "failedToSaveVersionCheck": "Failed to save the release check setting.",
       "loginManagement": {
         "title": "Login Management",
         "description": "Enable or disable different methods for users to log in.",
