@@ -49,8 +49,10 @@ BEGIN
     'mood_entries',
     'mindfulness_sessions',
     'run_programs',
+    'run_goals',
     'shoes',
     'custom_run_programs',
+    'fitness_tests',
     'routes',
     'onboarding_data',
     'onboarding_status',
@@ -64,6 +66,7 @@ BEGIN
     'food_assistant_operations',
     'admin_activity_logs',
     'api_key',
+    'user_calorie_rule_history',
     'user_goals',
     'user_ignored_updates',
     'user_meal_visibilities',
@@ -644,6 +647,12 @@ CREATE POLICY select_policy ON public.user_preferences FOR SELECT TO PUBLIC USIN
 CREATE POLICY modify_policy ON public.user_preferences FOR ALL TO PUBLIC
 USING (authenticated_user_id() = user_id)
 WITH CHECK (authenticated_user_id() = user_id);
+-- The calorie settings each past day used (#1795), written by a trigger when
+-- user_preferences changes, so they follow the same owner-write/delegate-read rules.
+CREATE POLICY select_policy ON public.user_calorie_rule_history FOR SELECT TO PUBLIC USING (has_profile_read_access(user_id));
+CREATE POLICY modify_policy ON public.user_calorie_rule_history FOR ALL TO PUBLIC
+USING (authenticated_user_id() = user_id)
+WITH CHECK (authenticated_user_id() = user_id);
 
 SELECT create_diary_policy('user_goals');
 SELECT create_diary_policy('weekly_goal_plans');
@@ -772,7 +781,10 @@ SELECT create_owner_policy('pregnancy_photos');
 SELECT create_owner_policy('pregnancy_checklist_state');
 SELECT create_owner_policy('health_appointments');
 SELECT create_owner_policy('run_programs');
+SELECT create_owner_policy('run_goals');
 SELECT create_owner_policy('custom_run_programs');
+-- Running fitness tests (5K, 30-minute run, Cooper) and the paces they gave: personal training data, owner-only.
+SELECT create_owner_policy('fitness_tests');
 SELECT create_owner_policy('routes');
 
 -- User-defined mood tags. Mood is check-in data (mood_entries uses the check-in
