@@ -1,0 +1,35 @@
+name: Migration Limit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "SparkyFitnessServer/db/migrations/**"
+
+permissions:
+  contents: read
+
+jobs:
+  one-migration-per-pr:
+    name: One Migration Per PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure at most one new migration file
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          added=$(git diff --name-only --diff-filter=A "$BASE_SHA...$HEAD_SHA" -- 'SparkyFitnessServer/db/migrations/*.sql')
+          count=$(printf '%s' "$added" | grep -c . || true)
+          echo "New migration files in this PR: $count"
+          if [ "$count" -gt 1 ]; then
+            echo "::error::A PR may add at most one migration file, found $count:"
+            echo "$added"
+            echo "Squash these into a single migration, or split the work into separate PRs."
+            exit 1
+          fi
