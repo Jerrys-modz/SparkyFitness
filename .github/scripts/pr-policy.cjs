@@ -140,7 +140,8 @@ const getMigrationFiles = files =>
     .filter(f => f.status !== 'removed' && MIGRATIONS_PATH.test(f.filename))
     .map(f => f.filename);
 
-// A migration that adds a table normally needs an entry in rls_policies.sql.
+// A migration that adds a table normally needs an entry in rls_policies.sql. GitHub omits `patch`
+// for very large diffs, in which case this returns false and the (warning-only) check is skipped.
 const addsTable = files =>
   (files || []).some(
     f =>

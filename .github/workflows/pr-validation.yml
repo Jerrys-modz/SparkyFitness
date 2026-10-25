@@ -124,7 +124,7 @@ jobs:
             if (hasMobileChanges)   toAdd.push('mobile');
             // Add-only on purpose: a maintainer clears it once satisfied, and an author flipping the
             // box after the fact cannot quietly drop the flag.
-            if (ai.needsExtraReview) toAdd.push(policy.NEEDS_EXTRA_REVIEW_LABEL);
+            if (ai.needsExtraReview && !licenseExempt) toAdd.push(policy.NEEDS_EXTRA_REVIEW_LABEL);
 
             if (canWrite && toAdd.length > 0) {
               await github.rest.issues.addLabels({
@@ -263,7 +263,7 @@ jobs:
 
             // Typecheck, lint, format, knip and tests are enforced by ci-tests.yml, so the
             // template no longer asks contributors to attest to them.
-            if (!policy.hasValidTitlePrefix(title)) {
+            if (!isAutomation && !policy.hasValidTitlePrefix(title)) {
               errors.push(
                 '**[MANDATORY]** Start the PR title with a type prefix such as `feat:`, `fix:`, `docs:`, ' +
                 '`refactor:`, `security:`, `perf:`, `test:` or `chore:` (optionally scoped, e.g. `fix(mobile): ...`). ' +
