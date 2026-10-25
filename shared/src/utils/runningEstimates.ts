@@ -1,5 +1,5 @@
-import { addDays, daysBetween } from "./timezone.ts";
-import { DEFAULT_MAX_HEART_RATE } from "./trainingLoad.ts";
+import { addDays, daysBetween } from './timezone.ts';
+import { FALLBACK_MAX_HR as DEFAULT_MAX_HEART_RATE } from './heartRateZones.ts';
 
 /** One logged run, as far as the estimates are concerned. */
 export interface RunForEstimate {
@@ -73,7 +73,7 @@ function averageGrade(run: RunForEstimate): number {
 export function vo2MaxFromRun(
   run: RunForEstimate,
   restingHeartRate: number = DEFAULT_RESTING_HEART_RATE,
-  maxHeartRate: number = DEFAULT_MAX_HEART_RATE,
+  maxHeartRate: number = DEFAULT_MAX_HEART_RATE
 ): number | null {
   if (!isUsableRun(run)) return null;
   const bpm = run.avgHeartRate;
@@ -99,7 +99,7 @@ export function vo2MaxFromRun(
  */
 export function runningPowerWatts(
   run: RunForEstimate,
-  bodyWeightKg: number,
+  bodyWeightKg: number
 ): number | null {
   if (!isUsableRun(run) || !(bodyWeightKg > 0)) return null;
   const speed = speedMetersPerSecond(run) ?? 0;
@@ -113,6 +113,12 @@ export function runningPowerWatts(
   return watts;
 }
 
+/** The VO2 max one day's runs imply. */
+export interface RunVo2Max {
+  day: string;
+  value: number;
+}
+
 export interface Vo2MaxEstimate {
   /** ml/kg/min, one decimal. */
   value: number;
@@ -121,6 +127,8 @@ export interface Vo2MaxEstimate {
   /** First and last day of those runs. */
   from: string;
   to: string;
+  /** What each run day implies (median if several), oldest first, for a trend. */
+  series?: RunVo2Max[];
 }
 
 export interface RunPower {
@@ -164,7 +172,7 @@ export function computeRunningEstimates(
     restingHeartRate?: number | null;
     maxHeartRate?: number | null;
     bodyWeightKg?: number | null;
-  } = {},
+  } = {}
 ): RunningEstimates {
   const resting = options.restingHeartRate ?? DEFAULT_RESTING_HEART_RATE;
   const max = options.maxHeartRate ?? DEFAULT_MAX_HEART_RATE;
@@ -184,6 +192,14 @@ export function computeRunningEstimates(
       runs: vo2Runs.length,
       from: days[0] ?? vo2Start,
       to: days[days.length - 1] ?? today,
+      series: [...new Set(days)].map((day) => ({
+        day,
+        value: round1(
+          median(
+            vo2Runs.filter((run) => run.day === day).map((run) => run.value)
+          )
+        ),
+      })),
     };
   }
 

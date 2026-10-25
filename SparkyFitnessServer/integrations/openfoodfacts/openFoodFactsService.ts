@@ -1,6 +1,7 @@
 import {
   resolveOpenFoodFactsProvider,
   invalidateOpenFoodFactsSession,
+  resolveOffFetch,
   DEFAULT_OFF_BASE_URL,
 } from './openFoodFactsAuth.js';
 import type { OpenFoodFactsCredentialScope } from './openFoodFactsAuth.js';
@@ -45,10 +46,11 @@ function isTimeoutError(error: unknown): boolean {
 async function fetchWithTimeout(
   url: string,
   init: RequestInit = {},
-  timeoutMs: number = OFF_FETCH_TIMEOUT_MS
+  timeoutMs: number = OFF_FETCH_TIMEOUT_MS,
+  fetchImpl: typeof fetch = fetch
 ): Promise<Response> {
   try {
-    return await fetch(url, {
+    return await fetchImpl(url, {
       ...init,
       signal: AbortSignal.timeout(timeoutMs),
     });
@@ -65,6 +67,7 @@ async function fetchWithTimeout(
     throw error;
   }
 }
+
 const OFF_FIELDS = [
   'product_name',
   'product_name_en',
@@ -300,15 +303,16 @@ async function fetchOpenFoodFacts(
     rateLimitProductRead?: boolean;
   } = {}
 ): Promise<Response> {
+  // The unauthenticated retry shares this request's deadline, so a 429/5xx
+  // answered near the end of the budget cannot double the wall-clock time.
+  const requestDeadline = Date.now() + timeoutMs;
+  const remainingBudget = Math.max(0, requestDeadline - Date.now());
+  const fetchImpl = await resolveOffFetch(authenticatedUserId, remainingBudget);
   const baseHeaders = { ...OFF_HEADERS };
 
   const headers = sessionCookie
     ? { ...baseHeaders, Cookie: `session=${sessionCookie}` }
     : baseHeaders;
-
-  // The unauthenticated retry shares this request's deadline, so a 429/5xx
-  // answered near the end of the budget cannot double the wall-clock time.
-  const requestDeadline = Date.now() + timeoutMs;
 
   const performGet = async (
     requestHeaders: Record<string, string>
@@ -330,7 +334,8 @@ async function fetchOpenFoodFacts(
           headers: requestHeaders,
           redirect: 'manual',
         },
-        remainingTimeoutMs
+        remainingTimeoutMs,
+        fetchImpl
       );
     };
 
@@ -705,7 +710,7 @@ async function searchOpenFoodFactsByBarcodeFields(
       }
       const errorText = await response.text();
       log('error', 'OpenFoodFacts Barcode Fields Search API error:', errorText);
-      throw new Error(`OpenFoodFacts API error: ${errorText}`);
+      throw new Error(`OpenFoodFacts API error (HTTP ${response.status})`);
     }
     let data = (await response.json()) as {
       status: number;

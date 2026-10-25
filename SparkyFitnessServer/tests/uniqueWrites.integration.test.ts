@@ -404,6 +404,56 @@ describe.runIf(RUN)('one custom category per name', () => {
     });
   });
 
+  it('renames several unmergeable HRV categories past a suffix that is already taken', async () => {
+    // #3041: three health syncs each created an HRV category, and "HRV (2)"
+    // was already a name. The two that cannot be merged must not both become
+    // "HRV (3)", or the unique index cannot be built.
+    await db.query(
+      'DROP INDEX IF EXISTS public.custom_categories_user_name_key'
+    );
+    const oldest = await insertCategory(
+      'HRV',
+      '2026-09-01T00:00:00Z',
+      'HRV',
+      'health'
+    );
+    const second = await insertCategory(
+      'HRV',
+      '2026-09-02T00:00:00Z',
+      'HRV',
+      'health'
+    );
+    const third = await insertCategory(
+      'HRV',
+      '2026-09-03T00:00:00Z',
+      'HRV',
+      'health'
+    );
+    const taken = await insertCategory(
+      'HRV (2)',
+      '2025-01-01T00:00:00Z',
+      'HRV (2)',
+      'ms'
+    );
+    await insertMeasurement(oldest, '2026-09-10', 'Health Connect');
+    await insertMeasurement(second, '2026-09-10', 'Health Connect');
+    await insertMeasurement(third, '2026-09-10', 'Health Connect');
+
+    await db.query(MIGRATION_SQL);
+
+    const names = await db.query(
+      `SELECT id, name FROM public.custom_categories
+       WHERE id = ANY($1::uuid[])`,
+      [[oldest, second, third, taken]]
+    );
+    expect(Object.fromEntries(names.rows.map((r) => [r.id, r.name]))).toEqual({
+      [oldest]: 'HRV',
+      [taken]: 'HRV (2)',
+      [second]: 'HRV (3)',
+      [third]: 'HRV (4)',
+    });
+  });
+
   it('returns one category when two creates of the same name overlap', async () => {
     const create = () =>
       measurementRepository.createCustomCategory({

@@ -110,6 +110,48 @@ const FitnessFatigueCard: React.FC<FitnessFatigueCardProps> = ({
     }
   };
 
+  /** "41 ms against your usual 68 ms (median of 9 nights)" under a watch factor. */
+  const vitalText = (
+    factor: ReadinessFactor,
+    readiness: FitnessFatigueResponse['readiness']
+  ): string | null => {
+    if (factor !== 'hrv' && factor !== 'restingHeartRate') return null;
+    const vital = readiness.vitals?.[factor];
+    if (!vital) return null;
+    const values = {
+      current: formatLocalizedNumber(vital.current, {
+        maximumFractionDigits: 1,
+      }),
+      baseline: formatLocalizedNumber(vital.baseline, {
+        maximumFractionDigits: 1,
+      }),
+      count: vital.nights,
+    };
+    const hasNights = vital.nights !== undefined;
+    if (factor === 'hrv') {
+      return hasNights
+        ? t('exerciseStatistics.fitness.vital.hrvNights', {
+            ...values,
+            defaultValue:
+              '{{current}} ms against your usual {{baseline}} ms (median of {{count}} nights)',
+          })
+        : t('exerciseStatistics.fitness.vital.hrv', {
+            ...values,
+            defaultValue: '{{current}} ms against your usual {{baseline}} ms',
+          });
+    }
+    return hasNights
+      ? t('exerciseStatistics.fitness.vital.restingHeartRateNights', {
+          ...values,
+          defaultValue:
+            '{{current}} bpm against your usual {{baseline}} bpm (median of {{count}} nights)',
+        })
+      : t('exerciseStatistics.fitness.vital.restingHeartRate', {
+          ...values,
+          defaultValue: '{{current}} bpm against your usual {{baseline}} bpm',
+        });
+  };
+
   const renderBody = () => {
     if (isLoading) return <StatusView inline loading />;
     if (!data) {
@@ -148,22 +190,30 @@ const FitnessFatigueCard: React.FC<FitnessFatigueCardProps> = ({
         <Text className={`text-sm mb-3 ${LEVEL_COLOR[readiness.level]}`}>
           {levelText(readiness.level)}
         </Text>
-        {factors.map(([factor, score]) => (
-          <View key={factor} className="flex-row justify-between mb-1">
-            <Text
-              className={`text-sm ${
-                factor === readiness.weakest
-                  ? 'text-text-primary font-semibold'
-                  : 'text-text-secondary'
-              }`}
-            >
-              {factorLabel(factor)}
-            </Text>
-            <Text className="text-text-secondary text-sm">
-              {formatLocalizedNumber(score)}
-            </Text>
-          </View>
-        ))}
+        {factors.map(([factor, score]) => {
+          const detail = vitalText(factor, readiness);
+          return (
+            <View key={factor} className="mb-1">
+              <View className="flex-row justify-between">
+                <Text
+                  className={`text-sm ${
+                    factor === readiness.weakest
+                      ? 'text-text-primary font-semibold'
+                      : 'text-text-secondary'
+                  }`}
+                >
+                  {factorLabel(factor)}
+                </Text>
+                <Text className="text-text-secondary text-sm">
+                  {formatLocalizedNumber(score)}
+                </Text>
+              </View>
+              {detail ? (
+                <Text className="text-text-muted text-xs">{detail}</Text>
+              ) : null}
+            </View>
+          );
+        })}
         {today ? (
           <>
             <View className="flex-row justify-between mt-3 mb-2">

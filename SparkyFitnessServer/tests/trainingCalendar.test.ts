@@ -8,12 +8,16 @@ import {
   weeklyTotals,
   loadSportGroup,
   sessionLoad,
+  percentMaxFloors,
   addDays,
   dayOfWeek,
   type CalendarEntry,
   type PlanSlot,
   type ProgramPlanInput,
 } from '@workspace/shared';
+
+// Heart rate zone floors for a maximum of 190.
+const FLOORS = percentMaxFloors(190);
 
 // A Wednesday.
 const TODAY = '2026-10-14';
@@ -185,10 +189,10 @@ describe('matchPlan extra work and load', () => {
   it('uses the training-load formula, with and without heart rate', () => {
     const withHr = entry('hr', -1, { durationMinutes: 40, avgHeartRate: 160 });
     const without = entry('no', -1, { durationMinutes: 40 });
-    const { completed } = matchPlan([], [withHr, without], TODAY, 190);
+    const { completed } = matchPlan([], [withHr, without], TODAY, FLOORS);
     const byId = Object.fromEntries(completed.map((c) => [c.id, c]));
     expect(byId.hr).toMatchObject({
-      load: Math.round(sessionLoad(withHr, 190)),
+      load: Math.round(sessionLoad(withHr, FLOORS)),
       loadBasis: 'heartRate',
     });
     expect(byId.no).toMatchObject({ load: 80, loadBasis: 'estimated' });

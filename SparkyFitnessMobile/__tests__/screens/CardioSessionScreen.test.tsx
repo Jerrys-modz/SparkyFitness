@@ -6,11 +6,24 @@ import type { ExerciseActivityQueryItem } from '@workspace/shared';
 import CardioSessionScreen from '../../src/screens/CardioSessionScreen';
 import { useCardioSessionDetail } from '../../src/hooks/useCardioSessionDetail';
 import { shareRouteAsGpx } from '../../src/services/gpxExport';
+import { saveActivityAsRoute } from '../../src/services/routeService';
 import { initializeI18n } from '../../src/localization/i18n';
 import type { RootStackScreenProps } from '../../src/types/navigation';
 
+jest.mock('../../src/services/fitnessTestService', () => ({
+  useFitnessTests: jest.fn(() => ({
+    tests: [],
+    latest: null,
+    loaded: true,
+    isLoading: false,
+    refetch: jest.fn(),
+  })),
+}));
 jest.mock('../../src/services/gpxExport', () => ({
   shareRouteAsGpx: jest.fn(() => Promise.resolve(true)),
+}));
+jest.mock('../../src/services/routeService', () => ({
+  saveActivityAsRoute: jest.fn(),
 }));
 jest.mock('react-native-toast-message', () => ({
   __esModule: true,
@@ -156,6 +169,16 @@ describe('CardioSessionScreen', () => {
     elevationGainMeters: 181.9,
   } as ExerciseActivityQueryItem;
 
+  const RUN_WITH_FORM = {
+    ...STAIRS,
+    id: 'run-form',
+    exerciseName: 'Running',
+    floorsClimbed: null,
+    elevationGainMeters: null,
+    avgCadence: 168,
+    strideLengthCm: 104.3,
+  } as ExerciseActivityQueryItem;
+
   it('shows floors climbed and elevation gain for a stair workout', () => {
     mockDetail.mockReturnValue(detail({ route: [] }));
     const screen = render(<CardioSessionScreen {...props(STAIRS)} />);
@@ -182,6 +205,35 @@ describe('CardioSessionScreen', () => {
 
     // 181.9 m is the 597 ft Apple Fitness shows.
     expect(screen.getByText('597 ft')).toBeTruthy();
+  });
+
+  it('shows cadence and stride length for a run that has them', () => {
+    mockDetail.mockReturnValue(detail());
+    const run = {
+      ...RUN_WITH_FORM,
+    } as ExerciseActivityQueryItem;
+    const screen = render(<CardioSessionScreen {...props(run)} />);
+
+    expect(screen.getByText('Avg cadence')).toBeTruthy();
+    expect(screen.getByText('168 spm')).toBeTruthy();
+    expect(screen.getByText('Stride length')).toBeTruthy();
+    expect(screen.getByText('1.04 m')).toBeTruthy();
+  });
+
+  it('shows stride length in feet when the distance unit is miles', () => {
+    mockDetail.mockReturnValue(detail());
+    const imperial = {
+      ...props(RUN_WITH_FORM),
+      route: {
+        key: 'CardioSession',
+        name: 'CardioSession',
+        params: { session: RUN_WITH_FORM, distanceUnit: 'miles' },
+      },
+    } as unknown as RootStackScreenProps<'CardioSession'>;
+    const screen = render(<CardioSessionScreen {...imperial} />);
+
+    // 104.3 cm is 3.42 ft.
+    expect(screen.getByText('3.42 ft')).toBeTruthy();
   });
 
   it('says "1 floor" for a single floor', () => {
@@ -326,6 +378,58 @@ describe('CardioSessionScreen', () => {
         expect.objectContaining({ type: 'error' })
       )
     );
+  });
+
+  it('saves the route and opens it', async () => {
+    jest
+      .mocked(saveActivityAsRoute)
+      .mockResolvedValueOnce({ id: 'r1' } as never);
+    const navigate = jest.fn();
+    mockDetail.mockReturnValue(detail());
+    const screen = render(
+      <CardioSessionScreen
+        {...({
+          ...props(),
+          navigation: { navigate },
+        } as unknown as RootStackScreenProps<'CardioSession'>)}
+      />
+    );
+    fireEvent.press(screen.getByTestId('save-as-route'));
+    await waitFor(() =>
+      expect(navigate).toHaveBeenCalledWith('RouteDetail', { id: 'r1' })
+    );
+    // The server names the route after the activity.
+    expect(saveActivityAsRoute).toHaveBeenCalledWith('run-1');
+    expect(Toast.show).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'success' })
+    );
+  });
+
+  it('says so when the route cannot be saved', async () => {
+    jest.mocked(saveActivityAsRoute).mockRejectedValueOnce(new Error('404'));
+    const navigate = jest.fn();
+    mockDetail.mockReturnValue(detail());
+    const screen = render(
+      <CardioSessionScreen
+        {...({
+          ...props(),
+          navigation: { navigate },
+        } as unknown as RootStackScreenProps<'CardioSession'>)}
+      />
+    );
+    fireEvent.press(screen.getByTestId('save-as-route'));
+    await waitFor(() =>
+      expect(Toast.show).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'error' })
+      )
+    );
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('offers no way to save a route without one', () => {
+    mockDetail.mockReturnValue(detail({ route: [] }));
+    const screen = render(<CardioSessionScreen {...props()} />);
+    expect(screen.queryByTestId('save-as-route')).toBeNull();
   });
 
   it('offers no export without a route', () => {

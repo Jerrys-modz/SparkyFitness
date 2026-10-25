@@ -13,6 +13,9 @@ vi.mock('../models/reportRepository.js', () => ({
 vi.mock('../models/userRepository.js', () => ({
   default: { getUserProfile: vi.fn() },
 }));
+vi.mock('../services/heartRateZoneService.js', () => ({
+  default: { resolveZonesForUser: vi.fn() },
+}));
 vi.mock('../models/sleepScienceRepository.js', () => ({
   default: { getDailyNeed: vi.fn() },
 }));
@@ -30,25 +33,33 @@ vi.mock('../services/customNutrientService.js', () => ({ default: {} }));
 
 import reportRepository from '../models/reportRepository.js';
 import userRepository from '../models/userRepository.js';
+import heartRateZoneService from '../services/heartRateZoneService.js';
 import sleepScienceRepository from '../models/sleepScienceRepository.js';
+import { CURVE_DAYS, WARMUP_DAYS } from '@workspace/shared';
 import { getFitnessFatigue } from '../services/reportService.js';
 
 const repo = vi.mocked(reportRepository);
 const users = vi.mocked(userRepository);
 const sleep = vi.mocked(sleepScienceRepository);
+const zones = vi.mocked(heartRateZoneService);
 
 const noVitals = {
   sleepHours: null,
   restingHeartRate: null,
   restingHeartRateBaseline: null,
+  restingHeartRateBaselineNights: 0,
   hrv: null,
   hrvBaseline: null,
+  hrvBaselineNights: 0,
 };
 
 describe('getFitnessFatigue', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     users.getUserProfile.mockResolvedValue(null);
+    zones.resolveZonesForUser.mockResolvedValue({
+      floors: [95, 114, 133, 152, 171],
+    } as Awaited<ReturnType<typeof zones.resolveZonesForUser>>);
     sleep.getDailyNeed.mockResolvedValue(null);
     repo.getTrainingLoadSessions.mockResolvedValue([]);
     repo.getReadinessVitals.mockResolvedValue(noVitals);
@@ -60,13 +71,13 @@ describe('getFitnessFatigue', () => {
     expect(result.readiness).toMatchObject({ score: null, level: 'noData' });
   });
 
-  it('reads the 90-day window and the baseline range from the repository', async () => {
+  it('reads the 90-day window plus the warm-up and the baseline range from the repository', async () => {
     await getFitnessFatigue('u1', 'u1');
     const [, start, end] = repo.getTrainingLoadSessions.mock.calls[0]!;
     const days =
       (Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) /
       86_400_000;
-    expect(days).toBe(89);
+    expect(days).toBe(CURVE_DAYS + WARMUP_DAYS - 1);
     const [, today, yesterday, baselineStart] =
       repo.getReadinessVitals.mock.calls[0]!;
     expect(yesterday < today).toBe(true);

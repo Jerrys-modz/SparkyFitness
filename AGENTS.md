@@ -1,6 +1,6 @@
 # AGENTS.md
 
-*Last updated: 2026-10-12*
+*Last updated: 2026-10-22*
 
 This is the repo-root monorepo guide for SparkyFitness. Use it to choose the right package, understand shared repo-level rules, and find the next guide to read.
 
@@ -36,6 +36,7 @@ For `docs/` and `SparkyFitnessGarmin/`, there is no package-level `AGENTS.md`. `
 - `SparkyFitnessMobile/` - Expo SDK 57 / React Native 0.86 app.
 - `shared/` - source-first TypeScript workspace package for `@workspace/shared` schemas, constants, and timezone/day helpers.
 - `docs/` - VitePress documentation site.
+- `docs/readme/` - translated copies of the root `README.md` (`README_<lang>.md`), outside the VitePress `srcDir`. The language bar at the top of `README.md` links to them; when the root README changes substantially, the translations go stale.
 - `SparkyFitnessGarmin/` - standalone Python integration service outside the current `pnpm` workspace.
 - `docker/`, `helm/`, `.github/` - infra and deployment assets.
 - `umbrel/sparkyfitness/` - Umbrel App Store package (manifest, compose, derived secrets), submitted to `getumbrel/umbrel-apps`. See `umbrel/README.md`.
@@ -46,7 +47,7 @@ For `docs/` and `SparkyFitnessGarmin/`, there is no package-level `AGENTS.md`. `
 
 - `pnpm-workspace.yaml` currently lists `frontend`, `SparkyFitnessFrontend`, `shared`, `SparkyFitnessMobile`, `SparkyFitnessServer`, and `docs`.
 - Only `SparkyFitnessFrontend/` exists on disk right now; treat `frontend` as a legacy workspace entry unless the task is specifically about workspace cleanup.
-- `shared/` is a library package, not an app. Validate shared changes from the consuming package(s), not in isolation.
+- `shared/` is a library package, not an app; its `pnpm run validate` runs typecheck, a hardcoded-string audit, and the Prettier check. CI runs that in a `Shared Validate` job and also re-runs the frontend, mobile, and server jobs whenever `shared/` changes, so validate shared changes from the consuming package(s), not in isolation.
 - `SparkyFitnessGarmin/` is outside the current workspace. Inspect its own manifest and scripts before working there.
 
 ## Agent Efficiency (read this before searching)
@@ -77,6 +78,7 @@ Cheap ways to learn things:
   5. Add or update the matching Zod schema in `shared/src/schemas/database/`.
   6. Update the user-facing documentation in `docs/src/features/family-friends-sharing.md`.
   7. Update the developer documentation in `docs/src/developer/database-security-tiers.md` to classify the table as Tier 1, Tier 2, or Tier 3.
+- **Heart rate zones have one source of truth:** `shared/src/utils/heartRateZones.ts` (`resolveHeartRateZones`, `heartRateZoneRange`, `computeTimeInZones`). Never re-derive max heart rate or zone floors in a package; server stored zones, training load, mobile suggested ranges and the web/mobile charts and settings all call it. Max heart rate is the person's own value, else Nes (211 - 0.64 x age) from date of birth, else 190. Settings never rewrite stored `exercise_entry_hr_zones` rows. iOS 27 can fill custom floors from Apple Health (`floorsFromAppleHeartRateZones`); that does not change max heart rate. A finished Apple workout's own zone group (`bucketsFromAppleWorkoutZones`) is stored as `device` zones instead of recomputing, so the chart matches Apple, including time below the first boundary.
 - Prefer the shared timezone helpers from `@workspace/shared` and `SparkyFitnessServer/utils/timezoneLoader.ts` for day-string logic. Avoid `toISOString().split('T')[0]` for user-facing or business-logic dates.
 - Keep `YYYY-MM-DD` values as calendar-day strings until you reach a database or external API boundary that needs UTC instants.
 - Auth or API contract changes usually need a quick check in both web and mobile because they share the same backend.

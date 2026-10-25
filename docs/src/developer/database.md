@@ -1,6 +1,6 @@
 # Database Schema & Migrations
 
-*Last updated: 2026-09-01*
+*Last updated: 2026-10-20*
 
 This document covers the database structure, schema design, and migration process for SparkyFitness.
 
@@ -111,7 +111,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 ### Measurements & Health (Tier 1/3: Owner-Only or Delegate-Write)
 | Table | Purpose |
 |-------|---------|
-| `check_in_measurements` | Weight, body composition, BMR, and circumference measurements |
+| `check_in_measurements` | Weight, body composition, BMR, circumference measurements, and resting heart rate |
 | `check_in_photos` | Progress photos |
 | `custom_measurements` | User-defined custom measurement types |
 | `custom_categories` | User-defined measurement categories |
@@ -123,7 +123,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `sleep_need_calculations` | AI sleep need calculations |
 | `daily_sleep_need` | Sleep goals calculated for the day |
 | `health_metric_samples` | Intraday wearable telemetry — heart rate, HRV, respiration, SpO2, stress, body battery, skin temperature. One JSONB-bucketed row per user/metric/day/provider (not one row per sample) |
-| `vitals_entries` | Blood pressure, blood glucose, and temperature logs |
+| `vitals_entries` | Blood pressure, blood glucose, temperature, and pulse logs |
 | `daily_health_metrics` | Daily automated wearable summary, scores, and source-timed total calories |
 
 ### Fasting, Mood, Medications, & Symptoms (Tier 1/3: Owner-Only or Delegate-Write)
@@ -131,7 +131,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 |-------|---------|
 | `fasting_logs` | Fasting timeline logs (start/end fast) |
 | `user_fasting_preferences` | Intermittent fasting targets, auto-calculation config, and alert timing |
-| `mood_entries` | Logged mood and energy levels |
+| `mood_entries` | Logged mood check-ins, several per day: optional mood, energy and focus ratings, tags and journal notes, with a timestamp and a `source` (`manual`, `garmin` or `import`) |
 | `mindfulness_sessions` | Logged mindfulness, meditation, and breathwork sessions |
 | `user_custom_moods` | User-defined mood tags (icon/color) |
 | `medications` | Custom medication inventory lists |
@@ -156,7 +156,10 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `cycle_test_entries` | Ovulation and pregnancy test logs |
 | `pregnancies` | Pregnancy records (due date, status) |
 | `run_programs` | A person's run program, their place in it, its Diary schedule, goal date, adjustments to it and which diary entries its workouts were done as |
+| `run_goals` | A person's weekly running distance target and the race they are counting down to |
 | `custom_run_programs` | A person's own run or walk plans: a name, the activity and an ordered list of workouts, each a list of timed steps. Starting one copies it into `run_programs` |
+| `fitness_tests` | A person's running fitness tests (5K time trial, 30-minute run, Cooper test): measurements, whether it was run outdoors or on a treadmill (and the incline), result, the training paces derived from them and the recorded activity it was run as |
+| `routes` | A person's saved routes: name, activity, source (drawn, GPX, activity), distance, elevation gain, a simplified track of points and optional turn cues |
 | `pregnancy_kick_sessions` | Fetal kick-counter sessions |
 | `pregnancy_contractions` | Contraction timer logs |
 | `pregnancy_photos` | Bump photo journal |
@@ -167,13 +170,14 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | Table | Purpose |
 |-------|---------|
 | `profiles` | User full name, height, display metrics |
-| `user_preferences` | Unit, formatting, and chart display preferences |
+| `user_preferences` | Unit, formatting, chart display, and heart rate zone preferences |
 | `user_nutrient_display_preferences` | Nutrient column display preferences |
 | `user_meal_visibilities` | Visibility settings for meals |
 | `user_goals` | Active daily calorie/macro goals |
 | `user_custom_nutrients` | Custom nutrient definitions |
 | `user_nutrient_goal_preferences` | Per-user minimum/maximum/target goal direction override per nutrient (predefined or custom) |
 | `user_water_containers` | Configured container sizes |
+| `user_calorie_rule_history` | Calorie settings in force from each change on, so past days keep their target |
 | `user_dashboard_layouts` | Rearranged dashboard widget positions |
 | `user_medication_display_preferences` | GLP-1/Medication display preferences |
 | `user_mood_display_preferences` | Mood picker visibility settings |
@@ -185,6 +189,9 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | Table | Purpose |
 |-------|---------|
 | `sparky_chat_history` | AI Assistant chat messages and history |
+| `food_assistant_preferences` | Explicit lasting food preferences, independently editable and forgettable |
+| `food_assistant_tasks` | Versioned food tasks, recoverable recipe ingredients and source evidence |
+| `food_assistant_operations` | Idempotent task operations and before/after checkpoints |
 | `ai_service_settings` | User-defined custom assistant configurations |
 
 ### Admin & System (Tier 1: Admin-Only or Public)
@@ -296,10 +303,9 @@ SparkyFitness uses a custom migration system that runs automatically on server s
 ### Migration Process
 
 The migration system:
-1. **Checks current database version** on startup
-2. **Applies pending migrations** in order
-3. **Tracks applied migrations** in the `migrations` table
-4. **Logs migration results** for debugging
+1. **Checks which migrations are applied** on startup
+2. **Applies pending migrations** in order, each file in one transaction together with its record in `system.schema_migrations`
+3. **Logs migration results** for debugging
 
 ### Migration Structure
 
@@ -329,27 +335,21 @@ Example: `20240315103000_add_exercise_tracking.sql`
 #### Backwards Compatibility
 - **Add columns** with default values to avoid breaking existing code
 - **Create new tables** rather than modifying existing ones when possible
-- **Use transactions** to ensure atomic migrations
 - **Test migrations** on development data first
 
 #### Transaction Management
-```sql
-BEGIN;
--- All migration statements here
--- If any statement fails, entire migration rolls back
-COMMIT;
-```
+Each migration file runs in one transaction with its `system.schema_migrations` record, so if any statement fails, nothing in the file is applied or recorded. A file therefore contains no `BEGIN;`/`COMMIT;` of its own; a test fails if it does. To commit steps separately, such as adding a constraint `NOT VALID` and validating it afterwards, write two migration files.
 
 #### Index Creation
 ```sql
--- Create indexes concurrently to avoid blocking
-CREATE INDEX CONCURRENTLY idx_food_entries_user_date 
+-- Plain CREATE INDEX: CONCURRENTLY cannot run inside a transaction
+CREATE INDEX IF NOT EXISTS idx_food_entries_user_date
 ON food_entries(user_id, created_at);
 ```
+Statements that cannot run inside a transaction block, such as `CREATE INDEX CONCURRENTLY` or `VACUUM`, are not supported in migrations; startup stops with an error naming the file.
 
 #### Data Migration
 ```sql
-BEGIN;
 -- Create new table
 CREATE TABLE new_table (id UUID PRIMARY KEY, ...);
 
@@ -359,8 +359,6 @@ SELECT ... FROM old_table;
 
 -- Drop old table (after verifying migration)
 -- DROP TABLE old_table;
-
-COMMIT;
 ```
 
 ### Rollback Strategy
@@ -383,11 +381,12 @@ While not automated, rollback migrations can be created:
 #### Migration Tracking Issues
 ```sql
 -- Check applied migrations
-SELECT * FROM migrations ORDER BY applied_at;
+SELECT * FROM system.schema_migrations ORDER BY applied_at;
 
--- Manually mark migration as applied (if needed)
-INSERT INTO migrations (version, applied_at) 
-VALUES ('20240315142000', NOW());
+-- Manually mark migration as applied, only after confirming every change in
+-- the file is already in the database; startup never runs a recorded file
+INSERT INTO system.schema_migrations (name)
+VALUES ('20240315142000_add_meal_planning.sql');
 ```
 
 #### Database State Issues

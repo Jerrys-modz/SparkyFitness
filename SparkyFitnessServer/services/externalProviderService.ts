@@ -25,6 +25,8 @@ import {
 } from '../utils/outboundUrlPolicy.js';
 import { resolveIsAdminByUserId } from '../utils/adminCheck.js';
 import { resolveCorosMcpUrl } from '../integrations/coros/corosConstants.js';
+import { canAccessUserData } from '../utils/permissionUtils.js';
+import { ROUTING_PROVIDER_TYPE } from '@workspace/shared';
 
 // Provider types whose stored base_url is fetched server-side, making it an
 // SSRF surface. Their base_url is validated against the food-provider network
@@ -33,6 +35,8 @@ const BASE_URL_FETCHING_PROVIDER_TYPES = new Set([
   'mealie',
   'tandoor',
   'norish',
+  OPEN_FOOD_FACTS_PROVIDER_TYPE,
+  ROUTING_PROVIDER_TYPE,
 ]);
 
 // Reject a private/internal base_url for the self-hosted recipe providers.
@@ -44,14 +48,13 @@ const BASE_URL_FETCHING_PROVIDER_TYPES = new Set([
 // Reuses the same guard the AI-service URLs use, but surfaces a food-specific
 // message so the user isn't told about "AI service URL".
 async function validateFoodProviderBaseUrl(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  providerType: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  baseUrl: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  authenticatedUserId: any
+  providerType: string | null | undefined,
+  baseUrl: string | null | undefined,
+  authenticatedUserId: string
 ) {
-  if (!BASE_URL_FETCHING_PROVIDER_TYPES.has(providerType)) return;
+  if (!providerType || !BASE_URL_FETCHING_PROVIDER_TYPES.has(providerType)) {
+    return;
+  }
   if (baseUrl === undefined || baseUrl === null || baseUrl === '') return;
   // The provider services accept a scheme-less base_url and default it to
   // https:// (e.g. "mealie.example.com"). Normalize the same way before
@@ -82,7 +85,7 @@ async function validateFoodProviderBaseUrl(
     }
     if (error instanceof OutboundUrlShapeError) {
       throw badRequest(
-        'Provider base URL is invalid: it must be a well-formed http(s) URL without embedded credentials.'
+        'Provider base URL is invalid: it must be a well-formed http(s) URL without embedded credentials or URL fragments.'
       );
     }
     throw error;
@@ -296,12 +299,22 @@ async function getExternalDataProviders(
   }
 }
 async function getExternalDataProvidersForUser(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  authenticatedUserId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  targetUserId: any
+  authenticatedUserId: string,
+  targetUserId: string
 ) {
   try {
+    if (authenticatedUserId !== targetUserId) {
+      const hasPermission = await canAccessUserData(
+        targetUserId,
+        'share_external_providers',
+        authenticatedUserId
+      );
+      if (!hasPermission) {
+        throw new Error(
+          'Forbidden: You do not have permission to access external data providers for this user.'
+        );
+      }
+    }
     // RLS will enforce visibility (owner/family/public). Use the viewer-scoped repository call
     // to let the DB filter rows. Then map visibility for the response.
     const providers =
@@ -743,6 +756,7 @@ export { deleteExternalDataProvider };
 export { getExternalProviderTypes };
 export { getAvailableOpenFoodFactsProvider };
 export { getAutomaticOpenFoodFactsProvider };
+export { validateFoodProviderBaseUrl };
 export default {
   getExternalDataProviders,
   getExternalDataProvidersForUser,
@@ -756,4 +770,5 @@ export default {
   getAvailableOpenFoodFactsProvider,
   getAutomaticOpenFoodFactsProvider,
   getExternalProviderTypes,
+  validateFoodProviderBaseUrl,
 };

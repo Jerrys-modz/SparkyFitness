@@ -1,6 +1,13 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
+  restartBody,
+  scheduleBody,
+  setEnabledBody,
+  setPositionBody,
+  skipWorkoutBody,
+  startProgramBody,
+  toggleDayBody,
   suggestFromEffort,
   type EffortSuggestion,
   pendingEffortRating,
@@ -28,6 +35,7 @@ import {
   updateCustomRunProgram,
   markRunProgramWorkoutDone,
   rateRunProgramWorkout,
+  realignRunProgram,
   saveRunProgram,
 } from './api/runProgramApi';
 
@@ -81,19 +89,18 @@ export function setProgramSchedule(
 async function applySchedule(change: ProgramScheduleChange): Promise<void> {
   const current = await freshProgram();
   if (!current) return;
-  const days =
+  const body =
     change.toggleDay !== undefined
-      ? current.run_days.includes(change.toggleDay)
-        ? current.run_days.filter((d) => d !== change.toggleDay)
-        : [...current.run_days, change.toggleDay].sort((a, b) => a - b)
-      : change.days;
+      ? toggleDayBody(current, change.toggleDay)
+      : { program_id: current.program_id, run_days: change.days };
   setCache(
     (
       await saveRunProgram({
-        program_id: current.program_id,
-        run_days: days,
-        start_date: change.startDay,
-        end_date: change.endDay,
+        ...body,
+        ...scheduleBody(current, {
+          startDay: change.startDay,
+          endDay: change.endDay,
+        }),
       })
     ).program
   );
@@ -135,18 +142,20 @@ export async function setProgramEnabled(
   if (!current && !enabled) return;
   setCache(
     (
-      await saveRunProgram({
-        program_id: current?.program_id ?? programId,
-        enabled,
-      })
+      await saveRunProgram(
+        setEnabledBody(
+          { program_id: current?.program_id ?? programId },
+          enabled
+        )
+      )
     ).program
   );
 }
 
 /**
- * Starts `programId` from its first workout and switches it on. Choosing the
- * program already held just switches it on and keeps the place; choosing a
- * different one replaces it (the server reseeds the workouts and the place).
+ * Starts `programId` from its first workout and switches it on. Choosing a
+ * different program replaces it (the server reseeds the workouts and the
+ * place); choosing the one already held goes back to its first workout.
  * `startDay` sets the first day (null = today); leave it out to keep the
  * schedule as it is.
  */
@@ -155,13 +164,7 @@ export async function startProgram(
   startDay?: string | null
 ): Promise<void> {
   setCache(
-    (
-      await saveRunProgram({
-        program_id: programId,
-        enabled: true,
-        start_date: startDay,
-      })
-    ).program
+    (await saveRunProgram(startProgramBody(programId, startDay))).program
   );
 }
 
@@ -169,23 +172,21 @@ export async function startProgram(
 export async function setProgramPosition(index: number): Promise<void> {
   const current = await freshProgram();
   if (!current) return;
-  setCache(
-    (
-      await saveRunProgram({
-        program_id: current.program_id,
-        next_index: Math.max(0, Math.floor(index)),
-      })
-    ).program
-  );
+  setCache((await saveRunProgram(setPositionBody(current, index))).program);
 }
 
 /** Goes back to the first workout, keeping the program switched on. */
-export const restartProgram = (): Promise<void> => setProgramPosition(0);
+export async function restartProgram(): Promise<void> {
+  const current = await freshProgram();
+  if (!current) return;
+  setCache((await saveRunProgram(restartBody(current))).program);
+}
 
 /** Skips the workout that is due. */
 export async function skipProgramWorkout(): Promise<void> {
   const current = await freshProgram();
-  if (current) await setProgramPosition(current.next_index + 1);
+  if (!current) return;
+  setCache((await saveRunProgram(skipWorkoutBody(current))).program);
 }
 
 /**
@@ -218,6 +219,32 @@ export async function adjustProgramRunning(
   count: number
 ): Promise<void> {
   setCache((await adjustRunProgramRunning({ percent, count })).program);
+}
+
+/**
+ * Rebuilds the rest of the plan to finish on the goal day. `token` is the one
+ * from the preview the person accepted, so a plan that changed meanwhile
+ * (another device, Sparky) is refused rather than rewritten blind; `force`
+ * is the person's choice to go ahead although the goal is tight.
+ */
+export async function applyProgramRealign(options: {
+  token: string;
+  force?: boolean;
+  today: string;
+}): Promise<void> {
+  try {
+    const { program } = await realignRunProgram({
+      confirmed: true,
+      token: options.token,
+      force: options.force,
+      today: options.today,
+    });
+    setCache(program);
+  } catch (error) {
+    // Whatever went wrong, the card should be worked out from the server's copy.
+    void queryClient.invalidateQueries({ queryKey: runProgramQueryKey });
+    throw error;
+  }
 }
 
 /**

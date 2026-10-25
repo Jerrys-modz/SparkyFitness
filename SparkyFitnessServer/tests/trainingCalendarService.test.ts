@@ -5,8 +5,12 @@ vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
 vi.mock('../utils/timezoneLoader.js', () => ({
   loadUserTimezone: vi.fn().mockResolvedValue('UTC'),
 }));
-vi.mock('../services/reportService.js', () => ({
-  loadMaxHeartRate: vi.fn().mockResolvedValue(190),
+vi.mock('../services/heartRateZoneService.js', () => ({
+  default: {
+    resolveZonesForUser: vi.fn().mockResolvedValue({
+      floors: [95, 114, 133, 152, 171],
+    }),
+  },
 }));
 vi.mock('../models/preferenceRepository.js', () => ({
   default: {
@@ -157,6 +161,36 @@ describe('getTrainingCalendar', () => {
       plannedMinutes: 90,
       extraSessions: 0,
     });
+  });
+
+  it("plans a person's own walking program as walking", async () => {
+    programRepo.mockResolvedValue({
+      id: 'p',
+      program_id: 'custom:7',
+      name: 'Evening walks',
+      activity: 'walk',
+      enabled: true,
+      next_index: 0,
+      workouts: [workout, workout],
+      adjustment_log: [],
+      effort_log: [],
+      completion_log: [],
+      run_days: [4],
+      start_date: '2026-10-14',
+      end_date: null,
+      last_done_date: null,
+      updated_at: '2026-10-14T08:00:00Z',
+    });
+    const result = await getTrainingCalendar(
+      'me',
+      'me',
+      '2026-10-12',
+      '2026-10-25'
+    );
+    expect(result.planned.map((p) => [p.day, p.sport])).toEqual([
+      ['2026-10-15', 'walking'],
+      ['2026-10-22', 'walking'],
+    ]);
   });
 
   it('plans a weekly workout plan on its days and finds it missed', async () => {

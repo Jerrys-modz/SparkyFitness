@@ -3,12 +3,15 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
   ExerciseActivityQueryItem,
+  FitnessTestType,
   ExerciseRecentSessionSet,
   FoodPhotoEstimateResponse,
   FoodPhotoLogItem,
   IndividualSessionResponse,
+  MedicationEntry,
   MindfulnessSessionResponse,
   PresetSessionResponse,
+  RaceDistance,
   SharedPregnancy,
   WorkoutFormat,
 } from '@workspace/shared';
@@ -87,10 +90,17 @@ export type RootStackParamList = {
   WorkoutPlanForm: { template?: WorkoutPlanTemplate } | undefined;
   RunPrograms: undefined;
   RunProgramWorkout: { index: number };
-  RunProgramRace: undefined;
+  RunProgramRace: { distance?: RaceDistance; raceDay?: string } | undefined;
+  FitnessTest: undefined;
+  FitnessTestResult: { id: string };
   RunProgramEdit: { id?: string; fromProgramId?: string } | undefined;
   PersonalRecords: undefined;
   TrainingCalendar: undefined;
+  Routes: undefined;
+  RouteDetail: { id: string };
+  /** `routeId` opens a saved route in the editor and saves over it. */
+  RouteDraw: { routeId?: string } | undefined;
+  RouteGenerate: undefined;
   WatchRunLive: undefined;
   MealPlanForm: { template?: MealPlanTemplate; initialMeal?: Meal } | undefined;
   // #2115, Phase 12: mobile-only water-container CRUD.
@@ -195,7 +205,14 @@ export type RootStackParamList = {
   };
   ExerciseStatistics: undefined;
   /** `programWorkout` opens it with today's training-program workout chosen. */
-  RecordActivity: { programWorkout?: boolean } | undefined;
+  RecordActivity:
+    | {
+        programWorkout?: boolean;
+        fitnessTest?: FitnessTestType;
+        /** A fitness test opens on the treadmill option when true, outdoors when false. */
+        indoor?: boolean;
+      }
+    | undefined;
   RunSummary: RunSummaryParams;
   Reports: undefined;
   HydrationReport: undefined;
@@ -205,11 +222,17 @@ export type RootStackParamList = {
   NutritionReport: undefined;
   SleepAnalytics: undefined;
   MoodReport: undefined;
+  HeartRateReport: undefined;
+  CompareReport: undefined;
   CardioSession: {
     session: ExerciseActivityQueryItem;
     distanceUnit: 'km' | 'miles';
     /** The diary entry this was opened from, when it can be edited in the app. */
     diaryEntry?: IndividualSessionResponse;
+  };
+  ActivityShare: {
+    session: ExerciseActivityQueryItem;
+    distanceUnit: 'km' | 'miles';
   };
   FoodForm:
     | {
@@ -392,6 +415,9 @@ export type RootStackParamList = {
   Shoes: undefined;
   ShoeForm: { shoeId?: string };
   FoodSettings: undefined;
+  CustomNutrients: undefined;
+  CustomNutrientForm: { nutrientId?: string } | undefined;
+  NutrientDisplaySettings: undefined;
   AllergenSettings: undefined;
   DashboardSettings: undefined;
   HealthTrendsSettings: undefined;
@@ -399,6 +425,7 @@ export type RootStackParamList = {
   DiarySettings: undefined;
   WorkoutSettings: undefined;
   WarmupSettings: undefined;
+  HeartRateZonesSettings: undefined;
   ServerSettings: undefined;
   PasskeySettings: undefined;
   AppSettings: undefined;
@@ -406,6 +433,8 @@ export type RootStackParamList = {
   About: undefined;
   WhatsNew: undefined;
   MedicationsList: undefined;
+  MedicationAdherence: undefined;
+  MedicationEntryEdit: { entry: MedicationEntry };
   MedicationDetail: { medicationId: string };
   MedicationForm: {
     medicationId?: string;
@@ -426,8 +455,10 @@ export type RootStackParamList = {
         date?: string;
       }
     | undefined;
-  MoodLog: { date?: string } | undefined;
+  MoodLog: { date?: string; checkinId?: string } | undefined;
+  MoodDay: { date?: string } | undefined;
   SymptomHistory: { symptomId?: string } | undefined;
+  SymptomEpisodeDetail: { entryId: string };
   ManageSymptoms: undefined;
   SymptomDefinitionEditor: { definitionId?: string } | undefined;
 };

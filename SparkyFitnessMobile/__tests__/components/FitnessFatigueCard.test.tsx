@@ -88,3 +88,28 @@ test('reports a failed load', () => {
   );
   expect(screen.getByText('Could not load your readiness.')).toBeTruthy();
 });
+
+test('shows the HRV reading against the usual one and omits it from older servers', () => {
+  const { rerender } = render(
+    <FitnessFatigueCard
+      data={response({
+        factors: { form: 90, hrv: 0 },
+        vitals: { hrv: { current: 41, baseline: 68, nights: 9 } },
+      })}
+      isLoading={false}
+      isError={false}
+    />
+  );
+  expect(
+    screen.getByText('41 ms against your usual 68 ms (median of 9 nights)')
+  ).toBeTruthy();
+
+  rerender(
+    <FitnessFatigueCard
+      data={response({ factors: { form: 90, hrv: 0 } })}
+      isLoading={false}
+      isError={false}
+    />
+  );
+  expect(screen.queryByText(/against your usual/)).toBeNull();
+});
