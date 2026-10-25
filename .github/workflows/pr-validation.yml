@@ -114,11 +114,11 @@ jobs:
 
             // ---- Labels ----
             const toAdd = [];
-            if (/^fix(\(.+\))?:/i.test(title)      || isIssue)      toAdd.push('bug');
-            if (/^feat(\(.+\))?:/i.test(title)     || isNewFeature) toAdd.push('enhancement');
-            if (/^docs(\(.+\))?:/i.test(title)     || isDocs)       toAdd.push('documentation');
-            if (/^refactor(\(.+\))?:/i.test(title) || isRefactor)   toAdd.push('refactor');
-            if (/^security(\(.+\))?:/i.test(title))                 toAdd.push('security');
+            if (/^fix(\(.+\))?!?:/i.test(title)      || isIssue)      toAdd.push('bug');
+            if (/^feat(\(.+\))?!?:/i.test(title)     || isNewFeature) toAdd.push('enhancement');
+            if (/^docs(\(.+\))?!?:/i.test(title)     || isDocs)       toAdd.push('documentation');
+            if (/^refactor(\(.+\))?!?:/i.test(title) || isRefactor)   toAdd.push('refactor');
+            if (/^security(\(.+\))?!?:/i.test(title))                 toAdd.push('security');
             if (hasFrontendChanges) toAdd.push('frontend');
             if (hasBackendChanges)  toAdd.push('backend');
             if (hasMobileChanges)   toAdd.push('mobile');
@@ -313,7 +313,9 @@ jobs:
               const hasMedia =
                 /!\[.*?\]\(.+?\)/i.test(body) ||
                 /<(?:img|video)\s/i.test(body) ||
-                /\[[^\]]+\]\([^)]*\.(?:apng|avif|gif|jpe?g|mov|mp4|png|svg|webm)(?:[?#][^)]*)?\)/i.test(body)
+                /\[[^\]]+\]\([^)]*\.(?:apng|avif|gif|jpe?g|mov|mp4|png|svg|webm)(?:[?#][^)]*)?\)/i.test(body) ||
+                // Videos dragged into the editor land as a bare GitHub upload URL, not markdown.
+                /https:\/\/(?:github\.com\/user-attachments\/(?:assets|files)\/|(?:user-images|private-user-images)\.githubusercontent\.com\/)\S+/i.test(body)
 
               if (!hasMedia) {
                 errors.push('**[MANDATORY for UI changes]** You checked the Validation proof box but no images or videos were found in the PR body.');

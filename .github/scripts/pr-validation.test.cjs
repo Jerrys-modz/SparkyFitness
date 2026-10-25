@@ -338,6 +338,19 @@ test('a partial issue link is accepted as a linked issue', async () => {
   assert.match((await linked('Linked Issue: Closes #')).summary, /link a related GitHub issue/);
 });
 
+test('breaking-change titles get their label and bare video URLs count as proof', async () => {
+  const feat = await run('pull_request_target', { title: 'feat!: drop old api' });
+  assert.ok(
+    feat.writes.find((w) => w.name === 'addLabels').params.labels.includes('enhancement'),
+  );
+  const proof = `${body}\n- [x] **[MANDATORY for UI changes] Validation proof**: x`;
+  const video = await run('pull_request_target', {
+    files: [{ filename: 'SparkyFitnessFrontend/src/a.tsx' }],
+    body: `${proof}\nhttps://github.com/user-attachments/assets/0a1b2c3d-1111-2222-3333-444455556666`,
+  });
+  assert.doesNotMatch(video.summary, /no images or videos/);
+});
+
 test('PR titles need a type prefix', async () => {
   const result = await run('pull_request_target', { title: 'Update stuff' });
   assert.equal(result.failures.length, 1);

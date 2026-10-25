@@ -17,12 +17,10 @@ This directory contains all GitHub Actions workflows for the SparkyFitness proje
 - Detects which components changed using path filters
 - Runs component-specific test suites:
   - **Frontend**: `pnpm run validate` + `pnpm run test:ci` (type check, lint, format, tests)
-  - **Backend**: Format check, lint, tests (currently disabled)
+  - **Backend**: Format check, lint, tests
   - **Mobile**: Lint + `pnpm run test:ci`
   - **Garmin**: Python pytest with coverage
 - Uploads coverage reports as artifacts
-
-**Note**: Backend tests are currently disabled (`if: false`) per maintainer request.
 
 ---
 
