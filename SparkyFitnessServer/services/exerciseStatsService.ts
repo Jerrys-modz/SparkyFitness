@@ -28,6 +28,7 @@ import {
   bodyWeightJoinSql,
   cardioPredicateSql,
   setLoadSql,
+  setVolumeSql,
 } from '../utils/exerciseLoadSql.js';
 import {
   bestSplitSeconds,
@@ -308,7 +309,7 @@ async function getExerciseStatsSummary(
 
     const strengthSql = `
       SELECT 
-        COALESCE(SUM(${setLoadSql('e', 's')} * s.reps), 0) as total_volume,
+        COALESCE(SUM(${setVolumeSql('e', 's')}), 0) as total_volume,
         COALESCE(SUM(s.reps), 0) as total_reps
       FROM public.exercise_entry_sets s
       JOIN public.exercise_entries e ON s.exercise_entry_id = e.id
@@ -387,7 +388,7 @@ async function getExerciseStatsSummary(
     const breakdownVolumeSql = `
       SELECT
         DATE_TRUNC('${truncUnit}', e.entry_date) as period_start,
-        COALESCE(SUM(${setLoadSql('e', 's')} * s.reps), 0) as total_volume
+        COALESCE(SUM(${setVolumeSql('e', 's')}), 0) as total_volume
       FROM public.exercise_entry_sets s
       JOIN public.exercise_entries e ON s.exercise_entry_id = e.id
       ${bodyWeightJoinSql('e')}

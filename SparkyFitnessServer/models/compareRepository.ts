@@ -2,7 +2,7 @@ import { getClient } from '../db/poolManager.js';
 import {
   bodyWeightJoinSql,
   cardioPredicateSql,
-  setLoadSql,
+  setVolumeSql,
 } from '../utils/exerciseLoadSql.js';
 
 // Raw per-day values the compare report pairs up. Every query is user-scoped
@@ -154,7 +154,7 @@ async function getStrengthVolumeDays(userId: string, from: string, to: string) {
   const rows = await query<{ day: string; volume_kg: Numeric }>(
     userId,
     `SELECT TO_CHAR(e.entry_date, 'YYYY-MM-DD') AS day,
-            COALESCE(SUM(${setLoadSql('e', 's')} * s.reps), 0) AS volume_kg
+            COALESCE(SUM(${setVolumeSql('e', 's')}), 0) AS volume_kg
        FROM public.exercise_entry_sets s
        JOIN public.exercise_entries e ON s.exercise_entry_id = e.id
        ${bodyWeightJoinSql('e')}
