@@ -560,6 +560,7 @@ async function getExerciseEntries(
          ee.entry_time,
          ee.duration_minutes,
          ee.calories_burned,
+         ee.calories_applied,
          ee.distance,
          ee.avg_heart_rate,
          ee.max_heart_rate,
