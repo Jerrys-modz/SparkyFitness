@@ -177,6 +177,7 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     cycle_test_entries: 'owner',
     custom_run_programs: 'owner',
     cycles: 'owner',
+    fitness_tests: 'owner',
     health_appointments: 'owner',
     openfoodfacts_sync_queue: 'owner',
     pregnancies: 'owner',
