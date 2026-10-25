@@ -330,78 +330,111 @@ const PlateInventoryForm: React.FC<{
             unit: draft.unit,
           })}
         />
-        {draft.bars.map((bar) => (
-          <View key={bar.id} className="mb-4">
-            <View className="flex-row items-center">
-              <View className="flex-1 mr-2">
-                <FormInput
-                  value={bar.name}
-                  onChangeText={(text) => updateBar(bar.id, { name: text })}
-                  maxLength={60}
-                  placeholder={barLabel(t, { name: null, kind: bar.kind })}
-                  accessibilityLabel={t('plates.barName', {
-                    defaultValue: 'Name',
-                  })}
-                />
-              </View>
-              <View style={{ width: 90 }}>
-                <FormInput
-                  value={bar.weight}
-                  onChangeText={(text) => updateBar(bar.id, { weight: text })}
-                  keyboardType="decimal-pad"
-                  maxLength={8}
-                  accessibilityLabel={t('plates.barWeightLabel', {
-                    defaultValue: 'Bar weight',
-                  })}
-                />
-              </View>
-              <Pressable
-                disabled={draft.bars.length <= 1}
-                onPress={() =>
-                  patch({ bars: draft.bars.filter((b) => b.id !== bar.id) })
-                }
-                accessibilityRole="button"
-                accessibilityState={{ disabled: draft.bars.length <= 1 }}
-                accessibilityLabel={t('plates.removeBar', {
-                  defaultValue: 'Remove bar {{name}}',
-                  name: barLabel(t, bar),
-                })}
-                className="w-10 h-10 items-center justify-center"
-              >
+        {draft.bars.map((bar, index) => {
+          const title =
+            bar.name.trim() || barLabel(t, { name: null, kind: bar.kind });
+          const canRemove = draft.bars.length > 1;
+          return (
+            <View
+              key={bar.id}
+              className="border border-border-subtle rounded-xl p-3 mb-3"
+              accessibilityLabel={t('plates.barCard', {
+                defaultValue: 'Bar {{number}}: {{name}}',
+                number: index + 1,
+                name: title,
+              })}
+            >
+              <View className="flex-row items-center justify-between mb-2">
                 <Text
-                  className={`text-lg ${
-                    draft.bars.length <= 1 ? 'text-text-muted' : 'text-red-500'
-                  }`}
+                  className="flex-1 text-base font-semibold text-text-primary"
+                  numberOfLines={1}
                 >
-                  ✕
+                  {index + 1}. {title}
                 </Text>
-              </Pressable>
-            </View>
-            <View className="flex-row flex-wrap gap-2 mt-2">
-              {BAR_KINDS.map((kind) => (
                 <Pressable
-                  key={kind}
-                  onPress={() => updateBar(bar.id, { kind })}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: bar.kind === kind }}
-                  className={`rounded-lg px-3 py-1 ${
-                    bar.kind === kind ? 'bg-accent-primary' : 'bg-raised'
-                  }`}
+                  disabled={!canRemove}
+                  onPress={() =>
+                    patch({ bars: draft.bars.filter((b) => b.id !== bar.id) })
+                  }
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !canRemove }}
+                  accessibilityLabel={t('plates.removeBar', {
+                    defaultValue: 'Remove bar {{name}}',
+                    name: title,
+                  })}
+                  hitSlop={8}
                 >
                   <Text
-                    className={`text-xs ${
-                      bar.kind === kind
-                        ? 'text-white font-semibold'
-                        : 'text-text-primary'
+                    className={`text-sm ${
+                      canRemove ? 'text-red-500' : 'text-text-muted'
                     }`}
                   >
-                    {barLabel(t, { name: null, kind })}
+                    {t('plates.removeBarShort', { defaultValue: 'Remove' })}
                   </Text>
                 </Pressable>
-              ))}
+              </View>
+              <View className="flex-row">
+                <View className="flex-1 mr-2">
+                  <Text className="text-xs text-text-muted mb-1">
+                    {t('plates.barName', { defaultValue: 'Name' })}
+                  </Text>
+                  <FormInput
+                    value={bar.name}
+                    onChangeText={(text) => updateBar(bar.id, { name: text })}
+                    maxLength={60}
+                    placeholder={barLabel(t, { name: null, kind: bar.kind })}
+                    accessibilityLabel={t('plates.barName', {
+                      defaultValue: 'Name',
+                    })}
+                  />
+                </View>
+                <View style={{ width: 110 }}>
+                  <Text className="text-xs text-text-muted mb-1">
+                    {t('plates.barWeightUnit', {
+                      defaultValue: 'Weight ({{unit}})',
+                      unit: draft.unit,
+                    })}
+                  </Text>
+                  <FormInput
+                    value={bar.weight}
+                    onChangeText={(text) => updateBar(bar.id, { weight: text })}
+                    keyboardType="decimal-pad"
+                    maxLength={8}
+                    accessibilityLabel={t('plates.barWeightLabel', {
+                      defaultValue: 'Bar weight',
+                    })}
+                  />
+                </View>
+              </View>
+              <Text className="text-xs text-text-muted mt-3 mb-1">
+                {t('plates.barType', { defaultValue: 'Type' })}
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {BAR_KINDS.map((kind) => (
+                  <Pressable
+                    key={kind}
+                    onPress={() => updateBar(bar.id, { kind })}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: bar.kind === kind }}
+                    className={`rounded-lg px-3 py-1 ${
+                      bar.kind === kind ? 'bg-accent-primary' : 'bg-raised'
+                    }`}
+                  >
+                    <Text
+                      className={`text-xs ${
+                        bar.kind === kind
+                          ? 'text-white font-semibold'
+                          : 'text-text-primary'
+                      }`}
+                    >
+                      {barLabel(t, { name: null, kind })}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
         <Button
           variant="outline"
           onPress={() =>

@@ -132,6 +132,16 @@ describe('PlateInventoryScreen', () => {
     expect(screen.getByText(/Check the weights and pairs/)).toBeTruthy();
   });
 
+  it('numbers each bar so several of the same type stay distinguishable', () => {
+    renderScreen();
+    fireEvent.press(screen.getByText('Add bar'));
+    fireEvent.press(screen.getByText('Add bar'));
+    expect(screen.getByText('5. Other bar')).toBeTruthy();
+    expect(screen.getByText('6. Other bar')).toBeTruthy();
+    fireEvent.changeText(screen.getAllByLabelText('Name')[5]!, 'Test 2');
+    expect(screen.getByText('6. Test 2')).toBeTruthy();
+  });
+
   it('offers a reset only when something is saved', () => {
     renderScreen(false);
     expect(screen.queryByText('Reset to standard')).toBeNull();

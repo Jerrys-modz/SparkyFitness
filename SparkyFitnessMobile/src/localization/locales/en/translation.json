@@ -8916,6 +8916,10 @@
     "manage": "Manage",
     "platesUnit": "Plates ({{unit}})",
     "barUnit": "Bar ({{unit}})",
-    "calculatorShort": "Calculator"
+    "calculatorShort": "Calculator",
+    "barCard": "Bar {{number}}: {{name}}",
+    "removeBarShort": "Remove",
+    "barWeightUnit": "Weight ({{unit}})",
+    "barType": "Type"
   }
 }
