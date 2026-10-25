@@ -184,6 +184,10 @@ export default defineConfig({
             { text: 'Training Consistency', link: '/features/exercises/training-consistency' },
             { text: 'Weekly Muscle Volume & Deload', link: '/features/exercises/weekly-muscle-volume' },
             { text: 'Warm-Up Sets', link: '/features/exercises/warm-up-sets' },
+            {
+              text: 'Dumbbell and One-Sided Volume',
+              link: '/features/exercises/dumbbell-and-unilateral-volume',
+            },
           ],
         },
         {
