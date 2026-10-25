@@ -79,3 +79,40 @@ describe('AuthenticationSettings passkey switch', () => {
     );
   });
 });
+
+describe('AuthenticationSettings release check switch', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  it('turns the release check off', () => {
+    renderWith({ enable_version_check: true });
+    const toggle = screen.getByRole('switch', {
+      name: 'Check for New Releases',
+    });
+    expect(toggle).toBeChecked();
+    fireEvent.click(toggle);
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ enable_version_check: false }),
+      expect.anything()
+    );
+  });
+
+  it('shows the release check as on when the server does not report it', () => {
+    renderWith({});
+    expect(
+      screen.getByRole('switch', { name: 'Check for New Releases' })
+    ).toBeChecked();
+  });
+
+  it('turns the release check back on', () => {
+    renderWith({ enable_version_check: false });
+    const toggle = screen.getByRole('switch', {
+      name: 'Check for New Releases',
+    });
+    expect(toggle).not.toBeChecked();
+    fireEvent.click(toggle);
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ enable_version_check: true }),
+      expect.anything()
+    );
+  });
+});

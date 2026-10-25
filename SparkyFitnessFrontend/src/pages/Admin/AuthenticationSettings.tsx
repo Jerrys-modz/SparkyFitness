@@ -254,6 +254,29 @@ const AuthenticationSettings: React.FC = () => {
                   }
                 />
               </div>
+              <div className="flex items-center justify-between p-4 border rounded-md">
+                <div className="flex flex-col">
+                  <Label htmlFor="enable_version_check" className="font-medium">
+                    {t(
+                      'admin.authenticationSettings.versionCheck',
+                      'Check for New Releases'
+                    )}
+                  </Label>
+                  <span className="text-sm text-muted-foreground mt-1">
+                    {t(
+                      'admin.authenticationSettings.versionCheckDescription',
+                      'Ask GitHub (api.github.com) for the latest release and tell users when a newer version is available. Turn this off if updates are managed outside the app or the server should not contact GitHub.'
+                    )}
+                  </span>
+                </div>
+                <Switch
+                  id="enable_version_check"
+                  checked={settings.enable_version_check ?? true}
+                  onCheckedChange={(checked) =>
+                    handleSwitchChange('enable_version_check', checked)
+                  }
+                />
+              </div>
             </>
           )}
           <div className="flex items-start p-4 mt-2 text-sm text-muted-foreground bg-secondary/20 border border-secondary/40 rounded-lg">

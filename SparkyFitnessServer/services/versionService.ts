@@ -4,6 +4,7 @@ import axios from 'axios';
 import https from 'https';
 import { fileURLToPath } from 'url';
 import { log } from '../config/logging.js';
+import { isVersionCheckEnabled } from '../models/globalSettingsRepository.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -82,17 +83,6 @@ function fetchDirect(url: string): Promise<GitHubRawRelease> {
   });
 }
 
-/**
- * SPARKY_FITNESS_DISABLE_VERSION_CHECK=true switches the GitHub release check
- * off entirely: no request leaves the server and the app behaves as if it is
- * on the latest version. For deployments where updates are managed outside
- * the app (Renovate, Watchtower, a package manager) or that must not call
- * out to api.github.com.
- */
-function isVersionCheckDisabled(): boolean {
-  return process.env.SPARKY_FITNESS_DISABLE_VERSION_CHECK === 'true';
-}
-
 function localVersionFallback(currentVersion: string): GitHubReleaseResponse {
   return {
     version: `v${currentVersion}`,
@@ -120,10 +110,13 @@ async function getLatestGitHubRelease(
 ): Promise<GitHubReleaseResponse> {
   const currentVersion = getAppVersion();
 
-  if (isVersionCheckDisabled()) {
+  // Admin setting (global_settings.enable_version_check). Read before the
+  // cache so turning it off takes effect at once: no request leaves the
+  // server and the app reports the running version as the latest.
+  if (!(await isVersionCheckEnabled())) {
     log(
       'debug',
-      'GitHub release check is disabled (SPARKY_FITNESS_DISABLE_VERSION_CHECK=true); reporting the local version.'
+      'GitHub release check is turned off in the admin settings; reporting the local version.'
     );
     return localVersionFallback(currentVersion);
   }
