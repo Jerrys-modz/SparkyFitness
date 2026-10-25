@@ -11,7 +11,10 @@ import {
   Expand,
   Pause,
 } from 'lucide-react';
-import type { ExerciseModality } from '@workspace/shared';
+import type {
+  ExerciseLoadConvention,
+  ExerciseModality,
+} from '@workspace/shared';
 import type { WorkoutPresetSet } from '@/types/workout';
 import i18n from 'i18next';
 export const EXERCISE_CATEGORIES = [
@@ -164,6 +167,38 @@ export const EXERCISE_MODALITY_OPTIONS = [
   value: ExerciseModality;
   labelKey: string;
   defaultLabel: string;
+}[];
+
+export const EXERCISE_LOAD_CONVENTION_OPTIONS = [
+  {
+    value: 'total',
+    labelKey: 'exercise.loadConvention.total',
+    defaultLabel: 'Total load',
+    hintKey: 'exercise.loadConvention.totalHint',
+    defaultHint: 'The logged weight is the whole load.',
+  },
+  {
+    value: 'per_hand',
+    labelKey: 'exercise.loadConvention.perHand',
+    defaultLabel: 'Weight per hand',
+    hintKey: 'exercise.loadConvention.perHandHint',
+    defaultHint:
+      'The logged weight is one dumbbell, so volume counts it twice.',
+  },
+  {
+    value: 'per_side',
+    labelKey: 'exercise.loadConvention.perSide',
+    defaultLabel: 'Reps per side',
+    hintKey: 'exercise.loadConvention.perSideHint',
+    defaultHint:
+      'Reps are for each side. A set with no side counts both sides.',
+  },
+] as const satisfies readonly {
+  value: ExerciseLoadConvention;
+  labelKey: string;
+  defaultLabel: string;
+  hintKey: string;
+  defaultHint: string;
 }[];
 
 /**

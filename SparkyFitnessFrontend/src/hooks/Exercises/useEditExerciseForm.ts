@@ -10,7 +10,9 @@ import {
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useAuth } from '@/hooks/useAuth';
 import {
+  isExerciseLoadConvention,
   resolveExerciseModality,
+  type ExerciseLoadConvention,
   type ExerciseModality,
 } from '@workspace/shared';
 
@@ -39,6 +41,8 @@ export function useEditExerciseForm() {
   const [editExerciseCategory, setEditExerciseCategory] = useState('general');
   const [editExerciseModality, setEditExerciseModality] =
     useState<ExerciseModality>('weight_reps');
+  const [editExerciseLoadConvention, setEditExerciseLoadConvention] =
+    useState<ExerciseLoadConvention>('total');
   const [editExerciseCalories, setEditExerciseCalories] = useState(300);
   const [editExerciseDescription, setEditExerciseDescription] = useState('');
   const [editExerciseLevel, setEditExerciseLevel] = useState('');
@@ -75,6 +79,11 @@ export function useEditExerciseForm() {
     // silently retrack an exercise the user already logged against.
     setEditExerciseModality(
       resolveExerciseModality(exercise.modality, exercise.category)
+    );
+    setEditExerciseLoadConvention(
+      isExerciseLoadConvention(exercise.load_convention)
+        ? exercise.load_convention
+        : 'total'
     );
     setEditExerciseCalories(
       Math.round(
@@ -128,6 +137,7 @@ export function useEditExerciseForm() {
         name: editExerciseName,
         category: editExerciseCategory,
         modality: editExerciseModality,
+        load_convention: editExerciseLoadConvention,
         calories_per_hour: convertEnergy(
           editExerciseCalories,
           energyUnit,
@@ -261,6 +271,8 @@ export function useEditExerciseForm() {
     setEditExerciseCategory,
     editExerciseModality,
     setEditExerciseModality,
+    editExerciseLoadConvention,
+    setEditExerciseLoadConvention,
     editExerciseCalories,
     setEditExerciseCalories,
     editExerciseDescription,

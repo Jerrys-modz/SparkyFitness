@@ -1,6 +1,7 @@
 // pages/Exercises/AddCustomExerciseForm.tsx
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import ExerciseLoadConventionField from './ExerciseLoadConventionField';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -44,6 +45,8 @@ export default function AddCustomExerciseForm({
     setNewExerciseCategory,
     newExerciseModality,
     setNewExerciseModality,
+    newExerciseLoadConvention,
+    setNewExerciseLoadConvention,
     newExerciseCalories,
     manualCaloriesPerHour,
     setManualCaloriesPerHour,
@@ -141,6 +144,13 @@ export default function AddCustomExerciseForm({
           </SelectContent>
         </Select>
       </div>
+
+      <ExerciseLoadConventionField
+        id="load-convention"
+        modality={newExerciseModality}
+        value={newExerciseLoadConvention}
+        onChange={setNewExerciseLoadConvention}
+      />
 
       {/* Calories */}
       <div className="grid grid-cols-4 items-center gap-4">
