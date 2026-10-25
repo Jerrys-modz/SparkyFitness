@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   FALLBACK_MAX_HR,
+  HEART_RATE_ZONE_COLORS,
+  defaultHeartRateZones,
+  heartRateZoneBands,
   ageFromDateOfBirth,
   computeTimeInZones,
   customFloorsProblem,
@@ -336,5 +339,43 @@ describe('heartRateZoneRange', () => {
     expect(heartRateZoneRange(resolved, 0)).toBeNull();
     expect(heartRateZoneRange(resolved, 6)).toBeNull();
     expect(heartRateZoneRange(resolved, 2.5)).toBeNull();
+  });
+});
+
+describe('defaultHeartRateZones and heartRateZoneBands', () => {
+  it('matches what resolving with nothing set gives', () => {
+    expect(defaultHeartRateZones()).toEqual(
+      resolveHeartRateZones({ today: TODAY })
+    );
+  });
+
+  it('gives one color per zone, easy to hard, for any resolved zones', () => {
+    expect(HEART_RATE_ZONE_COLORS).toHaveLength(5);
+    const resolved = resolveHeartRateZones({
+      settings: {
+        maxHeartRate: 188,
+        restingHeartRate: 68,
+        method: 'heart_rate_reserve',
+      },
+      today: TODAY,
+    });
+    const bands = heartRateZoneBands(resolved.zones);
+    expect(bands.map((b) => b.lowerBpm)).toEqual([128, 140, 152, 164, 176]);
+    expect(bands.map((b) => b.color)).toEqual([...HEART_RATE_ZONE_COLORS]);
+    expect(bands[4]?.upperBpm).toBeNull();
+  });
+
+  it('follows custom floors', () => {
+    const resolved = resolveHeartRateZones({
+      settings: { method: 'custom', customFloors: [100, 120, 140, 160, 180] },
+      today: TODAY,
+    });
+    expect(heartRateZoneBands(resolved.zones).map((b) => b.upperBpm)).toEqual([
+      119,
+      139,
+      159,
+      179,
+      null,
+    ]);
   });
 });

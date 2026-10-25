@@ -13,11 +13,12 @@
 
 export const HR_ZONE_COUNT = 5;
 
-/** Standard 4-tier zone color palette: Light (cyan), Moderate (green), Vigorous (amber), Peak (red). */
+/** One color per zone, easy to hard: zone 1 (slate) to zone 5 (red). */
 export const HEART_RATE_ZONE_COLORS = [
-  '#06b6d4',
+  '#94a3b8',
+  '#3b82f6',
   '#22c55e',
-  '#eab308',
+  '#f59e0b',
   '#ef4444',
 ] as const;
 
@@ -290,6 +291,46 @@ export function heartRateZoneRange(
     lowerBpm: found.lowerBpm,
     upperBpm: found.upperBpm ?? Math.max(resolved.maxHr, found.lowerBpm),
   };
+}
+
+/**
+ * The zones a person gets before anything is set or loaded: percent of the
+ * fallback max heart rate. The server returns the same when there is no date
+ * of birth, so a screen that has not loaded yet shows what it would show for
+ * someone with nothing set.
+ */
+export function defaultHeartRateZones(): ResolvedHeartRateZones {
+  const floors = percentMaxFloors(FALLBACK_MAX_HR);
+  return {
+    maxHr: FALLBACK_MAX_HR,
+    maxHrSource: 'fallback',
+    restingHr: null,
+    method: DEFAULT_HR_ZONE_METHOD,
+    effectiveMethod: 'percent_max',
+    floors,
+    zones: zonesFromFloors(floors),
+  };
+}
+
+/** A zone with the color every chart and legend draws it in. */
+export interface HeartRateZoneBand extends HeartRateZone {
+  color: string;
+}
+
+/**
+ * The five zones with their colors, for legends, range lists and line
+ * gradients. Reports show this instead of working out their own bands.
+ */
+export function heartRateZoneBands(
+  zones: readonly HeartRateZone[]
+): HeartRateZoneBand[] {
+  return zones.map((zone) => ({
+    ...zone,
+    color:
+      HEART_RATE_ZONE_COLORS[
+        Math.min(Math.max(zone.zone, 1), HR_ZONE_COUNT) - 1
+      ] ?? HEART_RATE_ZONE_COLORS[0],
+  }));
 }
 
 /** Zone 1-5 for a reading, or 0 when it is below zone 1. */

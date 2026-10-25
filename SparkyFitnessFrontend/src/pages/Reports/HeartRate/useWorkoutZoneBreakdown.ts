@@ -1,15 +1,10 @@
 import { useMemo } from 'react';
 import { useActivityDetailsQuery } from '@/hooks/Exercises/useExercises';
-import { useHeartRateZones } from '@/hooks/Settings/useHeartRateZones';
+import { useResolvedHeartRateZones } from '@/hooks/Settings/useHeartRateZones';
 import { useWorkoutHrZones } from '@/hooks/useGenericHealth';
-import {
-  fallbackZoneFloors,
-  foldZonesIntoTiers,
-  tierGradientStops,
-  tierThresholds,
-} from '@/utils/heartRateZoneTiers';
+import { zoneEdges, zoneGradientStops } from '@/utils/heartRateZoneBands';
 import { extractWorkoutHeartRateSeries } from '@/utils/workoutTelemetryExtractor';
-import { computeTimeInZones, HEART_RATE_ZONE_COLORS } from '@workspace/shared';
+import { computeTimeInZones, heartRateZoneBands } from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 
 interface WorkoutZoneBreakdownInput {
@@ -25,18 +20,12 @@ export const useWorkoutZoneBreakdown = ({
 }: WorkoutZoneBreakdownInput) => {
   const { t } = useTranslation();
 
-  // 3. Zone breakdown (stored rows -> Garmin payload -> the person's own zones).
-  // All five zones are summed first, then folded into the four named tiers, so
-  // the percentages always add up.
-  const { data: zoneData } = useHeartRateZones();
-  const zoneFloors = useMemo(
-    () => zoneData?.resolved.zones.map((z) => z.lower_bpm) ?? null,
-    [zoneData]
-  );
-  const thresholds = useMemo(
-    () => tierThresholds(zoneFloors ?? fallbackZoneFloors()),
-    [zoneFloors]
-  );
+  // 3. Zone breakdown (stored rows -> Garmin payload -> the person's own
+  // zones). Stored rows keep the zones they were worked out with; only the
+  // fallback from raw readings uses the zones as they are now.
+  const resolvedZones = useResolvedHeartRateZones();
+  const zoneFloors = resolvedZones.resolved.floors;
+  const edges = useMemo(() => zoneEdges(zoneFloors), [zoneFloors]);
 
   const zones = useMemo(() => {
     const secondsByZone = [0, 0, 0, 0, 0];
@@ -59,7 +48,7 @@ export const useWorkoutZoneBreakdown = ({
 
       if (Array.isArray(rawZones) && rawZones.length > 0) {
         rawZones.forEach((z) => add(z.zoneNumber, z.secsInZone || 0));
-      } else if (points.length >= 2 && zoneFloors) {
+      } else if (points.length >= 2 && !resolvedZones.isDefault) {
         computeTimeInZones(
           points.map((p) => ({
             t: new Date(p.timestamp).toISOString(),
@@ -72,29 +61,25 @@ export const useWorkoutZoneBreakdown = ({
 
     const totalSecs = secondsByZone.reduce((a, b) => a + b, 0);
     if (totalSecs <= 0) return [];
-    const names = [
-      t('heartRate.zoneLight', 'Light'),
-      t('heartRate.zoneModerate', 'Moderate'),
-      t('heartRate.zoneVigorous', 'Vigorous'),
-      t('heartRate.zonePeak', 'Peak'),
-    ];
-    return foldZonesIntoTiers(secondsByZone).map((secs, idx) => ({
-      name: names[idx] ?? `Zone ${idx + 1}`,
-      pct: Math.round((secs / totalSecs) * 100),
-      mins: Math.round(secs / 60),
-      color: HEART_RATE_ZONE_COLORS[idx] ?? '#22c55e',
-    }));
-  }, [workoutHrZones, activityDetails, points, zoneFloors, t]);
+    return heartRateZoneBands(resolvedZones.resolved.zones).map((band) => {
+      const secs = secondsByZone[band.zone - 1] ?? 0;
+      return {
+        name: t('settings.heartRateZones.zone', {
+          defaultValue: 'Zone {{zone}}',
+          zone: band.zone,
+        }),
+        pct: Math.round((secs / totalSecs) * 100),
+        mins: Math.round(secs / 60),
+        color: band.color,
+      };
+    });
+  }, [workoutHrZones, activityDetails, points, zoneFloors, resolvedZones, t]);
 
   const pointsGradientStops = useMemo(() => {
     const values = points.map((p) => p.bpm).filter((v) => v > 0);
     if (values.length === 0) return [];
-    return tierGradientStops(
-      Math.min(...values),
-      Math.max(...values),
-      thresholds
-    );
-  }, [points, thresholds]);
+    return zoneGradientStops(Math.min(...values), Math.max(...values), edges);
+  }, [points, edges]);
 
-  return { zones, thresholds, pointsGradientStops };
+  return { zones, edges, resolvedZones, pointsGradientStops };
 };
