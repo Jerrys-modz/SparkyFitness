@@ -643,6 +643,7 @@
     "hydrationReport": "Hydration",
     "measurementsReport": "Measurements",
     "substancesReport": "Caffeine and alcohol",
+    "heartRateReport": "Heart Rate",
     "runSummary": "Activity saved",
     "runPrograms": "Training programs",
     "personalRecords": "Personal records",
@@ -4163,6 +4164,32 @@
       "deleteWorkout": "Delete Workout"
     }
   },
+  "calorieLink": {
+    "action": "Link a synced workout",
+    "linked": "Linked to a synced workout",
+    "title": "Link a synced workout",
+    "description": "If a watch or health app recorded this session too, link the two so its calories count once. Both estimates are kept.",
+    "loading": "Looking for synced workouts...",
+    "loadError": "Could not load synced workouts.",
+    "none": "No synced workouts found for this day.",
+    "workoutFallback": "Workout",
+    "minutes": "{{value}} min",
+    "calories": "{{value}} cal",
+    "sameSession": "Same session",
+    "sameTime": "Overlaps in time",
+    "countHeading": "Count in the daily total",
+    "sparkyfitness": "This workout ({{value}})",
+    "synced": "The synced workout ({{value}})",
+    "higher": "The higher of the two ({{value}})",
+    "lower": "The lower of the two ({{value}})",
+    "average": "The average ({{value}})",
+    "custom": "A custom total",
+    "customLabel": "Total for the session (cal)",
+    "link": "Link workouts",
+    "unlink": "Unlink",
+    "linkError": "Failed to link the workouts.",
+    "unlinkError": "Failed to unlink the workouts."
+  },
   "activityDetail": {
     "errors": {
       "saveFailed": "Failed to save activity"
@@ -4172,6 +4199,7 @@
       "calories": "Calories",
       "distance": "Distance",
       "avgHeartRate": "Avg Heart Rate",
+      "caloriesCounted": "Counted in daily total",
       "steps": "Steps",
       "pace": "Pace",
       "effort": "Effort"
@@ -5158,6 +5186,13 @@
     },
     "allTrendsHidden": "All graphs are hidden. Choose which to show in Dashboard Settings.",
     "noTrendData": "No data to graph yet.",
+    "heartRate": {
+      "title": "Resting Heart Rate",
+      "avgLabel": "AVG",
+      "rangeLabel": "RANGE",
+      "loadFailed": "Failed to load heart rate data",
+      "empty": "No heart rate data for this period"
+    },
     "vo2max": {
       "title": "VO2 max",
       "loadFailed": "Failed to load VO2 max data",
@@ -6742,6 +6777,7 @@
       },
       "kilometersAxis": "Kilometers from start",
       "milesAxis": "Miles from start",
+      "splits": "Splits",
       "bestPace": "Best {{value}}",
       "perKm": "/km",
       "perMile": "/mi",
@@ -7260,6 +7296,13 @@
     "currentPace": "Pace",
     "elevationGain": "Elevation gain",
     "splits": "Splits",
+    "splitsTable": {
+      "km": "Km",
+      "mi": "Mi",
+      "pace": "Pace",
+      "elev": "Elev",
+      "hr": "HR"
+    },
     "laps": "Laps",
     "lap": "Lap",
     "lapLabel": "Lap {{number}}",
@@ -7405,7 +7448,8 @@
       "switchMessage": "You will start the new program at week 1. Your place in the current one is not kept.",
       "switchConfirm": "Switch",
       "startDayPast": "Started {{date}}. Your next workout is scheduled from today.",
-      "customWorkoutLabel": "{{name}} · {{workout}}"
+      "customWorkoutLabel": "{{name}} · {{workout}}",
+      "goalUseRaceDay": "Use race day ({{date}})"
     },
     "watch": {
       "title": "Record with",
@@ -7658,7 +7702,33 @@
     "substances": "Caffeine and alcohol",
     "substancesSubtitle": "Daily caffeine, alcohol totals and week by week",
     "compare": "Compare",
-    "compareSubtitle": "How two things move together"
+    "compareSubtitle": "How two things move together",
+    "heartRate": "Heart Rate",
+    "heartRateSubtitle": "Resting HR trends and zone distribution",
+    "details": "View report details",
+    "heartRateChangeVsPrevious": "{{change}} bpm vs previous period",
+    "averageRestingHr": "Average Resting Heart Rate",
+    "restingHrRange": "Resting HR Range",
+    "heartRateRecovery1Min": "1-Min Recovery",
+    "heartRateRecoveryHint": "Heart rate drop 1 minute post-exercise",
+    "recordedDays": "Recorded Days",
+    "daysRatio": "{{daysWithData}} of {{totalDays}} days",
+    "heartRateLoadFailed": "Failed to load heart rate data",
+    "heartRateEmpty": "No heart rate data recorded for this period",
+    "restingHeartRateTrend": "Resting Heart Rate Trend",
+    "heartRateZones": "Heart Rate Intensity Zones",
+    "zoneLight": "Light",
+    "zoneLightRange": "< {{max}} bpm · Warm-up & active recovery",
+    "zoneModerate": "Moderate",
+    "zoneModerateRange": "{{min}} - {{max}} bpm · Aerobic & fat burn",
+    "zoneVigorous": "Vigorous",
+    "zoneVigorousRange": "{{min}} - {{max}} bpm · Cardio endurance",
+    "zonePeak": "Peak",
+    "zonePeakRange": "{{min}}+ bpm · Maximum effort & anaerobic",
+    "heartRateSummary": "Heart Rate Summary",
+    "heartRateInsights": "Resting Heart Rate Insights",
+    "insightAthletic": "Your average resting heart rate is in the athletic range (<60 bpm), reflecting strong cardiovascular efficiency.",
+    "insightNormal": "A typical healthy adult resting heart rate ranges from 60 to 100 bpm. Lower rates generally reflect higher cardiovascular fitness."
   },
   "nutritionReport": {
     "title": "Nutrition",
@@ -7843,7 +7913,9 @@
       "caffeineSummary": "Caffeine summary",
       "alcoholChart": "Alcohol chart",
       "alcoholSummary": "Alcohol summary",
-      "substancesWeekly": "Week by week"
+      "substancesWeekly": "Week by week",
+      "restingHrChart": "Resting heart rate chart",
+      "heartRateZones": "Intensity zones"
     },
     "hydrationSections": "Hydration report",
     "measurementsSections": "Measurements report",
@@ -7851,7 +7923,8 @@
     "nutrientsDescription": "Pick the vitamins, minerals and other nutrients the Nutrition report averages under Your nutrients, and drag to set their order. Custom nutrients are included.",
     "nutrientReorderHint": "Changes where this nutrient sits in the report",
     "substancesSections": "Caffeine and alcohol report",
-    "exerciseSections": "Exercise report"
+    "exerciseSections": "Exercise report",
+    "heartRateSections": "Heart rate report"
   },
   "hydrationReport": {
     "title": "Hydration",
@@ -8104,6 +8177,38 @@
       "setUp": "Set up a program"
     },
     "partOfProgram": "Part of your training program",
+    "goals": {
+      "title": "Running goals",
+      "intro": "Set a weekly distance to aim for and a race to count down to.",
+      "set": "Set a goal",
+      "edit": "Edit",
+      "none": "None",
+      "unit": {
+        "km": "km",
+        "miles": "mi"
+      },
+      "weeklyLabel": "Weekly distance ({{unit}})",
+      "weeklyProgress": "{{done}} of {{target}} {{unit}} this week",
+      "weeklyReached": "Weekly goal reached",
+      "weeklyNeeded_one": "{{amount}} {{unit}} today to reach it ({{count}} day left)",
+      "weeklyNeeded_other": "About {{amount}} {{unit}} a day to reach it ({{count}} days left)",
+      "raceNameLabel": "Race name",
+      "raceDefaultName": "Race day",
+      "raceDistanceLabel": "Race distance ({{unit}})",
+      "raceDateLabel": "Race day",
+      "pickDate": "Pick a date",
+      "clearRace": "Remove race",
+      "raceToday": "Race day is today",
+      "raceIn_one": "{{count}} day to go",
+      "raceIn_other": "{{count}} days to go",
+      "racePast_one": "{{count}} day ago",
+      "racePast_other": "{{count}} days ago",
+      "errors": {
+        "distance": "Enter a distance above zero, or leave it empty.",
+        "raceDay": "Pick the race day, or clear the race name and distance.",
+        "save": "Could not save your goals. Please try again."
+      }
+    },
     "openCalendar": "Open the program calendar",
     "openCalendarHint": "Every workout on a month view",
     "monthGrid": {
@@ -8496,6 +8601,24 @@
     "useMyLocation": "My location",
     "turnCount_one": "{{count}} turn",
     "turnCount_other": "{{count}} turns",
+    "style": {
+      "title": "Route style",
+      "surface": "Surface",
+      "hills": "Hills",
+      "any": "Any",
+      "trails": "Trails",
+      "roads": "Roads",
+      "flat": "Flatter",
+      "hilly": "Hillier",
+      "avoidSteps": "Avoid steps",
+      "avoidBusyRoads": "Avoid busy roads"
+    },
+    "option": {
+      "title": "Option {{n}}",
+      "flatter": "Flatter",
+      "moreTrail": "More trail",
+      "shorter": "Shorter"
+    },
     "followRoads": "Follow roads",
     "followRoadsNeedsProvider": "A routing provider is needed. Add one in Settings > External Providers on the web app.",
     "followRoadsUnrouted": "Stretches without a road line show straight. Retry, or turn off Follow roads to save them straight.",

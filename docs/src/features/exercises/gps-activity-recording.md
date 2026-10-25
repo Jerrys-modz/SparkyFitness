@@ -192,6 +192,17 @@ This is a common beginner structure, not medical advice: if you are unsure about
 
 ---
 
+## Running goals
+
+At the top of **Library → Training programs** the **Running goals** card holds two optional goals. They are separate from the training program, so you can set either, both, or use them without a program.
+
+- **Weekly distance.** Type the distance you want to run each week, in kilometers or miles to match your distance setting. The card shows how far you have run this week, a progress bar, and how much a day the rest of the week needs to reach the goal (or that you have reached it). The week starts on the day set in your preferences. Only runs count: walks, rides, gym cardio and entries with no distance are left out. A run is recognized by its activity name, the same way personal records do it, so a run logged as "Morning workout" will not count until it is named as a run.
+- **Race.** Give a race a day, and optionally a name and a distance. The card counts down the days ("31 days to go", "Race day is today") and, once the day has passed, says how long ago it was. Choosing **Remove race** clears the name, distance and day together.
+
+Goals belong to your account and sync between devices. They are private: they are not shared with family or friends you delegate access to. Sparky's AI assistant does not read or change them yet.
+
+---
+
 ## Recording with the screen locked
 
 - **iOS:** recording keeps running in the background and the status bar shows the blue location indicator. Only "while using the app" location access is needed.
@@ -280,6 +291,8 @@ For a run, the app also works out your **cadence** (steps per minute while you w
 ## Personal records
 
 **Library → Personal records** lists your best efforts at 1 km, 1 mile, 5 km, 10 km, 15 km, the half marathon and the marathon, grouped by sport (running, walking, cycling and so on). Records come from your recorded and imported cardio activities, are only compared within one sport, and are the same ones the web Reports page shows.
+
+A record is the time for exactly that distance. For an activity with a GPS track (or the distance series of an indoor run), SparkyFitness finds the fastest stretch of that distance inside it, so your fastest 5 km within a 10 km run counts as a 5 km record. An activity with no track only counts when its distance is within about 2% under to 5% over the standard, and its time is scaled to the exact distance by its average pace. A 5.8 km run with no track is not a 5 km record.
 
 When a run you just saved set one or more of them, the summary screen shows a **New personal record** card with the distance and time, and a link to the full list. A run recorded on the watch shows it too.
 
