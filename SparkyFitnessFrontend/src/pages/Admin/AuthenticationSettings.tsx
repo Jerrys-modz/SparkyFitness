@@ -51,6 +51,7 @@ const AuthenticationSettings: React.FC = () => {
     if (!settings) return;
 
     const newSettings = { ...settings, [id]: checked };
+    const isVersionCheck = id === 'enable_version_check';
 
     updateSettings(newSettings, {
       onSuccess: () => {
@@ -59,19 +60,29 @@ const AuthenticationSettings: React.FC = () => {
             'admin.authenticationSettings.settingsSaved',
             'Settings Saved'
           ),
-          description: t(
-            'admin.authenticationSettings.loginSettingUpdated',
-            'Login setting updated successfully.'
-          ),
+          description: isVersionCheck
+            ? t(
+                'admin.authenticationSettings.versionCheckUpdated',
+                'Release check setting updated successfully.'
+              )
+            : t(
+                'admin.authenticationSettings.loginSettingUpdated',
+                'Login setting updated successfully.'
+              ),
         });
       },
       onError: () => {
         toast({
           title: t('admin.authenticationSettings.error', 'Error'),
-          description: t(
-            'admin.authenticationSettings.failedToSaveLoginSettings',
-            'Failed to save login settings.'
-          ),
+          description: isVersionCheck
+            ? t(
+                'admin.authenticationSettings.failedToSaveVersionCheck',
+                'Failed to save the release check setting.'
+              )
+            : t(
+                'admin.authenticationSettings.failedToSaveLoginSettings',
+                'Failed to save login settings.'
+              ),
           variant: 'destructive',
         });
       },
