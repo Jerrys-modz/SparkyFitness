@@ -141,7 +141,6 @@ Connect to the Python-based Garmin sync microservice bundled in `docker-compose.
 
 - **`GARMIN_MICROSERVICE_URL`**: Microservice endpoint URL (e.g., `http://sparkyfitness-garmin:8000`).
 - **`GARMIN_SERVICE_PORT`**: Microservice port. Defaults to `8000`.
-- **`GARMIN_SCHEDULED_LOOKBACK_DAYS`**: How many days before today the hourly scheduled Garmin sync re-requests, so a watch that only reaches Garmin Connect after a day's last pull still gets that day corrected. Defaults to `3`; `0` requests today only. Manual sync always pulls the last 7 days.
 
 ### Module 7: ⏱️ Sign-in & API Key Rate Limiting `[Backend]`
 

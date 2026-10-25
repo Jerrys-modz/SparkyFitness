@@ -77,9 +77,6 @@ async function processHealthChunk(
   };
 }
 
-const DEFAULT_SCHEDULED_LOOKBACK_DAYS = 3;
-const MAX_SCHEDULED_LOOKBACK_DAYS = 30;
-
 /**
  * How many days before today the hourly scheduled sync re-requests.
  *
@@ -89,33 +86,8 @@ const MAX_SCHEDULED_LOOKBACK_DAYS = 30;
  * for today only. Re-pulling a short window each run lets the next hourly
  * sync correct it; the per-chunk upserts are idempotent so the extra days
  * are cheap.
- *
- * Configured with GARMIN_SCHEDULED_LOOKBACK_DAYS (default 3). 0 restores the
- * today-only window. Anything unparseable or outside 0..30 falls back to the
- * default with a warning.
  */
-function resolveScheduledLookbackDays(): number {
-  const raw = process.env.GARMIN_SCHEDULED_LOOKBACK_DAYS;
-  if (raw === undefined || raw.trim() === '') {
-    return DEFAULT_SCHEDULED_LOOKBACK_DAYS;
-  }
-  const value = raw.trim();
-  const parsed = Number(value);
-  // Plain decimal digits only: Number() would also accept "0x10" or "1e1".
-  if (
-    !/^\d+$/.test(value) ||
-    !Number.isInteger(parsed) ||
-    parsed < 0 ||
-    parsed > MAX_SCHEDULED_LOOKBACK_DAYS
-  ) {
-    log(
-      'warn',
-      `[garminService] Ignoring GARMIN_SCHEDULED_LOOKBACK_DAYS="${raw}" (expected a whole number from 0 to ${MAX_SCHEDULED_LOOKBACK_DAYS}); using ${DEFAULT_SCHEDULED_LOOKBACK_DAYS}.`
-    );
-    return DEFAULT_SCHEDULED_LOOKBACK_DAYS;
-  }
-  return parsed;
-}
+const SCHEDULED_SYNC_LOOKBACK_DAYS = 3;
 
 /**
  * Main orchestrator for syncing all Garmin telemetry and health data streams for a given user.
@@ -143,7 +115,7 @@ async function syncGarminData(
     startDate = addDays(today, -7);
   } else if (syncType === 'scheduled') {
     endDate = today;
-    startDate = addDays(today, -resolveScheduledLookbackDays());
+    startDate = addDays(today, -SCHEDULED_SYNC_LOOKBACK_DAYS);
   } else {
     throw new Error("Invalid syncType. Must be 'manual' or 'scheduled'.");
   }

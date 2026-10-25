@@ -28,15 +28,11 @@ vi.mock('../services/garmin/garminActivityProcessor.js', () => ({
 import garminConnectService from '../integrations/garminconnect/garminConnectService.js';
 import { syncGarminData } from '../services/garminService.js';
 
-const ENV_NAME = 'GARMIN_SCHEDULED_LOOKBACK_DAYS';
-
 describe('Garmin syncGarminData - scheduled sync look-back window', () => {
-  const originalEnv = process.env[ENV_NAME];
   let chunkSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    delete process.env[ENV_NAME];
 
     vi.spyOn(
       garminConnectService,
@@ -57,11 +53,6 @@ describe('Garmin syncGarminData - scheduled sync look-back window', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    if (originalEnv === undefined) {
-      delete process.env[ENV_NAME];
-    } else {
-      process.env[ENV_NAME] = originalEnv;
-    }
   });
 
   const requestedRange = () => {
@@ -70,7 +61,7 @@ describe('Garmin syncGarminData - scheduled sync look-back window', () => {
     return { start, end };
   };
 
-  it('re-requests the last three days by default', async () => {
+  it('re-requests the last three days', async () => {
     const today = todayInZone('UTC');
 
     await syncGarminData('user-1', 'scheduled');
@@ -78,41 +69,7 @@ describe('Garmin syncGarminData - scheduled sync look-back window', () => {
     expect(requestedRange()).toEqual({ start: addDays(today, -3), end: today });
   });
 
-  it(`honours ${ENV_NAME}`, async () => {
-    process.env[ENV_NAME] = '1';
-    const today = todayInZone('UTC');
-
-    await syncGarminData('user-1', 'scheduled');
-
-    expect(requestedRange()).toEqual({ start: addDays(today, -1), end: today });
-  });
-
-  it('keeps the today-only window when the look-back is 0', async () => {
-    process.env[ENV_NAME] = '0';
-    const today = todayInZone('UTC');
-
-    await syncGarminData('user-1', 'scheduled');
-
-    expect(requestedRange()).toEqual({ start: today, end: today });
-  });
-
-  it.each(['abc', '-2', '31', '1.5', '0x10', '1e1', '+2'])(
-    'falls back to the default when the value is %s',
-    async (value) => {
-      process.env[ENV_NAME] = value;
-      const today = todayInZone('UTC');
-
-      await syncGarminData('user-1', 'scheduled');
-
-      expect(requestedRange()).toEqual({
-        start: addDays(today, -3),
-        end: today,
-      });
-    }
-  );
-
   it('leaves the manual seven day window unchanged', async () => {
-    process.env[ENV_NAME] = '1';
     const today = todayInZone('UTC');
 
     await syncGarminData('user-1', 'manual');
