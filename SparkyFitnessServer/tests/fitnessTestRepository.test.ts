@@ -100,7 +100,7 @@ describe('fitness test repository', () => {
     expect(String(query.mock.calls[0][0])).toContain(
       'ORDER BY test_date DESC, created_at DESC'
     );
-    expect(query.mock.calls[0][1]).toEqual(['u1', 50]);
+    expect(query.mock.calls[0][1]).toEqual(['u1', 50, 0]);
   });
 
   it('reads the latest, or null', async () => {
@@ -117,6 +117,22 @@ describe('fitness test repository', () => {
     });
     expect((await getLatestFitnessTest('u1', 'u1'))?.id).toBe('older-id');
     expect(await listFitnessTests('u1', 'u1', 1)).toHaveLength(1);
+  });
+
+  it('reads further pages when the newest 50 rows are all unreadable', async () => {
+    const bad = (i: number) => ({
+      ...row,
+      id: `bad-${i}`,
+      paces: { bad: true },
+    });
+    query
+      .mockResolvedValueOnce({
+        rows: Array.from({ length: 50 }, (_, i) => bad(i)),
+      })
+      .mockResolvedValueOnce({ rows: [{ ...row, id: 'valid-id' }] });
+    expect((await getLatestFitnessTest('u1', 'u1'))?.id).toBe('valid-id');
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls[1][1]).toEqual(['u1', 50, 50]);
   });
 
   it('deletes only the persons own test', async () => {
