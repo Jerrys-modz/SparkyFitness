@@ -108,6 +108,7 @@ import {
   SafeEquipment,
   SafeShoes,
   SafeShoeForm,
+  SafeShoppingList,
   SafeAiSettings,
   SafeFoodSettings,
   SafeCustomNutrients,
@@ -1131,6 +1132,11 @@ function AppContent() {
             name="ShoeForm"
             component={SafeShoeForm}
             options={createStackScreenOptions(t('shoes.title', { defaultValue: 'Shoes' }), { headerBackTitle: t('shoes.title', { defaultValue: 'Shoes' }) })}
+          />
+          <Stack.Screen
+            name="ShoppingList"
+            component={SafeShoppingList}
+            options={createStackScreenOptions(t('shoppingList.title', { defaultValue: 'Shopping List' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
           />
           <Stack.Screen
             name="DashboardSettings"
