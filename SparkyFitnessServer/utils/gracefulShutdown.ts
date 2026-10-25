@@ -4,6 +4,7 @@ import { log } from '../config/logging.js';
 import { endPool } from '../db/poolManager.js';
 
 const SHUTDOWN_TIMEOUT_MS = 15_000;
+const HALF_CLOSE_GRACE_MS = 2_000;
 
 interface ConnectionTracker {
   /** Each connection's responses not yet sent in full, oldest first. */
@@ -30,9 +31,18 @@ function openResponses(
  * Half-closes the connection: whatever is still in its write buffer goes out
  * first, then the FIN. Destroying it instead would drop that data and cut a
  * large response short, even one the client has been told is complete.
+ * A client that never closes its side would hold the drain to the shutdown
+ * timeout, so the connection is destroyed a moment after everything on it
+ * has been written out.
  */
 function endConnection(socket: Socket) {
-  if (!socket.destroyed && !socket.writableEnded) socket.end();
+  if (socket.destroyed || socket.writableEnded) return;
+  socket.end();
+  socket.once('finish', () => {
+    const timer = setTimeout(() => socket.destroy(), HALF_CLOSE_GRACE_MS);
+    timer.unref();
+    socket.once('close', () => clearTimeout(timer));
+  });
 }
 
 /**

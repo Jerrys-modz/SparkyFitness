@@ -137,8 +137,8 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * requests and a request whose headers arrive in two parts. Resolves with
  * everything received once the server closes the connection.
  */
-function rawConnection(port: number) {
-  const socket = net.connect(port, '127.0.0.1');
+function rawConnection(port: number, allowHalfOpen = false) {
+  const socket = net.connect({ port, host: '127.0.0.1', allowHalfOpen });
   let received = '';
   socket.on('data', (chunk: Buffer) => {
     received += chunk.toString();
@@ -152,6 +152,12 @@ function rawConnection(port: number) {
 
 const statusLines = (received: string) =>
   received.match(/HTTP\/1\.1 \d+/g) ?? [];
+
+/** Each response's Connection header, in the order the responses arrived. */
+const connectionHeaders = (received: string) =>
+  (received.match(/HTTP\/1\.1 \d+.*?\r\n\r\n/gs) ?? []).map(
+    (head) => /^connection: (.*)$/im.exec(head)?.[1]?.trim() ?? null
+  );
 
 async function terminate(child: Running) {
   const signalledAt = Date.now();
@@ -255,6 +261,7 @@ describe('drain with keep-alive connections', () => {
     expect(result.code, child.output()).toBe(0);
     expect(result.elapsedMs).toBeLessThan(5000);
   }, 30_000);
+
   it('answers every pipelined request that arrived before SIGTERM', async () => {
     const child = await startChild();
     const { socket, closed } = rawConnection(child.port);
@@ -268,6 +275,8 @@ describe('drain with keep-alive connections', () => {
 
     expect(statusLines(received)).toEqual(['HTTP/1.1 200', 'HTTP/1.1 200']);
     expect(received.match(/slow/g)).toHaveLength(2);
+    // Only the last response closes the connection.
+    expect(connectionHeaders(received)).toEqual([null, 'close']);
     expect(result.code, child.output()).toBe(0);
     expect(result.elapsedMs).toBeLessThan(3000);
   }, 30_000);
@@ -286,6 +295,9 @@ describe('drain with keep-alive connections', () => {
 
     expect(statusLines(received)).toEqual(['HTTP/1.1 200', 'HTTP/1.1 200']);
     expect(received).toMatch(/slow.*ok$/s);
+    // The second response was written before the drain and kept its
+    // keep-alive header, so the first must not carry Connection: close.
+    expect(connectionHeaders(received)).toEqual([null, 'keep-alive']);
     expect(result.code, child.output()).toBe(0);
     expect(result.elapsedMs).toBeLessThan(3000);
   }, 30_000);
@@ -307,7 +319,23 @@ describe('drain with keep-alive connections', () => {
 
     expect(statusLines(received)).toEqual(['HTTP/1.1 200', 'HTTP/1.1 200']);
     expect(received).toMatch(/\r\n\r\nok$/);
+    expect(connectionHeaders(received)).toEqual(['keep-alive', 'close']);
     expect(result.code, child.output()).toBe(0);
     expect(result.elapsedMs).toBeLessThan(3000);
+  }, 30_000);
+
+  it('closes an idle connection whose client never closes its side', async () => {
+    const child = await startChild();
+    const { socket, closed } = rawConnection(child.port, true);
+    socket.write('GET / HTTP/1.1\r\nHost: x\r\n\r\n');
+    await sleep(200);
+
+    // This client keeps its side open, so its own socket never closes.
+    const result = await terminate(child);
+    socket.destroy();
+
+    expect(statusLines(await closed)).toEqual(['HTTP/1.1 200']);
+    expect(result.code, child.output()).toBe(0);
+    expect(result.elapsedMs).toBeLessThan(5000);
   }, 30_000);
 });
