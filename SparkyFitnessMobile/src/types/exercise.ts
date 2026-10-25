@@ -1,4 +1,7 @@
-import type { ExerciseModality } from '@workspace/shared';
+import type {
+  ExerciseLoadConvention,
+  ExerciseModality,
+} from '@workspace/shared';
 
 export interface Exercise {
   id: string;
@@ -6,6 +9,8 @@ export interface Exercise {
   category: string | null;
   /** Absent/null on pre-modality servers; resolve via `resolveSnapshotModality`. */
   modality?: ExerciseModality | null;
+  /** How logged weight and reps count toward volume; absent on older servers, which means `total`. */
+  load_convention?: ExerciseLoadConvention;
   equipment: string[];
   primary_muscles: string[];
   secondary_muscles: string[];

@@ -14,7 +14,9 @@ import { useCreateExercise, useUpdateExercise } from '../hooks';
 import { DECIMAL_INPUT_REGEX, parseDecimalInput } from '../utils/numericInput';
 import {
   deriveExerciseModality,
+  isExerciseLoadConvention,
   isExerciseModality,
+  type ExerciseLoadConvention,
   CANONICAL_MUSCLES,
   CANONICAL_EQUIPMENT,
   resolveCanonicalOrCustomMuscle,
@@ -116,6 +118,8 @@ interface ExerciseFormState {
    * stored modality never silently changes with the category).
    */
   modalityManuallySet: boolean;
+  /** How logged weight and reps count toward volume (#3157). */
+  loadConvention: ExerciseLoadConvention;
   caloriesPerHourText: string;
   description: string;
   equipment: string[];
@@ -218,6 +222,36 @@ const ExerciseFormBody: React.FC<ExerciseFormBodyProps> = ({
     }));
   }, [state.modality, localizeOption]);
 
+  // Only an exercise that logs a weight against reps has volume to count, and a
+  // bodyweight exercise has no pair of dumbbells.
+  const loadConventionOptions = useMemo(() => {
+    const modality = isExerciseModality(state.modality) ? state.modality : null;
+    if (modality !== 'weight_reps' && modality !== 'bodyweight_reps') return [];
+    const options = [
+      {
+        label: t('workout.loadConvention.total', {
+          defaultValue: 'Total load',
+        }),
+        value: 'total',
+      },
+      {
+        label: t('workout.loadConvention.per_hand', {
+          defaultValue: 'Weight per hand',
+        }),
+        value: 'per_hand',
+      },
+      {
+        label: t('workout.loadConvention.per_side', {
+          defaultValue: 'Reps per side',
+        }),
+        value: 'per_side',
+      },
+    ];
+    return modality === 'weight_reps'
+      ? options
+      : options.filter((opt) => opt.value !== 'per_hand');
+  }, [state.modality, t]);
+
   const renderPicker = (
     label: string,
     options: readonly { label: string; value: string }[],
@@ -294,6 +328,19 @@ const ExerciseFormBody: React.FC<ExerciseFormBodyProps> = ({
         (modality) =>
           setState((prev) => ({ ...prev, modality, modalityManuallySet: true }))
       )}
+
+      {loadConventionOptions.length > 0
+        ? renderPicker(
+            t('workout.loadConvention.label', {
+              defaultValue: 'Volume counting',
+            }),
+            loadConventionOptions,
+            state.loadConvention,
+            (loadConvention) =>
+              isExerciseLoadConvention(loadConvention) &&
+              setState((prev) => ({ ...prev, loadConvention }))
+          )
+        : null}
 
       <View className="gap-1.5">
         <Text className="text-text-secondary text-sm font-medium">
@@ -514,6 +561,9 @@ const buildCreatePayload = (
   };
 
   if (isExerciseModality(state.modality)) payload.modality = state.modality;
+  if (state.loadConvention !== 'total') {
+    payload.load_convention = state.loadConvention;
+  }
 
   if (caloriesValue !== undefined) payload.calories_per_hour = caloriesValue;
   if (state.equipment.length > 0) payload.equipment = state.equipment;
@@ -538,6 +588,7 @@ const formStateFromExercise = (
   category: exercise.category,
   modality: exercise.modality ?? deriveExerciseModality(exercise.category),
   modalityManuallySet: true,
+  loadConvention: exercise.load_convention ?? 'total',
   caloriesPerHourText:
     exercise.calories_per_hour > 0 ? String(exercise.calories_per_hour) : '',
   description: exercise.description ?? '',
@@ -575,6 +626,7 @@ const CreateExerciseMode: React.FC<CreateExerciseModeProps> = ({
           category: 'general',
           modality: deriveExerciseModality('general'),
           modalityManuallySet: false,
+          loadConvention: 'total',
           caloriesPerHourText: '',
           description: '',
           equipment: [],
@@ -676,6 +728,10 @@ const buildEditPayload = (
     state.modality !== initialModality
   ) {
     payload.modality = state.modality;
+  }
+
+  if (state.loadConvention !== (initial.load_convention ?? 'total')) {
+    payload.load_convention = state.loadConvention;
   }
 
   if (
