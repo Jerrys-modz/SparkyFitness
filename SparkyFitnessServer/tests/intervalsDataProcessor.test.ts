@@ -341,6 +341,25 @@ describe('processIntervalsWellness', () => {
     );
   });
 
+  it('skips records with a malformed date and keeps the rest', async () => {
+    const days = await processIntervalsWellness(UID, UID, [
+      { id: 'not-a-day', hrv: 50, weight: 70 },
+      { id: '2026-13-01', restingHR: 40 },
+      { id: '2026-10-12', hrv: 62 },
+    ]);
+
+    expect(days).toBe(1);
+    expect(measurementService.processHealthData).not.toHaveBeenCalled();
+    expect(genericHealthRepo.upsertDailyHealthMetrics).not.toHaveBeenCalled();
+    expect(upsertSamplesByDay).toHaveBeenCalledWith(
+      UID,
+      UID,
+      'hrv',
+      'intervals',
+      [expect.objectContaining({ entry_date: '2026-10-12', rmssd_ms: 62 })]
+    );
+  });
+
   it('writes nothing for days with no values', async () => {
     await processIntervalsWellness(UID, UID, [{ id: '2026-10-12' }]);
 

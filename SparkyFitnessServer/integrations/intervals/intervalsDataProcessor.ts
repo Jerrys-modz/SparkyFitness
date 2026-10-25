@@ -10,6 +10,7 @@ import * as genericHealthRepo from '../../models/genericHealthRepository.js';
 import measurementService from '../../services/measurementService.js';
 import { upsertSamplesByDay } from '../../services/healthMetricSampleWriter.js';
 import { mapSportTypeToCategory } from '../strava/stravaDataProcessor.js';
+import { isDayString } from '@workspace/shared';
 
 export const INTERVALS_SOURCE = 'Intervals.icu';
 // source_provider for daily_health_metrics / health_metric_samples rows.
@@ -236,8 +237,18 @@ async function processIntervalsActivities(
 async function processIntervalsWellness(
   userId: string,
   createdByUserId: string,
-  records: IntervalsWellness[]
+  allRecords: IntervalsWellness[]
 ): Promise<number> {
+  // The record id is the day; a malformed one would throw in the HRV writer and
+  // stop the rest of the sync, so skip it before any writer sees it.
+  const records = allRecords.filter((r) => {
+    if (typeof r.id === 'string' && isDayString(r.id)) return true;
+    log(
+      'warn',
+      `[intervalsDataProcessor] Skipping wellness record with invalid date ${String(r.id)}`
+    );
+    return false;
+  });
   const checkIns = records.flatMap((r) =>
     (
       [
