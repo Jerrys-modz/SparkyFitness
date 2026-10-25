@@ -3,6 +3,7 @@ import userRepository from '../models/userRepository.js';
 import { log } from '../config/logging.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import { userAge } from '../utils/dateHelpers.js';
+import { volumeMultiplier } from '@workspace/shared';
 // Approximate MET values based on exercise category and level
 const MET_VALUES = {
   cardio: {
@@ -100,14 +101,28 @@ async function estimateCaloriesBurnedPerHour(
   const level = exercise.level ? exercise.level.toLowerCase() : 'intermediate';
   let met;
   if (category === 'strength' && sets && sets.length > 0) {
-    // Enhanced MET calculation for strength training
+    // Enhanced MET calculation for strength training. The exercise's load
+    // convention (#3157) says how many times a set's reps were performed: a
+    // per-side set logged once did both sides, so it counts twice in the
+    // session's average weight, while a set marked left or right counts once.
+    // Per-hand weights scale every set alike, which the weight ratio below
+    // already cancels. The estimated 1RM stays on the weight as logged.
+    const repsPerformed = (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      set: any
+    ): number =>
+      (Number(set.reps) || 0) *
+      volumeMultiplier(exercise.load_convention, set.side);
     const totalVolume = sets.reduce(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (acc: any, set: any) => acc + set.reps * set.weight,
+      (acc: number, set: any) => acc + repsPerformed(set) * (set.weight || 0),
       0
     );
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const totalReps = sets.reduce((acc: any, set: any) => acc + set.reps, 0);
+    const totalReps = sets.reduce(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (acc: number, set: any) => acc + repsPerformed(set),
+      0
+    );
     // Brzycki formula for 1RM estimation, applied per set (it is only valid
     // for sets below ~37 reps). The strongest set defines the ceiling that
     // the session's average weight is measured against.

@@ -20,7 +20,7 @@ API clients and imports can send `load_convention` (`total`, `per_hand` or `per_
 
 ## What it changes
 
-Only volume: the training volume totals and charts in Reports, Exercise Statistics, muscle group volume, comparisons and the workout screens. Estimated one-rep max, weight records and personal bests keep using the weight as you logged it, so a 20 kg dumbbell press still shows a 20 kg based record. Rep counts stay as logged. Calorie estimates are unchanged.
+Only volume: the training volume totals and charts in Reports, Exercise Statistics, muscle group volume, comparisons and the workout screens. Estimated one-rep max, weight records and personal bests keep using the weight as you logged it, so a 20 kg dumbbell press still shows a 20 kg based record. Rep counts stay as logged. When SparkyFitness estimates the calories of a strength workout it rates the session by how heavy your average set is next to your heaviest, so weight per hand makes no difference, and with reps per side a set you logged once counts for both sides when that average is taken.
 
 ## Marking a side
 
