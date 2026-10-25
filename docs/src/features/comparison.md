@@ -79,7 +79,6 @@ These are the projects most people compare SparkyFitness against when they want 
 | Weekly goal plans (different targets per weekday) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Multiple BMR formulas | ✅ 5 formulas | 🟡 | 🟡 | 🟡 | ❌ | ❌ |
 | Adaptive TDEE from intake & weight trend | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Adaptive coaching: weekly check-in suggesting new calorie & macro targets from weight trend and intake | ✅ weekly, you accept | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Fitness** | | | | | | |
 | Exercise & workout logging | ✅ | ✅ | 🟡 | ❌ | ❌ | ✅ |
 | Structured routines with progression | ✅ | ⭐ | ❌ | ❌ | ❌ | ❌ |
@@ -166,7 +165,7 @@ They are split into three groups, because comparing a fasting timer against a fo
 | Different goals per day of the week | ✅ | 💰 | 💰 macro scheduler | ✅ | ❌ | ❌ |
 | Saved goal presets | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Full history & custom date-range trends | ✅ free | 💰 | 💰 free tier limited to 7 days | ✅ | ? | ? |
-| Adaptive expenditure & target adjustment | ✅ Adaptive TDEE + weekly coaching check-in (you accept each change) | 🟡 | 🟡 | ⭐ Adaptive coaching | 🟡 | 🟡 |
+| Adaptive expenditure & target adjustment | ✅ Adaptive TDEE | 🟡 | 🟡 | ⭐ Adaptive coaching | 🟡 | 🟡 |
 | Customizable dashboard layout | ✅ | 🟡 | 💰 custom charts | ✅ | ? | 🟡 |
 | **Beyond Nutrition** | | | | | | |
 | Strength training & set logging | ✅ | 🟡 | 🟡 | ✅ | 🟡 | 🟡 |
@@ -311,7 +310,7 @@ We would rather you pick the right tool than the one on this page.
 
 - **Choose wger** if OSI-licensed open source, structured workout programming, offline mobile logging, or gym-management features are your priority. wger is AGPL-3.0 and accepts contributions on standard terms; SparkyFitness does not.
 - **Choose Cronometer** if curated micronutrient accuracy is your priority: roughly 95 tracked nutrients against a lab-verified database, on one of the best free tiers in the category.
-- **Choose MacroFactor** if adaptive nutrition coaching is your priority. Its expenditure model and continuous target adjustment are the product, refined over years. SparkyFitness has a weekly [coaching check-in](/features/goals#weekly-coaching) that estimates your expenditure from your weight trend and logged intake and proposes new targets you accept, but it is newer, adjusts weekly rather than continuously, and has not had that refinement.
+- **Choose MacroFactor** if adaptive nutrition coaching is your priority. Its expenditure model and continuous target adjustment are the product, refined over years. SparkyFitness's Adaptive TDEE is a calculation, not a coaching system.
 - **Choose MyFitnessPal** if restaurant and packaged-goods coverage matters most, particularly in the US, or if you want a large social community.
 - **Choose Hevy** if strength-training UX, smartwatch logging, and a large social feed of shared routines are your priority. SparkyFitness [integrates with Hevy](/features/settings/external-providers) rather than competing with it.
 - **Choose Strong** if you want serious strength tracking without a social layer. Its muscle heat map, RPE tracking, Apple Watch app, and free CSV export are excellent.

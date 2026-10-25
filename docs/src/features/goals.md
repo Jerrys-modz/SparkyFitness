@@ -8,53 +8,6 @@ SparkyFitness allows you to set and track various fitness and nutrition goals, h
 
 Set your goal weight under **Goals**. It was previously only asked once during onboarding. Enter it in your preferred weight unit (stones and pounds users enter pounds); it is stored in kilograms. **Clear** removes it. The mobile Weight chart uses it for the dashed goal line and the projected goal date.
 
-## Weekly Coaching
-
-Weekly Coaching turns the [Adaptive TDEE](/features/settings/calculation-settings) idea into a check-in. Once a week, or whenever you open it, SparkyFitness looks at your weight trend and the food you logged, estimates what you really burn, compares your progress with the goal you chose (lose, maintain or gain, at a rate you pick) and suggests new daily calorie and macro targets. **Nothing changes until you accept.**
-
-It appears as a **Weekly Coaching** card on the mobile Dashboard (toggle it in Dashboard settings), as a Coaching screen (Settings → Weekly Coaching), and as a card at the top of the web **Reports → Nutrition** tab. Everyone who can see your reports can read it; only you can change the goal or accept a suggestion.
-
-### What it looks at
-
-- **Weight trend.** A line is fitted through the last 28 days of weigh-ins. A weigh-in that sits far off that line (a typo, a bathroom scale on a bad day) is ignored and drawn as a hollow dot, and a single heavy or light day from water barely moves it. Missed weigh-ins are fine.
-- **Logged intake.** Only days you actually logged count. A day under about 40% of your usual intake is treated as not fully logged and left out.
-- **Estimated expenditure.** Average logged intake minus the energy implied by the trend, using the same energy density as Adaptive TDEE. The estimate is smoothed across the last eight weeks so one odd week does not swing it, and the app shows a margin (a rough 95% interval from weigh-in noise alone; it does not include errors in what you logged).
-
-### When it speaks up
-
-It says nothing until the last 28 days hold at least 10 logged days, 5 weigh-ins spanning two weeks, and food logged on at least 60% of the days since you started. Until then it tells you exactly what is missing ("Log 3 more days for a reliable estimate"). The possible outcomes are:
-
-| Outcome | Meaning |
-| :--- | :--- |
-| Not enough data yet | A minimum count above is not met. |
-| Too many unlogged days to judge | Enough days, but too many gaps to compare food with weight. |
-| The estimate looks off | The numbers imply a burn under 1,000 or over 6,000 kcal, which usually means missing logs. Nothing is changed. |
-| On track | Your weekly rate is within 0.1 kg (or 25% of your goal rate) of the goal. Targets stay as they are. |
-| Behind / Ahead | You are slower or faster than the goal. A new calorie target is suggested. |
-
-### How the suggestion is built
-
-The suggested calories are your estimated expenditure plus (or minus) the energy for your goal rate. Then:
-
-- **At most 10% change per week.** A bigger gap is closed over several weeks.
-- **A minimum safe level.** The suggestion never goes below your calorie safety floor (Calorie Settings), and never below 800 kcal even if you turned the floor off.
-- **Your macro split is kept.** Carbs and fat are scaled together. Protein is held at the lower of its current amount and 1.6 g per kg of body weight, so a cut comes from carbs and fat first. A goal saved as percentages keeps its percentages unless that protein floor has to override them.
-
-Accepting writes the new targets from today through the normal goal timeline (the same as saving goals), so they show up in the Goals screen like any other change. If your calorie target is set by Calorie Settings instead (an adaptive goal, or a goal mode other than Maintain), the check-in still reads, but Accept is unavailable because the setting would overwrite it.
-
-### Your goal and check-in day
-
-Pick the direction, the rate (kg or lb per week, up to 1 kg) and the weekday of your check-in on the Coaching screen or the web card. On mobile, a local notification arrives on that weekday at 09:00 once there is enough data to say something (**Settings → Notifications → Weekly Check-in**). It is scheduled on the phone when the app is opened; there is no server push.
-
-::: warning An estimate, not medical advice
-The numbers come from your logs and your scale. If either is incomplete or wrong, so is the suggestion. Short-term weight is also affected by water, salt and hormones, which is why the app shows its margin and waits for several weeks of data. Talk to a clinician before making large changes to how you eat, especially with a medical condition, pregnancy or a history of disordered eating.
-:::
-
-The AI assistant and the [MCP server](/developer/mcp/coach) can read the same check-in with `sparky_get_coaching_checkin`. It is read-only; accepting happens in the app.
-
----
-The destination weight and the desired weekly pace are separate settings. Under [Calculation Settings → Goal Mode](/features/settings/calculation-settings#_4-goal-mode-caloric-deficits), select **Weekly weight change** to choose maintenance, loss, or gain in kg or g per week. The weekly pace adjusts the calorie target; it does not change the saved destination weight.
-
 ## Nutrient Goal Direction (Minimum / Maximum / Target)
 
 By default, every nutrient goal in SparkyFitness is treated as a **minimum** — a target to reach, with progress filling toward 100% as you approach it. That works well for protein or fiber, but it doesn't fit every nutrient or every person: someone managing high cholesterol wants cholesterol treated as a ceiling, not something to "fill up"; someone maintaining their weight wants calories treated as a range to stay near, not a bar to max out.

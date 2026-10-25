@@ -18,7 +18,6 @@ import {
   generateReportsMeasurementsDefaultLayouts,
   useMeasurementChartWidgets,
 } from '@/pages/Reports/MeasurementChartsGrid';
-import CoachingCheckInCard from '@/pages/Reports/CoachingCheckInCard';
 import ReportsTables, {
   type TableFilterValue,
 } from '@/pages/Reports/ReportsTables';
@@ -57,7 +56,7 @@ import { CompareReport } from '@/pages/Reports/Compare/CompareReport';
 
 const Reports = () => {
   const { t } = useTranslation();
-  const { activeUserId, isActingOnBehalf } = useActiveUser();
+  const { activeUserId } = useActiveUser();
   const { data: profile } = useProfileQuery(activeUserId ?? undefined);
   const {
     formatDateInUserTimezone,
@@ -214,12 +213,6 @@ const Reports = () => {
       case 'charts':
         return (
           <div className="space-y-12">
-            <ChartErrorBoundary>
-              <CoachingCheckInCard
-                userId={activeUserId}
-                readOnly={isActingOnBehalf}
-              />
-            </ChartErrorBoundary>
             <ChartErrorBoundary>
               <WeeklyAlcoholCard date={endDate} userId={activeUserId} />
             </ChartErrorBoundary>

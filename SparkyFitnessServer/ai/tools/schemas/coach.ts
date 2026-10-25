@@ -70,6 +70,3 @@ export type GenerateCoachingPlanInput = z.infer<
 export type ReviewCalorieTargetInput = z.infer<
   typeof ReviewCalorieTargetSchema
 >;
-
-export const GetCoachingCheckInSchema = z.object({}).strict();
-export type GetCoachingCheckInInput = z.infer<typeof GetCoachingCheckInSchema>;

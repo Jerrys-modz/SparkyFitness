@@ -31,8 +31,6 @@ export const reportKeys = {
     ['reports', 'fitnessFatigue', { userId }] as const,
   runEstimates: (userId?: string) =>
     ['reports', 'runEstimates', { userId }] as const,
-  coachingCheckIn: (userId?: string) =>
-    ['reports', 'coachingCheckIn', { userId }] as const,
   alcoholWeek: (date: string, userId?: string) =>
     ['reports', 'alcoholWeek', date, { userId }] as const,
   hydrationNutritionRange: (

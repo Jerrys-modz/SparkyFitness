@@ -245,7 +245,6 @@ describe('appPreferencesStore', () => {
         'macros',
         'exercise',
         'trainingLoad',
-        'coaching',
         'hydration',
         'caffeine',
         'fasting',

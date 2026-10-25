@@ -1,9 +1,4 @@
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-  type QueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchDailyGoals,
   fetchGoalsRange,
@@ -59,13 +54,6 @@ export function useAdjustedCalorieGoal(date: string, enabled: boolean) {
   return query.data?.[date]?.calories;
 }
 
-/** Every cache that shows a saved goal, or a total measured against it. */
-export function invalidateGoalCaches(queryClient: QueryClient) {
-  queryClient.invalidateQueries({ queryKey: ['goals'] });
-  queryClient.invalidateQueries({ queryKey: ['goalsRange'] });
-  queryClient.invalidateQueries({ queryKey: dailySummaryRootQueryKey });
-}
-
 export function useSaveGoalsMutation() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
@@ -78,7 +66,11 @@ export function useSaveGoalsMutation() {
       goals: DailyGoals;
       cascade: boolean;
     }) => saveDailyGoals(date, goals, cascade),
-    onSuccess: () => invalidateGoalCaches(queryClient),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['goals'] });
+      queryClient.invalidateQueries({ queryKey: ['goalsRange'] });
+      queryClient.invalidateQueries({ queryKey: dailySummaryRootQueryKey });
+    },
   });
   return {
     saveGoals: mutation.mutateAsync,
