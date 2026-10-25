@@ -9,6 +9,11 @@ export interface BackgroundWaterNativeModule {
    * kinds. Absent in a build made before it existed.
    */
   reloadControls?(kinds: string[]): void;
+  /**
+   * Android only: labels the "Log water" launcher shortcut and puts it back
+   * while a login is stored. Absent in a build made before it existed.
+   */
+  refreshShortcut?(shortLabel: string, longLabel: string): boolean;
 }
 
 // iOS is an Expo module; Android a plain React Native module registered by

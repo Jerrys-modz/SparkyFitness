@@ -2,6 +2,8 @@ import { betterAuth } from 'better-auth';
 import { APIError } from 'better-auth/api';
 import pg from 'pg';
 import { log } from './config/logging.js';
+import { handleConnectionLoss } from './db/poolManager.js';
+import { retryPoolConnects } from './db/connectRetry.js';
 import bcrypt from 'bcryptjs';
 import { syncUserGroups } from './utils/oidcGroupSync.js';
 import userRepository from './models/userRepository.js';
@@ -77,6 +79,9 @@ const authPool = new Pool({
   password: process.env.SPARKY_FITNESS_DB_PASSWORD,
   // @ts-expect-error
   port: process.env.SPARKY_FITNESS_DB_PORT || 5432,
+  // Without it a connect to an unreachable host waits for the operating
+  // system's TCP timeout, which the connect retry below cannot bound.
+  connectionTimeoutMillis: 5000,
   // pg returns bigint columns as strings, but Better Auth does arithmetic on
   // them as numbers (rate_limit.last_request, epoch milliseconds); a string
   // there turns the 429 retry-after into concatenated digits.
@@ -95,6 +100,9 @@ const authPool = new Pool({
 authPool.on('error', (err) => {
   log('error', 'Unexpected error on idle Better Auth client', err);
 });
+handleConnectionLoss(authPool, 'Better Auth');
+// Better Auth acquires its own connections, so the retry has to live on the pool.
+retryPoolConnects(authPool);
 // Persistent array reference for trusted providers
 // Mutation of this array will be visible to Better Auth since it holds the reference
 // @ts-expect-error

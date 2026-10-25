@@ -84,6 +84,8 @@ export const DailyGoals = ({
     candidateKeys: autoCalcCandidateKeys,
   });
 
+  const [initialCalories] = useState(goals.calories);
+
   const [macroInputType, setMacroInputType] = useState<'grams' | 'percentages'>(
     goals.protein_percentage !== null ? 'percentages' : 'grams'
   );
@@ -143,7 +145,13 @@ export const DailyGoals = ({
       finalGoals.carbs_percentage = null;
       finalGoals.fat_percentage = null;
     }
-    if (goalModeCalculationMethod === 'adaptive' || goalMode !== 'maintain') {
+    // Only a manual calorie edit overrides the adaptive/goal-mode setup;
+    // changing macros alone must leave it intact.
+    const caloriesEdited = finalGoals.calories !== initialCalories;
+    if (
+      caloriesEdited &&
+      (goalModeCalculationMethod === 'adaptive' || goalMode !== 'maintain')
+    ) {
       try {
         await saveAllPreferences({
           goalMode: 'maintain',

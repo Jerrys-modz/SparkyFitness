@@ -55,7 +55,7 @@ describe('RunProgramCard', () => {
     expect(screen.getByText(/nine weeks, three runs a week/)).toBeTruthy();
     expect(
       screen.getByText(
-        /Week 1: workouts of .* minutes\. Builds to \d+ minutes of running/
+        /Week 1: workouts of .* minutes\. Builds to \d+ minutes of effort/
       )
     ).toBeTruthy();
     expect(screen.queryByText('Do this workout')).toBeNull();

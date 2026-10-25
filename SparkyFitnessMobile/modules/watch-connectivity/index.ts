@@ -28,6 +28,7 @@ export interface WatchCheckInPayload {
    * fat value the day already had.
    */
   bodyFatPercentage: number | null;
+  ownerId?: string;
 }
 
 /** One day of history relayed to the watch for its trend chart. */
@@ -46,6 +47,7 @@ export interface WatchWaterIntakePayload {
   /** Calendar day (`yyyy-MM-dd`) in the wearer's local timezone. */
   entryDate: string;
   containerId: number;
+  ownerId?: string;
 }
 
 /** A request from the watch to delete one logged drink. */
@@ -54,6 +56,7 @@ export interface WatchWaterDeletePayload {
   clientId: string;
   /** The `water_intake_entries` row id, as relayed in `waterLog` below. */
   entryId: string;
+  ownerId?: string;
 }
 
 /** A dose ticked, or un-ticked after a mistaken tap, on the Apple Watch. */
@@ -66,6 +69,7 @@ export interface WatchMedicationTakenPayload {
   scheduleId: string;
   /** False when the wearer un-ticked the dose; absent from older watch builds, which only ever tick. */
   taken?: boolean;
+  ownerId?: string;
 }
 
 /** One of today's scheduled dose slots, relayed to the watch's Medications page. */
@@ -206,16 +210,19 @@ export interface WatchContextPayload {
     programIndex?: number;
     /** 'walk' for a walking program; missing is a run. */
     activity?: 'walk';
+    /** `meters` marks a distance step; `seconds` is then its expected time. */
     /** Spoken before a program workout's first step, and when it ends; already in the app language. */
     startText?: string;
     doneText?: string;
     steps: {
       label: string;
       seconds: number;
+      meters?: number;
       paceMin?: number;
       paceMax?: number;
       hrMin?: number;
       hrMax?: number;
+      unit?: 'mi';
     }[];
   }[];
   /**
@@ -570,6 +577,16 @@ export interface WatchHeartRateBatchPayload {
    */
   durationMinutes?: number;
   /**
+   * Apple's time-in-zone for the whole workout. Present only on the batch
+   * sent after HealthKit finishes it. Five zones, each with `seconds`.
+   */
+  appleZones?: Array<{
+    index?: number;
+    minimumBpm?: number;
+    maximumBpm?: number;
+    seconds: number;
+  }>;
+  /**
    * Server config that was active when the phone received this batch. The
    * phone only applies a batch whose owner is the active config; a batch for
    * another config stays queued and is not posted or acked. Absent when no
@@ -611,6 +628,12 @@ export interface WatchSetTimerStartedPayload {
   startedAt: number;
   /** Epoch ms of the arm the timer belongs to. Absent from an older watch. */
   armedAt?: number;
+}
+
+/** How hard the wearer rated a finished strength workout, 1 to 10. */
+export interface WatchWorkoutEffortPayload {
+  sessionId: string;
+  rating: number;
 }
 
 export interface WatchWorkoutStopPayload {
@@ -717,6 +740,13 @@ export interface WatchRecordingHeartRatePayload {
   /** Dedupes a re-delivered queued batch. */
   clientId: string;
   samples: WatchHeartRateSamplePayload[];
+  /** Apple's zone group for the finished recording, when HealthKit had one. */
+  appleZones?: Array<{
+    index?: number;
+    minimumBpm?: number;
+    maximumBpm?: number;
+    seconds: number;
+  }>;
 }
 
 /** The wearer asked to start a fast from the watch's Fasting page. */
@@ -724,11 +754,13 @@ export interface WatchFastStartRequestPayload {
   /** `FASTING_PRESETS` id, e.g. "16-8". */
   presetId: string;
   clientId: string;
+  ownerId?: string;
 }
 
 /** The wearer asked to end the running fast from the watch. */
 export interface WatchFastEndRequestPayload {
   clientId: string;
+  ownerId?: string;
 }
 
 /**
@@ -738,6 +770,8 @@ export interface WatchFastEndRequestPayload {
  */
 export interface WatchRunFinishedPayload {
   clientId: string;
+  /** Server config id that was active when the run arrived on the phone. */
+  ownerId?: string;
   kind: string;
   place: string;
   startedAt: number;
@@ -764,6 +798,13 @@ export interface WatchRunFinishedPayload {
   distanceScale?: number;
   /** What the watch showed before a treadmill distance was entered on the wrist. */
   estimatedDistanceMeters?: number;
+  /** Apple's heart-rate zone group, when the finished workout had one. */
+  appleZones?: Array<{
+    index?: number;
+    minimumBpm?: number;
+    maximumBpm?: number;
+    seconds: number;
+  }>;
 }
 
 /**
@@ -777,6 +818,12 @@ export interface WatchRunCuePayload {
   text: string;
   /** Say it now rather than after the cue being spoken. */
   interrupt: boolean;
+}
+
+/** How hard the wearer rated a finished watch run, 1 to 10. Matches a run by `clientId`. */
+export interface WatchRunEffortPayload {
+  clientId: string;
+  rating: number;
 }
 
 export interface WatchRunLivePayload {
@@ -818,6 +865,58 @@ export interface WatchRunStartPlanStep {
   hrMax?: number;
 }
 
+/**
+ * A saved route for the watch to follow. `points` is flat
+ * `[lat, lon, lat, lon, …]` in millionths of a degree (integers keep the
+ * property list small: ~20 KB for the 2000-point maximum). `cues` are turn
+ * instructions anchored to a point index; the watch words them from `kind`
+ * unless `text` is given. See `toWatchRoutePayload` in `src/utils/watchRoute.ts`.
+ */
+export interface WatchRoutePayload {
+  id: string;
+  name: string;
+  points: number[];
+  cues: {
+    index: number;
+    kind:
+      | 'depart'
+      | 'straight'
+      | 'slight_left'
+      | 'left'
+      | 'sharp_left'
+      | 'slight_right'
+      | 'right'
+      | 'sharp_right'
+      | 'uturn'
+      | 'arrive';
+    text?: string;
+  }[];
+}
+
+/**
+ * A saved route for the watch's own library (`routeSync`). Same wire shape as
+ * the route of a `runStart`; `updatedAt` is the route's `updatedAt` in epoch
+ * ms, which the watch uses to keep the newest copy.
+ */
+export interface WatchRouteSyncPayload {
+  route: WatchRoutePayload;
+  updatedAt: number;
+}
+
+/**
+ * What the watch's route library holds (`routeLibrary`): each stored route
+ * with the `updatedAt` it was stored at, the ids it turned away (`full` when
+ * the library is at `capacity`, `storage` when the file could not be written)
+ * and the cap.
+ */
+export interface WatchRouteLibraryPayload {
+  routes: { id: string; updatedAt: number }[];
+  rejected: { id: string; reason: string }[];
+  capacity: number;
+  /** Epoch ms on the watch when it was sent; a stale queued copy is ignored. */
+  sentAt: number;
+}
+
 /** Asks the watch to start recording a walk or run itself. */
 export interface WatchRunStartPayload {
   requestId: string;
@@ -846,6 +945,8 @@ export interface WatchRunStartPayload {
     doneText?: string;
     steps: WatchRunStartPlanStep[];
   };
+  /** An outdoor run only: a saved route to follow. Rides this one request, so it reaches the watch exactly when the run does. */
+  route?: WatchRoutePayload;
 }
 
 export type WatchRunControlAction =
@@ -885,6 +986,7 @@ export type WatchConnectivityEvents = {
   onHeartRateBatch: (payload: WatchHeartRateBatchPayload) => void;
   onLiveHeartRate: (payload: WatchLiveHeartRatePayload) => void;
   onWorkoutStop: (payload: WatchWorkoutStopPayload) => void;
+  onWorkoutEffort: (payload: WatchWorkoutEffortPayload) => void;
   onWorkoutDiscard: (payload: WatchWorkoutDiscardPayload) => void;
   onWorkoutStartRequested: (payload: WatchWorkoutStartRequestedPayload) => void;
   onWorkoutEdit: (payload: WatchWorkoutEditPayload) => void;
@@ -896,6 +998,8 @@ export type WatchConnectivityEvents = {
   onRunLive: (payload: WatchRunLivePayload) => void;
   onRunCue: (payload: WatchRunCuePayload) => void;
   onRunFinished: (payload: WatchRunFinishedPayload) => void;
+  onRunEffort: (payload: WatchRunEffortPayload) => void;
+  onRouteLibrary: (payload: WatchRouteLibraryPayload) => void;
 };
 
 declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivityEvents> {
@@ -915,6 +1019,14 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
   startWorkout(plan: WatchWorkoutStartPayload): Promise<void>;
   /** Starts a walk or run on the watch and opens its app. */
   startRun(request: WatchRunStartPayload): Promise<void>;
+  /**
+   * Puts a route in the watch's library (queued, delivered once). The watch
+   * answers with `onRouteLibrary`, which is how the caller learns it arrived
+   * or that the library was full.
+   */
+  sendRoute(sync: WatchRouteSyncPayload): Promise<void>;
+  /** Takes a route out of the watch's library (queued). */
+  removeRoute(routeId: string): Promise<void>;
   /** Pause, resume, lap, finish or discard for the run on the watch, or a switch change (`autoPauseOn`/`Off`, `voiceCuesOn`/`Off`, `paceAlertOn`/`Off`, `heartRateAlertOn`/`Off`). */
   sendRunControl(control: WatchRunControlPayload): Promise<void>;
   /** Tells the watch the phone is saying cue `id`, so it stays quiet. */
@@ -1007,6 +1119,11 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    * `ackWatchRuns` says the phone has stored them.
    */
   pendingWatchRuns(): Promise<WatchRunFinishedPayload[]>;
+  /**
+   * The newest `routeLibrary` report received this launch, or null. For a
+   * report that arrived before `onRouteLibrary` had a listener. iOS only.
+   */
+  latestRouteLibrary?(): Promise<WatchRouteLibraryPayload | null>;
   ackWatchRuns(clientIds: string[]): Promise<void>;
   /**
    * Server config that owns batches received after this call. Persisted
@@ -1020,13 +1137,15 @@ declare class WatchConnectivityModuleType extends NativeModule<WatchConnectivity
    * malformed) since the last call. Resets to zero.
    */
   takeDroppedHeartRateBatchCount(): Promise<number>;
+  setServerCredentials?(
+    baseUrl: string,
+    headers: Record<string, string>
+  ): Promise<void>;
+  clearServerCredentials?(): Promise<void>;
 }
 
-// iOS-only: WatchConnectivity has no Android equivalent, so this resolves to
-// null there and every caller must guard on it. Prefer the guarded hook in
-// src/hooks/useWatchCheckInBridge.ts over importing this module directly.
 const WatchConnectivityModule: WatchConnectivityModuleType | null =
-  Platform.OS === 'ios'
+  Platform.OS === 'ios' || Platform.OS === 'android'
     ? requireOptionalNativeModule<WatchConnectivityModuleType>(
         'WatchConnectivity'
       )

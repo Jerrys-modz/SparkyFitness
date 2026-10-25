@@ -14,6 +14,7 @@ import { withOpenFoodFactsProductReadPermit } from '../services/openFoodFactsPro
 vi.mock('../integrations/openfoodfacts/openFoodFactsAuth.js', () => ({
   resolveOpenFoodFactsProvider: vi.fn(),
   invalidateOpenFoodFactsSession: vi.fn(),
+  resolveOffFetch: vi.fn(async () => fetch),
   DEFAULT_OFF_BASE_URL: 'https://world.openfoodfacts.org',
 }));
 vi.mock('../services/openFoodFactsProductReadRateLimitService.js', () => ({
@@ -1277,12 +1278,17 @@ describe('openFoodFactsService', () => {
       fetch.mockResolvedValueOnce({
         ok: false,
         status: 429,
-        text: () => Promise.resolve('rate limited'),
+        text: () => Promise.resolve('SINK-DETAIL-MARKER'),
       });
 
-      await expect(
-        searchOpenFoodFactsByBarcodeFields('12345678')
-      ).rejects.toThrow('OpenFoodFacts API error');
+      let errorThrown: Error | null = null;
+      try {
+        await searchOpenFoodFactsByBarcodeFields('12345678');
+      } catch (err) {
+        errorThrown = err as Error;
+      }
+      expect(errorThrown?.message).toBe('OpenFoodFacts API error (HTTP 429)');
+      expect(errorThrown?.message).not.toContain('SINK-DETAIL-MARKER');
       expect(fetch).toHaveBeenCalledTimes(1);
     });
   });

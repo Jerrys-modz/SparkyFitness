@@ -20,6 +20,7 @@ import { fileURLToPath } from 'url';
 import { resolveExerciseIdToUuid } from '../utils/uuidUtils.js';
 import { normalizeToStringArray } from '../utils/exerciseJsonFields.js';
 import { resolveTemplateStartDay } from '../utils/timezoneLoader.js';
+import { editedSyncFields } from '../utils/manualFields.js';
 import {
   deriveExerciseModality,
   canEditGroupedWorkout,
@@ -504,6 +505,13 @@ async function updateExerciseEntry(
     if (!existingEntry) {
       throw new Error('Exercise entry not found.');
     }
+    // A synced entry remembers which fields this edit changed, so the same
+    // workout sent again by the provider does not overwrite them. Taken from
+    // the request as sent, before the defaults and the calorie estimate below
+    // fill in the rest.
+    const manualFields = existingEntry.source_id
+      ? editedSyncFields(updateData, existingEntry)
+      : [];
     // If a new image is being uploaded or the image is being cleared, delete the old one
     if (
       (updateData.image_url || updateData.image_url === null) &&
@@ -519,14 +527,20 @@ async function updateExerciseEntry(
       }
     }
     // If calories_burned is not provided, calculate it using the calorieCalculationService
+    // An edit that changes the sets usually omits exercise_id (the entry keeps
+    // its library link), so fall back to the stored one or adding a set never
+    // re-estimates. A partial update without sets keeps its stored calories.
+    const estimateExerciseId =
+      updateData.exercise_id ??
+      (updateData.sets ? existingEntry.exercise_id : undefined);
     if (
-      updateData.exercise_id &&
+      estimateExerciseId &&
       updateData.duration_minutes !== null &&
       updateData.duration_minutes !== undefined &&
       updateData.calories_burned === undefined
     ) {
       const exercise = await exerciseDb.getExerciseById(
-        updateData.exercise_id,
+        estimateExerciseId,
         authenticatedUserId
       );
       let estimated = existingEntry.calories_burned ?? 0;
@@ -541,7 +555,7 @@ async function updateExerciseEntry(
       } else {
         log(
           'warn',
-          `Exercise ${updateData.exercise_id} not found. Cannot auto-calculate calories_burned.`
+          `Exercise ${estimateExerciseId} not found. Cannot auto-calculate calories_burned.`
         );
       }
       // A watch-measured figure (active_calories) beats the formula, same
@@ -596,7 +610,8 @@ async function updateExerciseEntry(
           updateData.entry_time === undefined
             ? (existingEntry.entry_time ?? null)
             : updateData.entry_time,
-      }
+      },
+      manualFields
     );
     if (!updatedEntry) {
       throw new Error('Exercise entry not found or not authorized to update.');
@@ -2455,17 +2470,32 @@ async function getActivityDetailsByExerciseEntryIdAndProvider(
           );
       }
     }
+    const normalize = (p: unknown) =>
+      typeof p === 'string' ? p.trim().toLowerCase() : '';
+    const req = normalize(providerName);
+    const matchesProvider = (stored: unknown) => {
+      const s = normalize(stored);
+      if (s === req) return true;
+      if (
+        (s === 'garmin' || s === 'garmin_fit') &&
+        (req === 'garmin' || req === 'garmin_fit')
+      ) {
+        return true;
+      }
+      return false;
+    };
+
     // Find the full_activity_data and full_workout_data for the given provider
     const activityData = activityDetails.find(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (detail: any) =>
-        detail.provider_name === providerName &&
+        matchesProvider(detail.provider_name) &&
         detail.detail_type === 'full_activity_data'
     );
     const workoutData = activityDetails.find(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (detail: any) =>
-        detail.provider_name === providerName &&
+        matchesProvider(detail.provider_name) &&
         detail.detail_type === 'full_workout_data'
     );
     // Return a composite object containing both, if they exist
