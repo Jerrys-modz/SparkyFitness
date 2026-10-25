@@ -22,7 +22,7 @@ const PLATE_HEIGHT_MIN = 16;
 const PLATE_HEIGHT_MAX = 30;
 
 /** One side of the bar: the bar stub, then the plates from heaviest outwards. */
-const Side: React.FC<{ load: PlateLoad; barWeight: number }> = ({
+export const PlateSide: React.FC<{ load: PlateLoad; barWeight: number }> = ({
   load,
   barWeight,
 }) => {
@@ -98,7 +98,7 @@ export default function PlateBarGraphic({
           unit: inventory.unit,
         })}
       >
-        <Side load={result.load} barWeight={result.barWeight} />
+        <PlateSide load={result.load} barWeight={result.barWeight} />
       </View>
     );
   }

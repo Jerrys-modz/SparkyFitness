@@ -42,9 +42,8 @@ beforeEach(() => {
 describe('PlateCalculatorSheet', () => {
   it('shows the plates for each side of the bar', () => {
     renderSheet();
-    expect(screen.getByText('Target 100 kg')).toBeTruthy();
-    expect(screen.getByText('1 × 25 kg')).toBeTruthy();
-    expect(screen.getByText('1 × 15 kg')).toBeTruthy();
+    expect(screen.getByText('Target weight: 100 kg')).toBeTruthy();
+    expect(screen.getByLabelText('40 kg per side on a 20 kg bar')).toBeTruthy();
     expect(screen.getByText('40 kg per side · 100 kg total')).toBeTruthy();
   });
 
@@ -57,8 +56,8 @@ describe('PlateCalculatorSheet', () => {
     expect(
       screen.getByText('Your plates cannot make exactly 70 kg.')
     ).toBeTruthy();
-    expect(screen.getByText('Nearest below: 60 kg')).toBeTruthy();
-    expect(screen.getByText('10 kg short of the target')).toBeTruthy();
+    expect(screen.getByText(/Nearest below: 60 kg/)).toBeTruthy();
+    expect(screen.getByText(/10 kg short of the target/)).toBeTruthy();
     expect(
       screen.getByText('The target is heavier than your plates can load.')
     ).toBeTruthy();
@@ -66,13 +65,12 @@ describe('PlateCalculatorSheet', () => {
 
   it('switches bars', () => {
     renderSheet({ targetWeight: 95 });
-    // 20 kg bar: 37.5 per side is 25 + 10 + 2.5.
-    expect(screen.getByText('1 × 10 kg')).toBeTruthy();
-    expect(screen.getByText('1 × 2.5 kg')).toBeTruthy();
-    // Women's 15 kg bar: 40 per side is 25 + 15.
+    // 20 kg bar: 37.5 per side. Women's 15 kg bar: 40 per side.
+    expect(
+      screen.getByLabelText('37.5 kg per side on a 20 kg bar')
+    ).toBeTruthy();
     fireEvent.press(screen.getByText(/Women's bar/));
-    expect(screen.getByText('1 × 15 kg')).toBeTruthy();
-    expect(screen.queryByText('1 × 2.5 kg')).toBeNull();
+    expect(screen.getByLabelText('40 kg per side on a 15 kg bar')).toBeTruthy();
   });
 
   it('asks for a weight when the set has none', () => {
@@ -84,13 +82,23 @@ describe('PlateCalculatorSheet', () => {
   it('works in pounds', () => {
     mockInventory(presetInventory('lbs'));
     renderSheet({ targetWeight: 225, weightUnit: 'lbs' });
-    expect(screen.getByText('2 × 45 lbs')).toBeTruthy();
+    expect(
+      screen.getByLabelText('90 lbs per side on a 45 lbs bar')
+    ).toBeTruthy();
   });
 
-  it('closes', () => {
+  it('lists the plates and bars that are owned', () => {
+    renderSheet();
+    expect(screen.getByText('Plates (kg)')).toBeTruthy();
+    expect(screen.getByText('Bar (kg)')).toBeTruthy();
+    expect(screen.getByText('Manage')).toBeTruthy();
+    expect(screen.getByText(/Barbell \(20 kg\)/)).toBeTruthy();
+  });
+
+  it('closes from the backdrop', () => {
     const onClose = jest.fn();
     renderSheet({ onClose });
-    fireEvent.press(screen.getByText('Close'));
+    fireEvent.press(screen.getByLabelText('Close plate calculator'));
     expect(onClose).toHaveBeenCalled();
   });
 });

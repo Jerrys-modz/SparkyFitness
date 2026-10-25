@@ -631,6 +631,28 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     focusedSetKey != null
   );
 
+  // The set the plate calculator is open for (its weight is kg, as stored).
+  const [plateCalc, setPlateCalc] = useState<{
+    weightKg: number | null;
+    equipment: readonly string[] | null;
+  } | null>(null);
+  const openPlateCalculator = useCallback(
+    (setId: string) => {
+      const ex = session?.exercises.find((e) =>
+        e.sets.some((s) => String(s.id) === setId)
+      );
+      const equipment = ex?.exercise_snapshot?.equipment ?? null;
+      if (!ex || !usesBarbell(equipment)) return;
+      const set = ex.sets.find((s) => String(s.id) === setId);
+      const weightKg = Number(set?.weight ?? plannedSetValues[setId]?.weight);
+      setPlateCalc({
+        weightKg: Number.isFinite(weightKg) && weightKg > 0 ? weightKg : null,
+        equipment,
+      });
+    },
+    [session, plannedSetValues]
+  );
+
   const handleAccessoryDone = useCallback(() => {
     setFocusedSetKey(null);
     Keyboard.dismiss();
@@ -662,7 +684,28 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
           ? ('rpe' as const)
           : null;
     const focusedSetCompleted = completedSetIds[focusedSetId] != null;
+    const focusedExercise = session.exercises.find((e) =>
+      e.sets.some((s) => String(s.id) === focusedSetId)
+    );
+    const showCalculator =
+      focusedField === 'weight' &&
+      usesBarbell(focusedExercise?.exercise_snapshot?.equipment);
     return [
+      ...(showCalculator
+        ? [
+            {
+              key: 'plate-calculator',
+              label: t('plates.calculatorShort', {
+                defaultValue: 'Calculator',
+              }),
+              onPress: () => {
+                setFocusedSetKey(null);
+                Keyboard.dismiss();
+                openPlateCalculator(focusedSetId);
+              },
+            },
+          ]
+        : []),
       ...(nextField != null
         ? [
             {
@@ -705,6 +748,8 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     setRenderKeys,
     completedSetIds,
     metricColumn,
+    openPlateCalculator,
+    setFocusedSetKey,
     t,
   ]);
 
@@ -813,11 +858,6 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     },
     []
   );
-  // The set the plate calculator is open for (its weight is kg, as stored).
-  const [plateCalc, setPlateCalc] = useState<{
-    weightKg: number | null;
-    equipment: readonly string[] | null;
-  } | null>(null);
   const setTypeCurrent = useMemo(() => {
     if (setTypeMenu == null || session == null) return null;
     for (const exercise of session.exercises) {

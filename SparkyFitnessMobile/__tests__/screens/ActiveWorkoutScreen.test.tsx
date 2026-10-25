@@ -127,6 +127,13 @@ jest.mock('../../src/components/ActiveWorkoutExerciseCard', () => {
           return (
             <React.Fragment key={key}>
               <Pressable
+                testID={`focus-weight-${key}`}
+                onPress={() => {
+                  registerHandle();
+                  props.onActivateSet?.(key, 'weight');
+                }}
+              />
+              <Pressable
                 testID={`focus-rpe-${key}`}
                 onPress={() => {
                   registerHandle();
@@ -151,6 +158,16 @@ jest.mock('../../src/components/ActiveWorkoutExerciseCard', () => {
           );
         })}
       </View>
+    ),
+  };
+});
+
+jest.mock('../../src/components/PlateCalculatorSheet', () => {
+  const { Text } = require('react-native');
+  return {
+    __esModule: true,
+    default: (props: { targetWeight: number | null }) => (
+      <Text testID="plate-sheet">{`plates:${props.targetWeight}`}</Text>
     ),
   };
 });
@@ -573,6 +590,25 @@ describe('ActiveWorkoutScreen keyboard accessory bar', () => {
     expect(queryByText('Next Set')).toBeNull();
     fireEvent.press(getByText('Log'));
     expect(mockAccessoryHandles['102'].log).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers the plate calculator on a barbell weight field and opens it for that set', () => {
+    __resetActiveWorkoutStoreForTests();
+    const session = makeSession();
+    session.exercises[0].exercise_snapshot.equipment = ['barbell'];
+    useActiveWorkoutStore.getState().startWorkout(session);
+    const { getByTestId, getByText, queryByTestId } = renderScreen();
+
+    fireEvent.press(getByTestId('focus-weight-102'));
+    expect(queryByTestId('plate-sheet')).toBeNull();
+    fireEvent.press(getByText('Calculator'));
+    expect(getByTestId('plate-sheet')).toBeTruthy();
+  });
+
+  it('has no plate calculator for other exercises or other fields', () => {
+    const { getByTestId, queryByText } = renderScreen();
+    fireEvent.press(getByTestId('focus-weight-102'));
+    expect(queryByText('Calculator')).toBeNull();
   });
 
   const startWithCardio = (completed: boolean) => {

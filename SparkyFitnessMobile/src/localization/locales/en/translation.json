@@ -8860,13 +8860,8 @@
     "title": "Plates & bars",
     "calculatorTitle": "Plate calculator",
     "dismiss": "Close plate calculator",
-    "target": "Target {{weight}} {{unit}}",
     "enterWeight": "Enter a weight for the set first.",
-    "bar": "Bar",
-    "barWeight": "Bar {{weight}} {{unit}}",
     "collarsWeight": "collars {{weight}} {{unit}}",
-    "noPlates": "No plates, the bar alone.",
-    "perSide": "Plates on each side",
     "loadSummary": "{{perSide}} {{unit}} per side · {{total}} {{unit}} total",
     "cannotLoad": "Your plates cannot make exactly {{weight}} {{unit}}.",
     "nearestBelow": "Nearest below: {{weight}} {{unit}}",
@@ -8915,6 +8910,12 @@
     "graphicLabel": "{{perSide}} {{unit}} per side on a {{bar}} {{unit}} bar",
     "graphicNotExact": "Your plates cannot make exactly {{weight}} {{unit}}.",
     "graphicNearest": "Plates: nearest {{weight}} {{unit}}",
-    "graphicBelowBar": "Plates: lighter than the bar"
+    "graphicBelowBar": "Plates: lighter than the bar",
+    "targetWeight": "Target weight: {{weight}} {{unit}}",
+    "availableEquipment": "Available equipment",
+    "manage": "Manage",
+    "platesUnit": "Plates ({{unit}})",
+    "barUnit": "Bar ({{unit}})",
+    "calculatorShort": "Calculator"
   }
 }
