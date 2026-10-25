@@ -12,10 +12,14 @@ export function saltGramsToSodiumMg(
   return Math.round(saltGrams * SODIUM_MG_PER_GRAM_OF_SALT * 10) / 10;
 }
 
-/** 40 mg of sodium -> 0.1 g of salt. Rounded to 0.001 g. */
+/**
+ * 40 mg of sodium -> 0.1 g of salt. Rounded to 0.01 g, the precision the salt
+ * field displays, so an untouched field hands the same number back and does
+ * not nudge the stored sodium on blur.
+ */
 export function sodiumMgToSaltGrams(
   sodiumMg: number | undefined
 ): number | undefined {
   if (sodiumMg === undefined) return undefined;
-  return Math.round((sodiumMg / SODIUM_MG_PER_GRAM_OF_SALT) * 1000) / 1000;
+  return Math.round((sodiumMg / SODIUM_MG_PER_GRAM_OF_SALT) * 100) / 100;
 }

@@ -12,10 +12,10 @@ describe('saltSodium', () => {
     expect(saltGramsToSodiumMg(0.123)).toBe(49.2);
   });
 
-  it('converts sodium (mg) back to salt (g)', () => {
+  it('converts sodium (mg) back to salt (g) at the 0.01 g the field shows', () => {
     expect(sodiumMgToSaltGrams(40)).toBe(0.1);
     expect(sodiumMgToSaltGrams(400)).toBe(1);
-    expect(sodiumMgToSaltGrams(123)).toBe(0.308);
+    expect(sodiumMgToSaltGrams(123)).toBe(0.31);
   });
 
   it('round-trips a label value', () => {

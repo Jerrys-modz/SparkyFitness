@@ -101,6 +101,29 @@ describe('NutrientGrid sodium entry unit', () => {
     expect(onUpdate).toHaveBeenCalledWith(0, 'sodium', 360);
   });
 
+  it('focusing and leaving an untouched salt field does not change sodium', () => {
+    const onUpdate = jest.fn();
+    render(
+      <NutrientGrid
+        variantIndex={0}
+        variant={{ ...variant, sodium: 123 } as unknown as FormFoodVariant}
+        visibleNutrients={['sodium']}
+        energyUnit="kcal"
+        convertEnergy={(value) => value}
+        onUpdate={onUpdate}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('select-unit-salt_g'));
+    const input = screen.getByLabelText('Salt (g)') as HTMLInputElement;
+    expect(input.value).toBe('0.31');
+
+    fireEvent.focus(input);
+    fireEvent.blur(input);
+
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
   it('clearing the salt field clears sodium', () => {
     const onUpdate = renderGrid();
 
