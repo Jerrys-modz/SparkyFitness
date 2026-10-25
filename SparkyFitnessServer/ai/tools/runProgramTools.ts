@@ -115,12 +115,28 @@ const clock = (totalSeconds: number): string => {
   return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
 };
 
+// result_value is calculated after any incline adjustment, so the measured
+// numbers come from duration_seconds and distance_meters and the adjusted
+// equivalent is labelled as such.
 function describeTestResult(test: FitnessTestResponse): string {
-  if (test.test_type === '5k') return `5K in ${clock(test.result_value)}`;
-  if (test.test_type === 'cooper') {
-    return `${Math.round(test.result_value)} m in 12 minutes`;
+  const adjusted = test.incline_percent !== null && test.incline_adjusted;
+  if (test.test_type === '5k') {
+    const measured = `5K in ${clock(test.duration_seconds)}`;
+    return adjusted
+      ? `${measured} (incline-adjusted equivalent ${clock(test.result_value)})`
+      : measured;
   }
-  return `${clock(test.result_value)}/km over the last 20 minutes`;
+  if (test.test_type === 'cooper') {
+    const measured = `${Math.round(test.distance_meters)} m in 12 minutes`;
+    return adjusted
+      ? `${measured} (incline-adjusted equivalent ${Math.round(test.result_value)} m)`
+      : measured;
+  }
+  const split = test.split_distance_meters;
+  const lastTwenty = `${clock(test.result_value)}/km over the last 20 minutes`;
+  if (!adjusted || split === null) return lastTwenty;
+  const measuredPace = (20 * 60) / ((test.distance_meters - split) / 1000);
+  return `${clock(measuredPace)}/km over the last 20 minutes (incline-adjusted equivalent ${clock(test.result_value)}/km)`;
 }
 
 function describeSurface(test: FitnessTestResponse): string {

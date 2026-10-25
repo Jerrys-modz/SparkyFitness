@@ -903,6 +903,10 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
                 // The screen stays mounted. A distance typed for this session
                 // must not be offered as the next one's estimate.
                 setIndoorDistanceText(null);
+                setTestTimeText(null);
+                setTestSplitText('');
+                setInclineText('1');
+                setAdjustForIncline(true);
               },
               t('recordActivity.errors.discard', {
                 defaultValue: 'Could not discard recording',
@@ -914,9 +918,13 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [run, t]);
 
   const indoorEstimate = useIndoorDistanceEstimate(session);
-  const estimateText = indoorEstimate
-    ? ((indoorEstimate.distanceKm * METERS_PER_KM) / unitMeters).toFixed(2)
-    : '';
+  // The estimate counts steps through finishedAt, cooldown included, so a
+  // timed test (Cooper, 30-minute) would be prefilled with too long a distance.
+  const timedTest = testType === 'cooper' || testType === '30min';
+  const estimateText =
+    indoorEstimate && !timedTest
+      ? ((indoorEstimate.distanceKm * METERS_PER_KM) / unitMeters).toFixed(2)
+      : '';
   const shownDistanceText = indoorDistanceText ?? estimateText;
   const indoorDistance =
     shownDistanceText.trim() === ''
