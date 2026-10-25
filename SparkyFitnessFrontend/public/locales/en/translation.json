@@ -1032,6 +1032,7 @@
       "nameLabel": "Name",
       "categoryLabel": "Category",
       "modalityLabel": "Tracking type",
+      "loadConventionLabel": "Volume counting",
       "selectCategoryPlaceholder": "Select a category",
       "categoryGeneral": "General",
       "categoryStrength": "Strength",
@@ -1073,6 +1074,14 @@
       "replaceTitle": "Replace Exercise",
       "replaceSuccess": "Exercise replaced",
       "suggestedTab": "Suggested"
+    },
+    "loadConvention": {
+      "total": "Total load",
+      "perHand": "Weight per hand",
+      "perSide": "Reps per side",
+      "totalHint": "The logged weight is the whole load.",
+      "perHandHint": "The logged weight is one dumbbell, so volume counts it twice.",
+      "perSideHint": "Reps are for each side. A set with no side counts both sides."
     },
     "modality": {
       "weightReps": "Weight & Reps",

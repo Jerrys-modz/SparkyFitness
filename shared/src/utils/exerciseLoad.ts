@@ -1,5 +1,7 @@
 import {
   isBodyweightModality,
+  isExerciseLoadConvention,
+  type ExerciseLoadConvention,
   type ExerciseModality,
 } from '../constants/exercise.ts';
 
@@ -29,15 +31,41 @@ export function effectiveLoadKg(
   return Math.max(0, body > 0 ? body + weight : weight);
 }
 
-/** Weight × reps for one set, with a bodyweight exercise's load as above. */
+/**
+ * How many times a set's weight × reps counts toward volume under an
+ * exercise's load convention (see `EXERCISE_LOAD_CONVENTIONS`). `side` is the
+ * set's side, null for both. An unknown or missing convention counts once.
+ * The server SQL (`setVolumeSql`) mirrors this exactly.
+ */
+export function volumeMultiplier(
+  convention: ExerciseLoadConvention | string | null | undefined,
+  side: 'left' | 'right' | null | undefined
+): number {
+  if (!isExerciseLoadConvention(convention)) return 1;
+  if (convention === 'per_hand') return 2;
+  if (convention === 'per_side') return side ? 1 : 2;
+  return 1;
+}
+
+/**
+ * Weight × reps for one set, with a bodyweight exercise's load as above and
+ * the exercise's load convention applied. Estimated 1RM and PRs do not use
+ * the convention, only volume does.
+ */
 export function setVolumeKg(
-  set: { weight?: number | null; reps?: number | null },
+  set: {
+    weight?: number | null;
+    reps?: number | null;
+    side?: 'left' | 'right' | null;
+  },
   modality: ExerciseModality,
-  bodyWeightKg: number | null | undefined
+  bodyWeightKg: number | null | undefined,
+  convention?: ExerciseLoadConvention | string | null
 ): number {
   return (
     effectiveLoadKg(set.weight, modality, bodyWeightKg) *
-    (Number(set.reps) || 0)
+    (Number(set.reps) || 0) *
+    volumeMultiplier(convention, set.side)
   );
 }
 

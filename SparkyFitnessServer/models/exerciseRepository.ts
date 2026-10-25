@@ -48,7 +48,8 @@ async function updateExerciseEntriesSnapshot(
        SET
           exercise_name = $1,
           calories_per_hour = $2,
-          modality = $3
+          modality = $3,
+          load_convention = COALESCE($6, load_convention)
        WHERE user_id = $4 AND exercise_id = $5
        RETURNING id`,
       [
@@ -57,6 +58,7 @@ async function updateExerciseEntriesSnapshot(
         newSnapshotData.modality,
         userId,
         exerciseId,
+        newSnapshotData.load_convention ?? null,
       ]
     );
     return result.rowCount;

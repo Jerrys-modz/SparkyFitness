@@ -6,6 +6,7 @@ import { useCreateExerciseMutation } from '@/hooks/Exercises/useExercises';
 import type { Exercise } from '@/types/exercises';
 import {
   deriveExerciseModality,
+  type ExerciseLoadConvention,
   type ExerciseModality,
 } from '@workspace/shared';
 
@@ -26,6 +27,8 @@ export function useAddCustomExerciseForm(
   const [pinnedModality, setPinnedModality] = useState<ExerciseModality | null>(
     null
   );
+  const [newExerciseLoadConvention, setNewExerciseLoadConvention] =
+    useState<ExerciseLoadConvention>('total');
   const [newExerciseCalories, setNewExerciseCalories] = useState(300);
   const [manualCaloriesPerHour, setManualCaloriesPerHour] = useState<
     number | undefined
@@ -60,6 +63,7 @@ export function useAddCustomExerciseForm(
     setNewExerciseName('');
     setNewExerciseCategory('general');
     setPinnedModality(null);
+    setNewExerciseLoadConvention('total');
     setNewExerciseCalories(300);
     setManualCaloriesPerHour(undefined);
     setNewExerciseDescription('');
@@ -82,6 +86,7 @@ export function useAddCustomExerciseForm(
         name: newExerciseName,
         category: newExerciseCategory,
         modality: newExerciseModality,
+        load_convention: newExerciseLoadConvention,
         calories_per_hour:
           manualCaloriesPerHour !== undefined
             ? manualCaloriesPerHour
@@ -189,6 +194,8 @@ export function useAddCustomExerciseForm(
     setNewExerciseCategory,
     newExerciseModality,
     setNewExerciseModality: setPinnedModality,
+    newExerciseLoadConvention,
+    setNewExerciseLoadConvention,
     newExerciseCalories,
     manualCaloriesPerHour,
     setManualCaloriesPerHour,

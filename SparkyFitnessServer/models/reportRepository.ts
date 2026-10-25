@@ -588,11 +588,12 @@ async function getExerciseEntries(
          ee.force AS exercise_force,
          ee.mechanic AS exercise_mechanic,
          ee.modality AS exercise_modality,
+         ee.load_convention AS exercise_load_convention,
          COALESCE(epe.workout_format, 'standard') AS workout_format,
          COALESCE(
            (SELECT json_agg(set_data ORDER BY set_data.set_number)
             FROM (
-              SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.distance, ees.rpe, ees.rir
+              SELECT ees.id, ees.set_number, ees.set_type, ees.reps, ees.weight, ees.duration, ees.rest_time, ees.notes, ees.distance, ees.rpe, ees.rir, ees.side
               FROM exercise_entry_sets ees
               WHERE ees.exercise_entry_id = ee.id
             ) AS set_data

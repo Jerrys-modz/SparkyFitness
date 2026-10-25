@@ -1,5 +1,6 @@
 import {
   compareByEntryTime,
+  DEFAULT_EXERCISE_LOAD_CONVENTION,
   earliestEntryTime,
   type ExerciseEntryHrZonesInitializer,
 } from '@workspace/shared';
@@ -809,6 +810,7 @@ async function _updateExerciseEntryWithClient(
     mergedData.calories_per_hour = exercise.calories_per_hour;
     mergedData.category = exercise.category;
     mergedData.modality = exercise.modality;
+    mergedData.load_convention = exercise.load_convention;
     mergedData.source_id = exercise.source_id;
     mergedData.force = exercise.force;
     mergedData.level = exercise.level;
@@ -934,6 +936,14 @@ async function _updateExerciseEntryWithClient(
       return null;
     }
     throw new Error('Exercise entry not found for update.');
+  }
+  // The load convention is part of the exercise snapshot; it changes only when
+  // the entry is pointed at another exercise.
+  if (mergedData.load_convention) {
+    await client.query(
+      'UPDATE exercise_entries SET load_convention = $1 WHERE id = $2 AND user_id = $3',
+      [mergedData.load_convention, id, userId]
+    );
   }
   // Handle sets update
   if (updateData.sets !== undefined) {
@@ -1131,7 +1141,7 @@ async function _createExerciseEntryWithClient(
       // No existing entry, create a new one
       // 1. Fetch the exercise details to create the snapshot
       const exerciseSnapshotQuery = await client.query(
-        `SELECT name, calories_per_hour, category, source, source_id, force, level, mechanic, equipment, primary_muscles, secondary_muscles, instructions, images, modality
+        `SELECT name, calories_per_hour, category, source, source_id, force, level, mechanic, equipment, primary_muscles, secondary_muscles, instructions, images, modality, load_convention
          FROM exercises WHERE id = $1`,
         [entryData.exercise_id]
       );
@@ -1177,6 +1187,7 @@ async function _createExerciseEntryWithClient(
         entryData.superset_group ?? null,
         entryData.entry_time ?? null,
         snapshot.modality,
+        snapshot.load_convention ?? DEFAULT_EXERCISE_LOAD_CONVENTION,
         ...telemetryValuesFrom(entryData),
         entryData.record_timezone ?? null,
       ];
@@ -1189,7 +1200,7 @@ async function _createExerciseEntryWithClient(
         'exercise_name, calories_per_hour, category, source, source_id, force, level, mechanic, ' +
         'equipment, primary_muscles, secondary_muscles, instructions, images, ' +
         'distance, avg_heart_rate, exercise_preset_entry_id, sort_order, steps, water_estimated, ' +
-        'superset_group, entry_time, modality';
+        'superset_group, entry_time, modality, load_convention';
       const allColumns = `${baseColumns}, ${EXERCISE_ENTRY_TELEMETRY_COLUMNS.join(', ')}, record_timezone${idColumn}`;
       const placeholders = entryValues
         .map((_, index) => `$${index + 1}`)
@@ -1675,6 +1686,7 @@ async function getExerciseEntriesByDate(userId: any, selectedDate: any) {
           exercise_name,
           category,
           modality,
+          load_convention,
           calories_per_hour,
           source,
           source_id,
@@ -1699,6 +1711,7 @@ async function getExerciseEntriesByDate(userId: any, selectedDate: any) {
             name: exercise_name,
             category: category,
             modality: modality,
+            load_convention: load_convention,
             calories_per_hour: calories_per_hour,
             source: source,
             source_id: source_id,
@@ -1812,6 +1825,7 @@ async function getExerciseProgressData(
          epe.name AS exercise_preset_entry_name,
          e.category,
          ee.modality,
+         ee.load_convention,
          -- Body weight that day, for a bodyweight exercise's load
          -- (effectiveLoadKg in @workspace/shared).
          bw.weight::float8 AS body_weight_kg,
