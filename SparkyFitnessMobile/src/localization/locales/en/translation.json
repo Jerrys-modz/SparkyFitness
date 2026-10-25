@@ -2243,6 +2243,12 @@
     "categoryStretching": "Stretching",
     "categoryIsometric": "Isometric",
     "trackingType": "Tracking Type",
+    "loadConvention": {
+      "label": "Volume counting",
+      "total": "Total load",
+      "per_hand": "Weight per hand",
+      "per_side": "Reps per side"
+    },
     "modalityWeightReps": "Weight & Reps",
     "modalityReps": "Reps",
     "modalityBodyweight": "Bodyweight (+/− weight)",
