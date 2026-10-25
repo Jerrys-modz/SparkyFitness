@@ -1014,6 +1014,9 @@ describe('exerciseStatsService', () => {
 
       expect(res.courses[0].bestTimeSeconds).toBe(38 * 60);
       expect(res.courses[0].bestPaceFormatted).toBe('4:45 /km');
+      // The distance shown is the one the time is for, not the SQL average.
+      expect(res.courses[0].totalDistanceMeters).toBe(8000);
+      expect(res.courses[0].avgDistanceFormatted).toBe(8);
     });
 
     it('finds the best time across more than the five most recent runs', async () => {

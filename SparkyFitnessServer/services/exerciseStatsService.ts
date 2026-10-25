@@ -10,6 +10,7 @@ import {
 import type {
   ActivitySport,
   GpsTrackPoint,
+  PrSportGroup,
   SportConfidence,
 } from '@workspace/shared';
 import type {
@@ -53,7 +54,10 @@ const UNTRACKED_MAX_RATIO = 1.05;
  * ceilings the mobile recorder rejects glitches with). A straight-line segment
  * faster than this in a stored track is a GPS jump, not movement.
  */
-const MAX_SPEED_MPS: Record<string, number> = {
+/** A sport group that has distance standards (every group but 'other'). */
+type StandardSportGroup = Exclude<PrSportGroup, 'other'>;
+
+const MAX_SPEED_MPS: Record<StandardSportGroup, number> = {
   run: 12,
   walk: 7,
   ride: 30,
@@ -795,7 +799,7 @@ async function getPersonalRecordMatrix(
       row: PrCandidateRow;
       sport: ActivitySport;
       confidence: SportConfidence;
-      sportGroup: ReturnType<typeof toPrSportGroup>;
+      sportGroup: StandardSportGroup;
       distKm: number;
       durSecs: number;
     }[] = [];
@@ -841,8 +845,11 @@ async function getPersonalRecordMatrix(
     for (let i = 0; i < misses.length; i += TRACK_BATCH_SIZE) {
       const batch = misses.slice(i, i + TRACK_BATCH_SIZE);
       const ids = batch.map(({ row }) => String(row.id));
-      const groupById = new Map(
-        batch.map(({ row, sportGroup }) => [String(row.id), sportGroup])
+      const speedCeilingById = new Map(
+        batch.map(({ row, sportGroup }) => [
+          String(row.id),
+          MAX_SPEED_MPS[sportGroup],
+        ])
       );
       const gpsById = new Map<string, SplitSample[]>();
       const seriesById = new Map<string, SplitSample[]>();
@@ -857,7 +864,7 @@ async function getPersonalRecordMatrix(
           const id = String(track.exercise_entry_id);
           const samples = samplesFromGpsPoints(
             track.points as GpsTrackPoint[],
-            MAX_SPEED_MPS[groupById.get(id) ?? 'run']
+            speedCeilingById.get(id)
           );
           if (samples) gpsById.set(id, samples);
         }
@@ -1253,8 +1260,8 @@ async function getMatchedCourses(
           exerciseName: row.exercise_name ? String(row.exercise_name) : null,
           category: row.category ? String(row.category) : null,
         }).sport,
-        totalDistanceMeters: Math.round(avgDistKm * 1000),
-        avgDistanceFormatted: convertDistance(avgDistKm, unitSystem),
+        totalDistanceMeters: Math.round(referenceKm * 1000),
+        avgDistanceFormatted: convertDistance(referenceKm, unitSystem),
         activityCount: parseInt(String(row.activity_count), 10),
         bestTimeSeconds: Math.round(bestPaceSecs * referenceKm),
         bestPaceFormatted: formatPace(bestPaceSecs, unitSystem),
