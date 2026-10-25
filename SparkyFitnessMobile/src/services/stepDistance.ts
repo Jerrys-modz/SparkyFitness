@@ -99,6 +99,37 @@ export async function learnFromIndoorEntry(
 }
 
 /**
+ * Learns from a treadmill run the watch recorded, once the person has entered
+ * what the machine showed. The steps come from Apple Health over the run's
+ * window (the watch writes them there, and the phone can be left on the
+ * treadmill), falling back to the phone's pedometer. A window with too few steps teaches nothing. Asks for
+ * Motion & Fitness only on that fallback, since the person has just acted on
+ * the run. Returns whether a stride was learned.
+ */
+export async function learnFromWatchRun(
+  window: StepWindow,
+  distanceMeters: number
+): Promise<boolean> {
+  if (!isStepActivity(window.activity)) return false;
+  const health = await getHealthStepsBetween(
+    window.startedAt,
+    window.finishedAt
+  );
+  const steps =
+    health != null
+      ? Math.round(
+          health *
+            activeShare(
+              window.activeSeconds,
+              (window.finishedAt - window.startedAt) / 1000
+            )
+        )
+      : await activeSteps(window, true);
+  if (steps == null || steps < MIN_STEPS_FOR_ESTIMATE) return false;
+  return learnStride(window.activity, steps, distanceMeters);
+}
+
+/**
  * Learns from a GPS recording, whose distance is known. Only when Motion &
  * Fitness is already allowed: a prompt out of nowhere while saving a run
  * would be worse than learning nothing.

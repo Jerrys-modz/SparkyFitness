@@ -54,6 +54,9 @@ import IntervalSetup, {
 import RouteMap from '../components/exerciseStats/RouteMap';
 import { useScreenHeader } from '../hooks/useScreenHeader';
 import { useIndoorDistanceEstimate } from '../hooks/useIndoorDistanceEstimate';
+import { useAppPreferencesStore } from '../stores/appPreferencesStore';
+import { correctTreadmillDistance } from '../utils/treadmillCorrection';
+import { formatTreadmillPercent } from '../utils/treadmillCorrectionFormat';
 import { invalidateExerciseCache } from '../hooks/invalidateExerciseCache';
 import { usePreferences } from '../hooks/usePreferences';
 import { useSuggestedRanges } from '../hooks/useSuggestedRanges';
@@ -947,10 +950,35 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
   const indoorDistanceInvalid =
     indoorDistance !== null &&
     (!Number.isFinite(indoorDistance) || indoorDistance < 0);
-  const indoorDistanceKm =
-    indoorDistance !== null && Number.isFinite(indoorDistance)
-      ? (indoorDistance * unitMeters) / METERS_PER_KM
+  const treadmillCorrectionEnabled = useAppPreferencesStore(
+    (s) => s.treadmillCorrectionEnabled
+  );
+  const treadmillCorrectionPercent = useAppPreferencesStore(
+    (s) => s.treadmillCorrectionPercent
+  );
+  // Only a figure the person typed is a treadmill reading; the prefilled
+  // step estimate is already the phone's own measurement, so it is never
+  // corrected. What is saved, and what the stride learns from, is the corrected
+  // figure.
+  const typedIndoorMeters =
+    indoorDistanceText !== null &&
+    indoorDistance !== null &&
+    Number.isFinite(indoorDistance)
+      ? indoorDistance * unitMeters
       : null;
+  const indoorCorrected =
+    typedIndoorMeters !== null
+      ? correctTreadmillDistance(typedIndoorMeters, {
+          enabled: treadmillCorrectionEnabled,
+          percent: treadmillCorrectionPercent,
+        })
+      : null;
+  const indoorDistanceKm =
+    indoorCorrected?.applied === true
+      ? indoorCorrected.correctedMeters / METERS_PER_KM
+      : indoorDistance !== null && Number.isFinite(indoorDistance)
+        ? (indoorDistance * unitMeters) / METERS_PER_KM
+        : null;
 
   // A treadmill test's extra answers, asked after Finish.
   const [testTimeText, setTestTimeText] = useState<string | null>(null);
@@ -2040,6 +2068,24 @@ const RecordActivityScreen: React.FC<Props> = ({ navigation, route }) => {
                 {unitLabel}
               </Text>
             </View>
+            {indoorCorrected?.applied ? (
+              <Text className="text-text-secondary text-sm mt-2">
+                {t('recordActivity.indoorDistance.corrected', {
+                  defaultValue:
+                    'Treadmill showed {{shown}} {{unit}}. Saved as {{saved}} {{unit}} with your {{percent}} treadmill correction.',
+                  shown: formatLocalizedNumber(
+                    indoorCorrected.displayedMeters / unitMeters,
+                    { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                  ),
+                  saved: formatLocalizedNumber(
+                    indoorCorrected.correctedMeters / unitMeters,
+                    { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                  ),
+                  unit: unitLabel,
+                  percent: formatTreadmillPercent(indoorCorrected.percent),
+                })}
+              </Text>
+            ) : null}
             {indoorDistanceInvalid ? (
               <Text className="text-text-danger-subtle text-sm mt-2">
                 {t('recordActivity.indoorDistance.invalid', {
