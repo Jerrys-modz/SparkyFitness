@@ -11,6 +11,7 @@ import {
   Pill,
   HeartPulse,
   FlaskConical,
+  Heart,
   GitCompareArrows,
 } from 'lucide-react';
 
@@ -50,6 +51,11 @@ const ReportsControls = ({
       id: 'lab-results',
       label: t('reports.labResultsTab', 'Lab Results'),
       icon: FlaskConical,
+    },
+    {
+      id: 'heart-rate',
+      label: t('reports.heartRateTab', 'Heart Rate'),
+      icon: Heart,
     },
     {
       id: 'fasting',

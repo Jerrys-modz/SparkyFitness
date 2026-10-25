@@ -401,6 +401,8 @@ interface Props {
   lastAdjustment?: RunProgramAdjustment | null;
   /** Epoch ms "now", from the screen, to judge whether a change is recent. */
   now: number;
+  /** Today in the account timezone, for the race day comparison; defaults to the device day. */
+  accountToday?: string;
   /** The days the workout shows in the Diary, and the first day it does. */
   schedule: RunSchedule;
   onSchedule: (change: ProgramScheduleChange) => void;
@@ -455,6 +457,7 @@ const RunProgramCard: React.FC<Props> = ({
   onChooseProgram,
   lastAdjustment = null,
   now,
+  accountToday,
   schedule,
   onSchedule,
   raceDay = null,
@@ -624,6 +627,8 @@ const RunProgramCard: React.FC<Props> = ({
       })
     : '';
   const today = toLocalDateString(new Date(now));
+  // Goal dates (the race day) are judged in the account timezone.
+  const goalToday = accountToday ?? today;
   const hasStart = !!schedule.startDay;
   const futureStart = hasStart && (schedule.startDay as string) > today;
   const dayLabel = (day: string): string => formatDayLabel(day);
@@ -806,7 +811,7 @@ const RunProgramCard: React.FC<Props> = ({
                     'Optional, for example a race day. The schedule below says whether the program fits before it.',
                 })}
           </Text>
-          <View className="flex-row mt-2">
+          <View className="flex-row flex-wrap mt-2">
             <InlineLink onPress={() => goalCalendarRef.current?.present()}>
               {schedule.endDay
                 ? t('recordActivity.program.goalChange', {
@@ -816,7 +821,10 @@ const RunProgramCard: React.FC<Props> = ({
                     defaultValue: 'Set a goal date',
                   })}
             </InlineLink>
-            {raceDay && raceDay > today && schedule.endDay !== raceDay ? (
+            {raceDay &&
+            raceDay > goalToday &&
+            (!schedule.startDay || raceDay >= schedule.startDay) &&
+            schedule.endDay !== raceDay ? (
               <InlineLink
                 testID="run-program-use-race-day"
                 onPress={() => onSchedule({ endDay: raceDay })}
@@ -903,9 +911,9 @@ const RunProgramCard: React.FC<Props> = ({
       </View>
       <CalendarSheet
         ref={goalCalendarRef}
-        selectedDate={schedule.endDay ?? addDays(today, 28)}
+        selectedDate={schedule.endDay ?? addDays(goalToday, 28)}
         onSelectDate={(day) =>
-          onSchedule({ endDay: day <= today ? null : day })
+          onSchedule({ endDay: day <= goalToday ? null : day })
         }
       />
       <CalendarSheet

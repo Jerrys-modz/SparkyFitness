@@ -21,7 +21,6 @@ jest.mock('../../src/services/routeService', () => ({
         avoidBusyRoads: false,
       },
       stops: false,
-      stopsSource: null,
       source: null,
     },
     isLoading: false,

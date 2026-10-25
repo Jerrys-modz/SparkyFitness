@@ -53,7 +53,10 @@ export async function upsertRunGoals(
     const result = await client.query(
       `INSERT INTO run_goals
          (user_id, weekly_distance_km, race_name, race_date, race_distance_km)
-       VALUES ($1, $3, $5, $7::date, $9)
+       VALUES ($1, $3, $5,
+         CASE WHEN $6::boolean THEN $7::date
+              ELSE (SELECT race_date FROM run_goals WHERE user_id = $1) END,
+         $9)
        ON CONFLICT ON CONSTRAINT uq_run_goals_user DO UPDATE SET
          weekly_distance_km = CASE WHEN $2::boolean THEN $3
                                    ELSE run_goals.weekly_distance_km END,
@@ -113,7 +116,7 @@ export async function getEntriesWithDistance(
         WHERE user_id = $1
           AND entry_date BETWEEN $2 AND $3
           AND distance > 0
-          AND exercise_name != 'Active Calories'
+          AND exercise_name IS DISTINCT FROM 'Active Calories'
         ORDER BY entry_date DESC`,
       [userId, startDay, endDay]
     );

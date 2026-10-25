@@ -48,7 +48,6 @@ const caps = (available: boolean, isLoading = false) => ({
       avoidBusyRoads: false,
     },
     stops: false,
-    stopsSource: null,
     source: null,
   },
   isLoading,

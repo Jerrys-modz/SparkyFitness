@@ -78,6 +78,7 @@ These tables contain user profiles, layouts, display settings, and custom databa
 | `user_preferences` | Unit, calculation-method, separate activity-calorie (`adaptive_activity_separate`, default false; active only for Dynamic + Adaptive), calorie safety-floor, weekly weight-change goal, chart-scale, heart rate zone settings (`max_heart_rate`, `resting_heart_rate`, `hr_zone_method`, `hr_zone_custom_floors`; read and written only through the owner-only `/api/v2/heart-rate-zones` route), and Chat/Vision/Voice configuration preferences (`goal_mode_weekly_change_kg` is signed kg/week, defaults to zero, and is used only for `goal_mode = 'weekly'`; `active_voice_ai_service_id` is nullable; NULL means system recognition, never the Chat provider; `voice_input_enabled` defaults to true and controls microphone visibility on web/mobile without clearing the selection). Calculation preferences use the existing owner-write policies; they add no access grants. | **Owner-Only** (`authenticated_user_id()`) | Switched Delegate |
 | `user_nutrient_display_preferences` | Rearranged nutrient column preferences | **Owner-Only** | Switched Delegate |
 | `user_medication_display_preferences` | Private preference on GLP-1/Medication display | **Owner-Only** | Delegate with `can_manage_medications` or `can_view_reports` |
+| `user_calorie_rule_history` | The `user_preferences` calorie settings in force from `effective_date` on (`-infinity` for the rules before the first recorded change), so a past day keeps its calorie target (#1795). Written only by the `record_calorie_rule_change` trigger on `user_preferences`; same policies as `user_preferences`. | **Owner-Only** (`authenticated_user_id()`) | Switched Delegate |
 | `user_dashboard_layouts` | Rearranged dashboard widget positions | **Owner-Only** | Switched Delegate |
 | `onboarding_data` | Initial user onboarding metrics | **Owner-Only** | Switched Delegate |
 | `onboarding_status` | User onboarding status | **Owner-Only** | Switched Delegate |
@@ -164,7 +165,7 @@ Symptoms are their own domain (they used to share the medications permission). P
 
 | Table Name | Description | Write (insert/update/delete) | Read (select) |
 | :--- | :--- | :--- | :--- |
-| `check_in_measurements` | Weight, body composition, BMR, and circumference measurements | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
+| `check_in_measurements` | Weight, body composition, BMR, circumference measurements, and resting heart rate | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `check_in_photos` | Progress photos (image bytes served only via the authenticated `GET /api/measurements/check-in-photos/file/{id}`; excluded from the public `/uploads` static mount) | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `sleep_entries` | Sleep logs (bedtime, wake time) | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `sleep_entry_stages` | Sleep stage breakdowns (REM, Deep, Light) | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
@@ -182,7 +183,7 @@ Symptoms are their own domain (they used to share the medications permission). P
 | `exercise_entry_gps_points` | GPS trackpoints & telemetry for exercise entries (one row per workout; `points` holds the whole track as JSONB) | Delegate with `can_manage_diary` | Delegate with `can_manage_diary` or `can_view_reports` |
 | `exercise_entry_hr_zones` | Time-in-heart-rate-zone splits for exercise entries (`zone_method` records the zone method each breakdown was stored with and is not rewritten when zone settings change) | Delegate with `can_manage_diary` | Delegate with `can_manage_diary` or `can_view_reports` |
 | `health_metric_samples` | Intraday wearable telemetry — heart rate, HRV, respiration, SpO2, stress, body battery, skin temperature (one JSONB-bucketed row per user/metric/day/provider) | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
-| `vitals_entries` | Blood pressure, blood glucose, and body temperature telemetry | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
+| `vitals_entries` | Blood pressure, blood glucose, body temperature, and pulse telemetry | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 | `daily_health_metrics` | Daily automated wearable summary, scores, total calories, and the total-calorie source capture time | Delegate with `can_manage_checkin` | Delegate with `can_manage_checkin` or `can_view_reports` |
 
 ---

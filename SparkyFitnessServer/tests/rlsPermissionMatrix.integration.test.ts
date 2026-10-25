@@ -274,6 +274,7 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     // symptom_entries: symptom helpers plus a cycle-source carve-out, so it has
     // bespoke (pinned) policies rather than the generic generator's.
     symptom_entries: 'custom',
+    user_calorie_rule_history: 'custom',
     user_dashboard_layouts: 'custom',
     user_medication_display_preferences: 'custom',
     user_nutrient_display_preferences: 'custom',
@@ -567,6 +568,18 @@ describe.runIf(RUN)('RLS permission matrix', () => {
         policy: 'select_policy',
         col: 'qual',
         mustContain: 'has_profile_read_access',
+      },
+      {
+        table: 'user_calorie_rule_history',
+        policy: 'select_policy',
+        col: 'qual',
+        mustContain: 'has_profile_read_access',
+      },
+      {
+        table: 'user_calorie_rule_history',
+        policy: 'modify_policy',
+        col: 'with_check',
+        mustContain: 'authenticated_user_id() = user_id',
       },
       {
         table: 'user_dashboard_layouts',

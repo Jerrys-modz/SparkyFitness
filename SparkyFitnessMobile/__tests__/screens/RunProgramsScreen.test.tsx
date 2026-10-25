@@ -22,9 +22,10 @@ import {
 } from '../../src/services/runProgramService';
 import { storedBeginnerProgram } from '../helpers/runProgramFixture';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useRunGoals } from '../../src/hooks/useRunGoals';
+import { usePreferences } from '../../src/hooks/usePreferences';
 import { useFitnessTests } from '../../src/services/fitnessTestService';
 import { fitnessTest, fitnessTestsHook } from '../helpers/fitnessTestFixture';
-import { useRunGoals } from '../../src/hooks/useRunGoals';
 
 const metrics = {
   insets: { top: 0, bottom: 0, left: 0, right: 0 },
@@ -37,15 +38,6 @@ const renderScreen = (props: React.ComponentProps<typeof RunProgramsScreen>) =>
     </SafeAreaProvider>
   );
 
-jest.mock('../../src/hooks/useRefetchOnFocus', () => ({
-  useRefetchOnFocus: jest.fn(),
-}));
-jest.mock('../../src/services/fitnessTestService', () => ({
-  useFitnessTests: jest.fn(),
-}));
-jest.mock('../../src/hooks/usePreferences', () => ({
-  usePreferences: () => ({ preferences: { default_distance_unit: 'km' } }),
-}));
 jest.mock('../../src/services/runProgramService', () => ({
   useRunProgram: jest.fn(),
   useCustomRunPrograms: jest.fn(() => ({
@@ -62,6 +54,17 @@ jest.mock('../../src/services/runProgramService', () => ({
   applyProgramRealign: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('../../src/hooks/useRunGoals', () => ({ useRunGoals: jest.fn() }));
+jest.mock('../../src/hooks/usePreferences', () => ({
+  usePreferences: jest.fn(() => ({
+    preferences: { timezone: 'UTC', default_distance_unit: 'km' },
+  })),
+}));
+jest.mock('../../src/hooks/useRefetchOnFocus', () => ({
+  useRefetchOnFocus: jest.fn(),
+}));
+jest.mock('../../src/services/fitnessTestService', () => ({
+  useFitnessTests: jest.fn(),
+}));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 jest.mock('../../src/hooks/useScreenHeader', () => ({
   useScreenHeader: () => null,
@@ -128,7 +131,6 @@ describe('RunProgramsScreen', () => {
       loaded: true,
       refetch: jest.fn(),
     } as never);
-    jest.mocked(useFitnessTests).mockReturnValue(fitnessTestsHook([]));
     jest.mocked(useRunGoals).mockReturnValue(noGoals);
   });
 
@@ -212,37 +214,6 @@ describe('RunProgramsScreen', () => {
     fireEvent.press(within(card).getByText('Start program'));
     alert.mock.calls[0][2]?.[2].onPress?.();
     expect(startProgram).toHaveBeenCalledWith('halfMarathon4', null);
-    alert.mockRestore();
-  });
-
-  it('offers the Zone 2 base with a three or four run choice and starts that version', () => {
-    mockedUse.mockReturnValue({
-      status: null,
-      enabled: false,
-      lastAdjustment: null,
-      schedule: { days: [], startDay: null, endDay: null },
-      doneDay: null,
-      loaded: true,
-    });
-    renderScreen(RunProgramsProps());
-    expect(screen.queryByTestId('run-program-zone2Base4')).toBeNull();
-    const card = screen.getByTestId('run-program-zone2Base');
-    expect(within(card).getByText('Zone 2 base')).toBeTruthy();
-    expect(
-      within(card).getByText(/Zone 2 base: ten weeks, three easy runs a week/)
-    ).toBeTruthy();
-    fireEvent.press(
-      within(screen.getByTestId('run-versions-zone2Base')).getByText(
-        '4 runs a week'
-      )
-    );
-    expect(
-      within(card).getByText(/Zone 2 base: ten weeks, four easy runs a week/)
-    ).toBeTruthy();
-    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    fireEvent.press(within(card).getByText('Start program'));
-    alert.mock.calls[0][2]?.[2].onPress?.();
-    expect(startProgram).toHaveBeenCalledWith('zone2Base4', null);
     alert.mockRestore();
   });
 
@@ -362,7 +333,7 @@ describe('RunProgramsScreen', () => {
     );
     expect(setProgramEnabled).toHaveBeenCalledWith(true, 'beginner5k');
   });
-  it('opens the training calendar', () => {
+  it('opens the program calendar', () => {
     mockedUse.mockReturnValue({
       status: programStatus({ programId: 'beginner5k', next: 2 })!,
       enabled: true,
@@ -373,8 +344,10 @@ describe('RunProgramsScreen', () => {
     });
     const props = RunProgramsProps();
     renderScreen(props);
-    fireEvent.press(screen.getByText('Open the training calendar'));
-    expect(props.navigation.navigate).toHaveBeenCalledWith('TrainingCalendar');
+    fireEvent.press(screen.getByText('Open the program calendar'));
+    expect(props.navigation.navigate).toHaveBeenCalledWith(
+      'RunProgramCalendar'
+    );
   });
 
   it('offers to customize each program and the one being followed', () => {
@@ -464,6 +437,124 @@ describe('RunProgramsScreen', () => {
       const buttons = alert.mock.calls.at(-1)?.[2] ?? [];
       act(() => buttons.find((b) => b.text === 'Start today')?.onPress?.());
       expect(startProgram).toHaveBeenCalledWith(`custom:${plan.id}`, null);
+    });
+  });
+
+  describe('the race day from the running goals', () => {
+    const today = toLocalDateString(new Date());
+    const running = (endDay: string | null) =>
+      mockedUse.mockReturnValue({
+        status: programStatus({ programId: 'beginner5k', next: 3 })!,
+        enabled: true,
+        lastAdjustment: null,
+        schedule: { days: [], startDay: null, endDay },
+        doneDay: null,
+        loaded: true,
+        refetch: jest.fn(),
+      } as never);
+    const withRaceDay = (raceDay: string | null) =>
+      jest.mocked(useRunGoals).mockReturnValue({
+        ...noGoals,
+        data: {
+          ...noGoals.data,
+          goals: {
+            weekly_distance_km: null,
+            race_name: null,
+            race_date: raceDay,
+            race_distance_km: null,
+            updated_at: '2026-10-12T00:00:00.000Z',
+          },
+        },
+      });
+
+    it('offers it as the goal date when the program has none', () => {
+      running(null);
+      withRaceDay(addDays(today, 49));
+      renderScreen(RunProgramsProps());
+      fireEvent.press(screen.getByTestId('run-program-use-race-day'));
+      expect(setProgramSchedule).toHaveBeenCalledWith({
+        endDay: addDays(today, 49),
+      });
+    });
+
+    it('does not offer it once the goal date is the race day', () => {
+      running(addDays(today, 49));
+      withRaceDay(addDays(today, 49));
+      renderScreen(RunProgramsProps());
+      expect(screen.queryByTestId('run-program-use-race-day')).toBeNull();
+    });
+
+    it('does not offer a race day before the program starts', () => {
+      mockedUse.mockReturnValue({
+        status: programStatus({ programId: 'beginner5k', next: 3 })!,
+        enabled: true,
+        lastAdjustment: null,
+        schedule: { days: [], startDay: addDays(today, 30), endDay: null },
+        doneDay: null,
+        loaded: true,
+        refetch: jest.fn(),
+      } as never);
+      withRaceDay(addDays(today, 10));
+      renderScreen(RunProgramsProps());
+      expect(screen.queryByTestId('run-program-use-race-day')).toBeNull();
+    });
+
+    it('does not offer a race day that has passed, or none', () => {
+      running(null);
+      withRaceDay(addDays(today, -1));
+      renderScreen(RunProgramsProps());
+      expect(screen.queryByTestId('run-program-use-race-day')).toBeNull();
+    });
+
+    describe('across timezones', () => {
+      // 2026-10-20 12:00 UTC: already the 21st in Kiritimati, still the 20th
+      // in Pago Pago, so the account day differs from most device days.
+      const freezeClock = () =>
+        jest.useFakeTimers({
+          now: new Date('2026-10-20T12:00:00Z'),
+          doNotFake: [
+            'setTimeout',
+            'clearTimeout',
+            'setInterval',
+            'clearInterval',
+            'setImmediate',
+            'clearImmediate',
+            'nextTick',
+            'queueMicrotask',
+            'requestAnimationFrame',
+            'cancelAnimationFrame',
+            'performance',
+          ],
+        });
+      const inZone = (timezone: string) =>
+        jest
+          .mocked(usePreferences)
+          .mockReturnValue({ preferences: { timezone } } as never);
+      afterEach(() => {
+        jest.useRealTimers();
+        inZone('UTC');
+      });
+
+      it('does not offer a race day that is today in the account timezone', () => {
+        freezeClock();
+        inZone('Pacific/Kiritimati');
+        running(null);
+        withRaceDay('2026-10-21');
+        renderScreen(RunProgramsProps());
+        expect(screen.queryByTestId('run-program-use-race-day')).toBeNull();
+      });
+
+      it('offers a race day that is still ahead in the account timezone', () => {
+        freezeClock();
+        inZone('Pacific/Pago_Pago');
+        running(null);
+        withRaceDay('2026-10-21');
+        renderScreen(RunProgramsProps());
+        fireEvent.press(screen.getByTestId('run-program-use-race-day'));
+        expect(setProgramSchedule).toHaveBeenCalledWith({
+          endDay: '2026-10-21',
+        });
+      });
     });
   });
 
@@ -573,6 +664,7 @@ describe('RunProgramsScreen', () => {
     });
   });
 
+
   describe('realigning the plan', () => {
     const today = toLocalDateString(new Date());
     // The goal day that leaves `slots` workout days from today (every weekday).
@@ -648,58 +740,6 @@ describe('RunProgramsScreen', () => {
       use(behind(31), false);
       renderScreen(RunProgramsProps());
       expect(screen.queryByTestId('run-program-realign')).toBeNull();
-    });
-  });
-
-  describe('the race day from the running goals', () => {
-    const today = toLocalDateString(new Date());
-    const running = (endDay: string | null) =>
-      mockedUse.mockReturnValue({
-        status: programStatus({ programId: 'beginner5k', next: 3 })!,
-        enabled: true,
-        lastAdjustment: null,
-        schedule: { days: [], startDay: null, endDay },
-        doneDay: null,
-        loaded: true,
-        refetch: jest.fn(),
-      } as never);
-    const withRaceDay = (raceDay: string | null) =>
-      jest.mocked(useRunGoals).mockReturnValue({
-        ...noGoals,
-        data: {
-          ...noGoals.data,
-          goals: {
-            weekly_distance_km: null,
-            race_name: null,
-            race_date: raceDay,
-            race_distance_km: null,
-            updated_at: '2026-10-12T00:00:00.000Z',
-          },
-        },
-      });
-
-    it('offers it as the goal date when the program has none', () => {
-      running(null);
-      withRaceDay(addDays(today, 49));
-      renderScreen(RunProgramsProps());
-      fireEvent.press(screen.getByTestId('run-program-use-race-day'));
-      expect(setProgramSchedule).toHaveBeenCalledWith({
-        endDay: addDays(today, 49),
-      });
-    });
-
-    it('does not offer it once the goal date is the race day', () => {
-      running(addDays(today, 49));
-      withRaceDay(addDays(today, 49));
-      renderScreen(RunProgramsProps());
-      expect(screen.queryByTestId('run-program-use-race-day')).toBeNull();
-    });
-
-    it('does not offer a race day that has passed, or none', () => {
-      running(null);
-      withRaceDay(addDays(today, -1));
-      renderScreen(RunProgramsProps());
-      expect(screen.queryByTestId('run-program-use-race-day')).toBeNull();
     });
   });
 });

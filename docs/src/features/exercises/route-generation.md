@@ -3,6 +3,7 @@
 SparkyFitness can generate a run, walk, ride or hike route for you: a loop or out-and-back of a distance you choose, or a route through points you pick. The result is a preview with turn-by-turn cues; saving it adds it to your saved routes.
 
 Route generation is **optional and off until a routing provider is added**. Route options, route style and stops along a route are part of the same feature: options and style come with the Valhalla provider, and stops need a second provider (Overpass, below). SparkyFitness doesn't ship a routing engine and the server needs no extra container or environment variable: you add a Valhalla routing service as an external provider, the same way you add Mealie or Hevy. Until one is added, the app reports the feature as unavailable.
+Route generation is **optional and off until a routing provider is added**. Route options and route style are part of the same feature and come with the Valhalla provider. SparkyFitness doesn't ship a routing engine and the server needs no extra container or environment variable: you add a Valhalla routing service as an external provider, the same way you add Mealie or Hevy. Until one is added, the app reports the feature as unavailable.
 
 ---
 
@@ -47,6 +48,7 @@ FOSSGIS runs a public Valhalla demo server (`valhalla1.openstreetmap.de`) for th
 SparkyFitness identifies itself with a `User-Agent` starting `SparkyFitness/`, as public servers expect.
 
 A loop request costs up to three engine calls, and asking for alternatives (below) costs up to three times that, which is another reason to run your own server for regular use.
+A loop request costs up to three engine calls (more with a route style that measures surface, which adds elevation and surface lookups), and asking for alternatives (below) costs up to three times that, which is another reason to run your own server for regular use.
 
 If the provider's URL points at a private or LAN address, the usual rule for self-hosted providers applies: admins may, other users may not unless the operator allows it in **Admin → Global Provider Settings** (or `ALLOW_PRIVATE_NETWORK_FOOD_PROVIDERS=true`).
 
@@ -123,6 +125,7 @@ Returns what this server offers:
 ```
 
 The answer is for the signed-in person. `source` is `"provider"` when the routing engine comes from a routing provider (their own, a public one or a shared one) and `null` when `available` is false, which means there is no routing provider. With the Valhalla provider `maxAlternatives` is 3 and every `style` field is true; with no routing provider they read 1 and false. `stops` and `stopsSource` follow the **Overpass** provider independently of the routing one, and read `false` and `null` while the Overpass server has asked the SparkyFitness server to slow down (see below), so a client simply stops offering stops for a moment. Older servers send only `available`; clients read a missing field as "not supported".
+The answer is for the signed-in person. `source` is `"provider"` when the routing engine comes from a routing provider (their own, a public one or a shared one) and `null` when `available` is false, which means there is no routing provider. With the Valhalla provider `maxAlternatives` is 3 and every `style` field is true; with no routing provider they read 1 and false. `stops` is always false for now.
 
 ### `POST /api/v2/routes/generate`
 
@@ -155,6 +158,7 @@ A loop request with `alternatives` above 1 returns up to that many **distinct** 
 Each option is labelled **Flatter**, **More trail** or **Shorter** only when its numbers back it up: Flatter needs the flattest option to climb at least 20% and 15 m less than the steepest; More trail needs at least 20% of its length on paths or unpaved ways and 15 percentage points more than any other; Shorter needs to be at least 5% and 200 m shorter than the longest. A label goes to one option, and an option gets one label. The share on paths comes from the routing engine's own surface data when it can be read; without it there is simply no More trail label.
 
 Asking for three options costs up to three times as many engine calls (the headings run in parallel).
+Asking for three options costs up to three times as many engine calls (the first headings run in parallel). If fewer than three distinct loops come back, up to five headings are tried in all; the extra ones run one after another, each with its own resize requests, and stop early if the engine is failing rather than just finding no route.
 
 ## Route style
 

@@ -65,6 +65,8 @@ const NO_ROUTE_ERROR_CODES = new Set([171, 442, 443, 444]);
 const MAX_ROUTE_LEGS = ROUTE_GENERATE_MAX_WAYPOINTS + 2;
 const MAX_LEG_SHAPE_CHARS = 400_000;
 const MAX_ROUTE_RESPONSE_BYTES = 8 * 1024 * 1024;
+/** A traced route has at most one edge per shape point, so this sits above any leg we accept. */
+const MAX_TRACE_EDGES = 50_000;
 
 const routeResponseSchema = z.object({
   trip: z.object({
@@ -134,14 +136,25 @@ function isBoundedHeightAnswer(data: unknown, pointCount: number): boolean {
 }
 
 const traceResponseSchema = z.object({
-  edges: z.array(
-    z.object({
-      length: z.number().optional(),
-      use: z.string().optional(),
-      surface: z.string().optional(),
-    })
-  ),
+  edges: z
+    .array(
+      z.object({
+        length: z.number().optional(),
+        use: z.string().optional(),
+        surface: z.string().optional(),
+      })
+    )
+    .max(MAX_TRACE_EDGES),
 });
+
+/** Count the edges before Zod visits them, as for the route answer above. */
+function isBoundedTraceAnswer(data: unknown): boolean {
+  return (
+    isRecord(data) &&
+    Array.isArray(data.edges) &&
+    data.edges.length <= MAX_TRACE_EDGES
+  );
+}
 
 const errorBodySchema = z.object({ error_code: z.number() });
 
@@ -250,6 +263,7 @@ export function createValhallaProvider(
         },
         config
       );
+      if (!isBoundedTraceAnswer(response.data)) return null;
       const parsed = traceResponseSchema.safeParse(response.data);
       return parsed.success ? trailShareFromEdges(parsed.data.edges) : null;
     } catch {

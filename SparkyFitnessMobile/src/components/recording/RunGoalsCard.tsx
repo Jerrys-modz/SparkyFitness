@@ -8,19 +8,24 @@ import {
 import Button from '../ui/Button';
 import CalendarSheet, { type CalendarSheetRef } from '../CalendarSheet';
 import FormInput from '../FormInput';
+import { formatLocalizedNumber } from '../../localization';
 import { formatDayLabel } from '../../utils/dayLabel';
 import { parseDecimalInput } from '../../utils/numericInput';
 import { distanceFromKm, distanceToKm } from '../../utils/unitConversions';
 
 type DistanceUnit = 'km' | 'miles';
 
-/** A distance in the display unit with at most one decimal ("12.5", "30"). */
-const shown = (km: number, unit: DistanceUnit): string =>
-  String(Math.round(distanceFromKm(km, unit) * 10) / 10);
+/** A distance in the display unit rounded to at most one decimal. */
+const rounded = (km: number, unit: DistanceUnit): number =>
+  Math.round(distanceFromKm(km, unit) * 10) / 10;
 
-/** Text for a distance field: empty for none. */
+/** Display text for a distance, in the app's number format ("12,5" in some locales). */
+const shown = (km: number, unit: DistanceUnit): string =>
+  formatLocalizedNumber(rounded(km, unit));
+
+/** Text for a distance field: empty for none; plain digits so it stays parseable. */
 const fieldValue = (km: number | null, unit: DistanceUnit): string =>
-  km === null ? '' : shown(km, unit);
+  km === null ? '' : String(rounded(km, unit));
 
 /** An empty field clears the value (null); anything unreadable or not above zero is undefined. */
 function readDistanceKm(

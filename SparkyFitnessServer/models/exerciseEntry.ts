@@ -2155,7 +2155,7 @@ async function getDailyExerciseTotalsRange(
       `SELECT entry_date,
               COUNT(*)::int AS entry_count,
               SUM(COALESCE(duration_minutes, 0)) AS duration_minutes,
-              SUM(COALESCE(calories_burned, 0)) AS calories_burned,
+              SUM(COALESCE(calories_applied, calories_burned, 0)) AS calories_burned,
               SUM(COALESCE(distance, 0)) AS distance,
               SUM(COALESCE(steps, 0)) AS steps
        FROM exercise_entries

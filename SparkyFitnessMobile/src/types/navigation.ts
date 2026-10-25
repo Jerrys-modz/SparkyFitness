@@ -234,6 +234,7 @@ export type RootStackParamList = {
   NutritionReport: undefined;
   SleepAnalytics: undefined;
   MoodReport: undefined;
+  HeartRateReport: undefined;
   CompareReport: undefined;
   CardioSession: {
     session: ExerciseActivityQueryItem;
