@@ -48,7 +48,7 @@ import {
   TRAINING_CONSISTENCY_WEEKS,
   type TrainingConsistency,
 } from '@workspace/shared';
-import { ageOnDay } from '../utils/dateHelpers.js';
+import { ageOnDay, userAge } from '../utils/dateHelpers.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import heartRateZoneService from './heartRateZoneService.js';
 import { loadFirstDayOfWeek } from '../utils/firstDayOfWeek.js';
