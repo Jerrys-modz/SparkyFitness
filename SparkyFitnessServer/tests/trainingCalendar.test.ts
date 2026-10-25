@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   matchPlan,
   groupPresetEntries,
+  isPassiveEntry,
   programSlots,
   sportLoadOf,
   weeklyPlanSlots,
@@ -507,5 +508,51 @@ describe('groupPresetEntries', () => {
       durationMinutes: 7,
     });
     expect(merged[1]!.id).toBe('c');
+  });
+});
+
+describe('passive diary rows', () => {
+  it('knows summaries and rollups from workouts', () => {
+    const passive = (name: string | null, durationMinutes = 30) =>
+      isPassiveEntry({ name, durationMinutes });
+    expect(passive('Active Calories')).toBe(true);
+    expect(passive(' active calories ')).toBe(true);
+    expect(passive('Steps')).toBe(true);
+    expect(passive('Daily Steps')).toBe(true);
+    expect(passive('Total Calories Burned')).toBe(true);
+    expect(passive('Run', 0)).toBe(true);
+    expect(passive('Run', 1440)).toBe(true);
+    expect(passive('Run')).toBe(false);
+    expect(passive(null)).toBe(false);
+    expect(passive('Steps workout class')).toBe(false);
+  });
+
+  it('never counts them as extra work or load', () => {
+    const entries = [
+      entry('cal', -1, { name: 'Active Calories', durationMinutes: 600 }),
+      entry('steps', -1, { name: 'Steps', sport: 'walking' }),
+      entry('real', -1),
+    ];
+    const { completed } = matchPlan([], entries, TODAY);
+    expect(completed.map((c) => c.id)).toEqual(['real']);
+    const totals = weeklyTotals([], completed, day(-6), day(0), 1);
+    expect(totals.reduce((sum, w) => sum + w.extraSessions, 0)).toBe(1);
+  });
+
+  it('leaves them out of a merged preset session', () => {
+    const grouped = groupPresetEntries([
+      {
+        ...entry('a', -1, { name: 'Bench', sport: 'strength' }),
+        presetEntryId: 'p',
+        presetName: 'Push',
+      },
+      {
+        ...entry('b', -1, { name: 'Active Calories', sport: 'other' }),
+        presetEntryId: 'p',
+        presetName: 'Push',
+      },
+    ]);
+    expect(grouped).toHaveLength(1);
+    expect(grouped[0]).toMatchObject({ name: 'Bench', durationMinutes: 30 });
   });
 });
