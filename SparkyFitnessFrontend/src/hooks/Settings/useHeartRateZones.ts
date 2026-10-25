@@ -59,7 +59,7 @@ export const useUpdateHeartRateZonesMutation = () => {
  * draw: five zones, or four tiers if the person chose that.
  */
 export const useResolvedHeartRateZones = () => {
-  const { data, isSuccess } = useHeartRateZones();
+  const { data } = useHeartRateZones();
   return useMemo(() => {
     const resolved: ResolvedHeartRateZones = data
       ? {
@@ -79,9 +79,9 @@ export const useResolvedHeartRateZones = () => {
     const displayZones = data?.settings.display_zones ?? 5;
     return {
       resolved,
-      isDefault: !isSuccess,
+      isDefault: !data,
       displayZones,
       bands: heartRateDisplayBands(resolved.zones, displayZones),
     };
-  }, [data, isSuccess]);
+  }, [data]);
 };

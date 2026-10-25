@@ -7770,7 +7770,7 @@
     "restingHeartRateTrend": "Resting Heart Rate Trend",
     "heartRateZones": "Heart Rate Zones",
     "zoneSource": "Your zones: {{method}}, max heart rate {{max}} bpm ({{source}}).",
-    "zoneSourceDefault": "Typical zones (% of a 190 bpm max) until your own load.",
+    "zoneSourceDefault": "Typical zones (% of a 190 bpm max) until your own zones load.",
     "zoneSettingsLink": "Heart rate zone settings",
     "heartRateSummary": "Heart Rate Summary",
     "heartRateInsights": "Resting Heart Rate Insights",

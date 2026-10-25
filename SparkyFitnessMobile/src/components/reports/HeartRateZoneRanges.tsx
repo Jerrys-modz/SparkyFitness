@@ -76,7 +76,7 @@ const HeartRateZoneRanges: React.FC<HeartRateZoneRangesProps> = ({
         {isDefault
           ? t('reports.zoneSourceDefault', {
               defaultValue:
-                'Typical zones (% of a 190 bpm max) until your own load.',
+                'Typical zones (% of a 190 bpm max) until your own zones load.',
             })
           : t('reports.zoneSource', {
               defaultValue:

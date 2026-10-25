@@ -9846,7 +9846,7 @@
   "heartRate": {
     "exerciseSession": "Exercise Session",
     "zoneSource": "Your zones: {{method}}, max heart rate {{max}} bpm ({{source}}).",
-    "zoneSourceDefault": "Typical zones (% of a 190 bpm max) until your own load.",
+    "zoneSourceDefault": "Typical zones (% of a 190 bpm max) until your own zones load.",
     "zoneSettingsLink": "Heart rate zone settings",
     "activeZoneMinutes": "Active Zone Minutes",
     "bpmAvg": "bpm (avg)",

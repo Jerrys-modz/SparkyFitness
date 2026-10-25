@@ -154,7 +154,7 @@ describe('HeartRateReportScreen zones', () => {
     const { getByTestId, getByText } = renderScreen();
     expect(getByText('171+ bpm')).toBeTruthy();
     expect(getByTestId('heart-rate-zone-source').props.children).toContain(
-      'until your own load'
+      'until your own zones load'
     );
   });
 
