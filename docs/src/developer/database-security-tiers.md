@@ -95,6 +95,7 @@ These tables contain user profiles, layouts, display settings, and custom databa
 | `user_goals` | Active daily calorie/macro goals | **Owner-Only** | Delegate with `can_manage_diary` or `can_view_reports` |
 | `user_nutrient_goal_preferences` | Per-user minimum/maximum/target goal direction override per nutrient | **Owner-Only** | Delegate with `can_manage_diary` or `can_view_reports` |
 | `weekly_goal_plans` | Scheduled goal plan adjustments | **Owner-Only** | Delegate with `can_manage_diary` or `can_view_reports` |
+| `calorie_maintenance_periods` | Refeed days and diet breaks: days whose calorie target is worked out with Goal Mode set to Maintain. Diary-scoped (`create_diary_policy`) because they change the daily goal a delegate sees. | **Owner-Only** | Delegate with `can_manage_diary` or `can_view_reports` |
 | `user_water_containers` | Configured container sizes (e.g. 500ml bottle), hydration factors, and optional links to food/variant/meal category | **Owner-Only** | Delegate with `can_manage_diary` or `can_view_reports` |
 
 ---

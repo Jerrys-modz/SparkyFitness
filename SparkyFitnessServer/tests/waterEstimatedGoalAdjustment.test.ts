@@ -12,6 +12,9 @@ import customNutrientService from '../services/customNutrientService.js';
 vi.mock('../models/calorieRuleHistoryRepository.js', () => ({
   default: { getCalorieRuleHistory: async () => [] },
 }));
+vi.mock('../models/calorieMaintenancePeriodRepository.js', () => ({
+  default: { getCalorieMaintenancePeriods: async () => [] },
+}));
 vi.mock('../models/goalRepository');
 vi.mock('../models/weeklyGoalPlanRepository');
 vi.mock('../models/goalPresetRepository');
