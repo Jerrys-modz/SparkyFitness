@@ -59,7 +59,7 @@ Linked Issue: Closes #
 
 ## AI Assistance
 
-Pick **one**. This helps maintainers choose how closely to review. It is not a judgment on AI use. Whatever tools you use, you are responsible for fully understanding the change before submitting it, and it must not contain commented-out code.
+Pick **one**. This helps maintainers choose how closely to review.
 
 - [ ] **No AI**: I wrote this change without AI tools.
 - [ ] **AI, reviewed line by line**: AI wrote part of this. I read every generated line and edited it before accepting.
