@@ -92,7 +92,8 @@ const entrySetVolume = (
       entry.exercises?.modality,
       entry.exercises?.category
     ),
-    bodyWeightOnDay(readings, entry.entry_date)
+    bodyWeightOnDay(readings, entry.entry_date),
+    entry.exercises?.load_convention
   );
 
 /**
