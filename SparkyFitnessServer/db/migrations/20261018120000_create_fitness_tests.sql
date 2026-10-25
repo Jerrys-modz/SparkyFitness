@@ -3,6 +3,9 @@
 -- paces each one gave. The server works the result and paces out from the
 -- measurements, so every device agrees. `exercise_entry_id` marks the recorded
 -- activity the test was run as; it survives only as long as the activity.
+-- `surface` records where it was run (outdoors with GPS or indoors on a
+-- treadmill) and, for a treadmill, the incline and whether the result was
+-- corrected for it.
 -- Date: 2026-10-18
 
 CREATE TABLE IF NOT EXISTS public.fitness_tests (
@@ -24,6 +27,11 @@ CREATE TABLE IF NOT EXISTS public.fitness_tests (
     equivalent_5k_seconds INTEGER NOT NULL,
     -- The derived pace zones and race-based ranges.
     paces JSONB NOT NULL DEFAULT '{}'::jsonb,
+    surface VARCHAR(10) NOT NULL DEFAULT 'outdoor'
+        CHECK (surface IN ('outdoor', 'indoor')),
+    incline_percent NUMERIC(3, 1)
+        CHECK (incline_percent IS NULL OR (incline_percent >= 0 AND incline_percent <= 15)),
+    incline_adjusted BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -35,3 +43,11 @@ CREATE INDEX IF NOT EXISTS idx_fitness_tests_user_date
 CREATE UNIQUE INDEX IF NOT EXISTS uq_fitness_tests_exercise_entry
     ON public.fitness_tests (exercise_entry_id)
     WHERE exercise_entry_id IS NOT NULL;
+
+-- Databases that already ran the table without the treadmill columns.
+ALTER TABLE public.fitness_tests
+    ADD COLUMN IF NOT EXISTS surface VARCHAR(10) NOT NULL DEFAULT 'outdoor'
+        CHECK (surface IN ('outdoor', 'indoor')),
+    ADD COLUMN IF NOT EXISTS incline_percent NUMERIC(3, 1)
+        CHECK (incline_percent IS NULL OR (incline_percent >= 0 AND incline_percent <= 15)),
+    ADD COLUMN IF NOT EXISTS incline_adjusted BOOLEAN NOT NULL DEFAULT FALSE;

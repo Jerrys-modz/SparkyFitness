@@ -1,4 +1,5 @@
 import { getClient } from '../db/poolManager.js';
+import { log } from '../config/logging.js';
 import {
   evaluateFitnessTest,
   fitnessTestPacesSchema,
@@ -49,7 +50,11 @@ function mapRow(row: Record<string, unknown>): FitnessTestResponse | null {
 function mapRows(rows: Record<string, unknown>[]): FitnessTestResponse[] {
   return rows.flatMap((row) => {
     const mapped = mapRow(row);
-    return mapped ? [mapped] : [];
+    if (!mapped) {
+      log('warn', `Skipping fitness test ${String(row.id)}: unreadable paces`);
+      return [];
+    }
+    return [mapped];
   });
 }
 
@@ -66,9 +71,14 @@ export async function listFitnessTests(
         WHERE user_id = $1
         ORDER BY test_date DESC, created_at DESC
         LIMIT $2`,
-      [userId, Math.min(Math.max(1, limit), MAX_FITNESS_TESTS_LISTED)]
+      [userId, MAX_FITNESS_TESTS_LISTED]
     );
-    return mapRows(result.rows);
+    // Rows that fail to parse are dropped after the query, so the limit is
+    // applied here: a bad newest row must not hide the older valid ones.
+    return mapRows(result.rows).slice(
+      0,
+      Math.min(Math.max(1, limit), MAX_FITNESS_TESTS_LISTED)
+    );
   } finally {
     client.release();
   }

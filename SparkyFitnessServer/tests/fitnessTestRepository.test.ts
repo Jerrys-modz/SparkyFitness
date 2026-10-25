@@ -110,6 +110,15 @@ describe('fitness test repository', () => {
     expect(await getLatestFitnessTest('u1', 'u1')).toBeNull();
   });
 
+  it('reads an older valid test when the newest one is unreadable', async () => {
+    const older = { ...row, id: 'older-id' };
+    query.mockResolvedValue({
+      rows: [{ ...row, id: 'bad-id', paces: { bad: true } }, older],
+    });
+    expect((await getLatestFitnessTest('u1', 'u1'))?.id).toBe('older-id');
+    expect(await listFitnessTests('u1', 'u1', 1)).toHaveLength(1);
+  });
+
   it('deletes only the persons own test', async () => {
     query.mockResolvedValueOnce({ rowCount: 1 });
     expect(await deleteFitnessTest('u1', entryId)).toBe(true);
