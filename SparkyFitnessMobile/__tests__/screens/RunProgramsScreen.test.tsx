@@ -131,6 +131,7 @@ describe('RunProgramsScreen', () => {
       loaded: true,
       refetch: jest.fn(),
     } as never);
+    jest.mocked(useFitnessTests).mockReturnValue(fitnessTestsHook([]));
     jest.mocked(useRunGoals).mockReturnValue(noGoals);
   });
 
@@ -344,10 +345,8 @@ describe('RunProgramsScreen', () => {
     });
     const props = RunProgramsProps();
     renderScreen(props);
-    fireEvent.press(screen.getByText('Open the program calendar'));
-    expect(props.navigation.navigate).toHaveBeenCalledWith(
-      'RunProgramCalendar'
-    );
+    fireEvent.press(screen.getByText('Open the training calendar'));
+    expect(props.navigation.navigate).toHaveBeenCalledWith('TrainingCalendar');
   });
 
   it('offers to customize each program and the one being followed', () => {
@@ -663,7 +662,6 @@ describe('RunProgramsScreen', () => {
       expect(screen.queryByTestId('pace-reference-test-note')).toBeNull();
     });
   });
-
 
   describe('realigning the plan', () => {
     const today = toLocalDateString(new Date());
