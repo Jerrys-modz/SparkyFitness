@@ -38,6 +38,10 @@ struct PlannedSet: Codable, Equatable, Identifiable {
     /// A loaded hold: the weight box stays beside the timer even when no
     /// weight is planned yet.
     var weighted: Bool? = nil
+    /// `left` or `right` for a single-arm / single-leg set; nil means both
+    /// sides together. Optional so an older phone, or a snapshot saved before
+    /// this existed, still decodes.
+    var side: String? = nil
 
     var id: String { setId }
 }
@@ -181,16 +185,24 @@ struct WorkoutStep: Identifiable, Equatable {
 
     /// "Warmup 1/2" / "Set 2/3" — what sits under the exercise name.
     var label: String {
+        let base: String
         switch plannedSet.setType?.lowercased() {
         case "warmup":
-            return String(localized: "watch.workout.setLabel.warmup", defaultValue: "Warmup \(setNumber)/\(setCount)")
+            base = String(localized: "watch.workout.setLabel.warmup", defaultValue: "Warmup \(setNumber)/\(setCount)")
         case "drop":
-            return String(localized: "watch.workout.setLabel.drop", defaultValue: "Drop \(setNumber)/\(setCount)")
+            base = String(localized: "watch.workout.setLabel.drop", defaultValue: "Drop \(setNumber)/\(setCount)")
         case "failure":
-            return String(localized: "watch.workout.setLabel.failure", defaultValue: "Failure \(setNumber)/\(setCount)")
+            base = String(localized: "watch.workout.setLabel.failure", defaultValue: "Failure \(setNumber)/\(setCount)")
         default:
-            return String(localized: "watch.workout.setLabel.set", defaultValue: "Set \(setNumber)/\(setCount)")
+            base = String(localized: "watch.workout.setLabel.set", defaultValue: "Set \(setNumber)/\(setCount)")
         }
+        let sideSuffix: String
+        switch plannedSet.side?.lowercased() {
+        case "left": sideSuffix = " · L"
+        case "right": sideSuffix = " · R"
+        default: sideSuffix = ""
+        }
+        return base + sideSuffix
     }
 }
 
@@ -214,6 +226,10 @@ enum WorkoutEditAction: Equatable {
     case addSet(exerciseEntryId: String)
     case deleteSet(setId: String)
     case setSetType(setId: String, type: String)
+    /// `side` is `left`, `right` or `both`.
+    case setSetSide(setId: String, side: String)
+    /// Copy a set for the opposite side, right after it.
+    case addOtherSide(setId: String)
     case addExercise(exerciseId: String)
     case deleteExercise(exerciseEntryId: String)
     /// Moves an upcoming exercise in front of the current one and starts it.

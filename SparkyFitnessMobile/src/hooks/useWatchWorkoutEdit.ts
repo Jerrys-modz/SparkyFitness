@@ -54,6 +54,19 @@ export async function applyWatchWorkoutEdit(
         live.updateSetField(payload.setId, { set_type: payload.setType });
       }
       return;
+    case 'setSetSide':
+      if (payload.setId && payload.side) {
+        live.updateSetField(payload.setId, {
+          side:
+            payload.side === 'left' || payload.side === 'right'
+              ? payload.side
+              : null,
+        });
+      }
+      return;
+    case 'addOtherSide':
+      if (payload.setId) live.addOtherSideSet(payload.setId);
+      return;
     case 'deleteExercise':
       if (payload.exerciseEntryId) live.removeExercise(payload.exerciseEntryId);
       return;

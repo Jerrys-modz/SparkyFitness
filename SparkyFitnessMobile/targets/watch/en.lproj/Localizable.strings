@@ -142,6 +142,11 @@
 "watch.common.delete" = "Delete";
 "watch.workout.deleteExercise" = "Delete Exercise";
 "watch.workout.setType" = "Set Type";
+"watch.workout.side" = "Side";
+"watch.workout.sideBoth" = "Both sides";
+"watch.workout.sideLeft" = "Left";
+"watch.workout.sideRight" = "Right";
+"watch.workout.addOtherSide" = "Add Other Side";
 "watch.workout.lastSetRemovesExercise" = "An exercise's last set removes the exercise.";
 "watch.workout.deleteSet" = "Delete Set";
 "watch.workout.addSet" = "Add Set";
