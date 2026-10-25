@@ -111,14 +111,60 @@ test('asks for the month grid from the first day of the week', () => {
   expect(useTrainingCalendar).toHaveBeenCalledWith('2026-09-28', '2026-11-01');
 });
 
-test('marks each planned item by status and extra work on the days', () => {
+test('draws a sport icon per planned item, coloured by status, and extras', () => {
   state();
   renderScreen();
-  expect(screen.getAllByTestId('planned-dot-done')).toHaveLength(1);
-  expect(screen.getAllByTestId('planned-dot-missed')).toHaveLength(1);
-  expect(screen.getAllByTestId('planned-dot-partial')).toHaveLength(1);
-  expect(screen.getAllByTestId('planned-dot-upcoming')).toHaveLength(1);
-  expect(screen.getAllByTestId('extra-dot')).toHaveLength(1);
+  expect(screen.getAllByTestId('day-mark-done')).toHaveLength(1);
+  expect(screen.getAllByTestId('day-mark-missed')).toHaveLength(1);
+  expect(screen.getAllByTestId('day-mark-partial')).toHaveLength(1);
+  expect(screen.getAllByTestId('day-mark-upcoming')).toHaveLength(1);
+  expect(screen.getAllByTestId('day-mark-extra')).toHaveLength(1);
+});
+
+test('every icon says its sport and status to a screen reader', () => {
+  state();
+  renderScreen();
+  expect(screen.getByLabelText('Strength, Done')).toBeTruthy();
+  expect(screen.getByLabelText('Strength, Missed')).toBeTruthy();
+  expect(screen.getByLabelText('Strength, Partly done')).toBeTruthy();
+  expect(screen.getByLabelText('Strength, Upcoming')).toBeTruthy();
+  expect(screen.getByLabelText('Running, extra, not planned')).toBeTruthy();
+  expect(
+    screen.getByLabelText(/^Today: Strength, Partly done; Running, extra/)
+  ).toBeTruthy();
+});
+
+test('caps the icons on a day and counts the rest', () => {
+  const crowded = Array.from({ length: 5 }, (_, i) =>
+    planned(`P${i}`, '2026-10-20', 'upcoming')
+  );
+  state({ data: { ...data, planned: [...data.planned, ...crowded] } });
+  renderScreen();
+  fireEvent.press(screen.getByTestId('calendar-day-2026-10-20'));
+  expect(screen.getByText('+2')).toBeTruthy();
+  expect(screen.getByLabelText('2 more sessions')).toBeTruthy();
+});
+
+test('today has a ring and the selected day a box, both on the same day', () => {
+  state();
+  renderScreen();
+  expect(screen.getByTestId('calendar-today-ring')).toBeTruthy();
+  expect(
+    screen.getByTestId('calendar-day-2026-10-14').props.accessibilityState
+  ).toMatchObject({ selected: true });
+  fireEvent.press(screen.getByTestId('calendar-day-2026-10-13'));
+  expect(screen.getByTestId('calendar-today-ring')).toBeTruthy();
+  expect(
+    screen.getByTestId('calendar-day-2026-10-14').props.accessibilityState
+  ).toMatchObject({ selected: false });
+});
+
+test('shows the legend with the sports', () => {
+  state();
+  renderScreen();
+  expect(screen.getByTestId('calendar-legend')).toBeTruthy();
+  expect(screen.getAllByText('Running').length).toBeGreaterThan(0);
+  expect(screen.getAllByText('Extra').length).toBeGreaterThan(0);
 });
 
 test('opens today first and a tapped day with its planned and completed work', () => {
@@ -140,7 +186,110 @@ test('totals the week planned against completed', () => {
   expect(screen.getByText(/2 of 4 planned sessions/)).toBeTruthy();
   expect(screen.getByText(/1 extra/)).toBeTruthy();
   expect(screen.getByText(/Time 90 of 160 min/)).toBeTruthy();
-  expect(screen.getByText(/Load 140 of 320/)).toBeTruthy();
+  expect(screen.getByText(/Training load 140 of 320/)).toBeTruthy();
+});
+
+const unplannedWeek = {
+  start: '2026-10-05',
+  plannedSessions: 0,
+  doneSessions: 0,
+  partialSessions: 0,
+  missedSessions: 0,
+  extraSessions: 2,
+  completedSessions: 2,
+  plannedMinutes: 0,
+  completedMinutes: 233,
+  plannedLoad: 0,
+  completedLoad: 432,
+  completedDistanceKm: 0,
+};
+
+test('shows only what was done when nothing was planned', () => {
+  state({ data: { ...data, weeks: [unplannedWeek, ...data.weeks] } });
+  renderScreen();
+  expect(screen.getByText(/Time 233 min/)).toBeTruthy();
+  expect(screen.getByText(/Training load 432$/)).toBeTruthy();
+  expect(screen.getByText('2 sessions logged')).toBeTruthy();
+  expect(screen.queryByText(/of 0/)).toBeNull();
+  expect(screen.queryByTestId('week-progress-2026-10-05')).toBeNull();
+});
+
+test('explains training load on a tap with the Exercise Statistics wording', () => {
+  state();
+  renderScreen();
+  expect(screen.queryByTestId('load-help')).toBeNull();
+  fireEvent.press(screen.getByTestId('load-help-2026-10-12'));
+  expect(
+    screen.getByText(/Workout minutes weighted by heart rate, this week/)
+  ).toBeTruthy();
+  fireEvent.press(screen.getByTestId('load-help-2026-10-12'));
+  expect(screen.queryByTestId('load-help')).toBeNull();
+});
+
+test('draws a progress bar per planned week with done, partial and missed', () => {
+  state();
+  renderScreen();
+  expect(screen.getByTestId('week-progress-done')).toBeTruthy();
+  expect(screen.getByTestId('week-progress-partial')).toBeTruthy();
+  expect(screen.getByTestId('week-progress-missed')).toBeTruthy();
+  expect(screen.getByTestId('week-progress-rest')).toBeTruthy();
+  expect(
+    screen.getByLabelText('1 done, 1 partly done, 1 missed, of 4 planned')
+  ).toBeTruthy();
+});
+
+test('puts each week total at the end of its row in the grid', () => {
+  state({ data: { ...data, weeks: [unplannedWeek, ...data.weeks] } });
+  renderScreen();
+  expect(screen.getByTestId('week-total-2026-10-12')).toHaveTextContent('2/4');
+  expect(screen.getByTestId('week-total-2026-10-05')).toHaveTextContent('2');
+  expect(screen.getByLabelText('2 of 4 planned sessions done')).toBeTruthy();
+  fireEvent.press(screen.getByTestId('week-total-2026-10-05'));
+  expect(screen.getByTestId('week-row-2026-10-05').props.className).toContain(
+    'border-accent-primary'
+  );
+});
+
+const weekAt = (start: string) => ({
+  ...unplannedWeek,
+  start,
+});
+
+test('lists the current week first and collapses older weeks', () => {
+  const weeks = [
+    '2026-09-07',
+    '2026-09-14',
+    '2026-09-21',
+    '2026-09-28',
+    '2026-10-05',
+  ].map(weekAt);
+  state({ data: { ...data, weeks: [...weeks, ...data.weeks] } });
+  renderScreen();
+  const order = () =>
+    screen
+      .getAllByTestId(/^week-row-/)
+      .map((node) => node.props.testID.replace('week-row-', ''));
+  expect(order()).toEqual(['2026-10-12', '2026-10-05', '2026-09-28']);
+  fireEvent.press(screen.getByText('Show earlier weeks (3)'));
+  expect(order()).toEqual([
+    '2026-10-12',
+    '2026-10-05',
+    '2026-09-28',
+    '2026-09-21',
+    '2026-09-14',
+    '2026-09-07',
+  ]);
+  fireEvent.press(screen.getByText('Hide earlier weeks'));
+  expect(order()).toHaveLength(3);
+});
+
+test('says rest day for an empty day and keeps the plain text far ahead', () => {
+  state();
+  renderScreen();
+  fireEvent.press(screen.getByTestId('calendar-day-2026-10-15'));
+  expect(screen.getByText('Rest day')).toBeTruthy();
+  fireEvent.press(screen.getByTestId('calendar-day-2026-10-31'));
+  expect(screen.getByText('Nothing planned or logged this day.')).toBeTruthy();
 });
 
 test('shows a retry when the calendar cannot be loaded', () => {

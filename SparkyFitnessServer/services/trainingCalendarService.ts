@@ -4,7 +4,7 @@ import reportRepository, {
 import workoutPlanTemplateRepository from '../models/workoutPlanTemplateRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import { getRunProgram } from '../models/runProgramRepository.js';
-import { loadZoneFloors } from './reportService.js';
+import heartRateZoneService from './heartRateZoneService.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import { log } from '../config/logging.js';
 import {
@@ -104,22 +104,21 @@ async function getTrainingCalendar(
         ? Number(rawFirstDay)
         : 0;
 
-    const [rows, templates, program, zoneFloors, curveSessions] =
-      await Promise.all([
-        reportRepository.getCalendarEntries(targetUserId, start, end),
-        workoutPlanTemplateRepository.getPlanTemplatesForCalendar(
-          targetUserId,
-          start,
-          end
-        ),
-        getRunProgram(targetUserId, authenticatedUserId),
-        loadZoneFloors(targetUserId),
-        reportRepository.getTrainingLoadSessions(
-          targetUserId,
-          addDays(today, -(CURVE_DAYS - 1)),
-          today
-        ),
-      ]);
+    const [rows, templates, program, zones, curveSessions] = await Promise.all([
+      reportRepository.getCalendarEntries(targetUserId, start, end),
+      workoutPlanTemplateRepository.getPlanTemplatesForCalendar(
+        targetUserId,
+        start,
+        end
+      ),
+      getRunProgram(targetUserId, authenticatedUserId),
+      heartRateZoneService.resolveZonesForUser(targetUserId),
+      reportRepository.getTrainingLoadSessions(
+        targetUserId,
+        addDays(today, -(CURVE_DAYS - 1)),
+        today
+      ),
+    ]);
 
     // Which diary entry each finished program workout was done as, and on
     // which local day.
@@ -148,7 +147,7 @@ async function getTrainingCalendar(
         ...programSlots(
           {
             programId: program.program_id,
-            activity: programActivity(program.program_id),
+            activity: program.activity ?? programActivity(program.program_id),
             enabled: program.enabled,
             total: program.workouts.length,
             next: program.next_index,
@@ -206,8 +205,13 @@ async function getTrainingCalendar(
     }
     slots.push(...sequentialPlanSlots(plans, entries, today, nextByPlan));
 
-    const { planned, completed } = matchPlan(slots, entries, today, zoneFloors);
-    const curve = computeFitnessFatigue(curveSessions, today, zoneFloors);
+    const { planned, completed } = matchPlan(
+      slots,
+      entries,
+      today,
+      zones.floors
+    );
+    const curve = computeFitnessFatigue(curveSessions, today, zones.floors);
 
     return {
       start,

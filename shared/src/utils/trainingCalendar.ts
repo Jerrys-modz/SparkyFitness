@@ -66,6 +66,30 @@ export interface CalendarEntry {
   alsoLinked?: string[];
 }
 
+/** Shortest entry that counts as a workout session, in minutes. */
+export const MIN_SESSION_MINUTES = 1;
+/** A day-long entry is a device rollup, not one session. */
+export const MAX_SESSION_MINUTES = 24 * 60;
+
+const PASSIVE_NAME =
+  /^\s*((daily\s+)?steps?(\s+count)?|step\s+count|floors?\s+climbed|active\s+minutes|(active|total|basal|resting)\s+(calories|energy)(\s+burned)?)\s*$/i;
+
+/**
+ * A diary row that is not a workout session: a device's daily summary such as
+ * "Active Calories" or imported steps, an entry with no real length, or a
+ * day-long rollup. These never count as completed work or as extras.
+ */
+export function isPassiveEntry(
+  entry: Pick<CalendarEntry, 'name' | 'durationMinutes'>
+): boolean {
+  if (entry.name && PASSIVE_NAME.test(entry.name)) return true;
+  return (
+    !Number.isFinite(entry.durationMinutes) ||
+    entry.durationMinutes < MIN_SESSION_MINUTES ||
+    entry.durationMinutes >= MAX_SESSION_MINUTES
+  );
+}
+
 const keysOf = (entry: CalendarEntry): string[] =>
   entry.linkKey ? [entry.linkKey, ...(entry.alsoLinked ?? [])] : [];
 
@@ -88,6 +112,7 @@ export function groupPresetEntries(
   const out: CalendarEntry[] = [];
   const groups = new Map<string, GroupableEntry[]>();
   for (const entry of entries) {
+    if (isPassiveEntry(entry)) continue;
     const { presetEntryId, presetName, ...plain } = entry;
     void presetName;
     if (!presetEntryId) {
@@ -182,9 +207,9 @@ export function matchPlan(
   const ordered = [...slots].sort(
     (a, b) => compareDays(a.day, b.day) || a.id.localeCompare(b.id)
   );
-  const free = [...entries].sort(
-    (a, b) => compareDays(a.day, b.day) || a.id.localeCompare(b.id)
-  );
+  const free = entries
+    .filter((entry) => !isPassiveEntry(entry))
+    .sort((a, b) => compareDays(a.day, b.day) || a.id.localeCompare(b.id));
   const taken = new Map<string, string>(); // entry id -> slot id
   const matched = new Map<
     string,

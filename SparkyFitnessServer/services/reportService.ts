@@ -27,7 +27,6 @@ import {
   primaryMusclesOf,
   bodyWeightOnDay,
   effectiveLoadKg,
-  volumeMultiplier,
   epleyOneRepMaxKg,
   resolveExerciseModality,
   buildTrainingConsistency,
@@ -47,12 +46,6 @@ import {
   weekStartOf,
   TRAINING_CONSISTENCY_WEEKS,
   type TrainingConsistency,
-  buildMuscleVolume,
-  suggestDeload,
-  DELOAD_HISTORY_WEEKS,
-  WEEKLY_HARD_SETS_MIN,
-  WEEKLY_HARD_SETS_MAX,
-  type StrengthVolume,
 } from '@workspace/shared';
 import { ageOnDay } from '../utils/dateHelpers.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
@@ -126,11 +119,9 @@ interface WorkoutEntry {
   exercise_force?: string;
   exercise_mechanic?: string;
   exercise_modality?: string | null;
-  exercise_load_convention?: string | null;
   sets?: Array<{
     weight?: string | number;
     reps?: string | number;
-    side?: 'left' | 'right' | null;
   }>;
   exercises?: {
     primary_muscles?: string;
@@ -436,7 +427,6 @@ async function getReportsData(
           entry.exercise_modality,
           entry.exercise_category
         ),
-        load_convention: entry.exercise_load_convention ?? 'total',
       },
     }));
 
@@ -878,14 +868,8 @@ async function getExerciseDashboardData(
         entry.sets.forEach((set: any) => {
           const weight = setLoad(entry, set);
           const reps = parseInt(set.reps) || 0;
-          // The exercise's load convention counts per-hand weights and
-          // per-side reps in volume; 1RM and PRs below keep the logged weight.
-          const volumeFactor = volumeMultiplier(
-            entry.exercise_load_convention,
-            set.side
-          );
           // Calculate total volume and reps
-          totalVolume += weight * reps * volumeFactor;
+          totalVolume += weight * reps;
           totalReps += reps;
 
           if (isStrengthFormat) {
@@ -922,7 +906,7 @@ async function getExerciseDashboardData(
           }
           for (const muscle of primaryMuscles) {
             muscleGroupVolume[muscle] =
-              (muscleGroupVolume[muscle] || 0) + weight * reps * volumeFactor;
+              (muscleGroupVolume[muscle] || 0) + weight * reps;
           }
         });
       }
@@ -1011,19 +995,6 @@ export { getReportsData };
 export { getMiniNutritionTrends };
 export { getNutritionTrendsWithGoals };
 export { getExerciseDashboardData };
-/**
- * The person's estimated maximum heart rate, from the age on their profile
- * (a default without one), for weighting load by heart rate.
- */
-async function loadMaxHeartRate(targetUserId: string): Promise<number> {
-  return (await heartRateZoneService.resolveZonesForUser(targetUserId)).maxHr;
-}
-
-/** The five zone floors the load maths weighs a session's heart rate against. */
-async function loadZoneFloors(targetUserId: string): Promise<number[]> {
-  return (await heartRateZoneService.resolveZonesForUser(targetUserId)).floors;
-}
-
 /**
  * Acute against chronic training load over the last four weeks, from every
  * logged workout (cardio and strength). Intensity is judged against the person's
@@ -1170,68 +1141,9 @@ async function getRunningEstimates(
     throw error;
   }
 }
-/**
- * Weekly hard sets per muscle for this and last week, and whether a lighter
- * week is worth taking. Reads a fixed window of recent weeks in the user's
- * timezone and week start; it changes nothing.
- */
-async function getStrengthVolume(
-  authenticatedUserId: string,
-  targetUserId: string
-): Promise<StrengthVolume> {
-  try {
-    const timezone = await loadUserTimezone(targetUserId);
-    const today = todayInZone(timezone);
-    const firstDayOfWeek = await loadFirstDayOfWeek(targetUserId);
-    const startDate = addDays(
-      weekStartOf(today, firstDayOfWeek),
-      -7 * (DELOAD_HISTORY_WEEKS - 1)
-    );
-    const [allEntries, bodyWeights, recovery] = await Promise.all([
-      reportRepository.getExerciseEntries(targetUserId, startDate, today),
-      reportRepository.getBodyWeightReadings(targetUserId, startDate, today),
-      reportRepository.getRecoveryReadings(
-        targetUserId,
-        addDays(today, -35),
-        today
-      ),
-    ]);
-    // Synced calorie summaries are logged as exercise entries but are not
-    // workouts.
-    const entries = allEntries.filter(
-      (entry: { exercise_name?: string }) =>
-        entry.exercise_name !== 'Active Calories'
-    );
-    const volume = buildMuscleVolume(entries, today, firstDayOfWeek);
-    return {
-      today,
-      firstDayOfWeek,
-      thisWeekStart: volume.thisWeekStart,
-      lastWeekStart: volume.lastWeekStart,
-      range: { min: WEEKLY_HARD_SETS_MIN, max: WEEKLY_HARD_SETS_MAX },
-      muscles: volume.rows,
-      deload: suggestDeload({
-        entries,
-        today,
-        firstDayOfWeek,
-        bodyWeights,
-        recovery,
-      }),
-    };
-  } catch (error) {
-    log(
-      'error',
-      `Error building strength volume for user ${targetUserId} by ${authenticatedUserId}:`,
-      error
-    );
-    throw error;
-  }
-}
 
 export { getTrainingConsistency };
-export { getStrengthVolume };
 export { getTrainingLoad };
-export { loadMaxHeartRate, loadZoneFloors };
 export { getFitnessFatigue };
 export { getRunningEstimates };
 export default {
@@ -1240,7 +1152,6 @@ export default {
   getNutritionTrendsWithGoals,
   getExerciseDashboardData,
   getTrainingConsistency,
-  getStrengthVolume,
   getTrainingLoad,
   getFitnessFatigue,
   getRunningEstimates,
