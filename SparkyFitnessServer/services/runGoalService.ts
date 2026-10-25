@@ -23,9 +23,17 @@ export async function getRunGoalsWithProgress(
     preferenceRepository.getUserPreferences(userId),
   ]);
   const today = todayInZone(timezone);
+  // The account's first day of the week; Monday when unset, like the running
+  // trends (`toWeekStart`) and `weekStartOf`, so the weekly totals line up.
   const rawFirstDay = preferences?.first_day_of_week;
+  const storedFirstDay =
+    rawFirstDay === null || rawFirstDay === undefined ? 1 : Number(rawFirstDay);
   const firstDayOfWeek =
-    rawFirstDay !== null && rawFirstDay !== undefined ? Number(rawFirstDay) : 0;
+    Number.isInteger(storedFirstDay) &&
+    storedFirstDay >= 0 &&
+    storedFirstDay <= 6
+      ? storedFirstDay
+      : 1;
   const weekStart = weekStartOf(today, firstDayOfWeek);
   const entries = await getEntriesWithDistance(
     userId,

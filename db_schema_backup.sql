@@ -1223,6 +1223,96 @@ $$;
 
 
 --
+-- Name: record_calorie_rule_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.record_calorie_rule_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  zone TEXT;
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    -- A preferences row created again after a delete. With no history its
+    -- settings already apply to every day; with history they must be recorded,
+    -- or the last recorded row would override them.
+    IF NOT EXISTS (
+      SELECT 1 FROM public.user_calorie_rule_history WHERE user_id = NEW.user_id
+    ) THEN
+      RETURN NULL;
+    END IF;
+  ELSE
+    -- The first change after this migration also keeps the old rules for every
+    -- earlier day; without it those days would fall back to the new settings.
+    INSERT INTO public.user_calorie_rule_history (
+      user_id, effective_date,
+      goal_mode, goal_mode_calculation_method, goal_mode_custom_percentage,
+      goal_mode_weekly_change_kg, calorie_goal_adjustment_mode, exercise_calorie_percentage,
+      tdee_allow_negative_adjustment, calorie_safety_floor_mode,
+      calorie_safety_floor_value, adaptive_activity_separate, bmr_algorithm,
+      activity_level, use_external_bmr, include_bmr_in_net_calories
+    )
+    SELECT
+      OLD.user_id, '-infinity',
+      OLD.goal_mode, OLD.goal_mode_calculation_method, OLD.goal_mode_custom_percentage,
+      OLD.goal_mode_weekly_change_kg, OLD.calorie_goal_adjustment_mode, OLD.exercise_calorie_percentage,
+      OLD.tdee_allow_negative_adjustment, OLD.calorie_safety_floor_mode,
+      OLD.calorie_safety_floor_value, OLD.adaptive_activity_separate, OLD.bmr_algorithm,
+      OLD.activity_level, OLD.use_external_bmr, OLD.include_bmr_in_net_calories
+    WHERE NOT EXISTS (
+      SELECT 1 FROM public.user_calorie_rule_history WHERE user_id = OLD.user_id
+    );
+  END IF;
+
+  -- An unknown zone would make AT TIME ZONE fail the whole preference update.
+  -- Case-insensitive, because the server accepts any casing Intl accepts.
+  zone := COALESCE(
+    (SELECT name FROM pg_timezone_names
+     WHERE lower(name) = lower(NEW.timezone) LIMIT 1),
+    'UTC'
+  );
+
+  -- A change applies from today in the user's zone; a second change on the
+  -- same day replaces the first.
+  INSERT INTO public.user_calorie_rule_history (
+    user_id, effective_date,
+    goal_mode, goal_mode_calculation_method, goal_mode_custom_percentage,
+    goal_mode_weekly_change_kg, calorie_goal_adjustment_mode, exercise_calorie_percentage,
+    tdee_allow_negative_adjustment, calorie_safety_floor_mode,
+    calorie_safety_floor_value, adaptive_activity_separate, bmr_algorithm,
+    activity_level, use_external_bmr, include_bmr_in_net_calories
+  )
+  VALUES (
+    NEW.user_id, (now() AT TIME ZONE zone)::date,
+    NEW.goal_mode, NEW.goal_mode_calculation_method, NEW.goal_mode_custom_percentage,
+    NEW.goal_mode_weekly_change_kg, NEW.calorie_goal_adjustment_mode, NEW.exercise_calorie_percentage,
+    NEW.tdee_allow_negative_adjustment, NEW.calorie_safety_floor_mode,
+    NEW.calorie_safety_floor_value, NEW.adaptive_activity_separate, NEW.bmr_algorithm,
+    NEW.activity_level, NEW.use_external_bmr, NEW.include_bmr_in_net_calories
+  )
+  ON CONFLICT (user_id, effective_date) DO UPDATE SET
+    goal_mode = EXCLUDED.goal_mode,
+    goal_mode_calculation_method = EXCLUDED.goal_mode_calculation_method,
+    goal_mode_custom_percentage = EXCLUDED.goal_mode_custom_percentage,
+    goal_mode_weekly_change_kg = EXCLUDED.goal_mode_weekly_change_kg,
+    calorie_goal_adjustment_mode = EXCLUDED.calorie_goal_adjustment_mode,
+    exercise_calorie_percentage = EXCLUDED.exercise_calorie_percentage,
+    tdee_allow_negative_adjustment = EXCLUDED.tdee_allow_negative_adjustment,
+    calorie_safety_floor_mode = EXCLUDED.calorie_safety_floor_mode,
+    calorie_safety_floor_value = EXCLUDED.calorie_safety_floor_value,
+    adaptive_activity_separate = EXCLUDED.adaptive_activity_separate,
+    bmr_algorithm = EXCLUDED.bmr_algorithm,
+    activity_level = EXCLUDED.activity_level,
+    use_external_bmr = EXCLUDED.use_external_bmr,
+    include_bmr_in_net_calories = EXCLUDED.include_bmr_in_net_calories,
+    updated_at = now();
+
+  RETURN NULL;
+END;
+$$;
+
+
+--
 -- Name: refresh_openfoodfacts_sync_queue(uuid[]); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2093,6 +2183,11 @@ CREATE TABLE public.exercise_entries (
     shoe_id uuid,
     manual_fields text[],
     workout_effort smallint,
+    calories_applied numeric,
+    calorie_link_id uuid,
+    calorie_link_resolution text,
+    CONSTRAINT chk_exercise_entries_calorie_link_resolution CHECK (((calorie_link_resolution IS NULL) OR (calorie_link_resolution = ANY (ARRAY['sparkyfitness'::text, 'synced'::text, 'higher'::text, 'lower'::text, 'average'::text, 'custom'::text])))),
+    CONSTRAINT chk_exercise_entries_calories_applied CHECK (((calories_applied IS NULL) OR (calories_applied >= (0)::numeric))),
     CONSTRAINT chk_exercise_entries_workout_effort CHECK (((workout_effort IS NULL) OR ((workout_effort >= 1) AND (workout_effort <= 10)))),
     CONSTRAINT exercise_entries_modality_check CHECK ((modality = ANY (ARRAY['weight_reps'::text, 'reps_only'::text, 'bodyweight_reps'::text, 'weight_duration'::text, 'weight_distance'::text, 'duration'::text, 'duration_distance'::text])))
 );
@@ -4211,6 +4306,40 @@ CREATE TABLE public.user_allergen_preferences (
     allergen_name text NOT NULL,
     created_at timestamp with time zone DEFAULT now()
 );
+
+
+--
+-- Name: user_calorie_rule_history; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_calorie_rule_history (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    effective_date date NOT NULL,
+    goal_mode character varying(50),
+    goal_mode_calculation_method character varying(50),
+    goal_mode_custom_percentage integer,
+    goal_mode_weekly_change_kg double precision,
+    calorie_goal_adjustment_mode text,
+    exercise_calorie_percentage integer,
+    tdee_allow_negative_adjustment boolean,
+    calorie_safety_floor_mode text,
+    calorie_safety_floor_value integer,
+    adaptive_activity_separate boolean,
+    bmr_algorithm text,
+    activity_level character varying(20),
+    use_external_bmr boolean,
+    include_bmr_in_net_calories boolean,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE user_calorie_rule_history; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.user_calorie_rule_history IS 'The calorie settings in force from effective_date on, so a past day keeps the target it was logged against. Written by a trigger on user_preferences.';
 
 
 --
@@ -6523,6 +6652,22 @@ ALTER TABLE ONLY public.user_allergen_preferences
 
 
 --
+-- Name: user_calorie_rule_history user_calorie_rule_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_calorie_rule_history
+    ADD CONSTRAINT user_calorie_rule_history_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user_calorie_rule_history user_calorie_rule_history_user_day_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_calorie_rule_history
+    ADD CONSTRAINT user_calorie_rule_history_user_day_key UNIQUE (user_id, effective_date);
+
+
+--
 -- Name: user_custom_moods user_custom_moods_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -7020,6 +7165,13 @@ CREATE INDEX idx_daily_sleep_need_lookup ON public.daily_sleep_need USING btree 
 --
 
 CREATE INDEX idx_day_classification_user ON public.day_classification_cache USING btree (user_id);
+
+
+--
+-- Name: idx_exercise_entries_calorie_link_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_exercise_entries_calorie_link_id ON public.exercise_entries USING btree (calorie_link_id) WHERE (calorie_link_id IS NOT NULL);
 
 
 --
@@ -7874,6 +8026,20 @@ CREATE TRIGGER on_public_user_created AFTER INSERT ON public."user" FOR EACH ROW
 --
 
 COMMENT ON TRIGGER on_public_user_created ON public."user" IS 'Initializes onboarding status and default external providers for new users created via Better Auth.';
+
+
+--
+-- Name: user_preferences record_calorie_rule_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER record_calorie_rule_change AFTER UPDATE ON public.user_preferences FOR EACH ROW WHEN ((((((((((((((((old.goal_mode)::text IS DISTINCT FROM (new.goal_mode)::text) OR ((old.goal_mode_calculation_method)::text IS DISTINCT FROM (new.goal_mode_calculation_method)::text)) OR (old.goal_mode_custom_percentage IS DISTINCT FROM new.goal_mode_custom_percentage)) OR (old.goal_mode_weekly_change_kg IS DISTINCT FROM new.goal_mode_weekly_change_kg)) OR (old.calorie_goal_adjustment_mode IS DISTINCT FROM new.calorie_goal_adjustment_mode)) OR (old.exercise_calorie_percentage IS DISTINCT FROM new.exercise_calorie_percentage)) OR (old.tdee_allow_negative_adjustment IS DISTINCT FROM new.tdee_allow_negative_adjustment)) OR (old.calorie_safety_floor_mode IS DISTINCT FROM new.calorie_safety_floor_mode)) OR (old.calorie_safety_floor_value IS DISTINCT FROM new.calorie_safety_floor_value)) OR (old.adaptive_activity_separate IS DISTINCT FROM new.adaptive_activity_separate)) OR (old.bmr_algorithm IS DISTINCT FROM new.bmr_algorithm)) OR ((old.activity_level)::text IS DISTINCT FROM (new.activity_level)::text)) OR (old.use_external_bmr IS DISTINCT FROM new.use_external_bmr)) OR (old.include_bmr_in_net_calories IS DISTINCT FROM new.include_bmr_in_net_calories))) EXECUTE FUNCTION public.record_calorie_rule_change();
+
+
+--
+-- Name: user_preferences record_calorie_rule_change_on_insert; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER record_calorie_rule_change_on_insert AFTER INSERT ON public.user_preferences FOR EACH ROW EXECUTE FUNCTION public.record_calorie_rule_change();
 
 
 --
@@ -9600,6 +9766,14 @@ ALTER TABLE ONLY public.user_allergen_preferences
 
 
 --
+-- Name: user_calorie_rule_history user_calorie_rule_history_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_calorie_rule_history
+    ADD CONSTRAINT user_calorie_rule_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
 -- Name: user_custom_moods user_custom_moods_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -10815,6 +10989,13 @@ CREATE POLICY modify_policy ON public.user_allergen_preferences USING (public.ha
 
 
 --
+-- Name: user_calorie_rule_history modify_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY modify_policy ON public.user_calorie_rule_history USING ((public.authenticated_user_id() = user_id)) WITH CHECK ((public.authenticated_user_id() = user_id));
+
+
+--
 -- Name: user_custom_moods modify_policy; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -11660,6 +11841,13 @@ CREATE POLICY select_policy ON public.user_allergen_preferences FOR SELECT USING
 
 
 --
+-- Name: user_calorie_rule_history select_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY select_policy ON public.user_calorie_rule_history FOR SELECT USING (public.has_profile_read_access(user_id));
+
+
+--
 -- Name: user_custom_moods select_policy; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -11883,6 +12071,12 @@ CREATE POLICY update_policy ON public.food_entries FOR UPDATE USING (public.has_
 --
 
 ALTER TABLE public.user_allergen_preferences ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: user_calorie_rule_history; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.user_calorie_rule_history ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: user_custom_moods; Type: ROW SECURITY; Schema: public; Owner: -
@@ -12400,6 +12594,13 @@ GRANT ALL ON FUNCTION public.queue_openfoodfacts_variant_inserts() TO sparky_app
 --
 
 GRANT ALL ON FUNCTION public.queue_openfoodfacts_variant_updates() TO sparky_app;
+
+
+--
+-- Name: FUNCTION record_calorie_rule_change(); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.record_calorie_rule_change() TO sparky_app;
 
 
 --
@@ -13163,6 +13364,13 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."user" TO sparky_app;
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.user_allergen_preferences TO sparky_app;
+
+
+--
+-- Name: TABLE user_calorie_rule_history; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.user_calorie_rule_history TO sparky_app;
 
 
 --
