@@ -8965,7 +8965,13 @@
       "low": "Low",
       "medium": "Medium",
       "high": "High",
-      "veryHigh": "Very High"
+      "veryHigh": "Very High",
+      "saltG": "Salt (g)",
+      "sodiumEntryUnit": "Enter sodium as",
+      "sodiumShort": "sodium",
+      "saltShort": "salt",
+      "sodiumOption": "Sodium (mg)",
+      "saltOption": "Salt (g)"
     },
     "nutrientGrid": {
       "protein": "protein",
