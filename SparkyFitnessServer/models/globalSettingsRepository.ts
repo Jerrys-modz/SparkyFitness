@@ -75,7 +75,6 @@ async function getGlobalSettings() {
     settings.public_api_docs = !!settings.public_api_docs;
     settings.dev_tools_enabled = !!settings.dev_tools_enabled;
     settings.mock_data_enabled = !!settings.mock_data_enabled;
-    settings.weather_lookup_enabled = !!settings.weather_lookup_enabled;
 
     log(
       'info',
@@ -117,8 +116,7 @@ async function saveGlobalSettings(settings: any) {
                  public_api_docs = COALESCE($10, public_api_docs, false),
                  dev_tools_enabled = COALESCE($11, dev_tools_enabled, false),
                  mock_data_enabled = COALESCE($12, mock_data_enabled, false),
-                 enable_passkey_login = COALESCE($13, enable_passkey_login, true),
-                 weather_lookup_enabled = COALESCE($14, weather_lookup_enabled, false)
+                 enable_passkey_login = COALESCE($13, enable_passkey_login, true)
              WHERE id = 1
              RETURNING *`,
       [
@@ -137,7 +135,6 @@ async function saveGlobalSettings(settings: any) {
         settings.dev_tools_enabled ?? null,
         settings.mock_data_enabled ?? null,
         passkeyEnvForced ? null : (settings.enable_passkey_login ?? null),
-        settings.weather_lookup_enabled ?? null,
       ]
     );
     // Return the full truth (DB + ENV overrides)
@@ -169,8 +166,7 @@ type BooleanSettingColumn =
   | 'allow_private_network_food_providers'
   | 'public_api_docs'
   | 'dev_tools_enabled'
-  | 'mock_data_enabled'
-  | 'weather_lookup_enabled';
+  | 'mock_data_enabled';
 
 /**
  * Reads one boolean policy column from `global_settings`, failing closed.
@@ -222,14 +218,6 @@ async function isDevToolsEnabled(): Promise<boolean> {
  */
 async function isMockDataEnabled(): Promise<boolean> {
   return readBooleanSetting('mock_data_enabled');
-}
-/**
- * Admin switch for the weather lookup on GPS-recorded activities. Off until an
- * admin turns it on, because enabling it sends each activity's start time and
- * rounded start place to Open-Meteo.
- */
-async function isWeatherLookupEnabled(): Promise<boolean> {
-  return readBooleanSetting('weather_lookup_enabled');
 }
 async function isUserAiConfigAllowed() {
   const client = await getSystemClient();
@@ -283,7 +271,6 @@ export {
   isPublicApiDocsAllowed,
   isDevToolsEnabled,
   isMockDataEnabled,
-  isWeatherLookupEnabled,
 };
 export default {
   getGlobalSettings,
@@ -297,5 +284,4 @@ export default {
   isPublicApiDocsAllowed,
   isDevToolsEnabled,
   isMockDataEnabled,
-  isWeatherLookupEnabled,
 };

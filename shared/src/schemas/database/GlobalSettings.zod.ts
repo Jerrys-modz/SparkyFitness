@@ -21,7 +21,6 @@ export const globalSettingsSchema = z.object({
   public_api_docs: z.boolean(),
   dev_tools_enabled: z.boolean(),
   mock_data_enabled: z.boolean(),
-  weather_lookup_enabled: z.boolean(),
   enable_passkey_login: z.boolean(),
 });
 
@@ -39,7 +38,6 @@ export const globalSettingsInitializerSchema = z.object({
   public_api_docs: z.boolean().optional(),
   dev_tools_enabled: z.boolean().optional(),
   mock_data_enabled: z.boolean().optional(),
-  weather_lookup_enabled: z.boolean().optional(),
   enable_passkey_login: z.boolean().optional(),
 });
 
@@ -57,7 +55,6 @@ export const globalSettingsMutatorSchema = z.object({
   public_api_docs: z.boolean().optional(),
   dev_tools_enabled: z.boolean().optional(),
   mock_data_enabled: z.boolean().optional(),
-  weather_lookup_enabled: z.boolean().optional(),
   enable_passkey_login: z.boolean().optional(),
 });
 

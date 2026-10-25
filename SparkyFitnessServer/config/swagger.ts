@@ -1345,11 +1345,6 @@ const options = {
             enable_passkey_login: { type: 'boolean' },
             is_oidc_active: { type: 'boolean' },
             is_mfa_mandatory: { type: 'boolean' },
-            weather_lookup_enabled: {
-              type: 'boolean',
-              description:
-                'When true, the server looks up the weather at the start of GPS-recorded activities from Open-Meteo, sending the start time and the start place rounded to about 1 km. Off by default.',
-            },
             default_vision_ai_service_id: {
               type: 'string',
               format: 'uuid',

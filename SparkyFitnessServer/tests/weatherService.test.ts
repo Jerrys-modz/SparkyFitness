@@ -1,7 +1,7 @@
 import { vi, beforeEach, afterEach, describe, expect, it } from 'vitest';
 import axios from 'axios';
 import exerciseEntryRepository from '../models/exerciseEntry.js';
-import globalSettingsRepository from '../models/globalSettingsRepository.js';
+import { resolveWeatherProvider } from '../services/weatherConfig.js';
 import {
   attachWeatherToExerciseEntry,
   fetchWeatherAt,
@@ -10,8 +10,8 @@ import {
 
 vi.mock('axios', () => ({ default: { get: vi.fn() } }));
 vi.mock('../config/logging', () => ({ log: vi.fn() }));
-vi.mock('../models/globalSettingsRepository', () => ({
-  default: { isWeatherLookupEnabled: vi.fn() },
+vi.mock('../services/weatherConfig', () => ({
+  resolveWeatherProvider: vi.fn(),
 }));
 vi.mock('../models/exerciseEntry', () => ({
   default: {
@@ -21,9 +21,8 @@ vi.mock('../models/exerciseEntry', () => ({
 }));
 
 const mockedGet = vi.mocked(axios.get);
-const weatherLookupEnabled = vi.mocked(
-  globalSettingsRepository.isWeatherLookupEnabled
-);
+const resolveProvider = vi.mocked(resolveWeatherProvider);
+const PUBLIC_ENDPOINT = { url: 'https://api.open-meteo.com' };
 const getEntry = vi.mocked(exerciseEntryRepository.getExerciseEntryById);
 const updateTelemetry = vi.mocked(
   exerciseEntryRepository.updateExerciseEntryTelemetryOnly
@@ -46,7 +45,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
-  weatherLookupEnabled.mockResolvedValue(true);
+  resolveProvider.mockResolvedValue(PUBLIC_ENDPOINT);
   mockedGet.mockResolvedValue({ data: hourlyBody });
   getEntry.mockResolvedValue({ id: 'entry-1', weather_temp_celsius: null });
 });
@@ -66,7 +65,12 @@ describe('weatherCodeToCondition', () => {
 
 describe('fetchWeatherAt', () => {
   it('picks the hour the activity started in', async () => {
-    const weather = await fetchWeatherAt(51.5012, -0.1234, new Date(START));
+    const weather = await fetchWeatherAt(
+      PUBLIC_ENDPOINT,
+      51.5012,
+      -0.1234,
+      new Date(START)
+    );
     expect(weather).toEqual({
       weather_temp_celsius: 9.4,
       weather_condition: 'Light rain',
@@ -76,7 +80,7 @@ describe('fetchWeatherAt', () => {
   });
 
   it('rounds the coordinates before they leave the server', async () => {
-    await fetchWeatherAt(51.5012, -0.1234, new Date(START));
+    await fetchWeatherAt(PUBLIC_ENDPOINT, 51.5012, -0.1234, new Date(START));
     const [, config] = mockedGet.mock.calls[0]!;
     expect(config?.params).toMatchObject({
       latitude: '51.50',
@@ -87,26 +91,91 @@ describe('fetchWeatherAt', () => {
     });
   });
 
-  it('uses the forecast service for a recent activity and the archive for an old one', async () => {
-    await fetchWeatherAt(51.5, -0.12, new Date(START));
-    expect(mockedGet.mock.calls[0]![0]).toContain(
-      'api.open-meteo.com/v1/forecast'
+  it('uses the forecast endpoint for a recent activity and the archive for an old one', async () => {
+    await fetchWeatherAt(PUBLIC_ENDPOINT, 51.5, -0.12, new Date(START));
+    expect(mockedGet.mock.calls[0]![0]).toBe(
+      'https://api.open-meteo.com/v1/forecast'
     );
 
-    await fetchWeatherAt(51.5, -0.12, new Date('2026-09-01T07:25:00Z'));
-    expect(mockedGet.mock.calls[1]![0]).toContain('archive-api.open-meteo.com');
+    await fetchWeatherAt(
+      PUBLIC_ENDPOINT,
+      51.5,
+      -0.12,
+      new Date('2026-09-01T07:25:00Z')
+    );
+    expect(mockedGet.mock.calls[1]![0]).toBe(
+      'https://archive-api.open-meteo.com/v1/archive'
+    );
+  });
+
+  it('maps the commercial host to its archive host and sends the key as apikey', async () => {
+    const commercial = {
+      url: 'https://customer-api.open-meteo.com/',
+      apiKey: 'secret',
+    };
+    await fetchWeatherAt(commercial, 51.5, -0.12, new Date(START));
+    await fetchWeatherAt(
+      commercial,
+      51.5,
+      -0.12,
+      new Date('2026-09-01T07:25:00Z')
+    );
+    expect(mockedGet.mock.calls[0]![0]).toBe(
+      'https://customer-api.open-meteo.com/v1/forecast'
+    );
+    expect(mockedGet.mock.calls[1]![0]).toBe(
+      'https://customer-archive-api.open-meteo.com/v1/archive'
+    );
+    expect(mockedGet.mock.calls[0]![1]?.params).toMatchObject({
+      apikey: 'secret',
+    });
+  });
+
+  it('serves forecast and archive from one self-hosted base and sends no key without one', async () => {
+    const own = { url: 'http://weather.lan:8080/prefix' };
+    await fetchWeatherAt(own, 51.5, -0.12, new Date(START));
+    await fetchWeatherAt(own, 51.5, -0.12, new Date('2026-09-01T07:25:00Z'));
+    expect(mockedGet.mock.calls[0]![0]).toBe(
+      'http://weather.lan:8080/prefix/v1/forecast'
+    );
+    expect(mockedGet.mock.calls[1]![0]).toBe(
+      'http://weather.lan:8080/prefix/v1/archive'
+    );
+    expect(mockedGet.mock.calls[0]![1]?.params).not.toHaveProperty('apikey');
+  });
+
+  it('does not follow redirects, and resolves names through the guard when one is given', async () => {
+    const lookup = vi.fn();
+    await fetchWeatherAt(
+      { url: 'https://weather.example.com', lookup },
+      51.5,
+      -0.12,
+      new Date(START)
+    );
+    const config = mockedGet.mock.calls[0]![1];
+    expect(config?.maxRedirects).toBe(0);
+    expect(config?.httpsAgent).toBeDefined();
   });
 
   it('returns null when the hour is missing, the body is unexpected or the call fails', async () => {
     expect(
-      await fetchWeatherAt(51.5, -0.12, new Date('2026-10-15T20:00:00Z'))
+      await fetchWeatherAt(
+        PUBLIC_ENDPOINT,
+        51.5,
+        -0.12,
+        new Date('2026-10-15T20:00:00Z')
+      )
     ).toBeNull();
 
     mockedGet.mockResolvedValueOnce({ data: { nope: true } });
-    expect(await fetchWeatherAt(51.5, -0.12, new Date(START))).toBeNull();
+    expect(
+      await fetchWeatherAt(PUBLIC_ENDPOINT, 51.5, -0.12, new Date(START))
+    ).toBeNull();
 
     mockedGet.mockRejectedValueOnce(new Error('timeout'));
-    expect(await fetchWeatherAt(51.5, -0.12, new Date(START))).toBeNull();
+    expect(
+      await fetchWeatherAt(PUBLIC_ENDPOINT, 51.5, -0.12, new Date(START))
+    ).toBeNull();
   });
 });
 
@@ -123,8 +192,13 @@ describe('attachWeatherToExerciseEntry', () => {
     });
   });
 
-  it('does nothing unless an admin turned it on', async () => {
-    weatherLookupEnabled.mockResolvedValue(false);
+  it('looks the provider up for the activity owner', async () => {
+    await attachWeatherToExerciseEntry('user-1', 'entry-1', start);
+    expect(resolveProvider).toHaveBeenCalledWith('user-1');
+  });
+
+  it('sends nothing when the person has no weather provider', async () => {
+    resolveProvider.mockResolvedValue(null);
     await attachWeatherToExerciseEntry('user-1', 'entry-1', start);
     expect(getEntry).not.toHaveBeenCalled();
     expect(mockedGet).not.toHaveBeenCalled();
@@ -152,9 +226,16 @@ describe('attachWeatherToExerciseEntry', () => {
   ])('skips %s', async (_label, bad) => {
     await attachWeatherToExerciseEntry('user-1', 'entry-1', bad);
     expect(mockedGet).not.toHaveBeenCalled();
+    expect(resolveProvider).not.toHaveBeenCalled();
   });
 
-  it('never throws when the database or the lookup fails', async () => {
+  it('never throws when the provider, the database or the lookup fails', async () => {
+    resolveProvider.mockRejectedValueOnce(new Error('provider unreadable'));
+    await expect(
+      attachWeatherToExerciseEntry('user-1', 'entry-1', start)
+    ).resolves.toBeUndefined();
+    expect(mockedGet).not.toHaveBeenCalled();
+
     getEntry.mockRejectedValueOnce(new Error('db down'));
     await expect(
       attachWeatherToExerciseEntry('user-1', 'entry-1', start)

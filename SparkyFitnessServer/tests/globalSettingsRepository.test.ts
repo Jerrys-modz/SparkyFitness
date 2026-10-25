@@ -175,23 +175,6 @@ describe('globalSettingsRepository', () => {
       );
       expect(params[12]).toBe(false);
     });
-    it('saves the weather lookup setting when supplied and leaves it alone when omitted', async () => {
-      mockClient.query.mockResolvedValue({ rows: [{ id: 1 }] });
-      await globalSettingsRepository.saveGlobalSettings({
-        is_mfa_mandatory: false,
-        weather_lookup_enabled: true,
-      });
-      expect(mockClient.query.mock.calls[0][0]).toContain(
-        'weather_lookup_enabled = COALESCE($14'
-      );
-      expect(mockClient.query.mock.calls[0][1][13]).toBe(true);
-
-      mockClient.query.mockClear();
-      await globalSettingsRepository.saveGlobalSettings({
-        is_mfa_mandatory: false,
-      });
-      expect(mockClient.query.mock.calls[0][1][13]).toBeNull();
-    });
     it('should update and return global settings', async () => {
       const inputSettings = {
         enable_email_password_login: true,
@@ -220,7 +203,6 @@ describe('globalSettingsRepository', () => {
           false,
           null,
           false,
-          null,
           null,
           null,
           null,
@@ -319,27 +301,6 @@ describe('globalSettingsRepository', () => {
         'allow_openfoodfacts_contributions = COALESCE($7'
       );
       expect(params[6]).toBe(true);
-    });
-  });
-  describe('isWeatherLookupEnabled', () => {
-    it('is off unless the stored setting is true', async () => {
-      mockClient.query.mockResolvedValue({
-        rows: [{ weather_lookup_enabled: true }],
-      });
-      expect(await globalSettingsRepository.isWeatherLookupEnabled()).toBe(
-        true
-      );
-      mockClient.query.mockResolvedValue({ rows: [{}] });
-      expect(await globalSettingsRepository.isWeatherLookupEnabled()).toBe(
-        false
-      );
-    });
-    it('fails closed when the database cannot be read', async () => {
-      // @ts-expect-error TS(2339): mockRejectedValue on the mocked pool helper
-      getSystemClient.mockRejectedValue(new Error('db down'));
-      expect(await globalSettingsRepository.isWeatherLookupEnabled()).toBe(
-        false
-      );
     });
   });
   describe('isUserAiConfigAllowed', () => {
