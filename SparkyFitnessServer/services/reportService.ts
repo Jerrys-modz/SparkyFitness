@@ -41,14 +41,13 @@ import {
   WARMUP_DAYS,
   type FitnessFatigue,
   type Readiness,
-  estimateMaxHrFromAge,
   LOAD_WEEKS,
   type TrainingLoad,
   weekStartOf,
   TRAINING_CONSISTENCY_WEEKS,
   type TrainingConsistency,
 } from '@workspace/shared';
-import { ageOnDay, userAge } from '../utils/dateHelpers.js';
+import { ageOnDay } from '../utils/dateHelpers.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import heartRateZoneService from './heartRateZoneService.js';
 import { loadFirstDayOfWeek } from '../utils/firstDayOfWeek.js';
@@ -1082,9 +1081,9 @@ async function getFitnessFatigue(
 /**
  * VO2 max and average running power estimated from recent runs: the runs are
  * the cardio entries sport detection calls running, the resting heart rate is
- * the person's recent average from sleep (60 without one), the maximum comes
- * from the profile's age and the weight is the latest check-in on or before
- * today. Both figures are estimates from a model, not measurements.
+ * the person's recent average from sleep (else the one in their heart rate zone
+ * settings, else 60), the maximum is their resolved heart rate zone maximum and
+ * the weight is the latest check-in on or before today. Both figures are estimates from a model, not measurements.
  */
 async function getRunningEstimates(
   authenticatedUserId: string,
@@ -1094,13 +1093,13 @@ async function getRunningEstimates(
     const timezone = await loadUserTimezone(targetUserId);
     const today = todayInZone(timezone);
     const yesterday = addDays(today, -1);
-    const [candidates, profile, vitals, weights] = await Promise.all([
+    const [candidates, zones, vitals, weights] = await Promise.all([
       reportRepository.getRunCandidates(
         targetUserId,
         addDays(today, -(VO2_WINDOW_DAYS - 1)),
         today
       ),
-      userRepository.getUserProfile(targetUserId),
+      heartRateZoneService.resolveZonesForUser(targetUserId),
       reportRepository.getReadinessVitals(
         targetUserId,
         today,
@@ -1124,12 +1123,9 @@ async function getRunningEstimates(
           exerciseSourceId: candidate.exerciseSourceId,
         }).sport === 'running'
     );
-    const age = profile?.date_of_birth
-      ? userAge(profile.date_of_birth, timezone)
-      : null;
     return computeRunningEstimates(runs, today, {
-      restingHeartRate: vitals.restingHeartRateBaseline,
-      maxHeartRate: age === null ? undefined : estimateMaxHrFromAge(age),
+      restingHeartRate: vitals.restingHeartRateBaseline ?? zones.restingHr,
+      maxHeartRate: zones.maxHr,
       bodyWeightKg: bodyWeightOnDay(weights, today),
     });
   } catch (error) {
