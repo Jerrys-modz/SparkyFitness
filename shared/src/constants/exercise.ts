@@ -40,6 +40,37 @@ export function isExerciseModality(value: unknown): value is ExerciseModality {
 }
 
 /**
+ * How an exercise's logged weight and reps turn into volume (issue #3157).
+ * Only volume is affected: the weight stays as logged, and estimated 1RM and
+ * weight PRs keep the logging convention.
+ * - total: the logged weight is the whole external load and the reps are the
+ *   total (a barbell, one dumbbell for a goblet squat). The default.
+ * - per_hand: the logged weight is one of two dumbbells, so the set moved
+ *   twice that.
+ * - per_side: reps are for each side. A set logged once with no side did both
+ *   sides, so its reps count twice; a set marked left or right counts once,
+ *   so logging the two sides separately is not double counted.
+ */
+export const EXERCISE_LOAD_CONVENTIONS = [
+  'total',
+  'per_hand',
+  'per_side',
+] as const;
+
+export type ExerciseLoadConvention = (typeof EXERCISE_LOAD_CONVENTIONS)[number];
+
+export const DEFAULT_EXERCISE_LOAD_CONVENTION: ExerciseLoadConvention = 'total';
+
+export function isExerciseLoadConvention(
+  value: unknown
+): value is ExerciseLoadConvention {
+  return (
+    typeof value === 'string' &&
+    (EXERCISE_LOAD_CONVENTIONS as readonly string[]).includes(value)
+  );
+}
+
+/**
  * Cardio: sets carry duration + distance and clients prefer the
  * duration+distance form over a set table. Distinct from duration-LIKE
  * (holds are duration-like but never cardio).

@@ -31,6 +31,7 @@ export const exercisesSchema = z.object({
   images: z.string().nullable(),
   is_quick_exercise: z.boolean().nullable(),
   modality: z.string(),
+  load_convention: z.string(),
 });
 
 export const exercisesInitializerSchema = z.object({
@@ -57,6 +58,7 @@ export const exercisesInitializerSchema = z.object({
   images: z.string().optional().nullable(),
   is_quick_exercise: z.boolean().optional().nullable(),
   modality: z.string().optional(),
+  load_convention: z.string().optional(),
 });
 
 export const exercisesMutatorSchema = z.object({
@@ -83,6 +85,7 @@ export const exercisesMutatorSchema = z.object({
   images: z.string().optional().nullable(),
   is_quick_exercise: z.boolean().optional().nullable(),
   modality: z.string().optional(),
+  load_convention: z.string().optional(),
 });
 
 export type Exercises = z.infer<typeof exercisesSchema>;

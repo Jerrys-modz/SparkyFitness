@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { paginationSchema } from './Pagination.api.zod.ts';
-import { exerciseModalitySchema } from './Exercises.api.zod.ts';
+import {
+  exerciseLoadConventionSchema,
+  exerciseModalitySchema,
+} from './Exercises.api.zod.ts';
 import { workoutFormatSchema } from './WorkoutPresets.api.zod.ts';
 import { gpsTrackPointSchema } from '../database/ExerciseEntryGpsPoints.zod.ts';
 import { CALORIE_LINK_RESOLUTIONS } from '../../utils/exerciseCalorieLink.ts';
@@ -63,6 +66,7 @@ export const exerciseSnapshotResponseSchema = z
     name: z.string(),
     category: z.string().nullable(),
     modality: exerciseModalitySchema.nullable().optional(),
+    load_convention: exerciseLoadConventionSchema.optional(),
     images: z.array(z.string()).nullable(),
     primary_muscles: z.array(z.string()).nullable(),
     secondary_muscles: z.array(z.string()).nullable(),
@@ -575,6 +579,8 @@ export const exerciseProgressResponseSchema = z.object({
   category: z.string().nullable().optional(),
   /** The entry's modality; `bodyweight_reps` sets add body weight to load. */
   modality: exerciseModalitySchema.nullable().optional(),
+  /** How the entry's logged weight and reps count toward volume; missing is `total`. */
+  load_convention: exerciseLoadConventionSchema.optional(),
   /** The lifter's body weight that day (kg), null with no check-ins. */
   body_weight_kg: z.number().nullable().optional(),
   sets: z.array(exerciseProgressSetSchema),
