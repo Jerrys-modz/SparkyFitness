@@ -65,6 +65,7 @@ services:
       TZ: ${TZ:-Etc/UTC}
       SPARKY_FITNESS_LOG_LEVEL: ${SPARKY_FITNESS_LOG_LEVEL:-ERROR}
       SPARKY_FITNESS_SERVER_PORT: ${SPARKY_FITNESS_SERVER_PORT:-3010} # Port the backend listens on inside its container
+      SPARKY_FITNESS_DISABLE_VERSION_CHECK: ${SPARKY_FITNESS_DISABLE_VERSION_CHECK:-false} # true stops the latest-release lookup on api.github.com (no update dialog)
       SPARKY_FITNESS_DISABLE_SIGNUP: ${SPARKY_FITNESS_DISABLE_SIGNUP:-false}
       SPARKY_FITNESS_ADMIN_EMAIL: ${SPARKY_FITNESS_ADMIN_EMAIL:-} # User with this email can access the admin panel
       SPARKY_FITNESS_DEMO_MODE: ${SPARKY_FITNESS_DEMO_MODE:-false}

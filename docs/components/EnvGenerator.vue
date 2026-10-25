@@ -76,6 +76,7 @@ const trustedProxyHops = ref("1");
 const trustedProxies = ref("");
 const allowPrivateNetworkCors = ref(false);
 const extraTrustedOrigins = ref("");
+const disableVersionCheck = ref(false);
 
 // --- 4. Custom Host Storage Paths (Optional) ---
 const dbPath = ref("./postgresql");
@@ -222,6 +223,7 @@ function applyPreset(preset: "simple" | "full") {
   if (preset === "simple") {
     customFrontendUrl.value = "https://fitness.example.com";
     allowPrivateNetworkCors.value = false;
+    disableVersionCheck.value = false;
     enableNetworkNginx.value = false;
     enableDbIdentity.value = false;
     enableServerRuntime.value = false;
@@ -239,6 +241,7 @@ function applyPreset(preset: "simple" | "full") {
   } else if (preset === "full") {
     customFrontendUrl.value = "https://fitness.example.com";
     allowPrivateNetworkCors.value = false;
+    disableVersionCheck.value = false;
     realIpHeader.value = "CF-Connecting-IP";
     trustedProxyHops.value = "1";
     trustedProxies.value = "";
@@ -370,6 +373,9 @@ TZ=${timezone.value}
 `;
     if (extraTrustedOrigins.value.trim()) {
       out += `SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS=${extraTrustedOrigins.value.trim()}\n`;
+    }
+    if (disableVersionCheck.value) {
+      out += `SPARKY_FITNESS_DISABLE_VERSION_CHECK=true\n`;
     }
   }
 
@@ -1003,6 +1009,22 @@ onMounted(() => {
                 Leave blank unless you reach the app on more than one URL.</span
               >
             </div>
+          </div>
+          <div class="checkbox-group" style="margin-top: 12px">
+            <label class="checkbox-label">
+              <input v-model="disableVersionCheck" type="checkbox" />
+              <span class="checkbox-text">
+                Disable the GitHub release check
+                <code class="var-badge"
+                  >SPARKY_FITNESS_DISABLE_VERSION_CHECK=true</code
+                >
+              </span>
+            </label>
+            <span class="field-hint" style="margin-left: 26px"
+              >Stops the server asking api.github.com for the latest release
+              and hides the update dialog. For installs updated by Renovate,
+              Watchtower or a package manager.</span
+            >
           </div>
         </div>
       </div>
