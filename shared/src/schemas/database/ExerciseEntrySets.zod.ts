@@ -28,6 +28,7 @@ export const exerciseEntrySetsSchema = z.object({
   distance: z.number().nullable(),
   is_pr: z.boolean().nullable().optional(),
   rir: z.number().nullable().optional(),
+  side: z.enum(['left', 'right']).nullable().optional(),
 });
 
 export const exerciseEntrySetsInitializerSchema = z.object({
@@ -49,6 +50,7 @@ export const exerciseEntrySetsInitializerSchema = z.object({
   distance: z.number().optional().nullable(),
   is_pr: z.boolean().optional().nullable(),
   rir: z.number().optional().nullable(),
+  side: z.enum(['left', 'right']).optional().nullable(),
 });
 
 export const exerciseEntrySetsMutatorSchema = z.object({
@@ -70,6 +72,7 @@ export const exerciseEntrySetsMutatorSchema = z.object({
   distance: z.number().optional().nullable(),
   is_pr: z.boolean().optional().nullable(),
   rir: z.number().optional().nullable(),
+  side: z.enum(['left', 'right']).optional().nullable(),
 });
 
 export type ExerciseEntrySets = z.infer<typeof exerciseEntrySetsSchema>;

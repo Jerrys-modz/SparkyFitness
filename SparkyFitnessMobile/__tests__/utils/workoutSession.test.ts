@@ -1317,6 +1317,29 @@ describe('workoutSession', () => {
       expect(payload[0].sets[0]).toMatchObject({ id: 11, rpe: 8, rir: 2 });
     });
 
+    it('round-trips side so an edit-save cannot wipe left/right tracking', () => {
+      const payload = buildExercisesPayload(
+        [
+          makeDraftExercise({
+            sets: [
+              {
+                clientId: 's1',
+                serverId: 11,
+                weight: '20',
+                reps: '10',
+                side: 'left',
+              },
+              { clientId: 's2', serverId: 12, weight: '20', reps: '10' },
+            ],
+          }),
+        ],
+        'kg',
+        'km'
+      );
+      expect(payload[0].sets[0]).toMatchObject({ id: 11, side: 'left' });
+      expect(payload[0].sets[1]).toMatchObject({ id: 12, side: null });
+    });
+
     it('defaults duration_minutes to 0 when the draft has none', () => {
       const payload = buildExercisesPayload([makeDraftExercise()], 'kg', 'km');
       expect(payload[0].duration_minutes).toBe(0);
@@ -2271,6 +2294,7 @@ describe('workoutSession', () => {
         notes: null,
         rpe: null,
         rir: null,
+        side: null,
         completed_at: null,
         is_pr: false,
       });
@@ -2286,6 +2310,7 @@ describe('workoutSession', () => {
         notes: 'felt heavy',
         rpe: 9,
         rir: null,
+        side: null,
         completed_at: null,
         is_pr: false,
       });

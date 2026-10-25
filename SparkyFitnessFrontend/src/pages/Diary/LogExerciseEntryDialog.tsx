@@ -369,6 +369,7 @@ const LogExerciseEntryDialog: React.FC<LogExerciseEntryDialogProps> = ({
                     {sets.map((set, index) => (
                       <SortableSetItem
                         showRir
+                        showSide
                         key={set._dndId}
                         id={set._dndId}
                         set={set}

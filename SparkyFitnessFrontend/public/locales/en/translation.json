@@ -7368,6 +7368,12 @@
     "restSec": "Rest (s)",
     "rpe": "RPE",
     "rir": "RIR",
+    "side": {
+      "label": "Side (left / right / both)",
+      "leftShort": "L",
+      "rightShort": "R",
+      "bothShort": "LR"
+    },
     "startTimer": "Start timer",
     "stopTimer": "Stop timer",
     "type": "Type",

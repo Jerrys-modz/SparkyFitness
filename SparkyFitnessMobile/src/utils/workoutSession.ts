@@ -535,6 +535,7 @@ export function buildExercisesPayload(
         notes: set.notes ?? null,
         rpe: set.rpe ?? null,
         rir: set.rir ?? null,
+        side: set.side ?? null,
         completed_at: set.completedAt ?? null,
         is_pr: set.isPr ?? false,
       };
@@ -801,6 +802,7 @@ export interface WorkoutCardSet {
   reps: number | null;
   rpe?: number | null;
   rir?: number | null;
+  side?: 'left' | 'right' | null;
   rest_time?: number | null;
   notes?: string | null;
   duration?: number | null;
@@ -901,6 +903,7 @@ export function draftExerciseToCardExercise(
         reps: isNaN(reps) ? null : reps,
         rpe: set.rpe ?? null,
         rir: set.rir ?? null,
+        side: set.side ?? null,
         rest_time: set.restTime ?? null,
         notes: set.notes ?? null,
         duration: set.duration ?? null,
@@ -1635,6 +1638,7 @@ export function buildSessionExercisesPayload(
         notes: set.notes ?? null,
         rpe: set.rpe ?? null,
         rir: set.rir ?? null,
+        side: set.side ?? null,
         completed_at:
           completedMs != null ? new Date(completedMs).toISOString() : null,
         is_pr: prSetIds[String(set.id)] === true,
