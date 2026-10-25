@@ -637,7 +637,8 @@ SELECT create_owner_policy('food_assistant_operations');
 CREATE POLICY select_policy ON public.profiles FOR SELECT TO PUBLIC USING (has_profile_read_access(id));
 CREATE POLICY modify_policy ON public.profiles FOR ALL TO PUBLIC USING (authenticated_user_id() = id) WITH CHECK (authenticated_user_id() = id);
 
--- max_heart_rate, resting_heart_rate, hr_zone_method and hr_zone_custom_floors
+-- max_heart_rate, resting_heart_rate, hr_zone_method, hr_zone_custom_floors and
+-- hr_zone_display_count
 -- (heart rate zones) also follow these policies: only the owner writes them.
 -- Delegates can read the row, but the /api/v2/heart-rate-zones route is
 -- owner-only and refuses a delegated context for reads as well.
