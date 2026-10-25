@@ -8,6 +8,8 @@ import type {
   PlannedItem,
 } from '@workspace/shared';
 import { addDays, weekStartOf } from '@workspace/shared';
+import DayMarks from '../components/trainingCalendar/DayMarks';
+import WeekProgressBar from '../components/trainingCalendar/WeekProgressBar';
 import StatusView from '../components/StatusView';
 import Icon from '../components/Icon';
 import { useScreenHeader } from '../hooks/useScreenHeader';
@@ -19,13 +21,19 @@ import { distanceFromKm } from '../utils/unitConversions';
 import { formatDate, formatShortDate, getTodayDate } from '../utils/dateUtils';
 import {
   EXTRA_COLOR,
+  REST_DAY_AHEAD_DAYS,
+  SPORT_ICONS,
   STATUS_COLORS,
+  dayMarks,
   itemsByDay,
   monthRange,
+  orderWeeks,
   weekDays,
+  weekSummary,
   type DayItems,
 } from '../utils/trainingCalendar';
 import {
+  markA11yLabel,
   plannedItemLabel,
   plannedStatusLabel,
   sportLoadLabel,
@@ -36,6 +44,9 @@ type Props = RootStackScreenProps<'TrainingCalendar'>;
 type ViewMode = 'month' | 'week';
 
 const EMPTY_DAY: DayItems = { planned: [], completed: [] };
+const SPORTS = ['running', 'cycling', 'walking', 'strength', 'other'] as const;
+/** Width of the week total at the end of each row of the grid. */
+const WEEK_TOTAL_WIDTH = 44;
 
 /**
  * A month and week calendar of what was planned (the run program and the
@@ -57,6 +68,8 @@ const TrainingCalendarScreen: React.FC<Props> = ({ navigation }) => {
   const [mode, setMode] = useState<ViewMode>('month');
   const [anchor, setAnchor] = useState(today);
   const [selected, setSelected] = useState(today);
+  const [showEarlier, setShowEarlier] = useState(false);
+  const [loadHelpOpen, setLoadHelpOpen] = useState(false);
 
   const month = anchor.slice(0, 7);
   const range = useMemo(
@@ -88,6 +101,7 @@ const TrainingCalendarScreen: React.FC<Props> = ({ navigation }) => {
         : addDays(`${month}-01`, direction === 1 ? 32 : -1).slice(0, 7) + '-01';
     setAnchor(next);
     setSelected(next);
+    setShowEarlier(false);
   };
 
   const title =
@@ -130,58 +144,110 @@ const TrainingCalendarScreen: React.FC<Props> = ({ navigation }) => {
   const selectedWeek = data?.weeks.find((w) => w.start === weekStart);
   const detail = days.get(selected) ?? EMPTY_DAY;
 
-  const renderChips = (day: string) => {
+  const dayA11yLabel = (day: string) => {
     const items = days.get(day) ?? EMPTY_DAY;
+    const marks = dayMarks(items);
+    const date =
+      day === today
+        ? t('date.today', { defaultValue: 'Today' })
+        : formatDate(day, appLocale);
+    if (marks.length === 0) {
+      return t('trainingCalendar.dayA11yNone', {
+        date,
+        defaultValue: '{{date}}, nothing planned or logged',
+      });
+    }
+    return t('trainingCalendar.dayA11y', {
+      date,
+      marks: marks.map((m) => markA11yLabel(t, m.sport, m.status)).join('; '),
+      defaultValue: '{{date}}: {{marks}}',
+    });
+  };
+
+  const renderDayCell = (day: string) => {
+    const items = days.get(day) ?? EMPTY_DAY;
+    const marks = dayMarks(items);
+    const isToday = day === today;
+    const inMonth = mode === 'week' || day.slice(0, 7) === month;
     return (
-      <View className="flex-row flex-wrap justify-center" style={{ gap: 2 }}>
-        {items.planned.slice(0, 3).map((item) => (
-          <View
-            key={item.id}
-            testID={`planned-dot-${item.status}`}
-            className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: STATUS_COLORS[item.status] }}
-          />
-        ))}
-        {items.completed
-          .filter((item) => item.plannedItemId === null)
-          .slice(0, 2)
-          .map((item) => (
-            <View
-              key={item.id}
-              testID="extra-dot"
-              className="w-2 h-2 border"
-              style={{ borderColor: EXTRA_COLOR }}
-            />
-          ))}
-      </View>
+      <Pressable
+        key={day}
+        testID={`calendar-day-${day}`}
+        accessibilityRole="button"
+        accessibilityLabel={dayA11yLabel(day)}
+        accessibilityState={{ selected: day === selected }}
+        onPress={() => setSelected(day)}
+        className={`flex-1 items-center py-1.5 rounded-lg ${
+          day === selected ? 'bg-accent-primary/20' : ''
+        }`}
+        style={{ minHeight: 52 }}
+      >
+        <View
+          testID={isToday ? 'calendar-today-ring' : undefined}
+          className={`items-center justify-center rounded-full ${
+            isToday ? 'border-2 border-accent-primary' : ''
+          }`}
+          style={{ width: 26, height: 26 }}
+        >
+          <Text
+            className={`text-sm ${
+              !inMonth
+                ? 'text-text-muted'
+                : marks.length > 0
+                  ? 'text-text-primary font-semibold'
+                  : 'text-text-secondary'
+            }`}
+          >
+            {Number(day.slice(8))}
+          </Text>
+        </View>
+        <DayMarks marks={marks} />
+      </Pressable>
     );
   };
 
-  const renderDayCell = (day: string, compact: boolean) => (
-    <Pressable
-      key={day}
-      testID={`calendar-day-${day}`}
-      accessibilityRole="button"
-      onPress={() => setSelected(day)}
-      className={`flex-1 items-center py-2 rounded-lg ${
-        day === selected ? 'bg-accent-primary/15' : ''
-      }`}
-      style={compact ? { minHeight: 48 } : undefined}
-    >
-      <Text
-        className={`text-sm ${
-          day === today
-            ? 'text-accent-primary font-bold'
-            : day.slice(0, 7) === month
-              ? 'text-text-primary'
-              : 'text-text-muted'
-        }`}
+  const renderWeekTotal = (weekStartDay: string) => {
+    const week = data?.weeks.find((w) => w.start === weekStartDay);
+    const summary = weekSummary(week);
+    return (
+      <Pressable
+        key={`total-${weekStartDay}`}
+        testID={`week-total-${weekStartDay}`}
+        accessibilityRole="button"
+        accessibilityLabel={
+          summary
+            ? summary.planned > 0
+              ? t('trainingCalendar.weekTotalA11y', {
+                  done: summary.done,
+                  planned: summary.planned,
+                  defaultValue: '{{done}} of {{planned}} planned sessions done',
+                })
+              : t('trainingCalendar.weekLoggedA11y', {
+                  count: summary.done,
+                  defaultValue: '{{count}} sessions logged',
+                })
+            : t('trainingCalendar.weekEmptyA11y', {
+                defaultValue: 'No sessions this week',
+              })
+        }
+        onPress={() => setSelected(weekStartDay)}
+        className="items-center justify-center"
+        style={{ width: WEEK_TOTAL_WIDTH }}
       >
-        {Number(day.slice(8))}
-      </Text>
-      {renderChips(day)}
-    </Pressable>
-  );
+        {summary ? (
+          <Text className="text-text-secondary text-xs font-semibold">
+            {summary.planned > 0
+              ? t('trainingCalendar.weekTotalShort', {
+                  done: summary.done,
+                  planned: summary.planned,
+                  defaultValue: '{{done}}/{{planned}}',
+                })
+              : formatLocalizedNumber(summary.done)}
+          </Text>
+        ) : null}
+      </Pressable>
+    );
+  };
 
   // A run program workout opens its own screen (steps, the run it was done as,
   // repeat or skip); a workout plan item has no screen of its own.
@@ -274,7 +340,13 @@ const TrainingCalendarScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   const renderTotals = (week: CalendarWeekTotals) => (
-    <View key={week.start} className="mb-2">
+    <View
+      key={week.start}
+      testID={`week-row-${week.start}`}
+      className={`mb-3 ${
+        week.start === weekStart ? 'border-l-2 border-accent-primary pl-2' : ''
+      }`}
+    >
       <Text className="text-text-secondary text-xs mb-0.5">
         {t('trainingCalendar.weekOf', {
           date: formatShortDate(week.start, appLocale),
@@ -282,34 +354,74 @@ const TrainingCalendarScreen: React.FC<Props> = ({ navigation }) => {
         })}
       </Text>
       <Text className="text-text-primary text-sm">
-        {t('trainingCalendar.totals.sessions', {
-          done: week.doneSessions + week.partialSessions,
-          planned: week.plannedSessions,
-          defaultValue: '{{done}} of {{planned}} planned sessions',
-        })}
-        {week.extraSessions > 0
+        {week.plannedSessions > 0
+          ? t('trainingCalendar.totals.sessions', {
+              done: week.doneSessions + week.partialSessions,
+              planned: week.plannedSessions,
+              defaultValue: '{{done}} of {{planned}} planned sessions',
+            })
+          : t('trainingCalendar.totals.sessionsLogged', {
+              count: week.completedSessions,
+              defaultValue: '{{count}} sessions logged',
+            })}
+        {week.plannedSessions > 0 && week.extraSessions > 0
           ? ` · ${t('trainingCalendar.totals.extra', {
               count: week.extraSessions,
               defaultValue: '{{count}} extra',
             })}`
           : ''}
       </Text>
-      <Text className="text-text-secondary text-xs">
-        {t('trainingCalendar.totals.minutes', {
-          done: formatLocalizedNumber(Math.round(week.completedMinutes)),
-          planned: formatLocalizedNumber(Math.round(week.plannedMinutes)),
-          defaultValue: 'Time {{done}} of {{planned}} min',
-        })}
-        {' · '}
-        {t('trainingCalendar.totals.load', {
-          done: formatLocalizedNumber(Math.round(week.completedLoad)),
-          planned: formatLocalizedNumber(Math.round(week.plannedLoad)),
-          defaultValue: 'Load {{done}} of {{planned}}',
-        })}
-        {week.completedDistanceKm > 0
-          ? ` · ${distance(week.completedDistanceKm)}`
-          : ''}
-      </Text>
+      <WeekProgressBar week={week} />
+      <View className="flex-row flex-wrap items-center">
+        <Text className="text-text-secondary text-xs">
+          {week.plannedMinutes > 0
+            ? t('trainingCalendar.totals.minutes', {
+                done: formatLocalizedNumber(Math.round(week.completedMinutes)),
+                planned: formatLocalizedNumber(Math.round(week.plannedMinutes)),
+                defaultValue: 'Time {{done}} of {{planned}} min',
+              })
+            : t('trainingCalendar.totals.minutesDone', {
+                done: formatLocalizedNumber(Math.round(week.completedMinutes)),
+                defaultValue: 'Time {{done}} min',
+              })}
+          {' · '}
+        </Text>
+        <Pressable
+          testID={`load-help-${week.start}`}
+          accessibilityRole="button"
+          accessibilityLabel={t('trainingCalendar.loadHelpA11y', {
+            defaultValue: 'What is training load?',
+          })}
+          accessibilityState={{ expanded: loadHelpOpen }}
+          onPress={() => setLoadHelpOpen((open) => !open)}
+          hitSlop={8}
+          className="flex-row items-center"
+        >
+          <Text className="text-text-secondary text-xs">
+            {week.plannedLoad > 0
+              ? t('trainingCalendar.totals.load', {
+                  done: formatLocalizedNumber(Math.round(week.completedLoad)),
+                  planned: formatLocalizedNumber(Math.round(week.plannedLoad)),
+                  defaultValue: 'Training load {{done}} of {{planned}}',
+                })
+              : t('trainingCalendar.totals.loadDone', {
+                  done: formatLocalizedNumber(Math.round(week.completedLoad)),
+                  defaultValue: 'Training load {{done}}',
+                })}
+          </Text>
+          <Icon
+            name="info-circle"
+            size={13}
+            color="#999"
+            style={{ marginLeft: 3 }}
+          />
+        </Pressable>
+        {week.completedDistanceKm > 0 ? (
+          <Text className="text-text-secondary text-xs">
+            {` · ${distance(week.completedDistanceKm)}`}
+          </Text>
+        ) : null}
+      </View>
     </View>
   );
 
@@ -335,12 +447,16 @@ const TrainingCalendarScreen: React.FC<Props> = ({ navigation }) => {
     const rows = Array.from({ length: gridDays.length / 7 }, (_, i) =>
       gridDays.slice(i * 7, i * 7 + 7)
     );
-    const totalsWeeks =
+    const { visible, earlier } =
       mode === 'month'
-        ? data.weeks.filter((w) => w.plannedSessions + w.completedSessions > 0)
-        : selectedWeek
-          ? [selectedWeek]
-          : [];
+        ? orderWeeks(
+            data.weeks.filter(
+              (w) => w.plannedSessions + w.completedSessions > 0
+            ),
+            today
+          )
+        : { visible: selectedWeek ? [selectedWeek] : [], earlier: [] };
+    const totalsWeeks = showEarlier ? [...visible, ...earlier] : visible;
     return (
       <>
         <View className="bg-surface rounded-xl p-3 mb-4 shadow-sm">
@@ -353,13 +469,19 @@ const TrainingCalendarScreen: React.FC<Props> = ({ navigation }) => {
                 {name}
               </Text>
             ))}
+            <View style={{ width: WEEK_TOTAL_WIDTH }} />
           </View>
           {rows.map((row) => (
             <View key={row[0]} className="flex-row">
-              {row.map((day) => renderDayCell(day, true))}
+              {row.map((day) => renderDayCell(day))}
+              {renderWeekTotal(row[0]!)}
             </View>
           ))}
-          <View className="flex-row flex-wrap mt-2" style={{ gap: 10 }}>
+          <View
+            testID="calendar-legend"
+            className="flex-row flex-wrap mt-2"
+            style={{ gap: 10 }}
+          >
             {(['done', 'partial', 'missed', 'upcoming'] as const).map(
               (status) => (
                 <View key={status} className="flex-row items-center">
@@ -375,13 +497,25 @@ const TrainingCalendarScreen: React.FC<Props> = ({ navigation }) => {
             )}
             <View className="flex-row items-center">
               <View
-                className="w-2 h-2 border mr-1"
-                style={{ borderColor: EXTRA_COLOR }}
+                className="w-2 h-2 rounded-full mr-1"
+                style={{ backgroundColor: EXTRA_COLOR, opacity: 0.5 }}
               />
               <Text className="text-text-muted text-xs">
                 {t('trainingCalendar.extra', { defaultValue: 'Extra' })}
               </Text>
             </View>
+          </View>
+          <View className="flex-row flex-wrap mt-2" style={{ gap: 10 }}>
+            {SPORTS.map((sport) => (
+              <View key={sport} className="flex-row items-center">
+                <View className="mr-1">
+                  <Icon name={SPORT_ICONS[sport]} size={13} color="#999" />
+                </View>
+                <Text className="text-text-muted text-xs">
+                  {sportLoadLabel(t, sport)}
+                </Text>
+              </View>
+            ))}
           </View>
         </View>
 
@@ -392,10 +526,12 @@ const TrainingCalendarScreen: React.FC<Props> = ({ navigation }) => {
               : formatDate(selected, appLocale)}
           </Text>
           {detail.planned.length === 0 && detail.completed.length === 0 ? (
-            <Text className="text-text-secondary text-sm">
-              {t('trainingCalendar.emptyDay', {
-                defaultValue: 'Nothing planned or logged this day.',
-              })}
+            <Text testID="empty-day" className="text-text-muted text-sm">
+              {selected <= addDays(today, REST_DAY_AHEAD_DAYS)
+                ? t('trainingCalendar.restDay', { defaultValue: 'Rest day' })
+                : t('trainingCalendar.emptyDay', {
+                    defaultValue: 'Nothing planned or logged this day.',
+                  })}
             </Text>
           ) : (
             <>
@@ -424,7 +560,48 @@ const TrainingCalendarScreen: React.FC<Props> = ({ navigation }) => {
                 defaultValue: 'Planned vs completed',
               })}
             </Text>
+            {loadHelpOpen ? (
+              <View
+                testID="load-help"
+                className="bg-background rounded-lg p-3 mb-3"
+              >
+                <Text className="text-text-primary text-xs font-semibold mb-1">
+                  {t('exerciseStatistics.load.title', {
+                    defaultValue: 'Training Load',
+                  })}
+                </Text>
+                <Text className="text-text-secondary text-xs">
+                  {t('exerciseStatistics.load.subtitle', {
+                    defaultValue:
+                      'Workout minutes weighted by heart rate, this week against the last four.',
+                  })}{' '}
+                  {t('trainingCalendar.load.method', {
+                    defaultValue:
+                      'Load is minutes weighted by your average heart rate (1 to 5, from how close it was to your maximum). A workout with no heart rate counts at a moderate weight of 2, so a strength session with no watch still counts by its time. Effort ratings are not used.',
+                  })}
+                </Text>
+              </View>
+            ) : null}
             {totalsWeeks.map(renderTotals)}
+            {earlier.length > 0 ? (
+              <Pressable
+                testID="toggle-earlier-weeks"
+                accessibilityRole="button"
+                onPress={() => setShowEarlier((open) => !open)}
+                className="items-center py-1"
+              >
+                <Text className="text-accent-primary text-sm font-semibold">
+                  {showEarlier
+                    ? t('trainingCalendar.hideEarlier', {
+                        defaultValue: 'Hide earlier weeks',
+                      })
+                    : t('trainingCalendar.showEarlier', {
+                        count: earlier.length,
+                        defaultValue: 'Show earlier weeks ({{count}})',
+                      })}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
       </>

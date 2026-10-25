@@ -55,3 +55,21 @@ export function plannedItemLabel(t: TFunction, item: PlannedItem): string {
     t('trainingCalendar.workoutPlanFallback', { defaultValue: 'Workout plan' })
   );
 }
+
+/** What a screen reader says for a sport icon: the sport and the status. */
+export function markA11yLabel(
+  t: TFunction,
+  sport: LoadSportGroup,
+  status: PlannedStatus | 'extra'
+): string {
+  return t('trainingCalendar.markA11y', {
+    sport: sportLoadLabel(t, sport),
+    status:
+      status === 'extra'
+        ? t('trainingCalendar.extraA11y', {
+            defaultValue: 'extra, not planned',
+          })
+        : plannedStatusLabel(t, status),
+    defaultValue: '{{sport}}, {{status}}',
+  });
+}
