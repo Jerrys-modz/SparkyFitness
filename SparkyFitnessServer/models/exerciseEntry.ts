@@ -829,7 +829,7 @@ async function _updateExerciseEntryWithClient(
       userId
     );
     if (!exercise) {
-      throw new Error('Exercise not found for snapshot update.');
+      throw Object.assign(new Error('Exercise not found.'), { status: 404 });
     }
     mergedData.exercise_name = exercise.name;
     mergedData.calories_per_hour = exercise.calories_per_hour;
@@ -1161,7 +1161,9 @@ async function _createExerciseEntryWithClient(
         [entryData.exercise_id]
       );
       if (exerciseSnapshotQuery.rows.length === 0) {
-        throw new Error('Exercise not found for snapshotting.');
+        throw Object.assign(new Error('Exercise not found.'), {
+          status: 404,
+        });
       }
       const snapshot = exerciseSnapshotQuery.rows[0];
       // 2. Insert the exercise entry with the snapshot data. A client-provided
