@@ -17,24 +17,6 @@ jest.mock('../../src/services/routeService', () => ({
   useRoute: jest.fn(),
   useRouteStops: jest.fn(),
 }));
-jest.mock('../../src/hooks/useWatchConnectivity', () => ({
-  useWatchConnectivity: jest.fn(() => ({ isPaired: false })),
-}));
-jest.mock('../../src/services/watchRouteSync', () => ({
-  sendRouteToWatch: jest.fn(() => Promise.resolve()),
-  removeRouteFromWatch: jest.fn(() => Promise.resolve()),
-}));
-jest.mock('../../src/services/watchRunControl', () => ({
-  startRunOnWatch: jest.fn(() => Promise.resolve('q1')),
-}));
-jest.mock('../../src/services/gpsRecordingService', () => ({
-  getRecordingPreferences: jest.fn(() =>
-    Promise.resolve({ autoPause: true, audioCues: true })
-  ),
-}));
-jest.mock('../../src/services/segmentService', () => ({
-  useSegments: jest.fn(() => ({ segments: [] })),
-}));
 jest.mock('../../src/services/LogService', () => ({ addLog: jest.fn() }));
 jest.mock('react-native-toast-message', () => ({
   __esModule: true,

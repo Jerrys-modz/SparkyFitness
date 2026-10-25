@@ -26,4 +26,3 @@ SET categories = ARRAY['other'],
     is_strictly_private = FALSE,
     supports_barcode = FALSE
 WHERE id = 'overpass';
-

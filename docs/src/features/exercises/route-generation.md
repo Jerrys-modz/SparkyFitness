@@ -125,7 +125,6 @@ Returns what this server offers:
 ```
 
 The answer is for the signed-in person. `source` is `"provider"` when the routing engine comes from a routing provider (their own, a public one or a shared one) and `null` when `available` is false, which means there is no routing provider. With the Valhalla provider `maxAlternatives` is 3 and every `style` field is true; with no routing provider they read 1 and false. `stops` and `stopsSource` follow the **Overpass** provider independently of the routing one, and read `false` and `null` while the Overpass server has asked the SparkyFitness server to slow down (see below), so a client simply stops offering stops for a moment. Older servers send only `available`; clients read a missing field as "not supported".
-The answer is for the signed-in person. `source` is `"provider"` when the routing engine comes from a routing provider (their own, a public one or a shared one) and `null` when `available` is false, which means there is no routing provider. With the Valhalla provider `maxAlternatives` is 3 and every `style` field is true; with no routing provider they read 1 and false. `stops` is always false for now.
 
 ### `POST /api/v2/routes/generate`
 
