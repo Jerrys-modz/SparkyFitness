@@ -128,6 +128,29 @@ describe('estimateCaloriesBurnedPerHour', () => {
     );
   });
 
+  it('counts a per-side set logged once for both sides when averaging the session weight', async () => {
+    // Heavy set with no side (did both sides) and a light set marked left.
+    // Counted once each the average is 60 vs a 1RM of ~112.5 (intensity ~0.53,
+    // MET 3.5); with the unsided set counted for both sides it is ~73
+    // (intensity ~0.65, MET 4.5).
+    const sets = [
+      { reps: 5, weight: 100 },
+      { reps: 5, weight: 20, side: 'left' },
+    ];
+    const asLogged = await estimateCaloriesBurnedPerHour(
+      { ...strengthExercise, load_convention: 'total' },
+      USER_ID,
+      sets
+    );
+    const perSide = await estimateCaloriesBurnedPerHour(
+      { ...strengthExercise, load_convention: 'per_side' },
+      USER_ID,
+      sets
+    );
+    expect(asLogged).toBe(calsForMet(3.5));
+    expect(perSide).toBe(calsForMet(4.5));
+  });
+
   it('falls back to the category MET when reps exceed the Brzycki validity range', async () => {
     const result = await estimateCaloriesBurnedPerHour(
       strengthExercise,
