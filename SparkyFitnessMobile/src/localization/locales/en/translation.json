@@ -8911,6 +8911,10 @@
     "resetDescription": "Your saved plates and bars are removed and the standard set is used again.",
     "resetToStandard": "Reset to standard",
     "resetFailed": "Failed to reset plates and bars",
-    "loadFailed": "Could not load your plates and bars."
+    "loadFailed": "Could not load your plates and bars.",
+    "graphicLabel": "{{perSide}} {{unit}} per side on a {{bar}} {{unit}} bar",
+    "graphicNotExact": "Your plates cannot make exactly {{weight}} {{unit}}.",
+    "graphicNearest": "Plates: nearest {{weight}} {{unit}}",
+    "graphicBelowBar": "Plates: lighter than the bar"
   }
 }
