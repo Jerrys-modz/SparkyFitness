@@ -126,6 +126,12 @@ const garminUrl = ref("http://sparkyfitness-garmin:8000");
 const garminPort = ref("8000");
 const garminIsCn = ref(false);
 const garminLookbackDays = ref("3");
+// Whole days from 0 to 30 is what the server accepts. Anything else is left
+// out of the file, since the server would only fall back to 3 with a warning.
+const garminLookbackValid = computed(() => {
+  const value = garminLookbackDays.value.trim();
+  return value === "" || (/^\d+$/.test(value) && Number(value) <= 30);
+});
 
 // UI State
 const copied = ref(false);
@@ -437,7 +443,7 @@ GARMIN_SERVICE_PORT=${garminPort.value}
     }
     // Only written when changed: the server defaults to 3 days on its own.
     const lookback = garminLookbackDays.value.trim();
-    if (lookback && lookback !== "3") {
+    if (garminLookbackValid.value && lookback && lookback !== "3") {
       out += `GARMIN_SCHEDULED_LOOKBACK_DAYS=${lookback}\n`;
     }
   }
@@ -1446,18 +1452,27 @@ onMounted(() => {
           <div class="form-group" style="margin-top: 12px">
             <label
               >Scheduled sync look-back (days)
-              <code class="var-badge">GARMIN_SCHEDULED_LOOKBACK_DAYS</code></label
+              <code class="var-badge"
+                >GARMIN_SCHEDULED_LOOKBACK_DAYS</code
+              ></label
             >
             <input
               v-model="garminLookbackDays"
               type="text"
+              inputmode="numeric"
               class="text-input"
+              :class="{ 'input-invalid': !garminLookbackValid }"
+              :aria-invalid="!garminLookbackValid"
               placeholder="3"
             />
             <span class="field-hint"
               >How many days before today the hourly sync re-pulls, so a watch
               that reaches Garmin Connect late still corrects the day. Default:
               <code>3</code>; <code>0</code> requests today only.</span
+            >
+            <span v-if="!garminLookbackValid" class="field-hint field-error"
+              >Whole number from 0 to 30. This value is left out of the
+              generated file, and the server would use 3.</span
             >
           </div>
           <div class="checkbox-group" style="margin-top: 12px">
@@ -2463,6 +2478,14 @@ onMounted(() => {
   color: var(--vp-c-text-2, #888);
   line-height: 1.35;
   margin-top: 2px;
+}
+
+.field-error {
+  color: var(--vp-c-danger-1, #c0392b);
+}
+
+.text-input.input-invalid {
+  border-color: var(--vp-c-danger-1, #c0392b);
 }
 
 .beta-warning {
