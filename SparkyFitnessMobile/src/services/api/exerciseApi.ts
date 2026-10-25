@@ -13,6 +13,7 @@ import type {
   ExerciseAlternativeMode,
   ExerciseAlternativesResponse,
   ExerciseHistoryResponse,
+  ExerciseLoadConvention,
   ExerciseModality,
   ExerciseStatsResponse,
   CreatePresetSessionRequest,
@@ -175,6 +176,8 @@ export interface CreateExercisePayload {
   category: string;
   /** Silently dropped by pre-modality servers (they derive from category). */
   modality?: ExerciseModality;
+  /** Silently dropped by servers from before volume counting. */
+  load_convention?: ExerciseLoadConvention;
   /** Omit when blank — server defaults missing/falsy values to 0. */
   calories_per_hour?: number;
   description: string | null;
@@ -194,6 +197,8 @@ export interface UpdateExercisePayload {
   category?: string;
   /** Sent only when the user changes it; omitted preserves (server COALESCEs). */
   modality?: ExerciseModality;
+  /** Sent only when the user changes it; changing it also updates the exercise's logged entries. */
+  load_convention?: ExerciseLoadConvention;
   calories_per_hour?: number;
   /** Empty string clears, omitted/null preserves (server COALESCEs nulls). */
   description?: string | null;

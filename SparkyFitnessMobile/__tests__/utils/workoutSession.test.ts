@@ -3863,6 +3863,54 @@ describe('workoutSession', () => {
       });
     });
 
+    describe('volume counting (#3157)', () => {
+      const set = (weight: number, reps: number, side?: 'left' | 'right') => ({
+        id: 1,
+        set_number: 1,
+        set_type: 'normal',
+        reps,
+        weight,
+        duration: null,
+        rest_time: null,
+        notes: null,
+        rpe: null,
+        ...(side ? { side } : {}),
+      });
+      const exercise = (
+        loadConvention: string | undefined,
+        sets: ReturnType<typeof set>[]
+      ) =>
+        ({
+          exercise_snapshot: { load_convention: loadConvention },
+          sets,
+        }) as any;
+
+      it('counts both dumbbells of a per-hand exercise', () => {
+        const sets = [set(20, 10), set(20, 10), set(20, 10)];
+        expect(getExerciseVolumeKg(exercise(undefined, sets))).toBe(600);
+        expect(getExerciseVolumeKg(exercise('total', sets))).toBe(600);
+        expect(getExerciseVolumeKg(exercise('per_hand', sets))).toBe(1200);
+      });
+
+      it('counts both sides of a per-side set logged once, but a marked side once', () => {
+        expect(setVolumeKg(set(30, 8), 'weight_reps', null, 'per_side')).toBe(
+          480
+        );
+        expect(
+          setVolumeKg(set(30, 8, 'left'), 'weight_reps', null, 'per_side')
+        ).toBe(240);
+        expect(
+          getExerciseVolumeKg(
+            exercise('per_side', [set(30, 8, 'left'), set(30, 8, 'right')])
+          )
+        ).toBe(480);
+      });
+
+      it('leaves the load alone, so a record keeps the logged weight', () => {
+        expect(setLoadKg(20, 'weight_reps', null)).toBe(20);
+      });
+    });
+
     describe('formatVolume', () => {
       it('rounds and appends the unit, converting for lbs', () => {
         expect(formatVolume(1000, 'kg')).toBe(`${fmt(1000)} kg`);

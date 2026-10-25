@@ -607,11 +607,12 @@ export function estimateRepMaxKg(
  * body weight too — the same rule the server's reports use.
  */
 export function setVolumeKg(
-  set: Pick<ExerciseEntrySetResponse, 'weight' | 'reps'>,
+  set: Pick<ExerciseEntrySetResponse, 'weight' | 'reps' | 'side'>,
   modality: ExerciseModality = 'weight_reps',
-  bodyWeightKg: number | null = null
+  bodyWeightKg: number | null = null,
+  loadConvention?: string | null
 ): number {
-  return sharedSetVolumeKg(set, modality, bodyWeightKg);
+  return sharedSetVolumeKg(set, modality, bodyWeightKg, loadConvention);
 }
 
 /**
@@ -635,16 +636,18 @@ export function getExerciseVolumeKg(
     exercise_snapshot?: {
       modality?: string | null;
       category?: string | null;
+      load_convention?: string | null;
     } | null;
   },
   bodyWeightKg: number | null = null
 ): number {
   const modality = resolveSnapshotModality(exercise.exercise_snapshot);
+  const loadConvention = exercise.exercise_snapshot?.load_convention;
   return exercise.sets.reduce(
     (total, set) =>
       isWarmupSetType(set.set_type)
         ? total
-        : total + setVolumeKg(set, modality, bodyWeightKg),
+        : total + setVolumeKg(set, modality, bodyWeightKg, loadConvention),
     0
   );
 }
@@ -841,6 +844,8 @@ export interface WorkoutCardExercise {
     name?: string | null;
     category?: string | null;
     modality?: string | null;
+    /** How logged weight and reps count toward volume (`total` when absent). */
+    load_convention?: string | null;
     images?: string[] | null;
     mechanic?: string | null;
     /** Used to round dumbbell warm-ups to dumbbell steps. */
@@ -2047,7 +2052,12 @@ export function buildWorkoutCompletionSummary(
         });
       }
       if (isWarmupSetType(set.set_type)) continue;
-      exerciseVolumeKg += setVolumeKg(set, modality, bodyWeightKg);
+      exerciseVolumeKg += setVolumeKg(
+        set,
+        modality,
+        bodyWeightKg,
+        exercise.exercise_snapshot?.load_convention
+      );
       // Carry distances stay out of the workout's distance total: that tile
       // reads as running/cycling distance.
       if (set.distance != null && !isWeightDistanceModality(modality)) {
