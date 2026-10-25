@@ -125,10 +125,9 @@ export const PROVIDER_SYNC_CONFIGS: readonly ProviderSyncConfig[] = [
     },
   },
   {
-    // Daily: the service defaults to yesterday and today in the user's timezone.
+    // Hourly; each run covers yesterday and today in the user's timezone.
     name: 'Intervals.icu',
     types: ['intervals'],
-    cronExpression: '30 4 * * *',
     sync: async (p) => {
       await intervalsService.syncIntervalsData(p.user_id, p.user_id, p.id);
     },

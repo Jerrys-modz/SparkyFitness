@@ -19,7 +19,7 @@ The Intervals.icu integration imports activities and daily wellness data from [I
 2. Click **Add New Data Provider** and select **Intervals.icu**.
 3. Enter your **Athlete ID** and **API Key**.
 4. Turn on **Activate this provider** and click **Add Provider**. SparkyFitness imports yesterday and today right away.
-5. To sync automatically, edit the provider and set **Sync Frequency** to **Daily**.
+5. To sync automatically, edit the provider and set **Sync Frequency** to **Hourly**.
 
 ---
 
@@ -48,7 +48,7 @@ Not imported: sleep (Intervals.icu has no bedtime), nutrition, fitness/fatigue/f
 
 ## Sync Schedule & Manual Controls
 
-- **Daily Sync**: Once a day, SparkyFitness imports yesterday and today for every active Intervals.icu provider whose sync frequency is not **Manual**.
+- **Hourly Sync**: Every hour, SparkyFitness imports yesterday and today for every active Intervals.icu provider whose sync frequency is not **Manual**.
 - **Sync Now / Sync Range**: Import any date range of up to 365 days from the provider card.
 
 ---

@@ -298,7 +298,7 @@ describe('providerSyncScheduler', () => {
     );
   });
 
-  it('runs Intervals.icu once a day with the provider id', async () => {
+  it('runs Intervals.icu hourly with the provider id', async () => {
     vi.mocked(externalProviderRepository.getProvidersByType).mockResolvedValue([
       {
         id: 'p-intervals',
@@ -312,7 +312,7 @@ describe('providerSyncScheduler', () => {
       (c) => c.name === 'Intervals.icu'
     ) as ProviderSyncConfig;
 
-    expect(intervalsConfig.cronExpression).toBe('30 4 * * *');
+    expect(intervalsConfig.cronExpression).toBeUndefined();
     await runProviderSync(intervalsConfig);
 
     expect(intervalsService.syncIntervalsData).toHaveBeenCalledWith(
