@@ -824,7 +824,8 @@ router.put(
     }
     // Checked here because the database would reject it as a server error.
     if (
-      updateData.exercise_id &&
+      updateData.exercise_id !== undefined &&
+      updateData.exercise_id !== null &&
       (typeof updateData.exercise_id !== 'string' ||
         !uuidRegex.test(updateData.exercise_id))
     ) {

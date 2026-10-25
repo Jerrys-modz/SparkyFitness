@@ -109,15 +109,18 @@ describe('exercise entry routes with an unknown exercise_id', () => {
     expect(res.body.error).toBe('Exercise not found.');
   });
 
-  it('PUT rejects an exercise_id that is not a UUID before reaching the database', async () => {
-    const res = await request(app)
-      .put(`/exercise-entries/${entryId}`)
-      .send({ exercise_id: 'not-a-uuid' });
+  it.each(['not-a-uuid', '', 0, false])(
+    'PUT rejects exercise_id %j before reaching the database',
+    async (exerciseId) => {
+      const res = await request(app)
+        .put(`/exercise-entries/${entryId}`)
+        .send({ exercise_id: exerciseId });
 
-    expect(res.status).toBe(400);
-    expect(res.body).toEqual({ error: 'Exercise ID must be a valid UUID.' });
-    expect(exerciseService.updateExerciseEntry).not.toHaveBeenCalled();
-  });
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({ error: 'Exercise ID must be a valid UUID.' });
+      expect(exerciseService.updateExerciseEntry).not.toHaveBeenCalled();
+    }
+  );
 
   it('PUT still accepts a null exercise_id', async () => {
     vi.mocked(exerciseService.updateExerciseEntry).mockResolvedValue({
