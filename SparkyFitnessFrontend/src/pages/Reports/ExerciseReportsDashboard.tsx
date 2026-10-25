@@ -6,9 +6,13 @@ import WorkoutHeatmap from './WorkoutHeatmap';
 import { workoutHeatmapWindow } from '@/utils/workoutHeatmap';
 import {
   useTrainingConsistency,
+  useFitnessFatigue,
+  useRunEstimates,
   useWorkoutDays,
 } from '@/hooks/Reports/useReports';
 import TrainingConsistencyCard from './TrainingConsistencyCard';
+import FitnessFatigueCard from './FitnessFatigueCard';
+import RunEstimatesCard from './RunEstimatesCard';
 import MuscleGroupRecoveryTracker from './MuscleGroupRecoveryTracker';
 import { PrProgressionChart } from './PrProgressionChart';
 import ExerciseVarietyScore from './ExerciseVarietyScore';
@@ -176,6 +180,8 @@ const ExerciseReportsDashboard = ({
   );
   const workoutDays = workoutDaysData?.days ?? [];
   const { data: trainingConsistency } = useTrainingConsistency(activeUserId);
+  const { data: fitnessFatigue } = useFitnessFatigue(activeUserId);
+  const { data: runEstimates } = useRunEstimates(activeUserId);
 
   const { data: statsSummary } = useExerciseStatsSummary(
     statsInterval,
@@ -867,6 +873,8 @@ const ExerciseReportsDashboard = ({
             weightUnit={weightUnit}
           />
           <CardioPRBadgesWidget prData={prMatrix} viewMode={viewMode} />
+          <FitnessFatigueCard data={fitnessFatigue} />
+          <RunEstimatesCard data={runEstimates} />
           <TrainingConsistencyCard data={trainingConsistency} />
         </div>
 
