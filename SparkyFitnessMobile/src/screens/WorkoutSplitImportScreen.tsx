@@ -1,0 +1,179 @@
+import React, { useState } from 'react';
+import { Text, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
+import { getWorkoutSplit } from '@workspace/shared';
+import FormInput from '../components/FormInput';
+import StatusView from '../components/StatusView';
+import Button from '../components/ui/Button';
+import Switch from '../components/ui/Switch';
+import { useImportWorkoutSplit } from '../hooks/useImportWorkoutSplit';
+import { useScreenHeader } from '../hooks/useScreenHeader';
+import type { RootStackScreenProps } from '../types/navigation';
+import {
+  sessionName,
+  splitDescription,
+  splitName,
+} from '../utils/workoutSplits';
+
+type Props = RootStackScreenProps<'WorkoutSplitImport'>;
+
+/** Asks for the plan's name and the medical disclaimer before adding a split. */
+const WorkoutSplitImportScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const split = getWorkoutSplit(route.params.splitId);
+  const { importSplitAsync, isPending } = useImportWorkoutSplit();
+  const [planName, setPlanName] = useState(() =>
+    split ? splitName(t, split.id) : ''
+  );
+  const [activate, setActivate] = useState(true);
+  const [accepted, setAccepted] = useState(false);
+
+  const header = useScreenHeader({
+    title: t('workoutSplits.import.screenTitle', {
+      defaultValue: 'Add program',
+    }),
+    left: { kind: 'back' },
+  });
+
+  if (!split) {
+    return (
+      <>
+        {header}
+        <StatusView
+          icon="alert-circle"
+          iconTone="muted"
+          title={t('workoutSplits.import.unknown', {
+            defaultValue: 'This program is not available.',
+          })}
+          action={{
+            label: t('workoutSplits.import.goBack', {
+              defaultValue: 'Go back',
+            }),
+            onPress: () => navigation.goBack(),
+          }}
+        />
+      </>
+    );
+  }
+
+  const trimmedName = planName.trim();
+  const canAdd = accepted && trimmedName !== '' && !isPending;
+
+  const add = async () => {
+    if (!canAdd) return;
+    try {
+      await importSplitAsync({
+        splitId: split.id,
+        body: {
+          planName: trimmedName,
+          sessionNames: Object.fromEntries(
+            split.sessions.map((session) => [
+              session.id,
+              sessionName(t, session.id),
+            ])
+          ),
+          activate,
+        },
+      });
+    } catch {
+      // The mutation already showed the error toast; stay here to retry.
+      return;
+    }
+    Toast.show({
+      type: 'success',
+      text1: t('workoutSplits.import.success', {
+        defaultValue:
+          'Program added. Find its workouts under your presets and plans.',
+      }),
+    });
+    navigation.navigate('WorkoutPlans');
+  };
+
+  return (
+    <>
+      {header}
+      <KeyboardAwareScrollView
+        className="flex-1 bg-background"
+        contentContainerStyle={{
+          padding: 16,
+          paddingBottom: insets.bottom + 24,
+        }}
+        keyboardShouldPersistTaps="handled"
+        bottomOffset={20}
+      >
+        <Text className="text-text-primary text-lg font-semibold">
+          {splitName(t, split.id)}
+        </Text>
+        <Text className="text-text-secondary text-sm mt-1">
+          {splitDescription(t, split.id)}
+        </Text>
+        <Text className="text-text-secondary text-sm mt-3">
+          {t('workoutSplits.import.message', {
+            defaultValue:
+              'This adds its exercises to your library, a preset for each session and a plan that runs them in order. You set your starting weights as you log your first workout.',
+          })}
+        </Text>
+
+        <Text className="text-text-muted text-xs mt-5 mb-1">
+          {t('workoutSplits.import.planName', { defaultValue: 'Plan name' })}
+        </Text>
+        <FormInput
+          value={planName}
+          onChangeText={setPlanName}
+          maxLength={120}
+          accessibilityLabel={t('workoutSplits.import.planName', {
+            defaultValue: 'Plan name',
+          })}
+        />
+
+        <View className="flex-row items-center justify-between mt-5">
+          <Text className="text-text-primary text-base flex-1 mr-3">
+            {t('workoutSplits.import.activate', {
+              defaultValue: 'Make it my active plan',
+            })}
+          </Text>
+          <Switch
+            value={activate}
+            onValueChange={setActivate}
+            accessibilityLabel={t('workoutSplits.import.activate', {
+              defaultValue: 'Make it my active plan',
+            })}
+          />
+        </View>
+
+        <View className="flex-row items-start justify-between mt-5">
+          <Text className="text-text-secondary text-sm flex-1 mr-3">
+            {t('workoutSplits.import.disclaimer', {
+              defaultValue:
+                'I understand that I should check with a doctor or healthcare professional before starting a new workout program, especially with a medical condition or an injury. A program does not replace medical advice, and I am responsible for my own health.',
+            })}
+          </Text>
+          <Switch
+            value={accepted}
+            onValueChange={setAccepted}
+            accessibilityLabel={t('workoutSplits.import.disclaimerAccept', {
+              defaultValue: 'Accept the medical disclaimer',
+            })}
+          />
+        </View>
+
+        <View className="mt-6">
+          <Button
+            variant="primary"
+            onPress={() => void add()}
+            disabled={!canAdd}
+            loading={isPending}
+          >
+            {t('workoutSplits.import.add', { defaultValue: 'Add program' })}
+          </Button>
+        </View>
+      </KeyboardAwareScrollView>
+    </>
+  );
+};
+
+export default WorkoutSplitImportScreen;
