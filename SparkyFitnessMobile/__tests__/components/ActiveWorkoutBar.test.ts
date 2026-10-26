@@ -57,6 +57,10 @@ describe('shouldSuppressActiveWorkoutBar', () => {
     expect(shouldSuppressActiveWorkoutBar('WaterContainerEdit')).toBe(true);
     expect(shouldSuppressActiveWorkoutBar('WaterContainers')).toBe(true);
   });
+
+  it('keeps the HUD off the workout program add screen, which has a sticky footer', () => {
+    expect(shouldSuppressActiveWorkoutBar('WorkoutSplitImport')).toBe(true);
+  });
 });
 
 // Root stack [Tabs, ActiveWorkout]: the top route is suppressed and sits
