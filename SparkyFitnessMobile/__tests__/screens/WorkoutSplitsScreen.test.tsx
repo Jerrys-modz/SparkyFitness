@@ -97,4 +97,10 @@ describe('WorkoutSplitsScreen', () => {
       splitId: 'linear_5x5',
     });
   });
+
+  it('opens the program finder', () => {
+    renderScreen();
+    fireEvent.press(screen.getByText('Find my program'));
+    expect(navigate).toHaveBeenCalledWith('WorkoutFinder');
+  });
 });

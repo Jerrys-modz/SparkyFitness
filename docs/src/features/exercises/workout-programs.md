@@ -42,6 +42,26 @@ Select **Show sessions** on a program to see every session, with each exercise's
 | Upper / lower, 4 days | Beginner | Build muscle | 4 | At home |
 | Push / pull / legs, 3 days | Beginner | Build muscle | 3 | At home |
 
+## Find my program
+
+Not sure which program to pick? Choose **Find my program** on the programs page (or on the Exercises page, on web) and answer six questions:
+
+- **Goal:** build muscle or gain strength.
+- **Training experience:** beginner (up to a year) or intermediate.
+- **Days a week:** 3 to 6.
+- **Workout length:** 40, 60 or 80 minutes.
+- **Where I train:** at home, a garage gym or a gym.
+- **Muscle to focus on:** a balanced program, or core, chest, arms, shoulders or legs.
+
+You get the three closest programs, best first, with a note when one differs from what you asked for, for example "Closest match: 4 days a week". There is no program for every combination, so the closest one may have a different number of days, goal or level.
+
+Each program is fitted to your answers, and **Show sessions** shows it as it will be added:
+
+- **Workout length:** the programs are written for about 60 minutes. For 40 minutes, the last exercises lose sets and then drop out, but the first two lifts always stay. For 80 minutes the two main lifts get one more set. A linear 5x5 is never changed, because dropping a set would make it a different program. Each session shows about how long it will take.
+- **Muscle to focus on:** one extra exercise for that muscle is added to each session that trains it, such as a plank for core or a cable curl for arms, rotating through a few so the sessions are not identical.
+
+Adding it works as below. Only your answers are sent, and the same program is rebuilt when it is added.
+
 ## Adding a program
 
 1. Choose **Add to my workouts** on a program.
@@ -68,7 +88,7 @@ Weights are stored in kilograms and shown in your preferred unit.
 
 ## With the Sparky assistant
 
-Ask the assistant to recommend a program ("I have dumbbells and a bench at home and can train three days a week") and it lists the programs that fit, shows the sessions of one, and adds it for you once you agree. It reminds you about the medical disclaimer before it adds anything. Programs can be listed and viewed through the [MCP server](/features/mcp-server) with a read-only key, but adding one needs a key that can write.
+Ask the assistant to recommend a program ("I have dumbbells and a bench at home and can train three days a week") and it picks the closest programs the same way Find my program does, shows the sessions of one, and adds it for you once you agree. It can also fit the program to a session length and a focus muscle. It reminds you about the medical disclaimer before it adds anything. Programs can be listed and viewed through the [MCP server](/features/mcp-server) with a read-only key, but adding one needs a key that can write.
 
 ## Related
 
