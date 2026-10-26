@@ -2337,6 +2337,14 @@ describe('MeasurementsAddScreen — guided check-in', () => {
     expect(screen.queryByTestId('calendar-sheet')).toBeNull();
   });
 
+  test("leaves the mindfulness card out, keeping the step to the day's measurements", () => {
+    const screen = renderInFlow();
+
+    expect(screen.getByText('Check-in: Step 2 of 3')).toBeTruthy();
+    expect(screen.queryByLabelText('Open mindfulness details')).toBeNull();
+    expect(screen.queryByText('Mindfulness')).toBeNull();
+  });
+
   test('saves a typed weight, then replaces itself with the photos step without a toast', async () => {
     const screen = renderInFlow();
 
@@ -2640,6 +2648,7 @@ describe('MeasurementsAddScreen — guided check-in', () => {
     expect(screen.queryByText(/Check-in: Step/)).toBeNull();
     expect(screen.queryByRole('button', { name: 'Skip this step' })).toBeNull();
     expect(screen.getByTestId('calendar-sheet')).toBeTruthy();
+    expect(screen.getByLabelText('Open mindfulness details')).toBeTruthy();
 
     fireEvent.changeText(getInput(screen, 'weight'), '82.5');
     await pressSave(screen);

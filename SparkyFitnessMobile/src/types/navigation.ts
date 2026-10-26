@@ -418,18 +418,10 @@ export type RootStackParamList = {
    */
   ProgressPhotos:
     { date?: string; guidedCheckIn?: GuidedCheckInParams } | undefined;
-  /**
-   * Side-by-side comparison of two days for one angle. `overSheet` is set when
-   * opened from the guided check-in's photos step, a sheet, which iOS then
-   * presents this over as a sheet too.
-   */
-  ProgressPhotoCompare: { angle?: PhotoType; overSheet?: boolean } | undefined;
-  /**
-   * Cross-fading time-lapse of every photo for one angle, oldest to newest.
-   * `overSheet` as for `ProgressPhotoCompare`.
-   */
-  ProgressPhotoTimelapse:
-    { angle?: PhotoType; overSheet?: boolean } | undefined;
+  /** Side-by-side comparison of two days for one angle. */
+  ProgressPhotoCompare: { angle?: PhotoType } | undefined;
+  /** Cross-fading time-lapse of every photo for one angle, oldest to newest. */
+  ProgressPhotoTimelapse: { angle?: PhotoType } | undefined;
   CalorieSettings: undefined;
   /**
    * Without params this edits today's goals. `presetId` edits that goal

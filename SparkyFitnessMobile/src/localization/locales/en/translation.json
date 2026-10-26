@@ -6576,6 +6576,7 @@
     "historySection": "History",
     "historyDescription": "Your photos for this angle, newest first.",
     "historyDescriptionCapped": "Your {{limit}} most recent. Compare or Time-lapse look further back.",
+    "historyDescriptionCappedCheckIn": "Your {{limit}} most recent, newest first.",
     "slotSheetTitle": "Progress photo",
     "removeTitle": "Remove photo?",
     "removeMessage": "This deletes the photo from this day.",

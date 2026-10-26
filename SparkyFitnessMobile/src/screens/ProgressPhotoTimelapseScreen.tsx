@@ -30,7 +30,6 @@ import { useCheckInPhotoGallery } from '../hooks/useCheckInPhotos';
 import { useCheckInPhotoSource } from '../hooks/useCheckInPhotoSource';
 import { usePreferences } from '../hooks/usePreferences';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
-import { screenTopInset } from '../utils/screenTopInset';
 import {
   framesForAngle,
   framesInRange,
@@ -392,10 +391,7 @@ const ProgressPhotoTimelapseScreen: React.FC<Props> = ({
   return (
     <View
       className="flex-1 bg-background"
-      style={screenTopInset(insets.top, {
-        usesNativeHeader,
-        asSheet: route.params?.overSheet === true,
-      })}
+      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
     >
       {header}
       <View className="pt-2">{body()}</View>

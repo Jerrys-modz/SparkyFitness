@@ -780,22 +780,39 @@ describe('ProgressPhotosScreen', () => {
       expect(offerCheckinRemindersAfterLeaving).not.toHaveBeenCalled();
     });
 
-    it.each([
-      ['Compare', 'ProgressPhotoCompare'],
-      ['Time-lapse', 'ProgressPhotoTimelapse'],
-    ])(
-      'opens %s marked as shown over the check-in sheet',
-      (label, routeName) => {
-        const { getByText } = renderInFlow();
+    it('leaves Compare and Time-lapse to the screen opened on its own', () => {
+      const { queryByText, queryByRole } = renderInFlow();
 
-        fireEvent.press(getByText(label));
+      expect(queryByText('Compare')).toBeNull();
+      expect(queryByText('Time-lapse')).toBeNull();
+      expect(queryByRole('button', { name: /Compare|Time-lapse/ })).toBeNull();
+    });
 
-        expect(navigation.navigate).toHaveBeenCalledWith(routeName, {
-          angle: 'front',
-          overSheet: true,
-        });
-      }
-    );
+    it('describes a capped history without pointing at Compare or Time-lapse', () => {
+      setGallery(
+        Array.from({ length: 10 }, (_, i) =>
+          dayWith(`2026-03-${String(28 - i).padStart(2, '0')}`, 100 + i)
+        )
+      );
+
+      const { getByText, queryByText } = renderInFlow();
+
+      expect(getByText('Your 7 most recent, newest first.')).toBeTruthy();
+      expect(queryByText(/Compare or Time-lapse/)).toBeNull();
+    });
+
+    it('shows the weight but no Log weight prompt, which is the step before', () => {
+      setGallery([dayWith(FLOW_DATE, null), dayWith('2026-03-01', 84)]);
+
+      const { getByText, queryByText, queryByLabelText } = renderInFlow();
+
+      // Neither the day block nor the history row of a day without weight
+      // offers to log one.
+      expect(queryByText('Log weight')).toBeNull();
+      expect(queryByLabelText('Log your weight for this day')).toBeNull();
+      expect(getByText('84 kg')).toBeTruthy();
+      expect(navigation.navigate).not.toHaveBeenCalled();
+    });
 
     it('keeps Back, the day picker and no step indicator outside the check-in', () => {
       const { getByLabelText, queryByText } = renderScreen({

@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Platform,
   Text,
   TouchableOpacity,
   View,
@@ -46,7 +47,6 @@ import { useCheckInPhotoSource } from '../hooks/useCheckInPhotoSource';
 import { usePreferences } from '../hooks/usePreferences';
 import { getApiErrorMessage } from '../services/api/errors';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
-import { screenTopInset } from '../utils/screenTopInset';
 import { pickImageFromCamera, pickImagesFromLibrary } from '../utils/pickImage';
 import { formatDateLabel, getTodayDate } from '../utils/dateUtils';
 import {
@@ -227,16 +227,17 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
   // Gated on the whole history, not the preview: the description points at
   // these two for anything older, so they must not be off when it does.
   const canCompare = allRows.length >= 2;
-  // Opened over the check-in's sheet, iOS shows them as sheets too.
-  const subScreenParams = guidedCheckIn
-    ? { angle, overSheet: true }
-    : { angle };
 
   const handleFinish = useCallback(() => {
     if (pickerLock.current) return;
     guidedCheckIn?.finish({ saved: uploadedRef.current });
   }, [guidedCheckIn]);
   const isPhotoPending = isPicking || isUploading || isDeleting;
+  // Pushed, the screen pads below the status bar only when it draws its own
+  // header. In the check-in it is a sheet, which on iOS already starts below
+  // the status bar, so there only Android (full height) pads.
+  const needsTopInset =
+    !usesNativeHeader && (!guidedCheckIn || Platform.OS === 'android');
 
   // Photos save as they are added, so on the last step closing is finishing.
   // System Back and the iOS swipe down close the sheet without the header;
@@ -428,7 +429,11 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
           <PhotoDayWeight
             weight={item.day.weight}
             mode={weightMode}
-            onLogWeight={() => openWeightEntry(item.day.entry_date)}
+            onLogWeight={
+              guidedCheckIn
+                ? undefined
+                : () => openWeightEntry(item.day.entry_date)
+            }
             className="text-text-secondary text-sm mt-0.5"
           />
           {item.deltaKg != null && item.deltaKg !== 0 && (
@@ -503,10 +508,7 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
   return (
     <View
       className="flex-1 bg-background"
-      style={screenTopInset(insets.top, {
-        usesNativeHeader,
-        asSheet: guidedCheckIn != null,
-      })}
+      style={needsTopInset ? { paddingTop: insets.top } : undefined}
     >
       {header}
       {guidedCheckIn && (
@@ -548,7 +550,9 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
           <PhotoDayWeight
             weight={selectedDay?.weight ?? null}
             mode={weightMode}
-            onLogWeight={() => openWeightEntry(selectedDate)}
+            onLogWeight={
+              guidedCheckIn ? undefined : () => openWeightEntry(selectedDate)
+            }
             className="text-text-secondary text-sm"
           />
         </View>
@@ -573,15 +577,20 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
           {t('progressPhotos.historySection', { defaultValue: 'History' })}
         </Text>
         <Text className="text-text-muted text-xs mb-2">
-          {isCapped
-            ? t('progressPhotos.historyDescriptionCapped', {
-                defaultValue:
-                  'Your {{limit}} most recent. Compare or Time-lapse look further back.',
+          {isCapped && guidedCheckIn
+            ? t('progressPhotos.historyDescriptionCappedCheckIn', {
+                defaultValue: 'Your {{limit}} most recent, newest first.',
                 limit: HISTORY_PREVIEW_LIMIT,
               })
-            : t('progressPhotos.historyDescription', {
-                defaultValue: 'Your photos for this angle, newest first.',
-              })}
+            : isCapped
+              ? t('progressPhotos.historyDescriptionCapped', {
+                  defaultValue:
+                    'Your {{limit}} most recent. Compare or Time-lapse look further back.',
+                  limit: HISTORY_PREVIEW_LIMIT,
+                })
+              : t('progressPhotos.historyDescription', {
+                  defaultValue: 'Your photos for this angle, newest first.',
+                })}
         </Text>
         <SegmentedControl
           segments={segments}
@@ -589,45 +598,49 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
           onSelect={setAngle}
         />
 
-        <View className="flex-row gap-3 mt-3">
-          <TouchableOpacity
-            onPress={() =>
-              navigation.navigate('ProgressPhotoCompare', subScreenParams)
-            }
-            disabled={!canCompare}
-            className="flex-1 flex-row items-center justify-center bg-surface rounded-lg py-2.5 shadow-sm"
-            style={!canCompare ? { opacity: 0.4 } : undefined}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !canCompare }}
-          >
-            <Icon name="copy" size={16} color={accentPrimary} />
-            <Text
-              className="text-sm font-semibold ml-1.5"
-              style={{ color: accentPrimary }}
+        {/* Looking back is not part of logging the day, so the check-in
+            leaves it to the screen opened on its own. */}
+        {!guidedCheckIn && (
+          <View className="flex-row gap-3 mt-3">
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate('ProgressPhotoCompare', { angle })
+              }
+              disabled={!canCompare}
+              className="flex-1 flex-row items-center justify-center bg-surface rounded-lg py-2.5 shadow-sm"
+              style={!canCompare ? { opacity: 0.4 } : undefined}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !canCompare }}
             >
-              {t('progressPhotos.compare', { defaultValue: 'Compare' })}
-            </Text>
-          </TouchableOpacity>
+              <Icon name="copy" size={16} color={accentPrimary} />
+              <Text
+                className="text-sm font-semibold ml-1.5"
+                style={{ color: accentPrimary }}
+              >
+                {t('progressPhotos.compare', { defaultValue: 'Compare' })}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() =>
-              navigation.navigate('ProgressPhotoTimelapse', subScreenParams)
-            }
-            disabled={!canCompare}
-            className="flex-1 flex-row items-center justify-center bg-surface rounded-lg py-2.5 shadow-sm"
-            style={!canCompare ? { opacity: 0.4 } : undefined}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !canCompare }}
-          >
-            <Icon name="play" size={16} color={accentPrimary} />
-            <Text
-              className="text-sm font-semibold ml-1.5"
-              style={{ color: accentPrimary }}
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate('ProgressPhotoTimelapse', { angle })
+              }
+              disabled={!canCompare}
+              className="flex-1 flex-row items-center justify-center bg-surface rounded-lg py-2.5 shadow-sm"
+              style={!canCompare ? { opacity: 0.4 } : undefined}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !canCompare }}
             >
-              {t('progressPhotos.timelapse', { defaultValue: 'Time-lapse' })}
-            </Text>
-          </TouchableOpacity>
-        </View>
+              <Icon name="play" size={16} color={accentPrimary} />
+              <Text
+                className="text-sm font-semibold ml-1.5"
+                style={{ color: accentPrimary }}
+              >
+                {t('progressPhotos.timelapse', { defaultValue: 'Time-lapse' })}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {renderBody()}

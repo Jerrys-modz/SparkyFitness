@@ -83,4 +83,6 @@ In the mobile app, turn on **Settings → Diary → Guided check-in** to add a *
 
 Each screen shows **Step N of 3**. **Save & continue** saves the step and opens the next one; on the measurements step it moves on without saving when you changed nothing. **Skip** moves on without saving, asking first if you changed something, and is how you leave the mood step without logging a mood. On the photos step, **Finish** closes the check-in, and so do the close button, going back and (on iPhone) swiping the screen down, since photos are saved as you add them. Anything you saved stays saved, even if you close the check-in part-way.
 
+The check-in keeps to logging the day, so it leaves out the mindfulness card, the photo **Compare** and **Time-lapse**, and the **Log weight** shortcuts (weight has its own step). Open those screens from the Add menu as usual.
+
 The setting is off by default and is stored on the device, so turn it on again on each phone you use.

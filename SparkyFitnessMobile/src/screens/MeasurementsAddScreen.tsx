@@ -1960,18 +1960,21 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
               )
             )}
 
-            <View className="mt-4 mb-2">
-              <MindfulnessCard
-                sessions={mindfulSessions}
-                totalMindfulMinutes={totalMindfulMinutes}
-                selectedDate={selectedDate}
-                onSaveSession={saveMindfulSession}
-                onDeleteSession={deleteMindfulSession}
-                onPressDetails={() =>
-                  navigation.navigate('MindfulnessDetail', { selectedDate })
-                }
-              />
-            </View>
+            {/* The check-in keeps this step to the day's measurements. */}
+            {!guidedCheckIn && (
+              <View className="mt-4 mb-2">
+                <MindfulnessCard
+                  sessions={mindfulSessions}
+                  totalMindfulMinutes={totalMindfulMinutes}
+                  selectedDate={selectedDate}
+                  onSaveSession={saveMindfulSession}
+                  onDeleteSession={deleteMindfulSession}
+                  onPressDetails={() =>
+                    navigation.navigate('MindfulnessDetail', { selectedDate })
+                  }
+                />
+              </View>
+            )}
           </>
         )}
 
