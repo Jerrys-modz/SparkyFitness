@@ -10,16 +10,12 @@ import {
   weeklyTotals,
   loadSportGroup,
   sessionLoad,
-  percentMaxFloors,
   addDays,
   dayOfWeek,
   type CalendarEntry,
   type PlanSlot,
   type ProgramPlanInput,
 } from '@workspace/shared';
-
-// Heart rate zone floors for a maximum of 190.
-const FLOORS = percentMaxFloors(190);
 
 // A Wednesday.
 const TODAY = '2026-10-14';
