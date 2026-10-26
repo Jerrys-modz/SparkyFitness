@@ -47,8 +47,7 @@ async function createWeeklyGoalPlan(
     throw new Error('Failed to create weekly goal plan.', { cause: error });
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getWeeklyGoalPlans(userId: any) {
+async function getWeeklyGoalPlans(userId: string) {
   try {
     const plans =
       await weeklyGoalPlanRepository.getWeeklyGoalPlansByUserId(userId);
@@ -58,8 +57,7 @@ async function getWeeklyGoalPlans(userId: any) {
     throw new Error('Failed to fetch weekly goal plans.', { cause: error });
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getActiveWeeklyGoalPlan(userId: any, date: any) {
+async function getActiveWeeklyGoalPlan(userId: string, date: string) {
   try {
     const plan = await weeklyGoalPlanRepository.getActiveWeeklyGoalPlan(
       userId,
@@ -99,8 +97,7 @@ async function updateWeeklyGoalPlan(
     throw new Error('Failed to update weekly goal plan.', { cause: error });
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function deleteWeeklyGoalPlan(planId: any, userId: any) {
+async function deleteWeeklyGoalPlan(planId: string, userId: string) {
   try {
     const deletedPlan = await weeklyGoalPlanRepository.deleteWeeklyGoalPlan(
       planId,

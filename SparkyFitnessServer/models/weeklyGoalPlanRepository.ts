@@ -40,8 +40,7 @@ export class WeeklyGoalPlanOverlapError extends Error {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getWeeklyGoalPlansByUserId(userId: any) {
+async function getWeeklyGoalPlansByUserId(userId: string) {
   const client = await getClient(userId); // User-specific operation
   try {
     const result = await client.query(
@@ -53,8 +52,7 @@ async function getWeeklyGoalPlansByUserId(userId: any) {
     client.release();
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getActiveWeeklyGoalPlan(userId: any, date: any) {
+async function getActiveWeeklyGoalPlan(userId: string, date: string) {
   const client = await getClient(userId); // User-specific operation
   try {
     const result = await client.query(
@@ -184,8 +182,7 @@ async function saveWeeklyGoalPlan(
     client.release();
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function deleteWeeklyGoalPlan(planId: any, userId: any) {
+async function deleteWeeklyGoalPlan(planId: string, userId: string) {
   const client = await getClient(userId); // User-specific operation
   try {
     const result = await client.query(

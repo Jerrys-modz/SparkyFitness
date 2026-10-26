@@ -109,7 +109,7 @@ router.get('/', authenticate, async (req, res, next) => {
 router.get('/active', authenticate, async (req, res, next) => {
   try {
     const { date } = req.query;
-    if (!date) {
+    if (!date || typeof date !== 'string') {
       return res
         .status(400)
         .json({ error: 'Date query parameter is required.' });
