@@ -4,6 +4,7 @@ import { log } from '../config/logging.js';
 import { endPool } from '../db/poolManager.js';
 
 export const DEFAULT_SHUTDOWN_TIMEOUT_SECONDS = 15;
+export const MIN_SHUTDOWN_TIMEOUT_SECONDS = 1;
 export const MAX_SHUTDOWN_TIMEOUT_SECONDS = 3600;
 const HALF_CLOSE_GRACE_MS = 2_000;
 
@@ -22,12 +23,13 @@ export function shutdownTimeoutMs(
   const seconds = Number(value);
   if (
     !Number.isFinite(seconds) ||
-    seconds <= 0 ||
+    seconds < MIN_SHUTDOWN_TIMEOUT_SECONDS ||
     seconds > MAX_SHUTDOWN_TIMEOUT_SECONDS
   ) {
+    // 'error' so the ignored setting shows at the documented ERROR log level.
     log(
-      'warn',
-      `SPARKY_FITNESS_SHUTDOWN_TIMEOUT_SECONDS="${value}" must be above 0 and at most ${MAX_SHUTDOWN_TIMEOUT_SECONDS} seconds; using ${DEFAULT_SHUTDOWN_TIMEOUT_SECONDS}.`
+      'error',
+      `SPARKY_FITNESS_SHUTDOWN_TIMEOUT_SECONDS="${value}" must be from ${MIN_SHUTDOWN_TIMEOUT_SECONDS} to ${MAX_SHUTDOWN_TIMEOUT_SECONDS} seconds; using ${DEFAULT_SHUTDOWN_TIMEOUT_SECONDS}.`
     );
     return DEFAULT_SHUTDOWN_TIMEOUT_SECONDS * 1000;
   }
