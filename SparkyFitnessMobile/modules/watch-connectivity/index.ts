@@ -445,6 +445,12 @@ export interface WatchPlannedExercisePayload {
    * shows it as "BW +10" / "BW −20". Absent from an older phone build.
    */
   bodyweight?: boolean;
+  /**
+   * True for a one-sided exercise (per-side reps), or one with a set already
+   * marked left or right. The watch shows the Side and Add Other Side options
+   * only then. Absent from an older phone build.
+   */
+  perSide?: boolean;
   sets: WatchPlannedSetPayload[];
 }
 

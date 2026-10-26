@@ -889,6 +889,18 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     }
     return null;
   }, [setTypeMenu, session]);
+  // Side items only on a one-sided exercise, or one with a side already set.
+  const setSideAllowed = useMemo(() => {
+    if (setTypeMenu == null || session == null) return false;
+    const exercise = session.exercises.find((e) =>
+      e.sets.some((s) => String(s.id) === setTypeMenu.setId)
+    );
+    return (
+      exercise != null &&
+      (exercise.exercise_snapshot?.load_convention === 'per_side' ||
+        exercise.sets.some((s) => s.side))
+    );
+  }, [setTypeMenu, session]);
 
   const { handleDiscard } = useActiveWorkoutDiscard({
     sessionId,
@@ -1189,19 +1201,29 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
           };
         })()}
         currentSide={setSideCurrent}
-        onSelectSide={(side) => {
-          const setId = setTypeMenu?.setId;
-          if (setId != null) {
-            useActiveWorkoutStore.getState().updateSetField(setId, { side });
-          }
-        }}
-        onAddOtherSide={() => {
-          const setId = setTypeMenu?.setId;
-          if (setId != null) {
-            useActiveWorkoutStore.getState().addOtherSideSet(setId);
-          }
-          setSetTypeMenu(null);
-        }}
+        onSelectSide={
+          setSideAllowed
+            ? (side) => {
+                const setId = setTypeMenu?.setId;
+                if (setId != null) {
+                  useActiveWorkoutStore
+                    .getState()
+                    .updateSetField(setId, { side });
+                }
+              }
+            : undefined
+        }
+        onAddOtherSide={
+          setSideAllowed
+            ? () => {
+                const setId = setTypeMenu?.setId;
+                if (setId != null) {
+                  useActiveWorkoutStore.getState().addOtherSideSet(setId);
+                }
+                setSetTypeMenu(null);
+              }
+            : undefined
+        }
         onGenerateDropSets={(() => {
           const setId = setTypeMenu?.setId;
           if (setId == null) return undefined;

@@ -633,6 +633,7 @@ enum ContextPayloadMapper {
                 name: name,
                 supersetRun: intValue(raw["supersetRun"]),
                 bodyweight: raw["bodyweight"] as? Bool,
+                perSide: raw["perSide"] as? Bool,
                 sets: sets
             )
         }
