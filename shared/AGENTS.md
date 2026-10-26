@@ -1,9 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-23_
-_Last updated: 2026-10-22_
-_Last updated: 2026-10-24_
-_Last updated: 2026-10-25_
+_Last updated: 2026-10-26_
 
 `@workspace/shared` is a source-first TypeScript workspace library package for schemas, constants, and timezone/day helpers consumed by SparkyFitnessServer, SparkyFitnessFrontend, and SparkyFitnessMobile.
 

@@ -1,9 +1,6 @@
 # AGENTS.md
 
-*Last updated: 2026-10-24*
-*Last updated: 2026-10-25*
-*Last updated: 2026-10-22*
-*Last updated: 2026-10-25*
+*Last updated: 2026-10-26*
 
 This is the repo-root monorepo guide for SparkyFitness. Use it to choose the right package, understand shared repo-level rules, and find the next guide to read.
 
