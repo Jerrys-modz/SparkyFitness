@@ -191,8 +191,8 @@ describe('goal for a day before a settings change', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(
-      weeklyGoalPlanRepository.getActiveWeeklyGoalPlan
-    ).mockResolvedValue(null);
+      weeklyGoalPlanRepository.getActiveWeeklyGoalPlansInRange
+    ).mockResolvedValue([]);
     vi.mocked(goalRepository.getGoalsInRange).mockResolvedValue([]);
     vi.mocked(goalRepository.getMostRecentGoalBeforeDate).mockResolvedValue({
       calories: 2200,

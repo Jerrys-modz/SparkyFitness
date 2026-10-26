@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-10-25_
+_Last updated: 2026-10-26_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -325,6 +325,8 @@ When searching, ignore noisy/generated directories unless you explicitly need th
   `weight_distance` (weighted carries) and `weight_duration` (loaded holds) store weight plus distance (km) or duration (s); stats treat them as weight-based, not cardio, and best-set ordering falls back to distance then duration.
 - A past day's calorie target or exercise credit changed after a settings change:
   inspect `services/calorieRuleHistoryService.ts` and the trigger in `db/migrations/20261023000000_add_user_calorie_rule_history.sql`. A new preference read by the calorie maths must join `CALORIE_RULE_FIELDS`, the table and the trigger; `tests/calorieRuleHistory.test.ts` fails until it does, and `tests/calorieRuleHistory.integration.test.ts` checks the table and trigger cover every field
+- Weekly goal plan issue (which plan a day uses, or a plan save refused):
+  each day uses the switched-on plan whose dates cover it (`getActiveWeeklyGoalPlansInRange` in `models/weeklyGoalPlanRepository.ts`, `weeklyGoalPlanCovers` in `../shared/src/utils/weeklyGoalPlans.ts`, picked per day in `services/goalService.ts`), so a past day keeps the plan it had. `saveWeeklyGoalPlan` places a switched-on plan under a per-user advisory lock with the pure rule in `utils/weeklyGoalPlanTimeline.ts`: a plan starting on or after every other one ends the plan in force the day before (or switches off one starting the same day); any other overlap is a 409 `WeeklyGoalPlanOverlapError`. Never switch plans off wholesale; that drops past days back to the fallback goals. `tests/weeklyGoalPlans.integration.test.ts` covers the database side
 - Sleep or sleep-science issue:
   inspect `routes/sleepRoutes.ts`, `routes/sleepScienceRoutes.ts`, `services/sleepAnalyticsService.ts`, `services/sleepScienceService.ts`, and the sleep repositories
 

@@ -260,6 +260,7 @@ export * from './utils/runPrograms.ts';
 export * from './utils/runProgramSchedule.ts';
 export * from './utils/runProgramCatchUp.ts';
 export * from './utils/runProgramTimeline.ts';
+export * from './utils/weeklyGoalPlans.ts';
 export * from './utils/runProgramActions.ts';
 export * from './utils/racePlan.ts';
 export * from './utils/fitnessTest.ts';

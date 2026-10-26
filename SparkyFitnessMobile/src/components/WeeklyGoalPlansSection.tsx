@@ -9,7 +9,8 @@ import {
   type GoalPreset,
   type WeeklyGoalPlan,
 } from '../types/goals';
-import { formatDate, normalizeDate } from '../utils/dateUtils';
+import { weeklyGoalPlanCovers } from '@workspace/shared';
+import { formatDate, getTodayDate, normalizeDate } from '../utils/dateUtils';
 
 interface WeeklyGoalPlansSectionProps {
   plans: WeeklyGoalPlan[];
@@ -27,6 +28,7 @@ const WeeklyGoalPlansSection: React.FC<WeeklyGoalPlansSectionProps> = ({
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language.startsWith('pl') ? 'pl-PL' : 'en-US';
   const { deletePlan, isPending } = useWeeklyGoalPlanMutations();
+  const today = getTodayDate();
 
   const confirmDelete = (plan: WeeklyGoalPlan) =>
     Alert.alert(
@@ -88,7 +90,7 @@ const WeeklyGoalPlansSection: React.FC<WeeklyGoalPlansSectionProps> = ({
               <Text className="flex-shrink text-base font-semibold text-text-primary">
                 {plan.plan_name}
               </Text>
-              {plan.is_active && (
+              {plan.is_active && weeklyGoalPlanCovers(plan, today) && (
                 <Text className="text-xs font-semibold text-accent-primary">
                   {t('goals.weekly.activeBadge', { defaultValue: 'Active' })}
                 </Text>

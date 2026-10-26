@@ -8,7 +8,7 @@ const router = express.Router();
  *   post:
  *     summary: Create a new weekly goal plan
  *     tags: [Goals & Personalization]
- *     description: Creates a new weekly goal plan for the authenticated user.
+ *     description: Creates a new weekly goal plan for the authenticated user. A switched-on plan that starts on or after every other switched-on plan takes over from the plan in force, which is ended the day before (or switched off when it starts the same day). Any other overlap between switched-on plans is refused.
  *     security:
  *       - cookieAuth: []
  *     requestBody:
@@ -24,8 +24,12 @@ const router = express.Router();
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/WeeklyGoalPlan'
+ *       400:
+ *         description: The start or end date is missing or invalid.
  *       401:
  *         description: Unauthorized.
+ *       409:
+ *         description: The dates overlap another switched-on plan.
  *       500:
  *         description: Internal server error.
  */
@@ -125,7 +129,7 @@ router.get('/active', authenticate, async (req, res, next) => {
  *   put:
  *     summary: Update an existing weekly goal plan
  *     tags: [Goals & Personalization]
- *     description: Updates an existing weekly goal plan.
+ *     description: Updates an existing weekly goal plan. Switching a plan on follows the same rules as creating one; any other change that makes two switched-on plans cover the same day is refused.
  *     security:
  *       - cookieAuth: []
  *     parameters:
@@ -149,10 +153,14 @@ router.get('/active', authenticate, async (req, res, next) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/WeeklyGoalPlan'
+ *       400:
+ *         description: The start or end date is missing or invalid.
  *       401:
  *         description: Unauthorized.
  *       404:
  *         description: Weekly goal plan not found or not authorized.
+ *       409:
+ *         description: The dates overlap another switched-on plan.
  *       500:
  *         description: Internal server error.
  */

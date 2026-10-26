@@ -1,18 +1,48 @@
-import weeklyGoalPlanRepository from '../models/weeklyGoalPlanRepository.js';
+import { isDayString } from '@workspace/shared';
+import weeklyGoalPlanRepository, {
+  WeeklyGoalPlanOverlapError,
+  type WeeklyGoalPlanInput,
+} from '../models/weeklyGoalPlanRepository.js';
+import { ValidationError } from '../utils/errors.js';
 import { log } from '../config/logging.js';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function createWeeklyGoalPlan(userId: any, planData: any) {
+/** The plan fields a save uses, checked; dates as 'YYYY-MM-DD'. */
+function toPlanInput(planData: Record<string, unknown>): WeeklyGoalPlanInput {
+  const startDate = planData.start_date;
+  const endDate = planData.end_date ?? null;
+  if (typeof startDate !== 'string' || !isDayString(startDate)) {
+    throw new ValidationError('A start date is required.');
+  }
+  if (
+    endDate !== null &&
+    (typeof endDate !== 'string' || !isDayString(endDate))
+  ) {
+    throw new ValidationError('The end date is not a valid date.');
+  }
+  if (endDate !== null && endDate < startDate) {
+    throw new ValidationError('The end date cannot be before the start date.');
+  }
+  return {
+    ...planData,
+    plan_name: String(planData.plan_name ?? ''),
+    start_date: startDate,
+    end_date: endDate,
+    is_active: planData.is_active === true,
+  };
+}
+
+async function createWeeklyGoalPlan(
+  userId: string,
+  planData: Record<string, unknown>
+) {
+  const plan = toPlanInput(planData);
   try {
-    // Deactivate all other active plans for this user if the new plan is active
-    if (planData.is_active) {
-      await weeklyGoalPlanRepository.deactivateAllWeeklyGoalPlans(userId);
-    }
-    const newPlan = await weeklyGoalPlanRepository.createWeeklyGoalPlan({
-      ...planData,
-      user_id: userId,
-    });
-    return newPlan;
+    return await weeklyGoalPlanRepository.saveWeeklyGoalPlan(
+      userId,
+      null,
+      plan
+    );
   } catch (error) {
+    if (error instanceof WeeklyGoalPlanOverlapError) throw error;
     log('error', `Error creating weekly goal plan for user ${userId}:`, error);
     throw new Error('Failed to create weekly goal plan.', { cause: error });
   }
@@ -47,19 +77,20 @@ async function getActiveWeeklyGoalPlan(userId: any, date: any) {
     });
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function updateWeeklyGoalPlan(planId: any, userId: any, planData: any) {
+async function updateWeeklyGoalPlan(
+  planId: string,
+  userId: string,
+  planData: Record<string, unknown>
+) {
+  const plan = toPlanInput(planData);
   try {
-    // Deactivate all other active plans for this user if this plan is being set to active
-    if (planData.is_active) {
-      await weeklyGoalPlanRepository.deactivateAllWeeklyGoalPlans(userId);
-    }
-    const updatedPlan = await weeklyGoalPlanRepository.updateWeeklyGoalPlan(
+    return await weeklyGoalPlanRepository.saveWeeklyGoalPlan(
+      userId,
       planId,
-      { ...planData, user_id: userId }
+      plan
     );
-    return updatedPlan;
   } catch (error) {
+    if (error instanceof WeeklyGoalPlanOverlapError) throw error;
     log(
       'error',
       `Error updating weekly goal plan ${planId} for user ${userId}:`,
