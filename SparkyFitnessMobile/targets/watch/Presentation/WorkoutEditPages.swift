@@ -30,8 +30,7 @@ struct SetOptionsPage: View {
                 Haptics.tap()
                 confirmingDelete = true
             }
-            .tint(.red)
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(EditPageButtonStyle(fill: .red))
         }
         .sheet(isPresented: $choosingType) {
             SetTypeSheet(current: step.plannedSet.setType) { type in
@@ -118,8 +117,7 @@ struct ExerciseOptionsPage: View {
                 Haptics.tap()
                 confirmingDelete = true
             }
-            .tint(.red)
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(EditPageButtonStyle(fill: .red))
         }
         .sheet(isPresented: $addingExercise) { AddExerciseSheet() }
         .sheet(isPresented: $swapping) { SwapExerciseSheet() }
@@ -159,14 +157,12 @@ struct WorkoutActionsPage: View {
                 Haptics.tap()
                 confirmingFinish = true
             }
-            .tint(.blue)
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(EditPageButtonStyle(fill: .blue))
             Button(String(localized: "watch.workout.discardWorkout", defaultValue: "Discard Workout")) {
                 Haptics.tap()
                 confirmingDiscard = true
             }
-            .tint(.red)
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(EditPageButtonStyle(fill: .red))
         }
         .sheet(isPresented: $addingExercise) { AddExerciseSheet() }
         .endWorkoutDialogs(
@@ -184,16 +180,45 @@ private struct EditPage<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
+        // Has to fit one screen without scrolling: the page itself is one
+        // stop of the workout's vertical paging, and a scroll inside it
+        // fought that. Hence the compact `EditPageButtonStyle`.
         VStack(spacing: 6) {
             Text(title)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity, alignment: .leading)
             content
-                .font(.system(size: 15, weight: .semibold))
+                .buttonStyle(EditPageButtonStyle())
         }
+        // The button height is fixed; this keeps the text inside it legible
+        // rather than shrunk to nothing at the largest sizes.
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .frame(maxHeight: .infinity, alignment: .center)
         .padding(.horizontal, 2)
+    }
+}
+
+/// The edit pages' buttons: a fixed, compact height (the system bordered
+/// button is taller, and three of them overflowed a 40 mm screen at larger
+/// text sizes), one line of text that shrinks rather than wraps.
+private struct EditPageButtonStyle: ButtonStyle {
+    var fill: Color = WatchStyle.fill
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity)
+            .frame(height: WatchStyle.s(40))
+            .background(fill, in: Capsule())
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .contentShape(Capsule())
     }
 }
 

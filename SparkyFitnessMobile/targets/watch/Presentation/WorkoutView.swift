@@ -1928,7 +1928,8 @@ private struct RestView: View {
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
-                    if let bpm = store.latestBpm {
+                    // Not when the metrics line above already shows it.
+                    if let bpm = store.latestBpm, !checkIn.context.effectiveSetScreenMetrics {
                         Label("\(Int(bpm.rounded()))", systemImage: "heart.fill")
                             .font(.footnote.weight(.semibold))
                             .monospacedDigit()
