@@ -74,6 +74,13 @@ const mockUsePaceZones = jest.fn();
 jest.mock('../../src/hooks/usePaceZones', () => ({
   usePaceZones: (...args: unknown[]) => mockUsePaceZones(...args),
 }));
+jest.mock('../../src/hooks/useTrainingCalendar', () => ({
+  useTrainingCalendar: () => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+  }),
+}));
 jest.mock('../../src/hooks/useCardioSessions', () => ({
   useCardioSessions: jest.fn(),
 }));
