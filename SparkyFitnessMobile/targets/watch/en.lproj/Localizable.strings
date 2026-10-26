@@ -213,6 +213,8 @@
 "watch.workout.upNextThen" = "Then %@";
 "watch.workout.lastExercise" = "This is the last exercise";
 "watch.workout.swap" = "Swap";
+"watch.workout.previousSet" = "Previous set";
+"watch.workout.nextSet" = "Next set";
 "watch.workout.swapExercise" = "Swap Exercise";
 "watch.workout.doNowTitle" = "Do Now";
 "watch.workout.supersetHeader" = "Superset";
