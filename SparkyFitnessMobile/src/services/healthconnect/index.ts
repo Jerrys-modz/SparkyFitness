@@ -1574,9 +1574,10 @@ const sleepEnrichmentWindow = (
 
 /**
  * Sleep sessions with one per night: of the sessions two apps wrote for the
- * same night (same wake day, overlapping times), only the most detailed, by the
- * shared `keepMostDetailedSleep` rule (more stage kinds, then more stages, then
- * the longer session). Every session is uploaded as 'Health Connect', so the
+ * same night (same wake day, overlapping for most of the shorter one), only the
+ * most detailed, by the shared `keepMostDetailedSleep` rule (among sessions
+ * nearly as long as the longest: more stage kinds, then more stages, then the
+ * longer session). Every session is uploaded as 'Health Connect', so the
  * server would otherwise merge both apps' nights into one entry. A nap that
  * does not overlap the night stays, and a session without usable times is
  * passed through.
@@ -1608,7 +1609,6 @@ export const keepMostDetailedSleepSessions = (
         start: w.startMs,
         end: w.endMs,
         detail: {
-          loggedByHand: false,
           stageKinds: new Set(kinds).size,
           measures: 0,
           segments: kinds.length,

@@ -5,14 +5,18 @@
  * rows always has several sources: the same night recorded twice (a watch
  * and a ring, or Google Health and Health Connect both carrying a Fitbit
  * night), or a nap from a different source than the night. Records of the
- * same day whose times overlap are one sleep: only the most detailed of them
- * should count, while a nap that does not overlap still counts.
+ * same day that overlap for most of the shorter one are one sleep: only the
+ * most detailed of them should count, while a nap that does not overlap, or
+ * only clips the night, still counts.
  */
+
+/** Records are one sleep when they overlap for at least this share of the shorter one. */
+const SAME_SLEEP_MIN_OVERLAP = 0.5;
+/** A record shorter than this share of the longest record of its sleep is partial and never wins. */
+const COMPLETE_SHARE = 0.8;
 
 /** How much a recorded sleep tells; compared field by field, the first difference decides. */
 export interface SleepDetail {
-  /** Logged by the person, who saying so outranks any device. */
-  loggedByHand: boolean;
   /** Distinct stages recorded among deep, light, REM and awake. */
   stageKinds: number;
   /** Other measures recorded with the sleep, such as a score, HRV or resting heart rate. */
@@ -33,7 +37,6 @@ export interface SleepPlacement {
 /** Positive when `a` is the more detailed. */
 function compareDetail(a: SleepDetail, b: SleepDetail): number {
   return (
-    Number(a.loggedByHand) - Number(b.loggedByHand) ||
     a.stageKinds - b.stageKinds ||
     a.measures - b.measures ||
     a.segments - b.segments ||
@@ -42,10 +45,10 @@ function compareDetail(a: SleepDetail, b: SleepDetail): number {
 }
 
 /**
- * The records to count: of each day's records whose times overlap (also
- * through a chain), the most detailed one, ties going to the earlier start
- * and then to the earlier record. Sleeps that only touch stay separate.
- * Records keep their order.
+ * The records to count: of each day's records that are one sleep (also
+ * through a chain), the most detailed one that covers most of it, ties going
+ * to the earlier start and then to the earlier record. Sleeps that only touch
+ * stay separate. Records keep their order.
  */
 export function keepMostDetailedSleep<T>(
   items: readonly T[],
@@ -61,25 +64,38 @@ export function keepMostDetailedSleep<T>(
 
   const kept = new Set<number>();
   for (const day of byDay.values()) {
-    const [first, ...rest] = day.sort(
-      (a, b) => a.start - b.start || a.index - b.index
-    );
-    if (!first) continue;
-    let best = first;
-    let clusterEnd = best.end;
-    for (const p of rest) {
-      if (p.start < clusterEnd) {
-        if (compareDetail(p.detail, best.detail) > 0) best = p;
-        clusterEnd = Math.max(clusterEnd, p.end);
+    day.sort((a, b) => a.start - b.start || a.index - b.index);
+    let sleep: typeof placed = [];
+    let sleepStart = 0;
+    let sleepEnd = 0;
+    for (const p of day) {
+      const overlap = Math.min(sleepEnd, p.end) - p.start;
+      const shorter = Math.min(p.end - p.start, sleepEnd - sleepStart);
+      if (
+        sleep.length > 0 &&
+        overlap > 0 &&
+        overlap >= SAME_SLEEP_MIN_OVERLAP * shorter
+      ) {
+        sleep.push(p);
+        sleepEnd = Math.max(sleepEnd, p.end);
       } else {
-        kept.add(best.index);
-        best = p;
-        clusterEnd = p.end;
+        if (sleep.length > 0) kept.add(mostDetailed(sleep).index);
+        sleep = [p];
+        sleepStart = p.start;
+        sleepEnd = p.end;
       }
     }
-    kept.add(best.index);
+    if (sleep.length > 0) kept.add(mostDetailed(sleep).index);
   }
   return items.filter((_, index) => kept.has(index));
+}
+
+/** The most detailed record among those covering most of one sleep; the first on a tie. */
+function mostDetailed<P extends SleepPlacement>(sleep: P[]): P {
+  const longest = Math.max(...sleep.map((p) => p.end - p.start));
+  return sleep
+    .filter((p) => p.end - p.start >= COMPLETE_SHARE * longest)
+    .reduce((best, p) => (compareDetail(p.detail, best.detail) > 0 ? p : best));
 }
 
 const STAGE_KINDS = ['deep', 'light', 'rem', 'awake'] as const;
@@ -91,7 +107,6 @@ export interface SameNightSleepEntry {
   bedtime: string | Date;
   wake_time: string | Date;
   duration_in_seconds: number | null;
-  source: string;
   stage_events?: readonly { stage_type: string }[] | null;
   deep_sleep_seconds?: number | null;
   light_sleep_seconds?: number | null;
@@ -129,7 +144,6 @@ export function sleepEntryDetail(entry: SameNightSleepEntry): SleepDetail {
     entry.body_battery_change,
   ].filter((value) => value !== null && value !== undefined).length;
   return {
-    loggedByHand: entry.source.toLowerCase() === 'manual',
     stageKinds,
     measures,
     segments: events.length,

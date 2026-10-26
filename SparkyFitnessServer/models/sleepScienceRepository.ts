@@ -41,7 +41,6 @@ async function getSleepHistory(userId: string, days = 90, timezone = 'UTC') {
         se.record_utc_offset_minutes,
         se.sleep_score AS "sleepScore",
         se.entry_date,
-        se.source,
         se.sleep_score,
         se.avg_overnight_hrv,
         se.resting_heart_rate,

@@ -5,6 +5,15 @@ import {
   scoredStageRemaindersOutsideWindow,
 } from '../utils/sleepStageAggregates.js';
 
+/**
+ * Orders sleep rows so `DISTINCT ON (entry_date)` keeps each day's main sleep:
+ * the longest record, the earlier bedtime on a tie. A day holds one row per
+ * source, so a per-day sleep value read this way never counts a night two
+ * sources recorded twice.
+ */
+export const MAIN_SLEEP_ORDER_SQL =
+  'entry_date, duration_in_seconds DESC, bedtime ASC, id';
+
 export interface SleepEntryUpsertInput {
   id?: string;
   entry_date: string;

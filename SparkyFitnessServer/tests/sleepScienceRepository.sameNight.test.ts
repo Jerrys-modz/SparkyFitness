@@ -25,13 +25,28 @@ function night(
 
 describe('sleep history with the same night from two sources', () => {
   let rows: ReturnType<typeof night>[];
+  const query = vi.fn(async (_sql: string) => ({ rows }));
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getClient).mockResolvedValue({
-      query: vi.fn(async () => ({ rows })),
+      query,
       release: vi.fn(),
     } as unknown as Awaited<ReturnType<typeof getClient>>);
+  });
+
+  it('selects what the same-night rule reads', async () => {
+    rows = [];
+    await getSleepHistory('user-1', 30, 'UTC');
+    const sql = query.mock.calls[0]?.[0] ?? '';
+    for (const column of [
+      'se.entry_date',
+      'se.avg_overnight_hrv',
+      'se.resting_heart_rate',
+      'AS stage_events',
+    ]) {
+      expect(sql).toContain(column);
+    }
   });
 
   it('returns the night once, from the more detailed record', async () => {

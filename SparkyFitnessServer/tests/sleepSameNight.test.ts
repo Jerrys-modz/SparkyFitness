@@ -5,7 +5,7 @@ import {
   type SameNightSleepEntry,
 } from '@workspace/shared';
 
-type Entry = SameNightSleepEntry & { id: string };
+type Entry = SameNightSleepEntry & { id: string; source: string };
 
 function entry(
   id: string,
@@ -163,14 +163,14 @@ describe('keepMostDetailedSleepEntries', () => {
   });
 
   it('counts a chain of overlapping records as one night', () => {
-    const a = entry('a', '2026-10-23T22:00:00Z', '2026-10-24T02:00:00Z', {
+    const a = entry('a', '2026-10-23T22:00:00Z', '2026-10-24T04:00:00Z', {
       source: 'A',
     });
-    const b = entry('b', '2026-10-24T01:00:00Z', '2026-10-24T05:00:00Z', {
+    const b = entry('b', '2026-10-23T23:00:00Z', '2026-10-24T06:00:00Z', {
       source: 'B',
       stage_events: stages('light', 'deep'),
     });
-    const c = entry('c', '2026-10-24T04:00:00Z', '2026-10-24T08:00:00Z', {
+    const c = entry('c', '2026-10-24T01:00:00Z', '2026-10-24T07:30:00Z', {
       source: 'C',
     });
     expect(ids(keepMostDetailedSleepEntries([a, b, c]))).toEqual(['b']);
@@ -223,7 +223,7 @@ describe('keepMostDetailedSleepEntries', () => {
     ]);
   });
 
-  it('keeps a night logged by hand over a detailed device night', () => {
+  it('judges a night logged by hand like any other record', () => {
     const device = entry(
       'device',
       '2026-10-23T23:00:00Z',
@@ -242,7 +242,48 @@ describe('keepMostDetailedSleepEntries', () => {
       }
     );
     expect(ids(keepMostDetailedSleepEntries([device, typed]))).toEqual([
-      'typed',
+      'device',
+    ]);
+  });
+
+  it('keeps a short sleep that only clips the night as its own sleep', () => {
+    const night = entry(
+      'night',
+      '2026-10-23T23:00:00Z',
+      '2026-10-24T07:00:00Z',
+      {
+        stage_events: stages('light', 'deep', 'rem', 'awake'),
+      }
+    );
+    const nap = entry('nap', '2026-10-24T06:50:00Z', '2026-10-24T07:40:00Z', {
+      source: 'manual',
+    });
+    expect(ids(keepMostDetailedSleepEntries([night, nap]))).toEqual([
+      'night',
+      'nap',
+    ]);
+  });
+
+  it('never lets a short fragment of the night replace the whole night', () => {
+    const night = entry(
+      'night',
+      '2026-10-23T23:00:00Z',
+      '2026-10-24T07:00:00Z',
+      {
+        stage_events: stages('light', 'deep', 'rem'),
+      }
+    );
+    const fragment = entry(
+      'fragment',
+      '2026-10-24T01:00:00Z',
+      '2026-10-24T03:00:00Z',
+      {
+        source: 'Google Health',
+        stage_events: stages('light', 'deep', 'rem', 'awake'),
+      }
+    );
+    expect(ids(keepMostDetailedSleepEntries([night, fragment]))).toEqual([
+      'night',
     ]);
   });
 
@@ -305,14 +346,13 @@ describe('keepMostDetailedSleep', () => {
   it('compares the detail the caller describes', () => {
     const sessions = [
       { id: 'fitbit', start: 0, end: 8, kinds: 4 },
-      { id: 'samsung', start: 1, end: 7, kinds: 2 },
+      { id: 'samsung', start: 1, end: 8, kinds: 2 },
     ];
     const kept = keepMostDetailedSleep(sessions, (s) => ({
       day: 'd',
       start: s.start,
       end: s.end,
       detail: {
-        loggedByHand: false,
         stageKinds: s.kinds,
         measures: 0,
         segments: 0,
