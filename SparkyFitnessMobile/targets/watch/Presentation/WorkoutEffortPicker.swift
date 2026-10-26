@@ -45,14 +45,14 @@ struct WorkoutEffortPicker: View {
     var body: some View {
         VStack(spacing: 4) {
             Text(title)
-                .font(.caption)
+                .font(.footnote)
                 .foregroundStyle(.secondary)
             if saved {
                 Label(
                     String(localized: "watch.effort.saved", defaultValue: "Saved"),
                     systemImage: "checkmark"
                 )
-                .font(.caption.weight(.semibold))
+                .font(.headline)
                 .foregroundStyle(.green)
             } else {
                 ValueBox(
@@ -68,7 +68,7 @@ struct WorkoutEffortPicker: View {
                         ? String(localized: "watch.effort.hint.adjusting", defaultValue: "Turn the crown · tap to finish")
                         : String(localized: "watch.effort.hint.select", defaultValue: "Tap to change")
                 )
-                .font(.system(size: 9))
+                .font(.footnote)
                 .foregroundStyle(.secondary)
                 Button(action: Haptics.tapping(saveRating)) {
                     Text(String(localized: "watch.rpe.save", defaultValue: "Save"))
