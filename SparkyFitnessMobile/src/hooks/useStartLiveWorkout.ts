@@ -117,6 +117,12 @@ export function buildWatchWorkoutStartPayload(
       bodyweight: isBodyweightModality(
         resolveSnapshotModality(exercise.exercise_snapshot)
       ),
+      // Side controls are only useful on a one-sided exercise, or one that
+      // already has a side set so it can still be changed.
+      ...(exercise.exercise_snapshot?.load_convention === 'per_side' ||
+      exercise.sets.some((set) => set.side)
+        ? { perSide: true }
+        : {}),
       sets: exercise.sets.map((set) => {
         const setId = String(set.id);
         const target = targets.get(setId);

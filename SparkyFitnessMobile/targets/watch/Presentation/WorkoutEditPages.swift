@@ -13,6 +13,7 @@ struct SetOptionsPage: View {
     let step: WorkoutStep
 
     @EnvironmentObject private var session: WatchSessionManager
+    @EnvironmentObject private var store: WorkoutSessionStore
     @State private var choosingType = false
     @State private var choosingSide = false
     @State private var confirmingDelete = false
@@ -27,13 +28,15 @@ struct SetOptionsPage: View {
                 Haptics.tap()
                 choosingType = true
             }
-            Button(String(localized: "watch.workout.side", defaultValue: "Side")) {
-                Haptics.tap()
-                choosingSide = true
-            }
-            Button(String(localized: "watch.workout.addOtherSide", defaultValue: "Add Other Side")) {
-                Haptics.tap()
-                session.sendWorkoutEdit(.addOtherSide(setId: step.plannedSet.setId))
+            if store.isPerSide(step) {
+                Button(String(localized: "watch.workout.side", defaultValue: "Side")) {
+                    Haptics.tap()
+                    choosingSide = true
+                }
+                Button(String(localized: "watch.workout.addOtherSide", defaultValue: "Add Other Side")) {
+                    Haptics.tap()
+                    session.sendWorkoutEdit(.addOtherSide(setId: step.plannedSet.setId))
+                }
             }
             Button(String(localized: "watch.workout.deleteSet", defaultValue: "Delete Set")) {
                 Haptics.tap()

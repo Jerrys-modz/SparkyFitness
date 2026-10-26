@@ -199,6 +199,13 @@ final class WorkoutSessionStore: ObservableObject {
         plan?.exercises.first { $0.exerciseEntryId == step.exerciseEntryId }?.bodyweight == true
     }
 
+    /// True when the step's exercise is one-sided, so its sets can be given a
+    /// side. A set that already has one keeps the controls available.
+    func isPerSide(_ step: WorkoutStep) -> Bool {
+        step.plannedSet.side != nil
+            || plan?.exercises.first { $0.exerciseEntryId == step.exerciseEntryId }?.perSide == true
+    }
+
     /// Values to show for a set: whatever was typed, then the phone's latest
     /// target, falling back to the plan.
     func values(for step: WorkoutStep) -> SetValues {
