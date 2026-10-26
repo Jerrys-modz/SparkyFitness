@@ -293,5 +293,8 @@ export * from './compare/question.ts';
 export * from './compare/chartData.ts';
 export * from './compare/sinceLine.ts';
 export * from './schemas/api/Compare.api.zod.ts';
+export * from './schemas/api/FoodLookup.api.zod.ts';
+export * from './schemas/api/BarcodeLookup.api.zod.ts';
+export * from './utils/barcodeNutrition.ts';
 export * from './utils/runGoals.ts';
 export * from './utils/workoutEmojis.ts';
