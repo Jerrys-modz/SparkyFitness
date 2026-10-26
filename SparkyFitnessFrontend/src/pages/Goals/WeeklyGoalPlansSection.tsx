@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useTranslation } from 'react-i18next';
-import { todayInZone, weeklyGoalPlanCovers } from '@workspace/shared';
+import { todayInZone, weeklyGoalPlanInForce } from '@workspace/shared';
 import { useWeeklyGoalPlans } from '@/hooks/Goals/useGoals';
 import { WeeklyGoalPlan } from '@/types/goals';
 interface WeeklyGoalPlansSectionProps {
@@ -18,10 +18,10 @@ export const WeeklyGoalPlansSection = ({
   handleEditWeeklyPlanClick,
 }: WeeklyGoalPlansSectionProps) => {
   const { formatDateInUserTimezone, timezone } = usePreferences();
-  const today = todayInZone(timezone);
   const { t } = useTranslation();
 
   const { data: weeklyPlans = [] } = useWeeklyGoalPlans();
+  const planInForce = weeklyGoalPlanInForce(weeklyPlans, todayInZone(timezone));
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -51,7 +51,7 @@ export const WeeklyGoalPlansSection = ({
                 <div>
                   <h4 className="font-semibold">
                     {plan.plan_name}{' '}
-                    {plan.is_active && weeklyGoalPlanCovers(plan, today) && (
+                    {plan.id === planInForce?.id && (
                       <Badge variant="secondary">
                         {t('goals.goalsSettings.active', 'Active')}
                       </Badge>

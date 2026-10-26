@@ -15,3 +15,24 @@ export function weeklyGoalPlanCovers(
     (plan.end_date === null || plan.end_date.slice(0, 10) >= day)
   );
 }
+
+/**
+ * The plan that sets `day`'s goals: the switched-on plan covering it that
+ * started last. Plans saved before overlaps were refused can still overlap.
+ */
+export function weeklyGoalPlanInForce<
+  T extends WeeklyGoalPlanDates & { is_active: boolean },
+>(plans: readonly T[], day: string): T | undefined {
+  let inForce: T | undefined;
+  for (const plan of plans) {
+    if (
+      plan.is_active &&
+      weeklyGoalPlanCovers(plan, day) &&
+      (!inForce ||
+        plan.start_date.slice(0, 10) > inForce.start_date.slice(0, 10))
+    ) {
+      inForce = plan;
+    }
+  }
+  return inForce;
+}

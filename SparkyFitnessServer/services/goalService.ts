@@ -12,7 +12,7 @@ import type { AdaptiveTdeeResult } from './AdaptiveTdeeService.js';
 import { ageOnDay } from '../utils/dateHelpers.js';
 import { log } from '../config/logging.js';
 import { addDays, format, getDay, isAfter, parseISO } from 'date-fns';
-import { localDateToDay, weeklyGoalPlanCovers } from '@workspace/shared';
+import { localDateToDay, weeklyGoalPlanInForce } from '@workspace/shared';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import {
   todayInZone,
@@ -70,7 +70,6 @@ async function getUserGoalsForRange(
       g,
     ])
   );
-  // Newest first, so a day picks the plan that started last.
   const weeklyPlans =
     await weeklyGoalPlanRepository.getActiveWeeklyGoalPlansInRange(
       userId,
@@ -224,9 +223,7 @@ async function getUserGoalsForRange(
     if (goals) {
       currentFallback = goals;
     } else {
-      const weeklyPlan = weeklyPlans.find((plan) =>
-        weeklyGoalPlanCovers(plan, dateStr)
-      );
+      const weeklyPlan = weeklyGoalPlanInForce(weeklyPlans, dateStr);
       const presetId = weeklyPlan?.[DAY_PRESETS[getDay(cursor)]];
       if (presetId) {
         goals = await getPreset(presetId);

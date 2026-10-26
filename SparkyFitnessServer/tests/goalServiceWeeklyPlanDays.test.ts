@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { weeklyGoalPlanInForce } from '@workspace/shared';
 import goalService from '../services/goalService.js';
 import goalRepository from '../models/goalRepository.js';
 import goalPresetRepository from '../models/goalPresetRepository.js';
@@ -89,5 +90,19 @@ describe('weekly goal plans across a range of days', () => {
 
     expect((goals['2026-10-31'] as { calories: number }).calories).toBe(1500);
     expect((goals['2026-11-01'] as { calories: number }).calories).toBe(2000);
+  });
+});
+
+describe('the weekly goal plan in force', () => {
+  const overlapping = [
+    { ...plan('october', '2026-10-01', null), id: 'older' },
+    { ...plan('november', '2026-10-20', null), id: 'newer' },
+    { ...plan('november', '2026-10-25', null), id: 'off', is_active: false },
+  ];
+
+  it('is the switched-on plan covering the day that started last', () => {
+    expect(weeklyGoalPlanInForce(overlapping, '2026-10-26')?.id).toBe('newer');
+    expect(weeklyGoalPlanInForce(overlapping, '2026-10-10')?.id).toBe('older');
+    expect(weeklyGoalPlanInForce(overlapping, '2026-09-30')).toBeUndefined();
   });
 });
