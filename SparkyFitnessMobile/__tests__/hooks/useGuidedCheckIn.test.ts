@@ -3,9 +3,11 @@ import Toast from 'react-native-toast-message';
 import { renderHook } from '@testing-library/react-native';
 
 import {
+  startGuidedCheckIn,
   useGuidedCheckIn,
   type GuidedCheckIn,
 } from '../../src/hooks/useGuidedCheckIn';
+import { useGuidedCheckInStore } from '../../src/stores/guidedCheckInStore';
 import { initializeI18n } from '../../src/localization/i18n';
 import { offerCheckinRemindersAfterLeaving } from '../../src/services/offerCheckinReminders';
 
@@ -70,6 +72,7 @@ describe('useGuidedCheckIn', () => {
     jest.clearAllMocks();
     alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     dismissSpy = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+    useGuidedCheckInStore.setState({ progress: null });
   });
 
   afterEach(() => {
@@ -409,6 +412,239 @@ describe('useGuidedCheckIn', () => {
       expect(toastShow).toHaveBeenCalledTimes(1);
       expect(offerReminders).toHaveBeenCalledTimes(1);
       expect(checkIn().hasLeft()).toBe(true);
+    });
+  });
+
+  describe('back', () => {
+    it('is not offered on the first step', () => {
+      const { checkIn } = setup({ step: 'MoodLog' });
+
+      expect(checkIn().back).toBeNull();
+    });
+
+    it('reopens the step before with every flag, the created check-in included', () => {
+      const moodCheckin = { id: 'checkin-1', date: DATE };
+      const { checkIn, replace } = setup({
+        step: 'MeasurementsAdd',
+        params: { offerReminders: true, saved: true, moodCheckin },
+      });
+
+      checkIn().back?.(false);
+
+      expect(alertSpy).not.toHaveBeenCalled();
+      expect(replace).toHaveBeenCalledTimes(1);
+      expect(replace).toHaveBeenCalledWith('MoodLog', {
+        date: DATE,
+        guidedCheckIn: { offerReminders: true, saved: true, moodCheckin },
+      });
+      expect(dismissSpy).toHaveBeenCalled();
+    });
+
+    it('goes from the photos back to the measurements', () => {
+      const { checkIn, replace, goBack } = setup({
+        step: 'ProgressPhotos',
+        params: { saved: true },
+      });
+
+      checkIn().back?.(false);
+
+      expect(replace).toHaveBeenCalledWith('MeasurementsAdd', {
+        date: DATE,
+        guidedCheckIn: { offerReminders: false, saved: true },
+      });
+      expect(goBack).not.toHaveBeenCalled();
+      expect(toastShow).not.toHaveBeenCalled();
+    });
+
+    it('asks first when the step has unsaved edits, and stays on Cancel', () => {
+      const { checkIn, replace } = setup({ step: 'MeasurementsAdd' });
+
+      checkIn().back?.(true);
+
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Go back a step?',
+        "Your changes on this step won't be saved.",
+        expect.any(Array),
+        expect.objectContaining({ cancelable: true })
+      );
+      pressAlertButton('cancel');
+      expect(replace).not.toHaveBeenCalled();
+
+      checkIn().back?.(true);
+      pressAlertButton('destructive');
+      expect(replace).toHaveBeenCalledWith('MoodLog', {
+        date: DATE,
+        guidedCheckIn: { offerReminders: false, saved: false },
+      });
+    });
+
+    it('does nothing while the step is not focused, and only once', () => {
+      const { checkIn, replace, isFocused } = setup({
+        step: 'MeasurementsAdd',
+      });
+      isFocused.mockReturnValue(false);
+
+      checkIn().back?.(false);
+      expect(replace).not.toHaveBeenCalled();
+
+      isFocused.mockReturnValue(true);
+      checkIn().back?.(false);
+      checkIn().back?.(false);
+      checkIn().advance();
+      expect(replace).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('the check-in in progress', () => {
+    const progress = () => useGuidedCheckInStore.getState().progress;
+
+    it('records each hop with the step it opens and its flags', () => {
+      const moodCheckin = { id: 'checkin-1', date: DATE };
+      const { checkIn } = setup({ step: 'MoodLog' });
+
+      checkIn().advance({ saved: true, offerReminders: true, moodCheckin });
+
+      expect(progress()).toEqual({
+        date: DATE,
+        step: 'MeasurementsAdd',
+        flags: { offerReminders: true, saved: true, moodCheckin },
+      });
+    });
+
+    it('records the step a Back opens', () => {
+      const { checkIn } = setup({
+        step: 'ProgressPhotos',
+        params: { saved: true },
+      });
+
+      checkIn().back?.(false);
+
+      expect(progress()).toEqual({
+        date: DATE,
+        step: 'MeasurementsAdd',
+        flags: { offerReminders: false, saved: true },
+      });
+    });
+
+    it.each([
+      ['Finish', (checkIn: GuidedCheckIn) => checkIn.finish()],
+      [
+        'a close by the navigator',
+        (checkIn: GuidedCheckIn) => checkIn.onNavigatorClose(),
+      ],
+    ])('is cleared by %s on the last step', (_how, close) => {
+      useGuidedCheckInStore.getState().saveProgress({
+        date: DATE,
+        step: 'ProgressPhotos',
+        flags: { saved: true },
+      });
+      const { checkIn } = setup({
+        step: 'ProgressPhotos',
+        params: { saved: true },
+      });
+
+      close(checkIn());
+
+      expect(progress()).toBeNull();
+    });
+
+    it('is kept when a step is left without a hop', () => {
+      const saved = {
+        date: DATE,
+        step: 'MeasurementsAdd' as const,
+        flags: { saved: true },
+      };
+      useGuidedCheckInStore.getState().saveProgress(saved);
+      const { checkIn, isFocused } = setup({
+        step: 'MeasurementsAdd',
+        params: { saved: true },
+      });
+      isFocused.mockReturnValue(false);
+
+      checkIn().advance();
+
+      expect(progress()).toEqual(saved);
+    });
+  });
+
+  describe('startGuidedCheckIn', () => {
+    const t = ((key: string, options?: { defaultValue?: string }) =>
+      options?.defaultValue ?? key) as unknown as Parameters<
+      typeof startGuidedCheckIn
+    >[1];
+    const pressAlertText = (text: string) => {
+      const buttons = alertSpy.mock.calls.at(-1)?.[2] ?? [];
+      const button = buttons.find((b) => b.text === text);
+      if (!button) throw new Error(`No ${text} button on the alert`);
+      button.onPress?.();
+    };
+    const left = {
+      date: DATE,
+      step: 'ProgressPhotos' as const,
+      flags: { offerReminders: true, saved: true },
+    };
+
+    it('starts at step 1 when nothing is in progress', () => {
+      const open = jest.fn();
+
+      startGuidedCheckIn(DATE, t, open);
+
+      expect(alertSpy).not.toHaveBeenCalled();
+      expect(open).toHaveBeenCalledWith('MoodLog', {});
+    });
+
+    it('starts at step 1 when the check-in in progress is for another day', () => {
+      useGuidedCheckInStore.getState().saveProgress({
+        ...left,
+        date: '2026-10-25',
+      });
+      const open = jest.fn();
+
+      startGuidedCheckIn(DATE, t, open);
+
+      expect(alertSpy).not.toHaveBeenCalled();
+      expect(open).toHaveBeenCalledWith('MoodLog', {});
+    });
+
+    it('asks first for the same day, and Continue opens the step it stopped at', () => {
+      useGuidedCheckInStore.getState().saveProgress(left);
+      const open = jest.fn();
+
+      startGuidedCheckIn(DATE, t, open);
+
+      expect(open).not.toHaveBeenCalled();
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Continue your check-in?',
+        'You stopped at step {{step}} of {{total}}.',
+        expect.any(Array),
+        expect.objectContaining({ cancelable: true })
+      );
+      pressAlertText('Continue');
+
+      expect(open).toHaveBeenCalledTimes(1);
+      expect(open).toHaveBeenCalledWith('ProgressPhotos', left.flags);
+    });
+
+    it('Start over clears it and opens a new check-in at step 1', () => {
+      useGuidedCheckInStore.getState().saveProgress(left);
+      const open = jest.fn();
+
+      startGuidedCheckIn(DATE, t, open);
+      pressAlertText('Start over');
+
+      expect(open).toHaveBeenCalledWith('MoodLog', {});
+      expect(useGuidedCheckInStore.getState().progress).toBeNull();
+    });
+
+    it('Cancel opens nothing and keeps it', () => {
+      useGuidedCheckInStore.getState().saveProgress(left);
+      const open = jest.fn();
+
+      startGuidedCheckIn(DATE, t, open);
+      pressAlertText('Cancel');
+
+      expect(open).not.toHaveBeenCalled();
+      expect(useGuidedCheckInStore.getState().progress).toEqual(left);
     });
   });
 

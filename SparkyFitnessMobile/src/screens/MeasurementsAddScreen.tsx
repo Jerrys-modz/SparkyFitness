@@ -1470,6 +1470,8 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
         <GuidedCheckInStepIndicator
           step={guidedCheckIn.step}
           total={guidedCheckIn.total}
+          onBack={() => guidedCheckIn.back?.(hasUnsavedEdits())}
+          backDisabled={isMutationPending}
           onSkip={() => guidedCheckIn.skip(hasUnsavedEdits())}
           skipDisabled={isMutationPending}
         />

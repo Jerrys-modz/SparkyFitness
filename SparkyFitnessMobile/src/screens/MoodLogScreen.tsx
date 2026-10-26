@@ -91,13 +91,19 @@ export default function MoodLogScreen({ navigation, route }: Props) {
   const { supported, isLoading, retry, retrying } = useMoodCheckinsSupport();
   const date = route.params?.date;
   const checkinId = route.params?.checkinId;
-  // Step 1 of the guided check-in. Editing a check-in is never part of it.
+  // Step 1 of the guided check-in. Opening a check-in to edit is never part
+  // of it.
+  const flowParams =
+    checkinId === undefined ? route.params?.guidedCheckIn : undefined;
   const guidedCheckIn = useGuidedCheckIn({
     navigation,
     step: 'MoodLog',
     date,
-    params: checkinId === undefined ? route.params?.guidedCheckIn : undefined,
+    params: flowParams,
   });
+  // Back from step 2 reopens the check-in step 1 created, to edit it rather
+  // than add another.
+  const flowCheckin = guidedCheckIn ? flowParams?.moodCheckin : undefined;
   const title = t('mood.logTitle', { defaultValue: 'Mood' });
 
   if (isLoading) {
@@ -113,8 +119,8 @@ export default function MoodLogScreen({ navigation, route }: Props) {
     return (
       <CheckinMoodLog
         navigation={navigation}
-        date={date}
-        checkinId={checkinId}
+        date={flowCheckin?.date ?? date}
+        checkinId={checkinId ?? flowCheckin?.id}
         guidedCheckIn={guidedCheckIn}
       />
     );
@@ -167,11 +173,19 @@ function leaveAfterMoodSave(
   navigation: Navigation,
   t: TFunction,
   guidedCheckIn: GuidedCheckIn | null | undefined,
-  isNewCheckin: boolean
+  isNewCheckin: boolean,
+  created?: MoodEntry
 ) {
   if (guidedCheckIn) {
-    // The reminder offer waits for the end of the check-in.
-    guidedCheckIn.advance({ saved: true, offerReminders: isNewCheckin });
+    // The reminder offer waits for the end of the check-in, and the flow
+    // keeps the check-in it created so going back edits it.
+    guidedCheckIn.advance({
+      saved: true,
+      offerReminders: isNewCheckin,
+      moodCheckin: created
+        ? { id: created.id, date: created.entry_date }
+        : undefined,
+    });
     return;
   }
   navigation.goBack();
@@ -481,6 +495,7 @@ function CheckinMoodLog({
       tz={tz}
       timeFormat={timeFormat}
       checkinId={checkinId}
+      guidedCheckIn={guidedCheckIn}
     />
   );
 }
@@ -495,8 +510,12 @@ interface CheckinContext {
 /** Finds the check-in to edit in its day's list. */
 function CheckinEditLoader({
   checkinId,
+  guidedCheckIn,
   ...context
-}: CheckinContext & { checkinId: string }) {
+}: CheckinContext & {
+  checkinId: string;
+  guidedCheckIn: GuidedCheckIn | null;
+}) {
   const { t } = useTranslation();
   const { navigation, date } = context;
   const { checkins, isLoading, isError } = useMoodCheckinsForDate(date);
@@ -507,7 +526,15 @@ function CheckinEditLoader({
   const [row, setRow] = useState(found);
   if (found !== null && found !== row) setRow(found);
 
-  if (row) return <CheckinComposer {...context} editing={row} />;
+  if (row) {
+    return (
+      <CheckinComposer
+        {...context}
+        editing={row}
+        guidedCheckIn={guidedCheckIn}
+      />
+    );
+  }
 
   const title = t('mood.editCheckinTitle', { defaultValue: 'Edit check-in' });
   if (isLoading) {
@@ -516,6 +543,18 @@ function CheckinEditLoader({
         navigation={navigation}
         title={title}
         nativeTitle={title}
+        guidedCheckIn={guidedCheckIn}
+      />
+    );
+  }
+  // The check-in step 1 created is gone (deleted elsewhere): the step starts
+  // a new one instead.
+  if (guidedCheckIn && !isError) {
+    return (
+      <CheckinComposer
+        {...context}
+        editing={null}
+        guidedCheckIn={guidedCheckIn}
       />
     );
   }
@@ -527,6 +566,7 @@ function CheckinEditLoader({
       onSave={noop}
       saving={false}
       saveDisabled
+      guidedCheckIn={guidedCheckIn}
     >
       <View className="items-center gap-3 py-8">
         <Text className="text-sm text-text-secondary text-center">
@@ -622,9 +662,11 @@ function CheckinComposer({
     if (guidedCheckIn?.hasLeft()) return;
     if (editing && !checkinEditChanged(editing, draft, date, tz)) {
       // An edit that changes nothing sends nothing.
-      navigation.goBack();
+      if (guidedCheckIn) guidedCheckIn.advance();
+      else navigation.goBack();
       return;
     }
+    let created: MoodEntry | undefined;
     try {
       if (editing) {
         await updateCheckin.mutateAsync({
@@ -638,7 +680,7 @@ function CheckinComposer({
         const sent = timeTouched
           ? draft
           : { ...draft, time: defaultCheckinTime(sentDay, tz) };
-        await createCheckin.mutateAsync(
+        created = await createCheckin.mutateAsync(
           buildCheckinCreateBody(sent, sentDay, tz)
         );
       }
@@ -651,7 +693,7 @@ function CheckinComposer({
     }
     // The single success point after a save. Only a new check-in prompts;
     // an edit never does.
-    leaveAfterMoodSave(navigation, t, guidedCheckIn, !editing);
+    leaveAfterMoodSave(navigation, t, guidedCheckIn, !editing, created);
   };
 
   // Set at once rather than on the next render, so a second confirm sent
@@ -760,7 +802,8 @@ function CheckinComposer({
         value={draft.notes}
         onChangeText={(notes) => change({ notes })}
       />
-      {editing && (
+      {/* The check-in keeps to logging; a check-in is deleted from its day. */}
+      {editing && !guidedCheckIn && (
         <Button
           variant="destructive"
           onPress={() => confirmDelete(editing.id)}

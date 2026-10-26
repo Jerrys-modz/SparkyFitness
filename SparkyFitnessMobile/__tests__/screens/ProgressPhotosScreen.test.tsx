@@ -714,6 +714,38 @@ describe('ProgressPhotosScreen', () => {
       expect(offerCheckinRemindersAfterLeaving).not.toHaveBeenCalled();
     });
 
+    const backButton = (
+      getByRole: ReturnType<typeof renderScreen>['getByRole']
+    ) => getByRole('button', { name: 'Go back to the previous step' });
+
+    it('Back reopens step 2 with the flags, and the replace does not finish', () => {
+      const { getByRole } = renderInFlow({ saved: true });
+
+      fireEvent.press(backButton(getByRole));
+      // The navigator reports the replace as a removal of this step.
+      removeScreen('REPLACE');
+
+      expect(navigation.replace).toHaveBeenCalledWith('MeasurementsAdd', {
+        date: FLOW_DATE,
+        guidedCheckIn: { offerReminders: false, saved: true },
+      });
+      expect(navigation.goBack).not.toHaveBeenCalled();
+      expect(toastShow).not.toHaveBeenCalled();
+    });
+
+    it('keeps Back off and inert while a picked photo is still on its way', async () => {
+      jest
+        .mocked(pickImageFromCamera)
+        .mockImplementationOnce(() => new Promise<never>(() => {}));
+
+      const { getByLabelText, getByRole } = renderInFlow();
+      await takeFrontPhoto(getByLabelText);
+
+      expect(backButton(getByRole)).toBeDisabled();
+      fireEvent.press(backButton(getByRole));
+      expect(navigation.replace).not.toHaveBeenCalled();
+    });
+
     it('keeps the X off and inert while a picked photo is still on its way', async () => {
       jest
         .mocked(pickImageFromCamera)

@@ -233,6 +233,11 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
     guidedCheckIn?.finish({ saved: uploadedRef.current });
   }, [guidedCheckIn]);
   const isPhotoPending = isPicking || isUploading || isDeleting;
+  // Photos are saved as they are added, so going back drops nothing.
+  const handleBack = useCallback(() => {
+    if (pickerLock.current) return;
+    guidedCheckIn?.back?.(false);
+  }, [guidedCheckIn]);
   // Pushed, the screen pads below the status bar only when it draws its own
   // header. In the check-in it is a sheet, which on iOS already starts below
   // the status bar, so there only Android (full height) pads.
@@ -515,6 +520,8 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
         <GuidedCheckInStepIndicator
           step={guidedCheckIn.step}
           total={guidedCheckIn.total}
+          onBack={handleBack}
+          backDisabled={isPhotoPending}
         />
       )}
 

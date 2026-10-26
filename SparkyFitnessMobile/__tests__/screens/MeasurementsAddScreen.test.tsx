@@ -2236,6 +2236,8 @@ describe('MeasurementsAddScreen — guided check-in', () => {
 
   const skipButton = (screen: FlowScreen) =>
     screen.getByRole('button', { name: 'Skip this step' });
+  const backButton = (screen: FlowScreen) =>
+    screen.getByRole('button', { name: 'Go back to the previous step' });
 
   /** What step 2 hands to step 3 for the flow's day. */
   const toPhotos = (flags: { offerReminders: boolean; saved: boolean }) =>
@@ -2631,16 +2633,63 @@ describe('MeasurementsAddScreen — guided check-in', () => {
   );
 
   test.each(['upsert', 'saveCustom', 'deleteCustom'] as const)(
-    'Skip is disabled while the %s mutation is pending',
+    'Skip and Back are disabled while the %s mutation is pending',
     (mutation) => {
       setPending(mutation, true);
       const screen = renderInFlow();
 
       expect(skipButton(screen)).toBeDisabled();
+      expect(backButton(screen)).toBeDisabled();
       fireEvent.press(skipButton(screen));
+      fireEvent.press(backButton(screen));
       expect(mockNavigation.replace).not.toHaveBeenCalled();
     }
   );
+
+  test('Back reopens step 1 with every flag, the check-in it created included', () => {
+    const flags = {
+      offerReminders: true,
+      saved: true,
+      moodCheckin: { id: 'checkin-1', date: ENTRY_DATE },
+    };
+    setMeasurements({ weight: 80 });
+    const screen = renderInFlow(flags);
+
+    fireEvent.press(backButton(screen));
+
+    expect(Alert.alert).not.toHaveBeenCalled();
+    expectNothingWritten();
+    expect(mockNavigation.replace).toHaveBeenCalledTimes(1);
+    expect(mockNavigation.replace).toHaveBeenCalledWith('MoodLog', {
+      date: ENTRY_DATE,
+      guidedCheckIn: flags,
+    });
+  });
+
+  test('Back asks first when the form differs from the day, and Cancel stays', () => {
+    const screen = renderInFlow();
+
+    fireEvent.changeText(getInput(screen, 'weight'), '82.5');
+    fireEvent.press(backButton(screen));
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Go back a step?',
+      "Your changes on this step won't be saved.",
+      expect.any(Array),
+      expect.objectContaining({ cancelable: true })
+    );
+    act(() => dialogButton('cancel')());
+    expect(mockNavigation.replace).not.toHaveBeenCalled();
+
+    fireEvent.press(backButton(screen));
+    act(() => dialogButton('destructive')());
+
+    expectNothingWritten();
+    expect(mockNavigation.replace).toHaveBeenCalledWith('MoodLog', {
+      date: ENTRY_DATE,
+      guidedCheckIn: { offerReminders: false, saved: false },
+    });
+  });
 
   test('out of the flow, a save still shows the Saved toast and goes back', async () => {
     const screen = renderScreen();

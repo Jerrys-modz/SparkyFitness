@@ -1,9 +1,11 @@
+import { Alert } from 'react-native';
 import { renderHook } from '@testing-library/react-native';
 import { CommonActions } from '@react-navigation/native';
 import { navigationRef } from '../../src/components/ActiveWorkoutBar';
 import { useAddSheetActions } from '../../src/hooks/useAddSheetActions';
 import { initializeI18n } from '../../src/localization/i18n';
 import { useDiaryDateStore } from '../../src/stores/diaryDateStore';
+import { useGuidedCheckInStore } from '../../src/stores/guidedCheckInStore';
 
 jest.mock('../../src/components/ActiveWorkoutBar', () => ({
   navigationRef: {
@@ -96,6 +98,43 @@ describe('useAddSheetActions handleStartCheckIn', () => {
     jest.clearAllMocks();
     isReady.mockReturnValue(true);
     useDiaryDateStore.setState({ selectedDate: '2026-10-22' });
+    useGuidedCheckInStore.setState({ progress: null });
+  });
+
+  it('offers to continue a check-in left on the same day, and opens where it stopped', () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    useGuidedCheckInStore.setState({
+      progress: {
+        date: '2026-10-20',
+        step: 'MeasurementsAdd',
+        flags: { saved: true },
+      },
+    });
+    getRootState.mockReturnValue(
+      rootStateWithDiaryParams({ selectedDate: '2026-10-20' }) as ReturnType<
+        typeof navigationRef.getRootState
+      >
+    );
+
+    renderActions().handleStartCheckIn();
+
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Continue your check-in?',
+      'You stopped at step 2 of 3.',
+      expect.any(Array),
+      expect.objectContaining({ cancelable: true })
+    );
+    const buttons = alertSpy.mock.calls[0]?.[2] ?? [];
+    buttons.find((button) => button.text === 'Continue')?.onPress?.();
+
+    expect(dispatch).toHaveBeenCalledWith(
+      CommonActions.navigate({
+        name: 'MeasurementsAdd',
+        params: { date: '2026-10-20', guidedCheckIn: { saved: true } },
+      })
+    );
+    alertSpy.mockRestore();
   });
 
   it("opens MoodLog in the guided check-in on the Diary's active date", () => {

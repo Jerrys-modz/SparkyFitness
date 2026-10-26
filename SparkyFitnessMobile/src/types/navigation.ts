@@ -51,17 +51,28 @@ export type FoodPickerMode =
   // logging a diary entry. See services/waterContainerLinkSelection.ts.
   | 'container-link';
 
+/** The routes the guided check-in walks through, in order. */
+export type GuidedCheckInStep =
+  'MoodLog' | 'MeasurementsAdd' | 'ProgressPhotos';
+
 /**
  * The guided check-in (AddSheet → Check-In) chains MoodLog → MeasurementsAdd →
  * ProgressPhotos for one day. A step opened with this param shows "Step N of
- * 3", can be skipped, and hands over to the next step instead of going back.
- * Route params must stay serializable, so it carries flags only.
+ * 3", can be skipped or left for the step before, and hands over to the next
+ * step instead of going back. Route params must stay serializable, so it
+ * carries plain values only.
  */
 export interface GuidedCheckInParams {
   /** A new mood check-in was saved: offer reminders once the flow finishes. */
   offerReminders?: boolean;
   /** Some step saved something, so Finish confirms the check-in. */
   saved?: boolean;
+  /**
+   * The mood check-in step 1 created (servers with several a day), with the
+   * day it was saved on, so going back to step 1 edits it instead of adding
+   * another.
+   */
+  moodCheckin?: { id: string; date: string };
 }
 
 export type TabParamList = {

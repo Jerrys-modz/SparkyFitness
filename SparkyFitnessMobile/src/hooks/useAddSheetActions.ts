@@ -6,6 +6,7 @@ import { queryClient } from './queryClient';
 import { serverConnectionQueryKey } from './queryKeys';
 import { useSyncHealthData } from './useSyncHealthData';
 import { promptForActiveWorkoutConflict } from './useStartLiveWorkout';
+import { startGuidedCheckIn } from './useGuidedCheckIn';
 import { loadTimeRange } from '../services/storage';
 import type { TimeRange } from '../services/storage';
 import {
@@ -322,8 +323,10 @@ export function useAddSheetActions({ syncMutation }: AddSheetActionsArgs) {
   const handleStartCheckIn = useCallback(() => {
     const date =
       getActiveDiaryDate() ?? useDiaryDateStore.getState().selectedDate;
-    navigateFromSheet('MoodLog', { date, guidedCheckIn: {} });
-  }, [getActiveDiaryDate, navigateFromSheet]);
+    startGuidedCheckIn(date, t, (step, guidedCheckIn) =>
+      navigateFromSheet(step, { date, guidedCheckIn })
+    );
+  }, [getActiveDiaryDate, navigateFromSheet, t]);
 
   const handleAddMindfulness = useCallback(() => {
     const date = getActiveDiaryDate();

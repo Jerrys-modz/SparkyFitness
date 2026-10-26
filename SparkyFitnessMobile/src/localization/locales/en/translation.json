@@ -5490,7 +5490,12 @@
     "finish": "Finish",
     "done": "Check-in complete",
     "skipUnsavedTitle": "Skip this step?",
-    "skipUnsavedMessage": "Your changes on this step won't be saved."
+    "skipUnsavedMessage": "Your changes on this step won't be saved.",
+    "backA11y": "Go back to the previous step",
+    "backUnsavedTitle": "Go back a step?",
+    "resumeTitle": "Continue your check-in?",
+    "resumeMessage": "You stopped at step {{step}} of {{total}}.",
+    "startOver": "Start over"
   },
   "mood": {
     "logTitle": "Mood",

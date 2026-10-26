@@ -1300,6 +1300,9 @@ describe('MoodLogScreen guided check-in', () => {
       const deviceToday = jest
         .spyOn(dateUtils, 'getTodayDate')
         .mockReturnValue(DATE);
+      mockCreateMutateAsync.mockResolvedValueOnce(
+        savedEntry({ id: 'mood-tokyo', entry_date: '2026-10-15' })
+      );
       renderInFlow();
       expect(screen.getByText('Check-in: Step 1 of 3')).toBeTruthy();
       fireEvent.press(screen.getByLabelText('Energy 4'));
@@ -1311,9 +1314,16 @@ describe('MoodLogScreen guided check-in', () => {
         entry_timestamp: `${DATE}T23:30:00.000Z`,
       });
       expect(mockNavigation.replace).toHaveBeenCalledTimes(1);
-      expect(mockNavigation.replace).toHaveBeenCalledWith(
-        ...toMeasurements({ offerReminders: true, saved: true })
-      );
+      // The flow keeps the check-in it created, on the day it was saved on,
+      // so going back to this step edits it.
+      expect(mockNavigation.replace).toHaveBeenCalledWith('MeasurementsAdd', {
+        date: DATE,
+        guidedCheckIn: {
+          offerReminders: true,
+          saved: true,
+          moodCheckin: { id: 'mood-tokyo', date: '2026-10-15' },
+        },
+      });
       expect(mockNavigation.goBack).not.toHaveBeenCalled();
       expect(hasShownCheckinReminderOffer).not.toHaveBeenCalled();
       deviceToday.mockRestore();
@@ -1358,6 +1368,91 @@ describe('MoodLogScreen guided check-in', () => {
         ...toMeasurements({ offerReminders: false, saved: false })
       );
       expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    });
+
+    describe('going back to step 1', () => {
+      const created = { id: 'checkin-1', date: DATE };
+      const flags = { offerReminders: true, saved: true, moodCheckin: created };
+      const toMeasurementsWith = (
+        guidedCheckIn: typeof flags
+      ): ['MeasurementsAdd', { date: string; guidedCheckIn: typeof flags }] => [
+        'MeasurementsAdd',
+        { date: DATE, guidedCheckIn },
+      ];
+
+      beforeEach(() => {
+        mockCheckins = [
+          savedEntry({
+            id: 'checkin-1',
+            entry_timestamp: `${DATE}T08:10:42.000Z`,
+          }),
+        ];
+      });
+
+      it('edits the check-in the flow created instead of adding another', async () => {
+        renderWithParams({ date: DATE, guidedCheckIn: flags });
+
+        expect(screen.getByText('Edit check-in')).toBeTruthy();
+        expect(screen.getByText('Check-in: Step 1 of 3')).toBeTruthy();
+        // The first step has no Back, and the flow never deletes.
+        expect(
+          screen.queryByRole('button', { name: 'Go back to the previous step' })
+        ).toBeNull();
+        expect(
+          screen.queryByRole('button', { name: 'Delete check-in' })
+        ).toBeNull();
+
+        fireEvent.press(screen.getByLabelText('Energy 4'));
+        await pressAndSettle(continueButton());
+
+        expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+        expect(mockUpdateMutateAsync).toHaveBeenCalledWith({
+          id: 'checkin-1',
+          body: { energy_value: 4 },
+        });
+        expect(mockNavigation.replace).toHaveBeenCalledWith(
+          ...toMeasurementsWith(flags)
+        );
+        expect(mockNavigation.goBack).not.toHaveBeenCalled();
+      });
+
+      it('moves on from its own check-in unchanged without writing', async () => {
+        renderWithParams({ date: DATE, guidedCheckIn: flags });
+
+        await pressAndSettle(continueButton());
+
+        expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+        expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
+        expect(mockNavigation.replace).toHaveBeenCalledWith(
+          ...toMeasurementsWith(flags)
+        );
+        expect(mockNavigation.goBack).not.toHaveBeenCalled();
+      });
+
+      it('starts a new check-in when the one it created is gone', async () => {
+        mockCheckins = [];
+        renderWithParams({
+          date: DATE,
+          guidedCheckIn: {
+            saved: true,
+            moodCheckin: { id: 'deleted', date: DATE },
+          },
+        });
+
+        expect(screen.getByText('New check-in')).toBeTruthy();
+        fireEvent.press(screen.getByLabelText('Energy 4'));
+        await pressAndSettle(continueButton());
+
+        expect(mockCreateMutateAsync).toHaveBeenCalledTimes(1);
+        expect(mockNavigation.replace).toHaveBeenCalledWith('MeasurementsAdd', {
+          date: DATE,
+          guidedCheckIn: {
+            offerReminders: true,
+            saved: true,
+            moodCheckin: { id: 'mood-1', date: DATE },
+          },
+        });
+      });
     });
 
     it('ignores the flow when editing a check-in, and goes back after the save', async () => {
