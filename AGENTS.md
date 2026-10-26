@@ -70,6 +70,8 @@ Cheap ways to learn things:
 
 ## Cross-Package Rules
 
+- Barcode source comparison uses the shared `BarcodeLookup.api.zod.ts` contract and `barcodeNutritionPreview` helper. Web and mobile request alternatives on demand through `SparkyFitnessServer/services/barcodeLookupService.ts`; the initial lookup retains the existing local/default/fallback behavior.
+
 - If you add or change a server migration (such as creating a new table), follow `agent-docs/new-migration-checklist.md`. In short, you MUST:
   1. Create the migration file in `SparkyFitnessServer/db/migrations/YYYYMMDDHHMMSS_description.sql`.
   2. Update the Row-Level Security (RLS) policies in `SparkyFitnessServer/db/rls_policies.sql`.
@@ -158,4 +160,3 @@ npx expo prebuild --clean
 pnpm dev
 pnpm run build
 ```
-

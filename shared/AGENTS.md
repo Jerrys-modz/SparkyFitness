@@ -16,6 +16,8 @@ _Last updated: 2026-10-25_
 
 ## Structure
 
+- Barcode search: `schemas/api/FoodLookup.api.zod.ts` and `BarcodeLookup.api.zod.ts` define normalized foods and source comparison results. `utils/barcodeNutrition.ts` supplies one comparison basis for web and mobile.
+
 - `src/schemas/database/` - one Zod file per table (`Foods.zod.ts`, `Exercises.zod.ts`, ~115 files). Agent shortcut: to learn a table shape, read the matching file here instead of the SQL dump.
 - `src/schemas/api/` - API request/response contracts (`*api.zod.ts`). `VoiceTranscription.api.zod.ts` defines multipart limits/MIME types, transcription responses, voice preference patches, and compatible public service options shared by web/mobile/server.
 - `src/constants/` - shared constants and enums (exercises, nutrients, meal types, fasting protocols, medication schedules, cycle phases, etc.).
