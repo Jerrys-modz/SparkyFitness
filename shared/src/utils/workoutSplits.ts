@@ -126,6 +126,9 @@ function hold(
   };
 }
 
+/** The builders the trainer uses for the exercises it adds to a program. */
+export { lift as workoutSplitLift, hold as workoutSplitHold };
+
 const SQUAT = 'Barbell_Squat';
 const BENCH = 'Barbell_Bench_Press_-_Medium_Grip';
 const ROW = 'Bent_Over_Barbell_Row';
