@@ -42,7 +42,7 @@ Manage your workouts, track strength progress, and use presets.
 | **Alternatives**      | `suggest_alternatives`  | "What can I do instead of bench press? Only dumbbells." |
 | **Rate a Workout**    | `rate_workout`          | "Yesterday's workout felt too hard; my knee hurt."     |
 | **Adaptive Coaching** | `get_workout_coaching`  | "Will my Push Day change next time, and why?"          |
-| **Workout Programs**  | `list_workout_splits`, `import_workout_split` | "I train at home with dumbbells three days a week. Which program fits, and add it." |
+| **Workout Programs**  | `list_workout_splits`, `recommend_workout_split`, `import_workout_split` | "I train at home with dumbbells three days a week. Which program fits, and add it." |
 
 ### 📈 Biometrics & Check-ins
 
