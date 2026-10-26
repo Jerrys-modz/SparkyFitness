@@ -715,6 +715,8 @@
     "bloodGlucose": "Blood Glucose",
     "bodyFat": "Body Fat",
     "bodyTemperature": "Body Temperature",
+    "sleepingWristTemperature": "Sleeping Wrist Temperature",
+    "overnightBodyTemperature": "Overnight Body Temperature",
     "distance": "Distance",
     "exerciseSession": "Exercise Session",
     "floorsClimbed": "Floors Climbed",
@@ -6429,8 +6431,13 @@
     "lowestSpo2": "Lowest SpO2",
     "highestSpo2": "Highest SpO2",
     "restingHeartRate": "Resting heart rate",
+    "overnightHrv": "Overnight HRV",
+    "skinTemperature": "Skin temperature",
+    "skinTemperatureDeviation": "Skin temp. vs usual",
     "percentUnit": "%",
     "bpmUnit": "bpm",
+    "msUnit": "ms",
+    "celsiusUnit": "°C",
     "quality": "Sleep Quality"
   },
   "foodProvenance": {
