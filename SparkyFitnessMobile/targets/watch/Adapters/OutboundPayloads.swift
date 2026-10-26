@@ -160,9 +160,10 @@ enum OutboundPayloads {
         case .deleteExercise(let exerciseEntryId):
             payload["action"] = "deleteExercise"
             payload["exerciseEntryId"] = exerciseEntryId
-        case .doExerciseNow(let exerciseEntryId):
+        case .doExerciseNow(let exerciseEntryId, let anchorEntryId):
             payload["action"] = "doExerciseNow"
             payload["exerciseEntryId"] = exerciseEntryId
+            payload["anchorEntryId"] = anchorEntryId
         }
         return payload
     }

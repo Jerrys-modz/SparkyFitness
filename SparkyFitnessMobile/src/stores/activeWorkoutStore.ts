@@ -564,8 +564,10 @@ export interface ActiveWorkoutState {
    * machine that is taken, or a quick change of order. The exercise that was
    * current comes straight after. A superset moves as one block, as in
    * `reorderExercises`. No-op for the current exercise or an earlier one.
+   * `anchorEntryId` overrides "the current exercise" (the watch sends the
+   * one it is on).
    */
-  doExerciseNow: (entryId: string) => void;
+  doExerciseNow: (entryId: string, anchorEntryId?: string) => void;
   /** Update session location */
   setSessionLocation: (location: string | null) => void;
   /**
@@ -2692,13 +2694,15 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>()(
         set(buildSessionEditState(state, { ...session, exercises: moved }));
       },
 
-      doExerciseNow: (entryId) => {
+      doExerciseNow: (entryId, anchorEntryId) => {
         const state = get();
         const session = state.session;
         if (!session || state.activeSetId == null) return;
-        const currentEntryId = session.exercises.find((e) =>
-          e.sets.some((s) => String(s.id) === state.activeSetId)
-        )?.id;
+        const currentEntryId =
+          anchorEntryId ??
+          session.exercises.find((e) =>
+            e.sets.some((s) => String(s.id) === state.activeSetId)
+          )?.id;
         if (currentEntryId == null) return;
         const items = buildExerciseReorderItems(session.exercises);
         const from = items.findIndex((i) => i.entryIds.includes(entryId));

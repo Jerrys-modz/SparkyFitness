@@ -101,7 +101,9 @@ struct WaterIntakeView: View {
                 .frame(height: WatchStyle.s(84))
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
-                    Text(goalMl > 0 ? store.context.formattedWater(ml: effectiveMl) : "–")
+                    // The total stands on its own: a missing goal only blanks
+                    // the "% of goal" line under it.
+                    Text(water == nil && effectiveMl == 0 ? "–" : store.context.formattedWater(ml: effectiveMl))
                         .font(.system(size: WatchStyle.s(28), weight: .semibold, design: .rounded))
                         .foregroundStyle(GoalPalette.water)
                         .monospacedDigit()

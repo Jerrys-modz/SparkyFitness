@@ -50,8 +50,12 @@ describe('applyWatchWorkoutEdit', () => {
   });
 
   it('does an upcoming exercise now', async () => {
-    await edit({ action: 'doExerciseNow', exerciseEntryId: 'entry-3' });
-    expect(actions.doExerciseNow).toHaveBeenCalledWith('entry-3');
+    await edit({
+      action: 'doExerciseNow',
+      exerciseEntryId: 'entry-3',
+      anchorEntryId: 'entry-1',
+    });
+    expect(actions.doExerciseNow).toHaveBeenCalledWith('entry-3', 'entry-1');
   });
 
   it('changes a set type', async () => {

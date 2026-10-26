@@ -48,9 +48,9 @@ struct ClassicGoalSummaryView: View {
     /// supporting numbers stay out of its way.
     private var headlineRow: some View {
         HStack(spacing: 2) {
-            statBlock(value: nutrition?.caloriesConsumed, label: "Eaten")
+            statBlock(value: nutrition?.caloriesConsumed, label: String(localized: "watch.goals.eaten", defaultValue: "Eaten"))
             calorieRing
-            statBlock(value: nutrition?.caloriesBurned, label: "Burned")
+            statBlock(value: nutrition?.caloriesBurned, label: String(localized: "watch.goals.burned", defaultValue: "Burned"))
         }
     }
 
@@ -97,8 +97,10 @@ struct ClassicGoalSummaryView: View {
     }
 
     private var calorieCaption: String {
-        guard let nutrition, nutrition.caloriesRemaining < 0 else { return "Kcal left" }
-        return "Kcal over"
+        guard let nutrition, nutrition.caloriesRemaining < 0 else {
+            return String(localized: "watch.goals.kcalLeftClassic", defaultValue: "Kcal left")
+        }
+        return String(localized: "watch.goals.kcalOverClassic", defaultValue: "Kcal over")
     }
 
     /// Unsigned here even though the visible number is signed: "minus 254

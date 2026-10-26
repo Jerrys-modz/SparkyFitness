@@ -58,7 +58,9 @@ export async function applyWatchWorkoutEdit(
       if (payload.exerciseEntryId) live.removeExercise(payload.exerciseEntryId);
       return;
     case 'doExerciseNow':
-      if (payload.exerciseEntryId) live.doExerciseNow(payload.exerciseEntryId);
+      if (payload.exerciseEntryId) {
+        live.doExerciseNow(payload.exerciseEntryId, payload.anchorEntryId);
+      }
       return;
     case 'addExercise': {
       if (!payload.exerciseId) return;

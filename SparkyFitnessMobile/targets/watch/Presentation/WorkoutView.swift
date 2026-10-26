@@ -582,7 +582,9 @@ private struct ActiveWorkoutView: View {
             if let format = store.plan?.workoutFormat?.lowercased(), format != "standard" {
                 IntervalCaptionView(plan: store.plan)
             }
-            if checkIn.context.effectiveSetScreenMetrics, !store.isResting, store.currentStep != nil {
+            // During a rest too: the ring shows the heart rate, but not the
+            // elapsed time or calories.
+            if checkIn.context.effectiveSetScreenMetrics, store.isResting || store.currentStep != nil {
                 SetScreenMetricsLine()
             }
 
@@ -968,8 +970,10 @@ struct SwapExerciseSheet: View {
             List(store.upcomingExercises) { step in
                 Button {
                     Haptics.tap()
-                    session.sendWorkoutEdit(.doExerciseNow(exerciseEntryId: step.exerciseEntryId))
-                    store.jumpToExercise(step.exerciseEntryId)
+                    if let anchor = store.currentStep?.exerciseEntryId {
+                        session.sendWorkoutEdit(.doExerciseNow(exerciseEntryId: step.exerciseEntryId, anchorEntryId: anchor))
+                        store.jumpToExercise(step.exerciseEntryId)
+                    }
                     dismiss()
                 } label: {
                     VStack(alignment: .leading, spacing: 2) {

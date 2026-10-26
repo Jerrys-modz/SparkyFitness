@@ -72,7 +72,7 @@ struct ClassicWaterIntakeView: View {
     /// is what says "more is coming", and having the number jump ahead of the
     /// fill would contradict it.
     private var goalLabel: String {
-        guard goalMl > 0 else { return "Water not synced yet" }
+        guard goalMl > 0 else { return String(localized: "watch.water.notSynced", defaultValue: "Water not synced yet") }
         let percent = Int((progress * 100).rounded())
         return "\(percent)% * \(store.context.formattedWater(ml: effectiveMl))"
     }
@@ -171,8 +171,8 @@ struct ClassicWaterIntakeView: View {
                     .font(.system(size: 20))
                     .foregroundStyle(.secondary)
                 Text(hasEverSyncedContainers
-                     ? "No containers set up on the server yet"
-                     : "Open SparkyFitness on your phone to sync your containers")
+                     ? String(localized: "watch.water.noContainers", defaultValue: "No containers set up on the server yet")
+                     : String(localized: "watch.water.openPhoneClassic", defaultValue: "Open SparkyFitness on your phone to sync your containers"))
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
