@@ -86,6 +86,10 @@ spec:
             - name: http
               containerPort: {{ .Values.server.port }}
               protocol: TCP
+          {{- with .Values.server.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with .Values.server.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
