@@ -119,6 +119,8 @@ export type RootStackParamList = {
   WorkoutPlans: undefined;
   WorkoutPlanForm: { template?: WorkoutPlanTemplate } | undefined;
   RunPrograms: undefined;
+  WorkoutSplits: undefined;
+  WorkoutSplitImport: { splitId: string };
   RunProgramCalendar: undefined;
   RunProgramWorkout: { index: number };
   RunProgramRace: { distance?: RaceDistance; raceDay?: string } | undefined;
