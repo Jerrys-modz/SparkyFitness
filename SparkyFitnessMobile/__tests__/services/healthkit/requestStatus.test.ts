@@ -77,12 +77,12 @@ describe('hasUnrequestedHealthPermissions', () => {
   it('leaves the workout effort rating out of the check but still requests it', async () => {
     statusMock.mockResolvedValue(AuthorizationRequestStatus.unnecessary);
     (requestAuthorization as jest.Mock).mockClear();
-    const workouts = [
-      { accessType: 'read', recordType: 'Workout' },
+    const exerciseSessions = [
+      { accessType: 'read', recordType: 'ExerciseSession' },
     ] as Parameters<typeof hasUnrequestedHealthPermissions>[0];
 
-    await hasUnrequestedHealthPermissions(workouts);
-    await requestHealthPermissions(workouts);
+    await hasUnrequestedHealthPermissions(exerciseSessions);
+    await requestHealthPermissions(exerciseSessions);
 
     const effort = 'HKQuantityTypeIdentifierWorkoutEffortScore';
     expect(statusMock.mock.calls[0][0].toRead).not.toContain(effort);
