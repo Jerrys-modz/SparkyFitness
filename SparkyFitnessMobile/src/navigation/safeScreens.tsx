@@ -61,6 +61,7 @@ import MealTypeSettingsScreen from '../screens/MealTypeSettingsScreen';
 import EquipmentScreen from '../screens/EquipmentScreen';
 import ShoesScreen from '../screens/ShoesScreen';
 import ShoeFormScreen from '../screens/ShoeFormScreen';
+import PlateInventoryScreen from '../screens/PlateInventoryScreen';
 import AiSettingsScreen from '../screens/AiSettingsScreen';
 import FoodSettingsScreen from '../screens/FoodSettingsScreen';
 import CustomNutrientsScreen from '../screens/CustomNutrientsScreen';
@@ -213,6 +214,7 @@ export const SafeMealTypeSettings = withErrorBoundary(MealTypeSettingsScreen, 'M
 export const SafeEquipment = withErrorBoundary(EquipmentScreen, 'Equipment', { canGoBack: true });
 export const SafeShoes = withErrorBoundary(ShoesScreen, 'Shoes', { canGoBack: true });
 export const SafeShoeForm = withErrorBoundary(ShoeFormScreen, 'ShoeForm', { canGoBack: true });
+export const SafePlateInventory = withErrorBoundary(PlateInventoryScreen, 'PlateInventory', { canGoBack: true });
 export const SafeAiSettings = withErrorBoundary(AiSettingsScreen, 'AiSettings', { canGoBack: true });
 export const SafeFoodSettings = withErrorBoundary(FoodSettingsScreen, 'FoodSettings', { canGoBack: true });
 export const SafeCustomNutrients = withErrorBoundary(CustomNutrientsScreen, 'CustomNutrients', { canGoBack: true });

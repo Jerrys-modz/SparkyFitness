@@ -108,6 +108,7 @@ import {
   SafeEquipment,
   SafeShoes,
   SafeShoeForm,
+  SafePlateInventory,
   SafeAiSettings,
   SafeFoodSettings,
   SafeCustomNutrients,
@@ -1131,6 +1132,11 @@ function AppContent() {
             name="ShoeForm"
             component={SafeShoeForm}
             options={createStackScreenOptions(t('shoes.title', { defaultValue: 'Shoes' }), { headerBackTitle: t('shoes.title', { defaultValue: 'Shoes' }) })}
+          />
+          <Stack.Screen
+            name="PlateInventory"
+            component={SafePlateInventory}
+            options={createStackScreenOptions(t('plates.title', { defaultValue: 'Plates & bars' }), { headerBackTitle: t('equipmentHub.title', { defaultValue: 'Equipment' }) })}
           />
           <Stack.Screen
             name="DashboardSettings"
