@@ -3736,6 +3736,29 @@ CREATE TABLE public.passkey_registration_tickets (
 
 
 --
+-- Name: plate_inventories; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.plate_inventories (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    weight_unit character varying(3) DEFAULT 'kg'::character varying NOT NULL,
+    bars jsonb DEFAULT '[]'::jsonb NOT NULL,
+    plates jsonb DEFAULT '[]'::jsonb NOT NULL,
+    collars_enabled boolean DEFAULT false NOT NULL,
+    collar_weight numeric(7,3) DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by_user_id uuid,
+    updated_by_user_id uuid,
+    CONSTRAINT plate_inventories_bars_check CHECK ((jsonb_typeof(bars) = 'array'::text)),
+    CONSTRAINT plate_inventories_collar_check CHECK ((collar_weight >= (0)::numeric)),
+    CONSTRAINT plate_inventories_plates_check CHECK ((jsonb_typeof(plates) = 'array'::text)),
+    CONSTRAINT plate_inventories_unit_check CHECK (((weight_unit)::text = ANY ((ARRAY['kg'::character varying, 'lbs'::character varying])::text[])))
+);
+
+
+--
 -- Name: pregnancies; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -6369,6 +6392,22 @@ ALTER TABLE ONLY public.passkey_registration_tickets
 
 ALTER TABLE ONLY public.passkey_registration_tickets
     ADD CONSTRAINT passkey_registration_tickets_ticket_hash_key UNIQUE (ticket_hash);
+
+
+--
+-- Name: plate_inventories plate_inventories_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plate_inventories
+    ADD CONSTRAINT plate_inventories_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: plate_inventories plate_inventories_user_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plate_inventories
+    ADD CONSTRAINT plate_inventories_user_unique UNIQUE (user_id);
 
 
 --
@@ -9548,6 +9587,30 @@ ALTER TABLE ONLY public.passkey
 
 
 --
+-- Name: plate_inventories plate_inventories_created_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plate_inventories
+    ADD CONSTRAINT plate_inventories_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: plate_inventories plate_inventories_updated_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plate_inventories
+    ADD CONSTRAINT plate_inventories_updated_by_user_id_fkey FOREIGN KEY (updated_by_user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: plate_inventories plate_inventories_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plate_inventories
+    ADD CONSTRAINT plate_inventories_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
 -- Name: pregnancies pregnancies_prenatal_medication_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -11422,6 +11485,13 @@ CREATE POLICY owner_policy ON public.openfoodfacts_sync_queue USING ((user_id = 
 
 
 --
+-- Name: plate_inventories owner_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY owner_policy ON public.plate_inventories USING ((user_id = public.authenticated_user_id())) WITH CHECK ((user_id = public.authenticated_user_id()));
+
+
+--
 -- Name: pregnancies owner_policy; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -11553,6 +11623,12 @@ CREATE POLICY owner_policy ON public.workout_plan_template_assignments USING ((E
 --
 
 ALTER TABLE public.passkey_registration_tickets ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: plate_inventories; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.plate_inventories ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: pregnancies; Type: ROW SECURITY; Schema: public; Owner: -
@@ -13362,6 +13438,13 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.passkey TO sparky_app;
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.passkey_registration_tickets TO sparky_app;
+
+
+--
+-- Name: TABLE plate_inventories; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.plate_inventories TO sparky_app;
 
 
 --

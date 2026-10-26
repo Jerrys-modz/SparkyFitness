@@ -162,7 +162,7 @@ const PlateInventorySection: React.FC<{ canWrite: boolean }> = ({
 }) => {
   const { t } = useTranslation();
   const { weightUnit } = usePreferences();
-  const { data: stored, isLoading } = usePlateInventory();
+  const { data: stored, isLoading, isError } = usePlateInventory();
   const save = useSavePlateInventoryMutation();
   const reset = useResetPlateInventoryMutation();
   const [open, setOpen] = useState(false);
@@ -173,6 +173,9 @@ const PlateInventorySection: React.FC<{ canWrite: boolean }> = ({
     weightUnit === 'kg' ? 'kg' : 'lbs'
   );
   const owned = config.plates.filter((plate) => plate.pairs > 0);
+  // A failed load leaves nothing to tell the standard set from the person's
+  // own plates; saving from that would replace their inventory.
+  const loadFailed = isError && stored == null;
 
   return (
     <section className="space-y-3">
@@ -182,7 +185,12 @@ const PlateInventorySection: React.FC<{ canWrite: boolean }> = ({
           {t('plates.title', 'Plates & bars')}
         </h3>
         {canWrite && (
-          <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={isLoading || loadFailed}
+            onClick={() => setOpen(true)}
+          >
             <Pencil className="mr-1 h-3.5 w-3.5" />
             {t('common.edit', 'Edit')}
           </Button>
@@ -190,6 +198,10 @@ const PlateInventorySection: React.FC<{ canWrite: boolean }> = ({
       </div>
       {isLoading ? (
         <Skeleton className="h-20" />
+      ) : loadFailed ? (
+        <p className="text-sm text-destructive">
+          {t('plates.failedToLoad', 'Failed to load your plates and bars.')}
+        </p>
       ) : (
         <div className="space-y-2 text-sm">
           {!stored && (
@@ -256,7 +268,7 @@ const PlateInventorySection: React.FC<{ canWrite: boolean }> = ({
  */
 const EquipmentManager: React.FC = () => {
   const { t } = useTranslation();
-  const { hasWritePermission } = useActiveUser();
+  const { hasWritePermission, isActingOnBehalf } = useActiveUser();
   // Reads follow the diary or reports permission; every change needs diary write.
   const canWrite = hasWritePermission('diary');
   const { data: shoes, isLoading } = useShoes();
@@ -358,7 +370,7 @@ const EquipmentManager: React.FC = () => {
           </>
         )}
 
-        <PlateInventorySection canWrite={canWrite} />
+        {!isActingOnBehalf && <PlateInventorySection canWrite={canWrite} />}
 
         <ShoeFormDialog
           open={dialogOpen}

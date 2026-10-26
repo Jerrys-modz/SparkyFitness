@@ -74,7 +74,9 @@ describe('PlateCalculatorDialog', () => {
   it('says so when the target is lighter than the bar', () => {
     renderDialog({ weightKg: 15 });
     expect(
-      screen.getByText('The target is lighter than the bar.')
+      screen.getByText(
+        'The target is lighter than the empty bar, collars included.'
+      )
     ).toBeTruthy();
     expect(screen.getByText('Nearest above: 20 kg')).toBeTruthy();
   });

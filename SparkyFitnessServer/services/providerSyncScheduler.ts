@@ -11,6 +11,7 @@ import stravaService from './stravaService.js';
 import googleHealthService from './googleHealthService.js';
 import hevyService from '../integrations/hevy/hevyService.js';
 import liftosaurService from '../integrations/liftosaur/liftosaurService.js';
+import intervalsService from '../integrations/intervals/intervalsService.js';
 import { log } from '../config/logging.js';
 import { startProviderSync } from './providerSyncClaim.js';
 
@@ -121,6 +122,14 @@ export const PROVIDER_SYNC_CONFIGS: readonly ProviderSyncConfig[] = [
         false,
         p.id
       );
+    },
+  },
+  {
+    // Hourly; each run covers yesterday and today in the user's timezone.
+    name: 'Intervals.icu',
+    types: ['intervals'],
+    sync: async (p) => {
+      await intervalsService.syncIntervalsData(p.user_id, p.user_id, p.id);
     },
   },
 ];

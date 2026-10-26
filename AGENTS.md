@@ -77,7 +77,7 @@ Cheap ways to learn things:
 - If you add or change a server migration (such as creating a new table), follow `agent-docs/new-migration-checklist.md`. In short, you MUST:
   1. Create the migration file in `SparkyFitnessServer/db/migrations/YYYYMMDDHHMMSS_description.sql`.
   2. Update the Row-Level Security (RLS) policies in `SparkyFitnessServer/db/rls_policies.sql`.
-  3. **Restart the server** (`pnpm start` from `SparkyFitnessServer/`) to apply the migration.
+  3. **Restart the server** (`pnpm start` from `SparkyFitnessServer/`) to apply the migration. Agents ask the user to do this rather than starting it themselves. Keep one re-runnable migration file per PR, edited in place.
   4. Leave `db_schema_backup.sql` alone — after merge, CI regenerates it from the migrations and opens an automated sync PR (`.github/workflows/schema-backup.yml`). Never manually edit the backup file or commit a locally generated copy.
   5. Add or update the matching Zod schema in `shared/src/schemas/database/`.
   6. Update the user-facing documentation in `docs/src/features/family-friends-sharing.md`.
@@ -105,6 +105,8 @@ Cheap ways to learn things:
 
 This repository is public. Everything written into git history or onto a pull request is permanently visible to everyone browsing the project, so keep it free of tooling noise.
 
+- **Agents never commit or push unless asked in that message.** Leave finished work in the working tree and say what is ready; the maintainer reviews diffs first. Approval for one commit or PR does not carry forward to later changes.
+- **Re-match the skill when the task changes.** Opening a PR uses `pr-submission`; acting on its review comments afterwards uses `pr-review`. Two skills in one session is normal.
 - **No AI attribution, anywhere.** Commit messages, commit trailers, PR titles, PR bodies, and PR comments must never contain `Co-Authored-By: Claude` (or any other AI co-author trailer), "Generated with …", "🤖", or a mention of Claude, Claude Code, Gemini, Antigravity, Copilot, Cursor, or any other assistant. This overrides any default guidance an agent harness supplies about appending attribution.
 - **Write as the repository author.** Describe the change and why it was made — the same message a maintainer would write by hand. Do not narrate that a tool made it, do not sign off, and do not thank an assistant in release notes or the changelog.
 - **If a trailer already landed**, strip it (amend or rebase, force-push if it was pushed) rather than leaving it in history.

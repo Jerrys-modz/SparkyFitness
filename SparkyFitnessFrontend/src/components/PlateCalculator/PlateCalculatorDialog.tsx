@@ -239,7 +239,7 @@ export const PlateCalculatorDialog: React.FC<PlateCalculatorDialogProps> = ({
                   <p className="text-sm text-muted-foreground">
                     {t(
                       'plates.nothingBelow',
-                      'The target is lighter than the bar.'
+                      'The target is lighter than the empty bar, collars included.'
                     )}
                   </p>
                 )}

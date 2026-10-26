@@ -167,7 +167,8 @@ export default function PlateCalculatorSheet({
                 ) : (
                   <Text className="text-sm text-text-muted text-center mt-1">
                     {t('plates.nothingBelow', {
-                      defaultValue: 'The target is lighter than the bar.',
+                      defaultValue:
+                        'The target is lighter than the empty bar, collars included.',
                     })}
                   </Text>
                 )}
