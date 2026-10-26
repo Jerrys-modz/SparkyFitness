@@ -443,7 +443,14 @@ export const hasUnrequestedHealthPermissions = async (
   if (!isHealthKitAvailable) {
     return false;
   }
-  const { toRead, toShare } = healthKitAuthorizationTypes(permissions);
+  const { toRead: allToRead, toShare } =
+    healthKitAuthorizationTypes(permissions);
+  // HealthKit keeps reporting the workout effort rating as never requested, so
+  // counting it would show the sheet on every visit. It is still asked for with
+  // the rest whenever something else is genuinely new.
+  const toRead = allToRead.filter(
+    (identifier) => identifier !== WORKOUT_EFFORT_IDENTIFIER
+  );
   if (toRead.length === 0 && toShare.length === 0) {
     return false;
   }
