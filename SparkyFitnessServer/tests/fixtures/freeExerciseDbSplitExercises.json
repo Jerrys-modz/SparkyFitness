@@ -1,0 +1,134 @@
+{
+  "Barbell_Bench_Press_-_Medium_Grip": {
+    "equipment": "barbell"
+  },
+  "Barbell_Curl": {
+    "equipment": "barbell"
+  },
+  "Barbell_Deadlift": {
+    "equipment": "barbell"
+  },
+  "Barbell_Hip_Thrust": {
+    "equipment": "barbell"
+  },
+  "Barbell_Squat": {
+    "equipment": "barbell"
+  },
+  "Bent_Over_Barbell_Row": {
+    "equipment": "barbell"
+  },
+  "Bent_Over_Two-Dumbbell_Row": {
+    "equipment": "dumbbell"
+  },
+  "Cable_Crossover": {
+    "equipment": "cable"
+  },
+  "Chin-Up": {
+    "equipment": "body only"
+  },
+  "Close-Grip_Barbell_Bench_Press": {
+    "equipment": "barbell"
+  },
+  "Dumbbell_Bench_Press": {
+    "equipment": "dumbbell"
+  },
+  "Dumbbell_Bicep_Curl": {
+    "equipment": "dumbbell"
+  },
+  "Dumbbell_Flyes": {
+    "equipment": "dumbbell"
+  },
+  "Dumbbell_Lunges": {
+    "equipment": "dumbbell"
+  },
+  "Dumbbell_Shoulder_Press": {
+    "equipment": "dumbbell"
+  },
+  "Dumbbell_Squat": {
+    "equipment": "dumbbell"
+  },
+  "Dumbbell_Step_Ups": {
+    "equipment": "dumbbell"
+  },
+  "EZ-Bar_Skullcrusher": {
+    "equipment": "e-z curl bar"
+  },
+  "Face_Pull": {
+    "equipment": "cable"
+  },
+  "Front_Barbell_Squat": {
+    "equipment": "barbell"
+  },
+  "Hammer_Curls": {
+    "equipment": "dumbbell"
+  },
+  "Incline_Dumbbell_Press": {
+    "equipment": "dumbbell"
+  },
+  "Leg_Extensions": {
+    "equipment": "machine"
+  },
+  "Leg_Press": {
+    "equipment": "machine"
+  },
+  "Lying_Leg_Curls": {
+    "equipment": "machine"
+  },
+  "One-Arm_Dumbbell_Row": {
+    "equipment": "dumbbell"
+  },
+  "Plank": {
+    "equipment": "body only"
+  },
+  "Pullups": {
+    "equipment": "body only"
+  },
+  "Pushups": {
+    "equipment": "body only"
+  },
+  "Reverse_Flyes": {
+    "equipment": "dumbbell"
+  },
+  "Romanian_Deadlift": {
+    "equipment": "barbell"
+  },
+  "Seated_Cable_Rows": {
+    "equipment": "cable"
+  },
+  "Side_Lateral_Raise": {
+    "equipment": "dumbbell"
+  },
+  "Single_Leg_Glute_Bridge": {
+    "equipment": "body only"
+  },
+  "Split_Squat_with_Dumbbells": {
+    "equipment": "dumbbell"
+  },
+  "Standing_Barbell_Calf_Raise": {
+    "equipment": "barbell"
+  },
+  "Standing_Calf_Raises": {
+    "equipment": "machine"
+  },
+  "Standing_Dumbbell_Calf_Raise": {
+    "equipment": "dumbbell"
+  },
+  "Standing_Dumbbell_Triceps_Extension": {
+    "equipment": "dumbbell"
+  },
+  "Standing_Military_Press": {
+    "equipment": "barbell"
+  },
+  "Stiff-Legged_Dumbbell_Deadlift": {
+    "equipment": "dumbbell"
+  },
+  "Tricep_Dumbbell_Kickback": {
+    "equipment": "dumbbell"
+  },
+  "Triceps_Pushdown": {
+    "equipment": "cable"
+  },
+  "Wide-Grip_Lat_Pulldown": {
+    "equipment": "cable"
+  }
+}
