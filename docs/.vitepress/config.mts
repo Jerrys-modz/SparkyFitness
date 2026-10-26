@@ -163,6 +163,7 @@ export default defineConfig({
             { text: 'Guided Workouts', link: '/features/exercises/guided-workouts' },
             { text: 'GPS Activity Recording', link: '/features/exercises/gps-activity-recording' },
             { text: 'Training Programs', link: '/features/exercises/training-programs' },
+            { text: 'Workout Programs', link: '/features/exercises/workout-programs' },
             { text: 'Running Trends', link: '/features/exercises/running-trends' },
             { text: 'Heart Rate Zones', link: '/features/exercises/heart-rate-zones' },
             { text: 'Shoe Inventory', link: '/features/exercises/shoe-inventory' },
