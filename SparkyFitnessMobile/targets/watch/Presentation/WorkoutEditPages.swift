@@ -13,9 +13,7 @@ struct SetOptionsPage: View {
     let step: WorkoutStep
 
     @EnvironmentObject private var session: WatchSessionManager
-    @EnvironmentObject private var store: WorkoutSessionStore
     @State private var choosingType = false
-    @State private var choosingSide = false
     @State private var confirmingDelete = false
 
     var body: some View {
@@ -28,31 +26,15 @@ struct SetOptionsPage: View {
                 Haptics.tap()
                 choosingType = true
             }
-            if store.isPerSide(step) {
-                Button(String(localized: "watch.workout.side", defaultValue: "Side")) {
-                    Haptics.tap()
-                    choosingSide = true
-                }
-                Button(String(localized: "watch.workout.addOtherSide", defaultValue: "Add Other Side")) {
-                    Haptics.tap()
-                    session.sendWorkoutEdit(.addOtherSide(setId: step.plannedSet.setId))
-                }
-            }
             Button(String(localized: "watch.workout.deleteSet", defaultValue: "Delete Set")) {
                 Haptics.tap()
                 confirmingDelete = true
             }
-            .tint(.red)
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(EditPageButtonStyle(fill: .red))
         }
         .sheet(isPresented: $choosingType) {
             SetTypeSheet(current: step.plannedSet.setType) { type in
                 session.sendWorkoutEdit(.setSetType(setId: step.plannedSet.setId, type: type))
-            }
-        }
-        .sheet(isPresented: $choosingSide) {
-            SetSideSheet(current: step.plannedSet.side) { side in
-                session.sendWorkoutEdit(.setSetSide(setId: step.plannedSet.setId, side: side))
             }
         }
         .confirmationDialog(
@@ -107,43 +89,6 @@ private struct SetTypeSheet: View {
     }
 }
 
-private struct SetSideSheet: View {
-    let current: String?
-    let onPick: (String) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-
-    private var sides: [(id: String, name: String)] {
-        [
-            ("both", String(localized: "watch.workout.sideBoth", defaultValue: "Both sides")),
-            ("left", String(localized: "watch.workout.sideLeft", defaultValue: "Left")),
-            ("right", String(localized: "watch.workout.sideRight", defaultValue: "Right")),
-        ]
-    }
-
-    var body: some View {
-        NavigationStack {
-            List(sides, id: \.id) { side in
-                Button {
-                    Haptics.tap()
-                    onPick(side.id)
-                    dismiss()
-                } label: {
-                    HStack {
-                        Text(side.name)
-                        Spacer(minLength: 0)
-                        if (current ?? "both").lowercased() == side.id {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                }
-            }
-            .navigationTitle(String(localized: "watch.workout.side", defaultValue: "Side"))
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-}
-
 // MARK: - Exercise options
 
 struct ExerciseOptionsPage: View {
@@ -172,8 +117,7 @@ struct ExerciseOptionsPage: View {
                 Haptics.tap()
                 confirmingDelete = true
             }
-            .tint(.red)
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(EditPageButtonStyle(fill: .red))
         }
         .sheet(isPresented: $addingExercise) { AddExerciseSheet() }
         .sheet(isPresented: $swapping) { SwapExerciseSheet() }
@@ -213,14 +157,12 @@ struct WorkoutActionsPage: View {
                 Haptics.tap()
                 confirmingFinish = true
             }
-            .tint(.blue)
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(EditPageButtonStyle(fill: .blue))
             Button(String(localized: "watch.workout.discardWorkout", defaultValue: "Discard Workout")) {
                 Haptics.tap()
                 confirmingDiscard = true
             }
-            .tint(.red)
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(EditPageButtonStyle(fill: .red))
         }
         .sheet(isPresented: $addingExercise) { AddExerciseSheet() }
         .endWorkoutDialogs(
@@ -238,19 +180,45 @@ private struct EditPage<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        // Scrolls so a page with more buttons than fit (a one-sided exercise
-        // adds two) never pushes its title under the clock.
-        ScrollView {
-            VStack(spacing: 6) {
-                Text(title)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                content
-                    .font(.system(size: 15, weight: .semibold))
-            }
-            .padding(.horizontal, 2)
+        // Has to fit one screen without scrolling: the page itself is one
+        // stop of the workout's vertical paging, and a scroll inside it
+        // fought that. Hence the compact `EditPageButtonStyle`.
+        VStack(spacing: 6) {
+            Text(title)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            content
+                .buttonStyle(EditPageButtonStyle())
         }
+        // The button height is fixed; this keeps the text inside it legible
+        // rather than shrunk to nothing at the largest sizes.
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        .frame(maxHeight: .infinity, alignment: .center)
+        .padding(.horizontal, 2)
+    }
+}
+
+/// The edit pages' buttons: a fixed, compact height (the system bordered
+/// button is taller, and three of them overflowed a 40 mm screen at larger
+/// text sizes), one line of text that shrinks rather than wraps.
+private struct EditPageButtonStyle: ButtonStyle {
+    var fill: Color = WatchStyle.fill
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity)
+            .frame(height: WatchStyle.s(40))
+            .background(fill, in: Capsule())
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .contentShape(Capsule())
     }
 }
 

@@ -3705,6 +3705,25 @@ describe('activeWorkoutStore', () => {
       });
     });
 
+    it('doExerciseNow moves a picked superset member together with its whole superset', () => {
+      useActiveWorkoutStore.getState().startWorkout(makeThreeExerciseSession());
+      // ex-uuid-2 and ex-uuid-3 form a superset after ex-uuid-1.
+      useActiveWorkoutStore.getState().supersetWith('ex-uuid-2', 'ex-uuid-3');
+
+      useActiveWorkoutStore.getState().doExerciseNow('ex-uuid-3');
+
+      const state = useActiveWorkoutStore.getState();
+      expect(state.session!.exercises.map((e) => e.id)).toEqual([
+        'ex-uuid-2',
+        'ex-uuid-3',
+        'ex-uuid-1',
+      ]);
+      expect(state.session!.exercises[0].superset_group).toBe(
+        state.session!.exercises[1].superset_group
+      );
+      expect(state.activeSetId).toBe('301');
+    });
+
     describe('supersetWith', () => {
       it('groups two non-adjacent solos: reorders adjacent, harmonizes rest, bumps revision', () => {
         useActiveWorkoutStore

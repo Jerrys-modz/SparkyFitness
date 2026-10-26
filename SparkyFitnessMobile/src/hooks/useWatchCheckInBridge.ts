@@ -1315,7 +1315,9 @@ export function useWatchCheckInBridge(enabled: boolean): void {
             ...(payload.scheduleId ? { schedule_id: payload.scheduleId } : {}),
             status: write.status,
             entry_date: payload.entryDate,
-            taken_at: new Date().toISOString(),
+            // As the phone's own create: a skipped dose was never taken.
+            taken_at:
+              write.status === 'skipped' ? undefined : new Date().toISOString(),
           });
         }
 
