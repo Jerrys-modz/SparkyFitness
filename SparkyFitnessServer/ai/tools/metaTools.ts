@@ -16,7 +16,7 @@ import { formatZodError } from './errors.js';
 export const CATEGORY_SUMMARIES: Record<ChatToolCategorySlug, string> = {
   food: 'log meals/water, search foods, view diaries, favorites, meal plans, saved food preferences and recipe/meal-plan tasks, active caffeine, custom nutrients, water containers, allergens, and barcode lookup',
   exercise:
-    'log workouts, search exercises, suggest alternative exercises (injury, equipment, variety), rate how workouts felt and explain adaptive workout suggestions, view exercise diaries, exercise stats/analytics, create/manage workout plans and next workouts, follow and adjust a run program such as Beginner 5K',
+    'log workouts, search exercises, suggest alternative exercises (injury, equipment, variety), rate how workouts felt and explain adaptive workout suggestions, view exercise diaries, exercise stats/analytics, create/manage workout plans and next workouts, follow and adjust a run program such as Beginner 5K, browse and add ready-made strength programs (full body, upper/lower, push/pull/legs)',
   checkin:
     'log weight, measurements, mood, sleep, fasting, check-ins, progress photos, and sleep-science analytics',
   goals: 'view/change goals and targets',
