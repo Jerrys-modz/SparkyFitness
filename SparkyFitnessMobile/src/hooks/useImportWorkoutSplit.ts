@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import type { ImportWorkoutSplitRequest } from '@workspace/shared';
 import i18n from '../localization/i18n';
+import { getApiErrorMessage } from '../services/api/errors';
 import { importWorkoutSplit } from '../services/api/workoutSplitsApi';
 import { invalidateWorkoutPresetCaches } from './useWorkoutPresetMutations';
 import { useInvalidateWorkoutPlans } from './useWorkoutPlans';
@@ -25,16 +26,18 @@ export function useImportWorkoutSplit() {
       invalidateWorkoutPresetCaches(queryClient);
       invalidatePlans();
     },
-    onError: () => {
+    onError: (error) => {
       Toast.show({
         type: 'error',
         text1: i18n.t('workoutSplits.import.error', {
           defaultValue: 'Could not add the program',
         }),
-        text2: i18n.t('workoutSplits.import.errorHint', {
-          defaultValue:
-            'The exercise database may not be reachable. Please try again.',
-        }),
+        text2:
+          getApiErrorMessage(error) ??
+          i18n.t('workoutSplits.import.errorHint', {
+            defaultValue:
+              'The exercise database may not be reachable. Please try again.',
+          }),
       });
     },
   });

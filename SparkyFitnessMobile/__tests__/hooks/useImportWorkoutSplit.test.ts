@@ -1,6 +1,7 @@
 import { renderHook, act } from '@testing-library/react-native';
 import Toast from 'react-native-toast-message';
 import { useImportWorkoutSplit } from '../../src/hooks/useImportWorkoutSplit';
+import { ApiError } from '../../src/services/api/errors';
 import { importWorkoutSplit } from '../../src/services/api/workoutSplitsApi';
 import {
   createTestQueryClient,
@@ -71,6 +72,27 @@ describe('useImportWorkoutSplit', () => {
         type: 'error',
         text1: 'Could not add the program',
       })
+    );
+  });
+
+  it('shows the server\u2019s reason when it gives one', async () => {
+    mockImport.mockRejectedValue(
+      new ApiError(
+        'bad gateway',
+        502,
+        JSON.stringify({ error: 'Some exercises could not be added.' })
+      )
+    );
+    const { result } = renderHook(() => useImportWorkoutSplit(), { wrapper });
+
+    await act(async () => {
+      await expect(
+        result.current.importSplitAsync(variables)
+      ).rejects.toThrow();
+    });
+
+    expect(Toast.show).toHaveBeenCalledWith(
+      expect.objectContaining({ text2: 'Some exercises could not be added.' })
     );
   });
 });
