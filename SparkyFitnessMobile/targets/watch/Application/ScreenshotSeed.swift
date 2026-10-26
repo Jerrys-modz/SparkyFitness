@@ -50,12 +50,17 @@ enum ScreenshotSeed {
     /// exerciseoptions or actions.
     static var workoutPage: String? {
         let v = ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_SHEET"]
-        return ["setoptions", "exerciseoptions", "actions"].contains(v) ? v : nil
+        return ["metrics", "setoptions", "exerciseoptions", "actions"].contains(v) ? v : nil
     }
 
     /// Opens the effort screen for the current set on appear.
     static var opensRpe: Bool {
         ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_SHEET"] == "rpe"
+    }
+
+    /// Opens the first dose still due on the Medications page.
+    static var opensMedicationDose: Bool {
+        ProcessInfo.processInfo.environment["SPARKY_SCREENSHOT_SHEET"] == "dose"
     }
 
     /// Opens the "Update Workout?" question on appear.

@@ -377,6 +377,7 @@ public class WatchConnectivityModule: Module {
                     "medicationId": payload["medicationId"] as? String ?? "",
                     "scheduleId": payload["scheduleId"] as? String ?? "",
                     "taken": payload["taken"] as? Bool ?? true,
+                    "skipped": payload["skipped"] as? Bool ?? false,
                 ])
             }
             self.delegateHandler.onSetCompleted = { [weak self] payload in

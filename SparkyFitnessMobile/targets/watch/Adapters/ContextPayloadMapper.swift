@@ -80,6 +80,7 @@ enum ContextPayloadMapper {
             doubleTapEnabled: payload["doubleTapEnabled"] as? Bool ?? previous.doubleTapEnabled,
             rpeEnabled: payload["rpeEnabled"] as? Bool ?? previous.rpeEnabled,
             medications: medications(from: payload),
+            medicationSkip: payload["medicationSkip"] as? Bool,
             fast: fastKnown(in: payload) ? fast(from: payload["fast"]) : previous.fast,
             fastSynced: fastKnown(in: payload) ? true : previous.fastSynced,
             steps: steps(from: payload["steps"]),
@@ -463,7 +464,8 @@ enum ContextPayloadMapper {
                 name: name,
                 detail: entry["detail"] as? String ?? "",
                 time: entry["time"] as? String ?? "",
-                status: status
+                status: status,
+                supplement: entry["supplement"] as? Bool
             )
         }
         return MedicationSnapshot(day: day(from: payload), doses: doses)

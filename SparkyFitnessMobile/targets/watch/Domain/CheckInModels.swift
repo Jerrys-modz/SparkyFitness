@@ -189,6 +189,9 @@ struct MedicationDose: Codable, Equatable, Identifiable {
     /// slot has no time.
     let time: String
     let status: MedicationDoseStatus
+    /// A supplement rather than a medication, which only changes its icon.
+    /// Optional so a dose from an older phone, or a persisted one, decodes.
+    var supplement: Bool? = nil
 }
 
 /// Where a dose slot stands, as the phone's own dose rows read it.
@@ -242,9 +245,35 @@ struct PendingMedicationTap: Codable, Equatable, Identifiable {
     /// True when this un-ticks the dose after a mistaken tap. Optional so taps
     /// persisted before undo existed still decode.
     var undo: Bool? = nil
+    /// True when this marks the dose skipped. Optional for the same reason.
+    var skip: Bool? = nil
 
     var isToday: Bool { day == CheckInDate.today() }
     var isUndo: Bool { undo ?? false }
+
+    var action: MedicationTapAction {
+        if skip == true { return .skipped }
+        return isUndo ? .undo : .taken
+    }
+
+    /// What the dose reads as while this tap is outstanding.
+    var status: MedicationDoseStatus {
+        switch action {
+        case .taken: return .taken
+        case .skipped: return .skipped
+        case .undo: return .pending
+        }
+    }
+}
+
+/// What a tap on a dose asks the phone to do.
+enum MedicationTapAction {
+    /// Log it as taken.
+    case taken
+    /// Log it as skipped. Only offered when the phone says it understands it.
+    case skipped
+    /// Clear a taken or skipped log after a mistaken tap.
+    case undo
 }
 
 /// One dose tick, sent straight to the phone, which owns the API call.
@@ -253,8 +282,19 @@ struct MedicationTap: Codable, Equatable {
     let entryDate: String
     let medicationId: String
     let scheduleId: String
-    /// False when the wearer un-ticked the dose.
+    /// False when the wearer un-ticked or skipped the dose.
     var taken: Bool = true
+    /// True when the wearer skipped the dose.
+    var skipped: Bool = false
+
+    init(id: String, entryDate: String, medicationId: String, scheduleId: String, action: MedicationTapAction) {
+        self.id = id
+        self.entryDate = entryDate
+        self.medicationId = medicationId
+        self.scheduleId = scheduleId
+        taken = action == .taken
+        skipped = action == .skipped
+    }
 }
 
 /// A container tap the wearer has made but the phone hasn't confirmed.
@@ -461,6 +501,9 @@ struct WatchContext: Codable, Equatable {
     /// the page renders as "not synced yet" rather than an empty list. Expires
     /// at midnight like `water`.
     var medications: MedicationSnapshot? = nil
+    /// The phone handles a skipped dose (`medicationSkip`). Nil, from an older
+    /// phone, hides Skipped: it would read the message as an un-tick.
+    var medicationSkip: Bool? = nil
     /// The fast running now. Nil with `fastSynced` true means "not fasting".
     var fast: WatchFast? = nil
     /// True once the phone has said anything about fasting, so "not fasting"

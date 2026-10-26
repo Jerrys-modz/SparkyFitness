@@ -813,6 +813,7 @@ internal object WatchConnectivityHub {
               "medicationId" to (payload["medicationId"] as? String ?: ""),
               "scheduleId" to (payload["scheduleId"] as? String ?: ""),
               "taken" to (payload["taken"] as? Boolean ?: true),
+              "skipped" to (payload["skipped"] as? Boolean ?: false),
               "ownerId" to payloadOwner
             )
           )
