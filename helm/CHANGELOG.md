@@ -11,7 +11,7 @@
 
 ### Bug Fixes
 
-- **External database credentials set in values now reach the server.** With `postgresql.enabled=false` and `externalDatabase.auth.username`/`password` (no `existingSecret` or External Secrets), the server and backup pods referenced a `<fullname>-postgres` Secret the chart never created, so they could not start. The chart now creates it, and fails the render when either value is missing. If you created that Secret yourself to get around this, set `externalDatabase.auth.existingSecret` to its name before upgrading, or Helm refuses to take it over.
+- **External database credentials set in values now reach the server.** With `postgresql.enabled=false` and `externalDatabase.auth.username`/`password` (no `existingSecret` or External Secrets), the server pods referenced a `<fullname>-postgres` Secret the chart never created, so they could not start. The chart now creates it (under the `existingSecretKeys` key names the server reads), and fails the render when either value is missing. If you created that Secret yourself to get around this, set `externalDatabase.auth.existingSecret` to its name before upgrading, or Helm refuses to take it over.
 
 ## 0.3.0 — 2026-05-08
 

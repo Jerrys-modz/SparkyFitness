@@ -641,7 +641,8 @@ externalDatabase:
     username: ""
     password: ""
     existingSecret: ""
-    # -- Override the default keys used when existingSecret is set
+    # -- Key names in the database Secret: existingSecret's, or the one the
+    # chart creates from username/password
     existingSecretKeys:
       username: username
       password: password

@@ -68,6 +68,16 @@ jobs:
             --set externalDatabase.database=sf \
             --set externalDatabase.auth.username=u 2>&1 > /dev/null || true)
           grep -q 'externalDatabase.auth.password is required' <<< "$err"
+          # Renamed keys: the Secret and the server agree.
+          out=$(helm template t helm/chart \
+            --set postgresql.enabled=false \
+            --set externalDatabase.host=db.example.com \
+            --set externalDatabase.database=sf \
+            --set externalDatabase.auth.username=u \
+            --set externalDatabase.auth.password=p \
+            --set externalDatabase.auth.existingSecretKeys.password=dbpass)
+          grep -q '^  dbpass: ' <<< "$out"
+          grep -q 'key: dbpass' <<< "$out"
 
       - name: Render — external DB with NetworkPolicy
         run: |
