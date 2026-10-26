@@ -70,6 +70,10 @@ const ICON_MAP = {
   // Android uses -outline variants for stroke-weight consistency with the set.
   'reorder-handle': { sf: 'line.3.horizontal', ion: 'reorder-three-outline' },
   'swap-vertical': { sf: 'arrow.up.arrow.down', ion: 'swap-vertical-outline' },
+  'swap-horizontal': {
+    sf: 'arrow.left.arrow.right',
+    ion: 'swap-horizontal-outline',
+  },
   'arrow-undo': { sf: 'arrow.uturn.backward', ion: 'arrow-undo-outline' },
 
   // Status

@@ -57,6 +57,7 @@ import WorkoutDurationSheet, {
 import WorkoutReorderList from '../components/WorkoutReorderList';
 import ActiveWorkoutIntervalHud from '../components/ActiveWorkoutIntervalHud';
 import ActiveWorkoutGuidedCard from '../components/ActiveWorkoutGuidedCard';
+import ActiveWorkoutNowCard from '../components/ActiveWorkoutNowCard';
 import ActiveWorkoutRenameModal from '../components/ActiveWorkoutRenameModal';
 import ActiveWorkoutLocationModal from '../components/ActiveWorkoutLocationModal';
 import ActiveWorkoutOverflowSheet, {
@@ -559,6 +560,20 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
     overflowSheetRef.current?.present();
   }, []);
 
+  const handleSwapExercise = useCallback((entryId: string) => {
+    Keyboard.dismiss();
+    setOverflowMenu({ entryId, mode: 'swap' });
+    overflowSheetRef.current?.present();
+  }, []);
+
+  const handleDoExerciseNow = useCallback(
+    (entryId: string) => {
+      useActiveWorkoutStore.getState().doExerciseNow(entryId);
+      handleRailPress(entryId);
+    },
+    [handleRailPress]
+  );
+
   const handleActivateSet = useCallback(
     (setKey: string, field: Exclude<SetInputField, 'rpe'>) => {
       setFocusedField(field);
@@ -932,6 +947,22 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         onPressAdd={handleAddExercise}
       />
 
+      {/* Pinned rather than in the list, so the scroll to the active exercise
+          never hides it; out of the way while a set value is being typed. */}
+      {!guidedWorkoutEnabled &&
+        workoutFormat === 'standard' &&
+        focusedSetKey == null && (
+          <ActiveWorkoutNowCard
+            session={session}
+            activeSetId={activeSetId}
+            completedSetIds={completedSetIds}
+            weightUnit={weightUnit}
+            resting={restState === 'resting'}
+            onPressExercise={handleRailPress}
+            onSwap={handleSwapExercise}
+          />
+        )}
+
       <KeyboardAwareScrollView
         ref={scrollRef}
         className="flex-1"
@@ -1072,6 +1103,8 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         session={session}
         supersetRuns={supersetRuns}
         completedSetIds={completedSetIds}
+        activeSetId={activeSetId}
+        onDoExerciseNow={handleDoExerciseNow}
         onPressThumb={handlePressThumb}
         onToggleExerciseNote={handleToggleExerciseNote}
         onReplaceExercise={handleReplaceExercise}
@@ -1087,6 +1120,9 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         }}
         onSwitchToPickMode={() => {
           setOverflowMenu((prev) => (prev ? { ...prev, mode: 'pick' } : prev));
+        }}
+        onSwitchToSwapMode={() => {
+          setOverflowMenu((prev) => (prev ? { ...prev, mode: 'swap' } : prev));
         }}
         onSwitchToMainMode={() => {
           setOverflowMenu((prev) => (prev ? { ...prev, mode: 'main' } : prev));

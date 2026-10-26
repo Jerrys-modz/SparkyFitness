@@ -377,6 +377,7 @@ describe('ActiveWorkoutScreen overflow menu wiring', () => {
     expect(sheetItemKeys()).toEqual([
       'view',
       'notes',
+      'do-now',
       'superset-with',
       'warmups',
       'replace',
@@ -388,6 +389,37 @@ describe('ActiveWorkoutScreen overflow menu wiring', () => {
     // Menu item must show the full action "Remove exercise", not the short
     // destructive alert button text "Remove".
     expect(remove?.label).toBe('Remove exercise');
+  });
+
+  it('lists the upcoming exercises to do now, and does the picked one first', () => {
+    const { getByTestId } = renderScreen();
+
+    fireEvent.press(getByTestId('card-ex-a-overflow'));
+    pressSheetItem('do-now');
+
+    expect(mockSheet.props?.title).toBe('Swap Bench Press');
+    expect(sheetItemKeys()).toEqual(['ex-b', 'ex-c', 'replace']);
+
+    pressSheetItem('ex-b');
+    const state = useActiveWorkoutStore.getState();
+    expect(state.session!.exercises.map((e) => e.id)).toEqual([
+      'ex-b',
+      'ex-a',
+      'ex-c',
+    ]);
+    expect(
+      state.session!.exercises[0].sets.some(
+        (set) => String(set.id) === state.activeSetId
+      )
+    ).toBe(true);
+  });
+
+  it('offers Do now only on the exercise the cursor is on', () => {
+    const { getByTestId } = renderScreen();
+
+    fireEvent.press(getByTestId('card-ex-b-overflow'));
+
+    expect(sheetItemKeys()).not.toContain('do-now');
   });
 
   it('uses short "Remove" for the destructive alert button, not "Remove exercise"', () => {

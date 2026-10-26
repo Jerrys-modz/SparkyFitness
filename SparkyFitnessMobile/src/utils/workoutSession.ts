@@ -1054,6 +1054,26 @@ export function describeActiveSet(
 }
 
 /**
+ * The exercises after the one holding `activeSetId` that still have a set to
+ * do, in workout order: what "Do now" offers and what the Now card names as
+ * up next. Empty when there is no active set.
+ */
+export function upcomingExercises(
+  session: PresetSessionResponse | null,
+  activeSetId: string | null,
+  completedSetIds: Record<string, number>
+): PresetSessionResponse['exercises'] {
+  if (session == null || activeSetId == null) return [];
+  const current = session.exercises.findIndex((e) =>
+    e.sets.some((s) => String(s.id) === activeSetId)
+  );
+  if (current < 0) return [];
+  return session.exercises
+    .slice(current + 1)
+    .filter((e) => e.sets.some((s) => completedSetIds[String(s.id)] == null));
+}
+
+/**
  * Assumed weight/reps for a set whose fields are still empty — the gray
  * Hevy-style placeholder the live row renders, and the values a completion
  * adopts when the user logs the set without typing. Weight is kg. A `null`

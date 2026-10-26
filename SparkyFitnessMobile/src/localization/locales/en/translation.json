@@ -493,7 +493,16 @@
       "liveHeartRateFor": "Current heart rate for {{name}}",
       "heartRateUnit": "bpm"
     },
-    "nextSet": "Next Set"
+    "nextSet": "Next Set",
+    "now": {
+      "label": "Now",
+      "upNext": "Up next",
+      "swap": "Swap",
+      "swapLabel": "Swap {{name}}",
+      "setOf": "Set {{number}} of {{total}}",
+      "warmupOf": "Warm-up {{number}} of {{total}}",
+      "then": "Then {{name}}"
+    }
   },
   "addSheet": {
     "food": "Food",
@@ -2261,7 +2270,12 @@
     "repCount_other": "{{formattedCount}} reps",
     "modalityWeightDistance": "Weight & Distance (carries)",
     "modalityWeightDuration": "Weight & Duration (loaded holds)",
-    "addWarmups": "Add warm-ups"
+    "addWarmups": "Add warm-ups",
+    "replaceWithOther": "Replace with another exercise…",
+    "doAnotherFirst": "Do another exercise first…",
+    "swapTitle": "Swap {{name}}",
+    "doNowSets_one": "Do now · {{count}} set",
+    "doNowSets_other": "Do now · {{count}} sets"
   },
   "cycleCard": {
     "mode": {
