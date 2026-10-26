@@ -407,8 +407,20 @@ export interface AppPreferencesState extends AppPreferencesData {
  */
 const legacyAwareStorage = {
   getItem: async (name: string): Promise<string | null> => {
+    // A failing AsyncStorage read rejects here and is reported by the persist
+    // layer; only malformed content is recovered from below.
     const stored = await AsyncStorage.getItem(name);
-    if (stored !== null) return stored;
+    if (stored !== null) {
+      try {
+        JSON.parse(stored);
+        return stored;
+      } catch {
+        // Corrupt blob: drop it so hydration completes with the defaults
+        // instead of rejecting on every launch.
+        await AsyncStorage.removeItem(name);
+        return null;
+      }
+    }
 
     // No combined key yet — check whether any legacy per-key values exist.
     const entries = await Promise.all(
@@ -446,6 +458,10 @@ function withMembership<K>(list: readonly K[], key: K, include: boolean): K[] {
   }
   return Array.from(members);
 }
+
+/** Set when the persist layer reports a storage error while hydrating. */
+let hydrationFailed = false;
+const hydrationFailureListeners = new Set<() => void>();
 
 export const useAppPreferencesStore = create<AppPreferencesState>()(
   persist(
@@ -663,6 +679,12 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       name: STORE_KEY,
       version: STORE_VERSION,
       storage: createJSONStorage(() => legacyAwareStorage),
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) {
+          hydrationFailed = true;
+          hydrationFailureListeners.forEach((listener) => listener());
+        }
+      },
       partialize: (state) => ({
         hapticsEnabled: state.hapticsEnabled,
         soundsEnabled: state.soundsEnabled,
@@ -781,20 +803,22 @@ export function getDefaultRestSec(): number {
 }
 
 /**
- * Resolves once the persisted preferences have been read from storage, or
- * after `timeoutMs` so a storage failure cannot block the caller. Code that
- * runs before any screen mounts (a watch run delivered at launch) would
- * otherwise read the defaults instead of what the person set.
+ * Resolves once the persisted preferences have been read from storage. A slow
+ * read keeps the caller waiting; it resolves early only when the persist layer
+ * reports a storage error, so a failure cannot block the caller and the
+ * defaults are used only then. Code that runs before any screen mounts (a
+ * watch run delivered at launch) would otherwise read the defaults instead of
+ * what the person set.
  */
-export function whenPreferencesHydrated(timeoutMs = 3000): Promise<void> {
+export function whenPreferencesHydrated(): Promise<void> {
   const { persist: persistApi } = useAppPreferencesStore;
-  if (persistApi.hasHydrated()) return Promise.resolve();
+  if (persistApi.hasHydrated() || hydrationFailed) return Promise.resolve();
   return new Promise<void>((resolve) => {
-    const timer = setTimeout(done, timeoutMs);
     const unsubscribe = persistApi.onFinishHydration(done);
+    hydrationFailureListeners.add(done);
     function done() {
-      clearTimeout(timer);
       unsubscribe();
+      hydrationFailureListeners.delete(done);
       resolve();
     }
   });
