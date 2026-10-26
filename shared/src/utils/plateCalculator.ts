@@ -308,6 +308,9 @@ function emptyResult(
   };
 }
 
+/** Largest float error, in thousandths of a unit, still treated as exact. */
+const EXACT_NOISE = 1e-9;
+
 /**
  * Plates per side for `targetWeight` on a bar. All result weights are in the
  * inventory's unit; the target is converted exactly (never rounded) when the
@@ -353,7 +356,9 @@ export function calculatePlateLoad(input: PlateCalcInput): PlateCalcResult {
     buildLoad(search.plates(cell), cell, step, fixedUnits);
 
   const nearInt = Math.round(sideUnits);
-  const isWhole = Math.abs(sideUnits - nearInt) < 1e-6;
+  // Only floating-point noise from a unit conversion (about 1e-11 here) may
+  // pass as whole; a target a hair under the loadable weight is not exact.
+  const isWhole = Math.abs(sideUnits - nearInt) < EXACT_NOISE;
   if (isWhole && nearInt >= 0 && nearInt % step === 0) {
     const cell = nearInt / step;
     if (search.reachable(cell)) {
