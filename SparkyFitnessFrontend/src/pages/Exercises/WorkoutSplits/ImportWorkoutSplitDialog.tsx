@@ -14,7 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { sessionName, splitName } from '@/utils/workoutSplits';
+import { sessionName, splitName, venueLabel } from '@/utils/workoutSplits';
 
 interface ImportWorkoutSplitDialogProps {
   /** The split being added; the dialog is closed when null. */
@@ -59,7 +59,11 @@ interface ImportFormProps extends Omit<ImportWorkoutSplitDialogProps, 'split'> {
 const ImportForm = ({ split, busy, onCancel, onImport }: ImportFormProps) => {
   const { t } = useTranslation();
   const defaultName = splitName(t, split.id);
-  const [planName, setPlanName] = useState(defaultName);
+  // The same program comes in a home, garage and gym version, so the plan
+  // name says which one.
+  const [planName, setPlanName] = useState(
+    `${defaultName} (${venueLabel(t, split.venue)})`
+  );
   const [activate, setActivate] = useState(true);
   const [accepted, setAccepted] = useState(false);
   const trimmedName = planName.trim();
