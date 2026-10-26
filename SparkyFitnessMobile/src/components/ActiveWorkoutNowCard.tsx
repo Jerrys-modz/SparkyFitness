@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useCSSVariable } from 'uniwind';
 import type { PresetSessionResponse } from '@workspace/shared';
 import Icon from './Icon';
+import SafeImage from './SafeImage';
+import type { GetImageSource } from '../hooks/useExerciseImageSource';
+import { useImageSlideshow } from '../hooks/useImageSlideshow';
 import {
   useActiveWorkoutStore,
   type CompletedSetMap,
@@ -20,9 +23,12 @@ interface Props {
   weightUnit: 'kg' | 'lbs';
   /** True while the rest before the active set runs: the card is then "up next". */
   resting: boolean;
+  getImageSource: GetImageSource;
   onPressExercise: (entryId: string) => void;
   onSwap: (entryId: string) => void;
 }
+
+const IMAGE_SIZE = 84;
 
 /**
  * The set to do now, pinned under the exercise rail: "Set 2 of 3" with one dot
@@ -36,6 +42,7 @@ export default function ActiveWorkoutNowCard({
   completedSetIds,
   weightUnit,
   resting,
+  getImageSource,
   onPressExercise,
   onSwap,
 }: Props) {
@@ -60,6 +67,12 @@ export default function ActiveWorkoutNowCard({
   const entry = session.exercises.find((e) =>
     e.sets.some((s) => String(s.id) === activeSetId)
   );
+  // The exercise's photos or GIF, cycled like the guided card's when there
+  // are several, so the movement can be checked without opening it.
+  const images = (entry?.exercise_snapshot?.images ?? []).filter(
+    (path) => path && getImageSource(path) !== null
+  );
+  const imageIndex = useImageSlideshow(images.length);
   if (description == null || entry == null) return null;
 
   const activeSet = entry.sets.find((s) => String(s.id) === activeSetId);
@@ -70,7 +83,10 @@ export default function ActiveWorkoutNowCard({
   const name = description.exerciseName ?? exerciseLabel;
 
   return (
-    <View className="bg-surface rounded-2xl px-4 py-3 mx-3 mt-2 border border-border/40">
+    <View
+      testID="active-workout-now-card"
+      className="bg-surface rounded-2xl px-4 py-3 mx-3 mt-2 border border-border/40"
+    >
       <View className="flex-row items-center gap-2">
         <Text className="text-xs font-bold text-accent-primary uppercase tracking-wider">
           {resting
@@ -127,12 +143,31 @@ export default function ActiveWorkoutNowCard({
         </Pressable>
       </View>
 
-      <Pressable onPress={() => onPressExercise(entry.id)} className="mt-1">
-        <Text className="text-xl font-bold text-text-primary" numberOfLines={2}>
-          {name}
-        </Text>
-        {target != null && (
-          <Text className="text-3xl font-bold text-text-primary">{target}</Text>
+      <Pressable
+        onPress={() => onPressExercise(entry.id)}
+        className="mt-1 flex-row items-center gap-3"
+      >
+        <View className="flex-1">
+          <Text
+            className="text-xl font-bold text-text-primary"
+            numberOfLines={2}
+          >
+            {name}
+          </Text>
+          {target != null && (
+            <Text className="text-3xl font-bold text-text-primary">
+              {target}
+            </Text>
+          )}
+        </View>
+        {images.length > 0 && (
+          <SafeImage
+            source={getImageSource(images[imageIndex % images.length])}
+            style={{ width: IMAGE_SIZE, height: IMAGE_SIZE, borderRadius: 12 }}
+            contentFit="cover"
+            autoplay
+            fallback={null}
+          />
         )}
       </Pressable>
 

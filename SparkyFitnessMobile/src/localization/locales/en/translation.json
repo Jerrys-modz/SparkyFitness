@@ -1299,7 +1299,9 @@
     "duckMusicSubtitle": "Briefly turn down music from other apps while a workout beep or spoken cue plays.",
     "duckMusicAccessibility": "Lower music during cues",
     "warmupCalculator": "Warm-up calculator",
-    "warmupCalculatorSubtitle": "The ramp, and the weights it rounds to, for warm-up sets you add to an exercise."
+    "warmupCalculatorSubtitle": "The ramp, and the weights it rounds to, for warm-up sets you add to an exercise.",
+    "nowCard": "Now card",
+    "nowCardSubtitle": "Pin the set to do now above the exercise list: its target in large type, the exercise photo, what comes next, and Swap to do another exercise first."
   },
   "restPeriod": {
     "title": "Rest period",

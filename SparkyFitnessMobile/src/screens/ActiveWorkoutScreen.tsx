@@ -126,6 +126,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
   const guidedWorkoutEnabled = useAppPreferencesStore(
     (s) => s.guidedWorkoutEnabled
   );
+  const nowCardEnabled = useAppPreferencesStore((s) => s.activeWorkoutNowCard);
 
   const { preferences } = usePreferences();
   const weightUnit = (preferences?.default_weight_unit ?? 'kg') as 'kg' | 'lbs';
@@ -949,7 +950,8 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
 
       {/* Pinned rather than in the list, so the scroll to the active exercise
           never hides it; out of the way while a set value is being typed. */}
-      {!guidedWorkoutEnabled &&
+      {nowCardEnabled &&
+        !guidedWorkoutEnabled &&
         workoutFormat === 'standard' &&
         focusedSetKey == null && (
           <ActiveWorkoutNowCard
@@ -958,6 +960,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
             completedSetIds={completedSetIds}
             weightUnit={weightUnit}
             resting={restState === 'resting'}
+            getImageSource={getImageSource}
             onPressExercise={handleRailPress}
             onSwap={handleSwapExercise}
           />

@@ -145,6 +145,7 @@ export const PREFERENCE_DEFAULTS = {
   watchSetScreenMetrics: true,
   watchUpNextPage: false,
   watchLargeGoalsWater: false,
+  activeWorkoutNowCard: false,
   watchNutrientOrder: [] as string[],
   shownWatchNutrients: [...DEFAULT_WATCH_NUTRIENTS] as string[],
   watchSetInputStyle: 'keypad' as WatchSetInputStyle,
@@ -272,6 +273,8 @@ export type AppPreferencesData = {
   watchUpNextPage: boolean;
   /** Whether the watch's Goals and Water pages use the larger-text layout. */
   watchLargeGoalsWater: boolean;
+  /** Whether the active workout pins the Now card under the exercise rail. */
+  activeWorkoutNowCard: boolean;
   /**
    * Order of the nutrients the watch's Goals page can list (standard keys and
    * custom nutrient names). Empty until the wearer drags one.
@@ -361,6 +364,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setWatchSetScreenMetrics: (value: boolean) => void;
   setWatchUpNextPage: (value: boolean) => void;
   setWatchLargeGoalsWater: (value: boolean) => void;
+  setActiveWorkoutNowCard: (value: boolean) => void;
   setWatchNutrientOrder: (order: string[]) => void;
   setWatchNutrientShown: (key: string, isShown: boolean) => void;
   setWatchSetInputStyle: (value: WatchSetInputStyle) => void;
@@ -581,6 +585,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ watchSetScreenMetrics: value }),
       setWatchUpNextPage: (value) => set({ watchUpNextPage: value }),
       setWatchLargeGoalsWater: (value) => set({ watchLargeGoalsWater: value }),
+      setActiveWorkoutNowCard: (value) => set({ activeWorkoutNowCard: value }),
       setWatchPageHidden: (key, isHidden) =>
         set((state) => ({
           hiddenWatchPages: withMembership(
@@ -673,6 +678,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         watchSetScreenMetrics: state.watchSetScreenMetrics,
         watchUpNextPage: state.watchUpNextPage,
         watchLargeGoalsWater: state.watchLargeGoalsWater,
+        activeWorkoutNowCard: state.activeWorkoutNowCard,
         watchNutrientOrder: state.watchNutrientOrder,
         shownWatchNutrients: state.shownWatchNutrients,
         watchSetInputStyle: state.watchSetInputStyle,

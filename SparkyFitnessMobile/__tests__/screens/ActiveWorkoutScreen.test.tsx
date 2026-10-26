@@ -11,7 +11,10 @@ import {
   __resetActiveWorkoutStoreForTests,
   useActiveWorkoutStore,
 } from '../../src/stores/activeWorkoutStore';
-import { __resetAppPreferencesStoreForTests } from '../../src/stores/appPreferencesStore';
+import {
+  __resetAppPreferencesStoreForTests,
+  useAppPreferencesStore,
+} from '../../src/stores/appPreferencesStore';
 import { SET_ACCESSORY_BAR_HEIGHT } from '../../src/components/SetRowChrome';
 import type { ActionSheetItem } from '../../src/components/ActionSheet';
 import type { PresetSessionResponse } from '@workspace/shared';
@@ -412,6 +415,18 @@ describe('ActiveWorkoutScreen overflow menu wiring', () => {
         (set) => String(set.id) === state.activeSetId
       )
     ).toBe(true);
+  });
+
+  it('pins the Now card only when its setting is on', () => {
+    const first = renderScreen();
+    expect(first.queryByTestId('active-workout-now-card')).toBeNull();
+    first.unmount();
+
+    act(() => {
+      useAppPreferencesStore.getState().setActiveWorkoutNowCard(true);
+    });
+    const { getByTestId } = renderScreen();
+    expect(getByTestId('active-workout-now-card')).toBeTruthy();
   });
 
   it('offers Do now only on the exercise the cursor is on', () => {
