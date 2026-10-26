@@ -64,6 +64,8 @@ const statusOf = (
   id = slots[0]!.id
 ) => matchPlan(slots, entries, TODAY).planned.find((p) => p.id === id)!.status;
 
+const FLOORS = [95, 114, 133, 152, 171];
+
 describe('matchPlan statuses', () => {
   it('is missed before today with nothing logged', () => {
     expect(statusOf([slot('a', -2)], [])).toBe('missed');
