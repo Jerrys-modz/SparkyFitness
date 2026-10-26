@@ -489,16 +489,46 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
     navigation.goBack();
   }, [navigation]);
 
-  /** Anything typed, cleared or deleted since the form loaded. */
-  const hasUnsavedEdits = useCallback(
-    () =>
-      dirtyFieldsRef.current.size > 0 ||
-      dirtyCustomKeysRef.current.size > 0 ||
-      Object.values(customFormRef.current).some(
-        (category) => category.deleted.length > 0
-      ),
-    []
-  );
+  /**
+   * Whether the form differs from what the day already holds. Compared by
+   * value, so a field typed and then cleared again is not an edit.
+   */
+  const hasUnsavedEdits = useCallback(() => {
+    const loaded: FormState =
+      isLoading || isPreferencesLoading
+        ? EMPTY_FORM
+        : {
+            ...EMPTY_FORM,
+            ...buildStandardFormFromMeasurement(measurements, units).values,
+          };
+    const standardChanged = (Object.keys(form) as (keyof FormState)[]).some(
+      (key) => form[key].trim() !== loaded[key].trim()
+    );
+    if (standardChanged) return true;
+
+    const loadedCustom = syncCustomForm({
+      categories: dailyCustomCategories,
+      serverEntries: customMeasurements ?? [],
+      current: {},
+      dirtyKeys: new Set(),
+    }).form;
+    return dailyCustomCategories.some((category) => {
+      const current = customForm[category.id];
+      if (!current) return false;
+      if (current.deleted.length > 0) return true;
+      const value = current.rows[0]?.value.trim() ?? '';
+      return value !== (loadedCustom[category.id]?.rows[0]?.value.trim() ?? '');
+    });
+  }, [
+    form,
+    customForm,
+    isLoading,
+    isPreferencesLoading,
+    measurements,
+    units,
+    dailyCustomCategories,
+    customMeasurements,
+  ]);
 
   const setSingleCustomValue = useCallback(
     (categoryId: string, value: string) => {
@@ -657,7 +687,7 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const handleSave = useCallback(() => {
     if (guidedCheckIn?.hasLeft()) return;
-    // In the check-in an untouched form moves on to the photos instead of
+    // In the check-in an unchanged form moves on to the photos instead of
     // saving the same values again or showing "Nothing to save".
     if (guidedCheckIn && !hasUnsavedEdits()) {
       guidedCheckIn.advance();
@@ -1014,8 +1044,8 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
     const customOps = customResult.operations;
 
     if (!hasAnyField && customOps.length === 0) {
-      // A value typed and then cleared leaves nothing to send; the check-in
-      // moves on rather than stopping on "Nothing to save".
+      // With nothing to send, the check-in moves on rather than stopping on
+      // "Nothing to save".
       if (guidedCheckIn) {
         guidedCheckIn.advance();
         return;
@@ -1453,8 +1483,10 @@ const MeasurementsAddScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* Date row. The check-in keeps every step on one day, so there it
             only names the day. */}
         {guidedCheckIn ? (
+          // One screen-reader stop, as the pressable row is.
           <View
             testID="measurements-date-row"
+            accessible
             className="flex-row items-center mb-4"
           >
             <Text className="text-text-primary text-base">

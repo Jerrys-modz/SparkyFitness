@@ -1059,7 +1059,18 @@ function AppContent() {
           <Stack.Screen
             name="ProgressPhotos"
             component={SafeProgressPhotos}
-            options={createStackScreenOptions(t('screens.progressPhotos', { defaultValue: 'Progress Photos' }), { headerBackButtonDisplayMode: 'minimal' })}
+            options={({ route }) =>
+              createStackScreenOptions(t('screens.progressPhotos', { defaultValue: 'Progress Photos' }), {
+                headerBackButtonDisplayMode: 'minimal',
+                // The guided check-in's last step is a sheet, like the two
+                // steps before it; on its own the screen is pushed.
+                ...(route.params?.guidedCheckIn
+                  ? {
+                      presentation: 'modal' as const,
+                      ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+                    }
+                  : {}),
+              })}
           />
           <Stack.Screen
             name="ProgressPhotoCompare"

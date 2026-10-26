@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Platform, Text } from 'react-native';
 import { act, fireEvent, render } from '@testing-library/react-native';
 import ProgressPhotoCompareScreen from '../../src/screens/ProgressPhotoCompareScreen';
 import { useCheckInPhotoGallery } from '../../src/hooks/useCheckInPhotos';
@@ -94,7 +94,9 @@ const setGallery = (days: ProgressPhotoDay[], isLoading = false) => {
   } as unknown as ReturnType<typeof useCheckInPhotoGallery>);
 };
 
-const renderScreen = (params: { angle?: 'front' | 'back' | 'side' } = {}) =>
+const renderScreen = (
+  params: { angle?: 'front' | 'back' | 'side'; overSheet?: boolean } = {}
+) =>
   render(
     <ProgressPhotoCompareScreen
       navigation={
@@ -306,6 +308,34 @@ describe('ProgressPhotoCompareScreen', () => {
       expect(
         paddingAbove(getByText('Screen header'), 'paddingTop')
       ).toBeUndefined();
+    });
+
+    it.each([
+      ['loaded', false],
+      ['loading', true],
+    ])(
+      'adds no top inset over the check-in sheet on iOS (%s), which already starts below the status bar',
+      (_state, loading) => {
+        mockNativeHeadersActive = false;
+        setGallery([], loading);
+        const { getByText } = renderScreen({ overSheet: true });
+
+        expect(
+          paddingAbove(getByText('Screen header'), 'paddingTop')
+        ).toBeUndefined();
+      }
+    );
+
+    it('keeps the top inset over the check-in on Android, where every screen is full height', () => {
+      mockNativeHeadersActive = false;
+      const platform = jest.replaceProperty(Platform, 'OS', 'android');
+      try {
+        const { getByText } = renderScreen({ overSheet: true });
+
+        expect(paddingAbove(getByText('Screen header'), 'paddingTop')).toBe(47);
+      } finally {
+        platform.restore();
+      }
     });
   });
 });

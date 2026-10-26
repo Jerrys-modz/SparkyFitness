@@ -1,4 +1,10 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -40,6 +46,7 @@ import { useCheckInPhotoSource } from '../hooks/useCheckInPhotoSource';
 import { usePreferences } from '../hooks/usePreferences';
 import { getApiErrorMessage } from '../services/api/errors';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
+import { screenTopInset } from '../utils/screenTopInset';
 import { pickImageFromCamera, pickImagesFromLibrary } from '../utils/pickImage';
 import { formatDateLabel, getTodayDate } from '../utils/dateUtils';
 import {
@@ -220,21 +227,39 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
   // Gated on the whole history, not the preview: the description points at
   // these two for anything older, so they must not be off when it does.
   const canCompare = allRows.length >= 2;
+  // Opened over the check-in's sheet, iOS shows them as sheets too.
+  const subScreenParams = guidedCheckIn
+    ? { angle, overSheet: true }
+    : { angle };
 
   const handleFinish = useCallback(() => {
     if (pickerLock.current) return;
     guidedCheckIn?.finish({ saved: uploadedRef.current });
   }, [guidedCheckIn]);
+  const isPhotoPending = isPicking || isUploading || isDeleting;
+
+  // Photos save as they are added, so on the last step closing is finishing.
+  // System Back and the iOS swipe down close the sheet without the header;
+  // they finish with the same confirmation.
+  useEffect(() => {
+    if (!guidedCheckIn) return undefined;
+    return navigation.addListener('beforeRemove', (event) => {
+      const { type } = event.data.action;
+      if (type === 'GO_BACK' || type === 'POP') {
+        guidedCheckIn.onNavigatorClose({ saved: uploadedRef.current });
+      }
+    });
+  }, [guidedCheckIn, navigation]);
 
   const header = useScreenHeader({
     title: t('progressPhotos.title', { defaultValue: 'Progress Photos' }),
     // The steps replace one another, so in the check-in this leaves the flow
-    // rather than going back to step 2. Photos save as they are added, so on
-    // the last step closing is finishing, with the same confirmation.
+    // rather than going back to step 2. The X is the same Finish.
     left: guidedCheckIn
       ? {
           kind: 'dismiss',
-          onPress: () => guidedCheckIn.finish({ saved: uploadedRef.current }),
+          onPress: handleFinish,
+          disabled: isPhotoPending,
           accessibilityLabel: t('common.close', { defaultValue: 'Close' }),
         }
       : { kind: 'back' },
@@ -243,7 +268,7 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
           kind: 'primary',
           label: t('guidedCheckIn.finish', { defaultValue: 'Finish' }),
           onPress: handleFinish,
-          disabled: isPicking || isUploading || isDeleting,
+          disabled: isPhotoPending,
           identifier: 'guided-check-in-finish',
         }
       : undefined,
@@ -478,7 +503,10 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
   return (
     <View
       className="flex-1 bg-background"
-      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
+      style={screenTopInset(insets.top, {
+        usesNativeHeader,
+        asSheet: guidedCheckIn != null,
+      })}
     >
       {header}
       {guidedCheckIn && (
@@ -564,7 +592,7 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
         <View className="flex-row gap-3 mt-3">
           <TouchableOpacity
             onPress={() =>
-              navigation.navigate('ProgressPhotoCompare', { angle })
+              navigation.navigate('ProgressPhotoCompare', subScreenParams)
             }
             disabled={!canCompare}
             className="flex-1 flex-row items-center justify-center bg-surface rounded-lg py-2.5 shadow-sm"
@@ -583,7 +611,7 @@ const ProgressPhotosScreen: React.FC<Props> = ({ navigation, route }) => {
 
           <TouchableOpacity
             onPress={() =>
-              navigation.navigate('ProgressPhotoTimelapse', { angle })
+              navigation.navigate('ProgressPhotoTimelapse', subScreenParams)
             }
             disabled={!canCompare}
             className="flex-1 flex-row items-center justify-center bg-surface rounded-lg py-2.5 shadow-sm"

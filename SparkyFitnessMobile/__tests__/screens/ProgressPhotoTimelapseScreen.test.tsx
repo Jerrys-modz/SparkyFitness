@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Platform, Text } from 'react-native';
 import { act, render } from '@testing-library/react-native';
 import { Image } from 'expo-image';
 import ProgressPhotoTimelapseScreen from '../../src/screens/ProgressPhotoTimelapseScreen';
@@ -140,7 +140,7 @@ const rangeMenu = () =>
     }
   ).right;
 
-const renderScreen = () =>
+const renderScreen = (params: { overSheet?: boolean } = {}) =>
   render(
     <ProgressPhotoTimelapseScreen
       navigation={
@@ -152,7 +152,7 @@ const renderScreen = () =>
         {
           key: 'ProgressPhotoTimelapse-key',
           name: 'ProgressPhotoTimelapse',
-          params: {},
+          params,
         } as unknown as React.ComponentProps<
           typeof ProgressPhotoTimelapseScreen
         >['route']
@@ -370,6 +370,27 @@ describe('ProgressPhotoTimelapseScreen', () => {
       expect(
         paddingAbove(getByText('Screen header'), 'paddingTop')
       ).toBeUndefined();
+    });
+
+    it('adds no top inset over the check-in sheet on iOS, which already starts below the status bar', () => {
+      mockNativeHeadersActive = false;
+      const { getByText } = renderScreen({ overSheet: true });
+
+      expect(
+        paddingAbove(getByText('Screen header'), 'paddingTop')
+      ).toBeUndefined();
+    });
+
+    it('keeps the top inset over the check-in on Android, where every screen is full height', () => {
+      mockNativeHeadersActive = false;
+      const platform = jest.replaceProperty(Platform, 'OS', 'android');
+      try {
+        const { getByText } = renderScreen({ overSheet: true });
+
+        expect(paddingAbove(getByText('Screen header'), 'paddingTop')).toBe(47);
+      } finally {
+        platform.restore();
+      }
     });
   });
 });

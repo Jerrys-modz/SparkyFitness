@@ -2330,7 +2330,8 @@ describe('MeasurementsAddScreen — guided check-in', () => {
     // Every step works on the day the check-in started on: the date row only
     // names it, and there is no calendar to change it with.
     const dateRow = screen.getByTestId('measurements-date-row');
-    expect(dateRow.props.onPress).toBeUndefined();
+    // Read as one stop, as the pressable row is.
+    expect(dateRow.props.accessible).toBe(true);
     expect(screen.getByText('Date')).toBeTruthy();
     expect(screen.queryByTestId('icon-chevron-down')).toBeNull();
     expect(screen.queryByTestId('calendar-sheet')).toBeNull();
@@ -2400,6 +2401,56 @@ describe('MeasurementsAddScreen — guided check-in', () => {
     expect(Toast.show).not.toHaveBeenCalled();
     expect(mockNavigation.replace).toHaveBeenCalledWith(
       ...toPhotos({ offerReminders: false, saved: false })
+    );
+  });
+
+  test("on a prefilled day, a value typed and cleared again neither re-sends the day's values nor counts as saved", async () => {
+    setMeasurements({ weight: 80, steps: 7000 });
+    const screen = renderInFlow();
+
+    fireEvent.changeText(getInput(screen, 'waist'), '8');
+    fireEvent.changeText(getInput(screen, 'waist'), '');
+    await pressContinue(screen);
+
+    expectNothingWritten();
+    expect(Toast.show).not.toHaveBeenCalled();
+    expect(Alert.alert).not.toHaveBeenCalled();
+    expect(mockNavigation.replace).toHaveBeenCalledWith(
+      ...toPhotos({ offerReminders: false, saved: false })
+    );
+  });
+
+  test("Skip does not ask when every edit is back to the day's value", () => {
+    setMeasurements({ weight: 80 });
+    setCustomCategories([customCategory({ id: 'c1', frequency: 'Daily' })]);
+    setCustomEntries([
+      customEntry({ id: 'e1', category_id: 'c1', value: '5' }),
+    ]);
+    const screen = renderInFlow();
+
+    fireEvent.changeText(getInput(screen, 'weight'), '81');
+    fireEvent.changeText(getInput(screen, 'weight'), '80');
+    fireEvent.changeText(screen.getByTestId('custom-input-c1'), '6');
+    fireEvent.changeText(screen.getByTestId('custom-input-c1'), '5');
+    fireEvent.press(skipButton(screen));
+
+    expect(Alert.alert).not.toHaveBeenCalled();
+    expectNothingWritten();
+    expect(mockNavigation.replace).toHaveBeenCalledWith(
+      ...toPhotos({ offerReminders: false, saved: false })
+    );
+  });
+
+  test('a changed prefilled value still saves the day and hands over as saved', async () => {
+    setMeasurements({ weight: 80 });
+    const screen = renderInFlow();
+
+    fireEvent.changeText(getInput(screen, 'weight'), '79.5');
+    await pressContinue(screen);
+
+    expect(savedPayload()).toEqual({ entryDate: ENTRY_DATE, weight: 79.5 });
+    expect(mockNavigation.replace).toHaveBeenCalledWith(
+      ...toPhotos({ offerReminders: false, saved: true })
     );
   });
 

@@ -411,4 +411,79 @@ describe('useGuidedCheckIn', () => {
       expect(checkIn().hasLeft()).toBe(true);
     });
   });
+
+  describe('onNavigatorClose', () => {
+    it('confirms and offers reminders like finish, without going back itself', () => {
+      const { checkIn, goBack, replace } = setup({
+        step: 'ProgressPhotos',
+        params: { offerReminders: true },
+      });
+
+      checkIn().onNavigatorClose({ saved: true });
+
+      expect(goBack).not.toHaveBeenCalled();
+      expect(replace).not.toHaveBeenCalled();
+      expect(toastShow).toHaveBeenCalledTimes(1);
+      expect(toastShow).toHaveBeenCalledWith({
+        type: 'success',
+        text1: 'Check-in complete',
+      });
+      expect(offerReminders).toHaveBeenCalledTimes(1);
+      const [toasted] = toastShow.mock.invocationCallOrder;
+      const [offered] = offerReminders.mock.invocationCallOrder;
+      expect(toasted).toBeLessThan(offered);
+      expect(checkIn().hasLeft()).toBe(true);
+    });
+
+    it('confirms nothing when nothing was saved and no reminder is due', () => {
+      const { checkIn } = setup({ step: 'ProgressPhotos' });
+
+      checkIn().onNavigatorClose({ saved: false });
+
+      expect(toastShow).not.toHaveBeenCalled();
+      expect(offerReminders).not.toHaveBeenCalled();
+      expect(checkIn().hasLeft()).toBe(true);
+    });
+
+    it('still confirms while the step is losing focus to the close', () => {
+      const { checkIn, isFocused } = setup({
+        step: 'ProgressPhotos',
+        params: { saved: true },
+      });
+      isFocused.mockReturnValue(false);
+
+      checkIn().onNavigatorClose();
+
+      expect(toastShow).toHaveBeenCalledTimes(1);
+    });
+
+    it('does nothing after finish, whose own goBack the navigator reports too', () => {
+      const { checkIn, goBack } = setup({
+        step: 'ProgressPhotos',
+        params: { saved: true, offerReminders: true },
+      });
+
+      checkIn().finish();
+      checkIn().onNavigatorClose({ saved: true });
+
+      expect(goBack).toHaveBeenCalledTimes(1);
+      expect(toastShow).toHaveBeenCalledTimes(1);
+      expect(offerReminders).toHaveBeenCalledTimes(1);
+    });
+
+    it('happens only once, and stops a later finish', () => {
+      const { checkIn, goBack } = setup({
+        step: 'ProgressPhotos',
+        params: { saved: true, offerReminders: true },
+      });
+
+      checkIn().onNavigatorClose();
+      checkIn().onNavigatorClose();
+      checkIn().finish();
+
+      expect(goBack).not.toHaveBeenCalled();
+      expect(toastShow).toHaveBeenCalledTimes(1);
+      expect(offerReminders).toHaveBeenCalledTimes(1);
+    });
+  });
 });

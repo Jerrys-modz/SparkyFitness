@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Platform, Text } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { act, fireEvent, render } from '@testing-library/react-native';
 import ProgressPhotosScreen from '../../src/screens/ProgressPhotosScreen';
@@ -134,11 +134,31 @@ const setDayPhotos = (angles: ('front' | 'back' | 'side')[]) => {
   } as unknown as ReturnType<typeof useCheckInPhotosByDate>);
 };
 
+type BeforeRemoveListener = (event: {
+  data: { action: { type: string } };
+}) => void;
+const beforeRemoveListeners = new Set<BeforeRemoveListener>();
+
 const navigation = {
   navigate: jest.fn(),
   goBack: jest.fn(),
   replace: jest.fn(),
   isFocused: jest.fn(() => true),
+  addListener: jest.fn((event: string, listener: BeforeRemoveListener) => {
+    if (event === 'beforeRemove') beforeRemoveListeners.add(listener);
+    return () => {
+      beforeRemoveListeners.delete(listener);
+    };
+  }),
+};
+
+/** What the navigator reports as it removes the screen with an action. */
+const removeScreen = (type: string) => {
+  act(() => {
+    for (const listener of beforeRemoveListeners) {
+      listener({ data: { action: { type } } });
+    }
+  });
 };
 const route = { key: 'ProgressPhotos-key', name: 'ProgressPhotos' as const };
 type RouteParams = NonNullable<RootStackParamList['ProgressPhotos']>;
@@ -694,6 +714,89 @@ describe('ProgressPhotosScreen', () => {
       expect(offerCheckinRemindersAfterLeaving).not.toHaveBeenCalled();
     });
 
+    it('keeps the X off and inert while a picked photo is still on its way', async () => {
+      jest
+        .mocked(pickImageFromCamera)
+        .mockImplementationOnce(() => new Promise<never>(() => {}));
+
+      const { getByLabelText } = renderInFlow({ offerReminders: true });
+      await takeFrontPhoto(getByLabelText);
+
+      expect(closeItem().disabled).toBe(true);
+      act(() => closeItem().onPress());
+
+      expect(navigation.goBack).not.toHaveBeenCalled();
+      expect(offerCheckinRemindersAfterLeaving).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['system Back', 'GO_BACK'],
+      ['the iOS swipe', 'POP'],
+    ])(
+      'finishes when %s closes the last step, since its photos are already saved',
+      async (_how, actionType) => {
+        const { getByLabelText } = renderInFlow({ offerReminders: true });
+        await takeFrontPhoto(getByLabelText);
+
+        removeScreen(actionType);
+        // The X (or Finish) cannot run it a second time.
+        act(() => closeItem().onPress());
+
+        // The navigator is the one removing the screen.
+        expect(navigation.goBack).not.toHaveBeenCalled();
+        expect(toastShow).toHaveBeenCalledTimes(1);
+        expect(toastShow).toHaveBeenCalledWith(successToast);
+        expect(offerCheckinRemindersAfterLeaving).toHaveBeenCalledTimes(1);
+      }
+    );
+
+    it('confirms nothing on a system Back when nothing was saved', () => {
+      renderInFlow();
+
+      removeScreen('GO_BACK');
+
+      expect(toastShow).not.toHaveBeenCalled();
+      expect(offerCheckinRemindersAfterLeaving).not.toHaveBeenCalled();
+    });
+
+    it('does not finish on its own Finish a second time', () => {
+      renderInFlow({ saved: true, offerReminders: true });
+
+      act(() => finishItem().onPress());
+      // Finish's goBack reaches the navigator, which reports the removal too.
+      removeScreen('GO_BACK');
+
+      expect(navigation.goBack).toHaveBeenCalledTimes(1);
+      expect(toastShow).toHaveBeenCalledTimes(1);
+      expect(offerCheckinRemindersAfterLeaving).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves the check-in alone when the stack is reset rather than closed', () => {
+      renderInFlow({ saved: true, offerReminders: true });
+
+      removeScreen('RESET');
+
+      expect(toastShow).not.toHaveBeenCalled();
+      expect(offerCheckinRemindersAfterLeaving).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['Compare', 'ProgressPhotoCompare'],
+      ['Time-lapse', 'ProgressPhotoTimelapse'],
+    ])(
+      'opens %s marked as shown over the check-in sheet',
+      (label, routeName) => {
+        const { getByText } = renderInFlow();
+
+        fireEvent.press(getByText(label));
+
+        expect(navigation.navigate).toHaveBeenCalledWith(routeName, {
+          angle: 'front',
+          overSheet: true,
+        });
+      }
+    );
+
     it('keeps Back, the day picker and no step indicator outside the check-in', () => {
       const { getByLabelText, queryByText } = renderScreen({
         date: FLOW_DATE,
@@ -704,6 +807,11 @@ describe('ProgressPhotosScreen', () => {
       expect(mockCalendarSheetRender).toHaveBeenCalled();
       expect(mockUseDates).not.toHaveBeenCalledWith(false);
       expect(queryByText(/Check-in: Step/)).toBeNull();
+
+      // Going back is just going back.
+      removeScreen('GO_BACK');
+      expect(toastShow).not.toHaveBeenCalled();
+      expect(offerCheckinRemindersAfterLeaving).not.toHaveBeenCalled();
     });
   });
 
@@ -731,6 +839,33 @@ describe('ProgressPhotosScreen', () => {
       expect(
         paddingAbove(getByText('Screen header'), 'paddingTop')
       ).toBeUndefined();
+    });
+
+    it('adds no top inset as the check-in sheet on iOS, which already starts below the status bar', () => {
+      mockNativeHeadersActive = false;
+      const { getByText } = renderScreen({
+        date: '2026-03-20',
+        guidedCheckIn: {},
+      });
+
+      expect(
+        paddingAbove(getByText('Screen header'), 'paddingTop')
+      ).toBeUndefined();
+    });
+
+    it('keeps the top inset in the check-in on Android, where every screen is full height', () => {
+      mockNativeHeadersActive = false;
+      const platform = jest.replaceProperty(Platform, 'OS', 'android');
+      try {
+        const { getByText } = renderScreen({
+          date: '2026-03-20',
+          guidedCheckIn: {},
+        });
+
+        expect(paddingAbove(getByText('Screen header'), 'paddingTop')).toBe(47);
+      } finally {
+        platform.restore();
+      }
     });
   });
 });

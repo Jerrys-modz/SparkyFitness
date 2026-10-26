@@ -81,6 +81,6 @@ In the mobile app, turn on **Settings → Diary → Guided check-in** to add a *
 2. **Measurements**: your weight and body measurements.
 3. **Progress photos**: front, back and side.
 
-Each screen shows **Step N of 3**. **Save & continue** saves the step and opens the next one, and moves on without saving when you changed nothing. **Skip** moves on without saving and asks first if you changed something. On the photos step, **Finish** closes the check-in. Anything you saved stays saved, even if you close the check-in part-way.
+Each screen shows **Step N of 3**. **Save & continue** saves the step and opens the next one; on the measurements step it moves on without saving when you changed nothing. **Skip** moves on without saving, asking first if you changed something, and is how you leave the mood step without logging a mood. On the photos step, **Finish** closes the check-in, and so do the close button, going back and (on iPhone) swiping the screen down, since photos are saved as you add them. Anything you saved stays saved, even if you close the check-in part-way.
 
 The setting is off by default and is stored on the device, so turn it on again on each phone you use.

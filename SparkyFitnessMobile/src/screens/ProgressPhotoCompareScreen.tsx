@@ -28,6 +28,7 @@ import { useCheckInPhotoGallery } from '../hooks/useCheckInPhotos';
 import { useCheckInPhotoSource } from '../hooks/useCheckInPhotoSource';
 import { usePreferences } from '../hooks/usePreferences';
 import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
+import { screenTopInset } from '../utils/screenTopInset';
 import { formatShortDate } from '../utils/dateUtils';
 import {
   formatWeightDisplay,
@@ -61,6 +62,10 @@ const ProgressPhotoCompareScreen: React.FC<Props> = ({ navigation, route }) => {
   ]) as [string, string];
 
   const angle: PhotoType = route.params?.angle ?? 'front';
+  const topInset = screenTopInset(insets.top, {
+    usesNativeHeader,
+    asSheet: route.params?.overSheet === true,
+  });
 
   const { days, isLoading } = useCheckInPhotoGallery();
   const { getPhotoSource } = useCheckInPhotoSource();
@@ -228,10 +233,7 @@ const ProgressPhotoCompareScreen: React.FC<Props> = ({ navigation, route }) => {
 
   if (isLoading) {
     return (
-      <View
-        className="flex-1 bg-background"
-        style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-      >
+      <View className="flex-1 bg-background" style={topInset}>
         {header}
         <View className="py-16 items-center">
           <ActivityIndicator size="small" color={accentPrimary} />
@@ -241,10 +243,7 @@ const ProgressPhotoCompareScreen: React.FC<Props> = ({ navigation, route }) => {
   }
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-background" style={topInset}>
       {header}
 
       <ScrollView contentContainerClassName="px-4 py-3">

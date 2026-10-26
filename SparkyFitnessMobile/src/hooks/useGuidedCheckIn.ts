@@ -40,6 +40,11 @@ export interface GuidedCheckIn {
   skip: (hasUnsavedEdits: boolean) => void;
   /** Leaves the flow from the last step. */
   finish: (result?: GuidedCheckInStepResult) => void;
+  /**
+   * Finishes the flow when the navigator closed the last step itself (system
+   * Back, the iOS swipe): the same confirmation as `finish`, with no goBack.
+   */
+  onNavigatorClose: (result?: GuidedCheckInStepResult) => void;
   /** True once this step has handed over or finished. */
   hasLeft: () => boolean;
 }
@@ -86,10 +91,10 @@ export function useGuidedCheckIn({
       return true;
     };
 
-    const finish = (result?: GuidedCheckInStepResult) => {
-      if (!leave()) return;
+    // Shown once the flow is closed: the toast when a step saved something,
+    // then the reminder offer step 1 held back.
+    const confirm = (result?: GuidedCheckInStepResult) => {
       const flags = merged(result);
-      navigation.goBack();
       if (flags.saved) {
         Toast.show({
           type: 'success',
@@ -97,6 +102,20 @@ export function useGuidedCheckIn({
         });
       }
       if (flags.offerReminders) offerCheckinRemindersAfterLeaving(t);
+    };
+
+    const finish = (result?: GuidedCheckInStepResult) => {
+      if (!leave()) return;
+      navigation.goBack();
+      confirm(result);
+    };
+
+    // The navigator is already removing the step, so it is no longer a
+    // question of focus; only the latch keeps this to once.
+    const onNavigatorClose = (result?: GuidedCheckInStepResult) => {
+      if (leftRef.current) return;
+      leftRef.current = true;
+      confirm(result);
     };
 
     const advance = (result?: GuidedCheckInStepResult) => {
@@ -155,6 +174,7 @@ export function useGuidedCheckIn({
       advance,
       skip,
       finish,
+      onNavigatorClose,
       hasLeft: () => leftRef.current,
     };
   }, [date, navigation, params, step, t]);
