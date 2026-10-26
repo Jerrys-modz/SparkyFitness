@@ -4,7 +4,7 @@ import reportRepository, {
 import workoutPlanTemplateRepository from '../models/workoutPlanTemplateRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import { getRunProgram } from '../models/runProgramRepository.js';
-import { loadMaxHeartRate } from './reportService.js';
+import heartRateZoneService from './heartRateZoneService.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import { log } from '../config/logging.js';
 import {
@@ -104,22 +104,21 @@ async function getTrainingCalendar(
         ? Number(rawFirstDay)
         : 0;
 
-    const [rows, templates, program, maxHeartRate, curveSessions] =
-      await Promise.all([
-        reportRepository.getCalendarEntries(targetUserId, start, end),
-        workoutPlanTemplateRepository.getPlanTemplatesForCalendar(
-          targetUserId,
-          start,
-          end
-        ),
-        getRunProgram(targetUserId, authenticatedUserId),
-        loadMaxHeartRate(targetUserId, timezone),
-        reportRepository.getTrainingLoadSessions(
-          targetUserId,
-          addDays(today, -(CURVE_DAYS - 1)),
-          today
-        ),
-      ]);
+    const [rows, templates, program, zones, curveSessions] = await Promise.all([
+      reportRepository.getCalendarEntries(targetUserId, start, end),
+      workoutPlanTemplateRepository.getPlanTemplatesForCalendar(
+        targetUserId,
+        start,
+        end
+      ),
+      getRunProgram(targetUserId, authenticatedUserId),
+      heartRateZoneService.resolveZonesForUser(targetUserId),
+      reportRepository.getTrainingLoadSessions(
+        targetUserId,
+        addDays(today, -(CURVE_DAYS - 1)),
+        today
+      ),
+    ]);
 
     // Which diary entry each finished program workout was done as, and on
     // which local day.
@@ -210,9 +209,9 @@ async function getTrainingCalendar(
       slots,
       entries,
       today,
-      maxHeartRate
+      zones.floors
     );
-    const curve = computeFitnessFatigue(curveSessions, today, maxHeartRate);
+    const curve = computeFitnessFatigue(curveSessions, today, zones.floors);
 
     return {
       start,
