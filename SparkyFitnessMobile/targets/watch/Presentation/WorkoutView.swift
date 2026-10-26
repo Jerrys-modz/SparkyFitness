@@ -447,6 +447,9 @@ private struct ActiveWorkoutView: View {
                     setScreen
                         .workoutPage(geo, alignment: .top)
                         .id(WorkoutPageID.set)
+                    UpNextPage(onOpenList: { showingExercises = true })
+                        .workoutPage(geo)
+                        .id(WorkoutPageID.upNext)
                     WorkoutMetricsPage()
                         .workoutPage(geo)
                         .id(WorkoutPageID.metrics)
@@ -540,6 +543,7 @@ private struct ActiveWorkoutView: View {
                 showingExercises = true
             }
             switch ScreenshotSeed.workoutPage {
+            case "upnext": page = .upNext
             case "metrics": page = .metrics
             case "setoptions": page = .setOptions
             case "exerciseoptions": page = .exerciseOptions
@@ -585,7 +589,7 @@ private struct ActiveWorkoutView: View {
 }
 
 private enum WorkoutPageID: Hashable {
-    case set, metrics, setOptions, exerciseOptions, actions
+    case set, upNext, metrics, setOptions, exerciseOptions, actions
 }
 
 /// Shown after the last set is logged. Finish used to live only in the
@@ -850,6 +854,68 @@ private struct SquircleLabel: View {
             .opacity(isEnabled ? 1 : 0.35)
             // The whole box takes the tap, not only the glyph's pixels.
             .contentShape(shape)
+    }
+}
+
+/// The next exercise, one swipe up from the set screen, so what comes after
+/// this one can be checked without opening the list: its name, how many sets
+/// and the first set's target, and the exercise after it. A tap opens the list.
+private struct UpNextPage: View {
+    let onOpenList: () -> Void
+
+    @EnvironmentObject private var store: WorkoutSessionStore
+    @EnvironmentObject private var checkIn: CheckInStore
+
+    /// The first set still to do of each exercise after the current one, in
+    /// workout order.
+    private var upcoming: [WorkoutStep] {
+        let current = store.currentStep?.exerciseEntryId
+        var seen: Set<String> = []
+        return store.steps.dropFirst(store.currentStepIndex).filter { step in
+            step.exerciseEntryId != current
+                && !store.isCompleted(step)
+                && seen.insert(step.exerciseEntryId).inserted
+        }
+    }
+
+    var body: some View {
+        let upcoming = upcoming
+        Button(action: Haptics.tapping(onOpenList)) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(String(localized: "watch.workout.upNextTitle", defaultValue: "Up Next"))
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                if let next = upcoming.first {
+                    Text(next.exerciseName)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(next.supersetRun.map(SupersetPalette.color(for:)) ?? Color.primary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(String(localized: "watch.workout.upNextSets", defaultValue: "\(next.setCount) sets"))
+                        .font(.body)
+                    if let target = RestView.target(for: next, store: store, unit: checkIn.context.effectiveWeightUnit, carry: checkIn.context.effectiveCarryUnit) {
+                        Text(target)
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                    if upcoming.count > 1 {
+                        Text(String(localized: "watch.workout.upNextThen", defaultValue: "Then \(upcoming[1].exerciseName)"))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .padding(.top, 4)
+                    }
+                } else {
+                    Text(String(localized: "watch.workout.lastExercise", defaultValue: "This is the last exercise"))
+                        .font(.body)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -1757,7 +1823,7 @@ private struct RestView: View {
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(nextSupersetColor(next) ?? Color.primary)
                             .lineLimit(1)
-                        Text(nextTargetLabel(for: next))
+                        Text(Self.targetLabel(for: next, store: store, unit: checkIn.context.effectiveWeightUnit, carry: checkIn.context.effectiveCarryUnit))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -1807,32 +1873,29 @@ private struct RestView: View {
         return SupersetPalette.color(for: run)
     }
 
-    private func nextTargetLabel(for step: WorkoutStep) -> String {
-        let values = store.values(for: step)
-        let unit = checkIn.context.effectiveWeightUnit
+    /// "Set 1 of 3 · 40kg × 10", what a set is aiming for.
+    static func targetLabel(for step: WorkoutStep, store: WorkoutSessionStore, unit: WeightUnit, carry: CarryUnit) -> String {
         let label = SetProgressRow.title(for: step)
+        guard let target = target(for: step, store: store, unit: unit, carry: carry) else { return label }
+        return "\(label) · \(target)"
+    }
+
+    /// "40kg × 10" alone; nil when the set has no values yet.
+    static func target(for step: WorkoutStep, store: WorkoutSessionStore, unit: WeightUnit, carry: CarryUnit) -> String? {
+        let values = store.values(for: step)
+        let weight = values.weightKg.map { "\(Self.weightText($0, unit: unit))\(unit.suffix)" }
         if let seconds = store.targetDurationSec(for: step) {
             let clock = String(format: "%d:%02d", seconds / 60, seconds % 60)
-            if let weight = values.weightKg {
-                return "\(label) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(clock)"
-            }
-            return "\(label) · \(clock)"
+            return weight.map { "\($0) × \(clock)" } ?? clock
         }
         if store.isCarry(step), let km = values.distanceKm {
-            let carry = checkIn.context.effectiveCarryUnit
-            let distance = Int(carry.fromKm(km).rounded())
-            if let weight = values.weightKg {
-                return "\(label) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(distance) \(carry.suffix)"
-            }
-            return "\(label) · \(distance) \(carry.suffix)"
+            let distance = "\(Int(carry.fromKm(km).rounded())) \(carry.suffix)"
+            return weight.map { "\($0) × \(distance)" } ?? distance
         }
-        switch (values.weightKg, values.reps) {
-        case let (weight?, reps?):
-            return "\(label) · \(Self.weightText(weight, unit: unit))\(unit.suffix) × \(Int(reps))"
-        case let (nil, reps?):
-            return "\(label) · \(Int(reps)) reps"
-        default:
-            return label
+        switch (weight, values.reps) {
+        case let (weight?, reps?): return "\(weight) × \(Int(reps))"
+        case let (nil, reps?): return "\(Int(reps)) reps"
+        default: return nil
         }
     }
 

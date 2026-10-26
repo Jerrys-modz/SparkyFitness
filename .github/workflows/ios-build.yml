@@ -185,6 +185,7 @@ jobs:
 
             shoot workout-active active workout
             shoot workout-resting resting workout
+            shoot workout-upnext active workout upnext
             shoot workout-metrics active workout metrics
             shoot workout-idle none workout
             shoot workout-exercises active workout exercises
