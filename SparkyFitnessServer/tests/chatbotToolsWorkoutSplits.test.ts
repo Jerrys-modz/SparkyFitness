@@ -137,11 +137,86 @@ describe('sparky_manage_workout_splits', () => {
     expect(text).toContain('Barbell_Squat');
   });
 
+  it('recommends the closest programs and says where they differ', async () => {
+    const text = await run({
+      action: 'recommend_workout_split',
+      goal: 'strength',
+      level: 'beginner',
+      days_per_week: 5,
+      venue: 'home',
+    });
+    expect(text).toContain('Closest programs');
+    expect(text).toContain('_home');
+    expect(text).toContain('differs');
+    expect(text).toContain('a different goal');
+  });
+
+  it('says a recommendation matches everything when it does', async () => {
+    const text = await run({
+      action: 'recommend_workout_split',
+      goal: 'strength',
+      level: 'beginner',
+      days_per_week: 3,
+      venue: 'garage',
+    });
+    expect(text).toContain('1. linear_5x5');
+    expect(text).toContain('linear_5x5');
+    expect(text).toContain('matches everything asked');
+  });
+
+  it('fits the program to session length and focus when adding it', async () => {
+    vi.mocked(importWorkoutSplit).mockResolvedValue({
+      planId: 9,
+      presetIds: {},
+      addedExerciseCount: 0,
+    });
+    await run({
+      action: 'import_workout_split',
+      split_id: 'push_pull_legs_3',
+      session_minutes: 40,
+      focus: 'shoulders',
+      venue: 'gym',
+      confirmed: true,
+    });
+    expect(importWorkoutSplit).toHaveBeenCalledWith(
+      'user-1',
+      'push_pull_legs_3',
+      expect.objectContaining({
+        trainer: { venue: 'gym', sessionMinutes: 40, focus: 'shoulders' },
+      })
+    );
+  });
+
+  it('mentions the fitting when asking for confirmation', async () => {
+    const text = await run({
+      action: 'import_workout_split',
+      split_id: 'push_pull_legs_3',
+      session_minutes: 40,
+      focus: 'core',
+    });
+    expect(text).toContain('40-minute sessions');
+    expect(text).toContain('extra core work');
+    expect(importWorkoutSplit).not.toHaveBeenCalled();
+  });
+
+  it('refuses to fit a program to a venue that cannot do it', async () => {
+    const text = await run({
+      action: 'import_workout_split',
+      split_id: 'push_pull_legs_3',
+      session_minutes: 40,
+      venue: 'home',
+      confirmed: true,
+    });
+    expect(text).toContain('needs more equipment');
+    expect(importWorkoutSplit).not.toHaveBeenCalled();
+  });
+
   it('is read-only over MCP except for adding a program', () => {
     const allowed = (action: string) =>
       isToolCallAllowedReadOnly('sparky_manage_workout_splits', { action });
     expect(allowed('list_workout_splits')).toBe(true);
     expect(allowed('get_workout_split')).toBe(true);
+    expect(allowed('recommend_workout_split')).toBe(true);
     expect(allowed('import_workout_split')).toBe(false);
   });
 });

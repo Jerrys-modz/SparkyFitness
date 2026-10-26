@@ -13,6 +13,13 @@ const metrics = {
 jest.mock('../../src/hooks/useScreenHeader', () => ({
   useScreenHeader: () => null,
 }));
+jest.mock('../../src/services/nativeTabBarPreference', () => ({
+  useNativeIOSHeadersActive: () => true,
+  useNativeIOSTabsActive: () => false,
+}));
+jest.mock('../../src/components/ActiveWorkoutBar', () => ({
+  useActiveWorkoutBarPadding: () => 0,
+}));
 jest.mock('../../src/hooks/useImportWorkoutSplit', () => ({
   useImportWorkoutSplit: jest.fn(),
 }));
@@ -21,13 +28,16 @@ const navigate = jest.fn();
 const goBack = jest.fn();
 const importSplitAsync = jest.fn();
 
-const renderScreen = (splitId: string) => {
+const renderScreen = (
+  splitId: string,
+  trainer?: { venue: 'gym'; sessionMinutes: 40; focus: 'core' }
+) => {
   const props = {
     navigation: { navigate, goBack },
     route: {
       key: 'WorkoutSplitImport',
       name: 'WorkoutSplitImport',
-      params: { splitId },
+      params: { splitId, trainer },
     },
   } as unknown as React.ComponentProps<typeof WorkoutSplitImportScreen>;
   return render(
@@ -121,5 +131,33 @@ describe('WorkoutSplitImportScreen', () => {
     expect(screen.getByText('This program is not available.')).toBeTruthy();
     fireEvent.press(screen.getByText('Go back'));
     expect(goBack).toHaveBeenCalled();
+  });
+
+  it('sends the program finder\u2019s answers with the program', async () => {
+    const trainer = {
+      venue: 'gym',
+      sessionMinutes: 40,
+      focus: 'core',
+    } as const;
+    renderScreen('push_pull_legs_3', trainer);
+    accept();
+    await act(async () => {
+      fireEvent.press(screen.getByText('Add program'));
+    });
+
+    expect(importSplitAsync).toHaveBeenCalledWith({
+      splitId: 'push_pull_legs_3',
+      body: expect.objectContaining({ trainer }),
+    });
+  });
+
+  it('sends no answers when the program is added as it is', async () => {
+    renderScreen('linear_5x5');
+    accept();
+    await act(async () => {
+      fireEvent.press(screen.getByText('Add program'));
+    });
+
+    expect(importSplitAsync.mock.calls[0][0].body.trainer).toBeUndefined();
   });
 });

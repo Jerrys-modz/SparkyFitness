@@ -10,20 +10,15 @@ import {
   type WorkoutSplit,
   type WorkoutSplitLevel,
 } from '@workspace/shared';
+import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
 import Button from '../components/ui/Button';
+import WorkoutSplitCard from '../components/WorkoutSplitCard';
+import { useNavigationActionGuard } from '../hooks/useNavigationActionGuard';
 import { useScreenHeader } from '../hooks/useScreenHeader';
+import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import type { RootStackScreenProps } from '../types/navigation';
-import {
-  exerciseLabel,
-  exerciseTarget,
-  goalLabel,
-  levelLabel,
-  sessionName,
-  splitDescription,
-  splitName,
-  venueLabel,
-} from '../utils/workoutSplits';
+import { goalLabel, levelLabel, venueLabel } from '../utils/workoutSplits';
 
 type Props = RootStackScreenProps<'WorkoutSplits'>;
 
@@ -43,6 +38,9 @@ const DAYS_OPTIONS = [
 const WorkoutSplitsScreen: React.FC<Props> = ({ navigation }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const usesNativeHeader = useNativeIOSHeadersActive();
+  const activeWorkoutBarPadding = useActiveWorkoutBarPadding('stack');
+  const { runNavigationAction } = useNavigationActionGuard(navigation);
   const [venue, setVenue] = useState<string>(ANY);
   const [level, setLevel] = useState<string>(ANY);
   const [goal, setGoal] = useState<string>(ANY);
@@ -131,25 +129,45 @@ const WorkoutSplitsScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   return (
-    <>
+    <View
+      className="flex-1 bg-background"
+      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
+    >
       {header}
       <ScrollView
-        className="flex-1 bg-background"
+        className="flex-1"
+        contentInsetAdjustmentBehavior={
+          usesNativeHeader ? 'automatic' : 'never'
+        }
         contentContainerStyle={{
           padding: 16,
-          paddingBottom: insets.bottom + 24,
+          paddingBottom: insets.bottom + 80 + activeWorkoutBarPadding,
         }}
       >
+        {' '}
         <Text className="text-text-secondary text-sm">
           {t('workoutSplits.page.intro', {
             defaultValue:
               'Ready-made strength splits for getting started. Each exercise has a rep range: reach the top on every set and the next session suggests a little more weight. Add one and change anything you like afterwards.',
           })}
         </Text>
-
+        <View className="mt-3">
+          <Button
+            variant="outline"
+            onPress={() =>
+              runNavigationAction(() => navigation.navigate('WorkoutFinder'))
+            }
+          >
+            {t('workoutSplits.page.finder', {
+              defaultValue: 'Find my program',
+            })}
+          </Button>
+        </View>
         {filters.map((filter) => (
           <View key={filter.id} className="mt-4" testID={`filter-${filter.id}`}>
-            <Text className="text-text-muted text-xs mb-1">{filter.label}</Text>
+            <Text className="text-sm font-medium text-text-secondary mb-1">
+              {filter.label}
+            </Text>
             <SegmentedControl
               segments={filter.segments}
               activeKey={filter.value}
@@ -157,102 +175,36 @@ const WorkoutSplitsScreen: React.FC<Props> = ({ navigation }) => {
             />
           </View>
         ))}
-
-        {visible.length === 0 ? (
-          <Text className="text-text-secondary text-sm mt-6">
-            {t('workoutSplits.page.none', {
-              defaultValue:
-                'No program matches those filters. Try a different one.',
-            })}
-          </Text>
-        ) : (
-          visible.map((split) => {
-            const expanded = expandedId === split.id;
-            return (
-              <View
+        <View className="mt-4">
+          {visible.length === 0 ? (
+            <Text className="text-text-secondary text-sm mt-6">
+              {t('workoutSplits.page.none', {
+                defaultValue:
+                  'No program matches those filters. Try a different one.',
+              })}
+            </Text>
+          ) : (
+            visible.map((split) => (
+              <WorkoutSplitCard
                 key={split.id}
-                className="bg-surface rounded-xl p-4 mt-4"
-                testID={`workout-split-${split.id}`}
-              >
-                <Text className="text-text-primary text-base font-semibold">
-                  {splitName(t, split.id)}
-                </Text>
-                <Text className="text-text-muted text-xs mt-0.5">
-                  {`${levelLabel(t, split.level)} · ${goalLabel(t, split.goal)} · ${venueLabel(t, split.venue)}`}
-                </Text>
-                <Text className="text-text-muted text-xs mt-0.5">
-                  {t('workoutSplits.card.summary', {
-                    days: split.daysPerWeek,
-                    sessions: split.sessions.length,
-                    defaultValue:
-                      '{{days}} days a week, {{sessions}} sessions in rotation',
-                  })}
-                </Text>
-                <Text className="text-text-secondary text-sm mt-2">
-                  {splitDescription(t, split.id)}
-                </Text>
-                {expanded ? (
-                  <View
-                    className="mt-3"
-                    testID={`workout-split-sessions-${split.id}`}
-                  >
-                    {split.sessions.map((session) => (
-                      <View key={session.id} className="mb-3">
-                        <Text className="text-text-primary text-sm font-medium">
-                          {sessionName(t, session.id)}
-                        </Text>
-                        {session.exercises.map((exercise) => (
-                          <View
-                            key={exercise.exerciseId}
-                            className="flex-row justify-between mt-0.5"
-                          >
-                            <Text className="text-text-secondary text-sm flex-1 mr-3">
-                              {exerciseLabel(exercise.exerciseId)}
-                            </Text>
-                            <Text className="text-text-secondary text-sm">
-                              {exerciseTarget(t, exercise)}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    ))}
-                  </View>
-                ) : null}
-                <View className="mt-1">
-                  <Button
-                    variant="ghost"
-                    onPress={() => setExpandedId(expanded ? null : split.id)}
-                    accessibilityState={{ expanded }}
-                  >
-                    {expanded
-                      ? t('workoutSplits.card.hideSessions', {
-                          defaultValue: 'Hide sessions',
-                        })
-                      : t('workoutSplits.card.showSessions', {
-                          defaultValue: 'Show sessions',
-                        })}
-                  </Button>
-                </View>
-                <View className="mt-2">
-                  <Button
-                    variant="outline"
-                    onPress={() =>
-                      navigation.navigate('WorkoutSplitImport', {
-                        splitId: split.id,
-                      })
-                    }
-                  >
-                    {t('workoutSplits.card.add', {
-                      defaultValue: 'Add to my workouts',
-                    })}
-                  </Button>
-                </View>
-              </View>
-            );
-          })
-        )}
+                split={split}
+                expanded={expandedId === split.id}
+                onToggle={() =>
+                  setExpandedId(expandedId === split.id ? null : split.id)
+                }
+                onAdd={() =>
+                  runNavigationAction(() =>
+                    navigation.navigate('WorkoutSplitImport', {
+                      splitId: split.id,
+                    })
+                  )
+                }
+              />
+            ))
+          )}
+        </View>
       </ScrollView>
-    </>
+    </View>
   );
 };
 

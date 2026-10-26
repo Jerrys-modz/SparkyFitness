@@ -17,6 +17,13 @@ const metrics = {
 jest.mock('../../src/hooks/useScreenHeader', () => ({
   useScreenHeader: () => null,
 }));
+jest.mock('../../src/services/nativeTabBarPreference', () => ({
+  useNativeIOSHeadersActive: () => true,
+  useNativeIOSTabsActive: () => false,
+}));
+jest.mock('../../src/components/ActiveWorkoutBar', () => ({
+  useActiveWorkoutBarPadding: () => 0,
+}));
 
 const navigate = jest.fn();
 const props = () =>
@@ -96,5 +103,11 @@ describe('WorkoutSplitsScreen', () => {
     expect(navigate).toHaveBeenCalledWith('WorkoutSplitImport', {
       splitId: 'linear_5x5',
     });
+  });
+
+  it('opens the program finder', () => {
+    renderScreen();
+    fireEvent.press(screen.getByText('Find my program'));
+    expect(navigate).toHaveBeenCalledWith('WorkoutFinder');
   });
 });

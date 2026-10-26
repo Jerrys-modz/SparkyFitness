@@ -78,6 +78,9 @@ const TrainingPrograms = lazyWithChunkRecovery(
 const WorkoutSplits = lazyWithChunkRecovery(
   () => import('./pages/Exercises/WorkoutSplits/WorkoutSplits')
 );
+const WorkoutFinder = lazyWithChunkRecovery(
+  () => import('./pages/Exercises/WorkoutSplits/WorkoutFinder')
+);
 const WorkoutPlaybackPage = lazyWithChunkRecovery(
   () => import('./pages/Diary/WorkoutPlaybackPage')
 );
@@ -424,6 +427,11 @@ const router = createBrowserRouter([
           {
             path: 'exercises/workout-splits',
             Component: WorkoutSplits,
+            ErrorBoundary: RouteErrorBoundary,
+          },
+          {
+            path: 'exercises/workout-splits/finder',
+            Component: WorkoutFinder,
             ErrorBoundary: RouteErrorBoundary,
           },
           {

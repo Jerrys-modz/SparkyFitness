@@ -108,4 +108,34 @@ describe('POST /v2/workout-splits/:splitId/import', () => {
     expect(res.status).toBe(403);
     expect(importWorkoutSplit).not.toHaveBeenCalled();
   });
+  it('passes the program finder\u2019s answers through', async () => {
+    vi.mocked(importWorkoutSplit).mockResolvedValue({
+      planId: 7,
+      presetIds: {},
+      addedExerciseCount: 0,
+    });
+    const trainer = { venue: 'home', sessionMinutes: 40, focus: 'core' };
+
+    const res = await post('push_pull_legs_3_home', { ...body, trainer });
+
+    expect(res.status).toBe(201);
+    expect(importWorkoutSplit).toHaveBeenCalledWith(
+      'owner-1',
+      'push_pull_legs_3_home',
+      expect.objectContaining({ trainer })
+    );
+  });
+
+  it.each([
+    [
+      'a session length it does not offer',
+      { venue: 'home', sessionMinutes: 45 },
+    ],
+    ['an unknown focus', { venue: 'home', focus: 'neck' }],
+    ['no venue', { sessionMinutes: 40 }],
+  ])('rejects %s', async (_name, trainer) => {
+    const res = await post('push_pull_legs_3_home', { ...body, trainer });
+    expect(res.status).toBe(400);
+    expect(importWorkoutSplit).not.toHaveBeenCalled();
+  });
 });
