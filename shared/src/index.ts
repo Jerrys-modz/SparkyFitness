@@ -35,6 +35,7 @@ export * from './schemas/api/Pagination.api.zod.ts';
 export * from './schemas/api/SleepScience.api.zod.ts';
 export * from './schemas/api/Symptoms.api.zod.ts';
 export * from './schemas/api/WorkoutPresets.api.zod.ts';
+export * from './schemas/api/WorkoutSplits.api.zod.ts';
 export * from './schemas/api/WaterIntake.api.zod.ts';
 export * from './schemas/api/WaterContainers.api.zod.ts';
 export * from './schemas/api/HydrationNutritionRange.api.zod.ts';
