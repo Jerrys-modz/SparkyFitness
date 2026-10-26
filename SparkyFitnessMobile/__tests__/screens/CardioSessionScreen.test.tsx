@@ -475,6 +475,22 @@ describe('CardioSessionScreen', () => {
     expect(screen.queryByText('Heart Rate Zones')).toBeNull();
   });
 
+  it('leaves out the route card for a duration-only workout', () => {
+    // A jump rope covers no distance, so it can never have a route.
+    const jumpRope = {
+      ...SESSION,
+      id: 'jump-rope-1',
+      exerciseName: 'Jump Rope',
+      distanceFormatted: null,
+      formattedPace: null,
+      modality: 'duration',
+    } as ExerciseActivityQueryItem;
+    mockDetail.mockReturnValue(detail({ route: [] }));
+    const screen = render(<CardioSessionScreen {...props(jumpRope)} />);
+    expect(screen.queryByText(/No GPS route stored/)).toBeNull();
+    expect(screen.getByTestId('heart-rate-chart')).toBeTruthy();
+  });
+
   it('falls back to the stored average without samples', () => {
     mockDetail.mockReturnValue(detail({ heartRate: [] }));
     const screen = render(<CardioSessionScreen {...props()} />);

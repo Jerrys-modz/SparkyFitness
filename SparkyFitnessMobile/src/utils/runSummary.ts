@@ -10,7 +10,7 @@ import {
   toWorkoutGpsPoints,
   type RecordedPoint,
   type RecordedSplit,
-  type RecordingActivity,
+  type DiaryActivity,
 } from './gpsRecording';
 import { gradeAdjustedForSamples } from '@workspace/shared';
 import { rangesOfSplits, samplesFromRecording } from './gradeAdjusted';
@@ -24,7 +24,7 @@ const SUMMARY_ROUTE_POINTS = 250;
  * the screen cannot read it back.
  */
 export interface RunSummaryParams {
-  activity: RecordingActivity;
+  activity: DiaryActivity;
   /** The diary day the activity was filed on, YYYY-MM-DD. */
   entryDate: string;
   distanceUnit: 'km' | 'miles';
@@ -32,6 +32,8 @@ export interface RunSummaryParams {
   activeSeconds: number;
   elevationGainMeters: number;
   avgHeartRate: number | null;
+  /** Calories the watch measured, when it sent any. */
+  activeEnergyKcal?: number | null;
   /** A thinned route, empty for a recording with no usable track. */
   route: GpsTrackPoint[];
   /**
@@ -94,7 +96,7 @@ export function buildRunSummary({
   entryId,
   form,
 }: {
-  activity: RecordingActivity;
+  activity: DiaryActivity;
   entryDate: string;
   distanceUnit: 'km' | 'miles';
   points: readonly RecordedPoint[];

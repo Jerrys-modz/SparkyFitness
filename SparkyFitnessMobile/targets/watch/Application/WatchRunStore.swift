@@ -217,6 +217,12 @@ final class WatchRunStore: ObservableObject {
             chosen.paceBand = alerts.pace
             chosen.heartRateBand = alerts.heartRate
         }
+        // A jump rope covers no distance, so a pace alert would only measure
+        // nothing. Heart rate still applies.
+        if kind == .jumpRope {
+            chosen.paceBand = nil
+            chosen.paceStepsOff = true
+        }
         requestId = nil
         // Indoors there is no GPS to follow a route with.
         followRoute(place == .outdoor ? route : nil)
@@ -500,6 +506,9 @@ final class WatchRunStore: ObservableObject {
     /// It cannot be turned on without a range, which is set on the phone.
     func setPaceAlert(_ on: Bool) {
         guard phase == .running || phase == .paused else { return }
+        // A jump rope covers no distance, so the phone cannot turn its pace
+        // alert on. Turning it off is still allowed.
+        guard kind != .jumpRope || !on else { return }
         let band = on
             ? (settings.paceBand ?? CheckInStore.shared.context.runPaceBand
                 ?? ((plan?.steps.contains { $0.pace != nil } ?? false) ? nil : WatchPaceBand.standard))
@@ -558,7 +567,7 @@ final class WatchRunStore: ObservableObject {
     /// on the wrist, and the words when voice cues are on. A tap that points
     /// down means ease off, one that points up means speed up.
     private func checkPaceBand(_ metrics: WatchRunMetrics) {
-        guard phase == .running else { return }
+        guard phase == .running, kind != .jumpRope else { return }
         let elapsed = healthKit.elapsed
         // A plan step's own range beats the run's; a step with none keeps the
         // run's range, if there is one.
@@ -612,7 +621,7 @@ final class WatchRunStore: ObservableObject {
     /// Whether the pace alert is on: a range for the run, or ranges on the
     /// plan's steps, unless the wearer switched it off.
     var paceAlertOn: Bool {
-        guard settings.paceStepsOff != true else { return false }
+        guard kind != .jumpRope, settings.paceStepsOff != true else { return false }
         return settings.paceBand != nil || (plan?.steps.contains { $0.pace != nil } ?? false)
     }
 
@@ -860,8 +869,9 @@ final class WatchRunStore: ObservableObject {
                 // Indoors the wearer is asked for the treadmill's distance
                 // first (the program's done cue waits for `confirmDistance`, so it
                 // is heard once, in the finish cue); the snapshot stays until the answer is sent, so a
-                // relaunch in between still delivers the run.
-                if save, endingPlace == .indoor, let scaled {
+                // relaunch in between still delivers the run. A jump rope covers
+                // no distance, so it is never asked.
+                if save, endingPlace == .indoor, ending.showsDistance, let scaled {
                     self.pendingResult = scaled
                     self.pendingElapsed = elapsed
                     self.phase = .confirmingDistance
@@ -872,12 +882,17 @@ final class WatchRunStore: ObservableObject {
                 // cue that reaches it behind that work is confirmed late, so the
                 // watch gave up waiting and said the cue too (heard twice).
                 if save {
-                    let finished = WatchRunCues.finishText(
-                        title: ending.title(endingPlace),
-                        distanceMeters: metrics.distanceMeters,
-                        seconds: elapsed,
-                        usesMiles: self.usesMiles
-                    )
+                    let finished = ending.showsDistance
+                        ? WatchRunCues.finishText(
+                            title: ending.title(endingPlace),
+                            distanceMeters: metrics.distanceMeters,
+                            seconds: elapsed,
+                            usesMiles: self.usesMiles
+                        )
+                        : WatchRunCues.finishText(
+                            title: ending.title(endingPlace),
+                            seconds: elapsed
+                        )
                     self.cue(self.programDoneText(completed: scaled?.planCompleted ?? false).map { "\(finished) \($0)" } ?? finished)
                 }
                 // The Health workout is stamped so the phone's import skips
@@ -938,7 +953,7 @@ final class WatchRunStore: ObservableObject {
 
     /// The learned indoor factor for a new run; outdoors the GPS needs none.
     private static func scale(for kind: WatchRunKind, place: WatchRunPlace) -> Double {
-        guard place == .indoor else { return 1 }
+        guard place == .indoor, kind != .jumpRope else { return 1 }
         return CheckInStore.shared.context.indoorDistanceScale?.factor(for: kind) ?? 1
     }
 

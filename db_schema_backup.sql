@@ -2989,6 +2989,7 @@ CREATE TABLE public.global_settings (
     dev_tools_enabled boolean DEFAULT false NOT NULL,
     mock_data_enabled boolean DEFAULT false NOT NULL,
     enable_passkey_login boolean DEFAULT true NOT NULL,
+    enable_version_check boolean DEFAULT true NOT NULL,
     CONSTRAINT single_row_check CHECK ((id = 1))
 );
 

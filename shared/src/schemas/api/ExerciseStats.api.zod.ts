@@ -4,6 +4,7 @@ import {
   PR_SPORT_GROUPS,
   SPORT_CONFIDENCES,
 } from '../../utils/activitySport.ts';
+import { exerciseModalitySchema } from './Exercises.api.zod.ts';
 
 /** Canonical sport, named after the ANT+/FIT SDK `sport` enum. */
 export const activitySportSchema = z.enum(ACTIVITY_SPORTS);
@@ -188,6 +189,8 @@ export const exerciseActivityQueryItemSchema = z.object({
   source: z.string().nullable(),
   notes: z.string().nullable(),
   hasGpsTrack: z.boolean(),
+  /** Optional: a server older than this field simply omits it. */
+  modality: exerciseModalitySchema.nullable().optional(),
 });
 
 export type ExerciseActivityQueryItem = z.infer<

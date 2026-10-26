@@ -14,6 +14,7 @@ import {
   DISTANCE_SERIES_EFFORT_OPTIONS,
   GPS_EFFORT_OPTIONS,
   activitySportLabel,
+  isExerciseModality,
   PR_SPORT_GROUPS,
   verticalRatioPercent,
 } from '@workspace/shared';
@@ -676,7 +677,7 @@ async function queryExerciseActivities(
         id, user_id, exercise_name, category, entry_date, entry_time,
         duration_minutes, distance, avg_heart_rate, calories_burned, source, notes,
         floors_climbed, elevation_gain_meters, workout_effort,
-        avg_cadence, stride_length_cm,
+        avg_cadence, stride_length_cm, modality,
         ground_contact_time_ms, vertical_oscillation_mm, avg_power_watts,
         weather_temp_celsius, weather_condition,
         EXISTS (
@@ -760,6 +761,8 @@ async function queryExerciseActivities(
           source: row.source ? String(row.source) : null,
           notes: row.notes ? String(row.notes) : null,
           hasGpsTrack: row.has_gps_track === true,
+          // The column is plain text, so only a known modality is passed on.
+          modality: isExerciseModality(row.modality) ? row.modality : null,
         };
       }
     );
