@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 import type {
+  TrainerFocus,
   WorkoutSplitExercise,
   WorkoutSplitGoal,
   WorkoutSplitLevel,
@@ -68,4 +69,19 @@ export const exerciseTarget = (
     sets: exercise.sets,
     reps,
   });
+};
+
+export const focusLabel = (t: TFunction, focus: TrainerFocus): string => {
+  switch (focus) {
+    case 'core':
+      return t('workoutSplits.focus.core', 'Core');
+    case 'chest':
+      return t('workoutSplits.focus.chest', 'Chest');
+    case 'arms':
+      return t('workoutSplits.focus.arms', 'Arms');
+    case 'shoulders':
+      return t('workoutSplits.focus.shoulders', 'Shoulders');
+    case 'legs':
+      return t('workoutSplits.focus.legs', 'Legs');
+  }
 };

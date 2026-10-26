@@ -12,6 +12,7 @@ import {
   type WorkoutSplitVenue,
 } from '@workspace/shared';
 import { ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import {
@@ -157,6 +158,11 @@ const WorkoutSplits = () => {
             'Ready-made strength splits for getting started. Each exercise has a rep range: reach the top on every set and the next session suggests a little more weight. Add one and change anything you like afterwards.'
           )}
         </p>
+        <Button asChild className="mt-3" variant="outline" size="sm">
+          <Link to="/exercises/workout-splits/finder">
+            {t('workoutSplits.page.finder', 'Find my program')}
+          </Link>
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

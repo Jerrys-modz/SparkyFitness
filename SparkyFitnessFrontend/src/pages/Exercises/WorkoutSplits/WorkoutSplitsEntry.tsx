@@ -20,11 +20,18 @@ const WorkoutSplitsEntry = () => {
             'New to strength training? Pick a split such as full body, upper/lower or push/pull/legs and add it to your presets and plans in one step.'
           )}
         </p>
-        <Button asChild variant="outline">
-          <Link to="/exercises/workout-splits">
-            {t('workoutSplits.entry.open', 'Browse programs')}
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link to="/exercises/workout-splits/finder">
+              {t('workoutSplits.entry.finder', 'Find my program')}
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/exercises/workout-splits">
+              {t('workoutSplits.entry.open', 'Browse programs')}
+            </Link>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
