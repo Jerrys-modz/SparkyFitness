@@ -9405,11 +9405,13 @@
     "card": {
       "add": "Add to my workouts",
       "hideSessions": "Hide sessions",
+      "minutes": "about {{minutes}} min",
       "showSessions": "Show sessions",
       "summary": "{{days}} days a week, {{sessions}} sessions in rotation"
     },
     "entry": {
       "description": "New to strength training? Pick a split such as full body, upper/lower or push/pull/legs and add it to your presets and plans in one step.",
+      "finder": "Find my program",
       "open": "Browse programs",
       "title": "Ready-made workout programs"
     },
@@ -9419,6 +9421,31 @@
       "goal": "Goal",
       "level": "Level",
       "venue": "Where I train"
+    },
+    "finder": {
+      "back": "Workout programs",
+      "balanced": "Balanced program",
+      "beginnerYears": "Beginner, up to a year",
+      "bestMatch": "Best match.",
+      "differs": "Closest match: {{differences}}.",
+      "differsDays": "{{days}} days a week",
+      "differsGoal": "a {{goal}} program",
+      "differsLevel": "a {{level}} program",
+      "experience": "Training experience",
+      "focus": "Muscle to focus on",
+      "intermediateYears": "Intermediate, over a year",
+      "intro": "Answer a few questions and get the closest ready-made program, fitted to how long you want to train and a muscle you want to give extra attention.",
+      "matches": "Matches everything you asked for.",
+      "minutes": "Workout length",
+      "minutesOption": "{{minutes}} minutes",
+      "title": "Find my program"
+    },
+    "focus": {
+      "arms": "Arms",
+      "chest": "Chest",
+      "core": "Core",
+      "legs": "Legs",
+      "shoulders": "Shoulders"
     },
     "goal": {
       "muscle": "Build muscle",
@@ -9440,6 +9467,7 @@
     },
     "page": {
       "back": "Exercises",
+      "finder": "Find my program",
       "intro": "Ready-made strength splits for getting started. Each exercise has a rep range: reach the top on every set and the next session suggests a little more weight. Add one and change anything you like afterwards.",
       "none": "No program matches those filters. Try a different one.",
       "ownOnly": "Adding a program changes your own library and plans. Switch back to your own account to add one.",

@@ -253,13 +253,14 @@ function trimToBudget(
   while (totalSets(result) > budget) {
     let index = -1;
     for (let i = result.length - 1; i >= MAIN_LIFTS; i -= 1) {
-      if (result[i].progressionMode !== 'fixed') {
+      if (result[i]?.progressionMode !== 'fixed') {
         index = i;
         break;
       }
     }
     if (index < 0) break;
     const target = result[index];
+    if (!target) break;
     if (target.sets > MIN_SETS) {
       result[index] = { ...target, sets: target.sets - 1 };
     } else if (result.length > MIN_EXERCISES) {
@@ -280,6 +281,7 @@ function extendToBudget(
   for (let i = 0; i < Math.min(MAIN_LIFTS, result.length); i += 1) {
     const e = result[i];
     if (
+      e &&
       e.progressionMode !== 'fixed' &&
       e.sets < MAX_SETS &&
       totalSets(result) + 1 <= budget
@@ -322,7 +324,7 @@ export function applyTrainerOptions(
       const present = new Set(session.exercises.map((e) => e.exerciseId));
       for (let step = 0; step < choices.length; step += 1) {
         const candidate = choices[(used + step) % choices.length];
-        if (!present.has(candidate.exerciseId)) {
+        if (candidate && !present.has(candidate.exerciseId)) {
           extra = candidate;
           used += step + 1;
           break;
