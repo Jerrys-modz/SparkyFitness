@@ -2,7 +2,7 @@ import express from 'express';
 import { savePlateInventoryBodySchema } from '@workspace/shared';
 import { authenticate } from '../../middleware/authMiddleware.js';
 import onBehalfOfMiddleware from '../../middleware/onBehalfOfMiddleware.js';
-import requireSelfActor from '../../middleware/requireSelfMiddleware.js';
+import { createRequireSelfActor } from '../../middleware/requireSelfMiddleware.js';
 import {
   deletePlateInventory,
   getPlateInventory,
@@ -13,7 +13,15 @@ const router = express.Router();
 
 router.use(authenticate);
 router.use(onBehalfOfMiddleware);
-router.use(requireSelfActor);
+// Plates and bars belong to the owner; a delegate gets a message about that,
+// not the account-linking one.
+router.use(
+  createRequireSelfActor({
+    action: 'a plate inventory request',
+    message:
+      'Forbidden: plates and bars are only available for your own account.',
+  })
+);
 
 /**
  * @swagger

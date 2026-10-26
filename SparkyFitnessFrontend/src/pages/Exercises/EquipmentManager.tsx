@@ -268,7 +268,7 @@ const PlateInventorySection: React.FC<{ canWrite: boolean }> = ({
  */
 const EquipmentManager: React.FC = () => {
   const { t } = useTranslation();
-  const { hasWritePermission } = useActiveUser();
+  const { hasWritePermission, isActingOnBehalf } = useActiveUser();
   // Reads follow the diary or reports permission; every change needs diary write.
   const canWrite = hasWritePermission('diary');
   const { data: shoes, isLoading } = useShoes();
@@ -370,7 +370,7 @@ const EquipmentManager: React.FC = () => {
           </>
         )}
 
-        <PlateInventorySection canWrite={canWrite} />
+        {!isActingOnBehalf && <PlateInventorySection canWrite={canWrite} />}
 
         <ShoeFormDialog
           open={dialogOpen}

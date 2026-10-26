@@ -7,11 +7,17 @@ import {
   savePlateInventory,
 } from '@/api/PlateInventory/plateInventoryService';
 import { plateInventoryKeys } from '@/api/keys/plateInventory';
+import { useActiveUser } from '@/contexts/ActiveUserContext';
 
-export const usePlateInventory = () =>
-  useQuery({
+// The inventory is the signed-in person's own; the server refuses anyone acting
+// on their behalf, so skip the request (and its error toast) and let callers
+// fall back to the standard set.
+export const usePlateInventory = () => {
+  const { isActingOnBehalf } = useActiveUser();
+  return useQuery({
     queryKey: plateInventoryKeys.all,
     queryFn: fetchPlateInventory,
+    enabled: !isActingOnBehalf,
     select: (data) => data.inventory,
     meta: {
       errorMessage: i18n.t(
@@ -20,6 +26,7 @@ export const usePlateInventory = () =>
       ),
     },
   });
+};
 
 export const useSavePlateInventoryMutation = () => {
   const queryClient = useQueryClient();

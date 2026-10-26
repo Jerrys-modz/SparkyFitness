@@ -50,6 +50,16 @@ app.use(express.json());
 app.use('/api/v2/plate-inventory', plateInventoryRoutes);
 app.use(errorHandler);
 
+// A delegate: the signed-in person differs from the account being acted on.
+const delegateApp = express();
+delegateApp.use(express.json());
+delegateApp.use((req, _res, next) => {
+  req.originalUserId = 'delegate-user-id';
+  next();
+});
+delegateApp.use('/api/v2/plate-inventory', plateInventoryRoutes);
+delegateApp.use(errorHandler);
+
 const kg = PLATE_PRESETS.kg;
 const validBody = () => ({
   weight_unit: 'kg',
@@ -62,6 +72,14 @@ const validBody = () => ({
 describe('Plate inventory routes (v2)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('refuses a delegate with a message about plates, not account linking', async () => {
+    const res = await request(delegateApp).get('/api/v2/plate-inventory');
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/plates and bars/);
+    expect(res.body.error).not.toMatch(/account linking/);
+    expect(plateRepo.getPlateInventory).not.toHaveBeenCalled();
   });
 
   it('returns a null inventory until one is saved', async () => {
