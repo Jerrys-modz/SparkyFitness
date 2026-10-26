@@ -29,23 +29,23 @@ Select **Show sessions** on a program to see every session, with each exercise's
 
 | Program | Level | Goal | Days a week | Needs |
 | :--- | :--- | :--- | :--- | :--- |
-| Full body, 3 days (gym) | Beginner | Build muscle | 3 | Gym |
+| Full body, 3 days | Beginner | Build muscle | 3 | Gym |
 | Linear 5x5 | Beginner | Gain strength | 3 | Garage gym |
-| Upper / lower, 4 days (gym) | Beginner | Build muscle | 4 | Gym |
-| Push / pull / legs, 3 days (gym) | Beginner | Build muscle | 3 | Gym |
-| Push / pull / legs, 6 days (gym) | Intermediate | Build muscle | 6 | Gym |
-| Body part split, 5 days (gym) | Intermediate | Build muscle | 5 | Gym |
-| Full body, 3 days (garage) | Beginner | Build muscle | 3 | Garage gym |
-| Upper / lower, 4 days (garage) | Beginner | Build muscle | 4 | Garage gym |
-| Push / pull / legs, 3 days (garage) | Beginner | Build muscle | 3 | Garage gym |
-| Full body, 3 days (home) | Beginner | Build muscle | 3 | At home |
-| Upper / lower, 4 days (home) | Beginner | Build muscle | 4 | At home |
-| Push / pull / legs, 3 days (home) | Beginner | Build muscle | 3 | At home |
+| Upper / lower, 4 days | Beginner | Build muscle | 4 | Gym |
+| Push / pull / legs, 3 days | Beginner | Build muscle | 3 | Gym |
+| Push / pull / legs, 6 days | Intermediate | Build muscle | 6 | Gym |
+| Body part split, 5 days | Intermediate | Build muscle | 5 | Gym |
+| Full body, 3 days | Beginner | Build muscle | 3 | Garage gym |
+| Upper / lower, 4 days | Beginner | Build muscle | 4 | Garage gym |
+| Push / pull / legs, 3 days | Beginner | Build muscle | 3 | Garage gym |
+| Full body, 3 days | Beginner | Build muscle | 3 | At home |
+| Upper / lower, 4 days | Beginner | Build muscle | 4 | At home |
+| Push / pull / legs, 3 days | Beginner | Build muscle | 3 | At home |
 
 ## Adding a program
 
 1. Choose **Add to my workouts** on a program.
-2. Give the plan a name. It starts as the program's name.
+2. Give the plan a name. It starts as the program's name and where it is done, such as "Full body, 3 days (At home)".
 3. Choose whether to **Make it my active plan**. Leave it off to keep your current plan.
 4. Read and accept the medical disclaimer: check with a doctor or healthcare professional before starting a new workout program, especially with a medical condition or an injury. A program does not replace medical advice.
 5. Choose **Add program**.

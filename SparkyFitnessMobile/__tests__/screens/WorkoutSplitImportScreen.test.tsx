@@ -74,7 +74,7 @@ describe('WorkoutSplitImportScreen', () => {
     expect(importSplitAsync).toHaveBeenCalledWith({
       splitId: 'linear_5x5',
       body: {
-        planName: 'Linear 5x5',
+        planName: 'Linear 5x5 (Garage gym)',
         sessionNames: { workout_a: 'Workout A', workout_b: 'Workout B' },
         activate: true,
       },
