@@ -8,8 +8,8 @@ import { useHeartRateZones } from './useHeartRateZones';
  * known, and without a maximum from their date of birth or their own entry,
  * because a typical figure is not worth holding a run to.
  */
-export function useZone2HeartRateBand(): HeartRateBand | null {
-  const { zones } = useHeartRateZones(true);
+export function useZone2HeartRateBand(enabled = true): HeartRateBand | null {
+  const { zones } = useHeartRateZones(enabled);
   const resolved = zones?.resolved;
   return useMemo(() => {
     if (!resolved) return null;

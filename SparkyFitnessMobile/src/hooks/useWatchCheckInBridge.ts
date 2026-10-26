@@ -338,7 +338,7 @@ export function useWatchCheckInBridge(enabled: boolean): void {
         : null,
     [paceReferenceOnWatch, paceReferenceRace, programStatus]
   );
-  const zone2Band = useZone2HeartRateBand();
+  const zone2Band = useZone2HeartRateBand(enabled);
   const runPlans = useMemo(
     () =>
       buildWatchRunPlans(
