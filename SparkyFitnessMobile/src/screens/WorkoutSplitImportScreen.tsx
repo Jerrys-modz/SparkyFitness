@@ -16,6 +16,7 @@ import {
   sessionName,
   splitDescription,
   splitName,
+  venueLabel,
 } from '../utils/workoutSplits';
 
 type Props = RootStackScreenProps<'WorkoutSplitImport'>;
@@ -27,7 +28,9 @@ const WorkoutSplitImportScreen: React.FC<Props> = ({ navigation, route }) => {
   const split = getWorkoutSplit(route.params.splitId);
   const { importSplitAsync, isPending } = useImportWorkoutSplit();
   const [planName, setPlanName] = useState(() =>
-    split ? splitName(t, split.id) : ''
+    // The same program comes in a home, garage and gym version, so the plan
+    // name says which one.
+    split ? `${splitName(t, split.id)} (${venueLabel(t, split.venue)})` : ''
   );
   const [activate, setActivate] = useState(true);
   const [accepted, setAccepted] = useState(false);

@@ -218,7 +218,7 @@ const WorkoutSplitsScreen: React.FC<Props> = ({ navigation }) => {
                     ))}
                   </View>
                 ) : null}
-                <View className="mt-3">
+                <View className="mt-1">
                   <Button
                     variant="ghost"
                     onPress={() => setExpandedId(expanded ? null : split.id)}
