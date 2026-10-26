@@ -19,7 +19,8 @@ import intervalsDataProcessor, {
 } from './intervalsDataProcessor.js';
 
 const INTERVALS_API_BASE_URL = 'https://intervals.icu/api/v1';
-const WELLNESS_FIELDS = 'id,weight,bodyFat,steps,restingHR,vo2max,hrv';
+const WELLNESS_FIELDS =
+  'id,weight,bodyFat,steps,restingHR,vo2max,hrv,hrvSDNN,floorsClimbed,ctl,atl,spO2,respiration';
 // Intervals does not document its rate limits; wait out one 429 and give up after.
 const MAX_RETRY_AFTER_MS = 60_000;
 

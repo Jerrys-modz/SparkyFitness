@@ -92,7 +92,8 @@ describe('intervalsService.syncIntervalsData', () => {
         params: {
           oldest: '2026-10-01',
           newest: '2026-10-05',
-          fields: 'id,weight,bodyFat,steps,restingHR,vo2max,hrv',
+          fields:
+            'id,weight,bodyFat,steps,restingHR,vo2max,hrv,hrvSDNN,floorsClimbed,ctl,atl,spO2,respiration',
         },
       }
     );

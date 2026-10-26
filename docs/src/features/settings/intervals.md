@@ -27,7 +27,22 @@ The Intervals.icu integration imports activities and daily wellness data from [I
 
 ### Activities
 
-Each Intervals.icu activity becomes one exercise entry: name, sport type (as the exercise category), date, moving time, distance, calories, average heart rate, and elevation gain (in the notes). Re-syncing updates the same entries instead of adding new ones.
+Each Intervals.icu activity becomes one exercise entry. Re-syncing updates the same entries instead of adding new ones, and keeps values you edited by hand.
+
+| Intervals.icu | SparkyFitness |
+|---|---|
+| Name, sport type, start date and time | Exercise name, category, date and start time |
+| Moving and elapsed time, distance | Duration, moving and elapsed time, distance |
+| Calories | Calories burned |
+| Average and max heart rate | Average and max heart rate |
+| Average, max and moving speed | Speed |
+| Cadence | Cadence, in steps per minute for runs, walks and hikes (Intervals.icu counts one foot, so the value is doubled) |
+| Average and weighted average power, intensity, training load | Power, normalized power, intensity factor, training load (Intervals.icu's own load score) |
+| Elevation gain and loss, lowest and highest altitude | Elevation (a loss of 0 is left empty, as virtual rides report) |
+| Device and weather temperature | Temperature |
+| Ground contact time, vertical oscillation, stride length (runs) | Running dynamics |
+| Perceived exertion (1 to 10) | Workout effort |
+| Heart rate zones | Time in each heart rate zone (only for 5-zone setups) |
 
 - **Strava activities are skipped.** Intervals.icu cannot share activities it received from Strava through its API.
 - **Garmin activities are skipped when Garmin is also connected.** If you have an active Garmin provider in SparkyFitness, activities that Intervals.icu received from Garmin Connect, or that you uploaded to Intervals.icu as a Garmin file (`<id>_ACTIVITY.fit`), are not imported, so the same run is not logged twice. Activities the Garmin import already holds are skipped too, even after you disconnect Garmin, and so is any activity that starts in the same minute as one already imported from Garmin (for example a Zwift ride that Zwift sent to both).
@@ -38,11 +53,12 @@ Each Intervals.icu activity becomes one exercise entry: name, sport type (as the
 | Intervals.icu | SparkyFitness |
 |---|---|
 | Weight, body fat, steps | Check-in measurements |
-| Resting heart rate | Daily health summary |
-| VO2 max | Daily health summary |
-| HRV (rMSSD) | HRV samples |
+| Resting heart rate, VO2 max, floors climbed | Daily health summary |
+| Fitness (CTL) and fatigue (ATL) | Daily health summary training load (chronic and acute, as whole numbers), plus their ratio |
+| HRV (rMSSD and SDNN) | HRV samples |
+| SpO2, respiration | SpO2 and respiration samples |
 
-Not imported: sleep (Intervals.icu has no bedtime), nutrition, fitness/fatigue/form (CTL/ATL), readiness, and the subjective scores (mood, soreness, and so on).
+Not imported: sleep (Intervals.icu has no bedtime), blood pressure, blood glucose (no unit given), hydration (it would double-count water logged in SparkyFitness), nutrition (SparkyFitness can push it to Intervals.icu, so reading it back would loop), readiness, and the subjective scores (mood, soreness, and so on). Also not imported: GPS tracks and laps, and max power.
 
 ---
 
@@ -57,5 +73,6 @@ Not imported: sleep (Intervals.icu has no bedtime), nutrition, fitness/fatigue/f
 
 > [!IMPORTANT]
 > **Strictly Private**:
-> * Intervals.icu credentials and data are strictly private (`is_strictly_private = TRUE`) and are **never** shared with family or friends through account sharing permissions. Only the account owner can sync, view the status of, or disconnect the integration.
+> * The Intervals.icu connection is strictly private (`is_strictly_private = TRUE`): its credentials are **never** shared with family or friends, and only the account owner can sync, view the status of, or disconnect it.
+> * The activities and health data it imports follow the same sharing rules as data from any other device.
 > * The Athlete ID and API Key are encrypted at rest using AES-256-GCM.

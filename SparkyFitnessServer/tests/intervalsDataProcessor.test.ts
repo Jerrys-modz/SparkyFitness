@@ -23,6 +23,9 @@ vi.mock('../services/measurementService.js', () => ({
 vi.mock('../services/healthMetricSampleWriter.js', () => ({
   upsertSamplesByDay: vi.fn().mockResolvedValue(1),
 }));
+vi.mock('../models/workoutTelemetryRepository.js', () => ({
+  replaceExerciseEntryHrZones: vi.fn().mockResolvedValue([]),
+}));
 vi.mock('../config/logging.js', () => ({ log: vi.fn() }));
 
 import {
@@ -35,6 +38,7 @@ import exerciseRepository from '../models/exercise.js';
 import * as genericHealthRepo from '../models/genericHealthRepository.js';
 import measurementService from '../services/measurementService.js';
 import { upsertSamplesByDay } from '../services/healthMetricSampleWriter.js';
+import { replaceExerciseEntryHrZones } from '../models/workoutTelemetryRepository.js';
 
 const UID = 'user-1';
 
@@ -85,12 +89,203 @@ describe('processIntervalsActivities', () => {
       distance: 5.23,
       avg_heart_rate: 148,
       source_id: 'i123',
-      notes: 'Synced from Intervals.icu. Type: Run. Elevation: 42m',
+      notes: 'Synced from Intervals.icu. Type: Run.',
+      entry_time: '07:30',
+      elevation_gain_meters: 42,
       sets: [],
     });
     expect(options).toMatchObject({
       activityDetail: { provider_name: 'Intervals.icu' },
     });
+  });
+
+  // Trimmed from real Intervals.icu responses (an outdoor run and a Zwift ride).
+  const outdoorRun = run({
+    id: 'r1',
+    start_date_local: '2026-10-25T07:33:46',
+    timezone: 'America/New_York',
+    moving_time: 4868,
+    elapsed_time: 4880,
+    calories: 1231,
+    max_heartrate: 172,
+    average_speed: 3.323,
+    max_speed: 4.861,
+    pace: 3.3305733,
+    average_cadence: 94.34909,
+    icu_average_watts: 385,
+    icu_weighted_avg_watts: 393,
+    icu_intensity: 90.97222,
+    icu_training_load: 114,
+    total_elevation_gain: 191,
+    total_elevation_loss: 193,
+    min_altitude: 247.6,
+    max_altitude: 300,
+    average_temp: 17.95042,
+    max_temp: 24,
+    has_weather: true,
+    average_weather_temp: 11.050464,
+    average_stance_time: 234.6336,
+    average_vertical_oscillation: 77.0969,
+    average_stride: 1.059016,
+    icu_rpe: 6,
+    icu_hr_zones: [130, 149, 166, 176, 183],
+    icu_hr_zone_times: [50, 943, 3551, 324, 0],
+  });
+  const zwiftRide = run({
+    id: 'z1',
+    type: 'VirtualRide',
+    source: 'ZWIFT',
+    start_date_local: '2026-10-23T14:00:42',
+    average_cadence: 87.66534,
+    average_stride: 2.459526,
+    average_stance_time: 100,
+    icu_intensity: 64.39024,
+    total_elevation_gain: 613,
+    total_elevation_loss: 0,
+    icu_rpe: 0,
+    max_heartrate: 99999,
+  });
+  const entryFor = (i = 0) =>
+    vi.mocked(exerciseEntryRepository.createExerciseEntry).mock.calls[i]![1];
+
+  it('stores the run telemetry, doubling cadence to steps per minute', async () => {
+    await processIntervalsActivities(UID, UID, [outdoorRun], false);
+
+    expect(entryFor()).toMatchObject({
+      entry_date: '2026-10-25',
+      entry_time: '07:33',
+      record_timezone: 'America/New_York',
+      max_heart_rate: 172,
+      avg_speed_mps: 3.323,
+      max_speed_mps: 4.861,
+      avg_moving_speed_mps: 3.3305733,
+      avg_cadence: 189,
+      avg_power_watts: 385,
+      normalized_power_watts: 393,
+      intensity_factor: 0.91,
+      training_load: 114,
+      elevation_gain_meters: 191,
+      elevation_loss_meters: 193,
+      min_elevation_meters: 247.6,
+      max_elevation_meters: 300,
+      moving_time_seconds: 4868,
+      elapsed_time_seconds: 4880,
+      avg_temperature_celsius: 17.95042,
+      max_temperature_celsius: 24,
+      weather_temp_celsius: 11.050464,
+      ground_contact_time_ms: 234.6,
+      vertical_oscillation_mm: 77.1,
+      stride_length_cm: 105.9,
+      workout_effort: 6,
+      active_calories: 1231,
+    });
+    expect(entryFor()).not.toHaveProperty('heart_rate_recovery_1min');
+  });
+
+  it('keeps ride cadence as is and leaves running-only and invalid values out', async () => {
+    await processIntervalsActivities(UID, UID, [zwiftRide], false);
+
+    expect(entryFor()).toMatchObject({
+      avg_cadence: 88,
+      intensity_factor: 0.644,
+      elevation_gain_meters: 613,
+      // A virtual course reports 0 loss; stored as unknown.
+      elevation_loss_meters: null,
+      ground_contact_time_ms: null,
+      vertical_oscillation_mm: null,
+      stride_length_cm: null,
+      weather_temp_celsius: null,
+      workout_effort: null,
+      max_heart_rate: null,
+    });
+  });
+
+  it('doubles cadence for walks and hikes too', async () => {
+    await processIntervalsActivities(
+      UID,
+      UID,
+      [
+        run({ id: 'w', type: 'Walk', average_cadence: 55 }),
+        run({ id: 'h', type: 'Hike', average_cadence: 50 }),
+        run({ id: 'v', type: 'VirtualRun', average_cadence: 90 }),
+      ],
+      false
+    );
+
+    expect(entryFor(0)).toMatchObject({ avg_cadence: 110 });
+    expect(entryFor(1)).toMatchObject({ avg_cadence: 100 });
+    expect(entryFor(2)).toMatchObject({ avg_cadence: 180 });
+  });
+
+  it('stores five HR zones with Garmin-style bounds', async () => {
+    await processIntervalsActivities(UID, UID, [outdoorRun], false);
+
+    expect(replaceExerciseEntryHrZones).toHaveBeenCalledWith(
+      UID,
+      UID,
+      'entry-1',
+      [
+        expect.objectContaining({
+          zone_index: 1,
+          zone_lower_bpm: null,
+          zone_upper_bpm: 130,
+          seconds_in_zone: 50,
+          zone_method: 'device',
+          entry_date: '2026-10-25',
+          exercise_entry_id: 'entry-1',
+        }),
+        expect.objectContaining({
+          zone_index: 2,
+          zone_lower_bpm: 131,
+          zone_upper_bpm: 149,
+          seconds_in_zone: 943,
+        }),
+        expect.objectContaining({
+          zone_index: 3,
+          zone_lower_bpm: 150,
+          zone_upper_bpm: 166,
+          seconds_in_zone: 3551,
+        }),
+        expect.objectContaining({
+          zone_index: 4,
+          zone_lower_bpm: 167,
+          zone_upper_bpm: 176,
+          seconds_in_zone: 324,
+        }),
+        expect.objectContaining({
+          zone_index: 5,
+          zone_lower_bpm: 177,
+          zone_upper_bpm: 183,
+          seconds_in_zone: 0,
+        }),
+      ]
+    );
+  });
+
+  it('skips HR zones unless there are exactly five', async () => {
+    await processIntervalsActivities(
+      UID,
+      UID,
+      [
+        run({
+          id: 'a',
+          icu_hr_zones: [120, 140, 155, 165, 175, 185, 195],
+          icu_hr_zone_times: [1, 2, 3, 4, 5, 6, 7],
+        }),
+        run({
+          id: 'b',
+          icu_hr_zones: [130, 149, 166, 176, 183],
+          icu_hr_zone_times: [1, 2, 3],
+        }),
+        run({ id: 'c' }),
+      ],
+      false
+    );
+
+    expect(replaceExerciseEntryHrZones).not.toHaveBeenCalled();
+    expect(exerciseEntryRepository.createExerciseEntry).toHaveBeenCalledTimes(
+      3
+    );
   });
 
   it('skips Strava stubs and activities without a start date', async () => {
@@ -287,6 +482,74 @@ describe('processIntervalsActivities', () => {
 
 describe('processIntervalsWellness', () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it('stores floors, rounded CTL/ATL with their ratio, and the extra samples', async () => {
+    await processIntervalsWellness(UID, UID, [
+      {
+        id: '2026-10-23',
+        floorsClimbed: 6,
+        ctl: 64.57959,
+        atl: 77.61655,
+        hrvSDNN: 70,
+        spO2: 96.5,
+        respiration: 14.2,
+      },
+    ]);
+
+    expect(genericHealthRepo.upsertDailyHealthMetrics).toHaveBeenCalledWith(
+      UID,
+      UID,
+      expect.objectContaining({
+        entry_date: '2026-10-23',
+        source_provider: 'intervals',
+        floors_ascended: 6,
+        chronic_training_load: 65,
+        acute_training_load: 78,
+        acwr_ratio: 1.2,
+        resting_heart_rate: null,
+        vo2_max: null,
+      })
+    );
+    const sample = { entry_date: '2026-10-23', device_name: 'Intervals.icu' };
+    expect(upsertSamplesByDay).toHaveBeenCalledWith(
+      UID,
+      UID,
+      'hrv',
+      'intervals',
+      [expect.objectContaining({ ...sample, sdnn_ms: 70 })]
+    );
+    expect(
+      vi
+        .mocked(upsertSamplesByDay)
+        .mock.calls.find((c) => c[2] === 'hrv')![4][0]
+    ).not.toHaveProperty('rmssd_ms');
+    expect(upsertSamplesByDay).toHaveBeenCalledWith(
+      UID,
+      UID,
+      'spo2',
+      'intervals',
+      [expect.objectContaining({ ...sample, percentage: 96.5 })]
+    );
+    expect(upsertSamplesByDay).toHaveBeenCalledWith(
+      UID,
+      UID,
+      'respiration',
+      'intervals',
+      [expect.objectContaining({ ...sample, brpm: 14.2 })]
+    );
+  });
+
+  it('leaves the ratio empty without a fitness value', async () => {
+    await processIntervalsWellness(UID, UID, [
+      { id: '2026-10-23', atl: 50, ctl: 0 },
+    ]);
+
+    expect(genericHealthRepo.upsertDailyHealthMetrics).toHaveBeenCalledWith(
+      UID,
+      UID,
+      expect.objectContaining({ acute_training_load: 50, acwr_ratio: null })
+    );
+  });
 
   it('routes each wellness field to its destination', async () => {
     const days = await processIntervalsWellness(UID, UID, [
