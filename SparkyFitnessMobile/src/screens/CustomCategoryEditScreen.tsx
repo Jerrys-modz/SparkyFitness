@@ -118,6 +118,17 @@ const CustomCategoryEditScreen: React.FC<CustomCategoryEditScreenProps> = ({
   ) => setForm((current) => ({ ...current, [key]: value }));
 
   const save = async () => {
+    if (isEditing && !existingCategory) {
+      Toast.show({
+        type: 'error',
+        text1: t('customCategoryEdit.saveFailed', {
+          defaultValue: 'Failed to save category',
+        }),
+        text2: t('common.tryAgain', { defaultValue: 'Please try again.' }),
+      });
+      return;
+    }
+
     const name = form.name.trim();
     const unit = form.unit.trim();
     if (!name || !unit) {
