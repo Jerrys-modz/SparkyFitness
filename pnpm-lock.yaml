@@ -22,7 +22,7 @@ packageExtensionsChecksum: sha256-IqFK2qNtcME7xjA9+Zww96Qs4nC8pqzbfBu6/khM+VM=
 
 patchedDependencies:
   '@bacons/apple-targets@4.0.7':
-    hash: 533989ed88f7f4951606cf56242afdc228981988cdd845fa0b8b5fdc563e3a57
+    hash: 70bad47148fa08de18f055300ad7be730dac10a17de1153dd4c4924238cab1ef
     path: patches/@bacons__apple-targets@4.0.7.patch
   expo-modules-core@57.0.24:
     hash: dcc0c1a244cd8191578c090a9339570cf35fa149159d7401c2b275339744375d
@@ -369,7 +369,7 @@ importers:
         version: 0.1.50(@opentelemetry/api@1.9.1)(@types/react@19.2.18)(ai@7.0.150(zod@4.6.7))(ioredis@5.10.1)(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       '@bacons/apple-targets':
         specifier: ^4.0.6
-        version: 4.0.7(patch_hash=533989ed88f7f4951606cf56242afdc228981988cdd845fa0b8b5fdc563e3a57)(expo@57.0.31)
+        version: 4.0.7(patch_hash=70bad47148fa08de18f055300ad7be730dac10a17de1153dd4c4924238cab1ef)(expo@57.0.31)
       '@better-auth/expo':
         specifier: 1.7.12
         version: 1.7.12(8f54d3de54bc7cb3cdf584b275f1c75f)
@@ -13734,7 +13734,7 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@bacons/apple-targets@4.0.7(patch_hash=533989ed88f7f4951606cf56242afdc228981988cdd845fa0b8b5fdc563e3a57)(expo@57.0.31)':
+  '@bacons/apple-targets@4.0.7(patch_hash=70bad47148fa08de18f055300ad7be730dac10a17de1153dd4c4924238cab1ef)(expo@57.0.31)':
     dependencies:
       '@bacons/xcode': 1.0.0-alpha.32
       '@react-native/normalize-colors': 0.79.7
