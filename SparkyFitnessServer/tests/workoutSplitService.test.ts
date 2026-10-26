@@ -193,4 +193,59 @@ describe('importWorkoutSplit', () => {
       [USER_ID, 102],
     ]);
   });
+  describe('with the program finder\u2019s answers', () => {
+    const pplRequest = {
+      planName: 'My PPL',
+      sessionNames: { push_a: 'Push', pull_a: 'Pull', legs_a: 'Legs' },
+      activate: false,
+    };
+
+    it('rebuilds the adjusted program on the server', async () => {
+      await importWorkoutSplit(USER_ID, 'push_pull_legs_3', {
+        ...pplRequest,
+        trainer: { venue: 'gym', sessionMinutes: 40, focus: 'shoulders' },
+      });
+
+      const push = createPreset.mock.calls[0][1];
+      const sets = push.exercises.reduce(
+        (sum: number, e: { sets: unknown[] }) => sum + e.sets.length,
+        0
+      );
+      expect(sets).toBeLessThanOrEqual(14);
+      // The focus exercise was added to the library like any other.
+      expect(addExercise).toHaveBeenCalledWith(
+        USER_ID,
+        'Cable_Seated_Lateral_Raise'
+      );
+      expect(push.exercises.at(-1).exercise_id).toBe(
+        libraryIdFor('Cable_Seated_Lateral_Raise')
+      );
+    });
+
+    it('does not fetch exercises the adjustment dropped', async () => {
+      await importWorkoutSplit(USER_ID, 'push_pull_legs_3', {
+        ...pplRequest,
+        trainer: { venue: 'gym', sessionMinutes: 40 },
+      });
+      // Barbell curls are the last exercise of the pull session and go at 40 minutes.
+      const added = addExercise.mock.calls.map(([, id]) => id);
+      expect(added).not.toContain('Barbell_Curl');
+    });
+
+    it('refuses a program that needs more than where the person trains has', async () => {
+      await expect(
+        importWorkoutSplit(USER_ID, 'push_pull_legs_3', {
+          ...pplRequest,
+          trainer: { venue: 'home' },
+        })
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(addExercise).not.toHaveBeenCalled();
+    });
+
+    it('imports the program unchanged without answers', async () => {
+      await importWorkoutSplit(USER_ID, 'push_pull_legs_3', pplRequest);
+      const legs = createPreset.mock.calls[2][1];
+      expect(legs.exercises).toHaveLength(5);
+    });
+  });
 });

@@ -14,6 +14,7 @@ import type {
   PresetSessionResponse,
   RaceDistance,
   SharedPregnancy,
+  TrainerOptions,
   WorkoutFormat,
 } from '@workspace/shared';
 import type { FoodFormData } from '../components/FoodForm';
@@ -91,7 +92,8 @@ export type RootStackParamList = {
   WorkoutPlanForm: { template?: WorkoutPlanTemplate } | undefined;
   RunPrograms: undefined;
   WorkoutSplits: undefined;
-  WorkoutSplitImport: { splitId: string };
+  WorkoutFinder: undefined;
+  WorkoutSplitImport: { splitId: string; trainer?: TrainerOptions };
   RunProgramWorkout: { index: number };
   RunProgramRace: { distance?: RaceDistance; raceDay?: string } | undefined;
   FitnessTest: undefined;

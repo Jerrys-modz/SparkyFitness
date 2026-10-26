@@ -9892,7 +9892,8 @@
       "summary": "{{days}} days a week, {{sessions}} sessions in rotation",
       "showSessions": "Show sessions",
       "hideSessions": "Hide sessions",
-      "add": "Add to my workouts"
+      "add": "Add to my workouts",
+      "sessionMinutes": "{{name}} · about {{minutes}} min"
     },
     "filters": {
       "venue": "Where I train",
@@ -9920,7 +9921,8 @@
     },
     "page": {
       "intro": "Ready-made strength splits for getting started. Each exercise has a rep range: reach the top on every set and the next session suggests a little more weight. Add one and change anything you like afterwards.",
-      "none": "No program matches those filters. Try a different one."
+      "none": "No program matches those filters. Try a different one.",
+      "finder": "Find my program"
     },
     "import": {
       "screenTitle": "Add program",
@@ -10005,6 +10007,28 @@
       "back": "Back",
       "shoulders": "Shoulders",
       "arms": "Arms",
+      "legs": "Legs"
+    },
+    "finder": {
+      "title": "Find my program",
+      "intro": "Answer a few questions and get the closest ready-made program, fitted to how long you want to train and a muscle you want to give extra attention.",
+      "experience": "Training experience",
+      "minutes": "Workout length",
+      "minutesShort": "{{minutes}} min",
+      "focus": "Muscle to focus on",
+      "balanced": "Balanced program",
+      "bestMatch": "Best match.",
+      "matches": "Matches everything you asked for.",
+      "differs": "Closest match: {{differences}}.",
+      "differsDays": "{{days}} days a week",
+      "differsGoal": "a {{goal}} program",
+      "differsLevel": "a {{level}} program"
+    },
+    "focus": {
+      "core": "Core",
+      "chest": "Chest",
+      "arms": "Arms",
+      "shoulders": "Shoulders",
       "legs": "Legs"
     }
   }
