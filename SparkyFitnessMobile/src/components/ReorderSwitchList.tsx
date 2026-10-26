@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 
@@ -14,6 +14,8 @@ import { moveItem } from '../utils/reorderUtils';
 export interface ReorderSwitchListItem<K extends string> {
   key: K;
   label: string;
+  /** Shown before the label, e.g. an icon tile. */
+  leading?: ReactNode;
 }
 
 interface ReorderSwitchListProps<K extends string> {
@@ -89,7 +91,7 @@ export function ReorderSwitchList<K extends string>({
 
   return (
     <View className="bg-surface rounded-xl overflow-hidden shadow-sm">
-      {items.map(({ key, label }, index) => (
+      {items.map(({ key, label, leading }, index) => (
         <ReorderSwitchRow
           key={key}
           testID={`${testIDPrefix}-row-${key}`}
@@ -98,6 +100,7 @@ export function ReorderSwitchList<K extends string>({
           index={index}
           lastIndex={items.length - 1}
           title={label}
+          leading={leading}
           isEnabled={isEnabled(key)}
           switchDisabled={isSwitchDisabled?.(key) ?? false}
           onToggle={(enabled) => onToggle(key, enabled)}

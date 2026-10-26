@@ -110,6 +110,15 @@ describe('AddMenuSettingsScreen', () => {
     expect(orderedRowKeys()).not.toContain('scanFood');
   });
 
+  test('a card slot uses the short name the sheet shows', () => {
+    renderScreen();
+
+    expect(screen.getByText('Scan')).toBeTruthy();
+    expect(screen.getByText('Measure')).toBeTruthy();
+    expect(screen.getAllByText('Sync Health').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Symptoms & Health').length).toBeGreaterThan(0);
+  });
+
   test('putting a row item on a card sends the old card to the rows', () => {
     useAppPreferencesStore
       .getState()

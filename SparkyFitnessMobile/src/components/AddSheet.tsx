@@ -16,10 +16,11 @@ import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { useCSSVariable } from 'uniwind';
 import { useTranslation } from 'react-i18next';
 
+import AddMenuIconTile, { useAddMenuTintColors } from './AddMenuIconTile';
 import Icon, { type IconName } from './Icon';
-import Button from './ui/Button';
 import { useSheetBackdrop, useSheetHardwareBack } from './ui/sheetChrome';
 import {
+  ADD_MENU_CARD_LABELS,
   ADD_MENU_ITEM_ICONS,
   ADD_MENU_ITEM_ROW_STYLES,
   ADD_MENU_ITEM_TINTS,
@@ -59,47 +60,12 @@ interface AddSheetProps {
 /** What one item in the sheet looks like and does, as a card or a row. */
 interface MenuItemDef {
   label: string;
-  /** A shorter name for the narrow card, when the label is long. */
-  cardLabel?: string;
   /** A word at the right of a list row, or under the label of a compact one. */
   hint?: string;
   icon: IconName;
   /** Missing for Exercise, which opens the sub-menu instead. */
   onPress?: () => void;
 }
-
-/** An icon on a softly tinted rounded square. */
-const IconTile = ({
-  icon,
-  color,
-  size,
-}: {
-  icon: IconName;
-  color: string;
-  size: 'card' | 'row';
-}) => {
-  const box = size === 'card' ? 52 : 40;
-  return (
-    <View
-      style={{
-        width: box,
-        height: box,
-        borderRadius: size === 'card' ? 18 : 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-      }}
-    >
-      <View
-        style={[
-          StyleSheet.absoluteFill,
-          { backgroundColor: color, opacity: 0.14 },
-        ]}
-      />
-      <Icon name={icon} size={size === 'card' ? 26 : 20} color={color} />
-    </View>
-  );
-};
 
 const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
   (
@@ -152,12 +118,6 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       raisedBg,
       textSecondary,
       borderSubtle,
-      tintGreen,
-      tintViolet,
-      tintRed,
-      tintAmber,
-      tintSky,
-      tintPink,
     ] = useCSSVariable([
       '--color-surface',
       '--color-text-muted',
@@ -165,22 +125,8 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       '--color-raised',
       '--color-text-secondary',
       '--color-border-subtle',
-      '--color-cat-green',
-      '--color-cat-violet',
-      '--color-icon-danger',
-      '--color-icon-warning',
-      '--color-macro-fat',
-      '--color-cat-pink',
     ]) as string[];
-    const tintColors = {
-      accent: accentPrimary,
-      green: tintGreen,
-      violet: tintViolet,
-      red: tintRed,
-      amber: tintAmber,
-      sky: tintSky,
-      pink: tintPink,
-    };
+    const tintColors = useAddMenuTintColors();
 
     const clearScheduledPresent = useCallback(() => {
       if (presentFrameRef.current != null) {
@@ -357,7 +303,7 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
         style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         onPress={() => press(def.onPress)}
       >
-        <IconTile
+        <AddMenuIconTile
           icon={def.icon}
           color={tintColors[ADD_MENU_ITEM_TINTS[key]]}
           size="card"
@@ -368,7 +314,7 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
           adjustsFontSizeToFit
           minimumFontScale={0.8}
         >
-          {def.cardLabel ?? def.label}
+          {ADD_MENU_CARD_LABELS[key]?.(t) ?? def.label}
         </Text>
       </Pressable>
     );
@@ -382,7 +328,7 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
         style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         onPress={() => press(def.onPress)}
       >
-        <IconTile
+        <AddMenuIconTile
           icon={def.icon}
           color={tintColors[ADD_MENU_ITEM_TINTS[key]]}
           size="row"
@@ -411,7 +357,7 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
         style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         onPress={() => press(def.onPress)}
       >
-        <IconTile
+        <AddMenuIconTile
           icon={def.icon}
           color={tintColors[ADD_MENU_ITEM_TINTS[key]]}
           size="row"
@@ -480,38 +426,41 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       );
     };
 
+    // A row of the Exercise sub-menu: a tinted tile, the name, what it does
+    // underneath, and a chevron, like the rows of the main menu.
     const renderExerciseOption = (
       label: string,
       subtitle: string,
       icon: IconName,
+      tint: keyof typeof tintColors,
       onPress: () => void
     ) => (
-      <Button
+      <Pressable
         key={label}
-        variant="primary"
-        className="flex-1 py-5 mx-1.5"
-        style={{ backgroundColor: raisedBg }}
+        className="flex-row items-center px-4 py-3"
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         onPress={() => handleAction(onPress)}
       >
-        <View className="h-10 items-center justify-center">
-          <Icon name={icon} size={32} color={accentPrimary} />
+        <AddMenuIconTile icon={icon} color={tintColors[tint]} size="row" />
+        <View className="flex-1 ml-3">
+          <Text
+            className="text-text-primary text-base font-medium"
+            numberOfLines={1}
+          >
+            {label}
+          </Text>
+          <Text
+            className="text-xs mt-0.5"
+            numberOfLines={1}
+            style={{ color: textSecondary }}
+          >
+            {subtitle}
+          </Text>
         </View>
-        <Text
-          className="text-text-primary text-sm font-medium mt-2 text-center"
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.8}
-        >
-          {label}
-        </Text>
-        <Text
-          className="text-xs mt-1 text-center"
-          numberOfLines={2}
-          style={{ color: textSecondary, minHeight: 32 }}
-        >
-          {subtitle}
-        </Text>
-      </Button>
+        <Icon name="chevron-forward" size={14} color={textMuted} />
+      </Pressable>
     );
 
     // Everything the app can offer right now, keyed so the saved arrangement
@@ -529,13 +478,11 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
       },
       measurements: {
         label: t('addSheet.measurements', { defaultValue: 'Measurements' }),
-        cardLabel: t('addSheet.measureShort', { defaultValue: 'Measure' }),
         icon: ADD_MENU_ITEM_ICONS.measurements,
         onPress: onAddMeasurements,
       },
       scanFood: {
         label: t('addSheet.scanFood', { defaultValue: 'Scan Food' }),
-        cardLabel: t('addSheet.scanShort', { defaultValue: 'Scan' }),
         icon: ADD_MENU_ITEM_ICONS.scanFood,
         onPress: onBarcodeScan,
       },
@@ -656,56 +603,89 @@ const AddSheet = React.forwardRef<AddSheetRef, AddSheetProps>(
         <BottomSheetView className="pb-safe-or-5 px-2.5">
           {showExerciseMenu ? (
             <>
-              <Pressable
-                className="flex-row items-center mb-3 px-1.5"
-                accessibilityRole="button"
-                accessibilityLabel={t('common.back', { defaultValue: 'Back' })}
-                onPress={showMainMenu}
-              >
-                <Icon name="chevron-back" size={20} color={accentPrimary} />
-                <Text
-                  className="text-sm font-medium ml-1"
-                  style={{ color: accentPrimary }}
+              <View className="flex-row items-center justify-between px-3 pt-1 pb-3">
+                <Pressable
+                  className="flex-row items-center"
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.back', {
+                    defaultValue: 'Back',
+                  })}
+                  hitSlop={10}
+                  onPress={showMainMenu}
                 >
-                  {t('common.back', { defaultValue: 'Back' })}
+                  <Icon name="chevron-back" size={20} color={accentPrimary} />
+                  <Text
+                    className="text-base font-semibold ml-1"
+                    style={{ color: accentPrimary }}
+                  >
+                    {t('common.back', { defaultValue: 'Back' })}
+                  </Text>
+                </Pressable>
+                <Text className="text-text-primary text-2xl font-bold">
+                  {t('addSheet.exercise', { defaultValue: 'Exercise' })}
                 </Text>
-              </Pressable>
-              <View className="flex-row">
-                {renderExerciseOption(
-                  t('addSheet.workout', { defaultValue: 'Workout' }),
-                  t('addSheet.liveSets', { defaultValue: 'Live sets & reps' }),
-                  'exercise-weights',
-                  onStartWorkout
-                )}
-                {renderExerciseOption(
-                  t('addSheet.activity', { defaultValue: 'Activity' }),
-                  t('addSheet.durationDistance', {
-                    defaultValue: 'Duration & distance',
-                  }),
-                  'exercise-running-filled',
-                  onAddActivity
-                )}
-                {renderExerciseOption(
-                  t('addSheet.logWorkout', { defaultValue: 'Log Workout' }),
-                  t('addSheet.pastSets', { defaultValue: 'Past sets & reps' }),
-                  'pencil',
-                  onLogWorkout
-                )}
               </View>
-              {onRecordActivity && (
-                <View className="flex-row mt-3">
-                  {renderExerciseOption(
-                    t('addSheet.recordActivity', {
-                      defaultValue: 'Record Activity',
+              <View
+                className="rounded-2xl mx-1.5 overflow-hidden"
+                style={{ backgroundColor: raisedBg }}
+              >
+                {[
+                  renderExerciseOption(
+                    t('addSheet.workout', { defaultValue: 'Workout' }),
+                    t('addSheet.liveSets', {
+                      defaultValue: 'Live sets & reps',
                     }),
-                    t('addSheet.recordActivityHint', {
-                      defaultValue: 'Track a walk, run or ride with GPS',
+                    'exercise-weights',
+                    'accent',
+                    onStartWorkout
+                  ),
+                  renderExerciseOption(
+                    t('addSheet.activity', { defaultValue: 'Activity' }),
+                    t('addSheet.durationDistance', {
+                      defaultValue: 'Duration & distance',
                     }),
-                    'location',
-                    onRecordActivity
-                  )}
-                </View>
-              )}
+                    'exercise-running-filled',
+                    'green',
+                    onAddActivity
+                  ),
+                  renderExerciseOption(
+                    t('addSheet.logWorkout', { defaultValue: 'Log Workout' }),
+                    t('addSheet.pastSets', {
+                      defaultValue: 'Past sets & reps',
+                    }),
+                    'pencil',
+                    'violet',
+                    onLogWorkout
+                  ),
+                  ...(onRecordActivity
+                    ? [
+                        renderExerciseOption(
+                          t('addSheet.recordActivity', {
+                            defaultValue: 'Record Activity',
+                          }),
+                          t('addSheet.recordActivityHint', {
+                            defaultValue: 'Track a walk, run or ride with GPS',
+                          }),
+                          'location',
+                          'amber',
+                          onRecordActivity
+                        ),
+                      ]
+                    : []),
+                ].map((row, index) => (
+                  <View key={index}>
+                    {index > 0 ? (
+                      <View
+                        style={{
+                          height: StyleSheet.hairlineWidth,
+                          backgroundColor: borderSubtle,
+                        }}
+                      />
+                    ) : null}
+                    {row}
+                  </View>
+                ))}
+              </View>
             </>
           ) : (
             <>

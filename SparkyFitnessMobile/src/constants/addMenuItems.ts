@@ -54,13 +54,22 @@ export const ADD_MENU_ITEM_LABELS: Record<
   progressPhotos: (t) =>
     t('addSheet.progressPhotos', { defaultValue: 'Progress Photos' }),
   wellness: (t) => t('addSheet.wellness', { defaultValue: 'Wellness' }),
-  symptoms: (t) => t('addSheet.symptoms', { defaultValue: 'Symptoms' }),
+  symptoms: (t) =>
+    t('addSheet.symptomsHealth', { defaultValue: 'Symptoms & Health' }),
   mood: (t) => t('addSheet.mood', { defaultValue: 'Mood' }),
   mindfulness: (t) =>
     t('addSheet.mindfulness', { defaultValue: 'Mindfulness' }),
   askSparky: (t) => t('addSheet.askSparky', { defaultValue: 'Ask Sparky' }),
   syncHealth: (t) =>
-    t('addSheet.syncHealth', { defaultValue: 'Sync Health Data' }),
+    t('addSheet.syncHealthShort', { defaultValue: 'Sync Health' }),
+};
+
+/** A shorter name for the narrow card, where the row's name is long. */
+export const ADD_MENU_CARD_LABELS: Partial<
+  Record<AddMenuItemKey, (t: Translator) => string>
+> = {
+  measurements: (t) => t('addSheet.measureShort', { defaultValue: 'Measure' }),
+  scanFood: (t) => t('addSheet.scanShort', { defaultValue: 'Scan' }),
 };
 
 /** Each item's icon, on a card and in a row. */
