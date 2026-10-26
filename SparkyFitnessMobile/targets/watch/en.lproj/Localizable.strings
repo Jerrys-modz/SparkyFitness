@@ -237,6 +237,11 @@
 "watch.water.openPhone" = "Open SparkyFitness on your iPhone to sync your containers";
 "watch.water.todayLog" = "Today's Log";
 "watch.water.notSynced" = "Water not synced yet";
+"watch.water.openPhoneClassic" = "Open SparkyFitness on your phone to sync your containers";
+"watch.goals.eaten" = "Eaten";
+"watch.goals.burned" = "Burned";
+"watch.goals.kcalLeftClassic" = "Kcal left";
+"watch.goals.kcalOverClassic" = "Kcal over";
 "watch.water.ofGoal" = "%lld%% of %@";
 "watch.fasting.startPreset" = "Start %@";
 "watch.steps.waiting" = "Waiting for your iPhone";

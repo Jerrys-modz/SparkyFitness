@@ -207,6 +207,8 @@ jobs:
             shoot water-large none water "" large
             shoot medications none medications
             shoot medications-dose none medications dose
+            shoot fasting none fasting
+            shoot fasting-running none fasting "" fast
           done <<< "$DEVICES"
 
           ls -la screenshots

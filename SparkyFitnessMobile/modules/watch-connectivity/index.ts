@@ -686,6 +686,11 @@ export interface WatchWorkoutEditPayload {
     | 'doExerciseNow';
   /** For `addSet`, `deleteExercise` and `doExerciseNow`. */
   exerciseEntryId?: string;
+  /**
+   * For `doExerciseNow`: the exercise the watch is on, which the picked one
+   * goes in front of. Absent from an older watch: the phone's cursor is used.
+   */
+  anchorEntryId?: string;
   /** For `deleteSet` and `setSetType`. */
   setId?: string;
   /** For `addExercise`: the library exercise to add. */

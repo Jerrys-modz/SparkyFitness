@@ -3405,6 +3405,21 @@ describe('activeWorkoutStore', () => {
       expect(state.activeSetId).toBe('102');
     });
 
+    it('moves in front of the anchor the watch sends, not the phone cursor', () => {
+      useActiveWorkoutStore.getState().completeActiveSet(); // 101
+      useActiveWorkoutStore.getState().completeActiveSet(); // 102, cursor → 201
+      // The phone's cursor is already on ex-uuid-2, so without an anchor this
+      // would be a no-op. The watch is still on ex-uuid-1, and the move is
+      // relative to it.
+      useActiveWorkoutStore.getState().doExerciseNow('ex-uuid-2', 'ex-uuid-1');
+      const state = useActiveWorkoutStore.getState();
+      expect(state.session!.exercises.map((e) => e.id)).toEqual([
+        'ex-uuid-2',
+        'ex-uuid-1',
+      ]);
+      expect(state.activeSetId).toBe('201');
+    });
+
     it('ignores the current exercise and earlier ones', () => {
       useActiveWorkoutStore.getState().doExerciseNow('ex-uuid-1');
       expect(useActiveWorkoutStore.getState().sessionRevision).toBe(0);

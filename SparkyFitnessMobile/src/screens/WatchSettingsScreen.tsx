@@ -221,11 +221,11 @@ const WatchSettingsScreen: React.FC<WatchSettingsScreenProps> = () => {
             </Text>
             <SettingsRow
               title={t('watchSettings.setScreenMetricsTitle', {
-                defaultValue: 'Time, heart rate and calories on the set screen',
+                defaultValue: 'Metrics on the set screen',
               })}
               subtitle={t('watchSettings.setScreenMetricsSubtitle', {
                 defaultValue:
-                  'Off moves them to their own page, one swipe up from the set screen.',
+                  'Elapsed time, heart rate and calories. Off moves them to their own page after the set screen (after Up Next, when that page is on).',
               })}
               subtitleNumberOfLines={0}
               rightAccessory={

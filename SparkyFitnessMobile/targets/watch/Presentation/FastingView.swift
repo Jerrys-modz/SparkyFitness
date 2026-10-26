@@ -39,7 +39,10 @@ struct FastingView: View {
         let elapsed = max(0, now.timeIntervalSince(fast.startedAt))
         let total = fast.targetEndAt.map { max(1, $0.timeIntervalSince(fast.startedAt)) }
         let progress = total.map { min(1, elapsed / $0) }
-        return VStack(spacing: 6) {
+        // Scrolls, like the idle page: on a 40 mm watch at a large text size
+        // End fast would otherwise fall off the bottom.
+        return ScrollView {
+          VStack(spacing: 4) {
             Text(fast.label.map {
                 String(localized: "watch.fasting.runningNamed", defaultValue: "Fasting · \($0)")
             } ?? String(localized: "watch.fasting.running", defaultValue: "Fasting"))
@@ -56,13 +59,13 @@ struct FastingView: View {
                         .rotationEffect(.degrees(-90))
                 }
                 Text(Self.clock(elapsed))
-                    .font(.system(size: WatchStyle.s(24), weight: .semibold, design: .rounded))
+                    .font(.system(size: WatchStyle.s(22), weight: .semibold, design: .rounded))
                     .monospacedDigit()
                     .minimumScaleFactor(0.6)
                     .lineLimit(1)
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 8)
             }
-            .frame(width: WatchStyle.s(96), height: WatchStyle.s(96))
+            .frame(width: WatchStyle.s(80), height: WatchStyle.s(80))
             if let total {
                 let remaining = total - elapsed
                 Text(remaining > 0
@@ -80,8 +83,9 @@ struct FastingView: View {
             }
             .tint(.red)
             .disabled(waiting)
+          }
+          .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .confirmationDialog(
             String(localized: "watch.fasting.endConfirm", defaultValue: "End your fast?"),
             isPresented: $confirmingEnd,
