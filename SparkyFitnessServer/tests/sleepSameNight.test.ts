@@ -331,6 +331,24 @@ describe('keepMostDetailedSleepEntries', () => {
     ]);
   });
 
+  it('keeps a record whose wake time is before its bedtime', () => {
+    const reversed = entry(
+      'reversed',
+      '2026-10-24T07:00:00Z',
+      '2026-10-23T23:00:00Z'
+    );
+    const night = entry(
+      'night',
+      '2026-10-23T23:00:00Z',
+      '2026-10-24T07:00:00Z',
+      { source: 'Google Health' }
+    );
+    expect(ids(keepMostDetailedSleepEntries([reversed, night]))).toEqual([
+      'reversed',
+      'night',
+    ]);
+  });
+
   it('returns a lone record and an empty list as they are', () => {
     const night = entry(
       'night',

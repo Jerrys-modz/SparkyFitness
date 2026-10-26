@@ -90,12 +90,19 @@ export function keepMostDetailedSleep<T>(
   return items.filter((_, index) => kept.has(index));
 }
 
-/** The most detailed record among those covering most of one sleep; the first on a tie. */
+/**
+ * The most detailed record among those covering most of one sleep; the first
+ * on a tie. A lone record with its wake time before its bedtime has a negative
+ * length and covers nothing, so it is returned as it is.
+ */
 function mostDetailed<P extends SleepPlacement>(sleep: P[]): P {
   const longest = Math.max(...sleep.map((p) => p.end - p.start));
-  return sleep
-    .filter((p) => p.end - p.start >= COMPLETE_SHARE * longest)
-    .reduce((best, p) => (compareDetail(p.detail, best.detail) > 0 ? p : best));
+  const complete = sleep.filter(
+    (p) => p.end - p.start >= COMPLETE_SHARE * longest
+  );
+  return (complete.length > 0 ? complete : sleep).reduce((best, p) =>
+    compareDetail(p.detail, best.detail) > 0 ? p : best
+  );
 }
 
 const STAGE_KINDS = ['deep', 'light', 'rem', 'awake'] as const;
