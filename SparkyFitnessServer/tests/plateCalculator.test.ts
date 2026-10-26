@@ -64,6 +64,16 @@ describe('calculatePlateLoad', () => {
     expect(result.above?.totalWeight).toBe(20);
   });
 
+  it('keeps the heavier load strictly above a target a hair over the bar', () => {
+    const result = calculatePlateLoad(
+      kgInput(20.000000001, [{ weight: 1.25, pairs: 4 }])
+    );
+    expect(result.status).toBe('inexact');
+    expect(result.below?.totalWeight).toBe(20);
+    expect(result.above?.totalWeight).toBe(22.5);
+    expect(result.overBy).toBeGreaterThan(0);
+  });
+
   it('is not fooled where greedy fails: one 20 and two 15s for 30 per side', () => {
     const plates = [
       { weight: 20, pairs: 1 },

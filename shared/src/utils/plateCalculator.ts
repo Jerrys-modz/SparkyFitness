@@ -371,7 +371,7 @@ export function calculatePlateLoad(input: PlateCalcInput): PlateCalcResult {
 
   const belowCell =
     sideUnits < 0 ? -1 : search.floor(Math.floor(sideUnits / step));
-  const aboveCell = search.ceil(Math.ceil(sideUnits / step - 1e-9));
+  const aboveCell = search.ceil(Math.ceil(sideUnits / step));
   const below = belowCell >= 0 ? load(belowCell) : null;
   const above = aboveCell >= 0 ? load(aboveCell) : null;
   return {
