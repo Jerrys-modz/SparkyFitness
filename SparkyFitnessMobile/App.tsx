@@ -52,6 +52,8 @@ import {
   SafeRouteDraw,
   SafeRouteGenerate,
   SafeRunProgramRace,
+  SafeFitnessTest,
+  SafeFitnessTestResult,
   SafeRunProgramWorkout,
   SafeMealPlanForm,
   SafeWorkoutPlans,
@@ -133,6 +135,7 @@ import {
   SafeNutritionReport,
   SafeSleepAnalytics,
   SafeMoodReport,
+  SafeHeartRateReport,
   SafeCompareReport,
   SafeHydrationReport,
   SafeSubstancesReport,
@@ -615,6 +618,16 @@ function AppContent() {
             options={createStackScreenOptions(t('screens.runProgramRace', { defaultValue: 'Plan a race' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
           />
           <Stack.Screen
+            name="FitnessTest"
+            component={SafeFitnessTest}
+            options={createStackScreenOptions(t('screens.fitnessTest', { defaultValue: 'Fitness tests' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
+          />
+          <Stack.Screen
+            name="FitnessTestResult"
+            component={SafeFitnessTestResult}
+            options={createStackScreenOptions(t('screens.fitnessTestResult', { defaultValue: 'Fitness test' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
             name="RunProgramEdit"
             component={SafeRunProgramEdit}
             options={createStackScreenOptions(t('screens.runProgramEdit', { defaultValue: 'Edit plan' }), { headerBackTitle: t('screens.runPrograms', { defaultValue: 'Training programs' }) })}
@@ -879,6 +892,11 @@ function AppContent() {
             name="MoodReport"
             component={SafeMoodReport}
             options={createStackScreenOptions(t('screens.moodReport', { defaultValue: 'Mood' }), { headerBackButtonDisplayMode: 'minimal' })}
+          />
+          <Stack.Screen
+            name="HeartRateReport"
+            component={SafeHeartRateReport}
+            options={createStackScreenOptions(t('screens.heartRateReport', { defaultValue: 'Heart Rate' }), { headerBackButtonDisplayMode: 'minimal' })}
           />
           <Stack.Screen
             name="CompareReport"

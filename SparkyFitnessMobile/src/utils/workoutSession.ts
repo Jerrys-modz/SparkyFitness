@@ -24,6 +24,7 @@ import {
   decideAdaptiveAdjustment,
   distributeProgressionReps,
   effectiveLoadKg,
+  entryCaloriesCounted,
   evaluateProgression,
   isBodyweightModality,
   isCardioModality,
@@ -85,6 +86,8 @@ export const CATEGORY_ICON_MAP: Record<string, IconName> = {
   Strength: 'exercise-weights',
   Cardio: 'exercise-running',
   Running: 'exercise-running',
+  'Jump Rope': 'exercise-jumprope',
+  'Skipping Rope': 'exercise-jumprope',
   Cycling: 'exercise-cycling',
   Swimming: 'exercise-swimming',
   Walking: 'exercise-walking',
@@ -121,6 +124,10 @@ const NAME_KEYWORDS: [string, IconName][] = [
   ['stair', 'exercise-stair'],
   ['strength', 'exercise-weights'],
   ['weight', 'exercise-weights'],
+  // Whole names, not bare words: "Jump Squat", "Jumping Jacks" and
+  // "Battle Ropes" are not rope skipping.
+  ['jump rope', 'exercise-jumprope'],
+  ['skipping rope', 'exercise-jumprope'],
   ['run', 'exercise-running'],
 ];
 
@@ -202,9 +209,12 @@ export function getFirstImage(session: ExerciseSessionResponse): string | null {
 
 export function getSessionCalories(session: ExerciseSessionResponse): number {
   if (session.type === 'preset') {
-    return session.exercises.reduce((sum, e) => sum + e.calories_burned, 0);
+    return session.exercises.reduce(
+      (sum, e) => sum + entryCaloriesCounted(e),
+      0
+    );
   }
-  return session.calories_burned || 0;
+  return entryCaloriesCounted(session);
 }
 
 // --- Exercise stats (single-pass over sessions array) ---
@@ -235,7 +245,7 @@ export function calculateExerciseStats(
       const isActiveCals =
         session.exercise_snapshot?.name === 'Active Calories';
       if (isActiveCals) {
-        activeCalories += session.calories_burned || 0;
+        activeCalories += entryCaloriesCounted(session);
       } else {
         otherExerciseCalories += sessionCals;
         durationMinutes += session.duration_minutes ?? 0;

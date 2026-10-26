@@ -10,6 +10,15 @@ import { saveActivityAsRoute } from '../../src/services/routeService';
 import { initializeI18n } from '../../src/localization/i18n';
 import type { RootStackScreenProps } from '../../src/types/navigation';
 
+jest.mock('../../src/services/fitnessTestService', () => ({
+  useFitnessTests: jest.fn(() => ({
+    tests: [],
+    latest: null,
+    loaded: true,
+    isLoading: false,
+    refetch: jest.fn(),
+  })),
+}));
 jest.mock('../../src/services/gpxExport', () => ({
   shareRouteAsGpx: jest.fn(() => Promise.resolve(true)),
 }));
@@ -329,6 +338,22 @@ describe('CardioSessionScreen', () => {
     expect(screen.getByText(/No GPS route stored/)).toBeTruthy();
     expect(screen.getByTestId('heart-rate-chart')).toBeTruthy();
     expect(screen.queryByText('Heart Rate Zones')).toBeNull();
+  });
+
+  it('leaves out the route card for a duration-only workout', () => {
+    // A jump rope covers no distance, so it can never have a route.
+    const jumpRope = {
+      ...SESSION,
+      id: 'jump-rope-1',
+      exerciseName: 'Jump Rope',
+      distanceFormatted: null,
+      formattedPace: null,
+      modality: 'duration',
+    } as ExerciseActivityQueryItem;
+    mockDetail.mockReturnValue(detail({ route: [] }));
+    const screen = render(<CardioSessionScreen {...props(jumpRope)} />);
+    expect(screen.queryByText(/No GPS route stored/)).toBeNull();
+    expect(screen.getByTestId('heart-rate-chart')).toBeTruthy();
   });
 
   it('falls back to the stored average without samples', () => {
