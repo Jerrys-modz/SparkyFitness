@@ -6,6 +6,11 @@ import { log } from '../config/logging.js';
 import requireSelfActor from '../middleware/requireSelfMiddleware.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 import checkPermissionMiddleware from '../middleware/checkPermissionMiddleware.js';
+import {
+  SYNC_ALREADY_RUNNING_RESPONSE,
+  startProviderSync,
+} from '../services/providerSyncClaim.js';
+import { publicErrorMessage } from '../utils/errors.js';
 const router = express.Router();
 /**
  * @swagger
@@ -39,8 +44,7 @@ router.get(
       log('error', `Error initiating Fitbit authorization: ${error.message}`);
       res.status(500).json({
         message: 'Error initiating Fitbit authorization',
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        error: error.message,
+        error: publicErrorMessage(error),
       });
     }
   }
@@ -86,8 +90,7 @@ router.post(
       log('error', `Error handling Fitbit OAuth callback: ${error.message}`);
       res.status(500).json({
         message: 'Error handling Fitbit OAuth callback',
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        error: error.message,
+        error: publicErrorMessage(error),
       });
     }
   }
@@ -115,14 +118,23 @@ router.post(
         'info',
         `[fitbitRoutes] Manual sync triggered for user ${userId}${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}${dataSource ? ` (Source: ${dataSource})` : ''}`
       );
-      await fitbitService.syncFitbitData(
-        userId,
-        'manual',
-        startDate,
-        endDate,
-        dataSource,
-        saveMockData
+      const started = await startProviderSync(
+        { userId, providerType: 'fitbit' },
+        () =>
+          fitbitService.syncFitbitData(
+            userId,
+            'manual',
+            startDate,
+            endDate,
+            dataSource,
+            saveMockData
+          )
       );
+      if (!started) {
+        res.status(409).json(SYNC_ALREADY_RUNNING_RESPONSE);
+        return;
+      }
+      await started.running;
       res
         .status(200)
         .json({ message: 'Fitbit data sync completed successfully.' });
@@ -131,8 +143,7 @@ router.post(
       log('error', `Error initiating manual Fitbit sync: ${error.message}`);
       res.status(500).json({
         message: 'Error initiating manual Fitbit sync',
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        error: error.message,
+        error: publicErrorMessage(error),
       });
     }
   }
@@ -160,8 +171,7 @@ router.post(
       log('error', `Error disconnecting Fitbit account: ${error.message}`);
       res.status(500).json({
         message: 'Error disconnecting Fitbit account',
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        error: error.message,
+        error: publicErrorMessage(error),
       });
     }
   }
@@ -185,10 +195,10 @@ router.get(
     } catch (error) {
       // @ts-expect-error TS(2571): Object is of type 'unknown'.
       log('error', `Error getting Fitbit status: ${error.message}`);
-      res
-        .status(500)
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        .json({ message: 'Error getting Fitbit status', error: error.message });
+      res.status(500).json({
+        message: 'Error getting Fitbit status',
+        error: publicErrorMessage(error),
+      });
     }
   }
 );

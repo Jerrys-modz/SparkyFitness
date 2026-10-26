@@ -2,7 +2,7 @@ manifestVersion: 1
 id: sparkyfitness
 category: files
 name: SparkyFitness
-version: "v1.7.3"
+version: "v1.9.0"
 tagline: Self-hosted nutrition, exercise, and body metrics tracker
 description: >-
   🥗 SparkyFitness is a self-hosted alternative to MyFitnessPal for tracking
@@ -39,7 +39,33 @@ description: >-
 
   Online food databases and AI features are off until you add your own
   credentials in the app's settings; nothing is sent anywhere by default.
-releaseNotes: ""
+releaseNotes: >-
+  - **Adaptive calorie budgets:** Dynamic Goal and Percentage Earn-Back no longer add activity calories or optional BMR credit to an Adaptive target a second time. Remaining calories may be lower after upgrading because these duplicate credits are removed. Recorded activity remains visible, and Manual targets retain their existing earn-back behavior.
+
+  - Supplement barcode scanning
+
+  - Add Lock Screen widgets and controls for calories, water, fasting and food- #133
+
+  - Add a warm-up set generator to the active workout
+
+  - Log a mood check-in and show it on the dashboard
+
+  - Add an iOS water widget with a log-a-drink button
+
+  - Fill in a supplement from a photo of its label
+
+  - Celebrate personal records on the watch
+
+  - Log effort (RPE) after a set
+
+  - Show the exercise, set, and target on the workout Live Activity
+
+  - Feat (Mobile): add fasting settings and fasting report
+
+  - Create and edit workout plans
+
+  Full release notes: https://github.com/CodeWithCJ/SparkyFitness/releases/tag/v1.9.0
+
 developer: CodeWithCJ
 website: https://codewithcj.github.io/SparkyFitness/
 dependencies: []

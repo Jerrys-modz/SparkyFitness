@@ -11,7 +11,9 @@ import stravaService from './stravaService.js';
 import googleHealthService from './googleHealthService.js';
 import hevyService from '../integrations/hevy/hevyService.js';
 import liftosaurService from '../integrations/liftosaur/liftosaurService.js';
+import intervalsService from '../integrations/intervals/intervalsService.js';
 import { log } from '../config/logging.js';
+import { startProviderSync } from './providerSyncClaim.js';
 
 export interface ProviderSyncTarget {
   id: string;
@@ -122,6 +124,14 @@ export const PROVIDER_SYNC_CONFIGS: readonly ProviderSyncConfig[] = [
       );
     },
   },
+  {
+    // Hourly; each run covers yesterday and today in the user's timezone.
+    name: 'Intervals.icu',
+    types: ['intervals'],
+    sync: async (p) => {
+      await intervalsService.syncIntervalsData(p.user_id, p.user_id, p.id);
+    },
+  },
 ];
 
 export const runProviderSync = async (
@@ -138,7 +148,18 @@ export const runProviderSync = async (
     for (const provider of providers) {
       if (provider.is_active && provider.sync_frequency !== 'manual') {
         try {
-          await config.sync(provider);
+          const started = await startProviderSync(
+            { userId: provider.user_id, providerId: provider.id },
+            () => config.sync(provider)
+          );
+          if (started) {
+            await started.running;
+          } else {
+            log(
+              'info',
+              `[CRON] ${config.name} sync skipped for user ${provider.user_id}: another sync for this account is still running.`
+            );
+          }
         } catch (error) {
           log(
             'error',

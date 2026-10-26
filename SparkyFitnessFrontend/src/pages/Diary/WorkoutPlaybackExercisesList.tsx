@@ -5,6 +5,7 @@ import {
   DEFAULT_DROP_SET_COUNT,
   DEFAULT_DROP_SET_PERCENT,
   findDropSetBaseIndex,
+  usesBarbell,
 } from '@workspace/shared';
 import type { WeightUnit } from '@/contexts/PreferencesContext';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -17,6 +18,7 @@ import {
 import WorkoutPlaybackSetRow from './WorkoutPlaybackSetRow';
 import AdaptiveSuggestionNotice from './AdaptiveSuggestionNotice';
 import ImageLightbox from '@/components/ImageLightbox';
+import { PlateCalculatorDialog } from '@/components/PlateCalculator/PlateCalculatorDialog';
 import {
   filterValidExerciseImages,
   resolveExerciseImageSrc,
@@ -70,6 +72,12 @@ const WorkoutPlaybackExercisesList = ({
     images: string[];
     title: string;
   } | null>(null);
+  // The set the plate calculator is open for.
+  const [plateTarget, setPlateTarget] = useState<WorkoutSetPointer | null>(
+    null
+  );
+  const plateExercise =
+    plateTarget != null ? exercises[plateTarget.exerciseIndex] : undefined;
 
   return (
     <div className="space-y-2">
@@ -131,8 +139,11 @@ const WorkoutPlaybackExercisesList = ({
                     {exercise.exercise_name}
                   </h3>
                   <p className="text-[11px] text-muted-foreground">
-                    {completedSets}/{totalSets}{' '}
-                    {t('exercise.workoutPlaybackDialog.sets', 'sets')}
+                    {t(
+                      'exercise.workoutPlaybackPage.sets',
+                      '{{completedSets}}/{{totalSets}} sets',
+                      { completedSets, totalSets }
+                    )}
                   </p>
                 </div>
                 {onReplaceExercise && (
@@ -273,6 +284,8 @@ const WorkoutPlaybackExercisesList = ({
                         onRemoveSet={onRemoveSet}
                         canRemove={exercise.sets.length > 1}
                         weightUnit={weightUnit}
+                        canCalculatePlates={usesBarbell(exercise.equipment)}
+                        onOpenPlateCalculator={setPlateTarget}
                       />
                     );
                   })}
@@ -281,7 +294,11 @@ const WorkoutPlaybackExercisesList = ({
                 <div className="mt-2 flex justify-center gap-3">
                   <button
                     type="button"
-                    aria-label={`Add set for ${exercise.exercise_name}`}
+                    aria-label={t(
+                      'diary.workoutPlaybackExercisesList.addSetFor',
+                      'Add set for {{exercise_name}}',
+                      { exercise_name: exercise.exercise_name }
+                    )}
                     className="inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
                     onClick={() => onAddSet(exerciseIndex)}
                   >
@@ -314,6 +331,17 @@ const WorkoutPlaybackExercisesList = ({
           </Card>
         );
       })}
+      {plateTarget != null && (
+        <PlateCalculatorDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setPlateTarget(null);
+          }}
+          weightKg={plateExercise?.sets[plateTarget.setIndex]?.weight}
+          weightUnit={weightUnit}
+          equipment={plateExercise?.equipment}
+        />
+      )}
       <ImageLightbox
         images={imageViewer?.images ?? []}
         open={imageViewer != null}

@@ -171,14 +171,15 @@ export async function bulkUpsertVitals(
     for (const entry of entries) {
       const res = (await client.query(
         `INSERT INTO vitals_entries
-          (user_id, entry_date, timestamp, systolic_mmhg, diastolic_mmhg, blood_glucose_mgdl, body_temperature_celsius, meal_context, source_provider, device_name, external_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          (user_id, entry_date, timestamp, systolic_mmhg, diastolic_mmhg, blood_glucose_mgdl, body_temperature_celsius, pulse_bpm, meal_context, source_provider, device_name, external_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          ON CONFLICT (user_id, source_provider, timestamp)
          DO UPDATE SET
            systolic_mmhg = COALESCE(EXCLUDED.systolic_mmhg, vitals_entries.systolic_mmhg),
            diastolic_mmhg = COALESCE(EXCLUDED.diastolic_mmhg, vitals_entries.diastolic_mmhg),
            blood_glucose_mgdl = COALESCE(EXCLUDED.blood_glucose_mgdl, vitals_entries.blood_glucose_mgdl),
            body_temperature_celsius = COALESCE(EXCLUDED.body_temperature_celsius, vitals_entries.body_temperature_celsius),
+           pulse_bpm = COALESCE(EXCLUDED.pulse_bpm, vitals_entries.pulse_bpm),
            meal_context = COALESCE(EXCLUDED.meal_context, vitals_entries.meal_context),
            device_name = COALESCE(EXCLUDED.device_name, vitals_entries.device_name),
            external_id = COALESCE(EXCLUDED.external_id, vitals_entries.external_id)
@@ -191,6 +192,9 @@ export async function bulkUpsertVitals(
           entry.diastolic_mmhg ?? null,
           entry.blood_glucose_mgdl ?? null,
           entry.body_temperature_celsius ?? null,
+          entry.pulse_bpm === null || entry.pulse_bpm === undefined
+            ? null
+            : Math.round(entry.pulse_bpm),
           entry.meal_context || null,
           entry.source_provider,
           entry.device_name || null,
@@ -242,9 +246,8 @@ export async function upsertDailyHealthMetrics(
          lactate_threshold_speed_mps, walking_asymmetry_percentage, hill_score, race_prediction_5k_seconds,
          race_prediction_10k_seconds, race_prediction_half_marathon_seconds, race_prediction_marathon_seconds,
          recovery_time_hours, training_readiness_score, endurance_score, weekly_training_load, acute_training_load,
-         chronic_training_load, acwr_ratio, avg_stress_level, max_stress_level, body_battery_charged, body_battery_drained,
-         body_battery_highest, body_battery_lowest, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, NOW())
+         chronic_training_load, acwr_ratio, avg_stress_level, max_stress_level, body_battery_charged, body_battery_drained, body_battery_highest, body_battery_lowest, total_mindful_minutes, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, NOW())
        ON CONFLICT (user_id, entry_date, source_provider)
        DO UPDATE SET
          device_name = COALESCE(EXCLUDED.device_name, daily_health_metrics.device_name),
@@ -256,10 +259,11 @@ export async function upsertDailyHealthMetrics(
          active_calories = COALESCE(EXCLUDED.active_calories, daily_health_metrics.active_calories),
          bmr_calories = COALESCE(EXCLUDED.bmr_calories, daily_health_metrics.bmr_calories),
          -- Daily aggregate syncs can finish out of order. Advance the calorie
-         -- snapshot and its capture time together, never independently.
+         -- snapshot and its capture time together, never independently. A NULL
+         -- incoming stamp only fills a NULL slot: the comparison is NULL, so a
+         -- stamped total is never displaced by an unordered legacy write.
          total_calories = CASE
            WHEN EXCLUDED.total_calories IS NOT NULL
-             AND EXCLUDED.total_calories_captured_at IS NOT NULL
              AND (
                daily_health_metrics.total_calories_captured_at IS NULL
                OR EXCLUDED.total_calories_captured_at > daily_health_metrics.total_calories_captured_at
@@ -269,7 +273,6 @@ export async function upsertDailyHealthMetrics(
          END,
          total_calories_captured_at = CASE
            WHEN EXCLUDED.total_calories IS NOT NULL
-             AND EXCLUDED.total_calories_captured_at IS NOT NULL
              AND (
                daily_health_metrics.total_calories_captured_at IS NULL
                OR EXCLUDED.total_calories_captured_at > daily_health_metrics.total_calories_captured_at
@@ -309,6 +312,7 @@ export async function upsertDailyHealthMetrics(
          body_battery_drained = COALESCE(EXCLUDED.body_battery_drained, daily_health_metrics.body_battery_drained),
          body_battery_highest = COALESCE(EXCLUDED.body_battery_highest, daily_health_metrics.body_battery_highest),
          body_battery_lowest = COALESCE(EXCLUDED.body_battery_lowest, daily_health_metrics.body_battery_lowest),
+         total_mindful_minutes = COALESCE(EXCLUDED.total_mindful_minutes, daily_health_metrics.total_mindful_minutes),
          updated_at = NOW()
        RETURNING *`,
       [
@@ -357,6 +361,7 @@ export async function upsertDailyHealthMetrics(
         metric.body_battery_drained ?? null,
         metric.body_battery_highest ?? null,
         metric.body_battery_lowest ?? null,
+        metric.total_mindful_minutes ?? null,
       ]
     )) as { rows: DailyHealthMetrics[] };
     return res.rows[0];

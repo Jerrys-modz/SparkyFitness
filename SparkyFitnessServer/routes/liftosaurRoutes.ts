@@ -6,6 +6,12 @@ import liftosaurService, {
 import { log } from '../config/logging.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 import checkPermissionMiddleware from '../middleware/checkPermissionMiddleware.js';
+import {
+  SYNC_ALREADY_RUNNING_RESPONSE,
+  syncClaimTarget,
+  startProviderSync,
+} from '../services/providerSyncClaim.js';
+import { publicErrorMessage } from '../utils/errors.js';
 
 const router = express.Router();
 
@@ -81,14 +87,23 @@ router.post(
         'info',
         `[liftosaurRoutes] Manual sync triggered for user ${userId}${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}`
       );
-      const result = await liftosaurService.syncLiftosaurData(
-        userId,
-        createdByUserId,
-        fullSync,
-        providerId,
-        startDate,
-        endDate
+      const started = await startProviderSync(
+        syncClaimTarget(userId, 'liftosaur', providerId),
+        () =>
+          liftosaurService.syncLiftosaurData(
+            userId,
+            createdByUserId,
+            fullSync,
+            providerId,
+            startDate,
+            endDate
+          )
       );
+      if (!started) {
+        res.status(409).json(SYNC_ALREADY_RUNNING_RESPONSE);
+        return;
+      }
+      const result = await started.running;
       res.status(200).json(result);
     } catch (error) {
       const { status, code } = liftosaurErrorReason(error);
@@ -112,7 +127,7 @@ router.post(
       }
       res.status(500).json({
         message: 'Error initiating manual Liftosaur sync',
-        error: errorMessage(error),
+        error: publicErrorMessage(error),
       });
     }
   }
@@ -148,7 +163,7 @@ router.get(
       log('error', `Error getting Liftosaur status: ${errorMessage(error)}`);
       res.status(500).json({
         message: 'Error getting Liftosaur status',
-        error: errorMessage(error),
+        error: publicErrorMessage(error),
       });
     }
   }
@@ -192,7 +207,7 @@ router.post(
       log('error', `Error disconnecting Liftosaur: ${errorMessage(error)}`);
       res.status(500).json({
         message: 'Error disconnecting Liftosaur',
-        error: errorMessage(error),
+        error: publicErrorMessage(error),
       });
     }
   }

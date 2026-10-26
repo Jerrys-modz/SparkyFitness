@@ -5,14 +5,17 @@ export const DASHBOARD_CARD_KEYS = [
   'askSparky',
   'macros',
   'exercise',
+  'trainingLoad',
   'hydration',
   'caffeine',
   'fasting',
   'cycle',
   'medications',
   'symptoms',
+  'mood',
   'progressPhotos',
   'healthTrends',
+  'mindfulness',
 ] as const;
 
 export type DashboardCardKey = (typeof DASHBOARD_CARD_KEYS)[number];
@@ -28,6 +31,8 @@ export const DASHBOARD_CARD_TITLES: Record<
   macros: (t) => t('dashboardSettings.macros', { defaultValue: 'Nutrients' }),
   exercise: (t) =>
     t('dashboardSettings.exercise', { defaultValue: 'Exercise Progress' }),
+  trainingLoad: (t) =>
+    t('dashboardSettings.trainingLoad', { defaultValue: 'Training Load' }),
   hydration: (t) =>
     t('dashboardSettings.hydration', { defaultValue: 'Hydration' }),
   caffeine: (t) =>
@@ -41,12 +46,15 @@ export const DASHBOARD_CARD_TITLES: Record<
     t('dashboardSettings.medications', { defaultValue: 'Medications' }),
   symptoms: (t) =>
     t('dashboardSettings.symptoms', { defaultValue: 'Symptoms' }),
+  mood: (t) => t('dashboardSettings.mood', { defaultValue: 'Mood' }),
   progressPhotos: (t) =>
     t('dashboardSettings.progressPhotos', {
       defaultValue: 'Progress Photos',
     }),
   healthTrends: (t) =>
     t('dashboardSettings.healthTrends', { defaultValue: 'Health Trends' }),
+  mindfulness: (t) =>
+    t('dashboardSettings.mindfulness', { defaultValue: 'Mindfulness' }),
 };
 
 export const DASHBOARD_CARD_SUBTITLES: Record<
@@ -68,6 +76,11 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
   exercise: (t) =>
     t('dashboardSettings.exerciseSubtitle', {
       defaultValue: 'Show exercise minutes and calorie burn targets',
+    }),
+  trainingLoad: (t) =>
+    t('dashboardSettings.trainingLoadSubtitle', {
+      defaultValue:
+        'Show this week against your usual training, with a nudge to rest',
     }),
   hydration: (t) =>
     t('dashboardSettings.hydrationSubtitle', {
@@ -93,6 +106,10 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
     t('dashboardSettings.symptomsSubtitle', {
       defaultValue: 'Show symptom status, active episodes, and quick logging',
     }),
+  mood: (t) =>
+    t('dashboardSettings.moodSubtitle', {
+      defaultValue: "Show today's mood, a 7-day trend, and quick logging",
+    }),
   progressPhotos: (t) =>
     t('dashboardSettings.progressPhotosSubtitle', {
       defaultValue: 'Show the progress photos card on the Dashboard',
@@ -100,5 +117,10 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
   healthTrends: (t) =>
     t('dashboardSettings.healthTrendsSubtitle', {
       defaultValue: 'Choose which graphs show on the Dashboard and their order',
+    }),
+  mindfulness: (t) =>
+    t('dashboardSettings.mindfulnessSubtitle', {
+      defaultValue:
+        'Show mindfulness sessions, breathing, and meditation on the Dashboard',
     }),
 };

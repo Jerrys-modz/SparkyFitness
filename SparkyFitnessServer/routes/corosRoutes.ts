@@ -16,6 +16,12 @@ import {
   SyncBodySchema,
   DisconnectBodySchema,
 } from '../schemas/corosSchemas.js';
+import {
+  SYNC_ALREADY_RUNNING_RESPONSE,
+  syncClaimTarget,
+  startProviderSync,
+} from '../services/providerSyncClaim.js';
+import { publicErrorMessage } from '../utils/errors.js';
 
 const router = express.Router();
 
@@ -79,7 +85,7 @@ router.get(
       log('error', `Error initiating COROS authorization: ${message}`);
       res.status(500).json({
         message: 'Error initiating COROS authorization',
-        error: message,
+        error: publicErrorMessage(error),
       });
     }
   }
@@ -173,7 +179,7 @@ router.post('/callback', authMiddleware.authenticate, async (req, res) => {
     log('error', `Error handling COROS OAuth callback: ${message}`);
     res.status(500).json({
       message: 'Error handling COROS OAuth callback',
-      error: message,
+      error: publicErrorMessage(error),
     });
   }
 });
@@ -236,15 +242,24 @@ router.post(
         `[corosRoutes] Manual sync triggered for user ${userId}${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}${dataSource ? ` (Source: ${dataSource})` : ''}`
       );
 
-      const syncResult = await corosService.syncCorosData(
-        userId,
-        'manual',
-        providerId || null,
-        startDate || null,
-        endDate || null,
-        dataSource,
-        saveMockData
+      const started = await startProviderSync(
+        syncClaimTarget(userId, 'coros_mcp', providerId),
+        () =>
+          corosService.syncCorosData(
+            userId,
+            'manual',
+            providerId || null,
+            startDate || null,
+            endDate || null,
+            dataSource,
+            saveMockData
+          )
       );
+      if (!started) {
+        res.status(409).json(SYNC_ALREADY_RUNNING_RESPONSE);
+        return;
+      }
+      const syncResult = await started.running;
 
       res.status(200).json({
         message: 'COROS data sync completed successfully.',
@@ -262,7 +277,7 @@ router.post(
       log('error', `Error initiating manual COROS sync: ${message}`);
       res.status(500).json({
         message: 'Error initiating manual COROS sync',
-        error: message,
+        error: publicErrorMessage(error),
       });
     }
   }
@@ -316,7 +331,7 @@ router.post(
       log('error', `Error disconnecting COROS account: ${message}`);
       res.status(500).json({
         message: 'Error disconnecting COROS account',
-        error: message,
+        error: publicErrorMessage(error),
       });
     }
   }
@@ -365,7 +380,7 @@ router.get(
       log('error', `Error getting COROS status: ${message}`);
       res.status(500).json({
         message: 'Error getting COROS status',
-        error: message,
+        error: publicErrorMessage(error),
       });
     }
   }

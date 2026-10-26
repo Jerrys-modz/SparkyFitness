@@ -612,7 +612,7 @@ describe('exerciseService grouped workouts', () => {
             ],
           }
         )
-      ).rejects.toThrow('Exercise not found for snapshot.');
+      ).rejects.toMatchObject({ message: 'Exercise not found.', status: 404 });
     });
 
     it('updates values via reconcile without deleting existing rows', async () => {
@@ -1347,6 +1347,69 @@ describe('exerciseService grouped workouts', () => {
       ).mock.calls;
       expect(updateCalls[0][3]).toMatchObject({ superset_group: null });
       expect(updateCalls[1][3]).toMatchObject({ superset_group: null });
+    });
+
+    it('passes entry_time through the reconcile path', async () => {
+      setupExistingSession();
+
+      await exerciseService.updateGroupedWorkoutSession(
+        'user-1',
+        'actor-1',
+        'preset-entry-1',
+        {
+          exercises: [
+            {
+              id: 'entry-a',
+              exercise_id: exerciseAId,
+              sort_order: 0,
+              duration_minutes: 12,
+              entry_time: '15:59',
+              sets: [],
+            },
+            {
+              id: 'entry-b',
+              exercise_id: exerciseBId,
+              sort_order: 1,
+              duration_minutes: 0,
+              entry_time: null,
+              sets: [],
+            },
+          ],
+        }
+      );
+
+      const updateCalls = vi.mocked(
+        exerciseEntryDb._updateExerciseEntryWithClient
+      ).mock.calls;
+      expect(updateCalls[0][3]).toMatchObject({ entry_time: '15:59' });
+      expect(updateCalls[1][3]).toMatchObject({ entry_time: null });
+    });
+
+    it('leaves entry_time undefined when the reconcile payload omits it', async () => {
+      setupExistingSession();
+
+      await exerciseService.updateGroupedWorkoutSession(
+        'user-1',
+        'actor-1',
+        'preset-entry-1',
+        {
+          exercises: [
+            {
+              id: 'entry-a',
+              exercise_id: exerciseAId,
+              sort_order: 0,
+              duration_minutes: 0,
+              sets: [],
+            },
+          ],
+        }
+      );
+
+      // undefined makes _updateExerciseEntryWithClient keep the stored time.
+      const updateCalls = vi.mocked(
+        exerciseEntryDb._updateExerciseEntryWithClient
+      ).mock.calls;
+      expect(updateCalls[0][3].entry_time).toBeUndefined();
     });
 
     it('carries superset_group through the delete-and-recreate path', async () => {
@@ -2334,8 +2397,8 @@ describe('_createExerciseEntryWithClient id threading', () => {
     sets: [],
   };
 
-  // Base columns (31) + telemetry columns (40) + record_timezone = 72; the id
-  // column, when a client uuid is supplied, is appended as the 73rd placeholder.
+  // Base columns (31) + telemetry columns (42) + record_timezone = 74; the id
+  // column, when a client uuid is supplied, is appended as the 75th placeholder.
   it('inserts the client-provided uuid into the id column as the last placeholder', async () => {
     const client = makeClient();
     await create(
@@ -2350,12 +2413,12 @@ describe('_createExerciseEntryWithClient id threading', () => {
       /INSERT INTO exercise_entries/.test(sql)
     );
     expect(insert).toBeDefined();
-    expect(insert!.sql).toContain('$73');
+    expect(insert!.sql).toContain('$75');
     expect(insert!.sql).toContain('modality');
     expect(insert!.sql).toContain(', id)');
-    // $73 is the last param — the client uuid.
-    expect(insert!.params).toHaveLength(73);
-    expect(insert!.params[72]).toBe('client-uuid-1');
+    // $75 is the last param — the client uuid.
+    expect(insert!.params).toHaveLength(75);
+    expect(insert!.params[74]).toBe('client-uuid-1');
   });
 
   it('omits the id column when no id is provided (defaults to gen_random_uuid)', async () => {
@@ -2372,8 +2435,8 @@ describe('_createExerciseEntryWithClient id threading', () => {
       /INSERT INTO exercise_entries/.test(sql)
     );
     expect(insert).toBeDefined();
-    expect(insert!.sql).not.toContain('$73');
+    expect(insert!.sql).not.toContain('$75');
     expect(insert!.sql).not.toMatch(/record_timezone, id\)/);
-    expect(insert!.params).toHaveLength(72);
+    expect(insert!.params).toHaveLength(74);
   });
 });

@@ -4,6 +4,8 @@ import {
   getFoodDetailsV2,
 } from '@/api/Foods/foodService';
 
+import i18n from 'i18next';
+import { barcodeKeys } from '@/api/keys/barcodes';
 export const v2FoodKeys = {
   all: ['v2', 'foods'] as const,
   search: (
@@ -24,8 +26,12 @@ export const v2FoodKeys = {
       autoScale,
       page,
     ] as const,
-  barcode: (barcode: string, providerId?: string) =>
-    [...v2FoodKeys.all, 'barcode', barcode, providerId] as const,
+  barcode: (
+    barcode: string,
+    providerId?: string,
+    accountId?: string,
+    profileId?: string
+  ) => barcodeKeys.lookup(accountId, barcode, providerId, profileId),
   details: (providerType: string, externalId: string, providerId?: string) =>
     [
       ...v2FoodKeys.all,
@@ -57,19 +63,28 @@ export const searchFoodsV2Options = (
   staleTime: 1000 * 60 * 5,
   enabled: !!query,
   meta: {
-    errorMessage: `Failed to search ${providerType} foods.`,
+    errorMessage: i18n.t(
+      'hooks.useFoodsV2.failedToSearchFoods',
+      'Failed to search {{providerType}} foods.',
+      { providerType }
+    ),
   },
 });
 
 export const searchBarcodeV2Options = (
   barcode: string,
-  providerId?: string
+  providerId?: string,
+  accountId?: string,
+  profileId?: string
 ) => ({
-  queryKey: v2FoodKeys.barcode(barcode, providerId),
+  queryKey: v2FoodKeys.barcode(barcode, providerId, accountId, profileId),
   queryFn: () => searchBarcodeV2(barcode, providerId),
   staleTime: 1000 * 60 * 5,
   meta: {
-    errorMessage: 'Failed to search barcode.',
+    errorMessage: i18n.t(
+      'hooks.useFoodsV2.failedToSearchBarcode',
+      'Failed to search barcode.'
+    ),
   },
 });
 
@@ -83,6 +98,10 @@ export const foodDetailsV2Options = (
   staleTime: 1000 * 60 * 5,
   enabled: !!externalId,
   meta: {
-    errorMessage: `Failed to load ${providerType} food details.`,
+    errorMessage: i18n.t(
+      'hooks.useFoodsV2.failedToLoadFoodDetails',
+      'Failed to load {{providerType}} food details.',
+      { providerType }
+    ),
   },
 });

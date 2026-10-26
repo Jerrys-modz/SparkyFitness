@@ -69,6 +69,7 @@ const ALLOWED_CHECK_IN_COLUMNS = [
   'bone_mass_kg',
   'body_water_percentage',
   'bmr',
+  'resting_heart_rate',
 ];
 // Column types for the batch-UPDATE unnest casts in bulkUpsertCheckInMeasurements.
 const CHECK_IN_COLUMN_TYPES: Record<string, string> = {
@@ -83,6 +84,7 @@ const CHECK_IN_COLUMN_TYPES: Record<string, string> = {
   bone_mass_kg: 'numeric',
   body_water_percentage: 'numeric',
   bmr: 'numeric',
+  resting_heart_rate: 'integer',
 };
 // Tolerance in milliliters for matching historical manual records with incoming sync data
 const WATER_ADOPTION_TOLERANCE_ML = 5;
@@ -117,8 +119,14 @@ async function upsertStepData(
       );
       result = updateResult.rows[0];
     } else {
+      // A concurrent write may have created the day since the lookup; apply
+      // the same max-wins update to it instead of failing on the unique key.
       const insertResult = await client.query(
-        'INSERT INTO check_in_measurements (user_id, entry_date, steps, created_by_user_id, updated_by_user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $4, now(), now()) RETURNING *',
+        `INSERT INTO check_in_measurements AS cm (user_id, entry_date, steps, created_by_user_id, updated_by_user_id, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $4, now(), now())
+         ON CONFLICT (user_id, entry_date) DO UPDATE
+         SET steps = GREATEST(EXCLUDED.steps, cm.steps), updated_at = now(), updated_by_user_id = EXCLUDED.updated_by_user_id
+         RETURNING *`,
         [userId, date, value, actingUserId]
       );
       result = insertResult.rows[0];
@@ -404,7 +412,15 @@ async function upsertCheckInMeasurements(
         new Date().toISOString(),
         new Date().toISOString(),
       ];
-      query = `INSERT INTO check_in_measurements (${cols.join(', ')}) VALUES (${placeholders}) RETURNING *`;
+      // A concurrent write may have created the day since the lookup; update
+      // it the same way the branch above would instead of failing on the key.
+      const conflictUpdates = measurementKeys
+        .map((key) => `${key} = EXCLUDED.${key}`)
+        .join(', ');
+      query = `INSERT INTO check_in_measurements (${cols.join(', ')}) VALUES (${placeholders})
+        ON CONFLICT (user_id, entry_date) DO UPDATE
+        SET ${conflictUpdates}, updated_at = now(), updated_by_user_id = EXCLUDED.updated_by_user_id
+        RETURNING *`;
     }
     const result = await client.query(query, values);
     return result.rows[0];
@@ -542,10 +558,22 @@ async function bulkUpsertCheckInMeasurements(
           nowIso,
           nowIso,
         ]);
+        // A concurrent write may have created a day since the lookup; merge
+        // into it exactly as the batch UPDATE above does.
+        const conflictUpdates = insertColumns
+          .map((column) =>
+            column === 'steps'
+              ? 'steps = GREATEST(EXCLUDED.steps, cm.steps)'
+              : `${column} = COALESCE(EXCLUDED.${column}, cm.${column})`
+          )
+          .join(', ');
         const insertResult = await client.query(
           format(
-            `INSERT INTO check_in_measurements (user_id, entry_date, ${insertColumns.join(', ')}, created_by_user_id, updated_by_user_id, created_at, updated_at)
-             VALUES %L RETURNING *`,
+            `INSERT INTO check_in_measurements AS cm (user_id, entry_date, ${insertColumns.join(', ')}, created_by_user_id, updated_by_user_id, created_at, updated_at)
+             VALUES %L
+             ON CONFLICT (user_id, entry_date) DO UPDATE
+             SET ${conflictUpdates}, updated_at = now(), updated_by_user_id = EXCLUDED.updated_by_user_id
+             RETURNING *`,
             insertRows
           )
         );
@@ -610,6 +638,7 @@ async function getLatestCheckInMeasurementsOnOrBeforeDate(
          -- Exact date, like steps: a measured BMR applies to the day it was taken
          -- and no other, so days without a reading fall back to the user's formula.
          (SELECT bmr FROM check_in_measurements WHERE user_id = $1 AND entry_date = $2 AND bmr IS NOT NULL AND bmr > 0 LIMIT 1) as bmr,
+         (SELECT resting_heart_rate FROM check_in_measurements WHERE user_id = $1 AND entry_date <= $2 AND resting_heart_rate IS NOT NULL AND resting_heart_rate > 0 ORDER BY entry_date DESC LIMIT 1) as resting_heart_rate,
          le.created_at,
          le.updated_at,
          le.created_by_user_id,
@@ -749,12 +778,27 @@ async function getCustomCategories(userId: any) {
   }
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface CustomCategoryRow {
+  id: string;
+  name: string;
+  display_name: string | null;
+  frequency: string;
+  measurement_type: string;
+  data_type: string | null;
+}
 async function createCustomCategory(categoryData: any) {
   const client = await getClient(categoryData.created_by_user_id); // User-specific operation, using created_by_user_id for RLS context
   try {
+    // One category per user and name. A concurrent create of the same name
+    // waits for the first and then gets that category, with its settings, so a
+    // caller never applies its own defaults to a category someone else made.
+    const columns =
+      'id, name, display_name, frequency, measurement_type, data_type';
     const result = await client.query(
       `INSERT INTO custom_categories (user_id, name, display_name, frequency, measurement_type, data_type, created_by_user_id, updated_by_user_id, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $7, now(), now()) RETURNING id`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $7, now(), now())
+       ON CONFLICT (user_id, name) DO NOTHING
+       RETURNING ${columns}`,
       [
         categoryData.user_id,
         categoryData.name,
@@ -765,7 +809,16 @@ async function createCustomCategory(categoryData: any) {
         categoryData.created_by_user_id,
       ]
     );
-    return result.rows[0];
+    if (result.rows.length > 0) {
+      const category: CustomCategoryRow = result.rows[0];
+      return { id: category.id, created: true, category };
+    }
+    const existing = await client.query(
+      `SELECT ${columns} FROM custom_categories WHERE user_id = $1 AND name = $2`,
+      [categoryData.user_id, categoryData.name]
+    );
+    const category: CustomCategoryRow = existing.rows[0];
+    return { id: category.id, created: false, category };
   } finally {
     client.release();
   }
@@ -1061,6 +1114,34 @@ async function getCustomMeasurementsByDateRange(
     client.release();
   }
 }
+/**
+ * Serializes writes to Daily and Hourly readings of each category and day
+ * until the surrounding transaction ends, so two overlapping writes for one
+ * slot cannot both find it empty and both insert. A unique index cannot do
+ * this: frequency belongs to the category, and the readings of an "All"
+ * category legitimately share a day. Locks are taken in one fixed order so
+ * two overlapping batches cannot deadlock.
+ */
+async function lockCustomMeasurementDaysWithClient(
+  client: PoolClient,
+  userId: string,
+  categoryIds: string[],
+  entryDates: string[]
+): Promise<void> {
+  // The date is cast in SQL so every spelling of a day takes the same lock.
+  await client.query(
+    `SELECT pg_advisory_xact_lock(lock_key)
+     FROM (
+       SELECT DISTINCT hashtext(
+                'custom-measurement:' || $1 || ':' || category_id || ':' || entry_date
+              ) AS lock_key
+       FROM unnest($2::uuid[], $3::date[]) AS slot(category_id, entry_date)
+       ORDER BY lock_key
+     ) ordered`,
+    [userId, categoryIds, entryDates]
+  );
+}
+
 async function upsertCustomMeasurement(
   userId: string,
   actingUserId: string,
@@ -1075,6 +1156,7 @@ async function upsertCustomMeasurement(
   userTimezone?: string | null
 ) {
   const client = await getClient(actingUserId); // User-specific operation, using actingUserId for RLS context
+  let inTransaction = false;
   try {
     let query;
     let values;
@@ -1131,6 +1213,14 @@ async function upsertCustomMeasurement(
         source,
       ];
     } else {
+      await client.query('BEGIN');
+      inTransaction = true;
+      await lockCustomMeasurementDaysWithClient(
+        client,
+        userId,
+        [categoryId],
+        [entryDate]
+      );
       // For 'Daily' and 'Hourly', check if an entry already exists for the given user, category, date, hour (if applicable) and source
       let existingEntryQuery = `
         SELECT id FROM custom_measurements
@@ -1192,7 +1282,11 @@ async function upsertCustomMeasurement(
       }
     }
     const result = await client.query(query, values);
+    if (inTransaction) await client.query('COMMIT');
     return result.rows[0];
+  } catch (error) {
+    if (inTransaction) await client.query('ROLLBACK').catch(() => {});
+    throw error;
   } finally {
     client.release();
   }
@@ -1305,6 +1399,12 @@ async function bulkUpsertCustomMeasurements(
     // JS (mirrors the per-record existence SELECT semantics).
     const existingByKey = new Map<string, Record<string, unknown>>();
     if (keyedWinnerIndexes.length > 0) {
+      await lockCustomMeasurementDaysWithClient(
+        client,
+        userId,
+        keyedWinnerIndexes.map((i) => prepared[i].categoryId),
+        keyedWinnerIndexes.map((i) => prepared[i].entryDate)
+      );
       const categoryIds = [
         ...new Set(keyedWinnerIndexes.map((i) => prepared[i].categoryId)),
       ];
@@ -1664,6 +1764,7 @@ export { getCheckInMeasurementsByDateRange };
 export { getCustomMeasurementsByDateRange };
 export { getCustomCategoryOwnerId };
 export { upsertCustomMeasurement };
+export { lockCustomMeasurementDaysWithClient };
 export { deleteCustomMeasurement };
 export { getCustomMeasurementOwnerId };
 export { getLatestMeasurement };

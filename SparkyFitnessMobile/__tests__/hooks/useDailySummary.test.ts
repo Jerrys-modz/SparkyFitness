@@ -276,7 +276,7 @@ describe('useDailySummary', () => {
       expect(result.current.summary?.fiber.consumed).toBe(4);
     });
 
-    test('preserves the server-computed calorie balance', async () => {
+    test('preserves server calorie totals and normalizes older progress', async () => {
       const serverBalance = makeCalorieBalance({
         eaten: 1600,
         burned: 1200,
@@ -326,7 +326,10 @@ describe('useDailySummary', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.summary?.calorieBalance).toEqual(serverBalance);
+      expect(result.current.summary?.calorieBalance).toEqual({
+        ...serverBalance,
+        progress: 47,
+      });
     });
 
     test('includes water intake from API', async () => {
@@ -347,6 +350,31 @@ describe('useDailySummary', () => {
 
       expect(result.current.summary?.waterConsumed).toBe(1500);
       expect(result.current.summary?.waterGoal).toBe(3000);
+    });
+
+    test('uses the exercise-adjusted water goal when the summary includes one', async () => {
+      mockFetchDailySummary.mockResolvedValue({
+        ...makeSummaryResponse({
+          goals: { water_goal_ml: 2000 },
+        }),
+        adjustedGoals: {
+          calories: 2000,
+          protein: 150,
+          carbs: 200,
+          fat: 65,
+          water_goal_ml: 2800,
+        },
+      });
+
+      const { result } = renderHook(() => useDailySummary({ date: testDate }), {
+        wrapper: createQueryWrapper(queryClient),
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.summary?.waterGoal).toBe(2800);
     });
 
     test('defaults water goal to 2500 when not set in goals', async () => {
@@ -392,6 +420,8 @@ describe('useDailySummary', () => {
       });
 
       expect(result.current.summary?.waterFromFood).toBe(250);
+      // What a "remove a drink" can take off, sent to the Android widget.
+      expect(result.current.summary?.waterManual).toBe(500);
     });
 
     test('waterFromFood defaults to 0 on a server that predates the breakdown', async () => {
@@ -408,6 +438,8 @@ describe('useDailySummary', () => {
       });
 
       expect(result.current.summary?.waterFromFood).toBe(0);
+      // Unknown, not 0: the widget then leaves − on and the server decides.
+      expect(result.current.summary?.waterManual).toBeNull();
     });
 
     test('includes server-computed stepCalories from daily summary response', async () => {

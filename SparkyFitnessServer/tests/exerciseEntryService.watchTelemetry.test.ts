@@ -1,7 +1,9 @@
 import { vi, beforeEach, describe, expect, it } from 'vitest';
+import type { PoolClient } from 'pg';
 import exerciseEntryRepository from '../models/exerciseEntry.js';
 import userRepository from '../models/userRepository.js';
 import { attachWatchTelemetryToExerciseEntry } from '../services/exerciseEntryService.js';
+import { upsertSamplesByDay } from '../services/healthMetricSampleWriter.js';
 
 vi.mock('../config/logging', () => ({ log: vi.fn() }));
 vi.mock('../models/exercise', () => ({ default: {} }));
@@ -20,8 +22,22 @@ vi.mock('../models/exerciseEntry', async (importOriginal) => {
 vi.mock('../models/workoutPresetRepository', () => ({ default: {} }));
 vi.mock('../models/activityDetailsRepository', () => ({ default: {} }));
 vi.mock('../models/preferenceRepository', () => ({ default: {} }));
+vi.mock('../services/healthMetricSampleWriter', () => ({
+  upsertSamplesByDay: vi.fn(),
+}));
+vi.mock('../utils/timezoneLoader', () => ({
+  loadUserTimezone: vi.fn(() => Promise.resolve('UTC')),
+}));
 vi.mock('../models/userRepository', () => ({
   default: { getUserProfile: vi.fn() },
+}));
+vi.mock('../models/heartRateZoneRepository', () => ({
+  getHeartRateZoneSettings: vi.fn().mockResolvedValue({
+    maxHeartRate: null,
+    restingHeartRate: null,
+    method: 'percent_max',
+    customFloors: null,
+  }),
 }));
 vi.mock('../models/workoutTelemetryRepository', () => ({
   bulkInsertExerciseEntryHrZones: vi.fn(),
@@ -45,8 +61,11 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
     // @ts-expect-error TS(2339): mock method not on typed function.
     exerciseEntryRepository.getExerciseEntryOwnerId.mockResolvedValue(userId);
     // @ts-expect-error TS(2339): mock method not on typed function.
-    exerciseEntryRepository.applyWatchTelemetryAtomically.mockResolvedValue(
-      undefined
+    exerciseEntryRepository.applyWatchTelemetryAtomically.mockImplementation(
+      async (...args: unknown[]) => {
+        const onAccepted = args[5];
+        if (typeof onAccepted === 'function') await onAccepted();
+      }
     );
     // @ts-expect-error TS(2339): mock method not on typed function.
     userRepository.getUserProfile.mockResolvedValue({ date_of_birth: null });
@@ -115,7 +134,9 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
         calories_burned: 312,
         active_calories: 312,
       },
-      null
+      null,
+      undefined,
+      false
     );
   });
 
@@ -154,8 +175,97 @@ describe('attachWatchTelemetryToExerciseEntry', () => {
         calories_burned: 200,
         active_calories: 200,
       }),
-      expect.any(Array)
+      expect.any(Array),
+      expect.any(Function),
+      false
     );
+  });
+
+  describe('Apple zones', () => {
+    const appleZones = [
+      { index: 1, minimumBpm: null, maximumBpm: 100, seconds: 60 },
+      { index: 2, minimumBpm: 100, maximumBpm: 120, seconds: 0 },
+      { index: 3, minimumBpm: 120, maximumBpm: 140, seconds: 300 },
+      { index: 4, minimumBpm: 140, maximumBpm: 160, seconds: 120 },
+      { index: 5, minimumBpm: 160, maximumBpm: null, seconds: 30 },
+    ];
+
+    it('stores the zone group as device zones and replaces the session', async () => {
+      await attachWatchTelemetryToExerciseEntry(
+        userId,
+        userId,
+        entryId,
+        undefined,
+        undefined,
+        undefined,
+        appleZones
+      );
+
+      expect(
+        exerciseEntryRepository.applyWatchTelemetryAtomically
+      ).toHaveBeenCalledWith(
+        entryId,
+        userId,
+        userId,
+        {},
+        [
+          {
+            zone_index: 1,
+            zone_lower_bpm: 30,
+            zone_upper_bpm: 99,
+            seconds_in_zone: 60,
+            zone_method: 'device',
+          },
+          {
+            zone_index: 3,
+            zone_lower_bpm: 120,
+            zone_upper_bpm: 139,
+            seconds_in_zone: 300,
+            zone_method: 'device',
+          },
+          {
+            zone_index: 4,
+            zone_lower_bpm: 140,
+            zone_upper_bpm: 159,
+            seconds_in_zone: 120,
+            zone_method: 'device',
+          },
+          {
+            zone_index: 5,
+            zone_lower_bpm: 160,
+            zone_upper_bpm: null,
+            seconds_in_zone: 30,
+            zone_method: 'device',
+          },
+        ],
+        undefined,
+        true
+      );
+    });
+
+    it('ignores a zone group that is not five usable zones', async () => {
+      await attachWatchTelemetryToExerciseEntry(
+        userId,
+        userId,
+        entryId,
+        undefined,
+        312,
+        undefined,
+        appleZones.slice(0, 4)
+      );
+
+      expect(
+        exerciseEntryRepository.applyWatchTelemetryAtomically
+      ).toHaveBeenCalledWith(
+        entryId,
+        userId,
+        userId,
+        expect.objectContaining({ calories_burned: 312 }),
+        null,
+        undefined,
+        false
+      );
+    });
   });
 });
 
@@ -306,7 +416,7 @@ describe('filterStaleWatchTelemetryFields', () => {
       }),
     };
     await _updateExerciseEntryWithClient(
-      client,
+      client as unknown as PoolClient,
       entryId,
       userId,
       { duration_minutes: 4.5 },
@@ -323,5 +433,62 @@ describe('filterStaleWatchTelemetryFields', () => {
     expect(update?.sql).not.toMatch(
       /GREATEST\(\$2::numeric, watch_duration_minutes\)/
     );
+  });
+});
+
+describe('attachWatchTelemetryToExerciseEntry heart rate series', () => {
+  beforeEach(() => {
+    vi.mocked(
+      exerciseEntryRepository.getExerciseEntryOwnerId
+    ).mockResolvedValue(userId);
+    vi.mocked(userRepository.getUserProfile).mockResolvedValue(null as never);
+    vi.mocked(upsertSamplesByDay).mockReset();
+  });
+
+  it('stores the series tagged with the entry, replacing only its own span', async () => {
+    await attachWatchTelemetryToExerciseEntry(
+      userId,
+      userId,
+      entryId,
+      series(150)
+    );
+    expect(upsertSamplesByDay).toHaveBeenCalledTimes(1);
+    const [, , metric, , samples, options] =
+      vi.mocked(upsertSamplesByDay).mock.calls[0];
+    expect(metric).toBe('heart_rate');
+    expect(samples).toHaveLength(10);
+    expect(samples[0]).toMatchObject({ ex: entryId, bpm: 150 });
+    expect(options).toMatchObject({ mode: 'merge', ex: entryId });
+  });
+
+  it('writes no series when the snapshot was rejected', async () => {
+    vi.mocked(
+      exerciseEntryRepository.applyWatchTelemetryAtomically
+    ).mockResolvedValue(undefined);
+    await attachWatchTelemetryToExerciseEntry(
+      userId,
+      userId,
+      entryId,
+      series(150)
+    );
+    expect(upsertSamplesByDay).not.toHaveBeenCalled();
+  });
+
+  it('writes no series for a calories-only post', async () => {
+    await attachWatchTelemetryToExerciseEntry(
+      userId,
+      userId,
+      entryId,
+      undefined,
+      300
+    );
+    expect(upsertSamplesByDay).not.toHaveBeenCalled();
+  });
+
+  it('does not fail the post when the series cannot be stored', async () => {
+    vi.mocked(upsertSamplesByDay).mockRejectedValueOnce(new Error('db down'));
+    await expect(
+      attachWatchTelemetryToExerciseEntry(userId, userId, entryId, series(150))
+    ).resolves.toBeUndefined();
   });
 });

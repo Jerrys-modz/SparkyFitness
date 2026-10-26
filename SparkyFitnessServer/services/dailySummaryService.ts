@@ -6,16 +6,22 @@ import hydrationTotalsService from './hydrationTotalsService.js';
 import foodRepository from '../models/foodMisc.js';
 import userRepository from '../models/userRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
+import calorieRuleHistoryRepository from '../models/calorieRuleHistoryRepository.js';
+import { preferencesOnDay } from './calorieRuleHistoryService.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
 import { log } from '../config/logging.js';
 import {
   computeCalorieBalance,
   extractExerciseStats,
+  resolveBmrInputs,
   resolveDeviceProjectionSnapshot,
   sumFoodEntryCalories,
 } from './calorieBalanceService.js';
 import type { ExerciseSessionResponse } from '@workspace/shared';
-import { resolveSupplementTotals } from '@workspace/shared';
+import {
+  resolveSupplementTotals,
+  withCalorieRuleDefaults,
+} from '@workspace/shared';
 
 interface DailySummaryOptions {
   actorUserId: string;
@@ -39,6 +45,7 @@ export async function getDailySummary({
     waterResult,
     userProfile,
     userPreferences,
+    calorieRuleHistory,
     measurements,
     supplementTotals,
     healthConnectTotalRows,
@@ -61,6 +68,11 @@ export async function getDailySummary({
       : null,
     userRepository.getUserProfile(targetUserId),
     preferenceRepository.getUserPreferences(targetUserId),
+    calorieRuleHistoryRepository.getCalorieRuleHistory(
+      targetUserId,
+      date,
+      date
+    ),
     includeCheckin
       ? measurementRepository
           .getLatestCheckInMeasurementsOnOrBeforeDate(targetUserId, date)
@@ -144,7 +156,11 @@ export async function getDailySummary({
       : null,
   });
 
+  const dayPreferences =
+    userPreferences &&
+    preferencesOnDay(userPreferences, calorieRuleHistory, date);
   const calorieBalance = computeCalorieBalance({
+    date,
     eatenCalories:
       sumFoodEntryCalories(foodEntries) + supplementTotals.calories,
     exercise: exerciseStats,
@@ -153,28 +169,43 @@ export async function getDailySummary({
       Number((adjustedGoals as Record<string, unknown> | null)?.calories) ||
       2000,
     userProfile,
-    userPreferences,
+    userPreferences: dayPreferences,
     measurements,
     ...deviceProjectionSnapshot,
   });
+  const bmrInputs = resolveBmrInputs(userProfile, measurements, date);
+  const measured = (value: unknown) => {
+    const number = parseFloat(String(value ?? ''));
+    return number > 0 ? number : null;
+  };
 
   const rawGoalData = goals as Record<string, unknown> | null;
   const adjustedGoalData = adjustedGoals as Record<string, unknown> | null;
   const rawCalories = Number(rawGoalData?.calories) || 2000;
   const adjCalories = Number(adjustedGoalData?.calories) || rawCalories;
 
+  const rawWaterGoal = Number(rawGoalData?.water_goal_ml ?? 0);
+  const adjustedWaterGoal = Number(
+    adjustedGoalData?.water_goal_ml ?? rawWaterGoal
+  );
+  const waterGoalChanged = adjustedWaterGoal !== rawWaterGoal;
+
   const computedAdjustedGoals: {
     calories: number;
     protein: number;
     carbs: number;
     fat: number;
+    water_goal_ml?: number;
   } | null =
-    adjCalories !== rawCalories
+    adjCalories !== rawCalories || waterGoalChanged
       ? {
           calories: Math.round(adjCalories),
           protein: Math.round(Number(adjustedGoalData?.protein) || 0),
           carbs: Math.round(Number(adjustedGoalData?.carbs) || 0),
           fat: Math.round(Number(adjustedGoalData?.fat) || 0),
+          ...(waterGoalChanged
+            ? { water_goal_ml: Math.round(adjustedWaterGoal) }
+            : {}),
         }
       : null;
 
@@ -195,6 +226,17 @@ export async function getDailySummary({
       : null,
     stepCalories,
     calorieBalance,
+    calorieInputs: {
+      rules: withCalorieRuleDefaults(dayPreferences),
+      age: bmrInputs.age,
+      gender: bmrInputs.gender,
+      weightKg: bmrInputs.weightKg,
+      heightCm: bmrInputs.heightCm,
+      bodyFatPercentage: bmrInputs.bodyFatPercentage ?? null,
+      waistCm: measured(measurements?.waist),
+      neckCm: measured(measurements?.neck),
+      hipsCm: measured(measurements?.hips),
+    },
     adjustedGoals: computedAdjustedGoals,
     // Exposed separately as well as folded into `calorieBalance.eaten`, so the Diary can
     // show what supplements contributed instead of leaving a gap between the headline

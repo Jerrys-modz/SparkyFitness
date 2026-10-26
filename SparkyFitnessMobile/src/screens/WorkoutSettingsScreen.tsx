@@ -29,7 +29,9 @@ import type { RootStackScreenProps } from '../types/navigation';
 
 type WorkoutSettingsScreenProps = RootStackScreenProps<'WorkoutSettings'>;
 
-const WorkoutSettingsScreen: React.FC<WorkoutSettingsScreenProps> = () => {
+const WorkoutSettingsScreen: React.FC<WorkoutSettingsScreenProps> = ({
+  navigation,
+}) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -220,6 +222,18 @@ const WorkoutSettingsScreen: React.FC<WorkoutSettingsScreenProps> = () => {
         />
 
         <SettingsRow
+          title={t('workoutSettings.warmupCalculator', {
+            defaultValue: 'Warm-up calculator',
+          })}
+          subtitle={t('workoutSettings.warmupCalculatorSubtitle', {
+            defaultValue:
+              'The ramp, and the weights it rounds to, for warm-up sets you add to an exercise.',
+          })}
+          subtitleNumberOfLines={0}
+          onPress={() => navigation.navigate('WarmupSettings')}
+        />
+
+        <SettingsRow
           title={t('workoutSettings.adaptiveCoaching', {
             defaultValue: 'Adaptive suggestions',
           })}
@@ -243,6 +257,17 @@ const WorkoutSettingsScreen: React.FC<WorkoutSettingsScreenProps> = () => {
               )}
             />
           }
+        />
+
+        <SettingsRow
+          title={t('settings.rows.heartRateZones', {
+            defaultValue: 'Heart Rate Zones',
+          })}
+          subtitle={t('settings.rows.heartRateZonesSubtitle', {
+            defaultValue: 'Max and resting heart rate, zone method',
+          })}
+          subtitleNumberOfLines={0}
+          onPress={() => navigation.navigate('HeartRateZonesSettings')}
         />
 
         <GuidedWorkoutSettingsSection />

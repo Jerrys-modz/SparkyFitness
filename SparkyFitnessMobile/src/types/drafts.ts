@@ -37,6 +37,8 @@ export interface WorkoutDraftExercise {
   /** Absent/null on pre-modality servers; resolve via `resolveSnapshotModality`. */
   exerciseCategory?: string | null;
   exerciseModality?: ExerciseModality | null;
+  /** The library exercise's equipment, for dumbbell warm-up rounding. */
+  exerciseEquipment?: string[] | null;
   images: string[];
   sets: WorkoutDraftSet[];
   /** Round-tripped from the session on edit; the form has no duration UI. */
@@ -90,6 +92,8 @@ export interface ActivityDraft {
   calories: string;
   caloriesBurned?: string;
   caloriesManuallySet?: boolean;
+  /** Calories the daily total counts instead of `calories`; blank counts them. */
+  caloriesApplied?: string;
   distance: string;
   avgHeartRate: string;
   notes: string;

@@ -195,6 +195,12 @@ const updateSeveritySchema = z
       .datetime({ offset: true })
       .optional()
       .describe('ISO timestamp of measurement, defaults to now'),
+    impact: z
+      .enum(['none', 'mild', 'moderate', 'severe'])
+      .optional()
+      .describe(
+        'Impact on daily life at the same moment; omit to leave it unchanged'
+      ),
   })
   .strict();
 

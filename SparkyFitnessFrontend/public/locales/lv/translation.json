@@ -149,8 +149,6 @@
       "summaryUnavailableTitle": "Dienas kopsavilkums nav pieejams",
       "updateProfile": "Atjaunināt profilu",
       "weightTrend": "Svara tendence",
-      "bmrSourceMeasured": "Izmērīts",
-      "bmrSourceAlgorithm": "Algoritms",
       "goalModeTarget": "Mērķa režīma mērķis",
       "healthConnectProjectionSource": "Health Connect kopējās kalorijas",
       "fallbackProjectionSource": "BMR + aktīvo kaloriju rezerves aprēķins",
@@ -1426,7 +1424,6 @@
       "safetyFloorStandardHint": "Izmanto lielāko vērtību starp jūsu aprēķināto pamatmetabolismu un klīnisko minimumu (1200 kcal sievietēm, 1500 kcal vīriešiem).",
       "safetyFloorValueLabel": "Pielādots minimums",
       "awaitingCalibrationTitle": "Gaida Adaptīvā TDEE kalibrēšanu",
-      "modeUnreachableSuffix": "nav pieejams",
       "customPercentageUnreachable": "Dziļāks par ~{{percent}}%, ko atļauj jūsu drošības līmenis; mērķa vērtība tiks palielināta līdz šim līmenim.",
       "deficitCeilingHintEstimated": "Pie jūsu pašreizējā aktivitātes līmeņa, maksimālais sasniedzamais deficīts ir aptuveni {{percent}}%. Vēl dziļāki režīmi tiek pielāgoti, lai nodrošinātu jūsu drošību.",
       "deficitCeilingHintMeasured": "Pamatojoties uz jūsu aprēķināto TDEE, maksimālais iespējamais deficīts ir aptuveni {{percent}}%. Vēl lielāki deficīta līmeņi tiek koriģēti, lai nodrošinātu jūsu drošību.",
@@ -2270,7 +2267,6 @@
     "editingTemporarilyUnavailable": "Ēdiena detaļu rediģēšana uz laiku nav pieejama datu struktūras izmaiņu dēļ."
   },
   "checkIn": {
-    "howAreYouFeelingToday": "Kā tu šodien jūties?",
     "neutral": "Neitrāls",
     "anyThoughtsOrFeelings": "Vai vēlaties pievienot kādas papildu domas vai atsauksmes?",
     "sleepTracking": "Miega uzraudzība",
@@ -2350,17 +2346,13 @@
     "failedToLoadRecentCustom": "Neizdevās ielādēt nesenos pielāgotos mērījumus.",
     "failedToLoadRecentStandard": "Neizdevās ielādēt nesenos standarta mērījumus.",
     "failedToSaveCustomMeasurement": "Neizdevās saglabāt pielāgoto mērījumu.",
-    "failedToSaveMood": "Neizdevās saglabāt noskaņojumu.",
     "failedToUpdateMeasurement": "Neizdevās atjaunināt mērījumu.",
     "level": "līmenis",
     "measurementUpdatedSuccessfully": "Mērījums veiksmīgi atjaunināts.",
-    "moodSaved": "Noskaņojums saglabāts",
-    "moodSavedSuccessfully": "Noskaņojums veiksmīgi saglabāts.",
     "muscleMass": "Muskuļu masa",
     "recentFasts": "Nesenie gavēņi",
     "recentFastsDescription": "Jūsu jaunākie gavēņu žurnāli un statuss.",
     "recentMeasurementsDescription": "Jūsu jaunākie žurnāli, tostarp mērījumi, pabeigti gavēņi un sinhronizēti veselības dati.",
-    "saveMood": "Saglabāt noskaņojumu",
     "stressLevel": "Stresa līmenis",
     "tabs": {
       "fasting": "Gavēnis un noskaņojums",
@@ -2987,7 +2979,6 @@
       "cadence": "Kadence",
       "waterLoss": "Šķidruma zudums",
       "hrZonesEstimatedFromAge": "Zonas tiek novērtētas pēc jūsu vecuma — Apple Health un Health Connect neizmanto ar lietotnēm konfigurētu maksimālo sirdsdarbības ātrumu.",
-      "avgMovingSpeed": "Vidējais kustības ātrums",
       "caloriesBreakdown": "Aktīvās / Miera",
       "elapsedTime": "Pagājušais laiks",
       "elevationRange": "Min / Maks. augstums",
@@ -5298,7 +5289,6 @@
   "mood": {
     "dailyMood": "Ikdienas noskaņojums",
     "date": "Datums",
-    "deletedSuccessfully": "Noskaņojuma ieraksts veiksmīgi dzēsts.",
     "failedAddCustom": "Neizdevās pievienot noskaņojumu.",
     "failedDeleteCustom": "Neizdevās noņemt noskaņojumu.",
     "failedLoadPrefs": "Neizdevās ielādēt noskaņojuma preferences.",
@@ -5306,17 +5296,13 @@
     "failedToDelete": "Neizdevās dzēst noskaņojuma ierakstu.",
     "failedToLoadCustom": "Neizdevās ielādēt noskaņojumus.",
     "failedToLoadEntries": "Neizdevās ielādēt noskaņojuma ierakstus.",
-    "failedToLoadEntry": "Neizdevās ielādēt noskaņojuma ierakstu.",
     "failedToSave": "Neizdevās saglabāt noskaņojuma ierakstu.",
     "failedToUpdate": "Neizdevās atjaunināt noskaņojuma ierakstu.",
     "intensityTrend": "Kopējais noskaņojums laika gaitā",
     "mood": "Noskaņojums",
     "moodValue": "Noskaņojuma vērtība",
     "mostCommon": "Biežākie noskaņojumi",
-    "noMoodData": "Šim periodam nav pieejamu noskaņojuma datu.",
-    "notes": "Piezīmes: ",
-    "savedSuccessfully": "Noskaņojuma ieraksts veiksmīgi saglabāts.",
-    "updatedSuccessfully": "Noskaņojuma ieraksts veiksmīgi atjaunināts."
+    "noMoodData": "Šim periodam nav pieejamu noskaņojuma datu."
   },
   "preferences": {
     "resetError": "Neizdevās atiestatīt preferences"

@@ -403,6 +403,68 @@ export const deleteCustomCategory = async (id: string): Promise<void> => {
   });
 };
 
+/**
+ * One category's entries between two days, oldest first. Health-synced values
+ * such as VO2 max are custom measurements, so a trend reads them here.
+ */
+export const fetchCustomMeasurementsRange = async (
+  categoryId: string,
+  startDate: string,
+  endDate: string
+): Promise<CustomMeasurementEntry[]> => {
+  return apiFetch<CustomMeasurementEntry[]>({
+    endpoint: `/api/measurements/custom-measurements-range/${encodeURIComponent(categoryId)}/${startDate}/${endDate}`,
+    serviceName: 'Measurements API',
+    operation: 'fetch custom measurements range',
+  });
+};
+
+/**
+ * VO2 max from the daily health metrics, where providers such as Garmin file
+ * it. The server carries the latest earlier reading onto a day that has a row
+ * but no reading of its own.
+ */
+export const fetchDailyVo2Max = async (
+  startDate: string,
+  endDate: string
+): Promise<{ entry_date: string; vo2_max: number | null }[]> => {
+  const response = await apiFetch<{
+    data: { entry_date: string; vo2_max: number | null }[];
+  }>({
+    endpoint: `/api/generic-health/metrics?startDate=${startDate}&endDate=${endDate}`,
+    serviceName: 'Measurements API',
+    operation: 'fetch daily VO2 max',
+  });
+  return response?.data ?? [];
+};
+
+/**
+ * Daily heart rate metrics from /api/generic-health/metrics.
+ */
+export const fetchDailyHeartRateMetrics = async (
+  startDate: string,
+  endDate: string
+): Promise<
+  {
+    entry_date: string;
+    resting_heart_rate: number | null;
+    heart_rate_recovery_1min?: number | null;
+  }[]
+> => {
+  const response = await apiFetch<{
+    data: {
+      entry_date: string;
+      resting_heart_rate: number | null;
+      heart_rate_recovery_1min?: number | null;
+    }[];
+  }>({
+    endpoint: `/api/generic-health/metrics?startDate=${startDate}&endDate=${endDate}`,
+    serviceName: 'Measurements API',
+    operation: 'fetch daily heart rate metrics',
+  });
+  return response?.data ?? [];
+};
+
 export const fetchCustomMeasurementsByDate = async (
   date: string
 ): Promise<CustomMeasurementEntry[]> => {

@@ -53,6 +53,9 @@ import {
 } from '../hooks';
 import { useWorkoutPresets } from '../hooks/useWorkoutPresets';
 import { getWorkoutPresetById } from '../services/api/workoutPresetsApi';
+import RunProgramBanner from '../components/recording/RunProgramBanner';
+import RunEffortPrompt from '../components/recording/RunEffortPrompt';
+import ProgramRetestPrompt from '../components/recording/ProgramRetestPrompt';
 import { useActiveWorkoutPlans } from '../hooks/useActiveWorkoutPlan';
 import { useStartLiveWorkout } from '../hooks/useStartLiveWorkout';
 import {
@@ -75,7 +78,11 @@ import type {
   WorkoutPlanTemplate,
 } from '../types/workoutPlans';
 import { isManualSource } from '../utils/customMeasurementsForm';
-import { formatDateLabel } from '../utils/dateUtils';
+import {
+  formatDateLabel,
+  getDateRelationToToday,
+  toLocalDateString,
+} from '../utils/dateUtils';
 import { cardioSessionFromDiaryEntry } from '../utils/cardioSession';
 import {
   getHistoricalMealTypeLabel,
@@ -157,11 +164,23 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
     defaultValue: 'Open family diaries',
   });
   const accentColor = useCSSVariable('--color-accent-primary') as string;
+  const datePastColor =
+    (useCSSVariable('--color-date-past') as string) || '#f97316';
+  const dateFutureColor =
+    (useCSSVariable('--color-date-future') as string) || '#0ea5e9';
   const usesNativeTabs = useNativeIOSTabsActive();
   const { defaultColor: nativeHeaderActionColor } = useHeaderActionColors();
 
   const syncNativeHeaderDatePicker = useCallback(() => {
     if (!usesNativeTabs) return;
+
+    const relation = getDateRelationToToday(selectedDate);
+    const dateTintColor =
+      relation === 'past'
+        ? datePastColor
+        : relation === 'future'
+          ? dateFutureColor
+          : nativeHeaderActionColor;
 
     setNativeHeaderDatePickerOptions(
       navigation as unknown as NativeHeaderDatePickerNavigation,
@@ -171,6 +190,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
         onDatePress: openCalendar,
         onNextDate: goToNextDay,
         tintColor: nativeHeaderActionColor,
+        dateTintColor,
         accessibilityLabel: t('diary.chooseDate', {
           defaultValue: 'Choose diary date',
         }),
@@ -192,18 +212,20 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
       }
     );
   }, [
+    dateFutureColor,
+    dateLocale,
+    datePastColor,
+    familyDiariesAccessibilityLabel,
     goToNextDay,
     goToPreviousDay,
+    hasFamilyDiaries,
     nativeHeaderActionColor,
     navigation,
-    openFamilyDiaries,
     openCalendar,
+    openFamilyDiaries,
     selectedDate,
-    familyDiariesAccessibilityLabel,
-    hasFamilyDiaries,
-    usesNativeTabs,
     t,
-    dateLocale,
+    usesNativeTabs,
   ]);
 
   useLayoutEffect(() => {
@@ -651,6 +673,28 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
               onAddExercise={() =>
                 addSheetRef.current?.present({ initialMenu: 'exercise' })
               }
+              programBanner={
+                <>
+                  <RunEffortPrompt
+                    date={selectedDate}
+                    today={toLocalDateString(new Date())}
+                  />
+                  <ProgramRetestPrompt
+                    date={selectedDate}
+                    today={toLocalDateString(new Date())}
+                    onRetest={() => navigation.navigate('FitnessTest')}
+                  />
+                  <RunProgramBanner
+                    date={selectedDate}
+                    exerciseEntries={summary.exerciseEntries}
+                    onStart={() =>
+                      navigation.navigate('RecordActivity', {
+                        programWorkout: true,
+                      })
+                    }
+                  />
+                </>
+              }
               onPressPlanAssignment={handleStartPlanAssignment}
               onPressWorkout={(session) => {
                 if (session.type === 'preset') {
@@ -664,18 +708,38 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                   }
                   navigation.navigate('WorkoutDetail', { session });
                 } else {
-                  const cardioSession = cardioSessionFromDiaryEntry(
+                  const synced = cardioSessionFromDiaryEntry(
                     session,
                     distanceUnit
                   );
-                  if (cardioSession) {
+                  if (synced) {
                     navigation.navigate('CardioSession', {
-                      session: cardioSession,
+                      session: synced,
                       distanceUnit,
                     });
                     return;
                   }
-                  navigation.navigate('ActivityDetail', { session });
+                  // A run, walk or ride logged in the app (a GPS recording
+                  // or a watch run is saved as an in-app entry) opens the
+                  // stats screen too, with an Edit button that hands over to
+                  // the activity editor. Anything without a distance or heart
+                  // rate has nothing for that screen to show.
+                  const inApp =
+                    (session.distance ?? 0) > 0 ||
+                    session.avg_heart_rate != null
+                      ? cardioSessionFromDiaryEntry(session, distanceUnit, {
+                          allowInApp: true,
+                        })
+                      : null;
+                  if (!inApp) {
+                    navigation.navigate('ActivityDetail', { session });
+                    return;
+                  }
+                  navigation.navigate('CardioSession', {
+                    session: inApp,
+                    distanceUnit,
+                    diaryEntry: session,
+                  });
                 }
               }}
             />
@@ -695,6 +759,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                 navigation.navigate('MeasurementsAdd', { date: selectedDate })
               }
             />
+
             {/* Below the measurements: both are the same check-in, keyed on
                 (user_id, entry_date) server-side. */}
             <CheckInPhotosSummary
@@ -746,7 +811,6 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
           onNextDay={goToNextDay}
           onToday={goToToday}
           onDatePress={openCalendar}
-          showDateAlways
           action={
             hasFamilyDiaries
               ? {

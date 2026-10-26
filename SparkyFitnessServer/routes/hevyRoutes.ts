@@ -3,6 +3,12 @@ import express from 'express';
 import hevyService from '../integrations/hevy/hevyService.js';
 import { log } from '../config/logging.js';
 import authMiddleware from '../middleware/authMiddleware.js';
+import {
+  SYNC_ALREADY_RUNNING_RESPONSE,
+  syncClaimTarget,
+  startProviderSync,
+} from '../services/providerSyncClaim.js';
+import { publicErrorMessage } from '../utils/errors.js';
 const router = express.Router();
 /**
  * @swagger
@@ -27,16 +33,25 @@ router.post('/sync', authMiddleware.authenticate, async (req, res) => {
       'info',
       `[hevyRoutes] Manual sync triggered for user ${userId}${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}`
     );
-    const result = await hevyService.syncHevyData(
-      userId,
-      createdByUserId,
-      fullSync,
-      providerId,
-      startDate,
-      endDate,
-      dataSource,
-      saveMockData
+    const started = await startProviderSync(
+      syncClaimTarget(userId, 'hevy', providerId),
+      () =>
+        hevyService.syncHevyData(
+          userId,
+          createdByUserId,
+          fullSync,
+          providerId,
+          startDate,
+          endDate,
+          dataSource,
+          saveMockData
+        )
     );
+    if (!started) {
+      res.status(409).json(SYNC_ALREADY_RUNNING_RESPONSE);
+      return;
+    }
+    const result = await started.running;
     res.status(200).json(result);
   } catch (error) {
     // @ts-expect-error TS(2571): Object is of type 'unknown'.
@@ -52,8 +67,7 @@ router.post('/sync', authMiddleware.authenticate, async (req, res) => {
     }
     res.status(500).json({
       message: 'Error initiating manual Hevy sync',
-      // @ts-expect-error TS(2571): Object is of type 'unknown'.
-      error: error.message,
+      error: publicErrorMessage(error),
     });
   }
 });
@@ -72,10 +86,10 @@ router.get('/status', authMiddleware.authenticate, async (req, res) => {
   } catch (error) {
     // @ts-expect-error TS(2571): Object is of type 'unknown'.
     log('error', `Error getting Hevy status: ${error.message}`);
-    res
-      .status(500)
-      // @ts-expect-error TS(2571): Object is of type 'unknown'.
-      .json({ message: 'Error getting Hevy status', error: error.message });
+    res.status(500).json({
+      message: 'Error getting Hevy status',
+      error: publicErrorMessage(error),
+    });
   }
 });
 export default router;

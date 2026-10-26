@@ -5,7 +5,12 @@ Follow this checklist whenever you add or change a server database migration —
 ## 1. Create the migration
 
 - [ ] Create the migration in `SparkyFitnessServer/db/migrations/` named `YYYYMMDDHHMMSS_description.sql`.
+- [ ] Keep **one migration file per PR** and edit it in place while developing; don't add follow-up migrations for fixes to your own unmerged SQL.
+- [ ] Make it **re-runnable without errors**: `ADD COLUMN IF NOT EXISTS`, `CREATE TABLE/INDEX IF NOT EXISTS`, `DROP CONSTRAINT IF EXISTS` before `ADD CONSTRAINT`, guarded backfills (`WHERE ... IS NULL` / `NOT EXISTS`), `CREATE OR REPLACE` for functions.
+- [ ] Agents don't start the server themselves: tell the user when the migration is ready, and they start it once to apply it.
 - [ ] Do not invent alternate migration mechanisms; server startup applies pending migrations and then reapplies RLS policies.
+- [ ] The runner applies each file and records it in `system.schema_migrations` inside one transaction, so a file contains no `BEGIN;`/`COMMIT;` of its own (`tests/migrationFiles.test.ts` fails otherwise). To commit steps separately (for example `NOT VALID`, then `VALIDATE CONSTRAINT`), write two migration files.
+- [ ] Never use a statement that cannot run inside a transaction block, such as `CREATE INDEX CONCURRENTLY` or `VACUUM`. Startup refuses such a file with an error naming it.
 
 ## 2. Update Row-Level Security (required for every new table)
 
@@ -15,7 +20,7 @@ Follow this checklist whenever you add or change a server database migration —
 
 ## 3. Boot server and let migration apply
 
-- [ ] **Restart the server** (`pnpm start` from `SparkyFitnessServer/`).
+- [ ] **Restart the server** (`pnpm start` from `SparkyFitnessServer/`). Agents ask the user to do it.
 - [ ] Confirm the migration applies cleanly and RLS policies reapply without errors.
 - [ ] Check server logs for any migration failures.
 

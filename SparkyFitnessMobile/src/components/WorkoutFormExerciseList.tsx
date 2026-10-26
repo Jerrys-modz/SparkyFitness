@@ -23,6 +23,7 @@ import { useCSSVariable } from 'uniwind';
 import Icon from './Icon';
 import ActiveWorkoutExerciseCard from './ActiveWorkoutExerciseCard';
 import { MetricColumnMenu, SetTypeMenu } from './WorkoutMenus';
+import PlateCalculatorSheet from './PlateCalculatorSheet';
 import ActionSheet, {
   type ActionSheetItem,
   type ActionSheetRef,
@@ -42,6 +43,8 @@ import {
   setDistanceFromKm,
 } from '../utils/workoutSession';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
+import { buildWarmupDrafts, hasLoggedWarmup } from '../utils/warmupDrafts';
+import { WARMUP_REST_SEC, usesBarbell } from '@workspace/shared';
 import type { SetInputField, SetRowAccessoryHandle } from './SetRowChrome';
 import type {
   ActiveSetPatch,
@@ -131,6 +134,17 @@ interface WorkoutFormExerciseListProps {
    */
   onDuplicateExercise?: (clientId: string) => void;
   /**
+   * Enables the ⋮ "Add warm-ups" item: puts the lifter's warm-up ramp (their
+   * method and rounding, from Workout Settings → Warm-up calculator) ahead of
+   * the exercise's working sets. Shown only while the calculator is on and the
+   * first working set has a weight. Replaces unlogged warm-ups already there.
+   */
+  addWarmupSets?: (
+    clientId: string,
+    warmups: { weight: string; reps: string }[],
+    restSec: number
+  ) => void;
+  /**
    * Enables the ⋮ "Clear logged sets" item, shown only when the exercise has
    * a completed set and renders a set table — cardio-effort-form exercises
    * hide it (workout edit). Absent for forms whose drafts never carry
@@ -204,6 +218,7 @@ const WorkoutFormExerciseList = forwardRef<
     setExerciseNotes,
     onReplaceExercise,
     onDuplicateExercise,
+    addWarmupSets,
     clearExerciseCompletions,
     supersetWith,
     ungroupExercise,
@@ -485,8 +500,16 @@ const WorkoutFormExerciseList = forwardRef<
       ownerClientId: owner.clientId,
       setId: setTypeMenu.setId,
       currentType: set.setType ?? 'normal',
+      equipment: owner.exerciseEquipment ?? null,
+      // The draft holds the weight as typed, in the display unit.
+      weightText: set.weight,
     };
   }, [setTypeMenu, exercises]);
+  // The set the plate calculator is open for.
+  const [plateCalc, setPlateCalc] = useState<{
+    targetWeight: number | null;
+    equipment: readonly string[] | null;
+  } | null>(null);
 
   // Open the library Exercise Detail for a draft row (thumbnail tap + ⋮ menu).
   // Existing-session drafts carry a full snapshot; freshly-added ones are
@@ -592,6 +615,31 @@ const WorkoutFormExerciseList = forwardRef<
     overflowSheetRef.current?.present();
   }, []);
 
+  const warmupCalculatorEnabled = useAppPreferencesStore(
+    (s) => s.warmupCalculatorEnabled
+  );
+  const warmupMethod = useAppPreferencesStore((s) => s.warmupMethod);
+  const warmupPlateRounding = useAppPreferencesStore(
+    (s) => s.warmupPlateRounding
+  );
+  const warmupDumbbellRounding = useAppPreferencesStore(
+    (s) => s.warmupDumbbellRounding
+  );
+  const warmupPreferences = useMemo(
+    () => ({
+      warmupCalculatorEnabled,
+      warmupMethod,
+      warmupPlateRounding,
+      warmupDumbbellRounding,
+    }),
+    [
+      warmupCalculatorEnabled,
+      warmupMethod,
+      warmupPlateRounding,
+      warmupDumbbellRounding,
+    ]
+  );
+
   const overflowMenuItems = useMemo<ActionSheetItem[]>(() => {
     if (overflowMenu == null) return [];
     const { clientId, mode } = overflowMenu;
@@ -654,6 +702,23 @@ const WorkoutFormExerciseList = forwardRef<
         onPress: () => onReplaceExercise(clientId),
       });
     }
+    if (addWarmupSets) {
+      const target = exercises.find((e) => e.clientId === clientId);
+      const card = cardExercises.find((c) => c.id === clientId);
+      const warmups =
+        card != null && target != null && !hasLoggedWarmup(target.sets)
+          ? buildWarmupDrafts(card, weightUnit, warmupPreferences)
+          : [];
+      if (warmups.length > 0) {
+        items.push({
+          key: 'warmups',
+          label: t('workout.addWarmups', {
+            defaultValue: 'Add warm-ups',
+          }),
+          onPress: () => addWarmupSets(clientId, warmups, WARMUP_REST_SEC),
+        });
+      }
+    }
     if (onDuplicateExercise) {
       items.push({
         key: 'duplicate',
@@ -705,6 +770,9 @@ const WorkoutFormExerciseList = forwardRef<
     ungroupExercise,
     onReplaceExercise,
     onDuplicateExercise,
+    addWarmupSets,
+    weightUnit,
+    warmupPreferences,
     clearExerciseCompletions,
     onRemoveExercise,
     onViewExercise,
@@ -859,11 +927,40 @@ const WorkoutFormExerciseList = forwardRef<
             });
           }
         }}
+        onOpenPlateCalculator={
+          setTypeTarget != null && usesBarbell(setTypeTarget.equipment)
+            ? () => {
+                const typed = Number(
+                  setTypeTarget.weightText.replace(',', '.').trim()
+                );
+                setPlateCalc({
+                  targetWeight:
+                    setTypeTarget.weightText.trim() !== '' &&
+                    Number.isFinite(typed) &&
+                    typed > 0
+                      ? typed
+                      : null,
+                  equipment: setTypeTarget.equipment,
+                });
+                setSetTypeMenu(null);
+              }
+            : undefined
+        }
         // Through handleDeleteSet so the last-set → remove-exercise guard applies.
         onDelete={() => {
           if (setTypeTarget != null) handleDeleteSet(setTypeTarget.setId);
         }}
       />
+
+      {plateCalc != null && (
+        <PlateCalculatorSheet
+          visible
+          onClose={() => setPlateCalc(null)}
+          targetWeight={plateCalc?.targetWeight ?? null}
+          weightUnit={weightUnit}
+          equipment={plateCalc?.equipment}
+        />
+      )}
 
       <WorkoutReorderList
         visible={reorderVisible}

@@ -34,6 +34,13 @@ interface WorkoutStep {
   weightUnit?: WorkoutWeightUnit;
 }
 
+// Garmin sends weightValue -1 for "no weight"; keep in sync with
+// garminActivityProcessor.ts.
+const hasStepWeight = (
+  step: WorkoutStep
+): step is WorkoutStep & { weightValue: number } =>
+  typeof step.weightValue === 'number' && step.weightValue > 0;
+
 interface WorkoutSegment {
   segmentOrder?: number;
   workoutSteps?: WorkoutStep[];
@@ -91,7 +98,10 @@ const WorkoutReportVisualizer = ({
 
   const totalVolume =
     allExecutableSteps.reduce((total, step) => {
-      if (step.weightValue && step.endCondition?.conditionTypeKey === 'reps') {
+      if (
+        hasStepWeight(step) &&
+        step.endCondition?.conditionTypeKey === 'reps'
+      ) {
         const weight = convertWeight(
           step.weightValue,
           step.weightUnit?.unitKey === 'pound' ? 'lbs' : 'kg',
@@ -117,7 +127,7 @@ const WorkoutReportVisualizer = ({
     if (step.exerciseName) {
       const exerciseName = step.exerciseName;
       const setName = `Set ${stepIndex + 1}`;
-      const weight = step.weightValue
+      const weight = hasStepWeight(step)
         ? convertWeight(
             step.weightValue,
             step.weightUnit?.unitKey === 'pound' ? 'lbs' : 'kg',
@@ -141,15 +151,13 @@ const WorkoutReportVisualizer = ({
   const today = formatDateToYYYYMMDD(new Date());
 
   allExecutableSteps.forEach((step) => {
-    if (step.exerciseName) {
+    if (step.exerciseName && hasStepWeight(step)) {
       const exerciseName = step.exerciseName;
-      const weight = step.weightValue
-        ? convertWeight(
-            step.weightValue,
-            step.weightUnit?.unitKey === 'pound' ? 'lbs' : 'kg',
-            'kg'
-          )
-        : 0;
+      const weight = convertWeight(
+        step.weightValue,
+        step.weightUnit?.unitKey === 'pound' ? 'lbs' : 'kg',
+        'kg'
+      );
       const reps = step.endConditionValue || 0;
       const oneRM = weight * (1 + reps / 30);
 
@@ -269,7 +277,9 @@ const WorkoutReportVisualizer = ({
                     scope="col"
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                   >
-                    {t('workoutReport.weight', 'Weight')} ({weightUnit})
+                    {t('workoutReport.weight2', 'Weight ({{weightUnit}})', {
+                      weightUnit,
+                    })}
                   </th>
                 </tr>
               </thead>
@@ -285,11 +295,11 @@ const WorkoutReportVisualizer = ({
                         t('common.notApplicable', 'N/A')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {step.endConditionValue}{' '}
-                      {step.endCondition?.conditionTypeKey}
+                      <span>{step.endConditionValue}</span>{' '}
+                      <span>{step.endCondition?.conditionTypeKey}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {step.weightValue
+                      {hasStepWeight(step)
                         ? formatWeight(
                             convertWeight(
                               step.weightValue,
@@ -341,8 +351,9 @@ const WorkoutReportVisualizer = ({
             <Card key={`pr-progression-${exerciseName}`} className="mb-4">
               <CardHeader>
                 <CardTitle className="text-sm">
-                  {t('workoutReport.prs', 'PRs - ')}
-                  {exerciseName}
+                  {t('workoutReport.pRs', 'PRs - {{exerciseName}}', {
+                    exerciseName,
+                  })}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -372,8 +383,9 @@ const WorkoutReportVisualizer = ({
                     <div className="flex flex-col items-center justify-center p-2 border rounded-lg">
                       <FaChartLine className="h-5 w-5 text-green-500 mb-1" />
                       <span className="text-lg font-bold">
-                        {formatNumber(Math.round(pr.reps))}{' '}
-                        {t('workoutReport.maxReps', 'reps')}
+                        {t('workoutReport.reps2', '{{reps}} reps', {
+                          reps: formatNumber(Math.round(pr.reps)),
+                        })}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {t('workoutReport.maxReps', 'Max Reps')}

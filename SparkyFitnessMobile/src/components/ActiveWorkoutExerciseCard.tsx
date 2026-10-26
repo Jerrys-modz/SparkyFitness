@@ -21,6 +21,7 @@ import ImageLightbox from './ImageLightbox';
 import CompletionCheck from './CompletionCheck';
 import FormInput from './FormInput';
 import RestPeriodChip from './RestPeriodChip';
+import PlateBarGraphic from './PlateBarGraphic';
 import ActiveWorkoutSetRow, {
   type SetRowAccessoryHandle,
   type SetRowState,
@@ -49,6 +50,7 @@ import {
   getExerciseVolumeKg,
   evaluateExerciseProgression,
   liveAdaptiveAdjustment,
+  alignPreviousSets,
   isDurationModality,
   isWeightDistanceModality,
   isWeightDurationModality,
@@ -64,6 +66,7 @@ import {
 import {
   NO_ADAPTIVE_ADJUSTMENT,
   isBodyweightModality,
+  usesBarbell,
   shouldSuggestVariation,
 } from '@workspace/shared';
 import { useBodyWeightKg } from '../hooks/useBodyWeightKg';
@@ -417,6 +420,12 @@ function ActiveWorkoutExerciseCard({
   // PREVIOUS column source: the most recent prior session's sets, matched to
   // the current rows by position (Hevy-style).
   const previousSessionSets = (stats?.recentSessions ?? [])[0]?.sets;
+  // Warm-ups pair with last time's warm-ups and working sets with its working
+  // sets, so warm-ups added ahead of them do not take their history.
+  const alignedPreviousSets = useMemo(
+    () => alignPreviousSets(exercise.sets, previousSessionSets),
+    [exercise.sets, previousSessionSets]
+  );
 
   // Live sessions carry no progression/ramp settings on the server entry;
   // they come from the preset, captured into the store at live start.
@@ -612,6 +621,26 @@ function ActiveWorkoutExerciseCard({
   // set this session earns a PR — the better of that and the stamped session
   // set. The server number stays historical (the stats query excludes this
   // session), so the stamped set is what surfaces the new record.
+  // The set the plates graphic shows: the active one, else the first working
+  // set, using the weight it would log (typed or assumed).
+  const plateEquipment = exercise.exercise_snapshot?.equipment ?? null;
+  const showPlates =
+    mode !== 'view' && !cardioForm && usesBarbell(plateEquipment);
+  const plateTargetKg = useMemo(() => {
+    if (!showPlates) return null;
+    const activeIndex = exercise.sets.findIndex(
+      (set) => String(set.id) === activeSetId
+    );
+    const index =
+      activeIndex >= 0
+        ? activeIndex
+        : exercise.sets.findIndex((set) => set.set_type !== 'warmup');
+    if (index < 0) return null;
+    const kg =
+      exercise.sets[index]?.weight ?? assumedSetValues?.[index]?.weight;
+    return kg != null && Number.isFinite(kg) && kg > 0 ? kg : null;
+  }, [showPlates, exercise.sets, activeSetId, assumedSetValues]);
+
   const stampedBest = useMemo(() => {
     if (!isLive || !prSetIds) return null;
     const bodyweight = isBodyweightModality(modality);
@@ -1378,6 +1407,7 @@ function ActiveWorkoutExerciseCard({
         )}
 
         {((showRestChip && !cardioForm) ||
+          showPlates ||
           bestDisplay != null ||
           caloriesField ||
           caloriesText != null ||
@@ -1494,6 +1524,13 @@ function ActiveWorkoutExerciseCard({
                   })}
                 </Text>
               </View>
+            )}
+            {showPlates && plateTargetKg != null && (
+              <PlateBarGraphic
+                targetWeight={storedWeightInUnit(plateTargetKg, weightUnit)}
+                weightUnit={weightUnit}
+                equipment={plateEquipment}
+              />
             )}
             {bestDisplay != null && (
               <View
@@ -1658,6 +1695,13 @@ function ActiveWorkoutExerciseCard({
                   ? 'current'
                   : 'upcoming';
             const nextSet = exercise.sets[index + 1];
+            const isFocusedRow = isLive && focusedSetKey === renderKey;
+            // Only the row holding the keyboard reads activeField (the edit
+            // cursor row, or live's tap-focused row); the rest get a stable
+            // undefined so a field move does not re-render them.
+            const ownsActiveField = isEdit
+              ? setId === activeSetId
+              : isFocusedRow;
 
             // In preview mode ('view'), display the calculated progression weight if goal was hit
             const effectiveSet = set;
@@ -1675,9 +1719,7 @@ function ActiveWorkoutExerciseCard({
                   metricColumn={effectiveMetricColumn}
                   weightUnit={weightUnit}
                   previousSet={
-                    readOnly
-                      ? undefined
-                      : (previousSessionSets?.[index] ?? null)
+                    readOnly ? undefined : (alignedPreviousSets[index] ?? null)
                   }
                   assumed={assumedSetValues?.[index] ?? null}
                   mode={mode}
@@ -1687,8 +1729,8 @@ function ActiveWorkoutExerciseCard({
                   onDelete={onDeleteSet}
                   onLongPress={onLongPressSetKeyed}
                   onPressSetType={onPressSetType}
-                  activeField={activeField}
-                  isFocused={isLive && focusedSetKey === renderKey}
+                  activeField={ownsActiveField ? activeField : undefined}
+                  isFocused={isFocusedRow}
                   nextSetId={nextSet != null ? String(nextSet.id) : null}
                   entryId={exercise.id}
                   rpeEditable={rpeEditable}

@@ -940,6 +940,51 @@ describe('readHealthRecords', () => {
       );
     });
 
+    test('attaches the rating Apple Health holds for the workout, matched by its start and end', async () => {
+      await initHealthConnect();
+
+      const workout = (start: string, end: string) => ({
+        startDate: start,
+        endDate: end,
+        workoutActivityType: 37,
+        duration: 3600,
+        totalEnergyBurned: { unit: 'kcal', quantity: 500 },
+        totalDistance: { unit: 'm', quantity: 5000 },
+        getStatistic: jest.fn().mockResolvedValue(undefined),
+      });
+      mockQueryWorkoutSamples.mockResolvedValue([
+        workout('2024-01-15T08:00:00Z', '2024-01-15T09:00:00Z'),
+        workout('2024-01-15T17:00:00Z', '2024-01-15T17:30:00Z'),
+      ]);
+      mockQueryQuantitySamples.mockImplementation((identifier: string) =>
+        Promise.resolve(
+          identifier === 'HKQuantityTypeIdentifierWorkoutEffortScore'
+            ? [
+                {
+                  startDate: new Date('2024-01-15T08:00:00Z'),
+                  endDate: new Date('2024-01-15T09:00:00Z'),
+                  quantity: 8,
+                },
+              ]
+            : []
+        )
+      );
+
+      const result = (await readHealthRecords(
+        'Workout',
+        new Date('2024-01-15T00:00:00Z'),
+        new Date('2024-01-15T23:59:59Z')
+      )) as { startTime: string; telemetry?: { workout_effort?: number } }[];
+
+      const rated = result.find((r) => r.startTime === '2024-01-15T08:00:00Z');
+      const unrated = result.find(
+        (r) => r.startTime === '2024-01-15T17:00:00Z'
+      );
+      expect(rated?.telemetry?.workout_effort).toBe(8);
+      expect(unrated?.telemetry?.workout_effort).toBeUndefined();
+      mockQueryQuantitySamples.mockReset();
+    });
+
     test('sets telemetry.elapsed_time_seconds from an object-shaped duration (regression: real HealthKit workouts report duration as {unit, quantity}, not a bare number)', async () => {
       await initHealthConnect();
 
@@ -1009,6 +1054,113 @@ describe('readHealthRecords', () => {
       ).toBe(600);
       expect((result[0] as { totalDistance: number }).totalDistance).toBe(6000);
       expect((result[0] as { totalSteps: number }).totalSteps).toBe(6543);
+    });
+
+    test('reads floors climbed from the workout statistics (a stair stepper over GymKit)', async () => {
+      await initHealthConnect();
+
+      const mockGetStatistic = jest
+        .fn()
+        .mockImplementation((identifier: string) =>
+          identifier === 'HKQuantityTypeIdentifierFlightsClimbed'
+            ? Promise.resolve({ sumQuantity: { quantity: 56 } })
+            : Promise.resolve(undefined)
+        );
+      mockQueryWorkoutSamples.mockResolvedValue([
+        {
+          startDate: '2026-10-08T10:49:00Z',
+          endDate: '2026-10-08T11:06:00Z',
+          workoutActivityType: 44,
+          duration: 1018,
+          totalEnergyBurned: 219,
+          getStatistic: mockGetStatistic,
+        },
+      ]);
+
+      const result = await readHealthRecords(
+        'Workout',
+        new Date('2026-10-08T00:00:00Z'),
+        new Date('2026-10-08T23:59:59Z')
+      );
+
+      expect(mockGetStatistic).toHaveBeenCalledWith(
+        'HKQuantityTypeIdentifierFlightsClimbed',
+        'count'
+      );
+      expect(
+        (result[0] as { telemetry?: { floors_climbed?: number } }).telemetry
+          ?.floors_climbed
+      ).toBe(56);
+    });
+
+    test('prefers the workout sample floors when it has them', async () => {
+      await initHealthConnect();
+
+      const mockGetStatistic = jest
+        .fn()
+        .mockImplementation((identifier: string) =>
+          identifier === 'HKQuantityTypeIdentifierFlightsClimbed'
+            ? Promise.resolve({ sumQuantity: { quantity: 99 } })
+            : Promise.resolve(undefined)
+        );
+      mockQueryWorkoutSamples.mockResolvedValue([
+        {
+          startDate: '2026-10-08T10:49:00Z',
+          endDate: '2026-10-08T11:06:00Z',
+          workoutActivityType: 44,
+          duration: 1018,
+          totalEnergyBurned: 219,
+          totalFlightsClimbed: { quantity: 12 },
+          getStatistic: mockGetStatistic,
+        },
+      ]);
+
+      const result = await readHealthRecords(
+        'Workout',
+        new Date('2026-10-08T00:00:00Z'),
+        new Date('2026-10-08T23:59:59Z')
+      );
+
+      expect(
+        (result[0] as { telemetry?: { floors_climbed?: number } }).telemetry
+          ?.floors_climbed
+      ).toBe(12);
+    });
+
+    test('reports no floors when none were recorded, and survives the read being refused', async () => {
+      await initHealthConnect();
+
+      const refused = jest
+        .fn()
+        .mockImplementation((identifier: string) =>
+          identifier === 'HKQuantityTypeIdentifierFlightsClimbed'
+            ? Promise.reject(new Error('not authorized'))
+            : Promise.resolve({ sumQuantity: { quantity: 321 } })
+        );
+      mockQueryWorkoutSamples.mockResolvedValue([
+        {
+          startDate: '2026-10-08T10:49:00Z',
+          endDate: '2026-10-08T11:06:00Z',
+          workoutActivityType: 37,
+          duration: 1018,
+          totalEnergyBurned: 219,
+          totalFlightsClimbed: { quantity: 0 },
+          getStatistic: refused,
+        },
+      ]);
+
+      const result = await readHealthRecords(
+        'Workout',
+        new Date('2026-10-08T00:00:00Z'),
+        new Date('2026-10-08T23:59:59Z')
+      );
+
+      const telemetry = (
+        result[0] as { telemetry?: { floors_climbed?: number } }
+      ).telemetry;
+      expect(telemetry?.floors_climbed).toBeUndefined();
+      // The other statistic reads still happened.
+      expect((result[0] as { totalSteps: number }).totalSteps).toBe(321);
     });
 
     test('does not invent workout steps when HealthKit has no associated step statistic', async () => {
@@ -1492,6 +1644,44 @@ describe('readHealthRecords', () => {
     });
   });
 
+  describe('MindfulnessSession records', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockIsHealthDataAvailable.mockResolvedValue(true);
+    });
+
+    test('keeps uuid, source and timezone for each session', async () => {
+      await initHealthConnect();
+
+      mockQueryCategorySamples.mockResolvedValue([
+        {
+          uuid: 'hk-uuid-1',
+          startDate: '2024-01-15T08:00:00Z',
+          endDate: '2024-01-15T08:15:00Z',
+          value: 0,
+          metadataTimeZone: 'Europe/Berlin',
+          sourceRevision: { source: { bundleIdentifier: 'com.calm.app' } },
+        },
+      ]);
+
+      const result = await readHealthRecords(
+        'MindfulnessSession',
+        new Date('2024-01-15T00:00:00Z'),
+        new Date('2024-01-15T23:59:59Z')
+      );
+
+      expect(result).toEqual([
+        {
+          uuid: 'hk-uuid-1',
+          startTime: '2024-01-15T08:00:00Z',
+          endTime: '2024-01-15T08:15:00Z',
+          metadata: { HKTimeZone: 'Europe/Berlin' },
+          sourceBundleId: 'com.calm.app',
+        },
+      ]);
+    });
+  });
+
   describe('BloodPressure records', () => {
     beforeEach(() => {
       jest.clearAllMocks();
@@ -1914,6 +2104,212 @@ describe('readHealthRecords', () => {
           'com.myfitnesspal.mfp'
       );
       expect((looseEntry as { objects: unknown[] }).objects).toHaveLength(1);
+    });
+
+    test('excludes loose samples matching a correlation bundle and timestamp even when UUIDs differ (prevents double-counting)', async () => {
+      await initHealthConnect();
+      const mfBundle = 'com.macrofactor.app';
+      mockQueryCorrelationSamples.mockResolvedValue([
+        correlation({
+          uuid: 'corr-macrofactor-lunch',
+          startDate: '2024-01-15T12:30:00Z',
+          endDate: '2024-01-15T12:30:00Z',
+          metadataFoodType: undefined,
+          metadata: { HKFoodType: 'Chicken Rice Bowl' },
+          sourceRevision: { source: { bundleIdentifier: mfBundle } },
+          objects: [
+            {
+              uuid: 'corr-obj-protein',
+              quantityType: 'HKQuantityTypeIdentifierDietaryProtein',
+              quantity: 40,
+              unit: 'g',
+            },
+            {
+              uuid: 'corr-obj-energy',
+              quantityType: 'HKQuantityTypeIdentifierDietaryEnergyConsumed',
+              quantity: 542,
+              unit: 'kcal',
+            },
+          ],
+        }),
+      ]);
+      mockQueryQuantitySamples.mockImplementation(
+        looseByIdentifier({
+          HKQuantityTypeIdentifierDietaryEnergyConsumed: [
+            // App saved loose sample with DIFFERENT uuid than correlation objects
+            {
+              uuid: 'loose-obj-energy-unmatched-uuid',
+              startDate: '2024-01-15T12:30:00Z',
+              quantity: 542,
+              unit: 'kcal',
+              source: { bundleIdentifier: mfBundle },
+            },
+          ],
+          HKQuantityTypeIdentifierDietaryProtein: [
+            {
+              uuid: 'loose-obj-protein-unmatched-uuid',
+              startDate: '2024-01-15T12:30:00Z',
+              quantity: 40,
+              unit: 'g',
+              source: { bundleIdentifier: mfBundle },
+            },
+          ],
+        })
+      );
+
+      const result = await readHealthRecords(
+        'Nutrition',
+        new Date('2024-01-15T00:00:00Z'),
+        new Date('2024-01-15T23:59:59Z')
+      );
+
+      // Only the correlation entry should be returned — the loose duplicate is excluded
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        uuid: 'corr-macrofactor-lunch',
+        startDate: '2024-01-15T12:30:00Z',
+        metadataFoodType: 'Chicken Rice Bowl',
+        sourceBundleId: mfBundle,
+      });
+    });
+
+    test('extracts foodLabel and timezone from correlation metadata (HKFoodType, HKTimeZone)', async () => {
+      await initHealthConnect();
+      mockQueryCorrelationSamples.mockResolvedValue([
+        correlation({
+          uuid: 'corr-meta',
+          startDate: '2024-01-15T08:00:00Z',
+          metadataFoodType: undefined,
+          metadataTimeZone: undefined,
+          metadata: {
+            HKFoodType: 'Oatmeal with Berries',
+            HKTimeZone: 'Europe/London',
+          },
+        }),
+      ]);
+
+      const result = await readHealthRecords(
+        'Nutrition',
+        new Date('2024-01-15T00:00:00Z'),
+        new Date('2024-01-15T23:59:59Z')
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        uuid: 'corr-meta',
+        metadataFoodType: 'Oatmeal with Berries',
+        metadata: { HKTimeZone: 'Europe/London' },
+      });
+    });
+
+    test('preserves loose samples from the same source when outside the correlation window', async () => {
+      await initHealthConnect();
+      const appBundle = 'com.example.nutrition';
+      mockQueryCorrelationSamples.mockResolvedValue([
+        correlation({
+          uuid: 'corr-lunch',
+          startDate: '2024-01-15T12:30:00Z',
+          endDate: '2024-01-15T12:30:00Z',
+          sourceRevision: { source: { bundleIdentifier: appBundle } },
+        }),
+      ]);
+      mockQueryQuantitySamples.mockImplementation(
+        looseByIdentifier({
+          HKQuantityTypeIdentifierDietaryProtein: [
+            // Same source, but logged 4 hours later as a standalone loose snack
+            {
+              uuid: 'loose-snack-protein',
+              startDate: '2024-01-15T16:30:00Z',
+              quantity: 15,
+              unit: 'g',
+              source: { bundleIdentifier: appBundle },
+            },
+          ],
+        })
+      );
+
+      const result = await readHealthRecords(
+        'Nutrition',
+        new Date('2024-01-15T00:00:00Z'),
+        new Date('2024-01-15T23:59:59Z')
+      );
+
+      // Correlation from 12:30 AND standalone snack from 16:30 should both be returned
+      expect(result).toHaveLength(2);
+      const ids = result.map((r) => (r as { uuid: string }).uuid);
+      expect(ids).toContain('corr-lunch');
+      expect(ids).toContain('com.example.nutrition:2024-01-15T16:30:00Z');
+    });
+
+    test('preserves distinct loose nutrient from the same bundle within the correlation window', async () => {
+      await initHealthConnect();
+      const appBundle = 'com.example.nutrition';
+      mockQueryCorrelationSamples.mockResolvedValue([
+        correlation({
+          uuid: 'corr-protein-only',
+          startDate: '2024-01-15T12:30:00Z',
+          endDate: '2024-01-15T12:30:00Z',
+          sourceRevision: { source: { bundleIdentifier: appBundle } },
+          objects: [
+            {
+              uuid: 'corr-protein',
+              quantityType: 'HKQuantityTypeIdentifierDietaryProtein',
+              quantity: 25,
+              unit: 'g',
+            },
+          ],
+        }),
+      ]);
+      mockQueryQuantitySamples.mockImplementation(
+        looseByIdentifier({
+          HKQuantityTypeIdentifierDietaryProtein: [
+            // Same nutrient type inside the correlation window -> excluded
+            {
+              uuid: 'loose-duplicate-protein',
+              startDate: '2024-01-15T12:30:00Z',
+              quantity: 25,
+              unit: 'g',
+              source: { bundleIdentifier: appBundle },
+            },
+          ],
+          HKQuantityTypeIdentifierDietaryEnergyConsumed: [
+            // Distinct nutrient type NOT in the correlation -> preserved
+            {
+              uuid: 'loose-distinct-energy',
+              startDate: '2024-01-15T12:30:00Z',
+              quantity: 200,
+              unit: 'kcal',
+              source: { bundleIdentifier: appBundle },
+            },
+          ],
+        })
+      );
+
+      const result = await readHealthRecords(
+        'Nutrition',
+        new Date('2024-01-15T00:00:00Z'),
+        new Date('2024-01-15T23:59:59Z')
+      );
+
+      // Should return the correlation record AND the loose record for the distinct nutrient
+      expect(result).toHaveLength(2);
+      const ids = result.map((r) => (r as { uuid: string }).uuid);
+      expect(ids).toContain('corr-protein-only');
+      expect(ids).toContain('com.example.nutrition:2024-01-15T12:30:00Z');
+
+      const looseEntry = result.find(
+        (r) =>
+          (r as { uuid: string }).uuid ===
+          'com.example.nutrition:2024-01-15T12:30:00Z'
+      );
+      expect(
+        (looseEntry as { objects: { quantityType: string }[] }).objects
+      ).toEqual([
+        expect.objectContaining({
+          quantityType: 'HKQuantityTypeIdentifierDietaryEnergyConsumed',
+          quantity: 200,
+        }),
+      ]);
     });
   });
 });

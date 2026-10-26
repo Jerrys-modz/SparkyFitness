@@ -4,7 +4,9 @@ import type {
   CaloriesDataPoint,
   HealthTrendDateRange,
   HealthTrendSeries,
+  HeartRateDataPoint,
   HydrationDataPoint,
+  Vo2MaxDataPoint,
 } from '../types/healthTrends';
 import type { SleepTimelineDay, SleepTimelineSummary } from '../types/sleep';
 import {
@@ -15,6 +17,8 @@ import {
 import { useCaloriesRange } from './useCaloriesRange';
 import { useHydrationRange } from './useHydrationRange';
 import { useSleepRange } from './useSleepRange';
+import { useVo2MaxRange } from './useVo2MaxRange';
+import { useHeartRateRange } from './useHeartRateRange';
 
 interface UseHealthTrendsOptions {
   range: HealthTrendDateRange;
@@ -42,12 +46,25 @@ export type HydrationTrendSeries = HealthTrendSeries<HydrationDataPoint> & {
   hydrationGoals: (number | null)[];
 };
 
+/** The resolved steps goal for each day in the window, same order as `data`. */
+export type StepsTrendSeries = HealthTrendSeries<StepsDataPoint> & {
+  stepsGoals: (number | null)[];
+};
+
+export type HeartRateTrendSeries = HealthTrendSeries<HeartRateDataPoint> & {
+  averageRestingHr: number | null;
+  minRestingHr: number | null;
+  maxRestingHr: number | null;
+};
+
 interface HealthTrends {
-  steps: HealthTrendSeries<StepsDataPoint>;
+  steps: StepsTrendSeries;
   weight: HealthTrendSeries<WeightDataPoint>;
   sleep: SleepTrendSeries;
   hydration: HydrationTrendSeries;
   calories: CaloriesTrendSeries;
+  heartRate: HeartRateTrendSeries;
+  vo2max: HealthTrendSeries<Vo2MaxDataPoint>;
   refetch: () => Promise<void>;
 }
 
@@ -65,12 +82,16 @@ export function useHealthTrends({
   const isSleepEnabled = enabled && activeTrends.includes('sleep');
   const isHydrationEnabled = enabled && activeTrends.includes('hydration');
   const isCaloriesEnabled = enabled && activeTrends.includes('calories');
+  const isHeartRateEnabled = enabled && activeTrends.includes('heartRate');
+  const isVo2MaxEnabled = enabled && activeTrends.includes('vo2max');
 
   const {
     stepsData,
+    stepsGoals,
     weightData,
     isLoading: isMeasurementsLoading,
     isError: isMeasurementsError,
+    isStepsGoalsError,
     refetch: refetchMeasurements,
   } = useMeasurementsRange({ range, enabled: isMeasurementsEnabled });
 
@@ -98,30 +119,56 @@ export function useHealthTrends({
     refetch: refetchCalories,
   } = useCaloriesRange({ range, enabled: isCaloriesEnabled });
 
+  const {
+    heartRateData,
+    averageRestingHr,
+    minRestingHr,
+    maxRestingHr,
+    isLoading: isHeartRateLoading,
+    isError: isHeartRateError,
+    refetch: refetchHeartRate,
+  } = useHeartRateRange({ range, enabled: isHeartRateEnabled });
+
+  const {
+    vo2MaxData,
+    isEstimate: isVo2MaxEstimate,
+    isLoading: isVo2MaxLoading,
+    isError: isVo2MaxError,
+    refetch: refetchVo2Max,
+  } = useVo2MaxRange({ range, enabled: isVo2MaxEnabled });
+
   const refetch = useCallback(async () => {
     await Promise.all([
       isMeasurementsEnabled ? refetchMeasurements() : Promise.resolve(),
       isSleepEnabled ? refetchSleep() : Promise.resolve(),
       isHydrationEnabled ? refetchHydration() : Promise.resolve(),
       isCaloriesEnabled ? refetchCalories() : Promise.resolve(),
+      isHeartRateEnabled ? refetchHeartRate() : Promise.resolve(),
+      isVo2MaxEnabled ? refetchVo2Max() : Promise.resolve(),
     ]);
   }, [
     isMeasurementsEnabled,
     isSleepEnabled,
     isHydrationEnabled,
     isCaloriesEnabled,
+    isHeartRateEnabled,
+    isVo2MaxEnabled,
     refetchMeasurements,
     refetchSleep,
     refetchHydration,
     refetchCalories,
+    refetchHeartRate,
+    refetchVo2Max,
   ]);
 
   return {
     // Steps and weight share one request, so they necessarily share its fetch state.
     steps: {
       data: stepsData,
+      stepsGoals,
       isLoading: isMeasurementsLoading,
-      isError: isMeasurementsError,
+      // A failed goals request must not read as "no goal set"; weight is unaffected.
+      isError: isMeasurementsError || isStepsGoalsError,
     },
     weight: {
       data: weightData,
@@ -148,6 +195,20 @@ export function useHealthTrends({
       calorieGoals,
       isLoading: isCaloriesLoading,
       isError: isCaloriesError,
+    },
+    heartRate: {
+      data: heartRateData,
+      averageRestingHr,
+      minRestingHr,
+      maxRestingHr,
+      isLoading: isHeartRateLoading,
+      isError: isHeartRateError,
+    },
+    vo2max: {
+      data: vo2MaxData,
+      isEstimate: isVo2MaxEstimate,
+      isLoading: isVo2MaxLoading,
+      isError: isVo2MaxError,
     },
     refetch,
   };

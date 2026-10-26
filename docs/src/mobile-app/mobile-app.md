@@ -30,6 +30,14 @@ The Android version is available as a google play store beta. You can join the b
 1. First, join the [Google Play beta group](https://groups.google.com/g/sparkyfitness)
 2. Then you will have access to closed testing and can [download the beta here](https://play.google.com/store/apps/details?id=com.SparkyApps.SparkyFitnessMobile)
 
+### Health Connect sync
+
+Overnight HRV and resting heart rate appear on sleep entries when HRV and Resting Heart Rate sync are enabled.
+
+## Watch apps
+
+The mobile app has companion apps for Apple Watch and Wear OS. See [Watch Apps](/mobile-app/watch-apps).
+
 ## Screenshot (iOS)
 
 ![Mobile App](/appdashboard.png)

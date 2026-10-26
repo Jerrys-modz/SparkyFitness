@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // @ts-expect-error TS(7016): Could not find a declaration file for module 'supertest'
 import request from 'supertest';
 import express from 'express';
-import garminRoutes from '../routes/garminRoutes.js';
+import garminRoutes, {
+  MFA_ATTEMPT_MAX,
+  mfaAttemptLimiter,
+} from '../routes/garminRoutes.js';
+import garminConnectService from '../integrations/garminconnect/garminConnectService.js';
 import garminService from '../services/garminService.js';
 import externalProviderRepository from '../models/externalProviderRepository.js';
 
@@ -75,6 +79,15 @@ vi.mock('../models/globalSettingsRepository.js', () => ({
   isMockDataEnabled: vi.fn().mockResolvedValue(false),
 }));
 
+vi.mock('../services/providerSyncClaim.js', async (importActual) => ({
+  ...(await importActual<typeof import('../services/providerSyncClaim.js')>()),
+  startProviderSync: vi.fn(async (_target, sync) => ({ running: sync() })),
+}));
+import {
+  SYNC_ALREADY_RUNNING_RESPONSE,
+  startProviderSync,
+} from '../services/providerSyncClaim.js';
+
 const app = express();
 app.use(express.json());
 app.use('/integrations/garmin', garminRoutes);
@@ -85,6 +98,7 @@ app.use((err: any, _req: any, res: any, _next: any) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mfaAttemptLimiter.reset();
   permissionState.allow = true;
   (
     externalProviderRepository.getExternalDataProviderByUserIdAndProviderName as any
@@ -120,7 +134,44 @@ describe('permission gating (switched-context delegate without diary access)', (
   });
 });
 
+describe('POST /integrations/garmin/resume_login', () => {
+  it('stops forwarding codes once the attempt cap is reached', async () => {
+    vi.mocked(garminConnectService.garminResumeLogin).mockResolvedValue({
+      status: 'invalid_mfa_code',
+    });
+    const attempt = () =>
+      request(app)
+        .post('/integrations/garmin/resume_login')
+        .send({ client_state: 'sealed', mfa_code: '123456' });
+
+    for (let i = 0; i < MFA_ATTEMPT_MAX; i++) {
+      expect((await attempt()).statusCode).toBe(200);
+    }
+    const res = await attempt();
+
+    expect(res.statusCode).toBe(429);
+    expect(Number(res.headers['retry-after'])).toBeGreaterThan(0);
+    expect(garminConnectService.garminResumeLogin).toHaveBeenCalledTimes(
+      MFA_ATTEMPT_MAX
+    );
+  });
+});
+
 describe('POST /integrations/garmin/sync', () => {
+  it('answers 409 without syncing while another sync holds the account', async () => {
+    vi.mocked(startProviderSync).mockResolvedValueOnce(null);
+
+    const res = await request(app).post('/integrations/garmin/sync').send({});
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body).toEqual(SYNC_ALREADY_RUNNING_RESPONSE);
+    expect(startProviderSync).toHaveBeenCalledWith(
+      { userId: 'user-123', providerType: 'garmin' },
+      expect.any(Function)
+    );
+    expect(garminService.syncGarminData).not.toHaveBeenCalled();
+  });
+
   it('updates provider last_sync_at when all sync phases complete', async () => {
     const result = {
       health: { processedEntries: 1 },

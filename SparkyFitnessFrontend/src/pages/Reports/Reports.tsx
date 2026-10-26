@@ -5,6 +5,7 @@ import MedicationReports from '@/pages/Reports/MedicationReports';
 import SymptomsReport from '@/pages/Symptoms/SymptomsReport';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
+import { useProfileQuery } from '@/hooks/Settings/useProfile';
 import ZoomableChart from '@/components/ZoomableChart';
 import ReportsControls from '@/pages/Reports/ReportsControls';
 import NutritionPeriodSummary from '@/pages/Reports/NutritionPeriodSummary';
@@ -23,6 +24,7 @@ import ExerciseReportsDashboard from '@/pages/Reports/ExerciseReportsDashboard';
 import SleepReport from '@/pages/Reports/SleepReport';
 import BodyBatteryCard from '@/pages/Reports/BodyBatteryCard';
 import RespirationCard from '@/pages/Reports/RespirationCard';
+import HeartRateAnalyticsCard from '@/pages/Reports/HeartRateAnalyticsCard';
 
 import StressChart from '@/pages/Reports/StressChart';
 import { debug, info } from '@/utils/logging';
@@ -48,10 +50,12 @@ import { ChartErrorBoundary } from '../Errors/ChartErrorFallback';
 import { CustomCategoriesResponse } from '@workspace/shared';
 import { useDailyGoalsRange } from '@/hooks/Goals/useGoals';
 import { useSearchParams } from 'react-router-dom';
+import { CompareReport } from '@/pages/Reports/Compare/CompareReport';
 
 const Reports = () => {
   const { t } = useTranslation();
   const { activeUserId } = useActiveUser();
+  const { data: profile } = useProfileQuery(activeUserId ?? undefined);
   const {
     formatDateInUserTimezone,
     loggingLevel,
@@ -171,6 +175,9 @@ const Reports = () => {
     // `measurementData` above defaults to a fresh `[]` each render, which
     // would defeat that and re-compute every widget.
     measurementData: reportsData?.measurementData,
+    targetWeightKg: profile?.target_weight
+      ? Number(profile.target_weight)
+      : null,
   });
 
   const handleStartDateChange = (date: string) => {
@@ -263,6 +270,20 @@ const Reports = () => {
               />
             </ChartErrorBoundary>
           </div>
+        );
+      case 'heart-rate':
+        return (
+          <ChartErrorBoundary>
+            <HeartRateAnalyticsCard
+              startDate={startDate}
+              endDate={endDate}
+              exerciseEntries={exerciseEntries}
+              restingHeartRateData={measurementData.map((m) => ({
+                date: m.entry_date,
+                resting_heart_rate: m.resting_heart_rate ?? null,
+              }))}
+            />
+          </ChartErrorBoundary>
         );
       case 'fasting':
         return (
@@ -427,13 +448,21 @@ const Reports = () => {
           onEndDateChange={handleEndDateChange}
           activeTab={activeTab}
           onTabChange={handleTabChange}
+          showDateRange={activeTab !== 'compare'}
         />
       ) : (
         <div>
           {t('reports.loadingDateControls', 'Loading date controls...')}
         </div>
       )}
-      {loading ? (
+      {activeTab === 'compare' ? (
+        // Compare keeps its own range and queries, so it never waits on the other tabs.
+        <div className="w-full animate-in fade-in duration-500">
+          <ChartErrorBoundary>
+            <CompareReport />
+          </ChartErrorBoundary>
+        </div>
+      ) : loading ? (
         <div>{t('reports.loadingReports', 'Loading reports...')}</div>
       ) : (
         <div className="w-full animate-in fade-in duration-500">

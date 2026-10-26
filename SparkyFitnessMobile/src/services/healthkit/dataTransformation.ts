@@ -2,6 +2,7 @@ import { addLog } from '../LogService';
 import { attachWorkoutTelemetry } from '../shared/workoutTelemetryPayload';
 import {
   TransformedExerciseSession,
+  TransformedMindfulnessSession,
   TransformedNutritionEntry,
   SparkyMealType,
   AggregatedSleepSession,
@@ -67,6 +68,14 @@ export const isOwnWatchWorkout = (rec: Record<string, unknown>): boolean => {
   const metadata = rec.metadata as Record<string, unknown> | undefined;
   return metadata?.[WATCH_SESSION_METADATA_KEY] !== undefined;
 };
+
+/**
+ * True for a workout recorded by this app's watch target on its own (the
+ * Cardio row). Those are saved without `WATCH_SESSION_METADATA_KEY`, so they
+ * are imported from Health, but their source is `<phone-bundle>.watchkitapp`.
+ */
+const isWatchRecordedRun = (rec: Record<string, unknown>): boolean =>
+  !!ownBundleId && rec.sourceBundleId === `${ownBundleId}.watchkitapp`;
 
 // ============================================================================
 // Transformer Infrastructure
@@ -544,12 +553,19 @@ const DIRECT_TRANSFORMERS: Record<string, DirectTransformer> = {
 
     // Send only the instant (timestamp) plus tz metadata, never a pre-bucketed day
     // string: the server derives the calendar day from the instant + timezone.
+    const meta = rec.metadata as Record<string, unknown> | undefined;
+    const foodName =
+      (rec.metadataFoodType as string) ||
+      (meta?.HKFoodType as string) ||
+      (meta?.foodType as string) ||
+      'Apple Health food';
+
     const entry: TransformedNutritionEntry = {
       type: 'Nutrition',
       source: HEALTHKIT_SOURCE,
       source_id: uuid,
       timestamp: startDate,
-      food_name: (rec.metadataFoodType as string) || 'Apple Health food',
+      food_name: foodName,
       meal_type: mealTypeFromInstant(new Date(startDate)),
       ...extractTimezoneMetadata(rec),
     };
@@ -572,6 +588,36 @@ const DIRECT_TRANSFORMERS: Record<string, DirectTransformer> = {
 
     if (!hasNutrient) return; // no recognized positive nutrients — drop the entry
     output.push(entry);
+  },
+
+  // HKCategoryTypeIdentifierMindfulSession carries no session type or notes, so
+  // every session is sent as 'other'. The sample uuid is the idempotency key.
+  MindfulnessSession: (rec, _record, _metricConfig, output) => {
+    if (isOwnRecord(rec)) return; // don't re-import sessions Sparky wrote
+
+    const uuid = rec.uuid as string | undefined;
+    if (!uuid) return;
+    if (!rec.startTime || !rec.endTime) return;
+
+    const start = new Date(rec.startTime as string).getTime();
+    const end = new Date(rec.endTime as string).getTime();
+    if (isNaN(start) || isNaN(end)) return;
+    const durationSeconds = Math.round((end - start) / 1000);
+    if (durationSeconds <= 0) return;
+
+    const session: TransformedMindfulnessSession = {
+      type: 'MindfulnessSession',
+      source: HEALTHKIT_SOURCE,
+      source_id: uuid,
+      timestamp: rec.startTime as string,
+      startTime: rec.startTime as string,
+      endTime: rec.endTime as string,
+      duration_seconds: durationSeconds,
+      value: durationSeconds / 60,
+      session_type: 'other',
+      ...extractTimezoneMetadata(rec),
+    };
+    output.push(session);
   },
 
   BloodPressure: createBloodPressureTransformer(
@@ -602,6 +648,12 @@ const DIRECT_TRANSFORMERS: Record<string, DirectTransformer> = {
     if (sleepRec.record_utc_offset_minutes != null) {
       session.record_utc_offset_minutes = sleepRec.record_utc_offset_minutes;
     }
+    if (typeof sleepRec.avg_overnight_hrv === 'number') {
+      session.avg_overnight_hrv = sleepRec.avg_overnight_hrv;
+    }
+    if (typeof sleepRec.resting_heart_rate === 'number') {
+      session.resting_heart_rate = sleepRec.resting_heart_rate;
+    }
     output.push(session);
   },
 
@@ -612,9 +664,16 @@ const DIRECT_TRANSFORMERS: Record<string, DirectTransformer> = {
     if (isOwnWatchWorkout(rec)) return;
 
     const activityType = rec.activityType as number | undefined;
-    const activityTypeName = activityType
+    const baseActivityName = activityType
       ? ACTIVITY_MAP[activityType] || `Workout type ${activityType}`
       : 'Workout Session';
+    const watchRecorded = isWatchRecordedRun(rec);
+    const watchMetadata = rec.metadata as Record<string, unknown> | undefined;
+    const indoor = watchMetadata?.HKIndoorWorkout;
+    const indoorPrefix = indoor === 1 || indoor === true ? 'Indoor' : 'Outdoor';
+    const activityTypeName = watchRecorded
+      ? `${indoorPrefix} ${baseActivityName === 'Walking' ? 'walk' : baseActivityName === 'Running' ? 'run' : baseActivityName.toLowerCase()}`
+      : baseActivityName;
 
     // Handle duration which might be an object { unit: 's', quantity: 123 }
     let durationInSeconds = 0;
@@ -657,7 +716,9 @@ const DIRECT_TRANSFORMERS: Record<string, DirectTransformer> = {
       rec.totalSteps > 0
         ? { steps: Math.round(rec.totalSteps) }
         : {}),
-      notes: 'Source: HealthKit',
+      notes: watchRecorded
+        ? 'Recorded on Apple Watch with SparkyFitness'
+        : 'Source: HealthKit',
       raw_data: record,
       // duration_seconds instead of duration: servers without the seconds-based
       // set model drop the unknown field rather than misreading it as minutes.

@@ -15,6 +15,8 @@ import {
 } from '../services/storage';
 import type { ServerConfig } from '../services/storage';
 import { addLog } from '../services/LogService';
+import { clearBackgroundWater } from '../services/backgroundWater';
+import { clearAndroidWidgetSnapshots } from '../services/androidWidgetSyncService';
 import {
   deleteWatchTelemetryForConfig,
   notifyWatchTelemetryAccountSwitch,
@@ -58,6 +60,19 @@ export function useAuth() {
       // succeeds; restore waits until the ids are read and purged.
       notifyWatchTelemetryAccountSwitch(takeIdentityChangeServerConfigIds);
       queryClient.clear();
+      // The widgets' snapshots carry no account either, and the Quick Settings
+      // tile shows the calorie figure on the lock screen. Cleared in the same
+      // turn as the cache, so no summary of the previous account is pushed
+      // after it.
+      void clearAndroidWidgetSnapshots().catch((err: unknown) => {
+        addLog(`Failed to clear the widget snapshots: ${err}`, 'WARNING');
+      });
+      // The Siri and Shortcuts copy holds the previous login and proxy
+      // headers; the dashboard writes a fresh one once the new identity's
+      // preferences and container load.
+      void clearBackgroundWater().catch((err: unknown) => {
+        addLog(`Failed to clear the shortcut login copy: ${err}`, 'WARNING');
+      });
       // The multi-select food basket store is the same kind of identity-
       // carrying global as the caches and the cookie jar below: it holds the
       // previous account's food ids, meal-type ids, and batch outcomes, and

@@ -1,3 +1,5 @@
+import AllergenWarning from '../components/AllergenWarning';
+import BarcodeSources from '../components/BarcodeSources';
 import React, {
   useState,
   useRef,
@@ -286,11 +288,11 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
   const effectiveMealId = selectedMealId ?? defaultMealTypeId;
   const selectedMealType = mealTypes.find((mt) => mt.id === effectiveMealId);
 
-  const [entryTime, setEntryTime] = useState('');
+  const [entryTime, setEntryTime] = useState(route.params.entryTime ?? '');
   // The note for THIS diary entry. The food's own note is shown read-only
   // beside it and is never copied in.
-  const [entryNotes, setEntryNotes] = useState('');
-  const entryTimeTouched = useRef(false);
+  const [entryNotes, setEntryNotes] = useState(route.params.entryNotes ?? '');
+  const entryTimeTouched = useRef(route.params.entryTime !== undefined);
   useEffect(() => {
     if (entryTimeTouched.current) return;
     setEntryTime(
@@ -1578,6 +1580,11 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
         className="flex-1"
         contentContainerClassName="px-4 pt-4 pb-4 gap-4"
       >
+        <AllergenWarning
+          allergens={activeItem.allergens}
+          traces={activeItem.traces}
+        />
+
         <FoodNutritionHeader
           name={adjustedValues?.name || activeItem.name}
           brand={adjustedValues?.brand ?? activeItem.brand}
@@ -1594,6 +1601,28 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
           provider_verified={activeItem.provider_verified}
         />
 
+        {route.params.barcodeLookup && (
+          <BarcodeSources
+            context={route.params.barcodeLookup}
+            disabled={isActionPending}
+            onSelect={(nextItem, barcodeLookup) => {
+              // A fresh route clears serving overrides and saved import identity.
+              // Keep the diary/selection destination and the user's entry fields.
+              navigation.replace('FoodEntryAdd', {
+                item: nextItem,
+                barcodeLookup,
+                date: selectedDate,
+                mealTypeId: effectiveMealId ?? undefined,
+                pickerMode: route.params.pickerMode,
+                returnDepth: route.params.returnDepth,
+                mealPlanTarget,
+                entryNotes,
+                entryTime: entryTimeTouched.current ? entryTime : undefined,
+              });
+            }}
+          />
+        )}
+
         <View className="mt-2">
           <View className="flex-row items-center">
             <StepperInput
@@ -1603,9 +1632,49 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
               onDecrement={() => adjustQuantity(-1)}
               onIncrement={() => adjustQuantity(1)}
             />
-            <Text className="text-text-primary text-base font-medium ml-2">
-              {quantityUnitLabel}
-            </Text>
+            {variantPickerOptions.length > 1 ? (
+              <BottomSheetPicker
+                value={selectedVariantId ?? variantPickerOptions[0]?.id ?? ''}
+                options={variantPickerOptions.map((variant) => ({
+                  label: variant.label,
+                  value: variant.id ?? '',
+                }))}
+                onSelect={handleVariantChange}
+                title={t('foodEntryAdd.pickers.selectServing', {
+                  defaultValue: 'Select Serving',
+                })}
+                renderTrigger={({ onPress }) => (
+                  <TouchableOpacity
+                    onPress={onPress}
+                    accessibilityRole="button"
+                    accessibilityLabel={t(
+                      'foodEntryAdd.pickers.selectServing',
+                      { defaultValue: 'Select Serving' }
+                    )}
+                    disabled={isCreateVariantPending}
+                    className="flex-1 flex-row items-center justify-between bg-raised border border-border-subtle rounded-lg px-3 py-3 ml-2 gap-2"
+                  >
+                    <Text className="text-text-primary text-base font-medium flex-1">
+                      {quantityUnitLabel}
+                    </Text>
+                    {isCreateVariantPending ? (
+                      <ActivityIndicator size="small" color={accentColor} />
+                    ) : (
+                      <Icon
+                        name="chevron-down"
+                        size={16}
+                        color={textPrimary}
+                        weight="medium"
+                      />
+                    )}
+                  </TouchableOpacity>
+                )}
+              />
+            ) : (
+              <Text className="text-text-primary text-base font-medium ml-2">
+                {quantityUnitLabel}
+              </Text>
+            )}
           </View>
           <View className="flex-row items-center mt-2">
             <Text className="text-text-secondary text-sm">
@@ -1624,51 +1693,7 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
             {displayValues.servingUnit !== 'serving' &&
               !displayValues.servingDescription
                 ?.toLowerCase()
-                .includes('serving') &&
-              (variantPickerOptions.length > 1 ? (
-                <BottomSheetPicker
-                  value={selectedVariantId ?? variantPickerOptions[0]?.id ?? ''}
-                  options={variantPickerOptions.map((variant) => ({
-                    label: variant.label,
-                    value: variant.id ?? '',
-                  }))}
-                  onSelect={handleVariantChange}
-                  title={t('foodEntryAdd.pickers.selectServing', {
-                    defaultValue: 'Select Serving',
-                  })}
-                  renderTrigger={({ onPress }) => (
-                    <TouchableOpacity
-                      onPress={onPress}
-                      activeOpacity={0.7}
-                      className="flex-row items-center ml-1"
-                      disabled={isCreateVariantPending}
-                    >
-                      <Text className="text-text-secondary text-sm">
-                        {' · '}
-                        {perServingLabel}{' '}
-                        {t('foodEntryAdd.labels.perServing', {
-                          defaultValue: 'per serving',
-                        })}
-                      </Text>
-                      {isCreateVariantPending ? (
-                        <ActivityIndicator
-                          size="small"
-                          color={accentColor}
-                          style={{ marginLeft: 6 }}
-                        />
-                      ) : (
-                        <Icon
-                          name="chevron-down"
-                          size={12}
-                          color={textPrimary}
-                          style={{ marginLeft: 4 }}
-                          weight="medium"
-                        />
-                      )}
-                    </TouchableOpacity>
-                  )}
-                />
-              ) : (
+                .includes('serving') && (
                 <Text className="text-text-secondary text-sm">
                   {' · '}
                   {perServingLabel}{' '}
@@ -1676,7 +1701,7 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
                     defaultValue: 'per serving',
                   })}
                 </Text>
-              ))}
+              )}
             {/* Serving-unit meals: surface the meal's yield count as a
                 substitute for the suppressed "per serving" suffix above.
                 Singular meals (total_servings <= 1) don't need this \u2014 there's

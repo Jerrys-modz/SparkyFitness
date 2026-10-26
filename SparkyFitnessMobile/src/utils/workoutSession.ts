@@ -24,6 +24,7 @@ import {
   decideAdaptiveAdjustment,
   distributeProgressionReps,
   effectiveLoadKg,
+  entryCaloriesCounted,
   evaluateProgression,
   isBodyweightModality,
   isCardioModality,
@@ -85,6 +86,8 @@ export const CATEGORY_ICON_MAP: Record<string, IconName> = {
   Strength: 'exercise-weights',
   Cardio: 'exercise-running',
   Running: 'exercise-running',
+  'Jump Rope': 'exercise-jumprope',
+  'Skipping Rope': 'exercise-jumprope',
   Cycling: 'exercise-cycling',
   Swimming: 'exercise-swimming',
   Walking: 'exercise-walking',
@@ -121,6 +124,10 @@ const NAME_KEYWORDS: [string, IconName][] = [
   ['stair', 'exercise-stair'],
   ['strength', 'exercise-weights'],
   ['weight', 'exercise-weights'],
+  // Whole names, not bare words: "Jump Squat", "Jumping Jacks" and
+  // "Battle Ropes" are not rope skipping.
+  ['jump rope', 'exercise-jumprope'],
+  ['skipping rope', 'exercise-jumprope'],
   ['run', 'exercise-running'],
 ];
 
@@ -202,9 +209,12 @@ export function getFirstImage(session: ExerciseSessionResponse): string | null {
 
 export function getSessionCalories(session: ExerciseSessionResponse): number {
   if (session.type === 'preset') {
-    return session.exercises.reduce((sum, e) => sum + e.calories_burned, 0);
+    return session.exercises.reduce(
+      (sum, e) => sum + entryCaloriesCounted(e),
+      0
+    );
   }
-  return session.calories_burned || 0;
+  return entryCaloriesCounted(session);
 }
 
 // --- Exercise stats (single-pass over sessions array) ---
@@ -235,7 +245,7 @@ export function calculateExerciseStats(
       const isActiveCals =
         session.exercise_snapshot?.name === 'Active Calories';
       if (isActiveCals) {
-        activeCalories += session.calories_burned || 0;
+        activeCalories += entryCaloriesCounted(session);
       } else {
         otherExerciseCalories += sessionCals;
         durationMinutes += session.duration_minutes ?? 0;
@@ -837,6 +847,8 @@ export interface WorkoutCardExercise {
     modality?: string | null;
     images?: string[] | null;
     mechanic?: string | null;
+    /** Used to round dumbbell warm-ups to dumbbell steps. */
+    equipment?: string[] | null;
   } | null;
   sets: WorkoutCardSet[];
   /** Raw draft string backing the edit-mode calories input (draft mapper only). */
@@ -866,6 +878,7 @@ export function draftExerciseToCardExercise(
     name: exercise.exerciseName,
     category: exercise.exerciseCategory,
     modality: exercise.exerciseModality ?? null,
+    equipment: exercise.exerciseEquipment ?? null,
     images: exercise.images,
   };
   const modality = resolveSnapshotModality(snapshot);
@@ -1110,6 +1123,32 @@ export interface AssumedSetOverrides {
  * weight. The base is the first set's *placeholder*, never what was typed or
  * logged into it, so lifting heavier on set 1 does not move later sets.
  */
+/**
+ * Pairs each current set with its counterpart in the last session, warm-ups
+ * with warm-ups and working sets with working sets, each in order. Pairing by
+ * plain position let warm-ups added ahead of the working sets take their
+ * history, leaving the working sets with a dash. A set with no counterpart
+ * (more sets than last time, or warm-ups where there were none) is undefined.
+ */
+export function alignPreviousSets<T extends { setType?: string | null }>(
+  sets: readonly { set_type?: string | null }[],
+  previousSets: readonly T[] | undefined
+): (T | undefined)[] {
+  const warmups = (previousSets ?? []).filter((s) =>
+    isWarmupSetType(s.setType)
+  );
+  const working = (previousSets ?? []).filter(
+    (s) => !isWarmupSetType(s.setType)
+  );
+  let warmupIndex = 0;
+  let workingIndex = 0;
+  return sets.map((set) =>
+    isWarmupSetType(set.set_type)
+      ? warmups[warmupIndex++]
+      : working[workingIndex++]
+  );
+}
+
 export function resolveAssumedSetValues(
   sets: readonly AssumableSet[],
   previousSets: readonly ExerciseRecentSessionSet[] | undefined,
@@ -1137,9 +1176,10 @@ export function resolveAssumedSetValues(
       distance: null,
     } as AssumedSetValues,
   };
+  const alignedPrevious = alignPreviousSets(sets, previousSets);
   return sets.map((set, index) => {
     const tier = set.set_type === 'warmup' ? 'warmup' : 'working';
-    const previous = previousSets?.[index];
+    const previous = alignedPrevious[index];
     const planned = plannedBySetId?.[String(set.id)];
 
     const progressedPreviousWeight =
@@ -1562,12 +1602,14 @@ export function buildSessionExercisesPayload(
   session: PresetSessionResponse,
   completedSetIds: CompletedSetMap,
   prSetIds: PrSetMap,
-  startedAtMs?: number | null
+  startedAtMs?: number | null,
+  resumedDurationMinutes?: Record<string, number>
 ): PresetSessionExerciseRequest[] {
-  const durationByEntryId = buildSessionDurationMinutes(
+  const timing = buildSessionExerciseTiming(
     session,
     completedSetIds,
-    startedAtMs
+    startedAtMs,
+    resumedDurationMinutes
   );
 
   return session.exercises.map((exercise, index) => ({
@@ -1578,7 +1620,11 @@ export function buildSessionExercisesPayload(
       resolveSnapshotModality(exercise.exercise_snapshot)
     )
       ? setsDurationMinutes(exercise.sets)
-      : (durationByEntryId?.get(exercise.id) ?? exercise.duration_minutes ?? 0),
+      : (timing?.durations.get(exercise.id) ?? exercise.duration_minutes ?? 0),
+    // Omitted when nothing was completed yet, so the server keeps what it has.
+    ...(timing?.startTimes.has(exercise.id)
+      ? { entry_time: timing.startTimes.get(exercise.id) }
+      : {}),
     notes: exercise.notes ?? null,
     superset_group: exercise.superset_group ?? null,
     sets: exercise.sets.map((set, setIndex) => {
@@ -1608,12 +1654,81 @@ export function buildSessionDurationMinutes(
   completedSetIds: CompletedSetMap,
   startedAtMs?: number | null
 ): Map<string, number> | null {
+  return (
+    buildSessionExerciseTiming(session, completedSetIds, startedAtMs)
+      ?.durations ?? null
+  );
+}
+
+export interface SessionExerciseTiming {
+  /** Minutes per non-cardio entry; entries absent here keep their stored value. */
+  durations: Map<string, number>;
+  /** Local wall-clock 'HH:MM' at which each entry's first timed span began. */
+  startTimes: Map<string, string>;
+}
+
+/** Local wall-clock 'HH:MM' for an instant, the format entry_time expects. */
+export function toEntryTimeString(ms: number): string {
+  const date = new Date(ms);
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/**
+ * Stored duration of each strength entry that already has completed sets at
+ * the start of a run (a resumed session). Those completions can't be placed
+ * on the new run's clock, so `buildSessionExerciseTiming` adds the time spent
+ * after the start to this value. Captured once at start: the session is
+ * replaced by the server response after every autosave, so its
+ * `duration_minutes` would already include this run's time.
+ */
+export function captureResumedDurations(
+  session: PresetSessionResponse,
+  completedSetIds: CompletedSetMap,
+  startedAtMs: number
+): Record<string, number> {
+  const resumed: Record<string, number> = {};
+  for (const exercise of session.exercises) {
+    if (isCardioModality(resolveSnapshotModality(exercise.exercise_snapshot)))
+      continue;
+    const hasEarlierCompletion = exercise.sets.some((s) => {
+      const ms = completedSetIds[String(s.id)];
+      return ms != null && ms <= startedAtMs;
+    });
+    if (hasEarlierCompletion) {
+      resumed[exercise.id] = exercise.duration_minutes ?? 0;
+    }
+  }
+  return resumed;
+}
+
+/**
+ * Walks the completed strength sets in the order they were ticked off and
+ * gives each gap (previous completion, or the workout start, up to this
+ * completion) to the exercise the set belongs to. That is the time spent on
+ * that exercise's set plus the rest before it, so supersets and exercises
+ * done out of order each get their own share. The per-entry durations still
+ * add up to start→last completion.
+ *
+ * An entry's start time is the beginning of its first gap. Cardio entries
+ * are left out: their duration is the sum of their set durations.
+ *
+ * An entry that still has completions from before the start and a captured
+ * value in `resumedDurationMinutes` (see `captureResumedDurations`) gets that
+ * value plus this run's share, and keeps its stored start time.
+ */
+export function buildSessionExerciseTiming(
+  session: PresetSessionResponse,
+  completedSetIds: CompletedSetMap,
+  startedAtMs?: number | null,
+  resumedDurationMinutes: Record<string, number> = {}
+): SessionExerciseTiming | null {
   if (startedAtMs == null) return null;
 
-  let lastCompletedMs = 0;
-  let totalCompleted = 0;
   let anyCompletedAfterStart = false;
   const completedCountByEntryId = new Map<string, number>();
+  const resumedMinutesByEntryId = new Map<string, number>();
+  const timeline: { ms: number; entryId: string }[] = [];
   for (const exercise of session.exercises) {
     const cardio = isCardioModality(
       resolveSnapshotModality(exercise.exercise_snapshot)
@@ -1625,28 +1740,42 @@ export function buildSessionDurationMinutes(
       if (ms > startedAtMs) anyCompletedAfterStart = true;
       if (cardio) continue;
       count++;
-      totalCompleted++;
-      if (ms > lastCompletedMs) lastCompletedMs = ms;
+      // Completions before the start (a resumed session) can't be placed on
+      // this clock; their time is the captured resumed duration, or the
+      // stored one when the entry has no completions after the start.
+      if (ms > startedAtMs) timeline.push({ ms, entryId: exercise.id });
+      else if (exercise.id in resumedDurationMinutes) {
+        resumedMinutesByEntryId.set(
+          exercise.id,
+          resumedDurationMinutes[exercise.id]
+        );
+      }
     }
     if (!cardio) completedCountByEntryId.set(exercise.id, count);
   }
-  if (totalCompleted === 0 || lastCompletedMs <= startedAtMs) {
-    if (!anyCompletedAfterStart) return null;
-    const zeroed = new Map<string, number>();
-    for (const [entryId, count] of completedCountByEntryId) {
-      if (count === 0) zeroed.set(entryId, 0);
-    }
-    return zeroed;
+  if (!anyCompletedAfterStart) return null;
+
+  const durations = new Map<string, number>();
+  const startTimes = new Map<string, string>();
+  for (const [entryId, count] of completedCountByEntryId) {
+    if (count === 0) durations.set(entryId, 0);
   }
 
-  const totalMinutes = (lastCompletedMs - startedAtMs) / 60_000;
-  const byEntryId = new Map<string, number>();
-  for (const exercise of session.exercises) {
-    const count = completedCountByEntryId.get(exercise.id) ?? 0;
-    const share = (totalMinutes * count) / totalCompleted;
-    byEntryId.set(exercise.id, Math.round(share * 10) / 10);
+  timeline.sort((a, b) => a.ms - b.ms);
+  const spanMs = new Map<string, number>();
+  let previousMs = startedAtMs;
+  for (const { ms, entryId } of timeline) {
+    spanMs.set(entryId, (spanMs.get(entryId) ?? 0) + (ms - previousMs));
+    if (!startTimes.has(entryId) && !resumedMinutesByEntryId.has(entryId)) {
+      startTimes.set(entryId, toEntryTimeString(previousMs));
+    }
+    previousMs = ms;
   }
-  return byEntryId;
+  for (const [entryId, ms] of spanMs) {
+    const minutes = (resumedMinutesByEntryId.get(entryId) ?? 0) + ms / 60_000;
+    durations.set(entryId, Math.round(minutes * 10) / 10);
+  }
+  return { durations, startTimes };
 }
 
 export const WORKOUT_LONG_GAP_MINUTES = 30;
@@ -2503,6 +2632,21 @@ function canonicalExercisesEqual(
   );
 }
 
+/** Same exercises in the same order, with the same number and kind of sets:
+ * what changes when the lifter adds, drops or reorders work, as opposed to
+ * just loading a different weight or reps. */
+function canonicalExerciseStructureEqual(
+  a: CanonicalPresetExercise,
+  b: CanonicalPresetExercise
+): boolean {
+  return (
+    a.exercise_id === b.exercise_id &&
+    a.superset_group === b.superset_group &&
+    a.sets.length === b.sets.length &&
+    a.sets.every((set, i) => set.set_type === b.sets[i]?.set_type)
+  );
+}
+
 export function buildPresetUpdateExercises(
   session: PresetSessionResponse,
   preset: WorkoutPreset,
@@ -2515,6 +2659,12 @@ export function buildPresetUpdateExercises(
      * difference from the preset counts.
      */
     assumeSources?: Omit<AssumedValueSources, 'plannedSetValues'>;
+    /**
+     * Only a change in structure counts as different (exercises, order,
+     * supersets, set count and types). Weights, reps and the like do not,
+     * so a lifter who just loaded more weight is not asked about it.
+     */
+    structureOnly?: boolean;
   }
 ): WorkoutPresetExercisePayload[] | null {
   // An exercise whose library row has been deleted cannot go into a preset at
@@ -2663,7 +2813,9 @@ export function buildPresetUpdateExercises(
   const equivalent =
     fromSession.length === fromPreset.length &&
     fromSession.every((exercise, i) =>
-      canonicalExercisesEqual(exercise, fromPreset[i])
+      opts.structureOnly
+        ? canonicalExerciseStructureEqual(exercise, fromPreset[i])
+        : canonicalExercisesEqual(exercise, fromPreset[i])
     );
   return equivalent ? null : fromSession;
 }
@@ -2723,4 +2875,21 @@ export function summarizeWorkoutHeartRate(
     avgBpm,
     maxBpm: maxValues.length > 0 ? Math.max(...maxValues) : null,
   };
+}
+
+/**
+ * How hard the person rated a workout, 1 to 10, or null when they did not.
+ * A strength session stores the same rating on every exercise, so any one that
+ * carries it speaks for the session; the highest wins if they ever differ.
+ */
+export function summarizeWorkoutEffort(
+  exercises: readonly { workout_effort?: number | null }[]
+): number | null {
+  const ratings = exercises
+    .map((exercise) => exercise.workout_effort)
+    .filter(
+      (value): value is number =>
+        typeof value === 'number' && value >= 1 && value <= 10
+    );
+  return ratings.length > 0 ? Math.max(...ratings) : null;
 }
