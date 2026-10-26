@@ -9922,6 +9922,7 @@
     "failedToReset": "Failed to reset plates and bars.",
     "saved": "Plates and bars saved.",
     "reset": "Plates and bars reset."
+  },
   "heartRate": {
     "exerciseSession": "Exercise Session",
     "zoneSource": "Your zones: {{method}}, max heart rate {{max}} bpm ({{source}}).",
