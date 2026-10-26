@@ -654,7 +654,6 @@ describe('segments crossed by the run', () => {
   });
 });
 
-
 it('drops distance and pace for a jump rope, and shows its measured calories', () => {
   renderScreen(
     params({
