@@ -318,7 +318,7 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 - A past day's calorie target or exercise credit changed after a settings change:
   inspect `services/calorieRuleHistoryService.ts` and the trigger in `db/migrations/20261023000000_add_user_calorie_rule_history.sql`. A new preference read by the calorie maths must join `CALORIE_RULE_FIELDS`, the table and the trigger; `tests/calorieRuleHistory.test.ts` fails until it does, and `tests/calorieRuleHistory.integration.test.ts` checks the table and trigger cover every field
 - Sleep or sleep-science issue:
-  inspect `routes/sleepRoutes.ts`, `routes/sleepScienceRoutes.ts`, `services/sleepAnalyticsService.ts`, `services/sleepScienceService.ts`, and the sleep repositories
+  inspect `routes/sleepRoutes.ts`, `routes/sleepScienceRoutes.ts`, `services/sleepAnalyticsService.ts`, `services/sleepScienceService.ts`, and the sleep repositories. A night two sources recorded counts once: `sleepAnalyticsService` and `sleepScienceRepository.getSleepHistory` pass the rows through the shared `keepMostDetailedSleepEntries` (`../shared/src/utils/sleepSameNight.ts`), so the history query also returns `source`, `stage_events` (stage types only) and the measures that rule reads
 
 ## Architecture Resources
 
