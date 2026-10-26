@@ -97,6 +97,31 @@ describe('WatchSettingsScreen', () => {
     expect(useAppPreferencesStore.getState().watchDoubleTapEnabled).toBe(false);
   });
 
+  test('the layout switches default to the original layout and can be flipped', () => {
+    renderScreen();
+    const prefs = () => useAppPreferencesStore.getState();
+
+    expect(prefs().watchSetScreenMetrics).toBe(true);
+    expect(prefs().watchUpNextPage).toBe(false);
+    expect(prefs().watchLargeGoalsWater).toBe(false);
+
+    fireEvent(
+      screen.getByTestId('watch-set-screen-metrics-switch'),
+      'valueChange',
+      false
+    );
+    fireEvent(screen.getByTestId('watch-up-next-switch'), 'valueChange', true);
+    fireEvent(
+      screen.getByTestId('watch-large-goals-water-switch'),
+      'valueChange',
+      true
+    );
+
+    expect(prefs().watchSetScreenMetrics).toBe(false);
+    expect(prefs().watchUpNextPage).toBe(true);
+    expect(prefs().watchLargeGoalsWater).toBe(true);
+  });
+
   test('toggling a page hides and shows it', () => {
     renderScreen();
 

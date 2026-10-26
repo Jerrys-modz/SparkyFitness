@@ -159,6 +159,9 @@ export const PREFERENCE_DEFAULTS = {
   hiddenWatchPages: [] as WatchPageKey[],
   watchDoubleTapEnabled: true,
   watchRpeEnabled: false,
+  watchSetScreenMetrics: true,
+  watchUpNextPage: false,
+  watchLargeGoalsWater: false,
   watchNutrientOrder: [] as string[],
   shownWatchNutrients: [...DEFAULT_WATCH_NUTRIENTS] as string[],
   watchSetInputStyle: 'keypad' as WatchSetInputStyle,
@@ -293,6 +296,15 @@ export type AppPreferencesData = {
   /** Whether the watch asks for an effort (RPE) after each logged set. */
   watchRpeEnabled: boolean;
   /**
+   * Whether the watch's set screen shows elapsed time, heart rate and
+   * calories. Off moves them to a metrics page one swipe away.
+   */
+  watchSetScreenMetrics: boolean;
+  /** Whether the watch workout has the Up Next page after the set screen. */
+  watchUpNextPage: boolean;
+  /** Whether the watch's Goals and Water pages use the larger-text layout. */
+  watchLargeGoalsWater: boolean;
+  /**
    * Order of the nutrients the watch's Goals page can list (standard keys and
    * custom nutrient names). Empty until the wearer drags one.
    */
@@ -386,6 +398,9 @@ export interface AppPreferencesState extends AppPreferencesData {
   resetReportCustomization: () => void;
   setWatchDoubleTapEnabled: (value: boolean) => void;
   setWatchRpeEnabled: (value: boolean) => void;
+  setWatchSetScreenMetrics: (value: boolean) => void;
+  setWatchUpNextPage: (value: boolean) => void;
+  setWatchLargeGoalsWater: (value: boolean) => void;
   setWatchNutrientOrder: (order: string[]) => void;
   setWatchNutrientShown: (key: string, isShown: boolean) => void;
   setWatchSetInputStyle: (value: WatchSetInputStyle) => void;
@@ -652,6 +667,10 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setWatchDoubleTapEnabled: (value) =>
         set({ watchDoubleTapEnabled: value }),
       setWatchRpeEnabled: (value) => set({ watchRpeEnabled: value }),
+      setWatchSetScreenMetrics: (value) =>
+        set({ watchSetScreenMetrics: value }),
+      setWatchUpNextPage: (value) => set({ watchUpNextPage: value }),
+      setWatchLargeGoalsWater: (value) => set({ watchLargeGoalsWater: value }),
       setWatchPageHidden: (key, isHidden) =>
         set((state) => ({
           hiddenWatchPages: withMembership(
@@ -754,6 +773,9 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         hiddenWatchPages: state.hiddenWatchPages,
         watchDoubleTapEnabled: state.watchDoubleTapEnabled,
         watchRpeEnabled: state.watchRpeEnabled,
+        watchSetScreenMetrics: state.watchSetScreenMetrics,
+        watchUpNextPage: state.watchUpNextPage,
+        watchLargeGoalsWater: state.watchLargeGoalsWater,
         watchNutrientOrder: state.watchNutrientOrder,
         shownWatchNutrients: state.shownWatchNutrients,
         watchSetInputStyle: state.watchSetInputStyle,

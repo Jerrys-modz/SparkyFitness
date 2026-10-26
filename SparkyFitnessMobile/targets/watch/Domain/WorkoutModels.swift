@@ -232,6 +232,10 @@ enum WorkoutEditAction: Equatable {
     case addOtherSide(setId: String)
     case addExercise(exerciseId: String)
     case deleteExercise(exerciseEntryId: String)
+    /// Moves an upcoming exercise in front of the current one and starts it.
+    /// `anchorEntryId` is the exercise the watch is on, so the phone moves it
+    /// in front of that one even if its own cursor is elsewhere.
+    case doExerciseNow(exerciseEntryId: String, anchorEntryId: String)
 }
 
 /// What the wearer actually did for a set, once they have adjusted the
