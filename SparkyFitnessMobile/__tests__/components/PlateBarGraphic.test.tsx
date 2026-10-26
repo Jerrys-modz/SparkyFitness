@@ -19,7 +19,7 @@ const mockInventory = (inventory = presetInventory('kg')) =>
   } as unknown as ReturnType<typeof usePlateInventory>);
 
 beforeAll(async () => {
-  await initializeI18n();
+  await initializeI18n('en');
 });
 beforeEach(() => mockInventory());
 

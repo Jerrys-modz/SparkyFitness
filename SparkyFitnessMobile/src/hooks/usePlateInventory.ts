@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   inventoryConfigFrom,
@@ -26,9 +27,10 @@ export function usePlateInventory(fallbackUnit: PlateUnit) {
   useRefetchOnFocus(query.refetch);
 
   const stored = query.data?.inventory ?? null;
-  const inventory: PlateInventoryConfig = inventoryConfigFrom(
-    stored,
-    fallbackUnit
+  // Stable between renders so the calculator memos that depend on it hold.
+  const inventory = useMemo<PlateInventoryConfig>(
+    () => inventoryConfigFrom(stored, fallbackUnit),
+    [stored, fallbackUnit]
   );
 
   return {

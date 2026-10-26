@@ -21,8 +21,8 @@ Plates are measured in the unit you pick for the inventory. If your app is set t
 
 For a barbell, EZ bar or trap bar exercise, open the **Plates** action while you log a set:
 
-- **Mobile:** in the live workout, use **Plates** in the set menu; in the set editor use the plates button next to the weight.
-- **Web:** in the exercise entry editor, use **Plates** next to a set's weight.
+- **Mobile:** in the live workout, use **Plate calculator** in the set menu (the menu a set number opens), or **Calculator** on the keyboard bar while the weight is selected; in the set editor use the plates button next to the weight.
+- **Web:** open the workout in the workout player on the Diary, then use the dumbbell button on a set's row.
 
 You see the bar weight, the plates for **each side** (heaviest first) and the total. Pick another bar if the suggested one is not the one you are using.
 

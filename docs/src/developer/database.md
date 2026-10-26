@@ -87,7 +87,7 @@ Quick reference of all tables by domain and purpose. For detailed security tier,
 | `meal_plan_template_assignments` | Scheduled meal templates to calendar |
 | `meal_plan_assignment_sets` | Sets within assigned meal plans |
 
-### Exercise & Workouts (Tier 2/3: Owner-Write, Delegate-Read/Write)
+### Exercise & Workouts (Tier 1/2/3: Owner-Only, Owner-Write, or Delegate-Read/Write)
 | Table | Purpose |
 |-------|---------|
 | `exercises` | Custom exercises created by user |

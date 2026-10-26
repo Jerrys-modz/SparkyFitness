@@ -9887,7 +9887,7 @@
     "nearestAbove": "Nearest above: {{weight}} {{unit}}",
     "shortBy": "{{diff}} {{unit}} short of the target",
     "overBy": "{{diff}} {{unit}} over the target",
-    "nothingBelow": "The target is lighter than the bar.",
+    "nothingBelow": "The target is lighter than the empty bar, collars included.",
     "nothingAbove": "The target is heavier than your plates can load.",
     "tooLarge": "This inventory is too large to search. Remove some plates or pairs.",
     "openForSet": "Plate calculator for set {{setNumber}}",

@@ -74,7 +74,7 @@ export default function PlateBarGraphic({
   equipment,
 }: PlateBarGraphicProps) {
   const { t } = useTranslation();
-  const { inventory } = usePlateInventory(weightUnit);
+  const { inventory, hasSaved, isError } = usePlateInventory(weightUnit);
   const bar = suggestBar(equipment, inventory.bars);
 
   const result = useMemo(() => {
@@ -84,6 +84,9 @@ export default function PlateBarGraphic({
     );
   }, [inventory, bar, targetWeight, weightUnit]);
 
+  // A failed load with nothing saved would draw the standard preset as the
+  // person's own plates. Keep what is already loaded through a later error.
+  if (isError && !hasSaved) return null;
   if (!bar || !result) return null;
 
   if (result.status === 'exact' && result.load) {
