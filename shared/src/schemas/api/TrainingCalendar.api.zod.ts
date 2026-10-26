@@ -1,8 +1,8 @@
-import { z } from "zod";
+import { z } from 'zod';
 import {
   formStatusSchema,
   fitnessFatiguePointSchema,
-} from "./FitnessFatigue.api.zod.ts";
+} from './FitnessFatigue.api.zod.ts';
 
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
@@ -33,20 +33,20 @@ export const trainingCalendarQuerySchema = z
     userId: z.string().optional(),
   })
   .refine((q) => q.start <= q.end, {
-    message: "start must not be after end",
-    path: ["end"],
+    message: 'start must not be after end',
+    path: ['end'],
   });
 export type TrainingCalendarQuery = z.infer<typeof trainingCalendarQuerySchema>;
 
 export const plannedStatusSchema = z.enum([
-  "done",
-  "partial",
-  "missed",
-  "upcoming",
+  'done',
+  'partial',
+  'missed',
+  'upcoming',
 ]);
 export type PlannedStatus = z.infer<typeof plannedStatusSchema>;
 
-export const plannedSourceSchema = z.enum(["runProgram", "workoutPlan"]);
+export const plannedSourceSchema = z.enum(['runProgram', 'workoutPlan']);
 
 export const plannedItemSchema = z.object({
   id: z.string(),
@@ -84,7 +84,7 @@ export const completedItemSchema = z.object({
   avgHeartRate: z.number().nullable(),
   load: z.number(),
   /** "heartRate": weighted by average heart rate; "estimated": no heart rate, moderate weight. */
-  loadBasis: z.enum(["heartRate", "estimated"]),
+  loadBasis: z.enum(['heartRate', 'estimated']),
   /** The planned item it was matched to; null for extra, unplanned work. */
   plannedItemId: z.string().nullable(),
 });
@@ -128,7 +128,7 @@ export const sportLoadSchema = z.object({
     z.object({
       month: z.string().regex(/^\d{4}-\d{2}$/),
       bySport: loadBySportSchema,
-    }),
+    })
   ),
   /** Load per sport over the whole range. */
   total: loadBySportSchema,
