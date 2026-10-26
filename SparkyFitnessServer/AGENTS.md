@@ -29,6 +29,7 @@ If a task also touches `shared/`, the frontend, or the mobile app, read the rele
 - Module system: ESM with `type: "module"` and `moduleResolution: "NodeNext"`
 - The package is now effectively TypeScript-first; almost all source files are `.ts`
 - Main domains: food and meal tracking, exercise logging, health and sleep data, sleep science, fasting, medications, symptom and episode tracking, mood, menstrual cycle and pregnancy, reporting, AI chat, onboarding, identity, admin tooling, and external provider integrations
+- External provider integrations include the Intervals.icu API-key provider (`routes/intervalsRoutes.ts`, `integrations/intervals/`) for activities and wellness
 
 ## Verified Commands
 
@@ -55,6 +56,9 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 - For targeted test runs, prefer `pnpm exec vitest run tests/<name>.test.ts`
 
 ## Source Map
+
+- Barcode lookup retains the local/default/fallback behavior in `foodCoreService.ts`. `services/barcodeLookupService.ts` collects accessible source matches on demand; `routes/v2/barcodeRoutes.ts` exposes the read-only alternatives endpoint. Source comparison does not persist routing settings or preferences.
+- Alternative source lookups abort product requests after 12 seconds. Only normalized external matches/misses are cached for 30 seconds per account, profile, barcode, provider and nutrition settings; repeated in-flight lookups share work. Provider availability, preferences and saved local foods are checked on every request, and errors remain retryable.
 
 - Food assistant state: owner-only preferences, recoverable tasks and operation history use `FoodAssistant.api.zod.ts` / `FoodAssistant.zod.ts` in shared. Server: `routes/v2/foodAssistantRoutes.ts`, `services/foodAssistantService.ts`, `models/foodAssistantRepository.ts`, `ai/tools/foodAssistantTools.ts`. Web: `src/components/ai/FoodAssistantState.tsx`, `src/api/Chatbot/foodAssistantService.ts`.
 
@@ -92,6 +96,7 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 - `utils/oauthState.ts` - server-issued single-use OAuth `state` nonces for provider linking (`issueOAuthState`, `persistOAuthState`, `claimOAuthState`); use it instead of hand-rolling a state value
 - `utils/outboundHttp.ts` - process-wide outbound HTTP defaults, applied from `index.ts`: the axios request timeout and the per-address-family connect attempt timeout (`net.setDefaultAutoSelectFamilyAttemptTimeout`). Both are fixed constants on purpose - do not add env overrides, and read the sizing note there before changing either, because the two values interact
 - `utils/errors.ts` - `ValidationError` plus `describeError(error)`; prefer it over `error.message` when logging any caught value, because an `AggregateError` or a non-Error throw renders as an empty string; and `publicErrorMessage(error)` for the error text of a hand-written 5xx response (it hides database and system errors the way the shared error handler does)
+- `routes/intervalsRoutes.ts` - Intervals.icu pull sync (`/api/integrations/intervals`: `POST /sync` (range up to 365 days, default yesterday and today), `GET /status`, `POST /disconnect`; all owner-only via `requireSelfActor`, and `/sync` accepts the admin mock-data capture and replay options). `integrations/intervals/intervalsService.ts` reads the athlete ID (`app_id`) and API key (`app_key`) and calls the API with Basic auth; `intervalsDataProcessor.ts` maps activities to exercise entries with their telemetry (written with the entry like Garmin, so manual edits survive a re-sync; running cadence doubled to steps per minute; running dynamics for runs only; HR zones via `replaceExerciseEntryHrZones` for 5-zone setups only) (source `Intervals.icu`, skipping Strava stubs and Garmin activities (from Garmin Connect, or uploaded as `<id>_ACTIVITY.fit`) while Garmin is connected or already imported, and any activity starting in the same local minute as a stored Garmin entry; a sync also deletes its own earlier copies that now have such a stored Garmin match) and wellness to check-ins, `daily_health_metrics` (resting HR, VO2 max, floors, CTL/ATL as chronic/acute training load and their ratio) and `hrv`/`spo2`/`respiration` samples (source provider `intervals`)
 - `middleware/requireSelfMiddleware.ts` - `requireSelfActor`, which rejects a switched/delegated context outright; attach per-route to account-linking routes
 - `integrations/` - provider adapters and ingest pipelines
 - `schemas/` - Zod route schemas
@@ -234,8 +239,8 @@ When searching, ignore noisy/generated directories unless you explicitly need th
 ### Integrations and Background Work
 
 - Provider-specific adapters live under `integrations/`; coordinating logic usually lives in `services/` and persistence in `models/`
-- Current adapters span food/nutrition (OpenFoodFacts, FatSecret, Nutritionix, USDA, Mealie, Tandoor, Norish, SwissFood, Yazio), fitness devices (Garmin Connect sync plus FIT file import via `integrations/garminfit/` + `services/fitImportService.ts`, Withings, Fitbit, Oura, Polar, Strava, COROS, Hevy), exercise databases (Wger, FreeExerciseDB), and health-data import (Google Health, generic/mobile health data)
-- Scheduled jobs currently include backups, session cleanup, and hourly sync loops for Withings, Garmin, Fitbit, Oura, Polar, Strava, and COROS
+- Current adapters span food/nutrition (OpenFoodFacts, FatSecret, Nutritionix, USDA, Mealie, Tandoor, Norish, SwissFood, Yazio), fitness devices (Garmin Connect sync plus FIT file import via `integrations/garminfit/` + `services/fitImportService.ts`, Withings, Fitbit, Oura, Polar, Strava, COROS, Hevy, Liftosaur, Intervals.icu), exercise databases (Wger, FreeExerciseDB), and health-data import (Google Health, generic/mobile health data)
+- Scheduled jobs currently include backups, session cleanup, and hourly sync loops for Withings, Garmin, Fitbit, Oura, Polar, Strava, COROS, Hevy, Liftosaur and Intervals.icu
 - Integration work often spans route, service, repository, cron, and external-provider settings code; inspect the whole path before calling the work complete
 - **OAuth linking (`/authorize`, `/callback`) is self-only, and `state` is a server-issued single-use nonce.** Never derive a user id from a callback request body, and never gate an authorize route with `checkPermissionMiddleware('diary')` — on GET that resolves to `diary_read`, which would hand a read-only delegate the owner's decrypted OAuth client id. Use `requireSelfActor` plus `utils/oauthState.ts`. Withings and Polar follow this pattern; Oura, Fitbit and Strava are self-only but still send `state = userId` and ignore it on callback (tracked follow-up)
 
@@ -297,6 +302,8 @@ When searching, ignore noisy/generated directories unless you explicitly need th
   Linking a logged workout to the same session synced from a watch: `exercise_entries.calorie_link_id` (shared by both sides) and `calorie_link_resolution` (`sparkyfitness` / `synced` / `higher` / `lower` / `average` / `custom`) are telemetry columns, so edits and syncs that omit them keep them. `services/exerciseCalorieLinkService.ts` behind `GET /exercise-entries/:id/calorie-link/suggestions`, `PUT` and `DELETE /exercise-entries/:id/calorie-link`: the anchor is a `manual` entry (or any entry of its strength session); candidates are that day's synced entries with a `source_id` (a provider sync updates those in place and keeps the link; entries without one are deleted and recreated, so they are not offered). `matchCalorieLink` in shared marks a candidate `sets_within` when every set `completed_at` falls inside its window plus 10 minutes, `overlap` when only the entry times overlap, otherwise null so the person chooses; nothing is linked automatically. `resolveLinkedCalories` / `distributeCountedCalories` (shared `exerciseCalorieLink.ts`) write `calories_applied` on both sides in one transaction (a session's total is split over its entries in proportion to their estimates) and `calories_burned` is never touched. `DELETE` resets `calories_applied` to null on both sides, including any value the person set by hand. No new table, so no RLS change.
 - Water, hydration, caffeine, or alcohol issue:
   inspect `services/hydrationTotalsService.ts` (the single owner of the daily water formula), `services/measurementService.ts` (the container "+/-" path and the container->food link), `services/caffeineKineticsService.ts` / `services/alcoholWeekService.ts`, `models/waterContainerRepository.ts`, and the shared maths in `../shared/src/nutrients/`
+- Intervals.icu sync, field mapping, Garmin dedupe or self-heal issue:
+  inspect `integrations/intervals/intervalsDataProcessor.ts` (mapping, `findGarminDuplicates`), `integrations/intervals/intervalsService.ts` (API calls, capture/replay) and `routes/intervalsRoutes.ts`
 - Self-service "delete synced data by source" issue:
   inspect `routes/syncedDataRoutes.ts`, `services/syncedDataService.ts`, and `models/syncedDataRepository.ts` (the `SYNCED_SOURCE_TABLES` whitelist)
 - AI chat or chatbot tool issue:

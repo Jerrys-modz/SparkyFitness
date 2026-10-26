@@ -340,6 +340,7 @@ export function cardioSessionFromDiaryEntry(
     source: session.source,
     notes: session.notes,
     hasGpsTrack: false,
+    modality: session.exercise_snapshot?.modality ?? null,
   };
 }
 

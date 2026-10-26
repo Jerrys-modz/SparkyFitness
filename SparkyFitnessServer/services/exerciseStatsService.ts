@@ -5,6 +5,7 @@ import {
   classifyActivitySport,
   toPrSportGroup,
   activitySportLabel,
+  isExerciseModality,
   PR_SPORT_GROUPS,
 } from '@workspace/shared';
 import type {
@@ -652,7 +653,7 @@ async function queryExerciseActivities(
         id, user_id, exercise_name, category, entry_date, entry_time,
         duration_minutes, distance, avg_heart_rate, calories_burned, source, notes,
         floors_climbed, elevation_gain_meters, workout_effort,
-        avg_cadence, stride_length_cm,
+        avg_cadence, stride_length_cm, modality,
         EXISTS (
           SELECT 1 FROM public.exercise_entry_gps_points g
           WHERE g.exercise_entry_id = exercise_entries.id
@@ -717,6 +718,8 @@ async function queryExerciseActivities(
           source: row.source ? String(row.source) : null,
           notes: row.notes ? String(row.notes) : null,
           hasGpsTrack: row.has_gps_track === true,
+          // The column is plain text, so only a known modality is passed on.
+          modality: isExerciseModality(row.modality) ? row.modality : null,
         };
       }
     );
