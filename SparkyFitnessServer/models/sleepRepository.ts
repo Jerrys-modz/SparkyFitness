@@ -10,6 +10,13 @@ import {
  * the longest record, the earlier bedtime on a tie. A day holds one row per
  * source, so a per-day sleep value read this way never counts a night two
  * sources recorded twice.
+ *
+ * This is deliberately not the reports' `keepMostDetailedSleepEntries` rule.
+ * One value per day has to pick the night over a nap from another source,
+ * which ranking by detail could get wrong (a staged nap over an unstaged
+ * night). So when the same night's more detailed record is the shorter one,
+ * these per-day values can differ from the report's by up to the 20% that rule
+ * allows.
  */
 export const MAIN_SLEEP_ORDER_SQL =
   'entry_date, duration_in_seconds DESC, bedtime ASC, id';
@@ -1026,12 +1033,9 @@ async function deleteSleepEntriesByEntrySourceAndDate(
   }
 }
 async function getSleepEntriesWithAllDetailsByUserIdAndDateRange(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  startDate: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  endDate: any
+  userId: string,
+  startDate: string,
+  endDate: string
 ) {
   const client = await getClient(userId);
   try {
