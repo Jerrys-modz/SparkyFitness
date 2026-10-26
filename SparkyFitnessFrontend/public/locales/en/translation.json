@@ -10192,5 +10192,130 @@
     "failedToReset": "Failed to reset plates and bars.",
     "saved": "Plates and bars saved.",
     "reset": "Plates and bars reset."
+  },
+  "workoutSplits": {
+    "card": {
+      "add": "Add to my workouts",
+      "hideSessions": "Hide sessions",
+      "showSessions": "Show sessions",
+      "summary": "{{days}} days a week, {{sessions}} sessions in rotation"
+    },
+    "entry": {
+      "description": "New to strength training? Pick a split such as full body, upper/lower or push/pull/legs and add it to your presets and plans in one step.",
+      "open": "Browse programs",
+      "title": "Ready-made workout programs"
+    },
+    "filters": {
+      "any": "Any",
+      "days": "Days a week",
+      "goal": "Goal",
+      "level": "Level",
+      "venue": "Where I train"
+    },
+    "goal": {
+      "muscle": "Build muscle",
+      "strength": "Gain strength"
+    },
+    "import": {
+      "activate": "Make it my active plan",
+      "add": "Add program",
+      "adding": "Adding...",
+      "disclaimer": "I understand that I should check with a doctor or healthcare professional before starting a new workout program, especially with a medical condition or an injury. A program does not replace medical advice, and I am responsible for my own health.",
+      "message": "This adds its exercises to your library, a preset for each session and a plan that runs them in order. You set your starting weights as you log your first workout.",
+      "planName": "Plan name",
+      "success": "Program added. Find its workouts under your presets and plans.",
+      "title": "Add {{name}}"
+    },
+    "level": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate"
+    },
+    "page": {
+      "back": "Exercises",
+      "intro": "Ready-made strength splits for getting started. Each exercise has a rep range: reach the top on every set and the next session suggests a little more weight. Add one and change anything you like afterwards.",
+      "none": "No program matches those filters. Try a different one.",
+      "ownOnly": "Adding a program changes your own library and plans. Switch back to your own account to add one.",
+      "title": "Workout programs"
+    },
+    "sessions": {
+      "arms": "Arms",
+      "back": "Back",
+      "chest": "Chest",
+      "full_body_a": "Full body A",
+      "full_body_b": "Full body B",
+      "legs": "Legs",
+      "legs_a": "Legs A",
+      "legs_b": "Legs B",
+      "lower_a": "Lower A",
+      "lower_b": "Lower B",
+      "pull_a": "Pull A",
+      "pull_b": "Pull B",
+      "push_a": "Push A",
+      "push_b": "Push B",
+      "shoulders": "Shoulders",
+      "upper_a": "Upper A",
+      "upper_b": "Upper B",
+      "workout_a": "Workout A",
+      "workout_b": "Workout B"
+    },
+    "splits": {
+      "body_part_5": {
+        "description": "One day each for chest, back, shoulders, arms and legs, five days a week, with more sets for each muscle in its day.",
+        "name": "Body part split, 5 days (gym)"
+      },
+      "full_body_3": {
+        "description": "Three full-body days a week, alternating two sessions. Gentle volume with dumbbells, cables and a few barbell lifts, a good way to learn the movements.",
+        "name": "Full body, 3 days (gym)"
+      },
+      "full_body_3_garage": {
+        "description": "Three full-body days a week, alternating two barbell sessions. Needs a barbell, squat rack, bench, dumbbells and a pull-up bar.",
+        "name": "Full body, 3 days (garage)"
+      },
+      "full_body_3_home": {
+        "description": "Three full-body days a week, alternating two sessions. Needs dumbbells, a bench and a pull-up bar.",
+        "name": "Full body, 3 days (home)"
+      },
+      "linear_5x5": {
+        "description": "Two sessions that alternate across three days a week: squat, bench or overhead press, and row or deadlift for five sets of five, adding weight every session. Needs a barbell, rack and bench.",
+        "name": "Linear 5x5"
+      },
+      "push_pull_legs_3": {
+        "description": "Push, pull and legs once each, three days a week. Uses barbells, dumbbells, machines and cables.",
+        "name": "Push / pull / legs, 3 days (gym)"
+      },
+      "push_pull_legs_3_garage": {
+        "description": "Push, pull and legs once each, three days a week. Needs a barbell, squat rack, bench, dumbbells and a pull-up bar.",
+        "name": "Push / pull / legs, 3 days (garage)"
+      },
+      "push_pull_legs_3_home": {
+        "description": "Push, pull and legs once each, three days a week. Needs dumbbells, a bench and a pull-up bar.",
+        "name": "Push / pull / legs, 3 days (home)"
+      },
+      "push_pull_legs_6": {
+        "description": "Push, pull and legs twice a week with a different variation each time, six days a week. For lifters with some training behind them.",
+        "name": "Push / pull / legs, 6 days (gym)"
+      },
+      "upper_lower_4": {
+        "description": "Upper body, lower body, then both again with different lifts, four days a week. Uses barbells, dumbbells, machines and cables.",
+        "name": "Upper / lower, 4 days (gym)"
+      },
+      "upper_lower_4_garage": {
+        "description": "Upper body and lower body, four days a week, built on the barbell lifts. Needs a barbell, squat rack, bench, dumbbells and a pull-up bar.",
+        "name": "Upper / lower, 4 days (garage)"
+      },
+      "upper_lower_4_home": {
+        "description": "Upper body and lower body, four days a week. Needs dumbbells, a bench and a pull-up bar.",
+        "name": "Upper / lower, 4 days (home)"
+      }
+    },
+    "target": {
+      "hold": "{{sets}} x {{seconds}} s",
+      "reps": "{{sets}} x {{reps}}"
+    },
+    "venue": {
+      "garage": "Garage gym",
+      "gym": "Gym",
+      "home": "At home"
+    }
   }
 }

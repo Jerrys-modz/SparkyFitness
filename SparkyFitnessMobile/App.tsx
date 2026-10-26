@@ -51,6 +51,8 @@ import {
   SafeTrainingCalendar,
   SafeWatchRunLive,
   SafeRunPrograms,
+  SafeWorkoutSplits,
+  SafeWorkoutSplitImport,
   SafeRunProgramEdit,
   SafeRoutes,
   SafeRouteDetail,
@@ -630,6 +632,16 @@ function AppContent() {
             name="RunPrograms"
             component={SafeRunPrograms}
             options={createStackScreenOptions(t('screens.runPrograms', { defaultValue: 'Training programs' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="WorkoutSplits"
+            component={SafeWorkoutSplits}
+            options={createStackScreenOptions(t('screens.workoutSplits', { defaultValue: 'Workout programs' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="WorkoutSplitImport"
+            component={SafeWorkoutSplitImport}
+            options={createStackScreenOptions(t('workoutSplits.import.screenTitle', { defaultValue: 'Add program' }), { headerBackTitle: t('screens.workoutSplits', { defaultValue: 'Workout programs' }) })}
           />
           <Stack.Screen
             name="RunProgramRace"

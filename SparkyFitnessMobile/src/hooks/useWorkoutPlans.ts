@@ -45,7 +45,7 @@ export function useWorkoutPlans(options?: { enabled?: boolean }) {
  * watch's "Scheduled today"), and, in prefill mode, exercise entries the
  * server writes into upcoming days, so all of those are refreshed.
  */
-function useInvalidateWorkoutPlans() {
+export function useInvalidateWorkoutPlans() {
   const queryClient = useQueryClient();
   return () => {
     void queryClient.invalidateQueries({ queryKey: workoutPlansRootQueryKey });
