@@ -52,6 +52,23 @@ jobs:
       - name: Render — defaults (bundled postgres)
         run: helm template t helm/chart > /dev/null
 
+      - name: Render — external DB credentials reach the server
+        run: |
+          out=$(helm template t helm/chart \
+            --set postgresql.enabled=false \
+            --set externalDatabase.host=db.example.com \
+            --set externalDatabase.database=sf \
+            --set externalDatabase.auth.username=u \
+            --set externalDatabase.auth.password=p \
+            --show-only templates/secrets/postgres.yaml)
+          grep -q 'name: sparkyfitness-postgres' <<< "$out"
+          err=$(helm template t helm/chart \
+            --set postgresql.enabled=false \
+            --set externalDatabase.host=db.example.com \
+            --set externalDatabase.database=sf \
+            --set externalDatabase.auth.username=u 2>&1 > /dev/null || true)
+          grep -q 'externalDatabase.auth.password is required' <<< "$err"
+
       - name: Render — external DB with NetworkPolicy
         run: |
           helm template t helm/chart \
