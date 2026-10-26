@@ -13,6 +13,7 @@ struct SetOptionsPage: View {
     let step: WorkoutStep
 
     @EnvironmentObject private var session: WatchSessionManager
+    @EnvironmentObject private var store: WorkoutSessionStore
     @State private var choosingType = false
     @State private var choosingSide = false
     @State private var confirmingDelete = false
@@ -27,13 +28,15 @@ struct SetOptionsPage: View {
                 Haptics.tap()
                 choosingType = true
             }
-            Button(String(localized: "watch.workout.side", defaultValue: "Side")) {
-                Haptics.tap()
-                choosingSide = true
-            }
-            Button(String(localized: "watch.workout.addOtherSide", defaultValue: "Add Other Side")) {
-                Haptics.tap()
-                session.sendWorkoutEdit(.addOtherSide(setId: step.plannedSet.setId))
+            if store.isPerSide(step) {
+                Button(String(localized: "watch.workout.side", defaultValue: "Side")) {
+                    Haptics.tap()
+                    choosingSide = true
+                }
+                Button(String(localized: "watch.workout.addOtherSide", defaultValue: "Add Other Side")) {
+                    Haptics.tap()
+                    session.sendWorkoutEdit(.addOtherSide(setId: step.plannedSet.setId))
+                }
             }
             Button(String(localized: "watch.workout.deleteSet", defaultValue: "Delete Set")) {
                 Haptics.tap()
@@ -225,16 +228,19 @@ private struct EditPage<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(spacing: 6) {
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            content
-                .font(.system(size: 15, weight: .semibold))
+        // Scrolls so a page with more buttons than fit (a one-sided exercise
+        // adds two) never pushes its title under the clock.
+        ScrollView {
+            VStack(spacing: 6) {
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                content
+                    .font(.system(size: 15, weight: .semibold))
+            }
+            .padding(.horizontal, 2)
         }
-        .frame(maxHeight: .infinity, alignment: .center)
-        .padding(.horizontal, 2)
     }
 }
 

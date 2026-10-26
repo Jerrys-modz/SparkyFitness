@@ -60,6 +60,10 @@ struct PlannedExercise: Codable, Equatable, Identifiable {
     /// (+ added, − assisted). Optional so a snapshot saved before this existed
     /// still decodes, and an older phone that never sends it reads as false.
     var bodyweight: Bool? = nil
+    /// A one-sided exercise, or one with a set already marked left or right.
+    /// Only then does the set options page offer Side and Add Other Side.
+    /// Optional so an older phone, or a saved snapshot, still decodes.
+    var perSide: Bool? = nil
     let sets: [PlannedSet]
 
     var id: String { exerciseEntryId }
